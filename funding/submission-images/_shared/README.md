@@ -15,6 +15,7 @@ node render.mjs page.html out.png 1200 630                  # any HTML page (lin
 node render.mjs "logo.html?mark=cat&bg=night" x.png 512 512 # square logo; add --transparent with bg=none
 node render.mjs --url https://tokentails.com shot.png 1440 900 [--full] [--mobile] [--scale 2]
 node screens.mjs [filter]                                   # retake the common screenshots into screens/
+node screens-mainnet.mjs                                    # retake the live mainnet screenshots into screens/mainnet/ (2x)
 ```
 
 Spec fields are documented at the top of `template.html`. In short: `w`, `h`, `layout`
@@ -39,6 +40,7 @@ or more so the text stays legible. Examples are in `examples/`.
 | `backgrounds/temple-logo-{1200x630,1920x1080}.jpg` | the temple background with the lockup centred (a generic cover) |
 | `assets/` | curated copies of brand art (see the inventory below) |
 | `screens/` | real screenshots taken 2026-10-04 (see below) |
+| `screens-mainnet.mjs`, `screens/mainnet/` | live-site screenshots after the mainnet wave, taken 2026-10-08 (see below) |
 | `examples/` | three specs and their PNGs (split 1200x630, art 630x500, center 1920x1080) |
 
 ## Brand
@@ -106,3 +108,24 @@ display face; mixed-case Latin only).
 | Google-form grants (Team1, Circle) | file upload fields if any; the owner sets the limit (1 MB–10 GB); usually a link to a deck | use 1920x1080 JPG <2 MB | not verified per form |
 | Tameion (Canteen) Google Form | none: repo, video under 3 min, live link | – | tameion.thecanteenapp.com (verified: "no image requirements") |
 | Monad Metropolis | unknown (rules not verified) | default 1024 sq logo + 1920x1080 cover | not verified |
+
+## Mainnet screenshots (`screens/mainnet/`, taken 2026-10-08 about 07:30 UTC)
+
+Taken from the live site at 2x by `screens-mainnet.mjs` (gitignored, like the rest of `screens/`). The payouts page is
+retried until the hero reads "9 payouts on 7 chains", because Arc's public RPC is sometimes busy and a partial read shows
+lower totals ("Some chains could not be read right now"). Every payout in them is a proof payout sent by Token Tails
+(memo "Token Tails first payout"), plus the Tempo campaign-memo payout (memo "Catnip Heist campaign").
+
+| File | Page | Notes |
+|---|---|---|
+| `payouts-top.png` | /shelter-payouts hero | 0.5 USDC · 0.1 USDG · 0.1 EURC · 0.2 USDC.e |
+| `perchain.png`, `card-<chain>-mainnet.png` | "One contract, every chain" section and each card | 8 contracts, balance 0 each |
+| `feed.png` | "Every treat, on the record" | the 9 mainnet payouts with tx and receipt links |
+| `fund.png` | Pink Paw rescue fund | 0.8 of the 50,000 USDC goal |
+| `give-top.png`, `give-tall.png` | /shelter-payouts/give | 7 open network chips, "Sign in to send a treat", 0.01 USDC on Arc |
+| `heist-payouts-{1440,390}.png` | /heist?payouts | "Sent to shelters" with the mainnet payouts list |
+| `rcard-<key>.png`, `receipt-<key>-390.png`, `receipt-arc-1440.png` | /shelter-payouts/receipt for arc, arc-eurc, tempo (campaign memo), arb, base, rh, avax, monad | receipt card only / phone / desktop |
+
+Used by the Oct 8 re-renders in `arc-microgrants`, `colosseum`, `monad-metropolis`, `team1-avalanche`, `tameion`,
+`circle-grants` and `x402-microgrant`. The `dev-*` and `live-*` shots from Oct 4 above are pre-mainnet: do not use them
+for new images.

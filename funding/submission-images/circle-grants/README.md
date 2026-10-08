@@ -11,27 +11,27 @@ the links.
 | # | File | Size | Where it goes | Alt text / caption to paste |
 |---|---|---|---|---|
 | 1 | `01-logo-1024.png` | 1024x1024, 384 KB | Logo or avatar field | Token Tails logo: a white pixel-art cat holding a gold coin. |
-| 2 | `02-cover-1920x1080.jpg` | 1920x1080, 344 KB | Main image, cover or first deck slide | ShelterSplit on Arc: a USDC payout rail for animal shelters. One contract call splits each payment between the shelter and the treasury in the same transaction, with a public event per payout. Arc testnet: 14 test payouts. |
+| 2 | `02-cover-1920x1080.jpg` | 1920x1080, 344 KB | Main image, cover or first deck slide | ShelterSplit on Arc: a USDC payout rail for animal shelters. One contract call splits each payment between the shelter and the treasury in the same transaction, with a public event per payout. Live on Arc mainnet and 6 more chains. Shown: the mainnet payouts feed and the Arc mainnet receipt. |
 | 3 | `03-cover-1200x630.jpg` | 1200x630, 188 KB | Link preview, social post, or a 1.91:1 cover field | Same as #2. |
 | 4 | `04-diagram-agent-flow-1920x1080.png` | 1920x1080, 892 KB | "Architecture" or "Solution" attachment (the key image for the agentic-payments angle) | How an AI agent pays a shelter on Arc: (1) the agent requests a cat card and gets 402 Payment Required with a USDC price and a one-time memo; (2) it pays `donate(memo)` in USDC on Arc, or pays through a facilitator with the standard x402 `exact` scheme; (3) ShelterSplit splits the payment between Pink Paw and the treasury in the same transaction and emits `NativeDisbursed`; (4) the agent retries with the transaction hash and gets the card. The agent endpoint is built and tested but not public yet. |
-| 5 | `05-screen-receipt-1920x1080.jpg` | 1920x1080, 272 KB | Screenshot / traction | Arc testnet receipt: 1 test USDC to Pink Paw (Rožinė pėdutė), read from the chain, with the memo and an explorer link. Test coins, no real money. |
-| 6 | `06-screen-proof-1920x1080.jpg` | 1920x1080, 316 KB | Screenshot / existing deployments | Testnet proof: ShelterSplit runs on 6 testnets. On Arc testnet it has paid 1.76 test USDC in 14 payouts and holds no balance. Test coins, no real money. |
-| 7 | `07-screen-treat-1920x1080.jpg` | 1920x1080, 288 KB | Screenshot / product | Rescue treats: one tap and Token Tails sends a 0.01 USDC treat to Pink Paw through ShelterSplit on Arc testnet. The player needs no wallet. |
-| 8 | `08-screen-game-1920x1080.jpg` | 1920x1080, 328 KB | Screenshot / team and traction | Catnip Heist, live at tokentails.com/heist: players free a shelter cat and send Pink Paw a rescue treat. The "Sent to shelters" panel will list each payout with a link to the chain. |
+| 5 | `05-screen-receipt-1920x1080.jpg` | 1920x1080, 272 KB | Screenshot / traction | Arc mainnet receipt: 0.1 USDC to Pink Paw (Rožinė pėdutė), block 24760885, read from the chain, with the memo and an explorer link. ShelterSplit's first Arc payout, sent by Token Tails as proof. |
+| 6 | `06-screen-proof-1920x1080.jpg` | 1920x1080, 324 KB | Screenshot / existing deployments | ShelterSplit live on 7 mainnets: on Arc it paid its first 0.1 USDC and 0.1 EURC to Pink Paw (proof payouts by Token Tails); 9 payouts across 7 chains, each contract with a balance of 0. |
+| 7 | `07-screen-treat-1920x1080.jpg` | 1920x1080, 312 KB | Screenshot / product | Rescue treats, live: one tap and Token Tails sends a 0.01 USDC treat to Pink Paw through ShelterSplit on Arc mainnet (or one of six other chains). The player needs no wallet. |
+| 8 | `08-screen-game-1920x1080.jpg` | 1920x1080, 336 KB | Screenshot / team and traction | Catnip Heist, live at tokentails.com/heist: players free a shelter cat and send Pink Paw a rescue treat. The "Sent to shelters" panel lists every mainnet payout with a link to the chain. |
 
 Suggested order if the form takes only a few images: 4 (diagram), 2 (cover), 5 (receipt), 6 (proof).
 
 ## Truth checks (keep these when you edit)
 
-- Every on-chain number is from **Arc testnet**. Each image that shows one labels it "testnet" or "test coins, no
-  real money". No image claims a mainnet payout. The live site still says "First payouts land soon".
+- Oct 8: every on-chain number is now from **mainnet** (Arc, plus the 7-chain feed), read from the live site. The
+  payouts shown are proof payouts sent by Token Tails; the images say so and claim no player or donor payout.
 - The agent endpoint (`GET /shelter/agent/cat-card`, `backend/src/shelter/onchain/shelter-x402.service.ts`)
   is in the code with unit tests, but it is off by default (`SHELTER_X402_ENABLED`). The diagram says
-  "built and tested · not public yet". Switch that chip only once the endpoint is public.
+  "built and tested · not public yet" (it answers 409 on mainnet until handover). Switch that chip only once the endpoint is public. Its other chip now reads "ShelterSplit live on Arc mainnet".
 - The 0.01 USDC treat and the 10-minute memo expiry are the code defaults. The x402 price is configurable.
 - The shelter wallet is held by Token Tails until handover, and the diagram footer says so.
-- Shots 5–7 come from the working tree (localhost:3001, Arc testnet config), not from tokentails.com. Shot 8 and
-  the game page are live.
+- Shots 2, 3 and 5–8 load fresh live screenshots from `../_shared/screens/mainnet/` (gitignored; retake with
+  `node ../_shared/screens-mainnet.mjs`). The old `_src/*-crop.png` testnet crops are no longer used.
 - The submission text (`framework/applications/circle-developer-grants/submission.md`) still leads with Tempo.
   If the final application leads with agentic payments on Arc, align the summary with the diagram.
 - The images use no Circle, Arc, x402 or other sponsor logos (there are none in the repo, and the rules do not

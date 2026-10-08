@@ -1,0 +1,24 @@
+{
+ "w": 1920,
+ "h": 1080,
+ "layout": "split",
+ "bg": "space",
+ "dim": 0.35,
+ "logo": "text",
+ "logoH": 8,
+ "textWidth": 0.34,
+ "footer": "tokentails.com/shelter-payouts",
+ "artPos": "center",
+ "art": "../../_shared/screens/mainnet/perchain.png",
+ "kicker": "ShelterSplit",
+ "title": "One contract.<br><em>Every payout public.</em>",
+ "subtitle": "One call splits a payment across the shelter wallets, with one public event per payout. Live on 7 mainnets, Monad included: 9 payouts so far, contract balance 0 everywhere.",
+ "chips": [
+  {
+   "text": "Monad mainnet · 0x457c…b147"
+  }
+ ],
+ "titleSize": 4.6,
+ "subtitleSize": 1.9,
+ "artFit": "contain"
+}

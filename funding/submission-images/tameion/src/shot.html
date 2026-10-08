@@ -34,12 +34,12 @@
 const S = "../../_shared/screens/";
 const V = {
   proof: {
-    kicker: 'ShelterSplit on Arc testnet',
+    kicker: 'ShelterSplit on Arc mainnet',
     title: 'Check <em class="tt-glow" style="font-style:normal">every payout.</em>',
-    sub: "The contract the agent pays is live on Arc testnet. Each payout is a public event, read back from the chain, with a receipt page.",
-    chips: [["Testnet · test coins, no real money", "mint"], ["Pink Paw · Rožinė pėdutė", "pink"]],
-    right: `<div class="tt-panel frame"><img src="${S}dev-testnet-proof-1440.png"></div><div class="phone"><img src="${S}dev-receipt-arc-testnet-390.png"></div>`,
-    foot: "Arc testnet · ShelterSplit 0x457c…b147 · explorer.testnet.arc.io"
+    sub: "The contract the agent pays is live on Arc mainnet. Each payout is a public event, read back from the chain, with a receipt page. Shown: its first payout, 0.1 USDC sent by Token Tails as proof.",
+    chips: [["Arc mainnet · real USDC", "gold"], ["Pink Paw · Rožinė pėdutė", "pink"]],
+    right: `<div class="tt-panel frame"><img src="${S}mainnet/feed.png"></div><div class="phone"><img src="${S}mainnet/receipt-arc-390.png"></div>`,
+    foot: "Arc mainnet · ShelterSplit 0x457c…b147 · explorer.arc.io"
   },
   code: {
     title: 'One call. <em class="tt-glow" style="font-style:normal">A hard cap.</em>',
@@ -73,8 +73,8 @@ console.<span class="f">log</span>(<span class="k">await</span> response.<span c
     title: 'Same split, <em class="tt-glow" style="font-style:normal">for players too.</em>',
     sub: "Agents pay through the cat-card endpoint; players give from Catnip Heist. Both land on the same public payouts page.",
     list: ["Free a shelter cat in a heist", "Tap the rescue treat for Pink Paw", "Every payout listed with a link to the chain"],
-    chips: [["Live at tokentails.com/heist", "gold"], ["First payouts land soon", "pink"]],
-    right: `<div class="tt-panel frame crop"><img src="${S}live-heist-payouts-1440.png"></div>`,
+    chips: [["Live at tokentails.com/heist", "gold"], ["9 mainnet payouts listed", "pink"]],
+    right: `<div class="tt-panel frame crop"><img src="${S}mainnet/heist-payouts-1440.png"></div>`,
     foot: "tokentails.com/heist"
   }
 };

@@ -7,7 +7,7 @@
  "logo": "text",
  "kicker": "Public goods · Catnip Heist",
  "title": "Rescue a shelter cat.<br><em>Meet Pink Paw's<br>real cats.</em>",
- "subtitle": "Catnip Heist is live at tokentails.com/heist. Its payouts screen lists every shelter payout with a link to check it on the chain. The first real payouts land soon.",
+ "subtitle": "Catnip Heist is live at tokentails.com/heist. Its “Sent to shelters” screen lists every mainnet payout to Pink Paw with a link to check it on the chain, and a player can send Pink Paw a rescue treat.",
  "chips": [
   {
    "text": "Pink Paw · Rožinė pėdutė",
@@ -17,7 +17,7 @@
    "text": "Built in the hackathon window"
   }
  ],
- "art": "../../_shared/screens/live-heist-payouts-1440.png",
+ "art": "../../_shared/screens/mainnet/heist-payouts-1440.png",
  "artPos": "center top",
  "textWidth": 0.4,
  "footer": "tokentails.com/heist",

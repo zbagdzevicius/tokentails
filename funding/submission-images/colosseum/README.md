@@ -8,37 +8,50 @@ upload 1024x1024. **The size limit is not verified**; every file here is under 1
 confirmed, so files 02 to 08 go into the pitch video, the product demo, the slides, the README or X posts, or into an
 image or gallery field if Arena shows one.
 
-All on-chain numbers are **testnet** data read on 2026-10-04: 49 test payouts on 10 contracts, 6 testnets. No mainnet
-payout exists yet. Every image that shows payouts carries a "testnet / test coins, no real money" label. The mainnet
-coins are shown as "mainnet plan" (dashed chips).
+Re-rendered 2026-10-08 after the mainnet wave, from fresh screenshots of the **live site** (tokentails.com, about
+07:30 UTC, `../_shared/screens-mainnet.mjs`). ShelterSplit is live on 7 mainnets: `0x457c…b147` on Arbitrum One, Base,
+Robinhood Chain, Arc, Avalanche and Monad, and `0x9978…598d` on Tempo (nonce-1 address after an out-of-gas deploy).
+There are 9 mainnet payouts so far, all **sent by Token Tails**: one 0.1 proof payout per contract plus the Tempo
+campaign-memo payout (0.1 USDC.e, memo "Catnip Heist campaign", tx `0xcd33…b8b5`). Sponsored treats are live; the first
+real treat is still to come. Pink Paw's wallet is held by Token Tails until handover, and the images say so.
 
 | File | Size | Where it goes | Alt text / caption to paste |
 |---|---|---|---|
-| `01-logo-1024.png` | 1024x1024, 682 KB | **Arena project logo** (main pick). The cat bust sits on the bottom edge, so it also works under a circle crop | Token Tails pixel-art cat logo on a night-sky temple |
-| `01b-graphic-square-1024.png` | 1024x1024, 921 KB | Use it instead of 01 if the field is labelled "graphic" rather than logo; it also works as a square social post | Token Tails logo with the words "ShelterSplit: shelter payouts you can check" |
-| `02-cover-1920x1080.jpg` | 1920x1080, 381 KB | Cover or gallery image, the pitch video title card, the first slide | ShelterSplit, a USDC payout rail for animal shelters: one contract on Tempo, Arbitrum, Base and Robinhood Chain. Shown with the testnet proof page and a Tempo testnet receipt (test coins). |
-| `02-cover-1200x630.jpg` | 1200x630, 207 KB | X post or link card, Discord announcement | Same as above |
-| `03-diagram-one-contract-six-chains-1920x1080.png` | 1920x1080, 1151 KB | Pitch "how it works" slide, README, the "Other chains" section | One ShelterSplit contract on six testnets (Tempo, Arbitrum, Base, Robinhood Chain, Arc, Avalanche), with the coin on each chain and the planned mainnet coin for the four Colosseum tracks (USDC.e, USDC, USDC, USDG), all paying one Pink Paw wallet. Testnet, test coins. |
-| `04-receipts-four-tracks-1920x1080.png` | 1920x1080, 1083 KB | Pitch "proof" slide, one image per entered track, X thread | Four testnet receipts from the same contract on Tempo, Arbitrum, Base and Robinhood Chain: each one 1 test coin to Pink Paw (Rožinė pėdutė), with the memo "Token Tails first payout". Test coins, no real money. |
-| `05-diagram-tempo-memo-flow-1920x1080.png` | 1920x1080, 1210 KB | Tempo track slide, the "Why Tempo" section | disburseWithMemo splits a payment in one transaction and pays each shelter with TIP-20 transferWithMemo, so the memo is on the shelter's own transfer. Next to it, a real Tempo testnet receipt. Mainnet deploy pending. |
-| `06-screen-testnet-proof-1920x1080.png` | 1920x1080, 905 KB | Demo or gallery screenshot | The payouts page's testnet proof section: "Live on 6 testnets. Check every payout." 49 test payouts on 10 contracts, test coins, no real money. |
-| `07-screen-heist-pink-paw-1920x1080.jpg` | 1920x1080, 337 KB | Public goods slide, gallery | Catnip Heist (live at tokentails.com/heist): its "Sent to shelters" screen with Pink Paw's real cats. The first real payouts land soon. |
-| `08-screen-tempo-testnet-receipt-1440x900.png` | 1440x900, 805 KB | Raw screenshot for the demo or the README | Rescue receipt read from the chain: 1 pathUSD to Pink Paw on the Tempo testnet, memo "Token Tails first payout". Testnet, test coins, no real money. |
+| `01-logo-1024.png` | 1024x1024, 684 KB | **Arena project logo** (main pick). The cat bust sits on the bottom edge, so it also works under a circle crop | Token Tails pixel-art cat logo on a night-sky temple |
+| `01b-graphic-square-1024.png` | 1024x1024, 924 KB | Use it instead of 01 if the field is labelled "graphic" rather than logo; it also works as a square social post | Token Tails logo with the words "ShelterSplit: shelter payouts you can check" |
+| `02-cover-1920x1080.jpg` | 1920x1080, 372 KB | Cover or gallery image, the pitch video title card, the first slide | ShelterSplit, a USDC payout rail for animal shelters, live on Tempo, Arbitrum, Base and Robinhood Chain mainnet (plus Arc, Avalanche and Monad). Shown with the live payouts feed and the Tempo mainnet receipt with the memo "Catnip Heist campaign". |
+| `02-cover-1200x630.jpg` | 1200x630, 200 KB | X post or link card, Discord announcement | Same as above |
+| `03-diagram-one-contract-seven-mainnets-1920x1080.png` | 1920x1080, 1.2 MB | Pitch "how it works" slide, README, the "Other chains" section | One ShelterSplit source (73/73 Foundry tests) on seven mainnets, with the coin each pays: Tempo USDC.e (2 payouts, one with a TIP-20 memo), Arbitrum USDC, Base USDC, Robinhood Chain USDG (the four Colosseum tracks), plus Arc USDC and EURC, Avalanche USDC and Monad USDC, all paying one Pink Paw wallet held by Token Tails until handover. 9 mainnet payouts, first payouts sent by Token Tails. |
+| `04-receipts-four-tracks-1920x1080.png` | 1920x1080, 1.1 MB | Pitch "proof" slide, one image per entered track, X thread | Four mainnet receipts from the same contract source on Tempo, Arbitrum One, Base and Robinhood Chain, each 0.1 (USDC.e, USDC, USDC, USDG) to Pink Paw (Rožinė pėdutė). Tempo's carries the campaign memo; the others are Token Tails' first payouts. |
+| `05-diagram-tempo-memo-flow-1920x1080.png` | 1920x1080, 1.2 MB | Tempo track slide, the "Why Tempo" section | disburseWithMemo splits a payment in one transaction and pays each shelter with TIP-20 transferWithMemo, so the memo is on the shelter's own transfer. Next to it, the real Tempo mainnet payout: 0.1 USDC.e with the memo "Catnip Heist campaign" (contract 0x9978…598d, chain 4217). |
+| `06-screen-mainnet-payouts-1920x1080.jpg` | 1920x1080, 344 KB | Demo or gallery screenshot | tokentails.com/shelter-payouts, "One contract, every chain": eight mainnet contracts on 7 chains, each with its total paid and a balance of 0 (pass-through). |
+| `07-screen-heist-pink-paw-1920x1080.jpg` | 1920x1080, 372 KB | Public goods slide, gallery | Catnip Heist (live at tokentails.com/heist): its "Sent to shelters" screen lists every mainnet payout to Pink Paw with a link to the chain, next to Pink Paw's rescue fund and the rescue-treat button. |
+| `08-screen-tempo-mainnet-receipt-1440x900.png` | 1440x900, 824 KB | Raw screenshot for the demo or the README | Rescue receipt read from the chain: 0.1 USDC.e to Pink Paw on Tempo mainnet, block 43071848, memo "Catnip Heist campaign". |
+
+Replaced on Oct 8: `03-diagram-one-contract-six-chains`, `06-screen-testnet-proof` and `08-screen-tempo-testnet-receipt`
+are deleted. No image says "Mainnet deploy(s): pending" or shows testnet data any more.
 
 ## Before you upload
 
-- The testnet proof section (06, 03) and the receipts (04, 05, 08) were taken from the **working tree on
-  localhost:3001**. They are not on tokentails.com until that work is pushed. Push it before you submit, or point
-  judges to the explorer links in submission.md.
-- After the mainnet wave, re-render 03 and 05 with real mainnet chips and drop "Mainnet deploys: pending". Edit
-  `src/chains.html` and `src/memo.html`, then run `node ../_shared/render.mjs src/chains.html 03-....png 1920 1080`.
-- Don't use stills from `funding/media/out/demo-colosseum.mp4`: its frames show placeholders and a "live on mainnet"
-  caption.
+- Don't use stills from `funding/media/out/demo-colosseum.mp4`: its frames show placeholders.
+- After the first real sponsored treat, 06/07 still hold (they show what was there on Oct 8); retake only if you want
+  the treat in the picture (`node ../_shared/screens-mainnet.mjs`, then re-render).
 
 ## Sources
 
 `src/` holds the HTML and specs: `receipts4.html`, `chains.html`, `memo.html`, `cover-{1920,1200}.json`,
-`heist.json`, `logo-sq.json`, and the crops they use. `src/shots.mjs` retakes the receipts (Tempo 42431, Arbitrum
-Sepolia 421614, Base Sepolia 84532, Robinhood 46630) and the proof section from localhost:3001 into `screens/`.
-Payout counts per chain in 03 come from the proof page: Tempo 7, Arbitrum 5, Base 8, Robinhood 4, Arc 17,
-Avalanche 8 (total 49).
+`payouts.json`, `heist.json`, `logo-sq.json`. Since Oct 8 they load the screenshots from `../_shared/screens/mainnet/`
+(gitignored; retake with `node ../_shared/screens-mainnet.mjs`). `src/shots.mjs` and the `src/*.png` crops are the old
+testnet captures and are no longer used. Render from this folder:
+
+```bash
+R=../_shared/render.mjs
+node $R --spec src/cover-1920.json 02-cover-1920x1080.jpg --quality 88
+node $R --spec src/cover-1200.json 02-cover-1200x630.jpg --quality 90
+node $R src/chains.html 03-diagram-one-contract-seven-mainnets-1920x1080.png 1920 1080
+node $R src/receipts4.html 04-receipts-four-tracks-1920x1080.png 1920 1080
+node $R src/memo.html 05-diagram-tempo-memo-flow-1920x1080.png 1920 1080
+node $R --spec src/payouts.json 06-screen-mainnet-payouts-1920x1080.jpg --quality 88
+node $R --spec src/heist.json 07-screen-heist-pink-paw-1920x1080.jpg --quality 88
+node $R --url "https://tokentails.com/shelter-payouts/receipt?chain=4217&tx=0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5" 08-screen-tempo-mainnet-receipt-1440x900.png 1440 900 --wait 8000
+```

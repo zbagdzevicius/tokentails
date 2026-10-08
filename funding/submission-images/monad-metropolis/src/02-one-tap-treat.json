@@ -9,16 +9,16 @@
  "textWidth": 0.38,
  "footer": "tokentails.com/shelter-payouts/give",
  "artPos": "center top",
- "art": "give-crop.png",
+ "art": "../../_shared/screens/mainnet/give-tall.png",
  "kicker": "Step 2 · Give",
  "title": "One tap.<br><em>A treat for<br>Pink Paw.</em>",
- "subtitle": "Token Tails pays a small USDC treat from a capped daily budget. The player needs no wallet and no gas.",
+ "subtitle": "Token Tails pays a small USDC treat from a capped daily budget, on the network the player picks: Monad is one of seven. The player needs no wallet and no gas.",
  "chips": [
   {
-   "text": "Live page · treat jar opens soon"
+   "text": "Live · 7 networks, Monad included"
   },
   {
-   "text": "0.01 USDC per treat",
+   "text": "Sponsored by Token Tails",
    "tone": "pink"
   }
  ],

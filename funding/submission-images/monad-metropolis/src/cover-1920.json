@@ -8,20 +8,19 @@
  "textWidth": 0.46,
  "kicker": "Consumer payments for shelters",
  "title": "Win a heist.<br><em>Feed a shelter cat.</em>",
- "subtitle": "One tap after a Catnip Heist win sends a small USDC treat to a real cat shelter. No wallet and no gas for the player. Running on testnet now, with every payout public on the chain.",
+ "subtitle": "One tap after a Catnip Heist win sends a small USDC treat to a real cat shelter. No wallet and no gas for the player. ShelterSplit is live on Monad mainnet, with every payout public on the chain.",
  "chips": [
   {
-   "text": "Testnet receipts · test coins",
-   "tone": "mint"
+   "text": "Live on Monad mainnet"
   },
   {
    "text": "Pink Paw · Rožinė pėdutė",
    "tone": "pink"
   }
  ],
- "art": "give-crop.png",
+ "art": "../../_shared/screens/mainnet/give-tall.png",
  "artPos": "center top",
- "art2": "../../_shared/screens/dev-receipt-arc-testnet-390.png",
+ "art2": "../../_shared/screens/mainnet/receipt-monad-390.png",
  "footer": "tokentails.com/heist",
  "titleSize": 4.9,
  "subtitleSize": 1.85,

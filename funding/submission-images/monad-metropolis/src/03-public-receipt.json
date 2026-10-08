@@ -8,17 +8,18 @@
  "logoH": 8,
  "textWidth": 0.38,
  "footer": "tokentails.com/shelter-payouts",
- "artPos": "center top",
- "art": "receipt-crop.png",
+ "artPos": "center",
+ "art": "../../_shared/screens/mainnet/rcard-monad.png",
  "kicker": "Step 3 · Check",
  "title": "Every treat,<br><em>a public<br>receipt.</em>",
- "subtitle": "Read from the chain, not from our database: amount, shelter wallet, memo, block and an explorer link.",
+ "subtitle": "Read from the chain, not from our database: amount, shelter wallet, memo, block and an explorer link. Shown: the first Monad mainnet payout, 0.1 USDC sent by Token Tails as proof.",
  "chips": [
   {
-   "text": "Testnet · test coins, no real money",
-   "tone": "mint"
+   "text": "Monad mainnet · block 111375456"
   }
  ],
  "titleSize": 4.6,
- "subtitleSize": 1.9
+ "subtitleSize": 1.9,
+ "artFit": "cover",
+ "artAspect": "1472/798"
 }

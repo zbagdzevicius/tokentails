@@ -35,7 +35,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:19px;color:var(--cream);
  <div class="box" style="flex:1.15;border-color:var(--gold-400);box-shadow:0 0 34px rgba(255,204,85,.3)"><div class="step">2 · One transaction</div><div class="bt">ShelterSplit</div><div class="bd">Pulls USDC.e, splits what arrived by each shelter's basis points, emits <code>Disbursed</code> per shelter and one <code>DisbursementBatch</code>.</div></div>
  <div class="arrow"><svg viewBox="0 0 56 40"><path d="M2 20 H44 M32 6 L50 20 L32 34" stroke="#ffcc55" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
  <div class="split">
-  <div class="out"><div class="step">3 · Each active shelter</div><div class="bt">Pink Paw wallet</div><div class="bd">its share via <code>transferWithMemo</code><br><span class="memo">memo = purchase reference</span></div></div>
+  <div class="out"><div class="step">3 · Each active shelter</div><div class="bt">Pink Paw wallet</div><div class="bd">its share via <code>transferWithMemo</code><br><span class="memo">memo = purchase or campaign reference</span></div></div>
   <div class="out t"><div class="step">Rest and rounding dust</div><div class="bt">Treasury</div></div>
  </div>
  <div class="arrow"><svg viewBox="0 0 56 40"><path d="M2 20 H44 M32 6 L50 20 L32 34" stroke="#ffcc55" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -47,7 +47,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:19px;color:var(--cream);
  <div class="w"><b>Settled receipts</b><span>Deterministic finality: a receipt links to a payout that is final.</span></div>
  <div class="w"><b>No one paid short</b><span>A transfer-policy block reverts the whole batch. Tested against a mock TIP-20 at the USDC.e address.</span></div>
 </div>
-<div class="shot"><img src="rc-tempo-wide.png"></div>
+<div class="shot"><img src="../../_shared/screens/mainnet/rcard-tempo.png"></div>
 </div>
-<div class="foot"><span class="tt-chip mint">Right: a real Tempo testnet payout receipt · test coins, no real money</span><span class="tt-chip">Mainnet deploy: pending</span></div>
+<div class="foot"><span class="tt-chip">Right: a Tempo mainnet payout · 0.1 USDC.e with the memo “Catnip Heist campaign”</span><span class="tt-chip">Contract 0x9978…598d · chain 4217</span></div>
 </div></body></html>

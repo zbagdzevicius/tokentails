@@ -9,16 +9,16 @@ h1{font-size:84px;text-align:center}
 .contract{margin-top:40px;padding:26px 56px;text-align:center;border:5px solid var(--gold-400);border-radius:26px;background:rgba(7,5,26,.9);box-shadow:0 0 40px rgba(255,204,85,.35)}
 .contract .n{font-family:"Passion One";font-weight:700;font-size:58px;text-transform:uppercase;color:var(--cream);line-height:1}
 .contract .d{font-size:22px;font-weight:700;color:var(--muted);margin-top:8px} .contract .d b{color:var(--cream)}
-svg{display:block}
+svg{display:block;flex-shrink:0}
 .row{display:flex;gap:22px}
-.t{width:276px;border:4px solid var(--gold-500);border-radius:22px;background:rgba(7,5,26,.86);padding:22px 20px 20px;display:flex;flex-direction:column;gap:11px;position:relative}
+.t{width:236px;border:4px solid var(--gold-500);border-radius:22px;background:rgba(7,5,26,.86);padding:22px 20px 20px;display:flex;flex-direction:column;gap:11px;position:relative}
 .t.dim{border-color:#5a4a80;opacity:.82}
 .t .c{font-family:"Passion One";font-weight:700;font-size:34px;white-space:nowrap;line-height:1;text-transform:uppercase;color:var(--gold-400)}
 .t.dim .c{color:var(--lilac)}
 .t .net{font-size:18px;font-weight:700;color:var(--muted)}
 .lab{font-family:"Passion One";font-weight:700;text-transform:uppercase;font-size:15px;letter-spacing:.06em;color:var(--muted);margin-top:4px}
 .coins{display:flex;gap:8px;flex-wrap:wrap}
-.coin{font-family:"Passion One";font-weight:700;font-size:24px;padding:2px 14px;border-radius:999px;border:3px solid var(--mint);color:var(--mint);background:rgba(7,5,26,.7)}
+.coin{font-family:"Passion One";font-weight:700;font-size:24px;padding:2px 14px;border-radius:999px;border:3px solid var(--gold-400);color:var(--gold-400);background:rgba(7,5,26,.7)}
 .coin.main{border-color:var(--gold-400);color:var(--gold-400);border-style:dashed}
 .pay{font-size:19px;font-weight:700;color:var(--cream)}
 .badge{position:absolute;top:-17px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:"Passion One";font-weight:700;text-transform:uppercase;font-size:15px;letter-spacing:.05em;background:var(--gold-400);color:var(--gold-ink);padding:3px 10px;border-radius:999px}
@@ -28,21 +28,22 @@ svg{display:block}
 .shelter .s2{font-size:19px;font-weight:700;color:var(--cream)}
 .foot{margin-top:auto;padding-top:14px;display:flex;gap:14px;font-size:21px}
 </style></head><body><div class="wrap">
-<h1 class="tt-title">One contract. <em class="tt-glow">Six chains.</em> A coin per chain.</h1>
-<div class="lead">The same ShelterSplit source and test suite on every chain. Only the payout token changes.</div>
+<h1 class="tt-title">One contract. <em class="tt-glow">Seven mainnets.</em></h1>
+<div class="lead">The same ShelterSplit source on every chain, live on mainnet since Oct 7. Only the payout token changes.</div>
 <div class="contract"><div class="n">ShelterSplit</div><div class="d">one Solidity source · <b>73/73</b> Foundry tests · payouts split by basis points in one transaction</div></div>
 <svg width="1792" height="96" viewBox="0 0 1792 96"><g stroke="#e2c05a" stroke-width="4" fill="none" stroke-dasharray="2 10" stroke-linecap="round">
-<path d="M896 0 V40 M151 96 V40 H1641 V96 M449 40 V96 M747 40 V96 M1045 40 V96 M1343 40 V96"/></g></svg>
+<path d="M895 0 V40 M118 96 V40 H1672 V96 M377 40 V96 M636 40 V96 M1154 40 V96 M1413 40 V96 M895 40 V96"/></g></svg>
 <div class="row">
- <div class="t"><span class="badge">Colosseum track</span><div class="c">Tempo</div><div class="net">testnet · chain 42431</div><div class="lab">Testnet coin</div><div class="coins"><span class="coin">pathUSD</span></div><div class="lab">Mainnet plan</div><div class="coins"><span class="coin main">USDC.e + memo</span></div><div class="pay">7 test payouts</div></div>
- <div class="t"><span class="badge">Colosseum track</span><div class="c">Arbitrum</div><div class="net">Sepolia · chain 421614</div><div class="lab">Testnet coin</div><div class="coins"><span class="coin">USDC</span></div><div class="lab">Mainnet plan</div><div class="coins"><span class="coin main">USDC</span></div><div class="pay">5 test payouts</div></div>
- <div class="t"><span class="badge">Colosseum track</span><div class="c">Base</div><div class="net">Sepolia · chain 84532</div><div class="lab">Testnet coin</div><div class="coins"><span class="coin">USDC</span></div><div class="lab">Mainnet plan</div><div class="coins"><span class="coin main">USDC</span></div><div class="pay">8 test payouts</div></div>
- <div class="t"><span class="badge">Colosseum track</span><div class="c" style="font-size:28px;height:34px;line-height:38px">Robinhood Chain</div><div class="net">testnet · chain 46630</div><div class="lab">Testnet coin</div><div class="coins"><span class="coin">mUSDC</span></div><div class="lab">Mainnet plan</div><div class="coins"><span class="coin main">USDG</span></div><div class="pay">4 test payouts</div></div>
- <div class="t dim"><div class="c">Arc</div><div class="net">testnet · chain 5042002</div><div class="lab">Testnet coins</div><div class="coins"><span class="coin">USDC</span><span class="coin">EURC</span></div><div class="lab">&nbsp;</div><div class="coins" style="visibility:hidden"><span class="coin">x</span></div><div class="pay">17 test payouts</div></div>
- <div class="t dim"><div class="c">Avalanche</div><div class="net">Fuji · chain 43113</div><div class="lab">Testnet coins</div><div class="coins"><span class="coin">USDC</span><span class="coin">EURC</span></div><div class="lab">&nbsp;</div><div class="coins" style="visibility:hidden"><span class="coin">x</span></div><div class="pay">8 test payouts</div></div>
+ <div class="t"><span class="badge">Colosseum track</span><div class="c">Tempo</div><div class="net">mainnet · chain 4217</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC.e</span></div><div class="pay">2 payouts · one with a TIP-20 memo</div></div>
+ <div class="t"><span class="badge">Colosseum track</span><div class="c">Arbitrum</div><div class="net">mainnet · chain 42161</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC</span></div><div class="pay">1 payout</div></div>
+ <div class="t"><span class="badge">Colosseum track</span><div class="c">Base</div><div class="net">mainnet · chain 8453</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC</span></div><div class="pay">1 payout</div></div>
+ <div class="t"><span class="badge">Colosseum track</span><div class="c" style="font-size:23px;height:34px;line-height:38px">Robinhood Chain</div><div class="net">mainnet · chain 4663</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDG</span></div><div class="pay">1 payout</div></div>
+ <div class="t dim"><div class="c">Arc</div><div class="net">mainnet · chain 5042</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC</span><span class="coin">EURC</span></div><div class="pay">2 payouts</div></div>
+ <div class="t dim"><div class="c">Avalanche</div><div class="net">mainnet · chain 43114</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC</span></div><div class="pay">1 payout</div></div>
+ <div class="t dim"><div class="c">Monad</div><div class="net">mainnet · chain 143</div><div class="lab">Pays</div><div class="coins"><span class="coin">USDC</span></div><div class="pay">1 payout</div></div>
 </div>
 <svg width="1792" height="84" viewBox="0 0 1792 84" style="margin-bottom:-4px"><g stroke="#ff7aa2" stroke-width="4" fill="none" stroke-dasharray="2 10" stroke-linecap="round">
-<path d="M151 0 V44 H1641 V0 M449 0 V44 M747 0 V44 M1045 0 V44 M1343 0 V44 M896 44 V84"/></g></svg>
+<path d="M118 0 V44 H1672 V0 M377 0 V44 M636 0 V44 M895 0 V44 M1154 0 V44 M1413 0 V44 M895 44 V84"/></g></svg>
 <div class="shelter"><img src="../../_shared/assets/pink-paw-logo.webp"><div><div class="s1">Pink Paw · Rožinė pėdutė</div><div class="s2">One shelter wallet on every chain, held by Token Tails until handover</div></div></div>
-<div class="foot"><span class="tt-chip mint">49 test payouts on 10 contracts · test coins, no real money</span><span class="tt-chip">Mainnet deploys: pending</span></div>
+<div class="foot"><span class="tt-chip">9 mainnet payouts on 7 chains · first payouts sent by Token Tails</span><span class="tt-chip mint">Sponsored treats open on all 7</span></div>
 </div></body></html>

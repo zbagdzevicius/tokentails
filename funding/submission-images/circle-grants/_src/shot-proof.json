@@ -8,16 +8,15 @@
  "logoH": 8,
  "footer": "tokentails.com",
  "textWidth": 0.38,
- "kicker": "Testnet proof",
- "title": "Live on 6 testnets.<br><em>Check every payout.</em>",
- "subtitle": "On Arc testnet, ShelterSplit has paid 1.76 test USDC in 14 payouts. The contract keeps no balance: each payment is split out in the same transaction.",
+ "kicker": "Mainnet",
+ "title": "Live on 7 mainnets.<br><em>Check every payout.</em>",
+ "subtitle": "On Arc mainnet, ShelterSplit paid its first 0.1 USDC and 0.1 EURC to Pink Paw, sent by Token Tails as proof; 9 payouts across 7 chains so far. Contracts keep no balance: each payment is split out in the same transaction.",
  "chips": [
   {
-   "text": "Test coins · no real money",
-   "tone": "mint"
+   "text": "Mainnet · real USDC"
   }
  ],
- "art": "proof-crop.png",
+ "art": "../../_shared/screens/mainnet/perchain.png",
  "artPos": "center",
- "artAspect": "1240/810"
+ "artFit": "contain"
 }
