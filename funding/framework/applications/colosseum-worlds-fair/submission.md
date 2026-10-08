@@ -51,7 +51,7 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 
 ## On-chain proof
 
-All deployed and paid on 2026-10-07, inside the window; sources verified on Sourcify. Tempo mainnet: ShelterSplit 0x9978e60da2352a8de02852788d34bd95849a598d. Its TIP-20 memo payout, 0.1 USDC.e with the memo "Catnip Heist campaign", is https://explore.tempo.xyz/tx/0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5 and its receipt https://tokentails.com/shelter-payouts/receipt?chain=4217&tx=0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5. Arbitrum One, Base and Robinhood Chain: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147, one payout each (links below). Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw until handover, and every payout so far is Token Tails' own money.
+All deployed and paid on 2026-10-07, inside the window; sources verified on Sourcify (Tempo on its own Sourcify server, contracts.tempo.xyz). Tempo mainnet: ShelterSplit 0x9978e60da2352a8de02852788d34bd95849a598d. Its TIP-20 memo payout, 0.1 USDC.e with the memo "Catnip Heist campaign", is https://explore.tempo.xyz/tx/0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5 and its receipt https://tokentails.com/shelter-payouts/receipt?chain=4217&tx=0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5. Arbitrum One, Base and Robinhood Chain: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147, one payout each (links below). Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw until handover, and every payout so far is Token Tails' own money.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
@@ -84,7 +84,7 @@ Judge only the work done from 2026-09-14 to 2026-10-12: ShelterSplit, DonateRout
 
 ## AI tools used
 
-The team built the in-window code with Claude Code (Anthropic) as a coding assistant: contracts, tests, backend and client code, docs and these drafts. Commits it helped write carry a "Co-Authored-By: Claude" trailer. A person directed the work, and every mainnet deployment and payout was signed and broadcast by a person; the AI never held a mainnet key. The optional treat agent calls the Anthropic API, and the contract caps what it can spend. Prior work: the app uses OpenAI and Gemini for cat stories and portraits. The pitch and demo videos are recorded by a person.
+The team built the in-window code with Claude Code (Anthropic) as a coding assistant: contracts, tests, app code, docs and these drafts. Commits it helped write carry a "Co-Authored-By: Claude" trailer. A person directed the work, and every mainnet deployment and payout was signed and broadcast by a person; the AI never held a mainnet key. The optional treat agent calls the Anthropic API, and the contract caps what it can spend. Prior work: the app uses OpenAI and Gemini for cat stories and portraits. The pitch video is recorded by a person. The demo video is real screen footage (the game's solution replay and the live payouts page) cut by a script, with a text-to-speech voice.
 
 ## Open source and third-party code
 

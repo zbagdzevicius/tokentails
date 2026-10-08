@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-07T23:45:30.341Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-08T07:51:55.961Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -16,9 +16,9 @@ matching form field._
 | Live deployment link | https://tokentails.com/shelter-payouts (plus the Arc explorer link for 0x457c89e10a6e66633eda5bf82fd086febb5db147) |
 | Builder profile | https://github.com/zbagdzevicius (GitHub; required by the call) |
 
-## Summary  <!-- 269/280 chars -->
+## Summary  <!-- 268/280 chars -->
 
-ShelterSplit splits native USDC on Arc as it arrives and pays each registered shelter in one transaction, with a public receipt for every payout. It is live on Arc mainnet with proof payouts to its first shelter, Pink Paw, whose wallet Token Tails holds until handover.
+ShelterSplit splits native USDC on Arc as it arrives and pays each registered shelter in the same transaction, with a public receipt per payout. Live on Arc mainnet: proof payouts and sponsored one-tap treats to Pink Paw, whose wallet Token Tails holds until handover.
 
 ## What we built on Arc
 
@@ -34,7 +34,7 @@ ShelterSplit splits native USDC on Arc as it arrives and pays each registered sh
 
 ## Arc mainnet deployment
 
-Arc mainnet: ShelterSplit (USDC) at 0x457c89e10a6e66633eda5bf82fd086febb5db147 and ShelterSplit (EURC) at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052. The first payout to Pink Paw is transaction 0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d, a Disbursed event anyone can look up. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
+Arc mainnet: ShelterSplit (USDC) at 0x457c89e10a6e66633eda5bf82fd086febb5db147 and ShelterSplit (EURC) at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052. The first Arc mainnet payout to Pink Paw is transaction 0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d, a Disbursed event anyone can look up. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Every payout into it stays public, before and after the handover. The team has shipped production contracts before: three Soroban contracts on Stellar mainnet, and ERC-721 contracts on SKALE testnet and mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
@@ -60,7 +60,7 @@ Token Tails is a Lithuanian company, registered as an MB in October 2024. The te
 - [ ] Arc MAINNET address recorded and verified with fund a:verify arc mainnet
 - [ ] Repo public
 - [ ] Public builder profile link filled in (GitHub, X or Farcaster)
-- [ ] https://api.tokentails.com/shelter/donate/status returns 200 returns enabled:true on 5042 before any copy says players send sponsored gifts (the Summary and Roadmap say 'built, switching on' since 2026-10-08)
+- [ ] https://api.tokentails.com/shelter/donate/status still shows enabled:true and railState live on 5042 (checked 2026-10-08: 0.01 USDC treats, 100 a day; hot wallet 4.45 USDC = 300-treat float plus gas), since the Summary and Solution say treats are live
 - [ ] Pink Paw consent letter or public post exists, or no consent is claimed
 - [ ] If a Tameion prize was awarded before Arc decides, disclose it (Arc excludes work already funded by a Circle or Arc program)
 

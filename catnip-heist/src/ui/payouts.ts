@@ -38,10 +38,15 @@ interface ChainUnits {
    * 2,000, so a window scan from the deploy block outgrows the modal's time budget within days.
    */
   logsApi?: string;
+  /** The shortest gap between two calls to `rpc`, when it rate-limits small bursts: calls are spaced out instead of retried. */
+  minCallGapMs?: number;
 }
 
+// Arc mainnet: rpc.mainnet.arc.io refuses eth_getLogs over 10,000 blocks (the refused full-range call
+// falls back to LOG_WINDOW = 10,000) and answers about two calls a second sustained (500 ms apart: 60 of 60; checked 2026-10-08), so its
+// calls are spaced out; no keyless endpoint takes wider ranges. Mirrors client/components/shelter-payouts/chains.ts.
 export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
-  5042: { rpc: 'https://rpc.mainnet.arc.io', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
+  5042: { rpc: 'https://rpc.mainnet.arc.io', minCallGapMs: 500, decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
   5042002: { rpc: 'https://rpc.testnet.arc.io', logsApi: 'https://explorer.testnet.arc.io/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'USDC' },
   4217: { rpc: 'https://rpc.tempo.xyz', maxLogRange: 99_999, decimals: 6, symbol: 'USDC' },
   42431: { rpc: 'https://rpc.moderato.tempo.xyz', decimals: 6, symbol: 'pathUSD' },
@@ -132,7 +137,31 @@ export function setPayoutsSleep(fn: (ms: number) => Promise<void>): void {
   sleep = fn;
 }
 
+// Calls to an RPC with a minCallGapMs (Arc mainnet), retries included, wait until that long after the
+// previous call to the same URL, so the scan stays under the limit instead of burning retries on 429s.
+const CALL_GAPS = new Map<string, number>();
+for (const c of Object.values(PAYOUT_CHAINS)) if (c.minCallGapMs) CALL_GAPS.set(c.rpc, c.minCallGapMs);
+const lastCallAt = new Map<string, number>();
+let now = () => Date.now();
+/** Test hook: replace the clock used to space out calls. */
+export function setPayoutsClock(fn: () => number): void {
+  now = fn;
+}
+
+// The slot is reserved before waiting, so calls stay one gap apart even if a caller ever bypasses the
+// per-URL queue below.
+async function paced(url: string): Promise<void> {
+  const gap = CALL_GAPS.get(url);
+  if (!gap) return;
+  const t = now();
+  const last = lastCallAt.get(url);
+  const at = last === undefined ? t : Math.max(t, last + gap);
+  lastCallAt.set(url, at);
+  if (at > t) await sleep(at - t);
+}
+
 async function rpcOnce<T>(f: Fetch, url: string, method: string, params: unknown[], signal: AbortSignal): Promise<T> {
+  await paced(url);
   const res = await f(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal });
   if (res.status === 429) throw new RateLimited(`${method}: HTTP 429`);
   if (!res.ok) {

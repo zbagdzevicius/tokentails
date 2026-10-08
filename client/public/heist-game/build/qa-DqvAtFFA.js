@@ -1,0 +1,1 @@
+import"./index-CMGC97Pk.js";function e(e){return null}export{e as installQA};

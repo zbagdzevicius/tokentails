@@ -30,6 +30,11 @@ export interface ChainInfo {
    * ranges and rate-limits the many windows that needs. Balances, receipts and wallets keep `rpc`.
    */
   logRpc?: string;
+  /**
+   * The shortest gap between two calls to this chain's RPCs, when the RPC rate-limits small bursts.
+   * Calls are spaced out instead of being refused and retried.
+   */
+  minCallGapMs?: number;
 }
 
 /** What each chain is used for, one line per chain family (the payouts page shows it per card). */
@@ -70,8 +75,12 @@ export const chainDisplayName = (chain: Pick<ChainInfo, "name" | "testnet">): st
 // Blockdaemon endpoint listed by Arc takes 100,000-block windows (checked 2026-10-04).
 // Base Sepolia: sepolia.base.org caps eth_getLogs at 1,000 blocks, so the page reads the keyless
 // publicnode endpoint, which serves the whole range since the deploy in one call (checked 2026-10-04).
+// Arc mainnet: rpc.mainnet.arc.io refuses eth_getLogs over 10,000 blocks ("requested range too large")
+// and answers about two calls a second sustained (back to back, 9 of 40 got through; 350 ms apart, 29 then
+// a run of 429s; 500 ms apart, 60 of 60; checked 2026-10-08). No keyless endpoint takes wider ranges (arc-mainnet.drpc.org: ~100 blocks;
+// explorer.arc.io sits behind a Cloudflare challenge), so the scan uses 10,000-block windows, spaced out.
 export const SHELTER_CHAINS: Record<number, ChainInfo> = {
-  5042: { name: "Arc", rpc: "https://rpc.mainnet.arc.io", explorer: "https://explorer.arc.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" },
+  5042: { name: "Arc", rpc: "https://rpc.mainnet.arc.io", maxLogRange: 10_000, minCallGapMs: 500, explorer: "https://explorer.arc.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" },
   5042002: { name: "Arc Testnet", testnet: true, rpc: "https://rpc.testnet.arc.io", logRpc: "https://rpc.blockdaemon.testnet.arc.network", maxLogRange: 100_000, explorer: "https://explorer.testnet.arc.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" },
   8453: { name: "Base", rpc: "https://mainnet.base.org", maxLogRange: 500, explorer: "https://basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   84532: { name: "Base Sepolia", testnet: true, rpc: "https://base-sepolia-rpc.publicnode.com", explorer: "https://sepolia.basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },

@@ -64,6 +64,6 @@ What carries over is the team that shipped it, and an app on web, iOS and Androi
 visual: card
 title: Open source, MIT\NAny app can pay the same shelters
 
-The business is simple. A fixed share of each purchase goes to shelters through the rail, and the rest goes to the treasury.
+The plan is simple. A fixed share of each purchase will go to shelters through the rail, and the rest to the treasury. Today the rail is live, with sponsored treats on Tempo, Arbitrum, Base and Robinhood Chain.
 The contract charges shelters nothing, and it is open source, so any app can pay the same shelter registry.
 Token Tails. Thank you for watching.

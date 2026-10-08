@@ -144,10 +144,38 @@ export function rpcCall<T>(url: string, method: string, params: unknown[]): Prom
   return serial(url, () => rpcRetrying<T>(url, method, params));
 }
 
+// RPCs that 429 small bursts (a chain's minCallGapMs, e.g. Arc mainnet): each call, retries included,
+// waits until that long after the previous call to the same URL. The scan then stays under the limit
+// instead of burning its retries on 429s.
+const CALL_GAPS = new Map<string, number>();
+for (const c of Object.values(SHELTER_CHAINS)) {
+  if (!c.minCallGapMs) continue;
+  for (const u of [c.rpc, c.logRpc]) if (u) CALL_GAPS.set(u, c.minCallGapMs);
+}
+const lastCallAt = new Map<string, number>();
+let now = () => Date.now();
+/** Test hook: replace the clock used to space out calls. */
+export function setRpcClock(fn: () => number) {
+  now = fn;
+}
+
+// The slot is reserved before waiting, so calls stay one gap apart even if a caller ever bypasses the
+// per-URL queue above.
+async function paced(url: string) {
+  const gap = CALL_GAPS.get(url);
+  if (!gap) return;
+  const t = now();
+  const last = lastCallAt.get(url);
+  const at = last === undefined ? t : Math.max(t, last + gap);
+  lastCallAt.set(url, at);
+  if (at > t) await sleep(at - t);
+}
+
 async function rpcRetrying<T>(url: string, method: string, params: unknown[]): Promise<T> {
   let backoff = RATE_LIMIT_BACKOFF_MS;
   for (let attempt = 0; ; attempt++) {
     try {
+      await paced(url);
       return await rpcOnce<T>(url, method, params);
     } catch (err) {
       if (!(err instanceof RpcRateLimitError) || attempt >= RATE_LIMIT_RETRIES) throw err;
