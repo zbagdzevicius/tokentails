@@ -13,7 +13,7 @@
   "mainnet_required": true,
   "build_window_start": "2026-09-14",
   "build_window_end": "2026-10-12",
-  "next": "Run the mainnet wave (Tempo, Arbitrum One, Base, Robinhood Chain), fund a:ingest, then fund fill --ingest --write and fund a:submission colosseum-worlds-fair",
+  "next": "Mainnet done (Oct 7) and draft v6 true as of Oct 8. Person: fill {TEAM_MEMBERS} {TEAM_LOCATION} in draft.md, record the pitch and demo and set {PITCH_VIDEO_URL} {DEMO_URL} (fill-values.json), register every member, then fund a:submission colosseum-worlds-fair and paste PASTE.md in Arena; tracks Tempo, Arbitrum, Base, Robinhood; Public Goods unticked",
   "criteria": [
     [
       "C1",
@@ -55,7 +55,7 @@
   "submission": {
     "fields": {
       "Tracks entered": "Tempo, Arbitrum, Base and Robinhood Chain",
-      "Category": "Payments / public goods"
+      "Category": "Payments (Public Goods not entered)"
     },
     "sections": [
       {
@@ -93,6 +93,18 @@
         "auto": "build"
       },
       {
+        "title": "Prior work",
+        "from": "Prior work"
+      },
+      {
+        "title": "AI tools used",
+        "from": "AI tools used"
+      },
+      {
+        "title": "Open source and third-party code",
+        "from": "Open source and third-party code"
+      },
+      {
         "title": "Traction",
         "from": "Traction"
       },
@@ -101,16 +113,22 @@
         "from": "Team"
       },
       {
+        "title": "Go-to-market",
+        "from": "Go-to-market"
+      },
+      {
         "title": "Roadmap and business plan",
         "from": "Roadmap and business plan"
       }
     ],
     "checklist": [
-      "Public GitHub repo; disclose pre-hackathon work (products are judged only on work done Sep 14 - Oct 12)",
+      "Public GitHub repo (contracts/shelter-split, MIT); prior work disclosed in the Prior work field (products are judged only on work done Sep 14 - Oct 12)",
       "Product demo video recorded by a human, no more than 3 minutes (colosseum.com/hackathon FAQ)",
       "Pitch/presentation video recorded by a human, 2 to 3 minutes (colosseum.com/hackathon FAQ)",
-      "Deployment address and explorer link per entered track: Tempo mainnet (explore.tempo.xyz), Arbitrum One, Base and Robinhood Chain (robinhoodchain.blockscout.com)",
-      "Every team member registered on colosseum.com before 2026-10-12 23:59 PT (rules section 6)"
+      "Deployment address and explorer link per entered track: Tempo mainnet (explore.tempo.xyz), Arbitrum One (arbiscan.io), Base (basescan.org) and Robinhood Chain (robinhoodchain.blockscout.com)",
+      "Tracks ticked: Tempo, Arbitrum, Base, Robinhood Chain. Public Goods NOT ticked",
+      "Every team member registered on colosseum.com before 2026-10-12 23:59 PT (rules section 6); the Team Leader uploads the submission",
+      "No {PLACEHOLDER} left in the pasted text"
     ]
   },
   "verify": [

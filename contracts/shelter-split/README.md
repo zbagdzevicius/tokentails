@@ -103,7 +103,23 @@ at the time of writing (the lists above win if they differ):
 | Robinhood Chain testnet (46630) | mUSDC (mock; the testnet has no stablecoin) | [`0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777`](https://explorer.testnet.chain.robinhood.com/address/0x2d42d01a00d75ade8c4f9503a7a6cee8a5f34777) | – (no EIP-3009) |
 | Monad testnet (10143) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://testnet.monadvision.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xe271131be71e29f83084fd34aa6c70d50a2aea71`](https://testnet.monadvision.com/address/0xe271131be71e29f83084fd34aa6c70d50a2aea71) |
 
-Mainnet instances appear in `deployments.json` and on the payouts page once they are recorded.
+Mainnet instances, deployed and source-verified on 2026-10-07 (the lists above win if they differ):
+
+| Network | Token | ShelterSplit | DonateRouter | Proof payout |
+|---|---|---|---|---|
+| Arc (5042) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://explorer.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0x937f13ce28294011567615330dbcb859a06a0bba`](https://explorer.arc.io/address/0x937f13ce28294011567615330dbcb859a06a0bba) | [payout](https://explorer.arc.io/tx/0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d) |
+| Base (8453) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://basescan.org/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [payout](https://basescan.org/tx/0x130fdcc6987ddefb95d787c1bd2da3d210ee844cdbc339c7b59e0949a401da3d) |
+| Arbitrum One (42161) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://arbiscan.io/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [payout](https://arbiscan.io/tx/0x74f1eaf7fe3494608f1e80d92afc27c1035b8eaf34e3bd190695f1da46929216) |
+| Robinhood Chain (4663) | USDG | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://robinhoodchain.blockscout.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | – (no EIP-3009) | [payout](https://robinhoodchain.blockscout.com/tx/0x4902093822e89d56b49b1168f7c0bf702f0a2cf9b578fe54eb8efdb3a49ad377) |
+| Avalanche C-Chain (43114) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://subnets.avax.network/c-chain/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://subnets.avax.network/c-chain/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [payout](https://subnets.avax.network/c-chain/tx/0x624cea2121311397c688384535ac700cabbd8f36d0523f2134edb133756b17b7) |
+| Monad (143) | USDC | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://monadvision.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://monadvision.com/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [payout](https://monadvision.com/tx/0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5) |
+| Arc (5042) | EURC | [`0xb3adf1220d7d3835c2af1c194ff745d0d33bd052`](https://explorer.arc.io/address/0xb3adf1220d7d3835c2af1c194ff745d0d33bd052) | [`0x683d66d89eaa7460d3a12337cdf8185fae37dfbd`](https://explorer.arc.io/address/0x683d66d89eaa7460d3a12337cdf8185fae37dfbd) | [payout](https://explorer.arc.io/tx/0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f) |
+| Tempo (4217) | USDC.e | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | – (no EIP-3009) | [payout](https://explore.tempo.xyz/tx/0xdc25ffea4a1f97b25c5d3cb5827919bd998f37c676867dd262bcf0158e7d3d33) |
+
+On Tempo a second payout, [0xcd33…b8b5](https://explore.tempo.xyz/tx/0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5),
+is a `disburseWithMemo` call: Pink Paw's share arrives through TIP-20 `transferWithMemo` with the memo
+"Catnip Heist campaign". Every mainnet payout so far is Token Tails'
+own money, paid to the wallet it holds for Pink Paw until handover (see Disclosures).
 
 ## How to verify
 

@@ -5,7 +5,7 @@ status: drafting
 frame: payout-rail
 deadline: "2026-10-12T23:59:00-07:00"
 url: "https://colosseum.com/worldsfair"
-next: "Run the mainnet wave (Tempo, Arbitrum One, Base, Robinhood Chain), fund a:ingest, then fund fill --ingest --write and fund a:submission colosseum-worlds-fair"
+next: "Mainnet done (Oct 7) and draft v6 true as of Oct 8. Person: fill {TEAM_MEMBERS} {TEAM_LOCATION} in draft.md, record the pitch and demo and set {PITCH_VIDEO_URL} {DEMO_URL} (fill-values.json), register every member, then fund a:submission colosseum-worlds-fair and paste PASTE.md in Arena; tracks Tempo, Arbitrum, Base, Robinhood; Public Goods unticked"
 created: 2026-09-25
 profile: colosseum-worlds-fair
 chain: [tempo, arbitrum, base, robinhood]
