@@ -64,7 +64,6 @@ export type DonateIneligibleReason = "email-unverified" | "account-too-new" | "n
 
 export type DonateResult =
   | { status: "sent"; receipt: DonateReceipt }
-  | { status: "signed-out" }
   | { status: "not-eligible"; reason: DonateIneligibleReason; eligibleAt: string | null; message?: string }
   | { status: "already-sent" }
   | { status: "disabled"; message?: string }
@@ -97,42 +96,53 @@ async function getDonateStatus(): Promise<DonateStatus | null> {
   }
 }
 
-/** `chainId`: the picked network. Left out (or the main chain's id omitted by the caller): the main chain. */
+/**
+ * POST one treat. A registered account sends on `/shelter/donate`; anyone else (no token, or a guest
+ * token the account route refuses) sends on `/shelter/donate/guest`, which needs no sign-in (Oct 8,
+ * 2026). `chainId`: the picked network; left out, the main chain.
+ */
 async function donate(source: DonateSource, chainId?: number): Promise<DonateResult> {
   const headers = getAuthHeaders();
-  if (!headers.accesstoken) return { status: "signed-out" };
+  const body = JSON.stringify(chainId === undefined ? { source } : { source, chainId });
+  const post = (path: string, auth: Record<string, string>) =>
+    fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", ...auth } as HeadersInit,
+      body,
+    });
 
   let response: Response;
+  let resBody: Record<string, unknown> | null = null;
   try {
-    response = await fetch(`${apiUrl}/shelter/donate`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...headers,
-      } as HeadersInit,
-      body: JSON.stringify(chainId === undefined ? { source } : { source, chainId }),
-    });
+    response = headers.accesstoken
+      ? await post("/shelter/donate", { accesstoken: headers.accesstoken })
+      : await post("/shelter/donate/guest", {});
+    if (!response.ok) resBody = await bodyOf(response);
+    if (headers.accesstoken && (response.status === 401 || response.status === 403)) {
+      // A guest or lapsed session: the account route refuses it, the no-account route does not.
+      const refusedCode = errorCodeOf(resBody);
+      if (response.status === 401 || refusedCode === ErrorCode.GUEST_FORBIDDEN || !refusedCode) {
+        response = await post("/shelter/donate/guest", {});
+        resBody = response.ok ? null : await bodyOf(response);
+      }
+    }
   } catch {
     return { status: "error", message: "Could not reach Token Tails. Check your connection." };
   }
 
   if (response.ok) return { status: "sent", receipt: await response.json() };
-  const body = await bodyOf(response);
-  const code = errorCodeOf(body);
-  if (response.status === 401) return { status: "signed-out" };
+  const code = errorCodeOf(resBody);
   if (response.status === 403) {
-    // Only a guest refusal (or a 403 with no code, from an older backend) means "sign in". A
-    // signed-in account refused by the treat policy is told why instead of being asked again.
+    // Older backends refused accounts that did not meet the treat policy; say why.
     if (code === ErrorCode.EMAIL_UNVERIFIED) {
-      return { status: "not-eligible", reason: "email-unverified", eligibleAt: null, message: messageOf(body) };
+      return { status: "not-eligible", reason: "email-unverified", eligibleAt: null, message: messageOf(resBody) };
     }
     if (code === ErrorCode.DONATE_NOT_ELIGIBLE) {
-      const reason = INELIGIBLE_REASONS.find((r) => r === body?.reason) || "no-saved-game";
-      const eligibleAt = typeof body?.eligibleAt === "string" ? body.eligibleAt : null;
-      return { status: "not-eligible", reason, eligibleAt, message: messageOf(body) };
+      const reason = INELIGIBLE_REASONS.find((r) => r === resBody?.reason) || "no-saved-game";
+      const eligibleAt = typeof resBody?.eligibleAt === "string" ? resBody.eligibleAt : null;
+      return { status: "not-eligible", reason, eligibleAt, message: messageOf(resBody) };
     }
-    return { status: "signed-out" };
+    return { status: "error", message: messageOf(resBody) || "Could not send the treat. Try again later." };
   }
   if (response.status === 429) {
     // The once-a-day rule carries DONATE_ALREADY_TODAY; the per-IP rate limiter is a bare 429.
@@ -140,12 +150,13 @@ async function donate(source: DonateSource, chainId?: number): Promise<DonateRes
       ? { status: "already-sent" }
       : { status: "error", message: "Too many tries. Wait a minute and try again." };
   }
-  // 409: the treat rail is paused or today's budget is spent (older backends answered 503).
+  // 409: the treat rail is paused or today's budget is spent (older backends answered 503, and the
+  // no-account route answers 503 when it cannot tell visitors apart).
   // 424: the transaction could not be sent; the message says to try again later.
-  if (response.status === 409 || response.status === 503) return { status: "disabled", message: messageOf(body) };
+  if (response.status === 409 || response.status === 503) return { status: "disabled", message: messageOf(resBody) };
   return {
     status: "error",
-    message: messageOf(body) || `Something went wrong (HTTP ${response.status}).`,
+    message: messageOf(resBody) || `Something went wrong (HTTP ${response.status}).`,
   };
 }
 

@@ -1,16 +1,17 @@
 /*
- * One eligibility policy table (plan F7.5), as pure functions. Every policy rejects guests before
- * anything else (F5.4), so a guest never learns more than "sign in first".
+ * One eligibility policy table (plan F7.5), as pure functions. The paw and pledge policies reject
+ * guests before anything else (F5.4), so a guest never learns more than "sign in first".
  *
  * | Action          | Requires                                                                           |
  * |-----------------|------------------------------------------------------------------------------------|
- * | Instant treat   | registered, email verified, account >= 24 h old, >= 1 saved game                   |
+ * | Instant treat   | nothing (Oct 8, 2026): anyone, signed in or not, once a UTC day; the per-chain     |
+ * |                 | daily budget and the per-IP limits bound it (see POST /shelter/donate/guest)       |
  * | Daily paw       | registered, email verified, >= 24 h old at settlement, >= 2 /live rows with        |
  * |                 | points > 0 at least 3 minutes apart that UTC day                                   |
  * | Goal pledge     | registered, account >= 72 h old, >= 3 saved games (daily cap and per-user throttle |
  * |                 | are enforced by the pledge route itself)                                           |
  *
- * The instant-treat policy is wired into POST /shelter/donate now. The paw and pledge policies are
+ * The instant-treat policy is open to everyone; it stays a function so callers keep one shape. The paw and pledge policies are
  * used by the nightly settlement and Rescue Goals when those land (tasks 4f and G5).
  */
 
@@ -72,20 +73,16 @@ function ageCheck(facts: AccountFacts, minAgeMs: number, at: Date): EligibilityR
     return readyAt.getTime() > at.getTime() ? no('account-too-new', readyAt) : null;
 }
 
-export function instantTreatPolicy(facts: AccountFacts & GamesFacts, now: Date = new Date()): EligibilityResult {
-    if (facts.isGuest) {
-        return no('guest');
-    }
-    if (!facts.emailVerified) {
-        return no('email-unverified');
-    }
-    const age = ageCheck(facts, INSTANT_TREAT_MIN_AGE_MS, now);
-    if (age) {
-        return age;
-    }
-    if ((facts.savedGames || 0) < INSTANT_TREAT_MIN_GAMES) {
-        return no('no-saved-game');
-    }
+/**
+ * Open to everyone since Oct 8, 2026: no account age, email or saved-game rule. The once-a-day
+ * rule (per account, or per hashed IP without one) and the per-chain budget are enforced by the
+ * donate service. Kept as a policy so /impact/me and /shelter/donate/me keep one shape.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function instantTreatPolicy(
+    _facts?: Partial<AccountFacts & GamesFacts>,
+    _now: Date = new Date()
+): EligibilityResult {
     return ok();
 }
 

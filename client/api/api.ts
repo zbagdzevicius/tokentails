@@ -202,7 +202,6 @@ const GATED_ACTIONS: Array<[RegExp, string]> = [
   [/^\/image\/create-checkout/, "purchase"],
   [/^\/image\/portrait(\/|$)/, "purchase"],
   [/^\/web3\/(create-payment|confirm-payment|confirm|open)$/, "purchase"],
-  [/^\/shelter\/donate$/, "give-treat"],
   [/^\/cat\/(adopt|sale|stake|stake-reward)(\/|$)/, "adopt"],
   [/^\/comment$/, "sign-in"],
   [/^\/user\/like$/, "sign-in"],

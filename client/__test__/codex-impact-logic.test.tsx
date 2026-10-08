@@ -268,7 +268,8 @@ describe("treat card: seven states from DONATE_* codes", () => {
       [{ me: { ...ME, today: { status: "SENT" } } }, "on-its-way"],
       [{ send: { kind: "already-today" } }, "sent-today"],
       [{ me: { ...ME, today: { status: "CONFIRMED" } } }, "sent-today"],
-      [{ viewer: "guest" }, "not-eligible"],
+      // Guests may send too (Oct 8, 2026).
+      [{ viewer: "guest" }, "ready"],
       [{ me: { ...ME, eligibility: { eligible: false, reason: "account-too-new", eligibleAt: null } } }, "not-eligible"],
       [{ send: { kind: "paused" } }, "paused"],
       [{ rail: { ...RAIL, state: "not-deployed", enabled: false } }, "paused"],
@@ -286,6 +287,17 @@ describe("treat card: seven states from DONATE_* codes", () => {
     }
     expect(Array.from(seen).sort()).toEqual([...TREAT_STATES].sort());
     expect(treatState({ ...base, railLoaded: false }).kind).toBe("loading");
+  });
+
+  it("a guest token refused by the account route sends on the no-account route (Oct 8, 2026)", async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(json(403, { code: "GUEST_FORBIDDEN" }))
+      .mockResolvedValueOnce(json(200, {}));
+    expect(await sendTreat({ fetchImpl })).toEqual({ kind: "sent" });
+    expect(fetchImpl.mock.calls[0][0]).toBe("http://api.test/shelter/donate");
+    expect(fetchImpl.mock.calls[1][0]).toBe("http://api.test/shelter/donate/guest");
+    expect((fetchImpl.mock.calls[1][1] as RequestInit).headers).not.toHaveProperty("accesstoken");
   });
 
   it("maps the donate codes", async () => {

@@ -166,6 +166,24 @@ describe('ShelterDonateService.donate', () => {
         });
     });
 
+    it('a guest treat (no account) is once a day per address, never storing the address', async () => {
+        enabledEnv({ SHELTER_TREAT_IP_SALT: 'test-salt' });
+        const { service, donations } = setup();
+        await expect(service.donateGuest('203.0.113.7', 'page', NOW)).resolves.toMatchObject({ txHash: TX_HASH });
+
+        const again = await httpError(service.donateGuest('203.0.113.7', 'heist', new Date('2026-10-02T20:00:00Z')));
+        expect(again.getStatus()).toBe(429);
+        expect(again.message).toBe(DONATE_ALREADY_TODAY);
+        // Another address the same day, and the same address the next day, each get one.
+        await expect(service.donateGuest('198.51.100.2', 'page', NOW)).resolves.toMatchObject({ txHash: TX_HASH });
+        await expect(
+            service.donateGuest('203.0.113.7', 'page', new Date('2026-10-03T00:00:01Z'))
+        ).resolves.toMatchObject({ txHash: TX_HASH });
+        expect(JSON.stringify(donations.rows)).not.toContain('203.0.113.7');
+        expect((await service.meGuest('203.0.113.7', NOW)).today).toMatchObject({ status: 'SENT' });
+        expect((await service.meGuest('192.0.2.9', NOW)).today).toBeNull();
+    });
+
     it('answers 409 once the daily budget is spent, and frees the user for another day', async () => {
         enabledEnv({ SHELTER_DONATE_DAILY_BUDGET_WEI: '25000000000000000' }); // 2.5 gifts, so 2 slots
         const { service, donations } = setup();

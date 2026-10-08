@@ -7,7 +7,7 @@ import { ErrorCode, errorCodeOf } from "@/shared-contracts/errors";
  * The treat card on the IMPACT tab (plan G5 "Treats", F7.4, F7.5).
  *
  * A treat is a small gift Token Tails pays to the partner shelter from its own funds, once per
- * account per UTC day. The player pays nothing and spends no Tails, and no Tails are given for it
+ * account (or, without one, per address) per UTC day; no sign-in is needed since Oct 8, 2026. The player pays nothing and spends no Tails, and no Tails are given for it
  * (a cosmetic Treat Giver badge marks five confirmed treats in a season). In-game treats use the
  * `page` source: the `game` source was dropped (plan 2.13 row 28).
  *
@@ -91,19 +91,28 @@ const root = () => {
   return url ? String(url).replace(/\/+$/, "") : null;
 };
 
-/** `GET /shelter/donate/me` (registered accounts). Null on any failure. */
+/**
+ * `GET /shelter/donate/me` for an account, else `GET /shelter/donate/guest/me` (no account, or a
+ * guest token the account route refuses; Oct 8, 2026). Null on any failure.
+ */
 export async function fetchDonateMe({
   token = currentAccessToken(),
   fetchImpl = typeof fetch === "function" ? fetch : undefined,
   signal,
 }: { token?: string; fetchImpl?: typeof fetch; signal?: AbortSignal } = {}): Promise<DonateMe | null> {
   const base = root();
-  if (!fetchImpl || !base || !token) return null;
+  if (!fetchImpl || !base) return null;
   try {
-    const res = await fetchImpl(`${base}/shelter/donate/me`, {
-      signal,
-      headers: { accept: "application/json", accesstoken: token },
-    });
+    let res: Response | null = null;
+    if (token) {
+      res = await fetchImpl(`${base}/shelter/donate/me`, {
+        signal,
+        headers: { accept: "application/json", accesstoken: token },
+      });
+    }
+    if (!res || res.status === 401 || res.status === 403) {
+      res = await fetchImpl(`${base}/shelter/donate/guest/me`, { signal, headers: { accept: "application/json" } });
+    }
     if (!res.ok) return null;
     return normalizeDonateMe(await res.json());
   } catch {
@@ -124,8 +133,10 @@ export type TreatSend =
   | { kind: "retry" };
 
 /**
- * `POST /shelter/donate {source: 'page'}` once, mapped to the card's states by DONATE_* code.
- * Never throws. The card asks for an account before calling it, so the sheet is never opened here.
+ * `POST /shelter/donate {source: 'page'}` once, mapped to the card's states by DONATE_* code. Without
+ * an account (no token, or a guest token the account route refuses) it sends on
+ * `POST /shelter/donate/guest`, which needs no sign-in (Oct 8, 2026). Never throws, never opens the
+ * sign-in sheet.
  */
 export async function sendTreat({
   fetchImpl,
@@ -137,28 +148,40 @@ export async function sendTreat({
 } = {}): Promise<TreatSend> {
   const base = root();
   const token = currentAccessToken();
-  if (!token) return { kind: "signed-out" };
   if (!base) return { kind: "retry" };
   const send =
     fetchImpl ??
     ((input: string, init: RequestInit) => apiFetch(input, init, { guestSession: false, requireAccount: false }));
-  let res: Response;
-  try {
-    res = await send(`${base}/shelter/donate`, {
+  const payload = JSON.stringify(chainId ? { source: "page", chainId } : { source: "page" });
+  const post = (path: string, auth: Record<string, string>) =>
+    send(`${base}${path}`, {
       method: "POST",
-      headers: { accept: "application/json", "content-type": "application/json", accesstoken: token },
-      body: JSON.stringify(chainId ? { source: "page", chainId } : { source: "page" }),
+      headers: { accept: "application/json", "content-type": "application/json", ...auth },
+      body: payload,
     });
+  const readBody = async (r: Response): Promise<unknown> => {
+    try {
+      return await r.json();
+    } catch {
+      return null;
+    }
+  };
+  let res: Response;
+  let body: unknown = null;
+  try {
+    res = token ? await post("/shelter/donate", { accesstoken: token }) : await post("/shelter/donate/guest", {});
+    if (!res.ok) body = await readBody(res);
+    if (token && (res.status === 401 || res.status === 403)) {
+      const refusedCode = errorCodeOf(body);
+      if (res.status === 401 || refusedCode === ErrorCode.GUEST_FORBIDDEN || !refusedCode) {
+        res = await post("/shelter/donate/guest", {});
+        body = res.ok ? null : await readBody(res);
+      }
+    }
   } catch {
     return { kind: "retry" };
   }
   if (res.ok) return { kind: "sent" };
-  let body: unknown = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
   const code = errorCodeOf(body);
   switch (code) {
     case ErrorCode.DONATE_ALREADY_TODAY:
@@ -222,8 +245,7 @@ const nextOf = (rail: DonateRail | null, me: DonateMe | null) => me?.resetsAt ??
 
 /** The card's state from what the backend said. Pure, so every state is unit tested. */
 export function treatState({ viewer, rail, railLoaded, me, meLoaded, send }: TreatInputs): TreatState {
-  if (viewer === "guest") return { kind: "not-eligible", reason: "guest", eligibleAt: null };
-  if (viewer === "unverified") return { kind: "not-eligible", reason: "email-unverified", eligibleAt: null };
+  // Guests and unverified accounts may send too (Oct 8, 2026); the backend keys them by address.
   if (viewer === "loading" || !railLoaded || !meLoaded) return { kind: "loading" };
 
   const nextAt = nextOf(rail, me);

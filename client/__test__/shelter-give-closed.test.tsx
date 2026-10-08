@@ -45,12 +45,13 @@ describe("GiveTreat when the jar is closed", () => {
     expect(requireAccount).not.toHaveBeenCalled();
   });
 
-  it("asks a signed-out visitor to sign in when a treat can be sent", async () => {
+  it("offers a signed-out visitor the treat directly, with no sign-in step", async () => {
     getDonateStatus.mockResolvedValue(open);
     render(<GiveTreat />);
     await screen.findByTestId("treat-amount");
     const button = screen.getByTestId("send-treat") as HTMLButtonElement;
     expect(button.disabled).toBe(false);
-    expect(button.textContent).toMatch(/sign in to send a treat/i);
+    expect(button.textContent).toMatch(/send a treat/i);
+    expect(button.textContent).not.toMatch(/sign in/i);
   });
 });

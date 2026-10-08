@@ -1,6 +1,5 @@
 import { DonateIneligibleReason, DonateReceipt, DonateSource, DonateStatus, SHELTER_API } from "@/api/shelter-api";
 import { isAppBuild } from "@/components/claims/build";
-import { useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -110,10 +109,8 @@ export const GiveTreat = () => {
   // App builds (store copy rule, F7.2): no token names, chain wording or explorer links; the
   // receipt and payout pages show the web proof notice there.
   const isApp = isAppBuild();
-  const { authStatus, requireAccount } = useFirebaseAuth();
-  // Treats are sent from an account (guests are refused by the backend), so a guest or a
-  // signed-out visitor gets the AuthSheet, never a wall (G1).
-  const signedIn = authStatus === "ready";
+  // Anyone may send a treat, signed in or not (Oct 8, 2026): once a UTC day, from the account or,
+  // without one, from this address. No sign-in step.
   const [status, setStatus] = useState<DonateStatus | null | undefined>(undefined);
   // The campaign and its live goal meter (fact C-001), read from the shelter wallet.
   const goal = useCampaignGoal();
@@ -150,22 +147,10 @@ export const GiveTreat = () => {
   }, [status, chips, picked, isApp, wantedChain]);
 
   const give = async () => {
-    if (!signedIn && (await requireAccount("give-treat")) !== "signed-in") return;
     setSend({ status: "sending" });
     // The main chain is sent exactly as before (no chainId); another network names its chain.
     const pickedChain = mainChain ? undefined : chainId;
-    let result = await SHELTER_API.donate(source, pickedChain);
-    if (result.status === "signed-out") {
-      // The session lapsed between the check and the send: ask once more, then retry once.
-      setSend({ status: "idle" });
-      if ((await requireAccount("give-treat")) !== "signed-in") return;
-      setSend({ status: "sending" });
-      result = await SHELTER_API.donate(source, pickedChain);
-      if (result.status === "signed-out") {
-        setSend({ status: "error", message: "Please sign in again to send the treat." });
-        return;
-      }
-    }
+    const result = await SHELTER_API.donate(source, pickedChain);
     if (result.status === "not-eligible") {
       setSend({ status: "not-eligible", reason: result.reason, eligibleAt: result.eligibleAt });
       return;
@@ -186,7 +171,7 @@ export const GiveTreat = () => {
   const treatsLeft = chainStatus ? chainTreatsLeft(chainStatus) : BigInt(0);
   const available = !!chip?.enabled && treatsLeft > BigInt(0);
   // Once the status is known and the jar is closed (backend unreachable, rail paused, or today's
-  // budget spent), nobody is asked to sign in for a treat that cannot be sent.
+  // budget spent), the button says so instead of offering a treat that cannot be sent.
   const closed = status !== undefined && !available;
 
   return (
@@ -275,9 +260,7 @@ export const GiveTreat = () => {
                 ? "Treat jar opens soon"
                 : send.status === "sending"
                 ? "Sending… 🐾"
-                : signedIn
-                ? "Send a treat 🐾"
-                : "Sign in to send a treat 🐾"}
+                : "Send a treat 🐾"}
             </button>
           )}
 

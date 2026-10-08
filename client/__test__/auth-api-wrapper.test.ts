@@ -214,7 +214,8 @@ describe("interceptOptions (opt-in handling for plain fetch calls)", () => {
     expect(interceptOptions("/image/create-checkout-session", post).requireAccount).toBe("purchase");
     expect(interceptOptions("/image/create-checkout-session-signed", post).requireAccount).toBe("purchase");
     expect(interceptOptions("/web3/create-payment", post).requireAccount).toBe("purchase");
-    expect(interceptOptions("/shelter/donate", post).requireAccount).toBe("give-treat");
+    // Treats need no account since Oct 8, 2026: a refused guest falls back to /shelter/donate/guest.
+    expect(interceptOptions("/shelter/donate", post).requireAccount).toBe(false);
     expect(interceptOptions("/cat/adopt/64e2e0000000000000000c01", post).requireAccount).toBe("adopt");
     expect(interceptOptions("/ticket", post).requireAccount).toBe("support");
     expect(interceptOptions("/comment?x=1", post).requireAccount).toBe("sign-in");
@@ -241,8 +242,8 @@ describe("interceptOptions (opt-in handling for plain fetch calls)", () => {
     expect(handlers.ensureGuestSession).not.toHaveBeenCalled();
 
     // A player action opens the sheet with its own reason.
-    await target.fetch("https://api.test/shelter/donate", write);
-    expect(handlers.requireAccount).toHaveBeenCalledWith("give-treat");
+    await target.fetch("https://api.test/ticket", write);
+    expect(handlers.requireAccount).toHaveBeenCalledWith("support");
     uninstall();
   });
 });

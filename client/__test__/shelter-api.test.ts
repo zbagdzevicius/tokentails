@@ -20,9 +20,13 @@ beforeEach(() => {
 });
 
 describe("SHELTER_API.donate", () => {
-  it("does not call the server when signed out", async () => {
-    expect(await SHELTER_API.donate("page")).toEqual({ status: "signed-out" });
-    expect(fetchMock).not.toHaveBeenCalled();
+  it("sends a signed-out visitor's treat on the no-account route, with no token", async () => {
+    const receipt = { txHash: "0x2", chainId: 5042, amountWei: "1", explorerUrl: "https://explorer.arc.io/tx/0x2" };
+    fetchMock.mockReturnValue(reply(200, receipt));
+    expect(await SHELTER_API.donate("page")).toEqual({ status: "sent", receipt });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toMatch(/\/shelter\/donate\/guest$/);
+    expect(init.headers.accesstoken).toBeUndefined();
   });
 
   it("posts the source with the lowercase accesstoken header", async () => {
@@ -50,12 +54,20 @@ describe("SHELTER_API.donate", () => {
     expect((await SHELTER_API.donate("page")).status).toBe("error");
   });
 
-  it("treats only a guest 403 (or a code-less one) as signed out", async () => {
+  it("retries a guest 403 (or a code-less one, or a 401) on the no-account route", async () => {
     store.accesstoken = "fbTOKEN";
-    fetchMock.mockReturnValue(reply(403, { statusCode: 403, code: "GUEST_FORBIDDEN", message: "Guests cannot" }));
-    expect(await SHELTER_API.donate("page")).toEqual({ status: "signed-out" });
-    fetchMock.mockReturnValue(reply(403, { statusCode: 403, message: "Forbidden" }));
-    expect(await SHELTER_API.donate("page")).toEqual({ status: "signed-out" });
+    const receipt = { txHash: "0x3", chainId: 5042, amountWei: "1", explorerUrl: "" };
+    for (const refusal of [
+      reply(403, { statusCode: 403, code: "GUEST_FORBIDDEN", message: "Guests cannot" }),
+      reply(403, { statusCode: 403, message: "Forbidden" }),
+      reply(401, { message: "Unauthorized" }),
+    ]) {
+      fetchMock.mockReset();
+      fetchMock.mockReturnValueOnce(refusal).mockReturnValueOnce(reply(200, receipt));
+      expect(await SHELTER_API.donate("page")).toEqual({ status: "sent", receipt });
+      expect(fetchMock.mock.calls[1][0]).toMatch(/\/shelter\/donate\/guest$/);
+      expect(fetchMock.mock.calls[1][1].headers.accesstoken).toBeUndefined();
+    }
   });
 
   it("maps the treat-policy 403s to not-eligible with the reason", async () => {
@@ -83,7 +95,6 @@ describe("SHELTER_API.donate", () => {
   it.each([
     [503, { status: "disabled", message: "off" }],
     [409, { status: "disabled", message: "off" }],
-    [401, { status: "signed-out" }],
     [500, { status: "error", message: "off" }],
   ])("maps HTTP %s", async (code, expected) => {
     store.accesstoken = "fbTOKEN";

@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { getBigInt } from 'ethers';
 import { Model, Types } from 'mongoose';
 import { ErrorCode } from 'src/shared-contracts/errors';
+import { guestTreatId } from './treat-guest-key';
 import {
     DonationBroadcastError,
     erc20Interface,
@@ -466,6 +467,25 @@ export class ShelterDonateService {
             totalConfirmedWei: decimalToWei((totals as any[])?.[0]?.total),
             lastConfirmedAt: (last as any)?.confirmedAt ? new Date((last as any).confirmedAt).toISOString() : null,
         };
+    }
+
+    /**
+     * A treat without an account (Oct 8, 2026): the same flow as `donate`, keyed by a daily salted
+     * hash of the caller's address instead of an account id (see treat-guest-key.ts). One a day per
+     * address across all chains; the per-chain budget still caps the day.
+     */
+    async donateGuest(
+        ip: string,
+        source: DonationSource,
+        now: Date = new Date(),
+        chainId?: number
+    ): Promise<DonateResult> {
+        return this.donate(guestTreatId(ip, utcDay(now)), source, now, chainId);
+    }
+
+    /** `me` for a caller without an account: today's treat of this address (the id resets daily). */
+    async meGuest(ip: string, now: Date = new Date()): Promise<DonateMe> {
+        return this.me(guestTreatId(ip, utcDay(now)), now);
     }
 
     /**

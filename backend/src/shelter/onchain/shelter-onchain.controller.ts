@@ -4,6 +4,8 @@ import {
     Get,
     Headers,
     HttpCode,
+    HttpException,
+    HttpStatus,
     Param,
     Post,
     Query,
@@ -31,6 +33,8 @@ import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ImpactEligibilityService } from 'src/impact/eligibility.service';
 import { EligibilityResult } from 'src/impact/eligibility';
 import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
+import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
+import { isProxyUntrusted } from 'src/user/heist/proxy-warning';
 import { DonateMe, DonateResult, DonateStatus, ShelterDonateService } from './shelter-donate.service';
 import { DONATION_SOURCES, DonationSource } from './shelter-onchain.schema';
 import { CatCard, encodePaymentResponses, PaymentRequiredException, ShelterX402Service } from './shelter-x402.service';
@@ -129,6 +133,11 @@ export const SHELTER_X402_THROTTLE = { limit: 30, ttl: 60000 };
 /** Relayed wallet gifts and wallet claims: a few tries per minute per IP. */
 export const SHELTER_RELAY_THROTTLE = { limit: 10, ttl: 60000 };
 export const SHELTER_CLAIM_THROTTLE = { limit: 5, ttl: 60000 };
+/**
+ * POST /shelter/donate/guest (no account): per IP, tighter than the signed-in route. The once-a-day
+ * rule (per hashed address) and the per-chain daily budget are the real bounds.
+ */
+export const SHELTER_DONATE_GUEST_THROTTLE = { limit: 5, ttl: 60000 };
 /** Per-user limit on POST /shelter/donate (plan G5 P4): one gift a day needs only a few tries. */
 export const SHELTER_DONATE_USER_THROTTLE = { limit: 5, ttl: 60000 };
 
@@ -218,8 +227,9 @@ export class ShelterOnchainController {
     }
 
     /**
-     * Guests are refused by AppAuthGuard (no @AllowGuest) before the F7.5 instant-treat policy runs:
-     * registered, email verified, account at least 24 h old, at least one saved game.
+     * A registered account's treat, keyed by the account. Guests (anonymous Firebase users) are
+     * refused by AppAuthGuard (no @AllowGuest) and use POST /shelter/donate/guest instead. Since Oct 8,
+     * 2026 there is no account-age, email or saved-game rule (F7.5 instant treat is open).
      */
     @UseGuards(AppAuthGuard, UserThrottlerGuard)
     @UserThrottle(SHELTER_DONATE_USER_THROTTLE)
@@ -227,11 +237,37 @@ export class ShelterOnchainController {
     @HttpCode(200)
     @Post('donate')
     async donate(@AUTH_USER() user: IAuthUser, @Body(donatePipe) body: ShelterDonateDto): Promise<DonateResult> {
-        await this.eligibility.assertInstantTreat(user);
         // No chainId (or null): the main chain, the call exactly as before.
         return body.chainId === undefined || body.chainId === null
             ? this.donateService.donate(String(user._id), body.source)
             : this.donateService.donate(String(user._id), body.source, undefined, body.chainId);
+    }
+
+    /**
+     * A treat with no sign-in at all (Oct 8, 2026): no accesstoken needed. Once a UTC day per client
+     * address (a daily salted hash, never the raw address), plus the per-chain daily budget and a
+     * tight per-IP throttle. In production without TRUST_PROXY every caller shares the balancer's
+     * address, so the route refuses rather than let one visitor use up everyone's treat.
+     */
+    @Throttle({ default: SHELTER_DONATE_GUEST_THROTTLE })
+    @HttpCode(200)
+    @Post('donate/guest')
+    async donateGuest(@Body(donatePipe) body: ShelterDonateDto, @Req() req: any): Promise<DonateResult> {
+        const ip = guestTreatIp(req);
+        return body.chainId === undefined || body.chainId === null
+            ? this.donateService.donateGuest(ip, body.source)
+            : this.donateService.donateGuest(ip, body.source, undefined, body.chainId);
+    }
+
+    /** Today's treat for a caller without an account (same address key as POST donate/guest). */
+    @Throttle({ default: SHELTER_STATUS_THROTTLE })
+    @Get('donate/guest/me')
+    async donateGuestMe(@Req() req: any): Promise<DonateMeResponse> {
+        const [me, eligibility] = await Promise.all([
+            this.donateService.meGuest(guestTreatIp(req)),
+            this.eligibility.instantTreat(null),
+        ]);
+        return { ...me, eligibility };
     }
 
     /**
@@ -279,6 +315,25 @@ export class ShelterOnchainController {
             throw error;
         }
     }
+}
+
+/**
+ * The client address a guest treat is keyed on. Refused with 503 when it cannot tell clients apart
+ * in production (TRUST_PROXY unset, or a private/balancer address), so one visitor cannot spend
+ * the shared key for everyone. Development keys on whatever address it sees.
+ */
+export function guestTreatIp(req: any, env: NodeJS.ProcessEnv = process.env): string {
+    const ip = requestIp(req);
+    if (env.NODE_ENV === 'production' && (isProxyUntrusted(env) || !isUsableClientIp(ip))) {
+        throw new HttpException(
+            {
+                statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+                message: 'Treats without an account are paused right now. Sign in to send one.',
+            },
+            HttpStatus.SERVICE_UNAVAILABLE
+        );
+    }
+    return ip;
 }
 
 /**

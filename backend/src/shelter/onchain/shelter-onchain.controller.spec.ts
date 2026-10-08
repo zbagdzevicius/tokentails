@@ -1,9 +1,11 @@
-import { BadRequestException, ForbiddenException, UnauthorizedException, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ThrottlerException } from '@nestjs/throttler';
 import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import {
     SHELTER_DONATE_USER_THROTTLE,
+    SHELTER_DONATE_GUEST_THROTTLE,
+    guestTreatIp,
     SHELTER_DONATE_THROTTLE,
     SHELTER_STATUS_THROTTLE,
     SHELTER_X402_THROTTLE,
@@ -42,6 +44,9 @@ describe('ShelterOnchainController', () => {
     it('requires sign-in for POST /shelter/donate and GET /shelter/donate/me only', () => {
         expect(Reflect.getMetadata(GUARDS_METADATA, proto.donate)).toEqual([AppAuthGuard, UserThrottlerGuard]);
         expect(Reflect.getMetadata(GUARDS_METADATA, proto.donateMe)).toEqual([AppAuthGuard]);
+        // The no-account routes (Oct 8, 2026) carry no guard at all.
+        expect(Reflect.getMetadata(GUARDS_METADATA, proto.donateGuest)).toBeUndefined();
+        expect(Reflect.getMetadata(GUARDS_METADATA, proto.donateGuestMe)).toBeUndefined();
         expect(Reflect.getMetadata(GUARDS_METADATA, proto.donateStatus)).toBeUndefined();
         expect(Reflect.getMetadata(GUARDS_METADATA, proto.catCard)).toBeUndefined();
     });
@@ -53,6 +58,10 @@ describe('ShelterOnchainController', () => {
     it('tightens the per-IP throttle on every route', () => {
         expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.donate)).toBe(SHELTER_DONATE_THROTTLE.limit);
         expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.donateStatus)).toBe(SHELTER_STATUS_THROTTLE.limit);
+        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.donateGuest)).toBe(
+            SHELTER_DONATE_GUEST_THROTTLE.limit
+        );
+        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.donateGuestMe)).toBe(SHELTER_STATUS_THROTTLE.limit);
         expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.catCard)).toBe(SHELTER_X402_THROTTLE.limit);
     });
 
@@ -87,26 +96,39 @@ describe('ShelterOnchainController', () => {
         expect(donateService.donate).toHaveBeenLastCalledWith('u1', 'page');
     });
 
-    it('runs the instant-treat policy before the service', async () => {
+    it('sends a signed-in treat with no account-age, email or saved-game check', async () => {
         const donateService = { donate: jest.fn().mockResolvedValue({ txHash: '0x1' }) };
-        const eligibility = { assertInstantTreat: jest.fn().mockResolvedValue({ eligible: true, reason: null }) };
         const controller = new ShelterOnchainController(
             donateService as any,
             {} as any,
-            eligibility as any,
+            {} as any,
             {} as any,
             {} as any,
             {} as any
         );
-        const user = { _id: 'user-1', isGuest: false };
-        await controller.donate(user, { source: 'heist' });
-        expect(eligibility.assertInstantTreat).toHaveBeenCalledWith(user);
+        await controller.donate({ _id: 'user-1', isGuest: false } as any, { source: 'heist' });
         expect(donateService.donate).toHaveBeenCalledWith('user-1', 'heist');
     });
 
-    it('never calls the service when the policy refuses', async () => {
-        const donateService = { donate: jest.fn() };
-        const eligibility = { assertInstantTreat: jest.fn().mockRejectedValue(new ForbiddenException()) };
+    it('POST /shelter/donate/guest keys the treat on the client address', async () => {
+        const donateService = { donateGuest: jest.fn().mockResolvedValue({ txHash: '0x1' }) };
+        const controller = new ShelterOnchainController(
+            donateService as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any
+        );
+        await controller.donateGuest({ source: 'page' }, { ip: '203.0.113.7' });
+        expect(donateService.donateGuest).toHaveBeenLastCalledWith('203.0.113.7', 'page');
+        await controller.donateGuest({ source: 'heist', chainId: 4217 }, { ips: ['198.51.100.2'], ip: '10.0.0.1' });
+        expect(donateService.donateGuest).toHaveBeenLastCalledWith('198.51.100.2', 'heist', undefined, 4217);
+    });
+
+    it('GET /shelter/donate/guest/me returns that address treats, always eligible', async () => {
+        const donateService = { meGuest: jest.fn().mockResolvedValue({ day: '2026-10-08', confirmedCount: 0 }) };
+        const eligibility = { instantTreat: jest.fn().mockResolvedValue({ eligible: true, reason: null }) };
         const controller = new ShelterOnchainController(
             donateService as any,
             {} as any,
@@ -115,8 +137,20 @@ describe('ShelterOnchainController', () => {
             {} as any,
             {} as any
         );
-        await expect(controller.donate({ _id: 'u' }, { source: 'page' })).rejects.toBeInstanceOf(ForbiddenException);
-        expect(donateService.donate).not.toHaveBeenCalled();
+        await expect(controller.donateGuestMe({ ip: '203.0.113.7' })).resolves.toEqual({
+            day: '2026-10-08',
+            confirmedCount: 0,
+            eligibility: { eligible: true, reason: null },
+        });
+        expect(donateService.meGuest).toHaveBeenCalledWith('203.0.113.7');
+    });
+
+    it('guestTreatIp refuses in production when clients cannot be told apart', () => {
+        const prod = { NODE_ENV: 'production', TRUST_PROXY: '1' } as any;
+        expect(guestTreatIp({ ips: ['203.0.113.7'], ip: '10.0.0.1' }, prod)).toBe('203.0.113.7');
+        expect(() => guestTreatIp({ ip: '10.0.0.1' }, prod)).toThrow(/Sign in/);
+        expect(() => guestTreatIp({ ip: '203.0.113.7' }, { NODE_ENV: 'production' } as any)).toThrow(/Sign in/);
+        expect(guestTreatIp({ ip: '127.0.0.1' }, { NODE_ENV: 'development' } as any)).toBe('127.0.0.1');
     });
 
     it('GET /shelter/donate/me returns the caller treats plus eligibility', async () => {

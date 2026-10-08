@@ -320,11 +320,12 @@ the match are off by default.
   `SHELTER_DONATE_PRIVATE_KEY`, and the ShelterSplit `Interface` (`donate(string)`, `disburse(uint256,string)`,
   events `NativeDisbursed` topic `0xc859ef09...aeef` and `Disbursed` topic `0x53e1c69d...495a`). Sends are
   queued in-process so concurrent gifts do not collide on the wallet nonce.
-- `ShelterDonateService`: guests are refused by `AppAuthGuard`, then the instant-treat policy runs
-  (F7.5, `src/impact/eligibility.ts`: a verified registered account, at least 24 h old counted from
-  the later of `createdAt` and `promotedAt`, with at least one saved game (a replay-verified Heist
-  save counts, as F7.5 names both treat sources; the daily paw does not count Heist rows); otherwise 403
-  `EMAIL_UNVERIFIED` or `DONATE_NOT_ELIGIBLE` with `reason` and `eligibleAt`). It inserts a
+- `ShelterDonateService`: since Oct 8, 2026 anyone may send a treat. A registered account calls
+  `POST /shelter/donate` (keyed by its id; no account-age, email or saved-game rule, the F7.5
+  instant-treat policy is open). Anyone else calls `POST /shelter/donate/guest`, keyed by a pseudo id:
+  the first 12 bytes of HMAC-SHA256(`SHELTER_TREAT_IP_SALT`, `day|client address`) (`treat-guest-key.ts`;
+  the raw address is never stored, the id changes daily). Production refuses guest treats with 503
+  when `TRUST_PROXY` is unset or the address is private, so one visitor cannot use the shared key. It inserts a
   `shelterdonations` row (unique `user` + UTC `day`, so a second gift is 429 `DONATE_ALREADY_TODAY`;
   a FAILED row of the same day is reused and the attempt kept in `attempts`), claims a slot in
   `shelterdonatedays` with a conditional `$inc` against
@@ -542,8 +543,8 @@ warning).
   served. With `IMPACT_CDN_ENABLED=true` each snapshot is mirrored to `impact/impact.json` on Spaces
   (`Cache-Control: public, max-age=300`). The response never holds an email, wallet key, user list,
   user id or ObjectId (`impact-privacy.spec.ts`).
-- **Eligibility** (`eligibility.ts`, F7.5): one table of pure policies. Instant treat: verified,
-  24 h, 1 saved game. Daily paw: verified, 24 h at settlement, 2 `/live` rows with points at least 3
+- **Eligibility** (`eligibility.ts`, F7.5): one table of pure policies. Instant treat: open to
+  everyone since Oct 8, 2026 (once a day, capped per chain). Daily paw: verified, 24 h at settlement, 2 `/live` rows with points at least 3
   minutes apart that UTC day (Heist rows excluded). Goal give: registered, 72 h, 3 saved games.
 - **Paws** (`paws.service.ts`, decision #26): at 00:30 UTC a leased job settles the UTC day that
   ended: one `paws` row per eligible player and day, a Merkle tree over
@@ -716,6 +717,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Rescue Goals (plan G5) | `RESCUE_GOAL_PLEDGES` (`off` is a kill switch for gives) |
 | Specs only | `MONGO_IT_URI`, `IDENTITY_SPEC_MONGO_URL`, `LIVE_SPEC_MONGO_URL`, `HEIST_BENCH`, `HEIST_BENCH_ROUNDS`; migrations read `MIGRATION_APPLY` (and `MIGRATION_BACKFILL_MISSING`) |
 | Encryption | `INVALIDATE_CACHE_SECRET` (despite the name, this seeds the AES key for custodial wallet secrets; rotating it makes stored secrets unreadable) |
+| Guest treats | `SHELTER_TREAT_IP_SALT` (optional HMAC key for the daily address hash of `POST /shelter/donate/guest`; unset: `INVALIDATE_CACHE_SECRET` is used as the HMAC key, else a random per-process salt, which lets an address send one extra treat after a restart). Needs `TRUST_PROXY` in production |
 | AI | `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY` |
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
@@ -837,6 +839,10 @@ mongorestore --gzip --db=tokentails ./backup/tokentails-YYYY-MM-DD --uri=<connec
 
 Route and logic bugs:
 
+- Open (guest treats, 2026-10-08): `POST /shelter/donate/guest` is keyed per client address, so a
+  visitor with many addresses (VPNs, mobile IP changes) can send more than one treat a day, and a
+  shared address (office, carrier NAT) gets one treat a day for everyone behind it. The per-chain daily
+  budget (100 treats) bounds the loss to that budget; there is no captcha.
 - Open (crypto checkout, 2026-10-04): nothing is live until a treasury address is set per chain
   (`src/payments/crypto/treasury.public.ts` or `CRYPTO_PAY_TREASURY*`); the funding wallet list still has
   `shelter-split-treasury: null`. `CRYPTO_PAY_CAT_SHELTER_BPS` is a founder decision (it is not the

@@ -72,7 +72,7 @@ export const HEIST_LEVEL_COUNT = 8;
 
 /**
  * The note under the CTA: /heist plays straight away, sign-in is only offered after a run. It is
- * about the game; treats need an eligible account (the third beat says so).
+ * about the game; treats need no sign-up either (Oct 8, 2026).
  */
 export const HEIST_NO_SIGNUP_NOTE = "Free in your browser · no sign-up needed";
 /** App builds run the game in the app, not a browser. */
@@ -93,11 +93,11 @@ export function heistSectionEnabled(
 /** The third beat per rail state. `web` may say on-chain (app builds never do, R10). */
 export function heistTreatBeat(state: RailState | null | undefined, isApp: boolean): string {
   const copy: Record<RailCopyState, string> = {
-    // claim: L-rail (only while the rail is live). Treats need a signed-in, eligible account
-    // (POST /shelter/donate); the wallet is held by Token Tails until handover (donations-STATUS).
+    // claim: L-rail (only while the rail is live). Anyone can send one, no sign-in (POST
+    // /shelter/donate/guest, Oct 8, 2026); the wallet is held by Token Tails until handover (donations-STATUS).
     open: isApp
-      ? "Free the shelter cat. Signed-in players can tap and Token Tails sends Pink Paw a small treat, held by Token Tails until handover."
-      : "Free the shelter cat. Signed-in players can tap and Token Tails sends Pink Paw a small treat, on-chain (wallet held by Token Tails until handover).",
+      ? "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, held by Token Tails until handover."
+      : "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain (wallet held by Token Tails until handover).",
     // claim: L-rail
     exhausted: "Free the shelter cat. Today's treats for Pink Paw are used up; back at 00:00 UTC.",
     // claim: L-rail

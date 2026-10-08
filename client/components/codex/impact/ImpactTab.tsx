@@ -98,10 +98,13 @@ export const ImpactTab = ({ season, seasonLoading }: { season: SeasonTimes | nul
     retry: false,
     refetchOnWindowFocus: false,
   });
+  // Every viewer reads its treat of today: an account by id, anyone else by address (no sign-in
+  // needed for a treat since Oct 8, 2026).
+  const treatsOpen = viewer !== "loading";
   const donateMeQuery = useQuery({
-    queryKey: [DONATE_ME_QUERY_KEY, profile?._id ?? null],
+    queryKey: [DONATE_ME_QUERY_KEY, profile?._id ?? null, viewer],
     queryFn: ({ signal }) => fetchDonateMe({ signal, token: currentAccessToken() }),
-    enabled: registered,
+    enabled: treatsOpen,
     staleTime: 15_000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -263,8 +266,8 @@ export const ImpactTab = ({ season, seasonLoading }: { season: SeasonTimes | nul
     viewer,
     rail: railQuery.data ?? null,
     railLoaded: !railQuery.isPending,
-    me: registered ? donateMeQuery.data ?? null : null,
-    meLoaded: !registered || !donateMeQuery.isPending,
+    me: treatsOpen ? donateMeQuery.data ?? null : null,
+    meLoaded: !treatsOpen || !donateMeQuery.isPending,
     send,
   });
 

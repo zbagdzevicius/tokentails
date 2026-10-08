@@ -287,14 +287,18 @@ describe("IMPACT tab", () => {
     expect(pledgeBodies).toHaveLength(0);
   });
 
-  it("a guest is asked for an account and never gives", async () => {
+  it("a guest is asked for an account to give Tails, but may still send a treat", async () => {
     viewer = "guest";
     renderTab();
     fireEvent.click(await screen.findByTestId("give-chip-100"));
     await waitFor(() => expect(runWithAccount).toHaveBeenCalledWith("save-progress", expect.any(Function)));
     expect(screen.queryByRole("dialog", { name: "GIVE TAILS" })).toBeNull();
     expect(screen.getByTestId("my-impact-guest")).toBeTruthy();
-    expect(screen.getByTestId("treat-card").querySelector("[data-treat-state]")!.getAttribute("data-treat-state")).toBe("not-eligible");
+    await waitFor(() =>
+      expect(screen.getByTestId("treat-card").querySelector("[data-treat-state]")!.getAttribute("data-treat-state")).not.toBe(
+        "not-eligible"
+      )
+    );
   });
 
   it("the treat card follows the DONATE_* answer and tracks treat_sent", async () => {

@@ -124,7 +124,7 @@ describe('impact privacy (plan F7.3)', () => {
                 totalConfirmedWei: '10000000000000000',
                 lastConfirmedAt: null,
             },
-            instantTreat: { eligible: false, reason: 'no-saved-game', eligibleAt: null },
+            instantTreat: { eligible: true, reason: null },
             paws: expect.objectContaining({
                 lifetime: 0,
                 proof: null,

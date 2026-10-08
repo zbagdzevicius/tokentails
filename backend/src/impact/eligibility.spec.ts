@@ -1,4 +1,3 @@
-import { ForbiddenException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import {
     accountFactsOf,
@@ -8,39 +7,22 @@ import {
     rescueGoalPledgePolicy,
     spacedScoringRuns,
 } from './eligibility';
-import { DONATE_NOT_ELIGIBLE, ImpactEligibilityService } from './eligibility.service';
+import { ImpactEligibilityService } from './eligibility.service';
 import { memoryModel } from './memory-model.fakes-spec';
 
 const NOW = new Date('2026-10-02T12:00:00Z');
 const ago = (hours: number) => new Date(NOW.getTime() - hours * HOUR_MS);
 const verified = { isGuest: false, emailVerified: true };
 
-describe('F7.5 instant treat policy', () => {
+describe('F7.5 instant treat policy (open since Oct 8, 2026)', () => {
     it.each([
-        [
-            'a guest, even if everything else is met',
-            { ...verified, isGuest: true, createdAt: ago(100), savedGames: 9 },
-            'guest',
-        ],
-        [
-            'an unverified email',
-            { ...verified, emailVerified: false, createdAt: ago(100), savedGames: 9 },
-            'email-unverified',
-        ],
-        ['an account 23 h old', { ...verified, createdAt: ago(23), savedGames: 9 }, 'account-too-new'],
-        ['an unknown creation time', { ...verified, createdAt: null, savedGames: 9 }, 'account-too-new'],
-        ['no saved game', { ...verified, createdAt: ago(25), savedGames: 0 }, 'no-saved-game'],
-        ['a verified 24 h account with one game', { ...verified, createdAt: ago(24), savedGames: 1 }, null],
-    ])('%s -> %s', (_label, facts, reason) => {
-        const result = instantTreatPolicy(facts as any, NOW);
-        expect(result.eligible).toBe(reason === null);
-        expect(result.reason).toBe(reason);
-    });
-
-    it('says when a too-new account becomes eligible', () => {
-        expect(instantTreatPolicy({ ...verified, createdAt: ago(20), savedGames: 1 }, NOW).eligibleAt).toBe(
-            '2026-10-02T16:00:00.000Z'
-        );
+        ['a guest', { ...verified, isGuest: true, createdAt: ago(1), savedGames: 0 }],
+        ['an unverified email', { ...verified, emailVerified: false, createdAt: ago(100), savedGames: 9 }],
+        ['an account 1 h old', { ...verified, createdAt: ago(1), savedGames: 0 }],
+        ['an unknown creation time', { ...verified, createdAt: null, savedGames: 0 }],
+        ['no account at all', undefined],
+    ])('%s may send a treat', (_label, facts) => {
+        expect(instantTreatPolicy(facts as any, NOW)).toEqual({ eligible: true, reason: null });
     });
 });
 
@@ -100,10 +82,6 @@ describe('accountFactsOf', () => {
     it('counts the age of a promoted guest from its promotion, never from its guest days', () => {
         const facts = accountFactsOf({ isGuest: false, createdAt: ago(24 * 10), promotedAt: ago(2) });
         expect(facts.createdAt).toEqual(ago(2));
-        expect(instantTreatPolicy({ ...facts, emailVerified: true, savedGames: 5 }, NOW)).toMatchObject({
-            eligible: false,
-            reason: 'account-too-new',
-        });
         // A legacy account without promotedAt keeps its createdAt; a bad promotedAt is ignored.
         expect(accountFactsOf({ createdAt: ago(48), promotedAt: 'nope' }).createdAt).toEqual(ago(48));
     });
@@ -117,56 +95,18 @@ describe('ImpactEligibilityService', () => {
         gameModel.rows.push({ _id: new Types.ObjectId(), user: new Types.ObjectId(), points: 3 });
         return { service: new ImpactEligibilityService(gameModel as any), userId, gameModel };
     }
-    const errorOf = async (promise: Promise<unknown>) =>
-        promise.then(
-            () => null,
-            (e: any) => e
-        );
-
     it('counts only the caller saved games', async () => {
-        const { service, userId } = setup(1);
-        const user = { _id: userId, createdAt: ago(48), emailVerifiedAt: ago(40) };
-        await expect(service.instantTreat(user, NOW)).resolves.toEqual({ eligible: true, reason: null });
-        const other = { _id: new Types.ObjectId(), createdAt: ago(48), emailVerifiedAt: ago(40) };
-        await expect(service.instantTreat(other, NOW)).resolves.toMatchObject({
-            eligible: false,
-            reason: 'no-saved-game',
-        });
+        const { service, userId } = setup(2);
+        await expect(service.savedGames(userId, 5)).resolves.toBe(2);
+        await expect(service.savedGames(new Types.ObjectId(), 5)).resolves.toBe(0);
+        await expect(service.savedGames('not-an-id', 5)).resolves.toBe(0);
     });
 
-    it('maps refusals to F5.6 codes: guest, email, then the policy code', async () => {
-        const { service, userId } = setup(0);
-        const guest = await errorOf(service.assertInstantTreat({ isGuest: true }, NOW));
-        expect(guest.getResponse()).toMatchObject({ code: 'GUEST_FORBIDDEN' });
-
-        const unverified = await errorOf(service.assertInstantTreat({ _id: userId, createdAt: ago(48) }, NOW));
-        expect(unverified).toBeInstanceOf(ForbiddenException);
-        expect(unverified.getResponse()).toMatchObject({ code: 'EMAIL_UNVERIFIED' });
-
-        const young = await errorOf(
-            service.assertInstantTreat({ _id: userId, createdAt: ago(2), emailVerifiedAt: ago(1) }, NOW)
-        );
-        expect(young.getResponse()).toMatchObject({
-            code: DONATE_NOT_ELIGIBLE,
-            reason: 'account-too-new',
-            eligibleAt: '2026-10-03T10:00:00.000Z',
-        });
-    });
-
-    it('counts a replay-verified Catnip Heist save as a saved game (F7.5, source heist)', async () => {
+    it('instant treat is open to everyone and reads no games', async () => {
         const { service, userId, gameModel } = setup(0);
-        const user = { _id: userId, createdAt: ago(48), emailVerifiedAt: ago(40) };
-        await expect(service.instantTreat(user, NOW)).resolves.toMatchObject({
-            eligible: false,
-            reason: 'no-saved-game',
-        });
-        gameModel.rows.push({ _id: new Types.ObjectId(), user: userId, type: 'CATNIP_HEIST', points: 900 });
-        await expect(service.instantTreat(user, NOW)).resolves.toEqual({ eligible: true, reason: null });
-    });
-
-    it('does not read games for a guest', async () => {
-        const { service, gameModel } = setup(3);
-        await service.instantTreat({ isGuest: true, _id: new Types.ObjectId() }, NOW);
+        for (const user of [null, { isGuest: true }, { _id: userId, createdAt: ago(1) }]) {
+            await expect(service.instantTreat(user, NOW)).resolves.toEqual({ eligible: true, reason: null });
+        }
         expect(gameModel.countDocuments).not.toHaveBeenCalled();
     });
 });
