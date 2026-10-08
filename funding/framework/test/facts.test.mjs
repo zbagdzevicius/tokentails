@@ -565,7 +565,9 @@ test('real registry: the accepted FACTS-proposed.md rows are applied', () => {
   assert.deepEqual([real('F-011').value, real('F-011').display, real('F-011').status], [181010, '180K+ on X (Sep 2026)', 'verified']);
   assert.doesNotMatch(real('F-014').value, /1st place/);
   assert.match(real('F-023').claim, /Le Chat-Rivari Café/);
-  assert.deepEqual(real('F-023').surfaces, [], 'decision #74: no event chip until sourced');
+  // Founder-attested 2026-10-04: the reel footage may run on the landing (HEIST_REEL.cleared); the
+  // ProofSection event chip stays dropped (decision #74), so 'landing' is the only surface.
+  assert.deepEqual(real('F-023').surfaces, ['landing'], 'F-023 surfaces: the landing reel only, no event chip (decision #74)');
   assert.deepEqual([real('F-024').status, real('F-024').surfaces, real('F-024').key], ['unverified', [], 'strays_saved'], 'decision #29');
 });
 

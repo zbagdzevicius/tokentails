@@ -49,7 +49,6 @@ Tempo is a payments chain, and Token Tails already takes card payments through S
 Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The first TIP-20 memo payout to Pink Paw is transaction 0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5, and it is listed on the payouts page. Disclosure: the receiving wallet 0xE299299b846Ba629f5A591dBF4F562bcC07A0f37 is held by Token Tails on behalf of Pink Paw, to be handed over to the shelter. Before the hackathon, and disclosed as prior work, the team shipped three Soroban contracts on Stellar mainnet [F-009] and ERC-721 contracts on SKALE testnet and mainnet [F-010].
 
 ## Other chains <!-- criterion: C1, C5 | limit: 800 -->
-<!-- Before submitting: router-deployments.json must hold the mainnet DonateRouters on Arbitrum and Base. -->
 This one submission also enters the Arbitrum, Base and Robinhood Chain tracks. Every chain runs the same ShelterSplit, from the same source and tests; only the payout token differs.
 - Arbitrum One: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying USDC.
 - Base: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, paying native USDC.
@@ -63,7 +62,7 @@ Judge only the in-window work: the rail, the payouts page, Catnip Heist and the 
 Token Tails is a Lithuanian small partnership (MB), registered in October 2024 [F-021]. The same team built and runs the whole product. It shipped the app to both app stores [F-015] [F-016], built an AI pipeline that writes each cat's story and paints its portraits [F-019], and runs payments on three rails [F-020]. In the window it wrote ShelterSplit and its test suites, the payouts page and Catnip Heist. Demo: {DEMO_URL}. Pitch: {PITCH_VIDEO_URL}.
 
 ## Roadmap and business plan <!-- criterion: C2, C6 | limit: 1200 -->
-Token Tails earns from card payments and in-app purchases [F-020]. The plan is to send a fixed share of those purchases to shelters through ShelterSplit (step 3 below); today the payouts are sponsored gifts and a proof payout. The contract charges shelters nothing. Payout volume grows with app sales, and the public payout record is something the app can show buyers. Each milestone has one on-chain metric anyone can check:
+Token Tails earns from card payments and in-app purchases [F-020]. The plan is to send a fixed share of those purchases to shelters through ShelterSplit (step 3 below); today the payouts are proof payouts on seven mainnets and the Tempo memo payout; sponsored gifts switch on next. The contract charges shelters nothing. Payout volume grows with app sales, and the public payout record is something the app can show buyers. Each milestone has one on-chain metric anyone can check:
 1. Hackathon: ShelterSplit on Tempo mainnet, Pink Paw registered, a first real payout with a memo, and the payouts page live. Metric: shelters in the registry.
 2. Handover and delivery check: the held wallet passes to Pink Paw, which switches on wallet donations and the agent endpoint, and payouts revert if a share does not arrive. Metric: shelters controlling their own wallet.
 3. App integration: purchases in Token Tails and Catnip Heist trigger disburseWithMemo(), and the receipt links to the payout. Metric: DisbursementBatch events per week.

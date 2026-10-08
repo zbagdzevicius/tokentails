@@ -518,7 +518,7 @@ warning).
   try-it and relay chains with a split; test money never sums with real money) from its own cursor, which starts at
   `SHELTER_CHAIN_<id>_SPLIT_FROM_BLOCK` or the block of the split's recorded deploy transaction. Logs
   are read in `SHELTER_LOG_CHUNK` block chunks, capped by what the RPC takes (Monad's public RPC 100
-  blocks, sepolia.base.org 1,000, mainnet.base.org 2,000), through the chain's dedicated log RPC while
+  blocks, sepolia.base.org 1,000, mainnet.base.org 500, re-checked 2026-10-08), through the chain's dedicated log RPC while
   it uses its default public one (`logRpcFor`; at most `IMPACT_INDEXER_MAX_CHUNKS` calls per chain per
   run). Amounts are stored per symbol in 18 decimals with each split's own token (mUSDC on Robinhood
   testnet, EURC on an EURC split, ETH/AVAX/MON for native gifts), and the snapshot sums the chains'

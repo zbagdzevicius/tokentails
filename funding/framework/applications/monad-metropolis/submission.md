@@ -1,6 +1,6 @@
 # Monad Metropolis online hackathon (Consumer Products & Payments track) — submission
 
-_Generated 2026-10-07T19:29:52.069Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
+_Generated 2026-10-07T23:45:24.930Z by `fund a:submission monad-metropolis` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -13,9 +13,9 @@ matching form field._
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
 
-## Summary  <!-- 247/280 chars -->
+## Summary  <!-- 259/280 chars -->
 
-A player wins a round of Catnip Heist, taps "Send Pink Paw a rescue treat", and a real stablecoin payment reaches a cat shelter, with a public receipt. No wallet and no gas for the player. ShelterSplit, the payout rail behind it, deploys on Monad.
+ShelterSplit, live on Monad mainnet, pays a cat shelter in USDC in one transaction, with a public receipt. It powers Catnip Heist's give flow: win a round, tap "Send Pink Paw a rescue treat", and a sponsored gift goes out. No wallet and no gas for the player.
 
 ## Problem
 
@@ -36,15 +36,15 @@ The player never touches a wallet: purchases stay card or in-app payments.
 
 - On Monad, ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. Foundry tests cover splits, dust, access control, reentrancy and fuzzing.
-- The give flow runs on Arc at 0x457c89e10a6e66633eda5bf82fd086febb5db147: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
+- The give flow: a backend wallet with a small float pays, with a memo that holds no personal data. It is funded on Monad mainnet and pays treats in USDC through disburse(); it switches on with the production backend's treat key (Arc runs the same flow on its native-USDC split).
 - Agent payments: our onchain-receipt scheme (memo x402:<nonce>, checked over RPC, accepted once) on every chain with a split, Monad included, plus standard x402 exact. On mainnet: only once Pink Paw holds its own key.
-- Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
+- Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad mainnet at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052 and on Monad testnet; off for the public until handover.
 - Trust model: the chain proves funds reached the registered wallet, not who controls it.
 - ShelterSplit and the Rail SDK are MIT (github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 
 ## Deployment
 
-Monad: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, source verified. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift, all to Pink Paw. Arc: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, first sponsored treat {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet.
+Monad mainnet: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 and DonateRouter at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052, both source verified; proof payout 0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5 (0.1 USDC to Pink Paw), listed on the payouts page. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|

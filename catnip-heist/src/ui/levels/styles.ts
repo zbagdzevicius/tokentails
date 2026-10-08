@@ -4,6 +4,7 @@ import { HEIST_BODY_FONT } from '../fonts.generated';
 const OL = 'var(--ch-ol, #2a0f1f)';
 const COIN = 'var(--ch-coin, #ffcc55)';
 
+// claim:fiction CSS, not copy: '@supports' and similar tokens are selectors, not impact claims
 const CSS = `
 .ch-lv { position: absolute; inset: 0; display: none; flex-direction: column; pointer-events: auto; overflow: hidden;
   padding: calc(12px + var(--ch-sat, 0px)) calc(16px + var(--ch-sar, 0px)) calc(12px + var(--ch-sab, 0px)) calc(16px + var(--ch-sal, 0px));

@@ -32,7 +32,7 @@ tonight so the replies arrive while you deploy.
 
 > Hi Arc team, we're building ShelterSplit on Arc. It's a USDC payout rail for animal shelters: native USDC splits when it arrives, and every payout gets a public receipt. We plan to submit to Arc Microgrants around Oct 7. Two quick questions:
 > 1. Is there a fixed number of microgrants this round (for example 20), or is every project above the bar funded?
-> 2. We're also entering the same work in the Tameion Agents Hackathon (Canteen x Circle x Arc), which closes Oct 10. If we won a Tameion prize, would the Arc Microgrant count it as "work already funded by a Circle or Arc program"? Would that matter if the prize came after the microgrant decision?
+> 2. We're also entering the same work in the Tameion Agents Hackathon (Canteen x Circle x Arc), which closes Oct 17. If we won a Tameion prize, would the Arc Microgrant count it as "work already funded by a Circle or Arc program"? Would that matter if the prize came after the microgrant decision?
 > Thanks!
 
 ### 2b. Canteen / Tameion: invite, Arc clash, payout (Luma page or the contact on tameion.thecanteenapp.com; 5 min)
@@ -195,9 +195,9 @@ Gate: Arc **mainnet** split live (testnet-only is excluded), and the 2a answer d
 Tameion. `fund fill` covers the addresses. Then `check arc-microgrants`, paste `submission.md`
 into the DoraBacks form linked from the Arc call page, take a screenshot and set the status.
 
-## 9. Oct 10 and Oct 11: Tameion (if invited) and Colosseum
+## 9. Oct 11 and Oct 17: Colosseum and Tameion
 
-Tameion closes Oct 10 23:59 ET (Oct 11 06:59 Vilnius) and uses the x402 agent card. It is on by
+Tameion closes Oct 17 23:59 ET (Oct 18 06:59 Vilnius) and uses the x402 agent card. It is on by
 default on testnets; on mainnet it opens only after Pink Paw claims its own wallet on that chain. Colosseum closes Oct 12 23:59 PT (Oct 13 09:59 Vilnius), and the Team Leader submits.
 Every member must register on colosseum.com first (5 min each).
 

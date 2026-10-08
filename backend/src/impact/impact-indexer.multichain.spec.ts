@@ -7,6 +7,12 @@ import { mergeBuckets } from './impact.service';
 import { memoryModel } from './memory-model.fakes-spec';
 import { RpcLog, to18 } from './shelter-logs';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 const NOW = new Date('2026-10-04T12:00:00Z');
 const KEY = Wallet.createRandom().privateKey;
 const ARC_SPLIT = '0x' + 'a1'.repeat(20);

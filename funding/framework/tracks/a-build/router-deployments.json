@@ -150,7 +150,11 @@
     "chain": "arc",
     "symbol": "USDC",
     "fromBlock": 24761266,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   },
   {
     "chainId": 42161,
@@ -163,7 +167,11 @@
     "chain": "arbitrum",
     "symbol": "USDC",
     "fromBlock": 512623488,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   },
   {
     "chainId": 43114,
@@ -176,7 +184,11 @@
     "chain": "avalanche",
     "symbol": "USDC",
     "fromBlock": 96969615,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   },
   {
     "chainId": 8453,
@@ -189,7 +201,11 @@
     "chain": "base",
     "symbol": "USDC",
     "fromBlock": 52301220,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   },
   {
     "chainId": 143,
@@ -202,7 +218,11 @@
     "chain": "monad",
     "symbol": "USDC",
     "fromBlock": 111375853,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   },
   {
     "chainId": 5042,
@@ -215,6 +235,10 @@
     "chain": "arc",
     "symbol": "EURC",
     "fromBlock": 24761333,
-    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record"
+    "note": "Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record; 2026-10-07: EIP-3009 probed read-only (authorizationState answers false, DOMAIN_SEPARATOR set), 6310 bytes of code, Sourcify exact_match; no gift sent yet (public gifts wait for the G2b handover)",
+    "eip3009": true,
+    "codeBytes": 6310,
+    "sourceVerified": true,
+    "sourceVerifier": "sourcify"
   }
 ]

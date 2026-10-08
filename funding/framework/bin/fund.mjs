@@ -86,7 +86,7 @@ ${FACTS_HELP}
 
 const ROUTER_HELP = `  router plan --chain <id> [--split 0x..] [--token EURC] [--json]
                                          print the DonateRouter deploy commands (a founder broadcasts)
-  router record --chain <id> [--token EURC] [--split 0x..]
+  router record --chain <id> [--token EURC] [--split 0x..] [--eip3009]
                                          record the DonateRouter from the chain's Foundry broadcast in router-deployments.json
   shelter rotate --chain <id> --to <0x..> --name "..." --dry-run [--from 0x..] [--split 0x..]
                                          print the handover calls that re-point a shelter to its own wallet`;
@@ -119,7 +119,7 @@ async function runRouterCommand(cmd, rest, flags) {
     const f = join(project, 'broadcast', 'DeployDonateRouter.s.sol', String(chainId), 'run-latest.json');
     if (!existsSync(f)) { console.error(`✗ no broadcast at ${f}`); return 1; }
     const p = plan.plan;
-    const r = lib.routerEntryFromBroadcast(JSON.parse(readFileSync(f, 'utf8')), { chainId, network: p.network, chain: p.chain, split: p.split, token: p.token, symbol: p.symbol });
+    const r = lib.routerEntryFromBroadcast(JSON.parse(readFileSync(f, 'utf8')), { chainId, network: p.network, chain: p.chain, split: p.split, token: p.token, symbol: p.symbol, eip3009: flags.eip3009 === true });
     if (r.problem) { console.error(`✗ ${r.problem}`); return 1; }
     const file = lib.routerPaths.routers();
     const list = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : [];

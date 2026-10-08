@@ -1,4 +1,4 @@
-import { SHELTER_CHAINS, chainDisplayName, chainRole } from "@/components/shelter-payouts/chains";
+import { CHAIN_ROLES, SHELTER_CHAINS, chainDisplayName, chainRole } from "@/components/shelter-payouts/chains";
 import { decodeAbiString, payoutTokenAddress, TRANSFER_TOPIC } from "@/components/shelter-payouts/receipt";
 import {
   MIN_LOG_WINDOW,
@@ -43,7 +43,7 @@ describe("every target chain is readable and labelled", () => {
   });
 
   it("starts at the chain's known cap: Base mainnet scans in 2,000-block windows", async () => {
-    expect(SHELTER_CHAINS[8453].maxLogRange).toBe(2000);
+    expect(SHELTER_CHAINS[8453].maxLogRange).toBe(500);
     const calls: Array<[number, number]> = [];
     await getLogsWindowed("rpc", "0x", 0, 3_999, async (_r, _a, f, t) => (calls.push([f, t]), []), 2000);
     expect(calls).toEqual([
@@ -70,6 +70,13 @@ describe("every target chain is readable and labelled", () => {
     for (const id of [5042, 5042002, 4217, 42431, 42161, 421614, 43114, 43113, 8453, 84532, 4663, 46630]) {
       expect(chainRole(id)).toEqual(expect.any(String));
     }
+  });
+
+  it("gives Arc's EURC split its own role line, not the dollar campaign line", () => {
+    expect(chainRole(5042, "EURC")).toBe(CHAIN_ROLES.arcEurc);
+    expect(chainRole(5042, "USDC")).toBe(CHAIN_ROLES.arc);
+    expect(chainRole(5042)).toBe(CHAIN_ROLES.arc);
+    expect(chainRole(8453, "EURC")).toBe(CHAIN_ROLES.base);
   });
 
   it("keeps mixed-case token symbols (pathUSD, mUSDC)", () => {

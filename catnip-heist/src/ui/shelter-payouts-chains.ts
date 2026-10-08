@@ -26,6 +26,7 @@ export const PAYOUT_CHAIN_META: Record<number, { name: string; explorer: string 
  */
 export const PAYOUT_CHAIN_ROLES: Record<string, string> = {
   arc: "Circle's chain: gas is paid in USDC itself. Pink Paw's campaign runs here.",
+  arcEurc: "Arc's euro split: EURC gifts go straight to the shelter. The dollar goal counts only USDC.",
   tempo: 'A payments chain with no gas coin: network fees are paid in a stablecoin.',
   arbitrum: 'Ethereum rollup with low fees. Native ETH gifts are split too.',
   avalanche: 'Avalanche C-Chain. Native AVAX gifts are split too.',

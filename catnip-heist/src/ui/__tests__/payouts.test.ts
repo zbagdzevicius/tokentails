@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC, PAYOUT_CHAINS, deploymentUnits, fetchShelterTotals, formatAmount, payoutOf, totalText } from '../payouts';
+import { DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC, PAYOUT_CHAINS, deploymentUnits, displayMemo, memoOf, fetchShelterTotals, formatAmount, payoutOf, totalText } from '../payouts';
 
 const word = (n: bigint) => '0x' + n.toString(16).padStart(64, '0') + '0'.repeat(64);
 const SPLIT = '0x' + 'ab'.repeat(20);
@@ -97,5 +97,23 @@ describe('Robinhood Chain (USDG)', () => {
     expect(totals.get('USDC')).toBe(10n ** 18n);
     expect(totals.get('USDG')).toBe(2n * 10n ** 18n);
     expect(totalText(totals)).toBe('Token Tails has sent 1 USDC + 2 USDG to shelters so far, on-chain');
+  });
+});
+
+describe('displayMemo', () => {
+  const hex = '0x' + Buffer.from('Catnip Heist campaign').toString('hex').padEnd(64, '0');
+  it('decodes a bytes32 hex memo (Tempo disburseWithMemo) to its text', () => {
+    expect(displayMemo(hex)).toBe('Catnip Heist campaign');
+  });
+  it('leaves plain text and non-text hex alone', () => {
+    expect(displayMemo('Token Tails first payout')).toBe('Token Tails first payout');
+    const bin = '0x' + 'ff'.repeat(32);
+    expect(displayMemo(bin)).toBe(bin);
+  });
+  it('memoOf applies it to the log string', () => {
+    const body = Buffer.from(hex).toString('hex');
+    const len = hex.length;
+    const data = '0x' + (1n).toString(16).padStart(64, '0') + (64).toString(16).padStart(64, '0') + len.toString(16).padStart(64, '0') + body.padEnd(Math.ceil(body.length / 64) * 64, '0');
+    expect(memoOf(data)).toBe('Catnip Heist campaign');
   });
 });

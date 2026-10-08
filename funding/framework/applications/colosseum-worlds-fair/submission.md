@@ -1,6 +1,6 @@
 # Colosseum Crypto World's Fair — submission
 
-_Generated 2026-10-07T19:34:38.611Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
+_Generated 2026-10-07T23:45:24.848Z by `fund a:submission colosseum-worlds-fair` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -56,7 +56,7 @@ Tempo mainnet: ShelterSplit at 0x9978e60da2352a8de02852788d34bd95849a598d. The f
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
-| Base mainnet (chain 8453) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://basescan.org/tx/0x97459e3c7b00c9d1a0aa0ecb9a6cae6bf82884549c4bc16b678d4e83d634c3ab) | [payout 1](https://basescan.org/tx/0x82867db58291b7d6ebba42f35b30d93974ea71f3dec78a0864f97c64522fe780) | verified on-chain, source verified |
+| Base mainnet (chain 8453) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://basescan.org/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://basescan.org/tx/0x97459e3c7b00c9d1a0aa0ecb9a6cae6bf82884549c4bc16b678d4e83d634c3ab) | [payout 1](https://basescan.org/tx/0x130fdcc6987ddefb95d787c1bd2da3d210ee844cdbc339c7b59e0949a401da3d) | verified on-chain, source verified |
 | Arbitrum One mainnet (chain 42161) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://arbiscan.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://arbiscan.io/tx/0xf094217e60154b0da6ad74fddf49c65b27002f2e1e1d78eed5acff64300481d4) | [payout 1](https://arbiscan.io/tx/0x74f1eaf7fe3494608f1e80d92afc27c1035b8eaf34e3bd190695f1da46929216) | verified on-chain, source verified |
 | Robinhood Chain mainnet (chain 4663) | [`0x457c89e10a6e66633eda5bf82fd086febb5db147`](https://robinhoodchain.blockscout.com/address/0x457c89e10a6e66633eda5bf82fd086febb5db147) | [deploy tx](https://robinhoodchain.blockscout.com/tx/0x8a6b3d87cfb893c78ac533dfc49c78745c4e7cac5aa3fbbe6516feb1eaf70ee7) | [payout 1](https://robinhoodchain.blockscout.com/tx/0x4902093822e89d56b49b1168f7c0bf702f0a2cf9b578fe54eb8efdb3a49ad377) | verified on-chain, source verified |
 | Tempo mainnet (chain 4217) | [`0x9978e60da2352a8de02852788d34bd95849a598d`](https://explore.tempo.xyz/address/0x9978e60da2352a8de02852788d34bd95849a598d) | [deploy tx](https://explore.tempo.xyz/tx/0x94a1ad9d769c411032950013513741653652b6bedef6e78a0762f9d73dee4953) | [payout 1](https://explore.tempo.xyz/tx/0xdc25ffea4a1f97b25c5d3cb5827919bd998f37c676867dd262bcf0158e7d3d33) | verified on-chain, source verified |
@@ -88,7 +88,7 @@ Token Tails is a Lithuanian small partnership (MB), registered in October 2024. 
 
 ## Roadmap and business plan
 
-Token Tails earns from card payments and in-app purchases. The plan is to send a fixed share of those purchases to shelters through ShelterSplit (step 3 below); today the payouts are sponsored gifts and a proof payout. The contract charges shelters nothing. Payout volume grows with app sales, and the public payout record is something the app can show buyers. Each milestone has one on-chain metric anyone can check:
+Token Tails earns from card payments and in-app purchases. The plan is to send a fixed share of those purchases to shelters through ShelterSplit (step 3 below); today the payouts are proof payouts on seven mainnets and the Tempo memo payout; sponsored gifts switch on next. The contract charges shelters nothing. Payout volume grows with app sales, and the public payout record is something the app can show buyers. Each milestone has one on-chain metric anyone can check:
 1. Hackathon: ShelterSplit on Tempo mainnet, Pink Paw registered, a first real payout with a memo, and the payouts page live. Metric: shelters in the registry.
 2. Handover and delivery check: the held wallet passes to Pink Paw, which switches on wallet donations and the agent endpoint, and payouts revert if a share does not arrive. Metric: shelters controlling their own wallet.
 3. App integration: purchases in Token Tails and Catnip Heist trigger disburseWithMemo(), and the receipt links to the payout. Metric: DisbursementBatch events per week.

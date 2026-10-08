@@ -263,9 +263,9 @@
     "token": "USDC",
     "recorded": "2026-10-07T16:47:52.444Z",
     "verified": true,
-    "note": "recorded by a:ingest from the Foundry broadcast",
+    "note": "recorded by a:ingest from the Foundry broadcast; proofTxs corrected 2026-10-07: forge labelled the approve 0x82867db5…e780 as the disburse, the real payout (Disbursed log) is 0x130fdcc6…1da3d",
     "proofTxs": [
-      "0x82867db58291b7d6ebba42f35b30d93974ea71f3dec78a0864f97c64522fe780"
+      "0x130fdcc6987ddefb95d787c1bd2da3d210ee844cdbc339c7b59e0949a401da3d"
     ],
     "verifiedAt": "2026-10-07T16:47:53.469Z",
     "codeBytes": 11199,
@@ -389,7 +389,7 @@
     "token": "USDC.e",
     "recorded": "2026-10-07T19:28:29.132Z",
     "verified": true,
-    "note": "recorded by a:ingest from the Foundry broadcast",
+    "note": "recorded by a:ingest from the Foundry broadcast; nonce-0 deploy 0xd24a8cce7dab9799c91af0a82156862d7ef848525cdcc43837f8b8bfd085235a reverted out of gas (gas multiplier 500, 12.75M used, fee paid in pathUSD), so this split is the nonce-1 address, not the shared 0x457c…b147 (fixed with multiplier 800 in f6d79520); memoTxs = the Catnip Heist campaign disburseWithMemo payout (batch 2)",
     "proofTxs": [
       "0xdc25ffea4a1f97b25c5d3cb5827919bd998f37c676867dd262bcf0158e7d3d33"
     ],
@@ -398,6 +398,9 @@
     "codeSha256": "902e91d7d3b39202a225fd17e1670506b58a11dbb444b1a148c927d3dc3e6a69",
     "sourceVerified": true,
     "sourceVerifiedAt": "2026-10-07T19:29:04.840Z",
-    "sourceVerifier": "sourcify"
+    "sourceVerifier": "sourcify",
+    "memoTxs": [
+      "0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5"
+    ]
   }
 ]

@@ -28,6 +28,9 @@ const config = () => ({
     chainId: fixture.chainId,
     splitAddress: fixture.contract,
     rpcUrl: 'https://rpc.example.test',
+    // The fixture predates the DonateRouter: the recorded Arc mainnet router (wallet.config.ts, Oct 7)
+    // would make the indexer read receipts the fake RPC does not serve. Router specs set their own.
+    routerAddress: null,
 });
 const indexer = (over: Partial<ImpactIndexerConfig> = {}): ImpactIndexerConfig => ({
     fromBlock: fixture.expected.fromBlock,

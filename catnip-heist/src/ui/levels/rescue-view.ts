@@ -154,6 +154,7 @@ export function rescueNameEl(name: string, tag: 'b' | 'strong' | 'span' = 'b'): 
  */
 export function rescueHudChip(cat: RescueCat, opts: { base?: string } = {}): HTMLElement {
   ensureLevelStyles();
+  // claim:fiction in-game rescue objective (the cat and its shelter are real; no money moves)
   return h(
     'div.ch-lv-hudcat',
     { role: 'img', 'aria-label': `Rescue ${cat.name}, a real cat at the Pink Paw shelter`, title: `${cat.name}: ${RESCUE_SHELTER_LINE}`, 'data-testid': 'hud-rescue-cat' },

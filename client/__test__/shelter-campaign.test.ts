@@ -177,7 +177,8 @@ describe("readGoalCount (the backend first, the balance only while exact)", () =
     expect((f.mock.calls[0] as unknown[])[0]).toBe("https://api.test/shelter/goal/C-001");
     expect(await fetchGoalView("C-001", "https://api.test", (async () => ({ ok: false })) as never)).toBeNull();
     expect(await fetchGoalView("C-001", "https://api.test", (async () => ({ ok: true, json: async () => ({ raised: 1 }) })) as never)).toBeNull();
-    expect(await fetchGoalView("C-001", undefined, f as never)).toBeNull();
+    // An empty base, not undefined: undefined takes the default (NEXT_PUBLIC_BE_URL, set in CI).
+    expect(await fetchGoalView("C-001", "", f as never)).toBeNull();
   });
 });
 

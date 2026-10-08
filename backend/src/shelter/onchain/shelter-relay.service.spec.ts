@@ -20,6 +20,12 @@ import {
 } from './shelter-onchain.config';
 import { ipHash, RELAY_PER_SIGNER_DAILY, ShelterRelayService } from './shelter-relay.service';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 const ROUTER = '0x4444444444444444444444444444444444444444';
 const SPLIT = '0x1111111111111111111111111111111111111111';
 const USDC = '0x3600000000000000000000000000000000000000';

@@ -10,6 +10,12 @@ import {
     ShelterClaimService,
 } from './shelter-claim.service';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 const NOW = new Date('2026-10-04T10:00:00Z');
 const SPLIT = '0x1111111111111111111111111111111111111111';
 // Throwaway keys made for this spec; they never hold anything.

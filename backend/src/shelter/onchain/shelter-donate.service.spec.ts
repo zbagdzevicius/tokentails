@@ -21,6 +21,12 @@ import {
     withShelterEnv,
 } from './shelter-onchain.fakes-spec';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 // Nothing may sign or broadcast: the provider and the wallet are mocks. Interface stays real, so the
 // calldata the wallet would send is checked for real.
 jest.mock('ethers', () => {
@@ -117,10 +123,14 @@ describe('ShelterDonateService.donate', () => {
             amountWei: AMOUNT,
             explorerUrl: `https://explorer.arc.io/tx/${TX_HASH}`,
         });
-        expect(JsonRpcProvider).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://rpc.mainnet.arc.io', timeout: RPC_TIMEOUT_MS }), 5042, {
-            staticNetwork: true,
-            cacheTimeout: -1,
-        });
+        expect(JsonRpcProvider).toHaveBeenCalledWith(
+            expect.objectContaining({ url: 'https://rpc.mainnet.arc.io', timeout: RPC_TIMEOUT_MS }),
+            5042,
+            {
+                staticNetwork: true,
+                cacheTimeout: -1,
+            }
+        );
         const tx = sendTransaction.mock.calls[0][0];
         expect(tx.to).toBe(SPLIT);
         expect(tx.value.toString()).toBe(AMOUNT);
@@ -317,10 +327,14 @@ describe('ShelterDonateService.status', () => {
             treatsLeftToday: 2,
         });
         expect(status.remainingTodayWei).toBe('20000000000000000');
-        expect(JsonRpcProvider).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://rpc.testnet.arc.io', timeout: RPC_TIMEOUT_MS }), 5042002, {
-            staticNetwork: true,
-            cacheTimeout: -1,
-        });
+        expect(JsonRpcProvider).toHaveBeenCalledWith(
+            expect.objectContaining({ url: 'https://rpc.testnet.arc.io', timeout: RPC_TIMEOUT_MS }),
+            5042002,
+            {
+                staticNetwork: true,
+                cacheTimeout: -1,
+            }
+        );
     });
 
     it('sums CONFIRMED gifts only into the community total, and caches it', async () => {

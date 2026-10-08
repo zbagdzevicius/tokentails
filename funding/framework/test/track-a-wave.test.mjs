@@ -360,3 +360,29 @@ test('publishTestnet: the client page and the Catnip Heist modal both get the te
     if (saved.t === undefined) delete process.env.FUND_A_PUBLISH_TESTNET; else process.env.FUND_A_PUBLISH_TESTNET = saved.t;
   }
 });
+
+test('proofHashOf: picks the tx whose receipt has the split Disbursed log, not forge\'s label', () => {
+  const DISB = '0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a';
+  const APPROVE = '0x' + '0a'.repeat(32);
+  const REAL = '0x' + '0b'.repeat(32);
+  // Base mainnet 2026-10-07: forge labelled the approve hash as disburse and the other way round.
+  const run = {
+    transactions: [
+      { function: 'approve(address,uint256)', contractAddress: USDC, hash: REAL },
+      { function: 'disburse(uint256,string)', contractAddress: SPLIT, hash: APPROVE },
+    ],
+    receipts: [
+      { transactionHash: APPROVE, status: '0x1', logs: [{ address: USDC, topics: ['0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925'] }] },
+      { transactionHash: REAL, status: '0x1', logs: [{ address: USDC, topics: ['0xddf252ad'] }, { address: SPLIT, topics: [DISB] }] },
+    ],
+  };
+  assert.equal(W.proofHashOf(run, run.transactions[1], SPLIT), REAL);
+  // Correct labels stay as they are.
+  const ok = { transactions: [{ hash: REAL }], receipts: [run.receipts[1]] };
+  assert.equal(W.proofHashOf(ok, ok.transactions[0], SPLIT), REAL);
+  // No receipts (the cast-written proof file): the label is used.
+  assert.equal(W.proofHashOf({ transactions: [{ hash: PAY }] }, { hash: PAY }, SPLIT), PAY);
+  // Receipts, but none pays: nothing is recorded.
+  const none = { receipts: [run.receipts[0]] };
+  assert.equal(W.proofHashOf(none, { hash: APPROVE }, SPLIT), null);
+});

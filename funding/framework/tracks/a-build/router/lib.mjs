@@ -140,7 +140,7 @@ export function routersFor(chainId, network, tokenAddress, routerDeployments) {
  * Only a CREATE of DonateRouter with a status-1 receipt counts; its constructor must name `split`
  * and `token` (the same pair the deploy was asked for).
  */
-export function routerEntryFromBroadcast(run, { chainId, network, chain, split, token, symbol, now = new Date() }) {
+export function routerEntryFromBroadcast(run, { chainId, network, chain, split, token, symbol, eip3009 = false, now = new Date() }) {
   const t = (run?.transactions || []).find((x) => x.transactionType === 'CREATE' && x.contractName === 'DonateRouter' && ADDR.test(x.contractAddress || ''));
   if (!t) return { problem: 'no DonateRouter CREATE in the broadcast' };
   const args = (t.arguments || []).map((a) => String(a).toLowerCase());
@@ -155,6 +155,9 @@ export function routerEntryFromBroadcast(run, { chainId, network, chain, split, 
       chainId: Number(chainId), network, router: t.contractAddress.toLowerCase(), split: String(split).toLowerCase(), usdc: token,
       deployTx: t.hash, deployedAt: now.toISOString().replace(/\.\d{3}Z$/, 'Z'), chain, symbol,
       ...(Number.isSafeInteger(block) ? { fromBlock: block } : {}),
+      // Set only when the caller ran the read-only EIP-3009 probe (the wrapper passes --eip3009 after
+      // it): the client drops any non-native-USDC router without this flag.
+      ...(eip3009 === true ? { eip3009: true } : {}),
       note: 'Deployed by the deployer keystore via script/DeployDonateRouter.s.sol from the run-order wrapper (fund a:mainnet-plan); recorded by fund router record',
     },
   };

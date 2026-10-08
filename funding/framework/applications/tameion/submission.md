@@ -1,6 +1,6 @@
 # Tameion Agents Hackathon (Canteen x Circle x Arc) — submission
 
-_Generated 2026-10-07T19:29:52.071Z by `fund a:submission tameion` from draft.md, the program profile,
+_Generated 2026-10-07T23:45:25.010Z by `fund a:submission tameion` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -8,7 +8,7 @@ matching form field._
 |---|---|
 | Project | Token Tails — ShelterSplit |
 | Program | Tameion Agents Hackathon (Canteen x Circle x Arc) |
-| Deadline | 2026-10-10T23:59:00-04:00 |
+| Deadline | 2026-10-17T23:59:00-04:00 |
 | Call | https://tameion.thecanteenapp.com/ |
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
@@ -21,7 +21,7 @@ A budget-capped agent pays a cat shelter in USDC on Arc and gets something back:
 
 ## What the agent does
 
-The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets. The demo loop ran on Arc testnet, with no human in it:
+The agent buys one adoptable-cat card from https://api.tokentails.com/shelter/agent/cat-card, and the whole price is split across shelter wallets. The loop is built and tested, and needs no human in it:
 1. The agent calls the URL. The server answers 402 with an x402-shaped offer: scheme onchain-receipt, the Arc network, the price, payTo set to the ShelterSplit contract and a one-time memo x402:<nonce>.
 2. The agent checks the price against its own spending cap and calls donate(memo) on the contract, paying native USDC.
 3. It retries with an X-PAYMENT header carrying the transaction hash and nonce.
@@ -31,7 +31,7 @@ On Arc mainnet the endpoint opens once Pink Paw holds its own key (its signed cl
 ## How it works
 
 - ShelterSplit on Arc at 0x457c89e10a6e66633eda5bf82fd086febb5db147: a registry of shelter wallets, names and shares in basis points. donate(memo) splits the USDC sent with the call across every active shelter in the same transaction and emits one public event per payout. The contract never holds funds between calls. An ERC-20 path, disburse(), does the same through the USDC token interface, with separate events so the two decimal scales never mix.
-- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. First treat: {ARC_TX}.
+- Sponsored treats, the human-facing twin: after a win in Catnip Heist (https://tokentails.com/heist) a signed-in player (anti-abuse: verified email, account older than a day) taps "Send Pink Paw a rescue treat", and a backend wallet with a small float pays a tiny gift, once a day per player, from a capped daily budget. Each payout gets a receipt page and a share card. It switches on in production with the backend's treat wallet.
 - The payouts page at https://tokentails.com/shelter-payouts reads chain events, not our database.
 - Safety: reentrancy guard, pause, two-step ownership, caps, a Foundry suite with fuzzing, and backend tests for the receipt check and replay protection.
 - Trust model: the chain proves the funds reached the registered wallet, not who controls it. ShelterSplit and the Rail SDK are MIT (shelter-split/, shelter-rail/ in github.com/zbagdzevicius/tokentails).
@@ -46,7 +46,7 @@ Honest gap: no Circle Wallets, Paymaster, CCTP or Gateway yet. The next step is 
 
 ## Traction
 
-Traction is early, and we will not dress it up. Businesses onboarded: one shelter, Pink Paw, whose wallet Token Tails still holds. Value moved: the first sponsored treat {ARC_TX} and every payout after it, listed on the payouts page. Agent payments: the endpoint is new in this window and has had no outside agent yet. What exists around it, from before the window: Token Tails is live on web, iOS and Android with five game modes and three payment rails, so the give flow sits in front of real players. Historical, not current: on the SEI chain the app peaked at 324,422 weekly active wallets in November 2025; that activity ended in March 2026 and none of it is Arc data.
+Traction is early, and we will not dress it up. Businesses onboarded: one shelter, Pink Paw, whose wallet Token Tails still holds. Value moved: proof payouts to Pink Paw on Arc mainnet (0.1 USDC and 0.1 EURC) and every payout after them, listed on the payouts page; sponsored treats are next. Agent payments: the endpoint is new in this window and has had no outside agent yet. What exists around it, from before the window: Token Tails is live on web, iOS and Android with five game modes and three payment rails, so the give flow sits in front of real players. Historical, not current: on the SEI chain the app peaked at 324,422 weekly active wallets in November 2025; that activity ended in March 2026 and none of it is Arc data.
 
 ## Innovation
 
@@ -54,7 +54,7 @@ Most agent-payment demos pay a seller. Here the seller's revenue is the donation
 
 ## Arc deployment
 
-Arc mainnet: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147. The first sponsored treat to Pink Paw is transaction {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet was created by and is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet, and ShelterSplit's ERC-20 split core, written from 2026-09-25, two days before the window opened. We also entered this work in Arc Microgrants.
+Arc mainnet: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 (USDC) and 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052 (EURC), each with a DonateRouter. The first payout to Pink Paw is proof payout 0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet was created by and is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window: three Soroban contracts on Stellar mainnet, and ShelterSplit's ERC-20 split core, written from 2026-09-25, two days before the window opened. We also entered this work in Arc Microgrants.
 
 | Network | Contract | Transaction | Shelter payouts | Status |
 |---|---|---|---|---|
@@ -76,6 +76,6 @@ Token Tails is a Lithuanian small partnership (MB), registered in October 2024. 
 - [ ] Public GitHub repo (required)
 - [ ] Demo video under 3 minutes (required)
 - [ ] Live deployed link (optional on the page, strongly encouraged)
-- [ ] Only in-window progress (2026-09-27 to 2026-10-10) counts: show the delta, disclose prior work
+- [ ] Only in-window progress (2026-09-27 to 2026-10-17) counts: show the delta, disclose prior work
 - [ ] Arc mainnet split recorded by the mainnet wave (deployments.json), one paid agent call on Arc testnet on the explorer (mainnet x402 opens only after Pink Paw's per-chain claim)
 

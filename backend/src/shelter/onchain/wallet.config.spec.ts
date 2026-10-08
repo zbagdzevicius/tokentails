@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { TOKEN_TAILS_HELD_WALLETS } from './shelter-onchain.config';
+import { TOKEN_TAILS_HELD_WALLETS, autoChainIds, readShelterConfig } from './shelter-onchain.config';
 import { CHAINS, WALLETS } from './wallet.config';
 
 /*
@@ -44,5 +44,20 @@ describe('wallet.config.ts (generated) stays in sync with the client deployment 
         expect(WALLETS.mainnet.pinkPaw!.toLowerCase()).toBe(TOKEN_TAILS_HELD_WALLETS[0]);
         expect(WALLETS.testnet.treasury).toMatch(/^0x[0-9a-fA-F]{40}$/);
         expect(WALLETS.testnet.donateHot).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    });
+});
+
+describe('the recorded mainnet wave (2026-10-07) is what production serves', () => {
+    // Specs of the pre-deploy rail mock wallet.config.ts without these (pre-mainnet.fakes-spec.ts).
+    it('Arc mainnet defaults to the recorded USDC split and its DonateRouter', () => {
+        const c = readShelterConfig({ SHELTER_NETWORK: 'mainnet' } as NodeJS.ProcessEnv);
+        expect(c.chainId).toBe(5042);
+        expect(c.splitAddress?.toLowerCase()).toBe('0x457c89e10a6e66633eda5bf82fd086febb5db147');
+        expect(c.routerAddress?.toLowerCase()).toBe('0x937f13ce28294011567615330dbcb859a06a0bba');
+        expect(c.autoChain).toBe(true);
+    });
+
+    it('serves the six other mainnets with a recorded split', () => {
+        expect(autoChainIds(5042).sort((a, b) => a - b)).toEqual([143, 4217, 4663, 8453, 42161, 43114]);
     });
 });

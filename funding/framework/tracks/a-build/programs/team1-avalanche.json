@@ -5,17 +5,52 @@
   "frame": "payout-rail",
   "chain": "avalanche",
   "mainnet_required": true,
-  "next": "Deploy ShelterSplit on Avalanche C-Chain, then fill the mini-grant form from submission.md",
+  "next": "Post the C-Chain payout on X tagging @AvaxTeam1, then paste submission.md into the mini-grant form",
   "submission": {
+    "fields": {
+      "Project": "ShelterSplit on Avalanche (Token Tails)",
+      "Amount": "$5,000 (whole dollars, at most $10,000)",
+      "Other links": "https://tokentails.com/shelter-payouts"
+    },
     "sections": [
-      { "title": "Summary", "from": "Summary", "limit": 280 },
-      { "title": "What we built", "from": "How it works" },
-      { "title": "Avalanche deployment", "from": "On-chain proof", "auto": "deployments" },
-      { "title": "Build evidence", "auto": "build" },
-      { "title": "Traction", "from": "Traction" },
-      { "title": "Team", "from": "Team" }
+      {
+        "title": "Project description",
+        "from": "Summary",
+        "limit": 280
+      },
+      {
+        "title": "Summary",
+        "from": "How it works",
+        "limit": 4000
+      },
+      {
+        "title": "Avalanche deployment",
+        "from": "On-chain proof",
+        "auto": "deployments"
+      },
+      {
+        "title": "Milestones",
+        "from": "Milestones",
+        "limit": 4000
+      },
+      {
+        "title": "Why You Deserve",
+        "from": "Why us",
+        "limit": 4000
+      },
+      {
+        "title": "Build evidence",
+        "auto": "build"
+      }
     ],
-    "checklist": ["draft.md is a v0 copy that pitches Tempo: rewrite it for Avalanche before pasting anything (checked 2026-10-05)"]
+    "checklist": [
+      "Avalanche C-Chain only in the text: no other chain is pitched (the committee weights long-term Avalanche commitment)",
+      "Never claim EURC on the C-Chain",
+      "X post of the C-Chain payout tagging @AvaxTeam1 exists before submitting",
+      "Builder Hub account whose inbox someone reads; new project, not tied to another program"
+    ]
   },
-  "verify": ["form fields and limits"]
+  "verify": [
+    "form fields and limits"
+  ]
 }

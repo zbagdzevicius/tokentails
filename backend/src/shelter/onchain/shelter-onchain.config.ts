@@ -14,7 +14,7 @@ export const publicRpcUrl = (chainId: number): string | null => DEFAULT_RPC[chai
 /**
  * A separate keyless RPC for the impact indexer's eth_getLogs scan, used only while the chain reads its
  * default public RPC (the client's chains.ts `logRpc`): Monad's public RPCs cap eth_getLogs at 100
- * blocks, sepolia.base.org at 1,000, and Arc testnet's at ~10,000 with tight rate limits.
+ * blocks, mainnet.base.org at 500, sepolia.base.org at 1,000, and Arc testnet's at ~10,000 with tight rate limits.
  */
 const LOG_RPC: Record<number, string> = Object.fromEntries(
     Object.values(CHAINS)
@@ -24,7 +24,8 @@ const LOG_RPC: Record<number, string> = Object.fromEntries(
 
 /** The widest eth_getLogs range (blocks) a chain's default public RPC or its LOG_RPC accepts, when small. */
 const LOG_RANGE: Record<string, number> = {
-    'https://mainnet.base.org': 2000,
+    // mainnet.base.org answers -32614 "eth_getLogs is limited to a 500 range" (re-checked 2026-10-08).
+    'https://mainnet.base.org': 500,
     'https://sepolia.base.org': 1000,
     'https://rpc.monad.xyz': 100,
     'https://testnet-rpc.monad.xyz': 100,
@@ -283,7 +284,7 @@ export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): Shelter
     const rpcUrl = (env.SHELTER_ARC_RPC_URL || '').trim() || DEFAULT_RPC[safeChainId] || null;
     const privateKey = (env.SHELTER_DONATE_PRIVATE_KEY || '').trim() || null;
     // The main chain's split defaults to its wallet.config.ts section (a recorded deploy), like every
-    // other chain; SHELTER_SPLIT_ADDRESS still wins. Arc mainnet has no recorded split yet.
+    // other chain; SHELTER_SPLIT_ADDRESS still wins. Arc mainnet is recorded since 2026-10-07.
     const envSplit = address(env.SHELTER_SPLIT_ADDRESS);
     const recorded = envSplit ? null : recordedSplit(safeChainId);
     const splitAddress = envSplit || (recorded ? getAddress(recorded.address) : null);

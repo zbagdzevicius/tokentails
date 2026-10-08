@@ -349,6 +349,31 @@ function mined(run, t) {
   return r.status === '0x1' || r.status === 1 || r.status === '1' ? 'ok' : 'failed';
 }
 
+// keccak256 of Disbursed(address,uint256,string) and NativeDisbursed(address,uint256,string).
+const PAYOUT_TOPICS = new Set([
+  '0x53e1c69daf8c00e0990d33cc076fc3c88a0c480beb39da2bcffa01252f63495a',
+  '0xc859ef09d317f79211253b04e5d51bff252d80816db65d1aaa75cfdd3a22aeef',
+]);
+
+// The hash of the proof payout, chosen by its receipt rather than by forge's function label. Forge can
+// pair the labels and hashes of an approve + disburse broadcast the wrong way round (Base mainnet,
+// 2026-10-07: the hash labelled disburse was the USDC approve). With receipts, the proof is the tx whose
+// receipt holds a Disbursed/NativeDisbursed log emitted by the split; with none (the cast-written proof
+// file), the label is all there is. A broadcast with receipts but no payout log yields null.
+export function proofHashOf(run, t, split) {
+  const labelled = txHashOf(t);
+  if (!Array.isArray(run?.receipts) || !run.receipts.length) return labelled;
+  const s = String(split || '').toLowerCase();
+  const pays = (r) => (r.logs || []).some((l) => String(l.address || '').toLowerCase() === s && PAYOUT_TOPICS.has(String(l.topics?.[0] || '').toLowerCase()));
+  const own = run.receipts.find((r) => String(r.transactionHash || '').toLowerCase() === labelled.toLowerCase());
+  if (own && pays(own)) return labelled;
+  const hits = run.receipts.filter(pays);
+  if (hits.length === 1) return hits[0].transactionHash;
+  // No receipt for the labelled hash yet (pending) and nothing else pays: keep the label so ingest
+  // reports it as pending instead of dropping it silently.
+  return own ? null : (hits.length ? null : labelled);
+}
+
 // Pure over the broadcast folder: what is new compared with deployments.json.
 export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
   const { paths, loadChains, loadDeployments } = await A();
@@ -377,8 +402,10 @@ export async function scanBroadcasts({ network = 'mainnet', project } = {}) {
       const fn = String(t.function || '');
       if (!fn.startsWith('disburse(')) continue;
       const to = t.contractAddress || t.transaction?.to || '';
+      const tx = proofHashOf(pr, t, to);
+      if (!tx) continue;
       const known = list.find((d) => d.chain === chain && d.network === network && d.address.toLowerCase() === String(to).toLowerCase());
-      found.push({ kind: 'proof', chain, network, address: to, tx: txHashOf(t), known: !!(known && (known.proofTxs || []).includes(txHashOf(t))), mined: mined(pr, t) });
+      found.push({ kind: 'proof', chain, network, address: to, tx, known: !!(known && (known.proofTxs || []).includes(tx)), mined: mined(pr, { hash: tx }) });
     }
   }
   return found;

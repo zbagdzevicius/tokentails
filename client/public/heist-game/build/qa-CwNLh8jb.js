@@ -1,0 +1,1 @@
+import"./index-D-tRWkdl.js";function e(e){return null}export{e as installQA};

@@ -54,37 +54,43 @@
     "chainId": 5042,
     "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
     "usdc": "0x3600000000000000000000000000000000000000",
-    "network": "mainnet"
+    "network": "mainnet",
+    "eip3009": true
   },
   {
     "chainId": 42161,
     "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
     "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-    "network": "mainnet"
+    "network": "mainnet",
+    "eip3009": true
   },
   {
     "chainId": 43114,
     "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
     "usdc": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
-    "network": "mainnet"
+    "network": "mainnet",
+    "eip3009": true
   },
   {
     "chainId": 8453,
     "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
     "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "network": "mainnet"
+    "network": "mainnet",
+    "eip3009": true
   },
   {
     "chainId": 143,
     "router": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
     "usdc": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
-    "network": "mainnet"
+    "network": "mainnet",
+    "eip3009": true
   },
   {
     "chainId": 5042,
     "router": "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd",
     "usdc": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
     "network": "mainnet",
-    "symbol": "EURC"
+    "symbol": "EURC",
+    "eip3009": true
   }
 ]

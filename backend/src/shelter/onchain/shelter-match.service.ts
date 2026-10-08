@@ -461,7 +461,11 @@ export class ShelterMatchService {
                 const hot = hotWalletAddress(config);
                 const current = hot
                     ? await this.chain
-                          .ethCall(config, token, chainErc20.encodeFunctionData('allowance', [hot, config.splitAddress]))
+                          .ethCall(
+                              config,
+                              token,
+                              chainErc20.encodeFunctionData('allowance', [hot, config.splitAddress])
+                          )
                           .then(raw => getBigInt(chainErc20.decodeFunctionResult('allowance', raw)[0]))
                           .catch(() => ZERO)
                     : ZERO;

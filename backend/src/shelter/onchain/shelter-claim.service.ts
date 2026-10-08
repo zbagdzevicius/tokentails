@@ -344,11 +344,10 @@ export class ShelterClaimService {
             // preview() lists inactive shelters too (amount 0) and returns the treasury remainder: only
             // wallets that are actually paid count, and a split that keeps any part for the treasury
             // (a rotated shelter below 10000 bps, a deactivated one) is not public giving.
-            const [listed, amounts, toTreasury] = shelterSplitInterface.decodeFunctionResult('preview', raw) as unknown as [
-                string[],
-                bigint[],
-                bigint,
-            ];
+            const [listed, amounts, toTreasury] = shelterSplitInterface.decodeFunctionResult(
+                'preview',
+                raw
+            ) as unknown as [string[], bigint[], bigint];
             const wallets = listed
                 .filter((_w, i) => getBigInt(amounts?.[i] ?? 0) > getBigInt(0))
                 .map(w => String(w).toLowerCase());

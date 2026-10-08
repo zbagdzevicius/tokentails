@@ -28,7 +28,7 @@ describe('eth_getLogs range caps', () => {
 
   it('reads Base Sepolia in 1,000-block windows (its known cap), never a full-range call', async () => {
     expect(PAYOUT_CHAINS[84532].maxLogRange).toBe(1000);
-    expect(PAYOUT_CHAINS[8453].maxLogRange).toBe(2000);
+    expect(PAYOUT_CHAINS[8453].maxLogRange).toBe(500);
     const ranges: [number, number][] = [];
     const f = (async (url: string, init?: { body?: string }) => {
       if (url === '/d.json') return json([{ chainId: 84532, address: SPLIT, fromBlock: 100 }]);

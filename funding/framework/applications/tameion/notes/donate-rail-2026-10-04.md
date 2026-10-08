@@ -2,7 +2,7 @@
 
 Additive note. `draft.md` was corrected today (two stale statements, see below); `submission.md`
 belongs to another session and still has the old text: regenerate it with `fund a:submission tameion`
-after review. Deadline Oct 10 23:59 ET (Oct 11 06:59 Vilnius); invite still unconfirmed.
+after review. Deadline Oct 17 23:59 ET (Oct 18 06:59 Vilnius; corrected 2026-10-08, the note first said Oct 10); registration is open on Luma, no invite needed.
 
 ## New mechanics, mapped to the criteria
 

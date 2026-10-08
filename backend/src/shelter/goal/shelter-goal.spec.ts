@@ -401,7 +401,7 @@ describe('goalChainLegs: every other mainnet, USD stablecoins only', () => {
         const monad = legs.find(l => l.chainId === 143)!;
         expect(monad.tokens[0].address).toBe('0x754704bc059f8c67012fed69bc8a327a5aafb603');
         expect(monad.window).toBe(100);
-        expect(legs.find(l => l.chainId === 8453)!.window).toBe(2_000);
+        expect(legs.find(l => l.chainId === 8453)!.window).toBe(500);
         expect(legs[0].startTime).toBe(Date.parse(`${FACTS['C-001'].goal!.startDate}T00:00:00Z`) / 1000);
     });
 

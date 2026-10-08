@@ -1,6 +1,6 @@
 # Circle Developer Grants — submission
 
-_Generated 2026-10-07T19:29:52.066Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
+_Generated 2026-10-07T19:57:10.154Z by `fund a:submission circle-developer-grants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 

@@ -12,6 +12,12 @@ import { ShelterDonateService } from './shelter-donate.service';
 import { readShelterConfig } from './shelter-onchain.config';
 import { FAKE_KEY, fakeDayModel, fakeWallet, HOT_WALLET, SPLIT, withShelterEnv } from './shelter-onchain.fakes-spec';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 // The crons are opt-in per instance (IMPACT_JOBS_ENABLED); these specs exercise them switched on.
 const JOBS_ENV = process.env.IMPACT_JOBS_ENABLED;
 beforeEach(() => {

@@ -206,7 +206,7 @@ describe('ShelterMatchService.sendOne', () => {
         expect(pool?.used).toBe(500000);
     });
 
-    it('on other chains approves the match on top of the treats\' allowance, waits, then disburses with the memo', async () => {
+    it("on other chains approves the match on top of the treats' allowance, waits, then disburses with the memo", async () => {
         const ctx = setup();
         const c = config({ chainId: 84532 });
         // SEC-6: the treats left 50000 approved; the match adds to it instead of overwriting it.

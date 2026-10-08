@@ -172,3 +172,14 @@ test('C1: client/public/shelter-payouts/routers.json is the public projection of
   const norm = (l) => l.map((x) => ({ ...x, router: x.router.toLowerCase(), usdc: x.usdc.toLowerCase() }));
   assert.deepEqual(norm(client), norm(publicRouters(src)));
 });
+
+test('routerEntryFromBroadcast: eip3009 is recorded only when the caller probed it', async () => {
+  const lib = await import('./lib.mjs');
+  const S = '0x' + '12'.repeat(20), U = '0x' + '34'.repeat(20), R = '0x' + '56'.repeat(20), H = '0x' + '78'.repeat(32);
+  const run = { transactions: [{ transactionType: 'CREATE', contractName: 'DonateRouter', contractAddress: R, hash: H, arguments: [S, U] }], receipts: [{ transactionHash: H, status: '0x1', blockNumber: '0x10' }] };
+  const base = { chainId: 8453, network: 'mainnet', chain: 'base', split: S, token: U, symbol: 'USDC' };
+  assert.equal(lib.routerEntryFromBroadcast(run, base).entry.eip3009, undefined);
+  const e = lib.routerEntryFromBroadcast(run, { ...base, eip3009: true }).entry;
+  assert.equal(e.eip3009, true);
+  assert.equal(lib.publicRouters([e])[0].eip3009, true);
+});

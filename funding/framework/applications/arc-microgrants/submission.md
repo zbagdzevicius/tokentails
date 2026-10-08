@@ -1,6 +1,6 @@
 # Arc Microgrants — submission
 
-_Generated 2026-10-07T19:29:52.065Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
+_Generated 2026-10-07T23:45:30.341Z by `fund a:submission arc-microgrants` from draft.md, the program profile,
 deployments.json and build-evidence.md. Edit those, not this file. Paste each section into the
 matching form field._
 
@@ -12,13 +12,13 @@ matching form field._
 | Call | https://community.arc.io/public/events/arc-microgrants-f8tijfjhyq |
 | Repository | https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split |
 | Demo | _(not set — add `demo:` to call.md)_ |
-| Submitted via | DoraBacks registration link on the Arc call page |
-| Live deployment link | https://tokentails.com/shelter-payouts (plus the Arc explorer link for {SPLIT_ADDRESS}) |
-| Builder profile | {BUILDER_PROFILE_URL} (GitHub, X or Farcaster; required by the call) |
+| Submitted via | DoraHacks registration link on the Arc call page |
+| Live deployment link | https://tokentails.com/shelter-payouts (plus the Arc explorer link for 0x457c89e10a6e66633eda5bf82fd086febb5db147) |
+| Builder profile | https://github.com/zbagdzevicius (GitHub; required by the call) |
 
-## Summary  <!-- 265/280 chars -->
+## Summary  <!-- 269/280 chars -->
 
-ShelterSplit splits native USDC on Arc as it arrives and pays each registered shelter in one transaction. Players send a sponsored one-tap gift after a game, and every payout gets a public receipt. First shelter: Pink Paw, wallet held by Token Tails until handover.
+ShelterSplit splits native USDC on Arc as it arrives and pays each registered shelter in one transaction, with a public receipt for every payout. It is live on Arc mainnet with proof payouts to its first shelter, Pink Paw, whose wallet Token Tails holds until handover.
 
 ## What we built on Arc
 
@@ -53,14 +53,14 @@ Animal shelters run on small donations and have no cheap way to show where the m
 
 ## Team
 
-Token Tails is a Lithuanian company, registered as an MB in October 2024. The team shipped the app to both app stores, built an AI pipeline that writes each cat's story and paints its portraits, and runs payments on three rails. The same team writes, tests and deploys the contracts. Demo video: {DEMO_URL}. Disclosure: we are also entering this work in the Tameion Agents Hackathon (Canteen x Circle x Arc, closes Oct 10); no Circle or Arc program has funded it.
+Token Tails is a Lithuanian company, registered as an MB in October 2024. The team shipped the app to both app stores, built an AI pipeline that writes each cat's story and paints its portraits, and runs payments on three rails. The same team writes, tests and deploys the contracts. Disclosure: we are also entering this work in the Tameion Agents Hackathon (Canteen x Circle x Arc, closes Oct 17); no Circle or Arc program has funded it.
 
 ## Before you press submit
 
 - [ ] Arc MAINNET address recorded and verified with fund a:verify arc mainnet
 - [ ] Repo public
 - [ ] Public builder profile link filled in (GitHub, X or Farcaster)
-- [ ] https://api.tokentails.com/shelter/donate/status returns 200 (the Summary says players send sponsored gifts); otherwise reword the Summary to 'built, switching on'
+- [ ] https://api.tokentails.com/shelter/donate/status returns 200 returns enabled:true on 5042 before any copy says players send sponsored gifts (the Summary and Roadmap say 'built, switching on' since 2026-10-08)
 - [ ] Pink Paw consent letter or public post exists, or no consent is claimed
 - [ ] If a Tameion prize was awarded before Arc decides, disclose it (Arc excludes work already funded by a Circle or Arc program)
 

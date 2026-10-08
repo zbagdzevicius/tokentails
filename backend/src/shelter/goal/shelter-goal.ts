@@ -90,11 +90,11 @@ export function inflowFilter(c: GoalCampaign, from: number, to: number) {
 }
 
 /**
- * eth_getLogs spans the chains' public RPCs accept (checked read-only 2026-10-04): mainnet.base.org
- * stops at 2,000 blocks and rpc.monad.xyz at 100; Tempo, Arbitrum, Avalanche and Robinhood Chain
+ * eth_getLogs spans the chains' public RPCs accept (checked read-only 2026-10-04; Base re-checked
+ * 2026-10-08): mainnet.base.org stops at 500 blocks (-32614) and rpc.monad.xyz at 100; Tempo, Arbitrum, Avalanche and Robinhood Chain
  * took 100,000 for a wallet-filtered Transfer query, and 9,999 keeps a margin.
  */
-export const GOAL_LOG_WINDOW: Record<number, number> = { 8453: 2_000, 143: 100, 10143: 100 };
+export const GOAL_LOG_WINDOW: Record<number, number> = { 8453: 500, 143: 100, 10143: 100 };
 export const goalLogWindow = (chainId: number) => GOAL_LOG_WINDOW[chainId] ?? GOAL_WINDOW_BLOCKS;
 
 /** A coin a chain leg counts (address lowercased). */

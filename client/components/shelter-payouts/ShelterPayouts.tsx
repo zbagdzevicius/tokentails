@@ -33,7 +33,7 @@ import {
   useTreatJar,
 } from "./payoutSections";
 import { RouterEntry, fetchRouters, routerFor } from "./routers";
-import { ShelterDeployment, resolveChain } from "./rpc";
+import { ShelterDeployment, deploymentToken, resolveChain } from "./rpc";
 import { isPinkPawWallet } from "./pinkPaw";
 import { PinkPawShowcase } from "./PinkPawShowcase";
 import { ShelterProfile } from "./ShelterProfile";
@@ -100,7 +100,7 @@ const ChainCard = ({
 }) => {
   const chain = resolveChain(deployment);
   const cardTotals = result.status === "done" ? totalsBySymbol(result.items, chain) : [];
-  const role = chainRole(deployment.chainId);
+  const role = chainRole(deployment.chainId, deploymentToken(deployment));
   // The balance read is the native coin unless the chain has none (Tempo): say which.
   const nativeBalance = !chain?.balanceToken;
   const balanceSymbol = chain?.balanceToken ? chain.symbol : chain?.nativeSymbol || "";

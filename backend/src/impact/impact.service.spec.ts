@@ -8,6 +8,13 @@ import { hourBucket, PublicImpact } from './impact-public';
 import { IMPACT_SNAPSHOT_JOB, servedSnapshot } from './impact.service';
 import { impactFixture, NOW } from './impact.fixture-spec';
 
+// These specs cover the rail before the mainnet wave (Arc mainnet not deployed): run them against
+// wallet.config.ts without its mainnet splits, which are recorded since 2026-10-07.
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 // The crons are opt-in per instance (IMPACT_JOBS_ENABLED); these specs exercise them switched on.
 const JOBS_ENV = process.env.IMPACT_JOBS_ENABLED;
 beforeEach(() => {

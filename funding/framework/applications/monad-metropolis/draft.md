@@ -24,20 +24,23 @@ ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify verified), pro
 0xf88e8625dd8c1f60ab8cd35e1eab940fecc0e5e41784ef5f43f604449cd1b887 (0.01 MON), DonateRouter
 0xe271131be71e29f83084fd34aa6c70d50a2aea71 with a one-signature 0.1 USDC gift
 0x5f5099e0cbbe7e7434fac2456d5b0a1ef4f2c787046e976ae617dc6a68f68f36, all to Pink Paw. Monad mainnet
-(143) is in the mainnet wave. The payouts page lists Monad testnet and Monad. ·
-{SPLIT_ADDRESS} ShelterSplit on Arc · {ARC_TX} first sponsored treat on Arc · {DEMO_URL} demo
+(143) since Oct 7: ShelterSplit 0x457c89e10a6e66633eda5bf82fd086febb5db147 (Sourcify exact match), proof payout
+0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5 (0.1 USDC to Pink Paw), DonateRouter
+0xb3adf1220d7d3835c2af1c194ff745d0d33bd052 (Sourcify exact match, no gift yet). The payouts page lists Monad
+testnet and Monad. · {SPLIT_ADDRESS} ShelterSplit on Arc · {DEMO_URL} demo
 video · github.com/zbagdzevicius/tokentails public repo. HEIST_URL https://tokentails.com/heist · PAYOUTS_URL
 https://tokentails.com/shelter-payouts
 
-Chains, exactly (re-checked 2026-10-05): production serves mainnets only and no mainnet split is
-recorded yet, so no treat or x402 call runs in production today. The backend offers the sponsored treat
+Chains, exactly (re-checked 2026-10-08): production serves mainnets only. Mainnet splits are recorded on
+7 chains, Monad included, but /shelter/donate/status shows enabled:false on all of them until the
+production backend gets its treat wallet key, so no treat runs in production yet. The backend offers the sponsored treat
 and the x402 card on every chain with a recorded split of its network class, Monad included; on a
 mainnet the x402 card waits for Pink Paw's signed per-chain claim. On Monad, ShelterSplit pays USDC
-through disburse(). Do not claim a production sponsored treat on Monad until the Monad mainnet split
-is recorded. -->
+through disburse(). Do not claim a production sponsored treat on Monad until donate/status shows enabled:true
+for chain 143. -->
 
 ## Summary <!-- criterion: C1 | limit: 280 -->
-A player wins a round of Catnip Heist, taps "Send Pink Paw a rescue treat", and a real stablecoin payment reaches a cat shelter, with a public receipt. No wallet and no gas for the player. ShelterSplit, the payout rail behind it, deploys on Monad.
+ShelterSplit, live on Monad mainnet, pays a cat shelter in USDC in one transaction, with a public receipt. It powers Catnip Heist's give flow: win a round, tap "Send Pink Paw a rescue treat", and a sponsored gift goes out. No wallet and no gas for the player.
 
 ## Problem <!-- criterion: C1 | limit: 1200 -->
 Apps that say "part of your purchase helps shelters" give the buyer no way to check it. The shelter sees a bank transfer weeks later, if at all, and the buyer sees nothing. Small shelters cannot integrate a payments provider, and cross-border giving adds bank fees and delays. A consumer who wants to give a little, often, has no way to do it: card fees eat a small gift, and a crypto wallet is too much to ask of a game player. Token Tails is a consumer cat-rescue game on web, iOS and Android [F-015] [F-016]; it had the players and the promise, but not a payout anyone could check.
@@ -55,13 +58,13 @@ The player never touches a wallet: purchases stay card or in-app payments [F-020
 ## How it works <!-- criterion: C1 | limit: 1500 -->
 - On Monad, ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 pays USDC with disburse(amount, memo): it pulls the payment, splits it by basis points and sends rounding dust to a treasury. Fast blocks and low fees settle a small gift before the player leaves the screen.
 - Safety: reentrancy guard, pause, two-step ownership, safe transfers, caps on shelters and memo length. Foundry tests cover splits, dust, access control, reentrancy and fuzzing.
-- The give flow runs on Arc at 0x457c89e10a6e66633eda5bf82fd086febb5db147: a backend wallet with a small float pays, with a memo that holds no personal data. First treat: {ARC_TX}. The same backend pays treats in USDC on Monad testnet through disburse().
+- The give flow: a backend wallet with a small float pays, with a memo that holds no personal data. It is funded on Monad mainnet and pays treats in USDC through disburse(); it switches on with the production backend's treat key (Arc runs the same flow on its native-USDC split).
 - Agent payments: our onchain-receipt scheme (memo x402:<nonce>, checked over RPC, accepted once) on every chain with a split, Monad included, plus standard x402 exact. On mainnet: only once Pink Paw holds its own key.
-- Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad testnet; off for the public until handover.
+- Donor gifts: an ownerless DonateRouter takes a one-signature USDC gift (EIP-3009, which Circle USDC on Monad supports) and reverts if any share would reach the treasury. Live on Monad mainnet at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052 and on Monad testnet; off for the public until handover.
 - Trust model: the chain proves funds reached the registered wallet, not who controls it.
 - ShelterSplit and the Rail SDK are MIT (github.com/zbagdzevicius/tokentails). Demo: {DEMO_URL}.
 ## On-chain proof <!-- criterion: C1 | limit: 800 -->
-Monad: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, source verified. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift, all to Pink Paw. Arc: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147, first sponsored treat {ARC_TX}, listed on the payouts page. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet [F-009].
+Monad mainnet: ShelterSplit at 0x457c89e10a6e66633eda5bf82fd086febb5db147 and DonateRouter at 0xb3adf1220d7d3835c2af1c194ff745d0d33bd052, both source verified; proof payout 0xd5502f608d776bd2286da096d666f4073d2b5872dcffc575bde95e3b537999f5 (0.1 USDC to Pink Paw), listed on the payouts page. Monad testnet (test coins): a 1 USDC payout, a 0.01 MON native gift and a one-signature 0.1 USDC router gift. Disclosure: Pink Paw (Rožinė pėdutė) is the first shelter, and its receiving wallet is held by Token Tails on behalf of the shelter until handover. Until then Token Tails controls the funds that reach that wallet; the contract itself holds nothing. Prior work, before the window and not submitted: three Soroban contracts on Stellar mainnet [F-009].
 
 ## Team <!-- criterion: C1 | limit: 800 -->
 Token Tails is a Lithuanian small partnership (MB), registered in October 2024 [F-021]. The same team built and runs the whole product: the app on both stores [F-015] [F-016], the AI pipeline that writes each cat's story [F-019] and payments on three rails [F-020]. In the window it wrote ShelterSplit and its tests, the give flow, receipts, the payouts page, the agent endpoint, the SDK and the Catnip Heist hook. Historical, not current: on the SEI chain the app peaked at 324,422 weekly active wallets [F-003] in November 2025; that activity ended in March 2026 and none of it is Monad data.

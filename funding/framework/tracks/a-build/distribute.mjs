@@ -615,7 +615,7 @@ export function runAllScript({ network, deploy, chains, wallets, date = new Date
     '  (cd "$PROJECT" && SPLIT="$split" USDC="$token" EXPECTED_CHAIN_ID="$id" forge script script/DeployDonateRouter.s.sol:DeployDonateRouter --rpc-url "$url" "${SIGNER[@]}" --sender "$DEPLOYER" ${bc[@]+"${bc[@]}"} $(fargsof "$c")) || { fail "$c" "DonateRouter $sym deploy"; return; }',
     '  [ "$DRY" = 1 ] && return',
     '  # Recorded right away: the next router on this chain overwrites the same run-latest.json.',
-    '  "${FUND[@]}" router record --chain "$id" --token "$sym" --split "$split" || fail "$c" "router record ($sym)"',
+    '  "${FUND[@]}" router record --chain "$id" --token "$sym" --split "$split" --eip3009 || fail "$c" "router record ($sym)"',
     '}',
     'step "4. DonateRouters"',
     'if true; then',

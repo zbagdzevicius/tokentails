@@ -22,7 +22,7 @@ export interface ChainInfo {
   testnet?: boolean;
   /**
    * The widest eth_getLogs range the public RPC accepts, when it is known to be small (Base caps
-   * mainnet.base.org at 2,000 blocks). The log scan starts with windows of this size.
+   * mainnet.base.org at 500 blocks, -32614 since at least 2026-10-08). The log scan starts with windows of this size.
    */
   maxLogRange?: number;
   /**
@@ -35,6 +35,7 @@ export interface ChainInfo {
 /** What each chain is used for, one line per chain family (the payouts page shows it per card). */
 export const CHAIN_ROLES: Record<string, string> = {
   arc: "Circle's chain: gas is paid in USDC itself. Pink Paw's campaign runs here.",
+  arcEurc: "Arc's euro split: EURC gifts go straight to the shelter. The dollar goal counts only USDC.",
   tempo: "A payments chain with no gas coin: network fees are paid in a stablecoin.",
   arbitrum: "Ethereum rollup with low fees. Native ETH gifts are split too.",
   avalanche: "Avalanche C-Chain. Native AVAX gifts are split too.",
@@ -50,8 +51,15 @@ const ROLE_BY_CHAIN_ID: Record<number, string> = {
   143: "monad", 10143: "monad",
 };
 
-/** The role line for a chain id, or null for chains without one. */
-export const chainRole = (chainId: number): string | null => CHAIN_ROLES[ROLE_BY_CHAIN_ID[chainId]] || null;
+/**
+ * The role line for a chain id, or null for chains without one. A second-token instance on Arc (EURC)
+ * gets its own line: the campaign line would read as if euro gifts counted toward the dollar goal.
+ */
+export const chainRole = (chainId: number, token?: string | null): string | null => {
+  const family = ROLE_BY_CHAIN_ID[chainId];
+  if (family === "arc" && token && token.toUpperCase() === "EURC") return CHAIN_ROLES.arcEurc;
+  return CHAIN_ROLES[family] || null;
+};
 
 /** "Avalanche Fuji" -> "Avalanche Fuji testnet"; names that already say testnet stay as they are. */
 export const chainDisplayName = (chain: Pick<ChainInfo, "name" | "testnet">): string =>
@@ -65,7 +73,7 @@ export const chainDisplayName = (chain: Pick<ChainInfo, "name" | "testnet">): st
 export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   5042: { name: "Arc", rpc: "https://rpc.mainnet.arc.io", explorer: "https://explorer.arc.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" },
   5042002: { name: "Arc Testnet", testnet: true, rpc: "https://rpc.testnet.arc.io", logRpc: "https://rpc.blockdaemon.testnet.arc.network", maxLogRange: 100_000, explorer: "https://explorer.testnet.arc.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "USDC" },
-  8453: { name: "Base", rpc: "https://mainnet.base.org", maxLogRange: 2_000, explorer: "https://basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
+  8453: { name: "Base", rpc: "https://mainnet.base.org", maxLogRange: 500, explorer: "https://basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   84532: { name: "Base Sepolia", testnet: true, rpc: "https://base-sepolia-rpc.publicnode.com", explorer: "https://sepolia.basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   42161: { name: "Arbitrum One", rpc: "https://arb1.arbitrum.io/rpc", explorer: "https://arbiscan.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   421614: { name: "Arbitrum Sepolia", testnet: true, rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },

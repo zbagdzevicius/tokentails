@@ -8,6 +8,7 @@ import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
 import {
   ShelterDeployment,
+  deploymentToken,
   fetchDeployments,
   fetchDisbursements,
   fetchNativeBalance,
@@ -156,6 +157,9 @@ export const chainLabel = (deployment: ShelterDeployment, chain: ChainInfo | nul
     deployment.network && !(chain?.name || "").toLowerCase().includes(deployment.network.toLowerCase())
       ? ` ${deployment.network}`
       : ""
+  }${
+    // Two Arc cards differ only by coin: name the euro one in its title, not just in the chip.
+    deploymentToken(deployment) === "EURC" ? " EURC" : ""
   }`;
 
 

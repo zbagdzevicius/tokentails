@@ -18,7 +18,14 @@ const ENV = {
 };
 
 /** One fake RPC: the split's paused/preview/token, the token balance and the gas balance. */
-function fakeChain(state: { paused?: boolean; wallets?: string[]; token?: bigint; gas?: bigint; down?: boolean; price?: bigint }) {
+function fakeChain(state: {
+    paused?: boolean;
+    wallets?: string[];
+    token?: bigint;
+    gas?: bigint;
+    down?: boolean;
+    price?: bigint;
+}) {
     return {
         gasPrice: jest.fn(async () => state.price ?? null),
         ethCall: jest.fn(async (_c: any, _to: string, data: string) => {
@@ -113,12 +120,18 @@ describe('the main chain on its recorded split (BE-1 / SEC-1: zero config, no SH
     });
 
     it('is healthy when the split pays a shelter and the hot wallet holds a treat plus gas', async () => {
-        await expect(service(fakeChain({ gas: ONE, price: getBigInt(1e9) })).treatHealth(main(), NOW)).resolves.toBeNull();
+        await expect(
+            service(fakeChain({ gas: ONE, price: getBigInt(1e9) })).treatHealth(main(), NOW)
+        ).resolves.toBeNull();
     });
 
     it.each([
         ['less than one treat', { gas: getBigInt(1) }, 'the hot wallet holds less than one treat of USDC'],
-        ['a treat but no gas on top', { gas: getBigInt('10000000000000001'), price: getBigInt(1e9) }, 'the hot wallet is low on gas'],
+        [
+            'a treat but no gas on top',
+            { gas: getBigInt('10000000000000001'), price: getBigInt(1e9) },
+            'the hot wallet is low on gas',
+        ],
         ['paused', { paused: true, gas: ONE }, 'the split is paused'],
     ])('names why the main chain is unavailable: %s', async (_n, state, reason) => {
         await expect(service(fakeChain(state as any)).treatHealth(main(), NOW)).resolves.toBe(reason);

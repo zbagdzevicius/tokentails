@@ -552,8 +552,8 @@ export class ImpactService implements OnApplicationBootstrap {
                     ? lastSuccess.toISOString()
                     : null
                 : otherSuccess
-                  ? new Date(otherSuccess).toISOString()
-                  : null,
+                ? new Date(otherSuccess).toISOString()
+                : null,
         };
     }
 

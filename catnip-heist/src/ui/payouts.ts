@@ -50,7 +50,7 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   43114: { rpc: 'https://api.avax.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   43113: { rpc: 'https://api.avax-test.network/ext/bc/C/rpc', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'AVAX' },
   // Base's public RPCs refuse eth_getLogs over more than 2,000 (mainnet) or 1,000 (Sepolia) blocks.
-  8453: { rpc: 'https://mainnet.base.org', maxLogRange: 2_000, logsApi: 'https://base.blockscout.com/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
+  8453: { rpc: 'https://mainnet.base.org', maxLogRange: 500, logsApi: 'https://base.blockscout.com/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   84532: { rpc: 'https://sepolia.base.org', maxLogRange: 1_000, logsApi: 'https://base-sepolia.blockscout.com/api', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood Chain pays USDG (Paxos), never USDC: totals are kept per symbol, so it is never summed as USDC.
   4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
@@ -364,10 +364,26 @@ export function memoOf(data: string): string {
     if (body.length !== len * 2 || len > 1024) return '';
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) bytes[i] = parseInt(body.slice(i * 2, i * 2 + 2), 16);
-    return new TextDecoder().decode(bytes).replace(/[\u0000-\u001f\u007f]/g, '').trim();
+    return displayMemo(new TextDecoder().decode(bytes).replace(/[\u0000-\u001f\u007f]/g, '').trim());
   } catch {
     return '';
   }
+}
+
+/**
+ * A memo that is itself a bytes32 hex string (Tempo's disburseWithMemo passes a TIP-20 memo, so the
+ * log carries '0x4361746e6970…00') reads as its UTF-8 text with the trailing zero bytes dropped.
+ * Anything else, or hex that is not printable text, is returned unchanged. Same rule as the client's
+ * displayMemo (client/components/shelter-payouts/logs.ts).
+ */
+export function displayMemo(memo: string): string {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(memo)) return memo;
+  const hex = memo.slice(2).replace(/(00)+$/, '');
+  if (!hex.length || hex.length % 2) return memo;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  const text = new TextDecoder().decode(bytes);
+  return /^[\x20-\x7E\u00A0-\uFFFF]+$/.test(text) && !text.includes('\uFFFD') ? text : memo;
 }
 
 interface RpcLog extends PayoutLog { blockNumber?: string; transactionHash?: string; /** Explorer API only: block time, hex seconds. */ timeStamp?: string }

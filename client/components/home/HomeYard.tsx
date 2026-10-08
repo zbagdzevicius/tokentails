@@ -158,8 +158,12 @@ export function HomeYard({ fallback, loader = loadHomeYard, timeoutMs = HOME_YAR
           throw new HomeYardLoadError(`Home yard failed to start: ${(error as Error)?.message ?? error}`, "create");
         }
         yardRef.current = api;
-        // End-to-end specs find cats on screen through this (never set in production).
-        if ((window as unknown as { __TT_E2E__?: boolean }).__TT_E2E__) {
+        // End-to-end specs find cats on screen through this. Dev and E2E builds only: the inlined
+        // NODE_ENV / NEXT_PUBLIC_E2E check drops the hook from production (bundle-guards job).
+        if (
+          (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_E2E === "1") &&
+          (window as unknown as { __TT_E2E__?: boolean }).__TT_E2E__
+        ) {
           (window as unknown as { __ttHomeYard?: HomeYardAPI }).__ttHomeYard = api;
         }
         return api.ready;

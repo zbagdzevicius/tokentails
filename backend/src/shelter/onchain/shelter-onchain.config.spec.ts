@@ -20,6 +20,12 @@ import {
 import { getAddress } from 'ethers';
 import { CHAINS, WALLETS } from './wallet.config';
 
+// These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
+jest.mock('src/shelter/onchain/wallet.config', () =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('src/shelter/onchain/pre-mainnet.fakes-spec').preMainnetWalletConfig()
+);
+
 const KEY_MAIN = 'main-key';
 const KEY_TRY = 'try-key';
 const ROUTER = '0x' + '11'.repeat(20);
