@@ -46,7 +46,7 @@ describe('payout index in the Heist', () => {
     const out = await fetchShelterPayouts('/d.json', f, 8000, { apiUrl: API, nowMs: NOW });
     expect(out.status).toBe('ok');
     expect(out.totals.get('USDC')).toBe(6n * 10n ** 18n);
-    expect(out.chains[0]).toMatchObject({ ok: true, count: 3 });
+    expect(out.chains[0]).toMatchObject({ ok: true, count: 3, indexed: true });
     expect(out.payouts.map((p) => p.block)).toEqual([1005, 950, 900]);
     expect(out.payouts.find((p) => p.block === 950)?.time).toBe(T - 300);
     const getLogs = calls.filter((c) => c.method === 'eth_getLogs');
@@ -78,7 +78,34 @@ describe('payout index in the Heist', () => {
     const { f, calls } = fake(answer);
     const out = await fetchShelterPayouts('/d.json', f, 8000, { apiUrl: API, nowMs: NOW });
     expect(out.totals.get('USDC')).toBe(3n * 10n ** 18n);
+    expect(out.chains[0].indexed).toBeUndefined();
     expect(calls.find((c) => c.method === 'eth_getLogs')?.params?.[0].fromBlock).toBe('0x64');
+  });
+
+  it('labels the index as updating when the newest blocks cannot be read', async () => {
+    const { f } = fake(() => json(index(T - 60)));
+    const failing = (async (url: string, init?: RequestInit) => (String(url).includes('arb1') ? new Response('down', { status: 500 }) : f(url, init))) as typeof fetch;
+    const out = await fetchShelterPayouts('/d.json', failing, 8000, { apiUrl: API, nowMs: NOW });
+    expect(out.chains[0]).toMatchObject({ ok: true, indexed: true, updating: { block: 1000, time: T - 60 } });
+  });
+
+  it('shows a stale index as last known, labelled updating, when the chain cannot be read either', async () => {
+    const stale = T - INDEX_STALE_MS / 1000 - 60;
+    const { f } = fake(() => json(index(stale)));
+    const failing = (async (url: string, init?: RequestInit) => (String(url).includes('arb1') ? new Response('down', { status: 500 }) : f(url, init))) as typeof fetch;
+    const out = await fetchShelterPayouts('/d.json', failing, 8000, { apiUrl: API, nowMs: NOW });
+    expect(out.chains[0]).toMatchObject({ ok: true, count: 2, indexed: true, updating: { block: 1000, time: stale } });
+    expect(out.totals.get('USDC')).toBe(3n * 10n ** 18n);
+    expect(out.payouts.map((p) => p.block)).toEqual([950, 900]);
+  });
+
+  it('marks a chain unread when neither the index nor the chain answers', async () => {
+    const { f } = fake(() => Promise.reject(new TypeError('Failed to fetch')));
+    const failing = (async (url: string, init?: RequestInit) => (String(url).includes('arb1') ? new Response('down', { status: 500 }) : f(url, init))) as typeof fetch;
+    const out = await fetchShelterPayouts('/d.json', failing, 8000, { apiUrl: API, nowMs: NOW });
+    expect(out.chains[0]).toMatchObject({ ok: false, count: 0 });
+    expect(out.chains[0].updating).toBeUndefined();
+    expect(out.payouts).toEqual([]);
   });
 
   it('never asks the backend without an API URL', async () => {

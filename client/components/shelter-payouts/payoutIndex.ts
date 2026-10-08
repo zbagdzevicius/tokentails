@@ -36,7 +36,10 @@ export interface IndexedEvent {
   decimals: number;
   symbol: string;
   amount18: string;
+  /** Display text: the backend decodes a Tempo bytes32 memo (0x-hex) to text; `memoRaw` is as emitted. */
   memo: string;
+  /** Older backends omit it. */
+  memoRaw?: string;
 }
 
 export interface PayoutIndex {
@@ -155,7 +158,7 @@ export function indexedPayoutsFor(
   address: string,
   now: number = Date.now(),
   staleMs: number = INDEX_STALE_MS
-): { through: number; items: Disbursement[] } | null {
+): { through: number; time: number; items: Disbursement[] } | null {
   if (!index) return null;
   const contract = address.toLowerCase();
   const entry = index.contracts.find((c) => c.chainId === chainId && c.contract === contract);
@@ -177,7 +180,20 @@ export function indexedPayoutsFor(
     }));
   // The index says how many it holds; a list cut short would understate the totals.
   if (items.length !== entry.count) return null;
-  return { through: through.block, items };
+  return { through: through.block, time: through.time, items };
+}
+
+/**
+ * The index's last-known payouts of one contract, however far behind it is: what the page keeps
+ * showing (labelled "updating") when the chain cannot be read right now. Null when the index does
+ * not list the contract or its list is cut short.
+ */
+export function lastKnownPayoutsFor(
+  index: PayoutIndex | null,
+  chainId: number,
+  address: string
+): { through: number; time: number; items: Disbursement[] } | null {
+  return indexedPayoutsFor(index, chainId, address, 0, Number.POSITIVE_INFINITY);
 }
 
 /** Indexed items plus the chain's newer ones, without duplicates, newest first. */

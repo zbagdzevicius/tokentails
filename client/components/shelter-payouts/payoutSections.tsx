@@ -7,14 +7,15 @@ import { claimsDateLabel } from "./campaign";
 import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
 import {
+  PayoutsUpdating,
   ShelterDeployment,
   deploymentToken,
   fetchDeployments,
-  fetchDisbursements,
   fetchNativeBalance,
   fetchTestnetDeployments,
   isTestnetDeployment,
   readErrorText,
+  readPayouts,
   resolveChain,
 } from "./rpc";
 import { treatJarOpen } from "./treatChains";
@@ -31,7 +32,7 @@ export const IMPACT_URL = "/impact";
 export type Result =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "done"; items: Disbursement[] };
+  | { status: "done"; items: Disbursement[]; updating?: PayoutsUpdating };
 
 export type Page =
   | { status: "loading" }
@@ -79,9 +80,9 @@ export function readDeployments(
     fetchNativeBalance(d)
       .then((wei) => !cancelled() && setBalances((b) => ({ ...b, [i]: { status: "done", wei } })))
       .catch(() => !cancelled() && setBalances((b) => ({ ...b, [i]: { status: "error" } })));
-    fetchDisbursements(d)
-      .then((items) => {
-        if (!cancelled()) setResults((r) => ({ ...r, [i]: { status: "done", items } }));
+    readPayouts(d)
+      .then(({ items, updating }) => {
+        if (!cancelled()) setResults((r) => ({ ...r, [i]: { status: "done", items, ...(updating ? { updating } : {}) } }));
       })
       .catch((err: unknown) => {
         if (!cancelled()) setResults((r) => ({ ...r, [i]: { status: "error", error: readErrorText(err) } }));
@@ -253,6 +254,29 @@ export const feedItems = (deployments: ShelterDeployment[], results: Record<numb
     const chain = resolveChain(d);
     return r.items.map((item) => ({ d: item, chain, chainName: chainLabel(d, chain), chainId: d.chainId }));
   });
+
+/** "Oct 8, 11:50 UTC": when the index last read a contract the chain cannot be read for right now. */
+export function indexedAtLabel(time: number): string {
+  const d = new Date(time * 1000);
+  if (!Number.isFinite(d.getTime())) return "";
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${month} ${d.getUTCDate()}, ${hh}:${mm} UTC`;
+}
+
+/** The small "updating" line of a contract shown from the index's last-known payouts. */
+export const updatingText = (u: PayoutsUpdating): string => {
+  const at = indexedAtLabel(u.time);
+  return `Updating: payouts through ${at || `block ${u.block}`}. Newer ones may be missing; reload in a minute.`;
+};
+
+/** How many deployments in the list show the index's last-known payouts while their chain is busy. */
+export const updatingCount = (deployments: unknown[], results: Record<number, Result>) =>
+  deployments.filter((_, i) => {
+    const r = results[i];
+    return r?.status === "done" && !!r.updating;
+  }).length;
 
 /** True while any deployment in the list is still being read. */
 export const stillReading = (deployments: unknown[], results: Record<number, Result>) =>

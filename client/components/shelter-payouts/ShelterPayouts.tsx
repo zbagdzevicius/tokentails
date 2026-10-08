@@ -28,6 +28,8 @@ import {
   feedItems,
   stillReading,
   totalsBySymbol,
+  updatingCount,
+  updatingText,
   twoDp,
   usePayouts,
   useTreatJar,
@@ -86,7 +88,7 @@ const BalanceLine = ({
 );
 
 /** One chain: its total, payout count, contract and balance. */
-const ChainCard = ({
+export const ChainCard = ({
   deployment,
   result,
   balance,
@@ -166,6 +168,12 @@ const ChainCard = ({
           </p>
         </div>
       )}
+      {/* The chain is busy: these are the index's last-known payouts, kept and labelled, never dropped. */}
+      {result.status === "done" && result.updating && (
+        <p className="text-p6 md:text-p5 text-tt-cream/70" data-testid="chain-card-updating">
+          {updatingText(result.updating)}
+        </p>
+      )}
 
       <BalanceLine
         balance={balance}
@@ -214,6 +222,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
 
   const unread =
     page.status === "done" && page.deployments.some((_, i) => results[i]?.status === "error");
+  const updating = page.status === "done" ? updatingCount(page.deployments, results) : 0;
   const chainsTotal = page.status === "done" ? chainCount(page.deployments) : 0;
 
   const deployments = page.status === "done" ? page.deployments : [];
@@ -321,6 +330,15 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               {totalEntries.length > 0 && !pending && unread && (
                 <p className="max-w-xl text-p5 md:text-p4 text-tt-cream/90" data-testid="payouts-partial">
                   Some chains could not be read right now, so these totals may be incomplete. Reload in a minute.
+                </p>
+              )}
+              {/* Last-known figures are counted, and said to be last-known (the card names the time). */}
+              {totalEntries.length > 0 && !pending && !unread && updating > 0 && (
+                <p className="max-w-xl text-p6 md:text-p5 text-tt-cream/70" data-testid="payouts-updating">
+                  Updating:{" "}
+                  {updating === 1
+                    ? "one contract shows its last indexed payouts while its chain is busy, so the newest may be missing. Reload in a minute."
+                    : `${updating} contracts show their last indexed payouts while their chains are busy, so the newest may be missing. Reload in a minute.`}
                 </p>
               )}
             </div>

@@ -222,9 +222,17 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const dioramaHost = h('div.ch-diorama', { 'aria-hidden': 'true' });
   root.prepend(dioramaHost);
   let diorama: Diorama | null = null;
+  // Held (no frames) while the payouts modal covers it: without a GPU each frame holds the main
+  // thread for seconds, so a `?payouts` link painted its rows ~5 s after they arrived. It (re)starts
+  // when the modal closes; a deep link opens the modal before the first frame, so none is drawn.
+  let dioramaHeld = false;
   function syncDiorama(name: ScreenName) {
     const want = name === 'title' || name === 'pick';
     dioramaHost.classList.toggle('ch-on', want);
+    if (dioramaHeld) {
+      diorama?.stop();
+      return;
+    }
     if (want && !diorama) {
       try {
         diorama = createDiorama(dioramaHost, { base, catIds: picked.length === 2 ? [picked[0], picked[1]] : DEFAULT_PAIR });
@@ -1052,6 +1060,14 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       load: opts.loadPayouts,
       loadTestnet: opts.loadTestnetPayouts,
       onClick: () => handlers.onClick?.(),
+      onOpen: () => {
+        dioramaHeld = true;
+        diorama?.stop();
+      },
+      onClose: () => {
+        dioramaHeld = false;
+        syncDiorama(screen);
+      },
       // The rail decides the CTA, as on the win screen: the give link while live, else its badge.
       giveCta: () => {
         const copy = railCopy(rail, web);

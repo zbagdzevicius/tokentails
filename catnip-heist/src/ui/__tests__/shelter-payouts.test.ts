@@ -153,6 +153,15 @@ describe('payouts modal', () => {
     expect(chain.textContent).toContain('2 payouts');
     expect(chain.querySelector('a')?.getAttribute('href')).toBe(`https://explorer.arc.io/address/${SPLIT}`);
     expect(m.el.querySelector('[data-testid="payouts-how"]')).toBeNull();
+    // No chain came from the backend's index: the source line must not claim one.
+    expect(m.el.querySelector('[data-testid="payouts-source"]')?.textContent).toBe('Read from the public payout events on each chain; every payout links to its transaction.');
+  });
+
+  it('names the index as the source only when a chain was read from it', async () => {
+    const chain = { chainId: 5042, name: 'Arc', explorer: 'https://explorer.arc.io', address: SPLIT, totals: new Map([['USDC', 10n ** 18n]]), count: 1, ok: true, indexed: true };
+    const m = make(async () => ({ status: 'ok', totals: new Map([['USDC', 10n ** 18n]]), chains: [chain], payouts: [] }));
+    await m.show();
+    expect(m.el.querySelector('[data-testid="payouts-source"]')?.textContent).toContain('Read from an index of the public payout events plus the newest blocks');
   });
 
   it('retries once quietly, then shows a retry on RPC failure, and retrying reads again', async () => {

@@ -5,7 +5,10 @@ event from each ShelterSplit deployment. It reads the backend's index of those p
 (`payoutIndex.ts`, `GET /shelter/payouts`, docs/API.md) and then only the blocks after the index's
 `indexedThrough` with plain `eth_getLogs` calls to the chain's public RPC (`rpc.ts`). Without a backend,
 or for a contract the index has not read within 15 minutes, it reads the whole range from the RPC, so
-the feed still works with no backend; it needs no wallet and adds no dependency. Every payout links
+the feed still works with no backend; it needs no wallet and adds no dependency. When the chain
+cannot be read (the tail after the index, or the full read of a stale contract), the index's
+last-known payouts stay on the card, labelled "Updating: payouts through <time>" (`readPayouts`,
+`lastKnownPayoutsFor`), and still count in the totals. Every payout links
 to its transaction on the chain's explorer.
 
 Chains (`chains.ts`), mainnet and testnet: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain

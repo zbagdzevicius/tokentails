@@ -337,8 +337,9 @@
 
   // data-index: the backend's payout index answers up to `indexedThrough`; a contract it has not read
   // within INDEX_STALE_MS is read from the chain instead. Mirrors indexedTotals in sdk.mjs.
+  // `lastKnown`: a stale entry comes back too (with `stale: true`), to stand in when the chain is busy.
   var INDEX_STALE_MS = 15 * 60 * 1000;
-  function readIndexed(base, network, chainId, split, tokenOnly) {
+  function readIndexed(base, network, chainId, split, tokenOnly, lastKnown) {
     base = String(base || "").replace(/\/+$/, "").replace(/\/shelter\/payouts$/, "");
     if (!base || typeof fetch !== "function") return Promise.resolve(null);
     var want = String(split).toLowerCase();
@@ -348,7 +349,9 @@
       .then(function (body) {
         var c = body && Array.isArray(body.contracts) ? body.contracts.filter(function (x) { return x && Number(x.chainId) === chainId && String(x.contract).toLowerCase() === want; })[0] : null;
         var t = c && c.indexedThrough;
-        if (!t || typeof t.block !== "number" || typeof t.time !== "number" || Date.now() - t.time * 1000 > INDEX_STALE_MS) return null;
+        if (!t || typeof t.block !== "number" || typeof t.time !== "number") return null;
+        var stale = Date.now() - t.time * 1000 > INDEX_STALE_MS;
+        if (stale && !lastKnown) return null;
         var sum = BigInt(0);
         (c.totals || []).forEach(function (x) {
           if (!/^\d{1,78}$/.test(String(x && x.amount18))) throw new Error("bad total");
@@ -356,9 +359,38 @@
           if (x.kind === "native" && tokenOnly) return;
           sum += BigInt(x.amount18);
         });
-        return { through: t.block, total: sum };
+        return { through: t.block, time: t.time, total: sum, stale: stale };
       })
       .catch(function () { return null; });
+  }
+
+  /** "as of 2 h ago": when the index last read a contract whose chain is busy right now. */
+  function asOf(unixSec, nowMs) {
+    var s = Math.max(0, Math.round((nowMs === undefined ? Date.now() : nowMs) / 1000 - unixSec));
+    if (s < 60) return "as of just now";
+    if (s < 3600) return "as of " + Math.floor(s / 60) + " min ago";
+    if (s < 86400) return "as of " + Math.floor(s / 3600) + " h ago";
+    return "as of " + Math.floor(s / 86400) + " d ago";
+  }
+
+  /**
+   * The total to show: the index plus the chain's newer blocks, or the chain alone. Never drops the
+   * index's total because the chain could not be read: then it resolves { value: index total,
+   * updating: indexedThrough time } (a fresh index whose tail failed, or a stale one whose full read
+   * failed). Rejects only when there is no index entry and the chain cannot be read.
+   */
+  function readTotal(ixPromise, scan, fromBlock) {
+    return ixPromise.then(function (ix) {
+      var fallback = function (err) {
+        if (!ix) throw err;
+        return { value: ix.total, updating: ix.time };
+      };
+      if (ix && !ix.stale) {
+        // Only the blocks after the index.
+        return scan(ix.through + 1).then(function (v) { return { value: ix.total + v, updating: null }; }, fallback);
+      }
+      return scan(fromBlock).then(function (v) { return { value: v, updating: null }; }, fallback);
+    });
   }
 
   /** Reads the script tag's data-* attributes into mount options. */
@@ -401,7 +433,7 @@
     "button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}" +
     ".chip{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.02em;padding:3px 8px;border-radius:999px;background:var(--chip);color:var(--chip-fg)}" +
     ".sub{font-size:12px;color:var(--muted);line-height:1.4}" +
-    ".total{font-size:13px;color:var(--muted)}.total b{color:var(--fg)}" +
+    ".total{font-size:13px;color:var(--muted)}.total b{color:var(--fg)}.total .upd{font-size:11px;font-style:italic}" +
     ".msg{font-size:13px;min-height:1em;line-height:1.4}.msg a{color:var(--accent)}" +
     ".note{font-size:11px;color:var(--muted);line-height:1.35}" +
     ".heart{position:absolute;left:50%;top:30px;pointer-events:none;color:var(--accent);font-size:16px;animation:fly 1.1s ease-out forwards}" +
@@ -710,13 +742,20 @@
       // A total read in the last few minutes comes from sessionStorage, so a reload does not rescan
       // the public RPC. Best effort: storage may be unavailable.
       var cacheKey = "shelter-rail:" + chainId + ":" + split.toLowerCase() + ":" + found.fromBlock;
-      function show(value) {
+      function show(value, updating) {
         total.innerHTML = "";
         total.appendChild(document.createTextNode("Shelters received "));
         var b = document.createElement("b");
         b.textContent = formatUnits(value, 18) + " " + (testnet && coinSymbol === "USDC" ? "test USDC" : coinSymbol);
         total.appendChild(b);
         total.appendChild(document.createTextNode(" on " + chain.name));
+        if (updating) {
+          // The index's last-known total while the chain is busy: kept, and said to be last-known.
+          var u = document.createElement("span");
+          u.className = "upd";
+          u.textContent = " · updating, " + asOf(updating);
+          total.appendChild(u);
+        }
         el.setAttribute && el.setAttribute("data-total-ready", "true");
       }
       function refresh(useCache) {
@@ -730,17 +769,15 @@
         if (!total.textContent) total.textContent = "Reading the live total from " + chain.name + "…";
         var logRpc = chain.logRpc || chain.rpc;
         var scan = function (from) { return getLogs(logRpc, split, from, chain.logRange).then(function (logs) { return sumPayouts(logs, !usdcNative); }); };
-        var read = opts.index && !opts.rpc
-          ? readIndexed(opts.index, testnet ? "testnet" : "mainnet", chainId, split, !usdcNative).then(function (ix) {
-              if (!ix) return scan(found.fromBlock);
-              // Only the blocks after the index; if the chain is busy, the index total still stands.
-              return scan(ix.through + 1).then(function (v) { return ix.total + v; }, function () { return ix.total; });
-            })
-          : scan(found.fromBlock);
-        read
-          .then(function (value) {
-            show(value);
-            try { root.sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), total: value.toString() })); } catch (e) { /* no storage */ }
+        var ix = opts.index && !opts.rpc
+          ? readIndexed(opts.index, testnet ? "testnet" : "mainnet", chainId, split, !usdcNative, true)
+          : Promise.resolve(null);
+        readTotal(ix, scan, found.fromBlock)
+          .then(function (r) {
+            show(r.value, r.updating);
+            // Only a complete total is cached: an "updating" one is read again on the next view.
+            if (r.updating) return;
+            try { root.sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), total: r.value.toString() })); } catch (e) { /* no storage */ }
           })
           .catch(function () { total.textContent = "Live total unavailable right now."; });
       }
@@ -845,6 +882,8 @@
     sumPayouts: sumPayouts,
     getLogs: getLogs,
     readIndexed: readIndexed,
+    readTotal: readTotal,
+    asOf: asOf,
     resolveSplit: resolveSplit,
     readOptions: readOptions,
     mount: mount,

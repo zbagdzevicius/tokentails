@@ -22,7 +22,7 @@
  *                                   no URL or devtools call can play a bundled solution as a real,
  *                                   saveable run. Set only for E2E and QA builds.
  */
-import { ASSET_BASE } from './types';
+import { ASSET_BASE, DEPLOYMENTS_URL } from './types';
 import { loadManifest } from './render/voxel/sheets';
 import { LEVEL_IDS, getSolution } from './levels';
 import { App } from './app/App';
@@ -32,6 +32,8 @@ import type { CrashGuard } from './app/crash';
 import type { HeistAnalytics } from './analytics';
 import { installEmbed, readLaunchParams, type EmbedController } from './embed';
 import { wantsPayoutsDeepLink } from './ui/shelter-payouts';
+import { TESTNET_DEPLOYMENTS_URL, prefetchShelterPayouts } from './ui/payouts';
+import { isWebHost } from './ui/rail';
 
 /**
  * Vite replaces these at build time, so in replay and verify builds the
@@ -95,6 +97,23 @@ const framed = (() => {
   }
 })();
 const launch = readLaunchParams(location.search, framed);
+
+/**
+ * The "Sent to shelters" modal is web-only (ui.ts) and reads the payout index, then the newest
+ * blocks. Its reads start ahead of it, so the modal paints from them when it opens: a `?payouts` /
+ * `#payouts` link starts them now, before the game loads; otherwise they start once the title is up.
+ */
+const payoutsWeb = isWebHost(window as never) && !!DEPLOYMENTS_URL && !launch.replay;
+if (payoutsWeb && wantsPayoutsDeepLink(location)) prefetchShelterPayouts(DEPLOYMENTS_URL, TESTNET_DEPLOYMENTS_URL);
+
+/** The title is up: read the payouts while the player looks at it (idle time, off the first frames). */
+function prefetchPayoutsSoon(): void {
+  if (!payoutsWeb) return;
+  const run = () => prefetchShelterPayouts(DEPLOYMENTS_URL);
+  const idle = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (idle) idle(run, { timeout: 2000 });
+  else setTimeout(run, 1000);
+}
 
 /** Product analytics (F9), same build gate as the crash module: never in replay or verify builds. */
 async function installAnalytics(): Promise<HeistAnalytics | null> {
@@ -206,6 +225,7 @@ async function boot(): Promise<void> {
     titleUp = true;
     autoPick();
   }
+  prefetchPayoutsSoon();
   // A #payouts link followed while the game is open opens the modal too. The hash is dropped
   // once handled, so following the same link again still fires hashchange.
   window.addEventListener('hashchange', () => {

@@ -15,6 +15,8 @@ import { analyticsStatus, HeistSaver } from "./heistSaves";
 import { createHostBridge, type HostBridge } from "./hostBridge";
 import {
   HEIST_EXIT_PATH,
+  HEIST_FRAME_ENTRY_SCRIPT,
+  HEIST_FRAME_TESTID,
   heistFrameSrc,
   NO_INSETS,
   openedFrom,
@@ -247,7 +249,9 @@ export const HeistHost = () => {
   useEffect(() => {
     track(buildEvent("heist_open", { from: openedFrom(window.location.search) }));
     const entrySrc = heistFrameSrc(window.location.search, allowQaForwarding(), window.location.hash);
-    if (entrySrc !== HEIST_FRAME_SRC) setSrc(entrySrc);
+    // The entry script already pointed the server-rendered frame here: setting src again would
+    // load the game a second time.
+    if (entrySrc !== HEIST_FRAME_SRC && frameRef.current?.getAttribute("src") !== entrySrc) setSrc(entrySrc);
   }, []);
 
   // `from` only feeds heist_open: drop it from the address bar once the router is ready (a
@@ -301,12 +305,15 @@ export const HeistHost = () => {
         ref={frameRef}
         src={src}
         title="Catnip Heist"
-        data-testid="heist-frame"
+        data-testid={HEIST_FRAME_TESTID}
         className="absolute inset-0 h-full w-full border-0 bg-tt-night-900"
         allow="autoplay; fullscreen; gamepad"
         // While a sheet or modal is open the game is paused and takes no input or focus.
         inert={suspended}
+        // The entry script below may have changed src before hydration (on purpose).
+        suppressHydrationWarning
       />
+      <script type="module" async dangerouslySetInnerHTML={{ __html: HEIST_FRAME_ENTRY_SCRIPT }} />
       <HeistSaveChip state={chip} onDismiss={() => setChip(null)} />
       <GameModal
         open={claimOpen}

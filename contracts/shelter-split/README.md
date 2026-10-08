@@ -14,8 +14,9 @@ Foundry, no external dependencies (no `lib/`, no submodules).
 - **CappedSpender** holds Token Tails' own small float, which one agent address can give to the
   shelters on a split, within per-gift and per-day caps fixed at deploy (the owner cannot raise them).
 
-The payouts page at <https://tokentails.com/shelter-payouts> reads these contracts' events straight
-from the chain. The [ShelterSplit Rail](../../shelter-rail/) SDK and widget let any app or agent pay
+The payouts page at <https://tokentails.com/shelter-payouts> lists these contracts' payouts, indexed
+from their public on-chain events; every amount links to its transaction on the chain's explorer, so
+anyone can check it. The [ShelterSplit Rail](../../shelter-rail/) SDK and widget let any app or agent pay
 the same shelters.
 
 ## How it works

@@ -108,7 +108,10 @@ export interface PublicPayoutEvent {
     symbol: string;
     /** `amount` at 18 decimals. */
     amount18: string;
+    /** Human text when `memoRaw` is a bytes32 hex memo of printable UTF-8 (see displayMemo), else `memoRaw`. */
     memo: string;
+    /** The memo exactly as the event emitted it (a Tempo disburseWithMemo memo is 0x + 64 hex). */
+    memoRaw: string;
 }
 
 export interface IndexedThrough {
@@ -776,7 +779,8 @@ export class ShelterPayoutIndexService {
             decimals: r.decimals,
             symbol: r.symbol,
             amount18: r.amount18,
-            memo: r.memo,
+            memo: displayMemo(r.memo),
+            memoRaw: r.memo,
         }));
         const totals = [...bySymbol.entries()]
             .map(([symbol, t]) => ({ symbol, amount18: t.amount18.toString(), count: t.count }))
@@ -793,6 +797,39 @@ export class ShelterPayoutIndexService {
             nextCursor: (rows || []).length > query.limit && page.length ? page[page.length - 1].sortKey : null,
         };
     }
+}
+
+const BYTES32_HEX = /^0x[0-9a-fA-F]{64}$/;
+const utf8Strict = new TextDecoder('utf-8', { fatal: true });
+
+/**
+ * A memo for display. ShelterSplit.disburseWithMemo (Tempo) emits its bytes32 memo in the event's
+ * string field as 0x-hex, e.g. 0x4361746e6970... for "Catnip...". When the memo is exactly 32 bytes of
+ * hex whose bytes, trailing zero bytes stripped, are valid printable UTF-8, this returns that text;
+ * anything else (plain text, a hash, binary, all zeros) comes back unchanged. Same rule as the
+ * clients' displayMemo (client/components/shelter-payouts/logs.ts, catnip-heist/src/ui/payouts.ts),
+ * so a client that decodes again gets the same text.
+ */
+export function displayMemo(memo: string): string {
+    if (typeof memo !== 'string' || !BYTES32_HEX.test(memo)) {
+        return memo;
+    }
+    const bytes = Buffer.from(memo.slice(2), 'hex');
+    let end = bytes.length;
+    while (end > 0 && bytes[end - 1] === 0) {
+        end--;
+    }
+    if (!end) {
+        return memo;
+    }
+    let text: string;
+    try {
+        text = utf8Strict.decode(bytes.subarray(0, end));
+    } catch {
+        return memo;
+    }
+    // Printable only: no C0/C1 controls (an interior zero byte included), no DEL, no replacement char.
+    return /^[\x20-\x7E\u00A0-\uFFFF]+$/.test(text) && !text.includes('\uFFFD') ? text : memo;
 }
 
 /** Parses GET /shelter/payouts query strings; throws a 400 message on anything malformed. */

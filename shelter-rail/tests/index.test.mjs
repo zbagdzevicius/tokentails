@@ -116,3 +116,105 @@ test("the widget's readIndexed sums the index (native only where the gas coin is
   assert.equal(rail.readOptions({ index: "javascript:alert(1)" }).index, null);
   assert.equal(rail.readOptions({ index: API }).index, API);
 });
+
+// A chain whose index is behind and whose RPC read fails keeps the index's last-known totals,
+// marked `updating`, instead of dropping out of the totals.
+function failingChain(indexAnswer) {
+  const calls = [];
+  const fetchFn = async (url, init) => {
+    if (String(url).startsWith(API)) {
+      calls.push({ url });
+      return indexAnswer();
+    }
+    const body = JSON.parse(init.body);
+    calls.push({ url, method: body.method });
+    if (body.method === "eth_getTransactionReceipt") return json(200, { result: { blockNumber: "0x64" } });
+    throw new TypeError("fetch failed");
+  };
+  return { calls, fetchFn };
+}
+const ARB_TOTALS = [{ symbol: "USDC", kind: "token", amount: "2500000", decimals: 6, amount18: "2500000000000000000", count: 2 }];
+
+for (const [label, age] of [["fresh", 60], ["stale", INDEX_STALE_MS / 1000 + 3600]]) {
+  test(`readTotals keeps a ${label} index's totals, marked updating, when the chain read fails`, async () => {
+    const { fetchFn } = failingChain(() => json(200, indexBody(42161, T - age, ARB_TOTALS)));
+    const totals = await readTotals([{ chainId: 42161, address: SPLIT, tx: "0x" + "cd".repeat(32), network: "mainnet" }], fetchFn, { index: API, now: NOW });
+    const row = totals.byDeployment[0];
+    assert.equal(row.error, null);
+    assert.equal(row.source, "index");
+    assert.equal(row.tokenUnits, 2_500_000n);
+    assert.equal(row.payouts, 2);
+    assert.deepEqual(row.updating, { block: 1000, time: T - age });
+    assert.equal(totals.byCoin.USDC, 25n * 10n ** 17n);
+  });
+}
+
+test("readTotals reports an error only when the index does not list the contract and the chain fails", async () => {
+  const { fetchFn } = failingChain(() => json(409, { code: "PAYOUTS_NOT_INDEXED" }));
+  const totals = await readTotals([{ chainId: 42161, address: SPLIT, tx: "0x" + "cd".repeat(32) }], fetchFn, { index: API, now: NOW });
+  assert.ok(totals.byDeployment[0].error);
+  assert.equal(totals.byDeployment[0].updating, null);
+  assert.equal(totals.byCoin.USDC, undefined);
+});
+
+test("readTotals adds the tail and clears updating when the chain answers for a stale index", async () => {
+  const { fetchFn } = fake(() => json(200, indexBody(42161, T - INDEX_STALE_MS / 1000 - 60, ARB_TOTALS)));
+  const row = (await readTotals([{ chainId: 42161, address: SPLIT, tx: "0x" + "cd".repeat(32) }], fetchFn, { index: API, now: NOW })).byDeployment[0];
+  assert.equal(row.source, "chain");
+  assert.equal(row.updating, null);
+  assert.equal(row.tokenUnits, 3_000_000n);
+});
+
+test("the widget keeps the index total, labelled updating, when the chain read fails", async () => {
+  const src = readFileSync(new URL("../src/widget.js", import.meta.url), "utf8");
+  let answer = null;
+  const sandbox = { TextEncoder, TextDecoder, BigInt, Date: { now: () => NOW }, fetch: async () => json(200, answer) };
+  sandbox.window = sandbox;
+  vm.runInNewContext(src, sandbox);
+  const rail = sandbox.ShelterRail;
+  const totals = [{ kind: "token", amount: "1000000", amount18: "1000000000000000000", count: 1 }];
+  const busy = () => Promise.reject(new Error("429"));
+  const ok = (v) => () => Promise.resolve(v);
+
+  // A stale entry comes back only when asked for the last-known one.
+  answer = indexBody(42161, T - 7200, totals);
+  const stale = await rail.readIndexed(API, "mainnet", 42161, SPLIT, true, true);
+  assert.equal(stale.stale, true);
+  assert.equal(stale.time, T - 7200);
+
+  // Fresh index, tail fails: the index total stands, marked with its time.
+  const fresh = { through: 1000, time: T - 60, total: 10n ** 18n, stale: false };
+  const r1 = await rail.readTotal(Promise.resolve(fresh), busy, 1);
+  assert.equal(r1.value, 10n ** 18n);
+  assert.equal(r1.updating, T - 60);
+  // Stale index, full read fails: the last-known total stands.
+  const r2 = await rail.readTotal(Promise.resolve(stale), busy, 1);
+  assert.equal(r2.value, 10n ** 18n);
+  assert.equal(r2.updating, T - 7200);
+  // The chain answers: index plus tail (fresh), or the chain's full read (stale), not updating.
+  let from = null;
+  const r3 = await rail.readTotal(Promise.resolve(fresh), (f) => ((from = f), Promise.resolve(5n)), 1);
+  assert.equal(r3.value, 10n ** 18n + 5n);
+  assert.equal(from, 1001);
+  assert.equal(r3.updating, null);
+  const r4 = await rail.readTotal(Promise.resolve(stale), ok(7n), 1);
+  assert.equal(r4.value, 7n);
+  assert.equal(r4.updating, null);
+  // No index entry and a busy chain: an error, as before.
+  await assert.rejects(rail.readTotal(Promise.resolve(null), busy, 1));
+  assert.equal(rail.asOf(T - 7200, NOW), "as of 2 h ago");
+});
+
+test("readTotals: an index tail that starts past the RPC's head is complete, not updating", async () => {
+  // The RPC refuses a range past its head and is a block behind the index (head 999 < tail start 1001).
+  const fetchFn = async (url, init) => {
+    if (String(url).startsWith(API)) return json(200, indexBody(143, T - 5, ARB_TOTALS));
+    const body = JSON.parse(init.body);
+    if (body.method === "eth_blockNumber") return json(200, { result: "0x3e7" });
+    throw new Error(`unexpected ${body.method}`);
+  };
+  const row = (await readTotals([{ chainId: 143, address: SPLIT, network: "mainnet" }], fetchFn, { index: API, now: NOW })).byDeployment[0];
+  assert.equal(row.error, null);
+  assert.equal(row.updating, null);
+  assert.equal(row.tokenUnits, 2_500_000n);
+});

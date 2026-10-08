@@ -93,6 +93,27 @@ export function heistFrameSrc(hostSearch: string, allowQa: boolean, hostHash = "
 /** The Heist's static build (plan F12). */
 export const HEIST_FRAME_PATH = "/heist-game/index.html";
 
+/** The `data-testid` of the host's iframe; the entry script finds the frame by it. */
+export const HEIST_FRAME_TESTID = "heist-frame";
+
+/**
+ * Inline script placed right after the server-rendered iframe, as `<script type="module" async>`
+ * (an inline async module runs as soon as it is parsed; a classic inline script would wait for the
+ * page's stylesheet, ~2.6 s on a slow phone). It points the frame at
+ * `heistFrameSrc(location.search, false, location.hash)` before the first frame load gets far.
+ * The server HTML only knows `?embed=1`, so without it `/heist?payouts` loaded the game twice and
+ * the payouts frame started only after hydration (~3.2 s on a slow phone). It handles the
+ * production parameters (payouts, chain); a QA link still swaps the src after hydration. Kept in
+ * step with heistFrameSrc by a test that runs both on the same URLs.
+ */
+export const HEIST_FRAME_ENTRY_SCRIPT =
+  `try{var f=document.querySelector('iframe[data-testid="${HEIST_FRAME_TESTID}"]');if(f){` +
+  "var q=new URLSearchParams(location.search),p=new URLSearchParams();p.set('embed','1');" +
+  "var v=q.get('payouts');if((v!==null&&v!=='0'&&v!=='false')||/^#payouts$/i.test(location.hash))p.set('payouts','1');" +
+  "var c=q.get('chain');if(c&&/^[1-9]\\d{0,14}$/.test(c))p.set('chain',c);" +
+  `var u=${JSON.stringify(HEIST_FRAME_PATH)}+'?'+p.toString();` +
+  "if(f.getAttribute('src')!==u)f.setAttribute('src',u)}}catch(e){}";
+
 /** Where `exit` and the back link go: the game shell, where the picker lives. */
 export const HEIST_EXIT_PATH = "/game";
 

@@ -435,8 +435,10 @@ cat.update(dt);                 // seconds
 
 The rescue screen shows a read-only on-chain total ("Token Tails has sent X USDC to shelters so far,
 on-chain"; other coins such as USDG or EURC are listed separately with " + ", never summed as USDC).
-`src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events from public RPCs;
-no wallet is involved. The deployment list is `public/payouts/deployments.json`, written by
+`src/ui/payouts.ts` reads ShelterSplit's `Disbursed` and `NativeDisbursed` events: inside `/heist`
+from the backend's index of those public events (`GET /shelter/payouts`) plus the newer blocks from
+public RPCs, and from public RPCs alone when there is no backend, it does not answer, or its index
+is stale. Every payout links to its transaction on the chain's explorer; no wallet is involved. The deployment list is `public/payouts/deployments.json`, written by
 `fund a:ingest` after a deploy. `HEIST_DEPLOYMENTS_URL` overrides it, and an empty value hides the line.
 
 The rescue screen also has one prominent button, "Send Pink Paw a rescue treat 🐾". It only opens

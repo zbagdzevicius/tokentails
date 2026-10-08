@@ -352,6 +352,13 @@ export interface ChainRow {
   totals: Map<string, bigint>;
   count: number;
   ok: boolean;
+  /**
+   * Set when the chain could not be read right now and the row shows the index's last-known payouts
+   * (through this block, block time `time` in unix seconds). Those still count in the totals.
+   */
+  updating?: { block: number; time: number };
+  /** True when the row's payouts came from the backend's index (plus any newer blocks), not a full chain scan. */
+  indexed?: boolean;
   /** The deployment's recorded proof payouts (tx hashes), when the list has any. */
   proofTxs?: string[];
 }
@@ -378,6 +385,11 @@ export interface ShelterPayouts {
   totals: Map<string, bigint>;
   chains: ChainRow[];
   payouts: PayoutRow[];
+  /**
+   * An early read from the backend's index alone (fetchShelterPayouts `onIndexed`): every contract is
+   * covered, but the blocks after its `indexedThrough` (at most INDEX_STALE_MS) are still being read.
+   */
+  partial?: boolean;
 }
 
 /** The memo string of a payout log (ABI: amount, offset, then length and bytes), or ''. */
@@ -469,37 +481,105 @@ export async function fetchPayoutIndex(f: Fetch, apiUrl: string, network: 'mainn
   }
 }
 
-/** One contract's indexed payouts and the last block read, or null when it is not listed or is stale. */
-export function indexedFor(index: PayoutIndex | null, chainId: number, address: string, nowMs: number): { through: number; events: IndexedEvent[] } | null {
+/**
+ * One contract's indexed payouts and the last block read (and its time), or null when it is not
+ * listed or is stale. `staleMs` Infinity gives the last-known payouts however far behind they are.
+ */
+export function indexedFor(index: PayoutIndex | null, chainId: number, address: string, nowMs: number, staleMs: number = INDEX_STALE_MS): { through: number; time: number; events: IndexedEvent[] } | null {
   if (!index) return null;
   const contract = address.toLowerCase();
   const c = index.contracts.find((x) => x.chainId === chainId && x.contract === contract);
   const block = c?.indexedThrough?.block;
   const time = c?.indexedThrough?.time;
-  if (!c || typeof block !== 'number' || typeof time !== 'number' || nowMs - time * 1000 > INDEX_STALE_MS) return null;
+  if (!c || typeof block !== 'number' || typeof time !== 'number' || nowMs - time * 1000 > staleMs) return null;
   const events = index.events.filter((e) => e.chainId === chainId && e.contract === contract && e.blockNumber <= block);
   // A list cut short would understate the total: read the chain instead.
-  return events.length === c.count ? { through: block, events } : null;
+  return events.length === c.count ? { through: block, time, events } : null;
 }
 
 const networkOf = (d: PayoutDeployment): 'mainnet' | 'testnet' => (isTestnetDeployment(d) ? 'testnet' : 'mainnet');
+
+/** Newest first: by block time when both have one, else by block within a chain. */
+const newestFirst = (a: PayoutRow, b: PayoutRow): number =>
+  a.time !== undefined && b.time !== undefined ? b.time - a.time : a.chainId === b.chainId ? b.block - a.block : (b.time ?? 0) - (a.time ?? 0);
+
+/**
+ * The early read from the index alone: every listed contract with its indexed payouts (they carry
+ * their block times), marked `partial` because the blocks after each `indexedThrough` are not read yet.
+ */
+function earlyFromIndex(usable: PayoutDeployment[], covered: { events: IndexedEvent[] }[]): ShelterPayouts {
+  const early: ShelterPayouts = { status: 'ok', totals: new Map(), chains: [], payouts: [], partial: true };
+  usable.forEach((d, i) => {
+    const chain = deploymentUnits(d, PAYOUT_CHAINS[d.chainId]);
+    const meta = PAYOUT_CHAIN_META[d.chainId];
+    const row: ChainRow = { chainId: d.chainId, name: meta?.name ?? `Chain ${d.chainId}`, explorer: meta?.explorer ?? '', address: d.address, symbol: chain.symbol, totals: new Map(), count: 0, ok: true, indexed: true };
+    const proofs = Array.isArray(d.proofTxs) ? d.proofTxs.filter((t) => typeof t === 'string' && /^0x[0-9a-fA-F]{64}$/.test(t)) : [];
+    if (proofs.length) row.proofTxs = proofs;
+    // Newest first within the chain, as the full read orders it.
+    for (const e of [...covered[i].events].sort((a, b) => b.blockNumber - a.blockNumber)) {
+      const symbol = e.kind === 'native' ? chain.nativeSymbol ?? 'native' : chain.symbol;
+      const amount18 = BigInt(e.amount18);
+      row.totals.set(symbol, (row.totals.get(symbol) ?? 0n) + amount18);
+      row.count++;
+      early.payouts.push({
+        chainId: d.chainId, chainName: row.name, explorer: row.explorer, symbol, amount18,
+        shelter: e.shelter.toLowerCase(), memo: displayMemo(e.memo.replace(/[\u0000-\u001f\u007f]/g, '').trim()),
+        tx: e.txHash, block: e.blockNumber, time: e.timestamp,
+      });
+    }
+    early.chains.push(row);
+  });
+  for (const c of early.chains) for (const [s, v] of c.totals) early.totals.set(s, (early.totals.get(s) ?? 0n) + v);
+  early.payouts.sort(newestFirst);
+  return early;
+}
 
 /**
  * Reads every payout across the listed deployments: totals, a row per deployment and the payout
  * events (newest first). Best effort: a chain whose RPC fails or times out is marked `ok: false`
  * and skipped. With `times`, the newest payouts per chain also get their block time.
+ *
+ * `network` asks for that network's index alongside the list instead of after it. `onIndexed` gets
+ * an early `partial` read as soon as the index freshly covers every listed contract (before the
+ * newest blocks and block times come back from the chains); it is never called after this resolves.
  */
 export async function fetchShelterPayouts(
   deploymentsUrl: string,
   f: Fetch = fetch,
   timeoutMs = 8000,
-  opts: { times?: boolean; only?: (d: PayoutDeployment) => boolean; apiUrl?: string; nowMs?: number } = {},
+  opts: {
+    times?: boolean;
+    only?: (d: PayoutDeployment) => boolean;
+    apiUrl?: string;
+    nowMs?: number;
+    network?: 'mainnet' | 'testnet';
+    onIndexed?: (early: ShelterPayouts) => void;
+  } = {},
 ): Promise<ShelterPayouts> {
   const ctl = new AbortController();
   // Two budgets of `timeoutMs`: the list, then the chain reads. A busy main thread at boot (shader
   // compiles while the list loads) must not eat the RPCs' time.
   let timer = setTimeout(() => ctl.abort(), timeoutMs);
   const out: ShelterPayouts = { status: 'ok', totals: new Map(), chains: [], payouts: [] };
+  let settled = false;
+  // The backend's index first (one request per network, its own few seconds of the budget); a
+  // contract it does not cover freshly is read from the chain as before.
+  const indexes = new Map<string, Promise<PayoutIndex | null>>();
+  const indexFor = (net: 'mainnet' | 'testnet'): Promise<PayoutIndex | null> => {
+    let p = indexes.get(net);
+    if (!p) {
+      const own = new AbortController();
+      const stop = () => own.abort();
+      ctl.signal.addEventListener('abort', stop);
+      const t = setTimeout(stop, Math.min(5000, timeoutMs / 2));
+      p = fetchPayoutIndex(f, opts.apiUrl ?? '', net, own.signal).finally(() => clearTimeout(t));
+      indexes.set(net, p);
+    }
+    return p;
+  };
+  const indexOf = (d: PayoutDeployment): Promise<PayoutIndex | null> => (!opts.apiUrl || d.rpc ? Promise.resolve(null) : indexFor(networkOf(d)));
+  // The index does not need the list: ask for it while the list loads.
+  if (opts.apiUrl && opts.network) void indexFor(opts.network);
   try {
     const res = await f(deploymentsUrl, { cache: 'no-store', signal: ctl.signal });
     if (!res.ok) return { ...out, status: 'error' };
@@ -509,23 +589,18 @@ export async function fetchShelterPayouts(
     timer = setTimeout(() => ctl.abort(), timeoutMs);
     const usable = list.filter((d) => !!PAYOUT_CHAINS[d?.chainId] && /^0x[0-9a-fA-F]{40}$/.test(d.address ?? '') && (!opts.only || opts.only(d)));
     if (!usable.length) return { ...out, status: 'empty' };
-    // The backend's index first (one request per network, its own few seconds of the budget); a
-    // contract it does not cover freshly is read from the chain as before.
-    const indexes = new Map<string, Promise<PayoutIndex | null>>();
-    const indexOf = (d: PayoutDeployment): Promise<PayoutIndex | null> => {
-      if (!opts.apiUrl || d.rpc) return Promise.resolve(null);
-      const net = networkOf(d);
-      let p = indexes.get(net);
-      if (!p) {
-        const own = new AbortController();
-        const stop = () => own.abort();
-        ctl.signal.addEventListener('abort', stop);
-        const t = setTimeout(stop, Math.min(5000, timeoutMs / 2));
-        p = fetchPayoutIndex(f, opts.apiUrl, net, own.signal).finally(() => clearTimeout(t));
-        indexes.set(net, p);
-      }
-      return p;
-    };
+    if (opts.onIndexed) {
+      const onIndexed = opts.onIndexed;
+      void Promise.all(usable.map(async (d) => indexedFor(await indexOf(d), d.chainId, d.address, opts.nowMs ?? Date.now()))).then((covered) => {
+        // Only when the index covers every contract: a partial list would understate the total.
+        if (settled || !covered.every((c) => !!c)) return;
+        try {
+          onIndexed(earlyFromIndex(usable, covered as { events: IndexedEvent[] }[]));
+        } catch {
+          /* the caller's paint failed: the full read still lands */
+        }
+      });
+    }
     out.chains = await Promise.all(usable.map(async (d): Promise<ChainRow> => {
       const known = PAYOUT_CHAINS[d.chainId];
       const chain = deploymentUnits(d, known);
@@ -534,15 +609,16 @@ export async function fetchShelterPayouts(
       const proofs = Array.isArray(d.proofTxs) ? d.proofTxs.filter((t) => typeof t === 'string' && /^0x[0-9a-fA-F]{64}$/.test(t)) : [];
       if (proofs.length) row.proofTxs = proofs;
       const url = d.rpc || chain.rpc;
-      const indexed = indexedFor(await indexOf(d), d.chainId, d.address, opts.nowMs ?? Date.now());
-      if (indexed) {
-        const rows: PayoutRow[] = [];
-        const add = (r: PayoutRow) => {
-          row.totals.set(r.symbol, (row.totals.get(r.symbol) ?? 0n) + r.amount18);
-          row.count++;
-          rows.push(r);
-        };
-        for (const e of indexed.events) {
+      const index = await indexOf(d);
+      const indexed = indexedFor(index, d.chainId, d.address, opts.nowMs ?? Date.now());
+      const rows: PayoutRow[] = [];
+      const add = (r: PayoutRow) => {
+        row.totals.set(r.symbol, (row.totals.get(r.symbol) ?? 0n) + r.amount18);
+        row.count++;
+        rows.push(r);
+      };
+      const addIndexed = (events: IndexedEvent[]) => {
+        for (const e of events) {
           add({
             chainId: d.chainId, chainName: row.name, explorer: row.explorer,
             symbol: e.kind === 'native' ? chain.nativeSymbol ?? 'native' : chain.symbol, amount18: BigInt(e.amount18),
@@ -550,6 +626,10 @@ export async function fetchShelterPayouts(
             tx: e.txHash, block: e.blockNumber, time: e.timestamp,
           });
         }
+      };
+      if (indexed) {
+        row.indexed = true;
+        addIndexed(indexed.events);
         try {
           // Only the blocks after the index: one call on most chains.
           const fresh = await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, indexed.through + 1, ctl.signal, chain.maxLogRange);
@@ -580,12 +660,17 @@ export async function fetchShelterPayouts(
             }
           }
         } catch {
-          /* the chain is busy: the index (at most INDEX_STALE_MS behind) still stands */
+          // The chain is busy: the index still stands, labelled with its last block (the tail's logs
+          // are added only once the whole read has answered).
+          row.updating = { block: indexed.through, time: indexed.time };
         }
         rows.sort((a, b) => b.block - a.block);
         out.payouts.push(...rows);
         return row;
       }
+      // An index behind by more than INDEX_STALE_MS: the chain is read in full, and the index's
+      // last-known payouts stand in when it cannot be.
+      const lastKnown = indexedFor(index, d.chainId, d.address, 0, Number.POSITIVE_INFINITY);
       try {
         let from = typeof d.fromBlock === 'number' ? d.fromBlock : 0;
         if (!from && d.tx) {
@@ -602,7 +687,6 @@ export async function fetchShelterPayouts(
           }
         }
         logs ??= await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, from, ctl.signal, d.rpc ? undefined : chain.maxLogRange);
-        const rows: PayoutRow[] = [];
         for (const log of logs ?? []) {
           const p = payoutOf(log, chain);
           if (!p) continue;
@@ -633,18 +717,30 @@ export async function fetchShelterPayouts(
         }
         out.payouts.push(...rows);
       } catch {
-        row.ok = false;
+        rows.length = 0;
+        row.totals = new Map();
+        row.count = 0;
+        if (lastKnown) {
+          // Never drop indexed payouts because the chain is busy: show them, labelled "updating".
+          addIndexed(lastKnown.events);
+          rows.sort((a, b) => b.block - a.block);
+          out.payouts.push(...rows);
+          row.updating = { block: lastKnown.through, time: lastKnown.time };
+          row.indexed = true;
+        } else {
+          row.ok = false;
+        }
       }
       return row;
     }));
     for (const c of out.chains) for (const [s, v] of c.totals) out.totals.set(s, (out.totals.get(s) ?? 0n) + v);
     if (out.chains.every((c) => !c.ok)) out.status = 'error';
-    // Newest first: by block time when both have one, else by block within a chain.
-    out.payouts.sort((a, b) => (a.time !== undefined && b.time !== undefined ? b.time - a.time : a.chainId === b.chainId ? b.block - a.block : (b.time ?? 0) - (a.time ?? 0)));
+    out.payouts.sort(newestFirst);
   } catch {
     /* no list, or timed out */
     return { ...out, status: out.chains.length ? out.status : 'error' };
   } finally {
+    settled = true;
     clearTimeout(timer);
   }
   return out;
@@ -658,7 +754,51 @@ export async function fetchShelterTotals(deploymentsUrl: string, f: Fetch = fetc
   return (await fetchShelterPayouts(deploymentsUrl, f, timeoutMs)).totals;
 }
 
-let cachedPayouts: Promise<ShelterPayouts> | null = null;
+/** Gets the early, index-only read (`partial`) of a shared payouts read. */
+export type EarlyPayouts = (early: ShelterPayouts) => void;
+
+/**
+ * One shared read per network and page load: the full read's promise, plus the early index-only read
+ * once it lands, so a modal opened later paints it at once instead of starting over.
+ */
+interface SharedRead { final: Promise<ShelterPayouts>; early: ShelterPayouts | null; done: boolean; waiting: Set<EarlyPayouts> }
+const reads = new Map<'mainnet' | 'testnet', SharedRead>();
+
+/** A read with any failed or updating chain is retried on the next call. */
+const retryNext = (r: ShelterPayouts): boolean => r.status === 'error' || r.chains.some((c) => !c.ok || c.updating);
+
+function sharedRead(key: 'mainnet' | 'testnet', start: (onIndexed: EarlyPayouts) => Promise<ShelterPayouts>, onEarly?: EarlyPayouts): Promise<ShelterPayouts> {
+  let read = reads.get(key);
+  if (!read) {
+    const r: SharedRead = { final: null as never, early: null, done: false, waiting: new Set() };
+    r.final = start((early) => {
+      if (r.done) return;
+      r.early = early;
+      for (const fn of r.waiting) {
+        try {
+          fn(early);
+        } catch {
+          /* one caller's paint failed: the others still get it */
+        }
+      }
+      r.waiting.clear();
+    });
+    const settle = (retry: boolean) => {
+      r.done = true;
+      r.waiting.clear();
+      if (retry && reads.get(key) === r) reads.delete(key);
+    };
+    void r.final.then((res) => settle(retryNext(res)), () => settle(true));
+    reads.set(key, r);
+    read = r;
+  }
+  // The early read is only worth painting while the full one is still on its way.
+  if (onEarly && !read.done) {
+    if (read.early) onEarly(read.early);
+    else read.waiting.add(onEarly);
+  }
+  return read.final;
+}
 
 /** The backend whose payout index the live reads try first (rail.ts heistRuntimeConfig), or '' for none. */
 function payoutIndexApi(): string {
@@ -669,20 +809,28 @@ function payoutIndexApi(): string {
   }
 }
 
-/** The payouts modal's data, fetched once per page load; a read with any failed chain is retried on the next call. */
-export function loadShelterPayouts(deploymentsUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
+/**
+ * The payouts modal's data, fetched once per page load; a read with any failed or updating chain is
+ * retried on the next call. `onEarly` gets the index-only read (`partial`) while the full read is on
+ * its way: at once when it has already landed (a prefetch), else as soon as it does.
+ */
+export function loadShelterPayouts(deploymentsUrl: string, f: Fetch = fetch, onEarly?: EarlyPayouts): Promise<ShelterPayouts> {
   if (!deploymentsUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
-  const p = (cachedPayouts ??= fetchShelterPayouts(deploymentsUrl, f, 15_000, { times: true, apiUrl: payoutIndexApi() }));
-  void p.then((r) => {
-    if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedPayouts === p) cachedPayouts = null;
-  });
-  return p;
+  return sharedRead('mainnet', (onIndexed) => fetchShelterPayouts(deploymentsUrl, f, 15_000, { times: true, apiUrl: payoutIndexApi(), network: 'mainnet', onIndexed }), onEarly);
+}
+
+/**
+ * Starts the payouts modal's reads ahead of it (at boot on a `?payouts`/`#payouts` link, when the
+ * title shows otherwise), so the modal paints from them when it opens. '' skips a list.
+ */
+export function prefetchShelterPayouts(deploymentsUrl: string, testnetUrl = ''): void {
+  if (deploymentsUrl) void loadShelterPayouts(deploymentsUrl).catch(() => undefined);
+  if (testnetUrl) void loadTestnetPayouts(testnetUrl).catch(() => undefined);
 }
 
 /** Test hook: forget the cached payouts. */
 export function resetShelterPayoutsCache(): void {
-  cachedPayouts = null;
-  cachedTestnet = null;
+  reads.clear();
 }
 
 type TestnetEnv = { BASE_URL?: string; HEIST_TESTNET_DEPLOYMENTS_URL?: string };
@@ -700,28 +848,22 @@ export const TESTNET_DEPLOYMENTS_URL: string = TESTNET_ENV.HEIST_TESTNET_DEPLOYM
 /** Only the deploy wave's testnets, and never an entry the list marks as mainnet. */
 export const isTestnetDeployment = (d: PayoutDeployment): boolean => TESTNET_CHAIN_IDS.includes(d.chainId) && d.network !== 'mainnet';
 
-let cachedTestnet: Promise<ShelterPayouts> | null = null;
-
 /**
  * The testnet proof's data (public/payouts/testnet-deployments.json): its own list, its own read and
- * its own totals, never added to the mainnet figures. Cached like loadShelterPayouts.
+ * its own totals, never added to the mainnet figures. Cached (and `onEarly`) like loadShelterPayouts.
  */
-export function loadTestnetPayouts(testnetUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
+export function loadTestnetPayouts(testnetUrl: string, f: Fetch = fetch, onEarly?: EarlyPayouts): Promise<ShelterPayouts> {
   if (!testnetUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
-  const p = (cachedTestnet ??= fetchShelterPayouts(testnetUrl, f, 15_000, { times: true, only: isTestnetDeployment, apiUrl: payoutIndexApi() }));
-  void p.then((r) => {
-    if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedTestnet === p) cachedTestnet = null;
-  });
-  return p;
+  return sharedRead('testnet', (onIndexed) => fetchShelterPayouts(testnetUrl, f, 15_000, { times: true, only: isTestnetDeployment, apiUrl: payoutIndexApi(), network: 'testnet', onIndexed }), onEarly);
 }
 
-let cached: Promise<string> | null = null;
-
-/** The win-screen line, fetched once per page load. '' means hide it. */
-export function shelterTotalLine(deploymentsUrl: string): Promise<string> {
+/**
+ * The win-screen line from the modal's shared mainnet read (loadShelterPayouts), so the title's
+ * prefetch serves both and the page reads the chains once. '' means hide it.
+ */
+export function shelterTotalLine(deploymentsUrl: string, f: Fetch = fetch): Promise<string> {
   if (!deploymentsUrl) return Promise.resolve('');
-  cached ??= fetchShelterPayouts(deploymentsUrl, fetch, 8000, { apiUrl: payoutIndexApi() }).then((r) => totalText(r.totals)).catch(() => '');
-  return cached;
+  return loadShelterPayouts(deploymentsUrl, f).then((r) => totalText(r.totals)).catch(() => '');
 }
 
 /**

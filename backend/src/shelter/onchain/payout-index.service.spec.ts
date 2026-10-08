@@ -4,6 +4,7 @@ import { RpcLog } from 'src/impact/shelter-logs';
 import { JOB_RUNS_COLLECTION } from 'src/shared/jobs/lease';
 import { ShelterPayoutsController } from './payout-index.controller';
 import {
+    displayMemo,
     isRangeError,
     parsePayoutsQuery,
     PAYOUTS_CACHE_CONTROL,
@@ -367,6 +368,7 @@ describe('ShelterPayoutIndexService.list', () => {
                 'kind',
                 'logIndex',
                 'memo',
+                'memoRaw',
                 'shelter',
                 'symbol',
                 'timestamp',
@@ -374,6 +376,18 @@ describe('ShelterPayoutIndexService.list', () => {
             ].sort()
         );
         expect(out.nextCursor).toBeNull();
+    });
+
+    it('decodes a Tempo bytes32 memo into memo and keeps the emitted hex as memoRaw', async () => {
+        const hex = '0x' + Buffer.from('Catnip Heist campaign').toString('hex').padEnd(64, '0');
+        const chain = fakeChain([payout(1100, BigInt(1_000_000), { memo: hex }), payout(1200, BigInt(2))], 1300);
+        const { service } = setup(chain);
+        await service.indexTarget(target({ chainId: 4217, symbol: 'USDC.e' }), Date.now() + 60_000, ENV);
+        const out = await service.list({ network: 'mainnet', limit: 10 }, 1);
+        expect(out.events.map(e => [e.memo, e.memoRaw])).toEqual([
+            ['tt:page:0000abcd', 'tt:page:0000abcd'],
+            ['Catnip Heist campaign', hex],
+        ]);
     });
 
     it('pages with an opaque cursor and filters by chain and address', async () => {
@@ -487,5 +501,36 @@ describe('ShelterPayoutsController', () => {
     it('answers 400 for a malformed query', async () => {
         const controller = new ShelterPayoutsController({ list: jest.fn() } as any);
         await expect(controller.payouts({ network: 'x' }, res())).rejects.toMatchObject({ status: 400 });
+    });
+});
+
+describe('displayMemo', () => {
+    const b32 = (text: string) => '0x' + Buffer.from(text, 'utf8').toString('hex').padEnd(64, '0');
+
+    it('decodes a bytes32 memo of printable UTF-8, trailing zero bytes stripped', () => {
+        expect(displayMemo(b32('Catnip Heist campaign'))).toBe('Catnip Heist campaign');
+        expect(displayMemo(b32('tt:treat:arc'))).toBe('tt:treat:arc');
+        expect(displayMemo(b32('Pink Paw 🐾'))).toBe('Pink Paw 🐾');
+        expect(displayMemo(b32('x'.repeat(32)))).toBe('x'.repeat(32));
+        expect(displayMemo(b32('Catnip').toUpperCase().replace('0X', '0x'))).toBe('Catnip');
+        // A text ending in a byte like 0xa0 or 0x40 keeps it (zeros are stripped by byte, not by nibble).
+        expect(displayMemo(b32('a@'))).toBe('a@');
+    });
+
+    it('leaves anything else unchanged', () => {
+        expect(displayMemo('Token Tails first payout')).toBe('Token Tails first payout');
+        expect(displayMemo('')).toBe('');
+        const zero = '0x' + '00'.repeat(32);
+        expect(displayMemo(zero)).toBe(zero);
+        const hash = '0x' + 'ab'.repeat(32);
+        expect(displayMemo(hash)).toBe(hash);
+        const control = '0x' + Buffer.from('ab\u0001cd').toString('hex').padEnd(64, '0');
+        expect(displayMemo(control)).toBe(control);
+        const interiorZero = '0x' + '4100' + '42'.padEnd(60, '0');
+        expect(displayMemo(interiorZero)).toBe(interiorZero);
+        const badUtf8 = '0x' + 'c328'.padEnd(64, '0');
+        expect(displayMemo(badUtf8)).toBe(badUtf8);
+        const short = '0x' + Buffer.from('Catnip').toString('hex');
+        expect(displayMemo(short)).toBe(short);
     });
 });

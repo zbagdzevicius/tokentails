@@ -66,7 +66,7 @@ export class ShelterPayoutLog extends CommonSchema {
     @Prop({ required: true })
     symbol: string;
 
-    /** Full memo as emitted (a Tempo bytes32 memo stays 0x-hex; clients decode it for display). */
+    /** Full memo as emitted (a Tempo bytes32 memo stays 0x-hex; GET /shelter/payouts decodes it into `memo` and keeps this as `memoRaw`). */
     @Prop({ required: true })
     memo: string;
 

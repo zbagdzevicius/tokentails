@@ -1,0 +1,1 @@
+import"./index-Cfk_E8zr.js";function e(e){return null}export{e as installQA};

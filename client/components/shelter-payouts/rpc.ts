@@ -1,7 +1,7 @@
 import { apiUrl } from "@/api/api";
 import { ChainInfo, SHELTER_CHAINS } from "./chains";
 import { Disbursement, PAYOUT_TOPICS, RpcLog, decodeDisbursedLog } from "./logs";
-import { indexedPayoutsFor, loadPayoutIndex, mergeDisbursements } from "./payoutIndex";
+import { indexedPayoutsFor, lastKnownPayoutsFor, loadPayoutIndex, mergeDisbursements } from "./payoutIndex";
 
 // One entry of public/shelter-payouts/deployments.json. The file is a copy of
 // funding/framework/tracks/a-build/deployments.json (written by `fund a:ingest`),
@@ -287,41 +287,80 @@ const sources = new Map<string, PayoutSource>();
 export const payoutSourceOf = (d: ShelterDeployment): PayoutSource | undefined => sources.get(cacheKey(d));
 
 /**
+ * The figures of a contract the chain could not be read for right now: the index's last-known
+ * payouts through `block` (block time `time`, unix seconds). The page shows them labelled
+ * "updating" instead of dropping the contract.
+ */
+export interface PayoutsUpdating {
+  block: number;
+  time: number;
+}
+
+/** One contract's payouts, newest first, and `updating` when they stop at the index's last block. */
+export interface PayoutRead {
+  items: Disbursement[];
+  updating?: PayoutsUpdating;
+}
+
+/**
  * Every payout of `d`, newest first. Reads the backend's payout index first (GET /shelter/payouts,
  * public on-chain events with block times) and then only the blocks after the index's
  * `indexedThrough` from the chain's RPC, so nothing newer is missed. When the backend is not
  * configured, unreachable or has not read this contract within INDEX_STALE_MS, the whole range is
  * read from the chain as before. A deployment with its own "rpc" is always read from that RPC.
+ *
+ * Indexed payouts are never dropped because a chain read failed: when the tail after the index (or
+ * the full scan of a stale contract) fails, the index's last-known payouts stand and `updating`
+ * says through which block. Only an unlisted contract with an unreadable chain throws.
  */
-export async function fetchDisbursements(
+export async function readPayouts(
   d: ShelterDeployment,
   opts: { indexBase?: string; fetchFn?: typeof fetch; now?: number } = {}
-): Promise<Disbursement[]> {
+): Promise<PayoutRead> {
   const cached = typeof window !== "undefined" ? readCache(d, Date.now()) : null;
-  if (cached) return cached;
+  if (cached) return { items: cached };
   const base = "indexBase" in opts ? opts.indexBase : apiUrl;
-  let items: Disbursement[] | null = null;
+  let read: PayoutRead | null = null;
+  let lastKnown: ReturnType<typeof lastKnownPayoutsFor> = null;
   if (base && !d.rpc) {
     const network = isTestnetDeployment(d) ? "testnet" : "mainnet";
     const index = await loadPayoutIndex(network, base, opts.fetchFn ?? fetch, opts.now ?? Date.now());
     const indexed = indexedPayoutsFor(index, d.chainId, d.address, opts.now ?? Date.now());
     if (indexed) {
-      let fresh: Disbursement[] = [];
       try {
-        fresh = await scanDisbursements(d, indexed.through + 1);
+        const fresh = await scanDisbursements(d, indexed.through + 1);
+        read = { items: mergeDisbursements(indexed.items, fresh) };
       } catch {
-        // The chain is busy right now: the index (at most INDEX_STALE_MS behind) still stands.
+        // The chain is busy right now: the index stands, labelled with its last block.
+        read = { items: mergeDisbursements(indexed.items, []), updating: { block: indexed.through, time: indexed.time } };
       }
-      items = mergeDisbursements(indexed.items, fresh);
+      sources.set(cacheKey(d), "index");
+    } else {
+      lastKnown = lastKnownPayoutsFor(index, d.chainId, d.address);
+    }
+  }
+  if (!read) {
+    try {
+      read = { items: await scanDisbursements(d) };
+      sources.set(cacheKey(d), "chain");
+    } catch (err) {
+      // A stale index still knows every payout up to its last block: show those, never nothing.
+      if (!lastKnown) throw err;
+      read = { items: mergeDisbursements(lastKnown.items, []), updating: { block: lastKnown.through, time: lastKnown.time } };
       sources.set(cacheKey(d), "index");
     }
   }
-  if (!items) {
-    items = await scanDisbursements(d);
-    sources.set(cacheKey(d), "chain");
-  }
-  if (typeof window !== "undefined") writeCache(d, items, Date.now());
-  return items;
+  // Only a complete read is cached: an "updating" one is tried again on the next view.
+  if (!read.updating && typeof window !== "undefined") writeCache(d, read.items, Date.now());
+  return read;
+}
+
+/** readPayouts without the freshness: every payout of `d` that could be read, newest first. */
+export async function fetchDisbursements(
+  d: ShelterDeployment,
+  opts: { indexBase?: string; fetchFn?: typeof fetch; now?: number } = {}
+): Promise<Disbursement[]> {
+  return (await readPayouts(d, opts)).items;
 }
 
 async function scanDisbursements(d: ShelterDeployment, fromBlock?: number): Promise<Disbursement[]> {

@@ -342,6 +342,8 @@ export async function getLogsWindowed(fetchFn, url, { address, topics, fromBlock
     return (await rpc(fetchFn, url, "eth_getLogs", filter(fromBlock, "latest"))) || [];
   } catch (err) {
     const latest = parseInt(await rpc(fetchFn, url, "eth_blockNumber", []), 16);
+    // Nothing to read yet (an index tail that starts past this RPC's head): no logs, not a failure.
+    if (Number.isFinite(latest) && Number(fromBlock) > latest) return [];
     const windows = Math.ceil((latest - fromBlock + 1) / window);
     if (!(windows > 0)) throw err;
     if (windows > maxRequests) throw new Error(`log range of ${latest - fromBlock + 1} blocks needs ${windows} requests; set fromBlock`);
@@ -387,9 +389,10 @@ export async function readPayoutIndex(api, { network = "mainnet", fetchFn = glob
 }
 
 /**
- * One contract's indexed totals from a readPayoutIndex answer: { through, count, nativeWei,
+ * One contract's indexed totals from a readPayoutIndex answer: { through, time, count, nativeWei,
  * tokenUnits }, or null when the index does not list it or its indexedThrough time is older than
- * `staleMs`. Read the blocks after `through` from the chain to be complete.
+ * `staleMs`. Read the blocks after `through` from the chain to be complete. `staleMs` Infinity gives
+ * the last-known totals however far behind they are.
  */
 export function indexedTotals(index, chainId, address, now = Date.now(), staleMs = INDEX_STALE_MS) {
   const want = String(address || "").toLowerCase();
@@ -406,7 +409,7 @@ export function indexedTotals(index, chainId, address, now = Date.now(), staleMs
     else tokenUnits += BigInt(t.amount);
     count += Number(t.count) || 0;
   }
-  return { through: through.block, count, nativeWei, tokenUnits };
+  return { through: through.block, time: through.time, count, nativeWei, tokenUnits };
 }
 
 /**
@@ -427,7 +430,9 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch, { inde
   if (typeof fetchFn !== "function") throw new Error("readTotals needs a fetch function");
   // `index`: a Token Tails backend URL. Its payout index is read first (one request per network) and
   // only the blocks after its indexedThrough from the chain; a deployment it does not cover freshly
-  // (or a deployment with its own "rpc") is read from the chain alone, as without it.
+  // (or a deployment with its own "rpc") is read from the chain alone, as without it. Indexed totals
+  // are never dropped because the chain could not be read: the row keeps the index's last-known
+  // totals and `updating` ({ block, time }: through which block, and that block's unix time).
   const indexes = new Map();
   const indexFor = (network) => {
     if (!indexes.has(network)) indexes.set(network, readPayoutIndex(index, { network, fetchFn }));
@@ -467,20 +472,25 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch, { inde
       error: null,
       source: "chain",
       indexedThrough: null,
+      updating: null,
     };
     totals.byDeployment.push(row);
     if (!url) {
       row.error = `no RPC known for chain ${chainId}`;
       continue;
     }
-    const indexed = index && !d.rpc ? indexedTotals(await indexFor(row.testnet ? "testnet" : "mainnet"), chainId, d.address, now) : null;
-    if (indexed) {
+    const idx = index && !d.rpc ? await indexFor(row.testnet ? "testnet" : "mainnet") : null;
+    const indexed = idx ? indexedTotals(idx, chainId, d.address, now) : null;
+    // A stale index is read from the chain in full, and stands in (labelled) when the chain cannot be.
+    const lastKnown = idx && !indexed ? indexedTotals(idx, chainId, d.address, now, Number.POSITIVE_INFINITY) : null;
+    const useIndexed = (ix) => {
       row.source = "index";
-      row.indexedThrough = indexed.through;
-      row.payouts = indexed.count;
-      row.nativeWei = indexed.nativeWei;
-      row.tokenUnits = indexed.tokenUnits;
-    }
+      row.indexedThrough = ix.through;
+      row.payouts = ix.count;
+      row.nativeWei = ix.nativeWei;
+      row.tokenUnits = ix.tokenUnits;
+    };
+    if (indexed) useIndexed(indexed);
     try {
       let fromBlock = indexed ? indexed.through + 1 : Number(d.fromBlock || 0);
       if (!indexed && !d.fromBlock && TX_RE.test(d.tx || "")) {
@@ -502,8 +512,12 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch, { inde
         else row.tokenUnits += p.amount;
       }
     } catch (err) {
-      // With the index, only the newest blocks were missing: the indexed totals still stand.
-      if (!indexed) row.error = err.message;
+      // The chain is busy: the index's totals stand (only blocks after `through` are missing).
+      const known = indexed || lastKnown;
+      if (known) {
+        useIndexed(known);
+        row.updating = { block: known.through, time: known.time };
+      } else row.error = err.message;
     }
     totals.nativeWei += row.nativeWei;
     totals.tokenUnits += row.tokenUnits;

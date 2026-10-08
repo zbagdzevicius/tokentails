@@ -72,6 +72,8 @@ export interface TestnetCard {
   count: number;
   /** Contracts on this chain whose payouts could not be read. */
   unread: number;
+  /** Contracts on this chain shown from the index's last-known payouts while the chain is busy. */
+  updating: number;
   /** This chain's test payouts, newest first. */
   payouts: PayoutRow[];
   /** The deploy wave's recorded proof payouts on this chain (links when the chain cannot be read). */
@@ -86,12 +88,13 @@ export function testnetCards(data: ShelterPayouts): TestnetCard[] {
     let card = by.get(c.chainId);
     if (!card) {
       const meta = PAYOUT_CHAIN_META[c.chainId];
-      card = { chainId: c.chainId, name: meta?.name ?? c.name, explorer: meta?.explorer ?? c.explorer, role: payoutChainRole(c.chainId), symbols: [], contracts: [], totals: new Map(), count: 0, unread: 0, payouts: [], proofTxs: [] };
+      card = { chainId: c.chainId, name: meta?.name ?? c.name, explorer: meta?.explorer ?? c.explorer, role: payoutChainRole(c.chainId), symbols: [], contracts: [], totals: new Map(), count: 0, unread: 0, updating: 0, payouts: [], proofTxs: [] };
       by.set(c.chainId, card);
     }
     card.contracts.push(c);
     if (c.symbol && !card.symbols.includes(c.symbol)) card.symbols.push(c.symbol);
     if (!c.ok) card.unread++;
+    else if (c.updating) card.updating++;
     for (const [sym, v] of c.totals) card.totals.set(sym, (card.totals.get(sym) ?? 0n) + v);
     card.count += c.count;
     for (const t of c.proofTxs ?? []) if (!card.proofTxs.includes(t)) card.proofTxs.push(t);
@@ -119,6 +122,14 @@ export function timeAgo(unixSec: number, nowMs: number = Date.now()): string {
   const d = new Date(unixSec * 1000);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/**
+ * "Updating · as of 2 h ago": a contract shown from the index's last-known payouts (its chain could
+ * not be read just now). Those payouts still count; newer ones may be missing until a re-read.
+ */
+export function updatingLabel(u: { time: number }, nowMs: number = Date.now()): string {
+  return `Updating · as of ${timeAgo(u.time, nowMs)}`;
 }
 
 /** The showcase shelter (client/public/shelter-payouts/campaign.json). */
@@ -363,12 +374,15 @@ export interface PayoutsModalOptions {
   loadCats?: (apiUrl: string, base: string) => Promise<PinkPawCatList>;
   /** Goal meter source. Default readGoalCount (the backend's count, else the exact balance); none with a `load` override. */
   readGoal?: () => Promise<GoalCount | null>;
-  /** Data source. Default loadShelterPayouts (cached per page load). */
-  load?: (deploymentsUrl: string) => Promise<ShelterPayouts>;
+  /**
+   * Data source. Default loadShelterPayouts (cached per page load, started early by
+   * prefetchShelterPayouts). `onEarly` may get an index-only read (`partial`) to paint first.
+   */
+  load?: (deploymentsUrl: string, onEarly?: (early: ShelterPayouts) => void) => Promise<ShelterPayouts>;
   /** Testnet list (TESTNET_DEPLOYMENTS_URL) for the "Testnet proof" section; '' or unset hides it. */
   testnetUrl?: string;
   /** Testnet data source. Default loadTestnetPayouts; nothing (the section hides) with a `load` override. */
-  loadTestnet?: (testnetUrl: string) => Promise<ShelterPayouts>;
+  loadTestnet?: (testnetUrl: string, onEarly?: (early: ShelterPayouts) => void) => Promise<ShelterPayouts>;
   onClick?(): void;
   onOpen?(): void;
   onClose?(): void;
@@ -457,6 +471,8 @@ function css(base: string): string {
 .ch-pay-amt small, .ch-pay-amt a { font-family: ${HEIST_BODY_FONT}; font-weight: 700; font-size: 12px; letter-spacing: 0; }
 .ch-pay-amt small { color: var(--tt-muted); }
 .ch-pay-amt .ch-pay-down { color: #ee642a; }
+.ch-pay-amt .ch-pay-upd, .ch-pay-tsum .ch-pay-upd { color: var(--tt-muted); font-style: italic; white-space: nowrap; }
+.ch-pay-note.ch-pay-upd { color: var(--tt-muted); font-style: italic; }
 .ch-pay-empty { margin: 6px 0 2px; font-family: ${HEIST_BODY_FONT}; font-weight: 600; font-size: 14px; line-height: 1.4; color: var(--tt-lilac); letter-spacing: 0; }
 .ch-pay-steps { margin: 6px 0 0; padding: 0; list-style: none; counter-reset: ch-pay; display: flex; flex-direction: column; gap: 8px; }
 .ch-pay-steps li { counter-increment: ch-pay; position: relative; padding-left: 34px; font-family: ${HEIST_BODY_FONT}; font-weight: 700; font-size: 14px; line-height: 1.35; color: var(--tt-cream); letter-spacing: 0; }
@@ -549,7 +565,7 @@ const ext = (href: string, text: string, attrs: Record<string, string> = {}) =>
 
 export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions): PayoutsModal {
   ensureStyles(opts.base);
-  const load = opts.load ?? loadShelterPayouts;
+  const load = opts.load ?? ((url: string, onEarly?: (early: ShelterPayouts) => void) => loadShelterPayouts(url, fetch, onEarly));
   const now = opts.now ?? (() => Date.now());
   const pinkPaw = opts.pinkPaw ?? true;
   const loadCats = opts.loadCats ?? loadPinkPawCats;
@@ -561,7 +577,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
   // The backend's count first (it reads the runtime campaign, so a handover needs no Heist rebuild).
   const readGoal = opts.readGoal ?? (runtime ? () => readGoalCount({ apiUrl: runtime.apiUrl, factsUrl: runtime.factsUrl }) : async () => null);
   const catsApi = opts.catsApi ?? (runtime ? runtime.apiUrl : '');
-  const loadTestnet = opts.loadTestnet ?? (live ? loadTestnetPayouts : null);
+  const loadTestnet = opts.loadTestnet ?? (live ? (url: string, onEarly?: (early: ShelterPayouts) => void) => loadTestnetPayouts(url, fetch, onEarly) : null);
   /** The live cats once loaded (kept across repaints and opens; a bundled fallback is retried on the next open); the goal count of this open. */
   let cats: PinkPawCatList | null = null;
   let goal: { state: 'loading' | 'ok' | 'error'; count: GoalCount | null } = { state: 'loading', count: null };
@@ -747,6 +763,8 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
         null,
         !c.ok ? h('small.ch-pay-down', null, 'Could not read') : amount ? h('b', null, amount) : h('small', null, 'No payouts yet'),
         c.ok && c.count ? h('small', null, `${c.count} payout${c.count === 1 ? '' : 's'}`) : null,
+        // Last-known indexed payouts while the chain is busy: kept and counted, labelled subtly.
+        c.ok && c.updating ? h('small.ch-pay-upd', { 'data-testid': 'chain-updating', title: `Indexed through block ${c.updating.block}; newer payouts may be missing until the chain answers.` }, updatingLabel(c.updating, now())) : null,
       ),
     );
   }
@@ -776,6 +794,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
           amount ? h('b', { 'data-testid': 'testnet-total' }, amount) : h('small', { 'data-testid': 'testnet-total' }, 'No test payouts yet'),
           c.count ? h('small', null, `${c.count} test payout${c.count === 1 ? '' : 's'}`) : null,
           c.unread ? h('small.ch-pay-down', null, `${c.unread} contract${c.unread === 1 ? '' : 's'} not read`) : null,
+          c.updating ? h('small.ch-pay-upd', { 'data-testid': 'testnet-updating' }, 'Updating') : null,
         ];
     const contracts = c.contracts.map((k) =>
       h(
@@ -866,7 +885,10 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     paintTestnet('loading');
     let data: ShelterPayouts;
     try {
-      data = await loadTestnet(testnetUrl);
+      // The index-only read first (often already in from the prefetch), then the full one.
+      data = await loadTestnet(testnetUrl, (early) => {
+        if (mine === testRun && open) paintTestnet(early);
+      });
     } catch {
       data = { status: 'error', totals: new Map(), chains: [], payouts: [] };
     }
@@ -908,9 +930,17 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     const amount = amountsText(data.totals);
     // Networks whose RPC could not be read: their payouts are missing from the total, so say so.
     const down = data.status === 'error' ? 0 : data.chains.filter((c) => !c.ok).length;
-    const downNote = down
-      ? [h('p.ch-pay-note', { 'data-testid': 'payouts-partial' }, `${down} payout contract${down === 1 ? '' : 's'} could not be read right now, so ${down === 1 ? 'its' : 'their'} payouts are not counted yet.`), retryButton()]
+    // Contracts shown from the index's last-known payouts: counted, and said to be as of the index.
+    const upd = data.status === 'error' ? [] : data.chains.filter((c) => c.ok && c.updating);
+    const oldest = upd.reduce((t, c) => Math.min(t, c.updating!.time), Infinity);
+    const updNote = upd.length
+      ? [h('p.ch-pay-note.ch-pay-upd', { 'data-testid': 'payouts-updating' }, `Updating: ${upd.length === 1 ? `${upd[0].name} shows its` : `${upd.length} contracts show their`} indexed payouts as of ${timeAgo(oldest, now())}, so the newest may be missing.`)]
       : [];
+    const downNote = down
+      ? [h('p.ch-pay-note', { 'data-testid': 'payouts-partial' }, `${down} payout contract${down === 1 ? '' : 's'} could not be read right now, so ${down === 1 ? 'its' : 'their'} payouts are not counted yet.`), ...updNote, retryButton()]
+      : upd.length
+        ? [...updNote, retryButton()]
+        : [];
     if (data.status === 'error') {
       total.replaceChildren(
         h('b.ch-pay-amount.ch-soon.ch-pay-err', null, "Can't reach the chain"),
@@ -928,8 +958,18 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
         h(head.length > 2 ? 'b.ch-pay-amount.ch-pay-many' : 'b.ch-pay-amount', { 'data-testid': 'payouts-amount' }, ...parts),
         ...(gas.length ? [h('p.ch-pay-note', { 'data-testid': 'payouts-gas' }, `Plus ${gas.map(([s, v]) => formatAmount(v, s)).join(' and ')} in network coins`)] : []),
         // claim: L-disbursed (the live on-chain total; "Token Tails has sent {amount} to shelters")
-        h('p.ch-pay-caption', { 'data-claim': 'L-disbursed' }, down ? 'Token Tails has sent at least this to shelters so far' : 'Token Tails has sent this to shelters so far'),
-        h('p.ch-pay-note', { 'data-testid': 'payouts-source' }, 'Read from an index of the public payout events plus the newest blocks; every payout links to its transaction.'),
+        h('p.ch-pay-caption', { 'data-claim': 'L-disbursed' }, down || upd.length || data.partial ? 'Token Tails has sent at least this to shelters so far' : 'Token Tails has sent this to shelters so far'),
+        // Without a backend (or with its index refused) every chain was scanned directly: say so.
+        // An early index-only read says the newest blocks are still being checked.
+        h(
+          'p.ch-pay-note',
+          { 'data-testid': 'payouts-source' },
+          data.partial
+            ? 'Read from an index of the public payout events; checking the newest blocks…'
+            : data.chains.some((c) => c.indexed)
+              ? 'Read from an index of the public payout events plus the newest blocks; every payout links to its transaction.'
+              : 'Read from the public payout events on each chain; every payout links to its transaction.',
+        ),
         ...downNote,
       );
     } else {
@@ -960,15 +1000,24 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     // The testnet proof always comes after the real payouts.
     lists.replaceChildren(...sections, testSection);
     el.dataset.state = data.status === 'ok' && !amount ? 'empty' : data.status;
+    // An early index-only read: the full read (the newest blocks) is still on its way.
+    if (data.partial) {
+      total.setAttribute('aria-busy', 'true');
+      el.dataset.partial = '1';
+    } else delete el.dataset.partial;
   }
 
   async function refresh(): Promise<void> {
     const mine = ++run;
     paintLoading();
     el.dataset.state = 'loading';
+    // The index-only read paints first (at once when the prefetch already has it); the full read follows.
+    const early = (data: ShelterPayouts) => {
+      if (mine === run) paint(data);
+    };
     const attempt = async (): Promise<ShelterPayouts> => {
       try {
-        return await load(opts.deploymentsUrl);
+        return await load(opts.deploymentsUrl, early);
       } catch {
         return { status: 'error', totals: new Map(), chains: [], payouts: [] };
       }
