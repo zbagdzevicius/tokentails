@@ -1,0 +1,1 @@
+import"./index-C_pZw9dh.js";function e(e){return null}export{e as installQA};

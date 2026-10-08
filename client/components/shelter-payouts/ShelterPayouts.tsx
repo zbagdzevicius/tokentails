@@ -1,7 +1,7 @@
 // copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterPayouts)
 import { isAppBuild } from "@/components/claims/build";
 import NextLink from "next/link";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
 import { HandoverStatus, claimsDateLabel } from "./campaign";
@@ -86,6 +86,41 @@ const BalanceLine = ({
     (pass-through: donations are split out in the same transaction)
   </p>
 );
+
+/** The summary of the folded testnet proof, once mainnet payout contracts are listed above it. */
+export const testnetFoldSummary = (networks: number) =>
+  `Also running on ${networks} test network${networks === 1 ? "" : "s"} (test coins, no real money)`;
+
+/**
+ * The testnet proof's frame. Without a mainnet deployment it is the full panel, as before; with
+ * one it folds into a small closed `<details>` under the mainnet content, its content kept inside.
+ */
+export const TestnetProofFold = ({
+  folded,
+  networks,
+  children,
+}: {
+  folded: boolean;
+  networks: number;
+  children: ReactNode;
+}) =>
+  folded ? (
+    <section id="testnet-proof" className="scroll-mt-24" data-testid="testnet-proof">
+      <details className="group" data-testid="testnet-proof-fold">
+        <summary
+          className={`${PILL} mx-auto w-fit cursor-pointer list-none !border-tt-mint !text-tt-mint [&::-webkit-details-marker]:hidden`}
+          data-testid="testnet-proof-summary"
+        >
+          {testnetFoldSummary(networks)} <span className="inline-block transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <div className={`${PANEL} mt-4`}>{children}</div>
+      </details>
+    </section>
+  ) : (
+    <section id="testnet-proof" className={`${PANEL} scroll-mt-24`} data-testid="testnet-proof">
+      {children}
+    </section>
+  );
 
 /** One chain: its total, payout count, contract and balance. */
 export const ChainCard = ({
@@ -447,8 +482,9 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           )}
 
           {/* TESTNET PROOF: the contract on every target chain's test network, apart from real money. */}
+          {/* With mainnet contracts listed above, it folds into one small closed line. */}
           {testnet.length > 0 && (
-            <section id="testnet-proof" className={`${PANEL} scroll-mt-24`} data-testid="testnet-proof">
+            <TestnetProofFold folded={deployments.length > 0} networks={chainCount(testnet)}>
               <div className="flex flex-wrap items-center gap-3">
                 <Kicker>Testnet proof</Kicker>
                 <span className={`${CHIP} !border-tt-mint !text-tt-mint`}>Test coins · no real money</span>
@@ -500,7 +536,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
                   </div>
                 </details>
               )}
-            </section>
+            </TestnetProofFold>
           )}
 
           <HowItWorks />

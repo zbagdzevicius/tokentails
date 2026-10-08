@@ -141,6 +141,13 @@ describe('payouts modal: testnet proof', () => {
     const boxes = [...m.el.querySelectorAll('.ch-pay-col:not(.ch-pay-side) > .ch-pay-box')].map((b) => b.getAttribute('data-testid'));
     expect(boxes.indexOf('payouts-testnet')).toBe(boxes.length - 1);
     expect(boxes.indexOf('payouts-latest')).toBeLessThan(boxes.indexOf('payouts-testnet'));
+    // Mainnet is live: the proof folds under one small closed line, its content kept inside.
+    const fold = q('testnet-fold') as HTMLDetailsElement;
+    expect(fold).not.toBeNull();
+    expect(fold.open).toBe(false);
+    expect(section.classList.contains('ch-pay-folded')).toBe(true);
+    expect(q('testnet-summary')?.textContent).toBe('Also running on 7 test networks (test coins, no real money)');
+    expect(fold.contains(q('testnet-status'))).toBe(true);
     expect(section.querySelector('h3')?.textContent).toBe('Testnet proof');
     expect(q('testnet-label')?.textContent).toMatch(/test coins.*no real money/i);
     // Base Sepolia could not be read: the count is a floor and the headline says how many contracts were read.
@@ -163,6 +170,36 @@ describe('payouts modal: testnet proof', () => {
     // The mainnet row in the testnet read never shows, and no testnet total is in the headline.
     expect(cards.some((c) => c.dataset.chain === '5042')).toBe(false);
     expect(q('payouts-amount')?.textContent).not.toMatch(/EURC|pathUSD|mUSDC/);
+  });
+
+  it('without a mainnet deployment it stays open as before; it folds once the mainnet read lists one, and stays open if opened', async () => {
+    const noMain = make(async () => testnetData(), { load: async () => ({ status: 'empty', totals: new Map(), chains: [], payouts: [] }) });
+    await noMain.show();
+    await tick();
+    const q = (s: string) => noMain.el.querySelector<HTMLElement>(`[data-testid="${s}"]`);
+    expect(q('testnet-fold')).toBeNull();
+    expect(q('payouts-testnet')?.classList.contains('ch-pay-folded')).toBe(false);
+    expect(q('testnet-status')?.textContent).toMatch(/^Live on 7 testnets/);
+    noMain.dispose();
+
+    let main = false;
+    const later = make(async () => testnetData(), { load: async () => (main ? mainnet() : { status: 'empty', totals: new Map(), chains: [], payouts: [] }) });
+    await later.show();
+    await tick();
+    expect(later.el.querySelector('[data-testid="testnet-fold"]')).toBeNull();
+    later.hide();
+    main = true;
+    await later.show();
+    await tick();
+    const fold = later.el.querySelector<HTMLDetailsElement>('[data-testid="testnet-fold"]')!;
+    expect(fold.open).toBe(false);
+    expect(fold.querySelectorAll('[data-testid="testnet-card"]')).toHaveLength(7);
+    fold.open = true;
+    fold.dispatchEvent(new Event('toggle'));
+    later.hide();
+    await later.show();
+    await tick();
+    expect(later.el.querySelector<HTMLDetailsElement>('[data-testid="testnet-fold"]')?.open).toBe(true);
   });
 
   it('is hidden with no testnet list, with an empty list, and without a site link has no receipts', async () => {

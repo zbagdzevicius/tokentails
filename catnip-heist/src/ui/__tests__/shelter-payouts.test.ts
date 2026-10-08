@@ -292,6 +292,46 @@ describe('UI entry points', () => {
     expect(u.payoutsOpen).toBe(false);
   });
 
+  it('a slow treat status (6 s) still flips the Pink Paw card from "Opens soon" to the give link', async () => {
+    vi.useFakeTimers();
+    const w = window as unknown as { __TT_HEIST_CONFIG__?: unknown };
+    w.__TT_HEIST_CONFIG__ = { apiUrl: 'https://api.example', factsUrl: '/facts.json' };
+    const body = { enabled: true, railState: 'live', chainId: 5042, amountWei: '10000000000000000', treatsLeftToday: 40 };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (String(url).endsWith('/shelter/donate/status')) return new Promise((res) => setTimeout(() => res(json(body)), 6000));
+      return Promise.resolve(new Response('', { status: 404 }));
+    }));
+    try {
+      document.body.innerHTML = '<div id="app"></div>';
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      ui = createUI(document.getElementById('app')!, { manifest, base: '/a/', deploymentsUrl: '/d.json', loadPayouts: async () => empty(), handlers: { onStart() {} } });
+      ui.showTitle();
+      await vi.advanceTimersByTimeAsync(3100);
+      // The win screen is up when the status is still out: the badge, then the link in place.
+      ui.showResults({ levelId: 'heist-01', catIds: ['a', 'b'], seed: 1, ticks: 600, coins: 0, rescued: true, rescuedName: 'Judas', spottedCount: 0, score: 50, hash: 1 });
+      expect(ui.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Opens soon');
+      expect(ui.root.querySelector('.ch-results [data-testid="give-treat"]')).toBeNull();
+      ui.showTitle();
+      ui.root.querySelector<HTMLButtonElement>('[data-testid="open-payouts"]')!.click();
+      await vi.advanceTimersByTimeAsync(10);
+      const card = () => ui!.root.querySelector('[data-testid="payouts-shelter"]');
+      expect(card()?.textContent).toMatch(/open soon/i);
+      expect(card()?.querySelector('[data-testid="give-treat"]')).toBeNull();
+      expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/open soon/);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(card()?.querySelector('[data-testid="give-treat"]')?.textContent).toContain('Send Pink Paw a rescue treat');
+      expect(card()?.textContent).not.toMatch(/open soon/i);
+      expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/send Pink Paw a real treat/);
+      expect(ui.root.querySelector('.ch-results [data-testid="give-treat"]')).not.toBeNull();
+      expect(ui.root.querySelector('[data-testid="rail-chip"]')).toBeNull();
+      expect(ui.root.querySelector('[data-testid="rail-line"]')?.getAttribute('data-rail')).toBe('live');
+    } finally {
+      delete w.__TT_HEIST_CONFIG__;
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it('the app build (not a web host) shows no entry point', () => {
     (window as unknown as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
     try {

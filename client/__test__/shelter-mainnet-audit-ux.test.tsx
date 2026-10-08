@@ -5,7 +5,7 @@ import type { DonateStatus, TreatChainStatus } from "@/api/shelter-api";
 import { chainRole } from "@/components/shelter-payouts/chains";
 import { HOW_IT_WORKS } from "@/components/shelter-payouts/payoutSections";
 import { custodyDisclosure } from "@/components/shelter-payouts/ShelterProfile";
-import { disclosureFor, DISCLOSURE } from "@/components/shelter-payouts/ShelterPayouts";
+import { disclosureFor, DISCLOSURE, TestnetProofFold, testnetFoldSummary } from "@/components/shelter-payouts/ShelterPayouts";
 import { shortReason, treatChips, treatJarOpen } from "@/components/shelter-payouts/treatChains";
 import { GiveLabel } from "@/components/shelter-payouts/WalletDonate";
 import { render } from "@testing-library/react";
@@ -70,5 +70,32 @@ describe("ux-7: mainnet copy never mentions a testnet coin or USDC only", () => 
     expect(chainRole(4663)).not.toMatch(/mUSDC|testnet/i);
     expect(chainRole(46630)).toMatch(/mUSDC/);
     expect(HOW_IT_WORKS[1]).toMatch(/stablecoin/);
+  });
+});
+
+describe("ux-8: with mainnet live, the testnet proof folds under one small closed line", () => {
+  it("folds into a closed details with the test-coins summary; unfolded (as before) with no mainnet deployment", () => {
+    const folded = render(
+      <TestnetProofFold folded networks={7}>
+        <p data-testid="inside">Live on 7 testnets.</p>
+      </TestnetProofFold>,
+    ).container;
+    const details = folded.querySelector<HTMLDetailsElement>('[data-testid="testnet-proof-fold"]');
+    expect(details).not.toBeNull();
+    expect(details!.open).toBe(false);
+    expect(folded.querySelector('[data-testid="testnet-proof-summary"]')?.textContent).toContain(
+      "Also running on 7 test networks (test coins, no real money)",
+    );
+    expect(details!.contains(folded.querySelector('[data-testid="inside"]'))).toBe(true);
+    expect(folded.querySelector("#testnet-proof")?.getAttribute("data-testid")).toBe("testnet-proof");
+    expect(testnetFoldSummary(1)).toBe("Also running on 1 test network (test coins, no real money)");
+
+    const open = render(
+      <TestnetProofFold folded={false} networks={7}>
+        <p data-testid="inside">Live on 7 testnets.</p>
+      </TestnetProofFold>,
+    ).container;
+    expect(open.querySelector("details")).toBeNull();
+    expect(open.querySelector('[data-testid="testnet-proof"] [data-testid="inside"]')).not.toBeNull();
   });
 });

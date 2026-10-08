@@ -283,3 +283,108 @@ export async function loadRail(config: HeistRuntimeConfig, f: Fetch | undefined 
   }
   return { state: 'pre-launch', amountUsdc: amount, source };
 }
+
+/** One request's outcome: the body, a failed request (network error or HTTP error), or a timeout. */
+type Attempt = { body: unknown } | { failed: 'error' | 'timeout' };
+
+async function attempt(f: Fetch, url: string, timeoutMs: number): Promise<Attempt> {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctl?.abort();
+  }, timeoutMs);
+  try {
+    const res = await f(url, { signal: ctl?.signal, cache: 'no-store', credentials: 'omit' });
+    if (!res.ok) return { failed: 'error' };
+    return { body: await res.json() };
+  } catch {
+    return { failed: timedOut ? 'timeout' : 'error' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface WatchRailOptions {
+  /** How long the first paint waits for the live status (3 s): after that the fallback paints. */
+  firstPaintMs?: number;
+  /** How long the status request may take in all before it is dropped (20 s; slow phones). */
+  lateMs?: number;
+  /** The pause before the one retry after a failed (not timed-out) status request. */
+  retryDelayMs?: number;
+}
+
+/**
+ * The rail for the page, delivered in up to two steps through `onRail`:
+ *   1. the first paint, after at most `firstPaintMs` (3 s): the live status if it is in by then,
+ *      else the facts amount or the baked state (pre-launch);
+ *   2. a late live status: the status request is not cut off at the first-paint budget, it keeps
+ *      going for up to `lateMs` (20 s), and a status that arrives after the first paint is
+ *      delivered again, so a slow phone still flips from "opens soon" to the give link.
+ * A failed status request (network error, HTTP error) is retried once after `retryDelayMs`.
+ * Resolves with the first paint. Never rejects; `onRail` errors are the caller's.
+ */
+export async function watchRail(
+  config: HeistRuntimeConfig,
+  onRail: (info: RailInfo) => void,
+  f: Fetch | undefined = globalThis.fetch as unknown as Fetch,
+  opts: WatchRailOptions = {},
+): Promise<RailInfo> {
+  const firstPaintMs = opts.firstPaintMs ?? 3000;
+  const lateMs = Math.max(opts.lateMs ?? 20000, firstPaintMs);
+  const retryDelayMs = opts.retryDelayMs ?? 1000;
+  if (!f) {
+    // Never synchronously: the caller may still be setting up what `onRail` paints.
+    await Promise.resolve();
+    onRail(BAKED_RAIL);
+    return BAKED_RAIL;
+  }
+  const started = Date.now();
+  const factsP = config.factsUrl ? getJson(f, config.factsUrl, firstPaintMs) : Promise.resolve(undefined);
+  const statusP: Promise<unknown> = config.apiUrl
+    ? (async () => {
+        const url = `${config.apiUrl}/shelter/donate/status`;
+        const first = await attempt(f, url, lateMs);
+        if ('body' in first) return first.body;
+        if (first.failed === 'timeout') return null;
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+        const left = lateMs - (Date.now() - started);
+        if (left <= 0) return null;
+        const second = await attempt(f, url, left);
+        return 'body' in second ? second.body : null;
+      })()
+    : Promise.resolve(null);
+  const PENDING = Symbol('pending');
+  let budget: ReturnType<typeof setTimeout> | undefined;
+  const early = await Promise.race([
+    statusP,
+    new Promise<typeof PENDING>((r) => {
+      budget = setTimeout(() => r(PENDING), firstPaintMs);
+    }),
+  ]);
+  clearTimeout(budget);
+  const facts = await factsP;
+  const fromFacts = config.factsUrl ? amountFromFacts(facts) : null;
+  const amount = fromFacts || BAKED_RAIL.amountUsdc;
+  const fallback: RailInfo = fromFacts ? { state: 'pre-launch', amountUsdc: amount, source: 'facts' } : BAKED_RAIL;
+  const now = early !== PENDING && config.apiUrl ? railFromStatus(early, amount) : null;
+  const firstPaint = now ?? fallback;
+  onRail(firstPaint);
+  if (early === PENDING) {
+    void statusP.then((body) => {
+      const late = railFromStatus(body, amount);
+      if (late) onRail(late);
+    });
+  }
+  return firstPaint;
+}
+
+/**
+ * The rail to show after `next` arrives, given the one on screen. A live status seen in this page
+ * load is never replaced by a fallback (facts or baked, always pre-launch), so "opens soon" never
+ * returns once the rail was seen live; any newer live status (live or exhausted) still wins.
+ */
+export function mergeRail(prev: RailInfo, next: RailInfo): RailInfo {
+  if (prev.source === 'status' && next.source !== 'status') return prev;
+  return next;
+}

@@ -509,6 +509,15 @@ function css(base: string): string {
 .ch-rescue .ch-pay-open-sm { display: flex; width: fit-content; margin-top: 8px; min-height: 40px; padding: 6px 14px; font-size: 12px; align-self: flex-start; }
 /* Testnet proof: mint-rimmed, apart from the real payouts above it. */
 .ch-pay-test { border-color: rgba(127,214,107,.6); }
+/* With mainnet payouts above, the testnet proof folds into one small line (open it to see the cards). */
+.ch-pay-test.ch-pay-folded { border-width: 2px; border-style: dashed; background: rgba(0,0,0,.2); padding: 8px 12px; }
+.ch-pay-tfold > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 8px; list-style: none;
+  font-family: ${HEIST_BODY_FONT}; font-weight: 700; font-size: 13px; color: var(--tt-mint); letter-spacing: 0; }
+.ch-pay-tfold > summary::-webkit-details-marker { display: none; }
+.ch-pay-tfold > summary::before { content: '▸'; transition: transform .15s ease; }
+.ch-pay-tfold[open] > summary::before { transform: rotate(90deg); }
+.ch-pay-tfold > summary:focus-visible { outline: 2px solid var(--tt-mint); outline-offset: 2px; border-radius: 6px; }
+.ch-pay-tfold[open] > summary { margin-bottom: 8px; }
 .ch-pay-thead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 4px; }
 .ch-pay-thead h3 { margin: 0; }
 .ch-pay-testchip { display: inline-block; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--tt-mint); color: var(--tt-mint); white-space: nowrap;
@@ -775,6 +784,42 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
   const testSection = h('section.ch-pay-box.ch-pay-test', { 'data-testid': 'payouts-testnet', 'aria-labelledby': 'ch-pay-test-title' });
   testSection.hidden = !(testnetUrl && loadTestnet);
   let testRun = 0;
+  /**
+   * Whether the mainnet list has a deployment: then the testnet proof folds under a small summary.
+   * Folded until the first mainnet read says otherwise (mainnet is live), so the full testnet
+   * headline never flashes above a slow mainnet read; no mainnet deployment unfolds it as before.
+   */
+  let mainnetDeployed = true;
+  /** The last testnet state painted, to repaint it folded or unfolded when the mainnet read lands. */
+  let lastTest: 'loading' | ShelterPayouts | null = null;
+  /** The player opened the folded testnet proof: keep it open across repaints. */
+  let testFoldOpen = false;
+
+  /** Puts the testnet proof's content in the section, inside a closed `<details>` once mainnet is live. */
+  function fillTestnet(networks: number, ...children: HTMLElement[]) {
+    testSection.classList.toggle('ch-pay-folded', mainnetDeployed);
+    if (!mainnetDeployed) {
+      testSection.setAttribute('aria-labelledby', 'ch-pay-test-title');
+      testSection.replaceChildren(...children);
+      return;
+    }
+    const fold = h(
+      'details.ch-pay-tfold',
+      { 'data-testid': 'testnet-fold' },
+      h(
+        'summary#ch-pay-test-sum',
+        { 'data-testid': 'testnet-summary' },
+        `Also running on ${networks ? `${networks} test network${networks === 1 ? '' : 's'}` : 'test networks'} (test coins, no real money)`,
+      ),
+      ...children,
+    ) as HTMLDetailsElement;
+    fold.open = testFoldOpen;
+    fold.addEventListener('toggle', () => {
+      testFoldOpen = fold.open;
+    });
+    testSection.setAttribute('aria-labelledby', 'ch-pay-test-sum');
+    testSection.replaceChildren(fold);
+  }
 
   /** "Explorer ↗ · Receipt ↗" for one transaction: the chain's explorer and the website receipt. */
   function txLinks(chainId: number, chainName: string, explorer: string, tx: string): (HTMLElement | null)[] {
@@ -827,6 +872,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
   }
 
   function paintTestnet(state: 'loading' | ShelterPayouts) {
+    lastTest = state;
     const head = h(
       'div.ch-pay-thead',
       null,
@@ -840,7 +886,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     );
     if (state === 'loading') {
       testSection.hidden = false;
-      testSection.replaceChildren(head, intro, h('p.ch-pay-tstatus', { 'aria-live': 'polite' }, 'Reading the test networks…'));
+      fillTestnet(0, head, intro, h('p.ch-pay-tstatus', { 'aria-live': 'polite' }, 'Reading the test networks…'));
       return;
     }
     const cards = testnetCards(state);
@@ -858,7 +904,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
         title.focus({ preventScroll: true });
         void refreshTestnet();
       });
-      testSection.replaceChildren(head, intro, h('p.ch-pay-empty', null, "Can't read the test networks right now."), retry);
+      fillTestnet(0, head, intro, h('p.ch-pay-empty', null, "Can't read the test networks right now."), retry);
       return;
     }
     const count = cards.reduce((n, c) => n + c.count, 0);
@@ -867,7 +913,8 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     const unread = cards.reduce((n, c) => n + c.unread, 0);
     const payouts = `${unread ? 'at least ' : ''}${count} test payout${count === 1 ? '' : 's'}`;
     const read = unread ? ` · ${contracts - unread} of ${contracts} contracts read` : '';
-    testSection.replaceChildren(
+    fillTestnet(
+      cards.length,
       head,
       intro,
       h(
@@ -997,7 +1044,14 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     if (!data.payouts.length && data.status !== 'error') sections.unshift(howItWorks());
     if (!sections.length) sections.push(howItWorks());
     if (pinkPaw) sections.push(catsBox());
-    // The testnet proof always comes after the real payouts.
+    // The testnet proof always comes after the real payouts, folded once a mainnet contract is listed.
+    if (data.status !== 'error') {
+      const deployed = data.chains.length > 0;
+      if (deployed !== mainnetDeployed) {
+        mainnetDeployed = deployed;
+        if (lastTest && !testSection.hidden) paintTestnet(lastTest);
+      }
+    }
     lists.replaceChildren(...sections, testSection);
     el.dataset.state = data.status === 'ok' && !amount ? 'empty' : data.status;
     // An early index-only read: the full read (the newest blocks) is still on its way.

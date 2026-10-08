@@ -1,1 +1,0 @@
-import"./index-BEAEA_xB.js";function e(e){return null}export{e as installQA};

@@ -9,8 +9,10 @@ import {
   heistRuntimeConfig,
   isWebHost,
   loadRail,
+  mergeRail,
   railCopy,
   railFromStatus,
+  watchRail,
   weiToUsdc,
   type RailInfo,
 } from '../rail';
@@ -140,6 +142,105 @@ describe('rail state sources', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('watchRail (a slow status still lands)', () => {
+  const cfg = { apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' };
+  const factsBody = { facts: [{ id: 'C-004', value: '0.01' }] };
+
+  it('paints pre-launch at 3 s, then flips to live when a late status answers (no abort at 3 s)', async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      const f = vi.fn((url: string, init?: { signal?: AbortSignal }) => {
+        if (!url.endsWith('/shelter/donate/status')) return okJson(factsBody);
+        signal = init?.signal;
+        // The answer takes 6 s (a slow phone while the game loads).
+        return new Promise<{ ok: boolean; json(): Promise<unknown> }>((res) => setTimeout(() => res({ ok: true, json: () => Promise.resolve(status()) }), 6000));
+      });
+      const seen: RailInfo[] = [];
+      let first: RailInfo | undefined;
+      void watchRail(cfg, (i) => seen.push(i), f).then((r) => (first = r));
+      await vi.advanceTimersByTimeAsync(3100);
+      expect(first).toEqual({ state: 'pre-launch', amountUsdc: '0.01', source: 'facts' });
+      expect(seen.map((i) => i.state)).toEqual(['pre-launch']);
+      expect(signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(seen.map((i) => i.state)).toEqual(['pre-launch', 'live']);
+      expect(seen[1]).toMatchObject({ state: 'live', source: 'status' });
+      expect(railCopy(seen[1], true).showGive).toBe(true);
+      expect(f.mock.calls.filter(([u]) => u.endsWith('/status'))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a status within the budget paints once, live', async () => {
+    const seen: RailInfo[] = [];
+    const f = vi.fn((url: string) => (url.endsWith('/shelter/donate/status') ? okJson(status()) : okJson(factsBody)));
+    expect(await watchRail(cfg, (i) => seen.push(i), f)).toMatchObject({ state: 'live', source: 'status' });
+    expect(seen).toHaveLength(1);
+  });
+
+  it('retries once after a network error, and the second answer wins', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const f = vi.fn((url: string) => {
+        if (!url.endsWith('/shelter/donate/status')) return okJson(factsBody);
+        calls++;
+        return calls === 1 ? Promise.reject(new TypeError('Failed to fetch')) : okJson(status());
+      });
+      const seen: RailInfo[] = [];
+      const pending = watchRail(cfg, (i) => seen.push(i), f, { retryDelayMs: 1000 });
+      await vi.advanceTimersByTimeAsync(1100);
+      // Retried within the first-paint budget: the first paint is already live.
+      expect(await pending).toMatchObject({ state: 'live', source: 'status' });
+      expect(calls).toBe(2);
+      expect(seen.map((i) => i.state)).toEqual(['live']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a retry that answers after the budget still flips the rail; two failures stay pre-launch', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const f = vi.fn((url: string) => {
+        if (!url.endsWith('/shelter/donate/status')) return okJson(factsBody);
+        calls++;
+        return calls === 1
+          ? new Promise<never>((_, rej) => setTimeout(() => rej(new TypeError('Failed to fetch')), 2500))
+          : new Promise<{ ok: boolean; json(): Promise<unknown> }>((res) => setTimeout(() => res({ ok: true, json: () => Promise.resolve(status()) }), 2000));
+      });
+      const seen: RailInfo[] = [];
+      void watchRail(cfg, (i) => seen.push(i), f, { retryDelayMs: 1000 });
+      await vi.advanceTimersByTimeAsync(3100);
+      expect(seen.map((i) => i.state)).toEqual(['pre-launch']);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(calls).toBe(2);
+      expect(seen.map((i) => i.state)).toEqual(['pre-launch', 'live']);
+
+      const down = vi.fn((url: string) => (url.endsWith('/shelter/donate/status') ? Promise.reject(new Error('offline')) : okJson(factsBody)));
+      const seen2: RailInfo[] = [];
+      void watchRail(cfg, (i) => seen2.push(i), down, { retryDelayMs: 1000 });
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(down.mock.calls.filter(([u]) => u.endsWith('/status'))).toHaveLength(2);
+      expect(seen2.map((i) => i.state)).toEqual(['pre-launch']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('mergeRail never goes back to the pre-launch fallback once a live status was seen', () => {
+    const live: RailInfo = { state: 'live', amountUsdc: '0.01', source: 'status' };
+    const exhausted: RailInfo = { state: 'exhausted', amountUsdc: '0.01', source: 'status' };
+    expect(mergeRail(live, BAKED_RAIL)).toBe(live);
+    expect(mergeRail(live, { state: 'pre-launch', amountUsdc: '0.01', source: 'facts' })).toBe(live);
+    expect(mergeRail(BAKED_RAIL, live)).toBe(live);
+    expect(mergeRail(live, exhausted)).toBe(exhausted);
   });
 });
 

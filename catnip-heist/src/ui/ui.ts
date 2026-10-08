@@ -27,7 +27,7 @@ import { icon } from './icons';
 import { ensureStyles } from './styles';
 import { createDiorama, type Diorama } from '../render/diorama';
 import { createTouchControls, type TouchControls } from './touch';
-import { BAKED_RAIL, heistRuntimeConfig, isWebHost, loadRail, railCopy, type RailInfo } from './rail';
+import { BAKED_RAIL, heistRuntimeConfig, isWebHost, mergeRail, railCopy, watchRail, type RailInfo } from './rail';
 import { createFtueOverlay, type FtueOverlay } from './ftue';
 import { createPayoutsModal, type PayoutsModal } from './shelter-payouts';
 import type { ShelterPayouts } from './payouts';
@@ -179,13 +179,21 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const web = isWebHost(typeof window === 'undefined' ? undefined : (window as never));
   let rail: RailInfo = opts.rail || BAKED_RAIL;
   const footText = h('span', null, railCopy(rail, web).foot);
+  // The win screen's rail line and give link, while it shows (set by showResults).
+  let resultsRailPaint: (() => void) | null = null;
   const paintRail = () => {
     setText(footText, railCopy(rail, web).foot);
     payoutsModal?.refreshShelter();
+    resultsRailPaint?.();
   };
   if (opts.rail === undefined) {
-    void loadRail(heistRuntimeConfig(window as never, document)).then((info) => {
-      rail = info;
+    // The first paint comes within 3 s; a slow status (slow phones, the game loading at the same
+    // time) still arrives later and flips every surface to the live rail. A live status seen once
+    // is never replaced by the pre-launch fallback (mergeRail).
+    void watchRail(heistRuntimeConfig(window as never, document), (info) => {
+      const next = mergeRail(rail, info);
+      if (next === rail) return;
+      rail = next;
       paintRail();
     });
   }
@@ -970,10 +978,27 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     // The rail decides the small print and whether the give link shows (plan G11): live shows the
     // link, pre-launch an "Opens soon" status badge, exhausted only the line (it names the reset).
     const copy = railCopy(rail, web);
-    const giveEl = r.rescued && copy.showGive ? giveButton(r.rescuedName || lv?.crate.catName || '') : null;
-    const chipEl = r.rescued && !giveEl && copy.chip ? h('span.ch-rail-chip', { role: 'status', 'data-testid': 'rail-chip', 'data-claim': 'L-rail' }, copy.chip) : null;
+    const giveName = r.rescuedName || lv?.crate.catName || '';
+    const railChip = (text: string) => h('span.ch-rail-chip', { role: 'status', 'data-testid': 'rail-chip', 'data-claim': 'L-rail' }, text);
+    let giveEl = r.rescued && copy.showGive ? giveButton(giveName) : null;
+    let chipEl = r.rescued && !giveEl && copy.chip ? railChip(copy.chip) : null;
     // claim: C-004, L-rail
     const rescueNote = h('small', { 'data-testid': 'rail-line', 'data-claim': 'L-rail', 'data-rail': copy.state }, copy.line);
+    // A rail that changes while this screen shows (a late live status) repaints the line and the
+    // give link in place.
+    resultsRailPaint = r.rescued
+      ? () => {
+          const c = railCopy(rail, web);
+          if (rescueNote.dataset.rail === c.state) return;
+          rescueNote.dataset.rail = c.state;
+          setText(rescueNote, c.line);
+          giveEl?.remove();
+          chipEl?.remove();
+          giveEl = c.showGive ? giveButton(giveName) : null;
+          chipEl = !giveEl && c.chip ? railChip(c.chip) : null;
+          rescueNote.after(...[giveEl, chipEl].filter((x): x is HTMLElement => !!x));
+        }
+      : null;
     const rescue = r.rescued
       // claim:fiction in-game rescue, no money moves
       ? h('div.ch-rescue', null, crateEntry ? createPortrait(crateEntry, { size: 72, base }) : null, h('p', null, `You rescued ${name}!`, rescueNote, giveEl, chipEl, resultsPayoutsLink(), shelterTotal()))
