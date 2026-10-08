@@ -134,10 +134,11 @@ export const SHELTER_X402_THROTTLE = { limit: 30, ttl: 60000 };
 export const SHELTER_RELAY_THROTTLE = { limit: 10, ttl: 60000 };
 export const SHELTER_CLAIM_THROTTLE = { limit: 5, ttl: 60000 };
 /**
- * POST /shelter/donate/guest (no account): per IP, tighter than the signed-in route. The once-a-day
- * rule (per hashed address) and the per-chain daily budget are the real bounds.
+ * POST /shelter/donate/guest (no account). The throttler keys on the Express address, which without
+ * TRUST_PROXY is the balancer's and shared by every visitor, so this is loose; the once-a-day rule
+ * (per hashed visitor address) and the per-chain daily budget are the real bounds.
  */
-export const SHELTER_DONATE_GUEST_THROTTLE = { limit: 5, ttl: 60000 };
+export const SHELTER_DONATE_GUEST_THROTTLE = { limit: 30, ttl: 60000 };
 /** Per-user limit on POST /shelter/donate (plan G5 P4): one gift a day needs only a few tries. */
 export const SHELTER_DONATE_USER_THROTTLE = { limit: 5, ttl: 60000 };
 
@@ -318,13 +319,20 @@ export class ShelterOnchainController {
 }
 
 /**
- * The client address a guest treat is keyed on. Refused with 503 when it cannot tell clients apart
- * in production (TRUST_PROXY unset, or a private/balancer address), so one visitor cannot spend
- * the shared key for everyone. Development keys on whatever address it sees.
+ * The client address a guest treat is keyed on. Production sits behind Cloudflare, which sends the
+ * visitor's address in `cf-connecting-ip`; that header wins when it holds a public address. Otherwise
+ * the Express address (`req.ips[0]` under TRUST_PROXY). A spoofed header (a request sent straight to
+ * the origin) only buys extra treats, which the per-chain daily budget still caps. Refused with 503 in
+ * production when no public address is found, so one visitor cannot spend a shared key for everyone.
  */
 export function guestTreatIp(req: any, env: NodeJS.ProcessEnv = process.env): string {
+    const header = req?.headers?.['cf-connecting-ip'];
+    const cf = typeof header === 'string' ? header.trim() : '';
+    if (isUsableClientIp(cf)) {
+        return cf;
+    }
     const ip = requestIp(req);
-    if (env.NODE_ENV === 'production' && (isProxyUntrusted(env) || !isUsableClientIp(ip))) {
+    if (env.NODE_ENV === 'production' && (!isUsableClientIp(ip) || (isProxyUntrusted(env) && !cf))) {
         throw new HttpException(
             {
                 statusCode: HttpStatus.SERVICE_UNAVAILABLE,

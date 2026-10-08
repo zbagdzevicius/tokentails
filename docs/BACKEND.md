@@ -323,9 +323,10 @@ the match are off by default.
 - `ShelterDonateService`: since Oct 8, 2026 anyone may send a treat. A registered account calls
   `POST /shelter/donate` (keyed by its id; no account-age, email or saved-game rule, the F7.5
   instant-treat policy is open). Anyone else calls `POST /shelter/donate/guest`, keyed by a pseudo id:
-  the first 12 bytes of HMAC-SHA256(`SHELTER_TREAT_IP_SALT`, `day|client address`) (`treat-guest-key.ts`;
-  the raw address is never stored, the id changes daily). Production refuses guest treats with 503
-  when `TRUST_PROXY` is unset or the address is private, so one visitor cannot use the shared key. It inserts a
+  the first 12 bytes of HMAC-SHA256(`SHELTER_TREAT_IP_SALT`, `day|visitor address`) (`treat-guest-key.ts`;
+  the raw address is never stored, the id changes daily). The visitor address is Cloudflare's
+  `cf-connecting-ip` when it is public, else the Express address (`TRUST_PROXY`). Production refuses
+  guest treats with 503 when neither gives a public address, so one visitor cannot use a shared key. It inserts a
   `shelterdonations` row (unique `user` + UTC `day`, so a second gift is 429 `DONATE_ALREADY_TODAY`;
   a FAILED row of the same day is reused and the attempt kept in `attempts`), claims a slot in
   `shelterdonatedays` with a conditional `$inc` against
@@ -841,8 +842,11 @@ Route and logic bugs:
 
 - Open (guest treats, 2026-10-08): `POST /shelter/donate/guest` is keyed per client address, so a
   visitor with many addresses (VPNs, mobile IP changes) can send more than one treat a day, and a
-  shared address (office, carrier NAT) gets one treat a day for everyone behind it. The per-chain daily
-  budget (100 treats) bounds the loss to that budget; there is no captcha.
+  shared address (office, carrier NAT) gets one treat a day for everyone behind it. `cf-connecting-ip`
+  can be forged by a request sent straight to the origin, which only buys extra treats. The per-chain
+  daily budget (100 treats) bounds the loss to that budget; there is no captcha. Production appears to
+  run without `TRUST_PROXY` (observed Oct 8: the first guest route refused every caller), so the
+  per-IP throttles on every route share the balancer's bucket.
 - Open (crypto checkout, 2026-10-04): nothing is live until a treasury address is set per chain
   (`src/payments/crypto/treasury.public.ts` or `CRYPTO_PAY_TREASURY*`); the funding wallet list still has
   `shelter-split-treasury: null`. `CRYPTO_PAY_CAT_SHELTER_BPS` is a founder decision (it is not the

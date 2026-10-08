@@ -151,6 +151,13 @@ describe('ShelterOnchainController', () => {
         expect(() => guestTreatIp({ ip: '10.0.0.1' }, prod)).toThrow(/Sign in/);
         expect(() => guestTreatIp({ ip: '203.0.113.7' }, { NODE_ENV: 'production' } as any)).toThrow(/Sign in/);
         expect(guestTreatIp({ ip: '127.0.0.1' }, { NODE_ENV: 'development' } as any)).toBe('127.0.0.1');
+        // Behind Cloudflare: the visitor's address header wins, with or without TRUST_PROXY.
+        const cf = { headers: { 'cf-connecting-ip': '198.51.100.9' }, ip: '10.0.0.1' };
+        expect(guestTreatIp(cf, { NODE_ENV: 'production' } as any)).toBe('198.51.100.9');
+        // A private value in the header is ignored.
+        expect(() => guestTreatIp({ headers: { 'cf-connecting-ip': '10.1.1.1' }, ip: '10.0.0.1' }, prod)).toThrow(
+            /Sign in/
+        );
     });
 
     it('GET /shelter/donate/me returns the caller treats plus eligibility', async () => {
