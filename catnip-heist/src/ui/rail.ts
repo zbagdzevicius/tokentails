@@ -35,6 +35,8 @@ export interface RailInfo {
   source: 'status' | 'facts' | 'baked';
   /** The network the live treat goes out on, when the status names one (web copy only). */
   chainId?: number;
+  /** The live status is still on its way: show a neutral "Checking…" instead of "Opens soon". */
+  pending?: boolean;
   /** What that treat is paid in there (USDC, USDC.e, USDG). */
   coin?: string;
 }
@@ -177,6 +179,16 @@ export function railCopy(info: RailInfo, isWeb: boolean): RailCopy {
       showGive: false,
       // claim: L-rail
       foot: "Today's treats are gone, back at 00:00 UTC.",
+    };
+  }
+  if (info.pending) {
+    return {
+      state: 'pre-launch',
+      // Neutral while the status is still out: no claim either way.
+      line: "Checking today's shelter treats…",
+      chip: 'Checking…',
+      showGive: false,
+      foot: "Play to save: checking today's shelter treats…",
     };
   }
   return {
@@ -368,12 +380,12 @@ export async function watchRail(
   const amount = fromFacts || BAKED_RAIL.amountUsdc;
   const fallback: RailInfo = fromFacts ? { state: 'pre-launch', amountUsdc: amount, source: 'facts' } : BAKED_RAIL;
   const now = early !== PENDING && config.apiUrl ? railFromStatus(early, amount) : null;
-  const firstPaint = now ?? fallback;
+  // Still out after the first-paint budget: "Checking…" until it lands or finally fails.
+  const firstPaint = now ?? (early === PENDING && config.apiUrl ? { ...fallback, pending: true } : fallback);
   onRail(firstPaint);
   if (early === PENDING) {
     void statusP.then((body) => {
-      const late = railFromStatus(body, amount);
-      if (late) onRail(late);
+      onRail(railFromStatus(body, amount) ?? fallback);
     });
   }
   return firstPaint;

@@ -177,7 +177,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   const giveUrl = opts.giveUrl ?? GIVE_URL;
   // Treat rail state: the baked fallback first, then the live status when it arrives.
   const web = isWebHost(typeof window === 'undefined' ? undefined : (window as never));
-  let rail: RailInfo = opts.rail || BAKED_RAIL;
+  let rail: RailInfo = opts.rail || (typeof window === 'undefined' ? BAKED_RAIL : { ...BAKED_RAIL, pending: true });
   const footText = h('span', null, railCopy(rail, web).foot);
   // The win screen's rail line and give link, while it shows (set by showResults).
   let resultsRailPaint: (() => void) | null = null;

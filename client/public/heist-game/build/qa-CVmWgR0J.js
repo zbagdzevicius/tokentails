@@ -1,0 +1,1 @@
+import"./index-DDRc9rYs.js";function e(e){return null}export{e as installQA};

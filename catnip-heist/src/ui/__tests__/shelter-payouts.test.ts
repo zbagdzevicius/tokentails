@@ -292,7 +292,7 @@ describe('UI entry points', () => {
     expect(u.payoutsOpen).toBe(false);
   });
 
-  it('a slow treat status (6 s) still flips the Pink Paw card from "Opens soon" to the give link', async () => {
+  it('a slow treat status (6 s) shows "Checking…" (never "Opens soon"), then flips the Pink Paw card to the give link', async () => {
     vi.useFakeTimers();
     const w = window as unknown as { __TT_HEIST_CONFIG__?: unknown };
     w.__TT_HEIST_CONFIG__ = { apiUrl: 'https://api.example', factsUrl: '/facts.json' };
@@ -309,15 +309,16 @@ describe('UI entry points', () => {
       await vi.advanceTimersByTimeAsync(3100);
       // The win screen is up when the status is still out: the badge, then the link in place.
       ui.showResults({ levelId: 'heist-01', catIds: ['a', 'b'], seed: 1, ticks: 600, coins: 0, rescued: true, rescuedName: 'Judas', spottedCount: 0, score: 50, hash: 1 });
-      expect(ui.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Opens soon');
+      expect(ui.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Checking…');
       expect(ui.root.querySelector('.ch-results [data-testid="give-treat"]')).toBeNull();
       ui.showTitle();
       ui.root.querySelector<HTMLButtonElement>('[data-testid="open-payouts"]')!.click();
       await vi.advanceTimersByTimeAsync(10);
       const card = () => ui!.root.querySelector('[data-testid="payouts-shelter"]');
-      expect(card()?.textContent).toMatch(/open soon/i);
+      expect(card()?.textContent).toMatch(/checking today's shelter treats/i);
+      expect(card()?.textContent).not.toMatch(/open soon/i);
       expect(card()?.querySelector('[data-testid="give-treat"]')).toBeNull();
-      expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/open soon/);
+      expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/checking today's shelter treats/);
       await vi.advanceTimersByTimeAsync(3000);
       expect(card()?.querySelector('[data-testid="give-treat"]')?.textContent).toContain('Send Pink Paw a rescue treat');
       expect(card()?.textContent).not.toMatch(/open soon/i);

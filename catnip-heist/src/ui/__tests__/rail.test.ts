@@ -149,7 +149,7 @@ describe('watchRail (a slow status still lands)', () => {
   const cfg = { apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' };
   const factsBody = { facts: [{ id: 'C-004', value: '0.01' }] };
 
-  it('paints pre-launch at 3 s, then flips to live when a late status answers (no abort at 3 s)', async () => {
+  it('paints "Checking…" at 3 s, then flips to live when a late status answers (no abort at 3 s)', async () => {
     vi.useFakeTimers();
     try {
       let signal: AbortSignal | undefined;
@@ -163,14 +163,35 @@ describe('watchRail (a slow status still lands)', () => {
       let first: RailInfo | undefined;
       void watchRail(cfg, (i) => seen.push(i), f).then((r) => (first = r));
       await vi.advanceTimersByTimeAsync(3100);
-      expect(first).toEqual({ state: 'pre-launch', amountUsdc: '0.01', source: 'facts' });
+      expect(first).toEqual({ state: 'pre-launch', amountUsdc: '0.01', source: 'facts', pending: true });
       expect(seen.map((i) => i.state)).toEqual(['pre-launch']);
+      expect(railCopy(seen[0], true)).toMatchObject({ chip: 'Checking…', showGive: false });
+      expect(railCopy(seen[0], true).line).not.toMatch(/open soon/i);
       expect(signal?.aborted).toBe(false);
       await vi.advanceTimersByTimeAsync(3000);
       expect(seen.map((i) => i.state)).toEqual(['pre-launch', 'live']);
       expect(seen[1]).toMatchObject({ state: 'live', source: 'status' });
       expect(railCopy(seen[1], true).showGive).toBe(true);
       expect(f.mock.calls.filter(([u]) => u.endsWith('/status'))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a status that never answers goes from "Checking…" to "Opens soon" at the late limit', async () => {
+    vi.useFakeTimers();
+    try {
+      const f = vi.fn((url: string, init?: { signal?: AbortSignal }) => {
+        if (!url.endsWith('/shelter/donate/status')) return okJson(factsBody);
+        return new Promise<never>((_, rej) => init?.signal?.addEventListener('abort', () => rej(new Error('aborted'))));
+      });
+      const seen: RailInfo[] = [];
+      void watchRail(cfg, (i) => seen.push(i), f);
+      await vi.advanceTimersByTimeAsync(3100);
+      expect(seen.map((i) => railCopy(i, true).chip)).toEqual(['Checking…']);
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(seen.map((i) => railCopy(i, true).chip)).toEqual(['Checking…', 'Opens soon']);
+      expect(seen[1].pending).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
