@@ -1,9 +1,0 @@
-{
-  "name": "orc",
-  "private": true,
-  "type": "module",
-  "description": "Run Claude Code sessions as subprocesses, measure them, track every session and step from a CLI.",
-  "bin": { "orc": "bin/orc.mjs" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
-  "engines": { "node": ">=22" }
-}

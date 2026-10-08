@@ -44,8 +44,7 @@ images) are in the private repo `zbagdzevicius/tokentails-funding`. It is not pa
 nothing here needs it: builds, tests and CI pass without it, and tests that compare against its
 registries skip.
 
-To run that tooling, clone the private repo into this checkout as `funding/` (gitignored here once
-the move is finished; until then an older copy of `funding/` is still tracked in this repo):
+To run that tooling, clone the private repo into this checkout as `funding/` (gitignored here):
 
 ```bash
 git clone https://github.com/zbagdzevicius/tokentails-funding.git funding

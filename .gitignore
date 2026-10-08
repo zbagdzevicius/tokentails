@@ -5,8 +5,10 @@
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 
-# local wallet keys, never commit
-funding/.secrets/
+# Private checkout of zbagdzevicius/tokentails-funding (see docs/DEVELOPMENT.md); never commit.
+/funding/
+# Local-only notes (the funding tracker).
+CLAUDE.local.md
 
 # Separate local repository (cat art sources), not part of this repo.
 /cat-assets/

@@ -1,0 +1,8 @@
+{
+  "name": "Fixture rescue fund",
+  "goalUsdc": "90",
+  "startDate": "2026-10-02",
+  "chainId": 5042,
+  "fromBlock": 1,
+  "shelter": { "name": "Fixture Shelter", "wallet": "0x00000000000000000000000000000000000000f1", "handover": "held-by-token-tails" }
+}
