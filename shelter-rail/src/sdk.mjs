@@ -163,10 +163,10 @@ export const CHAINS = Object.freeze({
   143: Object.freeze({
     name: "Monad",
     rpc: "https://rpc.monad.xyz",
-    // The public RPC answers eth_getLogs over at most 100 blocks (HTTP 413 beyond; checked 2026-10-04), so
-    // logs come from rpc1.monad.xyz, which serves 100,000-block spans in one call (checked 2026-10-05).
-    logRpc: "https://rpc1.monad.xyz",
-    maxLogRange: 100000,
+    // rpc.monad.xyz and rpc1.monad.xyz (it served 100,000-block spans until Oct 5) answer eth_getLogs over
+    // at most 100 blocks, so logs come from rpc2.monad.xyz: 10,000-block windows (25,000 refused; checked 2026-10-08).
+    logRpc: "https://rpc2.monad.xyz",
+    maxLogRange: 10000,
     explorer: "https://monadvision.com",
     nativeSymbol: "MON",
     nativeDecimals: 18,

@@ -33,7 +33,7 @@ import { EligibilityResult } from 'src/impact/eligibility';
 import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
 import { DonateMe, DonateResult, DonateStatus, ShelterDonateService } from './shelter-donate.service';
 import { DONATION_SOURCES, DonationSource } from './shelter-onchain.schema';
-import { CatCard, encodePaymentResponse, ShelterX402Service } from './shelter-x402.service';
+import { CatCard, encodePaymentResponses, PaymentRequiredException, ShelterX402Service } from './shelter-x402.service';
 import { ChainClaimStatus, ChainClaimView, ClaimView, ShelterClaimService } from './shelter-claim.service';
 import { MatchStatusView, ShelterMatchService } from './shelter-match.service';
 import { RelayResult, RelayStatusView, ShelterRelayService } from './shelter-relay.service';
@@ -260,12 +260,42 @@ export class ShelterOnchainController {
     @Get('agent/cat-card')
     async catCard(
         @Headers('x-payment') payment: string | undefined,
+        @Headers('payment-signature') paymentV2: string | undefined,
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<CatCard> {
-        const resource = `${req.protocol}://${req.get?.('host') || 'localhost'}${req.originalUrl || req.url}`;
-        const { card, txHash } = await this.x402Service.catCard(payment, resource.split('?')[0]);
-        res.setHeader('X-PAYMENT-RESPONSE', encodePaymentResponse(txHash));
-        return card;
+        const resource = x402ResourceUrl(req);
+        try {
+            // x402 v1 sends X-PAYMENT, v2 PAYMENT-SIGNATURE; both carry base64 JSON.
+            const { card, txHash } = await this.x402Service.catCard(payment || paymentV2, resource);
+            const responses = encodePaymentResponses(txHash);
+            res.setHeader('X-PAYMENT-RESPONSE', responses.v1);
+            res.setHeader('PAYMENT-RESPONSE', responses.v2);
+            return card;
+        } catch (error) {
+            if (error instanceof PaymentRequiredException) {
+                res.setHeader('PAYMENT-REQUIRED', error.paymentRequiredV2);
+            }
+            throw error;
+        }
     }
+}
+
+/**
+ * The paid resource's URL for the 402 `resource` field, without the query string. Behind the TLS
+ * proxy Express sees http, so the first X-Forwarded-Proto wins, and production is always https.
+ */
+export function x402ResourceUrl(req: any, env: NodeJS.ProcessEnv = process.env): string {
+    const forwarded = String(req.headers?.['x-forwarded-proto'] || '')
+        .split(',')[0]
+        .trim()
+        .toLowerCase();
+    const proto =
+        env.NODE_ENV === 'production'
+            ? 'https'
+            : forwarded === 'https' || forwarded === 'http'
+            ? forwarded
+            : req.protocol || 'http';
+    const host = req.get?.('host') || 'localhost';
+    return `${proto}://${host}${String(req.originalUrl || req.url || '').split('?')[0]}`;
 }

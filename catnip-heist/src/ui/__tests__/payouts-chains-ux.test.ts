@@ -7,6 +7,7 @@ import {
   PAYOUT_CHAINS,
   deploymentUnits,
   fetchShelterPayouts,
+  getLogsRange,
   rangeLimitFrom,
   setPayoutsSleep,
   type ShelterPayouts,
@@ -65,6 +66,43 @@ describe('eth_getLogs range caps', () => {
     expect(r.chains[0].ok).toBe(true);
     expect(sizes).toEqual([800, 800, 400]);
     expect(MIN_LOG_WINDOW).toBeLessThan(1000);
+  });
+});
+
+describe('Monad (public RPCs cap eth_getLogs at 100 blocks)', () => {
+  const rpcAt = (cap: number, latest: number, ranges: [number, number][], message = `eth_getLogs is limited to a ${cap} range`) =>
+    (async (_url: string, init?: { body?: string }) => {
+      const body = JSON.parse(String(init?.body));
+      if (body.method === 'eth_blockNumber') return json({ result: '0x' + latest.toString(16) });
+      const { fromBlock, toBlock } = body.params[0];
+      const from = parseInt(fromBlock, 16);
+      const to = toBlock === 'latest' ? latest : parseInt(toBlock, 16);
+      if (to - from + 1 > cap) return json({ jsonrpc: '2.0', id: 1, error: { code: -32614, message } });
+      ranges.push([from, to]);
+      return json({ result: [] });
+    }) as unknown as typeof fetch;
+
+  it('reads mainnet through rpc2.monad.xyz in 10,000-block windows, never a full-range call', async () => {
+    expect(PAYOUT_CHAINS[143]).toMatchObject({ rpc: 'https://rpc2.monad.xyz', maxLogRange: 10_000 });
+    const ranges: [number, number][] = [];
+    const { rpc, maxLogRange } = PAYOUT_CHAINS[143];
+    await getLogsRange(rpcAt(10_000, 25_000, ranges) as never, rpc, { address: SPLIT, topics: [[]] }, 1, new AbortController().signal, maxLogRange);
+    expect(ranges).toEqual([[1, 10_000], [10_001, 20_000], [20_001, 25_000]]);
+  });
+
+  it('a cap the RPC names under MIN_LOG_WINDOW ("limited to a 100 range") is used, not refused', async () => {
+    const ranges: [number, number][] = [];
+    const out = await getLogsRange(rpcAt(100, 1250, ranges) as never, 'https://rpc.monad.xyz', { address: SPLIT, topics: [[]] }, 1001, new AbortController().signal);
+    expect(out).toEqual([]);
+    expect(ranges).toEqual([[1001, 1100], [1101, 1200], [1201, 1250]]);
+    expect(100).toBeLessThan(MIN_LOG_WINDOW);
+  });
+
+  it('an unnamed refusal still stops halving at MIN_LOG_WINDOW', async () => {
+    const ranges: [number, number][] = [];
+    const f = rpcAt(100, 20_000, ranges, 'block range too large');
+    await expect(getLogsRange(f as never, 'https://rpc1.monad.xyz', { address: SPLIT, topics: [[]] }, 1, new AbortController().signal)).rejects.toThrow(/block range too large/);
+    expect(ranges).toEqual([]);
   });
 });
 

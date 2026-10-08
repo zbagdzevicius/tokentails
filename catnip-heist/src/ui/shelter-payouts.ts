@@ -435,6 +435,7 @@ function css(base: string): string {
 .ch-pay-pill i, .ch-pay-open i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--tt-gold); box-shadow: 0 0 8px var(--tt-gold); }
 .ch-pay-title { margin: 10px 0 2px; font-family: ${DISPLAY}; font-weight: 700; text-transform: uppercase; letter-spacing: .01em;
   font-size: clamp(30px, 5vw + 12px, 54px); line-height: .92; color: #fff; text-shadow: 0 3px 0 var(--tt-night-950), 0 8px 22px rgba(0,0,0,.65); }
+.ch-pay-custody { margin: 4px auto 0; text-align: center; }
 .ch-pay-total { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; min-height: 96px; justify-content: center; }
 .ch-pay-amount { font-family: ${DISPLAY}; font-weight: 700; font-size: clamp(46px, 9vw + 18px, 104px); line-height: .9; color: var(--tt-cream); text-shadow: ${GLOW}; text-wrap: balance; }
 .ch-pay-amount.ch-pay-many { font-size: clamp(32px, 4vw + 18px, 60px); line-height: 1; }
@@ -607,6 +608,8 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     null,
     h('p.ch-pay-pill', { style: 'margin:0' }, h('i', { 'aria-hidden': 'true' }), 'Public, on-chain'),
     title,
+    // claim: custody (the shelter wallet is held by Token Tails until handover; same words as /shelter-payouts)
+    h('p.ch-pay-note.ch-pay-custody', { 'data-testid': 'payouts-custody' }, 'Shelter wallet held by Token Tails on behalf of the shelter until handover.'),
     total,
   );
   const lists = h('div.ch-pay-col');

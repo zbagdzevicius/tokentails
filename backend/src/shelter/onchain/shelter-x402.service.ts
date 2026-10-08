@@ -28,6 +28,7 @@ import { ShelterClaimService } from './shelter-claim.service';
 import { X402Nonce, X402NonceDocument, X402UsedTx, X402UsedTxDocument } from './shelter-onchain.schema';
 import {
     buildExactRequirement,
+    caipNetwork,
     decodeXPayment,
     domainMismatch,
     EXACT_SCHEME,
@@ -39,6 +40,7 @@ import {
     FacilitatorClient,
     FacilitatorError,
     FetchLike,
+    normalizePaymentHeader,
     peekScheme,
     readExactConfig,
     signatureMatches,
@@ -150,18 +152,63 @@ function rememberExactSettlement(txHash: string, network: string, payer: string)
 }
 
 /**
- * The base64 X-PAYMENT-RESPONSE. onchain-receipt: `{success, txHash}`. exact: the x402 v1
- * SettlementResponse (`transaction`, `network`, `payer`), plus `txHash` for older clients.
+ * The base64 settlement headers for one paid card. `v1` (X-PAYMENT-RESPONSE) for onchain-receipt is
+ * `{success, txHash}`; for exact it is the x402 v1 SettlementResponse (`transaction`, `network`,
+ * `payer`) plus `txHash` for older clients. `v2` (PAYMENT-RESPONSE) is the same with the network as
+ * CAIP-2 (`eip155:<chainId>`).
  */
-export function encodePaymentResponse(txHash: string): string {
-    const exact = exactSettlements.get(String(txHash).toLowerCase());
-    const body = exact
-        ? { success: true, txHash, transaction: txHash, network: exact.network, payer: exact.payer }
-        : { success: true, txHash };
-    if (exact) {
-        exactSettlements.delete(String(txHash).toLowerCase());
+export function encodePaymentResponses(txHash: string): { v1: string; v2: string } {
+    const key = String(txHash).toLowerCase();
+    const exact = exactSettlements.get(key);
+    exactSettlements.delete(key);
+    const encode = (body: object) => Buffer.from(JSON.stringify(body)).toString('base64');
+    if (!exact) {
+        const body = { success: true, txHash, transaction: txHash };
+        return { v1: encode({ success: true, txHash }), v2: encode(body) };
     }
-    return Buffer.from(JSON.stringify(body)).toString('base64');
+    const v1 = { success: true, txHash, transaction: txHash, network: exact.network, payer: exact.payer };
+    return { v1: encode(v1), v2: encode({ ...v1, network: caipNetwork(exact.network) }) };
+}
+
+/** The base64 X-PAYMENT-RESPONSE (v1); see encodePaymentResponses. */
+export function encodePaymentResponse(txHash: string): string {
+    return encodePaymentResponses(txHash).v1;
+}
+
+/**
+ * The x402 v2 PaymentRequired for a v1 402 body (specs/transports-v2/http.md): `resource` becomes an
+ * object, each requirement's `maxAmountRequired` becomes `amount` and its network CAIP-2. The custom
+ * onchain-receipt offers stay in the v1 body only.
+ */
+export function toV2PaymentRequired(body: X402PaymentRequired, resource: string, exactChainId?: number | null) {
+    const first = body.accepts[0];
+    return {
+        x402Version: 2,
+        error: body.error,
+        resource: {
+            url: resource,
+            description: first?.description ?? '',
+            mimeType: first?.mimeType ?? 'application/json',
+        },
+        accepts: body.accepts.map(accept => {
+            const rest: Record<string, unknown> = { ...accept };
+            for (const key of ['maxAmountRequired', 'resource', 'description', 'mimeType']) {
+                delete rest[key];
+            }
+            return {
+                ...rest,
+                network: caipNetwork(accept.network, accept.scheme === EXACT_SCHEME ? exactChainId : null),
+                amount: accept.maxAmountRequired,
+            };
+        }),
+    };
+}
+
+/** A 402 that also carries the base64 v2 PAYMENT-REQUIRED header value for the controller to set. */
+export class PaymentRequiredException extends HttpException {
+    constructor(body: X402PaymentRequired, readonly paymentRequiredV2: string) {
+        super(body, HttpStatus.PAYMENT_REQUIRED);
+    }
 }
 
 interface ParsedPayment {
@@ -246,6 +293,13 @@ export class ShelterX402Service implements OnModuleInit {
         const onchainOn = onchainConfigs.length > 0;
         this.logBlockedOnce(exact);
         const exactOn = await this.exactOffered(exact);
+        if (paymentHeader) {
+            // x402 v2 (PAYMENT-SIGNATURE) shares the v1 checks: the exact network maps back to its v1 name.
+            const exactCaip = exact.network ? caipNetwork(exact.network, exact.chainId) : null;
+            paymentHeader = normalizePaymentHeader(paymentHeader, caip =>
+                exactCaip && caip === exactCaip ? exact.network! : caip
+            );
+        }
         if (!onchainOn && !exactOn) {
             throw new HttpException(
                 { statusCode: HttpStatus.CONFLICT, message: X402_DISABLED, error: 'Conflict' },
@@ -364,7 +418,12 @@ export class ShelterX402Service implements OnModuleInit {
             }
         };
 
-        const facilitator = new FacilitatorClient(exact.facilitatorUrl!, this.fetchFn);
+        const facilitator = new FacilitatorClient(
+            exact.facilitatorUrl!,
+            this.fetchFn,
+            undefined,
+            exact.facilitatorHeaders
+        );
         let verified;
         try {
             verified = await facilitator.verify(payment, requirement);
@@ -618,7 +677,8 @@ export class ShelterX402Service implements OnModuleInit {
                   ...(offers.length ? { onchainReceipt: offers[0], onchainReceipts: offers } : {}),
               }
             : { x402Version: X402_VERSION, error, accepts: offers };
-        return new HttpException(body, HttpStatus.PAYMENT_REQUIRED);
+        const v2 = toV2PaymentRequired(body, resource, exact?.chainId);
+        return new PaymentRequiredException(body, Buffer.from(JSON.stringify(v2)).toString('base64'));
     }
 
     /** Decodes X-PAYMENT, or returns the reason it is not acceptable. */

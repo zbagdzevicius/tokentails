@@ -1032,7 +1032,10 @@ Shelter gifts and x402 (2026-09, new):
   unknown or mainnet network is offered only with `SHELTER_HANDED_OVER=true`. The authorization (signer + nonce)
   is claimed in `x402nonces` as `exact:<chainId>:<from>:<nonce>` before the facilitator is called, so a replay is
   refused; settled payments are written to `x402usedtxs` with `scheme: 'exact'`. Code: `src/shelter/onchain/x402-exact.ts`.
-  Limit: facilitators that need an API key (CDP mainnet) are not wired yet.
+  Facilitators that need an API key: `SHELTER_X402_FACILITATOR_AUTH` is sent on every `/verify` and `/settle`
+  call as the `Authorization` header (for example `Bearer <key>`), or under the header named by
+  `SHELTER_X402_FACILITATOR_AUTH_HEADER` (e.g. `X-API-Key`). It is never logged or sent to clients. Limit: a
+  facilitator that wants a fresh signed JWT per request (CDP) needs a static key or token instead.
 - Fixed (plan F7.4, task 2b): `POST /shelter/donate` returns once the transaction is broadcast; it used to
   keep the user's gift for the day and the budget slot used when the transaction later reverted or was
   dropped. `ShelterDonateReconcileService` (leased, every 2 minutes, on instances with
@@ -1049,9 +1052,14 @@ Shelter gifts and x402 (2026-09, new):
   nonce and one of them fails with 503 (the user may retry).
 - Budget slots are whole gifts; changing `SHELTER_DONATE_AMOUNT_WEI` mid-day changes the slot count for the
   rest of that day.
-- `resource` in the 402 body is built from the request `Host` header and is informational only.
-- `X-PAYMENT-RESPONSE` is listed in the CORS exposed headers (`src/main.ts`), so browser clients and
-  server-side agents can both read it.
+- `resource` in the 402 body is built from the request `Host` header (https in production and behind a proxy
+  that sends `X-Forwarded-Proto: https`, see `x402ResourceUrl`) and is informational only.
+- x402 v1 and v2 HTTP headers are both served: the payment is read from `X-PAYMENT` (v1) or `PAYMENT-SIGNATURE`
+  (v2, `{x402Version: 2, accepted, payload}`, mapped to the v1 checks); a 402 also carries `PAYMENT-REQUIRED`
+  (base64 v2 PaymentRequired: CAIP-2 network, `amount`, `resource` object, `exact` only), and a paid card both
+  `X-PAYMENT-RESPONSE` and `PAYMENT-RESPONSE` (CAIP-2 network). The facilitator call itself stays x402 v1.
+- `X-PAYMENT-RESPONSE`, `PAYMENT-REQUIRED` and `PAYMENT-RESPONSE` are listed in the CORS exposed headers
+  (`src/main.ts`), so browser clients and server-side agents can read them.
 - While Token Tails holds Pink Paw's wallet, public payments to it are custodial (MiCA caution). The code
   enforces it: a mainnet onchain-receipt offer needs `publicGivingVerified` for that chain (every split
   recipient a rotated, shelter-held claim). The standard `exact` scheme keeps its own

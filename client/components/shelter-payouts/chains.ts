@@ -96,10 +96,11 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", decimals: 6, symbol: "USDG", nativeDecimals: 18, nativeSymbol: "ETH" },
   // Testnet has no stablecoin: the wave deploys a test MockUSDC (symbol mUSDC), so it never sums with USDC or USDG.
   46630: { name: "Robinhood Chain Testnet", testnet: true, rpc: "https://rpc.testnet.chain.robinhood.com", explorer: "https://explorer.testnet.chain.robinhood.com", decimals: 6, symbol: "mUSDC", nativeDecimals: 18, nativeSymbol: "ETH" },
-  // Monad: rpc.monad.xyz and testnet-rpc.monad.xyz cap eth_getLogs at 100 blocks (below MIN_LOG_WINDOW),
-  // so the log scan reads a keyless endpoint that takes wide ranges: rpc1.monad.xyz on mainnet (1,000,000
-  // blocks in one call), OnFinality's public testnet endpoint (10,000-block windows). Checked 2026-10-04.
-  143: { name: "Monad", rpc: "https://rpc.monad.xyz", logRpc: "https://rpc1.monad.xyz", explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
+  // Monad: rpc.monad.xyz, rpc1.monad.xyz (it took wide ranges until Oct 5) and testnet-rpc.monad.xyz cap
+  // eth_getLogs at 100 blocks, so the log scan reads keyless endpoints that take wider ranges: rpc2.monad.xyz
+  // on mainnet (10,000 blocks; 25,000 refused; CORS open; checked 2026-10-08), OnFinality's public testnet
+  // endpoint (10,000-block windows).
+  143: { name: "Monad", rpc: "https://rpc.monad.xyz", logRpc: "https://rpc2.monad.xyz", maxLogRange: 10_000, explorer: "https://monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
   10143: { name: "Monad Testnet", testnet: true, rpc: "https://testnet-rpc.monad.xyz", logRpc: "https://monad-testnet.api.onfinality.io/public", maxLogRange: 10_000, explorer: "https://testnet.monadvision.com", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "MON" },
   31612: { name: "Mezo", rpc: "https://mezo.drpc.org", explorer: "https://explorer.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },
   31611: { name: "Mezo Testnet", testnet: true, rpc: "https://rpc.test.mezo.org", explorer: "https://explorer.test.mezo.org", decimals: 18, symbol: "MUSD", nativeDecimals: 18, nativeSymbol: "BTC" },

@@ -119,6 +119,11 @@ export interface ExactConfig {
     assetVersion: string;
     payTo: string | null;
     facilitatorUrl: string | null;
+    /**
+     * Extra headers for every facilitator call (an API key or bearer token from
+     * SHELTER_X402_FACILITATOR_AUTH). Secret: never logged or sent to clients.
+     */
+    facilitatorHeaders: Record<string, string>;
     priceBase: bigint;
     rpcUrl: string | null;
     handedOver: boolean;
@@ -174,6 +179,8 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
     const facilitatorUrl =
         explicitFacilitator ||
         (testnet && network && PUBLIC_FACILITATOR_NETWORKS.has(network) ? DEFAULT_TESTNET_FACILITATOR : null);
+    const facilitatorAuth = (env.SHELTER_X402_FACILITATOR_AUTH || '').trim();
+    const facilitatorAuthHeader = (env.SHELTER_X402_FACILITATOR_AUTH_HEADER || '').trim() || 'Authorization';
     const config: ExactConfig = {
         enabled: flag(env.SHELTER_X402_EXACT_ENABLED),
         network,
@@ -183,6 +190,7 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
         assetVersion: (env.SHELTER_X402_EXACT_ASSET_VERSION || '').trim() || '2',
         payTo: addr(env.SHELTER_X402_EXACT_PAYTO),
         facilitatorUrl,
+        facilitatorHeaders: facilitatorAuth ? { [facilitatorAuthHeader]: facilitatorAuth } : {},
         priceBase: parseUsdc(env.SHELTER_X402_EXACT_PRICE || DEFAULT_EXACT_PRICE) ?? ZERO,
         rpcUrl: (env.SHELTER_X402_EXACT_RPC || '').trim() || null,
         handedOver: flag(env.SHELTER_HANDED_OVER),
@@ -289,6 +297,49 @@ export interface ExactPaymentPayload {
 const HEX = /^0x[0-9a-fA-F]*$/;
 const BYTES32 = /^0x[0-9a-fA-F]{64}$/;
 const UINT = /^\d{1,78}$/;
+
+// ---------------------------------------------------------------- x402 v2 HTTP transport
+
+/** x402 v2 header names (specs/transports-v2/http.md); v1 uses X-PAYMENT and X-PAYMENT-RESPONSE. */
+export const V2_PAYMENT_REQUIRED_HEADER = 'PAYMENT-REQUIRED';
+export const V2_PAYMENT_SIGNATURE_HEADER = 'PAYMENT-SIGNATURE';
+export const V2_PAYMENT_RESPONSE_HEADER = 'PAYMENT-RESPONSE';
+
+/** The CAIP-2 name v2 uses for a network: v1 names map through their chain id, `eip155:*` stays. */
+export function caipNetwork(network: string, chainId?: number | null): string {
+    if (network.startsWith('eip155:')) {
+        return network;
+    }
+    const id = EXACT_NETWORK_CHAIN_IDS[network] ?? chainId;
+    return id ? `eip155:${id}` : network;
+}
+
+/**
+ * Turns a v2 PAYMENT-SIGNATURE payload (`{x402Version: 2, accepted: {scheme, network}, payload}`) into
+ * the v1 X-PAYMENT shape the paywall checks, so both versions share one verify path. The signed
+ * authorization is the same in both versions. `v1Network` maps a CAIP-2 network back to the name the
+ * requirement uses (the exact network for its chain). Anything that is not v2 is returned unchanged.
+ */
+export function normalizePaymentHeader(header: string, v1Network: (caip: string) => string = n => n): string {
+    let decoded: any;
+    try {
+        decoded = JSON.parse(Buffer.from(String(header), 'base64').toString('utf8'));
+    } catch {
+        return header;
+    }
+    if (decoded?.x402Version !== 2 || !decoded.accepted || typeof decoded.accepted !== 'object') {
+        return header;
+    }
+    const scheme = decoded.accepted.scheme;
+    const network = typeof decoded.accepted.network === 'string' ? decoded.accepted.network : '';
+    const v1 = {
+        x402Version: 1,
+        scheme,
+        network: scheme === EXACT_SCHEME ? v1Network(network) : network,
+        payload: decoded.payload,
+    };
+    return Buffer.from(JSON.stringify(v1)).toString('base64');
+}
 
 /** The scheme named in an X-PAYMENT header, or null when it is not base64 JSON. */
 export function peekScheme(header: string): string | null {
@@ -458,7 +509,9 @@ export class FacilitatorClient {
     constructor(
         private readonly baseUrl: string,
         private readonly fetchFn: FetchLike = (globalThis as any).fetch,
-        private readonly timeouts = { verifyMs: 10_000, settleMs: 60_000 }
+        private readonly timeouts = { verifyMs: 10_000, settleMs: 60_000 },
+        /** Auth headers for facilitators that need an API key (ExactConfig.facilitatorHeaders). */
+        private readonly headers: Record<string, string> = {}
     ) {}
 
     async verify(paymentPayload: ExactPaymentPayload, requirements: ExactRequirement): Promise<VerifyResult> {
@@ -496,7 +549,7 @@ export class FacilitatorClient {
         try {
             response = await this.fetchFn(`${this.baseUrl}/${path}`, {
                 method: 'POST',
-                headers: { 'content-type': 'application/json' },
+                headers: { ...this.headers, 'content-type': 'application/json' },
                 body: JSON.stringify({ x402Version: EXACT_X402_VERSION, paymentPayload, paymentRequirements }),
                 signal: controller.signal,
             });

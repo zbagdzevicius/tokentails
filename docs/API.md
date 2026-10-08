@@ -349,6 +349,12 @@ must be an x402 v1 name (base-sepolia uses the public x402.org facilitator; any 
 or the hot wallet, when the token's on-chain name, version or decimals (6) do not match, or on a mainnet
 before `SHELTER_HANDED_OVER=true`. An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
 
+**x402 v2 headers.** The endpoint also speaks the v2 HTTP transport: send the payment as
+`PAYMENT-SIGNATURE` (base64 `{x402Version: 2, accepted: {scheme, network: "eip155:<id>", ...}, payload}`)
+instead of `X-PAYMENT`; a 402 carries `PAYMENT-REQUIRED` (base64 v2 PaymentRequired) next to the v1 JSON
+body, and a paid card carries `PAYMENT-RESPONSE` next to `X-PAYMENT-RESPONSE`. The `resource` URL is https
+in production.
+
 ### Wallet gifts (DonateRouter relay, Token Tails match, shelter claim)
 
 Everything here is off by default and has no game write: scores still go only through

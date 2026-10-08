@@ -13,7 +13,9 @@ import {
     ShelterDonateDto,
     ShelterRelayDto,
     ShelterOnchainController,
+    x402ResourceUrl,
 } from './shelter-onchain.controller';
+import { PaymentRequiredException } from './shelter-x402.service';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ImpactEligibilityService } from 'src/impact/eligibility.service';
 import { USER_THROTTLE_KEY, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
@@ -150,12 +152,62 @@ describe('ShelterOnchainController', () => {
         const res = { setHeader: jest.fn() };
         const req = { protocol: 'https', get: () => 'api.example.test', originalUrl: '/shelter/agent/cat-card?x=1' };
 
-        await expect(controller.catCard('payment', req, res)).resolves.toBe(card);
+        await expect(controller.catCard('payment', undefined, req, res)).resolves.toBe(card);
 
         expect(x402Service.catCard).toHaveBeenCalledWith('payment', 'https://api.example.test/shelter/agent/cat-card');
         const [name, value] = res.setHeader.mock.calls[0];
         expect(name).toBe('X-PAYMENT-RESPONSE');
         expect(JSON.parse(Buffer.from(value, 'base64').toString())).toEqual({ success: true, txHash: '0xabc' });
+        const [v2Name, v2Value] = res.setHeader.mock.calls[1];
+        expect(v2Name).toBe('PAYMENT-RESPONSE');
+        expect(JSON.parse(Buffer.from(v2Value, 'base64').toString())).toMatchObject({
+            success: true,
+            transaction: '0xabc',
+        });
+    });
+
+    it('reads the v2 PAYMENT-SIGNATURE header and sets PAYMENT-REQUIRED on a 402', async () => {
+        const challenge = new PaymentRequiredException(
+            { x402Version: 1, error: 'payment required', accepts: [] },
+            'djI='
+        );
+        const x402Service = { catCard: jest.fn().mockRejectedValue(challenge) };
+        const controller = new ShelterOnchainController(
+            {} as any,
+            x402Service as any,
+            {} as ImpactEligibilityService,
+            {} as any,
+            {} as any,
+            {} as any
+        );
+        const res = { setHeader: jest.fn() };
+        const req = {
+            protocol: 'http',
+            headers: {},
+            get: () => 'localhost:3005',
+            originalUrl: '/shelter/agent/cat-card',
+        };
+
+        await expect(controller.catCard(undefined, 'v2payment', req, res)).rejects.toBe(challenge);
+
+        expect(x402Service.catCard).toHaveBeenCalledWith('v2payment', expect.any(String));
+        expect(res.setHeader).toHaveBeenCalledWith('PAYMENT-REQUIRED', 'djI=');
+    });
+
+    it('builds an https resource URL behind the TLS proxy, and always in production', () => {
+        const req = (proto: string | undefined) => ({
+            protocol: 'http',
+            headers: proto ? { 'x-forwarded-proto': proto } : {},
+            get: () => 'api.tokentails.com',
+            originalUrl: '/shelter/agent/cat-card?x=1',
+        });
+        expect(x402ResourceUrl(req('https, http'), {} as any)).toBe(
+            'https://api.tokentails.com/shelter/agent/cat-card'
+        );
+        expect(x402ResourceUrl(req(undefined), {} as any)).toBe('http://api.tokentails.com/shelter/agent/cat-card');
+        expect(x402ResourceUrl(req(undefined), { NODE_ENV: 'production' } as any)).toBe(
+            'https://api.tokentails.com/shelter/agent/cat-card'
+        );
     });
 });
 

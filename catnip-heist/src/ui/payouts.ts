@@ -64,10 +64,11 @@ export const PAYOUT_CHAINS: Record<number, ChainUnits> = {
   4663: { rpc: 'https://rpc.mainnet.chain.robinhood.com', decimals: 6, symbol: 'USDG', nativeDecimals: 18, nativeSymbol: 'ETH' },
   // Robinhood testnet has no stablecoin: the wave deploys a mock (mUSDC), never summed with real dollars.
   46630: { rpc: 'https://rpc.testnet.chain.robinhood.com', decimals: 6, symbol: 'mUSDC', nativeDecimals: 18, nativeSymbol: 'ETH' },
-  // Monad's main public RPCs (rpc.monad.xyz, testnet-rpc.monad.xyz) cap eth_getLogs at 100 blocks, under
-  // MIN_LOG_WINDOW, so the modal reads keyless endpoints that take wide ranges: rpc1.monad.xyz on mainnet,
-  // OnFinality's public testnet endpoint (10,000-block windows). Checked 2026-10-04.
-  143: { rpc: 'https://rpc1.monad.xyz', decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
+  // Monad's public RPCs rpc.monad.xyz, rpc1.monad.xyz (it took 100,000 blocks on Oct 5) and
+  // testnet-rpc.monad.xyz now cap eth_getLogs at 100 blocks, so the modal reads keyless endpoints that
+  // take wider ranges: rpc2.monad.xyz on mainnet (10,000 blocks; 25,000 refused; CORS open; checked
+  // 2026-10-08), OnFinality's public testnet endpoint (10,000-block windows).
+  143: { rpc: 'https://rpc2.monad.xyz', maxLogRange: 10_000, decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
   10143: { rpc: 'https://monad-testnet.api.onfinality.io/public', maxLogRange: 10_000, decimals: 6, symbol: 'USDC', nativeDecimals: 18, nativeSymbol: 'MON' },
 };
 
@@ -238,7 +239,9 @@ export function retryRateLimited<T>(call: (rateLimited: (msg: string) => Error) 
  * well below that; Base: 2,000, Base Sepolia: 1,000), so a full-range query that is refused is
  * re-read in windows, one at a time. The window starts at LOG_WINDOW (or the chain's maxLogRange)
  * and, on each refused window, drops to the cap the RPC names in its error ("limited to a 1,000
- * range") or halves, down to MIN_LOG_WINDOW. Mirrors client/components/shelter-payouts/rpc.ts.
+ * range") or halves, down to MIN_LOG_WINDOW. A cap the chain config or the RPC itself names is
+ * exact, so it is used even under MIN_LOG_WINDOW (Monad's public RPCs: "limited to a 100 range");
+ * halving never goes below it. Mirrors client/components/shelter-payouts/rpc.ts.
  */
 export const LOG_WINDOW = 10_000;
 export const MIN_LOG_WINDOW = 500;
@@ -259,6 +262,8 @@ type LogFilter = { address: string; topics: string[][] };
 export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, from: number, signal: AbortSignal, maxLogRange?: number): Promise<T[]> {
   const hex = (n: number) => '0x' + n.toString(16);
   let window = maxLogRange ?? LOG_WINDOW;
+  // The smallest window: MIN_LOG_WINDOW, or a smaller cap named by the config or the RPC.
+  let floor = Math.min(MIN_LOG_WINDOW, maxLogRange ?? MIN_LOG_WINDOW);
   // A known small cap: a full-range call would only be refused.
   if (!maxLogRange) {
     try {
@@ -268,9 +273,10 @@ export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, 
       if (err instanceof RateLimited || signal.aborted) throw err;
       const cap = rangeLimitFrom(err);
       if (cap !== null && cap < window) window = cap;
+      if (cap !== null) floor = Math.min(floor, cap);
     }
   }
-  window = Math.max(MIN_LOG_WINDOW, window);
+  window = Math.max(floor, window);
   const latest = parseInt(await rpc<string>(f, url, 'eth_blockNumber', [], signal), 16);
   if (!Number.isFinite(latest)) throw new Error('eth_blockNumber: bad answer');
   const out: T[] = [];
@@ -283,9 +289,16 @@ export async function getLogsRange<T>(f: Fetch, url: string, filter: LogFilter, 
       out.push(...((await rpc<T[]>(f, url, 'eth_getLogs', [{ ...filter, fromBlock: hex(start), toBlock: hex(end) }], signal)) ?? []));
       start = end + 1;
     } catch (err) {
-      if (err instanceof RateLimited || signal.aborted || window <= MIN_LOG_WINDOW) throw err;
+      if (err instanceof RateLimited || signal.aborted) throw err;
       const cap = rangeLimitFrom(err);
-      window = Math.max(MIN_LOG_WINDOW, cap !== null && cap < window ? cap : Math.floor(window / 2));
+      if (cap !== null && cap < window) {
+        // The RPC named its cap: exact, so it may go under MIN_LOG_WINDOW.
+        floor = Math.min(floor, cap);
+        window = cap;
+        continue;
+      }
+      if (window <= floor) throw err;
+      window = Math.max(floor, Math.floor(window / 2));
     }
   }
   return out;

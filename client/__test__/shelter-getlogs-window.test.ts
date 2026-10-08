@@ -52,6 +52,23 @@ describe("getLogsWindowed", () => {
     expect(ok[ok.length - 1][1]).toBe(latest);
   });
 
+  it("uses a cap the RPC names under MIN_LOG_WINDOW (Monad: \"limited to a 100 range\")", async () => {
+    const calls: Array<[number, number]> = [];
+    const get = async (_rpc: string, _a: string, from: number, to: number) => {
+      if (to - from + 1 > 100) throw new Error('eth_getLogs: {"code":-32614,"message":"eth_getLogs is limited to a 100 range"}');
+      calls.push([from, to]);
+      return [];
+    };
+    await getLogsWindowed("rpc", "0x", 1_001, 1_250, get);
+    expect(calls).toEqual([[1_001, 1_100], [1_101, 1_200], [1_201, 1_250]]);
+  });
+
+  it("starts at a configured cap under MIN_LOG_WINDOW", async () => {
+    const p = provider(100);
+    await getLogsWindowed("rpc", "0x", 0, 199, p.get, 100);
+    expect(p.calls).toEqual([[0, 99], [100, 199]]);
+  });
+
   it("rethrows once the window is at the minimum", async () => {
     const p = provider(MIN_LOG_WINDOW - 1);
     await expect(getLogsWindowed("rpc", "0x", 0, 50_000, p.get)).rejects.toThrow("block range too large");

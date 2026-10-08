@@ -143,7 +143,9 @@ describe('payout index targets', () => {
 
     it("uses each chain's log RPC and its known eth_getLogs cap", () => {
         expect(payoutIndexRpcs(8453, SPLIT, ENV)?.window).toBe(500);
-        expect(payoutIndexRpcs(143, SPLIT, ENV)?.logs.rpcUrl).toBe('https://rpc1.monad.xyz');
+        // rpc.monad.xyz and rpc1.monad.xyz cap eth_getLogs at 100 blocks; rpc2 takes 10,000 (2026-10-08).
+        expect(payoutIndexRpcs(143, SPLIT, ENV)?.logs.rpcUrl).toBe('https://rpc2.monad.xyz');
+        expect(payoutIndexRpcs(143, SPLIT, ENV)?.window).toBe(10000);
         expect(payoutIndexRpcs(143, SPLIT, ENV)?.chain.rpcUrl).toBe('https://rpc.monad.xyz');
         expect(payoutIndexRpcs(5042, SPLIT, ENV)?.logs.splitAddress).toBe(SPLIT);
     });

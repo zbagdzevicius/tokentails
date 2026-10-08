@@ -97,6 +97,16 @@ describe('payouts modal', () => {
   const make = (load: () => Promise<ShelterPayouts>, extra: Partial<Parameters<typeof createPayoutsModal>[1]> = {}) =>
     (modal = createPayoutsModal(root, { deploymentsUrl: '/d.json', base: '/a/', payoutsUrl: '/shelter-payouts', load, ...extra }));
 
+  it('says right under "Sent to shelters" that Token Tails holds the shelter wallet until handover', async () => {
+    const m = make(async () => empty());
+    await m.show();
+    const title = m.el.querySelector('#ch-pay-title');
+    const custody = m.el.querySelector('[data-testid="payouts-custody"]');
+    expect(title?.textContent).toBe('Sent to shelters');
+    expect(title?.nextElementSibling).toBe(custody);
+    expect(custody?.textContent).toBe('Shelter wallet held by Token Tails on behalf of the shelter until handover.');
+  });
+
   it('opens as a dialog, shows the friendly empty state, and closes on Escape with focus returned', async () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);

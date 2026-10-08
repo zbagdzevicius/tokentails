@@ -436,3 +436,9 @@ test("widget giveToken approves the exact gift, waits, then disburses (disburseW
   );
   assert.equal(other.calls.filter((c) => c.method === "eth_sendTransaction").length, 0);
 });
+
+test("Monad mainnet reads logs from rpc2.monad.xyz in 10,000-block windows (rpc.monad.xyz and rpc1 cap at 100)", () => {
+  assert.equal(CHAINS[143].rpc, "https://rpc.monad.xyz");
+  assert.equal(CHAINS[143].logRpc, "https://rpc2.monad.xyz");
+  assert.equal(CHAINS[143].maxLogRange, 10000);
+});

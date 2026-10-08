@@ -35,6 +35,9 @@ function initializeCors(app: INestApplication): void {
             'Retry-After',
             // x402 receipt on GET /shelter/agent/cat-card, read by shelter-rail's payAndFetch.
             'X-PAYMENT-RESPONSE',
+            // x402 v2 headers (the 402 challenge and the receipt).
+            'PAYMENT-REQUIRED',
+            'PAYMENT-RESPONSE',
         ],
     };
 

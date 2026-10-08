@@ -32,7 +32,8 @@ export const DEPLOYMENTS_URL = "/shelter-payouts/deployments.json";
 // windows. The window starts at LOG_WINDOW blocks (or the chain's maxLogRange) and, on each
 // rejected request, drops to the cap the RPC names in its error ("limited to a 1,000 range") or
 // halves, down to MIN_LOG_WINDOW (rate-limit errors are retried in rpcCall, never halved); the
-// scan stops after MAX_LOG_REQUESTS calls.
+// scan stops after MAX_LOG_REQUESTS calls. A cap the chain config or the RPC names is exact, so it
+// is used even under MIN_LOG_WINDOW (Monad's public RPCs: "limited to a 100 range").
 export const LOG_WINDOW = 10_000;
 export const MIN_LOG_WINDOW = 500;
 export const MAX_LOG_REQUESTS = 400;
@@ -223,7 +224,9 @@ export async function getLogsWindowed(
   firstWindow: number = LOG_WINDOW
 ): Promise<RpcLog[]> {
   const logs: RpcLog[] = [];
-  let window = Math.max(MIN_LOG_WINDOW, firstWindow);
+  // The smallest window: MIN_LOG_WINDOW, or a smaller cap named by the config or the RPC.
+  let floor = Math.min(MIN_LOG_WINDOW, firstWindow);
+  let window = Math.max(floor, firstWindow);
   let requests = 0;
   let start = from;
   while (start <= latest) {
@@ -239,9 +242,16 @@ export async function getLogsWindowed(
     } catch (err) {
       // A smaller window does not help against a rate limit (rpcCall already backed off), it only
       // burns requests, so rethrow it instead of halving.
-      if (err instanceof RpcRateLimitError || window <= MIN_LOG_WINDOW) throw err;
+      if (err instanceof RpcRateLimitError) throw err;
       const cap = rangeLimitFrom(err);
-      window = Math.max(MIN_LOG_WINDOW, cap !== null && cap < window ? cap : Math.floor(window / 2));
+      if (cap !== null && cap < window) {
+        // The RPC named its cap: exact, so it may go under MIN_LOG_WINDOW.
+        floor = Math.min(floor, cap);
+        window = cap;
+        continue;
+      }
+      if (window <= floor) throw err;
+      window = Math.max(floor, Math.floor(window / 2));
     }
   }
   return logs;

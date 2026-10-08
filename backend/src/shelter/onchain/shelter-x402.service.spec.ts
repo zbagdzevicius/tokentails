@@ -4,6 +4,8 @@ import { NATIVE_DISBURSED_TOPIC, ShelterChain, shelterSplitInterface } from './s
 import { fakeNonceModel, fakeUsedTxModel, SHELTER_WALLET, SPLIT, withShelterEnv } from './shelter-onchain.fakes-spec';
 import {
     encodePaymentResponse,
+    encodePaymentResponses,
+    PaymentRequiredException,
     ShelterX402Service,
     X402_DISABLED,
     x402Memo32,
@@ -410,6 +412,8 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
         'SHELTER_X402_EXACT_ASSET_VERSION',
         'SHELTER_X402_EXACT_PAYTO',
         'SHELTER_X402_FACILITATOR_URL',
+        'SHELTER_X402_FACILITATOR_AUTH',
+        'SHELTER_X402_FACILITATOR_AUTH_HEADER',
         'SHELTER_X402_EXACT_PRICE',
         'SHELTER_X402_EXACT_RPC',
         'SHELTER_ROUTER_ADDRESS',
@@ -712,6 +716,77 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
             network: 'base-sepolia',
             payer: dev.address,
         });
+    });
+
+    it('carries the x402 v2 PAYMENT-REQUIRED value on the 402 (CAIP-2 network, amount, resource object)', async () => {
+        withExactEnv();
+        const { service } = exactSetup(facilitator());
+
+        const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
+
+        expect(error).toBeInstanceOf(PaymentRequiredException);
+        const v2 = JSON.parse(Buffer.from((error as PaymentRequiredException).paymentRequiredV2, 'base64').toString());
+        expect(v2).toEqual({
+            x402Version: 2,
+            error: 'payment required',
+            resource: {
+                url: RESOURCE,
+                description: 'A Token Tails cat card; the price goes to the shelter',
+                mimeType: 'application/json',
+            },
+            accepts: [
+                {
+                    scheme: 'exact',
+                    network: 'eip155:84532',
+                    amount: '10000',
+                    payTo: SHELTER_WALLET,
+                    maxTimeoutSeconds: 120,
+                    asset: USDC,
+                    extra: { name: 'USDC', version: '2' },
+                },
+            ],
+        });
+    });
+
+    it('pays a v2 PAYMENT-SIGNATURE payload (accepted + CAIP-2 network) through the same checks', async () => {
+        withExactEnv();
+        const fetchFn = facilitator({ receipt: GOOD_RECEIPT });
+        const { service } = exactSetup(fetchFn);
+        const v1 = JSON.parse(Buffer.from(await exactHeader(), 'base64').toString());
+        const v2 = {
+            x402Version: 2,
+            resource: { url: RESOURCE, description: '', mimeType: 'application/json' },
+            accepted: { scheme: 'exact', network: 'eip155:84532', amount: '10000', asset: USDC, payTo: SHELTER_WALLET },
+            payload: v1.payload,
+        };
+
+        const result = await service.catCard(Buffer.from(JSON.stringify(v2)).toString('base64'), RESOURCE, NOW);
+
+        expect(result.txHash).toBe(SETTLE_TX);
+        const sent = JSON.parse(fetchFn.mock.calls.find(c => c[0] === 'https://facilitator.test/verify')![1].body);
+        expect(sent.paymentPayload).toMatchObject({ x402Version: 1, scheme: 'exact', network: 'base-sepolia' });
+        const { v1: r1, v2: r2 } = encodePaymentResponses(SETTLE_TX);
+        expect(JSON.parse(Buffer.from(r1, 'base64').toString()).network).toBe('base-sepolia');
+        expect(JSON.parse(Buffer.from(r2, 'base64').toString())).toMatchObject({
+            success: true,
+            transaction: SETTLE_TX,
+            network: 'eip155:84532',
+        });
+    });
+
+    it('sends the facilitator auth header when SHELTER_X402_FACILITATOR_AUTH is set', async () => {
+        withExactEnv({ SHELTER_X402_FACILITATOR_AUTH: 'Bearer test-key' });
+        const fetchFn = facilitator({ receipt: GOOD_RECEIPT });
+        const { service } = exactSetup(fetchFn);
+
+        await service.catCard(await exactHeader(), RESOURCE, NOW);
+
+        const calls = fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test/'));
+        expect(calls).toHaveLength(2);
+        for (const [, init] of calls) {
+            expect(init.headers).toEqual({ Authorization: 'Bearer test-key', 'content-type': 'application/json' });
+        }
+        encodePaymentResponses(SETTLE_TX);
     });
 
     it('refuses a replay of the same authorization without calling the facilitator again', async () => {

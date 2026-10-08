@@ -20,15 +20,20 @@ describe("eth_getLogs ranges: client page, rail SDK, rail widget (both copies), 
     expect(read("catnip-heist/src/ui/payouts.ts")).toMatch(/4217: \{ rpc: 'https:\/\/rpc\.tempo\.xyz', maxLogRange: 99_999, decimals: 6, symbol: 'USDC' \}/);
   });
 
-  it("Monad reads logs from the wide-range endpoints the client uses, not the 100-block public RPC", () => {
-    expect(SHELTER_CHAINS[143].logRpc).toBe("https://rpc1.monad.xyz");
+  it("Monad reads logs from rpc2.monad.xyz in 10,000-block windows everywhere, not a 100-block public RPC", () => {
+    // rpc.monad.xyz and rpc1.monad.xyz cap eth_getLogs at 100 blocks (re-checked 2026-10-08).
+    expect(SHELTER_CHAINS[143]).toMatchObject({ logRpc: "https://rpc2.monad.xyz", maxLogRange: 10_000 });
     expect(SHELTER_CHAINS[10143].logRpc).toBe("https://monad-testnet.api.onfinality.io/public");
     const sdk = read("shelter-rail/src/sdk.mjs");
-    expect(sdk).toMatch(/logRpc: "https:\/\/rpc1\.monad\.xyz",\s*maxLogRange: 100000/);
+    expect(sdk).toMatch(/logRpc: "https:\/\/rpc2\.monad\.xyz",\s*maxLogRange: 10000,/);
     expect(sdk).toMatch(/logRpc: "https:\/\/monad-testnet\.api\.onfinality\.io\/public",\s*maxLogRange: 10000/);
     const widget = read("shelter-rail/src/widget.js");
     expect(widget).toBe(read("client/public/rail/widget.js"));
-    expect(widget).toMatch(/143: \{ name: "Monad", rpc: "https:\/\/rpc\.monad\.xyz", logRpc: "https:\/\/rpc1\.monad\.xyz", logRange: 100000/);
+    expect(widget).toMatch(/143: \{ name: "Monad", rpc: "https:\/\/rpc\.monad\.xyz", logRpc: "https:\/\/rpc2\.monad\.xyz", logRange: 10000,/);
     expect(widget).toMatch(/10143: \{ name: "Monad Testnet", rpc: "[^"]+", logRpc: "https:\/\/monad-testnet\.api\.onfinality\.io\/public", logRange: 10000/);
+    expect(read("catnip-heist/src/ui/payouts.ts")).toMatch(/143: \{ rpc: 'https:\/\/rpc2\.monad\.xyz', maxLogRange: 10_000,/);
+    for (const f of ["shelter-rail/src/sdk.mjs", "shelter-rail/src/widget.js", "catnip-heist/src/ui/payouts.ts", "client/components/shelter-payouts/chains.ts"]) {
+      expect(read(f)).not.toMatch(/(logRpc|rpc): ['"]https:\/\/rpc1\.monad\.xyz['"]/);
+    }
   });
 });

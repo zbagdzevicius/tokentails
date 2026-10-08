@@ -16,11 +16,16 @@ export const publicRpcUrl = (chainId: number): string | null => DEFAULT_RPC[chai
  * default public RPC (the client's chains.ts `logRpc`): Monad's public RPCs cap eth_getLogs at 100
  * blocks, mainnet.base.org at 500, sepolia.base.org at 1,000, and Arc testnet's at ~10,000 with tight rate limits.
  */
-const LOG_RPC: Record<number, string> = Object.fromEntries(
-    Object.values(CHAINS)
-        .filter(c => c.logRpc)
-        .map(c => [c.chainId, c.logRpc as string])
-);
+const LOG_RPC: Record<number, string> = {
+    ...Object.fromEntries(
+        Object.values(CHAINS)
+            .filter(c => c.logRpc)
+            .map(c => [c.chainId, c.logRpc as string])
+    ),
+    // rpc1.monad.xyz (the generated logRpc) took 100,000-block spans until Oct 5 and now caps at 100 like
+    // rpc.monad.xyz; rpc2.monad.xyz takes 10,000 (re-checked 2026-10-08). Drop once wallet.config.ts says so.
+    143: 'https://rpc2.monad.xyz',
+};
 
 /** The widest eth_getLogs range (blocks) a chain's default public RPC or its LOG_RPC accepts, when small. */
 const LOG_RANGE: Record<string, number> = {
@@ -28,6 +33,8 @@ const LOG_RANGE: Record<string, number> = {
     'https://mainnet.base.org': 500,
     'https://sepolia.base.org': 1000,
     'https://rpc.monad.xyz': 100,
+    'https://rpc1.monad.xyz': 100,
+    'https://rpc2.monad.xyz': 10000,
     'https://testnet-rpc.monad.xyz': 100,
     'https://rpc.testnet.arc.io': 10000,
     'https://monad-testnet.api.onfinality.io/public': 10000,

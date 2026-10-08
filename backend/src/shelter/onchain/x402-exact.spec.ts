@@ -1,6 +1,8 @@
 import { Wallet } from 'ethers';
 import {
     buildExactRequirement,
+    caipNetwork,
+    normalizePaymentHeader,
     decodeAbiString,
     decodeXPayment,
     DEFAULT_TESTNET_FACILITATOR,
@@ -89,6 +91,17 @@ describe('readExactConfig', () => {
             assetVersion: '2',
         });
         expect(cfg.priceBase.toString()).toBe('10000');
+    });
+
+    it('reads an optional facilitator auth header, named Authorization unless overridden', () => {
+        expect(config().facilitatorHeaders).toEqual({});
+        expect(config({ SHELTER_X402_FACILITATOR_AUTH: ' Bearer k ' }).facilitatorHeaders).toEqual({
+            Authorization: 'Bearer k',
+        });
+        expect(
+            config({ SHELTER_X402_FACILITATOR_AUTH: 'k', SHELTER_X402_FACILITATOR_AUTH_HEADER: 'X-API-Key' })
+                .facilitatorHeaders
+        ).toEqual({ 'X-API-Key': 'k' });
     });
 
     it('is not offered on mainnet until the shelter holds its own key', () => {
@@ -429,5 +442,37 @@ describe('ExactChainReader', () => {
         expect(domainMismatch(cfg, { name: 'USD Coin', version: '2', decimals: 6 })).toMatch(/signatures/);
         expect(domainMismatch(cfg, { name: null, version: null, decimals: 6 })).toMatch(/signatures/);
         expect(domainMismatch(cfg, { name: 'USDC', version: '2', decimals: 18 })).toMatch(/18 decimals/);
+    });
+});
+
+describe('x402 v2 helpers', () => {
+    const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64');
+    const unb64 = (s: string) => JSON.parse(Buffer.from(s, 'base64').toString());
+
+    it('maps v1 network names to CAIP-2 and keeps eip155 names', () => {
+        expect(caipNetwork('base-sepolia')).toBe('eip155:84532');
+        expect(caipNetwork('eip155:5042')).toBe('eip155:5042');
+        expect(caipNetwork('custom-net', 777)).toBe('eip155:777');
+        expect(caipNetwork('custom-net')).toBe('custom-net');
+    });
+
+    it('turns a v2 payload into the v1 shape and leaves v1 and junk unchanged', () => {
+        const payload = { signature: '0xsig', authorization: { from: '0xa' } };
+        const v2 = b64({ x402Version: 2, accepted: { scheme: 'exact', network: 'eip155:84532' }, payload });
+        expect(unb64(normalizePaymentHeader(v2, n => (n === 'eip155:84532' ? 'base-sepolia' : n)))).toEqual({
+            x402Version: 1,
+            scheme: 'exact',
+            network: 'base-sepolia',
+            payload,
+        });
+        const receipt = b64({
+            x402Version: 2,
+            accepted: { scheme: 'onchain-receipt', network: 'eip155:5042' },
+            payload: {},
+        });
+        expect(unb64(normalizePaymentHeader(receipt))).toMatchObject({ x402Version: 1, network: 'eip155:5042' });
+        const v1 = b64({ x402Version: 1, scheme: 'exact', network: 'base-sepolia', payload });
+        expect(normalizePaymentHeader(v1)).toBe(v1);
+        expect(normalizePaymentHeader('not base64 json')).toBe('not base64 json');
     });
 });
