@@ -36,7 +36,7 @@ export const ShelterPayoutsEmbed = () => {
       <section id="pink-paw" className={`${PANEL} scroll-mt-28`} aria-labelledby="pink-paw-title">
         <Kicker>Showcase shelter</Kicker>
         <h2 id="pink-paw-title" className={HEADLINE}>
-          Pink Paw, <span className="glow text-tt-cream">live from the chain.</span>
+          Pink Paw, <span className="glow text-tt-cream">on the chain.</span>
         </h2>
         <div className="mt-5 flex flex-col gap-6 md:mt-7 md:gap-8">
           {campaign && pinkPaw && <PinkPawIdentity name={campaign.shelter.name} />}

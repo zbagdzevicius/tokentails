@@ -124,7 +124,8 @@ export const CHAINS = Object.freeze({
   8453: Object.freeze({
     name: "Base",
     rpc: "https://mainnet.base.org",
-    maxLogRange: 2000,
+    // eth_getLogs over more than 500 blocks is refused (-32614, HTTP 413; re-checked 2026-10-08).
+    maxLogRange: 500,
     explorer: "https://basescan.org",
     nativeSymbol: "ETH",
     nativeDecimals: 18,
@@ -360,6 +361,55 @@ export async function getLogsWindowed(fetchFn, url, { address, topics, fromBlock
 }
 
 /**
+ * Token Tails' index of the public payout events (GET <api>/shelter/payouts on the Token Tails
+ * backend): per contract the totals and `indexedThrough` (the last block it has read, and that
+ * block's time). An index older than INDEX_STALE_MS for a contract is not used for it.
+ */
+export const INDEX_STALE_MS = 15 * 60_000;
+
+/**
+ * The index's answer for `network` ("mainnet" or "testnet"), or null when it cannot be read (no URL,
+ * offline, 409 nothing indexed, 424 index unreadable, a malformed answer). `limit` rows of events
+ * come with it (default 1: the totals are per contract and need no events).
+ */
+export async function readPayoutIndex(api, { network = "mainnet", fetchFn = globalThis.fetch, limit = 1 } = {}) {
+  const base = String(api || "").trim().replace(/\/+$/, "").replace(/\/shelter\/payouts$/, "");
+  if (!base || typeof fetchFn !== "function") return null;
+  try {
+    const q = new URLSearchParams({ network, limit: String(limit) });
+    const res = await fetchFn(`${base}/shelter/payouts?${q}`, { credentials: "omit" });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body && Array.isArray(body.contracts) ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One contract's indexed totals from a readPayoutIndex answer: { through, count, nativeWei,
+ * tokenUnits }, or null when the index does not list it or its indexedThrough time is older than
+ * `staleMs`. Read the blocks after `through` from the chain to be complete.
+ */
+export function indexedTotals(index, chainId, address, now = Date.now(), staleMs = INDEX_STALE_MS) {
+  const want = String(address || "").toLowerCase();
+  const c = (index?.contracts || []).find((x) => x && Number(x.chainId) === Number(chainId) && String(x.contract).toLowerCase() === want);
+  const through = c?.indexedThrough;
+  if (!c || !Number.isSafeInteger(through?.block) || !Number.isSafeInteger(through?.time)) return null;
+  if (now - through.time * 1000 > staleMs) return null;
+  let nativeWei = 0n;
+  let tokenUnits = 0n;
+  let count = 0;
+  for (const t of c.totals || []) {
+    if (!/^\d{1,78}$/.test(String(t?.amount))) return null;
+    if (t.kind === "native") nativeWei += BigInt(t.amount);
+    else tokenUnits += BigInt(t.amount);
+    count += Number(t.count) || 0;
+  }
+  return { through: through.block, count, nativeWei, tokenUnits };
+}
+
+/**
  * Sums every payout ShelterSplit emitted.
  *
  * `deployments` is the parsed deployments.json array (entries need `chainId` and `address`;
@@ -373,8 +423,16 @@ export async function getLogsWindowed(fetchFn, url, { address, topics, fromBlock
  * `byDeployment` row has its `symbol`, `nativeSymbol`, `decimals` and `testnet` flag. USDC, USDG,
  * mUSDC, pathUSD and EURC are different coins and are never summed together.
  */
-export async function readTotals(deployments, fetchFn = globalThis.fetch) {
+export async function readTotals(deployments, fetchFn = globalThis.fetch, { index = null, now = Date.now() } = {}) {
   if (typeof fetchFn !== "function") throw new Error("readTotals needs a fetch function");
+  // `index`: a Token Tails backend URL. Its payout index is read first (one request per network) and
+  // only the blocks after its indexedThrough from the chain; a deployment it does not cover freshly
+  // (or a deployment with its own "rpc") is read from the chain alone, as without it.
+  const indexes = new Map();
+  const indexFor = (network) => {
+    if (!indexes.has(network)) indexes.set(network, readPayoutIndex(index, { network, fetchFn }));
+    return indexes.get(network);
+  };
   let list = deployments;
   if (typeof list === "string") {
     const res = await fetchFn(list, { cache: "no-store" });
@@ -407,15 +465,25 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch) {
       tokenUnits: 0n,
       payouts: 0,
       error: null,
+      source: "chain",
+      indexedThrough: null,
     };
     totals.byDeployment.push(row);
     if (!url) {
       row.error = `no RPC known for chain ${chainId}`;
       continue;
     }
+    const indexed = index && !d.rpc ? indexedTotals(await indexFor(row.testnet ? "testnet" : "mainnet"), chainId, d.address, now) : null;
+    if (indexed) {
+      row.source = "index";
+      row.indexedThrough = indexed.through;
+      row.payouts = indexed.count;
+      row.nativeWei = indexed.nativeWei;
+      row.tokenUnits = indexed.tokenUnits;
+    }
     try {
-      let fromBlock = Number(d.fromBlock || 0);
-      if (!d.fromBlock && TX_RE.test(d.tx || "")) {
+      let fromBlock = indexed ? indexed.through + 1 : Number(d.fromBlock || 0);
+      if (!indexed && !d.fromBlock && TX_RE.test(d.tx || "")) {
         // The chain's default RPC: a wide-range log RPC may not keep old receipts (Arc testnet's does not).
         const receipt = await rpc(fetchFn, d.rpc || chain?.rpc || url, "eth_getTransactionReceipt", [d.tx]).catch(() => null);
         if (receipt?.blockNumber) fromBlock = parseInt(receipt.blockNumber, 16);
@@ -434,7 +502,8 @@ export async function readTotals(deployments, fetchFn = globalThis.fetch) {
         else row.tokenUnits += p.amount;
       }
     } catch (err) {
-      row.error = err.message;
+      // With the index, only the newest blocks were missing: the indexed totals still stand.
+      if (!indexed) row.error = err.message;
     }
     totals.nativeWei += row.nativeWei;
     totals.tokenUnits += row.tokenUnits;

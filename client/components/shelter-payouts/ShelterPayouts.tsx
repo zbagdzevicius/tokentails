@@ -139,7 +139,7 @@ const ChainCard = ({
       )}
 
       {result.status === "loading" && (
-        <p className="motion-safe:animate-pulse">Reading payouts from the chain…</p>
+        <p className="motion-safe:animate-pulse">Reading payouts…</p>
       )}
       {result.status === "error" && (
         <p className="text-tt-cream/85" role="status">
@@ -285,7 +285,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             embed ? "pt-8 pb-12" : "pt-24 pb-16 md:pt-32 md:pb-24"
           }`}
         >
-          <Kicker>Live from the chain</Kicker>
+          <Kicker>Public, on-chain</Kicker>
           <h1 className="font-primary text-h5 md:text-h2 xl:text-h1 font-bold uppercase leading-none text-white drop-shadow-lg text-balance">
             Shelter <span className="glow text-tt-cream">payouts</span>
           </h1>
@@ -335,8 +335,9 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           )}
 
           <p className="max-w-2xl text-p5 md:text-p4 text-tt-cream/90">
-            Every payout from the ShelterSplit contract is read live from the chain&apos;s public RPC, not
-            from our servers.
+            Every payout is a public event of the ShelterSplit contract. This page reads an index of those
+            events, then the newest blocks straight from each chain, and links every payout to its
+            transaction on the chain&apos;s explorer, so you can check each one yourself.
           </p>
 
           <div className="mt-2 flex flex-col items-center gap-6 md:mt-4">

@@ -39,6 +39,14 @@ import { Shelter, ShelterSchema } from './shelter/shelter.schema';
 import { ShelterChain } from './shelter/onchain/shelter-chain';
 import { ShelterDonateService } from './shelter/onchain/shelter-donate.service';
 import { ShelterOnchainController } from './shelter/onchain/shelter-onchain.controller';
+import { ShelterPayoutsController } from './shelter/onchain/payout-index.controller';
+import { ShelterPayoutIndexService } from './shelter/onchain/payout-index.service';
+import {
+    ShelterPayoutIndexCursor,
+    ShelterPayoutIndexCursorSchema,
+    ShelterPayoutLog,
+    ShelterPayoutLogSchema,
+} from './shelter/onchain/payout-index.schema';
 import {
     ShelterDonateDay,
     ShelterDonateDaySchema,
@@ -192,6 +200,8 @@ const config = {
             { name: ShelterClaim.name, schema: ShelterClaimSchema },
             { name: ShelterCounter.name, schema: ShelterCounterSchema },
             { name: ShelterRouterScan.name, schema: ShelterRouterScanSchema },
+            { name: ShelterPayoutLog.name, schema: ShelterPayoutLogSchema },
+            { name: ShelterPayoutIndexCursor.name, schema: ShelterPayoutIndexCursorSchema },
             { name: ShelterPayoutEvent.name, schema: ShelterPayoutEventSchema },
             { name: ImpactChainCursor.name, schema: ImpactChainCursorSchema },
             { name: ImpactSnapshot.name, schema: ImpactSnapshotSchema },
@@ -228,6 +238,8 @@ const config = {
         BlessingController,
         // Before ShelterController: its GET /shelter/:id would otherwise answer GET /shelter/claim.
         ShelterOnchainController,
+        // Before ShelterController too: GET /shelter/payouts.
+        ShelterPayoutsController,
         ShelterController,
         QuestController,
         TicketController,
@@ -275,6 +287,7 @@ const config = {
         ShelterDonateReconcileService,
         ImpactEligibilityService,
         ImpactIndexerService,
+        ShelterPayoutIndexService,
         ImpactService,
         PawSettlementService,
         ImpactPayoutService,

@@ -1,8 +1,12 @@
 # Shelter payouts page (`/shelter-payouts`)
 
 Transparency page. It lists every `Disbursed(address indexed shelter, uint256 amount, string memo)`
-event from each ShelterSplit deployment, read in the browser with plain `eth_getLogs` calls to the
-chain's public RPC. The payout feed needs no backend and no wallet, and adds no dependency.
+event from each ShelterSplit deployment. It reads the backend's index of those public events first
+(`payoutIndex.ts`, `GET /shelter/payouts`, docs/API.md) and then only the blocks after the index's
+`indexedThrough` with plain `eth_getLogs` calls to the chain's public RPC (`rpc.ts`). Without a backend,
+or for a contract the index has not read within 15 minutes, it reads the whole range from the RPC, so
+the feed still works with no backend; it needs no wallet and adds no dependency. Every payout links
+to its transaction on the chain's explorer.
 
 Chains (`chains.ts`), mainnet and testnet: Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain
 and Monad (Mezo is listed too). Robinhood Chain pays USDG (its testnet a test mUSDC), Tempo USDC.e

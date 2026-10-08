@@ -1,5 +1,7 @@
+import { apiUrl } from "@/api/api";
 import { ChainInfo, SHELTER_CHAINS } from "./chains";
 import { Disbursement, PAYOUT_TOPICS, RpcLog, decodeDisbursedLog } from "./logs";
+import { indexedPayoutsFor, loadPayoutIndex, mergeDisbursements } from "./payoutIndex";
 
 // One entry of public/shelter-payouts/deployments.json. The file is a copy of
 // funding/framework/tracks/a-build/deployments.json (written by `fund a:ingest`),
@@ -278,18 +280,54 @@ function writeCache(d: ShelterDeployment, items: Disbursement[], now: number) {
   }
 }
 
-export async function fetchDisbursements(d: ShelterDeployment): Promise<Disbursement[]> {
+/** Where the page's payouts came from: the backend index plus the newest blocks, or the chain alone. */
+export type PayoutSource = "index" | "chain";
+const sources = new Map<string, PayoutSource>();
+/** How the last read of `d` was made (for the card's small print), or undefined before one. */
+export const payoutSourceOf = (d: ShelterDeployment): PayoutSource | undefined => sources.get(cacheKey(d));
+
+/**
+ * Every payout of `d`, newest first. Reads the backend's payout index first (GET /shelter/payouts,
+ * public on-chain events with block times) and then only the blocks after the index's
+ * `indexedThrough` from the chain's RPC, so nothing newer is missed. When the backend is not
+ * configured, unreachable or has not read this contract within INDEX_STALE_MS, the whole range is
+ * read from the chain as before. A deployment with its own "rpc" is always read from that RPC.
+ */
+export async function fetchDisbursements(
+  d: ShelterDeployment,
+  opts: { indexBase?: string; fetchFn?: typeof fetch; now?: number } = {}
+): Promise<Disbursement[]> {
   const cached = typeof window !== "undefined" ? readCache(d, Date.now()) : null;
   if (cached) return cached;
-  const items = await scanDisbursements(d);
+  const base = "indexBase" in opts ? opts.indexBase : apiUrl;
+  let items: Disbursement[] | null = null;
+  if (base && !d.rpc) {
+    const network = isTestnetDeployment(d) ? "testnet" : "mainnet";
+    const index = await loadPayoutIndex(network, base, opts.fetchFn ?? fetch, opts.now ?? Date.now());
+    const indexed = indexedPayoutsFor(index, d.chainId, d.address, opts.now ?? Date.now());
+    if (indexed) {
+      let fresh: Disbursement[] = [];
+      try {
+        fresh = await scanDisbursements(d, indexed.through + 1);
+      } catch {
+        // The chain is busy right now: the index (at most INDEX_STALE_MS behind) still stands.
+      }
+      items = mergeDisbursements(indexed.items, fresh);
+      sources.set(cacheKey(d), "index");
+    }
+  }
+  if (!items) {
+    items = await scanDisbursements(d);
+    sources.set(cacheKey(d), "chain");
+  }
   if (typeof window !== "undefined") writeCache(d, items, Date.now());
   return items;
 }
 
-async function scanDisbursements(d: ShelterDeployment): Promise<Disbursement[]> {
+async function scanDisbursements(d: ShelterDeployment, fromBlock?: number): Promise<Disbursement[]> {
   const chain = resolveChain(d);
   if (!chain) throw new Error(`no public RPC known for chain ${d.chainId}; add "rpc" and "explorer" to the entry`);
-  const from = await startBlock(chain.rpc, d);
+  const from = fromBlock ?? (await startBlock(chain.rpc, d));
 
   let logs: RpcLog[];
   const logRpc = chain.logRpc || chain.rpc;

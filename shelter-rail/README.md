@@ -128,6 +128,7 @@ Memos are public and permanent. Keep them short and never put personal data in t
 | `data-label` | "Give 1 USDC to shelters" | Button text. |
 | `data-disclosure` | none | Small print under the button. Required when the shelter wallet is custodial. |
 | `data-from-block` | `0` | Where the live-total log scan starts. |
+| `data-index` | none | Optional Token Tails backend URL (`https://api.tokentails.com`). Its payout index (`GET /shelter/payouts`) gives the total up to its last indexed block, and only newer blocks are read from the chain. A contract the index has not read within 15 minutes, or an unreachable backend, falls back to the chain alone. |
 | `data-target` | after the script | CSS selector of the element to mount into. |
 
 Gasless mode adds:
@@ -174,6 +175,9 @@ const { txHash, explorerUrl } = await donateWithInjected(window.ethereum, {
 ```
 
 `readTotals` keeps native (18-decimal) and token (6-decimal) totals apart so the scales never mix.
+`readTotals(list, fetch, { index: "https://api.tokentails.com" })` takes each contract's totals from the
+Token Tails payout index when it is fresh (`readPayoutIndex`, `indexedTotals`, `INDEX_STALE_MS`) and
+reads only the newer blocks from the chain; each `byDeployment` row says `source: "index" | "chain"`.
 
 Gasless gift through a DonateRouter (the donor needs no gas token and sends no transaction):
 

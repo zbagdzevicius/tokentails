@@ -1,12 +1,15 @@
 // copy-lint: web-only the total renders only on the web host (ui.ts shelterTotal returns null in app builds)
-// Read-only "sent to shelters" total for the win screen. It reads ShelterSplit's payout events
-// straight from public chain RPCs (plain eth_getLogs, no wallet, no web3 dependency), so a player
-// or judge sees real on-chain payouts without connecting anything.
+// Read-only "sent to shelters" total for the win screen. It reads ShelterSplit's payout events from
+// the backend's index of those public events (GET /shelter/payouts) plus the newest blocks straight
+// from public chain RPCs, or from the RPCs alone when the index is unreachable or stale (plain
+// eth_getLogs, no wallet, no web3 dependency), so a player or judge sees real on-chain payouts
+// without connecting anything.
 //
 // The deployment list is a copy of funding/framework/tracks/a-build/deployments.json that
 // `fund a:ingest` writes to public/payouts/deployments.json. The chain table mirrors
 // client/components/shelter-payouts/chains.ts (this package imports nothing from client/).
 
+import { heistRuntimeConfig } from './rail';
 import { PAYOUT_CHAIN_META, TESTNET_CHAIN_IDS } from './shelter-payouts-chains';
 
 export interface PayoutDeployment {
@@ -421,6 +424,67 @@ interface RpcLog extends PayoutLog { blockNumber?: string; transactionHash?: str
 const TIMED_PER_CHAIN = 6;
 
 /**
+ * The backend's payout index (GET /shelter/payouts): the same public payout events, read once by the
+ * backend and served with their block times. Mirrors client/components/shelter-payouts/payoutIndex.ts.
+ * A contract whose index lags the chain by more than INDEX_STALE_MS is read from the chain instead;
+ * a fresh one is read from the index plus only the blocks after its `indexedThrough`.
+ */
+export const INDEX_STALE_MS = 15 * 60_000;
+const INDEX_PAGE_LIMIT = 2000;
+const INDEX_MAX_PAGES = 5;
+
+interface IndexedContract { chainId: number; contract: string; count: number; indexedThrough: { block: number | null; time: number | null } }
+interface IndexedEvent { chainId: number; contract: string; txHash: string; logIndex: number; blockNumber: number; timestamp: number; shelter: string; kind: 'token' | 'native'; amount18: string; memo: string }
+export interface PayoutIndex { contracts: IndexedContract[]; events: IndexedEvent[] }
+
+const HEX_ADDRESS = /^0x[0-9a-f]{40}$/;
+const isIndexedEvent = (e: IndexedEvent): boolean =>
+  !!e && Number.isSafeInteger(e.chainId) && HEX_ADDRESS.test(String(e.contract)) && /^0x[0-9a-f]{64}$/.test(String(e.txHash)) &&
+  Number.isSafeInteger(e.blockNumber) && Number.isSafeInteger(e.timestamp) && (e.kind === 'token' || e.kind === 'native') &&
+  /^\d{1,78}$/.test(String(e.amount18)) && typeof e.memo === 'string' && typeof e.shelter === 'string';
+
+/** Every indexed payout of `network`, or null (no backend, refused, unreachable, malformed or too long). */
+export async function fetchPayoutIndex(f: Fetch, apiUrl: string, network: 'mainnet' | 'testnet', signal: AbortSignal): Promise<PayoutIndex | null> {
+  const base = apiUrl.trim().replace(/\/+$/, '');
+  if (!base) return null;
+  try {
+    let contracts: IndexedContract[] | null = null;
+    const events: IndexedEvent[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < INDEX_MAX_PAGES; page++) {
+      const q = new URLSearchParams({ network, limit: String(INDEX_PAGE_LIMIT) });
+      if (cursor) q.set('cursor', cursor);
+      const res = await f(`${base}/shelter/payouts?${q.toString()}`, { signal, credentials: 'omit' });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { contracts?: unknown; events?: unknown; nextCursor?: unknown };
+      if (!Array.isArray(body?.contracts) || !Array.isArray(body?.events)) return null;
+      contracts ??= (body.contracts as IndexedContract[]).filter((c) => !!c && Number.isSafeInteger(c.chainId) && HEX_ADDRESS.test(String(c.contract)) && !!c.indexedThrough);
+      for (const e of body.events as IndexedEvent[]) if (isIndexedEvent(e)) events.push(e);
+      cursor = typeof body.nextCursor === 'string' ? body.nextCursor : null;
+      if (!cursor) return { contracts: contracts ?? [], events };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** One contract's indexed payouts and the last block read, or null when it is not listed or is stale. */
+export function indexedFor(index: PayoutIndex | null, chainId: number, address: string, nowMs: number): { through: number; events: IndexedEvent[] } | null {
+  if (!index) return null;
+  const contract = address.toLowerCase();
+  const c = index.contracts.find((x) => x.chainId === chainId && x.contract === contract);
+  const block = c?.indexedThrough?.block;
+  const time = c?.indexedThrough?.time;
+  if (!c || typeof block !== 'number' || typeof time !== 'number' || nowMs - time * 1000 > INDEX_STALE_MS) return null;
+  const events = index.events.filter((e) => e.chainId === chainId && e.contract === contract && e.blockNumber <= block);
+  // A list cut short would understate the total: read the chain instead.
+  return events.length === c.count ? { through: block, events } : null;
+}
+
+const networkOf = (d: PayoutDeployment): 'mainnet' | 'testnet' => (isTestnetDeployment(d) ? 'testnet' : 'mainnet');
+
+/**
  * Reads every payout across the listed deployments: totals, a row per deployment and the payout
  * events (newest first). Best effort: a chain whose RPC fails or times out is marked `ok: false`
  * and skipped. With `times`, the newest payouts per chain also get their block time.
@@ -429,7 +493,7 @@ export async function fetchShelterPayouts(
   deploymentsUrl: string,
   f: Fetch = fetch,
   timeoutMs = 8000,
-  opts: { times?: boolean; only?: (d: PayoutDeployment) => boolean } = {},
+  opts: { times?: boolean; only?: (d: PayoutDeployment) => boolean; apiUrl?: string; nowMs?: number } = {},
 ): Promise<ShelterPayouts> {
   const ctl = new AbortController();
   // Two budgets of `timeoutMs`: the list, then the chain reads. A busy main thread at boot (shader
@@ -445,6 +509,23 @@ export async function fetchShelterPayouts(
     timer = setTimeout(() => ctl.abort(), timeoutMs);
     const usable = list.filter((d) => !!PAYOUT_CHAINS[d?.chainId] && /^0x[0-9a-fA-F]{40}$/.test(d.address ?? '') && (!opts.only || opts.only(d)));
     if (!usable.length) return { ...out, status: 'empty' };
+    // The backend's index first (one request per network, its own few seconds of the budget); a
+    // contract it does not cover freshly is read from the chain as before.
+    const indexes = new Map<string, Promise<PayoutIndex | null>>();
+    const indexOf = (d: PayoutDeployment): Promise<PayoutIndex | null> => {
+      if (!opts.apiUrl || d.rpc) return Promise.resolve(null);
+      const net = networkOf(d);
+      let p = indexes.get(net);
+      if (!p) {
+        const own = new AbortController();
+        const stop = () => own.abort();
+        ctl.signal.addEventListener('abort', stop);
+        const t = setTimeout(stop, Math.min(5000, timeoutMs / 2));
+        p = fetchPayoutIndex(f, opts.apiUrl, net, own.signal).finally(() => clearTimeout(t));
+        indexes.set(net, p);
+      }
+      return p;
+    };
     out.chains = await Promise.all(usable.map(async (d): Promise<ChainRow> => {
       const known = PAYOUT_CHAINS[d.chainId];
       const chain = deploymentUnits(d, known);
@@ -453,6 +534,58 @@ export async function fetchShelterPayouts(
       const proofs = Array.isArray(d.proofTxs) ? d.proofTxs.filter((t) => typeof t === 'string' && /^0x[0-9a-fA-F]{64}$/.test(t)) : [];
       if (proofs.length) row.proofTxs = proofs;
       const url = d.rpc || chain.rpc;
+      const indexed = indexedFor(await indexOf(d), d.chainId, d.address, opts.nowMs ?? Date.now());
+      if (indexed) {
+        const rows: PayoutRow[] = [];
+        const add = (r: PayoutRow) => {
+          row.totals.set(r.symbol, (row.totals.get(r.symbol) ?? 0n) + r.amount18);
+          row.count++;
+          rows.push(r);
+        };
+        for (const e of indexed.events) {
+          add({
+            chainId: d.chainId, chainName: row.name, explorer: row.explorer,
+            symbol: e.kind === 'native' ? chain.nativeSymbol ?? 'native' : chain.symbol, amount18: BigInt(e.amount18),
+            shelter: e.shelter.toLowerCase(), memo: displayMemo(e.memo.replace(/[\u0000-\u001f\u007f]/g, '').trim()),
+            tx: e.txHash, block: e.blockNumber, time: e.timestamp,
+          });
+        }
+        try {
+          // Only the blocks after the index: one call on most chains.
+          const fresh = await getLogsRange<RpcLog>(f, url, { address: d.address, topics: [[DISBURSED_TOPIC, NATIVE_DISBURSED_TOPIC]] }, indexed.through + 1, ctl.signal, chain.maxLogRange);
+          const seen = new Set(rows.map((r) => r.tx.toLowerCase()));
+          for (const log of fresh ?? []) {
+            const p = payoutOf(log, chain);
+            const tx = (log.transactionHash ?? '').toLowerCase();
+            if (!p || seen.has(tx)) continue;
+            const topic = log.topics?.[1];
+            add({
+              chainId: d.chainId, chainName: row.name, explorer: row.explorer, symbol: p.symbol, amount18: p.amount18,
+              shelter: typeof topic === 'string' && topic.length === 66 ? '0x' + topic.slice(26).toLowerCase() : '',
+              memo: memoOf(log.data ?? ''), tx: log.transactionHash ?? '', block: log.blockNumber ? parseInt(log.blockNumber, 16) || 0 : 0,
+            });
+          }
+          // The newest payouts, newer than the index: without a time they would sort below every other
+          // chain's timed rows in the merged list.
+          if (opts.times) {
+            const blocks = [...new Set(rows.filter((r) => r.time === undefined && r.block > 0).map((r) => r.block))].sort((a, b) => b - a).slice(0, TIMED_PER_CHAIN);
+            for (const b of blocks) {
+              try {
+                const blk = await rpc<{ timestamp?: string } | null>(f, url, 'eth_getBlockByNumber', ['0x' + b.toString(16), false], ctl.signal);
+                const t = blk?.timestamp ? parseInt(blk.timestamp, 16) : NaN;
+                if (t > 0) for (const r of rows) if (r.block === b && r.time === undefined) r.time = t;
+              } catch {
+                /* no time for this one */
+              }
+            }
+          }
+        } catch {
+          /* the chain is busy: the index (at most INDEX_STALE_MS behind) still stands */
+        }
+        rows.sort((a, b) => b.block - a.block);
+        out.payouts.push(...rows);
+        return row;
+      }
       try {
         let from = typeof d.fromBlock === 'number' ? d.fromBlock : 0;
         if (!from && d.tx) {
@@ -527,10 +660,19 @@ export async function fetchShelterTotals(deploymentsUrl: string, f: Fetch = fetc
 
 let cachedPayouts: Promise<ShelterPayouts> | null = null;
 
+/** The backend whose payout index the live reads try first (rail.ts heistRuntimeConfig), or '' for none. */
+function payoutIndexApi(): string {
+  try {
+    return typeof window !== 'undefined' && typeof document !== 'undefined' ? heistRuntimeConfig(window as never, document).apiUrl : '';
+  } catch {
+    return '';
+  }
+}
+
 /** The payouts modal's data, fetched once per page load; a read with any failed chain is retried on the next call. */
 export function loadShelterPayouts(deploymentsUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
   if (!deploymentsUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
-  const p = (cachedPayouts ??= fetchShelterPayouts(deploymentsUrl, f, 15_000, { times: true }));
+  const p = (cachedPayouts ??= fetchShelterPayouts(deploymentsUrl, f, 15_000, { times: true, apiUrl: payoutIndexApi() }));
   void p.then((r) => {
     if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedPayouts === p) cachedPayouts = null;
   });
@@ -566,7 +708,7 @@ let cachedTestnet: Promise<ShelterPayouts> | null = null;
  */
 export function loadTestnetPayouts(testnetUrl: string, f: Fetch = fetch): Promise<ShelterPayouts> {
   if (!testnetUrl) return Promise.resolve({ status: 'empty', totals: new Map(), chains: [], payouts: [] });
-  const p = (cachedTestnet ??= fetchShelterPayouts(testnetUrl, f, 15_000, { times: true, only: isTestnetDeployment }));
+  const p = (cachedTestnet ??= fetchShelterPayouts(testnetUrl, f, 15_000, { times: true, only: isTestnetDeployment, apiUrl: payoutIndexApi() }));
   void p.then((r) => {
     if ((r.status === 'error' || r.chains.some((c) => !c.ok)) && cachedTestnet === p) cachedTestnet = null;
   });
@@ -578,7 +720,7 @@ let cached: Promise<string> | null = null;
 /** The win-screen line, fetched once per page load. '' means hide it. */
 export function shelterTotalLine(deploymentsUrl: string): Promise<string> {
   if (!deploymentsUrl) return Promise.resolve('');
-  cached ??= fetchShelterTotals(deploymentsUrl).then(totalText).catch(() => '');
+  cached ??= fetchShelterPayouts(deploymentsUrl, fetch, 8000, { apiUrl: payoutIndexApi() }).then((r) => totalText(r.totals)).catch(() => '');
   return cached;
 }
 

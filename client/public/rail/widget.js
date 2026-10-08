@@ -27,6 +27,10 @@
  *   data-testnet="true"                       (optional: shows "Test USDC, no real money"; known testnets
  *                                             show it anyway)
  *   data-theme="dark"                         (optional: light | dark; default follows the visitor)
+ *   data-index="https://api.tokentails.com"   (optional: a Token Tails backend whose payout index, GET
+ *                                             /shelter/payouts, gives the total up to its last indexed
+ *                                             block; only newer blocks are then read from the chain.
+ *                                             Older than 15 minutes or unreachable: the chain alone)
  *   data-target="#donate"></script>          (optional mount point; default: right after the script)
  *
  * Gasless mode (data-mode="gasless"): the visitor signs one USDC ReceiveWithAuthorization (EIP-3009)
@@ -43,7 +47,8 @@
  * locally and refuses an unreadable USDC name or version. In token mode it reads split.token() and
  * approves exactly the gift for that token.
  *
- * Renders one button and a live "shelters received" total, read from the chain's public RPC.
+ * Renders one button and a "shelters received" total of the split's public payout events, read from the
+ * chain's public RPC (or from data-index plus the newest blocks).
  */
 (function (root) {
   "use strict";
@@ -76,7 +81,7 @@
     421614: { name: "Arbitrum Sepolia", rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", eip3009: true } },
     43114: { name: "Avalanche C-Chain", rpc: "https://api.avax.network/ext/bc/C/rpc", explorer: "https://subnets.avax.network/c-chain", symbol: "AVAX", decimals: 18, coin: { symbol: "USDC", address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", eip3009: true } },
     43113: { name: "Avalanche Fuji", rpc: "https://api.avax-test.network/ext/bc/C/rpc", explorer: "https://subnets-test.avax.network/c-chain", symbol: "AVAX", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x5425890298aed601595a70AB815c96711a31Bc65", eip3009: true } },
-    8453: { name: "Base", rpc: "https://mainnet.base.org", logRange: 2000, explorer: "https://basescan.org", symbol: "ETH", decimals: 18, coin: { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", eip3009: true } },
+    8453: { name: "Base", rpc: "https://mainnet.base.org", logRange: 500, explorer: "https://basescan.org", symbol: "ETH", decimals: 18, coin: { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", eip3009: true } },
     84532: { name: "Base Sepolia", rpc: "https://sepolia.base.org", logRpc: "https://base-sepolia-rpc.publicnode.com", logRange: 10000, explorer: "https://sepolia.basescan.org", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "USDC", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", eip3009: true } },
     4663: { name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com", explorer: "https://robinhoodchain.blockscout.com", symbol: "ETH", decimals: 18, coin: { symbol: "USDG", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", eip3009: false } },
     46630: { name: "Robinhood Chain Testnet", rpc: "https://rpc.testnet.chain.robinhood.com", explorer: "https://explorer.testnet.chain.robinhood.com", symbol: "ETH", decimals: 18, testnet: true, coin: { symbol: "mUSDC", address: "0x457c89e10a6e66633eda5bf82fd086febb5db147", eip3009: false } },
@@ -330,6 +335,32 @@
     });
   }
 
+  // data-index: the backend's payout index answers up to `indexedThrough`; a contract it has not read
+  // within INDEX_STALE_MS is read from the chain instead. Mirrors indexedTotals in sdk.mjs.
+  var INDEX_STALE_MS = 15 * 60 * 1000;
+  function readIndexed(base, network, chainId, split, tokenOnly) {
+    base = String(base || "").replace(/\/+$/, "").replace(/\/shelter\/payouts$/, "");
+    if (!base || typeof fetch !== "function") return Promise.resolve(null);
+    var want = String(split).toLowerCase();
+    var url = base + "/shelter/payouts?network=" + network + "&chainId=" + chainId + "&address=" + want + "&limit=1";
+    return fetch(url, { credentials: "omit" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (body) {
+        var c = body && Array.isArray(body.contracts) ? body.contracts.filter(function (x) { return x && Number(x.chainId) === chainId && String(x.contract).toLowerCase() === want; })[0] : null;
+        var t = c && c.indexedThrough;
+        if (!t || typeof t.block !== "number" || typeof t.time !== "number" || Date.now() - t.time * 1000 > INDEX_STALE_MS) return null;
+        var sum = BigInt(0);
+        (c.totals || []).forEach(function (x) {
+          if (!/^\d{1,78}$/.test(String(x && x.amount18))) throw new Error("bad total");
+          // tokenOnly: the native coin is not USDC (ETH, AVAX), as in sumPayouts.
+          if (x.kind === "native" && tokenOnly) return;
+          sum += BigInt(x.amount18);
+        });
+        return { through: t.block, total: sum };
+      })
+      .catch(function () { return null; });
+  }
+
   /** Reads the script tag's data-* attributes into mount options. */
   function readOptions(d) {
     d = d || {};
@@ -350,6 +381,7 @@
       router: ADDRESS_RE.test(d.router || "") ? d.router : null,
       usdc: ADDRESS_RE.test(d.usdc || "") ? d.usdc : null,
       relay: d.relay || null,
+      index: /^https?:\/\//.test(d.index || "") ? d.index : null,
       rpc: d.rpc || null,
       explorer: d.explorer || null,
       chainName: d.chainName || null,
@@ -696,9 +728,17 @@
         }
         // Public RPCs may rate-limit (HTTP 429) and the read retries with backoff: say it is coming.
         if (!total.textContent) total.textContent = "Reading the live total from " + chain.name + "…";
-        getLogs(chain.logRpc || chain.rpc, split, found.fromBlock, chain.logRange)
-          .then(function (logs) {
-            var value = sumPayouts(logs, !usdcNative);
+        var logRpc = chain.logRpc || chain.rpc;
+        var scan = function (from) { return getLogs(logRpc, split, from, chain.logRange).then(function (logs) { return sumPayouts(logs, !usdcNative); }); };
+        var read = opts.index && !opts.rpc
+          ? readIndexed(opts.index, testnet ? "testnet" : "mainnet", chainId, split, !usdcNative).then(function (ix) {
+              if (!ix) return scan(found.fromBlock);
+              // Only the blocks after the index; if the chain is busy, the index total still stands.
+              return scan(ix.through + 1).then(function (v) { return ix.total + v; }, function () { return ix.total; });
+            })
+          : scan(found.fromBlock);
+        read
+          .then(function (value) {
             show(value);
             try { root.sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), total: value.toString() })); } catch (e) { /* no storage */ }
           })
@@ -804,6 +844,7 @@
     sumNative: sumNative,
     sumPayouts: sumPayouts,
     getLogs: getLogs,
+    readIndexed: readIndexed,
     resolveSplit: resolveSplit,
     readOptions: readOptions,
     mount: mount,

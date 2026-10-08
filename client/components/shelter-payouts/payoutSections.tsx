@@ -399,7 +399,7 @@ export const FeedSection = ({
         <PayoutFeed items={feed} shelterName={shelterName} target={target} />
       ) : (
         <p className={pending ? "motion-safe:animate-pulse" : ""}>
-          {pending ? "Reading payouts from the chain…" : "No payouts yet. The first one shows up here."}
+          {pending ? "Reading payouts…" : "No payouts yet. The first one shows up here."}
         </p>
       )}
     </div>
@@ -414,7 +414,7 @@ export const HOW_IT_WORKS: readonly string[] = [
   // Conditional, so it is true in every rail state (soon, paused, live, used up for today).
   "Tap the rescue treat: while treats are open, Token Tails sends Pink Paw a small treat in a stablecoin (USDC on most networks).",
   // claim: L-disbursed (every payout is a public chain event, listed here)
-  "Every payout is read live from the chain and listed with its receipt.",
+  "Every payout is a public chain event, listed here with a link to its transaction on the explorer.",
 
   // claim: C-001 (the goal counts the USDC that comes in to the campaign wallets; today, treats only)
   "The USDC that comes in to Pink Paw's wallet counts toward its goal: today, sponsored treats. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.",

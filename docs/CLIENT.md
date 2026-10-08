@@ -108,7 +108,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/tailsCard/`, `cardEffects/` | Collectible card rendering and per-tier effects. |
 | `components/codex/` | PROGRESS (the CODEX modal): IMPACT tab (`impact/`), rewards, missions, tiers, badges, the web-only Vault, the Tails explainer, and the in-game portrait purchase flow. |
 | `components/web3/` | Stellar transfer, Stripe payment, payment chooser, rates hook, the EVM crypto checkout (`crypto/`). |
-| `components/shelter-payouts/` | `/shelter-payouts`, give, receipt and onboarding pages: payout reads, treat and wallet giving, chains (see its `README.md` and "Wallet giving" below). |
+| `components/shelter-payouts/` | `/shelter-payouts`, give, receipt and onboarding pages: payout reads, treat and wallet giving, chains (see its `README.md` and "Wallet giving" below). Payout lists read the backend's payout index first (`payoutIndex.ts`, `GET /shelter/payouts` at `NEXT_PUBLIC_BE_URL`), then only the blocks after its `indexedThrough` from the chain (`rpc.ts fetchDisbursements`); a contract the index has not read within 15 minutes, or an unreachable backend, is read from the chain alone as before. Receipts still read their one transaction from the chain. |
 | `components/blog/` | Feed, article, comments, likes. |
 | `components/marketplace/` | Cat store listing and detail. |
 | `components/shared/` | Modals (quests, packs, invite, support, wheel), leaderboards, music, joystick, `PixelButton`, `PixelIcon`, `CloseButton`, `CatnipIcon`, `Toast`, the AuthSheet (`auth/`). |

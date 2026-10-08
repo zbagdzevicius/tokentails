@@ -703,7 +703,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
 
   function paintLoading() {
     total.setAttribute('aria-busy', 'true');
-    total.replaceChildren(h('span.ch-pay-skel', { 'aria-hidden': 'true' }), h('p.ch-pay-note', null, 'Reading the chain…'));
+    total.replaceChildren(h('span.ch-pay-skel', { 'aria-hidden': 'true' }), h('p.ch-pay-note', null, 'Reading the payouts…'));
     const loading = h('section.ch-pay-box', null, h('h3', null, 'Latest payouts'), h('p.ch-pay-empty', null, 'Loading the latest payouts…'));
     lists.replaceChildren(...(pinkPaw ? [loading, catsBox()] : [loading]), testSection);
   }
@@ -929,6 +929,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
         ...(gas.length ? [h('p.ch-pay-note', { 'data-testid': 'payouts-gas' }, `Plus ${gas.map(([s, v]) => formatAmount(v, s)).join(' and ')} in network coins`)] : []),
         // claim: L-disbursed (the live on-chain total; "Token Tails has sent {amount} to shelters")
         h('p.ch-pay-caption', { 'data-claim': 'L-disbursed' }, down ? 'Token Tails has sent at least this to shelters so far' : 'Token Tails has sent this to shelters so far'),
+        h('p.ch-pay-note', { 'data-testid': 'payouts-source' }, 'Read from an index of the public payout events plus the newest blocks; every payout links to its transaction.'),
         ...downNote,
       );
     } else {

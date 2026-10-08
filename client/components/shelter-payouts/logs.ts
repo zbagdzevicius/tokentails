@@ -34,6 +34,8 @@ export interface Disbursement {
   txHash: string;
   blockNumber: number;
   logIndex: number;
+  /** Block time, unix seconds, when known (the backend's payout index has it for every payout). */
+  timestamp?: number;
 }
 
 const HEX = /^0x[0-9a-fA-F]*$/;

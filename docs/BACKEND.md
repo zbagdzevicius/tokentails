@@ -575,6 +575,38 @@ warning).
 The facts registry (`funding/framework/facts/facts.json`, generated into
 `src/impact/facts.generated.ts`) and the wording rules are in [CLAIMS.md](CLAIMS.md).
 
+### Payout index (`GET /shelter/payouts`)
+
+`src/shelter/onchain/payout-index.service.ts`, `payout-index.controller.ts`, `payout-index.schema.ts`.
+The payout pages, the Heist modal and the shelter-rail widget used to scan every split's logs from
+public RPCs in each browser (Arc mainnet's RPC answers about two calls a second, Base caps
+`eth_getLogs` at 500 blocks, Monad's public RPC at 100). This job reads them once on the server:
+
+- Targets: every split recorded in `wallet.config.ts`, each chain's `split` and its `otherSplits`
+  (Arc's EURC split too), for `SHELTER_PAYOUTS_INDEX_NETWORKS` (`mainnet`, `testnet` or both, the
+  default). This is separate from the impact indexer, which keeps attributed rows for the impact
+  numbers on the main chain's network class only; this index holds public chain data only (no
+  buckets, no senders).
+- Each run (leased, every 2 minutes, a 90 s budget, at most 60 `eth_getLogs` calls per contract)
+  reads from the cursor minus 12 blocks to the head through the chain's log RPC (`logRpcFor`, the
+  same caps as the impact indexer) in windows of `SHELTER_PAYOUTS_INDEX_CHUNK` (default 10,000); a
+  window the RPC refuses shrinks to the cap the RPC names, or halves. Arc mainnet calls are spaced
+  500 ms apart. The first runs backfill from the deploy block (`fromBlock`, else the deploy
+  transaction's receipt). Chains run in parallel, the contracts of one chain one after the other.
+- Rows (`shelterpayoutlogs`, unique `chainId + txHash + logIndex`) carry the block time
+  (`eth_getBlockByNumber`), raw `amount` with its `decimals`, `amount18`, `symbol`, `kind`, `memo`
+  and a `sortKey` (newest-first order and the page cursor). A rescan adds nothing; a row missing from
+  a rescanned window is deleted only when the node knows its block and the canonical hash differs.
+- Cursors (`shelterpayoutindexcursors`, `_id` `<chainId>:<contract>`): `lastScannedBlock` never moves
+  back; `lastScannedTime` is set when a run reaches the head, so a contract still backfilling reads as
+  behind. A failed run stores only the error class.
+- `GET /shelter/payouts` (docs/API.md): 409 when nothing of the network is indexed, 424 when the
+  database fails, never 503; 30 s answer cache and `Cache-Control: public, max-age=30`.
+- Checked read-only against the 8 mainnet splits on 2026-10-08: a cold backfill took about 20 s (one
+  Base window failed once and was read again on the next run) and gave 0.5 USDC, 0.2 USDC.e, 0.1 USDG
+  and 0.1 EURC over 9 payouts, the same per contract as a direct RPC read (repeated direct reads got
+  HTTP 403/429 from Robinhood's and Arc's public RPCs, the reason for this index).
+
 ### Rescue Goals (plan G5)
 
 `src/rescue-goal/`, decisions #34, #37 and #44. A manager opens a goal in the CMS only with its money
@@ -659,6 +691,7 @@ under `NODE_ENV=production`); the impact, treat and paw jobs need `IMPACT_JOBS_E
 | Empty cat stomachs (`cat-status-reset`) | `src/cat/cat.controller.ts` | Daily 01:00 | Set `status.EAT = 0` on every cat (guest starters included, so guests can feed daily). |
 | Treat reconcile (`shelter-donate-reconcile`) | `src/shelter/onchain/shelter-donate-reconcile.service.ts` | Every 2 minutes | Settles SENT gifts by receipt (see "Shelter gifts on Arc"); then settles relayed wallet gifts, scans RouterDonation logs, sends and settles matches, and flushes the router (each step only when configured). |
 | Payout indexer (`impact-indexer`) | `src/impact/impact-indexer.service.ts` | Every 5 minutes | Indexes ShelterSplit payout logs on every served chain of the main chain's class. A recorded split starts at its deploy block; an env-only `SHELTER_SPLIT_ADDRESS` stays idle until `SHELTER_SPLIT_FROM_BLOCK` is set. |
+| Payout index (`shelter-payout-index`) | `src/shelter/onchain/payout-index.service.ts` | Every 2 minutes | Reads every recorded ShelterSplit (wallet.config.ts, mainnet and testnet by default) into `shelterpayoutlogs` for `GET /shelter/payouts`; see "Payout index". Needs `IMPACT_JOBS_ENABLED`; `SHELTER_PAYOUTS_INDEX=off` stops it. |
 | Impact snapshot (`impact-snapshot`) | `src/impact/impact.service.ts` | Hourly at :07 | Writes the hour's `impactsnapshots` row and the optional CDN mirror. |
 | Snapshot compaction (`impact-compact`) | `src/impact/impact.service.ts` | Daily 00:20 | Keeps one row per day for snapshots older than 48 hours. |
 | Paw settlement (`paw-settlement`) | `src/impact/paws.service.ts` | Daily 00:30 UTC | Settles yesterday's paws (send only with `PAWS_SETTLEMENT_ENABLED`). |
@@ -677,7 +710,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Auth | `FB_PRIVATE_KEY` (Firebase service account key), `ML_ACCESS_TOKEN` (unused guard) |
 | Identity (plan F5) | `AUTH_ENFORCE_EMAIL_VERIFIED` (default `true`: an unverified new password user gets 403 `EMAIL_UNVERIFIED` and no account), `AUTH_REQUIRE_VERIFIED_EXISTING` (default `false`; only matters for accounts created while enforcement was off), `APP_CHECK_ENFORCE` (default `false`; `true` requires a valid `x-firebase-appcheck` on `POST /user/guest/session`), `NEW_ACCOUNTS_PER_IP_PER_HOUR` (default 10), `GUEST_SESSIONS_PER_IP_PER_HOUR` (default 30), `DISPOSABLE_EMAIL_DOMAINS` (extra comma-separated domains), `IDENTITY_BACKFILL_DONE` (set `true` after `backfill-identity-fields.js --apply`; switches off the case-insensitive email fallback and turns on the alias rules), `GOOGLE_APPLICATION_CREDENTIALS` (only for `scripts/backfill-firebase-uid.ts`) |
 | Sign in with Apple revocation | `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_CLIENT_ID`, `APPLE_PRIVATE_KEY`, optional `APPLE_AUDIENCE`. Without them `DELETE /user/me` skips the revoke and logs it |
-| Jobs | `CRONS_ENABLED` (guest cleanup and merge resume; default on only under `NODE_ENV=production`), `IMPACT_JOBS_ENABLED` (indexer, snapshot, compaction, treat reconcile, paws; same default; set it explicitly in production), `RESCUE_GOAL_SWEEPER` (`off` stops the give sweeper) |
+| Jobs | `CRONS_ENABLED` (guest cleanup and merge resume; default on only under `NODE_ENV=production`), `IMPACT_JOBS_ENABLED` (indexer, snapshot, compaction, treat reconcile, paws; same default; set it explicitly in production), `RESCUE_GOAL_SWEEPER` (`off` stops the give sweeper), `SHELTER_PAYOUTS_INDEX` (`off` stops the payout index job), `SHELTER_PAYOUTS_INDEX_NETWORKS` (`mainnet`, `testnet` or both, default both), `SHELTER_PAYOUTS_INDEX_CHUNK` (widest `eth_getLogs` window, default 10000) |
 | Impact (plan F7) | `SHELTER_SPLIT_FROM_BLOCK` (first block to index on the main chain; unset: the recorded split's deploy block, or idle for an env-only `SHELTER_SPLIT_ADDRESS`), `SHELTER_LOG_CHUNK` (blocks per `eth_getLogs`, default 2000, 1 to 10000), `IMPACT_INDEXER_MAX_CHUNKS` (calls per run, default 25), `IMPACT_PAWS_SENDERS` (extra addresses allowed to settle paws), `IMPACT_CDN_ENABLED` (default off; mirrors `impact.json`), `IMPACT_CDN_OBJECT_KEY` (default `impact/impact.json`), `IMPACT_CDN_BUCKET` (default `DO_SPACES_NAME`) |
 | Paws (plan G4) | `PAWS_SETTLEMENT_ENABLED` (default off; `true` lets the nightly settlement send), `PAWS_DAILY_BUDGET` (wei, default 1 USDC), `PAWS_AMOUNT` (wei per paw, default 0.01 USDC) |
 | Rescue Goals (plan G5) | `RESCUE_GOAL_PLEDGES` (`off` is a kill switch for gives) |
