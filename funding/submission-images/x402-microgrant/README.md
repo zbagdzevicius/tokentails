@@ -8,7 +8,7 @@ since Oct 7 (9 proof payouts sent by Token Tails), but the `exact` scheme still 
 stays off until Pink Paw holds its own key (`SHELTER_HANDED_OVER`, gate G12). The live endpoint answers 409 today. None
 of these images claims a mainnet x402 payment.
 
-Oct 8 refresh: `screen-shelter-payouts-hero-1440.jpg` (now 0.5 USDC · 0.1 USDG · 0.1 EURC · 0.2 USDC.e, all 9 payouts
+Oct 8 refresh: `screen-shelter-payouts-hero-1440.jpg` (now 0.5 USDC · 0.1 USDG · 0.1 EURC · 0.2 USDC.e and "across 9 payouts on 7 chains", all 9 payouts
 loaded), `screen-pink-paw-cats-1440.jpg` (now the Pink Paw rescue fund, 0.8 of the 50,000 USDC goal, and "Give from your
 wallet: opens when Pink Paw holds its own key") and `screen-heist-payouts-1440.jpg` (mainnet payouts list) were retaken
 from the live site. `screen-testnet-proof-1440.png` is deleted (its testnet counts were out of date). Before posting:
@@ -30,7 +30,7 @@ Every file here is under 1.2 MB.
 | `x-card-1200x675.png` | 1200x675, 729 KB | Same layout, smaller: issue header image, or X if the 1600 one gets compressed | Same alt as above |
 | `diagram-x402-flow-1600x900.png` | 1600x900, 0.3 MB | GitHub issue, under "What x402 unlocks" | Caption: "The flow, per `backend/src/shelter/onchain/x402-exact.ts`: 402 with an `exact` offer whose payTo is the shelter's wallet; the agent signs one EIP-3009 transfer; the facilitator verifies, settles and pays gas; the API reads the transfer back from the chain and returns the cat card. Token Tails never holds the money." |
 | `screen-pink-paw-cats-1440.jpg` | 1440x1400, 0.25 MB | GitHub issue, under "Disclosure" (retake after handover) | Caption: "tokentails.com/shelter-payouts: Pink Paw (Rožinė pėdutė), the wallet Token Tails holds for it until handover, its rescue fund, and the cats waiting for a home. The agent's cat card is one of these cats." |
-| `screen-shelter-payouts-hero-1440.jpg` | 1440x780, 0.1 MB | GitHub issue, under "Live on mainnet", next to the payouts link | Caption: "Every payout is read live from the chain's public RPC, not from our servers." |
+| `screen-shelter-payouts-hero-1440.jpg` | 1440x1360, 0.3 MB | GitHub issue, under "Live on mainnet", next to the payouts link | Caption: "Every payout is read live from the chain's public RPC, not from our servers." |
 | `screen-heist-payouts-1440.jpg` | 1440x900, 0.3 MB | Optional, GitHub issue "What it is": the game side | Caption: "Catnip Heist, the game: the Sent to shelters view lists every mainnet payout to Pink Paw, next to the shelter's rescue fund." |
 | `logo-1024.png` | 1024x1024, 0.4 MB | Spare square mark (avatar or project logo if asked); neither GitHub nor X needs one | Alt: "Token Tails pixel cat" |
 

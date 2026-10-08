@@ -7,7 +7,7 @@
  "logo": "text",
  "logoH": 8,
  "textWidth": 0.38,
- "footer": "tokentails.com/heist",
+ "footer": "tokentails.com/shelter-payouts",
  "artPos": "center top",
  "art": "pinkpaw-crop.png",
  "kicker": "The first shelter",
@@ -20,5 +20,6 @@
   }
  ],
  "titleSize": 4.6,
- "subtitleSize": 1.9
+ "subtitleSize": 1.9,
+ "artFit": "contain"
 }

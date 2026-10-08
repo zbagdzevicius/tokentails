@@ -34,7 +34,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:21px;color:var(--gold-40
 <div class="flow">
   <div class="box"><span class="n">1</span><h3>A player buys</h3><p>Card or in-app purchase in Token Tails (web, iOS, Android). In the planned flow, a fixed share goes to shelters.</p></div>
   <svg class="arrow" viewBox="0 0 24 24"><path d="M4 12h13M12 5l7 7-7 7" fill="none" stroke="#ffcc55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div class="box"><span class="n">2</span><h3>Ops wallet pays</h3><p>Token Tails' operations wallet calls <code>disburse(amount, memo)</code> in USDC or EURC. The memo carries the purchase reference.</p></div>
+  <div class="box"><span class="n">2</span><h3>Ops wallet pays</h3><p>Token Tails' operations wallet calls <code>disburse(amount, memo)</code> in USDC. The memo carries the purchase reference.</p></div>
   <svg class="arrow" viewBox="0 0 24 24"><path d="M4 12h13M12 5l7 7-7 7" fill="none" stroke="#ffcc55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <div class="box main"><span class="n">3</span><h3>ShelterSplit on Avalanche C-Chain</h3><p>A public registry: each shelter has a wallet, a name and a share in basis points. The amount is split in the same transaction, so the contract holds nothing between calls.</p></div>
   <svg class="arrow" viewBox="0 0 24 24"><path d="M4 12h13M12 5l7 7-7 7" fill="none" stroke="#ffcc55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>

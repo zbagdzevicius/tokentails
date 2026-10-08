@@ -16,14 +16,14 @@ included; the first real treat is still to come.
 | `logo-1024.png` | 1024x1024, 384 KB | Project logo / avatar | Token Tails pixel-art cat holding a gold coin |
 | `cover-1920x1080.jpg` | 1920x1080, 376 KB | Project cover / banner (16:9) | Win a heist, feed a shelter cat: one tap after a Catnip Heist win sends a small USDC treat to a real cat shelter, with a public receipt. Shown: the live treat page (7 networks, Monad included) and the Monad mainnet receipt for 0.1 USDC to Pink Paw. |
 | `cover-1200x630.jpg` | 1200x630, 196 KB | Cover if the form wants 1.91:1; X / social card | same as above |
-| `01-win-a-heist.jpg` | 1920x1080, 268 KB | Screenshot 1 | Step 1: win a round of Catnip Heist, a free browser game at tokentails.com/heist, and rescue a shelter cat. |
+| `01-win-a-heist.jpg` | 1920x1080, 301 KB | Screenshot 1 | Step 1: win a round of Catnip Heist, a free browser game at tokentails.com/heist, and rescue a real Pink Paw cat. The result screen offers "Send Pink Paw a rescue treat" (0.01 USDC on Arc, paid by Token Tails). |
 | `02-one-tap-treat.jpg` | 1920x1080, 304 KB | Screenshot 2 | Step 2: one tap, and Token Tails pays a small USDC treat to Pink Paw from a capped daily budget, on the network the player picks (Monad is one of seven). No wallet and no gas for the player. |
 | `03-public-receipt.jpg` | 1920x1080, 280 KB | Screenshot 3 | Step 3: every payout gets a public receipt read from the chain, with an explorer link. Shown: the first Monad mainnet payout, 0.1 USDC to Pink Paw, sent by Token Tails as proof (block 111375456). |
 | `04-mainnet-payouts.jpg` | 1920x1080, 324 KB | Screenshot 4 | ShelterSplit: one call splits a payment across the shelter wallets, with one public event per payout. Live on 7 mainnets, Monad included: 9 payouts so far, contract balance 0 on every chain. |
-| `05-pink-paw.jpg` | 1920x1080, 308 KB | Screenshot 5 | Pink Paw (Rožinė pėdutė), the first shelter, and its real cats. Its wallet is held by Token Tails on the shelter's behalf until handover. |
+| `05-pink-paw.jpg` | 1920x1080, 297 KB | Screenshot 5 | Pink Paw (Rožinė pėdutė), the first shelter, its rescue fund (0.8 of the 50,000 USDC goal, read from 7 chains) and its real cats. Its wallet is held by Token Tails on the shelter's behalf until handover. |
 | `06-how-it-works.png` | 1920x1080, 988 KB | Screenshot 6 / architecture diagram | How a treat reaches a shelter: player taps, the Token Tails backend pays from a capped budget, ShelterSplit splits it to the shelter wallets, and each payout emits a public event that drives the receipt and the payouts page. Live on Monad mainnet at 0x457c…b147. |
 
-Replaced on Oct 8: `04-testnet-proof.jpg` is deleted (now `04-mainnet-payouts.jpg`).
+Replaced on Oct 8: `04-testnet-proof.jpg` is deleted (now `04-mainnet-payouts.jpg`). `01` and `05` were retaken: the old shots said "Real shelter treats open soon", "First payouts land soon" and a 90 USDC goal. `01` comes from the heist dev build (`?qa=1`, `playSolution("heist-05")`) reading the production treat status; it is cropped above the results-panel total line, which showed a partial sum (0.3 USDC + 0.2 USDC.e) when some public RPCs failed. `05` is a crop of `x402-microgrant/screen-pink-paw-cats-1440.jpg`.
 
 ## Truth notes
 
