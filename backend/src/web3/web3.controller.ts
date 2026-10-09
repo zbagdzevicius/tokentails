@@ -54,12 +54,16 @@ export const STELLAR_PACKS_DEPRECATED_MESSAGE =
     'Packs are no longer sold through Stellar. Your payment is recorded and will be refunded to the sending account. Pay with USDC or EURC in the crypto checkout, or by card.';
 export const stellarPacksEnabled = (env: NodeJS.ProcessEnv = process.env) =>
     (env.STELLAR_PACKS_ENABLED || '').trim().toLowerCase() === 'true';
-/** Grace for Stellar pack payments already in flight: a week after the 2026-10-04 decision. */
-export const DEFAULT_STELLAR_PACKS_SUNSET_AT = '2026-10-11T00:00:00Z';
-/** `STELLAR_PACKS_SUNSET_AT` (ISO time, set it to deploy time plus about 7 days), else the default. */
+/** Stellar packs closed at once (founder, 2026-10-09), ending the grace planned to 2026-10-11. */
+export const DEFAULT_STELLAR_PACKS_SUNSET_AT = '2026-10-09T18:00:00Z';
+/**
+ * `STELLAR_PACKS_SUNSET_AT` (ISO time) can only move the sunset earlier; a later or invalid value
+ * gives the default, so an old env value cannot reopen packs (`STELLAR_PACKS_ENABLED` is the rollback).
+ */
 export function stellarPacksSunset(env: NodeJS.ProcessEnv = process.env): Date {
+    const fixed = new Date(DEFAULT_STELLAR_PACKS_SUNSET_AT);
     const set = new Date((env.STELLAR_PACKS_SUNSET_AT || '').trim());
-    return isNaN(set.getTime()) ? new Date(DEFAULT_STELLAR_PACKS_SUNSET_AT) : set;
+    return isNaN(set.getTime()) || set > fixed ? fixed : set;
 }
 
 @Controller('web3')

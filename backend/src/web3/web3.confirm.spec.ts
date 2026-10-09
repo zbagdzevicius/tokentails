@@ -131,12 +131,15 @@ describe('POST /web3/confirm', () => {
         expect(userRepository.update).not.toHaveBeenCalled();
     });
 
-    it('takes the sunset from STELLAR_PACKS_SUNSET_AT, else a week after the decision', () => {
-        expect(stellarPacksSunset({}).toISOString()).toBe('2026-10-11T00:00:00.000Z');
+    it('closes at 2026-10-09 18:00 UTC; STELLAR_PACKS_SUNSET_AT can only move it earlier', () => {
+        expect(stellarPacksSunset({}).toISOString()).toBe('2026-10-09T18:00:00.000Z');
         expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: '2026-10-20T12:00:00Z' }).toISOString()).toBe(
-            '2026-10-20T12:00:00.000Z'
+            '2026-10-09T18:00:00.000Z'
         );
-        expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: 'soon' }).toISOString()).toBe('2026-10-11T00:00:00.000Z');
+        expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: '2026-10-08T12:00:00Z' }).toISOString()).toBe(
+            '2026-10-08T12:00:00.000Z'
+        );
+        expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: 'soon' }).toISOString()).toBe('2026-10-09T18:00:00.000Z');
     });
 
     it('keeps selling Stellar packs while the rollback switch STELLAR_PACKS_ENABLED is true', async () => {

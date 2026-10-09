@@ -63,7 +63,7 @@ Also in the CLAUDE.md tracker.
 1. Treasury addresses per chain (`treasury.public.ts` or `CRYPTO_PAY_TREASURY[_<chainId>]`), then `CRYPTO_PAY_ENABLED=true` (`CRYPTO_PAY_NETWORK` defaults to `mainnet` under `NODE_ENV=production`). The `wallets.public.json` `shelter-split-treasury` is filled since 2026-10-05 (the Token Tails treasury, `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`); `treasury.public.ts` may only hold that value, and using it for checkout revenue is still a founder decision.
 2. ~~Pick the Legendary pack price.~~ Done 2026-10-04: $350, on sale for $100 until 27 Nov.
 3. Shelter cats: `CRYPTO_PAY_CAT_SHELTER_BPS` decided 2026-10-04 (50%, now the default 5000); still decide `CRYPTO_PAY_SHELTER_SHARE_ENABLED`; no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
-4. Confirm `STELLAR_PACKS_SUNSET_AT` (default 2026-10-11 00:00 UTC); refund `STELLAR_DEPRECATED` orders.
+4. Stellar packs closed 2026-10-09 18:00 UTC (in code); refund `STELLAR_DEPRECATED` orders.
 5. Backend deploy keeps `SHELTER_GOAL_SCAN` on (default) with an Arc mainnet RPC; the first scan takes a few minutes.
 6. ~~Verify F-023 or drop the Paris sentence.~~ Founder confirmed the event 2026-10-04: F-023 is company-reported (landing surface, café footage only). Third-party verification (open the x.com post, confirm the partners) is still open before partner names may appear.
 7. ~~Only after a written override (decision #15): `NEXT_PUBLIC_HEIST_LANDING_SECTION=1`.~~ Done 2026-10-04: founder override recorded; the section is on by default.
