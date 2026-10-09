@@ -66,10 +66,17 @@ export function backendTreatChains(status: DonateStatus | null | undefined): Tre
   ];
 }
 
-/** Treats left on a chain today, from its remaining budget (whole treats). */
-export function treatsLeft(c: Pick<TreatChainStatus, "amountWei" | "remainingTodayWei">): bigint {
+/**
+ * Treats left on a chain today: the backend's own count (`treatsLeftToday`, which also applies the
+ * chain's daily gift cap) when it sends one, else whole treats in the remaining budget.
+ */
+export function treatsLeft(c: Pick<TreatChainStatus, "amountWei" | "remainingTodayWei" | "treatsLeftToday">): bigint {
   const amount = BigInt(c.amountWei || "0");
-  return amount > BigInt(0) ? BigInt(c.remainingTodayWei || "0") / amount : BigInt(0);
+  const byBudget = amount > BigInt(0) ? BigInt(c.remainingTodayWei || "0") / amount : BigInt(0);
+  const count = c.treatsLeftToday;
+  if (typeof count !== "number" || !Number.isFinite(count)) return byBudget;
+  const byCount = BigInt(Math.max(0, Math.floor(count)));
+  return byCount < byBudget ? byCount : byBudget;
 }
 
 /**

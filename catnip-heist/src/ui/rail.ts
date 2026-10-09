@@ -95,6 +95,17 @@ export function weiToUsdc(amountWei: string): string | null {
   return `${whole}${frac ? '.' + frac : ''}`;
 }
 
+/** The `?chain=<id>` on the page's URL (the /heist host forwards it), or null. Never throws. */
+export function preferredChainFromUrl(search?: string): number | null {
+  try {
+    const q = search ?? (globalThis as { location?: { search?: string } }).location?.search ?? '';
+    const n = Number(new URLSearchParams(q).get('chain'));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 const RANK: Record<RailState, number> = { live: 2, exhausted: 1, 'pre-launch': 0 };
 
 /** One chain entry (or the top-level main-chain fields) to a rail state, or null when it is not one. */
@@ -113,16 +124,21 @@ function chainRail(b: { railState?: unknown; enabled?: unknown; treatsLeftToday?
  * per-chain list (`chains`), the best state across every network wins (live, then exhausted, then
  * pre-launch), so a paused main chain never hides a live one the give page would pick.
  */
-export function railFromStatus(body: unknown, fallbackAmount: string): RailInfo | null {
+export function railFromStatus(body: unknown, fallbackAmount: string, preferredChainId: number | null = preferredChainFromUrl()): RailInfo | null {
   if (!body || typeof body !== 'object') return null;
   const list = (body as { chains?: unknown }).chains;
   if (Array.isArray(list) && list.length) {
-    let best: { state: RailState; c: { chainId?: unknown; amountWei?: unknown; coin?: unknown } } | null = null;
+    type Pick = { state: RailState; c: { chainId?: unknown; amountWei?: unknown; coin?: unknown } };
+    let best: Pick | null = null;
+    let preferred: Pick | null = null;
     for (const c of list) {
       if (!c || typeof c !== 'object') continue;
       const state = chainRail(c as never);
       if (state && (!best || RANK[state] > RANK[best.state])) best = { state, c: c as never };
+      if (state && preferredChainId !== null && (c as { chainId?: unknown }).chainId === preferredChainId) preferred = { state, c: c as never };
     }
+    // The network the player picked (`?chain=`, which the give page also preselects) wins unless another one is better off.
+    if (preferred && (!best || RANK[preferred.state] >= RANK[best.state])) best = preferred;
     if (best) {
       const amount = (typeof best.c.amountWei === 'string' && weiToUsdc(best.c.amountWei)) || fallbackAmount;
       return {

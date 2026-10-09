@@ -32,7 +32,7 @@ jest.mock("@/components/shelter-payouts/Celebration", () => ({ Celebration: () =
 jest.mock("@/components/shelter-payouts/PinkPawShowcase", () => ({ PinkPawLogo: () => null, PinkPawStrip: () => null }));
 
 import { GiveTreat } from "@/components/shelter-payouts/GiveTreat";
-import { initialTreatChain, parseChainParam, treatChips } from "@/components/shelter-payouts/treatChains";
+import { initialTreatChain, parseChainParam, treatChips, treatsLeft } from "@/components/shelter-payouts/treatChains";
 
 const CENT = "10000000000000000"; // 0.01 in 18 decimals
 const chain = (chainId: number, coin: string, extra: Record<string, unknown> = {}) => ({
@@ -212,5 +212,12 @@ describe("treatChips", () => {
   it("parses only positive whole chain ids", () => {
     expect(parseChainParam("84532")).toBe(84532);
     for (const bad of ["", "0", "-1", "1e3", "0x14a34", "84532abc", undefined]) expect(parseChainParam(bad)).toBeNull();
+  });
+
+  it("counts treats left with the backend's per-chain cap, not only the budget", () => {
+    // Base: 0.99 left in the budget (99 treats) but a 10-a-day gift cap with 9 left.
+    expect(treatsLeft({ amountWei: CENT, remainingTodayWei: "990000000000000000", treatsLeftToday: 9 })).toBe(BigInt(9));
+    expect(treatsLeft({ amountWei: CENT, remainingTodayWei: "50000000000000000", treatsLeftToday: 9 })).toBe(BigInt(5));
+    expect(treatsLeft({ amountWei: CENT, remainingTodayWei: "50000000000000000" })).toBe(BigInt(5));
   });
 });

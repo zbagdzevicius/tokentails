@@ -350,4 +350,18 @@ describe('ux-1: the best state across every network the backend serves', () => {
     expect(railFromStatus({ railState: 'paused', chains: [chain(5042, 'paused'), chain(8453, 'not-deployed')] }, '0.01')!.state).toBe('pre-launch');
     expect(railFromStatus({ railState: 'live', amountWei: '10000000000000000' }, '0.01')!.state).toBe('live');
   });
+
+  it('the ?chain= network wins when it is as good as the best one, so a Base run says "on Base"', async () => {
+    const { railFromStatus, railCopy, preferredChainFromUrl } = await import('../rail');
+    const body = { railState: 'live', chains: [chain(5042, 'live'), chain(8453, 'live')] };
+    expect(railFromStatus(body, '0.01', null)!.chainId).toBe(5042);
+    const base = railFromStatus(body, '0.01', 8453)!;
+    expect(base.chainId).toBe(8453);
+    expect(railCopy(base, true).line).toBe('Tap and Token Tails sends Pink Paw a 0.01 USDC treat on Base.');
+    // a picked chain that is worse off does not hide a live one
+    expect(railFromStatus({ chains: [chain(5042, 'live'), chain(8453, 'paused')] }, '0.01', 8453)!.chainId).toBe(5042);
+    expect(preferredChainFromUrl('?chain=8453')).toBe(8453);
+    expect(preferredChainFromUrl('?chain=base')).toBeNull();
+    expect(preferredChainFromUrl('')).toBeNull();
+  });
 });

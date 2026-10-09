@@ -1,0 +1,1 @@
+import"./index-3XSSL6FB.js";function e(e){return null}export{e as installQA};
