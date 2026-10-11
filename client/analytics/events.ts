@@ -19,6 +19,7 @@
  */
 
 import type { GamePlatformValue } from "@/models/game";
+import type { GrowthEvent } from "./growth-events";
 import {
   ANALYTICS_EVENTS,
   type AnalyticsEventName,
@@ -184,12 +185,19 @@ export type AnalyticsEventProperties = {
   storefront_degraded: { reason: string };
 };
 
-export type AnalyticsEvent = {
+/** An event of the shared core catalog (`shared/analytics-core.ts`). */
+export type CoreAnalyticsEvent = {
   [K in AnalyticsEventName]: { name: K; properties: AnalyticsEventProperties[K] };
 }[AnalyticsEventName];
 
+/**
+ * Anything `analytics.track` accepts: the core catalog plus the client-only growth events of bet #3
+ * (`./growth-events`, kept out of `shared/` so `catnip-heist/` needs no sync).
+ */
+export type AnalyticsEvent = CoreAnalyticsEvent | GrowthEvent;
+
 export type AnalyticsEventOf<K extends AnalyticsEventName> = Extract<
-  AnalyticsEvent,
+  CoreAnalyticsEvent,
   { name: K }
 >;
 

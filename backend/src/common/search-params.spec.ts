@@ -75,12 +75,13 @@ describe('pickSearchParams', () => {
 });
 
 describe('search routes ignore raw repository options in the body', () => {
-    it('POST /image/search (public)', async () => {
+    it('POST /image/search (editors only, bet #3)', async () => {
         const repository = { find: jest.fn().mockResolvedValue([]) };
         const params = await viaGlobalPipe(SearchModel, HOSTILE_BODY);
 
         await ImageController.prototype.search.call({ repository }, params);
-        expectNoRawOptions(repository.find);
+        // The handler's own filter: the private /yourcat portrait records are never listed.
+        expectNoRawOptions(repository.find, { searchObject: { source: { $ne: 'yourcat' } } });
     });
 
     it('POST /category/search (public)', async () => {

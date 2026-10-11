@@ -13,29 +13,42 @@ import {
     RawBodyRequest,
     Req,
     UploadedFile,
+    UseFilters,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Types } from 'mongoose';
+import { v4 as uuid } from 'uuid';
+import { AiBudgetService, AiTicket } from 'src/ai-budget/ai-budget.service';
+import { AiUsage, measuredOrFallback } from 'src/ai-budget/ai-cost';
+import { AiUploadGate } from 'src/ai-budget/ai-upload-gate';
 import { generateRandomNumber } from 'src/common/utils';
 import { pickSearchParams, SearchModel } from 'src/common/validators';
+import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
+import { AUTH_USER, IAuthUser } from 'src/common/decorators/auth-user.decorator';
+import { guestForbidden } from 'src/common/guards/auth-errors';
 import { IResponse, RESPONSES } from 'src/shared/constants/common';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
+import { ClientIpThrottle, ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
+import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
 import { EntityType } from 'src/shared/interfaces/common.interface';
-import { CurrencyType } from 'src/shared/interfaces/currency.interface';
+import { PhotoUploadExceptionFilter, mapPhotoUploadError } from 'src/shared/photo-upload.filter';
 import { generatePortraitForImage } from 'src/shared/utils/ai-portrait';
+import { uploadFile } from 'src/shared/utils/aws.utils';
 import { getSlug } from 'src/shared/utils/content.utils';
 import { uploadFileImage } from 'src/shared/utils/image.utils';
+import { PHOTO_MULTER_OPTIONS, sanitizePhoto } from 'src/shared/utils/photo-upload';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { UserRepository } from 'src/user/user.repository';
 import { UserService } from 'src/user/user.service';
+import { PortraitDeliveryService } from 'src/yourcat/portrait-delivery.service';
+import { YOURCAT_ERRORS } from 'src/yourcat/yourcat.errors';
 import { OrderRepository } from 'src/web3/order.repository';
 import { IOrder, OrderStatus, ProductType } from 'src/web3/order.schema';
 import { spendIncrement } from 'src/web3/spend';
-import { ChainType } from 'src/web3/web3.model';
 import Stripe from 'stripe';
 import { CatService } from 'src/cat/cat.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
@@ -44,74 +57,28 @@ import { ImageRepository } from './image.repository';
 import { IImage, Image, ImageStyle } from './image.schema';
 import { ImageModel } from './image.validator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
+import { sendOrderConfirmationEmail } from './order-email';
+import { PortraitCheckoutService } from './portrait-checkout.service';
 
-// Send SendGrid email for order confirmation
-async function sendOrderConfirmationEmail(email: string, aiUrl: string): Promise<void> {
-    const sendgridApiKey = process.env.SENDGRID_API_KEY;
-    if (!sendgridApiKey) {
-        console.warn('SENDGRID_API_KEY not configured, skipping email send');
-        return;
+/** Bet #3: the portrait preview and its regenerate, per minute (they share the daily `portrait-preview` caps). */
+export const PORTRAIT_PREVIEW_THROTTLE = { ip: { limit: 10, ttl: 60000 }, user: { limit: 5, ttl: 60000 } };
+
+export const portraitPreviewEnabled = (env: NodeJS.ProcessEnv = process.env) =>
+    env.PORTRAIT_PREVIEW_ENABLED !== 'false';
+
+/** Fields a caller may never write on an image (bet #3): who owns it and where it came from. */
+const PROTECTED_IMAGE_FIELDS = ['owner', 'source'] as const;
+
+function withoutFields<T extends Record<string, any>>(body: T, fields: readonly string[]): T {
+    const copy: Record<string, any> = { ...(body || {}) };
+    for (const field of fields) {
+        delete copy[field];
     }
-
-    if (!email) {
-        console.warn('No email address provided, skipping email send');
-        return;
-    }
-
-    try {
-        const emailData = {
-            personalizations: [
-                {
-                    to: [{ email }],
-                    subject: 'Your order is on its way!',
-                },
-            ],
-            from: {
-                email: process.env.SENDGRID_FROM_EMAIL || 'hello@tokentails.com',
-                name: 'TokenTails',
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: `
-                        <html>
-                            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                                    <h2 style="color: #4a5568;">Your order is on its way! 🎨</h2>
-                                    <p>Thank you for your purchase! We're excited to share your pet portrait with you.</p>
-                                    <p>Your Pet portrait is ready:</p>
-                                    <div style="text-align: center; margin: 30px 0;">
-                                        <img src="${aiUrl}" alt="Your Portrait" style="max-width: 100%; height: auto; border-radius: 8px;" />
-                                    </div>
-                                    <p>If you have any questions, please don't hesitate to contact us.</p>
-                                    <p>While you're waiting, you can <a href="https://tokentails.com/game">see your pet</a> in our game as your playable character!</p>
-                                    <p style="margin-top: 30px; color: #718096; font-size: 14px;">
-                                        Best regards,<br />
-                                        The TokenTails Team
-                                    </p>
-                                </div>
-                            </body>
-                        </html>
-                    `,
-                },
-            ],
-        };
-
-        await fetch('https://api.sendgrid.com/v3/mail/send', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${sendgridApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(emailData),
-        }).catch(error => {
-            console.error('Error sending SendGrid email:', error);
-        });
-    } catch (error) {
-        console.error('Error in sendOrderConfirmationEmail:', error);
-        // Don't throw - we don't want to fail the webhook if email fails
-    }
+    return copy as T;
 }
+
+/** `GET /image/:id` and the search never serve the private `/yourcat` portrait records. */
+export const NOT_YOURCAT_IMAGE = Object.freeze({ source: { $ne: 'yourcat' } });
 
 export const ORDER_STATUS_PROJECTION = '_id status entityType id image price';
 
@@ -138,21 +105,28 @@ export class ImageController implements IController<Image> {
         private userService: UserService,
         private userRepository: UserRepository,
         private catService: CatService,
-        private stripePayments: StripePaymentService
+        private stripePayments: StripePaymentService,
+        private portraitCheckout?: PortraitCheckoutService,
+        private gate?: AiUploadGate,
+        private budget?: AiBudgetService,
+        private portraitDelivery?: PortraitDeliveryService
     ) {}
     slugs: () => Promise<string[]>;
 
+    // Editors only (bet #3): it listed every image, preview photos and paid 4K portraits included, to anyone.
+    @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Post('/search')
     async search(@Body() params: SearchModel): Promise<Image[]> {
         return this.repository.find({
             ...pickSearchParams(params),
+            searchObject: { ...NOT_YOURCAT_IMAGE },
         });
     }
 
     @Get(':id')
     async findOne(@Param('id') _id: string): Promise<Image> {
         const image = await this.repository.findOne({
-            searchObject: { _id },
+            searchObject: { _id, ...NOT_YOURCAT_IMAGE },
         });
         if (!image) {
             throw new NotFoundException('Image not found');
@@ -186,7 +160,9 @@ export class ImageController implements IController<Image> {
             throw new NotFoundException();
         }
 
-        return this.repository.update(existingArticle._id, { ...body });
+        // `url` and `aiUrl` stay editable for editors; `loadImageBytes` refuses private URLs on images
+        // that are not `source: 'yourcat'`, so an edited URL cannot reach a private original.
+        return this.repository.update(existingArticle._id, { ...withoutFields(body as any, PROTECTED_IMAGE_FIELDS) });
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(0))
@@ -201,7 +177,9 @@ export class ImageController implements IController<Image> {
         }
 
         try {
-            const image = await this.repository.create({ ...entity, url });
+            // `url` comes from the upload; the caller never sets `aiUrl`, `owner` or `source`.
+            const fields = withoutFields(entity as any, [...PROTECTED_IMAGE_FIELDS, 'aiUrl']);
+            const image = await this.repository.create({ ...fields, url });
             return image;
         } catch (e) {
             console.error(e);
@@ -209,85 +187,171 @@ export class ImageController implements IController<Image> {
         }
     }
 
-    @Throttle({ default: { limit: 5, ttl: 60000 } })
+    /**
+     * Upload plus synchronous 4K portrait generation (a paid AI call). Guests allowed (bet #3), under the
+     * `portrait-preview` caps of `AiUploadGate` (per IP, per user, failures, the €3 preview sub-cap of
+     * the daily budget). The photo is sanitized (EXIF stripped) and stored under an unguessable name.
+     * Known issue: the response still contains `aiUrl` before payment (docs/BACKEND.md).
+     */
+    @UseGuards(AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard)
+    @AllowGuest()
+    @SkipThrottle()
+    @UserThrottle(PORTRAIT_PREVIEW_THROTTLE.user)
+    @ClientIpThrottle(PORTRAIT_PREVIEW_THROTTLE.ip)
+    @UseFilters(PhotoUploadExceptionFilter)
     @Post('/portrait')
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('file', PHOTO_MULTER_OPTIONS))
     async createPortrait(
+        @AUTH_USER() user: IAuthUser,
+        @Req() req: any,
         @Body() body: { name?: string; isTemporary?: string; style?: ImageStyle },
         @UploadedFile() file: any
     ): Promise<IImage> {
-        if (!file) {
-            throw new BadRequestException('File is required');
+        if (!portraitPreviewEnabled()) {
+            throw YOURCAT_ERRORS.portraitDisabled();
         }
+        if (!file?.buffer?.length) {
+            throw YOURCAT_ERRORS.fileRequired();
+        }
+        const ticket = await this.previewGate().admit(req, user, 'portrait-preview');
 
         let url = '';
         try {
-            url = await uploadFileImage(file.buffer, getSlug(generateRandomNumber().toString()));
+            const photo = await sanitizePhoto(file.buffer);
+            const filename = `${uuid()}.webp`;
+            await uploadFile(filename, photo.data, 'webp');
+            url = `${process.env.DO_SPACES_CDN}/${filename}`;
         } catch (e) {
+            await this.previewGate().refuseBeforeAi(ticket);
+            const mapped = mapPhotoUploadError(e);
+            if (mapped) {
+                throw mapped;
+            }
             console.error('Error uploading file:', e);
-            throw new BadRequestException('Image with this filename EXISTS');
+            throw new BadRequestException('Failed to upload the photo, please try again');
         }
 
+        let image: any;
         try {
-            // Create the image record first
-            const image = await this.repository.create({
+            image = await this.repository.create({
                 url,
-                name: body.name || '',
-                isTemporary: body.isTemporary === 'true',
-                style: body.style || ImageStyle.HIGHNESS,
+                name: body?.name || '',
+                isTemporary: body?.isTemporary === 'true',
+                style: body?.style || ImageStyle.HIGHNESS,
+                owner: new Types.ObjectId(String(user._id)),
+                source: 'portrait',
             });
-
-            // Generate the portrait and update aiUrl
-            await generatePortraitForImage(image._id.toString(), this.repository, body.style || ImageStyle.HIGHNESS);
-
-            // Fetch the updated image with aiUrl
-            const updatedImage = await this.repository.findOne({
-                searchObject: { _id: image._id },
-            });
-
-            return updatedImage as IImage;
         } catch (e) {
-            // The AI provider's error text stays in the server log.
+            await this.previewGate().release(ticket);
+            await this.previewGate().cancel(ticket);
             console.error('Error creating portrait:', e);
             throw new BadRequestException('Failed to create portrait, please try again');
         }
+        return this.paintPreview(String(image._id), body?.style || ImageStyle.HIGHNESS, ticket, 'creating');
     }
 
-    // Each call is a paid 4K generation: signed-in users only, 3 per minute.
-    @Throttle({ default: { limit: 3, ttl: 60000 } })
-    @UseGuards(AppAuthGuard)
+    // Each call is a paid 4K generation, under the same caps as POST /image/portrait (bet #3).
+    @UseGuards(AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard)
+    @AllowGuest()
+    @SkipThrottle()
+    @UserThrottle(PORTRAIT_PREVIEW_THROTTLE.user)
+    @ClientIpThrottle(PORTRAIT_PREVIEW_THROTTLE.ip)
     @Put('/portrait/:id/regenerate')
-    async regeneratePortrait(@Param('id') id: string, @Body() body: { style?: ImageStyle }): Promise<IImage> {
-        const existingImage = await this.repository.findOne({
-            searchObject: { _id: id },
+    async regeneratePortrait(
+        @AUTH_USER() user: IAuthUser,
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { style?: ImageStyle }
+    ): Promise<IImage> {
+        if (!portraitPreviewEnabled()) {
+            throw YOURCAT_ERRORS.portraitDisabled();
+        }
+        if (!Types.ObjectId.isValid(id)) {
+            throw new NotFoundException(`Image with id ${id} not found`);
+        }
+        const existingImage: any = await this.repository.findOne({
+            searchObject: { _id: new Types.ObjectId(id) },
         });
 
-        if (!existingImage) {
+        // A /yourcat portrait record is painted only after payment; another owner's image is not ours.
+        if (
+            !existingImage ||
+            existingImage.source === 'yourcat' ||
+            (existingImage.owner && String(existingImage.owner) !== String(user?._id))
+        ) {
             throw new NotFoundException(`Image with id ${id} not found`);
+        }
+        // Guests regenerate only images they own; legacy images without an owner stay registered-only.
+        if (!existingImage.owner && (user?.isGuest || user?.transient)) {
+            throw guestForbidden();
         }
 
         if (!existingImage.url) {
             throw new BadRequestException(`Image with id ${id} has no URL`);
         }
+        // A delivered product: regenerating would replace it (and spend another 4K generation).
+        const paid = await this.orderRepository.model.exists({
+            image: existingImage._id,
+            entityType: EntityType.IMAGE,
+            status: OrderStatus.COMPLETE,
+        });
+        if (paid) {
+            throw YOURCAT_ERRORS.portraitExists();
+        }
 
+        const ticket = await this.previewGate().admit(req, user, 'portrait-preview');
+        return this.paintPreview(id, body?.style || existingImage.style || ImageStyle.HIGHNESS, ticket, 'regenerating');
+    }
+
+    private previewGate(): AiUploadGate {
+        if (!this.gate) {
+            throw new Error('AiUploadGate is not configured');
+        }
+        return this.gate;
+    }
+
+    /** Generates the preview, settles its measured cost and returns the updated image. */
+    private async paintPreview(
+        imageId: string,
+        style: ImageStyle,
+        ticket: AiTicket,
+        action: 'creating' | 'regenerating'
+    ): Promise<IImage> {
+        const usages: AiUsage[] = [];
         try {
             // Generate the portrait and update aiUrl
-            await generatePortraitForImage(
-                id,
-                this.repository,
-                body.style || existingImage.style || ImageStyle.HIGHNESS
-            );
-
-            // Fetch the updated image with aiUrl
-            const updatedImage = await this.repository.findOne({
-                searchObject: { _id: id },
-            });
-
-            return updatedImage as IImage;
+            await generatePortraitForImage(imageId, this.repository, style, { onUsage: usage => usages.push(usage) });
         } catch (e) {
-            // The AI provider's error text stays in the server log.
-            console.error('Error regenerating portrait:', e);
-            throw new BadRequestException('Failed to regenerate portrait, please try again');
+            // The AI provider's error text stays in the server log. The provider may still bill.
+            await this.settlePreview(ticket, usages, false);
+            console.error(`Error ${action} portrait:`, e);
+            throw new BadRequestException(
+                `Failed to ${action === 'creating' ? 'create' : 'regenerate'} portrait, please try again`
+            );
+        }
+        await this.settlePreview(ticket, usages, true);
+
+        // Fetch the updated image with aiUrl
+        const updatedImage = await this.repository.findOne({
+            searchObject: { _id: imageId },
+        });
+
+        return updatedImage as IImage;
+    }
+
+    private async settlePreview(ticket: AiTicket, usages: AiUsage[], done: boolean): Promise<void> {
+        try {
+            const cost = measuredOrFallback(usages, { kind: 'image', imageSize: '4K' });
+            await this.previewGate().settle(ticket, cost);
+            if (this.budget) {
+                if (done) {
+                    await this.budget.count('previewsDone', ticket.day);
+                }
+                await this.budget.noteCost('portrait-preview', ticket.day, cost);
+                await this.budget.checkBudgetAlerts(ticket.day);
+            }
+        } catch (error) {
+            console.error('Error settling the preview cost:', error);
         }
     }
 
@@ -303,9 +367,35 @@ export class ImageController implements IController<Image> {
             email?: string;
         }
     ): Promise<{ url: string }> {
+        return this.checkout(body);
+    }
+
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
+    @UseGuards(AppAuthGuard)
+    @Post('/create-checkout-session-signed')
+    async createCheckoutSessionSigned(
+        @USER_ID() signedUserId: string,
+        @Body()
+        body: {
+            amount?: number; // ignored: the price comes from the server price table
+            productType: ProductType;
+            imageId?: string;
+        }
+    ): Promise<{ url: string }> {
+        return this.checkout({ ...body, userId: signedUserId }, String(signedUserId));
+    }
+
+    /**
+     * The legacy portrait checkout. `callerId` is set by the signed route only: then an image owned by
+     * someone else is refused. Known bug: the unsigned route still accepts any `userId` (docs/BACKEND.md).
+     */
+    private async checkout(
+        body: { productType: ProductType; imageId?: string; userId?: string; email?: string },
+        callerId?: string
+    ): Promise<{ url: string }> {
         const { productType, imageId, userId, email } = body;
         // Validates productType before any user is looked up or created.
-        const amount = this.stripePayments.portraitCheckoutAmountCents(productType);
+        this.stripePayments.portraitCheckoutAmountCents(productType);
 
         let resolvedUserId: string | undefined = undefined;
 
@@ -342,221 +432,47 @@ export class ImageController implements IController<Image> {
         // If imageId is provided, verify it exists
         let imageObjectId: Types.ObjectId | undefined;
         if (imageId) {
-            const imageRecord = await this.repository.findOne({
-                searchObject: { _id: imageId },
-            });
+            const imageRecord: any = Types.ObjectId.isValid(imageId)
+                ? await this.repository.findOne({
+                      searchObject: { _id: new Types.ObjectId(imageId) },
+                  })
+                : null;
             if (!imageRecord) {
                 throw new BadRequestException('Image not found');
+            }
+            // `/yourcat` portraits are bought only through /yourcat: their delivery paints from the private original.
+            if (imageRecord.source === 'yourcat') {
+                throw new NotFoundException('Image not found');
+            }
+            if (callerId && imageRecord.owner && String(imageRecord.owner) !== callerId) {
+                throw new NotFoundException('Image not found');
             }
             imageObjectId = new Types.ObjectId(imageId);
         }
 
-        // Determine if shipping is required
-        const requiresShipping = productType === ProductType.PRINT || productType === ProductType.CANVAS;
-
-        const odrerId = new Types.ObjectId();
-        // Create base Stripe checkout session params
-        const baseSessionParams: Stripe.Checkout.SessionCreateParams = {
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: `Portrait - ${productType.charAt(0).toUpperCase() + productType.slice(1)}`,
-                            description: `Portrait ${productType === ProductType.DIGITAL ? 'download' : productType}`,
-                        },
-                        unit_amount: amount, // server price in cents
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment',
-            success_url: `${
-                process.env.MAIN_FE_DOMAIN || 'http://localhost:3000'
-            }/portrait?image_id=${imageId}&_id=${odrerId.toString()}`,
-            cancel_url: `${process.env.MAIN_FE_DOMAIN || 'http://localhost:3000'}/portrait?image_id=${imageId}`,
-            metadata: {
-                userId: resolvedUserId || '',
-                productType,
-                image: imageId || '',
-            },
-        };
-
-        // Configure shipping for print and canvas products
-        if (requiresShipping) {
-            // Collect phone number for shipping
-            baseSessionParams.phone_number_collection = {
-                enabled: true,
-            };
-            // Set shipping_address_collection with allowed countries:
-            // - All American countries (North, Central, South America)
-            // - Australia
-            // - All European countries (except Russia, Ukraine, Belarus)
-            baseSessionParams.shipping_address_collection = {
-                allowed_countries: [
-                    // North America
-                    'US',
-                    'CA',
-                    'MX',
-                    // Central America
-                    'GT',
-                    'BZ',
-                    'SV',
-                    'HN',
-                    'NI',
-                    'CR',
-                    'PA',
-                    // Caribbean
-                    'JM',
-                    'HT',
-                    'DO',
-                    'PR',
-                    'TT',
-                    'BB',
-                    'BS',
-                    'AG',
-                    'GD',
-                    'KN',
-                    'LC',
-                    'VC',
-                    'DM',
-                    'SR',
-                    'GY',
-                    'GF',
-                    'GP',
-                    'MQ',
-                    'CW',
-                    'AW',
-                    'BQ',
-                    'SX',
-                    // South America
-                    'BR',
-                    'AR',
-                    'CO',
-                    'PE',
-                    'VE',
-                    'CL',
-                    'EC',
-                    'BO',
-                    'PY',
-                    'UY',
-                    'FK',
-                    // Australia
-                    'AU',
-                    'NZ',
-                    // Europe (excluding Russia, Ukraine, Belarus)
-                    'GB',
-                    'IE',
-                    'FR',
-                    'DE',
-                    'IT',
-                    'ES',
-                    'NL',
-                    'BE',
-                    'AT',
-                    'CH',
-                    'SE',
-                    'NO',
-                    'DK',
-                    'FI',
-                    'PL',
-                    'CZ',
-                    'PT',
-                    'GR',
-                    'HU',
-                    'RO',
-                    'BG',
-                    'HR',
-                    'SK',
-                    'SI',
-                    'EE',
-                    'LV',
-                    'LT',
-                    'LU',
-                    'MT',
-                    'CY',
-                    'IS',
-                    'LI',
-                    'MC',
-                    'AD',
-                    'SM',
-                    'VA',
-                    'AL',
-                    'BA',
-                    'ME',
-                    'MK',
-                    'RS',
-                ],
-            };
-            baseSessionParams.shipping_options = [
-                {
-                    shipping_rate_data: {
-                        type: 'fixed_amount',
-                        fixed_amount: {
-                            amount: 0, // Free shipping - adjust as needed
-                            currency: 'usd',
-                        },
-                        display_name: 'Standard Shipping',
-                        delivery_estimate: {
-                            minimum: {
-                                unit: 'business_day',
-                                value: 3,
-                            },
-                            maximum: {
-                                unit: 'business_day',
-                                value: 12,
-                            },
-                        },
-                    },
-                },
-            ];
-        }
-
-        const sessionParams = baseSessionParams;
-        // For digital products, Stripe automatically collects email (no shipping needed)
-
+        const orderId = new Types.ObjectId();
+        const domain = process.env.MAIN_FE_DOMAIN || 'http://localhost:3000';
         try {
-            const session = await this.stripePayments.stripe.checkout.sessions.create(sessionParams);
-
-            // Create order record with PENDING status
-            await this.orderRepository.create({
-                _id: odrerId,
-                status: OrderStatus.PENDING,
-                price: amount / 100, // Convert cents to dollars
-                priceUsd: amount / 100,
-                entityType: EntityType.IMAGE,
-                chainType: ChainType.FIAT,
-                currencyType: CurrencyType.USD,
-                hash: session.id, // Store Stripe session ID in hash field
-                id: productType as ProductType, // Store productType in id field
-                image: imageObjectId, // Use image field instead of imageId
-                user: new Types.ObjectId(resolvedUserId),
+            const result = await this.checkoutService().create({
+                productType,
+                image: imageObjectId,
+                userId: resolvedUserId as string,
+                successUrl: `${domain}/portrait?image_id=${imageId}&_id=${orderId.toString()}`,
+                cancelUrl: `${domain}/portrait?image_id=${imageId}`,
+                orderId,
             });
-
-            return { url: session.url || '' };
+            return { url: result.url };
         } catch (error) {
             console.error('Error creating Stripe checkout session:', error);
             throw new BadRequestException('Failed to create checkout session');
         }
     }
 
-    @Throttle({ default: { limit: 5, ttl: 60000 } })
-    @UseGuards(AppAuthGuard)
-    @Post('/create-checkout-session-signed')
-    async createCheckoutSessionSigned(
-        @USER_ID() signedUserId: string,
-        @Body()
-        body: {
-            amount?: number; // ignored: the price comes from the server price table
-            productType: ProductType;
-            imageId?: string;
+    private checkoutService(): PortraitCheckoutService {
+        if (!this.portraitCheckout) {
+            throw new Error('PortraitCheckoutService is not configured');
         }
-    ): Promise<{ url: string }> {
-        return this.createCheckoutSession({
-            ...body,
-            userId: signedUserId,
-        });
+        return this.portraitCheckout;
     }
 
     // Stripe retries deliveries from a small set of IPs; signature verification protects this route.
@@ -614,7 +530,7 @@ export class ImageController implements IController<Image> {
                     searchObject: { hash: session.id },
                     populate: [
                         { path: 'user', select: 'email' },
-                        { path: 'image', select: 'url aiUrl' },
+                        { path: 'image', select: 'url aiUrl source name style' },
                     ],
                 });
 
@@ -628,7 +544,7 @@ export class ImageController implements IController<Image> {
                     return { received: true };
                 }
 
-                // Paid, in USD, and at least the server price for the ordered product
+                // Paid, in the order's currency, and at least the price stored on the order
                 const rejection = this.stripePayments.checkPaidCheckoutSession(session, order);
                 if (rejection) {
                     console.error(`Not granting order ${order._id}: ${rejection}`);
@@ -647,9 +563,10 @@ export class ImageController implements IController<Image> {
                 const populatedUser = order.user as { _id?: Types.ObjectId; email?: string } | undefined;
                 const userId = populatedUser?._id?.toString() ?? order.user?.toString();
                 if (userId) {
-                    // USD only (G4): the order's server price in USD, else the USD amount Stripe
-                    // charged (checkPaidCheckoutSession verified the currency). Never `order.price`,
-                    // which can be in another currency.
+                    // USD only (G4): the order's stored USD figure (`priceUsd`; for an EUR card order the
+                    // stats conversion of its euro price), else the USD amount Stripe charged
+                    // (checkPaidCheckoutSession verified the currency). Never `order.price`, which can be
+                    // in another currency.
                     const pricePaid = paidUsd(order, session);
                     await this.userRepository.update(userId, {
                         $inc: {
@@ -660,16 +577,32 @@ export class ImageController implements IController<Image> {
                     });
                 }
 
-                // Send order confirmation email with aiUrl
-                if (order.user && (order.user as any).email && order.image && (order.image as any).aiUrl) {
-                    await sendOrderConfirmationEmail((order.user as any).email, (order.image as any).aiUrl);
+                const paidImage = order.image as { _id?: Types.ObjectId; aiUrl?: string; source?: string } | undefined;
+                await this.budget?.count('portraitsPaid');
+
+                // A paid /yourcat portrait: painted only now, from the private original, then emailed by the
+                // delivery service. The player already has their cat, so no blessing or second cat.
+                if (paidImage?.source === 'yourcat') {
+                    await this.budget?.count('yourcatPortraitsPaid');
+                    if (this.portraitDelivery) {
+                        this.portraitDelivery.deliverInBackground(order._id);
+                    } else {
+                        console.error(`No delivery service for paid /yourcat order ${order._id}`);
+                    }
+                    return { received: true };
+                }
+
+                // Send order confirmation email with aiUrl: the account's email, else the one Checkout collected.
+                const recipient = (order.user as any)?.email || session.customer_details?.email;
+                if (recipient && paidImage?.aiUrl) {
+                    await sendOrderConfirmationEmail(recipient, paidImage.aiUrl);
                 } else {
                     console.warn(`Cannot send email: missing user email or image aiUrl for order ${order._id}`);
                 }
 
                 // Create blessing + cat for the purchaser (fire-and-forget, must not break order flow)
                 try {
-                    const aiUrl = (order.image as any)?.aiUrl;
+                    const aiUrl = paidImage?.aiUrl;
                     if (aiUrl && userId) {
                         await this.catService.createBlessingWithCat(userId, aiUrl);
                         console.log(`Blessing + cat created for user ${userId}, order ${order._id}`);

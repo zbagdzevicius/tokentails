@@ -52,6 +52,7 @@ function goodRoutes(): Record<string, Route> {
     "/packs": { body: page("/packs") },
     "/shelter-payouts": { body: page("/shelter-payouts") },
     "/impact": { body: page("/impact") },
+    "/yourcat": { body: page("/yourcat") },
     "/manifest.webmanifest": { type: "application/manifest+json", body: file("manifest.webmanifest") },
     "/favicon.ico": { type: "image/x-icon", body: file("favicon.ico") },
     "/heist-game/index.html": { body: HEIST_GAME },

@@ -1,5 +1,13 @@
-import { MAX_DISCOUNT_PERCENTAGE, applyDiscountCents } from 'src/payments/price-table';
+import {
+    MAX_DISCOUNT_PERCENTAGE,
+    PORTRAIT_CHECKOUT_PRICES_CENTS,
+    applyDiscountCents,
+    isProductType,
+} from 'src/payments/price-table';
+import { CurrencyType } from 'src/shared/interfaces/currency.interface';
+import { EntityType } from 'src/shared/interfaces/common.interface';
 import { getOrderCatalogueCents } from './order-catalogue';
+import { ProductType } from './order.schema';
 import {
     canonicalStellarHash,
     checkStellarPayment,
@@ -30,6 +38,8 @@ export interface AuditOrder {
     price?: number;
     priceUsd?: number;
     discount?: string;
+    /** USD portrait orders are priced at their creation time (the $6 to $16 change, order-catalogue.ts). */
+    createdAt?: Date | string;
 }
 
 export const AUDIT_ORDER_PROJECTION =
@@ -70,16 +80,33 @@ function acceptedCents(baseCents: number, discount?: string): number[] {
 }
 
 /**
- * Stripe orders (chainType FIAT) whose stored USD amount is not a catalogue price.
+ * Card checkout catalogue cents of a EUR order (portraits only, `PORTRAIT_CHECKOUT_PRICES_CENTS`), or
+ * null when a EUR order names anything else.
+ */
+function eurCatalogueCents(order: AuditOrder): number | null {
+    if (order.entityType !== EntityType.IMAGE) {
+        return null;
+    }
+    const productType = order.id === undefined || order.id === null ? ProductType.DIGITAL : String(order.id);
+    return isProductType(productType) ? PORTRAIT_CHECKOUT_PRICES_CENTS[productType] : null;
+}
+
+/**
+ * Stripe orders (chainType FIAT) whose stored amount is not a catalogue price.
  * BELOW_CATALOGUE is money missing; ABOVE_CATALOGUE is usually the $400 vs $350 Legendary pack
  * discrepancy noted in src/payments/price-table.ts.
+ *
+ * A EUR order (the portrait card checkout) is compared on `price` (euros; `priceUsd` is a stats value)
+ * against the euro table. USD orders use `getOrderCatalogueCents` with their `createdAt`, so a legacy
+ * $6 digital portrait bought before the $16 change has no finding.
  */
 export function auditStripeOrder(order: AuditOrder): AuditFinding | null {
     if (order.chainType !== ChainType.FIAT) {
         return null;
     }
-    const baseCents = getOrderCatalogueCents(order);
-    const paidCents = Math.round((order.priceUsd ?? order.price ?? 0) * 100);
+    const isEur = order.currencyType === CurrencyType.EUR;
+    const baseCents = isEur ? eurCatalogueCents(order) : getOrderCatalogueCents(order);
+    const paidCents = Math.round((isEur ? order.price ?? 0 : order.priceUsd ?? order.price ?? 0) * 100);
     if (baseCents === null) {
         return { orderId: orderIdOf(order), issue: 'UNKNOWN_ITEM', paid: paidCents / 100 };
     }

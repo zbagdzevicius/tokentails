@@ -11,8 +11,10 @@ import {
     applyDiscountCents,
     discountPercentageForCode,
     getPackPriceCents,
+    getPortraitCheckoutPrice,
     getPortraitPriceCents,
     getShelterCatPriceCents,
+    portraitUsdFloorCents,
     SHELTER_CAT_MIN_PRICE_CENTS,
     isPackType,
     isProductType,
@@ -79,11 +81,15 @@ export class StripePaymentService {
 
     // ----- pricing -----
 
+    /**
+     * The card checkout (Stripe Checkout Session) amount of a portrait, in **euro cents**
+     * (`getPortraitCheckoutPrice`, €14 / €49 / €69). The session must be created in `eur`.
+     */
     portraitCheckoutAmountCents(productType: ProductType): number {
         if (!isProductType(productType)) {
             throw new BadRequestException('Invalid productType. Must be digital, print, or canvas');
         }
-        return getPortraitPriceCents(productType);
+        return getPortraitCheckoutPrice(productType).cents;
     }
 
     /** Returns the discount percentage for a code that belongs to a user, else 0. */
@@ -183,7 +189,7 @@ export class StripePaymentService {
 
     /**
      * Checks a retrieved PaymentIntent before anything is granted: it belongs to the caller,
-     * it succeeded, it is in USD, and the amount received covers the server price.
+     * it succeeded, it is in USD, and the amount received covers the server price at the intent's creation.
      */
     verifySucceededPaymentIntent(intent: Stripe.PaymentIntent, userId: string): VerifiedPaymentIntent {
         const metadata = intent.metadata || {};
@@ -227,6 +233,7 @@ export class StripePaymentService {
         let baseCents: number;
         let packType: PackType | undefined;
         let imageId: string | undefined;
+        const createdAt = typeof intent.created === 'number' ? new Date(intent.created * 1000) : new Date();
 
         if (entityType === EntityType.IMAGE) {
             if (!isProductType(productType)) {
@@ -236,7 +243,9 @@ export class StripePaymentService {
             if (!imageId || !Types.ObjectId.isValid(imageId)) {
                 throw new BadRequestException('Generated image id is missing for portrait checkout');
             }
-            baseCents = getPortraitPriceCents(productType);
+            // Price at the intent's creation: a $6 intent created before the $16 change (plus the grace)
+            // still verifies; intents created after it carry expectedAmount 1600, which holds them at $16.
+            baseCents = portraitUsdFloorCents(productType, createdAt);
         } else {
             const rawPack = metadata.packType || metadata.id;
             if (!isPackType(rawPack)) {
@@ -244,7 +253,6 @@ export class StripePaymentService {
             }
             packType = rawPack;
             // Price at the intent's creation, so a sale intent paid just after the sale ends still verifies.
-            const createdAt = typeof intent.created === 'number' ? new Date(intent.created * 1000) : new Date();
             baseCents = getPackPriceCents(packType, createdAt);
         }
 
@@ -282,23 +290,41 @@ export class StripePaymentService {
     }
 
     /**
-     * Returns an error message when a completed Checkout Session must not grant the order, else null.
-     * The price is checked against the server table for the product stored on the order.
+     * Returns an error message when a completed Checkout Session must not grant the order, else null
+     * (price parity rule, docs/plans/yourcat-v2.md section 6.4).
+     *
+     * - The paid currency and amount are the session's source (creation) currency and amount when Stripe
+     *   Adaptive Pricing localised it (`currency_conversion`), else `currency` / `amount_total`.
+     * - The expected currency is the order's own: `eur` for a `CurrencyType.EUR` order (portrait card
+     *   checkout), `usd` otherwise. Any other currency is refused.
+     * - The expected amount is the price the server stored on the order when it created the session, else
+     *   the table for that currency. So USD sessions created before the EUR change still complete.
      */
     checkPaidCheckoutSession(session: Stripe.Checkout.Session, order: IOrder): string | null {
         if (session.payment_status !== 'paid') {
             return `session ${session.id} is not paid (${session.payment_status})`;
         }
-        if ((session.currency || '').toLowerCase() !== 'usd') {
-            return `session ${session.id} has currency ${session.currency}`;
-        }
         const productType = order.id as ProductType;
         if (!isProductType(productType)) {
             return `order ${order._id} has unknown product ${String(order.id)}`;
         }
-        const expected = getPortraitPriceCents(productType);
-        if ((session.amount_total ?? 0) < expected) {
-            return `session ${session.id} paid ${session.amount_total} cents, price is ${expected}`;
+        const conversion = session.currency_conversion;
+        const paidCurrency = ((conversion ? conversion.source_currency : session.currency) || '').toLowerCase();
+        const paidCents = (conversion ? conversion.amount_total : session.amount_total) ?? 0;
+
+        const expectedCurrency = order.currencyType === CurrencyType.EUR ? 'eur' : 'usd';
+        if (paidCurrency !== expectedCurrency) {
+            return `session ${session.id} has currency ${paidCurrency || 'none'}, order expects ${expectedCurrency}`;
+        }
+        const storedCents = typeof order.price === 'number' && order.price > 0 ? Math.round(order.price * 100) : 0;
+        const createdAt = (order as IOrder & { createdAt?: Date }).createdAt;
+        const tableCents =
+            expectedCurrency === 'eur'
+                ? getPortraitCheckoutPrice(productType).cents
+                : portraitUsdFloorCents(productType, createdAt ? new Date(createdAt) : new Date());
+        const expected = storedCents || tableCents;
+        if (paidCents < expected) {
+            return `session ${session.id} paid ${paidCents} ${paidCurrency} cents, price is ${expected}`;
         }
         return null;
     }

@@ -229,9 +229,17 @@ player's cat, redeemed with promo codes, and gifted.
 ### AI pet portraits
 
 The monetised flagship. Upload a photo, pick a style (Highness, Monarch, Aristocrat, Commander),
-poll for the generated image, then buy. Purchase options are digital at 6 USD, fine art print at
-49 USD, and gallery canvas at 69 USD. The in-game "Immortalize" flow in the codex offers the
-digital portrait with Stripe or crypto payment; app builds hide that codex tab. Portrait pages switch the page theme through
+poll for the generated image, then buy. The card checkout (Stripe Checkout Session) charges euros:
+digital €14, fine art print €49, gallery canvas €69. The in-game "Immortalize" flow in the codex offers
+the digital portrait for $16 with Stripe (a USD PaymentIntent) or crypto payment; app builds hide that
+codex tab. Prices come from `models/portrait-prices.ts`, a copy of `backend/src/payments/price-table.ts`
+pinned by `__test__/portrait-prices.test.tsx`; the pages show exactly what is charged (no strike-through,
+"was" price or timer). `/portrait` and `/portraits` run in guest mode (`FirebaseAuthProvider
+authMode="guest"`): `IMAGE_API.uploadImage` and `regeneratePortrait` create the guest session, send
+`accesstoken` and a limited-use App Check token (`getLimitedUseAppCheckToken`), and show the preview caps
+as plain messages (`PortraitPreviewError`). A guest buys through the email checkout path; the signed route
+is for registered players. Bet #3 `/yourcat` (a photo becomes the player's pixel cat, with an HD portrait
+upsell): see `docs/YOURCAT.md`. Portrait pages switch the page theme through
 `data-portrait-page` attributes on the document.
 
 ### Feed
@@ -678,10 +686,17 @@ Hygiene:
 
 - ESLint disables `react-hooks/rules-of-hooks` globally (mentioned in the alignment plan, kept).
 - `client/models/order.ts` keeps its own `OrderStatus` without `LOCKED` and `FAILED_GRANT`; it should re-export the shared enum.
+- `web3/contracts.ts` `CurrencyType` (used by `IOrder.currencyType`) lacks `USD` and `EUR`; the portrait pages compare `String(order.currencyType)` for the GTM purchase currency (open).
+- `Prices.generatedCat: 5` in `client/models/cats.ts` (and `cms/models/cats.ts`) is unused and is not a portrait price (open).
+- `package.json` `engines` says Node 24 while CI runs Node 22 (open).
 - `InviteModal` (the SHOP) has no opener in the lobby.
 - `sonner` and `three` remain in `package.json` with no client importers.
 - `npm` itself is listed as a runtime dependency.
 - `pages/portraits.tsx` duplicates most of `pages/portrait.tsx`.
+- Portrait previews (bet #3): `POST /image/portrait` still returns the full-resolution `aiUrl` before payment, so the paid digital portrait on `/portrait` and `/portraits` can be downloaded free (backend known issue; `/yourcat` paints only after payment).
+- Portrait previews: until `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is set on Vercel, the client sends no App Check token, so every `/portrait` visitor is "unverified": 1 preview per IP per day, shared with regenerate (yourcat-v2.md section 10, "Your call").
+- Portrait pages: the "Most Popular", "Recommended" and "The Perfect Gift" option badges and the FAQ refund answer ("support can help with a resolution") are not backed by data or by the policy text; the bet #3 removal list left them in place (open).
+- Fixed (bet #3): the portrait pages showed invented Trustpilot reviews, stock-photo testimonials, "As Seen In" press logos, "50K+ portraits" and "4.9/5", "#1 in Pet Portraits", a 15-minute countdown that restarted on every load, made-up "was" prices and a "30-day money-back" line. They are deleted; `__test__/portrait-no-fabricated-proof.test.ts` keeps them out.
 - Empty folders: `cats/`, `icons/`. `gg.js` is an empty file.
 - `components/storyMode/Managers/` still holds six unused managers (`DroppingSpike`, `FanManager`, `HiddenSpikeManager`, `LeverAndDoorManager`, `PlumbDoorManager`, `SawHalfManager`) that nothing imports. They are due for removal.
 - `tsconfig.json` excludes directories that no longer exist.

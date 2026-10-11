@@ -19,7 +19,8 @@ Auth legend:
 | Stripe | Stripe webhook signature |
 
 Other lowercase request headers: `x-guest-token` (an `fb`-prefixed anonymous token, on the guest
-merge only), `x-firebase-appcheck` (App Check token, on the guest session), `x-payment` (x402).
+merge only), `x-firebase-appcheck` (App Check token: on the guest session, and a limited-use token on
+`POST /yourcat`, `POST /image/portrait` and its regenerate, where it is consumed), `x-payment` (x402).
 
 ## Error bodies
 
@@ -49,7 +50,10 @@ outcome codes (`PAYOUT_AUTHOR_CANNOT_CONFIRM`, `PAYOUT_STAFF_CANNOT_CONFIRM`, `P
 `OUTCOME_NOT_REDACTED`, `OUTCOME_PUBLISHED` 409) and the Rescue Goal codes (`PLEDGES_PAUSED` 503,
 `PLEDGE_NOT_ELIGIBLE`, `PLEDGE_BALANCE`, `PLEDGE_DAILY_CAP`, `PLEDGE_ID_REUSED`, `PLEDGE_INTERRUPTED`,
 `GOAL_NOT_FOUND`, `GOAL_NOT_OPEN`, `GOAL_OVERFLOW`, `GOAL_FUNDING_REQUIRED`, `GOAL_BUDGET_FULL`,
-`GOAL_HOUSE_SHELTER`, `GOAL_NOT_DELIVERABLE`, `GOAL_NOT_CANCELLABLE`, `GOAL_NOT_EDITABLE`).
+`GOAL_HOUSE_SHELTER`, `GOAL_NOT_DELIVERABLE`, `GOAL_NOT_CANCELLABLE`, `GOAL_NOT_EDITABLE`), and the
+`YOURCAT_*` codes of `/yourcat` and `/image/portrait` (listed in `backend/src/yourcat/yourcat.contracts.ts`,
+kept out of `shared/errors.ts` on purpose because that file syncs into `catnip-heist/`). A 429 from a
+throttler guard has no `code`.
 
 ## Health and stats
 
@@ -517,17 +521,37 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/image` | Multipart upload field `file`; converts to WebP and stores on Spaces | Auth |
-| POST | `/image/search` | Paged image list; only paging and sort are read from the body | Public |
-| GET | `/image/:id` | Single image | Public |
-| PUT | `/image/:id` | Update title and caption | Perm(3) |
+| POST | `/image` | Multipart upload field `file`; converts to WebP and stores on Spaces. `owner`, `source` and `aiUrl` in the body are ignored | Auth |
+| POST | `/image/search` | Paged image list; only paging and sort are read from the body. Never lists `/yourcat` portrait records | Perm(3) |
+| GET | `/image/:id` | Single image; 404 for a `source: 'yourcat'` record | Public |
+| PUT | `/image/:id` | Update title and caption (`owner` and `source` are ignored) | Perm(3) |
 | DELETE | `/image/:id` | Delete | Perm(3) |
-| POST | `/image/portrait` | Upload plus synchronous portrait generation; `style` selects the prompt. Still public although each call is a paid generation (open product decision). Provider errors return a fixed message | Public, Throttle(5) |
-| PUT | `/image/portrait/:id/regenerate` | Regenerate a portrait (a paid generation). 401 when signed out; the client shows a sign-in message. Provider errors return a fixed message | Auth, Throttle(3) |
-| POST | `/image/create-checkout-session` | Stripe Checkout for `digital`, `print`, `canvas` at the server price ($6, $49, $69; a sent `amount` is ignored); creates a pending order; may create a user from `email` (lowercased, with a locked starter and no onboarding) | Public, Throttle(5) |
-| POST | `/image/create-checkout-session-signed` | Same, user taken from the caller | Auth, Throttle(5) |
-| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` checks the session is paid at the server price, completes the pending order once, emails the buyer, creates the blessing (`kind: portrait`) and cat, and writes `spent`, `monthSpent` and `spentUsd` from the verified USD amount | Stripe, not throttled |
+| POST | `/image/portrait` | Multipart `file` (one photo, at most 10 MB: JPEG, PNG, WebP or HEIC), `name?`, `isTemporary?`, `style?`; header `x-firebase-appcheck?`. The photo is sanitized (EXIF stripped) and stored under a uuid name, then the 4K portrait is generated synchronously. Sets `owner` (the caller) and `source: 'portrait'`. Daily caps per address and per user and the €3 preview budget (`AiUploadGate`, kind `portrait-preview`); 503 `YOURCAT_PORTRAIT_DISABLED` when `PORTRAIT_PREVIEW_ENABLED=false`. Errors: 400 `YOURCAT_FILE_REQUIRED`, `YOURCAT_FILE_TYPE`, `YOURCAT_NOT_DECODABLE`; 413 `YOURCAT_FILE_TOO_LARGE`; 401 `YOURCAT_APP_CHECK_REQUIRED`/`_INVALID` (when enforced); 429 `YOURCAT_IP_DAILY_CAP`, `YOURCAT_USER_DAILY_CAP`, `YOURCAT_FAILURE_DAILY_CAP`; 503 `YOURCAT_BUDGET_EXHAUSTED`, `YOURCAT_NO_CLIENT_IP`. Provider errors return a fixed message. The response still contains `aiUrl` (known issue) | Guest ok, User(5), 10/min per client IP |
+| PUT | `/image/portrait/:id/regenerate` | Regenerate a portrait (a paid generation, same caps as above). 404 for another owner's image or a `/yourcat` record; 403 `GUEST_FORBIDDEN` for a guest on an image without owner (images created before bet #3); 409 `YOURCAT_PORTRAIT_EXISTS` when the image has a completed order. Provider errors return a fixed message | Guest ok, User(5), 10/min per client IP |
+| POST | `/image/create-checkout-session` | Stripe Checkout for `digital`, `print`, `canvas` at the server price (€14, €49, €69 by card; a sent `amount` is ignored); digital requires Stripe's terms checkbox with the withdrawal acknowledgement when `PORTRAIT_CHECKOUT_TOS_CONSENT=true` (needs a terms URL in the Stripe settings); the session expires after 2 h; creates a pending EUR order; may create a user from `email` (lowercased, with a locked starter and no onboarding). 404 for a `/yourcat` image | Public, Throttle(5) |
+| POST | `/image/create-checkout-session-signed` | Same, user taken from the caller; 404 for an image owned by someone else | Auth, Throttle(5) |
+| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` checks the session is paid in the order's currency and at least the price stored on the order, completes the pending order once, writes `spent`, `monthSpent` and `spentUsd` from the stored USD figure (an EUR order's USD stats conversion) or the verified USD amount. A portrait order then emails the buyer (account email, else the one Checkout collected) and creates the blessing (`kind: portrait`) and cat; a `/yourcat` order instead starts the HD portrait delivery (painted after payment, emailed when ready, no second cat) | Stripe, not throttled |
 | GET | `/image/order/status?_id=` | Poll an order's status. Returns only `_id status entityType id image price`; 400 when `_id` is not an ObjectId | Public |
+
+## Your cat (`/yourcat`, bet #3)
+
+One photo becomes the visitor's playable cat; see docs/plans/yourcat-v2.md. Shapes are in
+`backend/src/yourcat/yourcat.contracts.ts` (client copy `client/models/yourcat.ts`); errors are
+`{ statusCode, code, message }` with the `YOURCAT_*` codes. Every route skips the global throttler and
+has a per-user and a per-client-IP limit (per minute, in memory, per replica) instead. Guest routes need
+the guest session (428 `GUEST_SESSION_REQUIRED` otherwise), except `GET /yourcat/me`.
+
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| GET | `/yourcat/status` | `YourcatStatusView`: kill switch, `uploadsOpen` (today's budget has room), App Check enforcement, the upload limits, the 21 families for the manual picker, the HD portrait price (`priceCents: 1400`, `currency: 'EUR'`) and styles. `Cache-Control: public, max-age=30` | Public, 30/min per client IP |
+| POST | `/yourcat` | Multipart: `file` (one photo, at most 10 MB), `consent` = `"true"`, `noticeVersion` (at most 16 chars), `name?` (at most 20); headers `accesstoken`, `x-firebase-appcheck` (limited-use). 201 `YourcatView` (avatar usually `pending`; poll `GET /yourcat/:id`). Errors: 400 `YOURCAT_CONSENT_REQUIRED`, `YOURCAT_FILE_REQUIRED`, `YOURCAT_FILE_TYPE`, `YOURCAT_NOT_DECODABLE`, `YOURCAT_NAME_INVALID`; 413 `YOURCAT_FILE_TOO_LARGE`; 401 `YOURCAT_APP_CHECK_REQUIRED`/`_INVALID`; 422 `YOURCAT_NO_CAT`, `YOURCAT_PERSON_VISIBLE`; 429 `YOURCAT_IP_DAILY_CAP`, `YOURCAT_USER_DAILY_CAP`, `YOURCAT_FAILURE_DAILY_CAP`; 502 `YOURCAT_CLASSIFY_FAILED`; 503 `YOURCAT_DISABLED`, `YOURCAT_BUDGET_EXHAUSTED`, `YOURCAT_NO_CLIENT_IP` | Guest ok, User(5), 10/min per client IP |
+| POST | `/yourcat/manual` | JSON `{ family, name? }`: the no-AI fallback, a cat in one of the 21 families. 201 `YourcatView` (`avatar.status: 'none'`, `photo.stored: false`). 400 `YOURCAT_FAMILY_INVALID`, `YOURCAT_NAME_INVALID`; 429 `YOURCAT_USER_DAILY_CAP` (5 a day); 503 `YOURCAT_DISABLED` | Guest ok, User(5), 10/min per client IP |
+| GET | `/yourcat/me` | `{ item: YourcatView \| null }`: the caller's latest non-deleted record (`null` for a guest without a session) | Guest ok (transient), User(30), 60/min per client IP |
+| GET | `/yourcat/stats?days=14` | `{ days: AiBudgetDayView[] }`: daily cap, spend, reservations and the anonymous funnel counters, 1 to 60 days | Perm(5) |
+| GET | `/yourcat/:id` | `YourcatView`; 404 `YOURCAT_NOT_FOUND` for another user's id, a deleted record or a malformed id | Guest ok, User(60), 120/min per client IP |
+| PATCH | `/yourcat/:id` | JSON `{ name }`: names the card and the game cat, inside 24 h of creation only (no rename cooldown); afterwards 400 `YOURCAT_NAME_INVALID` ("Rename your cat in the game.") | Guest ok, User(10), 20/min per client IP |
+| DELETE | `/yourcat/:id` | Deletes the avatar and the original photo (the original stays until delivery when a paid portrait is not delivered yet and has a delivery attempt left, or for 3 days when Stripe could not confirm an open session closed), expires open checkout sessions. `{ success: true, photoKeptUntilDelivery }`. The game cat keeps its look and name | Guest ok, User(10), 10/min per client IP |
+| POST | `/yourcat/:id/portrait-checkout` | JSON `{ style }` (`highness`, `monarch`, `aristocrat`, `commander`): a €14 Stripe Checkout for the HD portrait (painted after payment from the private original). Returns `{ checkoutUrl, orderId }`; the same style reuses the open session, another style expires it first. 404 `YOURCAT_NOT_FOUND`; 410 `YOURCAT_PHOTO_EXPIRED` (also when the record is deleted while the session is made; that session is expired); 409 `YOURCAT_PORTRAIT_EXISTS`; 503 `YOURCAT_PORTRAIT_DISABLED`; 503 with no code when the old session of another style cannot be confirmed closed (retry). Guests may buy (exception to decision #9) | Guest ok, 10 a day and 5/min per user, 5/min per client IP |
 
 ## Web3 and payments
 

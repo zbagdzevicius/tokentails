@@ -2,15 +2,17 @@ import { STRIPE_API } from "@/api/stripe-api";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { Testimonials } from "@/features/portrait/components/Testimonials";
-import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
 import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
 import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import { useToast } from "@/features/portrait/hooks/use-toast";
-import { useCountdown } from "@/features/portrait/hooks/useCountdown";
 import { Button } from "@/features/portrait/ui/button";
 import { isApp } from "@/models/app";
 import { OrderStatus } from "@/models/order";
+import {
+  PORTRAIT_CHECKOUT_CURRENCY,
+  PORTRAIT_CHECKOUT_PRICES,
+  formatPortraitPrice,
+} from "@/models/portrait-prices";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -23,17 +25,17 @@ import {
   PawPrint,
   RefreshCw,
   Sparkles,
-  Timer,
   Truck,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { SessionProfile } from "@/context/auth/types";
 
 interface PurchaseOption {
-  id: string;
+  id: "digital" | "print" | "canvas";
   title: string;
+  /** Euros, from client/models/portrait-prices.ts (the card checkout charges exactly this). */
   price: number;
-  originalPrice?: number;
   badge?: string;
   description: string;
   features: string[];
@@ -48,8 +50,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 6,
-    originalPrice: 29,
+    price: PORTRAIT_CHECKOUT_PRICES.digital,
     badge: "Most Popular",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
@@ -60,8 +61,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "print",
     title: "Fine Art Print",
-    price: 49,
-    originalPrice: 99,
+    price: PORTRAIT_CHECKOUT_PRICES.print,
     badge: "Recommended",
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
@@ -79,8 +79,7 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "canvas",
     title: "Gallery Canvas",
-    price: 69,
-    originalPrice: 199,
+    price: PORTRAIT_CHECKOUT_PRICES.canvas,
     badge: "The Perfect Gift 🐱",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
@@ -95,6 +94,19 @@ export const purchaseOptions: PurchaseOption[] = [
     includesDigital: true,
   },
 ];
+
+/**
+ * Which checkout route a purchase uses. The signed route (`create-checkout-session-signed`) is for
+ * registered players only: a guest now has a `profile._id` too (the pages run in guest mode), and the
+ * signed route would answer 403 GUEST_FORBIDDEN, so a guest keeps the email path, as an anonymous
+ * visitor does.
+ */
+export function portraitCheckoutPath(
+  profile: { _id?: string; isGuest?: boolean } | null | undefined,
+  emailValue?: string,
+): "signed" | "email" {
+  return profile?._id && !profile.isGuest && !emailValue ? "signed" : "email";
+}
 
 interface PreviewPageProps {
   generatedImages: string[];
@@ -133,7 +145,6 @@ export const PreviewPage = ({
     optionId: string;
     price: number;
   } | null>(null);
-  const { formattedTime, isExpired } = useCountdown(15);
   const { toast } = useToast();
   const { profile } = useProfile();
   const regenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -170,7 +181,7 @@ export const PreviewPage = ({
       item_category: "portrait",
       item_id: purchaseOptions[0].id,
       value: purchaseOptions[0].price,
-      currency: "USD",
+      currency: PORTRAIT_CHECKOUT_CURRENCY,
       quantity: 1,
     });
   }, [imageId]);
@@ -234,21 +245,23 @@ export const PreviewPage = ({
       item_id: selectedOption.id,
       item_name: selectedOption.id,
       value: price,
-      currency: "USD",
+      currency: PORTRAIT_CHECKOUT_CURRENCY,
     });
 
     setShowEmailModal(false);
     setIsProcessingPurchase(true);
 
     try {
+      // The server charges its own price table (euros); `amount` is ignored there.
       const checkoutPayload = {
         amount: Math.round(price * 100),
         productType: optionId as "digital" | "print" | "canvas",
         imageId: imageId,
       };
 
-      // Signed users use auth-bound checkout and skip email collection.
-      const { url } = profile?._id && !emailValue
+      // Registered players use the auth-bound checkout and skip email collection; guests and
+      // anonymous visitors give an email.
+      const { url } = portraitCheckoutPath(profile as SessionProfile | null, emailValue) === "signed"
         ? await STRIPE_API.createSignedCheckoutSession(checkoutPayload)
         : await STRIPE_API.createCheckoutSession({
             ...checkoutPayload,
@@ -276,12 +289,12 @@ export const PreviewPage = ({
   const handlePurchaseClick = (optionId: string, price: number) => {
     if (isApp) return;
     setPendingPurchase({ optionId, price });
-    if (profile?._id) {
+    if (portraitCheckoutPath(profile as SessionProfile | null) === "signed") {
       void startCheckout({ optionId, price });
       return;
     }
 
-    // Fallback for unsigned users
+    // Guests and signed-out visitors give an email
     setShowEmailModal(true);
     setEmail("");
     setEmailError("");
@@ -603,33 +616,13 @@ export const PreviewPage = ({
                         {option.title}
                       </h3>
                       <div className="flex items-center justify-center gap-2">
-                        {option.originalPrice && !isExpired && (
-                          <span className="text-muted-foreground line-through text-lg">
-                            ${option.originalPrice}
-                          </span>
-                        )}
-                        <span className="text-3xl font-bold">
-                          $
-                          {option.id === "digital" && isExpired
-                            ? option.originalPrice
-                            : option.price}
+                        <span
+                          className="text-3xl font-bold"
+                          data-testid={`portrait-price-${option.id}`}
+                        >
+                          {formatPortraitPrice(option.price)}
                         </span>
                       </div>
-                      {/* Countdown Timer for Digital Option */}
-                      {option.id === "digital" && !isExpired && (
-                        <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
-                          <Timer className="w-4 h-4" />
-                          <span>Expires in</span>
-                          <span className="font-semibold tabular-nums">
-                            {formattedTime}
-                          </span>
-                        </div>
-                      )}
-                      {option.id === "digital" && isExpired && (
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          Discount expired
-                        </div>
-                      )}
                     </div>
 
                     <p className="text-sm text-muted-foreground text-center mb-4">
@@ -676,7 +669,7 @@ export const PreviewPage = ({
                       <div className="mb-4 space-y-2 text-sm">
                         <div className="flex items-center gap-2 text-gold">
                           <Truck className="w-4 h-4" />
-                          <span>Free Shipping ($20 value)</span>
+                          <span>Free shipping</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock className="w-4 h-4" />
@@ -696,14 +689,7 @@ export const PreviewPage = ({
                       variant={option.id === "digital" ? "hero" : "baroque"}
                       size="lg"
                       className="w-full"
-                      onClick={() =>
-                        handlePurchaseClick(
-                          option.id,
-                          option.id === "digital" && isExpired
-                            ? option.originalPrice || option.price
-                            : option.price,
-                        )
-                      }
+                      onClick={() => handlePurchaseClick(option.id, option.price)}
                       disabled={isProcessingPurchase}
                     >
                       <Icon className="w-4 h-4" />
@@ -715,12 +701,6 @@ export const PreviewPage = ({
             </div>
           </motion.div>
         )}
-
-        {/* Trustpilot Reviews */}
-        <TrustpilotReviews />
-
-        {/* Testimonials */}
-        <Testimonials />
 
         {/* Back Button */}
         <div className="mt-12 text-center">

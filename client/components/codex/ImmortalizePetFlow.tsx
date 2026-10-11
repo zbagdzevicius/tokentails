@@ -1,4 +1,4 @@
-import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
+import { IMAGE_API, PortraitPreviewError, SignInRequiredError } from "@/api/image-api";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { ActionRow, ModalButton, ModalSection, StatusPill } from "@/components/ui/modal";
@@ -14,11 +14,13 @@ import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer"
 import { AppCheckoutNotice } from "@/components/web3/AppCheckoutNotice";
 import { isApp } from "@/models/app";
 import { IMessage } from "@/models/cats";
+import { CODEX_DIGITAL_PORTRAIT_USD, formatPortraitPrice } from "@/models/portrait-prices";
 import { EntityType } from "@/models/save";
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
-const DIGITAL_PORTRAIT_PRICE = 6;
+/** The digital portrait on the USD rails (PaymentIntent, Stellar), $16; server: PORTRAIT_PRICES_CENTS. */
+const DIGITAL_PORTRAIT_PRICE = CODEX_DIGITAL_PORTRAIT_USD;
 
 const STYLE_LABELS: Record<PortraitStyle, string> = {
   [PortraitStyle.HIGHNESS]: "Highness",
@@ -301,7 +303,10 @@ export const ImmortalizePetFlow = ({
     } catch (error) {
       console.error("generate portrait error:", error);
       showToast({
-        message: "Could not generate portrait. Try a clearer image.",
+        message:
+          error instanceof PortraitPreviewError
+            ? error.message
+            : "Could not generate portrait. Try a clearer image.",
         isError: true,
       });
     } finally {
@@ -333,7 +338,7 @@ export const ImmortalizePetFlow = ({
       console.error("regenerate portrait error:", error);
       showToast({
         message:
-          error instanceof SignInRequiredError
+          error instanceof SignInRequiredError || error instanceof PortraitPreviewError
             ? error.message
             : "Could not regenerate portrait right now.",
         isError: true,
@@ -390,7 +395,7 @@ export const ImmortalizePetFlow = ({
           // A plain fact, not a pill: it is not something to tap.
           <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-p6 font-bold text-tt-gold-400 md:text-p5">
             <PixelIcon name="shopping-bag" size={14} />
-            Full portrait: ${DIGITAL_PORTRAIT_PRICE}
+            Full portrait: {formatPortraitPrice(DIGITAL_PORTRAIT_PRICE, "USD")}
           </span>
         )}
       </div>

@@ -29,6 +29,9 @@ afterAll(() => {
 });
 
 const HASH = 'cd'.repeat(32);
+// Created before the $6 to $16 digital portrait change (PORTRAIT_USD_PRICE_CHANGED_AT) and well after it.
+const LEGACY_CREATED_AT = new Date('2026-10-01T00:00:00Z');
+const CURRENT_CREATED_AT = new Date('2026-11-01T00:00:00Z');
 const options = { treasury: DEFAULT_STELLAR_TREASURY, maxXlmUsd: 1 };
 
 const tx = (operations: any[], successful = true) => ({ transaction: { successful }, operations });
@@ -92,6 +95,50 @@ describe('order audit', () => {
             ).toBe('ABOVE_CATALOGUE');
         });
 
+        it('checks a EUR card checkout portrait on its euro price, not priceUsd', () => {
+            const eur = (price: number) =>
+                stripe({
+                    entityType: EntityType.IMAGE,
+                    id: ProductType.DIGITAL,
+                    currencyType: CurrencyType.EUR,
+                    price,
+                    priceUsd: 16.1,
+                    createdAt: CURRENT_CREATED_AT,
+                });
+            expect(auditStripeOrder(eur(14))).toBeNull();
+            expect(auditStripeOrder(eur(10))).toEqual({
+                orderId: 'o1',
+                issue: 'BELOW_CATALOGUE',
+                paid: 10,
+                expectedMin: 14,
+            });
+            expect(
+                auditStripeOrder(
+                    stripe({
+                        entityType: EntityType.IMAGE,
+                        id: ProductType.CANVAS,
+                        currencyType: CurrencyType.EUR,
+                        price: 69,
+                    })
+                )
+            ).toBeNull();
+        });
+
+        it('accepts a legacy $6 digital portrait created before the price change, and $16 after it', () => {
+            const usd = (price: number, createdAt: Date) =>
+                stripe({
+                    entityType: EntityType.IMAGE,
+                    id: ProductType.DIGITAL,
+                    currencyType: CurrencyType.USD,
+                    price,
+                    priceUsd: price,
+                    createdAt,
+                });
+            expect(auditStripeOrder(usd(6, LEGACY_CREATED_AT))).toBeNull();
+            expect(auditStripeOrder(usd(16, CURRENT_CREATED_AT))).toBeNull();
+            expect(auditStripeOrder(usd(6, CURRENT_CREATED_AT))?.issue).toBe('BELOW_CATALOGUE');
+        });
+
         it('ignores Stellar orders', () => {
             expect(auditStripeOrder({ _id: 'o1', chainType: ChainType.STELLAR, price: 1 })).toBeNull();
         });
@@ -136,15 +183,21 @@ describe('order audit', () => {
             expect(findings.map(f => f.issue)).toEqual(['UNDERPAID', 'BELOW_CLAIMED_PRICE']);
         });
 
-        it('checks USDC 1:1 against the catalogue', () => {
+        it('checks USDC 1:1 against the catalogue at the order creation time', () => {
             const order = stellar({
                 currencyType: CurrencyType.USDC,
                 entityType: EntityType.IMAGE,
                 id: 'digital',
-                price: 6,
+                price: 16,
+                createdAt: CURRENT_CREATED_AT,
             });
-            expect(auditStellarOrder(order, tx([usdcOp('6')]), options)).toEqual([]);
-            expect(auditStellarOrder({ ...order, price: 5 }, tx([usdcOp('5')]), options)[0].issue).toBe('UNDERPAID');
+            expect(auditStellarOrder(order, tx([usdcOp('16')]), options)).toEqual([]);
+            expect(auditStellarOrder({ ...order, price: 6 }, tx([usdcOp('6')]), options)[0].issue).toBe('UNDERPAID');
+
+            // A legacy $6 order bought before the change has no finding.
+            const legacy = { ...order, price: 6, createdAt: LEGACY_CREATED_AT };
+            expect(auditStellarOrder(legacy, tx([usdcOp('6')]), options)).toEqual([]);
+            expect(auditStellarOrder({ ...legacy, price: 5 }, tx([usdcOp('5')]), options)[0].issue).toBe('UNDERPAID');
         });
     });
 

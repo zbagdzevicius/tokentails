@@ -191,6 +191,9 @@ const GUEST_WRITE_PATHS: RegExp[] = [
   /^\/user\/starter$/,
   /^\/user\/following\/[^/]+$/,
   /^\/cat\/(?!(adopt|sale|stake|stake-reward|rates?|redeem)$)[^/]+(\/name)?$/,
+  // Bet #3 /yourcat: the manual pick, the card name, the delete and the HD portrait checkout (the
+  // photo upload itself is multipart, so it makes sure of the session before sending).
+  /^\/yourcat(\/manual|\/[^/]+(\/portrait-checkout)?)?$/,
 ];
 
 /**

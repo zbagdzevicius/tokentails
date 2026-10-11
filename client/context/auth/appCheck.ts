@@ -25,9 +25,7 @@ function isNative(): boolean {
   }
 }
 
-/** An App Check token, or null when App Check is not configured or fails. Never throws. */
-export async function getAppCheckToken(app: FirebaseApp): Promise<string | null> {
-  if (typeof window === "undefined" || !siteKey() || isNative()) return null;
+function ensureAppCheck(app: FirebaseApp) {
   if (!appCheck) {
     appCheck = import("firebase/app-check")
       .then((mod) => ({
@@ -39,10 +37,35 @@ export async function getAppCheckToken(app: FirebaseApp): Promise<string | null>
       }))
       .catch(() => null);
   }
+  return appCheck;
+}
+
+/** An App Check token, or null when App Check is not configured or fails. Never throws. */
+export async function getAppCheckToken(app: FirebaseApp): Promise<string | null> {
+  if (typeof window === "undefined" || !siteKey() || isNative()) return null;
   try {
-    const ready = await appCheck;
+    const ready = await ensureAppCheck(app);
     if (!ready) return null;
     const result = await ready.mod.getToken(ready.instance, false);
+    return result?.token || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A limited-use App Check token (bet #3, yourcat-v2.md section 3.1), for the paid AI routes
+ * (`POST /yourcat`, `POST /image/portrait`, regenerate). The backend verifies it with replay
+ * protection, so each token works once: fetch a new one per request. Null when App Check is not
+ * configured (no `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`), on native builds, or on failure; the
+ * caller then sends no header and gets the "unverified" caps. Never throws.
+ */
+export async function getLimitedUseAppCheckToken(app: FirebaseApp): Promise<string | null> {
+  if (typeof window === "undefined" || !siteKey() || isNative()) return null;
+  try {
+    const ready = await ensureAppCheck(app);
+    if (!ready) return null;
+    const result = await ready.mod.getLimitedUseToken(ready.instance);
     return result?.token || null;
   } catch {
     return null;

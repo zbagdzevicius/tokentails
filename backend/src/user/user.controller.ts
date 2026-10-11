@@ -73,6 +73,7 @@ import { ILeaseCollection, runLeased } from 'src/shared/jobs/lease';
 import { canonicalEmail } from './guest/canonical-email';
 import { ACCOUNT_DELETIONS_COLLECTION, deleteAccount, IAccountDeletionResult } from './guest/account-deletion';
 import { DeleteAccountDto, guestBodyPipe, ReferralDto } from './guest/dto';
+import { verifyAppCheckToken } from './guest/app-check';
 import { firebaseIdentity, firebaseTokenFromHeader, IFirebaseIdentity } from './guest/firebase-identity';
 import {
     cleanupIdleGuests,
@@ -536,22 +537,14 @@ export class UserController {
 
     private async verifyAppCheck(token?: string): Promise<void> {
         const enforce = identityConfig().appCheckEnforce;
-        if (!token) {
-            if (enforce) {
-                throw new UnauthorizedException('App Check token required');
-            }
+        // No replay protection here (consume: false), as before; the bet #3 AI gate consumes its tokens.
+        const result = await verifyAppCheckToken(this.firebase, token, { enforce, consume: false });
+        if (!enforce || result === 'verified') {
             return;
         }
-        try {
-            await this.firebase.verifyAppCheck(token);
-        } catch (error) {
-            if (enforce) {
-                throw new UnauthorizedException('App Check token is invalid');
-            }
-            this.logger.warn(
-                `guest session with an invalid App Check token (not enforced): ${(error as Error)?.message}`
-            );
-        }
+        throw new UnauthorizedException(
+            result === 'missing' ? 'App Check token required' : 'App Check token is invalid'
+        );
     }
 
     /**

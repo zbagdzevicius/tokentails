@@ -86,6 +86,8 @@ but no module file.
 | `src/shared/jobs/` | `runLeased` and `claimJobPeriod`: one lease document per cron job in `jobruns` (plan F8). |
 | `src/vendor/heist-sim/` | The vendored Heist simulation (generated). |
 | `src/shared-contracts/` | Generated copies of `shared/` (enums, error codes, caps, storefront, Heist bridge, copy, names). |
+| `src/yourcat/` | Bet #3 `/yourcat` (docs/plans/yourcat-v2.md): one photo becomes the player's cat. Controller, service (`makePlayable`, upload and manual pipelines, rename, views, portrait checkout), the `YourCat` schema, family rules (`family.ts`), the avatar pixel grid (`pixelate.ts`), the paid HD portrait delivery (`portrait-delivery.service.ts`) and the retention job. Request and response shapes in `yourcat.contracts.ts` (client copy `client/models/yourcat.ts`). |
+| `src/ai-budget/` | Bet #3 AI spend control: the global daily budget and daily quotas (`AiBudgetDay`, `AiQuota`), `AiUploadGate` (client IP, App Check with replay protection, per-IP, failure and per-user caps, budget), cost measurement (`ai-cost.ts`) and the cost alerts (`ai-alert.ts`). |
 | `src/image/` | Image uploads, AI portrait generation, Stripe Checkout, Stripe webhook, order status. |
 | `src/web3/` | Orders, Stellar payment verification, Stripe PaymentIntents, pack grants, discount codes. |
 | `src/article/`, `src/category/`, `src/feed/` | Editorial content and the public feed. |
@@ -662,16 +664,84 @@ for each finding, then resolves duplicates (for example by moving the extra hash
 |---|---|---|---|
 | `generateCat` | `src/shared/utils/ai.utils.ts` | OpenAI `gpt-4o-mini` | Classify cat origin from a photo, write a rescue story, pick sprite and card art URLs |
 | `generateAvatarFromImage` | `src/shared/utils/ai-avatar.ts` | Gemini image model | Creature-style avatar, retries up to three times if the output has a white border |
-| `generatePortraitForImage` | `src/shared/utils/ai-portrait.ts` | Gemini image model | 4K themed portrait in one of four styles: highness, monarch, aristocrat, commander |
+| `generatePortraitForImage` | `src/shared/utils/ai-portrait.ts` | Gemini image model | 4K themed portrait in one of four styles: highness, monarch, aristocrat, commander. Reads its input through `loadImageBytes` (a private `s3private://` original only for `source: 'yourcat'` images) |
+| `generatePixelAvatar` | `src/shared/utils/ai-avatar.ts` | Gemini image model | Bet #3: one 16-bit pixel-art head of the cat (one call, default size, no retries); `src/yourcat/pixelate.ts` turns it into a 96-cell grid at 768 px |
 
 Both generation paths run synchronously inside the HTTP request. Expect multi-second latency and
-no retry queue.
+no retry queue. The `/yourcat` avatar is the exception: it runs in the background after the response,
+and paid `/yourcat` portraits are painted by `PortraitDeliveryService` with a sweeper (no queue).
+
+Bet #3 options: `generateCat(name, url, { screen, onUsage, signal })` adds a person and no-cat check
+(`Person: yes|no. Cat type: TYPE|NONE`; an unparsable answer fails closed) when `screen` is set;
+existing callers pass nothing and send the old prompt. `onUsage` reports token and image usage
+(`AiUsage`, `src/ai-budget/ai-cost.ts`) and `signal` aborts the request; the Gemini calls take the
+same options.
 
 ### Image pipeline
 
 `src/shared/utils/image.utils.ts` sniffs HEIC by magic bytes, converts to JPEG, re-encodes as
 WebP at quality 80, optionally resizes to 1000 px, and uploads to Spaces with a public-read ACL.
 The returned URL is `${DO_SPACES_CDN}/<name>.webp`.
+
+Visitor photos (`POST /yourcat`, `POST /image/portrait`) go through `sanitizePhoto`
+(`src/shared/utils/photo-upload.ts`) instead: at most 10 MB and 40 megapixels (a HEIC at most 25
+megapixels, measured from its `ispe` box before `heic-convert` runs; the conversion runs in a worker
+thread that is terminated after 15 s, at most 2 at once per process with up to 8 waiting, so it never
+blocks the event loop), JPEG, PNG, WebP or HEIC, one frame; the EXIF orientation is
+applied, the image fits inside 1024 px and is re-encoded as WebP with no metadata (no EXIF, GPS, XMP or
+ICC). Multer limits and the file-type filter come from `PHOTO_MULTER_OPTIONS`; `PhotoUploadExceptionFilter`
+maps multer errors to `YOURCAT_*` codes. `aws.utils.ts` also stores private objects
+(`uploadPrivateObject`, `getPrivateObject`, `deleteObject`).
+
+### `/yourcat` (bet #3)
+
+One photo becomes the visitor's playable cat (docs/plans/yourcat-v2.md; routes in docs/API.md).
+
+- `POST /yourcat`: kill switch, multer, consent, name, then `AiUploadGate.admit` (below), then
+  `sanitizePhoto`, then the classifier on an in-memory data URL (20 s abort). A person in the photo is
+  422 `YOURCAT_PERSON_VISIBLE`, no cat 422 `YOURCAT_NO_CAT`, anything unreadable 502
+  `YOURCAT_CLASSIFY_FAILED`; then nothing is stored, the attempt is given back and a failure is counted.
+  Otherwise the sanitized original is stored privately (`yourcat/originals/<uuid>.webp`), the cat takes
+  the family's `base` sheet and `GROOMING` emote, and a `YourCat` record is written. The pixel avatar is
+  drawn in the background (45 s abort) and stored public (`yourcat/avatars/<uuid>.png`,
+  `max-age=3600`); a record still `pending` 60 s after creation reads as `failed`.
+- The playable cat (section 4 of the spec): a guest's own starter is restyled in place (`starterBreed`
+  removed, so the lobby draws the uploaded look; `starterLockedAt` kept or set; `user.cat` and
+  `onboarding: done` set). A registered account gets one photo cat, reused by later uploads, and a
+  `pending` onboarding is set done. No score, Game row or `lastPlayedAt` is touched, and the free path
+  never calls `createBlessingWithCat`.
+- `POST /yourcat/manual` picks a family without a photo (per-user cap only, no AI). `PATCH /yourcat/:id`
+  names the card inside 24 h of creation without the game's rename cooldown; later renames go through
+  `PUT /cat/:id/name`.
+- `DELETE /yourcat/:id` marks the record deleted first, then expires open checkout sessions, deletes the
+  avatar and the original, or keeps the original (`photoKeptUntilDelivery: true`) while a paid portrait
+  still has a delivery attempt left (after the third failed attempt it is deleted at once), or for 3 days
+  when Stripe could neither expire nor read a session that may still be open. A portrait checkout that
+  runs in parallel re-reads the record after it creates its session and expires it (410
+  `YOURCAT_PHOTO_EXPIRED`) when the record was deleted meanwhile. A style change whose old session
+  cannot be confirmed closed answers a retryable 503 instead of opening a second payable session. If
+  the record cannot be stored after the upload, the private original is deleted again.
+  The game cat keeps its family look and name. The retention job deletes originals after 30 days and
+  sweeps records whose owner is gone.
+- HD portrait upsell: `POST /yourcat/:id/portrait-checkout` reuses one `Image` per record
+  (`url: s3private://…`, `source: 'yourcat'`) and at most one open session; nothing is painted before
+  payment. The webhook starts `PortraitDeliveryService`, which paints from the private original, emails
+  the buyer ("Your portrait of {Name} is ready") and re-dates or deletes the original; a sweeper retries
+  every 10 minutes, up to 3 attempts, then alerts.
+- `AiUploadGate` (used by `POST /yourcat`, `POST /image/portrait` and regenerate): client IP
+  (`src/shared/client-ip.ts`: `cf-connecting-ip` is trusted only with the `x-tt-origin-auth` origin secret
+  or, under `TRUST_PROXY`, from a Cloudflare edge address), App Check with a consumed limited-use token,
+  a per-IP daily quota keyed on an HMAC of the day and address (in production a preview from an address
+  that is not proven shares one `untrusted` bucket, `AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day, so a
+  forged `cf-connecting-ip` no longer opens a new slot per request; `yourcat` refuses such an address), a
+  per-IP failure cap that is never refunded, a per-user daily quota, and a reservation on the global daily budget (`aibudgetdays`, €5 by
+  default, previews at most €3 of it). Every refusal gives back the slots the same call claimed.
+  Measured costs settle the reservation; paid deliveries are recorded outside the cap.
+- Burst limits: the `/yourcat` routes, `POST /image/portrait` and regenerate skip the global throttler
+  and use `UserThrottlerGuard` plus `ClientIpThrottlerGuard` (per client address, from `client-ip.ts`).
+  The portrait checkout also has a second per-user window, 5 a minute (counted in the handler), next to
+  its 10 a day.
+- `GET /yourcat/stats` (ADMIN) returns the daily totals: the reliable server-side funnel.
 
 ## Scheduled jobs
 
@@ -699,6 +769,8 @@ under `NODE_ENV=production`); the impact, treat and paw jobs need `IMPACT_JOBS_E
 | Paw settlement (`paw-settlement`) | `src/impact/paws.service.ts` | Daily 00:30 UTC | Settles yesterday's paws (send only with `PAWS_SETTLEMENT_ENABLED`). |
 | Paw reconcile (`paw-reconcile`) | `src/impact/paws.service.ts` | Every 10 minutes | Settles sent paw transactions and catches up missed days (3 days back). |
 | Give sweeper (`rescue-goal-pledge-sweeper`) | `src/rescue-goal/rescue-goal-pledge.service.ts` | Every minute | Rolls stuck gives forward or refunds them; re-runs cancel refunds. |
+| `/yourcat` retention (`yourcat-retention`) | `src/yourcat/yourcat-retention.job.ts` | Daily 03:15 UTC | Deletes `/yourcat` originals past `originalDeleteAfter` (30 days; kept while a paid portrait is undelivered) and removes records whose owner is gone (both objects and the record). |
+| `/yourcat` portrait delivery sweep (`yourcat-portrait-delivery-sweep`, plus a per-order lease `portrait-delivery:<orderId>`) | `src/yourcat/portrait-delivery.service.ts` | Every 10 minutes | Retries paid `/yourcat` portraits of the last 7 days that have no `aiUrl` and fewer than 3 attempts; the third failure sends an alert. |
 | Goal count (`shelter-goal-scan`) | `src/shelter/goal/shelter-goal.service.ts` | Every minute | Advances the C-001 inflow scan: up to 40 `eth_getLogs` windows of 9,999 blocks (the public Arc RPC refuses 10,000), 300 ms apart, counting Transfer logs to the campaign wallets into `sheltergoalcursors` (compare-and-set per window). A view of `GET /shelter/goal/:id` also nudges it, at most once a minute. On unless `SHELTER_GOAL_SCAN=off`; needs no key. |
 
 ## Environment variables
@@ -720,6 +792,8 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Encryption | `INVALIDATE_CACHE_SECRET` (despite the name, this seeds the AES key for custodial wallet secrets; rotating it makes stored secrets unreadable) |
 | Guest treats | `SHELTER_TREAT_IP_SALT` (optional HMAC key for the daily address hash of `POST /shelter/donate/guest`; unset: `INVALIDATE_CACHE_SECRET` is used as the HMAC key, else a random per-process salt, which lets an address send one extra treat after a restart). Needs `TRUST_PROXY` in production |
 | AI | `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY` |
+| `/yourcat` and AI caps (bet #3) | `YOURCAT_ENABLED` (default `false`; kill switch for `POST /yourcat` and `/yourcat/manual`, status shows paused), `YOURCAT_PORTRAIT_ENABLED` (default `false`; the HD upsell checkout), `PORTRAIT_PREVIEW_ENABLED` (default `true`; `false` answers 503 on `POST /image/portrait` and regenerate), `AI_BUDGET_EUR_PER_DAY` (default 5, all kinds), `AI_BUDGET_PREVIEW_EUR_PER_DAY` (default 3, the part previews may use), `AI_UPLOAD_IP_DAILY`, `AI_UPLOAD_IP_DAILY_UNVERIFIED`, `AI_UPLOAD_USER_DAILY` (3, 0, 3), `AI_PREVIEW_IP_DAILY`, `AI_PREVIEW_IP_DAILY_UNVERIFIED`, `AI_PREVIEW_USER_DAILY` (3, 1, 3), `AI_PREVIEW_UNTRUSTED_DAILY`, `AI_PREVIEW_UNTRUSTED_FAILURES_DAILY` (5, 20; production only: the one shared bucket for previews from an address that is not proven), `AI_UPLOAD_IP_FAILURES_DAILY` (5, both kinds, never refunded), `AI_MANUAL_USER_DAILY` (5), `AI_UPLOAD_APPCHECK_ENFORCE`, `AI_PREVIEW_APPCHECK_ENFORCE` (default `false`; `true` requires a valid, unused limited-use App Check token), `CF_ORIGIN_SECRET` (shared secret a Cloudflare Transform Rule sends as `x-tt-origin-auth`; proves `cf-connecting-ip`), `AI_UPLOAD_IP_SALT` (HMAC salt for the per-IP day key; falls back to `INVALIDATE_CACHE_SECRET`; neither set in production refuses with 503), `AI_ALERT_EMAIL_TO` (alert recipient; unset: alerts are only logged), `AI_ALERT_COST_PER_UPLOAD_EUR` (0.10), `AI_ALERT_COST_PER_PREVIEW_EUR` (0.40), cost rates `AI_COST_OPENAI_INPUT_EUR_PER_MTOK`, `AI_COST_OPENAI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_INPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_IMAGE_EUR_1K`, `AI_COST_GEMINI_IMAGE_EUR_2K`, `AI_COST_GEMINI_IMAGE_EUR_4K`, `AI_COST_FALLBACK_IMAGE_EUR` (0.08 per 1K image, x4 for 4K), `AI_COST_FALLBACK_TEXT_EUR` (0.01); defaults and the date they were read are in `src/ai-budget/ai-cost.ts` |
+| Portrait prices and checkout (bet #3) | `PORTRAIT_USD_PRICE_CHANGED_AT` (ISO; when the USD digital price moved from $6 to $16; default and floor `2026-10-12T00:00:00Z`, the env can only move it later; a $6 payment created before it plus 48 h still verifies), `PORTRAIT_CHECKOUT_TOS_CONSENT` (default unset; `true` adds Stripe's required terms checkbox with the withdrawal acknowledgement to digital sessions on the legacy `/portrait` routes; `/yourcat` sessions always have it) |
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
 | Crypto checkout | `CRYPTO_PAY_ENABLED` (default off), `CRYPTO_PAY_NETWORK` (`mainnet` or `testnet`; default `mainnet` under `NODE_ENV=production`), `CRYPTO_PAY_TREASURY` (one public treasury address for every chain) and `CRYPTO_PAY_TREASURY_<chainId>` (per chain; both override `src/payments/crypto/treasury.public.ts`), `CRYPTO_PAY_RPC_<chainId>` (optional override; else the funding variable such as `RPC_BASE_MAINNET`; else the checked-in official RPC of the chain), `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD` (needed for `CRYPTO_PAY_NETWORK=testnet` under production), `CRYPTO_PAY_ORDER_TTL_MIN` (5 to 1440, default 30), `CRYPTO_PAY_EURC_PER_USD` (EURC per USD of price; unset: a fixed euro price, 1 EURC per USD) and `CRYPTO_PAY_EURC_FX_DATE` (required with a set rate; EURC stops after 30 days), `CRYPTO_PAY_CAT_SHELTER_BPS` (shelter share of a shelter cat on the treasury route; unset: undecided, nothing sent), `CRYPTO_PAY_SPLIT_SHELTER_IDS` (default Pink Paw), `CRYPTO_PAY_CAT_SPLITS` (`chainId:TOKEN:0xsplit,...`; default the main split for USDC), `CRYPTO_PAY_SHELTER_SHARE_ENABLED` (default off), local E2E only: `CRYPTO_PAY_LOCAL_USDC`, `CRYPTO_PAY_LOCAL_EURC` (chain 31337, testnet mode). `STELLAR_PACKS_ENABLED` (`true` reopens Stellar packs; rollback only), `STELLAR_PACKS_SUNSET_AT` (ISO time; Stellar pack payments before it are still granted, later ones recorded for a refund; fixed at `2026-10-09T18:00:00Z`, the env can only move it earlier) |
@@ -757,6 +831,37 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 - `TAILS_EARNED_BACKFILL_DONE=true` only after `backfill-tails-earned.js --apply`, and before the
   first Rescue Goal opens.
 - `IDENTITY_BACKFILL_DONE=true` only after `backfill-identity-fields.js --apply`.
+- `/yourcat` launch conditions (bet #3, `YOURCAT_ENABLED=true` only when all hold): (1) the client
+  address is provable: `CF_ORIGIN_SECRET` set with the Cloudflare Transform Rule that adds
+  `x-tt-origin-auth` to every proxied request, or `TRUST_PROXY` set to the right hop count; otherwise
+  every upload answers 503 `YOURCAT_NO_CLIENT_IP`. (2) App Check is real:
+  `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` on Vercel, replay protection on, `AI_UPLOAD_APPCHECK_ENFORCE=true`
+  and `AI_UPLOAD_IP_DAILY_UNVERIFIED=0`. (3) The production Gemini key is on a billed plan (so the
+  privacy notice's "no training" sentence is true). (4) The controller's legal name and address are in
+  the privacy notice. (5) One test upload passes on production. Set `AI_UPLOAD_IP_SALT` (or keep
+  `INVALIDATE_CACHE_SECRET` set) and `AI_ALERT_EMAIL_TO`.
+- `YOURCAT_PORTRAIT_ENABLED=true` only when, in addition, the Stripe account has a terms of service URL
+  (required by the checkout's withdrawal checkbox), Adaptive Pricing is confirmed off for these sessions,
+  and one real card purchase is delivered end to end. The legacy `/portrait` digital checkout asks for
+  the same checkbox only with `PORTRAIT_CHECKOUT_TOS_CONSENT=true`: set it once the terms URL is in the
+  Stripe settings (live mode), because Stripe refuses to create a session that requires the checkbox
+  without it. Before that, legacy digital sessions are created without the checkbox, as before v2.
+- `PORTRAIT_USD_PRICE_CHANGED_AT`: if v2 reaches production after 2026-10-12, set it to the deploy day
+  (`YYYY-MM-DDT00:00:00Z`) before the new backend starts. The $6 floor otherwise ends 48 h after the
+  constant, and a $6 codex PaymentIntent (or `POST /web3/confirm` order) made by the old backend and
+  paid after the switch is refused after the card was charged.
+- `/portrait` previews (release decision, spec section 3.5 and 10, in force on merge with every
+  `/yourcat` flag off): `POST /image/portrait` and regenerate go through `AiUploadGate`. Until the App
+  Check site key is set every visitor is "unverified": 1 preview per address per day, shared with
+  regenerate (before v2: unlimited at 5 a minute, regenerate 3 a minute); `AI_PREVIEW_IP_DAILY_UNVERIFIED`
+  raises it. All previews share the €3 sub-cap (`AI_BUDGET_PREVIEW_EUR_PER_DAY`), about 10 previews a day
+  at the €0.30 reservation, after which every `/portrait` visitor gets 503 `YOURCAT_BUDGET_EXHAUSTED`.
+  Set both env values to the wanted funnel before deploying. Without `CF_ORIGIN_SECRET` (or
+  `TRUST_PROXY`) no production address is proven, so all previews share the one `untrusted` bucket
+  (`AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day site-wide): set `CF_ORIGIN_SECRET` and the Cloudflare
+  Transform Rule before v2 reaches production to keep per-visitor caps.
+- `NODE_ENV=production` must be set on every backend instance: `isProduction()` keys on it, and without
+  it the AI gate skips the untrusted-address rules and falls back to a hard-coded IP salt.
 
 ## Migrations
 
@@ -890,7 +995,25 @@ Route and logic bugs:
   onboarding page shows "No wallet has been claimed yet" right after a shelter files one; its own
   "Claim sent" step covers that moment.
 
-- Fixed (platform fix 4): `PUT /image/portrait/:id/regenerate` now requires auth and is limited to 3 calls per minute. Images have no owner field, so any signed-in user can still regenerate any image id. The public `/portrait` and `/portraits` pages have no sign-in, so a signed-out visitor now gets a "sign in" message on retry. `POST /image/portrait` is also a paid generation and is still public (5 per minute per IP). Open product decision: require sign-in for both, or allow anonymous generation with a tight per-IP limit.
+- Fixed (platform fix 4): `PUT /image/portrait/:id/regenerate` now requires auth and is limited to 3 calls per minute. Bet #3 update: images now carry `owner` and `source`. An image with an owner can be regenerated only by that owner (404 otherwise); a guest may regenerate only images it owns; an image without an owner (every image created before bet #3) is refused for guests (403 `GUEST_FORBIDDEN`) and can still be regenerated by any signed-in registered user (still open for legacy images). Images with a `COMPLETE` order (a delivered product) are refused (409 `YOURCAT_PORTRAIT_EXISTS`), and `source: 'yourcat'` images are never regenerated. Both routes now share the `portrait-preview` daily caps and budget (docs/plans/yourcat-v2.md section 3). Since bet #3 `POST /image/portrait` also needs a session (a guest session is enough) and the same caps; the client creates the guest session before the upload.
+- Open (bet #3, 2026-10-11, new): `POST /image/portrait` returns the full 4K `aiUrl` before payment, and the public `GET /image/:id` serves it too, so the paid digital portrait on `/portrait` and `/portraits` can be downloaded for free. Withholding it needs a watermarked low-res preview and a change to the `GET /image/:id` contract that `/portrait` polls (deferred). `/yourcat` avoids it by painting only after payment, and `GET /image/:id` never serves `source: 'yourcat'` records.
+- Fixed (bet #3, found 2026-10-11): `POST /image/search` had no guard and listed every image, preview photos and paid 4K portraits included, to anyone. It now needs `PermissionGuard(EDITOR)` and never lists `source: 'yourcat'` records. No client or CMS code called it.
+- Open (bet #3, mentioned): `POST /image/create-checkout-session` (unsigned) accepts an arbitrary `body.userId`, so an order and its cat can be attributed to any user (`image.controller.ts`, `checkout`). It now refuses `source: 'yourcat'` images (404) and the `-signed` route refuses another owner's image; the unsigned route has no caller identity to compare, so the rest stays.
+- Open (bet #3, mentioned): `POST /image` (`PermissionGuard(0)`) copies the request body into the record. `owner`, `source` and `aiUrl` are now stripped (and `owner`/`source` on `PUT /image/:id`); every other field is still caller-controlled.
+- Open (mentioned): `POST /blessing` reads the user with the projection `_id permission`, so `user.shelter` is always undefined and `object.shelter !== user.shelter` (`blessing.controller.ts`, the permission check around line 161) is true for any blessing with a shelter: the check passes for every caller who reaches it. See also the ObjectId comparison entry below.
+- Open (mentioned): `hasWhiteBorders` indexes the raw pixels as RGBA (`* 4`), but sharp `.raw()` on an RGB image gives 3 channels (`ai-avatar.ts`, around lines 283 and 291), so the border check reads the wrong bytes on RGB output and the retries fire (or not) at random.
+- Open (mentioned): `generateCat` picks a random edition and emote and casts the family unchecked: 123 of the 1606 family x edition sheets answer 403 on the CDN (all of `PEACHES`, many vampire, pumpkin-head and lighting), and the list includes `cigarette`, `hat-*-cigarette` and `jesus`. Without `screen` it never answers "no cat". This still affects `POST /blessing` and the paid portrait cats; `/yourcat` forces `base` and screens.
+- Open (mentioned): `createBlessingWithCat` classifies the painted portrait, not the original photo (`cat.service.ts`, around lines 400 to 466).
+- Open (mentioned): `uploadFileImage` does not apply the EXIF orientation (no `.rotate()`), so phone photos uploaded through `POST /image` and the blessing paths can come out sideways. The bet #3 photo routes use `sanitizePhoto`, which rotates.
+- Open (mentioned): `Image.isTemporary` is stored but never read; `/image/portrait` uploads are public-read with no cleanup (now under an unguessable uuid name).
+- Open (mentioned): the SendGrid subject "Your order is on its way!" is also used for digital orders (`src/image/order-email.ts`, default subject); `/yourcat` deliveries pass their own subject.
+- Open (bet #3, mentioned): App Check tokens on `POST /user/guest/session` are verified without replay protection, so one token can be reused for its lifetime (`verifyAppCheckToken(..., { consume: false })`, behaviour unchanged). The AI gate consumes its limited-use tokens.
+- Open (bet #3, mentioned): the global throttler buckets are shared while `TRUST_PROXY` is unset; the `/yourcat` routes, `POST /image/portrait` and regenerate use per-user and per-client-IP throttlers instead. `cf-connecting-ip` can be forged by a request sent straight to the origin, which the guest treat route still trusts. The AI gate refuses an unproven address for `/yourcat` and puts every unproven preview address in one shared `untrusted` bucket (`src/ai-budget/ai-upload-gate.ts`); `ClientIpThrottlerGuard` still keys its per-minute buckets on the raw header for an unproven address, so those burst limits can be spread over forged addresses (the daily Mongo quotas cannot). The 50 MB global JSON limit is unchanged (entry below).
+- Open (bet #3, new): the per-user and per-client-IP burst limits (and the 10-a-day per-user portrait checkout limit) live in the in-memory throttler storage, per replica, so they reset on restart and multiply by the replica count. The daily Mongo quotas and the budget are the real limits.
+- Open (bet #3, new): card portrait orders are charged in EUR, and their `priceUsd` is an estimate at the fixed stats rate `PORTRAIT_STATS_USD_PER_EUR` (1.15), not the real exchange rate. `PledgeService.table()` (`src/impact/pledge.service.ts`, not part of this bet) sums `priceUsd` over `COMPLETE` orders, so the public purchase pledge counts a €14 order as $16.10 whatever the FX was. Fix: store the settled amount from the Stripe balance transaction, or leave EUR orders out of the pledge sum; until then do not cite pledge figures that include EUR orders as exact.
+- Open (bet #3, new): when `makePlayable` succeeds but storing the `YourCat` record fails, the upload answers an error and its original is deleted, but the cat has already been restyled and onboarding set done, with no record behind it.
+- Open (bet #3, new): a guest who signs in to an existing account loses its `/yourcat` cat (decision #8: the guest starter is dropped on merge); creating a new account keeps it. Carrying it through a merge is deferred.
+- Open (bet #3, new): the `/yourcat` avatar runs in-process after the response and paid deliveries rely on the 10-minute sweeper (no job queue). The avatar URL can stay in CDN caches for up to an hour after deletion (`max-age=3600`); there is no purge.
 - Fixed (2026-09): `Order` no longer uses `mongoose-unique-validator`. With the partial index `hash_unique` declared, the plugin merged the index's `partialFilterExpression` into its query, so every order create checked `{ hash: { $gt: '' } }` and failed with a ValidationError once any order had a hash. That broke `POST /web3/confirm`, both Checkout session creates and `confirm-payment`. Duplicates now surface as E11000, which `OrderRepository.create` maps to 409.
 - Fixed (2026-09): `LOOT_BOX` orders were priced at $1 whatever their `id`, while the controller used `id` as the pack type, so a $1 payment with `id: LEGENDARY` rolled Legendary odds. A loot box with an `id` is now refused, and the pack type comes only from a `PACK` order.
 - `DELETE /quest/:slug` filters on a `slug` field that the quest schema does not have.

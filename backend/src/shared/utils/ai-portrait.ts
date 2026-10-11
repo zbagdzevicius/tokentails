@@ -1,13 +1,16 @@
 import { GoogleGenAI } from '@google/genai';
 import * as dotenv from 'dotenv';
 import { Types } from 'mongoose';
-import fetch from 'node-fetch';
+import { AiCallOptions, geminiImageUsage } from 'src/ai-budget/ai-cost';
 import { ImageRepository } from 'src/image/image.repository';
+import { loadImageBytes } from './aws.utils';
 import { v4 as generateFilename } from 'uuid';
 import { uploadFileImage } from './image.utils';
 import { ImageStyle } from 'src/image/image.schema';
 
 dotenv.config();
+
+export { loadImageBytes };
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
@@ -42,7 +45,8 @@ Ultra-high resolution. No modern objects, no fantasy anatomy, no text.`,
 export async function generatePortraitForImage(
     imageId: string,
     imageRepository: ImageRepository,
-    style?: ImageStyle
+    style?: ImageStyle,
+    options: AiCallOptions = {}
 ): Promise<string> {
     try {
         // Fetch the existing image
@@ -58,14 +62,12 @@ export async function generatePortraitForImage(
             throw new Error(`Image with id ${imageId} has no URL`);
         }
 
-        // Fetch the input image from URL
-        const imageResponse = await fetch(image.url);
-        const imageBuffer = await imageResponse.arrayBuffer();
-        const imageBase64 = Buffer.from(imageBuffer).toString('base64');
-
-        // Determine MIME type from the image URL or response headers
-        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-        const mimeType = contentType.split(';')[0];
+        // The input image: a public URL is fetched; the private original of a paid /yourcat portrait
+        // (`s3private://`) is read from the bucket, and only for `source: 'yourcat'` images.
+        const { data: imageBuffer, mimeType } = await loadImageBytes(image.url, {
+            allowPrivate: image.source === 'yourcat',
+        });
+        const imageBase64 = imageBuffer.toString('base64');
 
         // Generate AI portrait
         const contents = [
@@ -92,8 +94,10 @@ export async function generatePortraitForImage(
                 temperature: 0.1, // Low temperature for consistent, high-quality output
                 topP: 0.5,
                 topK: 10,
+                abortSignal: options.signal,
             },
         });
+        options.onUsage?.(geminiImageUsage(result, '4K'));
 
         // Extract the generated image from the response
         const generatedImagePart = result.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);

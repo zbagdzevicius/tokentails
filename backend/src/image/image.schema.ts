@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import * as uniqueValidator from 'mongoose-unique-validator';
 import { CommonSchema } from 'src/common/common.schema';
 
@@ -9,6 +9,15 @@ export enum ImageStyle {
     ARISTOCRAT = 'aristocrat',
     COMMANDER = 'commander',
 }
+
+/**
+ * Where an image came from (bet #3). `portrait`: a `POST /image/portrait` preview upload (public).
+ * `yourcat`: the record behind a paid `/yourcat` HD portrait; its `url` is the private original
+ * (`s3private://`), so it is never served by `GET /image/:id` and never sold through the legacy
+ * checkout routes. Older images have no source.
+ */
+export const IMAGE_SOURCES = ['portrait', 'yourcat'] as const;
+export type ImageSource = typeof IMAGE_SOURCES[number];
 
 @Schema({ timestamps: true })
 export class Image extends CommonSchema {
@@ -32,6 +41,13 @@ export class Image extends CommonSchema {
 
     @Prop({ required: false })
     style: ImageStyle;
+
+    // The user (or guest) who uploaded it (bet #3). Absent on images created before; regenerate checks it.
+    @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+    owner?: Types.ObjectId;
+
+    @Prop({ type: String, enum: IMAGE_SOURCES, required: false })
+    source?: ImageSource;
 }
 
 export type IImage = Pick<Image, keyof Image>;
@@ -42,4 +58,5 @@ export type ImageDocument = Image & Document;
 
 export const ImageSchema = SchemaFactory.createForClass(Image);
 ImageSchema.index({ createdAt: 1 });
+ImageSchema.index({ owner: 1 }, { sparse: true });
 ImageSchema.plugin(uniqueValidator);

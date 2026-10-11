@@ -47,6 +47,7 @@ export const PAGES = [
   { request: "/packs", canonical: "/packs" },
   { request: "/shelter-payouts", canonical: "/shelter-payouts" },
   { request: "/impact", canonical: "/impact" },
+  { request: "/yourcat?utm_source=share", canonical: "/yourcat" },
 ];
 
 const BAD_STRINGS = [

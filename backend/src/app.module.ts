@@ -146,6 +146,17 @@ import { ShelterGalleryService } from './shelter/goal/shelter-gallery.service';
 import { ShelterGoalCursor, ShelterGoalCursorSchema } from './shelter/goal/shelter-goal.schema';
 import { PurchaseGrantService } from './web3/purchase-grant.service';
 import { AppThrottlerGuard, DEFAULT_THROTTLE } from './shared/guards/app-throttler.guard';
+import { ClientIpThrottlerGuard } from './shared/guards/client-ip-throttler.guard';
+import { AiBudgetDay, AiBudgetDaySchema, AiQuota, AiQuotaSchema } from './ai-budget/ai-budget.schema';
+import { AiBudgetService } from './ai-budget/ai-budget.service';
+import { AiUploadGate } from './ai-budget/ai-upload-gate';
+import { PortraitCheckoutService } from './image/portrait-checkout.service';
+import { YourcatController } from './yourcat/yourcat.controller';
+import { YourcatRepository } from './yourcat/yourcat.repository';
+import { YourCat, YourCatSchema } from './yourcat/yourcat.schema';
+import { YourcatService } from './yourcat/yourcat.service';
+import { PortraitDeliveryService } from './yourcat/portrait-delivery.service';
+import { YourcatRetentionJob } from './yourcat/yourcat-retention.job';
 
 const JwtModules = [
     PassportModule,
@@ -218,6 +229,10 @@ const config = {
             { name: RescueGoalReceipt.name, schema: RescueGoalReceiptSchema },
             { name: CryptoCheckout.name, schema: CryptoCheckoutSchema },
             { name: ShelterGoalCursor.name, schema: ShelterGoalCursorSchema },
+            // Bet #3 /yourcat (docs/plans/yourcat-v2.md section 2.5, 3.2, 3.3).
+            { name: YourCat.name, schema: YourCatSchema },
+            { name: AiBudgetDay.name, schema: AiBudgetDaySchema },
+            { name: AiQuota.name, schema: AiQuotaSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -246,6 +261,8 @@ const config = {
         ImpactController,
         ImpactAdminController,
         RescueGoalController,
+        // Bet #3: one photo becomes the player's cat.
+        YourcatController,
     ],
     providers: [
         UserRepository,
@@ -298,6 +315,15 @@ const config = {
         RescueGoalService,
         ShelterMembersService,
         UserThrottlerGuard,
+        // Bet #3 /yourcat: per-client-IP throttler, AI budget and gate, portrait checkout and delivery.
+        ClientIpThrottlerGuard,
+        AiBudgetService,
+        AiUploadGate,
+        PortraitCheckoutService,
+        YourcatRepository,
+        YourcatService,
+        PortraitDeliveryService,
+        YourcatRetentionJob,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

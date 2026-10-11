@@ -23,6 +23,7 @@ export const NIGHT_ROUTES: readonly string[] = [
   "/impact",
   "/heist",
   "/game",
+  "/yourcat",
 ];
 
 /** Strips query, hash and a trailing slash: `/game/?x=1#y` -> `/game`. */

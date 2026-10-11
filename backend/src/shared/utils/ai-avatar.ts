@@ -6,6 +6,7 @@ import { uploadFileImage } from './image.utils';
 import { randomObjectFromArray } from 'src/common/utils';
 import { CatAbilityType, CatAbilityTypes } from 'src/cat/cat.schema';
 import sharp = require('sharp');
+import { AiCallOptions, geminiImageUsage } from 'src/ai-budget/ai-cost';
 dotenv.config();
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
@@ -443,4 +444,48 @@ export async function generateAvatarFromImage(imageUrl: string, type: CatAbility
         console.error('Error generating avatar from image:', error);
         throw error;
     }
+}
+
+/** The bet #3 `/yourcat` pixel avatar prompt (docs/plans/yourcat-v2.md section 4.3). */
+export const PIXEL_AVATAR_PROMPT =
+    'Redraw this exact cat as 16-bit pixel art for a video game. Keep its real fur colours, markings, eye colour ' +
+    'and ear shape. Head and shoulders, facing the viewer, centred. Thick dark outline, limited palette, flat ' +
+    'colour areas, no gradients, no text, no frame, no people, no other animals. Plain solid deep violet ' +
+    'background (#120d1f).';
+
+/**
+ * One pixel-art avatar of the cat in `image` (bet #3 `/yourcat`): one Gemini call at the default size,
+ * no retries (the white-border retries of `generateAvatarFromImage` are not used). Returns null on a
+ * safety block, an empty answer or an answer without image data; the caller marks the avatar failed.
+ * Throws on a provider error or an abort. The raw image is post-processed into a real pixel grid by
+ * `src/yourcat/pixelate.ts`.
+ */
+export async function generatePixelAvatar(
+    image: Buffer,
+    mimeType: string,
+    options: AiCallOptions = {}
+): Promise<Buffer | null> {
+    const result: any = await genAI.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: [{ inlineData: { data: image.toString('base64'), mimeType } }, { text: PIXEL_AVATAR_PROMPT }],
+        config: {
+            imageConfig: { aspectRatio: '1:1' },
+            temperature: 0.2,
+            abortSignal: options.signal,
+        },
+    });
+    options.onUsage?.(geminiImageUsage(result, '1K'));
+
+    if (result?.promptFeedback?.blockReason) {
+        return null;
+    }
+    const candidate = result?.candidates?.[0];
+    if (!candidate || candidate.finishReason === 'SAFETY' || candidate.finishReason === 'PROHIBITED_CONTENT') {
+        return null;
+    }
+    const part = candidate.content?.parts?.find((item: any) => item?.inlineData?.data);
+    if (!part?.inlineData?.data) {
+        return null;
+    }
+    return Buffer.from(part.inlineData.data, 'base64');
 }

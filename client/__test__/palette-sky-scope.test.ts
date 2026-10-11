@@ -19,7 +19,8 @@ const read = (f: string) => fs.readFileSync(path.join(CLIENT, f), "utf8");
 
 describe("night scope gating (plan G6)", () => {
   it("covers exactly the plan's night routes", () => {
-    expect([...NIGHT_ROUTES]).toEqual(["/", "/packs", "/shelter-payouts", "/impact", "/heist", "/game"]);
+    // `/yourcat` (bet #3, docs/plans/yourcat-v2.md §1) is a night page too.
+    expect([...NIGHT_ROUTES]).toEqual(["/", "/packs", "/shelter-payouts", "/impact", "/heist", "/game", "/yourcat"]);
   });
 
   it.each([

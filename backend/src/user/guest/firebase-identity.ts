@@ -21,6 +21,12 @@ export interface IFirebaseIdentity {
     /** Verifies an App Check token from `x-firebase-appcheck`. Throws when it is invalid. */
     verifyAppCheck(token: string): Promise<void>;
     /**
+     * Verifies a limited-use App Check token and marks it consumed (replay protection, bet #3 AI gate).
+     * `alreadyConsumed` is true when the token was seen before. Throws when it is invalid. Optional so
+     * test adapters that never consume need not implement it.
+     */
+    verifyAppCheckConsuming?(token: string): Promise<{ alreadyConsumed: boolean }>;
+    /**
      * Whether the Firebase user still exists. False only for `auth/user-not-found`; any other error
      * (Firebase unreachable) counts as existing, so an outage never blocks sign-in or sign-up.
      */
@@ -86,6 +92,11 @@ export const firebaseIdentity: IFirebaseIdentity = {
 
     async verifyAppCheck(token) {
         await admin.appCheck().verifyToken(token);
+    },
+
+    async verifyAppCheckConsuming(token) {
+        const result = await admin.appCheck().verifyToken(token, { consume: true });
+        return { alreadyConsumed: result.alreadyConsumed === true };
     },
 
     async userExists(uid) {
