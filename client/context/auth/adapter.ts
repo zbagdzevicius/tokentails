@@ -90,6 +90,8 @@ export interface E2EAuthControl {
   signOut(): void;
   current(): AuthUserSnapshot | null;
   anonymousCalls(): number;
+  /** How many times `getIdToken(true)` asked for a fresh token. */
+  forcedRefreshes(): number;
 }
 
 export function e2eAuthAllowed(): boolean {
@@ -103,6 +105,7 @@ export function readE2EAuthConfig(): E2EAuthConfig | null {
 }
 
 let counter = 0;
+let forcedRefreshes = 0;
 
 function fakeUser(input: E2EAuthConfig["user"] & { uid?: string }): AdapterUser {
   const uid = input?.uid || `e2e-${++counter}`;
@@ -113,7 +116,10 @@ function fakeUser(input: E2EAuthConfig["user"] & { uid?: string }): AdapterUser 
     email: input?.email ?? (isAnonymous ? null : `${uid}@e2e.invalid`),
     emailVerified: input?.emailVerified ?? !isAnonymous,
     providerData: (input?.providers ?? (isAnonymous ? [] : ["google.com"])).map((providerId) => ({ providerId })),
-    getIdToken: async () => `e2e.${uid}.${isAnonymous ? "anon" : "user"}`,
+    getIdToken: async (forceRefresh?: boolean) => {
+      if (forceRefresh) forcedRefreshes++;
+      return `e2e.${uid}.${isAnonymous ? "anon" : "user"}`;
+    },
   };
 }
 
@@ -121,6 +127,7 @@ export function e2eAdapter(config: E2EAuthConfig): AuthAdapter {
   const listeners = new Set<(user: AdapterUser | null) => void>();
   let user: AdapterUser | null = config.user ? fakeUser(config.user) : null;
   let anonymousCalls = 0;
+  forcedRefreshes = 0;
   const emit = () => listeners.forEach((listener) => listener(user));
 
   const control: E2EAuthControl = {
@@ -134,6 +141,7 @@ export function e2eAdapter(config: E2EAuthConfig): AuthAdapter {
     },
     current: () => (user ? snapshotOf(user) : null),
     anonymousCalls: () => anonymousCalls,
+    forcedRefreshes: () => forcedRefreshes,
   };
   (window as unknown as Record<string, unknown>)[E2E_AUTH_CONTROL] = control;
 

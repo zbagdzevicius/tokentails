@@ -103,6 +103,22 @@ describe("AuthSheet", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
   });
 
+  it("profile error: shows the failed status and uid as a support reference", () => {
+    const user = { uid: "acc-7", isAnonymous: false, email: "p@x.test", emailVerified: true, providers: ["google.com"] };
+    const { unmount } = renderSheet(controller({ name: "profile-error", status: 503 }, { user }));
+    expect(screen.getByTestId("profile-error-reference").textContent).toBe("Error 503 · acc-7");
+    expect(screen.getByRole("link", { name: "Contact support" }).getAttribute("href")).toContain(
+      encodeURIComponent("Reference: Error 503 · acc-7")
+    );
+    unmount();
+    const noAnswer = renderSheet(controller({ name: "profile-error", status: null }, { user }));
+    expect(screen.getByTestId("profile-error-reference").textContent).toBe("No response · acc-7");
+    noAnswer.unmount();
+    renderSheet(controller({ name: "profile-error", timeout: true }, { user }));
+    expect(screen.queryByTestId("profile-error-reference")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Contact support" })).toBeNull();
+  });
+
   it("email: labelled inputs with autocomplete, and no silent failure", () => {
     const c = controller({ name: "email", tab: "create" });
     renderSheet(c);

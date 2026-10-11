@@ -73,6 +73,8 @@ let reauthInterval: ReturnType<typeof setInterval> | null = null;
 
 /** A profile request that has not answered after this long is a `profile-error` (G9). */
 export const PROFILE_TIMEOUT_MS = 20_000;
+/** The wait before the one retry of a profile request that failed with a 429, a 5xx or a network error. */
+export const PROFILE_RETRY_DELAY_MS = 1_500;
 
 // Decision #6: the web authDomain moves to tokentails.com behind NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 // (with the /__/auth rewrites from task 3f), verified on a preview first. Unset, and in the
@@ -108,7 +110,8 @@ export type SheetView =
   | { name: "link-account"; provider: OAuthProviderName; email: string | null }
   | { name: "linking"; label: string }
   | { name: "busy"; label: string }
-  | { name: "profile-error"; timeout?: boolean }
+  /** `status`: the HTTP status of the failed profile request (null: no answer), shown for support. */
+  | { name: "profile-error"; timeout?: boolean; status?: number | null }
   | { name: "conflict" }
   | { name: "merged"; gamesMoved: number; tailsCredited: number; note?: string }
   | { name: "fallback" };
@@ -196,6 +199,16 @@ function storeToken(token: string | null) {
 /** One merge attempt per guest token, account and verification state, per page. */
 function mergeAttemptKey(guestToken: string, user: AuthUserSnapshot | null): string {
   return `${guestToken.slice(-16)}|${user?.uid ?? ""}|${user?.emailVerified ? 1 : 0}`;
+}
+
+/** A profile failure worth one more attempt: 401, 429, 5xx or a network error. */
+function isRetryableProfileError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    if (error.code) return false;
+    return error.status === 401 || error.status === 429 || error.status >= 500;
+  }
+  // fetch rejects with a TypeError when the connection fails; a bad body (SyntaxError) is final.
+  return error instanceof TypeError;
 }
 
 function readProfileError(error: unknown): ProfilePhase {
@@ -348,8 +361,38 @@ const FirebaseAuthProvider = ({
       timedOut = true;
       controller?.abort();
     }, PROFILE_TIMEOUT_MS);
+    // The token comes straight from Firebase, not only from sessionStorage, which some browsers
+    // block. `forceRefresh` gets a new one after a 401 (an expired or revoked token).
+    const fetchProfile = async (forceRefresh: boolean) => {
+      let token: string | undefined;
+      const fbUser = adapter.current();
+      if (fbUser && fbUser.uid === current.uid) {
+        try {
+          const idToken = await fbUser.getIdToken(forceRefresh);
+          storeToken(idToken);
+          token = `fb${idToken}`;
+        } catch {
+          // The stored token, if any, goes out instead.
+        }
+      }
+      return (await USER_API.profile(controller?.signal, token)) as SessionProfile;
+    };
     try {
-      const raw = (await USER_API.profile(controller?.signal)) as SessionProfile;
+      let raw: SessionProfile;
+      try {
+        raw = await fetchProfile(false);
+      } catch (error) {
+        // One retry for a failure that a second attempt can fix: an expired token (401), a
+        // throttle (429), a server error (5xx) or a dropped connection. Deliberate answers with a
+        // code (403 EMAIL_UNVERIFIED, 409 ACCOUNT_CONFLICT, ...) are final.
+        if (timedOut || seq !== seqRef.current || !isRetryableProfileError(error)) throw error;
+        const unauthorized = error instanceof ApiError && error.status === 401;
+        if (!unauthorized) await new Promise((resolve) => setTimeout(resolve, PROFILE_RETRY_DELAY_MS));
+        // Signed out or switched user during the wait: this request no longer owns the state.
+        if (userRef.current?.uid !== current.uid) return null;
+        if (timedOut || seq !== seqRef.current) throw error;
+        raw = await fetchProfile(unauthorized);
+      }
       if (seq !== seqRef.current) return null; // a newer request owns the state
       return acceptProfile(raw, seq);
     } catch (error) {
@@ -362,7 +405,7 @@ const FirebaseAuthProvider = ({
     } finally {
       clearTimeout(timer);
     }
-  }, [acceptProfile]);
+  }, [acceptProfile, adapter]);
 
   // ---- Firebase user ---------------------------------------------------------------------
 
@@ -492,6 +535,7 @@ const FirebaseAuthProvider = ({
 
   const errorCode = profileState.phase === "error" ? profileState.code : null;
   const errorTimeout = profileState.phase === "error" ? !!profileState.timeout : false;
+  const errorStatus = profileState.phase === "error" ? profileState.status : null;
   React.useEffect(() => {
     const canForce = mode === "guest" || gate.pending;
     const current = sheetRef.current;
@@ -517,8 +561,13 @@ const FirebaseAuthProvider = ({
       }
       // A guest whose profile failed keeps playing on the template (the backend is unreachable,
       // not the account); a signed-in player gets the retry sheet.
-      if (!user.isAnonymous && (!current.open || current.view.name !== "profile-error")) {
-        openSheet(gate.reason ?? "sign-in", { name: "profile-error", timeout: errorTimeout });
+      // Also when a retry failed differently, so the support reference shows the latest status.
+      const stale =
+        current.view.name !== "profile-error" ||
+        current.view.status !== errorStatus ||
+        !!current.view.timeout !== errorTimeout;
+      if (!user.isAnonymous && (!current.open || stale)) {
+        openSheet(gate.reason ?? "sign-in", { name: "profile-error", timeout: errorTimeout, status: errorStatus });
       }
       return;
     }
@@ -528,7 +577,7 @@ const FirebaseAuthProvider = ({
       if (gate.pending && authStatus === "guest") setView({ name: "choose" });
       else if (!gate.pending) setSheet((s) => ({ ...s, open: false }));
     }
-  }, [mode, fb, user, authStatus, errorCode, errorTimeout, gate, openSheet, setView]);
+  }, [mode, fb, user, authStatus, errorCode, errorTimeout, errorStatus, gate, openSheet, setView]);
 
   // ---- bridge for the API wrapper ----------------------------------------------------------
 

@@ -26,18 +26,19 @@ const baseHeaders: HeadersInit = {
 
 const authHeaders = (): HeadersInit => ({
   ...baseHeaders,
-  accesstoken: sessionStorage.getItem("accesstoken") || "",
+  accesstoken: currentAccessToken(),
 });
 
 /**
  * `GET /user/profile`. Throws `ApiError` (status and F5.6 code) on any non-2xx answer, so the auth
  * runtime can tell a 403 EMAIL_UNVERIFIED or a 409 ACCOUNT_CONFLICT from an outage. An anonymous
- * user without a guest document gets the transient template profile (F5.5).
+ * user without a guest document gets the transient template profile (F5.5). `token` (already
+ * `fb`-prefixed) wins over the stored one, so a browser that blocks sessionStorage still signs in.
  */
-const profile = async (signal?: AbortSignal): Promise<IProfile> => {
+const profile = async (signal?: AbortSignal, token?: string): Promise<IProfile> => {
   const response = await rawApiFetch(`${apiUrl}/user/profile`, {
     method: "GET",
-    headers: authHeaders(),
+    headers: token ? { ...baseHeaders, accesstoken: token } : authHeaders(),
     signal,
   });
   if (!response.ok) {

@@ -1,4 +1,4 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { AuthStrategy } from './auth-app.strategy';
 import { UNAUTHORIZED } from './constants';
@@ -123,14 +123,14 @@ describe('AppAuthStrategy (appauth)', () => {
         expect(perRequest.error).toHaveBeenCalledWith(forbidden);
     });
 
-    it('keeps any other resolution error a plain 401', async () => {
+    it('answers 500, not 401, for any other resolution error', async () => {
         verifyIdToken.mockResolvedValue({ uid: 'u1', email: 'player@example.com', firebase: {} });
         getFirebaseUser.mockRejectedValue(new Error('Mongo is down'));
         const { perRequest, run } = createRequestStrategy('fbvalid');
         await run();
 
-        expect(outcomes(perRequest)).toEqual({ success: 0, fail: 1, error: 0 });
-        expect(perRequest.fail.mock.calls[0][1]).toBe(401);
+        expect(outcomes(perRequest)).toEqual({ success: 0, fail: 0, error: 1 });
+        expect(perRequest.error.mock.calls[0][0]).toBeInstanceOf(InternalServerErrorException);
     });
 
     it('succeeds once, and never also fails, for a valid token with an email', async () => {

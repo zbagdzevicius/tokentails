@@ -1,4 +1,4 @@
-import { HttpException, Logger } from '@nestjs/common';
+import { HttpException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Request } from 'express';
 import * as admin from 'firebase-admin';
 import { Strategy } from 'passport-strategy';
@@ -90,14 +90,17 @@ export class AppAuthStrategy extends Strategy {
             result = await this.validate(decodedIdToken, req);
         } catch (err) {
             // A deliberate HTTP answer (403 EMAIL_UNVERIFIED, 409 ACCOUNT_CONFLICT, 429 NewAccountThrottle,
-            // a 401 for a token without an email)
-            // reaches AppAuthGuard.handleRequest unchanged. Anything else stays a plain 401.
+            // a 401 for a token without an email or a deleted account) reaches AppAuthGuard.handleRequest
+            // unchanged, logged with the uid so a player's report can be traced. Anything else is a
+            // server fault (database, starter cat, merge): logged in full and answered 500, not 401.
             if (err instanceof HttpException) {
+                this.logger.warn(`auth refused uid=${decodedIdToken?.uid}: ${err.getStatus()} ${err.message}`);
                 this.error(err);
 
                 return;
             }
-            this.fail({ err }, 401);
+            this.logger.error(`auth failed uid=${decodedIdToken?.uid}`, err instanceof Error ? err.stack : String(err));
+            this.error(new InternalServerErrorException());
 
             return;
         }

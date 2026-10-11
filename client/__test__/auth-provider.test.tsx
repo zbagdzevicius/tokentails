@@ -324,10 +324,62 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
     expect(calls.some((call) => call.path === "/user/guest/merge")).toBe(false);
   });
 
+  it("retries the profile once with a fresh token after a 401, without showing an error", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => (++profileCalls === 1 ? { status: 401, body: {} } : { body: ACCOUNT });
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"));
+    expect(profileCalls).toBe(2);
+    expect(control().forcedRefreshes()).toBe(1);
+  });
+
+  it("retries the profile once after a 5xx, then loads", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => (++profileCalls === 1 ? { status: 503, body: {} } : { body: ACCOUNT });
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"), { timeout: 3000 });
+    expect(profileCalls).toBe(2);
+  });
+
+  it("retries a persistent 5xx only once, then shows the error", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => {
+      profileCalls++;
+      return { status: 503, body: {} };
+    };
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("profile-error"), { timeout: 3000 });
+    await new Promise((resolve) => setTimeout(resolve, 1700)); // no third attempt after another delay
+    expect(profileCalls).toBe(2);
+  });
+
+  it("does not retry a deliberate answer with an error code", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => {
+      profileCalls++;
+      return { status: 409, body: { code: "ACCOUNT_CONFLICT" } };
+    };
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("profile-error"));
+    expect(profileCalls).toBe(1);
+  });
+
+  it("loads the profile when the browser blocks sessionStorage", async () => {
+    const blocked = () => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    };
+    jest.spyOn(Storage.prototype, "getItem").mockImplementation(blocked);
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(blocked);
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"));
+    expect(calls.find((call) => call.path === "/user/profile")?.token).toBe("fbe2e.acc.user");
+  });
+
   it("signing out clears a pending merge", async () => {
     routes["GET /user/profile"] = () => ({ status: 503, body: {} });
     renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
-    await waitFor(() => expect(latest.auth?.authStatus).toBe("profile-error"));
+    // One retry after PROFILE_RETRY_DELAY_MS before the error shows.
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("profile-error"), { timeout: 3000 });
     sessionStorage.setItem(
       PENDING_MERGE_KEY,
       JSON.stringify({ guestToken: "GUEST_TOKEN", expiresAt: Date.now() + 60_000, targetUid: "acc" })

@@ -721,24 +721,41 @@ const LinkAccountView = ({
 const ProfileErrorView = ({
   controller,
   view,
-}: BodyProps & { view: Extract<SheetView, { name: "profile-error" }> }) => (
-  <>
-    <Heading>{view.timeout ? "This is taking too long" : "We couldn't load your account"}</Heading>
-    <p className={bodyText}>
-      {view.timeout
-        ? "Your account didn't load in time. Check your connection, then try again."
-        : "Something went wrong on our side. Your cat and your progress are safe. Try again in a moment."}
-    </p>
-    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryProfile}>
-      TRY AGAIN
-    </ModalButton>
-    <div className="flex flex-wrap items-center justify-center gap-x-2">
-      <button type="button" className={textButton} onClick={() => void controller.signOut()}>
-        Sign out
-      </button>
-    </div>
-  </>
-);
+}: BodyProps & { view: Extract<SheetView, { name: "profile-error" }> }) => {
+  // The failed status and the Firebase uid, so a report tells support which answer this account got.
+  const uid = controller.user?.uid ?? null;
+  const reference = view.timeout
+    ? null
+    : [view.status ? `Error ${view.status}` : "No response", uid].filter(Boolean).join(" · ");
+  return (
+    <>
+      <Heading>{view.timeout ? "This is taking too long" : "We couldn't load your account"}</Heading>
+      <p className={bodyText}>
+        {view.timeout
+          ? "Your account didn't load in time. Check your connection, then try again."
+          : "Something went wrong on our side. Your cat and your progress are safe. Try again in a moment."}
+      </p>
+      <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryProfile}>
+        TRY AGAIN
+      </ModalButton>
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        <button type="button" className={textButton} onClick={() => void controller.signOut()}>
+          Sign out
+        </button>
+        {reference && (
+          <a className={textButton} href={supportUrl(reference)}>
+            Contact support
+          </a>
+        )}
+      </div>
+      {reference && (
+        <p className="select-all break-all text-center font-sans text-p6 font-semibold text-tt-muted" data-testid="profile-error-reference">
+          {reference}
+        </p>
+      )}
+    </>
+  );
+};
 
 const ConflictView = ({ controller }: BodyProps) => {
   // This guest's uid, so support can move its progress after the player signs in elsewhere.
