@@ -15,6 +15,7 @@ import { generateAvatarFromImage } from 'src/shared/utils/ai-avatar';
 import { generateRandomNumber } from 'src/user/user.service';
 import { ShelterRepository } from 'src/shelter/shelter.repository';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
+import { privateKeyOf } from 'src/shared/utils/private-url';
 import {
     buildStorefront,
     IStorefrontMeta,
@@ -398,6 +399,11 @@ export class CatService {
     }
 
     async createBlessingWithCat(userId: string, imgUrl: string) {
+        // A paid portrait's private 4K (`s3private://`, KI-08) is never a cat or blessing image: no browser
+        // can open it. Callers publish it first (paid-portrait.ts `deliverPaidPortraitUrl`).
+        if (!imgUrl || privateKeyOf(imgUrl) !== null) {
+            throw new Error('A blessing cat needs a public image URL');
+        }
         const name = `My Pet`;
         const image = await this.imageRepository.create({
             url: imgUrl,

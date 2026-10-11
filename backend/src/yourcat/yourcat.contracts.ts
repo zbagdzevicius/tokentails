@@ -83,5 +83,6 @@ export const YOURCAT_ERROR_CODES = [
     'YOURCAT_PHOTO_EXPIRED',
     'YOURCAT_PORTRAIT_DISABLED',
     'YOURCAT_PORTRAIT_EXISTS',
+    'YOURCAT_STYLE_INVALID',
 ] as const;
 export type YourcatErrorCode = typeof YOURCAT_ERROR_CODES[number];

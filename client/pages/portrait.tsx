@@ -22,6 +22,11 @@ import {
   PreviewPage,
   purchaseOptions,
 } from "@/features/portrait/components/PreviewPage";
+import {
+  PAID_PORTRAIT_RETRY_DELAYS_MS,
+  PaidDownloadStatus,
+  fetchPaidPortraitUrl,
+} from "@/features/portrait/paid-portrait";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
@@ -33,6 +38,7 @@ import {
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
+import { OrderCurrencyType } from "@/web3/contracts";
 import {
   PORTRAIT_CHECKOUT_CURRENCY,
   formatPortraitPrice,
@@ -54,13 +60,32 @@ const CANVAS_VIDEO_URL =
 // the landing display face); body copy inherits the html Nunito stack. They replace two families
 // the page named but never loaded.
 
-const getStyleImages = (style: PortraitStyle): string[] => {
-  return [
-    `/portrait/${style}-1.webp`,
-    `/portrait/${style}-2.webp`,
-    `/portrait/${style}-3.webp`,
-  ];
+// Example numbers per style in public/portrait/. Highness skips example 1: that painting shows a
+// famous internet cat's likeness (and so does the identical highness.webp), so no page shows it.
+const STYLE_EXAMPLE_NUMBERS: Record<PortraitStyle, number[]> = {
+  [PortraitStyle.HIGHNESS]: [2, 3],
+  [PortraitStyle.MONARCH]: [1, 2, 3],
+  [PortraitStyle.ARISTOCRAT]: [1, 2, 3],
+  [PortraitStyle.COMMANDER]: [1, 2, 3],
 };
+
+/**
+ * Retry delays for the paid file on this page (CR2-01). When the payment's own delivery could not
+ * publish the 4K, `GET /image/:id` publishes it only 2 minutes after the order turned COMPLETE
+ * (backend LATE_PUBLISH_GRACE_MS), so the page keeps "preparing" for about 3 minutes instead of 15 s.
+ */
+const PAID_PORTRAIT_PAGE_DELAYS_MS: readonly number[] = [
+  ...PAID_PORTRAIT_RETRY_DELAYS_MS,
+  15000,
+  30000,
+  30000,
+  30000,
+  30000,
+  30000,
+];
+
+const getStyleImages = (style: PortraitStyle): string[] =>
+  STYLE_EXAMPLE_NUMBERS[style].map((n) => `/portrait/${style}-${n}.webp`);
 
 const STYLE_LABELS: Record<PortraitStyle, string> = {
   [PortraitStyle.HIGHNESS]: "Highness",
@@ -75,7 +100,7 @@ const HOW_IT_WORKS = [
     emoji: "📸",
     title: "Upload your cat",
     desc: "Use a clear photo. Front-facing shots usually give the best results.",
-    image: "/portrait/highness-1.webp",
+    image: "/portrait/highness-2.webp",
     bg: "#fff0e3",
   },
   {
@@ -90,19 +115,13 @@ const HOW_IT_WORKS = [
     num: "03",
     emoji: "👑",
     title: "Get the masterpiece",
-    desc: "Preview in seconds, regenerate if needed, then order digital, print, or canvas.",
+    desc: "See a free preview, try another style if you like, then order digital, print, or canvas.",
     image: "/portrait/aristocrat-1.webp",
     bg: "#f1ebff",
   },
 ];
 
 const GALLERY_ITEMS = [
-  {
-    src: "/portrait/highness-1.webp",
-    title: "The Empress 👸",
-    style: "Highness",
-    bg: "#fff0e3",
-  },
   {
     src: "/portrait/monarch-1.webp",
     title: "The General 🎖️",
@@ -153,10 +172,23 @@ const GALLERY_ITEMS = [
   },
 ];
 
+/**
+ * FAQ answers that must match the policy (PoliciesModal) and the server limits; pinned by
+ * __test__/portrait-no-fabricated-proof.test.ts (kept identical in pages/portraits.tsx if it gains a
+ * FAQ). Regenerating goes through the same daily preview
+ * gate as a first preview (docs/BACKEND.md, AiUploadGate), so the answer promises no unlimited use.
+ * The refund answer stays conditional: the withdrawal waiver applies only when the buyer agreed to it
+ * at checkout (PORTRAIT_CHECKOUT_TOS_CONSENT).
+ */
+const PORTRAIT_FAQ_REGENERATE =
+  "Yes, from the preview page. Each new style is a new preview and counts toward a small daily limit, so you may need to come back tomorrow.";
+const PORTRAIT_FAQ_REFUNDS =
+  "Digital portraits: if you agree at checkout that delivery starts right away, the 14-day right of withdrawal ends once we deliver; a delivered file that is faulty is fixed or refunded. Prints and canvases damaged in shipping are replaced or refunded within 30 days of delivery. Email info@tokentails.com.";
+
 const FAQS = [
   {
     q: "How fast is a portrait generated?",
-    a: "Usually in under 2 minutes. During peak traffic, it can take a little longer.",
+    a: "The page shows the progress while your free preview is made. It can take longer when many people are making portraits.",
   },
   {
     q: "What photo works best?",
@@ -164,7 +196,7 @@ const FAQS = [
   },
   {
     q: "Can I regenerate if I want another style?",
-    a: "Yes. You can regenerate and rotate through available styles from the preview flow.",
+    a: PORTRAIT_FAQ_REGENERATE,
   },
   {
     q: "Do I get high-resolution output?",
@@ -176,7 +208,7 @@ const FAQS = [
   },
   {
     q: "Do you offer refunds?",
-    a: "If there is a system issue or you are not satisfied, support can help with a resolution.",
+    a: PORTRAIT_FAQ_REFUNDS,
   },
 ];
 
@@ -199,7 +231,7 @@ const DEMO_STEPS = [
 ];
 
 const DEMO_RESULT_IMAGES = [
-  "/portrait/highness-1.webp",
+  "/portrait/highness-2.webp",
   "/portrait/monarch-1.webp",
   "/portrait/aristocrat-1.webp",
   "/portrait/commander-1.webp",
@@ -241,6 +273,8 @@ const PortraitPageContent = () => {
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] =
+    useState<PaidDownloadStatus>("preparing");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -260,6 +294,8 @@ const PortraitPageContent = () => {
   );
 
   const pollCleanupRef = useRef<(() => void) | null>(null);
+  // Bumped to cancel an older paid-file fetch (a newer one, a reset or unmount).
+  const paidFetchRef = useRef(0);
   const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedQueryRef = useRef<string>("");
 
@@ -295,8 +331,28 @@ const PortraitPageContent = () => {
     return () => {
       clearPolling();
       clearRevealTimeout();
+      paidFetchRef.current += 1;
     };
   }, [clearPolling, clearRevealTimeout]);
+
+  // CR1-02: once the order is COMPLETE, swap the watermarked preview for the paid file.
+  const loadPaidPortrait = useCallback(async (imageId: string) => {
+    const request = ++paidFetchRef.current;
+    setDownloadStatus("preparing");
+    const paidUrl = await fetchPaidPortraitUrl(imageId, IMAGE_API.get, {
+      delaysMs: PAID_PORTRAIT_PAGE_DELAYS_MS,
+      isCancelled: () => paidFetchRef.current !== request,
+    });
+    if (paidFetchRef.current !== request) {
+      return;
+    }
+    if (paidUrl) {
+      setGeneratedImages([paidUrl]);
+      setDownloadStatus("ready");
+    } else {
+      setDownloadStatus("unavailable");
+    }
+  }, []);
 
   useEffect(() => {
     const wordTimer = setInterval(() => {
@@ -374,6 +430,7 @@ const PortraitPageContent = () => {
             setIsPollingOrder(false);
             clearInterval(pollInterval);
             clearTimeout(timeoutId);
+            void loadPaidPortrait(imageId);
 
             trackEvent("purchase", {
               event_id: imageId,
@@ -383,7 +440,7 @@ const PortraitPageContent = () => {
               value: order.price || 0,
               // Card orders are in euros since bet #3; older orders paid in dollars.
               currency:
-                String(order.currencyType) === "EUR" ? "EUR" : "USD",
+                order.currencyType === OrderCurrencyType.EUR ? "EUR" : "USD",
             });
           } else if (order.status === OrderStatus.FAILED) {
             setOrderStatus(OrderStatus.FAILED);
@@ -424,7 +481,7 @@ const PortraitPageContent = () => {
       pollCleanupRef.current = cleanup;
       return cleanup;
     },
-    [clearPolling, toast],
+    [clearPolling, loadPaidPortrait, toast],
   );
 
   useEffect(() => {
@@ -627,6 +684,8 @@ const PortraitPageContent = () => {
     setOrderStatus(null);
     setIsPollingOrder(false);
     setOrderProductType(null);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     stripPreviewQueryFromUrl();
   }, [clearPolling, clearRevealTimeout, stripPreviewQueryFromUrl]);
 
@@ -763,6 +822,12 @@ const PortraitPageContent = () => {
             orderId={router.query._id as string | undefined}
             blurHalf={orderStatus !== OrderStatus.COMPLETE}
             showWatermark={false}
+            downloadStatus={downloadStatus}
+            onRetryDownload={() => {
+              if (uploadedImageId) {
+                void loadPaidPortrait(uploadedImageId);
+              }
+            }}
           />
         </div>
       </>
@@ -979,8 +1044,8 @@ const PortraitPageContent = () => {
                   transition={{ delay: 0.2 }}
                   className="mb-8 max-w-xl text-base text-black/70 md:text-xl"
                 >
-                  Upload a photo, pick a vibe, and get a share-worthy portrait
-                  in minutes. Free preview before purchase.
+                  Upload a photo, pick a vibe, and get a share-worthy portrait.
+                  Free preview before purchase.
                 </motion.p>
 
                 <motion.div
@@ -1434,7 +1499,7 @@ const PortraitPageContent = () => {
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                         <span
                           className={`rounded-full px-4 py-1.5 text-xs font-bold shadow ${
-                            idx === 0
+                            plan.id === "digital"
                               ? "bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] text-white"
                               : "bg-white text-black"
                           }`}
@@ -1531,7 +1596,7 @@ const PortraitPageContent = () => {
                     <button
                       onClick={() => handleScrollToCreate(plan.id, plan.price)}
                       className={`w-full rounded-full py-3.5 text-sm font-bold ${
-                        idx === 1
+                        plan.id === "digital"
                           ? "bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] text-white"
                           : "bg-black text-white"
                       }`}

@@ -107,8 +107,11 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   const [timing, setTiming] = useState<UploadTiming>({ selectedAt: null, revealedAt: null });
   /** The shown record was deleted on the server (GET answers 404 now): nothing is polled for it. */
   const [deleted, setDeleted] = useState(false);
+  /** The shown cat came from the manual pick (§1.5): S3 says it was picked, not matched. */
+  const [manual, setManual] = useState(false);
 
-  const preparedRef = useRef<PreparedUpload | null>(null);
+  /** The prepared file and how it was chosen, kept for "Try again". */
+  const preparedRef = useRef<{ prepared: PreparedUpload; source: "picker" | "drop" } | null>(null);
   const pendingNameRef = useRef("");
   const candidatesRef = useRef<Promise<PinkPawCandidate[]> | null>(null);
   const onRecordRef = useRef(onRecord);
@@ -183,6 +186,8 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
       if (found) {
         setRecord(found);
         setFresh(false);
+        // A record with no photo and no pixel portrait is a manual cat (`avatar.status` 'none').
+        setManual(!found.photo.stored && found.avatar.status === "none");
         onRecordRef.current?.(found, "loaded");
         candidatesRef.current = fetchPinkPawCandidates();
         setScreen(params.get("paid") === "1" && yc === found.id ? "paid" : "reveal");
@@ -196,12 +201,23 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
 
   // ---- upload ------------------------------------------------------------------------------
 
+  /** Sends the prepared file. Every attempt, the first and each "Try again", reports `upload_started`. */
   const runUpload = useCallback(
-    async (prepared: PreparedUpload) => {
+    async (prepared: PreparedUpload, source: "picker" | "drop") => {
       setError(null);
       setSent(false);
       setScreen("working");
       const startedAt = Date.now();
+      analytics.track(
+        buildGrowthEvent("upload_started", {
+          surface: "yourcat",
+          source,
+          fileType: prepared.fileType,
+          sizeBucket: prepared.sizeBucket,
+          resized: prepared.resized,
+          ...loadUtm(),
+        }),
+      );
       try {
         const view = await YOURCAT_API.upload(prepared.file, prepared.filename, {
           noticeVersion: PRIVACY_NOTICE_VERSION,
@@ -219,6 +235,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
         );
         setRecord(view);
         setFresh(true);
+        setManual(false);
         onRecordRef.current?.(view, "created");
         setTiming((current) => ({ ...current, revealedAt: Date.now() }));
         // The name typed during the wait is saved once the record exists; S3 shows at once.
@@ -275,7 +292,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
         setFileError(prepared.reason === "type" ? S1.fileType : S1.fileSize);
         return;
       }
-      preparedRef.current = prepared;
+      preparedRef.current = { prepared, source };
       setTiming({ selectedAt, revealedAt: null });
       setPhotoUrl((previous) => {
         if (previous) URL.revokeObjectURL(previous);
@@ -285,24 +302,14 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
       // While the request runs: the Pink Paw gallery and the card fonts (§5.1, §5.4).
       candidatesRef.current = fetchPinkPawCandidates();
       warmCardFonts();
-      const utm = loadUtm();
-      analytics.track(
-        buildGrowthEvent("upload_started", {
-          surface: "yourcat",
-          source,
-          fileType: prepared.fileType,
-          sizeBucket: prepared.sizeBucket,
-          resized: prepared.resized,
-          ...utm,
-        }),
-      );
-      await runUpload(prepared);
+      await runUpload(prepared, source);
     },
     [runUpload],
   );
 
   const retry = useCallback(() => {
-    if (preparedRef.current) void runUpload(preparedRef.current);
+    const last = preparedRef.current;
+    if (last) void runUpload(last.prepared, last.source);
   }, [runUpload]);
 
   const backToStart = useCallback(() => {
@@ -350,6 +357,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
         );
         setRecord(view);
         setFresh(false);
+        setManual(true);
         setTiming({ selectedAt: null, revealedAt: null });
         onRecordRef.current?.(view, "created");
         if (!candidatesRef.current) candidatesRef.current = fetchPinkPawCandidates();
@@ -607,6 +615,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
     screen,
     record,
     fresh,
+    manual,
     photoUrl,
     sent,
     error,

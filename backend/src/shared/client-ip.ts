@@ -28,6 +28,13 @@ export interface ClientIp {
 
 export const ORIGIN_AUTH_HEADER = 'x-tt-origin-auth';
 
+/**
+ * The one bucket every unprovable address shares in production (the AI preview quota and the per-IP
+ * throttler). Keying those requests on the raw `cf-connecting-ip` let a forger mint a fresh bucket per
+ * request; one shared key caps them all.
+ */
+export const UNTRUSTED_IP_BUCKET = 'untrusted';
+
 const digest = (value: string) => createHash('sha256').update(value).digest();
 
 /** Constant-time comparison of the origin secret header with CF_ORIGIN_SECRET. */

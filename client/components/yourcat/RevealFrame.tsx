@@ -28,8 +28,9 @@ const CANVAS_PX = 384;
 /**
  * The result in its gold frame. First time: the photo is pixelated in steps (32 → 16 → 8 px, about
  * 200 ms each), cross-fades (200 ms) into the pixel portrait if it is ready, else into the sprite's
- * frame 0 at 8x, then lands (scale 0.96 → 1, ease-out back). A portrait that arrives later gets its
- * own pixelate-in from 16 px over 300 ms. Reduced motion: 120 ms cross-fades, nothing moves.
+ * frame 0 at 8x. The frame itself lands first (scale 0.96 → 1, ease-out back, one frame after mount),
+ * so the pixelate and the cross-fade play inside a visible frame. A portrait that arrives later gets
+ * its own pixelate-in from 16 px over 300 ms. Reduced motion: 120 ms cross-fades, nothing moves.
  */
 export function RevealFrame({ photoUrl, avatarUrl, spriteImg, animate, reducedMotion, label }: RevealFrameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,9 +39,12 @@ export function RevealFrame({ photoUrl, avatarUrl, spriteImg, animate, reducedMo
   const [lateReveal, setLateReveal] = useState(false);
   const shownAvatar = useRef<string | null>(avatarUrl);
 
-  // The first-time reveal.
+  // The first-time reveal. The frame lands at once (after the first paint, so its transition runs);
+  // the pixelate and the cross-fade then play inside it.
   useEffect(() => {
-    if (!(animate && photoUrl)) return;
+    if (!animate) return;
+    const land = setTimeout(() => setLanded(true), 16);
+    if (!photoUrl) return () => clearTimeout(land);
     let cancelled = false;
     const fadeMs = reducedMotion ? REDUCED_FADE_MS : CROSSFADE_MS;
     void (async () => {
@@ -58,13 +62,12 @@ export function RevealFrame({ photoUrl, avatarUrl, spriteImg, animate, reducedMo
       if (cancelled) return;
       setPhase("fade");
       setTimeout(() => {
-        if (cancelled) return;
-        setPhase("done");
-        setLanded(true);
+        if (!cancelled) setPhase("done");
       }, fadeMs);
     })();
     return () => {
       cancelled = true;
+      clearTimeout(land);
     };
     // The reveal runs once per mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps

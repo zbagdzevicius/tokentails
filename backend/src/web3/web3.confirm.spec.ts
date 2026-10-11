@@ -13,6 +13,12 @@ jest.mock('src/web3/order.repository', () => ({ OrderRepository: class {} }));
 jest.mock('src/image/image.repository', () => ({ ImageRepository: class {} }));
 jest.mock('src/blessing/blessing.repository', () => ({ BlessingRepository: class {} }));
 jest.mock('src/web3/web3.service', () => ({ Web3Service: class {} }));
+// The AI client and S3 are not loaded; the delivery rule (paid-portrait.ts) runs against this stub.
+jest.mock('src/shared/utils/ai-portrait', () => ({ publishPaidPortrait: jest.fn() }));
+jest.mock('src/image/order-email', () => ({ sendOrderConfirmationEmail: jest.fn() }));
+
+const { publishPaidPortrait } = jest.requireMock('src/shared/utils/ai-portrait');
+const { sendOrderConfirmationEmail } = jest.requireMock('src/image/order-email');
 
 const USER = '64b7f0c2a1b2c3d4e5f60719';
 const HASH = 'ab'.repeat(32);
@@ -179,5 +185,202 @@ describe('POST /web3/confirm', () => {
 
     it('no longer exposes POST /web3/create', () => {
         expect((Web3Controller.prototype as any).create).toBeUndefined();
+    });
+});
+
+describe('a paid /portrait image bought by card or on Stellar (KI-08, CR1-01)', () => {
+    const IMAGE_ID = '64b7f0c2a1b2c3d4e5f60718';
+    const PRIVATE_4K = 's3private://portraits/0b7c6f3e-4K.png';
+    const PUBLIC_4K = 'https://cdn.test/full-4K.png';
+    const BUYER_EMAIL = 'buyer@example.test';
+    const portraitImage = (aiUrl = PRIVATE_4K) => ({ _id: IMAGE_ID, aiUrl, source: 'portrait' });
+
+    function portraitSetup(image: Record<string, unknown> = portraitImage(), buyer: unknown = { email: BUYER_EMAIL }) {
+        const orderRepository = {
+            create: jest.fn().mockResolvedValue({ _id: 'order-1' }),
+            update: jest.fn().mockResolvedValue({}),
+        };
+        const userRepository = { findOne: jest.fn().mockResolvedValue(buyer), update: jest.fn() };
+        const budget = { alert: jest.fn().mockResolvedValue(true) };
+        const imageRepository = { findOne: jest.fn().mockResolvedValue(image), update: jest.fn() };
+        const catService = { createBlessingWithCat: jest.fn().mockResolvedValue({}) };
+        const web3Service = { validatePrice: jest.fn().mockResolvedValue({ success: true, amount: 25, priceUsd: 25 }) };
+        const stripePayments = {
+            retrieveVerifiedPaymentIntent: jest
+                .fn()
+                .mockResolvedValue({ entityType: EntityType.IMAGE, imageId: IMAGE_ID, amountUsd: 25 }),
+            claimPaymentIntent: jest.fn().mockResolvedValue({ claimed: true, order: { _id: 'order-2' } }),
+        };
+        const ctrl = new (Web3Controller as any)(
+            orderRepository,
+            catService,
+            userRepository,
+            {},
+            imageRepository,
+            web3Service,
+            stripePayments,
+            undefined,
+            undefined,
+            undefined,
+            budget
+        );
+        return { ctrl, orderRepository, userRepository, imageRepository, catService, budget };
+    }
+
+    const confirmCard = (ctrl: any) => ctrl.confirmPayment({ paymentIntent: 'pi_1', clientSecret: 's' }, USER);
+    const confirmStellar = (ctrl: any) =>
+        ctrl.checkTransaction(USER, body({ entityType: EntityType.IMAGE, id: IMAGE_ID, price: 25 }));
+
+    beforeEach(() => {
+        publishPaidPortrait.mockReset();
+        sendOrderConfirmationEmail.mockReset();
+        sendOrderConfirmationEmail.mockResolvedValue(true);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    const publishes = (url = PUBLIC_4K, publishedNow = true) =>
+        publishPaidPortrait.mockImplementation(async (_image: unknown, _repo: unknown, outcome: any) => {
+            outcome.publishedNow = publishedNow;
+            return url;
+        });
+
+    it.each([
+        ['confirm-payment (card)', confirmCard],
+        ['confirm (Stellar)', confirmStellar],
+    ])('%s publishes the 4K and gives the blessing cat its public https URL', async (_route, confirm) => {
+        const { ctrl, imageRepository, catService } = portraitSetup();
+        publishes();
+
+        const res = await confirm(ctrl);
+
+        expect(res.success).toBe(true);
+        expect(imageRepository.findOne).toHaveBeenCalledWith(expect.objectContaining({ projection: 'aiUrl source' }));
+        expect(publishPaidPortrait).toHaveBeenCalledWith(
+            expect.objectContaining({ aiUrl: PRIVATE_4K, source: 'portrait' }),
+            imageRepository,
+            expect.any(Object)
+        );
+        expect(catService.createBlessingWithCat).toHaveBeenCalledTimes(1);
+        const [, url] = catService.createBlessingWithCat.mock.calls[0];
+        expect(url).toBe(PUBLIC_4K);
+        expect(url).toMatch(/^https:\/\//);
+    });
+
+    it.each([
+        ['confirm-payment (card)', confirmCard, 'order-2'],
+        ['confirm (Stellar)', confirmStellar, 'order-1'],
+    ])(
+        '%s: a failed publish makes no cat from the private URL, and the order is COMPLETE for the retry',
+        async (_route, confirm, orderId) => {
+            const { ctrl, orderRepository, catService } = portraitSetup();
+            publishPaidPortrait.mockRejectedValue(new Error('spaces down'));
+
+            const res = await confirm(ctrl);
+
+            expect(res.success).toBe(true);
+            expect(catService.createBlessingWithCat).not.toHaveBeenCalled();
+            expect(orderRepository.update).toHaveBeenCalledWith(
+                orderId,
+                expect.objectContaining({ status: 'COMPLETE' })
+            );
+        }
+    );
+
+    it('makes no cat when a concurrent GET /image/:id retry published it first (that retry delivers)', async () => {
+        const { ctrl, catService } = portraitSetup();
+        publishes(PUBLIC_4K, false);
+
+        await confirmCard(ctrl);
+        expect(catService.createBlessingWithCat).not.toHaveBeenCalled();
+    });
+
+    it('an older image with a public aiUrl is delivered as is, without publishing', async () => {
+        const { ctrl, catService } = portraitSetup({ _id: IMAGE_ID, aiUrl: 'https://cdn.test/legacy.webp' });
+
+        await confirmStellar(ctrl);
+        expect(publishPaidPortrait).not.toHaveBeenCalled();
+        expect(catService.createBlessingWithCat).toHaveBeenCalledWith(USER, 'https://cdn.test/legacy.webp');
+    });
+
+    it('never hands out a private URL of another source', async () => {
+        const { ctrl, catService } = portraitSetup({
+            _id: IMAGE_ID,
+            aiUrl: 's3private://yourcat/originals/a.webp',
+            source: 'yourcat',
+        });
+
+        await confirmCard(ctrl);
+        expect(publishPaidPortrait).not.toHaveBeenCalled();
+        expect(catService.createBlessingWithCat).not.toHaveBeenCalled();
+    });
+
+    describe('CR2-05: the order email, like the Stripe webhook', () => {
+        it.each([
+            ['confirm-payment (card)', confirmCard, 'order-2'],
+            ['confirm (Stellar)', confirmStellar, 'order-1'],
+        ])(
+            '%s: a successful publish sends one email with the public URL to the account email',
+            async (_route, confirm) => {
+                const { ctrl, userRepository, budget } = portraitSetup();
+                publishes();
+
+                await confirm(ctrl);
+
+                expect(userRepository.findOne).toHaveBeenCalledWith(expect.objectContaining({ projection: 'email' }));
+                expect(sendOrderConfirmationEmail).toHaveBeenCalledTimes(1);
+                expect(sendOrderConfirmationEmail).toHaveBeenCalledWith(BUYER_EMAIL, PUBLIC_4K);
+                expect(budget.alert).not.toHaveBeenCalled();
+            }
+        );
+
+        it.each([
+            ['confirm-payment (card)', confirmCard, 'order-2'],
+            ['confirm (Stellar)', confirmStellar, 'order-1'],
+        ])(
+            '%s: no account email: the "published but not emailed" alert with the order id only',
+            async (_route, confirm, orderId) => {
+                const { ctrl, catService, budget } = portraitSetup(portraitImage(), { _id: USER });
+                publishes();
+
+                const res = await confirm(ctrl);
+
+                expect(res.success).toBe(true);
+                expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
+                expect(budget.alert).toHaveBeenCalledTimes(1);
+                const [subject, text] = budget.alert.mock.calls[0];
+                expect(subject).toBe(`Paid portrait published but not emailed (order ${orderId})`);
+                expect(`${subject} ${text}`).not.toMatch(/@|https?:\/\/|s3private/);
+                // The cat is still made.
+                expect(catService.createBlessingWithCat).toHaveBeenCalledWith(USER, PUBLIC_4K);
+            }
+        );
+
+        it('SendGrid refuses it: the same alert; the purchase still succeeds', async () => {
+            const { ctrl, budget } = portraitSetup();
+            publishes();
+            sendOrderConfirmationEmail.mockResolvedValue(false);
+
+            const res = await confirmCard(ctrl);
+
+            expect(res.success).toBe(true);
+            expect(sendOrderConfirmationEmail).toHaveBeenCalledTimes(1);
+            expect(budget.alert).toHaveBeenCalledTimes(1);
+        });
+
+        it('a failed publish or a GET retry that published first: no email here (the retry sends the one email)', async () => {
+            const failed = portraitSetup();
+            publishPaidPortrait.mockRejectedValue(new Error('spaces down'));
+            await confirmCard(failed.ctrl);
+
+            const lost = portraitSetup();
+            publishes(PUBLIC_4K, false);
+            await confirmStellar(lost.ctrl);
+
+            expect(sendOrderConfirmationEmail).not.toHaveBeenCalled();
+            expect(failed.budget.alert).not.toHaveBeenCalled();
+            expect(lost.budget.alert).not.toHaveBeenCalled();
+        });
     });
 });

@@ -415,15 +415,35 @@ bucket `'unknown'`, which the gate then refuses in production). Limits below are
 
 | Method and path | Auth / guards | Per IP / per user | Body / query | Success | Errors |
 |---|---|---|---|---|---|
-| `GET /yourcat/status` | public; `ClientIpThrottlerGuard` | 30 / – | – | 200 `YourcatStatusView`; `Cache-Control: public, max-age=30` | – |
-| `POST /yourcat` | `AppAuthGuard`, `@AllowGuest()`, both throttlers; `@UseFilters(PhotoUploadExceptionFilter)` | 10 / 5 | multipart: `file` (1 file), `consent` = `"true"`, `noticeVersion` (≤ 16 chars), `name?` (≤ 20, optional; the page sends none); headers `accesstoken`, `x-firebase-appcheck?` | 201 `YourcatView` (avatar usually `pending`) | 400 `CONSENT_REQUIRED`, `FILE_REQUIRED`, `FILE_TYPE`, `NOT_DECODABLE`, `NAME_INVALID`; 413 `FILE_TOO_LARGE`; 401 `APP_CHECK_REQUIRED`/`_INVALID`; 422 `NO_CAT`, `PERSON_VISIBLE`; 429 `IP_DAILY_CAP`, `USER_DAILY_CAP`, `FAILURE_DAILY_CAP`; 503 `DISABLED`, `BUDGET_EXHAUSTED`, `NO_CLIENT_IP`; 502 `CLASSIFY_FAILED`; 428 `GUEST_SESSION_REQUIRED` (transient guest) |
+| `GET /yourcat/status` | public; per-IP limit in the handler (`ClientIpThrottlerGuard.consume`, see the note below the table) | 30 / – | – | 200 `YourcatStatusView`; `Cache-Control: public, max-age=30` | – |
+| `POST /yourcat` | `AppAuthGuard`, `@AllowGuest()`, both throttlers; `@UseFilters(PhotoUploadExceptionFilter)` | 10 / 5 | multipart: `file` (1 file), `consent` = `"true"`, `noticeVersion` (≤ 16 chars), `name?` (≤ 20, optional; the page sends none); headers `accesstoken`, `x-firebase-appcheck?` | 201 `YourcatView` (avatar usually `pending`) | 400 `CONSENT_REQUIRED` (also for a missing, empty or over-long `noticeVersion`), `FILE_REQUIRED`, `FILE_TYPE`, `NOT_DECODABLE`, `NAME_INVALID`; 413 `FILE_TOO_LARGE`; 401 `APP_CHECK_REQUIRED`/`_INVALID`; 422 `NO_CAT`, `PERSON_VISIBLE`; 429 `IP_DAILY_CAP`, `USER_DAILY_CAP`, `FAILURE_DAILY_CAP`; 503 `DISABLED`, `BUDGET_EXHAUSTED`, `NO_CLIENT_IP`; 502 `CLASSIFY_FAILED`; 428 `GUEST_SESSION_REQUIRED` (transient guest) |
 | `POST /yourcat/manual` | `AppAuthGuard`, `@AllowGuest()`, both throttlers | 10 / 5 | JSON `{ family, name? }` | 201 `YourcatView` (`avatar.status: 'none'`, `photo.stored: false`) | 400 `FAMILY_INVALID`, `NAME_INVALID`; 429 `USER_DAILY_CAP` (`AI_MANUAL_USER_DAILY`, default 5); 503 `DISABLED` |
 | `GET /yourcat/me` | `AppAuthGuard`, `@AllowGuest({ transient: true })`, both throttlers | 60 / 30 | – | 200 `{ item: YourcatView \| null }` (latest non-deleted record of the caller; transient guest → `null`) | – |
 | `GET /yourcat/:id` | `AppAuthGuard`, `@AllowGuest()`, both throttlers | 120 / 60 | – | 200 `YourcatView` | 404 `NOT_FOUND` (also for another user's id) |
 | `PATCH /yourcat/:id` | `AppAuthGuard`, `@AllowGuest()`, both throttlers | 20 / 10 | JSON `{ name }` | 200 `YourcatView` (sets `name`, `named: true`, and writes the game cat's name after `CatNameService.validName`, like `makePlayable`) | 400 `NAME_INVALID` (also after the naming window: "Rename your cat in the game."); 404 `NOT_FOUND` |
 | `DELETE /yourcat/:id` | `AppAuthGuard`, `@AllowGuest()`, both throttlers | 10 / 10 | – | 200 `YourcatDeleteView` | 404 `NOT_FOUND` |
-| `POST /yourcat/:id/portrait-checkout` | `AppAuthGuard`, `@AllowGuest()`, both throttlers; plus `@UserThrottle` 10/day | 5 / 5 | JSON `{ style: YourcatPortraitStyle }` | 201 `YourcatCheckoutView` | 404 `NOT_FOUND`; 410 `PHOTO_EXPIRED`; 409 `PORTRAIT_EXISTS` (a paid order already exists for this record); 503 `PORTRAIT_DISABLED` |
+| `POST /yourcat/:id/portrait-checkout` | `AppAuthGuard`, `@AllowGuest()`, both throttlers; plus 10 a day per user, counted in the handler in MongoDB | 5 / 5 | JSON `{ style: YourcatPortraitStyle }` | 201 `YourcatCheckoutView` | 400 `STYLE_INVALID`; 404 `NOT_FOUND`; 410 `PHOTO_EXPIRED`; 409 `PORTRAIT_EXISTS` (a paid order already exists for this record); 503 `PORTRAIT_DISABLED` |
 | `GET /yourcat/stats?days=14` | `AppAuthGuard`, `PermissionGuard(PERMISSION_LEVEL.ADMIN)` (5) | global throttle | `days` 1..60 | 200 `{ days: AiBudgetDayView[] }` (§3.3) | 403 |
+
+As built (2026-10-11, reconciled with the code):
+
+- `noticeVersion` is trimmed and must be 1 to 16 characters. A missing, empty or longer value answers
+  400 `CONSENT_REQUIRED`, the same as a missing `consent`, because both mean the visitor did not confirm
+  the notice that is on screen. The trimmed value is stored as `privacyNoticeVersion`.
+- An unknown `style` on the portrait checkout answers 400 `YOURCAT_STYLE_INVALID` ("Pick one of the
+  portrait styles."), a new code in `YOURCAT_ERROR_CODES` and in the client copy `client/models/yourcat.ts`
+  (the S5 buttons only send the four styles, so the client shows its generic error for it).
+- Two limits run in the handler, not as guards. `GET /yourcat/status` has no caller, and
+  `guard-migration.spec.ts` requires every guard list to start with `AppAuthGuard`, so its per-IP limit
+  is `ClientIpThrottlerGuard.consume(...)` called first thing in the handler. The checkout's per-user
+  daily limit needs the caller that `AppAuthGuard` resolves and a second window that `@UserThrottle`
+  cannot hold, so the handler claims it after the guards ran (`claimDailyCheckout`: an `aiquotas`
+  counter per user and UTC day, 429 with `Retry-After` to UTC midnight); its 5-a-minute window is the
+  ordinary `@UserThrottle`. Any new route-level limit that needs the user must also run after
+  `AppAuthGuard`.
+- In production `ClientIpThrottlerGuard` puts every address that is not proven (no origin secret, no
+  trusted proxy) into one shared `untrusted` bucket per route, with 10 times the route limit (or the
+  route's `untrustedLimit`), so forged `cf-connecting-ip` values cannot spread a burst limit.
 
 `GUEST_ALLOW_LIST` additions (`backend/src/common/guards/guest-allow-list.ts`), each with a comment. The
 file header (decision #9, "no … buy") also gets one line: "Exceptions: the portrait checkouts of bet #3
@@ -641,7 +661,11 @@ Extend `backend/src/shared/utils/aws.utils.ts` (A):
     `photoKeptUntilDelivery: true`, and `PortraitDeliveryService` deletes the original right after the
     delivery (or after the third failed attempt). The dialog copy says so (S3).
   The game cat keeps the family sprite (a shared CDN sheet, not personal data) and its name.
-- The avatar URL can stay in CDN caches for up to its `max-age` (1 h) after deletion; S1-P says so.
+- After `DELETE`, the record is no longer readable by design: `GET /yourcat/:id` answers 404
+  `NOT_FOUND` and `GET /yourcat/me` skips it, also for its owner. A paid portrait still painting is
+  delivered by email only; the client keeps showing its block without polling (YOURCAT.md, Flow 5).
+- The avatar URL can stay in CDN caches for up to its `max-age` after deletion: 300 s since
+  2026-10-11 (was 1 h). S1-P still says "up to an hour", which stays true.
 - Owner gone (guest erased by `DELETE /user/guest`, the 30-day idle cleanup, or account deletion): the
   daily job deletes both objects and the record within 24 h (an undelivered paid portrait is delivered
   first, as above).
@@ -1143,6 +1167,10 @@ export function shareCardFile(file: File, text: string): Promise<ShareOutcome>;
   is blocked or opens a dead tab, so S3 shows the long-press view instead (§S3). Opening that view (the
   "Save the card" button) reports `card_shared` with method `long-press` (an intent; a long-press save
   cannot be detected).
+  **Accepted deviation (2026-10-11):** `RevealStep` has no "Save the card" button. In an in-app browser
+  the card shows large at once, and `card_shared` with `long-press` is sent once per view, on the card's
+  `contextmenu` (where the webview fires it) or after a 500 ms touch hold. That is closer to a real save
+  attempt than opening a view, costs the visitor one tap less, and keeps the event an intent.
 - "Copy link": `navigator.clipboard.writeText(text)` in try/catch; on failure select the text in a
   read-only field and show "Press Ctrl+C or long-press to copy."
 
@@ -1356,7 +1384,7 @@ Where each fires (B, all in `client/components/yourcat/`):
 |---|---|---|
 | `upload_started` | right before `POST /yourcat` (or `/yourcat/manual`) is sent | |
 | `upload_done` | when that request resolves (`outcome: 'ready'`) or fails (`'error'` with the code); `avatarStatus` = the status at that moment | `seconds` rounded |
-| `card_shared` | after `shareCardFile` returns `web-share` or `download`, after a successful copy, or when the in-app long-press view opens | not on `cancelled`; `avatarStatus` is the status of the shared card |
+| `card_shared` | after `shareCardFile` returns `web-share` or `download`, after a successful copy, or (as built, accepted deviation, §5.6) on the first `contextmenu` or 500 ms touch hold on the card in an in-app browser | not on `cancelled`; `avatarStatus` is the status of the shared card |
 | `portrait_checkout_started` | when `POST /yourcat/:id/portrait-checkout` succeeds, before redirect | also GTM `trackEvent('begin_checkout', { currency: 'EUR', value: priceCents / 100, ... })` with `priceCents` from `GET /yourcat/status` |
 | `portrait_paid` | first time S6 sees `painting` or `ready` for an order; dedupe in `sessionStorage` key `tt.yourcat.paid.<yourcatId>` | also GTM `purchase` with `EUR` and `value: priceCents / 100` |
 
@@ -1737,14 +1765,14 @@ and one real card purchase is delivered end to end.
 | Card currency | EUR on Stripe Checkout (€14 / €49 / €69); USD rails $16 digital |
 | Captcha | Firebase App Check with limited-use tokens and replay protection; enforced for `/yourcat` from launch |
 | `/portrait` before the App Check site key is set | Every visitor is "unverified": 1 preview per IP per day, shared with regenerate. This may cut `/portrait` conversion; the alternative is raising `AI_PREVIEW_IP_DAILY_UNVERIFIED` to 2–3 (the €3 preview sub-cap still bounds spend). Default: 1, and set the site key soon |
-| `/portrait` without a provable client IP | Previews accept the raw `cf-connecting-ip` as an untrusted key with the unverified cap (a forger can spend at most the €3 preview sub-cap a day). Default: accept |
+| `/portrait` without a provable client IP | **Current behaviour (since 2026-10-11):** in production a preview from an address that is not proven (no `CF_ORIGIN_SECRET` header, no trusted proxy) is not keyed on the raw `cf-connecting-ip`; every such request shares one site-wide `untrusted` bucket with its own caps, `AI_PREVIEW_UNTRUSTED_DAILY` (default 5 a day) and `AI_PREVIEW_UNTRUSTED_FAILURES_DAILY` (default 20), inside the €3 preview sub-cap; the per-minute throttler shares one bucket the same way. So until `CF_ORIGIN_SECRET` and the Transform Rule are live, all `/portrait` visitors together get 5 previews a day. **Still open for the founder:** keep 5, raise it, or set `CF_ORIGIN_SECRET` before v2 reaches `main` (YOURCAT.md launch checklist, step 0–1). Default: keep 5 and set the secret before the push |
 | Guest purchase of the HD portrait (exception to decision #9) | Allowed for `/yourcat` only, by card, email collected by Stripe; the guest note still invites an account |
 | Guest regenerate on `/portrait` | Allowed for images the guest owns, under the preview caps |
 | Delete while a paid portrait is undelivered | The photo is kept until delivery, then deleted; the dialog says so |
 | Withdrawal acknowledgement | A required Stripe Checkout terms checkbox with the §2.4 text on digital portraits (all surfaces) |
 | Style example images in S5 | The existing `/portrait/{style}-1.webp`, described only as showing each style (their origin is not claimed) |
 | Training sentence in the privacy text | Stated as "Neither uses it to train its models", which is why the billed key is a launch condition |
-| The `/portrait` preview `aiUrl` leak | Documented as a known issue now; fixed in a follow-up |
+| The `/portrait` preview `aiUrl` leak | Fixed 2026-10-11 (KI-08): the 4K output stays private until paid and the routes answer a watermarked preview; images made before the fix keep their public file |
 | "Redo once" promise on the HD portrait | Yes, handled manually by support |
 | Guest merge drops the photo cat | Keep decision #8; the reveal copy warns |
 | Analytics placement | Client-only growth catalog (no `catnip-heist/` diff) |
@@ -1779,7 +1807,7 @@ Owner in brackets writes the docs entry.
 - `createBlessingWithCat` classifies the painted portrait, not the original photo (`cat.service.ts:400-466`). [A]
 - `uploadFileImage` does not apply EXIF orientation (no `.rotate()`); other upload paths still lose it. [A]
 - `isTemporary` is stored but never read; `/image/portrait` uploads are public-read with no cleanup. [A]
-- `generateCatAvatar` is an unimplemented stub (`docs/BACKEND.md:1113`). [A]
+- Resolved: `generateCatAvatar` was an unimplemented stub; it is no longer in the code (checked 2026-10-11), and BACKEND.md's dead-code list says so. [A]
 - The SendGrid subject "Your order is on its way!" is used for digital orders (`image.controller.ts:66`);
   `/yourcat` deliveries pass their own subject. [A]
 - Global throttler buckets are shared while `TRUST_PROXY` is unset (the `/yourcat` and `/image/portrait`

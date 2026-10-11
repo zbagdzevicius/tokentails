@@ -6,6 +6,10 @@ import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
 import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Button } from "@/features/portrait/ui/button";
+import {
+  PaidDownloadStatus,
+  portraitDownloadName,
+} from "@/features/portrait/paid-portrait";
 import { isApp } from "@/models/app";
 import { OrderStatus } from "@/models/order";
 import {
@@ -36,6 +40,10 @@ interface PurchaseOption {
   title: string;
   /** Euros, from client/models/portrait-prices.ts (the card checkout charges exactly this). */
   price: number;
+  /**
+   * A factual label only (what the option includes). No ranking or sales claim such as "Most
+   * Popular": nothing measures it (__test__/portrait-no-fabricated-proof.test.ts).
+   */
   badge?: string;
   description: string;
   features: string[];
@@ -51,7 +59,7 @@ export const purchaseOptions: PurchaseOption[] = [
     id: "digital",
     title: "Instant Masterpiece",
     price: PORTRAIT_CHECKOUT_PRICES.digital,
-    badge: "Most Popular",
+    badge: "Instant download",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
     features: ["No Watermark", "High-Resolution Portrait ", "Instant Download"],
@@ -62,7 +70,7 @@ export const purchaseOptions: PurchaseOption[] = [
     id: "print",
     title: "Fine Art Print",
     price: PORTRAIT_CHECKOUT_PRICES.print,
-    badge: "Recommended",
+    badge: "Includes the digital file",
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
     features: [
@@ -80,7 +88,7 @@ export const purchaseOptions: PurchaseOption[] = [
     id: "canvas",
     title: "Gallery Canvas",
     price: PORTRAIT_CHECKOUT_PRICES.canvas,
-    badge: "The Perfect Gift 🐱",
+    badge: "Includes the digital file",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
       "Ready to hang",
@@ -120,6 +128,36 @@ interface PreviewPageProps {
   orderId?: string;
   blurHalf?: boolean;
   showWatermark?: boolean;
+  /**
+   * The paid file after a COMPLETE order (CR1-02): "preparing" until the page has fetched the paid URL,
+   * "unavailable" when it could not. The button downloads only when "ready".
+   */
+  downloadStatus?: PaidDownloadStatus;
+  onRetryDownload?: () => void;
+}
+
+/**
+ * Saves the paid file. The CDN is another origin, where `<a download>` is ignored and the browser
+ * would navigate away, so the file is fetched as a blob first; if that fails it opens in a new tab.
+ */
+export async function savePortraitFile(url: string, filename: string): Promise<void> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch (error) {
+    console.error("Could not save the portrait file, opening it instead:", error);
+    window.open(url, "_blank", "noopener");
+  }
 }
 
 export const PreviewPage = ({
@@ -133,6 +171,8 @@ export const PreviewPage = ({
   orderId,
   blurHalf = false,
   showWatermark = true,
+  downloadStatus = "ready",
+  onRetryDownload,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -541,27 +581,59 @@ export const PreviewPage = ({
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-center mb-8"
           >
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => {
-                const imageUrl =
-                  currentImages[selectedImageIndex] ||
-                  generatedImages[selectedImageIndex];
-                if (imageUrl) {
-                  const link = document.createElement("a");
-                  link.href = imageUrl;
-                  link.download = `portrait-${imageId || "download"}.jpg`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }
-              }}
-              className="min-w-[200px]"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              DOWNLOAD
-            </Button>
+            {downloadStatus === "unavailable" ? (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <p className="text-muted-foreground text-sm max-w-md">
+                  Your full-resolution file is not ready yet. Please try again in a
+                  minute.
+                </p>
+                {onRetryDownload && (
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    onClick={onRetryDownload}
+                    className="min-w-[200px]"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    TRY AGAIN
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="hero"
+                size="lg"
+                disabled={downloadStatus !== "ready"}
+                aria-busy={downloadStatus === "preparing"}
+                onClick={() => {
+                  if (downloadStatus !== "ready") {
+                    return;
+                  }
+                  const imageUrl =
+                    currentImages[selectedImageIndex] ||
+                    generatedImages[selectedImageIndex];
+                  if (imageUrl) {
+                    void savePortraitFile(
+                      imageUrl,
+                      portraitDownloadName(imageId, imageUrl),
+                    );
+                  }
+                }}
+                className="min-w-[200px]"
+              >
+                {downloadStatus === "preparing" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    PREPARING YOUR FILE...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    DOWNLOAD
+                  </>
+                )}
+              </Button>
+            )}
           </motion.div>
         )}
 
@@ -593,16 +665,13 @@ export const PreviewPage = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.1 }}
                     className={`relative card-baroque rounded-xl p-6 flex flex-col ${
-                      option.badge === "Most Popular"
-                        ? "ring-2 ring-primary"
-                        : ""
+                      option.id === "digital" ? "ring-2 ring-primary" : ""
                     }`}
                   >
                     {option.badge && (
                       <div
                         className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
-                          option.badge === "Most Popular" ||
-                          option.badge === "Recommended"
+                          option.id === "digital"
                             ? "bg-primary text-primary-foreground"
                             : "bg-gold text-background"
                         }`}

@@ -36,8 +36,17 @@ export class Image extends CommonSchema {
     @Prop({ required: true })
     url: string;
 
+    /**
+     * The generated portrait. For a `source: 'portrait'` image it is the private 4K output
+     * (`s3private://portraits/<uuid>.png`) until its order is COMPLETE, then a public copy (KI-08); routes
+     * serve `previewUrl` in its place before that (image.controller.ts `portraitView`).
+     */
     @Prop({ required: false })
     aiUrl: string;
+
+    /** Public, watermarked ~1024 px webp of a `source: 'portrait'` output, shown before payment (KI-08). */
+    @Prop({ required: false })
+    previewUrl?: string;
 
     @Prop({ required: false })
     style: ImageStyle;

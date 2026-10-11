@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { IAuthUser } from 'src/common/decorators/auth-user.decorator';
 import { guestSessionRequired } from 'src/common/guards/auth-errors';
-import { clientIp } from 'src/shared/client-ip';
+import { clientIp, UNTRUSTED_IP_BUCKET } from 'src/shared/client-ip';
 import { verifyAppCheckToken } from 'src/user/guest/app-check';
 import { firebaseIdentity, IFirebaseIdentity } from 'src/user/guest/firebase-identity';
 import { YOURCAT_ERRORS } from 'src/yourcat/yourcat.errors';
 import { AiBudgetService, AiTicket, envNumber, utcDay } from './ai-budget.service';
+import { AiBudgetCounter } from './ai-budget.schema';
 import { AiKind } from './ai-cost';
 
 /*
@@ -26,12 +27,6 @@ interface IKindLimits {
     user: number;
     enforceAppCheck: boolean;
 }
-
-/**
- * The one bucket every unprovable preview address shares in production. Keying those requests on the raw
- * `cf-connecting-ip` let a forger mint a fresh per-IP slot per request; one shared key caps them all.
- */
-export const UNTRUSTED_IP_BUCKET = 'untrusted';
 
 /** Previews per day for the shared untrusted bucket and its failure cap (production, no proven IP). */
 export function untrustedPreviewLimits(env: NodeJS.ProcessEnv = process.env): { daily: number; failures: number } {
@@ -59,6 +54,14 @@ export function kindLimits(kind: AiKind, env: NodeJS.ProcessEnv = process.env): 
         user: envNumber('AI_UPLOAD_USER_DAILY', 3, env),
         enforceAppCheck: env.AI_UPLOAD_APPCHECK_ENFORCE === 'true',
     };
+}
+
+const BUDGET_EXHAUSTED_CODE = 'YOURCAT_BUDGET_EXHAUSTED';
+
+/** Whether `error` is the HTTP refusal with this `code` (yourcat.errors.ts). */
+function isRefusal(error: unknown, code: string): boolean {
+    const response = (error as any)?.getResponse?.();
+    return !!response && typeof response === 'object' && response.code === code;
 }
 
 export const isProduction = (env: NodeJS.ProcessEnv = process.env) => env.NODE_ENV === 'production';
@@ -99,15 +102,15 @@ export class AiUploadGate {
         // 2. Client IP.
         const ip = clientIp(req, env);
         if (!ip) {
-            throw YOURCAT_ERRORS.noClientIp();
+            throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
         }
         if (kind === 'yourcat' && isProduction(env) && !ip.trusted) {
             // A forged `cf-connecting-ip` would otherwise give unlimited per-IP quota.
-            throw YOURCAT_ERRORS.noClientIp();
+            throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
         }
         const salt = ipSalt(env);
         if (!salt) {
-            throw YOURCAT_ERRORS.noClientIp();
+            throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
         }
 
         // 3. App Check, with replay protection.
@@ -116,7 +119,11 @@ export class AiUploadGate {
             consume: true,
         });
         if (limits.enforceAppCheck && appCheck !== 'verified') {
-            throw appCheck === 'missing' ? YOURCAT_ERRORS.appCheckRequired() : YOURCAT_ERRORS.appCheckInvalid();
+            throw await this.refused(
+                'refusedAppCheck',
+                day,
+                appCheck === 'missing' ? YOURCAT_ERRORS.appCheckRequired() : YOURCAT_ERRORS.appCheckInvalid()
+            );
         }
         // A preview from an address we cannot prove (production only; `yourcat` refused it above) shares
         // one bucket with every other such request, with its own daily and failure caps.
@@ -138,25 +145,32 @@ export class AiUploadGate {
             // 4. Per-IP daily quota.
             const ipQuota = quotaId(kind, 'ip', ipKey, day);
             if (!(await this.budget.claimQuota(ipQuota, ipLimit, day))) {
-                throw YOURCAT_ERRORS.ipDailyCap();
+                throw await this.refused('refusedIpCap', day, YOURCAT_ERRORS.ipDailyCap());
             }
             ticket.quotaKeys.push(ipQuota);
 
             // 5. Per-IP failure cap (read only here; failures are never released).
             if ((await this.budget.quotaCount(ticket.failureKey as string)) >= failureLimit) {
-                throw YOURCAT_ERRORS.failureDailyCap();
+                throw await this.refused('refusedFailureCap', day, YOURCAT_ERRORS.failureDailyCap());
             }
 
             // 6. Per-user daily quota.
             const userQuota = quotaId(kind, 'user', String(user._id), day);
             if (!(await this.budget.claimQuota(userQuota, limits.user, day))) {
-                throw YOURCAT_ERRORS.userDailyCap();
+                throw await this.refused('refusedUserCap', day, YOURCAT_ERRORS.userDailyCap());
             }
             ticket.quotaKeys.push(userQuota);
 
             // 7. Global daily budget.
             const est = this.budget.estimateMicroEur(kind);
-            await this.budget.reserve(kind, est, day);
+            try {
+                await this.budget.reserve(kind, est, day);
+            } catch (error) {
+                if (isRefusal(error, BUDGET_EXHAUSTED_CODE)) {
+                    await this.budget.count('refusedBudget', day);
+                }
+                throw error;
+            }
             ticket.reservationMicroEur = est;
         } catch (error) {
             await this.release(ticket);
@@ -175,6 +189,12 @@ export class AiUploadGate {
         if (!(await this.budget.claimQuota(quotaId('manual', 'user', String(user._id), day), limit, day))) {
             throw YOURCAT_ERRORS.userDailyCap();
         }
+    }
+
+    /** Counts one refusal on the day's stats (never throws) and hands the error back to throw. */
+    private async refused(counter: AiBudgetCounter, day: string, error: Error): Promise<Error> {
+        await this.budget.count(counter, day);
+        return error;
     }
 
     /** Gives every claimed attempt back, once. */

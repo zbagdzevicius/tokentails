@@ -3,7 +3,8 @@
  */
 /**
  * Growth events of bet #3 (docs/plans/yourcat-v2.md §7.1): exact names, no personal data, dropped
- * without consent, `portrait_paid` once per record, and the GTM checkout value from the status price.
+ * without consent, `portrait_paid` once per record (across tabs), `upload_started` on every attempt
+ * (a retry included), and the GTM checkout value from the status price.
  */
 import { createAnalytics, type AnalyticsClient } from "@/analytics/client";
 import type { ConsentState } from "@/analytics/consent";
@@ -22,6 +23,17 @@ jest.mock("@/components/GoogleTagManager", () => ({
   trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }));
 const mockCheckout = jest.fn();
+const mockApi = {
+  status: jest.fn(),
+  upload: jest.fn(),
+  manual: jest.fn(),
+  me: jest.fn(),
+  get: jest.fn(),
+  rename: jest.fn(),
+  remove: jest.fn(),
+  ensureGuest: jest.fn(async () => undefined),
+  prefetchAppCheck: jest.fn(),
+};
 jest.mock("@/api/yourcat-api", () => {
   class YourcatRequestError extends Error {
     constructor(
@@ -31,13 +43,42 @@ jest.mock("@/api/yourcat-api", () => {
       readonly serverMessage: string | null,
     ) {
       super("x");
+      Object.setPrototypeOf(this, YourcatRequestError.prototype);
+    }
+    get failure() {
+      return this.kind === "code" ? { kind: "code", code: this.code } : { kind: this.kind };
     }
   }
-  return { YOURCAT_API: { portraitCheckout: (...args: unknown[]) => mockCheckout(...args) }, YourcatRequestError };
+  return {
+    YOURCAT_API: { ...mockApi, portraitCheckout: (...args: unknown[]) => mockCheckout(...args) },
+    YourcatRequestError,
+  };
 });
+jest.mock("@/components/yourcat/shareCard", () => ({
+  renderShareCard: jest.fn(async () => new Blob(["png"], { type: "image/png" })),
+  warmCardFonts: () => undefined,
+  cardFileName: () => "tokentails-cat-story.png",
+}));
+jest.mock("@/components/yourcat/pinkPawPick", () => ({
+  ...jest.requireActual("@/components/yourcat/pinkPawPick"),
+  fetchPinkPawCandidates: jest.fn(async () => []),
+}));
+jest.mock("@/context/ProfileContext", () => ({
+  useProfile: () => ({ profile: { _id: "u1", isGuest: true, cats: [] }, setProfileUpdate: jest.fn() }),
+}));
+jest.mock("@/context/ToastContext", () => ({ useToast: () => jest.fn() }));
+jest.mock("@/context/FirebaseAuthContext", () => ({ useOptionalFirebaseAuth: () => undefined }));
+jest.mock("@/features/portrait/components/StylePickerDrawer", () => ({
+  PortraitStyle: { HIGHNESS: "highness", MONARCH: "monarch", ARISTOCRAT: "aristocrat", COMMANDER: "commander" },
+}));
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
+}));
 
-import { firstPaidSighting, PaidState } from "@/components/yourcat/PaidState";
+import { firstPaidSighting, PaidState, PAID_SEEN_PREFIX } from "@/components/yourcat/PaidState";
 import { PortraitUpsell } from "@/components/yourcat/PortraitUpsell";
+import { YourCatPage } from "@/components/yourcat/YourCatPage";
 import type { YourcatStatusView, YourcatView } from "@/models/yourcat";
 
 const RECORD: YourcatView = {
@@ -131,6 +172,7 @@ describe("growth event catalog", () => {
 
 describe("portrait events", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.clear();
     mockTrack.mockClear();
     mockTrackEvent.mockClear();
@@ -151,6 +193,30 @@ describe("portrait events", () => {
     expect(mockTrackEvent).toHaveBeenCalledTimes(1);
     expect(mockTrackEvent).toHaveBeenCalledWith("purchase", expect.objectContaining({ currency: "EUR", value: 17 }));
     expect(firstPaidSighting(RECORD.id)).toBe(false);
+  });
+
+  it("portrait_paid is not reported again from a second tab or a reload (localStorage dedupe)", () => {
+    const painting = { ...RECORD, portrait: { status: "painting" as const, style: "monarch" as const, url: null } };
+    render(<PaidState record={painting} name="Mochi" portrait={PORTRAIT} late={false} onBack={() => undefined} reportPaid />);
+    expect(mockTrack.mock.calls.filter(([event]) => event.name === "portrait_paid")).toHaveLength(1);
+    expect(localStorage.getItem(`${PAID_SEEN_PREFIX}${RECORD.id}`)).toBe("1");
+    // A second tab: its own sessionStorage, the same localStorage.
+    sessionStorage.clear();
+    render(<PaidState record={painting} name="Mochi" portrait={PORTRAIT} late={false} onBack={() => undefined} reportPaid />);
+    expect(mockTrack.mock.calls.filter(([event]) => event.name === "portrait_paid")).toHaveLength(1);
+    expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes without storage too, and never throws", () => {
+    const local = jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    try {
+      expect(firstPaidSighting("64e2e0000000000000000c99")).toBe(true);
+      expect(firstPaidSighting("64e2e0000000000000000c99")).toBe(false);
+    } finally {
+      local.mockRestore();
+    }
   });
 
   it("does not report on S3 (only the paid return reports)", () => {
@@ -178,5 +244,58 @@ describe("portrait events", () => {
       const source = readFileSync(join(__dirname, "..", "components", "yourcat", file), "utf8");
       expect(source).not.toMatch(/€\s?14\b|\b1400\b|value:\s*14\b/);
     }
+  });
+});
+
+describe("upload events", () => {
+  const STATUS: YourcatStatusView = {
+    enabled: true,
+    uploadsOpen: true,
+    appCheckEnforced: true,
+    limits: { maxBytes: 10485760, types: ["image/jpeg"] },
+    families: [{ family: "YELLOW", label: "Ginger", spriteImg: "https://cdn.test/YELLOW/base.png" }],
+    portrait: PORTRAIT,
+  };
+
+  beforeEach(() => {
+    Object.values(mockApi).forEach((fn) => (fn as jest.Mock).mockReset());
+    mockApi.ensureGuest.mockImplementation(async () => undefined);
+    mockApi.status.mockResolvedValue(STATUS);
+    mockApi.me.mockResolvedValue(null);
+    mockTrack.mockClear();
+    Object.assign(URL, { createObjectURL: jest.fn(() => "blob:photo"), revokeObjectURL: jest.fn() });
+  });
+
+  async function flush() {
+    for (let i = 0; i < 6; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+  }
+
+  it("Try again reports upload_started again, with the same file properties", async () => {
+    const { YourcatRequestError } = jest.requireMock("@/api/yourcat-api");
+    mockApi.upload.mockRejectedValueOnce(new YourcatRequestError(500, "server", null, null)).mockResolvedValueOnce(RECORD);
+    render(<YourCatPage isApp={false} />);
+    await flush();
+    await act(async () => {
+      fireEvent.change(screen.getByTestId("yourcat-file-input"), {
+        target: { files: [new File([new Uint8Array([255, 216, 255])], "cat.jpg", { type: "image/jpeg" })] },
+      });
+    });
+    await flush();
+    expect(screen.getByRole("alert").textContent).toBe("Something went wrong on our side. Please try again.");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    });
+    await flush();
+    expect(mockApi.upload).toHaveBeenCalledTimes(2);
+    const names = mockTrack.mock.calls.map(([event]) => event.name);
+    expect(names).toEqual(["upload_started", "upload_done", "upload_started", "upload_done"]);
+    const started = mockTrack.mock.calls.filter(([event]) => event.name === "upload_started").map(([event]) => event.properties);
+    expect(started[1]).toEqual(started[0]);
+    expect(started[0]).toEqual(expect.objectContaining({ surface: "yourcat", source: "picker", fileType: "jpeg" }));
+    expect(screen.getByRole("heading", { name: "Meet Mochi." })).toBeTruthy();
   });
 });

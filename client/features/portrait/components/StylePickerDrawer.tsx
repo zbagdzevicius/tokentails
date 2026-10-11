@@ -24,6 +24,16 @@ interface StylePickerDrawerProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+// Preview image per style. highness.webp is byte-identical to the rejected first Highness example (a famous
+// internet cat's likeness), so Highness shows highness-2.webp. The file must also exist on the
+// DO Spaces CDN under /w/portrait/ because cdnFile() points there in production.
+export const STYLE_PREVIEW_IMAGES: Record<PortraitStyle, string> = {
+  [PortraitStyle.HIGHNESS]: "portrait/highness-2.webp",
+  [PortraitStyle.MONARCH]: "portrait/monarch.webp",
+  [PortraitStyle.ARISTOCRAT]: "portrait/aristocrat.webp",
+  [PortraitStyle.COMMANDER]: "portrait/commander.webp",
+};
+
 const styles: {
   id: PortraitStyle;
   name: string;
@@ -110,7 +120,7 @@ export const StylePickerDrawer = ({
                   {/* Preview Image or Icon */}
                   <div className="w-full aspect-[3/4] rounded-sm overflow-hidden mb-1">
                     <img
-                      src={cdnFile(`portrait/${style.id}.webp`)}
+                      src={cdnFile(STYLE_PREVIEW_IMAGES[style.id])}
                       alt={style.name}
                       className="w-full h-full object-cover"
                     />

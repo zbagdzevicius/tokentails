@@ -78,10 +78,11 @@ function ageCheck(facts: AccountFacts, minAgeMs: number, at: Date): EligibilityR
  * rule (per account, or per hashed IP without one) and the per-chain budget are enforced by the
  * donate service. Kept as a policy so /impact/me and /shelter/donate/me keep one shape.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function instantTreatPolicy(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _facts?: Partial<AccountFacts & GamesFacts>,
-    _now: Date = new Date()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _now?: Date
 ): EligibilityResult {
     return ok();
 }

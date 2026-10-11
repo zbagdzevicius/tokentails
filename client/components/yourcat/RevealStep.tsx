@@ -8,7 +8,7 @@ import { displayName, NAME_MAX, S3, sentenceName, STATUS_COPY } from "./copy";
 import { pickPinkPawCat, type PinkPawCandidate } from "./pinkPawPick";
 import { RevealFrame } from "./RevealFrame";
 import { canShareFile, copyShareText, isInAppBrowser, shareCardFile, downloadFile, type ShareOutcome } from "./share";
-import { ALERT, BODY, CAPTION, GHOST_BUTTON, GOLD_BUTTON, INPUT, ScreenHeading, SpriteStill, TEXT_LINK } from "./ui";
+import { ALERT, BODY, CAPTION, GHOST_BUTTON, GOLD_BUTTON, INLINE_LINK, INPUT, ScreenHeading, SpriteStill, TEXT_LINK } from "./ui";
 import { useShareCards, variantKey } from "./useShareCards";
 import { buildShareUrl } from "./utm";
 
@@ -21,6 +21,10 @@ export interface RevealStepProps {
   avatarStatus: YourcatAvatarStatus;
   /** A fresh upload this page view: run the reveal from the photo. */
   fresh: boolean;
+  /** The cat came from the manual pick: it was picked, not matched. */
+  manual?: boolean;
+  /** Uploads are open (false while the budget is spent or paused): "start over" then promises no new photo. */
+  uploadsOpen?: boolean;
   photoUrl: string | null;
   reducedMotion: boolean;
   nameError: string | null;
@@ -51,7 +55,7 @@ function PlayableCat({ catImg, spriteImg, name, reducedMotion }: { catImg: strin
   return (
     <button
       type="button"
-      className="flex h-[192px] w-[192px] min-h-11 items-center justify-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400 disabled:cursor-default"
+      className="relative aspect-square w-2/5 max-w-[192px] min-h-11 shrink-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400 disabled:cursor-default md:w-[192px]"
       aria-label={S3.playCat(name)}
       disabled={reducedMotion}
       onClick={() => {
@@ -61,9 +65,9 @@ function PlayableCat({ catImg, spriteImg, name, reducedMotion }: { catImg: strin
       data-testid="yourcat-playable"
     >
       {playing ? (
-        <img key={round} src={catImg} alt="" className="pixelated h-[192px] w-[192px]" data-testid="yourcat-gif" />
+        <img key={round} src={catImg} alt="" className="pixelated absolute inset-0 h-full w-full" data-testid="yourcat-gif" />
       ) : (
-        <SpriteStill spriteImg={spriteImg} scale={4} />
+        <SpriteStill spriteImg={spriteImg} scale="fill" className="absolute inset-0" />
       )}
     </button>
   );
@@ -73,6 +77,8 @@ function PlayableCat({ catImg, spriteImg, name, reducedMotion }: { catImg: strin
 function ConfirmDialog({
   text,
   extra,
+  error,
+  busy,
   confirm,
   cancel,
   onConfirm,
@@ -80,6 +86,9 @@ function ConfirmDialog({
 }: {
   text: string;
   extra?: string;
+  /** A failed delete, shown in the dialog so the visitor can keep or try again from there. */
+  error?: string | null;
+  busy?: boolean;
   confirm: string;
   cancel: string;
   onConfirm: () => void;
@@ -129,11 +138,17 @@ function ConfirmDialog({
             {extra}
           </p>
         )}
+        {error && (
+          <p className={`${ALERT} mt-3`} role="alert" data-testid="yourcat-delete-error">
+            {error}
+          </p>
+        )}
+        {/* Keeping is the gold choice; deleting is the quiet one with the warning border. */}
         <div className="mt-4 flex flex-wrap justify-end gap-3">
-          <button type="button" className={GOLD_BUTTON} onClick={onConfirm}>
+          <button type="button" className={DANGER_GHOST_BUTTON} disabled={busy} onClick={onConfirm}>
             {confirm}
           </button>
-          <button ref={cancelRef} type="button" className={GHOST_BUTTON} onClick={onClose}>
+          <button ref={cancelRef} type="button" className={GOLD_BUTTON} onClick={onClose}>
             {cancel}
           </button>
         </div>
@@ -141,6 +156,8 @@ function ConfirmDialog({
     </div>
   );
 }
+
+const DANGER_GHOST_BUTTON = GHOST_BUTTON.replace("border-tt-cream/70", "border-tt-rust");
 
 /** Phones default to the story format, larger screens to the post format. */
 function defaultFormat(): CardFormat {
@@ -157,6 +174,8 @@ function defaultFormat(): CardFormat {
  */
 export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props, ref) => {
   const { record, avatarStatus, fresh, photoUrl, reducedMotion, nameError, onRename, onDelete, onStartOver } = props;
+  const manual = !!props.manual;
+  const uploadsOpen = props.uploadsOpen !== false;
   const name = displayName(record.name, record.named);
   const family = record.familyLabel;
 
@@ -200,7 +219,6 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   // ---- format, Pink Paw ----------------------------------------------------------------------
   const [format, setFormat] = useState<CardFormat>("story");
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormat(defaultFormat());
   }, []);
   const [shelter, setShelter] = useState<PinkPawCandidate | null>(null);
@@ -230,7 +248,6 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   const current = variants[variantKey(format, panelOn)] ?? null;
   const [preview, setPreview] = useState<string | null>(null);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current) setPreview(current.url);
   }, [current]);
 
@@ -240,12 +257,10 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const copyFieldRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInApp(isInAppBrowser(typeof navigator === "undefined" ? "" : navigator.userAgent));
   }, []);
   useEffect(() => {
     // Evaluated on the real file; kept while the next generation renders, so "Share" stays in place.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current) setCanShare(canShareFile(current.file));
   }, [current]);
   useEffect(() => {
@@ -317,12 +332,34 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
 
   // ---- delete --------------------------------------------------------------------------------
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const deleteLinkRef = useRef<HTMLButtonElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
+  const openDialog = () => {
+    setDeleteError(false);
+    setConfirming(true);
+  };
   const closeDialog = () => {
     setConfirming(false);
+    setDeleteError(false);
     setTimeout(() => deleteLinkRef.current?.focus(), 0);
+  };
+  const confirmDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(false);
+    const ok = await onDelete();
+    setDeleting(false);
+    if (ok) {
+      setConfirming(false);
+      props.toast(S3.deleted);
+      // The delete link is gone with the photo: focus goes to the screen heading (§1.6).
+      setTimeout(() => sectionRef.current?.querySelector<HTMLElement>("h1")?.focus(), 0);
+    } else {
+      // The dialog stays open with the reason, so Keep and Delete (again) are right there.
+      setDeleteError(true);
+    }
   };
   const paintingPaid = record.portrait.status === "painting";
 
@@ -331,28 +368,33 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     avatarStatus === "pending" ? S3.drawing(name) : avatarStatus === "failed" ? S3.drawFailed(name) : "";
 
   const ready = !!current && !nameSettling;
+  // Sticks once a card exists, and stays stuck while a new name's card is drawn (no jumping bar).
+  const stickActions = !!current;
   const showFileButtons = !inApp && !failed;
 
   return (
     <section ref={sectionRef} className="flex min-h-[100svh] w-full flex-col items-center gap-6" data-testid="yourcat-reveal">
       <ScreenHeading ref={ref}>{S3.title(name)}</ScreenHeading>
 
-      <div className="flex w-full flex-col items-center gap-4 md:flex-row md:items-end md:justify-center">
-        <RevealFrame
-          photoUrl={photoUrl}
-          avatarUrl={avatarUrl}
-          spriteImg={record.cat.spriteImg}
-          animate={fresh}
-          reducedMotion={reducedMotion}
-          label={`${sentenceName(name)}, ${family} pixel cat`}
-        />
+      {/* Phones too: the frame and the playable cat side by side (about 60/40), so the card comes sooner. */}
+      <div className="flex w-full flex-row items-end justify-center gap-3 md:gap-4">
+        <div className="w-3/5 min-w-0 md:w-full md:max-w-[384px]">
+          <RevealFrame
+            photoUrl={photoUrl}
+            avatarUrl={avatarUrl}
+            spriteImg={record.cat.spriteImg}
+            animate={fresh}
+            reducedMotion={reducedMotion}
+            label={`${sentenceName(name)}, ${family} pixel cat`}
+          />
+        </div>
         <PlayableCat catImg={record.cat.catImg} spriteImg={record.cat.spriteImg} name={name} reducedMotion={reducedMotion} />
       </div>
 
       <p className={CAPTION} aria-live="polite" data-testid="yourcat-portrait-status">
         {portraitLine}
       </p>
-      <p className={`${BODY} max-w-xl text-center`}>{S3.matched(name, family)}</p>
+      <p className={`${BODY} max-w-xl text-center`}>{manual ? S3.picked(name, family) : S3.matched(name, family)}</p>
 
       <div className="flex w-full max-w-md flex-col gap-1">
         <label htmlFor="yourcat-card-name" className="text-p5 md:text-p4 text-tt-cream">
@@ -426,7 +468,7 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
             <img
               src={preview}
               alt={S3.cardAlt(name, family)}
-              className="w-full rounded-lg border-2 border-tt-cream/40"
+              className="max-h-[55svh] w-full rounded-lg border-2 border-tt-cream/40 object-contain"
               onContextMenu={inApp ? onLongPress : undefined}
               onTouchStart={inApp ? startHold : undefined}
               onTouchEnd={inApp ? endHold : undefined}
@@ -445,7 +487,19 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
             <p className={CAPTION}>{S3.inAppHint}</p>
           </div>
         )}
+      </div>
 
+      {/* The card's actions. On phones, once the card is ready, they stick to the bottom of the screen
+          while the reveal scrolls (a sticky child of the whole section, so nothing is duplicated). */}
+      <div
+        className={`flex w-full flex-col items-center gap-3 ${
+          stickActions
+            ? "max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:w-[calc(100%+2rem)] max-md:border-t-2 max-md:border-tt-cream/30 max-md:bg-tt-night-900/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            : ""
+        }`}
+        data-testid="yourcat-actions"
+        data-sticky={stickActions ? "true" : "false"}
+      >
         <div className="flex flex-wrap justify-center gap-3">
           {showFileButtons && canShare && (
             <button type="button" className={GOLD_BUTTON} disabled={!ready} onClick={onShare}>
@@ -460,9 +514,6 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
           <button type="button" className={GHOST_BUTTON} onClick={() => void onCopy()}>
             {S3.copyLink}
           </button>
-          <Link href="/game" className={GHOST_BUTTON}>
-            {S3.play(name)}
-          </Link>
         </div>
         {copyFallback && (
           <div className="flex w-full flex-col gap-1">
@@ -474,10 +525,14 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
         )}
       </div>
 
+      <Link href="/game" className={GHOST_BUTTON}>
+        {S3.play(name)}
+      </Link>
+
       {props.isGuest && (
         <p className={`${CAPTION} max-w-xl text-center`} data-testid="yourcat-guest-note">
           {S3.guestNote(name)}{" "}
-          <button type="button" className={TEXT_LINK} onClick={props.onCreateAccount}>
+          <button type="button" className={INLINE_LINK} onClick={props.onCreateAccount}>
             {S3.createAccount}
           </button>
         </p>
@@ -485,38 +540,24 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
 
       <div className="flex flex-wrap items-center justify-center gap-4">
         {record.photo.stored || record.avatar.status !== "none" ? (
-          <button ref={deleteLinkRef} type="button" className={`${TEXT_LINK} text-p6`} onClick={() => setConfirming(true)}>
+          <button ref={deleteLinkRef} type="button" className={`${TEXT_LINK} text-p6`} onClick={openDialog}>
             {S3.deleteLink}
           </button>
         ) : null}
         <button type="button" className={`${TEXT_LINK} text-p6`} onClick={onStartOver}>
-          {STATUS_COPY.startOver}
+          {uploadsOpen ? STATUS_COPY.startOver : STATUS_COPY.startOverPlain}
         </button>
       </div>
-      {deleteError && (
-        <p className={ALERT} role="alert">
-          {S3.nameSaveFailed}
-        </p>
-      )}
       {confirming && (
         <ConfirmDialog
           text={S3.deleteConfirm(name, family)}
           extra={paintingPaid ? S3.deletePaidPending : undefined}
+          error={deleteError ? S3.deleteFailed : null}
+          busy={deleting}
           confirm={S3.deleteYes}
           cancel={S3.deleteNo}
           onClose={closeDialog}
-          onConfirm={async () => {
-            setConfirming(false);
-            const ok = await onDelete();
-            if (ok) {
-              props.toast(S3.deleted);
-              // The delete link is gone with the photo: focus goes to the screen heading (§1.6).
-              setTimeout(() => sectionRef.current?.querySelector<HTMLElement>("h1")?.focus(), 0);
-            } else {
-              setDeleteError(true);
-              setTimeout(() => deleteLinkRef.current?.focus(), 0);
-            }
-          }}
+          onConfirm={() => void confirmDelete()}
         />
       )}
     </section>

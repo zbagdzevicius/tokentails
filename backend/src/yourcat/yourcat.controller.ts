@@ -18,8 +18,8 @@ import {
     UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { InjectThrottlerStorage, SkipThrottle, ThrottlerException, ThrottlerStorage } from '@nestjs/throttler';
-import { AiBudgetDayView, AiBudgetService } from 'src/ai-budget/ai-budget.service';
+import { SkipThrottle, ThrottlerException } from '@nestjs/throttler';
+import { AiBudgetDayView, AiBudgetService, utcDay } from 'src/ai-budget/ai-budget.service';
 import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 import { AUTH_USER, IAuthUser } from 'src/common/decorators/auth-user.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
@@ -43,6 +43,17 @@ import { IUploadBody, yourcatEnabled, YourcatService } from './yourcat.service';
  * never reads them as an id.
  */
 
+/**
+ * Paid-delivery counters every `GET /yourcat/stats` day carries, 0 when nothing was counted, so a failed
+ * portrait email (KI-11) shows as a column even on a day without one.
+ */
+export const STATS_ALWAYS_COUNTERS = ['portraitsDelivered', 'portraitsDeliveryFailed', 'portraitsEmailFailed'] as const;
+
+export const withStatsDefaults = (counts: AiBudgetDayView['counts'] | undefined): AiBudgetDayView['counts'] => ({
+    ...Object.fromEntries(STATS_ALWAYS_COUNTERS.map(counter => [counter, 0])),
+    ...(counts || {}),
+});
+
 /** Per minute: per client IP, per user. */
 export const YOURCAT_THROTTLES = {
     status: { ip: { limit: 30, ttl: 60000 } },
@@ -52,14 +63,24 @@ export const YOURCAT_THROTTLES = {
     get: { ip: { limit: 120, ttl: 60000 }, user: { limit: 60, ttl: 60000 } },
     rename: { ip: { limit: 20, ttl: 60000 }, user: { limit: 10, ttl: 60000 } },
     remove: { ip: { limit: 10, ttl: 60000 }, user: { limit: 10, ttl: 60000 } },
-    // Stripe spam: 5 a minute per address and per user (`userBurst`, counted in the handler), and
-    // 10 sessions a day per user.
+    // Stripe spam: 5 a minute per address and per user (in memory, like every burst limit), and 10
+    // checkouts a day per user, counted in MongoDB (`AiBudgetService.claimQuota`), so a restart or a
+    // second replica does not reset it (KI-15).
     checkout: {
         ip: { limit: 5, ttl: 60000 },
-        user: { limit: 10, ttl: 24 * 60 * 60 * 1000 },
-        userBurst: { limit: 5, ttl: 60000 },
+        user: { limit: 5, ttl: 60000 },
+        userDaily: 10,
     },
 } as const;
+
+/** The per-user daily portrait checkout counter (an `aiquotas` document, removed 48 h after its day). */
+export const portraitCheckoutQuotaId = (userId: string, day: string) => `portrait-checkout:user:${userId}:${day}`;
+
+/** Seconds until the next UTC midnight, when the daily counter starts again. */
+export const secondsToUtcMidnight = (now: Date) => {
+    const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    return Math.max(1, Math.ceil((next - now.getTime()) / 1000));
+};
 
 /** The kill switch, checked before multer reads the file (section 2.3 step 1). */
 @Injectable()
@@ -78,21 +99,20 @@ export class YourcatController {
     constructor(
         private readonly service: YourcatService,
         private readonly budget: AiBudgetService,
-        private readonly ipThrottler: ClientIpThrottlerGuard,
-        @InjectThrottlerStorage() private readonly throttlerStorage: ThrottlerStorage
+        private readonly ipThrottler: ClientIpThrottlerGuard
     ) {}
 
-    /**
-     * A second per-user window on one route (`@UserThrottle` holds one): the `UserThrottlerGuard` count,
-     * in its own bucket. 429 above the limit.
-     */
-    async consumeUserBurst(scope: string, user: IAuthUser, options: { limit: number; ttl: number }, res?: any) {
-        const { totalHits, timeToExpire } = await this.throttlerStorage.increment(
-            `user-throttle:${scope}.burst:${String(user?._id)}`,
-            options.ttl
+    /** The per-user daily checkout limit, in MongoDB. 429 with Retry-After (to UTC midnight) above it. */
+    async claimDailyCheckout(user: IAuthUser, res?: any): Promise<void> {
+        const now = this.budget.now();
+        const day = utcDay(now);
+        const claimed = await this.budget.claimQuota(
+            portraitCheckoutQuotaId(String(user?._id), day),
+            YOURCAT_THROTTLES.checkout.userDaily,
+            day
         );
-        if (totalHits > options.limit) {
-            res?.header?.('Retry-After', timeToExpire);
+        if (!claimed) {
+            res?.header?.('Retry-After', secondsToUtcMidnight(now));
             throw new ThrottlerException();
         }
     }
@@ -121,7 +141,8 @@ export class YourcatController {
     @SkipThrottle({ default: false })
     @Get('stats')
     async stats(@Query('days') days?: string): Promise<{ days: AiBudgetDayView[] }> {
-        return { days: await this.budget.stats(Number(days) || 14) };
+        const rows = await this.budget.stats(Number(days) || 14);
+        return { days: rows.map(row => ({ ...row, counts: withStatsDefaults(row.counts) })) };
     }
 
     @UseGuards(AppAuthGuard, YourcatEnabledGuard, UserThrottlerGuard, ClientIpThrottlerGuard)
@@ -194,12 +215,7 @@ export class YourcatController {
         @Body() body: { style?: unknown },
         @Res({ passthrough: true }) res: any
     ): Promise<YourcatCheckoutView> {
-        await this.consumeUserBurst(
-            'YourcatController.portraitCheckout',
-            user,
-            YOURCAT_THROTTLES.checkout.userBurst,
-            res
-        );
+        await this.claimDailyCheckout(user, res);
         return this.service.portraitCheckout(user, id, body?.style);
     }
 }

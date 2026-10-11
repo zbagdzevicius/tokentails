@@ -134,7 +134,7 @@ Five client-only events in `client/analytics/growth-events.ts` (PostHog, consent
 | `upload_done` | when that request answers | `outcome`, `errorCode`, `family`, `avatarStatus`, `seconds` |
 | `card_shared` | after a Web Share or download, a copied link, or opening the long-press view (not on a cancelled share) | `format`, `method`, `withShelterCat`, `avatarStatus`, `secondsToReveal` |
 | `portrait_checkout_started` | when the checkout session is created, before the redirect (also GTM `begin_checkout`) | `style`, `priceCents`, `currency` |
-| `portrait_paid` | the first time S6 sees `painting` or `ready` (dedupe `sessionStorage` `tt.yourcat.paid.<id>`; also GTM `purchase`) | `priceCents`, `currency`, `status` |
+| `portrait_paid` | the first time S6 sees `painting` or `ready` (dedupe per browser in `localStorage` `tt.yourcat.paid.<id>`, else `sessionStorage`; also GTM `purchase`) | `priceCents`, `currency`, `status` |
 
 No property carries a name, photo or avatar URL, record id, user id or email. `secondsToReveal` is the
 time from the file selection to the S3 reveal, rounded; it is `null` when this page view did not
@@ -144,7 +144,10 @@ is at or below 30 s. The reliable counts are the server's daily counters (`GET /
 
 ## Environment
 
-The client reads no new variables. The App Check site key (`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`)
+The client reads one new variable, `NEXT_PUBLIC_YOURCAT_ENTRY` (default off): `1`, `true` or `on`
+shows the way in from the landing and the onboarding ceremony (`YourcatEntryLink`), and only while
+`GET /yourcat/status` says the feature is on and uploads are open. It is inlined at build time, so a
+change needs a client redeploy (launch checklist step 6). The App Check site key (`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`)
 and every server switch (`YOURCAT_ENABLED`, `YOURCAT_PORTRAIT_ENABLED`, the AI budget and caps) are
 listed in [BACKEND.md](BACKEND.md) and [CLIENT.md](CLIENT.md).
 
@@ -155,15 +158,105 @@ Jest in `client/__test__/`: `yourcat-contract`, `yourcat-prepare-upload`, `yourc
 `yourcat-lobby-hero`, `yourcat-copy` (honesty rules), plus the `/yourcat` cases in
 `auth-api-wrapper.test.ts`. Playwright: `client/e2e/yourcat.spec.ts` (one `@ci-desktop` test).
 
+## Launch checklist
+
+Work through it in order; a step starts only when the one before it is checked. "You" is the founder.
+The backend switches and their defaults are in [BACKEND.md](BACKEND.md) ("Production checklist for the
+flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2.md) §10.
+
+0. [ ] **Before d83685b1 (v2) is pushed to `main`.** Owner: You.
+   - Set `PORTRAIT_USD_PRICE_CHANGED_AT` to the deploy day, `YYYY-MM-DDT00:00:00Z`, on the backend
+     before the new code starts. The code floor is `2026-10-12T00:00:00Z`; a later deploy without it
+     ends the 48 h grace too early and refuses $6 payments the old backend created.
+   - Decide the `/portrait` preview caps, which apply on merge even with every `/yourcat` flag off:
+     `AI_PREVIEW_IP_DAILY_UNVERIFIED` (default 1 a day per address until App Check is on),
+     `AI_PREVIEW_UNTRUSTED_DAILY` (default 5 a day site-wide for unproven addresses) and
+     `AI_BUDGET_PREVIEW_EUR_PER_DAY` (default €3).
+   - Do step 1 (`CF_ORIGIN_SECRET` and the Transform Rule) before the merge, not after: without it every
+     visitor shares one untrusted bucket and the live `/portrait` free preview stops at 5 a day site-wide.
+     If step 1 cannot be done first, raise `AI_PREVIEW_UNTRUSTED_DAILY` for that window.
+   - Verify: the backend env shows all three decisions (or a written "defaults"), the date and the secret.
+   - S6 "failed" copy promises the portrait or a full refund within 2 working days: whoever watches the
+     `portraitsFailed` alert repaints by hand (`backend/scripts/memorial-portrait.js`) or refunds in Stripe.
+1. [ ] **Provable client address: `CF_ORIGIN_SECRET` plus the Cloudflare Transform Rule.** Owner: You.
+   Generate a long random secret, set it as `CF_ORIGIN_SECRET` on the backend, and add a Cloudflare
+   Transform Rule (Modify Request Header) on the API hostname that sets `x-tt-origin-auth` to the same
+   value on every request. Prefer this to `TRUST_PROXY` during the hackathon: `TRUST_PROXY` also
+   changes how the guest treat route keys `/heist` visitors, which would change live treat limits
+   mid-judging. Verify: after a deploy, `POST /yourcat` from a browser no longer answers 503
+   `YOURCAT_NO_CLIENT_IP`, and `/yourcat/stats` shows `refusedNoClientIp` stop growing.
+2. [ ] **App Check on.** Owner: You.
+   - Google Cloud console, Security, reCAPTCHA: create a reCAPTCHA Enterprise key (website, score
+     based) with the domains `tokentails.com` and `www.tokentails.com`.
+   - Firebase console, App Check, Apps: register the web app with the reCAPTCHA Enterprise provider
+     and that key; leave the token time to live at the default.
+   - Vercel: set `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` to the site key (production) and redeploy
+     (the value is inlined at build time).
+   - Backend: `AI_UPLOAD_APPCHECK_ENFORCE=true` and `AI_UPLOAD_IP_DAILY_UNVERIFIED=0`. The gate
+     consumes each limited-use token, which is the replay protection.
+   - Verify: on tokentails.com the `POST /yourcat` request carries `x-firebase-appcheck`; the same
+     request replayed with curl answers 401 `YOURCAT_APP_CHECK_INVALID`.
+3. [ ] **Billed Gemini key.** Owner: You. The production `GOOGLE_AI_API_KEY` must belong to a Google
+   Cloud project with billing on, so the privacy notice's "Neither uses it to train its models" is true.
+   Verify: in Google AI Studio, API keys, the key's project shows a paid tier (not "Free"); in the Cloud
+   console, Billing, the project is linked to an active billing account.
+4. [ ] **Controller named.** Owner: You (legal name and address), AI (the edit). Fill `CONTROLLER` in
+   `client/components/yourcat/copy.ts` with the operator's legal name and address and bump
+   `PRIVACY_NOTICE_VERSION` (any change to the notice text needs a new version). Verify: the S1-P panel
+   on production shows no `{Controller}`, and `npx jest yourcat-copy` passes in `client/`.
+5. [ ] **Secrets and alerts.** Owner: You. Set `AI_UPLOAD_IP_SALT` (or keep `INVALIDATE_CACHE_SECRET`
+   set), `AI_ALERT_EMAIL_TO`, `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` (a verified sender in
+   SendGrid). Without SendGrid, paid portraits are painted but not emailed and alerts are only logged.
+   Verify: the variables are set on every backend instance, and the backend log shows no
+   `alert not sent (AI_ALERT_EMAIL_TO or SENDGRID_API_KEY unset)` line after the first alert.
+6. [ ] **Free path on.** Owner: You. `YOURCAT_ENABLED=true`, then one upload on production with a photo
+   of your own cat: the reveal plays, the pixel portrait arrives, the cat is in the lobby, "Delete my
+   photo" works. Then remove `'/yourcat'` from `exclude` in `client/next-sitemap.config.js` (it is
+   kept out of the sitemap while paused) and deploy the client. Verify:
+   `GET /yourcat/status` shows `enabled: true`, `/yourcat/stats` counts one `yourcatAdmitted` and one
+   `yourcatDone`, and the built `sitemap-0.xml` contains `/yourcat`.
+   - Entry link: on Vercel set `NEXT_PUBLIC_YOURCAT_ENTRY=1` (production) and redeploy the client; the
+     value is inlined at build time, so setting it without a redeploy changes nothing. Verify: the
+     landing hero and the onboarding ceremony show "Turn your cat's photo into your game cat", linking
+     to `/yourcat`; with `YOURCAT_ENABLED` off or the budget spent the link disappears again.
+7. [ ] **HD portrait upsell on.** Owner: You.
+   - Add a portrait section to the terms of service (digital, made to order, the withdrawal
+     acknowledgement, one redo by support) and put the terms URL in the Stripe live-mode settings
+     (Settings, Public details), which `consent_collection.terms_of_service` requires.
+   - Confirm Adaptive Pricing is off for these Checkout sessions (Stripe Dashboard, Settings,
+     Payments, Adaptive Pricing), so buyers pay the shown €14.
+   - `PORTRAIT_CHECKOUT_TOS_CONSENT=true` (the legacy `/portrait` digital checkout then asks for the same
+     checkbox), then `YOURCAT_PORTRAIT_ENABLED=true`.
+   - Buy one HD portrait by card on production and receive it by email.
+   - Verify: the order is `COMPLETE`, `/yourcat/stats` counts `yourcatPortraitsPaid` and
+     `portraitsDelivered`, and the email arrived.
+8. [ ] **Daily check, from launch day.** Owner: You (or an AI digest). Open the cms `/yourcat` page
+   (admins only), or call the route with an admin Firebase ID token:
+   `curl -H "accesstoken: fb<ID token>" "https://<backend>/yourcat/stats?days=14"`. Look at spend
+   against the cap, `yourcatFailed`, the refusal counters (`refusedNoClientIp`, `refusedAppCheck`,
+   `refusedIpCap`, `refusedUserCap`, `refusedFailureCap`, `refusedBudget`),
+   `portraitsDeliveryFailed` and `portraitsEmailFailed` (the last cms column, red above 0: a paid
+   portrait whose email SendGrid did not accept; the alert email names the order). Turn `DURATION_MEASURED` on only after the p75 of non-null
+   `secondsToReveal` is measured at or below 30 s (Analytics above).
+
 ## Known issues
 
-- The consent banner does not name GTM and never shows with a GTM id but no PostHog key
-  (`docs/CLIENT.md`, consent section); funnel events are zero without consent. Use the server counters.
-- The native app privacy labels omit PostHog, the guest id and App Check (`docs/MOBILE.md`); `/yourcat`
-  keeps upload web-only, so it adds nothing there.
-- `utils.shareURL` ignores its `text` argument, and the `ShareModal` toast says "coppied"
-  (`client/components/shared/ShareModal.tsx` lines 55 and 66). `/yourcat` does not use either.
-- A guest who later signs in to an existing account loses the photo cat (decision #8); creating a new
-  account keeps it. The S3 guest note says so.
-- `portrait_paid` dedupes per tab (`sessionStorage`): opening the paid return in a second tab can report
-  it again.
+- Fixed (KI-19, 2026-10-11): the consent banner did not name Google Tag Manager and never showed in a
+  build with a GTM id but no PostHog key, so GTM could never get consent. It now opens when either
+  PostHog or GTM is configured and names what "Accept" turns on in that build
+  (`AnalyticsConsentBanner.tsx`, `consentCopy`). Its PostHog sentence names the five events above:
+  "the steps of ... making your cat and buying a portrait, with the link that brought you here. No
+  photo, name or email is sent" (CR2-04, 2026-10-11: it had named game starts and finishes only).
+  Funnel events are still zero for visitors who do not
+  accept; the server counters (`GET /yourcat/stats`) stay the reliable count.
+- Open: the native app privacy labels omit PostHog, the guest id and App Check (`docs/MOBILE.md`);
+  `/yourcat` keeps upload web-only, so it adds nothing there.
+- Fixed (2026-10-11): `utils.shareURL` ignored its `text` argument and the `ShareModal` toast
+  said "coppied". `shareURL(url, text)` now opens the system share sheet with the text where the
+  browser has one and copies the link otherwise (`client/context/auth/shareLink.ts`); the toast says
+  "Link copied". `/yourcat` uses neither.
+- Open (decision #8): a guest who later signs in to an existing account loses the photo cat; creating
+  a new account keeps it. The S3 guest note says so.
+- Fixed (2026-10-11): `portrait_paid` deduped per tab (`sessionStorage`), so a second tab or a
+  reload of the paid return could report it again. It now dedupes per browser in `localStorage`
+  (`tt.yourcat.paid.<id>`), falling back to `sessionStorage`, then to the page, when storage is blocked.

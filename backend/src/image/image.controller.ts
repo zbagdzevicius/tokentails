@@ -3,6 +3,7 @@ import {
     Body,
     Controller,
     Delete,
+    ForbiddenException,
     Get,
     Headers,
     NotFoundException,
@@ -37,7 +38,9 @@ import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttl
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { PhotoUploadExceptionFilter, mapPhotoUploadError } from 'src/shared/photo-upload.filter';
 import { generatePortraitForImage } from 'src/shared/utils/ai-portrait';
+import { deliverPaidPortraitUrl } from 'src/shared/utils/paid-portrait';
 import { uploadFile } from 'src/shared/utils/aws.utils';
+import { privateKeyOf } from 'src/shared/utils/private-url';
 import { getSlug } from 'src/shared/utils/content.utils';
 import { uploadFileImage } from 'src/shared/utils/image.utils';
 import { PHOTO_MULTER_OPTIONS, sanitizePhoto } from 'src/shared/utils/photo-upload';
@@ -54,10 +57,10 @@ import { CatService } from 'src/cat/cat.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { IController } from '../shared/interfaces/controller.interface';
 import { ImageRepository } from './image.repository';
-import { IImage, Image, ImageStyle } from './image.schema';
+import { IImage, Image, ImageStyle, ImageSource } from './image.schema';
 import { ImageModel } from './image.validator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
-import { sendOrderConfirmationEmail } from './order-email';
+import { alertPortraitNotDelivered, checkoutSessionEmail, emailPaidPortrait } from './paid-portrait-email';
 import { PortraitCheckoutService } from './portrait-checkout.service';
 
 /** Bet #3: the portrait preview and its regenerate, per minute (they share the daily `portrait-preview` caps). */
@@ -67,9 +70,59 @@ export const portraitPreviewEnabled = (env: NodeJS.ProcessEnv = process.env) =>
     env.PORTRAIT_PREVIEW_ENABLED !== 'false';
 
 /** Fields a caller may never write on an image (bet #3): who owns it and where it came from. */
-const PROTECTED_IMAGE_FIELDS = ['owner', 'source'] as const;
+const PROTECTED_IMAGE_FIELDS = ['owner', 'source', 'previewUrl'] as const;
+
+/** How long one portrait generation may take before it is aborted (YC-03). */
+export const PORTRAIT_PREVIEW_TIMEOUT_MS = 90_000;
+
+const IMAGE_STYLES = Object.values(ImageStyle) as string[];
+
+/**
+ * The fields `POST /image` copies from the caller (KI-13): name, style and isTemporary. Everything else
+ * (aiUrl, owner, source, title, ...) is dropped; `url` is set from the upload.
+ */
+export function pickImageCreateFields(body: unknown): Pick<IImage, 'name' | 'style' | 'isTemporary'> {
+    const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const fields: Partial<Pick<IImage, 'name' | 'style' | 'isTemporary'>> = {};
+    if (typeof input.name === 'string') {
+        fields.name = input.name.slice(0, 200);
+    }
+    if (typeof input.style === 'string' && IMAGE_STYLES.includes(input.style)) {
+        fields.style = input.style as ImageStyle;
+    }
+    if (input.isTemporary === true || input.isTemporary === 'true') {
+        fields.isTemporary = true;
+    } else if (input.isTemporary === false || input.isTemporary === 'false') {
+        fields.isTemporary = false;
+    }
+    return fields as Pick<IImage, 'name' | 'style' | 'isTemporary'>;
+}
+
+/**
+ * What image routes send (KI-08). A `source: 'portrait'` image shows its watermarked `previewUrl` as
+ * `aiUrl` until it has a COMPLETE order; once paid, the public copy of the 4K output. No response ever
+ * carries a private (`s3private://`) URL. Older portrait images without a preview keep their public
+ * `aiUrl`; other sources are unchanged.
+ */
+export function portraitView<T extends { source?: ImageSource | string; aiUrl?: string; previewUrl?: string }>(
+    image: T,
+    paid: boolean
+): T {
+    if (!image) {
+        return image;
+    }
+    const view: T = { ...image };
+    const isPrivate = privateKeyOf(view.aiUrl) !== null;
+    if (view.source === 'portrait' && view.previewUrl && (!paid || isPrivate)) {
+        view.aiUrl = view.previewUrl;
+    } else if (isPrivate) {
+        delete view.aiUrl;
+    }
+    return view;
+}
 
 function withoutFields<T extends Record<string, any>>(body: T, fields: readonly string[]): T {
+    // PUT /image/:id (editors) only; POST /image uses the allow-list `pickImageCreateFields`.
     const copy: Record<string, any> = { ...(body || {}) };
     for (const field of fields) {
         delete copy[field];
@@ -81,6 +134,29 @@ function withoutFields<T extends Record<string, any>>(body: T, fields: readonly 
 export const NOT_YOURCAT_IMAGE = Object.freeze({ source: { $ne: 'yourcat' } });
 
 export const ORDER_STATUS_PROJECTION = '_id status entityType id image price';
+
+/**
+ * CR2-01: how long after an order turns COMPLETE `GET /image/:id` leaves the 4K publish to the path that
+ * completed it (the Stripe webhook, the card or Stellar confirm). Only then does the GET publish it
+ * itself, so the webhook normally wins the race and delivers with the Checkout email it holds.
+ */
+export const LATE_PUBLISH_GRACE_MS = 2 * 60 * 1000;
+
+/**
+ * Whether a COMPLETE order is past the late-publish grace period: its `updatedAt` (set when it turned
+ * COMPLETE), else `createdAt`. An order without either (legacy, or a stub) is past it.
+ */
+export function pastLatePublishGrace(
+    order: { updatedAt?: Date | string | null; createdAt?: Date | string | null } | null | undefined,
+    now: number = Date.now()
+): boolean {
+    const at = order?.updatedAt ?? order?.createdAt;
+    if (!at) {
+        return true;
+    }
+    const time = new Date(at).getTime();
+    return Number.isNaN(time) || now - time >= LATE_PUBLISH_GRACE_MS;
+}
 
 /** USD paid for a verified portrait checkout: the stored `priceUsd`, else Stripe's USD total. */
 export function paidUsd(
@@ -113,6 +189,9 @@ export class ImageController implements IController<Image> {
     ) {}
     slugs: () => Promise<string[]>;
 
+    /** Clock, replaceable in specs (the late-publish grace period). */
+    now: () => number = () => Date.now();
+
     // Editors only (bet #3): it listed every image, preview photos and paid 4K portraits included, to anyone.
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
     @Post('/search')
@@ -125,13 +204,83 @@ export class ImageController implements IController<Image> {
 
     @Get(':id')
     async findOne(@Param('id') _id: string): Promise<Image> {
-        const image = await this.repository.findOne({
+        let image: any = await this.repository.findOne({
             searchObject: { _id, ...NOT_YOURCAT_IMAGE },
         });
         if (!image) {
             throw new NotFoundException('Image not found');
         }
-        return image;
+        const order = image.source === 'portrait' ? await this.completeOrderOf(image._id) : null;
+        const paid = !!order;
+        // A paid portrait whose public copy the webhook (or a card/Stellar confirm) could not make: make it
+        // now, and when this call is the one that made it public, finish the delivery it missed (CR1-03).
+        // Only after the grace period (CR2-01): until then the path that completed the order publishes and
+        // delivers it, and this answer keeps the preview (the page keeps "preparing").
+        if (paid && privateKeyOf(image.aiUrl) !== null && pastLatePublishGrace(order, this.now())) {
+            const delivery = await deliverPaidPortraitUrl(image, this.repository);
+            if (delivery.error) {
+                console.error(`Could not publish the paid portrait ${image._id}:`, (delivery.error as Error)?.message);
+            }
+            if (delivery.url) {
+                image = { ...image, aiUrl: delivery.url };
+                if (delivery.deliver) {
+                    // In the background: the cat is made with AI calls, the page should not wait for it.
+                    this.lateDelivery = this.deliverLatePortrait(image._id, delivery.url).catch(error =>
+                        console.error(`Late portrait delivery for image ${image._id} failed:`, error)
+                    );
+                }
+            }
+        }
+        return portraitView(image, paid);
+    }
+
+    /** The last background delivery started by `GET /image/:id` (awaited by specs only). */
+    lateDelivery?: Promise<void>;
+
+    /** Whether the image has a COMPLETE order (it was bought). */
+    private async hasCompleteOrder(imageId: unknown): Promise<boolean> {
+        return !!(await this.completeOrderOf(imageId));
+    }
+
+    /**
+     * A COMPLETE order of the image, with its timestamps (the late-publish grace period); with `withBuyer`,
+     * also its buyer's email and its `hash` (a Checkout Session id, for a guest's Checkout email).
+     */
+    private async completeOrderOf(imageId: unknown, withBuyer = false): Promise<any> {
+        if (!imageId) {
+            // findOne drops nil filter fields: never ask "is any order COMPLETE".
+            return null;
+        }
+        return this.orderRepository.findOne({
+            searchObject: { image: imageId, entityType: EntityType.IMAGE, status: OrderStatus.COMPLETE },
+            projection: withBuyer ? '_id user hash updatedAt createdAt' : '_id updatedAt createdAt',
+            ...(withBuyer ? { populate: [{ path: 'user', select: 'email' }] } : {}),
+        });
+    }
+
+    /**
+     * The delivery a paid portrait missed because its 4K could not be published when the order completed
+     * (CR1-03): the order email and the blessing cat, sent once. "Once" is the conditional private ->
+     * public switch of `aiUrl` in `deliverPaidPortraitUrl`: only the call that made it public delivers, so
+     * a webhook or a card/Stellar confirm that published (and emailed) leaves nothing for this path.
+     * The address is the account's email, else the one Checkout collected (a guest buyer, CR2-01).
+     */
+    private async deliverLatePortrait(imageId: unknown, url: string): Promise<void> {
+        const order = await this.completeOrderOf(imageId, true);
+        if (!order) {
+            return;
+        }
+        const buyer = order.user as { _id?: Types.ObjectId; email?: string } | undefined;
+        const userId = buyer?._id?.toString() ?? (order.user ? order.user.toString() : undefined);
+        const address = buyer?.email || (await checkoutSessionEmail(this.stripePayments?.stripe, order.hash));
+        await emailPaidPortrait(address, url, this.budget, order._id);
+        if (userId) {
+            try {
+                await this.catService.createBlessingWithCat(userId, url);
+            } catch (error) {
+                console.error(`Failed to create the late blessing cat for order ${order._id}:`, error);
+            }
+        }
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.EDITOR))
@@ -177,9 +326,8 @@ export class ImageController implements IController<Image> {
         }
 
         try {
-            // `url` comes from the upload; the caller never sets `aiUrl`, `owner` or `source`.
-            const fields = withoutFields(entity as any, [...PROTECTED_IMAGE_FIELDS, 'aiUrl']);
-            const image = await this.repository.create({ ...fields, url });
+            // An allow-list (KI-13): `url` comes from the upload; name, style and isTemporary from the caller.
+            const image = await this.repository.create({ ...pickImageCreateFields(entity), url });
             return image;
         } catch (e) {
             console.error(e);
@@ -191,7 +339,7 @@ export class ImageController implements IController<Image> {
      * Upload plus synchronous 4K portrait generation (a paid AI call). Guests allowed (bet #3), under the
      * `portrait-preview` caps of `AiUploadGate` (per IP, per user, failures, the €3 preview sub-cap of
      * the daily budget). The photo is sanitized (EXIF stripped) and stored under an unguessable name.
-     * Known issue: the response still contains `aiUrl` before payment (docs/BACKEND.md).
+     * The 4K output stays private; the response's `aiUrl` is the watermarked preview (KI-08, `portraitView`).
      */
     @UseGuards(AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard)
     @AllowGuest()
@@ -281,21 +429,22 @@ export class ImageController implements IController<Image> {
         ) {
             throw new NotFoundException(`Image with id ${id} not found`);
         }
-        // Guests regenerate only images they own; legacy images without an owner stay registered-only.
-        if (!existingImage.owner && (user?.isGuest || user?.transient)) {
-            throw guestForbidden();
+        // Guests and players regenerate only images they own; legacy images without an owner are for
+        // editors only (KI-14), since anyone could otherwise spend a 4K generation on them.
+        if (!existingImage.owner) {
+            if (user?.isGuest || user?.transient) {
+                throw guestForbidden();
+            }
+            if (!(Number(user?.permission) >= PERMISSION_LEVEL.EDITOR)) {
+                throw new ForbiddenException('Only editors can regenerate this portrait');
+            }
         }
 
         if (!existingImage.url) {
             throw new BadRequestException(`Image with id ${id} has no URL`);
         }
         // A delivered product: regenerating would replace it (and spend another 4K generation).
-        const paid = await this.orderRepository.model.exists({
-            image: existingImage._id,
-            entityType: EntityType.IMAGE,
-            status: OrderStatus.COMPLETE,
-        });
-        if (paid) {
+        if (await this.hasCompleteOrder(existingImage._id)) {
             throw YOURCAT_ERRORS.portraitExists();
         }
 
@@ -310,7 +459,12 @@ export class ImageController implements IController<Image> {
         return this.gate;
     }
 
-    /** Generates the preview, settles its measured cost and returns the updated image. */
+    /**
+     * Generates the preview (aborted after 90 s, YC-03), settles its measured cost and returns the updated
+     * image through `portraitView`. A failed or aborted generation gives the visitor's attempt back and
+     * counts a failure against the address (YC-02); the cost is settled at the measured amount, else the 4K
+     * fallback (the provider may still bill).
+     */
     private async paintPreview(
         imageId: string,
         style: ImageStyle,
@@ -318,25 +472,43 @@ export class ImageController implements IController<Image> {
         action: 'creating' | 'regenerating'
     ): Promise<IImage> {
         const usages: AiUsage[] = [];
+        const abort = new AbortController();
+        const timer = setTimeout(() => abort.abort(), PORTRAIT_PREVIEW_TIMEOUT_MS);
         try {
-            // Generate the portrait and update aiUrl
-            await generatePortraitForImage(imageId, this.repository, style, { onUsage: usage => usages.push(usage) });
+            // Generate the portrait and update aiUrl (and previewUrl)
+            await generatePortraitForImage(imageId, this.repository, style, {
+                onUsage: usage => usages.push(usage),
+                signal: abort.signal,
+            });
         } catch (e) {
-            // The AI provider's error text stays in the server log. The provider may still bill.
+            // The AI provider's error text stays in the server log.
+            await this.giveAttemptBack(ticket);
             await this.settlePreview(ticket, usages, false);
-            console.error(`Error ${action} portrait:`, e);
+            console.error(`Error ${action} portrait${abort.signal.aborted ? ' (timed out)' : ''}:`, e);
             throw new BadRequestException(
                 `Failed to ${action === 'creating' ? 'create' : 'regenerate'} portrait, please try again`
             );
+        } finally {
+            clearTimeout(timer);
         }
         await this.settlePreview(ticket, usages, true);
 
         // Fetch the updated image with aiUrl
-        const updatedImage = await this.repository.findOne({
+        const updatedImage: any = await this.repository.findOne({
             searchObject: { _id: imageId },
         });
 
-        return updatedImage as IImage;
+        return portraitView(updatedImage, !!updatedImage && (await this.hasCompleteOrder(updatedImage._id))) as IImage;
+    }
+
+    /** A failed generation: the daily attempt back, one failure counted. Never throws. */
+    private async giveAttemptBack(ticket: AiTicket): Promise<void> {
+        try {
+            await this.previewGate().release(ticket);
+            await this.previewGate().recordFailure(ticket);
+        } catch (error) {
+            console.error('Error giving the preview attempt back:', error);
+        }
     }
 
     private async settlePreview(ticket: AiTicket, usages: AiUsage[], done: boolean): Promise<void> {
@@ -387,15 +559,18 @@ export class ImageController implements IController<Image> {
 
     /**
      * The legacy portrait checkout. `callerId` is set by the signed route only: then an image owned by
-     * someone else is refused. Known bug: the unsigned route still accepts any `userId` (docs/BACKEND.md).
+     * someone else is refused. The unsigned route believes a `body.userId` only when it is the image's
+     * owner, or the image has no owner and was never bought (KI-12); otherwise it is ignored and the
+     * buyer is found by email.
      */
     private async checkout(
         body: { productType: ProductType; imageId?: string; userId?: string; email?: string },
         callerId?: string
     ): Promise<{ url: string }> {
-        const { productType, imageId, userId, email } = body;
+        const { productType, imageId, email } = body;
         // Validates productType before any user is looked up or created.
         this.stripePayments.portraitCheckoutAmountCents(productType);
+        const userId = callerId ? body.userId : await this.unsignedUserId(body.userId, imageId);
 
         let resolvedUserId: string | undefined = undefined;
 
@@ -466,6 +641,24 @@ export class ImageController implements IController<Image> {
             console.error('Error creating Stripe checkout session:', error);
             throw new BadRequestException('Failed to create checkout session');
         }
+    }
+
+    /** KI-12: the unsigned route's `userId`, when the image vouches for it; else undefined (ignored). */
+    private async unsignedUserId(userId: unknown, imageId?: string): Promise<string | undefined> {
+        if (typeof userId !== 'string' || !userId || !imageId || !Types.ObjectId.isValid(imageId)) {
+            return undefined;
+        }
+        const image: any = await this.repository.findOne({
+            searchObject: { _id: new Types.ObjectId(imageId) },
+            projection: '_id owner source',
+        });
+        if (!image) {
+            return undefined;
+        }
+        if (image.owner) {
+            return String(image.owner) === userId ? userId : undefined;
+        }
+        return (await this.hasCompleteOrder(image._id)) ? undefined : userId;
     }
 
     private checkoutService(): PortraitCheckoutService {
@@ -592,17 +785,35 @@ export class ImageController implements IController<Image> {
                     return { received: true };
                 }
 
-                // Send order confirmation email with aiUrl: the account's email, else the one Checkout collected.
-                const recipient = (order.user as any)?.email || session.customer_details?.email;
-                if (recipient && paidImage?.aiUrl) {
-                    await sendOrderConfirmationEmail(recipient, paidImage.aiUrl);
-                } else {
-                    console.warn(`Cannot send email: missing user email or image aiUrl for order ${order._id}`);
+                // The delivered URL: a /portrait output is private until now (KI-08), so it is copied to a
+                // public key first; older images already have a public aiUrl. Never a private URL.
+                const delivery = await deliverPaidPortraitUrl(paidImage, this.repository);
+                if (!delivery.url) {
+                    // GET /image/:id retries the copy and then delivers; nothing is sent without a public URL.
+                    console.error(
+                        `Could not publish the paid portrait for order ${order._id}:`,
+                        (delivery.error as Error)?.message || 'no public portrait URL'
+                    );
+                    if (paidImage?.aiUrl) {
+                        await alertPortraitNotDelivered(this.budget, order._id, 'publish');
+                    }
+                    return { received: true };
                 }
+                if (!delivery.deliver) {
+                    // A concurrent GET /image/:id made it public first and delivers it.
+                    console.log(`Paid portrait for order ${order._id} is delivered by the GET /image/:id retry`);
+                    return { received: true };
+                }
+                const deliveredUrl = delivery.url;
+
+                // Send order confirmation email with the delivered URL: the account's email, else the one
+                // Checkout collected.
+                const recipient = (order.user as any)?.email || session.customer_details?.email;
+                await emailPaidPortrait(recipient, deliveredUrl, this.budget, order._id);
 
                 // Create blessing + cat for the purchaser (fire-and-forget, must not break order flow)
                 try {
-                    const aiUrl = paidImage?.aiUrl;
+                    const aiUrl = deliveredUrl;
                     if (aiUrl && userId) {
                         await this.catService.createBlessingWithCat(userId, aiUrl);
                         console.log(`Blessing + cat created for user ${userId}, order ${order._id}`);

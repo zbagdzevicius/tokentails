@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import Head from "next/head";
@@ -14,6 +14,10 @@ import {
   PreviewPage,
   purchaseOptions,
 } from "@/features/portrait/components/PreviewPage";
+import {
+  PaidDownloadStatus,
+  fetchPaidPortraitUrl,
+} from "@/features/portrait/paid-portrait";
 import { Button } from "@/features/portrait/ui/button";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
@@ -26,6 +30,7 @@ import {
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
+import { OrderCurrencyType } from "@/web3/contracts";
 import {
   PORTRAIT_CHECKOUT_CURRENCY,
   formatPortraitPrice,
@@ -38,14 +43,17 @@ import {
   AttentionPulse,
 } from "@/features/portrait/components/LuxuryEffects";
 
-// Function to get style-specific gallery images
-const getStyleImages = (style: PortraitStyle): string[] => {
-  return [
-    `/portrait/${style}-1.webp`,
-    `/portrait/${style}-2.webp`,
-    `/portrait/${style}-3.webp`,
-  ];
+// Example numbers per style in public/portrait/. Highness skips example 1: that painting shows a
+// famous internet cat's likeness (and so does the identical highness.webp), so no page shows it.
+const STYLE_EXAMPLE_NUMBERS: Record<PortraitStyle, number[]> = {
+  [PortraitStyle.HIGHNESS]: [2, 3],
+  [PortraitStyle.MONARCH]: [1, 2, 3],
+  [PortraitStyle.ARISTOCRAT]: [1, 2, 3],
+  [PortraitStyle.COMMANDER]: [1, 2, 3],
 };
+
+const getStyleImages = (style: PortraitStyle): string[] =>
+  STYLE_EXAMPLE_NUMBERS[style].map((n) => `/portrait/${style}-${n}.webp`);
 
 const CANVAS_VIDEO_URL =
   "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
@@ -70,6 +78,10 @@ const PortraitPageContent = () => {
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] =
+    useState<PaidDownloadStatus>("preparing");
+  // Bumped to cancel an older paid-file fetch (a newer one or unmount).
+  const paidFetchRef = useRef(0);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -131,6 +143,30 @@ const PortraitPageContent = () => {
     };
   }, [isGenerating]);
 
+  useEffect(() => {
+    return () => {
+      paidFetchRef.current += 1;
+    };
+  }, []);
+
+  // CR1-02: once the order is COMPLETE, swap the watermarked preview for the paid file.
+  const loadPaidPortrait = useCallback(async (imageId: string) => {
+    const request = ++paidFetchRef.current;
+    setDownloadStatus("preparing");
+    const paidUrl = await fetchPaidPortraitUrl(imageId, IMAGE_API.get, {
+      isCancelled: () => paidFetchRef.current !== request,
+    });
+    if (paidFetchRef.current !== request) {
+      return;
+    }
+    if (paidUrl) {
+      setGeneratedImages([paidUrl]);
+      setDownloadStatus("ready");
+    } else {
+      setDownloadStatus("unavailable");
+    }
+  }, []);
+
   // Poll order status
   const pollOrderStatus = useCallback(
     (orderId: string, imageId: string) => {
@@ -145,6 +181,7 @@ const PortraitPageContent = () => {
               setIsPollingOrder(false);
               clearInterval(pollInterval);
               if (timeoutId) clearTimeout(timeoutId);
+              void loadPaidPortrait(imageId);
 
               // Track Purchase event after successful verification
               trackEvent("purchase", {
@@ -155,7 +192,7 @@ const PortraitPageContent = () => {
                 value: order.price || 0,
                 // Card orders are in euros since bet #3; older orders paid in dollars.
                 currency:
-                  String(order.currencyType) === "EUR" ? "EUR" : "USD",
+                  order.currencyType === OrderCurrencyType.EUR ? "EUR" : "USD",
               });
             } else if (order.status === OrderStatus.FAILED) {
               setOrderStatus(OrderStatus.FAILED);
@@ -197,7 +234,7 @@ const PortraitPageContent = () => {
         if (timeoutId) clearTimeout(timeoutId);
       };
     },
-    [toast],
+    [loadPaidPortrait, toast],
   );
 
   // Check for image_id and _id (order id) query params
@@ -408,6 +445,8 @@ const PortraitPageContent = () => {
     setGeneratedImages([]);
     setShowPreview(false);
     setUploadedImageId(undefined);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     // Remove image_id from URL
     const { image_id, ...restQuery } = router.query;
     router.replace(
@@ -543,6 +582,8 @@ const PortraitPageContent = () => {
     setIsGenerating(false);
     setShowPreview(false);
     setUploadedImageId(undefined);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     // Remove image_id from URL
     const { image_id, ...restQuery } = router.query;
     router.replace(
@@ -590,6 +631,12 @@ const PortraitPageContent = () => {
             isPollingOrder={isPollingOrder}
             orderProductType={orderProductType}
             orderId={router.query._id as string | undefined}
+            downloadStatus={downloadStatus}
+            onRetryDownload={() => {
+              if (uploadedImageId) {
+                void loadPaidPortrait(uploadedImageId);
+              }
+            }}
           />
         </div>
       </>

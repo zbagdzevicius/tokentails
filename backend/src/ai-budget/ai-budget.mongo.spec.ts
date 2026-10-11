@@ -57,4 +57,12 @@ describeIfMongo('AiBudgetService against MongoDB', () => {
         expect(await service.claimQuota(id, 2, '2026-10-11')).toBe(false);
         expect(await service.quotaCount(id)).toBe(2);
     });
+
+    it('20 parallel portrait checkouts under the daily limit of 10: exactly 10 claimed (KI-15)', async () => {
+        const service = new AiBudgetService(days as any, quotas as any);
+        const id = 'portrait-checkout:user:race:2026-10-11';
+        const results = await Promise.all(Array.from({ length: 20 }, () => service.claimQuota(id, 10, '2026-10-11')));
+        expect(results.filter(Boolean)).toHaveLength(10);
+        expect(await service.quotaCount(id)).toBe(10);
+    });
 });

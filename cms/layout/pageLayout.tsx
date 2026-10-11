@@ -1,6 +1,6 @@
 'use client';
 
-import { Cat, Flag, PanelLeft, Users2, Home, Quote, Settings, Receipt, HeartHandshake, Target } from 'lucide-react';
+import { Cat, Flag, PanelLeft, Users2, Home, Quote, Settings, Receipt, HeartHandshake, Target, Camera } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,10 @@ function DesktopNav() {
         <NavItem href="/rescue-goals" label="Rescue Goals">
           <Target className="h-5 w-5" />
         </NavItem>
+
+        <NavItem href="/yourcat" label="YourCat">
+          <Camera className="h-5 w-5" />
+        </NavItem>
       </nav>
     </aside>
   );
@@ -136,6 +140,13 @@ function MobileNav() {
           >
             <Target className="h-5 w-5" />
             Rescue Goals
+          </Link>
+          <Link
+            href="/yourcat"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <Camera className="h-5 w-5" />
+            YourCat
           </Link>
         </nav>
       </SheetContent>

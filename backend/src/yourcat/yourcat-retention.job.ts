@@ -13,11 +13,25 @@ import { YourcatService } from './yourcat.service';
  *    (delivery deletes or re-dates it).
  * 2. Records whose owner is gone (guest erased, idle guest cleanup, account deleted) lose both objects
  *    and the record itself; an undelivered paid portrait keeps its original until delivery.
+ * 3. Placeholders (`creatingAt` set) older than 10 minutes are hard-deleted with their original: the
+ *    upload or manual request died between the insert and the cat (KI-01). Steps 1 and 2 skip placeholders.
+ * 4. Avatars still `pending` 10 minutes after the record was made are marked `failed` (the job times out
+ *    after 45 s, so the process died; KI-18).
  */
 
 export const YOURCAT_RETENTION_JOB = 'yourcat-retention';
 export const YOURCAT_RETENTION_LEASE_MS = 60 * 60 * 1000;
 export const RETENTION_BATCH = 500;
+export const PLACEHOLDER_STALE_MS = 10 * 60 * 1000;
+export const AVATAR_PENDING_STALE_MS = 10 * 60 * 1000;
+
+export interface IRetentionResult {
+    originalsDeleted: number;
+    originalsKept: number;
+    orphansRemoved: number;
+    placeholdersRemoved: number;
+    avatarsTimedOut: number;
+}
 
 @Injectable()
 export class YourcatRetentionJob {
@@ -42,12 +56,12 @@ export class YourcatRetentionJob {
         });
     }
 
-    async runOnce(): Promise<{ originalsDeleted: number; originalsKept: number; orphansRemoved: number }> {
+    async runOnce(): Promise<IRetentionResult> {
         const now = this.now();
         let originalsDeleted = 0;
         let originalsKept = 0;
         const expired: any[] = await this.repository.model
-            .find({ originalKey: { $ne: null }, originalDeleteAfter: { $lte: now } })
+            .find({ originalKey: { $ne: null }, originalDeleteAfter: { $lte: now }, creatingAt: null })
             .limit(RETENTION_BATCH)
             .lean();
         for (const record of expired) {
@@ -75,7 +89,7 @@ export class YourcatRetentionJob {
             if (!gone.length) {
                 continue;
             }
-            const records: any[] = await this.repository.model.find({ owner: { $in: gone } }).lean();
+            const records: any[] = await this.repository.model.find({ owner: { $in: gone }, creatingAt: null }).lean();
             for (const record of records) {
                 try {
                     orphansRemoved += (await this.removeOrphan(record)) ? 1 : 0;
@@ -84,10 +98,53 @@ export class YourcatRetentionJob {
                 }
             }
         }
+        const placeholdersRemoved = await this.removeStalePlaceholders(now);
+        const avatarsTimedOut = await this.failStalePendingAvatars(now);
         this.logger.log(
-            `retention: ${originalsDeleted} originals deleted, ${originalsKept} kept for delivery, ${orphansRemoved} orphans removed`
+            `retention: ${originalsDeleted} originals deleted, ${originalsKept} kept for delivery, ` +
+                `${orphansRemoved} orphans removed, ${placeholdersRemoved} placeholders removed, ` +
+                `${avatarsTimedOut} pending avatars marked failed`
         );
-        return { originalsDeleted, originalsKept, orphansRemoved };
+        return { originalsDeleted, originalsKept, orphansRemoved, placeholdersRemoved, avatarsTimedOut };
+    }
+
+    /** Placeholders whose request died before the cat was made: the original and the record go. */
+    private async removeStalePlaceholders(now: Date): Promise<number> {
+        const stale: any[] = await this.repository.model
+            .find({ creatingAt: { $lte: new Date(now.getTime() - PLACEHOLDER_STALE_MS) } })
+            .limit(RETENTION_BATCH)
+            .lean();
+        let removed = 0;
+        for (const record of stale) {
+            try {
+                for (const key of [record.originalKey, record.avatarKey]) {
+                    if (key) {
+                        await this.yourcatService.io.deleteObject(key);
+                    }
+                }
+                const result: any = await this.repository.model.deleteOne({
+                    _id: record._id,
+                    creatingAt: { $ne: null },
+                });
+                removed += result?.deletedCount ? 1 : 0;
+            } catch (error) {
+                this.logger.error(`placeholder ${record._id} not removed: ${(error as Error)?.message}`);
+            }
+        }
+        return removed;
+    }
+
+    /** `pending` avatars older than 10 minutes read as failed to every client, so store that. */
+    private async failStalePendingAvatars(now: Date): Promise<number> {
+        const result: any = await this.repository.model.updateMany(
+            {
+                avatarStatus: 'pending',
+                createdAt: { $lte: new Date(now.getTime() - AVATAR_PENDING_STALE_MS) },
+                creatingAt: null,
+            },
+            { $set: { avatarStatus: 'failed' } }
+        );
+        return result?.modifiedCount || 0;
     }
 
     /** Both objects and the record; an undelivered paid portrait keeps the original (and the record) for now. */

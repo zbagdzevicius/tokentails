@@ -143,15 +143,20 @@ export function matches(doc: Doc, filter: Doc = {}): boolean {
 }
 
 /**
- * Update pipelines: only `[{$set: {field: <literal> | {$ifNull: ['$field', <literal>]}}}]`, the
- * shape `arrayGuardPipeline` (utils/live-game.ts) produces for `$max` fields.
+ * Update pipelines: only `[{$set: {field: <literal> | {$literal: <value>} | '$$REMOVE' |
+ * {$ifNull: ['$field', <literal>]}}}]`, the shapes `arrayGuardPipeline` (utils/live-game.ts) and the
+ * `/yourcat` guest restyle produce.
  */
 function applyPipeline(doc: Doc, stages: Doc[]) {
     for (const stage of stages) {
         for (const [operator, fields] of Object.entries(stage)) {
             if (operator !== '$set') throw new Error(`memory model: unsupported pipeline stage ${operator}`);
             for (const [path, expression] of Object.entries(fields as Doc)) {
-                if (isPlainObject(expression) && Array.isArray(expression.$ifNull)) {
+                if (expression === '$$REMOVE') {
+                    unsetPath(doc, path);
+                } else if (isPlainObject(expression) && '$literal' in expression) {
+                    setPath(doc, path, clone(expression.$literal));
+                } else if (isPlainObject(expression) && Array.isArray(expression.$ifNull)) {
                     const [source, fallback] = expression.$ifNull as [string, unknown];
                     const current = getPath(doc, String(source).replace(/^\$/, ''));
                     setPath(doc, path, clone(current === null || current === undefined ? fallback : current));

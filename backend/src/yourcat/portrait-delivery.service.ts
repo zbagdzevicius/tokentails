@@ -21,6 +21,10 @@ import { MAX_DELIVERY_ATTEMPTS, ORIGINAL_RETENTION_MS, YourcatService } from './
  * the private original, emails the buyer and then shortens or ends the photo's retention. A sweeper
  * retries undelivered orders every 10 minutes, up to 3 attempts; then an alert email goes out.
  * Paid deliveries are not gated by the AI budget (the customer has paid); their spend is recorded.
+ *
+ * The email is tracked on its own (KI-11): `deliveryEmailAt` is set only when SendGrid accepted it. A
+ * painted portrait whose email failed is not repainted; the sweeper retries only the email, up to
+ * MAX_EMAIL_ATTEMPTS sends, and an alert goes out on the first failure and when the retries run out.
  */
 
 export const DELIVERY_LEASE_MS = 15 * 60 * 1000;
@@ -28,7 +32,16 @@ export const DELIVERY_SWEEP_JOB = 'yourcat-portrait-delivery-sweep';
 export const DELIVERY_SWEEP_LEASE_MS = 9 * 60 * 1000;
 export const DELIVERY_SWEEP_DAYS = 7;
 
-export type DeliveryOutcome = 'delivered' | 'already-delivered' | 'lease-held' | 'skipped' | 'failed';
+/** Email sends per paid portrait (the first one plus sweeper retries, at least one lease apart). */
+export const MAX_EMAIL_ATTEMPTS = 5;
+
+export type DeliveryOutcome = 'delivered' | 'email-failed' | 'already-delivered' | 'lease-held' | 'skipped' | 'failed';
+
+/** Painted, but the email was tried, never accepted, and still has a send left. */
+export const emailPending = (record: { deliveryEmailAt?: Date | null; deliveryEmailAttempts?: number | null }) =>
+    !record.deliveryEmailAt &&
+    (record.deliveryEmailAttempts || 0) >= 1 &&
+    (record.deliveryEmailAttempts || 0) < MAX_EMAIL_ATTEMPTS;
 
 @Injectable()
 export class PortraitDeliveryService {
@@ -76,10 +89,13 @@ export class PortraitDeliveryService {
         if (!order || !image?._id || image.source !== 'yourcat') {
             return 'skipped';
         }
-        if (image.aiUrl) {
-            return 'already-delivered';
-        }
         const record: any = await this.yourcatRepository.model.findOne({ portraitImage: image._id }).lean();
+        if (image.aiUrl) {
+            // Painted already: only an email that was tried and failed is sent again.
+            return record && emailPending(record)
+                ? this.sendEmail(order, record, image.aiUrl, String(id))
+                : 'already-delivered';
+        }
         if (!record) {
             return 'skipped';
         }
@@ -89,20 +105,16 @@ export class PortraitDeliveryService {
 
         const usages: AiUsage[] = [];
         let called = false;
+        let aiUrl: string;
         try {
             called = true;
-            const aiUrl = await this.io.generatePortraitForImage(
+            aiUrl = await this.io.generatePortraitForImage(
                 String(image._id),
                 this.imageRepository,
                 (image.style as ImageStyle) || ImageStyle.HIGHNESS,
                 { onUsage: usage => usages.push(usage) }
             );
             await this.recordSpend(usages, called);
-
-            const email = order.user?.email || (await this.checkoutEmail(order.hash));
-            await this.io.sendOrderConfirmationEmail(email || '', aiUrl, {
-                subject: `Your portrait of ${record.name} is ready`,
-            });
             await this.budget.count('portraitsDelivered');
             if (record.deleteOriginalAfterDelivery) {
                 await this.yourcatService.deleteOriginal(record);
@@ -113,7 +125,6 @@ export class PortraitDeliveryService {
                     { $set: { originalDeleteAfter: new Date(this.now().getTime() + ORIGINAL_RETENTION_MS) } }
                 );
             }
-            return 'delivered';
         } catch (error) {
             await this.recordSpend(usages, called);
             this.logger.error(`portrait for order ${id} failed: ${(error as Error)?.message}`);
@@ -125,6 +136,62 @@ export class PortraitDeliveryService {
             }
             return 'failed';
         }
+        // Outside the try: a failed email never counts as a failed paint (the portrait is not repainted).
+        return this.sendEmail(order, record, aiUrl, String(id));
+    }
+
+    /**
+     * Claims one email send, then sends. `deliveryEmailAt` is set only when SendGrid accepted the email;
+     * on a failure the sweeper sends it again until MAX_EMAIL_ATTEMPTS.
+     */
+    private async sendEmail(order: any, record: any, aiUrl: string, orderId: string): Promise<DeliveryOutcome> {
+        const claimed: any = await this.yourcatRepository.model
+            .findOneAndUpdate(
+                { _id: record._id, deliveryEmailAt: null },
+                { $inc: { deliveryEmailAttempts: 1 } },
+                { new: true }
+            )
+            .lean();
+        if (!claimed) {
+            return 'already-delivered';
+        }
+        const address = order.user?.email || (await this.checkoutEmail(order.hash));
+        let sent = false;
+        try {
+            sent = await this.io.sendOrderConfirmationEmail(address || '', aiUrl, {
+                subject: `Your portrait of ${record.name} is ready`,
+            });
+        } catch (error) {
+            this.logger.error(`portrait email for order ${orderId} threw: ${(error as Error)?.message}`);
+        }
+        if (sent) {
+            await this.yourcatRepository.model.updateOne(
+                { _id: record._id },
+                { $set: { deliveryEmailAt: this.now() } }
+            );
+            return 'delivered';
+        }
+
+        const attempts = claimed.deliveryEmailAttempts || 1;
+        // One per failed send (GET /yourcat/stats, the CMS /yourcat page); `count` never throws.
+        await this.budget.count('portraitsEmailFailed');
+        this.logger.error(
+            `portraitsEmailFailed: paid portrait for order ${orderId} painted but not emailed (send ${attempts} of ${MAX_EMAIL_ATTEMPTS})`
+        );
+        const lastTry = attempts >= MAX_EMAIL_ATTEMPTS;
+        if (attempts === 1 || lastTry) {
+            await this.budget.alert(
+                `Paid portrait painted but not emailed (order ${orderId})`,
+                `The paid /yourcat portrait for order ${orderId} (record ${record._id}) is painted and shows on ` +
+                    `tokentails.com/yourcat, but its email ${
+                        address ? 'was not accepted by SendGrid' : 'has no address'
+                    } (send ${attempts} of ${MAX_EMAIL_ATTEMPTS}). ` +
+                    (lastTry
+                        ? 'No more retries: send the portrait link to the buyer by hand.'
+                        : 'The sweeper retries every 10 minutes.')
+            );
+        }
+        return 'email-failed';
     }
 
     /** The third failure: counted, one alert email per order, and the original deleted if asked. */
@@ -166,7 +233,10 @@ export class PortraitDeliveryService {
         }
     }
 
-    /** Retries paid `/yourcat` portraits that were not delivered (last 7 days, under 3 attempts). */
+    /**
+     * Retries paid `/yourcat` portraits that were not painted (last 7 days, under 3 attempts) and painted
+     * ones whose email failed (under MAX_EMAIL_ATTEMPTS sends).
+     */
     @Cron('*/10 * * * *')
     async sweep() {
         return runLeased({
@@ -189,13 +259,23 @@ export class PortraitDeliveryService {
             .lean();
         let attempted = 0;
         for (const order of orders) {
-            if (order.image?.source !== 'yourcat' || order.image?.aiUrl) {
+            if (order.image?.source !== 'yourcat') {
                 continue;
             }
             const record: any = await this.yourcatRepository.model
-                .findOne({ portraitImage: order.image._id }, { portraitAttempts: 1 })
+                .findOne(
+                    { portraitImage: order.image._id },
+                    { portraitAttempts: 1, deliveryEmailAt: 1, deliveryEmailAttempts: 1 }
+                )
                 .lean();
-            if (!record || (record.portraitAttempts || 0) >= MAX_DELIVERY_ATTEMPTS) {
+            if (!record) {
+                continue;
+            }
+            // Painted: only a failed email is retried. Not painted: the paint, under 3 attempts.
+            const due = order.image.aiUrl
+                ? emailPending(record)
+                : (record.portraitAttempts || 0) < MAX_DELIVERY_ATTEMPTS;
+            if (!due) {
                 continue;
             }
             attempted += 1;

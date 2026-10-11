@@ -32,8 +32,18 @@ export class YourCat extends CommonSchema {
     @Prop({ required: true })
     family: string;
 
-    @Prop({ type: Types.ObjectId, ref: 'Cat', required: true })
-    cat: Types.ObjectId;
+    /** The playable cat; null only on a placeholder (`creatingAt` set) while the cat is being made. */
+    @Prop({ type: Types.ObjectId, ref: 'Cat', default: null })
+    cat: Types.ObjectId | null;
+
+    /**
+     * Set while the record is a placeholder: it is inserted before the cat is restyled, so a failed insert
+     * leaves the cat and onboarding untouched, then `cat` is set and this field unset in one write. Reads
+     * (`GET /yourcat/me`, `/:id`) and retention skip placeholders; retention hard-deletes any older than
+     * 10 minutes (the process died in between).
+     */
+    @Prop({ type: Date })
+    creatingAt?: Date;
 
     /** Photo uploads: when the visitor confirmed the S1 statement. */
     @Prop({ type: Date, default: null })
@@ -81,6 +91,14 @@ export class YourCat extends CommonSchema {
     @Prop({ type: Number, default: 0 })
     portraitAttempts: number;
 
+    /** When the paid portrait email was accepted by SendGrid; null while it is not sent. */
+    @Prop({ type: Date, default: null })
+    deliveryEmailAt: Date | null;
+
+    /** Portrait email sends tried (the sweeper retries a painted but unsent portrait, bounded). */
+    @Prop({ type: Number, default: 0 })
+    deliveryEmailAttempts: number;
+
     @Prop({ type: Date, default: null })
     deletedAt: Date | null;
 }
@@ -93,3 +111,4 @@ YourCatSchema.index({ owner: 1, createdAt: -1 });
 YourCatSchema.index({ originalDeleteAfter: 1 });
 YourCatSchema.index({ avatarStatus: 1, createdAt: 1 });
 YourCatSchema.index({ portraitImage: 1 }, { sparse: true });
+YourCatSchema.index({ creatingAt: 1 }, { sparse: true });

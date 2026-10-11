@@ -1,9 +1,10 @@
 import type { YourcatStatusView } from "@/models/yourcat";
+import Link from "next/link";
 import { forwardRef, useCallback, useRef, useState, type DragEvent } from "react";
 import { s1Body, S1, STATUS_COPY } from "./copy";
 import { PrivacyPanel } from "./PrivacyPanel";
 import { ACCEPT_ATTRIBUTE } from "./prepareUpload";
-import { ALERT, BODY, CAPTION, EYEBROW, FadeUp, GOLD_BUTTON, ScreenHeading, TEXT_LINK } from "./ui";
+import { ALERT, BODY, CAPTION, EYEBROW, FadeUp, GHOST_BUTTON, GOLD_BUTTON, INLINE_LINK, ScreenHeading } from "./ui";
 
 export interface UploadStepProps {
   status: YourcatStatusView | null;
@@ -18,6 +19,7 @@ export interface UploadStepProps {
 /**
  * S1 "Hero and upload" with the states before upload (§1.0): loading, paused, budget spent. The
  * upload control is a real button that is also the drop zone; the file input has no `capture`.
+ * Paused and spent replace the body (no "upload one photo" promise) and each keeps one way on.
  */
 export const UploadStep = forwardRef<HTMLHeadingElement, UploadStepProps>(
   ({ status, statusFailed, getting, fileError, onFile, onManual }, ref) => {
@@ -48,18 +50,21 @@ export const UploadStep = forwardRef<HTMLHeadingElement, UploadStepProps>(
           <ScreenHeading ref={ref}>{S1.title}</ScreenHeading>
         </FadeUp>
         <FadeUp delay={60}>
-          <p className={`${BODY} max-w-xl`}>{paused ? STATUS_COPY.disabled : s1Body()}</p>
+          <p className={`${BODY} max-w-xl`} role={paused || spent ? "status" : undefined}>
+            {paused ? STATUS_COPY.disabled : spent ? STATUS_COPY.budgetSpent : s1Body()}
+          </p>
         </FadeUp>
 
         {spent && (
-          <div className="flex flex-col items-center gap-3">
-            <p className={BODY} role="status">
-              {STATUS_COPY.budgetSpent}
-            </p>
-            <button type="button" className={GOLD_BUTTON} onClick={onManual}>
-              {STATUS_COPY.pickYourself}
-            </button>
-          </div>
+          <button type="button" className={GOLD_BUTTON} onClick={onManual}>
+            {STATUS_COPY.pickYourself}
+          </button>
+        )}
+
+        {paused && (
+          <Link href="/game" className={GHOST_BUTTON}>
+            {STATUS_COPY.playGame}
+          </Link>
         )}
 
         {!paused && !spent && (
@@ -106,7 +111,7 @@ export const UploadStep = forwardRef<HTMLHeadingElement, UploadStepProps>(
               {S1.privacy}{" "}
               <button
                 type="button"
-                className={TEXT_LINK}
+                className={INLINE_LINK}
                 aria-expanded={privacyOpen}
                 aria-controls="yourcat-privacy"
                 onClick={() => setPrivacyOpen((open) => !open)}

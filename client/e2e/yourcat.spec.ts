@@ -4,9 +4,10 @@ import { copyFindings } from "./fixtures/copy-scan";
 
 /**
  * `/yourcat` (bet #3, docs/plans/yourcat-v2.md §9 B): upload → working → reveal with the card →
- * download on desktop; the 429 copy with and without a code; an in-app browser (Instagram) gets the
- * long-press view instead of a download; the runtime copy scan passes; and (fixture) every backend
- * call carries a lowercase `fb` accesstoken.
+ * download on desktop; the reveal frame is visible while the photo pixelates; on phones the card's
+ * actions stick to the bottom of the screen; the 429 copy with and without a code; an in-app browser
+ * (Instagram) gets the long-press view instead of a download; the runtime copy scan passes; and
+ * (fixture) every backend call carries a lowercase `fb` accesstoken.
  *
  * Firebase is faked in the page (`window.__TT_E2E_AUTH__`, development and E2E builds only); every
  * backend call is a real request answered by the `backend` mock.
@@ -125,6 +126,11 @@ test.describe("/yourcat", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Your cat, in the game." })).toBeVisible();
     await choosePhoto(page);
     await expect(page.getByRole("heading", { name: "Meet your cat." })).toBeVisible({ timeout: 15_000 });
+    // The frame lands first, so the pixelate and the cross-fade play inside a visible frame.
+    const frame = page.getByTestId("yourcat-frame");
+    await page.waitForTimeout(100);
+    await expect(frame).toHaveAttribute("data-in", "true");
+    await expect(frame).toHaveCSS("opacity", "1", { timeout: 500 });
     // The upload went out after the guest session, with the confirmation flag.
     const calls = backend.requests().map((call) => `${call.method} ${call.path}`);
     expect(calls.indexOf("POST /user/guest/session")).toBeGreaterThan(-1);
@@ -134,6 +140,12 @@ test.describe("/yourcat", () => {
 
     const download = page.getByRole("button", { name: "Download" });
     await expect(download).toBeEnabled({ timeout: 15_000 });
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      // Phones: the actions stick to the bottom of the screen once the card exists, so Download is
+      // in reach without scrolling past the reveal.
+      await expect(page.getByTestId("yourcat-actions")).toHaveCSS("position", "sticky");
+      await expect(download).toBeInViewport();
+    }
     const saved = page.waitForEvent("download");
     await download.click();
     expect((await saved).suggestedFilename()).toMatch(/^tokentails-.+-(story|post)\.png$/);

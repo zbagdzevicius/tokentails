@@ -37,10 +37,11 @@ describe('ai-cost', () => {
             images,
             imageSize,
         });
-        expect(costMicroEur(image('1K'), env)).toBe(30_000);
-        expect(costMicroEur(image('2K'), env)).toBe(44_000);
-        expect(costMicroEur(image('4K'), env)).toBe(99_000);
-        expect(costMicroEur(image('4K', 2), env)).toBe(198_000);
+        // Standard-tier prices checked 2026-10-11: $0.067 / $0.101 / $0.151 at 1 EUR = 1.15 USD, rounded up.
+        expect(costMicroEur(image('1K'), env)).toBe(59_000);
+        expect(costMicroEur(image('2K'), env)).toBe(88_000);
+        expect(costMicroEur(image('4K'), env)).toBe(132_000);
+        expect(costMicroEur(image('4K', 2), env)).toBe(264_000);
         expect(costMicroEur(image('1K'), { AI_COST_GEMINI_IMAGE_EUR_1K: '0.05' } as any)).toBe(50_000);
     });
 

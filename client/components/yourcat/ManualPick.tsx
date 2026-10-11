@@ -9,6 +9,8 @@ export interface ManualPickProps {
   /** Resolves with the failure, or null when the cat was made. */
   onMake: (family: string, name: string) => Promise<RequestFailure | null>;
   onBack?: () => void;
+  /** Uploads are open: "Back" then returns to a photo. While they are closed it is a plain "Back". */
+  uploadsOpen?: boolean;
 }
 
 function manualErrorText(failure: RequestFailure): string {
@@ -25,7 +27,7 @@ function manualErrorText(failure: RequestFailure): string {
  * §1.5 "Pick your cat's look yourself": no photo, no AI, no cost. A radio group of the families
  * (frame 0 of each sprite at 2x, the label under it), the name field and "Make my cat".
  */
-export const ManualPick = forwardRef<HTMLHeadingElement, ManualPickProps>(({ families, busy, onMake, onBack }, ref) => {
+export const ManualPick = forwardRef<HTMLHeadingElement, ManualPickProps>(({ families, busy, onMake, onBack, uploadsOpen = true }, ref) => {
   const [family, setFamily] = useState<string>("");
   const [name, setName] = useState("");
   const [error, setError] = useState<{ text: string; field: "name" | "form" } | null>(null);
@@ -103,7 +105,7 @@ export const ManualPick = forwardRef<HTMLHeadingElement, ManualPickProps>(({ fam
         </button>
         {onBack && (
           <button type="button" className={GHOST_BUTTON} onClick={onBack}>
-            {MANUAL.back}
+            {uploadsOpen ? MANUAL.back : MANUAL.backPlain}
           </button>
         )}
       </div>

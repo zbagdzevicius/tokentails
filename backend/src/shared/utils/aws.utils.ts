@@ -1,5 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3 } from '@aws-sdk/client-s3';
 import fetch from 'node-fetch';
+import { PRIVATE_URL_PREFIX, privateKeyOf } from './private-url';
 
 import * as dotenv from 'dotenv';
 dotenv.config();
@@ -62,8 +63,21 @@ export async function uploadPublicObject(params: {
  * is stored with `ACL: 'private'` in the same bucket and read back by the backend only. Records point at
  * it with an `s3private://<key>` URL, which no browser can open.
  */
-export const PRIVATE_URL_PREFIX = 's3private://';
+export { PRIVATE_URL_PREFIX, privateKeyOf };
 export const YOURCAT_ORIGINALS_PREFIX = 'yourcat/originals/';
+/**
+ * The full 4K output of a `/portrait` preview (known issue KI-08): private until its order is COMPLETE,
+ * then copied to a public uuid key. Visitors only ever see the watermarked `previewUrl` before that.
+ */
+export const PORTRAIT_PRIVATE_PREFIX = 'portraits/';
+
+/** Which private objects `loadImageBytes` may read: `true` is the `/yourcat` originals (older callers). */
+export type PrivateImageScope = boolean | 'yourcat' | 'portrait';
+
+const PRIVATE_SCOPE_PREFIX: Record<'yourcat' | 'portrait', string> = {
+    yourcat: YOURCAT_ORIGINALS_PREFIX,
+    portrait: PORTRAIT_PRIVATE_PREFIX,
+};
 
 export async function uploadPrivateObject(key: string, buffer: Buffer, contentType: string) {
     await sendFile({
@@ -85,23 +99,20 @@ export async function deleteObject(key: string) {
     await client.send(new DeleteObjectCommand({ Bucket: process.env.DO_SPACES_NAME, Key: key }));
 }
 
-/** The object key of an `s3private://` URL, or null for any other URL. */
-export function privateKeyOf(url: unknown): string | null {
-    return typeof url === 'string' && url.startsWith(PRIVATE_URL_PREFIX) ? url.slice(PRIVATE_URL_PREFIX.length) : null;
-}
-
 /**
- * The bytes and MIME type of an image URL. An `s3private://` URL is read from the bucket only when
- * `allowPrivate` is true and the key is a `/yourcat` original; anything else throws, so an edited image
- * URL can never reach a private object. Any other URL is fetched.
+ * The bytes and MIME type of an image URL. An `s3private://` URL is read from the bucket only under the
+ * prefix `allowPrivate` names: `true` or `'yourcat'` for a `/yourcat` original, `'portrait'` for the
+ * private 4K output of a `/portrait` preview. Anything else throws, so an edited image URL can never
+ * reach another private object. Any other URL is fetched.
  */
 export async function loadImageBytes(
     url: string,
-    options: { allowPrivate: boolean }
+    options: { allowPrivate: PrivateImageScope }
 ): Promise<{ data: Buffer; mimeType: string }> {
     const key = privateKeyOf(url);
     if (key !== null) {
-        if (!options.allowPrivate || !key.startsWith(YOURCAT_ORIGINALS_PREFIX) || key.includes('..')) {
+        const scope = options.allowPrivate === true ? 'yourcat' : options.allowPrivate || null;
+        if (!scope || !key.startsWith(PRIVATE_SCOPE_PREFIX[scope]) || key.includes('..')) {
             throw new Error('private image URL refused');
         }
         return getPrivateObject(key);

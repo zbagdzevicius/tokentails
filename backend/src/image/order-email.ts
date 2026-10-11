@@ -4,6 +4,10 @@
  *
  * Known issue (docs/BACKEND.md): the default subject "Your order is on its way!" is also used for
  * digital orders; `/yourcat` deliveries pass their own subject.
+ *
+ * Resolves true only when SendGrid accepted the message (a 2xx answer); false when the key or the
+ * address is missing, SendGrid refused it, or the request failed. It never throws: the legacy webhook in
+ * image.controller.ts ignores the result, the `/yourcat` delivery retries on false (KI-11).
  */
 
 export const DEFAULT_ORDER_EMAIL_SUBJECT = 'Your order is on its way!';
@@ -16,16 +20,16 @@ export async function sendOrderConfirmationEmail(
     email: string,
     aiUrl: string,
     options: { subject?: string } = {}
-): Promise<void> {
+): Promise<boolean> {
     const sendgridApiKey = process.env.SENDGRID_API_KEY;
     if (!sendgridApiKey) {
         console.warn('SENDGRID_API_KEY not configured, skipping email send');
-        return;
+        return false;
     }
 
     if (!email) {
         console.warn('No email address provided, skipping email send');
-        return;
+        return false;
     }
 
     const subject = options.subject || DEFAULT_ORDER_EMAIL_SUBJECT;
@@ -71,18 +75,22 @@ export async function sendOrderConfirmationEmail(
             ],
         };
 
-        await fetch('https://api.sendgrid.com/v3/mail/send', {
+        const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${sendgridApiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(emailData),
-        }).catch(error => {
-            console.error('Error sending SendGrid email:', error);
         });
+        if (!res.ok) {
+            console.error(`SendGrid refused the order email with HTTP ${res.status}`);
+            return false;
+        }
+        return true;
     } catch (error) {
-        console.error('Error in sendOrderConfirmationEmail:', error);
+        console.error('Error sending SendGrid email:', (error as Error)?.message);
         // Don't throw - we don't want to fail the webhook if email fails
+        return false;
     }
 }

@@ -77,4 +77,64 @@ describe('ClientIpThrottlerGuard', () => {
             ThrottlerException
         );
     });
+
+    describe('in production (KI-07)', () => {
+        beforeEach(() => {
+            process.env = { ...OLD_ENV, NODE_ENV: 'production' };
+            delete process.env.CF_ORIGIN_SECRET;
+            delete process.env.TRUST_PROXY;
+        });
+
+        it('forged distinct cf-connecting-ip headers without proof share one bucket', async () => {
+            const storage = new FakeStorage();
+            const guard = new ClientIpThrottlerGuard(storage as any, new Reflector());
+            for (const forged of ['203.0.113.7', '198.51.100.9', '192.0.2.44']) {
+                await guard.canActivate(context({ 'cf-connecting-ip': forged }).ctx);
+            }
+            expect([...storage.hits.entries()]).toEqual([['client-ip-throttle:Routes.upload:untrusted', 3]]);
+        });
+
+        it('the shared bucket has its own limit (default limit * 10, or untrustedLimit)', async () => {
+            const guard = new ClientIpThrottlerGuard(new FakeStorage() as any, new Reflector());
+            const options = { limit: 1, ttl: 60000 };
+            for (let i = 0; i < 10; i++) {
+                await guard.consume(
+                    'S.default',
+                    { headers: { 'cf-connecting-ip': `203.0.113.${i + 1}` }, ip: BALANCER, ips: [] },
+                    options
+                );
+            }
+            await expect(
+                guard.consume(
+                    'S.default',
+                    { headers: { 'cf-connecting-ip': '203.0.113.99' }, ip: BALANCER, ips: [] },
+                    options
+                )
+            ).rejects.toBeInstanceOf(ThrottlerException);
+
+            const custom = { limit: 1, ttl: 60000, untrustedLimit: 2 };
+            const forged = (ip: string) => ({ headers: { 'cf-connecting-ip': ip }, ip: BALANCER, ips: [] });
+            await guard.consume('S.custom', forged('203.0.113.1'), custom);
+            await guard.consume('S.custom', forged('203.0.113.2'), custom);
+            await expect(guard.consume('S.custom', forged('203.0.113.3'), custom)).rejects.toBeInstanceOf(
+                ThrottlerException
+            );
+        });
+
+        it('a proven address (origin secret) keeps its own bucket and the normal limit', async () => {
+            process.env.CF_ORIGIN_SECRET = 'origin-secret';
+            const storage = new FakeStorage();
+            const guard = new ClientIpThrottlerGuard(storage as any, new Reflector());
+            const proven = (ip: string) => context({ 'cf-connecting-ip': ip, 'x-tt-origin-auth': 'origin-secret' });
+            await guard.canActivate(proven('203.0.113.7').ctx);
+            await guard.canActivate(proven('198.51.100.9').ctx);
+            expect([...storage.hits.keys()]).toEqual([
+                'client-ip-throttle:Routes.upload:203.0.113.7',
+                'client-ip-throttle:Routes.upload:198.51.100.9',
+            ]);
+            const a = proven('203.0.113.7');
+            await guard.canActivate(a.ctx);
+            await expect(guard.canActivate(a.ctx)).rejects.toBeInstanceOf(ThrottlerException);
+        });
+    });
 });

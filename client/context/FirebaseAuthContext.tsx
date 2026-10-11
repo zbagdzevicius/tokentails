@@ -47,6 +47,7 @@ import {
 } from "./auth/pendingMerge";
 import { capturePendingRef, sendPendingRefOnPromotion } from "./auth/pendingRef";
 import { setSessionHint } from "./auth/sessionHint";
+import { shareLink } from "./auth/shareLink";
 import { currentEnv, isAppleFirst, isInAppBrowser } from "./auth/platform";
 import {
   ensureAnonymousOnce,
@@ -636,14 +637,7 @@ const FirebaseAuthProvider = ({
   React.useEffect(() => {
     setUtils({
       openLink: (url: string) => window.open(url, "_blank")?.focus?.(),
-      shareURL: (url: string) => {
-        navigator.clipboard
-          ?.writeText(url)
-          .then(() =>
-            toast({ message: "Your invite link is copied to your clipboard. Share it with your friends." })
-          )
-          .catch(() => toast({ message: url }));
-      },
+      shareURL: (url: string, text?: string) => shareLink(url, text, toast),
     });
     setLogout(() => () => void signOutAll());
     setIsFB?.(true);

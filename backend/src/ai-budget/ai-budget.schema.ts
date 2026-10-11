@@ -26,7 +26,16 @@ export const AI_BUDGET_DAY_COUNTERS = [
     'yourcatPortraitsPaid',
     'portraitsDelivered',
     'portraitsDeliveryFailed',
+    // A paid `/yourcat` portrait painted, but its email send was not accepted (one per failed send, KI-11).
+    'portraitsEmailFailed',
     'costAlerts',
+    // AiUploadGate refusals (all kinds), one per refused request, at the layer that refused it.
+    'refusedNoClientIp',
+    'refusedAppCheck',
+    'refusedIpCap',
+    'refusedUserCap',
+    'refusedFailureCap',
+    'refusedBudget',
 ] as const;
 export type AiBudgetCounter = typeof AI_BUDGET_DAY_COUNTERS[number];
 

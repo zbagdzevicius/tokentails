@@ -28,6 +28,13 @@ export const GHOST_BUTTON =
 export const TEXT_LINK =
   "inline-flex min-h-11 items-center underline underline-offset-4 text-tt-lilac hover:text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400";
 
+/**
+ * A link inside running text: inline, so it keeps the caption's line height, with a 44 px hit area
+ * from block padding that a matching negative margin takes back out of the layout.
+ */
+export const INLINE_LINK =
+  "inline -my-3 py-3 underline underline-offset-4 text-tt-lilac hover:text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400";
+
 export const INPUT =
   "min-h-11 w-full rounded-xl border-2 border-tt-gold-500 bg-tt-night-600 px-3 py-2 text-p5 md:text-p4 text-tt-cream placeholder:text-tt-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400";
 

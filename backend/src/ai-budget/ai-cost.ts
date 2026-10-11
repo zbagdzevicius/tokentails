@@ -5,12 +5,14 @@
  * Amounts are micro-euros (1 EUR = 1,000,000). A rate in EUR per million tokens is therefore exactly
  * micro-euros per token.
  *
- * Default rates, set on 2026-10-11:
- * - Gemini (`gemini-3.1-flash-image-preview`, "3.1 Flash Image" on ai.google.dev/gemini-api/docs/pricing,
- *   read that day): $1.50 per 1M input tokens, $7.50 per 1M text output tokens, images $0.0336 (1K),
- *   $0.0504 (2K) and $0.113 (4K) each.
- * - OpenAI `gpt-4o-mini`: $0.15 per 1M input tokens, $0.60 per 1M output tokens (the published rate;
- *   the pricing page could not be read from the build machine, so confirm it).
+ * Default rates, checked 2026-10-11 (Standard tier, not Batch):
+ * - Gemini (`gemini-3.1-flash-image-preview`; the pricing page lists it as "Gemini 3.1 Flash Image",
+ *   `gemini-3.1-flash-image`, on ai.google.dev/gemini-api/docs/pricing): $0.50 per 1M input tokens,
+ *   $3 per 1M text and thinking output tokens, images $0.067 (1K), $0.101 (2K) and $0.151 (4K) each
+ *   ($60 per 1M image tokens). The rates set earlier the same day were close to the Batch column and
+ *   under-counted the real cost.
+ * - OpenAI `gpt-4o-mini`: $0.15 per 1M input tokens, $0.60 per 1M output tokens
+ *   (developers.openai.com/api/docs/pricing, checked 2026-10-11).
  * Converted at 1 EUR = 1.15 USD and rounded up. Every rate can be overridden by its env variable.
  */
 
@@ -37,11 +39,11 @@ export const MICRO = 1_000_000;
 const DEFAULT_RATES = {
     AI_COST_OPENAI_INPUT_EUR_PER_MTOK: 0.14,
     AI_COST_OPENAI_OUTPUT_EUR_PER_MTOK: 0.53,
-    AI_COST_GEMINI_INPUT_EUR_PER_MTOK: 1.31,
-    AI_COST_GEMINI_OUTPUT_EUR_PER_MTOK: 6.53,
-    AI_COST_GEMINI_IMAGE_EUR_1K: 0.03,
-    AI_COST_GEMINI_IMAGE_EUR_2K: 0.044,
-    AI_COST_GEMINI_IMAGE_EUR_4K: 0.099,
+    AI_COST_GEMINI_INPUT_EUR_PER_MTOK: 0.44,
+    AI_COST_GEMINI_OUTPUT_EUR_PER_MTOK: 2.61,
+    AI_COST_GEMINI_IMAGE_EUR_1K: 0.059,
+    AI_COST_GEMINI_IMAGE_EUR_2K: 0.088,
+    AI_COST_GEMINI_IMAGE_EUR_4K: 0.132,
     AI_COST_FALLBACK_IMAGE_EUR: 0.08,
     AI_COST_FALLBACK_TEXT_EUR: 0.01,
     AI_ALERT_COST_PER_UPLOAD_EUR: 0.1,

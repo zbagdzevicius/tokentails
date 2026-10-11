@@ -262,92 +262,54 @@ IMPORTANT: aspect ratio must be 2:3
  * @param whiteThreshold - RGB value threshold to consider a pixel "white" (0-255)
  * @returns true if white borders are detected
  */
-async function hasWhiteBorders(
+export async function hasWhiteBorders(
     imageBuffer: Buffer,
     threshold = 0.3, // 30% of edge pixels must be white
     whiteThreshold = 240 // RGB values above this are considered white
 ): Promise<boolean> {
     try {
-        const image = sharp(imageBuffer);
-        const metadata = await image.metadata();
-        const { width, height } = metadata;
-
-        if (!width || !height) {
+        // Known issue KI-23: Gemini returns 3-channel PNGs, and a fixed RGBA stride read the wrong bytes.
+        // `ensureAlpha` makes the raw data 4 channels; the loop still strides by what sharp reports.
+        const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const { width, height, channels } = info;
+        if (!width || !height || channels < 3) {
             return false;
         }
 
-        // Extract edge pixels: top, bottom, left, right
-        const edgeWidth = Math.max(1, Math.floor(width * 0.05)); // 5% of width for edges
-        const edgeHeight = Math.max(1, Math.floor(height * 0.05)); // 5% of height for edges
-
-        // Extract raw pixel data
-        const { data } = await image.raw().toBuffer({ resolveWithObject: true });
+        // 5% of each side, at least one pixel.
+        const edgeWidth = Math.max(1, Math.floor(width * 0.05));
+        const edgeHeight = Math.max(1, Math.floor(height * 0.05));
 
         let whitePixelCount = 0;
         let totalEdgePixels = 0;
+        const count = (x: number, y: number) => {
+            const idx = (y * width + x) * channels;
+            if (data[idx] >= whiteThreshold && data[idx + 1] >= whiteThreshold && data[idx + 2] >= whiteThreshold) {
+                whitePixelCount++;
+            }
+            totalEdgePixels++;
+        };
 
-        // Check top edge
-        for (let y = 0; y < edgeHeight; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4; // RGBA format
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
+        // Top and bottom edges (full width), then left and right edges (full height), as before: the
+        // corners are counted twice, like the original check.
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < edgeHeight; y++) {
+                count(x, y);
+            }
+            for (let y = height - edgeHeight; y < height; y++) {
+                count(x, y);
+            }
+        }
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < edgeWidth; x++) {
+                count(x, y);
+            }
+            for (let x = width - edgeWidth; x < width; x++) {
+                count(x, y);
             }
         }
 
-        // Check bottom edge
-        for (let y = height - edgeHeight; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        // Check left edge
-        for (let x = 0; x < edgeWidth; x++) {
-            for (let y = 0; y < height; y++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        // Check right edge
-        for (let x = width - edgeWidth; x < width; x++) {
-            for (let y = 0; y < height; y++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        const whitePercentage = whitePixelCount / totalEdgePixels;
-        return whitePercentage >= threshold;
+        return whitePixelCount / totalEdgePixels >= threshold;
     } catch (error) {
         console.error('Error detecting white borders:', error);
         // If detection fails, assume no white borders to avoid blocking generation

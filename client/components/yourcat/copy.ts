@@ -9,6 +9,7 @@
  */
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
 import type { YourcatErrorCode, YourcatPortraitStyle } from "@/models/yourcat";
+import { YOURCAT_ENTRY_COPY } from "./useYourcatAvailable";
 
 /** S1-P version, sent with the upload as `noticeVersion`. Bump it whenever the privacy text changes. */
 export const PRIVACY_NOTICE_VERSION = "2026-10-11";
@@ -52,9 +53,22 @@ export const STATUS_COPY = {
   appBody:
     "Making your cat from a photo works in your browser. Open tokentails.com/yourcat on your phone or computer.",
   appLink: "https://tokentails.com/yourcat",
+  /** The app notice (§1.0): its title, and the way into the game that works in the app. */
+  appTitle: "Make your cat in your browser",
+  playNow: "Play now",
   copyLink: "Copy link",
+  /** The paused state's way on (§1.0). */
+  playGame: "Play Token Tails",
   startOver: "Start over with a new photo",
+  /** While uploads are closed (budget spent, paused) a start over cannot promise a new photo. */
+  startOverPlain: "Start over",
 } as const;
+
+/**
+ * The link to `/yourcat` from the landing and the onboarding ceremony (shown only while uploads are
+ * open). It lives in the light `useYourcatAvailable.ts`, so the landing does not load this file.
+ */
+export const ENTRY_LINK = YOURCAT_ENTRY_COPY;
 
 // ---- S1 --------------------------------------------------------------------------------------
 
@@ -98,8 +112,18 @@ export const PRIVACY = {
 
 export const S2 = {
   title: "Making your pixel cat",
+  /** The heading once the upload or the match failed (the alert says why). */
+  failedTitle: "We could not make your pixel cat",
   uploading: "Uploading your photo…",
+  uploaded: "Photo uploaded",
+  uploadFailed: "Your photo did not upload",
   matching: (name: string) => `Matching ${name} to a pixel cat family…`,
+  matchFailed: (name: string) => `Matching ${name} to a pixel cat family did not finish`,
+  /** Visually hidden after a step, so the live region announces its state. */
+  stepDone: "done",
+  stepFailed: "failed",
+  /** The plain 429's countdown on "Try again" (visual only; the button name stays "Try again"). */
+  retryIn: (seconds: number | string) => `in ${seconds}s`,
   nameLabel: "What is your cat's name?",
   namePlaceholder: "Mochi",
   leave: "You can leave and come back; your cat will be here.",
@@ -202,6 +226,11 @@ export const S3 = {
     name === "your cat"
       ? `We matched your cat to our ${family} cat family. It is now your cat in Token Tails.`
       : `We matched ${name} to our ${family} cat family. ${name} is now your cat in Token Tails.`,
+  /** A cat made with the manual pick (§1.5): nothing was matched. */
+  picked: (name: string, family: string) =>
+    name === "your cat"
+      ? `You picked the ${family} look. It is now your cat in Token Tails.`
+      : `You picked the ${family} look for ${name}. ${name} is now your cat in Token Tails.`,
   playCat: (name: string) => `Play ${possessive(name)} animation again`,
   nameLabel: "Name for the card",
   cardAlt: (name: string, family: string) => `Share card: ${name}, a ${family} pixel cat, tokentails.com/yourcat`,
@@ -232,6 +261,7 @@ export const S3 = {
   deleteYes: "Delete",
   deleteNo: "Keep",
   deleted: "Deleted.",
+  deleteFailed: "We could not delete the photo. It is still stored. Please try again.",
   nameSaveFailed: ERROR_TEXT.generic,
   cardFailed: "We could not draw the card in this browser. You can still copy the link.",
 } as const;
@@ -256,16 +286,19 @@ export const MANUAL = {
   make: "Make my cat",
   making: "Making your cat…",
   back: "Back to the photo",
+  /** While uploads are closed there is no photo to go back to. */
+  backPlain: "Back",
 } as const;
 
 // ---- S5 --------------------------------------------------------------------------------------
 
 /** The four styles of the HD portrait, with their existing example images (§1 S5). */
 export const PORTRAIT_STYLES: ReadonlyArray<{ id: YourcatPortraitStyle; style: PortraitStyle; label: string; image: string }> = [
-  { id: "highness", style: PortraitStyle.HIGHNESS, label: "Highness", image: "/portrait/highness-1.webp" },
-  { id: "monarch", style: PortraitStyle.MONARCH, label: "Monarch", image: "/portrait/monarch-1.webp" },
+  // One painted cat each (no dogs, no famous-cat likeness): the examples must show what is sold.
+  { id: "highness", style: PortraitStyle.HIGHNESS, label: "Highness", image: "/portrait/highness-2.webp" },
+  { id: "monarch", style: PortraitStyle.MONARCH, label: "Monarch", image: "/portrait/monarch-3.webp" },
   { id: "aristocrat", style: PortraitStyle.ARISTOCRAT, label: "Aristocrat", image: "/portrait/aristocrat-1.webp" },
-  { id: "commander", style: PortraitStyle.COMMANDER, label: "Commander", image: "/portrait/commander-1.webp" },
+  { id: "commander", style: PortraitStyle.COMMANDER, label: "Commander", image: "/portrait/commander-2.webp" },
 ];
 
 /** `{price}` from `GET /yourcat/status` (euro cents, formatted "€N"); never a number written in the client. */
@@ -300,7 +333,10 @@ export const S6 = {
   portraitAlt: (name: string) => `HD portrait of ${name}`,
   download: "Download",
   back: (name: string) => `Back to ${possessive(name)} card`,
+  /** Late or failed: a short heading, the details in the body. */
+  lateTitle: "Your portrait is on its way by email",
   late: "This is taking longer than usual. We will email the portrait to you as soon as it is ready, at the latest within 2 working days.",
+  failed: "Painting the portrait did not work this time. Within 2 working days we will email you the portrait or refund you in full.",
 } as const;
 
 /** Every fixed string above, flattened (for the honesty test and the copy lint). */
@@ -315,7 +351,7 @@ export function allStaticCopy(): string[] {
     } else if (Array.isArray(value)) value.forEach(walk);
     else if (value && typeof value === "object") Object.values(value).forEach(walk);
   };
-  [STATUS_COPY, S1, PRIVACY, S2, ERROR_TEXT, ACTION_LABELS, S3, CARD_TEXT, MANUAL, S5, S6].forEach(walk);
+  [STATUS_COPY, ENTRY_LINK, S1, PRIVACY, S2, ERROR_TEXT, ACTION_LABELS, S3, CARD_TEXT, MANUAL, S5, S6].forEach(walk);
   PORTRAIT_STYLES.forEach((style) => out.push(style.label));
   return out;
 }

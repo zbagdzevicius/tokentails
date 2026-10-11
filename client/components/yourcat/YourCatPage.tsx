@@ -96,8 +96,17 @@ export function YourCatPage({ isApp = isAppBuild }: { isApp?: boolean }) {
   const portrait = status?.portrait ?? null;
   const portraitStatus = record?.portrait.status ?? "none";
   const showPaidInline = portraitStatus === "painting" || portraitStatus === "ready" || portraitStatus === "failed";
+  // A fresh reveal shows the upsell once the free pixel portrait is no longer drawing (it is the payoff
+  // the visitor waits for); a returning visitor sees it at once.
   const showUpsell =
-    !isApp && !!record && !!portrait?.enabled && record.photo.stored && !showPaidInline;
+    !isApp &&
+    !!record &&
+    !!portrait?.enabled &&
+    record.photo.stored &&
+    !showPaidInline &&
+    !(state.fresh && state.avatarStatus === "pending");
+  // Uploads closed (budget spent or paused): no "back to the photo" or "new photo" promises.
+  const uploadsOpen = status ? status.enabled && status.uploadsOpen : true;
 
   let body: React.ReactNode;
   if (isApp) {
@@ -115,7 +124,16 @@ export function YourCatPage({ isApp = isAppBuild }: { isApp?: boolean }) {
       />
     );
   } else if (screen === "manual" && status) {
-    body = <ManualPick ref={headingRef} families={status.families} busy={state.busy} onMake={actions.makeManual} onBack={actions.backToStart} />;
+    body = (
+      <ManualPick
+        ref={headingRef}
+        families={status.families}
+        busy={state.busy}
+        onMake={actions.makeManual}
+        onBack={actions.backToStart}
+        uploadsOpen={uploadsOpen}
+      />
+    );
   } else if (screen === "paid" && record) {
     body = (
       <PaidState
@@ -136,6 +154,8 @@ export function YourCatPage({ isApp = isAppBuild }: { isApp?: boolean }) {
           record={record}
           avatarStatus={state.avatarStatus}
           fresh={state.fresh}
+          manual={state.manual}
+          uploadsOpen={uploadsOpen}
           photoUrl={state.photoUrl}
           reducedMotion={reducedMotion}
           nameError={state.nameError}

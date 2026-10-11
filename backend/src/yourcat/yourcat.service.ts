@@ -1,11 +1,4 @@
-import {
-    BadRequestException,
-    HttpException,
-    HttpStatus,
-    Injectable,
-    Logger,
-    ServiceUnavailableException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { v4 as uuid } from 'uuid';
 import { AiBudgetService, AiTicket } from 'src/ai-budget/ai-budget.service';
@@ -47,7 +40,7 @@ import {
     YourcatStatusView,
     YourcatView,
 } from './yourcat.contracts';
-import { YOURCAT_ERRORS } from './yourcat.errors';
+import { YOURCAT_ERRORS, yourcatError } from './yourcat.errors';
 import { YourcatRepository } from './yourcat.repository';
 import { IYourCat, YourcatSource } from './yourcat.schema';
 
@@ -65,6 +58,7 @@ export const ORIGINAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const CHECKOUT_PHOTO_HOLD_MS = 3 * 24 * 60 * 60 * 1000;
 export const NAMING_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const AVATAR_STALE_MS = 60 * 1000;
+export const AVATAR_CDN_MAX_AGE_S = 300;
 export const CLASSIFY_TIMEOUT_MS = 20 * 1000;
 export const AVATAR_TIMEOUT_MS = 45 * 1000;
 export const PORTRAIT_OPEN_SESSION_MS = 2 * 60 * 60 * 1000;
@@ -256,20 +250,23 @@ export class YourcatService {
         let record: IYourCat & { _id: Types.ObjectId };
         const originalKey = `${YOURCAT_ORIGINALS_PREFIX}${uuid()}.webp`;
         let uploaded = false;
+        let placeholderId: Types.ObjectId | null = null;
         try {
             // Store the sanitized original privately.
             await this.io.uploadPrivateObject(originalKey, photo.data, 'image/webp');
             uploaded = true;
 
+            // The record first, as a placeholder (KI-01): if it cannot be stored, the cat, `user.cat` and
+            // onboarding are still untouched. Then the cat, then the record points at it.
             const now = this.now();
-            const cat = await this.makePlayable(user, { name, family, type: result.type, source: 'photo' });
-            record = (await this.repository.create({
+            const placeholder: any = await this.repository.create({
                 owner: objectId(user._id),
                 source: 'photo',
                 name,
                 named,
                 family,
-                cat: cat._id,
+                cat: null,
+                creatingAt: now,
                 consentAt: now,
                 privacyNoticeVersion: noticeVersion,
                 originalKey,
@@ -282,9 +279,15 @@ export class YourcatService {
                 costMicroEur: classifierCost,
                 portraitImage: null,
                 portraitAttempts: 0,
+                deliveryEmailAt: null,
+                deliveryEmailAttempts: 0,
                 deletedAt: null,
-            } as any)) as any;
+            } as any);
+            placeholderId = placeholder._id;
+            const cat = await this.makePlayable(user, { name, family, type: result.type, source: 'photo' });
+            record = await this.finishMadeCat(placeholder._id, cat._id, user, 'photo');
         } catch (error) {
+            await this.dropPlaceholder(placeholderId);
             // No record points at the original, so the retention job would never find it: delete it now.
             if (uploaded) {
                 await this.io
@@ -326,7 +329,8 @@ export class YourcatService {
                     key: avatarKey,
                     body: png,
                     contentType: 'image/png',
-                    cacheControl: 'public, max-age=3600',
+                    // Short, so a deleted avatar leaves the CDN edge within minutes (KI-18).
+                    cacheControl: `public, max-age=${AVATAR_CDN_MAX_AGE_S}`,
                 });
                 const updated = await this.repository.model.updateOne(
                     { _id: recordId, deletedAt: null },
@@ -376,14 +380,15 @@ export class YourcatService {
         const family = body.family as string;
         const { name, named } = await this.nameOf(body?.name);
         await this.gate.admitManual(user);
-        const cat = await this.makePlayable(user, { name, family, type: randomAbility(), source: 'manual' });
-        const record = (await this.repository.create({
+        // The placeholder first (KI-02), as for a photo: a failed insert leaves the cat untouched.
+        const placeholder: any = await this.repository.create({
             owner: objectId(user._id),
             source: 'manual',
             name,
             named,
             family,
-            cat: cat._id,
+            cat: null,
+            creatingAt: this.now(),
             consentAt: null,
             privacyNoticeVersion: null,
             originalKey: null,
@@ -396,10 +401,93 @@ export class YourcatService {
             costMicroEur: 0,
             portraitImage: null,
             portraitAttempts: 0,
+            deliveryEmailAt: null,
+            deliveryEmailAttempts: 0,
             deletedAt: null,
-        } as any)) as any;
+        } as any);
+        let record: any;
+        try {
+            const cat = await this.makePlayable(user, { name, family, type: randomAbility(), source: 'manual' });
+            record = await this.finishMadeCat(placeholder._id, cat._id, user, 'manual');
+        } catch (error) {
+            await this.dropPlaceholder(placeholder._id);
+            this.logger.error(`manual yourcat could not be made: ${(error as Error)?.message}`);
+            throw error;
+        }
         await this.budget.count('manualCats');
         return this.view(record);
+    }
+
+    /**
+     * Finishes the placeholder once its cat exists (KI-01 remainder). By then `user.cat` already points at
+     * the cat, so one failed write is retried. If the retry fails too, the cat has no record behind it:
+     * that is logged and alerted (ids only) before the error goes on to the caller, which deletes the
+     * placeholder and answers an error. The player keeps the cat; `/yourcat/me` shows nothing for it.
+     */
+    private async finishMadeCat(
+        id: Types.ObjectId,
+        catId: Types.ObjectId,
+        user: IAuthUser,
+        source: YourcatSource
+    ): Promise<any> {
+        try {
+            return await this.finishPlaceholder(id, catId);
+        } catch (error) {
+            this.logger.warn(`yourcat placeholder ${id} not finished, retrying once: ${(error as Error)?.message}`);
+        }
+        try {
+            return await this.finishPlaceholder(id, catId);
+        } catch (error) {
+            this.logger.error(
+                `yourcat cat ${catId} made without a record (placeholder ${id}, user ${user._id}, ${source}): ${
+                    (error as Error)?.message
+                }`
+            );
+            try {
+                await this.budget.alert(
+                    `/yourcat cat made without a record (cat ${catId})`,
+                    `A ${source} /yourcat request restyled cat ${catId} and pointed user ${user._id} at it, but ` +
+                        `placeholder ${id} could not be finished after one retry. The placeholder is deleted and ` +
+                        'the request answered an error, so the cat has no YourCat record (GET /yourcat/me shows ' +
+                        'nothing, the avatar is not drawn). Check the cat and user.cat; a new upload makes a fresh record.'
+                );
+            } catch (alertError) {
+                this.logger.error(`missing-record alert not sent: ${(alertError as Error)?.message}`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Points the placeholder at its cat and ends the placeholder state, in one write. Idempotent: a record
+     * that already points at this cat (an earlier write that landed but whose reply was lost) is returned.
+     */
+    private async finishPlaceholder(id: Types.ObjectId, catId: Types.ObjectId): Promise<any> {
+        const record: any = await this.repository.model
+            .findOneAndUpdate(
+                { _id: id, creatingAt: { $ne: null } },
+                { $set: { cat: catId }, $unset: { creatingAt: 1 } },
+                { new: true }
+            )
+            .lean();
+        if (record) {
+            return record;
+        }
+        const finished: any = await this.repository.model.findOne({ _id: id, cat: catId }).lean();
+        if (finished && !finished.creatingAt) {
+            return finished;
+        }
+        throw new Error(`yourcat placeholder ${id} is gone`);
+    }
+
+    /** Hard-deletes a placeholder whose cat could not be made (no-op for null). */
+    private async dropPlaceholder(id: Types.ObjectId | null): Promise<void> {
+        if (!id) {
+            return;
+        }
+        await this.repository.model
+            .deleteOne({ _id: id, creatingAt: { $ne: null } })
+            .catch(error => this.logger.error(`placeholder ${id} not deleted: ${(error as Error)?.message}`));
     }
 
     // ----- section 4: the playable cat -----
@@ -425,20 +513,31 @@ export class YourcatService {
 
         if (user.isGuest) {
             await ensureStarterCat(cats, users, owner, { guest: true });
-            // The lobby draws a starter that has a breed with the Meet-your-cat art, not its catImg, so
-            // the breed goes and the uploaded look shows. `origin: 'starter'` and `isGuestStarter` stay.
+            // One pipeline write: the lobby draws a starter that has a breed with the Meet-your-cat art, not
+            // its catImg, so the breed goes and the uploaded look shows; the starter is committed (an
+            // earlier lock time is kept), so Meet your cat never changes it again. `origin: 'starter'` and
+            // `isGuestStarter` stay. `$literal`: a pipeline reads a string starting with `$` as a field.
+            const literalLook = Object.fromEntries(
+                Object.entries(look).map(([key, value]) => [key, { $literal: value }])
+            );
             const cat = await cats
                 .findOneAndUpdate(
                     { owner, isStarter: true },
-                    { $set: look, $unset: { starterBreed: 1 } },
+                    [
+                        {
+                            $set: {
+                                ...literalLook,
+                                starterBreed: '$$REMOVE',
+                                starterLockedAt: { $ifNull: ['$starterLockedAt', now] },
+                            },
+                        },
+                    ],
                     { new: true }
                 )
                 .lean();
             if (!cat?._id) {
                 throw new Error('guest starter could not be restyled');
             }
-            // Committed (an earlier lock time is kept), so Meet your cat never changes it again.
-            await cats.updateOne({ _id: cat._id, starterLockedAt: null }, { $set: { starterLockedAt: now } });
             await users.updateOne({ _id: owner }, [{ $set: { cat: cat._id, ...this.doneOnboarding(now) } }]);
             return cat;
         }
@@ -486,7 +585,7 @@ export class YourcatService {
             return { item: null };
         }
         const record: any = await this.repository.model
-            .findOne({ owner: objectId(user._id), deletedAt: null })
+            .findOne({ owner: objectId(user._id), deletedAt: null, creatingAt: null })
             .sort({ createdAt: -1 })
             .lean();
         return { item: record ? await this.view(record) : null };
@@ -502,7 +601,7 @@ export class YourcatService {
             throw YOURCAT_ERRORS.notFound();
         }
         const record: any = await this.repository.model
-            .findOne({ _id: new Types.ObjectId(id), owner: objectId(user._id), deletedAt: null })
+            .findOne({ _id: new Types.ObjectId(id), owner: objectId(user._id), deletedAt: null, creatingAt: null })
             .lean();
         if (!record) {
             throw YOURCAT_ERRORS.notFound();
@@ -669,7 +768,7 @@ export class YourcatService {
             throw YOURCAT_ERRORS.portraitDisabled();
         }
         if (!PORTRAIT_STYLES.includes(rawStyle as YourcatPortraitStyle)) {
-            throw new BadRequestException('Unknown portrait style');
+            throw yourcatError(HttpStatus.BAD_REQUEST, 'YOURCAT_STYLE_INVALID', 'Pick one of the portrait styles.');
         }
         const style = rawStyle as YourcatPortraitStyle;
         const record = await this.ownRecord(user, id);
