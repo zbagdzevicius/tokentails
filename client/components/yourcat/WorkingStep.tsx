@@ -1,33 +1,57 @@
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
-import { ACTION_LABELS, displayName, NAME_MAX, S2, type ErrorAction, type ErrorCopy } from "./copy";
-import { ALERT, CAPTION, GHOST_BUTTON, GOLD_BUTTON, INPUT, ScreenHeading, SUBTITLE } from "./ui";
+import { forwardRef, useEffect, useRef, useState } from "react";
+import { BODY, CAPTION, Headline, NIGHT_PILL, PANEL, PrimaryAction } from "./brand";
+import { ACTION_LABELS, NAME_MAX, S1, S2, type ErrorAction, type ErrorCopy } from "./copy";
+import { PetCat } from "./PetCat";
+import { HeadingBlock, InSlot } from "./studio";
+import { ALERT, INPUT } from "./ui";
+import { EXAMPLE_SPRITE } from "./UploadStep";
+import { useCardPreload } from "./useShareCards";
+import { usePortraitWait } from "./useYourcat";
 
-export interface WorkingStepProps {
-  photoUrl: string | null;
-  /** Step 1 is done: the request body has left the browser. */
-  sent: boolean;
-  pendingName: string;
-  onName: (name: string) => void;
-  error: ErrorCopy | null;
-  onAction: (action: ErrorAction) => void;
-}
+export type SegmentState = "empty" | "active" | "done" | "failed";
 
-type StepState = "waiting" | "done" | "failed";
-
-function StepDot({ state }: { state: StepState }) {
-  const look =
-    state === "done" ? "border-tt-gold-500 bg-tt-gold-400" : state === "failed" ? "border-tt-rust bg-tt-rust" : "border-tt-gold-500 bg-transparent";
-  return <span aria-hidden="true" className={`yc-dot inline-block h-4 w-4 shrink-0 rounded-sm border-2 ${look}`} />;
-}
-
-/** One checklist line: its text changes with its state, and a hidden word says the state out loud. */
-function Step({ state, text }: { state: StepState; text: string }) {
+/**
+ * The honest three-segment meter (docs/plans/yourcat-polish.md §4.1): Photo, Coat, Portrait, each
+ * filled only on a real event, then one line of live text. Three 24x8 px segments with a 4 px gap;
+ * a filled segment pops once, the active one pulses, a failed one turns rust and shakes once. Under
+ * reduced motion the pop and the shake are gone and the pulse is opacity only.
+ */
+export function Meter({ segments, text }: { segments: [SegmentState, SegmentState, SegmentState]; text: string }) {
+  const names = [S2.meter.photo, S2.meter.coat, S2.meter.portrait];
   return (
-    <li className="flex items-center gap-3 text-p5 md:text-p4 text-tt-cream" data-state={state}>
-      <StepDot state={state} />
-      <span>{text}</span>
-      {state !== "waiting" && <span className="sr-only">, {state === "done" ? S2.stepDone : S2.stepFailed}</span>}
-    </li>
+    <div className="flex min-w-0 items-center gap-3" data-testid="yourcat-meter">
+      <span className="flex shrink-0 gap-1" aria-hidden="true">
+        {segments.map((state, index) => (
+          <span
+            key={names[index]}
+            title={names[index]}
+            data-state={state}
+            data-testid={`yourcat-meter-${index + 1}`}
+            className={`relative block h-2 w-6 border border-tt-gold-500 ${state === "failed" ? "yc-shake border-tt-rust" : ""} ${
+              state === "active" ? "yc-wait" : ""
+            }`}
+          >
+            {(state === "done" || state === "failed") && (
+              <span className={`yc-seg-pop absolute inset-0 block ${state === "failed" ? "bg-tt-rust" : "bg-tt-gold-400"}`}>
+                {state === "done" && (
+                  // A 3x3 pixel check in the filled segment.
+                  <svg viewBox="0 0 3 3" className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2" shapeRendering="crispEdges">
+                    <g className="fill-tt-night-900">
+                      <rect x="0" y="1" width="1" height="1" />
+                      <rect x="1" y="2" width="1" height="1" />
+                      <rect x="2" y="0" width="1" height="2" />
+                    </g>
+                  </svg>
+                )}
+              </span>
+            )}
+          </span>
+        ))}
+      </span>
+      <span className="truncate text-p6 md:text-p5 text-tt-cream" aria-live="polite" data-testid="yourcat-meter-text">
+        {text}
+      </span>
+    </div>
   );
 }
 
@@ -35,117 +59,153 @@ function Step({ state, text }: { state: StepState; text: string }) {
  * A "Try again" that waits `seconds` before it can be pressed (the plain 429). The countdown is shown
  * but not announced: it sits outside the button's name and outside any live region.
  */
-function RetryButton({ seconds, onClick }: { seconds: number; onClick: () => void }) {
+function RetryButton({ seconds, primary, onClick }: { seconds: number; primary: boolean; onClick: () => void }) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => {
     if (left <= 0) return;
     const timer = setTimeout(() => setLeft((value) => value - 1), 1000);
     return () => clearTimeout(timer);
   }, [left]);
+  const countdown =
+    left > 0 ? (
+      <span aria-hidden="true" className="tabular-nums" data-testid="yourcat-retry-countdown">
+        {S2.retryIn(left)}
+      </span>
+    ) : null;
+  if (primary) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <PrimaryAction text={ACTION_LABELS.retry} disabled={left > 0} onClick={onClick} />
+        {countdown && <span className="text-p6 text-tt-lilac">{countdown}</span>}
+      </div>
+    );
+  }
   return (
-    <button type="button" className={GOLD_BUTTON} disabled={left > 0} onClick={onClick}>
+    <button type="button" className={NIGHT_PILL} disabled={left > 0} onClick={onClick}>
       {ACTION_LABELS.retry}
-      {left > 0 && (
-        <span aria-hidden="true" className="tabular-nums" data-testid="yourcat-retry-countdown">
-          {S2.retryIn(left)}
-        </span>
-      )}
+      {countdown}
     </button>
   );
 }
 
+export interface WorkingStepProps {
+  /** Step 1 is done: the request body has left the browser. */
+  sent: boolean;
+  pendingName: string;
+  onName: (name: string) => void;
+  error: ErrorCopy | null;
+  onAction: (action: ErrorAction) => void;
+  reducedMotion?: boolean;
+}
+
 /**
- * S2 "Working": the visitor's own photo with a slow scan line, a two-step checklist in a polite live
- * region, and the name field (the visitor has nothing else to do while the photo is matched). On a
- * failure the heading and step 2 say so, the name field and the "come back" line go, and focus moves
- * to the heading (the alert below it says why).
+ * S2 "the paint is drying" (§4 S2): the photo hangs in the same frame (the page's `TransformFrame`
+ * runs the scan, the motes, the push-in and the quantise overlay), the honest meter in the kicker
+ * slot, and the only name field of the flow. Once POST /yourcat answers with the pixel portrait still
+ * drawing, S2 holds for it (R2-01): "Almost there", the Coat segment filled, the Portrait one active.
+ * On a failure the heading, the meter ("Stopped", a rust segment) and one alert with the actions say
+ * so, inside the first phone viewport, and focus moves to the heading. The visitor's own daily cap has
+ * its own heading and leaves the Photo segment unfilled (R2-09).
  */
-export const WorkingStep = forwardRef<HTMLHeadingElement, WorkingStepProps>(
-  ({ photoUrl, sent, pendingName, onName, error, onAction }, ref) => {
-    const name = displayName(pendingName, !!pendingName.trim());
-    const headingRef = useRef<HTMLHeadingElement | null>(null);
-    const setHeading = useCallback(
-      (node: HTMLHeadingElement | null) => {
-        headingRef.current = node;
-        if (typeof ref === "function") ref(node);
-        else if (ref) ref.current = node;
-      },
-      [ref],
-    );
-    useEffect(() => {
-      if (error) headingRef.current?.focus();
-    }, [error]);
-    const failed = !!error;
-    return (
-      <div className="flex w-full flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
-        <div className="relative aspect-square w-full max-w-[320px] overflow-hidden rounded-xl border-8 border-tt-gold-500 bg-tt-night-800">
-          {photoUrl && <img src={photoUrl} alt={S2.photoAlt} className="h-full w-full object-cover" />}
-          {!error && (
-            // A full-height layer slides down with the 2 px line on its bottom edge (transform only).
-            <span aria-hidden="true" className="yc-scan pointer-events-none absolute inset-0" data-testid="yourcat-scan">
-              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-tt-gold-400" />
-            </span>
-          )}
-        </div>
-        <div className="flex w-full max-w-md flex-col gap-4 text-left">
-          <ScreenHeading ref={setHeading} className={SUBTITLE}>
-            {failed ? S2.failedTitle : S2.title}
-          </ScreenHeading>
-          <ol className="flex flex-col gap-2" aria-live="polite" data-testid="yourcat-steps">
-            {/* A failure before the body left the browser marks step 1 failed; otherwise step 2. */}
-            <Step
-              state={sent ? "done" : failed ? "failed" : "waiting"}
-              text={sent ? S2.uploaded : failed ? S2.uploadFailed : S2.uploading}
+export const WorkingStep = forwardRef<HTMLHeadingElement, WorkingStepProps>(({ sent, pendingName, onName, error, onAction, reducedMotion = false }, ref) => {
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const setHeading = (node: HTMLHeadingElement | null) => {
+    headingRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  };
+  useEffect(() => {
+    if (error) headingRef.current?.focus();
+  }, [error]);
+  // The card art loads once the photo has left, so the first card is quick after the reveal (§9.3).
+  useCardPreload(sent);
+
+  // POST answered with the pixel portrait still drawing: S2 holds for it ("Almost there", R2-01).
+  const portraitWait = usePortraitWait();
+  const failed = !!error;
+  // A failure before the body left marks segment 1; otherwise segment 2 (the match) failed. The
+  // visitor's own daily cap (R2-09) made nothing from the photo: segment 1 stays unfilled, 2 is rust.
+  const segments: [SegmentState, SegmentState, SegmentState] = failed
+    ? error.ownCap
+      ? ["empty", "failed", "empty"]
+      : sent
+        ? ["done", "failed", "empty"]
+        : ["failed", "empty", "empty"]
+    : portraitWait
+      ? ["done", "done", "active"]
+      : sent
+        ? ["done", "active", "empty"]
+        : ["active", "empty", "empty"];
+  const meterText = failed
+    ? S2.meter.stopped
+    : portraitWait
+      ? S2.meter.painting
+      : sent
+        ? S2.meter.received
+        : S2.meter.sending;
+  const title = failed ? (error.title ?? S2.failedTitle) : portraitWait ? S2.almostTitle : S2.title;
+
+  return (
+    <>
+      <HeadingBlock kicker={<Meter segments={segments} text={meterText} />}>
+        <Headline ref={setHeading} parts={title} />
+      </HeadingBlock>
+      {/* The example cat stays on the altar; once the photo has left it sits and faces the frame (beat B). */}
+      <InSlot slot="cat">
+        <PetCat
+          spriteImg={EXAMPLE_SPRITE}
+          name={S1.example}
+          labels={{ pet: S1.exampleAlt, tap: S1.example, purrs: S1.example }}
+          mode={sent && !failed ? "sit" : "idle"}
+          facing={sent && !failed ? "left" : "right"}
+          interactive={false}
+          sound={false}
+          reducedMotion={reducedMotion}
+        />
+      </InSlot>
+      <InSlot slot="panel">
+        {error ? (
+          <div className={`${PANEL} yc-rise-sm flex flex-col gap-3`} data-testid="yourcat-failure">
+            <p className={ALERT} role="alert">
+              {error.message}
+            </p>
+            {error.actions.length > 0 && (
+              // A long label at the landing's 1.25x phone scale would overflow the panel: unscaled on phones.
+              <div className="flex flex-wrap items-center justify-center gap-3 xl:justify-start max-sm:[&_.glow-box:hover]:!scale-105 max-sm:[&_.glow-box]:!scale-100">
+                {error.actions.map((action, index) =>
+                  action === "retry" && error.retryAfterSeconds ? (
+                    <RetryButton key={action} seconds={error.retryAfterSeconds} primary={index === 0} onClick={() => onAction(action)} />
+                  ) : index === 0 ? (
+                    <PrimaryAction key={action} text={ACTION_LABELS[action]} onClick={() => onAction(action)} />
+                  ) : (
+                    <button key={action} type="button" className={NIGHT_PILL} onClick={() => onAction(action)}>
+                      {ACTION_LABELS[action]}
+                    </button>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={`${PANEL} flex flex-col gap-2`} data-testid="yourcat-wait">
+            <label className={BODY} htmlFor="yourcat-wait-name">
+              {S2.nameLabel}
+            </label>
+            <input
+              id="yourcat-wait-name"
+              className={INPUT}
+              type="text"
+              autoComplete="off"
+              enterKeyHint="done"
+              maxLength={NAME_MAX}
+              placeholder={S2.namePlaceholder}
+              value={pendingName}
+              onChange={(event) => onName(event.target.value.slice(0, NAME_MAX))}
             />
-            {(sent || !failed) && <Step state={failed ? "failed" : "waiting"} text={failed ? S2.matchFailed(name) : S2.matching(name)} />}
-          </ol>
-
-          {error && (
-            <div className="flex flex-col gap-3">
-              <p className={ALERT} role="alert">
-                {error.message}
-              </p>
-              {error.actions.length > 0 && (
-                <div className="flex flex-wrap gap-3">
-                  {error.actions.map((action, index) =>
-                    action === "retry" && error.retryAfterSeconds ? (
-                      <RetryButton key={action} seconds={error.retryAfterSeconds} onClick={() => onAction(action)} />
-                    ) : (
-                      <button
-                        key={action}
-                        type="button"
-                        className={index === 0 ? GOLD_BUTTON : GHOST_BUTTON}
-                        onClick={() => onAction(action)}
-                      >
-                        {ACTION_LABELS[action]}
-                      </button>
-                    ),
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {!failed && (
-            <>
-              <label className="flex flex-col gap-1 text-p5 md:text-p4 text-tt-cream" htmlFor="yourcat-wait-name">
-                {S2.nameLabel}
-              </label>
-              <input
-                id="yourcat-wait-name"
-                className={INPUT}
-                type="text"
-                autoComplete="off"
-                maxLength={NAME_MAX}
-                placeholder={S2.namePlaceholder}
-                value={pendingName}
-                onChange={(event) => onName(event.target.value.slice(0, NAME_MAX))}
-              />
-              <p className={CAPTION}>{S2.leave}</p>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  },
-);
+            <p className={CAPTION}>{S2.leave}</p>
+          </div>
+        )}
+      </InSlot>
+    </>
+  );
+});

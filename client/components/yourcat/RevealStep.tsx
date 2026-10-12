@@ -1,31 +1,138 @@
 import { analytics } from "@/analytics";
 import { buildGrowthEvent } from "@/analytics/growth-events";
+import { playHomeSound } from "@/components/home/homeSfx";
 import type { YourcatAvatarStatus, YourcatView } from "@/models/yourcat";
 import Link from "next/link";
-import { forwardRef, useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
+import { BODY, CAPTION, ChipCheck, DANGER_PILL, H2, HEADLINE, Headline, NIGHT_PILL, PANEL, PrimaryAction } from "./brand";
+import { Burst } from "./Burst";
 import type { CardFormat } from "./cardLayout";
-import { displayName, NAME_MAX, S3, sentenceName, STATUS_COPY } from "./copy";
-import { pickPinkPawCat, type PinkPawCandidate } from "./pinkPawPick";
-import { RevealFrame } from "./RevealFrame";
-import { canShareFile, copyShareText, isInAppBrowser, shareCardFile, downloadFile, type ShareOutcome } from "./share";
-import { ALERT, BODY, CAPTION, GHOST_BUTTON, GOLD_BUTTON, INLINE_LINK, INPUT, ScreenHeading, SpriteStill, TEXT_LINK } from "./ui";
-import { useShareCards, variantKey } from "./useShareCards";
+import { cardText, displayName, NAME_MAX, S2, S3, STATUS_COPY } from "./copy";
+import { Frame } from "./Frame";
+import { CLOCK, EASE, hapticReveal } from "./motion";
+import { NOSE_X_FACING_LEFT, PetCat, type PetCatWalk } from "./PetCat";
+import { pickPinkPawCat, pinkPawArtStyle, type PinkPawCandidate } from "./pinkPawPick";
+import { canShareFile, copyShareText, downloadFile, isInAppBrowser, shareCardFile, type ShareOutcome } from "./share";
+import { HeadingBlock, InSlot, useCueListener, useStageConfig, useStudio, type StudioCue } from "./studio";
+import { ALERT, INLINE_LINK, INPUT, TEXT_LINK } from "./ui";
+import { useShareCards, variantKey, type CardVariant } from "./useShareCards";
 import { buildShareUrl } from "./utm";
+import { Meter, type SegmentState } from "./WorkingStep";
+import { SHEET } from "./spriteSheet";
 
-export const GIF_PLAY_MS = 5000;
 export const NAME_DEBOUNCE_MS = 300;
+/**
+ * The level-up flare under the cat's paws at the step-out: one play, 1.5x (96 px), 900 ms (§4.2).
+ * A transparent animated WebP keyed from black (`/flare-effect/effects/lvlup.gif`, left untouched), so
+ * it needs no blend mode: `mix-blend-screen` drew a black box inside the stage's stacking contexts.
+ */
+export const STEP_OUT_GIF = "/yourcat/flare.webp";
+export const STEP_OUT_GIF_MS = 900;
+/** When no cue arrives (an image that never loads), the scene settles on its own after this long. */
+export const CLOCK_SAFETY_MS = 4000;
+/**
+ * The meeting (§4.4, R2-02): the cream frame slides in and the cat walks over to it (CLOCK.MEETING_WALK,
+ * 120 ms fade under reduced motion), then sits facing it with one heart. MEETING_SIT_MS is the
+ * fallback when the walk cannot be measured (no layout): the sit then comes this long after the frame.
+ */
+export const MEETING_SIT_MS = 300;
+/** The gap between the shelter frame and the cat's nose once it has walked over: phones, md+. */
+export const MEETING_GAP = Object.freeze({ phone: 8, md: 16 });
+/** The md+ controls under the card wait for its print, then fade in this staggered (R2-04): pills, toggle, actions. */
+export const PRINT_STAGGER_MS: readonly number[] = [0, 80, 160];
+export const PRINT_FADE_MS = 240;
+export const PRINT_FADE_RM_MS = 120;
+/** The meeting block, the coat line and the toggle fade in with the shelter frame (§4.4). */
+export const MEETING_FADE_MS = 240;
+export const MEETING_FADE_RM_MS = 120;
+/** The card slot stays blank after the clock; "Preparing card…" shows only if the card is this late. */
+export const CARD_LATE_MS = 600;
+
+/** A phone (below md): the sticky share bar with "More"; md+ gets the column 2 actions row. */
+const PHONE_QUERY = "(max-width: 767px)";
+function isPhone(): boolean {
+  try {
+    return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(PHONE_QUERY).matches;
+  } catch {
+    return false;
+  }
+}
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(isPhone);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(PHONE_QUERY);
+    const update = () => setPhone(media.matches);
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+  return phone;
+}
+
+const style = (vars: Record<string, string | number>) => vars as CSSProperties;
+
+/** Shown or held invisible in its reserved box (no shift), fading in over `ms`. */
+const fadeBox = (shown: boolean, ms: number): CSSProperties => ({
+  opacity: shown ? 1 : 0,
+  visibility: shown ? "visible" : "hidden",
+  transition: `opacity ${ms}ms linear, visibility ${ms}ms linear`,
+});
+
+/**
+ * A control row held invisible in its box until the card prints (R2-04, md+), then faded in after
+ * `delay` with the out easing; reduced motion: a 120 ms opacity change, no stagger.
+ */
+export const printFade = (shown: boolean, delay: number, reducedMotion: boolean): CSSProperties =>
+  reducedMotion
+    ? fadeBox(shown, PRINT_FADE_RM_MS)
+    : {
+        opacity: shown ? 1 : 0,
+        visibility: shown ? "visible" : "hidden",
+        transition: shown ? `opacity ${PRINT_FADE_MS}ms ${EASE.out} ${delay}ms, visibility 0ms linear ${delay}ms` : "none",
+      };
+
+/** The shelter's own name, read from the frame's label ("Zare, a real cat at Pink Paw"), so the plate needs no new copy. */
+export function shelterPlate(catName: string, frameAlt: (name: string) => string): string {
+  const shelter = /\bat (.+)$/.exec(frameAlt(catName))?.[1]?.trim();
+  return shelter ? `${catName} · ${shelter}` : catName;
+}
+
+/**
+ * How far the visitor's cat walks (px, negative is left) so its nose stops `gap` px right of the
+ * shelter frame: from the untransformed boxes of the cat's slot child and the companion slot. Null
+ * when there is no layout (a hidden tab, jsdom); 0 when it already stands there or further left.
+ */
+export function meetingWalkDx(cat: DOMRect, shelter: DOMRect, gap: number): number | null {
+  if (!(cat.width > 0) || !(shelter.width > 0)) return null;
+  const scale = cat.width / SHEET.cell;
+  const dx = Math.round(shelter.right + gap - (cat.left + NOSE_X_FACING_LEFT * scale));
+  return Math.min(0, dx);
+}
 
 export interface RevealStepProps {
   record: YourcatView;
   /** The avatar state as shown (a portrait still pending after the deadline reads as failed). */
   avatarStatus: YourcatAvatarStatus;
-  /** A fresh upload this page view: run the reveal from the photo. */
-  fresh: boolean;
+  /** The page runs the transformation clock in the frame (a fresh upload or a just-made manual cat). */
+  clocked: boolean;
   /** The cat came from the manual pick: it was picked, not matched. */
   manual?: boolean;
   /** Uploads are open (false while the budget is spent or paused): "start over" then promises no new photo. */
   uploadsOpen?: boolean;
-  photoUrl: string | null;
+  /** The photo is still in memory (a fresh upload this page view): "Watch again" can replay the clock. */
+  canReplay?: boolean;
+  /** The random public id of this cat, for the per-cat share link (§8). */
+  shareId?: string | null;
   reducedMotion: boolean;
   nameError: string | null;
   onRename: (name: string) => Promise<YourcatView | null>;
@@ -39,48 +146,35 @@ export interface RevealStepProps {
   toast: (message: string) => void;
 }
 
-/** The playable cat: the GIF plays for 5 s, then the still frame; a tap plays it again (WCAG 2.2.2). */
-function PlayableCat({ catImg, spriteImg, name, reducedMotion }: { catImg: string; spriteImg: string; name: string; reducedMotion: boolean }) {
-  const [playing, setPlaying] = useState(!reducedMotion);
-  const [round, setRound] = useState(0);
-  useEffect(() => {
-    if (!playing) return;
-    const timer = setTimeout(() => setPlaying(false), GIF_PLAY_MS);
-    return () => clearTimeout(timer);
-  }, [playing, round]);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (reducedMotion) setPlaying(false);
-  }, [reducedMotion]);
-  return (
-    <button
-      type="button"
-      className="relative aspect-square w-2/5 max-w-[192px] min-h-11 shrink-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400 disabled:cursor-default md:w-[192px]"
-      aria-label={S3.playCat(name)}
-      disabled={reducedMotion}
-      onClick={() => {
-        setRound((value) => value + 1);
-        setPlaying(true);
-      }}
-      data-testid="yourcat-playable"
-    >
-      {playing ? (
-        <img key={round} src={catImg} alt="" className="pixelated absolute inset-0 h-full w-full" data-testid="yourcat-gif" />
-      ) : (
-        <SpriteStill spriteImg={spriteImg} scale="fill" className="absolute inset-0" />
-      )}
-    </button>
+/** Keeps focus inside the dialog while it is open; Escape closes it. */
+function trapKeys(event: KeyboardEvent<HTMLElement>, onClose: () => void) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const items = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href], [tabindex="0"]'),
   );
+  if (!items.length) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
-/** A dialog that keeps focus inside and gives it back to `returnTo` when closed (§1.6). */
+/** The delete confirmation: focus stays inside; "Keep" (the safe choice) is the primary and has focus first. */
 function ConfirmDialog({
   text,
   extra,
   error,
   busy,
-  confirm,
-  cancel,
   onConfirm,
   onClose,
 }: {
@@ -89,36 +183,14 @@ function ConfirmDialog({
   /** A failed delete, shown in the dialog so the visitor can keep or try again from there. */
   error?: string | null;
   busy?: boolean;
-  confirm: string;
-  cancel: string;
   onConfirm: () => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     // The safe choice first: a second Enter or Space must not delete without reading the question.
-    cancelRef.current?.focus();
+    ref.current?.querySelector<HTMLElement>('[data-testid="yourcat-primary"] button')?.focus();
   }, []);
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-    if (event.key !== "Tab" || !ref.current) return;
-    const buttons = Array.from(ref.current.querySelectorAll<HTMLButtonElement>("button"));
-    if (!buttons.length) return;
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center bg-tt-night-950/80 p-4">
       <div
@@ -127,8 +199,8 @@ function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="yourcat-delete-text"
         aria-describedby={extra ? "yourcat-delete-extra" : undefined}
-        className="w-full max-w-md rounded-2xl border-4 border-tt-gold-500 bg-tt-night-800 p-5 text-tt-cream"
-        onKeyDown={onKeyDown}
+        className={`${PANEL} max-w-md bg-tt-night-800`}
+        onKeyDown={(event) => trapKeys(event, onClose)}
       >
         <p id="yourcat-delete-text" className={BODY}>
           {text}
@@ -143,49 +215,287 @@ function ConfirmDialog({
             {error}
           </p>
         )}
-        {/* Keeping is the gold choice; deleting is the quiet one with the warning border. */}
-        <div className="mt-4 flex flex-wrap justify-end gap-3">
-          <button type="button" className={DANGER_GHOST_BUTTON} disabled={busy} onClick={onConfirm}>
-            {confirm}
+        {/* Keeping is the primary; deleting is the quiet pill with the warning border. */}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-4">
+          <button type="button" className={DANGER_PILL} disabled={busy} onClick={onConfirm}>
+            {S3.deleteYes}
           </button>
-          <button ref={cancelRef} type="button" className={GOLD_BUTTON} onClick={onClose}>
-            {cancel}
-          </button>
+          <PrimaryAction text={S3.deleteNo} onClick={onClose} />
         </div>
       </div>
     </div>
   );
 }
 
-const DANGER_GHOST_BUTTON = GHOST_BUTTON.replace("border-tt-cream/70", "border-tt-rust");
+/** The phone sheet behind "More" (§4.5): the Story/Post choice, Download and Copy link. */
+function MoreSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>("input, button")?.focus();
+  }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-modal flex items-end bg-tt-night-950/70 animate-tt-scrim-in" onClick={onClose} data-testid="yourcat-more-scrim">
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="yourcat-more-title"
+        className="w-full rounded-t-2xl border-t-2 border-tt-gold-400/40 bg-tt-night-800 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-tt-cream animate-tt-sheet-in"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => trapKeys(event, onClose)}
+        data-testid="yourcat-more-sheet"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id="yourcat-more-title" className={H2}>
+            {S3.more.title}
+          </h2>
+          <button type="button" className={NIGHT_PILL} onClick={onClose}>
+            {S3.more.close}
+          </button>
+        </div>
+        <div className="flex flex-col gap-3">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
-/** Phones default to the story format, larger screens to the post format. */
-function defaultFormat(): CardFormat {
-  try {
-    return window.matchMedia("(max-width: 767px)").matches ? "story" : "post";
-  } catch {
-    return "story";
-  }
+/** Story / Post as two night pills in a radio group. */
+function FormatPills({ format, onChange, style }: { format: CardFormat; onChange: (format: CardFormat) => void; style?: CSSProperties }) {
+  return (
+    <div role="radiogroup" aria-label={S3.formatLabel} className="flex gap-2" style={style} data-testid="yourcat-format-pills">
+      {(["story", "post"] as const).map((value) => (
+        <label
+          key={value}
+          className={`${NIGHT_PILL} cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-tt-cream ${
+            format === value ? "!bg-tt-gold-400 !text-tt-night-900" : ""
+          }`}
+        >
+          <input type="radio" name="yourcat-format" value={value} checked={format === value} onChange={() => onChange(value)} className="sr-only" />
+          {value === "story" ? S3.story : S3.post}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/** The pencil icon of the rename pill. */
+const Pencil = () => (
+  <svg viewBox="0 0 12 12" className="h-4 w-4" aria-hidden="true" shapeRendering="crispEdges">
+    <g fill="currentColor">
+      <rect x="8" y="1" width="2" height="1" />
+      <rect x="7" y="2" width="4" height="1" />
+      <rect x="6" y="3" width="4" height="1" />
+      <rect x="5" y="4" width="4" height="1" />
+      <rect x="4" y="5" width="4" height="1" />
+      <rect x="3" y="6" width="4" height="1" />
+      <rect x="2" y="7" width="4" height="1" />
+      <rect x="1" y="8" width="3" height="2" />
+      <rect x="1" y="10" width="2" height="1" />
+    </g>
+  </svg>
+);
+
+/**
+ * The card preview: sized to its format's aspect (no letterbox), printed in once, then cross-faded on
+ * changes. Its box is always reserved, but nothing is drawn in it (no border, glow or text) until the
+ * show is over and there is something to say: the card itself, a failure, or "Preparing card…" once
+ * the card is `late`.
+ */
+function CardPreview({
+  format,
+  current,
+  failed,
+  late,
+  wide,
+  label,
+  onLongPress,
+  holdHandlers,
+}: {
+  format: CardFormat;
+  current: CardVariant | null;
+  failed: boolean;
+  /** The card is still not ready CARD_LATE_MS after the show ended. */
+  late: boolean;
+  /** In-app browsers show the card large. */
+  wide: boolean;
+  label: string;
+  onLongPress?: () => void;
+  holdHandlers?: Record<string, () => void>;
+}) {
+  const [layers, setLayers] = useState<{ url: string; first: boolean }[]>([]);
+  useEffect(() => {
+    if (!current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLayers((now) => {
+      if (now.length && now[now.length - 1].url === current.url) return now;
+      // Keep the old image under the new one while it fades in (220 ms), then drop it.
+      return [...now.slice(-1), { url: current.url, first: now.length === 0 }];
+    });
+  }, [current]);
+  const ratio = format === "story" ? "1080 / 1920" : "1080 / 1350";
+  const widthByHeight = format === "story" ? "calc(52svh * 9 / 16)" : "calc(52svh * 4 / 5)";
+  const top = layers[layers.length - 1];
+  const message = layers.length === 0 && (failed || late) ? (failed ? S3.cardFailed : S3.preparing) : null;
+  const drawn = layers.length > 0 || !!message;
+  return (
+    <div
+      className={`relative mx-auto overflow-hidden rounded-lg border-2 md:w-[400px] xl:mx-0 [@media(min-width:768px)_and_(min-height:1000px)]:w-[420px] ${
+        drawn ? "border-tt-cream/60 bg-tt-night-800 shadow-[0_0_24px_rgb(var(--tt-gold-400)/.25)]" : "border-transparent"
+      } ${top?.first ? "yc-print" : message ? "yc-fade-in" : ""}`}
+      style={{ aspectRatio: ratio, width: wide ? `min(100%, 36rem)` : `min(100%, ${widthByHeight})` }}
+      data-testid="yourcat-card-preview"
+      data-format={format}
+      data-drawn={drawn ? "true" : "false"}
+    >
+      {message && <div className={`${CAPTION} absolute inset-0 flex items-center justify-center p-4 text-center`}>{message}</div>}
+      {layers.map((layer, index) => {
+        const last = index === layers.length - 1;
+        return (
+           
+          <img
+            key={layer.url}
+            src={layer.url}
+            alt={last ? label : ""}
+            aria-hidden={last ? undefined : true}
+            className={`absolute inset-0 h-full w-full ${last && !layer.first ? "yc-fade-in [--yc-dur:220ms]" : ""}`}
+            onAnimationEnd={() => {
+              if (last) setLayers((now) => now.slice(-1));
+            }}
+            onContextMenu={last ? onLongPress : undefined}
+            {...(last ? holdHandlers : {})}
+          />
+        );
+      })}
+      {top?.first && (
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="yc-sheen-once absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-tt-cream/30 to-transparent [--yc-delay:420ms]" />
+        </span>
+      )}
+    </div>
+  );
 }
 
 /**
- * S3 "Reveal and share" (S4 merged in): the result in its gold frame, the playable cat, the card
- * preview with format and Pink Paw choices, and Share / Download / Copy link / Play.
+ * S3 "it steps out" (docs/plans/yourcat-polish.md §4.2 to §4.5). The page's frame runs the
+ * transformation clock; this screen reacts to its cues: the frame bumps, the cat jumps out of its own
+ * portrait onto the stone with the flare, a burst, a meow, a buzz and then a purr, the headline lands,
+ * "Watch again" appears, and a real Pink Paw cat's cream frame slides onto the altar for a quiet
+ * meeting. Then the card (sized to its format, printed in), the toggle that puts the shelter cat on it,
+ * the actions (a sticky Share / Play / More bar on phones, a column 2 row on md+), the meeting block,
+ * one footer line and the guest note.
  */
 export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props, ref) => {
-  const { record, avatarStatus, fresh, photoUrl, reducedMotion, nameError, onRename, onDelete, onStartOver } = props;
+  const { record, avatarStatus, clocked, reducedMotion, nameError, onRename, onDelete, onStartOver } = props;
   const manual = !!props.manual;
   const uploadsOpen = props.uploadsOpen !== false;
+  const studio = useStudio();
+  const phone = usePhone();
   const name = displayName(record.name, record.named);
   const family = record.familyLabel;
 
-  // ---- name field: the card follows the field (debounced); a refused name keeps the last accepted.
+  // ---- the clock's beats ---------------------------------------------------------------------------
+  // "pre": the cat is still in the portrait; "out": it has stepped out; "done": the clock ended.
+  const [phase, setPhase] = useState<"pre" | "out" | "done">(clocked ? "pre" : "done");
+  const [titleIn, setTitleIn] = useState(!clocked);
+  const [stepToken, setStepToken] = useState(0);
+  const [bursts, setBursts] = useState<{ id: number; count: number }[]>([]);
+  const [gif, setGif] = useState(0);
+  const [meeting, setMeeting] = useState<"none" | "in" | "sat">("none");
+  const [heart, setHeart] = useState(0);
+  // The meeting walk (R2-02): measured from the cat's slot child and the companion slot.
+  const [walk, setWalk] = useState<PetCatWalk | null>(null);
+  const catWrapRef = useRef<HTMLDivElement | null>(null);
+  const shelterRef = useRef<HTMLDivElement | null>(null);
+  // Bumped by a replay, so a meeting timer from the previous run never lands in the next one.
+  const meetRunRef = useRef(0);
+  const walkIdRef = useRef(0);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const later = useCallback((ms: number, run: () => void) => {
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      run();
+    }, ms);
+    timers.current.add(timer);
+  }, []);
+  useEffect(() => {
+    const all = timers.current;
+    return () => {
+      all.forEach(clearTimeout);
+      all.clear();
+    };
+  }, []);
+
+  const addBurst = useCallback((count: number) => {
+    if (reducedMotion) return;
+    setBursts((now) => [...now, { id: Date.now() + Math.random(), count }]);
+  }, [reducedMotion]);
+
+  // The cat has stepped out on this run of the clock (a ref: the frame's cues arrive in one tick).
+  const steppedRef = useRef(false);
+  // The frame shows the pixel portrait (§4.1 meter segment 3): only the frame's own signal sets it.
+  const [landed, setLanded] = useState(false);
+
+  const stepOut = useCallback(() => {
+    steppedRef.current = true;
+    studio.frame.current?.bump("settle");
+    setPhase("out");
+    setStepToken((value) => value + 1);
+    if (!reducedMotion) setGif((value) => value + 1);
+    addBurst(28);
+    playHomeSound("meow");
+    hapticReveal(reducedMotion);
+    later(CLOCK.PURR_AFTER_STEP_OUT, () => playHomeSound("purr"));
+  }, [addBurst, later, reducedMotion, studio.frame]);
+
+  const onCue = useCallback(
+    (cue: StudioCue) => {
+      if (cue === "hold") studio.frame.current?.bump("hold");
+      else if (cue === "stepOut") stepOut();
+      else if (cue === "title") setTitleIn(true);
+      else if (cue === "done") setPhase("done");
+    },
+    [stepOut, studio.frame],
+  );
+  useCueListener({
+    onCue,
+    onAvatarLanded: () => {
+      setLanded(true);
+      // A portrait that was there for the clock lands with the step-out itself; only a late one pulses.
+      if (!steppedRef.current) return;
+      studio.frame.current?.bump("pulse");
+      addBurst(8);
+    },
+  });
+
+  // A clock that never answers (an image that does not load) still ends in the settled scene.
+  const [runs, setRuns] = useState(0);
+  const phaseRef = useRef(phase);
+  useEffect(() => {
+    phaseRef.current = phase;
+  });
+  useEffect(() => {
+    if (!clocked) return;
+    const timer = setTimeout(() => {
+      if (phaseRef.current === "pre") stepOut();
+      setPhase("done");
+      setTitleIn(true);
+    }, CLOCK_SAFETY_MS);
+    return () => clearTimeout(timer);
+  }, [clocked, stepOut, runs]);
+
+  useStageConfig({ shifted: phase !== "pre" });
+
+  // ---- name: the pencil opens the rename row; the card follows it (debounced); a refused name keeps the last accepted
+  const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(record.named ? record.name : "");
   const [debounced, setDebounced] = useState(draft);
   const [accepted, setAccepted] = useState(record.named ? record.name : "");
   const [saving, setSaving] = useState(false);
-  // Once the visitor edits this field, a name arriving from the server no longer overwrites it.
+  // Once the visitor edits the name, a name arriving from the server no longer overwrites it.
   const touchedRef = useRef(false);
+  const pencilRef = useRef<HTMLButtonElement | null>(null);
+  const renameRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(draft), NAME_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -194,47 +504,119 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     // The server's name wins when it changes (the name typed during the wait lands after S3 shows,
     // another tab): the card and, while untouched, the field follow it at once.
     if (!record.named) return;
+     
     setAccepted(record.name);
     if (!touchedRef.current) {
       setDraft(record.name);
       setDebounced(record.name);
     }
   }, [record.named, record.name]);
+  useEffect(() => {
+    if (renaming) renameRef.current?.focus();
+  }, [renaming]);
   const cardName = (nameError ? accepted : debounced).trim();
-  // The field and the card must agree before a file leaves: not while the name debounces or saves.
+  // The name and the card must agree before a file leaves: not while the name debounces or saves.
   const nameSettling = saving || draft.trim() !== debounced.trim();
 
   const save = useCallback(async () => {
     const value = draft.trim();
-    if (!value) return;
+    if (!value) {
+      setRenaming(false);
+      return;
+    }
     setSaving(true);
     try {
       const next = await onRename(value);
-      if (next) setAccepted(next.name);
+      if (next) {
+        setAccepted(next.name);
+        setRenaming(false);
+      }
     } finally {
       setSaving(false);
     }
   }, [draft, onRename]);
 
-  // ---- format, Pink Paw ----------------------------------------------------------------------
-  const [format, setFormat] = useState<CardFormat>("story");
-  useEffect(() => {
-    setFormat(defaultFormat());
-  }, []);
+  // ---- format, Pink Paw ----------------------------------------------------------------------------
+  const [format, setFormat] = useState<CardFormat>(() => (isPhone() ? "story" : "post"));
   const [shelter, setShelter] = useState<PinkPawCandidate | null>(null);
+  // The gallery answered (with or without a cat): until then the meeting's boxes stay reserved.
+  const [shelterSettled, setShelterSettled] = useState(false);
   const [withShelter, setWithShelter] = useState(true);
+  const [artFailed, setArtFailed] = useState(false);
   const { shelterCandidates } = props;
   useEffect(() => {
     let cancelled = false;
-    void shelterCandidates().then((candidates) => {
-      if (!cancelled) setShelter(pickPinkPawCat(candidates, record.id));
-    });
+    void shelterCandidates()
+      .then((candidates) => {
+        if (!cancelled) setShelter(pickPinkPawCat(candidates, record.id));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setShelterSettled(true);
+      });
     return () => {
       cancelled = true;
     };
   }, [shelterCandidates, record.id]);
-  const panelOn = !!shelter && withShelter;
+  // The null rule (§4.4): no candidate, or its art failed, means nothing at all.
+  const meetCat = shelter && !artFailed ? shelter : null;
+  const panelOn = !!meetCat && withShelter;
+  // The meeting block, the coat line and the toggle appear with the shelter frame, at every width; with
+  // no shelter cat the coat line appears once the clock has ended and the gallery has answered.
+  const meetShown = phase === "done" && (meetCat ? meeting !== "none" : shelterSettled);
+  const meetFade = fadeBox(meetShown, reducedMotion ? MEETING_FADE_RM_MS : MEETING_FADE_MS);
+  // The toggle's row is held while the gallery may still name a cat.
+  const toggleRow = !!meetCat || !shelterSettled;
 
+  // The meeting beat: 400 ms after the clock's end (at once without a clock) the cream frame slides in.
+  useEffect(() => {
+    if (!meetCat || phase !== "done" || meeting !== "none") return;
+    const run = meetRunRef.current;
+    later(clocked ? CLOCK.MEETING_AFTER_DONE : 0, () => {
+      if (run === meetRunRef.current) setMeeting("in");
+    });
+  }, [meetCat, phase, meeting, clocked, later]);
+
+  const measureWalk = useCallback((): number | null => {
+    const cat = catWrapRef.current;
+    const slot = shelterRef.current?.parentElement;
+    if (!cat || !slot) return null;
+    const catBox = cat.getBoundingClientRect();
+    const gap = catBox.width / SHEET.cell >= 5 ? MEETING_GAP.md : MEETING_GAP.phone;
+    return meetingWalkDx(catBox, slot.getBoundingClientRect(), gap);
+  }, []);
+
+  // With the frame in place, the cat walks over to it (walk row, ~700 ms), then sits facing it and
+  // one heart rises between them. Reduced motion: it fades to the sit beside the frame (120 ms).
+  useEffect(() => {
+    if (meeting !== "in") return;
+    const run = meetRunRef.current;
+    const dx = measureWalk();
+    const walks = dx !== null && dx < 0;
+    const ms = reducedMotion ? CLOCK.MEETING_WALK_RM : CLOCK.MEETING_WALK;
+    if (walks) setWalk({ id: (walkIdRef.current += 1), dx, ms });
+    const sit = () => {
+      if (run !== meetRunRef.current) return;
+      setMeeting("sat");
+      setHeart((value) => value + 1);
+    };
+    if (reducedMotion && walks) sit();
+    else later(walks ? ms : MEETING_SIT_MS, sit);
+  }, [meeting, measureWalk, reducedMotion, later]);
+
+  // A resize moves the seated cat to the frame's new place (no walk).
+  const walkId = walk?.id;
+  useEffect(() => {
+    if (walkId === undefined || typeof window === "undefined") return;
+    const onResize = () => {
+      const dx = measureWalk();
+      if (dx !== null) setWalk((now) => (now && now.id === walkId ? { ...now, dx } : now));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [walkId, measureWalk]);
+
+  // ---- the share cards ---------------------------------------------------------------------------
   const avatarUrl = avatarStatus === "ready" ? record.avatar.url : null;
   const { variants, failed } = useShareCards({
     recordId: record.id,
@@ -242,25 +624,44 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     familyLabel: family,
     avatarUrl,
     spriteImg: record.cat.spriteImg,
-    shelter,
+    shelter: meetCat,
     preferred: variantKey(format, panelOn),
+    textFor: (panel) => cardText(cardName, !!cardName, family, panel && meetCat ? meetCat.name : null),
   });
-  const current = variants[variantKey(format, panelOn)] ?? null;
-  const [preview, setPreview] = useState<string | null>(null);
+  // The card prints once the step-out show is over (the show stays one clean take on a phone).
+  const showOver = phase === "done";
+  const current = showOver ? variants[variantKey(format, panelOn)] ?? null : null;
+  // "Preparing card…" in the slot only when the card is still missing CARD_LATE_MS after the show.
+  const [cardLate, setCardLate] = useState(false);
+  const cardMissing = showOver && !current;
   useEffect(() => {
-    if (current) setPreview(current.url);
-  }, [current]);
+    if (!cardMissing || cardLate) return;
+    const timer = setTimeout(() => setCardLate(true), CARD_LATE_MS);
+    return () => clearTimeout(timer);
+  }, [cardMissing, cardLate]);
+  // R2-04: on md+ the pills, the toggle and the actions wait in their boxes for the card's print (or
+  // its failure, or "Preparing card…"), then stay; a replay hides them again with the card.
+  const printReady = !!current || (showOver && failed) || (cardLate && cardMissing);
+  const [printedOnce, setPrintedOnce] = useState(false);
+  useEffect(() => {
+    if (printReady && !printedOnce) setPrintedOnce(true);
+  }, [printReady, printedOnce]);
+  const controlsShown = showOver && (printReady || printedOnce);
 
-  // ---- sharing -------------------------------------------------------------------------------
+  // ---- sharing -------------------------------------------------------------------------------------
   const [inApp, setInApp] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
   const copyFieldRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
+     
     setInApp(isInAppBrowser(typeof navigator === "undefined" ? "" : navigator.userAgent));
   }, []);
   useEffect(() => {
     // Evaluated on the real file; kept while the next generation renders, so "Share" stays in place.
+     
     if (current) setCanShare(canShareFile(current.file));
   }, [current]);
   useEffect(() => {
@@ -283,7 +684,8 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   const shareText = (medium: "card" | "link") =>
     S3.shareText(
       medium === "card" && current ? displayName(current.name, !!current.name) : name,
-      buildShareUrl(medium, medium === "card" ? format : "link"),
+      buildShareUrl(medium, medium === "card" ? format : "link", props.shareId),
+      medium === "card" ? (panelOn && meetCat ? meetCat.name : null) : meetCat && withShelter ? meetCat.name : null,
     );
 
   const onShare = () => {
@@ -330,12 +732,17 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   };
   useEffect(() => endHold, []);
 
-  // ---- delete --------------------------------------------------------------------------------
+  // ---- delete --------------------------------------------------------------------------------------
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const deleteLinkRef = useRef<HTMLButtonElement | null>(null);
-  const sectionRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const setHeading = (node: HTMLHeadingElement | null) => {
+    headingRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  };
   const openDialog = () => {
     setDeleteError(false);
     setConfirming(true);
@@ -355,7 +762,7 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
       setConfirming(false);
       props.toast(S3.deleted);
       // The delete link is gone with the photo: focus goes to the screen heading (§1.6).
-      setTimeout(() => sectionRef.current?.querySelector<HTMLElement>("h1")?.focus(), 0);
+      setTimeout(() => headingRef.current?.focus(), 0);
     } else {
       // The dialog stays open with the reason, so Keep and Delete (again) are right there.
       setDeleteError(true);
@@ -363,203 +770,413 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
   };
   const paintingPaid = record.portrait.status === "painting";
 
-  // ---- pixel portrait status line --------------------------------------------------------------
-  const portraitLine =
-    avatarStatus === "pending" ? S3.drawing(name) : avatarStatus === "failed" ? S3.drawFailed(name) : "";
+  // ---- the kicker: the meter while the portrait is drawn, then the chip ------------------------------
+  // Segment 3 fills when the frame shows the portrait (its landing), not when the record says "ready".
+  const avatarShown = avatarStatus === "ready" && (!clocked || landed);
+  const portraitSegment: SegmentState =
+    avatarStatus === "failed" ? "failed" : avatarShown || avatarStatus === "none" ? "done" : "active";
+  const meterText =
+    avatarStatus === "failed" ? S3.drawFailed(name) : avatarShown || avatarStatus === "none" ? S2.meter.ready : S2.meter.painting;
+  // A returning visit, a manual cat, or a landed portrait once the clock has ended: the chip "In the game".
+  const showChip = !clocked || manual || avatarStatus === "none" || (avatarShown && phase === "done");
 
   const ready = !!current && !nameSettling;
-  // Sticks once a card exists, and stays stuck while a new name's card is drawn (no jumping bar).
-  const stickActions = !!current;
-  const showFileButtons = !inApp && !failed;
+  const fileOk = !inApp && !failed;
+  // Share where Web Share takes the file, else Download; Copy link where no file can leave (in-app, no canvas).
+  // Until the card exists the button keeps its own label, disabled (no width jump in the row); it says
+  // "Preparing card…" only once the card is late (CARD_LATE_MS after the show), like the card slot.
+  const fileLabel = canShare ? S3.share : S3.download;
+  const primary = fileOk ? (
+    <PrimaryAction text={!ready && cardLate && cardMissing ? S3.preparing : fileLabel} disabled={!ready} onClick={canShare ? onShare : onDownload} />
+  ) : (
+    <PrimaryAction text={S3.copyLink} onClick={() => void onCopy()} />
+  );
+  const playLink = (
+    <Link href="/game" className={NIGHT_PILL}>
+      {S3.play(name)}
+    </Link>
+  );
+  const copyButton = (
+    <button type="button" className={NIGHT_PILL} onClick={() => void onCopy()}>
+      {S3.copyLink}
+    </button>
+  );
+  const stickBar = phone && showOver && (!!current || failed);
+  const meetingTitle = meetCat ? S3.meeting.title(name, meetCat.name) : null;
+  const plate = meetCat ? shelterPlate(meetCat.name, S3.meeting.frameAlt) : "";
+  const coatLine = S3.coatLine(name, record.family, family, manual);
 
   return (
-    <section ref={sectionRef} className="flex min-h-[100svh] w-full flex-col items-center gap-6" data-testid="yourcat-reveal">
-      <ScreenHeading ref={ref}>{S3.title(name)}</ScreenHeading>
-
-      {/* Phones too: the frame and the playable cat side by side (about 60/40), so the card comes sooner. */}
-      <div className="flex w-full flex-row items-end justify-center gap-3 md:gap-4">
-        <div className="w-3/5 min-w-0 md:w-full md:max-w-[384px]">
-          <RevealFrame
-            photoUrl={photoUrl}
-            avatarUrl={avatarUrl}
-            spriteImg={record.cat.spriteImg}
-            animate={fresh}
-            reducedMotion={reducedMotion}
-            label={`${sentenceName(name)}, ${family} pixel cat`}
-          />
-        </div>
-        <PlayableCat catImg={record.cat.catImg} spriteImg={record.cat.spriteImg} name={name} reducedMotion={reducedMotion} />
-      </div>
-
-      <p className={CAPTION} aria-live="polite" data-testid="yourcat-portrait-status">
-        {portraitLine}
-      </p>
-      <p className={`${BODY} max-w-xl text-center`}>{manual ? S3.picked(name, family) : S3.matched(name, family)}</p>
-
-      <div className="flex w-full max-w-md flex-col gap-1">
-        <label htmlFor="yourcat-card-name" className="text-p5 md:text-p4 text-tt-cream">
-          {S3.nameLabel}
-        </label>
-        <input
-          id="yourcat-card-name"
-          className={INPUT}
-          type="text"
-          autoComplete="off"
-          maxLength={NAME_MAX}
-          value={draft}
-          aria-invalid={nameError ? true : undefined}
-          aria-describedby={nameError ? "yourcat-name-error" : undefined}
-          onChange={(event) => {
-            touchedRef.current = true;
-            setDraft(event.target.value.slice(0, NAME_MAX));
-          }}
-          onBlur={() => void save()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void save();
-            }
-          }}
-        />
-        {nameError && (
-          <p id="yourcat-name-error" className={ALERT} role="alert">
-            {nameError}
-          </p>
-        )}
-      </div>
-
-      <div className="flex w-full max-w-xl flex-col items-center gap-4" data-testid="yourcat-share">
-        <div role="radiogroup" aria-label={S3.formatLabel} className="flex gap-3">
-          {(["story", "post"] as const).map((value) => (
-            <label
-              key={value}
-              className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-2 px-3 py-2 text-p5 text-tt-cream focus-within:outline focus-within:outline-2 focus-within:outline-tt-gold-400 ${
-                format === value ? "border-tt-gold-400 bg-tt-night-600" : "border-tt-cream/30"
-              }`}
+    <>
+      <HeadingBlock
+        kicker={
+          showChip ? (
+            <span key="chip" className="yc-fade-in [--yc-dur:220ms]">
+              <ChipCheck>{S2.inGame}</ChipCheck>
+            </span>
+          ) : (
+            <Meter segments={["done", "done", portraitSegment]} text={meterText} />
+          )
+        }
+        after={
+          renaming ? (
+            <form
+              className="flex w-full max-w-md items-start gap-2 self-center xl:self-start"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void save();
+              }}
             >
-              <input type="radio" name="yourcat-format" value={value} checked={format === value} onChange={() => setFormat(value)} className="sr-only" />
-              {value === "story" ? S3.story : S3.post}
-            </label>
-          ))}
-        </div>
-        {shelter && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={withShelter}
-            className="inline-flex min-h-11 items-center gap-3 rounded-xl px-2 text-p5 md:text-p4 text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400"
-            onClick={() => setWithShelter((value) => !value)}
-          >
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <label htmlFor="yourcat-rename" className="sr-only">
+                  {S3.renameLabel}
+                </label>
+                <input
+                  ref={renameRef}
+                  id="yourcat-rename"
+                  className={INPUT}
+                  type="text"
+                  autoComplete="off"
+                  enterKeyHint="done"
+                  maxLength={NAME_MAX}
+                  value={draft}
+                  aria-invalid={nameError ? true : undefined}
+                  aria-describedby={nameError ? "yourcat-name-error" : undefined}
+                  onChange={(event) => {
+                    touchedRef.current = true;
+                    setDraft(event.target.value.slice(0, NAME_MAX));
+                  }}
+                  onBlur={() => void save()}
+                />
+                {nameError && (
+                  <p id="yourcat-name-error" className={ALERT} role="alert">
+                    {nameError}
+                  </p>
+                )}
+              </div>
+              <button type="submit" className={NIGHT_PILL} disabled={saving}>
+                {S3.renameSave}
+              </button>
+            </form>
+          ) : null
+        }
+      >
+        <Headline
+          ref={setHeading}
+          parts={S3.title(name)}
+          className={`${HEADLINE} ${titleIn ? (clocked ? "yc-title yc-glow-on" : "") : "opacity-0"}`}
+        />
+        <button
+          ref={pencilRef}
+          type="button"
+          className={`${NIGHT_PILL} shrink-0 !px-3 ${titleIn ? "" : "invisible"}`}
+          aria-label={S3.rename(name)}
+          aria-expanded={renaming}
+          onClick={() => setRenaming((open) => !open)}
+          data-testid="yourcat-rename"
+        >
+          <Pencil />
+        </button>
+      </HeadingBlock>
+
+      {/* The altar: the visitor's cat on the right once it has stepped out, the cream shelter frame on the left. */}
+      <InSlot slot="cat">
+        {phase !== "pre" && (
+          <div ref={catWrapRef} className="relative" data-testid="yourcat-cat">
+            <PetCat
+              key={`cat-${stepToken}`}
+              spriteImg={record.cat.spriteImg}
+              name={name}
+              labels={{ pet: S3.pet.pet(name), tap: S3.pet.tap(name), purrs: S3.pet.purrs(name) }}
+              scale={{ base: 3, md: 6 }}
+              mode={meeting === "sat" ? "sit" : "idle"}
+              facing={meeting !== "none" ? "left" : "right"}
+              entrance={clocked && stepToken > 0 && !reducedMotion ? "jumpOut" : "none"}
+              heartOnce={heart}
+              walk={walk}
+              reducedMotion={reducedMotion}
+            />
+            {gif > 0 && <StepOutFlare key={`flare-${gif}`} />}
+          </div>
+        )}
+      </InSlot>
+      {meetCat && meeting !== "none" && (
+        <InSlot slot="companion">
+          <div ref={shelterRef} className="yc-slide-in relative -rotate-[4deg] md:rotate-0" data-testid="yourcat-shelter-frame">
+            <Frame tone="cream" inner={{ w: 48, h: 72, mdW: 128, mdH: 192 }} reducedMotion={reducedMotion} label={S3.meeting.frameAlt(meetCat.name)}>
+              {/* The art is cropped to its cat (focus and zoom per painting), so the cat fills the 2:3 glass. */}
+              <img
+                src={meetCat.image}
+                alt=""
+                className="h-full w-full object-cover"
+                style={pinkPawArtStyle(meetCat.name)}
+                onError={() => setArtFailed(true)}
+                data-testid="yourcat-shelter-art"
+              />
+              <span aria-hidden="true" className="absolute inset-0 bg-tt-night-950/25" />
+            </Frame>
+            {/* The cream name plate under the frame: "ZARE · PINK PAW" (two lines on phones, where the frame is narrow). */}
             <span
               aria-hidden="true"
-              className={`relative inline-block h-6 w-11 rounded-full border-2 border-tt-gold-500 ${withShelter ? "bg-tt-gold-400" : "bg-tt-night-600"}`}
+              className="pointer-events-none absolute left-1/2 top-full mt-1.5 flex -translate-x-1/2 flex-col items-center whitespace-nowrap rounded-sm bg-tt-cream px-1.5 py-0.5 text-center font-primary text-p6 uppercase leading-none tracking-wide text-tt-night-900 shadow-[0_2px_0_rgb(var(--tt-night-950)/.5)] md:flex-row md:gap-1 md:px-2 md:py-1"
+              data-testid="yourcat-shelter-plate"
             >
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-tt-night-900 ${withShelter ? "right-0.5" : "left-0.5"}`} />
+              {plate.split(" · ").map((part, index) => (
+                <span key={index} className="flex items-center gap-1">
+                  {index > 0 && <span className="hidden md:inline">·</span>}
+                  {part}
+                </span>
+              ))}
             </span>
-            {S3.shelterSwitch(shelter.name)}
+          </div>
+        </InSlot>
+      )}
+      <InSlot slot="overlay">
+        {phase === "done" && props.canReplay && clocked && !manual && (
+          <button
+            type="button"
+            className={`${NIGHT_PILL} yc-fade-in pointer-events-auto absolute right-2 top-2`}
+            aria-label={S3.replay.aria(name)}
+            onClick={() => {
+              steppedRef.current = false;
+              // The meeting and the controls replay with the clock.
+              meetRunRef.current += 1;
+              setMeeting("none");
+              setWalk(null);
+              setPrintedOnce(false);
+              setPhase("pre");
+              setTitleIn(true);
+              setRuns((value) => value + 1);
+              studio.replay();
+            }}
+            data-testid="yourcat-replay"
+          >
+            {S3.replay.label}
           </button>
         )}
+      </InSlot>
+      <InSlot slot="frameFx">
+        {bursts.map((burst) => (
+          <Burst
+            key={burst.id}
+            count={burst.count}
+            reducedMotion={reducedMotion}
+            onDone={() => setBursts((now) => now.filter((item) => item.id !== burst.id))}
+          />
+        ))}
+      </InSlot>
 
-        <div
-          className={`yc-fade flex w-full items-center justify-center ${inApp ? "max-w-xl" : "max-w-xs"}`}
-          data-testid="yourcat-card-preview"
-        >
-          {preview ? (
-            <img
-              src={preview}
-              alt={S3.cardAlt(name, family)}
-              className="max-h-[55svh] w-full rounded-lg border-2 border-tt-cream/40 object-contain"
-              onContextMenu={inApp ? onLongPress : undefined}
-              onTouchStart={inApp ? startHold : undefined}
-              onTouchEnd={inApp ? endHold : undefined}
-              onTouchMove={inApp ? endHold : undefined}
-              onTouchCancel={inApp ? endHold : undefined}
-            />
-          ) : (
-            <div className={`${CAPTION} flex aspect-[4/5] w-full items-center justify-center rounded-lg border-2 border-dashed border-tt-cream/40`}>
-              {failed ? S3.cardFailed : S3.preparing}
+      {/* The card and its choices: under the stage on phones, column 2 on md+. */}
+      <InSlot slot="panel">
+        <section className="flex w-full flex-col items-center gap-3 xl:items-stretch" data-testid="yourcat-share" aria-label={S3.share}>
+          <CardPreview
+            format={format}
+            current={current}
+            failed={showOver && failed}
+            late={cardLate && cardMissing}
+            wide={inApp}
+            label={S3.cardAlt(name, family)}
+            onLongPress={inApp ? onLongPress : undefined}
+            holdHandlers={
+              inApp ? { onTouchStart: startHold, onTouchEnd: endHold, onTouchMove: endHold, onTouchCancel: endHold } : undefined
+            }
+          />
+          {/* The toggle row: the switch (held in its box until the meeting), and on md+ the Story/Post pills on the right. */}
+          {(toggleRow || !phone) && (
+            <div
+              className={`flex w-full min-h-11 items-center gap-3 ${phone ? "justify-center" : "justify-between"}`}
+              data-testid="yourcat-toggle-row"
+            >
+              {meetCat ? (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={withShelter}
+                  className="inline-flex min-h-11 min-w-0 items-center gap-3 rounded-full px-2 text-left text-p5 md:text-p4 text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-cream"
+                  style={phone ? meetFade : printFade(meetShown && controlsShown, PRINT_STAGGER_MS[1], reducedMotion)}
+                  onClick={() => setWithShelter((value) => !value)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`relative inline-block h-6 w-11 shrink-0 rounded-full border-2 border-tt-gold-500 transition-colors ${
+                      withShelter ? "bg-tt-gold-400" : "bg-tt-night-600"
+                    }`}
+                  >
+                    <span
+                      className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-tt-night-900 transition-transform duration-[180ms] motion-reduce:transition-none"
+                      style={{ transform: withShelter ? "translateX(20px)" : "none", transitionTimingFunction: "cubic-bezier(.34,1.56,.64,1)" }}
+                    />
+                  </span>
+                  {S3.meeting.toggle(meetCat.name)}
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
+              {!phone && <FormatPills format={format} onChange={setFormat} style={printFade(controlsShown, PRINT_STAGGER_MS[0], reducedMotion)} />}
             </div>
           )}
-        </div>
-        {inApp && !failed && (
-          <div className="flex flex-col items-center gap-1 text-center" data-testid="yourcat-long-press">
-            <p className={BODY}>{S3.longPress}</p>
-            <p className={CAPTION}>{S3.inAppHint}</p>
-          </div>
-        )}
-      </div>
+          {inApp && !failed && (
+            <div className="flex flex-col items-center gap-1 text-center" data-testid="yourcat-long-press">
+              <p className={BODY}>{S3.longPress}</p>
+              <p className={CAPTION}>{S3.inAppHint}</p>
+            </div>
+          )}
+          {!phone && (
+            // One row, left-aligned on xl: the primary unscaled and the pills a little narrower, so the three fit 420 px.
+            <div
+              className="flex w-full flex-wrap items-center justify-center gap-3 xl:justify-start [&_.glow-box:hover]:!scale-105 [&_.glow-box]:!scale-100 [&_[data-testid=yourcat-primary]]:mx-0 [&>a]:whitespace-nowrap [&>button]:whitespace-nowrap xl:[&>a]:px-2.5 xl:[&>button]:px-2.5"
+              style={printFade(controlsShown, PRINT_STAGGER_MS[2], reducedMotion)}
+              data-testid="yourcat-actions"
+              data-sticky="false"
+              data-shown={controlsShown ? "true" : "false"}
+            >
+              {primary}
+              {fileOk && copyButton}
+              {playLink}
+            </div>
+          )}
+          {copyFallback && (
+            <div className="flex w-full flex-col gap-1">
+              <input ref={copyFieldRef} className={INPUT} readOnly value={copyFallback} aria-describedby="yourcat-copy-hint" />
+              <p id="yourcat-copy-hint" className={CAPTION}>
+                {S3.copyFallback}
+              </p>
+            </div>
+          )}
+        </section>
+      </InSlot>
 
-      {/* The card's actions. On phones, once the card is ready, they stick to the bottom of the screen
-          while the reveal scrolls (a sticky child of the whole section, so nothing is duplicated). */}
-      <div
-        className={`flex w-full flex-col items-center gap-3 ${
-          stickActions
-            ? "max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:w-[calc(100%+2rem)] max-md:border-t-2 max-md:border-tt-cream/30 max-md:bg-tt-night-900/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            : ""
-        }`}
-        data-testid="yourcat-actions"
-        data-sticky={stickActions ? "true" : "false"}
-      >
-        <div className="flex flex-wrap justify-center gap-3">
-          {showFileButtons && canShare && (
-            <button type="button" className={GOLD_BUTTON} disabled={!ready} onClick={onShare}>
-              {ready ? S3.share : S3.preparing}
-            </button>
-          )}
-          {showFileButtons && (
-            <button type="button" className={canShare ? GHOST_BUTTON : GOLD_BUTTON} disabled={!ready} onClick={onDownload}>
-              {ready ? S3.download : S3.preparing}
-            </button>
-          )}
-          <button type="button" className={GHOST_BUTTON} onClick={() => void onCopy()}>
-            {S3.copyLink}
-          </button>
-        </div>
-        {copyFallback && (
-          <div className="flex w-full flex-col gap-1">
-            <input ref={copyFieldRef} className={INPUT} readOnly value={copyFallback} aria-describedby="yourcat-copy-hint" />
-            <p id="yourcat-copy-hint" className={CAPTION}>
-              {S3.copyFallback}
+      {/* The meeting block, the footer line and the guest note: column 1 under the stage on md+. */}
+      <InSlot slot="extras">
+        <div className="mt-4 flex w-full flex-col gap-4 xl:mt-6" data-testid="yourcat-reveal">
+          <section
+            className={`${PANEL} flex flex-col gap-2`}
+            style={meetFade}
+            aria-hidden={meetShown ? undefined : true}
+            data-testid="yourcat-meeting"
+            data-shown={meetShown ? "true" : "false"}
+          >
+            <p className={BODY} data-testid="yourcat-coat-line">
+              {coatLine}
             </p>
-          </div>
+            {meetCat && meetingTitle && (
+              <>
+                <Headline level={2} parts={meetingTitle} />
+                <p className={BODY}>{S3.meeting.body(meetCat.name)}</p>
+              </>
+            )}
+          </section>
+
+          <p className="flex flex-wrap items-center justify-center gap-x-2 text-p6 xl:justify-start" data-testid="yourcat-footer-line">
+            {record.photo.stored || record.avatar.status !== "none" ? (
+              <>
+                <button ref={deleteLinkRef} type="button" className={TEXT_LINK} onClick={openDialog}>
+                  {S3.deleteLink}
+                </button>
+                <span aria-hidden="true" className="text-tt-muted">
+                  ·
+                </span>
+              </>
+            ) : null}
+            <button type="button" className={TEXT_LINK} onClick={onStartOver}>
+              {uploadsOpen ? STATUS_COPY.startOver : STATUS_COPY.startOverPlain}
+            </button>
+          </p>
+
+          {props.isGuest && (
+            <div className="flex flex-col gap-1 text-center xl:text-left" data-testid="yourcat-guest-note">
+              <p className={CAPTION}>
+                {S3.guestNote(name)}{" "}
+                <button type="button" className={INLINE_LINK} onClick={props.onCreateAccount}>
+                  {S3.createAccount}
+                </button>
+              </p>
+              <p className="text-p6 text-tt-muted">{S3.guestCaveat(name)}</p>
+            </div>
+          )}
+          {/* Room for the sticky bar, so it never covers the last line. */}
+          {stickBar && <div aria-hidden="true" className="h-20 md:hidden" />}
+        </div>
+      </InSlot>
+
+      {stickBar &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="yc-bar-in fixed inset-x-0 bottom-0 z-40 border-t-2 border-tt-gold-400/30 bg-tt-night-900/95 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden"
+            data-testid="yourcat-actions"
+            data-sticky="true"
+          >
+            <div className="mx-auto flex max-w-md items-center justify-between gap-2">
+              {/* The landing button at its unscaled size, so three actions fit a 360 px bar. */}
+              <div className="flex min-w-0 flex-1 justify-start [&_.glow-box:hover]:!scale-105 [&_.glow-box]:!scale-100 [&_[data-testid=yourcat-primary]]:mx-0">
+                {primary}
+              </div>
+              {playLink}
+              <button
+                ref={moreRef}
+                type="button"
+                className={NIGHT_PILL}
+                aria-haspopup="dialog"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen(true)}
+              >
+                {S3.more.label}
+              </button>
+            </div>
+          </div>,
+          document.body,
         )}
-      </div>
-
-      <Link href="/game" className={GHOST_BUTTON}>
-        {S3.play(name)}
-      </Link>
-
-      {props.isGuest && (
-        <p className={`${CAPTION} max-w-xl text-center`} data-testid="yourcat-guest-note">
-          {S3.guestNote(name)}{" "}
-          <button type="button" className={INLINE_LINK} onClick={props.onCreateAccount}>
-            {S3.createAccount}
-          </button>
-        </p>
+      {moreOpen && (
+        <MoreSheet
+          onClose={() => {
+            setMoreOpen(false);
+            setTimeout(() => moreRef.current?.focus(), 0);
+          }}
+        >
+          <FormatPills format={format} onChange={setFormat} />
+          {fileOk && (
+            <button type="button" className={NIGHT_PILL} disabled={!ready} onClick={onDownload}>
+              {S3.download}
+            </button>
+          )}
+          {copyButton}
+        </MoreSheet>
       )}
 
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        {record.photo.stored || record.avatar.status !== "none" ? (
-          <button ref={deleteLinkRef} type="button" className={`${TEXT_LINK} text-p6`} onClick={openDialog}>
-            {S3.deleteLink}
-          </button>
-        ) : null}
-        <button type="button" className={`${TEXT_LINK} text-p6`} onClick={onStartOver}>
-          {uploadsOpen ? STATUS_COPY.startOver : STATUS_COPY.startOverPlain}
-        </button>
-      </div>
       {confirming && (
         <ConfirmDialog
           text={S3.deleteConfirm(name, family)}
           extra={paintingPaid ? S3.deletePaidPending : undefined}
           error={deleteError ? S3.deleteFailed : null}
           busy={deleting}
-          confirm={S3.deleteYes}
-          cancel={S3.deleteNo}
           onClose={closeDialog}
           onConfirm={() => void confirmDelete()}
         />
       )}
-    </section>
+    </>
   );
 });
+
+/** The level-up flare at the cat's paws: one play at 1.5x, then gone (§4.2). Its own alpha, no blend mode. */
+function StepOutFlare() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setOn(false), STEP_OUT_GIF_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!on) return null;
+  return (
+     
+    <img
+      src={STEP_OUT_GIF}
+      alt=""
+      aria-hidden="true"
+      width={96}
+      height={96}
+      className="pixelated pointer-events-none absolute left-1/2 -translate-x-1/2"
+      style={style({ bottom: -24 })}
+      data-testid="yourcat-flare"
+    />
+  );
+}

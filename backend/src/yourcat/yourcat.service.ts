@@ -37,12 +37,13 @@ import {
     YourcatDeleteView,
     YourcatPortraitStatus,
     YourcatPortraitStyle,
+    YourcatPublicView,
     YourcatStatusView,
     YourcatView,
 } from './yourcat.contracts';
 import { YOURCAT_ERRORS, yourcatError } from './yourcat.errors';
 import { YourcatRepository } from './yourcat.repository';
-import { IYourCat, YourcatSource } from './yourcat.schema';
+import { IYourCat, newShareId, SHARE_ID_PATTERN, YourcatSource } from './yourcat.schema';
 
 /*
  * Bet #3 "your cat is the hero" (docs/plans/yourcat-v2.md). One photo becomes the visitor's playable
@@ -264,6 +265,7 @@ export class YourcatService {
                 source: 'photo',
                 name,
                 named,
+                shareId: newShareId(),
                 family,
                 cat: null,
                 creatingAt: now,
@@ -386,6 +388,7 @@ export class YourcatService {
             source: 'manual',
             name,
             named,
+            shareId: newShareId(),
             family,
             cat: null,
             creatingAt: this.now(),
@@ -971,6 +974,66 @@ export class YourcatService {
             },
             portrait: await this.portraitView(record, now),
             createdAt: new Date(record.createdAt || now).toISOString(),
+            shareId: record.shareId || (await this.backfillShareId(record._id)),
+        };
+    }
+
+    /**
+     * Gives a record made before share links its share id, once: the write only lands while the record
+     * has none, so two parallel reads agree on the winner's id. A duplicate key (a 1 in 2^72 collision) is
+     * retried with a new id.
+     */
+    async backfillShareId(id: Types.ObjectId): Promise<string> {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const candidate = newShareId();
+            try {
+                await this.repository.model.updateOne(
+                    { _id: id, shareId: { $exists: false } },
+                    { $set: { shareId: candidate } }
+                );
+            } catch (error) {
+                if ((error as { code?: number })?.code === 11000) {
+                    continue;
+                }
+                throw error;
+            }
+            const current: any = await this.repository.model.findOne({ _id: id }, { shareId: 1 }).lean();
+            if (current?.shareId) {
+                return current.shareId;
+            }
+            // The record is gone (a placeholder dropped meanwhile): the id is never reachable.
+            return candidate;
+        }
+        throw new Error(`yourcat ${id}: no free share id after 3 tries`);
+    }
+
+    // ----- GET /yourcat/public/:shareId -----
+
+    /**
+     * What a friend who opens a shared link sees (docs/plans/yourcat-polish.md section 8): the name only
+     * when the visitor gave one, the family, the family's sprite, and the pixel portrait only while it is
+     * ready. A record deleted by its owner shows the sprite only; a placeholder, a record removed by
+     * retention, an unknown id and a malformed one (checked before any query) are 404.
+     */
+    async publicView(shareId: unknown): Promise<YourcatPublicView> {
+        if (typeof shareId !== 'string' || !SHARE_ID_PATTERN.test(shareId)) {
+            throw YOURCAT_ERRORS.notFound();
+        }
+        const record: any = await this.repository.model
+            .findOne(
+                { shareId, creatingAt: null },
+                { name: 1, named: 1, family: 1, avatarStatus: 1, avatarUrl: 1, deletedAt: 1, cat: 1 }
+            )
+            .lean();
+        if (!record || !record.cat) {
+            throw YOURCAT_ERRORS.notFound();
+        }
+        const deleted = !!record.deletedAt;
+        return {
+            name: !deleted && record.named ? record.name : null,
+            familyLabel: familyLabel(record.family),
+            avatarUrl: !deleted && record.avatarStatus === 'ready' && record.avatarUrl ? record.avatarUrl : null,
+            spriteImg: familySprites(record.family).spriteImg,
         };
     }
 

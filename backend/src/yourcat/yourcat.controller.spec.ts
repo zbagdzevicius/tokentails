@@ -1,5 +1,6 @@
 import { HttpException } from '@nestjs/common';
 import { GUARDS_METADATA, INTERCEPTORS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { Reflector } from '@nestjs/core';
 import { Types } from 'mongoose';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
@@ -61,7 +62,7 @@ describe('/yourcat', () => {
         const proto = YourcatController.prototype as any;
         const guardsOf = (handler: string) => Reflect.getMetadata(GUARDS_METADATA, proto[handler]) || [];
 
-        it('declares status, me, stats and manual before the :id routes', () => {
+        it('declares status, public/:shareId, me, stats and manual before the :id routes', () => {
             const order = Object.getOwnPropertyNames(proto)
                 .filter(
                     name =>
@@ -70,7 +71,7 @@ describe('/yourcat', () => {
                 )
                 .map(name => Reflect.getMetadata(PATH_METADATA, proto[name]));
             const firstId = order.findIndex(path => String(path).startsWith(':id'));
-            for (const literal of ['status', 'me', 'stats', 'manual']) {
+            for (const literal of ['status', 'public/:shareId', 'me', 'stats', 'manual']) {
                 expect(order.indexOf(literal)).toBeLessThan(firstId);
             }
         });
@@ -87,6 +88,7 @@ describe('/yourcat', () => {
                 expect(guardsOf(handler)).toEqual([AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard]);
             }
             expect(guardsOf('status')).toEqual([]);
+            expect(guardsOf('publicCat')).toEqual([]);
             expect(Reflect.getMetadata('THROTTLER:SKIPdefault', YourcatController)).toBe(true);
         });
 
@@ -880,6 +882,223 @@ describe('/yourcat', () => {
         it('secondsToUtcMidnight', () => {
             expect(secondsToUtcMidnight(new Date('2026-10-11T23:59:59.500Z'))).toBe(1);
             expect(secondsToUtcMidnight(new Date('2026-10-11T00:00:00Z'))).toBe(24 * 60 * 60);
+        });
+    });
+
+    describe('GET /yourcat/public/:shareId (share link, yourcat-polish.md section 8)', () => {
+        const SHARE_ID = /^[A-Za-z0-9_-]{12}$/;
+
+        /** A fake ThrottlerStorage, as in client-ip-throttler.guard.spec.ts. */
+        class FakeStorage {
+            hits = new Map<string, number>();
+            async increment(key: string) {
+                const totalHits = (this.hits.get(key) || 0) + 1;
+                this.hits.set(key, totalHits);
+                return { totalHits, timeToExpire: 60 };
+            }
+        }
+
+        function publicHarness() {
+            const h = harness({ users: [guestUser(), registeredUser()] });
+            const storage = new FakeStorage();
+            const throttler = new ClientIpThrottlerGuard(storage as any, new Reflector());
+            const controller = new YourcatController(h.service, h.budget, throttler);
+            return { h, storage, controller };
+        }
+
+        async function uploadedCat(h: ReturnType<typeof harness>, name?: string) {
+            const view = await h.service.uploadPhoto(
+                h.users.docs[0],
+                uploadReq(),
+                { buffer: await catPhoto() },
+                name ? { ...body, name } : body
+            );
+            await h.service.lastAvatarJob;
+            return view;
+        }
+
+        const res = () => ({
+            headers: {} as Record<string, unknown>,
+            header(k: string, v: unknown) {
+                this.headers[k] = v;
+            },
+        });
+
+        it('is public: no guard list, not in the guest allow list, 60 a minute per IP', () => {
+            const proto = YourcatController.prototype as any;
+            expect(Reflect.getMetadata(GUARDS_METADATA, proto.publicCat) || []).toEqual([]);
+            expect(Reflect.getMetadata(PATH_METADATA, proto.publicCat)).toBe('public/:shareId');
+            expect(Reflect.getMetadata('__headers__', proto.publicCat)).toBeUndefined();
+            expect(YOURCAT_THROTTLES.public).toEqual({ ip: { limit: 60, ttl: 60000 } });
+        });
+
+        it('a photo and a manual cat get a 12-char base64url shareId on create, unique per record', async () => {
+            process.env.AI_MANUAL_USER_DAILY = '5';
+            const { h } = publicHarness();
+            const photo = await uploadedCat(h);
+            const manual = await h.service.createManual(h.users.docs[1], { family: 'OREO' });
+            expect(photo.shareId).toMatch(SHARE_ID);
+            expect(manual.shareId).toMatch(SHARE_ID);
+            expect(photo.shareId).not.toBe(manual.shareId);
+            expect(h.yourcats.docs.map(doc => doc.shareId)).toEqual([photo.shareId, manual.shareId]);
+            // Never derived from the record or the owner.
+            expect(photo.shareId).not.toContain(photo.id.slice(0, 8));
+            expect((await h.service.get(h.users.docs[0], photo.id)).shareId).toBe(photo.shareId);
+        });
+
+        it('an older record without a shareId is backfilled once, atomically, and keeps it', async () => {
+            const { h } = publicHarness();
+            const view = await uploadedCat(h);
+            await h.yourcats.updateOne({}, { $unset: { shareId: 1 } });
+            expect(h.yourcats.docs[0].shareId).toBeUndefined();
+
+            const updateOne = jest.spyOn(h.yourcats, 'updateOne');
+            const [a, b] = await Promise.all([
+                h.service.get(h.users.docs[0], view.id),
+                h.service.get(h.users.docs[0], view.id),
+            ]);
+            expect(a.shareId).toMatch(SHARE_ID);
+            expect(b.shareId).toBe(a.shareId);
+            expect(h.yourcats.docs[0].shareId).toBe(a.shareId);
+            const backfills = updateOne.mock.calls.filter(([filter]: any[]) => filter?.shareId);
+            expect(backfills.every(([filter]: any[]) => JSON.stringify(filter.shareId) === '{"$exists":false}')).toBe(
+                true
+            );
+
+            updateOne.mockClear();
+            expect((await h.service.latest(h.users.docs[0])).item?.shareId).toBe(a.shareId);
+            expect(updateOne).not.toHaveBeenCalled();
+        });
+
+        it('returns only name (when named), familyLabel, avatarUrl (when ready) and spriteImg', async () => {
+            const { h, controller } = publicHarness();
+            const view = await uploadedCat(h, 'Biscuit');
+            const reply = res();
+            const shown = await controller.publicCat(view.shareId, uploadReq(), reply);
+            expect(reply.headers['Cache-Control']).toBe('public, max-age=60');
+            expect(Object.keys(shown).sort()).toEqual(['avatarUrl', 'familyLabel', 'name', 'spriteImg']);
+            expect(shown).toEqual({
+                name: 'Biscuit',
+                familyLabel: view.familyLabel,
+                avatarUrl: h.yourcats.docs[0].avatarUrl,
+                spriteImg: expect.stringContaining('/YELLOW/base.png'),
+            });
+            expect(shown.avatarUrl).toMatch(/^https:\/\/cdn\.test\/yourcat\/avatars\//);
+            const text = JSON.stringify(shown);
+            const record = h.yourcats.docs[0];
+            for (const secret of [
+                view.id,
+                String(record.owner),
+                String(record.cat),
+                record.originalKey,
+                record.originalSha256,
+                'GROOMING',
+                'createdAt',
+                'photo',
+                'owner',
+            ]) {
+                expect(text).not.toContain(secret);
+            }
+        });
+
+        it('name is null until the visitor names the cat; avatarUrl is null until the avatar is ready', async () => {
+            const { h, controller } = publicHarness();
+            h.io.generatePixelAvatar.mockImplementationOnce(async () => null as any);
+            const view = await uploadedCat(h);
+            expect(h.yourcats.docs[0].avatarStatus).toBe('failed');
+            expect(await controller.publicCat(view.shareId, uploadReq(), res())).toMatchObject({
+                name: null,
+                avatarUrl: null,
+            });
+            await h.yourcats.updateOne({}, { $set: { avatarStatus: 'pending', avatarUrl: 'https://cdn.test/x.png' } });
+            expect((await controller.publicCat(view.shareId, uploadReq(), res())).avatarUrl).toBeNull();
+        });
+
+        it('a manual cat shows its sprite and no avatar', async () => {
+            process.env.AI_MANUAL_USER_DAILY = '5';
+            const { h, controller } = publicHarness();
+            const view = await h.service.createManual(h.users.docs[0], { family: 'OREO', name: 'Pip' });
+            expect(await controller.publicCat(view.shareId, uploadReq(), res())).toEqual({
+                name: 'Pip',
+                familyLabel: view.familyLabel,
+                avatarUrl: null,
+                spriteImg: expect.stringContaining('/OREO/base.png'),
+            });
+        });
+
+        it('after DELETE the link shows the sprite only; after retention removes the record it is 404', async () => {
+            const { h, controller } = publicHarness();
+            const view = await uploadedCat(h, 'Biscuit');
+            await h.service.remove(h.users.docs[0], view.id);
+            expect(await controller.publicCat(view.shareId, uploadReq(), res())).toEqual({
+                name: null,
+                familyLabel: view.familyLabel,
+                avatarUrl: null,
+                spriteImg: expect.stringContaining('/YELLOW/base.png'),
+            });
+            await h.yourcats.deleteOne({ _id: h.yourcats.docs[0]._id });
+            expect(await refusal(controller.publicCat(view.shareId, uploadReq(), res()))).toEqual({
+                status: 404,
+                code: 'YOURCAT_NOT_FOUND',
+            });
+        });
+
+        it('a malformed id is 404 before any query; an unknown id and a placeholder are 404', async () => {
+            const { h, controller } = publicHarness();
+            const view = await uploadedCat(h);
+            const findOne = jest.spyOn(h.yourcats, 'findOne');
+            for (const bad of [view.id, 'short', `${view.shareId}x`, 'abc$defghijk', 'abc/defghijk', '']) {
+                expect(await refusal(controller.publicCat(bad, uploadReq(), res()))).toEqual({
+                    status: 404,
+                    code: 'YOURCAT_NOT_FOUND',
+                });
+            }
+            expect(await refusal(h.service.publicView({ $ne: null } as any))).toEqual({
+                status: 404,
+                code: 'YOURCAT_NOT_FOUND',
+            });
+            expect(findOne).not.toHaveBeenCalled();
+
+            const missing = res();
+            expect((await refusal(controller.publicCat('AAAAAAAAAAAA', uploadReq(), missing))).code).toBe(
+                'YOURCAT_NOT_FOUND'
+            );
+            expect(missing.headers['Cache-Control']).toBeUndefined();
+            await h.yourcats.updateOne({}, { $set: { creatingAt: NOW } });
+            expect((await refusal(controller.publicCat(view.shareId, uploadReq(), res()))).code).toBe(
+                'YOURCAT_NOT_FOUND'
+            );
+        });
+
+        it('works with the kill switch off (a link already shared keeps showing the cat)', async () => {
+            const { h, controller } = publicHarness();
+            const view = await uploadedCat(h);
+            process.env.YOURCAT_ENABLED = 'false';
+            expect((await controller.publicCat(view.shareId, uploadReq(), res())).spriteImg).toContain('/base.png');
+        });
+
+        it('is limited to 60 a minute per client IP (429 with Retry-After), counted before any query', async () => {
+            const { h, storage, controller } = publicHarness();
+            const view = await uploadedCat(h);
+            for (let i = 0; i < 60; i++) {
+                await controller.publicCat(view.shareId, uploadReq('198.51.100.9'), res());
+            }
+            const reply = res();
+            await expect(controller.publicCat(view.shareId, uploadReq('198.51.100.9'), reply)).rejects.toBeInstanceOf(
+                ThrottlerException
+            );
+            expect(reply.headers['Retry-After']).toBe(60);
+            expect(reply.headers['Cache-Control']).toBeUndefined();
+            const findOne = jest.spyOn(h.yourcats, 'findOne');
+            await expect(controller.publicCat('AAAAAAAAAAAA', uploadReq('198.51.100.9'), res())).rejects.toBeInstanceOf(
+                ThrottlerException
+            );
+            expect(findOne).not.toHaveBeenCalled();
+            // Another address has its own bucket.
+            await expect(controller.publicCat(view.shareId, uploadReq('198.51.100.10'), res())).resolves.toBeTruthy();
+            expect(
+                [...storage.hits.keys()].every(key => key.startsWith('client-ip-throttle:YourcatController.publicCat:'))
+            ).toBe(true);
         });
     });
 

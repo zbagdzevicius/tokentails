@@ -1,11 +1,15 @@
 /**
- * Share URL and UTM (docs/plans/yourcat-v2.md §5.5).
+ * Share URL and UTM (docs/plans/yourcat-v2.md §5.5, docs/plans/yourcat-polish.md §8).
  *
- * The shared link carries only campaign parameters: no user id, record id or `ref`. On load, the
- * page keeps the incoming `utm_source`, `utm_medium` and `utm_content` (when they look like plain
- * slugs) in sessionStorage for `upload_started`; nothing else reads them.
+ * The shared link carries the campaign parameters and, when the cat has one, `cat=<shareId>`: a
+ * random public share id (12 base64url characters from `crypto.randomBytes(9)` on the server), never
+ * the record id, a user id or a `ref`. A friend who opens it sees the cat's name (only when named),
+ * family and pixel look through `GET /yourcat/public/:shareId`, never the photo. On load, the page
+ * keeps the incoming `utm_source`, `utm_medium` and `utm_content` (when they look like plain slugs)
+ * in sessionStorage for `upload_started`; nothing else reads them.
  */
 import { siteOrigin } from "@/components/seo/site";
+import { isShareId } from "@/models/yourcat";
 
 export type ShareMedium = "card" | "link";
 export type ShareContent = "story" | "post" | "link";
@@ -13,8 +17,28 @@ export type ShareContent = "story" | "post" | "link";
 export const UTM_STORAGE_KEY = "tt.yourcat.utm";
 const UTM_VALUE = /^[a-z0-9_-]{1,32}$/;
 
-export function buildShareUrl(medium: ShareMedium, content: ShareContent, origin: string = siteOrigin()): string {
-  return `${origin}/yourcat?utm_source=share&utm_medium=${medium}&utm_campaign=yourcat&utm_content=${content}`;
+/**
+ * `…/yourcat?cat=<shareId>&utm_source=share&utm_medium=…&utm_campaign=yourcat&utm_content=…`. A missing
+ * or malformed share id is left out (the link then opens the upload page).
+ */
+export function buildShareUrl(
+  medium: ShareMedium,
+  content: ShareContent,
+  shareId?: string | null,
+  origin: string = siteOrigin(),
+): string {
+  const cat = isShareId(shareId) ? `cat=${shareId}&` : "";
+  return `${origin}/yourcat?${cat}utm_source=share&utm_medium=${medium}&utm_campaign=yourcat&utm_content=${content}`;
+}
+
+/** The `cat` parameter of a query string when it is a well-formed share id (`^[A-Za-z0-9_-]{12}$`), else null. */
+export function readShareId(search: string): string | null {
+  try {
+    const value = new URLSearchParams(search).get("cat");
+    return isShareId(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface IncomingUtm {

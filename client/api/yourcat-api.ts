@@ -1,11 +1,13 @@
 import { getLimitedUseAppCheckToken } from "@/context/auth/appCheck";
 import { errorCodeOf, ErrorCode } from "@/shared-contracts/errors";
 import {
+  isShareId,
   isYourcatErrorCode,
   type YourcatCheckoutView,
   type YourcatDeleteView,
   type YourcatErrorCode,
   type YourcatPortraitStyle,
+  type YourcatPublicView,
   type YourcatStatusView,
   type YourcatView,
 } from "@/models/yourcat";
@@ -16,6 +18,7 @@ import { apiFetch, apiUrl, currentAccessToken, getAuthBridge } from "./api";
  * `/yourcat` (bet #3, docs/plans/yourcat-v2.md §2.2):
  *
  *   GET    /yourcat/status                    public: kill switch, budget, families, portrait price
+ *   GET    /yourcat/public/:shareId           public: the friend view of a shared cat (no photo, no ids)
  *   POST   /yourcat                           multipart photo upload (guests allowed)
  *   POST   /yourcat/manual                    { family, name? }: no photo, no AI
  *   GET    /yourcat/me                        { item }: the caller's latest record
@@ -24,7 +27,7 @@ import { apiFetch, apiUrl, currentAccessToken, getAuthBridge } from "./api";
  *   DELETE /yourcat/:id                       deletes the photo and the pixel portrait
  *   POST   /yourcat/:id/portrait-checkout     { style }: a Stripe Checkout URL
  *
- * Every call carries the lowercase `accesstoken` header (the `fb`-prefixed Firebase token). The
+ * Every call except the two public reads carries the lowercase `accesstoken` header (the `fb`-prefixed Firebase token). The
  * upload also sends a limited-use App Check token in `x-firebase-appcheck`, after making sure the
  * guest document exists (`ensureGuestSession`), so a first-time visitor's upload is not refused with
  * 428. Error bodies are `{ statusCode, code, message }` with `YOURCAT_*` codes the client reads
@@ -218,6 +221,16 @@ async function upload(file: Blob, filename: string, options: UploadOptions): Pro
 /** `GET /yourcat/status`: public, so it carries no `accesstoken` (it is often read before sign-in ends). */
 const status = () => json<YourcatStatusView>("/yourcat/status", { method: "GET" }, false, false);
 
+/**
+ * `GET /yourcat/public/:shareId`: the friend view of a shared cat. Unauthenticated: no `accesstoken` and
+ * never a guest session (a friend opening a link creates nothing). A malformed id is refused here as
+ * 404 `YOURCAT_NOT_FOUND`, without a request.
+ */
+const publicCat = async (shareId: string): Promise<YourcatPublicView> => {
+  if (!isShareId(shareId)) throw new YourcatRequestError(404, "code", "YOURCAT_NOT_FOUND", null);
+  return json<YourcatPublicView>(`/yourcat/public/${shareId}`, { method: "GET" }, false, false);
+};
+
 /** `POST /yourcat/manual`. */
 const manual = async (family: string, name?: string): Promise<YourcatView> => {
   await ensureGuest();
@@ -255,6 +268,7 @@ const portraitCheckout = (id: string, style: YourcatPortraitStyle) =>
 
 export const YOURCAT_API = {
   status,
+  publicCat,
   upload,
   manual,
   me,

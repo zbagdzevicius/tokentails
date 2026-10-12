@@ -4,16 +4,27 @@
  *
  * - The status is fetched on mount and again whenever the page becomes visible, so a cached "open"
  *   never hides a spent budget for long.
- * - The pixel portrait is polled at 1.5, 1.5, 1.5, 1.5, 2.5 s, then every 4 s, and stops as soon as
- *   it is `ready` or `failed`, or 60 s after the record was made (the server then reads it as failed).
+ * - When POST /yourcat answers with the pixel portrait still `pending`, S2 stays (R2-01): the meter's
+ *   "Coat" segment fills, the heading says "Almost there", and GET /yourcat/:id is polled every 1.5 s.
+ *   S3 starts once the portrait is `ready` and decoded (or `failed`), or after `PORTRAIT_WAIT_MS`,
+ *   when it falls back to the pending path below.
+ * - On S3 the pixel portrait is polled at 1.5, 1.5, 1.5, 1.5, 2.5 s, then every 4 s, and stops as soon
+ *   as it is `ready` or `failed`, or 60 s after the record was made (the server then reads it as failed).
+ * - The visitor's own daily cap (`*_DAILY_CAP`) is remembered for this tab and UTC day in
+ *   sessionStorage (R2-09): S1 then shows the spent state before another photo is chosen.
  * - The paid return polls every 4 s for up to 10 minutes.
  * - Nothing is polled while the tab is hidden; polling resumes on `visibilitychange`.
+ * - A shared link (`?cat=<shareId>`, docs/plans/yourcat-polish.md §4 S0, §8) opens the friend view:
+ *   the shared cat comes from the public `GET /yourcat/public/:shareId`. A 404, a network error or an
+ *   invalid id drops `cat` from the address (`history.replaceState`, the UTM parameters stay) and
+ *   shows S1 with no message.
  */
 import { analytics } from "@/analytics";
 import { buildGrowthEvent, elapsedSeconds } from "@/analytics/growth-events";
 import { YOURCAT_API, YourcatRequestError } from "@/api/yourcat-api";
-import type { YourcatPortraitStatus, YourcatStatusView, YourcatView } from "@/models/yourcat";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { YourcatPortraitStatus, YourcatPublicView, YourcatStatusView, YourcatView } from "@/models/yourcat";
+import Router from "next/router";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   ERROR_TEXT,
   failureEventCode,
@@ -26,9 +37,55 @@ import {
 import { fetchPinkPawCandidates, type PinkPawCandidate } from "./pinkPawPick";
 import { prepareUpload, type PreparedUpload } from "./prepareUpload";
 import { warmCardFonts } from "./shareCard";
-import { loadUtm, readUtm, storeUtm } from "./utm";
+import { scanRemainingMs } from "./motion";
+import { decodeRevealImage } from "./pixelateReveal";
+import { loadUtm, readShareId, readUtm, storeUtm } from "./utm";
 
-export type Screen = "upload" | "working" | "manual" | "reveal" | "paid";
+export type Screen = "upload" | "working" | "manual" | "reveal" | "paid" | "friend";
+
+/** A shared cat shown on the friend view (S0). */
+export interface FriendCat {
+  shareId: string;
+  view: YourcatPublicView;
+}
+
+/**
+ * Drops `cat` from the address bar and keeps every other parameter (the UTMs). Never throws. Through
+ * the Next router once it is ready (its own hydration update would otherwise put the old query back);
+ * with no router (tests, embeds) through the History API.
+ */
+export function dropShareParam(): void {
+  const run = () => {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has("cat")) return;
+      url.searchParams.delete("cat");
+      const query = url.searchParams.toString();
+      const next = `${url.pathname}${query ? `?${query}` : ""}${url.hash}`;
+      if (Router.router) {
+        void Router.replace(next, undefined, { shallow: true, scroll: false }).catch(() => undefined);
+        return;
+      }
+      window.history.replaceState(window.history.state, "", next);
+    } catch {
+      // An old browser or a sandboxed frame: the address keeps the parameter, the page still shows S1.
+    }
+  };
+  // Wait (briefly) for the router's own query update after hydration, then replace.
+  let tries = 0;
+  const whenReady = () => {
+    try {
+      if (Router.router && !Router.isReady && tries++ < 30) {
+        setTimeout(whenReady, 100);
+        return;
+      }
+    } catch {
+      // No router singleton: the History API path.
+    }
+    run();
+  };
+  whenReady();
+}
 
 /** The avatar poll schedule: 1.5 s four times, then 2.5 s, then every 4 s. */
 export function avatarPollDelay(attempt: number): number {
@@ -38,7 +95,90 @@ export function avatarPollDelay(attempt: number): number {
 }
 
 export const AVATAR_DEADLINE_MS = 60_000;
+/** The S2 scan's period before and after the body has left (§4 S2 beats A and B). */
+export const SCAN_PERIOD_MS = { sending: 1800, sent: 1200 } as const;
+/** The longest the visual screen waits for the scan pass to end before S3 (§4 S2 "Response arrives"). */
+export const SCAN_HOLD_CAP_MS = 400;
 export const PAID_POLL_MS = 4000;
+/** S2's wait for the pixel portrait after POST answered `pending` (R2-01): the poll and the cap. */
+export const PORTRAIT_POLL_MS = 1500;
+export const PORTRAIT_WAIT_MS = 25_000;
+
+// ---- S2 "Almost there" (R2-01) ---------------------------------------------------------------------
+
+/**
+ * Whether S2 is waiting for the pixel portrait. The hook returns it as `portraitWait`; it is also kept
+ * here so `WorkingStep` can read it without a new prop through the page (`usePortraitWait`).
+ */
+let portraitWaitNow = false;
+const portraitWaitListeners = new Set<() => void>();
+function setPortraitWaitStore(value: boolean) {
+  if (portraitWaitNow === value) return;
+  portraitWaitNow = value;
+  portraitWaitListeners.forEach((listener) => listener());
+}
+function subscribePortraitWait(listener: () => void) {
+  portraitWaitListeners.add(listener);
+  return () => {
+    portraitWaitListeners.delete(listener);
+  };
+}
+/** True while S2 holds for the pixel portrait ("Almost there"). */
+export function usePortraitWait(): boolean {
+  return useSyncExternalStore(subscribePortraitWait, () => portraitWaitNow, () => false);
+}
+
+// ---- the visitor's own daily cap (R2-09) -----------------------------------------------------------
+
+export const OWN_CAP_KEY = "tt-yourcat-own-cap";
+const OWN_CAP_CODES = new Set(["YOURCAT_IP_DAILY_CAP", "YOURCAT_USER_DAILY_CAP", "YOURCAT_FAILURE_DAILY_CAP"]);
+/** The server's day (the caps are counted per UTC day). */
+const utcDay = (now: number) => new Date(now).toISOString().slice(0, 10);
+
+/** True when this failure is the visitor's own daily cap. */
+export function isOwnCap(failure: RequestFailure | null | undefined): boolean {
+  return !!failure && failure.kind === "code" && OWN_CAP_CODES.has(failure.code);
+}
+
+/** Remembers the cap for this tab and UTC day. Never throws (private mode, blocked storage). */
+export function rememberOwnCap(now: number = Date.now()): void {
+  try {
+    window.sessionStorage.setItem(OWN_CAP_KEY, utcDay(now));
+  } catch {
+    // Not remembered: S1 offers the upload again and the server answers with the cap.
+  }
+}
+
+/**
+ * Whether the visitor's own cap is reached in this tab today. The hook returns it as `ownCapped`; it is
+ * also kept here so `UploadStep` and `WorkingStep` can read it without a new prop (`useOwnCapped`).
+ */
+let ownCappedNow = false;
+const ownCappedListeners = new Set<() => void>();
+function setOwnCappedStore(value: boolean) {
+  if (ownCappedNow === value) return;
+  ownCappedNow = value;
+  ownCappedListeners.forEach((listener) => listener());
+}
+function subscribeOwnCapped(listener: () => void) {
+  ownCappedListeners.add(listener);
+  return () => {
+    ownCappedListeners.delete(listener);
+  };
+}
+/** True once the visitor's own daily cap is known for this tab today (S1 shows the spent state). */
+export function useOwnCapped(): boolean {
+  return useSyncExternalStore(subscribeOwnCapped, () => ownCappedNow, () => false);
+}
+
+/** True while a cap remembered in this tab is from the current UTC day. Never throws. */
+export function ownCapToday(now: number = Date.now()): boolean {
+  try {
+    return window.sessionStorage.getItem(OWN_CAP_KEY) === utcDay(now);
+  } catch {
+    return false;
+  }
+}
 export const PAID_POLL_LIMIT_MS = 10 * 60_000;
 
 /** The moment the avatar poll gives up: 60 s after the record was made, never later than 60 s after it arrived. */
@@ -78,6 +218,10 @@ export interface YourcatOptions {
   isApp: boolean;
   /** Called with every record the server returns (the page updates the profile). */
   onRecord?: (view: YourcatView, change: "created" | "renamed" | "loaded") => void;
+  /** Reduced motion: no S2 scan, so a response shows S3 at once. */
+  reducedMotion?: boolean;
+  /** Runs right before a fresh S3 replaces S2 (the page scrolls the stage into view before the clock). */
+  beforeReveal?: () => void;
 }
 
 export interface UploadTiming {
@@ -87,7 +231,40 @@ export interface UploadTiming {
   revealedAt: number | null;
 }
 
-export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * S2's wait for the pixel portrait (R2-01): GET /yourcat/:id every `PORTRAIT_POLL_MS` (none while the
+ * tab is hidden). Resolves with the record once the portrait is `ready` and its image has decoded (a
+ * portrait that will not decode still goes: the clock loads it itself), as soon as it is `failed`, or
+ * with the last record seen once `PORTRAIT_WAIT_MS` has passed. `live()` false ends it early.
+ */
+export async function waitForPortrait(view: YourcatView, live: () => boolean): Promise<YourcatView> {
+  const deadline = Date.now() + PORTRAIT_WAIT_MS;
+  let latest = view;
+  for (;;) {
+    const left = deadline - Date.now();
+    if (left <= 0) return latest;
+    await wait(Math.min(PORTRAIT_POLL_MS, left));
+    if (!live() || Date.now() >= deadline) return latest;
+    if (isHidden()) continue;
+    let next: YourcatView;
+    try {
+      next = await YOURCAT_API.get(view.id);
+    } catch {
+      continue;
+    }
+    if (!live()) return latest;
+    latest = next;
+    if (next.avatar.status === "ready" && next.avatar.url) {
+      await decodeRevealImage(next.avatar.url);
+      return next;
+    }
+    if (next.avatar.status !== "pending") return next;
+  }
+}
+
+export function useYourcat({ authReady, isApp, onRecord, reducedMotion = false, beforeReveal }: YourcatOptions) {
   const [status, setStatus] = useState<YourcatStatusView | null>(null);
   const [statusFailed, setStatusFailed] = useState(false);
   const [booting, setBooting] = useState(true);
@@ -97,6 +274,8 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   const [fresh, setFresh] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  /** POST /yourcat has answered with the cat (the meter's "Coat" segment), before S3 shows. */
+  const [responded, setResponded] = useState(false);
   const [error, setError] = useState<UploadErrorState | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pendingName, setPendingName] = useState("");
@@ -109,22 +288,49 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   const [deleted, setDeleted] = useState(false);
   /** The shown cat came from the manual pick (§1.5): S3 says it was picked, not matched. */
   const [manual, setManual] = useState(false);
+  /** A manual cat made on this page view: S3 runs the short gather and step-out once. */
+  const [manualFresh, setManualFresh] = useState(false);
+  /** The friend's shared cat (S0), and whether the friend view is the screen shown. */
+  const [friend, setFriend] = useState<FriendCat | null>(null);
+  const [friendOpen, setFriendOpen] = useState(false);
+  /** A `?cat=` link is still being read: the page keeps S1 until it answers. */
+  const [friendPending, setFriendPending] = useState(false);
+  /** S2 holds for the pixel portrait after POST answered `pending` (R2-01). */
+  const [portraitWait, setPortraitWaitState] = useState(false);
+  /** The visitor's own daily cap was reached in this tab today (R2-09): uploads read as closed. */
+  const [ownCapped, setOwnCappedState] = useState(false);
 
   /** The prepared file and how it was chosen, kept for "Try again". */
   const preparedRef = useRef<{ prepared: PreparedUpload; source: "picker" | "drop" } | null>(null);
   const pendingNameRef = useRef("");
   const candidatesRef = useRef<Promise<PinkPawCandidate[]> | null>(null);
   const onRecordRef = useRef(onRecord);
+  const motionRef = useRef({ reducedMotion, beforeReveal });
   const mountedRef = useRef(true);
+  /** Each upload attempt's number: a newer attempt (or unmount) ends an older one's portrait wait. */
+  const runRef = useRef(0);
+  const setPortraitWait = useCallback((value: boolean) => {
+    setPortraitWaitState(value);
+    setPortraitWaitStore(value);
+  }, []);
+  const setOwnCapped = useCallback((value: boolean) => {
+    setOwnCappedState(value);
+    setOwnCappedStore(value);
+  }, []);
   useEffect(() => {
     onRecordRef.current = onRecord;
+    motionRef.current = { reducedMotion, beforeReveal };
   });
   useEffect(() => {
     mountedRef.current = true;
+    // Read after mount (the static export renders without storage), before the status answers.
+    if (ownCapToday()) setOwnCapped(true);
     return () => {
       mountedRef.current = false;
+      setPortraitWaitStore(false);
+      setOwnCappedStore(false);
     };
-  }, []);
+  }, [setOwnCapped]);
 
   const setRecord = useCallback((view: YourcatView | null) => {
     setRecordState(view);
@@ -152,6 +358,39 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
     if (typeof window !== "undefined") storeUtm(readUtm(window.location.search));
     void loadStatus();
   }, [loadStatus]);
+
+  // ---- a friend's shared cat (S0) ----------------------------------------------------------------
+
+  useEffect(() => {
+    if (isApp || typeof window === "undefined") return;
+    const search = window.location.search;
+    const shareId = readShareId(search);
+    if (!shareId) {
+      // `?cat=` with an invalid id: drop it quietly and show S1.
+      if (new URLSearchParams(search).has("cat")) dropShareParam();
+      return;
+    }
+    let cancelled = false;
+     
+    setFriendPending(true);
+    // Public and unauthenticated: no guest session or accesstoken is needed to look at a friend's cat.
+    YOURCAT_API.publicCat(shareId).then(
+      (view) => {
+        if (cancelled || !mountedRef.current) return;
+        setFriend({ shareId, view });
+        setFriendOpen(true);
+        setFriendPending(false);
+      },
+      () => {
+        if (cancelled || !mountedRef.current) return;
+        dropShareParam();
+        setFriendPending(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [isApp]);
 
   // ---- the visitor's record, the paid return -------------------------------------------------
 
@@ -204,10 +443,15 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   /** Sends the prepared file. Every attempt, the first and each "Try again", reports `upload_started`. */
   const runUpload = useCallback(
     async (prepared: PreparedUpload, source: "picker" | "drop") => {
+      const run = ++runRef.current;
+      const live = () => mountedRef.current && runRef.current === run;
       setError(null);
       setSent(false);
+      setResponded(false);
+      setPortraitWait(false);
       setScreen("working");
       const startedAt = Date.now();
+      let sentNow = false;
       analytics.track(
         buildGrowthEvent("upload_started", {
           surface: "yourcat",
@@ -221,9 +465,13 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
       try {
         const view = await YOURCAT_API.upload(prepared.file, prepared.filename, {
           noticeVersion: PRIVACY_NOTICE_VERSION,
-          onSent: () => mountedRef.current && setSent(true),
+          onSent: () => {
+            sentNow = true;
+            if (mountedRef.current) setSent(true);
+          },
         });
-        if (!mountedRef.current) return;
+        if (!live()) return;
+        setResponded(true);
         analytics.track(
           buildGrowthEvent("upload_done", {
             surface: "yourcat",
@@ -233,10 +481,33 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
             seconds: elapsedSeconds(startedAt),
           }),
         );
-        setRecord(view);
+        // R2-01: the portrait is still being drawn. S2 stays ("Almost there") and polls, so the reveal
+        // lands on the real portrait; after `PORTRAIT_WAIT_MS` S3 takes the pending path instead.
+        let shown = view;
+        if (view.avatar.status === "pending") {
+          setPortraitWait(true);
+          shown = await waitForPortrait(view, live);
+          if (!live()) return;
+        }
+        // The visual screen holds until the current scan pass ends (at most 400 ms), so S3 starts on a
+        // clean frame instead of cutting a pass in half. Reduced motion has no scan, so no hold.
+        if (!motionRef.current.reducedMotion) {
+          const hold = scanRemainingMs(
+            startedAt,
+            sentNow ? SCAN_PERIOD_MS.sent : SCAN_PERIOD_MS.sending,
+            Date.now(),
+            SCAN_HOLD_CAP_MS,
+          );
+          if (hold > 0) await wait(hold);
+          if (!live()) return;
+        }
+        motionRef.current.beforeReveal?.();
+        setPortraitWait(false);
+        setRecord(shown);
         setFresh(true);
         setManual(false);
-        onRecordRef.current?.(view, "created");
+        setManualFresh(false);
+        onRecordRef.current?.(shown, "created");
         setTiming((current) => ({ ...current, revealedAt: Date.now() }));
         // The name typed during the wait is saved once the record exists; S3 shows at once.
         const name = pendingNameRef.current.trim();
@@ -260,7 +531,8 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
         }
         setScreen("reveal");
       } catch (caught) {
-        if (!mountedRef.current) return;
+        if (!live()) return;
+        setPortraitWait(false);
         const failure: RequestFailure =
           caught instanceof YourcatRequestError ? caught.failure : { kind: "network" };
         analytics.track(
@@ -272,19 +544,28 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
           }),
         );
         setError({ copy: uploadErrorCopy(failure), failure });
+        // The visitor's own cap: S1 shows the spent state until the server's day ends (R2-09).
+        if (isOwnCap(failure)) {
+          rememberOwnCap();
+          setOwnCapped(true);
+        }
         // The budget or the kill switch may have changed: the S1 state follows the server.
         if (failure.kind === "code" && (failure.code === "YOURCAT_BUDGET_EXHAUSTED" || failure.code === "YOURCAT_DISABLED")) {
           void loadStatus();
         }
       }
     },
-    [loadStatus, setRecord],
+    [loadStatus, setRecord, setPortraitWait, setOwnCapped],
   );
 
   const chooseFile = useCallback(
     async (file: File, source: "picker" | "drop") => {
       setFileError(null);
       setError(null);
+      if (friendOpen) {
+        setFriendOpen(false);
+        dropShareParam();
+      }
       const selectedAt = Date.now();
       const prepared = await prepareUpload(file);
       if (!mountedRef.current) return;
@@ -304,7 +585,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
       warmCardFonts();
       await runUpload(prepared, source);
     },
-    [runUpload],
+    [friendOpen, runUpload],
   );
 
   const retry = useCallback(() => {
@@ -319,7 +600,15 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
 
   const openManual = useCallback(() => {
     setError(null);
+    setFriendOpen(false);
     setScreen("manual");
+  }, []);
+
+  /** The friend view's "See your cat": the visitor's own S3. */
+  const showOwnCat = useCallback(() => {
+    setFriendOpen(false);
+    dropShareParam();
+    setScreen("reveal");
   }, []);
 
   const updatePendingName = useCallback((name: string) => {
@@ -358,6 +647,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
         setRecord(view);
         setFresh(false);
         setManual(true);
+        setManualFresh(true);
         setTiming({ selectedAt: null, revealedAt: null });
         onRecordRef.current?.(view, "created");
         if (!candidatesRef.current) candidatesRef.current = fetchPinkPawCandidates();
@@ -413,6 +703,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   );
 
   const startOver = useCallback(() => {
+    setFriendOpen(false);
     setScreen("upload");
     setError(null);
     setFileError(null);
@@ -607,17 +898,37 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
   /** The avatar state as the page shows it: a portrait still pending after the deadline reads as failed. */
   const avatarStatus = record ? (record.avatar.status === "pending" && avatarTimedOut ? "failed" : record.avatar.status) : "none";
 
+  // The friend view sits in front of S1 and of a returning visitor's S3 (never an upload, the manual
+  // pick or the paid return).
+  const shownScreen: Screen =
+    friendOpen && friend && (screen === "upload" || (screen === "reveal" && !fresh)) ? "friend" : screen;
+
+  // The visitor's own cap closes uploads for them today, wherever the page asks `uploadsOpen` (R2-09).
+  const shownStatus = status && ownCapped && status.uploadsOpen ? { ...status, uploadsOpen: false } : status;
+
   return {
-    status,
+    status: shownStatus,
     statusFailed,
     avatarStatus,
     booting,
-    screen,
+    screen: shownScreen,
     record,
+    /** The random public id of the visitor's cat, for the per-cat share link (§8). */
+    shareId: record?.shareId ?? null,
+    friend,
+    friendPending,
+    /** "Watch again" re-runs the step-out from the photo still in memory (a fresh upload this page view). */
+    canReplay: fresh && !!photoUrl,
     fresh,
     manual,
+    manualFresh,
     photoUrl,
     sent,
+    responded,
+    /** S2 holds for the pixel portrait ("Almost there", R2-01). */
+    portraitWait,
+    /** The visitor's own daily cap was reached in this tab today (R2-09). */
+    ownCapped,
     error,
     fileError,
     pendingName,
@@ -639,6 +950,7 @@ export function useYourcat({ authReady, isApp, onRecord }: YourcatOptions) {
       showCard,
       refreshFromServer,
       shelterCandidates,
+      showOwnCat,
       clearFileError: () => setFileError(null),
     },
   };

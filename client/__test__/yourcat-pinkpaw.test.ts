@@ -1,12 +1,16 @@
 /**
  * The Pink Paw cat on the share card (bet #3, docs/plans/yourcat-v2.md §5.4): only licensed cats still
  * at the shelter (WAITING or RECOVERING), never adopted, HEAVEN or unknown-status cats, never a bundled
- * fallback, and a stable pick per record.
+ * fallback, and a stable pick per record. Each painting is cropped to its cat on the stage (R2-02).
  */
 import {
   fetchPinkPawCandidates,
   fnv1a,
   pickPinkPawCat,
+  PINK_PAW_ART_FOCUS,
+  PINK_PAW_CARD_IMAGES,
+  pinkPawArtFocus,
+  pinkPawArtStyle,
   pinkPawCandidates,
   type PinkPawCandidate,
 } from "@/components/yourcat/pinkPawPick";
@@ -117,5 +121,26 @@ describe("pick", () => {
   it("fnv1a matches the reference value", () => {
     expect(fnv1a("")).toBe(0x811c9dc5);
     expect(fnv1a("a")).toBe(0xe40c292c);
+  });
+});
+
+describe("the art crop on the stage (R2-02)", () => {
+  it("has a focus for every licensed painting, and only for those", () => {
+    expect(Object.keys(PINK_PAW_ART_FOCUS).sort()).toEqual(Object.keys(PINK_PAW_CARD_IMAGES).sort());
+  });
+
+  it("keeps each focus inside the art and zooms in a little, never out", () => {
+    for (const [name, focus] of Object.entries(PINK_PAW_ART_FOCUS)) {
+      expect({ name, x: focus.x >= 20 && focus.x <= 80, y: focus.y >= 20 && focus.y <= 80 }).toEqual({ name, x: true, y: true });
+      expect({ name, zoom: focus.zoom >= 1 && focus.zoom <= 1.6 }).toEqual({ name, zoom: true });
+    }
+  });
+
+  it("styles the img: object-position and transform-origin on the focus, scaled by the zoom", () => {
+    expect(pinkPawArtStyle("Zare")).toEqual({ objectPosition: "44% 58%", transformOrigin: "44% 58%", transform: "scale(1.2)" });
+    expect(pinkPawArtStyle(" JUDAS ")).toEqual({ objectPosition: "44% 60%", transformOrigin: "44% 60%", transform: "scale(1.4)" });
+    // Any other cat keeps the plain centre crop, unscaled.
+    expect(pinkPawArtFocus("Murka")).toEqual({ x: 50, y: 50, zoom: 1 });
+    expect(pinkPawArtStyle("Murka")).toEqual({ objectPosition: "50% 50%", transformOrigin: "50% 50%" });
   });
 });

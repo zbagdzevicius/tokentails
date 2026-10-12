@@ -49,6 +49,18 @@ export interface YourcatView {
     photo: { stored: boolean; deleteAfter: string | null }; // ISO date; never a URL
     portrait: { status: YourcatPortraitStatus; style: YourcatPortraitStyle | null; url: string | null };
     createdAt: string;
+    shareId: string; // random public id for the friend link /yourcat?cat=<shareId>; never the record or user id
+}
+
+/**
+ * `GET /yourcat/public/:shareId`: what a friend who opens a shared link sees. Never the photo, the owner,
+ * the record id, dates or `catImg`.
+ */
+export interface YourcatPublicView {
+    name: string | null; // null unless the visitor named the cat
+    familyLabel: string; // e.g. 'Ginger'
+    avatarUrl: string | null; // null unless the pixel portrait is ready (and not deleted)
+    spriteImg: string; // the family's base sheet
 }
 
 export interface YourcatCheckoutView {

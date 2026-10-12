@@ -712,6 +712,16 @@ One photo becomes the visitor's playable cat (docs/plans/yourcat-v2.md; routes i
   `onboarding: done` set). A registered account gets one photo cat, reused by later uploads, and a
   `pending` onboarding is set done. No score, Game row or `lastPlayedAt` is touched, and the free path
   never calls `createBlessingWithCat`.
+- Share link (docs/plans/yourcat-polish.md §8): every record gets a random `shareId` (12 base64url
+  characters from `crypto.randomBytes(9)`, unique sparse index) on create, photo and manual; a record
+  made before share links gets one lazily in `YourcatService.view()` through one atomic
+  `updateOne({ _id, shareId: { $exists: false } })`, so parallel reads agree. The friend link is
+  `/yourcat?cat=<shareId>&utm_source=share&…`, never the record or a user id. `GET
+  /yourcat/public/:shareId` (public, 60/min per client IP counted in the handler like `status`,
+  `Cache-Control: public, max-age=60` on success) checks the id format before any query and returns
+  `YourcatPublicView` only: the name when the visitor gave one, the family label, the avatar URL while
+  it is ready and the family's sprite. A deleted record shows the sprite only; a record removed by
+  retention is 404.
 - `POST /yourcat/manual` picks a family without a photo (per-user cap only, no AI). `PATCH /yourcat/:id`
   names the card inside 24 h of creation without the game's rename cooldown; later renames go through
   `PUT /cat/:id/name`.

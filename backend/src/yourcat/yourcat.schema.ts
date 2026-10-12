@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { randomBytes } from 'crypto';
 import { Document, Types } from 'mongoose';
 import { CommonSchema } from 'src/common/common.schema';
 import { YourcatAvatarStatus } from './yourcat.contracts';
@@ -11,6 +12,12 @@ import { YourcatAvatarStatus } from './yourcat.contracts';
 
 export const YOURCAT_SOURCES = ['photo', 'manual'] as const;
 export type YourcatSource = typeof YOURCAT_SOURCES[number];
+
+/** A share id: 12 base64url characters (72 random bits). */
+export const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{12}$/;
+
+/** A new random share id (docs/plans/yourcat-polish.md section 8): never derived from the record or the owner. */
+export const newShareId = (): string => randomBytes(9).toString('base64url');
 
 export const YOURCAT_AVATAR_STATUSES: readonly YourcatAvatarStatus[] = ['pending', 'ready', 'failed', 'none'];
 
@@ -27,6 +34,14 @@ export class YourCat extends CommonSchema {
 
     @Prop({ type: Boolean, default: false })
     named: boolean;
+
+    /**
+     * The random public id in the friend link `/yourcat?cat=<shareId>` (`GET /yourcat/public/:shareId`).
+     * Set on create; older records get one lazily in `YourcatService.view()`. No default: the index is
+     * sparse, so a record without one is simply not indexed (a `null` would be).
+     */
+    @Prop({ type: String })
+    shareId?: string;
 
     /** CatOriginType key, never PEACHES. */
     @Prop({ required: true })
@@ -112,3 +127,4 @@ YourCatSchema.index({ originalDeleteAfter: 1 });
 YourCatSchema.index({ avatarStatus: 1, createdAt: 1 });
 YourCatSchema.index({ portraitImage: 1 }, { sparse: true });
 YourCatSchema.index({ creatingAt: 1 }, { sparse: true });
+YourCatSchema.index({ shareId: 1 }, { unique: true, sparse: true });

@@ -29,18 +29,25 @@ import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttl
 import { PhotoUploadExceptionFilter } from 'src/shared/photo-upload.filter';
 import { PHOTO_MULTER_OPTIONS } from 'src/shared/utils/photo-upload';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
-import { YourcatCheckoutView, YourcatDeleteView, YourcatStatusView, YourcatView } from './yourcat.contracts';
+import {
+    YourcatCheckoutView,
+    YourcatDeleteView,
+    YourcatPublicView,
+    YourcatStatusView,
+    YourcatView,
+} from './yourcat.contracts';
 import { YOURCAT_ERRORS } from './yourcat.errors';
 import { IUploadBody, yourcatEnabled, YourcatService } from './yourcat.service';
 
 /*
  * Bet #3 `/yourcat` (docs/plans/yourcat-v2.md section 2.2). Guests may call every route except the
- * stats (each route is in GUEST_ALLOW_LIST). The global throttler is skipped (its bucket is site-wide
- * while TRUST_PROXY is unset); each route has a per-user and a per-client-IP burst limit instead, and the
- * paid AI work is capped per day by `AiUploadGate`.
+ * stats (each route is in GUEST_ALLOW_LIST); `status` and `public/:shareId` are public (no guard list).
+ * The global throttler is skipped (its bucket is site-wide while TRUST_PROXY is unset); each route has a
+ * per-user and a per-client-IP burst limit instead, and the paid AI work is capped per day by
+ * `AiUploadGate`.
  *
- * The literal routes (`status`, `me`, `stats`, `manual`) are declared before the `:id` routes, so Express
- * never reads them as an id.
+ * The literal routes (`status`, `public/:shareId`, `me`, `stats`, `manual`) are declared before the `:id`
+ * routes, so Express never reads them as an id.
  */
 
 /**
@@ -57,6 +64,7 @@ export const withStatsDefaults = (counts: AiBudgetDayView['counts'] | undefined)
 /** Per minute: per client IP, per user. */
 export const YOURCAT_THROTTLES = {
     status: { ip: { limit: 30, ttl: 60000 } },
+    public: { ip: { limit: 60, ttl: 60000 } },
     upload: { ip: { limit: 10, ttl: 60000 }, user: { limit: 5, ttl: 60000 } },
     manual: { ip: { limit: 10, ttl: 60000 }, user: { limit: 5, ttl: 60000 } },
     me: { ip: { limit: 60, ttl: 60000 }, user: { limit: 30, ttl: 60000 } },
@@ -126,6 +134,25 @@ export class YourcatController {
     async status(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<YourcatStatusView> {
         await this.ipThrottler.consume('YourcatController.status', req, YOURCAT_THROTTLES.status.ip, res);
         return this.service.status();
+    }
+
+    /**
+     * The friend link `/yourcat?cat=<shareId>` (docs/plans/yourcat-polish.md section 8). Public, like
+     * `status`: its per-IP limit is applied in the handler. The id is checked against
+     * `^[A-Za-z0-9_-]{12}$` before any query; anything else, or no match, is 404 `YOURCAT_NOT_FOUND`.
+     * Works with the kill switch off: a link already shared keeps showing the cat. `Cache-Control:
+     * public, max-age=60` is set on a found cat only, so a shared cache never keeps a 404 or a 429.
+     */
+    @Get('public/:shareId')
+    async publicCat(
+        @Param('shareId') shareId: string,
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ): Promise<YourcatPublicView> {
+        await this.ipThrottler.consume('YourcatController.publicCat', req, YOURCAT_THROTTLES.public.ip, res);
+        const view = await this.service.publicView(shareId);
+        res?.header?.('Cache-Control', 'public, max-age=60');
+        return view;
     }
 
     @UseGuards(AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard)

@@ -24,6 +24,36 @@ export const PINK_PAW_CARD_IMAGES: Readonly<Record<string, string>> = {
   simas: "/yourcat/pink-paw/simas-card.webp",
 };
 
+/**
+ * Where each card painting's cat is (R2-02): the focal point in % of the 216 x 322 art and a zoom, so
+ * the cat, not the scenery around it, fills the shelter frame's 2:3 glass. Measured by eye on the
+ * four files: the cat's body centre, zoomed until it spans about 85 % of the width.
+ */
+export interface PinkPawArtFocus {
+  x: number;
+  y: number;
+  zoom: number;
+}
+export const PINK_PAW_ART_FOCUS: Readonly<Record<string, PinkPawArtFocus>> = {
+  judas: { x: 44, y: 60, zoom: 1.4 },
+  raudvis: { x: 46, y: 62, zoom: 1.4 },
+  zare: { x: 44, y: 58, zoom: 1.2 },
+  simas: { x: 42, y: 52, zoom: 1.25 },
+};
+const NO_FOCUS: PinkPawArtFocus = { x: 50, y: 50, zoom: 1 };
+
+/** The focus of a cat's card art by name (case-insensitive); the plain centre for any other. */
+export function pinkPawArtFocus(name: string): PinkPawArtFocus {
+  return PINK_PAW_ART_FOCUS[name.trim().toLowerCase()] ?? NO_FOCUS;
+}
+
+/** The `<img>` style that crops the art to its cat: object-position on the focus, scaled around it. */
+export function pinkPawArtStyle(name: string): { objectPosition: string; transform?: string; transformOrigin: string } {
+  const { x, y, zoom } = pinkPawArtFocus(name);
+  const at = `${x}% ${y}%`;
+  return { objectPosition: at, transformOrigin: at, ...(zoom !== 1 ? { transform: `scale(${zoom})` } : null) };
+}
+
 export interface PinkPawCandidate {
   name: string;
   image: string;

@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { YOURCAT_ERROR_CODES } from "@/models/yourcat";
+import { isShareId, SHARE_ID_PATTERN, YOURCAT_ERROR_CODES } from "@/models/yourcat";
 
 const BACKEND = join(__dirname, "..", "..", "backend", "src", "yourcat", "yourcat.contracts.ts");
 const CLIENT = join(__dirname, "..", "models", "yourcat.ts");
@@ -68,7 +68,32 @@ describeBackend("yourcat contract copy", () => {
     "YourcatView",
     "YourcatCheckoutView",
     "YourcatDeleteView",
+    "YourcatPublicView",
   ])("has the same %s fields", (name) => {
     expect(fields(client, name)).toEqual(fields(backend, name));
+  });
+});
+
+describeBackend("yourcat share id", () => {
+  const schema = join(__dirname, "..", "..", "backend", "src", "yourcat", "yourcat.schema.ts");
+
+  it("uses the backend's pattern", () => {
+    const source = readFileSync(schema, "utf8");
+    const match = /export const SHARE_ID_PATTERN = (\/.+\/);/.exec(source);
+    expect(match?.[1]).toBe(String(SHARE_ID_PATTERN));
+  });
+
+  it("YourcatView carries shareId and YourcatPublicView carries no private field", () => {
+    const client = readFileSync(CLIENT, "utf8");
+    expect(fields(client, "YourcatView")).toContain("shareId");
+    expect(fields(client, "YourcatPublicView").sort()).toEqual(["avatarUrl", "familyLabel", "name", "spriteImg"]);
+  });
+
+  it("isShareId accepts 12 base64url characters only", () => {
+    expect(isShareId("foptpG3xHIZo")).toBe(true);
+    expect(isShareId("a-b_c-d_e-f_")).toBe(true);
+    for (const bad of ["", "short", "foptpG3xHIZo1", "foptpG3xHIZ=", "foptpG3x/IZo", "64e2e0000000000000000c01", null, 12]) {
+      expect(isShareId(bad)).toBe(false);
+    }
   });
 });

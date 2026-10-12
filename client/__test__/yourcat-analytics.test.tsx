@@ -33,6 +33,7 @@ const mockApi = {
   remove: jest.fn(),
   ensureGuest: jest.fn(async () => undefined),
   prefetchAppCheck: jest.fn(),
+  publicCat: jest.fn(),
 };
 jest.mock("@/api/yourcat-api", () => {
   class YourcatRequestError extends Error {
@@ -57,6 +58,7 @@ jest.mock("@/api/yourcat-api", () => {
 jest.mock("@/components/yourcat/shareCard", () => ({
   renderShareCard: jest.fn(async () => new Blob(["png"], { type: "image/png" })),
   warmCardFonts: () => undefined,
+  preloadCardImages: () => undefined,
   cardFileName: () => "tokentails-cat-story.png",
 }));
 jest.mock("@/components/yourcat/pinkPawPick", () => ({
@@ -83,6 +85,7 @@ import type { YourcatStatusView, YourcatView } from "@/models/yourcat";
 
 const RECORD: YourcatView = {
   id: "64e2e0000000000000000c01",
+  shareId: "AbCdEfGhIjKl",
   name: "Mochi",
   named: true,
   family: "YELLOW",
@@ -229,9 +232,9 @@ describe("portrait events", () => {
     mockCheckout.mockResolvedValue({ checkoutUrl: "https://checkout.stripe.test/s", orderId: "o1" });
     const navigate = jest.fn();
     render(<PortraitUpsell record={RECORD} name="Mochi" portrait={PORTRAIT} onExists={() => undefined} navigate={navigate} />);
-    expect(screen.getByRole("button", { name: "Get the HD portrait for €17" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Get the HD portrait · €17" })).toBeTruthy();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Get the HD portrait for €17" }));
+      fireEvent.click(screen.getByRole("button", { name: "Get the HD portrait · €17" }));
     });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("https://checkout.stripe.test/s"));
     expect(mockTrackEvent).toHaveBeenCalledWith("begin_checkout", expect.objectContaining({ currency: "EUR", value: 17 }));
@@ -291,11 +294,35 @@ describe("upload events", () => {
     });
     await flush();
     expect(mockApi.upload).toHaveBeenCalledTimes(2);
+    // S3 shows once the scan pass ends (at most 400 ms after the answer).
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Meet Mochi." })).toBeTruthy());
     const names = mockTrack.mock.calls.map(([event]) => event.name);
     expect(names).toEqual(["upload_started", "upload_done", "upload_started", "upload_done"]);
     const started = mockTrack.mock.calls.filter(([event]) => event.name === "upload_started").map(([event]) => event.properties);
     expect(started[1]).toEqual(started[0]);
     expect(started[0]).toEqual(expect.objectContaining({ surface: "yourcat", source: "picker", fileType: "jpeg" }));
-    expect(screen.getByRole("heading", { name: "Meet Mochi." })).toBeTruthy();
+  });
+
+  it("card_shared: Download (no Web Share) and Copy link, with the per-cat link in the copied text", async () => {
+    mockApi.me.mockResolvedValue(RECORD);
+    const writeText = jest.fn(async () => undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<YourCatPage isApp={false} />);
+    await flush();
+    await waitFor(() => expect((screen.getByRole("button", { name: "Download" }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    });
+    await flush();
+    const shared = mockTrack.mock.calls.filter(([event]) => event.name === "card_shared").map(([event]) => event.properties);
+    expect(shared).toEqual([
+      expect.objectContaining({ surface: "yourcat", method: "download", format: "post", withShelterCat: false }),
+      expect.objectContaining({ surface: "yourcat", method: "copy-link", format: "none", withShelterCat: false }),
+    ]);
+    const [text] = writeText.mock.calls[0] as unknown as [string];
+    expect(text).toMatch(/^Mochi is a pixel cat now\. Turn your cat into one: .+\/yourcat\?cat=AbCdEfGhIjKl&utm_source=share&utm_medium=link&utm_campaign=yourcat&utm_content=link$/);
+    click.mockRestore();
   });
 });

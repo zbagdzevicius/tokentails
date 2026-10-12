@@ -210,6 +210,41 @@ describe("JSON routes", () => {
     expect(error.serverMessage).toBe("Rename your cat in the game.");
   });
 
+  it("publicCat is an unauthenticated GET: no accesstoken, no guest session", async () => {
+    const ensureGuestSession = jest.fn(async () => true);
+    setAuthBridge({ ensureGuestSession });
+    const PUBLIC = { name: "Biscuit", familyLabel: "Ginger", avatarUrl: null, spriteImg: "https://cdn/assets/YELLOW/base.png" };
+    fetchMock.mockResolvedValueOnce(response({ status: 200, body: PUBLIC }));
+    await expect(YOURCAT_API.publicCat("foptpG3xHIZo")).resolves.toEqual(PUBLIC);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.test/yourcat/public/foptpG3xHIZo");
+    expect(init.method).toBe("GET");
+    expect(Object.keys(init.headers).map((name) => name.toLowerCase())).not.toContain("accesstoken");
+    expect(ensureGuestSession).not.toHaveBeenCalled();
+  });
+
+  it("publicCat does not retry a 428 with a guest session", async () => {
+    const ensureGuestSession = jest.fn(async () => true);
+    setAuthBridge({ ensureGuestSession });
+    fetchMock.mockResolvedValueOnce(response({ status: 428, body: { statusCode: 428, code: "GUEST_SESSION_REQUIRED" } }));
+    await expect(YOURCAT_API.publicCat("foptpG3xHIZo")).rejects.toBeInstanceOf(YourcatRequestError);
+    expect(ensureGuestSession).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("publicCat maps 404 to YOURCAT_NOT_FOUND and refuses a malformed id without a request", async () => {
+    fetchMock.mockResolvedValueOnce(response({ status: 404, body: { statusCode: 404, code: "YOURCAT_NOT_FOUND", message: "Not found" } }));
+    const unknown = await YOURCAT_API.publicCat("AAAAAAAAAAAA").catch((e) => e);
+    expect(unknown).toMatchObject({ status: 404, code: "YOURCAT_NOT_FOUND" });
+    for (const bad of [VIEW.id, "short", "../me", "abc/defghijk"]) {
+      const error = await YOURCAT_API.publicCat(bad).catch((e) => e);
+      expect(error).toBeInstanceOf(YourcatRequestError);
+      expect(error).toMatchObject({ status: 404, code: "YOURCAT_NOT_FOUND" });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("toRequestError reads codes only from the yourcat vocabulary", () => {
     expect(toRequestError(403, { code: "GUEST_FORBIDDEN" }).kind).toBe("server");
     expect(toRequestError(429, {}).kind).toBe("rate-limited");

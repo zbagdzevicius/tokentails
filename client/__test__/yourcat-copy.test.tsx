@@ -7,9 +7,14 @@
  * donations, shares of sales or shelter support, no counts, ratings or reviews, and no duration until it
  * is measured. The app build shows the notice with no price and no upload input. Plus the copy of each
  * state (paused, spent, manual, failed upload, failed delete, late portrait) and the `/yourcat` entry
- * link, which shows only while uploads are open.
+ * link, which shows only while uploads are open. The quiet meeting with a Pink Paw cat names the cat
+ * and "a real cat at Pink Paw" only: no status, location or money words (docs/plans/yourcat-polish.md
+ * §4.4). The polish deletes the `/yourcat`-only styles: `components/yourcat` has no framer-motion or
+ * Phaser import and no GOLD_BUTTON, GHOST_BUTTON or EYEBROW.
  */
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readdirSync, readFileSync } from "fs";
+import { join } from "path";
 import type { YourcatStatusView, YourcatView } from "@/models/yourcat";
 
 const api = {
@@ -44,6 +49,7 @@ jest.mock("@/api/yourcat-api", () => {
 jest.mock("@/components/yourcat/shareCard", () => ({
   renderShareCard: jest.fn(async () => new Blob(["png"], { type: "image/png" })),
   warmCardFonts: () => undefined,
+  preloadCardImages: () => undefined,
   cardFileName: () => "tokentails-cat-story.png",
 }));
 jest.mock("@/components/yourcat/pinkPawPick", () => ({
@@ -69,7 +75,26 @@ jest.mock("next/link", () => ({
   ),
 }));
 
-import { allStaticCopy, CARD_TEXT, DURATION_MEASURED, ENTRY_LINK, s1Body, S1, S2, S3, S6, STATUS_COPY } from "@/components/yourcat/copy";
+import {
+  allStaticCopy,
+  CARD_TEXT,
+  cardText,
+  DURATION_MEASURED,
+  ENTRY_LINK,
+  FRIEND,
+  MANUAL,
+  PRIVACY,
+  PRIVACY_NOTICE_VERSION,
+  s1Body,
+  S1,
+  S2,
+  S3,
+  S5,
+  S6,
+  STATUS_COPY,
+  titleText,
+} from "@/components/yourcat/copy";
+import { HEADLINE, Headline } from "@/components/yourcat/brand";
 import { PaidState } from "@/components/yourcat/PaidState";
 import { YourcatEntryLink } from "@/components/yourcat/YourcatEntryLink";
 import { YourCatPage } from "@/components/yourcat/YourCatPage";
@@ -100,6 +125,7 @@ const STATUS: YourcatStatusView = {
 
 const RECORD: YourcatView = {
   id: "64e2e0000000000000000c02",
+  shareId: "AbCdEfGhIjKl",
   name: "Mochi",
   named: true,
   family: "BLACK",
@@ -144,6 +170,7 @@ beforeEach(() => {
   api.ensureGuest.mockImplementation(async () => undefined);
   api.status.mockResolvedValue(STATUS);
   Object.assign(URL, { createObjectURL: jest.fn(() => "blob:card"), revokeObjectURL: jest.fn() });
+  window.sessionStorage.clear();
 });
 
 describe("rendered copy", () => {
@@ -151,7 +178,8 @@ describe("rendered copy", () => {
     api.me.mockResolvedValue(RECORD);
     render(<YourCatPage isApp={false} />);
     await flush();
-    expect(screen.getByRole("switch", { name: "With Judas from Pink Paw" })).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Put Judas on my card" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Mochi, meet Judas." })).toBeTruthy();
     expect(screen.getByTestId("yourcat-upsell")).toBeTruthy();
     // The delete dialog too.
     fireEvent.click(screen.getByRole("button", { name: "Delete my photo" }));
@@ -171,8 +199,71 @@ describe("rendered copy", () => {
   it("every string in copy.ts and the card text is honest", () => {
     // S1.duration is the measured-duration sentence, gated by DURATION_MEASURED (next test).
     const strings = allStaticCopy().filter((text) => text !== S1.duration);
-    const card = Object.values(CARD_TEXT).map((v) => (typeof v === "function" ? v("Ginger") : v));
-    expectHonest([...strings, ...card].join("\n").toLowerCase());
+    expectHonest(strings.join("\n").toLowerCase());
+    // allStaticCopy walks every group, the new ones included.
+    for (const text of [S1.chip, S1.frameLabel, FRIEND.body, S2.nameLabel, S2.meter.received, MANUAL.moreLooks, S5.legend, PRIVACY.paragraphs[2]]) {
+      expect(strings).toContain(text);
+    }
+  });
+
+  it("the shelter beat says only the cat's name and 'a real cat at Pink Paw': no status, location or money", () => {
+    const beat = [
+      titleText(S3.meeting.title("Mochi", "Zare")),
+      titleText(S3.meeting.title("your cat", "Zare")),
+      S3.meeting.body("Zare"),
+      S3.meeting.toggle("Zare"),
+      S3.meeting.frameAlt("Zare"),
+      S3.shareText("Mochi", "https://tokentails.com/yourcat?cat=x", "Zare"),
+      S3.shareText("your cat", "https://tokentails.com/yourcat?cat=x", "Zare"),
+      ...Object.values(cardText("Mochi", true, "Ginger", "Zare")).flatMap((v) => (v && typeof v === "object" ? Object.values(v) : [v])),
+    ]
+      .join("\n")
+      .toLowerCase();
+    expectHonest(beat);
+    for (const word of ["waiting", "adopt", "home", "recover", "sick", "vilnius", "lithuania", "€", "eur", "money", "fund", "help", "save", "price", "pay"]) {
+      expect({ word, found: beat.includes(word) }).toEqual({ word, found: false });
+    }
+    // The €14 stays away from the shelter block: S5 never names the shelter cat.
+    expect(S5.body("Mochi", "€14")).not.toMatch(/pink paw|shelter/i);
+    expect(S5.body("Mochi", "€14")).toContain("We paint it after you pay");
+  });
+
+  it("the share text and the card text follow §4.5 and §9.3", () => {
+    const url = "https://tokentails.com/yourcat?cat=AbCdEfGhIjKl&utm_source=share";
+    expect(S3.shareText("Mochi", url, "Zare")).toBe(`Mochi is a pixel cat now, and just met Zare, a real cat from Pink Paw. Turn your cat into one: ${url}`);
+    expect(S3.shareText("Mochi", url, null)).toBe(`Mochi is a pixel cat now. Turn your cat into one: ${url}`);
+    expect(S3.shareText("your cat", url, null)).toBe(`My cat is a pixel cat now. Turn your cat into one: ${url}`);
+    expect(cardText("Mochi", true, "Ginger", "Zare")).toEqual({
+      wordmark: "TOKEN TAILS",
+      link: "tokentails.com/yourcat",
+      nameLine: "Mochi & Zare",
+      nameFallback: "Mochi",
+      subline: "Zare · a real cat at Pink Paw",
+      panel: { name: "Zare" },
+    });
+    // R1-05: the three-line NEW FRIEND block is one line under the title.
+    expect(CARD_TEXT.shelterLine("Raudvis")).toBe("Raudvis · a real cat at Pink Paw");
+    expect(cardText("", false, "Ginger", "Zare")).toMatchObject({ nameLine: "Ginger cat", subline: "Zare · a real cat at Pink Paw", panel: { name: "Zare" } });
+    expect(cardText("Mochi", true, "Ginger", null)).toMatchObject({ nameLine: "Mochi", subline: "Now a pixel cat in Token Tails", panel: null });
+  });
+
+  it("the coat line names the base coat, the picked look, or the family label", () => {
+    expect(S3.coatLine("Mochi", "YELLOW", "Ginger", false)).toBe("Mochi is in the game. Same ginger coat, new pixel paws.");
+    expect(S3.coatLine("Mochi", "YELLOW", "Ginger", true)).toBe("Mochi is in the game, in the ginger look you picked.");
+    expect(S3.coatLine("Mochi", "OREO", "Oreo", false)).toBe("Mochi is in the game, with the Oreo look.");
+    expect(S3.coatLine("your cat", "BLACK", "Black", false)).toBe("Your cat is in the game. Same black coat, new pixel paws.");
+  });
+
+  it("the privacy notice names the share link and its version moved", () => {
+    expect(PRIVACY_NOTICE_VERSION).toBe("2026-10-12");
+    expect(PRIVACY.paragraphs).toContain(
+      "If you share your cat's link, anyone who opens it sees your cat's name and pixel look, never your photo.",
+    );
+  });
+
+  it("S5's price only ever comes from formatPrice: the copy takes it as an argument", () => {
+    expect(S5.button("€17")).toBe("Get the HD portrait · €17");
+    expect(S5.body("Mochi", "€17")).toContain("€17, paid once.");
   });
 
   it("the duration appears only once it is measured", () => {
@@ -236,8 +327,24 @@ describe("states before upload", () => {
   });
 });
 
+describe("states before upload: the visitor's own cap (R2-09)", () => {
+  it("a cap remembered in this tab today shows the spent state with its own line before the next photo", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    window.sessionStorage.setItem("tt-yourcat-own-cap", today);
+    api.me.mockResolvedValue(null);
+    render(<YourCatPage isApp={false} />);
+    await flush();
+    expect(screen.getByText(STATUS_COPY.ownCapSpent)).toBeTruthy();
+    expect(screen.queryByText(STATUS_COPY.budgetSpent)).toBeNull();
+    expect(screen.queryByText(S1.chip)).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.getByRole("button", { name: STATUS_COPY.pickYourself })).toBeTruthy();
+    expectHonest(pageCopy());
+  });
+});
+
 describe("S2 failure", () => {
-  it("says it failed: heading, step 2, no name field, no 'come back' line, focus on the heading", async () => {
+  it("says it failed: heading, the meter, no name field, no 'come back' line, focus on the heading", async () => {
     const { YourcatRequestError } = jest.requireMock("@/api/yourcat-api");
     api.me.mockResolvedValue(null);
     api.upload.mockImplementation(async (_f: Blob, _n: string, options: { onSent?: () => void }) => {
@@ -247,19 +354,19 @@ describe("S2 failure", () => {
     render(<YourCatPage isApp={false} />);
     await flush();
     await choose();
-    const heading = screen.getByRole("heading", { name: S2.failedTitle });
+    const heading = screen.getByRole("heading", { name: titleText(S2.failedTitle) });
     expect(document.activeElement).toBe(heading);
-    expect(screen.queryByRole("heading", { name: S2.title })).toBeNull();
-    const steps = screen.getByTestId("yourcat-steps");
-    expect(steps.textContent).toContain("Photo uploaded");
-    expect(steps.textContent).toContain("Matching your cat to a pixel cat family did not finish");
-    expect(steps.textContent).not.toContain("…");
+    expect(screen.queryByRole("heading", { name: titleText(S2.title) })).toBeNull();
+    // The meter does not repeat the failure: it reads "Stopped", with the match segment in rust.
+    expect(screen.getByTestId("yourcat-meter-text").textContent).toBe(S2.meter.stopped);
+    expect(screen.getByTestId("yourcat-meter-1").getAttribute("data-state")).toBe("done");
+    expect(screen.getByTestId("yourcat-meter-2").getAttribute("data-state")).toBe("failed");
     expect(screen.queryByLabelText(S2.nameLabel)).toBeNull();
     expect(screen.queryByText(S2.leave)).toBeNull();
     expect(screen.getByRole("alert").textContent).toMatch(/could not see a cat/);
   });
 
-  it("step 1 reads 'Photo uploaded, done' once the body has left", async () => {
+  it("the first segment fills once the body has left, and the meter's line is a polite live region", async () => {
     api.me.mockResolvedValue(null);
     api.upload.mockImplementation((_f: Blob, _n: string, options: { onSent?: () => void }) => {
       options.onSent?.();
@@ -268,10 +375,72 @@ describe("S2 failure", () => {
     render(<YourCatPage isApp={false} />);
     await flush();
     await choose();
-    const steps = screen.getByTestId("yourcat-steps");
-    expect(steps.getAttribute("aria-live")).toBe("polite");
-    expect(steps.querySelector('li[data-state="done"]')?.textContent).toBe("Photo uploaded, done");
-    expect(screen.getByText("Matching your cat to a pixel cat family…")).toBeTruthy();
+    const line = screen.getByTestId("yourcat-meter-text");
+    expect(line.getAttribute("aria-live")).toBe("polite");
+    expect(line.textContent).toBe("Photo received · Finding the right coat and colours…");
+    expect(screen.getByTestId("yourcat-meter-1").getAttribute("data-state")).toBe("done");
+    // The only name field of the flow.
+    expect(screen.getByLabelText("While you wait: what's their name?")).toBeTruthy();
+  });
+
+  it("the visitor's own cap: its own heading, an honest line with no countdown or reset time, Photo unfilled", async () => {
+    const { YourcatRequestError } = jest.requireMock("@/api/yourcat-api");
+    api.me.mockResolvedValue(null);
+    api.upload.mockImplementation(async (_f: Blob, _n: string, options: { onSent?: () => void }) => {
+      options.onSent?.();
+      throw new YourcatRequestError(429, "code", "YOURCAT_USER_DAILY_CAP", null);
+    });
+    render(<YourCatPage isApp={false} />);
+    await flush();
+    await choose();
+    expect(titleText(S2.ownCapTitle)).toBe("That's today's AI cats");
+    expect(screen.getByRole("heading", { level: 1, name: titleText(S2.ownCapTitle) })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: titleText(S2.failedTitle) })).toBeNull();
+    expect(screen.getByRole("alert").textContent).toBe(STATUS_COPY.ownCapSpent);
+    expect(STATUS_COPY.ownCapSpent).not.toMatch(/\d|tomorrow|midnight|hour|minute|reset|come back|soon/i);
+    expect(screen.queryByTestId("yourcat-retry-countdown")).toBeNull();
+    expect(screen.getByTestId("yourcat-meter-1").getAttribute("data-state")).toBe("empty");
+    expect(screen.getByTestId("yourcat-meter-2").getAttribute("data-state")).toBe("failed");
+    expectHonest(pageCopy());
+  });
+
+  it("the portrait wait: 'Almost there' and 'Painting your pixel portrait…', nothing invented", async () => {
+    jest.useFakeTimers({ now: Date.parse(RECORD.createdAt) });
+    try {
+      api.me.mockResolvedValue(null);
+      api.upload.mockResolvedValue({ ...RECORD, avatar: { status: "pending" as const, url: null } });
+      api.get.mockImplementation(() => new Promise(() => undefined));
+      render(<YourCatPage isApp={false} />);
+      await flush();
+      await choose();
+      expect(titleText(S2.almostTitle)).toBe("Almost there");
+      expect(screen.getByRole("heading", { level: 1, name: "Almost there" })).toBeTruthy();
+      expect(screen.getByTestId("yourcat-meter-text").textContent).toBe(S2.meter.painting);
+      expect(S2.meter.painting).toBe("Painting your pixel portrait…");
+      // No timer, percentage or count while waiting.
+      const shown = [
+        screen.getByRole("heading", { level: 1 }).textContent,
+        screen.getByTestId("yourcat-meter").textContent,
+        screen.getByTestId("yourcat-wait").textContent,
+      ].join(" ");
+      expect(shown).not.toMatch(/\d/);
+      expectHonest(pageCopy());
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("the headlines break on word groups: 'Turning / your cat / into pixels', the glow kept on one line", () => {
+    expect(S2.title).toEqual({ before: "Turning ", glow: "your cat", after: " into pixels" });
+    expect(titleText(S2.title)).toBe("Turning your cat into pixels");
+    expect(S1.title).toEqual({ before: "Your cat, ", glow: "in the game." });
+    render(<Headline parts={S2.title} />);
+    const glow = document.querySelector("h1 .glow") as HTMLElement;
+    expect(glow.textContent).toBe("your cat");
+    expect(glow.className).toMatch(/whitespace-nowrap/);
+    // Capped at text-h4 (no h3 step at xl), so S1 reads "YOUR CAT, / IN THE GAME." in the 420 px column.
+    expect(HEADLINE).toMatch(/md:text-h4/);
+    expect(HEADLINE).not.toMatch(/text-h3|text-h2|text-h1/);
   });
 
   it("the plain 429 shows a countdown on Try again, outside the name and any live region", async () => {
@@ -311,7 +480,7 @@ describe("S3", () => {
     api.me.mockResolvedValue(manualRecord);
     render(<YourCatPage isApp={false} />);
     await flush();
-    expect(screen.getByText(S3.picked("Mochi", "Black"))).toBeTruthy();
+    expect(screen.getByText(S3.coatLine("Mochi", "BLACK", "Black", true))).toBeTruthy();
     expect(pageCopy()).not.toMatch(/we matched/);
     expect(screen.getByRole("button", { name: "Start over" })).toBeTruthy();
     expect(screen.queryByText(STATUS_COPY.startOver)).toBeNull();
@@ -321,11 +490,11 @@ describe("S3", () => {
     api.me.mockResolvedValue(RECORD);
     render(<YourCatPage isApp={false} />);
     await flush();
-    expect(screen.getByText(S3.matched("Mochi", "Black"))).toBeTruthy();
+    expect(screen.getByText(S3.coatLine("Mochi", "BLACK", "Black", false))).toBeTruthy();
     expect(screen.getByRole("button", { name: STATUS_COPY.startOver })).toBeTruthy();
   });
 
-  it("the delete dialog: Keep is gold, Delete is quiet; a failure shows in the dialog and clears on reopen", async () => {
+  it("the delete dialog: Keep is the primary, Delete is the quiet rust pill; a failure shows in the dialog and clears on reopen", async () => {
     api.me.mockResolvedValue(RECORD);
     api.remove.mockRejectedValueOnce(new Error("offline"));
     render(<YourCatPage isApp={false} />);
@@ -333,9 +502,10 @@ describe("S3", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete my photo" }));
     const keep = screen.getByRole("button", { name: "Keep" });
     const remove = screen.getByRole("button", { name: "Delete" });
-    expect(keep.className).toContain("bg-tt-gold-400");
+    expect(keep.closest('[data-testid="yourcat-primary"]')).toBeTruthy();
+    expect(document.activeElement).toBe(keep);
     expect(remove.className).toContain("border-tt-rust");
-    expect(remove.className).not.toContain("bg-tt-gold-400");
+    expect(remove.closest('[data-testid="yourcat-primary"]')).toBeNull();
     await act(async () => {
       fireEvent.click(remove);
     });
@@ -355,12 +525,21 @@ describe("S3", () => {
       const pending = { ...RECORD, avatar: { status: "pending" as const, url: null } };
       api.me.mockResolvedValue(null);
       api.upload.mockResolvedValue(pending);
-      api.get.mockResolvedValue(RECORD);
+      // Still drawing through S2's wait (R2-01): S3 takes the pending path after 25 s.
+      api.get.mockResolvedValue(pending);
       render(<YourCatPage isApp={false} />);
       await flush();
       await choose();
+      expect(screen.getByRole("heading", { name: titleText(S2.almostTitle) })).toBeTruthy();
+      for (let i = 0; i < 26; i++) {
+        await act(async () => {
+          jest.advanceTimersByTime(1000);
+        });
+        await flush();
+      }
       expect(screen.getByRole("heading", { name: "Meet Mochi." })).toBeTruthy();
       expect(screen.queryByTestId("yourcat-upsell")).toBeNull();
+      api.get.mockResolvedValue(RECORD);
       await act(async () => {
         jest.advanceTimersByTime(1500);
       });
@@ -405,7 +584,7 @@ describe("S6", () => {
       render(<PaidState record={ready} name="Mochi" portrait={STATUS.portrait} late={false} onBack={noop} />);
       expect(document.querySelector("a[download]")).toBeNull();
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Download" }));
+        fireEvent.click(screen.getByRole("button", { name: S6.download }));
       });
       await flush();
       expect(global.fetch).toHaveBeenCalledWith("https://cdn.test/hd.webp?cors=1", expect.objectContaining({ mode: "cors" }));
@@ -425,18 +604,41 @@ describe("S6", () => {
       });
       render(<PaidState record={ready} name="Mochi" portrait={STATUS.portrait} late={false} onBack={noop} />);
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Download" }));
+        fireEvent.click(screen.getByRole("button", { name: S6.download }));
       });
       await flush();
       expect(opened).toHaveLength(1);
       expect(opened[0].href).toBe("https://cdn.test/hd.webp");
       expect(opened[0].target).toBe("_blank");
       expect(opened[0].rel).toBe("noopener");
-      const link = screen.getByTestId("yourcat-portrait-link");
-      expect(link.getAttribute("target")).toBe("_blank");
-      expect(link.getAttribute("rel")).toBe("noopener");
+      // A popup blocker may stop the late open: a plain link to the portrait stays on the page.
+      await flush();
+      expect(screen.getByRole("link", { name: S6.download }).getAttribute("href")).toBe("https://cdn.test/hd.webp");
       click.mockRestore();
     });
+  });
+});
+
+describe("components/yourcat after the polish", () => {
+  const dir = join(__dirname, "..", "components", "yourcat");
+  const files = readdirSync(dir).filter((file) => /\.(tsx?|ts)$/.test(file));
+  // Code only: comments may name what was removed.
+  const stripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const sources = files.map((file) => ({ file, source: stripComments(readFileSync(join(dir, file), "utf8")) }));
+
+  it("imports no framer-motion and no Phaser", () => {
+    for (const { file, source } of sources) {
+      expect({ file, hit: /from\s+["'](framer-motion|phaser)["']|import\(["'](framer-motion|phaser)["']\)/.test(source) }).toEqual({ file, hit: false });
+    }
+  });
+
+  it("has no GOLD_BUTTON, GHOST_BUTTON or EYEBROW, and no live TOKEN TAILS eyebrow", () => {
+    for (const { file, source } of sources) {
+      expect({ file, hit: /\b(GOLD_BUTTON|GHOST_BUTTON|EYEBROW)\b/.test(source) }).toEqual({ file, hit: false });
+      // The card's text wordmark (the logo's load-failure fallback) is the only "TOKEN TAILS" string.
+      if (file !== "copy.ts") expect({ file, hit: source.includes("TOKEN TAILS") }).toEqual({ file, hit: false });
+    }
+    expect(Object.keys(S1)).not.toContain("eyebrow");
   });
 });
 

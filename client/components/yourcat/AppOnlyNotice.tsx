@@ -1,36 +1,38 @@
 import { useToast } from "@/context/ToastContext";
-import Link from "next/link";
 import { forwardRef } from "react";
-import { S1, S3, STATUS_COPY } from "./copy";
+import { BODY, HEADLINE, NIGHT_PILL, PANEL, PrimaryAction } from "./brand";
+import { S3, STATUS_COPY } from "./copy";
 import { copyShareText } from "./share";
-import { BODY, EYEBROW, GHOST_BUTTON, GOLD_BUTTON, ScreenHeading } from "./ui";
 
 /**
- * The app build (`isApp`): no upload and no prices (store rules, docs/CLIENT.md; App Check has no
- * native token; the app privacy labels do not cover photo upload). It points to the web page, and
- * its main action is the game itself, which works here.
+ * The app build (`isApp`): no upload, no stage and no prices (store rules, docs/CLIENT.md; App Check
+ * has no native token; the app privacy labels do not cover photo upload). In the landing language
+ * (polish spec "App build"): the headline, then a panel that points to the web page, with the game
+ * itself as the one primary action, since it works here.
  */
 export const AppOnlyNotice = forwardRef<HTMLHeadingElement>((_props, ref) => {
   const toast = useToast();
   return (
-    <div className="flex flex-col items-center gap-4 text-center" data-testid="yourcat-app-notice">
-      <p className={EYEBROW}>{S1.eyebrow}</p>
-      <ScreenHeading ref={ref}>{STATUS_COPY.appTitle}</ScreenHeading>
-      <p className={BODY}>{STATUS_COPY.appBody}</p>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Link href="/game" className={GOLD_BUTTON}>
-          {STATUS_COPY.playNow}
-        </Link>
+    <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 text-center" data-testid="yourcat-app-notice">
+      <h1 ref={ref} tabIndex={-1} className={HEADLINE}>
+        {STATUS_COPY.appTitle}
+      </h1>
+      <section className={`${PANEL} flex flex-col items-center gap-4`}>
+        <p className={BODY}>{STATUS_COPY.appBody}</p>
+        <PrimaryAction href="/game" text={STATUS_COPY.playNow} />
         <button
           type="button"
-          className={GHOST_BUTTON}
+          className={NIGHT_PILL}
           onClick={async () => {
             if ((await copyShareText(STATUS_COPY.appLink)) === "copy-link") toast({ message: S3.copied });
           }}
         >
           {STATUS_COPY.copyLink}
         </button>
-      </div>
+      </section>
     </div>
   );
 });
+
+AppOnlyNotice.displayName = "AppOnlyNotice";
+
