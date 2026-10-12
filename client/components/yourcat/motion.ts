@@ -181,6 +181,60 @@ export function flyTo(src: string, from: DOMRect, to: HTMLElement, ms: number = 
   });
 }
 
+/** The friend's cat fades out over this long when the visitor picks a photo (S0 "On choose"); reduced motion: 150 ms. */
+export const GHOST_FADE_MS = 200;
+export const GHOST_FADE_RM_MS = 150;
+
+/**
+ * Fades a copy of `node` out where it stands, inside `host` (a positioned ancestor, the stage), and
+ * removes it: the friend's cat leaves the altar softly although its screen unmounts at once (S0 "On
+ * choose"). The copy is inert (aria-hidden, no pointer events, its own controls out of the tab
+ * order). Opacity only, so reduced motion keeps the same fade, shorter. Never throws.
+ */
+export function fadeOutGhost(node: HTMLElement | null | undefined, host: HTMLElement | null | undefined, reduced: boolean): HTMLElement | null {
+  try {
+    if (!node || !host || typeof document === "undefined") return null;
+    const box = node.getBoundingClientRect();
+    const frame = host.getBoundingClientRect();
+    if (!(box.width > 0) || !(box.height > 0)) return null;
+    const ghost = node.cloneNode(true) as HTMLElement;
+    ghost.removeAttribute("id");
+    ghost.removeAttribute("data-testid");
+    ghost.querySelectorAll("[id]").forEach((child) => child.removeAttribute("id"));
+    ghost.querySelectorAll("[data-testid]").forEach((child) => child.removeAttribute("data-testid"));
+    ghost.querySelectorAll("button, a, input, [tabindex]").forEach((child) => child.setAttribute("tabindex", "-1"));
+    ghost.querySelectorAll("[aria-live]").forEach((child) => child.removeAttribute("aria-live"));
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.setAttribute("data-yc-ghost", "");
+    Object.assign(ghost.style, {
+      position: "absolute",
+      left: `${box.left - frame.left}px`,
+      top: `${box.top - frame.top}px`,
+      width: `${box.width}px`,
+      height: `${box.height}px`,
+      margin: "0",
+      pointerEvents: "none",
+      zIndex: "10",
+    } satisfies Partial<CSSStyleDeclaration>);
+    host.appendChild(ghost);
+    const remove = () => ghost.remove();
+    if (typeof ghost.animate !== "function") {
+      remove();
+      return null;
+    }
+    const animation = ghost.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: reduced ? GHOST_FADE_RM_MS : GHOST_FADE_MS,
+      easing: reduced ? "linear" : EASE.out,
+      fill: "forwards",
+    });
+    animation.onfinish = remove;
+    animation.oncancel = remove;
+    return ghost;
+  } catch {
+    return null;
+  }
+}
+
 /** The step-out buzz (§4.2): 12 on, 40 off, 18 on, where `navigator.vibrate` exists. Never under reduced motion. */
 export function hapticReveal(reduced: boolean): void {
   if (reduced) return;

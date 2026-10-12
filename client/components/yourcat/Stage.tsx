@@ -3,18 +3,20 @@
  * the glowing altar cropped from the landing ground, and on md+ the night ruins foot plate, with the
  * frame standing on the altar's stone line. It stays mounted from S1 to S3 at a fixed height, so
  * nothing on the page moves when its contents change (no layout shift):
- * `h-[clamp(320px,44svh,400px)]` on phones, `md:h-[clamp(560px,66svh,620px)]` from md up.
+ * `h-[clamp(320px,42svh,400px)]` on phones, `md:h-[clamp(560px,66svh,620px)]` from md up.
  *
  * Slots: `frame` (centred, its legs on the stone line), `companion` (left of the frame, overlapping
  * its bottom-left by ~40 px on phones so 360 px fits, 20 on md+; or, with `companionSide="right"`, just
  * right of the cat), `cat` (right of the frame, overlapping its right
- * leg by ~30 px when shifted, 40 px on a centred phone frame so 390 px fits, 48 px on md+, 84 px for a
- * 6x cat on md+; a
- * `PetCat` puts its own paws on the line) and `overlay` (the whole stage, above everything; it lets
+ * leg by ~30 px when shifted, 32 px on an idle phone frame (`IDLE_PHONE_CAT`: the painted body starts
+ * 4 px right of the frame), 48 px on md+, 84 px for a 6x cat on md+; a `PetCat` puts its own paws on
+ * the line) and `overlay` (the whole stage, above everything; it lets
  * pointer events through, so an interactive overlay child sets `pointer-events-auto`). On phones
- * `shifted` moves the frame group 40 px left (transform only), so a cat on the right fits at 360 px.
- * The whole stage is the drop zone when `onDrop` is given. On phones the stage clips horizontally
- * (`overflow-x: clip`), so a cat's transparent sheet box never makes the page scroll sideways.
+ * `shifted` moves the frame group 40 px left (transform only), so a cat on the right fits at 360 px;
+ * idle, it moves left by `max(0, 208px - 50vw)` (`IDLE_PHONE_SHIFT`) so the cat's caption stays inside.
+ * The whole stage is the drop zone when `onDrop` is given. Below xl the stage clips horizontally
+ * (`overflow-x: clip`, vertical overflow stays visible), so a cat's transparent sheet box never makes
+ * the page scroll sideways (the 6x box reached 790 px at 768 before the meeting walk).
  *
  * The painting reads as the landing's full-bleed world (R1-03, R2-03). On phones the stage paints its
  * own sky (masked on all four sides) with six CSS fireflies; on xl it fills the first screen under the
@@ -26,9 +28,10 @@
  * under reduced motion the sky holds still and the fireflies pause.
  *
  * A companion that needs its own room (the friend view's empty frame, marked `data-yc-room`) moves
- * the frame group right instead of overlapping it: on phones by `max(0, 224px - 50vw)` (27 px at 390,
- * 44 px at 360), on md+ by 40 px; the cat slot overlaps the frame by the same extra amount, so the
- * cat keeps its place inside the stage (R1-11).
+ * the frame group right instead of overlapping it (R1-11): on md+ by 40 px; on phones the portrait
+ * also steps back (`ROOM_FRAME`), so the empty frame, the portrait and the friend's cat stand side by
+ * side with no overlap (phone-r3, `ROOM_SHIFT`). The S3 meeting does the same for the shelter frame,
+ * the sitting cat and the portrait at every width (`MEETING_*`).
  */
 import { useRef, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { EASE } from "./motion";
@@ -235,19 +238,67 @@ export const COMPANION_ROOM_ATTR = "data-yc-room";
  * Fixed stage heights (§3); the tests pin them. On the xl studio the stage also fills the first
  * screen under the 104 px header (R2-03), so the altar stands at the bottom of the painting with no
  * empty night band under it; the height still depends only on the viewport, never on the content.
+ * Phones take 42svh (354 px at 390x844, was 44svh): the S3 card's top then sits near 536 px, a
+ * real margin under the 560 px budget (e2e "card top <= 560" once measured 561.5 at 44svh).
  */
-export const STAGE_HEIGHT_CLASS = "h-[clamp(320px,44svh,400px)] md:h-[clamp(560px,66svh,620px)] xl:min-h-[calc(100svh-104px)]";
+export const STAGE_HEIGHT_CLASS = "h-[clamp(320px,42svh,400px)] md:h-[clamp(560px,66svh,620px)] xl:min-h-[calc(100svh-104px)]";
 
 /**
- * The room a marked companion gets (R1-11), as `:has()` variants so the page needs no new prop: the
- * frame group moves right, the companion stands a gap away from the frame (6 px on phones, 24 on
- * md+) instead of overlapping it, and the cat overlaps the frame by the same extra amount.
+ * The room a marked companion gets (R1-11), as `:has()` variants so the page needs no new prop.
+ *
+ * On md+ the portrait steps back to 0.9 from its bottom-left corner (404 to 364 px), the companion
+ * (148 px) stands 24 px from it, the 4x cat's body starts 4 px right of it (the slot overlaps the
+ * frame's layout box by 84 px) and the group moves 56 px right, so the 636 px row is centred in the
+ * 672 px stage at 768 (it overlapped the portrait by 40 px before phone-r3). On phones four actors (the 92 px "Your cat here" frame, a 6 px gap,
+ * the portrait, the friend's cat with its caption) must share a 328 px stage at 360 and never overlap
+ * (phone-r3): the portrait steps back from its bottom-left corner (0.66 under 390 px, 0.8 from 390 up
+ * to md), the cat stands 4 px right of the stepped-back portrait (its slot overlaps the frame's layout
+ * box by `212 x (1 - scale) + 32`, the painted body starts 36 px into its 144 px box) and the group
+ * moves right so the whole row is centred: `113 - 106 x scale` px (43 and 28). Transform only, so
+ * the frame keeps its layout box. `!` because the idle phone shift sets the same property.
  */
 export const ROOM_SHIFT =
-  "group/yc max-md:has-[[data-yc-room]]:translate-x-[max(0px,calc(224px_-_50vw))] md:has-[[data-yc-room]]:translate-x-10";
+  "group/yc max-[389px]:has-[[data-yc-room]]:!translate-x-[43px] min-[390px]:max-md:has-[[data-yc-room]]:!translate-x-[28px] md:has-[[data-yc-room]]:translate-x-14";
+export const ROOM_FRAME =
+  "max-md:group-has-[[data-yc-room]]/yc:origin-bottom-left max-[389px]:group-has-[[data-yc-room]]/yc:scale-[.66] min-[390px]:max-md:group-has-[[data-yc-room]]/yc:scale-[.8] md:group-has-[[data-yc-room]]/yc:origin-bottom-left md:group-has-[[data-yc-room]]/yc:scale-90";
 const ROOM_COMPANION = "group-has-[[data-yc-room]]/yc:mr-1.5 md:group-has-[[data-yc-room]]/yc:mr-6";
-const ROOM_CAT =
-  "max-md:group-has-[[data-yc-room]]/yc:-ml-[calc(40px_+_max(0px,calc(224px_-_50vw)))] md:group-has-[[data-yc-room]]/yc:-ml-[88px]";
+export const ROOM_CAT =
+  "max-[389px]:group-has-[[data-yc-room]]/yc:!-ml-[104px] min-[390px]:max-md:group-has-[[data-yc-room]]/yc:!-ml-[74px] md:group-has-[[data-yc-room]]/yc:-ml-[84px]";
+
+/**
+ * The idle phone layout (S1, S2, the cap screen, the manual pick; not S3's shifted step aside): the
+ * cat's slot overlaps the frame by 32 px, so its painted body (36 px into the 144 px box) starts 4 px
+ * right of the frame and never covers the photo (phone-r3). The frame group moves left by
+ * `max(0, 208px - 50vw)` (13 px at 390, 28 at 360) so the cat's head and its caption stay inside
+ * the stage (16 px gutter, a ~88 px "Tap <name>" plate centred under the box).
+ */
+export const IDLE_PHONE_SHIFT = "max-md:translate-x-[min(0px,calc(50vw_-_208px))]";
+export const IDLE_PHONE_CAT = "-ml-8";
+
+/**
+ * The phone meeting layout (S3, from the Pink Paw frame's arrival): three actors share a 332 px
+ * stage at 360 (358 at 390), so nothing may overlap. The portrait steps back to 0.75 (its bottom
+ * right corner stays the anchor) and slides 86 px right; the group moves 7 px right of its shifted
+ * place (`-33px` in all). That lays out "shelter frame (58) + 8 to the nose + sitting cat with its
+ * tail (~87) + ~6 + portrait (159)" with ~5 px left and ~7 px right of the stage at 360 (~20 each
+ * side at 390), inside the page's 16 px gutter (the stage's own edges are masked sky). The companion and cat slots keep their places in the
+ * group, so the walk measured from the slots (`meetingWalkDx`) is the same before and after the
+ * move. Transform only, on the spring of the shift; under reduced motion it is instant. md+ has its
+ * own values (`MEETING_GROUP_MD`, `MEETING_FRAME_MD`).
+ */
+export const MEETING_GROUP = "max-md:!-translate-x-[33px]";
+export const MEETING_FRAME = "max-md:origin-bottom-right max-md:translate-x-[86px] max-md:scale-75";
+
+/**
+ * The same rule from md up (phone-r3: at 768 and 1280 the shelter frame overlapped the portrait's
+ * left edge by 20 px and the sitting 6x cat covered its lower left). The 404 px portrait steps back to
+ * 0.8 from its bottom right corner and slides 136 px right, so its painted left edge (404 x 0.2 + 136
+ * = 217 px from the frame's layout left) clears the sitting cat with its tail (shelter right at 20 +
+ * 16 to the nose + 168 = 204) by ~12 px; the group moves 9 px left to centre "shelter (138) + cat +
+ * portrait (323)", 658 px in all: it fits the 672 px stage at 768 and stays left of column 2 on xl.
+ */
+export const MEETING_GROUP_MD = "md:-translate-x-[9px]";
+export const MEETING_FRAME_MD = "md:origin-bottom-right md:translate-x-[136px] md:scale-[.8]";
 
 /**
  * The cat's spot at 6x on md+ (R2-05): a 288 px sprite box whose painted cat starts 72 px in (sheet
@@ -271,6 +322,8 @@ export interface StageProps {
    */
   companionSide?: "left" | "right";
   shifted?: boolean;
+  /** S3 once the shelter frame is on the altar: the meeting layout (`MEETING_GROUP`, `MEETING_FRAME`, and their md+ values). */
+  meeting?: boolean;
   reducedMotion: boolean;
   onDrop?(file: File): void;
   onDragState?(over: boolean): void;
@@ -283,7 +336,19 @@ function hasFiles(event: DragEvent<HTMLElement>): boolean {
   return Array.from(types as ArrayLike<string>).includes("Files");
 }
 
-export function Stage({ frame, companion, cat, overlay, companionSide = "left", shifted = false, reducedMotion, onDrop, onDragState, className }: StageProps) {
+export function Stage({
+  frame,
+  companion,
+  cat,
+  overlay,
+  companionSide = "left",
+  shifted = false,
+  meeting = false,
+  reducedMotion,
+  onDrop,
+  onDragState,
+  className,
+}: StageProps) {
   const depthRef = useRef(0);
   const dropZone = typeof onDrop === "function";
 
@@ -291,7 +356,7 @@ export function Stage({ frame, companion, cat, overlay, companionSide = "left", 
   const right = companionSide === "right";
   // z-10: the cat walks in front of the frame (the meeting beat), so it stays above the frame's own
   // z-indexed layers (photo badge, labels) and stays pettable; the overlay (z-20) is above it.
-  const catSpot = `absolute bottom-0 left-full z-10 flex items-end md:-ml-12 ${CAT_SPOT_MD6} ${shifted ? "-ml-[30px]" : "-ml-10"} ${ROOM_CAT}`;
+  const catSpot = `absolute bottom-0 left-full z-10 flex items-end md:-ml-12 ${CAT_SPOT_MD6} ${shifted ? "-ml-[30px]" : IDLE_PHONE_CAT} ${ROOM_CAT}`;
 
   const dragHandlers = dropZone
     ? {
@@ -324,9 +389,10 @@ export function Stage({ frame, companion, cat, overlay, companionSide = "left", 
 
   return (
     <div
-      className={`relative w-full max-md:overflow-x-clip ${STAGE_HEIGHT_CLASS} ${className ?? ""}`}
+      className={`relative w-full max-xl:overflow-x-clip ${STAGE_HEIGHT_CLASS} ${className ?? ""}`}
       data-testid="yourcat-stage"
       data-shifted={shifted ? "true" : undefined}
+      data-meeting={meeting ? "true" : undefined}
       data-drop-zone={dropZone ? "true" : undefined}
       {...dragHandlers}
     >
@@ -365,13 +431,17 @@ export function Stage({ frame, companion, cat, overlay, companionSide = "left", 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 aspect-[1200/340]" data-testid="yourcat-stage-ground">
         <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: `${ALTAR_SURFACE * 100}%` }} data-testid="yourcat-stage-surface">
           <div
-            className={`pointer-events-auto relative flex items-end ${shifted ? "max-md:-translate-x-10" : ""} ${ROOM_SHIFT} ${
+            className={`pointer-events-auto relative flex items-end ${shifted ? "max-md:-translate-x-10" : IDLE_PHONE_SHIFT} ${meeting ? `${MEETING_GROUP} ${MEETING_GROUP_MD}` : ""} ${ROOM_SHIFT} ${
               reducedMotion ? "" : "transition-transform duration-[320ms]"
             }`}
             style={reducedMotion ? undefined : { transitionTimingFunction: EASE.spring }}
             data-testid="yourcat-stage-group"
           >
-            <div className="relative" data-testid="yourcat-slot-frame">
+            <div
+              className={`relative ${meeting ? `${MEETING_FRAME} ${MEETING_FRAME_MD}` : ROOM_FRAME} ${reducedMotion ? "" : "transition-transform duration-[320ms]"}`}
+              style={reducedMotion ? undefined : { transitionTimingFunction: EASE.spring }}
+              data-testid="yourcat-slot-frame"
+            >
               {frame}
             </div>
             {companion && !right && (

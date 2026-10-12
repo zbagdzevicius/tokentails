@@ -30,6 +30,10 @@ import {
   CAT_SPOT_MD6,
   PAGE_FIREFLIES,
   PLATE_MASK,
+  IDLE_PHONE_CAT,
+  IDLE_PHONE_SHIFT,
+  ROOM_CAT,
+  ROOM_FRAME,
   ROOM_SHIFT,
   SIDE_PLATES,
   SKY_FALLBACK,
@@ -90,8 +94,8 @@ describe("Stage", () => {
   it("has fixed heights on phones and md+, and fills the first screen on the xl studio", () => {
     render(<Stage frame={<div>frame</div>} reducedMotion={false} />);
     const stage = screen.getByTestId("yourcat-stage");
-    expect(STAGE_HEIGHT_CLASS).toBe("h-[clamp(320px,44svh,400px)] md:h-[clamp(560px,66svh,620px)] xl:min-h-[calc(100svh-104px)]");
-    expect(stage.className).toContain("h-[clamp(320px,44svh,400px)]");
+    expect(STAGE_HEIGHT_CLASS).toBe("h-[clamp(320px,42svh,400px)] md:h-[clamp(560px,66svh,620px)] xl:min-h-[calc(100svh-104px)]");
+    expect(stage.className).toContain("h-[clamp(320px,42svh,400px)]");
     expect(stage.className).toContain("md:h-[clamp(560px,66svh,620px)]");
     // R2-03: the altar stands at the bottom of the first screen, no empty night band under it.
     expect(stage.className).toContain("xl:min-h-[calc(100svh-104px)]");
@@ -222,21 +226,58 @@ describe("Stage", () => {
     expect(screen.getByTestId("yourcat-stage").getAttribute("data-shifted")).toBe("true");
   });
 
-  it("gives a marked companion its own room: the frame group moves right, the cat keeps its place", () => {
+  it("gives a marked companion its own room: the portrait steps back and the row is centred, with no overlap", () => {
     render(<Stage frame={<span />} companion={<span data-yc-room="true">empty frame</span>} cat={<span>cat</span>} reducedMotion={false} />);
     const group = screen.getByTestId("yourcat-stage-group");
     expect(group.className).toContain(ROOM_SHIFT);
-    expect(ROOM_SHIFT).toContain("max-md:has-[[data-yc-room]]:translate-x-[max(0px,calc(224px_-_50vw))]");
-    expect(ROOM_SHIFT).toContain("md:has-[[data-yc-room]]:translate-x-10");
+    expect(ROOM_SHIFT).toContain("max-[389px]:has-[[data-yc-room]]:!translate-x-[43px]");
+    expect(ROOM_SHIFT).toContain("min-[390px]:max-md:has-[[data-yc-room]]:!translate-x-[28px]");
+    expect(ROOM_SHIFT).toContain("md:has-[[data-yc-room]]:translate-x-14");
     expect(group.querySelector("[data-yc-room]")).toBeTruthy();
+    // The portrait steps back from its bottom-left corner (transform only).
+    const frame = screen.getByTestId("yourcat-slot-frame");
+    expect(frame.className).toContain(ROOM_FRAME);
+    expect(ROOM_FRAME).toContain("max-[389px]:group-has-[[data-yc-room]]/yc:scale-[.66]");
+    expect(ROOM_FRAME).toContain("min-[390px]:max-md:group-has-[[data-yc-room]]/yc:scale-[.8]");
+    expect(ROOM_FRAME).toContain("md:group-has-[[data-yc-room]]/yc:scale-90");
     // A 6 px gap on phones, 24 on md+, instead of the overlap.
     const companion = screen.getByTestId("yourcat-slot-companion");
     expect(companion.className).toContain("group-has-[[data-yc-room]]/yc:mr-1.5");
     expect(companion.className).toContain("md:group-has-[[data-yc-room]]/yc:mr-6");
-    // The cat overlaps the frame by the same extra amount, so it stays inside the stage.
-    const cat = screen.getByTestId("yourcat-slot-cat");
-    expect(cat.className).toContain("max-md:group-has-[[data-yc-room]]/yc:-ml-[calc(40px_+_max(0px,calc(224px_-_50vw)))]");
-    expect(cat.className).toContain("md:group-has-[[data-yc-room]]/yc:-ml-[88px]");
+    // The cat stands 4 px right of the stepped-back portrait.
+    expect(screen.getByTestId("yourcat-slot-cat").className).toContain(ROOM_CAT);
+    // The geometry, per width: empty frame (92 / 148), gap, portrait (212 / 404 x scale), 4 px, the
+    // cat's body (76 / 96) and its caption's overhang, centred in the stage (328 at 360, 358 at 390, 672 at 768).
+    for (const [stageWidth, frameWidth, empty, gap, scale, shift, catOverlap, box, unit] of [
+      [328, 212, 92, 6, 0.66, 43, 104, 144, 3],
+      [358, 212, 92, 6, 0.8, 28, 74, 144, 3],
+      [672, 404, 148, 24, 0.9, 56, 84, 192, 4],
+    ]) {
+      const frameLeft = (stageWidth - frameWidth) / 2 + shift;
+      const portraitRight = frameLeft + frameWidth * scale;
+      const emptyLeft = frameLeft - gap - empty;
+      const catBoxLeft = frameLeft + frameWidth - catOverlap;
+      const bodyLeft = catBoxLeft + 12 * unit;
+      const captionRight = catBoxLeft + box / 2 + 44;
+      expect(emptyLeft).toBeGreaterThanOrEqual(0);
+      expect(bodyLeft - portraitRight).toBeGreaterThanOrEqual(3);
+      expect(Math.max(captionRight, catBoxLeft + 36 * unit)).toBeLessThanOrEqual(stageWidth);
+    }
+  });
+
+  it("idle on phones: the cat's body starts right of the frame and the group moves left so its caption fits", () => {
+    render(<Stage frame={<span />} cat={<span>cat</span>} reducedMotion={false} />);
+    expect(screen.getByTestId("yourcat-stage-group").className).toContain(IDLE_PHONE_SHIFT);
+    expect(screen.getByTestId("yourcat-slot-cat").className).toContain(IDLE_PHONE_CAT);
+    expect(IDLE_PHONE_CAT).toBe("-ml-8");
+    for (const width of [360, 390]) {
+      const stageRight = width - 16;
+      const shift = Math.min(0, width / 2 - 208);
+      const frameRight = width / 2 + 106 + shift;
+      const catBoxLeft = frameRight - 32;
+      expect(catBoxLeft + 36).toBeGreaterThan(frameRight);
+      expect(catBoxLeft + 72 + 44).toBeLessThanOrEqual(stageRight);
+    }
   });
 
   it("is a drop zone for files when onDrop is given", () => {
@@ -703,6 +744,13 @@ describe("YourcatHeader", () => {
     expect(screen.getByTestId("yourcat-header-socials").className).toContain("hidden md:block");
     expect(header.className).toContain("fixed");
     expect(header.className).toContain("motion-reduce:transition-none");
+  });
+
+  it("holds the consent chip next to the logo and never hides while it is shown", () => {
+    render(<YourcatHeader aside={<div data-variant="compact" data-testid="chip" />} />);
+    const header = screen.getByTestId("yourcat-header");
+    expect(header.contains(screen.getByTestId("chip"))).toBe(true);
+    expect(header.className).toContain("[&:has([data-variant=compact])]:!translate-y-0");
   });
 
   it("takes the night glass when scrolled and hides on scroll down, returning on scroll up", () => {

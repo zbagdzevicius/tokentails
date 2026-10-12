@@ -45,7 +45,9 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
                 {children}
               </PageBoundary>
             </main>
-            <AnalyticsConsentBanner />
+            {/* /yourcat asks in its own header (the compact chip, `pages/yourcat.tsx`), so the
+                banner never covers CHOOSE A PHOTO or the S3 actions. Every other page: unchanged. */}
+            {route !== "/yourcat" && <AnalyticsConsentBanner />}
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

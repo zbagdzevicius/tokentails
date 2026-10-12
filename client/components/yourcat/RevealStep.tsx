@@ -7,6 +7,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -55,6 +56,66 @@ export const PRINT_FADE_RM_MS = 120;
 /** The meeting block, the coat line and the toggle fade in with the shelter frame (§4.4). */
 export const MEETING_FADE_MS = 240;
 export const MEETING_FADE_RM_MS = 120;
+/**
+ * A Story/Post switch animates the card's box from the old aspect to the new one (§4.5 "a 300 ms out
+ * FLIP"): one WAAPI transform from the old box to the new, origin top left, while the art inside is
+ * counter-scaled (`formatFlipFrames`), so the box morphs and the card art never squashes. Reduced
+ * motion: no transform, a 120 ms opacity lift instead.
+ */
+export const FORMAT_FLIP_MS = 300;
+export const FORMAT_FLIP_RM_MS = 120;
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** The FLIP's first keyframe: the new box drawn where and as large as the old one (page coordinates). */
+export function formatFlipFrom(
+  previous: { left: number; top: number; width: number; height: number },
+  next: { left: number; top: number; width: number; height: number },
+): string | null {
+  if (!(previous.width > 0) || !(previous.height > 0) || !(next.width > 0) || !(next.height > 0)) return null;
+  const dx = Math.round((previous.left - next.left) * 100) / 100;
+  const dy = Math.round((previous.top - next.top) * 100) / 100;
+  const sx = Math.round((previous.width / next.width) * 1000) / 1000;
+  const sy = Math.round((previous.height / next.height) * 1000) / 1000;
+  if (dx === 0 && dy === 0 && sx === 1 && sy === 1) return null;
+  return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+}
+
+/** Keyframes per FLIP: enough that the art's counter-scale stays within ~0.1 % of 1 between them. */
+export const FORMAT_FLIP_STEPS = 10;
+
+/**
+ * The FLIP's keyframes: the box goes from the old rect to the new one (translate and scale, origin top
+ * left) and its art layer gets the inverse scale at every step, centred in the box, so the art is
+ * always drawn at its true size (cropped by the box while it is narrower, on night while it is wider)
+ * and never squashed. Linear in progress between the keyframes; the caller sets the easing on both.
+ */
+export function formatFlipFrames(
+  previous: { left: number; top: number; width: number; height: number },
+  next: { left: number; top: number; width: number; height: number },
+  steps: number = FORMAT_FLIP_STEPS,
+): { box: Keyframe[]; art: Keyframe[] } | null {
+  if (!formatFlipFrom(previous, next)) return null;
+  const r = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places;
+  const dx = previous.left - next.left;
+  const dy = previous.top - next.top;
+  const sx = previous.width / next.width;
+  const sy = previous.height / next.height;
+  const box: Keyframe[] = [];
+  const art: Keyframe[] = [];
+  for (let step = 0; step <= steps; step += 1) {
+    const p = step / steps;
+    const x = sx + (1 - sx) * p;
+    const y = sy + (1 - sy) * p;
+    const offset = r(p, 4);
+    box.push({ offset, transformOrigin: "0 0", transform: `translate(${r(dx * (1 - p), 2)}px, ${r(dy * (1 - p), 2)}px) scale(${r(x, 4)}, ${r(y, 4)})` });
+    // In the box's own (pre-scale) space: centre the true-size art in the scaled box, then undo its scale.
+    const ax = ((x - 1) * next.width) / (2 * x);
+    const ay = ((y - 1) * next.height) / (2 * y);
+    art.push({ offset, transformOrigin: "0 0", transform: `translate(${r(ax, 2)}px, ${r(ay, 2)}px) scale(${r(1 / x, 4)}, ${r(1 / y, 4)})` });
+  }
+  return { box, art };
+}
+
 /** The card slot stays blank after the clock; "Preparing card…" shows only if the card is this late. */
 export const CARD_LATE_MS = 600;
 
@@ -108,11 +169,34 @@ export function shelterPlate(catName: string, frameAlt: (name: string) => string
 }
 
 /**
+ * An element's box in its `ancestor`'s layout coordinates, from `offsetLeft`/`offsetWidth` up the
+ * offset-parent chain: no CSS transform or animation moves it (the stage group's shift, the frame's
+ * step back, the shelter frame's slide-in, the cat's entrance and walk). Null when `ancestor` is not in
+ * the chain or there is no layout (jsdom, a hidden tab), so the caller falls back.
+ */
+export function layoutBox(node: HTMLElement, ancestor: HTMLElement): { left: number; right: number; width: number } | null {
+  let left = 0;
+  let current: HTMLElement | null = node;
+  while (current && current !== ancestor) {
+    left += current.offsetLeft;
+    const parent: Element | null = current.offsetParent;
+    if (!(parent instanceof HTMLElement)) return null;
+    current = parent;
+  }
+  if (current !== ancestor || !(node.offsetWidth > 0)) return null;
+  return { left, right: left + node.offsetWidth, width: node.offsetWidth };
+}
+
+/**
  * How far the visitor's cat walks (px, negative is left) so its nose stops `gap` px right of the
  * shelter frame: from the untransformed boxes of the cat's slot child and the companion slot. Null
  * when there is no layout (a hidden tab, jsdom); 0 when it already stands there or further left.
  */
-export function meetingWalkDx(cat: DOMRect, shelter: DOMRect, gap: number): number | null {
+export function meetingWalkDx(
+  cat: { left: number; width: number },
+  shelter: { right: number; width: number },
+  gap: number,
+): number | null {
   if (!(cat.width > 0) || !(shelter.width > 0)) return null;
   const scale = cat.width / SHEET.cell;
   const dx = Math.round(shelter.right + gap - (cat.left + NOSE_X_FACING_LEFT * scale));
@@ -309,6 +393,7 @@ function CardPreview({
   late,
   wide,
   label,
+  reducedMotion,
   onLongPress,
   holdHandlers,
 }: {
@@ -320,9 +405,50 @@ function CardPreview({
   /** In-app browsers show the card large. */
   wide: boolean;
   label: string;
+  reducedMotion: boolean;
   onLongPress?: () => void;
   holdHandlers?: Record<string, () => void>;
 }) {
+  // The FLIP on a format change: the box's page rect after every render; a new format animates from it.
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const artRef = useRef<HTMLDivElement | null>(null);
+  const artFlipRef = useRef<Animation | null>(null);
+  const lastBox = useRef<{ format: CardFormat; rect: { left: number; top: number; width: number; height: number } } | null>(null);
+  const flipRef = useRef<Animation | null>(null);
+  useIsoLayoutEffect(() => {
+    const node = boxRef.current;
+    if (!node) return;
+    const previous = lastBox.current;
+    if (previous && previous.format === format) {
+      // Same format: only remember where the box is (when no FLIP is moving it).
+      if (!flipRef.current || flipRef.current.playState !== "running") {
+        const box = node.getBoundingClientRect();
+        lastBox.current = { format, rect: { left: box.left + window.scrollX, top: box.top + window.scrollY, width: box.width, height: box.height } };
+      }
+      return;
+    }
+    flipRef.current?.cancel();
+    flipRef.current = null;
+    artFlipRef.current?.cancel();
+    artFlipRef.current = null;
+    const box = node.getBoundingClientRect();
+    const rect = { left: box.left + window.scrollX, top: box.top + window.scrollY, width: box.width, height: box.height };
+    lastBox.current = { format, rect };
+    if (!previous || typeof node.animate !== "function") return;
+    try {
+      if (reducedMotion) {
+        flipRef.current = node.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: FORMAT_FLIP_RM_MS, easing: "linear" });
+        return;
+      }
+      const frames = formatFlipFrames(previous.rect, rect);
+      if (!frames) return;
+      const timing = { duration: FORMAT_FLIP_MS, easing: EASE.out };
+      flipRef.current = node.animate(frames.box, timing);
+      artFlipRef.current = artRef.current?.animate(frames.art, timing) ?? null;
+    } catch {
+      // A missed FLIP only loses the motion: the box is already at its new size.
+    }
+  });
   const [layers, setLayers] = useState<{ url: string; first: boolean }[]>([]);
   useEffect(() => {
     if (!current) return;
@@ -340,6 +466,7 @@ function CardPreview({
   const drawn = layers.length > 0 || !!message;
   return (
     <div
+      ref={boxRef}
       className={`relative mx-auto overflow-hidden rounded-lg border-2 md:w-[400px] xl:mx-0 [@media(min-width:768px)_and_(min-height:1000px)]:w-[420px] ${
         drawn ? "border-tt-cream/60 bg-tt-night-800 shadow-[0_0_24px_rgb(var(--tt-gold-400)/.25)]" : "border-transparent"
       } ${top?.first ? "yc-print" : message ? "yc-fade-in" : ""}`}
@@ -348,30 +475,33 @@ function CardPreview({
       data-format={format}
       data-drawn={drawn ? "true" : "false"}
     >
-      {message && <div className={`${CAPTION} absolute inset-0 flex items-center justify-center p-4 text-center`}>{message}</div>}
-      {layers.map((layer, index) => {
-        const last = index === layers.length - 1;
-        return (
+      {/* The art layer: counter-scaled during a Story/Post FLIP, so the card art never squashes. */}
+      <div ref={artRef} className="absolute inset-0" data-testid="yourcat-card-art">
+        {message && <div className={`${CAPTION} absolute inset-0 flex items-center justify-center p-4 text-center`}>{message}</div>}
+        {layers.map((layer, index) => {
+          const last = index === layers.length - 1;
+          return (
            
-          <img
-            key={layer.url}
-            src={layer.url}
-            alt={last ? label : ""}
-            aria-hidden={last ? undefined : true}
-            className={`absolute inset-0 h-full w-full ${last && !layer.first ? "yc-fade-in [--yc-dur:220ms]" : ""}`}
-            onAnimationEnd={() => {
-              if (last) setLayers((now) => now.slice(-1));
-            }}
-            onContextMenu={last ? onLongPress : undefined}
-            {...(last ? holdHandlers : {})}
-          />
-        );
-      })}
-      {top?.first && (
-        <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <span className="yc-sheen-once absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-tt-cream/30 to-transparent [--yc-delay:420ms]" />
-        </span>
-      )}
+            <img
+              key={layer.url}
+              src={layer.url}
+              alt={last ? label : ""}
+              aria-hidden={last ? undefined : true}
+              className={`absolute inset-0 h-full w-full ${last && !layer.first ? "yc-fade-in [--yc-dur:220ms]" : ""}`}
+              onAnimationEnd={() => {
+                if (last) setLayers((now) => now.slice(-1));
+              }}
+              onContextMenu={last ? onLongPress : undefined}
+              {...(last ? holdHandlers : {})}
+            />
+          );
+        })}
+        {top?.first && (
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <span className="yc-sheen-once absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-tt-cream/30 to-transparent [--yc-delay:420ms]" />
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -484,7 +614,8 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     return () => clearTimeout(timer);
   }, [clocked, stepOut, runs]);
 
-  useStageConfig({ shifted: phase !== "pre" });
+  // Phones: from the shelter frame's arrival, the portrait steps back so the three never overlap (Stage `meeting`).
+  useStageConfig({ shifted: phase !== "pre", meeting: meeting !== "none" });
 
   // ---- name: the pencil opens the rename row; the card follows it (debounced); a refused name keeps the last accepted
   const [renaming, setRenaming] = useState(false);
@@ -581,9 +712,16 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     const cat = catWrapRef.current;
     const slot = shelterRef.current?.parentElement;
     if (!cat || !slot) return null;
-    const catBox = cat.getBoundingClientRect();
+    // Layout boxes in the stage group, never the painted rects: a measure taken while the group's
+    // shift, the frame's step back or the slide-in still runs (a slow phone) would leave the cat over
+    // the portrait for good. Both slots live in the group, so it is their common offset parent.
+    // Outside a stage group (no layout engine, a test host) the painted rects stand in.
+    const group = cat.closest<HTMLElement>('[data-testid="yourcat-stage-group"]');
+    const inGroup = group ? [layoutBox(cat, group), layoutBox(slot, group)] : [null, null];
+    const [catBox, slotBox] = inGroup[0] && inGroup[1] ? inGroup : [cat.getBoundingClientRect(), slot.getBoundingClientRect()];
+    if (!catBox || !slotBox) return null;
     const gap = catBox.width / SHEET.cell >= 5 ? MEETING_GAP.md : MEETING_GAP.phone;
-    return meetingWalkDx(catBox, slot.getBoundingClientRect(), gap);
+    return meetingWalkDx(catBox, slotBox, gap);
   }, []);
 
   // With the frame in place, the cat walks over to it (walk row, ~700 ms), then sits facing it and
@@ -604,17 +742,43 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
     else later(walks ? ms : MEETING_SIT_MS, sit);
   }, [meeting, measureWalk, reducedMotion, later]);
 
-  // A resize moves the seated cat to the frame's new place (no walk).
-  const walkId = walk?.id;
+  // Any later layout change moves the cat to the frame's new place (no new walk): a resize, and any
+  // size change of the stage group, the cat or the shelter slot (late CSS or fonts on a slow phone,
+  // which once left the cat over the portrait when the first measure ran early). Measured from layout
+  // boxes (`layoutBox`), which the slide-in, the step-out and the walk's own transforms never move, and
+  // again whenever a transition or animation in the group ends. A first measure that found no layout
+  // gets its move here too.
+  const meetingOn = meeting !== "none";
   useEffect(() => {
-    if (walkId === undefined || typeof window === "undefined") return;
-    const onResize = () => {
+    if (!meetingOn || typeof window === "undefined") return;
+    const sync = () => {
       const dx = measureWalk();
-      if (dx !== null) setWalk((now) => (now && now.id === walkId ? { ...now, dx } : now));
+      if (dx === null) return;
+      setWalk((now) => {
+        if (now) return now.dx === dx ? now : { ...now, dx };
+        return dx < 0 ? { id: (walkIdRef.current += 1), dx, ms: 0 } : now;
+      });
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [walkId, measureWalk]);
+    window.addEventListener("resize", sync);
+    const watched = [
+      catWrapRef.current?.closest<HTMLElement>('[data-testid="yourcat-stage-group"]'),
+      catWrapRef.current,
+      shelterRef.current?.parentElement,
+    ].filter((node): node is HTMLElement => !!node);
+    const observer = typeof ResizeObserver === "function" && watched.length ? new ResizeObserver(sync) : null;
+    watched.forEach((node) => observer?.observe(node));
+    // A class change that moves a slot without resizing it (the S3 shift's margins) ends with the
+    // group's own transition: measure again when any transition or animation in the group ends.
+    const group = watched[0]?.dataset.testid === "yourcat-stage-group" ? watched[0] : null;
+    group?.addEventListener("transitionend", sync);
+    group?.addEventListener("animationend", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      observer?.disconnect();
+      group?.removeEventListener("transitionend", sync);
+      group?.removeEventListener("animationend", sync);
+    };
+  }, [meetingOn, measureWalk]);
 
   // ---- the share cards ---------------------------------------------------------------------------
   const avatarUrl = avatarStatus === "ready" ? record.avatar.url : null;
@@ -894,6 +1058,7 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
               entrance={clocked && stepToken > 0 && !reducedMotion ? "jumpOut" : "none"}
               heartOnce={heart}
               walk={walk}
+              captionStart={meeting !== "none"}
               reducedMotion={reducedMotion}
             />
             {gif > 0 && <StepOutFlare key={`flare-${gif}`} />}
@@ -976,6 +1141,7 @@ export const RevealStep = forwardRef<HTMLHeadingElement, RevealStepProps>((props
             late={cardLate && cardMissing}
             wide={inApp}
             label={S3.cardAlt(name, family)}
+            reducedMotion={reducedMotion}
             onLongPress={inApp ? onLongPress : undefined}
             holdHandlers={
               inApp ? { onTouchStart: startHold, onTouchEnd: endHold, onTouchMove: endHold, onTouchCancel: endHold } : undefined

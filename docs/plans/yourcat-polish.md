@@ -137,7 +137,7 @@ The DOM order is the same on every screen: **heading block, then stage, then pan
   - The screens stack in a column with a 16 px gutter.
   - The heading block has a fixed height: a 28 px kicker slot, then a 2-line H1 slot (`min-h-[2em]`,
     items-end). The stage therefore never moves when the heading changes.
-  - Stage height is `h-[clamp(320px,44svh,400px)]`, full width.
+  - Stage height is `h-[clamp(320px,42svh,400px)]`, full width.
 - **md+.**
   - The route is a 2-column studio inside `max-w-[1240px] mx-auto px-12`:
     `grid-cols-[minmax(0,1fr)_420px] gap-x-12`.
@@ -155,9 +155,19 @@ The DOM order is the same on every screen: **heading block, then stage, then pan
   - **Frame:** horizontally centred. Its legs stand on the `ALTAR_SURFACE` line.
   - **Phones on S3:** the frame moves `translateX(-40px)`, inside the step-out (transform only). The
     cat stands at 3x (144 px) with its feet on the stone line. Its box overlaps the frame's right leg
-    by about 30 px, which reads as "just stepped out". The cream shelter frame (48x72 art) leans at the
-    frame's bottom-left (rotate -4deg, overlapping by about 15 px).
+    by about 30 px, which reads as "just stepped out". The cream shelter frame (48x72 art) arrives at
+    the frame's bottom-left (rotate -4deg); the meeting layout below then keeps it clear of the portrait.
   - **md+:** no shift. The cat is at 4x (192 px). The shelter frame has 128x192 art.
+  - **No overlap (phone-r3, every width):** the portrait, the cat's painted body, the Pink Paw frame
+    with its name plate and the friend view's empty frame never overlap, and nothing covers a
+    button. Idle phones (S1, S2, the cap screen, the manual pick): the cat's slot overlaps the frame by
+    32 px, so its body starts 4 px right of it, and the group moves left by `max(0, 208px - 50vw)` so
+    the caption stays on the stage. The S3 meeting: the portrait steps back from its bottom-right
+    corner and slides right (0.75 and 86 px on phones, 0.8 and 136 px on md+), so the row reads
+    "Pink Paw frame, sitting cat, portrait" side by side. The friend view: the portrait steps back
+    from its bottom-left corner (0.66 under 390 px, 0.8 up to md, 0.9 on md+) and the row "empty
+    frame, portrait, friend's cat" is centred. Transform only. e2e checks it at 360, 390, 768, 1280
+    and 1440 (`Stage.tsx` holds the arithmetic).
   - Tolerance is ±8 px. Nothing may be clipped at 360, 390 or 1440 widths.
 
 ---

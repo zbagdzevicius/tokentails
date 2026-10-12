@@ -20,6 +20,8 @@ export type StudioCue = "hold" | "stepOut" | "title" | "done";
 export interface StageConfig {
   /** Phones on S3: the frame moves 40 px left as the cat steps out (§3). */
   shifted?: boolean;
+  /** Phones on S3 with the shelter frame on the altar: the portrait steps back for the meeting (`Stage` `meeting`). */
+  meeting?: boolean;
   /** The companion on the altar's left (default) or right after the cat (`Stage` `companionSide`). */
   companionSide?: "left" | "right";
   dragOver?: boolean;
@@ -83,17 +85,18 @@ export function useStageConfig(config: StageConfig): void {
   });
   const hasDrop = !!config.onDrop;
   const hasDrag = !!config.onDragState;
-  const { shifted, companionSide, dragOver, sheen } = config;
+  const { shifted, meeting, companionSide, dragOver, sheen } = config;
   useEffect(() => {
     configure({
       shifted,
+      meeting,
       companionSide,
       dragOver,
       sheen,
       onDrop: hasDrop ? (file) => handlers.current.onDrop?.(file) : undefined,
       onDragState: hasDrag ? (over) => handlers.current.onDragState?.(over) : undefined,
     });
-  }, [configure, shifted, companionSide, dragOver, sheen, hasDrop, hasDrag]);
+  }, [configure, shifted, meeting, companionSide, dragOver, sheen, hasDrop, hasDrag]);
   useEffect(() => () => configure({}), [configure]);
 }
 

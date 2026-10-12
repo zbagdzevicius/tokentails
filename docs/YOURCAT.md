@@ -318,9 +318,10 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
 - Open (polish §15, report only): the shared `layouts/Header.tsx` uses the invalid Tailwind class
   `bg-[rgba(45, 30, 107, 1)]`, so `bg-blue-300` shows instead on `/cats`, `/marketing`, `/stats` and the
   payout pages. `/yourcat` uses its own `YourcatHeader` and is not affected.
-- Open (polish §15, owner of `AnalyticsConsentBanner.tsx`): on phones the consent banner covers the S1
-  "Choose a photo" and the S3 share bar on a first visit, until it is answered. It needs a scoped,
-  compact variant. The layout acceptance (e2e) runs with consent already set.
+- Open (phone-r3, cosmetic): on phones, in the first ~0.5 s of the S3 meeting walk, the cat's tail
+  crosses the portrait frame's lower-left edge by about 5 to 8 px. Settled, sat and heart states are
+  clean. Fix: start the walk a few px further left (start x = portrait left minus tail width) in the
+  `Stage`/`PetCat` meeting keyframes.
 - Open (polish §15): every family sheet must follow the `Catbassador.ts` row order (sleep, dig, groom,
   hit, idle, jump, loaf, run, sit, walk). `yourcat-sprite-sheet.test.ts` checks the starters and the
   base colours available locally; the CDN families are assumed to match and are only spot-checked by
@@ -330,12 +331,10 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
   (the cat overlapped the panel and took its clicks); between 768 and 1279 px the page stacks with the
   stage capped at 680 px.
 - Open (polish build D): on phones the coat line sits in the meeting block (under the switch), not
-  between the stage and the card, so the card's top stays within 560 px at 390 × 844 (§14.1). The card
-  preview prints in on the first card only after the step-out show ends, and the sticky bar appears
-  with it, so a phone recording of the show stays clean. Not built from the spec: the 300 ms aspect FLIP
-  on a Story/Post change (the frame changes size at once; it is user initiated), the silhouette's dash
-  march while dragging (the frame still scales and the example cat turns), and the 200 ms fade of the
-  friend's cat when a friend view visitor chooses a photo.
+  between the stage and the card, so the card's top stays within 560 px at 390 × 844 (§14.1; measured
+  536 px at 390 and 501 px at 360 in phone-r3). The card preview prints in on the first card only
+  after the step-out show ends, and the sticky bar appears with it, so a phone recording of the show
+  stays clean.
 
 - Fixed (KI-19, 2026-10-11): the consent banner did not name Google Tag Manager and never showed in a
   build with a GTM id but no PostHog key, so GTM could never get consent. It now opens when either

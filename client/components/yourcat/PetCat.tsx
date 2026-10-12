@@ -79,6 +79,12 @@ export interface PetCatProps {
    * only moves the cat, as after a resize). The cat stays where the walk ends.
    */
   walk?: PetCatWalk | null;
+  /**
+   * Phones only: the caption starts under the cat's body (its left edge) instead of centring under
+   * the box, so it reads to the right, clear of a frame and name plate on the cat's left (the S3
+   * meeting layout). md+ keeps it centred.
+   */
+  captionStart?: boolean;
   onEntranceEnd?(): void;
 }
 
@@ -116,6 +122,12 @@ export const RELEASE_BOUNCE_MS = 125;
  * from the shelter frame and floats its heart in that gap.
  */
 export const NOSE_X_FACING_LEFT = 11;
+
+/**
+ * The caption's plate: night-950 at 85 % behind lilac text. Over the brightest stage pixel (white)
+ * the plate is at most #2c2a3c, so lilac (#f0c5fd) keeps a contrast of about 9:1 (AA needs 4.5:1).
+ */
+export const CAPTION_PLATE = "rounded-md bg-tt-night-950/85 px-2 py-0.5";
 
 type Heart = { id: number; x: number; delay: number; sway: number; front: boolean };
 
@@ -211,6 +223,7 @@ export function PetCat({
   heartOnce,
   blink = false,
   walk = null,
+  captionStart = false,
   onEntranceEnd,
 }: PetCatProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -580,12 +593,13 @@ export function PetCat({
         </span>
       )}
 
-      {/* The caption: text-p5 in a 44 px box under the paws; pressing it pets the cat too. */}
+      {/* The caption: text-p5 in a 44 px box under the paws; pressing it pets the cat too. The text
+          sits on its own night plate (CAPTION_PLATE), so it reads on the lit altar at WCAG AA. */}
       <p
         aria-live="polite"
-        className={`absolute left-1/2 flex min-h-11 w-max max-w-[60vw] -translate-x-1/2 select-none items-center justify-center px-2 text-center text-p5 text-tt-lilac [text-shadow:0_1px_0_rgb(var(--tt-night-950)),0_0_6px_rgb(var(--tt-night-950))] ${
-          interactive ? "cursor-pointer touch-manipulation" : "pointer-events-none"
-        }`}
+        className={`absolute left-1/2 flex min-h-11 w-max max-w-[60vw] -translate-x-1/2 select-none items-center justify-center px-2 text-center text-p5 text-tt-lilac ${
+          captionStart ? "max-md:left-[calc(12px*var(--s))] max-md:translate-x-0 max-md:justify-start max-md:px-0" : ""
+        } ${interactive ? "cursor-pointer touch-manipulation" : "pointer-events-none"}`}
         style={{ top: `calc(${FEET_Y}px * var(--s) - 6px)` }}
         onPointerDown={interactive ? (event) => petDown(event.clientX, rootRef.current?.getBoundingClientRect()) : undefined}
         onPointerUp={interactive ? release : undefined}
@@ -593,7 +607,7 @@ export function PetCat({
         onPointerCancel={interactive ? release : undefined}
         data-testid="yourcat-petcat-caption"
       >
-        <span className="block truncate">{caption}</span>
+        <span className={`block truncate ${CAPTION_PLATE}`}>{caption}</span>
       </p>
     </div>
   );

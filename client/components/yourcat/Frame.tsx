@@ -178,6 +178,7 @@ export const Frame = forwardRef<FrameHandle, FrameProps>(function Frame(
                 {dragOver && reducedMotion && (
                   <span aria-hidden="true" className="pointer-events-none absolute inset-0 border-2 border-dashed border-tt-cream" />
                 )}
+                {dragOver && !reducedMotion && <MarchingOutline w={inner.w} h={inner.h} mdW={inner.mdW ?? inner.w} mdH={inner.mdH ?? inner.h} />}
               </div>
             </div>
           </div>
@@ -192,6 +193,33 @@ export const Frame = forwardRef<FrameHandle, FrameProps>(function Frame(
     </div>
   );
 });
+
+/**
+ * The glass outline while a file is dragged over the stage: a 2 px cream dash (6 on, 2 off) that
+ * marches around the inner box (`yc-dash`, one 16 px step a second, stroke-dashoffset only). One rect
+ * per size, so the dash keeps its pixel length on phones and md+. Reduced motion draws the static
+ * dashed border instead (above), and `yc-dash` is off there anyway.
+ */
+function MarchingOutline({ w, h, mdW, mdH }: { w: number; h: number; mdW: number; mdH: number }) {
+  const rect = (width: number, height: number, className: string) => (
+    <svg
+      aria-hidden="true"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      shapeRendering="crispEdges"
+      className={`pointer-events-none absolute inset-0 ${className}`}
+    >
+      <rect x={1} y={1} width={width - 2} height={height - 2} className="yc-dash fill-none stroke-tt-cream" strokeWidth={2} strokeDasharray="6 2" />
+    </svg>
+  );
+  return (
+    <span className="pointer-events-none absolute inset-0 z-[2]" data-testid="yourcat-frame-marching">
+      {rect(w, h, "md:hidden")}
+      {rect(mdW, mdH, "hidden md:block")}
+    </span>
+  );
+}
 
 /**
  * The empty frame's contents (S1, S0 companion): a dashed cream silhouette of a sitting cat, 8%

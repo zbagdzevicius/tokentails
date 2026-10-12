@@ -43,6 +43,8 @@ export interface TransformFrameProps {
   label: string;
   /** "Painting your pixel portrait…"; pass "" when the portrait failed (no label, quantised photo stays). */
   pendingLabel: string;
+  /** A file is dragged over the stage: the empty frame's silhouette marches its dashes (never under reduced motion). */
+  dragOver?: boolean;
   /** "Your photo" (reduced-motion badge). */
   photoBadgeLabel: string;
   /** Increment to run the clock again from the in-memory photo. */
@@ -362,7 +364,7 @@ export function TransformFrame(props: TransformFrameProps) {
   if (mode === "empty") {
     return (
       <div className="absolute inset-0" data-testid="yourcat-transform" data-mode="empty">
-        <FrameSilhouette label={label} />
+        <FrameSilhouette label={label} marching={!!props.dragOver && !reducedMotion} />
       </div>
     );
   }

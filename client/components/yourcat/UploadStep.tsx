@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useRef, useState, type CSSProperties, type DragE
 import { BODY, CAPTION, ChipCheck, Headline, NIGHT_PILL, PrimaryAction } from "./brand";
 import { FRIEND, S1, s1Body, STATUS_COPY } from "./copy";
 import { Frame, FrameSilhouette } from "./Frame";
-import { flyTo } from "./motion";
+import { fadeOutGhost, flyTo } from "./motion";
 import { PetCat } from "./PetCat";
 import { ACCEPT_ATTRIBUTE } from "./prepareUpload";
 import { PrivacyPanel } from "./PrivacyPanel";
@@ -82,6 +82,14 @@ export const UploadStep = forwardRef<HTMLHeadingElement, UploadStepProps>(
 
     /** The flight from the button into the frame, then the upload. */
     const take = (file: File, source: "picker" | "drop") => {
+      // The friend's cat leaves softly (200 ms fade of a copy; its screen unmounts with the upload).
+      if (friend) {
+        fadeOutGhost(
+          studio.slots.cat?.querySelector<HTMLElement>('[data-testid="yourcat-petcat"]'),
+          studio.stage.current?.querySelector<HTMLElement>('[data-testid="yourcat-stage"]'),
+          reducedMotion,
+        );
+      }
       const inner = studio.frame.current?.inner;
       const from = ctaRef.current?.getBoundingClientRect();
       if (inner && from && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {

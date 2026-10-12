@@ -17,7 +17,10 @@ import { copyFindings } from "./fixtures/copy-scan";
  * - layout: CLS < 0.05 from S1 to S3; at 390x844 the card's top is at most 560 px and the primary
  *   share action is fully visible with no scroll; at 1440x900 the card, the toggle, the Story pill
  *   and the primary action are inside 900 px, the three actions share one row, and MAKE MY CAT on
- *   the manual pick is inside 900 px; no horizontal overflow at 360, 390 and 1440;
+ *   the manual pick is inside 900 px; no horizontal overflow at 360, 390, 768 and 1440; the meeting
+ *   keeps the portrait, the cat, the shelter frame and its plate apart (360, 390, 768, 1280, 1440), and
+ *   the friend view keeps the empty frame, the portrait and the friend's cat apart (360, 390, 768);
+ *   the cap screen's primary fits its panel at 1280 and 1440;
  * - the step-out flare is transparent: the four corners of its box show the scene, never black;
  * - LCP (R2-10): the preloaded sky (phones) or a side plate (md+), never lazy, under 2.5 s; the sky's
  *   CSS gradient paints under it; phones never fetch the md+ plates;
@@ -268,6 +271,33 @@ test.describe("/yourcat", () => {
     // The cap is remembered for this tab and day (R2-09): the manual pick offers no new photo.
     await expect(page.getByRole("heading", { level: 1, name: "Pick your cat's look" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Back to the photo" })).toHaveCount(0);
+  });
+
+  test("the cap screen's PICK YOUR CAT'S LOOK YOURSELF fits its panel at 1280 and 1440", async ({ page, backend }) => {
+    test.skip(isPhone(page), "the xl side column (phones: the failure-actions test and the unit test)");
+    mockYourcat(backend, {
+      upload: { status: 429, body: { statusCode: 429, code: "YOURCAT_IP_DAILY_CAP", message: "cap" } },
+    });
+    await useFakeFirebase(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoAndSettle(page, "/yourcat");
+    await choosePhoto(page);
+    const button = page.getByRole("button", { name: "Pick your cat's look yourself" });
+    // The cap is remembered for the tab (R2-09), so the second width resizes the same screen.
+    for (const viewport of [
+      { width: 1280, height: 800 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(button).toBeVisible();
+      const fit = await button.evaluate((node) => {
+        const panel = node.closest('[data-testid="yourcat-failure"]') as HTMLElement;
+        const b = node.getBoundingClientRect();
+        const p = panel.getBoundingClientRect();
+        return { inside: b.left >= p.left && b.right <= p.right, narrower: b.width <= p.width, scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      });
+      expect({ width: viewport.width, ...fit }).toEqual({ width: viewport.width, inside: true, narrower: true, scroll: 0 });
+    }
   });
 
   test("a plain burst limit shows its own copy, with Try again held", async ({ page, backend }) => {
@@ -598,10 +628,12 @@ test.describe("/yourcat", () => {
       }
     });
 
-    test("no horizontal overflow at 360, 390 and 1440", async ({ page, backend }) => {
+    test("no horizontal overflow at 360, 390, 768 and 1440", async ({ page, backend }) => {
+      // Loops over several viewports; about 40 s on a busy machine.
+      test.setTimeout(120_000);
       mockYourcat(backend, { me: view({ name: "Mochi", named: true, ...READY }) });
       await useFakeFirebase(page);
-      for (const width of [360, 390, 1440]) {
+      for (const width of [360, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: width < 768 ? 800 : 900 });
         await gotoAndSettle(page, "/yourcat");
         await expect(page.getByRole("heading", { name: "Meet Mochi." })).toBeVisible();
@@ -609,6 +641,181 @@ test.describe("/yourcat", () => {
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect({ width, overflow }).toEqual({ width, overflow: 0 });
       }
+    });
+  });
+
+  test.describe("the meeting", () => {
+    test.use({ reducedMotion: "no-preference" });
+
+    test("keeps the portrait, the cat, the shelter frame and its plate apart at 360, 390, 768, 1280 and 1440", async ({ page, backend }) => {
+      // Loops over several viewports; about 40 s on a busy machine.
+      test.setTimeout(120_000);
+      mockYourcat(backend, { me: view({ name: "Mochi", named: true, ...READY }) });
+      await useFakeFirebase(page);
+      const sizes = isPhone(page)
+        ? [
+            { width: 360, height: 780 },
+            { width: 390, height: 844 },
+            { width: 768, height: 1024 },
+          ]
+        : [
+            { width: 1280, height: 800 },
+            { width: 1440, height: 900 },
+          ];
+      for (const { width, height } of sizes) {
+        await page.setViewportSize({ width, height });
+        await gotoAndSettle(page, "/yourcat");
+        // A loaded machine (CI, a busy laptop) can take long for the gallery and the frame's slide-in.
+        await expect(page.getByTestId("yourcat-shelter-frame")).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId("yourcat-stage")).toHaveAttribute("data-meeting", "true");
+        await expect(page.getByTestId("yourcat-slot-cat").getByTestId("yourcat-petcat")).toHaveAttribute("data-pose", "sit", { timeout: 30_000 });
+        type Box = { left: number; right: number; top: number; bottom: number };
+        const measure = () =>
+          page.evaluate(() => {
+            const rect = (selector: string) => {
+              const r = document.querySelector(selector)?.getBoundingClientRect();
+              return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom } : null;
+            };
+            return {
+              stage: rect('[data-testid="yourcat-stage"]'),
+              portrait: rect('[data-testid="yourcat-slot-frame"] [data-testid="yourcat-frame"]'),
+              shelter: rect('[data-testid="yourcat-shelter-frame"]'),
+              plate: rect('[data-testid="yourcat-shelter-plate"]'),
+              cat: rect('[data-testid="yourcat-slot-cat"] [data-testid="yourcat-petcat-button"]'),
+              caption: rect('[data-testid="yourcat-slot-cat"] [data-testid="yourcat-petcat-caption"] span'),
+            };
+          });
+        const apart = (a: Box, b: Box) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+        // Every rule as one list of failures, polled until the walk (700 ms) and the portrait's step
+        // back (320 ms) have ended on screen: a starved renderer can draw them late, never wrong.
+        const problems = async () => {
+          const { stage, portrait, shelter, plate, cat, caption } = await measure();
+          if (!stage || !portrait || !shelter || !plate || !cat || !caption) return ["missing boxes"];
+          // The painted cat spans columns 12 to ~39 of its 48 px cell when it sits facing left (tail included).
+          const unit = (cat.right - cat.left) / 48;
+          const body = { ...cat, left: cat.left + 12 * unit, right: cat.left + 39 * unit };
+          const out: string[] = [];
+          if (shelter.right > body.left) out.push(`shelter frame over the cat (${shelter.right} > ${body.left})`);
+          if (body.right > portrait.left) out.push(`cat over the portrait (${body.right} > ${portrait.left})`);
+          if (shelter.right >= portrait.left) out.push("shelter frame touches the portrait");
+          if (!apart(plate, portrait)) out.push("plate over the portrait");
+          if (!apart(caption, plate)) out.push("caption over the plate");
+          if (!apart(caption, portrait)) out.push("caption over the portrait");
+          if (shelter.left < stage.left) out.push("shelter frame outside the stage");
+          if (portrait.right > stage.right) out.push("portrait outside the stage");
+          return out;
+        };
+        await expect.poll(problems, { message: `the meeting at ${width}`, timeout: 15_000, intervals: [250, 500, 1000] }).toEqual([]);
+      }
+    });
+  });
+
+  test.describe("the friend view layout", () => {
+    test("keeps the empty frame, the friend's portrait and the friend's cat apart, inside the stage", async ({ page, backend }) => {
+      test.skip(!isPhone(page), "phones and 768 (the md+ row is the same rule)");
+      mockYourcat(backend, { publicCat: FRIEND_CAT });
+      await useFakeFirebase(page);
+      for (const { width, height } of [
+        { width: 360, height: 780 },
+        { width: 390, height: 844 },
+        { width: 768, height: 1024 },
+      ]) {
+        await page.setViewportSize({ width, height });
+        await gotoAndSettle(page, `/yourcat?cat=${SHARE_ID}`);
+        await expect(page.getByTestId("yourcat-friend-empty")).toBeVisible();
+        const problems = () =>
+          page.evaluate(() => {
+            const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null;
+            const stage = rect('[data-testid="yourcat-stage"]');
+            const portrait = rect('[data-testid="yourcat-slot-frame"] [data-testid="yourcat-frame"]');
+            const empty = rect('[data-testid="yourcat-friend-empty"]');
+            const cat = rect('[data-testid="yourcat-slot-cat"] [data-testid="yourcat-petcat-button"]');
+            const caption = rect('[data-testid="yourcat-slot-cat"] [data-testid="yourcat-petcat-caption"] span');
+            if (!stage || !portrait || !empty || !cat || !caption) return ["missing boxes"];
+            // The idle cat faces right: its painted body spans columns 12 to 36 of its 48 px cell.
+            const unit = cat.width / 48;
+            const body = { left: cat.left + 12 * unit, right: cat.left + 37 * unit };
+            const out: string[] = [];
+            if (empty.right > portrait.left) out.push(`empty frame over the portrait (${empty.right} > ${portrait.left})`);
+            if (body.left < portrait.right) out.push(`cat over the portrait (${body.left} < ${portrait.right})`);
+            if (caption.left < portrait.right && caption.top < portrait.bottom) out.push("caption over the portrait");
+            if (empty.left < stage.left) out.push("empty frame outside the stage");
+            if (body.right > stage.right || caption.right > stage.right) out.push("cat or caption outside the stage");
+            return out;
+          });
+        // The portrait's step back and the cat's walk-in run on transitions: poll until they end.
+        await expect.poll(problems, { message: `the friend view at ${width}`, timeout: 15_000, intervals: [250, 500, 1000] }).toEqual([]);
+      }
+    });
+  });
+
+  test.describe("the consent chip", () => {
+    /** A first visit: no stored consent, so the compact chip asks (builds with analytics only). */
+    async function firstVisit(page: Page) {
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.removeItem("tt-analytics-consent");
+        } catch {
+          // Storage blocked: the test skips below when no chip shows.
+        }
+      });
+    }
+    /** Buttons, links and fields on screen that the chip's box touches. */
+    const coveredByChip = (page: Page) =>
+      page.evaluate(() => {
+        const chip = document.querySelector('[data-testid="analytics-consent-compact-chip"]')?.getBoundingClientRect();
+        if (!chip) return ["no chip"];
+        return [...document.querySelectorAll<HTMLElement>("button, a[href], input, [role=switch]")]
+          .filter((node) => !node.closest('[data-testid="analytics-consent-compact"]'))
+          .filter((node) => {
+            const r = node.getBoundingClientRect();
+            if (!(r.width > 0 && r.height > 0) || r.bottom <= 0 || r.top >= innerHeight) return false;
+            if (getComputedStyle(node).visibility === "hidden") return false;
+            return r.left < chip.right && r.right > chip.left && r.top < chip.bottom && r.bottom > chip.top;
+          })
+          .map((node) => (node.innerText || node.getAttribute("aria-label") || node.tagName).slice(0, 40));
+      });
+
+    test("sits in the header and covers no control on S1, the cap screen, the manual pick and S3", async ({ page, backend }) => {
+      mockYourcat(backend, { upload: { status: 429, body: { statusCode: 429, code: "YOURCAT_IP_DAILY_CAP", message: "cap" } } });
+      await useFakeFirebase(page);
+      await firstVisit(page);
+      await gotoAndSettle(page, "/yourcat");
+      const chip = page.getByTestId("analytics-consent-compact");
+      test.skip(!(await chip.isVisible()), "this build asks for no analytics consent");
+      await expect(page.getByTestId("yourcat-header").getByTestId("analytics-consent-compact")).toBeVisible();
+      expect(await coveredByChip(page), "S1").toEqual([]);
+      await choosePhoto(page);
+      const own = page.getByRole("button", { name: "Pick your cat's look yourself" });
+      await expect(own).toBeVisible();
+      expect(await coveredByChip(page), "own cap").toEqual([]);
+      await own.click();
+      await expect(page.getByRole("heading", { level: 1, name: "Pick your cat's look" })).toBeVisible();
+      expect(await coveredByChip(page), "manual pick").toEqual([]);
+    });
+
+    test("covers no S3 action at any width, and Accept closes it", async ({ page, backend }) => {
+      mockYourcat(backend, { me: view({ name: "Mochi", named: true, ...READY }) });
+      await useFakeFirebase(page);
+      await withoutWebShare(page);
+      await firstVisit(page);
+      for (const size of [
+        { width: 360, height: 780 },
+        { width: 390, height: 844 },
+        { width: 768, height: 1024 },
+        { width: 1280, height: 800 },
+        { width: 1440, height: 900 },
+      ]) {
+        await page.setViewportSize(size);
+        await gotoAndSettle(page, "/yourcat");
+        await expect(page.getByRole("heading", { name: "Meet Mochi." })).toBeVisible();
+        const chip = page.getByTestId("analytics-consent-compact");
+        test.skip(!(await chip.isVisible()), "this build asks for no analytics consent");
+        await expect(primaryShare(page)).toBeVisible();
+        expect(await coveredByChip(page), `S3 at ${size.width}`).toEqual([]);
+      }
+      await page.getByTestId("analytics-consent-compact").getByRole("button", { name: "Accept" }).click();
+      await expect(page.getByTestId("analytics-consent-compact")).toHaveCount(0);
     });
   });
 

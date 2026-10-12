@@ -56,6 +56,16 @@ export function Meter({ segments, text }: { segments: [SegmentState, SegmentStat
 }
 
 /**
+ * The failure actions on phones (below sm): the primary at 1x, also while pressed, with a text-p4
+ * label, so the longest label (`Pick your cat's look yourself`, ~255 px) fits the panel's 294 px at
+ * 360 and its 320 px at 390 with no horizontal scroll. On xl the panel is the 420 px side column
+ * (364 px inside): the md+ 1.5x would make that label 494 px (phone-r3), so there the primary stays
+ * at 1x (330 px) and grows only to 1.05x when hovered (347 px).
+ */
+export const FIT_PANEL =
+  "max-sm:[&_.glow-box]:!scale-100 max-sm:[&_.glow-box:hover]:!scale-100 max-sm:[&_.glow-box_.text-p3]:!text-p4 xl:[&_.glow-box]:!scale-100 xl:[&_.glow-box:hover]:!scale-105";
+
+/**
  * A "Try again" that waits `seconds` before it can be pressed (the plain 429). The countdown is shown
  * but not announced: it sits outside the button's name and outside any live region.
  */
@@ -170,8 +180,13 @@ export const WorkingStep = forwardRef<HTMLHeadingElement, WorkingStepProps>(({ s
               {error.message}
             </p>
             {error.actions.length > 0 && (
-              // A long label at the landing's 1.25x phone scale would overflow the panel: unscaled on phones.
-              <div className="flex flex-wrap items-center justify-center gap-3 xl:justify-start max-sm:[&_.glow-box:hover]:!scale-105 max-sm:[&_.glow-box]:!scale-100">
+              // A long label at the landing's 1.25x phone scale would overflow the panel: on phones the
+              // button is unscaled, keeps that size when pressed (a touch leaves :hover on) and its label
+              // drops to text-p4, so "Pick your cat's look yourself" fits the 294 px panel at 360.
+              <div
+                className={`flex flex-wrap items-center justify-center gap-3 xl:justify-start ${FIT_PANEL}`}
+                data-testid="yourcat-failure-actions"
+              >
                 {error.actions.map((action, index) =>
                   action === "retry" && error.retryAfterSeconds ? (
                     <RetryButton key={action} seconds={error.retryAfterSeconds} primary={index === 0} onClick={() => onAction(action)} />

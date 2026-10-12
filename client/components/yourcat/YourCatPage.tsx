@@ -262,6 +262,7 @@ export function YourCatPage({ isApp = isAppBuild, className = "" }: { isApp?: bo
       label={frameLabel}
       pendingLabel={state.avatarStatus === "failed" ? "" : S3.pendingLabel}
       photoBadgeLabel={S3.photoBadge}
+      dragOver={!!stageConfig.dragOver}
       replayToken={replayToken}
       onCue={onCue}
       onAvatarLanded={onAvatarLanded}
@@ -417,6 +418,7 @@ export function YourCatPage({ isApp = isAppBuild, className = "" }: { isApp?: bo
             <Stage
               reducedMotion={reducedMotion}
               shifted={!!stageConfig.shifted && shown === "reveal"}
+              meeting={!!stageConfig.meeting && shown === "reveal"}
               companionSide={stageConfig.companionSide}
               onDrop={stageConfig.onDrop}
               onDragState={stageConfig.onDragState}
