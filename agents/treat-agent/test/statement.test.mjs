@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import {
   buildStatement, serializeStatement, loadEnvelopes, disclosures, sponsorLabel, envelopeProblem, generate,
-  checkOut, displayDir, microToUsdc, ratioLabel, decodeAgentGift, readAgentGifts, AGENT_GIFT_TOPIC, PUBLIC_OUT, UsageError,
+  checkOut, displayDir, microToUsdc, ratioLabel, decodeAgentGift, readAgentGifts, AGENT_GIFT_TOPIC, FUNDED_TOPIC, WITHDRAWN_TOPIC,
+  PUBLIC_OUT, UsageError,
 } from '../statement.mjs';
 import { renderHtml } from '../lib/statement-html.mjs';
 import { canonical } from '../log.mjs';
@@ -22,7 +23,7 @@ const sponsorFixture = () => readJson(path.join(FIX, 'sponsor.json'));
 const quiet = () => {};
 
 async function exampleSponsorPath() {
-  const real = path.join(HERE, '..', 'sponsor.example.json');
+  const real = path.join(HERE, '..', 'desk.example.json');
   try {
     await access(real);
     return real;
@@ -135,7 +136,7 @@ test('receipts are newest first; rationale links other than the explorer are rem
 
 test('the related-party label and all eight disclosures are in statement.json and index.html', async () => {
   const st = await fixtureStatement();
-  assert.equal(st.sponsor.label, "related-party sponsor (founder's company)");
+  assert.equal(st.sponsors[0].label, "related-party sponsor (founder's company)");
   assert.equal(st.notTaxReceipt, true);
   assert.equal(st.disclosures.length, 8);
   const html = renderHtml(st);
@@ -284,13 +285,19 @@ test('decodeAgentGift and readAgentGifts (stubbed RPC, range halving, chain chec
       const span = Number(params[0].toBlock) - Number(params[0].fromBlock) + 1;
       if (span > 200) return { ok: true, json: async () => ({ id, error: { message: 'block range too large' } }) };
       assert.equal(params[0].address, file.spender.address);
-      assert.deepEqual(params[0].topics, [AGENT_GIFT_TOPIC]);
-      result = Number(params[0].fromBlock) === 1000 ? [log] : [];
-    }
+      const gifts = JSON.stringify(params[0].topics) === JSON.stringify([AGENT_GIFT_TOPIC]);
+      assert.ok(gifts || JSON.stringify(params[0].topics) === JSON.stringify([[FUNDED_TOPIC, WITHDRAWN_TOPIC]]), 'AgentGift, or Funded + Withdrawn');
+      result = Number(params[0].fromBlock) === 1000 && gifts ? [log] : [];
+      if (!gifts && Number(params[0].fromBlock) === 1000) result = [{ topics: [FUNDED_TOPIC, '0x' + '0'.repeat(64)], data: '0x' + (10n ** 18n).toString(16).padStart(64, '0') }];
+    } else if (method === 'eth_call') result = '0x' + (95n * 10n ** 16n).toString(16).padStart(64, '0');
     return { ok: true, json: async () => ({ id, result }) };
   };
-  const { events } = await readAgentGifts({ rpcUrl: 'http://127.0.0.1:8545', file, fetchImpl, chunk: 1000, gapMs: 0 });
+  const { events, vaults } = await readAgentGifts({ rpcUrl: 'http://127.0.0.1:8545', file, fetchImpl, chunk: 1000, gapMs: 0 });
   assert.equal(events.length, 1);
+  assert.equal(events[0].spender, file.spender.address);
+  assert.deepEqual(vaults[file.spender.address], {
+    fundedRaw: '1000000000000000000', withdrawnRaw: '0', givenRaw: '50000000000000000', floatRaw: '950000000000000000', unitDecimals: 18,
+  });
   assert.ok(calls.filter((c) => c.method === 'eth_getLogs').length > 2);
   await assert.rejects(
     readAgentGifts({ rpcUrl: 'x', file: { ...file, chainId: 5042 }, fetchImpl, gapMs: 0 }),
@@ -332,20 +339,23 @@ test('generate refuses a bad sponsor file and a fork statement to the public fol
   }
 });
 
-test('the committed placeholder equals the generator output for sponsor.example.json with zero receipts', async () => {
+test('the committed placeholder equals the generator output for desk.example.json with zero receipts', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'md-placeholder-'));
   try {
     const empty = path.join(dir, 'receipts');
     const out = path.join(dir, 'out');
     const st = await generate({ sponsorFile: await exampleSponsorPath(), receipts: empty, out, log: quiet });
-    assert.equal(st.contract.spender, null);
+    assert.deepEqual(st.sponsors.map((x) => [x.id, x.label, x.vault.spender]), [
+      ['motored', "related-party sponsor (founder's company)", null],
+      ['tokentails', "operator's own money", null],
+    ]);
     assert.equal(st.generatedAt, null);
     assert.equal(st.totals.reconciledUsdc, '0');
     assert.equal(st.receipts.length, 0);
     for (const f of ['statement.json', 'index.html']) {
       const want = await readFile(path.join(out, f), 'utf8');
       const have = await readFile(path.join(PUBLIC_OUT, f), 'utf8');
-      assert.equal(have, want, `client/public/match-desk/${f} is stale: run node statement.mjs --sponsor sponsor.example.json`);
+      assert.equal(have, want, `client/public/match-desk/${f} is stale: run node statement.mjs --sponsor desk.example.json --receipts /nonexistent`);
     }
     const html = await readFile(path.join(PUBLIC_OUT, 'index.html'), 'utf8');
     assert.match(html, /Not deployed yet\. No matches\./);
@@ -368,13 +378,13 @@ test('a copied receipt file is counted once', async () => {
 
 test('the lead sentence is in the present tense only once a match is reconciled', async () => {
   const st = await fixtureStatement();
-  assert.ok(st.contract.spender && st.totals.receipts > 0);
+  assert.ok(st.sponsors[0].vault.spender && st.totals.receipts > 0);
   assert.match(renderHtml(st), /related-party sponsor \(founder&#39;s company\), matches public gifts|related-party sponsor \(founder's company\), matches public gifts/);
   const none = { ...st, totals: { ...st.totals, receipts: 0 } };
   const html0 = renderHtml(none);
   assert.match(html0, /will match public gifts to .* through its match vault\. No match has been read back from the chain yet\./);
   assert.doesNotMatch(html0, /\), matches public gifts/);
-  const undeployed = { ...none, contract: { ...st.contract, spender: null } };
+  const undeployed = { ...none, sponsors: none.sponsors.map((x) => ({ ...x, vault: { ...x.vault, spender: null } })) };
   const html1 = renderHtml(undeployed);
   assert.match(html1, /will match public gifts to .* once its match vault is deployed and funded\./);
   assert.doesNotMatch(html1, /\) matches public gifts|\), matches public gifts/);

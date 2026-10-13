@@ -13,10 +13,10 @@ import path from 'node:path';
 import {
   SEL, TOPIC, uintAt, boolAt, addressAt, stringAt, topicAddress, topicUint, formatUnits, toUsdc, rawToMicro, formatMicro,
 } from './lib/abi.mjs';
-import { GuardError } from './lib/policy.mjs';
+import { GuardError, deskFromSponsor } from './lib/policy.mjs';
 import { readBackend, routerBlocked, splitMismatch, DEFAULT_API } from './lib/backend.mjs';
-import { loadEnvelopes, loadPublished, saveEnvelope, readJson, PUBLISHED_STATEMENT } from './lib/receipt.mjs';
-import { readAgentGifts, witness } from './lib/witness.mjs';
+import { loadDeskState, loadPublished, saveEnvelope, PUBLISHED_STATEMENT } from './lib/receipt.mjs';
+import { readAgentGifts, witness, readVaultFlows } from './lib/witness.mjs';
 import { donorKeyOf } from './lib/checker.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -401,94 +401,137 @@ export const ORPHAN_ACKS = 'orphan-acks.json';
 /** Memo prefixes that mark Token Tails' own money (agent gifts, backend matches). Never matched, whoever paid. */
 export const TT_INTERNAL_MEMO = /^tt:(?:agent|match):/;
 
+/** Why a sponsor cannot pay anything right now (code, no model call), or null. */
+export function unavailableReason(s, nowMs) {
+  if (s.paused) return 'paused in desk.json';
+  if (nowMs < s.policy.validFromMs) return `not valid before ${new Date(s.policy.validFromMs).toISOString()}`;
+  if (s.caps.remainingTodayMicro === 0n) return "today's on-chain cap is used up (it resets at 00:00 UTC)";
+  if (s.caps.floatMicro === 0n) return 'the vault float is empty';
+  if (s.budget.leftMicro === 0n) return "the sponsor's budget is used up";
+  return null;
+}
+
 /**
  * Observe for the match desk. Reuses the treat-agent reads and returns the old observation shape plus
- * obs.matchDesk. Witness runs here (before decide) and saves the receipts it moves.
- * Throws GuardError (run.mjs exits 2) when the chain, split, agent or owner differ from sponsor.json.
+ * obs.matchDesk. Every vault on the desk is read each round (caps, float, owner, agent, AgentGift,
+ * Funded, Withdrawn); witness runs per vault here (before decide) and saves the receipts it moves.
+ * `desk` (lib/policy.mjs) or, for old callers, `sponsor` + `policyHash` (a v1 sponsor, normalised).
+ * Throws GuardError (run.mjs exits 2) when the chain, split, agent or an owner differ from the file, or
+ * when the vaults do not share one agent.
  */
 export async function observeMatchDesk({
-  rpc, sponsor, policyHash, now = Date.now(), fetchImpl = globalThis.fetch, dir = null,
+  rpc, desk = null, sponsor = null, policyHash = null, now = Date.now(), fetchImpl = globalThis.fetch, dir = null,
   api = process.env.MATCH_DESK_API ?? DEFAULT_API, ttSenders = process.env.TREAT_AGENT_TT_SENDERS || '',
   chunk = Number(process.env.TREAT_AGENT_LOG_CHUNK) || 50_000, statementFile = PUBLISHED_STATEMENT,
   campaignFile, factsFile, mode = 'dry-run',
 }) {
-  const S = sponsor;
-  const P = S.policy;
-  const spender = S.spender.address;
-  if (!spender || S.spender.deployBlock === null) {
-    throw new GuardError('sponsor.json has no spender address or deploy block yet (init state): deploy, then paste both');
+  const D = desk || deskFromSponsor(sponsor, policyHash);
+  const P = D.policy;
+  if (D.sponsors.some((v) => !v.spender.address || v.spender.deployBlock === null)) {
+    const which = D.sponsors.filter((v) => !v.spender.address || v.spender.deployBlock === null).map((v) => v.sponsor.id).join(', ');
+    throw new GuardError(`the desk file has no vault address or deploy block yet for ${which} (init state): deploy, then paste both`);
   }
+  const vaultAddrs = D.sponsors.map((v) => v.spender.address);
   const chainId = Number(BigInt(await rpc('eth_chainId')));
-  if (chainId !== S.chainId) throw new GuardError(`eth_chainId ${chainId} != sponsor.json chainId ${S.chainId}`);
+  if (chainId !== D.chainId) throw new GuardError(`eth_chainId ${chainId} != sponsor.json chainId ${D.chainId}`);
   const head = await rpc('eth_getBlockByNumber', ['latest', false]);
   const toBlock = Number(BigInt(head.number));
   const headTs = Number(BigInt(head.timestamp));
 
-  const st = await readSpenderState(rpc, spender, chainId);
-  const owner = addressAt(await call(rpc, spender, SEL.owner), 0);
-  if (st.split.toLowerCase() !== S.split) throw new GuardError(`on-chain split ${st.split} != sponsor.json split ${S.split}`);
-  if (S.spender.agent && st.agent.toLowerCase() !== S.spender.agent) throw new GuardError(`on-chain agent ${st.agent} != sponsor.json agent ${S.spender.agent}`);
-  if (S.spender.owner && owner.toLowerCase() !== S.spender.owner) throw new GuardError(`on-chain owner ${owner} != sponsor.json owner ${S.spender.owner}`);
-  const paused = boolAt(await call(rpc, S.split, SEL.paused), 0);
+  // Every vault: same split, the desk's agent (one agent for all), its own owner.
+  const states = [];
+  for (const v of D.sponsors) {
+    const spender = v.spender.address;
+    const st = await readSpenderState(rpc, spender, chainId);
+    const owner = addressAt(await call(rpc, spender, SEL.owner), 0).toLowerCase();
+    const tag = D.sponsors.length > 1 ? ` (vault ${v.sponsor.id})` : '';
+    if (st.split.toLowerCase() !== D.split) throw new GuardError(`on-chain split ${st.split} != sponsor.json split ${D.split}${tag}`);
+    if (D.agent && st.agent.toLowerCase() !== D.agent) throw new GuardError(`on-chain agent ${st.agent} != sponsor.json agent ${D.agent}${tag}`);
+    if (v.spender.owner && owner !== v.spender.owner) throw new GuardError(`on-chain owner ${owner} != sponsor.json owner ${v.spender.owner}${tag}`);
+    states.push({ v, st, owner });
+  }
+  const agents = new Set(states.map((x) => x.st.agent.toLowerCase()));
+  if (agents.size !== 1) {
+    throw new GuardError(`the vaults have different agents (${states.map((x) => `${x.v.sponsor.id}: ${x.st.agent}`).join(', ')}); every vault on a desk must use the same agent`);
+  }
+  const agent = [...agents][0];
+  const units = new Set(states.map((x) => x.st.unit));
+  if (units.size !== 1) throw new GuardError('the vaults use different units (native and ERC-20 mixed); one desk uses one unit');
+  const st0 = states[0].st;
+  const paused = boolAt(await call(rpc, D.split, SEL.paused), 0);
 
-  // Window: maxGiftAgeHours (plus a margin for the block-time estimate), never before validFrom.
+  // Window: maxGiftAgeHours (plus a margin for the block-time estimate), never before the earliest validFrom.
   // The exact age and validFrom checks run on block timestamps below.
   const { secsPerBlock, fromBlock: ageFrom } = await blockWindow(rpc, { toBlock, headTs, hours: P.maxGiftAgeHours * 1.1 + 0.1 });
   const validFromS = Math.floor(P.validFromMs / 1000);
   const sinceValid = Math.max(0, toBlock - Math.ceil(Math.max(0, headTs - validFromS) / secsPerBlock * 1.1) - 10);
   const fromBlock = Math.max(ageFrom, sinceValid);
 
-  const backend = await readBackend({ api, chainId, split: S.split, fetchImpl, now });
+  const backend = await readBackend({ api, chainId, split: D.split, fetchImpl, now });
   const getLogs = (f) => getLogsChunked(rpc, { ...f, chunk });
 
-  const batches = (await getLogs({ address: S.split, topics: [[TOPIC.DisbursementBatch, TOPIC.NativeDisbursementBatch]], fromBlock, toBlock }))
-    .map((l) => decodeBatch(l, { tokenDecimals: st.tokenDecimals }));
+  const batches = (await getLogs({ address: D.split, topics: [[TOPIC.DisbursementBatch, TOPIC.NativeDisbursementBatch]], fromBlock, toBlock }))
+    .map((l) => decodeBatch(l, { tokenDecimals: st0.tokenDecimals }));
   const routerByKey = new Map();
-  if (S.router) {
-    const logs = await getLogs({ address: S.router, topics: [TOPIC.RouterDonation], fromBlock, toBlock });
-    for (const r of logs.map((l) => decodeRouterDonation(l, { tokenDecimals: st.tokenDecimals }))) {
+  if (D.router) {
+    const logs = await getLogs({ address: D.router, topics: [TOPIC.RouterDonation], fromBlock, toBlock });
+    for (const r of logs.map((l) => decodeRouterDonation(l, { tokenDecimals: st0.tokenDecimals }))) {
       routerByKey.set(`${r.tx.toLowerCase()}|${r.batchId}`, r);
     }
   }
-  const agentGifts = await readAgentGifts({ getLogs, spender, fromBlock: S.spender.deployBlock, toBlock });
 
-  // Receipts: local state, plus anything already published for this spender.
-  const local = dir ? await loadEnvelopes(dir) : { envelopes: [], bad: [] };
+  // Receipts: this desk's state dir (plus earlier layouts of the same vaults), plus anything published.
+  const local = dir ? await loadDeskState(dir, vaultAddrs) : { envelopes: [], bad: [], imported: 0, flagged: {}, orphanAcks: {} };
   const bySha = new Map(local.envelopes.map((e) => [e.sha256, e]));
-  for (const e of await loadPublished(statementFile, spender)) if (!bySha.has(e.sha256)) bySha.set(e.sha256, e);
-  const envelopes = [...bySha.values()].filter((e) => e.receipt.spender === spender && e.receipt.chainId === chainId);
-  const w = await witness({
-    envelopes, events: agentGifts, sponsorId: S.sponsor.id, now, ttlMinutes: P.plannedTtlMinutes,
-    getTxReceipt: (h) => rpc('eth_getTransactionReceipt', [h]),
-  });
-  if (dir) for (const e of w.changed) await saveEnvelope(dir, e);
-  const flagged = dir ? await readJson(path.join(dir, 'flagged.json'), {}) : {};
+  for (const e of await loadPublished(statementFile, vaultAddrs)) if (!bySha.has(e.sha256)) bySha.set(e.sha256, e);
+  const envelopes = [...bySha.values()].filter((e) => vaultAddrs.includes(e.receipt.spender) && e.receipt.chainId === chainId);
+
+  // Witness, per vault: its AgentGift events against its receipts. Funded/Withdrawn for the statement.
+  const witnessSum = { reconciled: [], failed: [], expired: [], orphans: [], collisions: [], stuck: [] };
+  const flows = new Map();
+  for (const { v } of states) {
+    const spender = v.spender.address;
+    const events = await readAgentGifts({ getLogs, spender, fromBlock: v.spender.deployBlock, toBlock });
+    const mine = envelopes.filter((e) => e.receipt.spender === spender);
+    const w = await witness({
+      envelopes: mine, events, sponsorId: v.sponsor.id, now, ttlMinutes: P.plannedTtlMinutes,
+      getTxReceipt: (h) => rpc('eth_getTransactionReceipt', [h]),
+    });
+    if (dir) for (const e of w.changed) await saveEnvelope(dir, e);
+    for (const k of Object.keys(witnessSum)) {
+      witnessSum[k].push(...w.summary[k].map((x) => (k === 'orphans' ? { ...x, sponsor: v.sponsor.id, spender } : x)));
+    }
+    flows.set(spender, await readVaultFlows({ getLogs, spender, fromBlock: v.spender.deployBlock, toBlock, agentGifts: events }));
+  }
+  const flagged = local.flagged;
   // Orphans (our memo on-chain, no receipt here) are reported and hold every match until a human
   // acknowledges each one (run.mjs --ack-orphan <tx>): their gifts are unknown and could be matched twice.
-  const orphanAcks = dir ? await readJson(path.join(dir, ORPHAN_ACKS), {}) : {};
-  const orphans = w.summary.orphans.map((o) => ({ ...o, acked: Object.hasOwn(orphanAcks, o.tx) }));
+  const orphans = witnessSum.orphans.map((o) => ({ ...o, acked: Object.hasOwn(local.orphanAcks, o.tx) }));
 
-  // What the receipts already hold.
+  // What the receipts already hold: gifts and donor room are desk-wide (every vault), budget per sponsor.
   const ttl = P.plannedTtlMinutes;
   const today = utcDay(now);
   const giftState = new Map();
   const donorUsedMicro = {};
-  let committedMicro = 0n;
-  let matchedTodayMicro = 0n;
+  const committed = new Map(vaultAddrs.map((a) => [a, 0n]));
+  const matchedToday = new Map(vaultAddrs.map((a) => [a, 0n]));
   for (const e of envelopes) {
     if (!isCommitted(e, now, ttl, mode)) continue;
-    committedMicro += BigInt(e.receipt.amountMicro);
+    const a = e.receipt.spender;
+    committed.set(a, committed.get(a) + BigInt(e.receipt.amountMicro));
     const pending = e.status === 'planned';
     for (const g of e.receipt.gifts) {
       if (giftState.get(g.id) !== 'matched') giftState.set(g.id, pending ? 'pending' : 'matched');
       const key = `${donorKeyOf(g)}|${g.day}`;
       donorUsedMicro[key] = (donorUsedMicro[key] || 0n) + BigInt(g.matchMicro);
-      if (g.day === today) matchedTodayMicro += BigInt(g.matchMicro);
+      if (g.day === today) matchedToday.set(a, matchedToday.get(a) + BigInt(g.matchMicro));
     }
   }
 
   // Gifts (RPC is the truth; the index only supplies timestamps).
-  const trusted = trustedSenders(spender, ttSenders);
+  const primary = vaultAddrs[0];
+  const trusted = trustedSenders(primary, ttSenders);
+  for (const a of vaultAddrs) trusted.add(a);
   const oldMatched = matchedPrefixes(batches, trusted);
   const blockTs = new Map();
   const tsOf = async (b) => {
@@ -500,24 +543,26 @@ export async function observeMatchDesk({
     }
     return blockTs.get(b.block);
   };
-  // Never matched: the policy's list, the vault, its agent and owner (the sponsor), the split, the router,
-  // and the shelter wallet itself (Token Tails still holds it until the handover; matching it is circular).
+  // Never matched: the policy's list, every vault, the agent and every owner (the sponsors), the split,
+  // the router, and the shelter wallet itself (Token Tails still holds it until the handover; matching it is circular).
   const excluded = new Set([
-    ...P.excludedSenders, spender, st.agent.toLowerCase(), owner.toLowerCase(), S.split, S.shelter.wallet.toLowerCase(),
-    ...(S.router ? [S.router] : []),
+    ...P.excludedSenders, ...vaultAddrs, agent, ...states.map((x) => x.owner), D.split, D.shelter.wallet.toLowerCase(),
+    ...(D.router ? [D.router] : []),
   ]);
   const blockRouter = routerBlocked(backend);
   const totals = { public: 0n, x402: 0n, agent: 0n, match: 0n, treat: 0n };
   const gifts = [];
   for (const b of batches) {
-    const base = classify(b.memo, b.payer, spender, trusted);
+    const payer = b.payer.toLowerCase();
+    // A payment from any of the desk's vaults is the desk's own money (CappedSpender forces tt:agent:).
+    const base = vaultAddrs.includes(payer) ? 'agent' : classify(b.memo, b.payer, primary, trusted);
     const micro = rawToMicro(b.toSheltersRaw, b.decimals);
     totals[base] += micro;
     if (base === 'agent' || base === 'match') continue;
     const tx = b.tx.toLowerCase();
     let kind = base;
-    let donor = b.payer.toLowerCase();
-    if (S.router && donor === S.router) {
+    let donor = payer;
+    if (D.router && donor === D.router) {
       // The router is never the donor: RouterDonation.donor is. Without one (a flush) the donor is unknown.
       const r = routerByKey.get(`${tx}|${b.batchId}`);
       kind = r ? `router-${r.path}` : 'router-flush';
@@ -546,7 +591,7 @@ export async function observeMatchDesk({
   }
   gifts.sort((a, b) => b.block - a.block || b.logIndex - a.logIndex);
 
-  // Farming: more than maxGiftsPerDonorDay gifts from one donor in a UTC day, or >= 3 gifts of exactly minGift.
+  // Farming (desk-wide): more than maxGiftsPerDonorDay gifts from one donor in a UTC day, or >= 3 gifts of exactly minGift.
   const groups = new Map();
   for (const g of gifts) {
     if (!g.donor || g.kind === 'treat') continue;
@@ -576,47 +621,71 @@ export async function observeMatchDesk({
     ? gifts.filter((g) => g.block <= p.indexedThrough.block && !indexed.has(g.tx)).map((g) => g.id)
     : [];
 
-  const toMicro = (raw) => rawToMicro(raw, st.unit);
-  const caps = {
-    perTxMicro: toMicro(st.perTx), dailyMicro: toMicro(st.daily), remainingTodayMicro: toMicro(st.remaining),
-    floatMicro: toMicro(st.float), unitDecimals: st.unit,
-  };
-  const leftMicro = P.budgetMicro > committedMicro ? P.budgetMicro - committedMicro : 0n;
-
-  // Pace: cumulative commitments against a straight line from pace.from to pace.to.
-  let pace = { from: P.pace.from, to: P.pace.to, daysLeft: 0, targetPerDayMicro: 0n, matchedTodayMicro, status: 'n/a' };
-  if (today >= P.pace.from && today <= P.pace.to) {
-    const total = dayIndex(P.pace.to) - dayIndex(P.pace.from) + 1;
-    const elapsed = dayIndex(today) - dayIndex(P.pace.from) + 1;
-    const daysLeft = dayIndex(P.pace.to) - dayIndex(today) + 1;
-    const expected = (P.budgetMicro * BigInt(elapsed)) / BigInt(total);
-    let status = 'on';
-    if (committedMicro > expected + P.perGiftMaxMicro) status = 'ahead';
-    else if (committedMicro + P.perGiftMaxMicro < expected) status = 'behind';
-    pace = { ...pace, daysLeft, targetPerDayMicro: leftMicro / BigInt(daysLeft), status };
-  }
+  // Per sponsor: caps, budget, pace, float, refund, availability.
+  const sponsors = states.map(({ v, st, owner }) => {
+    const SP = v.policy;
+    const toMicro = (raw) => rawToMicro(raw, st.unit);
+    const caps = {
+      perTxMicro: toMicro(st.perTx), dailyMicro: toMicro(st.daily), remainingTodayMicro: toMicro(st.remaining),
+      floatMicro: toMicro(st.float), unitDecimals: st.unit,
+    };
+    const committedMicro = committed.get(v.spender.address);
+    const leftMicro = SP.budgetMicro > committedMicro ? SP.budgetMicro - committedMicro : 0n;
+    // Pace: cumulative commitments against a straight line from pace.from to pace.to.
+    let pace = { from: SP.pace.from, to: SP.pace.to, daysLeft: 0, targetPerDayMicro: 0n, matchedTodayMicro: matchedToday.get(v.spender.address), status: 'n/a' };
+    if (today >= SP.pace.from && today <= SP.pace.to) {
+      const total = dayIndex(SP.pace.to) - dayIndex(SP.pace.from) + 1;
+      const elapsed = dayIndex(today) - dayIndex(SP.pace.from) + 1;
+      const daysLeft = dayIndex(SP.pace.to) - dayIndex(today) + 1;
+      const expected = (SP.budgetMicro * BigInt(elapsed)) / BigInt(total);
+      let status = 'on';
+      if (committedMicro > expected + SP.perGiftMaxMicro) status = 'ahead';
+      else if (committedMicro + SP.perGiftMaxMicro < expected) status = 'behind';
+      pace = { ...pace, daysLeft, targetPerDayMicro: leftMicro / BigInt(daysLeft), status };
+    }
+    const fl = flows.get(v.spender.address);
+    const s = {
+      id: v.sponsor.id, name: v.sponsor.name, relatedParty: v.sponsor.relatedParty, relation: v.sponsor.relation, label: v.sponsor.label,
+      priority: v.priority, paused: v.paused, policyHash: v.policyHash,
+      spender: { address: v.spender.address, owner, agent, deployBlock: v.spender.deployBlock },
+      caps,
+      capsRaw: { perTx: st.perTx, daily: st.daily, remaining: st.remaining, spent: st.spent, float: st.float },
+      policy: { ratioBps: SP.ratioBps, perGiftMaxMicro: SP.perGiftMaxMicro, validFromMs: SP.validFromMs },
+      budget: { budgetMicro: SP.budgetMicro, committedMicro, leftMicro },
+      flows: { fundedMicro: toMicro(fl.fundedRaw), withdrawnMicro: toMicro(fl.withdrawnRaw), givenMicro: toMicro(fl.givenRaw) },
+      pace,
+      floatLow: caps.floatMicro < SP.pace.floatLowMicro || caps.floatMicro < SP.perGiftMaxMicro,
+      refundAllowed: now > Date.parse(SP.refund.after + 'T23:59:59.999Z'),
+    };
+    s.unavailable = unavailableReason(s, now);
+    return s;
+  });
+  const first = sponsors[0];
 
   const network = chainId === 5042 ? 'mainnet' : chainId === 5042002 ? 'testnet' : 'local';
   const matchDesk = {
-    sponsor: { id: S.sponsor.id, name: S.sponsor.name, relatedParty: S.sponsor.relatedParty, label: S.sponsor.label },
-    policyHash,
+    desk: { schema: D.schema, vaults: sponsors.length, agent },
+    // The first sponsor in allocation order, kept in the old one-sponsor fields (one-sponsor desks read the same).
+    sponsor: { id: first.id, name: first.name, relatedParty: first.relatedParty, label: first.label },
+    policyHash: first.policyHash,
     chainId,
     network,
-    spender: { address: spender, owner: owner.toLowerCase(), agent: st.agent.toLowerCase(), deployBlock: S.spender.deployBlock },
-    split: { address: S.split, paused },
-    caps,
-    capsRaw: { perTx: st.perTx, daily: st.daily, remaining: st.remaining, spent: st.spent, float: st.float },
+    spender: first.spender,
+    split: { address: D.split, paused },
+    caps: first.caps,
+    capsRaw: first.capsRaw,
     policy: {
-      ratioBps: P.ratioBps, perGiftMaxMicro: P.perGiftMaxMicro, perDonorDailyMaxMicro: P.perDonorDailyMaxMicro,
+      ratioBps: first.policy.ratioBps, perGiftMaxMicro: first.policy.perGiftMaxMicro, perDonorDailyMaxMicro: P.perDonorDailyMaxMicro,
       treatsDailyMaxMicro: P.eligible.treatsDailyMaxMicro, minGiftMicro: P.minGiftMicro,
     },
-    budget: { budgetMicro: P.budgetMicro, committedMicro, leftMicro },
+    budget: first.budget,
+    sponsors,
     gifts,
     donorUsedMicro,
     farmingSignals,
-    pace,
-    floatLow: caps.floatMicro < P.pace.floatLowMicro || caps.floatMicro < P.perGiftMaxMicro,
-    refundAllowed: now > Date.parse(P.refund.after + 'T23:59:59.999Z'),
+    pace: first.pace,
+    floatLow: sponsors.some((s) => s.floatLow),
+    refundAllowed: sponsors.some((s) => s.refundAllowed),
     backend: {
       payouts: { ok: !!p?.ok, stale: p?.ok ? p.stale : null, missing, ...(p?.ok ? {} : { error: p?.error }) },
       donateStatus: {
@@ -628,13 +697,14 @@ export async function observeMatchDesk({
       routerBlocked: blockRouter,
     },
     witness: {
-      reconciled: w.summary.reconciled, failed: w.summary.failed, expired: w.summary.expired,
-      orphans, collisions: w.summary.collisions, stuck: w.summary.stuck,
+      reconciled: witnessSum.reconciled, failed: witnessSum.failed, expired: witnessSum.expired,
+      orphans, collisions: witnessSum.collisions, stuck: witnessSum.stuck,
       badLocalReceipts: local.bad.map((b) => b.file),
+      imported: local.imported,
     },
   };
 
-  const unit = st.unit;
+  const unit = st0.unit;
   const usdc = (m) => Number(formatMicro(m));
   const pub = gifts.filter((g) => g.kind !== 'treat');
   const publicGifts = pub.map((g) => ({
@@ -651,19 +721,20 @@ export async function observeMatchDesk({
     chainId,
     window: { hours: P.maxGiftAgeHours, fromBlock, toBlock, secsPerBlock: round6(secsPerBlock) },
     spender: {
-      address: spender,
-      agent: st.agent,
-      native: st.native,
+      address: first.spender.address,
+      agent: states[0].st.agent,
+      native: st0.native,
       unitDecimals: unit,
-      token: st.token,
-      perTxCapUsdc: toUsdc(st.perTx, unit),
-      dailyCapUsdc: toUsdc(st.daily, unit),
-      spentTodayUsdc: toUsdc(st.spent, unit),
-      remainingTodayUsdc: toUsdc(st.remaining, unit),
-      floatUsdc: toUsdc(st.float, unit),
-      raw: { perTx: st.perTx.toString(), daily: st.daily.toString(), remaining: st.remaining.toString(), float: st.float.toString() },
+      token: st0.token,
+      perTxCapUsdc: toUsdc(st0.perTx, unit),
+      dailyCapUsdc: toUsdc(st0.daily, unit),
+      spentTodayUsdc: toUsdc(st0.spent, unit),
+      remainingTodayUsdc: toUsdc(st0.remaining, unit),
+      floatUsdc: toUsdc(st0.float, unit),
+      raw: { perTx: st0.perTx.toString(), daily: st0.daily.toString(), remaining: st0.remaining.toString(), float: st0.float.toString() },
     },
-    split: { address: S.split, paused },
+    vaults: sponsors.map((s) => ({ sponsor: s.id, address: s.spender.address, floatUsdc: usdc(s.caps.floatMicro), remainingTodayUsdc: usdc(s.caps.remainingTodayMicro) })),
+    split: { address: D.split, paused },
     trustedTtSenders: trusted.size,
     last24h: {
       publicGiftsUsdc: usdc(totals.public + totals.x402),
@@ -682,5 +753,6 @@ export async function observeMatchDesk({
   };
   // Not part of the observation hash: the receipts this round read (run.mjs needs them for idempotency).
   Object.defineProperty(obs, 'envelopes', { value: envelopes, enumerable: false });
+  Object.defineProperty(obs, 'desk', { value: D, enumerable: false });
   return obs;
 }

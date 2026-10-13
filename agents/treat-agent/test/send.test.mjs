@@ -8,7 +8,7 @@ import { matchRound, describeMatch, EXIT } from '../run.mjs';
 import { makeFakeFetch } from '../lib/fake-llm.mjs';
 import { sendGates, actMatch, runCastInteractive } from '../act.mjs';
 import { validateSponsor, policyHashOf, GuardError } from '../lib/policy.mjs';
-import { stateDir } from '../lib/receipt.mjs';
+import { deskStateDir } from '../lib/receipt.mjs';
 import { stubRpc, batchLog, agentGiftLog, sponsorRaw, w, txh, SPENDER, AGENT, NOW_MS } from '../test-support/helpers.mjs';
 
 const E16 = 10n ** 16n;
@@ -41,7 +41,7 @@ async function ctx({ chainId = 5042002, logs = [], rpc = {} } = {}) {
   const stub = stubRpc({ chainId, logs, ...rpc });
   const deps = { rpcFetch: stub.fetchImpl, logDir: path.join(base, 'logs'), stateBase: path.join(base, 'state'), statementFile: path.join(base, 'none.json'), api: 'off', env: ENV, llmFetch: makeFakeFetch() };
   const run = (opts = {}, more = {}) => matchRound({ sponsor, policyHash: policyHashOf(raw.policy), rpc: LIVE, rpcDisplay: LIVE, mode: 'send', keystore: 'tt-match-agent', once: true, now: NOW_MS, ...opts }, { ...deps, ...more });
-  return { base, sponsor, deps, run, logs, dir: stateDir(deps.stateBase, chainId, SPENDER) };
+  return { base, sponsor, deps, run, logs, dir: deskStateDir(deps.stateBase, chainId, [SPENDER]) };
 }
 
 /** A spawn() stand-in: records the call, prints `stdout`, exits with `code`. */
@@ -182,7 +182,7 @@ test('idempotent skip: an AgentGift with the same memo and amount exists -> no s
   assert.equal(r.envelope.status, 'reconciled');
   assert.equal(r.envelope.skipped, 'duplicate');
   assert.equal(r.envelope.witness.tx, txh(0xee));
-  assert.deepEqual(r.obs.matchDesk.witness.orphans, [{ memo, tx: txh(0xee), acked: true }], 'before this round, the event had no receipt here');
+  assert.deepEqual(r.obs.matchDesk.witness.orphans, [{ memo, tx: txh(0xee), acked: true, sponsor: 'motored', spender: SPENDER }], 'before this round, the event had no receipt here');
   const files = await readdir(path.join(c.dir, 'receipts'));
   assert.equal(files.length, 1);
   const saved = JSON.parse(await readFile(path.join(c.dir, 'receipts', files[0]), 'utf8'));
@@ -260,7 +260,7 @@ test('orphan: our memo on-chain with an empty state dir holds every mode until -
   assert.equal(saved[txh(0xee)].memo, memo);
   const after = await c.run({ mode: 'dry-run' });
   assert.notEqual(after.decision.codeHold, true);
-  assert.deepEqual(after.obs.matchDesk.witness.orphans, [{ memo, tx: txh(0xee), acked: true }]);
+  assert.deepEqual(after.obs.matchDesk.witness.orphans, [{ memo, tx: txh(0xee), acked: true, sponsor: 'motored', spender: SPENDER }]);
 });
 
 test('--send killed while cast runs (receipt left planned): committed past the TTL, then sent/unknown, never expired', async () => {

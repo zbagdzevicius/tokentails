@@ -8,7 +8,7 @@ import { observeMatchDesk, makeRpc } from '../observe.mjs';
 import { overcapPlan } from '../act.mjs';
 import { promptFactsMatch, matchCodeHold } from '../decide.mjs';
 import { validateSponsor, policyHashOf, GuardError } from '../lib/policy.mjs';
-import { stateDir } from '../lib/receipt.mjs';
+import { deskStateDir } from '../lib/receipt.mjs';
 import { readFile as rf } from 'node:fs/promises';
 import {
   stubRpc, batchLog, agentGiftLog, routerLog, sponsorRaw, httpStub, llmReply, w, txh,
@@ -34,7 +34,7 @@ async function ctx({ logs = [], rpc = {}, raw = sponsorRaw(), env = {}, api = 'o
     rpcFetch: stub.fetchImpl, logDir: path.join(base, 'logs'), stateBase: path.join(base, 'state'),
     statementFile: path.join(base, 'no-statement.json'), api, httpFetch: http, env: { TREAT_AGENT_FAKE_LLM: '1', ...env },
   };
-  const dir = stateDir(deps.stateBase, sponsor.chainId, sponsor.spender.address);
+  const dir = deskStateDir(deps.stateBase, sponsor.chainId, [sponsor.spender.address]);
   const run = (opts = {}, more = {}) => matchRound({ sponsor, policyHash, rpc: LOCAL, rpcDisplay: LOCAL, mode: 'dry-run', keystore: 'tt-match-agent', once: true, now: NOW_MS, ...opts }, { ...deps, ...more });
   const observe = (more = {}) => observeMatchDesk({ rpc: makeRpc(LOCAL, { fetchImpl: stub.fetchImpl }), sponsor, policyHash, now: NOW_MS, dir, api, fetchImpl: http, statementFile: deps.statementFile, ...more });
   return { base, sponsor, policyHash, stub, logs, deps, dir, run, observe };

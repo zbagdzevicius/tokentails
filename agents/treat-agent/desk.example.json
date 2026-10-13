@@ -1,0 +1,62 @@
+{
+  "schema": "tt.match-desk.desk/v2",
+  "chainId": 5042,
+  "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+  "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
+  "shelter": {
+    "name": "Pink Paw (Rožinė pėdutė)",
+    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
+    "custody": "held-by-token-tails"
+  },
+  "agent": null,
+  "policy": {
+    "perDonorDailyMaxUsdc": "0.05",
+    "minGiftUsdc": "0.01",
+    "maxGiftAgeHours": 48,
+    "eligible": {
+      "chains": [5042],
+      "kinds": ["public", "router-native", "router-authorization"],
+      "senders": "any",
+      "matchTreats": false,
+      "treatsDailyMaxUsdc": "0"
+    },
+    "excludedSenders": [
+      "0x7b136b872bEad1dAE557d1286f125B7A8A197C9A",
+      "0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0",
+      "0x3333c1661B93f56DeC472eF89ACa03F56E70F9B7",
+      "0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263"
+    ],
+    "farming": { "maxGiftsPerDonorDay": 5 },
+    "plannedTtlMinutes": 30
+  },
+  "sponsors": [
+    {
+      "id": "motored",
+      "name": "Motored.lt",
+      "relatedParty": true,
+      "relation": "founder's company",
+      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "priority": 20,
+      "ratioBps": 10000,
+      "perGiftMaxUsdc": "0.05",
+      "budgetUsdc": "1.00",
+      "validFrom": "2026-10-14T00:00:00Z",
+      "pace": { "from": "2026-10-15", "to": "2026-11-15", "floatLowUsdc": "0.10" },
+      "refund": { "after": "2026-11-15", "to": "owner" }
+    },
+    {
+      "id": "tokentails",
+      "name": "Token Tails",
+      "relatedParty": true,
+      "relation": "operator (Token Tails' own money)",
+      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "priority": 10,
+      "ratioBps": 10000,
+      "perGiftMaxUsdc": "0.05",
+      "budgetUsdc": "1.00",
+      "validFrom": "2026-10-14T00:00:00Z",
+      "pace": { "from": "2026-10-15", "to": "2026-11-15", "floatLowUsdc": "0.10" },
+      "refund": { "after": "2026-11-15", "to": "owner" }
+    }
+  ]
+}

@@ -1,6 +1,8 @@
-// Match desk policy file (sponsor.json, schema tt.match-desk.sponsor/v1): strict validation.
+// Match desk policy files: strict validation.
+// - desk.json (schema tt.match-desk.desk/v2): several sponsors, one CappedSpender vault each, one agent.
+// - sponsor.json (schema tt.match-desk.sponsor/v1): the old one-sponsor file, normalised into a one-sponsor desk.
 // Every amount is a decimal string parsed to micro-USDC bigint; floats never carry money.
-// Any failure throws PolicyError, and run.mjs exits 2. See MATCH-DESK.md, "sponsor.json".
+// Any failure throws PolicyError, and run.mjs exits 2. See MATCH-DESK.md, "desk.json".
 
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -17,6 +19,10 @@ export const CUSTODY = Object.freeze(['held-by-token-tails', 'held-by-shelter'])
 export const LABEL_RELATED = "related-party sponsor (founder's company)";
 export const LABEL_SELF = 'self-sponsor (Token Tails founder)';
 export const LABEL_PLAIN = 'sponsor';
+export const LABEL_OPERATOR = "operator's own money";
+export const DESK_SCHEMA = 'tt.match-desk.desk/v2';
+/** At most this many sponsors (vaults) on one desk: observe reads every vault each round. */
+export const MAX_SPONSORS = 8;
 
 /** A guard or policy refusal: run.mjs exits 2. */
 export class GuardError extends Error {}
@@ -37,6 +43,8 @@ const fail = (msg) => {
 export function sponsorLabel(s) {
   const rel = String(s?.relation || '').trim();
   if (s?.id === 'self' || /^self/i.test(rel) || /^(token tails )?founder$/i.test(rel)) return LABEL_SELF;
+  // Token Tails putting in its own money (the operator): never a plain or outside sponsor either.
+  if (s?.relatedParty && (s?.id === 'tokentails' || /^operator\b/i.test(rel))) return LABEL_OPERATOR;
   if (s?.relatedParty) return !rel || rel === "founder's company" ? LABEL_RELATED : `related-party sponsor (${rel})`;
   return LABEL_PLAIN;
 }
@@ -49,6 +57,10 @@ export function relatedPartyProblem(s) {
   const motored = s?.id === 'motored' || /motored/i.test(String(s?.name || ''));
   if (motored && s?.relatedParty !== true) {
     return "Motored.lt is the founder's company: sponsor.relatedParty must be true (label: related-party sponsor (founder's company))";
+  }
+  const tt = s?.id === 'tokentails' || /token\s*tails/i.test(String(s?.name || ''));
+  if (tt && s?.relatedParty !== true) {
+    return "Token Tails is the operator: its own money must be relatedParty true (label: operator's own money)";
   }
   return null;
 }
@@ -199,3 +211,150 @@ export async function loadSponsor(file) {
 }
 
 const path_ = (f) => String(f).split('/').slice(-1)[0];
+
+// ================================================================== desk.json (tt.match-desk.desk/v2)
+
+/** Desk-wide policy keys (shared by every sponsor) and per-sponsor keys. */
+export const DESK_POLICY_KEYS = Object.freeze([
+  'perDonorDailyMaxUsdc', 'minGiftUsdc', 'maxGiftAgeHours', 'eligible', 'excludedSenders', 'farming', 'plannedTtlMinutes',
+]);
+export const SPONSOR_POLICY_KEYS = Object.freeze(['ratioBps', 'perGiftMaxUsdc', 'budgetUsdc', 'validFrom', 'pace', 'refund']);
+
+/**
+ * The policy hash a desk sponsor's receipts carry: sha256 hex of canonical({ policy, sponsor }), where
+ * `policy` is the desk's shared policy object and `sponsor` that sponsor's entry, both exactly as written
+ * (raw strings), without the operational `paused` switch (pausing a sponsor for a round is not a policy
+ * change). Another sponsor's entry never changes it. A v1 sponsor.json keeps policyHashOf(policy).
+ */
+export function deskPolicyHashOf(sharedPolicy, entry) {
+  const { paused: _paused, ...terms } = entry || {};
+  return createHash('sha256').update(canonical({ policy: sharedPolicy, sponsor: terms })).digest('hex');
+}
+
+/** Allocation order: the highest priority first, then the lowest id. */
+export const byPriority = (a, b) => b.priority - a.priority || (a.sponsor.id < b.sponsor.id ? -1 : a.sponsor.id > b.sponsor.id ? 1 : 0);
+
+const deskFail = (msg) => {
+  throw new PolicyError(`desk.json: ${msg}`);
+};
+
+/**
+ * Normalise a validated v1 sponsor (validateSponsor) into a one-sponsor desk. Its policy hash stays
+ * policyHashOf(policy), so receipts and memos written before the desk existed keep their hashes.
+ */
+export function deskFromSponsor(sponsor, policyHash = sponsor.policyRaw ? policyHashOf(sponsor.policyRaw) : null) {
+  const vault = { ...sponsor, priority: 0, paused: false, policyHash };
+  return {
+    schema: sponsor.schema,
+    v1: true,
+    chainId: sponsor.chainId,
+    split: sponsor.split,
+    router: sponsor.router,
+    shelter: sponsor.shelter,
+    agent: sponsor.spender.agent,
+    policy: sponsor.policy,
+    sponsors: [vault],
+  };
+}
+
+/**
+ * Validate a parsed desk.json; returns the normalised desk:
+ * { schema, v1: false, chainId, split, router, shelter, agent, policy (shared, normalised), policyRaw,
+ *   sponsors: [vault] in allocation order }. Each vault has the v1 sponsor shape (sponsor, chainId,
+ * spender {address, deployBlock, owner, agent}, split, router, shelter, policy with every field) plus
+ * priority, paused and policyHash, so the per-vault code paths stay the same.
+ */
+export function validateDesk(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) deskFail('the file must be an object');
+  if (raw.schema !== DESK_SCHEMA) deskFail(`schema must be exactly ${DESK_SCHEMA} (or ${SPONSOR_SCHEMA} for a one-sponsor file)`);
+  const shared = raw.policy;
+  if (!shared || typeof shared !== 'object' || Array.isArray(shared)) deskFail('policy must be an object');
+  for (const k of SPONSOR_POLICY_KEYS) if (Object.hasOwn(shared, k)) deskFail(`policy.${k} is per sponsor: move it into each sponsors[] entry`);
+  if (raw.agent !== null && (typeof raw.agent !== 'string' || !ADDR.test(raw.agent))) deskFail('agent must be a 0x address or null (one agent for every vault)');
+  const agent = raw.agent ? raw.agent.toLowerCase() : null;
+  if (!Array.isArray(raw.sponsors) || raw.sponsors.length < 1 || raw.sponsors.length > MAX_SPONSORS) deskFail(`sponsors must list 1…${MAX_SPONSORS} sponsors`);
+
+  const vaults = raw.sponsors.map((e, i) => {
+    const where = `sponsors[${i}]${e && typeof e.id === 'string' ? ` (${e.id})` : ''}`;
+    if (!e || typeof e !== 'object' || Array.isArray(e)) deskFail(`${where} must be an object`);
+    const sp = e.spender;
+    if (!sp || typeof sp !== 'object' || Array.isArray(sp)) deskFail(`${where}.spender must be an object`);
+    if (Object.hasOwn(sp, 'agent')) deskFail(`${where}.spender.agent: the agent is desk-wide (top-level "agent")`);
+    if (!Number.isSafeInteger(e.priority) || e.priority < 0 || e.priority > 1000) deskFail(`${where}.priority must be an integer 0…1000 (higher is matched first)`);
+    if (e.paused !== undefined && typeof e.paused !== 'boolean') deskFail(`${where}.paused must be true or false`);
+    // Reuse the v1 validator: one sponsor's view of the desk is exactly a v1 sponsor.json.
+    const v1 = {
+      schema: SPONSOR_SCHEMA,
+      sponsor: { id: e.id, name: e.name, relatedParty: e.relatedParty, ...(e.relation !== undefined ? { relation: e.relation } : {}) },
+      chainId: raw.chainId,
+      spender: { address: sp.address ?? null, deployBlock: sp.deployBlock ?? null, owner: sp.owner ?? null, agent },
+      split: raw.split,
+      router: raw.router,
+      shelter: raw.shelter,
+      policy: { ...shared, ...Object.fromEntries(SPONSOR_POLICY_KEYS.map((k) => [k, e[k]])) },
+    };
+    let vault;
+    try {
+      vault = validateSponsor(v1);
+    } catch (err) {
+      if (!(err instanceof PolicyError)) throw err;
+      deskFail(`${where}: ${err.message.replace(/^sponsor\.json: /, '')}`);
+    }
+    return { ...vault, priority: e.priority, paused: e.paused === true, policyHash: deskPolicyHashOf(shared, e) };
+  });
+
+  const ids = new Set();
+  const spenders = new Set();
+  for (const v of vaults) {
+    if (ids.has(v.sponsor.id)) deskFail(`sponsor id ${v.sponsor.id} is listed twice`);
+    ids.add(v.sponsor.id);
+    const a = v.spender.address;
+    if (a) {
+      if (spenders.has(a)) deskFail(`vault ${a} is listed for two sponsors (one vault per sponsor)`);
+      spenders.add(a);
+    }
+    if (agent && (v.spender.owner === agent || a === agent)) deskFail(`${v.sponsor.id}: the agent must not be a vault owner or a vault`);
+    if (a && v.spender.owner === a) deskFail(`${v.sponsor.id}: a vault cannot own itself`);
+  }
+  vaults.sort(byPriority);
+  const first = vaults[0];
+  const validFromMs = Math.min(...vaults.map((v) => v.policy.validFromMs));
+  return {
+    schema: DESK_SCHEMA,
+    v1: false,
+    chainId: first.chainId,
+    split: first.split,
+    router: first.router,
+    shelter: first.shelter,
+    agent,
+    policy: { ...first.policy, validFromMs },
+    policyRaw: shared,
+    sponsors: vaults,
+  };
+}
+
+/** Parse either schema into a desk. */
+export function deskOf(raw) {
+  if (raw && raw.schema === SPONSOR_SCHEMA) {
+    const sponsor = validateSponsor(raw);
+    return deskFromSponsor(sponsor, policyHashOf(raw.policy));
+  }
+  return validateDesk(raw);
+}
+
+/** Read, parse and validate a desk.json (v2) or a sponsor.json (v1). Returns { desk }. */
+export async function loadDesk(file) {
+  let raw;
+  try {
+    raw = JSON.parse(await readFile(file, 'utf8'));
+  } catch (e) {
+    throw new PolicyError(`desk.json: cannot read ${path_(file)}: ${e.message}`);
+  }
+  return { desk: deskOf(raw) };
+}
+
+/** Every vault address on the desk (lowercase; null while a vault is not deployed). */
+export const deskVaults = (desk) => desk.sponsors.map((v) => v.spender.address);
+
+/** The vault (normalised sponsor) with this id, or null. */
+export const vaultOf = (desk, id) => desk.sponsors.find((v) => v.sponsor.id === id) || null;

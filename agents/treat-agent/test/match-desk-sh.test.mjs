@@ -88,6 +88,12 @@ test('fork-demo.sh keeps the old demo as the default and adds --match-desk', () 
   assert.match(s, /--out "\$STMT"/);
   assert.doesNotMatch(s, /client\/public\/match-desk/, 'the demo never writes the public statement');
   assert.doesNotMatch(s, /--send\b/, 'the demo never uses --send');
+  // Two companies' vaults, one agent: owners dev #3 and dev #4, agent dev #1 for both.
+  assert.match(s, /deploy_vault "\$DEV3" motored/);
+  assert.match(s, /deploy_vault "\$DEV4" tokentails/);
+  assert.match(s, /CAPPED_AGENT="\$DEV1"/);
+  assert.match(s, /--demo-overcap --vault tokentails --overcap-kind day/);
+  assert.match(s, /schema: "tt\.match-desk\.desk\/v2"/);
 });
 
 test('no subcommand or an unknown one is a usage error (exit 2)', () => {
@@ -234,4 +240,140 @@ esac
   const live = run(sb, ['check', sb.deployed, '--rpc-url', 'https://rpc.example.invalid']);
   assert.equal(live.status, 0, live.stderr);
   assert.match(live.stdout, new RegExp(`https://explorer\\.arc\\.io/address/${SPENDER}`));
+});
+
+// ------------------------------------------------------------------ desk.json (several sponsors, one agent)
+
+const SPENDER_B = '0x4444444444444444444444444444444444444444';
+const OWNER_B = '0x5555555555555555555555555555555555555555';
+const DESK_EXAMPLE = path.join(ROOT, 'desk.example.json');
+
+function deskSandbox({ agentB = AGENT, deployedB = true } = {}) {
+  const sb = sandbox();
+  const desk = JSON.parse(readFileSync(DESK_EXAMPLE, 'utf8'));
+  desk.agent = AGENT;
+  desk.sponsors[0].spender = { address: SPENDER, deployBlock: 123, owner: OWNER };
+  desk.sponsors[1].spender = deployedB ? { address: SPENDER_B, deployBlock: 124, owner: OWNER_B } : { address: null, deployBlock: null, owner: null };
+  sb.desk = path.join(sb.dir, 'desk.deployed.json');
+  writeFileSync(sb.desk, JSON.stringify(desk, null, 2));
+  // A read-only cast stand-in: answers check's calls per vault (vault B can report another agent).
+  writeFileSync(path.join(sb.bin, 'cast'), `#!/bin/sh
+case "$1" in
+  chain-id) echo 5042 ;;
+  from-wei) echo 0 ;;
+  call)
+    case "$3" in
+      "native()(bool)") echo true ;;
+      "perTxCap()(uint256)") echo "50000000000000000 [5e16]" ;;
+      "dailyCap()(uint256)") echo "200000000000000000 [2e17]" ;;
+      "split()(address)") echo ${SPLIT} ;;
+      "agent()(address)") if [ "$2" = "${SPENDER_B}" ]; then echo ${agentB}; else echo ${AGENT}; fi ;;
+      "owner()(address)") if [ "$2" = "${SPENDER_B}" ]; then echo ${OWNER_B}; else echo ${OWNER}; fi ;;
+      *) echo 0 ;;
+    esac ;;
+  *) echo "STUB cast CALLED $*" >&2; exit 99 ;;
+esac
+`);
+  chmodSync(path.join(sb.bin, 'cast'), 0o755);
+  return sb;
+}
+
+test('init writes a two-sponsor desk file from desk.example.json', () => {
+  const sb = sandbox();
+  const out = path.join(sb.dir, 'desk.arc-testnet.json');
+  const r = run(sb, ['init', 'testnet', '--out', out], { MATCH_DESK_EXAMPLE: DESK_EXAMPLE });
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(readFileSync(out, 'utf8'));
+  assert.equal(j.schema, 'tt.match-desk.desk/v2');
+  assert.equal(j.chainId, 5042002);
+  assert.deepEqual(j.policy.eligible.chains, [5042002]);
+  assert.deepEqual(j.sponsors.map((s) => s.id), ['motored', 'tokentails']);
+  assert.match(r.stdout, /deploy .* --sponsor <id>/);
+});
+
+test('check without --sponsor checks every vault and that they share one agent', () => {
+  const sb = deskSandbox();
+  const r = run(sb, ['check', sb.desk, '--rpc-url', 'http://127.0.0.1:8545']);
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  assert.match(r.stdout, new RegExp(`CappedSpender ${SPENDER} \\(motored\\)`));
+  assert.match(r.stdout, new RegExp(`CappedSpender ${SPENDER_B} \\(tokentails\\)`));
+  assert.match(r.stdout, /ok {4}one agent/);
+  assert.match(r.stdout, /check passed/);
+  const one = run(sb, ['check', sb.desk, '--sponsor', 'tokentails', '--rpc-url', 'http://127.0.0.1:8545']);
+  assert.equal(one.status, 0, one.stderr);
+  assert.doesNotMatch(one.stdout, /\(motored\)/);
+  const other = deskSandbox({ agentB: '0x6666666666666666666666666666666666666666' });
+  const bad = run(other, ['check', other.desk, '--rpc-url', 'http://127.0.0.1:8545']);
+  assert.equal(bad.status, 1);
+  assert.match(bad.stdout, /FAIL {2}agent/);
+  assert.match(bad.stdout, /FAIL {2}agents differ/);
+  const undeployed = deskSandbox({ deployedB: false });
+  const nb = run(undeployed, ['check', undeployed.desk]);
+  assert.equal(nb.status, 2);
+  assert.match(nb.stderr, /spender\.address is null for 'tokentails'/);
+});
+
+test('fund needs --sponsor on a multi-sponsor desk, refuses an unknown one, AI sessions and mainnet without CONFIRM_MAINNET', () => {
+  const sb = deskSandbox();
+  const none = run(sb, ['fund', sb.desk, '--account', 'motored-owner', '--usdc', '1']);
+  assert.equal(none.status, 2);
+  assert.match(none.stderr, /--sponsor <id> is required/);
+  const unknown = run(sb, ['fund', sb.desk, '--sponsor', 'acme', '--account', 'x', '--usdc', '1']);
+  assert.equal(unknown.status, 2);
+  assert.match(unknown.stderr, /no sponsor 'acme'/);
+  const ai = run(sb, ['fund', sb.desk, '--sponsor', 'tokentails', '--account', 'tt-sponsor-owner', '--usdc', '1'], { CLAUDECODE: '1' });
+  assert.equal(ai.status, 2);
+  assert.match(ai.stderr, /AI session/);
+  assert.match(ai.stdout, new RegExp(`Funding the 'tokentails' vault\\. Only its owner \\(${OWNER_B}\\)`));
+  const main = run(sb, ['fund', sb.desk, '--sponsor', 'motored', '--account', 'motored-owner', '--usdc', '1']);
+  assert.equal(main.status, 2);
+  assert.match(main.stderr, /CONFIRM_MAINNET=yes/);
+  const gas = run(sb, ['gas', sb.desk, '--account', 'funder', '--usdc', '0.05'], { CLAUDECODE: '1' });
+  assert.equal(gas.status, 2);
+  assert.match(gas.stdout, new RegExp(`agent EOA ${AGENT}`));
+});
+
+test('deploy <desk> --sponsor: needs the sponsor, one agent for all vaults, no second vault by accident, no AI session', () => {
+  const sb = deskSandbox({ deployedB: false });
+  const none = run(sb, ['deploy', sb.desk, '--account', 'tt-deployer']);
+  assert.equal(none.status, 2);
+  assert.match(none.stderr, /--sponsor <id> is required/);
+  const agent = run(sb, ['deploy', sb.desk, '--sponsor', 'tokentails', '--account', 'tt-deployer', '--owner', OWNER_B, '--agent', '0x6666666666666666666666666666666666666666']);
+  assert.equal(agent.status, 2);
+  assert.match(agent.stderr, /same agent/);
+  const again = run(sb, ['deploy', sb.desk, '--sponsor', 'motored', '--account', 'tt-deployer', '--owner', OWNER]);
+  assert.equal(again.status, 2);
+  assert.match(again.stderr, /already has vault/);
+  const noOwner = run(sb, ['deploy', sb.desk, '--sponsor', 'tokentails', '--account', 'tt-deployer']);
+  assert.equal(noOwner.status, 2);
+  assert.match(noOwner.stderr, /--owner <address> is required/);
+  const ai = run(sb, ['deploy', sb.desk, '--sponsor', 'tokentails', '--account', 'tt-deployer', '--owner', OWNER_B], { CLAUDECODE: '1' });
+  assert.equal(ai.status, 2);
+  assert.match(ai.stderr, /AI session/);
+  const main = run(sb, ['deploy', sb.desk, '--sponsor', 'tokentails', '--account', 'tt-deployer', '--owner', OWNER_B]);
+  assert.equal(main.status, 2);
+  assert.match(main.stderr, /CONFIRM_MAINNET=yes/);
+});
+
+test('verify prints one Sourcify command per vault (or the one --sponsor names), same agent in each', () => {
+  const sb = deskSandbox();
+  const r = run(sb, ['verify', sb.desk]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal((r.stdout.match(/forge verify-contract/g) || []).length, 2);
+  assert.match(r.stdout, new RegExp(`${SPLIT} ${AGENT} ${OWNER} 50000000000000000 200000000000000000 true`));
+  assert.match(r.stdout, new RegExp(`${SPLIT} ${AGENT} ${OWNER_B} 50000000000000000 200000000000000000 true`));
+  const one = run(sb, ['verify', sb.desk, '--sponsor', 'tokentails']);
+  assert.equal((one.stdout.match(/forge verify-contract/g) || []).length, 1);
+  assert.match(one.stdout, new RegExp(`forge verify-contract ${SPENDER_B} `));
+});
+
+test('round on a desk passes --vault through and still refuses --send in an AI session', () => {
+  const sb = deskSandbox();
+  const r = run(sb, ['round', sb.desk, '--send', '--keystore', 'tt-match-agent'], { CLAUDECODE: '1' });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /AI session/);
+  // --vault without --demo-overcap is a usage error in run.mjs (exit 2), before any RPC call.
+  const v = run(sb, ['round', sb.desk, '--vault', 'tokentails'], { MATCH_DESK_API: 'off' });
+  assert.equal(v.status, 2);
+  assert.match(v.stderr, /--vault only goes with --demo-overcap/);
 });

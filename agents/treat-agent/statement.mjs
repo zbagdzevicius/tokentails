@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// statement: builds the public Sponsor Match Desk statement (statement.json + a self-contained
-// index.html) from the receipt envelopes the agent wrote. See MATCH-DESK.md, "Statement".
+// statement: builds the public Match Desk statement (statement.json + a self-contained index.html) from
+// the receipt envelopes the agent wrote, for a whole desk: one section per sponsor (its vault, what it
+// funded, matched and has left) plus the desk total paid to the shelter wallet. Reads a desk.json (v2)
+// or an old one-sponsor sponsor.json (v1). See MATCH-DESK.md, "Statement".
 //
 // - Every envelope's sha256 is re-checked against canonical(receipt body); a failing one is excluded
 //   and listed with its reason. Only `reconciled` receipts count toward the totals.
@@ -8,9 +10,9 @@
 // - Read-only. --verify-onchain re-reads AgentGift events over RPC; nothing is ever signed or sent.
 // - No RPC URL, file path or private link is written into either file.
 //
-// This file does not import the agent's receipt libs (lib/receipt.mjs etc.): it re-implements the
-// hash check with log.mjs canonical() and node:crypto, so a statement can be checked independently.
-// Only the public sponsor label comes from lib/policy.mjs, so the agent and the page never disagree.
+// The hash check is re-implemented here with log.mjs canonical() and node:crypto, so a statement can be
+// checked independently of the agent's receipt code. The public labels and the policy hash come from
+// lib/policy.mjs and the state-dir layout from lib/receipt.mjs, so the agent and the page never disagree.
 
 import { readFile, readdir, mkdir, writeFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -19,7 +21,10 @@ import { parseArgs } from 'node:util';
 import path from 'node:path';
 import { canonical } from './log.mjs';
 import { renderHtml } from './lib/statement-html.mjs';
-import { sponsorLabel, relatedPartyProblem, LABEL_SELF } from './lib/policy.mjs';
+import {
+  sponsorLabel, relatedPartyProblem, LABEL_SELF, LABEL_OPERATOR, DESK_SCHEMA, deskPolicyHashOf, byPriority,
+} from './lib/policy.mjs';
+import { deskStateDir, siblingDirs, stateDir } from './lib/receipt.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(HERE, '../..');
@@ -27,8 +32,11 @@ export const PUBLIC_OUT = path.join(REPO, 'client/public/match-desk');
 export const DEFAULT_STATE_DIR = path.join(HERE, 'runs', 'match-desk');
 
 export const SPONSOR_SCHEMA = 'tt.match-desk.sponsor/v1';
-// keccak256("AgentGift(uint256,uint256,string,uint256)") as pinned in lib/abi.mjs (TOPIC.AgentGift).
+// keccak256 topics as pinned in lib/abi.mjs (TOPIC.AgentGift, TOPIC.Funded, TOPIC.Withdrawn).
 export const AGENT_GIFT_TOPIC = '0x5936d115a5d03a0687def57892742e7dfee0d3f44321c5b5506b60d8a96fd4cf';
+export const FUNDED_TOPIC = '0x5af8184bef8e4b45eb9f6ed7734d04da38ced226495548f46e0c8ff8d7d9a524';
+export const WITHDRAWN_TOPIC = '0x7084f5476618d8e60b11ef0d7d3f06914655adb8793e28ff7f018d4c76d505d5';
+const FLOAT_BALANCE = '0xf2c70ada'; // floatBalance()
 
 export const CHAINS = Object.freeze({
   5042: { id: 5042, name: 'Arc', explorer: 'https://explorer.arc.io' },
@@ -38,7 +46,7 @@ export const CHAINS = Object.freeze({
 
 export const STATUSES = ['planned', 'sent', 'reconciled', 'failed', 'expired', 'skipped-duplicate', 'mismatch'];
 const INPUT_MODES = new Set(['send', 'fork']);
-const USAGE = 'usage: node statement.mjs --sponsor <sponsor.json> [--receipts <dir>] [--out <dir>] [--now <ISO>] [--rpc <url> --verify-onchain]';
+const USAGE = 'usage: node statement.mjs --sponsor <desk.json|sponsor.json> [--receipts <dir>] [--out <dir>] [--now <ISO>] [--rpc <url> --verify-onchain]';
 
 export class UsageError extends Error {}
 
@@ -83,16 +91,26 @@ export function ratioLabel(bps) {
 // The public label lives in lib/policy.mjs (one implementation for the agent and the statement).
 export { sponsorLabel };
 
-/** Minimal checks the statement depends on. lib/policy.mjs (the agent) validates the full file. */
-export function checkSponsor(file) {
-  if (!file || file.schema !== SPONSOR_SCHEMA) throw new UsageError(`sponsor file: schema must be ${SPONSOR_SCHEMA}`);
-  const s = file.sponsor || {};
-  if (!/^[a-z0-9-]{1,24}$/.test(s.id || '')) throw new UsageError('sponsor file: sponsor.id must match ^[a-z0-9-]{1,24}$');
-  if (typeof s.name !== 'string' || !s.name.trim() || s.name.length > 80) throw new UsageError('sponsor file: sponsor.name');
-  if (typeof s.relatedParty !== 'boolean') throw new UsageError('sponsor file: sponsor.relatedParty must be a boolean');
-  if (s.relatedParty && !String(s.relation || '').trim()) throw new UsageError('sponsor file: relation is required for a related party');
-  const rp = relatedPartyProblem(s);
-  if (rp) throw new UsageError(`sponsor file: ${rp}`);
+function checkSponsorEntry(sp, where) {
+  if (!/^[a-z0-9-]{1,24}$/.test(sp.id || '')) throw new UsageError(`${where}: sponsor.id must match ^[a-z0-9-]{1,24}$`);
+  if (typeof sp.name !== 'string' || !sp.name.trim() || sp.name.length > 80) throw new UsageError(`${where}: sponsor.name`);
+  if (typeof sp.relatedParty !== 'boolean') throw new UsageError(`${where}: sponsor.relatedParty must be a boolean`);
+  if (sp.relatedParty && !String(sp.relation || '').trim()) throw new UsageError(`${where}: relation is required for a related party`);
+  const rp = relatedPartyProblem(sp);
+  if (rp) throw new UsageError(`${where}: ${rp}`);
+}
+
+/**
+ * The statement's view of a desk.json (v2) or a sponsor.json (v1): minimal checks the statement depends on
+ * (lib/policy.mjs validates the full file for the agent). Returns
+ * { v1, chainId, split, shelter, agent, sharedPolicy, ttlMinutes, sponsors: [{ id, name, relatedParty, relation,
+ *   label, priority, spender: {address, deployBlock, owner}, ratioBps, perGiftMaxUsdc, budgetUsdc, perDonorDailyMaxUsdc,
+ *   policySha256 }] } with sponsors in allocation order.
+ */
+export function deskView(file) {
+  if (!file || (file.schema !== SPONSOR_SCHEMA && file.schema !== DESK_SCHEMA)) {
+    throw new UsageError(`sponsor file: schema must be ${DESK_SCHEMA} or ${SPONSOR_SCHEMA}`);
+  }
   if (!CHAINS[file.chainId]) throw new UsageError(`sponsor file: chainId ${file.chainId} is not 5042, 5042002 or 31337`);
   if (!lowerAddr(file.split)) throw new UsageError('sponsor file: split must be an address');
   if (!file.shelter || !lowerAddr(file.shelter.wallet)) throw new UsageError('sponsor file: shelter.wallet must be an address');
@@ -100,29 +118,85 @@ export function checkSponsor(file) {
     throw new UsageError('sponsor file: shelter.custody must be held-by-token-tails or held-by-shelter');
   }
   if (!file.policy || typeof file.policy !== 'object') throw new UsageError('sponsor file: policy is missing');
-  const sp = file.spender || {};
-  for (const k of ['address', 'owner', 'agent']) {
-    if (sp[k] != null && !lowerAddr(sp[k])) throw new UsageError(`sponsor file: spender.${k} must be an address or null`);
+  const addrOrNull = (v, name) => {
+    if (v != null && !lowerAddr(v)) throw new UsageError(`sponsor file: ${name} must be an address or null`);
+    return lowerAddr(v);
+  };
+  const ttl = Number.isInteger(file.policy.plannedTtlMinutes) ? file.policy.plannedTtlMinutes : 30;
+  const base = { chainId: file.chainId, split: lowerAddr(file.split), shelter: file.shelter, sharedPolicy: file.policy, ttlMinutes: ttl };
+  if (file.schema === SPONSOR_SCHEMA) {
+    const s = file.sponsor || {};
+    checkSponsorEntry(s, 'sponsor file');
+    const sp = file.spender || {};
+    const p = file.policy;
+    return {
+      ...base,
+      v1: true,
+      agent: addrOrNull(sp.agent, 'spender.agent'),
+      sponsors: [{
+        id: s.id, name: s.name, relatedParty: s.relatedParty, relation: s.relation || null, label: sponsorLabel(s), priority: 0,
+        spender: { address: addrOrNull(sp.address, 'spender.address'), deployBlock: sp.deployBlock ?? null, owner: addrOrNull(sp.owner, 'spender.owner') },
+        ratioBps: p.ratioBps, perGiftMaxUsdc: p.perGiftMaxUsdc ?? null, budgetUsdc: p.budgetUsdc ?? null,
+        perDonorDailyMaxUsdc: p.perDonorDailyMaxUsdc ?? null,
+        policySha256: sha256Hex(canonical(p)),
+      }],
+    };
   }
+  if (!Array.isArray(file.sponsors) || !file.sponsors.length) throw new UsageError('sponsor file: sponsors must list at least one sponsor');
+  const ids = new Set();
+  const sponsors = file.sponsors.map((e, i) => {
+    checkSponsorEntry(e || {}, `sponsor file: sponsors[${i}]`);
+    if (ids.has(e.id)) throw new UsageError(`sponsor file: sponsor id ${e.id} is listed twice`);
+    ids.add(e.id);
+    const sp = e.spender || {};
+    return {
+      id: e.id, name: e.name, relatedParty: e.relatedParty, relation: e.relation || null, label: sponsorLabel(e),
+      priority: Number.isSafeInteger(e.priority) ? e.priority : 0,
+      spender: { address: addrOrNull(sp.address, `sponsors[${i}].spender.address`), deployBlock: sp.deployBlock ?? null, owner: addrOrNull(sp.owner, `sponsors[${i}].spender.owner`) },
+      ratioBps: e.ratioBps, perGiftMaxUsdc: e.perGiftMaxUsdc ?? null, budgetUsdc: e.budgetUsdc ?? null,
+      perDonorDailyMaxUsdc: file.policy.perDonorDailyMaxUsdc ?? null,
+      policySha256: deskPolicyHashOf(file.policy, e),
+    };
+  });
+  sponsors.sort((a, b) => byPriority({ priority: a.priority, sponsor: a }, { priority: b.priority, sponsor: b }));
+  return { ...base, v1: false, agent: addrOrNull(file.agent, 'agent'), sponsors };
+}
+
+/** Minimal checks the statement depends on (both schemas); returns the file. */
+export function checkSponsor(file) {
+  deskView(file);
   return file;
 }
 
-/** The eight honest-copy sentences (MATCH-DESK.md, "Honest copy"), built from the sponsor and custody. */
+const view = (file) => (file && file.__view) || deskView(file);
+
+/** How the page names a sponsor in a sentence: "Motored.lt, a related-party sponsor (…)" or "Token Tails, with the operator's own money". */
+export const whoIs = (s) => (s.label === LABEL_OPERATOR ? `${s.name}, with the ${s.label}` : `${s.name}, a ${s.label}`);
+
+function sponsorLine(s, many) {
+  const label = s.label;
+  if (label === LABEL_SELF) return 'The sponsor is the Token Tails founder: a self-sponsor (Token Tails founder). It is not an outside or independent sponsor.';
+  if (label === LABEL_OPERATOR) return `${s.name} runs this desk and matches with its own money (${label}). It is not an outside or independent sponsor.`;
+  if (s.relatedParty) return `${s.name} is a ${label}. It is not an outside or independent sponsor.`;
+  return many ? `${s.name} is a sponsor.` : `${s.name} is the sponsor.`;
+}
+
+/**
+ * The honest-copy sentences (MATCH-DESK.md, "Honest copy"), built from the sponsors and custody: one
+ * sponsor line per sponsor, then custody and the rest. A desk with several sponsors adds how one match
+ * is paid by one vault.
+ */
 export function disclosures(file) {
-  const s = file.sponsor;
-  const label = sponsorLabel(s);
-  const shelter = file.shelter.name || 'the shelter';
-  const sponsorLine = label === LABEL_SELF
-    ? `The sponsor is the Token Tails founder: a self-sponsor (Token Tails founder). It is not an outside or independent sponsor.`
-    : s.relatedParty
-      ? `${s.name} is a ${label}. It is not an outside or independent sponsor.`
-      : `${s.name} is the sponsor.`;
-  const custodyLine = file.shelter.custody === 'held-by-shelter'
+  const d = view(file);
+  const shelter = d.shelter.name || 'the shelter';
+  const many = d.sponsors.length > 1;
+  const custodyLine = d.shelter.custody === 'held-by-shelter'
     ? `The wallet of ${shelter} is held by the shelter itself. Matched money reaches that wallet.`
     : `The wallet of ${shelter} is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.`;
   return [
-    sponsorLine,
+    ...d.sponsors.map((s) => sponsorLine(s, many)),
     custodyLine,
+    ...(many ? ["Each company's money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault."] : []),
     'The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.',
     "The agent's code enforces the per-donor limit. The contract does not.",
     'This statement is not a tax receipt.',
@@ -135,10 +209,11 @@ export function disclosures(file) {
 // ------------------------------------------------------------------ envelopes
 
 /**
- * Re-checks one envelope against this sponsor. Returns null when it is fine, else the reason it is
+ * Re-checks one envelope against this desk. Returns null when it is fine, else the reason it is
  * excluded. The hash is checked first, so a tampered body always reads "hash mismatch".
  */
 export function envelopeProblem(env, file) {
+  const d = view(file);
   const body = env?.receipt;
   if (!body || typeof body !== 'object' || Array.isArray(body)) return 'missing receipt body';
   if (typeof env.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(env.sha256)) return 'missing sha256';
@@ -146,7 +221,8 @@ export function envelopeProblem(env, file) {
   const bad = unsafeValue(body);
   if (bad) return `bad body: ${bad}`;
   if (body.type !== 'tt.match-desk.receipt' || body.v !== 1) return 'bad body: type or version';
-  if (body.sponsor !== file.sponsor.id) return 'sponsor mismatch';
+  const owner = d.sponsors.find((s) => s.spender.address && s.spender.address === String(body.spender).toLowerCase());
+  if (!owner || body.sponsor !== owner.id) return 'sponsor mismatch';
   if (env.memo !== `tt:agent:m:${body.sponsor}:${env.sha256.slice(0, 8)}`) return 'memo mismatch';
   if (!STATUSES.includes(env.status)) return `unknown status: ${env.status}`;
   if (!Array.isArray(body.gifts) || body.gifts.length === 0 || body.gifts.length > 10) return 'bad body: gifts';
@@ -191,12 +267,13 @@ function unsafeValue(v, where = 'body') {
   return `${where} has type ${typeof v}`;
 }
 
-/** Envelopes belong to this statement when they are for this chain and spender. Others are skipped silently. */
+/** Envelopes belong to this statement when they are for this chain and one of the desk's vaults. Others are skipped silently. */
 export function belongs(env, file) {
+  const d = view(file);
   const body = env?.receipt;
-  const spender = lowerAddr(file.spender?.address);
-  if (!spender || !body) return false;
-  return body.chainId === file.chainId && String(body.spender || '').toLowerCase() === spender;
+  if (!body) return false;
+  const spender = String(body.spender || '').toLowerCase();
+  return body.chainId === d.chainId && d.sponsors.some((s) => s.spender.address && s.spender.address === spender);
 }
 
 /**
@@ -243,15 +320,28 @@ function matchDay(env) {
   return dayOf(w.blockTimeIso) || dayOf(w.reconciledAt) || dayOf(env.updatedAt) || 'unknown';
 }
 
+const newTally = () => ({ reconciledMicro: 0n, pendingMicro: 0n, giftsMicro: 0n, receipts: 0, giftIds: new Set(), donors: new Set() });
+const tallyOut = (t) => ({
+  reconciledUsdc: microToUsdc(t.reconciledMicro),
+  pendingUsdc: microToUsdc(t.pendingMicro),
+  receipts: t.receipts,
+  giftsMatched: t.giftIds.size,
+  donors: t.donors.size,
+  giftsMatchedUsdc: microToUsdc(t.giftsMicro),
+});
+const rawToUsdc = (raw, dec) => microToUsdc(BigInt(raw) / 10n ** BigInt(Math.max(0, dec - 6)));
+
 /**
- * Pure: sponsor file + envelopes (+ optional on-chain check) -> the statement object.
- * `onchain`: null (not checked) or { events: [{memo, tx, amountRaw}] } from AgentGift logs.
+ * Pure: desk (or sponsor) file + envelopes (+ optional on-chain reads) -> the statement object.
+ * `onchain`: null (not checked) or { events: [{memo, tx, amountRaw, spender?}], vaults?: { <spender>:
+ * { fundedRaw, withdrawnRaw, floatRaw, givenRaw, unitDecimals } } } from AgentGift, Funded and Withdrawn
+ * logs and floatBalance().
  */
 export function buildStatement({ file, envelopes, now = null, onchain = null }) {
-  checkSponsor(file);
-  const chain = CHAINS[file.chainId];
-  const policy = file.policy;
-  const ttlMs = (Number.isInteger(policy.plannedTtlMinutes) ? policy.plannedTtlMinutes : 30) * 60_000;
+  const d = deskView(file);
+  const f = { ...file, __view: d };
+  const chain = CHAINS[d.chainId];
+  const ttlMs = d.ttlMinutes * 60_000;
 
   const excluded = [];
   const seen = new Set();
@@ -261,8 +351,8 @@ export function buildStatement({ file, envelopes, now = null, onchain = null }) 
       excluded.push({ sha256: null, reason: `unreadable file ${path.basename(env.__unreadable)}` });
       continue;
     }
-    if (!belongs(env, file) || !isInput(env)) continue;
-    const problem = envelopeProblem(env, file);
+    if (!belongs(env, f) || !isInput(env)) continue;
+    const problem = envelopeProblem(env, f);
     if (problem) {
       excluded.push({ sha256: typeof env.sha256 === 'string' ? env.sha256 : null, reason: problem });
       continue;
@@ -277,14 +367,16 @@ export function buildStatement({ file, envelopes, now = null, onchain = null }) 
     || null;
   const nowMs = generatedAt ? Date.parse(generatedAt) : null;
 
-  // On-chain cross-check: a reconciled receipt counts only when an AgentGift with its memo, tx and amount exists.
+  // On-chain cross-check: a reconciled receipt counts only when an AgentGift with its memo, tx and amount
+  // exists (on its own vault, when the event names one).
   const unverified = new Set();
   if (onchain) {
     for (const env of accepted) {
       if (env.status !== 'reconciled') continue;
       const tx = String(env.witness?.tx || env.tx?.hash || '').toLowerCase();
       const hit = onchain.events.some((ev) => ev.memo === env.memo
-        && ev.amountRaw === env.receipt.amountRaw && (!tx || ev.tx === tx));
+        && ev.amountRaw === env.receipt.amountRaw && (!tx || ev.tx === tx)
+        && (!ev.spender || ev.spender === env.receipt.spender));
       if (!hit) {
         unverified.add(env.sha256);
         excluded.push({ sha256: env.sha256, reason: 'not counted: no matching AgentGift event on-chain (memo, tx, amount)' });
@@ -292,33 +384,31 @@ export function buildStatement({ file, envelopes, now = null, onchain = null }) 
     }
   }
 
-  let reconciledMicro = 0n;
-  let pendingMicro = 0n;
-  let giftsMicro = 0n;
-  let receiptsCounted = 0;
-  const giftIds = new Set();
-  const donors = new Set();
+  const desk = newTally();
+  const per = new Map(d.sponsors.map((s) => [s.id, newTally()]));
   const days = new Map();
   for (const env of accepted) {
     const amt = BigInt(env.receipt.amountMicro);
+    const mine = per.get(env.receipt.sponsor);
     if (env.status === 'reconciled' && !unverified.has(env.sha256)) {
-      reconciledMicro += amt;
-      receiptsCounted++;
-      for (const g of env.receipt.gifts) {
-        if (BigInt(g.matchMicro) === 0n || giftIds.has(g.id)) continue;
-        giftIds.add(g.id);
-        giftsMicro += BigInt(g.giftMicro);
-        if (g.donor) donors.add(String(g.donor).toLowerCase());
+      for (const t of [desk, mine]) {
+        t.reconciledMicro += amt;
+        t.receipts++;
+        for (const g of env.receipt.gifts) {
+          if (BigInt(g.matchMicro) === 0n || t.giftIds.has(g.id)) continue;
+          t.giftIds.add(g.id);
+          t.giftsMicro += BigInt(g.giftMicro);
+          if (g.donor) t.donors.add(String(g.donor).toLowerCase());
+        }
       }
-      const d = matchDay(env);
-      const row = days.get(d) || { micro: 0n, receipts: 0 };
+      const day = matchDay(env);
+      const row = days.get(day) || { micro: 0n, receipts: 0 };
       row.micro += amt;
       row.receipts++;
-      days.set(d, row);
-    } else if (env.status === 'sent') {
-      pendingMicro += amt;
-    } else if (env.status === 'planned' && nowMs != null && nowMs - Date.parse(env.createdAt) <= ttlMs) {
-      pendingMicro += amt;
+      days.set(day, row);
+    } else if (env.status === 'sent' || (env.status === 'planned' && nowMs != null && nowMs - Date.parse(env.createdAt) <= ttlMs)) {
+      desk.pendingMicro += amt;
+      mine.pendingMicro += amt;
     }
   }
 
@@ -335,45 +425,68 @@ export function buildStatement({ file, envelopes, now = null, onchain = null }) 
 
   excluded.sort((a, b) => String(a.sha256).localeCompare(String(b.sha256)) || a.reason.localeCompare(b.reason));
 
+  // Funded, withdrawn, given and float left come only from the chain (--rpc --verify-onchain); else null.
+  let fundedMicro = 0n;
+  let floatMicro = 0n;
+  let haveFlows = Boolean(onchain?.vaults);
+  const sponsors = d.sponsors.map((s) => {
+    const fl = s.spender.address ? onchain?.vaults?.[s.spender.address] : null;
+    let flows = null;
+    if (fl) {
+      const dec = fl.unitDecimals ?? 18;
+      flows = {
+        fundedUsdc: rawToUsdc(fl.fundedRaw, dec),
+        withdrawnUsdc: rawToUsdc(fl.withdrawnRaw, dec),
+        givenUsdc: rawToUsdc(fl.givenRaw, dec),
+        floatLeftUsdc: fl.floatRaw == null ? null : rawToUsdc(fl.floatRaw, dec),
+      };
+      fundedMicro += BigInt(fl.fundedRaw) / 10n ** BigInt(Math.max(0, dec - 6));
+      if (fl.floatRaw == null) haveFlows = false;
+      else floatMicro += BigInt(fl.floatRaw) / 10n ** BigInt(Math.max(0, dec - 6));
+    } else if (s.spender.address) {
+      haveFlows = false;
+    }
+    return {
+      id: s.id,
+      name: s.name,
+      relatedParty: s.relatedParty,
+      label: s.label,
+      priority: s.priority,
+      vault: { spender: s.spender.address, owner: s.spender.owner, deployBlock: Number.isSafeInteger(s.spender.deployBlock) ? s.spender.deployBlock : null },
+      policy: {
+        ratio: ratioLabel(s.ratioBps),
+        perGiftMaxUsdc: s.perGiftMaxUsdc,
+        budgetUsdc: s.budgetUsdc,
+        policySha256: s.policySha256,
+      },
+      totals: tallyOut(per.get(s.id)),
+      onchain: flows,
+    };
+  });
+  const anyVault = d.sponsors.some((s) => s.spender.address);
+
   const statement = {
     type: 'tt.match-desk.statement',
-    v: 1,
+    v: 2,
     generatedAt,
     chain: { id: chain.id, name: chain.name, explorer: chain.explorer },
-    sponsor: {
-      id: file.sponsor.id,
-      name: file.sponsor.name,
-      relatedParty: file.sponsor.relatedParty,
-      label: sponsorLabel(file.sponsor),
-    },
-    shelter: { name: file.shelter.name, wallet: lowerAddr(file.shelter.wallet), custody: file.shelter.custody },
-    contract: {
-      spender: lowerAddr(file.spender?.address),
-      split: lowerAddr(file.split),
-      owner: lowerAddr(file.spender?.owner),
-      agent: lowerAddr(file.spender?.agent),
-    },
-    policy: {
-      ratio: ratioLabel(policy.ratioBps),
-      perGiftMaxUsdc: policy.perGiftMaxUsdc ?? null,
-      perDonorDailyMaxUsdc: policy.perDonorDailyMaxUsdc ?? null,
-      budgetUsdc: policy.budgetUsdc ?? null,
-      policySha256: sha256Hex(canonical(policy)),
-    },
+    sponsors,
+    shelter: { name: d.shelter.name, wallet: lowerAddr(d.shelter.wallet), custody: d.shelter.custody },
+    contract: { split: d.split, agent: d.agent },
+    policy: { perDonorDailyMaxUsdc: d.sponsors[0].perDonorDailyMaxUsdc, allocation: 'highest priority first, then lowest id; one vault per match' },
     totals: {
-      reconciledUsdc: microToUsdc(reconciledMicro),
-      pendingUsdc: microToUsdc(pendingMicro),
-      receipts: receiptsCounted,
-      giftsMatched: giftIds.size,
-      donors: donors.size,
-      giftsMatchedUsdc: microToUsdc(giftsMicro),
+      ...tallyOut(desk),
+      // Every reconciled match went through ShelterSplit to the shelter's entry: this is what the desk paid the shelter wallet.
+      paidToShelterUsdc: microToUsdc(desk.reconciledMicro),
+      fundedUsdc: anyVault && haveFlows ? microToUsdc(fundedMicro) : null,
+      floatLeftUsdc: anyVault && haveFlows ? microToUsdc(floatMicro) : null,
     },
     days: [...days.entries()].sort(([a], [b]) => a.localeCompare(b))
       .map(([day, r]) => ({ day, reconciledUsdc: microToUsdc(r.micro), receipts: r.receipts })),
     receipts,
     excluded,
     verifiedOnchain: Boolean(onchain),
-    disclosures: disclosures(file),
+    disclosures: disclosures(f),
     notTaxReceipt: true,
   };
   return sortKeys(statement);
@@ -409,35 +522,68 @@ export function decodeAgentGift(log) {
   return { memo, amountRaw: amount.toString(), tx: String(log.transactionHash || '').toLowerCase() };
 }
 
+/** A Funded / Withdrawn log's amount (data word 0). */
+const amountOf = (log) => BigInt('0x' + (String(log.data || '').replace(/^0x/, '').slice(0, 64) || '0'));
+
+/**
+ * Read-only: per vault, AgentGift, Funded and Withdrawn logs from its deploy block, and floatBalance().
+ * Returns { events: [{memo, amountRaw, tx, spender}], vaults: { <spender>: {fundedRaw, withdrawnRaw, givenRaw, floatRaw, unitDecimals} } }.
+ */
 export async function readAgentGifts({ rpcUrl, file, fetchImpl = globalThis.fetch, chunk = 10_000, gapMs }) {
+  const d = deskView(file);
   const rpc = makeRpc(rpcUrl, fetchImpl);
-  const gap = gapMs ?? (file.chainId === 5042 ? 500 : 0);
+  const gap = gapMs ?? (d.chainId === 5042 ? 500 : 0);
   const pause = () => (gap ? new Promise((r) => setTimeout(r, gap)) : null);
   const chainId = Number(await rpc('eth_chainId'));
-  if (chainId !== file.chainId) throw new UsageError(`RPC chain ${chainId} is not the sponsor file's chain ${file.chainId}`);
-  const spender = lowerAddr(file.spender?.address);
-  const from = Number(file.spender?.deployBlock);
-  if (!spender || !Number.isSafeInteger(from)) throw new UsageError('--verify-onchain needs spender.address and spender.deployBlock');
+  if (chainId !== d.chainId) throw new UsageError(`RPC chain ${chainId} is not the sponsor file's chain ${d.chainId}`);
+  const deployed = d.sponsors.filter((s) => s.spender.address);
+  if (!deployed.length || deployed.some((s) => !Number.isSafeInteger(Number(s.spender.deployBlock)) || s.spender.deployBlock === null)) {
+    throw new UsageError('--verify-onchain needs spender.address and spender.deployBlock');
+  }
   await pause();
   const head = Number(await rpc('eth_blockNumber'));
   const events = [];
-  let size = chunk;
-  for (let start = from; start <= head;) {
-    const end = Math.min(head, start + size - 1);
-    await pause();
-    try {
-      const logs = await rpc('eth_getLogs', [{
-        address: spender, topics: [AGENT_GIFT_TOPIC],
-        fromBlock: '0x' + start.toString(16), toBlock: '0x' + end.toString(16),
-      }]);
-      for (const l of logs) events.push(decodeAgentGift(l));
-      start = end + 1;
-    } catch (e) {
-      if (size <= 100 || !/range|limit|too (large|many)|exceed/i.test(e.message)) throw e;
-      size = Math.floor(size / 2);
+  const vaults = {};
+  const logsOf = async (address, topics, from) => {
+    const out = [];
+    let size = chunk;
+    for (let start = from; start <= head;) {
+      const end = Math.min(head, start + size - 1);
+      await pause();
+      try {
+        out.push(...await rpc('eth_getLogs', [{ address, topics, fromBlock: '0x' + start.toString(16), toBlock: '0x' + end.toString(16) }]));
+        start = end + 1;
+      } catch (e) {
+        if (size <= 100 || !/range|limit|too (large|many)|exceed/i.test(e.message)) throw e;
+        size = Math.floor(size / 2);
+      }
     }
+    return out;
+  };
+  for (const s of deployed) {
+    const spender = s.spender.address;
+    const from = Number(s.spender.deployBlock);
+    let givenRaw = 0n;
+    for (const l of await logsOf(spender, [AGENT_GIFT_TOPIC], from)) {
+      const ev = { ...decodeAgentGift(l), spender };
+      givenRaw += BigInt(ev.amountRaw);
+      events.push(ev);
+    }
+    let fundedRaw = 0n;
+    let withdrawnRaw = 0n;
+    for (const l of await logsOf(spender, [[FUNDED_TOPIC, WITHDRAWN_TOPIC]], from)) {
+      if (l.topics?.[0] === FUNDED_TOPIC) fundedRaw += amountOf(l);
+      else if (l.topics?.[0] === WITHDRAWN_TOPIC) withdrawnRaw += amountOf(l);
+    }
+    await pause();
+    let floatRaw = null;
+    try {
+      floatRaw = BigInt(await rpc('eth_call', [{ to: spender, data: FLOAT_BALANCE }, 'latest'])).toString();
+    } catch { /* unknown: the page says "not read" */ }
+    // Native USDC on Arc: 18 decimals (the runbook's vaults are native mode).
+    vaults[spender] = { fundedRaw: fundedRaw.toString(), withdrawnRaw: withdrawnRaw.toString(), givenRaw: givenRaw.toString(), floatRaw, unitDecimals: 18 };
   }
-  return { events };
+  return { events, vaults };
 }
 
 // ------------------------------------------------------------------ output path guard
@@ -478,10 +624,27 @@ export function displayDir(dir, cwd = process.cwd()) {
 
 // ------------------------------------------------------------------ CLI
 
+/**
+ * The receipt directories of this desk: its own state dir, then every earlier layout of the same vaults
+ * (v1 <chainId>-<vault> dirs and other desk dirs on the chain). The first copy of a receipt wins.
+ */
+export async function receiptsDirsFor(file, env = process.env) {
+  const d = deskView(file);
+  const vaults = d.sponsors.map((s) => s.spender.address).filter(Boolean);
+  if (!vaults.length) return [];
+  const base = env.MATCH_DESK_DIR || DEFAULT_STATE_DIR;
+  const own = deskStateDir(base, d.chainId, vaults);
+  const dirs = [own, ...vaults.map((a) => stateDir(base, d.chainId, a))];
+  for (const sib of await siblingDirs(own)) if (!dirs.includes(sib)) dirs.push(sib);
+  return dirs.map((x) => path.join(x, 'receipts'));
+}
+
+/** Back-compat: the first receipts directory (this desk's own). */
 export function receiptsDirFor(file, env = process.env) {
-  const spender = lowerAddr(file.spender?.address);
-  if (!spender) return null;
-  return path.join(env.MATCH_DESK_DIR || DEFAULT_STATE_DIR, `${file.chainId}-${spender}`, 'receipts');
+  const d = deskView(file);
+  const vaults = d.sponsors.map((s) => s.spender.address).filter(Boolean);
+  if (!vaults.length) return null;
+  return path.join(deskStateDir(env.MATCH_DESK_DIR || DEFAULT_STATE_DIR, d.chainId, vaults), 'receipts');
 }
 
 export async function generate({ sponsorFile, receipts, out, now, rpc, verifyOnchain, fetchImpl, log = console.log }) {
@@ -493,8 +656,9 @@ export async function generate({ sponsorFile, receipts, out, now, rpc, verifyOnc
   }
   checkSponsor(file);
   if (now != null && Number.isNaN(Date.parse(now))) throw new UsageError('--now must be an ISO date');
-  const dir = receipts || receiptsDirFor(file);
-  const envelopes = dir ? await loadEnvelopes(dir) : [];
+  const dirs = receipts ? [receipts] : await receiptsDirsFor(file);
+  const envelopes = [];
+  for (const dir of dirs) envelopes.push(...await loadEnvelopes(dir));
   const outDir = out || PUBLIC_OUT;
   await checkOut({ out: outDir, outGiven: Boolean(out), file, envelopes });
   let onchain = null;
@@ -506,8 +670,12 @@ export async function generate({ sponsorFile, receipts, out, now, rpc, verifyOnc
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, 'statement.json'), serializeStatement(st));
   await writeFile(path.join(outDir, 'index.html'), renderHtml(st));
-  log(`statement: ${st.receipts.length} receipt(s), ${st.totals.receipts} reconciled = ${st.totals.reconciledUsdc} USDC, `
+  log(`statement: ${st.receipts.length} receipt(s), ${st.totals.receipts} reconciled = ${st.totals.reconciledUsdc} USDC paid to the shelter wallet, `
     + `${st.totals.pendingUsdc} USDC pending, ${st.excluded.length} excluded${onchain ? ', checked on-chain' : ''}`);
+  for (const sp of st.sponsors) {
+    const oc = sp.onchain;
+    log(`  ${sp.id}: ${sp.totals.receipts} reconciled = ${sp.totals.reconciledUsdc} USDC${oc ? ` · funded ${oc.fundedUsdc} · float left ${oc.floatLeftUsdc}` : ''}`);
+  }
   for (const x of st.excluded) log(`  excluded ${x.sha256 ? x.sha256.slice(0, 12) : '(no hash)'}: ${x.reason}`);
   log(`wrote statement.json and index.html to ${displayDir(outDir)}`);
   return st;
@@ -520,6 +688,7 @@ async function main(argv) {
       args: argv,
       options: {
         sponsor: { type: 'string' },
+        desk: { type: 'string' },
         receipts: { type: 'string' },
         out: { type: 'string' },
         now: { type: 'string' },
@@ -536,13 +705,13 @@ async function main(argv) {
     console.log(USAGE);
     return 0;
   }
-  if (!values.sponsor) {
+  if (!values.sponsor && !values.desk) {
     console.error(USAGE);
     return 2;
   }
   try {
     await generate({
-      sponsorFile: values.sponsor, receipts: values.receipts, out: values.out, now: values.now,
+      sponsorFile: values.sponsor || values.desk, receipts: values.receipts, out: values.out, now: values.now,
       rpc: values.rpc, verifyOnchain: values['verify-onchain'],
     });
     return 0;

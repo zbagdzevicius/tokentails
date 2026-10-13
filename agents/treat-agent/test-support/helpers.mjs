@@ -38,10 +38,10 @@ export function batchLog({ batchId, payer, amount, memo, native = true, tx, bloc
   };
 }
 
-/** A CappedSpender AgentGift log. */
-export function agentGiftLog({ batchId = 1, amount, memo, spent = amount, tx, block = 199_900, logIndex = 1 }) {
+/** A CappedSpender AgentGift log (on `spender`, default SPENDER). */
+export function agentGiftLog({ batchId = 1, amount, memo, spent = amount, tx, block = 199_900, logIndex = 1, spender = SPENDER }) {
   return {
-    address: SPENDER,
+    address: spender,
     topics: [TOPIC.AgentGift, '0x' + w(batchId)],
     data: '0x' + w(amount) + w(96) + w(spent) + encodeWithString([], memo).slice(2 + 64),
     transactionHash: tx,
@@ -63,8 +63,11 @@ export function routerLog({ donor, batchId, amount, path = 1, memo = '', tx, blo
 }
 
 /** A fetch() that answers JSON-RPC like a node with one CappedSpender (native mode) and a split. */
-export function stubRpc({ chainId = 31337, remaining = 10n ** 17n, spent = 0n, perTx = 5n * 10n ** 16n, daily = 10n ** 17n, float = 10n ** 18n, paused = false, native = true, logs = [], toTreasury = 0n, owner = OWNER, split = SPLIT, agent = AGENT, txReceipts = {} } = {}) {
+export function stubRpc({ chainId = 31337, remaining = 10n ** 17n, spent = 0n, perTx = 5n * 10n ** 16n, daily = 10n ** 17n, float = 10n ** 18n, paused = false, native = true, logs = [], toTreasury = 0n, owner = OWNER, split = SPLIT, agent = AGENT, txReceipts = {}, vaults = {} } = {}) {
   const calls = [];
+  // More CappedSpender vaults (a multi-sponsor desk): { <address>: { remaining, spent, perTx, daily, float, owner, agent, split } }.
+  // Missing fields default to the main vault's values.
+  const extra = new Map(Object.entries(vaults).map(([a, v]) => [a.toLowerCase(), v]));
   const answer = (method, params) => {
     calls.push(method);
     switch (method) {
@@ -78,18 +81,19 @@ export function stubRpc({ chainId = 31337, remaining = 10n ** 17n, spent = 0n, p
       case 'eth_call': {
         const { to, data } = params[0];
         const t = to.toLowerCase();
-        if (t === SPENDER) {
+        if (t === SPENDER || extra.has(t)) {
+          const v = { native, split, agent, owner, perTx, daily, remaining, spent, float, ...(extra.get(t) || {}) };
           switch (data) {
-            case SEL.native: return '0x' + w(native ? 1 : 0);
-            case SEL.split: return '0x' + addrWord(split);
-            case SEL.agent: return '0x' + addrWord(agent);
-            case SEL.owner: return '0x' + addrWord(owner);
+            case SEL.native: return '0x' + w(v.native ? 1 : 0);
+            case SEL.split: return '0x' + addrWord(v.split);
+            case SEL.agent: return '0x' + addrWord(v.agent);
+            case SEL.owner: return '0x' + addrWord(v.owner);
             case SEL.token: return '0x' + addrWord(TOKEN);
-            case SEL.perTxCap: return '0x' + w(perTx);
-            case SEL.dailyCap: return '0x' + w(daily);
-            case SEL.remainingToday: return '0x' + w(remaining);
-            case SEL.spentToday: return '0x' + w(spent);
-            case SEL.floatBalance: return '0x' + w(float);
+            case SEL.perTxCap: return '0x' + w(v.perTx);
+            case SEL.dailyCap: return '0x' + w(v.daily);
+            case SEL.remainingToday: return '0x' + w(v.remaining);
+            case SEL.spentToday: return '0x' + w(v.spent);
+            case SEL.floatBalance: return '0x' + w(v.float);
           }
         }
         if (t === SPLIT && data === SEL.paused) return '0x' + w(paused ? 1 : 0);
@@ -188,4 +192,47 @@ export function httpStub(routes = {}) {
     return { ok: true, status: 200, json: async () => r };
   };
   return { fetchImpl, seen };
+}
+
+export const SPENDER_B = '0x' + 'c1'.repeat(20);
+export const OWNER_B = '0x' + '0f'.repeat(20);
+
+/**
+ * A valid desk.json (tt.match-desk.desk/v2) for the stub chain (31337) with two sponsors: motored
+ * (SPENDER, OWNER, priority 20) and tokentails (SPENDER_B, OWNER_B, priority 10). `a` / `b` patch each
+ * sponsor entry; `policy` patches the shared policy.
+ */
+export function deskRaw({ a = {}, b = {}, policy = {}, ...top } = {}) {
+  const entry = (over) => ({
+    ratioBps: 10000,
+    perGiftMaxUsdc: '0.05',
+    budgetUsdc: '1.00',
+    validFrom: '2026-10-01T00:00:00Z',
+    pace: { from: '2026-10-01', to: '2026-10-31', floatLowUsdc: '0.10' },
+    refund: { after: '2026-11-15', to: 'owner' },
+    ...over,
+  });
+  return {
+    schema: 'tt.match-desk.desk/v2',
+    chainId: 31337,
+    split: SPLIT,
+    router: null,
+    shelter: { name: 'Pink Paw (Rožinė pėdutė)', wallet: '0xE299299b846Ba629f5A591dBF4F562bcC07A0f37', custody: 'held-by-token-tails' },
+    agent: AGENT,
+    policy: {
+      perDonorDailyMaxUsdc: '0.05',
+      minGiftUsdc: '0.01',
+      maxGiftAgeHours: 48,
+      eligible: { chains: [31337], kinds: ['public', 'router-native', 'router-authorization'], senders: 'any', matchTreats: false, treatsDailyMaxUsdc: '0' },
+      excludedSenders: ['0x7b136b872bEad1dAE557d1286f125B7A8A197C9A'],
+      farming: { maxGiftsPerDonorDay: 5 },
+      plannedTtlMinutes: 30,
+      ...policy,
+    },
+    sponsors: [
+      entry({ id: 'motored', name: 'Motored.lt', relatedParty: true, relation: "founder's company", spender: { address: SPENDER, deployBlock: 150_000, owner: OWNER }, priority: 20, ...a }),
+      entry({ id: 'tokentails', name: 'Token Tails', relatedParty: true, relation: "operator (Token Tails' own money)", spender: { address: SPENDER_B, deployBlock: 150_000, owner: OWNER_B }, priority: 10, ...b }),
+    ],
+    ...top,
+  };
 }

@@ -4,7 +4,7 @@
 // Two modes: the treat agent (give_treat / hold) and the sponsor match desk (match_gift / hold / flag /
 // propose_refund, with the amount checker in lib/checker.mjs).
 
-import { expectedMatch, checkProposal, theRule, donorKeyOf } from './lib/checker.mjs';
+import { allocate, checkProposal, theRule, donorKeyOf } from './lib/checker.mjs';
 import { formatMicro } from './lib/abi.mjs';
 
 export const MODEL = process.env.TREAT_AGENT_MODEL || 'claude-opus-5-5';
@@ -247,93 +247,131 @@ const strictTool = (name, description, properties) => ({
 const RATIONALE = { type: 'string' };
 const GIFT_IDS = { type: 'array', items: { type: 'string' } };
 
+const SPONSOR_ID = { type: 'string' };
+
 export const TOOLS_MATCH = [
   strictTool(
     'match_gift',
-    "Match one or more eligible public gifts from the sponsor's vault. gift_ids: 1 to 10 distinct gift_id values from " +
+    "Match one or more eligible public gifts from one sponsor's vault. gift_ids: 1 to 10 distinct gift_id values from " +
       'eligible_gifts. amount_usdc: a decimal string with at most 6 decimals that equals the_rule exactly (code recomputes it ' +
-      'and rejects any other amount; nothing is sent then). rationale: one or two plain sentences a donor could read.',
-    { gift_ids: GIFT_IDS, amount_usdc: { type: 'string' }, rationale: RATIONALE },
+      'and rejects any other amount; nothing is sent then). sponsor_id: the sponsor_id shown for these gifts (code picks the ' +
+      'sponsor and rejects any other), or "" to let code pick. rationale: one or two plain sentences a donor could read.',
+    { gift_ids: GIFT_IDS, amount_usdc: { type: 'string' }, sponsor_id: SPONSOR_ID, rationale: RATIONALE },
   ),
   strictTool('hold', 'Match nothing this round. rationale: one or two plain sentences on why.', { rationale: RATIONALE }),
   strictTool(
     'flag',
-    'Tell the sponsor about something; no money moves. kind farming: gift_ids lists the eligible gifts that look like ' +
+    'Tell the sponsors about something; no money moves. kind farming: gift_ids lists the eligible gifts that look like ' +
       'farming (required, they are then excluded until a human clears them). kind pace or float_low: gift_ids may be empty.',
     { kind: { type: 'string', enum: ['farming', 'pace', 'float_low'] }, gift_ids: GIFT_IDS, rationale: RATIONALE },
   ),
   strictTool(
     'propose_refund',
-    'Propose that the owner (the sponsor) withdraws the unused float to itself. Only when refund_allowed is true. ' +
-      'The agent never sends it; the owner runs the printed command.',
-    { rationale: RATIONALE },
+    "Propose that one sponsor (the owner of its vault) withdraws its unused float to itself. Only for a sponsor whose " +
+      'refund_allowed is true. sponsor_id: that sponsor, or "" for the first one allowed. The agent never sends it; the owner ' +
+      'runs the printed command.',
+    { sponsor_id: SPONSOR_ID, rationale: RATIONALE },
   ),
 ];
 
 export const SYSTEM_MATCH = [
-  "You run a sponsor's match desk for an animal shelter. A sponsor put USDC into a CappedSpender vault on Arc; you decide",
-  'which fresh public gifts to the shelter it matches. The money is the sponsor\'s, never a donor\'s.',
-  'The sponsor may be a related party (see sponsor_label): describe it exactly with that label, never as independent.',
+  "You run a match desk for an animal shelter. Several companies (sponsors) each put USDC into their own CappedSpender",
+  'vault on Arc; you hold spending power over all of them, inside on-chain caps, and decide which fresh public gifts to',
+  "the shelter get matched. The money is the sponsors', never a donor's. Every match pays the shelter through ShelterSplit.",
+  'Each sponsor may be a related party (see its label): describe it exactly with that label, never as independent.',
   '',
   'Each round you get an observation as JSON. Call exactly one tool: match_gift, hold, flag or propose_refund.',
   'Rules:',
   '1. Only gifts listed in eligible_gifts can be matched. Prefer the newest; one gift alone is usually best.',
-  '2. amount_usdc must follow the_rule exactly. For a single gift it is that gift\'s match_if_alone_usdc. Code recomputes',
+  "2. Code, not you, picks which sponsor pays (sponsor_id on each gift). Use that sponsor_id, or \"\". Never pick another.",
+  "3. amount_usdc must follow the_rule exactly. For a single gift it is that gift's match_if_alone_usdc. Code recomputes",
   '   the amount and rejects anything else, so never round, guess or add.',
-  '3. If farming_signals lists gifts (many tiny gifts from one donor in a day), flag them as farming instead of matching them.',
-  '4. Flag pace when pace.status is ahead or behind in a way the sponsor should know; flag float_low when float_low is true',
-  '   and nothing else needs doing.',
-  '5. propose_refund only when refund_allowed is true and the campaign is over.',
-  '6. Otherwise hold. Code, not you, enforces the per-donor limit; the contract enforces the per-gift and daily caps.',
+  '4. If farming_signals lists gifts (many tiny gifts from one donor in a day), flag them as farming instead of matching them.',
+  '5. Flag pace when a sponsor\'s pace.status is ahead or behind in a way the sponsors should know; flag float_low when',
+  '   float_low is true and nothing else needs doing.',
+  '6. propose_refund only for a sponsor whose refund_allowed is true and whose campaign is over.',
+  '7. Otherwise hold. Code, not you, enforces the per-donor limit across all sponsors; each contract enforces its per-gift',
+  '   and daily caps.',
   'Explain your reason in rationale, in plain words a donor could read.',
 ].join('\n');
 
 const usd = (m) => formatMicro(m);
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : null);
+const ratioOf = (bps) => (bps === 10000 ? '1:1' : `${bps / 10000}:1`);
 
 /** The compact facts the model sees (snake_case, decimal-string USDC). */
 export function promptFactsMatch(obs) {
   const md = obs.matchDesk;
   const now = Date.parse(obs.at);
   const p = md.policy;
+  const sponsors = md.sponsors || [];
   const eligible = md.gifts.filter((g) => g.status === 'eligible').slice(0, 20);
-  return {
+  const first = sponsors[0];
+  const facts = {
     chain_id: md.chainId,
     network: md.network,
-    sponsor_label: `${md.sponsor.name}, ${md.sponsor.label}`,
-    ratio: p.ratioBps === 10000 ? '1:1' : `${p.ratioBps / 10000}:1`,
-    per_gift_max_usdc: usd(p.perGiftMaxMicro),
-    per_donor_daily_max_usdc: usd(p.perDonorDailyMaxMicro),
-    budget_left_usdc: usd(md.budget.leftMicro),
-    per_tx_cap_usdc: usd(md.caps.perTxMicro),
-    remaining_today_usdc: usd(md.caps.remainingTodayMicro),
-    float_usdc: usd(md.caps.floatMicro),
-    float_low: md.floatLow,
-    pace: {
-      from: md.pace.from, to: md.pace.to, days_left: md.pace.daysLeft, status: md.pace.status,
-      target_per_day_usdc: usd(md.pace.targetPerDayMicro), matched_today_usdc: usd(md.pace.matchedTodayMicro),
-    },
-    refund_allowed: md.refundAllowed,
-    eligible_gifts: eligible.map((g) => {
-      const alone = expectedMatch([g.id], md);
-      const key = donorKeyOf(g);
-      const cap = key === 'treats' ? p.treatsDailyMaxMicro : p.perDonorDailyMaxMicro;
-      const used = BigInt(md.donorUsedMicro[`${key}|${g.day}`] || 0n);
-      return {
-        gift_id: g.id,
-        donor_short: g.kind === 'treat' ? 'treats' : short(g.donor),
-        kind: g.kind,
-        gift_usdc: usd(g.giftMicro),
-        donor_room_usdc: usd(cap > used ? cap - used : 0n),
-        match_if_alone_usdc: alone.ok ? usd(alone.amountMicro) : '0',
-        age_minutes: Math.max(0, Math.floor((now - g.ts * 1000) / 60_000)),
-      };
-    }),
-    farming_signals: md.farmingSignals.map((f) => ({
-      donor_short: short(f.donor), day: f.day, gifts: f.gifts, total_usdc: usd(f.totalMicro), reason: f.reason, gift_ids: f.giftIds,
-    })),
-    the_rule: theRule(md),
+    sponsor_label: sponsors.length ? sponsors.map((s) => `${s.name}, ${s.label}`).join('; ') : `${md.sponsor?.name}, ${md.sponsor?.label}`,
   };
+  if (sponsors.length <= 1) {
+    // One sponsor: the flat fields, as before.
+    Object.assign(facts, {
+      ratio: ratioOf(p.ratioBps),
+      per_gift_max_usdc: usd(p.perGiftMaxMicro),
+      per_donor_daily_max_usdc: usd(p.perDonorDailyMaxMicro),
+      budget_left_usdc: usd(md.budget.leftMicro),
+      per_tx_cap_usdc: usd(md.caps.perTxMicro),
+      remaining_today_usdc: usd(md.caps.remainingTodayMicro),
+      float_usdc: usd(md.caps.floatMicro),
+      float_low: md.floatLow,
+      pace: {
+        from: md.pace.from, to: md.pace.to, days_left: md.pace.daysLeft, status: md.pace.status,
+        target_per_day_usdc: usd(md.pace.targetPerDayMicro), matched_today_usdc: usd(md.pace.matchedTodayMicro),
+      },
+      refund_allowed: md.refundAllowed,
+    });
+  } else {
+    Object.assign(facts, { per_donor_daily_max_usdc: usd(p.perDonorDailyMaxMicro), float_low: md.floatLow, refund_allowed: md.refundAllowed });
+  }
+  facts.sponsors = sponsors.map((s) => ({
+    sponsor_id: s.id,
+    label: `${s.name}, ${s.label}`,
+    priority: s.priority,
+    available: !s.unavailable,
+    ...(s.unavailable ? { unavailable_because: s.unavailable } : {}),
+    ratio: ratioOf(s.policy.ratioBps),
+    per_gift_max_usdc: usd(s.policy.perGiftMaxMicro),
+    budget_left_usdc: usd(s.budget.leftMicro),
+    per_tx_cap_usdc: usd(s.caps.perTxMicro),
+    remaining_today_usdc: usd(s.caps.remainingTodayMicro),
+    float_usdc: usd(s.caps.floatMicro),
+    float_low: s.floatLow,
+    pace: {
+      from: s.pace.from, to: s.pace.to, days_left: s.pace.daysLeft, status: s.pace.status,
+      target_per_day_usdc: usd(s.pace.targetPerDayMicro), matched_today_usdc: usd(s.pace.matchedTodayMicro),
+    },
+    refund_allowed: s.refundAllowed,
+  }));
+  facts.eligible_gifts = eligible.map((g) => {
+    const alone = allocate([g.id], md);
+    const key = donorKeyOf(g);
+    const cap = key === 'treats' ? p.treatsDailyMaxMicro : p.perDonorDailyMaxMicro;
+    const used = BigInt(md.donorUsedMicro[`${key}|${g.day}`] || 0n);
+    return {
+      gift_id: g.id,
+      donor_short: g.kind === 'treat' ? 'treats' : short(g.donor),
+      kind: g.kind,
+      gift_usdc: usd(g.giftMicro),
+      donor_room_usdc: usd(cap > used ? cap - used : 0n),
+      sponsor_id: alone.ok ? (alone.sponsorId ?? first?.id ?? md.sponsor?.id ?? null) : null,
+      match_if_alone_usdc: alone.ok ? usd(alone.amountMicro) : '0',
+      age_minutes: Math.max(0, Math.floor((now - g.ts * 1000) / 60_000)),
+    };
+  });
+  facts.farming_signals = md.farmingSignals.map((f) => ({
+    donor_short: short(f.donor), day: f.day, gifts: f.gifts, total_usdc: usd(f.totalMicro), reason: f.reason, gift_ids: f.giftIds,
+  }));
+  facts.the_rule = theRule(md);
+  return facts;
 }
 
 export function buildRequestMatch(obs) {
@@ -353,10 +391,17 @@ export function matchCodeHold(obs) {
       + `that tx, acknowledge it with --ack-orphan ${orphan.tx}`;
   }
   if (md.split.paused) return 'the split is paused';
-  if (md.caps.remainingTodayMicro === 0n) return "today's on-chain cap is used up (it resets at 00:00 UTC)";
-  if (md.caps.floatMicro === 0n) return 'the vault float is empty';
-  if (md.budget.leftMicro === 0n) return "the sponsor's budget is used up";
-  if (!md.gifts.some((g) => g.status === 'eligible') && !md.refundAllowed && !md.floatLow) return 'no eligible gift to match';
+  const sponsors = md.sponsors || [];
+  if (sponsors.length && sponsors.every((s) => s.unavailable)) {
+    if (sponsors.length === 1) return sponsors[0].unavailable;
+    return `no sponsor vault can pay: ${sponsors.map((s) => `${s.id}: ${s.unavailable}`).join('; ')}`;
+  }
+  const eligible = md.gifts.filter((g) => g.status === 'eligible');
+  if (!eligible.length && !md.refundAllowed && !md.floatLow) return 'no eligible gift to match';
+  if (eligible.length && !md.refundAllowed && !md.floatLow && !md.farmingSignals.some((f) => f.giftIds.length)
+    && eligible.every((g) => !allocate([g.id], md).ok)) {
+    return 'no sponsor vault can pay any eligible gift in full today';
+  }
   return null;
 }
 
@@ -365,10 +410,23 @@ const strArray = (v, name) => {
   return v;
 };
 
+/** Exact key set, with keys that may be left out (sponsor_id: older callers and stubs omit it). */
+function expectKeysOpt(obj, required, optional = []) {
+  const got = Object.keys(obj).sort();
+  const ok = required.every((k) => got.includes(k)) && got.every((k) => required.includes(k) || optional.includes(k));
+  if (!ok) throw new DecisionError(`tool input keys ${got.join(',')} != ${[...required, ...optional].sort().join(',')}`);
+}
+
+const sponsorIdArg = (input) => {
+  if (input.sponsor_id === undefined || input.sponsor_id === null) return '';
+  if (typeof input.sponsor_id !== 'string') throw new DecisionError('sponsor_id must be a string');
+  return input.sponsor_id.trim();
+};
+
 /**
- * Strict validation of a match-desk tool call, then the amount checker.
- * Format problems throw DecisionError (run.mjs holds with meta.rejected). A checker disagreement is a hold
- * with rejected: true and checker { ok: false, expectedMicro, proposedMicro } - the amount is never corrected.
+ * Strict validation of a match-desk tool call, then the allocation rule and the amount checker.
+ * Format problems throw DecisionError (run.mjs holds with meta.rejected). A checker disagreement (amount or
+ * sponsor) is a hold with rejected: true and checker { ok: false, ... } - it is never corrected.
  */
 export function validateMatchDecision(toolUse, obs) {
   if (!toolUse || toolUse.type !== 'tool_use') throw new DecisionError('model did not call a tool');
@@ -377,15 +435,25 @@ export function validateMatchDecision(toolUse, obs) {
   if (typeof input.rationale !== 'string' || !input.rationale.trim()) throw new DecisionError('rationale missing');
   const why = input.rationale.trim().slice(0, MAX_RATIONALE);
   const md = obs.matchDesk;
+  const sponsors = md.sponsors || [];
 
   switch (toolUse.name) {
     case 'hold':
       expectKeys(input, ['rationale']);
       return { action: 'hold', rationale: why };
-    case 'propose_refund':
-      expectKeys(input, ['rationale']);
+    case 'propose_refund': {
+      expectKeysOpt(input, ['rationale'], ['sponsor_id']);
       if (!md.refundAllowed) throw new DecisionError('propose_refund before policy.refund.after');
-      return { action: 'propose_refund', rationale: why };
+      const named = sponsorIdArg(input);
+      let sponsorId = named || null;
+      if (sponsors.length) {
+        const s = named ? sponsors.find((x) => x.id === named) : sponsors.find((x) => x.refundAllowed);
+        if (!s) throw new DecisionError(`propose_refund: unknown sponsor ${named}`);
+        if (!s.refundAllowed) throw new DecisionError(`propose_refund before policy.refund.after for ${s.id}`);
+        sponsorId = s.id;
+      }
+      return { action: 'propose_refund', sponsorId, rationale: why };
+    }
     case 'flag': {
       expectKeys(input, ['kind', 'gift_ids', 'rationale']);
       if (!['farming', 'pace', 'float_low'].includes(input.kind)) throw new DecisionError('flag kind must be farming, pace or float_low');
@@ -400,10 +468,11 @@ export function validateMatchDecision(toolUse, obs) {
       return { action: 'flag', kind: input.kind, giftIds: [...new Set(ids)], rationale: why };
     }
     case 'match_gift': {
-      expectKeys(input, ['gift_ids', 'amount_usdc', 'rationale']);
+      expectKeysOpt(input, ['gift_ids', 'amount_usdc', 'rationale'], ['sponsor_id']);
       const ids = strArray(input.gift_ids, 'gift_ids');
       if (typeof input.amount_usdc !== 'string') throw new DecisionError('amount_usdc must be a decimal string');
-      const check = expectedMatch(ids, md);
+      const named = sponsorIdArg(input);
+      const check = allocate(ids, md);
       if (!check.ok) {
         return {
           action: 'hold', rejected: true, modelRationale: why, proposedUsdc: input.amount_usdc,
@@ -411,17 +480,26 @@ export function validateMatchDecision(toolUse, obs) {
           checker: { ok: false, reason: check.reason, expectedMicro: null, proposedMicro: null },
         };
       }
+      const sponsorId = check.sponsorId ?? sponsors[0]?.id ?? md.sponsor?.id ?? null;
+      if (named && named !== sponsorId) {
+        const cmp = checkProposal(input.amount_usdc, check.amountMicro);
+        return {
+          action: 'hold', rejected: true, modelRationale: why, proposedUsdc: input.amount_usdc,
+          rationale: `Checker rejected: model named sponsor ${named}, the allocation rule picks ${sponsorId} for ${ids.join(', ')}`,
+          checker: { ...cmp, ok: false, reason: 'sponsor mismatch', expectedSponsor: sponsorId, proposedSponsor: named },
+        };
+      }
       const cmp = checkProposal(input.amount_usdc, check.amountMicro);
       if (!cmp.ok) {
         return {
           action: 'hold', rejected: true, modelRationale: why, proposedUsdc: input.amount_usdc,
           rationale: `Checker rejected: model proposed ${input.amount_usdc} USDC, policy gives ${usd(check.amountMicro)} USDC for ${ids.join(', ')}`,
-          checker: cmp,
+          checker: { ...cmp, expectedSponsor: sponsorId },
         };
       }
       return {
-        action: 'match', giftIds: ids, amountMicro: check.amountMicro, amountUsdc: usd(check.amountMicro),
-        proposedUsdc: input.amount_usdc, check, checker: cmp, rationale: why,
+        action: 'match', giftIds: ids, sponsorId, amountMicro: check.amountMicro, amountUsdc: usd(check.amountMicro),
+        proposedUsdc: input.amount_usdc, check, checker: { ...cmp, sponsor: sponsorId }, rationale: why,
       };
     }
     default:

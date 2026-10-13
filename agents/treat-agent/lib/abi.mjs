@@ -27,6 +27,8 @@ export const TOPIC = Object.freeze({
   RouterDonation: '0xf057bcd6794500ca5bd0ed074e76b7ab595a7b9fdc70b87528191f50eae48a0c', // (address,uint256,uint256,uint8,string,bytes32)
   // CappedSpender
   AgentGift: '0x5936d115a5d03a0687def57892742e7dfee0d3f44321c5b5506b60d8a96fd4cf',
+  Funded: '0x5af8184bef8e4b45eb9f6ed7734d04da38ced226495548f46e0c8ff8d7d9a524', // Funded(address indexed from, uint256 amount)
+  Withdrawn: '0x7084f5476618d8e60b11ef0d7d3f06914655adb8793e28ff7f018d4c76d505d5', // Withdrawn(address indexed to, uint256 amount)
 });
 
 /** CappedSpender custom errors by selector, with their argument count (all uint256). */

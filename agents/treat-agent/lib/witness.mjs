@@ -120,3 +120,19 @@ export async function witness({ envelopes, events, sponsorId, now = Date.now(), 
   }
   return { changed, summary };
 }
+
+/**
+ * What went in and out of one vault since its deploy: Funded (owner top-ups), Withdrawn (owner refunds)
+ * and AgentGift (every give, matched or not). Raw units (bigint). `agentGifts`: already decoded events.
+ */
+export async function readVaultFlows({ getLogs, spender, fromBlock, toBlock, agentGifts = [] }) {
+  const logs = await getLogs({ address: spender, topics: [[TOPIC.Funded, TOPIC.Withdrawn]], fromBlock, toBlock });
+  let fundedRaw = 0n;
+  let withdrawnRaw = 0n;
+  for (const l of logs) {
+    if (l.topics?.[0] === TOPIC.Funded) fundedRaw += uintAt(l.data, 0);
+    else if (l.topics?.[0] === TOPIC.Withdrawn) withdrawnRaw += uintAt(l.data, 0);
+  }
+  const givenRaw = agentGifts.reduce((a, e) => a + BigInt(e.amountRaw), 0n);
+  return { fundedRaw, withdrawnRaw, givenRaw };
+}

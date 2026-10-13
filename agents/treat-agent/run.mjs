@@ -12,10 +12,11 @@
 //      TREAT_AGENT_MATCH_ROUTER, TREAT_AGENT_NO_FALLBACK.
 
 //
-// Sponsor match desk (MATCH-DESK.md):
+// Match desk (MATCH-DESK.md): <file> is a desk.json (tt.match-desk.desk/v2, several sponsors, one vault
+// each) or an old sponsor.json (v1, one sponsor). --desk is an alias of --sponsor.
 //   node run.mjs --sponsor <file> [--rpc <url>] [--once] [--interval <s>]
 //                [--fork | --send] [--keystore <name>]
-//                [--demo-overcap [--overcap-kind auto|tx|day] [--mined-revert]]
+//                [--demo-overcap [--vault <sponsorId>] [--overcap-kind auto|tx|day] [--mined-revert]]
 //                [--witness-only] [--release <sha256 prefix>] [--ack-orphan <tx hash>]
 // Exit codes (match desk): 0 ok (holds and expected refusals included), 1 unexpected revert / failed
 // send / mismatch, 2 usage, policy or guard refusal, 3 Messages API error, 4 the over-cap demo did not
@@ -34,16 +35,16 @@ import {
 import { ERRORS, formatUnits, formatMicro, microToRaw } from './lib/abi.mjs';
 import { entry, writeLog, hashObservation } from './log.mjs';
 import { fakeFetch, makeFakeFetch } from './lib/fake-llm.mjs';
-import { loadSponsor, GuardError } from './lib/policy.mjs';
+import { loadDesk, deskFromSponsor, GuardError } from './lib/policy.mjs';
 import {
-  buildReceiptBody, newEnvelope, saveEnvelope, setStatus, stateDir, demoMemo, readJson, writeJson,
+  buildReceiptBody, newEnvelope, saveEnvelope, setStatus, deskStateDir, demoMemo, readJson, writeJson,
 } from './lib/receipt.mjs';
 import { readAgentGifts, witnessOf } from './lib/witness.mjs';
 
 const USAGE = [
   'usage: node run.mjs --rpc <url> --spender <addr> [--fork] [--demo-overcap] [--once] [--interval <s>] [--keystore <name>]',
-  '       node run.mjs --sponsor <file> [--rpc <url>] [--once] [--interval <s>] [--fork | --send] [--keystore <name>]',
-  '                    [--demo-overcap [--overcap-kind auto|tx|day] [--mined-revert]] [--witness-only] [--release <sha256>]',
+  '       node run.mjs --sponsor <desk.json|sponsor.json> [--rpc <url>] [--once] [--interval <s>] [--fork | --send] [--keystore <name>]',
+  '                    [--demo-overcap [--vault <sponsorId>] [--overcap-kind auto|tx|day] [--mined-revert]] [--witness-only] [--release <sha256>]',
   '                    [--ack-orphan <tx hash>]',
 ].join('\n');
 
@@ -150,40 +151,45 @@ export const EXPLORER = Object.freeze({ 5042: 'https://explorer.arc.io', 5042002
 export const EXIT = Object.freeze({ OK: 0, FAILED: 1, GUARD: 2, API: 3, DEMO: 4 });
 
 /**
- * One match-desk round: observe (with witness) -> code holds -> decide -> checker -> receipt -> act -> log.
- * opts: { sponsor, policyHash, rpc, rpcDisplay, mode: 'dry-run'|'fork'|'send', keystore, once,
- *         demoOvercap, overcapKind, minedRevert, witnessOnly, now }
+ * One match-desk round: observe every vault (with witness) -> code holds -> decide -> allocation and
+ * checker -> receipt -> act on the chosen vault -> log.
+ * opts: { desk | (sponsor, policyHash), rpc, rpcDisplay, mode: 'dry-run'|'fork'|'send', keystore, once,
+ *         demoOvercap, vault, overcapKind, minedRevert, witnessOnly, release, ackOrphan, now }
  * deps: { rpcFetch, httpFetch, llmFetch, execImpl, spawnImpl, logDir, stateBase, statementFile, api, env }
- * Returns { code, obs, decision, result, record, file, meta, envelope }. Guard refusals throw GuardError.
+ * Returns { code, obs, decision, result, record, file, meta, envelope, dir }. Guard refusals throw GuardError.
  */
 export async function matchRound(opts, deps = {}) {
   const env = deps.env || process.env;
-  const { sponsor, policyHash } = opts;
+  const desk = opts.desk || deskFromSponsor(opts.sponsor, opts.policyHash);
   const mode = opts.mode || 'dry-run';
   const now = opts.now ?? Date.now();
-  if (!sponsor.spender.address || sponsor.spender.deployBlock === null) {
-    throw new GuardError('sponsor.json has no spender address or deploy block yet (init state): deploy, then paste both');
+  const missing = desk.sponsors.filter((v) => !v.spender.address || v.spender.deployBlock === null);
+  if (missing.length) {
+    throw new GuardError(`the desk file has no vault address or deploy block yet for ${missing.map((v) => v.sponsor.id).join(', ')} (init state): deploy, then paste both`);
   }
   if (mode === 'fork' && !isLocalRpc(opts.rpc)) throw new GuardError('--fork only talks to a local anvil fork (localhost / 127.0.0.1).');
-  if (mode === 'fork' && sponsor.chainId === 5042) {
-    throw new GuardError('--fork with a mainnet sponsor.json (chainId 5042). Rehearse on mainnet state with an Arc testnet chain id: '
-      + '`anvil --fork-url https://rpc.mainnet.arc.io --chain-id 5042002` and a copy of the sponsor file with chainId 5042002 '
+  if (mode === 'fork' && desk.chainId === 5042) {
+    throw new GuardError('--fork with a mainnet desk file (chainId 5042). Rehearse on mainnet state with an Arc testnet chain id: '
+      + '`anvil --fork-url https://rpc.mainnet.arc.io --chain-id 5042002` and a copy of the desk file with chainId 5042002 '
       + '(eligible.chains too). Keep its excludedSenders, so the run shows the exclusion. Native-mode deploys need an Arc chain id, so not 31337.');
   }
   if (mode === 'send') {
     const why = sendGates({ rpc: opts.rpc, once: opts.once, keystore: opts.keystore, env });
     if (why) throw new GuardError(why);
   }
-  const rpc = withGap(makeRpc(opts.rpc, { fetchImpl: deps.rpcFetch || globalThis.fetch }), callGapMs(sponsor.chainId, env));
+  if (opts.vault && !desk.sponsors.some((v) => v.sponsor.id === opts.vault)) {
+    throw new GuardError(`--vault ${opts.vault}: no such sponsor on this desk (${desk.sponsors.map((v) => v.sponsor.id).join(', ')})`);
+  }
+  const rpc = withGap(makeRpc(opts.rpc, { fetchImpl: deps.rpcFetch || globalThis.fetch }), callGapMs(desk.chainId, env));
   if (mode === 'send') {
     const chainId = Number(BigInt(await rpc('eth_chainId')));
-    const why = sendGates({ rpc: opts.rpc, chainId, sponsorChainId: sponsor.chainId, once: opts.once, keystore: opts.keystore, env });
+    const why = sendGates({ rpc: opts.rpc, chainId, sponsorChainId: desk.chainId, once: opts.once, keystore: opts.keystore, env });
     if (why) throw new GuardError(why);
   }
   const chunk = Number(env.TREAT_AGENT_LOG_CHUNK) || 10_000;
-  const dir = stateDir(deps.stateBase || env.MATCH_DESK_DIR, sponsor.chainId, sponsor.spender.address);
+  const dir = deskStateDir(deps.stateBase || env.MATCH_DESK_DIR, desk.chainId, desk.sponsors.map((v) => v.spender.address));
   const obs = await observeMatchDesk({
-    rpc, sponsor, policyHash, now, dir, chunk,
+    rpc, desk, now, dir, chunk,
     fetchImpl: deps.httpFetch || globalThis.fetch,
     api: deps.api ?? env.MATCH_DESK_API ?? undefined,
     ttSenders: env.TREAT_AGENT_TT_SENDERS || '',
@@ -198,16 +204,22 @@ export async function matchRound(opts, deps = {}) {
   if (opts.ackOrphan) return ackOrphan({ obs, dir, tx: opts.ackOrphan, now });
 
   const fake = env.TREAT_AGENT_FAKE_LLM === '1';
-  const actCommon = {
-    spender: sponsor.spender.address, rpc: opts.rpc, rpcDisplay: opts.rpcDisplay, keystore: opts.keystore,
-    from: md.spender.agent, execImpl: deps.execImpl, spawnImpl: deps.spawnImpl,
-  };
-  const finish = async ({ decision, meta, result, code, envelope = null, flag = null, checker = null }) => {
+  const vaultById = (id) => desk.sponsors.find((v) => v.sponsor.id === id);
+  const sponsorById = (id) => md.sponsors.find((s) => s.id === id);
+  const actFor = (s) => ({
+    spender: s.spender.address, rpc: opts.rpc, rpcDisplay: opts.rpcDisplay, keystore: opts.keystore,
+    from: s.spender.agent, execImpl: deps.execImpl, spawnImpl: deps.spawnImpl,
+  });
+  const finish = async ({ decision, meta, result, code, envelope = null, flag = null, checker = null, sponsorId = null }) => {
+    const sid = sponsorId || envelope?.receipt?.sponsor || decision.sponsorId || null;
     const record = entry({
       obs, decision, meta, result: result || { mode: 'none' },
       flags: { mode, demoOvercap: !!opts.demoOvercap, fakeLlm: fake },
       matchDesk: {
-        sponsor: sponsor.sponsor.id, policyHash, receiptSha256: envelope?.sha256 || null, memo: envelope?.memo || decision.memo || null,
+        sponsor: sid || md.sponsor.id,
+        vault: sid ? sponsorById(sid)?.spender.address ?? null : null,
+        policyHash: sid ? sponsorById(sid)?.policyHash ?? md.policyHash : md.policyHash,
+        receiptSha256: envelope?.sha256 || null, memo: envelope?.memo || decision.memo || null,
         checker: checker || decision.checker || null, flag, witness: witnessLog,
       },
     });
@@ -215,7 +227,7 @@ export async function matchRound(opts, deps = {}) {
     return { code, obs, decision, result: result || { mode: 'none' }, record, file, meta, envelope, dir };
   };
 
-  // ---- over-cap demonstration: code picks the amount; no model call, no receipt.
+  // ---- over-cap demonstration on one named vault: code picks the amount; no model call, no receipt.
   if (opts.demoOvercap) {
     let kind = opts.overcapKind || 'auto';
     if (opts.minedRevert) {
@@ -224,15 +236,16 @@ export async function matchRound(opts, deps = {}) {
       if (kind === 'day') throw new GuardError('--mined-revert only goes with --overcap-kind tx (2 x the per-gift cap always reverts); use the day demo as a simulation');
       kind = 'tx';
     }
-    const plan = overcapPlan(md.capsRaw, kind);
-    const memo = demoMemo(sponsor.sponsor.id);
-    const result = await actOvercap({ plan, memo, mode, minedRevert: !!opts.minedRevert, ...actCommon });
+    const s = sponsorById(opts.vault || md.sponsors[0].id);
+    const plan = overcapPlan(s.capsRaw, kind);
+    const memo = demoMemo(s.id);
+    const result = await actOvercap({ plan, memo, mode, minedRevert: !!opts.minedRevert, ...actFor(s) });
     const decision = {
-      action: 'demo-overcap', memo, amountUsdc: formatUnits(plan.amountRaw, unit),
-      rationale: `Deliberate test of the on-chain cap (${plan.kind}): the contract must refuse with ${plan.expect.name}.`,
+      action: 'demo-overcap', memo, sponsorId: s.id, amountUsdc: formatUnits(plan.amountRaw, unit),
+      rationale: `Deliberate test of the on-chain cap (${plan.kind}) on the ${s.name} vault: the contract must refuse with ${plan.expect.name}.`,
     };
     const ok = result.status === 'refused-as-expected' || result.status === 'printed';
-    return finish({ decision, meta: { model: null }, result, code: ok ? EXIT.OK : EXIT.DEMO });
+    return finish({ decision, meta: { model: null }, result, code: ok ? EXIT.OK : EXIT.DEMO, sponsorId: s.id });
   }
 
   // ---- decide (code holds first: no model call, no API cost)
@@ -268,24 +281,29 @@ export async function matchRound(opts, deps = {}) {
   }
 
   if (decision.action === 'propose_refund') {
-    const owner = sponsor.spender.owner || md.spender.owner;
+    const s = sponsorById(decision.sponsorId || md.sponsors[0].id);
+    const owner = vaultById(s.id).spender.owner || s.spender.owner;
     const proposal = {
       at: new Date(now).toISOString(),
-      floatUsdc: formatMicro(md.caps.floatMicro),
+      sponsor: s.id,
+      vault: s.spender.address,
+      floatUsdc: formatMicro(s.caps.floatMicro),
       owner,
-      // Never sent by the agent: withdraw is owner-only and pays only the owner (the sponsor).
-      command: `cast send ${sponsor.spender.address} 'withdraw(address)' ${owner} --rpc-url ${opts.rpcDisplay || '"$TREAT_AGENT_RPC"'} --account <sponsor-keystore>`,
+      // Never sent by the agent: withdraw is owner-only and pays only the owner (that sponsor).
+      command: `cast send ${s.spender.address} 'withdraw(address)' ${owner} --rpc-url ${opts.rpcDisplay || '"$TREAT_AGENT_RPC"'} --account <sponsor-keystore>`,
       rationale: decision.rationale,
     };
     await writeJson(path.join(dir, 'refund-proposal.json'), proposal);
-    return finish({ decision, meta, result: { mode: 'none', status: 'refund-proposed', command: proposal.command }, code: EXIT.OK, flag: { kind: 'refund' } });
+    return finish({ decision, meta, result: { mode: 'none', status: 'refund-proposed', command: proposal.command }, code: EXIT.OK, flag: { kind: 'refund', sponsor: s.id }, sponsorId: s.id });
   }
 
   if (decision.action !== 'match') return finish({ decision, meta, code: EXIT.OK });
 
-  // ---- a checked match: dust guard, write-ahead receipt, idempotency, act.
+  // ---- a checked match from the vault the allocation rule picked: dust guard, write-ahead receipt, idempotency, act.
+  const s = sponsorById(decision.sponsorId);
+  const vault = vaultById(decision.sponsorId);
   const amountRaw = microToRaw(decision.amountMicro, unit);
-  const toTreasury = await previewToTreasury(rpc, sponsor.split, amountRaw);
+  const toTreasury = await previewToTreasury(rpc, desk.split, amountRaw);
   if (toTreasury !== 0n) {
     decision = {
       ...decision, action: 'hold', heldForDust: true,
@@ -293,24 +311,24 @@ export async function matchRound(opts, deps = {}) {
     };
     return finish({ decision, meta, code: EXIT.OK });
   }
-  const body = buildReceiptBody({ sponsor, policyHash, check: decision.check, unitDecimals: unit });
+  const body = buildReceiptBody({ sponsor: vault, policyHash: vault.policyHash, check: decision.check, unitDecimals: unit });
   const envelope = newEnvelope({
-    body, sponsorId: sponsor.sponsor.id, mode, now,
+    body, sponsorId: s.id, mode, now,
     decision: { model: meta?.model || null, rationale: decision.rationale, observationHash: hashObservation(obs), checker: decision.checker },
   });
   decision.memo = envelope.memo;
   await saveEnvelope(dir, envelope); // write-ahead: planned before any send
 
   if (mode === 'dry-run') {
-    const result = await actMatch({ amountRaw, memo: envelope.memo, mode, ...actCommon });
+    const result = await actMatch({ amountRaw, memo: envelope.memo, mode, ...actFor(s) });
     return finish({ decision, meta, result, code: EXIT.OK, envelope });
   }
 
-  // Idempotency: an AgentGift with this memo already on-chain means this exact match already went out.
+  // Idempotency: an AgentGift with this memo already on the chosen vault means this exact match already went out.
   const head = await rpc('eth_getBlockByNumber', ['latest', false]);
   const events = await readAgentGifts({
-    getLogs: (f) => getLogsChunked(rpc, { ...f, chunk }), spender: sponsor.spender.address,
-    fromBlock: sponsor.spender.deployBlock, toBlock: Number(BigInt(head.number)),
+    getLogs: (f) => getLogsChunked(rpc, { ...f, chunk }), spender: s.spender.address,
+    fromBlock: s.spender.deployBlock, toBlock: Number(BigInt(head.number)),
   });
   const dup = events.find((e) => e.memo === envelope.memo);
   if (dup) {
@@ -325,7 +343,7 @@ export async function matchRound(opts, deps = {}) {
     return finish({ decision, meta, result: { mode, status: 'mismatch', txHash: dup.tx, error: 'an AgentGift with this memo has a different amount' }, code: EXIT.FAILED, envelope });
   }
 
-  const result = await actMatch({ amountRaw, memo: envelope.memo, mode, ...actCommon });
+  const result = await actMatch({ amountRaw, memo: envelope.memo, mode, ...actFor(s) });
   let code = EXIT.OK;
   if (result.status === 'success') {
     setStatus(envelope, 'sent', { tx: { hash: result.txHash, block: result.block ?? null, status: 'success' } }, now);
@@ -397,15 +415,25 @@ export function describeMatch(r) {
   const u = (m) => formatMicro(m);
   const counts = {};
   for (const g of md.gifts) counts[g.status] = (counts[g.status] || 0) + 1;
+  const sponsors = md.sponsors || [];
   const lines = [
-    `match desk · ${md.sponsor.name} (${md.sponsor.label}) · chain ${md.chainId} (${md.network})`,
-    `spender ${md.spender.address} · agent ${md.spender.agent} · owner ${md.spender.owner}`,
-    `caps: ${u(md.caps.perTxMicro)} USDC per gift, ${u(md.caps.dailyMicro)} per UTC day (up to 2x across midnight) · left today ${u(md.caps.remainingTodayMicro)} · float ${u(md.caps.floatMicro)}`,
-    `budget ${u(md.budget.budgetMicro)} · committed ${u(md.budget.committedMicro)} · left ${u(md.budget.leftMicro)} · pace ${md.pace.status}`,
+    sponsors.length > 1
+      ? `match desk · ${sponsors.length} vaults, one agent ${md.spender.agent} · chain ${md.chainId} (${md.network})`
+      : `match desk · ${md.sponsor.name} (${md.sponsor.label}) · chain ${md.chainId} (${md.network})`,
+  ];
+  for (const s of sponsors) {
+    lines.push(
+      `${s.name} (${s.label}), priority ${s.priority}${s.unavailable ? ` · unavailable: ${s.unavailable}` : ''}`,
+      `  vault ${s.spender.address} · agent ${s.spender.agent} · owner ${s.spender.owner}`,
+      `  caps: ${u(s.caps.perTxMicro)} USDC per gift, ${u(s.caps.dailyMicro)} per UTC day (up to 2x across midnight) · left today ${u(s.caps.remainingTodayMicro)} · float ${u(s.caps.floatMicro)}`,
+      `  budget ${u(s.budget.budgetMicro)} · committed ${u(s.budget.committedMicro)} · left ${u(s.budget.leftMicro)} · pace ${s.pace.status}`,
+    );
+  }
+  lines.push(
     `gifts: ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(', ') || 'none'}${md.farmingSignals.length ? ` · ${md.farmingSignals.length} farming signal(s)` : ''}`,
     `api: payouts ${md.backend.payouts.ok ? (md.backend.payouts.stale ? 'stale' : 'ok') : 'n/a'} · donate-status ${md.backend.donateStatus.ok ? 'ok' : 'n/a'} · backend match ${md.backend.match.state ?? 'n/a'}${md.backend.routerBlocked ? ' (router gifts excluded)' : ''}`,
-    `witness: ${md.witness.reconciled.length} reconciled, ${md.witness.failed.length} failed, ${md.witness.expired.length} expired, ${md.witness.orphans.length} orphan(s), ${md.witness.collisions.length} mismatch(es)${md.witness.stuck.length ? `, ${md.witness.stuck.length} sent without a receipt yet` : ''}`,
-  ];
+    `witness: ${md.witness.reconciled.length} reconciled, ${md.witness.failed.length} failed, ${md.witness.expired.length} expired, ${md.witness.orphans.length} orphan(s), ${md.witness.collisions.length} mismatch(es)${md.witness.stuck.length ? `, ${md.witness.stuck.length} sent without a receipt yet` : ''}${md.witness.imported ? ` · ${md.witness.imported} receipt(s) read from an earlier state dir` : ''}`,
+  );
   for (const o of md.witness.orphans) {
     lines.push(`orphan: ${o.memo} in tx ${o.tx}${o.acked ? ' (acknowledged)' : ' has no local receipt: matching holds until it is acknowledged (--ack-orphan)'}`);
   }
@@ -419,10 +447,14 @@ export function describeMatch(r) {
       + 'If its tx lands after all, the witness reconciles it by memo.').join('\n');
   }
   const d = r.decision;
-  if (d.action === 'match') lines.push(`decision: MATCH ${d.amountUsdc} USDC for ${d.giftIds.join(', ')} · memo ${d.memo}`);
+  const from = (id) => {
+    const s = sponsors.find((x) => x.id === id);
+    return s ? ` from the ${s.name} vault ${s.spender.address}` : '';
+  };
+  if (d.action === 'match') lines.push(`decision: MATCH ${d.amountUsdc} USDC for ${d.giftIds.join(', ')}${from(d.sponsorId)} · memo ${d.memo}`);
   else if (d.action === 'flag') lines.push(`decision: FLAG ${d.kind}${d.giftIds.length ? ` (${d.giftIds.length} gift(s))` : ''}`);
-  else if (d.action === 'propose_refund') lines.push('decision: PROPOSE REFUND (the owner runs it; the agent never does)');
-  else if (d.action === 'demo-overcap') lines.push(`decision: OVER-CAP DEMO ${d.amountUsdc} USDC, memo ${d.memo}`);
+  else if (d.action === 'propose_refund') lines.push(`decision: PROPOSE REFUND${from(d.sponsorId)} (its owner runs it; the agent never does)`);
+  else if (d.action === 'demo-overcap') lines.push(`decision: OVER-CAP DEMO ${d.amountUsdc} USDC${from(d.sponsorId)}, memo ${d.memo}`);
   else lines.push(`decision: HOLD${d.rejected ? ' (rejected)' : ''}`);
   lines.push(`why: ${d.rationale}`);
   const res = r.result;
@@ -449,59 +481,43 @@ export function describeMatch(r) {
 export function witnessTable(envelopes = []) {
   const rows = [...envelopes].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   if (!rows.length) return ['receipts: none'];
-  return ['receipts:', ...rows.map((e) => `  ${e.status.padEnd(17)} ${e.mode.padEnd(7)} ${formatMicro(e.receipt.amountMicro).padStart(9)} USDC  ${e.memo}  ${e.tx?.hash || '-'}`)];
+  return ['receipts:', ...rows.map((e) => `  ${e.status.padEnd(17)} ${e.mode.padEnd(7)} ${String(e.receipt.sponsor).padEnd(12)} ${formatMicro(e.receipt.amountMicro).padStart(9)} USDC  ${e.memo}  ${e.tx?.hash || '-'}`)];
 }
 
 async function mainMatch(values) {
-  let loaded;
+  let desk;
   try {
-    loaded = await loadSponsor(values.sponsor);
+    ({ desk } = await loadDesk(values.sponsor || values.desk));
   } catch (e) {
     console.error(e.message);
     return EXIT.GUARD;
   }
-  const { sponsor, policyHash } = loaded;
   if (values.fork && values.send) {
     console.error('--fork and --send are exclusive');
     return EXIT.GUARD;
   }
-  const rpc = values.rpc || process.env.TREAT_AGENT_RPC || DEFAULT_RPC[sponsor.chainId];
+  const rpc = values.rpc || process.env.TREAT_AGENT_RPC || DEFAULT_RPC[desk.chainId];
   if (!rpc) {
-    console.error('--rpc is required for chain ' + sponsor.chainId);
+    console.error('--rpc is required for chain ' + desk.chainId);
     return EXIT.GUARD;
   }
   const fromEnv = !values.rpc && !!process.env.TREAT_AGENT_RPC;
   const opts = {
-    sponsor, policyHash, rpc,
+    desk, rpc,
     rpcDisplay: !fromEnv && isPlainRpc(rpc) ? rpc : '"$TREAT_AGENT_RPC"',
     mode: values.fork ? 'fork' : values.send ? 'send' : 'dry-run',
     keystore: values.keystore || process.env.TREAT_AGENT_KEYSTORE || '<keystore>',
     once: values.once,
     demoOvercap: values['demo-overcap'],
+    vault: values.vault || null,
     overcapKind: values['overcap-kind'] || 'auto',
     minedRevert: values['mined-revert'],
     witnessOnly: values['witness-only'],
     release: values.release || null,
     ackOrphan: values['ack-orphan'] || null,
   };
-  if (!['auto', 'tx', 'day'].includes(opts.overcapKind)) {
-    console.error('--overcap-kind must be auto, tx or day');
-    return EXIT.GUARD;
-  }
-  if (opts.minedRevert && !(opts.demoOvercap && opts.mode === 'send')) {
-    console.error('--mined-revert only goes with --demo-overcap --send');
-    return EXIT.GUARD;
-  }
-  if (opts.minedRevert && opts.overcapKind === 'day') {
-    console.error('--mined-revert only goes with --overcap-kind tx (or auto, which then means tx)');
-    return EXIT.GUARD;
-  }
-  if (opts.release && (opts.mode !== 'dry-run' || opts.demoOvercap || opts.witnessOnly)) {
-    console.error('--release runs alone (no --fork, --send, --demo-overcap or --witness-only)');
-    return EXIT.GUARD;
-  }
-  if (opts.ackOrphan && (opts.mode !== 'dry-run' || opts.demoOvercap || opts.witnessOnly || opts.release)) {
-    console.error('--ack-orphan runs alone (no --fork, --send, --demo-overcap, --witness-only or --release)');
+  if (opts.vault && !opts.demoOvercap) {
+    console.error('--vault only goes with --demo-overcap (matches use the vault the allocation rule picks)');
     return EXIT.GUARD;
   }
   const intervalMs = Math.max(60, Number(values.interval)) * 1000;
@@ -528,6 +544,8 @@ async function main(argv) {
     options: {
       rpc: { type: 'string' },
       sponsor: { type: 'string' },
+      desk: { type: 'string' },
+      vault: { type: 'string' },
       send: { type: 'boolean', default: false },
       'overcap-kind': { type: 'string' },
       'mined-revert': { type: 'boolean', default: false },
@@ -549,7 +567,7 @@ async function main(argv) {
     console.log(USAGE);
     return 0;
   }
-  if (values.sponsor) return mainMatch(values);
+  if (values.sponsor || values.desk) return mainMatch(values);
   const rpc = values.rpc || process.env.TREAT_AGENT_RPC;
   if (!rpc || !values.spender) {
     console.error(USAGE);
