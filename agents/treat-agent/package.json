@@ -6,7 +6,9 @@
   "bin": { "treat-agent": "run.mjs" },
   "scripts": {
     "test": "node --test",
-    "dry-run": "node run.mjs --once"
+    "dry-run": "node run.mjs --once",
+    "match": "node run.mjs --sponsor",
+    "statement": "node statement.mjs"
   },
   "engines": { "node": ">=18" }
 }

@@ -1,0 +1,53 @@
+{
+  "receipt": {
+    "type": "tt.match-desk.receipt",
+    "v": 1,
+    "sponsor": "motored",
+    "chainId": 5042002,
+    "spender": "0x1111111111111111111111111111111111111111",
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+    "policySha256": "35b087c4730b9b7ecb4baaa7fd8056ee300ffc176fcfe99407d541a10e4bcdc2",
+    "ratioBps": 10000,
+    "gifts": [
+      {
+        "id": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa7:7",
+        "tx": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa7",
+        "logIndex": 7,
+        "block": 1703,
+        "batchId": "47",
+        "kind": "public",
+        "donor": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "day": "2026-10-16",
+        "giftMicro": "12000",
+        "matchMicro": "12000"
+      }
+    ],
+    "uncappedMicro": "12000",
+    "amountMicro": "12000",
+    "amountRaw": "12000000000000000",
+    "unitDecimals": 18,
+    "clampedBy": null
+  },
+  "sha256": "ab52de4d1e2c4a24025026fd8925cc17a28d291c92286348b528dfcf53bca6de",
+  "memo": "tt:agent:m:motored:ab52de4d",
+  "mode": "send",
+  "status": "failed",
+  "createdAt": "2026-10-16T07:00:00.000Z",
+  "updatedAt": "2026-10-16T07:00:00.000Z",
+  "decision": {
+    "model": "claude-opus-5-5",
+    "rationale": "Matching a fresh public gift.",
+    "observationHash": "sha256:abababababababababababababababababababababababababababababababab",
+    "checker": {
+      "ok": true,
+      "expectedMicro": "12000",
+      "proposedMicro": "12000"
+    }
+  },
+  "tx": {
+    "hash": "0x7777777777777777777777777777777777777777777777777777777777777777",
+    "block": 2000,
+    "status": "success"
+  },
+  "witness": null
+}

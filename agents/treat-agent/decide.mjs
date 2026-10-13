@@ -1,6 +1,11 @@
 // decide: ask Claude whether and how much of Token Tails' own float to give right now.
 // Raw HTTP to the Claude Messages API via fetch (this package has no dependencies by design).
 // The model proposes; this file validates strictly; the contract (CappedSpender) has the last word.
+// Two modes: the treat agent (give_treat / hold) and the sponsor match desk (match_gift / hold / flag /
+// propose_refund, with the amount checker in lib/checker.mjs).
+
+import { expectedMatch, checkProposal, theRule, donorKeyOf } from './lib/checker.mjs';
+import { formatMicro } from './lib/abi.mjs';
 
 export const MODEL = process.env.TREAT_AGENT_MODEL || 'claude-opus-5-5';
 export const API_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages';
@@ -105,18 +110,7 @@ export function buildRequest(obs, { demoOvercap = false } = {}) {
       ` call give_treat with amount_usdc ${round6(facts.per_gift_cap_usdc * 2)} (twice the per-gift cap) and` +
       ' memo_suffix demo-overcap, and say in rationale that this is a deliberate test of the on-chain cap.';
   }
-  const body = {
-    model: MODEL,
-    max_tokens: 16000,
-    thinking: { type: 'adaptive' },
-    output_config: { effort: 'medium' },
-    system: SYSTEM,
-    tools: TOOLS,
-    tool_choice: { type: 'auto', disable_parallel_tool_use: true },
-    messages: [{ role: 'user', content: user }],
-  };
-  if (useFallback()) body.fallbacks = 'default';
-  return body;
+  return baseBody(SYSTEM, TOOLS, user);
 }
 
 export class DecisionError extends Error {}
@@ -197,8 +191,16 @@ export const round6 = (x) => Math.round(x * 1e6) / 1e6;
 
 /** Calls the Messages API and returns a validated decision plus request metadata for the log. */
 export async function decide(obs, { fetchImpl = globalThis.fetch, apiKey = process.env.ANTHROPIC_API_KEY, demoOvercap = false } = {}) {
+  const { msg, meta, toolUse } = await callMessages(buildRequest(obs, { demoOvercap }), { fetchImpl, apiKey });
+  if (msg.stop_reason === 'refusal') {
+    return { decision: { action: 'hold', rationale: 'The model declined this round; holding.' }, meta };
+  }
+  return { decision: validateDecision(toolUse, obs, { demoOvercap }), meta };
+}
+
+/** One Messages API call; returns the message, log metadata and its single tool_use block (none on refusal). */
+async function callMessages(body, { fetchImpl, apiKey }) {
   if (!apiKey) throw new DecisionError('ANTHROPIC_API_KEY is not set (or use TREAT_AGENT_FAKE_LLM=1 for the offline stub)');
-  const body = buildRequest(obs, { demoOvercap });
   const headers = {
     'content-type': 'application/json',
     'x-api-key': apiKey,
@@ -212,11 +214,224 @@ export async function decide(obs, { fetchImpl = globalThis.fetch, apiKey = proce
   }
   const msg = await res.json();
   const meta = { model: msg.model || body.model, stopReason: msg.stop_reason, id: msg.id };
-  if (msg.stop_reason === 'refusal') {
-    return { decision: { action: 'hold', rationale: 'The model declined this round; holding.' }, meta };
-  }
+  if (msg.stop_reason === 'refusal') return { msg, meta, toolUse: null };
   if (msg.stop_reason === 'max_tokens') throw new DecisionError('model hit max_tokens before deciding');
   const toolUses = (msg.content || []).filter((b) => b.type === 'tool_use');
   if (toolUses.length !== 1) throw new DecisionError(`expected exactly one tool call, got ${toolUses.length}`);
-  return { decision: validateDecision(toolUses[0], obs, { demoOvercap }), meta };
+  return { msg, meta, toolUse: toolUses[0] };
+}
+
+function baseBody(system, tools, user) {
+  const body = {
+    model: MODEL,
+    max_tokens: 16000,
+    thinking: { type: 'adaptive' },
+    output_config: { effort: 'medium' },
+    system,
+    tools,
+    tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+    messages: [{ role: 'user', content: user }],
+  };
+  if (useFallback()) body.fallbacks = 'default';
+  return body;
+}
+
+// ================================================================== match desk (MATCH-DESK.md, "Decide")
+
+const strictTool = (name, description, properties) => ({
+  name,
+  description,
+  strict: true,
+  input_schema: { type: 'object', properties, required: Object.keys(properties), additionalProperties: false },
+});
+const RATIONALE = { type: 'string' };
+const GIFT_IDS = { type: 'array', items: { type: 'string' } };
+
+export const TOOLS_MATCH = [
+  strictTool(
+    'match_gift',
+    "Match one or more eligible public gifts from the sponsor's vault. gift_ids: 1 to 10 distinct gift_id values from " +
+      'eligible_gifts. amount_usdc: a decimal string with at most 6 decimals that equals the_rule exactly (code recomputes it ' +
+      'and rejects any other amount; nothing is sent then). rationale: one or two plain sentences a donor could read.',
+    { gift_ids: GIFT_IDS, amount_usdc: { type: 'string' }, rationale: RATIONALE },
+  ),
+  strictTool('hold', 'Match nothing this round. rationale: one or two plain sentences on why.', { rationale: RATIONALE }),
+  strictTool(
+    'flag',
+    'Tell the sponsor about something; no money moves. kind farming: gift_ids lists the eligible gifts that look like ' +
+      'farming (required, they are then excluded until a human clears them). kind pace or float_low: gift_ids may be empty.',
+    { kind: { type: 'string', enum: ['farming', 'pace', 'float_low'] }, gift_ids: GIFT_IDS, rationale: RATIONALE },
+  ),
+  strictTool(
+    'propose_refund',
+    'Propose that the owner (the sponsor) withdraws the unused float to itself. Only when refund_allowed is true. ' +
+      'The agent never sends it; the owner runs the printed command.',
+    { rationale: RATIONALE },
+  ),
+];
+
+export const SYSTEM_MATCH = [
+  "You run a sponsor's match desk for an animal shelter. A sponsor put USDC into a CappedSpender vault on Arc; you decide",
+  'which fresh public gifts to the shelter it matches. The money is the sponsor\'s, never a donor\'s.',
+  'The sponsor may be a related party (see sponsor_label): describe it exactly with that label, never as independent.',
+  '',
+  'Each round you get an observation as JSON. Call exactly one tool: match_gift, hold, flag or propose_refund.',
+  'Rules:',
+  '1. Only gifts listed in eligible_gifts can be matched. Prefer the newest; one gift alone is usually best.',
+  '2. amount_usdc must follow the_rule exactly. For a single gift it is that gift\'s match_if_alone_usdc. Code recomputes',
+  '   the amount and rejects anything else, so never round, guess or add.',
+  '3. If farming_signals lists gifts (many tiny gifts from one donor in a day), flag them as farming instead of matching them.',
+  '4. Flag pace when pace.status is ahead or behind in a way the sponsor should know; flag float_low when float_low is true',
+  '   and nothing else needs doing.',
+  '5. propose_refund only when refund_allowed is true and the campaign is over.',
+  '6. Otherwise hold. Code, not you, enforces the per-donor limit; the contract enforces the per-gift and daily caps.',
+  'Explain your reason in rationale, in plain words a donor could read.',
+].join('\n');
+
+const usd = (m) => formatMicro(m);
+const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : null);
+
+/** The compact facts the model sees (snake_case, decimal-string USDC). */
+export function promptFactsMatch(obs) {
+  const md = obs.matchDesk;
+  const now = Date.parse(obs.at);
+  const p = md.policy;
+  const eligible = md.gifts.filter((g) => g.status === 'eligible').slice(0, 20);
+  return {
+    chain_id: md.chainId,
+    network: md.network,
+    sponsor_label: `${md.sponsor.name}, ${md.sponsor.label}`,
+    ratio: p.ratioBps === 10000 ? '1:1' : `${p.ratioBps / 10000}:1`,
+    per_gift_max_usdc: usd(p.perGiftMaxMicro),
+    per_donor_daily_max_usdc: usd(p.perDonorDailyMaxMicro),
+    budget_left_usdc: usd(md.budget.leftMicro),
+    per_tx_cap_usdc: usd(md.caps.perTxMicro),
+    remaining_today_usdc: usd(md.caps.remainingTodayMicro),
+    float_usdc: usd(md.caps.floatMicro),
+    float_low: md.floatLow,
+    pace: {
+      from: md.pace.from, to: md.pace.to, days_left: md.pace.daysLeft, status: md.pace.status,
+      target_per_day_usdc: usd(md.pace.targetPerDayMicro), matched_today_usdc: usd(md.pace.matchedTodayMicro),
+    },
+    refund_allowed: md.refundAllowed,
+    eligible_gifts: eligible.map((g) => {
+      const alone = expectedMatch([g.id], md);
+      const key = donorKeyOf(g);
+      const cap = key === 'treats' ? p.treatsDailyMaxMicro : p.perDonorDailyMaxMicro;
+      const used = BigInt(md.donorUsedMicro[`${key}|${g.day}`] || 0n);
+      return {
+        gift_id: g.id,
+        donor_short: g.kind === 'treat' ? 'treats' : short(g.donor),
+        kind: g.kind,
+        gift_usdc: usd(g.giftMicro),
+        donor_room_usdc: usd(cap > used ? cap - used : 0n),
+        match_if_alone_usdc: alone.ok ? usd(alone.amountMicro) : '0',
+        age_minutes: Math.max(0, Math.floor((now - g.ts * 1000) / 60_000)),
+      };
+    }),
+    farming_signals: md.farmingSignals.map((f) => ({
+      donor_short: short(f.donor), day: f.day, gifts: f.gifts, total_usdc: usd(f.totalMicro), reason: f.reason, gift_ids: f.giftIds,
+    })),
+    the_rule: theRule(md),
+  };
+}
+
+export function buildRequestMatch(obs) {
+  const facts = promptFactsMatch(obs);
+  const user = 'Observation:\n' + JSON.stringify(facts, null, 2) + '\n\nDecide now: call match_gift, hold, flag or propose_refund.';
+  return baseBody(SYSTEM_MATCH, TOOLS_MATCH, user);
+}
+
+/** Holds that need no model call (and no API cost). Returns the reason, or null. */
+export function matchCodeHold(obs) {
+  const md = obs.matchDesk;
+  if (md.backend.splitMismatch) return 'the backend names a different ShelterSplit for this chain than sponsor.json (hard stop)';
+  const orphan = (md.witness?.orphans || []).find((o) => !o.acked);
+  if (orphan) {
+    return `an AgentGift with our memo ${orphan.memo} (tx ${orphan.tx}) has no local receipt, so the gifts it matched are unknown `
+      + 'and a retry could match them twice. Run from the state dir that made it (MATCH_DESK_DIR), or, once you have checked '
+      + `that tx, acknowledge it with --ack-orphan ${orphan.tx}`;
+  }
+  if (md.split.paused) return 'the split is paused';
+  if (md.caps.remainingTodayMicro === 0n) return "today's on-chain cap is used up (it resets at 00:00 UTC)";
+  if (md.caps.floatMicro === 0n) return 'the vault float is empty';
+  if (md.budget.leftMicro === 0n) return "the sponsor's budget is used up";
+  if (!md.gifts.some((g) => g.status === 'eligible') && !md.refundAllowed && !md.floatLow) return 'no eligible gift to match';
+  return null;
+}
+
+const strArray = (v, name) => {
+  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) throw new DecisionError(`${name} must be an array of strings`);
+  return v;
+};
+
+/**
+ * Strict validation of a match-desk tool call, then the amount checker.
+ * Format problems throw DecisionError (run.mjs holds with meta.rejected). A checker disagreement is a hold
+ * with rejected: true and checker { ok: false, expectedMicro, proposedMicro } - the amount is never corrected.
+ */
+export function validateMatchDecision(toolUse, obs) {
+  if (!toolUse || toolUse.type !== 'tool_use') throw new DecisionError('model did not call a tool');
+  const input = toolUse.input;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new DecisionError('tool input is not an object');
+  if (typeof input.rationale !== 'string' || !input.rationale.trim()) throw new DecisionError('rationale missing');
+  const why = input.rationale.trim().slice(0, MAX_RATIONALE);
+  const md = obs.matchDesk;
+
+  switch (toolUse.name) {
+    case 'hold':
+      expectKeys(input, ['rationale']);
+      return { action: 'hold', rationale: why };
+    case 'propose_refund':
+      expectKeys(input, ['rationale']);
+      if (!md.refundAllowed) throw new DecisionError('propose_refund before policy.refund.after');
+      return { action: 'propose_refund', rationale: why };
+    case 'flag': {
+      expectKeys(input, ['kind', 'gift_ids', 'rationale']);
+      if (!['farming', 'pace', 'float_low'].includes(input.kind)) throw new DecisionError('flag kind must be farming, pace or float_low');
+      const ids = strArray(input.gift_ids, 'gift_ids');
+      if (input.kind === 'farming') {
+        if (!ids.length) throw new DecisionError('flag farming needs gift_ids');
+        for (const id of ids) {
+          const g = md.gifts.find((x) => x.id === id);
+          if (!g || g.status !== 'eligible') throw new DecisionError(`flag farming: ${id} is not an eligible gift`);
+        }
+      }
+      return { action: 'flag', kind: input.kind, giftIds: [...new Set(ids)], rationale: why };
+    }
+    case 'match_gift': {
+      expectKeys(input, ['gift_ids', 'amount_usdc', 'rationale']);
+      const ids = strArray(input.gift_ids, 'gift_ids');
+      if (typeof input.amount_usdc !== 'string') throw new DecisionError('amount_usdc must be a decimal string');
+      const check = expectedMatch(ids, md);
+      if (!check.ok) {
+        return {
+          action: 'hold', rejected: true, modelRationale: why, proposedUsdc: input.amount_usdc,
+          rationale: `Checker rejected: ${check.reason}`,
+          checker: { ok: false, reason: check.reason, expectedMicro: null, proposedMicro: null },
+        };
+      }
+      const cmp = checkProposal(input.amount_usdc, check.amountMicro);
+      if (!cmp.ok) {
+        return {
+          action: 'hold', rejected: true, modelRationale: why, proposedUsdc: input.amount_usdc,
+          rationale: `Checker rejected: model proposed ${input.amount_usdc} USDC, policy gives ${usd(check.amountMicro)} USDC for ${ids.join(', ')}`,
+          checker: cmp,
+        };
+      }
+      return {
+        action: 'match', giftIds: ids, amountMicro: check.amountMicro, amountUsdc: usd(check.amountMicro),
+        proposedUsdc: input.amount_usdc, check, checker: cmp, rationale: why,
+      };
+    }
+    default:
+      throw new DecisionError(`unknown tool ${toolUse.name}`);
+  }
+}
+
+/** Calls the Messages API in match-desk mode and returns a checked decision plus metadata. */
+export async function decideMatch(obs, { fetchImpl = globalThis.fetch, apiKey = process.env.ANTHROPIC_API_KEY } = {}) {
+  const { msg, meta, toolUse } = await callMessages(buildRequestMatch(obs), { fetchImpl, apiKey });
+  if (msg.stop_reason === 'refusal') return { decision: { action: 'hold', rationale: 'The model declined this round; holding.' }, meta };
+  return { decision: validateMatchDecision(toolUse, obs), meta };
 }

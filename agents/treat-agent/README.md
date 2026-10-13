@@ -121,9 +121,132 @@ The demo caps are fork parameters for the video, not a public claim.
 4. On a mainnet the agent only gives to the shelter's own wallet: the split must list a wallet the
    shelter holds (Pink Paw handover) before this is described as live.
 
+## Sponsor Match Desk
+
+A sponsor puts USDC into a `CappedSpender` vault on Arc, and the agent matches fresh public gifts to
+Pink Paw's ShelterSplit from it, under a written policy. Full spec: [`MATCH-DESK.md`](MATCH-DESK.md).
+`run.mjs --sponsor <file>` runs the match desk; without `--sponsor`, the treat agent above runs
+unchanged.
+
+Each round:
+
+1. **observe**: fresh public gifts on ShelterSplit (its batch events over RPC are the truth: the donor
+   exists only there), the vault's caps and float, and three public read endpoints
+   (`/shelter/payouts`, `/shelter/donate/status`, `/shelter/match/status`; fail-soft,
+   `MATCH_DESK_API=off` skips them). Simple holds (split paused, nothing left today, no float, no
+   budget) skip the model call.
+2. **decide**: Claude calls one tool: `match_gift`, `hold`, `flag` (farming, pace, float low) or
+   `propose_refund`.
+3. **check**: code recomputes the match from `sponsor.json` (ratio, per-gift and per-donor-day limits,
+   on-chain caps, float, budget; integer micro-USDC) and **rejects** a proposal that differs by even
+   0.000001 USDC. It never quietly corrects it.
+4. **act**: `CappedSpender.give(amount, memo)` with the memo `tt:agent:m:<sponsor>:<hash8>`. A dry run
+   prints the command, `--fork` sends to a local anvil fork, `--send` runs `cast send --account` from
+   the founder's own terminal.
+5. **receipt**: a JSON receipt is written before the send. Its sha256 is in the memo, so the same gifts
+   always give the same memo and a repeated send is skipped.
+6. **witness**: the next round reads the `AgentGift` event back and marks the receipt `reconciled`.
+7. **statement**: `statement.mjs` builds `statement.json` and a self-contained `index.html` (with a
+   "Verify hash" button per receipt) from the reconciled receipts.
+
+### What every public text says
+
+- Motored.lt is a **related-party sponsor (founder's company)**, never an outside or independent
+  sponsor. If no company funds the vault, the label is "self-sponsor (Token Tails founder)".
+- Pink Paw's wallet is still held by Token Tails until the handover. Matched money reaches that
+  wallet; Pink Paw does not control it yet.
+- The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2× the
+  daily cap can go out across midnight.
+- The agent's code enforces the per-donor limit. The contract does not.
+- The statement is not a tax receipt.
+- We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.
+- Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has
+  the last word.
+- A match counts only once its `AgentGift` event has been read back from the chain (`reconciled`).
+
+### CLI
+
+```
+node run.mjs --sponsor <file> [--rpc <url>] [--once] [--interval <s>]
+             [--fork | --send] [--keystore <name>]
+             [--demo-overcap [--overcap-kind auto|tx|day] [--mined-revert]]
+             [--witness-only] [--release <sha256 prefix>] [--ack-orphan <tx hash>]
+node statement.mjs --sponsor <file> [--receipts <dir>] [--out <dir>] [--now <ISO>] [--rpc <url> --verify-onchain]
+```
+
+`--send` works only on Arc (5042 or 5042002) with `--once` and a named keystore, refuses inside an AI
+session (`CLAUDECODE` set), and needs `CONFIRM_MAINNET=yes` on 5042. `--demo-overcap` never calls the
+model: on a fresh day it asks for 2 × the per-gift cap and expects `OverTxCap`; once less than one
+gift's cap is left today it asks for one cap and expects `OverDailyCap`. On a live chain it is a
+`cast call` simulation unless `--mined-revert` sends a failing transaction (`--gas-limit 300000`) that
+shows on the explorer. Exit codes: 0 ok (holds and expected refusals included), 1 unexpected revert or
+mismatch, 2 usage, policy or guard refusal, 3 Messages API error, 4 the over-cap demo did not refuse
+as expected. `--mined-revert` is `tx` only (a mined `day` demo would be a real give that only the
+daily cap stops). A dry-run receipt holds its gifts only for other dry runs, so `--send` right after a
+dry run is not held. If `cast` exits without a tx hash in `--send` mode, the receipt stays `sent`
+(outcome unknown) and blocks its gifts until the witness sees its memo; after checking the agent's
+address on the explorer, `--release <sha256>` clears it. A `--send` receipt left `planned` (the process
+was killed while `cast` ran) is treated the same way. An `AgentGift` with this sponsor's memo and no
+local receipt (an orphan: state dir lost, or a round run from another checkout) holds every match until
+you run from the right `MATCH_DESK_DIR` or acknowledge it with `--ack-orphan <tx hash>`. A `--fork` tx is
+printed without an explorer link: it exists only on the local anvil. Gifts from `shelter.wallet` and any batch
+with a `tt:agent:`/`tt:match:` memo are never matched. Env: `MATCH_DESK_DIR` (state, default `runs/match-desk/`), `MATCH_DESK_API`,
+`MATCH_DESK_CALL_GAP_MS`, `CONFIRM_MAINNET`, `TREAT_AGENT_FAKE_WRONG`.
+
+### Runbook: `match-desk.sh` (testnet first, founder's terminal)
+
+| Step | Command |
+|---|---|
+| policy file | `./match-desk.sh init testnet` (writes `sponsor.arc-testnet.json`; `mainnet` writes `sponsor.arc.json`) |
+| deploy | `./match-desk.sh deploy testnet --account <deployer> --owner <sponsor> --agent <tt-match-agent>`: simulation, a y/N prompt, then `--broadcast`; prints the address and block to paste into the file |
+| read back | `./match-desk.sh check sponsor.arc-testnet.json`: read-only; fails unless `native()` is true, `perTxCap()` is 50000000000000000 (0.05 USDC), `dailyCap()` is 200000000000000000 (0.20 USDC) and split, agent and owner match the file. Run it before any money moves. |
+| float | `./match-desk.sh fund sponsor.arc-testnet.json --account <owner> --usdc 1` (only the owner can fund) |
+| agent gas | `./match-desk.sh gas sponsor.arc-testnet.json --account <funder> --usdc 0.05` |
+| source | `./match-desk.sh verify sponsor.arc-testnet.json` prints the Sourcify command (not yet tried on Arc for CappedSpender) |
+| a round | `./match-desk.sh round sponsor.arc-testnet.json` (dry run, optional), then `... round sponsor.arc-testnet.json --send --keystore tt-match-agent` (the dry-run receipt does not hold it; run the printed command or `--send`, not both), then `... --witness-only` |
+| statement | `./match-desk.sh statement sponsor.arc.json` writes `client/public/match-desk/`, re-checking every receipt against Arc mainnet by default (`--verify-onchain`, read-only; `--no-verify-onchain` opts out and the page then says the totals were not re-checked); `statement.mjs` refuses any chain but Arc mainnet (5042) there, so a testnet statement needs `node statement.mjs --sponsor sponsor.arc-testnet.json --out <dir>` |
+
+Native USDC on Arc has 18 decimals, so the caps are 18-decimal numbers. `CAPPED_PER_TX=50000` would be
+5×10⁻¹⁴ USDC; the deploy script refuses it (`PerTxBelowFloor`). The script never reads or prints a
+key: every signing step is `forge`/`cast` with `--account`, and `deploy`, `fund`, `gas` and
+`round --send` refuse inside an AI session and need `CONFIRM_MAINNET=yes` on Arc mainnet. Cost: about
+1 USDC of float plus 0.05 USDC of agent gas per chain; unused float can only be withdrawn to the owner
+(the sponsor), by the owner.
+
+### Demo: the match desk on a local fork
+
+```bash
+./fork-demo.sh --match-desk /tmp/match-desk-demo.txt
+```
+
+On an anvil fork of Arc testnet (`MATCH_DESK_API=off`; anvil's public dev accounts, owner = dev #3 as
+the sponsor, agent = dev #1, caps 0.05 / 0.20 test USDC, 1 test USDC float): two fan gifts, a match
+and its receipt, the witness reconciling it, a checker rejection (`TREAT_AGENT_FAKE_WRONG=1`), the
+next match, a farming flag on six 0.01 gifts, the day spent to the cap, then both over-cap refusals
+(`OverDailyCap(0.25, 0.2)` and `OverTxCap(0.1, 0.05)`), a statement into the demo folder (never
+`client/public`) and Pink Paw's balance before and after. Every step is checked; the script exits 1 if
+any expectation fails, so it doubles as an end-to-end test. It deploys through
+`script/DeployCappedSpender.s.sol` (the same script as `match-desk.sh deploy`), so a broken deploy
+script fails the demo too, and its sponsor file keeps the example's `excludedSenders`.
+
+Rehearsal on Arc mainnet state (still a local anvil; nothing is sent to a public network):
+
+```bash
+FORK_URL=https://rpc.mainnet.arc.io FORK_CHAIN_ID=5042002 ./fork-demo.sh --match-desk /tmp/md-mainnet-state.txt
+```
+
+`run.mjs` refuses `--fork` with a chainId 5042 sponsor file, and a native-mode deploy needs an Arc
+chain id (not 31337), so the fork runs mainnet state under the Arc testnet id 5042002. The transcript,
+explorer links and statement then say "Arc Testnet"; that label is the fork's chain id, not where the
+state came from.
+
 ## Tests
 
 `npm test` (node --test, no dependencies): decide with a stubbed fetch (valid give, hold, malformed
 output rejected, two calls / refusal / max_tokens, over-cap clamped unless demo), act dry-run command
 shape and fork guards, revert decoding, observe against a stubbed RPC (memo classes, matching,
-window, range halving), and one full round writing the JSONL log.
+window, range halving), and one full round writing the JSONL log. The match desk adds policy,
+checker, receipt, witness, backend, send-gate and statement tests (fixtures, no network), and
+`test/match-desk-sh.test.mjs` checks the runbook's offline paths (syntax, `init`, `verify`, the
+AI-session and mainnet refusals). Contracts: `forge test` in `../../contracts/shelter-split`
+(including `CappedSpenderMatchDesk.t.sol`). End to end: `./fork-demo.sh --match-desk`.
