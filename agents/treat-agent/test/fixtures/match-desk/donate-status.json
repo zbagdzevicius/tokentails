@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "railState": "live",
+  "chainId": 5042,
+  "amountWei": "10000000000000000",
+  "remainingTodayWei": "1000000000000000000",
+  "dailyBudgetWei": "1000000000000000000",
+  "giftsPerDayCap": 100,
+  "treatsLeftToday": 100,
+  "resetsAt": "2026-10-04T00:00:00.000Z",
+  "communityTotalConfirmedWei": "0",
+  "splitAddress": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+  "chains": [
+    { "chainId": 5042, "main": true, "testnet": false, "enabled": true, "railState": "live", "coin": "USDC", "amountWei": "10000000000000000", "remainingTodayWei": "1000000000000000000", "dailyBudgetWei": "1000000000000000000", "giftsPerDayCap": 100, "treatsLeftToday": 100, "splitAddress": "0x457c89e10a6e66633eda5bf82fd086febb5db147", "explorer": "explorer.arc.io" },
+    { "chainId": 5042002, "main": false, "testnet": true, "enabled": true, "railState": "live", "coin": "USDC", "amountWei": "10000000000000000", "remainingTodayWei": "1000000000000000000", "dailyBudgetWei": "1000000000000000000", "giftsPerDayCap": 100, "treatsLeftToday": 99, "splitAddress": "0x5A5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a", "explorer": "explorer.testnet.arc.io" }
+  ]
+}

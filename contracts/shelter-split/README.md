@@ -76,6 +76,50 @@ What the chain enforces:
 The ABI is in `abi/DonateRouter.json`
 (`forge inspect src/DonateRouter.sol:DonateRouter abi --json > abi/DonateRouter.json`).
 
+### CappedSpender
+
+`CappedSpender(split, agent, owner, perTxCap, dailyCap, native)` holds a small float that one agent
+address can give only into one ShelterSplit, with `give(amount, memo)`:
+
+- at most `perTxCap` per gift (`OverTxCap(amount, cap)`, checked first) and `dailyCap` per UTC
+  calendar day (`OverDailyCap(spentToday + amount, cap)`). The day resets at 00:00 UTC, so up to
+  2 × `dailyCap` can go out across midnight; it is not a rolling 24 hours;
+- only while `preview(amount)` sends nothing to the split's treasury, never while the split is paused,
+  and only with a memo that starts with `tt:agent:` (at most 256 bytes);
+- the owner can only fund the float (native mode: plain transfers from the owner only) and withdraw
+  it to its own address. Nobody can raise the caps or change the agent, split or mode: they are
+  immutable.
+
+Every gift emits `AgentGift(batchId, amount, memo, spentToday)`. The treat agent and the Sponsor
+Match Desk ([`agents/treat-agent`](../../agents/treat-agent/), spec `MATCH-DESK.md`) use it; the
+match desk's memo is `tt:agent:m:<sponsor>:<hash8>`, the first 8 hex of its receipt's sha256.
+
+**Units.** In native mode (Arc only, 5042 / 5042002) the coin is USDC with **18 decimals**, so the
+match desk's caps are `CAPPED_PER_TX=50000000000000000` (0.05 USDC) and
+`CAPPED_DAILY=200000000000000000` (0.20 USDC). In ERC-20 mode they are token units (USDC: 6
+decimals, 0.05 = 50000).
+
+**Deploy guards** (`script/DeployCappedSpender.s.sol`, all from the environment):
+`EXPECTED_CHAIN_ID` is required; native mode reverts off Arc; a per-gift cap above 1 USDC in the
+mode's units reverts (`PerTxAboveCeiling`, `CAPPED_MAX_PER_TX` overrides), and so does a daily cap
+above 100 × that; a per-gift cap below 0.001 USDC in the mode's units reverts
+(`PerTxBelowFloor`, `CAPPED_MIN_PER_TX` overrides). The floor catches a 6-decimal number in native
+mode: `CAPPED_PER_TX=50000` would be 5×10⁻¹⁴ USDC.
+
+```sh
+CAPPED_SPLIT=<ShelterSplit> CAPPED_AGENT=<agent EOA> CAPPED_OWNER=<owner> CAPPED_NATIVE=1 \
+CAPPED_PER_TX=50000000000000000 CAPPED_DAILY=200000000000000000 EXPECTED_CHAIN_ID=5042002 \
+forge script script/DeployCappedSpender.s.sol --rpc-url <rpc>        # simulate; add --broadcast --account <keystore>
+```
+
+After the deploy, read `native()`, `perTxCap()` and `dailyCap()` back before funding
+(`agents/treat-agent/match-desk.sh check` does this). Tests: `test/CappedSpender.t.sol` and
+`test/CappedSpenderMatchDesk.t.sol` (the match-desk memo, both over-cap refusals with the runbook
+caps, the floor guard, and the script's whole deploy path through `deploy(Config)`: guards, console
+log and broadcast). The script logs through a low-level `staticcall` to the console address: that
+address has no code, so a high-level call reverted every `forge script` run with empty data once the
+guards had passed (fixed Oct 13).
+
 ## Deployments
 
 The public deployment lists are the source of truth. They are generated from the deploy records and

@@ -22,8 +22,8 @@ export function canonical(value) {
 
 export const hashObservation = (obs) => 'sha256:' + createHash('sha256').update(canonical(obs)).digest('hex');
 
-export function entry({ obs, decision, meta, result, flags }) {
-  return {
+export function entry({ obs, decision, meta, result, flags, matchDesk }) {
+  const line = {
     ts: new Date().toISOString(),
     chainId: obs.chainId,
     spender: obs.spender.address,
@@ -43,6 +43,9 @@ export function entry({ obs, decision, meta, result, flags }) {
       proposedUsdc: decision.proposedUsdc,
       clamped: decision.clamped || false,
       memo: decision.memo,
+      ...(decision.giftIds ? { giftIds: decision.giftIds } : {}),
+      ...(decision.kind ? { kind: decision.kind } : {}),
+      ...(decision.rejected ? { rejected: true } : {}),
     },
     rationale: decision?.rationale,
     result: result && {
@@ -54,6 +57,9 @@ export function entry({ obs, decision, meta, result, flags }) {
       command: result.mode === 'dry-run' ? result.command : undefined,
     },
   };
+  // Match desk: { sponsor, policyHash, receiptSha256, memo, checker, flag, witness: { reconciled, failed, orphans } }.
+  if (matchDesk) line.matchDesk = matchDesk;
+  return line;
 }
 
 export async function writeLog(record, { dir = process.env.TREAT_AGENT_LOG_DIR || DEFAULT_DIR, file = 'decisions.jsonl' } = {}) {

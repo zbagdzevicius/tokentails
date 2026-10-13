@@ -13,6 +13,7 @@ export const SEL = Object.freeze({
   decimals: '0x313ce567',
   paused: '0x5c975abb',
   agent: '0xf5ff5c76',
+  owner: '0x8da5cb5b', // owner()
   split: '0xf7654176',
   give: '0xa4f2209a', // give(uint256,string)
   preview: '0xc317c377', // ShelterSplit.preview(uint256)
@@ -108,3 +109,36 @@ export function parseUnits(amount, decimals) {
 }
 
 export const toUsdc = (raw, decimals) => Number(formatUnits(raw, decimals));
+
+// ------------------------------------------------------------------ micro-USDC (match desk)
+
+/** A USDC amount as written by a person or a model: plain decimal, at most 6 decimals, no sign/exponent. */
+export const MICRO_RE = /^(0|[1-9]\d*)(\.\d{1,6})?$/;
+
+/** Exact decimal string -> micro-USDC bigint. Numbers are refused: floats never carry money here. */
+export function parseMicro(s) {
+  if (typeof s !== 'string' || !MICRO_RE.test(s)) throw new Error(`not a USDC amount (decimal string, at most 6 decimals): ${JSON.stringify(s)}`);
+  return parseUnits(s, 6);
+}
+
+export const formatMicro = (micro) => formatUnits(BigInt(micro), 6);
+
+/** micro-USDC -> raw units in `decimals` (18 native on Arc, 6 for the ERC-20 view). */
+export function microToRaw(micro, decimals) {
+  if (decimals < 6) throw new Error(`unit decimals ${decimals} < 6`);
+  return BigInt(micro) * 10n ** BigInt(decimals - 6);
+}
+
+/** raw units -> micro-USDC (floor). */
+export function rawToMicro(raw, decimals) {
+  if (decimals < 6) throw new Error(`unit decimals ${decimals} < 6`);
+  return BigInt(raw) / 10n ** BigInt(decimals - 6);
+}
+
+/** Calldata for CappedSpender.give(uint256,string). */
+export function encodeGive(amountRaw, memo) {
+  const w = (v) => BigInt(v).toString(16).padStart(64, '0');
+  const bytes = Buffer.from(memo, 'utf8');
+  const padded = bytes.toString('hex').padEnd(Math.ceil(bytes.length / 32) * 64, '0');
+  return SEL.give + w(amountRaw) + w(64) + w(bytes.length) + padded;
+}

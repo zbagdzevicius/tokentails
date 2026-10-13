@@ -1,0 +1,57 @@
+{
+  "chain": {
+    "explorer": "https://explorer.arc.io",
+    "id": 5042,
+    "name": "Arc"
+  },
+  "contract": {
+    "agent": null,
+    "owner": null,
+    "spender": null,
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147"
+  },
+  "days": [],
+  "disclosures": [
+    "Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.",
+    "The wallet of Pink Paw (Rožinė pėdutė) is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.",
+    "The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.",
+    "The agent's code enforces the per-donor limit. The contract does not.",
+    "This statement is not a tax receipt.",
+    "We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.",
+    "Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.",
+    "A match counts only once its AgentGift event has been read back from the chain (reconciled)."
+  ],
+  "excluded": [],
+  "generatedAt": null,
+  "notTaxReceipt": true,
+  "policy": {
+    "budgetUsdc": "1.00",
+    "perDonorDailyMaxUsdc": "0.05",
+    "perGiftMaxUsdc": "0.05",
+    "policySha256": "c0248563fa5fda33d331696ee8a634a069345afea83931c2c2954f53560fdf5c",
+    "ratio": "1:1"
+  },
+  "receipts": [],
+  "shelter": {
+    "custody": "held-by-token-tails",
+    "name": "Pink Paw (Rožinė pėdutė)",
+    "wallet": "0xe299299b846ba629f5a591dbf4f562bcc07a0f37"
+  },
+  "sponsor": {
+    "id": "motored",
+    "label": "related-party sponsor (founder's company)",
+    "name": "Motored.lt",
+    "relatedParty": true
+  },
+  "totals": {
+    "donors": 0,
+    "giftsMatched": 0,
+    "giftsMatchedUsdc": "0",
+    "pendingUsdc": "0",
+    "receipts": 0,
+    "reconciledUsdc": "0"
+  },
+  "type": "tt.match-desk.statement",
+  "v": 1,
+  "verifiedOnchain": false
+}

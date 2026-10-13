@@ -11,8 +11,13 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
-  SEL, TOPIC, uintAt, boolAt, addressAt, stringAt, topicAddress, topicUint, formatUnits, toUsdc,
+  SEL, TOPIC, uintAt, boolAt, addressAt, stringAt, topicAddress, topicUint, formatUnits, toUsdc, rawToMicro, formatMicro,
 } from './lib/abi.mjs';
+import { GuardError } from './lib/policy.mjs';
+import { readBackend, routerBlocked, splitMismatch, DEFAULT_API } from './lib/backend.mjs';
+import { loadEnvelopes, loadPublished, saveEnvelope, readJson, PUBLISHED_STATEMENT } from './lib/receipt.mjs';
+import { readAgentGifts, witness } from './lib/witness.mjs';
+import { donorKeyOf } from './lib/checker.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(HERE, '../..');
@@ -33,7 +38,11 @@ export function makeRpc(url, { fetchImpl = globalThis.fetch } = {}) {
     });
     if (!res.ok) throw new Error(`RPC ${method}: HTTP ${res.status}`);
     const body = await res.json();
-    if (body.error) throw new Error(`RPC ${method}: ${body.error.message || JSON.stringify(body.error)}`);
+    if (body.error) {
+      // Keep revert data in the message: decodeRevert() reads the error selector from it.
+      const data = typeof body.error.data === 'string' ? ` (data ${body.error.data})` : '';
+      throw new Error(`RPC ${method}: ${body.error.message || JSON.stringify(body.error)}${data}`);
+    }
     return body.result;
   };
 }
@@ -103,7 +112,7 @@ export async function previewToTreasury(rpc, split, amountRaw) {
 
 // ------------------------------------------------------------------ logs
 
-async function getLogsChunked(rpc, { address, topics, fromBlock, toBlock, chunk }) {
+export async function getLogsChunked(rpc, { address, topics, fromBlock, toBlock, chunk }) {
   // Providers cap the block range per query (and an anvil fork forwards to its upstream). On a
   // range error the chunk halves and the same window is retried, down to 100 blocks.
   const out = [];
@@ -139,6 +148,9 @@ export function decodeBatch(log, { tokenDecimals }) {
     native: nativeEvent,
     tx: log.transactionHash,
     block: Number(BigInt(log.blockNumber)),
+    logIndex: Number(BigInt(log.logIndex ?? 0)),
+    toSheltersRaw: uintAt(d, 1).toString(),
+    decimals,
   };
 }
 
@@ -188,20 +200,10 @@ export async function readNeeds(file) {
   return { demo: n.demo === true, note: n.note || '', items: Array.isArray(n.items) ? n.items : [] };
 }
 
-// ------------------------------------------------------------------ observe
+// ------------------------------------------------------------------ shared reads
 
-export async function observe({
-  rpc, spender, router = process.env.TREAT_AGENT_ROUTER || null, hours = 24, chunk = Number(process.env.TREAT_AGENT_LOG_CHUNK) || 50_000,
-  campaignFile, factsFile, needsFile = process.env.TREAT_AGENT_NEEDS || NEEDS_EXAMPLE, now = Date.now(),
-  ttSenders = process.env.TREAT_AGENT_TT_SENDERS || '',
-  matchRouter = process.env.TREAT_AGENT_MATCH_ROUTER === '1',
-}) {
-  const chainId = Number(BigInt(await rpc('eth_chainId')));
-  const head = await rpc('eth_getBlockByNumber', ['latest', false]);
-  const toBlock = Number(BigInt(head.number));
-  const headTs = Number(BigInt(head.timestamp));
-
-  // Spender state.
+/** CappedSpender state: mode, split, agent, units and the raw caps (bigint). */
+export async function readSpenderState(rpc, spender, chainId) {
   const native = boolAt(await call(rpc, spender, SEL.native), 0);
   const split = addressAt(await call(rpc, spender, SEL.split), 0);
   const agent = addressAt(await call(rpc, spender, SEL.agent), 0);
@@ -226,13 +228,51 @@ export async function observe({
   const [perTx, daily, remaining, spent, float] = await Promise.all([
     u(SEL.perTxCap), u(SEL.dailyCap), u(SEL.remainingToday), u(SEL.spentToday), u(SEL.floatBalance),
   ]);
-  const paused = boolAt(await call(rpc, split, SEL.paused), 0);
+  return { native, split, agent, token, tokenDecimals, unit, perTx, daily, remaining, spent, float };
+}
 
-  // Block window covering `hours`, estimated from the block rate over the last 1000 blocks.
+/** Block window covering `hours`, estimated from the block rate over the last 1000 blocks. */
+export async function blockWindow(rpc, { toBlock, headTs, hours }) {
   const back = Math.min(1000, toBlock);
   const past = await rpc('eth_getBlockByNumber', ['0x' + (toBlock - back).toString(16), false]);
   const secsPerBlock = back > 0 ? Math.max(0.05, (headTs - Number(BigInt(past.timestamp))) / back) : 1;
   const fromBlock = Math.max(0, toBlock - Math.ceil((hours * 3600) / secsPerBlock));
+  return { secsPerBlock, fromBlock };
+}
+
+/** Space RPC calls at least `ms` apart (Arc mainnet's public RPC answers about 2 calls a second). */
+export function withGap(rpc, ms) {
+  if (!ms) return rpc;
+  let chain = Promise.resolve();
+  let last = 0;
+  return (method, params) => {
+    const p = chain.then(async () => {
+      const wait = last + ms - Date.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      last = Date.now();
+      return rpc(method, params);
+    });
+    chain = p.catch(() => {});
+    return p;
+  };
+}
+
+// ------------------------------------------------------------------ observe
+
+export async function observe({
+  rpc, spender, router = process.env.TREAT_AGENT_ROUTER || null, hours = 24, chunk = Number(process.env.TREAT_AGENT_LOG_CHUNK) || 50_000,
+  campaignFile, factsFile, needsFile = process.env.TREAT_AGENT_NEEDS || NEEDS_EXAMPLE, now = Date.now(),
+  ttSenders = process.env.TREAT_AGENT_TT_SENDERS || '',
+  matchRouter = process.env.TREAT_AGENT_MATCH_ROUTER === '1',
+}) {
+  const chainId = Number(BigInt(await rpc('eth_chainId')));
+  const head = await rpc('eth_getBlockByNumber', ['latest', false]);
+  const toBlock = Number(BigInt(head.number));
+  const headTs = Number(BigInt(head.timestamp));
+
+  const { native, split, agent, token, tokenDecimals, unit, perTx, daily, remaining, spent, float } = await readSpenderState(rpc, spender, chainId);
+  const paused = boolAt(await call(rpc, split, SEL.paused), 0);
+  const { secsPerBlock, fromBlock } = await blockWindow(rpc, { toBlock, headTs, hours });
 
   const batchLogs = await getLogsChunked(rpc, {
     address: split,
@@ -320,3 +360,327 @@ export async function observe({
 
 export const round6 = (x) => Math.round(x * 1e6) / 1e6;
 export { formatUnits };
+
+// ------------------------------------------------------------------ match desk (MATCH-DESK.md, "Observe additions")
+
+const DAY_MS = 86_400_000;
+export const utcDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+const dayIndex = (d) => Math.floor(Date.parse(d + 'T00:00:00Z') / DAY_MS);
+
+/** Default gap between RPC calls: 500 ms on Arc mainnet's public RPC, 0 elsewhere. */
+export function callGapMs(chainId, env = process.env) {
+  const v = env.MATCH_DESK_CALL_GAP_MS;
+  if (v !== undefined && v !== '' && Number.isFinite(Number(v))) return Math.max(0, Number(v));
+  return chainId === 5042 ? 500 : 0;
+}
+
+/**
+ * Receipts that hold money or gifts: reconciled, sent (a tx hash, or an unknown outcome: hash null),
+ * mismatch (money moved), planned --send receipts (unknown outcome, no TTL), and other planned ones
+ * within the TTL. `mode` is the current round's mode: a dry-run
+ * receipt blocks its gifts only for other dry runs, so a --send or --fork round right after a dry run is
+ * not held. A printed command the founder ran by hand is still caught: the same gifts give the same
+ * memo, which the witness and the on-chain idempotency check both read.
+ */
+export function isCommitted(env, now, ttlMinutes, mode = 'dry-run') {
+  if (['reconciled', 'sent', 'mismatch'].includes(env.status)) return true;
+  if (env.status === 'planned') {
+    // A --send receipt still 'planned' means the process died while cast ran (Ctrl-C kills both): the
+    // outcome is unknown, so it stays committed past the TTL, like 'sent' with no hash, until the
+    // witness sees its memo or a human runs --release.
+    if (env.mode === 'send') return true;
+    if (env.mode === 'dry-run' && mode !== 'dry-run') return false;
+    return now - Date.parse(env.createdAt) <= ttlMinutes * 60_000;
+  }
+  return false;
+}
+
+/** File in the state dir: { "<orphan tx>": { memo, at } } written by run.mjs --ack-orphan. */
+export const ORPHAN_ACKS = 'orphan-acks.json';
+
+/** Memo prefixes that mark Token Tails' own money (agent gifts, backend matches). Never matched, whoever paid. */
+export const TT_INTERNAL_MEMO = /^tt:(?:agent|match):/;
+
+/**
+ * Observe for the match desk. Reuses the treat-agent reads and returns the old observation shape plus
+ * obs.matchDesk. Witness runs here (before decide) and saves the receipts it moves.
+ * Throws GuardError (run.mjs exits 2) when the chain, split, agent or owner differ from sponsor.json.
+ */
+export async function observeMatchDesk({
+  rpc, sponsor, policyHash, now = Date.now(), fetchImpl = globalThis.fetch, dir = null,
+  api = process.env.MATCH_DESK_API ?? DEFAULT_API, ttSenders = process.env.TREAT_AGENT_TT_SENDERS || '',
+  chunk = Number(process.env.TREAT_AGENT_LOG_CHUNK) || 50_000, statementFile = PUBLISHED_STATEMENT,
+  campaignFile, factsFile, mode = 'dry-run',
+}) {
+  const S = sponsor;
+  const P = S.policy;
+  const spender = S.spender.address;
+  if (!spender || S.spender.deployBlock === null) {
+    throw new GuardError('sponsor.json has no spender address or deploy block yet (init state): deploy, then paste both');
+  }
+  const chainId = Number(BigInt(await rpc('eth_chainId')));
+  if (chainId !== S.chainId) throw new GuardError(`eth_chainId ${chainId} != sponsor.json chainId ${S.chainId}`);
+  const head = await rpc('eth_getBlockByNumber', ['latest', false]);
+  const toBlock = Number(BigInt(head.number));
+  const headTs = Number(BigInt(head.timestamp));
+
+  const st = await readSpenderState(rpc, spender, chainId);
+  const owner = addressAt(await call(rpc, spender, SEL.owner), 0);
+  if (st.split.toLowerCase() !== S.split) throw new GuardError(`on-chain split ${st.split} != sponsor.json split ${S.split}`);
+  if (S.spender.agent && st.agent.toLowerCase() !== S.spender.agent) throw new GuardError(`on-chain agent ${st.agent} != sponsor.json agent ${S.spender.agent}`);
+  if (S.spender.owner && owner.toLowerCase() !== S.spender.owner) throw new GuardError(`on-chain owner ${owner} != sponsor.json owner ${S.spender.owner}`);
+  const paused = boolAt(await call(rpc, S.split, SEL.paused), 0);
+
+  // Window: maxGiftAgeHours (plus a margin for the block-time estimate), never before validFrom.
+  // The exact age and validFrom checks run on block timestamps below.
+  const { secsPerBlock, fromBlock: ageFrom } = await blockWindow(rpc, { toBlock, headTs, hours: P.maxGiftAgeHours * 1.1 + 0.1 });
+  const validFromS = Math.floor(P.validFromMs / 1000);
+  const sinceValid = Math.max(0, toBlock - Math.ceil(Math.max(0, headTs - validFromS) / secsPerBlock * 1.1) - 10);
+  const fromBlock = Math.max(ageFrom, sinceValid);
+
+  const backend = await readBackend({ api, chainId, split: S.split, fetchImpl, now });
+  const getLogs = (f) => getLogsChunked(rpc, { ...f, chunk });
+
+  const batches = (await getLogs({ address: S.split, topics: [[TOPIC.DisbursementBatch, TOPIC.NativeDisbursementBatch]], fromBlock, toBlock }))
+    .map((l) => decodeBatch(l, { tokenDecimals: st.tokenDecimals }));
+  const routerByKey = new Map();
+  if (S.router) {
+    const logs = await getLogs({ address: S.router, topics: [TOPIC.RouterDonation], fromBlock, toBlock });
+    for (const r of logs.map((l) => decodeRouterDonation(l, { tokenDecimals: st.tokenDecimals }))) {
+      routerByKey.set(`${r.tx.toLowerCase()}|${r.batchId}`, r);
+    }
+  }
+  const agentGifts = await readAgentGifts({ getLogs, spender, fromBlock: S.spender.deployBlock, toBlock });
+
+  // Receipts: local state, plus anything already published for this spender.
+  const local = dir ? await loadEnvelopes(dir) : { envelopes: [], bad: [] };
+  const bySha = new Map(local.envelopes.map((e) => [e.sha256, e]));
+  for (const e of await loadPublished(statementFile, spender)) if (!bySha.has(e.sha256)) bySha.set(e.sha256, e);
+  const envelopes = [...bySha.values()].filter((e) => e.receipt.spender === spender && e.receipt.chainId === chainId);
+  const w = await witness({
+    envelopes, events: agentGifts, sponsorId: S.sponsor.id, now, ttlMinutes: P.plannedTtlMinutes,
+    getTxReceipt: (h) => rpc('eth_getTransactionReceipt', [h]),
+  });
+  if (dir) for (const e of w.changed) await saveEnvelope(dir, e);
+  const flagged = dir ? await readJson(path.join(dir, 'flagged.json'), {}) : {};
+  // Orphans (our memo on-chain, no receipt here) are reported and hold every match until a human
+  // acknowledges each one (run.mjs --ack-orphan <tx>): their gifts are unknown and could be matched twice.
+  const orphanAcks = dir ? await readJson(path.join(dir, ORPHAN_ACKS), {}) : {};
+  const orphans = w.summary.orphans.map((o) => ({ ...o, acked: Object.hasOwn(orphanAcks, o.tx) }));
+
+  // What the receipts already hold.
+  const ttl = P.plannedTtlMinutes;
+  const today = utcDay(now);
+  const giftState = new Map();
+  const donorUsedMicro = {};
+  let committedMicro = 0n;
+  let matchedTodayMicro = 0n;
+  for (const e of envelopes) {
+    if (!isCommitted(e, now, ttl, mode)) continue;
+    committedMicro += BigInt(e.receipt.amountMicro);
+    const pending = e.status === 'planned';
+    for (const g of e.receipt.gifts) {
+      if (giftState.get(g.id) !== 'matched') giftState.set(g.id, pending ? 'pending' : 'matched');
+      const key = `${donorKeyOf(g)}|${g.day}`;
+      donorUsedMicro[key] = (donorUsedMicro[key] || 0n) + BigInt(g.matchMicro);
+      if (g.day === today) matchedTodayMicro += BigInt(g.matchMicro);
+    }
+  }
+
+  // Gifts (RPC is the truth; the index only supplies timestamps).
+  const trusted = trustedSenders(spender, ttSenders);
+  const oldMatched = matchedPrefixes(batches, trusted);
+  const blockTs = new Map();
+  const tsOf = async (b) => {
+    const fromIndex = backend.payouts?.ok ? backend.payouts.timestamps[b.tx.toLowerCase()] : undefined;
+    if (Number.isSafeInteger(fromIndex)) return fromIndex;
+    if (!blockTs.has(b.block)) {
+      const blk = await rpc('eth_getBlockByNumber', ['0x' + b.block.toString(16), false]);
+      blockTs.set(b.block, Number(BigInt(blk.timestamp)));
+    }
+    return blockTs.get(b.block);
+  };
+  // Never matched: the policy's list, the vault, its agent and owner (the sponsor), the split, the router,
+  // and the shelter wallet itself (Token Tails still holds it until the handover; matching it is circular).
+  const excluded = new Set([
+    ...P.excludedSenders, spender, st.agent.toLowerCase(), owner.toLowerCase(), S.split, S.shelter.wallet.toLowerCase(),
+    ...(S.router ? [S.router] : []),
+  ]);
+  const blockRouter = routerBlocked(backend);
+  const totals = { public: 0n, x402: 0n, agent: 0n, match: 0n, treat: 0n };
+  const gifts = [];
+  for (const b of batches) {
+    const base = classify(b.memo, b.payer, spender, trusted);
+    const micro = rawToMicro(b.toSheltersRaw, b.decimals);
+    totals[base] += micro;
+    if (base === 'agent' || base === 'match') continue;
+    const tx = b.tx.toLowerCase();
+    let kind = base;
+    let donor = b.payer.toLowerCase();
+    if (S.router && donor === S.router) {
+      // The router is never the donor: RouterDonation.donor is. Without one (a flush) the donor is unknown.
+      const r = routerByKey.get(`${tx}|${b.batchId}`);
+      kind = r ? `router-${r.path}` : 'router-flush';
+      donor = r && r.path !== 'flush' ? r.donor.toLowerCase() : null;
+    }
+    const ts = await tsOf(b);
+    const g = {
+      id: `${tx}:${b.logIndex}`, tx, logIndex: b.logIndex, block: b.block, ts, day: utcDay(ts * 1000), batchId: b.batchId,
+      kind, donor, giftMicro: micro, memo: b.memo, status: 'eligible',
+    };
+    const kindOn = kind === 'treat' ? P.eligible.matchTreats : P.eligible.kinds.has(kind);
+    if (giftState.has(g.id)) g.status = giftState.get(g.id);
+    else if (oldMatched.has(tx.slice(2, 10))) g.status = 'matched';
+    // A tt:agent: / tt:match: memo from an untrusted payer is public money (classify), but it is never
+    // matched: it may be Token Tails' own agent money from a payer not listed in TREAT_AGENT_TT_SENDERS,
+    // and a stranger who writes that memo only opts out of matching.
+    else if (TT_INTERNAL_MEMO.test(b.memo || '')) g.status = 'tt-internal';
+    else if (flagged[g.id]) g.status = 'flagged';
+    else if (ts < validFromS || now / 1000 - ts > P.maxGiftAgeHours * 3600) g.status = 'too-old';
+    else if (!kindOn) g.status = 'kind-off';
+    else if (kind.startsWith('router-') && blockRouter) g.status = 'router-backend';
+    else if (kind !== 'treat' && (!donor || excluded.has(donor))) g.status = 'excluded-sender';
+    else if (kind !== 'treat' && P.eligible.senders !== 'any' && !P.eligible.senders.has(donor)) g.status = 'not-allowlisted';
+    else if (micro < P.minGiftMicro) g.status = 'too-small';
+    gifts.push(g);
+  }
+  gifts.sort((a, b) => b.block - a.block || b.logIndex - a.logIndex);
+
+  // Farming: more than maxGiftsPerDonorDay gifts from one donor in a UTC day, or >= 3 gifts of exactly minGift.
+  const groups = new Map();
+  for (const g of gifts) {
+    if (!g.donor || g.kind === 'treat') continue;
+    const k = `${g.donor}|${g.day}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(g);
+  }
+  const farmingSignals = [];
+  for (const [k, list] of groups) {
+    const [donor, day] = k.split('|');
+    const atMin = list.filter((g) => g.giftMicro === P.minGiftMicro).length;
+    let reason = null;
+    if (list.length > P.farming.maxGiftsPerDonorDay) reason = `${list.length} gifts in one UTC day (more than ${P.farming.maxGiftsPerDonorDay})`;
+    else if (atMin >= 3) reason = `${atMin} gifts of exactly the minimum ${formatMicro(P.minGiftMicro)} USDC`;
+    if (!reason) continue;
+    farmingSignals.push({
+      donor, day, gifts: list.length, totalMicro: list.reduce((a, g) => a + g.giftMicro, 0n), reason,
+      giftIds: list.filter((g) => g.status === 'eligible').map((g) => g.id),
+    });
+  }
+  farmingSignals.sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : a.donor < b.donor ? -1 : 1));
+
+  // Index cross-check: RPC gifts that a fresh index lacks (informational).
+  const p = backend.payouts;
+  const indexed = p?.ok ? new Set(p.txs) : null;
+  const missing = indexed && !p.stale && p.indexedThrough.block !== null
+    ? gifts.filter((g) => g.block <= p.indexedThrough.block && !indexed.has(g.tx)).map((g) => g.id)
+    : [];
+
+  const toMicro = (raw) => rawToMicro(raw, st.unit);
+  const caps = {
+    perTxMicro: toMicro(st.perTx), dailyMicro: toMicro(st.daily), remainingTodayMicro: toMicro(st.remaining),
+    floatMicro: toMicro(st.float), unitDecimals: st.unit,
+  };
+  const leftMicro = P.budgetMicro > committedMicro ? P.budgetMicro - committedMicro : 0n;
+
+  // Pace: cumulative commitments against a straight line from pace.from to pace.to.
+  let pace = { from: P.pace.from, to: P.pace.to, daysLeft: 0, targetPerDayMicro: 0n, matchedTodayMicro, status: 'n/a' };
+  if (today >= P.pace.from && today <= P.pace.to) {
+    const total = dayIndex(P.pace.to) - dayIndex(P.pace.from) + 1;
+    const elapsed = dayIndex(today) - dayIndex(P.pace.from) + 1;
+    const daysLeft = dayIndex(P.pace.to) - dayIndex(today) + 1;
+    const expected = (P.budgetMicro * BigInt(elapsed)) / BigInt(total);
+    let status = 'on';
+    if (committedMicro > expected + P.perGiftMaxMicro) status = 'ahead';
+    else if (committedMicro + P.perGiftMaxMicro < expected) status = 'behind';
+    pace = { ...pace, daysLeft, targetPerDayMicro: leftMicro / BigInt(daysLeft), status };
+  }
+
+  const network = chainId === 5042 ? 'mainnet' : chainId === 5042002 ? 'testnet' : 'local';
+  const matchDesk = {
+    sponsor: { id: S.sponsor.id, name: S.sponsor.name, relatedParty: S.sponsor.relatedParty, label: S.sponsor.label },
+    policyHash,
+    chainId,
+    network,
+    spender: { address: spender, owner: owner.toLowerCase(), agent: st.agent.toLowerCase(), deployBlock: S.spender.deployBlock },
+    split: { address: S.split, paused },
+    caps,
+    capsRaw: { perTx: st.perTx, daily: st.daily, remaining: st.remaining, spent: st.spent, float: st.float },
+    policy: {
+      ratioBps: P.ratioBps, perGiftMaxMicro: P.perGiftMaxMicro, perDonorDailyMaxMicro: P.perDonorDailyMaxMicro,
+      treatsDailyMaxMicro: P.eligible.treatsDailyMaxMicro, minGiftMicro: P.minGiftMicro,
+    },
+    budget: { budgetMicro: P.budgetMicro, committedMicro, leftMicro },
+    gifts,
+    donorUsedMicro,
+    farmingSignals,
+    pace,
+    floatLow: caps.floatMicro < P.pace.floatLowMicro || caps.floatMicro < P.perGiftMaxMicro,
+    refundAllowed: now > Date.parse(P.refund.after + 'T23:59:59.999Z'),
+    backend: {
+      payouts: { ok: !!p?.ok, stale: p?.ok ? p.stale : null, missing, ...(p?.ok ? {} : { error: p?.error }) },
+      donateStatus: {
+        ok: !!backend.donateStatus?.ok, railState: backend.donateStatus?.railState ?? null,
+        splitMatches: backend.donateStatus?.splitMatches ?? null, ...(backend.donateStatus?.ok ? {} : { error: backend.donateStatus?.error }),
+      },
+      match: { ok: !!backend.match?.ok, state: backend.match?.state ?? null, ...(backend.match?.ok ? {} : { error: backend.match?.error }) },
+      splitMismatch: splitMismatch(backend),
+      routerBlocked: blockRouter,
+    },
+    witness: {
+      reconciled: w.summary.reconciled, failed: w.summary.failed, expired: w.summary.expired,
+      orphans, collisions: w.summary.collisions, stuck: w.summary.stuck,
+      badLocalReceipts: local.bad.map((b) => b.file),
+    },
+  };
+
+  const unit = st.unit;
+  const usdc = (m) => Number(formatMicro(m));
+  const pub = gifts.filter((g) => g.kind !== 'treat');
+  const publicGifts = pub.map((g) => ({
+    tx: g.tx, txPrefix: g.tx.slice(2, 10), amountUsdc: usdc(g.giftMicro), kind: g.kind, block: g.block, matched: g.status === 'matched' || g.status === 'pending',
+  }));
+  let campaign = null;
+  try {
+    const c = await readCampaign({ campaignFile, factsFile, now });
+    campaign = { ...c, sameChain: c.chainId === chainId };
+  } catch { /* optional context */ }
+
+  const obs = {
+    at: new Date(now).toISOString(),
+    chainId,
+    window: { hours: P.maxGiftAgeHours, fromBlock, toBlock, secsPerBlock: round6(secsPerBlock) },
+    spender: {
+      address: spender,
+      agent: st.agent,
+      native: st.native,
+      unitDecimals: unit,
+      token: st.token,
+      perTxCapUsdc: toUsdc(st.perTx, unit),
+      dailyCapUsdc: toUsdc(st.daily, unit),
+      spentTodayUsdc: toUsdc(st.spent, unit),
+      remainingTodayUsdc: toUsdc(st.remaining, unit),
+      floatUsdc: toUsdc(st.float, unit),
+      raw: { perTx: st.perTx.toString(), daily: st.daily.toString(), remaining: st.remaining.toString(), float: st.float.toString() },
+    },
+    split: { address: S.split, paused },
+    trustedTtSenders: trusted.size,
+    last24h: {
+      publicGiftsUsdc: usdc(totals.public + totals.x402),
+      tokenTailsUsdc: usdc(totals.agent + totals.match + totals.treat),
+      agentGiftsUsdc: usdc(totals.agent),
+      matchesUsdc: usdc(totals.match),
+      treatsUsdc: usdc(totals.treat),
+      publicGifts,
+      unmatchedPublicGifts: publicGifts.filter((_, i) => pub[i].status === 'eligible'),
+      routerMatchedByBackend: blockRouter,
+      routerGifts: routerByKey.size,
+    },
+    campaign,
+    needs: null,
+    matchDesk,
+  };
+  // Not part of the observation hash: the receipts this round read (run.mjs needs them for idempotency).
+  Object.defineProperty(obs, 'envelopes', { value: envelopes, enumerable: false });
+  return obs;
+}
