@@ -38,7 +38,8 @@ export function fakePolicy(facts, { demo }) {
  * Match-desk stand-in. Deterministic:
  * - TREAT_AGENT_FAKE_WRONG=1: match the newest eligible gift with match_if_alone + 0.000001 USDC, so the
  *   checker rejection can be shown (tests, fork demo);
- * - else match the newest eligible gift that is not in a farming signal, alone, with match_if_alone_usdc;
+ * - else match the newest eligible gift that is not in a farming signal, alone, with match_if_alone_usdc and the
+ *   sponsor_id code picked for it;
  * - else flag farming when a signal lists eligible gifts;
  * - else hold.
  */
@@ -49,6 +50,7 @@ export function fakeMatchPolicy(facts, { wrong = false } = {}) {
     return tool('match_gift', {
       gift_ids: [g.gift_id],
       amount_usdc: addMicro(g.match_if_alone_usdc, 1n),
+      sponsor_id: g.sponsor_id || '',
       rationale: `Matching a fresh ${g.gift_usdc} USDC gift (deliberately off by 0.000001 USDC to show the checker).`,
     });
   }
@@ -58,7 +60,8 @@ export function fakeMatchPolicy(facts, { wrong = false } = {}) {
     return tool('match_gift', {
       gift_ids: [g.gift_id],
       amount_usdc: g.match_if_alone_usdc,
-      rationale: `Matching a fresh ${g.gift_usdc} USDC public gift ${facts.ratio}, within the sponsor's limits.`,
+      sponsor_id: g.sponsor_id || '',
+      rationale: `Matching a fresh ${g.gift_usdc} USDC public gift ${ratioFor(facts, g)} from ${sponsorName(facts, g)}, within its limits.`,
     });
   }
   const f = facts.farming_signals.find((x) => x.gift_ids.length);
@@ -67,6 +70,10 @@ export function fakeMatchPolicy(facts, { wrong = false } = {}) {
   }
   return tool('hold', { rationale: 'No eligible gift to match right now.' });
 }
+
+const sponsorOf = (facts, g) => (facts.sponsors || []).find((s) => s.sponsor_id === g.sponsor_id) || null;
+const ratioFor = (facts, g) => sponsorOf(facts, g)?.ratio || facts.ratio || '1:1';
+const sponsorName = (facts, g) => (sponsorOf(facts, g)?.label || facts.sponsor_label || 'the sponsor').split(',')[0];
 
 /** "0.02" + 1 micro -> "0.020001" (exact decimal arithmetic). */
 function addMicro(usdc, micro) {

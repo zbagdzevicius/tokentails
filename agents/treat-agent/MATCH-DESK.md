@@ -1,24 +1,66 @@
-# Sponsor Match Desk: build spec
+# Match Desk: build spec
 
-Status: design, Oct 13, 2026. This file is the contract between three parallel work sets (A, B, C,
-listed at the end). Where this file and the code disagree, fix the code or update this file in the same
-change.
+Status: multi-sponsor desk, Oct 13, 2026 (the single-sponsor design of the same day is section
+"v1 sponsor.json" below). This file is the contract between three parallel work sets (A, B, C, listed at
+the end). Where this file and the code disagree, fix the code or update this file in the same change.
 
 ## What it is
 
-A sponsor puts USDC into a `CappedSpender` vault on Arc. Each round, the treat agent:
+Several companies each put USDC into **their own** `CappedSpender` vault on Arc (the existing,
+Sourcify-verified contract, unchanged). Every vault names the **same agent** address. So one AI agent
+holds spending power over a treasury pooled from several companies and pays it out to the shelter,
+capped on-chain per vault, with a receipt for every payout. Each vault's owner is that company's own
+keystore: only the owner can fund it (`receive()` accepts only the owner) and only the owner can take the
+unspent float back, to itself (`withdraw`). The agent can only `give()`, and `give()` only pays
+ShelterSplit, which pays the Pink Paw entry at 10000 bps.
 
-1. **observes** fresh public gifts to Pink Paw's ShelterSplit, the vault's caps and float, and three
-   public Token Tails read endpoints;
+Initial sponsors (`desk.example.json`):
+
+| id | name | relatedParty | relation | label | owner keystore |
+|---|---|---|---|---|---|
+| `motored` | Motored.lt | true | founder's company | related-party sponsor (founder's company) | `motored-owner` |
+| `tokentails` | Token Tails | true | operator (Token Tails' own money) | operator's own money | `tt-sponsor-owner` (founder decides the address; the treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` is an option, never the hot, treat or agent wallets) |
+
+Each vault: about 1 USDC, `perTxCap` 0.05, `dailyCap` 0.20 (18-decimal native values, see correction 1).
+
+Each round, the agent:
+
+1. **observes** fresh public gifts to Pink Paw's ShelterSplit, every vault's caps, float, owner and
+   agent, and three public Token Tails read endpoints;
 2. **decides**: Claude calls one tool (`match_gift`, `hold`, `flag` or `propose_refund`);
-3. **checks**: code recomputes the match amount from the written policy and **rejects** any model
-   decision whose amount differs. The code does not quietly correct it;
-4. **acts**: it calls `CappedSpender.give(amount, memo)`. The vault pays ShelterSplit, which pays the
-   Pink Paw entry at 10000 bps. By default the agent prints the command and the founder runs it. With
-   `--fork` it sends to a local anvil fork. With `--send` the founder sends from their own terminal;
-5. **writes a receipt** (JSON). Its sha256 goes into the on-chain memo `tt:agent:m:<sponsor>:<hash8>`;
-6. **witnesses**: the next round reads the `AgentGift` event back and marks the receipt `reconciled`;
-7. **publishes** a static statement page built from the receipts.
+3. **allocates and checks**: code picks the paying vault (the allocation rule below), recomputes the
+   match amount from the written policy and **rejects** any model decision whose amount differs or that
+   names another sponsor. The code does not quietly correct it;
+4. **acts**: it calls `give(amount, memo)` on the chosen vault. The vault pays ShelterSplit, which pays
+   the Pink Paw entry at 10000 bps. By default the agent prints the command and the founder runs it.
+   With `--fork` it sends to a local anvil fork. With `--send` the founder sends from their own terminal;
+5. **writes a receipt** (JSON: sponsor id, vault, policy hash). Its sha256 goes into the on-chain memo
+   `tt:agent:m:<sponsor>:<hash8>`;
+6. **witnesses**: the next round reads every vault's `AgentGift` events back and marks the receipts
+   `reconciled`;
+7. **publishes** a static statement page built from the receipts: one section per company and a desk
+   total paid to the shelter wallet.
+
+### The allocation rule (code, not the model)
+
+For each eligible gift (or a selection of gifts), the paying sponsor is the first one in **allocation
+order** (highest `priority`, then lowest `id`) that:
+
+- is not `paused` in the desk file and is valid now (`validFrom` ≤ now, and every selected gift is no
+  older than that sponsor's `validFrom`);
+- has budget left ≥ the amount, vault float ≥ the amount and `remainingToday` ≥ the amount.
+
+The amount is computed with that sponsor's ratio and `perGiftMaxUsdc` and the vault's `perTxCap`; it is
+**never** clamped to what a vault has left. One gift is matched by exactly one vault (no splitting
+across vaults). No sponsor can pay → the round holds (a code hold when no eligible gift fits any vault).
+Claude still decides `match_gift` / `hold` / `flag` / `propose_refund` and gives its reason; if it names
+a sponsor (`sponsor_id`), the checker refuses unless it is the code's pick. The per-donor daily limit,
+the farming rules and "a gift is matched once" are **desk-wide**, across all sponsors.
+
+**Deviation from the v1 checker (deliberate):** the v1 checker clamped a match to `remainingToday`,
+float and budget. With several vaults that would split a gift's match by accident of order; the desk
+instead moves the gift to the next vault, or holds. A one-sponsor desk therefore holds a gift its vault
+cannot pay in full (v1 matched part of it).
 
 `CappedSpender.sol` and every other contract under `contracts/shelter-split/src/` stay unchanged.
 The backend gets no new write path. The agent only reads the backend.
@@ -29,8 +71,13 @@ These sentences, or sentences with the same meaning, must appear wherever the ma
 in public. The statement generator emits them verbatim (see "Statement").
 
 - **Sponsor.** Motored.lt is a **related-party sponsor (founder's company)**. It is never called an
-  outside or independent sponsor. If no company funds the vault, the label is **self-sponsor (Token
-  Tails founder)**.
+  outside or independent sponsor. Token Tails' vault is the **operator's own money**
+  (`LABEL_OPERATOR`); it is never called a sponsor in the outside sense either. If the founder funds a
+  vault personally, the label is **self-sponsor (Token Tails founder)**. One line per sponsor.
+- **Pooled, capped.** (desks with several sponsors) Each company's money sits in its own capped vault,
+  and only that company can fund it or take back what is left. One AI agent can spend from every vault,
+  only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is
+  paid by one vault.
 - **Custody.** Pink Paw's wallet is still held by Token Tails until the handover. Matched money reaches
   that wallet. Pink Paw does not control it yet.
 - **Daily cap.** The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so
@@ -74,30 +121,105 @@ agents/treat-agent/
   run.mjs observe.mjs decide.mjs act.mjs log.mjs         (A: extended, old treat-agent mode unchanged)
   lib/policy.mjs lib/checker.mjs lib/receipt.mjs         (A: new)
   lib/witness.mjs lib/backend.mjs                        (A: new)
-  sponsor.example.json                                   (A: new)
+  desk.example.json                                      (A: the desk, two sponsors)
+  sponsor.example.json                                   (A: v1, one sponsor; still read)
   statement.mjs lib/statement-html.mjs                   (C: new)
   match-desk.sh fork-demo.sh README.md                   (B)
 client/public/match-desk/index.html statement.json       (C)
 ```
 
-**Mode switch.** `run.mjs --sponsor <file>` runs the match desk. Without `--sponsor`, `run.mjs` behaves
-exactly as today: `give_treat` / `hold`, and every existing test stays green.
+**Mode switch.** `run.mjs --sponsor <file>` (alias `--desk`) runs the match desk on a desk.json (v2)
+or a sponsor.json (v1). Without it, `run.mjs` behaves exactly as before: `give_treat` / `hold`, and every
+existing test stays green.
 
 **State directory.** `MATCH_DESK_DIR`, default `agents/treat-agent/runs/match-desk/`, which `runs/`
-already gitignores. Layout:
+already gitignores. One directory per desk, keyed by the chain and the first 12 hex of sha256 over the
+sorted, lowercase vault addresses joined by `,` (`deskKey`, `deskStateDir` in `lib/receipt.mjs`):
 
 ```
-<MATCH_DESK_DIR>/<chainId>-<spenderLower>/
-  receipts/<sha256>.json        one envelope per receipt (send, fork and dry-run modes)
+<MATCH_DESK_DIR>/<chainId>-desk-<key>/
+  receipts/<sha256>.json        one envelope per receipt, every vault (send, fork and dry-run modes)
   flagged.json                  { "<giftId>": { kind, at, rationale } }  gifts excluded until a human removes them
-  refund-proposal.json          the latest propose_refund (overwritten)
+  orphan-acks.json              { "<tx>": { memo, at } }  written by --ack-orphan
+  refund-proposal.json          the latest propose_refund (overwritten; names the sponsor)
 ```
 
-## sponsor.json (policy file)
+**Migration from v1 (and from a smaller desk).** The v1 directory was `<chainId>-<spenderLower>/`.
+Every round also reads the sibling directories on the same chain (`<chainId>-<vault>/` for each vault
+of the desk, and every other `<chainId>-desk-*/`): their receipts for one of this desk's vaults, their
+`flagged.json` and `orphan-acks.json` (this desk's own files win). A receipt read that way is copied into
+the desk directory the first time it is saved again (witness, status change); old directories are never
+deleted or written. So adding a second sponsor (which changes the key) never reopens a gift matched by
+the first vault. The statement reads the same set of directories.
 
-`sponsor.example.json` is committed with placeholders (`null` until the deploy). The founder copies it
-to `sponsor.arc-testnet.json` / `sponsor.arc.json`, which `match-desk.sh init` creates. Those copies
-contain only public addresses and may be committed after the deploy.
+## desk.json (policy file, `tt.match-desk.desk/v2`)
+
+`desk.example.json` is committed with placeholders (`null` until the deploys). `match-desk.sh init
+testnet|mainnet` copies it to `desk.arc-testnet.json` / `desk.arc.json`; `match-desk.sh deploy <desk>
+--sponsor <id>` writes each vault (and the agent) into it. Those copies contain only public addresses and
+may be committed after the deploy.
+
+```json
+{
+  "schema": "tt.match-desk.desk/v2",
+  "chainId": 5042,
+  "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+  "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
+  "shelter": { "name": "Pink Paw (Rožinė pėdutė)", "wallet": "0xE299…0f37", "custody": "held-by-token-tails" },
+  "agent": null,
+  "policy": {
+    "perDonorDailyMaxUsdc": "0.05", "minGiftUsdc": "0.01", "maxGiftAgeHours": 48,
+    "eligible": { "chains": [5042], "kinds": ["public", "router-native", "router-authorization"],
+                  "senders": "any", "matchTreats": false, "treatsDailyMaxUsdc": "0" },
+    "excludedSenders": ["…the four Token Tails wallets, as in v1…"],
+    "farming": { "maxGiftsPerDonorDay": 5 },
+    "plannedTtlMinutes": 30
+  },
+  "sponsors": [
+    { "id": "motored", "name": "Motored.lt", "relatedParty": true, "relation": "founder's company",
+      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "priority": 20, "ratioBps": 10000, "perGiftMaxUsdc": "0.05", "budgetUsdc": "1.00",
+      "validFrom": "2026-10-14T00:00:00Z",
+      "pace": { "from": "2026-10-15", "to": "2026-11-15", "floatLowUsdc": "0.10" },
+      "refund": { "after": "2026-11-15", "to": "owner" } },
+    { "id": "tokentails", "name": "Token Tails", "relatedParty": true, "relation": "operator (Token Tails' own money)",
+      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "priority": 10, "…": "same terms" }
+  ]
+}
+```
+
+**Shared (desk-wide):** `chainId`, `split`, `router`, `shelter`, `agent` (one address for every vault;
+`null` until the first deploy), and `policy` = `perDonorDailyMaxUsdc`, `minGiftUsdc`, `maxGiftAgeHours`,
+`eligible`, `excludedSenders`, `farming`, `plannedTtlMinutes`. **Per sponsor:** `id`, `name`,
+`relatedParty`, `relation`, `spender {address, deployBlock, owner}`, `priority`, `ratioBps`,
+`perGiftMaxUsdc`, `budgetUsdc`, `validFrom`, `pace`, `refund`, optional `paused`.
+
+**Validation (`lib/policy.mjs`, `loadDesk(file) → {desk}`, `validateDesk(raw)`)**: each sponsor's view
+(shared fields + its entry) must pass every v1 row below (the v1 validator runs on it; errors name
+`sponsors[i] (id)`). Plus: 1…8 sponsors; unique ids; one vault per sponsor (no address twice); a
+per-sponsor key in the shared `policy` is refused; `spender.agent` per sponsor is refused (the agent is
+desk-wide); the agent is never a vault owner or a vault; `priority` integer 0…1000; `paused` boolean.
+Token Tails (`id` `tokentails` or a name containing "Token Tails") must have `relatedParty: true`, like
+Motored.lt. The normalised desk lists sponsors in allocation order; each has the v1 sponsor shape (so the
+per-vault code paths are unchanged) plus `priority`, `paused` and `policyHash`.
+
+Code always excludes, as senders: every vault, every vault owner, the agent, the split, the router (as a
+payer) and the shelter wallet, whatever the file says.
+
+**Policy hash (per sponsor)** = sha256 hex of `canonical({ policy: <shared policy object>, sponsor:
+<that sponsor's entry without "paused"> })`, both exactly as written (`deskPolicyHashOf`; `paused` is an
+operational switch, not policy). Another sponsor's entry never
+changes it; the shared policy and the sponsor's own entry (including its vault address) do. It is the
+`policySha256` in that sponsor's receipts and on the statement.
+
+**v1 normalisation.** A `tt.match-desk.sponsor/v1` file is read as a desk with one sponsor (priority 0,
+not paused, `agent` = `spender.agent`). Its policy hash stays `policyHashOf(policy)`, so receipts and
+memos written before the desk keep their hashes. Every v1 fixture and test still runs.
+
+## v1 sponsor.json (one sponsor, still read)
+
+`sponsor.example.json` is the v1 one-sponsor file. New deployments use `desk.example.json`.
 
 ```json
 {
@@ -188,8 +310,9 @@ Turning it on is a founder decision.
 
 ## Observe additions (A: `observe.mjs`, `lib/backend.mjs`)
 
-`observe()` stays as is for the old mode. A new `observeMatchDesk({rpc, sponsor, now, fetchImpl, dir})`
-reuses its helpers and returns `obs` with the old shape **plus** `obs.matchDesk`.
+`observe()` stays as is for the old mode. `observeMatchDesk({rpc, desk, now, fetchImpl, dir})` (or the
+old `{sponsor, policyHash}`, normalised to a one-sponsor desk) reuses its helpers and returns `obs` with
+the old shape **plus** `obs.matchDesk`. It reads **every vault** each round.
 
 ### RPC (truth)
 
@@ -201,9 +324,12 @@ reuses its helpers and returns `obs` with the old shape **plus** `obs.matchDesk`
 - `RouterDonation` logs on `sponsor.router` (when not null). They map batch tx → donor and path.
 - Block timestamps: `eth_getBlockByNumber` for each distinct gift block, cached per round. The index
   timestamp is used when present. **Day = UTC `YYYY-MM-DD` of the block time.**
-- Spender: the existing caps, float, `remainingToday` and `agent` reads, plus `owner()` (selector
-  `0x8da5cb5b`, pinned in `lib/abi.mjs`). Refuse to run (exit 2) when the on-chain `split`, `agent` or
-  `owner` differs from `sponsor.json`.
+- Every vault: the existing caps, float, `remainingToday` and `agent` reads, plus `owner()` (selector
+  `0x8da5cb5b`, pinned in `lib/abi.mjs`). Refuse to run (exit 2) when a vault's on-chain `split`,
+  `agent` or `owner` differs from the desk file, when the vaults do not all report **the same agent**,
+  or when they mix native and ERC-20 units.
+- Every vault, from its `deployBlock`: `AgentGift` (witness, idempotency), and `Funded` / `Withdrawn`
+  (topics `0x5af8184b…a524` / `0x7084f547…05d5`, pinned) for the funded and withdrawn totals.
 - Rate limit: `MATCH_DESK_CALL_GAP_MS`, default 500 on chain 5042 and 0 elsewhere, between RPC calls
   (Arc mainnet's public RPC answers about 2 calls a second).
 - Witness reads (below) run inside observe, before decide.
@@ -223,7 +349,18 @@ Each call has a 10 s timeout and sends no headers beyond `accept: application/js
 
 ```js
 {
-  sponsor: { id, name, relatedParty, label },  // label: "related-party sponsor (founder's company)" | "self-sponsor (Token Tails founder)" | "sponsor"
+  desk: { schema, vaults, agent },
+  sponsors: [{                                     // allocation order (priority desc, id asc)
+    id, name, relatedParty, relation, label, priority, paused, policyHash,
+    spender: { address, owner, agent, deployBlock },
+    caps, capsRaw, budget, pace, floatLow, refundAllowed,   // per vault / per sponsor, shapes as below
+    policy: { ratioBps, perGiftMaxMicro, validFromMs },
+    flows: { fundedMicro, withdrawnMicro, givenMicro },
+    unavailable: null | 'paused in desk.json' | 'not valid before …' | "today's on-chain cap is used up …"
+               | 'the vault float is empty' | "the sponsor's budget is used up",
+  }],
+  // The first sponsor in allocation order, in the v1 fields (a one-sponsor desk reads exactly as v1):
+  sponsor: { id, name, relatedParty, label },  // label: "related-party sponsor (founder's company)" | "operator's own money" | "self-sponsor (Token Tails founder)" | "sponsor"
   policyHash,
   chainId, network,                               // 'mainnet' | 'testnet' | 'local'
   caps: { perTxMicro, dailyMicro, remainingTodayMicro, floatMicro, unitDecimals },   // bigint
@@ -231,15 +368,18 @@ Each call has a 10 s timeout and sends no headers beyond `accept: application/js
   gifts: [{ id, tx, logIndex, block, ts, day, batchId, kind, donor, giftMicro,
             status: 'eligible' | 'matched' | 'pending' | 'flagged' | 'too-old' | 'too-small'
                   | 'excluded-sender' | 'not-allowlisted' | 'router-backend' | 'kind-off' | 'tt-internal' }],
-  donorUsedMicro: { "<donor>|<day>": bigint },    // from receipts (reconciled + sent + live planned)
+  donorUsedMicro: { "<donor>|<day>": bigint },    // from every vault's receipts (reconciled + sent + live planned): desk-wide
   farmingSignals: [{ donor, day, gifts, totalMicro, reason }],  // > maxGiftsPerDonorDay gifts, or ≥ 3 gifts of exactly minGift
   pace: { from, to, daysLeft, targetPerDayMicro, matchedTodayMicro, status: 'ahead' | 'on' | 'behind' | 'n/a' },
-  floatLow: boolean,                               // floatMicro < floatLowUsdc or < perGiftMax
-  refundAllowed: boolean,                          // now > refund.after (UTC end of day)
+  floatLow: boolean,                               // any sponsor: floatMicro < floatLowUsdc or < perGiftMax
+  refundAllowed: boolean,                          // any sponsor: now > refund.after (UTC end of day)
   backend: { payouts: {ok, stale, missing}, donateStatus: {ok, railState, splitMatches}, match: {ok, state} },
-  witness: { reconciled: [sha], failed: [sha], expired: [sha], orphans: [{memo, tx}], collisions: [sha] }
+  witness: { reconciled: [sha], failed: [sha], expired: [sha], orphans: [{memo, tx, sponsor, spender, acked}], collisions: [sha], imported }
 }
 ```
+
+Budget (`committedMicro`) is per sponsor (its own vault's receipts); gift status and the per-donor room
+are desk-wide (every vault's receipts): a gift matched by any vault is `matched` for all of them.
 
 A gift is `matched` when any receipt with status `reconciled` or `sent`, or a `planned` receipt within
 `plannedTtlMinutes`, lists its id. It is `pending` while that planned receipt is still live. A
@@ -247,19 +387,21 @@ A gift is `matched` when any receipt with status `reconciled` or `sent`, or a `p
 round right after a dry run is not held (the same gifts give the same memo, so a printed command the
 founder ran by hand is still caught by the witness and the idempotency check).
 
-Never matched (`excluded-sender`): `excludedSenders`, the vault, its agent and owner, the split, the
-router, and `shelter.wallet` itself (Token Tails holds it until the handover, so matching it would be
+Never matched (`excluded-sender`): `excludedSenders`, every vault, the agent, every vault owner, the
+split, the router, and `shelter.wallet` itself (Token Tails holds it until the handover, so matching it would be
 circular). A batch whose memo starts with `tt:agent:` or `tt:match:` is `tt-internal` whoever paid
 (it may be Token Tails' own agent money from a payer not in `TREAT_AGENT_TT_SENDERS`); a stranger who
 writes such a memo only opts out of matching. The old
 `tt:agent:match-<8hex>` / `tt:match:<8hex>` prefixes still count as matched (trusted payers only), so
 earlier treat-agent matches are never matched again. Receipts also load from
-`client/public/match-desk/statement.json` when its `contract.spender` equals this spender, so a lost
-local state directory cannot reopen published matches.
+`client/public/match-desk/statement.json` for any of the desk's vaults (v1 `contract.spender` or desk
+`sponsors[].vault.spender`), so a lost local state directory cannot reopen published matches.
 
-**Code-only holds (no model call, no API cost):** split paused; `remainingTodayMicro == 0`;
-`floatMicro == 0`; `budget.leftMicro == 0`; donate-status split mismatch; no eligible gift and
-`!refundAllowed && !floatLow`. The hold rationale names the reason.
+**Code-only holds (no model call, no API cost):** split paused; donate-status split mismatch; an
+unacknowledged orphan; **every** sponsor unavailable (each one's reason is named; a one-sponsor desk
+gives the v1 sentence, e.g. "the sponsor's budget is used up"); no eligible gift and
+`!refundAllowed && !floatLow`; eligible gifts but none that any vault can pay in full (and no farming
+signal, refund or low float to flag). The hold rationale names the reason.
 
 ## Decide (A: `decide.mjs`)
 
@@ -270,20 +412,25 @@ Same Messages API call shape as today (model `claude-opus-5-5`, adaptive thinkin
 
 ### Facts the model sees (snake_case, decimal-string USDC)
 
-`sponsor_label`, `ratio` ("1:1"), `per_gift_max_usdc`, `per_donor_daily_max_usdc`, `budget_left_usdc`,
-`per_tx_cap_usdc`, `remaining_today_usdc`, `float_usdc`, `float_low`, `pace`, `refund_allowed`,
-`eligible_gifts` (≤ 20, newest first: `gift_id`, `donor_short`, `kind`, `gift_usdc`,
-`donor_room_usdc`, `match_if_alone_usdc`, `age_minutes`), `farming_signals`, and `the_rule`. The last
-one is the checker formula in one sentence, so the model can compute the amount exactly.
+`sponsor_label` (every sponsor with its label), `per_donor_daily_max_usdc`, `float_low`,
+`refund_allowed`, `sponsors` (allocation order: `sponsor_id`, `label`, `priority`, `available`,
+`unavailable_because`, `ratio`, `per_gift_max_usdc`, `budget_left_usdc`, `per_tx_cap_usdc`,
+`remaining_today_usdc`, `float_usdc`, `float_low`, `pace`, `refund_allowed`), `eligible_gifts` (≤ 20,
+newest first: `gift_id`, `donor_short`, `kind`, `gift_usdc`, `donor_room_usdc`, `sponsor_id` (the code's
+pick for this gift alone, or null), `match_if_alone_usdc`, `age_minutes`), `farming_signals`, and
+`the_rule`. The last one is the allocation rule and the checker formula in one paragraph, so the model
+can name the sponsor and compute the amount exactly. A one-sponsor desk also gets the v1 flat fields
+(`ratio`, `per_gift_max_usdc`, `budget_left_usdc`, `per_tx_cap_usdc`, `remaining_today_usdc`,
+`float_usdc`, `pace`).
 
 ### Tools (all `strict: true`, `additionalProperties: false`)
 
 | Tool | Input | Meaning |
 |---|---|---|
-| `match_gift` | `gift_ids: string[]` (1…10, unique), `amount_usdc: string` (decimal, ≤ 6 dp), `rationale: string` | match these gifts with this exact amount |
+| `match_gift` | `gift_ids: string[]` (1…10, unique), `amount_usdc: string` (decimal, ≤ 6 dp), `sponsor_id: string` (the shown `sponsor_id`, or `""` to let code pick; a stub or older caller may omit it), `rationale: string` | match these gifts with this exact amount from that sponsor's vault |
 | `hold` | `rationale` | nothing this round |
 | `flag` | `kind: "farming" \| "pace" \| "float_low"`, `gift_ids: string[]` (may be empty; required non-empty for farming), `rationale` | tell the sponsor; no money moves |
-| `propose_refund` | `rationale` | propose that the owner withdraw the unused float to itself |
+| `propose_refund` | `sponsor_id` (`""` = the first sponsor whose refund is allowed), `rationale` | propose that that vault's owner withdraw its unused float to itself |
 
 Local validation is the same as today: exactly one tool call, an exact key set, types, and a
 non-empty rationale (≤ 600 chars). A validation failure becomes a hold with `meta.rejected = true`.
@@ -291,8 +438,17 @@ non-empty rationale (≤ 600 chars). A validation failure becomes a hold with `m
 ### The amount checker (`lib/checker.mjs`, pure, bigint micro-USDC)
 
 ```
-expectedMatch(selectedIds, md) -> { amountMicro, perGift: [{id, matchMicro}], uncappedMicro, clampedBy } | Reject
+allocate(selectedIds, md)   -> { sponsorId, amountMicro, perGift: [{id, matchMicro}], uncappedMicro, clampedBy, skipped } | Reject
+expectedMatch(selectedIds, view, { fit }) -> { amountMicro, perGift, uncappedMicro, clampedBy } | Reject
 ```
+
+`allocate` walks `md.sponsors` in allocation order, skips unavailable sponsors, and runs
+`expectedMatch` on that sponsor's view (its ratio, per-gift max, vault caps and budget) with
+`fit: true`; the first that fits pays (see "The allocation rule"). A sponsor-independent refusal
+(ineligible id, duplicate, donor limit) is returned at once. With `fit: true`, step 4 below clamps only
+by `perGiftMax` and `perTx`; then `remainingToday`, `float` and `budget` must each be ≥ the amount,
+else that sponsor is skipped (`unfit`). Without `md.sponsors` (a bare view, the checker unit tests) it is
+the v1 `expectedMatch`.
 
 1. Every id is in `md.gifts` with `status === 'eligible'`. There are no duplicates and at most 10 ids.
    Otherwise `Reject('ineligible gift <id>: <status>')`.
@@ -312,7 +468,10 @@ expectedMatch(selectedIds, md) -> { amountMicro, perGift: [{id, matchMicro}], un
 7. Native mode: `amountRaw = amountMicro * 10^(unitDecimals-6)`. Before acting, `split.preview(amountRaw)`
    must send 0 to the treasury (existing run.mjs check).
 
-**Decision rule:** parse the model's `amount_usdc` string exactly (no floats). If it is not equal to
+**Decision rule:** if the model named a `sponsor_id` other than the code's pick → **reject**:
+`Checker rejected: model named sponsor X, the allocation rule picks Y for <ids>`, the log gets
+`checker: {ok:false, reason:'sponsor mismatch', expectedSponsor, proposedSponsor, expectedMicro,
+proposedMicro}`. Then parse the model's `amount_usdc` string exactly (no floats). If it is not equal to
 `amountMicro` → **reject**. The round holds with the rationale
 `Checker rejected: model proposed X USDC, policy gives Y USDC for <ids>`, the log gets
 `checker: {ok:false, expectedMicro, proposedMicro}`, and nothing is sent. The old give path clamps the
@@ -323,14 +482,14 @@ Other tools:
 - **`flag farming`**: each id must be a currently eligible gift. They are written to `flagged.json`
   and excluded until a human deletes the entry.
 - **`flag pace` / `flag float_low`**: logged and printed only.
-- **`propose_refund`**: allowed only when `refundAllowed`, otherwise rejected. It writes
-  `refund-proposal.json` `{at, floatUsdc, owner, command, rationale}`. The command is
+- **`propose_refund`**: allowed only for a sponsor whose `refundAllowed` is true, otherwise rejected. It
+  writes `refund-proposal.json` `{at, sponsor, vault, floatUsdc, owner, command, rationale}`. The command is
   `cast send <spender> "withdraw(address)" <owner> --rpc-url <rpc> --account <sponsor-keystore>`. It is
   **never sent by the agent**, even with `--send`: `withdraw` is owner-only, and only the owner (the
   sponsor) can receive the funds.
 
 `lib/fake-llm.mjs` gets a match-desk policy: it matches the newest eligible gift alone with
-`match_if_alone_usdc`, holds when there is none, and flags farming when a signal exists. With
+`match_if_alone_usdc` and the shown `sponsor_id`, holds when there is none, and flags farming when a signal exists. With
 `TREAT_AGENT_FAKE_WRONG=1` it adds 0.000001 so tests and the fork demo can show a checker rejection.
 
 ## Receipt (A: `lib/receipt.mjs`; C reads it)
@@ -361,6 +520,8 @@ floats, no `undefined`, addresses lowercase, amounts as decimal integer strings.
 }
 ```
 
+- `sponsor` is the paying sponsor's id, `spender` its vault, `policySha256` that sponsor's policy hash
+  (desk: `deskPolicyHashOf(shared policy, its entry)`; v1: `policyHashOf(policy)`), `ratioBps` its ratio.
 - `sha256` = lowercase hex of SHA-256 over the UTF-8 bytes of `canonical(body)`. `canonical` is the
   existing `log.mjs` function: object keys sorted, `JSON.stringify` for primitives, arrays in order, no
   whitespace. The browser verifier in C re-implements exactly this.
@@ -415,9 +576,9 @@ Writes are write-ahead. The `planned` envelope is written **before** any send.
 
 ## Witness (A: `lib/witness.mjs`)
 
-Every round, before decide:
+Every round, before decide, **for every vault** (its own receipts, its own events, its sponsor id):
 
-1. `eth_getLogs` on `sponsor.spender.address`, topic `AgentGift`
+1. `eth_getLogs` on the vault address, topic `AgentGift`
    (`0x5936d115…6fd4cf`, pinned), from `spender.deployBlock` to head. The read is chunked and uses the
    existing range-halving.
    Decode it: `batchId = topics[1]`; data = `amount` (word 0), memo offset (word 1), `spentToday`
@@ -430,7 +591,8 @@ Every round, before decide:
    (its gifts become eligible again); not found after `plannedTtlMinutes` → leave it `sent` and print a
    warning (never re-plan those gifts). A `sent` envelope with no tx hash (unknown outcome) is reported
    as stuck after `plannedTtlMinutes` and is never released by code.
-4. A `tt:agent:m:<sponsor.id>:` event with no envelope → `orphan` (reported; its gifts are unknown).
+4. A `tt:agent:m:<sponsor.id>:` event on that sponsor's vault with no envelope → `orphan` (reported
+   with its sponsor and vault; its gifts are unknown).
    The memo does not name the gifts, so a retry from an empty or lost state dir could match the same
    gift again under a different memo. Every unacknowledged orphan is a **code hold** in every mode (no
    model call, no receipt). Fix it by running from the state dir that made it (`MATCH_DESK_DIR`), or,
@@ -444,13 +606,16 @@ Three exclusive modes: dry run (default), `--fork`, `--send`.
 
 | | Dry run | `--fork` | `--send` |
 |---|---|---|---|
-| RPC | any | `isLocalRpc` only (existing guard) | not local; `eth_chainId` ∈ {5042, 5042002} and equal to `sponsor.chainId` |
+| RPC | any | `isLocalRpc` only (existing guard) | not local; `eth_chainId` ∈ {5042, 5042002} and equal to the desk's `chainId` |
 | signer | none; prints `cast send … --account <keystore>` | `--unlocked --from <agent>` | `cast send … --account <keystore>` run by the founder's own shell; the password prompt goes to the TTY (spawn with `stdio: ['inherit','pipe','inherit']`) |
-| extra gates | none | none | `--once` required; refused when the `CLAUDECODE` env var is set (an AI session); chain 5042 requires `CONFIRM_MAINNET=yes`; `--keystore` (or `TREAT_AGENT_KEYSTORE`) required and must not be `<keystore>` |
+| extra gates | none | none | `--once` required; refused when the `CLAUDECODE` env var is set (an AI session) and with the offline stub (`TREAT_AGENT_FAKE_LLM=1` or `TREAT_AGENT_FAKE_WRONG=1`); chain 5042 requires `CONFIRM_MAINNET=yes`; `--keystore` (or `TREAT_AGENT_KEYSTORE`) required and must not be `<keystore>` |
 | receipt | `mode: dry-run`, `planned` (blocks its gifts for other dry runs for `plannedTtlMinutes`; not for `--fork`/`--send`) | `mode: fork` | `mode: send`; non-zero `cast` exit with no hash → `sent`, `tx.status: unknown` (see the status transitions) |
 
-**Idempotency, every mode that sends.** Right before the send, re-read `AgentGift` logs from
-`deployBlock` for the planned memo. If one exists with the same amount, mark the receipt
+`give()` runs on the vault the allocation rule picked; the agent key is the same for every vault.
+
+**Idempotency, every mode that sends.** Right before the send, re-read the chosen vault's `AgentGift`
+logs from its `deployBlock` for the planned memo. (Across vaults, a gift is never re-planned at all:
+every vault's receipts mark it `matched`.) If one exists with the same amount, mark the receipt
 `skipped-duplicate` (and reconcile it), and do not send. With a different amount it becomes
 `mismatch`, and the round exits 1 without sending.
 
@@ -459,8 +624,10 @@ Exact command:
 The printed form shows `"$TREAT_AGENT_RPC"` when the RPC URL carries a path or key (existing
 `isPlainRpc`).
 
-**`--demo-overcap [--overcap-kind auto|tx|day] [--mined-revert]`**: the model is **not** called. Code
-builds the decision with the memo `tt:agent:m:<id>:demo-overcap`:
+**`--demo-overcap [--vault <sponsorId>] [--overcap-kind auto|tx|day] [--mined-revert]`**: the model is
+**not** called. It targets one vault (`--vault`, default the first in allocation order; an unknown id
+exits 2; `--vault` without `--demo-overcap` exits 2). Code builds the decision with the memo
+`tt:agent:m:<id>:demo-overcap` from that vault's caps:
 
 - `auto`: `day` when `remainingToday < perTx`, else `tx`;
 - `tx`: `amount = 2 × perTx`, expect `OverTxCap(amount, perTx)`;
@@ -483,11 +650,13 @@ over-cap demo did not refuse as expected.
 **CLI (fixed; B's scripts and README rely on it):**
 
 ```
-node run.mjs --sponsor <file> [--rpc <url>] [--once] [--interval <s>]
+node run.mjs --sponsor <desk.json|sponsor.json> [--rpc <url>] [--once] [--interval <s>]
              [--fork | --send] [--keystore <name>]
-             [--demo-overcap [--overcap-kind auto|tx|day] [--mined-revert]]
+             [--demo-overcap [--vault <sponsorId>] [--overcap-kind auto|tx|day] [--mined-revert]]
              [--witness-only] [--release <sha256 prefix>] [--ack-orphan <tx hash>]
 ```
+
+`--desk <file>` is an alias of `--sponsor <file>`.
 
 `--release` runs alone (a dry-run round that only clears one unknown `sent` receipt; see the status
 transitions). `--ack-orphan` runs alone too (it acknowledges one orphan the witness found this round).
@@ -497,22 +666,28 @@ Env: the existing treat-agent variables, plus `MATCH_DESK_DIR`, `MATCH_DESK_API`
 `MATCH_DESK_CALL_GAP_MS`, `CONFIRM_MAINNET`, `TREAT_AGENT_FAKE_WRONG`.
 
 `log.mjs`: each decisions.jsonl line gains
-`matchDesk: { sponsor, policyHash, receiptSha256, memo, checker, flag, witness: {reconciled, failed, orphans} }`.
+`matchDesk: { sponsor, vault, policyHash, receiptSha256, memo, checker, flag, witness: {reconciled, failed, orphans} }`
+(`sponsor`, `vault` and `policyHash` are the paying sponsor's for a match or a demo, else the first sponsor's).
 The RPC URL is still never written.
 
 ## Statement (C: `statement.mjs`, `lib/statement-html.mjs`)
 
 ```
-node statement.mjs --sponsor <sponsor.json> [--receipts <dir>] [--out ../../client/public/match-desk]
+node statement.mjs --sponsor <desk.json|sponsor.json> [--receipts <dir>] [--out ../../client/public/match-desk]
                    [--now <ISO>] [--rpc <url> --verify-onchain]
 ```
 
-- Input: every `receipts/*.json` envelope for this chain and spender, with `mode` in `send` or `fork`.
+- Input: every `receipts/*.json` envelope for this chain and **any of the desk's vaults**, with `mode`
+  in `send` or `fork` (a dry-run receipt only once reconciled). Without `--receipts`, it reads the desk
+  directory and every earlier layout of the same vaults (see "State directory"). A receipt whose
+  `sponsor` is not the sponsor of its `spender` vault is excluded (`sponsor mismatch`).
   A fork run writes only to a `--out` the caller names. `client/public/match-desk` takes Arc mainnet
   (5042) only: it refuses `mode: fork`, chain 31337 and Arc testnet (5042002). Each envelope's `sha256` is re-verified against `canonical(body)`;
   an envelope that fails is **excluded** and listed in `excluded[]` with its reason.
-- `--verify-onchain` (read-only RPC) re-reads `AgentGift` by memo, and counts as reconciled only those
-  events whose tx and amount match. `match-desk.sh statement` passes it (with `--rpc`, from
+- `--verify-onchain` (read-only RPC) re-reads every vault's `AgentGift` by memo, and counts as
+  reconciled only those events whose vault, tx and amount match. It also reads each vault's `Funded` and
+  `Withdrawn` logs and `floatBalance()`, which give the "funded" and "float left" figures; without it
+  they are `null` and the page shows "–". `match-desk.sh statement` passes it (with `--rpc`, from
   `MATCH_DESK_RPC` or the public Arc RPC) by default on Arc mainnet; `--no-verify-onchain` opts out.
   When a statement with receipts was not re-checked, `index.html` says so.
 - Output: `statement.json` and `index.html`, deterministic. Rows and keys are sorted. `generatedAt`
@@ -528,33 +703,49 @@ node statement.mjs --sponsor <sponsor.json> [--receipts <dir>] [--out ../../clie
 
 ```json
 {
-  "type": "tt.match-desk.statement", "v": 1, "generatedAt": "ISO|null",
+  "type": "tt.match-desk.statement", "v": 2, "generatedAt": "ISO|null",
   "chain": { "id": 5042, "name": "Arc", "explorer": "https://explorer.arc.io" },
-  "sponsor": { "id": "motored", "name": "Motored.lt", "relatedParty": true,
-               "label": "related-party sponsor (founder's company)" },
+  "sponsors": [{                                   // allocation order
+    "id": "motored", "name": "Motored.lt", "relatedParty": true, "priority": 20,
+    "label": "related-party sponsor (founder's company)",
+    "vault": { "spender": "0x…|null", "owner": "0x…|null", "deployBlock": 0 },
+    "policy": { "ratio": "1:1", "perGiftMaxUsdc": "0.05", "budgetUsdc": "1.00", "policySha256": "…" },
+    "totals": { "reconciledUsdc": "0", "pendingUsdc": "0", "receipts": 0, "giftsMatched": 0, "donors": 0, "giftsMatchedUsdc": "0" },
+    "onchain": null | { "fundedUsdc": "1", "withdrawnUsdc": "0", "givenUsdc": "0.03", "floatLeftUsdc": "0.97" }
+  }],
   "shelter": { "name": "…", "wallet": "0x…", "custody": "held-by-token-tails" },
-  "contract": { "spender": "0x…|null", "split": "0x…", "owner": "0x…|null", "agent": "0x…|null" },
-  "policy": { "ratio": "1:1", "perGiftMaxUsdc": "0.05", "perDonorDailyMaxUsdc": "0.05",
-              "budgetUsdc": "1.00", "policySha256": "…" },
-  "totals": { "reconciledUsdc": "0", "pendingUsdc": "0", "receipts": 0, "giftsMatched": 0,
-              "donors": 0, "giftsMatchedUsdc": "0" },
+  "contract": { "split": "0x…", "agent": "0x…|null" },
+  "policy": { "perDonorDailyMaxUsdc": "0.05", "allocation": "highest priority first, then lowest id; one vault per match" },
+  "totals": { "reconciledUsdc": "0", "paidToShelterUsdc": "0", "pendingUsdc": "0", "receipts": 0, "giftsMatched": 0,
+              "donors": 0, "giftsMatchedUsdc": "0", "fundedUsdc": "…|null", "floatLeftUsdc": "…|null" },
   "days": [{ "day": "2026-10-15", "reconciledUsdc": "0.05", "receipts": 1 }],
   "receipts": [ "<envelopes, newest first; decision.observationHash kept, nothing else removed>" ],
   "excluded": [{ "sha256": "…", "reason": "hash mismatch" }],
-  "disclosures": [ "…the eight honest-copy sentences, built from sponsor and custody…" ],
+  "verifiedOnchain": false,
+  "disclosures": [ "…one sponsor line per sponsor, then the honest-copy sentences…" ],
   "notTaxReceipt": true
 }
 ```
 
 The totals count only `reconciled` receipts. `sent` and live `planned` receipts count as pending.
 `failed`, `expired`, `skipped-duplicate` and `mismatch` receipts are listed but never counted.
+`paidToShelterUsdc` is the desk's reconciled total: every match goes through ShelterSplit to the shelter
+wallet. `fundedUsdc` / `floatLeftUsdc` are summed over the vaults only when every deployed vault was read
+on-chain. A v1 sponsor.json gives the same shape with one sponsor (and the eight v1 disclosures).
+
+The page: the desk lead sentence, "Read this first" (every disclosure), the desk total ("Paid to the
+shelter wallet (reconciled matches)", funded, float left, pending, receipts, gifts, donors), one card per
+sponsor (label, funded by the company, matched, float left, pending, its vault and owner links, ratio,
+per-match max, budget, priority, policy hash; "Not deployed yet" while it has no vault), shared rules and
+wallets (per-donor limit across all sponsors, the agent, ShelterSplit, the shelter wallet and its
+custody), by day, receipts (each says which company's vault paid), excluded.
 
 **Placeholder (committed now):** `client/public/match-desk/index.html` and `statement.json` are the
-generator's output for `sponsor.example.json` with zero receipts. The page shows "Not deployed yet. No
-matches." and all the disclosures, and no invented numbers. The lead sentence is in the present tense
-("matches public gifts") only once at least one receipt is reconciled; before that it says the sponsor
-"will match" them (once the vault is deployed and funded, when there is no vault yet). It is served at
-`tokentails.com/match-desk/index.html`, like `/heist/index.html`.
+generator's output for `desk.example.json` with zero receipts. The page shows "Not deployed yet. No
+matches." until a vault address exists, all the disclosures, and no invented numbers. The lead sentence
+is in the present tense ("match public gifts") only once at least one receipt is reconciled; before that
+it says the sponsors "will match" them (once their match vaults are deployed and funded, when there is
+no vault yet). It is served at `tokentails.com/match-desk/index.html`, like `/heist/index.html`.
 
 ## Contracts and scripts (B)
 
@@ -587,36 +778,48 @@ interactively. It refuses (exit 2) when `CLAUDECODE` is set, for any subcommand 
 
 | Subcommand | Does |
 |---|---|
-| `init <testnet\|mainnet>` | copies `sponsor.example.json` to `sponsor.arc-testnet.json` / `sponsor.arc.json`, with `chainId` and `eligible.chains` set |
-| `deploy <testnet\|mainnet> --account <deployer> --owner <sponsorAddr> --agent <agentAddr>` | `forge script script/DeployCappedSpender.s.sol` with `EXPECTED_CHAIN_ID`, `CAPPED_NATIVE=1`, `CAPPED_SPLIT`, caps 5e16 / 2e17; the simulation first, then `--broadcast` after a y/N prompt; mainnet needs `CONFIRM_MAINNET=yes`; prints the address and block for `sponsor.json` |
-| `check <sponsor.json>` | read-only: `native()`, `perTxCap()`, `dailyCap()`, `split()`, `agent()`, `owner()`, `floatBalance()`, `remainingToday()`; exits 1 unless native = true, caps = 5e16 / 2e17, and the addresses match the file |
-| `fund <sponsor.json> --account <owner> --usdc <n>` | `cast send <spender> --value <n>ether` (native 18 dec, so `1ether` = 1 USDC) from the owner; a y/N prompt |
-| `gas <sponsor.json> --account <funder> --usdc 0.05` | sends Arc gas (USDC) to the agent EOA |
-| `verify <sponsor.json>` | prints the Sourcify `forge verify-contract … --verifier sourcify --constructor-args $(cast abi-encode "constructor(address,address,address,uint256,uint256,bool)" …)` command (the same flow as the routers; the command form is unverified on Arc until it is run on testnet) |
-| `round <sponsor.json> [run.mjs flags]` | `node run.mjs --sponsor … --once …` |
-| `statement <sponsor.json>` | `node statement.mjs --sponsor … --out ../../client/public/match-desk` |
+Every subcommand takes a desk.json (or a v1 sponsor.json, where `--sponsor` is optional).
 
-**B4. `fork-demo.sh --match-desk [transcript]`** (the old demo stays the default). On an anvil fork
-of Arc testnet, `MATCH_DESK_API=off`:
+| Subcommand | Does |
+|---|---|
+| `init <testnet\|mainnet>` | copies `desk.example.json` to `desk.arc-testnet.json` / `desk.arc.json`, with `chainId`, `router` and `eligible.chains` set |
+| `deploy <desk.json> --sponsor <id> --account <deployer> [--owner <companyAddr>] [--agent <agentAddr>]` | `forge script script/DeployCappedSpender.s.sol` with `EXPECTED_CHAIN_ID`, `CAPPED_NATIVE=1`, `CAPPED_SPLIT`, caps 5e16 / 2e17 (the script's decimals floor guard applies); the simulation first, then `--broadcast` after a y/N prompt; mainnet needs `CONFIRM_MAINNET=yes`. `--owner` defaults to that sponsor's `spender.owner`, `--agent` to the desk's `agent`; a different `--agent` than the desk's is refused (one agent for every vault), and a sponsor that already has a vault needs `--force`. Writes the vault address, block and owner into that sponsor and the agent into the desk. The old `deploy <testnet\|mainnet> --owner … --agent …` form still prints the JSON for a v1 file |
+| `check <desk.json> [--sponsor <id>]` | read-only, every vault (or one): `native()`, `perTxCap()`, `dailyCap()`, `split()`, `agent()`, `owner()`, `floatBalance()`, `remainingToday()`; exits 1 unless native = true, caps = 5e16 / 2e17, the addresses match the file, and (desk) every vault reports the same agent and no vault is listed twice |
+| `fund <desk.json> --sponsor <id> --account <that company's owner keystore> --usdc <n>` | `cast send <vault> --value <n>ether` (native 18 dec, so `1ether` = 1 USDC) from the owner; a y/N prompt; `--sponsor` is required on a desk with several sponsors |
+| `gas <desk.json> --account <funder> --usdc 0.05` | sends Arc gas (USDC) to the desk's agent EOA |
+| `verify <desk.json> [--sponsor <id>]` | prints one Sourcify `forge verify-contract … --verifier sourcify --constructor-args $(cast abi-encode "constructor(address,address,address,uint256,uint256,bool)" …)` command per vault (the same flow as the routers; the command form is unverified on Arc until it is run on testnet) |
+| `round <desk.json> [run.mjs flags]` | `node run.mjs --sponsor … --once …` (pass `--demo-overcap --vault <id>` through) |
+| `statement <desk.json>` | `node statement.mjs --sponsor … --out ../../client/public/match-desk` (Arc mainnet: `--verify-onchain` by default) |
 
-1. Deploy CappedSpender through `script/DeployCappedSpender.s.sol` (`forge script --broadcast
-   --unlocked --sender <dev #0>`, the same script as `match-desk.sh deploy`), owner = dev #3 as the
-   "sponsor", agent = dev #1, caps 5e16 / 2e17.
-2. Fund 1 USDC from dev #3. Write `$LOG_DIR/sponsor.fork.json` (chainId from the fork,
-   `excludedSenders` from `sponsor.example.json` (only skipped, never paid), `validFrom` = now − 1 h).
+**B4. `fork-demo.sh --match-desk [transcript]`** (the old demo stays the default). On an anvil fork,
+`MATCH_DESK_API=off`:
+
+1. Deploy **two** CappedSpenders through `script/DeployCappedSpender.s.sol` (`forge script --broadcast
+   --unlocked --sender <dev #0>`, the same script as `match-desk.sh deploy`): vault A owned by dev #3
+   (Motored.lt), vault B owned by dev #4 (Token Tails), the **same agent** dev #1, caps 5e16 / 2e17.
+2. Each owner funds its vault with 1 USDC. Write `$LOG_DIR/desk.fork.json` (chainId from the fork,
+   `excludedSenders` from `desk.example.json` (only skipped, never paid), `validFrom` = now − 1 h;
+   Motored.lt priority 20 with a 0.03 budget and per-gift max, Token Tails priority 10 with 1.00).
    `FORK_URL` and `FORK_CHAIN_ID` pick the upstream and the fork's chain id: a rehearsal on Arc
    mainnet state is `FORK_URL=https://rpc.mainnet.arc.io FORK_CHAIN_ID=5042002` (run.mjs refuses
    `--fork` with chainId 5042, and native-mode deploys need an Arc chain id, so not 31337).
-3. Fan gifts: dev #2 gives 0.02, dev #4 gives 0.03, and dev #5 gives six 0.01 gifts (a farming signal).
+3. `match-desk.sh check` over both vaults (one agent). Fan gifts: dev #2 gives 0.02, then dev #6 gives
+   0.03; later dev #5 gives six 0.01 gifts (a farming signal).
 4. Run:
-   - `--fork --once` (a match plus its receipt);
+   - `--fork --once`: the 0.03 gift is matched from **Motored.lt's** vault (receipt, log names the vault);
    - `--witness-only` (reconciled);
-   - `--fork --once` again (the next gift);
-   - with `TREAT_AGENT_FAKE_WRONG=1`, a checker rejection;
-   - spend to the cap, then `--fork --demo-overcap --overcap-kind day` (`OverDailyCap`), then
-     `--overcap-kind tx`;
-   - `statement.mjs --out $LOG_DIR/statement` (never into `client/public`);
-   - print Pink Paw's balance before and after.
+   - with `TREAT_AGENT_FAKE_WRONG=1`, a checker rejection (no receipt);
+   - `--fork --once`: Motored.lt's budget is used up, so the 0.02 gift is matched from **Token Tails'**
+     vault; `--witness-only` (one receipt reconciled per vault);
+   - an idempotent rerun: `--fork --once` holds, still two receipts (no gift matched twice);
+   - the farming flag (`flagged.json`, no receipt);
+   - Token Tails' day spent to the cap, then `--demo-overcap --vault tokentails --overcap-kind day`
+     (`OverDailyCap(0.25, 0.2)`), then `--demo-overcap --vault motored --overcap-kind tx`
+     (`OverTxCap(0.1, 0.05)`);
+   - `statement.mjs --out $LOG_DIR/statement --rpc <fork> --verify-onchain` (never into
+     `client/public`): 0.05 paid to the shelter wallet, 0.03 from Motored.lt and 0.02 from Token Tails,
+     each vault funded 1 and its float read back;
+   - Pink Paw's balance before and after (fans + matches + fill).
 5. Exit non-zero if any expectation fails, so it doubles as an end-to-end test.
 
 **B5. README sections**: `agents/treat-agent/README.md` gets a "Sponsor Match Desk" section (the
@@ -628,34 +831,38 @@ values.
 
 AI sessions never run steps marked ✍. Nothing is sent to a public network from an AI session.
 
-1. Keystores: a new `tt-match-agent` EOA (not the x402 agent or the treat hot wallet), plus the
-   sponsor's owner keystore.
-2. ✍ `./match-desk.sh init testnet`, then `./match-desk.sh deploy testnet --account <deployer> --owner
-   <sponsor> --agent <tt-match-agent addr>`. Paste the address and deploy block into
-   `sponsor.arc-testnet.json`.
-3. `./match-desk.sh check sponsor.arc-testnet.json`. It must print native = true, perTxCap
-   50000000000000000, dailyCap 200000000000000000. This settles the "native decimals" open question
-   before any money moves.
-4. ✍ `fund … --usdc 1` (testnet USDC from the faucet), then ✍ `gas … --usdc 0.05`.
+1. Keystores: a new `tt-match-agent` EOA (not the x402 agent or the treat hot wallet), plus one owner
+   keystore per company: `motored-owner` (Motored.lt's own wallet) and `tt-sponsor-owner` (the Token
+   Tails address the founder picks; the treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` is an
+   option; never the hot, treat or agent wallets).
+2. ✍ `./match-desk.sh init testnet`, then deploy vault A and vault B with the same agent:
+   `./match-desk.sh deploy desk.arc-testnet.json --sponsor motored --account <deployer> --owner <motored-owner
+   addr> --agent <tt-match-agent addr>` and `... --sponsor tokentails --owner <tt-sponsor-owner addr>` (the
+   agent is now in the file). Each deploy writes its vault into the desk file.
+3. `./match-desk.sh check desk.arc-testnet.json`. Every vault must print native = true, perTxCap
+   50000000000000000, dailyCap 200000000000000000, and the desk line "one agent". This settles the
+   "native decimals" open question before any money moves.
+4. ✍ `fund … --sponsor motored --account motored-owner --usdc 1` and `fund … --sponsor tokentails
+   --account tt-sponsor-owner --usdc 1` (testnet USDC from the faucet), then ✍ `gas … --usdc 0.05`.
 5. A test fan gift from another testnet wallet:
    ✍ `cast send 0x457c89e1… "donate(string)" "fan gift" --value 0.02ether --account <fan>`.
-6. `node run.mjs --sponsor sponsor.arc-testnet.json --once` (a dry run: it prints the command and a
-   planned receipt; optional).
-7. ✍ `node run.mjs --sponsor sponsor.arc-testnet.json --once --send --keystore tt-match-agent`, then
-   `--witness-only` → `reconciled`. The dry-run receipt from step 6 does not hold this round. Run
-   either the printed command or `--send`, not both. If `cast` exits without a tx hash, the receipt
-   stays `sent` (unknown); run `--witness-only` later, and only if the agent's address shows no such
-   tx on the explorer, `--release <sha256>`.
-8. Spend to the cap (repeat 5–7 or use small gifts), then ✍ `--demo-overcap --send` (simulation), and
-   optionally `--mined-revert`.
-9. `node statement.mjs --sponsor sponsor.arc-testnet.json --out /tmp/md-test` and open the page;
-   check the disclosures and the hash buttons.
-10. Mainnet: repeat 2–8 with `mainnet` and `CONFIRM_MAINNET=yes`, ✍ `verify` (Sourcify), fund
-    1 USDC from Motored.lt's wallet as owner, then `statement` into `client/public/match-desk/` and
+6. `node run.mjs --sponsor desk.arc-testnet.json --once` (a dry run: it prints the command, the vault
+   code picked, and a planned receipt; optional).
+7. ✍ `unset TREAT_AGENT_FAKE_LLM TREAT_AGENT_FAKE_WRONG`, then `node run.mjs --sponsor desk.arc-testnet.json
+   --once --send --keystore tt-match-agent`, then `--witness-only` → `reconciled`. To get one round per
+   vault, give a second gift after Motored.lt's vault is unavailable for it (or set
+   `"paused": true` on motored for one round). Run either the printed command or `--send`, not both.
+   If `cast` exits without a tx hash, the receipt stays `sent` (unknown); run `--witness-only` later, and
+   only if the agent's address shows no such tx on the explorer, `--release <sha256>`.
+8. ✍ `--demo-overcap --vault <id> --send` (simulation), and optionally `--mined-revert`.
+9. `node statement.mjs --sponsor desk.arc-testnet.json --out /tmp/md-test --rpc https://rpc.testnet.arc.io
+   --verify-onchain` and open the page; check both sponsor sections, the disclosures and the hash buttons.
+10. Mainnet: repeat 2–8 with `mainnet` and `CONFIRM_MAINNET=yes`, ✍ `verify` (Sourcify, one command per
+    vault), each company funds its own vault, then `statement` into `client/public/match-desk/` and
     commit.
 
-Cost: about 1 USDC of float plus 0.05 USDC of agent gas per chain. Deploy gas is read from the testnet
-receipt. Unused float can only be withdrawn to the owner (the sponsor).
+Cost: about 1 USDC of float per vault plus 0.05 USDC of agent gas per chain. Deploy gas is read from the
+testnet receipt. Unused float can only be withdrawn by each vault's owner, to itself.
 
 ## Tests
 
@@ -672,7 +879,12 @@ receipt. Unused float can only be withdrawn to the owner (the sponsor).
     refused) and idempotent skip;
   - demo-overcap: auto/tx/day amounts, and success only on the expected error;
   - one full match-desk round writing a receipt and a log line;
-  - all existing tests unchanged.
+  - desk (`test/desk.test.mjs`): v1 normalisation, desk validation and policy hashes, allocation
+    (priority, budget / float / daily cap exhausted → next sponsor, paused, validFrom, none available →
+    hold), the sponsor-mismatch refusal, cross-vault idempotency (including a v1 state dir), the
+    per-donor limit across sponsors, different agents refused, `--vault`, `propose_refund` per sponsor,
+    the statement per sponsor;
+  - all existing tests unchanged (except the state-dir path and the orphan fields they assert).
 - **B**: `forge test` (all, including B2), `bash -n match-desk.sh fork-demo.sh`, `shellcheck` when
   available, and `fork-demo.sh --match-desk` run locally (anvil only).
 - **C**:
@@ -690,13 +902,13 @@ receipt. Unused float can only be withdrawn to the owner (the sponsor).
 
 - `agents/treat-agent/run.mjs`, `observe.mjs`, `decide.mjs`, `act.mjs`, `log.mjs`, `package.json`
   (adds the scripts `"match": "node run.mjs --sponsor"` and `"statement": "node statement.mjs"`)
-- `agents/treat-agent/sponsor.example.json`
+- `agents/treat-agent/sponsor.example.json`, `agents/treat-agent/desk.example.json`
 - `agents/treat-agent/lib/abi.mjs`, `lib/fake-llm.mjs`, `lib/policy.mjs`, `lib/checker.mjs`,
   `lib/receipt.mjs`, `lib/witness.mjs`, `lib/backend.mjs`
 - `agents/treat-agent/test-support/helpers.mjs`
 - `agents/treat-agent/test/act-observe.test.mjs`, `test/decide.test.mjs` (only to stay green),
   `test/policy.test.mjs`, `test/checker.test.mjs`, `test/receipt.test.mjs`, `test/witness.test.mjs`,
-  `test/backend.test.mjs`, `test/match-desk.test.mjs`, `test/send.test.mjs`
+  `test/backend.test.mjs`, `test/match-desk.test.mjs`, `test/send.test.mjs`, `test/desk.test.mjs`
 - `agents/treat-agent/test/fixtures/match-desk/**`
 
 **B: contracts, scripts, docs**
@@ -722,6 +934,8 @@ receipt. Unused float can only be withdrawn to the owner (the sponsor).
 - `backend/src/shelter/**`;
 - `client/public/shelter-payouts/**`.
 
-C does not import A's new libs. It re-implements the hash check with `canonical()` and
-`node:crypto`, so A and C can be built in parallel. B depends only on the CLI and file names fixed
-above.
+C re-implements the receipt hash check with `canonical()` and `node:crypto` (a statement can be
+checked without the agent's receipt code). Since the multi-sponsor desk, C imports only pure helpers
+from A: the labels and `deskPolicyHashOf` from `lib/policy.mjs`, and `deskStateDir` / `siblingDirs`
+from `lib/receipt.mjs`, so the agent and the page agree on labels, policy hashes and where receipts
+live. B depends only on the CLI and file names fixed above.

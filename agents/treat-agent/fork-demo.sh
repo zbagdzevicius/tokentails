@@ -2,9 +2,10 @@
 # Local-only demo of the treat agent for the video. Needs Foundry and Node >= 18.
 #
 #   ./fork-demo.sh [transcript-file]                  the treat-agent demo (default, steps 1-4 below)
-#   ./fork-demo.sh --match-desk [transcript-file]     the Sponsor Match Desk demo (MATCH-DESK.md, B4;
-#                                                     see match_desk_demo below); exits non-zero if
-#                                                     any expectation fails, so it is also an e2e test
+#   ./fork-demo.sh --match-desk [transcript-file]     the Match Desk demo with two sponsors' vaults and
+#                                                     one agent (MATCH-DESK.md, B4; see match_desk_demo
+#                                                     below); exits non-zero if any expectation fails,
+#                                                     so it is also an e2e test
 #
 # 1. Starts anvil on 127.0.0.1:${PORT:-8548}, forking Arc testnet (public RPC, read-only).
 # 2. Deploys CappedSpender with anvil's well-known dev accounts (no real keys): split = the live
@@ -53,72 +54,92 @@ mkdir -p "$LOG_DIR"
 [ -n "${ANTHROPIC_API_KEY:-}" ] || export TREAT_AGENT_FAKE_LLM=1
 
 # ---------------------------------------------------------------------------------------------
-# --match-desk: the Sponsor Match Desk on the same local fork (MATCH-DESK.md, B4). MATCH_DESK_API=off,
-# so no Token Tails endpoint is called. The vault owner (anvil dev #3) stands in for the sponsor; the
-# demo caps are the runbook's (0.05 / 0.20 test USDC, native 18 decimals). Every step is checked; any
-# failed expectation makes the script exit 1.
+# --match-desk: the multi-sponsor Match Desk on the same local fork (MATCH-DESK.md, B4). MATCH_DESK_API=off,
+# so no Token Tails endpoint is called. Two companies each own a vault: anvil dev #3 stands in for
+# Motored.lt, dev #4 for Token Tails. Both vaults have the same agent (dev #1) and the runbook caps
+# (0.05 / 0.20 test USDC, native 18 decimals). Motored.lt is matched first (priority 20) but has a small
+# budget (0.03), so the second match falls to Token Tails' vault. Every step is checked; any failed
+# expectation makes the script exit 1.
 match_desk_demo() {
   local DEV6=0x976EA74026E726554dB657fA54763abd0C3a0aa9
-  local MD_DIR="$LOG_DIR/state" SPONSOR="$LOG_DIR/sponsor.fork.json" STMT="$LOG_DIR/statement"
-  local CHAIN SP SP_BLOCK RCPT RC=0 FAILS=0 PP_BEFORE PP_AFTER FILL=0
-  rm -rf "$MD_DIR" "$STMT"
+  local MD_DIR="$LOG_DIR/state" DESK="$LOG_DIR/desk.fork.json" STMT="$LOG_DIR/statement"
+  local CHAIN SP_A SP_B BLOCK_A BLOCK_B DESK_DIR RCPT RC=0 FAILS=0 PP_BEFORE PP_AFTER FILL=0
+  rm -rf "$MD_DIR" "$STMT" "$LOG_DIR/decisions.jsonl"
   export MATCH_DESK_DIR="$MD_DIR" MATCH_DESK_API=off MATCH_DESK_CALL_GAP_MS=0
   unset TREAT_AGENT_FAKE_WRONG
 
+  cd "$HERE"
   CHAIN=$(cast chain-id --rpc-url "$R")
   # Deploy through the founder's own script (script/DeployCappedSpender.s.sol, the same path as
   # `match-desk.sh deploy`), so a broken deploy script fails this demo too. Unlocked anvil dev #0 only.
-  local DEPLOY_LOG RUN_JSON
-  DEPLOY_LOG="$LOG_DIR/deploy.log"
-  if ! (cd "$SPLIT_DIR" && EXPECTED_CHAIN_ID="$CHAIN" CAPPED_NATIVE=1 CAPPED_SPLIT="$SPLIT" CAPPED_AGENT="$DEV1" CAPPED_OWNER="$DEV3" \
-        CAPPED_PER_TX=50000000000000000 CAPPED_DAILY=200000000000000000 \
-        forge script script/DeployCappedSpender.s.sol --rpc-url "$R" --broadcast --unlocked --sender "$DEV0" >"$DEPLOY_LOG" 2>&1); then
-    echo "match-desk demo: DeployCappedSpender.s.sol failed on the fork; see $DEPLOY_LOG" >&2
-    tail -n 20 "$DEPLOY_LOG" >&2
-    return 1
-  fi
-  RUN_JSON="$SPLIT_DIR/broadcast/DeployCappedSpender.s.sol/$CHAIN/run-latest.json"
-  SP=$(node -e '
-    const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-    const tx = r.transactions.find((t) => t.contractName === "CappedSpender") || r.transactions[0];
-    console.log(tx.contractAddress.toLowerCase());' "$RUN_JSON")
-  SP_BLOCK=$(node -e '
-    const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-    const tx = r.transactions.find((t) => t.contractName === "CappedSpender") || r.transactions[0];
-    const rc = r.receipts.find((x) => x.transactionHash === tx.hash) || r.receipts[0];
-    console.log(Number(BigInt(rc.blockNumber)));' "$RUN_JSON")
-  RCPT="$MD_DIR/$CHAIN-$SP/receipts"
-  cast send "$SP" --value 1ether --rpc-url "$R" --unlocked --from "$DEV3" >/dev/null
+  # Same agent (dev #1) for both vaults; each vault's owner is its company.
+  deploy_vault() { # <owner> <label>: prints "address block"
+    local log="$LOG_DIR/deploy-$2.log" run_json
+    if ! (cd "$SPLIT_DIR" && EXPECTED_CHAIN_ID="$CHAIN" CAPPED_NATIVE=1 CAPPED_SPLIT="$SPLIT" CAPPED_AGENT="$DEV1" CAPPED_OWNER="$1" \
+          CAPPED_PER_TX=50000000000000000 CAPPED_DAILY=200000000000000000 \
+          forge script script/DeployCappedSpender.s.sol --rpc-url "$R" --broadcast --unlocked --sender "$DEV0" >"$log" 2>&1); then
+      echo "match-desk demo: DeployCappedSpender.s.sol failed on the fork ($2); see $log" >&2
+      tail -n 20 "$log" >&2
+      return 1
+    fi
+    run_json="$SPLIT_DIR/broadcast/DeployCappedSpender.s.sol/$CHAIN/run-latest.json"
+    node -e '
+      const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+      const tx = r.transactions.find((t) => t.contractName === "CappedSpender") || r.transactions[0];
+      const rc = r.receipts.find((x) => x.transactionHash === tx.hash) || r.receipts[0];
+      console.log(tx.contractAddress.toLowerCase() + " " + Number(BigInt(rc.blockNumber)));' "$run_json"
+  }
+  local va vb
+  va=$(deploy_vault "$DEV3" motored) || return 1
+  vb=$(deploy_vault "$DEV4" tokentails) || return 1
+  SP_A=${va% *}; BLOCK_A=${va#* }
+  SP_B=${vb% *}; BLOCK_B=${vb#* }
+  # Each company funds its own vault (receive() accepts only the owner).
+  cast send "$SP_A" --value 1ether --rpc-url "$R" --unlocked --from "$DEV3" >/dev/null
+  cast send "$SP_B" --value 1ether --rpc-url "$R" --unlocked --from "$DEV4" >/dev/null
 
-  # sponsor.fork.json: the example's shape with fork values (validFrom = now - 1 h). excludedSenders are
+  # desk.fork.json: the example's shape with fork values (validFrom = now - 1 h). excludedSenders are
   # the example's Token Tails wallets (only skipped, never paid), so a fork of mainnet state shows the
-  # exclusion working instead of matching a real Token Tails gift.
-  SP="$SP" SP_BLOCK="$SP_BLOCK" CHAIN="$CHAIN" SPLIT="$SPLIT" OWNER="$DEV3" AGENT="$DEV1" PINK_PAW="$PINK_PAW" EXAMPLE="$HERE/sponsor.example.json" node -e '
+  # exclusion working instead of matching a real Token Tails gift. Both owners and vaults are excluded
+  # by code too.
+  SP_A="$SP_A" SP_B="$SP_B" BLOCK_A="$BLOCK_A" BLOCK_B="$BLOCK_B" CHAIN="$CHAIN" SPLIT="$SPLIT" OWNER_A="$DEV3" OWNER_B="$DEV4" AGENT="$DEV1" \
+    PINK_PAW="$PINK_PAW" EXAMPLE="$HERE/desk.example.json" node -e '
     const e = process.env, day = (ms) => new Date(ms).toISOString().slice(0, 10), now = Date.now();
     const example = JSON.parse(require("fs").readFileSync(e.EXAMPLE, "utf8"));
+    const validFrom = new Date(now - 3600e3).toISOString().replace(/\.\d+Z$/, "Z");
+    const terms = (budget, perGift) => ({
+      ratioBps: 10000, perGiftMaxUsdc: perGift, budgetUsdc: budget, validFrom,
+      pace: { from: day(now), to: day(now + 30 * 864e5), floatLowUsdc: "0.10" },
+      refund: { after: day(now + 30 * 864e5), to: "owner" },
+    });
     const j = {
-      schema: "tt.match-desk.sponsor/v1",
-      sponsor: { id: "motored", name: "Motored.lt", relatedParty: true, relation: "founder'"'"'s company" },
+      schema: "tt.match-desk.desk/v2",
       chainId: Number(e.CHAIN),
-      spender: { address: e.SP, deployBlock: Number(e.SP_BLOCK), owner: e.OWNER.toLowerCase(), agent: e.AGENT.toLowerCase() },
       split: e.SPLIT.toLowerCase(),
       router: null,
       shelter: { name: "Pink Paw (Rožinė pėdutė)", wallet: e.PINK_PAW, custody: "held-by-token-tails" },
+      agent: e.AGENT.toLowerCase(),
       policy: {
-        ratioBps: 10000, perGiftMaxUsdc: "0.05", perDonorDailyMaxUsdc: "0.05", budgetUsdc: "1.00",
-        minGiftUsdc: "0.01", maxGiftAgeHours: 48,
-        validFrom: new Date(now - 3600e3).toISOString().replace(/\.\d+Z$/, "Z"),
+        perDonorDailyMaxUsdc: "0.05", minGiftUsdc: "0.01", maxGiftAgeHours: 48,
         eligible: { chains: [Number(e.CHAIN)], kinds: ["public", "router-native", "router-authorization"],
                     senders: "any", matchTreats: false, treatsDailyMaxUsdc: "0" },
         excludedSenders: example.policy.excludedSenders,
         farming: { maxGiftsPerDonorDay: 5 },
-        pace: { from: day(now), to: day(now + 30 * 864e5), floatLowUsdc: "0.10" },
-        refund: { after: day(now + 30 * 864e5), to: "owner" },
         plannedTtlMinutes: 30,
       },
+      sponsors: [
+        { id: "motored", name: "Motored.lt", relatedParty: true, relation: "founder'"'"'s company",
+          spender: { address: e.SP_A, deployBlock: Number(e.BLOCK_A), owner: e.OWNER_A.toLowerCase() }, priority: 20, ...terms("0.03", "0.03") },
+        { id: "tokentails", name: "Token Tails", relatedParty: true, relation: "operator (Token Tails'"'"' own money)",
+          spender: { address: e.SP_B, deployBlock: Number(e.BLOCK_B), owner: e.OWNER_B.toLowerCase() }, priority: 10, ...terms("1.00", "0.05") },
+      ],
     };
     require("fs").writeFileSync(process.argv[1], JSON.stringify(j, null, 2) + "\n");
-  ' "$SPONSOR"
+  ' "$DESK"
+  DESK_DIR=$(SP_A="$SP_A" SP_B="$SP_B" node --input-type=module -e '
+    import { deskStateDir } from "./lib/receipt.mjs";
+    console.log(deskStateDir(process.argv[1], Number(process.argv[2]), [process.env.SP_A, process.env.SP_B]));' "$MD_DIR" "$CHAIN")
+  RCPT="$DESK_DIR/receipts"
 
   PP_BEFORE=$(cast balance "$PINK_PAW" --rpc-url "$R")
   fan() { # <from> <usdc> <memo>
@@ -129,16 +150,23 @@ match_desk_demo() {
     local what="$1"; shift
     if "$@"; then echo "# ok: $what"; else echo "# FAILED: $what"; FAILS=$((FAILS + 1)); fi
   }
-  md() { # run.mjs --sponsor with the fork RPC; sets RC
-    echo "\$ node run.mjs --sponsor sponsor.fork.json --rpc $R $*"
-    set +e; node run.mjs --sponsor "$SPONSOR" --rpc "$R" "$@"; RC=$?; set -e
+  md() { # run.mjs --sponsor <desk> with the fork RPC; sets RC
+    echo "\$ node run.mjs --sponsor desk.fork.json --rpc $R $*"
+    set +e; node run.mjs --sponsor "$DESK" --rpc "$R" "$@"; RC=$?; set -e
     echo "# exit $RC"
   }
-  count() { # <status>: receipts with that status
+  count() { # <status> [sponsor]: receipts with that status (from that sponsor's vault)
     node -e '
-      const fs = require("fs"), [dir, st] = process.argv.slice(1);
-      let n = 0; try { for (const f of fs.readdirSync(dir)) if (f.endsWith(".json") && JSON.parse(fs.readFileSync(dir + "/" + f, "utf8")).status === st) n++; } catch {}
-      console.log(n);' "$RCPT" "$1"
+      const fs = require("fs"), [dir, st, sp] = process.argv.slice(1);
+      let n = 0;
+      try {
+        for (const f of fs.readdirSync(dir)) {
+          if (!f.endsWith(".json")) continue;
+          const e = JSON.parse(fs.readFileSync(dir + "/" + f, "utf8"));
+          if (e.status === st && (!sp || e.receipt.sponsor === sp)) n++;
+        }
+      } catch {}
+      console.log(n);' "$RCPT" "$1" "${2:-}"
   }
   lastlog() { # <js expression over j = the last decisions.jsonl line>: true/false
     node -e '
@@ -154,92 +182,111 @@ match_desk_demo() {
 
   cd "$HERE"
   {
-    echo "# Sponsor Match Desk demo, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "# Match Desk demo (two sponsors, one agent), $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "# Local anvil fork of $FORK_LABEL (chain id $CHAIN) on 127.0.0.1:$PORT. Fork balances only, no real money; nothing reaches a public network."
-    echo "# CappedSpender $SP (block $SP_BLOCK): split $SPLIT (Pink Paw at 10000 bps), agent = anvil dev #1,"
-    echo "#   owner = anvil dev #3 standing in for the sponsor, caps 0.05 test USDC per gift and 0.20 per UTC day, float 1 test USDC."
-    echo "# Sponsor label: Motored.lt, related-party sponsor (founder's company). Pink Paw's wallet is still held by Token Tails until the handover."
-    echo "# Backend endpoints off (MATCH_DESK_API=off). Policy: 1:1, at most 0.05 per gift and per donor per UTC day, budget 1.00."
+    echo "# Vault A (Motored.lt, related-party sponsor (founder's company)): $SP_A (block $BLOCK_A), owner = anvil dev #3."
+    echo "# Vault B (Token Tails, operator's own money):                     $SP_B (block $BLOCK_B), owner = anvil dev #4."
+    echo "# Both: agent = anvil dev #1 (the same agent), split $SPLIT (Pink Paw at 10000 bps), caps 0.05 test USDC per gift"
+    echo "#   and 0.20 per UTC day, float 1 test USDC each, funded by each owner. Pink Paw's wallet is still held by Token Tails until the handover."
+    echo "# Desk policy: 1:1, at most 0.05 per donor per UTC day across both sponsors. Motored.lt is matched first (priority 20)"
+    echo "#   with a 0.03 budget; Token Tails (priority 10) has 1.00. Code picks the paying vault; one match is paid by one vault."
+    echo "# Backend endpoints off (MATCH_DESK_API=off)."
     if [ -n "${TREAT_AGENT_FAKE_LLM:-}" ]; then
       echo "# Decisions: offline stub (TREAT_AGENT_FAKE_LLM=1), same tool-call shape as Claude. Set ANTHROPIC_API_KEY for Claude."
     else
       echo "# Decisions: Claude via the Messages API (the checker-rejection step always uses the stub)."
     fi
     echo
-    echo "\$ ./match-desk.sh check sponsor.fork.json   # read-only: native, caps, split, agent, owner"
-    expect "check passes on the fork" ./match-desk.sh check "$SPONSOR" --rpc-url "$R"
+    echo "\$ ./match-desk.sh check desk.fork.json   # read-only, every vault: native, caps, split, agent, owner; one agent on all"
+    expect "check passes on the fork (both vaults, one agent)" ./match-desk.sh check "$DESK" --rpc-url "$R"
     echo
-    echo "# Fans give straight to ShelterSplit: dev #2 gives 0.02, dev #4 gives 0.03."
+    echo "# Fans give straight to ShelterSplit: dev #2 gives 0.02, then dev #6 gives 0.03."
     echo "  $(fan "$DEV2" 0.02 'fan gift: for the kittens')"
-    echo "  $(fan "$DEV4" 0.03 'fan gift: food for Pink Paw')"
+    echo "  $(fan "$DEV6" 0.03 'fan gift: food for Pink Paw')"
     echo
-    echo "## 1. A match: the agent proposes, the code recomputes, the contract pays"
+    echo "## 1. A match from Motored.lt's vault: the agent proposes, the code picks the vault and recomputes, the contract pays"
     md --fork --once
     expect "round exits 0" is "$RC" 0
-    expect "one receipt written (sent)" is "$(count sent)" 1
+    expect "one receipt from the motored vault (sent)" is "$(count sent motored)" 1
+    expect "the log names the motored vault" lastlog "j.matchDesk.sponsor === 'motored' && j.matchDesk.vault === '$SP_A'"
     echo
-    echo "## 2. The witness reads AgentGift back"
+    echo "## 2. The witness reads AgentGift back from every vault"
     md --witness-only
     expect "witness exits 0" is "$RC" 0
-    expect "the receipt is reconciled" is "$(count reconciled)" 1
+    expect "the receipt is reconciled" is "$(count reconciled motored)" 1
     echo
     echo "## 3. A wrong amount is rejected, not corrected (TREAT_AGENT_FAKE_WRONG=1 adds 0.000001)"
-    echo "\$ TREAT_AGENT_FAKE_LLM=1 TREAT_AGENT_FAKE_WRONG=1 node run.mjs --sponsor sponsor.fork.json --rpc $R --fork --once"
-    set +e; TREAT_AGENT_FAKE_LLM=1 TREAT_AGENT_FAKE_WRONG=1 node run.mjs --sponsor "$SPONSOR" --rpc "$R" --fork --once; RC=$?; set -e
+    echo "\$ TREAT_AGENT_FAKE_LLM=1 TREAT_AGENT_FAKE_WRONG=1 node run.mjs --sponsor desk.fork.json --rpc $R --fork --once"
+    set +e; TREAT_AGENT_FAKE_LLM=1 TREAT_AGENT_FAKE_WRONG=1 node run.mjs --sponsor "$DESK" --rpc "$R" --fork --once; RC=$?; set -e
     echo "# exit $RC"
     expect "rejected round exits 0 (a hold)" is "$RC" 0
     expect "the log records checker.ok = false" lastlog 'j.matchDesk && j.matchDesk.checker && j.matchDesk.checker.ok === false'
     expect "no new receipt" is "$(( $(count sent) + $(count reconciled) + $(count planned) ))" 1
     echo
-    echo "## 4. The next gift"
+    echo "## 4. The next gift: Motored.lt's budget is used up, so code picks Token Tails' vault"
     md --fork --once
     expect "round exits 0" is "$RC" 0
+    expect "the log names the tokentails vault" lastlog "j.matchDesk.sponsor === 'tokentails' && j.matchDesk.vault === '$SP_B'"
     md --witness-only
-    expect "two receipts reconciled" is "$(count reconciled)" 2
+    expect "one receipt reconciled per vault" is "$(count reconciled motored)$(count reconciled tokentails)" 11
     echo
-    echo "## 5. Farming: dev #5 gives six 0.01 gifts"
+    echo "## 5. Idempotent rerun: both gifts are matched (one by each vault); nothing is matched twice"
+    md --fork --once
+    expect "rerun exits 0" is "$RC" 0
+    expect "the rerun holds (no eligible gift)" lastlog 'j.decision.action === "hold"'
+    expect "still two receipts" is "$(( $(count sent) + $(count reconciled) + $(count planned) ))" 2
+    echo
+    echo "## 6. Farming: dev #5 gives six 0.01 gifts"
     for i in 1 2 3 4 5 6; do echo "  $(fan "$DEV5" 0.01 "fan gift $i")"; done
     md --fork --once
     expect "round exits 0" is "$RC" 0
-    expect "the gifts are flagged (flagged.json)" test -s "$MD_DIR/$CHAIN-$SP/flagged.json"
+    expect "the gifts are flagged (flagged.json)" test -s "$DESK_DIR/flagged.json"
     expect "no receipt for the flagged gifts" is "$(count reconciled)$(count sent)" 20
     echo
-    echo "## 6. Spend the day to the cap (demo gives straight from the agent, memo tt:agent:demo-fill; not matches, no receipt)"
+    echo "## 7. Spend Token Tails' day to the cap (demo gives straight from the agent, memo tt:agent:demo-fill; not matches, no receipt)"
     local left give
-    left=$(cast call "$SP" 'remainingToday()(uint256)' --rpc-url "$R" | awk '{print $1}')
+    left=$(cast call "$SP_B" 'remainingToday()(uint256)' --rpc-url "$R" | awk '{print $1}')
     while [ "$left" != 0 ]; do
       give=$(node -e 'const a = BigInt(process.argv[1]), c = 50000000000000000n; console.log((a < c ? a : c).toString())' "$left")
-      cast send "$SP" "give(uint256,string)" "$give" "tt:agent:demo-fill" --rpc-url "$R" --unlocked --from "$DEV1" >/dev/null
+      cast send "$SP_B" "give(uint256,string)" "$give" "tt:agent:demo-fill" --rpc-url "$R" --unlocked --from "$DEV1" >/dev/null
       FILL=$(node -e 'console.log((BigInt(process.argv[1]) + BigInt(process.argv[2])).toString())' "$FILL" "$give")
-      left=$(cast call "$SP" 'remainingToday()(uint256)' --rpc-url "$R" | awk '{print $1}')
+      left=$(cast call "$SP_B" 'remainingToday()(uint256)' --rpc-url "$R" | awk '{print $1}')
     done
-    echo "  demo fill: $(cast from-wei "$FILL") test USDC; remainingToday: $left"
+    echo "  demo fill: $(cast from-wei "$FILL") test USDC; Token Tails remainingToday: $left"
     echo
-    echo "## 7. Over the daily cap: the contract refuses (OverDailyCap(0.25, 0.2))"
-    md --fork --once --demo-overcap --overcap-kind day
+    echo "## 8. Over the daily cap on Token Tails' vault: the contract refuses (OverDailyCap(0.25, 0.2))"
+    md --fork --once --demo-overcap --vault tokentails --overcap-kind day
     expect "demo exits 0 (refused as expected)" is "$RC" 0
-    expect "log: refused-as-expected" lastlog 'j.result && j.result.status === "refused-as-expected"'
+    expect "log: refused-as-expected on the tokentails vault" lastlog "j.result && j.result.status === 'refused-as-expected' && j.matchDesk.vault === '$SP_B'"
     echo
-    echo "## 8. Over the per-gift cap: the contract refuses (OverTxCap(0.1, 0.05))"
-    md --fork --once --demo-overcap --overcap-kind tx
+    echo "## 9. Over the per-gift cap on Motored.lt's vault: the contract refuses (OverTxCap(0.1, 0.05))"
+    md --fork --once --demo-overcap --vault motored --overcap-kind tx
     expect "demo exits 0 (refused as expected)" is "$RC" 0
-    expect "log: refused-as-expected" lastlog 'j.result && j.result.status === "refused-as-expected"'
+    expect "log: refused-as-expected on the motored vault" lastlog "j.result && j.result.status === 'refused-as-expected' && j.matchDesk.vault === '$SP_A'"
     echo
-    echo "## 9. The statement (written to the demo folder, never to client/public)"
-    echo "\$ node statement.mjs --sponsor sponsor.fork.json --receipts <state>/receipts --out <demo>/statement"
-    set +e; node statement.mjs --sponsor "$SPONSOR" --receipts "$RCPT" --out "$STMT"; RC=$?; set -e
+    echo "## 10. The statement, one section per company (written to the demo folder, never to client/public)"
+    echo "\$ node statement.mjs --sponsor desk.fork.json --receipts <state>/receipts --out <demo>/statement --rpc $R --verify-onchain"
+    set +e; node statement.mjs --sponsor "$DESK" --receipts "$RCPT" --out "$STMT" --rpc "$R" --verify-onchain; RC=$?; set -e
     expect "statement exits 0" is "$RC" 0
-    expect "statement counts 0.05 reconciled" node -e '
+    expect "statement: 0.05 paid to the shelter wallet, 0.03 from Motored.lt and 0.02 from Token Tails, funding and float read from the chain" node -e '
       const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-      console.log("  totals:", JSON.stringify(s.totals));
-      process.exit(s.totals.reconciledUsdc === "0.05" && s.totals.receipts === 2 && s.sponsor.relatedParty === true ? 0 : 1);
+      const by = Object.fromEntries(s.sponsors.map((x) => [x.id, x]));
+      console.log("  desk totals:", JSON.stringify(s.totals));
+      for (const x of s.sponsors) console.log(`  ${x.id} (${x.label}): matched ${x.totals.reconciledUsdc} in ${x.totals.receipts} receipt(s); funded ${x.onchain && x.onchain.fundedUsdc}, float left ${x.onchain && x.onchain.floatLeftUsdc}`);
+      for (const r of s.receipts) console.log(`  receipt ${r.memo} ${r.receipt.amountMicro / 1e6} USDC from ${r.receipt.spender}: tx ${r.witness && r.witness.tx} (local fork tx, not on any explorer)`);
+      const ok = s.totals.paidToShelterUsdc === "0.05" && s.totals.receipts === 2
+        && by.motored.totals.reconciledUsdc === "0.03" && by.tokentails.totals.reconciledUsdc === "0.02"
+        && by.motored.label === "related-party sponsor (founder'"'"'s company)" && by.tokentails.label === "operator'"'"'s own money"
+        && by.motored.onchain.fundedUsdc === "1" && by.tokentails.onchain.fundedUsdc === "1"
+        && by.motored.onchain.floatLeftUsdc === "0.97" && s.totals.fundedUsdc === "2" && s.verifiedOnchain === true;
+      process.exit(ok ? 0 : 1);
     ' "$STMT/statement.json"
-    expect "index.html written" test -s "$STMT/index.html"
+    expect "index.html written with both sponsors" grep -q "Token Tails" "$STMT/index.html"
     echo
     PP_AFTER=$(cast balance "$PINK_PAW" --rpc-url "$R")
     echo "\$ cast balance <Pink Paw> --ether   # before, after"
     echo "  $(cast from-wei "$PP_BEFORE")  ->  $(cast from-wei "$PP_AFTER")"
-    echo "# fans 0.11 + matches 0.05 + demo fill $(cast from-wei "$FILL") (0.31 test USDC when both matches landed); the over-cap attempts moved nothing"
+    echo "# fans 0.11 + matches 0.05 (0.03 Motored.lt + 0.02 Token Tails) + demo fill $(cast from-wei "$FILL"); the over-cap attempts moved nothing"
     expect "Pink Paw received fans + matches + fill" is "$(node -e 'console.log((BigInt(process.argv[2]) - BigInt(process.argv[1])).toString())' "$PP_BEFORE" "$PP_AFTER")" \
       "$(node -e 'console.log((110000000000000000n + 50000000000000000n + BigInt(process.argv[1])).toString())' "$FILL")"
     echo

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Match Desk Statement</title>
-<meta name="description" content="Motored.lt (related-party sponsor (founder&#39;s company)) will match public gifts to Pink Paw (Rožinė pėdutė). Every match has a receipt you can verify. Not a tax receipt.">
+<meta name="description" content="Motored.lt (related-party sponsor (founder&#39;s company)) and Token Tails (operator&#39;s own money) will match public gifts to Pink Paw (Rožinė pėdutė). Every match has a receipt you can verify. Not a tax receipt.">
 <style>
 :root{--bg:#fbf7f9;--surface:#ffffff;--ink:#22161c;--muted:#6f5d66;--line:#ead9e1;--accent:#c2306f;--accent-ink:#ffffff;--ok:#1f7a4d;--ok-bg:#e3f4ea;--wait:#8a5a00;--wait-bg:#fbf0d9;--bad:#a1263a;--bad-bg:#fbe4e8;--code:#f4ecf0}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17111a;--surface:#211a25;--ink:#f3e9ef;--muted:#b6a3ae;--line:#3a2e3f;--accent:#f16da5;--accent-ink:#1a0d14;--ok:#7fd8a6;--ok-bg:#163526;--wait:#f0c46b;--wait-bg:#3a2d12;--bad:#ff8fa0;--bad-bg:#3d1820;--code:#2c2331}}
@@ -30,6 +30,8 @@ code.wrap{word-break:break-all}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
 .stat .v{font-size:1.4rem;font-weight:650;font-variant-numeric:tabular-nums}
 .stat .k{color:var(--muted);font-size:.82rem}
+h3{font-size:1.05rem;margin:0 0 4px}
+.card.sponsor .grid{margin:10px 0}
 ul.disc{margin:0;padding-left:20px}
 ul.disc li{margin:6px 0}
 dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:12px 0;min-width:0}
@@ -71,15 +73,17 @@ footer{margin-top:40px;color:var(--muted);font-size:.86rem}
 <body>
 <main>
   <header>
-    <p class="small muted">Token Tails · Sponsor Match Desk · Arc</p>
+    <p class="small muted">Token Tails · Match Desk · Arc</p>
     <h1>Match Desk Statement</h1>
-    <p class="lede">Motored.lt, a related-party sponsor (founder&#39;s company), will match public gifts to Pink Paw (Rožinė pėdutė) on Arc once its match vault is deployed and funded. Claude will propose each match, code will check the amount against the written policy, and a capped contract will pay it.</p>
+    <p class="lede">Motored.lt, a related-party sponsor (founder&#39;s company), and Token Tails, with the operator&#39;s own money, will match public gifts to Pink Paw (Rožinė pėdutė) on Arc once their match vaults are deployed and funded. One AI agent holds spending power over every vault, inside on-chain caps, and can pay only the shelter wallet through ShelterSplit. Claude will propose each match, code will pick the paying vault and check the amount against the written policy, and a capped contract will pay it.</p>
   </header>
-  <div class="card notice"><strong>Not deployed yet. No matches.</strong><p class="small muted">The match vault is not on-chain yet. This page fills in from receipts once it is.</p></div>
+  <div class="card notice"><strong>Not deployed yet. No matches.</strong><p class="small muted">The match vaults are not on-chain yet. This page fills in from receipts once they are.</p></div>
   <h2>Read this first</h2>
   <div class="card"><ul class="disc">
     <li>Motored.lt is a related-party sponsor (founder&#39;s company). It is not an outside or independent sponsor.</li>
+    <li>Token Tails runs this desk and matches with its own money (operator&#39;s own money). It is not an outside or independent sponsor.</li>
     <li>The wallet of Pink Paw (Rožinė pėdutė) is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.</li>
+    <li>Each company&#39;s money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault.</li>
     <li>The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.</li>
     <li>The agent&#39;s code enforces the per-donor limit. The contract does not.</li>
     <li>This statement is not a tax receipt.</li>
@@ -88,24 +92,48 @@ footer{margin-top:40px;color:var(--muted);font-size:.86rem}
     <li>A match counts only once its AgentGift event has been read back from the chain (reconciled).</li>
   </ul></div>
 
-  <h2>Totals</h2>
-  <div class="grid"><div class="stat"><div class="v">0 USDC</div><div class="k">Matched (reconciled)</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div><div class="stat"><div class="v">0</div><div class="k">Donors</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Gifts matched, value</div></div></div>
-  <p class="small muted">Only reconciled receipts count. Sent and freshly planned receipts show as pending; failed, expired, duplicate and mismatched receipts are listed but never counted.</p>
+  <h2>Desk total</h2>
+  <div class="grid"><div class="stat"><div class="v">0 USDC</div><div class="k">Paid to the shelter wallet (reconciled matches)</div></div><div class="stat"><div class="v">–</div><div class="k">Funded by the companies</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vaults</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div><div class="stat"><div class="v">0</div><div class="k">Donors</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Gifts matched, value</div></div></div>
+  <p class="small muted">Only reconciled receipts count. Sent and freshly planned receipts show as pending; failed, expired, duplicate and mismatched receipts are listed but never counted. Every match goes through ShelterSplit to the shelter wallet.</p>
 
-  <h2>Policy</h2>
-  <div class="card"><dl class="kv">
-    <dt>Ratio</dt><dd>1:1</dd>
-    <dt>Most per match</dt><dd>0.05 USDC</dd>
-    <dt>Most per donor per UTC day</dt><dd>0.05 USDC (enforced by the agent's code)</dd>
-    <dt>Budget</dt><dd>1.00 USDC</dd>
-    <dt>Policy SHA-256</dt><dd><code class="wrap">c0248563fa5fda33d331696ee8a634a069345afea83931c2c2954f53560fdf5c</code></dd>
-  </dl></div>
+  <h2>Sponsors</h2>
+  <p class="small muted">Each company has its own vault. Code picks the paying vault for each match: the highest priority first that can pay the whole amount. One match is paid by one vault.</p>
+  
+    <article class="card sponsor" id="s-motored">
+      <h3>Motored.lt</h3>
+      <p class="small"><span class="pill">related-party sponsor (founder&#39;s company)</span><span class="pill wait">Not deployed yet</span></p>
+      <div class="grid"><div class="stat"><div class="v">–</div><div class="k">Funded by the company</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Matched (reconciled)</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vault</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div></div>
+      <p class="small muted">Funded and float left: not deployed yet.</p>
+      <dl class="kv">
+        <dt>Match vault (CappedSpender)</dt><dd><span class="muted">not set</span></dd>
+        <dt>Vault owner (Motored.lt)</dt><dd><span class="muted">not set</span> <span class="small muted">(only the owner can fund it or take the float back)</span></dd>
+        <dt>Ratio</dt><dd>1:1</dd>
+        <dt>Most per match</dt><dd>0.05 USDC</dd>
+        <dt>Budget</dt><dd>1.00 USDC</dd>
+        <dt>Match order</dt><dd>priority 20</dd>
+        <dt>Policy SHA-256</dt><dd><code class="wrap">19a8fb71737828166308d5e598a3fc520b490faa459396c8b46a737a8d8da6e8</code></dd>
+      </dl>
+    </article>
+    <article class="card sponsor" id="s-tokentails">
+      <h3>Token Tails</h3>
+      <p class="small"><span class="pill">operator&#39;s own money</span><span class="pill wait">Not deployed yet</span></p>
+      <div class="grid"><div class="stat"><div class="v">–</div><div class="k">Funded by the company</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Matched (reconciled)</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vault</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div></div>
+      <p class="small muted">Funded and float left: not deployed yet.</p>
+      <dl class="kv">
+        <dt>Match vault (CappedSpender)</dt><dd><span class="muted">not set</span></dd>
+        <dt>Vault owner (Token Tails)</dt><dd><span class="muted">not set</span> <span class="small muted">(only the owner can fund it or take the float back)</span></dd>
+        <dt>Ratio</dt><dd>1:1</dd>
+        <dt>Most per match</dt><dd>0.05 USDC</dd>
+        <dt>Budget</dt><dd>1.00 USDC</dd>
+        <dt>Match order</dt><dd>priority 10</dd>
+        <dt>Policy SHA-256</dt><dd><code class="wrap">fbdfb874a64e94b7a0822b149e7e9c9dd16571088fc95b20d82ed33a6c036adf</code></dd>
+      </dl>
+    </article>
 
-  <h2>Contracts and wallets</h2>
+  <h2>Shared rules and wallets</h2>
   <div class="card"><dl class="kv">
-    <dt>Match vault (CappedSpender)</dt><dd><span class="muted">not set</span></dd>
-    <dt>Vault owner (sponsor)</dt><dd><span class="muted">not set</span></dd>
-    <dt>Agent wallet</dt><dd><span class="muted">not set</span></dd>
+    <dt>Most per donor per UTC day</dt><dd>0.05 USDC, across all sponsors (enforced by the agent's code)</dd>
+    <dt>Agent wallet (every vault)</dt><dd><span class="muted">not set</span></dd>
     <dt>ShelterSplit</dt><dd><a href="https://explorer.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147" rel="noopener" title="0x457c89e10a6e66633eda5bf82fd086febb5db147"><code>0x457c89…5db147</code></a></dd>
     <dt>Pink Paw (Rožinė pėdutė)</dt><dd><a href="https://explorer.arc.io/address/0xe299299b846ba629f5a591dbf4f562bcc07a0f37" rel="noopener" title="0xe299299b846ba629f5a591dbf4f562bcc07a0f37"><code>0xe29929…7a0f37</code></a> <span class="small muted">(held by Token Tails until the handover)</span></dd>
   </dl></div>
@@ -123,7 +151,7 @@ footer{margin-top:40px;color:var(--muted);font-size:.86rem}
     <p><a href="https://tokentails.com/shelter-payouts">Every shelter payout on tokentails.com</a></p>
   </footer>
 </main>
-<script type="application/json" id="statement">{"chain":{"explorer":"https://explorer.arc.io","id":5042,"name":"Arc"},"contract":{"agent":null,"owner":null,"spender":null,"split":"0x457c89e10a6e66633eda5bf82fd086febb5db147"},"days":[],"disclosures":["Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.","The wallet of Pink Paw (Rožinė pėdutė) is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.","The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.","The agent's code enforces the per-donor limit. The contract does not.","This statement is not a tax receipt.","We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.","Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.","A match counts only once its AgentGift event has been read back from the chain (reconciled)."],"excluded":[],"generatedAt":null,"notTaxReceipt":true,"policy":{"budgetUsdc":"1.00","perDonorDailyMaxUsdc":"0.05","perGiftMaxUsdc":"0.05","policySha256":"c0248563fa5fda33d331696ee8a634a069345afea83931c2c2954f53560fdf5c","ratio":"1:1"},"receipts":[],"shelter":{"custody":"held-by-token-tails","name":"Pink Paw (Rožinė pėdutė)","wallet":"0xe299299b846ba629f5a591dbf4f562bcc07a0f37"},"sponsor":{"id":"motored","label":"related-party sponsor (founder's company)","name":"Motored.lt","relatedParty":true},"totals":{"donors":0,"giftsMatched":0,"giftsMatchedUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"type":"tt.match-desk.statement","v":1,"verifiedOnchain":false}</script>
+<script type="application/json" id="statement">{"chain":{"explorer":"https://explorer.arc.io","id":5042,"name":"Arc"},"contract":{"agent":null,"split":"0x457c89e10a6e66633eda5bf82fd086febb5db147"},"days":[],"disclosures":["Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.","Token Tails runs this desk and matches with its own money (operator's own money). It is not an outside or independent sponsor.","The wallet of Pink Paw (Rožinė pėdutė) is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.","Each company's money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault.","The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.","The agent's code enforces the per-donor limit. The contract does not.","This statement is not a tax receipt.","We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.","Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.","A match counts only once its AgentGift event has been read back from the chain (reconciled)."],"excluded":[],"generatedAt":null,"notTaxReceipt":true,"policy":{"allocation":"highest priority first, then lowest id; one vault per match","perDonorDailyMaxUsdc":"0.05"},"receipts":[],"shelter":{"custody":"held-by-token-tails","name":"Pink Paw (Rožinė pėdutė)","wallet":"0xe299299b846ba629f5a591dbf4f562bcc07a0f37"},"sponsors":[{"id":"motored","label":"related-party sponsor (founder's company)","name":"Motored.lt","onchain":null,"policy":{"budgetUsdc":"1.00","perGiftMaxUsdc":"0.05","policySha256":"19a8fb71737828166308d5e598a3fc520b490faa459396c8b46a737a8d8da6e8","ratio":"1:1"},"priority":20,"relatedParty":true,"totals":{"donors":0,"giftsMatched":0,"giftsMatchedUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"vault":{"deployBlock":null,"owner":null,"spender":null}},{"id":"tokentails","label":"operator's own money","name":"Token Tails","onchain":null,"policy":{"budgetUsdc":"1.00","perGiftMaxUsdc":"0.05","policySha256":"fbdfb874a64e94b7a0822b149e7e9c9dd16571088fc95b20d82ed33a6c036adf","ratio":"1:1"},"priority":10,"relatedParty":true,"totals":{"donors":0,"giftsMatched":0,"giftsMatchedUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"vault":{"deployBlock":null,"owner":null,"spender":null}}],"totals":{"donors":0,"floatLeftUsdc":null,"fundedUsdc":null,"giftsMatched":0,"giftsMatchedUsdc":"0","paidToShelterUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"type":"tt.match-desk.statement","v":2,"verifiedOnchain":false}</script>
 <script>
 (function(){
   var data = JSON.parse(document.getElementById('statement').textContent);

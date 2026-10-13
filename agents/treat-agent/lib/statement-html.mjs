@@ -1,4 +1,5 @@
-// statement-html: renders a Sponsor Match Desk statement (statement.json) as one self-contained page.
+// statement-html: renders a Match Desk statement (statement.json, v2: one section per sponsor and a desk
+// total) as one self-contained page.
 // Inline CSS and JS, no external requests; the data is embedded as <script type="application/json"
 // id="statement">. Everything is rendered here, so the page reads without JavaScript; the script only
 // powers the "Verify hash" buttons (SHA-256 over the same canonical JSON as log.mjs canonical()).
@@ -37,6 +38,10 @@ const KIND_TEXT = {
   treat: "a player's free treat (paid by Token Tails), matched by the sponsor",
 };
 
+const OPERATOR = "operator's own money";
+const whoIs = (s) => (s.label === OPERATOR ? `${s.name}, with the ${s.label}` : `${s.name}, a ${s.label}`);
+const list = (xs) => (xs.length <= 1 ? `${xs.join('')},` : xs.length === 2 ? `${xs[0]}, and ${xs[1]},` : `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]},`);
+
 function link(explorer, kind, value, text) {
   if (!value) return '<span class="muted">not set</span>';
   const label = esc(text ?? short(value));
@@ -47,6 +52,7 @@ function link(explorer, kind, value, text) {
 function receiptCard(env, st) {
   const ex = st.chain.explorer;
   const r = env.receipt;
+  const sp = st.sponsors.find((x) => x.id === r.sponsor);
   const counted = env.status === 'reconciled' && !st.excluded.some((x) => x.sha256 === env.sha256);
   const tx = env.witness?.tx || env.tx?.hash || null;
   const gifts = r.gifts.map((g) => `
@@ -67,6 +73,7 @@ function receiptCard(env, st) {
           <div class="right small muted">${esc(env.mode)}${env.createdAt ? ` · ${esc(env.createdAt.replace('T', ' ').slice(0, 16))} UTC` : ''}</div>
         </div>
         <dl class="kv">
+          <dt>Paid from</dt><dd>${esc(sp ? sp.name : r.sponsor)}'s vault ${link(ex, 'address', r.spender)}</dd>
           <dt>Memo</dt><dd><code>${esc(env.memo)}</code></dd>
           <dt>Transaction</dt><dd>${tx ? link(ex, 'tx', tx) : '<span class="muted">none</span>'}</dd>
           <dt>Receipt SHA-256</dt><dd><code class="wrap">${esc(env.sha256)}</code></dd>
@@ -110,6 +117,8 @@ code.wrap{word-break:break-all}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
 .stat .v{font-size:1.4rem;font-weight:650;font-variant-numeric:tabular-nums}
 .stat .k{color:var(--muted);font-size:.82rem}
+h3{font-size:1.05rem;margin:0 0 4px}
+.card.sponsor .grid{margin:10px 0}
 ul.disc{margin:0;padding-left:20px}
 ul.disc li{margin:6px 0}
 dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:12px 0;min-width:0}
@@ -182,32 +191,73 @@ const JS = `
   });
 })();`;
 
+function sponsorCard(sp, st) {
+  const ex = st.chain.explorer;
+  const t = sp.totals;
+  const oc = sp.onchain;
+  const deployed = Boolean(sp.vault.spender);
+  const chainNote = deployed ? 'not read from the chain for this statement' : 'not deployed yet';
+  const stats = [
+    ['Funded by the company', oc ? `${oc.fundedUsdc} USDC` : '–'],
+    ['Matched (reconciled)', `${t.reconciledUsdc} USDC`],
+    ['Float left in the vault', oc && oc.floatLeftUsdc != null ? `${oc.floatLeftUsdc} USDC` : '–'],
+    ['Pending', `${t.pendingUsdc} USDC`],
+    ['Receipts counted', String(t.receipts)],
+    ['Gifts matched', String(t.giftsMatched)],
+  ].map(([k, v]) => `<div class="stat"><div class="v">${esc(v)}</div><div class="k">${esc(k)}</div></div>`).join('');
+  return `
+    <article class="card sponsor" id="s-${esc(sp.id)}">
+      <h3>${esc(sp.name)}</h3>
+      <p class="small"><span class="pill">${esc(sp.label)}</span>${deployed ? '' : '<span class="pill wait">Not deployed yet</span>'}</p>
+      <div class="grid">${stats}</div>
+      ${oc ? `<p class="small muted">Read from the chain: funded ${esc(oc.fundedUsdc)}, taken back by the company ${esc(oc.withdrawnUsdc)}, given by the agent ${esc(oc.givenUsdc)} USDC (every give, matched or not).</p>`
+    : `<p class="small muted">Funded and float left: ${esc(chainNote)}.</p>`}
+      <dl class="kv">
+        <dt>Match vault (CappedSpender)</dt><dd>${link(ex, 'address', sp.vault.spender)}</dd>
+        <dt>Vault owner (${esc(sp.name)})</dt><dd>${link(ex, 'address', sp.vault.owner)} <span class="small muted">(only the owner can fund it or take the float back)</span></dd>
+        <dt>Ratio</dt><dd>${esc(sp.policy.ratio)}</dd>
+        <dt>Most per match</dt><dd>${esc(sp.policy.perGiftMaxUsdc)} USDC</dd>
+        <dt>Budget</dt><dd>${esc(sp.policy.budgetUsdc)} USDC</dd>
+        <dt>Match order</dt><dd>priority ${esc(sp.priority)}</dd>
+        <dt>Policy SHA-256</dt><dd><code class="wrap">${esc(sp.policy.policySha256)}</code></dd>
+      </dl>
+    </article>`;
+}
+
 export function renderHtml(st) {
   const ex = st.chain.explorer;
-  const deployed = Boolean(st.contract.spender);
+  const sponsors = st.sponsors;
+  const many = sponsors.length > 1;
+  const deployedAll = sponsors.every((s) => Boolean(s.vault.spender));
+  const deployedAny = sponsors.some((s) => Boolean(s.vault.spender));
   const t = st.totals;
   const custodyShort = st.shelter.custody === 'held-by-shelter' ? 'held by the shelter' : 'held by Token Tails until the handover';
   // Present tense only once a match has been read back from the chain; before that, say what will happen.
-  const live = deployed && t.receipts > 0;
-  const who = `${esc(st.sponsor.name)}, a ${esc(st.sponsor.label)}`;
+  const live = deployedAny && t.receipts > 0;
+  const who = list(sponsors.map((s) => esc(whoIs(s))));
   const where = `public gifts to ${esc(st.shelter.name)} on ${esc(st.chain.name)}`;
+  const their = many ? 'their match vaults' : 'its match vault';
+  const agentLine = many
+    ? ' One AI agent holds spending power over every vault, inside on-chain caps, and can pay only the shelter wallet through ShelterSplit.'
+    : '';
   const intro = (live
-    ? `${who}, matches ${where}. Claude proposes each match, code checks the amount against the written policy, and a capped contract pays it.`
-    : !deployed
-      ? `${who}, will match ${where} once its match vault is deployed and funded. Claude will propose each match, code will check the amount against the written policy, and a capped contract will pay it.`
-      : `${who}, will match ${where} through its match vault. No match has been read back from the chain yet. Claude proposes each match, code checks the amount against the written policy, and a capped contract pays it.`);
-  const metaLead = live
-    ? `${st.sponsor.name} (${st.sponsor.label}) matches public gifts to ${st.shelter.name}.`
-    : `${st.sponsor.name} (${st.sponsor.label}) will match public gifts to ${st.shelter.name}.`;
+    ? `${who} ${many ? 'match' : 'matches'} ${where}.${agentLine} Claude proposes each match, code ${many ? 'picks the paying vault and ' : ''}checks the amount against the written policy, and a capped contract pays it.`
+    : !deployedAny
+      ? `${who} will match ${where} once ${their} ${many ? 'are' : 'is'} deployed and funded.${agentLine} Claude will propose each match, code will ${many ? 'pick the paying vault and ' : ''}check the amount against the written policy, and a capped contract will pay it.`
+      : `${who} will match ${where} through ${their}. No match has been read back from the chain yet.${agentLine} Claude proposes each match, code ${many ? 'picks the paying vault and ' : ''}checks the amount against the written policy, and a capped contract pays it.`);
+  const names = sponsors.map((s) => `${s.name} (${s.label})`).join(' and ');
+  const metaLead = live ? `${names} ${many ? 'match' : 'matches'} public gifts to ${st.shelter.name}.` : `${names} will match public gifts to ${st.shelter.name}.`;
 
-  const notice = !deployed
-    ? `<div class="card notice"><strong>Not deployed yet. No matches.</strong><p class="small muted">The match vault is not on-chain yet. This page fills in from receipts once it is.</p></div>`
+  const notice = !deployedAny
+    ? `<div class="card notice"><strong>Not deployed yet. No matches.</strong><p class="small muted">The match ${many ? 'vaults are' : 'vault is'} not on-chain yet. This page fills in from receipts once ${many ? 'they are' : 'it is'}.</p></div>`
     : t.receipts === 0
-      ? `<div class="card notice"><strong>No reconciled matches yet.</strong><p class="small muted">A match appears in the totals once its AgentGift event has been read back from the chain.</p></div>`
+      ? `<div class="card notice"><strong>No reconciled matches yet.</strong><p class="small muted">A match appears in the totals once its AgentGift event has been read back from the chain.${deployedAll ? '' : ' Some vaults are not deployed yet.'}</p></div>`
       : '';
 
   const stats = [
-    ['Matched (reconciled)', `${t.reconciledUsdc} USDC`],
+    ['Paid to the shelter wallet (reconciled matches)', `${t.paidToShelterUsdc} USDC`],
+    ['Funded by the companies', t.fundedUsdc != null ? `${t.fundedUsdc} USDC` : '–'],
+    ['Float left in the vaults', t.floatLeftUsdc != null ? `${t.floatLeftUsdc} USDC` : '–'],
     ['Pending', `${t.pendingUsdc} USDC`],
     ['Receipts counted', String(t.receipts)],
     ['Gifts matched', String(t.giftsMatched)],
@@ -245,7 +295,7 @@ export function renderHtml(st) {
 <body>
 <main>
   <header>
-    <p class="small muted">Token Tails · Sponsor Match Desk · ${esc(st.chain.name)}</p>
+    <p class="small muted">Token Tails · Match Desk · ${esc(st.chain.name)}</p>
     <h1>Match Desk Statement</h1>
     <p class="lede">${intro}</p>
   </header>
@@ -255,24 +305,18 @@ export function renderHtml(st) {
 ${st.disclosures.map((d) => `    <li>${esc(d)}</li>`).join('\n')}
   </ul></div>
 
-  <h2>Totals</h2>
+  <h2>Desk total</h2>
   <div class="grid">${stats}</div>
-  <p class="small muted">Only reconciled receipts count. Sent and freshly planned receipts show as pending; failed, expired, duplicate and mismatched receipts are listed but never counted.${st.verifiedOnchain ? ' Reconciled receipts were re-checked against the chain when this statement was built.' : !st.receipts.length ? '' : ' Not re-checked against the chain: these totals come from the receipt files; each reconciled receipt links its tx, so you can check it yourself.'}</p>
+  <p class="small muted">Only reconciled receipts count. Sent and freshly planned receipts show as pending; failed, expired, duplicate and mismatched receipts are listed but never counted. Every match goes through ShelterSplit to the shelter wallet.${st.verifiedOnchain ? ' Reconciled receipts, funding and float were re-checked against the chain when this statement was built.' : !st.receipts.length ? '' : ' Not re-checked against the chain: these totals come from the receipt files; each reconciled receipt links its tx, so you can check it yourself.'}</p>
 
-  <h2>Policy</h2>
-  <div class="card"><dl class="kv">
-    <dt>Ratio</dt><dd>${esc(st.policy.ratio)}</dd>
-    <dt>Most per match</dt><dd>${esc(st.policy.perGiftMaxUsdc)} USDC</dd>
-    <dt>Most per donor per UTC day</dt><dd>${esc(st.policy.perDonorDailyMaxUsdc)} USDC (enforced by the agent's code)</dd>
-    <dt>Budget</dt><dd>${esc(st.policy.budgetUsdc)} USDC</dd>
-    <dt>Policy SHA-256</dt><dd><code class="wrap">${esc(st.policy.policySha256)}</code></dd>
-  </dl></div>
+  <h2>${many ? 'Sponsors' : 'Sponsor'}</h2>
+  ${many ? '<p class="small muted">Each company has its own vault. Code picks the paying vault for each match: the highest priority first that can pay the whole amount. One match is paid by one vault.</p>' : ''}
+  ${sponsors.map((sp) => sponsorCard(sp, st)).join('')}
 
-  <h2>Contracts and wallets</h2>
+  <h2>Shared rules and wallets</h2>
   <div class="card"><dl class="kv">
-    <dt>Match vault (CappedSpender)</dt><dd>${link(ex, 'address', st.contract.spender)}</dd>
-    <dt>Vault owner (sponsor)</dt><dd>${link(ex, 'address', st.contract.owner)}</dd>
-    <dt>Agent wallet</dt><dd>${link(ex, 'address', st.contract.agent)}</dd>
+    <dt>Most per donor per UTC day</dt><dd>${esc(st.policy.perDonorDailyMaxUsdc)} USDC${many ? ', across all sponsors' : ''} (enforced by the agent's code)</dd>
+    <dt>Agent wallet${many ? ' (every vault)' : ''}</dt><dd>${link(ex, 'address', st.contract.agent)}</dd>
     <dt>ShelterSplit</dt><dd>${link(ex, 'address', st.contract.split)}</dd>
     <dt>${esc(st.shelter.name)}</dt><dd>${link(ex, 'address', st.shelter.wallet)} <span class="small muted">(${esc(custodyShort)})</span></dd>
   </dl></div>

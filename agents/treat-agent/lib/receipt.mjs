@@ -1,7 +1,9 @@
 // Match desk receipts: a hashed body (no timestamp, no model text) inside an unhashed envelope.
 // sha256 = hex SHA-256 of canonical(body) (log.mjs). The memo carries its first 8 hex, so the same gifts
 // with the same amount under the same policy always give the same memo: sends are idempotent.
-// Envelopes live in <MATCH_DESK_DIR>/<chainId>-<spender>/receipts/<sha256>.json. See MATCH-DESK.md, "Receipt".
+// Envelopes live in <MATCH_DESK_DIR>/<chainId>-desk-<key>/receipts/<sha256>.json, one directory per desk
+// (key = the first 12 hex of sha256 over the sorted vault addresses). See MATCH-DESK.md, "Receipt" and
+// "State directory".
 
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
@@ -146,7 +148,67 @@ export function verifyEnvelope(env) {
 
 // ------------------------------------------------------------------ state directory
 
+/** The v1 (one-vault) state directory: <base>/<chainId>-<spender>. Read for migration only. */
 export const stateDir = (base, chainId, spender) => path.join(base || DEFAULT_STATE_DIR, `${chainId}-${String(spender).toLowerCase()}`);
+
+/** The desk key: first 12 hex of sha256 over the sorted, lowercase vault addresses joined by ",". */
+export function deskKey(vaults) {
+  const list = [...new Set(vaults.map((a) => String(a).toLowerCase()))].sort();
+  return createHash('sha256').update(list.join(','), 'utf8').digest('hex').slice(0, 12);
+}
+
+/** The desk state directory: <base>/<chainId>-desk-<deskKey(vaults)>. */
+export const deskStateDir = (base, chainId, vaults) => path.join(base || DEFAULT_STATE_DIR, `${chainId}-desk-${deskKey(vaults)}`);
+
+/**
+ * Directories on the same chain whose receipts this desk must also honour: every v1 directory of one of
+ * its vaults (<chainId>-<vault>) and every other desk directory on the chain (<chainId>-desk-*), e.g. the
+ * one-vault desk that existed before a second sponsor was added. Read-only: a receipt found there is
+ * copied into this desk's directory the first time it is saved again (witness, status change).
+ */
+export async function siblingDirs(dir) {
+  const base = path.dirname(dir);
+  const name = path.basename(dir);
+  const chain = name.slice(0, name.indexOf('-'));
+  let names = [];
+  try {
+    names = await readdir(base);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((n) => n !== name && n.startsWith(`${chain}-`) && (/^\d+-0x[0-9a-f]{40}$/.test(n) || /^\d+-desk-[0-9a-f]{12}$/.test(n)))
+    .sort()
+    .map((n) => path.join(base, n));
+}
+
+/**
+ * The desk's envelopes: its own directory first, then any sibling directory's envelope for one of the
+ * desk's vaults that this directory does not have yet. A gift matched by any vault of this desk, under any
+ * earlier layout, stays matched. Also merges flagged.json and orphan-acks.json (this directory wins).
+ * Returns { envelopes, bad, imported, flagged, orphanAcks }.
+ */
+export async function loadDeskState(dir, vaults) {
+  const want = new Set(vaults.map((a) => String(a).toLowerCase()));
+  const own = await loadEnvelopes(dir);
+  const bySha = new Map(own.envelopes.map((e) => [e.sha256, e]));
+  let imported = 0;
+  const flagged = {};
+  const orphanAcks = {};
+  for (const sib of await siblingDirs(dir)) {
+    const { envelopes } = await loadEnvelopes(sib);
+    for (const e of envelopes) {
+      if (!want.has(e.receipt.spender) || bySha.has(e.sha256)) continue;
+      bySha.set(e.sha256, e);
+      imported++;
+    }
+    Object.assign(flagged, await readJson(path.join(sib, 'flagged.json'), {}));
+    Object.assign(orphanAcks, await readJson(path.join(sib, 'orphan-acks.json'), {}));
+  }
+  Object.assign(flagged, await readJson(path.join(dir, 'flagged.json'), {}));
+  Object.assign(orphanAcks, await readJson(path.join(dir, 'orphan-acks.json'), {}));
+  return { envelopes: [...bySha.values()], bad: own.bad, imported, flagged, orphanAcks };
+}
 
 async function writeJsonAtomic(file, value) {
   await mkdir(path.dirname(file), { recursive: true });
@@ -181,12 +243,20 @@ export async function loadEnvelopes(dir) {
   return { envelopes: out, bad };
 }
 
-/** Receipts already published in statement.json for this spender (so a lost state dir never reopens them). */
-export async function loadPublished(file, spender) {
+/**
+ * Receipts already published in statement.json for these vaults (so a lost state dir never reopens them).
+ * `spenders`: one address or a list. Reads the v1 statement (contract.spender) and the desk statement
+ * (sponsors[].vault.spender); only envelopes whose body names one of the vaults are returned.
+ */
+export async function loadPublished(file, spenders) {
+  const want = new Set([].concat(spenders).map((a) => String(a).toLowerCase()));
   try {
     const st = JSON.parse(await readFile(file, 'utf8'));
-    if (!st?.contract?.spender || st.contract.spender.toLowerCase() !== String(spender).toLowerCase()) return [];
-    return (st.receipts || []).filter(verifyEnvelope);
+    const published = new Set();
+    if (st?.contract?.spender) published.add(String(st.contract.spender).toLowerCase());
+    for (const s of Array.isArray(st?.sponsors) ? st.sponsors : []) if (s?.vault?.spender) published.add(String(s.vault.spender).toLowerCase());
+    if (![...want].some((a) => published.has(a))) return [];
+    return (st.receipts || []).filter((e) => verifyEnvelope(e) && want.has(String(e.receipt?.spender).toLowerCase()));
   } catch {
     return [];
   }
