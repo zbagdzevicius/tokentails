@@ -14,9 +14,12 @@ import {
   SWORDCAT_NS,
   type SwordcatBridgeHandlers,
   type SwordcatBridgeTimers,
+<<<<<<< HEAD
   explorerUrlOf,
   receiptPathOf,
   amountLabelOf,
+=======
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 } from "@/components/swordcat/bridge";
 
 const ORIGIN = "https://swordcat.tokentails.com";
@@ -258,6 +261,7 @@ describe("parseSwordcatMessage", () => {
     });
   });
 });
+<<<<<<< HEAD
 
 describe("swordcat bridge, Phase TT4 treats (plan §12.2)", () => {
   it("parses cat-saved with optional cat fields and drops bad ones", () => {
@@ -361,3 +365,5 @@ describe("swordcat bridge, Phase TT4 treats (plan §12.2)", () => {
     }
   });
 });
+=======
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))

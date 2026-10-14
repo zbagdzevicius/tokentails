@@ -29,7 +29,11 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
+<<<<<<< HEAD
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
+=======
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. With `NEXT_PUBLIC_SWORDCAT_PICKER` (plus the page flag; both off by default) a fifth card, PINK PAW KNIGHT (badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type.
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -150,6 +154,7 @@ run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the b
 
 The founder's third-person three.js + Vite adventure ("Swordcat"), a tiny knight with a pink bow
 rescuing lost kittens. It lives in its own repository, not in this monorepo, and is shown in the Token
+<<<<<<< HEAD
 Tails shell at `/swordcat` (CLIENT.md, "Pink Paw Knight (/swordcat)"). It is on by default (launch, Oct 16 2026) with
 no env needed: `NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`,
 `false`, `no` or `off` turns off the page or the picker card), and `NEXT_PUBLIC_SWORDCAT_URL` is an optional
@@ -169,6 +174,12 @@ override.
   "Rescue lost kittens with a tiny knight": no shelter, impact or money words (CLAIMS R2/R3/R9/R10).
 - **Catnip stays in the game.** The game's catnip is its own currency; nothing reaches the player's
   Token Tails catnip, Tails or lives.
+=======
+Tails shell at `/swordcat` (CLIENT.md, "Pink Paw Knight (/swordcat)") behind `NEXT_PUBLIC_SWORDCAT`
+(off by default); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card and `NEXT_PUBLIC_SWORDCAT_URL` is an
+optional override.
+
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 - **Hosting** (founder decision 2026-10-14): same origin, like the Heist. The Swordcat repo's
   `npm run build:tokentails` builds and copies `dist/` (minus the chunk manifest and maps) into
   `client/public/swordcat-game/`; `/swordcat` frames `/swordcat-game/index.html?embed=1`. The game's

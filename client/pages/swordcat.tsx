@@ -1,15 +1,23 @@
 import { SeoHead } from "@/components/seo/SeoHead";
 import { swordcatEnabled } from "@/components/swordcat/flags";
 import { SwordcatHost } from "@/components/swordcat/SwordcatHost";
+<<<<<<< HEAD
 import { SWORDCAT_SUBTITLE, SWORDCAT_TITLE } from "@/components/swordcat/title";
+=======
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 /** `/swordcat` meta. `noindex` while the page is behind its flag (it is also left out of the sitemap). */
 export const SWORDCAT_SEO = Object.freeze({
+<<<<<<< HEAD
   title: `${SWORDCAT_TITLE} - Token Tails`,
   description: `Rescue lost kittens with a tiny knight with a pink bow. ${SWORDCAT_SUBTITLE}.`,
+=======
+  title: "Pink Paw Knight - Token Tails",
+  description: "Rescue lost kittens with a tiny knight with a pink bow. A Token Tails adventure.",
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
   path: "/swordcat",
 });
 
@@ -24,8 +32,13 @@ const BackToGame = () => {
 };
 
 /**
+<<<<<<< HEAD
  * `/swordcat` (Swordcat plan §5.1): the founder's three.js game (`SWORDCAT_TITLE`), in the Token Tails
  * shell. On by default; `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill switch. Auth is `optional`: an existing session is
+=======
+ * `/swordcat` (Swordcat plan §5.1): Pink Paw Knight, the founder's three.js game, in the Token Tails
+ * shell. Behind `NEXT_PUBLIC_SWORDCAT` (default off). Auth is `optional`: an existing session is
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
  * reused, none is created; the game only learns whether the player is signed in.
  */
 export default function SwordcatPage() {

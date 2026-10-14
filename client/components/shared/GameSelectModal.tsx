@@ -3,7 +3,10 @@ import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+<<<<<<< HEAD
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
+=======
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
@@ -19,6 +22,7 @@ export const HEIST_PICKER_HREF = "/heist";
 /** The Heist card's link: `from=picker` feeds `heist_open {from}` on the host page. */
 export const heistHref = (href: string) => `${href}?from=picker`;
 
+<<<<<<< HEAD
 /** Where the Swordcat card (`SWORDCAT_TITLE`) goes: the flagged host page, by a full page load. */
 export const SWORDCAT_PICKER_HREF = "/swordcat";
 /** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
@@ -38,6 +42,12 @@ export const SWORDCAT_PREVIEW = Object.freeze({
   width: 312,
   height: 218,
 });
+=======
+/** Where the Pink Paw Knight (Swordcat) card goes: the flagged host page, by a full page load. */
+export const SWORDCAT_PICKER_HREF = "/swordcat";
+/** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
+export const SWORDCAT_CARD_KEY = "SWORDCAT";
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
@@ -86,8 +96,13 @@ const cardTestId = (card: GameCard) =>
 /**
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
+<<<<<<< HEAD
  * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
+=======
+ * Pink Paw Knight (Swordcat) comes after the Heist, only when `includeSwordcat` is set
+ * (`swordcatPickerEnabled()`, default off).
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
  */
 export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
   const cards: GameCard[] = [];
@@ -138,10 +153,16 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
     cards.push({
       key: SWORDCAT_CARD_KEY,
       href: SWORDCAT_PICKER_HREF,
+<<<<<<< HEAD
       title: SWORDCAT_TITLE.toUpperCase(),
       description: SWORDCAT_PICKER_DESCRIPTION,
       badge: "NEW",
       image: SWORDCAT_PREVIEW.src,
+=======
+      title: "PINK PAW KNIGHT",
+      description: "Rescue lost kittens with a tiny knight",
+      badge: "NEW",
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
       previewVariant: "SWORDCAT",
     });
   }
@@ -194,6 +215,7 @@ const PawPost = () => (
   />
 );
 
+<<<<<<< HEAD
 const SwordcatPreview = () => (
   <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
     <img
@@ -206,6 +228,46 @@ const SwordcatPreview = () => (
       data-testid="game-card-swordcat-preview"
       className="h-full w-full object-cover"
     />
+=======
+/**
+ * The Swordcat preview: a gold sword with a pink bow on the night sky, drawn inline (no image file).
+ * Pixel art on a 39x27 grid, so it stays crisp at any size.
+ */
+const SwordcatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-[#0B0820] shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <svg
+      viewBox="0 0 39 27"
+      aria-hidden="true"
+      focusable="false"
+      data-testid="game-card-swordcat-preview"
+      className="h-full w-full"
+      shapeRendering="crispEdges"
+    >
+      <rect width="39" height="27" fill="#0B0820" />
+      {/* Stars */}
+      <rect x="4" y="4" width="1" height="1" fill="#FFCC55" opacity="0.8" />
+      <rect x="31" y="3" width="1" height="1" fill="#FFCC55" opacity="0.6" />
+      <rect x="34" y="17" width="1" height="1" fill="#FFCC55" opacity="0.7" />
+      <rect x="7" y="20" width="1" height="1" fill="#FFCC55" opacity="0.5" />
+      {/* Blade, tip at the top */}
+      <rect x="19" y="3" width="1" height="1" fill="#FFF1C2" />
+      <rect x="18" y="4" width="3" height="12" fill="#FFCC55" />
+      <rect x="19" y="4" width="1" height="12" fill="#FFF1C2" />
+      {/* Guard, grip and pommel */}
+      <rect x="14" y="16" width="11" height="2" fill="#FFCC55" />
+      <rect x="14" y="17" width="11" height="1" fill="#C98A1E" />
+      <rect x="18" y="18" width="3" height="4" fill="#7A4A1C" />
+      <rect x="17" y="22" width="5" height="2" fill="#FFCC55" />
+      {/* Pink bow tied under the guard */}
+      <rect x="12" y="18" width="5" height="3" fill="#FF6FB1" />
+      <rect x="22" y="18" width="5" height="3" fill="#FF6FB1" />
+      <rect x="13" y="19" width="2" height="1" fill="#FFB3D6" />
+      <rect x="24" y="19" width="2" height="1" fill="#FFB3D6" />
+      <rect x="17" y="18" width="5" height="3" fill="#E0428F" />
+      <rect x="15" y="21" width="2" height="3" fill="#E0428F" />
+      <rect x="22" y="21" width="2" height="3" fill="#E0428F" />
+    </svg>
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
   </span>
 );
 
@@ -268,7 +330,11 @@ interface GameSelectModalProps {
   setGameType: (gameType: GameType) => void;
   /** Override the `NEXT_PUBLIC_HEIST_PICKER` flag (tests). */
   showHeist?: boolean;
+<<<<<<< HEAD
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
+=======
+  /** Override the `NEXT_PUBLIC_SWORDCAT_PICKER` flag set (tests). */
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
   showSwordcat?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
@@ -277,7 +343,11 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
+<<<<<<< HEAD
  * Every card is one tap target (a button, or a link for the Heist and Swordcat).
+=======
+ * Every card is one tap target (a button, or a link for the Heist and Pink Paw Knight).
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
@@ -328,7 +398,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           button only where it fits (md and up, at least 521 px tall). */}
       <span
         className={clsx(
+<<<<<<< HEAD
           // Long titles (Swordcat's) wrap on the narrow phone column instead of overflowing it.
+=======
+          // Long titles (PINK PAW KNIGHT) wrap on the narrow phone column instead of overflowing it.
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
           card.title.length > 12 ? "max-w-full text-balance text-center" : "whitespace-nowrap",
           "mt-2 rounded-md border-[3px] border-yellow-900 bg-tt-cream px-2 py-1 font-primary text-p6 uppercase leading-none tracking-wide text-tt-gold-ink shadow-[0_3px_0_#e2c05a] group-hover:brightness-110 [@media(min-width:768px)_and_(min-height:521px)]:hidden"
         )}

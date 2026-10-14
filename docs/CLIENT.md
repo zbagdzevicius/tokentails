@@ -77,6 +77,9 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
 | `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
+| `NEXT_PUBLIC_SWORDCAT` | `1`, `true`, `yes` or `on` opens `/swordcat` (Pink Paw Knight, GAMES.md). Default off: the page only does a client-side `router.replace("/game")` |
+| `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
+| `NEXT_PUBLIC_SWORDCAT_PICKER` | `1`, `true`, `yes` or `on` adds the PINK PAW KNIGHT card (after the Heist) to the PLAY picker, only when `NEXT_PUBLIC_SWORDCAT` is on (`swordcatPickerEnabled`). Default off |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | On by default: the real-money "Give from your wallet" block on `/shelter-payouts` (web only) shows without any env. `0`, `false`, `no` or `off` hides it (`flagNotOff` in `lib/flags.ts`). It shows only when `campaign.json` `shelter.handover` is `"handed-over"` (Pink Paw's wallet, since 2026-10-16) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). While the campaign pays a wallet Token Tails holds, the page shows "Opens when Pink Paw's wallet is set up" and no button, whatever this flag says |
@@ -122,7 +125,11 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
+<<<<<<< HEAD
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
+=======
+| `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the v1 postMessage bridge, `SwordcatHost`. |
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
 | `components/Phaser/look/` | Render foundation, tiers, camera rig, world look, backdrop, ambience, look manifest and settings, capture hooks. |
@@ -162,7 +169,11 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/gaming` | `pages/gaming.tsx` | Legacy URL. Permanent (308) redirect to `/` via `next.config.js`; the page itself is a `noindex` stub that does `router.replace("/")` for static exports, and is excluded from the sitemap. |
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
+<<<<<<< HEAD
 | `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
+=======
+| `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host behind `NEXT_PUBLIC_SWORDCAT` (default off: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
@@ -400,6 +411,7 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
 ### Pink Paw Knight (/swordcat)
 
 Pink Paw Knight is the Swordcat game (a separate three.js repo, GAMES.md), hosted full-bleed in an
+<<<<<<< HEAD
 iframe by `components/swordcat/SwordcatHost.tsx`. It is on by default (launch, Oct 16 2026), with no env
 needed: the page, the picker card and the landing section (web only, never in the app build) show.
 `NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`, `false`, `no` or
@@ -416,6 +428,10 @@ needed: the page, the picker card and the landing section (web only, never in th
   ivory with her pink bow and the gold ":3" coin on the night sky.
 - The game's catnip stays in the game for now: nothing it earns reaches the player's Token Tails
   catnip (see "Phase 1 saves nothing" below).
+=======
+iframe by `components/swordcat/SwordcatHost.tsx`. `NEXT_PUBLIC_SWORDCAT=1` alone turns it on (default off,
+so production is unchanged until it is set); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card.
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
 
 - The iframe loads the same-origin build `/swordcat-game/index.html` plus `embed=1` (or a valid
   `NEXT_PUBLIC_SWORDCAT_URL` override), with `allow="autoplay; fullscreen; gamepad"` and no `sandbox` (the
@@ -437,6 +453,7 @@ needed: the page, the picker card and the landing section (web only, never in th
 - Any GameModal pauses the game through the Heist's suspension stand-in (`registerHeistSuspension`)
   and makes the frame inert.
 - Phase 1 saves nothing: `level-complete` is logged with `console.debug` in development only.
+<<<<<<< HEAD
 - Treats: one send at a time. A `treat-request` that arrives while a send is in flight (the game's
   15 s timeout, then Try again) waits for that send and gets its result under its own id, never an
   instant `retry`. Each rail read sets "sent today" from the current identity's row, so a sign-in or
@@ -446,6 +463,12 @@ needed: the page, the picker card and the landing section (web only, never in th
   server and test builds) plus its own origin when the parent is same-origin, so the copied build
   works on any client port. Against the game's dev server from another port, start Swordcat with
   `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
+=======
+- Local dev: the game accepts embed messages only from the origins in its `VITE_EMBED_ORIGINS`
+  (default tokentails.com, www.tokentails.com and `http://localhost:3000`). If the client runs on
+  another port, start or build Swordcat with `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the
+  bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
+>>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
   `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
   node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
 
