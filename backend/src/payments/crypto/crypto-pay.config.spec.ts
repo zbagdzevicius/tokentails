@@ -20,8 +20,10 @@ describe('readCryptoPayConfig', () => {
         const cfg = readCryptoPayConfig({ NODE_ENV: 'production', ...MAINNET_RPCS });
         expect(cfg.enabled).toBe(false);
         expect(cfg.network).toBe('mainnet');
-        // No treasury address is checked in yet.
-        expect(cfg.chains.every(c => c.treasury === null)).toBe(true);
+        // The Token Tails treasury is checked in for every mainnet (founder, 2026-10-14); off until enabled.
+        expect(cfg.chains.every(c => c.treasury?.toLowerCase() === '0x7b136b872bead1dae557d1286f125b7a8a197c9a')).toBe(
+            true
+        );
         expect(cfg.shelterShareEnabled).toBe(false);
         // Founder, 2026-10-04: Pink Paw gets 50% of each $5 shelter cat unless the env overrides it.
         expect(cfg.catShelterBps).toBe(5000);

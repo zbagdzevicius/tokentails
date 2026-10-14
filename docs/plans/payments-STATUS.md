@@ -57,6 +57,42 @@ E2E runs (earlier today): `tracks/a-build/e2e-pay-goal/stack.sh all` 24/24 API +
 - On a cat paid straight into the split, the stored share bps is the treasury-route setting; impact ledger files shop shares under "direct".
 - The checkout does not tell a buyer that part of a shelter cat's price goes to the shelter (would be a new public claim; needs a fact first).
 
+## Go-live (prepared 2026-10-14, branch `feat/crypto-go-live`)
+
+Founder decision 2026-10-14: checkout revenue goes to the Token Tails treasury
+`0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` (keystore `treasury`) on all seven mainnets.
+
+Read on-chain 2026-10-14 (public RPCs, read only): the treasury is a plain account with no contract
+code on Arc 5042, Base 8453, Arbitrum 42161, Avalanche 43114, Tempo 4217, Robinhood Chain 4663 and
+Monad 143, with a zero balance of every checkout token. Every token contract answers with 6 decimals
+(USDC, EURC, USDC.e, USDG).
+
+Two ways to switch it on. Pick one.
+
+| Route | What | Deploy |
+|---|---|---|
+| A, env only | Backend env `CRYPTO_PAY_TREASURY=0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` | backend restart only, `main` untouched |
+| B, code | Merge `feat/crypto-go-live` (`treasury.public.ts` filled, spec updated) | backend deploy from `main` |
+
+Then, in order:
+1. Backend env `CRYPTO_PAY_ENABLED=true`. `CRYPTO_PAY_NETWORK` defaults to `mainnet` under
+   `NODE_ENV=production`; leave it unset or set it to `mainnet`. No Vercel change: the client shows
+   "Pay with crypto" as soon as `GET` crypto config lists a chain.
+2. Check: the config endpoint returns `enabled: true` and seven chains, each with the treasury.
+3. One real purchase on Arc with USDC: the cheapest item (a $5 shelter cat). Check the receipt page,
+   the grant, and the USDC on the treasury in the Arc explorer.
+4. `CRYPTO_PAY_SHELTER_SHARE_ENABLED`: leave it off until the Arc rotation to Pink Paw's own wallet is
+   confirmed. Shares are still recorded as `due` while it is off, and the keeper pays them once it is
+   on. Turned on before the rotation, they reach the wallet Token Tails holds (custodial, disclosed).
+   The keeper pays from the hot wallet float, so keep that float topped up.
+5. Rollback: `CRYPTO_PAY_ENABLED=false` and restart. Open orders expire after their TTL.
+
+Founder calls still open:
+- EURC is priced at 1 EURC per USD by default (a $5 cat costs 5 EURC, about $5.8). Set
+  `CRYPTO_PAY_EURC_PER_USD` with `CRYPTO_PAY_EURC_FX_DATE` for a market rate (it stops after 30 days
+  without an update), or keep the round euro price.
+- Showing the shelter share at checkout is a new public claim and needs a fact first (Open, above).
+
 ## Founder steps, in order
 
 Also in the CLAUDE.md tracker.
