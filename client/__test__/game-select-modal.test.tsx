@@ -3,7 +3,7 @@
  */
 /**
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
- * load to /heist, Pink Paw Knight (Swordcat) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+ * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -22,6 +22,7 @@ import {
   SWORDCAT_PICKER_HREF,
 } from "@/components/shared/GameSelectModal";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -144,7 +145,7 @@ describe("GameSelectModal", () => {
   });
 });
 
-describe("Pink Paw Knight (Swordcat) card", () => {
+describe("Swordcat card (SWORDCAT_TITLE)", () => {
   it("is not in the picker by default (NEXT_PUBLIC_SWORDCAT_PICKER unset)", () => {
     expect(swordcatPickerEnabled()).toBe(false);
     expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
@@ -155,7 +156,7 @@ describe("Pink Paw Knight (Swordcat) card", () => {
 
   it("comes after the Heist when enabled, as a link with no GameType", () => {
     const cards = gameCards(true, new Date(), true);
-    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", "PINK PAW KNIGHT"]);
+    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
     expect(cards[4]).toMatchObject({
       key: "SWORDCAT",
       href: SWORDCAT_PICKER_HREF,
@@ -173,7 +174,7 @@ describe("Pink Paw Knight (Swordcat) card", () => {
     expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("href")).toBe("/swordcat");
-    expect(card.getAttribute("aria-label")).toBe("PINK PAW KNIGHT · NEW");
+    expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
     expect(within(dialog).getByTestId("game-card-swordcat-preview")).toBeTruthy();
     fireEvent.click(card);
     expect(navigate).toHaveBeenCalledWith("/swordcat");

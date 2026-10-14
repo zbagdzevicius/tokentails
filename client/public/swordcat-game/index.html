@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- pinch-zoom stays allowed (WCAG 1.4.4); the canvas and the touch layer keep touch-action: none -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0820">
+  <!-- the game's name lives in src/core/brand.js; vite.config.js fills the percent-wrapped GAME_TITLE / PAGE_TITLE / … placeholders -->
+  <title>Pink Paw Knight · Token Tails</title>
+  <meta name="description" content="Pink Paw Knight: a tiny cat knight with a pink bow rescues 18 lost kittens on Purrhaven Isle. A Token Tails Adventure.">
+  <meta name="application-name" content="Pink Paw Knight">
+  <meta name="apple-mobile-web-app-title" content="Pink Paw Knight">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tokentails.com/swordcat-game/">
+  <meta property="og:site_name" content="Token Tails">
+  <meta property="og:title" content="Pink Paw Knight · Token Tails">
+  <meta property="og:description" content="One tiny knight. Eighteen lost kittens. One warm Rescue House. A tiny cat knight with a pink bow rescues lost kittens. A Token Tails game.">
+  <meta property="og:image" content="https://tokentails.com/swordcat-game/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Pink Paw Knight: Clementine, a tiny ivory cat knight with a pink bow, and the title. A Token Tails Adventure.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Pink Paw Knight · Token Tails">
+  <meta name="twitter:description" content="One tiny knight. Eighteen lost kittens. One warm Rescue House. A tiny cat knight with a pink bow rescues lost kittens. A Token Tails game.">
+  <meta name="twitter:image:alt" content="Pink Paw Knight: Clementine, a tiny ivory cat knight with a pink bow, and the title. A Token Tails Adventure.">
+  <meta name="twitter:image" content="https://tokentails.com/swordcat-game/og.jpg">
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <!-- PERF §10.1 / X18: the body font (Nunito, the Latin woff2 subset ui/fonts.js registers) starts downloading with the HTML (Vite adds the module preloads); Fredoka stays a fallback -->
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/nunito-latin-wght-normal.woff2" crossorigin>
+  <style>html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;background:#0b0820;height:100%;margin:0;overflow:hidden}#app{position:fixed;inset:0}#app canvas{touch-action:none;outline:none;width:100%;height:100%;display:block}#touch{z-index:5;touch-action:none;display:none;position:fixed;inset:0}#touch.on{display:block}#ui{z-index:10;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);position:fixed;inset:0}#boot-error{z-index:50;box-sizing:border-box;text-align:center;color:#fff4d6;background:#2a1f45;border:2px solid #fc5;border-radius:14px;width:min(360px,100vw - 32px);padding:18px 20px;font:600 15px/1.4 Nunito,Fredoka,system-ui,sans-serif;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 10px 30px #0b082099}#boot-error button{cursor:pointer;color:#4a1d08;background:#fc5;border:0;border-radius:999px;margin-top:12px;padding:10px 22px;font:800 15px Nunito,Fredoka,system-ui,sans-serif}#boot-error button:focus-visible{outline-offset:2px;outline:3px solid #ff7aa2}#splash{z-index:40;background:radial-gradient(60% 45% at 50% 42%,#ffcc5538 0%,#fc50 70%),linear-gradient(#0b0820 0%,#2a1f45 100%);place-items:center;transition:opacity .4s;display:grid;position:fixed;inset:0}#splash svg{width:min(42vw,280px);animation:1.6s ease-in-out infinite bob}@keyframes bob{50%{transform:translateY(-6px)rotate(-2deg)}}@media (prefers-reduced-motion:reduce){#splash svg{animation:none}}#splash.out{opacity:0;pointer-events:none}</style>
+  <script type="module" crossorigin src="./bundle/index-Cw8H3kkB.js"></script>
+  <link rel="modulepreload" crossorigin href="./bundle/three-DSMtJqNN.js">
+  <link rel="modulepreload" crossorigin href="./bundle/three-addons-BgVl3O0v.js">
+</head>
+<body>
+  <div id="splash" aria-label="Pink Paw Knight is loading" role="img">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <g stroke="#4A1D08" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M84 14l8 8-38 50-10 2 2-10z" fill="#F4F1EC"/>
+        <path d="M43 66l11 11M38 71l11 11" fill="none"/>
+        <path d="M36 70l14 14" stroke="#F2C14E" stroke-width="7"/>
+        <path d="M33 88l6-6" stroke="#8A5A36" stroke-width="6"/>
+        <ellipse cx="66" cy="84" rx="21" ry="17" fill="#F3EEE6"/>
+        <ellipse cx="45" cy="60" rx="7.5" ry="9.5" fill="#F3EEE6"/>
+        <ellipse cx="59" cy="50" rx="7.5" ry="9.5" fill="#F3EEE6"/>
+        <ellipse cx="75" cy="51" rx="7.5" ry="9.5" fill="#F3EEE6"/>
+        <ellipse cx="88" cy="62" rx="7.5" ry="9.5" fill="#F3EEE6"/>
+        <path d="M27 28c-9-8-17-2-12 7 4 6 11 4 15 0zM35 28c9-8 17-2 12 7-4 6-11 4-15 0z" fill="#FF8FB1"/>
+        <circle cx="31" cy="29" r="4.5" fill="#FF6F9C"/>
+      </g>
+      <g fill="#FFFFFF" opacity=".9">
+        <ellipse cx="56" cy="76" rx="6" ry="3" transform="rotate(-20 56 76)"/>
+        <ellipse cx="42.5" cy="55" rx="1.8" ry="2.6"/><ellipse cx="56.5" cy="45" rx="1.8" ry="2.6"/>
+        <ellipse cx="72.5" cy="46" rx="1.8" ry="2.6"/><ellipse cx="85.5" cy="57" rx="1.8" ry="2.6"/>
+      </g>
+      <g fill="#FF7AA2">
+        <ellipse cx="66" cy="88" rx="12" ry="9"/>
+        <ellipse cx="45" cy="62" rx="3.5" ry="4.5"/><ellipse cx="59" cy="52" rx="3.5" ry="4.5"/>
+        <ellipse cx="75" cy="53" rx="3.5" ry="4.5"/><ellipse cx="88" cy="64" rx="3.5" ry="4.5"/>
+      </g>
+      <g fill="#FFB3C7">
+        <ellipse cx="62" cy="85" rx="4.5" ry="2.6"/>
+        <circle cx="44" cy="60" r="1.2"/><circle cx="58" cy="50" r="1.2"/><circle cx="74" cy="51" r="1.2"/><circle cx="87" cy="62" r="1.2"/>
+      </g>
+    </svg>
+  </div>
+  <div id="app"></div>
+  <div id="touch"></div>
+  <div id="ui"></div>
+  <noscript><p style="color:#FFF4D6;font:600 16px system-ui,sans-serif;text-align:center;margin-top:40vh">Pink Paw Knight needs JavaScript and WebGL2.</p></noscript>
+</body>
+</html>

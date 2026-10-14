@@ -29,6 +29,7 @@ import {
   SwordcatHost,
 } from "@/components/swordcat/SwordcatHost";
 import SwordcatPage from "@/pages/swordcat";
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { acquireGameSuspension } from "@/lib/game/gameRegistry";
 import { SWORDCAT_HELLO_SLOW_MS, SWORDCAT_HELLO_TIMEOUT_MS, SWORDCAT_NS } from "@/components/swordcat/bridge";
 
@@ -52,7 +53,7 @@ describe("SwordcatHost", () => {
     render(<SwordcatHost url="https://swordcat.tokentails.com/" navigate={jest.fn()} />);
     const frame = screen.getByTestId(SWORDCAT_FRAME_TESTID) as HTMLIFrameElement;
     expect(frame.getAttribute("src")).toBe("https://swordcat.tokentails.com/?embed=1");
-    expect(frame.getAttribute("title")).toBe("Pink Paw Knight");
+    expect(frame.getAttribute("title")).toBe(SWORDCAT_TITLE);
     expect(frame.getAttribute("allow")).toBe("autoplay; fullscreen; gamepad");
     expect(frame.hasAttribute("sandbox")).toBe(false);
   });
@@ -72,7 +73,7 @@ describe("SwordcatHost", () => {
 
   it("says the game is not available without a valid URL, with a way back", () => {
     render(<SwordcatHost url={null} navigate={jest.fn()} />);
-    expect(screen.getByText("Pink Paw Knight is not available right now.")).toBeTruthy();
+    expect(screen.getByText(`${SWORDCAT_TITLE} is not available right now.`)).toBeTruthy();
     expect(screen.queryByTestId(SWORDCAT_FRAME_TESTID)).toBeNull();
     expect(screen.getByRole("link", { name: "Back to games" }).getAttribute("href")).toBe("/game");
   });
@@ -150,12 +151,12 @@ describe("SwordcatHost", () => {
         jest.advanceTimersByTime(SWORDCAT_HELLO_SLOW_MS + 100);
       });
       expect(host.getAttribute("data-bridge")).toBe("slow");
-      expect(screen.getByText("Still loading Pink Paw Knight…")).toBeTruthy();
+      expect(screen.getByText(`Still loading ${SWORDCAT_TITLE}…`)).toBeTruthy();
       act(() => {
         jest.advanceTimersByTime(SWORDCAT_HELLO_TIMEOUT_MS);
       });
       expect(host.getAttribute("data-bridge")).toBe("timeout");
-      expect(screen.getByText("Pink Paw Knight is taking too long to load.")).toBeTruthy();
+      expect(screen.getByText(`${SWORDCAT_TITLE} is taking too long to load.`)).toBeTruthy();
       expect(screen.getByRole("link", { name: "Back to games" }).getAttribute("href")).toBe("/game");
       // the game finally answers (hello never stopped): connected, the fallback goes away
       const frame = screen.getByTestId(SWORDCAT_FRAME_TESTID) as HTMLIFrameElement;

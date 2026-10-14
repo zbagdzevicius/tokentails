@@ -1,5 +1,5 @@
 /**
- * The host side of the Pink Paw Knight (Swordcat) bridge, version 1 (Swordcat plan
+ * The host side of the Swordcat (`SWORDCAT_TITLE` in `./title.ts`) bridge, version 1 (Swordcat plan
  * TOKENTAILS-PLAN.md §5.5).
  *
  * Envelope: `{ ns: 'tt-swordcat', v: 1, type, ...payload }`. Unknown types are ignored.

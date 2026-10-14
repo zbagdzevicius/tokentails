@@ -1,7 +1,7 @@
 /**
- * Pink Paw Knight (Swordcat) flags (Swordcat plan TOKENTAILS-PLAN.md §5.2). All default OFF, so a
- * build without them is unchanged: `/swordcat` sends players back to `/game` and the picker shows
- * no card.
+ * Swordcat flags (Swordcat plan TOKENTAILS-PLAN.md §5.2; the game's title is `SWORDCAT_TITLE` in
+ * `./title.ts`). All default OFF, so a build without them is unchanged: `/swordcat` sends players
+ * back to `/game` and the picker shows no card.
  *
  * - `NEXT_PUBLIC_SWORDCAT`: `1`/`true`/`yes`/`on` opens `/swordcat`.
  * - `NEXT_PUBLIC_SWORDCAT_URL` (optional override): where the game build is served. By default the
