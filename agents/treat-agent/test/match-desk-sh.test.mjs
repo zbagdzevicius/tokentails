@@ -88,8 +88,10 @@ test('fork-demo.sh keeps the old demo as the default and adds --match-desk', () 
   assert.match(s, /--out "\$STMT"/);
   assert.doesNotMatch(s, /client\/public\/match-desk/, 'the demo never writes the public statement');
   assert.doesNotMatch(s, /--send\b/, 'the demo never uses --send');
-  // Two companies' vaults, one agent: owners dev #3 and dev #4, agent dev #1 for both.
-  assert.match(s, /deploy_vault "\$DEV3" motored/);
+  // Two companies' vaults, one agent: Motored.lt's real owner (impersonated on the fork) and dev #4, agent dev #1 for both.
+  assert.match(s, /MOTORED_OWNER="\$\{MOTORED_OWNER:-0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d\}"/);
+  assert.match(s, /anvil_impersonateAccount "\$MOTORED_OWNER"/);
+  assert.match(s, /deploy_vault "\$MOTORED_OWNER" motored/);
   assert.match(s, /deploy_vault "\$DEV4" tokentails/);
   assert.match(s, /CAPPED_AGENT="\$DEV1"/);
   assert.match(s, /--demo-overcap --vault tokentails --overcap-kind day/);
@@ -315,7 +317,7 @@ test('check without --sponsor checks every vault and that they share one agent',
 
 test('fund needs --sponsor on a multi-sponsor desk, refuses an unknown one, AI sessions and mainnet without CONFIRM_MAINNET', () => {
   const sb = deskSandbox();
-  const none = run(sb, ['fund', sb.desk, '--account', 'motored-owner', '--usdc', '1']);
+  const none = run(sb, ['fund', sb.desk, '--account', 'motored', '--usdc', '1']);
   assert.equal(none.status, 2);
   assert.match(none.stderr, /--sponsor <id> is required/);
   const unknown = run(sb, ['fund', sb.desk, '--sponsor', 'acme', '--account', 'x', '--usdc', '1']);
@@ -325,7 +327,7 @@ test('fund needs --sponsor on a multi-sponsor desk, refuses an unknown one, AI s
   assert.equal(ai.status, 2);
   assert.match(ai.stderr, /AI session/);
   assert.match(ai.stdout, new RegExp(`Funding the 'tokentails' vault\\. Only its owner \\(${OWNER_B}\\)`));
-  const main = run(sb, ['fund', sb.desk, '--sponsor', 'motored', '--account', 'motored-owner', '--usdc', '1']);
+  const main = run(sb, ['fund', sb.desk, '--sponsor', 'motored', '--account', 'motored', '--usdc', '1']);
   assert.equal(main.status, 2);
   assert.match(main.stderr, /CONFIRM_MAINNET=yes/);
   const gas = run(sb, ['gas', sb.desk, '--account', 'funder', '--usdc', '0.05'], { CLAUDECODE: '1' });

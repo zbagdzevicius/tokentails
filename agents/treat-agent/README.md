@@ -135,7 +135,7 @@ The sponsors in `desk.example.json`:
 
 | id | Company | Label on every public page | Vault owner keystore |
 |---|---|---|---|
-| `motored` | Motored.lt | related-party sponsor (founder's company) | `motored-owner` |
+| `motored` | Motored.lt | related-party sponsor (founder's company) | `motored` (`0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d`, created by Token Tails for the founder's company) |
 | `tokentails` | Token Tails | operator's own money | `tt-sponsor-owner` (the founder picks the address) |
 
 Each vault: about 1 USDC of float, 0.05 USDC per gift, 0.20 USDC per UTC day. Each vault's owner is that
@@ -234,7 +234,7 @@ so a gift matched by any vault is never matched again.
 | desk file | `./match-desk.sh init testnet` (writes `desk.arc-testnet.json`; `mainnet` writes `desk.arc.json`) |
 | deploy, per company | `./match-desk.sh deploy desk.arc-testnet.json --sponsor motored --account <deployer> --owner <Motored.lt address> --agent <tt-match-agent>`, then the same with `--sponsor tokentails --owner <Token Tails address>` (the agent comes from the file after the first deploy). Simulation, a y/N prompt, then `--broadcast`; writes the vault address, block and owner (and the agent) into the desk file |
 | read back | `./match-desk.sh check desk.arc-testnet.json`: read-only, every vault (or `--sponsor <id>`); fails unless `native()` is true, `perTxCap()` is 50000000000000000 (0.05 USDC), `dailyCap()` is 200000000000000000 (0.20 USDC), split, agent and owner match the file, and every vault has the same agent. Run it before any money moves. |
-| float, per company | `./match-desk.sh fund desk.arc-testnet.json --sponsor motored --account motored-owner --usdc 1` and `--sponsor tokentails --account tt-sponsor-owner --usdc 1` (only each vault's owner can fund it) |
+| float, per company | `./match-desk.sh fund desk.arc-testnet.json --sponsor motored --account motored --usdc 1` and `--sponsor tokentails --account tt-sponsor-owner --usdc 1` (only each vault's owner can fund it) |
 | agent gas | `./match-desk.sh gas desk.arc-testnet.json --account <funder> --usdc 0.05` (one agent for every vault) |
 | source | `./match-desk.sh verify desk.arc-testnet.json` prints one Sourcify command per vault (not yet tried on Arc for CappedSpender) |
 | a round | `./match-desk.sh round desk.arc-testnet.json` (dry run, optional), then `... round desk.arc-testnet.json --send --keystore tt-match-agent` (the dry-run receipt does not hold it; run the printed command or `--send`, not both), then `... --witness-only` |
@@ -255,7 +255,7 @@ unused float, to itself.
 
 On an anvil fork (`MATCH_DESK_API=off`; anvil's public dev accounts): two vaults deployed through
 `script/DeployCappedSpender.s.sol` (the same script as `match-desk.sh deploy`), Motored.lt's owned by
-dev #3 and Token Tails' by dev #4, both with agent dev #1 and caps 0.05 / 0.20 test USDC, each funded
+its real owner address (impersonated on the fork, no key) and Token Tails' by dev #4, both with agent dev #1 and caps 0.05 / 0.20 test USDC, each funded
 with 1 test USDC by its owner. Motored.lt comes first (priority 20) with a 0.03 budget, so the first fan
 gift is matched from Motored.lt's vault and the second falls to Token Tails' vault. Then: the witness
 reconciling both, a checker rejection (`TREAT_AGENT_FAKE_WRONG=1`), an idempotent rerun that matches

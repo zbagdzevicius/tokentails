@@ -43,7 +43,7 @@
       "policy": {
         "budgetUsdc": "1.00",
         "perGiftMaxUsdc": "0.05",
-        "policySha256": "19a8fb71737828166308d5e598a3fc520b490faa459396c8b46a737a8d8da6e8",
+        "policySha256": "ad0b662013787ffb0aece6f467d832f76cc956cf790387dd0357f027e8e21839",
         "ratio": "1:1"
       },
       "priority": 20,
@@ -58,7 +58,7 @@
       },
       "vault": {
         "deployBlock": null,
-        "owner": null,
+        "owner": "0xfe7d5aa030d14213bf1684d4c28fe7f32a4dbc8d",
         "spender": null
       }
     },
