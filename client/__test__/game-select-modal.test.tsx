@@ -3,7 +3,7 @@
  */
 /**
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
- * load to /heist, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+ * load to /heist, Pink Paw Knight (Swordcat) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -18,7 +18,10 @@ import {
   gameCards,
   heistPickerEnabled,
   HEIST_PICKER_HREF,
+  SWORDCAT_CARD_KEY,
+  SWORDCAT_PICKER_HREF,
 } from "@/components/shared/GameSelectModal";
+import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -136,6 +139,52 @@ describe("GameSelectModal", () => {
     open();
     const result = await axe.run(document.body, {
       runOnly: { type: "rule", values: ["button-name", "link-name", "nested-interactive", "aria-dialog-name", "image-alt", "list", "listitem"] },
+    });
+    expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe("Pink Paw Knight (Swordcat) card", () => {
+  it("is not in the picker by default (NEXT_PUBLIC_SWORDCAT_PICKER unset)", () => {
+    expect(swordcatPickerEnabled()).toBe(false);
+    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
+    const { dialog } = open();
+    expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
+  });
+
+  it("comes after the Heist when enabled, as a link with no GameType", () => {
+    const cards = gameCards(true, new Date(), true);
+    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", "PINK PAW KNIGHT"]);
+    expect(cards[4]).toMatchObject({
+      key: "SWORDCAT",
+      href: SWORDCAT_PICKER_HREF,
+      badge: "NEW",
+      description: "Rescue lost kittens with a tiny knight",
+      previewVariant: "SWORDCAT",
+    });
+    expect(cards[4].type).toBeUndefined();
+    expect(Object.values(GameType)).not.toContain("SWORDCAT");
+  });
+
+  it("opens /swordcat with a full page load and keeps the Heist card's test id", () => {
+    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true });
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
+    const card = within(dialog).getByTestId("game-card-swordcat");
+    expect(card.getAttribute("href")).toBe("/swordcat");
+    expect(card.getAttribute("aria-label")).toBe("PINK PAW KNIGHT · NEW");
+    expect(within(dialog).getByTestId("game-card-swordcat-preview")).toBeTruthy();
+    fireEvent.click(card);
+    expect(navigate).toHaveBeenCalledWith("/swordcat");
+    expect(setGameType).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("has no axe violations with the card shown", async () => {
+    open({ showSwordcat: true });
+    const result = await axe.run(document.body, {
+      runOnly: { type: "rule", values: ["button-name", "link-name", "nested-interactive", "image-alt", "svg-img-alt", "list", "listitem"] },
     });
     expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
   });

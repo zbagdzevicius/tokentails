@@ -22,7 +22,8 @@ module.exports = {
     // /gaming is a noindex redirect stub for legacy links; /cats/view and
     // /feed/article are the app export's client routes (noindex). /yourcat is paused until launch
     // (YOURCAT_ENABLED off, docs/YOURCAT.md): remove it here as a launch checklist step.
-    exclude: ['/gaming', '/cats/view', '/feed/article', '/yourcat'],
+    // /swordcat is behind NEXT_PUBLIC_SWORDCAT (default off, noindex).
+    exclude: ['/gaming', '/cats/view', '/feed/article', '/yourcat', '/swordcat'],
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];

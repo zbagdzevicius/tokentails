@@ -29,7 +29,7 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
-Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`.
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. With `NEXT_PUBLIC_SWORDCAT_PICKER` (plus the page flag; both off by default) a fifth card, PINK PAW KNIGHT (badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -145,6 +145,39 @@ run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the b
 - **Look**: coin gold-400, night-900 background, Nunito secondary text (decisions #48, #85), the shared Token Tails icon (decision #93), voxel catnip sprigs from the 16 px master.
 - **Analytics and crashes**: consent-gated `heist_open`, `heist_run_complete` and the first-run funnel (`ftue_gate_shown`, `game_start`, `ftue_hint_shown`, `ftue_hint_done`, `life_lost`, `game_fail`, `game_finish`, `ftue_first_clear`), and a crash overlay ("Something went wrong. Your cats are safe.") on a boot failure, an error burst or a 5 s frame stall. Both need `VITE_POSTHOG_KEY` in the build and are compiled out of `VITE_HEIST_BUILD=replay|verify` builds.
 - **Sim changes**: re-run `npm run vendor-sim` and deploy the backend before the Heist site (`vendor-sim:check-remote` gates the Pages workflow).
+
+## Pink Paw Knight (Swordcat)
+
+The founder's third-person three.js + Vite adventure ("Swordcat"), a tiny knight with a pink bow
+rescuing lost kittens. It lives in its own repository, not in this monorepo, and is shown in the Token
+Tails shell at `/swordcat` (CLIENT.md, "Pink Paw Knight (/swordcat)") behind `NEXT_PUBLIC_SWORDCAT`
+(off by default); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card and `NEXT_PUBLIC_SWORDCAT_URL` is an
+optional override.
+
+- **Hosting** (founder decision 2026-10-14): same origin, like the Heist. The Swordcat repo's
+  `npm run build:tokentails` builds and copies `dist/` (minus the chunk manifest and maps) into
+  `client/public/swordcat-game/`; `/swordcat` frames `/swordcat-game/index.html?embed=1`. The game's
+  `base: './'` keeps every path relative, so the folder name is free. Size: about 58 MB in some 560 files
+  (largest files are music MP3s of a few MB; nothing near GitHub's 50 MB per-file warning). That is far
+  more than the Heist and it lands in every Vercel deploy and in the Capacitor app's `public/` copy;
+  options if that is too much: an asset diet (trim music and the KayKit/level packs further), Git LFS
+  for the binaries, or the `NEXT_PUBLIC_SWORDCAT_URL` override to a CDN. Local dev against the game's
+  dev server: `NEXT_PUBLIC_SWORDCAT_URL=http://localhost:5175/` with `npm run dev` there.
+- **Bridge v1** (`components/swordcat/bridge.ts`): envelope `{ns: 'tt-swordcat', v: 1, type}`; unknown
+  types are ignored. The host sends `hello` until the game answers `ready {version}`: every 500 ms for
+  10 s, then every 2 s with no hard stop (a slow phone can need longer to boot; the page shows a "still
+  loading" note with Reload after 10 s and a Reload / Back to games panel after 2 min, and a late `ready`
+  still connects). When the frame reloads after the handshake it says hello again. After `ready` it sends `session {signedIn}`, `audio {muted}` (the shell's one mute), `pause` and `resume`
+  (while a GameModal is open). The game sends `level-complete {levelId, time, kittens, catnip, lives,
+  rank}`, `kitten-rescued {kittenId}` and `paused {paused}`. The host accepts a message only from the
+  iframe's window and the game's origin and posts to that exact origin, never `'*'`. No `accesstoken`
+  or Firebase token ever crosses the bridge.
+- **Phase 1 saves nothing.** `level-complete` is not stored or posted anywhere; it adds no game type,
+  catnip, Tails or lives.
+- **Phase 2** (needs a founder decision): add a `GameType` and its caps in `shared/` and in every copy
+  (DEVELOPMENT.md), and save only through `POST /user/catbassadors/live` from the host. No second
+  write path. The game has no deterministic replay, so a posted result could be forged; caps must
+  reflect that.
 
 ## Base (Home)
 
