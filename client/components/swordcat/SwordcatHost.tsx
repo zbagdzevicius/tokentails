@@ -6,6 +6,7 @@ import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSwordcatBridge, type SwordcatBridge } from "./bridge";
 import { swordcatFrameSrc, swordcatOrigin, swordcatUrl } from "./flags";
+import { SWORDCAT_TITLE } from "./title";
 
 /** Where the exit button goes (the game lobby, like the Heist's exit). */
 export const SWORDCAT_EXIT_PATH = "/game";
@@ -96,7 +97,7 @@ interface SwordcatHostProps {
 }
 
 /**
- * The `/swordcat` host (Swordcat plan §5.1): Pink Paw Knight full-bleed in an iframe from
+ * The `/swordcat` host (Swordcat plan §5.1): the Swordcat game (`SWORDCAT_TITLE`) full-bleed in an iframe from
  * `/swordcat-game/` (same origin; `NEXT_PUBLIC_SWORDCAT_URL` overrides it, `?embed=1`), the v1 bridge (`./bridge`), an exit button back to
  * `/game` in the frame's top-left corner (the game keeps that corner free in embed mode), and a rotate
  * hint on portrait phones. The frame sits inside the safe area. While the game boots the bridge keeps
@@ -208,7 +209,7 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
         data-state="unavailable"
       >
         {exitButton}
-        <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is not available right now.</p>
+        <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is not available right now.</p>
         <a
           href={SWORDCAT_EXIT_PATH}
           className="font-sans text-p5 font-bold text-tt-gold-400 underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400"
@@ -231,7 +232,7 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
         key={frameKey}
         ref={frameRef}
         src={src}
-        title="Pink Paw Knight"
+        title={SWORDCAT_TITLE}
         data-testid={SWORDCAT_FRAME_TESTID}
         className="absolute border-0 bg-tt-night-900"
         style={SAFE_FRAME_STYLE}
@@ -248,7 +249,7 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
           className="fixed left-1/2 z-10 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg border-2 border-tt-night-950 bg-tt-night-900/90 py-1 pl-3 pr-1 font-sans text-p6 font-bold text-tt-cream shadow-[0_2px_0_rgb(var(--tt-night-950))]"
           style={{ top: `calc(env(safe-area-inset-top) + ${SWORDCAT_EXIT_GUTTER_PX}px)` }}
         >
-          <span>Still loading Pink Paw Knight…</span>
+          <span>Still loading {SWORDCAT_TITLE}…</span>
           <button type="button" onClick={reload} className={reloadButtonClass}>
             Reload
           </button>
@@ -260,7 +261,7 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
           data-testid="swordcat-timeout"
           className="fixed inset-0 z-[9] flex flex-col items-center justify-center gap-4 bg-tt-night-900/95 px-4 text-center"
         >
-          <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is taking too long to load.</p>
+          <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button type="button" onClick={reload} className={reloadButtonClass}>
               Reload

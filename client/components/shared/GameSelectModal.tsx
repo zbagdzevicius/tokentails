@@ -3,6 +3,7 @@ import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
@@ -18,7 +19,7 @@ export const HEIST_PICKER_HREF = "/heist";
 /** The Heist card's link: `from=picker` feeds `heist_open {from}` on the host page. */
 export const heistHref = (href: string) => `${href}?from=picker`;
 
-/** Where the Pink Paw Knight (Swordcat) card goes: the flagged host page, by a full page load. */
+/** Where the Swordcat card (`SWORDCAT_TITLE`) goes: the flagged host page, by a full page load. */
 export const SWORDCAT_PICKER_HREF = "/swordcat";
 /** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
@@ -70,7 +71,7 @@ const cardTestId = (card: GameCard) =>
 /**
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
- * Pink Paw Knight (Swordcat) comes after the Heist, only when `includeSwordcat` is set
+ * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
  * (`swordcatPickerEnabled()`, default off).
  */
 export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
@@ -122,7 +123,7 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
     cards.push({
       key: SWORDCAT_CARD_KEY,
       href: SWORDCAT_PICKER_HREF,
-      title: "PINK PAW KNIGHT",
+      title: SWORDCAT_TITLE.toUpperCase(),
       description: "Rescue lost kittens with a tiny knight",
       badge: "NEW",
       previewVariant: "SWORDCAT",
@@ -178,11 +179,13 @@ const PawPost = () => (
 );
 
 /**
- * The Swordcat preview: a gold sword with a pink bow on the night sky, drawn inline (no image file).
+ * The Swordcat preview, drawn inline (no image file): Clem, the game's knight, as an ivory sitting cat with a
+ * maroon outline and her pink bow on the left ear, under the Token Tails gold ":3" coin on the night sky (Token
+ * Tails tokens: night #0B0820/#2A1F45, gold #FFCC55, ink #4A1D08, love pink #FF7AA2). Pink is Clem's bow alone.
  * Pixel art on a 39x27 grid, so it stays crisp at any size.
  */
 const SwordcatPreview = () => (
-  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-[#0B0820] shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
     <svg
       viewBox="0 0 39 27"
       aria-hidden="true"
@@ -191,29 +194,88 @@ const SwordcatPreview = () => (
       className="h-full w-full"
       shapeRendering="crispEdges"
     >
+      {/* Night sky: deep night above, dusk night band and a dark hill below */}
       <rect width="39" height="27" fill="#0B0820" />
+      <rect y="15" width="39" height="10" fill="#2A1F45" />
+      <rect y="25" width="39" height="2" fill="#1E1633" />
+      <rect y="25" width="39" height="1" fill="#3A2D5C" />
       {/* Stars */}
-      <rect x="4" y="4" width="1" height="1" fill="#FFCC55" opacity="0.8" />
-      <rect x="31" y="3" width="1" height="1" fill="#FFCC55" opacity="0.6" />
-      <rect x="34" y="17" width="1" height="1" fill="#FFCC55" opacity="0.7" />
-      <rect x="7" y="20" width="1" height="1" fill="#FFCC55" opacity="0.5" />
-      {/* Blade, tip at the top */}
-      <rect x="19" y="3" width="1" height="1" fill="#FFF1C2" />
-      <rect x="18" y="4" width="3" height="12" fill="#FFCC55" />
-      <rect x="19" y="4" width="1" height="12" fill="#FFF1C2" />
-      {/* Guard, grip and pommel */}
-      <rect x="14" y="16" width="11" height="2" fill="#FFCC55" />
-      <rect x="14" y="17" width="11" height="1" fill="#C98A1E" />
-      <rect x="18" y="18" width="3" height="4" fill="#7A4A1C" />
-      <rect x="17" y="22" width="5" height="2" fill="#FFCC55" />
-      {/* Pink bow tied under the guard */}
-      <rect x="12" y="18" width="5" height="3" fill="#FF6FB1" />
-      <rect x="22" y="18" width="5" height="3" fill="#FF6FB1" />
-      <rect x="13" y="19" width="2" height="1" fill="#FFB3D6" />
-      <rect x="24" y="19" width="2" height="1" fill="#FFB3D6" />
-      <rect x="17" y="18" width="5" height="3" fill="#E0428F" />
-      <rect x="15" y="21" width="2" height="3" fill="#E0428F" />
-      <rect x="22" y="21" width="2" height="3" fill="#E0428F" />
+      <rect x="3" y="4" width="1" height="1" fill="#FFCC55" opacity="0.8" />
+      <rect x="20" y="1" width="1" height="1" fill="#FFCC55" opacity="0.6" />
+      <rect x="2" y="12" width="1" height="1" fill="#F0C5FD" opacity="0.7" />
+      <rect x="36" y="17" width="1" height="1" fill="#FFCC55" opacity="0.7" />
+      <rect x="24" y="10" width="1" height="1" fill="#F0C5FD" opacity="0.6" />
+      {/* Clem's outline (ink): ears, head, body, curled tail */}
+      <g fill="#4A1D08">
+        <rect x="11" y="3" width="2" height="1" />
+        <rect x="10" y="4" width="4" height="3" />
+        <rect x="20" y="3" width="2" height="1" />
+        <rect x="19" y="4" width="4" height="3" />
+        <rect x="9" y="7" width="15" height="8" />
+        <rect x="8" y="14" width="17" height="11" />
+        <rect x="24" y="19" width="5" height="5" />
+        <rect x="26" y="15" width="3" height="5" />
+      </g>
+      {/* Clem's ivory coat */}
+      <g fill="#F3EEE6">
+        <rect x="11" y="4" width="2" height="4" />
+        <rect x="20" y="4" width="2" height="4" />
+        <rect x="10" y="8" width="13" height="7" />
+        <rect x="9" y="15" width="15" height="9" />
+        <rect x="24" y="20" width="4" height="3" />
+        <rect x="27" y="16" width="1" height="4" />
+      </g>
+      {/* Coat highlight, inner ear, paws */}
+      <rect x="11" y="8" width="3" height="1" fill="#FFFFFF" />
+      <rect x="20" y="5" width="1" height="2" fill="#FFB3C7" />
+      <rect x="15" y="21" width="1" height="3" fill="#D9CFC2" />
+      <rect x="11" y="23" width="3" height="1" fill="#D9CFC2" />
+      <rect x="18" y="23" width="3" height="1" fill="#D9CFC2" />
+      {/* Face: eyes with a catchlight, pink nose, ink mouth, blush */}
+      <rect x="13" y="10" width="1" height="2" fill="#2A1F45" />
+      <rect x="19" y="10" width="1" height="2" fill="#2A1F45" />
+      <rect x="13" y="10" width="1" height="1" fill="#90C5E9" />
+      <rect x="19" y="10" width="1" height="1" fill="#90C5E9" />
+      <rect x="16" y="12" width="1" height="1" fill="#FF7AA2" />
+      <rect x="15" y="13" width="1" height="1" fill="#4A1D08" />
+      <rect x="17" y="13" width="1" height="1" fill="#4A1D08" />
+      <rect x="11" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
+      <rect x="21" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
+      {/* Clem's pink bow on her left ear: two loops and a knot, ink outline */}
+      <g fill="#4A1D08">
+        <rect x="6" y="2" width="5" height="5" />
+        <rect x="10" y="3" width="3" height="3" />
+        <rect x="12" y="2" width="5" height="5" />
+      </g>
+      <rect x="7" y="3" width="3" height="3" fill="#FF7AA2" />
+      <rect x="13" y="3" width="3" height="3" fill="#FF7AA2" />
+      <rect x="7" y="3" width="1" height="1" fill="#FFB3C7" />
+      <rect x="13" y="3" width="1" height="1" fill="#FFB3C7" />
+      <rect x="11" y="4" width="1" height="1" fill="#E0567F" />
+      {/* The Token Tails gold ":3" coin, ink rim, with a sparkle */}
+      <g fill="#4A1D08">
+        <rect x="28" y="3" width="6" height="11" />
+        <rect x="27" y="4" width="8" height="9" />
+        <rect x="26" y="5" width="10" height="7" />
+      </g>
+      <g fill="#FFCC55">
+        <rect x="28" y="4" width="6" height="9" />
+        <rect x="27" y="5" width="8" height="7" />
+      </g>
+      <rect x="28" y="12" width="6" height="1" fill="#E2C05A" />
+      <rect x="34" y="9" width="1" height="3" fill="#E2C05A" />
+      <rect x="28" y="5" width="1" height="2" fill="#FFF1C2" />
+      <g fill="#4A1D08">
+        <rect x="29" y="7" width="1" height="1" />
+        <rect x="29" y="9" width="1" height="1" />
+        <rect x="31" y="6" width="2" height="1" />
+        <rect x="32" y="7" width="1" height="1" />
+        <rect x="31" y="8" width="2" height="1" />
+        <rect x="32" y="9" width="1" height="1" />
+        <rect x="31" y="10" width="2" height="1" />
+      </g>
+      <rect x="37" y="1" width="1" height="3" fill="#FFF1C2" />
+      <rect x="36" y="2" width="3" height="1" fill="#FFF1C2" />
     </svg>
   </span>
 );
@@ -286,7 +348,7 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
- * Every card is one tap target (a button, or a link for the Heist and Pink Paw Knight).
+ * Every card is one tap target (a button, or a link for the Heist and Swordcat).
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
@@ -337,7 +399,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           button only where it fits (md and up, at least 521 px tall). */}
       <span
         className={clsx(
-          // Long titles (PINK PAW KNIGHT) wrap on the narrow phone column instead of overflowing it.
+          // Long titles (Swordcat's) wrap on the narrow phone column instead of overflowing it.
           card.title.length > 12 ? "max-w-full text-balance text-center" : "whitespace-nowrap",
           "mt-2 rounded-md border-[3px] border-yellow-900 bg-tt-cream px-2 py-1 font-primary text-p6 uppercase leading-none tracking-wide text-tt-gold-ink shadow-[0_3px_0_#e2c05a] group-hover:brightness-110 [@media(min-width:768px)_and_(min-height:521px)]:hidden"
         )}

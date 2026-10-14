@@ -76,7 +76,7 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
 | `NEXT_PUBLIC_SWORDCAT` | `1`, `true`, `yes` or `on` opens `/swordcat` (Pink Paw Knight, GAMES.md). Default off: the page only does a client-side `router.replace("/game")` |
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
-| `NEXT_PUBLIC_SWORDCAT_PICKER` | `1`, `true`, `yes` or `on` adds the PINK PAW KNIGHT card (after the Heist) to the PLAY picker, only when `NEXT_PUBLIC_SWORDCAT` is on (`swordcatPickerEnabled`). Default off |
+| `NEXT_PUBLIC_SWORDCAT_PICKER` | `1`, `true`, `yes` or `on` adds the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) to the PLAY picker, only when `NEXT_PUBLIC_SWORDCAT` is on (`swordcatPickerEnabled`). Default off |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
@@ -122,7 +122,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
-| `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the v1 postMessage bridge, `SwordcatHost`. |
+| `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
 | `components/Phaser/look/` | Render foundation, tiers, camera rig, world look, backdrop, ambience, look manifest and settings, capture hooks. |
@@ -401,6 +401,18 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
 Pink Paw Knight is the Swordcat game (a separate three.js repo, GAMES.md), hosted full-bleed in an
 iframe by `components/swordcat/SwordcatHost.tsx`. `NEXT_PUBLIC_SWORDCAT=1` alone turns it on (default off,
 so production is unchanged until it is set); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card.
+
+- Title: `components/swordcat/title.ts` (`SWORDCAT_TITLE` "Pink Paw Knight", `SWORDCAT_SUBTITLE` "A Token
+  Tails Adventure") is the only place it is written in `client/`; the page meta, host and picker card read
+  it, and it must match the game's `src/core/brand.js`. Pink Paw has not yet approved the name. To rename
+  the game: edit `title.ts`, the same text in `brand.js`, the expected string in
+  `__test__/swordcat-title.test.ts`, then rebuild the game (`npm run build:tokentails`, GAMES.md). That test
+  also fails on a literal copy in the page, host, flags, bridge or picker, mocks the constant to another name and
+  checks every surface follows, and that with no `NEXT_PUBLIC_SWORDCAT*` set nothing changes.
+- The picker card's preview is an inline pixel SVG (`SwordcatPreview` in `GameSelectModal.tsx`): Clem in
+  ivory with her pink bow and the gold ":3" coin on the night sky.
+- The game's catnip stays in the game for now: nothing it earns reaches the player's Token Tails
+  catnip (see "Phase 1 saves nothing" below).
 
 - The iframe loads the same-origin build `/swordcat-game/index.html` plus `embed=1` (or a valid
   `NEXT_PUBLIC_SWORDCAT_URL` override), with `allow="autoplay; fullscreen; gamepad"` and no `sandbox` (the
