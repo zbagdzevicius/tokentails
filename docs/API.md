@@ -548,7 +548,10 @@ the unique `hash` index then turned into a permanent 409 for the real buyer.
 
 `src/payments/crypto/`. Replaces the Stellar pack purchase. The server prices an order, lists every
 chain and token it accepts, the buyer pays from their own wallet, and the server verifies the
-transaction on-chain before it grants anything, exactly once. Off unless `CRYPTO_PAY_ENABLED=true`.
+transaction on-chain before it grants anything, exactly once. There is no on/off flag: it is on
+wherever a chain resolves with a treasury (in production, all seven mainnets from `treasury.public.ts`)
+or with a live split route (after the handover). `enabled` in the config response is true when at
+least one chain has a treasury or a live split route. Rollback is a revert and a redeploy.
 Environment variables are in BACKEND.md "Crypto checkout".
 Client: `client/components/web3/crypto/` (packs and shelter cats, web only; docs/CLIENT.md "Crypto
 checkout"). It checks every option's `steps` against its coin, recipient and exact amount before a
@@ -567,7 +570,7 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
 
 | Code | Status | Meaning |
 |---|---|---|
-| `CRYPTO_PAY_DISABLED` | 503 | `CRYPTO_PAY_ENABLED` is not true, no chain has both an RPC and a receiving address, or the unique index `amount_reserved` is missing (checked before the first order, again every minute while missing) |
+| `CRYPTO_PAY_DISABLED` | 503 | No chain has both an RPC and a receiving address, or the unique index `amount_reserved` is missing (checked before the first order, again every minute while missing) |
 | `CRYPTO_PAY_BAD_SKU` | 400 | Unknown `sku.kind`, pack type, or a malformed `catId` |
 | `CRYPTO_PAY_NOT_FOR_SALE` | 404 | The cat is not an unowned shelter cat on sale (`GET /cat/sale`) |
 | `CRYPTO_PAY_ALREADY_OWNED` | 409 | The caller already owns a copy of that cat, or a payment of theirs for it is being granted |

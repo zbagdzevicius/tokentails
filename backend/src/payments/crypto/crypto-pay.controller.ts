@@ -59,7 +59,7 @@ export class CryptoPayController {
         return this.checkout.recoverStuckGrants();
     }
 
-    /** Runs the shelter-share keeper once (it also runs every 5 minutes when enabled). */
+    /** Runs the shelter-share keeper once (it also runs every 5 minutes once the shelter config is ready). */
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Post('shelter-share/run')
     @HttpCode(200)

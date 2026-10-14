@@ -35,7 +35,6 @@ const ENV = {
     NODE_ENV: 'development',
     // The shelter main chain as in production (Arc mainnet, no recorded split), so only anvil receives.
     SHELTER_NETWORK: 'mainnet',
-    CRYPTO_PAY_ENABLED: 'true',
     CRYPTO_PAY_LOCAL_USDC: USDC,
     CRYPTO_PAY_LOCAL_EURC: EURC,
     CRYPTO_PAY_RPC_31337: 'http://127.0.0.1:8545',
@@ -148,14 +147,14 @@ const codeOf = async (promise: Promise<unknown>): Promise<Record<string, any>> =
 afterEach(() => jest.restoreAllMocks());
 
 describe('POST /payments/crypto/orders', () => {
-    it('is 503 CRYPTO_PAY_DISABLED while the checkout is off', async () => {
+    it('is 503 CRYPTO_PAY_DISABLED while no chain has a treasury', async () => {
         const { service } = setup();
         const res = await codeOf(
             service.createOrder(
                 USER,
                 { sku: { kind: 'PACK', packType: 'STARTER' } },
                 T0,
-                config({ CRYPTO_PAY_ENABLED: 'false' })
+                config({ CRYPTO_PAY_TREASURY_31337: '' })
             )
         );
         expect(res).toEqual(expect.objectContaining({ status: 503, code: 'CRYPTO_PAY_DISABLED' }));
@@ -986,7 +985,7 @@ describe('GET /payments/crypto/config', () => {
             config({ CRYPTO_PAY_EURC_PER_USD: '0.92', CRYPTO_PAY_EURC_FX_DATE: '2026-08-01' })
         );
         expect(stale.chains[0].tokens.map(t => t.token)).toEqual(['USDC']);
-        expect(service.publicConfig(config({ CRYPTO_PAY_ENABLED: 'false' }))).toEqual(
+        expect(service.publicConfig(config({ CRYPTO_PAY_TREASURY_31337: '' }))).toEqual(
             expect.objectContaining({ enabled: false, chains: [] })
         );
     });

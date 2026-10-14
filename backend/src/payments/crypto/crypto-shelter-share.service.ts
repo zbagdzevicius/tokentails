@@ -12,7 +12,12 @@ import {
     shelterSplitInterface,
     TOKEN_BATCH_TOPIC,
 } from 'src/shelter/onchain/shelter-chain';
-import { readShelterConfig, ShelterOnchainConfig } from 'src/shelter/onchain/shelter-onchain.config';
+import {
+    isProductionEnv,
+    isTestnetChain,
+    readShelterConfig,
+    ShelterOnchainConfig,
+} from 'src/shelter/onchain/shelter-onchain.config';
 import { CryptoCheckout, CryptoCheckoutDocument, ShelterShareTier } from './crypto-checkout.schema';
 import { erc20PayInterface } from './crypto-evm';
 import { CryptoPayConfig, readCryptoPayConfig } from './crypto-pay.config';
@@ -30,8 +35,8 @@ import { CryptoPayConfig, readCryptoPayConfig } from './crypto-pay.config';
  * The tier is read from the receipt, not from the config at settle time: a share sent just before the
  * handover and settled after it went to the held wallet, so it stays custodial (shareTier).
  *
- * Off unless CRYPTO_PAY_SHELTER_SHARE_ENABLED=true and the main shelter config has an RPC, the split and
- * the hot wallet key. One send per row; a send whose fate is unknown is never repeated automatically:
+ * On by default (no flag). It does nothing until the main shelter config has an RPC, the split and the
+ * hot wallet key; rollback is a revert and a redeploy. One send per row; a send whose fate is unknown is never repeated automatically:
  * it stays `sent` until its receipt settles it, and a reverted send goes back to `due` at most twice.
  *
  * What reached the shelter is read from the receipt: ShelterSplit pays its shelters only their
@@ -54,6 +59,31 @@ export interface ShelterShareRun {
     skipped: string | null;
 }
 
+/** The keeper can send only with the main shelter config's RPC, split and hot wallet key. */
+function shelterShareReady(shelter: ShelterOnchainConfig): boolean {
+    return !!shelter.rpcUrl && !!shelter.splitAddress && !!hotWalletAddress(shelter);
+}
+
+/**
+ * The keeper pays only on the network the checkout sells on, and never from a testnet in production.
+ * Without this a dev or staging box with only the shelter hot key (it falls back to the Arc testnet
+ * split) could pay real mainnet or card shares in testnet USDC and mark them confirmed.
+ */
+export function shelterShareNetworkOk(
+    shelter: ShelterOnchainConfig,
+    cfg: CryptoPayConfig,
+    env: NodeJS.ProcessEnv = process.env
+): boolean {
+    const testnet = isTestnetChain(shelter.chainId);
+    if (testnet && isProductionEnv(env)) return false;
+    return testnet === (cfg.network === 'testnet');
+}
+
+/** The rows a keeper on this shelter chain may pay: card shares are paid only by a mainnet keeper. */
+function networkFilter(shelter: ShelterOnchainConfig) {
+    return { network: { $in: isTestnetChain(shelter.chainId) ? ['testnet'] : ['mainnet', 'card'] } };
+}
+
 @Injectable()
 export class CryptoShelterShareService {
     private readonly logger = new Logger(CryptoShelterShareService.name);
@@ -65,8 +95,12 @@ export class CryptoShelterShareService {
 
     @Cron(SHELTER_SHARE_CRON, { name: SHELTER_SHARE_JOB })
     async cron() {
-        if (!readCryptoPayConfig().shelterShareEnabled) {
-            return 'disabled';
+        const shelter = readShelterConfig();
+        if (!shelterShareReady(shelter)) {
+            return 'not-ready';
+        }
+        if (!shelterShareNetworkOk(shelter, readCryptoPayConfig())) {
+            return 'network-mismatch';
         }
         return runLeased({
             jobRuns: this.checkoutModel.db.collection(JOB_RUNS_COLLECTION) as unknown as ILeaseCollection,
@@ -83,12 +117,12 @@ export class CryptoShelterShareService {
         shelter: ShelterOnchainConfig = readShelterConfig()
     ): Promise<ShelterShareRun> {
         const result: ShelterShareRun = { sent: 0, confirmed: 0, failed: 0, skipped: null };
-        if (!cfg.shelterShareEnabled) {
-            return { ...result, skipped: 'disabled' };
-        }
         const hot = hotWalletAddress(shelter);
         if (!shelter.rpcUrl || !shelter.splitAddress || !hot) {
             return { ...result, skipped: 'not-ready' };
+        }
+        if (!shelterShareNetworkOk(shelter, cfg)) {
+            return { ...result, skipped: 'network-mismatch' };
         }
         const held = new Set([...cfg.heldWallets, ...shelter.heldWallets].map(w => w.toLowerCase()));
         await this.unlockStale(now);
@@ -125,7 +159,7 @@ export class CryptoShelterShareService {
         result: ShelterShareRun
     ) {
         const rows: any[] = await this.checkoutModel
-            .find({ 'shelterShare.state': 'sent' })
+            .find({ 'shelterShare.state': 'sent', ...networkFilter(shelter) })
             .limit(SHELTER_SHARE_BATCH)
             .lean();
         for (const row of rows) {
@@ -234,7 +268,7 @@ export class CryptoShelterShareService {
         }
 
         const rows: any[] = await this.checkoutModel
-            .find({ 'shelterShare.state': 'due' })
+            .find({ 'shelterShare.state': 'due', ...networkFilter(shelter) })
             .sort({ updatedAt: 1 })
             .limit(SHELTER_SHARE_BATCH)
             .lean();

@@ -16,17 +16,33 @@ const MAINNET_RPCS = {
 };
 
 describe('readCryptoPayConfig', () => {
-    it('is off with no chain receiving anything by default', () => {
+    it('is on in production with no env flag: every mainnet pays the checked-in Token Tails treasury', () => {
         const cfg = readCryptoPayConfig({ NODE_ENV: 'production', ...MAINNET_RPCS });
-        expect(cfg.enabled).toBe(false);
+        expect(cfg.enabled).toBe(true);
         expect(cfg.network).toBe('mainnet');
-        // The Token Tails treasury is checked in for every mainnet (founder, 2026-10-14); off until enabled.
+        // The Token Tails treasury is checked in for every mainnet (founder, 2026-10-14).
+        expect(cfg.chains).toHaveLength(7);
         expect(cfg.chains.every(c => c.treasury?.toLowerCase() === '0x7b136b872bead1dae557d1286f125b7a8a197c9a')).toBe(
             true
         );
-        expect(cfg.shelterShareEnabled).toBe(false);
+        // The removed flags no longer switch anything off.
+        expect(readCryptoPayConfig({ NODE_ENV: 'production', CRYPTO_PAY_ENABLED: 'false' }).enabled).toBe(true);
         // Founder, 2026-10-04: Pink Paw gets 50% of each $5 shelter cat unless the env overrides it.
         expect(cfg.catShelterBps).toBe(5000);
+    });
+
+    it('is off where no chain resolves with a treasury (testnets have none checked in)', () => {
+        expect(readCryptoPayConfig({ NODE_ENV: 'development' }).enabled).toBe(false);
+        expect(readCryptoPayConfig({ NODE_ENV: 'development', CRYPTO_PAY_TREASURY: TREASURY }).enabled).toBe(true);
+    });
+
+    it('is on with no treasury when a split route is live after the handover', () => {
+        const env = { NODE_ENV: 'development', CRYPTO_PAY_CAT_SPLITS: `5042002:USDC:${SPLIT}` };
+        // Before the handover createOrder never uses the split, so it does not turn checkout on.
+        expect(readCryptoPayConfig(env).enabled).toBe(false);
+        const cfg = readCryptoPayConfig({ ...env, SHELTER_HANDED_OVER: 'true' });
+        expect(cfg.chains.find(c => c.chain.chainId === 5042002)?.treasury).toBeNull();
+        expect(cfg.enabled).toBe(true);
     });
 
     it('offers every mainnet with no RPC env at all (official RPCs are checked in)', () => {
@@ -99,6 +115,7 @@ describe('readCryptoPayConfig', () => {
             ...MAINNET_RPCS,
         });
         expect(cfg.chains.every(c => c.treasury === null)).toBe(true);
+        expect(cfg.enabled).toBe(false);
         const extra = readCryptoPayConfig({
             NODE_ENV: 'production',
             CRYPTO_PAY_TREASURY: TREASURY,
@@ -106,6 +123,7 @@ describe('readCryptoPayConfig', () => {
             ...MAINNET_RPCS,
         });
         expect(extra.chains.every(c => c.treasury === null)).toBe(true);
+        expect(extra.enabled).toBe(false);
     });
 
     it('offers the Robinhood testnet mock token (mUSDC) only on that testnet, and never in production', () => {

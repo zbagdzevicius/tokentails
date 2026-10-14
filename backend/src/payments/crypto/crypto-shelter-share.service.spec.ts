@@ -1,12 +1,14 @@
 import { Types } from 'mongoose';
 import { memoryModel } from 'src/impact/memory-model.fakes-spec';
 import { DonationBroadcastError, shelterSplitInterface } from 'src/shelter/onchain/shelter-chain';
+import * as shelterConfig from 'src/shelter/onchain/shelter-onchain.config';
 import { readShelterConfig } from 'src/shelter/onchain/shelter-onchain.config';
 import { erc20PayInterface } from './crypto-evm';
 import { readCryptoPayConfig } from './crypto-pay.config';
 import {
     CryptoShelterShareService,
     disbursedShelters,
+    shelterShareNetworkOk,
     SHELTER_SHARE_STUCK_MS,
     shareTier,
 } from './crypto-shelter-share.service';
@@ -49,8 +51,7 @@ const shelter = readShelterConfig({
     SHELTER_SPLIT_ADDRESS: SPLIT,
     SHELTER_DONATE_PRIVATE_KEY: FAKE_KEY,
 });
-const cfg = (extra: Record<string, string> = {}) =>
-    readCryptoPayConfig({ CRYPTO_PAY_SHELTER_SHARE_ENABLED: 'true', ...extra });
+const cfg = (extra: Record<string, string> = {}) => readCryptoPayConfig({ ...extra });
 
 function setup({ allowance = BigInt(0) } = {}) {
     const model: any = memoryModel();
@@ -74,10 +75,11 @@ function setup({ allowance = BigInt(0) } = {}) {
         minedNonce: jest.fn(async () => 0),
     };
     const service = new CryptoShelterShareService(model, chain as any);
-    const addDue = (cents: number, extra: Record<string, unknown> = {}) =>
+    const addDue = (cents: number, extra: Record<string, unknown> = {}, network = 'testnet') =>
         model.rows.push({
             _id: new Types.ObjectId(),
             orderId: 'co_9f2c4e1a7b3d5e60',
+            network,
             shelterShare: {
                 route: 'treasury',
                 bps: 5000,
@@ -93,11 +95,73 @@ function setup({ allowance = BigInt(0) } = {}) {
 }
 
 describe('CryptoShelterShareService', () => {
-    it('does nothing unless enabled and the hot wallet, split and RPC are configured', async () => {
-        const { service, chain } = setup();
-        expect((await service.runOnce(T0, readCryptoPayConfig({}), shelter)).skipped).toBe('disabled');
+    it('runs with no flag, but does nothing until the hot wallet, split and RPC are configured', async () => {
+        const { service, chain, addDue } = setup();
+        addDue(250);
+        // The removed flag no longer switches the keeper off.
+        expect((await service.runOnce(T0, cfg({ CRYPTO_PAY_SHELTER_SHARE_ENABLED: 'false' }), shelter)).sent).toBe(1);
+        chain.sendContractCall.mockClear();
         expect((await service.runOnce(T0, cfg(), readShelterConfig({}))).skipped).toBe('not-ready');
         expect(chain.sendContractCall).not.toHaveBeenCalled();
+    });
+
+    it('skips the leased cron run while the shelter config is not ready', async () => {
+        const { service } = setup();
+        const run = jest.spyOn(service, 'runOnce');
+        // No hot wallet key: the keeper cannot send, so it does not take the lease.
+        const read = jest.spyOn(shelterConfig, 'readShelterConfig').mockReturnValue(readShelterConfig({}));
+        try {
+            expect(await service.cron()).toBe('not-ready');
+            expect(run).not.toHaveBeenCalled();
+        } finally {
+            read.mockRestore();
+        }
+    });
+
+    it('skips the cron run when the shelter chain is not on the checkout network', async () => {
+        const { service } = setup();
+        const run = jest.spyOn(service, 'runOnce');
+        // A ready mainnet shelter config in a process whose checkout runs on testnet (NODE_ENV=test).
+        const mainnet = readShelterConfig({
+            SHELTER_CHAIN_ID: '5042',
+            SHELTER_ARC_RPC_URL: 'http://127.0.0.1:8545',
+            SHELTER_SPLIT_ADDRESS: SPLIT,
+            SHELTER_DONATE_PRIVATE_KEY: FAKE_KEY,
+        });
+        const read = jest.spyOn(shelterConfig, 'readShelterConfig').mockReturnValue(mainnet);
+        try {
+            expect(await service.cron()).toBe('network-mismatch');
+            expect(run).not.toHaveBeenCalled();
+        } finally {
+            read.mockRestore();
+        }
+    });
+
+    it('pays only on the checkout network, and never from a testnet in production', async () => {
+        const { service, chain, addDue } = setup();
+        addDue(250);
+        // A testnet keeper while the checkout sells on mainnet: nothing is sent.
+        const mainnetCfg = cfg({ CRYPTO_PAY_NETWORK: 'mainnet' });
+        expect((await service.runOnce(T0, mainnetCfg, shelter)).skipped).toBe('network-mismatch');
+        expect(chain.sendContractCall).not.toHaveBeenCalled();
+        // A testnet shelter chain under NODE_ENV=production is refused even when the networks agree.
+        const testnetCfg = cfg({ CRYPTO_PAY_NETWORK: 'testnet' });
+        expect(shelterShareNetworkOk(shelter, testnetCfg, { NODE_ENV: 'production' })).toBe(false);
+        expect(shelterShareNetworkOk(shelter, testnetCfg, { NODE_ENV: 'test' })).toBe(true);
+    });
+
+    it('never pays a mainnet or card share from a testnet keeper', async () => {
+        const { service, model, addDue } = setup({ allowance: BigInt(10) ** BigInt(12) });
+        addDue(250, {}, 'mainnet');
+        addDue(250, {}, 'card');
+        addDue(250);
+        const run = await service.runOnce(T0, cfg(), shelter);
+        expect(run.sent).toBe(1);
+        expect(model.rows.map((r: any) => [r.network, r.shelterShare.state])).toEqual([
+            ['mainnet', 'due'],
+            ['card', 'due'],
+            ['testnet', 'sent'],
+        ]);
     });
 
     it('approves the split once, then disburses the share with the order memo and stores the hash before broadcast', async () => {

@@ -12,7 +12,7 @@ and `applications/arbitrum-dubai` untouched (another session). Custody rules: `d
 | Pink Paw gallery (payouts + `/impact` + Heist) | Tabs "At the shelter 104" and "Adopted 352" (local data), cards with the shelter's photo, "Meet <name>" links, 12 at a time. Read from the uncapped `GET /shelter/rozine-pedute/gallery`; the `/cat/sale` fallback hides totals and says "of the newest". | `backend/src/shelter/`, `shared/pink-paw.ts`, `client/components/shelter-payouts/PinkPawGallery.tsx`, `catnip-heist/src/ui/pink-paw.ts` |
 | Landing dedupe | Each of the three shelter names appears once on the landing; the globe list de-duplicates by slug, Pink Paw shows "Pink Paw" with "Rožinė pėdutė" under it. | `client/components/landing/shelterNames.ts`, `ImpactGlobeSection.tsx` |
 | Catnip Heist landing section | On by default since 2026-10-04 (founder override of decision #15 for this section; `NEXT_PUBLIC_HEIST_LANDING_SECTION=0` hides it). The v1 reel is cleared (F-023 Paris café founder-confirmed, company-reported) and plays while the rail is live or exhausted; otherwise the poster. The third beat follows the rail state. App export drops the reel files. | `client/components/landing/HeistSection.tsx`, `client/scripts/prune-app-export.mjs` |
-| Crypto checkout (replaces Stellar packs) | "Pay with crypto (USDC / EURC)" next to the card, only when the server sells on at least one network. Pick network and coin, get an order with an exact amount and a countdown, pay with a browser wallet or by QR + pasted hash, then a receipt. Prices come from the server (`config.prices`). Networks (since 2026-10-04): Arc, Base, Avalanche (USDC or EURC), Arbitrum, Monad (USDC), Tempo (USDC.e) and Robinhood Chain (USDG, no USDC there), each with a testnet twin. Stellar packs are gone; a late Stellar pack payment is recorded for a refund (410). Off today: no treasury address is set (`treasury.public.ts` is `null` on all seven chains). | `backend/src/payments/crypto/`, `client/components/web3/crypto/`, `client/components/web3/Payment.tsx`, `client/models/crypto-pay.ts` |
+| Crypto checkout (replaces Stellar packs) | "Pay with crypto (USDC / EURC)" next to the card, only when the server sells on at least one network. Pick network and coin, get an order with an exact amount and a countdown, pay with a browser wallet or by QR + pasted hash, then a receipt. Prices come from the server (`config.prices`). Networks (since 2026-10-04): Arc, Base, Avalanche (USDC or EURC), Arbitrum, Monad (USDC), Tempo (USDC.e) and Robinhood Chain (USDG, no USDC there), each with a testnet twin. Stellar packs are gone; a late Stellar pack payment is recorded for a refund (410). The Token Tails treasury is checked in for all seven mainnets (`treasury.public.ts`), so checkout goes live with the backend deploy. No flag. | `backend/src/payments/crypto/`, `client/components/web3/crypto/`, `client/components/web3/Payment.tsx`, `client/models/crypto-pay.ts` |
 | $5 shelter cats | "Basic tier · $5" offer under a shelter cat's card (Shelter scene and `/cats/<id>`), "BUY FOR $5" opens a card or crypto checkout; a basic-tier copy is granted once. Rare and up come only from packs. Not in app builds. | `client/components/shelter/ShelterCatBuy.tsx`, `backend/src/shelter/shelter-cat-sale.service.ts`, `backend/src/web3/purchase-grant.service.ts`, `price-table.ts` `SHELTER_CAT_MIN_PRICE_CENTS` |
 
 ## QA pass fixes (this round)
@@ -67,25 +67,36 @@ code on Arc 5042, Base 8453, Arbitrum 42161, Avalanche 43114, Tempo 4217, Robinh
 Monad 143, with a zero balance of every checkout token. Every token contract answers with 6 decimals
 (USDC, EURC, USDC.e, USDG).
 
-Two ways to switch it on. Pick one.
+There is no on/off flag (founder decision 2026-10-14). Checkout is on wherever a chain resolves with
+a treasury, and `treasury.public.ts` holds the treasury for all seven mainnets. The address is public,
+so it lives in code. `CRYPTO_PAY_TREASURY[_<chainId>]` is only an optional override, for testnets and
+the local chain. The shelter-share keeper also has no flag: it runs whenever the main shelter config
+has an RPC, the split and the hot wallet key, and the shelter chain is on the checkout network. A
+mainnet keeper pays only mainnet and card shares; a testnet keeper only testnet shares.
 
-| Route | What | Deploy |
-|---|---|---|
-| A, env only | Backend env `CRYPTO_PAY_TREASURY=0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` | backend restart only, `main` untouched |
-| B, code | Merge `feat/crypto-go-live` (`treasury.public.ts` filled, spec updated) | backend deploy from `main` |
-
-Then, in order:
-1. Backend env `CRYPTO_PAY_ENABLED=true`. `CRYPTO_PAY_NETWORK` defaults to `mainnet` under
-   `NODE_ENV=production`; leave it unset or set it to `mainnet`. No Vercel change: the client shows
-   "Pay with crypto" as soon as `GET` crypto config lists a chain.
-2. Check: the config endpoint returns `enabled: true` and seven chains, each with the treasury.
-3. One real purchase on Arc with USDC: the cheapest item (a $5 shelter cat). Check the receipt page,
-   the grant, and the USDC on the treasury in the Arc explorer.
-4. `CRYPTO_PAY_SHELTER_SHARE_ENABLED`: leave it off until the Arc rotation to Pink Paw's own wallet is
-   confirmed. Shares are still recorded as `due` while it is off, and the keeper pays them once it is
-   on. Turned on before the rotation, they reach the wallet Token Tails holds (custodial, disclosed).
-   The keeper pays from the hot wallet float, so keep that float topped up.
-5. Rollback: `CRYPTO_PAY_ENABLED=false` and restart. Open orders expire after their TTL.
+Go-live, in order:
+0. Before the deploy: count the shelter shares already waiting in production
+   (`{'shelterShare.state': 'due'}` in `cryptocheckouts`). Card purchases of shelter cats have recorded
+   them since cb10e83a, while the keeper was off. Top up the Arc hot wallet to cover their total plus
+   the sponsored-treat budget. The hot wallet is also the treat float (about 300 treats, roughly $3),
+   and one $5 cat's share is $2.50, so one share can empty it and stop treats.
+1. Merge `feat/crypto-go-live` and deploy the backend. Leave `CRYPTO_PAY_NETWORK` unset (it defaults
+   to `mainnet` under `NODE_ENV=production`). No Vercel change: the client shows "Pay with crypto" as
+   soon as the crypto config lists a chain.
+2. Check: `GET /payments/crypto/config` returns `enabled: true` and seven chains.
+3. One real $5 USDC purchase on Arc: a shelter cat. Check the receipt page, the grant, and the USDC on
+   the treasury in the Arc explorer.
+4. Shelter share: the keeper pays it from the hot wallet float on the main shelter chain, so keep that
+   float topped up. Its first run after the deploy (within 5 minutes) pays every share recorded so far,
+   card shares included. Pink Paw's own wallet `0x3c833562e682dB66C2415b34961595df135f4771` was created by
+   Token Tails and will be handed over. Until the Arc split is rotated to it, the split pays the wallet
+   Token Tails holds (`0xE299…0f37`), and each share is tiered `onchain-custodial` (disclosed). After
+   the handover and rotation, new shares are `onchain-shelter-held`.
+5. Rollback: revert the change and redeploy the backend. Open orders expire after their TTL.
+6. Known side effect: `shareRoutesFor` in `src/shelter/goal/shelter-goal.service.ts` reads `enabled`.
+   It is true with the deploy wherever a split route (`CRYPTO_PAY_CAT_SPLITS`, default the main split)
+   is on the campaign chain, before the handover too, so the goal page can count a shop share as
+   reaching the campaign split. This changes counting and display only; no money moves.
 
 Founder calls still open:
 - EURC is priced at 1 EURC per USD by default (a $5 cat costs 5 EURC, about $5.8). Set
@@ -96,9 +107,9 @@ Founder calls still open:
 ## Founder steps, in order
 
 Also in the CLAUDE.md tracker.
-1. Treasury addresses per chain (`treasury.public.ts` or `CRYPTO_PAY_TREASURY[_<chainId>]`), then `CRYPTO_PAY_ENABLED=true` (`CRYPTO_PAY_NETWORK` defaults to `mainnet` under `NODE_ENV=production`). The `wallets.public.json` `shelter-split-treasury` is filled since 2026-10-05 (the Token Tails treasury, `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A`); `treasury.public.ts` may only hold that value, and using it for checkout revenue is still a founder decision.
+1. ~~Treasury addresses and the checkout switch.~~ Decided 2026-10-14: the Token Tails treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` is checked in to `treasury.public.ts` on all seven mainnets, and there is no on/off flag. Go-live is the backend deploy (see "Go-live" above).
 2. ~~Pick the Legendary pack price.~~ Done 2026-10-04: $350, on sale for $100 until 27 Nov.
-3. Shelter cats: `CRYPTO_PAY_CAT_SHELTER_BPS` decided 2026-10-04 (50%, now the default 5000); still decide `CRYPTO_PAY_SHELTER_SHARE_ENABLED`; no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
+3. Shelter cats: `CRYPTO_PAY_CAT_SHELTER_BPS` decided 2026-10-04 (50%, now the default 5000); the shelter-share keeper runs by default (no flag, decided 2026-10-14); no Stripe Price object is needed (the server sets $5 per PaymentIntent); buy one by card on production.
 4. Stellar packs closed 2026-10-09 18:00 UTC (in code); refund `STELLAR_DEPRECATED` orders.
 5. Backend deploy keeps `SHELTER_GOAL_SCAN` on (default) with an Arc mainnet RPC; the first scan takes a few minutes.
 6. ~~Verify F-023 or drop the Paris sentence.~~ Founder confirmed the event 2026-10-04: F-023 is company-reported (landing surface, café footage only). Third-party verification (open the x.com post, confirm the partners) is still open before partner names may appear.
