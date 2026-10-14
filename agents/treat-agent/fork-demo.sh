@@ -41,6 +41,9 @@ DEV2=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
 DEV3=0x90F79bf6EB2c4f870365E785982E1f101E93b906
 DEV4=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
 DEV5=0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc
+# Motored.lt's real vault owner (keystore "motored", the "motored-sponsor" wallet). On the fork it is only
+# impersonated through anvil (anvil_impersonateAccount + anvil_setBalance): no key is used or needed.
+MOTORED_OWNER="${MOTORED_OWNER:-0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d}"
 MODE=treat
 if [ "${1:-}" = "--match-desk" ]; then MODE=match-desk; shift; fi
 OUT="${1:-/dev/stdout}"
@@ -55,8 +58,8 @@ mkdir -p "$LOG_DIR"
 
 # ---------------------------------------------------------------------------------------------
 # --match-desk: the multi-sponsor Match Desk on the same local fork (MATCH-DESK.md, B4). MATCH_DESK_API=off,
-# so no Token Tails endpoint is called. Two companies each own a vault: anvil dev #3 stands in for
-# Motored.lt, dev #4 for Token Tails. Both vaults have the same agent (dev #1) and the runbook caps
+# so no Token Tails endpoint is called. Two companies each own a vault: Motored.lt's real owner address
+# ($MOTORED_OWNER, impersonated on the fork only), dev #4 stands in for Token Tails. Both vaults have the same agent (dev #1) and the runbook caps
 # (0.05 / 0.20 test USDC, native 18 decimals). Motored.lt is matched first (priority 20) but has a small
 # budget (0.03), so the second match falls to Token Tails' vault. Every step is checked; any failed
 # expectation makes the script exit 1.
@@ -90,19 +93,22 @@ match_desk_demo() {
       console.log(tx.contractAddress.toLowerCase() + " " + Number(BigInt(rc.blockNumber)));' "$run_json"
   }
   local va vb
-  va=$(deploy_vault "$DEV3" motored) || return 1
+  # Impersonate Motored.lt's owner on the local fork and give it fork-only gas and float.
+  cast rpc anvil_impersonateAccount "$MOTORED_OWNER" --rpc-url "$R" >/dev/null
+  cast rpc anvil_setBalance "$MOTORED_OWNER" 0x8ac7230489e80000 --rpc-url "$R" >/dev/null
+  va=$(deploy_vault "$MOTORED_OWNER" motored) || return 1
   vb=$(deploy_vault "$DEV4" tokentails) || return 1
   SP_A=${va% *}; BLOCK_A=${va#* }
   SP_B=${vb% *}; BLOCK_B=${vb#* }
   # Each company funds its own vault (receive() accepts only the owner).
-  cast send "$SP_A" --value 1ether --rpc-url "$R" --unlocked --from "$DEV3" >/dev/null
+  cast send "$SP_A" --value 1ether --rpc-url "$R" --unlocked --from "$MOTORED_OWNER" >/dev/null
   cast send "$SP_B" --value 1ether --rpc-url "$R" --unlocked --from "$DEV4" >/dev/null
 
   # desk.fork.json: the example's shape with fork values (validFrom = now - 1 h). excludedSenders are
   # the example's Token Tails wallets (only skipped, never paid), so a fork of mainnet state shows the
   # exclusion working instead of matching a real Token Tails gift. Both owners and vaults are excluded
   # by code too.
-  SP_A="$SP_A" SP_B="$SP_B" BLOCK_A="$BLOCK_A" BLOCK_B="$BLOCK_B" CHAIN="$CHAIN" SPLIT="$SPLIT" OWNER_A="$DEV3" OWNER_B="$DEV4" AGENT="$DEV1" \
+  SP_A="$SP_A" SP_B="$SP_B" BLOCK_A="$BLOCK_A" BLOCK_B="$BLOCK_B" CHAIN="$CHAIN" SPLIT="$SPLIT" OWNER_A="$MOTORED_OWNER" OWNER_B="$DEV4" AGENT="$DEV1" \
     PINK_PAW="$PINK_PAW" EXAMPLE="$HERE/desk.example.json" node -e '
     const e = process.env, day = (ms) => new Date(ms).toISOString().slice(0, 10), now = Date.now();
     const example = JSON.parse(require("fs").readFileSync(e.EXAMPLE, "utf8"));
@@ -184,7 +190,7 @@ match_desk_demo() {
   {
     echo "# Match Desk demo (two sponsors, one agent), $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "# Local anvil fork of $FORK_LABEL (chain id $CHAIN) on 127.0.0.1:$PORT. Fork balances only, no real money; nothing reaches a public network."
-    echo "# Vault A (Motored.lt, related-party sponsor (founder's company)): $SP_A (block $BLOCK_A), owner = anvil dev #3."
+    echo "# Vault A (Motored.lt, related-party sponsor (founder's company)): $SP_A (block $BLOCK_A), owner = $MOTORED_OWNER (Motored.lt's wallet, impersonated on the fork)."
     echo "# Vault B (Token Tails, operator's own money):                     $SP_B (block $BLOCK_B), owner = anvil dev #4."
     echo "# Both: agent = anvil dev #1 (the same agent), split $SPLIT (Pink Paw at 10000 bps), caps 0.05 test USDC per gift"
     echo "#   and 0.20 per UTC day, float 1 test USDC each, funded by each owner. Pink Paw's wallet is still held by Token Tails until the handover."

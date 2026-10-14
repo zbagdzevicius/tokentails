@@ -35,7 +35,7 @@
       "name": "Motored.lt",
       "relatedParty": true,
       "relation": "founder's company",
-      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "spender": { "address": null, "deployBlock": null, "owner": "0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d" },
       "priority": 20,
       "ratioBps": 10000,
       "perGiftMaxUsdc": "0.05",

@@ -18,10 +18,21 @@ Initial sponsors (`desk.example.json`):
 
 | id | name | relatedParty | relation | label | owner keystore |
 |---|---|---|---|---|---|
-| `motored` | Motored.lt | true | founder's company | related-party sponsor (founder's company) | `motored-owner` |
+| `motored` | Motored.lt | true | founder's company | related-party sponsor (founder's company) | `motored` (the "motored-sponsor" wallet `0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d`; Token Tails created it for Motored.lt, the founder's company, and every submission says so) |
 | `tokentails` | Token Tails | true | operator (Token Tails' own money) | operator's own money | `tt-sponsor-owner` (founder decides the address; the treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` is an option, never the hot, treat or agent wallets) |
 
 Each vault: about 1 USDC, `perTxCap` 0.05, `dailyCap` 0.20 (18-decimal native values, see correction 1).
+
+**Shelter wallet and the planned rotation.** The example files keep `shelter.wallet`
+`0xE299299b846Ba629f5A591dBF4F562bcC07A0f37` (custody `held-by-token-tails`), because that is what the
+on-chain ShelterSplit pays today. The plan: Token Tails created a new wallet `0x3c833562e682dB66C2415b34961595df135f4771` for Pink Paw. The
+founder hands it over (the recovery phrase on paper, Pink Paw staff import it into a wallet app on their
+own phone and move a test 0.01 to prove control, then Token Tails deletes its copy). Only after that
+handover does the split owner rotate the Pink Paw entry from `0xE299…0f37` to `0x3c833562e682dB66C2415b34961595df135f4771` (Arc 5042 first,
+Arc testnet 5042002 for the rehearsal, Tempo and Arbitrum later, before Dec 5). From then on the split
+pays `0x3c833562e682dB66C2415b34961595df135f4771`, custody `shelter-held`, and the desk file's `shelter` block is updated to match. Until the
+handover, nothing may call `0x3c833562e682dB66C2415b34961595df135f4771` "Pink Paw's own wallet". After the rotation, `0xE299…0f37` is only the
+Token Tails grant receiver.
 
 Each round, the agent:
 
@@ -177,7 +188,7 @@ may be committed after the deploy.
   },
   "sponsors": [
     { "id": "motored", "name": "Motored.lt", "relatedParty": true, "relation": "founder's company",
-      "spender": { "address": null, "deployBlock": null, "owner": null },
+      "spender": { "address": null, "deployBlock": null, "owner": "0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d" },
       "priority": 20, "ratioBps": 10000, "perGiftMaxUsdc": "0.05", "budgetUsdc": "1.00",
       "validFrom": "2026-10-14T00:00:00Z",
       "pace": { "from": "2026-10-15", "to": "2026-11-15", "floatLowUsdc": "0.10" },
@@ -231,7 +242,7 @@ memos written before the desk keep their hashes. Every v1 fixture and test still
     "relation": "founder's company"
   },
   "chainId": 5042,
-  "spender": { "address": null, "deployBlock": null, "owner": null, "agent": null },
+  "spender": { "address": null, "deployBlock": null, "owner": "0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d", "agent": null },
   "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
   "shelter": {
@@ -795,8 +806,9 @@ Every subcommand takes a desk.json (or a v1 sponsor.json, where `--sponsor` is o
 `MATCH_DESK_API=off`:
 
 1. Deploy **two** CappedSpenders through `script/DeployCappedSpender.s.sol` (`forge script --broadcast
-   --unlocked --sender <dev #0>`, the same script as `match-desk.sh deploy`): vault A owned by dev #3
-   (Motored.lt), vault B owned by dev #4 (Token Tails), the **same agent** dev #1, caps 5e16 / 2e17.
+   --unlocked --sender <dev #0>`, the same script as `match-desk.sh deploy`): vault A owned by Motored.lt's real
+   owner `0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d` (impersonated on the fork with `anvil_impersonateAccount`, no key; override with
+   `MOTORED_OWNER`), vault B owned by dev #4 (Token Tails), the **same agent** dev #1, caps 5e16 / 2e17.
 2. Each owner funds its vault with 1 USDC. Write `$LOG_DIR/desk.fork.json` (chainId from the fork,
    `excludedSenders` from `desk.example.json` (only skipped, never paid), `validFrom` = now − 1 h;
    Motored.lt priority 20 with a 0.03 budget and per-gift max, Token Tails priority 10 with 1.00).
@@ -832,17 +844,18 @@ values.
 AI sessions never run steps marked ✍. Nothing is sent to a public network from an AI session.
 
 1. Keystores: a new `tt-match-agent` EOA (not the x402 agent or the treat hot wallet), plus one owner
-   keystore per company: `motored-owner` (Motored.lt's own wallet) and `tt-sponsor-owner` (the Token
+   keystore per company: `motored` (Motored.lt's wallet `0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d`, created by Token Tails for
+   the founder's company) and `tt-sponsor-owner` (the Token
    Tails address the founder picks; the treasury `0x7b136b872bEad1dAE557d1286f125B7A8A197C9A` is an
    option; never the hot, treat or agent wallets).
 2. ✍ `./match-desk.sh init testnet`, then deploy vault A and vault B with the same agent:
-   `./match-desk.sh deploy desk.arc-testnet.json --sponsor motored --account <deployer> --owner <motored-owner
-   addr> --agent <tt-match-agent addr>` and `... --sponsor tokentails --owner <tt-sponsor-owner addr>` (the
+   `./match-desk.sh deploy desk.arc-testnet.json --sponsor motored --account <deployer> --owner <motored
+   addr, already in the example> --agent <tt-match-agent addr>` and `... --sponsor tokentails --owner <tt-sponsor-owner addr>` (the
    agent is now in the file). Each deploy writes its vault into the desk file.
 3. `./match-desk.sh check desk.arc-testnet.json`. Every vault must print native = true, perTxCap
    50000000000000000, dailyCap 200000000000000000, and the desk line "one agent". This settles the
    "native decimals" open question before any money moves.
-4. ✍ `fund … --sponsor motored --account motored-owner --usdc 1` and `fund … --sponsor tokentails
+4. ✍ `fund … --sponsor motored --account motored --usdc 1` and `fund … --sponsor tokentails
    --account tt-sponsor-owner --usdc 1` (testnet USDC from the faucet), then ✍ `gas … --usdc 0.05`.
 5. A test fan gift from another testnet wallet:
    ✍ `cast send 0x457c89e1… "donate(string)" "fan gift" --value 0.02ether --account <fan>`.

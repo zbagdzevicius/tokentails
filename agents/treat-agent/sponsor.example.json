@@ -7,7 +7,7 @@
     "relation": "founder's company"
   },
   "chainId": 5042,
-  "spender": { "address": null, "deployBlock": null, "owner": null, "agent": null },
+  "spender": { "address": null, "deployBlock": null, "owner": "0xFe7D5aA030d14213Bf1684d4c28FE7f32A4Dbc8d", "agent": null },
   "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
   "shelter": {
