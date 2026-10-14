@@ -29,8 +29,8 @@ on-chain ShelterSplit pays today. The plan: Token Tails created a new wallet `0x
 founder hands it over (the recovery phrase on paper, Pink Paw staff import it into a wallet app on their
 own phone and move a test 0.01 to prove control, then Token Tails deletes its copy). Only after that
 handover does the split owner rotate the Pink Paw entry from `0xE299…0f37` to `0x3c833562e682dB66C2415b34961595df135f4771` (Arc 5042 first,
-Arc testnet 5042002 for the rehearsal, Tempo and Arbitrum later, before Dec 5). From then on the split
-pays `0x3c833562e682dB66C2415b34961595df135f4771`, custody `shelter-held`, and the desk file's `shelter` block is updated to match. Until the
+Arc testnet 5042002 for the rehearsal, the other six mainnet chains later, before Dec 5). From then on the split
+pays `0x3c833562e682dB66C2415b34961595df135f4771`, custody `held-by-shelter` in the desk file's `shelter` block, which is updated to match. Until the
 handover, nothing may call `0x3c833562e682dB66C2415b34961595df135f4771` "Pink Paw's own wallet". After the rotation, `0xE299…0f37` is only the
 Token Tails grant receiver.
 
