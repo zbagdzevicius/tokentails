@@ -73,6 +73,9 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill stays off under #15 |
+| `NEXT_PUBLIC_SWORDCAT` | `1`, `true`, `yes` or `on` opens `/swordcat` (Pink Paw Knight, GAMES.md). Default off: the page only does a client-side `router.replace("/game")` |
+| `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
+| `NEXT_PUBLIC_SWORDCAT_PICKER` | `1`, `true`, `yes` or `on` adds the PINK PAW KNIGHT card (after the Heist) to the PLAY picker, only when `NEXT_PUBLIC_SWORDCAT` is on (`swordcatPickerEnabled`). Default off |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
@@ -118,6 +121,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
+| `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
 | `components/Phaser/look/` | Render foundation, tiers, camera rig, world look, backdrop, ambience, look manifest and settings, capture hooks. |
@@ -157,6 +161,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/gaming` | `pages/gaming.tsx` | Legacy URL. Permanent (308) redirect to `/` via `next.config.js`; the page itself is a `noindex` stub that does `router.replace("/")` for static exports, and is excluded from the sitemap. |
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
+| `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host behind `NEXT_PUBLIC_SWORDCAT` (default off: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
 | `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
@@ -380,6 +385,39 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
   `yardEntry.generated.ts`. End-to-end: `e2e/home-yard.spec.ts`.
 - Changing the yard: edit `catnip-heist/src/yard` or `src/home`, run its `tsc` and `vitest`, then
   `npm run build:client` there and commit the rebuilt `public/heist-game` and the generated entry.
+
+### Pink Paw Knight (/swordcat)
+
+Pink Paw Knight is the Swordcat game (a separate three.js repo, GAMES.md), hosted full-bleed in an
+iframe by `components/swordcat/SwordcatHost.tsx`. `NEXT_PUBLIC_SWORDCAT=1` alone turns it on (default off,
+so production is unchanged until it is set); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card.
+
+- The iframe loads the same-origin build `/swordcat-game/index.html` plus `embed=1` (or a valid
+  `NEXT_PUBLIC_SWORDCAT_URL` override), with `allow="autoplay; fullscreen; gamepad"` and no `sandbox` (the
+  game needs its own storage and WebGL). Same origin keeps the game's saves first-party.
+- Updating the build (like the Heist's `heist-game/`): in the Swordcat repo run `npm run build:tokentails`
+  (`npm run build`, then `scripts/copy-to-tokentails.mjs`, which replaces `client/public/swordcat-game/`
+  in the worktree next to it; `--dest <dir>` or `TT_SWORDCAT_DEST` for another checkout). It prints the
+  file count and size and refuses a single file over 50 MB. The build is about 58 MB in some 560 files,
+  so it also ships in the Capacitor app's `public/` copy; see GAMES.md for the size note.
+- The iframe fills the safe area (inside a frame the game reads no safe-area insets of its own). An exit
+  button ("Back to games", 44 px at every width, 6 px inside the frame's top-left corner) does a full load
+  of `/game`; in embed mode the game keeps a 56 px top-left corner free of HUD (Swordcat `src/ui/ui.css`,
+  `--embed-gut`; `SWORDCAT_EXIT_GUTTER_PX` here), so it never covers Clem's portrait or hearts. Portrait
+  touch screens get a dismissable "Turn your phone sideways for the best view" hint, remembered in
+  `localStorage` (`tt:swordcat:rotate-hint:v1`).
+- `components/swordcat/bridge.ts` speaks bridge v1 (GAMES.md). Messages count only from the iframe's
+  window and the game's origin; posts name that exact origin. The game learns only `signedIn` and the
+  shell's mute; no token is ever sent.
+- Any GameModal pauses the game through the Heist's suspension stand-in (`registerHeistSuspension`)
+  and makes the frame inert.
+- Phase 1 saves nothing: `level-complete` is logged with `console.debug` in development only.
+- Local dev: the game accepts embed messages only from the origins in its `VITE_EMBED_ORIGINS`
+  (default tokentails.com, www.tokentails.com and `http://localhost:3000`). If the client runs on
+  another port, start or build Swordcat with `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the
+  bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
+  `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
+  node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
 
 ### Other
 

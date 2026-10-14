@@ -21,7 +21,8 @@ module.exports = {
     sitemapSize: 1000,
     // /gaming is a noindex redirect stub for legacy links; /cats/view and
     // /feed/article are the app export's client routes (noindex).
-    exclude: ['/gaming', '/cats/view', '/feed/article'],
+    // /swordcat is behind NEXT_PUBLIC_SWORDCAT (default off, noindex).
+    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat'],
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];
