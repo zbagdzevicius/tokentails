@@ -1,5 +1,6 @@
 /**
 <<<<<<< HEAD
+<<<<<<< HEAD
  * Swordcat flags (Swordcat plan TOKENTAILS-PLAN.md §5.2; the game's title is `SWORDCAT_TITLE` in
  * `./title.ts`). The game is ON by default (launch, Oct 16 2026): no env is needed. The page
  * and picker flags are only kill switches now: `0`/`false`/`no`/`off` turns that part off (then
@@ -10,6 +11,11 @@
  * Pink Paw Knight (Swordcat) flags (Swordcat plan TOKENTAILS-PLAN.md §5.2). All default OFF, so a
  * build without them is unchanged: `/swordcat` sends players back to `/game` and the picker shows
  * no card.
+=======
+ * Swordcat flags (Swordcat plan TOKENTAILS-PLAN.md §5.2; the game's title is `SWORDCAT_TITLE` in
+ * `./title.ts`). All default OFF, so a build without them is unchanged: `/swordcat` sends players
+ * back to `/game` and the picker shows no card.
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  *
  * - `NEXT_PUBLIC_SWORDCAT`: `1`/`true`/`yes`/`on` opens `/swordcat`.
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))

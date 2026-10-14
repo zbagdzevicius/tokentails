@@ -32,7 +32,11 @@ import { SWORDCAT_TITLE } from "./title";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSwordcatBridge, type SwordcatBridge } from "./bridge";
 import { swordcatFrameSrc, swordcatOrigin, swordcatUrl } from "./flags";
+<<<<<<< HEAD
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+import { SWORDCAT_TITLE } from "./title";
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
 
 /** Where the exit button goes (the game lobby, like the Heist's exit). */
 export const SWORDCAT_EXIT_PATH = "/game";
@@ -206,8 +210,12 @@ interface SwordcatHostProps {
 }
 
 /**
+<<<<<<< HEAD
  * The `/swordcat` host (Swordcat plan §5.1): Pink Paw Knight full-bleed in an iframe from
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+ * The `/swordcat` host (Swordcat plan §5.1): the Swordcat game (`SWORDCAT_TITLE`) full-bleed in an iframe from
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * `/swordcat-game/` (same origin; `NEXT_PUBLIC_SWORDCAT_URL` overrides it, `?embed=1`), the v1 bridge (`./bridge`), an exit button back to
  * `/game` in the frame's top-left corner (the game keeps that corner free in embed mode), and a rotate
  * hint on portrait phones. The frame sits inside the safe area. While the game boots the bridge keeps
@@ -468,10 +476,14 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
       >
         {exitButton}
 <<<<<<< HEAD
+<<<<<<< HEAD
         <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is not available right now.</p>
 =======
         <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is not available right now.</p>
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+        <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is not available right now.</p>
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
         <a
           href={SWORDCAT_EXIT_PATH}
           className="font-sans text-p5 font-bold text-tt-gold-400 underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400"
@@ -495,10 +507,14 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
         ref={frameRef}
         src={src}
 <<<<<<< HEAD
+<<<<<<< HEAD
         title={SWORDCAT_TITLE}
 =======
         title="Pink Paw Knight"
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+        title={SWORDCAT_TITLE}
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
         data-testid={SWORDCAT_FRAME_TESTID}
         className="absolute border-0 bg-tt-night-900"
         style={SAFE_FRAME_STYLE}
@@ -516,10 +532,14 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
           style={{ top: `calc(env(safe-area-inset-top) + ${SWORDCAT_EXIT_GUTTER_PX}px)` }}
         >
 <<<<<<< HEAD
+<<<<<<< HEAD
           <span>Still loading {SWORDCAT_TITLE}…</span>
 =======
           <span>Still loading Pink Paw Knight…</span>
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+          <span>Still loading {SWORDCAT_TITLE}…</span>
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
           <button type="button" onClick={reload} className={reloadButtonClass}>
             Reload
           </button>
@@ -532,10 +552,14 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
           className="fixed inset-0 z-[9] flex flex-col items-center justify-center gap-4 bg-tt-night-900/95 px-4 text-center"
         >
 <<<<<<< HEAD
+<<<<<<< HEAD
           <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
 =======
           <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is taking too long to load.</p>
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+          <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button type="button" onClick={reload} className={reloadButtonClass}>
               Reload

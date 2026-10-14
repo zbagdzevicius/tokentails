@@ -4,10 +4,14 @@
 /**
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
 <<<<<<< HEAD
+<<<<<<< HEAD
  * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
 =======
  * load to /heist, Pink Paw Knight (Swordcat) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+ * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -34,7 +38,11 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 =======
 } from "@/components/shared/GameSelectModal";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+<<<<<<< HEAD
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -174,6 +182,7 @@ describe("GameSelectModal", () => {
 });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 describe("Swordcat card (SWORDCAT_TITLE)", () => {
   it("is in the picker by default (NEXT_PUBLIC_SWORDCAT* unset)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
@@ -200,6 +209,9 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     }
 =======
 describe("Pink Paw Knight (Swordcat) card", () => {
+=======
+describe("Swordcat card (SWORDCAT_TITLE)", () => {
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
   it("is not in the picker by default (NEXT_PUBLIC_SWORDCAT_PICKER unset)", () => {
     expect(swordcatPickerEnabled()).toBe(false);
     expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
@@ -212,10 +224,14 @@ describe("Pink Paw Knight (Swordcat) card", () => {
   it("comes after the Heist when enabled, as a link with no GameType", () => {
     const cards = gameCards(true, new Date(), true);
 <<<<<<< HEAD
+<<<<<<< HEAD
     expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
 =======
     expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", "PINK PAW KNIGHT"]);
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
     expect(cards[4]).toMatchObject({
       key: "SWORDCAT",
       href: SWORDCAT_PICKER_HREF,
@@ -239,6 +255,7 @@ describe("Pink Paw Knight (Swordcat) card", () => {
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("href")).toBe("/swordcat");
 <<<<<<< HEAD
+<<<<<<< HEAD
     expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
     const art = within(dialog).getByTestId("game-card-swordcat-preview");
     expect(art.tagName).toBe("IMG");
@@ -250,6 +267,9 @@ describe("Pink Paw Knight (Swordcat) card", () => {
     expect(card.querySelector("svg")).toBeNull();
 =======
     expect(card.getAttribute("aria-label")).toBe("PINK PAW KNIGHT · NEW");
+=======
+    expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
     expect(within(dialog).getByTestId("game-card-swordcat-preview")).toBeTruthy();
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
     fireEvent.click(card);

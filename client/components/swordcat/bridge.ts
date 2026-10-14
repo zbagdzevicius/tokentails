@@ -1,9 +1,13 @@
 /**
 <<<<<<< HEAD
+<<<<<<< HEAD
  * The host side of the Swordcat (`SWORDCAT_TITLE` in `./title.ts`) bridge, version 1 (Swordcat plan
 =======
  * The host side of the Pink Paw Knight (Swordcat) bridge, version 1 (Swordcat plan
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+ * The host side of the Swordcat (`SWORDCAT_TITLE` in `./title.ts`) bridge, version 1 (Swordcat plan
+>>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * TOKENTAILS-PLAN.md §5.5).
  *
  * Envelope: `{ ns: 'tt-swordcat', v: 1, type, ...payload }`. Unknown types are ignored.
