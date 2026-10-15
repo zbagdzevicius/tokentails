@@ -2,7 +2,7 @@ import { cdnFile } from "@/constants/utils";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * The 3D Token Tails mascot ("…and one more cat on the team"). Browser only: import it with
+ * The 3D Token Tails mascot above the landing crew CTA. Browser only: import it with
  * next/dynamic and ssr: false. three.js and the GLB (tail/mascot-animated.glb, ~600 KB) load only
  * when the stage comes near the viewport. It waves once on first view, then idles with an
  * occasional tail wag or look around; hover or tap makes it hop. Reduced motion shows a still pose.
