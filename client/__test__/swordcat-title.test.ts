@@ -119,16 +119,23 @@ describe("with the flags on, every surface reads the constant", () => {
   });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   // Phase TT4 (plan §12) replaces the §2.5 "no shelter words" rule: the kittens are real Pink Paw cats.
   // Still no money, adoption, token or impact claims on the card.
   it("picker card: title, label and a description with no money, adoption or impact words", () => {
 =======
   it("picker card: title, label and a description with no shelter, impact or money words", () => {
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
+=======
+  // Phase TT4 (plan §12) replaces the §2.5 "no shelter words" rule: the kittens are real Pink Paw cats.
+  // Still no money, adoption, token or impact claims on the card.
+  it("picker card: title, label and a description with no money, adoption or impact words", () => {
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     const dialog = openPicker();
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${TEST_TITLE.toUpperCase()} · NEW`);
     expect(within(card).getAllByText(TEST_TITLE.toUpperCase()).length).toBeGreaterThan(0);
+<<<<<<< HEAD
 <<<<<<< HEAD
     const description = within(card).getByText("Every cat you save is a real Pink Paw cat");
     expect(description.textContent).not.toMatch(/adopt|donat|impact|money|treat|crypto|token|fund|\$|\d/i);
@@ -136,6 +143,10 @@ describe("with the flags on, every surface reads the constant", () => {
     const description = within(card).getByText("Rescue lost kittens with a tiny knight");
     expect(description.textContent).not.toMatch(/shelter|donat|impact|money|treat|crypto|token|fund|help|save/i);
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
+=======
+    const description = within(card).getByText("Every cat you save is a real Pink Paw cat");
+    expect(description.textContent).not.toMatch(/adopt|donat|impact|money|treat|crypto|token|fund|\$|\d/i);
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     expect(within(card).getByTestId("game-card-swordcat-preview")).toBeTruthy();
   });
 });

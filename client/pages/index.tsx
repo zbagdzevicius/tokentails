@@ -192,7 +192,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
           <HeistSection railState={impact?.rail.state ?? null} />
         </SectionBoundary>
 
+<<<<<<< HEAD
         {/* The Swordcat game: on by default (NEXT_PUBLIC_SWORDCAT=0 is the kill switch), never in the app build (plan §12). */}
+=======
+        {/* The Swordcat game: behind NEXT_PUBLIC_SWORDCAT, never in the app build (plan §12). */}
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
         <SectionBoundary name="swordcat">
           <SwordcatSection railState={impact?.rail.state ?? null} />
         </SectionBoundary>

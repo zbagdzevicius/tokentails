@@ -164,10 +164,20 @@ describe("root visit", () => {
     expectGamingLanding(container);
   });
 
+<<<<<<< HEAD
   it("shows the Swordcat section after the Heist by default and hides it with NEXT_PUBLIC_SWORDCAT=0 (plan §12)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
     {
       const { container, unmount } = render(<HomePage />);
+=======
+  it("hides the Swordcat section by default and shows it after the Heist with NEXT_PUBLIC_SWORDCAT on (plan §12)", () => {
+    const off = render(<HomePage />);
+    expect(off.container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
+    off.unmount();
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    try {
+      const { container } = render(<HomePage />);
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       expectGamingLanding(container);
       const heist = container.querySelector('[data-testid="heist-section"]');
       const sword = container.querySelector('[data-testid="swordcat-section"]');
@@ -177,6 +187,7 @@ describe("root visit", () => {
       expect(sword!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(sword!.querySelectorAll("a")).toHaveLength(1);
       expect(sword!.querySelector("a")?.getAttribute("href")).toBe("/swordcat?from=landing_swordcat");
+<<<<<<< HEAD
       unmount();
     }
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
@@ -184,6 +195,8 @@ describe("root visit", () => {
       const { container } = render(<HomePage />);
       expectGamingLanding(container);
       expect(container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     } finally {
       delete process.env.NEXT_PUBLIC_SWORDCAT;
     }

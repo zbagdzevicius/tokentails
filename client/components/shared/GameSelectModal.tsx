@@ -34,6 +34,7 @@ export const SWORDCAT_PICKER_HREF = "/swordcat";
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
+<<<<<<< HEAD
 
 /**
  * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
@@ -56,6 +57,8 @@ export const SWORDCAT_PICKER_HREF = "/swordcat";
 /** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
@@ -169,6 +172,7 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
 <<<<<<< HEAD
       title: SWORDCAT_TITLE.toUpperCase(),
       description: SWORDCAT_PICKER_DESCRIPTION,
+<<<<<<< HEAD
       badge: "NEW",
       image: SWORDCAT_PREVIEW.src,
 =======
@@ -177,6 +181,8 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
       title: SWORDCAT_TITLE.toUpperCase(),
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
       description: "Rescue lost kittens with a tiny knight",
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       badge: "NEW",
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
       previewVariant: "SWORDCAT",

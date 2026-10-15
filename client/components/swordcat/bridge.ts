@@ -17,14 +17,20 @@
  * - Game to host: `ready {version}`, `level-complete {levelId, time, kittens, catnip, lives, rank}`,
  *   `kitten-rescued {kittenId}`, `paused {paused}`.
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
  * - Phase TT4 (plan §12.2, additive): game to host `cat-saved {slot, kind, catId?, catName?}` and
  *   `treat-request {requestId, slot, catId?, catName}`; host to game `treat-state {rail, sentToday,
  *   amountLabel?}` and `treat-result {requestId, kind, explorerUrl?, receiptPath?, amountLabel?}`.
  *   Limits: `slot` and `catId` at most 64 characters, `catName` 32, `requestId` 40, `amountLabel` 24.
  *   `explorerUrl` must be https and `receiptPath` must start with `/shelter-payouts/receipt?`. No free
  *   text crosses: both sides drop anything that fails these checks.
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
  *
  * Unlike the Heist, the game is usually served from another origin, so the checks matter: a message
  * counts only when it comes from our iframe's window and from the game's origin, and every post
@@ -60,12 +66,19 @@ export type HostToSwordcatMessage =
   | { ns: typeof SWORDCAT_NS; v: 1; type: "audio"; muted: boolean }
   | { ns: typeof SWORDCAT_NS; v: 1; type: "pause" }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   | { ns: typeof SWORDCAT_NS; v: 1; type: "resume" }
   | ({ ns: typeof SWORDCAT_NS; v: 1; type: "treat-state" } & SwordcatTreatState)
   | ({ ns: typeof SWORDCAT_NS; v: 1; type: "treat-result" } & SwordcatTreatResult);
 
 /** The treat rail as the game shows it (plan §12.2). */
+<<<<<<< HEAD
 export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "paused", "soon"] as const;
+=======
+export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "soon"] as const;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 export type SwordcatTreatRail = (typeof SWORDCAT_TREAT_RAILS)[number];
 
 export interface SwordcatTreatState {
@@ -103,9 +116,12 @@ export const SWORDCAT_AMOUNT_LABEL_MAX = 24;
 export const SWORDCAT_RECEIPT_PREFIX = "/shelter-payouts/receipt?";
 export const SWORDCAT_CAT_KINDS = ["lost", "squire", "service"] as const;
 export type SwordcatCatKind = (typeof SWORDCAT_CAT_KINDS)[number];
+<<<<<<< HEAD
 =======
   | { ns: typeof SWORDCAT_NS; v: 1; type: "resume" };
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
 export interface SwordcatReadyMessage {
   type: "ready";
@@ -133,6 +149,9 @@ export interface SwordcatPausedMessage {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 export interface SwordcatCatSavedMessage {
   type: "cat-saved";
   slot: string;
@@ -149,12 +168,16 @@ export interface SwordcatTreatRequestMessage {
   catName: string;
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 export type SwordcatToHostMessage =
   | SwordcatReadyMessage
   | SwordcatLevelCompleteMessage
   | SwordcatKittenRescuedMessage
+<<<<<<< HEAD
 <<<<<<< HEAD
   | SwordcatPausedMessage
   | SwordcatCatSavedMessage
@@ -162,11 +185,17 @@ export type SwordcatToHostMessage =
 =======
   | SwordcatPausedMessage;
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  | SwordcatPausedMessage
+  | SwordcatCatSavedMessage
+  | SwordcatTreatRequestMessage;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
 /** Builds a host message. The only way the host makes one: each payload field is copied by name. */
 export function hostMessage(type: "hello" | "pause" | "resume"): HostToSwordcatMessage;
 export function hostMessage(type: "session", payload: { signedIn: boolean }): HostToSwordcatMessage;
 export function hostMessage(type: "audio", payload: { muted: boolean }): HostToSwordcatMessage;
+<<<<<<< HEAD
 <<<<<<< HEAD
 export function hostMessage(type: "treat-state", payload: SwordcatTreatState): HostToSwordcatMessage;
 export function hostMessage(type: "treat-result", payload: SwordcatTreatResult): HostToSwordcatMessage;
@@ -243,20 +272,95 @@ export function receiptPathOf(value: unknown): string | null {
     ? value
     : null;
 =======
+=======
+export function hostMessage(type: "treat-state", payload: SwordcatTreatState): HostToSwordcatMessage;
+export function hostMessage(type: "treat-result", payload: SwordcatTreatResult): HostToSwordcatMessage;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 export function hostMessage(
   type: HostToSwordcatMessage["type"],
-  payload?: { signedIn?: boolean; muted?: boolean }
+  payload?: { signedIn?: boolean; muted?: boolean } | SwordcatTreatState | SwordcatTreatResult
 ): HostToSwordcatMessage {
   const base = { ns: SWORDCAT_NS, v: SWORDCAT_BRIDGE_VERSION } as const;
+<<<<<<< HEAD
   if (type === "session") return { ...base, type, signedIn: payload?.signedIn === true };
   if (type === "audio") return { ...base, type, muted: payload?.muted === true };
   return { ...base, type };
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  const p = (payload ?? {}) as Record<string, unknown>;
+  if (type === "session") return { ...base, type, signedIn: p.signedIn === true };
+  if (type === "audio") return { ...base, type, muted: p.muted === true };
+  if (type === "treat-state") {
+    const rail = (SWORDCAT_TREAT_RAILS as readonly unknown[]).includes(p.rail) ? (p.rail as SwordcatTreatRail) : "checking";
+    const amountLabel = amountLabelOf(p.amountLabel);
+    return { ...base, type, rail, sentToday: p.sentToday === true, ...(amountLabel ? { amountLabel } : {}) };
+  }
+  if (type === "treat-result") {
+    const requestId = requestIdOf(p.requestId) ?? "";
+    const kind = (SWORDCAT_TREAT_RESULT_KINDS as readonly unknown[]).includes(p.kind)
+      ? (p.kind as SwordcatTreatResultKind)
+      : "failed";
+    const explorerUrl = explorerUrlOf(p.explorerUrl);
+    const receiptPath = receiptPathOf(p.receiptPath);
+    const amountLabel = amountLabelOf(p.amountLabel);
+    return {
+      ...base,
+      type,
+      requestId,
+      kind,
+      ...(explorerUrl ? { explorerUrl } : {}),
+      ...(receiptPath ? { receiptPath } : {}),
+      ...(amountLabel ? { amountLabel } : {}),
+    };
+  }
+  return { ...base, type: type as "hello" | "pause" | "resume" };
+}
+
+/** A clean single-line string of 1 to `max` characters (no control characters), else null. */
+function shortTextOf(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > max || /[\u0000-\u001f\u007f<>]/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** A request id: 1 to 40 characters of letters, digits, `_`, `-`, `.` or `:`. */
+export function requestIdOf(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Za-z0-9_.:-]{1,40}$/.test(value) ? value : null;
+}
+
+/** A short amount such as `0.01 USDC` or `$0.01`. */
+export function amountLabelOf(value: unknown): string | null {
+  const text = shortTextOf(value, SWORDCAT_AMOUNT_LABEL_MAX);
+  return text && /^[$]?[0-9][0-9.,]*( [A-Za-z][A-Za-z0-9.]{0,9})?$/.test(text) ? text : null;
+}
+
+/** An https explorer link with no credentials, else null. */
+export function explorerUrlOf(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 512) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A same-origin receipt path (`/shelter-payouts/receipt?...`), else null. */
+export function receiptPathOf(value: unknown): string | null {
+  return typeof value === "string" &&
+    value.length <= 256 &&
+    value.startsWith(SWORDCAT_RECEIPT_PREFIX) &&
+    /^[A-Za-z0-9/?=&_.:-]+$/.test(value)
+    ? value
+    : null;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 /** A short id: a string or a finite number, as a string of at most `max` (64) characters. */
 function idOf(value: unknown, max = 64): string | null {
@@ -279,6 +383,21 @@ function idOf(value: unknown): string | null {
   const trimmed = value.trim();
   return trimmed && trimmed.length <= 64 ? trimmed : null;
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+/** A short id: a string or a finite number, as a string of at most `max` (64) characters. */
+function idOf(value: unknown, max = 64): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed && trimmed.length <= max ? trimmed : null;
+}
+
+/** An optional field: absent (undefined or null) is fine, present must pass `check`. */
+function optionalOf<T>(value: unknown, check: (v: unknown) => T | null): T | null | undefined {
+  if (value === undefined || value === null) return null;
+  const checked = check(value);
+  return checked === null ? undefined : checked;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 }
 
 const numberOf = (value: unknown): number | null =>
@@ -315,6 +434,9 @@ export function parseSwordcatMessage(data: unknown): SwordcatToHostMessage | nul
     case "paused":
       return typeof data.paused === "boolean" ? { type: "paused", paused: data.paused } : null;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     case "cat-saved": {
       const slot = idOf(data.slot, SWORDCAT_SLOT_MAX);
       const kind = (SWORDCAT_CAT_KINDS as readonly unknown[]).includes(data.kind) ? (data.kind as SwordcatCatKind) : null;
@@ -331,8 +453,11 @@ export function parseSwordcatMessage(data: unknown): SwordcatToHostMessage | nul
       if (!requestId || !slot || catId === undefined || !catName) return null;
       return { type: "treat-request", requestId, slot, catId, catName };
     }
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     default:
       return null;
   }
@@ -373,12 +498,18 @@ export interface SwordcatBridgeHandlers {
   onKittenRescued?(message: SwordcatKittenRescuedMessage): void;
   onPaused?(paused: boolean): void;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   /** Phase TT4: a cat was saved (analytics and a dev log only). */
   onCatSaved?(message: SwordcatCatSavedMessage): void;
   /** Phase TT4: the player asked for a treat. The host answers with `sendTreatResult`. */
   onTreatRequest?(message: SwordcatTreatRequestMessage): void;
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 }
 
 export interface SwordcatBridge {
@@ -390,12 +521,18 @@ export interface SwordcatBridge {
   pause(): void;
   resume(): void;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   /** Sends the treat state now if the game is ready, and again on every later `ready`. */
   setTreatState(state: SwordcatTreatState): void;
   /** Answers one `treat-request` (dropped when the request id is not valid). */
   sendTreatResult(result: SwordcatTreatResult): void;
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   /**
    * The frame (re)loaded a new game document: forget `ready` and say hello again (with fresh slow and
    * timeout clocks). The next `ready` re-sends session, audio and a pending pause.
@@ -430,9 +567,13 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
   let muted: boolean | null = null;
   let paused = false;
 <<<<<<< HEAD
+<<<<<<< HEAD
   let treatState: SwordcatTreatState | null = null;
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  let treatState: SwordcatTreatState | null = null;
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
   const post = (message: HostToSwordcatMessage) => {
     const target = options.target();
@@ -451,11 +592,17 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
     if (ready && muted !== null) post(hostMessage("audio", { muted }));
   };
 <<<<<<< HEAD
+<<<<<<< HEAD
   const sendTreatState = () => {
     if (ready && treatState) post(hostMessage("treat-state", treatState));
   };
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  const sendTreatState = () => {
+    if (ready && treatState) post(hostMessage("treat-state", treatState));
+  };
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
   // hello until ready: every 500 ms for 10 s, then every 2 s; never a hard stop.
   let started = timers.now();
@@ -502,9 +649,13 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
         sendSession();
         sendAudio();
 <<<<<<< HEAD
+<<<<<<< HEAD
         sendTreatState();
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+        sendTreatState();
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
         if (paused) post(hostMessage("pause"));
         if (first) handlers.onReady?.(message.version);
         break;
@@ -519,14 +670,20 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
         handlers.onPaused?.(message.paused);
         break;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       case "cat-saved":
         handlers.onCatSaved?.(message);
         break;
       case "treat-request":
         handlers.onTreatRequest?.(message);
         break;
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     }
   };
 
@@ -560,6 +717,9 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
       post(hostMessage("resume"));
     },
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     setTreatState(state) {
       treatState = { ...state };
       sendTreatState();
@@ -568,8 +728,11 @@ export function createSwordcatBridge(options: SwordcatBridgeOptions): SwordcatBr
       if (!ready || !requestIdOf(result.requestId)) return;
       post(hostMessage("treat-result", result));
     },
+<<<<<<< HEAD
 =======
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     reconnect() {
       if (disposed) return;
       ready = false;

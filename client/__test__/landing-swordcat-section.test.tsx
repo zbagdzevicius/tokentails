@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  *
+<<<<<<< HEAD
  * The landing's Swordcat section (Swordcat plan §12.3 E): on by default on the web, hidden by the
  * `NEXT_PUBLIC_SWORDCAT` kill switch (0/false/no/off) and always in the app build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
  * dash and no number that is not read live.
@@ -14,6 +15,17 @@ let mockIsApp = false;
 jest.mock("@/components/claims/build", () => ({ isAppBuild: () => mockIsApp }));
 let mockReduced = false;
 jest.mock("@/components/globe/useReducedMotion", () => ({ useReducedMotion: () => mockReduced }));
+=======
+ * The landing's Swordcat section (Swordcat plan §12.3 E): hidden with the flag off and in the app
+ * build; one link to /swordcat; the treat beat only while the rail is live; no adoption words, no em
+ * dash and no number that is not read live.
+ */
+import React from "react";
+import { render } from "@testing-library/react";
+
+let mockIsApp = false;
+jest.mock("@/components/claims/build", () => ({ isAppBuild: () => mockIsApp }));
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 jest.mock("@/components/shared/PixelButton", () => ({
   PixelButton: ({ text, subtext }: { text: string; subtext?: string }) => (
     <span>
@@ -27,15 +39,19 @@ import {
   SWORDCAT_SECTION_LINE,
   SWORDCAT_SECTION_STILL,
   SWORDCAT_SECTION_TREAT_BEAT,
+<<<<<<< HEAD
   SWORDCAT_TRAILER,
   SWORDCAT_TRAILER_LABEL,
   swordcatTrailerAllowed,
   swordcatTreatBeat,
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   SwordcatSection,
   swordcatSectionEnabled,
 } from "@/components/landing/SwordcatSection";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 
+<<<<<<< HEAD
 type ObserverCallback = (entries: { isIntersecting: boolean }[]) => void;
 let observerCallback: ObserverCallback | null = null;
 class MockObserver {
@@ -83,11 +99,24 @@ describe("swordcatSectionEnabled", () => {
     expect(swordcatSectionEnabled("1", false)).toBe(true);
     for (const off of ["0", "false", "no", "off", " OFF "]) expect(swordcatSectionEnabled(off, false)).toBe(false);
     expect(swordcatSectionEnabled(undefined, true)).toBe(false);
+=======
+afterEach(() => {
+  mockIsApp = false;
+  delete process.env.NEXT_PUBLIC_SWORDCAT;
+});
+
+describe("swordcatSectionEnabled", () => {
+  it("is off by default, on with the flag, and never in the app build", () => {
+    expect(swordcatSectionEnabled(undefined, false)).toBe(false);
+    expect(swordcatSectionEnabled("0", false)).toBe(false);
+    expect(swordcatSectionEnabled("1", false)).toBe(true);
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     expect(swordcatSectionEnabled("true", true)).toBe(false);
   });
 });
 
 describe("SwordcatSection", () => {
+<<<<<<< HEAD
   it("renders with no env set (on by default)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
     const { getByTestId } = render(<SwordcatSection railState="live" />);
@@ -96,10 +125,14 @@ describe("SwordcatSection", () => {
 
   it("renders nothing with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
+=======
+  it("renders nothing with the flag off", () => {
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     const { container } = render(<SwordcatSection railState="live" />);
     expect(container.innerHTML).toBe("");
   });
 
+<<<<<<< HEAD
   it("renders nothing in the app build, by default or with the flag on", () => {
     mockIsApp = true;
     expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
@@ -111,6 +144,19 @@ describe("SwordcatSection", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "1";
     const { container, getByTestId } = render(<SwordcatSection railState="paused" />);
     expect(container.textContent).toContain("Out now");
+=======
+  it("renders nothing in the app build even with the flag on", () => {
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    mockIsApp = true;
+    const { container } = render(<SwordcatSection railState="live" />);
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("with the flag on: label, title, line, a lazy still and exactly one link", () => {
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    const { container, getByTestId } = render(<SwordcatSection railState="live" />);
+    expect(container.textContent).toContain("Early access");
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     expect(container.textContent).toContain(SWORDCAT_TITLE);
     expect(container.textContent).toContain(SWORDCAT_SECTION_LINE);
     const links = container.querySelectorAll("a");
@@ -123,16 +169,26 @@ describe("SwordcatSection", () => {
     expect(container.querySelector("video")).toBeNull();
   });
 
+<<<<<<< HEAD
   it("shows a treat beat for every rail state, with the custody line only while the rail is live", () => {
+=======
+  it("shows the treat beat with the custody line only while the rail is live", () => {
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     for (const state of ["live", "exhausted", "paused", "not-deployed", null] as const) {
       const { container, unmount } = render(<SwordcatSection railState={state} enabled />);
       const beat = container.querySelector('[data-testid="swordcat-treat-beat"]');
       if (state === "live") {
         expect(beat?.textContent).toBe(SWORDCAT_SECTION_TREAT_BEAT);
+<<<<<<< HEAD
         expect(beat?.textContent).toContain("It goes to Pink Paw's wallet.");
       } else {
         expect(beat?.textContent).toBe(swordcatTreatBeat(state));
         expect(beat?.textContent).not.toContain("Token Tails can send");
+=======
+        expect(beat?.textContent).toContain("Held by Token Tails for the shelter until handover.");
+      } else {
+        expect(beat).toBeNull();
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       }
       unmount();
     }
@@ -147,6 +203,7 @@ describe("SwordcatSection", () => {
     expect(text).not.toMatch(/\d/);
   });
 });
+<<<<<<< HEAD
 
 describe("SwordcatSection trailer", () => {
   it("plays only while the rail is live (open or used up for today)", () => {
@@ -228,3 +285,5 @@ describe("SwordcatSection trailer", () => {
     expect(container.querySelector("video")).toBeNull();
   });
 });
+=======
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)

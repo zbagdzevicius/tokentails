@@ -237,11 +237,15 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
       href: SWORDCAT_PICKER_HREF,
       badge: "NEW",
 <<<<<<< HEAD
+<<<<<<< HEAD
       description: "Every cat you save is a real Pink Paw cat",
       image: SWORDCAT_PREVIEW.src,
 =======
       description: "Rescue lost kittens with a tiny knight",
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+      description: "Every cat you save is a real Pink Paw cat",
+>>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       previewVariant: "SWORDCAT",
     });
     expect(cards[4].type).toBeUndefined();
