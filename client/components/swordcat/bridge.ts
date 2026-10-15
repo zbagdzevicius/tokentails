@@ -53,7 +53,7 @@ export type HostToSwordcatMessage =
   | ({ ns: typeof SWORDCAT_NS; v: 1; type: "treat-result" } & SwordcatTreatResult);
 
 /** The treat rail as the game shows it (plan §12.2). */
-export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "soon"] as const;
+export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "paused", "soon"] as const;
 export type SwordcatTreatRail = (typeof SWORDCAT_TREAT_RAILS)[number];
 
 export interface SwordcatTreatState {
