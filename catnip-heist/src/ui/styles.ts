@@ -431,9 +431,10 @@ button.ch-obj-inner.ch-route-on .ch-obj-route { color: var(--ch-ol); background:
   .ch-paws img { width: 32px; height: 32px; } .ch-paws span:nth-child(2) img { width: 38px; height: 38px; }
   .ch-rescue { padding: 6px; } .ch-rescue canvas { width: 52px; height: 52px; }
   .ch-score td { padding: 3px 6px; }
-  .ch-results .ch-dialog > .ch-scroll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-areas: 'paws table' 'rescue table' 'meta meta' 'btns btns'; column-gap: 16px; row-gap: 8px; align-items: center; }
+  .ch-results .ch-dialog > .ch-scroll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-areas: 'rescue paws' 'rescue table' 'meta meta' 'btns btns'; column-gap: 16px; row-gap: 8px; align-items: center; }
   .ch-results .ch-paws { grid-area: paws; }
-  .ch-results .ch-rescue { grid-area: rescue; }
+  /* The rescue box takes the whole left column (the paws sit over the score): its payouts button stays above the buttons row. */
+  .ch-results .ch-rescue { grid-area: rescue; align-self: start; }
   .ch-results .ch-rescue p small { display: none; }
   .ch-results .ch-rescue p { font-size: 16px; }
   /* The treat panel stays compact on landscape phones, so the payouts button still fits above the buttons row. */
