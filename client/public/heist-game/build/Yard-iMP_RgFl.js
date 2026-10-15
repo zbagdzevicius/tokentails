@@ -419,6 +419,20 @@ button.ch-obj-inner.ch-route-on .ch-obj-route { color: var(--ch-ol); background:
 .ch-reduced .ch-rescue .ch-give { animation: none; }
 /* A status badge, not a button: flat (no raised shadow), square-ish corners, default cursor. */
 .ch-rescue .ch-rail-chip { display: inline-block; margin-top: 8px; padding: 3px 8px; border: 1px dashed var(--ch-lilac); border-radius: 4px; background: transparent; box-shadow: none; cursor: default; user-select: none; pointer-events: none; color: var(--ch-lilac); font-family: ${G}; font-weight: 800; font-size: max(12px, .5em); letter-spacing: .06em; text-transform: uppercase; }
+.ch-treat { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; min-height: 48px; font-family: ${G}; }
+.ch-treat [hidden] { display: none !important; }
+.ch-rescue .ch-treat .ch-give { margin-top: 0; }
+.ch-treat .ch-give:disabled { cursor: default; animation: none; opacity: .8; filter: saturate(.7); }
+.ch-treat .ch-give[aria-busy=true] { cursor: progress; }
+.ch-treat-line { display: block; font-size: max(13px, .62em); line-height: 1.3; font-weight: 700; color: var(--ch-cream); }
+.ch-treat[data-state=sent] .ch-treat-line { color: var(--ch-mint); }
+.ch-treat[data-state=failed] .ch-treat-line, .ch-treat[data-state=unavailable] .ch-treat-line { color: #ffb3cf; }
+.ch-treat-extra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ch-treat-receipt { font-size: max(13px, .6em); font-weight: 800; color: var(--ch-coin); text-decoration: underline; text-underline-offset: 2px; pointer-events: auto; }
+.ch-treat-receipt:hover, .ch-treat-receipt:focus-visible { color: var(--ch-cream); }
+.ch-treat-copy { min-height: 36px; padding: 6px 12px; border: 2px solid var(--ch-cream); border-radius: 10px; background: transparent; color: var(--ch-cream); font: 800 13px ${G}; cursor: pointer; pointer-events: auto; overflow-wrap: anywhere; }
+.ch-treat-copy:hover, .ch-treat-copy:focus-visible { background: rgba(255,255,255,.12); }
+.ch-treat-custody { display: block; font-size: max(11px, .5em); line-height: 1.3; color: var(--ch-lilac); opacity: .9; }
 .ch-rescue .ch-payouts-total { display: block; margin-top: 2px; font-size: .55em; font-family: ${G}; color: var(--ch-cream); opacity: .85; }
 .ch-rescue .ch-payouts-total:empty { display: none; }
 .ch-rescue .ch-payouts:hover, .ch-rescue .ch-payouts:focus-visible { color: var(--ch-cream); }
@@ -516,6 +530,12 @@ button.ch-obj-inner.ch-route-on .ch-obj-route { color: var(--ch-ol); background:
   .ch-results .ch-rescue { grid-area: rescue; }
   .ch-results .ch-rescue p small { display: none; }
   .ch-results .ch-rescue p { font-size: 16px; }
+  /* The treat panel stays compact on landscape phones, so the payouts button still fits above the buttons row. */
+  .ch-results .ch-treat { min-height: 0; gap: 2px; margin-top: 4px; }
+  .ch-results .ch-rescue .ch-give { padding: 6px 12px; }
+  .ch-results .ch-treat-line { font-size: 12px; }
+  .ch-results .ch-treat-receipt { font-size: 12px; }
+  .ch-results .ch-treat-custody { font-size: 10.5px; line-height: 1.2; }
   .ch-results .ch-score { grid-area: table; font-size: 15px; }
   .ch-results .ch-meta { grid-area: meta; }
   .ch-results .ch-scroll > .ch-row { grid-area: btns; }
