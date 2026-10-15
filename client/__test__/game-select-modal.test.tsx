@@ -3,11 +3,11 @@
  */
 /**
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
- * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+ * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
  * the frame post), and axe on the open picker.
  */
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import axe from "axe-core";
 
 jest.mock("@/analytics", () => ({ reportAppError: jest.fn() }));
@@ -66,11 +66,17 @@ describe("gameCards", () => {
 });
 
 describe("GameSelectModal", () => {
-  it("shows four cards in a GameModal, the Heist as a link with its badge", () => {
+  it("shows five cards in a GameModal (the Swordcat card is on by default), the Heist as a link with its badge", () => {
     const { dialog } = open();
     expect(within(dialog).getByRole("heading", { name: "Choose your adventure" })).toBeTruthy();
     const cards = within(dialog).getAllByRole("listitem");
-    expect(cards).toHaveLength(4);
+    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual([
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      "CATNIP_HEIST",
+      SWORDCAT_CARD_KEY,
+    ]);
     const heist = within(dialog).getByRole("link", { name: "CATNIP HEIST · NO SIGN-UP" });
     expect(heist.getAttribute("href")).toBe("/heist?from=picker");
     expect(within(dialog).getByRole("button", { name: "PURRSUIT · CLASSIC" })).toBeTruthy();
@@ -118,6 +124,16 @@ describe("GameSelectModal", () => {
 
   it("hides the Heist card when the flag is off", () => {
     const { dialog } = open({ showHeist: false });
+    const cards = within(dialog).getAllByRole("listitem");
+    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual(["PIXEL_RESCUE", "CATNIP_CHAOS", "MATCH_3", SWORDCAT_CARD_KEY]);
+    expect(within(dialog).queryByTestId("game-card-heist")).toBeNull();
+    expect(within(dialog).queryByRole("link", { name: /CATNIP HEIST/ })).toBeNull();
+    // The only link left is the Swordcat card.
+    expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([SWORDCAT_PICKER_HREF]);
+  });
+
+  it("shows only the three Phaser cards with the Heist and Swordcat cards both off", () => {
+    const { dialog } = open({ showHeist: false, showSwordcat: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
@@ -146,12 +162,29 @@ describe("GameSelectModal", () => {
 });
 
 describe("Swordcat card (SWORDCAT_TITLE)", () => {
-  it("is not in the picker by default (NEXT_PUBLIC_SWORDCAT_PICKER unset)", () => {
-    expect(swordcatPickerEnabled()).toBe(false);
-    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
+  it("is in the picker by default (NEXT_PUBLIC_SWORDCAT* unset)", () => {
+    expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
+    expect(swordcatPickerEnabled()).toBe(true);
     const { dialog } = open();
-    expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+  });
+
+  it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
+    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
+    const first = open({ showSwordcat: false });
+    expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+    expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
+    cleanup();
+    process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
+    try {
+      expect(swordcatPickerEnabled()).toBe(false);
+      const second = open();
+      expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+      expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
+    } finally {
+      delete process.env.NEXT_PUBLIC_SWORDCAT_PICKER;
+    }
   });
 
   it("comes after the Heist when enabled, as a link with no GameType", () => {

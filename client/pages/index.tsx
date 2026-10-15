@@ -189,7 +189,7 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
           <HeistSection railState={impact?.rail.state ?? null} />
         </SectionBoundary>
 
-        {/* The Swordcat game: behind NEXT_PUBLIC_SWORDCAT, never in the app build (plan §12). */}
+        {/* The Swordcat game: on by default (NEXT_PUBLIC_SWORDCAT=0 is the kill switch), never in the app build (plan §12). */}
         <SectionBoundary name="swordcat">
           <SwordcatSection railState={impact?.rail.state ?? null} />
         </SectionBoundary>

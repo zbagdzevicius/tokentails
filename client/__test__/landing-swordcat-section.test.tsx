@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  *
- * The landing's Swordcat section (Swordcat plan §12.3 E): hidden with the flag off and in the app
- * build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
+ * The landing's Swordcat section (Swordcat plan §12.3 E): on by default on the web, hidden by the
+ * `NEXT_PUBLIC_SWORDCAT` kill switch (0/false/no/off) and always in the app build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
  * dash and no number that is not read live.
  */
 import React from "react";
@@ -35,25 +35,34 @@ afterEach(() => {
 });
 
 describe("swordcatSectionEnabled", () => {
-  it("is off by default, on with the flag, and never in the app build", () => {
-    expect(swordcatSectionEnabled(undefined, false)).toBe(false);
-    expect(swordcatSectionEnabled("0", false)).toBe(false);
+  it("is on by default, off with an off value, and never in the app build", () => {
+    expect(swordcatSectionEnabled(undefined, false)).toBe(true);
+    expect(swordcatSectionEnabled("", false)).toBe(true);
     expect(swordcatSectionEnabled("1", false)).toBe(true);
+    for (const off of ["0", "false", "no", "off", " OFF "]) expect(swordcatSectionEnabled(off, false)).toBe(false);
+    expect(swordcatSectionEnabled(undefined, true)).toBe(false);
     expect(swordcatSectionEnabled("true", true)).toBe(false);
   });
 });
 
 describe("SwordcatSection", () => {
-  it("renders nothing with the flag off", () => {
+  it("renders with no env set (on by default)", () => {
+    expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
+    const { getByTestId } = render(<SwordcatSection railState="live" />);
+    expect(getByTestId("swordcat-section")).toBeTruthy();
+  });
+
+  it("renders nothing with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
+    process.env.NEXT_PUBLIC_SWORDCAT = "0";
     const { container } = render(<SwordcatSection railState="live" />);
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders nothing in the app build even with the flag on", () => {
-    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+  it("renders nothing in the app build, by default or with the flag on", () => {
     mockIsApp = true;
-    const { container } = render(<SwordcatSection railState="live" />);
-    expect(container.innerHTML).toBe("");
+    expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
   });
 
   it("with the flag on: label, title, line, a lazy still and exactly one link", () => {
