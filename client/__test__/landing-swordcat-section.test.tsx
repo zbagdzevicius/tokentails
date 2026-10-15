@@ -17,7 +17,7 @@ let mockReduced = false;
 jest.mock("@/components/globe/useReducedMotion", () => ({ useReducedMotion: () => mockReduced }));
 =======
  * The landing's Swordcat section (Swordcat plan §12.3 E): hidden with the flag off and in the app
- * build; one link to /swordcat; the treat beat only while the rail is live; no adoption words, no em
+ * build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
  * dash and no number that is not read live.
  */
 import React from "react";
@@ -40,12 +40,16 @@ import {
   SWORDCAT_SECTION_STILL,
   SWORDCAT_SECTION_TREAT_BEAT,
 <<<<<<< HEAD
+<<<<<<< HEAD
   SWORDCAT_TRAILER,
   SWORDCAT_TRAILER_LABEL,
   swordcatTrailerAllowed,
   swordcatTreatBeat,
 =======
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+  swordcatTreatBeat,
+>>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
   SwordcatSection,
   swordcatSectionEnabled,
 } from "@/components/landing/SwordcatSection";
@@ -170,10 +174,14 @@ describe("SwordcatSection", () => {
   });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   it("shows a treat beat for every rail state, with the custody line only while the rail is live", () => {
 =======
   it("shows the treat beat with the custody line only while the rail is live", () => {
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+  it("shows a treat beat for every rail state, with the custody line only while the rail is live", () => {
+>>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
     for (const state of ["live", "exhausted", "paused", "not-deployed", null] as const) {
       const { container, unmount } = render(<SwordcatSection railState={state} enabled />);
       const beat = container.querySelector('[data-testid="swordcat-treat-beat"]');
@@ -187,8 +195,13 @@ describe("SwordcatSection", () => {
 =======
         expect(beat?.textContent).toContain("Held by Token Tails for the shelter until handover.");
       } else {
+<<<<<<< HEAD
         expect(beat).toBeNull();
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+        expect(beat?.textContent).toBe(swordcatTreatBeat(state));
+        expect(beat?.textContent).not.toContain("Token Tails can send");
+>>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
       }
       unmount();
     }
