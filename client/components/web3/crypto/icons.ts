@@ -10,6 +10,8 @@ const CHAIN_ICONS: Record<number, string> = {
   42161: `${BASE}/arbitrum.svg`,
   43114: `${BASE}/avalanche.svg`,
   4217: `${BASE}/tempo.svg`,
+  4663: `${BASE}/robinhood.svg`,
+  143: `${BASE}/monad.svg`,
 };
 
 /** Testnet chain id → its mainnet chain id. */
