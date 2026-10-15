@@ -111,6 +111,7 @@ const cardTestId = (card: GameCard) =>
 <<<<<<< HEAD
  * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
+<<<<<<< HEAD
 =======
  * Pink Paw Knight (Swordcat) comes after the Heist, only when `includeSwordcat` is set
 =======
@@ -118,6 +119,8 @@ const cardTestId = (card: GameCard) =>
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * (`swordcatPickerEnabled()`, default off).
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  */
 export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
   const cards: GameCard[] = [];
@@ -414,10 +417,14 @@ interface GameSelectModalProps {
   /** Override the `NEXT_PUBLIC_HEIST_PICKER` flag (tests). */
   showHeist?: boolean;
 <<<<<<< HEAD
+<<<<<<< HEAD
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
 =======
   /** Override the `NEXT_PUBLIC_SWORDCAT_PICKER` flag set (tests). */
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   showSwordcat?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;

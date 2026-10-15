@@ -31,6 +31,7 @@ Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the pla
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
 =======
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. With `NEXT_PUBLIC_SWORDCAT_PICKER` (plus the page flag; both off by default) a fifth card, PINK PAW KNIGHT (badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type.
@@ -38,6 +39,9 @@ Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The He
 =======
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. With `NEXT_PUBLIC_SWORDCAT_PICKER` (plus the page flag; both off by default) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type.
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
+=======
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -159,6 +163,9 @@ run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the b
 The founder's third-person three.js + Vite adventure ("Swordcat"), a tiny knight with a pink bow
 rescuing lost kittens. It lives in its own repository, not in this monorepo, and is shown in the Token
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 Tails shell at `/swordcat` (CLIENT.md, "Pink Paw Knight (/swordcat)"). It is on by default (launch, Oct 16 2026) with
 no env needed: `NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`,
 `false`, `no` or `off` turns off the page or the picker card), and `NEXT_PUBLIC_SWORDCAT_URL` is an optional

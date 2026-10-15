@@ -165,10 +165,14 @@ describe("root visit", () => {
   });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   it("shows the Swordcat section after the Heist by default and hides it with NEXT_PUBLIC_SWORDCAT=0 (plan §12)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
     {
       const { container, unmount } = render(<HomePage />);
+<<<<<<< HEAD
 =======
   it("hides the Swordcat section by default and shows it after the Heist with NEXT_PUBLIC_SWORDCAT on (plan §12)", () => {
     const off = render(<HomePage />);
@@ -178,6 +182,8 @@ describe("root visit", () => {
     try {
       const { container } = render(<HomePage />);
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
       expectGamingLanding(container);
       const heist = container.querySelector('[data-testid="heist-section"]');
       const sword = container.querySelector('[data-testid="swordcat-section"]');
@@ -188,6 +194,9 @@ describe("root visit", () => {
       expect(sword!.querySelectorAll("a")).toHaveLength(1);
       expect(sword!.querySelector("a")?.getAttribute("href")).toBe("/swordcat?from=landing_swordcat");
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
       unmount();
     }
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
@@ -195,8 +204,11 @@ describe("root visit", () => {
       const { container } = render(<HomePage />);
       expectGamingLanding(container);
       expect(container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
+<<<<<<< HEAD
 =======
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     } finally {
       delete process.env.NEXT_PUBLIC_SWORDCAT;
     }

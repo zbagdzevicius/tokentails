@@ -13,17 +13,26 @@
  * no card.
 =======
  * Swordcat flags (Swordcat plan TOKENTAILS-PLAN.md §5.2; the game's title is `SWORDCAT_TITLE` in
+<<<<<<< HEAD
  * `./title.ts`). All default OFF, so a build without them is unchanged: `/swordcat` sends players
  * back to `/game` and the picker shows no card.
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  *
  * - `NEXT_PUBLIC_SWORDCAT`: `1`/`true`/`yes`/`on` opens `/swordcat`.
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+ * `./title.ts`). The game is ON by default (launch, Oct 16 2026): no env is needed. The page
+ * and picker flags are only kill switches now: `0`/`false`/`no`/`off` turns that part off (then
+ * `/swordcat` sends players back to `/game` and the picker shows no card).
+ *
+ * - `NEXT_PUBLIC_SWORDCAT`: anything but an off value keeps `/swordcat` open.
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  * - `NEXT_PUBLIC_SWORDCAT_URL` (optional override): where the game build is served. By default the
  *   game is same-origin at `SWORDCAT_DEFAULT_URL` (`client/public/swordcat-game/`, copied from the
  *   Swordcat repo with `npm run build:tokentails`, like the Heist's `heist-game/`). An override must
  *   be an absolute `https:` URL, an `http://localhost` (or 127.0.0.1) URL for local dev, or a
  *   same-origin path; anything else counts as unset and the default is used.
+<<<<<<< HEAD
 <<<<<<< HEAD
  * - `NEXT_PUBLIC_SWORDCAT_PICKER`: anything but an off value shows the card in the PLAY picker,
  *   only together with the page flag.
@@ -31,6 +40,10 @@
  * - `NEXT_PUBLIC_SWORDCAT_PICKER`: `1`/… shows the card in the PLAY picker, only together with the
  *   page flag.
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+ * - `NEXT_PUBLIC_SWORDCAT_PICKER`: anything but an off value shows the card in the PLAY picker,
+ *   only together with the page flag.
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  *
  * Next inlines `NEXT_PUBLIC_*` at build time, so a change needs a redeploy. Pure functions with the
  * env as default arguments, so tests pass values in.
@@ -48,6 +61,7 @@ export function swordcatEnabled(flag: string | undefined = process.env.NEXT_PUBL
   return flagNotOff(flag);
 =======
 const TRUTHY = /^(1|true|yes|on)$/i;
+const FALSY = /^(0|false|no|off)$/i;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /** True only for `1`, `true`, `yes` or `on` (any case, trimmed). */
@@ -55,10 +69,19 @@ export function flagOn(value: string | undefined): boolean {
   return TRUTHY.test((value || "").trim());
 }
 
-/** `/swordcat` is open. */
+/** True unless the value is `0`, `false`, `no` or `off` (any case, trimmed): unset means on. */
+export function flagNotOff(value: string | undefined): boolean {
+  return !FALSY.test((value || "").trim());
+}
+
+/** `/swordcat` is open (default on; an off value is the kill switch). */
 export function swordcatEnabled(flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT): boolean {
+<<<<<<< HEAD
   return flagOn(flag);
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  return flagNotOff(flag);
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 }
 
 /** The same-origin build (`client/public/swordcat-game/`). Next serves no directory index, so the file is named. */
@@ -90,19 +113,27 @@ export function swordcatUrl(raw: string | undefined = process.env.NEXT_PUBLIC_SW
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 /** The PLAY picker card: on unless its own flag or the page flag is off (the URL always resolves). */
 =======
 /** The PLAY picker card: its own flag plus the page flag (the URL always resolves now). */
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+/** The PLAY picker card: on unless its own flag or the page flag is off (the URL always resolves). */
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 export function swordcatPickerEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT_PICKER,
   pageFlag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT
 ): boolean {
 <<<<<<< HEAD
+<<<<<<< HEAD
   return flagNotOff(flag) && swordcatEnabled(pageFlag);
 =======
   return flagOn(flag) && swordcatEnabled(pageFlag);
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+  return flagNotOff(flag) && swordcatEnabled(pageFlag);
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 }
 
 /** The iframe's src: the game URL with `embed=1` added. */

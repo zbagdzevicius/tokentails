@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  *
 <<<<<<< HEAD
+<<<<<<< HEAD
  * The landing's Swordcat section (Swordcat plan §12.3 E): on by default on the web, hidden by the
  * `NEXT_PUBLIC_SWORDCAT` kill switch (0/false/no/off) and always in the app build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
  * dash and no number that is not read live.
@@ -18,6 +19,10 @@ jest.mock("@/components/globe/useReducedMotion", () => ({ useReducedMotion: () =
 =======
  * The landing's Swordcat section (Swordcat plan §12.3 E): hidden with the flag off and in the app
  * build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
+=======
+ * The landing's Swordcat section (Swordcat plan §12.3 E): on by default on the web, hidden by the
+ * `NEXT_PUBLIC_SWORDCAT` kill switch (0/false/no/off) and always in the app build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  * dash and no number that is not read live.
  */
 import React from "react";
@@ -110,17 +115,25 @@ afterEach(() => {
 });
 
 describe("swordcatSectionEnabled", () => {
-  it("is off by default, on with the flag, and never in the app build", () => {
-    expect(swordcatSectionEnabled(undefined, false)).toBe(false);
-    expect(swordcatSectionEnabled("0", false)).toBe(false);
+  it("is on by default, off with an off value, and never in the app build", () => {
+    expect(swordcatSectionEnabled(undefined, false)).toBe(true);
+    expect(swordcatSectionEnabled("", false)).toBe(true);
     expect(swordcatSectionEnabled("1", false)).toBe(true);
+<<<<<<< HEAD
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+    for (const off of ["0", "false", "no", "off", " OFF "]) expect(swordcatSectionEnabled(off, false)).toBe(false);
+    expect(swordcatSectionEnabled(undefined, true)).toBe(false);
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     expect(swordcatSectionEnabled("true", true)).toBe(false);
   });
 });
 
 describe("SwordcatSection", () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   it("renders with no env set (on by default)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
     const { getByTestId } = render(<SwordcatSection railState="live" />);
@@ -129,13 +142,17 @@ describe("SwordcatSection", () => {
 
   it("renders nothing with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
+<<<<<<< HEAD
 =======
   it("renders nothing with the flag off", () => {
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     const { container } = render(<SwordcatSection railState="live" />);
     expect(container.innerHTML).toBe("");
   });
 
+<<<<<<< HEAD
 <<<<<<< HEAD
   it("renders nothing in the app build, by default or with the flag on", () => {
     mockIsApp = true;
@@ -151,9 +168,13 @@ describe("SwordcatSection", () => {
 =======
   it("renders nothing in the app build even with the flag on", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "1";
+=======
+  it("renders nothing in the app build, by default or with the flag on", () => {
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     mockIsApp = true;
-    const { container } = render(<SwordcatSection railState="live" />);
-    expect(container.innerHTML).toBe("");
+    expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
   });
 
   it("with the flag on: label, title, line, a lazy still and exactly one link", () => {

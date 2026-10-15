@@ -31,9 +31,14 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
  * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat that follows the rail state
  * (like the Heist section, so it always renders), and one link to `/swordcat`.
  *
+<<<<<<< HEAD
  * Hidden unless `NEXT_PUBLIC_SWORDCAT` is on, and never in the app build, so production is unchanged
  * until the founder sets the flag. No release date and no number that is not read live.
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+ * On by default on the web (launch, Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill
+ * switch. Never in the app build. No release date and no number that is not read live.
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  *
  * claim: L-rail "Token Tails can send Pink Paw a free treat" (only while the rail is live)
  * claim: the kittens carry the names and photos of real cats at Pink Paw (licence for the named cats'
@@ -128,8 +133,12 @@ export function swordcatTreatBeat(state: RailState | null | undefined): string {
   return copy[railCopyState(state)];
 }
 
+<<<<<<< HEAD
 /** Shown only with `NEXT_PUBLIC_SWORDCAT` on, and never in the app build. */
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+/** Shown unless `NEXT_PUBLIC_SWORDCAT` is an off value, and never in the app build. */
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 export function swordcatSectionEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT,
   isApp: boolean = isAppBuild()

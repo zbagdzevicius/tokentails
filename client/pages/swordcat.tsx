@@ -45,6 +45,7 @@ const BackToGame = () => {
 <<<<<<< HEAD
  * `/swordcat` (Swordcat plan §5.1): the founder's three.js game (`SWORDCAT_TITLE`), in the Token Tails
  * shell. On by default; `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill switch. Auth is `optional`: an existing session is
+<<<<<<< HEAD
 =======
  * `/swordcat` (Swordcat plan §5.1): Pink Paw Knight, the founder's three.js game, in the Token Tails
 =======
@@ -52,6 +53,8 @@ const BackToGame = () => {
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * shell. Behind `NEXT_PUBLIC_SWORDCAT` (default off). Auth is `optional`: an existing session is
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  * reused, none is created; the game only learns whether the player is signed in.
  */
 export default function SwordcatPage() {

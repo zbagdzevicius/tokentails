@@ -5,6 +5,7 @@
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
  * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
 =======
  * load to /heist, Pink Paw Knight (Swordcat) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
@@ -12,6 +13,9 @@
 =======
  * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
+=======
+ * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -187,6 +191,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
   it("is in the picker by default (NEXT_PUBLIC_SWORDCAT* unset)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
     expect(swordcatPickerEnabled()).toBe(true);
+<<<<<<< HEAD
     const { dialog } = open();
     expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
@@ -219,6 +224,28 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+    const { dialog } = open();
+    expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+  });
+
+  it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
+    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
+    const first = open({ showSwordcat: false });
+    expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+    expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
+    cleanup();
+    process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
+    try {
+      expect(swordcatPickerEnabled()).toBe(false);
+      const second = open();
+      expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+      expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
+    } finally {
+      delete process.env.NEXT_PUBLIC_SWORDCAT_PICKER;
+    }
+>>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   });
 
   it("comes after the Heist when enabled, as a link with no GameType", () => {
