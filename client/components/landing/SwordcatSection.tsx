@@ -1,4 +1,4 @@
-import { railCopyState, type RailState } from "@/api/impact-api";
+import { railCopyState, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { swordcatEnabled } from "@/components/swordcat/flags";
@@ -7,8 +7,8 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 /**
  * The Swordcat landing section (Swordcat plan TOKENTAILS-PLAN.md §12.1 item 10, §12.3 E): a compact
  * section right after the Catnip Heist section. One still (the game's own share image, served with
- * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat while the rail is live, and
- * one link to `/swordcat`.
+ * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat that follows the rail state
+ * (like the Heist section, so it always renders), and one link to `/swordcat`.
  *
  * Hidden unless `NEXT_PUBLIC_SWORDCAT` is on, and never in the app build, so production is unchanged
  * until the founder sets the flag. No release date and no number that is not read live.
@@ -29,6 +29,21 @@ export const SWORDCAT_SECTION_LINE =
 export const SWORDCAT_SECTION_TREAT_BEAT =
   "Save one, and Token Tails can send Pink Paw a free treat. Held by Token Tails for the shelter until handover.";
 
+/** The treat beat per rail state. Present tense only while the rail is live. */
+export function swordcatTreatBeat(state: RailState | null | undefined): string {
+  const copy: Record<RailCopyState, string> = {
+    // claim: L-rail (only while the rail is live)
+    open: SWORDCAT_SECTION_TREAT_BEAT,
+    // claim: L-rail
+    exhausted: "Today's treats for Pink Paw are used up. Back at 00:00 UTC.",
+    // claim: L-rail
+    paused: "Treats for Pink Paw are paused for now.",
+    // claim: L-rail (not deployed yet: future tense)
+    soon: "Real treats for Pink Paw, from Token Tails, open soon.",
+  };
+  return copy[railCopyState(state)];
+}
+
 /** Shown only with `NEXT_PUBLIC_SWORDCAT` on, and never in the app build. */
 export function swordcatSectionEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT,
@@ -38,7 +53,7 @@ export function swordcatSectionEnabled(
 }
 
 interface SwordcatSectionProps {
-  /** The treat rail from the impact snapshot: the treat beat shows only while it is live. */
+  /** The treat rail from the impact snapshot: the treat beat follows its state. */
   railState: RailState | null;
   /** Override the flag and app-build check (tests). */
   enabled?: boolean;
@@ -46,7 +61,7 @@ interface SwordcatSectionProps {
 
 export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) => {
   if (!(enabled ?? swordcatSectionEnabled())) return null;
-  const treatBeat = railCopyState(railState) === "open";
+  const treatBeat = swordcatTreatBeat(railState);
 
   return (
     <section
@@ -68,11 +83,9 @@ export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) =>
               {SWORDCAT_TITLE}
             </h2>
             <p className="mt-3 max-w-md text-p5 md:text-p4 text-tt-cream/90">{SWORDCAT_SECTION_LINE}</p>
-            {treatBeat && (
-              <p className="mt-3 max-w-md text-p6 md:text-p5 text-tt-cream/75" data-testid="swordcat-treat-beat">
-                {SWORDCAT_SECTION_TREAT_BEAT}
-              </p>
-            )}
+            <p className="mt-3 max-w-md text-p6 md:text-p5 text-tt-cream/75" data-testid="swordcat-treat-beat">
+              {treatBeat}
+            </p>
             {/* Plain anchor on purpose: /swordcat hosts a static build and loads fully. */}
             <a
               href={SWORDCAT_SECTION_HREF}

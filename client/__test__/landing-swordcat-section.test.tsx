@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  *
  * The landing's Swordcat section (Swordcat plan §12.3 E): hidden with the flag off and in the app
- * build; one link to /swordcat; the treat beat only while the rail is live; no adoption words, no em
+ * build; one link to /swordcat; a treat beat per rail state (present tense only while live); no adoption words, no em
  * dash and no number that is not read live.
  */
 import React from "react";
@@ -23,6 +23,7 @@ import {
   SWORDCAT_SECTION_LINE,
   SWORDCAT_SECTION_STILL,
   SWORDCAT_SECTION_TREAT_BEAT,
+  swordcatTreatBeat,
   SwordcatSection,
   swordcatSectionEnabled,
 } from "@/components/landing/SwordcatSection";
@@ -71,7 +72,7 @@ describe("SwordcatSection", () => {
     expect(container.querySelector("video")).toBeNull();
   });
 
-  it("shows the treat beat with the custody line only while the rail is live", () => {
+  it("shows a treat beat for every rail state, with the custody line only while the rail is live", () => {
     for (const state of ["live", "exhausted", "paused", "not-deployed", null] as const) {
       const { container, unmount } = render(<SwordcatSection railState={state} enabled />);
       const beat = container.querySelector('[data-testid="swordcat-treat-beat"]');
@@ -79,7 +80,8 @@ describe("SwordcatSection", () => {
         expect(beat?.textContent).toBe(SWORDCAT_SECTION_TREAT_BEAT);
         expect(beat?.textContent).toContain("Held by Token Tails for the shelter until handover.");
       } else {
-        expect(beat).toBeNull();
+        expect(beat?.textContent).toBe(swordcatTreatBeat(state));
+        expect(beat?.textContent).not.toContain("Token Tails can send");
       }
       unmount();
     }
