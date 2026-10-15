@@ -218,10 +218,17 @@ describe("SwordcatHost", () => {
 });
 
 describe("/swordcat page", () => {
-  it("redirects to /game and renders nothing while NEXT_PUBLIC_SWORDCAT is off", () => {
-    const { container } = render(<SwordcatPage />);
-    expect(container.innerHTML).toBe("");
-    expect(replace).toHaveBeenCalledWith("/game");
+  it("redirects to /game and renders nothing when the NEXT_PUBLIC_SWORDCAT kill switch is off", () => {
+    const prev = process.env.NEXT_PUBLIC_SWORDCAT;
+    process.env.NEXT_PUBLIC_SWORDCAT = "0";
+    try {
+      const { container } = render(<SwordcatPage />);
+      expect(container.innerHTML).toBe("");
+      expect(replace).toHaveBeenCalledWith("/game");
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_SWORDCAT;
+      else process.env.NEXT_PUBLIC_SWORDCAT = prev;
+    }
   });
 });
 
@@ -290,7 +297,8 @@ describe("SwordcatHost treats", () => {
     expect(swordcatRailOf(LIVE_STATUS as never, true)).toEqual({ state: "live", amountLabel: "$0.01" });
     expect(swordcatRailOf({ ...LIVE_STATUS, treatsLeftToday: 0, chains: [] } as never, false)).toEqual({ state: "exhausted" });
     expect(swordcatRailOf({ ...LIVE_STATUS, railState: "exhausted", chains: [] } as never, false)).toEqual({ state: "exhausted" });
-    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "paused", enabled: false, chains: [] } as never, false)).toEqual({ state: "soon" });
+    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "paused", enabled: false, chains: [] } as never, false)).toEqual({ state: "paused" });
+    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "not-deployed", enabled: false, chains: [] } as never, false)).toEqual({ state: "soon" });
     expect(swordcatRailOf(null, false)).toEqual({ state: "soon" });
     expect(treatAmountLabel("0", "USDC", false)).toBeUndefined();
     expect(sentTodayOf({ today: { status: "PENDING" } } as never)).toBe(true);

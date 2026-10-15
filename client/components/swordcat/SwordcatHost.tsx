@@ -126,7 +126,7 @@ export function treatAmountLabel(amountWei: unknown, coin: unknown, isApp: boole
 /**
  * `GET /shelter/donate/status` as the game's rail. Null (the read failed): `soon`, like the Heist's
  * pre-launch state. Live with treats left: `live`. Exhausted, or live with none left: `exhausted`.
- * Paused or not deployed: `soon`.
+ * Paused: `paused` (the game says "Treats are paused right now.", like the Heist). Not deployed: `soon`.
  */
 export function swordcatRailOf(status: DonateStatus | null, isApp: boolean): SwordcatRail {
   const rail = normalizeDonateRail(status);
@@ -142,6 +142,7 @@ export function swordcatRailOf(status: DonateStatus | null, isApp: boolean): Swo
     };
   }
   if (rail.enabled && (rail.state === "exhausted" || rail.state === "live")) return { state: "exhausted" };
+  if (rail.state === "paused") return { state: "paused" };
   return { state: "soon" };
 }
 
@@ -292,7 +293,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
       analytics.track(buildEvent("treat_sent", { status: treatSentStatus(send) }));
       if (send.kind === "sent" || send.kind === "already-today") sentTodayRef.current = true;
       if (send.kind === "budget-spent") railRef.current = { state: "exhausted" };
-      if (send.kind === "paused") railRef.current = { state: "soon" };
+      if (send.kind === "paused") railRef.current = { state: "paused" };
       answer({
         requestId: message.requestId,
         kind: send.kind,
