@@ -75,10 +75,14 @@ export type HostToSwordcatMessage =
 
 /** The treat rail as the game shows it (plan §12.2). */
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "paused", "soon"] as const;
 =======
 export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "soon"] as const;
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
+=======
+export const SWORDCAT_TREAT_RAILS = ["checking", "live", "exhausted", "paused", "soon"] as const;
+>>>>>>> 6f6764497 (fix(swordcat): paused treat rail and the TT5 verify-round embed copy)
 export type SwordcatTreatRail = (typeof SWORDCAT_TREAT_RAILS)[number];
 
 export interface SwordcatTreatState {

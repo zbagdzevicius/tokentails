@@ -287,6 +287,9 @@ describe("SwordcatHost", () => {
 
 describe("/swordcat page", () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6f6764497 (fix(swordcat): paused treat rail and the TT5 verify-round embed copy)
   it("redirects to /game and renders nothing when the NEXT_PUBLIC_SWORDCAT kill switch is off", () => {
     const prev = process.env.NEXT_PUBLIC_SWORDCAT;
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
@@ -298,6 +301,7 @@ describe("/swordcat page", () => {
       if (prev === undefined) delete process.env.NEXT_PUBLIC_SWORDCAT;
       else process.env.NEXT_PUBLIC_SWORDCAT = prev;
     }
+<<<<<<< HEAD
   });
 
   it("renders the host and does not redirect when NEXT_PUBLIC_SWORDCAT is unset (on by default)", () => {
@@ -534,6 +538,8 @@ describe("SwordcatHost treats", () => {
     expect(container.innerHTML).toBe("");
     expect(replace).toHaveBeenCalledWith("/game");
 >>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
+=======
+>>>>>>> 6f6764497 (fix(swordcat): paused treat rail and the TT5 verify-round embed copy)
   });
 });
 
@@ -602,7 +608,8 @@ describe("SwordcatHost treats", () => {
     expect(swordcatRailOf(LIVE_STATUS as never, true)).toEqual({ state: "live", amountLabel: "$0.01" });
     expect(swordcatRailOf({ ...LIVE_STATUS, treatsLeftToday: 0, chains: [] } as never, false)).toEqual({ state: "exhausted" });
     expect(swordcatRailOf({ ...LIVE_STATUS, railState: "exhausted", chains: [] } as never, false)).toEqual({ state: "exhausted" });
-    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "paused", enabled: false, chains: [] } as never, false)).toEqual({ state: "soon" });
+    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "paused", enabled: false, chains: [] } as never, false)).toEqual({ state: "paused" });
+    expect(swordcatRailOf({ ...LIVE_STATUS, railState: "not-deployed", enabled: false, chains: [] } as never, false)).toEqual({ state: "soon" });
     expect(swordcatRailOf(null, false)).toEqual({ state: "soon" });
     expect(treatAmountLabel("0", "USDC", false)).toBeUndefined();
     expect(sentTodayOf({ today: { status: "PENDING" } } as never)).toBe(true);
