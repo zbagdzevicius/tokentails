@@ -74,7 +74,7 @@ const cardTestId = (card: GameCard) =>
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
  * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`, default off).
+ * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
  */
 export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
   const cards: GameCard[] = [];
@@ -341,7 +341,7 @@ interface GameSelectModalProps {
   setGameType: (gameType: GameType) => void;
   /** Override the `NEXT_PUBLIC_HEIST_PICKER` flag (tests). */
   showHeist?: boolean;
-  /** Override the `NEXT_PUBLIC_SWORDCAT_PICKER` flag set (tests). */
+  /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
   showSwordcat?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;

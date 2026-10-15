@@ -10,8 +10,8 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
  * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat that follows the rail state
  * (like the Heist section, so it always renders), and one link to `/swordcat`.
  *
- * Hidden unless `NEXT_PUBLIC_SWORDCAT` is on, and never in the app build, so production is unchanged
- * until the founder sets the flag. No release date and no number that is not read live.
+ * On by default on the web (launch, Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill
+ * switch. Never in the app build. No release date and no number that is not read live.
  *
  * claim: L-rail "Token Tails can send Pink Paw a free treat" (only while the rail is live)
  * claim: the kittens carry the names and photos of real cats at Pink Paw (licence for the named cats'
@@ -44,7 +44,7 @@ export function swordcatTreatBeat(state: RailState | null | undefined): string {
   return copy[railCopyState(state)];
 }
 
-/** Shown only with `NEXT_PUBLIC_SWORDCAT` on, and never in the app build. */
+/** Shown unless `NEXT_PUBLIC_SWORDCAT` is an off value, and never in the app build. */
 export function swordcatSectionEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT,
   isApp: boolean = isAppBuild()

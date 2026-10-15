@@ -25,7 +25,7 @@ const BackToGame = () => {
 
 /**
  * `/swordcat` (Swordcat plan §5.1): the founder's three.js game (`SWORDCAT_TITLE`), in the Token Tails
- * shell. Behind `NEXT_PUBLIC_SWORDCAT` (default off). Auth is `optional`: an existing session is
+ * shell. On by default; `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill switch. Auth is `optional`: an existing session is
  * reused, none is created; the game only learns whether the player is signed in.
  */
 export default function SwordcatPage() {

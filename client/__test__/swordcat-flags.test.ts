@@ -1,9 +1,10 @@
 /**
- * Pink Paw Knight (Swordcat) flags (Swordcat plan §5.2): all default off, truthy values only, the
- * same-origin build by default with a validated URL override, and the picker needs its flag and the
- * page flag.
+ * Pink Paw Knight (Swordcat) flags (Swordcat plan §5.2): on by default (launch, Oct 16 2026), the
+ * page and picker env flags are kill switches only (0/false/no/off), the same-origin build by default
+ * with a validated URL override, and the picker needs both flags not off.
  */
 import {
+  flagNotOff,
   flagOn,
   swordcatEnabled,
   swordcatFrameSrc,
@@ -15,15 +16,28 @@ import {
 } from "@/components/swordcat/flags";
 
 describe("swordcat flags", () => {
-  it("are off by default (the test env sets none)", () => {
+  it("are on by default (the test env sets none)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
-    expect(swordcatEnabled()).toBe(false);
+    expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
+    expect(swordcatEnabled()).toBe(true);
     expect(swordcatUrlOverride()).toBeNull();
     expect(swordcatUrl()).toBe(SWORDCAT_DEFAULT_URL);
     expect(SWORDCAT_DEFAULT_URL).toBe("/swordcat-game/index.html");
-    expect(swordcatPickerEnabled()).toBe(false);
-    expect(swordcatEnabled(undefined)).toBe(false);
-    expect(swordcatEnabled("")).toBe(false);
+    expect(swordcatPickerEnabled()).toBe(true);
+    expect(swordcatEnabled(undefined)).toBe(true);
+    expect(swordcatEnabled("")).toBe(true);
+    expect(swordcatEnabled("   ")).toBe(true);
+  });
+
+  it("turns off only for 0, false, no and off (the kill switch)", () => {
+    for (const value of ["0", "false", "FALSE", "no", "Off", " off "]) {
+      expect(flagNotOff(value)).toBe(false);
+      expect(swordcatEnabled(value)).toBe(false);
+    }
+    for (const value of [undefined, "", "1", "true", "yes", "on", "2", "enabled"]) {
+      expect(flagNotOff(value)).toBe(true);
+      expect(swordcatEnabled(value)).toBe(true);
+    }
   });
 
   it("treats only 1, true, yes and on as on", () => {
@@ -56,11 +70,16 @@ describe("swordcat flags", () => {
     }
   });
 
-  it("shows the picker card only with the picker flag and the page flag (no URL needed)", () => {
+  it("shows the picker card unless the picker flag or the page flag is off (no URL needed)", () => {
+    expect(swordcatPickerEnabled(undefined, undefined)).toBe(true);
     expect(swordcatPickerEnabled("1", "1")).toBe(true);
-    expect(swordcatPickerEnabled(undefined, "1")).toBe(false);
-    expect(swordcatPickerEnabled("1", undefined)).toBe(false);
+    expect(swordcatPickerEnabled(undefined, "1")).toBe(true);
+    expect(swordcatPickerEnabled("1", undefined)).toBe(true);
     expect(swordcatPickerEnabled("0", "1")).toBe(false);
+    expect(swordcatPickerEnabled("0", undefined)).toBe(false);
+    expect(swordcatPickerEnabled("1", "0")).toBe(false);
+    expect(swordcatPickerEnabled(undefined, "off")).toBe(false);
+    expect(swordcatPickerEnabled("false", "no")).toBe(false);
   });
 
   it("adds embed=1 to the frame URL, before any hash", () => {

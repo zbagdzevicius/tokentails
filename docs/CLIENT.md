@@ -74,9 +74,9 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill stays off under #15 |
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
-| `NEXT_PUBLIC_SWORDCAT` | `1`, `true`, `yes` or `on` opens `/swordcat` (Pink Paw Knight, GAMES.md). Default off: the page only does a client-side `router.replace("/game")` |
+| `NEXT_PUBLIC_SWORDCAT` | Kill switch only: `/swordcat` (Pink Paw Knight, GAMES.md), the picker card and the landing section (web only) are on by default. `0`, `false`, `no` or `off` turns them off: the page then only does a client-side `router.replace("/game")` |
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
-| `NEXT_PUBLIC_SWORDCAT_PICKER` | `1`, `true`, `yes` or `on` adds the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) to the PLAY picker, only when `NEXT_PUBLIC_SWORDCAT` is on (`swordcatPickerEnabled`). Default off |
+| `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
@@ -162,7 +162,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/gaming` | `pages/gaming.tsx` | Legacy URL. Permanent (308) redirect to `/` via `next.config.js`; the page itself is a `noindex` stub that does `router.replace("/")` for static exports, and is excluded from the sitemap. |
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
-| `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host behind `NEXT_PUBLIC_SWORDCAT` (default off: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
+| `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
 | `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
@@ -399,8 +399,10 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
 ### Pink Paw Knight (/swordcat)
 
 Pink Paw Knight is the Swordcat game (a separate three.js repo, GAMES.md), hosted full-bleed in an
-iframe by `components/swordcat/SwordcatHost.tsx`. `NEXT_PUBLIC_SWORDCAT=1` alone turns it on (default off,
-so production is unchanged until it is set); `NEXT_PUBLIC_SWORDCAT_PICKER` adds the picker card.
+iframe by `components/swordcat/SwordcatHost.tsx`. It is on by default (launch, Oct 16 2026), with no env
+needed: the page, the picker card and the landing section (web only, never in the app build) show.
+`NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`, `false`, `no` or
+`off`, `flagNotOff` in `flags.ts`); the picker card needs both not off.
 
 - Title: `components/swordcat/title.ts` (`SWORDCAT_TITLE` "Pink Paw Knight", `SWORDCAT_SUBTITLE` "A Token
   Tails Adventure") is the only place it is written in `client/`; the page meta, host and picker card read
@@ -408,7 +410,7 @@ so production is unchanged until it is set); `NEXT_PUBLIC_SWORDCAT_PICKER` adds 
   the game: edit `title.ts`, the same text in `brand.js`, the expected string in
   `__test__/swordcat-title.test.ts`, then rebuild the game (`npm run build:tokentails`, GAMES.md). That test
   also fails on a literal copy in the page, host, flags, bridge or picker, mocks the constant to another name and
-  checks every surface follows, and that with no `NEXT_PUBLIC_SWORDCAT*` set nothing changes.
+  checks every surface follows, that with no `NEXT_PUBLIC_SWORDCAT*` set the page and card show, and that `NEXT_PUBLIC_SWORDCAT=0` hides them.
 - The picker card's preview is an inline pixel SVG (`SwordcatPreview` in `GameSelectModal.tsx`): Clem in
   ivory with her pink bow and the gold ":3" coin on the night sky.
 - The game's catnip stays in the game for now: nothing it earns reaches the player's Token Tails
