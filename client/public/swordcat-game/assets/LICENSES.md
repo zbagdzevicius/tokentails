@@ -134,7 +134,7 @@ This game is a Token Tails game. Token Tails logo and mascot © Token Tails.
 | `ui/tokentails-logo-text.webp` | Token Tails wordmark, copied from the Token Tails repo (`client/public/logo/logo-text.webp`) | © Token Tails, used by Token Tails in its own game |
 | `../og.jpg` (share card) | Rendered from this game (Clementine, the title, the co-brand pill) by `scripts/social-meta.mjs` | © Token Tails |
 
-Four kittens here share their names with real cats at Pink Paw (Rožinė pėdutė). Their adventures are made up.
+The kittens you save carry the names and photos of real cats at Pink Paw (Rožinė pėdutė) in Kaunas. Their adventures here are made up.
 
 Pink Paw (Rožinė pėdutė) is a real cat shelter in Lithuania and Token Tails' partner shelter. Meet its cats at tokentails.com.
 

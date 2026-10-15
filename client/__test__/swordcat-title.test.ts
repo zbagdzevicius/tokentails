@@ -113,13 +113,15 @@ describe("with the flags on, every surface reads the constant", () => {
     expect(screen.getByText(`${TEST_TITLE} is not available right now.`)).toBeTruthy();
   });
 
-  it("picker card: title, label and a description with no shelter, impact or money words", () => {
+  // Phase TT4 (plan §12) replaces the §2.5 "no shelter words" rule: the kittens are real Pink Paw cats.
+  // Still no money, adoption, token or impact claims on the card.
+  it("picker card: title, label and a description with no money, adoption or impact words", () => {
     const dialog = openPicker();
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${TEST_TITLE.toUpperCase()} · NEW`);
     expect(within(card).getAllByText(TEST_TITLE.toUpperCase()).length).toBeGreaterThan(0);
-    const description = within(card).getByText("Rescue lost kittens with a tiny knight");
-    expect(description.textContent).not.toMatch(/shelter|donat|impact|money|treat|crypto|token|fund|help|save/i);
+    const description = within(card).getByText("Every cat you save is a real Pink Paw cat");
+    expect(description.textContent).not.toMatch(/adopt|donat|impact|money|treat|crypto|token|fund|\$|\d/i);
     expect(within(card).getByTestId("game-card-swordcat-preview")).toBeTruthy();
   });
 });

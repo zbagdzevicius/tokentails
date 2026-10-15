@@ -161,7 +161,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
       key: "SWORDCAT",
       href: SWORDCAT_PICKER_HREF,
       badge: "NEW",
-      description: "Rescue lost kittens with a tiny knight",
+      description: "Every cat you save is a real Pink Paw cat",
       previewVariant: "SWORDCAT",
     });
     expect(cards[4].type).toBeUndefined();

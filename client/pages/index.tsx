@@ -6,6 +6,7 @@ import { isAppBuild } from "@/components/claims/build";
 import { SectionBoundary } from "@/components/errors/SectionBoundary";
 import { HeistPill } from "@/components/landing/HeistPill";
 import { HeistSection } from "@/components/landing/HeistSection";
+import { SwordcatSection } from "@/components/landing/SwordcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
 import { landingCtaHref } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
@@ -186,6 +187,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
         {/* Catnip Heist, the new game mode: showreel, three beats and PLAY CATNIP HEIST. */}
         <SectionBoundary name="heist">
           <HeistSection railState={impact?.rail.state ?? null} />
+        </SectionBoundary>
+
+        {/* The Swordcat game: behind NEXT_PUBLIC_SWORDCAT, never in the app build (plan §12). */}
+        <SectionBoundary name="swordcat">
+          <SwordcatSection railState={impact?.rail.state ?? null} />
         </SectionBoundary>
 
         <SectionBoundary name="globe">

@@ -14,6 +14,9 @@ import {
   SWORDCAT_NS,
   type SwordcatBridgeHandlers,
   type SwordcatBridgeTimers,
+  explorerUrlOf,
+  receiptPathOf,
+  amountLabelOf,
 } from "@/components/swordcat/bridge";
 
 const ORIGIN = "https://swordcat.tokentails.com";
@@ -253,5 +256,108 @@ describe("parseSwordcatMessage", () => {
       lives: null,
       rank: null,
     });
+  });
+});
+
+describe("swordcat bridge, Phase TT4 treats (plan §12.2)", () => {
+  it("parses cat-saved with optional cat fields and drops bad ones", () => {
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "pickles", kind: "lost", catId: "6a3055e21d6649b19b03688a", catName: "Judas" }))).toEqual({
+      type: "cat-saved",
+      slot: "pickles",
+      kind: "lost",
+      catId: "6a3055e21d6649b19b03688a",
+      catName: "Judas",
+    });
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "mochi", kind: "squire" }))).toEqual({
+      type: "cat-saved",
+      slot: "mochi",
+      kind: "squire",
+      catId: null,
+      catName: null,
+    });
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "x", kind: "adopted" }))).toBeNull();
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "x".repeat(65), kind: "lost" }))).toBeNull();
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "x", kind: "lost", catName: "N".repeat(33) }))).toBeNull();
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "x", kind: "lost", catId: { a: 1 } }))).toBeNull();
+    expect(parseSwordcatMessage(env("cat-saved", { slot: "x", kind: "lost", catName: "<b>x</b>" }))).toBeNull();
+  });
+
+  it("parses treat-request with Lithuanian names and drops oversized or wrong-typed fields", () => {
+    expect(parseSwordcatMessage(env("treat-request", { requestId: "r-1", slot: "pebble", catName: "Ankštė" }))).toEqual({
+      type: "treat-request",
+      requestId: "r-1",
+      slot: "pebble",
+      catId: null,
+      catName: "Ankštė",
+    });
+    expect(parseSwordcatMessage(env("treat-request", { requestId: "r".repeat(41), slot: "a", catName: "A" }))).toBeNull();
+    expect(parseSwordcatMessage(env("treat-request", { requestId: "has space", slot: "a", catName: "A" }))).toBeNull();
+    expect(parseSwordcatMessage(env("treat-request", { requestId: "r1", slot: "a" }))).toBeNull();
+    expect(parseSwordcatMessage(env("treat-request", { requestId: 5, slot: "a", catName: "A" }))).toBeNull();
+    expect(parseSwordcatMessage(env("treat-request", { requestId: "r1", slot: "a", catName: "A", catId: "i".repeat(65) }))).toBeNull();
+  });
+
+  it("builds treat-state and treat-result with only known, checked fields", () => {
+    expect(hostMessage("treat-state", { rail: "live", sentToday: false, amountLabel: "0.01 USDC" })).toEqual({
+      ns: SWORDCAT_NS,
+      v: 1,
+      type: "treat-state",
+      rail: "live",
+      sentToday: false,
+      amountLabel: "0.01 USDC",
+    });
+    expect(
+      hostMessage("treat-state", { rail: "bogus" as never, sentToday: "yes" as never, amountLabel: "free money!" })
+    ).toEqual({ ns: SWORDCAT_NS, v: 1, type: "treat-state", rail: "checking", sentToday: false });
+    const result = hostMessage("treat-result", {
+      requestId: "r1",
+      kind: "sent",
+      explorerUrl: "http://explorer.arc.io/tx/0x1",
+      receiptPath: "/elsewhere",
+      message: "free text",
+    } as never);
+    expect(result).toEqual({ ns: SWORDCAT_NS, v: 1, type: "treat-result", requestId: "r1", kind: "sent" });
+  });
+
+  it("checks explorer links, receipt paths and amount labels", () => {
+    expect(explorerUrlOf("https://explorer.arc.io/tx/0xabc")).toBe("https://explorer.arc.io/tx/0xabc");
+    expect(explorerUrlOf("javascript:alert(1)")).toBeNull();
+    expect(explorerUrlOf("https://u:p@x.io/")).toBeNull();
+    expect(receiptPathOf("/shelter-payouts/receipt?chain=5042&tx=0xab")).toBe("/shelter-payouts/receipt?chain=5042&tx=0xab");
+    expect(receiptPathOf("/shelter-payouts/receipt?x=<script>")).toBeNull();
+    expect(receiptPathOf("https://evil.io/shelter-payouts/receipt?")).toBeNull();
+    expect(amountLabelOf("$0.01")).toBe("$0.01");
+    expect(amountLabelOf("0.01 USDC.e")).toBe("0.01 USDC.e");
+    expect(amountLabelOf("lots")).toBeNull();
+  });
+
+  it("routes cat-saved and treat-request, re-sends treat-state on ready, answers only when ready", () => {
+    const onCatSaved = jest.fn();
+    const onTreatRequest = jest.fn();
+    const h = harness({ onCatSaved, onTreatRequest });
+    h.bridge.setTreatState({ rail: "live", sentToday: false });
+    h.bridge.sendTreatResult({ requestId: "early", kind: "sent" });
+    expect(h.types()).not.toContain("treat-state");
+    expect(h.types()).not.toContain("treat-result");
+    h.fromGame(env("ready", { version: "1" }));
+    expect(h.posted.at(-1)!.message).toEqual({ ns: SWORDCAT_NS, v: 1, type: "treat-state", rail: "live", sentToday: false });
+    h.fromGame(env("cat-saved", { slot: "pickles", kind: "lost", catName: "Judas" }));
+    h.fromGame(env("treat-request", { requestId: "r1", slot: "pickles", catName: "Judas" }));
+    // From another origin: ignored.
+    h.fromGame(env("treat-request", { requestId: "r2", slot: "pickles", catName: "Judas" }), h.frame, "https://evil.io");
+    expect(onCatSaved).toHaveBeenCalledTimes(1);
+    expect(onTreatRequest).toHaveBeenCalledTimes(1);
+    expect(onTreatRequest.mock.calls[0][0].requestId).toBe("r1");
+    h.bridge.sendTreatResult({ requestId: "r1", kind: "already-today" });
+    expect(h.posted.at(-1)).toEqual({
+      message: { ns: SWORDCAT_NS, v: 1, type: "treat-result", requestId: "r1", kind: "already-today" },
+      origin: ORIGIN,
+    });
+    h.bridge.sendTreatResult({ requestId: "bad id!", kind: "sent" });
+    expect(h.posted.at(-1)!.message.requestId).toBe("r1");
+    for (const entry of h.posted) {
+      expect(JSON.stringify(entry.message)).not.toMatch(/accesstoken|fb[A-Za-z0-9]{20}/);
+      expect(entry.origin).toBe(ORIGIN);
+    }
   });
 });
