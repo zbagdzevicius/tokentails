@@ -164,6 +164,27 @@ describe("root visit", () => {
     expectGamingLanding(container);
   });
 
+  it("hides the Swordcat section by default and shows it after the Heist with NEXT_PUBLIC_SWORDCAT on (plan §12)", () => {
+    const off = render(<HomePage />);
+    expect(off.container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
+    off.unmount();
+    process.env.NEXT_PUBLIC_SWORDCAT = "1";
+    try {
+      const { container } = render(<HomePage />);
+      expectGamingLanding(container);
+      const heist = container.querySelector('[data-testid="heist-section"]');
+      const sword = container.querySelector('[data-testid="swordcat-section"]');
+      const globe = container.querySelector('[data-testid="globe"]');
+      expect(sword).not.toBeNull();
+      expect(heist!.compareDocumentPosition(sword!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sword!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sword!.querySelectorAll("a")).toHaveLength(1);
+      expect(sword!.querySelector("a")?.getAttribute("href")).toBe("/swordcat?from=landing_swordcat");
+    } finally {
+      delete process.env.NEXT_PUBLIC_SWORDCAT;
+    }
+  });
+
   it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
     expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();

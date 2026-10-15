@@ -1,10 +1,26 @@
+import { analytics, buildEvent } from "@/analytics";
+import { apiFetch } from "@/api/api";
+import { formatUnits18, normalizeDonateRail, treatRailOpen } from "@/api/impact-api";
+import { SHELTER_API, type DonateStatus } from "@/api/shelter-api";
 import { getAudioSettings, subscribeAudioSettings } from "@/components/audio/settings";
+import { isAppBuild } from "@/components/claims/build";
+import { fetchDonateMe, sendTreat, treatSentStatus, type DonateMe, type TreatSend } from "@/components/codex/impact/treat";
 import { registerHeistSuspension } from "@/components/heist/suspension";
 import { CloseButton } from "@/components/shared/CloseButton";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createSwordcatBridge, type SwordcatBridge } from "./bridge";
+import {
+  amountLabelOf,
+  createSwordcatBridge,
+  explorerUrlOf,
+  receiptPathOf,
+  type SwordcatBridge,
+  type SwordcatTreatRequestMessage,
+  type SwordcatTreatResult,
+  type SwordcatTreatState,
+} from "./bridge";
 import { swordcatFrameSrc, swordcatOrigin, swordcatUrl } from "./flags";
 import { SWORDCAT_TITLE } from "./title";
 
@@ -89,11 +105,84 @@ function useRotateHint(): [boolean, () => void] {
   return [show && !dismissed && !timedOut, dismiss];
 }
 
+// ---- treats (plan §12.1 item 7, §12.2) ------------------------------------------------------
+
+/** What the host knows about today's treat rail: the game's `treat-state`, plus the chain to send on. */
+export interface SwordcatRail {
+  state: SwordcatTreatState["rail"];
+  /** Another network than the main chain, when only that one is open (`normalizeDonateRail`). */
+  chainId?: number;
+  amountLabel?: string;
+}
+
+/** `$0.01` in app builds (they never name a coin or chain, R10), else `0.01 USDC`. */
+export function treatAmountLabel(amountWei: unknown, coin: unknown, isApp: boolean): string | undefined {
+  if (typeof amountWei !== "string" || !/^\d{1,40}$/.test(amountWei) || /^0+$/.test(amountWei)) return undefined;
+  const amount = formatUnits18(amountWei);
+  const label = isApp ? `$${amount}` : typeof coin === "string" && coin ? `${amount} ${coin}` : undefined;
+  return amountLabelOf(label) ?? undefined;
+}
+
+/**
+ * `GET /shelter/donate/status` as the game's rail. Null (the read failed): `soon`, like the Heist's
+ * pre-launch state. Live with treats left: `live`. Exhausted, or live with none left: `exhausted`.
+ * Paused or not deployed: `soon`.
+ */
+export function swordcatRailOf(status: DonateStatus | null, isApp: boolean): SwordcatRail {
+  const rail = normalizeDonateRail(status);
+  if (!rail) return { state: "soon" };
+  if (treatRailOpen(rail)) {
+    const chains = Array.isArray(status?.chains) ? status!.chains : [];
+    const chain = rail.chainId !== undefined ? chains.find((c) => c.chainId === rail.chainId) : chains.find((c) => c.main);
+    const amountLabel = treatAmountLabel(chain?.amountWei ?? status?.amountWei, chain?.coin ?? "USDC", isApp);
+    return {
+      state: "live",
+      ...(rail.chainId !== undefined ? { chainId: rail.chainId } : {}),
+      ...(amountLabel ? { amountLabel } : {}),
+    };
+  }
+  if (rail.enabled && (rail.state === "exhausted" || rail.state === "live")) return { state: "exhausted" };
+  return { state: "soon" };
+}
+
+/** Today's treat already left (or arrived) for this player or address. */
+export function sentTodayOf(me: DonateMe | null): boolean {
+  const status = me?.today?.status;
+  return status === "PENDING" || status === "SENT" || status === "CONFIRMED";
+}
+
+/**
+ * The receipt links for a sent treat, from the donate response body (`DonateResult`): the same-origin
+ * receipt page and the https explorer link. App builds get neither (no chain or explorer, R10).
+ */
+export function treatReceiptOf(body: unknown, isApp: boolean): Pick<SwordcatTreatResult, "explorerUrl" | "receiptPath" | "amountLabel"> {
+  if (isApp || !body || typeof body !== "object") return {};
+  const b = body as Record<string, unknown>;
+  const out: Pick<SwordcatTreatResult, "explorerUrl" | "receiptPath" | "amountLabel"> = {};
+  const explorerUrl = explorerUrlOf(b.explorerUrl);
+  if (explorerUrl) out.explorerUrl = explorerUrl;
+  const chainId = Number(b.chainId);
+  if (typeof b.txHash === "string" && /^0x[0-9a-fA-F]{64}$/.test(b.txHash) && Number.isSafeInteger(chainId) && chainId > 0) {
+    const receiptPath = receiptPathOf(`/shelter-payouts/receipt?chain=${chainId}&tx=${b.txHash}`);
+    if (receiptPath) out.receiptPath = receiptPath;
+  }
+  const amountLabel = treatAmountLabel(b.amountWei, typeof b.coin === "string" ? b.coin : "USDC", false);
+  if (amountLabel) out.amountLabel = amountLabel;
+  return out;
+}
+
+type TreatFetch = (input: string, init: RequestInit) => Promise<Response>;
+
+const defaultTreatFetch: TreatFetch = (input, init) =>
+  apiFetch(input, init, { guestSession: false, requireAccount: false });
+
 interface SwordcatHostProps {
   /** The game URL. Defaults to the same-origin build (`/swordcat-game/`) or a valid `NEXT_PUBLIC_SWORDCAT_URL`; null shows the unavailable state (tests). */
   url?: string | null;
   /** Full page load back to the lobby. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
+  /** The treat POST (tests pass a fake). Defaults to `apiFetch`, as on the IMPACT tab. */
+  treatFetch?: TreatFetch;
 }
 
 /**
@@ -105,8 +194,13 @@ interface SwordcatHostProps {
  * Back to games, and a late `ready` still connects. No `sandbox`: the game needs its own storage and
  * WebGL. Any GameModal pauses the game through the same stand-in the Heist registers with the game
  * suspension registry. The shell's mute follows into the game. Phase 1 saves nothing.
+ *
+ * Phase TT4 (plan §12): the game shows the treat panel after each save and posts `treat-request`;
+ * this page sends the sponsored treat with `sendTreat()` (`source: "page"`, signed-in first, then the
+ * no-account route), so the player never leaves the game. It answers `treat-result` and keeps the
+ * game's `treat-state` (rail, sent today, amount) current. No token or free text crosses the bridge.
  */
-export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
+export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHostProps) => {
   const url = urlProp === undefined ? swordcatUrl() : urlProp;
   const auth = useOptionalFirebaseAuth();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -118,8 +212,114 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
   const [rotateHint, dismissRotateHint] = useRotateHint();
   const src = useMemo(() => (url ? swordcatFrameSrc(url) : null), [url]);
   const signedIn = !!auth?.user && !auth.user.isAnonymous && auth.authStatus === "ready";
+  const router = useRouter();
+  // Treats: the rail and today's row, read once per page view and updated by each send.
+  const railRef = useRef<SwordcatRail>({ state: "checking" });
+  const sentTodayRef = useRef(false);
+  const inFlightRef = useRef<string | null>(null);
+  const answeredRef = useRef(new Map<string, SwordcatTreatResult>());
+  const treatFetchRef = useRef<TreatFetch>(treatFetch ?? defaultTreatFetch);
+  treatFetchRef.current = treatFetch ?? defaultTreatFetch;
 
   const exit = () => (navigate ?? ((path: string) => window.location.assign(path)))(SWORDCAT_EXIT_PATH);
+
+  // `from` only says where the player came from (no swordcat_open event exists yet, plan §12.6):
+  // drop it from the address bar once the router is ready, like /heist.
+  const fromQuery = router?.isReady ? router.query?.from : undefined;
+  useEffect(() => {
+    if (!router?.isReady || fromQuery === undefined) return;
+    const { from: _from, ...rest } = router.query;
+    void _from;
+    void router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true, scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router?.isReady, fromQuery]);
+
+  const pushTreatState = useCallback(() => {
+    const rail = railRef.current;
+    bridgeRef.current?.setTreatState({
+      rail: rail.state,
+      sentToday: sentTodayRef.current,
+      ...(rail.amountLabel ? { amountLabel: rail.amountLabel } : {}),
+    });
+  }, []);
+
+  /**
+   * One `treat-request`: one send in flight at a time, each request id answered once (a repeat gets
+   * the same answer, never a second POST). Tokens never enter the frame: `sendTreat` reads them here.
+   */
+  const onTreatRequest = useCallback(
+    async (message: SwordcatTreatRequestMessage) => {
+      const answer = (result: SwordcatTreatResult) => {
+        answeredRef.current.set(result.requestId, result);
+        bridgeRef.current?.sendTreatResult(result);
+        pushTreatState();
+      };
+      const previous = answeredRef.current.get(message.requestId);
+      if (previous) {
+        bridgeRef.current?.sendTreatResult(previous);
+        return;
+      }
+      if (inFlightRef.current === message.requestId) return;
+      if (inFlightRef.current) {
+        bridgeRef.current?.sendTreatResult({ requestId: message.requestId, kind: "retry" });
+        return;
+      }
+      if (sentTodayRef.current) {
+        answer({ requestId: message.requestId, kind: "already-today" });
+        return;
+      }
+      inFlightRef.current = message.requestId;
+      let body: unknown = null;
+      const capture: TreatFetch = async (input, init) => {
+        const res = await treatFetchRef.current(input, init);
+        if (res.ok) {
+          try {
+            body = await res.clone().json();
+          } catch {
+            body = null;
+          }
+        }
+        return res;
+      };
+      let send: TreatSend;
+      try {
+        send = await sendTreat({ fetchImpl: capture, chainId: railRef.current.chainId });
+      } catch {
+        send = { kind: "retry" };
+      } finally {
+        inFlightRef.current = null;
+      }
+      analytics.track(buildEvent("treat_sent", { status: treatSentStatus(send) }));
+      if (send.kind === "sent" || send.kind === "already-today") sentTodayRef.current = true;
+      if (send.kind === "budget-spent") railRef.current = { state: "exhausted" };
+      if (send.kind === "paused") railRef.current = { state: "soon" };
+      answer({
+        requestId: message.requestId,
+        kind: send.kind,
+        ...(send.kind === "sent" ? treatReceiptOf(body, isAppBuild()) : {}),
+      });
+    },
+    [pushTreatState]
+  );
+
+  // Today's rail and this player's row: read once the page is up, and again when sign-in changes.
+  useEffect(() => {
+    if (!url) return;
+    let live = true;
+    void (async () => {
+      const [status, me] = await Promise.all([
+        SHELTER_API.getDonateStatus().catch(() => null),
+        fetchDonateMe().catch(() => null),
+      ]);
+      if (!live) return;
+      railRef.current = swordcatRailOf(status, isAppBuild());
+      if (sentTodayOf(me)) sentTodayRef.current = true;
+      pushTreatState();
+    })();
+    return () => {
+      live = false;
+    };
+  }, [url, signedIn, pushTreatState]);
 
   // ---- bridge ------------------------------------------------------------------------------
   useEffect(() => {
@@ -136,14 +336,20 @@ export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
         onLevelComplete: (message) => {
           if (process.env.NODE_ENV === "development") console.debug("[swordcat] level-complete", message);
         },
+        // Phase TT4: no swordcat analytics event exists yet (shared/ is off limits, plan §12.6).
+        onCatSaved: (message) => {
+          if (process.env.NODE_ENV === "development") console.debug("[swordcat] cat-saved", message);
+        },
+        onTreatRequest: (message) => void onTreatRequest(message),
       },
     });
     bridgeRef.current = bridge;
+    pushTreatState();
     return () => {
       bridge.dispose();
       bridgeRef.current = null;
     };
-  }, [url]);
+  }, [url, onTreatRequest, pushTreatState]);
 
   // Sign-in state only (never a token), re-sent on every `ready`.
   useEffect(() => {
