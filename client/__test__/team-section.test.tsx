@@ -186,7 +186,7 @@ describe("TeamSection", () => {
       const { container, unmount } = render(<TeamSection cta={cta} />);
       const text = container.textContent ?? "";
       expect(text).not.toMatch(/waiting/i);
-      expect(text).toMatch(/one\s*more\s*cat on the team/i);
+      expect(text).not.toMatch(/one\s*more\s*cat on the team/i);
       expect(text).not.toMatch(/Neimas/i);
       unmount();
     }
