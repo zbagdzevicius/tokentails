@@ -328,8 +328,8 @@ const WebPayment = ({
                 onClick={() => setPaymentMethod(method)}
                 className={
                   paymentMethod === method
-                    ? "!bg-tt-night-500 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400))]"
-                    : "opacity-80 hover:opacity-100"
+                    ? "!bg-tt-gold-400 !text-tt-gold-ink shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-500))]"
+                    : "opacity-70 hover:opacity-100"
                 }
               >
                 {label}

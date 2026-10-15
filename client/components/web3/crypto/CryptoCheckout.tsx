@@ -79,7 +79,7 @@ const LINK =
   "underline decoration-tt-gold-400/60 underline-offset-4 hover:text-tt-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 rounded";
 
 const CHOICE =
-  "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-tt-cream/40 bg-tt-night-900/70 px-3 py-2 font-primary text-p5 uppercase tracking-wide text-tt-cream transition peer-checked:border-tt-gold-400 peer-checked:bg-tt-gold-400 peer-checked:text-tt-gold-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tt-cream hover:border-tt-gold-400 peer-disabled:cursor-not-allowed peer-disabled:opacity-50";
+  "flex h-full min-h-11 w-full cursor-pointer items-center justify-start gap-2 rounded-xl border-2 border-tt-cream/40 bg-tt-night-900/70 px-3 py-2 font-primary text-p5 uppercase tracking-wide text-tt-cream transition peer-checked:border-tt-gold-400 peer-checked:bg-tt-gold-400 peer-checked:text-tt-gold-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tt-cream hover:border-tt-gold-400 peer-disabled:cursor-not-allowed peer-disabled:opacity-50";
 
 function Choices<T extends string | number>({
   legend,
@@ -99,7 +99,7 @@ function Choices<T extends string | number>({
   return (
     <fieldset className="min-w-0" disabled={disabled}>
       <legend className={clsx(LABEL, "mb-2")}>{legend}</legend>
-      <div className="flex flex-wrap gap-2">
+      <div className={clsx("grid gap-2", items.length > 2 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2")}>
         {items.map((item) => (
           <label key={String(item.value)} className="relative">
             <input type="radio" name={name} className="peer sr-only" checked={value === item.value} onChange={() => onChange(item.value)} />
@@ -120,9 +120,9 @@ const Mark = ({ src, size = 22, testId }: { src: string; size?: number; testId?:
 );
 
 const NetworkLabel = ({ chainId, name, testnet }: { chainId: number; name: string; testnet?: boolean }) => (
-  <span className="inline-flex items-center gap-2">
+  <span className="inline-flex min-w-0 items-center gap-2">
     <Mark src={chainIcon(chainId)} testId={`crypto-pay-chain-icon-${chainId}`} />
-    <span>{name}</span>
+    <span className="truncate">{name}</span>
     {/* CSS text, so the radio's name stays the network name ("Arc Testnet" already says it). */}
     {testnet && (
       <span
@@ -535,7 +535,7 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
   const testnet = config?.network === "testnet";
 
   return (
-    <section data-testid="crypto-checkout" aria-label="Pay with crypto" className={clsx(BOX, "mx-auto flex w-[95%] max-w-[440px] flex-col gap-4")}>
+    <section data-testid="crypto-checkout" aria-label="Pay with crypto" className={clsx(BOX, "flex w-full flex-col gap-4")}>
       {testnet && (
         <p className="self-start rounded-lg border-2 border-tt-sky/70 bg-tt-sky/10 px-2 py-0.5 font-primary text-p6 uppercase tracking-wide text-tt-sky">
           Test network: test coins only
@@ -572,8 +572,8 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
 
       {!order ? (
         <>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className={LABEL}>You pay about</span>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-tt-night-950/50 px-3 py-2">
+            <span className={clsx(LABEL, "whitespace-nowrap")}>{token === "EURC" ? "You pay about" : "You pay"}</span>
             <span data-testid="crypto-pay-quote" className="whitespace-nowrap font-primary text-h6 md:text-h5 text-tt-gold-400">
               {token ? `${quoteAmount(quoteUsd, token, config)} ${symbolOf(token)}` : `$${quoteUsd.toFixed(2)}`}
             </span>
