@@ -33,7 +33,8 @@ import type { HeistAnalytics } from './analytics';
 import { installEmbed, readLaunchParams, type EmbedController } from './embed';
 import { wantsPayoutsDeepLink } from './ui/shelter-payouts';
 import { TESTNET_DEPLOYMENTS_URL, prefetchShelterPayouts } from './ui/payouts';
-import { isWebHost } from './ui/rail';
+import { heistRuntimeConfig, isWebHost } from './ui/rail';
+import { createBridgeTreatSender, createDirectTreatSender, type TreatSender } from './embed/treat-bridge';
 
 /**
  * Vite replaces these at build time, so in replay and verify builds the
@@ -159,6 +160,10 @@ async function boot(): Promise<void> {
     autoPicked = true;
     if (app.screen === 'title' && app.progress.isFresh()) app.ui.showCatPick();
   };
+  // The rescue treat is sent in place (never a navigation). Embedded, the /heist host sends it with
+  // the player's account (or the guest route); standalone, the Heist posts to the guest route itself.
+  const directTreat = createDirectTreatSender({ apiUrl: heistRuntimeConfig(window as never, document).apiUrl });
+  const treat: TreatSender = launch.embed ? createBridgeTreatSender({ win: window, parent: window.parent, fallback: directTreat }) : directTreat;
   const app = new App({
     root,
     manifest,
@@ -168,6 +173,7 @@ async function boot(): Promise<void> {
     controls: (q.get('controls') === 'grid' ? 'grid' : 'screen') as ControlScheme,
     replaySpeed: Number(q.get('speed')) || 1,
     shadows: q.get('shadows') !== '0',
+    treat,
     embed: launch.embed ? { onExit: () => embed?.exit(), onSignIn: () => embed?.requestSignIn() } : undefined,
     // First-run funnel (G10): the same consent-gated instance, so it is absent from replay and verify builds.
     analytics,

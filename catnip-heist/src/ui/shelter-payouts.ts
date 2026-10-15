@@ -497,6 +497,11 @@ function css(base: string): string {
   font-family: ${HEIST_BODY_FONT}; font-weight: 800; font-size: 16px; letter-spacing: 0; text-decoration: none; text-align: center; text-wrap: balance; box-shadow: 0 4px 0 var(--ch-ol), inset 0 2px 0 rgba(255,255,255,.45); pointer-events: auto; }
 .ch-pay .ch-give:hover, .ch-pay .ch-give:focus-visible { background: #ffb3cf; color: var(--ch-ol); transform: translateY(-1px); }
 .ch-pay .ch-give:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ch-ol); }
+.ch-pay .ch-treat { align-items: stretch; margin-top: 0; min-height: 50px; }
+.ch-pay .ch-treat .ch-give { width: 100%; }
+.ch-pay .ch-treat-line { font-size: 14px; text-align: center; }
+.ch-pay .ch-treat-extra { justify-content: center; }
+.ch-pay .ch-treat-receipt { font-size: 14px; }
 .ch-pay .ch-rail-chip { align-self: flex-start; display: inline-block; padding: 4px 10px; border: 1px dashed var(--tt-lilac); border-radius: 6px; color: var(--tt-lilac);
   font-family: ${HEIST_BODY_FONT}; font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .ch-pay-foot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 2px; }
@@ -557,6 +562,9 @@ function css(base: string): string {
   .ch-pay-title { font-size: 30px; margin-top: 6px; }
   .ch-pay-total { min-height: 0; }
   .ch-pay-amount { font-size: 54px; }
+  /* Landscape phones: the shelter card is taller than the view, so a sticky card would keep its
+     treat button under the footer. It scrolls with the page instead. */
+  .ch-pay-side { position: static; }
 }
 @media (prefers-reduced-motion: reduce) { .ch-pay-skel { animation: none; } }
 ${PINK_PAW_CSS}`;

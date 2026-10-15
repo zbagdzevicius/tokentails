@@ -334,6 +334,12 @@ describe('UI entry points', () => {
       expect(card()?.textContent).not.toMatch(/open soon/i);
       expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/send Pink Paw a real treat/);
       expect(ui.root.querySelector('.ch-results [data-testid="give-treat"]')).not.toBeNull();
+      // Sent in place (Oct 15, 2026): a button, never a link that leaves the game.
+      for (const give of ui.root.querySelectorAll('[data-testid="give-treat"]')) {
+        expect(give.tagName).toBe('BUTTON');
+        expect(give.hasAttribute('href')).toBe(false);
+      }
+      expect(ui.root.querySelector('.ch-results [data-testid="treat-custody"]')?.textContent).toBe('Held by Token Tails for the shelter until handover.');
       expect(ui.root.querySelector('[data-testid="rail-chip"]')).toBeNull();
       expect(ui.root.querySelector('[data-testid="rail-line"]')?.getAttribute('data-rail')).toBe('live');
     } finally {

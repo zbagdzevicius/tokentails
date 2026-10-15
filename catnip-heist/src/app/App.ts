@@ -51,6 +51,8 @@ export interface AppOptions {
   shadows?: boolean;
   /** Embedded in the `/heist` host page: the UI's exit and sign-in buttons (src/embed). */
   embed?: UIOptions['embed'];
+  /** Sends the rescue treat in place (src/embed/treat-bridge.ts); main.ts passes the host bridge in embed mode. */
+  treat?: UIOptions['treat'];
   /**
    * A played (not watched) run reached the Results screen. The embed forwards it to the host, which
    * saves won runs through POST /user/catbassadors/live with the log as the replay.
@@ -192,6 +194,7 @@ export class App {
       input: this.input,
       muted: this.audio.isMuted(),
       embed: opts.embed,
+      ...(opts.treat !== undefined ? { treat: opts.treat } : {}),
       handlers: {
         onStart: (ids) => this.startFromPick(ids),
         onYard: () => this.openYard(),
