@@ -157,6 +157,10 @@ import { YourCat, YourCatSchema } from './yourcat/yourcat.schema';
 import { YourcatService } from './yourcat/yourcat.service';
 import { PortraitDeliveryService } from './yourcat/portrait-delivery.service';
 import { YourcatRetentionJob } from './yourcat/yourcat-retention.job';
+import { MotoredStripeController } from './shelter/motored/motored-stripe.controller';
+import { MotoredStripeService } from './shelter/motored/motored-stripe.service';
+import { MotoredGiftService } from './shelter/motored/motored-gift.service';
+import { MotoredGift, MotoredGiftSchema, MotoredWallet, MotoredWalletSchema } from './shelter/motored/motored.schema';
 
 const JwtModules = [
     PassportModule,
@@ -233,6 +237,9 @@ const config = {
             { name: YourCat.name, schema: YourCatSchema },
             { name: AiBudgetDay.name, schema: AiBudgetDaySchema },
             { name: AiQuota.name, schema: AiQuotaSchema },
+            // Motored × Stripe (one gift per real paid order): open once its secrets are set.
+            { name: MotoredWallet.name, schema: MotoredWalletSchema },
+            { name: MotoredGift.name, schema: MotoredGiftSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -263,6 +270,8 @@ const config = {
         RescueGoalController,
         // Bet #3: one photo becomes the player's cat.
         YourcatController,
+        // Motored × Stripe: one gift to Pink Paw per real paid Motored order.
+        MotoredStripeController,
     ],
     providers: [
         UserRepository,
@@ -324,6 +333,9 @@ const config = {
         YourcatService,
         PortraitDeliveryService,
         YourcatRetentionJob,
+        // Motored × Stripe.
+        MotoredStripeService,
+        MotoredGiftService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })
