@@ -110,7 +110,7 @@ describe("SwordcatSection", () => {
   it("with the flag on: label, title, line and exactly one link; the still while the rail is not live", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "1";
     const { container, getByTestId } = render(<SwordcatSection railState="paused" />);
-    expect(container.textContent).toContain("Early access");
+    expect(container.textContent).toContain("Out now");
     expect(container.textContent).toContain(SWORDCAT_TITLE);
     expect(container.textContent).toContain(SWORDCAT_SECTION_LINE);
     const links = container.querySelectorAll("a");

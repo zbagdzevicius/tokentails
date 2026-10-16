@@ -48,7 +48,7 @@ export const SWORDCAT_SECTION_STILL = SWORDCAT_TRAILER.poster;
 /** The video's accessible name. */
 export const SWORDCAT_TRAILER_LABEL =
   "Pink Paw Knight trailer: Clem, a tiny knight cat with a pink bow, rescues a lost kitten";
-export const SWORDCAT_SECTION_LABEL = "Early access";
+export const SWORDCAT_SECTION_LABEL = "Out now";
 export const SWORDCAT_SECTION_LINE =
   "Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.";
 // claim: L-rail (present tense only while the rail is live)
