@@ -122,8 +122,8 @@ export const TX_CLOCK_SKEW_MS = 2 * 60 * 1000;
  */
 export const PAYMENT_GRACE_MS = 2 * 60 * 60 * 1000;
 /**
- * Unique amounts of an order with a confirm attempt stay reserved this long after expiry, so a late
- * payment never matches a newer order. An order nobody tried to confirm frees them after
+ * Unique amounts of an order with a confirm attempt (a confirm whose receipt shows a transfer to us,
+ * mined after the order) stay reserved this long after expiry, so a late payment never matches a newer order. An order nobody tried to confirm frees them after
  * PAYMENT_GRACE_MS, so abandoned orders cannot exhaust the 9,999 tags of one price.
  */
 export const RESERVATION_GRACE_MS = 24 * 60 * 60 * 1000;
@@ -653,13 +653,6 @@ export class CryptoCheckoutService {
         if (!Number.isSafeInteger(chainId) || !options.length) {
             throw payError('WRONG_CHAIN', HttpStatus.BAD_REQUEST);
         }
-        if (!doc.confirmAttemptAt) {
-            // Someone says they paid: the unique amounts stay reserved the long way (24 hours).
-            await this.checkoutModel.updateOne(
-                { _id: doc._id, confirmAttemptAt: { $exists: false } },
-                { $set: { confirmAttemptAt: now } }
-            );
-        }
         const chain = cfg.chains.find(c => c.chain.chainId === chainId);
         if (!chain) {
             throw payError('RPC_UNAVAILABLE', HttpStatus.SERVICE_UNAVAILABLE);
@@ -706,6 +699,15 @@ export class CryptoCheckoutService {
                 break;
             }
             underpaid = underpaid || check.reason === 'UNDERPAID';
+        }
+        if ((matched || underpaid) && !doc.confirmAttemptAt) {
+            // A transfer to us, mined after the order: the unique amounts stay reserved the long way
+            // (24 hours). Recorded only now, not for any well-formed hash, so made-up confirms cannot
+            // pin the tags of a price.
+            await this.checkoutModel.updateOne(
+                { _id: doc._id, confirmAttemptAt: { $exists: false } },
+                { $set: { confirmAttemptAt: now } }
+            );
         }
         if (!matched) {
             throw payError(underpaid ? 'UNDERPAID' : 'NO_MATCHING_TRANSFER', HttpStatus.BAD_REQUEST);

@@ -700,7 +700,8 @@ per caller (429 `CRYPTO_PAY_TOO_MANY_ORDERS`). A cat with a paid order still bei
 - `binding` says how the payment is tied to this order:
   - `amount`: the default. `amount` is the price plus a unique tag of 1 to 9,999 base units (under one
     cent), reserved for this order on that chain and token (unique index `amount_reserved`) until 2 hours
-    after `expiresAt`, or 24 hours after it once someone has called `confirm` on the order. The server
+    after `expiresAt`, or 24 hours after it once a `confirm` showed a transfer to the order's recipient
+    mined after the order (paid or short). The server
     matches a `Transfer(from, recipient, amount)` log of `tokenAddress` exactly. Buyers must send from
     their own wallet: an exchange withdrawal that takes a fee does not match (the client says so).
   - `memo`: Tempo (`route: 'transferWithMemo'`, TIP-20 `transferWithMemo(recipient, amount, memo)`; `memo` is

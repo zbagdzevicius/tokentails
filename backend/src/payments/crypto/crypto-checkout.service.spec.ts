@@ -286,7 +286,12 @@ describe('POST /payments/crypto/orders', () => {
         const { service, checkoutModel } = setup();
         const SALE_END = new Date('2026-11-28T00:00:00Z');
         const beforeEnd = new Date(SALE_END.getTime() - 60000);
-        const sale = await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'LEGENDARY' } }, beforeEnd, config());
+        const sale = await service.createOrder(
+            USER,
+            { sku: { kind: 'PACK', packType: 'LEGENDARY' } },
+            beforeEnd,
+            config()
+        );
         expect(sale.priceUsdCents).toBe(10000);
         // 28 minutes later the old order is about to close and the sale is over: a new order at $350.
         const t28 = new Date(beforeEnd.getTime() + 28 * 60000);
@@ -315,7 +320,7 @@ describe('POST /payments/crypto/orders', () => {
 
     it('frees the amount of an order nobody confirmed 2 hours after expiry, and of a confirmed one after 24 hours', async () => {
         jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(9 as any);
-        const { service, checkoutModel } = setup();
+        const { service, checkoutModel, pay, chain } = setup();
         const untouched = await service.createOrder(USER, { sku: { kind: 'LOOT_BOX' } }, T0, config());
         const touched = await service
             .createOrder(OTHER_USER, { sku: { kind: 'LOOT_BOX' } }, T0, config())
@@ -331,8 +336,16 @@ describe('POST /payments/crypto/orders', () => {
         const t1 = new Date(T0.getTime() + 3 * 3600000);
         const held = await service.createOrder(third, { sku: { kind: 'LOOT_BOX' } }, t1, config());
         expect(held.accepted[0].amount).toBe('1000009');
-        // Someone says they paid: the amount stays reserved for 24 hours after expiry.
-        await service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(90) }, t1, config());
+        // A made-up hash (no receipt) holds nothing: freed 2 hours after expiry like an untouched order.
+        await service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(89) }, t1, config());
+        expect(row(held.orderId).confirmAttemptAt).toBeUndefined();
+        // A transfer to us, mined after the order (here short): the amount stays reserved 24 hours after expiry.
+        pay([transferLog(USDC, TREASURY, '1000000')]);
+        chain.blockTime = Math.floor(t1.getTime() / 1000) + 60;
+        const short = await codeOf(
+            service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(90) }, t1, config())
+        );
+        expect(short.code).toBe('CRYPTO_PAY_UNDERPAID');
         await service.releaseReservations(new Date(t1.getTime() + 30 * 60000 + 3 * 3600000));
         expect(row(held.orderId).reserved).toBe(true);
         await service.releaseReservations(new Date(t1.getTime() + 30 * 60000 + 24 * 3600000 + 1000));
