@@ -33,8 +33,8 @@ What is in the box:
 
 ## Custody statement
 
-Every path moves money donor → ShelterSplit → shelter wallet, or donor → shelter wallet. None of
-them passes through a wallet the integrator or Token Tails controls.
+Every path moves money donor → ShelterSplit → shelter wallet, or donor → shelter wallet. No path
+holds funds in a contract or relay in between. Who holds the shelter wallet is in the disclosure below.
 
 - **ShelterSplit** splits each gift across the registered shelter wallets in the same transaction and
   keeps no balance.
@@ -46,7 +46,7 @@ them passes through a wallet the integrator or Token Tails controls.
   where `recipients` is `router.recipientsHash(amount)`: if the shelter list changes after signing, the
   gift reverts). USDC sent to the router by plain transfer waits there until anyone calls `flush`,
   which can only pay it on to the shelters.
-- **x402 `exact`** pays the **shelter's own wallet** (`payTo`) directly with a USDC
+- **x402 `exact`** pays the **shelter's wallet** (`payTo`) directly with a USDC
   `transferWithAuthorization`; the facilitator settles it and pays the gas.
 
 ## Showcase shelter and custody disclosure

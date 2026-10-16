@@ -13,8 +13,8 @@ the limits enforced by a smart contract instead of by the prompt.
   native coin is accepted only from the owner, and its address is never shown as a place to give
   (ERC-20 transfers cannot be blocked, so a mistaken token transfer would join the float). Public
   donations go donor → ShelterSplit → the shelter wallets registered on the split, or donor → shelter
-  wallet. Until the Pink Paw handover, Token Tails still holds the shelter wallet's key, and every
-  public page says so.
+  wallet. Since 2026-10-16 every mainnet split pays Pink Paw's wallet. Token Tails created that
+  wallet and keeps a recovery backup, and the public pages say so.
 
 ```
             observe.mjs                   decide.mjs                  act.mjs               chain
@@ -118,8 +118,8 @@ The demo caps are fork parameters for the video, not a public claim.
 2. Fund the float from the owner address (plain transfer in native mode; other senders are refused).
 3. Run `node run.mjs --spender <addr> --once` with `TREAT_AGENT_RPC` set: it prints the `cast send`
    command; the founder runs it with the agent's keystore. Nothing here holds or reads a key.
-4. On a mainnet the agent only gives to the shelter's own wallet: the split must list a wallet the
-   shelter holds (Pink Paw handover) before this is described as live.
+4. On a mainnet the agent only gives through the split, which pays Pink Paw's wallet
+   (`0x3c83…4771`) since 2026-10-16. Check `preview()` on that chain before calling it live.
 
 ## Match Desk (several sponsors, one agent)
 

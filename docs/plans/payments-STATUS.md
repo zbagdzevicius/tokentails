@@ -95,7 +95,7 @@ Go-live, in order:
 5. Rollback: revert the change and redeploy the backend. Open orders expire after their TTL.
 6. Known side effect: `shareRoutesFor` in `src/shelter/goal/shelter-goal.service.ts` reads `enabled`.
    It is true with the deploy wherever a split route (`CRYPTO_PAY_CAT_SPLITS`, default the main split)
-   is on the campaign chain, before the handover too, so the goal page can count a shop share as
+   is on the campaign chain. It was true before the 2026-10-16 rotation too, so the goal page can count a shop share as
    reaching the campaign split. This changes counting and display only; no money moves.
 
 Founder calls still open:
@@ -114,4 +114,4 @@ Also in the CLAUDE.md tracker.
 5. Backend deploy keeps `SHELTER_GOAL_SCAN` on (default) with an Arc mainnet RPC; the first scan takes a few minutes.
 6. ~~Verify F-023 or drop the Paris sentence.~~ Founder confirmed the event 2026-10-04: F-023 is company-reported (landing surface, café footage only). Third-party verification (open the x.com post, confirm the partners) is still open before partner names may appear.
 7. ~~Only after a written override (decision #15): `NEXT_PUBLIC_HEIST_LANDING_SECTION=1`.~~ Done 2026-10-04: founder override recorded; the section is on by default.
-8. At handover: C-001 `campaign.rotation` (facts edit, `fund facts build`, deploy client and backend).
+8. ~~At handover: C-001 `campaign.rotation` (facts edit, `fund facts build`, deploy client and backend).~~ Done 2026-10-16: the splits pay Pink Paw's wallet.

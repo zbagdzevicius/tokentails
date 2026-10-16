@@ -144,14 +144,15 @@ payments away from it, so only sponsored treats could arrive (plus the shop shar
 cat checkout through the split on the campaign chain: crypto pay on and a split route). The backend
 reports these as `liveSources`, and the copy lists only them: "today, sponsored treats." Since the
 2026-10-16 rotation the open wallet is Pink Paw's wallet (`holder: "shelter"`), so the backend lists
-gifts, the match, treats and x402 as sources, even while those rails still wait for the claim rows and
-env (a known gap, see `docs/BACKEND.md`).
+gifts, the match, treats and x402 as sources. The on-chain giving check (`preview()` pays only Pink
+Paw's wallet) opens gifts and x402 without claim rows. Only the relay and the match still wait on
+their own off-by-default flags (`SHELTER_RELAY_ENABLED`, `SHELTER_MATCH_ENABLED`).
 
 **Rotation plan.** Done 2026-10-16: `0xE299…0f37` closed at Arc block 26229681 and Pink Paw's wallet
-counts from 26229682. While Token Tails holds the wallet, the entry must carry `campaign.rotation`
-(the build refuses it otherwise): at handover, set the held wallet's `toBlock`, append the
-shelter's own wallet (`holder: "shelter"`), point `shelter.wallet` at it, set `handover:
-"handed-over"`, run `fund facts build` and deploy the client and the backend. The web meter reads
+counts from 26229682. While Token Tails held the wallet, the entry had to carry `campaign.rotation`
+(the build refused it otherwise). At the rotation we set the held wallet's `toBlock`, appended
+Pink Paw's wallet (`holder: "shelter"`), pointed `shelter.wallet` at it, set `handover:
+"handed-over"`, ran `fund facts build` and deployed the client and the backend. The web meter reads
 `campaign.json` at run time and the Heist reads the runtime facts (`/facts/facts.json`), so neither
 needs a Heist rebuild for the change.
 

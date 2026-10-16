@@ -136,7 +136,7 @@ for a refund (410 `STELLAR_PACKS_DEPRECATED`). Portraits and loot boxes are stil
 ### Buying with USDC or EURC (crypto checkout)
 
 1. Client creates an order through `POST /payments/crypto/orders` for a pack, a loot box or one shelter cat; the server prices it and lists every accepted chain and token with the exact amount, the recipient and ready-to-send transactions. Accepted on mainnet: USDC on Arc, Base, Arbitrum, Avalanche and Monad, USDC.e on Tempo, USDG on Robinhood Chain, and EURC on Arc, Base and Avalanche (`backend/src/payments/crypto/crypto-chains.ts`). Native coins are never accepted.
-2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat after the shelter's key handover, straight into the shelter's ShelterSplit with the order memo.
+2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat while the on-chain giving check passes on that chain, straight into the shelter's ShelterSplit with the order memo.
 3. Client sends `{chainId, txHash}` to `POST /payments/crypto/orders/:orderId/confirm`; the backend reads the receipt over RPC, checks token contract, recipient, amount or memo, confirmations and expiry, creates the `Order` keyed on the transaction hash and grants once. Details: BACKEND.md "Payments".
 
 ### Registering a rescued cat
