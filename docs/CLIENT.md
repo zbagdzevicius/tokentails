@@ -426,10 +426,15 @@ needed: the page, the picker card and the landing section (web only, never in th
 - Any GameModal pauses the game through the Heist's suspension stand-in (`registerHeistSuspension`)
   and makes the frame inert.
 - Phase 1 saves nothing: `level-complete` is logged with `console.debug` in development only.
+- Treats: one send at a time. A `treat-request` that arrives while a send is in flight (the game's
+  15 s timeout, then Try again) waits for that send and gets its result under its own id, never an
+  instant `retry`. Each rail read sets "sent today" from the current identity's row, so a sign-in or
+  an account switch is not told the previous identity's treat was already sent.
 - Local dev: the game accepts embed messages only from the origins in its `VITE_EMBED_ORIGINS`
-  (default tokentails.com, www.tokentails.com and `http://localhost:3000`). If the client runs on
-  another port, start or build Swordcat with `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the
-  bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
+  (default tokentails.com and www.tokentails.com; `http://localhost:3000` only in the game's dev
+  server and test builds) plus its own origin when the parent is same-origin, so the copied build
+  works on any client port. Against the game's dev server from another port, start Swordcat with
+  `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
   `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
   node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
 

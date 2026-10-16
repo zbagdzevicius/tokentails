@@ -10,8 +10,9 @@ import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
+const mockAuth = jest.fn((): unknown => undefined);
 jest.mock("@/context/FirebaseAuthContext", () => ({
-  useOptionalFirebaseAuth: () => undefined,
+  useOptionalFirebaseAuth: () => mockAuth(),
   FirebaseAuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 const replace = jest.fn(() => Promise.resolve(true));
@@ -58,6 +59,7 @@ function mockMatchMedia(matches: boolean) {
 }
 
 beforeEach(() => {
+  mockAuth.mockReset().mockReturnValue(undefined);
   mockTrack.mockClear();
   mockStatus.mockReset().mockResolvedValue(null);
   mockMe.mockReset().mockResolvedValue(null);
@@ -269,7 +271,7 @@ function json(status: number, body: unknown): Response {
 }
 
 async function readyHost(treatFetch: jest.Mock) {
-  render(<SwordcatHost url={`${GAME}/`} navigate={jest.fn()} treatFetch={treatFetch} />);
+  const view = render(<SwordcatHost url={`${GAME}/`} navigate={jest.fn()} treatFetch={treatFetch} />);
   const frame = screen.getByTestId(SWORDCAT_FRAME_TESTID) as HTMLIFrameElement;
   const posted: Array<Record<string, unknown>> = [];
   jest.spyOn(frame.contentWindow!, "postMessage").mockImplementation(((message: unknown, origin: string) => {
@@ -291,7 +293,7 @@ async function readyHost(treatFetch: jest.Mock) {
       for (let i = 0; i < 10; i++) await Promise.resolve();
       await new Promise((r) => setTimeout(r, 0));
     });
-  return { posted, fromGame, settle, ofType: (type: string) => posted.filter((m) => m.type === type) };
+  return { view, posted, fromGame, settle, ofType: (type: string) => posted.filter((m) => m.type === type) };
 }
 
 describe("SwordcatHost treats", () => {
@@ -399,6 +401,52 @@ describe("SwordcatHost treats", () => {
     h.fromGame({ type: "treat-request", requestId: "r9", slot: "pickles", catName: "Judas" });
     await h.settle();
     expect(h.ofType("treat-result").at(-1)).toEqual({ ns: SWORDCAT_NS, v: 1, type: "treat-result", requestId: "r9", kind });
+  });
+
+  it("a Try again while a slow send is in flight waits for it and gets the same result, with one POST", async () => {
+    mockStatus.mockResolvedValue(LIVE_STATUS);
+    let finish: (r: Response) => void = () => undefined;
+    const treatFetch = jest.fn(() => new Promise<Response>((resolve) => (finish = resolve)));
+    const h = await readyHost(treatFetch);
+    h.fromGame({ type: "treat-request", requestId: "r1", slot: "pickles", catName: "Judas" });
+    await h.settle();
+    // the game timed out after 15 s and the player pressed Try again
+    h.fromGame({ type: "treat-request", requestId: "r2", slot: "pickles", catName: "Judas" });
+    await h.settle();
+    expect(h.ofType("treat-result")).toEqual([]);
+    finish(json(200, { txHash: TX, chainId: 5042, amountWei: "10000000000000000", explorerUrl: `https://explorer.arc.io/tx/${TX}` }));
+    await h.settle();
+    expect(treatFetch).toHaveBeenCalledTimes(1);
+    const results = h.ofType("treat-result");
+    expect(results.map((m) => [m.requestId, m.kind])).toEqual([
+      ["r1", "sent"],
+      ["r2", "sent"],
+    ]);
+    expect(results[1].receiptPath).toBe(`/shelter-payouts/receipt?chain=5042&tx=${TX}`);
+  });
+
+  it("a sign-in reads today's row again and clears sent-today for the new identity", async () => {
+    mockStatus.mockResolvedValue(LIVE_STATUS);
+    mockMe.mockResolvedValue({ today: { status: "SENT" } });
+    const treatFetch = jest.fn(async () => json(200, { txHash: TX, chainId: 5042 }));
+    const h = await readyHost(treatFetch);
+    await h.settle();
+    expect(h.ofType("treat-state").at(-1)!.sentToday).toBe(true);
+    // the guest signs in: the account has no treat today
+    mockMe.mockResolvedValue({ today: null });
+    mockAuth.mockReturnValue({ user: { isAnonymous: false }, authStatus: "ready" });
+    h.view.rerender(<SwordcatHost url={`${GAME}/`} navigate={jest.fn()} treatFetch={treatFetch} />);
+    await h.settle();
+    expect(h.ofType("treat-state").at(-1)!.sentToday).toBe(false);
+    h.fromGame({ type: "treat-request", requestId: "r5", slot: "pickles", catName: "Judas" });
+    await h.settle();
+    expect(treatFetch).toHaveBeenCalledTimes(1);
+    // a failed read keeps what the page knows
+    mockMe.mockResolvedValue(null);
+    mockAuth.mockReturnValue(undefined);
+    h.view.rerender(<SwordcatHost url={`${GAME}/`} navigate={jest.fn()} treatFetch={treatFetch} />);
+    await h.settle();
+    expect(h.ofType("treat-state").at(-1)!.sentToday).toBe(true);
   });
 
   it("answers retry when the network fails, and ignores a malformed request", async () => {

@@ -217,7 +217,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
   // Treats: the rail and today's row, read once per page view and updated by each send.
   const railRef = useRef<SwordcatRail>({ state: "checking" });
   const sentTodayRef = useRef(false);
-  const inFlightRef = useRef<string | null>(null);
+  const inFlightRef = useRef<{ requestId: string; done: Promise<SwordcatTreatResult> } | null>(null);
   const answeredRef = useRef(new Map<string, SwordcatTreatResult>());
   const treatFetchRef = useRef<TreatFetch>(treatFetch ?? defaultTreatFetch);
   treatFetchRef.current = treatFetch ?? defaultTreatFetch;
@@ -246,7 +246,10 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
 
   /**
    * One `treat-request`: one send in flight at a time, each request id answered once (a repeat gets
-   * the same answer, never a second POST). Tokens never enter the frame: `sendTreat` reads them here.
+   * the same answer, never a second POST). A new request while a send is in flight (the game timed
+   * out and the player pressed Try again) waits for that send and gets its result under its own id,
+   * so a slow treat that went out never reads as failed. Tokens never enter the frame: `sendTreat`
+   * reads them here.
    */
   const onTreatRequest = useCallback(
     async (message: SwordcatTreatRequestMessage) => {
@@ -260,45 +263,50 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         bridgeRef.current?.sendTreatResult(previous);
         return;
       }
-      if (inFlightRef.current === message.requestId) return;
-      if (inFlightRef.current) {
-        bridgeRef.current?.sendTreatResult({ requestId: message.requestId, kind: "retry" });
+      const flight = inFlightRef.current;
+      if (flight) {
+        if (flight.requestId === message.requestId) return;
+        const shared = await flight.done;
+        answer({ ...shared, requestId: message.requestId });
         return;
       }
       if (sentTodayRef.current) {
         answer({ requestId: message.requestId, kind: "already-today" });
         return;
       }
-      inFlightRef.current = message.requestId;
-      let body: unknown = null;
-      const capture: TreatFetch = async (input, init) => {
-        const res = await treatFetchRef.current(input, init);
-        if (res.ok) {
-          try {
-            body = await res.clone().json();
-          } catch {
-            body = null;
+      const done = (async (): Promise<SwordcatTreatResult> => {
+        let body: unknown = null;
+        const capture: TreatFetch = async (input, init) => {
+          const res = await treatFetchRef.current(input, init);
+          if (res.ok) {
+            try {
+              body = await res.clone().json();
+            } catch {
+              body = null;
+            }
           }
+          return res;
+        };
+        let send: TreatSend;
+        try {
+          send = await sendTreat({ fetchImpl: capture, chainId: railRef.current.chainId });
+        } catch {
+          send = { kind: "retry" };
+        } finally {
+          inFlightRef.current = null;
         }
-        return res;
-      };
-      let send: TreatSend;
-      try {
-        send = await sendTreat({ fetchImpl: capture, chainId: railRef.current.chainId });
-      } catch {
-        send = { kind: "retry" };
-      } finally {
-        inFlightRef.current = null;
-      }
-      analytics.track(buildEvent("treat_sent", { status: treatSentStatus(send) }));
-      if (send.kind === "sent" || send.kind === "already-today") sentTodayRef.current = true;
-      if (send.kind === "budget-spent") railRef.current = { state: "exhausted" };
-      if (send.kind === "paused") railRef.current = { state: "paused" };
-      answer({
-        requestId: message.requestId,
-        kind: send.kind,
-        ...(send.kind === "sent" ? treatReceiptOf(body, isAppBuild()) : {}),
-      });
+        analytics.track(buildEvent("treat_sent", { status: treatSentStatus(send) }));
+        if (send.kind === "sent" || send.kind === "already-today") sentTodayRef.current = true;
+        if (send.kind === "budget-spent") railRef.current = { state: "exhausted" };
+        if (send.kind === "paused") railRef.current = { state: "paused" };
+        return {
+          requestId: message.requestId,
+          kind: send.kind,
+          ...(send.kind === "sent" ? treatReceiptOf(body, isAppBuild()) : {}),
+        };
+      })();
+      inFlightRef.current = { requestId: message.requestId, done };
+      answer(await done);
     },
     [pushTreatState]
   );
@@ -314,7 +322,9 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
       ]);
       if (!live) return;
       railRef.current = swordcatRailOf(status, isAppBuild());
-      if (sentTodayOf(me)) sentTodayRef.current = true;
+      // A failed read (null) keeps what this page knows; a read sets it both ways, so a sign-in or an
+      // account switch is never told the previous identity's treat was already sent.
+      if (me) sentTodayRef.current = sentTodayOf(me);
       pushTreatState();
     })();
     return () => {
