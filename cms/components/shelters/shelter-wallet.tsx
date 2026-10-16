@@ -27,8 +27,12 @@ export function defaultShelterWallet(shelter?: {
   slug?: string;
 }): string {
   if (shelter?.publicWallet && isAddress(shelter.publicWallet)) return shelter.publicWallet;
-  const label = `${shelter?.slug ?? ''} ${shelter?.name ?? ''}`.toLowerCase();
-  return /pink[\s-]*paw/.test(label) ? PINK_PAW_WALLET : '';
+  const label = `${shelter?.slug ?? ''} ${shelter?.name ?? ''}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+  // Pink Paw is "Rožinė pėdutė" (slug rozine-pedute) in the shelter records.
+  return /pink[\s-]*paw|rozine[\s-]*pedute/.test(label) ? PINK_PAW_WALLET : '';
 }
 
 const fmt = (a: Amount) => `${formatUnits(a.raw, a.decimals, 4)} ${a.symbol}`;
