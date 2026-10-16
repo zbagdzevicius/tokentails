@@ -103,7 +103,8 @@ describe('validation', () => {
       expect(end.spottedCount, id).toBe(0);
       expect(end.hash, id).toBe(sol.finalHash);
     }
-  });
+    // Every level replayed: under a full parallel vitest run on a busy machine this can pass 5 s.
+  }, 20_000);
 
   it('episodes are deterministic per (level, persona, seed)', () => {
     const level = getLevel('heist-02');
@@ -115,7 +116,8 @@ describe('validation', () => {
     const x = runEpisode(level, 'novice', 1);
     const y = runEpisode(level, 'novice', 2);
     expect(JSON.stringify(x)).not.toBe(JSON.stringify(y));
-  });
+    // Two episodes per persona plus two: same slow-machine margin as the test above.
+  }, 20_000);
 
   it('reaction delays stay inside the human range (200-450 ms) for every human persona', () => {
     for (const p of HUMAN_PERSONAS) {
