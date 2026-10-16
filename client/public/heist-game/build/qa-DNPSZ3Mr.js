@@ -1,1 +1,0 @@
-import"./index-DH1ry8pq.js";function e(e){return null}export{e as installQA};

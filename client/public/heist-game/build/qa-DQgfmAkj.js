@@ -1,0 +1,1 @@
+import"./index-B1cDILhx.js";function e(e){return null}export{e as installQA};
