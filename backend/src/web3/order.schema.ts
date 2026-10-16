@@ -16,6 +16,7 @@ export { OrderStatus };
  * `DUPLICATE_PAYMENT`: a second crypto payment for an order that was already paid. `NOT_FOR_SALE`: a
  * shelter cat paid in the grace after expiry that is no longer for sale to this buyer.
  * `STELLAR_DEPRECATED`: a Stellar pack payment after Stellar packs closed (STELLAR_PACKS_SUNSET_AT).
+ * `PRICE_CHANGED`: a Stellar digital portrait paid at the retired $6 price, below today's price.
  * All are refunded by hand (`refund: 'due'`).
  */
 export const GRANT_FAILURE_REASONS = [
@@ -26,6 +27,7 @@ export const GRANT_FAILURE_REASONS = [
     'DUPLICATE_PAYMENT',
     'NOT_FOR_SALE',
     'STELLAR_DEPRECATED',
+    'PRICE_CHANGED',
 ] as const;
 export type GrantFailureReason = typeof GRANT_FAILURE_REASONS[number];
 

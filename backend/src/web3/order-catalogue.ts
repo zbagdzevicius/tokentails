@@ -25,7 +25,8 @@ export const LOOT_BOX_PRICE_CENTS = 100;
  * Order fields as the confirm flows write them:
  * - IMAGE: `id` is the portrait ProductType (`digital` for POST /web3/confirm and PaymentIntents). The
  *   price is the current USD table (`getPortraitPriceCents`, $16 digital), whatever the order's date.
- *   The audit also accepts the retired $6 for digital orders (`PORTRAIT_LEGACY_DIGITAL_USD_CENTS`).
+ *   The audit also accepts the retired $6 for digital orders (`PORTRAIT_LEGACY_DIGITAL_USD_CENTS`), and
+ *   Web3Service.validatePrice records a $6 Stellar payment for a refund (`PRICE_CHANGED`).
  *   Card checkout orders in EUR are not USD: the audit handles them on their own.
  * - PACK: `id` is the PackType.
  * - CAT: `id` is the catalogue (shelter) cat id; a shelter cat costs `getShelterCatPriceCents()`.
