@@ -553,7 +553,8 @@ the unique `hash` index then turned into a permanent 409 for the real buyer.
 chain and token it accepts, the buyer pays from their own wallet, and the server verifies the
 transaction on-chain before it grants anything, exactly once. There is no on/off flag: it is on
 wherever a chain resolves with a treasury (in production, all seven mainnets from `treasury.public.ts`)
-or with a live split route (after the handover). `enabled` in the config response is true when at
+or with a live split route (on a mainnet, only while the on-chain giving check passes for that
+route's own split). `enabled` in the config response is true when at
 least one chain has a treasury or a live split route. Rollback is a revert and a redeploy.
 Environment variables are in BACKEND.md "Crypto checkout".
 Client: `client/components/web3/crypto/` (packs and shelter cats, web only; docs/CLIENT.md "Crypto
