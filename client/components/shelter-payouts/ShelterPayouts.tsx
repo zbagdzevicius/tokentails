@@ -308,6 +308,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           chain={campaignChain || chainFor(campaign.chainId, deployments)}
           router={routerFor(routers, campaign.chainId)}
           shelterName={campaign.shelter.name}
+          shelterWallet={campaign.shelter.handover === "handed-over" ? campaign.shelter.wallet : null}
           choices={campaignChoices}
         />
         {tryId !== null && (
