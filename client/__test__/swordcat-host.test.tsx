@@ -230,6 +230,19 @@ describe("/swordcat page", () => {
       else process.env.NEXT_PUBLIC_SWORDCAT = prev;
     }
   });
+
+  it("renders the host and does not redirect when NEXT_PUBLIC_SWORDCAT is unset (on by default)", () => {
+    const prev = process.env.NEXT_PUBLIC_SWORDCAT;
+    delete process.env.NEXT_PUBLIC_SWORDCAT;
+    replace.mockClear();
+    try {
+      render(<SwordcatPage />);
+      expect(screen.getByTestId("swordcat-host")).toBeTruthy();
+      expect(replace).not.toHaveBeenCalledWith("/game");
+    } finally {
+      if (prev !== undefined) process.env.NEXT_PUBLIC_SWORDCAT = prev;
+    }
+  });
 });
 
 // ---- Phase TT4: treats through the host (plan §12.1 item 7, §12.2) ------------------------------
