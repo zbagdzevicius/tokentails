@@ -1,0 +1,514 @@
+{
+  "id": "heist-14",
+  "tiles": [
+    "####################################",
+    "##########................###......#",
+    "##########.....b....b.....###......#",
+    "##########................###......#",
+    "##########................###.b....#",
+    "############.################......#",
+    "#.....##....................#......#",
+    "#.....##....................###.####",
+    "#.....##...bb...bb...bb.....#......#",
+    "#.....##....................#......#",
+    "#.....##....................#......#",
+    "#.....................b.....#..bb..#",
+    "#.............b.............#......#",
+    "#.....##...........................#",
+    "#.....##....................#......#",
+    "#.....##...bb........bb.....#..bb..#",
+    "#.....##........bb..........#......#",
+    "#.....##....................#......#",
+    "#.....##....................#......#",
+    "####################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 7
+    },
+    {
+      "x": 3,
+      "y": 7
+    }
+  ],
+  "guards": [
+    {
+      "id": "s-croupier",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 18,
+          "y": 12
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 75
+        }
+      ]
+    },
+    {
+      "id": "s-dealer",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 18,
+          "y": 2
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 100
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 50
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 100
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 50
+        }
+      ]
+    },
+    {
+      "id": "s-cage",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 30,
+          "y": 2
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 150
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 150
+        }
+      ]
+    },
+    {
+      "id": "g-pit-west",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 9,
+          "y": 7
+        },
+        {
+          "x": 15,
+          "y": 7
+        },
+        {
+          "x": 15,
+          "y": 17
+        },
+        {
+          "x": 9,
+          "y": 17
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 22,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-pit-east",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 20,
+          "y": 7
+        },
+        {
+          "x": 26,
+          "y": 7
+        },
+        {
+          "x": 26,
+          "y": 17
+        },
+        {
+          "x": 20,
+          "y": 17
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 22,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-counter",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 30,
+          "y": 14
+        },
+        {
+          "x": 33,
+          "y": 14
+        },
+        {
+          "x": 33,
+          "y": 17
+        },
+        {
+          "x": 30,
+          "y": 17
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 102,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 11,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 23,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 34,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 17,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 25,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 32,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 19,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 29,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 24,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 3,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 10,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 17,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 18,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 34,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 18,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 20,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 13,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 18,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 19,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 29,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 4,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 10,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-23",
+      "tile": {
+        "x": 25,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-24",
+      "tile": {
+        "x": 34,
+        "y": 18
+      }
+    }
+  ],
+  "key": {
+    "id": "key-vault",
+    "tile": {
+      "x": 22,
+      "y": 3
+    }
+  },
+  "doors": [
+    {
+      "id": "door-rope",
+      "tile": {
+        "x": 28,
+        "y": 13
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-cage",
+      "tile": {
+        "x": 31,
+        "y": 7
+      },
+      "kind": "VAULT",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-q1",
+      "tile": {
+        "x": 25,
+        "y": 15
+      },
+      "doors": [
+        "door-rope"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 33,
+      "y": 2
+    },
+    "catId": "maine",
+    "catName": "Lucky"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 2,
+        "y": 17
+      },
+      {
+        "x": 3,
+        "y": 17
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 11,
+        "y": 4
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 29,
+        "y": 9
+      }
+    },
+    {
+      "id": "cp-3",
+      "tile": {
+        "x": 4,
+        "y": 12
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 14: The Golden Bowl",
+    "parTicks": 4350,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 150,
+    "maxCoins": 26,
+    "twoCatRequired": true,
+    "objectives": [
+      "Get the key and open the cashier's cage for {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 29,
+        "y0": 8,
+        "x1": 34,
+        "y1": 10,
+        "untilObjective": 0,
+        "text": "Wait here. The key is shared: when your partner grabs it, you can open the cage from right here."
+      },
+      {
+        "x0": 22,
+        "y0": 13,
+        "x1": 27,
+        "y1": 17,
+        "untilObjective": 0,
+        "text": "Hold the rope plate for your partner, or have them stand in the doorway to prop it."
+      }
+    ],
+    "name": "The Golden Bowl",
+    "intro": "One key, two cats, far apart. Whoever grabs it, the other can open the cage.",
+    "idea": "Pass the key: the key is shared, so one cat grabs it while the other, far away, opens the vault"
+  }
+}

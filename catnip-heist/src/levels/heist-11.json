@@ -1,0 +1,441 @@
+{
+  "id": "heist-11",
+  "tiles": [
+    "##################################",
+    "#........................#.......#",
+    "#................................#",
+    "#........................#.......#",
+    "################.#################",
+    "#.......bb.......................#",
+    "#................................#",
+    "#........................bb......#",
+    "################.#################",
+    "#.......................b........#",
+    "#................................#",
+    "#.....bb.........................#",
+    "################.#################",
+    "#..........................bb....#",
+    "#................................#",
+    "#........b.......................#",
+    "#####.##########.#################",
+    "#.bbb.......#....................#",
+    "#...................bb...........#",
+    "#.bbb.......#....................#",
+    "##################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "s-signal-1",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 20,
+          "y": 6
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 180
+        }
+      ]
+    },
+    {
+      "id": "s-signal-2",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 12,
+          "y": 10
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 24
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 156
+        }
+      ]
+    },
+    {
+      "id": "s-signal-3",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 20,
+          "y": 14
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 48
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 132
+        }
+      ]
+    },
+    {
+      "id": "g-shunter",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 2,
+          "y": 14
+        },
+        {
+          "x": 13,
+          "y": 14
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 80,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 10,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 29,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 20,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 12,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 29,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 4,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 24,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 31,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 8,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 31,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 3,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 27,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 20,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 7,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 30,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 24,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 10,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 26,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 3,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 9,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 18,
+        "y": 19
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 32,
+        "y": 19
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-barrier",
+      "tile": {
+        "x": 16,
+        "y": 4
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    },
+    {
+      "id": "door-siding",
+      "tile": {
+        "x": 5,
+        "y": 16
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-x1",
+      "tile": {
+        "x": 28,
+        "y": 19
+      },
+      "doors": [
+        "door-barrier"
+      ]
+    },
+    {
+      "id": "plate-s1",
+      "tile": {
+        "x": 30,
+        "y": 2
+      },
+      "doors": [
+        "door-barrier",
+        "door-siding"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 2,
+      "y": 18
+    },
+    "catId": "mist",
+    "catName": "Smokey"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 31,
+        "y": 17
+      },
+      {
+        "x": 32,
+        "y": 17
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 5,
+        "y": 2
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 16,
+        "y": 12
+      }
+    },
+    {
+      "id": "cp-3",
+      "tile": {
+        "x": 24,
+        "y": 19
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 11: Signal Box",
+    "parTicks": 4200,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 150,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "Set the points, ride the green wave and free {cat}",
+      "Both cats to the depot exit"
+    ],
+    "hints": [
+      {
+        "x0": 14,
+        "y0": 1,
+        "x1": 18,
+        "y1": 3,
+        "untilObjective": 0,
+        "text": "Watch the signal dogs: when the top one looks away, run straight down. The others turn away just in time."
+      },
+      {
+        "x0": 26,
+        "y0": 1,
+        "x1": 32,
+        "y1": 3,
+        "untilObjective": 0,
+        "text": "This switch opens the barrier AND the siding gate. Hold it while your partner runs."
+      },
+      {
+        "x0": 25,
+        "y0": 17,
+        "x1": 31,
+        "y1": 19,
+        "text": "Your turn to signal: hold this plate so your partner can come down."
+      }
+    ],
+    "name": "Signal Box",
+    "intro": "The yard dogs are the signals. Ride the green wave, and set the points for your partner.",
+    "idea": "Sentries as signals on one clock (a green wave), plus one switch plate that opens two gates"
+  }
+}

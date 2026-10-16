@@ -1,0 +1,348 @@
+{
+  "id": "heist-13",
+  "tiles": [
+    "##############################",
+    "#........b.........b.........#",
+    "#............................#",
+    "#...........####.............#",
+    "#...........####.............#",
+    "#...........####..#.#........#",
+    "#......b....####..#.#b.......#",
+    "#...........#######.#........#",
+    "#...................#........#",
+    "#...........####....#........#",
+    "#..b........####....#........#",
+    "#...........####.#.######....#",
+    "#...........####.#......#....#",
+    "#...........####.#......#....#",
+    "#...........####.#......#....#",
+    "#...........####.#......#....#",
+    "##############################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 14
+    },
+    {
+      "x": 3,
+      "y": 14
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-door",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 17,
+          "y": 8
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "facing": {
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "id": "g-belt",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 27,
+          "y": 1
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 30,
+      "visionTiles": 3
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 5,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 11,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 13,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 25,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 6,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 17,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 23,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 3,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 22,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 2,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 6,
+        "y": 8
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 25,
+        "y": 8
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 8,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 26,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 2,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 6,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 20,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 8,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 22,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 20,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 26,
+        "y": 15
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-flap",
+      "tile": {
+        "x": 12,
+        "y": 8
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-cage",
+      "tile": {
+        "x": 18,
+        "y": 11
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-f1",
+      "tile": {
+        "x": 19,
+        "y": 7
+      },
+      "doors": [
+        "door-flap"
+      ]
+    },
+    {
+      "id": "plate-f2",
+      "tile": {
+        "x": 10,
+        "y": 8
+      },
+      "doors": [
+        "door-flap"
+      ]
+    },
+    {
+      "id": "plate-p1",
+      "tile": {
+        "x": 27,
+        "y": 12
+      },
+      "doors": [
+        "door-cage"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 20,
+      "y": 14
+    },
+    "catId": "cheesy",
+    "catName": "Crumble"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 26,
+        "y": 14
+      },
+      {
+        "x": 27,
+        "y": 14
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 17,
+        "y": 5
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 2,
+        "y": 15
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 13: Kibble Factory",
+    "parTicks": 2100,
+    "meowRadiusTiles": 7,
+    "investigateTicks": 180,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "Lure the doorman the long way round, then free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 7,
+        "y0": 6,
+        "x1": 11,
+        "y1": 10,
+        "untilObjective": 0,
+        "text": "Dogs can’t use the cat flap. Hold this plate, {swap}, and meow ({meow}) through the open flap: the doorman walks all the way round."
+      },
+      {
+        "x0": 13,
+        "y0": 8,
+        "x1": 16,
+        "y1": 8,
+        "untilObjective": 0,
+        "text": "It’s walking the long way round! Hold the plate up the booth corridor, {swap}, and bring your partner through."
+      }
+    ],
+    "name": "Kibble Factory",
+    "intro": "Dogs never use a cat flap. Meow through it, and the doorman walks the long way round.",
+    "idea": "The long-way lure: an open plate door carries your meow, but a dog can never walk through it"
+  }
+}
