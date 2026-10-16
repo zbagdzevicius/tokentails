@@ -313,12 +313,12 @@ const WebPayment = ({
           {(
             [
               // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
-              ["crypto", "Pay with crypto (stablecoins)", "coins"],
-              ["stripe", "Pay with Card", "wallet"],
+              ["crypto", "Pay with crypto", "coins", "(stablecoins)"],
+              ["stripe", "Pay with Card", "wallet", null],
             ] as const
           )
             .filter(([method]) => method === "stripe" || cryptoOffered)
-            .map(([method, label, icon]) => (
+            .map(([method, label, icon, sub]) => (
               <ModalButton
                 key={method}
                 variant="secondary"
@@ -333,6 +333,9 @@ const WebPayment = ({
                 }
               >
                 {label}
+                {/* Own line: the full label overflows the half-width button on phones. */}
+                {sub && " "}
+                {sub && <span className="mt-1 block text-[0.75em] opacity-80">{sub}</span>}
               </ModalButton>
             ))}
         </div>
