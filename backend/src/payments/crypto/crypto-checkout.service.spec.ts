@@ -303,6 +303,19 @@ describe('POST /payments/crypto/orders', () => {
         expect(new Date(old.expiresAt).getTime()).toBe(beforeEnd.getTime() + 30 * 60000);
     });
 
+    it('two parallel creates for one cat end in one open order (a double tap, two tabs)', async () => {
+        const spy = jest.spyOn(nodeCrypto, 'randomInt');
+        spy.mockReturnValueOnce(11 as any).mockReturnValueOnce(12 as any);
+        const { service, checkoutModel } = setup();
+        const [a, b] = await Promise.all([
+            service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config()),
+            service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config()),
+        ]);
+        expect(a.orderId).toBe(b.orderId);
+        expect(a.accepted).toEqual(b.accepted);
+        expect(checkoutModel.rows.filter((r: any) => r.sku.kind === 'CAT')).toHaveLength(1);
+    });
+
     it('caps open orders per buyer, so one account cannot hold the unique amounts of a price', async () => {
         const { service } = setup();
         await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'STARTER' } }, T0, config());

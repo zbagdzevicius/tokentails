@@ -361,6 +361,9 @@ export class CryptoCheckoutService {
                     createdAt: now,
                 } as any);
                 const doc = (created as any).toObject ? (created as any).toObject() : created;
+                if (sku.kind === 'CAT') {
+                    return this.view(await this.oneOpenOrderPerCat(doc as ICryptoCheckout, cfg, now), now);
+                }
                 return this.view(doc as ICryptoCheckout, now);
             } catch (error) {
                 if (isDuplicateKey(error)) {
@@ -548,6 +551,36 @@ export class CryptoCheckoutService {
             }
         }
         return options;
+    }
+
+    /**
+     * Two creates for one cat at once (a double tap, two tabs) both miss the reuse lookup above. After
+     * the insert, the earliest open order for that buyer and cat wins; a later one deletes itself
+     * (its id was never answered, so nobody can pay it) and answers with the winner. Both requests
+     * pick the same winner, so one buyer never holds two orders for one cat.
+     */
+    private async oneOpenOrderPerCat(doc: ICryptoCheckout, cfg: CryptoPayConfig, now: Date): Promise<ICryptoCheckout> {
+        const open = ((await this.checkoutModel
+            .find({
+                user: doc.user,
+                status: 'OPEN',
+                network: cfg.network,
+                expiresAt: { $gt: now },
+                ...skuFilter(doc.sku),
+            })
+            .lean()) || []) as unknown as ICryptoCheckout[];
+        const rank = (o: ICryptoCheckout) => [new Date(o.createdAt!).getTime(), String(o._id)] as const;
+        const first = open.reduce<ICryptoCheckout | null>((best, o) => {
+            if (!best) return o;
+            const [ta, ia] = rank(o);
+            const [tb, ib] = rank(best);
+            return ta < tb || (ta === tb && ia < ib) ? o : best;
+        }, null);
+        if (!first || String(first._id) === String(doc._id)) {
+            return doc;
+        }
+        await this.checkoutModel.deleteOne({ _id: doc._id, status: 'OPEN' });
+        return first;
     }
 
     /**
