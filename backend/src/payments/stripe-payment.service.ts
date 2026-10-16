@@ -86,8 +86,11 @@ export class StripePaymentService {
         return getPortraitPriceCents(productType);
     }
 
-    /** Returns the discount percentage for a code that belongs to a user, else 0. */
-    async resolveDiscount(code?: string): Promise<{ code?: string; percentage: number }> {
+    /**
+     * Returns the discount percentage for a code that belongs to a user, else 0. A buyer's own code
+     * gives nothing: no discount, and so no affiliate share to themselves.
+     */
+    async resolveDiscount(code?: string, buyerId?: unknown): Promise<{ code?: string; percentage: number }> {
         const normalized = code?.trim().toLowerCase();
         if (!normalized) {
             return { percentage: 0 };
@@ -96,7 +99,7 @@ export class StripePaymentService {
             searchObject: { discount: normalized },
             projection: '_id',
         });
-        if (!owner) {
+        if (!owner || (buyerId != null && String(owner._id) === String(buyerId))) {
             return { percentage: 0 };
         }
         return { code: normalized, percentage: discountPercentageForCode(normalized) };
@@ -145,7 +148,7 @@ export class StripePaymentService {
             baseCents = getPackPriceCents(input.packType, now);
         }
 
-        const { code, percentage } = await this.resolveDiscount(input.discount);
+        const { code, percentage } = await this.resolveDiscount(input.discount, input.userId);
         const amountCents = applyDiscountCents(baseCents, percentage);
 
         return {

@@ -170,6 +170,18 @@ describe('POST /web3/confirm', () => {
         expect(userRepository.update).toHaveBeenCalledWith('owner', { $inc: { affiliated: 1 } });
     });
 
+    it("never credits the affiliate share to the buyer's own code", async () => {
+        const { ctrl, userRepository } = setup(5);
+        userRepository.findOne.mockResolvedValue({ _id: USER });
+
+        await ctrl.checkTransaction(USER, body({ discount: 'Mine' }));
+
+        expect(userRepository.update).not.toHaveBeenCalledWith(USER, { $inc: { affiliated: 1 } });
+        expect(userRepository.update).not.toHaveBeenCalledWith(expect.anything(), {
+            $inc: { affiliated: expect.anything() },
+        });
+    });
+
     it('stores the hash lowercased, so one payment has one order key', async () => {
         const { ctrl, orderRepository } = setup();
 

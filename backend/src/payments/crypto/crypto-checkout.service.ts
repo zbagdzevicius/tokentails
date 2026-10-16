@@ -413,7 +413,8 @@ export class CryptoCheckoutService {
                 throw payError('BAD_SKU', HttpStatus.BAD_REQUEST);
             }
             const { code, percentage } = await this.stripePayments.resolveDiscount(
-                typeof body.discount === 'string' ? body.discount : undefined
+                typeof body.discount === 'string' ? body.discount : undefined,
+                userId
             );
             return {
                 sku: { kind, packType } as CheckoutSku,
@@ -912,7 +913,7 @@ export class CryptoCheckoutService {
                 amountUsd,
             });
             if (result.success) {
-                await this.grants.creditAffiliate(doc.discount, amountUsd);
+                await this.grants.creditAffiliate(doc.discount, amountUsd, user);
             }
         }
 

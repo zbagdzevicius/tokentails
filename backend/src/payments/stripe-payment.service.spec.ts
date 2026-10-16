@@ -142,6 +142,20 @@ describe('StripePaymentService', () => {
             expect(stripe.paymentIntents.create.mock.calls[1][0].amount).toBe(2500);
         });
 
+        it("gives no discount (and so no affiliate share) for the buyer's own code", async () => {
+            const { service, stripe, userRepository } = createService();
+            userRepository.findOne.mockResolvedValueOnce({ _id: USER_ID });
+            await service.createPaymentIntent({
+                entityType: EntityType.PACK,
+                packType: PackType.INFLUENCER,
+                userId: USER_ID,
+                discount: 'mine',
+            });
+            const params = stripe.paymentIntents.create.mock.calls[0][0];
+            expect(params.amount).toBe(2500);
+            expect(params.metadata.discount ?? '').toBe('');
+        });
+
         it('rejects an unknown pack type', async () => {
             const { service, stripe } = createService();
             await expect(

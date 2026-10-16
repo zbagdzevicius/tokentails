@@ -307,6 +307,8 @@ otherwise, and a failed grant is refunded once (Stripe automatically, every othe
 
 Pack rarity odds are in `src/shared/utils/content.utils.ts`. Discount codes map to a user's
 `discount` field; the code owner earns a 20 percent affiliate credit on completed purchases.
+A buyer's own code gives no discount and no affiliate credit (`resolveDiscount` and
+`creditAffiliate` compare the code owner with the buyer) on every rail.
 
 There is no Apple or Google in-app purchase receipt verification.
 

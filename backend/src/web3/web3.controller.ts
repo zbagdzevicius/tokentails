@@ -135,8 +135,8 @@ export class Web3Controller {
         return this.grants.refundOrder(order, user, reason, amountUsd);
     }
 
-    private creditAffiliate(discount: string | undefined, amountUsd: number) {
-        return this.grants.creditAffiliate(discount, amountUsd);
+    private creditAffiliate(discount: string | undefined, amountUsd: number, buyerId: unknown) {
+        return this.grants.creditAffiliate(discount, amountUsd, buyerId);
     }
 
     @UseGuards(AppAuthGuard)
@@ -262,7 +262,7 @@ export class Web3Controller {
             amountUsd: priceUsd,
         });
         if (response.success) {
-            await this.creditAffiliate(discount, priceUsd);
+            await this.creditAffiliate(discount, priceUsd, user);
         }
         return response;
     }
@@ -472,7 +472,7 @@ export class Web3Controller {
                 amountUsd: verified.amountUsd,
             });
             if (response.success) {
-                await this.creditAffiliate(verified.discount, verified.amountUsd);
+                await this.creditAffiliate(verified.discount, verified.amountUsd, userId);
             }
 
             return response;

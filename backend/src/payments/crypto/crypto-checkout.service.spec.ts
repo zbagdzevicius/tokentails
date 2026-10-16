@@ -91,7 +91,7 @@ function setup({
     };
     const userRepository = { update: jest.fn(), findOne: jest.fn() };
     const stripePayments = {
-        resolveDiscount: jest.fn(async (code?: string) =>
+        resolveDiscount: jest.fn(async (code?: string, _buyerId?: unknown) =>
             code === 'friend' ? { code, percentage: 20 } : { percentage: 0 }
         ),
     };
@@ -134,6 +134,7 @@ function setup({
         chain,
         reader,
         claims,
+        stripePayments,
         pay,
     };
 }
@@ -162,7 +163,7 @@ describe('POST /payments/crypto/orders', () => {
 
     it('prices a pack from the server table less a verified code, with a unique reserved amount per token', async () => {
         jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(137 as any);
-        const { service, checkoutModel } = setup();
+        const { service, checkoutModel, stripePayments } = setup();
         const order = await service.createOrder(
             USER,
             { sku: { kind: 'PACK', packType: 'INFLUENCER' }, discount: 'friend' },
@@ -172,6 +173,8 @@ describe('POST /payments/crypto/orders', () => {
 
         expect(order.priceUsdCents).toBe(2000);
         expect(order.discount).toEqual({ code: 'friend', percentage: 20 });
+        // The buyer id goes with the code, so a buyer's own code gives nothing.
+        expect(String(stripePayments.resolveDiscount.mock.calls[0][1])).toBe(String(USER));
         expect(order.status).toBe('OPEN');
         expect(order.orderId).toMatch(/^co_[0-9a-f]{16}$/);
         expect(new Date(order.expiresAt).getTime() - T0.getTime()).toBe(30 * 60000);
@@ -461,7 +464,8 @@ describe('POST /payments/crypto/orders/:orderId/confirm', () => {
         expect(grants.grantPack).toHaveBeenCalledWith(
             expect.objectContaining({ packType: PackType.STARTER, amountUsd: 4 })
         );
-        expect(grants.creditAffiliate).toHaveBeenCalledWith('friend', 4);
+        expect(grants.creditAffiliate).toHaveBeenCalledWith('friend', 4, expect.anything());
+        expect(String((grants.creditAffiliate as jest.Mock).mock.calls[0][2])).toBe(String(USER));
         expect(userRepository.update).toHaveBeenCalledWith(expect.anything(), {
             $inc: { spent: 4, monthSpent: 4, spentUsd: 4 },
         });

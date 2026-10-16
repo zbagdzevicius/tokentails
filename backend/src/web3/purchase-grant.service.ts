@@ -292,8 +292,11 @@ export class PurchaseGrantService {
         }
     }
 
-    /** Pays the affiliate share once a paid order was granted. Never on a failed or refunded grant. */
-    async creditAffiliate(discount: string | undefined, amountUsd: number) {
+    /**
+     * Pays the affiliate share once a paid order was granted. Never on a failed or refunded grant,
+     * and never to the buyer for their own code.
+     */
+    async creditAffiliate(discount: string | undefined, amountUsd: number, buyerId?: unknown) {
         if (!discount) {
             return;
         }
@@ -301,7 +304,7 @@ export class PurchaseGrantService {
             searchObject: { discount: discount.toLowerCase() },
             projection: '_id',
         });
-        if (discountOwner) {
+        if (discountOwner && !(buyerId != null && String(discountOwner._id) === String(buyerId))) {
             await this.userRepository.update(discountOwner._id!, {
                 $inc: { affiliated: parseFloat((amountUsd * 0.2).toFixed(1)) },
             });
