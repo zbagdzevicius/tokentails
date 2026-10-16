@@ -20,7 +20,10 @@ import {
   HEIST_PICKER_HREF,
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
+  SWORDCAT_PREVIEW,
 } from "@/components/shared/GameSelectModal";
+import fs from "fs";
+import path from "path";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameType } from "@/models/game";
@@ -195,6 +198,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
       href: SWORDCAT_PICKER_HREF,
       badge: "NEW",
       description: "Every cat you save is a real Pink Paw cat",
+      image: SWORDCAT_PREVIEW.src,
       previewVariant: "SWORDCAT",
     });
     expect(cards[4].type).toBeUndefined();
@@ -208,7 +212,14 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("href")).toBe("/swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
-    expect(within(dialog).getByTestId("game-card-swordcat-preview")).toBeTruthy();
+    const art = within(dialog).getByTestId("game-card-swordcat-preview");
+    expect(art.tagName).toBe("IMG");
+    expect(art.getAttribute("src")).toBe(SWORDCAT_PREVIEW.src);
+    expect(art.getAttribute("width")).toBe("312");
+    expect(art.getAttribute("height")).toBe("218");
+    expect(art.getAttribute("alt")).toBe("");
+    // Not the old inline pixel cat with the Token Tails ":3" coin.
+    expect(card.querySelector("svg")).toBeNull();
     fireEvent.click(card);
     expect(navigate).toHaveBeenCalledWith("/swordcat");
     expect(setGameType).not.toHaveBeenCalled();
@@ -221,5 +232,16 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
       runOnly: { type: "rule", values: ["button-name", "link-name", "nested-interactive", "image-alt", "svg-img-alt", "list", "listitem"] },
     });
     expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
+  it("ships a 2x trailer-frame WebP for the card's 312x218 box", () => {
+    const pub = path.resolve(__dirname, "../public");
+    expect(SWORDCAT_PREVIEW).toMatchObject({ width: 312, height: 218 });
+    expect(SWORDCAT_PREVIEW.src).toMatch(/@2x\.webp$/);
+    const buf = fs.readFileSync(path.join(pub, SWORDCAT_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
   });
 });
