@@ -36,8 +36,17 @@ const TESTNET: RouterEntry = { chainId: 5042002, router: "0x" + "bb".repeat(20),
 const ON = { walletDonate: "true" };
 
 describe("walletGiveMode: campaign slot", () => {
-  it("is mainnet only with the flag, the handover and a router on the campaign chain", () => {
+  it("is mainnet by default once the campaign pays Pink Paw's wallet and the campaign chain has a router", () => {
     expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], ON)).toBe("mainnet");
+    expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], {})).toBe("mainnet");
+    expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], { walletDonate: "1" })).toBe("mainnet");
+    expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], { walletDonate: "" })).toBe("mainnet");
+  });
+
+  it("is hidden when NEXT_PUBLIC_WALLET_DONATE is an off value", () => {
+    for (const off of ["0", "false", "no", "off", "OFF", " false "]) {
+      expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], { walletDonate: off })).toBe("hidden");
+    }
   });
 
   it("never offers a button while Token Tails holds the shelter's wallet, flag or not", () => {
@@ -45,9 +54,7 @@ describe("walletGiveMode: campaign slot", () => {
     expect(walletGiveMode(campaign("held-by-token-tails"), [], [], {})).toBe("awaiting-handover");
   });
 
-  it("is hidden after the handover when the flag is off or no mainnet router is listed", () => {
-    expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], {})).toBe("hidden");
-    expect(walletGiveMode(campaign("handed-over"), [], [MAINNET], { walletDonate: "1" })).toBe("hidden");
+  it("is hidden after the handover when no mainnet router is listed", () => {
     expect(walletGiveMode(campaign("handed-over"), [], [], ON)).toBe("hidden");
     expect(walletGiveMode(campaign("handed-over"), [], [TESTNET], ON)).toBe("hidden");
     // A router on the campaign chain id that is marked testnet never carries real money.

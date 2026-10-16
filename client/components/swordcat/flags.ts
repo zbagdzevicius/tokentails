@@ -17,19 +17,11 @@
  * env as default arguments, so tests pass values in.
  */
 
-const TRUTHY = /^(1|true|yes|on)$/i;
-const FALSY = /^(0|false|no|off)$/i;
+import { flagNotOff, flagOn } from "@/lib/flags";
+
+export { flagNotOff, flagOn };
+
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-/** True only for `1`, `true`, `yes` or `on` (any case, trimmed). */
-export function flagOn(value: string | undefined): boolean {
-  return TRUTHY.test((value || "").trim());
-}
-
-/** True unless the value is `0`, `false`, `no` or `off` (any case, trimmed): unset means on. */
-export function flagNotOff(value: string | undefined): boolean {
-  return !FALSY.test((value || "").trim());
-}
 
 /** `/swordcat` is open (default on; an off value is the kill switch). */
 export function swordcatEnabled(flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT): boolean {
