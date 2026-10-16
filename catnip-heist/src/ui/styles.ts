@@ -443,6 +443,11 @@ button.ch-obj-inner.ch-route-on .ch-obj-route { color: var(--ch-ol); background:
   .ch-results .ch-treat-line { font-size: 12px; }
   .ch-results .ch-treat-receipt { font-size: 12px; }
   .ch-results .ch-treat-custody { font-size: 10.5px; line-height: 1.2; }
+  /* No status here (off tokentails.com): the link panel is taller, so it stays tight and the rescue box also takes the meta row. */
+  .ch-results .ch-dialog > .ch-scroll:has(.ch-treat[data-state=unavailable]) { grid-template-areas: 'rescue paws' 'rescue table' 'rescue meta' 'btns btns'; }
+  .ch-results .ch-treat[data-state=unavailable] { gap: 1px; margin-top: 2px; }
+  .ch-results .ch-treat[data-state=unavailable] .ch-treat-line { font-size: 11.5px; line-height: 1.2; }
+  .ch-results .ch-treat[data-state=unavailable] .ch-treat-copy { min-height: 28px; padding: 2px 10px; margin: 2px 0; font-size: 12px; border-radius: 8px; }
   .ch-results .ch-score { grid-area: table; font-size: 15px; }
   .ch-results .ch-meta { grid-area: meta; }
   .ch-results .ch-scroll > .ch-row { grid-area: btns; }

@@ -1,0 +1,1 @@
+import"./index-DxV9SnJV.js";function e(e){return null}export{e as installQA};

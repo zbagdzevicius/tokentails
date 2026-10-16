@@ -267,6 +267,8 @@ const CSS = `
   .ch-rescue .ch-lv-res-pics { padding: 0 10px 8px 0; }
   .ch-rescue .ch-lv-res-pics canvas.ch-lv-res-badge { width: 40px; height: 40px; }
   .ch-results .ch-dialog > .ch-scroll.ch-lv-hasfoot { grid-template-areas: 'rescue paws' 'rescue table' 'rescue stars' 'meta meta' 'btns btns'; }
+  /* The link panel (no status, off tokentails.com) is taller: the rescue box also takes the meta row (ui/styles.ts keeps it tight). */
+  .ch-results .ch-dialog > .ch-scroll.ch-lv-hasfoot:has(.ch-treat[data-state=unavailable]) { grid-template-areas: 'rescue paws' 'rescue table' 'rescue stars' 'rescue meta' 'btns btns'; }
   .ch-results .ch-scroll > .ch-lv-res { grid-area: stars; margin: 0; flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: 8px; }
   .ch-results .ch-scroll > .ch-lv-res .ch-lv-stars { font-size: 20px; }
   .ch-results .ch-scroll > .ch-lv-resfoot { grid-area: btns; flex-wrap: nowrap; padding-top: 14px; }
