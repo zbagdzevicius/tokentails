@@ -209,7 +209,7 @@ native builds still load them.
 | Client app build | `NEXT_PUBLIC_IS_APP` |
 | Look version | `public/look/manifest.json` `lookVersion`, with a per-device `localStorage` override |
 | Shelter payout network | `SHELTER_CHAIN_ID` (backend; a testnet id serves the testnets, a mainnet id the mainnets) |
-| Feature flags | `NEXT_PUBLIC_HEIST_PICKER` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_WALLET_DONATE`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
+| Feature flags | `NEXT_PUBLIC_HEIST_PICKER` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_WALLET_DONATE` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
 | Backend CORS origins | `FRONT_END_URLS` plus hardcoded localhost, Capacitor, and production domains |
 
 Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, and the API at

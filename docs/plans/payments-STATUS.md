@@ -88,10 +88,10 @@ Go-live, in order:
    the treasury in the Arc explorer.
 4. Shelter share: the keeper pays it from the hot wallet float on the main shelter chain, so keep that
    float topped up. Its first run after the deploy (within 5 minutes) pays every share recorded so far,
-   card shares included. Pink Paw's own wallet `0x3c833562e682dB66C2415b34961595df135f4771` was created by
-   Token Tails and will be handed over. Until the Arc split is rotated to it, the split pays the wallet
-   Token Tails holds (`0xE299…0f37`), and each share is tiered `onchain-custodial` (disclosed). After
-   the handover and rotation, new shares are `onchain-shelter-held`.
+   card shares included. Since 2026-10-16 every mainnet split pays Pink Paw's wallet
+   `0x3c833562e682dB66C2415b34961595df135f4771` (created by Token Tails, which keeps a recovery backup).
+   New shares are `onchain-shelter-held`. Shares paid earlier to the wallet Token Tails held
+   (`0xE299…0f37`) stay `onchain-custodial` (disclosed).
 5. Rollback: revert the change and redeploy the backend. Open orders expire after their TTL.
 6. Known side effect: `shareRoutesFor` in `src/shelter/goal/shelter-goal.service.ts` reads `enabled`.
    It is true with the deploy wherever a split route (`CRYPTO_PAY_CAT_SPLITS`, default the main split)

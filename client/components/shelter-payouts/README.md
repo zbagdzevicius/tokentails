@@ -88,17 +88,17 @@ Query params, not dynamic segments, because the app build is a static export.
 `WalletDonate` gives on any of the seven chains (`giveRails.ts`): through a DonateRouter listed in
 `routers.json` (one signature), or, on a chain without a router or whose token has no EIP-3009
 (Tempo, Robinhood), straight into the listed ShelterSplit (approve, then `disburse`). It is gated by
-`walletGiveMode` (`giveMode.ts`): real money only with `NEXT_PUBLIC_WALLET_DONATE=true` and after the
-handover, a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
+`walletGiveMode` (`giveMode.ts`): real money by default once the campaign pays Pink Paw's wallet
+(`NEXT_PUBLIC_WALLET_DONATE=false` hides it), a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
 seven testnets, and "Opens when Pink Paw's wallet is set up" otherwise. Full flow,
 env and fork E2E: `docs/CLIENT.md`, "Wallet giving". `/shelter-payouts/onboard` is the shelter's
 handover page (claim message in `claim.ts`).
 
 ## Disclosure
 
-Before the handover the page shows: "Shelter wallet held by Token Tails on behalf of the shelter until
-handover". Since 2026-10-16 it shows: "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to
-a wallet Token Tails held for the shelter."
+Since 2026-10-16 the page shows: "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a
+wallet Token Tails held for the shelter." If `campaign.json` ever names a held wallet again, it shows:
+"Payouts go to a wallet Token Tails holds for the shelter."
 
 ## Tests
 

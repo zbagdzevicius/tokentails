@@ -171,11 +171,12 @@ the backend's public config `backend/src/shelter/onchain/wallet.config.ts`. No m
 is recorded yet; the mainnet wave (private deploy tooling, run by a person) deploys the splits and, by default, the routers on Arc (USDC and EURC),
 Arbitrum, Avalanche, Base and Monad. CappedSpender is not deployed.
 
-The router is public and ownerless, so until the Pink Paw handover a gift through it reaches the
-wallet Token Tails still holds. The backend keeps mainnet relay, match and x402 closed on a chain until
-every wallet the split pays carries the shelter's signed claim for that chain, rotated in on-chain,
-none is a wallet Token Tails holds, and `preview` sends nothing to the treasury.
-`SHELTER_HANDED_OVER=false` closes them everywhere.
+The router is public and ownerless, so a gift through it reaches whatever wallet the split pays. Since
+2026-10-16 every mainnet split pays Pink Paw's wallet. The backend keeps mainnet relay, match and x402
+closed on a chain unless every wallet the split pays is a rotated shelter claim or Pink Paw's wallet
+(`wallet.config.ts`), none is a wallet Token Tails holds, and `preview` sends nothing to the treasury.
+To close them: leave `SHELTER_RELAY_ENABLED` and `SHELTER_MATCH_ENABLED` unset and set
+`SHELTER_X402_ENABLED=false`.
 
 Known issue: `flush()` forwards the router's whole USDC balance; if that amount would leave rounding
 dust for the treasury (for example a three-way split) every flush reverts and the stray USDC stays in

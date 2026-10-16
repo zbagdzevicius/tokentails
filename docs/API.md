@@ -351,7 +351,7 @@ every entry; the `onchain-receipt` offer then moves to a top-level `onchainRecei
 must be an x402 v1 name (base-sepolia uses the public x402.org facilitator; any other network needs
 `SHELTER_X402_FACILITATOR_URL`). It is not offered when `payTo` is the split, the router, the treasury
 or the hot wallet, when the token's on-chain name, version or decimals (6) do not match, or on a mainnet
-before `SHELTER_HANDED_OVER=true`. An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
+when `payTo` is not the one wallet the split pays on chain (default there: Pink Paw's wallet). An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
 
 **x402 v2 headers.** The endpoint also speaks the v2 HTTP transport: send the payment as
 `PAYMENT-SIGNATURE` (base64 `{x402Version: 2, accepted: {scheme, network: "eip155:<id>", ...}, payload}`)
@@ -369,14 +369,16 @@ pays the relay gas and sends the match from Token Tails' own funds, and never re
 
 **Mainnet gate.** On a mainnet (`5042` or any chain id not in the testnet list of
 `shelter-onchain.config.ts`), relay, match, flush and the onchain-receipt x402 offer stay closed (`RELAY_AWAITING_HANDOVER` /
-state `awaiting-handover`) until the shelter's own wallet is claimed and rotated on that chain.
-Testnets work whenever enabled (test money). Two checks decide it: `publicGivingAllowed(config)` (only
-the emergency off `SHELTER_HANDED_OVER=false` closes it), then
-`ShelterClaimService.publicGivingVerified(config)`, read on chain: every wallet in
-`split.preview(1 USDC).wallets` must be a `rotated` claim on that chain and none may be the hot wallet,
+state `awaiting-handover`) unless the split pays shelter wallets only. Since 2026-10-16 every mainnet
+split pays Pink Paw's wallet, so the check passes with no database row. Testnets work whenever enabled
+(test money). One check decides it, `ShelterClaimService.publicGivingVerified(config)`, read on chain:
+the split keeps nothing for the treasury, and every wallet in `split.preview(1 USDC).wallets` must be
+either a `rotated` claim on that chain or the chain's generated Pink Paw wallet (`wallet.config.ts`),
+not a mix. None may be a held wallet (`TOKEN_TAILS_HELD_WALLETS`, `SHELTER_HELD_WALLETS`), the hot wallet,
 the treasury, the split, the router, an `IMPACT_PAWS_SENDERS` or a `SHELTER_MATCH_EXCLUDE` address (cached
 10 minutes; a failed read is closed). Neither check can stop a stranger calling a deployed router
-directly, so no DonateRouter is deployed on a mainnet before the handover.
+directly, so a DonateRouter only goes on a mainnet whose split pays the shelter's wallet. Relay and match
+also need `SHELTER_RELAY_ENABLED` / `SHELTER_MATCH_ENABLED` (off by default).
 
 **`POST /shelter/relay`.** The donor signs USDC's `ReceiveWithAuthorization` (EIP-712 domain: the
 token's `name()` and `version()`, `chainId`, the USDC address) with `to` = the router and
@@ -595,7 +597,7 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
   "enabled": true,
   "network": "mainnet",
   "orderTtlSeconds": 1800,
-  "shelterHandedOver": false,
+  "shelterHandedOver": true,
   "prices": { "packs": { "STARTER": 5, "INFLUENCER": 25, "LEGENDARY": 350 }, "shelterCat": 5, "lootBox": 1 },
   "fx": { "EURC": { "perUsd": "1", "asOf": null, "source": "fixed" } },
   "chains": [
@@ -610,6 +612,8 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
 }
 ```
 
+- `shelterHandedOver` is deprecated and always `true` (the `SHELTER_HANDED_OVER` flag was removed on
+  2026-10-16). It will be removed in a later release; do not read it.
 - `network` is `mainnet` or `testnet` (`CRYPTO_PAY_NETWORK`; default `mainnet` when `NODE_ENV=production`,
   else `testnet`). Mainnet and testnet options are never mixed in one response.
 - A chain is listed only when it has an RPC URL and a receiving address. A mainnet needs a configured RPC
@@ -711,9 +715,9 @@ per caller (429 `CRYPTO_PAY_TOO_MANY_ORDERS`). A cat with a paid order still bei
     `TransferWithMemo` (or split batch) with this order's memo and at least `amount` is accepted, and a
     plain `Transfer` never is (TIP-20 also emits one for every memo transfer; matching it would let
     another buyer claim this payment).
-- `route: 'split'` appears only for shelter cats, only once the shelter holds its own key
-  (`SHELTER_HANDED_OVER=true`, and on a mainnet the on-chain check that every split recipient is a rotated
-  shelter-held wallet), and only on chains where that shelter's ShelterSplit is configured. The buyer
+- `route: 'split'` appears only for shelter cats, only on chains where that shelter's ShelterSplit is
+  configured, and on a mainnet only while the on-chain check passes (every split recipient is a rotated
+  claim or Pink Paw's wallet, none a held wallet). The buyer
   pays the split directly: `approve(split, amount)`, then `disburse(amount, memo)`; the split pays the
   shelter its on-chain share and the Token Tails treasury the rest in the same transaction.
 - `recipient` for `transfer` and `transferWithMemo` is the Token Tails treasury on that chain (public

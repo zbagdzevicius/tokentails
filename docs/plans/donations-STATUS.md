@@ -13,11 +13,13 @@ What changed since the snapshot below (it is kept as written on 2026-10-04):
 - `fund a:ingest` / `fund a:backend-deployments` generate the backend's public config
   `backend/src/shelter/onchain/wallet.config.ts`. The backend needs only `SHELTER_CHAIN_ID` and
   `SHELTER_DONATE_PRIVATE_KEY`; treats and x402 are on by default.
-- The backend's mainnet gate is now per chain: relay, match and the x402 `onchain-receipt` offer open
-  on a mainnet chain only when every wallet its split pays has signed the shelter claim (the v2 message
-  can name several chains) and was rotated in on-chain. `SHELTER_HANDED_OVER=false` is the kill switch
-  that closes them everywhere; x402 `exact` on mainnet still needs `SHELTER_HANDED_OVER=true`. The
-  client still checks `campaign.shelter.handover`.
+- The backend's mainnet gate is per chain and read on chain: relay, match and the x402
+  `onchain-receipt` offer open on a mainnet chain only when every wallet its split pays is a rotated
+  shelter claim or Pink Paw's wallet from `wallet.config.ts`, and none is held by Token Tails. Since
+  2026-10-16 every mainnet split pays Pink Paw's wallet, so the gate passes with no database row.
+  `SHELTER_HANDED_OVER` was removed. Relay and match keep their own off-by-default flags; x402 `exact`
+  needs `SHELTER_X402_EXACT_ENABLED` and a `payTo` equal to that wallet. The client checks
+  `campaign.shelter.handover` and shows the wallet block by default.
 - Mainnet: nothing deployed yet. One wallet funds the wave (`funding-plan.json`, minimal profile, about
   $7.25; `PLAN=topup` for one week of float later). `fund a:distribute` and `fund a:mainnet-plan` write
   `wave/mainnet-all.sh`, which a person runs with `CONFIRM_MAINNET=yes` (it refuses in AI sessions).
@@ -44,9 +46,9 @@ with one shelter (quadratic funding), carry legal risk (cosmetics), or can't be 
 deadlines.
 
 Custody rule for every path: public money moves donor → DonateRouter → ShelterSplit → shelter wallet,
-or donor → shelter wallet. Until Pink Paw holds its own key, every mainnet public path stays off:
+or donor → shelter wallet. A mainnet public path stays off while the split pays a wallet Token Tails holds:
 - the client checks `campaign.shelter.handover`;
-- the backend checks `SHELTER_HANDED_OVER`;
+- the backend reads the split's `preview()` on chain and needs Pink Paw's wallet or rotated claims;
 - the backend refuses any wallet in `TOKEN_TAILS_HELD_WALLETS` / `SHELTER_HELD_WALLETS`.
 
 ## Features

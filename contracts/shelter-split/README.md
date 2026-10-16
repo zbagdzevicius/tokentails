@@ -231,8 +231,8 @@ Without `--broadcast` both scripts only simulate.
   `0xE299…0f37` was held by Token Tails on the shelter's behalf. On 2026-10-16 all 8 mainnet splits
   were rotated to Pink Paw's wallet `0x3c83…4771`, which Token Tails created (it keeps a recovery
   backup), and the old wallet's shelter balances were swept to it. The chain proves that funds reached
-  the registered wallet, not who controls it. The public gift paths stay off until the per-chain claims
-  are recorded.
+  the registered wallet, not who controls it. The backend opens a public gift path on a chain only
+  while that chain's split, read on chain, pays Pink Paw's wallet and no wallet Token Tails holds.
 - **Prior work.** Token Tails existed before these contracts: the game and app, three Soroban
   contracts on Stellar mainnet and ERC-721 contracts on SKALE. ShelterSplit itself was written from
   2026-09-25.

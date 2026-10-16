@@ -299,11 +299,11 @@ otherwise, and a failed grant is refunded once (Stripe automatically, every othe
    - Exactly once: the `Order` is created with `hash = evm:<chainId>:<txHash>` under `hash_unique`, the checkout moves `OPEN|EXPIRED -> PAID` atomically, and `grantStartedAt` is claimed once before granting; the spend is counted once (`spendCounted`). A replayed confirm returns the stored result; a `PAID` order without a result answers 202 `CONFIRMING`. A grant that died is finished by `recoverStuckGrants` (every 5 minutes, leased job `crypto-grant-recovery`, also `POST /payments/crypto/recover-grants`): it copies a COMPLETE or FAILED_GRANT `Order`, treats a shelter cat the buyer holds as delivered, or grants again under a new lease (a pack adopted in the single write before the crash can get a second cat).
    - EURC, never a live feed: with no `CRYPTO_PAY_EURC_PER_USD` (or `1`) it is a fixed euro price, 1 EURC per USD of the price (`fx.source: 'fixed'`, no date; the client labels it so). A set rate needs `CRYPTO_PAY_EURC_FX_DATE`, must be 0.5 to 2, and stops EURC sales when more than 30 days old (`fx.source: 'dated'`). `priceUsd`, spend and the affiliate credit use the USD price.
    - Shelter cats (`src/shelter/shelter-cat-sale.service.ts`): any unowned rescue cat of `GET /cat/sale` whose blessing is not `ADOPTED` or `HEAVEN`, and that is not a starter, at a fixed $5 (`SHELTER_CAT_MIN_PRICE_CENTS`; the old `SHELTER_CAT_PRICE_CENTS` override is gone so the client copy cannot drift), never discounted, granted as a `COMMON` copy (origin `adopt`) through `PurchaseGrantService.grantShelterCat`. Also sold by Stripe (`entityType: 'CAT'`): a card sale records the same treasury-route share as a crypto one (`CryptoCheckoutService.recordCardShelterShare`, a `rail: 'card'` row in `cryptocheckouts`, unique per PaymentIntent; one rule, `treasuryShelterShare`). The shelter share, for shelters in `CRYPTO_PAY_SPLIT_SHELTER_IDS` (default Pink Paw):
-     - before the handover (`SHELTER_HANDED_OVER` not `true`): the buyer pays the treasury; on a completed sale the share (`CRYPTO_PAY_CAT_SHELTER_BPS` of the price, rounded up; unset: 5000, Pink Paw's 50% decided by the founder on 2026-10-04 (`DEFAULT_CAT_SHELTER_BPS`); set but malformed: `undecided`, nothing sent) is `due`. `CryptoShelterShareService` (every 5 minutes, leased, on by default with no flag; it does nothing until the main shelter config has an RPC, the split and the hot wallet key, and it skips (`network-mismatch`) unless the shelter chain is on the checkout network (`CRYPTO_PAY_NETWORK`) and is not a testnet under `NODE_ENV=production`; a mainnet keeper pays only `mainnet` and `card` rows, a testnet keeper only `testnet` rows; `POST /payments/crypto/shelter-share/run` runs it once) sends it from the hot wallet float through `ShelterSplit.disburse(amount, 'tt:cat:<16 hex>')` on `SHELTER_CHAIN_ID`, approving the split once. The split pays shelters only their registered bps (the rest goes to its own treasury), so a confirmed row stores the receipt's `DisbursementBatch.toShelters` as `amountBase` / `amountUsdCents` (what was sent is `sentBase`); a mined send without that event for its memo is `failed` for a person. A row left `sending` with no hash for 30 minutes (a crash before signing) goes back to `due`. Token Tails' own money reaching the wallet it holds for the shelter: evidence tier `onchain-custodial`, disclosed like treats and the match. The tier is read from the receipt (`shareTier`): a share is `onchain-shelter-held` only when `SHELTER_HANDED_OVER=true` and none of the split's `Disbursed` events for its memo paid a held wallet (`TOKEN_TAILS_HELD_WALLETS`, `SHELTER_HELD_WALLETS`), so a share sent just before the handover and settled after it stays custodial. A signed share is never re-sent while its fate is unknown; a reverted one is retried at most twice;
-     - after the handover: on chains where `CRYPTO_PAY_CAT_SPLITS` (default the main split, USDC) has the shelter's split, and on a mainnet only when `ShelterClaimService.publicGivingVerified` passes, the buyer pays the split directly (`approve`, then `disburse` with the order memo); the split pays the shelter its on-chain share and the treasury the rest in the same transaction. Evidence tier `onchain-shelter-held`. Other chains keep the treasury route, and the keeper's shares are then `onchain-shelter-held` too.
+     - treasury route (chains without a verified split route): the buyer pays the treasury; on a completed sale the share (`CRYPTO_PAY_CAT_SHELTER_BPS` of the price, rounded up; unset: 5000, Pink Paw's 50% decided by the founder on 2026-10-04 (`DEFAULT_CAT_SHELTER_BPS`); set but malformed: `undecided`, nothing sent) is `due`. `CryptoShelterShareService` (every 5 minutes, leased, on by default with no flag; it does nothing until the main shelter config has an RPC, the split and the hot wallet key, and it skips (`network-mismatch`) unless the shelter chain is on the checkout network (`CRYPTO_PAY_NETWORK`) and is not a testnet under `NODE_ENV=production`; a mainnet keeper pays only `mainnet` and `card` rows, a testnet keeper only `testnet` rows; `POST /payments/crypto/shelter-share/run` runs it once) sends it from the hot wallet float through `ShelterSplit.disburse(amount, 'tt:cat:<16 hex>')` on `SHELTER_CHAIN_ID`, approving the split once. The split pays shelters only their registered bps (the rest goes to its own treasury), so a confirmed row stores the receipt's `DisbursementBatch.toShelters` as `amountBase` / `amountUsdCents` (what was sent is `sentBase`); a mined send without that event for its memo is `failed` for a person. A row left `sending` with no hash for 30 minutes (a crash before signing) goes back to `due`. Token Tails' own money reaching the wallet it holds for the shelter: evidence tier `onchain-custodial`, disclosed like treats and the match. The tier is read from the receipt (`shareTier`): a share is `onchain-shelter-held` only when the split's `Disbursed` events for its memo paid at least one wallet and none of them is a held wallet (`TOKEN_TAILS_HELD_WALLETS`, `SHELTER_HELD_WALLETS`). Shares paid to `0xE299…0f37` before 2026-10-16 stay custodial. A signed share is never re-sent while its fate is unknown; a reverted one is retried at most twice;
+     - split route: on chains where `CRYPTO_PAY_CAT_SPLITS` (default the main split, USDC) has the shelter's split, and on a mainnet only when `ShelterClaimService.publicGivingVerified` passes, the buyer pays the split directly (`approve`, then `disburse` with the order memo); the split pays the shelter its on-chain share and the treasury the rest in the same transaction. Evidence tier `onchain-shelter-held`. Other chains keep the treasury route, and the keeper's shares are then `onchain-shelter-held` too.
      The impact indexer sees the keeper's and the buyers' split payouts as ordinary ShelterSplit events with a `tt:cat:` memo, in the `direct` bucket (a `cat` bucket is a follow-up in `src/impact`, not done here).
    - E2E: `funding/framework/tracks/a-build/e2e-crypto-pay/stack.sh all` (plain local anvil, test tokens, throwaway Mongo; 14 flows, including the 2-hour grace and a rounded payment reported UNDERPAID).
-   - Multi-chain and goal E2E: `funding/framework/tracks/a-build/e2e-pay-goal/stack.sh all` (two local anvil chains, 31337 and an empty chain started with the Arc testnet id 5042002, test tokens, throwaway Mongo; `E2E_UI=1` adds the client screens). Packs in USDC and EURC on both chains, each granted once under parallel and replayed confirms; a shelter cat before the handover (keeper share to the held wallet) and after it (straight into the split); the on-chain rotation and sweep; receipts, `orders` rows, `shelterpayoutevents` rows; `GET /shelter/goal/C-001` after every money move (the harness swaps the C-001 campaign for the local wallets via `E2E_GOAL_CAMPAIGN`). Arc's native-coin USDC and its `0xff…fe` system Transfer log cannot run on anvil, so sponsored treats (native `donate`) are not counted there; `shelter-goal.spec.ts` covers that log.
+   - Multi-chain and goal E2E: `funding/framework/tracks/a-build/e2e-pay-goal/stack.sh all` (two local anvil chains, 31337 and an empty chain started with the Arc testnet id 5042002, test tokens, throwaway Mongo; `E2E_UI=1` adds the client screens). Packs in USDC and EURC on both chains, each granted once under parallel and replayed confirms; a shelter cat through the treasury route (keeper share) and through the split route; the on-chain rotation and sweep; receipts, `orders` rows, `shelterpayoutevents` rows; `GET /shelter/goal/C-001` after every money move (the harness swaps the C-001 campaign for the local wallets via `E2E_GOAL_CAMPAIGN`). Arc's native-coin USDC and its `0xff…fe` system Transfer log cannot run on anvil, so sponsored treats (native `donate`) are not counted there; `shelter-goal.spec.ts` covers that log.
 
 Pack rarity odds are in `src/shared/utils/content.utils.ts`. Discount codes map to a user's
 `discount` field; the code owner earns a 20 percent affiliate credit on completed purchases.
@@ -406,19 +406,21 @@ the match are off by default.
 
   The x402 card is offered by default on the same chains. On testnets always; on a mainnet (and the
   relay and match there) only once `ShelterClaimService.publicGivingVerified` passes for that chain:
-  every split recipient is a `rotated`, shelter-held claim (task 3's per-chain claim), so public money
-  never lands in a wallet Token Tails holds. Relay and match still need their own per-chain flag.
+  every split recipient is a `rotated` claim (task 3's per-chain claim) or the chain's Pink Paw wallet
+  from `wallet.config.ts`, and none is a held wallet, so public money never lands in a wallet Token Tails holds. Relay and match still need their own per-chain flag.
 
   What this means in production: the live status shows main chain 5042 with no split
   (`not-deployed`), and `wallet.config.ts` records no mainnet split, so nothing opens on deploy. The
   moment the wave records the Arc mainnet split and that `wallet.config.ts` is committed and deployed,
   treats start on Arc mainnet automatically if the backend holds `SHELTER_DONATE_PRIVATE_KEY` and that
-  wallet holds USDC; no flag is flipped first. Mainnet x402, relay and match stay closed until the
-  shelter's own wallet is claimed and rotated on that chain.
+  wallet holds USDC; no flag is flipped first. Mainnet x402, relay and match open on a chain only while
+  its split pays Pink Paw's wallet (or rotated shelter claims) and no held wallet.
 
   Emergency off (undocumented elsewhere on purpose): `SHELTER_DONATE_ENABLED=false`,
-  `SHELTER_X402_ENABLED=false`, `SHELTER_HANDED_OVER=false` (mainnet relay, match, x402),
-  `SHELTER_AUTO_CHAINS=off` (main chain only).
+  `SHELTER_X402_ENABLED=false` (or a per-chain `SHELTER_CHAIN_<id>_X402_ENABLED=false`),
+  `SHELTER_AUTO_CHAINS=off` (main chain only). Relay and match stay off unless
+  `SHELTER_RELAY_ENABLED` / `SHELTER_MATCH_ENABLED` turn them on. `SHELTER_HANDED_OVER` was removed on
+  2026-10-16; the on-chain check below is the only mainnet gate.
 
   One key: `SHELTER_DONATE_PRIVATE_KEY` signs on every listed chain (one EVM key works on every EVM
   chain, no copies); listed chains always share the main chain's network class, so a mainnet key never
@@ -478,9 +480,10 @@ the match are off by default.
   someone else submitted the same signature first is settled `confirmed` with `settledTxHash` (found by
   the `RouterDonation` nonce topic), never `failed`. The match is Token Tails' own
   money sent from the hot wallet. Mainnet gate: `ShelterClaimService.publicGivingVerified(config)`
-  (preceded by the emergency off `SHELTER_HANDED_OVER=false` in `publicGivingAllowed`) requires, on chain, that every wallet in
-  `split.preview(1 USDC).wallets` is a `rotated` claim and none is a Token Tails wallet, so public money
-  cannot reach a wallet Token Tails still holds through these services. Keep the hot wallet float small:
+  requires, on chain, that the split keeps nothing for the treasury and that every wallet in `split.preview(1 USDC).wallets` is either a `rotated` claim on that chain or the chain's generated Pink Paw wallet (`wallet.config.ts` `pinkPaw`, mainnet only), not a mix,
+  and that none is a held wallet (`TOKEN_TAILS_HELD_WALLETS`, `SHELTER_HELD_WALLETS`) or a Token Tails
+  wallet. No database row is needed when the split pays Pink Paw's wallet. Public money cannot reach a
+  wallet Token Tails holds through these services. Keep the hot wallet float small:
   it now pays relay gas and the match.
 - Decision 2026-10-05 (founder, funding/framework/tracks/a-build/README.md): the mainnet wave deploys
   DonateRouters by default, before the handover. The router is ownerless and public, so once it exists
@@ -873,7 +876,7 @@ Route and logic bugs:
   (`CRYPTO_PAY_CAT_SHELTER_BPS`), not what the split paid; `amountUsdCents` is the real figure (500 for a
   $5 cat through a 100% split). No page shows `bps` today.
 - Fixed (2026-10-04, e2e-pay-goal flow Q2): the shelter-share keeper took the evidence tier from
-  `SHELTER_HANDED_OVER` at settle time, so a share sent to the held wallet just before the handover and
+  the (since removed) `SHELTER_HANDED_OVER` flag at settle time, so a share sent to the held wallet just before the handover and
   settled after it was labelled `onchain-shelter-held`. The tier now follows the wallets the receipt's
   `Disbursed` events paid (`shareTier`).
 - Open (crypto checkout): the Tempo mainnet token is bridged USDC.e and Avalanche/Tempo carry
@@ -1043,7 +1046,9 @@ Shelter gifts and x402 (2026-09, new):
   for unknown names), `_ASSET`, `_ASSET_NAME`/`_VERSION` (EIP-712 domain, default `USDC`/`2`), `_PRICE` (USDC,
   default `0.01`), `_RPC` (optional: re-reads the settled Transfer and checks the token domain at first use),
   `SHELTER_X402_FACILITATOR_URL` (default `https://x402.org/facilitator` on testnets; required on mainnet). An
-  unknown or mainnet network is offered only with `SHELTER_HANDED_OVER=true`. The authorization (signer + nonce)
+  unknown or mainnet network is offered only while `payTo` is the one wallet the chain's split pays on chain
+  (`verifiedShelterWallet`). On a mainnet `payTo` defaults to Pink Paw's wallet from `wallet.config.ts`, so
+  `SHELTER_X402_EXACT_PAYTO` is optional there. The authorization (signer + nonce)
   is claimed in `x402nonces` as `exact:<chainId>:<from>:<nonce>` before the facilitator is called, so a replay is
   refused; settled payments are written to `x402usedtxs` with `scheme: 'exact'`. Code: `src/shelter/onchain/x402-exact.ts`.
   Facilitators that need an API key: `SHELTER_X402_FACILITATOR_AUTH` is sent on every `/verify` and `/settle`
@@ -1074,10 +1079,10 @@ Shelter gifts and x402 (2026-09, new):
   `X-PAYMENT-RESPONSE` and `PAYMENT-RESPONSE` (CAIP-2 network). The facilitator call itself stays x402 v1.
 - `X-PAYMENT-RESPONSE`, `PAYMENT-REQUIRED` and `PAYMENT-RESPONSE` are listed in the CORS exposed headers
   (`src/main.ts`), so browser clients and server-side agents can read them.
-- While Token Tails holds Pink Paw's wallet, public payments to it are custodial (MiCA caution). The code
-  enforces it: a mainnet onchain-receipt offer needs `publicGivingVerified` for that chain (every split
-  recipient a rotated, shelter-held claim). The standard `exact` scheme keeps its own
-  `SHELTER_HANDED_OVER=true` gate (`x402-exact.ts`).
+- Public payments to a wallet Token Tails holds would be custodial (MiCA caution). The code prevents it:
+  a mainnet onchain-receipt offer needs `publicGivingVerified` for that chain (every split recipient a
+  rotated claim, or Pink Paw's generated wallet, and never a held wallet). The standard `exact` scheme also
+  requires `payTo` to match `verifiedShelterWallet` (`x402-exact.ts`).
 - `src/shelter/onchain/shelter-x402.service.ts` carries one open copy-lint R2 finding (an uncited impact
   claim in the card description), recorded in task 4e and still open.
 - Founder to confirm (task 2b): Token Tails' own house zones (`token-tails` catfluencers, `token-tails-2`

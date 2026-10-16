@@ -78,9 +78,9 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
-| `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
+| `NEXT_PUBLIC_WALLET_DONATE` | On by default: the real-money "Give from your wallet" block on `/shelter-payouts` (web only) shows without any env. `0`, `false`, `no` or `off` hides it (`flagNotOff` in `lib/flags.ts`). It shows only when `campaign.json` `shelter.handover` is `"handed-over"` (Pink Paw's wallet, since 2026-10-16) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). While the campaign pays a wallet Token Tails holds, the page shows "Opens when Pink Paw's wallet is set up" and no button, whatever this flag says |
 | `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all seven testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood, Monad): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
-| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Needs `NEXT_PUBLIC_WALLET_DONATE=true` and the handover |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Opt-in; ignored when `NEXT_PUBLIC_WALLET_DONATE` is an off value |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
 
@@ -877,8 +877,9 @@ Payments and shelter pages QA (2026-10-04, 1440x900 and 390x844):
 `components/shelter-payouts/` lets a person give to the campaign shelter from their own wallet,
 with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
 
-- **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` only with
-  `NEXT_PUBLIC_WALLET_DONATE=true`, `shelter.handover === "handed-over"` and a `mainnet` router for the
+- **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` by default
+  (`NEXT_PUBLIC_WALLET_DONATE` only hides it with `0`/`false`/`no`/`off`), with
+  `shelter.handover === "handed-over"` and a `mainnet` router for the
   campaign chain (with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit
   on each chain named there); `awaiting-handover` (notice, no button, link to
   `/shelter-payouts/onboard`) while Token Tails holds the wallet; otherwise hidden. Try-it slot:

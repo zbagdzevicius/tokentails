@@ -244,8 +244,8 @@ const { response, paid } = await payAndFetch(url, {
 ```
 
 `paid` is `null` (and `error` holds the server's reason) when the server refuses the authorization.
-On mainnet the server offers `exact` only after the handover (`SHELTER_HANDED_OVER=true` and a
-`rotated` claim for that chain).
+On mainnet the server offers `exact` only with `SHELTER_X402_EXACT_ENABLED=true`, and only while
+`payTo` is the one wallet the chain's split pays on chain (Pink Paw's wallet since 2026-10-16).
 
 ### 4. AI agents: x402-compatible "onchain-receipt" flow, on several chains
 
@@ -271,9 +271,9 @@ transaction receipt on the chain itself.
    summing to the price, tx hash used once, nonce issued by the server, not expired and used once) and
    answers `200` with the card and an `X-PAYMENT-RESPONSE` header.
 
-Testnets are always offered. A mainnet chain is offered only once the split there pays nothing but
-shelter wallets that signed their claim and were rotated in on-chain (until the Pink Paw handover, no
-mainnet offer appears).
+Testnets are always offered. A mainnet chain is offered only while the split there, read on chain,
+pays nothing but shelter wallets: Pink Paw's wallet, or wallets that signed their claim and were
+rotated in. A split that pays a wallet Token Tails holds gets no mainnet offer.
 
 ```js
 import { payAndFetch } from "./src/sdk.mjs";

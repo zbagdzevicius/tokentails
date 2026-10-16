@@ -66,10 +66,13 @@ host that does not set it must pin the network with `SHELTER_CHAIN_ID=5042` or
 fine). Check after a deploy: `GET /shelter/donate/status` reports `chainId: 5042`. The dev keystore
 unlock in `main.ts` never runs under `NODE_ENV=production`.
 
-Treats and x402 are on by default wherever a split is recorded. Mainnet x402, relay and match stay
-closed per chain until the shelter's v2 wallet claim is rotated on that chain; relay and match also
-need their own flag. Kill switches: `SHELTER_DONATE_ENABLED=false`, `SHELTER_X402_ENABLED=false`,
-`SHELTER_HANDED_OVER=false`, `SHELTER_AUTO_CHAINS=off` (BACKEND.md, "Shelter gifts on Arc").
+Treats and x402 are on by default wherever a split is recorded. Mainnet x402, relay and match open per
+chain only while the split, read on chain, pays Pink Paw's wallet or rotated shelter claims and no held
+wallet; relay and match also need their own flag (off by default). Kill switches:
+`SHELTER_DONATE_ENABLED=false`, `SHELTER_X402_ENABLED=false` and per-chain
+`SHELTER_CHAIN_<id>_X402_ENABLED=false`, `SHELTER_AUTO_CHAINS=off` (BACKEND.md, "Shelter gifts on Arc").
+`SHELTER_HANDED_OVER` no longer exists; remove it from the backend env. The client's
+`NEXT_PUBLIC_WALLET_DONATE` is on by default; set it to `false` only to hide the wallet block.
 
 Going to mainnet (a person runs it, never an AI session; the scripts refuse when an AI-agent env is
 set):
