@@ -76,6 +76,9 @@ const eslintConfig = [
       // catnip-heist/. Its source is linted there.
       "public/heist/**",
       "public/heist-game/**",
+      // Pink Paw Knight's Vite bundle, copied from the Swordcat repo with
+      // `npm run build:tokentails`. Its source is linted there.
+      "public/swordcat-game/**",
       // Playwright output, including the cached QA copy of the Heist bundle
       // that e2e/heist-host.spec.ts builds into test-results/heist-game-qa.
       "test-results/**",
