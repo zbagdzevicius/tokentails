@@ -5,6 +5,8 @@ import {
   fetchWalletBalances,
   formatUnits,
   hexToBigInt,
+  isMotoredMemo,
+  splitMotored,
   totalIn
 } from '@/lib/shelter-wallet/balances';
 import { WALLET_CHAINS } from '@/lib/shelter-wallet/chains';
@@ -104,5 +106,33 @@ describe('fetchWalletBalances (mocked fetch)', () => {
     // Arc 0.668 native USDC + 5 chains x 0.10; Base failed.
     expect(totalIn(rows, 'USD')).toBeCloseTo(1.168, 6);
     expect(totalIn(rows, 'EUR')).toBeCloseTo(0.1, 6);
+  });
+});
+
+describe('Motored event gifts are sponsor money', () => {
+  const row = (memo: string, raw: bigint) => ({
+    txHash: '0x' + memo.length.toString(16).padStart(64, '0'),
+    block: 1,
+    amount: { symbol: 'USDC', raw, decimals: 18, currency: 'USD' as const },
+    memo
+  });
+
+  it('recognises only the motored: memo prefix', () => {
+    expect(isMotoredMemo('motored:user-1')).toBe(true);
+    expect(isMotoredMemo(' Motored:user-480-final')).toBe(true);
+    expect(isMotoredMemo('tt:wallet:abcd')).toBe(false);
+    expect(isMotoredMemo('a gift from motored:')).toBe(false);
+    expect(isMotoredMemo('')).toBe(false);
+  });
+
+  it('keeps Motored gifts out of the other rows and sums them as one sponsor', () => {
+    const out = splitMotored([
+      row('motored:user-1', BigInt('1500000000000000000')),
+      row('motored:user-2', BigInt('10000000000000000')),
+      row('tt:wallet:0a1b', BigInt('2000000000000000000'))
+    ]);
+    expect(out.motored).toHaveLength(2);
+    expect(out.others.map((p: { memo: string }) => p.memo)).toEqual(['tt:wallet:0a1b']);
+    expect(out.motoredUsd).toBeCloseTo(1.51, 6);
   });
 });

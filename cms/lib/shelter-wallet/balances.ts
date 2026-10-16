@@ -169,3 +169,32 @@ export async function fetchArcPayouts(
     };
   });
 }
+
+/**
+ * The "Motored fundraising for cats" event (Oct 2026): gifts with the memo `motored:user-N` are
+ * Motored sponsor money (one sponsor, linked to the Token Tails founder), never separate donors or
+ * outside wallets. Same test as the backend `motored` bucket and the client's motored.ts.
+ */
+export const MOTORED_MEMO_PREFIX = 'motored:';
+export const MOTORED_LABEL = 'Motored-sponsored';
+export const MOTORED_DISCLOSURE = 'Motored is linked to the Token Tails founder.';
+
+export const isMotoredMemo = (memo: string | null | undefined) =>
+  String(memo || '')
+    .trim()
+    .toLowerCase()
+    .startsWith(MOTORED_MEMO_PREFIX);
+
+/** Splits payouts into Motored sponsor money and the rest (the only rows any donor count may use). */
+export function splitMotored(payouts: Payout[]): {
+  motored: Payout[];
+  others: Payout[];
+  motoredUsd: number;
+} {
+  const motored = payouts.filter((p) => isMotoredMemo(p.memo));
+  const others = payouts.filter((p) => !isMotoredMemo(p.memo));
+  const motoredUsd = motored
+    .filter((p) => p.amount.currency === 'USD')
+    .reduce((sum, p) => sum + Number(formatUnits(p.amount.raw, p.amount.decimals, 18)), 0);
+  return { motored, others, motoredUsd };
+}

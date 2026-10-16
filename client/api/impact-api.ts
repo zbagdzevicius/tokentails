@@ -11,8 +11,9 @@ import { apiUrl } from "./api";
 export type ChainSource = "ok" | "error" | "not-deployed" | "idle";
 export type RailState = "not-deployed" | "paused" | "live" | "exhausted";
 export type Custody = "held-by-token-tails" | "handed-over";
-// "wallet": public gifts through the DonateRouter; "match": Token Tails' 1:1 match of them.
-export type PayoutBucket = "heist" | "page" | "paws" | "x402" | "direct" | "wallet" | "match";
+// "wallet": public gifts through the DonateRouter; "match": Token Tails' 1:1 match of them;
+// "motored": the Motored event's sponsor gifts (memo `motored:`), one sponsor, never public gifts.
+export type PayoutBucket = "heist" | "page" | "paws" | "x402" | "direct" | "wallet" | "match" | "motored";
 
 export interface PublicShelter {
   slug: string;

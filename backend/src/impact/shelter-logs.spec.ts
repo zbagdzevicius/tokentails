@@ -119,7 +119,32 @@ describe('wallet and match attribution (F2)', () => {
     });
 
     it('keeps the bucket names fixed by the spec', () => {
-        expect(PAYOUT_BUCKETS).toEqual(['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'direct']);
+        expect(PAYOUT_BUCKETS).toEqual(['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'motored', 'direct']);
+    });
+
+    it('counts a motored: memo as Motored sponsor money, never as a public wallet gift', () => {
+        const DONOR = '0x7777777777777777777777777777777777777777';
+        const tx = '0x' + 'd4'.repeat(32);
+        expect(attributePayout({ txHash: tx, memo: 'motored:user-12' }, lookups())).toBe('motored');
+        expect(attributePayout({ txHash: tx, memo: 'Motored:user-480-final' }, lookups())).toBe('motored');
+        // Even through the router from an outside-looking donor, the event memo keeps it sponsor money.
+        expect(attributePayout({ txHash: tx, memo: 'motored:user-3', payer: ROUTER, donor: DONOR }, lookups())).toBe(
+            'motored'
+        );
+        // An x402-recorded hash with the event memo is still the sponsor's.
+        expect(attributePayout({ txHash: '0x' + 'b2'.repeat(32), memo: 'motored:user-1' }, lookups())).toBe('motored');
+        // Other memos are untouched.
+        expect(attributePayout({ txHash: tx, memo: 'motoredx' }, lookups())).toBe('direct');
+        expect(attributePayout({ txHash: tx, memo: 'gift from motored:' }, lookups())).toBe('direct');
+        expect(attributePayout({ txHash: tx, memo: 'tt:wallet:0a1b', payer: ROUTER, donor: DONOR }, lookups())).toBe(
+            'wallet'
+        );
+    });
+
+    it('keeps heist and page treats recorded by Token Tails in their own buckets', () => {
+        const tx = '0x' + 'e6'.repeat(32);
+        const l = { ...lookups(), donationSourceByTx: new Map([[tx, 'heist']]) };
+        expect(attributePayout({ txHash: tx, memo: 'motored:user-1' }, l)).toBe('heist');
     });
 
     it('counts a match only from a Token Tails sender in a recorded match tx', () => {

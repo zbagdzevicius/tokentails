@@ -124,10 +124,22 @@ export function decodePayoutLog(log: RpcLog, chainId: number, units: ChainUnits 
  * Where a payout came from (plan F7.3, attribution by tx hash). Never drops a log: anything that
  * matches no known source is `direct`.
  */
-export const PAYOUT_BUCKETS = ['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'direct'] as const;
+export const PAYOUT_BUCKETS = ['heist', 'page', 'paws', 'x402', 'wallet', 'match', 'motored', 'direct'] as const;
 export type PayoutBucket = typeof PAYOUT_BUCKETS[number];
 
 export const PAW_MEMO_PREFIX = 'tt:paws:';
+/**
+ * The "Motored fundraising for cats" event (Oct 2026): Motored, a sponsor linked to the Token Tails
+ * founder, gives through many small event wallets, each gift with the memo `motored:user-N`. All of it
+ * is ONE sponsor's money: the `motored` bucket, never `wallet` (public gifts), never people or outside
+ * wallets. Anyone can write this memo, so a stranger who copies it only makes their own money look like
+ * sponsor money: the conservative direction.
+ */
+export const MOTORED_MEMO_PREFIX = 'motored:';
+/** The same test as hasMotoredMemo, for a Mongo `$regex` query on stored memos. */
+export const MOTORED_MEMO_REGEX = /^\s*motored:/i;
+export const MOTORED_SPONSOR = 'Motored';
+export const MOTORED_DISCLOSURE = 'Motored is linked to the Token Tails founder.';
 /** Token Tails' 1:1 match of a wallet gift (ShelterMatch). */
 export const MATCH_MEMO_PREFIX = 'tt:match:';
 /**
@@ -159,6 +171,11 @@ export interface AttributionLookups {
 }
 
 /** True for a memo that claims to be a nightly paw settlement. Anyone can write it; see attributePayout. */
+export const hasMotoredMemo = (memo: string): boolean =>
+    String(memo || '')
+        .trim()
+        .toLowerCase()
+        .startsWith(MOTORED_MEMO_PREFIX);
 export const hasPawMemo = (memo: string): boolean => String(memo || '').startsWith(PAW_MEMO_PREFIX);
 export const hasMatchMemo = (memo: string): boolean => String(memo || '').startsWith(MATCH_MEMO_PREFIX);
 export const hasWalletMemo = (memo: string): boolean =>
@@ -179,6 +196,8 @@ export const needsSender = (memo: string): boolean => hasPawMemo(memo) || hasMat
  * - `wallet`: any memo except `tt:flush` whose batch payer is the router (only the router can be the
  *   payer of its own calls into the split, so a stranger cannot fake it), from a known donor that is
  *   not in `notPublic` and is not the shelter paid (a round trip).
+ * - `motored`: a `motored:` memo (the Motored event). Sponsor money from one sponsor, checked before
+ *   `wallet`, so it is never counted as a public gift.
  * Anyone can write either memo by hand; without the second proof it stays `direct`.
  */
 export function attributePayout(
@@ -194,6 +213,10 @@ export function attributePayout(
     const source = lookups.donationSourceByTx.get(tx);
     if (source === 'heist' || source === 'page') {
         return source;
+    }
+    // Sponsor money before any public bucket: a Motored gift never counts as a public wallet gift.
+    if (hasMotoredMemo(payout.memo)) {
+        return 'motored';
     }
     const from = typeof payout.from === 'string' ? payout.from.toLowerCase() : null;
     if (hasPawMemo(payout.memo) && from && lookups.pawSenders?.has(from)) {

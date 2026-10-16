@@ -107,6 +107,28 @@ describe("/impact", () => {
     ).not.toBeNull();
   });
 
+  it("shows Motored event gifts as their own sponsor row with the disclosure, apart from public gifts", () => {
+    const impact = result((s) => {
+      s.money.bySymbol = { USDC: "3000000000000000000" };
+      s.money.byBucket = {
+        wallet: { USDC: "1000000000000000000" },
+        motored: { USDC: "2000000000000000000" },
+      };
+      s.asOf.chain = "2026-10-17T05:00:00.000Z";
+    });
+    const { container } = render(<ImpactPage impact={impact} />);
+    const rows = Array.from(
+      container.querySelectorAll('[data-testid="money-buckets"] tbody tr')
+    ).map((r) => r.textContent || "");
+    const motored = rows.find((r) => r.includes("Motored"));
+    expect(motored).toContain("counted as one sponsor");
+    expect(motored).toContain("Motored is linked to the Token Tails founder.");
+    expect(motored).toContain("2.00 USDC");
+    const publicGifts = rows.find((r) => r.startsWith("Public gifts"));
+    expect(publicGifts).toContain("1.00 USDC");
+    expect(publicGifts).not.toContain("Motored");
+  });
+
   it("says 'Not measured yet' for partner countries while the backfill has not run", () => {
     const empty = result();
     expect(empty.impact.shelters.countries).toEqual([]);

@@ -170,6 +170,47 @@ describe('ImpactIndexerService (fake RPC)', () => {
         expect(other.chain.transactionSender.mock.calls.every(([, tx]) => tx === paw.transactionHash)).toBe(true);
     });
 
+    it('moves a Motored event gift indexed as direct (at any age) into the motored sponsor bucket', async () => {
+        const ctx = setup();
+        await ctx.service.indexOnce(NOW, config(), indexer());
+        const old = new Date(NOW.getTime() - 5 * 86_400_000);
+        const base = {
+            chainId: fixture.chainId,
+            contract: fixture.contract,
+            // Below the scanned range, so the reorg check never touches these hand-made rows.
+            blockNumber: fixture.expected.fromBlock - 1,
+            kind: 'native',
+            shelter: '0x' + '3c'.repeat(20),
+            amount: '1500000000000000000',
+            amount18: '1500000000000000000',
+            symbol: 'USDC',
+            bucket: 'direct',
+            createdAt: old,
+        };
+        ctx.events.rows.push({
+            ...base,
+            _id: new Types.ObjectId(),
+            txHash: '0x' + 'd1'.repeat(32),
+            logIndex: 0,
+            memo: 'motored:user-7',
+        });
+        ctx.events.rows.push({
+            ...base,
+            _id: new Types.ObjectId(),
+            txHash: '0x' + 'd2'.repeat(32),
+            logIndex: 0,
+            memo: 'old free text',
+        });
+        await ctx.service.indexOnce(NOW, config(), indexer());
+        expect(ctx.events.rows.find(r => r.txHash === '0x' + 'd1'.repeat(32))!.bucket).toBe('motored');
+        // Outside the 24-hour window and not an event memo: left alone.
+        expect(ctx.events.rows.find(r => r.txHash === '0x' + 'd2'.repeat(32))!.bucket).toBe('direct');
+        const totals = ctx.cursor().totals as Record<string, Record<string, string>>;
+        expect(totals.motored).toEqual({ USDC: '1500000000000000000' });
+        // Sponsor money never lands in the public gift bucket.
+        expect(totals.wallet?.USDC ?? '0').toBe(fixture.expected.total18ByBucket.wallet ?? '0');
+    });
+
     it('reads in SHELTER_LOG_CHUNK chunks: contiguous, non-overlapping, bounded', async () => {
         const ctx = setup();
         await ctx.service.indexOnce(NOW, config(), indexer({ chunk: 50 }));

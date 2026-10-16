@@ -9,6 +9,7 @@ import { ChainInfo, SHELTER_CHAINS, chainRole } from "./chains";
 import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
 import { useCampaignGoal } from "./goal";
 import { formatUnits } from "./logs";
+import { MotoredLine } from "./MotoredLine";
 import {
   Addr,
   Balance,
@@ -381,6 +382,8 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               )}
             </div>
           )}
+          {/* Motored sponsor money, labelled live from its first gift (never counted as donors). */}
+          <MotoredLine items={feed} shelterName={campaign?.shelter.name || "Pink Paw"} />
           {page.status === "done" && page.deployments.length === 0 && (
             <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
           )}
