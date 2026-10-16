@@ -282,6 +282,21 @@ describe('POST /payments/crypto/orders', () => {
         expect(checkoutModel.rows).toHaveLength(2);
     });
 
+    it('never renews an open order at an old price (the Legendary sale ends while it is open)', async () => {
+        const { service, checkoutModel } = setup();
+        const SALE_END = new Date('2026-11-28T00:00:00Z');
+        const beforeEnd = new Date(SALE_END.getTime() - 60000);
+        const sale = await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'LEGENDARY' } }, beforeEnd, config());
+        expect(sale.priceUsdCents).toBe(10000);
+        // 28 minutes later the old order is about to close and the sale is over: a new order at $350.
+        const t28 = new Date(beforeEnd.getTime() + 28 * 60000);
+        const after = await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'LEGENDARY' } }, t28, config());
+        expect(after.orderId).not.toBe(sale.orderId);
+        expect(after.priceUsdCents).toBe(35000);
+        const old = checkoutModel.rows.find((r: any) => r.orderId === sale.orderId);
+        expect(new Date(old.expiresAt).getTime()).toBe(beforeEnd.getTime() + 30 * 60000);
+    });
+
     it('caps open orders per buyer, so one account cannot hold the unique amounts of a price', async () => {
         const { service } = setup();
         await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'STARTER' } }, T0, config());

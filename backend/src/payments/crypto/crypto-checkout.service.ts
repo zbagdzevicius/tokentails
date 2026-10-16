@@ -290,7 +290,8 @@ export class CryptoCheckoutService {
 
         // The same item again (a reload, a second tab, a double tap, START A NEW ORDER at 0:59): the open
         // order is handed back, renewed when it is about to close, so retries never use up unique amounts
-        // and one buyer never holds two orders for one cat.
+        // and one buyer never holds two orders for one cat. Only at today's price: an order opened before
+        // a price change (the Legendary sale ending) is left to expire, never renewed at the old price.
         const reusable = (await this.checkoutModel
             .findOne({
                 user,
@@ -299,6 +300,7 @@ export class CryptoCheckoutService {
                 expiresAt: { $gt: now },
                 ...skuFilter(sku),
                 ...(discount ? { discount } : { discount: { $exists: false } }),
+                priceUsdCents,
             })
             .sort({ createdAt: -1 })
             .lean()) as unknown as ICryptoCheckout | null;
