@@ -104,7 +104,7 @@ describe('payouts modal', () => {
     const custody = m.el.querySelector('[data-testid="payouts-custody"]');
     expect(title?.textContent).toBe('Sent to shelters');
     expect(title?.nextElementSibling).toBe(custody);
-    expect(custody?.textContent).toBe("Payouts go to Pink Paw's wallet.");
+    expect(custody?.textContent).toBe("Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.");
   });
 
   it('opens as a dialog, shows the friendly empty state, and closes on Escape with focus returned', async () => {

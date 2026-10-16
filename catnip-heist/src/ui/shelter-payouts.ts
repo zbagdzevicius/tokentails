@@ -138,6 +138,8 @@ const SHELTER_NAME = 'Pink Paw (Rožinė pėdutė)';
 const SHELTER_SHORT = 'Pink Paw';
 const SHELTER_LOCAL = 'Rožinė pėdutė';
 const LATEST = 8;
+// claim: custody (since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
+const PAYOUTS_CUSTODY = "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.";
 
 // ---------- the Pink Paw goal meter (fact C-001) ----------
 
@@ -617,7 +619,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     h('p.ch-pay-pill', { style: 'margin:0' }, h('i', { 'aria-hidden': 'true' }), 'Public, on-chain'),
     title,
     // claim: custody (since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
-    h('p.ch-pay-note.ch-pay-custody', { 'data-testid': 'payouts-custody' }, "Payouts go to Pink Paw's wallet."),
+    h('p.ch-pay-note.ch-pay-custody', { 'data-testid': 'payouts-custody' }, PAYOUTS_CUSTODY),
     total,
   );
   const lists = h('div.ch-pay-col');
@@ -714,7 +716,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       goalMeter(),
       // claim: C-004, L-rail (the rail line from railCopy)
       line ? h('p.ch-pay-small', { 'data-claim': 'L-rail' }, line) : null,
-      h('p.ch-pay-small', null, "Payouts go to Pink Paw's wallet. Every payout is listed here."),
+      h('p.ch-pay-small', null, `${PAYOUTS_CUSTODY} Every payout is listed here.`),
       cta ? h('div.ch-pay-cta', null, cta) : null,
     );
   }

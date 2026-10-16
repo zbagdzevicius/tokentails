@@ -1,0 +1,1 @@
+import"./index-BGo2Fy6E.js";function e(e){return null}export{e as installQA};
