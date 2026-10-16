@@ -238,3 +238,32 @@ describe("AnalyticsConsentBanner", () => {
     });
   });
 });
+
+describe("AnalyticsConsentBanner pauseGames (/swordcat)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const registry = require("@/lib/game/gameRegistry") as typeof import("@/lib/game/gameRegistry");
+  afterEach(() => registry.__resetGameRegistryForTests());
+
+  it("pauses the games while the card is open and resumes them on a choice", () => {
+    mockState.gtm = true;
+    const { unmount } = render(<AnalyticsConsentBanner pauseGames />);
+    expect(registry.isGameSuspended()).toBe(true);
+    fireEvent.click(screen.getByText("NO THANKS"));
+    expect(registry.isGameSuspended()).toBe(false);
+    unmount();
+  });
+
+  it("leaves games running without pauseGames, once a choice is stored, or when unmounted", () => {
+    mockState.gtm = true;
+    const a = render(<AnalyticsConsentBanner />);
+    expect(registry.isGameSuspended()).toBe(false);
+    a.unmount();
+    const b = render(<AnalyticsConsentBanner pauseGames />);
+    expect(registry.isGameSuspended()).toBe(true);
+    b.unmount();
+    expect(registry.isGameSuspended()).toBe(false);
+    mockState.consent = "denied";
+    render(<AnalyticsConsentBanner pauseGames />);
+    expect(registry.isGameSuspended()).toBe(false);
+  });
+});

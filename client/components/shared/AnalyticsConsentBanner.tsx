@@ -5,6 +5,7 @@ import {
 } from "@/analytics";
 import { gtm } from "@/analytics/gtm";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { acquireGameSuspension } from "@/lib/game/gameRegistry";
 import { useEffect, useId, useState } from "react";
 
 const PRIVACY_POLICY_URL =
@@ -66,8 +67,15 @@ export const COMPACT_LEAD_SHORT = "Can we measure how the game is used?";
  */
 export const AnalyticsConsentBanner = ({
   variant = "default",
+  pauseGames = false,
 }: {
   variant?: ConsentBannerVariant;
+  /**
+   * Pause every registered game while the card is open (`/swordcat`: the full-screen game sits under
+   * the bottom card, which on a landscape phone covered the in-game treat button until answered).
+   * The game resumes on Accept or No thanks.
+   */
+  pauseGames?: boolean;
 } = {}) => {
   const detailsId = useId();
   const [detailsOpen, setDetailsOpen] = useState(
@@ -87,6 +95,11 @@ export const AnalyticsConsentBanner = ({
     window.addEventListener(CONSENT_OPEN_EVENT, open);
     return () => window.removeEventListener(CONSENT_OPEN_EVENT, open);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || !pauseGames) return;
+    return acquireGameSuspension();
+  }, [isOpen, pauseGames]);
 
   if (!isOpen) return null;
 
