@@ -269,7 +269,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
     : undefined;
   const campaignChain = campaignDeployment ? resolveChain(campaignDeployment) : null;
 
-  // Wallet giving: the campaign slot (real money, only after the handover) and, separately, the
+  // Wallet giving: the campaign slot (real money, only while the split pays the shelter's wallet) and, separately, the
   // testnet "try it live" slot. The rules live in giveMode.ts.
   // Mainnet and testnet ShelterSplits: a chain without a router gives straight into its split.
   const giveDeployments = [...deployments, ...testnet];

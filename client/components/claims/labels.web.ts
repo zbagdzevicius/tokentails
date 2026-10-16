@@ -22,7 +22,7 @@ export const WEB_LABELS: LabelSet = {
       "Indexed on-chain payout to the shelter's wallet.",
     "onchain-custodial":
       "Indexed on-chain payout to a wallet Token Tails held for the shelter.",
-    "shelter-signed": "Off-chain payout the shelter signed with its own key.",
+    "shelter-signed": "Off-chain payout signed from the shelter's wallet.",
     "shelter-confirmed":
       "Off-chain payout a shelter member confirmed; the receipt's SHA-256 is stored.",
     pledged: "Committed by Token Tails but not paid yet.",

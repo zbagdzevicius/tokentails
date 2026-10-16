@@ -18,6 +18,7 @@ export function custodyDisclosure(isApp: boolean = isAppBuild(), handover: Hando
       ? "Payouts go to Pink Paw. Every payout is listed on our website."
       : "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter. Every payout is public.";
   }
+  // claim: fiction custody text for a campaign that is not handed over (testnet, or before 16 Oct 2026)
   return isApp
     ? "Token Tails holds the shelter's share on its behalf. Every payout is listed on our website."
     : "Token Tails holds this wallet on the shelter's behalf. " +

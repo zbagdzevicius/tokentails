@@ -339,9 +339,9 @@ const WebShelterReceipt = () => {
                     {!p.listed && (
                       <p className="text-tt-rust">Warning: this log did not come from a listed ShelterSplit contract.</p>
                     )}
-                    {/* claim: fiction where payouts go (a custody description), not an impact figure */}
                     {name && heldByTokenTails(p.shelter) && (
                       <p className="text-p6 md:text-p5 text-tt-cream/75" data-testid="receipt-held-history">
+                        {/* claim: fiction where payouts go (a custody description), not an impact figure */}
                         {done.chain.testnet
                           ? "Sent to a wallet Token Tails holds for the shelter (testnet)."
                           : "Sent to a wallet Token Tails held for the shelter (before 16 Oct 2026)."}

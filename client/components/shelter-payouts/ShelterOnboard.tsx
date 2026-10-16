@@ -184,6 +184,7 @@ const WebShelterOnboard = () => {
 
         {handedOver && (
           <p className={`${PANEL} text-center`} data-testid="onboard-handed-over">
+            {/* claim: fiction onboarding status text, not an impact figure */}
             {allRegistered
               ? `${shelter}'s wallet is registered. Nothing to do here.`
               : `Payouts already go to ${shelter}'s wallet. Sign the claim below once so Token Tails can record it.`}
@@ -194,14 +195,14 @@ const WebShelterOnboard = () => {
           {/* claim: fiction how custody works, not an impact figure */}
           <StepCard n={1} title="Why a shelter wallet" done={!!wallet}>
             <p>
+              {/* claim: fiction how custody works, not an impact figure */}
               {handedOver
                 ? `Since 16 Oct 2026 payouts go to ${shelter}'s wallet. Before that they went to a wallet Token Tails held for the shelter.`
                 : `Today payouts go to a wallet Token Tails holds for ${shelter}.`}
             </p>
             <p>
-              A signed claim records which wallet is {shelter}&apos;s, so a gift from someone&apos;s own wallet goes
-              there. Once the claim is registered, the &ldquo;Give from your wallet&rdquo; button can open on the
-              payouts page.
+              {/* claim: fiction what the signed claim does, not an impact figure */}
+              A signed claim records which wallet is {shelter}&apos;s.
             </p>
           </StepCard>
 
