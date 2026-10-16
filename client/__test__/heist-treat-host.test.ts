@@ -119,8 +119,11 @@ describe("heist treat host", () => {
     expect(heistOutcome({ kind: "already-today" })).toEqual({ kind: "already" });
     expect(heistOutcome({ kind: "budget-spent" })).toEqual({ kind: "used-up" });
     expect(heistOutcome({ kind: "paused" })).toEqual({ kind: "paused" });
-    for (const kind of ["failed", "retry", "signed-out"] as const) expect(heistOutcome({ kind })).toEqual({ kind: "failed" });
-    expect(heistOutcome({ kind: "not-eligible", reason: "guest", eligibleAt: null })).toEqual({ kind: "failed" });
+    for (const kind of ["failed", "retry"] as const) expect(heistOutcome({ kind })).toEqual({ kind: "failed" });
+    // A refusal that a retry cannot change never shows "Try again".
+    expect(heistOutcome({ kind: "signed-out" })).toEqual({ kind: "paused" });
+    expect(heistOutcome({ kind: "not-eligible", reason: "email-unverified", eligibleAt: null })).toEqual({ kind: "not-eligible" });
+    expect(heistOutcome({ kind: "not-eligible", reason: "guest", eligibleAt: null })).toEqual({ kind: "not-eligible" });
     expect(heistToday(null)).toBe("unknown");
     const base = { resetsAt: null, confirmedCount: 0, onTheirWayCount: 0, eligibility: { eligible: true, reason: null, eligibleAt: null } };
     expect(heistToday({ ...base, today: null })).toBe("none");

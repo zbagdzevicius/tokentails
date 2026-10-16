@@ -16,6 +16,7 @@
  * | already     | Today's treat already went out. Back at 00:00 UTC.          | none             |
  * | used-up     | Today's treats are gone, back at 00:00 UTC.                 | none             |
  * | paused      | Treats are paused right now.                                | none             |
+ * | not-eligible| This account can't send treats yet. Verifying your email…   | none             |
  * | failed      | The treat did not go through. Try again.                    | retry button     |
  * | unavailable | Play on tokentails.com/heist to send a treat.               | Copy link        |
  *
@@ -27,9 +28,9 @@ import { formatTreat, type RailInfo } from './rail';
 import type { TreatOutcome, TreatSender, TreatToday } from '../embed/treat-bridge';
 import { safeReceipt } from '../embed/treat-bridge';
 
-export type TreatPanelState = 'checking' | 'ready' | 'sending' | 'sent' | 'already' | 'used-up' | 'paused' | 'failed' | 'unavailable';
+export type TreatPanelState = 'checking' | 'ready' | 'sending' | 'sent' | 'already' | 'used-up' | 'paused' | 'not-eligible' | 'failed' | 'unavailable';
 
-export const TREAT_PANEL_STATES: readonly TreatPanelState[] = ['checking', 'ready', 'sending', 'sent', 'already', 'used-up', 'paused', 'failed', 'unavailable'];
+export const TREAT_PANEL_STATES: readonly TreatPanelState[] = ['checking', 'ready', 'sending', 'sent', 'already', 'used-up', 'paused', 'not-eligible', 'failed', 'unavailable'];
 
 export const TREAT_CUSTODY = 'Held by Token Tails for the shelter until handover.';
 export const TREAT_BUTTON = 'Send Pink Paw a rescue treat 🐾';
@@ -147,6 +148,8 @@ export function treatLine(state: TreatPanelState, rail: RailInfo, web: boolean):
       return "Today's treats are gone, back at 00:00 UTC.";
     case 'paused':
       return 'Treats are paused right now.';
+    case 'not-eligible':
+      return "This account can't send treats yet. Verifying your email usually fixes it.";
     case 'failed':
       return 'The treat did not go through. Try again.';
     case 'unavailable':

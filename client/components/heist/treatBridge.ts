@@ -25,6 +25,7 @@ export type HeistTreatOutcome =
   | { kind: "already" }
   | { kind: "used-up" }
   | { kind: "paused" }
+  | { kind: "not-eligible" }
   | { kind: "failed" }
   | { kind: "unavailable" };
 
@@ -40,9 +41,14 @@ export function heistOutcome(send: TreatSend): HeistTreatOutcome {
     case "budget-spent":
       return { kind: "used-up" };
     case "paused":
+    // signed-out here means the guest route refused too: a retry cannot change it.
+    case "signed-out":
       return { kind: "paused" };
+    case "not-eligible":
+      // In practice an unverified email (403 EMAIL_UNVERIFIED): a retry gets the same refusal.
+      return { kind: "not-eligible" };
     default:
-      // failed, retry (offline or the per-IP limiter), signed-out, not-eligible: try again.
+      // failed, retry (offline or the per-IP limiter): try again.
       return { kind: "failed" };
   }
 }

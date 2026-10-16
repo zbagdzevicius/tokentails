@@ -26,7 +26,7 @@ describe("heist treat channel parity", () => {
 
   it("the same outcome kinds", () => {
     const kinds = /TREAT_OUTCOME_KINDS = \[([^\]]+)\]/.exec(heist)?.[1].split(",").map((k) => k.trim().replace(/'/g, ""));
-    expect(kinds).toEqual(["sent", "already", "used-up", "paused", "failed", "unavailable"]);
+    expect(kinds).toEqual(["sent", "already", "used-up", "paused", "not-eligible", "failed", "unavailable"]);
     for (const kind of kinds ?? []) expect(host).toContain(`kind: "${kind}"`);
   });
 });

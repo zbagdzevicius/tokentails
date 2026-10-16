@@ -92,6 +92,7 @@ describe('treat panel', () => {
     [{ kind: 'already' }, 'already', "Today's treat already went out. Back at 00:00 UTC."],
     [{ kind: 'used-up' }, 'used-up', "Today's treats are gone, back at 00:00 UTC."],
     [{ kind: 'paused' }, 'paused', 'Treats are paused right now.'],
+    [{ kind: 'not-eligible' }, 'not-eligible', "This account can't send treats yet. Verifying your email usually fixes it."],
   ] as const)('a send answered %o ends in %s', async (outcome, state, line) => {
     const m = mount(fakeSender('none', [outcome as TreatOutcome]));
     await flush();

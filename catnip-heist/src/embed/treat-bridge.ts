@@ -41,11 +41,13 @@ export type TreatOutcome =
   | { kind: 'already' }
   | { kind: 'used-up' }
   | { kind: 'paused' }
+  /** The account may not send (an unverified email); a retry gets the same answer. */
+  | { kind: 'not-eligible' }
   /** `timedOut`: no answer in time, so the treat may still have gone out (see treat.ts). */
   | { kind: 'failed'; timedOut?: true }
   | { kind: 'unavailable' };
 
-export const TREAT_OUTCOME_KINDS = ['sent', 'already', 'used-up', 'paused', 'failed', 'unavailable'] as const;
+export const TREAT_OUTCOME_KINDS = ['sent', 'already', 'used-up', 'paused', 'not-eligible', 'failed', 'unavailable'] as const;
 
 /** Today's treat for this player: one already went out, none yet, or the read failed. */
 export type TreatToday = 'none' | 'sent' | 'unknown';
