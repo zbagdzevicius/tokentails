@@ -479,8 +479,9 @@ export class CryptoCheckoutService {
 
     /**
      * `chainId:TOKEN` of the split routes a buyer may pay directly: a testnet always, a mainnet only when
-     * ShelterClaimService.publicGivingVerified passes there (the same on-chain check that opens public
-     * giving: the split pays only Pink Paw's wallet or rotated claims, never a held wallet).
+     * ShelterClaimService.publicGivingVerified passes for that route's own split address (the same on-chain
+     * check that opens public giving: the split pays only Pink Paw's wallet or rotated claims, never a held
+     * wallet).
      */
     private async splitChains(cfg: CryptoPayConfig): Promise<Set<string>> {
         const allowed = new Set<string>();
@@ -489,7 +490,13 @@ export class CryptoCheckoutService {
             if (!chain) continue;
             if (!chain.chain.testnet) {
                 const shelterConfig = shelterConfigFor(split.chainId);
-                if (!shelterConfig || !this.claims || !(await this.claims.publicGivingVerified(shelterConfig))) {
+                // Read preview() on the route's own split, not the chain's main split: the buyer pays
+                // split.address, so its payees are the ones that must pass.
+                if (
+                    !shelterConfig ||
+                    !this.claims ||
+                    !(await this.claims.publicGivingVerified({ ...shelterConfig, splitAddress: split.address }))
+                ) {
                     continue;
                 }
             }

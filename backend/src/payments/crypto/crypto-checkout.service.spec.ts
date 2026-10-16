@@ -452,6 +452,34 @@ describe('POST /payments/crypto/orders', () => {
             else process.env.SHELTER_CHAIN_ID = savedChain;
         }
     });
+    it("on a mainnet, checks the route's own split, not the chain's main split", async () => {
+        const savedChain = process.env.SHELTER_CHAIN_ID;
+        process.env.SHELTER_CHAIN_ID = '5042';
+        const OTHER_SPLIT = '0x00000000000000000000000000000000000000aa';
+        try {
+            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` });
+            const local = base.chains.find(c => c.chain.chainId === 31337)!;
+            const mainnet: CryptoPayConfig = {
+                ...base,
+                network: 'mainnet',
+                chains: [{ ...local, chain: { ...local.chain, chainId: 5042, testnet: false } }],
+                splits: [{ chainId: 5042, token: 'USDC', address: OTHER_SPLIT }],
+            };
+            const s = setup({ givingVerified: true });
+            // Only the chain's main split pays Pink Paw's wallet; the route's split is unknown.
+            s.claims.publicGivingVerified.mockImplementation(
+                (async (cfg: { splitAddress?: string }) => cfg.splitAddress?.toLowerCase() !== OTHER_SPLIT) as any
+            );
+            const order = await s.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, mainnet);
+            expect(s.claims.publicGivingVerified).toHaveBeenCalledWith(
+                expect.objectContaining({ splitAddress: OTHER_SPLIT })
+            );
+            expect(order.accepted.some(o => o.route === 'split')).toBe(false);
+        } finally {
+            if (savedChain === undefined) delete process.env.SHELTER_CHAIN_ID;
+            else process.env.SHELTER_CHAIN_ID = savedChain;
+        }
+    });
 });
 
 describe('GET /payments/crypto/orders/:orderId', () => {
