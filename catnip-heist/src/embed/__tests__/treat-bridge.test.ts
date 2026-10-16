@@ -86,6 +86,14 @@ describe('direct sender (standalone)', () => {
     expect(await s.send()).toEqual({ kind: 'unavailable' });
   });
 
+  it('on a Token Tails host a network error keeps the retry (never the play-on-tokentails link)', async () => {
+    const f = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const s = createDirectTreatSender({ apiUrl: API, fetch: f, homeSite: true });
+    for (let i = 0; i < 4; i++) expect(await s.send()).toEqual({ kind: 'failed' });
+  });
+
   it('times out as failed', async () => {
     vi.useFakeTimers();
     try {

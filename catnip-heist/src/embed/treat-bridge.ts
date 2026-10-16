@@ -137,6 +137,11 @@ export interface DirectSenderOptions {
   apiUrl: string;
   fetch?: FetchLike;
   timeoutMs?: number;
+  /**
+   * The page is on a Token Tails host (rail.ts DEFAULT_API_BY_HOST), where the API's CORS list
+   * allows it, so a network error is a flaky connection, not a block: keep offering the retry.
+   */
+  homeSite?: boolean;
 }
 
 export function createDirectTreatSender(opts: DirectSenderOptions): TreatSender {
@@ -192,7 +197,7 @@ export function createDirectTreatSender(opts: DirectSenderOptions): TreatSender 
         if (timedOut) return { kind: 'failed', timedOut: true };
         // A blocked or failed request (CORS, offline): one retry is offered, then the link.
         networkFailures++;
-        return networkFailures >= 2 ? { kind: 'unavailable' } : { kind: 'failed' };
+        return networkFailures >= 2 && !opts.homeSite ? { kind: 'unavailable' } : { kind: 'failed' };
       } finally {
         clearTimeout(timer);
       }

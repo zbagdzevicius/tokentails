@@ -1,0 +1,1 @@
+import"./index-CiBJ0-LZ.js";function e(e){return null}export{e as installQA};

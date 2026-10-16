@@ -33,7 +33,7 @@ import type { HeistAnalytics } from './analytics';
 import { installEmbed, readLaunchParams, type EmbedController } from './embed';
 import { wantsPayoutsDeepLink } from './ui/shelter-payouts';
 import { TESTNET_DEPLOYMENTS_URL, prefetchShelterPayouts } from './ui/payouts';
-import { heistRuntimeConfig, isWebHost } from './ui/rail';
+import { heistRuntimeConfig, isTokenTailsHost, isWebHost } from './ui/rail';
 import { createBridgeTreatSender, createDirectTreatSender, type TreatSender } from './embed/treat-bridge';
 
 /**
@@ -162,7 +162,8 @@ async function boot(): Promise<void> {
   };
   // The rescue treat is sent in place (never a navigation). Embedded, the /heist host sends it with
   // the player's account (or the guest route); standalone, the Heist posts to the guest route itself.
-  const directTreat = createDirectTreatSender({ apiUrl: heistRuntimeConfig(window as never, document).apiUrl });
+  // On a Token Tails host a network error is never a CORS block, so the retry stays.
+  const directTreat = createDirectTreatSender({ apiUrl: heistRuntimeConfig(window as never, document).apiUrl, homeSite: isTokenTailsHost(window) });
   const treat: TreatSender = launch.embed ? createBridgeTreatSender({ win: window, parent: window.parent, fallback: directTreat }) : directTreat;
   const app = new App({
     root,

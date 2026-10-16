@@ -27,7 +27,7 @@ import { icon } from './icons';
 import { ensureStyles } from './styles';
 import { createDiorama, type Diorama } from '../render/diorama';
 import { createTouchControls, type TouchControls } from './touch';
-import { BAKED_RAIL, heistRuntimeConfig, isWebHost, mergeRail, railCopy, watchRail, type RailInfo } from './rail';
+import { BAKED_RAIL, heistRuntimeConfig, isTokenTailsHost, isWebHost, mergeRail, railCopy, watchRail, type RailInfo } from './rail';
 import { createFtueOverlay, type FtueOverlay } from './ftue';
 import { createPayoutsModal, type PayoutsModal } from './shelter-payouts';
 import type { ShelterPayouts } from './payouts';
@@ -210,7 +210,14 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
   // The one-tap "rescue treat" for the showcase shelter: sent in place, the game never navigates.
   // One send state for the win screen and the payouts modal (src/ui/treat.ts).
   const treatSender: TreatSender | null =
-    opts.treat !== undefined ? opts.treat : typeof window === 'undefined' ? null : createDirectTreatSender({ apiUrl: heistRuntimeConfig(window as never, document).apiUrl });
+    opts.treat !== undefined
+      ? opts.treat
+      : typeof window === 'undefined'
+        ? null
+        : createDirectTreatSender({
+            apiUrl: heistRuntimeConfig(window as never, document).apiUrl,
+            homeSite: isTokenTailsHost(window),
+          });
   const treat = createTreatController({ sender: treatSender, rail: () => rail, onResult: (o) => opts.onTreatResult?.(o) });
   const treatPanels: Record<'results' | 'modal', TreatPanel | null> = { results: null, modal: null };
   const giveButton = (catName: string, slot: 'results' | 'modal' = 'results') => {

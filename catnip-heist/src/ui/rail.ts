@@ -280,6 +280,15 @@ export const DEFAULT_API_BY_HOST: Readonly<Record<string, string>> = Object.free
   'localhost:3001': 'http://localhost:3005',
 });
 
+/** The page is on a Token Tails host (one of DEFAULT_API_BY_HOST). Never throws. */
+export function isTokenTailsHost(win?: { location?: { host?: string } }): boolean {
+  try {
+    return Object.prototype.hasOwnProperty.call(DEFAULT_API_BY_HOST, String(win?.location?.host ?? '').toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 /** The runtime config (see the module comment). Never throws. */
 export function heistRuntimeConfig(win?: ConfigWindow, doc?: { querySelector(sel: string): { getAttribute(n: string): string | null } | null }): HeistRuntimeConfig {
   const read = (source: unknown) => {

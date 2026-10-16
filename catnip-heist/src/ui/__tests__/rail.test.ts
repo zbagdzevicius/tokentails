@@ -7,6 +7,7 @@ import {
   formatTreat,
   DEFAULT_API_BY_HOST,
   heistRuntimeConfig,
+  isTokenTailsHost,
   isWebHost,
   loadRail,
   mergeRail,
@@ -381,5 +382,16 @@ describe('ux-1: the best state across every network the backend serves', () => {
     expect(preferredChainFromUrl('?chain=8453')).toBe(8453);
     expect(preferredChainFromUrl('?chain=base')).toBeNull();
     expect(preferredChainFromUrl('')).toBeNull();
+  });
+});
+
+describe('isTokenTailsHost', () => {
+  it('is true only on the hosts with a default API', () => {
+    expect(isTokenTailsHost({ location: { host: 'tokentails.com' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'TokenTails.com' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'localhost:3000' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'html-classic.itch.zone' } })).toBe(false);
+    expect(isTokenTailsHost({ location: { host: 'constructor' } })).toBe(false);
+    expect(isTokenTailsHost(undefined)).toBe(false);
   });
 });
