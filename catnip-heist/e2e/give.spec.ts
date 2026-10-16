@@ -20,7 +20,9 @@ const RECEIPT = 'https://arcscan.app/tx/0xabc';
 
 type PostAnswer = { status: number; body: unknown; delayMs?: number };
 
-async function mockApi(page: Page, answers: PostAnswer[], today: unknown = null) {
+const LIVE_STATUS = { enabled: true, railState: 'live', chainId: 5042, amountWei: '10000000000000000', treatsLeftToday: 5 };
+
+async function mockApi(page: Page, answers: PostAnswer[], today: unknown = null, railStatus: unknown = LIVE_STATUS) {
   const posts: unknown[] = [];
   // Belt and braces: anything aimed at the production API is refused and recorded.
   const prod: string[] = [];
@@ -36,7 +38,7 @@ async function mockApi(page: Page, answers: PostAnswer[], today: unknown = null)
     const url = req.url();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     if (url.endsWith('/shelter/donate/status')) {
-      return route.fulfill({ contentType: 'application/json', headers: CORS, body: JSON.stringify({ enabled: true, railState: 'live', chainId: 5042, amountWei: '10000000000000000', treatsLeftToday: 5 }) });
+      return route.fulfill({ contentType: 'application/json', headers: CORS, body: JSON.stringify(railStatus) });
     }
     if (url.endsWith('/shelter/donate/guest/me')) {
       return route.fulfill({ contentType: 'application/json', headers: CORS, body: JSON.stringify({ today, resetsAt: null }) });
@@ -149,8 +151,42 @@ test('today already sent (guest me) shows "already" without a button', async ({ 
 
 test('before the rail is live the win screen shows "Opens soon" and no give button', async ({ page }) => {
   test.setTimeout(90_000);
+  const api = await mockApi(page, [], null, { enabled: true, railState: 'not-deployed' });
   await playToResults(page);
   await expect(page.getByTestId('rail-chip')).toHaveText('Opens soon');
   await expect(page.getByTestId('rail-line')).toHaveAttribute('data-rail', 'pre-launch');
   await expect(page.getByTestId('give-treat')).toHaveCount(0);
+  expect(api.posts).toHaveLength(0);
+});
+
+test('a paused rail says "Treats are paused right now." before any send', async ({ page }) => {
+  test.setTimeout(90_000);
+  const api = await mockApi(page, [], null, { enabled: true, railState: 'paused' });
+  await playToResults(page);
+  await expect(page.getByTestId('rail-line')).toHaveText('Treats are paused right now.');
+  await expect(page.getByTestId('rail-chip')).toHaveText('Paused');
+  await expect(page.locator('.ch-results')).not.toContainText(/open soon/i);
+  await expect(page.getByTestId('give-treat')).toHaveCount(0);
+  expect(api.posts).toHaveLength(0);
+});
+
+test('off tokentails.com (no API) the win screen offers the tokentails.com/heist link, never "open soon"', async ({ page }) => {
+  test.setTimeout(90_000);
+  const requests: string[] = [];
+  page.on('request', (r) => {
+    // (chain RPC reads for the shelter total are JSON-RPC POSTs and are fine; no treat route, no production API)
+    if (/shelter\/donate|api\.tokentails\.com/.test(r.url())) requests.push(r.method() + ' ' + r.url());
+  });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await playToResults(page);
+  const url = page.url();
+  await expect(panel(page)).toHaveAttribute('data-state', 'unavailable');
+  await expect(panel(page).getByTestId('treat-line')).toHaveText('Play on tokentails.com/heist to send a treat.');
+  await expect(panel(page).getByTestId('treat-custody')).toHaveText('Held by Token Tails for the shelter until handover.');
+  await expect(page.locator('.ch-results')).not.toContainText(/open soon/i);
+  await expect(page.getByTestId('rail-chip')).toHaveCount(0);
+  await panel(page).getByTestId('treat-copy').click();
+  await expect(panel(page).getByTestId('treat-copy')).toHaveText(/Link copied|tokentails\.com\/heist/);
+  expect(page.url()).toBe(url);
+  expect(requests).toEqual([]);
 });

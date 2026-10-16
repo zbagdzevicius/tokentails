@@ -243,6 +243,7 @@ describe('UI entry points', () => {
   afterEach(() => {
     ui?.dispose();
     ui = null;
+    vi.unstubAllGlobals();
   });
   const manifest = { version: 1, frame: 48, cats: [], dogs: [], images: { coin: 'c.png', catnip: 'n.png', heart: 'h.png', paw: 'p.png', logo: 'l.png' } };
   const makeUI = (handlers: Record<string, () => void> = {}) => {
@@ -346,6 +347,55 @@ describe('UI entry points', () => {
       delete w.__TT_HEIST_CONFIG__;
       vi.unstubAllGlobals();
       vi.useRealTimers();
+    }
+  });
+
+  const win = { levelId: 'heist-01', catIds: ['a', 'b'] as [string, string], seed: 1, ticks: 600, coins: 0, rescued: true, rescuedName: 'Judas', spottedCount: 0, score: 50, hash: 1 };
+  const railUI = (rail: object, treat: unknown = null) => {
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // No network from these cases (the shelter total read gets a 404).
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('', { status: 404 }))));
+    ui = createUI(document.getElementById('app')!, { manifest, base: '/a/', rail: rail as never, treat: treat as never, deploymentsUrl: '/d.json', loadPayouts: async () => empty(), handlers: { onStart() {} } });
+    return ui;
+  };
+
+  it('no status off tokentails.com: the win screen offers the copyable link, never "open soon"', () => {
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true });
+    u.showResults(win);
+    const panel = u.root.querySelector('.ch-results [data-testid="treat-panel"]') as HTMLElement;
+    expect(panel?.dataset.state).toBe('unavailable');
+    expect(panel.querySelector('[data-testid="treat-line"]')?.textContent).toBe('Play on tokentails.com/heist to send a treat.');
+    expect(panel.querySelector('[data-testid="treat-copy"]')).not.toBeNull();
+    expect(u.root.querySelector('.ch-results')?.textContent).not.toMatch(/open soon/i);
+    expect(u.root.querySelector('[data-testid="rail-chip"]')).toBeNull();
+  });
+
+  it('no status on tokentails.com (API down): the button shows and the backend answers the send', () => {
+    const sender = { mode: 'direct', today: () => new Promise(() => {}), send: vi.fn() };
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true }, sender);
+    u.showResults(win);
+    expect(u.root.querySelector('.ch-results [data-testid="give-treat"]')).not.toBeNull();
+    expect(u.root.querySelector('.ch-results')?.textContent).not.toMatch(/open soon/i);
+  });
+
+  it('a paused rail says so on the win screen before any send', () => {
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'status', paused: true });
+    u.showResults(win);
+    expect(u.root.querySelector('[data-testid="rail-line"]')?.textContent).toBe('Treats are paused right now.');
+    expect(u.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Paused');
+    expect(u.root.querySelector('.ch-results [data-testid="give-treat"]')).toBeNull();
+  });
+
+  it('the app build keeps "open soon" and no link when there is no status', () => {
+    (window as unknown as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
+    try {
+      const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true });
+      u.showResults(win);
+      expect(u.root.querySelector('[data-testid="treat-panel"]')).toBeNull();
+      expect(u.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Opens soon');
+    } finally {
+      delete (window as unknown as { Capacitor?: unknown }).Capacitor;
     }
   });
 

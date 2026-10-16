@@ -1006,12 +1006,16 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     let chipEl = r.rescued && !giveEl && copy.chip ? railChip(copy.chip) : null;
     // claim: C-004, L-rail
     const rescueNote = h('small', { 'data-testid': 'rail-line', 'data-claim': 'L-rail', 'data-rail': copy.state }, copy.line);
+    // Repaint key: the state alone misses paused / unread (both stay 'pre-launch').
+    let paintedKey = `${copy.state}|${copy.line}|${copy.showGive}`;
     // A rail that changes while this screen shows (a late live status) repaints the line and the
     // give link in place.
     resultsRailPaint = r.rescued
       ? () => {
           const c = railCopy(rail, web);
-          if (rescueNote.dataset.rail === c.state) return;
+          const key = `${c.state}|${c.line}|${c.showGive}`;
+          if (key === paintedKey) return;
+          paintedKey = key;
           rescueNote.dataset.rail = c.state;
           setText(rescueNote, c.line);
           giveEl?.remove();
