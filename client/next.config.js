@@ -35,6 +35,14 @@ const nextConfig = {
   // NEXT_DIST_DIR lets a second build (the bundle guards, task 7b) write next to a running dev
   // server without touching its .next. Unset everywhere else.
   ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+  // The E2E and capture hooks are gated on these flags (scripts/check-bundle-hooks.mjs). Next.js
+  // inlines a NEXT_PUBLIC_ variable only when it is set; an unset one stays a runtime lookup, so the
+  // minifier cannot drop the gated code and its strings reach the bundle. Defaulting both to "" makes
+  // every build without them (web and app export) compile the hooks out.
+  env: {
+    NEXT_PUBLIC_E2E: process.env.NEXT_PUBLIC_E2E ?? "",
+    NEXT_PUBLIC_CAPTURE: process.env.NEXT_PUBLIC_CAPTURE ?? "",
+  },
   sassOptions: {
     silenceDeprecations: ["legacy-js-api"],
   },

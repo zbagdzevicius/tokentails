@@ -3,7 +3,6 @@ import { PackType } from "./order";
 import { IStatusValue, StatusType } from "./status";
 
 export const Prices = {
-  generatedCat: 5,
   lootBox: 1,
   // A shelter cat bought on its own: basic tier, a fixed $5 with no server override. Server:
   // SHELTER_CAT_MIN_PRICE_CENTS in backend/src/payments/price-table.ts (docs/DEVELOPMENT.md copies).

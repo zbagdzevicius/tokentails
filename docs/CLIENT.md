@@ -76,6 +76,7 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SWORDCAT` | Kill switch only: `/swordcat` (Pink Paw Knight, GAMES.md), the picker card and the landing section (web only) are on by default. `0`, `false`, `no` or `off` turns them off: the page then only does a client-side `router.replace("/game")` |
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
 | `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
+| `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | On by default: the real-money "Give from your wallet" block on `/shelter-payouts` (web only) shows without any env. `0`, `false`, `no` or `off` hides it (`flagNotOff` in `lib/flags.ts`). It shows only when `campaign.json` `shelter.handover` is `"handed-over"` (Pink Paw's wallet, since 2026-10-16) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). While the campaign pays a wallet Token Tails holds, the page shows "Opens when Pink Paw's wallet is set up" and no button, whatever this flag says |
@@ -234,9 +235,17 @@ player's cat, redeemed with promo codes, and gifted.
 ### AI pet portraits
 
 The monetised flagship. Upload a photo, pick a style (Highness, Monarch, Aristocrat, Commander),
-poll for the generated image, then buy. Purchase options are digital at 6 USD, fine art print at
-49 USD, and gallery canvas at 69 USD. The in-game "Immortalize" flow in the codex offers the
-digital portrait with Stripe or crypto payment; app builds hide that codex tab. Portrait pages switch the page theme through
+poll for the generated image, then buy. The card checkout (Stripe Checkout Session) charges euros:
+digital €14, fine art print €49, gallery canvas €69. The in-game "Immortalize" flow in the codex offers
+the digital portrait for $16 with Stripe (a USD PaymentIntent) or crypto payment; app builds hide that
+codex tab. Prices come from `models/portrait-prices.ts`, a copy of `backend/src/payments/price-table.ts`
+pinned by `__test__/portrait-prices.test.tsx`; the pages show exactly what is charged (no strike-through,
+"was" price or timer). `/portrait` and `/portraits` run in guest mode (`FirebaseAuthProvider
+authMode="guest"`): `IMAGE_API.uploadImage` and `regeneratePortrait` create the guest session, send
+`accesstoken` and a limited-use App Check token (`getLimitedUseAppCheckToken`), and show the preview caps
+as plain messages (`PortraitPreviewError`). A guest buys through the email checkout path; the signed route
+is for registered players. Bet #3 `/yourcat` (a photo becomes the player's pixel cat, with an HD portrait
+upsell): see `docs/YOURCAT.md`. Portrait pages switch the page theme through
 `data-portrait-page` attributes on the document.
 
 ### Feed
@@ -327,8 +336,9 @@ Known limits (crypto checkout):
 - No automatic detection of a QR payment: the buyer pastes the transaction hash. A different amount
   than the quoted one is not matched (server rule); refunds are manual.
 - The receipt is replaced by the pack reveal when the server returns the rolled cat (same as Stripe).
-- `web3/contracts.ts` `CurrencyType` and `ChainType` are still the Stellar subset; nothing on the
-  client reads EVM orders yet.
+- `web3/contracts.ts` `CurrencyType` and `ChainType` are still the Stellar subset (the Stellar transfer
+  and `useRates` key on them); `IOrder.currencyType` uses `OrderCurrencyType`, which adds `USD`, `EURC`
+  and `EUR` (2026-10-11). Nothing on the client reads EVM orders yet.
 - Dev only: `next dev` on `/packs` can reload in a loop after a Turbopack internal cache error
   (Known issues, "Payments and shelter pages QA"); restart the dev server.
 - `Payment` offers crypto only when `GET /payments/crypto/config` lists a chain
@@ -640,7 +650,7 @@ Build and SSR:
 
 Privacy:
 
-- The consent banner copy describes game-event counting only. It does not name Google Tag Manager or the portrait `view_item`/`add_to_cart`/`begin_checkout`/`purchase` events that GTM now receives after ACCEPT, and it only appears when `NEXT_PUBLIC_POSTHOG_KEY` is set. A build with `NEXT_PUBLIC_GTM_ID` but no `NEXT_PUBLIC_POSTHOG_KEY` never shows the banner, so players cannot grant consent and GTM/GA receive no data at all. The current local build is in that state (GTM id compiled in, no PostHog key); the production environment must set the PostHog key.
+- Fixed (KI-19, 2026-10-11): the consent banner described game-event counting only, did not name Google Tag Manager or the portrait `view_item`/`add_to_cart`/`begin_checkout`/`purchase` events GTM receives after ACCEPT, and appeared only when `NEXT_PUBLIC_POSTHOG_KEY` was set, so a build with `NEXT_PUBLIC_GTM_ID` but no PostHog key could never get consent and GTM/GA received nothing. The banner (and the ANALYTICS settings button and link) now appear when either PostHog or GTM is configured, and its text names only what this build turns on: for PostHog, game starts and finishes, app errors and the steps of signing in, picking a starter cat, making your cat (`/yourcat` upload and share, with the incoming link's UTM tags) and buying a portrait, with no photo, name or email (CR2-04, 2026-10-11: it had named game counts only and called them anonymous); for GTM the page views and the portrait shop steps sent to Google Analytics, which sets cookies (`components/shared/AnalyticsConsentBanner.tsx`, `consentCopy`). Still for production: set the PostHog key if the game-event funnel is wanted.
 
 Auth and storage:
 
@@ -734,11 +744,18 @@ Claims and impact pages (task 3f, plan G11):
 Hygiene:
 
 - ESLint disables `react-hooks/rules-of-hooks` globally (mentioned in the alignment plan, kept).
-- `client/models/order.ts` keeps its own `OrderStatus` without `LOCKED` and `FAILED_GRANT`; it should re-export the shared enum.
+- Fixed (KI-24, 2026-10-11): `client/models/order.ts` kept its own `OrderStatus` without `LOCKED` and `FAILED_GRANT`; it now re-exports the shared enum (`@/shared-contracts/enums`, generated from `shared/enums.ts`).
+- Fixed (KI-24, 2026-10-11): `IOrder.currencyType` used the Stellar-only `CurrencyType`, which lacks `USD` and `EUR`, so the portrait pages compared `String(order.currencyType)` for the GTM purchase currency. It is now `OrderCurrencyType` (`web3/contracts.ts`: the Stellar set plus `USD`, `EURC`, `EUR`, matching the server `CurrencyType` in `backend/src/shared/interfaces/currency.interface.ts`), and `/portrait` and `/portraits` compare `OrderCurrencyType.EUR`.
+- Fixed (2026-10-11): the unused `Prices.generatedCat: 5` (not a portrait price) is gone from `client/models/cats.ts` and `cms/models/cats.ts`.
+- `package.json` `engines` says Node 24 while CI runs Node 22 (open).
 - `InviteModal` (the SHOP) has no opener in the lobby.
 - `sonner` and `three` remain in `package.json` with no client importers.
 - `npm` itself is listed as a runtime dependency.
 - `pages/portraits.tsx` duplicates most of `pages/portrait.tsx`.
+- Fixed (KI-08, 2026-10-11, server side): `POST /image/portrait` returned the full-resolution `aiUrl` before payment, so the paid digital portrait on `/portrait` and `/portraits` could be downloaded free. The server now answers a watermarked preview of at most 1024 px in `aiUrl` until the order is complete, then the full file (BACKEND.md known issues); the pages need no change because they keep polling `GET /image/:id`. Portraits made before the change keep their full file.
+- Portrait previews (open until the launch checklist steps 1 and 2 in YOURCAT.md): until `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is set on Vercel, the client sends no App Check token, so every `/portrait` visitor is "unverified": 1 preview per address per day (`AI_PREVIEW_IP_DAILY_UNVERIFIED`), shared with regenerate. Until `CF_ORIGIN_SECRET` (or `TRUST_PROXY`) proves the address, every production preview shares one site-wide bucket instead (`AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day, 20 failures). Fixed copy (KI-10, 2026-10-11): the pages no longer promise a portrait "in under 2 minutes" or "in minutes", or that a visitor can "regenerate and rotate through" styles; the FAQ says each new style is a new preview that counts toward a small daily limit (`PORTRAIT_FAQ_REGENERATE` in `pages/portrait.tsx`, pinned by `__test__/portrait-no-fabricated-proof.test.ts`).
+- Fixed (KI-04, KI-05, 2026-10-11): the portrait option badges "Most Popular", "Recommended" and "The Perfect Gift" were backed by no data, and the FAQ refund answer ("support can help with a resolution") did not match the policy. The badges now state what the option includes ("Instant download", "Includes the digital file") and the digital option is highlighted by its id; the refund answer (`PORTRAIT_FAQ_REFUNDS`) names the 14-day right of withdrawal, which ends on delivery only if the buyer agreed at checkout, and the 30-day replacement for damaged prints. `Highness` example 1 (and `highness.webp`) is no longer shown: it shows a famous internet cat's likeness. All pinned by `__test__/portrait-no-fabricated-proof.test.ts`.
+- Fixed (bet #3): the portrait pages showed invented Trustpilot reviews, stock-photo testimonials, "As Seen In" press logos, "50K+ portraits" and "4.9/5", "#1 in Pet Portraits", a 15-minute countdown that restarted on every load, made-up "was" prices and a "30-day money-back" line. They are deleted; `__test__/portrait-no-fabricated-proof.test.ts` keeps them out.
 - Empty folders: `cats/`, `icons/`. `gg.js` is an empty file.
 - `components/storyMode/Managers/` still holds six unused managers (`DroppingSpike`, `FanManager`, `HiddenSpikeManager`, `LeverAndDoorManager`, `PlumbDoorManager`, `SawHalfManager`) that nothing imports. They are due for removal.
 - `tsconfig.json` excludes directories that no longer exist.

@@ -45,9 +45,10 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
                 {children}
               </PageBoundary>
             </main>
-            {/* /swordcat: the game pauses while the card is up (it covered the in-game treat button
-                on a landscape phone until answered). */}
-            <AnalyticsConsentBanner pauseGames={route === "/swordcat"} />
+            {/* /yourcat asks in its own header (the compact chip, `pages/yourcat.tsx`), so the
+                banner never covers CHOOSE A PHOTO or the S3 actions. /swordcat: the game pauses while
+                the card is up (it covered the in-game treat button on a landscape phone until answered). */}
+            {route !== "/yourcat" && <AnalyticsConsentBanner pauseGames={route === "/swordcat"} />}
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

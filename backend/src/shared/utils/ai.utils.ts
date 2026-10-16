@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 import { OpenAI } from 'openai';
+import { AiCallOptions } from 'src/ai-budget/ai-cost';
 import { CatAbilityType, CatOriginType } from 'src/cat/cat.schema';
 
 enum EmoteType {
@@ -145,20 +146,8 @@ const generateNFTCat = ({
     };
 };
 
-export async function generateCat(name: string, imageUrl: string) {
-    const editionKeys = Object.keys(editions);
-    const randomEdition = editionKeys[Math.floor(Math.random() * editionKeys.length)];
-
-    const abilityType = getAbilityType();
-    const catEmote = getRandomCatEmote();
-
-    try {
-        const combinedPrompt = `
-You will be shown an image of a cat. Your task is to do two things:
-
-1. Identify the cat’s type based on its visual appearance from the following categories:
-
-- **BLACK** – A cat that is entirely black.
+/** The cat families the classifier picks from (one line each). */
+const CAT_TYPE_LIST = `- **BLACK** – A cat that is entirely black.
 - **MAINE** – A rugged, fluffy cat with a mix of dark gray and black stripes, resembling a Maine Coon.
 - **MERLOT** – Similar to MAINE, but more wine-toned or reddish in its dark fur.
 - **YELLOW** – A ginger, orange, or golden-yellow colored cat.
@@ -179,7 +168,20 @@ You will be shown an image of a cat. Your task is to do two things:
 - **RASCAL** – Orange cat with white patches.
 - **SABLE** – Dark brown cat with some white.
 - **FICUS** – Mostly dark cat with bits of white.
-- **TROUFAS** – Entirely black, fluffier or richer than regular black cat.
+- **TROUFAS** – Entirely black, fluffier or richer than regular black cat.`;
+
+/**
+ * The classifier prompt. Without `screen` it is exactly the prompt `generateCat` always sent. With
+ * `screen` (bet #3 `/yourcat`) it starts with a check step and the answer gains a `Person:` field.
+ */
+export function buildCatPrompt(abilityType: string, screen = false): string {
+    if (!screen) {
+        return `
+You will be shown an image of a cat. Your task is to do two things:
+
+1. Identify the cat’s type based on its visual appearance from the following categories:
+
+${CAT_TYPE_LIST}
 
 2. Then write a short, funny story about the cat for an NFT collection. The story should:
 - Be centered around its ${abilityType} nature.
@@ -190,29 +192,158 @@ You will be shown an image of a cat. Your task is to do two things:
 Respond in this format only:
 Cat type: [type]. Story: [story].
 `;
+    }
+    return `
+You will be shown a photo. First check it, then do two things.
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: combinedPrompt,
-                        },
-                        {
-                            type: 'image_url',
-                            image_url: {
-                                url: imageUrl,
+0. Check: If no real cat is clearly visible, answer Cat type: NONE. If any person, face or body part of a person is visible, answer Person: yes. Otherwise answer Person: no.
+
+1. Identify the cat’s type based on its visual appearance from the following categories:
+
+${CAT_TYPE_LIST}
+
+2. Then write a short, funny story about the cat for an NFT collection. The story should:
+- Be centered around its ${abilityType} nature.
+- Avoid using the cat’s name.
+- End with a twist or an absurd punchline.
+- Be no more than 100 characters.
+
+Respond in this format only:
+Person: [yes|no]. Cat type: [type|NONE]. Story: [story].
+`;
+}
+
+export interface CatScreen {
+    isCat: boolean;
+    personVisible: boolean;
+}
+
+/**
+ * Parses a screened answer (`Person: yes|no. Cat type: TYPE|NONE. Story: ...`). Null when it does not
+ * parse, so a malformed answer fails closed.
+ */
+export function parseScreenedAnswer(message: string | null | undefined): {
+    screen: CatScreen;
+    origin: string | null;
+    story: string;
+} | null {
+    if (typeof message !== 'string') {
+        return null;
+    }
+    const match = message.match(
+        /Person:\s*(yes|no)\b[\s.]*Cat type:\s*([^.\n]*?)\s*(?:\.|\n|$)\s*(?:Story:\s*([\s\S]*))?/i
+    );
+    if (!match) {
+        return null;
+    }
+    const personVisible = match[1].toLowerCase() === 'yes';
+    const rawType = match[2].trim();
+    if (!rawType) {
+        return null;
+    }
+    const isCat = !/^none\b/i.test(rawType);
+    return {
+        screen: { isCat, personVisible },
+        origin: isCat ? rawType : null,
+        story: (match[3] || '').trim().replace(/\.$/, ''),
+    };
+}
+
+export interface GeneratedCat {
+    name: string;
+    resqueStory: string;
+    type: CatAbilityType;
+    origin: CatOriginType;
+    spriteImg: string;
+    catImg: string;
+    /** Only with `screen: true`. */
+    screen?: CatScreen;
+}
+
+/**
+ * Classifies a cat photo and writes a story. `imageUrl` may be a URL or a `data:` URL (OpenAI accepts
+ * both). `options` (bet #3): `onUsage` receives the token usage, `signal` aborts the request, and
+ * `screen` adds the person/no-cat check. Existing callers pass nothing; their prompt is unchanged.
+ * With `screen` and no cat the result carries the screen only (`{ screen }`).
+ */
+export function generateCat(name: string, imageUrl: string): Promise<GeneratedCat | null>;
+export function generateCat(
+    name: string,
+    imageUrl: string,
+    options: AiCallOptions & { screen?: boolean }
+): Promise<GeneratedCat | { screen: CatScreen } | null>;
+export async function generateCat(
+    name: string,
+    imageUrl: string,
+    options: AiCallOptions & { screen?: boolean } = {}
+): Promise<GeneratedCat | { screen: CatScreen } | null> {
+    const editionKeys = Object.keys(editions);
+    const randomEdition = editionKeys[Math.floor(Math.random() * editionKeys.length)];
+
+    const abilityType = getAbilityType();
+    const catEmote = getRandomCatEmote();
+
+    try {
+        const combinedPrompt = buildCatPrompt(abilityType, !!options.screen);
+
+        const response = await openai.chat.completions.create(
+            {
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: combinedPrompt,
                             },
-                        },
-                    ],
-                },
-            ],
-        });
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageUrl,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            options.signal ? { signal: options.signal } : undefined
+        );
+        if (options.onUsage) {
+            options.onUsage({
+                provider: 'openai',
+                model: 'gpt-4o-mini',
+                inputTokens: response.usage?.prompt_tokens || 0,
+                outputTokens: response.usage?.completion_tokens || 0,
+                images: 0,
+                imageSize: null,
+            });
+        }
 
         const message = response.choices[0].message.content;
+
+        if (options.screen) {
+            const parsed = parseScreenedAnswer(message);
+            if (!parsed) {
+                console.error('Unable to parse the screened cat answer.');
+                return null;
+            }
+            if (!parsed.screen.isCat || !parsed.origin) {
+                return { screen: parsed.screen };
+            }
+            return {
+                ...generateNFTCat({
+                    name,
+                    resqueStory: parsed.story,
+                    type: abilityType,
+                    edition: randomEdition,
+                    origin: parsed.origin as CatOriginType,
+                    emote: catEmote,
+                }),
+                screen: parsed.screen,
+            };
+        }
+
         const match = message!.match(/^Cat type:\s*(.*?)\.\s*Story:\s*(.*)/i);
 
         if (match) {

@@ -41,7 +41,7 @@ export async function getConvertedImageBufferFromWebpUrl(url: string) {
 /**
  * Check if buffer is a HEIC/HEIF image by checking magic bytes
  */
-function isHeicImage(buffer: Buffer): boolean {
+export function isHeicImage(buffer: Buffer): boolean {
     if (buffer.length < 12) {
         return false;
     }
@@ -58,7 +58,7 @@ function isHeicImage(buffer: Buffer): boolean {
 /**
  * Convert HEIC image to JPG buffer
  */
-async function convertHeicToJpg(heicBuffer: Buffer): Promise<Buffer> {
+export async function convertHeicToJpg(heicBuffer: Buffer): Promise<Buffer> {
     try {
         const outputBuffer = await convert({
             buffer: heicBuffer,

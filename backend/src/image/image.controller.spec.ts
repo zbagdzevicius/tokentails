@@ -3,7 +3,10 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { OrderStatus, ProductType } from 'src/web3/order.schema';
+import { ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
+import { UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
 import { ImageController, paidUsd } from './image.controller';
+import { PortraitCheckoutService } from './portrait-checkout.service';
 
 // One shared fake Stripe client, whichever module creates it (some create it at import time).
 jest.mock('stripe', () => {
@@ -43,6 +46,7 @@ function setup() {
     const catService = { createBlessingWithCat: jest.fn().mockResolvedValue({}) };
     const stripePayments = new StripePaymentService(orderRepository as any, userRepository as any);
     (stripePayments as any).stripeClient = stripeMock;
+    const portraitCheckout = new PortraitCheckoutService(stripePayments, orderRepository as any);
 
     // Extra constructor arguments are ignored by a controller that does not take them.
     const Controller = ImageController as any;
@@ -52,7 +56,8 @@ function setup() {
         {},
         userRepository,
         catService,
-        stripePayments
+        stripePayments,
+        portraitCheckout
     );
     return { controller, orderRepository, orderModel, userRepository, catService };
 }
@@ -76,7 +81,7 @@ describe('ImageController Stripe', () => {
     });
 
     describe('create-checkout-session', () => {
-        it('charges the server price and ignores the client amount', async () => {
+        it('charges the server price in euros and ignores the client amount (bet #3)', async () => {
             const { controller, orderRepository } = setup();
 
             await controller.createCheckoutSession({
@@ -87,8 +92,13 @@ describe('ImageController Stripe', () => {
             });
 
             const params = stripeMock.checkout.sessions.create.mock.calls[0][0];
-            expect(params.line_items[0].price_data.unit_amount).toBe(6900);
-            expect(orderRepository.create.mock.calls[0][0]).toMatchObject({ price: 69, priceUsd: 69 });
+            expect(params.line_items[0].price_data).toMatchObject({ currency: 'eur', unit_amount: 6900 });
+            expect(params.adaptive_pricing).toEqual({ enabled: false });
+            expect(orderRepository.create.mock.calls[0][0]).toMatchObject({
+                price: 69,
+                priceUsd: 79.35,
+                currencyType: 'EUR',
+            });
         });
 
         it('rejects an unknown product before creating a session', async () => {
@@ -138,8 +148,8 @@ describe('ImageController Stripe', () => {
         it('adds the verified USD price to spent and spentUsd, never a non-USD price (G4)', async () => {
             const { controller, orderRepository, orderModel, userRepository } = setup();
             stripeMock.webhooks.constructEvent.mockReturnValue(completedEvent());
-            // A legacy order without priceUsd whose `price` is in another unit: Stripe's USD total wins.
-            orderRepository.findOne.mockResolvedValue({ ...pendingOrder(), priceUsd: undefined, price: 6000 });
+            // A legacy order without priceUsd: Stripe's USD total wins (never `order.price`).
+            orderRepository.findOne.mockResolvedValue({ ...pendingOrder(), priceUsd: undefined });
             orderModel.findOneAndUpdate.mockReturnValueOnce({
                 lean: () => Promise.resolve({ _id: 'o1', status: OrderStatus.COMPLETE }),
             });
@@ -181,17 +191,18 @@ describe('ImageController guards', () => {
     const proto = ImageController.prototype as any;
     const guardsOf = (handler: string) => Reflect.getMetadata(GUARDS_METADATA, proto[handler]) || [];
 
-    it('requires auth on the paid portrait regenerate endpoint', () => {
-        expect(guardsOf('regeneratePortrait')).toEqual([AppAuthGuard]);
+    it('portrait create and regenerate: auth, then the per-user and per-client-IP throttlers (bet #3)', () => {
+        for (const handler of ['createPortrait', 'regeneratePortrait']) {
+            expect(guardsOf(handler)).toEqual([AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard]);
+            // The global throttler is site-wide while TRUST_PROXY is unset: skipped here.
+            expect(Reflect.getMetadata('THROTTLER:SKIPdefault', proto[handler])).toBe(true);
+            expect(Reflect.getMetadata('tt:user-throttle', proto[handler])).toEqual({ limit: 5, ttl: 60000 });
+            expect(Reflect.getMetadata('tt:client-ip-throttle', proto[handler])).toEqual({ limit: 10, ttl: 60000 });
+        }
     });
 
-    it('rate-limits portrait regenerate to 3 per minute', () => {
-        expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto.regeneratePortrait)).toBe(3);
-        expect(Reflect.getMetadata('THROTTLER:TTLdefault', proto.regeneratePortrait)).toBe(60000);
-    });
-
-    it('keeps 5 per minute on portrait create and checkout, without a second route-level throttler', () => {
-        for (const handler of ['createPortrait', 'createCheckoutSession', 'createCheckoutSessionSigned']) {
+    it('keeps 5 per minute on checkout, without a second route-level throttler', () => {
+        for (const handler of ['createCheckoutSession', 'createCheckoutSessionSigned']) {
             expect(Reflect.getMetadata('THROTTLER:LIMITdefault', proto[handler])).toBe(5);
             // The global APP_GUARD already counts the request; a route ThrottlerGuard would count it twice.
             expect(guardsOf(handler)).not.toContain(ThrottlerGuard);

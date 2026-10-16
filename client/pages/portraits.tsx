@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import Head from "next/head";
@@ -9,19 +9,32 @@ import { Sparkles } from "lucide-react";
 import { cdnFile } from "@/constants/utils";
 import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
-import { AsSeenOn } from "@/features/portrait/components/AsSeenOn";
 import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import {
   PreviewPage,
   purchaseOptions,
 } from "@/features/portrait/components/PreviewPage";
+import {
+  PaidDownloadStatus,
+  fetchPaidPortraitUrl,
+} from "@/features/portrait/paid-portrait";
 import { Button } from "@/features/portrait/ui/button";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
+import {
+  IMAGE_API,
+  PortraitPreviewError,
+  SignInRequiredError,
+} from "@/api/image-api";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
+import { OrderCurrencyType } from "@/web3/contracts";
+import {
+  PORTRAIT_CHECKOUT_CURRENCY,
+  formatPortraitPrice,
+} from "@/models/portrait-prices";
 import {
   FloatingParticles,
   AmbientGlow,
@@ -30,19 +43,22 @@ import {
   AttentionPulse,
 } from "@/features/portrait/components/LuxuryEffects";
 
-// Function to get style-specific gallery images
-const getStyleImages = (style: PortraitStyle): string[] => {
-  return [
-    `/portrait/${style}-1.webp`,
-    `/portrait/${style}-2.webp`,
-    `/portrait/${style}-3.webp`,
-  ];
+// Example numbers per style in public/portrait/. Highness skips example 1: that painting shows a
+// famous internet cat's likeness (and so does the identical highness.webp), so no page shows it.
+const STYLE_EXAMPLE_NUMBERS: Record<PortraitStyle, number[]> = {
+  [PortraitStyle.HIGHNESS]: [2, 3],
+  [PortraitStyle.MONARCH]: [1, 2, 3],
+  [PortraitStyle.ARISTOCRAT]: [1, 2, 3],
+  [PortraitStyle.COMMANDER]: [1, 2, 3],
 };
+
+const getStyleImages = (style: PortraitStyle): string[] =>
+  STYLE_EXAMPLE_NUMBERS[style].map((n) => `/portrait/${style}-${n}.webp`);
 
 const CANVAS_VIDEO_URL =
   "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4";
 
-const PortraitPage = () => {
+const PortraitPageContent = () => {
   const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -62,6 +78,10 @@ const PortraitPage = () => {
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] =
+    useState<PaidDownloadStatus>("preparing");
+  // Bumped to cancel an older paid-file fetch (a newer one or unmount).
+  const paidFetchRef = useRef(0);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -123,6 +143,30 @@ const PortraitPage = () => {
     };
   }, [isGenerating]);
 
+  useEffect(() => {
+    return () => {
+      paidFetchRef.current += 1;
+    };
+  }, []);
+
+  // CR1-02: once the order is COMPLETE, swap the watermarked preview for the paid file.
+  const loadPaidPortrait = useCallback(async (imageId: string) => {
+    const request = ++paidFetchRef.current;
+    setDownloadStatus("preparing");
+    const paidUrl = await fetchPaidPortraitUrl(imageId, IMAGE_API.get, {
+      isCancelled: () => paidFetchRef.current !== request,
+    });
+    if (paidFetchRef.current !== request) {
+      return;
+    }
+    if (paidUrl) {
+      setGeneratedImages([paidUrl]);
+      setDownloadStatus("ready");
+    } else {
+      setDownloadStatus("unavailable");
+    }
+  }, []);
+
   // Poll order status
   const pollOrderStatus = useCallback(
     (orderId: string, imageId: string) => {
@@ -137,6 +181,7 @@ const PortraitPage = () => {
               setIsPollingOrder(false);
               clearInterval(pollInterval);
               if (timeoutId) clearTimeout(timeoutId);
+              void loadPaidPortrait(imageId);
 
               // Track Purchase event after successful verification
               trackEvent("purchase", {
@@ -145,7 +190,9 @@ const PortraitPage = () => {
                 item_id: order.id || "unknown",
                 item_name: order.id || "unknown",
                 value: order.price || 0,
-                currency: "USD",
+                // Card orders are in euros since bet #3; older orders paid in dollars.
+                currency:
+                  order.currencyType === OrderCurrencyType.EUR ? "EUR" : "USD",
               });
             } else if (order.status === OrderStatus.FAILED) {
               setOrderStatus(OrderStatus.FAILED);
@@ -187,7 +234,7 @@ const PortraitPage = () => {
         if (timeoutId) clearTimeout(timeoutId);
       };
     },
-    [toast],
+    [loadPaidPortrait, toast],
   );
 
   // Check for image_id and _id (order id) query params
@@ -326,7 +373,7 @@ const PortraitPage = () => {
           item_category: "portrait",
           item_id: defaultOption.id,
           value: defaultOption.price,
-          currency: "USD",
+          currency: PORTRAIT_CHECKOUT_CURRENCY,
         });
 
         // Upload image and generate portrait
@@ -378,7 +425,10 @@ const PortraitPage = () => {
           console.error("Error uploading image:", error);
           toast({
             title: "Upload failed",
-            description: "Please try again.",
+            description:
+              error instanceof PortraitPreviewError
+                ? error.message
+                : "Please try again.",
             variant: "destructive",
           });
           setIsGenerating(false);
@@ -395,6 +445,8 @@ const PortraitPage = () => {
     setGeneratedImages([]);
     setShowPreview(false);
     setUploadedImageId(undefined);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     // Remove image_id from URL
     const { image_id, ...restQuery } = router.query;
     router.replace(
@@ -465,7 +517,10 @@ const PortraitPage = () => {
       console.error("Error generating portrait:", error);
       toast({
         title: "Generation failed",
-        description: "Please try again.",
+        description:
+          error instanceof PortraitPreviewError
+            ? error.message
+            : "Please try again.",
         variant: "destructive",
       });
       setIsGenerating(false);
@@ -510,7 +565,8 @@ const PortraitPage = () => {
       toast({
         title: "Regeneration failed",
         description:
-          error instanceof SignInRequiredError
+          error instanceof SignInRequiredError ||
+          error instanceof PortraitPreviewError
             ? error.message
             : "Please try again.",
         variant: "destructive",
@@ -526,6 +582,8 @@ const PortraitPage = () => {
     setIsGenerating(false);
     setShowPreview(false);
     setUploadedImageId(undefined);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     // Remove image_id from URL
     const { image_id, ...restQuery } = router.query;
     router.replace(
@@ -573,6 +631,12 @@ const PortraitPage = () => {
             isPollingOrder={isPollingOrder}
             orderProductType={orderProductType}
             orderId={router.query._id as string | undefined}
+            downloadStatus={downloadStatus}
+            onRetryDownload={() => {
+              if (uploadedImageId) {
+                void loadPaidPortrait(uploadedImageId);
+              }
+            }}
           />
         </div>
       </>
@@ -697,7 +761,7 @@ const PortraitPage = () => {
                 Your Pet Deserves
               </motion.p>
               <p className="text-muted-foreground text-sm tracking-wider">
-                Free Preview · From $6 to purchase
+                Free preview · from {formatPortraitPrice(purchaseOptions[0].price)}
               </p>
             </LuxuryReveal>
 
@@ -818,59 +882,6 @@ const PortraitPage = () => {
               </motion.div>
             )}
 
-            {/* Trustpilot Badge */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mt-6 flex flex-col items-center gap-2"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground tracking-wide">
-                  Excellent
-                </span>
-                <div className="flex items-center gap-0.5">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-4 h-4 bg-[#00b67a] flex items-center justify-center"
-                    >
-                      <svg
-                        className="w-3 h-3 text-white fill-white"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                    </div>
-                  ))}
-                  {/* 5th star - half green, half grey */}
-                  <div className="w-4 h-4 relative flex items-center justify-center bg-gray-300">
-                    <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-[#00b67a] flex items-center justify-center"></div>
-                    <svg
-                      className="w-3 h-3 text-white fill-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 ml-1">
-                  <svg
-                    className="w-3 h-3 text-[#00b67a] fill-[#00b67a]"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
-                  <span className="text-xs font-medium tracking-wide">
-                    Trustpilot
-                  </span>
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground tracking-widest uppercase">
-                #1 in Pet Portraits
-              </p>
-            </motion.div>
-
             {/* Gallery Section - clean museum style */}
             <LuxuryReveal delay={0.5} className="mt-6 w-full max-w-2xl">
               <div className="flex justify-center gap-4">
@@ -892,11 +903,6 @@ const PortraitPage = () => {
                 ))}
               </div>
             </LuxuryReveal>
-
-            {/* As Seen On */}
-            <div className="mt-6 w-full max-w-3xl">
-              <AsSeenOn />
-            </div>
           </section>
         </main>
         <PortraitFooter />
@@ -904,5 +910,15 @@ const PortraitPage = () => {
     </>
   );
 };
+
+/**
+ * Guest mode (bet #3, yourcat-v2.md section 6.6): `POST /image/portrait` needs a caller, so a visitor
+ * gets an anonymous guest session; `MainLayout` already supplies `ProfileProvider`.
+ */
+const PortraitPage = () => (
+  <FirebaseAuthProvider authMode="guest">
+    <PortraitPageContent />
+  </FirebaseAuthProvider>
+);
 
 export default PortraitPage;

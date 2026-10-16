@@ -1,11 +1,10 @@
-import { ChainType, CurrencyType } from "@/web3/contracts";
+import { OrderStatus } from "@/shared-contracts/enums";
+import { ChainType, OrderCurrencyType } from "@/web3/contracts";
 import { EntityType } from "./save";
 
-export enum OrderStatus {
-  COMPLETE = "COMPLETE",
-  PENDING = "PENDING",
-  FAILED = "FAILED",
-}
+// One enum with the server (shared/enums.ts, synced by scripts/sync-contracts.mjs): COMPLETE,
+// PENDING, LOCKED (backend only today), FAILED and FAILED_GRANT (paid, the item grant failed).
+export { OrderStatus };
 
 export interface IOrder {
   status?: OrderStatus;
@@ -13,7 +12,7 @@ export interface IOrder {
   hash: string;
   walletAddress: string;
   chainType: ChainType;
-  currencyType: CurrencyType;
+  currencyType: OrderCurrencyType;
   price: number;
   entityType: EntityType;
   id?: string;

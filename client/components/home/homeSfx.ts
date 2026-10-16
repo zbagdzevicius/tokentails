@@ -20,23 +20,30 @@ const cache = new Map<HomeSound, HTMLAudioElement>();
 /** The pending cut per sound: a replay clears it, or the old timer would stop the new play early. */
 const cuts = new Map<HomeSound, ReturnType<typeof setTimeout>>();
 
+function cachedElement(kind: HomeSound): HTMLAudioElement {
+  let el = cache.get(kind);
+  if (!el) {
+    el = new Audio(HOME_SOUNDS[kind].url);
+    cache.set(kind, el);
+  }
+  return el;
+}
+
 export function playHomeSound(kind: HomeSound): void {
   try {
     const spec = HOME_SOUNDS[kind];
     // Rebased like the button sounds: the default effects volume plays the Phaser HOME's levels.
     const gain = effectsGain(spec.volume / DEFAULT_AUDIO_SETTINGS.effectsVolume);
     if (gain <= 0 || !systemAudioAllowed() || typeof Audio === "undefined") return;
-    let el = cache.get(kind);
-    if (!el) {
-      el = new Audio(spec.url);
-      cache.set(kind, el);
-    }
+    const el = cachedElement(kind);
     const pending = cuts.get(kind);
     if (pending !== undefined) {
       clearTimeout(pending);
       cuts.delete(kind);
     }
     el.volume = Math.min(1, gain);
+    // A prime still in flight (primeHomeSounds) left it muted: this play is the real one.
+    el.muted = false;
     el.currentTime = 0;
     const played = el.play();
     if (played && typeof played.catch === "function") played.catch(() => undefined);
@@ -52,5 +59,52 @@ export function playHomeSound(kind: HomeSound): void {
     }
   } catch {
     // Sound is cosmetic: never break HOME.
+  }
+}
+
+/**
+ * Unlocks `kinds` for a later `playHomeSound` that is not inside a gesture (iOS plays an element only
+ * once a gesture has played it). Call it from the tap handler: it creates or reuses the cached
+ * elements, plays them muted, then pauses, rewinds and unmutes them. It skips an element that is
+ * already playing, and does nothing (no download) while the effects volume or the system mute
+ * silences the sounds. It never throws (`/yourcat` S1, docs/plans/yourcat-polish.md §4).
+ */
+export function primeHomeSounds(kinds: HomeSound[]): void {
+  try {
+    if (typeof Audio === "undefined" || !systemAudioAllowed()) return;
+    for (const kind of kinds) {
+      try {
+        const spec = HOME_SOUNDS[kind];
+        if (!spec || effectsGain(spec.volume / DEFAULT_AUDIO_SETTINGS.effectsVolume) <= 0) continue;
+        const el = cachedElement(kind);
+        if (!el.paused) continue;
+        el.muted = true;
+        const settle = () => {
+          try {
+            // A real play since the prime (the reveal's meow) unmuted and restarted it: leave it be.
+            if (!el.muted) return;
+            el.pause();
+            el.currentTime = 0;
+          } catch {
+            // Ignore: the element is only being unlocked.
+          } finally {
+            el.muted = false;
+          }
+        };
+        let played: Promise<void> | undefined;
+        try {
+          played = el.play();
+        } catch {
+          el.muted = false;
+          continue;
+        }
+        if (played && typeof played.then === "function") played.then(settle, settle);
+        else settle();
+      } catch {
+        // One sound failing to unlock must not stop the others.
+      }
+    }
+  } catch {
+    // Sound is cosmetic: never break the tap that primes it.
   }
 }

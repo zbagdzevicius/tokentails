@@ -15,7 +15,10 @@ import { Types } from 'mongoose';
 import { BlessingRepository } from 'src/blessing/blessing.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
 import { ALREADY_OWNED_MESSAGE, CatService, PACK_POOL_EMPTY_MESSAGE } from 'src/cat/cat.service';
+import { AiBudgetService } from 'src/ai-budget/ai-budget.service';
 import { ImageRepository } from 'src/image/image.repository';
+import { emailPaidPortrait } from 'src/image/paid-portrait-email';
+import { deliverPaidPortraitUrl } from 'src/shared/utils/paid-portrait';
 import { USER_ID } from 'src/shared/decorators/user.decorator';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { EntityType, IMessage } from 'src/shared/interfaces/common.interface';
@@ -78,7 +81,8 @@ export class Web3Controller {
         private stripePayments: StripePaymentService,
         @Optional() grants?: PurchaseGrantService,
         @Optional() private catSale?: ShelterCatSaleService,
-        @Optional() private cryptoCheckout?: CryptoCheckoutService
+        @Optional() private cryptoCheckout?: CryptoCheckoutService,
+        @Optional() private budget?: AiBudgetService
     ) {
         // The specs build the controller by hand with seven arguments; the grant logic is the same.
         this.grants = grants || new PurchaseGrantService(orderRepository, catService, userRepository, stripePayments);
@@ -173,7 +177,7 @@ export class Web3Controller {
         hash = hash.toLowerCase();
 
         let imageObjectId: Types.ObjectId | undefined = undefined;
-        let portraitImageAiUrl: string | undefined = undefined;
+        let portraitImage: { _id: unknown; aiUrl?: string; source?: string } | undefined = undefined;
         if (entityType === EntityType.IMAGE) {
             if (!id || !Types.ObjectId.isValid(id.toString())) {
                 throw new BadRequestException('Image id is required for image purchases');
@@ -181,12 +185,12 @@ export class Web3Controller {
             imageObjectId = new Types.ObjectId(id.toString());
             const image = await this.imageRepository.findOne({
                 searchObject: { _id: imageObjectId },
-                projection: 'aiUrl',
+                projection: 'aiUrl source',
             });
             if (!image?.aiUrl) {
                 throw new BadRequestException('Generated portrait not found');
             }
-            portraitImageAiUrl = image.aiUrl;
+            portraitImage = image as any;
         }
 
         const order = await this.orderRepository.create({
@@ -238,11 +242,7 @@ export class Web3Controller {
                 $inc: { portraitPurchases: 1, monthPortraitPurchases: 1 },
             });
 
-            try {
-                await this.catService.createBlessingWithCat(user, portraitImageAiUrl!);
-            } catch (error) {
-                console.error('Failed to create portrait blessing cat:', error);
-            }
+            await this.deliverPortraitBlessing(user!, portraitImage, order._id);
 
             return {
                 success: true,
@@ -389,7 +389,7 @@ export class Web3Controller {
             if (verified.entityType === EntityType.IMAGE) {
                 const image = await this.imageRepository.findOne({
                     searchObject: { _id: new Types.ObjectId(verified.imageId) },
-                    projection: 'aiUrl',
+                    projection: 'aiUrl source',
                 });
                 if (!image?.aiUrl) {
                     throw new BadRequestException('Generated portrait not found');
@@ -414,12 +414,10 @@ export class Web3Controller {
                     },
                 });
 
-                try {
-                    await this.catService.createBlessingWithCat(userId, image.aiUrl);
-                } catch (catError) {
-                    console.error('Failed to create portrait blessing cat after stripe payment:', catError);
-                }
+                // COMPLETE first: if the 4K cannot be published now, GET /image/:id retries it for a COMPLETE
+                // order and then delivers.
                 await this.orderRepository.update(claim.order._id!, { status: OrderStatus.COMPLETE });
+                await this.deliverPortraitBlessing(userId, image, claim.order._id);
 
                 return { success: true, message: 'Pet immortalized successfully.' };
             }
@@ -483,6 +481,57 @@ export class Web3Controller {
                 throw error;
             }
             throw new BadRequestException('Error confirming payment');
+        }
+    }
+
+    /**
+     * The delivery of a paid portrait (card confirm or Stellar), from its public URL only (KI-08, CR1-01):
+     * a `/portrait` output is private until paid, so it is published first. Then, like the Stripe webhook
+     * (CR2-05), the order email to the buyer's account email (a "published but not emailed" alert when
+     * there is none or SendGrid refuses it) and the blessing cat. Never fails the purchase. When the
+     * publish fails, or a concurrent `GET /image/:id` retry published it first, nothing is sent here: that
+     * retry delivers the email and the cat once the order is COMPLETE, so each order gets one email.
+     */
+    private async deliverPortraitBlessing(
+        userId: string,
+        image: { _id?: unknown; aiUrl?: string; source?: string } | undefined,
+        orderId: unknown
+    ): Promise<void> {
+        const delivery = await deliverPaidPortraitUrl(image, this.imageRepository);
+        if (delivery.error) {
+            console.error(
+                `Paid portrait for order ${orderId} not published; GET /image/:id retries it:`,
+                (delivery.error as Error)?.message
+            );
+            return;
+        }
+        if (!delivery.url || !delivery.deliver) {
+            console.warn(
+                `No blessing cat here for order ${orderId}: ${
+                    delivery.url ? 'delivered by the retry' : 'no public portrait URL'
+                }`
+            );
+            return;
+        }
+        await emailPaidPortrait(await this.accountEmail(userId), delivery.url, this.budget, orderId);
+        try {
+            await this.catService.createBlessingWithCat(userId, delivery.url);
+        } catch (error) {
+            console.error(`Failed to create the portrait blessing cat for order ${orderId}:`, error);
+        }
+    }
+
+    /** The buyer's account email, or null (a guest, or the lookup failed). Never throws. */
+    private async accountEmail(userId: string): Promise<string | null> {
+        try {
+            const user: any = await this.userRepository.findOne({
+                searchObject: { _id: new Types.ObjectId(String(userId)) },
+                projection: 'email',
+            });
+            return typeof user?.email === 'string' && user.email ? user.email : null;
+        } catch (error) {
+            console.error(`Buyer email of ${userId} not readable:`, (error as Error)?.message);
+            return null;
         }
     }
 

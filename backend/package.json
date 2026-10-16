@@ -36,7 +36,7 @@
         "class-validator": "^0.13.2",
         "dotenv": "^16.0.3",
         "ethers": "^6.17.0",
-        "firebase-admin": "^11.4.1",
+        "firebase-admin": "^11.11.1",
         "heic-convert": "^2.1.0",
         "jsdom": "^21.0.0",
         "lodash": "^4.17.21",

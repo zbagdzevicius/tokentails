@@ -2,7 +2,8 @@ import { Types } from 'mongoose';
 import { FACTS } from './facts.generated';
 import { memoryModel } from './memory-model.fakes-spec';
 import { pledgeConfigFromFacts, pledgedCents, pledgeRows, pledgeStatus } from './pledge';
-import { PledgeService } from './pledge.service';
+import { PORTRAIT_STATS_USD_PER_EUR } from 'src/payments/price-table';
+import { eurCentsToPledgeUsdCents, PLEDGE_USD_PER_EUR_UPPER_BOUND, PledgeService } from './pledge.service';
 
 /*
  * Purchase pledge (plan G4, decision #27): COMPLETE orders from C-purchase_share.effectiveAt only,
@@ -112,5 +113,32 @@ describe('PledgeService.table', () => {
             }),
         ]);
         expect(JSON.stringify(table)).not.toMatch(/"[0-9a-f]{24}"/);
+    });
+
+    it('counts EUR card orders at the upper-bound rate so the pledge is never understated (KI-03)', async () => {
+        const t = setup();
+        t.service.config = () => ({ bps: 500, effectiveAt: '2026-11-01' });
+        t.order('2026-11-02T00:00:00Z', { currencyType: 'USD', priceUsd: 20 });
+        // A €12 card order: its stored priceUsd (13.80 at the 1.15 stats rate) is not used.
+        t.order('2026-11-03T00:00:00Z', { currencyType: 'EUR', price: 12, priceUsd: 13.8 });
+        t.order('2026-11-04T00:00:00Z', { currencyType: 'EUR', price: 12, status: 'PENDING' }); // unpaid
+        t.order('2026-10-30T00:00:00Z', { currencyType: 'EUR', price: 12 }); // before effectiveAt
+        t.order('2026-12-01T00:00:00Z', { currencyType: 'EUR', price: 14, priceUsd: 16.1 }); // EUR-only month
+
+        const table = await t.service.table(new Date('2026-12-05T00:00:00Z'));
+
+        // Nov: $20 + €12 x 1.65 = $39.80 -> 5% = $1.99. Dec: €14 x 1.65 = $23.10 -> 5% = $1.155 -> $1.16.
+        expect(table.rows).toEqual([
+            expect.objectContaining({ month: '2026-12', pledgedWei: '1160000000000000000', orders: 1 }),
+            expect.objectContaining({ month: '2026-11', pledgedWei: '1990000000000000000', orders: 2 }),
+        ]);
+    });
+
+    it('prices euros above the stats rate and the all-time EUR/USD high, rounding up', () => {
+        expect(PLEDGE_USD_PER_EUR_UPPER_BOUND).toBeGreaterThan(PORTRAIT_STATS_USD_PER_EUR);
+        expect(PLEDGE_USD_PER_EUR_UPPER_BOUND).toBeGreaterThan(1.6);
+        expect(eurCentsToPledgeUsdCents(1400)).toBe(2310);
+        expect(eurCentsToPledgeUsdCents(1)).toBe(2); // 1.65 -> 2
+        expect(eurCentsToPledgeUsdCents(-5)).toBe(0);
     });
 });

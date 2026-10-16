@@ -6,6 +6,7 @@ import { uploadFileImage } from './image.utils';
 import { randomObjectFromArray } from 'src/common/utils';
 import { CatAbilityType, CatAbilityTypes } from 'src/cat/cat.schema';
 import sharp = require('sharp');
+import { AiCallOptions, geminiImageUsage } from 'src/ai-budget/ai-cost';
 dotenv.config();
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
@@ -261,92 +262,54 @@ IMPORTANT: aspect ratio must be 2:3
  * @param whiteThreshold - RGB value threshold to consider a pixel "white" (0-255)
  * @returns true if white borders are detected
  */
-async function hasWhiteBorders(
+export async function hasWhiteBorders(
     imageBuffer: Buffer,
     threshold = 0.3, // 30% of edge pixels must be white
     whiteThreshold = 240 // RGB values above this are considered white
 ): Promise<boolean> {
     try {
-        const image = sharp(imageBuffer);
-        const metadata = await image.metadata();
-        const { width, height } = metadata;
-
-        if (!width || !height) {
+        // Known issue KI-23: Gemini returns 3-channel PNGs, and a fixed RGBA stride read the wrong bytes.
+        // `ensureAlpha` makes the raw data 4 channels; the loop still strides by what sharp reports.
+        const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const { width, height, channels } = info;
+        if (!width || !height || channels < 3) {
             return false;
         }
 
-        // Extract edge pixels: top, bottom, left, right
-        const edgeWidth = Math.max(1, Math.floor(width * 0.05)); // 5% of width for edges
-        const edgeHeight = Math.max(1, Math.floor(height * 0.05)); // 5% of height for edges
-
-        // Extract raw pixel data
-        const { data } = await image.raw().toBuffer({ resolveWithObject: true });
+        // 5% of each side, at least one pixel.
+        const edgeWidth = Math.max(1, Math.floor(width * 0.05));
+        const edgeHeight = Math.max(1, Math.floor(height * 0.05));
 
         let whitePixelCount = 0;
         let totalEdgePixels = 0;
+        const count = (x: number, y: number) => {
+            const idx = (y * width + x) * channels;
+            if (data[idx] >= whiteThreshold && data[idx + 1] >= whiteThreshold && data[idx + 2] >= whiteThreshold) {
+                whitePixelCount++;
+            }
+            totalEdgePixels++;
+        };
 
-        // Check top edge
-        for (let y = 0; y < edgeHeight; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4; // RGBA format
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
+        // Top and bottom edges (full width), then left and right edges (full height), as before: the
+        // corners are counted twice, like the original check.
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < edgeHeight; y++) {
+                count(x, y);
+            }
+            for (let y = height - edgeHeight; y < height; y++) {
+                count(x, y);
+            }
+        }
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < edgeWidth; x++) {
+                count(x, y);
+            }
+            for (let x = width - edgeWidth; x < width; x++) {
+                count(x, y);
             }
         }
 
-        // Check bottom edge
-        for (let y = height - edgeHeight; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        // Check left edge
-        for (let x = 0; x < edgeWidth; x++) {
-            for (let y = 0; y < height; y++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        // Check right edge
-        for (let x = width - edgeWidth; x < width; x++) {
-            for (let y = 0; y < height; y++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-                    whitePixelCount++;
-                }
-                totalEdgePixels++;
-            }
-        }
-
-        const whitePercentage = whitePixelCount / totalEdgePixels;
-        return whitePercentage >= threshold;
+        return whitePixelCount / totalEdgePixels >= threshold;
     } catch (error) {
         console.error('Error detecting white borders:', error);
         // If detection fails, assume no white borders to avoid blocking generation
@@ -443,4 +406,48 @@ export async function generateAvatarFromImage(imageUrl: string, type: CatAbility
         console.error('Error generating avatar from image:', error);
         throw error;
     }
+}
+
+/** The bet #3 `/yourcat` pixel avatar prompt (docs/plans/yourcat-v2.md section 4.3). */
+export const PIXEL_AVATAR_PROMPT =
+    'Redraw this exact cat as 16-bit pixel art for a video game. Keep its real fur colours, markings, eye colour ' +
+    'and ear shape. Head and shoulders, facing the viewer, centred. Thick dark outline, limited palette, flat ' +
+    'colour areas, no gradients, no text, no frame, no people, no other animals. Plain solid deep violet ' +
+    'background (#120d1f).';
+
+/**
+ * One pixel-art avatar of the cat in `image` (bet #3 `/yourcat`): one Gemini call at the default size,
+ * no retries (the white-border retries of `generateAvatarFromImage` are not used). Returns null on a
+ * safety block, an empty answer or an answer without image data; the caller marks the avatar failed.
+ * Throws on a provider error or an abort. The raw image is post-processed into a real pixel grid by
+ * `src/yourcat/pixelate.ts`.
+ */
+export async function generatePixelAvatar(
+    image: Buffer,
+    mimeType: string,
+    options: AiCallOptions = {}
+): Promise<Buffer | null> {
+    const result: any = await genAI.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: [{ inlineData: { data: image.toString('base64'), mimeType } }, { text: PIXEL_AVATAR_PROMPT }],
+        config: {
+            imageConfig: { aspectRatio: '1:1' },
+            temperature: 0.2,
+            abortSignal: options.signal,
+        },
+    });
+    options.onUsage?.(geminiImageUsage(result, '1K'));
+
+    if (result?.promptFeedback?.blockReason) {
+        return null;
+    }
+    const candidate = result?.candidates?.[0];
+    if (!candidate || candidate.finishReason === 'SAFETY' || candidate.finishReason === 'PROHIBITED_CONTENT') {
+        return null;
+    }
+    const part = candidate.content?.parts?.find((item: any) => item?.inlineData?.data);
+    if (!part?.inlineData?.data) {
+        return null;
+    }
+    return Buffer.from(part.inlineData.data, 'base64');
 }

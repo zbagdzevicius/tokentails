@@ -9,6 +9,21 @@ export enum CurrencyType {
   XLM = "XLM",
 }
 
+/**
+ * Every currency an order can carry. Server copy: `CurrencyType` in
+ * backend/src/shared/interfaces/currency.interface.ts. `CurrencyType` above stays the Stellar set the
+ * web3 transfer reads (`useRates` keys its rate table on it); orders also carry USD (card), EURC (the
+ * crypto checkout) and EUR (the portrait card checkout).
+ */
+export const OrderCurrencyType = {
+  ...CurrencyType,
+  USD: "USD",
+  EURC: "EURC",
+  EUR: "EUR",
+} as const;
+export type OrderCurrencyType =
+  (typeof OrderCurrencyType)[keyof typeof OrderCurrencyType];
+
 export enum ChainType {
   STELLAR = "STELLAR",
 }

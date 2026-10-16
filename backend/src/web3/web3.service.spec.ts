@@ -97,6 +97,8 @@ describe('Web3Service.validatePrice (Stellar)', () => {
             currencyType: CurrencyType.USDC,
             entityType: EntityType.IMAGE,
             id: ProductType.DIGITAL,
+            // Created before PORTRAIT_USD_PRICE_CHANGED_AT, so the legacy $6 price applies on any run date.
+            createdAt: new Date('2026-10-05T09:00:00Z'),
         });
 
         await expect(verify(order)).resolves.toEqual({ success: true, amount: 6, priceUsd: 6 });
@@ -109,6 +111,8 @@ describe('Web3Service.validatePrice (Stellar)', () => {
             currencyType: CurrencyType.USDC,
             entityType: EntityType.IMAGE,
             id: ProductType.DIGITAL,
+            // Created before PORTRAIT_USD_PRICE_CHANGED_AT, so the legacy $6 price applies on any run date.
+            createdAt: new Date('2026-10-05T09:00:00Z'),
         });
         await expect(verify(order)).resolves.toEqual({
             success: true,
@@ -116,6 +120,21 @@ describe('Web3Service.validatePrice (Stellar)', () => {
             priceUsd: 6,
             closedAt: new Date('2026-10-05T10:00:00Z'),
         });
+    });
+
+    it('needs the current $16 for a digital portrait ordered after the price change', async () => {
+        const order = pendingOrder({
+            currencyType: CurrencyType.USDC,
+            entityType: EntityType.IMAGE,
+            id: ProductType.DIGITAL,
+            createdAt: new Date('2026-11-01T00:00:00Z'),
+        });
+
+        horizon([usdc('6.0000000')]);
+        await expect(verify(order)).rejects.toBeInstanceOf(BadRequestException);
+
+        horizon([usdc('16.0000000')]);
+        await expect(verify(order)).resolves.toEqual({ success: true, amount: 16, priceUsd: 16 });
     });
 
     it('rejects a payment to another account and releases the hash', async () => {

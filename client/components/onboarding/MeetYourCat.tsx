@@ -1,6 +1,7 @@
 import { analytics, buildEvent, type AnalyticsEventName, type AnalyticsEventProperties } from "@/analytics";
 import { STARTER_API, type IFeaturedCat, type IStarterCat } from "@/api/starter-api";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { ENTRY_TEXT_LINK, YourcatEntryLink } from "@/components/yourcat/YourcatEntryLink";
 import { RevealAnimation } from "@/components/tailsCard/RevealAnimation";
 import type { StarterBreed } from "@/shared-contracts/enums";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -426,6 +427,8 @@ export const MeetYourCat = ({ open, uid, onCommitted, onDone }: MeetYourCatProps
                     onClick={() => dispatch({ type: "CONTINUE" })}
                     id="meet-awaits-continue"
                   />
+                  {/* Bet #3: your own cat from a photo, only while /yourcat is on and open. */}
+                  <YourcatEntryLink className={ENTRY_TEXT_LINK} testId="meet-yourcat-entry" />
                 </div>
               </MeetPanel>
             )}

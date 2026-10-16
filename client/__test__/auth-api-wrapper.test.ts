@@ -210,6 +210,27 @@ describe("interceptOptions (opt-in handling for plain fetch calls)", () => {
     expect(interceptOptions("/cat/sale", post).guestSession).toBe(false);
   });
 
+  it("creates a guest session for the /yourcat writes and never opens the sheet for them (bet #3)", () => {
+    const id = "64e2e0000000000000000c01";
+    for (const [path, method] of [
+      ["/yourcat", "POST"],
+      ["/yourcat/manual", "POST"],
+      [`/yourcat/${id}`, "PATCH"],
+      [`/yourcat/${id}`, "DELETE"],
+      [`/yourcat/${id}/portrait-checkout`, "POST"],
+    ] as const) {
+      expect({ path, method, options: interceptOptions(path, { method }) }).toEqual({
+        path,
+        method,
+        options: { guestSession: true, requireAccount: false },
+      });
+    }
+    // Reads stay untouched; unknown sub-paths are not guest writes.
+    expect(interceptOptions("/yourcat/me", undefined)).toEqual({ guestSession: false, requireAccount: false });
+    expect(interceptOptions("/yourcat/status", undefined)).toEqual({ guestSession: false, requireAccount: false });
+    expect(interceptOptions(`/yourcat/${id}/other`, post).guestSession).toBe(false);
+  });
+
   it("names the sheet by the action (decision #64) and leaves GETs alone", () => {
     expect(interceptOptions("/image/create-checkout-session", post).requireAccount).toBe("purchase");
     expect(interceptOptions("/image/create-checkout-session-signed", post).requireAccount).toBe("purchase");

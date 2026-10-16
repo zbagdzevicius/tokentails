@@ -19,6 +19,7 @@ import { GameplayReel, hasReelClips } from "@/components/reel/GameplayReel";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { CardAction } from "@/components/tailsCard/CardAction";
 import { TailsCard } from "@/components/tailsCard/TailsCard";
+import { YourcatEntryLink } from "@/components/yourcat/YourcatEntryLink";
 import { cdnFile, isMobile } from "@/constants/utils";
 import { hasSessionHint } from "@/context/auth/sessionHint";
 import { useImpact } from "@/hooks/useImpact";
@@ -169,6 +170,8 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                 )}
               </div>
               <HeistPill />
+              {/* Bet #3: only while /yourcat is on and open (NEXT_PUBLIC_YOURCAT_ENTRY and the status). */}
+              <YourcatEntryLink />
             </div>
           </section>
         </SectionBoundary>

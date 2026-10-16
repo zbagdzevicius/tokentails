@@ -2,15 +2,21 @@ import { STRIPE_API } from "@/api/stripe-api";
 import { trackEvent } from "@/components/GoogleTagManager";
 import { cdnFile } from "@/constants/utils";
 import { useProfile } from "@/context/ProfileContext";
-import { Testimonials } from "@/features/portrait/components/Testimonials";
-import { TrustpilotReviews } from "@/features/portrait/components/TrustpilotReviews";
 import { LuxuryReveal } from "@/features/portrait/components/LuxuryEffects";
 import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import { useToast } from "@/features/portrait/hooks/use-toast";
-import { useCountdown } from "@/features/portrait/hooks/useCountdown";
 import { Button } from "@/features/portrait/ui/button";
+import {
+  PaidDownloadStatus,
+  portraitDownloadName,
+} from "@/features/portrait/paid-portrait";
 import { isApp } from "@/models/app";
 import { OrderStatus } from "@/models/order";
+import {
+  PORTRAIT_CHECKOUT_CURRENCY,
+  PORTRAIT_CHECKOUT_PRICES,
+  formatPortraitPrice,
+} from "@/models/portrait-prices";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -23,17 +29,21 @@ import {
   PawPrint,
   RefreshCw,
   Sparkles,
-  Timer,
   Truck,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { SessionProfile } from "@/context/auth/types";
 
 interface PurchaseOption {
-  id: string;
+  id: "digital" | "print" | "canvas";
   title: string;
+  /** Euros, from client/models/portrait-prices.ts (the card checkout charges exactly this). */
   price: number;
-  originalPrice?: number;
+  /**
+   * A factual label only (what the option includes). No ranking or sales claim such as "Most
+   * Popular": nothing measures it (__test__/portrait-no-fabricated-proof.test.ts).
+   */
   badge?: string;
   description: string;
   features: string[];
@@ -48,9 +58,8 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "digital",
     title: "Instant Masterpiece",
-    price: 6,
-    originalPrice: 29,
-    badge: "Most Popular",
+    price: PORTRAIT_CHECKOUT_PRICES.digital,
+    badge: "Instant download",
     description:
       "Instant high-resolution download — perfect for sharing or saving.",
     features: ["No Watermark", "High-Resolution Portrait ", "Instant Download"],
@@ -60,9 +69,8 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "print",
     title: "Fine Art Print",
-    price: 49,
-    originalPrice: 99,
-    badge: "Recommended",
+    price: PORTRAIT_CHECKOUT_PRICES.print,
+    badge: "Includes the digital file",
     description:
       "Printed on museum-quality archival paper with fade-resistant inks.",
     features: [
@@ -79,9 +87,8 @@ export const purchaseOptions: PurchaseOption[] = [
   {
     id: "canvas",
     title: "Gallery Canvas",
-    price: 69,
-    originalPrice: 199,
-    badge: "The Perfect Gift 🐱",
+    price: PORTRAIT_CHECKOUT_PRICES.canvas,
+    badge: "Includes the digital file",
     description: "Gallery-quality canvas on wood — arrives ready to hang.",
     features: [
       "Ready to hang",
@@ -96,6 +103,19 @@ export const purchaseOptions: PurchaseOption[] = [
   },
 ];
 
+/**
+ * Which checkout route a purchase uses. The signed route (`create-checkout-session-signed`) is for
+ * registered players only: a guest now has a `profile._id` too (the pages run in guest mode), and the
+ * signed route would answer 403 GUEST_FORBIDDEN, so a guest keeps the email path, as an anonymous
+ * visitor does.
+ */
+export function portraitCheckoutPath(
+  profile: { _id?: string; isGuest?: boolean } | null | undefined,
+  emailValue?: string,
+): "signed" | "email" {
+  return profile?._id && !profile.isGuest && !emailValue ? "signed" : "email";
+}
+
 interface PreviewPageProps {
   generatedImages: string[];
   onRetry: () => void;
@@ -108,6 +128,36 @@ interface PreviewPageProps {
   orderId?: string;
   blurHalf?: boolean;
   showWatermark?: boolean;
+  /**
+   * The paid file after a COMPLETE order (CR1-02): "preparing" until the page has fetched the paid URL,
+   * "unavailable" when it could not. The button downloads only when "ready".
+   */
+  downloadStatus?: PaidDownloadStatus;
+  onRetryDownload?: () => void;
+}
+
+/**
+ * Saves the paid file. The CDN is another origin, where `<a download>` is ignored and the browser
+ * would navigate away, so the file is fetched as a blob first; if that fails it opens in a new tab.
+ */
+export async function savePortraitFile(url: string, filename: string): Promise<void> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch (error) {
+    console.error("Could not save the portrait file, opening it instead:", error);
+    window.open(url, "_blank", "noopener");
+  }
 }
 
 export const PreviewPage = ({
@@ -121,6 +171,8 @@ export const PreviewPage = ({
   orderId,
   blurHalf = false,
   showWatermark = true,
+  downloadStatus = "ready",
+  onRetryDownload,
 }: PreviewPageProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -133,7 +185,6 @@ export const PreviewPage = ({
     optionId: string;
     price: number;
   } | null>(null);
-  const { formattedTime, isExpired } = useCountdown(15);
   const { toast } = useToast();
   const { profile } = useProfile();
   const regenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -170,7 +221,7 @@ export const PreviewPage = ({
       item_category: "portrait",
       item_id: purchaseOptions[0].id,
       value: purchaseOptions[0].price,
-      currency: "USD",
+      currency: PORTRAIT_CHECKOUT_CURRENCY,
       quantity: 1,
     });
   }, [imageId]);
@@ -234,21 +285,23 @@ export const PreviewPage = ({
       item_id: selectedOption.id,
       item_name: selectedOption.id,
       value: price,
-      currency: "USD",
+      currency: PORTRAIT_CHECKOUT_CURRENCY,
     });
 
     setShowEmailModal(false);
     setIsProcessingPurchase(true);
 
     try {
+      // The server charges its own price table (euros); `amount` is ignored there.
       const checkoutPayload = {
         amount: Math.round(price * 100),
         productType: optionId as "digital" | "print" | "canvas",
         imageId: imageId,
       };
 
-      // Signed users use auth-bound checkout and skip email collection.
-      const { url } = profile?._id && !emailValue
+      // Registered players use the auth-bound checkout and skip email collection; guests and
+      // anonymous visitors give an email.
+      const { url } = portraitCheckoutPath(profile as SessionProfile | null, emailValue) === "signed"
         ? await STRIPE_API.createSignedCheckoutSession(checkoutPayload)
         : await STRIPE_API.createCheckoutSession({
             ...checkoutPayload,
@@ -276,12 +329,12 @@ export const PreviewPage = ({
   const handlePurchaseClick = (optionId: string, price: number) => {
     if (isApp) return;
     setPendingPurchase({ optionId, price });
-    if (profile?._id) {
+    if (portraitCheckoutPath(profile as SessionProfile | null) === "signed") {
       void startCheckout({ optionId, price });
       return;
     }
 
-    // Fallback for unsigned users
+    // Guests and signed-out visitors give an email
     setShowEmailModal(true);
     setEmail("");
     setEmailError("");
@@ -528,27 +581,59 @@ export const PreviewPage = ({
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-center mb-8"
           >
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => {
-                const imageUrl =
-                  currentImages[selectedImageIndex] ||
-                  generatedImages[selectedImageIndex];
-                if (imageUrl) {
-                  const link = document.createElement("a");
-                  link.href = imageUrl;
-                  link.download = `portrait-${imageId || "download"}.jpg`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }
-              }}
-              className="min-w-[200px]"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              DOWNLOAD
-            </Button>
+            {downloadStatus === "unavailable" ? (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <p className="text-muted-foreground text-sm max-w-md">
+                  Your full-resolution file is not ready yet. Please try again in a
+                  minute.
+                </p>
+                {onRetryDownload && (
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    onClick={onRetryDownload}
+                    className="min-w-[200px]"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    TRY AGAIN
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="hero"
+                size="lg"
+                disabled={downloadStatus !== "ready"}
+                aria-busy={downloadStatus === "preparing"}
+                onClick={() => {
+                  if (downloadStatus !== "ready") {
+                    return;
+                  }
+                  const imageUrl =
+                    currentImages[selectedImageIndex] ||
+                    generatedImages[selectedImageIndex];
+                  if (imageUrl) {
+                    void savePortraitFile(
+                      imageUrl,
+                      portraitDownloadName(imageId, imageUrl),
+                    );
+                  }
+                }}
+                className="min-w-[200px]"
+              >
+                {downloadStatus === "preparing" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    PREPARING YOUR FILE...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    DOWNLOAD
+                  </>
+                )}
+              </Button>
+            )}
           </motion.div>
         )}
 
@@ -580,16 +665,13 @@ export const PreviewPage = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.1 }}
                     className={`relative card-baroque rounded-xl p-6 flex flex-col ${
-                      option.badge === "Most Popular"
-                        ? "ring-2 ring-primary"
-                        : ""
+                      option.id === "digital" ? "ring-2 ring-primary" : ""
                     }`}
                   >
                     {option.badge && (
                       <div
                         className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium ${
-                          option.badge === "Most Popular" ||
-                          option.badge === "Recommended"
+                          option.id === "digital"
                             ? "bg-primary text-primary-foreground"
                             : "bg-gold text-background"
                         }`}
@@ -603,33 +685,13 @@ export const PreviewPage = ({
                         {option.title}
                       </h3>
                       <div className="flex items-center justify-center gap-2">
-                        {option.originalPrice && !isExpired && (
-                          <span className="text-muted-foreground line-through text-lg">
-                            ${option.originalPrice}
-                          </span>
-                        )}
-                        <span className="text-3xl font-bold">
-                          $
-                          {option.id === "digital" && isExpired
-                            ? option.originalPrice
-                            : option.price}
+                        <span
+                          className="text-3xl font-bold"
+                          data-testid={`portrait-price-${option.id}`}
+                        >
+                          {formatPortraitPrice(option.price)}
                         </span>
                       </div>
-                      {/* Countdown Timer for Digital Option */}
-                      {option.id === "digital" && !isExpired && (
-                        <div className="flex items-center justify-center gap-1.5 mt-2 text-sm text-primary">
-                          <Timer className="w-4 h-4" />
-                          <span>Expires in</span>
-                          <span className="font-semibold tabular-nums">
-                            {formattedTime}
-                          </span>
-                        </div>
-                      )}
-                      {option.id === "digital" && isExpired && (
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          Discount expired
-                        </div>
-                      )}
                     </div>
 
                     <p className="text-sm text-muted-foreground text-center mb-4">
@@ -676,7 +738,7 @@ export const PreviewPage = ({
                       <div className="mb-4 space-y-2 text-sm">
                         <div className="flex items-center gap-2 text-gold">
                           <Truck className="w-4 h-4" />
-                          <span>Free Shipping ($20 value)</span>
+                          <span>Free shipping</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock className="w-4 h-4" />
@@ -696,14 +758,7 @@ export const PreviewPage = ({
                       variant={option.id === "digital" ? "hero" : "baroque"}
                       size="lg"
                       className="w-full"
-                      onClick={() =>
-                        handlePurchaseClick(
-                          option.id,
-                          option.id === "digital" && isExpired
-                            ? option.originalPrice || option.price
-                            : option.price,
-                        )
-                      }
+                      onClick={() => handlePurchaseClick(option.id, option.price)}
                       disabled={isProcessingPurchase}
                     >
                       <Icon className="w-4 h-4" />
@@ -715,12 +770,6 @@ export const PreviewPage = ({
             </div>
           </motion.div>
         )}
-
-        {/* Trustpilot Reviews */}
-        <TrustpilotReviews />
-
-        {/* Testimonials */}
-        <Testimonials />
 
         {/* Back Button */}
         <div className="mt-12 text-center">

@@ -12,3 +12,5 @@ CLAUDE.local.md
 
 # Separate local repository (cat art sources), not part of this repo.
 /cat-assets/
+
+.project-map/

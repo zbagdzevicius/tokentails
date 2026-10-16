@@ -17,18 +17,32 @@ import {
 import { cdnFile } from "@/constants/utils";
 import { UploadZone } from "@/features/portrait/components/UploadZone";
 import { PortraitStyle } from "@/features/portrait/components/StylePickerDrawer";
-import { AsSeenOn } from "@/features/portrait/components/AsSeenOn";
 import { PortraitFooter } from "@/features/portrait/components/PortraitFooter";
 import {
   PreviewPage,
   purchaseOptions,
 } from "@/features/portrait/components/PreviewPage";
+import {
+  PAID_PORTRAIT_RETRY_DELAYS_MS,
+  PaidDownloadStatus,
+  fetchPaidPortraitUrl,
+} from "@/features/portrait/paid-portrait";
 import { useToast } from "@/features/portrait/hooks/use-toast";
 import { Toaster } from "@/features/portrait/ui/toaster";
 import { trackEvent } from "@/components/GoogleTagManager";
-import { IMAGE_API, SignInRequiredError } from "@/api/image-api";
+import {
+  IMAGE_API,
+  PortraitPreviewError,
+  SignInRequiredError,
+} from "@/api/image-api";
+import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { IImage } from "@/models/image";
 import { IOrder, OrderStatus } from "@/models/order";
+import { OrderCurrencyType } from "@/web3/contracts";
+import {
+  PORTRAIT_CHECKOUT_CURRENCY,
+  formatPortraitPrice,
+} from "@/models/portrait-prices";
 
 const HERO_WORDS = [
   "Cat 🐱",
@@ -46,13 +60,32 @@ const CANVAS_VIDEO_URL =
 // the landing display face); body copy inherits the html Nunito stack. They replace two families
 // the page named but never loaded.
 
-const getStyleImages = (style: PortraitStyle): string[] => {
-  return [
-    `/portrait/${style}-1.webp`,
-    `/portrait/${style}-2.webp`,
-    `/portrait/${style}-3.webp`,
-  ];
+// Example numbers per style in public/portrait/. Highness skips example 1: that painting shows a
+// famous internet cat's likeness (and so does the identical highness.webp), so no page shows it.
+const STYLE_EXAMPLE_NUMBERS: Record<PortraitStyle, number[]> = {
+  [PortraitStyle.HIGHNESS]: [2, 3],
+  [PortraitStyle.MONARCH]: [1, 2, 3],
+  [PortraitStyle.ARISTOCRAT]: [1, 2, 3],
+  [PortraitStyle.COMMANDER]: [1, 2, 3],
 };
+
+/**
+ * Retry delays for the paid file on this page (CR2-01). When the payment's own delivery could not
+ * publish the 4K, `GET /image/:id` publishes it only 2 minutes after the order turned COMPLETE
+ * (backend LATE_PUBLISH_GRACE_MS), so the page keeps "preparing" for about 3 minutes instead of 15 s.
+ */
+const PAID_PORTRAIT_PAGE_DELAYS_MS: readonly number[] = [
+  ...PAID_PORTRAIT_RETRY_DELAYS_MS,
+  15000,
+  30000,
+  30000,
+  30000,
+  30000,
+  30000,
+];
+
+const getStyleImages = (style: PortraitStyle): string[] =>
+  STYLE_EXAMPLE_NUMBERS[style].map((n) => `/portrait/${style}-${n}.webp`);
 
 const STYLE_LABELS: Record<PortraitStyle, string> = {
   [PortraitStyle.HIGHNESS]: "Highness",
@@ -61,22 +94,13 @@ const STYLE_LABELS: Record<PortraitStyle, string> = {
   [PortraitStyle.COMMANDER]: "Commander",
 };
 
-const STATS = [
-  { emoji: "🖼️", value: "50K+", label: "Portraits generated", bg: "#fff0e3" },
-  { emoji: "⭐", value: "4.9/5", label: "Happy cat parents", bg: "#e8f9f0" },
-  { emoji: "⚡", value: "< 2 min", label: "Average generation", bg: "#f1ebff" },
-  // Was "120+ Countries served", which no fact entry backs (claims rule R1). The style count is the
-  // product's own number: one per PortraitStyle.
-  { emoji: "🎨", value: String(Object.keys(STYLE_LABELS).length), label: "Portrait styles", bg: "#fff9db" },
-];
-
 const HOW_IT_WORKS = [
   {
     num: "01",
     emoji: "📸",
     title: "Upload your cat",
     desc: "Use a clear photo. Front-facing shots usually give the best results.",
-    image: "/portrait/highness-1.webp",
+    image: "/portrait/highness-2.webp",
     bg: "#fff0e3",
   },
   {
@@ -91,19 +115,13 @@ const HOW_IT_WORKS = [
     num: "03",
     emoji: "👑",
     title: "Get the masterpiece",
-    desc: "Preview in seconds, regenerate if needed, then order digital, print, or canvas.",
+    desc: "See a free preview, try another style if you like, then order digital, print, or canvas.",
     image: "/portrait/aristocrat-1.webp",
     bg: "#f1ebff",
   },
 ];
 
 const GALLERY_ITEMS = [
-  {
-    src: "/portrait/highness-1.webp",
-    title: "The Empress 👸",
-    style: "Highness",
-    bg: "#fff0e3",
-  },
   {
     src: "/portrait/monarch-1.webp",
     title: "The General 🎖️",
@@ -154,45 +172,23 @@ const GALLERY_ITEMS = [
   },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "Sarah M.",
-    handle: "@catmom_sarah",
-    text: "My rescue cat looks unreal. We printed it and everyone asks where it came from.",
-    avatar: "🐱",
-    bg: "#fff0e3",
-    rotate: -2,
-  },
-  {
-    name: "Lukas T.",
-    handle: "@lukastails",
-    text: "Honestly expected something basic. Got a portrait that looks gallery-level.",
-    avatar: "🎨",
-    bg: "#e8f9f0",
-    rotate: 1,
-  },
-  {
-    name: "Emily R.",
-    handle: "@emilycats",
-    text: "Generation is super fast and the style variations are actually different.",
-    avatar: "⚡",
-    bg: "#f1ebff",
-    rotate: -1,
-  },
-  {
-    name: "Marcus D.",
-    handle: "@marcuspets",
-    text: "Best 5 impulse purchase. Ended up ordering canvas right after.",
-    avatar: "🖼️",
-    bg: "#fff9db",
-    rotate: 2,
-  },
-];
+/**
+ * FAQ answers that must match the policy (PoliciesModal) and the server limits; pinned by
+ * __test__/portrait-no-fabricated-proof.test.ts (kept identical in pages/portraits.tsx if it gains a
+ * FAQ). Regenerating goes through the same daily preview
+ * gate as a first preview (docs/BACKEND.md, AiUploadGate), so the answer promises no unlimited use.
+ * The refund answer stays conditional: the withdrawal waiver applies only when the buyer agreed to it
+ * at checkout (PORTRAIT_CHECKOUT_TOS_CONSENT).
+ */
+const PORTRAIT_FAQ_REGENERATE =
+  "Yes, from the preview page. Each new style is a new preview and counts toward a small daily limit, so you may need to come back tomorrow.";
+const PORTRAIT_FAQ_REFUNDS =
+  "Digital portraits: if you agree at checkout that delivery starts right away, the 14-day right of withdrawal ends once we deliver; a delivered file that is faulty is fixed or refunded. Prints and canvases damaged in shipping are replaced or refunded within 30 days of delivery. Email info@tokentails.com.";
 
 const FAQS = [
   {
     q: "How fast is a portrait generated?",
-    a: "Usually in under 2 minutes. During peak traffic, it can take a little longer.",
+    a: "The page shows the progress while your free preview is made. It can take longer when many people are making portraits.",
   },
   {
     q: "What photo works best?",
@@ -200,7 +196,7 @@ const FAQS = [
   },
   {
     q: "Can I regenerate if I want another style?",
-    a: "Yes. You can regenerate and rotate through available styles from the preview flow.",
+    a: PORTRAIT_FAQ_REGENERATE,
   },
   {
     q: "Do I get high-resolution output?",
@@ -212,7 +208,7 @@ const FAQS = [
   },
   {
     q: "Do you offer refunds?",
-    a: "If there is a system issue or you are not satisfied, support can help with a resolution.",
+    a: PORTRAIT_FAQ_REFUNDS,
   },
 ];
 
@@ -235,7 +231,7 @@ const DEMO_STEPS = [
 ];
 
 const DEMO_RESULT_IMAGES = [
-  "/portrait/highness-1.webp",
+  "/portrait/highness-2.webp",
   "/portrait/monarch-1.webp",
   "/portrait/aristocrat-1.webp",
   "/portrait/commander-1.webp",
@@ -255,7 +251,7 @@ const getProgressMessage = (percentage: number): string => {
   return "Preparing reveal...";
 };
 
-const PortraitsPage = () => {
+const PortraitPageContent = () => {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -277,6 +273,8 @@ const PortraitsPage = () => {
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [isPollingOrder, setIsPollingOrder] = useState(false);
   const [orderProductType, setOrderProductType] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] =
+    useState<PaidDownloadStatus>("preparing");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -296,6 +294,8 @@ const PortraitsPage = () => {
   );
 
   const pollCleanupRef = useRef<(() => void) | null>(null);
+  // Bumped to cancel an older paid-file fetch (a newer one, a reset or unmount).
+  const paidFetchRef = useRef(0);
   const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedQueryRef = useRef<string>("");
 
@@ -331,8 +331,28 @@ const PortraitsPage = () => {
     return () => {
       clearPolling();
       clearRevealTimeout();
+      paidFetchRef.current += 1;
     };
   }, [clearPolling, clearRevealTimeout]);
+
+  // CR1-02: once the order is COMPLETE, swap the watermarked preview for the paid file.
+  const loadPaidPortrait = useCallback(async (imageId: string) => {
+    const request = ++paidFetchRef.current;
+    setDownloadStatus("preparing");
+    const paidUrl = await fetchPaidPortraitUrl(imageId, IMAGE_API.get, {
+      delaysMs: PAID_PORTRAIT_PAGE_DELAYS_MS,
+      isCancelled: () => paidFetchRef.current !== request,
+    });
+    if (paidFetchRef.current !== request) {
+      return;
+    }
+    if (paidUrl) {
+      setGeneratedImages([paidUrl]);
+      setDownloadStatus("ready");
+    } else {
+      setDownloadStatus("unavailable");
+    }
+  }, []);
 
   useEffect(() => {
     const wordTimer = setInterval(() => {
@@ -410,6 +430,7 @@ const PortraitsPage = () => {
             setIsPollingOrder(false);
             clearInterval(pollInterval);
             clearTimeout(timeoutId);
+            void loadPaidPortrait(imageId);
 
             trackEvent("purchase", {
               event_id: imageId,
@@ -417,7 +438,9 @@ const PortraitsPage = () => {
               item_id: order.id || "unknown",
               item_name: order.id || "unknown",
               value: order.price || 0,
-              currency: "USD",
+              // Card orders are in euros since bet #3; older orders paid in dollars.
+              currency:
+                order.currencyType === OrderCurrencyType.EUR ? "EUR" : "USD",
             });
           } else if (order.status === OrderStatus.FAILED) {
             setOrderStatus(OrderStatus.FAILED);
@@ -458,7 +481,7 @@ const PortraitsPage = () => {
       pollCleanupRef.current = cleanup;
       return cleanup;
     },
-    [clearPolling, toast],
+    [clearPolling, loadPaidPortrait, toast],
   );
 
   useEffect(() => {
@@ -608,7 +631,10 @@ const PortraitsPage = () => {
         console.error("Error generating portrait:", error);
         toast({
           title: "Generation failed",
-          description: "Please try again.",
+          description:
+            error instanceof PortraitPreviewError
+              ? error.message
+              : "Please try again.",
           variant: "destructive",
         });
         setIsGenerating(false);
@@ -634,7 +660,7 @@ const PortraitsPage = () => {
           item_category: "portrait",
           item_id: defaultOption.id,
           value: defaultOption.price,
-          currency: "USD",
+          currency: PORTRAIT_CHECKOUT_CURRENCY,
         });
 
         void runPortraitGeneration(file, selectedStyle);
@@ -658,6 +684,8 @@ const PortraitsPage = () => {
     setOrderStatus(null);
     setIsPollingOrder(false);
     setOrderProductType(null);
+    paidFetchRef.current += 1;
+    setDownloadStatus("preparing");
     stripPreviewQueryFromUrl();
   }, [clearPolling, clearRevealTimeout, stripPreviewQueryFromUrl]);
 
@@ -715,7 +743,8 @@ const PortraitsPage = () => {
       toast({
         title: "Regeneration failed",
         description:
-          error instanceof SignInRequiredError
+          error instanceof SignInRequiredError ||
+          error instanceof PortraitPreviewError
             ? error.message
             : "Please try again.",
         variant: "destructive",
@@ -742,7 +771,7 @@ const PortraitsPage = () => {
           item_name: itemId,
           item_category: "portrait",
           value: price || 0,
-          currency: "USD",
+          currency: PORTRAIT_CHECKOUT_CURRENCY,
         });
       }
 
@@ -793,6 +822,12 @@ const PortraitsPage = () => {
             orderId={router.query._id as string | undefined}
             blurHalf={orderStatus !== OrderStatus.COMPLETE}
             showWatermark={false}
+            downloadStatus={downloadStatus}
+            onRetryDownload={() => {
+              if (uploadedImageId) {
+                void loadPaidPortrait(uploadedImageId);
+              }
+            }}
           />
         </div>
       </>
@@ -834,7 +869,7 @@ const PortraitsPage = () => {
             >
               🐾
             </motion.span>
-            Your cat deserves a glow up. Portraits from $6.
+            Your cat deserves a glow up. Portraits from {formatPortraitPrice(purchaseOptions[0].price)}.
             <button
               onClick={() =>
                 handleScrollToCreate(
@@ -1009,8 +1044,8 @@ const PortraitsPage = () => {
                   transition={{ delay: 0.2 }}
                   className="mb-8 max-w-xl text-base text-black/70 md:text-xl"
                 >
-                  Upload a photo, pick a vibe, and get a share-worthy portrait
-                  in minutes. Free preview before purchase.
+                  Upload a photo, pick a vibe, and get a share-worthy portrait.
+                  Free preview before purchase.
                 </motion.p>
 
                 <motion.div
@@ -1028,7 +1063,7 @@ const PortraitsPage = () => {
                     }
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] px-8 py-4 text-base font-bold text-white shadow-lg"
                   >
-                    Create Portrait - ${purchaseOptions[0].price} 🎨
+                    Create Portrait - {formatPortraitPrice(purchaseOptions[0].price)} 🎨
                   </button>
                   <a
                     href="#styles"
@@ -1173,52 +1208,8 @@ const PortraitsPage = () => {
                       )}
                     </>
                   )}
-
-                  <div className="mt-6 border-t border-black/10 pt-5">
-                    <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-black/45">
-                      Trusted by cat parents worldwide
-                    </p>
-                    <AsSeenOn />
-                  </div>
                 </motion.div>
               </div>
-            </div>
-          </section>
-
-          <section className="px-5 py-12 md:py-16">
-            <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-4 md:grid-cols-4">
-              {STATS.map((stat, idx) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.07 }}
-                  whileHover={{ y: -6, scale: 1.02 }}
-                  className="rounded-3xl p-5 text-center md:p-7"
-                  style={{ backgroundColor: stat.bg }}
-                >
-                  <motion.span
-                    className="block text-3xl md:text-4xl"
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: idx * 0.25,
-                    }}
-                  >
-                    {stat.emoji}
-                  </motion.span>
-                  <p
-                    className="mt-3 text-2xl font-bold md:text-4xl font-primary"
-                  >
-                    {stat.value}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-black/60 md:text-sm">
-                    {stat.label}
-                  </p>
-                </motion.div>
-              ))}
             </div>
           </section>
 
@@ -1426,7 +1417,7 @@ const PortraitsPage = () => {
             <div className="mx-auto w-full max-w-[1200px]">
               <div className="mb-12 text-center">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#f1ebff] px-5 py-2.5 text-sm font-bold">
-                  🎭 20+ styles and counting
+                  🎭 Four styles
                 </div>
                 <h2
                   className="text-3xl font-bold md:text-5xl font-primary"
@@ -1471,53 +1462,6 @@ const PortraitsPage = () => {
             </div>
           </section>
 
-          <section className="px-5 py-16 md:py-24">
-            <div className="mx-auto w-full max-w-[1200px]">
-              <div className="mb-12 text-center">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#ffe8d6] px-5 py-2.5 text-sm font-bold">
-                  💬 Real people, real cats
-                </div>
-                <h2
-                  className="text-3xl font-bold md:text-5xl font-primary"
-                >
-                  People are obsessed
-                </h2>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                {TESTIMONIALS.map((testimonial, idx) => (
-                  <motion.div
-                    key={testimonial.name}
-                    initial={{ opacity: 0, y: 18, rotate: 0 }}
-                    whileInView={{
-                      opacity: 1,
-                      y: 0,
-                      rotate: testimonial.rotate,
-                    }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.08 }}
-                    whileHover={{ rotate: 0, scale: 1.02 }}
-                    className="rounded-3xl p-7"
-                    style={{ backgroundColor: testimonial.bg }}
-                  >
-                    <div className="mb-4 flex items-center gap-3">
-                      <span className="text-3xl">{testimonial.avatar}</span>
-                      <div>
-                        <p className="text-sm font-bold">{testimonial.name}</p>
-                        <p className="text-xs text-black/60">
-                          {testimonial.handle}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-base leading-relaxed text-black/80">
-                      &quot;{testimonial.text}&quot;
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
-
           <section id="pricing" className="bg-[#f7f7fb] px-5 py-16 md:py-24">
             <div className="mx-auto w-full max-w-[1060px]">
               <div className="mb-12 text-center">
@@ -1555,7 +1499,7 @@ const PortraitsPage = () => {
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                         <span
                           className={`rounded-full px-4 py-1.5 text-xs font-bold shadow ${
-                            idx === 0
+                            plan.id === "digital"
                               ? "bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] text-white"
                               : "bg-white text-black"
                           }`}
@@ -1577,7 +1521,7 @@ const PortraitsPage = () => {
                       <span
                         className="text-4xl font-bold font-primary"
                       >
-                        ${plan.price}
+                        {formatPortraitPrice(plan.price)}
                       </span>
                       <span className="ml-1 text-sm text-black/60">
                         one-time
@@ -1652,23 +1596,23 @@ const PortraitsPage = () => {
                     <button
                       onClick={() => handleScrollToCreate(plan.id, plan.price)}
                       className={`w-full rounded-full py-3.5 text-sm font-bold ${
-                        idx === 1
+                        plan.id === "digital"
                           ? "bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] text-white"
                           : "bg-black text-white"
                       }`}
                     >
                       {idx === 0
-                        ? `Get Portrait - $${plan.price} ✨`
+                        ? `Get Portrait - ${formatPortraitPrice(plan.price)} ✨`
                         : idx === 1
-                        ? `Order Print - $${plan.price} 🖨️`
-                        : `Order Canvas - $${plan.price} 🖼️`}
+                        ? `Order Print - ${formatPortraitPrice(plan.price)} 🖨️`
+                        : `Order Canvas - ${formatPortraitPrice(plan.price)} 🖼️`}
                     </button>
                   </motion.div>
                 ))}
               </div>
 
               <p className="mx-auto mt-10 inline-flex w-full justify-center rounded-full bg-white px-6 py-3 text-center text-sm text-black/60">
-                🛡️ 30-day money-back support window for unresolved issues
+                Digital portraits are delivered instantly. Prints ship in 3 to 12 business days.
               </p>
             </div>
           </section>
@@ -1763,7 +1707,7 @@ const PortraitsPage = () => {
                       Your cat portrait is one click away
                     </h2>
                     <p className="mb-6 text-lg text-white/85">
-                      Start from $6 and see your cat transformed into royalty.
+                      From {formatPortraitPrice(purchaseOptions[0].price)}, see your cat transformed into royalty.
                     </p>
                     <button
                       onClick={() =>
@@ -1774,7 +1718,7 @@ const PortraitsPage = () => {
                       }
                       className="inline-flex items-center gap-2 rounded-full bg-black px-8 py-4 text-lg font-bold text-white"
                     >
-                      Create Portrait - ${purchaseOptions[0].price} 🐾
+                      Create Portrait - {formatPortraitPrice(purchaseOptions[0].price)} 🐾
                     </button>
                   </div>
                   <div className="flex-1 max-w-md p-4">
@@ -1816,7 +1760,7 @@ const PortraitsPage = () => {
             }
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#ff7b5a,#ffa947)] py-3.5 text-sm font-bold text-white shadow-lg"
           >
-            Create Portrait - ${purchaseOptions[0].price} 🎨
+            Create Portrait - {formatPortraitPrice(purchaseOptions[0].price)} 🎨
             <ArrowRight className="h-4 w-4" />
           </button>
         </motion.div>
@@ -1824,5 +1768,15 @@ const PortraitsPage = () => {
     </>
   );
 };
+
+/**
+ * Guest mode (bet #3, yourcat-v2.md section 6.6): `POST /image/portrait` needs a caller, so a visitor
+ * gets an anonymous guest session; `MainLayout` already supplies `ProfileProvider`.
+ */
+const PortraitsPage = () => (
+  <FirebaseAuthProvider authMode="guest">
+    <PortraitPageContent />
+  </FirebaseAuthProvider>
+);
 
 export default PortraitsPage;

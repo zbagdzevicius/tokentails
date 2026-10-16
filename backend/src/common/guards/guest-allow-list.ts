@@ -11,6 +11,9 @@ import { AllowGuestOptions } from '../decorators/allow-guest.decorator';
  * `POST /user/guest/merge` is NOT listed: the caller is the registered target account; the guest is
  * identified by its anonymous token in `x-guest-token`. `DELETE /user/me` and
  * `POST /user/catbassadors/referral` are registered-only too.
+ *
+ * Exceptions: the portrait checkouts of bet #3 (`POST /yourcat/:id/portrait-checkout`), a card purchase
+ * of a digital portrait of the guest's own cat; the founder decides it in docs/plans/yourcat-v2.md §10.
  */
 export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOptions>>> = {
     // The transient template profile renders menus and Meet your cat before anything is written.
@@ -37,4 +40,18 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'PUT /cat/:id/name': {},
     'POST /user/following/:blessingId': {},
     'DELETE /user/following/:blessingId': {},
+    // Bet #3 /yourcat: a guest turns one photo into its own cat (capped per IP, per user and by the AI budget).
+    'POST /yourcat': {},
+    'POST /yourcat/manual': {},
+    'GET /yourcat/me': { transient: true },
+    'GET /yourcat/:id': {},
+    'PATCH /yourcat/:id': {},
+    'DELETE /yourcat/:id': {},
+    // Exception to decision #9 (no buying as a guest): a card purchase of the HD portrait of the guest's own
+    // cat. Stripe collects the email; see the file header and yourcat-v2.md §10.
+    'POST /yourcat/:id/portrait-checkout': {},
+    // The portrait preview is a paid generation: guests allowed, under the same caps (bet #3).
+    'POST /image/portrait': {},
+    // Regenerate: guests only for images they own (the handler checks `owner`), same caps.
+    'PUT /image/portrait/:id/regenerate': {},
 };

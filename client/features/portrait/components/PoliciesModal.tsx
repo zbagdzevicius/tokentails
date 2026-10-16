@@ -111,6 +111,29 @@ export const PoliciesModal = ({ open, onOpenChange }: PoliciesModalProps) => {
                 pet images for any other purpose without your explicit consent.
               </p>
               <p className="leading-relaxed">
+                <strong className="text-foreground">Who Processes Your Photo:</strong>{" "}
+                Google Gemini paints the portrait from the photo you upload.
+                Photos and portraits are stored with DigitalOcean in Frankfurt,
+                Germany.
+              </p>
+              <p className="leading-relaxed">
+                <strong className="text-foreground">Preview Photos:</strong>{" "}
+                Photos uploaded for a preview are stored on our image server. Write
+                to info@tokentails.com and we will delete them. They are kept at a
+                web address that is not listed anywhere but is not protected by a
+                password, and they are not deleted automatically.
+              </p>
+              <p className="leading-relaxed">
+                <strong className="text-foreground">Lawful Basis:</strong> We use
+                your photo to make the portrait you ask for (Art. 6(1)(b) GDPR:
+                performing our agreement with you). Contact: info@tokentails.com.
+              </p>
+              <p className="leading-relaxed">
+                <strong className="text-foreground">Right of Withdrawal:</strong>{" "}
+                For digital portraits, your 14-day right of withdrawal ends once
+                delivery starts, if you agreed to that at checkout.
+              </p>
+              <p className="leading-relaxed">
                 <strong className="text-foreground">Portrait Ownership:</strong>{" "}
                 Once generated, you own the digital portrait. You may use it for
                 personal purposes, including printing and sharing. Commercial

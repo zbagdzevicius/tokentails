@@ -16,7 +16,6 @@ export const CatAbilityTypes = CAT_ABILITY_TYPES;
 
 
 export const Prices = {
-  generatedCat: 5,
   lootBox: 3,
   // Shelter cat bought on its own: a fixed $5, backend/src/payments/price-table.ts SHELTER_CAT_MIN_PRICE_CENTS (no override).
   shelterCat: 5,
