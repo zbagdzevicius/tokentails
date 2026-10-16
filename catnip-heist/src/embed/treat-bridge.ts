@@ -41,7 +41,8 @@ export type TreatOutcome =
   | { kind: 'already' }
   | { kind: 'used-up' }
   | { kind: 'paused' }
-  | { kind: 'failed' }
+  /** `timedOut`: no answer in time, so the treat may still have gone out (see treat.ts). */
+  | { kind: 'failed'; timedOut?: true }
   | { kind: 'unavailable' };
 
 export const TREAT_OUTCOME_KINDS = ['sent', 'already', 'used-up', 'paused', 'failed', 'unavailable'] as const;
@@ -188,7 +189,7 @@ export function createDirectTreatSender(opts: DirectSenderOptions): TreatSender 
         }
         return outcomeFromResponse(res.status, body);
       } catch {
-        if (timedOut) return { kind: 'failed' };
+        if (timedOut) return { kind: 'failed', timedOut: true };
         // A blocked or failed request (CORS, offline): one retry is offered, then the link.
         networkFailures++;
         return networkFailures >= 2 ? { kind: 'unavailable' } : { kind: 'failed' };
@@ -312,7 +313,8 @@ export function createBridgeTreatSender(opts: BridgeSenderOptions): TreatSender 
       if (cat) extra.cat = cat;
       const answer = (await ask('treat-send', extra, answerMs)) as { outcome?: unknown } | null;
       // No answer: the host may still be sending, so never POST directly after a bridge send.
-      return parseOutcome(answer?.outcome) ?? { kind: 'failed' };
+      if (!answer) return { kind: 'failed', timedOut: true };
+      return parseOutcome(answer.outcome) ?? { kind: 'failed' };
     },
     dispose() {
       disposed = true;

@@ -1,0 +1,1 @@
+import"./index-CMfga0-F.js";function e(e){return null}export{e as installQA};

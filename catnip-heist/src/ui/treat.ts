@@ -64,6 +64,9 @@ export function createTreatController(opts: TreatControllerOptions): TreatContro
   let checked = false;
   let settled = false;
   let busy = false;
+  // The last send got no answer in time: the backend may still have sent it, so a retry that is
+  // told "already went out" is this player's own treat (shown as sent, without a receipt).
+  let lastTimedOut = false;
   const subs = new Set<(s: TreatSnapshot) => void>();
   const set = (next: TreatSnapshot) => {
     snap = next;
@@ -110,6 +113,8 @@ export function createTreatController(opts: TreatControllerOptions): TreatContro
         outcome = { kind: 'failed' };
       }
       busy = false;
+      if (outcome.kind === 'already' && lastTimedOut) outcome = { kind: 'sent' };
+      lastTimedOut = outcome.kind === 'failed' && (outcome.timedOut === true || lastTimedOut);
       if (outcome.kind !== 'failed') settled = true;
       try {
         opts.onResult?.(outcome);

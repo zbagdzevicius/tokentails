@@ -119,6 +119,34 @@ describe('treat panel', () => {
     expect(m.q('treat-receipt')).toBeNull();
   });
 
+  it('a retry after a timed-out send that answers already shows the treat as sent', async () => {
+    const results: TreatOutcome[] = [];
+    const sender = fakeSender('none', [{ kind: 'failed', timedOut: true }, { kind: 'already' }]);
+    const controller = createTreatController({ sender, rail: () => RAIL, onResult: (o) => results.push(o) });
+    const panel = createTreatPanel({ controller, rail: () => RAIL, web: true });
+    document.body.append(panel.el);
+    await flush();
+    const btn = panel.el.querySelector<HTMLButtonElement>('[data-testid="give-treat"]')!;
+    btn.click();
+    await flush();
+    expect(panel.el.dataset.state).toBe('failed');
+    btn.click();
+    await flush();
+    expect(panel.el.dataset.state).toBe('sent');
+    expect(panel.el.querySelector('[data-testid="treat-receipt"]')).toBeNull();
+    expect(results.map((o) => o.kind)).toEqual(['failed', 'sent']);
+  });
+
+  it('a retry after a plain failure that answers already stays already', async () => {
+    const m = mount(fakeSender('none', [{ kind: 'failed' }, { kind: 'already' }]));
+    await flush();
+    (m.q('give-treat') as HTMLButtonElement).click();
+    await flush();
+    (m.q('give-treat') as HTMLButtonElement).click();
+    await flush();
+    expect(m.state()).toBe('already');
+  });
+
   it('without a sender: unavailable with a copy link, never a same-tab anchor', async () => {
     const copy = vi.fn(async () => {});
     const controller = createTreatController({ sender: null, rail: () => RAIL });

@@ -93,7 +93,7 @@ describe('direct sender (standalone)', () => {
       const s = createDirectTreatSender({ apiUrl: API, fetch: f as never, timeoutMs: 15000 });
       const p = s.send();
       await vi.advanceTimersByTimeAsync(15001);
-      expect(await p).toEqual({ kind: 'failed' });
+      expect(await p).toEqual({ kind: 'failed', timedOut: true });
     } finally {
       vi.useRealTimers();
     }
@@ -167,7 +167,7 @@ describe('bridge sender (embedded in /heist)', () => {
     t.fromHost({ type: 'treat-ready' });
     const p = s.send();
     await vi.advanceTimersByTimeAsync(20001);
-    expect(await p).toEqual({ kind: 'failed' });
+    expect(await p).toEqual({ kind: 'failed', timedOut: true });
     expect(t.fallback.send).not.toHaveBeenCalled();
   });
 
