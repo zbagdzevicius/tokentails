@@ -976,7 +976,8 @@ Route and logic bugs:
 - Open (Stellar portraits, 2026-10-16): `POST /web3/confirm` creates a portrait order after the client
   paid, so it has no stored server price; it is checked against the current $16 table. A $6 Stellar
   payment from a tab opened before the $16 price is refused (the hash is released) and needs a manual
-  refund. Stripe intents are not affected: they are confirmed at the price stored on them.
+  refund. Stripe intents are not affected: they are confirmed at the price stored on them, and a
+  digital portrait intent from the old backend (no stored price) is held to the old $6 price.
 - Open (crypto checkout): checkout goes live with the backend deploy that carries the checked-in
   treasury (`src/payments/crypto/treasury.public.ts`, 2026-10-14); there is no flag to hold it back.
   `CRYPTO_PAY_CAT_SHELTER_BPS` defaults to 5000 (founder, 2026-10-04; it is not the `purchase_share`

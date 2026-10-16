@@ -18,6 +18,7 @@ import {
     isPackType,
     isProductType,
     MAX_DISCOUNT_PERCENTAGE,
+    PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
 } from './price-table';
 
 export const STRIPE_API_VERSION = '2025-12-15.clover';
@@ -245,7 +246,7 @@ export class StripePaymentService {
             if (!imageId || !Types.ObjectId.isValid(imageId)) {
                 throw new BadRequestException('Generated image id is missing for portrait checkout');
             }
-            // Only used when the intent has no expectedAmount (very old intents): today's table price.
+            // Only used when the intent has no expectedAmount: today's table price.
             baseCents = getPortraitPriceCents(productType);
         } else {
             const rawPack = metadata.packType || metadata.id;
@@ -259,17 +260,23 @@ export class StripePaymentService {
 
         // Intents created by this service carry the server-computed amount (`expectedAmount`). Older intents
         // do not, so they must at least cover the table price minus the largest possible discount.
-        // A portrait intent is confirmed at the price stored on it, even if the table changed since (a $6
-        // intent made before the $16 price still verifies; a $16 one must pay $16). Only the server writes
-        // intent metadata. Packs also keep the table floor at the intent's creation (sale rules).
+        // A portrait intent is confirmed at the price stored on it, even if the table changed since (a $16
+        // one must pay $16). Only the server writes intent metadata. Packs also keep the table floor at the
+        // intent's creation (sale rules).
+        // Only the old backend made digital portrait intents without `expectedAmount`, at the retired $6
+        // price. One started before the deploy and confirmed after it has already been charged, so it is held
+        // to $6, not to the $16 table. The old backend let the client pick the amount, so $6 stays the floor.
         const expectedAmount = Number(metadata.expectedAmount);
         const hasExpected = Number.isFinite(expectedAmount) && expectedAmount > 0;
         const tableFloor = applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE);
-        const minimumCents = !hasExpected
-            ? tableFloor
-            : entityType === EntityType.IMAGE
-            ? expectedAmount
-            : Math.max(expectedAmount, tableFloor);
+        let minimumCents: number;
+        if (hasExpected) {
+            minimumCents = entityType === EntityType.IMAGE ? expectedAmount : Math.max(expectedAmount, tableFloor);
+        } else if (entityType === EntityType.IMAGE && productType === ProductType.DIGITAL) {
+            minimumCents = PORTRAIT_LEGACY_DIGITAL_USD_CENTS;
+        } else {
+            minimumCents = tableFloor;
+        }
 
         const received = intent.amount_received ?? 0;
         if (received < minimumCents || intent.amount < minimumCents) {

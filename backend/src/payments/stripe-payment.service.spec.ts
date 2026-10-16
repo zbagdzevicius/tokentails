@@ -300,14 +300,37 @@ describe('StripePaymentService', () => {
             }
         });
 
-        it('a portrait intent with no expectedAmount must cover $16 minus 20%', () => {
+        it('confirms an already-paid $6 digital portrait intent from the old backend (no expectedAmount)', () => {
             const { service } = createService();
-            expect(() => service.verifySucceededPaymentIntent(portraitIntent(1279, FAR_LATER, ''), USER_ID)).toThrow(
+            for (const created of [LONG_AGO, FAR_LATER]) {
+                expect(service.verifySucceededPaymentIntent(portraitIntent(600, created, ''), USER_ID)).toMatchObject({
+                    entityType: EntityType.IMAGE,
+                    imageId: IMAGE_ID,
+                    amountCents: 600,
+                });
+                expect(() => service.verifySucceededPaymentIntent(portraitIntent(599, created, ''), USER_ID)).toThrow(
+                    'Payment amount does not match the price'
+                );
+            }
+        });
+
+        it('a print portrait intent with no expectedAmount must still cover its table price minus 20%', () => {
+            const { service } = createService();
+            const printIntent = (amount: number) =>
+                intent(
+                    { amount, amount_received: amount, created: Math.floor(FAR_LATER.getTime() / 1000) },
+                    {
+                        entityType: EntityType.IMAGE,
+                        imageId: IMAGE_ID,
+                        id: IMAGE_ID,
+                        productType: ProductType.PRINT,
+                        expectedAmount: '',
+                    }
+                );
+            expect(() => service.verifySucceededPaymentIntent(printIntent(600), USER_ID)).toThrow(
                 'Payment amount does not match the price'
             );
-            expect(service.verifySucceededPaymentIntent(portraitIntent(1280, LONG_AGO, ''), USER_ID).amountCents).toBe(
-                1280
-            );
+            expect(service.verifySucceededPaymentIntent(printIntent(3920), USER_ID).amountCents).toBe(3920);
         });
 
         it('ignores any PORTRAIT_USD_PRICE_CHANGED_AT left in the env', () => {

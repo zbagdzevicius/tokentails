@@ -24,10 +24,11 @@ export const PORTRAIT_PRICES_CENTS: Readonly<Record<ProductType, number>> = {
 };
 
 /**
- * The retired $6 USD digital price. Never charged. The order audit accepts it as a historical price, so
- * digital portraits bought before the $16 price have no finding. A Stripe PaymentIntent is always
- * verified against the amount the server stored on it (`expectedAmount`), so a $6 intent made by the old
- * backend still verifies; there is no date switch.
+ * The retired $6 USD digital price. New intents are never created at it. The order audit accepts it as a
+ * historical price, so digital portraits bought before the $16 price have no finding. A Stripe
+ * PaymentIntent is verified against the amount the server stored on it (`expectedAmount`). The old backend
+ * stored none, so a digital portrait intent without `expectedAmount` is held to this $6 floor: a payment
+ * started before the deploy and confirmed after it still verifies. There is no date switch.
  */
 export const PORTRAIT_LEGACY_DIGITAL_USD_CENTS = 600;
 
