@@ -55,6 +55,11 @@ export { PACK_GRANT_FAILED_MESSAGE };
 /** create-payment for a portrait from a tab that shows a lower price than the server charges. */
 export const PORTRAIT_PRICE_CHANGED_MESSAGE = 'The price changed. Reload the page to see the new price.';
 
+/** A Stellar portrait paid at the retired $6 price: recorded for a refund, nothing granted (409). */
+export const PORTRAIT_PRICE_CHANGED = 'PORTRAIT_PRICE_CHANGED';
+export const PORTRAIT_PRICE_CHANGED_REFUND_MESSAGE =
+    'The portrait price changed before this payment. Your payment is recorded and will be refunded to the sending account. Reload the page to see the new price.';
+
 export const STELLAR_PACKS_DEPRECATED = 'STELLAR_PACKS_DEPRECATED';
 export const STELLAR_PACKS_DEPRECATED_MESSAGE =
     'Packs are no longer sold through Stellar. Your payment is recorded and will be refunded to the sending account. Pay with USDC or EURC in the crypto checkout, or by card.';
@@ -231,6 +236,20 @@ export class Web3Controller {
                     refund: refund || 'due',
                 });
             }
+        }
+        // A portrait paid at the retired $6 price from an old tab: recorded for a refund, never lost.
+        if (verified.priceChanged) {
+            const orderRef = { _id: order._id, chainType, hash };
+            await this.grants.markGrantFailed(order._id, 'PRICE_CHANGED', `paid ${priceUsd} USD`);
+            const refund = await this.grants.refundOrder(orderRef, user, 'PRICE_CHANGED', priceUsd, {
+                takeBackSpend: false,
+            });
+            throw new ConflictException({
+                statusCode: 409,
+                code: PORTRAIT_PRICE_CHANGED,
+                message: PORTRAIT_PRICE_CHANGED_REFUND_MESSAGE,
+                refund: refund || 'due',
+            });
         }
         await this.userRepository.update(user!, { $inc: spendIncrement(priceUsd) });
 
