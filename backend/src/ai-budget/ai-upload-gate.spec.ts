@@ -27,7 +27,6 @@ function setup(envOverrides: Record<string, string | undefined> = {}) {
     };
     const env = {
         NODE_ENV: 'production',
-        CF_ORIGIN_SECRET: 'origin',
         AI_UPLOAD_IP_SALT: 'salt',
         ...envOverrides,
     } as NodeJS.ProcessEnv;
@@ -44,7 +43,6 @@ const req = (appCheck?: string, headers: Record<string, string> = {}) => ({
     ips: [],
     headers: {
         'cf-connecting-ip': VISITOR,
-        'x-tt-origin-auth': 'origin',
         ...(appCheck ? { 'x-firebase-appcheck': appCheck } : {}),
         ...headers,
     },
@@ -91,58 +89,26 @@ describe('AiUploadGate', () => {
         );
     });
 
-    it('an untrusted IP in production refuses yourcat; previews share one untrusted bucket', async () => {
-        const { gate, env } = setup({ AI_PREVIEW_UNTRUSTED_DAILY: '2', AI_PREVIEW_USER_DAILY: '50' });
-        const forged = req('token', { 'x-tt-origin-auth': 'wrong' });
-        expect(await refusal(gate.admit(forged, USER, 'yourcat', env))).toEqual({
+    it('production with no origin secret or proxy env: each cf-connecting-ip has its own per-IP slot', async () => {
+        const { gate, env } = setup({ AI_PREVIEW_IP_DAILY: '1', AI_PREVIEW_USER_DAILY: '50' });
+        const from = (token: string, ip: string) => req(token, { 'cf-connecting-ip': ip });
+        // yourcat is admitted (no YOURCAT_NO_CLIENT_IP for a usable header).
+        await expect(gate.admit(from('y1', '198.51.100.1'), USER, 'yourcat', env)).resolves.toMatchObject({
+            kind: 'yourcat',
+        });
+        await gate.admit(from('t1', '198.51.100.1'), USER, 'portrait-preview', env);
+        await gate.admit(from('t2', '198.51.100.2'), USER, 'portrait-preview', env);
+        expect((await refusal(gate.admit(from('t3', '198.51.100.1'), USER, 'portrait-preview', env))).code).toBe(
+            'YOURCAT_IP_DAILY_CAP'
+        );
+    });
+
+    it('production with no usable address at all refuses with YOURCAT_NO_CLIENT_IP', async () => {
+        const { gate, env } = setup();
+        expect(await refusal(gate.admit({ ip: '10.0.0.4', ips: [], headers: {} }, USER, 'yourcat', env))).toEqual({
             status: 503,
             code: 'YOURCAT_NO_CLIENT_IP',
         });
-        // A new forged cf-connecting-ip per request no longer opens a new slot.
-        const untrusted = (token: string, ip: string) =>
-            req(token, { 'x-tt-origin-auth': 'wrong', 'cf-connecting-ip': ip });
-        await gate.admit(untrusted('t1', '198.51.100.1'), USER, 'portrait-preview', env);
-        await gate.admit(untrusted('t2', '198.51.100.2'), USER, 'portrait-preview', env);
-        expect((await refusal(gate.admit(untrusted('t3', '198.51.100.3'), USER, 'portrait-preview', env))).code).toBe(
-            'YOURCAT_IP_DAILY_CAP'
-        );
-        // A proven visitor keeps its own per-IP slot.
-        await gate.admit(req('t4'), USER, 'portrait-preview', env);
-    });
-
-    it('the shared untrusted bucket defaults to 5 previews a day', async () => {
-        const { gate, env } = setup({ AI_PREVIEW_USER_DAILY: '50', AI_BUDGET_PREVIEW_EUR_PER_DAY: '5' });
-        for (let index = 0; index < 5; index++) {
-            await gate.admit(
-                req(`t${index}`, { 'x-tt-origin-auth': 'wrong', 'cf-connecting-ip': `198.51.100.${index + 1}` }),
-                USER,
-                'portrait-preview',
-                env
-            );
-        }
-        expect(
-            (
-                await refusal(
-                    gate.admit(
-                        req('t9', { 'x-tt-origin-auth': 'wrong', 'cf-connecting-ip': '198.51.100.99' }),
-                        USER,
-                        'portrait-preview',
-                        env
-                    )
-                )
-            ).code
-        ).toBe('YOURCAT_IP_DAILY_CAP');
-    });
-
-    it('outside production an unproven preview address keeps its own key', async () => {
-        const { gate, env } = setup({ NODE_ENV: 'development', AI_PREVIEW_IP_DAILY_UNVERIFIED: '1' });
-        await gate.admit(req(undefined, { 'x-tt-origin-auth': 'wrong' }), USER, 'portrait-preview', env);
-        await gate.admit(
-            req(undefined, { 'x-tt-origin-auth': 'wrong', 'cf-connecting-ip': '198.51.100.5' }),
-            USER,
-            'portrait-preview',
-            env
-        );
     });
 
     it('applies the per-user cap across addresses', async () => {

@@ -29,7 +29,6 @@ function setup(envOverrides: Record<string, string | undefined> = {}) {
     };
     const env = {
         NODE_ENV: 'production',
-        CF_ORIGIN_SECRET: 'origin',
         AI_UPLOAD_IP_SALT: 'salt',
         ...envOverrides,
     } as NodeJS.ProcessEnv;
@@ -47,7 +46,6 @@ const req = (appCheck?: string, headers: Record<string, string> = {}) => ({
     ips: [],
     headers: {
         'cf-connecting-ip': '203.0.113.7',
-        'x-tt-origin-auth': 'origin',
         ...(appCheck ? { 'x-firebase-appcheck': appCheck } : {}),
         ...headers,
     },
@@ -73,9 +71,9 @@ describe('AiUploadGate refusal counters (YC-L8)', () => {
         }
     });
 
-    it('counts a missing or unprovable client IP and a missing salt as refusedNoClientIp', async () => {
+    it('counts a missing client IP and a missing salt as refusedNoClientIp', async () => {
         const { gate, env, counts } = setup();
-        await fails(gate.admit(req('a', { 'x-tt-origin-auth': 'wrong' }), USER, 'yourcat', env));
+        await fails(gate.admit({ ip: '10.0.0.4', headers: {}, ips: [] }, USER, 'yourcat', env));
         await fails(gate.admit({ headers: {}, ips: [] }, USER, 'portrait-preview', env));
         const noSalt = setup({ AI_UPLOAD_IP_SALT: undefined, INVALIDATE_CACHE_SECRET: undefined });
         await fails(noSalt.gate.admit(req('a'), USER, 'yourcat', noSalt.env));

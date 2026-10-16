@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, HttpException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException } from '@nestjs/common';
 import { AppValidationPipe } from '../dto/live-game.dto';
 import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { ThrottlerException, ThrottlerStorageService } from '@nestjs/throttler';
@@ -19,7 +19,6 @@ import {
     HeistReplayIpThrottleGuard,
     wantsReplay,
 } from './heist-ip-throttle.guard';
-import { warnIfProxyUntrusted } from './proxy-warning';
 import { replayDigest, saveHeistRun } from './heist-live';
 import { heistReplayQueue, ReplayQueue, ReplayQueueFullException } from './replay-queue';
 
@@ -469,8 +468,8 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
                 expect(res.header).toHaveBeenCalledWith('Retry-After', '1');
             });
 
-            it('keys a shared (private, loopback) address per player, so an untrusted proxy is not one bucket', async () => {
-                // TRUST_PROXY unset behind a load balancer: every request comes from the balancer.
+            it('keys a shared (private, loopback) address per player, so a proxy hop is not one bucket', async () => {
+                // A request that carries only the balancer's address cannot identify a player.
                 expect(heistReplayBucket({ ip: '10.0.0.7', ips: [], user: { _id: 'a' } })).toBe(
                     'heist-replay-ip:10.0.0.7:a'
                 );
@@ -499,34 +498,28 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
                 await expect(guard.canActivate(context(balancer('p2')))).resolves.toBe(true);
             });
 
-            it('logs an error at startup when production runs without TRUST_PROXY', () => {
-                const logger = { error: jest.fn() } as any;
-                expect(warnIfProxyUntrusted({ NODE_ENV: 'production' } as any, logger)).toBe(true);
-                expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('TRUST_PROXY'));
-                expect(warnIfProxyUntrusted({ NODE_ENV: 'production', TRUST_PROXY: '1' } as any, logger)).toBe(false);
-                expect(warnIfProxyUntrusted({ NODE_ENV: 'development' } as any, logger)).toBe(false);
-                expect(logger.error).toHaveBeenCalledTimes(1);
-            });
-
-            it('refuses replays with 503 in production without TRUST_PROXY, before counting or simulating', async () => {
+            it('counts replays in production with no TRUST_PROXY instead of refusing them (no 503)', async () => {
                 const storage = { increment: jest.fn(async () => ({ totalHits: 1, timeToExpire: 60 })) } as any;
                 const guard = new HeistReplayIpThrottleGuard(storage);
                 guard.env = { NODE_ENV: 'production' } as any;
+                // Behind Cloudflare: keyed on the visitor's address header.
+                const visitor = {
+                    ip: '10.0.0.7',
+                    ips: [],
+                    headers: { 'cf-connecting-ip': '203.0.113.5' },
+                    body: heistBody({}),
+                    user: { _id: 'p1' },
+                };
+                await expect(guard.canActivate(context(visitor))).resolves.toBe(true);
+                expect(storage.increment).toHaveBeenLastCalledWith('heist-replay-ip:203.0.113.5', 60000);
+                // No usable address at all: keyed per player, still counted.
                 const balancer = { ip: '10.0.0.7', ips: [], body: heistBody({}), user: { _id: 'p1' } };
-                await expect(guard.canActivate(context(balancer))).rejects.toBeInstanceOf(ServiceUnavailableException);
-                await expect(
-                    guard.canActivate(context({ ...balancer, body: { type: 'MATCH_3', replay: null } }))
-                ).rejects.toBeInstanceOf(ServiceUnavailableException);
-                expect(storage.increment).not.toHaveBeenCalled();
+                await expect(guard.canActivate(context(balancer))).resolves.toBe(true);
+                expect(storage.increment).toHaveBeenLastCalledWith('heist-replay-ip:10.0.0.7:p1', 60000);
                 // Plain score saves are untouched.
                 await expect(guard.canActivate(context({ ...balancer, body: { type: 'MATCH_3' } }))).resolves.toBe(
                     true
                 );
-                // With TRUST_PROXY set (or outside production) replays are counted as before.
-                guard.env = { NODE_ENV: 'production', TRUST_PROXY: '1' } as any;
-                await expect(guard.canActivate(context(balancer))).resolves.toBe(true);
-                guard.env = { NODE_ENV: 'development' } as any;
-                await expect(guard.canActivate(context(balancer))).resolves.toBe(true);
                 expect(storage.increment).toHaveBeenCalledTimes(2);
             });
 

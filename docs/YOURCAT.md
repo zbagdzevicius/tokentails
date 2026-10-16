@@ -214,7 +214,7 @@ is at or below 30 s. The reliable counts are the server's daily counters (`GET /
 The client reads one new variable, `NEXT_PUBLIC_YOURCAT_ENTRY` (default off): `1`, `true` or `on`
 shows the way in from the landing and the onboarding ceremony (`YourcatEntryLink`), and only while
 `GET /yourcat/status` says the feature is on and uploads are open. It is inlined at build time, so a
-change needs a client redeploy (launch checklist step 6). The App Check site key (`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`)
+change needs a client redeploy (launch checklist step 5). The App Check site key (`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`)
 and every server switch (`YOURCAT_ENABLED`, `YOURCAT_PORTRAIT_ENABLED`, the AI budget and caps) are
 listed in [BACKEND.md](BACKEND.md) and [CLIENT.md](CLIENT.md).
 
@@ -239,27 +239,20 @@ The backend switches and their defaults are in [BACKEND.md](BACKEND.md) ("Produc
 flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2.md) §10.
 
 0. [ ] **Before d83685b1 (v2) is pushed to `main`.** Owner: You.
-   - Set `PORTRAIT_USD_PRICE_CHANGED_AT` to the deploy day, `YYYY-MM-DDT00:00:00Z`, on the backend
-     before the new code starts. The code floor is `2026-10-12T00:00:00Z`; a later deploy without it
-     ends the 48 h grace too early and refuses $6 payments the old backend created.
    - Decide the `/portrait` preview caps, which apply on merge even with every `/yourcat` flag off:
-     `AI_PREVIEW_IP_DAILY_UNVERIFIED` (default 1 a day per address until App Check is on),
-     `AI_PREVIEW_UNTRUSTED_DAILY` (default 5 a day site-wide for unproven addresses) and
+     `AI_PREVIEW_IP_DAILY_UNVERIFIED` (default 1 a day per address until App Check is on) and
      `AI_BUDGET_PREVIEW_EUR_PER_DAY` (default €3).
-   - Do step 1 (`CF_ORIGIN_SECRET` and the Transform Rule) before the merge, not after: without it every
-     visitor shares one untrusted bucket and the live `/portrait` free preview stops at 5 a day site-wide.
-     If step 1 cannot be done first, raise `AI_PREVIEW_UNTRUSTED_DAILY` for that window.
-   - Verify: the backend env shows all three decisions (or a written "defaults"), the date and the secret.
+   - Nothing to set for portrait prices or the client address: the $16 USD portrait price is simply on
+     (a Stripe intent is confirmed at the price stored on it), and the backend trusts our own proxy
+     hops by default (`src/shared/trust-proxy.ts`), with no `TRUST_PROXY`, origin secret or Cloudflare
+     Transform Rule. Spoofing `cf-connecting-ip` through the origin is an accepted risk (BACKEND.md,
+     "Known issues").
+   - Verify: the backend env shows both decisions (or a written "defaults"). After the deploy the log
+     has one `first request: req.ip is ...` line: `a public address` is right; `a private hop` or
+     `a Cloudflare edge` without `cf-connecting-ip` means the default missed a hop.
    - S6 "failed" copy promises the portrait or a full refund within 2 working days: whoever watches the
      `portraitsFailed` alert repaints by hand (`backend/scripts/memorial-portrait.js`) or refunds in Stripe.
-1. [ ] **Provable client address: `CF_ORIGIN_SECRET` plus the Cloudflare Transform Rule.** Owner: You.
-   Generate a long random secret, set it as `CF_ORIGIN_SECRET` on the backend, and add a Cloudflare
-   Transform Rule (Modify Request Header) on the API hostname that sets `x-tt-origin-auth` to the same
-   value on every request. Prefer this to `TRUST_PROXY` during the hackathon: `TRUST_PROXY` also
-   changes how the guest treat route keys `/heist` visitors, which would change live treat limits
-   mid-judging. Verify: after a deploy, `POST /yourcat` from a browser no longer answers 503
-   `YOURCAT_NO_CLIENT_IP`, and `/yourcat/stats` shows `refusedNoClientIp` stop growing.
-2. [ ] **App Check on.** Owner: You.
+1. [ ] **App Check on.** Owner: You.
    - Google Cloud console, Security, reCAPTCHA: create a reCAPTCHA Enterprise key (website, score
      based) with the domains `tokentails.com` and `www.tokentails.com`.
    - Firebase console, App Check, Apps: register the web app with the reCAPTCHA Enterprise provider
@@ -270,20 +263,20 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
      consumes each limited-use token, which is the replay protection.
    - Verify: on tokentails.com the `POST /yourcat` request carries `x-firebase-appcheck`; the same
      request replayed with curl answers 401 `YOURCAT_APP_CHECK_INVALID`.
-3. [ ] **Billed Gemini key.** Owner: You. The production `GOOGLE_AI_API_KEY` must belong to a Google
+2. [ ] **Billed Gemini key.** Owner: You. The production `GOOGLE_AI_API_KEY` must belong to a Google
    Cloud project with billing on, so the privacy notice's "Neither uses it to train its models" is true.
    Verify: in Google AI Studio, API keys, the key's project shows a paid tier (not "Free"); in the Cloud
    console, Billing, the project is linked to an active billing account.
-4. [ ] **Controller named.** Owner: You (legal name and address), AI (the edit). Fill `CONTROLLER` in
+3. [ ] **Controller named.** Owner: You (legal name and address), AI (the edit). Fill `CONTROLLER` in
    `client/components/yourcat/copy.ts` with the operator's legal name and address and bump
    `PRIVACY_NOTICE_VERSION` (any change to the notice text needs a new version). Verify: the S1-P panel
    on production shows no `{Controller}`, and `npx jest yourcat-copy` passes in `client/`.
-5. [ ] **Secrets and alerts.** Owner: You. Set `AI_UPLOAD_IP_SALT` (or keep `INVALIDATE_CACHE_SECRET`
+4. [ ] **Secrets and alerts.** Owner: You. Set `AI_UPLOAD_IP_SALT` (or keep `INVALIDATE_CACHE_SECRET`
    set), `AI_ALERT_EMAIL_TO`, `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` (a verified sender in
    SendGrid). Without SendGrid, paid portraits are painted but not emailed and alerts are only logged.
    Verify: the variables are set on every backend instance, and the backend log shows no
    `alert not sent (AI_ALERT_EMAIL_TO or SENDGRID_API_KEY unset)` line after the first alert.
-6. [ ] **Free path on.** Owner: You. `YOURCAT_ENABLED=true`, then one upload on production with a photo
+5. [ ] **Free path on.** Owner: You. `YOURCAT_ENABLED=true`, then one upload on production with a photo
    of your own cat: the reveal plays, the pixel portrait arrives, the cat is in the lobby, "Delete my
    photo" works. Then remove `'/yourcat'` from `exclude` in `client/next-sitemap.config.js` (it is
    kept out of the sitemap while paused) and deploy the client. Verify:
@@ -293,7 +286,7 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
      value is inlined at build time, so setting it without a redeploy changes nothing. Verify: the
      landing hero and the onboarding ceremony show "Turn your cat's photo into your game cat", linking
      to `/yourcat`; with `YOURCAT_ENABLED` off or the budget spent the link disappears again.
-7. [ ] **HD portrait upsell on.** Owner: You.
+6. [ ] **HD portrait upsell on.** Owner: You.
    - Add a portrait section to the terms of service (digital, made to order, the withdrawal
      acknowledgement, one redo by support) and put the terms URL in the Stripe live-mode settings
      (Settings, Public details), which `consent_collection.terms_of_service` requires.
@@ -304,7 +297,7 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
    - Buy one HD portrait by card on production and receive it by email.
    - Verify: the order is `COMPLETE`, `/yourcat/stats` counts `yourcatPortraitsPaid` and
      `portraitsDelivered`, and the email arrived.
-8. [ ] **Daily check, from launch day.** Owner: You (or an AI digest). Open the cms `/yourcat` page
+7. [ ] **Daily check, from launch day.** Owner: You (or an AI digest). Open the cms `/yourcat` page
    (admins only), or call the route with an admin Firebase ID token:
    `curl -H "accesstoken: fb<ID token>" "https://<backend>/yourcat/stats?days=14"`. Look at spend
    against the cap, `yourcatFailed`, the refusal counters (`refusedNoClientIp`, `refusedAppCheck`,

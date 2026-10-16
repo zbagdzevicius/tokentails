@@ -27,7 +27,7 @@ export const MAX_LIVE_GAME_TIME = 24 * 60 * 60;
 
 /**
  * Per-IP limit on level-end saves. Loose, because players behind carrier NAT, a school or an office,
- * or behind the load balancer when TRUST_PROXY is unset, share one address.
+ * share one address.
  * Shared by the route decorator and its spec.
  */
 export const LIVE_GAME_THROTTLE = { limit: 120, ttl: 60000 };

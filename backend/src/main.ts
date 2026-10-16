@@ -7,7 +7,6 @@ import { loadDevShelterKey } from './shelter/onchain/shelter-dev-key';
 import { applyTrustProxy } from './shared/trust-proxy';
 import { AppValidationPipe } from './user/dto/live-game.dto';
 import { applyBodyParsers } from './user/heist/live-body-limit';
-import { warnIfProxyUntrusted } from './user/heist/proxy-warning';
 dotenv.config();
 
 function initializeCors(app: INestApplication): void {
@@ -51,7 +50,6 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, { rawBody: true });
     initializeCors(app);
     applyTrustProxy(app);
-    warnIfProxyUntrusted();
 
     // Raw body for the Stripe webhook, a 64 KB limit for POST /user/catbassadors/live (plan F6), then
     // the global 50 MB JSON parser (a known issue, unchanged), in that order.

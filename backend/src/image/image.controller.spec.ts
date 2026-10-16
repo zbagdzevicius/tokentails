@@ -194,7 +194,7 @@ describe('ImageController guards', () => {
     it('portrait create and regenerate: auth, then the per-user and per-client-IP throttlers (bet #3)', () => {
         for (const handler of ['createPortrait', 'regeneratePortrait']) {
             expect(guardsOf(handler)).toEqual([AppAuthGuard, UserThrottlerGuard, ClientIpThrottlerGuard]);
-            // The global throttler is site-wide while TRUST_PROXY is unset: skipped here.
+            // The global throttler is skipped here; the per-client-IP throttler applies instead.
             expect(Reflect.getMetadata('THROTTLER:SKIPdefault', proto[handler])).toBe(true);
             expect(Reflect.getMetadata('tt:user-throttle', proto[handler])).toEqual({ limit: 5, ttl: 60000 });
             expect(Reflect.getMetadata('tt:client-ip-throttle', proto[handler])).toEqual({ limit: 10, ttl: 60000 });

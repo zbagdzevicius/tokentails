@@ -167,7 +167,6 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | 413 | none | Body over 64 KB |
 | 415 | none | Not `application/json` |
 | 429 | none, `Retry-After` header | Per-IP replay bucket (30 a minute), per-player limit, or a full replay queue |
-| 503 | none | Production without `TRUST_PROXY`: replays are refused (plain saves pass) |
 
 ## Cats
 
@@ -268,7 +267,7 @@ budget is per chain.
 | 200 | `{ txHash, chainId, amountWei, explorerUrl, coin? }` | Broadcast; `explorerUrl` is the chain's explorer (`https://explorer.arc.io/tx/<hash>` on Arc mainnet, `https://explorer.testnet.arc.io/tx/<hash>` on Arc testnet, basescan, arbiscan, the Avalanche, Tempo and Robinhood explorers, MonadVision on Monad). `amountWei` is 18 decimals on every chain; `coin` is set on a token treat. The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED on its own chain |
 | 400 | Validation error | `source` is not `heist` or `page`, `chainId` is not a positive whole number, or the body has other keys |
 | 403 | `{code: GUEST_FORBIDDEN}` | A guest token on `POST /shelter/donate` (guests send through `POST /shelter/donate/guest`). `EMAIL_UNVERIFIED` and `DONATE_NOT_ELIGIBLE` are no longer sent by this route (Oct 8, 2026) |
-| 503 | `{statusCode, message}` | `POST /shelter/donate/guest` only: production finds no public visitor address (no `cf-connecting-ip` and `TRUST_PROXY` unset, or a private address) |
+| 503 | `{statusCode, message}` | `POST /shelter/donate/guest` only: production finds no public visitor address (no usable `cf-connecting-ip` and no public Express address) |
 | 429 | `{code: DONATE_ALREADY_TODAY}` | This user (or, on the guest route, this address) already has a treat for the current UTC day (or the per-user or per-IP limit) |
 | 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | Treats are switched off (emergency off), the split address or hot wallet key is missing, the picked chain fails its health check (no token or gas on the hot wallet, split paused, RPC down), that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
 | 424 | `{statusCode, code: DONATE_SEND_FAILED, message}` | The broadcast failed; the user may retry later |
@@ -541,7 +540,7 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 One photo becomes the visitor's playable cat; see docs/plans/yourcat-v2.md. Shapes are in
 `backend/src/yourcat/yourcat.contracts.ts` (client copy `client/models/yourcat.ts`); errors are
 `{ statusCode, code, message }` with the `YOURCAT_*` codes. Every route skips the global throttler and
-has a per-user and a per-client-IP limit (per minute, in memory, per replica) instead; in production every client address that is not proven (no origin secret, no trusted proxy) shares one per-route bucket with 10 times the limit. `GET /yourcat/status` and `GET /yourcat/public/:shareId` take their per-IP limit in the handler, and the checkout's daily limit is counted in the handler too, after `AppAuthGuard`. Guest routes need
+has a per-user and a per-client-IP limit (per minute, in memory, per replica) instead; keyed on the client address (`cf-connecting-ip` when usable, else the Express address). `GET /yourcat/status` and `GET /yourcat/public/:shareId` take their per-IP limit in the handler, and the checkout's daily limit is counted in the handler too, after `AppAuthGuard`. Guest routes need
 the guest session (428 `GUEST_SESSION_REQUIRED` otherwise), except `GET /yourcat/me`.
 
 | Method | Path | Purpose | Auth |

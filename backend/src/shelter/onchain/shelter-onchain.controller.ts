@@ -34,7 +34,6 @@ import { ImpactEligibilityService } from 'src/impact/eligibility.service';
 import { EligibilityResult } from 'src/impact/eligibility';
 import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
 import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
-import { isProxyUntrusted } from 'src/user/heist/proxy-warning';
 import { DonateMe, DonateResult, DonateStatus, ShelterDonateService } from './shelter-donate.service';
 import { DONATION_SOURCES, DonationSource } from './shelter-onchain.schema';
 import { CatCard, encodePaymentResponses, PaymentRequiredException, ShelterX402Service } from './shelter-x402.service';
@@ -134,9 +133,8 @@ export const SHELTER_X402_THROTTLE = { limit: 30, ttl: 60000 };
 export const SHELTER_RELAY_THROTTLE = { limit: 10, ttl: 60000 };
 export const SHELTER_CLAIM_THROTTLE = { limit: 5, ttl: 60000 };
 /**
- * POST /shelter/donate/guest (no account). The throttler keys on the Express address, which without
- * TRUST_PROXY is the balancer's and shared by every visitor, so this is loose; the once-a-day rule
- * (per hashed visitor address) and the per-chain daily budget are the real bounds.
+ * POST /shelter/donate/guest (no account). Loose on purpose: the once-a-day rule (per hashed visitor
+ * address) and the per-chain daily budget are the real bounds.
  */
 export const SHELTER_DONATE_GUEST_THROTTLE = { limit: 30, ttl: 60000 };
 /** Per-user limit on POST /shelter/donate (plan G5 P4): one gift a day needs only a few tries. */
@@ -247,8 +245,8 @@ export class ShelterOnchainController {
     /**
      * A treat with no sign-in at all (Oct 8, 2026): no accesstoken needed. Once a UTC day per client
      * address (a daily salted hash, never the raw address), plus the per-chain daily budget and a
-     * tight per-IP throttle. In production without TRUST_PROXY every caller shares the balancer's
-     * address, so the route refuses rather than let one visitor use up everyone's treat.
+     * tight per-IP throttle. In production a request with no public address is refused rather than
+     * let one visitor use up a shared key.
      */
     @Throttle({ default: SHELTER_DONATE_GUEST_THROTTLE })
     @HttpCode(200)
@@ -321,8 +319,9 @@ export class ShelterOnchainController {
 /**
  * The client address a guest treat is keyed on. Production sits behind Cloudflare, which sends the
  * visitor's address in `cf-connecting-ip`; that header wins when it holds a public address. Otherwise
- * the Express address (`req.ips[0]` under TRUST_PROXY). A spoofed header (a request sent straight to
- * the origin) only buys extra treats, which the per-chain daily budget still caps. Refused with 503 in
+ * the Express address (resolved past our own hops by the default `trust proxy`, shared/trust-proxy.ts).
+ * A spoofed header (a request sent straight to the origin) only buys extra treats, which the per-chain
+ * daily budget still caps (accepted risk, docs/BACKEND.md "Known issues"). Refused with 503 in
  * production when no public address is found, so one visitor cannot spend a shared key for everyone.
  */
 export function guestTreatIp(req: any, env: NodeJS.ProcessEnv = process.env): string {
@@ -332,7 +331,7 @@ export function guestTreatIp(req: any, env: NodeJS.ProcessEnv = process.env): st
         return cf;
     }
     const ip = requestIp(req);
-    if (env.NODE_ENV === 'production' && (!isUsableClientIp(ip) || (isProxyUntrusted(env) && !cf))) {
+    if (env.NODE_ENV === 'production' && !isUsableClientIp(ip)) {
         throw new HttpException(
             {
                 statusCode: HttpStatus.SERVICE_UNAVAILABLE,

@@ -145,13 +145,14 @@ describe('ShelterOnchainController', () => {
         expect(donateService.meGuest).toHaveBeenCalledWith('203.0.113.7');
     });
 
-    it('guestTreatIp refuses in production when clients cannot be told apart', () => {
-        const prod = { NODE_ENV: 'production', TRUST_PROXY: '1' } as any;
+    it('guestTreatIp refuses in production only when no public address is found (no proxy env needed)', () => {
+        const prod = { NODE_ENV: 'production' } as any;
         expect(guestTreatIp({ ips: ['203.0.113.7'], ip: '10.0.0.1' }, prod)).toBe('203.0.113.7');
         expect(() => guestTreatIp({ ip: '10.0.0.1' }, prod)).toThrow(/Sign in/);
-        expect(() => guestTreatIp({ ip: '203.0.113.7' }, { NODE_ENV: 'production' } as any)).toThrow(/Sign in/);
+        // No TRUST_PROXY and no header: a public Express address is used, not refused.
+        expect(guestTreatIp({ ip: '203.0.113.7' }, prod)).toBe('203.0.113.7');
         expect(guestTreatIp({ ip: '127.0.0.1' }, { NODE_ENV: 'development' } as any)).toBe('127.0.0.1');
-        // Behind Cloudflare: the visitor's address header wins, with or without TRUST_PROXY.
+        // Behind Cloudflare: the visitor's address header wins.
         const cf = { headers: { 'cf-connecting-ip': '198.51.100.9' }, ip: '10.0.0.1' };
         expect(guestTreatIp(cf, { NODE_ENV: 'production' } as any)).toBe('198.51.100.9');
         // A private value in the header is ignored.

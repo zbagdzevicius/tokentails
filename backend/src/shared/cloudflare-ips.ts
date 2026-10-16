@@ -2,9 +2,10 @@ import { BlockList, isIP } from 'net';
 
 /**
  * Cloudflare's published edge ranges, copied from https://www.cloudflare.com/ips-v4 and
- * https://www.cloudflare.com/ips-v6 on 2026-10-11. Used only to decide whether `cf-connecting-ip` can
- * be believed when TRUST_PROXY is set (shared/client-ip.ts). Re-copy them when Cloudflare announces a
- * change; a missing range only makes those visitors "untrusted", it never trusts a forger.
+ * https://www.cloudflare.com/ips-v6 on 2026-10-11. They feed the default `trust proxy` setting
+ * (shared/trust-proxy.ts: a Cloudflare edge hop is skipped when finding the visitor) and keep an edge
+ * address from ever being used as a visitor (shared/client-ip.ts). Re-copy them when Cloudflare
+ * announces a change; a missing range makes those visitors share their edge's address.
  */
 export const CLOUDFLARE_IPS_COPIED_AT = '2026-10-11';
 

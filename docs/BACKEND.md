@@ -60,7 +60,7 @@ with `npx tsc -p tsconfig.build.json --outDir <scratch dir>` instead.
 - Creates the app with `rawBody: true`.
 - `applyBodyParsers` (`src/user/heist/live-body-limit.ts`) mounts, in order: `express.raw()` on `/image/webhook` so Stripe signature verification can read the untouched body; a 64 KB JSON parser on `/user/catbassadors/live` (a non-JSON body there is 415 before any parser, an oversized one a JSON 413); then `express.json({ limit: '50mb' })` for everything else (known issue).
 - Registers a global `AppValidationPipe({ transform: true })` (`src/user/dto/live-game.dto.ts`): the old `ValidationPipe` except that it leaves `LiveGameDto` to its route pipe, so a bad Heist log gets its coded 400 instead of a code-less one. There is no global `whitelist`: most `@Body()` types are undecorated Mongoose schema classes that it would strip to `{}`, and interface or inline body types are never validated. Routes with a decorated DTO add a strict route-level pipe (`profileWritePipe` on the profile write routes, `liveGamePipe` on `POST /user/catbassadors/live`, `ShelterWriteDto` on the shelter writes). Everywhere else unknown body fields still pass through, so search handlers pass `pickSearchParams(params)` (`src/common/validators.ts`: `page`, `perPage`, `sort` only) to `BaseRepository.find`, never the raw body.
-- Sets Express `trust proxy` from `TRUST_PROXY` when it is set (`src/shared/trust-proxy.ts`), so the throttler sees client IPs behind a proxy. With `NODE_ENV=production` and `TRUST_PROXY` unset it logs an error at startup (`warnIfProxyUntrusted`), and every Heist replay is refused with 503 until it is set.
+- Sets Express `trust proxy` (`src/shared/trust-proxy.ts`). By default it trusts our own hops only: loopback, private, link-local, carrier-grade NAT (100.64.0.0/10) and Cloudflare's edge ranges, so `req.ip` is the first address from the right that is not ours (the visitor) with no env. `TRUST_PROXY` is an optional override (any Express value; `0` or `false` turns trust off). It logs once what the first request resolved to (the kind of address, never the address).
 - Enables CORS with credentials for `localhost` variants, `capacitor://localhost`, the production domains, and any origins listed in `FRONT_END_URLS`. If that variable is unset the origin list falls back to `*`.
 - Listens on `PORT`, defaulting to 3005.
 
@@ -329,7 +329,8 @@ the match are off by default.
   instant-treat policy is open). Anyone else calls `POST /shelter/donate/guest`, keyed by a pseudo id:
   the first 12 bytes of HMAC-SHA256(`SHELTER_TREAT_IP_SALT`, `day|visitor address`) (`treat-guest-key.ts`;
   the raw address is never stored, the id changes daily). The visitor address is Cloudflare's
-  `cf-connecting-ip` when it is public, else the Express address (`TRUST_PROXY`). Production refuses
+  `cf-connecting-ip` when it is public, else the Express address (resolved past our own hops by the
+  default `trust proxy`). Production refuses
   guest treats with 503 when neither gives a public address, so one visitor cannot use a shared key. It inserts a
   `shelterdonations` row (unique `user` + UTC `day`, so a second gift is 429 `DONATE_ALREADY_TODAY`;
   a FAILED row of the same day is reused and the attempt kept in `attempts`), claims a slot in
@@ -753,12 +754,10 @@ One photo becomes the visitor's playable cat (docs/plans/yourcat-v2.md; routes i
   (`deliveryEmailAt`, set only when SendGrid accepts it): a painted portrait whose email failed is not
   repainted, only the email is retried, up to 5 sends, with an alert on the first failure and the last.
 - `AiUploadGate` (used by `POST /yourcat`, `POST /image/portrait` and regenerate): client IP
-  (`src/shared/client-ip.ts`: `cf-connecting-ip` is trusted only with the `x-tt-origin-auth` origin secret
-  or, under `TRUST_PROXY`, from a Cloudflare edge address), App Check with a consumed limited-use token,
-  a per-IP daily quota keyed on an HMAC of the day and address (in production a preview from an address
-  that is not proven shares one `untrusted` bucket, `AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day, so a
-  forged `cf-connecting-ip` no longer opens a new slot per request; `yourcat` refuses such an address), a
-  per-IP failure cap that is never refunded, a per-user daily quota, and a reservation on the global daily budget (`aibudgetdays`, €5 by
+  (`src/shared/client-ip.ts`: a usable `cf-connecting-ip`, else the Express address; production refuses
+  with 503 `YOURCAT_NO_CLIENT_IP` only when neither is usable), App Check with a consumed limited-use
+  token, a per-IP daily quota keyed on an HMAC of the day and address (a forged `cf-connecting-ip` sent
+  straight to the origin gets a fresh slot: accepted risk, see "Known issues"), a per-IP failure cap that is never refunded, a per-user daily quota, and a reservation on the global daily budget (`aibudgetdays`, €5 by
   default, previews at most €3 of it). Every refusal gives back the slots the same call claimed.
   Measured costs settle the reservation; paid deliveries are recorded outside the cap.
 - Burst limits: the `/yourcat` routes, `POST /image/portrait` and regenerate skip the global throttler
@@ -807,7 +806,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 
 | Group | Variables |
 |---|---|
-| Server | `PORT`, `IS_PROD`, `NODE_ENV` (several job and safety defaults follow `production`), `FRONT_END_URLS`, `MAIN_FE_DOMAIN`, `TRUST_PROXY` (proxy hop count or an Express `trust proxy` value; required behind a load balancer, see the checklist below) |
+| Server | `PORT`, `IS_PROD`, `NODE_ENV` (several job and safety defaults follow `production`), `FRONT_END_URLS`, `MAIN_FE_DOMAIN`, `TRUST_PROXY` (optional override, any Express `trust proxy` value, `0` or `false` for none; default trusts private, CGNAT and Cloudflare hops) |
 | Database | `MONGODB_URI`, `MONGO_TRANSACTIONS` (default off; `true` runs Rescue Goal gives in a transaction, only on a confirmed replica set) |
 | Auth | `FB_PRIVATE_KEY` (Firebase service account key), `ML_ACCESS_TOKEN` (unused guard) |
 | Identity (plan F5) | `AUTH_ENFORCE_EMAIL_VERIFIED` (default `true`: an unverified new password user gets 403 `EMAIL_UNVERIFIED` and no account), `AUTH_REQUIRE_VERIFIED_EXISTING` (default `false`; only matters for accounts created while enforcement was off), `APP_CHECK_ENFORCE` (default `false`; `true` requires a valid `x-firebase-appcheck` on `POST /user/guest/session`), `NEW_ACCOUNTS_PER_IP_PER_HOUR` (default 10), `GUEST_SESSIONS_PER_IP_PER_HOUR` (default 30), `DISPOSABLE_EMAIL_DOMAINS` (extra comma-separated domains), `IDENTITY_BACKFILL_DONE` (set `true` after `backfill-identity-fields.js --apply`; switches off the case-insensitive email fallback and turns on the alias rules), `GOOGLE_APPLICATION_CREDENTIALS` (only for `scripts/backfill-firebase-uid.ts`) |
@@ -818,10 +817,10 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Rescue Goals (plan G5) | `RESCUE_GOAL_PLEDGES` (`off` is a kill switch for gives) |
 | Specs only | `MONGO_IT_URI`, `IDENTITY_SPEC_MONGO_URL`, `LIVE_SPEC_MONGO_URL`, `HEIST_BENCH`, `HEIST_BENCH_ROUNDS`; migrations read `MIGRATION_APPLY` (and `MIGRATION_BACKFILL_MISSING`) |
 | Encryption | `INVALIDATE_CACHE_SECRET` (despite the name, this seeds the AES key for custodial wallet secrets; rotating it makes stored secrets unreadable) |
-| Guest treats | `SHELTER_TREAT_IP_SALT` (optional HMAC key for the daily address hash of `POST /shelter/donate/guest`; unset: `INVALIDATE_CACHE_SECRET` is used as the HMAC key, else a random per-process salt, which lets an address send one extra treat after a restart). Needs `TRUST_PROXY` in production |
+| Guest treats | `SHELTER_TREAT_IP_SALT` (optional HMAC key for the daily address hash of `POST /shelter/donate/guest`; unset: `INVALIDATE_CACHE_SECRET` is used as the HMAC key, else a random per-process salt, which lets an address send one extra treat after a restart) |
 | AI | `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY` |
-| `/yourcat` and AI caps (bet #3) | `YOURCAT_ENABLED` (default `false`; kill switch for `POST /yourcat` and `/yourcat/manual`, status shows paused), `YOURCAT_PORTRAIT_ENABLED` (default `false`; the HD upsell checkout), `PORTRAIT_PREVIEW_ENABLED` (default `true`; `false` answers 503 on `POST /image/portrait` and regenerate), `AI_BUDGET_EUR_PER_DAY` (default 5, all kinds), `AI_BUDGET_PREVIEW_EUR_PER_DAY` (default 3, the part previews may use), `AI_UPLOAD_IP_DAILY`, `AI_UPLOAD_IP_DAILY_UNVERIFIED`, `AI_UPLOAD_USER_DAILY` (3, 0, 3), `AI_PREVIEW_IP_DAILY`, `AI_PREVIEW_IP_DAILY_UNVERIFIED`, `AI_PREVIEW_USER_DAILY` (3, 1, 3), `AI_PREVIEW_UNTRUSTED_DAILY`, `AI_PREVIEW_UNTRUSTED_FAILURES_DAILY` (5, 20; production only: the one shared bucket for previews from an address that is not proven), `AI_UPLOAD_IP_FAILURES_DAILY` (5, both kinds, never refunded), `AI_MANUAL_USER_DAILY` (5), `AI_UPLOAD_APPCHECK_ENFORCE`, `AI_PREVIEW_APPCHECK_ENFORCE` (default `false`; `true` requires a valid, unused limited-use App Check token), `CF_ORIGIN_SECRET` (shared secret a Cloudflare Transform Rule sends as `x-tt-origin-auth`; proves `cf-connecting-ip`), `AI_UPLOAD_IP_SALT` (HMAC salt for the per-IP day key; falls back to `INVALIDATE_CACHE_SECRET`; neither set in production refuses with 503), `AI_ALERT_EMAIL_TO` (alert recipient; unset: alerts are only logged), `AI_ALERT_COST_PER_UPLOAD_EUR` (0.10), `AI_ALERT_COST_PER_PREVIEW_EUR` (0.40), cost rates `AI_COST_OPENAI_INPUT_EUR_PER_MTOK`, `AI_COST_OPENAI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_INPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_IMAGE_EUR_1K`, `AI_COST_GEMINI_IMAGE_EUR_2K`, `AI_COST_GEMINI_IMAGE_EUR_4K`, `AI_COST_FALLBACK_IMAGE_EUR` (0.08 per 1K image, x4 for 4K), `AI_COST_FALLBACK_TEXT_EUR` (0.01); defaults and the date they were read are in `src/ai-budget/ai-cost.ts` |
-| Portrait prices and checkout (bet #3) | `PORTRAIT_USD_PRICE_CHANGED_AT` (ISO; when the USD digital price moved from $6 to $16; default and floor `2026-10-12T00:00:00Z`, the env can only move it later; a $6 payment created before it plus 48 h still verifies), `PORTRAIT_CHECKOUT_TOS_CONSENT` (default unset; `true` adds Stripe's required terms checkbox with the withdrawal acknowledgement to digital sessions on the legacy `/portrait` routes; `/yourcat` sessions always have it) |
+| `/yourcat` and AI caps (bet #3) | `YOURCAT_ENABLED` (default `false`; kill switch for `POST /yourcat` and `/yourcat/manual`, status shows paused), `YOURCAT_PORTRAIT_ENABLED` (default `false`; the HD upsell checkout), `PORTRAIT_PREVIEW_ENABLED` (default `true`; `false` answers 503 on `POST /image/portrait` and regenerate), `AI_BUDGET_EUR_PER_DAY` (default 5, all kinds), `AI_BUDGET_PREVIEW_EUR_PER_DAY` (default 3, the part previews may use), `AI_UPLOAD_IP_DAILY`, `AI_UPLOAD_IP_DAILY_UNVERIFIED`, `AI_UPLOAD_USER_DAILY` (3, 0, 3), `AI_PREVIEW_IP_DAILY`, `AI_PREVIEW_IP_DAILY_UNVERIFIED`, `AI_PREVIEW_USER_DAILY` (3, 1, 3), `AI_UPLOAD_IP_FAILURES_DAILY` (5, both kinds, never refunded), `AI_MANUAL_USER_DAILY` (5), `AI_UPLOAD_APPCHECK_ENFORCE`, `AI_PREVIEW_APPCHECK_ENFORCE` (default `false`; `true` requires a valid, unused limited-use App Check token), `AI_UPLOAD_IP_SALT` (HMAC salt for the per-IP day key; falls back to `INVALIDATE_CACHE_SECRET`; neither set in production refuses with 503), `AI_ALERT_EMAIL_TO` (alert recipient; unset: alerts are only logged), `AI_ALERT_COST_PER_UPLOAD_EUR` (0.10), `AI_ALERT_COST_PER_PREVIEW_EUR` (0.40), cost rates `AI_COST_OPENAI_INPUT_EUR_PER_MTOK`, `AI_COST_OPENAI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_INPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_OUTPUT_EUR_PER_MTOK`, `AI_COST_GEMINI_IMAGE_EUR_1K`, `AI_COST_GEMINI_IMAGE_EUR_2K`, `AI_COST_GEMINI_IMAGE_EUR_4K`, `AI_COST_FALLBACK_IMAGE_EUR` (0.08 per 1K image, x4 for 4K), `AI_COST_FALLBACK_TEXT_EUR` (0.01); defaults and the date they were read are in `src/ai-budget/ai-cost.ts` |
+| Portrait prices and checkout (bet #3) | `PORTRAIT_CHECKOUT_TOS_CONSENT` (default unset; `true` adds Stripe's required terms checkbox with the withdrawal acknowledgement to digital sessions on the legacy `/portrait` routes; `/yourcat` sessions always have it) |
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
 | Crypto checkout | No on/off flag: checkout is on wherever a chain resolves with a treasury or a live split route (on a mainnet, only while the on-chain giving check passes for that split), and the shelter-share keeper runs whenever the shelter config is ready and its chain is on the checkout network (rollback: revert and redeploy). `CRYPTO_PAY_NETWORK` (`mainnet` or `testnet`; default `mainnet` under `NODE_ENV=production`), `CRYPTO_PAY_TREASURY` (one public treasury address for every chain) and `CRYPTO_PAY_TREASURY_<chainId>` (per chain); both are optional overrides of the checked-in `src/payments/crypto/treasury.public.ts`, needed only on testnets and the local chain, `CRYPTO_PAY_RPC_<chainId>` (optional override; else the funding variable such as `RPC_BASE_MAINNET`; else the checked-in official RPC of the chain), `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD` (needed for `CRYPTO_PAY_NETWORK=testnet` under production), `CRYPTO_PAY_ORDER_TTL_MIN` (5 to 1440, default 30), `CRYPTO_PAY_EURC_PER_USD` (EURC per USD of price; unset: a fixed euro price, 1 EURC per USD) and `CRYPTO_PAY_EURC_FX_DATE` (required with a set rate; EURC stops after 30 days), `CRYPTO_PAY_CAT_SHELTER_BPS` (shelter share of a shelter cat on the treasury route; unset: 5000; malformed: undecided, nothing sent), `CRYPTO_PAY_SPLIT_SHELTER_IDS` (default Pink Paw), `CRYPTO_PAY_CAT_SPLITS` (`chainId:TOKEN:0xsplit,...`; default the main split for USDC), local E2E only: `CRYPTO_PAY_LOCAL_USDC`, `CRYPTO_PAY_LOCAL_EURC` (chain 31337, testnet mode). `STELLAR_PACKS_ENABLED` (`true` reopens Stellar packs; rollback only), `STELLAR_PACKS_SUNSET_AT` (ISO time; Stellar pack payments before it are still granted, later ones recorded for a refund; fixed at `2026-10-09T18:00:00Z`, the env can only move it earlier) |
@@ -837,11 +836,9 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 
 ### Production checklist for the flags
 
-- `TRUST_PROXY`: set it to the load balancer hop count before deploying. Without it the global
-  throttler and every per-IP limit share one bucket, the identity throttles (new accounts, guest
-  sessions) fail open on private and loopback addresses with one `per-IP throttle skipped` warning,
-  and in production every Heist replay is refused with 503. The hop count is not documented in the
-  repo; confirm it with whoever runs the hosting.
+- Client addresses need no env: the default `trust proxy` trusts our own hops (private, CGNAT and
+  Cloudflare). After a deploy, check the one `first request: req.ip is ...` log line; set `TRUST_PROXY`
+  only if it shows `a private hop` or `a Cloudflare edge` without `cf-connecting-ip`.
 - `IMPACT_JOBS_ENABLED=true` and, unless the process runs with `NODE_ENV=production`,
   `CRONS_ENABLED=true` on the instance(s) that should run jobs (leases make more than one safe).
   Check the startup log for "Impact jobs are off".
@@ -860,9 +857,8 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
   first Rescue Goal opens.
 - `IDENTITY_BACKFILL_DONE=true` only after `backfill-identity-fields.js --apply`.
 - `/yourcat` launch conditions (bet #3, `YOURCAT_ENABLED=true` only when all hold): (1) the client
-  address is provable: `CF_ORIGIN_SECRET` set with the Cloudflare Transform Rule that adds
-  `x-tt-origin-auth` to every proxied request, or `TRUST_PROXY` set to the right hop count; otherwise
-  every upload answers 503 `YOURCAT_NO_CLIENT_IP`. (2) App Check is real:
+  address is found (satisfied by default; an upload with no usable address answers 503
+  `YOURCAT_NO_CLIENT_IP`). (2) App Check is real:
   `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` on Vercel, replay protection on, `AI_UPLOAD_APPCHECK_ENFORCE=true`
   and `AI_UPLOAD_IP_DAILY_UNVERIFIED=0`. (3) The production Gemini key is on a billed plan (so the
   privacy notice's "no training" sentence is true). (4) The controller's legal name and address are in
@@ -874,22 +870,15 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
   the same checkbox only with `PORTRAIT_CHECKOUT_TOS_CONSENT=true`: set it once the terms URL is in the
   Stripe settings (live mode), because Stripe refuses to create a session that requires the checkbox
   without it. Before that, legacy digital sessions are created without the checkbox, as before v2.
-- `PORTRAIT_USD_PRICE_CHANGED_AT`: if v2 reaches production after 2026-10-12, set it to the deploy day
-  (`YYYY-MM-DDT00:00:00Z`) before the new backend starts. The $6 floor otherwise ends 48 h after the
-  constant, and a $6 codex PaymentIntent (or `POST /web3/confirm` order) made by the old backend and
-  paid after the switch is refused after the card was charged.
 - `/portrait` previews (release decision, spec section 3.5 and 10, in force on merge with every
   `/yourcat` flag off): `POST /image/portrait` and regenerate go through `AiUploadGate`. Until the App
   Check site key is set every visitor is "unverified": 1 preview per address per day, shared with
   regenerate (before v2: unlimited at 5 a minute, regenerate 3 a minute); `AI_PREVIEW_IP_DAILY_UNVERIFIED`
   raises it. All previews share the €3 sub-cap (`AI_BUDGET_PREVIEW_EUR_PER_DAY`), about 10 previews a day
   at the €0.30 reservation, after which every `/portrait` visitor gets 503 `YOURCAT_BUDGET_EXHAUSTED`.
-  Set both env values to the wanted funnel before deploying. Without `CF_ORIGIN_SECRET` (or
-  `TRUST_PROXY`) no production address is proven, so all previews share the one `untrusted` bucket
-  (`AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day site-wide): set `CF_ORIGIN_SECRET` and the Cloudflare
-  Transform Rule before v2 reaches production to keep per-visitor caps.
+  Set both env values to the wanted funnel before deploying.
 - `NODE_ENV=production` must be set on every backend instance: `isProduction()` keys on it, and without
-  it the AI gate skips the untrusted-address rules and falls back to a hard-coded IP salt.
+  it the AI gate falls back to a hard-coded IP salt.
 
 ## Migrations
 
@@ -977,9 +966,17 @@ Route and logic bugs:
   visitor with many addresses (VPNs, mobile IP changes) can send more than one treat a day, and a
   shared address (office, carrier NAT) gets one treat a day for everyone behind it. `cf-connecting-ip`
   can be forged by a request sent straight to the origin, which only buys extra treats. The per-chain
-  daily budget (100 treats) bounds the loss to that budget; there is no captcha. Production appears to
-  run without `TRUST_PROXY` (observed Oct 8: the first guest route refused every caller), so the
-  per-IP throttles on every route share the balancer's bucket.
+  daily budget (100 treats) bounds the loss to that budget; there is no captcha. Since 2026-10-16 the
+  default `trust proxy` setting resolves the visitor with no `TRUST_PROXY` (it was unset in production on
+  Oct 8, when every per-IP throttle shared the balancer's bucket).
+- Accepted (founder, 2026-10-16): without an origin secret, a caller who reaches the origin directly (the
+  DigitalOcean URL, or a Cloudflare Worker) can set `cf-connecting-ip` and get fresh per-IP buckets for
+  guest treats, Heist replays, AI previews and uploads, and the per-IP route throttlers. The founder
+  accepted this on 2026-10-16. The per-chain treat budget and the AI euro caps still bound the cost.
+- Open (Stellar portraits, 2026-10-16): `POST /web3/confirm` creates a portrait order after the client
+  paid, so it has no stored server price; it is checked against the current $16 table. A $6 Stellar
+  payment from a tab opened before the $16 price is refused (the hash is released) and needs a manual
+  refund. Stripe intents are not affected: they are confirmed at the price stored on them.
 - Open (crypto checkout): checkout goes live with the backend deploy that carries the checked-in
   treasury (`src/payments/crypto/treasury.public.ts`, 2026-10-14); there is no flag to hold it back.
   `CRYPTO_PAY_CAT_SHELTER_BPS` defaults to 5000 (founder, 2026-10-04; it is not the `purchase_share`
@@ -1036,7 +1033,7 @@ Route and logic bugs:
 - Open (mentioned): `Image.isTemporary` is stored but never read; `/image/portrait` uploads are public-read with no cleanup (now under an unguessable uuid name).
 - Open (mentioned): the SendGrid subject "Your order is on its way!" is also used for digital orders (`src/image/order-email.ts`, default subject); `/yourcat` deliveries pass their own subject.
 - Open (bet #3, mentioned): App Check tokens on `POST /user/guest/session` are verified without replay protection, so one token can be reused for its lifetime (`verifyAppCheckToken(..., { consume: false })`, behaviour unchanged). The AI gate consumes its limited-use tokens.
-- Open (bet #3, mentioned; the guard part fixed as KI-07 on 2026-10-11): the global throttler buckets are shared while `TRUST_PROXY` is unset; the `/yourcat` routes, `POST /image/portrait` and regenerate use per-user and per-client-IP throttlers instead. `cf-connecting-ip` can be forged by a request sent straight to the origin, which the guest treat route still trusts (open). The AI gate refuses an unproven address for `/yourcat` and puts every unproven preview address in one shared `untrusted` bucket (`src/ai-budget/ai-upload-gate.ts`). Fixed (KI-07): `ClientIpThrottlerGuard` used to key its per-minute buckets on the raw header for an unproven address, so those burst limits could be spread over forged addresses; in production an unproven address now shares the same `untrusted` bucket (`clientIpBucket`, `UNTRUSTED_IP_BUCKET` in `src/shared/client-ip.ts`) with its own limit (`untrustedLimit`, default 10 times the route limit), and a proven address keeps its own bucket. Outside production the raw address is used as before. The 50 MB global JSON limit is unchanged (entry below).
+- Changed (bet #3, KI-07 superseded 2026-10-16): the origin secret (`CF_ORIGIN_SECRET`, `x-tt-origin-auth`) and the shared `untrusted` buckets (`UNTRUSTED_IP_BUCKET`, `untrustedLimit`, `AI_PREVIEW_UNTRUSTED_DAILY`) were removed. The global throttler, `ClientIpThrottlerGuard`, the AI gate and the Heist replay bucket all key on `clientIp()` (a usable `cf-connecting-ip`, else the Express address past our own hops), so visitors are no longer one bucket by default. The `/yourcat` routes, `POST /image/portrait` and regenerate keep their per-user and per-client-IP throttlers. Spoofing is the "Accepted (founder, 2026-10-16)" entry above. The 50 MB global JSON limit is unchanged (entry below).
 - Partly fixed (KI-15, 2026-10-11): the 10-a-day per-user `/yourcat` portrait checkout limit now lives in MongoDB (an `aiquotas` counter `portrait-checkout:user:<id>:<UTC day>`, claimed in the handler; above it 429 with `Retry-After` to UTC midnight), so a restart or a second replica no longer resets it. Still open: the per-user and per-client-IP burst limits (per minute) stay in the in-memory throttler storage, per replica, so they reset on restart and multiply by the replica count. The daily Mongo quotas and the budget are the real limits.
 - Fixed (KI-03, 2026-10-11; changed by CR2-07): card portrait orders are charged in EUR, and their `priceUsd` is an estimate at the fixed stats rate `PORTRAIT_STATS_USD_PER_EUR` (1.15), not the real exchange rate. `PledgeService.table()` summed `priceUsd` over `COMPLETE` orders, so the public purchase pledge could have been understated or overstated with the FX. A first fix left EUR orders out of the pledge, which would have understated it for every card portrait sale. EUR orders are now counted at their euro `price` times `PLEDGE_USD_PER_EUR_UPPER_BOUND` (1.65, above the all-time EUR/USD high of about 1.60), rounded up, so the pledge on a EUR sale is never below the USD Stripe settled (about 43% above at a 1.15 market rate; `pledge.spec.ts`). `priceUsd` itself is still the fixed-rate estimate (fine for `spentUsd` stats). Latent: no `purchase_share` fact (C-002) exists yet, so the pledge table is empty.
   - Launch note (before a `purchase_share` fact is added): decide whether to store Stripe's settled USD on the order at webhook time (from the balance transaction, in `image.controller.ts`) and pledge on that instead of the upper bound. Until then the published pledge for EUR sales is deliberately high.
@@ -1091,7 +1088,7 @@ Security:
 - The Legendary pack price disagrees: the backend table and the odds comment in `content.utils.ts` say $350, the client pack card shows $400. Stripe and the crypto checkout charge $350. Since 2026-10-04 the client checkout summary and crypto quote show the server price from `GET /payments/crypto/config` `prices` ($350), so only the pack card differs. A human must pick one price and update the other copy (DEVELOPMENT.md "Pack prices").
 - Stripe idempotency on the PaymentIntent id is race-safe across processes only once the `hash_unique` index on `Order.hash` (platform fix 1) is built. Mongoose builds it on startup, and the build fails while duplicate hashes exist, so run the order audit first; until then an in-process lock covers the single instance.
 - Custodial Stellar secrets are encrypted with AES-128-CTR using a static salt. The decrypt path is never called.
-- Rate limiting is global and tracks `req.ip`. Behind a load balancer, set `TRUST_PROXY` to the hop count, or all clients share one bucket of 300 requests per minute (a site-wide outage) and the per-IP route limits (120, 5 and 3 per minute) apply to everyone together. The hosting topology is not documented, so this must be confirmed before deploy (still open: a configuration step, see "Production checklist for the flags"). Since plan F5 and G11 the identity throttles fail open on unusable addresses with a warning instead of sharing one bucket, and the Heist replay route refuses replays with 503 in production while `TRUST_PROXY` is unset, so a missing hop count shows up as broken Heist saves rather than an open queue. The NFT metadata routes (`GET /cat/nft/metadata`, `GET /cat/nft/:tokenId`) skip the throttler for marketplace crawlers. Not yet handled: the ISR pages `/cats/[cat]` and `/feed/[category]/[article]` fetch from the Next server's single IP on every uncached render, and carrier-NAT or office IPs share a bucket; consider allowlisting the Next server or raising the limit on those public GET routes.
+- Rate limiting is global and tracks the client address (`clientIp()`: a usable `cf-connecting-ip`, else `req.ips[0]` or `req.ip`). Since 2026-10-16 the default `trust proxy` skips our own hops (private, CGNAT and Cloudflare), so no `TRUST_PROXY` is needed; if the DigitalOcean hop were none of those, `req.ip` would be that hop and only requests without `cf-connecting-ip` would share its bucket (check the startup `first request` log line). Since plan F5 and G11 the identity throttles fail open on unusable addresses with a warning instead of sharing one bucket. Heist replays are never refused for a missing proxy setting (the 503 was removed on 2026-10-16). The NFT metadata routes (`GET /cat/nft/metadata`, `GET /cat/nft/:tokenId`) skip the throttler for marketplace crawlers. Not yet handled: the ISR pages `/cats/[cat]` and `/feed/[category]/[article]` fetch from the Next server's single IP on every uncached render, and carrier-NAT or office IPs share a bucket; consider allowlisting the Next server or raising the limit on those public GET routes.
 - Fixed (2026-09): `GET /image/order/status` is public and returned the whole order (user id, wallet, payment hash, discount). It now returns `_id status entityType id image price` only. `confirm-payment` and portrait generation no longer echo Stripe, database or AI provider error text.
 
 Cats, packs and spend (plan G3 and G4, task 3c; each was new and is fixed):
