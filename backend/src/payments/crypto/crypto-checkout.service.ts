@@ -1112,7 +1112,8 @@ export class CryptoCheckoutService {
     /**
      * Finishes orders left PAID with no grant result (the process died while granting). When the
      * `Order` already says COMPLETE or FAILED_GRANT, that result is copied; otherwise the grant runs
-     * again under a new lease. A shelter cat the buyer already holds counts as delivered. A pack whose
+     * again under a new lease. A shelter cat the buyer already holds counts as delivered, unless another
+     * completed purchase gave it (then the grant runs and refunds). A pack whose
      * adoption succeeded in the instant before the crash, without its order being marked, can be
      * granted twice (in the buyer's favour); that window is a single write.
      */
@@ -1175,7 +1176,22 @@ export class CryptoCheckoutService {
                 if (!lease) continue;
                 if (doc.sku.kind === 'CAT') {
                     const held = await this.catSale.check(doc.sku.catId, doc.user);
-                    if (!held.ok && held.reason === 'ALREADY_OWNED') {
+                    // Delivered by this order only when no other completed purchase (card or crypto)
+                    // gave the buyer this cat; otherwise the normal grant fails on ownership and the
+                    // payment is refunded.
+                    const otherPurchase =
+                        !held.ok && held.reason === 'ALREADY_OWNED'
+                            ? await this.orderRepository.findOne({
+                                  searchObject: {
+                                      user: doc.user,
+                                      entityType: EntityType.CAT,
+                                      id: doc.sku.catId,
+                                      status: OrderStatus.COMPLETE,
+                                      _id: { $ne: order._id },
+                                  },
+                              })
+                            : null;
+                    if (!held.ok && held.reason === 'ALREADY_OWNED' && !otherPurchase) {
                         await this.orderRepository.update(order._id!, { $set: { status: OrderStatus.COMPLETE } });
                         await this.storeGrant(
                             doc,

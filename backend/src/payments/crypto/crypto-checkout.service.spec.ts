@@ -78,10 +78,15 @@ function setup({
             orders.push(row);
             return row;
         }),
+        // Equality on every field, plus `{ $ne }`.
         findOne: jest.fn(
             async ({ searchObject }: any) =>
                 orders.find(o =>
-                    searchObject._id ? String(o._id) === String(searchObject._id) : o.hash === searchObject.hash
+                    Object.entries(searchObject).every(([key, want]: [string, any]) =>
+                        want && typeof want === 'object' && '$ne' in want
+                            ? String(o[key]) !== String(want.$ne)
+                            : String(o[key]) === String(want)
+                    )
                 ) || null
         ),
         update: jest.fn(async (id: any, update: any) => {
@@ -976,6 +981,51 @@ describe('stuck grants', () => {
             expect(view.status).toBe(expected);
             if (expected === 'FAILED_GRANT') expect(view.grant).toEqual(expect.objectContaining({ refund: 'due' }));
         }
+    });
+});
+
+describe('stuck shelter cat grants', () => {
+    async function catPaidButCrashed() {
+        const ctx = setup();
+        jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(137 as any);
+        const order = await ctx.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config());
+        ctx.pay([transferLog(USDC, TREASURY, order.accepted.find(o => o.token === 'USDC')!.amount)]);
+        ctx.grants.grantShelterCat.mockImplementationOnce(async () => {
+            throw new Error('process died');
+        });
+        await ctx.service
+            .confirm(USER, order.orderId, { chainId: 31337, txHash: TX(41) }, T0, config())
+            .catch(() => undefined);
+        // The buyer now holds the cat.
+        ctx.catSale.check.mockResolvedValue({ ok: false, reason: 'ALREADY_OWNED' } as any);
+        return { ...ctx, order };
+    }
+
+    it('counts an owned cat as delivered by this order when no other purchase gave it', async () => {
+        const ctx = await catPaidButCrashed();
+        const run = await ctx.service.recoverStuckGrants(new Date(T0.getTime() + 6 * 60000), config());
+        expect(run).toEqual({ settled: 1, regranted: 0 });
+        expect(ctx.grants.grantShelterCat).toHaveBeenCalledTimes(1);
+        expect((await ctx.service.getOrder(USER, ctx.order.orderId, T0)).status).toBe('COMPLETE');
+    });
+
+    it('runs the normal grant (and its refund) when another completed purchase gave the buyer that cat', async () => {
+        const ctx = await catPaidButCrashed();
+        // Paid by card while the crypto order was stuck.
+        ctx.orders.push({
+            _id: new Types.ObjectId(),
+            user: new Types.ObjectId(USER),
+            entityType: EntityType.CAT,
+            id: CAT_ID,
+            status: OrderStatus.COMPLETE,
+            hash: 'pi_card',
+        });
+        const run = await ctx.service.recoverStuckGrants(new Date(T0.getTime() + 6 * 60000), config());
+        expect(run).toEqual({ settled: 0, regranted: 1 });
+        expect(ctx.grants.grantShelterCat).toHaveBeenCalledTimes(2);
+        expect(ctx.orderRepository.update).not.toHaveBeenCalledWith(ctx.orders[0]._id, {
+            $set: { status: OrderStatus.COMPLETE },
+        });
     });
 });
 

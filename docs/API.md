@@ -785,7 +785,8 @@ The grant takes a lease (`grantStartedAt`) before it runs. If the process dies b
 stored, the order stays `PAID` with no `grant`; confirm answers 202 for it. Every 5 minutes (and on
 `POST /payments/crypto/recover-grants`) orders `PAID` with no grant whose lease is over 5 minutes old are
 finished: when their `Order` is already `COMPLETE` or `FAILED_GRANT` that result (and its refund) is
-copied; a shelter cat the buyer already holds counts as delivered; otherwise the grant runs again under a
+copied; a shelter cat the buyer already holds counts as delivered, unless another completed purchase (card
+or crypto) gave it, in which case the grant runs and refunds like any failed adoption; otherwise the grant runs again under a
 new lease, with the spend counted once. Known gap: a pack whose adoption succeeded in the single write
 before the crash, without its `Order` being marked, is granted a second cat.
 
