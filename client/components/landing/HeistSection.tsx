@@ -1,9 +1,8 @@
 import { railCopyState, railIsDeployed, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
-import { useReducedMotion } from "@/components/globe/useReducedMotion";
 import { PixelButton } from "@/components/shared/PixelButton";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useReelPlayback } from "@/components/landing/useReelPlayback";
 
 /**
  * The Catnip Heist section (founder request, Oct 2026): the 30 s showreel, three beats and the
@@ -114,77 +113,6 @@ const BEAT_CLASS =
 const BEAT_NUMBER_CLASS =
   "flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl border-2 font-primary text-p4 md:text-p3 leading-none";
 
-/**
- * Plays the reel only while the section is in view and motion is allowed; the sources are attached
- * the first time it comes near the viewport, so nothing downloads before.
- */
-function useReelPlayback(enabled: boolean) {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const reducedMotion = useReducedMotion();
-  const [inView, setInView] = useState(false);
-  const [armed, setArmed] = useState(false);
-  const [userPaused, setUserPaused] = useState(false);
-  // Reduced motion never starts the reel by itself; the play button opts in.
-  const [optedIn, setOptedIn] = useState(false);
-  const motionOk = !reducedMotion || optedIn;
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section || !enabled) return;
-    if (typeof IntersectionObserver === "undefined") {
-      // No observer: behave as if in view (the old browsers that lack it also lack lazy loading).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInView(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const latest = entries[entries.length - 1];
-        if (latest) setInView(latest.isIntersecting);
-      },
-      { rootMargin: "200px 0px" }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, [enabled]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (enabled && inView && motionOk) setArmed(true);
-  }, [enabled, inView, motionOk]);
-
-  // Sources were just added: make the element pick them up.
-  useEffect(() => {
-    if (armed) videoRef.current?.load?.();
-  }, [armed]);
-
-  const playing = enabled && armed && inView && motionOk && !userPaused;
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !armed) return;
-    if (playing) {
-      const attempt = video.play?.();
-      // Autoplay policy or a missing decoder can reject; the poster stays up.
-      if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
-    } else {
-      video.pause?.();
-    }
-  }, [playing, armed]);
-
-  const togglePause = useCallback(() => {
-    if (!motionOk) {
-      setOptedIn(true);
-      setUserPaused(false);
-      return;
-    }
-    setUserPaused((p) => !p);
-  }, [motionOk]);
-
-  return { sectionRef, videoRef, armed, playing, userPaused: userPaused || !motionOk, togglePause };
-}
-
 export interface HeistSectionProps {
   /** The rail state from the impact snapshot; unknown reads as "opens soon". */
   railState?: RailState | null;
@@ -201,7 +129,7 @@ export const HeistSection = ({
 }: HeistSectionProps) => {
   const isApp = isAppBuild();
   const withVideo = enabled && !isApp && heistReelAllowed(railState, reelCleared);
-  const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback(withVideo);
+  const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback<HTMLElement>(withVideo);
   if (!enabled) return null;
   const showPayoutsLink = !isApp && railIsDeployed(railState);
 

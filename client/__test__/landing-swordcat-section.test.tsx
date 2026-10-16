@@ -6,10 +6,14 @@
  * dash and no number that is not read live.
  */
 import React from "react";
-import { render } from "@testing-library/react";
+import fs from "fs";
+import path from "path";
+import { act, fireEvent, render } from "@testing-library/react";
 
 let mockIsApp = false;
 jest.mock("@/components/claims/build", () => ({ isAppBuild: () => mockIsApp }));
+let mockReduced = false;
+jest.mock("@/components/globe/useReducedMotion", () => ({ useReducedMotion: () => mockReduced }));
 jest.mock("@/components/shared/PixelButton", () => ({
   PixelButton: ({ text, subtext }: { text: string; subtext?: string }) => (
     <span>
@@ -23,16 +27,54 @@ import {
   SWORDCAT_SECTION_LINE,
   SWORDCAT_SECTION_STILL,
   SWORDCAT_SECTION_TREAT_BEAT,
+  SWORDCAT_TRAILER,
+  SWORDCAT_TRAILER_LABEL,
+  swordcatTrailerAllowed,
   swordcatTreatBeat,
   SwordcatSection,
   swordcatSectionEnabled,
 } from "@/components/landing/SwordcatSection";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 
+type ObserverCallback = (entries: { isIntersecting: boolean }[]) => void;
+let observerCallback: ObserverCallback | null = null;
+class MockObserver {
+  constructor(cb: ObserverCallback) {
+    observerCallback = cb;
+  }
+  observe = jest.fn();
+  disconnect = jest.fn();
+  unobserve = jest.fn();
+  takeRecords = () => [];
+}
+const play = jest.fn(() => Promise.resolve());
+const pause = jest.fn();
+const load = jest.fn();
+
+beforeAll(() => {
+  Object.defineProperty(HTMLMediaElement.prototype, "play", { configurable: true, value: play });
+  Object.defineProperty(HTMLMediaElement.prototype, "pause", { configurable: true, value: pause });
+  Object.defineProperty(HTMLMediaElement.prototype, "load", { configurable: true, value: load });
+});
+
+beforeEach(() => {
+  observerCallback = null;
+  play.mockClear();
+  pause.mockClear();
+  load.mockClear();
+  (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = MockObserver;
+});
+
 afterEach(() => {
   mockIsApp = false;
+  mockReduced = false;
   delete process.env.NEXT_PUBLIC_SWORDCAT;
 });
+
+const scrollInView = (isIntersecting: boolean) =>
+  act(() => {
+    observerCallback?.([{ isIntersecting }]);
+  });
 
 describe("swordcatSectionEnabled", () => {
   it("is on by default, off with an off value, and never in the app build", () => {
@@ -65,9 +107,9 @@ describe("SwordcatSection", () => {
     expect(render(<SwordcatSection railState="live" />).container.innerHTML).toBe("");
   });
 
-  it("with the flag on: label, title, line, a lazy still and exactly one link", () => {
+  it("with the flag on: label, title, line and exactly one link; the still while the rail is not live", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "1";
-    const { container, getByTestId } = render(<SwordcatSection railState="live" />);
+    const { container, getByTestId } = render(<SwordcatSection railState="paused" />);
     expect(container.textContent).toContain("Early access");
     expect(container.textContent).toContain(SWORDCAT_TITLE);
     expect(container.textContent).toContain(SWORDCAT_SECTION_LINE);
@@ -103,5 +145,86 @@ describe("SwordcatSection", () => {
     expect(text).not.toMatch(/—/);
     expect(text).not.toMatch(/\btoken\b(?! tails)/i);
     expect(text).not.toMatch(/\d/);
+  });
+});
+
+describe("SwordcatSection trailer", () => {
+  it("plays only while the rail is live (open or used up for today)", () => {
+    expect(swordcatTrailerAllowed("live")).toBe(true);
+    expect(swordcatTrailerAllowed("exhausted")).toBe(true);
+    for (const state of ["paused", "not-deployed", null, undefined] as const) {
+      expect(swordcatTrailerAllowed(state)).toBe(false);
+    }
+  });
+
+  it("shows the poster first and attaches no source until the box nears the viewport", () => {
+    const { getByTestId, container } = render(<SwordcatSection railState="live" enabled />);
+    const video = getByTestId("swordcat-trailer") as HTMLVideoElement;
+    expect(video.getAttribute("poster")).toBe(SWORDCAT_TRAILER.poster);
+    expect(SWORDCAT_TRAILER.poster).toBe(SWORDCAT_SECTION_STILL);
+    expect(video.getAttribute("preload")).toBe("none");
+    expect(video.muted).toBe(true);
+    expect(video.loop).toBe(true);
+    expect(video.hasAttribute("playsinline")).toBe(true);
+    expect(video.hasAttribute("autoplay")).toBe(false);
+    expect(video.getAttribute("aria-label")).toBe(SWORDCAT_TRAILER_LABEL);
+    expect(video.querySelectorAll("source")).toHaveLength(0);
+    expect(play).not.toHaveBeenCalled();
+    // Fixed 16:9 box: no layout shift when the video arrives.
+    expect(video.parentElement?.className).toContain("aspect-video");
+    expect(container.querySelector('[data-testid="swordcat-section-still"]')).toBeNull();
+  });
+
+  it("arms the sources in view, plays, pauses out of view, and the toggle pauses", () => {
+    const { getByTestId } = render(<SwordcatSection railState="live" enabled />);
+    scrollInView(true);
+    const video = getByTestId("swordcat-trailer");
+    expect(video.getAttribute("data-armed")).toBe("1");
+    expect(Array.from(video.querySelectorAll("source")).map((s) => s.getAttribute("src"))).toEqual([
+      SWORDCAT_TRAILER.webm,
+      SWORDCAT_TRAILER.mp4,
+    ]);
+    expect(load).toHaveBeenCalled();
+    expect(play).toHaveBeenCalled();
+    scrollInView(false);
+    expect(pause).toHaveBeenCalled();
+    scrollInView(true);
+    pause.mockClear();
+    const toggle = getByTestId("swordcat-trailer-toggle");
+    expect(toggle.getAttribute("aria-label")).toBe("Pause the trailer");
+    fireEvent.click(toggle);
+    expect(pause).toHaveBeenCalled();
+    expect(toggle.getAttribute("aria-label")).toBe("Play the trailer");
+  });
+
+  it("never starts by itself under prefers-reduced-motion; the play button opts in", () => {
+    mockReduced = true;
+    const { getByTestId } = render(<SwordcatSection railState="live" enabled />);
+    scrollInView(true);
+    const video = getByTestId("swordcat-trailer");
+    expect(video.getAttribute("data-armed")).toBe("0");
+    expect(play).not.toHaveBeenCalled();
+    const toggle = getByTestId("swordcat-trailer-toggle");
+    expect(toggle.getAttribute("aria-label")).toBe("Play the trailer");
+    fireEvent.click(toggle);
+    expect(video.getAttribute("data-armed")).toBe("1");
+    expect(play).toHaveBeenCalled();
+  });
+
+  it("ships the trailer files under 8 MB each, and app exports prune them", () => {
+    const pub = path.resolve(__dirname, "../public");
+    for (const file of [SWORDCAT_TRAILER.mp4, SWORDCAT_TRAILER.webm, SWORDCAT_TRAILER.poster]) {
+      const size = fs.statSync(path.join(pub, file)).size;
+      expect(size).toBeGreaterThan(0);
+      expect(size).toBeLessThanOrEqual(8 * 1024 * 1024);
+    }
+    const prune = fs.readFileSync(path.resolve(__dirname, "../scripts/prune-app-export.mjs"), "utf8");
+    for (const file of [SWORDCAT_TRAILER.mp4, SWORDCAT_TRAILER.webm]) expect(prune).toContain(`"${file.slice(1)}"`);
+  });
+
+  it("app builds never render it", () => {
+    mockIsApp = true;
+    const { container } = render(<SwordcatSection railState="live" />);
+    expect(container.querySelector("video")).toBeNull();
   });
 });
