@@ -23,7 +23,7 @@ export const APP_LABELS: LabelSet = {
   explain: {
     // claim: fiction a tier explanation, not an impact figure
     "onchain-shelter-held": "Paid to the shelter.",
-    "onchain-custodial": "Held by Token Tails for the shelter.",
+    "onchain-custodial": "Held by Token Tails for the shelter before 16 Oct 2026.",
     "shelter-signed": "A payout the shelter signed with its own key.",
     "shelter-confirmed":
       "A payout a shelter member confirmed, with a stored receipt.",

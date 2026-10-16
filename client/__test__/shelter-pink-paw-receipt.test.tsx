@@ -13,6 +13,7 @@ let payoutTo = PINK_PAW_WALLET;
 let campaignWallet = PINK_PAW_WALLET;
 let handover = "held-by-token-tails";
 const HELD = "0xe299299b846ba629f5a591dbf4f562bcc07a0f37";
+let testnet = false;
 
 jest.mock("next/router", () => ({
   useRouter: () => ({ isReady: true, query: { chain: "5042", tx: `0x${"ab".repeat(32)}` } }),
@@ -31,7 +32,7 @@ jest.mock("@/components/shelter-payouts/campaign", () => ({
 jest.mock("@/components/shelter-payouts/rpc", () => ({ fetchDeployments: () => Promise.resolve([]) }));
 jest.mock("@/components/shelter-payouts/receipt", () => ({
   TX_HASH: /^0x[0-9a-fA-F]{64}$/,
-  receiptChain: () => ({ name: "Test chain", rpc: "", explorer: "https://explorer.test", decimals: 6, symbol: "USDC" }),
+  receiptChain: () => ({ name: "Test chain", rpc: "", explorer: "https://explorer.test", decimals: 6, symbol: "USDC", testnet }),
   fetchReceipt: () =>
     Promise.resolve({
       success: true,
@@ -66,6 +67,7 @@ const mixedCase = (addr: string) =>
 describe("ShelterReceipt and Pink Paw", () => {
   afterEach(() => {
     handover = "held-by-token-tails";
+    testnet = false;
   });
 
   it("after the 16 Oct 2026 rotation, an older payout to 0xE299 keeps Pink Paw's name and says Token Tails held it", async () => {
@@ -78,6 +80,18 @@ describe("ShelterReceipt and Pink Paw", () => {
       "Sent to a wallet Token Tails held for the shelter (before 16 Oct 2026)."
     ));
     expect(screen.getByTestId("pink-paw-strip")).toBeTruthy();
+  });
+
+  it("a testnet payout to 0xE299 says Token Tails holds it, with no date (testnet splits still pay it)", async () => {
+    payoutTo = HELD;
+    campaignWallet = PINK_PAW_WALLET;
+    handover = "handed-over";
+    testnet = true;
+    render(<ShelterReceipt />);
+    await screen.findByTestId("receipt-card");
+    await waitFor(() => expect(screen.getByTestId("receipt-held-history").textContent).toBe(
+      "Sent to a wallet Token Tails holds for the shelter (testnet)."
+    ));
   });
 
   it("after the rotation, a payout to Pink Paw's wallet has no held line", async () => {
