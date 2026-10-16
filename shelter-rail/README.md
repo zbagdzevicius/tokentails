@@ -53,10 +53,10 @@ them passes through a wallet the integrator or Token Tails controls.
 
 The first shelter on the rail is **Pink Paw (Rožinė pėdutė)**.
 
-**Disclosure:** the Pink Paw wallet was created by Token Tails and is **held by Token Tails on behalf
-of the shelter until handover**. Until the shelter holds its own key, Token Tails controls the funds
-that reach that wallet. The contract itself is non-custodial; the shelter wallet is not yet. Any page
-that shows this shelter must show this disclosure, and it will be updated when the handover happens.
+**Disclosure:** payouts go to Pink Paw's wallet, which Token Tails created. Since 2026-10-16 every
+mainnet split pays it. Before then they went to a wallet Token Tails held for the shelter, and the
+testnet splits still pay that wallet. The contract itself is non-custodial. Any page that shows this
+shelter must show this disclosure.
 
 ## Chains and addresses
 
@@ -113,7 +113,7 @@ Memos are public and permanent. Keep them short and never put personal data in t
   data-deployments="https://tokentails.com/shelter-payouts/deployments.json"
   data-amount="1000000000000000000"
   data-memo="mygame"
-  data-disclosure="Pink Paw (Rožinė pėdutė): wallet held by Token Tails on behalf of the shelter until handover."></script>
+  data-disclosure="Pink Paw (Rožinė pėdutė): payouts go to Pink Paw's wallet."></script>
 ```
 
 | Attribute | Default | Meaning |
@@ -244,7 +244,8 @@ const { response, paid } = await payAndFetch(url, {
 ```
 
 `paid` is `null` (and `error` holds the server's reason) when the server refuses the authorization.
-On mainnet the server offers `exact` only once the shelter holds its own wallet key.
+On mainnet the server offers `exact` only after the handover (`SHELTER_HANDED_OVER=true` and a
+`rotated` claim for that chain).
 
 ### 4. AI agents: x402-compatible "onchain-receipt" flow, on several chains
 

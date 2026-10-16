@@ -187,7 +187,7 @@ Indexes: `shelter`, `{ kind, status }`, `nftId` (stale).
 | `countryCode` | string | ISO 3166 alpha-2 (validated in the schema and the DTO) |
 | `partnerStatus` | `active` \| `past` \| `prospect` | Only `active` counts as a partner and a partner country |
 | `role` | `partner` \| `house` | House zones (Token Tails' own) never count as partners or rescues |
-| `handoverStatus`, `handoverAt`, `handoverTx`, `publicWallet` | string, Date, string, string | Custody (ADMIN-only writes); money is `held-by-token-tails` until handover |
+| `handoverStatus`, `handoverAt`, `handoverTx`, `publicWallet` | string, Date, string, string | Custody (ADMIN-only writes); `held-by-token-tails` until handover, then `handed-over` (Pink Paw: payouts go to its wallet since 2026-10-16; the founder sets these fields with `PUT /shelter/:id`) |
 | `members` | ref User[] | Shelter members who confirm payouts (ADMIN-granted); never in a public projection |
 
 Indexes: `name`, `{ partnerStatus, countryCode }`, `members` (sparse).

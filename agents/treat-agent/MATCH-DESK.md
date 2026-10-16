@@ -23,16 +23,12 @@ Initial sponsors (`desk.example.json`):
 
 Each vault: about 1 USDC, `perTxCap` 0.05, `dailyCap` 0.20 (18-decimal native values, see correction 1).
 
-**Shelter wallet and the planned rotation.** The example files keep `shelter.wallet`
-`0xE299299b846Ba629f5A591dBF4F562bcC07A0f37` (custody `held-by-token-tails`), because that is what the
-on-chain ShelterSplit pays today. The plan: Token Tails created a new wallet `0x3c833562e682dB66C2415b34961595df135f4771` for Pink Paw. The
-founder hands it over (the recovery phrase on paper, Pink Paw staff import it into a wallet app on their
-own phone and move a test 0.01 to prove control, then Token Tails deletes its copy). Only after that
-handover does the split owner rotate the Pink Paw entry from `0xE299…0f37` to `0x3c833562e682dB66C2415b34961595df135f4771` (Arc 5042 first,
-Arc testnet 5042002 for the rehearsal, the other six mainnet chains later, before Dec 5). From then on the split
-pays `0x3c833562e682dB66C2415b34961595df135f4771`, custody `held-by-shelter` in the desk file's `shelter` block, which is updated to match. Until the
-handover, nothing may call `0x3c833562e682dB66C2415b34961595df135f4771` "Pink Paw's own wallet". After the rotation, `0xE299…0f37` is only the
-Token Tails grant receiver.
+**Shelter wallet.** The example files set `shelter.wallet` to Pink Paw's wallet
+`0x3c833562e682dB66C2415b34961595df135f4771` (custody `pink-paw-wallet`), because every mainnet ShelterSplit
+pays it since 2026-10-16. Token Tails created it, gave the recovery phrase to Pink Paw staff, and keeps a
+recovery backup. Before 2026-10-16 the split paid `0xE299299b846Ba629f5A591dBF4F562bcC07A0f37`, a wallet
+Token Tails held for the shelter; it is now only the Token Tails grant receiver, so it is in
+`policy.excludedSenders`. The Arc testnet splits still pay `0xE299…0f37` (custody `held-by-token-tails`).
 
 Each round, the agent:
 
@@ -89,8 +85,8 @@ in public. The statement generator emits them verbatim (see "Statement").
   and only that company can fund it or take back what is left. One AI agent can spend from every vault,
   only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is
   paid by one vault.
-- **Custody.** Pink Paw's wallet is still held by Token Tails until the handover. Matched money reaches
-  that wallet. Pink Paw does not control it yet.
+- **Custody.** Matched money goes to Pink Paw's wallet (since 2026-10-16; Token Tails keeps a recovery
+  backup). On a desk with custody `held-by-token-tails` the statement says the wallet is held by Token Tails.
 - **Daily cap.** The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so
   up to 2× the daily cap can go out across midnight.
 - **Per-donor limit.** The agent's code enforces the per-donor limit. The contract does not.
@@ -176,7 +172,7 @@ may be committed after the deploy.
   "chainId": 5042,
   "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
-  "shelter": { "name": "Pink Paw (Rožinė pėdutė)", "wallet": "0xE299…0f37", "custody": "held-by-token-tails" },
+  "shelter": { "name": "Pink Paw (Rožinė pėdutė)", "wallet": "0x3c83…4771", "custody": "pink-paw-wallet" },
   "agent": null,
   "policy": {
     "perDonorDailyMaxUsdc": "0.05", "minGiftUsdc": "0.01", "maxGiftAgeHours": 48,
@@ -247,8 +243,8 @@ memos written before the desk keep their hashes. Every v1 fixture and test still
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
   "shelter": {
     "name": "Pink Paw (Rožinė pėdutė)",
-    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
-    "custody": "held-by-token-tails"
+    "wallet": "0x3c833562e682dB66C2415b34961595df135f4771",
+    "custody": "pink-paw-wallet"
   },
   "policy": {
     "ratioBps": 10000,
@@ -294,7 +290,7 @@ the x402 demo agent and the deployer. All four are public in `backend/src/shelte
 | `chainId` | 5042, 5042002, or 31337 (a local anvil only); must equal `eth_chainId` at run time |
 | `spender.*` | addresses or `null`; `run.mjs` refuses `null` spender/deployBlock (`init` state only) |
 | `split`, `router`, `shelter.wallet` | addresses (`router` may be `null`) |
-| `shelter.custody` | `held-by-token-tails` or `held-by-shelter`; drives the custody copy |
+| `shelter.custody` | `pink-paw-wallet` (Pink Paw's wallet, since 2026-10-16), `held-by-token-tails` or `held-by-shelter` (old desk files); drives the custody copy |
 | amounts (`*Usdc`) | decimal strings, ≤ 6 decimals, parsed to **micro-USDC bigint**, never floats |
 | `ratioBps` | integer 1…10000 (10000 = 1:1; no more than 1:1) |
 | `perGiftMaxUsdc` | > 0 and ≤ `budgetUsdc` |
@@ -399,7 +395,7 @@ round right after a dry run is not held (the same gifts give the same memo, so a
 founder ran by hand is still caught by the witness and the idempotency check).
 
 Never matched (`excluded-sender`): `excludedSenders`, every vault, the agent, every vault owner, the
-split, the router, and `shelter.wallet` itself (Token Tails holds it until the handover, so matching it would be
+split, the router, and `shelter.wallet` itself (matching the shelter's own outgoing money would be
 circular). A batch whose memo starts with `tt:agent:` or `tt:match:` is `tt-internal` whoever paid
 (it may be Token Tails' own agent money from a payer not in `TREAT_AGENT_TT_SENDERS`); a stranger who
 writes such a memo only opts out of matching. The old

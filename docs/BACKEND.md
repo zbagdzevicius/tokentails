@@ -456,8 +456,9 @@ the match are off by default.
   payments), and returns a card built
   from a whitelist projection of a blessing (`name`, image `url`, shelter `name`). It never reads users,
   owners or wallets, and needs no server key.
-- Showcase shelter: Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on its behalf
-  until handover. The contract addresses come from `wallet.config.ts`: every testnet split is recorded
+- Showcase shelter: Pink Paw (Rožinė pėdutė). Since 2026-10-16 every mainnet split pays Pink Paw's wallet
+  `0x3c83…4771` (`WALLETS.mainnet.pinkPaw`); before then it paid `0xE299…0f37`, a wallet Token Tails held
+  for the shelter, which stays in `TOKEN_TAILS_HELD_WALLETS`. The testnet splits still pay `0xE299…0f37`. The contract addresses come from `wallet.config.ts`: every testnet split is recorded
   there, the mainnet splits are `null` until the mainnet wave records them.
 - Wallet gifts (F2, all off by default; endpoints in `docs/API.md` "Wallet gifts"):
   `ShelterRelayService` submits a donor's signed EIP-3009 authorization to the ownerless DonateRouter
@@ -484,10 +485,11 @@ the match are off by default.
 - Decision 2026-10-05 (founder, funding/framework/tracks/a-build/README.md): the mainnet wave deploys
   DonateRouters by default, before the handover. The router is ownerless and public, so once it exists
   anyone can call `donateNative` or submit a signature themselves, and no backend gate can stop that
-  money reaching the shelter wallet Token Tails still holds (ShelterSplit's `donate`/`disburse` were
-  always public too). The app keeps every public route closed until the claim; a gift that arrives
-  through a router or the split before rotation is disclosed as held by Token Tails on the payouts page,
-  appears in the impact indexer's rows, and is forwarded to the shelter at handover (gate G12).
+  money reaching the split's shelter wallet (ShelterSplit's `donate`/`disburse` were always public too).
+  The app keeps every public route closed until the claim. Before the 2026-10-16 rotation that wallet was
+  `0xE299…0f37`, held by Token Tails, and its shelter balances were swept to Pink Paw's wallet on
+  2026-10-16. Since then the mainnet splits pay Pink Paw's wallet; the per-chain claim rows (`rotated`)
+  are still a founder step, so the relay, match and x402 stay closed until they exist.
 - Claims: `POST /shelter/claim` only takes wallets on `SHELTER_CLAIM_ALLOWED_WALLETS` (named by the
   shelter through a separate channel) and `GET /shelter/claim` shows only `approved` or `rotated` rows.
   Claims are per chain: the v1 message names one chain (the main one); the v2 message

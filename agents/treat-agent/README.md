@@ -179,8 +179,8 @@ Each round:
 - Motored.lt is a **related-party sponsor (founder's company)**, never an outside or independent
   sponsor. Token Tails' vault is the **operator's own money**, never a sponsor in the outside sense.
   If the founder funds a vault personally, the label is "self-sponsor (Token Tails founder)".
-- Pink Paw's wallet is still held by Token Tails until the handover. Matched money reaches that
-  wallet; Pink Paw does not control it yet.
+- Matched money goes to Pink Paw's wallet (since 2026-10-16; Token Tails created it and keeps a recovery
+  backup). Before then the split paid a wallet Token Tails held for the shelter.
 - The contract caps each gift and each UTC calendar day, per vault. The day resets at 00:00 UTC, so up
   to 2× the daily cap can go out across midnight.
 - The agent's code enforces the per-donor limit (across all sponsors). The contract does not.

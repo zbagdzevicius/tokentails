@@ -138,14 +138,17 @@ show, and the figure stays "at least" until every chain is up to date. The balan
 the campaign chain only, so it is always shown as "at least". `SHELTER_GOAL_CHAINS=off` counts the
 campaign chain alone; `SHELTER_GOAL_RPC_URL_<chainId>` overrides a chain's RPC.
 
-**Only today's sources are named.** While Token Tails holds the wallet (`handover:
-"held-by-token-tails"`), the custody rules keep public gifts, the match and x402 payments away from
-it, so only sponsored treats can arrive (plus the shop share, and only while the backend settles a
+**Only today's sources are named.** While Token Tails held the wallet (`handover:
+"held-by-token-tails"`, until 2026-10-16), the custody rules kept public gifts, the match and x402
+payments away from it, so only sponsored treats could arrive (plus the shop share, and only while the backend settles a
 cat checkout through the split on the campaign chain: crypto pay on and a split route). The backend
-reports these as `liveSources`, and the copy lists only them: "today, sponsored treats. Gifts, the
-match and x402 payments count once Pink Paw holds its own wallet."
+reports these as `liveSources`, and the copy lists only them: "today, sponsored treats." Since the
+2026-10-16 rotation the open wallet is Pink Paw's wallet (`holder: "shelter"`), so the backend lists
+gifts, the match, treats and x402 as sources, even while those rails still wait for the claim rows and
+env (a known gap, see `docs/BACKEND.md`).
 
-**Rotation plan.** While Token Tails holds the wallet, the entry must carry `campaign.rotation`
+**Rotation plan.** Done 2026-10-16: `0xE299…0f37` closed at Arc block 26229681 and Pink Paw's wallet
+counts from 26229682. While Token Tails holds the wallet, the entry must carry `campaign.rotation`
 (the build refuses it otherwise): at handover, set the held wallet's `toBlock`, append the
 shelter's own wallet (`holder: "shelter"`), point `shelter.wallet` at it, set `handover:
 "handed-over"`, run `fund facts build` and deploy the client and the backend. The web meter reads
@@ -162,8 +165,8 @@ its display, appDisplay or claim. C-001 is 50,000 USDC from 2026-10-02 to 2027-0
 own streams add at most 374 USDC at the **code defaults** (the build cannot read the production
 environment; a raised treat budget or match pool makes that figure wrong until the entry is
 updated), so about 136 USDC a day must come from donors. The end date is
-one year from launch because public giving stays off until Pink Paw holds its own key (handover
-planned before 5 Dec 2026).
+one year from launch because public giving stayed off until the splits paid Pink Paw's wallet
+(rotated 2026-10-16; the public rails still wait for the claim rows and env).
 
 The weekly job (`fund facts report`) reports goals that have ended, goals that are running but not
 counting (no shelter wallet or `fromBlock`), and, while a goal runs, the pace it would need from
@@ -252,7 +255,8 @@ templates.
 
 **R10. App builds show no chain words.** App strings contain no USDC, `0x` hashes, explorers,
 wallets, chain names or "ON-CHAIN". Money renders as a USD equivalent with its FX date, and the
-on-chain tiers read "HELD BY TOKEN TAILS" and "HELD BY SHELTER" (F7.2). Text in the web branch of
+on-chain tiers read "HELD BY TOKEN TAILS" and "PAID TO SHELTER" (F7.2; the web chips are
+"ON-CHAIN · CUSTODIAL" and "ON-CHAIN · SHELTER WALLET"). Text in the web branch of
 an `isApp` condition is exempt, and so is a file marked `// copy-lint: web-only <reason>` in its
 first 30 lines.
 

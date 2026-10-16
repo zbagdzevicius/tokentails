@@ -269,8 +269,9 @@ budget is per chain.
 | 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | Treats are switched off (emergency off), the split address or hot wallet key is missing, the picked chain fails its health check (no token or gas on the hot wallet, split paused, RPC down), that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
 | 424 | `{statusCode, code: DONATE_SEND_FAILED, message}` | The broadcast failed; the user may retry later |
 
-The showcase recipient is Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on
-the shelter's behalf until handover; the split's recipients are set in the contract, not by this API.
+The showcase recipient is Pink Paw (Rožinė pėdutė). Payouts go to Pink Paw's wallet; since 2026-10-16
+every mainnet split pays it (before then, a wallet Token Tails held for the shelter). The split's
+recipients are set in the contract, not by this API.
 
 ### Agent cat card (x402-compatible, `onchain-receipt` scheme)
 

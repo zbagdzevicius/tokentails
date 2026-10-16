@@ -444,8 +444,9 @@ is stale. Every payout links to its transaction on the chain's explorer; no wall
 The rescue screen also has one prominent button, "Send Pink Paw a rescue treat 🐾". It only opens
 the client's give page (`/shelter-payouts/give?from=heist&cat=<rescued cat>`), which does the
 one-tap donation through the backend; the game never signs, pays or holds keys. Pink Paw
-(Rožinė pėdutė) is the showcase shelter. Its wallet is created and held by Token Tails on its
-behalf until handover; the give page and payouts page disclose this.
+(Rožinė pėdutė) is the showcase shelter. Since 16 Oct 2026 payouts go to Pink Paw's wallet, which
+Token Tails created; earlier payouts went to a wallet Token Tails held for the shelter. The give page
+and payouts page disclose this.
 
 On web hosts the payouts live in the game: `src/ui/shelter-payouts.ts` is a DOM modal ("Sent to
 shelters") with the total, the latest payouts (memo, amount, time, explorer tx link), a row per

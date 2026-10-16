@@ -157,7 +157,8 @@ On Arc, the first sponsored treat sent from the live game is a native-USDC `dona
 On Tempo a second payout, [0xcd33…b8b5](https://explore.tempo.xyz/tx/0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5),
 is a `disburseWithMemo` call: Pink Paw's share arrives through TIP-20 `transferWithMemo` with the memo
 "Catnip Heist campaign". Every mainnet payout so far is Token Tails'
-own money, paid to the wallet it holds for Pink Paw until handover (see Disclosures).
+own money. Until 2026-10-16 it went to a wallet Token Tails held for Pink Paw; since then every
+mainnet split pays Pink Paw's wallet (see Disclosures).
 
 **Why some addresses repeat.** One deployer key deployed every contract, and a contract address follows
 from the deployer and its nonce. The same address can therefore appear on several chains, and in a
@@ -226,10 +227,12 @@ Without `--broadcast` both scripts only simulate.
 
 ## Disclosures
 
-- **Custody.** The first shelter is Pink Paw (Rožinė pėdutė). Its receiving wallet was created and
-  is held by Token Tails on the shelter's behalf until handover. The chain proves that funds reached
-  the registered wallet, not who controls it. At handover the shelter's own address is registered in
-  the contract, and the public gift paths stay off until then.
+- **Custody.** The first shelter is Pink Paw (Rožinė pėdutė). Until 2026-10-16 its receiving wallet
+  `0xE299…0f37` was held by Token Tails on the shelter's behalf. On 2026-10-16 all 8 mainnet splits
+  were rotated to Pink Paw's wallet `0x3c83…4771`, which Token Tails created (it keeps a recovery
+  backup), and the old wallet's shelter balances were swept to it. The chain proves that funds reached
+  the registered wallet, not who controls it. The public gift paths stay off until the per-chain claims
+  are recorded.
 - **Prior work.** Token Tails existed before these contracts: the game and app, three Soroban
   contracts on Stellar mainnet and ERC-721 contracts on SKALE. ShelterSplit itself was written from
   2026-09-25.
