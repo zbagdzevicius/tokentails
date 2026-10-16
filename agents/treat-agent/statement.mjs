@@ -194,7 +194,7 @@ export function disclosures(file) {
     ? `Matched money goes to the wallet of ${shelter}.`
     : d.shelter.custody === 'held-by-shelter'
     ? `The wallet of ${shelter} is held by the shelter itself. Matched money reaches that wallet.`
-    : `The wallet of ${shelter} is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.`;
+    : `The wallet of ${shelter} is held by Token Tails. Matched money reaches that wallet. The shelter does not control it.`;
   return [
     ...d.sponsors.map((s) => sponsorLine(s, many)),
     custodyLine,

@@ -24,7 +24,7 @@ test('the committed example loads: related-party label, micro amounts, lowercase
   assert.equal(sponsor.policy.budgetMicro, 1_000_000n);
   assert.equal(sponsor.policy.eligible.matchTreats, false);
   assert.ok(sponsor.policy.excludedSenders.has('0x8d03d8295892f7de2b7ce57585aa45dd4b3c2ba0'));
-  assert.equal(sponsor.shelter.custody, 'held-by-token-tails');
+  assert.equal(sponsor.shelter.custody, 'pink-paw-wallet');
   assert.match(policyHash, /^[0-9a-f]{64}$/);
 });
 

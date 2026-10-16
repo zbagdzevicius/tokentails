@@ -142,7 +142,7 @@ test('the related-party label and all eight disclosures are in statement.json an
   const html = renderHtml(st);
   const must = [
     "Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.",
-    'is still held by Token Tails until the handover',
+    'is held by Token Tails. Matched money reaches that wallet.',
     'up to 2x the daily cap can go out across midnight',
     "The agent's code enforces the per-donor limit. The contract does not.",
     'This statement is not a tax receipt.',

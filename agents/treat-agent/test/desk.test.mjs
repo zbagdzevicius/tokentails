@@ -394,7 +394,7 @@ test('statement: one section per sponsor, desk total paid to the shelter wallet,
   for (const m of [
     "Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.",
     "Token Tails runs this desk and matches with its own money (operator's own money). It is not an outside or independent sponsor.",
-    'is still held by Token Tails until the handover',
+    'is held by Token Tails. Matched money reaches that wallet.',
     'up to 2x the daily cap can go out across midnight',
     "The agent's code enforces the per-donor limit. The contract does not.",
     'This statement is not a tax receipt.',

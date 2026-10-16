@@ -239,7 +239,7 @@ export const handoverLabel = (s: HandoverStatus, isApp = false) =>
   isApp
     ? s === "handed-over"
       ? "Paid to Pink Paw"
-      : "Held by Token Tails for the shelter until handover"
+      : "Held by Token Tails for the shelter"
     : s === "handed-over"
     ? "Handed over 16 Oct 2026: payouts go to Pink Paw's wallet"
     : "Not handed over yet: Token Tails holds this wallet for the shelter";

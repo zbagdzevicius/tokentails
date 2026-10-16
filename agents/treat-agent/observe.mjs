@@ -544,7 +544,7 @@ export async function observeMatchDesk({
     return blockTs.get(b.block);
   };
   // Never matched: the policy's list, every vault, the agent and every owner (the sponsors), the split,
-  // the router, and the shelter wallet itself (Token Tails still holds it until the handover; matching it is circular).
+  // the router, and the shelter wallet itself (matching the shelter's own wallet is circular).
   const excluded = new Set([
     ...P.excludedSenders, ...vaultAddrs, agent, ...states.map((x) => x.owner), D.split, D.shelter.wallet.toLowerCase(),
     ...(D.router ? [D.router] : []),

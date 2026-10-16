@@ -55,8 +55,8 @@ export function chainFor(chainId: number, deployments: ShelterDeployment[]): Cha
 // The match meter renders inside each wallet block, for that block's own chain (WalletDonate).
 export { matchMeterCopy } from "./giveMode";
 
-export const DISCLOSURE =
-  "Shelter wallet held by Token Tails on behalf of the shelter until handover";
+/** The fallback line when campaign.json does not say "handed-over" (the setup before 16 Oct 2026). */
+export const DISCLOSURE = "Payouts go to a wallet Token Tails holds for the shelter.";
 
 /** The page's custody line, following campaign.json `shelter.handover` (gate G12). */
 // claim: C-001 (campaign.wallets: a wallet Token Tails held until 16 Oct 2026, Pink Paw's wallet since)

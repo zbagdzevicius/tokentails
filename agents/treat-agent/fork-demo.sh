@@ -193,7 +193,7 @@ match_desk_demo() {
     echo "# Vault A (Motored.lt, related-party sponsor (founder's company)): $SP_A (block $BLOCK_A), owner = $MOTORED_OWNER (Motored.lt's wallet, impersonated on the fork)."
     echo "# Vault B (Token Tails, operator's own money):                     $SP_B (block $BLOCK_B), owner = anvil dev #4."
     echo "# Both: agent = anvil dev #1 (the same agent), split $SPLIT (Pink Paw at 10000 bps), caps 0.05 test USDC per gift"
-    echo "#   and 0.20 per UTC day, float 1 test USDC each, funded by each owner. Pink Paw's wallet is still held by Token Tails until the handover."
+    echo "#   and 0.20 per UTC day, float 1 test USDC each, funded by each owner. The testnet split pays a wallet Token Tails holds."
     echo "# Desk policy: 1:1, at most 0.05 per donor per UTC day across both sponsors. Motored.lt is matched first (priority 20)"
     echo "#   with a 0.03 budget; Token Tails (priority 10) has 1.00. Code picks the paying vault; one match is paid by one vault."
     echo "# Backend endpoints off (MATCH_DESK_API=off)."

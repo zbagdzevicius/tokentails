@@ -12,8 +12,8 @@
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
   "shelter": {
     "name": "Pink Paw (Rožinė pėdutė)",
-    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
-    "custody": "held-by-token-tails"
+    "wallet": "0x3c833562e682dB66C2415b34961595df135f4771",
+    "custody": "pink-paw-wallet"
   },
   "policy": {
     "ratioBps": 10000,

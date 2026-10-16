@@ -19,13 +19,10 @@ export function custodyDisclosure(isApp: boolean = isAppBuild(), handover: Hando
       : "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter. Every payout is public.";
   }
   return isApp
-    ? "Token Tails holds the shelter's share on its behalf until handover. Every payout is listed on our website."
-    : "Token Tails created this wallet and holds it on the shelter's behalf until handover. " +
-        "Sponsored treats are split to it on-chain today; gifts open after handover. Every payout is public.";
+    ? "Token Tails holds the shelter's share on its behalf. Every payout is listed on our website."
+    : "Token Tails holds this wallet on the shelter's behalf. " +
+        "Sponsored treats are split to it on-chain. Wallet gifts open only when the split pays the shelter's wallet. Every payout is public.";
 }
-
-/** The line for the current build (read once: `NEXT_PUBLIC_IS_APP` is fixed at build time). */
-export const CUSTODY_DISCLOSURE = custodyDisclosure();
 
 const short = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`;
 

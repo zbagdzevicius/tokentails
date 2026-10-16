@@ -185,8 +185,8 @@ export const WalletDonate = ({
         </p>
         {/* claim: fiction why the button waits, not an impact figure */}
         <p className="text-tt-cream/80">
-          Until then the shelter&apos;s wallet is held by Token Tails, so there is no public button: a gift from
-          your wallet should go to the shelter&apos;s wallet, not one Token Tails holds.
+          The split now pays a wallet Token Tails holds, so there is no public button: a gift from your
+          wallet should go to the shelter&apos;s wallet, not one Token Tails holds.
         </p>
         <Link href={ONBOARD_URL} className={`${PILL} mt-2 self-start`} data-testid="wallet-donate-onboard-link">
           How the handover works ›
