@@ -3,7 +3,7 @@ import {
     getShelterCatPriceCents,
     isPackType,
     isProductType,
-    portraitUsdFloorCents,
+    getPortraitPriceCents,
 } from 'src/payments/price-table';
 import { Types } from 'mongoose';
 import { EntityType } from 'src/shared/interfaces/common.interface';
@@ -24,19 +24,13 @@ export const LOOT_BOX_PRICE_CENTS = 100;
  *
  * Order fields as the confirm flows write them:
  * - IMAGE: `id` is the portrait ProductType (`digital` for POST /web3/confirm and PaymentIntents). The
- *   price is the USD floor at the order's `createdAt` (`portraitUsdFloorCents`): $6 for a digital order
- *   created before the $16 change plus its 48 h grace, $16 after. POST /web3/confirm creates the order
- *   right after the client paid, so an in-flight $6 payment still verifies inside the grace; the audit
- *   reads the stored `createdAt`, so legacy $6 orders stay clean. An order without `createdAt` is priced
- *   as created now. Card checkout orders in EUR are not USD: the audit handles them on their own.
+ *   price is the current USD table (`getPortraitPriceCents`, $16 digital), whatever the order's date.
+ *   The audit also accepts the retired $6 for digital orders (`PORTRAIT_LEGACY_DIGITAL_USD_CENTS`).
+ *   Card checkout orders in EUR are not USD: the audit handles them on their own.
  * - PACK: `id` is the PackType.
  * - CAT: `id` is the catalogue (shelter) cat id; a shelter cat costs `getShelterCatPriceCents()`.
  */
-export function getOrderCatalogueCents(order: {
-    entityType?: string;
-    id?: unknown;
-    createdAt?: Date | string | null;
-}): number | null {
+export function getOrderCatalogueCents(order: { entityType?: string; id?: unknown }): number | null {
     const id = order.id === undefined || order.id === null ? undefined : String(order.id);
 
     if (order.entityType === EntityType.IMAGE) {
@@ -44,8 +38,7 @@ export function getOrderCatalogueCents(order: {
         if (!isProductType(productType)) {
             return null;
         }
-        const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
-        return portraitUsdFloorCents(productType, Number.isNaN(createdAt.getTime()) ? new Date() : createdAt);
+        return getPortraitPriceCents(productType);
     }
     if (order.entityType === EntityType.PACK) {
         return isPackType(id) ? getPackPriceCents(id) : null;

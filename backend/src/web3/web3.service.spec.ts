@@ -91,33 +91,34 @@ describe('Web3Service.validatePrice (Stellar)', () => {
         expect(orderRepository.releaseHash).not.toHaveBeenCalled();
     });
 
-    it('accepts a USDC payment for a digital portrait', async () => {
-        horizon([usdc('6.0000000')]);
+    it('accepts a $16 USDC payment for a digital portrait, whatever the order date', async () => {
+        horizon([usdc('16.0000000')]);
         const order = pendingOrder({
             currencyType: CurrencyType.USDC,
             entityType: EntityType.IMAGE,
             id: ProductType.DIGITAL,
-            // Created before PORTRAIT_USD_PRICE_CHANGED_AT, so the legacy $6 price applies on any run date.
+            // An old createdAt no longer lowers the price (PORTRAIT_USD_PRICE_CHANGED_AT is gone).
             createdAt: new Date('2026-10-05T09:00:00Z'),
         });
 
-        await expect(verify(order)).resolves.toEqual({ success: true, amount: 6, priceUsd: 6 });
+        await expect(verify(order)).resolves.toEqual({ success: true, amount: 16, priceUsd: 16 });
+        horizon([usdc('6.0000000')]);
+        await expect(verify(order)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it("returns when the payment's ledger closed, so a closed sale can tell an in-flight payment from a new one", async () => {
-        horizon([usdc('6.0000000')]);
+        horizon([usdc('16.0000000')]);
         mockTransactionCall.mockResolvedValue({ hash: HASH, successful: true, created_at: '2026-10-05T10:00:00Z' });
         const order = pendingOrder({
             currencyType: CurrencyType.USDC,
             entityType: EntityType.IMAGE,
             id: ProductType.DIGITAL,
-            // Created before PORTRAIT_USD_PRICE_CHANGED_AT, so the legacy $6 price applies on any run date.
             createdAt: new Date('2026-10-05T09:00:00Z'),
         });
         await expect(verify(order)).resolves.toEqual({
             success: true,
-            amount: 6,
-            priceUsd: 6,
+            amount: 16,
+            priceUsd: 16,
             closedAt: new Date('2026-10-05T10:00:00Z'),
         });
     });

@@ -23,31 +23,13 @@ export const PORTRAIT_PRICES_CENTS: Readonly<Record<ProductType, number>> = {
     [ProductType.CANVAS]: 6900,
 };
 
-/** The retired $6 digital price. Accepted only for payments created before the change (below) and by the audit. */
+/**
+ * The retired $6 USD digital price. Never charged. The order audit accepts it as a historical price, so
+ * digital portraits bought before the $16 price have no finding. A Stripe PaymentIntent is always
+ * verified against the amount the server stored on it (`expectedAmount`), so a $6 intent made by the old
+ * backend still verifies; there is no date switch.
+ */
 export const PORTRAIT_LEGACY_DIGITAL_USD_CENTS = 600;
-
-/**
- * The earliest instant the USD digital price moved from $6 to $16 (the planned v2 deploy day, 00:00 UTC).
- * A $6 payment created before the change plus the grace still verifies. If v2 ships later, set
- * `PORTRAIT_USD_PRICE_CHANGED_AT` (ISO, the real deploy day 00:00 UTC) on the backend before it starts:
- * otherwise a $6 intent made by the old backend and paid after the switch is refused after the charge.
- */
-export const PORTRAIT_USD_PRICE_CHANGED_AT = new Date('2026-10-12T00:00:00Z');
-
-/**
- * The effective change instant: `PORTRAIT_USD_PRICE_CHANGED_AT` from the env when it parses, never
- * earlier than the constant (the env can only move it later). Not derived from the process start: every
- * restart would reopen the $6 window for crypto orders, whose expected price is this floor.
- */
-export function portraitUsdPriceChangedAt(env: NodeJS.ProcessEnv = process.env): Date {
-    const raw = env.PORTRAIT_USD_PRICE_CHANGED_AT?.trim();
-    const configured = raw ? new Date(raw).getTime() : NaN;
-    const floor = PORTRAIT_USD_PRICE_CHANGED_AT.getTime();
-    return new Date(Number.isFinite(configured) && configured > floor ? configured : floor);
-}
-
-/** How long after the change a legacy-priced payment is still accepted (in-flight intents, stale tabs). */
-export const PORTRAIT_LEGACY_GRACE_MS = 48 * 60 * 60 * 1000;
 
 /** Card checkout (Stripe Checkout Session) for portraits: euros. Client copy: client/models/portrait-prices.ts. */
 export const PORTRAIT_CHECKOUT_CURRENCY = 'eur' as const;
@@ -110,24 +92,6 @@ export function getPortraitPriceCents(productType: ProductType): number {
         throw new Error(`No server price for portrait product "${productType}"`);
     }
     return price;
-}
-
-/**
- * The lowest catalogue price a USD portrait payment created at `at` may verify against: the retired $6
- * for a digital portrait created before `portraitUsdPriceChangedAt()` plus the grace, else the table.
- */
-export function portraitUsdFloorCents(
-    productType: ProductType,
-    at: Date,
-    env: NodeJS.ProcessEnv = process.env
-): number {
-    const current = getPortraitPriceCents(productType);
-    const legacyUntil = portraitUsdPriceChangedAt(env).getTime() + PORTRAIT_LEGACY_GRACE_MS;
-    const time = at instanceof Date ? at.getTime() : NaN;
-    if (productType === ProductType.DIGITAL && Number.isFinite(time) && time < legacyUntil) {
-        return Math.min(current, PORTRAIT_LEGACY_DIGITAL_USD_CENTS);
-    }
-    return current;
 }
 
 /** The card checkout price of a portrait, in euro cents. */

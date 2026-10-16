@@ -1,52 +1,26 @@
-import { PORTRAIT_LEGACY_GRACE_MS, PORTRAIT_USD_PRICE_CHANGED_AT, getPackPriceCents } from 'src/payments/price-table';
+import { getPackPriceCents } from 'src/payments/price-table';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { getOrderCatalogueCents } from './order-catalogue';
 import { PackType, ProductType } from './order.schema';
 
-const CHANGED = PORTRAIT_USD_PRICE_CHANGED_AT.getTime();
-const LEGACY_END = CHANGED + PORTRAIT_LEGACY_GRACE_MS;
-
 const image = (createdAt?: Date, id: string = ProductType.DIGITAL) => ({ entityType: EntityType.IMAGE, id, createdAt });
 
 describe('getOrderCatalogueCents', () => {
-    it('prices a digital portrait at the retired $6 when created before the change plus the grace', () => {
-        expect(getOrderCatalogueCents(image(new Date(CHANGED - 1)))).toBe(600);
-        expect(getOrderCatalogueCents(image(new Date(LEGACY_END - 1)))).toBe(600);
-    });
-
-    it('prices a digital portrait at $16 once the grace is over', () => {
-        expect(getOrderCatalogueCents(image(new Date(LEGACY_END)))).toBe(1600);
-        expect(getOrderCatalogueCents(image(new Date(LEGACY_END + 86_400_000)))).toBe(1600);
-    });
-
-    it('reads a stored createdAt string, and an order without one is priced as created now', () => {
-        expect(getOrderCatalogueCents({ ...image(), createdAt: new Date(CHANGED - 1).toISOString() })).toBe(600);
-        // Only Date is faked (same list as order-audit.spec.ts).
-        jest.useFakeTimers({
-            now: new Date(LEGACY_END + 1),
-            doNotFake: [
-                'nextTick',
-                'setImmediate',
-                'clearImmediate',
-                'setTimeout',
-                'clearTimeout',
-                'setInterval',
-                'clearInterval',
-                'queueMicrotask',
-                'hrtime',
-                'performance',
-            ],
-        });
-        try {
-            expect(getOrderCatalogueCents(image())).toBe(1600);
-        } finally {
-            jest.useRealTimers();
+    it('prices a digital portrait at $16 whatever its createdAt', () => {
+        for (const at of [
+            new Date('2025-01-01T00:00:00Z'),
+            new Date('2026-10-11T23:59:59Z'),
+            new Date('2027-06-01T00:00:00Z'),
+        ]) {
+            expect(getOrderCatalogueCents(image(at))).toBe(1600);
         }
+        expect(getOrderCatalogueCents(image())).toBe(1600);
+        expect(getOrderCatalogueCents({ ...image(), createdAt: '2026-10-01T00:00:00Z' } as any)).toBe(1600);
     });
 
     it('keeps print and canvas at $49 and $69 whatever the date', () => {
-        expect(getOrderCatalogueCents(image(new Date(CHANGED - 1), ProductType.PRINT))).toBe(4900);
-        expect(getOrderCatalogueCents(image(new Date(LEGACY_END + 1), ProductType.CANVAS))).toBe(6900);
+        expect(getOrderCatalogueCents(image(new Date('2026-10-01T00:00:00Z'), ProductType.PRINT))).toBe(4900);
+        expect(getOrderCatalogueCents(image(new Date('2027-06-01T00:00:00Z'), ProductType.CANVAS))).toBe(6900);
     });
 
     it('leaves packs unchanged', () => {

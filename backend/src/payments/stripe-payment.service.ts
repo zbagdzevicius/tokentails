@@ -14,7 +14,6 @@ import {
     getPortraitCheckoutPrice,
     getPortraitPriceCents,
     getShelterCatPriceCents,
-    portraitUsdFloorCents,
     SHELTER_CAT_MIN_PRICE_CENTS,
     isPackType,
     isProductType,
@@ -246,9 +245,8 @@ export class StripePaymentService {
             if (!imageId || !Types.ObjectId.isValid(imageId)) {
                 throw new BadRequestException('Generated image id is missing for portrait checkout');
             }
-            // Price at the intent's creation: a $6 intent created before the $16 change (plus the grace)
-            // still verifies; intents created after it carry expectedAmount 1600, which holds them at $16.
-            baseCents = portraitUsdFloorCents(productType, createdAt);
+            // Only used when the intent has no expectedAmount (very old intents): today's table price.
+            baseCents = getPortraitPriceCents(productType);
         } else {
             const rawPack = metadata.packType || metadata.id;
             if (!isPackType(rawPack)) {
@@ -259,13 +257,19 @@ export class StripePaymentService {
             baseCents = getPackPriceCents(packType, createdAt);
         }
 
-        // Intents created by this service carry the server-computed amount. Older intents do not,
-        // so they must at least cover the table price minus the largest possible discount.
+        // Intents created by this service carry the server-computed amount (`expectedAmount`). Older intents
+        // do not, so they must at least cover the table price minus the largest possible discount.
+        // A portrait intent is confirmed at the price stored on it, even if the table changed since (a $6
+        // intent made before the $16 price still verifies; a $16 one must pay $16). Only the server writes
+        // intent metadata. Packs also keep the table floor at the intent's creation (sale rules).
         const expectedAmount = Number(metadata.expectedAmount);
-        const minimumCents =
-            Number.isFinite(expectedAmount) && expectedAmount > 0
-                ? Math.max(expectedAmount, applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE))
-                : applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE);
+        const hasExpected = Number.isFinite(expectedAmount) && expectedAmount > 0;
+        const tableFloor = applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE);
+        const minimumCents = !hasExpected
+            ? tableFloor
+            : entityType === EntityType.IMAGE
+            ? expectedAmount
+            : Math.max(expectedAmount, tableFloor);
 
         const received = intent.amount_received ?? 0;
         if (received < minimumCents || intent.amount < minimumCents) {
@@ -320,11 +324,10 @@ export class StripePaymentService {
             return `session ${session.id} has currency ${paidCurrency || 'none'}, order expects ${expectedCurrency}`;
         }
         const storedCents = typeof order.price === 'number' && order.price > 0 ? Math.round(order.price * 100) : 0;
-        const createdAt = (order as IOrder & { createdAt?: Date }).createdAt;
         const tableCents =
             expectedCurrency === 'eur'
                 ? getPortraitCheckoutPrice(productType).cents
-                : portraitUsdFloorCents(productType, createdAt ? new Date(createdAt) : new Date());
+                : getPortraitPriceCents(productType);
         const expected = storedCents || tableCents;
         if (paidCents < expected) {
             return `session ${session.id} paid ${paidCents} ${paidCurrency} cents, price is ${expected}`;

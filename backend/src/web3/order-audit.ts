@@ -1,6 +1,7 @@
 import {
     MAX_DISCOUNT_PERCENTAGE,
     PORTRAIT_CHECKOUT_PRICES_CENTS,
+    PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
     applyDiscountCents,
     isProductType,
 } from 'src/payments/price-table';
@@ -80,6 +81,20 @@ function acceptedCents(baseCents: number, discount?: string): number[] {
 }
 
 /**
+ * Accepted cents for a USD order: the catalogue price (with any discount), plus the retired $6 for a
+ * digital portrait, which was the real price before the $16 one. No date check: the audit only asks
+ * whether a price was ever a real catalogue price.
+ */
+function acceptedUsdCents(order: AuditOrder, baseCents: number): number[] {
+    const accepted = acceptedCents(baseCents, order.discount);
+    const productType = order.id === undefined || order.id === null ? ProductType.DIGITAL : String(order.id);
+    if (order.entityType === EntityType.IMAGE && productType === ProductType.DIGITAL) {
+        accepted.push(...acceptedCents(PORTRAIT_LEGACY_DIGITAL_USD_CENTS, order.discount));
+    }
+    return accepted;
+}
+
+/**
  * Card checkout catalogue cents of a EUR order (portraits only, `PORTRAIT_CHECKOUT_PRICES_CENTS`), or
  * null when a EUR order names anything else.
  */
@@ -97,8 +112,8 @@ function eurCatalogueCents(order: AuditOrder): number | null {
  * discrepancy noted in src/payments/price-table.ts.
  *
  * A EUR order (the portrait card checkout) is compared on `price` (euros; `priceUsd` is a stats value)
- * against the euro table. USD orders use `getOrderCatalogueCents` with their `createdAt`, so a legacy
- * $6 digital portrait bought before the $16 change has no finding.
+ * against the euro table. USD orders use `getOrderCatalogueCents`; a digital portrait at the retired $6
+ * is also accepted, so one bought before the $16 price has no finding.
  */
 export function auditStripeOrder(order: AuditOrder): AuditFinding | null {
     if (order.chainType !== ChainType.FIAT) {
@@ -110,7 +125,7 @@ export function auditStripeOrder(order: AuditOrder): AuditFinding | null {
     if (baseCents === null) {
         return { orderId: orderIdOf(order), issue: 'UNKNOWN_ITEM', paid: paidCents / 100 };
     }
-    const accepted = acceptedCents(baseCents, order.discount);
+    const accepted = isEur ? acceptedCents(baseCents, order.discount) : acceptedUsdCents(order, baseCents);
     if (accepted.some(cents => Math.abs(cents - paidCents) <= 1)) {
         return null;
     }
@@ -163,7 +178,7 @@ export function auditStellarOrder(
     const nonCanonical = canonical !== undefined && canonical !== order.hash;
 
     const baseCents = getOrderCatalogueCents(order);
-    const minCents = baseCents === null ? 0 : Math.min(...acceptedCents(baseCents, order.discount));
+    const minCents = baseCents === null ? 0 : Math.min(...acceptedUsdCents(order, baseCents));
     // Destination and asset first, amount checked below with the audit's own XLM valuation.
     const check = checkStellarPayment({
         transaction: horizon.transaction,
