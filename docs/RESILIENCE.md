@@ -17,8 +17,8 @@ We do not say "crash-free" without a number and its definition. The public quali
 > crash-free instrumented sessions = 1 − (sessions with an `app_error` at scene level or higher) /
 > (sessions with a `game_start`).
 
-- "Instrumented" means consenting sessions with analytics on (`NEXT_PUBLIC_POSTHOG_KEY` set and the
-  player pressed ACCEPT). Sessions without consent are not counted either way.
+- "Instrumented" means every session of a build with `NEXT_PUBLIC_POSTHOG_KEY` set (there is no
+  consent step since 2026-10-16).
 - "Scene level or higher" means the codes `scene_crash:*`, `page_crash:*`, `root_crash:*`,
   `scene_stall` and `scene_start_failed`. Modal and section crashes, listener errors and window errors
   are tracked but do not count against the figure (the player keeps playing).
@@ -62,7 +62,7 @@ builds goes to `/`, where `AppRouteRestore` routes on.
 
 ## Telemetry
 
-`app_error` goes through the same consent gate as every product event, at most 5 per tab session and
+`app_error` goes through the same scrubbed client as every product event, at most 5 per tab session and
 one per code (counts in `sessionStorage`, so RELOAD cannot loop them). Messages and stacks are
 scrubbed (`shared/analytics-core.ts`): no emails, tokens, addresses, ids, phone numbers, IBANs or
 quoted names, at most 8 stack frames, flat context with at most 12 keys, the route pattern
@@ -111,7 +111,7 @@ end-to-end set runs in the CI `client` job.
 `catnip-heist/src/app/crash.ts`: a boot failure, a burst of 3 same-origin errors within 2 s, or a
 5 s frame stall while the page is visible shows a night overlay ("The heist stopped. Reload to jump
 back in.") with RELOAD focused and the rest of the page inert; a lone error is only reported. Reports
-use the shared scrubber and consent key, at most 5 per session, sent with `sendBeacon` only when the
+use the shared scrubber, at most 5 per session, sent with `sendBeacon` only when the
 build has `VITE_POSTHOG_KEY`. Replay and verify builds compile the module out.
 
 ## Known limits

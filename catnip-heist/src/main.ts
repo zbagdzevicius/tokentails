@@ -16,7 +16,7 @@
  * Build flags:
  *   VITE_HEIST_BUILD=replay|verify  leaves the crash fallback, the crash report and product
  *                                   analytics out (G13-H, F9)
- *   VITE_POSTHOG_KEY, VITE_POSTHOG_HOST  where consented crash reports and events go; unset sends nothing
+ *   VITE_POSTHOG_KEY, VITE_POSTHOG_HOST  where crash reports and events go; unset sends nothing
  *   VITE_HEIST_QA=1                 a QA build: `?qa=1` installs window.__heist. Without it (every
  *                                   production build) the QA module is not in the bundle at all, so
  *                                   no URL or devtools call can play a bundled solution as a real,
@@ -59,7 +59,6 @@ async function installCrash(): Promise<CrashGuard | null> {
     return installCrashGuard({
       win: window,
       doc: document,
-      localStorage: storage('localStorage'),
       sessionStorage: session,
       // Watching a replay is not a player session: nothing is reported.
       reporting: !new URLSearchParams(location.search).has('replay'),
@@ -124,7 +123,6 @@ async function installAnalytics(): Promise<HeistAnalytics | null> {
     return createHeistAnalytics({
       apiKey: import.meta.env.VITE_POSTHOG_KEY,
       host: import.meta.env.VITE_POSTHOG_HOST,
-      localStorage: storage('localStorage'),
       sessionStorage: storage('sessionStorage'),
       transport: beaconTransport(navigator, window.fetch?.bind(window)),
       superProperties: { embed: launch.embed },
@@ -176,7 +174,7 @@ async function boot(): Promise<void> {
     shadows: q.get('shadows') !== '0',
     treat,
     embed: launch.embed ? { onExit: () => embed?.exit(), onSignIn: () => embed?.requestSignIn() } : undefined,
-    // First-run funnel (G10): the same consent-gated instance, so it is absent from replay and verify builds.
+    // First-run funnel (G10): the same instance, so it is absent from replay and verify builds.
     analytics,
     onRunComplete: (run) => {
       embed?.runComplete(run);

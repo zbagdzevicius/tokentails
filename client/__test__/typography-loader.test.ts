@@ -1,4 +1,4 @@
-import { createAnalytics, type AnalyticsClient, type ConsentState } from "@/analytics";
+import { createAnalytics, type AnalyticsClient } from "@/analytics";
 import {
   GAME_FONT_RETRIES,
   GAME_FONT_TIMEOUT_MS,
@@ -229,42 +229,26 @@ describe("loadGameFonts (plan F4)", () => {
   });
 });
 
-describe("game_font_fallback is consent-gated", () => {
-  const setup = (consent: ConsentState) => {
+describe("game_font_fallback through the analytics client", () => {
+  const setup = () => {
     const capture = jest.fn();
     const client: AnalyticsClient = {
       capture,
       register: jest.fn(),
-      opt_in_capturing: jest.fn(),
-      opt_out_capturing: jest.fn(),
-      has_opted_out_capturing: () => false,
-      reset: jest.fn(),
     };
     const load = jest.fn(async () => client);
     const analytics = createAnalytics({
       apiKey: "phc_test",
       load,
       superProperties: () => ({ app: "core", platform: "web", device_tier: "high" }),
-      readConsent: () => consent,
-      writeConsent: jest.fn(),
     });
     const fonts = fakeFontSet((font) => (font.includes("Bebas") ? "undeclared" : "loaded"));
     const loader = createGameFontLoader({ fontSet: () => fonts, track: analytics.track });
     return { capture, load, loader };
   };
 
-  it("sends nothing without consent (and never loads the analytics client)", async () => {
-    for (const consent of ["unset", "denied"] as const) {
-      const { capture, load, loader } = setup(consent);
-      await loader.load();
-      await flush();
-      expect(load).not.toHaveBeenCalled();
-      expect(capture).not.toHaveBeenCalled();
-    }
-  });
-
-  it("sends exactly one event with consent", async () => {
-    const { capture, loader } = setup("granted");
+  it("sends exactly one event, with no consent setup", async () => {
+    const { capture, loader } = setup();
     await loader.load();
     await loader.load();
     await flush();

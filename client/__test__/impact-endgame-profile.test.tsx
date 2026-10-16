@@ -63,7 +63,6 @@ jest.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false
 jest.mock("@capacitor-firebase/authentication", () => ({ FirebaseAuthentication: {} }));
 jest.mock("@/api/user-api", () => ({ USER_API: { deleteMe: jest.fn(), saveProfileTwitter: jest.fn() } }));
 jest.mock("@/components/shared/GameMusicToggler", () => ({ GameMusicToggle: () => null }));
-jest.mock("@/components/shared/AnalyticsConsentBanner", () => ({ AnalyticsSettingsButton: () => null }));
 jest.mock("next/dynamic", () => () => () => null);
 const mockOpenWebImpact = jest.fn(() => Promise.resolve());
 jest.mock("@/components/claims/build", () => ({

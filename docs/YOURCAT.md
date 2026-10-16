@@ -191,7 +191,7 @@ billed Gemini key is a launch condition too (spec §10).
 
 ## Analytics
 
-Five client-only events in `client/analytics/growth-events.ts` (PostHog, consent-gated; not in
+Five client-only events in `client/analytics/growth-events.ts` (PostHog, scrubbed, every visitor; not in
 `shared/analytics-core.ts`, so `catnip-heist/` needs no sync). `AnalyticsEvent` in
 `client/analytics/events.ts` is the union of the core events and these.
 
@@ -336,14 +336,9 @@ flags"); the decisions behind them are in [plans/yourcat-v2.md](plans/yourcat-v2
   after the step-out show ends, and the sticky bar appears with it, so a phone recording of the show
   stays clean.
 
-- Fixed (KI-19, 2026-10-11): the consent banner did not name Google Tag Manager and never showed in a
-  build with a GTM id but no PostHog key, so GTM could never get consent. It now opens when either
-  PostHog or GTM is configured and names what "Accept" turns on in that build
-  (`AnalyticsConsentBanner.tsx`, `consentCopy`). Its PostHog sentence names the five events above:
-  "the steps of ... making your cat and buying a portrait, with the link that brought you here. No
-  photo, name or email is sent" (CR2-04, 2026-10-11: it had named game starts and finishes only).
-  Funnel events are still zero for visitors who do not
-  accept; the server counters (`GET /yourcat/stats`) stay the reliable count.
+- Superseded (KI-19, 2026-10-16): the analytics consent banner and the `/yourcat` compact chip were
+  removed. The five events above are sent for every visitor (no photo, name or email). The server
+  counters (`GET /yourcat/stats`) stay the reliable count.
 - Open: the native app privacy labels omit PostHog, the guest id and App Check (`docs/MOBILE.md`);
   `/yourcat` keeps upload web-only, so it adds nothing there.
 - Fixed (2026-10-11): `utils.shareURL` ignored its `text` argument and the `ShareModal` toast

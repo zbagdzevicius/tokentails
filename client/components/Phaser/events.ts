@@ -290,7 +290,7 @@ export type ICatEvent<K extends GameEvent> = IEventDetail<ICatEventsDetails[K]>;
 // throw in one never reaches an error boundary. dispatchEvent already runs
 // the remaining listeners and logs the error, but only as an anonymous
 // uncaught error. Every listener is wrapped so the error is reported with
-// its event as the code (scrubbed, consent-gated) and is not rethrown.
+// its event as the code (scrubbed) and is not rethrown.
 
 const listenerCode = (gameEvent: GameEvent) =>
   `listener_error:${gameEvent.toLowerCase()}`;

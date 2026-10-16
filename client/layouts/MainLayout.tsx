@@ -6,14 +6,8 @@ import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { queryClient } from "@/context/query";
 import { QueryClientProvider } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { PropsWithChildren, useEffect } from "react";
-
-const AnalyticsConsentBanner = dynamic(
-  () => import("@/components/shared/AnalyticsConsentBanner"),
-  { ssr: false },
-);
 
 /** The visible path, without query or hash. */
 export const routeKey = (asPath: string | undefined) =>
@@ -45,10 +39,6 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
                 {children}
               </PageBoundary>
             </main>
-            {/* /yourcat asks in its own header (the compact chip, `pages/yourcat.tsx`), so the
-                banner never covers CHOOSE A PHOTO or the S3 actions. /swordcat: the game pauses while
-                the card is up (it covered the in-game treat button on a landscape phone until answered). */}
-            {route !== "/yourcat" && <AnalyticsConsentBanner pauseGames={route === "/swordcat"} />}
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

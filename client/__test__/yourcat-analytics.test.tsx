@@ -2,12 +2,11 @@
  * @jest-environment jsdom
  */
 /**
- * Growth events of bet #3 (docs/plans/yourcat-v2.md §7.1): exact names, no personal data, dropped
- * without consent, `portrait_paid` once per record (across tabs), `upload_started` on every attempt
+ * Growth events of bet #3 (docs/plans/yourcat-v2.md §7.1): exact names, no personal data, sent
+ * with no consent state, `portrait_paid` once per record (across tabs), `upload_started` on every attempt
  * (a retry included), and the GTM checkout value from the status price.
  */
 import { createAnalytics, type AnalyticsClient } from "@/analytics/client";
-import type { ConsentState } from "@/analytics/consent";
 import { buildGrowthEvent, GROWTH_EVENTS, type GrowthEventProperties } from "@/analytics/growth-events";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "fs";
@@ -134,25 +133,17 @@ describe("growth event catalog", () => {
     for (const key of PII_KEYS) expect(declared).not.toMatch(new RegExp(`\\b${key}\\??:`));
   });
 
-  it("growth events are dropped without consent (createAnalytics, fake loader)", async () => {
+  it("growth events are sent with no consent state (createAnalytics, fake loader)", async () => {
+    localStorage.clear();
     const client: jest.Mocked<AnalyticsClient> = {
       capture: jest.fn(),
       register: jest.fn(),
-      opt_in_capturing: jest.fn(),
-      opt_out_capturing: jest.fn(),
-      has_opted_out_capturing: jest.fn(() => false),
-      reset: jest.fn(),
     };
-    let consent: ConsentState = "unset";
     const load = jest.fn(async () => client);
     const analytics = createAnalytics({
       apiKey: "phc_test",
       load,
       superProperties: () => ({ app: "core", platform: "web", device_tier: "unknown" }),
-      readConsent: () => consent,
-      writeConsent: (state) => {
-        consent = state;
-      },
     });
     const event = buildGrowthEvent("card_shared", {
       surface: "yourcat",
@@ -164,11 +155,7 @@ describe("growth event catalog", () => {
     });
     analytics.track(event);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(load).not.toHaveBeenCalled();
-    expect(client.capture).not.toHaveBeenCalled();
-    await analytics.setConsent("granted");
-    analytics.track(event);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(load).toHaveBeenCalledTimes(1);
     expect(client.capture).toHaveBeenCalledWith("card_shared", event.properties);
   });
 });

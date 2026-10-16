@@ -218,7 +218,7 @@ Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, a
 ## Cross-cutting concerns
 
 - **In-process state**: traction counters, the storefront, featured and Paw Match leaderboard caches live in memory on the API and diverge across replicas (known issue, kept). Public numbers no longer read the counters: the landing, `/impact` and `/stats` read the Mongo-backed impact snapshot (plan F7). Cron jobs take a lease in `jobruns`, so they run once per tick across replicas.
-- **Resilience**: error boundaries at root, page, scene, modal and section level, a Phaser crash guard and scrubbed, consent-gated crash telemetry. See [RESILIENCE.md](RESILIENCE.md).
+- **Resilience**: error boundaries at root, page, scene, modal and section level, a Phaser crash guard and scrubbed crash telemetry. See [RESILIENCE.md](RESILIENCE.md).
 - **Synchronous AI**: portrait and blessing generation run inside the request. There is no job queue.
 - **Client-supplied prices**: fixed. Stripe Checkout, Stripe PaymentIntents and Stellar all verify against the server price table, and spend and affiliate counters use the verified amount; see the backend known issues.
 - **Duplicated domain code**: enums, error codes, caps and reward constants are generated from `shared/` into every package (`scripts/sync-contracts.mjs --check` in CI); the remaining hand-kept copies are listed in DEVELOPMENT.md.

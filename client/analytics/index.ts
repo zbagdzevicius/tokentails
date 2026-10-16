@@ -4,7 +4,6 @@ import { createGameRunTracker } from "./game-run";
 import { getDeviceTier, getPlatform } from "./platform";
 
 export * from "./events";
-export * from "./consent";
 export { getPlatform, getDeviceTier } from "./platform";
 export { createAnalytics, POSTHOG_EU_HOST } from "./client";
 export { createGameRunTracker } from "./game-run";
@@ -20,8 +19,8 @@ export type { GameRunTracker } from "./game-run";
 export type { Analytics, AnalyticsClient, AnalyticsOptions } from "./client";
 
 /**
- * posthog-js is imported only after the player accepts analytics, and only in
- * the browser, so it never runs during SSR or static export.
+ * posthog-js is imported lazily and only in the browser, so it never runs
+ * during SSR or static export.
  */
 const loadPostHog = async (
   apiKey: string,
@@ -69,12 +68,11 @@ export const gameRun = createGameRunTracker(analytics.track, getPlatform);
 
 const errorReporter = createErrorReporter({
   track: analytics.track,
-  getConsent: analytics.getConsent,
   isEnabled: () => analytics.enabled,
 });
 
 /**
- * Reports a crash as a scrubbed `app_error` (F9): consent-gated, at most 5
+ * Reports a crash as a scrubbed `app_error` (F9): at most 5
  * per session and one per code. Safe to call anywhere; it never throws.
  */
 export function reportAppError(

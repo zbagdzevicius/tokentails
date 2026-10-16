@@ -61,8 +61,8 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SITE_NAME` | Brand name for Open Graph and JSON-LD |
 | `NEXT_PUBLIC_IS_PROD` | Switches Stellar mainnet vs testnet and CDN vs local assets |
 | `NEXT_PUBLIC_IS_APP` | Marks a Capacitor build: static export, no ISR, no robots or sitemap extras, no feed ad slots, web checkout hidden, app-only profile UI |
-| `NEXT_PUBLIC_GTM_ID` | Google Tag Manager container, loaded only after analytics consent. Omit to disable GTM |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key (EU host `eu.i.posthog.com`, fixed in code). Omit to turn product analytics and its consent banner off |
+| `NEXT_PUBLIC_GTM_ID` | Google Tag Manager container, loaded on every page for every visitor. Omit to disable GTM |
+| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key (EU host `eu.i.posthog.com`, fixed in code). Omit to turn product analytics off |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Passed to `loadStripe` |
 | `NEXT_PUBLIC_FB_APP_ID`, `NEXT_PUBLIC_FB_PAGES`, `NEXT_PUBLIC_TWITTER_PAGE` | Social meta tags |
 | `NEXT_PUBLIC_THEME` | Legacy asset-path prefix |
@@ -138,7 +138,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
 | `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
-| `analytics/` | Consent-gated PostHog EU events. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `consent.ts` the stored choice, `client.ts` the gate, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager gate, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
+| `analytics/` | Scrubbed PostHog EU events for every visitor. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `client.ts` the lazy PostHog client, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager loader, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
 | `constants/` | Utilities, catnip accounting (with its only real test), rewards, static props helper. |
 | `models/` | Domain types and enums. |
@@ -186,8 +186,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 HTML for the night routes (`/`, `/packs`, `/shelter-payouts/*`, `/impact`, `/heist`, `/game`;
 `components/shared/skyScope.ts`), an inline first-paint night background, `theme-color` `#0b0820`,
 one icon set (`favicon.ico`, the 32 and 192 PNGs, the apple-touch icon), the manifest link and the
-font preloads. It no longer injects Google Tag Manager; GTM loads only after analytics consent (see
-"Analytics"). `pages/_app.tsx` wraps everything in the `RootBoundary` and `MainLayout`, renders one
+font preloads. It no longer injects Google Tag Manager; GTM loads on mount from
+`components/GoogleTagManager.tsx` (see "Analytics"). `pages/_app.tsx` wraps everything in the `RootBoundary` and `MainLayout`, renders one
 keyed viewport tag per route (zoom is allowed everywhere except `/game`, which adds
 `maximum-scale=1, user-scalable=no`), re-applies `data-sky` on client navigation and mounts
 `NativeChrome`. The PWA manifest (`public/manifest.webmanifest`) is night, PNG-only, `start_url: /game`,
@@ -493,8 +493,8 @@ do not exist in the current backend controllers. Those calls fail silently.
 
 ## State management
 
-Provider tree from `layouts/MainLayout`: query client, Google Tag Manager, toast, profile, cat,
-and the analytics consent banner (`next/dynamic`, `ssr: false`).
+Provider tree from `layouts/MainLayout`: query client, Google Tag Manager (which also starts
+PostHog), toast, profile and cat. There is no analytics consent banner (removed 2026-10-16).
 Pages add Firebase auth, the game provider, web3 (always dynamically imported with
 `ssr: false`), and entity metadata inside blog layouts.
 
@@ -549,25 +549,21 @@ and effects sliders, Graphics); the profile sheet has the same sound panel.
 
 ## Analytics
 
-Per-mode product events go to PostHog EU through `analytics/`. Nothing loads or sends until the
-player presses ACCEPT on `components/shared/AnalyticsConsentBanner.tsx`; the default is off and
-events from before consent are dropped, not queued. The choice is stored in `localStorage` under
-`tt-analytics-consent` (reads and writes are wrapped in try/catch). Players change or revoke it
-from the ANALYTICS button in the profile modal or the "Analytics settings" footer link; revoking
-calls `reset()` and `opt_out_capturing()`. `posthog-js` is imported dynamically only after
-consent. Autocapture, pageviews, session replay, surveys, flags and remote scripts are off,
+Analytics run for every visitor. There is no consent card, chip or settings link (founder decision,
+2026-10-16). Per-mode product events go to PostHog EU through `analytics/`.
+`components/GoogleTagManager.tsx` calls `analytics.init()` on mount, which imports `posthog-js`
+dynamically in the browser only. Players who pressed "No thanks" on the old card are opted back in
+once (PostHog's own opt-out flag is cleared); the old `tt-analytics-consent` key is no longer read.
+Autocapture, pageviews, session replay, surveys, flags and remote scripts are off,
 `person_profiles` is `never`, and `identify` is never called, so the only id is PostHog's random
-anonymous one. Events carry no user id, email, name or wallet.
+anonymous one. Events carry no user id, email, name or wallet, and no photo is ever sent.
 
-Google Tag Manager (`NEXT_PUBLIC_GTM_ID`) sits behind the same choice through `analytics/gtm.ts`.
-Before ACCEPT nothing is sent: `gtm.js` is not requested, no `dataLayer` exists, and `page_view`
-and `trackEvent` pushes are dropped, not queued. On ACCEPT (or on load with consent stored)
-`components/GoogleTagManager.tsx` pushes Consent Mode v2 defaults (all `denied`), then an update
-granting `analytics_storage` only, then loads the container and records the current page. Ad
-storage, ad user data and ad personalisation stay `denied` because the banner asks about
-analytics only. Revoking stops all pushes and sends `analytics_storage: denied`; the loaded script
-stays until the next page load. There is no `<noscript>` iframe. The banner only renders when
-`NEXT_PUBLIC_POSTHOG_KEY` is set, so a build with a GTM id but no PostHog key never loads GTM.
+Google Tag Manager (`NEXT_PUBLIC_GTM_ID`) loads on mount for every visitor through
+`analytics/gtm.ts`: `components/GoogleTagManager.tsx` starts it, pushes `page_view` after 100 ms
+and on every route change, and `trackEvent` pushes the portrait shop steps. No Consent Mode
+commands are pushed, so Google Analytics 4 in the container uses its default storage and sets its
+cookies. If the GTM container has its own consent settings in the GTM web UI, they still apply.
+There is no `<noscript>` iframe.
 
 | Event | Sent when | Properties |
 |---|---|---|
@@ -598,10 +594,10 @@ runs, heist, impact, health) with property shapes that never carry a user id, em
 removes emails, JWTs and `fb` tokens, Stellar seeds and addresses, `0x` values, ObjectIds, long hex,
 phone numbers and national-id-like digit runs, IBANs, `did:` ids, opaque tokens, URL queries and
 quoted names (code-shaped quoted identifiers stay), and cuts stacks to 8 frames without the origin.
-`app_error` reports go through the same consent gate, at most 5 per tab session and one per code
+`app_error` reports go through the same client, at most 5 per tab session and one per code
 (counts in `sessionStorage["tt-app-error-session"]`), and never call `posthog.captureException`.
-Catnip Heist sends its own consent-gated events with the same core (GAMES.md); it reads consent from
-the same `tt-analytics-consent` key on the same origin.
+Catnip Heist sends its own scrubbed events with the same core (GAMES.md) whenever its build has a
+PostHog key.
 
 ## SEO
 
@@ -626,12 +622,10 @@ sums, and the total cap. `__test__/landing-routing.test.tsx` covers the root lan
 jsdom with a docblock and mocks the page's heavy components. `__test__/proof-section.test.tsx` covers the
 homepage proof section: copy guard, video attributes, marquee duplication, the lazy motion-aware
 playback controller (stubbed `IntersectionObserver`, `matchMedia`, and `HTMLMediaElement`
-`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/analytics.test.ts` covers the consent gate (nothing
-loaded or sent before consent, no queueing, revoke, no key), the `GAME_*` to event mapping, the
-run tracker and `getPlatform`. `__test__/gtm-consent.test.ts` covers the GTM gate (no script,
-`dataLayer` or events before consent, Consent Mode order, no replay, revoke, no id, no window,
-no snippet in `_document.js`), the `GoogleTagManager` component, and `/feed`-prefixed article URLs
-in the sitemap config. `__test__/app-export.test.ts` covers the app-build switches
+`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/analytics.test.ts` covers the client with no consent
+state (sends at once, `init()`, the one-time opt-in after an old opt-out, throwing storage, no
+key), the `GAME_*` to event mapping, the run tracker and `getPlatform`. `__test__/gtm.test.ts`
+covers GTM (loads on start, pushes at once, no Consent Mode commands, no id, no window). `__test__/app-export.test.ts` covers the app-build switches
 (`output: "export"` and no redirects, no ISR or fallback, client-route links and `webPath`), and
 `__test__/app-route-restore.test.tsx` covers routing a cold app load to the page the URL names.
 `__test__/test.ts` is a placeholder
@@ -650,7 +644,7 @@ Build and SSR:
 
 Privacy:
 
-- Fixed (KI-19, 2026-10-11): the consent banner described game-event counting only, did not name Google Tag Manager or the portrait `view_item`/`add_to_cart`/`begin_checkout`/`purchase` events GTM receives after ACCEPT, and appeared only when `NEXT_PUBLIC_POSTHOG_KEY` was set, so a build with `NEXT_PUBLIC_GTM_ID` but no PostHog key could never get consent and GTM/GA received nothing. The banner (and the ANALYTICS settings button and link) now appear when either PostHog or GTM is configured, and its text names only what this build turns on: for PostHog, game starts and finishes, app errors and the steps of signing in, picking a starter cat, making your cat (`/yourcat` upload and share, with the incoming link's UTM tags) and buying a portrait, with no photo, name or email (CR2-04, 2026-10-11: it had named game counts only and called them anonymous); for GTM the page views and the portrait shop steps sent to Google Analytics, which sets cookies (`components/shared/AnalyticsConsentBanner.tsx`, `consentCopy`). Still for production: set the PostHog key if the game-event funnel is wanted.
+- Superseded (KI-19, 2026-10-16): the analytics consent banner, chip and settings links were removed. PostHog and GTM (with Google Analytics 4, which sets cookies) now run for every visitor; no photo, name or email is sent. Still for production: set the PostHog key if the game-event funnel is wanted.
 
 Auth and storage:
 

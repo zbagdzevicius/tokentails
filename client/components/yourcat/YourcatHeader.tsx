@@ -5,12 +5,8 @@
  * scroll down and returns on scroll up with `translate-y` only (200 ms std; no transition under
  * reduced motion). 72 px tall on phones and 96 px on md+, so the page pads `pt-[76px] md:pt-[104px]`.
  * The shared `layouts/Header.tsx` is not used here.
- *
- * `aside` sits right of the logo (left of the socials on md+): the page puts the compact analytics
- * consent chip there (polish §15), so it is part of the header and never covers the page. While the
- * chip is shown the header never hides, so the question (and a reopened settings chip) stays on screen.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Socials } from "@/layouts/Socials";
 
 /** Past this scroll offset the header takes its night background. */
@@ -18,7 +14,7 @@ export const HEADER_SCROLLED_AT = 8;
 /** Below this offset the header never hides (its own height on phones). */
 const HIDE_AFTER = 72;
 
-export function YourcatHeader({ aside }: { aside?: ReactNode } = {}) {
+export function YourcatHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const lastYRef = useRef(0);
@@ -53,7 +49,7 @@ export function YourcatHeader({ aside }: { aside?: ReactNode } = {}) {
     <header
       className={`fixed inset-x-0 top-0 z-50 py-2 transition-transform duration-200 ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none ${
         hidden ? "-translate-y-full" : "translate-y-0"
-      } [&:has([data-variant=compact])]:!translate-y-0 ${
+      } ${
         scrolled
           ? "border-b border-tt-gold-400/30 bg-tt-night-900/85 shadow-[0_4px_0_rgb(var(--tt-night-950))] backdrop-blur-sm"
           : "border-b border-transparent"
@@ -83,7 +79,6 @@ export function YourcatHeader({ aside }: { aside?: ReactNode } = {}) {
           />
         </a>
         <div className="flex min-w-0 items-center justify-end gap-6">
-          {aside}
           <div className="hidden md:block shrink-0" data-testid="yourcat-header-socials">
             <Socials />
           </div>

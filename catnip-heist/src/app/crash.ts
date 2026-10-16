@@ -8,20 +8,17 @@
  * reported: App.frame schedules the next frame before running the current
  * one, so the heist keeps going and the run in progress (and its unsent
  * save) must not be thrown away for a one-off error. A scrubbed `app_error`
- * is sent only when the player accepted analytics on tokentails.com (the
- * same-origin `tt-analytics-consent` key), at most 5 per session and one per
- * code, and only when a PostHog key is built in. Replay and verify builds
+ * is sent at most 5 times per session and once per code, and only when a
+ * PostHog key is built in. Replay and verify builds
  * never include this module (see main.ts).
  *
- * The scrub rules, consent key and session budget come from
+ * The scrub rules and session budget come from
  * shared/analytics-core.ts, the same copy the core app uses. DOM access goes
  * through narrow `Pick` types so the tests can run under node with a small
  * fake document.
  */
 import {
-  CONSENT_STORAGE_KEY,
   POSTHOG_EU_HOST,
-  consentGrantedIn,
   createSessionBudget,
   scrubStack,
   scrubText,
@@ -29,7 +26,6 @@ import {
 } from '../shared-contracts/analytics-core';
 import { sessionDistinctId } from '../analytics';
 
-export const CONSENT_KEY = CONSENT_STORAGE_KEY;
 export const CRASH_SESSION_KEY = 'tt-heist-app-error';
 export const CRASH_MAX_PER_SESSION = 5;
 export const OVERLAY_ID = 'ch-crash';
@@ -97,13 +93,7 @@ export function buildCrashPayload(
   };
 }
 
-export function consentGranted(storage: StorageLike | null | undefined): boolean {
-  return consentGrantedIn(storage);
-}
-
 export interface ReporterOptions {
-  /** localStorage: where the consent choice lives (same origin as the app). */
-  consentStorage: StorageLike | null;
   /** sessionStorage: the per-session budget. */
   sessionStorage: StorageLike | null;
   send: (payload: CrashPayload) => void;
@@ -111,13 +101,12 @@ export interface ReporterOptions {
   route?: () => string;
 }
 
-/** Consent-gated, capped reporter. Returns true when a report was sent. */
+/** Capped reporter. Returns true when a report was sent. */
 export function createCrashReporter(opts: ReporterOptions) {
   const budget = createSessionBudget(CRASH_MAX_PER_SESSION, storageBudgetStore(CRASH_SESSION_KEY, () => opts.sessionStorage));
 
   return (code: string, error: unknown, source: CrashPayload['source']): boolean => {
     try {
-      if (!consentGranted(opts.consentStorage)) return false;
       const index = budget.take(code);
       if (!index) return false;
       opts.send(buildCrashPayload(code, error, source, {
@@ -249,7 +238,6 @@ export function showCrashOverlay(doc: DocumentLike, reload: () => void): HTMLEle
 export interface CrashGuardOptions {
   win: WindowLike;
   doc: DocumentLike;
-  localStorage: StorageLike | null;
   sessionStorage: StorageLike | null;
   send: (payload: CrashPayload) => void;
   /** False while watching a replay: the overlay still shows, nothing is sent. */
@@ -311,7 +299,6 @@ export function installCrashGuard(opts: CrashGuardOptions): CrashGuard {
   const schedule = opts.setInterval ?? ((fn: () => void, ms: number) => setInterval(fn, ms));
   const cancel = opts.clearInterval ?? ((id: unknown) => clearInterval(id as ReturnType<typeof setInterval>));
   const report = createCrashReporter({
-    consentStorage: opts.localStorage,
     sessionStorage: opts.sessionStorage,
     send: opts.send,
     origin,

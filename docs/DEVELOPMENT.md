@@ -180,7 +180,7 @@ and add it with `git add client/public/heist-game` (the build is committed). `np
 needs `client/node_modules` (sharp, through the catnip exporter) and `../cat-assets`, and rewrites all
 assets. Flags: `VITE_HEIST_BUILD=replay|verify` compiles the crash and analytics modules out,
 `VITE_HEIST_QA=1` installs the QA hooks, `VITE_POSTHOG_KEY` (and optional `VITE_POSTHOG_HOST`)
-enables consent-gated crash and run events; `HEIST_BASE` sets the base path, and `HEIST_PAYOUTS_URL`,
+enables scrubbed crash and run events; `HEIST_BASE` sets the base path, and `HEIST_PAYOUTS_URL`,
 `HEIST_DEPLOYMENTS_URL` and `HEIST_GIVE_URL` the win-screen payouts link, its on-chain total and the
 treat button (an empty `HEIST_GIVE_URL` hides it); runtime config comes from
 `window.__TT_HEIST_CONFIG__` or the `heist:api-url` / `heist:facts-url` meta tags in `index.html`
@@ -273,7 +273,7 @@ node --test 'scripts/__tests__/*.test.mjs' # the script's own tests (a bare dire
 | `shared/heist-bridge.ts` | Host and iframe message types of the Heist bridge, `isHeistRunLog` | backend, client, heist |
 | `shared/copy.ts` | `TAILS_WORD`, `formatTails`, `TAILS_NO_CASH_VALUE`, `CAT_NAP_TAILS`, `CAT_NAP_MAX_CATS`, `CAT_NAP_DAYS`, `TAILS_MODES` | backend, client, cms, heist |
 | `shared/name.ts` | `normalizeCatName` and its vectors, name report reasons and statuses | backend, client, cms |
-| `shared/analytics-core.ts` | Event names and areas, the consent key, the scrubber, the session budget | client, heist |
+| `shared/analytics-core.ts` | Event names and areas, the PostHog host, the scrubber, the session budget | client, heist |
 | `shared/__tests__/*.test.ts` | Tests of the above, run by the client's jest | client |
 
 Generated locations: `backend/src/shared-contracts/`, `client/shared-contracts/`,

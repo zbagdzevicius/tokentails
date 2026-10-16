@@ -16,8 +16,8 @@
  *   `preloadTTFonts`) tries the missing faces again, at most `GAME_FONT_RETRIES` times per page, so
  *   one network error does not pin the fallbacks for the session and a dead network does not add
  *   the timeout to every scene start. Faces that loaded are not loaded again.
- * - Sends at most one `game_font_fallback` per page session through the consent-gated analytics
- *   client (nothing leaves the browser without consent).
+ * - Sends at most one `game_font_fallback` per page session through the scrubbed analytics
+ *   client.
  *
  * No Phaser here (ESLint enforces it): the landing imports this module too.
  */
@@ -60,7 +60,7 @@ export interface FontSetLike {
 export interface GameFontLoaderOptions {
   /** Defaults to `document.fonts`; return undefined where there is none (SSR, old WebViews). */
   fontSet?: () => FontSetLike | undefined;
-  /** Consent-gated sink for the one fallback event. Defaults to the app analytics client. */
+  /** Sink for the one fallback event. Defaults to the app analytics client. */
   track?: (event: AnalyticsEvent) => void;
   timeoutMs?: number;
   now?: () => number;

@@ -1,8 +1,7 @@
 /**
- * Consent gate and GAME_* -> PostHog event mapping for client/analytics.
+ * PostHog client (no consent gate) and GAME_* -> PostHog event mapping for client/analytics.
  */
 import { createAnalytics, type AnalyticsClient } from "@/analytics/client";
-import { readConsent, type ConsentState } from "@/analytics/consent";
 import { createGameRunTracker } from "@/analytics/game-run";
 import {
   ANALYTICS_EVENT_AREAS,
@@ -24,25 +23,17 @@ import { getPlatform } from "@/analytics/platform";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function setup({
-  apiKey = "phc_test",
-  stored = "unset" as ConsentState,
-} = {}) {
-  let optedOut = false;
-  const client: jest.Mocked<AnalyticsClient> = {
+function setup({ apiKey = "phc_test", optedOut = false } = {}) {
+  let opted = optedOut;
+  const client: jest.Mocked<Required<AnalyticsClient>> = {
     capture: jest.fn(),
     register: jest.fn(),
+    has_opted_out_capturing: jest.fn(() => opted),
     opt_in_capturing: jest.fn(() => {
-      optedOut = false;
+      opted = false;
     }),
-    opt_out_capturing: jest.fn(() => {
-      optedOut = true;
-    }),
-    has_opted_out_capturing: jest.fn(() => optedOut),
-    reset: jest.fn(),
   };
   const load = jest.fn(async () => client);
-  const writeConsent = jest.fn();
   const analytics = createAnalytics({
     apiKey,
     load,
@@ -51,10 +42,8 @@ function setup({
       platform: "web",
       device_tier: "unknown",
     }),
-    readConsent: () => stored,
-    writeConsent,
   });
-  return { analytics, client, load, writeConsent };
+  return { analytics, client, load };
 }
 
 const startEvent = buildGameStartEvent({
@@ -63,36 +52,14 @@ const startEvent = buildGameStartEvent({
   platform: "web",
 });
 
-describe("analytics consent gate", () => {
-  it("sends nothing and loads nothing before consent", async () => {
+describe("analytics without a consent gate", () => {
+  it("initialises and sends with no consent state, with EU host and super properties", async () => {
     const { analytics, client, load } = setup();
 
     analytics.track(startEvent);
     await flush();
 
-    expect(analytics.getConsent()).toBe("unset");
-    expect(load).not.toHaveBeenCalled();
-    expect(client.capture).not.toHaveBeenCalled();
-  });
-
-  it("does not queue events from before consent", async () => {
-    const { analytics, client } = setup();
-
-    analytics.track(startEvent);
-    await analytics.setConsent("granted");
-    await flush();
-
-    expect(client.capture).not.toHaveBeenCalled();
-  });
-
-  it("captures after the player accepts, with EU host and super properties", async () => {
-    const { analytics, client, load, writeConsent } = setup();
-
-    await analytics.setConsent("granted");
-    analytics.track(startEvent);
-    await flush();
-
-    expect(writeConsent).toHaveBeenCalledWith("granted");
+    expect(analytics.enabled).toBe(true);
     expect(load).toHaveBeenCalledWith("phc_test", "https://eu.i.posthog.com");
     expect(client.register).toHaveBeenCalledWith({
       app: "core",
@@ -108,61 +75,58 @@ describe("analytics consent gate", () => {
     });
   });
 
-  it("uses a stored grant from an earlier visit", async () => {
-    const { analytics, client } = setup({ stored: "granted" });
+  it("init() loads the client before any event, once", async () => {
+    const { analytics, load, client } = setup();
 
+    analytics.init();
+    analytics.init();
+    await flush();
     analytics.track(startEvent);
     await flush();
 
+    expect(load).toHaveBeenCalledTimes(1);
     expect(client.capture).toHaveBeenCalledTimes(1);
   });
 
-  it("stops sending and resets the anonymous id when consent is revoked", async () => {
-    const { analytics, client, writeConsent } = setup({ stored: "granted" });
+  it("opts a player back in once when PostHog still holds an old opt-out", async () => {
+    const { analytics, client } = setup({ optedOut: true });
 
     analytics.track(startEvent);
-    await flush();
-    await analytics.setConsent("denied");
-    analytics.track(startEvent);
-    await flush();
-
-    expect(writeConsent).toHaveBeenLastCalledWith("denied");
-    expect(client.reset).toHaveBeenCalledTimes(1);
-    expect(client.opt_out_capturing).toHaveBeenCalledTimes(1);
-    expect(client.capture).toHaveBeenCalledTimes(1);
-  });
-
-  it("opts back in silently when consent is granted again", async () => {
-    const { analytics, client } = setup({ stored: "granted" });
-
-    analytics.track(startEvent);
-    await flush();
-    await analytics.setConsent("denied");
-    await analytics.setConsent("granted");
     analytics.track(startEvent);
     await flush();
 
-    expect(client.opt_in_capturing).toHaveBeenCalledWith({
-      captureEventName: null,
-    });
+    expect(client.opt_in_capturing).toHaveBeenCalledTimes(1);
+    expect(client.opt_in_capturing).toHaveBeenCalledWith({ captureEventName: null });
     expect(client.capture).toHaveBeenCalledTimes(2);
   });
 
-  it("never loads the client when a denied player has not loaded it", async () => {
-    const { analytics, load } = setup();
-
-    await analytics.setConsent("denied");
-    analytics.track(startEvent);
-    await flush();
-
-    expect(load).not.toHaveBeenCalled();
+  it("still sends when browser storage throws", async () => {
+    const globals = globalThis as { window?: unknown };
+    const previous = globals.window;
+    const throwing = {
+      get localStorage(): Storage {
+        throw new Error("blocked");
+      },
+      get sessionStorage(): Storage {
+        throw new Error("blocked");
+      },
+    };
+    globals.window = throwing;
+    try {
+      const { analytics, client } = setup();
+      analytics.track(startEvent);
+      await flush();
+      expect(client.capture).toHaveBeenCalledTimes(1);
+    } finally {
+      globals.window = previous;
+    }
   });
 
-  it("is a no-op without a PostHog key, even with consent", async () => {
-    const { analytics, client, load } = setup({ apiKey: "", stored: "granted" });
+  it("is a no-op without a PostHog key", async () => {
+    const { analytics, client, load } = setup({ apiKey: "" });
 
     expect(analytics.enabled).toBe(false);
-    await analytics.setConsent("granted");
+    analytics.init();
     analytics.track(startEvent);
     await flush();
 
@@ -170,9 +134,27 @@ describe("analytics consent gate", () => {
     expect(client.capture).not.toHaveBeenCalled();
   });
 
-  it("treats unreadable storage as no consent", () => {
-    // The test environment has no window, so localStorage access throws.
-    expect(readConsent()).toBe("unset");
+  it("retries the load after a failure", async () => {
+    const client: AnalyticsClient = { capture: jest.fn(), register: jest.fn() };
+    const load = jest
+      .fn<Promise<AnalyticsClient>, [string, string]>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(client);
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const analytics = createAnalytics({
+      apiKey: "phc_test",
+      load,
+      superProperties: () => ({ app: "core", platform: "web", device_tier: "unknown" }),
+    });
+
+    analytics.track(startEvent);
+    await flush();
+    analytics.track(startEvent);
+    await flush();
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(client.capture).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 });
 

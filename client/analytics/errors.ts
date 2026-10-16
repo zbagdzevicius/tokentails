@@ -1,4 +1,3 @@
-import type { ConsentState } from "./consent";
 import {
   buildEvent,
   type AnalyticsEvent,
@@ -18,7 +17,7 @@ import { scrubContext, scrubRoute, scrubStack, scrubText } from "./scrub";
 export { normaliseCode };
 
 /**
- * Crash telemetry (F9). Sends `app_error` through the normal consent-gated
+ * Crash telemetry (F9). Sends `app_error` through the normal
  * `analytics.track`, never `posthog.captureException` (which would ship raw
  * messages, stacks and URLs).
  *
@@ -57,7 +56,6 @@ export type { SessionBudgetState };
 
 export interface ErrorReporterOptions {
   track: (event: AnalyticsEvent) => void;
-  getConsent: () => ConsentState;
   /** False when analytics has no key: nothing is counted or sent. */
   isEnabled?: () => boolean;
   maxPerSession?: number;
@@ -133,9 +131,7 @@ export function createErrorReporter(options: ErrorReporterOptions): ErrorReporte
 
   const report = (code: string, error: unknown, context?: AppErrorContext) => {
     try {
-      // Nothing is counted before consent, so a later opt-in still gets
-      // the full budget.
-      if (!isEnabled() || options.getConsent() !== "granted") return false;
+      if (!isEnabled()) return false;
       const key = normaliseCode(code);
       const index = budget.take(key);
       if (!index) return false;

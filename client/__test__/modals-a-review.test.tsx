@@ -90,7 +90,6 @@ jest.mock("@/components/shared/Wheel", () => {
   return { __esModule: true, default: Wheel };
 });
 jest.mock("@/components/shared/GameMusicToggler", () => ({ GameMusicToggle: () => null }));
-jest.mock("@/components/shared/AnalyticsConsentBanner", () => ({ AnalyticsSettingsButton: () => null }));
 jest.mock("@/components/tailsCard/TailsCardPack", () => ({ TailsCardPack: () => null }));
 // The lazily loaded checkout: a stand-in that reports a payment in flight.
 jest.mock("next/dynamic", () => () => (props: { onProcessingChange?: (busy: boolean) => void }) =>
