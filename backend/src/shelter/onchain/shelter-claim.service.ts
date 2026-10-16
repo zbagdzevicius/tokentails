@@ -6,8 +6,8 @@ import { hotWalletAddress, ShelterChain, shelterSplitInterface } from './shelter
 import { readIndexerConfig } from 'src/impact/impact.config';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
 import {
+    generatedShelterWallet,
     isTestnetChain,
-    publicGivingAllowed,
     readRelayChainConfigs,
     readShelterConfig,
     shelterConfigFor,
@@ -305,35 +305,58 @@ export class ShelterClaimService {
         return row ? { wallet: row.wallet, chainId: row.chainId, status: row.status } : null;
     }
 
-    private givingCache = new Map<string, { ok: boolean; at: number }>();
+    private givingCache = new Map<string, { ok: boolean; wallets: string[]; at: number }>();
 
     /**
-     * The full public-giving gate (relay, match, flush, onchain-receipt x402), per chain. Testnets:
-     * always. Mainnets: not switched off (SHELTER_HANDED_OVER=false) and, read on chain, every wallet in
-     * `split.preview(1 USDC).wallets` is a `rotated` claim on this chain (a v1 claim on the main chain,
-     * or a v2 claim naming this chain) and none is the hot wallet, the treasury, the split, the router,
-     * an IMPACT_PAWS_SENDERS or a SHELTER_MATCH_EXCLUDE address. A verdict is reused for 10 minutes; a failed read is `false` and
-     * not cached.
+     * The full public-giving gate (relay, match, flush, x402, the crypto checkout split route), per chain.
+     * Testnets: always. Mainnets: read on chain, `split.preview(1 USDC)` keeps nothing for the treasury,
+     * and the wallets it pays are EITHER all `rotated` claims on this chain (a v1 claim on the main chain,
+     * or a v2 claim naming this chain) OR all the chain's generated shelter wallet (wallet.config.ts
+     * `WALLETS.mainnet.pinkPaw`, Pink Paw's wallet since 2026-10-16). Either way none may be a wallet
+     * Token Tails holds (TOKEN_TAILS_HELD_WALLETS, SHELTER_HELD_WALLETS), the hot wallet, the treasury, the
+     * split, the router, an IMPACT_PAWS_SENDERS or a SHELTER_MATCH_EXCLUDE address. A verdict is reused
+     * for 10 minutes; a failed read is `false` and not cached (fail closed).
      */
     async publicGivingVerified(
         target: ShelterOnchainConfig | number = readShelterConfig(),
         now: Date = new Date()
     ): Promise<boolean> {
-        // A chain id resolves to the config serving it (main, try-it or a relay chain); unknown: closed.
         const config = typeof target === 'number' ? shelterConfigFor(target) : target;
-        if (!config) {
-            return false;
-        }
-        if (isTestnetChain(config.chainId)) {
+        if (config && isTestnetChain(config.chainId)) {
             return true;
         }
-        if (!publicGivingAllowed(config) || !config.splitAddress || !config.rpcUrl) {
-            return false;
+        return (await this.givingVerdict(config, now)).ok;
+    }
+
+    /**
+     * The one wallet a verified mainnet split pays (lowercased), or null: a testnet, a failed check, or a
+     * split that pays more than one wallet. The x402 `exact` scheme uses it as its `payTo`.
+     */
+    async verifiedShelterWallet(
+        target: ShelterOnchainConfig | number = readShelterConfig(),
+        now: Date = new Date()
+    ): Promise<string | null> {
+        const config = typeof target === 'number' ? shelterConfigFor(target) : target;
+        if (!config || isTestnetChain(config.chainId)) {
+            return null;
+        }
+        const verdict = await this.givingVerdict(config, now);
+        return verdict.ok && verdict.wallets.length === 1 ? verdict.wallets[0] : null;
+    }
+
+    private async givingVerdict(
+        config: ShelterOnchainConfig | null,
+        now: Date
+    ): Promise<{ ok: boolean; wallets: string[] }> {
+        const closed = { ok: false, wallets: [] as string[] };
+        // A chain id resolves to the config serving it (main, try-it or a relay chain); unknown: closed.
+        if (!config || !config.splitAddress || !config.rpcUrl) {
+            return closed;
         }
         const key = `${config.chainId}|${config.splitAddress.toLowerCase()}`;
         const cached = this.givingCache.get(key);
         if (cached && now.getTime() - cached.at < GIVING_CHECK_TTL_MS) {
-            return cached.ok;
+            return { ok: cached.ok, wallets: cached.wallets };
         }
         try {
             const raw = await this.chain.ethCall(
@@ -348,28 +371,40 @@ export class ShelterClaimService {
                 'preview',
                 raw
             ) as unknown as [string[], bigint[], bigint];
-            const wallets = listed
-                .filter((_w, i) => getBigInt(amounts?.[i] ?? 0) > getBigInt(0))
-                .map(w => String(w).toLowerCase());
-            if (getBigInt(toTreasury ?? 0) > getBigInt(0)) {
-                this.givingCache.set(key, { ok: false, at: now.getTime() });
-                return false;
+            const wallets = [
+                ...new Set(
+                    listed
+                        .filter((_w, i) => getBigInt(amounts?.[i] ?? 0) > getBigInt(0))
+                        .map(w => String(w).toLowerCase())
+                ),
+            ];
+            if (getBigInt(toTreasury ?? 0) > getBigInt(0) || !wallets.length) {
+                this.givingCache.set(key, { ok: false, wallets, at: now.getTime() });
+                return { ok: false, wallets };
             }
-            const rotated = new Set(
-                ((await this.claimModel.find({ chainId: config.chainId, status: 'rotated' }).lean()) as any[]).map(
-                    row => String(row.wallet).toLowerCase()
-                )
-            );
             const forbidden = await this.forbiddenWallets(config, true);
             for (const extra of [...config.notPublicWallets, ...(readIndexerConfig().pawSenders || [])]) {
                 forbidden.add(extra.toLowerCase());
             }
-            const ok = wallets.length > 0 && wallets.every(w => rotated.has(w) && !forbidden.has(w));
-            this.givingCache.set(key, { ok, at: now.getTime() });
-            return ok;
+            let ok = false;
+            if (wallets.every(w => !forbidden.has(w))) {
+                // The generated shelter wallet needs no database row; otherwise every wallet is a rotated claim.
+                const generated = generatedShelterWallet(config.chainId);
+                ok = !!generated && wallets.every(w => w === generated);
+                if (!ok) {
+                    const rotated = new Set(
+                        (
+                            (await this.claimModel.find({ chainId: config.chainId, status: 'rotated' }).lean()) as any[]
+                        ).map(row => String(row.wallet).toLowerCase())
+                    );
+                    ok = wallets.every(w => rotated.has(w));
+                }
+            }
+            this.givingCache.set(key, { ok, wallets, at: now.getTime() });
+            return { ok, wallets };
         } catch (error: any) {
             this.logger.warn(`public giving check failed: ${error?.code || error?.name || 'unknown error'}`);
-            return false;
+            return closed;
         }
     }
 

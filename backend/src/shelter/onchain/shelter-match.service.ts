@@ -28,7 +28,6 @@ import {
     matchConfirmations,
     matchReady,
     NATIVE_USDC_CHAIN_IDS,
-    publicGivingAllowed,
     readShelterConfig,
     relayReady,
     ShelterOnchainConfig,
@@ -140,9 +139,6 @@ export class ShelterMatchService {
 
     /** The full giving gate. Without the claim service a mainnet is refused (fail closed). */
     private async givingVerified(config: ShelterOnchainConfig): Promise<boolean> {
-        if (!publicGivingAllowed(config)) {
-            return false;
-        }
         return this.claims ? this.claims.publicGivingVerified(config) : isTestnetChain(config.chainId);
     }
 

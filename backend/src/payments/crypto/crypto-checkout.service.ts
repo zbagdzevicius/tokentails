@@ -239,7 +239,8 @@ export class CryptoCheckoutService {
             enabled: cfg.enabled && chains.length > 0,
             network: cfg.network,
             orderTtlSeconds: Math.round(cfg.orderTtlMs / 1000),
-            shelterHandedOver: cfg.handedOver,
+            // Deprecated (docs/API.md): always true since SHELTER_HANDED_OVER was removed on 2026-10-16.
+            shelterHandedOver: true,
             prices: {
                 // The price charged now (the Legendary sale while it runs); `packsRegular` is the list price.
                 packs: Object.fromEntries(
@@ -322,7 +323,7 @@ export class CryptoCheckoutService {
 
         const orderId = `co_${randomBytes(8).toString('hex')}`;
         const shelterId = shareShelterId(sku, cfg);
-        const splitChains = shelterId && cfg.handedOver ? await this.splitChains(cfg) : new Set<string>();
+        const splitChains = shelterId ? await this.splitChains(cfg) : new Set<string>();
 
         await this.releaseReservations(now);
         for (let attempt = 0; attempt < RESERVE_ATTEMPTS; attempt++) {
@@ -477,9 +478,9 @@ export class CryptoCheckoutService {
     }
 
     /**
-     * `chainId:TOKEN` of the split routes a buyer may pay directly: only after the handover, and on a
-     * mainnet only when every split recipient is a rotated, shelter-held wallet (the same on-chain
-     * check that opens public giving).
+     * `chainId:TOKEN` of the split routes a buyer may pay directly: a testnet always, a mainnet only when
+     * ShelterClaimService.publicGivingVerified passes there (the same on-chain check that opens public
+     * giving: the split pays only Pink Paw's wallet or rotated claims, never a held wallet).
      */
     private async splitChains(cfg: CryptoPayConfig): Promise<Set<string>> {
         const allowed = new Set<string>();

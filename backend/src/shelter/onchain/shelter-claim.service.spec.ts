@@ -3,6 +3,7 @@ import { Wallet } from 'ethers';
 import { memoryModel } from 'src/impact/memory-model.fakes-spec';
 import { shelterSplitInterface } from './shelter-chain';
 import { readShelterConfig, ShelterOnchainConfig } from './shelter-onchain.config';
+import { WALLETS } from './wallet.config';
 import {
     claimChainConfigs,
     shelterClaimMessage,
@@ -184,19 +185,19 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         );
     }
 
-    it('is always true on a testnet; SHELTER_HANDED_OVER=false closes a mainnet without reading the chain', async () => {
+    it('is always true on a testnet; a mainnet is decided on chain', async () => {
         const ctx = setup();
         await expect(ctx.service.publicGivingVerified(config({ chainId: 5042002 }), NOW)).resolves.toBe(true);
-        await expect(ctx.service.publicGivingVerified(config({ givingKilled: true }), NOW)).resolves.toBe(false);
         expect(ctx.chain.ethCall).not.toHaveBeenCalled();
-        // Without the emergency off, a mainnet is decided on chain: no rotated claim, so still closed.
+        // A mainnet split paying a wallet with no rotated claim, not the generated shelter wallet: closed.
         routed(ctx, [SHELTER.address]);
-        await expect(ctx.service.publicGivingVerified(config({ handedOver: false }), NOW)).resolves.toBe(false);
+        await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+        expect(ctx.chain.ethCall).toHaveBeenCalled();
     });
 
     it('needs every split recipient to be a rotated claim that Token Tails does not hold', async () => {
         const ctx = setup();
-        const c = config({ handedOver: true });
+        const c = config();
         routed(ctx, [SHELTER.address]);
         // Handed over by flag, but the split still pays a wallet nobody rotated to.
         await expect(ctx.service.publicGivingVerified(c, NOW)).resolves.toBe(false);
@@ -216,12 +217,12 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         routed(ctx4, [team]);
         await ctx4.claims.create({ chainId: 5042, wallet: team, status: 'rotated' });
         await expect(
-            ctx4.service.publicGivingVerified(config({ handedOver: true, notPublicWallets: [team.toLowerCase()] }), NOW)
+            ctx4.service.publicGivingVerified(config({ notPublicWallets: [team.toLowerCase()] }), NOW)
         ).resolves.toBe(false);
     });
 
     it('SEC-2: a split that keeps part of a gift for the treasury, or lists an inactive shelter, is not public giving', async () => {
-        const c = config({ handedOver: true });
+        const c = config();
         const answer = (wallets: string[], amounts: number[], toTreasury: number) => (ctx: ReturnType<typeof setup>) =>
             ctx.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) =>
                 data.startsWith(shelterSplitInterface.getFunction('preview')!.selector)
@@ -248,7 +249,7 @@ describe('ShelterClaimService.publicGivingVerified', () => {
 
     it('caches a verdict for 10 minutes and does not cache a failed read', async () => {
         const ctx = setup();
-        const c = config({ handedOver: true });
+        const c = config();
         ctx.chain.ethCall.mockRejectedValueOnce(new Error('down'));
         await expect(ctx.service.publicGivingVerified(c, NOW)).resolves.toBe(false);
         routed(ctx, [SHELTER.address]);
@@ -261,6 +262,88 @@ describe('ShelterClaimService.publicGivingVerified', () => {
         await expect(ctx.service.publicGivingVerified(c, new Date(NOW.getTime() + 11 * 60 * 1000))).resolves.toBe(
             false
         );
+    });
+
+    describe("the generated shelter wallet (Pink Paw's wallet, wallet.config.ts)", () => {
+        const PINK_PAW = WALLETS.mainnet.pinkPaw!;
+        const HELD = '0xE299299b846Ba629f5A591dBF4F562bcC07A0f37';
+        const answer = (ctx: ReturnType<typeof setup>, wallets: string[], amounts: number[], toTreasury = 0) =>
+            ctx.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) =>
+                data.startsWith(shelterSplitInterface.getFunction('preview')!.selector)
+                    ? shelterSplitInterface.encodeFunctionResult('preview', [wallets, amounts, toTreasury])
+                    : shelterSplitInterface.encodeFunctionResult('treasury', [TREASURY.address])
+            );
+
+        it('passes a mainnet split that pays only Pink Paw, with no claim row in the database', async () => {
+            const ctx = setup();
+            answer(ctx, [PINK_PAW], [1000000]);
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(true);
+            expect(ctx.claims.rows).toHaveLength(0);
+            await expect(ctx.service.verifiedShelterWallet(config(), NOW)).resolves.toBe(PINK_PAW.toLowerCase());
+            // The verdict is cached: no second read.
+            expect(ctx.chain.ethCall.mock.calls.length).toBe(2);
+        });
+
+        it('fails when the split pays a held wallet, even with a rotated row for it', async () => {
+            const ctx = setup();
+            answer(ctx, [HELD], [1000000]);
+            await ctx.claims.create({ chainId: 5042, wallet: HELD, status: 'rotated' });
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+            await expect(ctx.service.verifiedShelterWallet(config(), NOW)).resolves.toBeNull();
+        });
+
+        it('fails when Pink Paw is listed as held (SHELTER_HELD_WALLETS)', async () => {
+            const ctx = setup();
+            answer(ctx, [PINK_PAW], [1000000]);
+            await expect(
+                ctx.service.publicGivingVerified(config({ heldWallets: [PINK_PAW.toLowerCase()] }), NOW)
+            ).resolves.toBe(false);
+        });
+
+        it('fails for a mixed split: Pink Paw plus a held wallet, or plus an unknown wallet', async () => {
+            const ctx = setup();
+            answer(ctx, [PINK_PAW, HELD], [500000, 500000]);
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+            const ctx2 = setup();
+            answer(ctx2, [PINK_PAW, SHELTER.address], [500000, 500000]);
+            await expect(ctx2.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+        });
+
+        it('fails when the split keeps a treasury share', async () => {
+            const ctx = setup();
+            answer(ctx, [PINK_PAW], [800000], 200000);
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+        });
+
+        it('fails closed on an RPC error, and on a failed treasury read', async () => {
+            const ctx = setup();
+            ctx.chain.ethCall.mockRejectedValue(new Error('down'));
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+            const ctx2 = setup();
+            ctx2.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) => {
+                if (data.startsWith(shelterSplitInterface.getFunction('preview')!.selector)) {
+                    return shelterSplitInterface.encodeFunctionResult('preview', [[PINK_PAW], [1000000], 0]);
+                }
+                throw new Error('treasury down');
+            });
+            await expect(ctx2.service.publicGivingVerified(config(), NOW)).resolves.toBe(false);
+        });
+
+        it('a testnet split never uses the generated path (its payee is a held wallet); testnets stay open', async () => {
+            const ctx = setup();
+            await expect(ctx.service.verifiedShelterWallet(config({ chainId: 5042002 }), NOW)).resolves.toBeNull();
+            await expect(ctx.service.publicGivingVerified(config({ chainId: 5042002 }), NOW)).resolves.toBe(true);
+        });
+
+        it('verifiedShelterWallet is null when a verified split pays two rotated wallets', async () => {
+            const ctx = setup();
+            const other = Wallet.createRandom().address;
+            answer(ctx, [SHELTER.address, other], [500000, 500000]);
+            await ctx.claims.create({ chainId: 5042, wallet: SHELTER.address, status: 'rotated' });
+            await ctx.claims.create({ chainId: 5042, wallet: other, status: 'rotated' });
+            await expect(ctx.service.publicGivingVerified(config(), NOW)).resolves.toBe(true);
+            await expect(ctx.service.verifiedShelterWallet(config(), NOW)).resolves.toBeNull();
+        });
     });
 });
 

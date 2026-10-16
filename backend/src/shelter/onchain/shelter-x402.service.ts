@@ -232,8 +232,9 @@ const EXACT_RECEIPT_DELAY_MS = 1500;
  * - `exact` (standard x402, EIP-3009): `payTo` is the shelter's own wallet. The agent signs a
  *   transferWithAuthorization to it, a facilitator verifies and settles it and pays the gas, and this
  *   service re-reads the Transfer log over SHELTER_X402_EXACT_RPC (required). Gated by
- *   SHELTER_X402_EXACT_ENABLED; on a mainnet network also by SHELTER_HANDED_OVER=true (the shelter
- *   holds its own key). See x402-exact.ts.
+ *   SHELTER_X402_EXACT_ENABLED. On a mainnet network `payTo` must be the one wallet that chain's split
+ *   pays, read on chain (ShelterClaimService.verifiedShelterWallet); it defaults to the generated shelter
+ *   wallet, so SHELTER_X402_EXACT_PAYTO is optional there. See x402-exact.ts.
  */
 @Injectable()
 export class ShelterX402Service implements OnModuleInit {
@@ -522,6 +523,27 @@ export class ShelterX402Service implements OnModuleInit {
         }
     }
 
+    /**
+     * Mainnet `exact`: payTo must be the one wallet the chain's ShelterSplit pays, read on chain (the
+     * generated shelter wallet or a rotated claim, never a wallet Token Tails holds). No claim service, an
+     * unserved chain or a failed read: not offered (fail closed).
+     */
+    private async exactPayToVerified(exact: ExactConfig): Promise<boolean> {
+        if (!this.claims || !exact.chainId || !exact.payTo) {
+            return false;
+        }
+        const wallet = await this.claims.verifiedShelterWallet(exact.chainId);
+        if (wallet && wallet === exact.payTo.toLowerCase()) {
+            return true;
+        }
+        const reason = `payTo ${exact.payTo} is not the one wallet the chain ${exact.chainId} split pays`;
+        if (!this.loggedBlocked.has(reason)) {
+            this.loggedBlocked.add(reason);
+            this.logger.warn(`x402 exact is not offered: ${reason}`);
+        }
+        return false;
+    }
+
     /** Logs once why exact is not offered (only when it was switched on). */
     private logBlockedOnce(exact: ExactConfig) {
         if (exact.enabled && exact.blocked && !this.loggedBlocked.has(exact.blocked)) {
@@ -537,6 +559,9 @@ export class ShelterX402Service implements OnModuleInit {
      */
     private async exactOffered(exact: ExactConfig): Promise<boolean> {
         if (!exactReady(exact) || !exact.rpcUrl) {
+            return false;
+        }
+        if (!exact.testnet && !(await this.exactPayToVerified(exact))) {
             return false;
         }
         const key = [exact.rpcUrl, exact.chainId, exact.asset, exact.assetName, exact.assetVersion].join('|');

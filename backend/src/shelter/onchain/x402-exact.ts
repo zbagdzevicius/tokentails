@@ -1,5 +1,9 @@
 import { getAddress, getBigInt, isAddress, verifyTypedData } from 'ethers';
-import { TESTNET_CHAIN_IDS as SHELTER_TESTNET_CHAIN_IDS, TOKEN_TAILS_HELD_WALLETS } from './shelter-onchain.config';
+import {
+    generatedShelterWallet,
+    TESTNET_CHAIN_IDS as SHELTER_TESTNET_CHAIN_IDS,
+    TOKEN_TAILS_HELD_WALLETS,
+} from './shelter-onchain.config';
 
 /*
  * The standard x402 `exact` scheme (coinbase/x402, specs/schemes/exact/scheme_exact_evm.md, x402 v1
@@ -8,8 +12,9 @@ import { TESTNET_CHAIN_IDS as SHELTER_TESTNET_CHAIN_IDS, TOKEN_TAILS_HELD_WALLET
  * Custody: `payTo` is the SHELTER's own wallet. The agent signs an EIP-3009 TransferWithAuthorization
  * from its wallet straight to that wallet, and the facilitator submits it and pays the gas. Token Tails
  * never holds, relays or signs for the money; it only asks the facilitator to verify and settle, then
- * reads the settled transfer back from the chain. On a mainnet network the scheme is offered only once
- * the shelter holds its own key (SHELTER_HANDED_OVER=true).
+ * reads the settled transfer back from the chain. On a mainnet network `payTo` defaults to the chain's
+ * generated shelter wallet (wallet.config.ts, Pink Paw's wallet), and ShelterX402Service offers the scheme
+ * only while that chain's split pays exactly that one wallet (ShelterClaimService.verifiedShelterWallet).
  *
  * Plain classes and functions, instantiated inside ShelterX402Service (no Nest providers).
  */
@@ -81,7 +86,7 @@ export const EXACT_ASSET_DECIMALS = 6;
 
 /**
  * Networks where an `exact` payment moves no real money. Anything not listed counts as mainnet, so an
- * unknown network stays behind the handover gate (fail closed).
+ * unknown network stays behind the on-chain shelter wallet check (fail closed).
  */
 const TESTNET_NETWORKS = new Set([
     'base-sepolia',
@@ -118,6 +123,8 @@ export interface ExactConfig {
     assetName: string;
     assetVersion: string;
     payTo: string | null;
+    /** True when `payTo` is the generated shelter wallet (SHELTER_X402_EXACT_PAYTO unset on a mainnet). */
+    payToDerived: boolean;
     facilitatorUrl: string | null;
     /**
      * Extra headers for every facilitator call (an API key or bearer token from
@@ -126,7 +133,6 @@ export interface ExactConfig {
     facilitatorHeaders: Record<string, string>;
     priceBase: bigint;
     rpcUrl: string | null;
-    handedOver: boolean;
     testnet: boolean;
     /** True when `network` is an x402 v1 network name that off-the-shelf clients accept. */
     standard: boolean;
@@ -181,6 +187,9 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
         (testnet && network && PUBLIC_FACILITATOR_NETWORKS.has(network) ? DEFAULT_TESTNET_FACILITATOR : null);
     const facilitatorAuth = (env.SHELTER_X402_FACILITATOR_AUTH || '').trim();
     const facilitatorAuthHeader = (env.SHELTER_X402_FACILITATOR_AUTH_HEADER || '').trim() || 'Authorization';
+    // On a mainnet the shelter's wallet comes from wallet.config.ts when SHELTER_X402_EXACT_PAYTO is unset.
+    const envPayTo = addr(env.SHELTER_X402_EXACT_PAYTO);
+    const generated = !envPayTo && !testnet && chainId ? generatedShelterWallet(chainId) : null;
     const config: ExactConfig = {
         enabled: flag(env.SHELTER_X402_EXACT_ENABLED),
         network,
@@ -188,12 +197,12 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
         asset: addr(env.SHELTER_X402_EXACT_ASSET),
         assetName: (env.SHELTER_X402_EXACT_ASSET_NAME || '').trim() || 'USDC',
         assetVersion: (env.SHELTER_X402_EXACT_ASSET_VERSION || '').trim() || '2',
-        payTo: addr(env.SHELTER_X402_EXACT_PAYTO),
+        payTo: envPayTo || (generated ? getAddress(generated) : null),
+        payToDerived: !envPayTo && !!generated,
         facilitatorUrl,
         facilitatorHeaders: facilitatorAuth ? { [facilitatorAuthHeader]: facilitatorAuth } : {},
         priceBase: parseUsdc(env.SHELTER_X402_EXACT_PRICE || DEFAULT_EXACT_PRICE) ?? ZERO,
         rpcUrl: (env.SHELTER_X402_EXACT_RPC || '').trim() || null,
-        handedOver: flag(env.SHELTER_HANDED_OVER),
         testnet,
         standard,
         blocked: null,
@@ -222,7 +231,9 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
         : !config.asset
         ? 'SHELTER_X402_EXACT_ASSET is not a valid address'
         : !config.payTo
-        ? 'SHELTER_X402_EXACT_PAYTO is not a valid address'
+        ? testnet
+            ? 'SHELTER_X402_EXACT_PAYTO is not a valid address'
+            : `SHELTER_X402_EXACT_PAYTO is not a valid address, and chain ${chainId} has no shelter wallet in wallet.config.ts`
         : clash
         ? `SHELTER_X402_EXACT_PAYTO must be the shelter's own wallet, not ${clash[1]}`
         : !facilitatorUrl
@@ -235,8 +246,6 @@ export function readExactConfig(env: NodeJS.ProcessEnv = process.env, options: E
         ? 'SHELTER_X402_EXACT_RPC is required: every settlement is re-read on-chain before it counts'
         : config.priceBase <= ZERO
         ? 'SHELTER_X402_EXACT_PRICE is not a positive USDC amount'
-        : !testnet && !config.handedOver
-        ? 'exact on mainnet waits for the shelter handover (SHELTER_HANDED_OVER=true)'
         : null;
     return config;
 }

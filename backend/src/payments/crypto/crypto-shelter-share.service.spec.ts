@@ -187,40 +187,24 @@ describe('CryptoShelterShareService', () => {
         expect(calls.map(c => c.to)).toEqual([SPLIT]);
     });
 
-    it('confirms by receipt: on-chain custodial before the handover, shelter-held after', async () => {
-        for (const [handedOver, tier] of [
-            ['false', 'onchain-custodial'],
-            ['true', 'onchain-shelter-held'],
-        ]) {
-            const { service, model, chain, addDue } = setup({ allowance: BigInt(10_000_000) });
-            addDue(250);
-            await service.runOnce(T0, cfg({ SHELTER_HANDED_OVER: handedOver }), shelter);
-            chain.getReceipt.mockResolvedValueOnce(batchReceipt(BigInt(2500000), BigInt(2500000)));
-            const run = await service.runOnce(T0, cfg({ SHELTER_HANDED_OVER: handedOver }), shelter);
-            expect(run.confirmed).toBe(1);
-            expect(model.rows[0].shelterShare).toEqual(
-                expect.objectContaining({ state: 'confirmed', evidenceTier: tier })
-            );
-        }
-    });
-
-    it('keeps a share sent before the handover custodial when its receipt is read after it', async () => {
-        // The E2E case (funding/framework/tracks/a-build/e2e-pay-goal, flow Q2): sent to the held wallet,
-        // backend restarted with SHELTER_HANDED_OVER=true, then settled.
-        const HELD = '0x15d34aaf54267db7d7c367839aaf71a00a2c6a65';
-        const OWN = '0x14dc79964da2c08b23698b3d3cc7ca32193d9955';
-        const handed = cfg({ SHELTER_HANDED_OVER: 'true', SHELTER_HELD_WALLETS: HELD });
+    it('confirms by receipt: the tier follows the wallets the split paid, with no handover flag', async () => {
+        const EXTRA_HELD = '0x15d34aaf54267db7d7c367839aaf71a00a2c6a65';
+        const PINK_PAW = '0x3c833562e682db66c2415b34961595df135f4771';
+        const withHeld = cfg({ SHELTER_HELD_WALLETS: EXTRA_HELD });
         for (const [payee, tier] of [
-            [HELD, 'onchain-custodial'],
-            [OWN, 'onchain-shelter-held'],
-        ]) {
+            ['0xe299299b846ba629f5a591dbf4f562bcc07a0f37', 'onchain-custodial'],
+            [EXTRA_HELD, 'onchain-custodial'],
+            [PINK_PAW, 'onchain-shelter-held'],
+            [null, 'onchain-custodial'],
+        ] as const) {
             const { service, model, chain, addDue } = setup({ allowance: BigInt(10_000_000) });
             addDue(250);
-            await service.runOnce(T0, cfg(), shelter);
-            const receipt = batchReceipt(BigInt(2500000), BigInt(2500000));
-            receipt.logs.push({ address: SPLIT, ...disbursedLog(payee, BigInt(2500000)) });
+            await service.runOnce(T0, withHeld, shelter);
+            const receipt: any = batchReceipt(BigInt(2500000), BigInt(2500000));
+            if (payee) receipt.logs.push({ address: SPLIT, ...disbursedLog(payee, BigInt(2500000)) });
             chain.getReceipt.mockResolvedValueOnce(receipt);
-            await service.runOnce(T0, handed, shelter);
+            const run = await service.runOnce(T0, withHeld, shelter);
+            expect(run.confirmed).toBe(1);
             expect(model.rows[0].shelterShare).toEqual(
                 expect.objectContaining({ state: 'confirmed', evidenceTier: tier })
             );
@@ -233,9 +217,10 @@ describe('CryptoShelterShareService', () => {
         expect(disbursedShelters([log], SPLIT, MEMO)).toEqual([HELD]);
         expect(disbursedShelters([log], SPLIT, 'tt:cat:other')).toEqual([]);
         expect(disbursedShelters([{ ...log, address: '0x' + '22'.repeat(20) }], SPLIT, MEMO)).toEqual([]);
-        expect(shareTier(false, [], new Set())).toBe('onchain-custodial');
-        expect(shareTier(true, [HELD], new Set([HELD]))).toBe('onchain-custodial');
-        expect(shareTier(true, ['0x' + '33'.repeat(20)], new Set([HELD]))).toBe('onchain-shelter-held');
+        expect(shareTier([], new Set())).toBe('onchain-custodial');
+        expect(shareTier([HELD], new Set([HELD]))).toBe('onchain-custodial');
+        expect(shareTier(['0x' + '33'.repeat(20), HELD], new Set([HELD]))).toBe('onchain-custodial');
+        expect(shareTier(['0x' + '33'.repeat(20)], new Set([HELD]))).toBe('onchain-shelter-held');
     });
 
     it('records what reached the shelter from the batch event, not what was sent', async () => {

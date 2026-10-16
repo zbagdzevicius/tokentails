@@ -31,18 +31,20 @@ describe('readCryptoPayConfig', () => {
         expect(cfg.catShelterBps).toBe(5000);
     });
 
-    it('is off where no chain resolves with a treasury (testnets have none checked in)', () => {
-        expect(readCryptoPayConfig({ NODE_ENV: 'development' }).enabled).toBe(false);
+    it('is off where no chain resolves with a treasury or a split (testnets have no treasury checked in)', () => {
+        // The main shelter split (Arc testnet here) is a split route by default, so it turns checkout on.
+        const dev = readCryptoPayConfig({ NODE_ENV: 'development' });
+        expect(dev.chains.every(c => c.treasury === null)).toBe(true);
+        expect(dev.enabled).toBe(dev.splits.length > 0);
         expect(readCryptoPayConfig({ NODE_ENV: 'development', CRYPTO_PAY_TREASURY: TREASURY }).enabled).toBe(true);
     });
 
-    it('is on with no treasury when a split route is live after the handover', () => {
+    it('is on with no treasury when a split route is configured (no handover flag)', () => {
         const env = { NODE_ENV: 'development', CRYPTO_PAY_CAT_SPLITS: `5042002:USDC:${SPLIT}` };
-        // Before the handover createOrder never uses the split, so it does not turn checkout on.
-        expect(readCryptoPayConfig(env).enabled).toBe(false);
-        const cfg = readCryptoPayConfig({ ...env, SHELTER_HANDED_OVER: 'true' });
+        const cfg = readCryptoPayConfig(env);
         expect(cfg.chains.find(c => c.chain.chainId === 5042002)?.treasury).toBeNull();
         expect(cfg.enabled).toBe(true);
+        expect((cfg as any).handedOver).toBeUndefined();
     });
 
     it('offers every mainnet with no RPC env at all (official RPCs are checked in)', () => {
@@ -115,7 +117,8 @@ describe('readCryptoPayConfig', () => {
             ...MAINNET_RPCS,
         });
         expect(cfg.chains.every(c => c.treasury === null)).toBe(true);
-        expect(cfg.enabled).toBe(false);
+        // Only the split route (offered on a mainnet once the on-chain giving check passes) can turn it on.
+        expect(cfg.enabled).toBe(cfg.splits.length > 0);
         const extra = readCryptoPayConfig({
             NODE_ENV: 'production',
             CRYPTO_PAY_TREASURY: TREASURY,
@@ -123,7 +126,7 @@ describe('readCryptoPayConfig', () => {
             ...MAINNET_RPCS,
         });
         expect(extra.chains.every(c => c.treasury === null)).toBe(true);
-        expect(extra.enabled).toBe(false);
+        expect(extra.enabled).toBe(extra.splits.length > 0);
     });
 
     it('offers the Robinhood testnet mock token (mUSDC) only on that testnet, and never in production', () => {
@@ -169,14 +172,12 @@ describe('readCryptoPayConfig', () => {
         ).toEqual([{ chainId: 8453, token: 'EURC', address: SPLIT }]);
     });
 
-    it('reads the shelter share bps, the handover flag and the order lifetime with safe bounds', () => {
+    it('reads the shelter share bps and the order lifetime with safe bounds', () => {
         const cfg = readCryptoPayConfig({
             CRYPTO_PAY_CAT_SHELTER_BPS: '3000',
-            SHELTER_HANDED_OVER: 'true',
             CRYPTO_PAY_ORDER_TTL_MIN: '15',
         });
         expect(cfg.catShelterBps).toBe(3000);
-        expect(cfg.handedOver).toBe(true);
         expect(cfg.orderTtlMs).toBe(15 * 60000);
         expect(readCryptoPayConfig({ CRYPTO_PAY_CAT_SHELTER_BPS: '10001' }).catShelterBps).toBeNull();
         expect(readCryptoPayConfig({ CRYPTO_PAY_ORDER_TTL_MIN: '1' }).orderTtlMs).toBe(30 * 60000);

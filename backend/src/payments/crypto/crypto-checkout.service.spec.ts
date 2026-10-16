@@ -385,21 +385,17 @@ describe('POST /payments/crypto/orders', () => {
         ).resolves.toEqual(expect.objectContaining({ status: 'OPEN' }));
     });
 
-    it('offers the split route for a shelter cat only after the handover', async () => {
-        const splits = { CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` };
-        const before = await setup().service.createOrder(
-            USER,
-            { sku: { kind: 'CAT', catId: CAT_ID } },
-            T0,
-            config(splits)
-        );
-        expect(before.accepted.some(o => o.route === 'split')).toBe(false);
+    it('publicConfig keeps the deprecated shelterHandedOver field, always true', () => {
+        expect(setup().service.publicConfig(config()).shelterHandedOver).toBe(true);
+    });
 
+    it('offers the split route for a shelter cat on a testnet without any handover flag', async () => {
+        const splits = { CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` };
         const after = await setup().service.createOrder(
             USER,
             { sku: { kind: 'CAT', catId: CAT_ID } },
             T0,
-            config({ ...splits, SHELTER_HANDED_OVER: 'true' })
+            config(splits)
         );
         const split = after.accepted.find(o => o.route === 'split')!;
         expect(split).toEqual(
@@ -421,7 +417,7 @@ describe('POST /payments/crypto/orders', () => {
             USER,
             { sku: { kind: 'PACK', packType: 'STARTER' } },
             T0,
-            config({ ...splits, SHELTER_HANDED_OVER: 'true' })
+            config(splits)
         );
         expect(pack.accepted.some(o => o.route === 'split')).toBe(false);
     });
@@ -432,7 +428,7 @@ describe('POST /payments/crypto/orders', () => {
         const savedChain = process.env.SHELTER_CHAIN_ID;
         process.env.SHELTER_CHAIN_ID = '5042';
         try {
-            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`, SHELTER_HANDED_OVER: 'true' });
+            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` });
             const local = base.chains.find(c => c.chain.chainId === 31337)!;
             const mainnet: CryptoPayConfig = {
                 ...base,
@@ -808,11 +804,10 @@ describe('shelter cats', () => {
         );
     });
 
-    it('after the handover: the buyer pays the split directly and the share is recorded as on-chain, shelter-held', async () => {
+    it('split route: the buyer pays the split directly and the share is recorded as on-chain, shelter-held', async () => {
         const ctx = setup();
         const cfg = config({
             CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`,
-            SHELTER_HANDED_OVER: 'true',
             CRYPTO_PAY_CAT_SHELTER_BPS: '5000',
         });
         const order = await buyCat(ctx, cfg);

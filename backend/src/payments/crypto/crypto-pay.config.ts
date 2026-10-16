@@ -15,7 +15,7 @@ export interface ResolvedChain {
     tokens: CryptoPayToken[];
 }
 
-/** A ShelterSplit a buyer can pay directly once the shelter holds its own key (route `split`). */
+/** A ShelterSplit a buyer can pay directly (route `split`) once the on-chain giving check passes. */
 export interface SplitRoute {
     chainId: number;
     token: CryptoPayTokenKind;
@@ -47,8 +47,6 @@ export interface CryptoPayConfig {
     /** Shelters whose share goes through ShelterSplit (default Pink Paw). Others get no on-chain share. */
     splitShelterIds: string[];
     splits: SplitRoute[];
-    /** SHELTER_HANDED_OVER: the shelter holds its own payout key. */
-    handedOver: boolean;
     /** Wallets Token Tails holds for a shelter (lowercased); never a purchase recipient. */
     heldWallets: string[];
 }
@@ -262,9 +260,9 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
         .map(id => id.trim().toLowerCase())
         .filter(id => /^[0-9a-f]{24}$/.test(id));
     const splits = splitRoutes(env);
-    // A split route takes shelter-cat payments only after the handover (createOrder), so only then
-    // does it count towards `enabled`.
-    const splitLive = (chainId: number) => shelter.handedOver && splits.some(s => s.chainId === chainId);
+    // A split route counts towards `enabled`; createOrder still offers a mainnet one only once the
+    // on-chain giving check passes there.
+    const splitLive = (chainId: number) => splits.some(s => s.chainId === chainId);
     return {
         // On when at least one chain can take a payment: a treasury, or a live split route.
         enabled: chains.some(c => c.treasury !== null || splitLive(c.chain.chainId)),
@@ -279,7 +277,6 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
         catShelterBps: catShelterBps(env.CRYPTO_PAY_CAT_SHELTER_BPS),
         splitShelterIds: shelterIds.length ? shelterIds : [PACK_SHELTER_IDS.pinkPaw],
         splits,
-        handedOver: shelter.handedOver,
         heldWallets: [...held],
     };
 }

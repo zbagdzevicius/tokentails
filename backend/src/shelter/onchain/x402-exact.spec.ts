@@ -104,26 +104,46 @@ describe('readExactConfig', () => {
         ).toEqual({ 'X-API-Key': 'k' });
     });
 
-    it('is not offered on mainnet until the shelter holds its own key', () => {
+    it('is ready on mainnet without SHELTER_HANDED_OVER (the service checks payTo on chain)', () => {
         const mainnet = {
             SHELTER_X402_EXACT_NETWORK: 'base',
             SHELTER_X402_EXACT_RPC: 'https://rpc.example.test',
             SHELTER_X402_FACILITATOR_URL: 'https://facilitator.example.test/',
         };
-        const before = config(mainnet);
-        expect(before.testnet).toBe(false);
-        expect(exactReady(before)).toBe(false);
-        expect(before.blocked).toMatch(/handover/);
+        const cfg = config(mainnet);
+        expect(cfg.testnet).toBe(false);
+        expect(exactReady(cfg)).toBe(true);
+        expect(cfg.facilitatorUrl).toBe('https://facilitator.example.test');
+        expect((cfg as any).handedOver).toBeUndefined();
+    });
 
-        const after = config({ ...mainnet, SHELTER_HANDED_OVER: 'true' });
-        expect(exactReady(after)).toBe(true);
-        expect(after.facilitatorUrl).toBe('https://facilitator.example.test');
+    it("derives payTo on a mainnet from wallet.config.ts (Pink Paw's wallet) when SHELTER_X402_EXACT_PAYTO is unset", () => {
+        const cfg = config({
+            SHELTER_X402_EXACT_NETWORK: 'base',
+            SHELTER_X402_EXACT_PAYTO: '',
+            SHELTER_X402_FACILITATOR_URL: 'https://facilitator.example.test',
+        });
+        expect(cfg.payTo).toBe('0x3c833562e682dB66C2415b34961595df135f4771');
+        expect(cfg.payToDerived).toBe(true);
+        expect(exactReady(cfg)).toBe(true);
+        // An explicit payTo wins and is not marked derived.
+        expect(config({ SHELTER_X402_EXACT_NETWORK: 'base' })).toMatchObject({ payTo: SHELTER, payToDerived: false });
+        // A testnet never derives (its generated payee is a wallet Token Tails holds).
+        const testnet = config({ SHELTER_X402_EXACT_PAYTO: '' });
+        expect(testnet.payTo).toBeNull();
+        expect(testnet.blocked).toMatch(/SHELTER_X402_EXACT_PAYTO is not a valid address/);
+        // A mainnet chain without a shelter wallet in wallet.config.ts: still needs the variable.
+        expect(
+            config({
+                SHELTER_X402_EXACT_NETWORK: 'polygon',
+                SHELTER_X402_EXACT_PAYTO: '',
+                SHELTER_X402_FACILITATOR_URL: 'https://facilitator.example.test',
+            }).blocked
+        ).toMatch(/no shelter wallet in wallet.config.ts/);
     });
 
     it('has no default facilitator on mainnet', () => {
-        expect(config({ SHELTER_X402_EXACT_NETWORK: 'base', SHELTER_HANDED_OVER: 'true' }).blocked).toMatch(
-            /FACILITATOR_URL/
-        );
+        expect(config({ SHELTER_X402_EXACT_NETWORK: 'base' }).blocked).toMatch(/FACILITATOR_URL/);
     });
 
     it('treats an unknown network as mainnet (fail closed)', () => {
@@ -169,12 +189,11 @@ describe('readExactConfig', () => {
     it.each(['arbitrum-sepolia', 'arbitrum', 'optimism-sepolia', 'arc-testnet'])(
         'blocks %s (not an x402 v1 network) unless a custom facilitator is set',
         network => {
-            const plain = config({ SHELTER_X402_EXACT_NETWORK: network, SHELTER_HANDED_OVER: 'true' });
+            const plain = config({ SHELTER_X402_EXACT_NETWORK: network });
             expect(plain.standard).toBe(false);
             expect(plain.blocked).toMatch(/not supported by x402 v1 facilitators/);
             const custom = config({
                 SHELTER_X402_EXACT_NETWORK: network,
-                SHELTER_HANDED_OVER: 'true',
                 SHELTER_X402_FACILITATOR_URL: 'https://custom-facilitator.example.test',
             });
             expect(custom.blocked).toBeNull();

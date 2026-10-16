@@ -81,26 +81,31 @@ async function challenge(service: ShelterX402Service, now = NOW): Promise<string
 beforeEach(() => {
     jest.clearAllMocks();
     (JsonRpcProvider as unknown as jest.Mock).mockImplementation(() => ({ getTransactionReceipt }));
-    // The main chain is a mainnet (Arc): onchain-receipt waits for the handover like every public path.
+    // The main chain is a mainnet (Arc): onchain-receipt waits for the on-chain giving check.
     withShelterEnv({
         SHELTER_X402_ENABLED: 'true',
         SHELTER_SPLIT_ADDRESS: SPLIT,
         SHELTER_X402_PRICE_WEI: PRICE,
-        SHELTER_HANDED_OVER: 'true',
     });
+    giving.verified = true;
+    giving.payee = SHELTER_WALLET.toLowerCase();
 });
 
 afterAll(() => withShelterEnv({}));
 
 /**
- * The on-chain claim check (ShelterClaimService.publicGivingVerified) stands in as "the split pays only
- * rotated, shelter-held wallets" whenever these specs set SHELTER_HANDED_OVER=true.
+ * The on-chain giving check (ShelterClaimService): `verified` stands in for "the split pays only Pink
+ * Paw's wallet or rotated claims", `payee` for the one wallet it pays. Reset before every test.
  */
-const verifiedClaims = { publicGivingVerified: async () => process.env.SHELTER_HANDED_OVER === 'true' };
+const giving: { verified: boolean; payee: string | null } = { verified: true, payee: null };
+const verifiedClaims = {
+    publicGivingVerified: async () => giving.verified,
+    verifiedShelterWallet: async () => (giving.verified ? giving.payee : null),
+};
 
 describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
-    it('answers 409 on a mainnet before the shelter handover: the split still pays a wallet Token Tails holds', async () => {
-        withShelterEnv({ SHELTER_X402_ENABLED: 'true', SHELTER_SPLIT_ADDRESS: SPLIT, SHELTER_X402_PRICE_WEI: PRICE });
+    it('answers 409 on a mainnet whose split fails the on-chain giving check (a held wallet, a treasury share)', async () => {
+        giving.verified = false;
         const { service } = setup();
 
         const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
@@ -121,8 +126,8 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
         expect((error.getResponse() as any).accepts[0].network).toBe('eip155:5042002');
     });
 
-    it('answers 409 with a clear message when SHELTER_X402_ENABLED is off (the default)', async () => {
-        withShelterEnv({ SHELTER_SPLIT_ADDRESS: SPLIT });
+    it('answers 409 with a clear message when SHELTER_X402_ENABLED is off', async () => {
+        withShelterEnv({ SHELTER_SPLIT_ADDRESS: SPLIT, SHELTER_X402_ENABLED: 'false' });
         const { service, nonces } = setup();
 
         const error = await httpError(service.catCard(undefined, RESOURCE, NOW));
@@ -586,7 +591,7 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
     });
 
     it('offers exact alone when the onchain-receipt scheme is off, with no nonce issued', async () => {
-        withShelterEnv({});
+        withShelterEnv({ SHELTER_X402_ENABLED: 'false' });
         withExactEnv();
         const { service, nonces } = exactSetup(facilitator());
 
@@ -665,19 +670,39 @@ describe('GET /shelter/agent/cat-card (x402, standard exact scheme paid to the s
         expect(fetchFn.mock.calls.filter(c => String(c[0]).startsWith('https://facilitator.test'))).toHaveLength(0);
     });
 
-    it('does not advertise exact on mainnet before the shelter handover', async () => {
+    it('does not advertise exact on a mainnet whose split fails the on-chain giving check', async () => {
         withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base' });
-        delete process.env.SHELTER_HANDED_OVER;
+        giving.verified = false;
         const { service } = exactSetup(facilitator());
 
-        // Before the handover neither scheme is offered on a mainnet: both would pay a Token-Tails-held wallet.
+        // Neither scheme is offered: both would pay a wallet that is not verified on chain.
         const before = await httpError(service.catCard(undefined, RESOURCE, NOW));
         expect(before.getStatus()).toBe(409);
 
-        withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base', SHELTER_HANDED_OVER: 'true' });
+        giving.verified = true;
         const after = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
         expect(after.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+        expect(after.accepts[0].payTo.toLowerCase()).toBe(SHELTER_WALLET.toLowerCase());
         expect(after.onchainReceipt.scheme).toBe('onchain-receipt');
+    });
+
+    it('on a mainnet, exact pays only the one wallet the split pays on chain', async () => {
+        withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base' });
+        // The split pays another wallet than SHELTER_X402_EXACT_PAYTO: exact is not offered.
+        giving.payee = '0x' + '99'.repeat(20);
+        const { service } = exactSetup(facilitator());
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['onchain-receipt']);
+    });
+
+    it("on a mainnet, payTo defaults to Pink Paw's wallet without SHELTER_X402_EXACT_PAYTO", async () => {
+        const PINK_PAW = '0x3c833562e682dB66C2415b34961595df135f4771';
+        withExactEnv({ SHELTER_X402_EXACT_NETWORK: 'base', SHELTER_X402_EXACT_PAYTO: '' });
+        giving.payee = PINK_PAW.toLowerCase();
+        const { service } = exactSetup(facilitator());
+        const body = (await httpError(service.catCard(undefined, RESOURCE, NOW))).getResponse() as any;
+        expect(body.accepts.map((a: any) => a.scheme)).toEqual(['exact']);
+        expect(body.accepts[0].payTo).toBe(PINK_PAW);
     });
 
     it('verifies and settles through the facilitator, records the used tx and returns the card', async () => {
@@ -1008,7 +1033,8 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt on several chains)'
         expect(accepts.map(a => a.network)).toEqual(['eip155:5042002', 'eip155:84532']);
     });
 
-    it('waits for the handover on a mainnet relay chain', async () => {
+    it('waits for the on-chain giving check on a mainnet relay chain', async () => {
+        giving.verified = false;
         process.env.SHELTER_RELAY_CHAINS = '8453';
         process.env.SHELTER_CHAIN_8453_SPLIT_ADDRESS = BASE_SPLIT;
         process.env.SHELTER_CHAIN_8453_X402_ENABLED = 'true';

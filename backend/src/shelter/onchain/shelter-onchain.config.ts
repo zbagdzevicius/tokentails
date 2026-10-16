@@ -133,11 +133,6 @@ export interface ShelterOnchainConfig {
     /** Relayed gift bounds in USDC base units (6 decimals). */
     relayMinBase: bigint;
     relayMaxBase: bigint;
-    /**
-     * True only after Pink Paw holds its own payout key (the on-chain rotation). Until then every
-     * public mainnet path (relay, match, flush) stays off: see publicGivingAllowed.
-     */
-    handedOver: boolean;
     /** Token Tails 1:1 match of router gifts, from its own funds. All amounts in USDC base units. */
     matchEnabled: boolean;
     matchPerGiftBase: bigint;
@@ -191,11 +186,6 @@ export interface ShelterOnchainConfig {
     logRpcUrl?: string | null;
     /** Served from wallet.config.ts (zero config): its treats are health-checked before they are offered. */
     autoChain?: boolean;
-    /**
-     * SHELTER_HANDED_OVER=false, an emergency off: mainnet relay, match and x402 stay closed whatever the
-     * on-chain claim check says. Unset, they open per chain once publicGivingVerified passes.
-     */
-    givingKilled?: boolean;
 }
 
 /** A treat paid in a token (approve + disburse, or disburseWithMemo on Tempo). */
@@ -240,10 +230,10 @@ const TREAT_DECIMALS = 6;
 const TO_18 = getBigInt(10) ** getBigInt(18 - TREAT_DECIMALS);
 
 /**
- * Wallets Token Tails holds for a shelter: Pink Paw's payout wallet, created and held by Token Tails
- * until the handover. The client copy is TOKEN_TAILS_HELD_WALLETS in
- * client/components/shelter-payouts/giveMode.ts (shelter-onchain.config.spec.ts pins both). After the
- * handover the shelter's new wallet is rotated in; this one stays on the list.
+ * Wallets Token Tails holds: 0xE299, which received Pink Paw's payouts until 2026-10-16. The client copy
+ * is TOKEN_TAILS_HELD_WALLETS in client/components/shelter-payouts/giveMode.ts
+ * (shelter-onchain.config.spec.ts pins both). Since 2026-10-16 every mainnet split pays Pink Paw's
+ * wallet (WALLETS.mainnet.pinkPaw); this one stays on the list.
  */
 export const TOKEN_TAILS_HELD_WALLETS: readonly string[] = ['0xe299299b846ba629f5a591dbf4f562bcc07a0f37'];
 
@@ -306,7 +296,6 @@ export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): Shelter
         splitDeployTx: fromRecorded?.tx || null,
         splitFromBlock: fromRecorded?.fromBlock ?? null,
         ...(recorded ? { autoChain: true } : {}),
-        givingKilled: (env.SHELTER_HANDED_OVER || '').trim().toLowerCase() === 'false',
         privateKey,
         amountWei: wei(env.SHELTER_DONATE_AMOUNT_WEI, DEFAULT_AMOUNT_WEI),
         dailyBudgetWei: wei(env.SHELTER_DONATE_DAILY_BUDGET_WEI, DEFAULT_DAILY_BUDGET_WEI),
@@ -317,7 +306,6 @@ export function readShelterConfig(env: NodeJS.ProcessEnv = process.env): Shelter
         relayDailyTx: positiveInt(env.SHELTER_RELAY_DAILY_TX, DEFAULT_RELAY_DAILY_TX),
         relayMinBase: usdcBase(env.SHELTER_RELAY_MIN_USDC, DEFAULT_RELAY_MIN),
         relayMaxBase: usdcBase(env.SHELTER_RELAY_MAX_USDC, DEFAULT_RELAY_MAX),
-        handedOver: flag(env.SHELTER_HANDED_OVER),
         matchEnabled: flag(env.SHELTER_MATCH_ENABLED),
         matchPerGiftBase: usdcBase(env.SHELTER_MATCH_PER_GIFT, DEFAULT_MATCH_PER_GIFT),
         matchMinGiftBase: usdcBase(env.SHELTER_MATCH_MIN_GIFT, DEFAULT_MATCH_MIN_GIFT),
@@ -377,7 +365,6 @@ export function readTryShelterConfig(env: NodeJS.ProcessEnv = process.env): Shel
         treasuryAddress: address(env.SHELTER_TRY_TREASURY_ADDRESS),
         donateEnabled: false,
         x402Enabled: false,
-        handedOver: false,
         claimAllowedWallets: [],
         autoChain: false,
         splitDeployTx: null,
@@ -428,8 +415,7 @@ const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
  *
  * A chain already served (the main chain or the try-it testnet) is skipped. A testnet never signs with
  * the main hot wallet key while the main chain is a mainnet (test funds only). On a mainnet entry the
- * relay and match still wait for the on-chain claim check (and stay shut under SHELTER_HANDED_OVER=false),
- * like the main chain. Treats there are Token Tails' own money (approve + disburse from the hot wallet, or
+ * relay and match still wait for the on-chain giving check, like the main chain. Treats there are Token Tails' own money (approve + disburse from the hot wallet, or
  * disburseWithMemo on Tempo), so they need only their own flag, like the main chain's treat. x402 there
  * is the agent's money paid into that chain's split (approve + disburse, disburseWithMemo on Tempo,
  * donate on Arc); on a mainnet it waits for the on-chain claim check like the main chain. These chains take
@@ -542,7 +528,6 @@ export function readRelayChainConfigs(env: NodeJS.ProcessEnv = process.env): She
             },
             x402Enabled: flagOr(env[`${p}X402_ENABLED`], shortcut && base.x402Enabled),
             x402Price: decimalAmount(env[`${p}X402_PRICE`], DEFAULT_X402_PRICE),
-            handedOver: testnet ? false : base.handedOver,
             claimAllowedWallets: [],
             splitFromBlock: blockNumber(env[`${p}SPLIT_FROM_BLOCK`]) ?? fromRecorded?.fromBlock ?? null,
             splitDeployTx: fromRecorded?.tx || null,
@@ -667,20 +652,24 @@ function blockNumber(value: string | undefined): number | null {
 const ZERO = getBigInt(0);
 
 /**
- * The first, synchronous gate on public giving (relay, match, flush, x402). A testnet is always allowed
- * (test USDC, no real money). A mainnet, or any chain id not known to be a testnet, passes this gate
- * unless SHELTER_HANDED_OVER=false (an emergency off); the services then require the on-chain check
- * `ShelterClaimService.publicGivingVerified` for that chain: every split recipient is a rotated,
- * shelter-held claim, so public money never lands in a wallet Token Tails holds. Neither gate can stop a
- * stranger calling a deployed router (or the split) directly. Since the 2026-10-05 decision the mainnet
- * wave deploys DonateRouters before the handover; such gifts reach the wallet Token Tails holds, are
- * disclosed as held, and are forwarded at handover (docs/BACKEND.md).
+ * The wallet.config.ts shelter payee for a chain: Pink Paw's wallet on a recorded mainnet chain, else
+ * null. A testnet gets null (its generated payee is a wallet Token Tails holds). Lowercased.
+ * ShelterClaimService.publicGivingVerified accepts a mainnet split whose on-chain preview() pays only
+ * this wallet, so public giving works without a claim row in the database.
  */
-export function publicGivingAllowed(config: Pick<ShelterOnchainConfig, 'chainId' | 'givingKilled'>): boolean {
-    return isTestnetChain(config.chainId) || config.givingKilled !== true;
+export function generatedShelterWallet(chainId: number): string | null {
+    if (isTestnetChain(chainId)) {
+        return null;
+    }
+    const known = Object.values(CHAINS).some(c => c.chainId === chainId && c.network === 'mainnet');
+    const wallet = known ? WALLETS.mainnet.pinkPaw : null;
+    return wallet && isAddress(wallet) ? wallet.toLowerCase() : null;
 }
 
-/** The relay needs its flag, an RPC, the router, the hot wallet key (gas only) and the giving gate. */
+/**
+ * The relay needs its flag, an RPC, the router and the hot wallet key (gas only). On a mainnet the
+ * service also needs ShelterClaimService.publicGivingVerified for that chain.
+ */
 export function relayReady(config: ShelterOnchainConfig): boolean {
     return !!(config.relayEnabled && config.rpcUrl && config.routerAddress && config.privateKey);
 }
@@ -711,12 +700,11 @@ export function donateReady(config: ShelterOnchainConfig): boolean {
 /**
  * Agent payments need the flag, an RPC, the split contract and a positive price. No server key is used.
  * The agent pays ShelterSplit, which pays the split's shelter wallets: on a mainnet that is public money,
- * so it also waits for the giving gate (publicGivingAllowed: SHELTER_HANDED_OVER), like the `exact`
- * scheme. Until the handover the split pays a wallet Token Tails holds for the shelter.
+ * so ShelterX402Service also requires ShelterClaimService.publicGivingVerified for that chain.
  */
 export function x402Ready(config: ShelterOnchainConfig): boolean {
     const priced = config.x402Price !== undefined ? /[1-9]/.test(config.x402Price) : config.x402PriceWei > ZERO;
-    return !!(config.x402Enabled && config.rpcUrl && config.splitAddress && priced && publicGivingAllowed(config));
+    return !!(config.x402Enabled && config.rpcUrl && config.splitAddress && priced);
 }
 
 /** The default x402 price on a SHELTER_RELAY_CHAINS entry, in that chain's payment coin. */
