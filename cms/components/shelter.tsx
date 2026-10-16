@@ -32,6 +32,9 @@ export default function Shelter({ shelter }: { shelter: IShelter }) {
             <Link href={`/shelters/${shelter._id}`}>
               <DropdownMenuItem>Edit</DropdownMenuItem>
             </Link>
+            <Link href={`/shelters/${shelter._id}/wallet`}>
+              <DropdownMenuItem>Wallet</DropdownMenuItem>
+            </Link>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

@@ -76,6 +76,8 @@ describe('pure helpers', () => {
   it('picks the default wallet', () => {
     expect(defaultShelterWallet({ publicWallet: W.toLowerCase() })).toBe(W.toLowerCase());
     expect(defaultShelterWallet({ name: 'Pink Paw' })).toBe(W);
+    expect(defaultShelterWallet({ name: 'Rožinė Pėdutė', slug: 'rozine-pedute' })).toBe(W);
+    expect(defaultShelterWallet({ name: 'Rožinė pėdutė' })).toBe(W);
     expect(defaultShelterWallet({ slug: 'pink-paw' })).toBe(W);
     expect(defaultShelterWallet({ name: 'Other' })).toBe('');
   });
