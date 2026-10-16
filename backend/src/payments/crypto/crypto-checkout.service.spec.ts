@@ -91,7 +91,8 @@ function setup({
     };
     const userRepository = { update: jest.fn(), findOne: jest.fn() };
     const stripePayments = {
-        resolveDiscount: jest.fn(async (code?: string, _buyerId?: unknown) =>
+        // Called with (code, buyerId).
+        resolveDiscount: jest.fn<Promise<{ code?: string; percentage: number }>, [string?, unknown?]>(async code =>
             code === 'friend' ? { code, percentage: 20 } : { percentage: 0 }
         ),
     };
