@@ -2,6 +2,10 @@
 
 import { SHELTER_API } from '@/api/shelter-api';
 import { Button } from '@/components/ui/button';
+import {
+  defaultShelterWallet,
+  ShelterWallet
+} from '@/components/shelters/shelter-wallet';
 import { Previews } from '@/components/ui/drag-drop';
 import { Input } from '@/components/ui/input';
 import { Labeled } from '@/components/ui/labeled';
@@ -158,6 +162,13 @@ export default function Shelter() {
       <Labeled label="Founding DATE">
         <DateTimePicker onChange={setFoundedAt} value={foundedAt} />
       </Labeled>
+
+      {shelter?._id && (
+        <ShelterWallet
+          key={shelter._id}
+          initial={defaultShelterWallet(shelter)}
+        />
+      )}
 
       <Button onClick={saveShelter}>Save Shelter</Button>
       <Button variant="outline" onClick={() => router.push('/shelters')}>
