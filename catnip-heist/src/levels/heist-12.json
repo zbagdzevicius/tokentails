@@ -1,0 +1,413 @@
+{
+  "id": "heist-12",
+  "tiles": [
+    "################################",
+    "#....###############.####......#",
+    "#....###############.####......#",
+    "#....#.........................#",
+    "#....#..................#......#",
+    "#....#..bbbb.bbbb.bbbb..#......#",
+    "#....#..bbbb.bbbb.bbbb..#.b....#",
+    "#....#..................#....b.#",
+    "#....#............b.....#......#",
+    "#.........b.............#......#",
+    "#.............b.........#......#",
+    "#..................b....#......#",
+    "#....#..................#....b.#",
+    "#....#..bbbbbbb.b.bbbb..#.b....#",
+    "#....#..bbbbbbb.bbbbbb..#......#",
+    "#....#..................#......#",
+    "#....#.........................#",
+    "#....###############.####......#",
+    "#....###############.####......#",
+    "################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-aisle",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 7,
+          "y": 3
+        },
+        {
+          "x": 23,
+          "y": 3
+        },
+        {
+          "x": 23,
+          "y": 4
+        },
+        {
+          "x": 7,
+          "y": 4
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 24,
+      "visionTiles": 3
+    },
+    {
+      "id": "g-rounds",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 7,
+          "y": 15
+        },
+        {
+          "x": 23,
+          "y": 15
+        },
+        {
+          "x": 23,
+          "y": 8
+        },
+        {
+          "x": 7,
+          "y": 8
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 48,
+      "visionTiles": 3
+    },
+    {
+      "id": "s-manager",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 27,
+          "y": 10
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 120
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 120
+        }
+      ]
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 26,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 10,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 15,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 22,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 30,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 12,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 9,
+        "y": 8
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 2,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 16,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 25,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 21,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 30,
+        "y": 10
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 12,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 7,
+        "y": 12
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 17,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 28,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 10,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 16,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 22,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 3,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 26,
+        "y": 18
+      }
+    }
+  ],
+  "key": null,
+  "doors": [
+    {
+      "id": "door-dryer-north",
+      "tile": {
+        "x": 24,
+        "y": 3
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-dryer-south",
+      "tile": {
+        "x": 24,
+        "y": 16
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-f1",
+      "tile": {
+        "x": 20,
+        "y": 1
+      },
+      "doors": [
+        "door-dryer-north"
+      ]
+    },
+    {
+      "id": "plate-f2",
+      "tile": {
+        "x": 27,
+        "y": 14
+      },
+      "doors": [
+        "door-dryer-north"
+      ]
+    },
+    {
+      "id": "plate-d1",
+      "tile": {
+        "x": 20,
+        "y": 18
+      },
+      "doors": [
+        "door-dryer-south"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 29,
+      "y": 2
+    },
+    "catId": "grey",
+    "catName": "Suds"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 29,
+        "y": 17
+      },
+      {
+        "x": 30,
+        "y": 17
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 3,
+        "y": 15
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 27,
+        "y": 16
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 12: Spin Cycle",
+    "parTicks": 2850,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 150,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "Prop a dryer door open and free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 20,
+        "y0": 1,
+        "x1": 20,
+        "y1": 2,
+        "untilObjective": 0,
+        "text": "Hold the plate, {swap}, and park the other cat IN the doorway. A door won't close on a cat."
+      },
+      {
+        "x0": 20,
+        "y0": 17,
+        "x1": 20,
+        "y1": 18,
+        "untilObjective": 0,
+        "text": "Hold the plate, {swap}, and park the other cat IN the doorway. A door won't close on a cat."
+      },
+      {
+        "x0": 21,
+        "y0": 2,
+        "x1": 24,
+        "y1": 4,
+        "untilObjective": 0,
+        "text": "Now step off the plate and walk through: your partner is holding the door."
+      },
+      {
+        "x0": 21,
+        "y0": 15,
+        "x1": 24,
+        "y1": 17,
+        "untilObjective": 0,
+        "text": "Now step off the plate and walk through: your partner is holding the door."
+      },
+      {
+        "x0": 25,
+        "y0": 12,
+        "x1": 30,
+        "y1": 15,
+        "untilObjective": 0,
+        "text": "This plate holds the north dryer door too, but the manager turns south to look at it. Propping the door is quicker."
+      }
+    ],
+    "name": "Spin Cycle",
+    "intro": "One dryer door, one plate, two cats. A door won't shut on a cat standing in it.",
+    "idea": "The doorstop: a cat standing in a doorway keeps a plate door open, so both cats get through on one plate"
+  }
+}

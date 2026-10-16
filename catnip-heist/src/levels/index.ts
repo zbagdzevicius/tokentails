@@ -1,5 +1,5 @@
 /**
- * Level registry: the 8-level campaign in play order. Levels are validated on first access.
+ * Level registry: the 16-level campaign in play order. Levels are validated on first access.
  * Sources live in tools/levels/<id>.mjs (built by tools/build-levels.mjs); solutions are planned by
  * tools/solver.ts (`npm run solve`).
  */
@@ -22,6 +22,22 @@ import heist07Json from './heist-07.json';
 import heist07Solution from './heist-07.solution.json';
 import heist08Json from './heist-08.json';
 import heist08Solution from './heist-08.solution.json';
+import heist09Json from './heist-09.json';
+import heist09Solution from './heist-09.solution.json';
+import heist10Json from './heist-10.json';
+import heist10Solution from './heist-10.solution.json';
+import heist11Json from './heist-11.json';
+import heist11Solution from './heist-11.solution.json';
+import heist12Json from './heist-12.json';
+import heist12Solution from './heist-12.solution.json';
+import heist13Json from './heist-13.json';
+import heist13Solution from './heist-13.solution.json';
+import heist14Json from './heist-14.json';
+import heist14Solution from './heist-14.solution.json';
+import heist15Json from './heist-15.json';
+import heist15Solution from './heist-15.solution.json';
+import heist16Json from './heist-16.json';
+import heist16Solution from './heist-16.solution.json';
 
 const SOURCES: readonly { id: string; json: unknown; solution: unknown }[] = [
   { id: 'heist-01', json: heist01Json, solution: heist01Solution },
@@ -32,6 +48,14 @@ const SOURCES: readonly { id: string; json: unknown; solution: unknown }[] = [
   { id: 'heist-06', json: heist06Json, solution: heist06Solution },
   { id: 'heist-07', json: heist07Json, solution: heist07Solution },
   { id: 'heist-08', json: heist08Json, solution: heist08Solution },
+  { id: 'heist-09', json: heist09Json, solution: heist09Solution },
+  { id: 'heist-10', json: heist10Json, solution: heist10Solution },
+  { id: 'heist-11', json: heist11Json, solution: heist11Solution },
+  { id: 'heist-12', json: heist12Json, solution: heist12Solution },
+  { id: 'heist-13', json: heist13Json, solution: heist13Solution },
+  { id: 'heist-14', json: heist14Json, solution: heist14Solution },
+  { id: 'heist-15', json: heist15Json, solution: heist15Solution },
+  { id: 'heist-16', json: heist16Json, solution: heist16Solution },
 ];
 
 /** Campaign order. Level N unlocks when level N-1 is won. */

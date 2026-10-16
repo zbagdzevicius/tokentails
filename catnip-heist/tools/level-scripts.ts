@@ -6,6 +6,14 @@
  * listed coins or every coin reachable right now), swap, interact, meow, wait n ticks.
  */
 import type { PlanStep } from './solver';
+import { HEIST_09_SCRIPT } from './level-scripts/heist-09';
+import { HEIST_10_SCRIPT } from './level-scripts/heist-10';
+import { HEIST_11_SCRIPT } from './level-scripts/heist-11';
+import { HEIST_12_SCRIPT } from './level-scripts/heist-12';
+import { HEIST_13_SCRIPT } from './level-scripts/heist-13';
+import { HEIST_14_SCRIPT } from './level-scripts/heist-14';
+import { HEIST_15_SCRIPT } from './level-scripts/heist-15';
+import { HEIST_16_SCRIPT } from './level-scripts/heist-16';
 
 /** heist-01: tutorial room + Kibble Corp warehouse. */
 export const HEIST_01_SCRIPT: PlanStep[] = [
@@ -299,4 +307,12 @@ export const LEVEL_SCRIPTS: Record<string, PlanStep[]> = {
   'heist-06': HEIST_06_SCRIPT,
   'heist-07': HEIST_07_SCRIPT,
   'heist-08': HEIST_08_SCRIPT,
+  'heist-09': HEIST_09_SCRIPT,
+  'heist-10': HEIST_10_SCRIPT,
+  'heist-11': HEIST_11_SCRIPT,
+  'heist-12': HEIST_12_SCRIPT,
+  'heist-13': HEIST_13_SCRIPT,
+  'heist-14': HEIST_14_SCRIPT,
+  'heist-15': HEIST_15_SCRIPT,
+  'heist-16': HEIST_16_SCRIPT,
 };

@@ -6,10 +6,11 @@ import { LEVEL_IDS, getLevel, getSolution, nextLevelId } from '..';
 import { proveOneCatUnsolvable } from '../../../tools/solver';
 
 describe('campaign', () => {
-  it('has 8 levels in order heist-01 .. heist-08', () => {
-    expect(LEVEL_IDS).toEqual(['heist-01', 'heist-02', 'heist-03', 'heist-04', 'heist-05', 'heist-06', 'heist-07', 'heist-08']);
+  it('has 16 levels in order heist-01 .. heist-16', () => {
+    expect(LEVEL_IDS).toEqual(Array.from({ length: 16 }, (_, i) => `heist-${String(i + 1).padStart(2, '0')}`));
     expect(nextLevelId('heist-01')).toBe('heist-02');
-    expect(nextLevelId('heist-08')).toBeNull();
+    expect(nextLevelId('heist-08')).toBe('heist-09');
+    expect(nextLevelId('heist-16')).toBeNull();
   });
 
   it('at least 6 levels are designed (and proven) to need both cats', () => {
