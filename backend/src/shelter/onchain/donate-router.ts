@@ -250,7 +250,7 @@ export function decodeRouterDonation(log: {
  */
 export const RELAY_ERRORS = {
     RELAY_OFF: 'Wallet gifts through Token Tails are off right now.',
-    RELAY_AWAITING_HANDOVER: 'Wallet gifts open once the shelter holds its own wallet.',
+    RELAY_AWAITING_HANDOVER: "Wallet gifts open once the shelter's wallet handover is recorded.",
     RELAY_WRONG_CHAIN: 'This gift was signed for a different network.',
     RELAY_BAD_MEMO: 'The gift memo must look like tt:wallet:<8 hex>.',
     RELAY_AMOUNT: 'The gift amount is outside the allowed range.',

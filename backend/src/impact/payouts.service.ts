@@ -483,7 +483,7 @@ export class ImpactPayoutService {
         if (shelter.handoverStatus !== 'handed-over' || !shelter.publicWallet) {
             throw new ConflictException({
                 code: PAYOUT_ERROR.HANDOVER_PENDING,
-                message: 'Signatures open once the shelter holds its own wallet key',
+                message: "Signatures open once the shelter's wallet handover is recorded",
             });
         }
         const message = attestationMessage(this.fields(payout, shelter));

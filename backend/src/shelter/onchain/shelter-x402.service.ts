@@ -51,7 +51,7 @@ export const X402_SCHEME = 'onchain-receipt';
 /** Matches `maxTimeoutSeconds` in the 402 body. */
 export const X402_NONCE_TTL_SECONDS = 600;
 export const X402_DISABLED =
-    'Agent cat cards are off. Public payments open once the shelter holds its own wallet keys.';
+    "Agent cat cards are off. Public payments open once the shelter's wallet handover is recorded.";
 export const X402_NO_CARDS = 'No adoptable cat cards are available right now.';
 export const X402_UNPRICED =
     'Agent payments are unavailable right now (the payment token could not be read); retry shortly.';

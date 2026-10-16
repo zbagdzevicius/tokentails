@@ -166,7 +166,7 @@ describe('liveSources: only what can reach the open wallet today', () => {
     it('adds shop shares only while a checkout settles through the split', () => {
         expect(liveSources(campaign(), { splitOnChain: true })).toEqual(['treats', 'purchase-shares']);
     });
-    it('is gifts, the match, treats and x402 once the shelter holds its own wallet', () => {
+    it("is gifts, the match, treats and x402 once the shelter's wallet handover is recorded", () => {
         expect(liveSources(rotated(), { splitOnChain: false })).toEqual(['gifts', 'match', 'treats', 'x402']);
     });
     it('reads the split route from the crypto pay settings (off by default)', () => {
