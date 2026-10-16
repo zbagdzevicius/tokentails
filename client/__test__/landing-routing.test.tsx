@@ -437,6 +437,14 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     });
   });
 
+  it("sends the bare /swordcat-game (the embed's og:url) to the /swordcat page on web", async () => {
+    await expect(nextConfig.redirects()).resolves.toContainEqual({
+      source: "/swordcat-game",
+      destination: "/swordcat",
+      permanent: false,
+    });
+  });
+
   it("exports only keys Next.js accepts (no 'Invalid next.config.js options' warning)", () => {
     expect(Object.keys(nextConfig)).not.toContain("firebaseAuthRewrites");
   });

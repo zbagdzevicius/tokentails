@@ -66,6 +66,10 @@ const nextConfig = {
             // not serve a directory's index.html, and it strips the trailing slash of
             // `/match-desk/` before this rule runs.
             { source: "/match-desk", destination: "/match-desk/index.html", permanent: false },
+            // The Pink Paw Knight embed's og:url is https://tokentails.com/swordcat-game/ (Next strips
+            // the slash). Scrapers treat og:url as canonical, so the bare folder goes to the host page.
+            // Assets such as /swordcat-game/og.jpg and /swordcat-game/index.html are not matched.
+            { source: "/swordcat-game", destination: "/swordcat", permanent: false },
           ];
         },
         async rewrites() {
