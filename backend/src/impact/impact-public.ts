@@ -1,6 +1,8 @@
 import { Types } from 'mongoose';
 import { HandoverStatus, PartnerStatus, ShelterRole } from 'src/shared-contracts/enums';
 import { RailState } from 'src/shelter/onchain/shelter-donate.service';
+import { TOKEN_TAILS_HELD_WALLETS } from 'src/shelter/onchain/shelter-onchain.config';
+import { FACTS, PublicFact } from './facts.generated';
 import type { AttestationTier } from './attestation';
 import type { PublicOutcomeItem } from './outcomes.service';
 import type { PublicPawSettlement } from './paws.service';
@@ -40,7 +42,12 @@ export interface PublicImpact {
     asOf: { chain: string | null; mongo: string | null };
     sources: { chain: ChainSource; mongo: MongoSource };
     money: {
-        /** `held-by-token-tails` unless every paid shelter wallet is a handed-over shelter's (F7.2 tiers). */
+        /**
+         * The current custody tier (F7.2): `handed-over` when every wallet the split pays now is a
+         * handed-over shelter's (the shelter row, or the published campaign facts: Pink Paw's wallet since
+         * 2026-10-16). Wallets of closed Token Tails windows (0xE299) stay the held tier for their past
+         * payouts and do not decide the current tier.
+         */
         custody: HandoverStatus;
         bySymbol: Record<string, string>;
         byBucket: Partial<Record<PayoutBucket, Record<string, string>>>;
@@ -169,20 +176,67 @@ export function totalsBySymbol(byBucket: Record<string, Record<string, string>>)
     return Object.fromEntries([...totals].map(([symbol, amount]) => [symbol, amount.toString()]));
 }
 
+/** Custody wallets from the published campaign facts (campaign.json, `fund facts build`). Lowercased. */
+export interface CampaignCustody {
+    /** Shelter-holder wallets of a handed-over campaign, never a wallet Token Tails holds. */
+    shelter: string[];
+    /** Token Tails holder wallets whose window is closed: past payouts only. */
+    pastHeld: string[];
+}
+
 /**
- * Custody of the paid money: handed over only when every recipient wallet belongs to a shelter whose
- * handover is `handed-over`. Unknown recipients count as custodial (the conservative amber tier).
+ * Reads the custody windows of every campaign fact. A campaign counts only when its `handover` is
+ * `handed-over`; then its `shelter` holder wallets are shelter wallets and its closed `token-tails`
+ * windows are past. TOKEN_TAILS_HELD_WALLETS is never a shelter wallet, whatever the data says.
  */
-export function custodyOf(recipients: string[], shelters: PublicShelter[]): HandoverStatus {
-    if (!recipients.length) {
+export function campaignCustody(facts: Record<string, PublicFact> = FACTS): CampaignCustody {
+    const held = new Set(TOKEN_TAILS_HELD_WALLETS.map(w => w.toLowerCase()));
+    const shelter = new Set<string>();
+    const pastHeld = new Set<string>();
+    for (const fact of Object.values(facts || {})) {
+        const c = fact?.campaign;
+        if (!c || c.handover !== 'handed-over' || !Array.isArray(c.wallets)) {
+            continue;
+        }
+        for (const w of c.wallets) {
+            const wallet = String(w?.wallet || '').toLowerCase();
+            if (!/^0x[0-9a-f]{40}$/.test(wallet)) {
+                continue;
+            }
+            if (w.holder === 'shelter' && !held.has(wallet)) {
+                shelter.add(wallet);
+            } else if (w.holder === 'token-tails' && w.toBlock !== null && w.toBlock !== undefined) {
+                pastHeld.add(wallet);
+            }
+        }
+    }
+    for (const wallet of shelter) {
+        pastHeld.delete(wallet);
+    }
+    return { shelter: [...shelter], pastHeld: [...pastHeld] };
+}
+
+/**
+ * The current custody tier of the paid money: `handed-over` only when every recipient wallet, other
+ * than the wallets of closed Token Tails windows, belongs to a shelter whose handover is `handed-over`
+ * (its shelter row, or the published campaign facts). Unknown recipients count as custodial (the
+ * conservative amber tier); a split that only ever paid a held wallet is custodial.
+ */
+export function custodyOf(
+    recipients: string[],
+    shelters: PublicShelter[],
+    campaign: CampaignCustody = campaignCustody()
+): HandoverStatus {
+    const past = new Set(campaign.pastHeld);
+    const current = recipients.map(w => String(w).toLowerCase()).filter(w => !past.has(w));
+    if (!current.length) {
         return 'held-by-token-tails';
     }
-    const handedOver = new Set(
-        shelters
+    const handedOver = new Set([
+        ...shelters
             .filter(s => s.handoverStatus === 'handed-over' && s.publicWallet)
-            .map(s => String(s.publicWallet).toLowerCase())
-    );
-    return recipients.every(wallet => handedOver.has(String(wallet).toLowerCase()))
-        ? 'handed-over'
-        : 'held-by-token-tails';
+            .map(s => String(s.publicWallet).toLowerCase()),
+        ...campaign.shelter,
+    ]);
+    return current.every(wallet => handedOver.has(wallet)) ? 'handed-over' : 'held-by-token-tails';
 }
