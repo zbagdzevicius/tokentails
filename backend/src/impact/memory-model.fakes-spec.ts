@@ -66,6 +66,8 @@ function test(value: any, condition: any): boolean {
                     return value !== undefined && value !== null && compare(value, arg) >= 0;
                 case '$not':
                     return !test(value, arg);
+                case '$regex':
+                    return typeof value === 'string' && new RegExp(arg as RegExp | string).test(value);
                 default:
                     throw new Error(`fake model: unsupported operator ${op}`);
             }

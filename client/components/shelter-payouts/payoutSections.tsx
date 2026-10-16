@@ -6,6 +6,7 @@ import { Dispatch, ReactNode, SetStateAction, useEffect, useState } from "react"
 import { claimsDateLabel } from "./campaign";
 import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
+import { MOTORED_DISCLOSURE, MOTORED_LABEL, isMotoredGift } from "./motored";
 import {
   PayoutsUpdating,
   ShelterDeployment,
@@ -207,6 +208,11 @@ export const PayoutFeed = ({
             </span>
             <span className="flex flex-wrap gap-2">
               <span className={CHIP}>{chainName}</span>
+              {isMotoredGift(d) && (
+                <span className={CHIP} title={MOTORED_DISCLOSURE} data-testid="feed-motored">
+                  {MOTORED_LABEL}
+                </span>
+              )}
               {memo && <span className={MEMO}>{memo}</span>}
             </span>
           </span>

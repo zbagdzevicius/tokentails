@@ -48,6 +48,7 @@ import {
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { cdnFile } from "@/constants/utils";
 import { useImpact } from "@/hooks/useImpact";
+import { MOTORED_DISCLOSURE, MOTORED_EVENT, MOTORED_LABEL } from "@/components/shelter-payouts/motored";
 import type { GetStaticProps } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -107,6 +108,7 @@ const BUCKET_LABEL: Record<PayoutBucket, string> = {
   direct: "Other payouts",
   wallet: "Public gifts",
   match: "Token Tails match",
+  motored: `${MOTORED_EVENT}: ${MOTORED_LABEL.toLowerCase()} gifts to Pink Paw on behalf of its users, counted as one sponsor. ${MOTORED_DISCLOSURE}`,
 };
 
 const RAIL_COPY: Record<RailState, string> = {

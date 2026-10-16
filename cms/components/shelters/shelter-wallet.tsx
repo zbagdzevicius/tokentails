@@ -9,7 +9,11 @@ import {
   fetchWalletBalances,
   formatUnits,
   isAddress,
+  isMotoredMemo,
+  MOTORED_DISCLOSURE,
+  MOTORED_LABEL,
   Payout,
+  splitMotored,
   totalIn
 } from '@/lib/shelter-wallet/balances';
 import { PINK_PAW_WALLET, WALLET_CHAINS } from '@/lib/shelter-wallet/chains';
@@ -160,6 +164,16 @@ export function ShelterWallet({ initial }: { initial: string }) {
           {payouts.data && payouts.data.length > 0 && (
             <div className="text-sm">
               <div className="font-bold">Recent Arc payouts</div>
+              {(() => {
+                const { motored, motoredUsd } = splitMotored(payouts.data);
+                return motored.length > 0 ? (
+                  <div className="text-xs text-gray-600 py-1" data-testid="motored-summary">
+                    {MOTORED_LABEL} in this list: ${motoredUsd.toFixed(2)} in {motored.length} gift
+                    {motored.length === 1 ? '' : 's'}. Sponsor money from Motored, never separate
+                    donors. {MOTORED_DISCLOSURE}
+                  </div>
+                ) : null;
+              })()}
               {payouts.data.map((p: Payout) => (
                 <div key={p.txHash} className="flex justify-between gap-2 border-t py-1">
                   <a
@@ -170,7 +184,14 @@ export function ShelterWallet({ initial }: { initial: string }) {
                   >
                     {short(p.txHash)}
                   </a>
-                  <span className="truncate text-gray-500">{p.memo}</span>
+                  <span className="truncate text-gray-500">
+                    {isMotoredMemo(p.memo) && (
+                      <span className="mr-1 rounded bg-yellow-100 px-1 text-yellow-900">
+                        {MOTORED_LABEL}
+                      </span>
+                    )}
+                    {p.memo}
+                  </span>
                   <span>{fmt(p.amount)}</span>
                 </div>
               ))}
