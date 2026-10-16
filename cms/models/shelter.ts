@@ -14,6 +14,9 @@ export interface IShelter {
     facebook: string;
     twitter: string;
     tiktok: string;
+    slug?: string;
+    /** Public EVM payout wallet (ShelterSplit recipient). */
+    publicWallet?: string;
     foundedAt: Date;
     blessings: IBlessing[];
     users: IProfile[];
