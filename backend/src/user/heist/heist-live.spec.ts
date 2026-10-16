@@ -137,7 +137,8 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             expect(score).toBeLessThanOrEqual(HEIST_LEVEL_CAPS[index])
         );
         user.heistStars.forEach((mask: number) => expect(mask & STAR_WIN).toBe(STAR_WIN));
-    });
+        // Eight real replays, like the test below: give them the same 30 s under a parallel full run.
+    }, 30000);
 
     describe('400s write nothing', () => {
         const cases: [string, () => unknown, string][] = [
