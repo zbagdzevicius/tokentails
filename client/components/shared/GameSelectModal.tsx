@@ -27,6 +27,19 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
 
 /**
+ * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
+ * frame of the game's own trailer footage cropped to the card's 312x218 box. One 2x file (624x436, about 30 KB),
+ * drawn in the 312x218 box: with a 1x/2x `srcSet`, Chromium kept the 1x file for this card on 2x screens in testing.
+ * Served from client/public (not the CDN). It replaced an inline pixel cat with the Token Tails ":3" coin, which is
+ * the brand mark, not the game's hero.
+ */
+export const SWORDCAT_PREVIEW = Object.freeze({
+  src: "/game-select/swordcat-preview@2x.webp",
+  width: 312,
+  height: 218,
+});
+
+/**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
  * decision #15's Poki hold). `NEXT_PUBLIC_HEIST_PICKER=0`/`false`/`off` hides it.
  */
@@ -128,6 +141,7 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
       title: SWORDCAT_TITLE.toUpperCase(),
       description: SWORDCAT_PICKER_DESCRIPTION,
       badge: "NEW",
+      image: SWORDCAT_PREVIEW.src,
       previewVariant: "SWORDCAT",
     });
   }
@@ -180,105 +194,18 @@ const PawPost = () => (
   />
 );
 
-/**
- * The Swordcat preview, drawn inline (no image file): Clem, the game's knight, as an ivory sitting cat with a
- * maroon outline and her pink bow on the left ear, under the Token Tails gold ":3" coin on the night sky (Token
- * Tails tokens: night #0B0820/#2A1F45, gold #FFCC55, ink #4A1D08, love pink #FF7AA2). Pink is Clem's bow alone.
- * Pixel art on a 39x27 grid, so it stays crisp at any size.
- */
 const SwordcatPreview = () => (
   <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
-    <svg
-      viewBox="0 0 39 27"
-      aria-hidden="true"
-      focusable="false"
+    <img
+      src={SWORDCAT_PREVIEW.src}
+      width={SWORDCAT_PREVIEW.width}
+      height={SWORDCAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
       data-testid="game-card-swordcat-preview"
-      className="h-full w-full"
-      shapeRendering="crispEdges"
-    >
-      {/* Night sky: deep night above, dusk night band and a dark hill below */}
-      <rect width="39" height="27" fill="#0B0820" />
-      <rect y="15" width="39" height="10" fill="#2A1F45" />
-      <rect y="25" width="39" height="2" fill="#1E1633" />
-      <rect y="25" width="39" height="1" fill="#3A2D5C" />
-      {/* Stars */}
-      <rect x="3" y="4" width="1" height="1" fill="#FFCC55" opacity="0.8" />
-      <rect x="20" y="1" width="1" height="1" fill="#FFCC55" opacity="0.6" />
-      <rect x="2" y="12" width="1" height="1" fill="#F0C5FD" opacity="0.7" />
-      <rect x="36" y="17" width="1" height="1" fill="#FFCC55" opacity="0.7" />
-      <rect x="24" y="10" width="1" height="1" fill="#F0C5FD" opacity="0.6" />
-      {/* Clem's outline (ink): ears, head, body, curled tail */}
-      <g fill="#4A1D08">
-        <rect x="11" y="3" width="2" height="1" />
-        <rect x="10" y="4" width="4" height="3" />
-        <rect x="20" y="3" width="2" height="1" />
-        <rect x="19" y="4" width="4" height="3" />
-        <rect x="9" y="7" width="15" height="8" />
-        <rect x="8" y="14" width="17" height="11" />
-        <rect x="24" y="19" width="5" height="5" />
-        <rect x="26" y="15" width="3" height="5" />
-      </g>
-      {/* Clem's ivory coat */}
-      <g fill="#F3EEE6">
-        <rect x="11" y="4" width="2" height="4" />
-        <rect x="20" y="4" width="2" height="4" />
-        <rect x="10" y="8" width="13" height="7" />
-        <rect x="9" y="15" width="15" height="9" />
-        <rect x="24" y="20" width="4" height="3" />
-        <rect x="27" y="16" width="1" height="4" />
-      </g>
-      {/* Coat highlight, inner ear, paws */}
-      <rect x="11" y="8" width="3" height="1" fill="#FFFFFF" />
-      <rect x="20" y="5" width="1" height="2" fill="#FFB3C7" />
-      <rect x="15" y="21" width="1" height="3" fill="#D9CFC2" />
-      <rect x="11" y="23" width="3" height="1" fill="#D9CFC2" />
-      <rect x="18" y="23" width="3" height="1" fill="#D9CFC2" />
-      {/* Face: eyes with a catchlight, pink nose, ink mouth, blush */}
-      <rect x="13" y="10" width="1" height="2" fill="#2A1F45" />
-      <rect x="19" y="10" width="1" height="2" fill="#2A1F45" />
-      <rect x="13" y="10" width="1" height="1" fill="#90C5E9" />
-      <rect x="19" y="10" width="1" height="1" fill="#90C5E9" />
-      <rect x="16" y="12" width="1" height="1" fill="#FF7AA2" />
-      <rect x="15" y="13" width="1" height="1" fill="#4A1D08" />
-      <rect x="17" y="13" width="1" height="1" fill="#4A1D08" />
-      <rect x="11" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
-      <rect x="21" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
-      {/* Clem's pink bow on her left ear: two loops and a knot, ink outline */}
-      <g fill="#4A1D08">
-        <rect x="6" y="2" width="5" height="5" />
-        <rect x="10" y="3" width="3" height="3" />
-        <rect x="12" y="2" width="5" height="5" />
-      </g>
-      <rect x="7" y="3" width="3" height="3" fill="#FF7AA2" />
-      <rect x="13" y="3" width="3" height="3" fill="#FF7AA2" />
-      <rect x="7" y="3" width="1" height="1" fill="#FFB3C7" />
-      <rect x="13" y="3" width="1" height="1" fill="#FFB3C7" />
-      <rect x="11" y="4" width="1" height="1" fill="#E0567F" />
-      {/* The Token Tails gold ":3" coin, ink rim, with a sparkle */}
-      <g fill="#4A1D08">
-        <rect x="28" y="3" width="6" height="11" />
-        <rect x="27" y="4" width="8" height="9" />
-        <rect x="26" y="5" width="10" height="7" />
-      </g>
-      <g fill="#FFCC55">
-        <rect x="28" y="4" width="6" height="9" />
-        <rect x="27" y="5" width="8" height="7" />
-      </g>
-      <rect x="28" y="12" width="6" height="1" fill="#E2C05A" />
-      <rect x="34" y="9" width="1" height="3" fill="#E2C05A" />
-      <rect x="28" y="5" width="1" height="2" fill="#FFF1C2" />
-      <g fill="#4A1D08">
-        <rect x="29" y="7" width="1" height="1" />
-        <rect x="29" y="9" width="1" height="1" />
-        <rect x="31" y="6" width="2" height="1" />
-        <rect x="32" y="7" width="1" height="1" />
-        <rect x="31" y="8" width="2" height="1" />
-        <rect x="32" y="9" width="1" height="1" />
-        <rect x="31" y="10" width="2" height="1" />
-      </g>
-      <rect x="37" y="1" width="1" height="3" fill="#FFF1C2" />
-      <rect x="36" y="2" width="3" height="1" fill="#FFF1C2" />
-    </svg>
+      className="h-full w-full object-cover"
+    />
   </span>
 );
 
