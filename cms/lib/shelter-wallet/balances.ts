@@ -135,13 +135,13 @@ export function decodePayoutData(data: string): { amount: bigint; memo: string }
 
 type RawLog = { transactionHash: string; blockNumber: string; data: string };
 
-/** Arc's public RPC caps eth_getLogs ranges, so this walks back in 5,000-block chunks. */
-const LOG_CHUNK = 5000;
+/** Arc's public RPC caps eth_getLogs below 10,000 blocks, so this walks back in 9,000-block chunks. */
+const LOG_CHUNK = 9000;
 
 /** Last `limit` Arc payouts to this wallet over the last `blocks` blocks (newest first). */
 export async function fetchArcPayouts(
   wallet: string,
-  blocks = 50_000,
+  blocks = 27_000,
   limit = 10
 ): Promise<Payout[]> {
   const arc = WALLET_CHAINS.find((c) => c.chainId === 5042)!;

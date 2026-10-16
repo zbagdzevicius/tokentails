@@ -44,7 +44,8 @@ export function ShelterWallet({ initial }: { initial: string }) {
   const payouts = useQuery({
     queryKey: ['shelter-wallet-payouts', wallet],
     queryFn: () => fetchArcPayouts(wallet),
-    enabled: !!wallet,
+    // After the balances, so the log scan cannot rate-limit the Arc balance read.
+    enabled: !!wallet && balances.isSuccess,
     retry: false,
     staleTime: 60_000
   });
@@ -163,7 +164,7 @@ export function ShelterWallet({ initial }: { initial: string }) {
                 <div key={p.txHash} className="flex justify-between gap-2 border-t py-1">
                   <a
                     className="underline font-mono"
-                    href={`https://explorer.arc.io/tx/${p.txHash}`}
+                    href={`${WALLET_CHAINS[0].explorer}/tx/${p.txHash}`}
                     target="_blank"
                     rel="noreferrer"
                   >
