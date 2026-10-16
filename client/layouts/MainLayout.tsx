@@ -45,7 +45,9 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
                 {children}
               </PageBoundary>
             </main>
-            <AnalyticsConsentBanner />
+            {/* /swordcat: the game pauses while the card is up (it covered the in-game treat button
+                on a landscape phone until answered). */}
+            <AnalyticsConsentBanner pauseGames={route === "/swordcat"} />
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>
