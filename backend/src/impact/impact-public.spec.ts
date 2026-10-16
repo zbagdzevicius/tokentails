@@ -1,4 +1,4 @@
-import { campaignCustody, custodyOf, PublicShelter } from './impact-public';
+import { campaignCustody, custodyOf, publicShelter, PublicShelter } from './impact-public';
 import { FACTS, PublicFact } from './facts.generated';
 
 const HELD = '0xe299299b846ba629f5a591dbf4f562bcc07a0f37';
@@ -71,5 +71,26 @@ describe('custodyOf (the current tier)', () => {
         expect(
             custodyOf([HELD, PINK_PAW], [dbShelter({ handoverStatus: 'handed-over', publicWallet: PINK_PAW })], none)
         ).toBe('held-by-token-tails');
+    });
+});
+
+describe('publicShelter (the /impact shelter list)', () => {
+    const row = { slug: 'rozine-pedute', name: 'Pink Paw', countryCode: 'LT', handoverStatus: 'held-by-token-tails' };
+
+    it("shows Pink Paw's wallet from the campaign facts, with no admin PUT on the row", () => {
+        const s = publicShelter({ ...row, publicWallet: HELD });
+        expect(s.handoverStatus).toBe('handed-over');
+        expect(s.publicWallet?.toLowerCase()).toBe(PINK_PAW);
+    });
+
+    it('keeps the row as it is while the campaign is not handed over', () => {
+        const none = { shelter: [], pastHeld: [] };
+        expect(publicShelter(row, none).handoverStatus).toBe('held-by-token-tails');
+        expect(publicShelter({ ...row, slug: 'other' }).handoverStatus).toBe('held-by-token-tails');
+    });
+
+    it('marks any shelter row whose wallet is a campaign shelter wallet', () => {
+        const s = publicShelter({ ...row, slug: 'other', publicWallet: OTHER }, { shelter: [OTHER], pastHeld: [] });
+        expect(s.handoverStatus).toBe('handed-over');
     });
 });

@@ -2,6 +2,8 @@ import { Types } from 'mongoose';
 import { HandoverStatus, PartnerStatus, ShelterRole } from 'src/shared-contracts/enums';
 import { RailState } from 'src/shelter/onchain/shelter-donate.service';
 import { TOKEN_TAILS_HELD_WALLETS } from 'src/shelter/onchain/shelter-onchain.config';
+import { PINK_PAW_SLUG } from 'src/shared-contracts/pink-paw';
+import { WALLETS } from 'src/shelter/onchain/wallet.config';
 import { FACTS, PublicFact } from './facts.generated';
 import type { AttestationTier } from './attestation';
 import type { PublicOutcomeItem } from './outcomes.service';
@@ -151,15 +153,32 @@ export async function houseShelterIds(shelters: IShelterLister): Promise<Types.O
 
 const str = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
 
-export function publicShelter(row: Record<string, any>): PublicShelter {
+/**
+ * One shelter row for GET /impact. Pink Paw's custody comes from the published campaign facts, not
+ * only from the row: when the campaign is handed over to Pink Paw's generated mainnet wallet, the row
+ * reads `handed-over` with that wallet, with no admin PUT. Any row whose wallet is a campaign shelter
+ * wallet reads `handed-over` too.
+ */
+export function publicShelter(row: Record<string, any>, campaign: CampaignCustody = campaignCustody()): PublicShelter {
+    const slug = String(row.slug || '');
+    let handoverStatus = str(row.handoverStatus) as HandoverStatus | null;
+    let publicWallet = str(row.publicWallet);
+    const shelterWallets = new Set(campaign.shelter);
+    const pinkPaw = String(WALLETS.mainnet.pinkPaw || '').toLowerCase();
+    if (slug === PINK_PAW_SLUG && pinkPaw && shelterWallets.has(pinkPaw)) {
+        handoverStatus = 'handed-over';
+        publicWallet = WALLETS.mainnet.pinkPaw;
+    } else if (publicWallet && shelterWallets.has(publicWallet.toLowerCase())) {
+        handoverStatus = 'handed-over';
+    }
     return {
-        slug: String(row.slug || ''),
+        slug,
         name: String(row.name || ''),
         countryCode: str(row.countryCode),
         partnerStatus: str(row.partnerStatus) as PartnerStatus | null,
         role: str(row.role) as ShelterRole | null,
-        handoverStatus: str(row.handoverStatus) as HandoverStatus | null,
-        publicWallet: str(row.publicWallet),
+        handoverStatus,
+        publicWallet,
     };
 }
 

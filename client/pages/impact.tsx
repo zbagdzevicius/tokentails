@@ -817,9 +817,7 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
                       ? " · paid to the shelter"
                       : " · shelter's wallet"
                     : s.handoverStatus === "held-by-token-tails"
-                    ? isApp
-                      ? " · held by Token Tails"
-                      : " · key held by Token Tails"
+                    ? " · held by Token Tails"
                     : ""}
                 </li>
               ))}
