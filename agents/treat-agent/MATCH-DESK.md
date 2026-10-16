@@ -756,7 +756,7 @@ generator's output for `desk.example.json` with zero receipts. The page shows "N
 matches." until a vault address exists, all the disclosures, and no invented numbers. The lead sentence
 is in the present tense ("match public gifts") only once at least one receipt is reconciled; before that
 it says the sponsors "will match" them (once their match vaults are deployed and funded, when there is
-no vault yet). It is served at `tokentails.com/match-desk/index.html`, like `/heist/index.html`.
+no vault yet). It is served at `tokentails.com/match-desk/index.html`; `/match-desk` and `/match-desk/` redirect there (`client/next.config.js`).
 
 ## Contracts and scripts (B)
 

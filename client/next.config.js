@@ -62,6 +62,10 @@ const nextConfig = {
             // The proof page moved into /impact (plan F7.6, 2.13 row 23).
             { source: "/proof", destination: "/impact", permanent: true },
             ...heistRedirects,
+            // The Sponsor Match Desk statement is a static page in public/match-desk. Next.js does
+            // not serve a directory's index.html, and it strips the trailing slash of
+            // `/match-desk/` before this rule runs.
+            { source: "/match-desk", destination: "/match-desk/index.html", permanent: false },
           ];
         },
         async rewrites() {
