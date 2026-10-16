@@ -142,7 +142,7 @@ describe("/impact", () => {
     expect(view.shelters.map((s) => s.slug)).toEqual(["a"]);
     const page = render(<ImpactPage impact={funded} />).container.querySelector("#custody")!;
     expect(page.querySelector('[data-chip="onchain-custodial"]')).not.toBeNull();
-    expect(page.textContent).toContain("wallet key for its partner shelter Shelter A");
+    expect(page.textContent).toContain("went to a wallet Token Tails held for its partner shelter Shelter A");
     expect(page.textContent).not.toContain("Shelter B");
     expect(page.textContent).not.toContain("Pink Paw");
 
@@ -257,7 +257,7 @@ describe("/impact", () => {
       /USDC|ON-CHAIN|explorer|wallet|\b(SEI|Stellar|Arc)\b|key held|holds its own key|Merkle|memo/i
     );
     expect(text).toContain("Pink Paw · Lithuania · held by Token Tails");
-    expect(text).toContain("held by the shelter");
+    expect(text).toContain("paid to the shelter");
     expect(container.querySelector('a[href*="explorer"]')).toBeNull();
     // The snapshot has no payout time: the app says when it was checked (review 3f #4).
     expect(text).toContain("Recorded, checked 1 Oct 2026");

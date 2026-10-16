@@ -100,11 +100,12 @@ async function routeLists(page: Page, scenario: Scenario) {
   const deployment = { chainId: S.chainId, address: S.split, fromBlock: S.fromBlock, label: "Arc testnet (local fork)" };
   const router = { chainId: S.chainId, router: S.router, usdc: S.usdc, label: "Arc testnet (local fork)" };
   if (scenario === "testnet") {
+    await serveHeldCampaign(page);
     await page.route("**/shelter-payouts/routers.json", (r) => r.fulfill(json([{ ...router, network: "testnet" }])));
     await page.route("**/shelter-payouts/deployments.json", (r) => r.fulfill(json([])));
     await page.route("**/shelter-payouts/testnet-deployments.json", (r) => r.fulfill(json([{ ...deployment, network: "testnet" }])));
   } else {
-    // Simulates the day after the handover on the fork: the campaign's shelter holds its own key
+    // Simulates the day after the handover on the fork: the campaign pays the shelter's wallet
     // (anvil dev #4), the split pays only that wallet, and the router is listed as the live one.
     await page.route("**/shelter-payouts/campaign.json", (r) =>
       r.fulfill(
@@ -122,6 +123,18 @@ async function routeLists(page: Page, scenario: Scenario) {
     await page.route("**/shelter-payouts/deployments.json", (r) => r.fulfill(json([{ ...deployment, network: "mainnet" }])));
     await page.route("**/shelter-payouts/testnet-deployments.json", (r) => r.fulfill(json([])));
   }
+}
+
+// The campaign as it was before the 16 Oct 2026 rotation (wallet held by Token Tails): the awaiting block.
+const HELD_WALLET = "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37";
+async function serveHeldCampaign(page: Page) {
+  await page.route("**/shelter-payouts/campaign.json", async (route) => {
+    const res = await route.fetch();
+    const c = await res.json();
+    c.shelter = { ...c.shelter, wallet: HELD_WALLET, handover: "held-by-token-tails" };
+    c.wallets = [{ wallet: HELD_WALLET.toLowerCase(), fromBlock: c.fromBlock, toBlock: null, holder: "token-tails" }];
+    await route.fulfill({ response: res, json: c });
+  });
 }
 
 async function preparePage(page: Page, account: string, scenario: Scenario) {
@@ -158,7 +171,7 @@ test.describe.serial("donation flows on the local stack", () => {
     await preparePage(page, S.dev.donor, "testnet");
     await page.goto("/shelter-payouts");
     const awaiting = page.getByTestId("wallet-donate-awaiting");
-    await expect(awaiting).toContainText("Opens when Pink Paw holds its own key");
+    await expect(awaiting).toContainText("Opens when Pink Paw's wallet is set up");
     await expect(awaiting.getByRole("button")).toHaveCount(0);
     await expect(page.getByTestId("wallet-donate")).toHaveCount(0);
     await awaiting.scrollIntoViewIfNeeded();
@@ -281,7 +294,7 @@ test.describe.serial("donation flows on the local stack", () => {
     expect(delta).toBe(E18);
     expect(await balance(S.dev.treasury)).toBe(treasury0);
     await clearPhantomBalances();
-    record("6 post-handover campaign gift (shelter-held wallet)", "pass", { tx, shelterDelta: fmt(delta), treasuryDelta: "0" });
+    record("6 post-handover campaign gift (shelter wallet)", "pass", { tx, shelterDelta: fmt(delta), treasuryDelta: "0" });
   });
 
   test("7 sponsored treat from the backend hot wallet", async () => {

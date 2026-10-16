@@ -231,7 +231,7 @@ export function renderHtml(st) {
   const deployedAll = sponsors.every((s) => Boolean(s.vault.spender));
   const deployedAny = sponsors.some((s) => Boolean(s.vault.spender));
   const t = st.totals;
-  const custodyShort = st.shelter.custody === 'held-by-shelter' ? 'held by the shelter' : 'held by Token Tails until the handover';
+  const custodyShort = st.shelter.custody === 'pink-paw-wallet' ? "the shelter's wallet" : st.shelter.custody === 'held-by-shelter' ? 'held by the shelter' : 'held by Token Tails until the handover';
   // Present tense only once a match has been read back from the chain; before that, say what will happen.
   const live = deployedAny && t.receipts > 0;
   const who = list(sponsors.map((s) => esc(whoIs(s))));

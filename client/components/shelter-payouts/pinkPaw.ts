@@ -16,15 +16,21 @@ export const PINK_PAW_NAME = "Pink Paw";
 export const PINK_PAW_LOCAL_NAME = "Rožinė pėdutė";
 
 /**
- * The shelter's wallet (client/public/shelter-payouts/campaign.json). The logo, cats and photos
- * are shown only when a campaign or payout is for this wallet: under another shelter's name they
- * would be an untrue claim.
+ * Pink Paw's wallet (client/public/shelter-payouts/campaign.json), the payee of every mainnet split
+ * since 16 Oct 2026. The logo, cats and photos are shown only when a campaign or payout is for Pink
+ * Paw: under another shelter's name they would be an untrue claim.
  */
-export const PINK_PAW_WALLET = "0xe299299b846ba629f5a591dbf4f562bcc07a0f37";
+export const PINK_PAW_WALLET = "0x3c833562e682db66c2415b34961595df135f4771";
 
-/** True when `addr` is Pink Paw's wallet (any letter case). */
+/**
+ * Every wallet that received Pink Paw's payouts: its wallet today, then 0xE299, which Token Tails held
+ * for the shelter until 16 Oct 2026 (older receipts and the testnet splits still pay it).
+ */
+export const PINK_PAW_WALLETS: readonly string[] = [PINK_PAW_WALLET, "0xe299299b846ba629f5a591dbf4f562bcc07a0f37"];
+
+/** True when `addr` is one of Pink Paw's payout wallets (any letter case). */
 export const isPinkPawWallet = (addr: string | null | undefined) =>
-  !!addr && addr.toLowerCase() === PINK_PAW_WALLET;
+  !!addr && PINK_PAW_WALLETS.includes(addr.toLowerCase());
 
 /** A shelter name for a display heading: the part before a bracketed local name ("Pink Paw (Rožinė pėdutė)" → "Pink Paw"). */
 export const headingName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, "").trim() || name;

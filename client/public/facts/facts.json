@@ -10,8 +10,8 @@
       "unit": "USDC",
       "status": "verified",
       "tense": "future",
-      "asOf": "2026-10-04",
-      "checkedAt": "2026-10-04",
+      "asOf": "2026-10-16",
+      "checkedAt": "2026-10-16",
       "maxAgeDays": 125,
       "surfaces": [
         "shelter-payouts"
@@ -26,14 +26,20 @@
       "campaign": {
         "chainId": 5042,
         "fromBlock": 23790973,
-        "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
-        "handover": "held-by-token-tails",
+        "wallet": "0x3c833562e682dB66C2415b34961595df135f4771",
+        "handover": "handed-over",
         "wallets": [
           {
             "wallet": "0xe299299b846ba629f5a591dbf4f562bcc07a0f37",
             "fromBlock": 23790973,
-            "toBlock": null,
+            "toBlock": 26229681,
             "holder": "token-tails"
+          },
+          {
+            "wallet": "0x3c833562e682db66c2415b34961595df135f4771",
+            "fromBlock": 26229682,
+            "toBlock": null,
+            "holder": "shelter"
           }
         ],
         "inflowLog": {

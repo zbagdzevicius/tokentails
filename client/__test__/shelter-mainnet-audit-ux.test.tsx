@@ -60,6 +60,9 @@ describe("ux-4: custody lines follow the handover", () => {
     }
     expect(custodyDisclosure(true, "handed-over")).not.toMatch(/wallet|on-chain/i);
     expect(disclosureFor("handed-over")).not.toMatch(/held by Token Tails/i);
+    // History stays true: payouts before 16 Oct 2026 went to a wallet Token Tails held.
+    expect(disclosureFor("handed-over")).toMatch(/^Payouts go to Pink Paw's wallet\. Before 16 Oct 2026 they went to a wallet Token Tails held/);
+    expect(custodyDisclosure(false, "handed-over")).toMatch(/Before 16 Oct 2026/);
     expect(disclosureFor("held-by-token-tails")).toBe(DISCLOSURE);
     expect(disclosureFor(undefined)).toBe(DISCLOSURE);
   });

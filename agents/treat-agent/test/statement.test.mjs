@@ -166,6 +166,10 @@ test('labels: self-sponsor and custody variants', async () => {
   assert.match(disclosures(self)[0], /self-sponsor \(Token Tails founder\)/);
   const handed = { ...file, shelter: { ...file.shelter, custody: 'held-by-shelter' } };
   assert.match(disclosures(handed)[1], /held by the shelter itself/);
+  const pinkPaw = { ...file, shelter: { ...file.shelter, custody: 'pink-paw-wallet' } };
+  assert.match(disclosures(pinkPaw)[1], /^Matched money goes to the wallet of /);
+  assert.doesNotMatch(disclosures(pinkPaw)[1], /held by|only|own key/i);
+  assert.throws(() => disclosures({ ...file, shelter: { ...file.shelter, custody: 'shelter-held' } }), /shelter\.custody must be/);
   assert.equal(ratioLabel(10000), '1:1');
   assert.equal(ratioLabel(5000), '0.5:1');
   assert.equal(microToUsdc(50000n), '0.05');

@@ -7,14 +7,16 @@ import { CARD } from "./ui";
 // about the shelter are made here.
 
 /**
- * The custody line for this build (F7.2): app builds name the holder, never a wallet or a chain. After
- * the handover (campaign.json `shelter.handover`) it says the shelter holds its own wallet.
+ * The custody line for this build (F7.2): app builds never name a wallet or a chain. After the handover
+ * (campaign.json `shelter.handover`, 16 Oct 2026) payouts go to Pink Paw's wallet; the web line keeps
+ * the history (earlier payouts went to a wallet Token Tails held). No claim about who else holds a key.
  */
 export function custodyDisclosure(isApp: boolean = isAppBuild(), handover: HandoverStatus = "held-by-token-tails"): string {
   if (handover === "handed-over") {
+    // claim: C-001 (campaign.wallets: a wallet Token Tails held until 16 Oct 2026, Pink Paw's wallet since)
     return isApp
-      ? "The shelter now holds its own share. Every payout is listed on our website."
-      : "The shelter now holds this wallet's keys. Every payout is public.";
+      ? "Payouts go to Pink Paw. Every payout is listed on our website."
+      : "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter. Every payout is public.";
   }
   return isApp
     ? "Token Tails holds the shelter's share on its behalf until handover. Every payout is listed on our website."

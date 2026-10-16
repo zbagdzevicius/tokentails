@@ -164,7 +164,7 @@ describe("Claim", () => {
 
   it.each([
     ["onchain-custodial", "ON-CHAIN · CUSTODIAL", "HELD BY TOKEN TAILS"],
-    ["onchain-shelter-held", "ON-CHAIN · SHELTER-HELD", "HELD BY SHELTER"],
+    ["onchain-shelter-held", "ON-CHAIN · SHELTER WALLET", "PAID TO SHELTER"],
     ["shelter-signed", "SHELTER-SIGNED", "SHELTER-SIGNED"],
     ["shelter-confirmed", "SHELTER-CONFIRMED", "SHELTER-CONFIRMED"],
     ["pledged", "PLEDGED", "PLEDGED"],

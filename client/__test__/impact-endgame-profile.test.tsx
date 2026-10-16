@@ -395,8 +395,12 @@ describe("/shelter-payouts", () => {
     expect(custodyDisclosure(true)).not.toMatch(/wallet|on-chain/i);
     expect(custodyDisclosure(false)).toMatch(/wallet/);
     expect(handoverLabel("held-by-token-tails", true)).toMatch(/Held by Token Tails/);
-    expect(handoverLabel("handed-over", true)).toBe("Held by shelter");
-    expect(handoverLabel("handed-over")).toMatch(/keys/);
+    expect(handoverLabel("handed-over", true)).toBe("Paid to Pink Paw");
+    expect(handoverLabel("handed-over")).toBe("Handed over 16 Oct 2026: payouts go to Pink Paw's wallet");
+    // Founder decision 2026-10-16: Token Tails keeps a recovery backup, so no exclusivity claim.
+    for (const s of [handoverLabel("handed-over", true), handoverLabel("handed-over"), custodyDisclosure(true, "handed-over"), custodyDisclosure(false, "handed-over")]) {
+      expect(s).not.toMatch(/own keys?|holds? (its|the) keys|self-custody|only (the shelter|Pink Paw)/i);
+    }
   });
 
   it("ShelterProfile hides the wallet row in app builds", () => {

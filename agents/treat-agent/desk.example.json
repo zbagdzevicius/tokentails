@@ -5,8 +5,8 @@
   "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
   "shelter": {
     "name": "Pink Paw (Rožinė pėdutė)",
-    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
-    "custody": "held-by-token-tails"
+    "wallet": "0x3c833562e682dB66C2415b34961595df135f4771",
+    "custody": "pink-paw-wallet"
   },
   "agent": null,
   "policy": {
@@ -24,7 +24,8 @@
       "0x7b136b872bEad1dAE557d1286f125B7A8A197C9A",
       "0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0",
       "0x3333c1661B93f56DeC472eF89ACa03F56E70F9B7",
-      "0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263"
+      "0xd6F37D1241dA20BbE40D1210940Bc43A1Ec56263",
+      "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37"
     ],
     "farming": { "maxGiftsPerDonorDay": 5 },
     "plannedTtlMinutes": 30

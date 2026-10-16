@@ -80,7 +80,7 @@ test('a live rail sends the treat in place: sending, then sent with a new-tab re
   expect(await give.evaluate((el) => el.tagName)).toBe('BUTTON');
   expect(await give.getAttribute('href')).toBeNull();
   expect(await give.getAttribute('target')).toBeNull();
-  await expect(panel(page).getByTestId('treat-custody')).toHaveText('Held by Token Tails for the shelter until handover.');
+  await expect(panel(page).getByTestId('treat-custody')).toHaveText("The treat goes to Pink Paw's wallet.");
 
   await give.click();
   await expect(panel(page)).toHaveAttribute('data-state', 'sending');
@@ -182,7 +182,7 @@ test('off tokentails.com (no API) the win screen offers the tokentails.com/heist
   const url = page.url();
   await expect(panel(page)).toHaveAttribute('data-state', 'unavailable');
   await expect(panel(page).getByTestId('treat-line')).toHaveText('Play on tokentails.com/heist to send a treat.');
-  await expect(panel(page).getByTestId('treat-custody')).toHaveText('Held by Token Tails for the shelter until handover.');
+  await expect(panel(page).getByTestId('treat-custody')).toHaveText("The treat goes to Pink Paw's wallet.");
   await expect(page.locator('.ch-results')).not.toContainText(/open soon/i);
   await expect(page.getByTestId('rail-chip')).toHaveCount(0);
   await panel(page).getByTestId('treat-copy').click();

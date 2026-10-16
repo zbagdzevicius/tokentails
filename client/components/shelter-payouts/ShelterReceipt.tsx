@@ -7,7 +7,7 @@ import { Campaign, fetchCampaign } from "./campaign";
 import { ChainInfo, chainDisplayName, explorerAddress, explorerTx } from "./chains";
 import { displayMemo, formatUnits, payoutUnit } from "./logs";
 import { DecodedReceipt, ROUTER_PATH, RouterGift, TX_HASH, fetchReceipt, isVerifiedMatch, receiptChain } from "./receipt";
-import { giftSymbol } from "./giveMode";
+import { TOKEN_TAILS_HELD_WALLETS, giftSymbol } from "./giveMode";
 import { MATCH_FINAL, MatchPair, getMatchByDonor } from "./relayApi";
 import { RouterEntry, fetchRouters } from "./routers";
 import { AppProofNotice } from "./AppProofNotice";
@@ -174,10 +174,14 @@ const WebShelterReceipt = () => {
     };
   }, [router.isReady, badLink, chainId, tx]);
 
+  // Pink Paw's payouts before 16 Oct 2026 went to 0xE299, so its older receipts keep the name.
   const shelterName = (addr: string) =>
-    campaign?.shelter.wallet && campaign.shelter.wallet === addr.toLowerCase()
+    campaign?.shelter.wallet &&
+    (campaign.shelter.wallet.toLowerCase() === addr.toLowerCase() ||
+      (isPinkPawWallet(addr) && isPinkPawWallet(campaign.shelter.wallet)))
       ? campaign.shelter.name
       : null;
+  const heldByTokenTails = (addr: string) => TOKEN_TAILS_HELD_WALLETS.includes(addr.toLowerCase());
 
   const done = state.status === "done" ? state : null;
   const gifts = done?.receipt.gifts || [];
@@ -338,6 +342,12 @@ const WebShelterReceipt = () => {
                     {name && campaign?.shelter.handover !== "handed-over" && (
                       <p className="text-p6 md:text-p5 text-tt-cream/75">
                         Wallet held by Token Tails on the shelter&apos;s behalf until handover.
+                      </p>
+                    )}
+                    {/* claim: fiction where payouts go (a custody description), not an impact figure */}
+                    {name && campaign?.shelter.handover === "handed-over" && heldByTokenTails(p.shelter) && (
+                      <p className="text-p6 md:text-p5 text-tt-cream/75" data-testid="receipt-held-history">
+                        Sent to a wallet Token Tails held for the shelter (before 16 Oct 2026).
                       </p>
                     )}
                   </li>

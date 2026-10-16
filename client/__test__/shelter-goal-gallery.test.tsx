@@ -22,7 +22,14 @@ import { CampaignMeter, usdcFigure } from "@/components/shelter-payouts/Campaign
 import { GALLERY_PAGE, PinkPawGallery, resetPinkPawGalleryCache } from "@/components/shelter-payouts/PinkPawGallery";
 import { HOW_IT_WORKS, HowItWorks } from "@/components/shelter-payouts/payoutSections";
 
-const campaign = parseCampaign(campaignJson);
+const HELD = "0xe299299b846ba629f5a591dbf4f562bcc07a0f37";
+// The campaign before the 16 Oct 2026 rotation: one wallet, held by Token Tails.
+const heldJson = {
+  ...campaignJson,
+  wallets: [{ wallet: HELD, fromBlock: 23790973, toBlock: null, holder: "token-tails" }],
+  shelter: { ...campaignJson.shelter, wallet: HELD, handover: "held-by-token-tails" },
+};
+const campaign = parseCampaign(heldJson);
 const usdc = (n: string) => usdcTo18(n);
 
 describe("CampaignMeter", () => {
@@ -37,7 +44,7 @@ describe("CampaignMeter", () => {
     // Today only treats can reach the wallet Token Tails holds: the copy never names the rest as counting.
     const sources = screen.getByTestId("campaign-meter-sources").textContent!;
     expect(sources).toMatch(/comes in to the wallet Token Tails holds for Pink Paw on Arc mainnet: today, sponsored treats\./);
-    expect(sources).toMatch(/Gifts, the match and x402 payments count once Pink Paw holds its own wallet/);
+    expect(sources).toMatch(/The USDC that comes in to Pink Paw's wallet counts toward its goal\./);
     expect(sources).not.toMatch(/shop shares/);
     expect(screen.getByTestId("campaign-meter").getAttribute("data-claim")).toBe("C-001");
   });
@@ -54,10 +61,12 @@ describe("CampaignMeter", () => {
     const { unmount } = render(<CampaignMeter campaign={campaign} progress={shares} state="ok" />);
     expect(screen.getByTestId("campaign-meter-sources").textContent).toMatch(/today, sponsored treats and shop shares\./);
     unmount();
-    const handed = parseCampaign({ ...campaignJson, shelter: { ...campaignJson.shelter, handover: "handed-over" }, wallets: [{ ...campaignJson.wallets[0], holder: "shelter" }] });
+    // The real campaign.json: handed over on 16 Oct 2026.
+    const handed = parseCampaign(campaignJson);
+    expect(handed.shelter.handover).toBe("handed-over");
     render(<CampaignMeter campaign={handed} progress={campaignProgress(handed, { raised: usdc("1"), exact: true })} state="ok" />);
     expect(screen.getByTestId("campaign-meter-sources").textContent).toMatch(
-      /Pink Paw's wallets on Arc mainnet: gifts from people, Token Tails' match, sponsored treats and x402 payments\. Money moved between Pink Paw's own wallets counts once, and spending never lowers it\./
+      /Pink Paw's wallets on Arc mainnet: gifts from people, Token Tails' match, sponsored treats and x402 payments\. Money moved between Pink Paw's wallets counts once, and spending never lowers it\./
     );
   });
 

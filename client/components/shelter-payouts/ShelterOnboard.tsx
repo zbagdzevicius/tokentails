@@ -180,20 +180,20 @@ const WebShelterOnboard = () => {
 
         {handedOver && (
           <p className={`${PANEL} text-center`} data-testid="onboard-handed-over">
-            {shelter} already holds its own key. Nothing to do here.
+            {shelter}&apos;s wallet is set up. Nothing to do here.
           </p>
         )}
 
         <ol className="flex flex-col gap-4" data-testid="onboard-steps">
           {/* claim: fiction how custody works, not an impact figure */}
-          <StepCard n={1} title="Why hold your own key" done={!!wallet}>
+          <StepCard n={1} title="Why a shelter wallet" done={!!wallet}>
             <p>
               Today Token Tails holds {shelter}&apos;s payout wallet on its behalf. That works for treats Token Tails
-              pays for, but a gift from someone&apos;s own wallet should land in a wallet only the shelter controls.
+              pays for, but a gift from someone&apos;s own wallet should go to the shelter&apos;s wallet, not one Token
+              Tails holds.
             </p>
             <p>
-              Once {shelter} holds its own key, the &ldquo;Give from your wallet&rdquo; button opens on the payouts page,
-              and nobody at Token Tails can move what arrives.
+              Once {shelter}&apos;s wallet is set up, the &ldquo;Give from your wallet&rdquo; button opens on the payouts page.
             </p>
           </StepCard>
 

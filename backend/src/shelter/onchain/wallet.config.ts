@@ -43,7 +43,7 @@ export interface ChainWallets {
 }
 
 export interface NetworkWallets {
-    /** Pink Paw's payout wallet (held by Token Tails until the handover). */
+    /** Pink Paw's wallet: the shelter payee of every mainnet ShelterSplit since 2026-10-16. */
     pinkPaw: string | null;
     /** The ShelterSplit treasury (remainder and rounding dust). */
     treasury: string | null;
@@ -56,7 +56,7 @@ export interface NetworkWallets {
 
 export const WALLETS: Record<'mainnet' | 'testnet', NetworkWallets> = {
     mainnet: {
-        pinkPaw: '0xE299299b846Ba629f5A591dBF4F562bcC07A0f37',
+        pinkPaw: '0x3c833562e682dB66C2415b34961595df135f4771',
         treasury: '0x7b136b872bEad1dAE557d1286f125B7A8A197C9A',
         donateHot: '0x8D03d8295892F7dE2B7cE57585Aa45Dd4B3C2ba0',
         agent: '0x3333c1661B93f56DeC472eF89ACa03F56E70F9B7',
@@ -414,7 +414,7 @@ export const CHAINS: Record<string, ChainWallets> = {
         chainId: 143,
         network: 'mainnet',
         rpc: 'https://rpc.monad.xyz',
-        logRpc: 'https://rpc1.monad.xyz',
+        logRpc: 'https://rpc2.monad.xyz',
         explorer: 'https://monadvision.com',
         token: {
             symbol: 'USDC',

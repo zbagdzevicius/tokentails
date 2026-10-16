@@ -101,14 +101,18 @@ describe("label sets", () => {
       expect(text).not.toMatch(APP_BANNED);
     }
     expect(APP_LABELS.chip["onchain-custodial"]).toBe("HELD BY TOKEN TAILS");
-    expect(APP_LABELS.chip["onchain-shelter-held"]).toBe("HELD BY SHELTER");
+    expect(APP_LABELS.chip["onchain-shelter-held"]).toBe("PAID TO SHELTER");
   });
 
   it("web labels use the F7.2 tier names", () => {
     expect(WEB_LABELS.chip["onchain-custodial"]).toBe("ON-CHAIN · CUSTODIAL");
     expect(WEB_LABELS.chip["onchain-shelter-held"]).toBe(
-      "ON-CHAIN · SHELTER-HELD"
+      "ON-CHAIN · SHELTER WALLET"
     );
+    // Founder decision 2026-10-16: Token Tails keeps a recovery backup, so no label claims the shelter alone holds a key.
+    for (const set of [WEB_LABELS, APP_LABELS]) {
+      expect(`${set.chip["onchain-shelter-held"]} ${set.explain["onchain-shelter-held"]}`).not.toMatch(/held by (the )?shelter|shelter-held|holds the key|own key/i);
+    }
   });
 
   it("every chip tone is at least 4.5:1 on night-900 and night-800", () => {

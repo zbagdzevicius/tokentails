@@ -65,7 +65,7 @@ export const PAYOUT_ERROR_MESSAGES: Record<string, string> = {
   PAYOUT_BAD_SIGNATURE:
     'The signature is not the shelter wallet signing this exact text.',
   PAYOUT_HANDOVER_PENDING:
-    'Signatures open once the shelter holds its own wallet key.'
+    'Signatures open once the shelter\'s wallet handover is recorded.'
 };
 
 export interface IPayout {

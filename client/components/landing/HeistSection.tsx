@@ -94,10 +94,10 @@ export function heistSectionEnabled(
 export function heistTreatBeat(state: RailState | null | undefined, isApp: boolean): string {
   const copy: Record<RailCopyState, string> = {
     // claim: L-rail (only while the rail is live). Anyone can send one, no sign-in (POST
-    // /shelter/donate/guest, Oct 8, 2026); the wallet is held by Token Tails until handover (donations-STATUS).
+    // /shelter/donate/guest, Oct 8, 2026); since 16 Oct 2026 the splits pay Pink Paw's wallet (donations-STATUS).
     open: isApp
-      ? "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, held by Token Tails until handover."
-      : "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain (wallet held by Token Tails until handover).",
+      ? "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat."
+      : "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain to Pink Paw's wallet.",
     // claim: L-rail
     exhausted: "Free the shelter cat. Today's treats for Pink Paw are used up; back at 00:00 UTC.",
     // claim: L-rail

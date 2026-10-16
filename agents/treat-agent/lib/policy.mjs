@@ -14,7 +14,8 @@ export const SPONSOR_SCHEMA = 'tt.match-desk.sponsor/v1';
 export const SPONSOR_CHAIN_IDS = Object.freeze([5042, 5042002, 31337]);
 /** Gift kinds a sponsor may match. router-flush is never eligible: whoever flushes first sets its memo, so its donor is unknown. */
 export const GIFT_KINDS = Object.freeze(['public', 'x402', 'router-native', 'router-authorization']);
-export const CUSTODY = Object.freeze(['held-by-token-tails', 'held-by-shelter']);
+/** pink-paw-wallet: the shelter's wallet since 2026-10-16 (Token Tails keeps a recovery backup). The other two stay for old desk files and fixtures. */
+export const CUSTODY = Object.freeze(['held-by-token-tails', 'held-by-shelter', 'pink-paw-wallet']);
 
 export const LABEL_RELATED = "related-party sponsor (founder's company)";
 export const LABEL_SELF = 'self-sponsor (Token Tails founder)';

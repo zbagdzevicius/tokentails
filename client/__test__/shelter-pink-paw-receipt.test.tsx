@@ -11,6 +11,8 @@ import { PINK_PAW_WALLET } from "@/components/shelter-payouts/pinkPaw";
 const OTHER = "0x1111111111111111111111111111111111111111";
 let payoutTo = PINK_PAW_WALLET;
 let campaignWallet = PINK_PAW_WALLET;
+let handover = "held-by-token-tails";
+const HELD = "0xe299299b846ba629f5a591dbf4f562bcc07a0f37";
 
 jest.mock("next/router", () => ({
   useRouter: () => ({ isReady: true, query: { chain: "5042", tx: `0x${"ab".repeat(32)}` } }),
@@ -23,7 +25,7 @@ jest.mock("@/components/shelter-payouts/campaign", () => ({
       startDate: "",
       chainId: 5042,
       fromBlock: null,
-      shelter: { name: "Pink Paw (Rožinė pėdutė)", wallet: campaignWallet, handover: "held-by-token-tails" },
+      shelter: { name: "Pink Paw (Rožinė pėdutė)", wallet: campaignWallet, handover },
     }),
 }));
 jest.mock("@/components/shelter-payouts/rpc", () => ({ fetchDeployments: () => Promise.resolve([]) }));
@@ -62,6 +64,33 @@ const mixedCase = (addr: string) =>
   `0x${addr.slice(2).split("").map((c, i) => (i % 2 ? c.toUpperCase() : c)).join("")}`;
 
 describe("ShelterReceipt and Pink Paw", () => {
+  afterEach(() => {
+    handover = "held-by-token-tails";
+  });
+
+  it("after the 16 Oct 2026 rotation, an older payout to 0xE299 keeps Pink Paw's name and says Token Tails held it", async () => {
+    payoutTo = HELD;
+    campaignWallet = PINK_PAW_WALLET;
+    handover = "handed-over";
+    render(<ShelterReceipt />);
+    await screen.findByTestId("receipt-card");
+    await waitFor(() => expect(screen.getByTestId("receipt-held-history").textContent).toBe(
+      "Sent to a wallet Token Tails held for the shelter (before 16 Oct 2026)."
+    ));
+    expect(screen.getByTestId("pink-paw-strip")).toBeTruthy();
+  });
+
+  it("after the rotation, a payout to Pink Paw's wallet has no held line", async () => {
+    payoutTo = PINK_PAW_WALLET;
+    campaignWallet = PINK_PAW_WALLET;
+    handover = "handed-over";
+    render(<ShelterReceipt />);
+    await screen.findByTestId("receipt-card");
+    await waitFor(() => expect(screen.getByTestId("pink-paw-strip")).toBeTruthy());
+    expect(screen.queryByTestId("receipt-held-history")).toBeNull();
+    expect(screen.queryByText(/until handover/)).toBeNull();
+  });
+
   it("shows the strip for a payout to Pink Paw's wallet, in any letter case", async () => {
     payoutTo = mixedCase(PINK_PAW_WALLET);
     campaignWallet = PINK_PAW_WALLET;

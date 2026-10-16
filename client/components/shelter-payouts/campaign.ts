@@ -238,10 +238,10 @@ export function percentLabel(p: Pick<CampaignProgress, "raised" | "goal">): stri
 export const handoverLabel = (s: HandoverStatus, isApp = false) =>
   isApp
     ? s === "handed-over"
-      ? "Held by shelter"
+      ? "Paid to Pink Paw"
       : "Held by Token Tails for the shelter until handover"
     : s === "handed-over"
-    ? "Handed over: the shelter holds its own keys"
+    ? "Handed over 16 Oct 2026: payouts go to Pink Paw's wallet"
     : "Not handed over yet: Token Tails holds this wallet for the shelter";
 
 /** "2 October 2026" for a `YYYY-MM-DD` date, or null when unset or not a date. */

@@ -87,7 +87,7 @@ describe("SwordcatSection", () => {
       const beat = container.querySelector('[data-testid="swordcat-treat-beat"]');
       if (state === "live") {
         expect(beat?.textContent).toBe(SWORDCAT_SECTION_TREAT_BEAT);
-        expect(beat?.textContent).toContain("Held by Token Tails for the shelter until handover.");
+        expect(beat?.textContent).toContain("It goes to Pink Paw's wallet.");
       } else {
         expect(beat?.textContent).toBe(swordcatTreatBeat(state));
         expect(beat?.textContent).not.toContain("Token Tails can send");

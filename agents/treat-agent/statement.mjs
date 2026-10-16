@@ -22,7 +22,7 @@ import path from 'node:path';
 import { canonical } from './log.mjs';
 import { renderHtml } from './lib/statement-html.mjs';
 import {
-  sponsorLabel, relatedPartyProblem, LABEL_SELF, LABEL_OPERATOR, DESK_SCHEMA, deskPolicyHashOf, byPriority,
+  sponsorLabel, relatedPartyProblem, LABEL_SELF, LABEL_OPERATOR, DESK_SCHEMA, deskPolicyHashOf, byPriority, CUSTODY,
 } from './lib/policy.mjs';
 import { deskStateDir, siblingDirs, stateDir } from './lib/receipt.mjs';
 
@@ -114,8 +114,8 @@ export function deskView(file) {
   if (!CHAINS[file.chainId]) throw new UsageError(`sponsor file: chainId ${file.chainId} is not 5042, 5042002 or 31337`);
   if (!lowerAddr(file.split)) throw new UsageError('sponsor file: split must be an address');
   if (!file.shelter || !lowerAddr(file.shelter.wallet)) throw new UsageError('sponsor file: shelter.wallet must be an address');
-  if (!['held-by-token-tails', 'held-by-shelter'].includes(file.shelter.custody)) {
-    throw new UsageError('sponsor file: shelter.custody must be held-by-token-tails or held-by-shelter');
+  if (!CUSTODY.includes(file.shelter.custody)) {
+    throw new UsageError(`sponsor file: shelter.custody must be ${CUSTODY.join(', ')}`);
   }
   if (!file.policy || typeof file.policy !== 'object') throw new UsageError('sponsor file: policy is missing');
   const addrOrNull = (v, name) => {
@@ -190,7 +190,9 @@ export function disclosures(file) {
   const d = view(file);
   const shelter = d.shelter.name || 'the shelter';
   const many = d.sponsors.length > 1;
-  const custodyLine = d.shelter.custody === 'held-by-shelter'
+  const custodyLine = d.shelter.custody === 'pink-paw-wallet'
+    ? `Matched money goes to the wallet of ${shelter}.`
+    : d.shelter.custody === 'held-by-shelter'
     ? `The wallet of ${shelter} is held by the shelter itself. Matched money reaches that wallet.`
     : `The wallet of ${shelter} is still held by Token Tails until the handover. Matched money reaches that wallet. The shelter does not control it yet.`;
   return [

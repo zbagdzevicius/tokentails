@@ -59,8 +59,11 @@ export const DISCLOSURE =
   "Shelter wallet held by Token Tails on behalf of the shelter until handover";
 
 /** The page's custody line, following campaign.json `shelter.handover` (gate G12). */
+// claim: C-001 (campaign.wallets: a wallet Token Tails held until 16 Oct 2026, Pink Paw's wallet since)
 export const disclosureFor = (handover: HandoverStatus | undefined) =>
-  handover === "handed-over" ? "The shelter holds its own wallet keys" : DISCLOSURE;
+  handover === "handed-over"
+    ? "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter."
+    : DISCLOSURE;
 
 // ShelterSplit forwards every donation in the same transaction, so this should read 0.
 const BalanceLine = ({

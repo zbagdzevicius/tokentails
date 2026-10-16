@@ -32,7 +32,10 @@ export type TreatPanelState = 'checking' | 'ready' | 'sending' | 'sent' | 'alrea
 
 export const TREAT_PANEL_STATES: readonly TreatPanelState[] = ['checking', 'ready', 'sending', 'sent', 'already', 'used-up', 'paused', 'not-eligible', 'failed', 'unavailable'];
 
-export const TREAT_CUSTODY = 'Held by Token Tails for the shelter until handover.';
+/** The treat's custody line; app builds never name a wallet (F7.2). */
+export const treatCustody = (isApp: boolean) => (isApp ? 'The treat goes to Pink Paw.' : "The treat goes to Pink Paw's wallet.");
+export const TREAT_CUSTODY = treatCustody(false);
+export const TREAT_CUSTODY_APP = treatCustody(true);
 export const TREAT_BUTTON = 'Send Pink Paw a rescue treat 🐾';
 export const TREAT_PLAY_URL = 'https://tokentails.com/heist';
 
@@ -187,7 +190,7 @@ export function createTreatPanel(opts: TreatPanelOptions): TreatPanel {
   const button = h('button.ch-give', { type: 'button', 'data-testid': 'give-treat' }, TREAT_BUTTON) as HTMLButtonElement;
   const line = h('span.ch-treat-line', { role: 'status', 'aria-live': 'polite', 'data-testid': 'treat-line' });
   const extra = h('span.ch-treat-extra');
-  const custody = opts.custody === false ? null : h('span.ch-treat-custody', { 'data-testid': 'treat-custody' }, TREAT_CUSTODY);
+  const custody = opts.custody === false ? null : h('span.ch-treat-custody', { 'data-testid': 'treat-custody' }, web ? TREAT_CUSTODY : TREAT_CUSTODY_APP);
   const el = h('div.ch-treat', { 'data-testid': 'treat-panel' }, button, line, extra, custody);
   button.addEventListener('click', () => {
     opts.onClick?.();

@@ -69,9 +69,9 @@ export function sourcesCopy(
   const read = ids.length > 1 ? "Indexed from public on-chain events on each chain." : "Indexed from public on-chain events.";
   // claim: C-001 (the goal counts the USD stablecoins that come in to the campaign wallets), C-004 (treats)
   if (held) {
-    return `Counts every ${coin} that comes in to the wallet Token Tails holds for ${shelter} on ${where}: today, ${today || "nothing yet"}. Gifts, the match and x402 payments count once ${shelter} holds its own wallet. ${read}`;
+    return `Counts every ${coin} that comes in to the wallet Token Tails holds for ${shelter} on ${where}: today, ${today || "nothing yet"}. The ${coin} that comes in to ${shelter}'s wallet counts toward its goal. ${read}`;
   }
-  return `Counts every ${coin} that comes in to ${shelter}'s wallets on ${where}: ${today || "nothing yet"}. Money moved between ${shelter}'s own wallets counts once, and spending never lowers it. ${read}`;
+  return `Counts every ${coin} that comes in to ${shelter}'s wallets on ${where}: ${today || "nothing yet"}. Money moved between ${shelter}'s wallets counts once, and spending never lowers it. ${read}`;
 }
 
 /** The chains the count covers: the backend's breakdown, else the campaign chain alone. */

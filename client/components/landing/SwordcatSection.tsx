@@ -1,3 +1,4 @@
+// copy-lint: web-only the section never renders in the app build (swordcatSectionEnabled)
 import { railCopyState, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
 import { PixelButton } from "@/components/shared/PixelButton";
@@ -27,7 +28,7 @@ export const SWORDCAT_SECTION_LINE =
   "Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.";
 // claim: L-rail (present tense only while the rail is live)
 export const SWORDCAT_SECTION_TREAT_BEAT =
-  "Save one, and Token Tails can send Pink Paw a free treat. Held by Token Tails for the shelter until handover.";
+  "Save one, and Token Tails can send Pink Paw a free treat. It goes to Pink Paw's wallet.";
 
 /** The treat beat per rail state. Present tense only while the rail is live. */
 export function swordcatTreatBeat(state: RailState | null | undefined): string {

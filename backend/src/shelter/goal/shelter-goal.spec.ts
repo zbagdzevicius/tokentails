@@ -63,7 +63,7 @@ const transfer = (from: string, to: string, usdc: number, block: number, over: R
 });
 
 describe('goalCampaign (from the facts copy)', () => {
-    it('reads C-001: the held wallet from the campaign start, on the Arc system Transfer log', () => {
+    it("reads C-001: the held wallet from the campaign start, then Pink Paw's wallet from the 2026-10-16 rotation, on the Arc system Transfer log", () => {
         const c = goalCampaign('C-001')!;
         const fact = FACTS['C-001'];
         expect(c.chainId).toBe(5042);
@@ -71,10 +71,16 @@ describe('goalCampaign (from the facts copy)', () => {
         expect(c.startBlock).toBe(fact.campaign!.fromBlock);
         expect(c.wallets).toEqual([
             {
-                wallet: fact.campaign!.wallet!.toLowerCase(),
+                wallet: '0xe299299b846ba629f5a591dbf4f562bcc07a0f37',
                 fromBlock: fact.campaign!.fromBlock,
-                toBlock: null,
+                toBlock: 26229681,
                 holder: 'token-tails',
+            },
+            {
+                wallet: fact.campaign!.wallet!.toLowerCase(),
+                fromBlock: 26229682,
+                toBlock: null,
+                holder: 'shelter',
             },
         ]);
         expect(c.inflowLog).toEqual({ address: SYS, decimals: 18 });
@@ -367,7 +373,14 @@ describe('ShelterGoalService scan', () => {
             return { state: 'scanned' };
         }) as never;
         const v = await s.view('C-001', 1_000_000, ENV);
-        expect(v).toMatchObject({ id: 'C-001', raised: '0', scannedTo: null, liveSources: ['treats'] });
+        // Since 2026-10-16 the open wallet is Pink Paw's (holder shelter), so every source is listed,
+        // even while the relay, match and x402 rails are still gated by claim rows and env.
+        expect(v).toMatchObject({
+            id: 'C-001',
+            raised: '0',
+            scannedTo: null,
+            liveSources: ['gifts', 'match', 'treats', 'x402'],
+        });
         await s.view('C-001', 1_030_000, ENV);
         await s.view('C-001', 1_070_000, ENV);
         expect(nudges).toBe(2);

@@ -237,8 +237,8 @@ export function SignaturePanel({
         <CardTitle>Shelter signature</CardTitle>
         <CardDescription className="normal-case">
           {payout.canSign
-            ? 'The shelter signs the attestation text with its own wallet (personal_sign). Paste the signature here.'
-            : 'Opens once the shelter holds its own wallet key. Until then the payout can only be confirmed (amber).'}
+            ? 'The shelter signs the attestation text with its wallet (personal_sign). Paste the signature here.'
+            : 'Opens once the shelter\'s wallet handover is recorded. Until then the payout can only be confirmed (amber).'}
         </CardDescription>
       </CardHeader>
       {payout.canSign && (
