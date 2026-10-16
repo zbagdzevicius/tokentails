@@ -1,15 +1,18 @@
 // copy-lint: web-only the section never renders in the app build (swordcatSectionEnabled)
 import { railCopyState, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
+import { useReelPlayback } from "@/components/landing/useReelPlayback";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { swordcatEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 
 /**
  * The Swordcat landing section (Swordcat plan TOKENTAILS-PLAN.md §12.1 item 10, §12.3 E): a compact
- * section right after the Catnip Heist section. One still (the game's own share image, served with
- * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat that follows the rail state
- * (like the Heist section, so it always renders), and one link to `/swordcat`.
+ * section right after the Catnip Heist section. The 30 s trailer (founder, 2026-10-16; muted loop,
+ * the Heist reel's playback rules: no source until the section nears the viewport, plays only in
+ * view, a pause toggle, never starts by itself under `prefers-reduced-motion`), a short line, a treat
+ * beat that follows the rail state (like the Heist section, so it always renders), and one link to
+ * `/swordcat`. Until the trailer plays, and whenever it may not, its poster (a trailer frame) stands in.
  *
  * On by default on the web (launch, Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill
  * switch. Never in the app build. No release date and no number that is not read live.
@@ -17,12 +20,34 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
  * claim: L-rail "Token Tails can send Pink Paw a free treat" (only while the rail is live)
  * claim: the kittens carry the names and photos of real cats at Pink Paw (licence for the named cats'
  *   names and photos, Oct 11; the gallery is the only source)
+ *
+ * The trailer is a video, so copy-lint cannot read it. Its claims (gated by `swordcatTrailerAllowed`):
+ * claim: L-rail "One tap. Free for you." / "Send Pink Paw a free treat daily." (one free treat per
+ *   player per day, sponsored by Token Tails, up to 100 a day per chain; present tense)
+ * claim: L-rail "0.01 USDC on Arc." and "ShelterSplit sets 100% aside for Pink Paw." (Arc split)
+ * claim: "54 real treats on Arc so far." (baked in, read from Arc mainnet 16 Oct 2026; "so far" dates it)
+ * claim: Judas, a real Pink Paw cat (live gallery, 16 Oct 2026); the in-game tap is staged, the receipt
+ *   is a real Catnip Heist treat of 8 Oct 2026, labelled as such
+ * The poster carries no claim (Clem with her sword).
  */
 
 /** `from=landing_swordcat` says where the player came from (stripped on arrival at /swordcat). */
 export const SWORDCAT_SECTION_HREF = "/swordcat?from=landing_swordcat";
-/** The game's share image, 1200x630, copied with the build (`npm run build:tokentails`). */
-export const SWORDCAT_SECTION_STILL = "/swordcat-game/og.jpg";
+/**
+ * The trailer, cut from the game's own footage. Versioned names: a new cut gets `-v2`, old files are
+ * never deleted (installed apps). Web only: the section never renders in the app build and
+ * `scripts/prune-app-export.mjs` drops the videos from the app export.
+ */
+export const SWORDCAT_TRAILER = Object.freeze({
+  webm: "/landing/pinkpaw-knight-trailer-v1.webm",
+  mp4: "/landing/pinkpaw-knight-trailer-v1.mp4",
+  poster: "/landing/pinkpaw-knight-trailer-poster-v1.jpg",
+});
+/** The still shown until the trailer plays (and instead of it while it may not): a trailer frame, 1280x720. */
+export const SWORDCAT_SECTION_STILL = SWORDCAT_TRAILER.poster;
+/** The video's accessible name. */
+export const SWORDCAT_TRAILER_LABEL =
+  "Pink Paw Knight trailer: Clem, a tiny knight cat with a pink bow, rescues a lost kitten";
 export const SWORDCAT_SECTION_LABEL = "Early access";
 export const SWORDCAT_SECTION_LINE =
   "Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.";
@@ -45,6 +70,17 @@ export function swordcatTreatBeat(state: RailState | null | undefined): string {
   return copy[railCopyState(state)];
 }
 
+/**
+ * The trailer says, in the present tense, that a tap sends Pink Paw a free treat. It may play only
+ * while the rail is live (a treat goes out now, or today's budget is spent and comes back at
+ * 00:00 UTC). Not deployed, paused or unknown: the poster only, so the video never contradicts the
+ * treat beat beside it (the Heist reel's rule, `heistReelAllowed`).
+ */
+export function swordcatTrailerAllowed(state: RailState | null | undefined): boolean {
+  const copyState = railCopyState(state);
+  return copyState === "open" || copyState === "exhausted";
+}
+
 /** Shown unless `NEXT_PUBLIC_SWORDCAT` is an off value, and never in the app build. */
 export function swordcatSectionEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT,
@@ -61,7 +97,10 @@ interface SwordcatSectionProps {
 }
 
 export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) => {
-  if (!(enabled ?? swordcatSectionEnabled())) return null;
+  const on = enabled ?? swordcatSectionEnabled();
+  const withVideo = on && !isAppBuild() && swordcatTrailerAllowed(railState);
+  const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback<HTMLDivElement>(withVideo);
+  if (!on) return null;
   const treatBeat = swordcatTreatBeat(railState);
 
   return (
@@ -99,17 +138,57 @@ export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) =>
               </span>
             </a>
           </div>
-          <div className="relative overflow-hidden rounded-2xl border-4 border-tt-pink/70 bg-tt-night-950 aspect-[40/21] shadow-[0_0_24px_rgb(var(--tt-pink)/.3)]">
-            <img
-              src={SWORDCAT_SECTION_STILL}
-              alt={`${SWORDCAT_TITLE}: a tiny knight cat with a pink bow`}
-              loading="lazy"
-              decoding="async"
-              width={1200}
-              height={630}
-              className="h-full w-full object-cover"
-              data-testid="swordcat-section-still"
-            />
+          {/* Fixed 16:9 box: the poster, the video and the toggle share it, so nothing shifts. */}
+          <div
+            ref={sectionRef}
+            className="relative overflow-hidden rounded-2xl border-4 border-tt-pink/70 bg-tt-night-950 aspect-video shadow-[0_0_24px_rgb(var(--tt-pink)/.3)]"
+          >
+            {withVideo ? (
+              <video
+                ref={videoRef}
+                poster={SWORDCAT_TRAILER.poster}
+                muted
+                loop
+                playsInline
+                preload="none"
+                aria-label={SWORDCAT_TRAILER_LABEL}
+                width={1280}
+                height={720}
+                className="h-full w-full object-cover"
+                data-testid="swordcat-trailer"
+                data-armed={armed ? "1" : "0"}
+              >
+                {armed && <source src={SWORDCAT_TRAILER.webm} type="video/webm" />}
+                {armed && <source src={SWORDCAT_TRAILER.mp4} type="video/mp4" />}
+              </video>
+            ) : (
+              <img
+                src={SWORDCAT_SECTION_STILL}
+                alt={`${SWORDCAT_TITLE}: a tiny knight cat with a pink bow`}
+                loading="lazy"
+                decoding="async"
+                width={1280}
+                height={720}
+                className="h-full w-full object-cover"
+                data-testid="swordcat-section-still"
+              />
+            )}
+            {withVideo && (
+              <button
+                type="button"
+                onClick={togglePause}
+                aria-pressed={userPaused}
+                aria-label={userPaused ? "Play the trailer" : "Pause the trailer"}
+                data-testid="swordcat-trailer-toggle"
+                className="absolute bottom-3 right-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-tt-cream/60 bg-tt-night-950/70 text-tt-cream backdrop-blur-sm transition hover:bg-tt-night-950/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
+              >
+                {userPaused ? (
+                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 fill-current"><path d="M4 2.5v11l9-5.5z" /></svg>
+                ) : (
+                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 fill-current"><path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z" /></svg>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
