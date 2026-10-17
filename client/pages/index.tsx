@@ -6,7 +6,6 @@ import { isAppBuild } from "@/components/claims/build";
 import { SectionBoundary } from "@/components/errors/SectionBoundary";
 import { HeistPill } from "@/components/landing/HeistPill";
 import { HeistSection } from "@/components/landing/HeistSection";
-import { RavePill } from "@/components/landing/RavePill";
 import { RaveSection } from "@/components/landing/RaveSection";
 import { SwordcatSection } from "@/components/landing/SwordcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
@@ -135,9 +134,6 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
 
             {/* Phones: PLAY GAME first, the store badge (when shown) under it, so neither sits on the hero cat. */}
             <div className="absolute z-50 bottom-16 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">
-              {/* Moon Rave, the headline feature, above PLAY GAME (on phones too, clear of the bottom
-                  toolbar): web only, the live line read from the rave's own source. */}
-              <RavePill />
               <div className="flex flex-col sm:flex-row justify-center items-center">
                 {SHOW_STORE_BADGES && (isDesktop || isIOS) && (
                   <a

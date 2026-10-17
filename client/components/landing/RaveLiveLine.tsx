@@ -1,4 +1,4 @@
-// copy-lint: web-only the line renders only in the Moon Rave callouts, which never show in the app build
+// copy-lint: web-only the line renders only in the Moon Rave section, which never shows in the app build
 import { formatRaveUsd, type RaveLive } from "./raveLive";
 import clsx from "clsx";
 
@@ -23,13 +23,10 @@ export const RaveLiveLine = ({
   live,
   className,
   skeletonClassName,
-  stackOnPhone = false,
 }: {
   live: RaveLive;
   className?: string;
   skeletonClassName?: string;
-  /** Phones: the two halves on their own lines, no dangling "·" (the hero pill). */
-  stackOnPhone?: boolean;
 }) => {
   if (live.state === "loading") {
     return (
@@ -49,14 +46,7 @@ export const RaveLiveLine = ({
       {/* claim: live rave total, read live (see above) */}
       <strong className="whitespace-nowrap font-bold text-tt-mint">{formatRaveUsd(live.total.usdMicro)}</strong> paid out
       for Pink Paw on-chain
-      {stackOnPhone ? (
-        <>
-          <span className="hidden sm:inline"> · </span>
-          <br className="sm:hidden" />
-        </>
-      ) : (
-        " · "
-      )}
+      {" · "}
       <strong className="whitespace-nowrap font-bold text-tt-pink">{catsDancing(live.total.cats)}</strong>
     </span>
   );

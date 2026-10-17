@@ -1,10 +1,15 @@
 // copy-lint: web-only the section never renders in the app build (raveLandingEnabled)
+import { isAppBuild } from "@/components/claims/build";
 import { useReelPlayback } from "@/components/landing/useReelPlayback";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { RaveLiveLine } from "./RaveLiveLine";
-import { raveLandingEnabled } from "./RavePill";
 import { RAVE_MAINNET_CHAIN_IDS, raveHref, useRaveLive, type RaveCheckout } from "./raveLive";
+
+/** The Moon Rave section is web only: /rave is a web page, and its checkout takes cards and USDC. */
+export function raveLandingEnabled(isApp: boolean = isAppBuild()): boolean {
+  return !isApp;
+}
 
 /**
  * The Moon Rave landing section (founder, Oct 17: "update landing page of token tails to highlight
