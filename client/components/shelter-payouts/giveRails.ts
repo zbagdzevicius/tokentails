@@ -152,9 +152,13 @@ export function parseChainList(raw: string | undefined): number[] | null {
 
 /**
  * The real-money chains the campaign slot offers (the caller checks the flag and the handover).
- * Unset NEXT_PUBLIC_WALLET_DONATE_CHAINS keeps today's rule: the campaign chain, and only with a
- * listed mainnet router. Set, it names every mainnet chain to offer; each still needs a router or a
- * listed mainnet split. The campaign chain comes first when it is listed.
+ * Unset NEXT_PUBLIC_WALLET_DONATE_CHAINS: the block opens only when the campaign chain (Arc) has a
+ * listed mainnet router, as before, and then the picker also offers every other mainnet chain with a
+ * router or a listed mainnet split, the campaign chain first (preselected). Set, it names every mainnet
+ * chain to offer; each still needs a router or a listed mainnet split. The campaign chain comes first
+ * when it is listed. A chain's extra-coin router (EURC on Arc, flagged EIP-3009) follows its own rail
+ * as a separate option: never the default, never relayed or matched, and the wallet's custody check
+ * reads that router's own split before anything is signed.
  */
 export function campaignRails(
   campaignChainId: number,
@@ -165,14 +169,19 @@ export function campaignRails(
   const listed = parseChainList(chainList);
   if (listed === null) {
     const r = railFor(campaignChainId, routers, deployments);
-    return r && r.network === "mainnet" && r.path === "router" ? [r] : [];
+    if (!r || r.network !== "mainnet" || r.path !== "router") return [];
+    const others = WALLET_CHAIN_IDS.mainnet.flatMap((id) => (id === campaignChainId ? [] : mainnetChainRails(id, routers, deployments)));
+    return [r, ...extraCoinRails(campaignChainId, routers, deployments), ...others];
   }
   const ids = listed.filter((id) => networkOf(id) === "mainnet");
   const ordered = [...ids.filter((id) => id === campaignChainId), ...WALLET_CHAIN_IDS.mainnet.filter((id) => id !== campaignChainId && ids.includes(id))];
-  return ordered.flatMap((id) => {
-    const r = railFor(id, routers, deployments);
-    return r && r.network === "mainnet" ? [r] : [];
-  });
+  return ordered.flatMap((id) => mainnetChainRails(id, routers, deployments));
+}
+
+/** One mainnet chain's options: its own rail, then its extra-coin routers (EURC); none without its own rail. */
+function mainnetChainRails(chainId: number, routers: RouterEntry[], deployments: ShelterDeployment[]): GiveRail[] {
+  const r = railFor(chainId, routers, deployments);
+  return r && r.network === "mainnet" ? [r, ...extraCoinRails(chainId, routers, deployments)] : [];
 }
 
 /** The coin that pays the network fee on a chain: Arc's USDC, ETH, AVAX, or Tempo's stablecoins. */

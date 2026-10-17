@@ -81,7 +81,7 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
 | `NEXT_PUBLIC_WALLET_DONATE` | On by default: the real-money "Give from your wallet" block on `/shelter-payouts` (web only) shows without any env. `0`, `false`, `no` or `off` hides it (`flagNotOff` in `lib/flags.ts`). It shows only when `campaign.json` `shelter.handover` is `"handed-over"` (Pink Paw's wallet, since 2026-10-16) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). While the campaign pays a wallet Token Tails holds, the page shows "Opens when Pink Paw's wallet is set up" and no button, whatever this flag says |
 | `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all seven testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood, Monad): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
-| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Opt-in; ignored when `NEXT_PUBLIC_WALLET_DONATE` is an off value |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: the block still opens only when the campaign chain has a mainnet router, and its picker then lists every mainnet chain with a router or a listed mainnet ShelterSplit, Arc (the campaign chain) first and preselected, and a chain's EIP-3009 EURC router (Arc) as its own option after that chain. Set: only the chains named; ignored when `NEXT_PUBLIC_WALLET_DONATE` is an off value |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
 
@@ -892,11 +892,20 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
 - **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` by default
   (`NEXT_PUBLIC_WALLET_DONATE` only hides it with `0`/`false`/`no`/`off`), with
   `shelter.handover === "handed-over"` and a `mainnet` router for the
-  campaign chain (with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit
-  on each chain named there); `awaiting-handover` (notice, no button, link to
+  campaign chain (the picker then offers every mainnet chain with a path, Arc first and preselected,
+  Arc's EURC router as its own option, never relayed or matched, custody-checked on its own split;
+  with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit on each chain
+  named there). The giver picks a preset or types an amount ("Other", 0.01 to 10,000, at most
+  6 decimals, a decimal comma accepted, thousands separators such as "1,000" refused,
+  `giveMode.parseCustomAmount`). Above `giveMode.RELAY_MAX` (100, the backend's default
+  `SHELTER_RELAY_MAX_USDC`) the page does not use the relay: Arc gives in one native transaction and
+  other chains offer the self-submit at once. The picker is locked while a gift is being signed or sent.
+  `awaiting-handover` (notice, no button, link to
   `/shelter-payouts/onboard`) while Token Tails holds the wallet; otherwise hidden. Try-it slot:
   `testnet` when `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a testnet with a wallet path (a `testnet`
-  router or a ShelterSplit in `testnet-deployments.json`).
+  router or a ShelterSplit in `testnet-deployments.json`). Arc is preselected whenever it is offered, so
+  `NEXT_PUBLIC_WALLET_DONATE_CHAIN` (and the campaign `chainId`) picks the default only when Arc is not
+  in the list.
 - **Seven chains, two paths** (`giveRails.ts`, unit-tested). The picker offers Arc, Tempo, Arbitrum,
   Avalanche, Base, Robinhood Chain and Monad (mainnet or testnet ids). A chain with a router for its
   own coin uses the router path below (never on Tempo). A chain without one, or whose token has no

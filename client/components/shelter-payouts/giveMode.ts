@@ -82,6 +82,41 @@ export function walletGiveMode(
 /** Preset amounts: whole USDC on mainnet, tenths on the testnet (faucet amounts are small). */
 export const giveAmounts = (mode: GiveMode) => (mode === "testnet" ? ["0.1", "0.5", "1"] : ["1", "5", "10"]);
 
+/** The smallest and largest amount the custom field takes (a typo guard, not a rule of the contracts). */
+export const CUSTOM_MIN = "0.01";
+export const CUSTOM_MAX = 10_000;
+
+/** Above this, the Token Tails relay refuses a gift (backend DEFAULT_RELAY_MAX, SHELTER_RELAY_MAX_USDC). */
+export const RELAY_MAX = "100";
+
+/**
+ * The giver's typed amount: "2,5" and " 2.50 " both become "2.5". An error says why it cannot be
+ * sent (empty, not a number, a thousands separator, more than 6 decimals, under 0.01, over 10,000),
+ * naming the coin. "1,000" and "1,000.50" are refused, never read as 1: a comma is a decimal mark only
+ * when it is the one separator and is not followed by exactly three digits.
+ */
+// claim: fiction input validation for the giver's own amount, not an impact figure
+export function parseCustomAmount(raw: string, symbol = "USDC"): { amount: string } | { error: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { error: `Type an amount in ${symbol}.` };
+  if (/,/.test(trimmed) && (/\./.test(trimmed) || /,.*,/.test(trimmed) || /^\d+,\d{3}$/.test(trimmed))) {
+    return { error: "No thousands separators: type 1000 or 2.5." };
+  }
+  const t = trimmed.replace(",", ".");
+  const m = /^(\d*)(?:\.(\d*))?$/.exec(t);
+  if (!m || (!m[1] && !m[2])) return { error: "Use digits only, like 2.5." };
+  if ((m[2] || "").length > 6) return { error: "Use at most 6 decimals." };
+  const whole = (m[1] || "0").replace(/^0+(?=\d)/, "");
+  const frac = (m[2] || "").replace(/0+$/, "");
+  const amount = frac ? `${whole}.${frac}` : whole;
+  const micros = BigInt(whole) * BigInt(1_000_000) + BigInt(frac.padEnd(6, "0") || "0");
+  if (micros < BigInt(10_000)) return { error: `The smallest gift is ${CUSTOM_MIN} ${symbol}.` };
+  if (micros > BigInt(CUSTOM_MAX) * BigInt(1_000_000)) {
+    return { error: `Up to ${CUSTOM_MAX.toLocaleString("en-US")} ${symbol} per gift from this page.` };
+  }
+  return { amount };
+}
+
 /** Circle's public faucet hands out test USDC on Arc and the other testnets. */
 export const FAUCET_URL = "https://faucet.circle.com";
 
