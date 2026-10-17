@@ -196,8 +196,9 @@ const config: Config = {
           to: { backgroundPosition: "var(--bg-size, 300%) 0" },
         },
         "tt-shimmer": {
-          "0%": { backgroundPosition: "-50% 0" },
-          "100%": { backgroundPosition: "150% 0" },
+          // The light is half the block wide: -100% and 200% start and end it fully off the block.
+          "0%": { backgroundPosition: "-100% 0" },
+          "100%": { backgroundPosition: "200% 0" },
         },
         "shiny-text": {
           "0%": { backgroundPosition: "-200% 0" },

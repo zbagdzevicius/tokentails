@@ -325,14 +325,12 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           </h1>
 
           {/* The totals billboard: skeleton while reading, then every coin at once (never summed). */}
-          {(page.status === "loading" || (page.status === "done" && page.deployments.length > 0)) && (
+          {/* With no contracts listed the board itself says "First payouts land soon". */}
+          {page.status !== "error" && (
             <TotalsBillboard loading={page.status === "loading"} deployments={deployments} results={results} />
           )}
           {/* Motored sponsor money, labelled live from its first gift (never counted as donors). */}
           <MotoredLine items={feed} shelterName={campaign?.shelter.name || "Pink Paw"} />
-          {page.status === "done" && page.deployments.length === 0 && (
-            <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
-          )}
           {page.status === "done" && page.deployments.length === 0 && testnet.length > 0 && (
             <a href="#testnet-proof" className={PILL} data-testid="testnet-proof-link">
               Already live on {chainCount(testnet)} testnets: see the proof ›
