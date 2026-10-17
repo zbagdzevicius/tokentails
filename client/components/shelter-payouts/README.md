@@ -90,7 +90,8 @@ Query params, not dynamic segments, because the app build is a static export.
 (Tempo, Robinhood), straight into the listed ShelterSplit (approve, then `disburse`). It is gated by
 `walletGiveMode` (`giveMode.ts`): real money by default once the campaign pays Pink Paw's wallet
 (`NEXT_PUBLIC_WALLET_DONATE=false` hides it), a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
-seven testnets, and "Opens when Pink Paw's wallet is set up" otherwise. Full flow,
+seven testnets, and "Opens when Pink Paw's wallet is set up" otherwise. Both blocks preselect Arc and
+take a preset or a typed amount ("Other amount", `giveMode.parseCustomAmount`). Full flow,
 env and fork E2E: `docs/CLIENT.md`, "Wallet giving". `/shelter-payouts/onboard` is the shelter's
 handover page (claim message in `claim.ts`).
 

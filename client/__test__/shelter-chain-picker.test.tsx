@@ -111,4 +111,43 @@ describe("WalletDonate chain picker", () => {
     expect(screen.queryByTestId("wallet-network")).toBeNull();
     expect(screen.getByTestId("wallet-chain-summary")).toBeTruthy();
   });
+
+  it("preselects Arc even when the block's default chain is another one", () => {
+    const rails = walletRails("testnet", ROUTERS, DEPLOYMENTS);
+    const base = rails.find((r) => r.chainId === 84532)!;
+    render(<WalletDonate mode="testnet" chainId={84532} chain={base.chain} router={null} shelterName="Pink Paw" choices={rails} />);
+    expect((within(screen.getByTestId("wallet-network-5042002")).getByRole("radio") as HTMLInputElement).checked).toBe(true);
+    expect((within(screen.getByTestId("wallet-network-84532")).getByRole("radio") as HTMLInputElement).checked).toBe(false);
+  });
+});
+
+describe("WalletDonate custom amount", () => {
+  it("gives a typed amount, normalised, and keeps it across a network switch", () => {
+    renderBlock();
+    fireEvent.click(screen.getByTestId("wallet-amount-other"));
+    const input = screen.getByTestId("wallet-amount-input");
+    expect(screen.getByTestId("wallet-give").textContent).toBe("Type an amount");
+    expect((screen.getByTestId("wallet-give") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "2,50" } });
+    expect(screen.getByTestId("wallet-give").textContent).toMatch(/Give 2\.5 USDC/);
+    expect((screen.getByTestId("wallet-give") as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(within(screen.getByTestId("wallet-network-42431")).getByRole("radio"));
+    expect((screen.getByTestId("wallet-amount-input") as HTMLInputElement).value).toBe("2,50");
+    expect(screen.getByTestId("wallet-give").textContent).toMatch(/Give 2\.5 pathUSD/);
+  });
+
+  it("says why an amount cannot be sent and disables the button", () => {
+    renderBlock();
+    fireEvent.click(screen.getByTestId("wallet-amount-other"));
+    const input = screen.getByTestId("wallet-amount-input");
+    fireEvent.change(input, { target: { value: "0.001" } });
+    expect(screen.getByTestId("wallet-amount-error").textContent).toBe("The smallest gift is 0.01 USDC.");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect((screen.getByTestId("wallet-give") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByTestId("wallet-give-native")).toBeNull();
+    // Back to a preset: the error goes and the preset is given.
+    fireEvent.click(screen.getByRole("button", { name: /^1 USDC$/ }));
+    expect(screen.queryByTestId("wallet-amount-input")).toBeNull();
+    expect(screen.getByTestId("wallet-give").textContent).toMatch(/Give 1 USDC/);
+  });
 });
