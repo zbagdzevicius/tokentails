@@ -11,11 +11,17 @@ import {
     MATCH3_LEVEL_CATNIP_CAPS,
     MATCH3_LEVELS,
     MATCH3_TOTAL_CAP,
+    PAWLEGENDS_LEVEL_CAPS,
+    PAWLEGENDS_LEVELS,
+    PAWLEGENDS_MAX_INPUT_CHARS,
+    PAWLEGENDS_MAX_TICKS,
+    PAWLEGENDS_TICK_HZ,
     PLEDGE_DAILY_CAP,
     REWARDS,
     SEASON_EVENT_LEVEL_POINT_CAPS,
     SEASON_EVENT_LEVELS,
     TOTAL_CATNIP_CAP,
+    PAWLEGENDS_TOTAL_CAP,
 } from '../caps';
 
 describe('shared caps', () => {
@@ -41,8 +47,9 @@ describe('shared caps', () => {
 
     it('derives the totals, 80 higher than with the 420 cap', () => {
         expect(CATNIP_CHAOS_TOTAL_CAP).toBe(500 + 96 * 10);
-        expect(TOTAL_CATNIP_CAP).toBe(CATNIP_CHAOS_TOTAL_CAP + MATCH3_TOTAL_CAP);
-        expect(TOTAL_CATNIP_CAP - 80).toBe(420 + 96 * 10 + MATCH3_TOTAL_CAP);
+        expect(TOTAL_CATNIP_CAP).toBe(CATNIP_CHAOS_TOTAL_CAP + MATCH3_TOTAL_CAP + PAWLEGENDS_TOTAL_CAP);
+        expect(PAWLEGENDS_TOTAL_CAP).toBe(60);
+        expect(TOTAL_CATNIP_CAP - 80 - 60).toBe(420 + 96 * 10 + MATCH3_TOTAL_CAP);
     });
 
     it('pins the guest, pledge and Heist limits', () => {
@@ -57,6 +64,15 @@ describe('shared caps', () => {
         expect(HEIST_MAX_ID_LENGTH).toBe(64);
     });
 
+    it('pins the Pawlegends replay bounds and first-win catnip (POC.md §11.5)', () => {
+        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal']);
+        expect(PAWLEGENDS_LEVEL_CAPS).toEqual([20, 40]);
+        expect(PAWLEGENDS_LEVEL_CAPS).toHaveLength(PAWLEGENDS_LEVELS.length);
+        expect(PAWLEGENDS_TICK_HZ).toBe(30);
+        expect(PAWLEGENDS_MAX_TICKS).toBe(19800);
+        expect(PAWLEGENDS_MAX_INPUT_CHARS).toBe(40000);
+    });
+
     it('freezes every shared table so no consumer can change the enforced caps', () => {
         [
             CATNIP_CHAOS_LEVELS,
@@ -66,6 +82,8 @@ describe('shared caps', () => {
             SEASON_EVENT_LEVELS,
             SEASON_EVENT_LEVEL_POINT_CAPS,
             HEIST_LEVEL_CAPS,
+            PAWLEGENDS_LEVELS,
+            PAWLEGENDS_LEVEL_CAPS,
             REWARDS,
         ].forEach(table => expect(Object.isFrozen(table)).toBe(true));
         expect(() => (CATNIP_CHAOS_LEVEL_CAPS as number[]).push(1)).toThrow();

@@ -76,6 +76,8 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SWORDCAT` | Kill switch only: `/swordcat` (Pink Paw Knight, GAMES.md), the picker card and the landing section (web only) are on by default. `0`, `false`, `no` or `off` turns them off: the page then only does a client-side `router.replace("/game")` |
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
 | `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
+| `NEXT_PUBLIC_PAWLEGENDS` | Kill switch only: `/pawlegends` (GAMES.md, "Pawlegends") and its picker card are on by default. `0`, `false`, `no` or `off` closes the page (it sends players to `/game`) |
+| `NEXT_PUBLIC_PAWLEGENDS_PICKER` | Kill switch only: the Pawlegends card (last in the PLAY picker, web only) shows unless this or `NEXT_PUBLIC_PAWLEGENDS` is off (`pawlegendsPickerEnabled`) |
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
@@ -122,6 +124,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
+| `components/pawlegends/` | The `/pawlegends` host: flags, title, the v1 bridge, roster bridge, store client (`checkout.ts`), saves queue, `PawlegendsHost`. |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
@@ -163,6 +166,9 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
+| `/pawlegends` | `pages/pawlegends/index.tsx` | Pawlegends host, on by default (`NEXT_PUBLIC_PAWLEGENDS=0` is the kill switch). Optional auth, `noindex`, left out of the sitemap. See "Pawlegends (/pawlegends)" below |
+| `/pawlegends/terms` | `pages/pawlegends/terms.tsx` | Pawlegends presale terms and refund policy (POC.md §8.6), left out of the sitemap |
+| `/pawlegends-game/` | `public/pawlegends-game/` | The static Pawlegends build (`npm run build:client` in `pawlegends/`, committed) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
@@ -448,6 +454,41 @@ needed: the page, the picker card and the landing section (web only, never in th
   `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
   `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
   node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
+
+### Pawlegends (/pawlegends)
+
+Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hosted by
+`components/pawlegends/PawlegendsHost.tsx`. It is on by default with no env needed;
+`NEXT_PUBLIC_PAWLEGENDS` and `NEXT_PUBLIC_PAWLEGENDS_PICKER` are kill switches only (`flags.ts`).
+
+- The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
+  `npm run build:client` in `pawlegends/` and commit `client/public/pawlegends-game/`.
+- `bridge.ts` speaks bridge v1 (GAMES.md). It accepts messages only from the iframe's window and the game's
+  origin, posts only to that origin, builds every payload field by field (no `accesstoken`), and checks a
+  replay against the same bounds as the backend DTO before it is queued.
+- `rosterBridge.ts` turns the signed-in player's cats into `{id, name, type, tier, isStarter, starterBreed?,
+  origin?}`, starters first, 24 cats and 32-character names at most.
+- `saves.ts` (`PawlegendsSaver`, the Heist saves pattern) posts every finished match to
+  `POST /user/catbassadors/live`; without a Firebase user it queues on the device (`tt.pawlegends.queue.v1`).
+- `checkout.ts` calls `/pawlegends/status`, `checkout`, `entitlements`, `restore`, `restore/verify`, `notify`
+  and `notify/confirm`. A checkout request carries the SKU and currency (EUR when the browser time zone is in
+  Europe), never a price or `accesstoken`. The token, device id and age band are kept in browser storage
+  (every access in try/catch). The purchase sheet shows the price with VAT included, "Delivered now" and
+  "Delivered at MVP launch (target 2027-04-30)", the age question once, an under-16 block, the consent
+  checkbox and the terms link, then redirects to Stripe Checkout. On return it handles `?checkout=ok` (asks
+  for the items up to 6 times, 2 s apart), `?checkout=cancel`, `?restore=` and `?notify=`, then removes them
+  from the address bar.
+- If `/pawlegends/status` says the store is not ready, the game hears `app {store: false}` and every
+  purchase intent is answered `purchase-result {ok: false}`. App builds read no status and send no store,
+  offers or entitlement token; owned cats still reach the game.
+- Any GameModal pauses the game. The exit button ("Back to games") does a full load of `/game`.
+- Hand-kept mirrors: the SKU ids, consent version, MVP date and age bands come from
+  `backend/src/pawlegends/pawlegends.contracts.ts`; hero and trick ids from `pawlegends/src/data/`.
+- Local dev: run `next dev --webpack` (`npm run dev`); with a symlinked `node_modules` Turbopack refuses to
+  start. The committed build accepts the host on any port because it is same-origin.
+- Not built yet: the offer engine and results-screen notify-me have no bridge message, so the host never
+  calls `GET /pawlegends/offer` or `POST /pawlegends/offer/seen`; no claim prompt for matches played signed
+  out; host analytics (`store_open`, `checkout_start`, `offer_*`); the picker card art is a placeholder.
 
 ### Other
 

@@ -1,0 +1,38 @@
+{
+  "name": "pawlegends",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pawlegends: a 3v3 cat-and-dog MOBA for Token Tails (Phase 1 POC, spec docs/plans/moba/POC.md)",
+  "scripts": {
+    "dev": "vite --port 5176",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "tsc --noEmit && PAWLEGENDS_BASE=/pawlegends-game/ vite build --outDir ../client/public/pawlegends-game --emptyOutDir",
+    "preview": "vite preview --port 4176",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "budget": "node tools/budget.mjs",
+    "lint:sim": "node tools/lint-sim.mjs",
+    "lift": "node tools/lift-ppk.mjs",
+    "bake:heroes": "node tools/bake-heroes.mjs",
+    "bake:map": "node tools/bake-map.mjs",
+    "match": "node tools/headless-match.mjs",
+    "determinism": "node tools/determinism.mjs",
+    "vendor-sim": "node tools/vendor-sim.mjs",
+    "vendor-sim:check": "node tools/vendor-sim.mjs --check",
+    "vendor-sim:check-remote": "node tools/vendor-sim.mjs --check-remote"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.186.0",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

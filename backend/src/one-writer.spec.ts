@@ -17,7 +17,8 @@ jest.mock('node-fetch', () => jest.fn());
  * One writer (CLAUDE.md, plan F6): game scores are saved only through POST /user/catbassadors/live.
  * - Only `/live` creates Game rows (its plain branch in UserController, its Heist replay branch
  *   in src/user/heist/heist-live.ts, which also deletes its own row if the progress write fails, and
- *   its Bad Cat Daily replay branch in src/badcat/badcat-live.ts, called only from that handler).
+ *   its Bad Cat Daily replay branch in src/badcat/badcat-live.ts and its Pawlegends replay branch in
+ *   src/pawlegends/pawlegends-live.ts, each called only from that handler).
  * - Only the guest merge re-parents Game rows (`updateMany`, with a per-row fallback). Erasing a
  *   guest deletes its own rows (`deleteMany`), which writes no score.
  * - Only `/live` sets `lastPlayedAt`. The guest merge `$max`es the guest's existing value into the
@@ -65,11 +66,12 @@ function methodBody(text: string, name: string): string {
 
 describe('one writer for game scores', () => {
     describe('static scan of src/', () => {
-        it('finds Game row writes only in /live (its three branches) and the guest merge', () => {
+        it('finds Game row writes only in /live (its four branches) and the guest merge', () => {
             expect(gameWriteSites()).toEqual(
                 [
                     'user/user.controller.ts: gameRepository.create',
                     'badcat/badcat-live.ts: games.create',
+                    'pawlegends/pawlegends-live.ts: games.create',
                     'user/heist/heist-live.ts: games.create',
                     'user/heist/heist-live.ts: games.delete',
                     'user/guest/guest-lifecycle.ts: games.updateMany',
@@ -92,6 +94,12 @@ describe('one writer for game scores', () => {
             // The Bad Cat branch is called from the /live handler only.
             const callers = FILES.filter(({ text }) => /\bsaveBadcatRun\(/.test(text)).map(({ file }) => file);
             expect(callers.sort()).toEqual(['badcat/badcat-live.ts', 'user/user.controller.ts']);
+            // So is the Pawlegends branch (POC.md §11.5).
+            expect(methodBody(controller, 'Tcatbassadors')).toContain('savePawlegendsMatch(');
+            const pawlegendsCallers = FILES.filter(({ text }) => /\bsavePawlegendsMatch\(/.test(text)).map(
+                ({ file }) => file
+            );
+            expect(pawlegendsCallers.sort()).toEqual(['pawlegends/pawlegends-live.ts', 'user/user.controller.ts']);
             expect(controller).toMatch(/@Post\('catbassadors\/live'\)\s*async Tcatbassadors\(/);
         });
 
@@ -108,6 +116,7 @@ describe('one writer for game scores', () => {
                 [
                     'impact/impact.service.ts', // reads: active30d
                     'badcat/badcat-live.ts', // /live, Bad Cat branch: $set
+                    'pawlegends/pawlegends-live.ts', // /live, Pawlegends branch: $set
                     'user/guest/guest-lifecycle.ts', // merge: $max of the guest's existing value
                     'user/heist/heist-live.ts', // /live, Heist branch: $set
                     'user/user.controller.ts', // /live, plain branch: $set

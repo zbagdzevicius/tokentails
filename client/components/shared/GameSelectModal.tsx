@@ -2,6 +2,9 @@ import { PixelButton } from "./PixelButton";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
+import { isAppBuild } from "@/components/claims/build";
+import { pawlegendsPickerEnabled } from "@/components/pawlegends/flags";
+import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameModal } from "@/components/ui/GameModal";
@@ -25,6 +28,12 @@ export const SWORDCAT_PICKER_HREF = "/swordcat";
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
+
+/** Where the Pawlegends card goes: its host page, by a full page load (POC.md §11.4; web builds only). */
+export const PAWLEGENDS_PICKER_HREF = "/pawlegends";
+/** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
+export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
+export const PAWLEGENDS_PICKER_DESCRIPTION = "3v3 hero battles with your cats vs dog bots";
 
 /**
  * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
@@ -72,7 +81,7 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT";
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "PAWLEGENDS";
 }
 
 /** A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`); others go as they are. */
@@ -87,9 +96,15 @@ const cardTestId = (card: GameCard) =>
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
  * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
+ * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). The Pawlegends card comes last,
+ * only when `includePawlegends` is set (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches).
  */
-export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
+export function gameCards(
+  includeHeist: boolean,
+  now: Date = new Date(),
+  includeSwordcat = false,
+  includePawlegends = false
+): GameCard[] {
   const cards: GameCard[] = [];
   if (isCupidSeason(now)) {
     cards.push({
@@ -143,6 +158,16 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
       badge: "NEW",
       image: SWORDCAT_PREVIEW.src,
       previewVariant: "SWORDCAT",
+    });
+  }
+  if (includePawlegends) {
+    cards.push({
+      key: PAWLEGENDS_CARD_KEY,
+      href: PAWLEGENDS_PICKER_HREF,
+      title: PAWLEGENDS_TITLE.toUpperCase(),
+      description: PAWLEGENDS_PICKER_DESCRIPTION,
+      badge: "NEW",
+      previewVariant: "PAWLEGENDS",
     });
   }
   return cards;
@@ -209,8 +234,24 @@ const SwordcatPreview = () => (
   </span>
 );
 
+/** Placeholder art until the hero bake lands (POC.md §6.9): the mode name on a night tile. */
+const PawlegendsPreview = () => (
+  <span
+    data-testid="game-card-pawlegends-preview"
+    className="relative flex aspect-[312/218] h-full flex-col items-center justify-center overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-gradient-to-br from-tt-night-700 to-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]"
+  >
+    <span aria-hidden="true" className="font-primary text-[1.4rem] leading-none text-tt-gold-400 md:text-[2rem]">
+      3v3
+    </span>
+    <span aria-hidden="true" className="mt-1 font-secondary text-[7px] uppercase tracking-[0.12em] text-tt-cream md:text-[10px]">
+      cats vs dogs
+    </span>
+  </span>
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
+  if (card.previewVariant === "PAWLEGENDS") return <PawlegendsPreview />;
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -270,6 +311,8 @@ interface GameSelectModalProps {
   showHeist?: boolean;
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
   showSwordcat?: boolean;
+  /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` hides it) (tests). */
+  showPawlegends?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -284,10 +327,16 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   setGameType,
   showHeist,
   showSwordcat,
+  showPawlegends,
   navigate,
 }) => {
   const now = new Date();
-  const cards = gameCards(showHeist ?? heistPickerEnabled(), now, showSwordcat ?? swordcatPickerEnabled());
+  const cards = gameCards(
+    showHeist ?? heistPickerEnabled(),
+    now,
+    showSwordcat ?? swordcatPickerEnabled(),
+    showPawlegends ?? pawlegendsPickerEnabled(isAppBuild())
+  );
   const cupidOpen = isCupidSeason(now);
 
   const pick = (card: GameCard) => (event: MouseEvent<HTMLElement>) => {

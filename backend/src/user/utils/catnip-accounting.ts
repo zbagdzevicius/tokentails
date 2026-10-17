@@ -1,5 +1,10 @@
 // Caps come from the generated copy of shared/caps.ts (plan F2), the same table the client uses.
-import { CATNIP_CHAOS_LEVEL_CAPS, MATCH3_LEVEL_CATNIP_CAPS } from 'src/shared-contracts/caps';
+import {
+    CATNIP_CHAOS_LEVEL_CAPS,
+    MATCH3_LEVEL_CATNIP_CAPS,
+    PAWLEGENDS_LEVEL_CAPS,
+    PAWLEGENDS_LEVELS,
+} from 'src/shared-contracts/caps';
 
 type LevelScores = unknown[] | null | undefined;
 type LegacyLevelScores = unknown[] | Record<string, unknown> | null | undefined;
@@ -9,6 +14,8 @@ export interface ICatnipAccountingSnapshot {
     match3: number[];
     catnipChaosCount: number;
     match3Count: number;
+    /** Pawlegends first-win catnip per difficulty (POC.md §11.5), capped by PAWLEGENDS_LEVEL_CAPS. */
+    pawlegendsCount: number;
     catnipCount: number;
 }
 
@@ -51,21 +58,34 @@ export const normalizeLevelScores = (values: LevelScores | Record<string, unknow
 
 const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
 
+/** `pawlegendsCatnip` ({ easy, normal }), each value capped by its difficulty's PAWLEGENDS_LEVEL_CAPS. */
+export const pawlegendsCatnipCount = (raw: unknown): number => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 0;
+    return PAWLEGENDS_LEVELS.reduce(
+        (acc, level, index) =>
+            acc + normalizeScore((raw as Record<string, unknown>)[level], PAWLEGENDS_LEVEL_CAPS[index]),
+        0
+    );
+};
+
 export const buildCatnipAccountingSnapshot = (
     rawCatnipChaos: LevelScores,
-    rawMatch3: LevelScores
+    rawMatch3: LevelScores,
+    rawPawlegends?: unknown
 ): ICatnipAccountingSnapshot => {
     const catnipChaos = normalizeLevelScores(rawCatnipChaos, CATNIP_CHAOS_LEVEL_CAPS);
     const match3 = normalizeLevelScores(rawMatch3, MATCH3_LEVEL_CATNIP_CAPS);
     const catnipChaosCount = sum(catnipChaos);
     const match3Count = sum(match3);
+    const pawlegendsCount = pawlegendsCatnipCount(rawPawlegends);
 
     return {
         catnipChaos,
         match3,
         catnipChaosCount,
         match3Count,
-        catnipCount: catnipChaosCount + match3Count,
+        pawlegendsCount,
+        catnipCount: catnipChaosCount + match3Count + pawlegendsCount,
     };
 };
 

@@ -18,6 +18,8 @@ import {
   gameCards,
   heistPickerEnabled,
   HEIST_PICKER_HREF,
+  PAWLEGENDS_CARD_KEY,
+  PAWLEGENDS_PICKER_HREF,
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
   SWORDCAT_PREVIEW,
@@ -27,6 +29,7 @@ import path from "path";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameType } from "@/models/game";
+import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
 jest.mock("@/components/game/seasons", () => ({
@@ -39,7 +42,7 @@ function open(props: Partial<React.ComponentProps<typeof GameSelectModal>> = {})
   const onClose = jest.fn();
   const setGameType = jest.fn();
   const navigate = jest.fn();
-  render(<GameSelectModal onClose={onClose} setGameType={setGameType} navigate={navigate} showHeist {...props} />);
+  render(<GameSelectModal onClose={onClose} setGameType={setGameType} navigate={navigate} showHeist showPawlegends={false} {...props} />);
   return { onClose, setGameType, navigate, dialog: screen.getByRole("dialog") };
 }
 
@@ -243,5 +246,28 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
     const buf = fs.readFileSync(path.join(pub, SWORDCAT_PREVIEW.src));
     expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+  });
+});
+
+describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => {
+  it("comes last and opens /pawlegends with a full page load", () => {
+    const { navigate, setGameType, dialog } = open({ showSwordcat: true, showPawlegends: true });
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items).toHaveLength(6);
+    expect(items[items.length - 1].getAttribute("data-card")).toBe(PAWLEGENDS_CARD_KEY);
+    const card = within(dialog).getByTestId("game-card-pawlegends");
+    expect(card.getAttribute("href")).toBe(PAWLEGENDS_PICKER_HREF);
+    expect(card.getAttribute("aria-label")).toBe(`${PAWLEGENDS_TITLE.toUpperCase()} · NEW`);
+    expect(within(dialog).getByTestId("game-card-pawlegends-preview")).toBeTruthy();
+    fireEvent.click(card);
+    expect(navigate).toHaveBeenCalledWith("/pawlegends");
+    expect(setGameType).not.toHaveBeenCalled();
+  });
+
+  it("is left out unless asked for, and gameCards keeps the old order by default", () => {
+    const { dialog } = open({ showPawlegends: false });
+    expect(within(dialog).queryByTestId("game-card-pawlegends")).toBeNull();
+    expect(gameCards(true, new Date("2026-05-01"), true).map((c) => c.key)).not.toContain(PAWLEGENDS_CARD_KEY);
+    expect(gameCards(true, new Date("2026-05-01"), true, true).map((c) => c.key).pop()).toBe(PAWLEGENDS_CARD_KEY);
   });
 });

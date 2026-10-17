@@ -170,6 +170,12 @@ import { BADCAT_ONLINE_SCHEMAS, BadcatOnlineStore } from './badcat/badcat-online
 import { BadcatOnlineService } from './badcat/badcat-online.service';
 import { BadcatLinksService } from './badcat/badcat-links.service';
 import { BadcatPushService } from './badcat/badcat-push.service';
+import { PawlegendsController } from './pawlegends/pawlegends.controller';
+import { PAWLEGENDS_SCHEMAS, PawlegendsStore } from './pawlegends/pawlegends.schema';
+import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
+import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
+import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
+import { PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -257,6 +263,8 @@ const config = {
             ...BADCAT_SCHEMAS,
             // Bad Cat Daily Phase 2: short links, room feed, push subscriptions, streak-email opt-ins.
             ...BADCAT_ONLINE_SCHEMAS,
+            // Pawlegends POC store (docs/plans/moba/POC.md section 8): secret-backed routes answer 503 until configured.
+            ...PAWLEGENDS_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -296,6 +304,8 @@ const config = {
         BadcatController,
         // Bad Cat Daily Phase 2: boards, accounts, short links + server OG, room feed, meter, push.
         BadcatOnlineController,
+        // Pawlegends POC store: SKUs, Stripe checkout and webhook, entitlements, offers, notify-me.
+        PawlegendsController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -373,6 +383,12 @@ const config = {
         BadcatOnlineService,
         BadcatLinksService,
         BadcatPushService,
+        // Pawlegends POC store.
+        PawlegendsStore,
+        PawlegendsStripeService,
+        PawlegendsWebhookService,
+        PawlegendsAccountService,
+        PawlegendsOfferService,
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,

@@ -73,6 +73,11 @@ const gameTypeScoreMeta: Record<GameType, { icon: string; label: string }> = {
     icon: cdnFile("logo/logo.webp"),
     label: "chaos",
   },
+  // Pawlegends (/pawlegends, its own iframe build): listed because GameType is shared; it shows no score here.
+  [GameType.PAWLEGENDS]: {
+    icon: cdnFile("logo/logo.webp"),
+    label: "wins",
+  },
 };
 
 /** What happened to the run's points (GameContext's save decision, read from the stop event). */

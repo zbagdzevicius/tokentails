@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 function openPicker() {
-  render(React.createElement(GameSelectModal, { onClose: jest.fn(), setGameType: jest.fn(), navigate: jest.fn(), showHeist: true }));
+  render(React.createElement(GameSelectModal, { onClose: jest.fn(), setGameType: jest.fn(), navigate: jest.fn(), showHeist: true, showPawlegends: false }));
   return screen.getByRole("dialog");
 }
 

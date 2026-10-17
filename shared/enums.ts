@@ -39,6 +39,12 @@ export enum GameType {
      * on; never through the plain scored-type path.
      */
     BAD_CAT = 'BAD_CAT',
+    /**
+     * Pawlegends, the 3v3 cat-and-dog MOBA (Phase 1 POC, `docs/plans/moba/POC.md`). Saved only through the
+     * replay-verified `PAWLEGENDS` branch of `POST /user/catbassadors/live` (vendored sim re-run in a worker thread,
+     * `backend/src/pawlegends/pawlegends-live.ts`); never through the plain scored-type path.
+     */
+    PAWLEGENDS = 'PAWLEGENDS',
 }
 
 /** Where a game was played. Rows saved before this field existed have no value. */

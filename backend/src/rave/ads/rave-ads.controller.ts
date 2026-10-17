@@ -21,6 +21,7 @@ import {
     UseInterceptors,
 } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
+import type { Observable } from 'rxjs';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle } from '@nestjs/throttler';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
@@ -64,7 +65,7 @@ export const RAVE_AD_MULTER = {
 export class RaveAdCheckoutGate implements NestInterceptor {
     constructor(private readonly ads: RaveAdsService, private readonly ipThrottler: ClientIpThrottlerGuard) {}
 
-    async intercept(context: ExecutionContext, next: CallHandler) {
+    async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
         const http = context.switchToHttp();
         this.ads.assertOpen();
         await this.ipThrottler.consume(

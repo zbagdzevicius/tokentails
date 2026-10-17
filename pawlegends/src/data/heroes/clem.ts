@@ -1,0 +1,37 @@
+/** Clem, Fighter (POC.md §6.3). */
+import type { HeroData } from './types';
+
+export const CLEM: HeroData = Object.freeze<HeroData>({
+  id: 'clem',
+  name: 'Clem',
+  side: 'cat',
+  role: 'fighter',
+  element: 'FAIRY',
+  base: { hp: 620, hpPerLevel: 60, attack: 58, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 5000, armour: 25, armourPerLevel: 2 },
+  /** Valor: +10 per hit on a hero (minions +4), max 100; at 100 the next ability deals +50%. */
+  passive: { valorPerHeroHit: 10, valorPerMinionHit: 4, valorMax: 100, valorBonusBp: 15000 },
+  abilities: {
+    /** Paw Combo: cone 2.4 m, 90°, 70 (+12/lvl); recast twice within 3 s; 3rd hit knocks back 1.5 m. 6 s after the last cast. */
+    q: { cooldown: 180, range: 2400, arc: 1024, dmg: 70, dmgPerLevel: 12, recasts: 2, recastWindow: 90, knockback: 1500 },
+    /** The Stand: 0.75 s block, 80% less frontal damage (`arc`: the front half); a projectile in the first 0.3 s is reflected. */
+    w: { cooldown: 360, duration: 23, reduceBp: 8000, parryWindow: 9, arc: 2048 },
+    /** Tumble: dash 4 m, untargetable 0.2 s. */
+    e: { cooldown: 330, dash: 4000, untargetable: 6 },
+    /** Golden Hour: 6 s, +40% attack speed; every 3rd basic sends a 5 m line wave, 80 (+15/lvl). Wave speed/width: tuning. */
+    r: { cooldown: 1800, duration: 180, attackSpeedBp: 4000, everyNth: 3, waveRange: 5000, waveDmg: 80, waveDmgPerLevel: 15, waveSpeed: 25000, waveWidth: 1200 },
+  },
+  talents: [
+    [
+      { id: 'pounce-finish', name: 'Pounce Finish', mods: { q: { stun: 15 } } },
+      { id: 'long-swipe', name: 'Long Swipe', mods: { q: { range: 3000 } } },
+    ],
+    [
+      { id: 'second-wind', name: 'Second Wind' },
+      { id: 'steady-stand', name: 'Steady Stand', mods: { w: { duration: 38 } } },
+    ],
+    [
+      { id: 'golden-afternoon', name: 'Golden Afternoon', mods: { r: { duration: 240 } } },
+      { id: 'sunlit-mend', name: 'Sunlit Mend', mods: { r: { lifestealBp: 1500 } } },
+    ],
+  ],
+});

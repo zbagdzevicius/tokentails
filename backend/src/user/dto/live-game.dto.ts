@@ -23,6 +23,8 @@ import { BadcatRunDto } from 'src/badcat/badcat-run.dto';
 import { badcatSimErrorDetail } from 'src/badcat/badcat-sim-info';
 import { HeistReplayDto } from '../heist/heist-replay.dto';
 import { heistSimErrorDetail } from '../heist/heist-sim-info';
+import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
+import { pawlegendsSimErrorDetail } from 'src/pawlegends/pawlegends-sim-info';
 
 /** Longest game `time` accepted, in seconds. Paw Match levels run for minutes; the other modes send 0. */
 export const MAX_LIVE_GAME_TIME = 24 * 60 * 60;
@@ -46,8 +48,9 @@ export const LIVE_GAME_BODY_LIMIT = '64kb';
 
 const isHeist = (body: { type?: unknown }) => body.type === GameType.CATNIP_HEIST;
 const isBadcat = (body: { type?: unknown }) => body.type === GameType.BAD_CAT;
+const isPawlegends = (body: { type?: unknown }) => body.type === GameType.PAWLEGENDS;
 /** Replay-verified types: the server takes score and time from its own replay, never from `points`. */
-const isReplayed = (body: { type?: unknown }) => isHeist(body) || isBadcat(body);
+const isReplayed = (body: { type?: unknown }) => isHeist(body) || isBadcat(body) || isPawlegends(body);
 
 /**
  * Body of `POST /user/catbassadors/live`, the only write path for game scores.
@@ -126,6 +129,17 @@ export class LiveGameDto {
     @ValidateNested()
     @Type(() => BadcatRunDto)
     badcat?: BadcatRunDto;
+
+    /**
+     * The Pawlegends match replay (POC.md §11.3). Required for PAWLEGENDS; refused on every other type. The server
+     * re-simulates it with the vendored sim in a worker thread (`src/pawlegends/pawlegends-live.ts`).
+     */
+    @ValidateIf(body => isPawlegends(body) || body.pawlegends !== undefined)
+    @IsDefined()
+    @IsObject()
+    @ValidateNested()
+    @Type(() => PawlegendsReplayDto)
+    pawlegends?: PawlegendsReplayDto;
 }
 
 /** `property.child: constraint message` for every failed constraint, as Nest's default pipe lists them. */
@@ -161,6 +175,10 @@ export function liveGameValidationError(errors: ValidationError[]): BadRequestEx
         : badcatFailures.length
         ? ErrorCode.BADCAT_REPLAY_INVALID
         : undefined;
+    // Pawlegends replays (POC.md §11.5): a malformed record is dropped by the game (PAWLEGENDS_REPLAY_INVALID).
+    const pawlegendsCode = failed.some(({ path }) => path === 'pawlegends' || path.startsWith('pawlegends.'))
+        ? ErrorCode.PAWLEGENDS_REPLAY_INVALID
+        : undefined;
     return new BadRequestException({
         statusCode: 400,
         message,
@@ -169,6 +187,8 @@ export function liveGameValidationError(errors: ValidationError[]): BadRequestEx
             ? { code, ...heistSimErrorDetail() }
             : badcatCode
             ? { code: badcatCode, ...badcatSimErrorDetail() }
+            : pawlegendsCode
+            ? { code: pawlegendsCode, ...pawlegendsSimErrorDetail() }
             : {}),
     });
 }

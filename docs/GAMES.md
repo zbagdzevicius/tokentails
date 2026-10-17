@@ -1,8 +1,9 @@
 # Game Modes
 
 The Phaser games run in the browser with Phaser 4 rc.5 (WebGL, pixel art, arcade physics) inside the
-Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`. The
-backend stores results, re-simulates Heist runs and serves leaderboards. See
+Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`, and
+Pawlegends one in `pawlegends/` hosted on `/pawlegends`. The backend stores results, re-simulates Heist
+runs and Pawlegends matches and serves leaderboards. See
 [BACKEND.md](BACKEND.md#games) for the server side and [CLIENT.md](CLIENT.md) for the app around
 the games.
 
@@ -16,6 +17,7 @@ the games.
 | `PIXEL_RESCUE` | Cupid Cat | `client/components/PixelRescue/` | Yes, hearts per level, cleared state, date-gated levels. |
 | `MATCH_3` | Paw Match | `client/components/Match3/` | Yes, catnip and raw score per level, cleared state. |
 | `CATNIP_HEIST` | Catnip Heist | `catnip-heist/`, host in `client/components/heist/` | Yes, a replay the server re-simulates. |
+| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `client/components/pawlegends/` | Yes, a replay the server re-simulates (won and lost matches). |
 
 `PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. Old `Game`
 rows use them and the score endpoint path is still `/user/catbassadors/live`, but the endpoint
@@ -29,7 +31,7 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
-Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("3v3 hero battles with your cats vs dog bots", badge "NEW", a placeholder "3v3" tile, a full-page link to `/pawlegends`) comes last, on the web only; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -193,6 +195,67 @@ override.
   (DEVELOPMENT.md), and save only through `POST /user/catbassadors/live` from the host. No second
   write path. The game has no deterministic replay, so a posted result could be forged; caps must
   reflect that.
+
+## Pawlegends
+
+A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of four
+heroes (Clem, Sage, Sir Brutus, Cacklejaw) and a Paw Trick (Pounce, Snack Break, Hiss) and plays with two
+bot allies against three dog bots on Purrhaven Crossing at Easy or Normal. A match ends on a core kill,
+at the latest at 11:00 (Sudden Death). The whole match runs in a deterministic integer sim
+(`pawlegends/src/sim/`, 30 ticks a second) in a Web Worker, and the backend replays it.
+
+- **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
+  `client/public/pawlegends-game/` (about 1.1 MB, committed); `/pawlegends` frames
+  `/pawlegends-game/index.html?embed=1` (CLIENT.md, "Pawlegends (/pawlegends)").
+- **Bridge v1**: envelope `{ns: 'tt-pawlegends', v: 1, type}`, host side
+  `client/components/pawlegends/bridge.ts`, game side `pawlegends/src/embed/bridge.ts`. The host says
+  `hello` until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading"
+  note after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp,
+  store}`, `session {signedIn}`, `audio {muted}`, `roster {cats}` and `entitlements {token}`, plus a pending
+  `pause`; `purchase-result {sku, ok}` answers a purchase. The game sends `match-result {replay, summary}`,
+  `purchase-intent {sku}`, `share {kind, url}` (same-origin `/pawlegends` links only) and `paused`. The game
+  accepts a host from `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com,
+  `http://localhost:3000` in its dev server) plus its own origin when the parent is same-origin, so the
+  committed build works on any client port and on Vercel previews. Both sides post to the exact origin,
+  never `'*'`, and no `accesstoken` or Firebase token crosses.
+- **Saves** (`components/pawlegends/saves.ts`): every finished match, won or lost, is posted as `{type:
+  'PAWLEGENDS', pawlegends: <replay>}` to `POST /user/catbassadors/live`. Without a Firebase user it waits
+  in `tt.pawlegends.queue.v1` (12 at most) and posts after sign-in; the first uid that signs in on the device
+  takes it (there is no "Add N matches" prompt yet). 2xx and 409 are done; `PAWLEGENDS_SIM_VERSION` purges
+  matches of that version; other 4xx drop the match; 401, 403 and 428 keep it; 429, 5xx and network errors
+  back off and honour `Retry-After`. The note under the exit button says "Match saved" or "Sign in on /game
+  to keep your wins".
+- **Rewards**: the first replay-verified win per difficulty pays catnip once (`PAWLEGENDS_LEVEL_CAPS` 20
+  Easy, 40 Normal), stored in `pawlegendsCatnip.<difficulty>`; it is not part of `catnipCount` or
+  `TOTAL_CATNIP_CAP` (open decision). The backend also keeps `pawlegendsFastestWin` and
+  `pawlegendsMatches` per difficulty.
+- **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames, breed coats and
+  up to two Companion Kittens that follow the player's wave. They are cosmetic and never enter the sim.
+- **Store** (BACKEND.md, "Pawlegends"): Starter $0.99, Founder $9.99, Founder Legend $29.99 (500 seats) and
+  the Legend upgrade $20, through Stripe Checkout; the price is the server's. Items arrive as a signed
+  entitlement token the host passes to the game. App builds show no store, offers or purchased items. When
+  the backend store is not ready (a missing secret answers 503) the game hides its store button and still
+  plays. Presale terms are at `/pawlegends/terms`.
+- **Analytics**: consent-gated PostHog (`VITE_PAWLEGENDS_POSTHOG_KEY` in the build; the shared `tt-analytics-consent`
+  key); every event carries a `human` filter flag. `purchase` is not sent yet (it is meant to come from the
+  webhook).
+- **Checks** (in `pawlegends/`): `npm run typecheck`, `npm test`, `npm run lint:sim` (no floats, `Math.random`
+  or wall clock in `src/sim`), `npm run build && npm run budget` (first-load JS 450 KB gzip), `npm run e2e`,
+  `npm run vendor-sim:check`. `npm run match -- --seeds 500 --profile normal --difficulty normal --hero
+  random --trick random --balance` runs the balance gates headless.
+- **Sim changes**: re-run `npm run vendor-sim` (writes `backend/src/vendor/pawlegends-sim/`), deploy the
+  backend, then the client build. `GET /pawlegends/sim` serves the bundle hash
+  (`npm run vendor-sim:check-remote -- <backend url>`). `SIM_VERSION` is still 1 although the hashed state
+  changed during the POC; bump it before any change that ships after the first public build.
+
+Known gaps (POC): heroes are procedural runtime models (a variant of the §6.9 fallback; no baked GLBs); the
+offer engine (`GET /pawlegends/offer`) and Legends Pass notify-me have no bridge message, so the game uses
+its own copy of the offer rules and its notify buttons stay hidden; chromas tint the hero only; the Starter
+emote has no emote system; `music.ts` and ghost paws are not built; a perf e2e (draw calls, heap, cold load)
+and a browser-vs-Node determinism e2e are not written (a replay recorded in the browser does verify in the
+backend's vendored sim, checked by hand on 2026-10-17); Novice vs Normal wins 41% (band 40 to 60%) and the
+Normal-vs-Normal median is 8:41 (window 7:00 to 9:00), both close to an edge.
 
 ## Base (Home)
 

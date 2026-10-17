@@ -1,4 +1,4 @@
-// Copy lint rules R1 to R12 (docs/CLAIMS.md; plan F11, G5, G11).
+// Copy lint rules R1 to R13 (docs/CLAIMS.md; plan F11, G5, G11; R13 docs/plans/moba/POC.md §15 item 24).
 //
 // Each rule gets one copy unit and the file context, and returns zero or more messages.
 // Context: { facts: Map<id, entry>, surface, toneExempt, appScope, near: { ids, fiction, badFiction } }
@@ -16,6 +16,7 @@ export const RULES = {
   R10: 'App builds: no USDC, 0x hashes, explorer, wallet, chain names or ON-CHAIN',
   R11: 'SEI-era figures say SEI',
   R12: 'Company-reported figures say so, and cited numbers carry their date',
+  R13: 'Game copy (Pawlegends): no shelter, impact or money words outside the store',
 };
 
 const BRAND = /\bToken[\s_-]*Tails\b|\btokentails\b/gi;
@@ -99,6 +100,14 @@ export const APP_WORDS = [
   { re: /\bon-?chain\b/i, what: '"ON-CHAIN" (use HELD BY TOKEN TAILS / PAID TO SHELTER)' },
 ];
 
+// R13: game copy is a game. The store files (prices) are exempt; the host and terms pages are client copy.
+// "Pink Paw" is not listed: Pink Paw Knight (the lifted PPK code) and its pink paw shield are game names.
+export const GAME_COPY_WORDS = [
+  { re: /\bshelters?\b|\bstrays?\b|\bdonat(?:e|es|ed|ing|ions?)\b|\bcharit(?:y|ies)\b|\banimal[- ]welfare\b/i, what: 'a shelter word' },
+  { re: /\bimpact\b|\breal[- ]world\b|\b(?:cats?|dogs?|pets?|animals?) in need\b/i, what: 'an impact word' },
+  { re: /[$€£]\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|dollars?|euros?|cents?)\b|\b(?:USD|EUR)\b|\breal money\b|\bcash\b|\bprices?\b|\brefunds?\b/i, what: 'a money word' },
+];
+
 const DATE_MARK = /\b(?:19|20)\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\b|\{[^}]*(?:asOf|date|Date)[^}]*\}/;
 
 function sentences(text) {
@@ -136,6 +145,14 @@ export function checkUnit(u, ctx) {
     for (const { re, what } of APP_WORDS) {
       const m = re.exec(plain);
       if (m) { add('R10', `app builds must not show ${what}: "${m[0]}". Branch it on isApp or use the F7.2 app labels`); break; }
+    }
+  }
+
+  // R13 game copy (Pawlegends, outside the store files).
+  if (ctx.gameCopy && vocab) {
+    for (const { re, what } of GAME_COPY_WORDS) {
+      const m = re.exec(plain);
+      if (m) { add('R13', `game copy must not carry ${what}: "${m[0]}" (prices live only in the store files)`); break; }
     }
   }
 
