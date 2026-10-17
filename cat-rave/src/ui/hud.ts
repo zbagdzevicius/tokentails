@@ -13,6 +13,7 @@ import type { CountryBoard } from '../data/countries';
 import { BADGE_ROW_MIN_WIDTH, BOARD_MAX_ROWS, boardKey, boardSummary, chipLabel, flagImg, isTied, rankLabel, type SheetKind } from './board';
 import { countryName } from '../data/countries';
 import { adoptLine, catCard, counterText, demoHeadline, demoLine, formatToNext, formatUsd, hookLine, plural, sourceLine } from './format';
+import { pinkPawBadge } from './pinkPawBadge';
 
 export { formatUsd };
 export type { SheetKind };
@@ -480,6 +481,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     const nextNo = (n + 1).toLocaleString('en-US');
     sheetBody.append(
       el('h2', 'rv-display', 'Add a cat 🐾'),
+      pinkPawBadge('rave'),
       el('p', '', `Every $1 paid out to the Pink Paw shelter on-chain adds one dancing cat. ${n ? `${plural(n, 'cat is', 'cats are')} on the floor.` : 'The floor is empty.'} ${snap ? `${formatToNext(Math.max(0, snap.microToNext - pending))} to cat #${nextNo}.` : ''}`),
     );
     const msg = el('div', 'rv-msg');
