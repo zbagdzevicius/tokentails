@@ -23,7 +23,8 @@ describe('RaveService status', () => {
         const cases: [NodeJS.ProcessEnv, string][] = [
             [{ ...ENV_ON, RAVE_STRIPE_WEBHOOK_SECRET: '' }, 'stripe'],
             [{ ...ENV_ON, STRIPE_PUBLISHABLE_KEY: '' }, 'stripe'],
-            [{ ...ENV_ON, CRYPTO_PAY_SHELTER_SHARE_ENABLED: '' }, 'keeper'],
+            // A testnet keeper while checkout sells on mainnet never runs (shelterShareNetworkOk).
+            [{ ...ENV_ON, CRYPTO_PAY_NETWORK: 'mainnet' }, 'keeper'],
             [{ ...ENV_ON, SHELTER_DONATE_PRIVATE_KEY: '' }, 'keeper'],
             // A test key against a mainnet keeper would pay real money for test payments.
             [ENV_MAINNET_KEEPER, 'mode'],
@@ -69,7 +70,7 @@ describe('RaveService checkout', () => {
     it('is 404 while the flag is off and 503 when on but not ready', async () => {
         await expectRaveError(raveHarness({}).service.checkout(card(), T0), 404, 'RAVE_NOT_FOUND');
         await expectRaveError(
-            raveHarness({ ...ENV_ON, CRYPTO_PAY_SHELTER_SHARE_ENABLED: '' }).service.checkout(card(), T0),
+            raveHarness({ ...ENV_ON, SHELTER_DONATE_PRIVATE_KEY: '' }).service.checkout(card(), T0),
             503,
             'RAVE_OFF'
         );

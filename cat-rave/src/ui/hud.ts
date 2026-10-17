@@ -3,6 +3,7 @@
  * (free treat, wallet gift, adopt), cat card, find my cat, share sheet, shot picker, mute, DEMO
  * banner, DJ shout-outs, the drop stamp and the debug line. SPEC.md "HUD".
  */
+import '../fonts/fonts.css';
 import './hud.css';
 import { LINKS, MICRO } from '../config';
 import type { PayoutSnapshot, RaveCat, ShotId } from '../types';

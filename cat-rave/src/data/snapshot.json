@@ -1,5 +1,5 @@
 {
- "asOf": "2026-10-16T18:38:38.981Z",
+ "asOf": "2026-10-17T04:39:12.901Z",
  "source": "https://api.tokentails.com/shelter/payouts?network=mainnet",
  "note": "Bundled fallback of the public payout index. Regenerate with `npm run snapshot`.",
  "totals": [
@@ -10,8 +10,8 @@
   },
   {
    "symbol": "USDC",
-   "amount18": "14630000000000000000",
-   "count": 190
+   "amount18": "16440000000000000000",
+   "count": 228
   },
   {
    "symbol": "USDC.e",
@@ -24,15 +24,15 @@
    "count": 1
   }
  ],
- "count": 194,
+ "count": 232,
  "contracts": [
   {
    "chainId": 143,
    "symbol": "USDC",
    "indexedThrough": {
-    "block": 113970988,
-    "time": 1792175880,
-    "at": "2026-10-16T18:38:00.711Z"
+    "block": 114090257,
+    "time": 1792211880,
+    "at": "2026-10-17T04:38:00.910Z"
    },
    "lastRunFailed": false,
    "count": 1
@@ -41,9 +41,9 @@
    "chainId": 4217,
    "symbol": "USDC.e",
    "indexedThrough": {
-    "block": 44454143,
-    "time": 1792175879,
-    "at": "2026-10-16T18:38:00.748Z"
+    "block": 44519073,
+    "time": 1792211879,
+    "at": "2026-10-17T04:38:01.031Z"
    },
    "lastRunFailed": false,
    "count": 2
@@ -52,9 +52,9 @@
    "chainId": 4663,
    "symbol": "USDG",
    "indexedThrough": {
-    "block": 90298097,
-    "time": 1792175879,
-    "at": "2026-10-16T18:38:00.620Z"
+    "block": 90651612,
+    "time": 1792211879,
+    "at": "2026-10-17T04:38:01.042Z"
    },
    "lastRunFailed": false,
    "count": 1
@@ -63,20 +63,20 @@
    "chainId": 5042,
    "symbol": "USDC",
    "indexedThrough": {
-    "block": 26305500,
-    "time": 1792175879,
-    "at": "2026-10-16T18:38:01.222Z"
+    "block": 26376554,
+    "time": 1792211879,
+    "at": "2026-10-17T04:38:01.282Z"
    },
    "lastRunFailed": false,
-   "count": 185
+   "count": 223
   },
   {
    "chainId": 5042,
    "symbol": "EURC",
    "indexedThrough": {
-    "block": 26305503,
-    "time": 1792175881,
-    "at": "2026-10-16T18:38:02.908Z"
+    "block": 26376558,
+    "time": 1792211881,
+    "at": "2026-10-17T04:38:02.840Z"
    },
    "lastRunFailed": false,
    "count": 1
@@ -96,9 +96,9 @@
    "chainId": 42161,
    "symbol": "USDC",
    "indexedThrough": {
-    "block": 515457371,
-    "time": 1792175880,
-    "at": "2026-10-16T18:38:04.929Z"
+    "block": 515579463,
+    "time": 1792211879,
+    "at": "2026-10-17T04:38:01.054Z"
    },
    "lastRunFailed": false,
    "count": 2
@@ -116,6 +116,462 @@
   }
  ],
  "events": [
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xe6f66f760c96dde6d30e66078a78da47ef3f9914fab8ead8db4b376d8d47fdff",
+   "logIndex": 42,
+   "blockNumber": 26375875,
+   "timestamp": 1792211535,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "80000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x8d6528caae97314a8cefc9267512e7105e0ea6cbf6343860dea3cee0cc58e7b6",
+   "logIndex": 16,
+   "blockNumber": 26374201,
+   "timestamp": 1792210687,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "10000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x20ccc2387cc00da69357d8d8fe8736fe43ed717ab3868d6a84e2a67050e94c97",
+   "logIndex": 2,
+   "blockNumber": 26370171,
+   "timestamp": 1792208645,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "10000000000000000",
+   "source": "treat"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x133fc73be8a01e6a6ff15e2846585c16446cf334019cfa35358900c838b295df",
+   "logIndex": 7,
+   "blockNumber": 26357728,
+   "timestamp": 1792202341,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xa630e6d832a221b4a0926c0fb5f80c874c467e8e093ef509b9e24239edfecb68",
+   "logIndex": 5,
+   "blockNumber": 26328712,
+   "timestamp": 1792187640,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x52cfe31ad2de45a5eb5666e116fcfe63bb13f8771e52827dd80bc71535e514e4",
+   "logIndex": 3,
+   "blockNumber": 26328471,
+   "timestamp": 1792187518,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x601fed3c039bce5367bdee30435a34524b5edb802375c34fff8153c8c3ebc2d8",
+   "logIndex": 2,
+   "blockNumber": 26325287,
+   "timestamp": 1792185904,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "70000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x48d835f4e2edd8017e2849dd84265136b5ba162ad11e69851102c9d88086e38b",
+   "logIndex": 18,
+   "blockNumber": 26323825,
+   "timestamp": 1792185163,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "140000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x921a66b6e5612aa38b1f679f5e5f295a111073a05372da3e56c77b892ccb0937",
+   "logIndex": 2,
+   "blockNumber": 26323097,
+   "timestamp": 1792184794,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x05959933e9ddcac36781465443e20c610f2a8dacdabf6f47c02d74b152b6edca",
+   "logIndex": 8,
+   "blockNumber": 26322856,
+   "timestamp": 1792184672,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x2d9515e6f5edf37f5ddfc272adea3cc4b3c33a071da5cebd6f5295ad8b7e8997",
+   "logIndex": 9,
+   "blockNumber": 26320940,
+   "timestamp": 1792183702,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xb20c64dc647a4654cec7403bb53490c78b807e4be496270b84a40007e121a2b5",
+   "logIndex": 2,
+   "blockNumber": 26320201,
+   "timestamp": 1792183327,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "60000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x09b3cebd306af32cfefe27b239d2ef52c30c913bfbb46a828f6def7872b68795",
+   "logIndex": 44,
+   "blockNumber": 26318273,
+   "timestamp": 1792182350,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xe3b0501e49682f6ded4f2a069a57adbbb1aee97c9555c0b3ea4e58879ea22c05",
+   "logIndex": 4,
+   "blockNumber": 26317556,
+   "timestamp": 1792181987,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xce8d82d4dd36dd9ac48beed2e98e55467439668032b785e19e0459b5b53a9b18",
+   "logIndex": 8,
+   "blockNumber": 26317077,
+   "timestamp": 1792181744,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x7b6098672588138226ff9112b8667871aad933074226da7980d195039bd50135",
+   "logIndex": 5,
+   "blockNumber": 26315397,
+   "timestamp": 1792180893,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "140000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x0377505a933caeb26955741d8b4e57859d1011d47c400423a4290bc57c963ba1",
+   "logIndex": 9,
+   "blockNumber": 26315395,
+   "timestamp": 1792180892,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "100000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xf97ff1894e11e1f57ffbe43ce3fd91faf509b6d2a61a7ecd8280033b0389705d",
+   "logIndex": 3,
+   "blockNumber": 26315154,
+   "timestamp": 1792180770,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x94a025f2f537e2b1345a189c6298931e095465d8c18dc91519124591c8373592",
+   "logIndex": 6,
+   "blockNumber": 26314674,
+   "timestamp": 1792180527,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xa2e0405ebe43580d56cb7fdd0e65c913296479c3b2ea2fe0cde60ba060e01f54",
+   "logIndex": 2,
+   "blockNumber": 26314433,
+   "timestamp": 1792180405,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x50f12a6be574a456d716383b961dc74a276f0d4b533b6474d227ac29036302d0",
+   "logIndex": 2,
+   "blockNumber": 26313951,
+   "timestamp": 1792180160,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x365f7a2331f4620538338d72aa4ae5a0fc96cb5558634f9b6f628293d4dae05f",
+   "logIndex": 2,
+   "blockNumber": 26313217,
+   "timestamp": 1792179789,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "100000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x3d205f496c5e77577e4ab55f6f9f2cead2189f556aa192b4fe88934b0346d510",
+   "logIndex": 7,
+   "blockNumber": 26313215,
+   "timestamp": 1792179788,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x8a3b6e2f743767e44d797c078c153c123ed1c0ced83bc247c9ab17e8d6ed9afb",
+   "logIndex": 2,
+   "blockNumber": 26312973,
+   "timestamp": 1792179665,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x0f29709db8050a527a56826039171564ef37b79c0f2164160762f15ef06fc302",
+   "logIndex": 5,
+   "blockNumber": 26312970,
+   "timestamp": 1792179664,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "70000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x32fff8382ac799df0873f676a407280b6d3fee1d6523dd265b88f769d2ca2f9b",
+   "logIndex": 14,
+   "blockNumber": 26310806,
+   "timestamp": 1792178567,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x4e269c80e25b712018eccbd62c811aa25b90793afc8b30f2c404ad0224bb6383",
+   "logIndex": 11,
+   "blockNumber": 26309849,
+   "timestamp": 1792178082,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x552302c013347f2c69c02c6fd082ea16c262fd97f1e5ab134cd09c256c0a33d8",
+   "logIndex": 7,
+   "blockNumber": 26309128,
+   "timestamp": 1792177717,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "140000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x65ed37f652cd53bdfc76588d1a0789156af1d1fba620ff41162f9215f7b86f34",
+   "logIndex": 6,
+   "blockNumber": 26308645,
+   "timestamp": 1792177472,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x046dbdf90d44d01e0b8655797b8c1e8c3de88a6c4d2f8d038e9de0fb80893fb1",
+   "logIndex": 5,
+   "blockNumber": 26307925,
+   "timestamp": 1792177107,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xaaaa228f9271f7f0696c3dfd435714f625e48fe88350ae437c37100648d21504",
+   "logIndex": 17,
+   "blockNumber": 26307446,
+   "timestamp": 1792176865,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0xed169e7c8f9892e8e6634dad44dabdb6ba4836551ad6d895ce631037fb424469",
+   "logIndex": 11,
+   "blockNumber": 26307205,
+   "timestamp": 1792176743,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "30000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x30319b96b337521bca7d7c752d3487269d49e76222ebdde4f5e6c62f89ef6517",
+   "logIndex": 2,
+   "blockNumber": 26306962,
+   "timestamp": 1792176620,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x3e1f25c9e01b8f1dc1d3fcf50afbbeaeff98006d5bd81093c9a5fc569a15a387",
+   "logIndex": 8,
+   "blockNumber": 26306960,
+   "timestamp": 1792176619,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "70000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x247e848747c3cd0fb8be859250c07acae027aa66ddca8d5062ad3c5acbd74115",
+   "logIndex": 2,
+   "blockNumber": 26306000,
+   "timestamp": 1792176133,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "80000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x8519eb9bd266a3c96dd33a6c23d67246a8d706a04cb5ba711ab4b28a3b5a641c",
+   "logIndex": 6,
+   "blockNumber": 26305748,
+   "timestamp": 1792176005,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x3e091e675aeb56849a8f035184a2118aefe2264c29260a616edacc6446fcb583",
+   "logIndex": 52,
+   "blockNumber": 26305507,
+   "timestamp": 1792175883,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "20000000000000000",
+   "source": "partner"
+  },
+  {
+   "chainId": 5042,
+   "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+   "txHash": "0x35b223e410727d1637bda4ac96eda3e9e5ab0bdd72bed3c952b6dd32375ed81a",
+   "logIndex": 9,
+   "blockNumber": 26305504,
+   "timestamp": 1792175881,
+   "kind": "native",
+   "symbol": "USDC",
+   "amount18": "40000000000000000",
+   "source": "partner"
+  },
   {
    "chainId": 5042,
    "contract": "0x457c89e10a6e66633eda5bf82fd086febb5db147",

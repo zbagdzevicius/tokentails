@@ -17,7 +17,6 @@ export const ENV_ON: NodeJS.ProcessEnv = {
     STRIPE_SECRET_KEY: 'sk_test_rave_fake',
     STRIPE_PUBLISHABLE_KEY: 'pk_test_rave_fake',
     RAVE_STRIPE_WEBHOOK_SECRET: WHSEC,
-    CRYPTO_PAY_SHELTER_SHARE_ENABLED: 'true',
     SHELTER_CHAIN_ID: '5042002',
     SHELTER_ARC_RPC_URL: 'http://127.0.0.1:8545',
     SHELTER_SPLIT_ADDRESS: SPLIT,

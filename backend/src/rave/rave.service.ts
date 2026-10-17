@@ -10,7 +10,7 @@ import {
     CryptoCheckoutDocument,
 } from 'src/payments/crypto/crypto-checkout.schema';
 import { readCryptoPayConfig } from 'src/payments/crypto/crypto-pay.config';
-import { CryptoShelterShareService } from 'src/payments/crypto/crypto-shelter-share.service';
+import { CryptoShelterShareService, shelterShareNetworkOk } from 'src/payments/crypto/crypto-shelter-share.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
 import {
@@ -48,7 +48,8 @@ import { IRaveOrder, RaveMethod, RaveOrder, RaveOrderDocument, RaveOrderStatus }
  * Never double-pay: `raveorders.paymentIntentId` unique; the one-way `created|pending → paid` transition
  * shared by the webhook and the GET fallback; `cryptocheckouts.cardIntent` and `.orderId` unique; and the
  * keeper's own `due → sending` lock. A test payment never queues a payout against a mainnet keeper
- * (and a live payment never against a testnet one): v2's keeper does not filter rows by network.
+ * (and a live payment never against a testnet one); the keeper also pays only rows of its own network
+ * class (`card`/`mainnet` on a mainnet chain, `testnet` on a testnet chain).
  */
 
 export const RAVE_ORDER_ID_RE = /^rv_[0-9a-f]{16}$/;
@@ -206,14 +207,16 @@ export class RaveService implements OnModuleDestroy {
         const shelter = readShelterConfig(this.env);
         if (!cfg.enabled) return { reason: 'off', shelter };
         if (!cfg.secretKeyMode || !cfg.publishableKeyMode || !cfg.webhookSecret) return { reason: 'stripe', shelter };
-        const keeperOn = readCryptoPayConfig(this.env).shelterShareEnabled;
-        if (!keeperOn || !shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) {
+        if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) {
             return { reason: 'keeper', shelter };
         }
         const live = cfg.secretKeyMode === 'live';
         if (cfg.publishableKeyMode !== cfg.secretKeyMode) return { reason: 'mode', shelter };
         if (live === isTestnetChain(shelter.chainId)) return { reason: 'mode', shelter };
         if (live && !cfg.production) return { reason: 'mode', shelter };
+        // The keeper has no flag; it runs only when its chain matches the checkout network (main, Oct 14).
+        if (!shelterShareNetworkOk(shelter, readCryptoPayConfig(this.env), this.env))
+            return { reason: 'keeper', shelter };
         return { reason: null, shelter };
     }
 

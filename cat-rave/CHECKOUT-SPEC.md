@@ -1,7 +1,7 @@
 # Moon Rave checkout: name your cats, attach your X, pay in place (spec, Oct 16 2026)
 
-Status: spec only. Nothing below is built yet. Branch `v2` (50 commits ahead of local `main`, and it does **not**
-contain `origin/main`'s Oct 14–16 crypto go-live work; see section 12). Four lanes build in parallel from this file
+Status: spec written Oct 16 on branch `v2`; merged with `origin/main` (and its Oct 14–16 crypto go-live) on Oct 17,
+see section 12. Four lanes build in parallel from this file
 (section 11); `src/main.ts` and HUD wiring go to the integrator.
 
 Founder request (Oct 16): "add a cat also should allow them to add link to their X account as well, not just name a
@@ -89,7 +89,7 @@ are always computed by the server.
 
 - `enabled` = `RAVE_CHECKOUT_ENABLED=true` AND `STRIPE_SECRET_KEY` AND `STRIPE_PUBLISHABLE_KEY` AND
   `RAVE_STRIPE_WEBHOOK_SECRET` are set AND the keeper can pay (main shelter config has RPC, split and hot wallet;
-  on `v2` also `CRYPTO_PAY_SHELTER_SHARE_ENABLED=true`) AND the key mode matches the shelter chain (live key ↔
+  the keeper has no flag since the go-live) AND the key mode matches the shelter chain (live key ↔
   mainnet chain, test key ↔ testnet chain) AND, outside `NODE_ENV=production`, the key is not `sk_live_`.
   Otherwise `{ "enabled": false, "reason": "off" | "stripe" | "keeper" | "mode" }` and nothing else.
 - `card` is `enabled`; `publishableKey` is sent only when `enabled`.
@@ -260,8 +260,8 @@ by the rave service only in `markPaid` / `release`:
 
 Mode rule (never pay real money for a test payment): create the row only when `livemode === !isTestnetChain(
 readShelterConfig().chainId)`; `network` is `'card'` for live, `'testnet'` for test. A mismatch marks the order
-`paid` with `payoutSkipped: 'mode'` and logs an error. `origin/main`'s keeper also filters `network` (card rows only
-by a mainnet keeper); `v2`'s keeper does not, which is why the rave service must check this itself.
+`paid` with `payoutSkipped: 'mode'` and logs an error. The keeper also filters `network` (card rows only by a mainnet
+keeper); the rave service still checks the mode itself so a mismatched row is never created.
 
 ## 6. Payout flow, memo, idempotency
 
@@ -466,15 +466,14 @@ forming cat; it needs an arriving count, a crowd-lane change); cat card gets the
 @handle!"; mount the arrivals list. Root `CLAUDE.md` package table has no `cat-rave` row yet (CLAUDE.md is modified
 in the working tree by someone else; add it when that settles).
 
-## 12. Branch caveat (`v2` vs `origin/main`)
+## 12. Branch history (`v2` merged with `origin/main`, Oct 17)
 
-`origin/main` (512b56dd) carries the crypto go-live (Oct 14–16) that `v2` lacks: the keeper has **no flag** there and
-filters rows by `network` (`card` rows paid only by a mainnet keeper, testnet keeper refused in production),
-`STRIPE_API_VERSION`/`stripe-payment.service.ts` changed, `shelter-claim.service.ts` changed, and Pink Paw's own
-wallet (0x3c83…4771) replaced the held 0xE299 on the splits as of Oct 16 (the `v2` `wallet.config.ts` still lists
-0xE299). The rave code must use only interfaces present on both (the `cryptocheckouts` row shape, `runOnce()`,
-`publicGivingVerified`, `readShelterConfig`, `StripePaymentService.stripe`) and do its own mode check (section 5).
-Whoever merges `v2` with `main` re-runs the rave specs.
+The rave was built on `v2`, which lacked `origin/main`'s crypto go-live (Oct 14–16). Since the Oct 17 merge the branch
+is based on `main`: the keeper has **no flag** (`CRYPTO_PAY_ENABLED` and `CRYPTO_PAY_SHELTER_SHARE_ENABLED` are gone)
+and filters rows by `network` (`card` rows paid only by a mainnet keeper, testnet keeper refused in production),
+`settle()` no longer takes `handedOver`, and Pink Paw's own wallet (0x3c83…4771) replaced the held 0xE299 on the
+splits as of Oct 16. The rave code uses only the shared interfaces (the `cryptocheckouts` row shape, `runOnce()`,
+`publicGivingVerified`, `readShelterConfig`, `StripePaymentService.stripe`) and does its own mode check (section 5).
 
 ## 13. Founder items (defaults in brackets; work continues on the default)
 
@@ -486,7 +485,7 @@ Whoever merges `v2` with `main` re-runs the rave specs.
 3. **Env on the backend** (names only): `RAVE_CHECKOUT_ENABLED=true` (last), `RAVE_STRIPE_WEBHOOK_SECRET`,
    `STRIPE_PUBLISHABLE_KEY` (exists, now used), `STRIPE_SECRET_KEY` (exists); optional `RAVE_USDC_ENABLED`,
    `RAVE_FEE_PERCENT_BPS`, `RAVE_FEE_FIXED_CENTS`, `RAVE_MAX_CATS`, `RAVE_DAILY_CAP_USD`, `RAVE_CREATED_PER_HOUR`;
-   on `v2` only `CRYPTO_PAY_SHELTER_SHARE_ENABLED=true`; and `TRUST_PROXY` or `CF_ORIGIN_SECRET` so per-address
+   and `TRUST_PROXY` or `CF_ORIGIN_SECRET` so per-address
    limits work in production. No new env on Vercel (the publishable key comes from `/rave/status`).
 4. **Hot wallet float**: the Arc float is ≈ $3. Every card order is paid from it before Stripe settles. Top it up to
    at least the expected first week (e.g. $100–200 USDC on Arc) [`RAVE_DAILY_CAP_USD` defaults to 100; raise it after the top-up].

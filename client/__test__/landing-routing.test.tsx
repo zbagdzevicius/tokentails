@@ -450,7 +450,9 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
   });
 
   it("keeps the auth rewrites off unless the flag is set (decision #6)", async () => {
-    await expect(nextConfig.rewrites()).resolves.toEqual([]);
+    // The /rave rewrite (Moon Rave, cat-rave/) is always on for web builds.
+    const rave = { source: "/rave", destination: "/rave/index.html" };
+    await expect(nextConfig.rewrites()).resolves.toEqual([rave]);
     let flagged: typeof nextConfig | undefined;
     jest.isolateModules(() => {
       process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY = "true";
@@ -467,6 +469,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
         source: "/__/firebase/init.json",
         destination: "https://news-ccd33.firebaseapp.com/__/firebase/init.json",
       },
+      rave,
     ]);
   });
 });

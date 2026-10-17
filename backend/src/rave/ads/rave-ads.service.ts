@@ -9,10 +9,9 @@ import {
     CryptoCheckoutDocument,
 } from 'src/payments/crypto/crypto-checkout.schema';
 import { readCryptoPayConfig } from 'src/payments/crypto/crypto-pay.config';
-import { CryptoShelterShareService } from 'src/payments/crypto/crypto-shelter-share.service';
+import { CryptoShelterShareService, shelterShareNetworkOk } from 'src/payments/crypto/crypto-shelter-share.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
-import { UNTRUSTED_IP_BUCKET } from 'src/shared/client-ip';
 import { UNKNOWN_CLIENT_IP_BUCKET } from 'src/shared/guards/client-ip-throttler.guard';
 import { deleteObject, getPrivateObject, uploadFile, uploadPrivateObject } from 'src/shared/utils/aws.utils';
 import { hotWalletAddress } from 'src/shelter/onchain/shelter-chain';
@@ -53,7 +52,7 @@ export const RAVE_AD_LIST_CACHE_MS = 15 * 1000;
 const STRIPE_POLL_MS = 5 * 1000;
 /** Active unpaid holds one client-IP bucket may have at once. */
 export const RAVE_AD_HOLDS_PER_IP = 2;
-/** The same for the shared bucket of unproven addresses (KI-07: until CF_ORIGIN_SECRET is set, everyone). */
+/** The same for the shared bucket of requests with no usable client address. */
 export const RAVE_AD_HOLDS_SHARED = 10;
 /** An expired hold keeps its private image this long: a payment racing the expiry can re-take the slot. */
 export const RAVE_AD_IMAGE_GRACE_MS = 60 * 60 * 1000;
@@ -201,9 +200,10 @@ export class RaveAdsService {
         if (cfg.shelterBps > 0) {
             // A shelter share needs the keeper, on the network class of the key.
             const shelter = readShelterConfig(this.env);
-            const keeperOn = readCryptoPayConfig(this.env).shelterShareEnabled;
-            if (!keeperOn || !shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) return 'keeper';
+            if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) return 'keeper';
             if (live === isTestnetChain(shelter.chainId)) return 'mode';
+            // The keeper has no flag; it runs only when its chain matches the checkout network (main, Oct 14).
+            if (!shelterShareNetworkOk(shelter, readCryptoPayConfig(this.env), this.env)) return 'keeper';
         }
         return null;
     }
@@ -382,7 +382,7 @@ export class RaveAdsService {
         await this.sweep(now);
         const holdIpHash = ipBucket ? raveAdHoldKey(ipBucket) : undefined;
         if (holdIpHash) {
-            const shared = ipBucket === UNTRUSTED_IP_BUCKET || ipBucket === UNKNOWN_CLIENT_IP_BUCKET;
+            const shared = ipBucket === UNKNOWN_CLIENT_IP_BUCKET;
             const active = await this.ads
                 .countDocuments({ status: 'held', holdUntil: { $gt: now }, holdIpHash })
                 .exec();

@@ -79,6 +79,11 @@ const eslintConfig = [
       // Pink Paw Knight's Vite bundle, copied from the Swordcat repo with
       // `npm run build:tokentails`. Its source is linted there.
       "public/swordcat-game/**",
+      // Bad Cat Daily and Moon Rave Vite bundles, written by
+      // `npm run build:client` in bad-cat/ and cat-rave/. Their source is
+      // linted there.
+      "public/badcat-game/**",
+      "public/rave/**",
       // Playwright output, including the cached QA copy of the Heist bundle
       // that e2e/heist-host.spec.ts builds into test-results/heist-game-qa.
       "test-results/**",
