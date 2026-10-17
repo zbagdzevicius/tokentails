@@ -3,7 +3,7 @@ import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { ThrottlerException, ThrottlerStorageService } from '@nestjs/throttler';
 import { Types } from 'mongoose';
 import { GameType, scoredGameTypes, seasonEventLevelPointCaps, totalCatnipCap } from 'src/game/game.schema';
-import { CATNIP_CHAOS_ENDLESS_CAP, MATCH3_TOTAL_CAP } from 'src/shared-contracts/caps';
+import { CATNIP_CHAOS_ENDLESS_CAP, HEIST_LEVELS, MATCH3_TOTAL_CAP } from 'src/shared-contracts/caps';
 import { AppValidationPipe, LIVE_GAME_USER_THROTTLE } from './dto/live-game.dto';
 import { LiveGameUserThrottleGuard } from './live-game-throttle.guard';
 import { UserController } from './user.controller';
@@ -421,7 +421,7 @@ describe('POST /user/catbassadors/live', () => {
                 match3ScoreCount: 1234,
                 catnipCount: 11,
             });
-            expect(totals.heistScore).toEqual(Array(8).fill(0));
+            expect(totals.heistScore).toEqual(Array(HEIST_LEVELS.length).fill(0));
         });
     });
 });

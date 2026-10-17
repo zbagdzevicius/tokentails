@@ -90,7 +90,7 @@ describe('vendored Heist sim', () => {
     // The benchmark runs in a child Node process (Jest's sandbox slows the sim about 10x). Timing is
     // only asserted with HEIST_BENCH=1: under a parallel Jest run every worker competes for the CPU
     // and a p95 says nothing. Recorded result: docs/plans/alignment-log/3b.md (p95 about 9 ms).
-    it('runs the replay benchmark on all 8 golden solutions (p95 under 50 ms with HEIST_BENCH=1)', () => {
+    it('runs the replay benchmark on every golden solution (p95 under 50 ms with HEIST_BENCH=1)', () => {
         const output = execFileSync(
             process.execPath,
             [

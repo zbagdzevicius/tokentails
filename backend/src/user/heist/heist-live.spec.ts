@@ -111,8 +111,9 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             stars,
             newStars: stars,
         });
-        expect(response.heistScore).toEqual([log.score, 0, 0, 0, 0, 0, 0, 0]);
-        expect(response.heistStars).toEqual([stars, 0, 0, 0, 0, 0, 0, 0]);
+        const zeros = Array(HEIST_LEVELS.length - 1).fill(0);
+        expect(response.heistScore).toEqual([log.score, ...zeros]);
+        expect(response.heistStars).toEqual([stars, ...zeros]);
         expect(users.get(userId).heistScore).toEqual(response.heistScore);
         expect(users.get(userId).heistStars).toEqual(response.heistStars);
         expect(users.get(userId).lastPlayedAt).toBeInstanceOf(Date);
@@ -188,7 +189,7 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
                 () => ({ ...goldenLog(), runs: [[0, 0, 9, 1], ...goldenLog().runs.slice(1)] }),
                 ErrorCode.HEIST_REPLAY_INVALID,
             ],
-            ['an unknown level', () => ({ ...goldenLog(), levelId: 'heist-09' }), ErrorCode.HEIST_REPLAY_INVALID],
+            ['an unknown level', () => ({ ...goldenLog(), levelId: 'heist-99' }), ErrorCode.HEIST_REPLAY_INVALID],
             ['an unknown field', () => ({ ...goldenLog(), user: 'x' }), ErrorCode.HEIST_REPLAY_INVALID],
             [
                 'a run that does not win',
@@ -311,15 +312,18 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             const user = users.get(userId);
             expect(Array.isArray(user.heistScore)).toBe(true);
             expect(Array.isArray(user.heistStars)).toBe(true);
-            expect(user.heistScore).toHaveLength(8);
-            expect(user.heistStars).toHaveLength(8);
+            expect(user.heistScore).toHaveLength(HEIST_LEVELS.length);
+            expect(user.heistStars).toHaveLength(HEIST_LEVELS.length);
             expect(user.heistStars.every((mask: unknown) => Number.isInteger(mask))).toBe(true);
             expect(user.heistScore[1]).toBe(goldenLog('heist-02').score);
         });
 
         it('skips the guard when the arrays are already safe', async () => {
             const { controller, users } = createController();
-            const userId = users.add({ heistScore: [0, 0, 0, 0, 0, 0, 0, 0], heistStars: [0, 0, 0, 0, 0, 0, 0, 0] });
+            const userId = users.add({
+                heistScore: Array(HEIST_LEVELS.length).fill(0),
+                heistStars: Array(HEIST_LEVELS.length).fill(0),
+            });
             await post(controller, userId, heistBody(goldenLog('heist-06')));
             expect(users.updates.some(entry => Array.isArray(entry.update))).toBe(false);
         });
