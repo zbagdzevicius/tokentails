@@ -318,6 +318,43 @@ describe("the Arc share on the billboard", () => {
     expect(screen.getByTestId("payouts-arc-line")).toBeTruthy();
   });
 
+  it("keeps the share bar sketched until every chain is read, so it never shrinks on screen", () => {
+    const partial = allRead();
+    delete partial[0];
+    const { rerender } = render(<TotalsBillboard loading={false} deployments={deployments} results={partial} />);
+    act(() => {
+      jest.advanceTimersByTime(REVEAL_AFTER_MS);
+    });
+    // Arc is read, Arbitrum is not: Arc's own figure shows, its share of the total waits.
+    expect(screen.getByTestId("payouts-arc-line").textContent).toContain("1.5 USDC of it paid on Arc");
+    expect(screen.getByTestId("payouts-arc-bar-skeleton")).toBeTruthy();
+    expect(screen.queryByTestId("payouts-arc-bar")).toBeNull();
+    expect(totalsText()).not.toContain("%");
+    rerender(<TotalsBillboard loading={false} deployments={deployments} results={allRead()} />);
+    expect(screen.queryByTestId("payouts-arc-bar-skeleton")).toBeNull();
+    expect(screen.getByTestId("payouts-arc-fill").getAttribute("style")).toContain("width: 33.3%");
+  });
+
+  it("every tile keeps the Arc mark's row when a tile coin is paid on Arc, sketched or not", () => {
+    // EURC is on Arc: the sketched tile and the markless USDG tile both hold the mark's row.
+    const USDG: ShelterDeployment = { chainId: 4663, address: addr(6), network: "mainnet", symbol: "USDG", decimals: 6 };
+    const list = [...deployments, USDG];
+    const { rerender } = render(<TotalsBillboard loading={false} deployments={list} results={{}} />);
+    for (const t of screen.getAllByTestId("payouts-skeleton-tile")) {
+      expect(t.querySelector('[data-testid="payouts-tile-arc-space"]')).toBeTruthy();
+    }
+    rerender(<TotalsBillboard loading={false} deployments={list} results={{ ...allRead(), 3: done(item(addr(6), 200_000, 5)) }} />);
+    const tiles = screen.getAllByTestId("payouts-coin-tile");
+    const usdg = tiles.find((t) => t.textContent?.includes("USDG"))!;
+    const eurc = tiles.find((t) => t.textContent?.includes("EURC"))!;
+    expect(usdg.querySelector('[data-testid="payouts-tile-arc-space"]')).toBeTruthy();
+    expect(eurc.querySelector('[data-testid="payouts-tile-arc"]')).toBeTruthy();
+    expect(eurc.querySelector('[data-testid="payouts-tile-arc-space"]')).toBeNull();
+    // Without an Arc tile coin no tile holds the row.
+    rerender(<TotalsBillboard loading={false} deployments={[USDC_ARB, USDC_ARC, USDG]} results={{}} />);
+    expect(screen.queryByTestId("payouts-tile-arc-space")).toBeNull();
+  });
+
   it("no Arc slot when no Arc contract is listed", () => {
     render(<TotalsBillboard loading={false} deployments={[USDC_ARB]} results={{}} />);
     expect(screen.queryByTestId("payouts-arc-skeleton")).toBeNull();

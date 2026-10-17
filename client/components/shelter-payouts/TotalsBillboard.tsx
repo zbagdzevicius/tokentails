@@ -54,7 +54,11 @@ function sumByCoin(deployments: ShelterDeployment[], results: Record<number, Res
     const r = results[i];
     if (r?.status !== "done") continue;
     for (const t of totalsBySymbol(r.items, resolveChain(deployments[i]))) {
-      const acc = bySymbol[t.symbol] || { symbol: t.symbol, amount: BigInt(0), count: 0 };
+      const acc = bySymbol[t.symbol] || {
+        symbol: t.symbol,
+        amount: BigInt(0),
+        count: 0,
+      };
       acc.amount += t.amount;
       acc.count += t.count;
       bySymbol[t.symbol] = acc;
@@ -65,9 +69,11 @@ function sumByCoin(deployments: ShelterDeployment[], results: Record<number, Res
 
 /** The hero figures from the per-deployment reads: per coin, never mixed. */
 export function heroTotals(deployments: ShelterDeployment[], results: Record<number, Result>): HeroTotals {
-  const totals = sumByCoin(deployments, results, deployments.map((_, i) => i)).sort((a, b) =>
-    a.amount === b.amount ? a.symbol.localeCompare(b.symbol) : a.amount > b.amount ? -1 : 1
-  );
+  const totals = sumByCoin(
+    deployments,
+    results,
+    deployments.map((_, i) => i)
+  ).sort((a, b) => (a.amount === b.amount ? a.symbol.localeCompare(b.symbol) : a.amount > b.amount ? -1 : 1));
   return {
     totals,
     payoutCount: totals.reduce((n, t) => n + t.count, 0),
@@ -81,9 +87,13 @@ export function heroTotals(deployments: ShelterDeployment[], results: Record<num
 }
 
 /** Arc's figures: shown only once every Arc deployment is read; an unread one hides them (never 0). */
-function arcPart(deployments: ShelterDeployment[], results: Record<number, Result>): Pick<HeroTotals, "arc" | "arcPending"> {
+function arcPart(
+  deployments: ShelterDeployment[],
+  results: Record<number, Result>
+): Pick<HeroTotals, "arc" | "arcPending"> {
   const arcIdx = deployments.map((_, i) => i).filter((i) => isArcMainnet(deployments[i].chainId));
-  if (arcIdx.length === 0 || arcIdx.some((i) => results[i]?.status === "error")) return { arc: null, arcPending: false };
+  if (arcIdx.length === 0 || arcIdx.some((i) => results[i]?.status === "error"))
+    return { arc: null, arcPending: false };
   if (arcIdx.some((i) => results[i]?.status !== "done")) return { arc: null, arcPending: true };
   return { arc: sumByCoin(deployments, results, arcIdx), arcPending: false };
 }
@@ -166,7 +176,9 @@ const BoardLabel = () => (
 );
 
 /** Arc's mark: a small sky diamond. */
-const ArcDiamond = () => <span aria-hidden="true" className="h-2 w-2 shrink-0 rotate-45 bg-tt-sky shadow-[0_0_6px_rgb(var(--tt-sky))]" />;
+const ArcDiamond = () => (
+  <span aria-hidden="true" className="h-2 w-2 shrink-0 rotate-45 bg-tt-sky shadow-[0_0_6px_rgb(var(--tt-sky))]" />
+);
 
 /** Arc's slot in skeleton blocks: the pill and the bar. */
 const ArcSkeleton = ({ ghost = false }: { ghost?: boolean }) => (
@@ -176,8 +188,11 @@ const ArcSkeleton = ({ ghost = false }: { ghost?: boolean }) => (
   </div>
 );
 
-/** How much of the headline coin Arc paid, and a bar of Arc's share of that coin's total. */
-const ArcLine = ({ arc, total }: { arc: CoinTotal; total: CoinTotal }) => {
+/**
+ * How much of the headline coin Arc paid, and a bar of Arc's share of that coin's total. The bar stays
+ * sketched while other chains are read (`partial`), so the share does not shrink in front of the reader.
+ */
+const ArcLine = ({ arc, total, partial }: { arc: CoinTotal; total: CoinTotal; partial: boolean }) => {
   const share = arcShare(arc.amount, total.amount);
   return (
     <div className={ARC_SLOT} data-testid="payouts-arc">
@@ -189,38 +204,72 @@ const ArcLine = ({ arc, total }: { arc: CoinTotal; total: CoinTotal }) => {
         <span aria-hidden="true">·</span>
         <span>{plural(arc.count, "payout")}</span>
       </p>
-      <div className="flex w-full max-w-xs items-center gap-2 md:max-w-sm">
-        <div
-          role="img"
-          aria-label={`Arc paid ${share}% of the ${total.symbol} total`}
-          className="h-2 flex-1 overflow-hidden rounded-full bg-tt-cream/15"
-          data-testid="payouts-arc-bar"
-        >
+      {partial ? (
+        <Skeleton testId="payouts-arc-bar-skeleton" className="h-2 w-[min(100%,20rem)] rounded-full md:w-96" />
+      ) : (
+        <div className="flex w-full max-w-xs items-center gap-2 md:max-w-sm">
           <div
-            className="h-full rounded-full bg-tt-sky shadow-[0_0_8px_rgb(var(--tt-sky))]"
-            style={{ width: `${share}%` }}
-            data-testid="payouts-arc-fill"
-          />
+            role="img"
+            aria-label={`Arc paid ${share}% of the ${total.symbol} total`}
+            className="h-2 flex-1 overflow-hidden rounded-full bg-tt-cream/15"
+            data-testid="payouts-arc-bar"
+          >
+            <div
+              className="h-full rounded-full bg-tt-sky shadow-[0_0_8px_rgb(var(--tt-sky))]"
+              style={{ width: `${share}%` }}
+              data-testid="payouts-arc-fill"
+            />
+          </div>
+          <span aria-hidden="true" className="font-primary text-p6 md:text-p5 text-tt-sky">
+            {share}%
+          </span>
         </div>
-        <span aria-hidden="true" className="font-primary text-p6 text-tt-sky">
-          {share}%
-        </span>
-      </div>
+      )}
     </div>
   );
 };
 
 const Divider = () => <div aria-hidden="true" className="my-4 border-t-2 border-dashed border-tt-cream/20 md:my-6" />;
 
-const TileSkeleton = ({ ghost = false }: { ghost?: boolean }) => (
+/** An empty Arc mark's row (one line, no words): tiles without a mark keep it, so no tile grows when a mark lands. */
+const ArcMarkSpace = () => (
+  <p aria-hidden="true" className={`${ARC_MARK} invisible`} data-testid="payouts-tile-arc-space">
+    {"\u00a0"}
+  </p>
+);
+
+// A tile's two text lines, shared by the tile and its sketch so both have the same line heights.
+const TILE_FIGURE = `${FIGURE} text-h6 md:text-h5`;
+const TILE_COUNT = "font-primary text-p6 uppercase tracking-wide text-tt-cream/70";
+
+/** A skeleton block on a text line of `line`'s type, so the sketch is exactly as tall as the text. */
+const SketchLine = ({ line, block }: { line: string; block: string }) => (
+  <p className={`${line} grid place-items-center`}>
+    <span className="invisible [grid-area:1/1]">{"\u00a0"}</span>
+    <Skeleton className={`[grid-area:1/1] ${block}`} />
+  </p>
+);
+
+const TileSkeleton = ({ ghost = false, markRow = false }: { ghost?: boolean; markRow?: boolean }) => (
   <div className={TILE} data-testid={ghost ? undefined : "payouts-skeleton-tile"} aria-hidden="true">
-    <Skeleton className="h-7 w-20 md:h-8 md:w-24" />
-    <Skeleton className="h-3 w-14" />
+    <SketchLine line={TILE_FIGURE} block="h-7 w-20 md:h-8 md:w-24" />
+    <SketchLine line={TILE_COUNT} block="h-3 w-14" />
+    {markRow && <ArcMarkSpace />}
   </div>
 );
 
 /** The board's final shape in skeleton blocks. A `ghost` copy only holds the space (invisible, no labels). */
-const BoardSkeleton = ({ tiles, arc, ghost = false }: { tiles: number; arc: boolean; ghost?: boolean }) => (
+const BoardSkeleton = ({
+  tiles,
+  arc,
+  markRow,
+  ghost = false,
+}: {
+  tiles: number;
+  arc: boolean;
+  markRow: boolean;
+  ghost?: boolean;
+}) => (
   <>
     {!ghost && <span className="sr-only">Loading payout totals</span>}
     <div className={`${HEAD_LINE} flex items-center justify-center`}>
@@ -238,7 +287,7 @@ const BoardSkeleton = ({ tiles, arc, ghost = false }: { tiles: number; arc: bool
         <Divider />
         <div className={TILES}>
           {Array.from({ length: tiles }, (_, k) => (
-            <TileSkeleton key={k} ghost={ghost} />
+            <TileSkeleton key={k} ghost={ghost} markRow={markRow} />
           ))}
         </div>
       </>
@@ -247,22 +296,35 @@ const BoardSkeleton = ({ tiles, arc, ghost = false }: { tiles: number; arc: bool
 );
 
 /** A message in the headline's place, at the skeleton's height so the board does not collapse. */
-const BoardMessage = ({ tiles, arc, children }: { tiles: number; arc: boolean; children: ReactNode }) => (
+const BoardMessage = ({
+  tiles,
+  arc,
+  markRow,
+  children,
+}: {
+  tiles: number;
+  arc: boolean;
+  markRow: boolean;
+  children: ReactNode;
+}) => (
   <div className="grid">
     <div aria-hidden="true" className="invisible [grid-area:1/1]">
-      <BoardSkeleton tiles={tiles} arc={arc} ghost />
+      <BoardSkeleton tiles={tiles} arc={arc} markRow={markRow} ghost />
     </div>
     <div className="flex items-center justify-center [grid-area:1/1]">{children}</div>
   </div>
 );
 
-/** One coin. `arc` is that same coin's Arc part: "on Arc" when Arc paid all of it, else its amount. */
-const CoinTile = ({ t, arc }: { t: CoinTotal; arc?: CoinTotal }) => (
+/**
+ * One coin. `arc` is that same coin's Arc part: "on Arc" when Arc paid all of it, else its amount.
+ * `markRow` keeps the mark's row in a tile without a mark, so every tile matches the sketched ones.
+ */
+const CoinTile = ({ t, arc, markRow }: { t: CoinTotal; arc?: CoinTotal; markRow: boolean }) => (
   <div className={TILE} data-testid="payouts-coin-tile">
-    <p className={`${FIGURE} text-h6 md:text-h5`}>
+    <p className={TILE_FIGURE}>
       {twoDp(t.amount)} <span className="text-p5 md:text-p4 normal-case">{t.symbol}</span>
     </p>
-    <p className="font-primary text-p6 uppercase tracking-wide text-tt-cream/70">{plural(t.count, "payout")}</p>
+    <p className={TILE_COUNT}>{plural(t.count, "payout")}</p>
     {arc && arc.amount > BigInt(0) && (
       <p className={ARC_MARK} data-testid="payouts-tile-arc">
         <ArcDiamond />
@@ -275,6 +337,7 @@ const CoinTile = ({ t, arc }: { t: CoinTotal; arc?: CoinTotal }) => (
         )}
       </p>
     )}
+    {markRow && !(arc && arc.amount > BigInt(0)) && <ArcMarkSpace />}
   </div>
 );
 
@@ -322,6 +385,8 @@ export const TotalsBillboard = ({
   // Arc's line: its slot is sketched while Arc may be listed, then its part of the headline coin.
   // Hidden (never 0) when Arc paid none of it or could not be read.
   const arcListed = loading || deployments.some((d) => isArcMainnet(d.chainId));
+  // A tile coin that Arc pays may get an Arc mark: then every tile, sketched or not, keeps that row.
+  const markRow = loading || deployments.some((d) => isArcMainnet(d.chainId) && tokenOf(d) !== headSymbol);
   const arcHead = head ? h.arc?.find((t) => t.symbol === head.symbol && t.amount > BigInt(0)) : undefined;
   const note = !skeleton && head && !h.pending && (h.unread || h.updating > 0);
 
@@ -338,7 +403,7 @@ export const TotalsBillboard = ({
           <BoardLabel />
           <div className="mt-3 md:mt-4">
             {skeleton ? (
-              <BoardSkeleton tiles={tiles} arc={arcListed} />
+              <BoardSkeleton tiles={tiles} arc={arcListed} markRow={markRow} />
             ) : (
               <div className="motion-safe:animate-tt-reveal">
                 {head ? (
@@ -350,23 +415,32 @@ export const TotalsBillboard = ({
                       {twoDp(head.amount)} <span className="text-h5 md:text-h3 normal-case">{head.symbol}</span>
                     </p>
                     <p className={`${LABEL} mt-3`}>{plural(head.count, "payout")}</p>
-                    {arcHead ? <ArcLine arc={arcHead} total={head} /> : h.arcPending ? <ArcSkeleton /> : null}
+                    {arcHead ? (
+                      <ArcLine arc={arcHead} total={head} partial={h.pending} />
+                    ) : h.arcPending ? (
+                      <ArcSkeleton />
+                    ) : null}
                     {rest.length + waiting > 0 && (
                       <>
                         <Divider />
                         <div className={TILES} data-testid="payouts-coin-tiles">
                           {rest.map((t) => (
-                            <CoinTile key={t.symbol} t={t} arc={h.arc?.find((a) => a.symbol === t.symbol)} />
+                            <CoinTile
+                              key={t.symbol}
+                              t={t}
+                              arc={h.arc?.find((a) => a.symbol === t.symbol)}
+                              markRow={markRow}
+                            />
                           ))}
                           {Array.from({ length: waiting }, (_, k) => (
-                            <TileSkeleton key={`waiting-${k}`} />
+                            <TileSkeleton key={`waiting-${k}`} markRow={markRow} />
                           ))}
                         </div>
                       </>
                     )}
                   </>
                 ) : (
-                  <BoardMessage tiles={tiles} arc={arcListed}>
+                  <BoardMessage tiles={tiles} arc={arcListed} markRow={markRow}>
                     {/* Never "0 USDC": a chain that could not be read is not a chain with no payouts. */}
                     {h.unread ? (
                       <p className="max-w-xl text-p4 md:text-p3 text-tt-cream/90" data-testid="payouts-unread">
@@ -385,15 +459,23 @@ export const TotalsBillboard = ({
             {skeleton ? (
               <Skeleton className="h-4 w-56 md:h-6 md:w-80" />
             ) : head ? (
-              <p className="font-primary text-p5 md:text-p3 uppercase tracking-wide text-tt-cream" data-testid="payouts-count">
+              <p
+                className="font-primary text-p5 md:text-p3 uppercase tracking-wide text-tt-cream"
+                data-testid="payouts-count"
+              >
                 across {plural(h.payoutCount, "payout")} on {plural(h.chains, "chain")}
                 {h.chains !== h.contracts ? ` (${h.contracts} contracts)` : ""}
               </p>
             ) : null}
           </div>
-          <div className={`flex items-start justify-center ${reserveStatus ? `mt-2 ${STATUS_SLOT}` : note ? "mt-2" : ""}`}>
+          <div
+            className={`flex items-start justify-center ${reserveStatus ? `mt-2 ${STATUS_SLOT}` : note ? "mt-2" : ""}`}
+          >
             {!skeleton && head && h.pending && (
-              <p className="font-primary text-p6 md:text-p5 uppercase tracking-wide text-tt-gold-400" data-testid="payouts-counting">
+              <p
+                className="font-primary text-p6 md:text-p5 uppercase tracking-wide text-tt-gold-400"
+                data-testid="payouts-counting"
+              >
                 still counting…
               </p>
             )}
