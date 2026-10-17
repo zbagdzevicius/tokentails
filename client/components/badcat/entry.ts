@@ -12,8 +12,14 @@ import { isAppBuild } from "@/components/claims/build";
 export const BADCAT_PATH = "/badcat";
 export const BADCAT_TITLE = "Bad Cat Daily";
 
-/** `from` says which entry point sent the player (the game ignores it; it shows in the page views). */
-export const badcatHref = (from: "picker" | "landing_badcat") => `${BADCAT_PATH}?from=${from}`;
+/**
+ * `from` says which entry point sent the player (same pattern as the Heist). The game itself reads
+ * only `utm_source` and `via` (`linkAttribution` in bad-cat/src/platform/analytics.ts), so each link
+ * also carries a `utm_source` the game's analytics can attribute.
+ */
+const BADCAT_UTM = Object.freeze({ picker: "tt_picker", landing_badcat: "tt_landing" });
+export const badcatHref = (from: "picker" | "landing_badcat") =>
+  `${BADCAT_PATH}?from=${from}&utm_source=${BADCAT_UTM[from]}`;
 
 /** The game's own one-liner (its `<meta name="description">`, GDD section 0). */
 export const BADCAT_LINE =
