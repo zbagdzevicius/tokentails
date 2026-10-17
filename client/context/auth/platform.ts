@@ -26,6 +26,38 @@ export function isInAppBrowser(env: EnvLike): boolean {
   return IN_APP_BROWSER.test(env.userAgent || "");
 }
 
+/**
+ * The link the in-app browser notice copies: the current page with `signin=1`, so pasted into
+ * Safari or Chrome it opens the sign-in sheet again (`/game` reads it; the landing ignores it).
+ * `/game` removes the param from the address bar once the sheet opened, so it is put back here.
+ */
+export function signInLink(href: string): string {
+  try {
+    const url = new URL(href);
+    url.searchParams.set("signin", "1");
+    return url.toString();
+  } catch {
+    return href;
+  }
+}
+
+/**
+ * "Open in Chrome" from an Android in-app browser: an intent URL leaves the wallet's web view
+ * (a plain `target=_blank` link opens another tab inside it). Falls back to the plain link when
+ * Chrome is missing. Null on iOS and elsewhere: no web link leaves an iOS in-app browser, so the
+ * notice offers only "Copy link" there.
+ */
+export function externalBrowserLink(href: string, userAgent: string | undefined): string | null {
+  if (!/Android/i.test(userAgent || "")) return null;
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "https:") return null;
+    return `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url.toString())};end`;
+  } catch {
+    return null;
+  }
+}
+
 /** Apple first on iOS (app or browser) and in Safari on Apple devices; Google first elsewhere. */
 export function isAppleFirst(env: EnvLike): boolean {
   if (env.platform === "ios") return true;

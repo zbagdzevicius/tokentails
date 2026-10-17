@@ -60,6 +60,9 @@ export const LANDING_REVALIDATE_SECONDS = 300;
  */
 export const SHOW_STORE_BADGES = false;
 
+/** How long the landing waits for the session read before it shows "Sign in" anyway. */
+export const SIGN_IN_WAIT_MS = 4000;
+
 /**
  * One fetch for the whole landing (plan 2.13 row 30): the CDN impact.json, with the API and the
  * bundled baseline as fallbacks. App builds (static export, no ISR) read the committed baseline.
@@ -82,6 +85,15 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
   const [player, setPlayer] = useState<CrewCtaState>({ signedIn: false });
   // Firebase loads only for a browser that has had a session (read after mount: hydration-safe).
   const [readPlayer, setReadPlayer] = useState(false);
+  // A browser with a session holds "Sign in" until the read says guest or signed out, so a
+  // signed-in player never sees it flash. If Firebase never answers, it shows after a moment.
+  const [playerTimedOut, setPlayerTimedOut] = useState(false);
+  useEffect(() => {
+    if (!readPlayer) return;
+    const timer = setTimeout(() => setPlayerTimedOut(true), SIGN_IN_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [readPlayer]);
+  const showSignIn = !player.account && (!readPlayer || !!player.settled || playerTimedOut);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -134,11 +146,13 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
             </span>
             {/* Returning players: one tap to the sign-in sheet (WELCOME BACK) on /game. Hidden once
                 this browser is signed in to an account. Plain anchor: the game needs a full load. */}
-            {!player.account && (
+            {/* Phones: top left. sm and up: top right, just left of the socials (4 icons: 152 px
+                wide below md, 216 px from md), where players look for their account. */}
+            {showSignIn && (
               <a
                 href={SIGN_IN_HREF}
                 data-testid="landing-sign-in"
-                className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 inline-flex min-h-[44px] items-center rounded-full border-2 border-tt-gold-500 bg-tt-night-800/90 px-4 font-primary text-p5 uppercase tracking-wide text-tt-cream shadow-[0_3px_0_rgb(var(--tt-night-950))] transition hover:border-tt-gold-400 hover:bg-tt-night-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
+                className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] sm:left-auto sm:top-2 sm:right-[172px] md:top-[10px] md:right-[236px] md:text-p4 z-50 inline-flex min-h-[44px] items-center rounded-full border-2 border-tt-gold-500 bg-tt-night-800/90 px-4 font-primary text-p5 uppercase tracking-wide text-tt-cream shadow-[0_3px_0_rgb(var(--tt-night-950))] transition hover:border-tt-gold-400 hover:bg-tt-night-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
               >
                 Sign in
               </a>

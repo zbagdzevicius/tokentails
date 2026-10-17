@@ -143,7 +143,7 @@ test.describe("guest play (G1)", () => {
     await useFakeFirebase(page);
     await gotoAndSettle(page, "/", 500);
     const started = Date.now();
-    await page.locator('a[href^="/game"]').first().click();
+    await page.locator('a[href^="/game"]:not([data-testid="landing-sign-in"])').first().click();
     await page.waitForURL(/\/game/, { waitUntil: "commit" });
     // The lobby is live: its PLAY control answers, and no dialog covers it.
     const play = page.getByText("PLAY", { exact: true }).first();
@@ -216,7 +216,7 @@ test.describe("guest play (G1)", () => {
     const referrer = "64e2e00000000000000000aa";
     await gotoAndSettle(page, `/?ref=${referrer}`, 500);
     await expect.poll(() => page.evaluate(() => localStorage.getItem("tt.pendingRef"))).toBe(referrer);
-    await page.locator('a[href^="/game"]').first().click();
+    await page.locator('a[href^="/game"]:not([data-testid="landing-sign-in"])').first().click();
     await page.waitForURL(/\/game/, { waitUntil: "commit" });
     // Stored once; only sent when a profile reports promotedNow (never by a guest).
     expect(await page.evaluate(() => localStorage.getItem("tt.pendingRef"))).toBe(referrer);

@@ -1,5 +1,20 @@
 import type { SaveNudgeTrigger } from "@/context/auth/saveNudge";
+import { readLastMethod } from "@/context/auth/lastMethod";
 import clsx from "clsx";
+import { useSyncExternalStore } from "react";
+
+/** Tailwind `md` (tailwind.config: 667px): below it the pill has room for one action only. */
+export const PHONE_QUERY = "(max-width: 666px)";
+
+const subscribePhone = (onChange: () => void) => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
+  const query = window.matchMedia(PHONE_QUERY);
+  query.addEventListener?.("change", onChange);
+  return () => query.removeEventListener?.("change", onChange);
+};
+const isPhone = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(PHONE_QUERY).matches;
+const noSubscribe = () => () => {};
+const hadAccountHere = () => !!readLastMethod();
 
 interface IProps {
   /** Opens `requireAccount('save-progress')`. */
@@ -28,17 +43,24 @@ const NUDGE_COPY: Record<SaveNudgeTrigger, string> = {
  * AuthSheet on a deliberate tap, and carries the session's single soft save nudge.
  */
 export const GuestPill = ({ onSave, onSignIn, catName, catImg, signedOut, nudge, onDismissNudge, className }: IProps) => {
-  const label = signedOut ? "Sign in" : "Save your cat";
-  // A second "Sign in" next to "Save your cat" (md and up; phones reach it from the sheet's
-  // "Already have an account? Sign in", the pill being as wide as the sky between the HUD columns).
+  const phone = useSyncExternalStore(subscribePhone, isPhone, () => false);
+  // Read once per mount: the hint changes only when someone signs in, which unmounts the pill.
+  const returningDevice = useSyncExternalStore(noSubscribe, hadAccountHere, () => false);
+  // A second "Sign in" next to "Save your cat" (md and up). Phones have room for one action: a
+  // device that signed in before gets "Sign in" (one tap back), any other "Save or sign in",
+  // whose sheet has "Already have an account? Sign in".
   const showSignIn = !signedOut && !!onSignIn;
+  const phoneSignIn = showSignIn && phone && returningDevice;
+  const label = signedOut || phoneSignIn ? "Sign in" : showSignIn && phone ? "Save or sign in" : "Save your cat";
+  const onMain = phoneSignIn ? onSignIn! : onSave;
   return (
     <div className={clsx("pointer-events-none flex flex-col items-center gap-2", className)} data-testid="guest-pill">
       <div className="flex items-center gap-2" data-pill-row>
       <button
         type="button"
-        onClick={onSave}
+        onClick={onMain}
         aria-label={signedOut ? "Not signed in. Sign in" : `Playing as a guest. ${label}`}
+        data-testid="guest-pill-main"
         className={clsx(
           "pointer-events-auto relative flex min-h-[44px] items-center gap-2 rounded-full border-2 border-tt-gold-500 bg-tt-night-800/90 py-1 pl-2 pr-4",
           "shadow-[0_3px_0_rgb(var(--tt-night-950))] transition hover:border-tt-gold-400 hover:bg-tt-night-700",

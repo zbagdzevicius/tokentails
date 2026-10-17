@@ -33,12 +33,18 @@ jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 const mockRouter: { query: Record<string, string>; pathname?: string } = { query: {} };
 // The email flows swap the Firebase user before they report, like the real SDK: the mocks sign
 // the e2e fake in first, then return their outcome.
-const mockLink = { signInWithEmail: jest.fn(), createEmailAccount: jest.fn() };
-jest.mock("@/context/auth/link", () => ({
-  ...jest.requireActual("@/context/auth/link"),
-  signInWithEmail: (...args: unknown[]) => mockLink.signInWithEmail(...args),
-  createEmailAccount: (...args: unknown[]) => mockLink.createEmailAccount(...args),
-}));
+const mockLink = { signInWithEmail: jest.fn(), createEmailAccount: jest.fn(), startOAuth: jest.fn() };
+jest.mock("@/context/auth/link", () => {
+  const actual = jest.requireActual("@/context/auth/link");
+  return {
+    ...actual,
+    signInWithEmail: (...args: unknown[]) => mockLink.signInWithEmail(...args),
+    createEmailAccount: (...args: unknown[]) => mockLink.createEmailAccount(...args),
+    // The real popup flow unless a test replaces it.
+    startOAuth: (...args: unknown[]) =>
+      mockLink.startOAuth.getMockImplementation() ? mockLink.startOAuth(...args) : actual.startOAuth(...args),
+  };
+});
 
 import { FirebaseAuthProvider, useFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { ProfileProvider, useProfile } from "@/context/ProfileContext";
@@ -117,6 +123,7 @@ function renderProvider(mode: "guest" | "optional", config: E2EAuthConfig = {}, 
 
 beforeEach(() => {
   calls = [];
+  mockLink.startOAuth.mockReset();
   mockRouter.query = {};
   mockRouter.pathname = "/game";
   sessionStorage.clear();
@@ -277,7 +284,10 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
       control().signIn({ uid: "existing" });
       return { kind: "merge", guestToken: "GUEST_TOKEN", provider: "email" };
     });
-    routes["POST /user/guest/merge"] = () => ({ status: 429, body: { message: "limit" } });
+    routes["POST /user/guest/merge"] = () => ({
+      status: 429,
+      body: { statusCode: 429, message: "This account already saved guest progress in the last 30 days" },
+    });
     const flow = await signInByEmailFromGuest();
     expect(await screen.findByText(/already took in guest progress in the last 30 days/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Welcome back!" })).toBeTruthy();
@@ -288,6 +298,40 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
     expect(latest.auth?.authStatus).toBe("ready");
     expect(latest.auth?.user?.uid).toBe("existing");
     expect(calls.filter((call) => call.path === "/user/guest/merge")).toHaveLength(1);
+  });
+
+  it("a short rate limit (429 without the 30-day message) is retried later, not called the 30-day limit", async () => {
+    mockLink.signInWithEmail.mockImplementation(async () => {
+      control().signIn({ uid: "existing" });
+      return { kind: "merge", guestToken: "GUEST_TOKEN", provider: "email" };
+    });
+    routes["POST /user/guest/merge"] = () => ({
+      status: 429,
+      body: { statusCode: 429, message: "ThrottlerException: Too Many Requests" },
+    });
+    await signInByEmailFromGuest();
+    expect(await screen.findByText(/We'll try again while this tab stays open/)).toBeTruthy();
+    expect(screen.queryByText(/last 30 days/)).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem(PENDING_MERGE_KEY)!)).toMatchObject({ targetUid: "existing" });
+    expect(latest.auth?.user?.uid).toBe("existing");
+  });
+
+  it("names the method this device used last only after a failed email sign-in, never the one just tried", async () => {
+    localStorage.setItem("tt.lastSignIn", JSON.stringify({ provider: "google", emailHint: null }));
+    const invalid = Object.assign(new Error("bad"), { code: "auth/invalid-credential" });
+    mockLink.signInWithEmail.mockImplementation(async () => {
+      throw invalid;
+    });
+    await signInByEmailFromGuest();
+    expect(await screen.findByText(/Last time on this device you used Google/, { selector: "[data-testid=auth-alert]" })).toBeTruthy();
+
+    mockLink.startOAuth.mockImplementation(async () => ({ kind: "error", error: invalid }));
+    fireEvent.click(screen.getByRole("button", { name: "Other ways to sign in" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Continue with Google/ }));
+    const alert = await screen.findByTestId("auth-alert");
+    await waitFor(() => expect(alert.textContent).toMatch(/don't match an account/));
+    expect(alert.textContent).not.toMatch(/Continue with Google/);
+    mockLink.startOAuth.mockReset();
   });
 
   it("remembers the last sign-in method on this device, with a masked email only", async () => {

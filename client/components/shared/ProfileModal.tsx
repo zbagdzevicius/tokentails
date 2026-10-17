@@ -34,6 +34,7 @@ import {
 import { GameMusicToggle } from "./GameMusicToggler";
 import { MyImpactSummary } from "@/components/impact/MyImpactSummary";
 import { openProgress } from "@/components/impact/progressTab";
+import { clearLastMethod } from "@/context/auth/lastMethod";
 
 // RenameSheet belongs to the onboarding flow (task 4a, G3 "Names", decision #22). Loaded on
 // demand: the profile opens far more often than anyone renames a cat.
@@ -382,6 +383,8 @@ export async function requestAccountDeletion(deps: AccountDeletionDeps): Promise
         : DELETE_ACCOUNT_ERROR;
     return { status: "error", message };
   }
+  // The account is gone: "Last time on this device you used Google" would point at nothing.
+  clearLastMethod();
   try {
     await deps.signOut();
   } catch {

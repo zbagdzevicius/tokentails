@@ -88,6 +88,9 @@ export const Game = () => {
   const [signinOpen, setSigninOpen] = useState(false);
   const signinParam = router.isReady && router.query.signin === "1";
   const signinAsked = useRef(false);
+  // Set before `setSigninOpen(true)` renders: the decide effect can run in the same commit as the
+  // effect that opens the sheet and would still see `signinOpen === false`.
+  const signinBusy = useRef(false);
   /** Bumped to decide the ceremony again after signing in to an existing account from the altar. */
   const [meetEpoch, setMeetEpoch] = useState(0);
   // ProfileContext hands out new functions each render; the commit callbacks read the latest.
@@ -197,12 +200,14 @@ export const Game = () => {
   /** Opens the sheet for a player who had an account before; the ceremony waits for its answer. */
   const signInReturning = useCallback(async (): Promise<AccountResult> => {
     setNudge(null);
+    signinBusy.current = true;
     setSigninOpen(true);
     try {
       return await requireAccount("returning");
     } catch {
       return "dismissed";
     } finally {
+      signinBusy.current = false;
       setSigninOpen(false);
     }
   }, [requireAccount]);
@@ -233,7 +238,7 @@ export const Game = () => {
   // nothing (the lobby). Never while a mode is open, nor while a returning player signs in.
   useEffect(() => {
     if (!curtainLifted || meetDecided.current || gameType || isStarted) return;
-    if (signinOpen || (signinParam && !signinAsked.current)) return;
+    if (signinOpen || signinBusy.current || (signinParam && !signinAsked.current)) return;
     if (replay) {
       meetDecided.current = true;
       meetIsReplay.current = true;
