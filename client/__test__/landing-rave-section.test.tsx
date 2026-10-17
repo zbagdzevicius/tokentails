@@ -42,7 +42,9 @@ import {
 import { RAVE_PILL_HREF, RavePill } from "@/components/landing/RavePill";
 import {
   RAVE_PROOF_HREF,
+  RAVE_ARC_TAIL,
   RAVE_REEL,
+  RAVE_REEL_ARM,
   RAVE_SECTION_HREF,
   RAVE_SECTION_RULE,
   raveAddLine,
@@ -75,7 +77,7 @@ const indexOf = (events: ReturnType<typeof ev>[], count = events.length): Payout
   events,
 });
 
-type ObserverCallback = (entries: { isIntersecting: boolean }[]) => void;
+type ObserverCallback = (entries: { isIntersecting: boolean; intersectionRatio: number }[]) => void;
 /** Every live observer: the reel's (200 px) and the posters' (1200 px). */
 let observerCallbacks: ObserverCallback[] = [];
 const observerMargins: string[] = [];
@@ -127,9 +129,9 @@ const holdLiveRead = () => {
   fetchMock.mockReturnValue(new Promise(() => {}));
 };
 
-const scrollInView = (isIntersecting: boolean) =>
+const scrollInView = (isIntersecting: boolean, intersectionRatio = isIntersecting ? 1 : 0) =>
   act(() => {
-    for (const cb of observerCallbacks) cb([{ isIntersecting }]);
+    for (const cb of observerCallbacks) cb([{ isIntersecting, intersectionRatio }]);
   });
 
 describe("the rave count (cat-rave's $1 = 1 cat rule)", () => {
@@ -240,12 +242,16 @@ describe("RaveSection", () => {
     const { container, getByTestId, queryByTestId } = render(<RaveSection />);
     expect(container.textContent).toContain("Dance. Save cats.");
     expect(container.textContent).toContain(RAVE_SECTION_RULE);
-    expect(RAVE_SECTION_RULE).toContain("Every $1 Token Tails or a giver pays out to Pink Paw on-chain");
+    expect(RAVE_SECTION_RULE).toContain("Every $1 Token Tails or a giver pays out for Pink Paw on-chain");
     expect(RAVE_SECTION_RULE).toContain("Pink Paw's 50% share of each $5 shelter cat");
     expect(getByTestId("rave-section-cta").getAttribute("href")).toBe("/rave?from=landing_rave");
     expect(RAVE_SECTION_HREF).toBe("/rave?from=landing_rave");
     expect(getByTestId("rave-section-proof").getAttribute("href")).toBe(RAVE_PROOF_HREF);
     expect(container.querySelector('img[alt="Arc"]')).toBeTruthy();
+    // Arc is named as one of the chains, not as where every cat comes from.
+    expect(RAVE_ARC_TAIL).toBe("and 6 more chains.");
+    expect(getByTestId("rave-arc-line").textContent).toContain("Paid out on");
+    expect(container.textContent).not.toMatch(/pays out to Pink Paw/);
     await waitFor(() => expect(queryByTestId("rave-live-line")).toBeTruthy());
     expect(getByTestId("rave-add-line").textContent).toContain("by card or in USDC on Arc");
     // No "adopt" and no claim that every rave dollar goes to the shelter (ad slots go to the treasury).
@@ -260,8 +266,8 @@ describe("RaveSection", () => {
     await waitFor(() => expect(queryByTestId("rave-live-skeleton")).toBeNull());
     expect(queryByTestId("rave-live-line")).toBeNull();
     expect(queryByTestId("rave-add-line")).toBeNull();
-    // The add line's slot stays, so /rave/status answering late shifts nothing.
-    expect(getByTestId("rave-add-slot").className).toMatch(/min-h-/);
+    // No empty reserved block where the add line would go.
+    expect(queryByTestId("rave-add-slot")).toBeNull();
     expect(getByTestId("rave-section-cta")).toBeTruthy();
   });
 
@@ -275,6 +281,12 @@ describe("RaveSection", () => {
     // No poster until the section nears the viewport (a 1200 px margin).
     expect(video.getAttribute("poster")).toBeNull();
     expect(observerMargins).toContain("1200px 0px");
+    // The reel arms only on screen (no margin), and only once a quarter of it shows.
+    expect(observerMargins).toContain(RAVE_REEL_ARM.rootMargin);
+    expect(RAVE_REEL_ARM).toEqual({ rootMargin: "0px", minRatio: 0.25 });
+    scrollInView(true, 0.1);
+    expect(video.querySelector("source")).toBeNull();
+    expect(play).not.toHaveBeenCalled();
     scrollInView(true);
     expect(video.getAttribute("poster")).toBe(RAVE_REEL.posterLandscape);
     const source = video.querySelector("source");

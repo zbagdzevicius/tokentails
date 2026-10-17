@@ -139,6 +139,9 @@ export function resetRaveLiveCache() {
   statusRead = null;
 }
 
+/** The longest the live read waits for an idle moment after mount. */
+const IDLE_WAIT_MS = 1_500;
+
 export type RaveLive =
   | { state: "loading"; total: null; checkout: null }
   | { state: "ready"; total: RaveTotal | null; checkout: RaveCheckout | null };
@@ -160,11 +163,26 @@ export function useRaveLive(enabled: boolean, base: string | undefined = apiUrl)
         return Promise.resolve(null);
       }
     };
-    Promise.all([safely(() => loadPayoutIndex("mainnet", base)), safely(() => loadRaveCheckout(base))]).then(
-      ([index, checkout]) => {
-        if (!cancelled) setLive({ state: "ready", total: raveTotalFromIndex(index), checkout });
-      }
-    );
+    const read = () =>
+      Promise.all([safely(() => loadPayoutIndex("mainnet", base)), safely(() => loadRaveCheckout(base))]).then(
+        ([index, checkout]) => {
+          if (!cancelled) setLive({ state: "ready", total: raveTotalFromIndex(index), checkout });
+        }
+      );
+    // The full payout index is read on every landing visit: wait until the browser is idle (at most
+    // IDLE_WAIT_MS), so it never competes with the hero's first paint. TODO: a totals-only endpoint.
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(read, { timeout: IDLE_WAIT_MS });
+      return () => {
+        cancelled = true;
+        w.cancelIdleCallback?.(id);
+      };
+    }
+    read();
     return () => {
       cancelled = true;
     };

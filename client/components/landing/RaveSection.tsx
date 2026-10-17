@@ -4,7 +4,7 @@ import { PixelButton } from "@/components/shared/PixelButton";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { RaveLiveLine } from "./RaveLiveLine";
 import { raveLandingEnabled } from "./RavePill";
-import { raveHref, useRaveLive, type RaveCheckout } from "./raveLive";
+import { RAVE_MAINNET_CHAIN_IDS, raveHref, useRaveLive, type RaveCheckout } from "./raveLive";
 
 /**
  * The Moon Rave landing section (founder, Oct 17: "update landing page of token tails to highlight
@@ -28,31 +28,37 @@ import { raveHref, useRaveLive, type RaveCheckout } from "./raveLive";
  *   (rotated 16 Oct 2026; /rave/status lists a USDC chain only when publicGivingVerified passes).
  *   Ad slots are not cat orders and are not claimed here (ad money goes to the treasury).
  *
- * The reel is a video, so copy-lint cannot read it. v2 is v1 without its closing total card
- * ("$21.93 paid out to Pink Paw so far · 21 cats dancing · 17 Oct 2026"): the live line is the only
- * total in the section. Its claims:
+ * The reel is a video, so copy-lint cannot read it. v2 dropped v1's closing total card ("$21.93 paid
+ * out to Pink Paw so far · 21 cats dancing"); v3 is v2 with a "Filmed 17 Oct 2026, on-screen totals
+ * are not live" label over the whole filmed laptop shot (about 0:14 to 0:23), where the rave's own
+ * total (about $21.5) is readable on screen. The live line is the only current total in the section.
+ * Its claims:
  * claim: the rave rule "Every $1 to Pink Paw = 1 cat on the dance floor" and the end card's "Every
  *   cat = $1 to Pink Paw · on Arc" (the same rule; "on Arc" is where the reel's checkout pays, not
  *   where every cat comes from: cats count payouts on all 7 chains)
  * claim: "Live on Arc · USDC payouts to Pink Paw, on-chain" (the Arc splits pay Pink Paw's wallet
  *   since 16 Oct 2026)
- * claim: the filmed laptop screen (about 0:19 to 0:21) shows the rave's own live total as filmed on
- *   17 Oct 2026 (about $21.5); it is a screen recording of tokentails.com/rave, labelled so.
+ * claim: "$1 · card or USDC on Arc" (the filmed checkout) plays even while /rave/status says checkout
+ *   is off: the reel shows the rave as filmed on 17 Oct 2026 (labelled), and the add line below is
+ *   the gated, current statement. Accepted: one cut, no per-state variant.
+ * claim: the filmed laptop screen shows the rave's own total as filmed on 17 Oct 2026, labelled
+ *   "Filmed 17 Oct 2026, on-screen totals are not live" for the whole shot.
  */
 
 export const RAVE_SECTION_HREF = raveHref("landing_rave");
 /** Every payout, with its explorer link: the proof under the number. */
 export const RAVE_PROOF_HREF = "/shelter-payouts";
 /**
- * The promo reel. Versioned names: a new cut gets a new version (v1 never shipped). Portrait for
- * phones (720x1280), landscape from `md` (1280x720); 28 s, H.264, faststart, no audio track. Both
- * posters are the "Live on Arc" frame, which shows no number.
+ * The promo reel. Versioned names: a new cut gets a new version (v1 never shipped; v2 shipped on
+ * 17 Oct 2026 without the filmed-date label). Portrait for phones (720x1280), landscape from `md`
+ * (1280x720); 28 s, H.264, faststart, no audio track. Both posters are the "Live on Arc" frame,
+ * which shows no number.
  */
 export const RAVE_REEL = Object.freeze({
-  landscape: "/landing/rave/rave-promo-v2-16x9.mp4",
-  portrait: "/landing/rave/rave-promo-v2-9x16.mp4",
-  posterLandscape: "/landing/rave/rave-promo-v2-poster-16x9.jpg",
-  posterPortrait: "/landing/rave/rave-promo-v2-poster-9x16.jpg",
+  landscape: "/landing/rave/rave-promo-v3-16x9.mp4",
+  portrait: "/landing/rave/rave-promo-v3-9x16.mp4",
+  posterLandscape: "/landing/rave/rave-promo-v3-poster-16x9.jpg",
+  posterPortrait: "/landing/rave/rave-promo-v3-poster-9x16.jpg",
 });
 /** Tailwind's `md`: landscape from here up. */
 export const RAVE_LANDSCAPE_QUERY = "(min-width: 768px)";
@@ -61,12 +67,17 @@ export const RAVE_ARC_LOGO = "/rave/brand/arc-logo-white.svg";
 export const RAVE_REEL_LABEL =
   "Moon Rave promo: cream kittens dance under a green moon while a DJ cat plays; every dollar to Pink Paw adds one";
 
+/** After the Arc logo in the rule: every chain of the Pink Paw splits counts, not Arc alone. */
+export const RAVE_ARC_TAIL = `and ${RAVE_MAINNET_CHAIN_IDS.length - 1} more chains.`;
+
 export const RAVE_SECTION_BADGE = "New · Moon Rave";
 export const RAVE_SECTION_TITLE = "Dance. Save cats.";
-// claim: the rave rule (cat-rave/README.md "The $1 = 1 cat rule" and "Data source"; see above)
+// claim: the rave rule (cat-rave/README.md "The $1 = 1 cat rule" and "Data source"; see above).
+// "for Pink Paw", as the live line: the count includes payouts made before 16 Oct 2026 to a wallet
+// Token Tails held for the shelter.
 export const RAVE_SECTION_RULE =
   // copy-lint-ignore R2 the rave's count rule, sourced in the claim comments above; no registry id until L-rave exists
-  "Every $1 Token Tails or a giver pays out to Pink Paw on-chain puts one more cat on the dance floor. Free treats, wallet gifts, sponsor matches, rave cats and Pink Paw's 50% share of each $5 shelter cat all count.";
+  "Every $1 Token Tails or a giver pays out for Pink Paw on-chain puts one more cat on the dance floor. Free treats, wallet gifts, sponsor matches, rave cats and Pink Paw's 50% share of each $5 shelter cat all count.";
 
 /** The "add a cat" line for what checkout takes right now; null when it is off or unread. */
 export function raveAddLine(checkout: RaveCheckout | null | undefined): string | null {
@@ -105,6 +116,13 @@ function useLandscape(): boolean | null {
   return landscape;
 }
 
+/**
+ * The section starts right at the fold on common screens, so the shared 200 px margin would fetch the
+ * 5 MB reel for every visitor who never scrolls. The reel arms (and plays) only once a quarter of it
+ * is on screen.
+ */
+export const RAVE_REEL_ARM = Object.freeze({ rootMargin: "0px", minRatio: 0.25 });
+
 /** Posters wait until the section is this close, so a visitor who never scrolls there fetches none. */
 const POSTER_MARGIN = "1200px 0px";
 
@@ -134,7 +152,10 @@ function useNear(ref: RefObject<Element | null>, enabled: boolean): boolean {
 export const RaveSection = ({ enabled }: { enabled?: boolean }) => {
   const on = enabled ?? raveLandingEnabled();
   const live = useRaveLive(on);
-  const { sectionRef, videoRef, armed, playing, userPaused, togglePause } = useReelPlayback<HTMLDivElement>(on);
+  const { sectionRef, videoRef, armed, playing, userPaused, togglePause } = useReelPlayback<HTMLDivElement>(
+    on,
+    RAVE_REEL_ARM
+  );
   const landscape = useLandscape();
   const rootRef = useRef<HTMLElement | null>(null);
   const near = useNear(rootRef, on);
@@ -167,8 +188,10 @@ export const RaveSection = ({ enabled }: { enabled?: boolean }) => {
       <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-tt-night-900 to-transparent pointer-events-none" />
       <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-tt-night-900 pointer-events-none" />
       <div className="relative z-30 mx-auto max-w-[1200px] px-4 md:px-8 lg:px-16 py-14 md:py-24">
-        <div className="grid grid-cols-1 items-start gap-8 md:gap-10 md:grid-cols-[1fr_1.25fr]">
-          <div className="flex flex-col items-center text-center md:items-start md:text-left">
+        {/* Phones: badge and title, then the reel, then JOIN THE RAVE right under it, then the rule.
+            From `md`: text on the left (title above, body below), the reel centred on the right. */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.25fr] md:gap-x-10 md:gap-y-0">
+          <div className="flex flex-col items-center text-center md:items-start md:text-left md:col-start-1 md:row-start-1 md:self-end">
             <span className="inline-flex items-center gap-2 rounded-full border-2 border-tt-pink/80 bg-tt-pink/15 px-3 py-1 font-primary text-p6 md:text-p5 uppercase tracking-widest text-tt-pink shadow-[0_0_16px_rgb(var(--tt-pink)/.35)]">
               {RAVE_SECTION_BADGE}
             </span>
@@ -178,28 +201,41 @@ export const RaveSection = ({ enabled }: { enabled?: boolean }) => {
             >
               {RAVE_SECTION_TITLE}
             </h2>
-            <p className="mt-4 max-w-md font-primary text-p4 md:text-p3 text-tt-cream">
-              <span className="text-tt-pink">$1 = 1 cat.</span> {RAVE_SECTION_RULE}
+          </div>
+          <div className="flex flex-col items-center text-center md:items-start md:text-left md:col-start-1 md:row-start-2 md:self-start">
+            <p className="order-2 md:order-none mt-2 md:mt-4 max-w-md font-primary text-p4 md:text-p3 text-tt-cream">
+              <span className="text-tt-pink">$1 = 1 cat.</span> {RAVE_SECTION_RULE}{" "}
+              {/* claim: the 7 mainnets of the Pink Paw splits (RAVE_MAINNET_CHAIN_IDS), Arc among them */}
+              <span className="whitespace-nowrap" data-testid="rave-arc-line">
+                Paid out on{" "}
+                <img
+                  src={RAVE_ARC_LOGO}
+                  alt="Arc"
+                  width={72}
+                  height={24}
+                  className="inline-block h-5 md:h-6 w-auto align-[-0.2em]"
+                  loading="lazy"
+                />
+              </span>{" "}
+              {RAVE_ARC_TAIL}
             </p>
-            {/* Always in the layout (empty while unread or off), so /rave/status answering shifts nothing. */}
-            <p
-              className="mt-3 min-h-[5.5rem] sm:min-h-[4.125rem] md:min-h-[5.25rem] max-w-md font-primary text-p5 md:text-p4 text-tt-cream/80"
-              data-testid="rave-add-slot"
-            >
-              {addLine && <span data-testid="rave-add-line">{addLine}</span>}
-            </p>
-            <div className="mt-4 flex min-h-[3.5rem] md:min-h-[4.25rem] items-start">
-            <RaveLiveLine
-              live={live}
-              skeletonClassName="mt-2"
-              className="max-w-md rounded-xl border border-tt-mint/40 bg-black/60 px-3 py-2 font-primary text-p5 md:text-p4 text-tt-cream"
-            />
+            {addLine && (
+              <p
+                className="order-3 md:order-none mt-3 max-w-md font-primary text-p5 md:text-p4 text-tt-cream/80"
+                data-testid="rave-add-line"
+              >
+                {addLine}
+              </p>
+            )}
+            {/* The live line's slot keeps its height, so the number arriving moves nothing. */}
+            <div className="order-4 md:order-none mt-4 flex min-h-[3.5rem] md:min-h-[4.25rem] items-start">
+              <RaveLiveLine
+                live={live}
+                skeletonClassName="mt-2"
+                className="max-w-md rounded-xl border border-tt-mint/40 bg-black/60 px-3 py-2 font-primary text-p5 md:text-p4 text-tt-cream"
+              />
             </div>
-            <div className="mt-4 flex items-center gap-2 font-primary text-p6 md:text-p5 uppercase tracking-widest text-tt-cream/70">
-              <span>On</span>
-              <img src={RAVE_ARC_LOGO} alt="Arc" width={72} height={24} className="h-5 md:h-6 w-auto" loading="lazy" />
-            </div>
-            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row md:items-center">
+            <div className="order-1 md:order-none md:mt-6 flex flex-col items-center gap-3 sm:flex-row md:items-center">
               {/* Plain anchor on purpose: /rave hosts a static build and loads fully. */}
               <a
                 href={RAVE_SECTION_HREF}
@@ -220,10 +256,11 @@ export const RaveSection = ({ enabled }: { enabled?: boolean }) => {
               </a>
             </div>
           </div>
-          {/* Fixed box per orientation: the poster, the video and the toggle share it, so nothing shifts. */}
+          {/* Fixed box per orientation: the poster, the video and the toggle share it, so nothing shifts.
+              Phones: between the title and the body (DOM order); `md`: the right column, centred. */}
           <div
             ref={sectionRef}
-            className="relative order-first md:order-none mx-auto w-[min(100%,360px,calc(70svh*9/16))] md:w-full md:max-w-none overflow-hidden rounded-2xl border-4 border-tt-mint/70 bg-black aspect-[9/16] md:aspect-video shadow-[0_0_28px_rgb(var(--tt-mint)/.4),0_0_60px_rgb(var(--tt-pink)/.2)]"
+            className="relative row-start-2 md:col-start-2 md:row-start-1 md:row-span-2 md:self-center mx-auto w-[min(100%,360px,calc(70svh*9/16))] md:w-full md:max-w-none overflow-hidden rounded-2xl border-4 border-tt-mint/70 bg-black aspect-[9/16] md:aspect-video shadow-[0_0_28px_rgb(var(--tt-mint)/.4),0_0_60px_rgb(var(--tt-pink)/.2)]"
           >
             <video
               ref={videoRef}
