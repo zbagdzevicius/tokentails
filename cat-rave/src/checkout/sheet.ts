@@ -25,6 +25,7 @@ import type { CheckoutAnswer, CheckoutRequest, PaidOrder, RaveMethod, RaveOrderR
 import { deploymentsUrl, fillNoWallet, giveUsdc, injectedProvider, loadDeployments, loadSdk, usdcChoices, walletMessage } from './usdc';
 import type { UsdcChoice } from './usdc';
 import { X_HANDLE_MESSAGES, normalizeXHandle, xLink } from './xhandle';
+import { pinkPawBadge } from '../ui/pinkPawBadge';
 
 export interface CheckoutOptions {
   api: RaveApi;
@@ -114,7 +115,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   root.setAttribute('role', 'region');
   root.setAttribute('aria-labelledby', title.id);
   const lede = h('p', 'rvc-lede', 'Every $1 is one dancing cat, on the floor right away. Token Tails pays it to the Pink Paw shelter on-chain. Name yours.');
-  root.append(title, lede);
+  root.append(title, pinkPawBadge(), lede);
   const testBanner = h('p', 'rvc-banner rvc-test', cardEnabled ? 'Test mode: use a Stripe test card (or Arc testnet USDC). No real money moves.' : 'Test mode: Arc testnet USDC only. No real money moves.');
   testBanner.hidden = status.livemode;
   root.append(testBanner);

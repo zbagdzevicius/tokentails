@@ -35,3 +35,14 @@
 - Copied 2026-10-17. Used by `src/world/ttLogo.ts`: the lockup is the venue's hero sign behind the DJ booth, the cat
   mark sits on dark plates on the booth's side faces. Always shown (not tied to Arc week). If the site logo
   changes, copy the new files over these and keep the aspect constants in `src/world/ttLogoLayout.ts` in step.
+
+# Pink Paw logo (the shelter's own logo, unmodified copy)
+
+| File | From | sha256 |
+|---|---|---|
+| `pink-paw-logo.webp` | `client/public/logo/shelters/pink-paw.webp` (400 x 400, round, transparent corners; the same file `PINK_PAW_LOGO` serves from the CDN in `client/components/shelter-payouts/pinkPaw.ts`) | `665549dfffd2b2163b9fbfea3c7698c3d0aea307b62bf78e5728ad2ae7756832` |
+
+- Copied 2026-10-17. Rožinė pėdutė (Pink Paw) is the cat shelter the rave raises money for. Used by
+  `src/world/pinkPaw.ts` (a lit sign on stage left: the logo on its own white disc, a pink rim and glow, and the caption
+  "ALL PROCEEDS → PINK PAW SHELTER") and `src/ui/pinkPawBadge.ts` (the line under the Add-a-cat title). Always shown.
+  The logo is not recoloured or cropped.

@@ -29,6 +29,7 @@ import { createPost, EXPOSURE, POST_DPR_CAP } from './post';
 import { FLASH_RGB, FlashEnvelope, LASER_RIGS, aimToDir, autoLaserMode, beamSplit, beamViolet, laserAim, spotPath, type LaserAim } from './show';
 import { createMoon, createSky } from './sky';
 import { createTokenTailsLogo, type TokenTailsLogo } from './ttLogo';
+import { createPinkPawSign } from './pinkPaw';
 
 /** Linear RGB of the drop flash (white-green). */
 const DROP_FLASH_RGB = [0.75, 1.0, 0.8] as const;
@@ -111,6 +112,9 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
   // The host's brand: the Token Tails lockup as the hero sign behind the DJ, the cat mark on the booth sides.
   const ttLogo = createTokenTailsLogo(LAYOUT.boothSize, renderer, profile);
   scene.add(ttLogo.sign, ttLogo.sides);
+  // The shelter the rave raises money for: its logo as a lit sign on stage left (pinkPaw.ts).
+  const pinkPaw = createPinkPawSign(renderer, profile);
+  scene.add(pinkPaw.group);
 
   // ------------------------------------------------------------------ lights show
   const MAX_BEAMS = 24;
@@ -195,6 +199,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
     floor.setMirror(p.reflections === 'mirror', p.quality === 'high' ? 0.5 : 0.35);
     floor.setCausticIters(p.quality === 'low' ? 3 : 4);
     ttLogo.setQuality(p);
+    pinkPaw.setQuality(p);
     if (haze.meshes.length !== Math.max(1, Math.min(3, p.haze))) {
       scene.remove(...haze.meshes, haze.flash);
       haze.dispose();
@@ -318,6 +323,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       moonCenter.y = portrait ? LAYOUT.moon.center[1] - 8 : LAYOUT.moon.center[1];
       moonCenter.z = portrait ? LAYOUT.moon.center[2] * 1.2 : LAYOUT.moon.center[2];
       ttLogo.setPortrait(portrait);
+      pinkPaw.setPortrait(portrait);
       shared.uMoonCenter.value.copy(moonCenter);
       dprIn = dpr || 1;
       renderer.setPixelRatio(pixelRatio(dprIn, current));
@@ -419,6 +425,8 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       updateSpots(beat, dt);
       ttLogo.update(beat, shared.uDrop.value, reduced);
       ttLogo.follow(frame.camera, frame.dt);
+      pinkPaw.update(beat, shared.uDrop.value, reduced);
+      pinkPaw.follow(frame.camera, frame.dt);
       post?.setPump(Math.max(beat.section === 'drop' && !reduced ? 0.18 * beat.kick : 0.05 * beat.kick, DROP_PUMP * dropPump));
     },
     setQuality(p) {
@@ -434,6 +442,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       floor.dispose();
       booth.dispose();
       ttLogo.dispose();
+      pinkPaw.dispose();
       sky.geometry.dispose();
       (sky.material as { dispose(): void }).dispose();
       moon.geometry.dispose();
