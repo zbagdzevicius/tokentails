@@ -81,7 +81,7 @@ Caps (from `shared/caps.ts`; the client copy is `constants/catnip-accounting.ts`
 | Cupid Cat | 500 |
 | Paw Match catnip | Per-level value up to 85 |
 | Paw Match raw score | 1,000,000 |
-| Catnip Heist | Server score; `HEIST_LEVEL_CAPS` 250 to 310 per level |
+| Catnip Heist | Server score; `HEIST_LEVEL_CAPS` 220 to 330 per level (16 levels) |
 
 ## Catnip Chaos (Purrsuit)
 
@@ -133,7 +133,7 @@ The shipped configuration supersedes it.
 ## Catnip Heist
 
 A single-player 3D stealth run in `catnip-heist/` (three.js, Vite): guide two cats past Kibble Corp's
-guards, grab catnip coins, open the vault and free a shelter cat. Eight campaign levels. The rules
+guards, grab catnip coins, open the vault and free a shelter cat. Sixteen campaign levels in two acts of eight. The rules
 run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the backend replays.
 
 - **Hosting** (plan G2): the static build lives at `/heist-game/` (`npm run build:client`). `pages/heist.tsx` hosts it in an iframe (`/heist-game/index.html?embed=1`) with an optional auth provider. `components/heist/hostBridge.ts` speaks `shared/heist-bridge.ts`: `hello` every 500 ms for up to 10 s; after `ready`, `session {signedIn, progress, insets}`, `save-result`, `pause`, `resume`; the Heist sends `run-complete {runId, won, levelId, log}`, `request-sign-in` and `exit`. The iframe is same-origin, so the bridge is not a security boundary; the replay is. Old `/heist/*` asset URLs redirect to `/heist-game/*`. GameModals pause the Heist through a stand-in registry entry.
