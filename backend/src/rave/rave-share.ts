@@ -20,21 +20,27 @@ export type ShareReversal =
     /** `confirmed`: the shelter has the money; Token Tails absorbs the refund. */
     | 'paid';
 
+/**
+ * `cardIntent` null: a crypto-paid row (a USDC ad's share), which has no card intent; it is then matched by
+ * `orderId` alone (unique on the collection) among rows without one.
+ */
 export async function reverseShare(
     checkouts: Model<CryptoCheckoutDocument>,
     orderId: string,
-    cardIntent: string,
+    cardIntent: string | null,
     why: string,
     now: Date = new Date()
 ): Promise<{ outcome: ShareReversal; state?: string }> {
-    const marked: any = await checkouts.updateOne(
-        { orderId, cardIntent },
-        { $set: { 'shelterShare.reversed': why, 'shelterShare.reversedAt': now } }
-    );
+    const key: Record<string, unknown> = cardIntent
+        ? { orderId, cardIntent }
+        : { orderId, cardIntent: { $exists: false } };
+    const marked: any = await checkouts.updateOne(key, {
+        $set: { 'shelterShare.reversed': why, 'shelterShare.reversedAt': now },
+    });
     if (marked && marked.matchedCount === 0) return { outcome: 'none' };
     const voided: any = await checkouts
         .findOneAndUpdate(
-            { orderId, cardIntent, 'shelterShare.state': { $in: ['due', 'failed'] } },
+            { ...key, 'shelterShare.state': { $in: ['due', 'failed'] } },
             {
                 $set: {
                     'shelterShare.state': 'void',
@@ -46,7 +52,7 @@ export async function reverseShare(
         )
         .lean();
     if (voided) return { outcome: 'voided', state: 'void' };
-    const row: any = await checkouts.findOne({ orderId, cardIntent }).lean();
+    const row: any = await checkouts.findOne(key).lean();
     const state = row?.shelterShare?.state;
     if (!row) return { outcome: 'none' };
     if (state === 'void') return { outcome: 'voided', state };

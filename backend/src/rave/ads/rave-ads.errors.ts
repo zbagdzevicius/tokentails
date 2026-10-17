@@ -40,6 +40,9 @@ export const RAVE_AD_ERRORS = {
     storage: () =>
         raveError(HttpStatus.SERVICE_UNAVAILABLE, 'RAVE_AD_STORAGE', 'The image could not be stored, try again'),
     stripe: () => raveError(HttpStatus.BAD_GATEWAY, 'RAVE_AD_STRIPE', 'The card checkout could not start, try again'),
+    method: () => raveError(HttpStatus.BAD_REQUEST, 'RAVE_AD_METHOD', 'This payment method is not available'),
+    txMismatch: (message: string) => raveError(HttpStatus.BAD_REQUEST, 'RAVE_AD_TX_MISMATCH', message),
+    txUsed: () => raveError(HttpStatus.CONFLICT, 'RAVE_AD_TX_USED', 'This transaction already paid for another ad'),
     adNotFound: () => raveError(HttpStatus.NOT_FOUND, 'RAVE_AD_NOT_FOUND', 'No such ad'),
     state: (message: string) => raveError(HttpStatus.CONFLICT, 'RAVE_AD_STATE', message),
 };

@@ -532,7 +532,7 @@ async function boot() {
     orders.startPolling();
   });
 
-  // In-page checkout: only when GET /rave/status says enabled; otherwise today's Add-a-cat sheet.
+  // In-page checkout when GET /rave/status opens card or crypto (USDC on Arc); otherwise today's Add-a-cat sheet.
   void raveStatus?.then((st) => {
     if (!st.enabled || !raveApi) return;
     hud.setCheckout((host) =>
@@ -560,7 +560,7 @@ async function boot() {
 
   // ------------------------------------------------------------------ ad space
   // Live ads always show (GET /rave/ads); empty slots, "Advertise" and the buy sheet only while
-  // GET /rave/ads/status says enabled (Stripe keys, webhook secret and, with a shelter share, the keeper are ready).
+  // GET /rave/ads/status says enabled: card (Stripe keys) or crypto (USDC on Arc to the treasury) is open.
   const adsApi = api && !og ? createAdsApi({ base: api }) : null;
   let liveAds: LiveAd[] = [];
   let adSheet: MountedAdSheet | null = null;
@@ -825,6 +825,23 @@ async function boot() {
     if (snapshot) applySnapshot(snapshot);
   };
 
+  let yieldTick = 0;
+  const yielded = new Set<Element>();
+  const yieldHud = () => {
+    const rects = adBoards.liveRects(director.camera, window.innerWidth, window.innerHeight);
+    const next = new Set<Element>();
+    if (rects.length && !hud.sheetOpen) {
+      for (const el of hudRoot.querySelectorAll('.rv-counter, .rv-side, .rv-arrivals, .rv-arc-badge, .rv-sponsors-slot')) {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        if (rects.some((a) => a.x0 < r.right && r.left < a.x1 && a.y0 < r.bottom && r.top < a.y1)) next.add(el);
+      }
+    }
+    for (const el of yielded) if (!next.has(el)) el.classList.remove('rv-yield');
+    for (const el of next) el.classList.add('rv-yield');
+    yielded.clear();
+    for (const el of next) yielded.add(el);
+  };
   const ownTagPos = new Vector3();
   const t0 = performance.now();
   let last = t0;
@@ -846,6 +863,9 @@ async function boot() {
     dj.update(f);
     director.update(f);
     adBoards.update(f.time, director.camera, world.moonCenter);
+    // A paid ad never stays under the HUD: a few times a second, any HUD block over a live ad's screen
+    // rectangle fades (CSS .rv-yield) until the camera moves on.
+    if (++yieldTick % 12 === 0) yieldHud();
     ownTag.update(director.camera, ownK >= 0 ? crowd.arrivingPosition(ownK, ownTagPos) : null, window.innerWidth, window.innerHeight);
     // A tapped cat's card closes on the next camera cut (find fly-tos hold the camera, so no cut).
     if (pinned !== null && director.focused === null && director.shot !== pinnedShot) closePinned();

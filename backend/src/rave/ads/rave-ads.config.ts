@@ -1,9 +1,17 @@
-import { RAVE_DEFAULTS, stripePublishableKeyMode, stripeSecretKeyMode, StripeKeyMode } from '../rave.config';
+import {
+    RAVE_DEFAULTS,
+    resolvePublishableKey,
+    resolveWebhookSecret,
+    stripePublishableKeyMode,
+    stripeSecretKeyMode,
+    StripeKeyMode,
+} from '../rave.config';
 
 /*
  * Moon Rave ad space config. No on/off flag: ads open whenever the config resolves
- * (RaveAdsService.readiness). Stripe keys and the webhook secret are
- * the rave checkout's (same PaymentIntent flow, same POST /rave/stripe/webhook). Ad money is Token Tails
+ * (RaveAdsService.readiness). Stripe keys, the optional webhook secret and the Events API pull are the rave
+ * checkout's (same PaymentIntent flow, same POST /rave/stripe/webhook). Crypto is USDC on Arc only, paid to
+ * the Token Tails treasury (treasury.public.ts) with a unique amount tag. Ad money is Token Tails
  * revenue; RAVE_AD_SHELTER_BPS (default 0) routes a share of each approved ad to Pink Paw through the
  * shelter-share keeper (then those dollars become cats too).
  */
@@ -38,7 +46,9 @@ function int(value: string | undefined, fallback: number, min: number, max: numb
 }
 
 export function readRaveAdsConfig(env: NodeJS.ProcessEnv = process.env): RaveAdsConfig {
-    const publishableKey = (env.STRIPE_PUBLISHABLE_KEY || '').trim() || null;
+    const production = (env.NODE_ENV || '').trim().toLowerCase() === 'production';
+    const secretKeyMode = stripeSecretKeyMode(env.STRIPE_SECRET_KEY);
+    const publishableKey = resolvePublishableKey(env, secretKeyMode, production);
     return {
         priceCents: RAVE_AD_PRICE_CENTS,
         holdMs: int(env.RAVE_AD_HOLD_MINUTES, RAVE_AD_DEFAULTS.holdMinutes, 5, 60) * 60 * 1000,
@@ -46,11 +56,11 @@ export function readRaveAdsConfig(env: NodeJS.ProcessEnv = process.env): RaveAds
         shelterBps: int(env.RAVE_AD_SHELTER_BPS, RAVE_AD_DEFAULTS.shelterBps, 0, 10000),
         feePercentBps: int(env.RAVE_FEE_PERCENT_BPS, RAVE_DEFAULTS.feePercentBps, 0, 2000),
         feeFixedCents: int(env.RAVE_FEE_FIXED_CENTS, RAVE_DEFAULTS.feeFixedCents, 0, 500),
-        secretKeyMode: stripeSecretKeyMode(env.STRIPE_SECRET_KEY),
+        secretKeyMode,
         publishableKey,
         publishableKeyMode: stripePublishableKeyMode(publishableKey || undefined),
-        webhookSecret: (env.RAVE_STRIPE_WEBHOOK_SECRET || '').trim() || null,
-        production: (env.NODE_ENV || '').trim().toLowerCase() === 'production',
+        webhookSecret: resolveWebhookSecret(env),
+        production,
     };
 }
 

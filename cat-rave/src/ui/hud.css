@@ -767,7 +767,9 @@
   position: absolute;
   z-index: -1;
   inset: -40px -60px -30px -40px;
-  background: radial-gradient(ellipse at 30% 40%, rgba(2, 12, 6, 0.6), rgba(2, 12, 6, 0.25) 45%, transparent 72%);
+  /* Darker than a plain glow: the counter sits over 3D billboards ("YOUR AD HERE") in some shots, and
+     two layers of text must not both stay legible-ish and unreadable. */
+  background: radial-gradient(ellipse at 30% 40%, rgba(2, 12, 6, 0.78), rgba(2, 12, 6, 0.45) 50%, transparent 76%);
   pointer-events: none;
 }
 
@@ -1037,4 +1039,72 @@
   .rv-sponsors-slot {
     margin-right: 52px;
   }
+}
+
+/* 760-1199 px landscape: the first-run hint stays in the bottom stack, above Add a cat and Advertise.
+   Pinned to the bottom-right corner it sat on the Advertise button at 1024 px. */
+@media (min-width: 760px) and (max-width: 1199px) and (min-aspect-ratio: 1/1) {
+  .rv-hint {
+    position: static;
+    max-width: none;
+  }
+  /* ...and the arrivals list sits above the hint's row. */
+  .rv-arrivals {
+    bottom: calc(112px + var(--safe-bottom)) !important;
+  }
+}
+
+/* Desktop: "ARRIVING NOW" moves to the bottom-left, off the DJ booth and its Arc desk logo (a sponsor
+   placement) in the middle of the hero and DJ shots. */
+@media (min-width: 760px) and (min-aspect-ratio: 1/1) {
+  .rv-arrivals {
+    position: fixed;
+    left: calc(16px + var(--safe-left, 0px));
+    bottom: calc(84px + var(--safe-bottom));
+    /* 26vw: at 1024 px it ends left of the centred first-run hint above Add a cat. */
+    width: min(320px, 26vw);
+    z-index: 1;
+  }
+  #hud.rv-has-sheet .rv-arrivals {
+    visibility: hidden;
+  }
+}
+
+/* Portrait phones: the tool column (fixed bottom-right) hides under an open sheet like the bottom bar. */
+@media (max-width: 759px) and (orientation: portrait) {
+  #hud.rv-has-sheet .rv-tools {
+    visibility: hidden;
+  }
+}
+
+/* Short phones (375x667 and the like): a slimmer stats block and one arrival row, so the scene (DJ,
+   floor) keeps more than a sliver between the top and bottom HUD. */
+@media (max-height: 700px) and (orientation: portrait) {
+  .rv-hook,
+  .rv-source {
+    display: none;
+  }
+  .rv-amount .rv-num {
+    font-size: 34px;
+  }
+  .rv-arrivals .rvc-arrivals-list > :nth-child(n + 2) {
+    display: none;
+  }
+}
+
+/* A HUD block over a live (paid) ad fades so the ad reads (main.ts yieldHud); hover or focus brings it back. */
+#hud .rv-yield {
+  opacity: 0.22;
+  transition: opacity 0.35s;
+}
+#hud .rv-yield:hover,
+#hud .rv-yield:focus-within {
+  opacity: 1;
+}
+#hud .rv-counter,
+#hud .rv-side,
+#hud .rv-arrivals,
+#hud .rv-arc-badge,
+#hud .rv-sponsors-slot {
+  transition: opacity 0.35s;
 }

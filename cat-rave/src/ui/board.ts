@@ -31,10 +31,14 @@ export function isTied(rows: readonly Pick<CountryRow, 'rank'>[], i: number): bo
 export const rankLabel = (rank: number, tied = false) =>
   tied ? `=${rank}` : rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
 
-/** "12 countries · 70 cats" (the leaderboard's summary line: cats bought from those countries). */
+/**
+ * "70 cats from 12 countries (rave buyers)": the leaderboard's summary line. It counts only cats bought
+ * in the rave with a country, so it says so (the counter's "cats dancing" also counts payouts made
+ * elsewhere, and the two numbers otherwise look contradictory).
+ */
 export function boardSummary(board: CountryBoard | null): string {
   if (!board || !board.countries) return 'No flags on the floor yet.';
-  return `${board.demo ? 'DEMO · ' : ''}${plural(board.countries, 'country', 'countries')} · ${plural(board.totalCats, 'cat', 'cats')}`;
+  return `${board.demo ? 'DEMO · ' : ''}${plural(board.totalCats, 'cat', 'cats')} from ${plural(board.countries, 'country', 'countries')} (rave buyers)`;
 }
 
 /** The chip on the stats block: "12 countries", or "Countries" before any. */

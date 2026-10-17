@@ -2,9 +2,9 @@
  * F-CHECKOUT: the in-page checkout sheet (CHECKOUT-SPEC.md sections 3, 7, 8). Mounted by the HUD's
  * Add-a-cat sheet when GET /rave/status says `enabled: true`; otherwise the HUD keeps today's sheet.
  *
- *   build  →  pick $1 / $5 / custom (≥ $10), name the cats, optional X handle, Card | USDC, fee toggle
+ *   build  →  pick $1 / $5 / custom (≥ $10), name the cats, optional X handle, Card | Crypto, fee toggle
  *   pay    →  Stripe Payment Element (card, Apple Pay, Google Pay, Link), 3DS in Stripe's own modal
- *   wallet →  USDC gift from the injected wallet with the order memo, then POST usdc-tx
+ *   wallet →  USDC gift on Arc from the injected wallet with the order memo, then POST usdc-tx
  *   done   →  "Your N cats are arriving" with their names; onPaid() starts the floor's arrival
  *
  * Never navigates away. All user text goes in with textContent; there is no innerHTML here.
@@ -18,10 +18,11 @@ import type { RaveApi } from './api';
 import { createCountryPicker } from './country';
 import { addMyOrder } from './myorders';
 import { CAT_NAME_MAX_LENGTH, checkNames, expandNames, nameFieldCount, nameMessage, namesSummary, NAME_EXAMPLE, SURPRISE_PLACEHOLDER } from './names';
+import { createMethodTabs, defaultMethod } from './methods';
 import { declineNextStep, mountPaymentElement } from './stripe';
 import type { ConfirmOutcome, MountedPayment } from './stripe';
 import type { CheckoutAnswer, CheckoutRequest, PaidOrder, RaveMethod, RaveOrderRow, RaveStatusOn } from './types';
-import { giveUsdc, injectedProvider, loadDeployments, loadSdk, usdcChoices, walletMessage } from './usdc';
+import { fillNoWallet, giveUsdc, injectedProvider, loadDeployments, loadSdk, usdcChoices, walletMessage } from './usdc';
 import type { UsdcChoice } from './usdc';
 import { X_HANDLE_MESSAGES, normalizeXHandle, xLink } from './xhandle';
 
@@ -83,7 +84,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   let choice: Choice = fixedOptions.includes(5) ? 5 : fixedOptions[0] ?? 'custom';
   let customCats = Math.min(rules.max, Math.max(rules.customMin, 10));
   let customOk = true;
-  let method: RaveMethod = cardEnabled ? 'card' : 'usdc';
+  let method: RaveMethod = defaultMethod({ card: cardEnabled, usdc: usdcEnabled });
   let coverFee = true;
   let busy = false;
   let clientKey = newClientKey();
@@ -117,7 +118,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   if (status.payoutsDelayed) {
     root.append(h('p', 'rvc-banner', 'Payouts are running slow right now. Your cats will still arrive, just a little later.'));
   }
-  const testBanner = h('p', 'rvc-banner rvc-test', 'Test mode: use a Stripe test card. No real money moves.');
+  const testBanner = h('p', 'rvc-banner rvc-test', cardEnabled ? 'Test mode: use a Stripe test card (or Arc testnet USDC). No real money moves.' : 'Test mode: Arc testnet USDC only. No real money moves.');
   testBanner.hidden = status.livemode;
   root.append(testBanner);
 
@@ -341,25 +342,15 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     languages: typeof navigator !== 'undefined' ? navigator.languages : [],
   });
 
-  // -- method tabs
-  const tabs = h('div', 'rvc-tabs');
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Pay with');
-  const tabCard = h('button', 'rvc-tab', '💳 Card · Apple Pay · Google Pay');
-  const tabUsdc = h('button', 'rvc-tab', '🪙 USDC');
-  for (const [t, m] of [[tabCard, 'card'], [tabUsdc, 'usdc']] as const) {
-    t.type = 'button';
-    t.setAttribute('role', 'tab');
-    t.addEventListener('click', () => {
-      if (busy || method === m) return;
-      method = m;
-      renderBuild();
-      if (m === 'usdc') void prepareUsdc();
-    });
-  }
-  if (cardEnabled) tabs.append(tabCard);
-  if (usdcEnabled) tabs.append(tabUsdc);
-  tabs.hidden = !(cardEnabled && usdcEnabled);
+  // -- method tabs: Card | Crypto, both always shown (a closed one is disabled with a reason)
+  const methodTabs = createMethodTabs({ card: cardEnabled, usdc: usdcEnabled, reasons: status.reasons }, (m) => {
+    if (busy || method === m) return;
+    method = m;
+    renderBuild();
+    if (m === 'usdc') void prepareUsdc();
+  });
+  const tabs = methodTabs.el;
+  const tabUsdc = methodTabs.usdc;
 
   // -- card panel
   const cardPanel = h('div', 'rvc-panel');
@@ -391,7 +382,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   const usdcChains = h('div', 'rvc-chains');
   usdcChains.setAttribute('role', 'radiogroup');
   usdcChains.setAttribute('aria-label', 'Chain');
-  const usdcNote = h('p', 'rvc-hint', 'Straight from your wallet into Pink Paw’s ShelterSplit, tagged with your order. You pay the gas.');
+  const usdcNote = h('p', 'rvc-hint', 'Straight from your wallet into Pink Paw’s ShelterSplit on Arc, tagged with your order. No card fee; Arc gas is a fraction of a cent, paid in USDC.');
   usdcPanel.append(usdcChains, usdcNote);
 
   const buildMsg = h('div', 'rv-msg rvc-msg');
@@ -402,7 +393,8 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   // Sticky footer: the total and Continue stay on screen while the buyer scrolls the names.
   const foot = h('div', 'rvc-foot');
   foot.append(buildMsg, total, go);
-  build.append(landed, optsRow, customBox, preview, namesSet, xBox, countryPicker.el, tabs, cardPanel, usdcPanel, foot, legal);
+  // Card | Crypto right under the amount, so the buyer sees both ways to pay on the first screen.
+  build.append(landed, optsRow, customBox, tabs, methodTabs.note, cardPanel, usdcPanel, preview, namesSet, xBox, countryPicker.el, foot, legal);
 
   // ================================================================== step: pay (card)
   const pay = h('section', 'rvc-step rvc-pay');
@@ -425,9 +417,12 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   walletOrb.setAttribute('aria-hidden', 'true');
   const walletLine = h('p', 'rvc-wallet-line');
   walletLine.setAttribute('aria-live', 'polite');
-  const walletBack = h('button', 'rvc-link-btn', '← Back');
+  // What the wallet is about to send (like the ad wallet step), so the buyer can check it in the popup.
+  const walletSummary = h('dl', 'rvc-wallet-sum');
+  const walletBack = h('button', 'rvc-link-btn', '← Edit / cancel');
   walletBack.type = 'button';
-  wallet.append(walletOrb, walletLine, walletBack);
+  wallet.append(walletOrb, walletLine, walletSummary, walletBack);
+  let walletWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ================================================================== step: done
   const done = h('section', 'rvc-step rvc-done');
@@ -531,13 +526,24 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   function renderUsdcChains() {
     usdcChains.replaceChildren();
     if (usdcLoading || !usdcList) {
-      usdcChains.append(h('span', 'rvc-hint', usdcLoading ? 'Loading chains…' : ''));
+      usdcChains.append(h('span', 'rvc-hint', usdcLoading ? 'Loading Arc…' : ''));
       return;
     }
     if (!usdcList.length) {
-      usdcChains.append(h('span', 'rvc-hint', 'No chain is open for USDC gifts right now. Pay by card instead.'));
+      usdcChains.append(h('span', 'rvc-hint', `Arc is not open for USDC gifts right now.${cardEnabled ? ' Pay by card instead.' : ''}`));
       return;
     }
+    // Crypto is Arc only: one fixed row (mainnet, or Arc Testnet in test mode), not a choice.
+    if (usdcList.length === 1) {
+      usdcChains.setAttribute('role', 'group');
+      const c = usdcList[0];
+      // Plain text, not a pill: there is nothing to pick.
+      const row = h('p', 'rvc-chain-fixed');
+      row.append(document.createTextNode('Network: '), h('b', '', c.name), document.createTextNode(' · coin: '), h('b', '', 'USDC'));
+      usdcChains.append(row);
+      return;
+    }
+    usdcChains.setAttribute('role', 'radiogroup');
     for (const c of usdcList) {
       const b = h('button', 'rvc-chain', c.name);
       b.type = 'button';
@@ -567,8 +573,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     renderPreview();
     renderNames();
     const n = cats();
-    tabCard.setAttribute('aria-selected', String(method === 'card'));
-    tabUsdc.setAttribute('aria-selected', String(method === 'usdc'));
+    methodTabs.render(method, busy);
     cardPanel.hidden = method !== 'card';
     usdcPanel.hidden = method !== 'usdc';
     const q = quote(catsOk() ? n : 0, coverFee, status.fee, method);
@@ -591,15 +596,22 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     if (method === 'card') {
       go.textContent = busy ? 'Getting the floor ready…' : catsOk() ? `Continue · ${formatCents(q.amountCents)}` : 'Continue';
       legal.textContent = catsOk()
-        ? `Token Tails pays the full ${formatCents(n * 100)} to Pink Paw on-chain within minutes. Card payments are not tax-deductible donations.`
+        ? `Pink Paw gets the full ${formatCents(n * 100)}: Token Tails pays it to the shelter on-chain within minutes. Card payments are not tax-deductible donations.`
         : 'Card payments are not tax-deductible donations.';
     } else {
       renderUsdcChains();
-      go.textContent = busy ? 'Opening your wallet…' : catsOk() ? `Give ${n.toLocaleString('en-US')} USDC${usdcPick ? ` on ${usdcPick.name}` : ''}` : 'Give USDC';
-      legal.textContent = 'The gift goes on-chain to Pink Paw from your own wallet. Gifts are not tax-deductible donations.';
+      go.textContent = busy ? 'Opening your wallet…' : catsOk() ? `Give ${n.toLocaleString('en-US')} USDC on ${usdcPick?.name ?? 'Arc'}` : 'Give USDC on Arc';
+      legal.textContent = catsOk()
+        ? `Pink Paw gets all ${n.toLocaleString('en-US')} USDC, straight from your wallet on Arc. Gifts are not tax-deductible donations.`
+        : 'The gift goes on-chain to Pink Paw from your own wallet on Arc. Gifts are not tax-deductible donations.';
     }
     go.disabled = busy || !catsOk() || (method === 'usdc' && !usdcPick);
     go.classList.toggle('rvc-busy', busy);
+  }
+
+  function noWalletMsg(el: HTMLElement, cardOpen: boolean) {
+    setMsg(el, '', 'err');
+    fillNoWallet(el, cardOpen);
   }
 
   function setMsg(el: HTMLElement, text: string, tone: 'err' | 'ok' | '' = '') {
@@ -722,6 +734,11 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     payGo.textContent = `Pay ${formatCents(a.amountCents)}`;
     payment?.destroy();
     payment = null;
+    if (!status.publishableKey) {
+      paySkel.hidden = true;
+      setMsg(payMsg, 'Card payments are not available right now.', 'err');
+      return;
+    }
     try {
       const mounted = await mountPaymentElement(payEl, {
         publishableKey: status.publishableKey,
@@ -775,9 +792,9 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       payGo.disabled = false;
       // A decline gets a next step (another card, a wallet, or USDC) and focus goes back to the form.
       if (r.declined && usdcEnabled) {
-        // "switch to USDC" is a real way out: back to the build step with the USDC tab selected.
+        // "switch to crypto" is a real way out: back to the build step with the Crypto tab selected.
         setMsg(payMsg, `${r.message} ${declineNextStep(false).replace(/\.$/, '')}, or `, 'err');
-        const toUsdc = h('button', 'rvc-link-btn rvc-inline-link', 'switch to USDC');
+        const toUsdc = h('button', 'rvc-link-btn rvc-inline-link', 'switch to crypto (USDC on Arc)');
         toUsdc.type = 'button';
         toUsdc.addEventListener('click', () => {
           if (busy) return;
@@ -819,7 +836,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     if (!pick) return;
     const provider = injectedProvider();
     if (!provider) {
-      setMsg(buildMsg, 'No wallet found in this browser. Open this page in your wallet app’s browser, or pay by card.', 'err');
+      noWalletMsg(buildMsg, cardEnabled);
       return;
     }
     busy = true;
@@ -842,21 +859,38 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     }
     answer = a;
     setStep('wallet');
-    walletLine.textContent = `Confirm in your wallet: ${a.cats.toLocaleString('en-US')} USDC to Pink Paw on ${pick.name}.${pick.native ? '' : ' It may ask twice (approve, then give).'}`;
+    walletLine.textContent = `Confirm in your wallet: ${a.cats.toLocaleString('en-US')} USDC to Pink Paw on ${pick.name}.${pick.native ? ' It may first ask to switch to (or add) Arc.' : ' It may ask twice (approve, then give).'}`;
+    walletSummary.replaceChildren();
+    for (const [k, v] of [
+      ['Amount', `${a.cats.toLocaleString('en-US')} USDC`],
+      ['Network', pick.name],
+      ['To', 'Pink Paw’s ShelterSplit'],
+      ['Order', a.orderId],
+    ] as const) {
+      walletSummary.append(h('dt', '', k), h('dd', '', v));
+    }
     walletBack.hidden = true;
+    // A popup closed without an answer leaves the wallet call hanging: offer a way back after a while.
+    if (walletWaitTimer) clearTimeout(walletWaitTimer);
+    walletWaitTimer = setTimeout(() => {
+      if (!destroyed && step === 'wallet' && busy) walletBack.hidden = false;
+    }, 15_000);
     let txHash: string;
     try {
       const sdk = await loadSdk();
       const r = await giveUsdc({ sdk, provider, choice: pick, memo: a.memo!, amountUnits6: a.usdc!.amountUnits6 });
       txHash = r.txHash;
     } catch (err) {
-      if (destroyed) return;
+      if (walletWaitTimer) clearTimeout(walletWaitTimer);
+      if (destroyed || step !== 'wallet') return;
       busy = false;
       walletLine.textContent = walletMessage(err);
       walletBack.hidden = false;
       return;
     }
+    if (walletWaitTimer) clearTimeout(walletWaitTimer);
     if (destroyed) return;
+    // Sent, even if the buyer went back meanwhile: the gift is real, so finish this order.
     busy = false;
     addMyOrder(a.orderId);
     pendingUsdcReport = { chainId: pick.chainId, txHash };
@@ -1043,7 +1077,9 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     renderBuild();
   });
   walletBack.addEventListener('click', () => {
-    if (busy) return;
+    // While the wallet still waits, going back is allowed (nothing is sent until the wallet answers).
+    if (walletWaitTimer) clearTimeout(walletWaitTimer);
+    busy = false;
     setStep('build');
     renderBuild();
   });
@@ -1063,6 +1099,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       if (destroyed) return;
       destroyed = true;
       if (pollTimer) clearTimeout(pollTimer);
+      if (walletWaitTimer) clearTimeout(walletWaitTimer);
       payment?.destroy();
       payment = null;
       root.remove();

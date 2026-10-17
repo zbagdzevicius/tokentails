@@ -573,7 +573,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
       grid.append(b);
     };
     add('auto', 'Auto', 'cuts on the beat', state.auto);
-    (Object.keys(SHOT_LABEL) as ShotId[]).forEach((id, i) => add(id, SHOT_LABEL[id][0], `${SHOT_LABEL[id][1]} · ${i + 1}`, !state.auto && state.shot === id));
+    (Object.keys(SHOT_LABEL) as ShotId[]).forEach((id, i) => add(id, SHOT_LABEL[id][0], h.coarse ? SHOT_LABEL[id][1] : `${SHOT_LABEL[id][1]} · ${i + 1}`, !state.auto && state.shot === id));
     sheetBody.append(grid);
     if (!h.coarse) sheetBody.append(el('div', 'rv-kbd', 'Keys: hold Space = build · Enter = drop · 1–6 shots · A auto · M mute · F find'));
   }

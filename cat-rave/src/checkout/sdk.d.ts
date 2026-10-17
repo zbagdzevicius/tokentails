@@ -38,6 +38,8 @@ export interface SdkGiftResult {
 export interface ShelterRailSdk {
   CHAINS: Readonly<Record<number, SdkChain>>;
   coinFor(chainId: number, symbol?: string): SdkCoin | null;
+  /** wallet_addEthereumChain params for a known chain, or null. */
+  addChainParams(chainId: number): Record<string, unknown> | null;
   explorerTxUrl(chainId: number, txHash: string): string;
   donateWithInjected(provider: Eip1193Provider, args: { chainId: number; split: string; amountWei: bigint | string; memo?: string }): Promise<SdkGiftResult>;
   donateTokenWithInjected(

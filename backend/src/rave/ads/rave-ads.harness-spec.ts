@@ -12,6 +12,10 @@ export { T0 };
 /** Ads ready: Stripe TEST keys (shared with the rave checkout), keeper on Arc testnet. No on/off flag. */
 export const ENV_ADS: NodeJS.ProcessEnv = { ...ENV_ON };
 
+/** A test treasury on Arc testnet: opens the crypto (USDC on Arc) tab of the ads. */
+export const ADS_TREASURY = '0x7b136b872bEad1dAE557d1286f125B7A8A197C9A';
+export const ENV_ADS_USDC: NodeJS.ProcessEnv = { ...ENV_ADS, CRYPTO_PAY_TREASURY_5042002: ADS_TREASURY };
+
 export async function png(width = 640, height = 360, color = '#ff4f9e'): Promise<Buffer> {
     return sharp({ create: { width, height, channels: 3, background: color } })
         .png()
@@ -21,7 +25,10 @@ export async function png(width = 640, height = 360, color = '#ff4f9e'): Promise
 export function adsHarness(env: NodeJS.ProcessEnv = ENV_ADS) {
     const clock = { now: new Date(T0) };
     const now = () => new Date(clock.now);
-    const ads: any = memoryModel({ unique: [['adId'], ['slotLock'], ['clientKey'], ['paymentIntentId']], now });
+    const ads: any = memoryModel({
+        unique: [['adId'], ['slotLock'], ['clientKey'], ['paymentIntentId'], ['usdcAmountKey'], ['usdcTxHash']],
+        now,
+    });
     const checkouts: any = memoryModel({ unique: [['orderId'], ['cardIntent']], now });
     const orders: any = memoryModel({ unique: [['orderId'], ['clientKey'], ['paymentIntentId']], now });
     const events: any = memoryModel({ unique: [['eventId']], now });
@@ -68,7 +75,12 @@ export function adsHarness(env: NodeJS.ProcessEnv = ENV_ADS) {
     };
     const stripePayments: any = { stripe };
     const shares: any = { runOnce: jest.fn(async () => ({ sent: 0, confirmed: 0, failed: 0, skipped: null })) };
-    const service = new RaveAdsService(ads, checkouts, stripePayments, shares);
+    // Read-only chain reader of the USDC (Arc) tab: no receipt until a test sets one.
+    const reader: any = {
+        receipt: jest.fn(async () => null),
+        blockTime: jest.fn(async () => Math.floor(T0.getTime() / 1000)),
+    };
+    const service = new RaveAdsService(ads, checkouts, stripePayments, shares, reader);
     service.env = env;
     const uploads: { key: string; data: Buffer }[] = [];
     /** Fake bucket: key → { data, public }. */
@@ -105,5 +117,5 @@ export function adsHarness(env: NodeJS.ProcessEnv = ENV_ADS) {
         return { ...intent };
     };
 
-    return { clock, ads, checkouts, intents, stripe, shares, service, webhooks, uploads, store, pay };
+    return { clock, ads, checkouts, intents, stripe, shares, reader, service, webhooks, uploads, store, pay };
 }

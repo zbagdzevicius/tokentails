@@ -2,6 +2,8 @@ import { PACK_SHELTER_IDS } from 'src/blessing/featured-shelters';
 import { shelterSplitInterface } from 'src/shelter/onchain/shelter-chain';
 import { CHAINS } from 'src/shelter/onchain/wallet.config';
 import { ENV_MAINNET_KEEPER, ENV_ON, expectRaveError, raveHarness, T0 } from './rave.harness-spec';
+import { readShelterConfig } from 'src/shelter/onchain/shelter-onchain.config';
+import { RAVE_PUBLIC_STRIPE_PK_LIVE, readRaveConfig, stripeKeyAccountHint } from './rave.config';
 import { raveDefaultNames } from './rave-names';
 import { isRaveAmount, publicOrder, raveMemo, raveMemo32, RAVE_SYSTEM_USER, usdcPaidToShelters } from './rave.service';
 
@@ -14,14 +16,36 @@ import { isRaveAmount, publicOrder, raveMemo, raveMemo32, RAVE_SYSTEM_USER, usdc
 const card = (extra: Record<string, unknown> = {}) => ({ cats: 5, method: 'card', coverFee: true, ...extra });
 
 describe('RaveService status', () => {
-    it('has no on/off flag: with no config it reports the missing Stripe setup and nothing else', async () => {
-        const { service } = raveHarness({});
+    it('has no on/off flag: with no config in production it reports the missing Stripe setup and nothing else', async () => {
+        const { service } = raveHarness({ NODE_ENV: 'production' });
         expect(await service.status(T0)).toEqual({ enabled: false, reason: 'stripe' });
     });
 
-    it('names what is missing: Stripe, the keeper, or a key/chain mode mismatch', async () => {
+    it('opens the USDC (Arc) tab without Stripe: card false with its reason, no publishable key', async () => {
+        const { service } = raveHarness({});
+        const status = await service.status(T0);
+        expect(status).toMatchObject({
+            enabled: true,
+            card: false,
+            cardReason: 'stripe',
+            usdc: { enabled: true, chains: [5042002] },
+        });
+        expect(status.publishableKey).toBeUndefined();
+    });
+
+    it('needs no webhook secret: the card tab opens with the secret and publishable keys alone', async () => {
+        const { service } = raveHarness({ ...ENV_ON, RAVE_STRIPE_WEBHOOK_SECRET: '' });
+        expect(await service.status(T0)).toMatchObject({
+            enabled: true,
+            card: true,
+            publishableKey: 'pk_test_rave_fake',
+        });
+    });
+
+    it('names what is missing for the card tab: Stripe, the keeper, or a key/chain mode mismatch', async () => {
         const cases: [NodeJS.ProcessEnv, string][] = [
-            [{ ...ENV_ON, RAVE_STRIPE_WEBHOOK_SECRET: '' }, 'stripe'],
+            [{ ...ENV_ON, STRIPE_SECRET_KEY: '' }, 'stripe'],
+            // A test secret key never falls back to the public live publishable key.
             [{ ...ENV_ON, STRIPE_PUBLISHABLE_KEY: '' }, 'stripe'],
             // A testnet keeper while checkout sells on mainnet never runs (shelterShareNetworkOk).
             [{ ...ENV_ON, CRYPTO_PAY_NETWORK: 'mainnet' }, 'keeper'],
@@ -34,8 +58,54 @@ describe('RaveService status', () => {
         ];
         for (const [env, reason] of cases) {
             const { service } = raveHarness(env);
+            // USDC closed too (no verified chain), so the card reason is the status reason.
+            (service as any).claims = { publicGivingVerified: async () => false };
             expect(await service.status(T0)).toEqual({ enabled: false, reason });
         }
+    });
+
+    it('falls back to the public live publishable key only for a live secret key in production', () => {
+        const live = { STRIPE_SECRET_KEY: 'sk_live_x', NODE_ENV: 'production' };
+        expect(readRaveConfig(live)).toMatchObject({
+            publishableKey: RAVE_PUBLIC_STRIPE_PK_LIVE,
+            publishableKeyMode: 'live',
+            webhookSecret: null,
+            confirm: 'events',
+        });
+        expect(readRaveConfig({ STRIPE_SECRET_KEY: 'sk_live_x' }).publishableKey).toBeNull();
+        expect(readRaveConfig({ STRIPE_SECRET_KEY: 'sk_test_x', NODE_ENV: 'production' }).publishableKey).toBeNull();
+        expect(readRaveConfig({ ...live, STRIPE_PUBLISHABLE_KEY: 'pk_live_other' }).publishableKey).toBe(
+            'pk_live_other'
+        );
+        // The webhook secret is optional: the rave's own, else the shared one.
+        expect(readRaveConfig({ STRIPE_WEBHOOK_SECRET: 'whsec_a' })).toMatchObject({
+            webhookSecret: 'whsec_a',
+            confirm: 'webhook',
+        });
+        expect(
+            readRaveConfig({ STRIPE_WEBHOOK_SECRET: 'whsec_a', RAVE_STRIPE_WEBHOOK_SECRET: 'whsec_b' }).webhookSecret
+        ).toBe('whsec_b');
+        expect(stripeKeyAccountHint(RAVE_PUBLIC_STRIPE_PK_LIVE)).toBe('SHsEzQ3sukDo4Y');
+        expect(stripeKeyAccountHint('sk_test_x')).toBeNull();
+    });
+
+    it('opens card in production with a live secret key and no other Stripe env (Arc mainnet keeper)', async () => {
+        const { service } = raveHarness({
+            ...ENV_MAINNET_KEEPER,
+            NODE_ENV: 'production',
+            STRIPE_SECRET_KEY: 'sk_live_x',
+            STRIPE_PUBLISHABLE_KEY: '',
+            RAVE_STRIPE_WEBHOOK_SECRET: '',
+        });
+        (service as any).claims = { publicGivingVerified: async (id: number) => id === 5042 };
+        const status = await service.status(T0);
+        expect(status).toMatchObject({
+            enabled: true,
+            livemode: true,
+            card: true,
+            publishableKey: RAVE_PUBLIC_STRIPE_PK_LIVE,
+            usdc: { enabled: true, chains: [5042] },
+        });
     });
 
     it('returns the publishable key, prices, fee, and USDC off when no chain is verified; never a secret', async () => {
@@ -46,6 +116,7 @@ describe('RaveService status', () => {
             enabled: true,
             livemode: false,
             publishableKey: 'pk_test_rave_fake',
+            reasons: { usdc: 'keeper' },
             card: true,
             usdc: { enabled: false, chains: [] },
             prices: { fixed: [1, 5], customMin: 10, max: 100 },
@@ -53,6 +124,15 @@ describe('RaveService status', () => {
             payoutsDelayed: false,
         });
         expect(JSON.stringify(status)).not.toMatch(/sk_test|whsec/);
+    });
+
+    it('offers USDC on Arc only, and only on a mainnet Arc whose public giving is verified', async () => {
+        const h = raveHarness(ENV_MAINNET_KEEPER);
+        (h.service as any).claims = { publicGivingVerified: async () => true };
+        expect(await h.service.usdcChains(readShelterConfig(ENV_MAINNET_KEEPER), T0)).toEqual([5042]);
+        const off = raveHarness(ENV_MAINNET_KEEPER);
+        (off.service as any).claims = { publicGivingVerified: async (id: number) => id !== 5042 };
+        expect(await off.service.usdcChains(readShelterConfig(ENV_MAINNET_KEEPER), T0)).toEqual([]);
     });
 
     it('lists USDC chains only where public giving is verified (testnets of the keeper class)', async () => {
@@ -63,7 +143,8 @@ describe('RaveService status', () => {
             .map(c => c.chainId);
         expect(status.usdc!.enabled).toBe(true);
         for (const id of status.usdc!.chains) expect(testnetSplits).toContain(id);
-        expect(status.usdc!.chains).not.toContain(5042);
+        // Arc only: no other testnet split, and never the mainnet.
+        expect(status.usdc!.chains).toEqual([5042002]);
     });
 });
 
@@ -179,6 +260,23 @@ describe('RaveService checkout', () => {
         );
         expect(h.orders.rows).toHaveLength(0);
         expect(h.stripe.paymentIntents.create).not.toHaveBeenCalled();
+    });
+
+    it('checks each tab on its own: card is 503 without Stripe while a USDC (Arc) order still works', async () => {
+        const h = raveHarness({ ...ENV_ON, STRIPE_SECRET_KEY: '' });
+        await expectRaveError(h.service.checkout(card(), T0), 503, 'RAVE_OFF');
+        const res = await h.service.checkout({ cats: 5, method: 'usdc' }, T0);
+        expect(res.usdc!.chains).toEqual([5042002]);
+        expect(h.stripe.paymentIntents.create).not.toHaveBeenCalled();
+        // A USDC tx on another chain is refused: Arc only.
+        await expectRaveError(
+            h.service.reportUsdcTx(res.orderId, { chainId: 84532, txHash: '0x' + 'ab'.repeat(32) }, T0),
+            400,
+            'RAVE_METHOD'
+        );
+        // Production refuses a testnet shelter chain for USDC.
+        const prod = raveHarness({ ...ENV_ON, STRIPE_SECRET_KEY: '', NODE_ENV: 'production' });
+        await expectRaveError(prod.service.checkout({ cats: 5, method: 'usdc' }, T0), 503, 'RAVE_OFF');
     });
 
     it('refuses the USDC tab while no chain has verified public giving', async () => {

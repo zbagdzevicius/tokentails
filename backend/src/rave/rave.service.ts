@@ -31,7 +31,8 @@ import {
 } from 'src/shelter/onchain/shelter-onchain.config';
 import { CHAINS } from 'src/shelter/onchain/wallet.config';
 import Stripe from 'stripe';
-import { RaveConfig, readRaveConfig } from './rave.config';
+import { RAVE_USDC_CHAIN_IDS, RaveConfig, readRaveConfig } from './rave.config';
+import { checkRaveStripeAccount, noteRaveStripeError, raveStripeBroken } from './rave-stripe-health';
 import { RAVE_ERRORS } from './rave.errors';
 import { raveQuote } from './rave-fee';
 import { RaveCountrySource, resolveRaveCountry } from './rave-country';
@@ -105,8 +106,13 @@ export interface RaveStatus {
     enabled: boolean;
     reason?: RaveOffReason;
     livemode?: boolean;
+    /** Only while the card tab is open. */
     publishableKey?: string;
     card?: boolean;
+    /** Why the card tab is closed while USDC is open. */
+    cardReason?: RaveOffReason;
+    /** Why each closed tab is closed (`card` repeats cardReason). */
+    reasons?: { card?: RaveOffReason; usdc?: RaveOffReason };
     usdc?: { enabled: boolean; chains: number[] };
     prices?: { fixed: number[]; customMin: number; max: number };
     fee?: { percentBps: number; fixedCents: number };
@@ -229,13 +235,20 @@ export class RaveService implements OnModuleDestroy {
 
     // ------------------------------------------------------------------ status
 
-    /** Why checkout is closed, or null when card checkout may run (before the daily cap). */
+    /**
+     * Why the CARD tab is closed, or null when card checkout may run (before the daily cap). Needs a
+     * Stripe secret key and a publishable key of the same mode (rave.config.ts resolves the public live
+     * key in production), and the shelter keeper on the key's network class. No webhook secret: payments
+     * are also confirmed by the Events API pull.
+     */
     readiness(cfg: RaveConfig = readRaveConfig(this.env)): {
         reason: RaveOffReason | null;
         shelter: ShelterOnchainConfig;
     } {
         const shelter = readShelterConfig(this.env);
-        if (!cfg.secretKeyMode || !cfg.publishableKeyMode || !cfg.webhookSecret) return { reason: 'stripe', shelter };
+        if (!cfg.secretKeyMode || !cfg.publishableKeyMode || raveStripeBroken(cfg.publishableKey)) {
+            return { reason: 'stripe', shelter };
+        }
         if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) {
             return { reason: 'keeper', shelter };
         }
@@ -247,6 +260,30 @@ export class RaveService implements OnModuleDestroy {
         if (!shelterShareNetworkOk(shelter, readCryptoPayConfig(this.env), this.env))
             return { reason: 'keeper', shelter };
         return { reason: null, shelter };
+    }
+
+    /**
+     * Why the USDC tab is closed before any chain is checked, or null. It needs neither Stripe nor the
+     * keeper (the buyer pays the split directly); only a testnet shelter chain in production is refused.
+     */
+    usdcReason(cfg: RaveConfig, shelter: ShelterOnchainConfig): RaveOffReason | null {
+        return cfg.production && isTestnetChain(shelter.chainId) ? 'mode' : null;
+    }
+
+    /** Both tabs: the card reason (null = open) and the Arc chains USDC may use (empty = closed). */
+    async methods(
+        cfg: RaveConfig = readRaveConfig(this.env),
+        now: Date = new Date()
+    ): Promise<{
+        card: RaveOffReason | null;
+        usdc: RaveOffReason | null;
+        usdcChains: number[];
+        shelter: ShelterOnchainConfig;
+    }> {
+        const { reason, shelter } = this.readiness(cfg);
+        const usdcOff = this.usdcReason(cfg, shelter);
+        const usdcChains = usdcOff ? [] : await this.usdcChains(shelter, now);
+        return { card: reason, usdc: usdcOff || (usdcChains.length ? null : 'keeper'), usdcChains, shelter };
     }
 
     /**
@@ -286,29 +323,36 @@ export class RaveService implements OnModuleDestroy {
         return Math.max(0, capCents - paid - held);
     }
 
+    /**
+     * `enabled` when the card or the USDC tab is open (and today's cap is not reached). `card: false` with
+     * `cardReason` (and no publishable key) when only USDC is open; `usdc.enabled: false` when only card is.
+     */
     async status(now: Date = new Date()): Promise<RaveStatus> {
         const cfg = readRaveConfig(this.env);
-        const { reason, shelter } = this.readiness(cfg);
-        if (reason) return { enabled: false, reason };
+        await checkRaveStripeAccount(this.stripePayments, cfg, now);
+        const m = await this.methods(cfg, now);
+        if (m.card && m.usdc) return { enabled: false, reason: m.card };
         const max = Math.min(cfg.maxCats, Math.floor((await this.remainingTodayCents(cfg, now)) / 100));
         if (max < 1) return { enabled: false, reason: 'cap' };
-        const usdcChains = await this.usdcChains(shelter, now);
+        const card = !m.card;
         return {
             enabled: true,
-            livemode: cfg.secretKeyMode === 'live',
-            publishableKey: cfg.publishableKey!,
-            card: true,
-            usdc: { enabled: usdcChains.length > 0, chains: usdcChains },
+            livemode: card ? cfg.secretKeyMode === 'live' : !isTestnetChain(m.shelter.chainId),
+            ...(card ? { publishableKey: cfg.publishableKey! } : { cardReason: m.card! }),
+            card,
+            reasons: { ...(m.card ? { card: m.card } : {}), ...(m.usdc ? { usdc: m.usdc } : {}) },
+            usdc: { enabled: m.usdcChains.length > 0, chains: m.usdcChains },
             prices: { fixed: [1, 5], customMin: 10, max },
             fee: { percentBps: cfg.feePercentBps, fixedCents: cfg.feeFixedCents },
-            payoutsDelayed: await this.payoutsDelayed(now),
+            payoutsDelayed: card ? await this.payoutsDelayed(now) : false,
         };
     }
 
     /**
-     * Chains a USDC gift may use: wallet.config.ts chains of the main chain's network class whose split
-     * pays a USD coin, and only where buyer money never reaches a wallet Token Tails holds
-     * (ShelterClaimService.publicGivingVerified; without it, testnets only).
+     * Chains a USDC gift may use: Arc only (RAVE_USDC_CHAIN_IDS, the rave's one crypto chain), of the main
+     * chain's network class, whose split pays a USD coin (EURC never: a cat is a dollar), and only where
+     * buyer money never reaches a wallet Token Tails holds (ShelterClaimService.publicGivingVerified;
+     * without it, testnets only).
      */
     async usdcChains(shelter: ShelterOnchainConfig, now: Date = new Date()): Promise<number[]> {
         const testnet = isTestnetChain(shelter.chainId);
@@ -319,6 +363,7 @@ export class RaveService implements OnModuleDestroy {
         const candidates = Object.values(CHAINS)
             .filter(c => c.split && (c.network === 'testnet') === testnet)
             .filter(c => !/^EUR/i.test(c.split!.token.symbol) && !NON_USD_TREAT_CHAIN_IDS.includes(c.chainId))
+            .filter(c => RAVE_USDC_CHAIN_IDS.includes(c.chainId))
             .map(c => c.chainId);
         const chains: number[] = [];
         for (const chainId of candidates) {
@@ -358,9 +403,23 @@ export class RaveService implements OnModuleDestroy {
         return !!waiting;
     }
 
-    /** 503 while something checkout needs is missing (no on/off flag). */
+    /** 503 while the card tab is closed (no on/off flag). */
     assertOpen(cfg: RaveConfig = readRaveConfig(this.env)): ShelterOnchainConfig {
         const { reason, shelter } = this.readiness(cfg);
+        if (reason) throw RAVE_ERRORS.off(reason);
+        return shelter;
+    }
+
+    /** 503 while neither the card nor the USDC tab is open (the route's first check, before its throttle). */
+    async assertAnyOpen(cfg: RaveConfig = readRaveConfig(this.env), now: Date = new Date()): Promise<void> {
+        const m = await this.methods(cfg, now);
+        if (m.card && m.usdc) throw RAVE_ERRORS.off(m.card);
+    }
+
+    /** 503 while the USDC tab cannot run at all (a testnet shelter chain in production). */
+    private assertUsdcOpen(cfg: RaveConfig): ShelterOnchainConfig {
+        const shelter = readShelterConfig(this.env);
+        const reason = this.usdcReason(cfg, shelter);
         if (reason) throw RAVE_ERRORS.off(reason);
         return shelter;
     }
@@ -376,13 +435,21 @@ export class RaveService implements OnModuleDestroy {
         detectedCountry: string | null = null
     ): Promise<RaveCheckoutResponse> {
         const cfg = readRaveConfig(this.env);
-        const shelter = this.assertOpen(cfg);
-        if (!body || typeof body !== 'object') throw RAVE_ERRORS.invalid('Expected a JSON body');
+        await checkRaveStripeAccount(this.stripePayments, cfg, now);
+        if (!body || typeof body !== 'object') {
+            await this.assertAnyOpen(cfg, now);
+            throw RAVE_ERRORS.invalid('Expected a JSON body');
+        }
+        const method: RaveMethod = body.method === undefined ? 'card' : (body.method as RaveMethod);
+        if (method !== 'card' && method !== 'usdc') {
+            await this.assertAnyOpen(cfg, now);
+            throw RAVE_ERRORS.method();
+        }
+        // Each tab is checked on its own: the USDC tab needs neither Stripe nor the keeper.
+        const shelter = method === 'card' ? this.assertOpen(cfg) : this.assertUsdcOpen(cfg);
 
         if (!isRaveAmount(body.cats, cfg.maxCats)) throw RAVE_ERRORS.amount();
         const cats = body.cats;
-        const method: RaveMethod = body.method === undefined ? 'card' : (body.method as RaveMethod);
-        if (method !== 'card' && method !== 'usdc') throw RAVE_ERRORS.method();
         if (body.coverFee !== undefined && typeof body.coverFee !== 'boolean') {
             throw RAVE_ERRORS.invalid('coverFee must be true or false');
         }
@@ -524,6 +591,7 @@ export class RaveService implements OnModuleDestroy {
             );
         } catch (error) {
             this.logger.warn(`rave ${order.orderId}: PaymentIntent not created: ${(error as Error)?.message}`);
+            noteRaveStripeError(error);
             // Nothing was charged; the order would only hold today's cap. A retry makes a new one.
             await this.orders.deleteOne({ orderId: order.orderId, paymentIntentId: { $exists: false } });
             throw RAVE_ERRORS.stripe();
@@ -564,12 +632,19 @@ export class RaveService implements OnModuleDestroy {
      * the caller that wins the atomic `created|pending → paid|review` transition queues the payout; a
      * repeat re-queues an already paid order idempotently (a crash between the two writes).
      */
-    async markPaid(intent: Stripe.PaymentIntent, now: Date = new Date()): Promise<MarkPaidOutcome> {
+    async markPaid(
+        intent: Stripe.PaymentIntent,
+        now: Date = new Date(),
+        opts: { recover?: boolean } = {}
+    ): Promise<MarkPaidOutcome> {
         const md = intent?.metadata || {};
         if (md.rave !== '1' || !RAVE_ORDER_ID_RE.test(String(md.orderId || ''))) return 'ignored';
         if (intent.status !== 'succeeded') return 'not-succeeded';
         const orderId = String(md.orderId);
         let order: any = await this.orders.findOne({ orderId }).lean();
+        // An intent pulled from the Events API may be another deployment's (same Stripe account, other
+        // database): only a pushed webhook or the buyer's own GET may rebuild a missing order.
+        if (!order && opts.recover === false) return 'ignored';
         if (!order) order = await this.recoverOrder(intent, now);
         if (
             !order ||
@@ -1013,14 +1088,19 @@ export class RaveService implements OnModuleDestroy {
 
     async reportUsdcTx(orderId: string, body: { chainId?: unknown; txHash?: unknown }, now: Date = new Date()) {
         const cfg = readRaveConfig(this.env);
-        const shelter = this.assertOpen(cfg);
+        const shelter = this.assertUsdcOpen(cfg);
         if (!RAVE_ORDER_ID_RE.test(String(orderId || ''))) throw RAVE_ERRORS.orderNotFound();
         const chainId = Number(body?.chainId);
         const txHash = typeof body?.txHash === 'string' ? body.txHash.toLowerCase() : '';
         if (!Number.isSafeInteger(chainId) || !TX_HASH_RE.test(txHash)) {
             throw RAVE_ERRORS.invalid('Expected { chainId, txHash }');
         }
-        if (!(await this.usdcChains(shelter, now)).includes(chainId)) throw RAVE_ERRORS.method();
+        // Arc of the shelter chain's network class. Not re-checked against today's open chains: a buyer who
+        // already paid is still credited if the crypto tab closed meanwhile (the receipt check still requires
+        // the gift to reach that chain's recorded split, usdcPaidToShelters).
+        if (!RAVE_USDC_CHAIN_IDS.includes(chainId) || isTestnetChain(chainId) !== isTestnetChain(shelter.chainId)) {
+            throw RAVE_ERRORS.method();
+        }
         const order: any = await this.orders.findOne({ orderId }).lean();
         if (!order || order.method !== 'usdc') throw RAVE_ERRORS.orderNotFound();
         if (order.usdc?.txHash && order.usdc.txHash !== txHash) {
