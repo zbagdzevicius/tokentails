@@ -64,10 +64,10 @@ export function heistReelAllowed(
 export const HEIST_SECTION_HREF = "/heist?from=landing_heist";
 
 /**
- * The levels in catnip-heist/src/levels (heist-01 to heist-08). A test counts the level files, so
- * this copy cannot drift from the game.
+ * The levels in catnip-heist/src/levels (heist-01 to heist-16: Act 1 and Act 2). A test counts the
+ * level files, so this copy cannot drift from the game.
  */
-export const HEIST_LEVEL_COUNT = 8;
+export const HEIST_LEVEL_COUNT = 16;
 
 /**
  * The note under the CTA: /heist plays straight away, sign-in is only offered after a run. It is

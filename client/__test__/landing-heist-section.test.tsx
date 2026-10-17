@@ -90,7 +90,7 @@ describe("Catnip Heist section", () => {
     expect(fs.statSync(path.join(pub, HEIST_REEL.webm)).size).toBeLessThan(4.5 * 1024 * 1024);
   });
 
-  it("says 8 heists because the game ships exactly that many levels", () => {
+  it("says 16 heists because the game ships exactly that many levels", () => {
     const levels = fs
       .readdirSync(path.resolve(__dirname, "../../catnip-heist/src/levels"))
       .filter((f) => /^heist-\d+\.json$/.test(f));

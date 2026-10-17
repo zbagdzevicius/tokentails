@@ -268,7 +268,7 @@ filter them out.
 | Catnip Chaos (Purrsuit) | 97 (`01`, then `11` to `166`) | `catnipChaos[]`, `catnipChaosCleared[]` | 500 for the endless level `01` (decision #57), 10 for every other level |
 | Pixel Rescue (Cupid Cat, season event) | 14 | `seasonEvent[]`, `seasonEventCleared[]` | 500 per level |
 | Paw Match (Match 3) | 30 | `match3[]` catnip and `match3Score[]` raw score, `match3Cleared[]` | Catnip per level from a formula capped at 85; score capped at one million |
-| Catnip Heist | 8 (`heist-01` to `heist-08`) | `heistScore[]` (best server score), `heistStars[]` (star bit mask) | `HEIST_LEVEL_CAPS` 250, 240, 220, 270, 240, 240, 240, 310, derived from the sim (`coins x 10 + 50`) |
+| Catnip Heist | 16 (`heist-01` to `heist-16`: Act 1 is 01-08, Act 2 is 09-16) | `heistScore[]` (best server score), `heistStars[]` (star bit mask) | `HEIST_LEVEL_CAPS` 250, 240, 220, 270, 240, 240, 240, 310 (Act 1), 270, 270, 270, 260, 270, 290, 270, 330 (Act 2), derived from the sim (`coins x 10 + 50`). Accounts saved with 8 slots grow to 16 on their next Heist save (`arrayGuardPipeline` pads `heistStars`; `$max` pads `heistScore`) |
 
 The caps live in `shared/caps.ts` (copied into `src/shared-contracts/caps.ts`). `MAX_LEGIT_CATNIP_SCORE`
 (`totalCatnipCap`, 2,758 since the cap raise; it was 2,678) filters the catnip boards.

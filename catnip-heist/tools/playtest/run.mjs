@@ -2,7 +2,7 @@
 /**
  * Synthetic-player playtest: bundles tools/playtest/cli.ts with rolldown (a Vite dependency, same as
  * tools/solve.mjs) and runs it. All flags are passed through; see `--help`.
- *   npm run playtest:bots                                   # 8 levels x 4 personas x 200 seeds, writes playtest/BOT-REPORT.md
+ *   npm run playtest:bots                                   # 16 levels x 4 personas x 200 seeds, writes playtest/BOT-REPORT.md
  *   npm run playtest:bots -- --levels heist-02,heist-05 --personas novice --runs 50 --json out.json --no-md
  */
 import { build } from 'rolldown';
