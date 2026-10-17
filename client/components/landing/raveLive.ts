@@ -1,5 +1,5 @@
 // copy-lint: web-only data helper; the Moon Rave callouts that render it never show in the app build
-// The landing's live Moon Rave line (hero pill and RaveSection): the same numbers the rave counts,
+// The landing's live Moon Rave line (RaveSection): the same numbers the rave counts,
 // read from the same public source (cat-rave/README.md "The $1 = 1 cat rule").
 //
 //   GET {api}/shelter/payouts?network=mainnet  every ShelterSplit payout to Pink Paw (the shared
@@ -22,7 +22,7 @@ import { useEffect, useState } from "react";
 
 /** The rave page. `from` says which landing callout sent the visitor (the rave ignores it). */
 export const RAVE_PATH = "/rave";
-export const raveHref = (from: "landing_hero" | "landing_rave") => `${RAVE_PATH}?from=${from}`;
+export const raveHref = (from: "landing_rave") => `${RAVE_PATH}?from=${from}`;
 
 /** The 7 mainnets of the Pink Paw splits, as cat-rave/src/config.ts CHAINS (Arc, Base, Arbitrum One, Avalanche, Tempo, Robinhood Chain, Monad). */
 export const RAVE_MAINNET_CHAIN_IDS: readonly number[] = Object.freeze([5042, 8453, 42161, 43114, 4217, 4663, 143]);
@@ -110,7 +110,7 @@ export function raveCheckoutFromStatus(body: unknown): RaveCheckout | null {
 const STATUS_TIMEOUT_MS = 4_000;
 let statusRead: Promise<RaveCheckout | null> | null = null;
 
-/** One `GET /rave/status` per page view, shared by the hero pill and the section. */
+/** One `GET /rave/status` per page view, shared by everything on the page that reads it. */
 export function loadRaveCheckout(
   base: string | undefined = apiUrl,
   fetchFn: typeof fetch = fetch

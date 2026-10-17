@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * The landing's Moon Rave callouts (hero pill and RaveSection): web only, no flag; CTA hrefs carry
+ * The landing's Moon Rave section (RaveSection; the hero pill was removed Oct 17): web only, no flag; CTA hrefs carry
  * `from`; the live line is read from the rave's own source (GET /shelter/payouts) with the rave's
  * $1 = 1 cat rule, and no number shows while unread or when the read fails; the reel follows the
  * landing reel rules; the app export drops the reel files; the footer links MOON RAVE on the web.
@@ -39,7 +39,6 @@ import {
   resetRaveLiveCache,
   toUsdMicro,
 } from "@/components/landing/raveLive";
-import { RAVE_PILL_HREF, RavePill } from "@/components/landing/RavePill";
 import {
   RAVE_PROOF_HREF,
   RAVE_ARC_TAIL,
@@ -190,50 +189,6 @@ describe("the rave count (cat-rave's $1 = 1 cat rule)", () => {
     const { livemode: _omit, ...noMode } = statusBody;
     void _omit;
     expect(raveCheckoutFromStatus(noMode)).toBeNull();
-  });
-});
-
-describe("RavePill (hero)", () => {
-  it("links to /rave?from=landing_hero, shows a skeleton, then the live line", async () => {
-    const { getByTestId, queryByTestId } = render(<RavePill />);
-    expect(RAVE_PILL_HREF).toBe("/rave?from=landing_hero");
-    expect(getByTestId("rave-pill").getAttribute("href")).toBe(RAVE_PILL_HREF);
-    expect(getByTestId("rave-pill").textContent).toContain("Moon Rave");
-    expect(getByTestId("rave-live-skeleton")).toBeTruthy();
-    await waitFor(() => expect(queryByTestId("rave-live-line")).toBeTruthy());
-    expect(queryByTestId("rave-live-skeleton")).toBeNull();
-    expect(getByTestId("rave-live-line").textContent).toBe(
-      "$25.75 paid out for Pink Paw on-chain · 25\u00A0cats\u00A0dancing"
-    );
-    // No payer named in the line: the total mixes Token Tails' and givers' payouts.
-    expect(getByTestId("rave-live-line").textContent).not.toMatch(/Token Tails/);
-    expect(mockLoadIndex).toHaveBeenCalledWith("mainnet", "https://api.test");
-  });
-
-  it("hides the number when the payouts could not be read", async () => {
-    mockLoadIndex.mockResolvedValue(null);
-    const { getByTestId, queryByTestId } = render(<RavePill />);
-    await waitFor(() => expect(queryByTestId("rave-live-skeleton")).toBeNull());
-    expect(queryByTestId("rave-live-line")).toBeNull();
-    expect(getByTestId("rave-pill-wrap").textContent).not.toMatch(/\d/);
-    // The slot keeps its height, so the hero does not jump when the line stays hidden.
-    expect(getByTestId("rave-pill-line-slot").className).toMatch(/min-h-/);
-    // The CTA stays.
-    expect(getByTestId("rave-pill").getAttribute("href")).toBe(RAVE_PILL_HREF);
-  });
-
-  it("hides the number when the read throws", async () => {
-    mockLoadIndex.mockRejectedValue(new Error("down"));
-    const { queryByTestId } = render(<RavePill />);
-    await waitFor(() => expect(queryByTestId("rave-live-skeleton")).toBeNull());
-    expect(queryByTestId("rave-live-line")).toBeNull();
-  });
-
-  it("renders nothing and reads nothing in the app build", () => {
-    mockIsApp = true;
-    const { container } = render(<RavePill />);
-    expect(container.innerHTML).toBe("");
-    expect(mockLoadIndex).not.toHaveBeenCalled();
   });
 });
 

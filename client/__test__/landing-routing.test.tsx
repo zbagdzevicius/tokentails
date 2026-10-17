@@ -189,13 +189,12 @@ describe("root visit", () => {
     }
   });
 
-  it("headlines Moon Rave: the pill above PLAY GAME, the rave section straight under the hero (web)", () => {
+  it("headlines Moon Rave with the section straight under the hero; no hero pill (web)", () => {
     const { container } = render(<HomePage />);
     expectGamingLanding(container);
-    const pill = container.querySelector('[data-testid="rave-pill"]');
-    expect(pill?.getAttribute("href")).toBe("/rave?from=landing_hero");
-    const heroCta = container.querySelector('[data-testid="hero-cta"]');
-    expect(pill!.compareDocumentPosition(heroCta!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Founder, Oct 17: the hero pill and its live line looked bad and were removed.
+    expect(container.querySelector('[data-testid="rave-pill"]')).toBeNull();
+    expect(container.querySelector('[data-testid="hero-cta"]')).not.toBeNull();
     const rave = container.querySelector('[data-testid="rave-section"]');
     const proof = container.querySelector('[data-testid="proof-section"]');
     const heist = container.querySelector('[data-testid="heist-section"]');
