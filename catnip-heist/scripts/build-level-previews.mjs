@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // Builds the level-select previews in public/assets/images/levels/ from real gameplay frames:
 //
-//   heist-0N.webp       card thumbnail, 480x270
-//   heist-0N@2x.webp    the same at 960x540 (retina cards, and the hero of the brief panel)
-//   heist-0N-loop.mp4   a ~2.5 s muted "living" loop for the focused card (H.264, 480x270, 15 fps,
+//   heist-NN.webp       card thumbnail, 480x270
+//   heist-NN@2x.webp    the same at 960x540 (retina cards, and the hero of the brief panel)
+//   heist-NN-loop.mp4   a ~2.5 s muted "living" loop for the focused card (H.264, 480x270, 15 fps,
 //                       the last frames crossfaded into the first so it loops without a jump)
 //
 // Sources (read-only): the promo clip frame sequences in promo/assets/clips/<clip>/NNNN.jpg
 // (1920x1080, captured by promo/tools/capture.mjs from solution replays) and, for levels with no
-// promo clip (heist-03), frames captured by scripts/build-level-previews.capture.mjs into
+// promo clip (heist-03, heist-09..16), frames captured by scripts/build-level-previews.capture.mjs into
 // node_modules/.cache/level-previews/. Both are gitignored and reproducible; this script only
 // reads them. Every level gets the same treatment: one 16:9 crop shared by its stills and its
 // loop (so the loop fades in over its own thumbnail), an exposure match to a common target so the
-// eight read as one set, a light saturation and contrast lift and a gentle sharpen.
+// sixteen read as one set, a light saturation and contrast lift and a gentle sharpen.
 //
 //   node scripts/build-level-previews.mjs            # build everything, print sizes
 //   node scripts/build-level-previews.mjs heist-03   # just some levels
@@ -61,6 +61,23 @@ export const LEVELS = [
   { id: 'heist-07', clip: 'h07-split-shift', thumb: 60, loop: [1, 87], center: [0.62, 0.38], zoom: 1.25 },
   // HQ finale: alerted guard by the vault, coins, then the RESCUE flash and confetti (f113).
   { id: 'heist-08', clip: 'h08-vault-rescue', thumb: 100, loop: [39, 125], center: [0.52, 0.45], zoom: 1.2 },
+  // Act 2: all captured (scripts/build-level-previews.capture.mjs; the frame windows are there).
+  // MEOW through the glass (f36) freezes the shark and the eel while the partner holds the plate.
+  { id: 'heist-09', clip: 'h09-deep-blue', captured: true, thumb: 45, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // The pharmacy door opens (f40) with the vault key: the nurse's new shortcut.
+  { id: 'heist-10', clip: 'h10-after-hours', captured: true, thumb: 45, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // One switch plate (f31) opens both gates; SWAP (f35) under the signal sentries.
+  { id: 'heist-11', clip: 'h11-signal-box', captured: true, thumb: 40, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // Doorstop: the plate is let go (f27) and the door stays open around the cat in the doorway.
+  { id: 'heist-12', clip: 'h12-spin-cycle', captured: true, thumb: 40, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // MEOW through the held cat flap (f30); the doorman leaves the long way round.
+  { id: 'heist-13', clip: 'h13-kibble-factory', captured: true, thumb: 45, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // The key is passed: SWAP (f41) and the far cage opens (f42).
+  { id: 'heist-14', clip: 'h14-golden-bowl', captured: true, thumb: 50, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
+  // The vault opens (f21) and the exhibit statues wake.
+  { id: 'heist-15', clip: 'h15-night-gallery', captured: true, thumb: 40, loop: [10, 96], center: [0.5, 0.5], zoom: 1.25 },
+  // Plate h in the CEO's office (f28) opens the helipad airlock for the partner.
+  { id: 'heist-16', clip: 'h16-tower', captured: true, thumb: 45, loop: [20, 106], center: [0.5, 0.5], zoom: 1.25 },
 ];
 
 const framePath = (lv, f) => join(lv.captured ? CAPTURED : PROMO, lv.clip, `${String(f).padStart(4, '0')}.jpg`);

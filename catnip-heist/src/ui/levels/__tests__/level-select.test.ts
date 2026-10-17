@@ -41,7 +41,8 @@ describe('level select previews', () => {
   it('gives every card a still with a 2x srcset, an aspect box and a blur-up placeholder', () => {
     const { el } = open();
     const cards = el.querySelectorAll<HTMLElement>('.ch-lv-card');
-    expect(cards).toHaveLength(8);
+    expect(cards).toHaveLength(LEVEL_IDS.length);
+    expect(cards).toHaveLength(16);
     for (const card of cards) {
       const img = card.querySelector<HTMLImageElement>('.ch-lv-media img.ch-lv-thumb')!;
       const id = card.dataset.level!;
@@ -54,6 +55,24 @@ describe('level select previews', () => {
     // The first row loads at once, the rest lazily.
     expect(cards[0].querySelector('img')!.getAttribute('loading')).toBe('eager');
     expect(cards[7].querySelector('img')!.getAttribute('loading')).toBe('lazy');
+  });
+
+  it('splits the campaign into Act 1 and Act 2, each under a heading row of its own', () => {
+    const { el } = open();
+    const acts = [...el.querySelectorAll<HTMLElement>('.ch-lv-act')];
+    expect(acts.map((a) => a.textContent)).toEqual(['Act 1', 'Act 2']);
+    expect(acts.every((a) => a.getAttribute('aria-hidden') === 'true')).toBe(true);
+    const row = (e: HTMLElement) => Number(e.style.getPropertyValue('--r4'));
+    const card = (id: string) => el.querySelector<HTMLElement>(`.ch-lv-card[data-level="${id}"]`)!;
+    // Act 1: heading row 1, cards rows 2-3. Act 2: heading row 4, cards rows 5-6.
+    expect(acts.map(row)).toEqual([1, 4]);
+    expect([card('heist-01'), card('heist-08'), card('heist-09'), card('heist-16')].map(row)).toEqual([2, 3, 5, 6]);
+    // The serpentine continues across the acts: heist-08 ends on the left, heist-09 starts there.
+    const col = (e: HTMLElement) => Number(e.style.getPropertyValue('--c4'));
+    expect([card('heist-08'), card('heist-09')].map(col)).toEqual([1, 1]);
+    // Every card still follows its heading in DOM order.
+    const order = [...el.querySelectorAll<HTMLElement>('.ch-lv-act, .ch-lv-card')].map((e) => e.dataset.level ?? e.textContent);
+    expect(order.indexOf('Act 2')).toBe(order.indexOf('heist-09') - 1);
   });
 
   it('keeps the image on locked cards, with a lock overlay and the unlock hint', () => {
@@ -91,7 +110,7 @@ describe('level select previews', () => {
     try {
       const { el } = open();
       expect(el.querySelectorAll('video')).toHaveLength(0);
-      expect(el.querySelectorAll('img.ch-lv-thumb')).toHaveLength(8);
+      expect(el.querySelectorAll('img.ch-lv-thumb')).toHaveLength(LEVEL_IDS.length);
     } finally {
       window.matchMedia = real;
     }
@@ -143,7 +162,7 @@ describe('level select rescue cat', () => {
     // A local copy says when its status was recorded.
     expect(rc.querySelector('.ch-lv-rc-line')!.textContent).toContain('as of');
     // Every card carries its cat's photo too.
-    expect(el.querySelectorAll('.ch-lv-avatar img')).toHaveLength(8);
+    expect(el.querySelectorAll('.ch-lv-avatar img')).toHaveLength(LEVEL_IDS.length);
   });
 
   it('links "Meet <name>" only when the build has a site link (owned channels)', () => {

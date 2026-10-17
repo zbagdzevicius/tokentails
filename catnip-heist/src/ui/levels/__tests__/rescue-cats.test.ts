@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { LEVEL_IDS } from '../../../levels';
 import type { PinkPawGallery, PinkPawGalleryCat } from '../../../shared-contracts/pink-paw';
 import {
   RESCUE_FALLBACK,
   RESCUE_LEVEL_IDS,
+  RESCUE_LOOKALIKE,
   RESCUE_RETRY_MS,
   RESCUE_STORAGE_KEY,
   assignRescueCats,
@@ -62,8 +64,12 @@ const jsonFetch = (routes: Record<string, unknown>) => {
 afterEach(() => resetRescueCats());
 
 describe('rescue cats: local fallback', () => {
-  it('pins one distinct real cat per campaign level, with the level crate sprite', () => {
-    expect(RESCUE_FALLBACK.map((c) => c.levelId)).toEqual([...RESCUE_LEVEL_IDS]);
+  it('covers the whole campaign in order', () => {
+    expect([...RESCUE_LEVEL_IDS]).toEqual([...LEVEL_IDS]);
+  });
+
+  it('pins one distinct real cat per Act 1 level, with the level crate sprite', () => {
+    expect(RESCUE_FALLBACK.map((c) => c.levelId)).toEqual(RESCUE_LEVEL_IDS.slice(0, 8));
     expect(new Set(RESCUE_FALLBACK.map((c) => c.id)).size).toBe(RESCUE_FALLBACK.length);
     for (const c of RESCUE_FALLBACK) {
       expect(c.id).toMatch(/^[0-9a-f]{24}$/);
@@ -101,8 +107,23 @@ describe('rescue cats: local fallback', () => {
     expect(c.profileUrl).toBe(`https://tokentails.com/cats/${RESCUE_FALLBACK[0].id}`);
   });
 
+  it('gives every Act 2 level its look-alike Act 1 cat offline (same crate sprite, no invented cats)', () => {
+    const act2 = RESCUE_LEVEL_IDS.slice(8);
+    expect(Object.keys(RESCUE_LOOKALIKE)).toEqual(act2);
+    for (const id of act2) {
+      const pin = RESCUE_FALLBACK.find((c) => c.levelId === RESCUE_LOOKALIKE[id])!;
+      expect(pin, id).toBeDefined();
+      const level = JSON.parse(readFileSync(resolve(ROOT, `src/levels/${id}.json`), 'utf8')) as { crate: { catId: string } };
+      expect(pin.spriteCatId, id).toBe(level.crate.catId);
+      const c = fallbackRescueCat(id, '/a/', '');
+      expect(c).toMatchObject({ levelId: id, id: pin.id, name: pin.name, spriteCatId: level.crate.catId, source: 'fallback' });
+    }
+    // Each Act 1 cat is the look-alike of exactly one Act 2 level.
+    expect(new Set(Object.values(RESCUE_LOOKALIKE)).size).toBe(act2.length);
+  });
+
   it('maps an unknown level id onto a pinned cat', () => {
-    expect(fallbackRescueCat('heist-10', '/a/', '').name).toBe(RESCUE_FALLBACK[1].name);
+    expect(fallbackRescueCat('heist-18', '/a/', '').name).toBe(RESCUE_FALLBACK[1].name);
     expect(fallbackRescueCat('dev', '/a/', '').name).toBe(RESCUE_FALLBACK[0].name);
   });
 });
@@ -123,7 +144,7 @@ describe('rescue cats: assignment', () => {
     const b = assignRescueCats(gallery([...cats].reverse()));
     expect(b).toEqual(a);
     const ids = RESCUE_LEVEL_IDS.map((id) => a[id].id);
-    expect(new Set(ids).size).toBe(8);
+    expect(new Set(ids).size).toBe(RESCUE_LEVEL_IDS.length);
     // Level index -> unused cats in id order.
     expect(a['heist-01'].id).toBe(hex(100));
   });
@@ -137,11 +158,11 @@ describe('rescue cats: assignment', () => {
   });
 
   it('keeps the cat shown last time when its pin is gone', () => {
-    const cats = Array.from({ length: 12 }, (_, i) => cat(200 + i));
+    const cats = Array.from({ length: 20 }, (_, i) => cat(200 + i));
     const a = assignRescueCats(gallery(cats), RESCUE_LEVEL_IDS, { 'heist-04': hex(209) });
     expect(a['heist-04'].id).toBe(hex(209));
     const ids = RESCUE_LEVEL_IDS.map((id) => a[id].id);
-    expect(new Set(ids).size).toBe(8);
+    expect(new Set(ids).size).toBe(RESCUE_LEVEL_IDS.length);
   });
 
   it('skips cats with unsafe images or ids', () => {
