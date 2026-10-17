@@ -139,7 +139,8 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, the game is on by default", () => {
     const dialog = openPicker();
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${TEST_TITLE.toUpperCase()} · NEW`);
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
+    // Purrsuit, Paw Match, the Heist, Swordcat and Bad Cat Daily (on by default, no flag).
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
   });
 });
 
@@ -159,7 +160,7 @@ describe("with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
     const dialog = openPicker();
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(dialog).queryByText(TEST_TITLE.toUpperCase())).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
   });
 
   it("the picker flag on does not bring the card back (it needs the page flag not off too)", () => {
@@ -173,6 +174,6 @@ describe("with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
     const dialog = openPicker();
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
   });
 });

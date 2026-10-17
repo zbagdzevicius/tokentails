@@ -136,7 +136,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `art/` | Art sources and masters: the catnip matrices, the palette, `art/src/` (Aseprite and Tiled sources). |
 | `e2e/` | Playwright specs and fixtures, `e2e/capture/` for the reel. |
 | `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
-| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `RaveSection.tsx` Moon Rave, the headline feature (the first game section, web only; see "Landing Moon Rave" below), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
+| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `RaveSection.tsx` Moon Rave, the headline feature (the first game section, web only; see "Landing Moon Rave" below), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `BadcatSection.tsx` the Bad Cat Daily section (web only, no flag; see "Bad Cat Daily (/badcat)"), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
 | `analytics/` | Scrubbed PostHog EU events for every visitor. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `client.ts` the lazy PostHog client, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager loader, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
@@ -992,6 +992,25 @@ Bad Cat Daily is a separate Vite + three.js package (`bad-cat/`, design in `docs
 client only hosts its static build. It is served top level at `/badcat`, with no iframe (GDD 6.6: an iframe
 breaks safe areas, zoom, edge swipes and `navigator.share`). The Catnip Heist host (`pages/heist.tsx`) is not
 involved.
+
+**Entry points (web only, no flag).** Until Oct 17 2026 nothing in the client linked to `/badcat`: the rewrites
+served it, but the "Choose your adventure" picker had no card, the landing had no section and no page linked
+it, so the game could only be reached by typing the URL. Now `components/badcat/entry.ts` (`BADCAT_PATH`,
+`badcatHref(from)`, `BADCAT_LINE`, the art paths and `badcatEntryEnabled` = not `isAppBuild()`) feeds:
+
+- the PLAY picker (`GameSelectModal.tsx`): a BAD CAT DAILY card (key `BADCAT`, test id `game-card-badcat`,
+  badge NEW) after the Swordcat card, a full page load to `/badcat?from=picker`. From `md` the picker puts
+  four cards on one row and five or six three to a row (3 + 2 centred, or 3 + 3); phones keep two per row.
+- the landing (`components/landing/BadcatSection.tsx`, after the Swordcat section): a poster, the game's own
+  line (its `<meta name="description">`), a hook and PLAY BAD CAT to `/badcat?from=landing_badcat`. No money,
+  treat or shelter claim: the game's treat link only shows when its build sets `VITE_BADCAT_TREAT_URL`.
+
+Both are web only because the Capacitor export has no rewrites (`/badcat` does not resolve there) and the
+game sells the Chaos Club and cameos through Stripe. The game ignores `from`. The art is a frame of the
+first heist (the Kitchen) captured from the built game on Oct 17: `public/game-select/badcat-preview@2x.webp`
+(624x436 for the 312x218 card box) and `public/landing/badcat/badcat-poster-v1.webp` (1280x800);
+`scripts/prune-app-export.mjs` drops both from the app export. Tests: `__test__/landing-badcat-section.test.tsx`,
+`__test__/game-select-modal.test.tsx` ("Bad Cat Daily card").
 
 **Hosting.** `bad-cat` builds into `client/public/badcat-game/` with the base `/badcat-game/`.
 `next.config.js` maps the public URLs to those files with rewrites. The rewrites are always on in web builds

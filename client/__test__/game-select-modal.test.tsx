@@ -14,6 +14,7 @@ jest.mock("@/analytics", () => ({ reportAppError: jest.fn() }));
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 
 import {
+  BADCAT_CARD_KEY,
   GameSelectModal,
   gameCards,
   heistPickerEnabled,
@@ -25,6 +26,7 @@ import {
 import fs from "fs";
 import path from "path";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+import { BADCAT_PREVIEW, badcatEntryEnabled } from "@/components/badcat/entry";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameType } from "@/models/game";
 
@@ -69,7 +71,7 @@ describe("gameCards", () => {
 });
 
 describe("GameSelectModal", () => {
-  it("shows five cards in a GameModal (the Swordcat card is on by default), the Heist as a link with its badge", () => {
+  it("shows six cards in a GameModal (Swordcat and Bad Cat on by default), the Heist as a link with its badge", () => {
     const { dialog } = open();
     expect(within(dialog).getByRole("heading", { name: "Choose your adventure" })).toBeTruthy();
     const cards = within(dialog).getAllByRole("listitem");
@@ -79,6 +81,7 @@ describe("GameSelectModal", () => {
       "MATCH_3",
       "CATNIP_HEIST",
       SWORDCAT_CARD_KEY,
+      BADCAT_CARD_KEY,
     ]);
     const heist = within(dialog).getByRole("link", { name: "CATNIP HEIST · NO SIGN-UP" });
     expect(heist.getAttribute("href")).toBe("/heist?from=picker");
@@ -128,15 +131,24 @@ describe("GameSelectModal", () => {
   it("hides the Heist card when the flag is off", () => {
     const { dialog } = open({ showHeist: false });
     const cards = within(dialog).getAllByRole("listitem");
-    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual(["PIXEL_RESCUE", "CATNIP_CHAOS", "MATCH_3", SWORDCAT_CARD_KEY]);
+    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual([
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      SWORDCAT_CARD_KEY,
+      BADCAT_CARD_KEY,
+    ]);
     expect(within(dialog).queryByTestId("game-card-heist")).toBeNull();
     expect(within(dialog).queryByRole("link", { name: /CATNIP HEIST/ })).toBeNull();
-    // The only link left is the Swordcat card.
-    expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([SWORDCAT_PICKER_HREF]);
+    // The links left are the Swordcat and Bad Cat cards.
+    expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      SWORDCAT_PICKER_HREF,
+      "/badcat?from=picker",
+    ]);
   });
 
-  it("shows only the three Phaser cards with the Heist and Swordcat cards both off", () => {
-    const { dialog } = open({ showHeist: false, showSwordcat: false });
+  it("shows only the three Phaser cards with the Heist, Swordcat and Bad Cat cards all off", () => {
+    const { dialog } = open({ showHeist: false, showSwordcat: false, showBadcat: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
@@ -170,19 +182,19 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(swordcatPickerEnabled()).toBe(true);
     const { dialog } = open();
     expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(6);
   });
 
   it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
     expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
-    const first = open({ showSwordcat: false });
+    const first = open({ showSwordcat: false, showBadcat: false });
     expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
     cleanup();
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
     try {
       expect(swordcatPickerEnabled()).toBe(false);
-      const second = open();
+      const second = open({ showBadcat: false });
       expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
       expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
     } finally {
@@ -206,7 +218,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
   });
 
   it("opens /swordcat with a full page load and keeps the Heist card's test id", () => {
-    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true });
+    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true, showBadcat: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
     expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
     const card = within(dialog).getByTestId("game-card-swordcat");
@@ -243,5 +255,73 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
     const buf = fs.readFileSync(path.join(pub, SWORDCAT_PREVIEW.src));
     expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+  });
+});
+
+describe("Bad Cat Daily card (no flag, web only)", () => {
+  const envBefore = { ...process.env };
+  afterEach(() => {
+    process.env = { ...envBefore };
+  });
+
+  it("is in the picker by default with no env set, last, linking to /badcat?from=picker", () => {
+    expect(Object.keys(process.env).filter((k) => /BADCAT/i.test(k))).toEqual([]);
+    const { dialog } = open();
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items[items.length - 1].getAttribute("data-card")).toBe(BADCAT_CARD_KEY);
+    const card = within(dialog).getByTestId("game-card-badcat");
+    expect(card.getAttribute("href")).toBe("/badcat?from=picker");
+    expect(card.getAttribute("aria-label")).toBe("BAD CAT DAILY · NEW");
+    const art = within(dialog).getByTestId("game-card-badcat-preview");
+    expect(art.getAttribute("src")).toBe(BADCAT_PREVIEW.src);
+    expect(art.getAttribute("width")).toBe("312");
+    expect(art.getAttribute("height")).toBe("218");
+    expect(art.getAttribute("alt")).toBe("");
+  });
+
+  it("opens /badcat with a full page load and never picks a Phaser mode", () => {
+    const { navigate, setGameType, onClose, dialog } = open();
+    fireEvent.click(within(dialog).getByTestId("game-card-badcat"));
+    expect(navigate).toHaveBeenCalledWith("/badcat?from=picker");
+    expect(setGameType).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("comes after Swordcat in gameCards, with no GameType and no money claim", () => {
+    const cards = gameCards(true, new Date(), true, true);
+    expect(cards.map((card) => card.key)).toEqual([
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      "CATNIP_HEIST",
+      SWORDCAT_CARD_KEY,
+      BADCAT_CARD_KEY,
+    ]);
+    const card = cards[5];
+    expect(card).toMatchObject({ href: "/badcat", previewVariant: "BADCAT", badge: "NEW" });
+    expect(card.type).toBeUndefined();
+    expect(card.description).not.toMatch(/\$|USDC|treat|Pink Paw|shelter/i);
+  });
+
+  it("is left out of the app build (no /badcat rewrites there)", () => {
+    process.env.NEXT_PUBLIC_IS_APP = "1";
+    expect(badcatEntryEnabled()).toBe(false);
+    const { dialog } = open();
+    expect(within(dialog).queryByTestId("game-card-badcat")).toBeNull();
+  });
+
+  it("ships a 2x WebP for the card's 312x218 box", () => {
+    const buf = fs.readFileSync(path.join(path.resolve(__dirname, "../public"), BADCAT_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+  });
+
+  it("uses three to a row from md with five or six cards, one row with four", () => {
+    const { dialog } = open();
+    const item = within(dialog).getAllByRole("listitem")[0];
+    expect(item.className).toContain("md:w-[calc(33.333%-0.75rem)]");
+    cleanup();
+    const four = open({ showSwordcat: false, showBadcat: false });
+    expect(within(four.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(25%-0.75rem)]");
   });
 });

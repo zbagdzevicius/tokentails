@@ -8,6 +8,7 @@ import { HeistPill } from "@/components/landing/HeistPill";
 import { HeistSection } from "@/components/landing/HeistSection";
 import { RaveSection } from "@/components/landing/RaveSection";
 import { SwordcatSection } from "@/components/landing/SwordcatSection";
+import { BadcatSection } from "@/components/landing/BadcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
 import { landingCtaHref } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
@@ -202,6 +203,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
         {/* The Swordcat game: on by default (NEXT_PUBLIC_SWORDCAT=0 is the kill switch), never in the app build (plan §12). */}
         <SectionBoundary name="swordcat">
           <SwordcatSection railState={impact?.rail.state ?? null} />
+        </SectionBoundary>
+
+        {/* Bad Cat Daily (/badcat, bad-cat/): web only, no flag; the poster is a frame of the built game. */}
+        <SectionBoundary name="badcat">
+          <BadcatSection />
         </SectionBoundary>
 
         <SectionBoundary name="globe">

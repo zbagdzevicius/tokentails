@@ -1,6 +1,6 @@
 // Removes web-only media from the Capacitor export in out/ (run by `npm run build:app`).
 // The landing showreel and trailer never play in app builds (HeistSection shows the poster;
-// SwordcatSection and RaveSection are web only), so their video must not ship inside the app. `check-app-export.mjs` asserts these are gone.
+// SwordcatSection, RaveSection and BadcatSection are web only), so their video must not ship inside the app. `check-app-export.mjs` asserts these are gone.
 import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,9 @@ export const WEB_ONLY_FILES = Object.freeze([
   "landing/rave/rave-promo-v3-9x16.mp4",
   "landing/rave/rave-promo-v3-poster-16x9.jpg",
   "landing/rave/rave-promo-v3-poster-9x16.jpg",
+  // Bad Cat Daily's poster and picker art: BadcatSection and the picker card never render in app builds.
+  "landing/badcat/badcat-poster-v1.webp",
+  "game-select/badcat-preview@2x.webp",
 ]);
 
 export function pruneAppExport(outDir) {

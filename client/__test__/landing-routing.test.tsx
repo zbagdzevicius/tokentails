@@ -208,6 +208,20 @@ describe("root visit", () => {
     );
   });
 
+  it("shows Bad Cat Daily after the Moon Rave and Swordcat sections, with no env set (web)", () => {
+    expect(Object.keys(process.env).filter((k) => /BADCAT/i.test(k))).toEqual([]);
+    const { container } = render(<HomePage />);
+    const badcat = container.querySelector('[data-testid="badcat-section"]');
+    expect(badcat).not.toBeNull();
+    const rave = container.querySelector('[data-testid="rave-section"]');
+    const sword = container.querySelector('[data-testid="swordcat-section"]');
+    expect(rave!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sword!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-testid="badcat-section-cta"]')?.getAttribute("href")).toBe(
+      "/badcat?from=landing_badcat"
+    );
+  });
+
   it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
     expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();
