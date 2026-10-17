@@ -76,10 +76,13 @@ const indexOf = (events: ReturnType<typeof ev>[], count = events.length): Payout
 });
 
 type ObserverCallback = (entries: { isIntersecting: boolean }[]) => void;
-let observerCallback: ObserverCallback | null = null;
+/** Every live observer: the reel's (200 px) and the posters' (1200 px). */
+let observerCallbacks: ObserverCallback[] = [];
+const observerMargins: string[] = [];
 class MockObserver {
-  constructor(cb: ObserverCallback) {
-    observerCallback = cb;
+  constructor(cb: ObserverCallback, opts?: { rootMargin?: string }) {
+    observerCallbacks.push(cb);
+    observerMargins.push(opts?.rootMargin ?? "");
   }
   observe = jest.fn();
   disconnect = jest.fn();
@@ -89,7 +92,7 @@ class MockObserver {
 const play = jest.fn(() => Promise.resolve());
 const pause = jest.fn();
 const load = jest.fn();
-const statusBody = { enabled: true, card: true, usdc: { enabled: true, chains: [5042] } };
+const statusBody = { enabled: true, livemode: true, card: true, usdc: { enabled: true, chains: [5042] } };
 const fetchMock = jest.fn();
 
 beforeAll(() => {
@@ -99,7 +102,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  observerCallback = null;
+  observerCallbacks = [];
+  observerMargins.length = 0;
   play.mockClear();
   pause.mockClear();
   load.mockClear();
@@ -125,7 +129,7 @@ const holdLiveRead = () => {
 
 const scrollInView = (isIntersecting: boolean) =>
   act(() => {
-    observerCallback?.([{ isIntersecting }]);
+    for (const cb of observerCallbacks) cb([{ isIntersecting }]);
   });
 
 describe("the rave count (cat-rave's $1 = 1 cat rule)", () => {
@@ -163,13 +167,27 @@ describe("the rave count (cat-rave's $1 = 1 cat rule)", () => {
   it("names only the checkout ways /rave/status reports as on", () => {
     expect(raveCheckoutFromStatus(statusBody)).toEqual({ card: true, usdcArc: true });
     expect(raveCheckoutFromStatus({ enabled: false, reason: "stripe" })).toBeNull();
-    expect(raveCheckoutFromStatus({ enabled: true, card: false, usdc: { enabled: true, chains: [8453] } })).toBeNull();
+    expect(
+      raveCheckoutFromStatus({ enabled: true, livemode: true, card: false, usdc: { enabled: true, chains: [8453] } })
+    ).toBeNull();
     expect(raveAddLine({ card: true, usdcArc: true })).toBe(
-      "Anyone can add a cat for $1, by card or in USDC on Arc. Token Tails pays the full $1 out to Pink Paw on-chain."
+      "Anyone can add a cat for $1, by card or in USDC on Arc. By card, Token Tails pays the full $1 out to Pink Paw on-chain; in USDC, the full $1 goes from your wallet straight to the Pink Paw split."
     );
-    expect(raveAddLine({ card: true, usdcArc: false })).toContain("for $1, by card.");
-    expect(raveAddLine({ card: false, usdcArc: true })).toContain("for $1, in USDC on Arc.");
+    expect(raveAddLine({ card: true, usdcArc: false })).toBe(
+      "Anyone can add a cat for $1 by card. Token Tails pays the full $1 out to Pink Paw on-chain."
+    );
+    // A USDC cat is the buyer's own payout: never "Token Tails pays" for it.
+    expect(raveAddLine({ card: false, usdcArc: true })).toBe(
+      "Anyone can add a cat for $1 in USDC on Arc. The full $1 goes from your wallet straight to the Pink Paw split."
+    );
     expect(raveAddLine(null)).toBeNull();
+  });
+
+  it("never advertises checkout that takes no real money (Stripe test key or testnet: livemode false)", () => {
+    expect(raveCheckoutFromStatus({ ...statusBody, livemode: false })).toBeNull();
+    const { livemode: _omit, ...noMode } = statusBody;
+    void _omit;
+    expect(raveCheckoutFromStatus(noMode)).toBeNull();
   });
 });
 
@@ -183,8 +201,10 @@ describe("RavePill (hero)", () => {
     await waitFor(() => expect(queryByTestId("rave-live-line")).toBeTruthy());
     expect(queryByTestId("rave-live-skeleton")).toBeNull();
     expect(getByTestId("rave-live-line").textContent).toBe(
-      "Token Tails has paid out $25.75 for Pink Paw on-chain · 25 cats dancing"
+      "$25.75 paid out for Pink Paw on-chain · 25\u00A0cats\u00A0dancing"
     );
+    // No payer named in the line: the total mixes Token Tails' and givers' payouts.
+    expect(getByTestId("rave-live-line").textContent).not.toMatch(/Token Tails/);
     expect(mockLoadIndex).toHaveBeenCalledWith("mainnet", "https://api.test");
   });
 
@@ -194,6 +214,8 @@ describe("RavePill (hero)", () => {
     await waitFor(() => expect(queryByTestId("rave-live-skeleton")).toBeNull());
     expect(queryByTestId("rave-live-line")).toBeNull();
     expect(getByTestId("rave-pill-wrap").textContent).not.toMatch(/\d/);
+    // The slot keeps its height, so the hero does not jump when the line stays hidden.
+    expect(getByTestId("rave-pill-line-slot").className).toMatch(/min-h-/);
     // The CTA stays.
     expect(getByTestId("rave-pill").getAttribute("href")).toBe(RAVE_PILL_HREF);
   });
@@ -218,7 +240,8 @@ describe("RaveSection", () => {
     const { container, getByTestId, queryByTestId } = render(<RaveSection />);
     expect(container.textContent).toContain("Dance. Save cats.");
     expect(container.textContent).toContain(RAVE_SECTION_RULE);
-    expect(RAVE_SECTION_RULE).toContain("Every $1 Token Tails pays out to Pink Paw on-chain");
+    expect(RAVE_SECTION_RULE).toContain("Every $1 Token Tails or a giver pays out to Pink Paw on-chain");
+    expect(RAVE_SECTION_RULE).toContain("Pink Paw's 50% share of each $5 shelter cat");
     expect(getByTestId("rave-section-cta").getAttribute("href")).toBe("/rave?from=landing_rave");
     expect(RAVE_SECTION_HREF).toBe("/rave?from=landing_rave");
     expect(getByTestId("rave-section-proof").getAttribute("href")).toBe(RAVE_PROOF_HREF);
@@ -237,6 +260,8 @@ describe("RaveSection", () => {
     await waitFor(() => expect(queryByTestId("rave-live-skeleton")).toBeNull());
     expect(queryByTestId("rave-live-line")).toBeNull();
     expect(queryByTestId("rave-add-line")).toBeNull();
+    // The add line's slot stays, so /rave/status answering late shifts nothing.
+    expect(getByTestId("rave-add-slot").className).toMatch(/min-h-/);
     expect(getByTestId("rave-section-cta")).toBeTruthy();
   });
 
@@ -247,8 +272,11 @@ describe("RaveSection", () => {
     expect(video.getAttribute("preload")).toBe("none");
     expect(video.muted).toBe(true);
     expect(video.querySelector("source")).toBeNull();
-    expect(video.getAttribute("poster")).toBe(RAVE_REEL.posterLandscape);
+    // No poster until the section nears the viewport (a 1200 px margin).
+    expect(video.getAttribute("poster")).toBeNull();
+    expect(observerMargins).toContain("1200px 0px");
     scrollInView(true);
+    expect(video.getAttribute("poster")).toBe(RAVE_REEL.posterLandscape);
     const source = video.querySelector("source");
     expect(source?.getAttribute("src")).toBe(RAVE_REEL.landscape);
     expect(play).toHaveBeenCalled();
@@ -269,8 +297,9 @@ describe("RaveSection", () => {
     try {
       const { getByTestId } = render(<RaveSection />);
       const video = getByTestId("rave-reel");
-      expect(video.getAttribute("poster")).toBe(RAVE_REEL.posterPortrait);
       scrollInView(true);
+      // Only the portrait poster and reel: a phone never fetches the landscape files.
+      expect(video.getAttribute("poster")).toBe(RAVE_REEL.posterPortrait);
       expect(video.querySelector("source")?.getAttribute("src")).toBe(RAVE_REEL.portrait);
     } finally {
       window.matchMedia = mm;
@@ -283,6 +312,7 @@ describe("RaveSection", () => {
     const { getByTestId } = render(<RaveSection />);
     scrollInView(true);
     expect(getByTestId("rave-reel").querySelector("source")).toBeNull();
+    expect(getByTestId("rave-reel").getAttribute("poster")).toBe(RAVE_REEL.posterLandscape);
     expect(play).not.toHaveBeenCalled();
     act(() => getByTestId("rave-reel-toggle").click());
     expect(getByTestId("rave-reel").querySelector("source")).toBeTruthy();

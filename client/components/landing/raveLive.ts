@@ -12,6 +12,10 @@
 // chainId:txHash:logIndex. Cats = floor(total USD). The rave also shows paid rave orders whose payout
 // is not indexed yet; this line counts on-chain payouts only, so it never shows more than the rave.
 // No number is ever shown that was not read: unread, unreachable or cut-short reads hide it.
+// loadPayoutIndex's validEvent is stricter than the rave's normalizeEvent (lower-case hashes, every
+// field typed): an event it drops makes the read count as cut short, so the line hides instead of
+// showing a smaller number. The chain ids, coins and EURC rate below are a copy of
+// cat-rave/src/config.ts (listed in docs/DEVELOPMENT.md); landing-rave-parity.test.ts pins them.
 import { apiUrl } from "@/api/api";
 import { loadPayoutIndex, type PayoutIndex } from "@/components/shelter-payouts/payoutIndex";
 import { useEffect, useState } from "react";
@@ -85,10 +89,18 @@ export interface RaveCheckout {
   usdcArc: boolean;
 }
 
-/** `GET /rave/status` → what checkout takes, or null when it is off, unread or malformed. */
+/**
+ * `GET /rave/status` → what checkout takes, or null when it is off, unread, malformed or not live
+ * (`livemode` false: a Stripe test key or a testnet chain, which takes no real money).
+ */
 export function raveCheckoutFromStatus(body: unknown): RaveCheckout | null {
-  const s = body as { enabled?: unknown; card?: unknown; usdc?: { enabled?: unknown; chains?: unknown } } | null;
-  if (!s || s.enabled !== true) return null;
+  const s = body as {
+    enabled?: unknown;
+    livemode?: unknown;
+    card?: unknown;
+    usdc?: { enabled?: unknown; chains?: unknown };
+  } | null;
+  if (!s || s.enabled !== true || s.livemode !== true) return null;
   const card = s.card === true;
   const usdcArc =
     s.usdc?.enabled === true && Array.isArray(s.usdc.chains) && s.usdc.chains.includes(ARC_MAINNET_CHAIN_ID);

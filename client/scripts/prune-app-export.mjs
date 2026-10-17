@@ -13,10 +13,10 @@ export const WEB_ONLY_FILES = Object.freeze([
   "landing/pinkpaw-knight-trailer-v1.mp4",
   "landing/pinkpaw-knight-trailer-v1.webm",
   // The Moon Rave promo reel and its posters: RaveSection never renders in app builds.
-  "landing/rave/rave-promo-v1-16x9.mp4",
-  "landing/rave/rave-promo-v1-9x16.mp4",
-  "landing/rave/rave-promo-v1-poster-16x9.jpg",
-  "landing/rave/rave-promo-v1-poster.jpg",
+  "landing/rave/rave-promo-v2-16x9.mp4",
+  "landing/rave/rave-promo-v2-9x16.mp4",
+  "landing/rave/rave-promo-v2-poster-16x9.jpg",
+  "landing/rave/rave-promo-v2-poster-9x16.jpg",
 ]);
 
 export function pruneAppExport(outDir) {

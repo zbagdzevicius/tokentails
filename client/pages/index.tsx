@@ -135,6 +135,9 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
 
             {/* Phones: PLAY GAME first, the store badge (when shown) under it, so neither sits on the hero cat. */}
             <div className="absolute z-50 bottom-16 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">
+              {/* Moon Rave, the headline feature, above PLAY GAME (on phones too, clear of the bottom
+                  toolbar): web only, the live line read from the rave's own source. */}
+              <RavePill />
               <div className="flex flex-col sm:flex-row justify-center items-center">
                 {SHOW_STORE_BADGES && (isDesktop || isIOS) && (
                   <a
@@ -171,13 +174,17 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                   </a>
                 )}
               </div>
-              {/* Moon Rave, the headline feature: web only, the live line read from the rave's own source. */}
-              <RavePill />
               <HeistPill />
               {/* Bet #3: only while /yourcat is on and open (NEXT_PUBLIC_YOURCAT_ENTRY and the status). */}
               <YourcatEntryLink />
             </div>
           </section>
+        </SectionBoundary>
+
+        {/* Moon Rave, the headline feature, straight under the hero and first among the game sections:
+            the promo reel, the $1 = 1 cat rule and JOIN THE RAVE (web only). */}
+        <SectionBoundary name="rave">
+          <RaveSection />
         </SectionBoundary>
 
         {/* G7 landing reel: mounted only once the capture driver has written clips to the manifest. */}
@@ -189,11 +196,6 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
 
         <SectionBoundary name="proof">
           <ProofSection impact={impact} />
-        </SectionBoundary>
-
-        {/* Moon Rave first among the game sections: the promo reel, the $1 = 1 cat rule and JOIN THE RAVE (web only). */}
-        <SectionBoundary name="rave">
-          <RaveSection />
         </SectionBoundary>
 
         {/* Catnip Heist, the new game mode: showreel, three beats and PLAY CATNIP HEIST. */}
