@@ -66,6 +66,16 @@ export const chainRole = (chainId: number, token?: string | null): string | null
   return CHAIN_ROLES[family] || null;
 };
 
+/** Arc mainnet: the main chain and main partner. The payouts page shows its share of each coin. */
+export const ARC_MAINNET_ID = 5042;
+export const isArcMainnet = (chainId: number) => chainId === ARC_MAINNET_ID;
+
+/** The indices of `items` with Arc mainnet first; the rest keep their listed order. */
+export const arcFirst = (items: readonly { chainId: number }[]): number[] => {
+  const idx = items.map((_, i) => i);
+  return [...idx.filter((i) => isArcMainnet(items[i].chainId)), ...idx.filter((i) => !isArcMainnet(items[i].chainId))];
+};
+
 /** "Avalanche Fuji" -> "Avalanche Fuji testnet"; names that already say testnet stay as they are. */
 export const chainDisplayName = (chain: Pick<ChainInfo, "name" | "testnet">): string =>
   chain.testnet && !/testnet/i.test(chain.name) ? `${chain.name} testnet` : chain.name;

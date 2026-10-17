@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { AppProofNotice } from "./AppProofNotice";
 import { CampaignMeter } from "./CampaignMeter";
 import { HandoverStatus, claimsDateLabel } from "./campaign";
-import { ChainInfo, SHELTER_CHAINS, chainRole } from "./chains";
+import { ChainInfo, SHELTER_CHAINS, arcFirst, chainRole, isArcMainnet } from "./chains";
 import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
 import { useCampaignGoal } from "./goal";
 import { formatUnits } from "./logs";
@@ -126,18 +126,47 @@ export const TestnetProofFold = ({
     </section>
   );
 
+/** The mainnet "Per chain" grid: Arc's cards first, marked as the main chain; the rest in listed order. */
+export const PerChainCards = ({
+  deployments,
+  results,
+  balances,
+}: {
+  deployments: ShelterDeployment[];
+  results: Record<number, Result>;
+  balances: Record<number, Balance>;
+}) => (
+  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:mt-7 md:gap-4 xl:grid-cols-3">
+    {arcFirst(deployments).map((i) => {
+      const d = deployments[i];
+      return (
+        <ChainCard
+          key={`${d.chainId}-${d.address}`}
+          deployment={d}
+          result={results[i] || { status: "loading" }}
+          balance={balances[i] || { status: "loading" }}
+          mainChain={isArcMainnet(d.chainId)}
+        />
+      );
+    })}
+  </div>
+);
+
 /** One chain: its total, payout count, contract and balance. */
 export const ChainCard = ({
   deployment,
   result,
   balance,
   instance,
+  mainChain = false,
 }: {
   deployment: ShelterDeployment;
   result: Result;
   balance: Balance;
   /** "Deploy 2 of 2" when another contract on this chain pays the same coin. */
   instance?: string | null;
+  /** Arc mainnet in the mainnet grid: the "Arc · main chain" chip and the Arc frame. */
+  mainChain?: boolean;
 }) => {
   const chain = resolveChain(deployment);
   const cardTotals = result.status === "done" ? totalsBySymbol(result.items, chain) : [];
@@ -147,7 +176,10 @@ export const ChainCard = ({
   const balanceSymbol = chain?.balanceToken ? chain.symbol : chain?.nativeSymbol || "";
 
   return (
-    <section className={`${CARD} flex flex-col gap-3`} data-testid="chain-card">
+    <section
+      className={`${CARD} flex flex-col gap-3 ${mainChain ? "!border-tt-sky/80 shadow-[0_0_24px_rgb(var(--tt-sky)/.3)]" : ""}`}
+      data-testid="chain-card"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-tt-cream">
           {chainLabel(deployment, chain)}
@@ -167,6 +199,11 @@ export const ChainCard = ({
             </>
           ) : null}
         </span>
+        {mainChain && (
+          <span className={`${CHIP} !border-tt-sky/70 !bg-tt-sky/10 !text-tt-sky`} data-testid="chain-card-main">
+            Arc · main chain
+          </span>
+        )}
         {instance && (
           <span className={CHIP} data-testid="chain-card-instance">
             {instance}
@@ -428,16 +465,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
                 <h2 className={HEADLINE}>
                   One contract, <span className="glow text-tt-cream">every chain.</span>
                 </h2>
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:mt-7 md:gap-4 xl:grid-cols-3">
-                  {page.deployments.map((d, i) => (
-                    <ChainCard
-                      key={`${d.chainId}-${d.address}`}
-                      deployment={d}
-                      result={results[i] || { status: "loading" }}
-                      balance={balances[i] || { status: "loading" }}
-                    />
-                  ))}
-                </div>
+                <PerChainCards deployments={page.deployments} results={results} balances={balances} />
               </section>
 
               {/* FEED */}
