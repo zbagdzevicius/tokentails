@@ -7,7 +7,7 @@ import { ChainPicker } from "./ChainPicker";
 import { ChainInfo, explorerTx } from "./chains";
 import { FACT, factLine } from "./factLine";
 import { GOAL_REFRESH_EVENT } from "./goal";
-import { GiveRail, feeCoin, isExtraCoinRail, railKey, railStepsLine, railSummary } from "./giveRails";
+import { GiveRail, WALLET_FAMILIES, feeCoin, isExtraCoinRail, railKey, railStepsLine, railSummary } from "./giveRails";
 import {
   GiveMode,
   ONBOARD_URL,
@@ -16,6 +16,7 @@ import {
   giftSymbol,
   giveAmounts,
   matchMeterCopy,
+  parseCustomAmount,
   payeeLabel,
   shortShelterName,
 } from "./giveMode";
@@ -72,6 +73,12 @@ export const GiveLabel = ({ amount, to, symbol = "USDC" }: { amount: string; to:
     {to ? ` to ${to}` : ""}
   </>
 );
+
+/** Arc (mainnet and testnet): the main chain, preselected in the picker whenever it is offered. */
+const ARC_IDS: readonly number[] = WALLET_FAMILIES.filter((f) => f.key === "arc").flatMap((f) => [f.mainnet, f.testnet]);
+
+/** The amount the giver picked: one of the presets, or what they typed in the custom field. */
+export type AmountPick = { kind: "preset"; value: string } | { kind: "custom"; raw: string };
 
 /** The chain's public RPC as the `rpc` function findSettledGift takes. */
 const publicRpc =
@@ -161,11 +168,15 @@ export const WalletDonate = ({
 }) => {
   // railKey of the picked option: the chain id, or "<chainId>-EURC" for a second coin's router.
   const [picked, setPicked] = useState<string | null>(null);
+  // Kept here, not in GiveBlock, so a typed amount survives a network switch.
+  const [amountPick, setAmountPick] = useState<AmountPick>(() => ({ kind: "preset", value: giveAmounts(mode)[1] }));
   const headingId = useId();
   const short = shortShelterName(shelterName);
-  // The picked chain, else the default (the campaign chain, or NEXT_PUBLIC_WALLET_DONATE_CHAIN).
+  // The picked chain, else Arc (the main chain), else the default (the campaign chain, or
+  // NEXT_PUBLIC_WALLET_DONATE_CHAIN).
   const active =
     (picked !== null && choices.find((c) => railKey(c) === picked)) ||
+    choices.find((c) => ARC_IDS.includes(c.chainId) && !isExtraCoinRail(c)) ||
     choices.find((c) => c.chainId === chainId && !isExtraCoinRail(c)) ||
     choices.find((c) => c.chainId === chainId) ||
     choices[0] ||
@@ -244,6 +255,8 @@ export const WalletDonate = ({
         shelterName={shelterName}
         shelterWallet={shelterWallet}
         relayStatus={status}
+        amountPick={amountPick}
+        onAmountPick={setAmountPick}
       />
     </section>
   );
@@ -258,6 +271,8 @@ const GiveBlock = ({
   shelterName,
   shelterWallet,
   relayStatus,
+  amountPick,
+  onAmountPick,
 }: {
   mode: GiveMode;
   chainId: number;
@@ -266,11 +281,14 @@ const GiveBlock = ({
   shelterName: string;
   shelterWallet?: string | null;
   relayStatus: MatchStatus | null;
+  amountPick: AmountPick;
+  onAmountPick: (p: AmountPick) => void;
 }) => {
   const router = rail.router;
   const amounts = giveAmounts(mode);
-  const [amount, setAmount] = useState(amounts[1]);
   const [state, setState] = useState<State>({ status: "idle" });
+  const customId = useId();
+  const customErrorId = useId();
   // A gift lands in the shelter wallet: tell the page's goal meter to read the wallet again (open
   // issue 2 in docs/plans/donations-STATUS.md), once now and once after the next blocks.
   useEffect(() => {
@@ -324,6 +342,11 @@ const GiveBlock = ({
   const native = isUsdcNative(chain) && rail.native;
   const symbol = router ? giftSymbol(chain, router) : rail.symbol;
   const to = payeeLabel(payees, short);
+  const custom = amountPick.kind === "custom";
+  const parsed = custom ? parseCustomAmount(amountPick.raw, symbol) : null;
+  // The amount the button gives: the preset, or the typed one once it parses (null while it does not).
+  const amount: string | null = amountPick.kind === "preset" ? amountPick.value : parsed && "amount" in parsed ? parsed.amount : null;
+  const customError = custom && parsed && "error" in parsed && amountPick.raw.trim() !== "" ? parsed.error : null;
   const busy = state.status === "busy";
   const sent = state.status === "sent";
   // The gas relay serves this chain only when the backend says so for this very chain id.
@@ -373,6 +396,7 @@ const GiveBlock = ({
       return;
     }
     const amt = how === "self" && state.status === "relay-refused" ? state.amount : amount;
+    if (!amt) return;
     let signed: SignedGift | null = null;
     try {
       let result: GiveResult;
@@ -478,29 +502,71 @@ const GiveBlock = ({
 
       <fieldset className="mt-3 flex flex-wrap items-center gap-2" disabled={busy || sent}>
         <legend className="sr-only">Amount in {symbol}</legend>
-        {amounts.map((a) => (
-          <button
-            key={a}
-            type="button"
-            onClick={() => setAmount(a)}
-            aria-pressed={amount === a}
-            className={`${CHIP} min-h-11 px-3 ${amount === a ? "!bg-tt-cream !text-tt-gold-ink" : ""}`}
-          >
-            {a} <Sym>{symbol}</Sym>
-          </button>
-        ))}
+        {amounts.map((a) => {
+          const on = amountPick.kind === "preset" && amountPick.value === a;
+          return (
+            <button
+              key={a}
+              type="button"
+              onClick={() => onAmountPick({ kind: "preset", value: a })}
+              aria-pressed={on}
+              className={`${CHIP} min-h-11 px-3 ${on ? "!bg-tt-cream !text-tt-gold-ink" : ""}`}
+            >
+              {a} <Sym>{symbol}</Sym>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => !custom && onAmountPick({ kind: "custom", raw: "" })}
+          aria-pressed={custom}
+          aria-controls={custom ? customId : undefined}
+          className={`${CHIP} min-h-11 px-3 ${custom ? "!bg-tt-cream !text-tt-gold-ink" : ""}`}
+          data-testid="wallet-amount-other"
+        >
+          Other amount
+        </button>
+        {custom && (
+          <span className="flex w-full flex-col gap-1">
+            <label htmlFor={customId} className="text-tt-cream/85">
+              Your amount in <Sym>{symbol}</Sym>
+            </label>
+            <span className="flex items-center gap-2">
+              <input
+                id={customId}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                autoFocus
+                placeholder="2.5"
+                value={amountPick.raw}
+                onChange={(e) => onAmountPick({ kind: "custom", raw: e.target.value })}
+                aria-invalid={!!customError}
+                aria-describedby={customError ? customErrorId : undefined}
+                className="min-h-11 w-36 rounded-lg border-2 border-tt-cream/60 bg-tt-night-950 px-3 text-p4 text-tt-cream placeholder:text-tt-cream/40 focus:border-tt-gold-400 focus:outline-none"
+                data-testid="wallet-amount-input"
+              />
+              <Sym>{symbol}</Sym>
+            </span>
+            {customError && (
+              <span id={customErrorId} className="text-tt-rust" data-testid="wallet-amount-error">
+                {customError}
+              </span>
+            )}
+          </span>
+        )}
       </fieldset>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => run(primary)}
-          disabled={busy || sent}
+          disabled={busy || sent || !amount}
           className={GOLD_BUTTON}
           data-testid="wallet-give"
         >
-          {busy ? state.step : <GiveLabel amount={amount} to={to} symbol={symbol} />}
+          {busy ? state.step : amount ? <GiveLabel amount={amount} to={to} symbol={symbol} /> : "Type an amount"}
         </button>
-        {native && router && primary === "sign" && !busy && !sent && (
+        {native && router && primary === "sign" && !busy && !sent && amount && (
           <button
             type="button"
             onClick={() => run("native")}

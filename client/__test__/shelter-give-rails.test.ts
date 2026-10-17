@@ -28,7 +28,7 @@ import {
   memoToBytes32,
 } from "@/components/shelter-payouts/calldata";
 import { SHELTER_CHAINS } from "@/components/shelter-payouts/chains";
-import { NO_WALLET_PATH, mainnetRails, tryItRails, walletGiveMode } from "@/components/shelter-payouts/giveMode";
+import { NO_WALLET_PATH, mainnetRails, parseCustomAmount, tryItRails, walletGiveMode } from "@/components/shelter-payouts/giveMode";
 import {
   WALLET_CHAIN_IDS,
   campaignRails,
@@ -220,10 +220,17 @@ describe("the chain picker's rails", () => {
     expect(NO_WALLET_PATH.size).toBe(0);
   });
 
-  it("keeps production as it is: one campaign chain, only with a mainnet router, unless the chain list says more", () => {
-    // Unset NEXT_PUBLIC_WALLET_DONATE_CHAINS: the campaign chain with a router, nothing else.
+  it("opens only with a campaign-chain router; then offers every mainnet chain, the campaign chain (Arc) first", () => {
+    // Unset NEXT_PUBLIC_WALLET_DONATE_CHAINS: no campaign router, no block (the gate is unchanged).
     expect(campaignRails(5042, [], MAINNET_SPLITS, undefined)).toEqual([]);
-    expect(campaignRails(5042, [R(5042, "mainnet")], MAINNET_SPLITS, undefined).map((r) => r.chainId)).toEqual([5042]);
+    // With Arc's router the picker lists Arc first, then each other mainnet chain with a path.
+    const unset = campaignRails(5042, [R(5042, "mainnet")], MAINNET_SPLITS, undefined);
+    expect(unset.map((r) => r.chainId)).toEqual(WALLET_CHAIN_IDS.mainnet);
+    expect(unset[0]).toMatchObject({ chainId: 5042, path: "router" });
+    expect(unset.every((r) => r.network === "mainnet")).toBe(true);
+    // Never a second coin (EURC) on the real-money block, and never a testnet split.
+    expect(campaignRails(5042, [R(5042, "mainnet"), R(5042, "mainnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" })], MAINNET_SPLITS, undefined).map(railKey)).not.toContain("5042-EURC");
+    expect(campaignRails(5042, [R(5042, "mainnet")], [], undefined).map((r) => r.chainId)).toEqual([5042]);
     expect(campaignRails(5042, [R(5042, "testnet")], MAINNET_SPLITS, undefined)).toEqual([]);
     // Set: those mainnet chains, the campaign chain first; testnet ids and junk are ignored.
     const listed = campaignRails(5042, [R(5042, "mainnet")], MAINNET_SPLITS, "8453, 4217,5042, 84532, junk");
@@ -492,5 +499,27 @@ describe("giveNativeToSplit (Arc: native USDC into ShelterSplit.donate)", () => 
       giveNativeToSplit({ provider: eth, chainId: 5042002, chain: SHELTER_CHAINS[5042002], split: SPLIT, amount: "1" })
     ).rejects.toThrow(/would not reach the shelter/);
     expect(sent).toHaveLength(0);
+  });
+});
+
+describe("parseCustomAmount", () => {
+  it("normalises what the giver types", () => {
+    expect(parseCustomAmount("2,50")).toEqual({ amount: "2.5" });
+    expect(parseCustomAmount(" 007 ")).toEqual({ amount: "7" });
+    expect(parseCustomAmount(".5")).toEqual({ amount: "0.5" });
+    expect(parseCustomAmount("3.")).toEqual({ amount: "3" });
+    expect(parseCustomAmount("0.01")).toEqual({ amount: "0.01" });
+    expect(parseCustomAmount("10000")).toEqual({ amount: "10000" });
+  });
+
+  it("refuses empty, junk, too many decimals, too small and too large, naming the coin", () => {
+    expect(parseCustomAmount("", "EURC")).toEqual({ error: "Type an amount in EURC." });
+    expect(parseCustomAmount("1e3")).toEqual({ error: "Use digits only, like 2.5." });
+    expect(parseCustomAmount("-1")).toEqual({ error: "Use digits only, like 2.5." });
+    expect(parseCustomAmount(".")).toEqual({ error: "Use digits only, like 2.5." });
+    expect(parseCustomAmount("1.0000001")).toEqual({ error: "Use at most 6 decimals." });
+    expect(parseCustomAmount("0.009")).toEqual({ error: "The smallest gift is 0.01 USDC." });
+    expect(parseCustomAmount("0")).toEqual({ error: "The smallest gift is 0.01 USDC." });
+    expect(parseCustomAmount("10000.01", "pathUSD")).toEqual({ error: "Up to 10,000 pathUSD per gift from this page." });
   });
 });
