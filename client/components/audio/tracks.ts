@@ -29,6 +29,8 @@ const GAME_TRACKS: Record<GameType, string | null> = {
   [GameType.PURRQUEST]: DEFAULT_GAME_TRACK,
   [GameType.CATBASSADORS]: DEFAULT_GAME_TRACK,
   [GameType.CATNIP_HEIST]: null,
+  // Bad Cat Daily is a separate top-level build (/badcat) with its own WebAudio; never hosted by the shell.
+  [GameType.BAD_CAT]: null,
 };
 
 /**

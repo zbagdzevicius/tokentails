@@ -60,6 +60,7 @@ import {
 } from './utils/live-game';
 import { HeistReplayIpThrottleGuard } from './heist/heist-ip-throttle.guard';
 import { saveHeistRun } from './heist/heist-live';
+import { saveBadcatRun } from 'src/badcat/badcat-live';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -1383,7 +1384,8 @@ export class UserController {
     /**
      * The only write path for game scores (CLAUDE.md, plan F6). Plain modes are checked against
      * their level table and caps; CATNIP_HEIST takes the replay-verified branch
-     * (`src/user/heist/heist-live.ts`, plan G2 layer 2). Guards, in order: auth (first, as on every
+     * (`src/user/heist/heist-live.ts`, plan G2 layer 2) and BAD_CAT the Bad Cat Daily one
+     * (`src/badcat/badcat-live.ts`, behind BADCAT_SCORES_ENABLED). Guards, in order: auth (first, as on every
      * route), the per-IP Heist replay bucket (counts replay requests only), the per-player bucket.
      * The body is parsed by a 64 KB route parser (`src/user/heist/live-body-limit.ts`).
      */
@@ -1396,6 +1398,24 @@ export class UserController {
         @Body(liveGamePipe) body: LiveGameDto,
         @Req() req?: { res?: { setHeader(name: string, value: string): void } }
     ): Promise<any> {
+        if (body.badcat !== undefined && body.type !== GameType.BAD_CAT) {
+            throw new BadRequestException('badcat is only accepted with type BAD_CAT');
+        }
+        if (body.type === GameType.BAD_CAT) {
+            // Bad Cat Daily ranked runs (GDD 10 Phase 2): replay-verified, off unless BADCAT_SCORES_ENABLED.
+            try {
+                return await saveBadcatRun(
+                    { users: this.repository as any, games: this.gameRepository as any, queue: heistReplayQueue },
+                    userId,
+                    body
+                );
+            } catch (error) {
+                if (error instanceof ReplayQueueFullException) {
+                    req?.res?.setHeader('Retry-After', String(error.retryAfterSeconds));
+                }
+                throw error;
+            }
+        }
         if (body.type === GameType.CATNIP_HEIST) {
             try {
                 return await saveHeistRun(

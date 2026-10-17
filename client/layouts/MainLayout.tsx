@@ -47,7 +47,8 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
             </main>
             {/* /yourcat asks in its own header (the compact chip, `pages/yourcat.tsx`), so the
                 banner never covers CHOOSE A PHOTO or the S3 actions. Every other page: unchanged. */}
-            {route !== "/yourcat" && <AnalyticsConsentBanner />}
+            {/* /badcat-account is Bad Cat Daily's hidden token bridge and sign-in hop: no banner there either. */}
+            {route !== "/yourcat" && route !== "/badcat-account" && <AnalyticsConsentBanner />}
           </CatProvider>
         </ProfileProvider>
       </ToastProvider>

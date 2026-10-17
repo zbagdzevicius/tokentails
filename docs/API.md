@@ -169,6 +169,23 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | 429 | none, `Retry-After` header | Per-IP replay bucket (30 a minute), per-player limit, or a full replay queue |
 | 503 | none | Production without `TRUST_PROXY`: replays are refused (plain saves pass) |
 
+Bad Cat Daily ranked saves (GDD 10 Phase 2; off unless `BADCAT_ENABLED` and `BADCAT_SCORES_ENABLED`): `{ type:
+'BAD_CAT', platform?, badcat: { dayNo, simVersion, runs, finalHash?, score?, catCode?, name? } }`; `points`,
+`score`, `time` and `level` are ignored and `replay` is refused. `runs` are `[dir 0..8, speed 0..2, buttons 0..7,
+count]` (the game's `encodeInputs`), at most one boss run (2,777 ticks) in all. The server replays the day's room
+with the vendored sim and stores its own score, stamp and time on a `Game` row (`level: 'd<dayNo>'`). One ranked
+run per player and day. The same per-IP replay bucket, replay queue and 503 rule as the Heist apply.
+
+| Status | Body `code` | Meaning |
+|---|---|---|
+| 201 | none | `{dayNo, score, stamp, rank, ticks, finalHash, hashMatch?, level}` |
+| 400 | `BADCAT_REPLAY_INVALID`, `BADCAT_TRAILING_INPUT`, `BADCAT_NO_SCORE` | Not a valid scoring ranked run; drop it |
+| 400 | `BADCAT_SIM_VERSION` | Another sim version; the body carries `sim: {simVersion, bundle}`. Keep the run until the backend runs the game's version |
+| 400 | `BADCAT_DAY_CLOSED` | Outside UTC yesterday..tomorrow plus `BADCAT_SCORE_GRACE_DAYS` |
+| 404 | `BADCAT_SCORES_OFF` | Bad Cat scores are switched off |
+| 409 | `BADCAT_DUPLICATE` | This exact log is already saved (any account) |
+| 409 | `BADCAT_ALREADY_RANKED` | The caller already has a ranked run of that day |
+
 ## Cats
 
 | Method | Path | Purpose | Auth |
@@ -554,6 +571,79 @@ the guest session (428 `GUEST_SESSION_REQUIRED` otherwise), except `GET /yourcat
 | DELETE | `/yourcat/:id` | Deletes the avatar and the original photo (the original stays until delivery when a paid portrait is not delivered yet and has a delivery attempt left, or for 3 days when Stripe could not confirm an open session closed), expires open checkout sessions. `{ success: true, photoKeptUntilDelivery }`. The game cat keeps its look and name | Guest ok, User(10), 10/min per client IP |
 | POST | `/yourcat/:id/portrait-checkout` | JSON `{ style }` (`highness`, `monarch`, `aristocrat`, `commander`; anything else is 400 `YOURCAT_STYLE_INVALID`): a €14 Stripe Checkout for the HD portrait (painted after payment from the private original). Returns `{ checkoutUrl, orderId }`; the same style reuses the open session, another style expires it first. 404 `YOURCAT_NOT_FOUND`; 410 `YOURCAT_PHOTO_EXPIRED` (also when the record is deleted while the session is made; that session is expired); 409 `YOURCAT_PORTRAIT_EXISTS`; 503 `YOURCAT_PORTRAIT_DISABLED`; 503 with no code when the old session of another style cannot be confirmed closed (retry). 429 above 10 a day per user (counted in MongoDB per UTC day, `Retry-After` to UTC midnight). Guests may buy (exception to decision #9) | Guest ok, 10 a day and 5/min per user, 5/min per client IP |
 
+## Bad Cat Daily (badcat)
+
+Payments, entitlements and cameos for the `bad-cat/` game. Behaviour is described in docs/BACKEND.md
+("Bad Cat Daily"). Shapes are in `backend/src/badcat/badcat.contracts.ts`, which mirrors
+`bad-cat/src/types.ts`.
+
+- **Switched off by default.** Every route answers 404 `BADCAT_NOT_FOUND` unless `BADCAT_ENABLED=true`
+  and the route's feature flag is on. `GET /badcat/status` then answers all false. The one exception is the
+  Stripe webhook: it has its own gate (the webhook secret and the signature), so pausing checkout or the whole
+  of Bad Cat never drops cancellations, refunds or renewals.
+- **Errors** are `{ statusCode, code, message }` with `BADCAT_*` codes.
+- **Throttling.** Public routes skip the global throttler. Each one has a per-client-IP limit (in
+  memory, per replica), counted after the flag check.
+- **No accounts.** A buyer is the email Stripe Checkout collected. Authenticated calls send the
+  entitlement `token` in the body, not an `accesstoken` header.
+- **Admin routes** need Perm(5).
+- **No route writes a score.**
+
+| Method | Path | Purpose | Flags | Auth |
+|---|---|---|---|---|
+| GET | `/badcat/status` | `BadcatServerStatus`: what is switched on, `testMode` (the key is a test key), `foundingLeft` while checkout is on. `checkout`, `gifts` and `brand` are false without a usable key. `Cache-Control: public, max-age=30` | none | Public, 60/min |
+| POST | `/badcat/checkout` | `CheckoutRequest` → `CheckoutResponse { url, sessionId }`: a Stripe test-mode Checkout Session. 400 `BADCAT_INVALID` (sku, cat, day out of yesterday..tomorrow+90 in UTC days (players book their local day), guest star on a non-Friday, sponsor week on a non-Saturday, brand name, email, `returnBase` outside `BADCAT_PUBLIC_URL`). 404 when the SKU's family flag is off. 409 `BADCAT_SOLD_OUT` (founding cap). 503 `BADCAT_STRIPE_UNAVAILABLE` (no key, or a live key) | checkout; cameos for cameo and guest star; gifts for gift SKUs; brand for Brand Shelf and sponsor SKUs | Public, 5/min |
+| POST | `/badcat/stripe/webhook` | Stripe events (raw body): `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `charge.refunded`. A refund of a one-off voids it (gift canceled, cameo hidden); a refund of a Club or founding subscription (matched by the PaymentIntents its invoices recorded, else through Stripe's invoice payments, test mode) marks it refunded (out of revenue, the founding place free again), ends Club now and cancels the subscription in Stripe; a refunded renewal ends Club too. Answers `{ received: true, outcome: 'processed' \| 'duplicate' \| 'ignored' }`. 400 `BADCAT_BAD_SIGNATURE`; 503 without `BADCAT_STRIPE_WEBHOOK_SECRET` | its own gate (works while checkout is paused) | Stripe |
+| POST | `/badcat/entitlement` | `{ sessionId }` → `CheckoutCompletion`: `{ ok: false, pending: true }` until the webhook landed. Then `ok`, `sku`, `token`, `entitlements`, `gift { code, sku }` or `cameoId` + `dayNo`. Valid for 30 days after the purchase. `{ token }` → a refreshed `EntitlementResponse` (a token up to a year past expiry is accepted). 401 `BADCAT_BAD_TOKEN`; 503 `BADCAT_ENTITLEMENT_UNAVAILABLE` without `BADCAT_ENTITLEMENT_SECRET` | checkout | Public, 30/min |
+| POST | `/badcat/restore` | `{ email }` → `{ ok: true }`, the same answer for any valid email. Emails a 30-minute link `<BADCAT_PUBLIC_URL>/badcat/restore?t=…` (needs `BADCAT_RESTORE_EMAIL_ENABLED` and SendGrid). Without email, adds `devLink` outside production. At most 3 links an hour per address | checkout | Public, 3 per 10 min |
+| POST | `/badcat/restore/verify` | `{ t }` → `EntitlementResponse`. Single use; 401 when used, expired or unknown | checkout | Public, 10/min |
+| POST | `/badcat/portal` | `{ token }` → `{ url }`: the Stripe customer portal of the token's email (latest customer). 404 `BADCAT_NO_CUSTOMER` | checkout | Public, 5/min |
+| POST | `/badcat/redeem` | `RedeemRequest` → `RedeemResponse`. A Club gift gives the email 3 months of Club (never a subscription). A gift cameo needs `catCode`, `catName` and `dayNo`, and the answer adds `cameoId`. `{ ok: false, error: 'unknown_code' \| 'already_redeemed' }` | checkout + gifts | Public, 5/min |
+| POST | `/badcat/club/cat` | `{ token, catCode, name }` → `{ ok }`: the member's cat for the weekly cameo, the fridge wall and the seen email. 403 `BADCAT_NOT_CLUB` | checkout | Public (unexpired token), 10/min |
+| GET | `/badcat/cameos?day=&s=` | `CameoBundle` of (day, shuffle 0–7) for days today − 400 to today + 1. Each call adds one room load to that shuffle's counter. A stored shuffle picks up bookings made later for its own day (a guest star always stars; a paid cameo takes a free or unpaid seat; its 300-load guarantee counts loads from then on). `Cache-Control: no-store` | cameos | Public, 120/min |
+| GET | `/badcat/seen?cat=` | `SeenResponse { week, total }`: room loads of the shuffles that showed the cat, this week (Monday to today, UTC) and in all | cameos | Public, 60/min |
+| POST | `/badcat/face/:cameoId` | `{ token, png }` (base64 or a `data:image/png;base64,` URL, at most 64 KB, PNG magic checked) → `{ ok, status: 'pending' }`. 403 for another email's cameo, 409 when the cat already has an approved face, 413 `BADCAT_FACE_TOO_LARGE` | faceUploads | Public (unexpired token), 5/min |
+| GET | `/badcat/face/:id.png` | An approved face (`image/png`, `Cache-Control: public, max-age=86400`); 404 otherwise | enabled | Public, 600/min |
+| POST | `/badcat/creator-code` | `{ code, email }` (code: 6–12 of a-z, 0-9, _) → `{ ok, status: 'pending' }`. 409 when taken | creatorCodes | Public, 3/hour |
+| GET | `/badcat/t` | 302 to `<BADCAT_PUBLIC_URL>/badcat/pick?e=t` and one typed arrival counted for the UTC day (no personal data) | typedRedirect | Public, 60/min |
+| GET | `/badcat/admin/faces` | `{ items: [{ id, catCode, cameoId, createdAt, dataUrl }] }`: pending faces | enabled | Perm(5) |
+| POST | `/badcat/admin/faces/:id/approve` | Approves a pending face and rejects the cat's other pending faces. 409 when not pending or when the cat already has one | enabled | Perm(5) |
+| POST | `/badcat/admin/faces/:id/reject` | Rejects a pending face | enabled | Perm(5) |
+| POST | `/badcat/admin/cameo` | `{ catCode, name, dayNo, kind }` with kind `free`, `streak`, `reply`, `community` or `pinkpaw` → `{ id }` | enabled | Perm(5) |
+| GET | `/badcat/admin/stats?days=30` | Typed arrivals per day; purchases by sku, trigger, via, from_in_app and ab_arm; revenue and donation cents; active subscriptions; gross MRR; founding taken; the brand queue (1–120 days) | enabled | Perm(5) |
+| GET | `/badcat/admin/creator-codes` | `{ items }`: every code with its status | enabled | Perm(5) |
+| GET | `/badcat/admin/creator-codes/report` | `{ items: [{ code, buyers, grossCents, netCents, shareCents, payable, note }] }`: 20 % of estimated net within each buyer's first 6 months; payable from $25 | enabled | Perm(5) |
+| POST | `/badcat/admin/creator-codes/:code/approve` | Approves a code | enabled | Perm(5) |
+| POST | `/badcat/admin/creator-codes/:code/reject` | Rejects a code | enabled | Perm(5) |
+
+Phase 2 routes (`backend/src/badcat/badcat-online.controller.ts`; contracts in `badcat.contracts.ts`). Ranked runs
+are saved by `POST /user/catbassadors/live` (see "Scores"), never by a `/badcat` route.
+
+| Method | Path | Purpose | Flags | Auth, limit |
+|---|---|---|---|---|
+| GET | `/badcat/sim` | `{ simVersion, bundle, tickHz, maxRunTicks }`: the vendored sim `/live` replays BAD_CAT runs with | scores | Public, 60/min |
+| GET | `/badcat/board/:day` | `BoardResponse { dayNo, label, rows: [{ rank, score, stamp, name, catCode? }], updatedAt }`: top 100 registered players (guests and deleted accounts left out); only cat names and codes. Day up to UTC tomorrow. `Cache-Control: public, max-age=30` | boards | Public, 120/min |
+| GET | `/badcat/board/:day/me` | `BoardMeResponse { dayNo, saved, guest, score?, stamp?, rank? }` (no rank for a guest) | boards | Auth (guests and transient guests ok), 60/min |
+| GET | `/badcat/account` | `AccountResponse { signedIn, guest, emailVerified, ranked: { days, best, lastDay, streak }, streakEmail, canClaim }` | accounts | Auth (guests ok), 60/min |
+| POST | `/badcat/account/claim` | `EntitlementResponse`: a verified entitlement token for the purchases made with the account's verified email. 400 `BADCAT_INVALID` without one | accounts + checkout | Auth, 10/min |
+| POST | `/badcat/account/streak-email` | `{ on }` → `{ ok, on }` (verified email) | accounts + streakEmail | Auth, 60/min |
+| GET | `/badcat/creator/me` | `CreatorDashboard { rows: [{ code, status, purchases, grossCents, shareCents }], minPayoutCents }` for the codes of the account's verified email | accounts + creatorDashboard | Auth, 20/min |
+| POST | `/badcat/face/:cameoId/yourcat` | `{ ok, status: 'approved' }`: the caller's ready `/yourcat` portrait (128 px) becomes the cameo's face. 403 for a cameo of another email, 409 when the cat has a face, 400 without a ready portrait | accounts + faceUploads | Auth (verified email), 5/min |
+| POST | `/badcat/link` | `ShortLinkRequest { path, kind, name?, score?, dayNo?, catCode? }` → `{ id, url }`; one id per path. 400 for anything but a shareable `/badcat` game path | shortLinks | Public, 20/min |
+| GET | `/badcat/s/:id` | HTML: the link's OG tags and a redirect to `BADCAT_PUBLIC_URL` + path; one hit counted | shortLinks | Public, 300/min |
+| GET | `/badcat/og/:id.png` | The link's 1200 x 630 card (`image/png`, a day of cache) | shortLinks | Public, 300/min |
+| POST | `/badcat/room` | `RoomPublishRequest { code, clear?, feed? }` → `{ id, url, status, feed }`. 400 when the room fails the Room Maker rules or (feed) the replayed clear run wrecks no target; a feed room needs `clear`. One row per gameplay hash | feed | Public, 6/min |
+| GET | `/badcat/room/:id` | `FeedRoom` (any status but rejected or hidden) | feed | Public, 120/min |
+| POST | `/badcat/room/:id/play` | `{ ok }`: one play counted | feed | Public, 30/min |
+| POST | `/badcat/room/:id/report` | `{ ok }`: one report; an approved room is hidden at `BADCAT_FEED_REPORT_HIDE` (3) | feed | Public, 5 per 10 min |
+| GET | `/badcat/feed?sort=new\|top&cursor=` | `FeedResponse { rooms, next? }`: approved feed rooms, 20 a page (400 deep at most) | feed | Public, 60/min |
+| GET | `/badcat/meter` | `{ month, cents, currency, collars, updated }`: this UTC month's estimated Pink Paw share | meter | Public, 60/min |
+| GET | `/badcat/push/key` | `{ publicKey }` (VAPID) | push (+ keys) | Public, 10/min |
+| POST | `/badcat/push/subscribe` | `PushSubscribeRequest { subscription, hour, tzOffsetMin }` → `{ ok, utcHour }`. Known push services only | push (+ keys) | Public, 10/min |
+| POST | `/badcat/push/unsubscribe` | `{ endpoint }` → `{ ok }` | push | Public, 10/min |
+| GET | `/badcat/admin/rooms?status=` | `{ items }`: rooms by status (`pending` default, `approved`, `rejected`, `hidden`) with reports and plays | enabled | Perm(5) |
+| POST | `/badcat/admin/rooms/:id/approve\|reject\|hide` | Review a room | enabled | Perm(5) |
+
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |
@@ -809,6 +899,36 @@ finished: when their `Order` is already `COMPLETE` or `FAILED_GRANT` that result
 copied; a shelter cat the buyer already holds counts as delivered; otherwise the grant runs again under a
 new lease, with the spend counted once. Known gap: a pack whose adoption succeeded in the single write
 before the crash, without its `Order` being marked, is granted a second cat.
+
+## Moon Rave checkout (`/rave`, flag `RAVE_CHECKOUT_ENABLED`, default off)
+
+No login. Contract: `cat-rave/CHECKOUT-SPEC.md` section 4; code `backend/src/rave/`.
+
+| Route | Notes |
+|---|---|
+| `GET /rave/status` | `{enabled:false, reason}` (`off`, `stripe`, `keeper`, `mode`, `cap`) or the prices, fee, publishable key and USDC chains. 60/min per IP |
+| `POST /rave/checkout` | `{cats, method, coverFee, names[≤10], restName, x, clientKey}` (`method` is `card` or `usdc`). `cats` is 1, 5 or a whole number from 10 to the max. Card answers a PaymentIntent `clientSecret`; USDC answers `memo` and `usdc.amountUnits6`. Same `clientKey` returns the same order, a different body 409 `RAVE_KEY_REUSED`. Errors `RAVE_AMOUNT`, `RAVE_INVALID`, `RAVE_METHOD`, `RAVE_NAME` (`fields[]`), `RAVE_X_HANDLE` (`fieldCode`), 404 while off, 502 `RAVE_STRIPE`, 503 `RAVE_OFF`, `RAVE_CAP`, `RAVE_BUSY` |
+| `GET /rave/orders/:id` | The buyer's own order with amounts and raw status; also the backup Stripe check when the webhook is slow |
+| `POST /rave/orders/:id/usdc-tx` | `{chainId, txHash}`; verifies the buyer's USDC gift on-chain (read only). 400 `RAVE_TX_MISMATCH`, 409 `RAVE_TX_USED`, `RAVE_ORDER_STATE` |
+| `GET /rave/cats?limit&before` | Public list `{asOf, orders[{orderId, cats, names, restName?, x?, status, chainId?, payoutTx?, method, createdAt}], nextBefore}` (status `pending`, `paid` or `onchain`). `x` is the bare X handle the buyer chose to show. Readable while the flag is off |
+| `POST /rave/stripe/webhook` | Stripe signature checked with `RAVE_STRIPE_WEBHOOK_SECRET`; raw body path |
+| `PATCH /rave/orders/:id/moderation` | `{hidden}`, `PermissionGuard(2)` |
+| `POST /rave/orders/:id/release` | Releases a payment held for review, `PermissionGuard(4)` |
+
+### Moon Rave ad space (`/rave/ads`, flag `RAVE_ADS_ENABLED`, default off)
+
+20 slots in the world (`backend/src/rave/ads/rave-ads.slots.ts`, page copy `cat-rave/src/ads/slots.ts`), $100 each,
+server-priced. Payments arrive through `POST /rave/stripe/webhook` (PaymentIntent metadata `raveAd: '1'`).
+
+| Route | Notes |
+|---|---|
+| `GET /rave/ads/status` | `{enabled:false, reason}` (`off`, `stripe`, `mode`, `keeper`) or `{livemode, publishableKey, priceCents, fee, holdMinutes, days, shelterBps, slots[{slotId, kind, free, heldUntil?}]}`. 60/min per IP |
+| `GET /rave/ads` | Public: approved, running ads only `{asOf, ads[{adId, slotId, name, url, x?, imageUrl, liveUntil}]}`. Readable while the flag is off |
+| `POST /rave/ads/checkout` | Multipart: `image` (PNG/JPEG/WebP ≤ 2 MB; cropped to the slot, re-encoded WebP, public bucket), `slotId`, `name` (2–32), `url` (https, public host), `x` (optional handle), `coverFee`, `clientKey`. Holds the slot 15 min (unique `slotLock`) and answers the PaymentIntent `clientSecret`. 409 `RAVE_AD_SLOT_TAKEN`, `RAVE_AD_KEY_REUSED`; 400 `RAVE_AD_SLOT`, `RAVE_AD_NAME`, `RAVE_AD_URL`, `RAVE_AD_X_HANDLE`, `RAVE_AD_IMAGE` (`fieldCode`); 404 while off; 502 `RAVE_AD_STRIPE`; 503 `RAVE_AD_OFF`, `RAVE_AD_STORAGE`. 6 per 10 min per IP |
+| `GET /rave/ads/:adId` | The buyer's ad and status (`held`, `review`, `live`, …); backup Stripe check when the webhook is slow |
+| `GET /rave/ads/admin/list?status=review` | Ads by status, `PermissionGuard(5)` |
+| `POST /rave/ads/:adId/approve` | `review → live` for `RAVE_AD_DAYS`; queues the `RAVE_AD_SHELTER_BPS` share for Pink Paw when set, `PermissionGuard(5)` |
+| `POST /rave/ads/:adId/reject` | `{reason?}`: frees the slot and refunds the full payment through Stripe (idempotency key `ravead-refund:<adId>`); repeat to retry a failed refund, also the refund of a late payment whose slot was lost (`refunded`, reason `slot-lost`), `PermissionGuard(5)` |
 
 ## Content
 

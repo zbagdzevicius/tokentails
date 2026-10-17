@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Pink Paw Knight</title>
+<meta name="description" content="Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas. Free, no sign-up needed.">
+<meta name="theme-color" content="#ff7aa2">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Token Tails">
+<meta property="og:title" content="Save a kitten. It's a real one.">
+<meta property="og:description" content="Every cat you save is a real cat at Pink Paw in Kaunas. Free, no sign-up needed.">
+<meta property="og:image" content="https://tokentails.com/logo/og-v2-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#ff7aa2; --pink-deep:#f2628f; --night:#0b0820; --cream:#fcecbb; --ink:#4a1d08; --gold:#ffcc55;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--pink);color:var(--night);font:500 17px/1.5 Nunito,system-ui,sans-serif;overflow-x:hidden}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--night);outline-offset:4px;border-radius:6px}
+
+/* One screen */
+.poster{
+  position:relative;min-height:100vh;min-height:100svh;
+  display:flex;flex-direction:column;
+  padding:max(20px,env(safe-area-inset-top)) 16px 28px;
+  max-width:1180px;margin:0 auto;
+}
+/* flat halftone in one corner, tone-on-tone */
+main{position:relative;isolation:isolate}
+main::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:100%;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,var(--pink-deep) 1.6px,transparent 2px) 0 0/14px 14px;
+  -webkit-mask:radial-gradient(ellipse 60% 55% at 100% 0%,#000 0,transparent 70%);
+          mask:radial-gradient(ellipse 60% 55% at 100% 0%,#000 0,transparent 70%);
+}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;width:max-content}
+.brand img{width:34px;height:auto}
+.brand span{font:900 22px/1 "Passion One",sans-serif;letter-spacing:.01em}
+
+.main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 0 8px}
+.kicker{
+  display:inline-block;align-self:flex-start;
+  font:800 13px/1 Nunito,sans-serif;letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:18px;
+}
+h1{
+  font:900 clamp(48px,13.5vw,96px)/.9 "Passion One",sans-serif;
+  letter-spacing:.01em;max-width:11ch;
+}
+h1 em{font-style:normal;display:block;color:var(--cream);
+  text-shadow:-2px -2px 0 var(--night),2px -2px 0 var(--night),-2px 2px 0 var(--night),2px 2px 0 var(--night),5px 5px 0 var(--night)}
+.sub{font-size:clamp(18px,4.6vw,22px);font-weight:700;max-width:30ch;margin-top:22px}
+
+.act{display:flex;align-items:center;gap:6px;margin-top:34px}
+.act img{width:112px;height:auto;flex:none;margin-left:-8px;filter:drop-shadow(3px 3px 0 rgba(11,8,32,.9))}
+.cta{
+  display:inline-flex;align-items:center;justify-content:center;gap:12px;
+  min-height:60px;padding:0 30px;border-radius:16px;
+  background:var(--cream);color:var(--ink);text-decoration:none;
+  font:900 26px/1 "Passion One",sans-serif;letter-spacing:.02em;
+  border:3px solid var(--night);box-shadow:5px 5px 0 var(--night);
+  transition:transform .12s ease,box-shadow .12s ease;
+}
+.cta svg{width:22px;height:22px}
+.cta:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--night)}
+.cta:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--night)}
+.cta:focus-visible{outline-offset:6px}
+
+.treat{font-size:15px;font-weight:700;max-width:34ch;margin-top:18px;line-height:1.45}
+footer{max-width:1180px;margin:0 auto;padding:18px 16px 76px;font-size:14px;font-weight:700;display:flex;flex-wrap:wrap;gap:6px 18px}
+footer a{text-underline-offset:3px;padding:6px 0}
+
+.poc{position:fixed;left:12px;bottom:12px;z-index:5;background:var(--night);color:var(--cream);
+  font:800 12px/1 Nunito,sans-serif;letter-spacing:.06em;padding:9px 12px;border-radius:999px;text-decoration:none;opacity:.9}
+.poc:focus-visible{outline-color:var(--cream)}
+
+@media (min-width:860px){
+  .poster{padding:32px 40px 40px}
+  .main{align-items:center;text-align:center}
+  .kicker{align-self:center}
+  h1{max-width:none}
+  .sub{margin-left:auto;margin-right:auto;max-width:34ch}
+  .act{margin-top:44px;margin-right:110px}
+  .act img{width:150px}
+  .cta{min-height:68px;font-size:30px;padding:0 38px}
+  footer{padding-left:40px;padding-right:40px}
+  .treat{margin-left:auto;margin-right:auto;font-size:16px;max-width:48ch;margin-top:22px}
+}
+@media (max-width:370px){.act img{width:88px}.cta{padding:0 22px;font-size:23px}}
+@media (prefers-reduced-motion:reduce){.cta{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <section class="poster" aria-labelledby="h">
+    <div class="brand">
+      <img src="https://tokentails.com/logo/logo.webp" width="240" height="280" alt="">
+      <span>Token Tails</span>
+    </div>
+    <div class="main">
+      <div class="copy">
+        <span class="kicker">Pink Paw Knight</span>
+        <h1 id="h">Save a kitten. <em>It's a real one.</em></h1>
+        <!-- live copy: origin/main SwordcatSection.tsx:53 -->
+        <p class="sub">Every cat you save is a real cat at Pink Paw in Kaunas. Free, no sign-up needed.</p>
+      </div>
+      <div class="act">
+        <img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="">
+        <a class="cta" href="https://tokentails.com/swordcat?from=poc_v4&amp;utm_source=landing-poc&amp;utm_campaign=v4">
+          Play free
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+      <!-- live copy: origin/main SwordcatSection.tsx:56 SWORDCAT_SECTION_TREAT_BEAT ("can send", R3/R4) -->
+      <p class="treat">Save one, and Token Tails can send Pink Paw a free treat. It goes to Pink Paw's wallet.</p>
+    </div>
+  </section>
+</main>
+<footer>
+  <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+  <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+</footer>
+<a class="poc" href="../">POC variant v4</a>
+</body>
+</html>

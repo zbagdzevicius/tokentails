@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Legendary Pack Sale</title>
+<meta name="description" content="Token Tails sale: the Legendary pack is $100 instead of $350 until 27 Nov 2026, 23:59:59 UTC. Every pack holds one cat card. Rarer packs find rarer cats.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0b0820">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Legendary pack: $100. Until Nov 27.">
+<meta property="og:description" content="Was $350. Every pack holds one cat card. Rarer packs find rarer cats.">
+<meta property="og:image" content="https://tokentails.com/logo/og-v2-1200x630.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;800&family=Passion+One:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.com/cards/packs/LEGENDARY.webp">
+<!--
+  POC v3 "Founder sale, Legendary pack". Goal: buy the Legendary pack at $100.
+  Prices: client/models/order.ts:34-48 + backend/src/payments/price-table.ts:68-77 (display only; the server decides).
+  Sale end: LEGENDARY_PROMO.endsAt = 2026-11-28T00:00:00Z exclusive, i.e. last second 2026-11-27 23:59:59 UTC.
+  Odds: client/models/order.ts PACK_ODDS (verbatim). Copy: PacksModal.tsx:384.
+  Facts: F-001 only. Copy: "Your pack opens right after you pay." and Common-only-in-Starter/Influencer from PacksModal.tsx RARITIES. No shelter/donation claims on this page (no verified pack-to-shelter link).
+-->
+<style>
+:root{
+  --night-950:#07051a;--night-900:#0b0820;--night-700:#1e1633;--night-500:#3a2d5c;
+  --cream:#fcecbb;--gold-400:#ffcc55;--gold-500:#e2c05a;--gold-ink:#4a1d08;
+  --ember:#c1260f;--muted:#b3a4dd;--lilac:#f0c5fd;
+  --foil:linear-gradient(100deg,#b8862b 0%,#ffcc55 22%,#fff3c4 38%,#ffcc55 52%,#e2c05a 70%,#9c6a1c 100%);
+  --radius:20px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--night-900);color:var(--cream);font:400 17px/1.55 Nunito,system-ui,sans-serif;overflow-x:hidden;padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+img{display:block;max-width:100%;height:auto}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--gold-400);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.eyebrow{font:400 15px/1 "Bebas Neue",sans-serif;letter-spacing:.14em;color:var(--gold-500);text-transform:uppercase;margin:0 0 10px}
+h1,h2,h3{font-family:"Passion One",sans-serif;font-weight:700;line-height:.95;margin:0;letter-spacing:.005em}
+h2{font-size:clamp(34px,7vw,52px)}
+.foil{background:var(--foil);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 6s ease-in-out infinite}
+@keyframes sheen{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border-radius:999px;
+  font:700 22px/1 "Passion One",sans-serif;letter-spacing:.02em;text-decoration:none;color:var(--gold-ink);
+  background:linear-gradient(180deg,#ffe08a 0%,#ffcc55 45%,#e2a93a 100%);
+  box-shadow:0 1px 0 #fff4c9 inset,0 -3px 0 #b07a22 inset,0 10px 30px -8px rgba(255,204,85,.55);transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 1px 0 #fff4c9 inset,0 -3px 0 #b07a22 inset,0 16px 36px -8px rgba(255,204,85,.7)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline-color:var(--cream);outline-offset:4px;border-radius:999px}
+.btn svg{width:20px;height:20px}
+.link{color:var(--gold-400);font-weight:800;text-underline-offset:4px;text-decoration-thickness:2px}
+.link:hover{color:var(--cream)}
+.note{font-size:14px;color:var(--muted);margin:10px 0 0}
+
+/* Hero */
+.hero{position:relative;isolation:isolate;padding:14px 0 48px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-20% -40% auto;height:900px;z-index:-1;
+  background:radial-gradient(closest-side,rgba(255,204,85,.30),rgba(255,204,85,.08) 55%,transparent 75%) 50% 46%/700px 700px no-repeat,
+  radial-gradient(60% 50% at 50% 0%,#1e1633 0%,transparent 70%)}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font:700 22px/1 "Passion One",sans-serif;color:var(--cream);width:max-content}
+.brand img{width:36px;height:36px}
+.hero-grid{display:grid;gap:10px;margin-top:8px}
+.tag{display:inline-flex;align-items:center;gap:8px;background:var(--ember);color:#fff;font:400 16px/1 "Bebas Neue",sans-serif;letter-spacing:.12em;padding:8px 12px 7px;border-radius:6px;transform:rotate(-2deg);box-shadow:0 6px 18px -6px rgba(193,38,15,.8)}
+.tag i{width:7px;height:7px;border-radius:50%;background:#ffd2c8;animation:blink 1.4s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.hero h1{font-size:clamp(40px,11vw,68px);margin:12px 0 8px}
+.hero h1 span{display:block}
+.sub{font-size:17px;color:#e8dcc0;max-width:34ch;margin:0 0 16px}
+.price{display:flex;align-items:flex-end;gap:16px;margin:0 0 6px}
+.price .was{font:700 30px/1 "Passion One",sans-serif;color:var(--muted);position:relative;padding-bottom:10px}
+.price .was::after{content:"";position:absolute;left:-3px;right:-3px;top:34%;height:3px;background:var(--ember);transform:rotate(-6deg);border-radius:2px}
+.price .now{font:900 72px/.8 "Passion One",sans-serif}
+.price .off{font:400 18px/1 "Bebas Neue",sans-serif;letter-spacing:.1em;color:var(--night-900);background:var(--gold-400);padding:6px 9px 5px;border-radius:6px;margin-bottom:12px}
+.ends{font-size:14px;color:var(--muted);margin:10px 0 14px}
+.ends strong{color:var(--cream);font-weight:800}
+
+.clock{display:flex;gap:8px;margin:0 0 18px}
+.clock div{flex:1;max-width:84px;background:linear-gradient(180deg,var(--night-700),var(--night-950));border:1px solid rgba(255,204,85,.28);border-radius:12px;padding:10px 0 8px;text-align:center;position:relative;overflow:hidden}
+.clock div::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55)}
+.clock b{display:block;font:400 36px/1 "Bebas Neue",sans-serif;color:var(--gold-400);font-variant-numeric:tabular-nums}
+.clock small{display:block;font:400 12px/1 "Bebas Neue",sans-serif;letter-spacing:.14em;color:var(--muted);margin-top:4px}
+
+.stage{position:relative;display:grid;place-items:center;padding-top:8px}
+.stage .pedestal{position:absolute;bottom:-4px;width:min(240px,66vw);max-width:none;opacity:.95;pointer-events:none}
+.pack{position:relative;z-index:1;width:min(104px,30vw);border-radius:16px;transform:rotate(-4deg);
+  filter:drop-shadow(0 28px 40px rgba(0,0,0,.55)) drop-shadow(0 0 40px rgba(255,204,85,.35));animation:float 6s ease-in-out infinite;margin-bottom:26px}
+.pack::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 45%,transparent 58%) -200% 0/250% 100% no-repeat;animation:shine 4.5s ease-in-out infinite;mix-blend-mode:overlay}
+.pack img{border-radius:16px}
+@keyframes float{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(-3deg) translateY(-10px)}}
+@keyframes shine{0%,40%{background-position:-200% 0}80%,100%{background-position:200% 0}}
+
+/* Sections */
+section.block{padding:64px 0;border-top:1px solid rgba(255,204,85,.12)}
+.lead{color:#e8dcc0;max-width:52ch;margin:14px 0 0}
+.inside{display:grid;gap:24px;margin-top:28px}
+.card-one{display:flex;gap:16px;align-items:center;background:linear-gradient(135deg,rgba(255,204,85,.12),rgba(255,204,85,.02));border:1px solid rgba(255,204,85,.3);border-radius:var(--radius);padding:18px}
+.card-one .ico{flex:none;width:64px;height:88px;border-radius:10px;background:var(--foil);display:grid;place-items:center;box-shadow:0 8px 20px -8px rgba(255,204,85,.6)}
+.card-one .ico svg{width:30px;height:30px;color:var(--gold-ink)}
+.card-one p{margin:0}
+.card-one strong{font:700 26px/1 "Passion One",sans-serif;display:block;margin-bottom:4px}
+.odds{background:var(--night-950);border:1px solid var(--night-500);border-radius:var(--radius);padding:20px}
+.odds h3{font:400 18px/1 "Bebas Neue",sans-serif;letter-spacing:.12em;color:var(--muted);margin-bottom:14px}
+.bar{display:flex;height:16px;border-radius:999px;overflow:hidden;gap:3px}
+.bar span{display:block}
+.r-rare{background:#90c5e9}.r-epic{background:#c78bf0}.r-leg{background:var(--foil)}
+.legend{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:10px}
+.legend li{display:flex;align-items:center;gap:10px;font-weight:600}
+.legend li b{margin-left:auto;font:400 26px/1 "Bebas Neue",sans-serif;letter-spacing:.04em;color:var(--cream)}
+.legend i{width:14px;height:14px;border-radius:4px;flex:none}
+.odds .src{font-size:13px;color:var(--muted);margin:14px 0 0}
+
+.packs{display:grid;gap:16px;margin-top:28px}
+.p{position:relative;display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center;background:var(--night-700);border:1px solid var(--night-500);border-radius:var(--radius);padding:16px;text-decoration:none;transition:transform .15s,border-color .15s}
+.p:hover{transform:translateY(-3px);border-color:var(--gold-500)}
+.p img{width:96px;border-radius:8px}
+.p h3{font-size:30px}
+.p .pp{font:900 34px/1 "Passion One",sans-serif;margin:6px 0 4px;display:flex;gap:10px;align-items:baseline}
+.p .pp s{font-size:22px;color:#cfc3ea;text-decoration-color:var(--ember);text-decoration-thickness:2px}
+.p .od{font-size:13.5px;color:var(--muted);margin:0}
+.p .go{font-weight:800;color:var(--gold-400);font-size:15px;margin-top:8px;display:inline-block}
+.p.hot{background:linear-gradient(160deg,#2a1f12 0%,var(--night-700) 60%);border:2px solid var(--gold-400);box-shadow:0 0 0 6px rgba(255,204,85,.08),0 20px 50px -20px rgba(255,204,85,.45)}
+.p.hot .ribbon{position:absolute;top:-12px;right:16px;background:var(--ember);color:#fff;font:400 14px/1 "Bebas Neue",sans-serif;letter-spacing:.12em;padding:6px 10px 5px;border-radius:6px}
+
+.trust{display:grid;gap:14px;margin-top:28px}
+.t{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px}
+.t svg{flex:none;width:28px;height:28px;color:var(--gold-400)}
+.t strong{display:block;font:700 22px/1.1 "Passion One",sans-serif;margin-bottom:4px}
+.t p{margin:0;color:#e0d4b8;font-size:15.5px}
+.t small{color:var(--muted)}
+
+.final{text-align:center;padding:72px 0 64px;position:relative;isolation:isolate;overflow:hidden}
+.final::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(50% 60% at 50% 40%,rgba(255,204,85,.16),transparent 70%)}
+.final h2{font-size:clamp(40px,9vw,68px)}
+.final .clock{justify-content:center;margin:24px auto}
+.final .note{margin-top:14px}
+
+footer{border-top:1px solid rgba(255,255,255,.08);padding:28px 0 20px;font-size:14px;color:var(--muted)}
+footer nav{display:flex;flex-wrap:wrap;gap:8px 20px}
+footer a{color:var(--muted);text-underline-offset:3px}
+footer a:hover{color:var(--cream)}
+
+/* Sticky mobile CTA + POC strip */
+.sticky{position:fixed;left:0;right:0;bottom:calc(28px + env(safe-area-inset-bottom));z-index:20;padding:10px 16px;background:rgba(7,5,26,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,204,85,.25);display:flex;align-items:center;gap:12px;transform:translateY(140%);transition:transform .25s}
+.sticky.on{transform:none}
+.sticky .btn{flex:1;min-height:52px;font-size:19px;padding:0 14px;white-space:nowrap}
+.sticky .mini{font:400 13px/1.1 "Bebas Neue",sans-serif;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
+.sticky .mini b{display:block;font-size:22px;color:var(--gold-400);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.poc{position:fixed;left:0;right:0;bottom:0;z-index:21;height:calc(28px + env(safe-area-inset-bottom));padding:0 16px env(safe-area-inset-bottom);display:flex;align-items:center;justify-content:center;gap:8px;background:var(--night-950);border-top:1px solid var(--night-500);font-size:12.5px;color:var(--muted)}
+.poc a{color:var(--gold-400);font-weight:800}
+
+.ended .sale-only{display:none!important}
+.ended-only{display:none}
+.ended .ended-only{display:block}
+
+@media (max-width:400px){
+  .pack{width:84px;margin-bottom:18px}
+  .stage .pedestal{width:200px}
+  .clock div{padding:7px 0 6px}
+  .price .now{font-size:64px}
+  .ends{margin:8px 0 12px}
+}
+@media (min-width:880px){
+  body{padding-bottom:40px}
+  .sticky{display:none}
+  .hero{padding:36px 0 80px}
+  .hero-grid{grid-template-columns:1.05fr .95fr;align-items:center;gap:40px;margin-top:40px}
+  .stage{order:2}
+  .pack{width:290px;margin-bottom:96px}
+  .stage .pedestal{width:600px;bottom:-10px}
+  .hero h1{font-size:64px}
+  .price .now{font-size:104px}
+  .clock b{font-size:44px}
+  .sub{font-size:18px;margin-bottom:22px}
+  .inside{grid-template-columns:1fr 1.2fr;align-items:stretch}
+  .packs{grid-template-columns:repeat(3,1fr);align-items:end}
+  .p{grid-template-columns:1fr;text-align:center;padding:22px 20px 24px;justify-items:center}
+  .p img{width:140px}
+  .p .pp{justify-content:center}
+  .p.hot{padding-top:30px;transform:translateY(-12px)}
+  .p.hot:hover{transform:translateY(-15px)}
+  .p.hot img{width:170px}
+  .trust{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="brand" href="https://tokentails.com/?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3"><img src="https://tokentails.com/logo/logo.webp" alt="" width="36" height="36">Token Tails</a>
+
+    <div class="hero-grid">
+      <div class="stage" aria-hidden="true">
+        <div class="pack"><img src="https://tokentails.com/cards/packs/LEGENDARY.webp" alt="" width="1000" height="1685" fetchpriority="high"></div>
+        <img class="pedestal" src="https://tokentails.com/cards/packs/packs-bg.webp" alt="" width="1703" height="594">
+      </div>
+
+      <div>
+        <span class="tag sale-only"><i></i>Legendary sale</span>
+        <h1>The Legendary pack.</h1>
+        <p class="sub">Every pack holds one cat card. Rarer packs find rarer cats.</p>
+
+        <div class="price sale-only" aria-label="Was $350, now $100">
+          <span class="was" aria-hidden="true">$350</span>
+          <span class="now foil" aria-hidden="true">$100</span>
+          <span class="off" aria-hidden="true">$250 off</span>
+        </div>
+        <p class="ends sale-only">Sale ends <strong><time datetime="2026-11-27T23:59:59Z">27 Nov 2026, 23:59:59 UTC</time></strong>. Then it goes back to $350.</p>
+        <p class="ends ended-only"><strong>Sale ended.</strong> The Legendary pack is $350.</p>
+
+        <div class="clock sale-only" data-clock role="timer" aria-label="Time left in the sale">
+          <div><b data-u="d">--</b><small>Days</small></div>
+          <div><b data-u="h">--</b><small>Hours</small></div>
+          <div><b data-u="m">--</b><small>Min</small></div>
+          <div><b data-u="s">--</b><small>Sec</small></div>
+        </div>
+
+        <a class="btn" id="cta-hero" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=hero"><span data-cta>Get Legendary · $100</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <p class="note">Pay by card. You sign in when you pick a pack.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="block" aria-labelledby="inside-h">
+    <div class="wrap">
+      <p class="eyebrow">What's inside</p>
+      <h2 id="inside-h">One cat card. <span class="foil">Better odds.</span></h2>
+      <p class="lead">No Common cards: Common drops only in the Starter and Influencer packs. Here are the Legendary pack's drop chances, exactly as the shop shows them.</p>
+
+      <div class="inside">
+        <div class="card-one">
+          <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="10" r="2.2"/><circle cx="10" cy="6" r="2.2"/><circle cx="14" cy="6" r="2.2"/><circle cx="18" cy="10" r="2.2"/><path d="M12 11c-3.3 0-6 3.3-6 6 0 1.7 1.3 3 3 3 1.2 0 2-.6 3-.6s1.8.6 3 .6c1.7 0 3-1.3 3-3 0-2.7-2.7-6-6-6z"/></svg></div>
+          <p><strong>1 cat card per pack</strong>Your pack opens right after you pay.</p>
+        </div>
+
+        <div class="odds">
+          <h3>Legendary pack drop chances</h3>
+          <div class="bar" role="img" aria-label="20% Rare, 50% Epic, 30% Legendary">
+            <span class="r-rare" style="width:20%"></span><span class="r-epic" style="width:50%"></span><span class="r-leg" style="width:30%"></span>
+          </div>
+          <ul class="legend">
+            <li><i class="r-rare"></i>Rare<b>20%</b></li>
+            <li><i class="r-epic"></i>Epic<b>50%</b></li>
+            <li><i class="r-leg"></i>Legendary<b>30%</b></li>
+          </ul>
+          <p class="src">The card's tier is rolled with these odds.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="packs-h">
+    <div class="wrap">
+      <p class="eyebrow">All three packs</p>
+      <h2 id="packs-h">Pick your pack.</h2>
+      <p class="lead">Three packs, one cat card each. Every button opens the same Token Tails shop.</p>
+
+      <div class="packs">
+        <a class="p" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=starter">
+          <img src="https://tokentails.com/cards/packs/STARTER.webp" alt="Starter pack" width="1322" height="2213" loading="lazy">
+          <div><h3>Starter</h3><p class="pp">$5</p><p class="od">90% Common, 9% Rare, 1% Epic</p><span class="go">Choose Starter →</span></div>
+        </a>
+        <a class="p" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=influencer">
+          <img src="https://tokentails.com/cards/packs/INFLUENCER.webp" alt="Influencer pack" width="1521" height="2363" loading="lazy">
+          <div><h3>Influencer</h3><p class="pp">$25</p><p class="od">75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary</p><span class="go">Choose Influencer →</span></div>
+        </a>
+        <a class="p hot" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=legendary">
+          <span class="ribbon sale-only">Sale until Nov 27</span>
+          <img src="https://tokentails.com/cards/packs/LEGENDARY.webp" alt="Legendary pack" width="1000" height="1685" loading="lazy">
+          <div><h3>Legendary</h3><p class="pp"><s class="sale-only">$350</s><span class="foil" data-legprice>$100</span></p><p class="od">20% Rare, 50% Epic, 30% Legendary</p><span class="go">Choose Legendary →</span></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="trust-h">
+    <div class="wrap">
+      <p class="eyebrow">Good to know</p>
+      <h2 id="trust-h">Before you buy.</h2>
+      <div class="trust">
+        <div class="t" data-fact="F-001">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 5.4"/></svg>
+          <div><strong>540K+ registered players</strong><p>All time. <small>(Apr 2026, company-reported)</small></p></div>
+        </div>
+        <div class="t">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg>
+          <div><strong>Pay by card</strong><p>Checkout runs inside the Token Tails shop.</p></div>
+        </div>
+        <div class="t">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <div><strong>Three steps</strong><p>Pick a pack, sign in, pay. You can browse the shop without an account.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" aria-labelledby="final-h">
+    <div class="wrap">
+      <p class="eyebrow sale-only">Sale ends 27 Nov 2026, 23:59:59 UTC</p>
+      <h2 id="final-h" class="sale-only">$250 off the <span class="foil">best Legendary odds.</span></h2>
+      <h2 class="ended-only">Sale ended.</h2>
+      <div class="clock sale-only" data-clock role="timer" aria-label="Time left in the sale">
+        <div><b data-u="d">--</b><small>Days</small></div>
+        <div><b data-u="h">--</b><small>Hours</small></div>
+        <div><b data-u="m">--</b><small>Min</small></div>
+        <div><b data-u="s">--</b><small>Sec</small></div>
+      </div>
+      <a class="btn" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=final"><span data-cta>Get Legendary · $100</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <p class="note"><a class="link" href="https://tokentails.com/game?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=try_free">Try the game free first</a></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav aria-label="Legal">
+      <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+      <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+      <a href="https://tokentails.com/?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=footer">tokentails.com</a>
+    </nav>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky" aria-hidden="true">
+  <span class="mini sale-only">Ends in<b data-short>--</b></span>
+  <a class="btn" tabindex="-1" href="https://tokentails.com/packs?from=poc_v3&amp;utm_source=landing-poc&amp;utm_campaign=v3&amp;utm_content=sticky"><span data-cta>Get Legendary · $100</span></a>
+</div>
+<div class="poc">POC variant v3 · <a href="../">all variants</a></div>
+
+<script>
+(function(){
+  var END=Date.parse("2026-11-28T00:00:00Z"),root=document.documentElement,p=function(n){return String(n).padStart(2,"0")};
+  function tick(){
+    var ms=END-Date.now();
+    if(ms<=0){root.classList.add("ended");document.querySelectorAll("[data-cta]").forEach(function(e){e.textContent="Get Legendary · $350"});
+      document.querySelectorAll("[data-legprice]").forEach(function(e){e.textContent="$350"});return clearInterval(t)}
+    var s=Math.floor(ms/1e3),v={d:Math.floor(s/86400),h:Math.floor(s%86400/3600),m:Math.floor(s%3600/60),s:s%60};
+    document.querySelectorAll("[data-u]").forEach(function(e){e.textContent=p(v[e.dataset.u])});
+    document.querySelectorAll("[data-short]").forEach(function(e){e.textContent=v.d+"d "+p(v.h)+":"+p(v.m)+":"+p(v.s)});
+  }
+  var t=setInterval(tick,1000);tick();
+  var hero=document.getElementById("cta-hero"),st=document.getElementById("sticky");
+  if("IntersectionObserver" in window)new IntersectionObserver(function(e){var on=!e[0].isIntersecting;st.classList.toggle("on",on);st.setAttribute("aria-hidden",!on);st.querySelector("a").tabIndex=on?0:-1}).observe(hero);
+})();
+</script>
+</body>
+</html>

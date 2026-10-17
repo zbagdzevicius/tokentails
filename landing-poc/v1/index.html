@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sponsor Batukas · Token Tails</title>
+<meta name="description" content="Batukas is a real tuxedo cat waiting for a home at Pink Paw shelter in Kaunas. Get him as a Common cat card in Token Tails, a cozy pixel cat game, for $5.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#fcecbb">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Batukas is waiting for a home.">
+<meta property="og:description" content="A real cat at Pink Paw shelter in Kaunas. Get Batukas as a cat card for $5.">
+<meta property="og:image" content="https://tokentails.fra1.cdn.digitaloceanspaces.com/96202882141.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://tokentails.fra1.cdn.digitaloceanspaces.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Passion+One:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.fra1.cdn.digitaloceanspaces.com/96202882141.webp">
+<!--
+  POC v1 "Sponsor Batukas". Goal: buy the $5 shelter cat card.
+  Sources (checked 2026-10-16):
+  - Cat names, status, shelter, photos and stories: GET https://api.tokentails.com/blessing/featured?limit=6
+    and GET https://api.tokentails.com/cat/sale (full blessing text), copied verbatim.
+  - Cat page URLs use the cat id (/cats/<id>); /cats/<name> renders an empty page.
+  - $5 price + "Get {name} as a Common card, by card or crypto.": ShelterCatBuy.tsx, price-table.ts:84-89.
+  - No F- figures on the page. The 50% Pink Paw share is NOT claimed (no fact id, founder call).
+-->
+<style>
+:root{
+  --cream:#fcecbb; --parch:#f7e6b8; --parch-2:#e9cf8f; --paper:#fffaf0;
+  --ink:#4a1d08; --ink-2:#6b3a1f; --ink-soft:rgba(74,29,8,.72);
+  --pink:#ff7aa2; --pink-deep:#e8507f; --pink-text:#a8285a; --pink-wash:#ffe3ea;
+  --line:rgba(74,29,8,.16);
+  --radius:28px; --gutter:16px; --max:1120px;
+  --shadow:0 1px 0 rgba(74,29,8,.06),0 18px 40px -22px rgba(74,29,8,.45);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--cream);color:var(--ink);font:400 17px/1.6 Nunito,system-ui,sans-serif;overflow-x:hidden;padding-bottom:28px}
+img{display:block;max-width:100%;height:auto}
+a{color:inherit}
+h1,h2,h3{font-family:"Passion One",Nunito,sans-serif;font-weight:700;line-height:.98;letter-spacing:.005em;margin:0}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gutter)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:12px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--ink);color:var(--cream);padding:8px 12px;border-radius:10px;z-index:99}
+.skip:focus{left:8px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:15px;letter-spacing:.02em}
+.brand img{width:34px;height:34px}
+.shelter-chip{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-soft)}
+.shelter-chip img{width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px var(--line)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border-radius:999px;
+  background:var(--pink);color:var(--ink);font:800 18px/1 Nunito,sans-serif;text-decoration:none;
+  box-shadow:inset 0 -3px 0 rgba(74,29,8,.18),0 10px 22px -12px rgba(232,80,127,.9);transition:transform .15s,background .15s}
+.btn:hover{background:#ff8cb0;transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn .price{background:rgba(255,255,255,.55);border-radius:999px;padding:6px 10px;font-size:16px}
+.btn svg{width:20px;height:20px;flex:none}
+.link{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--pink-deep)}
+.link:hover{text-decoration-color:var(--ink)}
+.fine{font-size:14px;color:var(--ink-soft);margin:12px 0 0}
+
+/* hero */
+.hero{padding:8px 0 56px}
+.hero-grid{display:grid;gap:28px;align-items:center}
+.photo{position:relative;margin:0}
+.photo .frame{border-radius:var(--radius);overflow:hidden;background:var(--parch-2);box-shadow:var(--shadow);aspect-ratio:4/3}
+.photo .frame img{width:100%;height:100%;object-fit:cover;object-position:50% 40%}
+.tag{position:absolute;left:14px;bottom:-18px;display:flex;align-items:center;gap:10px;background:var(--paper);border-radius:18px;padding:10px 14px 10px 12px;box-shadow:var(--shadow);transform:rotate(-2deg)}
+.tag .dot{width:10px;height:10px;border-radius:50%;background:var(--pink-deep);box-shadow:0 0 0 4px var(--pink-wash)}
+.tag b{display:block;font:700 22px/1 "Passion One",sans-serif}
+.tag span{display:block;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.eyebrow{display:inline-block;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--pink-text);margin:0 0 12px}
+.hero h1{font-size:clamp(44px,12vw,84px)}
+.hero .eyebrow{display:none}
+.hero h1 em{font-style:normal;color:var(--pink-text)}
+.lede{font-size:clamp(18px,4.6vw,21px);line-height:1.5;margin:16px 0 22px;max-width:30ch}
+.cta-row{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+
+/* kennel card / story */
+section{padding:56px 0}
+.card-sec{background:var(--parch)}
+.kennel{background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 22px;max-width:760px;margin:0 auto;position:relative}
+.kennel:before{content:"";position:absolute;top:-11px;left:50%;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--cream);box-shadow:inset 0 0 0 5px var(--parch-2)}
+.kennel h2{font-size:clamp(34px,8vw,48px);margin-bottom:18px}
+.facts{display:grid;grid-template-columns:1fr;gap:0;margin:0 0 20px;padding:0;border-top:2px dashed var(--line)}
+.facts div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:2px dashed var(--line)}
+.facts dt{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.facts dd{margin:0;font-weight:800;text-align:right}
+.story{font-size:clamp(19px,4.8vw,23px);line-height:1.5;margin:0;quotes:"\201C" "\201D"}
+.story:before{content:open-quote;color:var(--pink-deep);font:700 1.6em/0 "Passion One",sans-serif;vertical-align:-.35em;margin-right:4px}
+.story:after{content:close-quote;color:var(--pink-deep);font:700 1.6em/0 "Passion One",sans-serif;vertical-align:-.35em;margin-left:2px}
+.src{font-size:13px;color:var(--ink-soft);margin:14px 0 0}
+
+/* what you get */
+.get-grid{display:grid;gap:28px;align-items:center}
+.sec-h{font-size:clamp(36px,9vw,56px);margin-bottom:14px}
+.steps{list-style:none;margin:22px 0 26px;padding:0;display:grid;gap:14px}
+.steps li{display:flex;gap:14px;align-items:flex-start}
+.steps .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--cream);display:grid;place-items:center;font:700 19px/1 "Passion One",sans-serif}
+.steps p{margin:4px 0 0}
+.cardart{position:relative;max-width:300px;margin:0 auto;transform:rotate(2.5deg)}
+.cardart .c{border-radius:22px;overflow:hidden;border:8px solid var(--paper);box-shadow:var(--shadow);aspect-ratio:671/1000;background:#3b3f68}
+.cardart .c img{width:100%;height:100%;object-fit:cover}
+.cardart .rib{position:absolute;top:18px;right:-10px;background:var(--ink);color:var(--cream);font:700 15px/1 "Passion One",sans-serif;letter-spacing:.06em;padding:8px 14px;border-radius:8px}
+.cardart .pix{position:absolute;left:-14px;bottom:-16px;width:84px;height:84px;background:var(--cream);border-radius:20px;box-shadow:var(--shadow);display:grid;place-items:center;transform:rotate(-6deg)}
+.cardart .pix img{width:64px;height:64px;image-rendering:pixelated}
+
+/* more cats (compact) */
+.more{background:var(--parch);padding:44px 0}
+.more-h{font-size:clamp(28px,7vw,40px);margin-bottom:6px}
+.more-p{margin:0 0 18px;color:var(--ink-soft)}
+.cats{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:14px 12px}
+.cat a{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;width:60px}
+.cat .ph{width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid var(--paper);box-shadow:var(--shadow);background:var(--parch-2)}
+.cat .ph img{width:100%;height:100%;object-fit:cover}
+.cat .nm{font-size:14px;font-weight:800}
+.cat a:hover .nm{text-decoration:underline}
+.cat a:focus-visible{border-radius:14px}
+
+/* behind it */
+.behind{display:grid;gap:22px;align-items:center;max-width:860px;margin:0 auto}
+.behind .logo{width:120px;height:120px;border-radius:50%;background:#fff;box-shadow:var(--shadow)}
+.behind h2{font-size:clamp(32px,7.5vw,46px);margin-bottom:10px}
+.behind p{margin:0 0 10px}
+
+/* final */
+.final{text-align:center;padding:72px 0 80px}
+.final .mini{width:132px;height:132px;border-radius:50%;object-fit:cover;margin:0 auto 20px;border:6px solid var(--paper);box-shadow:var(--shadow)}
+.final h2{font-size:clamp(40px,10vw,68px);margin-bottom:14px}
+.final p.l{max-width:34ch;margin:0 auto 26px;font-size:19px}
+.final .cta-row{align-items:center}
+.pay{font-size:14px;color:var(--ink-soft);margin:14px 0 0}
+
+footer{border-top:1px solid var(--line);padding:22px 0 90px;font-size:14px;color:var(--ink-soft)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+footer nav{display:flex;gap:18px;flex-wrap:wrap}
+footer a{text-underline-offset:3px}
+
+/* sticky mobile CTA + POC note */
+.sticky{position:fixed;left:0;right:0;bottom:28px;padding:10px var(--gutter) 10px;background:linear-gradient(to top,var(--cream) 70%,rgba(252,236,187,0));z-index:40;transform:translateY(130%);transition:transform .25s ease}
+.sticky.on{transform:none}
+.sticky .btn{width:100%}
+.poc{position:fixed;left:0;right:0;bottom:0;height:28px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--cream);font-size:12px;font-weight:700;letter-spacing:.04em;z-index:50}
+.poc a{color:var(--cream);text-underline-offset:3px}
+
+@media (min-width:720px){
+  .hero .eyebrow{display:inline-block}
+  .photo .frame{aspect-ratio:4/5}
+  .cat a{width:76px}.cat .ph{width:76px;height:76px}
+  .behind{grid-template-columns:auto 1fr}
+  .facts{grid-template-columns:1fr 1fr;column-gap:28px}
+  .kennel{padding:34px 36px}
+}
+@media (min-width:960px){
+  body{font-size:18px}
+  .hero{padding:12px 0 88px}
+  .hero-grid{grid-template-columns:1.02fr .98fr;gap:64px}
+  .hero-text{order:-1}
+  .photo .frame{aspect-ratio:4/4.6}
+  .tag{left:-22px;bottom:36px}
+  section{padding:88px 0}
+  .more{padding:56px 0}
+  .get-grid{grid-template-columns:1.1fr .9fr;gap:64px}
+  .sticky{display:none}
+  .poc{left:auto;right:16px;bottom:16px;height:auto;padding:8px 14px;border-radius:999px}
+  body{padding-bottom:0}
+  footer{padding-bottom:28px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="wrap top">
+  <span class="brand"><img src="https://tokentails.com/logo/logo.webp" width="34" height="34" alt="">Token Tails</span>
+  <span class="shelter-chip"><img src="https://tokentails.com/logo/shelters/pink-paw.webp" width="30" height="30" alt="">Pink Paw, Kaunas</span>
+</header>
+
+<main id="main">
+  <!-- 1. Hero -->
+  <section class="hero" aria-labelledby="h1">
+    <div class="wrap hero-grid">
+      <figure class="photo">
+        <div class="frame">
+          <img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/96202882141.webp" width="750" height="1000"
+               alt="Batukas, a black-and-white tuxedo cat, lying on a grey blanket and looking up" fetchpriority="high">
+        </div>
+        <div class="tag" aria-hidden="true"><i class="dot"></i><div><span>Status</span><b>Waiting for home</b></div></div>
+      </figure>
+      <div class="hero-text">
+        <p class="eyebrow">A real cat at Pink Paw shelter</p>
+        <h1 id="h1">Batukas is <em>waiting</em> for a&nbsp;home.</h1>
+        <!-- Founder-OK version (decision pending): "...in Kaunas. Half of it goes to Pink Paw." -->
+        <p class="lede">Get Batukas as a cat card in Token Tails, a cozy pixel cat game, for $5. He lives at Pink Paw shelter in Kaunas.</p>
+        <div class="cta-row">
+          <a class="btn" id="hero-cta" href="https://tokentails.com/cats/6a304e481d6649b19b0364c9?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">
+            Get Batukas <span class="price" data-fact="price-shelter-cat">$5</span>
+          </a>
+          <p class="fine">Sign in at checkout, then pay by card.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. His story (verbatim, api.tokentails.com/blessing/featured) -->
+  <section class="card-sec" aria-labelledby="story-h">
+    <div class="wrap">
+      <article class="kennel">
+        <h2 id="story-h">Meet Batukas</h2>
+        <dl class="facts">
+          <div><dt>Shelter</dt><dd>Rožinė Pėdutė (Pink Paw)</dd></div>
+          <div><dt>Status</dt><dd>Waiting for home</dd></div>
+        </dl>
+        <p class="story">Batukas is an adorable tuxedo cat, dressed to impress in his stylish black-and-white coat and ready to charm everyone he meets.</p>
+        <p class="src">His story, word for word from his Token Tails page.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 3. What you get -->
+  <section aria-labelledby="get-h">
+    <div class="wrap get-grid">
+      <div>
+        <p class="eyebrow">What you get</p>
+        <h2 class="sec-h" id="get-h">His card, in your hands.</h2>
+        <p>Get Batukas as a Common card, by card or crypto.</p>
+        <ol class="steps">
+          <li><span class="n">1</span><p>Open Batukas's page and tap <b>Buy for $5</b>.</p></li>
+          <li><span class="n">2</span><p>Sign in, then pay by card.</p></li>
+          <li><span class="n">3</span><p>Batukas joins your Token Tails collection as a Common cat card.</p></li>
+        </ol>
+        <a class="btn" href="https://tokentails.com/cats/6a304e481d6649b19b0364c9?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">
+          Get Batukas <span class="price">$5</span>
+        </a>
+      </div>
+      <div class="cardart" aria-hidden="true">
+        <div class="c"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/122d807f-4fb7-474a-a90c-f00b99f6dd45.webp" width="671" height="1000" alt="" loading="lazy"></div>
+        <span class="rib">COMMON</span>
+        <div class="pix"><img src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OREO/hat-cylinder-black/IDLE.gif" width="48" height="48" alt="" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Not the one? Five more WAITING cats at Rožinė Pėdutė (ids from GET /cat/sale). Kept to names and photos so it does not compete with Batukas. -->
+  <section class="more" aria-labelledby="more-h">
+    <div class="wrap">
+      <h2 class="more-h" id="more-h">Not the one? Five more are waiting.</h2>
+      <p class="more-p">All at Pink Paw in Kaunas, each $5 as a Common card.</p>
+      <ul class="cats">
+        <li class="cat"><a href="https://tokentails.com/cats/697b557cbe0de315f8d8642b?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1"><span class="ph"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/22747418657.webp" width="96" height="96" alt="" loading="lazy"></span><span class="nm">Lyja</span></a></li>
+        <li class="cat"><a href="https://tokentails.com/cats/6965203d0a2c7b325b78f7e2?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1"><span class="ph"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/25032721909.webp" width="96" height="96" alt="" loading="lazy"></span><span class="nm">Avietė</span></a></li>
+        <li class="cat"><a href="https://tokentails.com/cats/6a3058021d6649b19b0369be?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1"><span class="ph"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/88583371136.webp" width="96" height="96" alt="" loading="lazy"></span><span class="nm">Meilytė</span></a></li>
+        <li class="cat"><a href="https://tokentails.com/cats/6992237f3daadd8052ee2555?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1"><span class="ph"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/76094156754.webp" width="96" height="96" alt="" loading="lazy"></span><span class="nm">Anykštė</span></a></li>
+        <li class="cat"><a href="https://tokentails.com/cats/69b31a4e319c27c23710c230?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1"><span class="ph"><img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/99671887479.webp" width="96" height="96" alt="" loading="lazy"></span><span class="nm">Drugelis</span></a></li>
+      </ul>
+      <p class="fine"><a class="link" href="https://tokentails.com/cats?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">See all shelter cats</a></p>
+    </div>
+  </section>
+
+  <!-- 5. Who's behind it -->
+  <section aria-labelledby="who-h">
+    <div class="wrap behind">
+      <img class="logo" src="https://tokentails.com/logo/shelters/pink-paw.webp" width="120" height="120" alt="Rožinė Pėdutė (Pink Paw) logo" loading="lazy">
+      <div>
+        <h2 id="who-h">Pink Paw, Kaunas</h2>
+        <p>Pink Paw (Rožinė Pėdutė) is the cat shelter in Kaunas where Batukas and these five cats wait for a home.</p>
+        <p>Token Tails is a cozy pixel cat game. Real shelter cats like Batukas are in it as cat cards.</p>
+        <!-- F-026 removed (founder call): "$40K+ donated directly in crypto and goods (Oct 2026, company-reported)".
+             Receipts still unverified (tracker), and it is a Token Tails-wide figure, so under a Pink Paw heading it reads as money to Pink Paw. -->
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Repeat CTA -->
+  <section class="final card-sec" aria-labelledby="final-h">
+    <div class="wrap">
+      <img class="mini" src="https://tokentails.fra1.cdn.digitaloceanspaces.com/96202882141.webp" width="132" height="132" alt="" loading="lazy">
+      <h2 id="final-h">Batukas is still waiting.</h2>
+      <p class="l">Get Batukas as a cat card in Token Tails for $5. He lives at Pink Paw shelter in Kaunas.</p>
+      <div class="cta-row">
+        <a class="btn" href="https://tokentails.com/cats/6a304e481d6649b19b0364c9?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">
+          Get Batukas <span class="price">$5</span>
+        </a>
+        <p class="pay">Pay by card. Crypto is an option at checkout.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav aria-label="Legal">
+      <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">T&amp;C</a>
+      <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+    </nav>
+    <a href="https://tokentails.com/?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">tokentails.com</a>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky" aria-hidden="true">
+  <a class="btn" tabindex="-1" href="https://tokentails.com/cats/6a304e481d6649b19b0364c9?utm_source=landing-poc&amp;utm_campaign=v1&amp;from=poc_v1">Get Batukas <span class="price">$5</span></a>
+</div>
+<div class="poc">POC variant v1 · <a href="../">all variants</a></div>
+
+<script>
+(function(){
+  var s=document.getElementById('sticky'),h=document.getElementById('hero-cta'),f=document.querySelector('.final');
+  if(!('IntersectionObserver' in window)||!s||!h)return;
+  var heroOut=false,finalIn=false;
+  function u(){s.classList.toggle('on',heroOut&&!finalIn)}
+  new IntersectionObserver(function(e){heroOut=!e[0].isIntersecting&&e[0].boundingClientRect.top<0;u()}).observe(h);
+  new IntersectionObserver(function(e){finalIn=e[0].isIntersecting;u()},{rootMargin:'0px 0px -20% 0px'}).observe(f);
+})();
+</script>
+</body>
+</html>

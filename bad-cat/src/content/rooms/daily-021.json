@@ -1,0 +1,229 @@
+{
+  "id": "daily-021",
+  "shell": 5,
+  "routine": 8,
+  "event": 6,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 1,
+    "z": 4
+  },
+  "props": [
+    {
+      "kind": 57,
+      "x": 3,
+      "z": 3,
+      "level": 1,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 34,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 58,
+      "x": 3,
+      "z": 2,
+      "level": 1,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 51,
+      "x": 8,
+      "z": 0,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 36,
+      "x": 9,
+      "z": 0,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 60,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 64,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 9,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 2,
+      "cable": {
+        "x": 2,
+        "z": 2
+      }
+    },
+    {
+      "kind": 7,
+      "x": 8,
+      "z": 1,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 35,
+      "x": 9,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 35,
+      "x": 10,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 7,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 60,
+      "x": 6,
+      "z": 2,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 20,
+      "x": 7,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 10,
+      "x": 5,
+      "z": 3,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 33,
+      "x": 6,
+      "z": 3,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 33,
+      "x": 7,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 18,
+      "x": 8,
+      "z": 4,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 33,
+      "x": 0,
+      "z": 5,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 51,
+      "x": 10,
+      "z": 5,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 15,
+      "x": 11,
+      "z": 5,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 15,
+      "x": 10,
+      "z": 7,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 33,
+      "x": 0,
+      "z": 9,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 1,
+      "z": 9,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 4,
+      "z": 9,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 59,
+      "x": 5,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 19,
+      "x": 8,
+      "z": 9,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 9,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    }
+  ],
+  "seed": 2733160200,
+  "ticks": 2250,
+  "title": "Bedroom #21: Sunday Nap",
+  "telegraph": 24,
+  "theme": "xmas",
+  "accomplice": {
+    "pinkPawId": "6a085bc0a885f725f7a94d0a",
+    "wishPropIndex": 25,
+    "x": 10,
+    "z": 6,
+    "level": 1
+  }
+}

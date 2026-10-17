@@ -1,0 +1,365 @@
+/* Moon Rave ad space: the purchase sheet (inside .rvc), the HUD sponsors list and the sponsored card. */
+
+/* ------------------------------------------------------------ mini-map */
+.rva-map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.92;
+  margin: 6px 0 8px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: radial-gradient(ellipse 70% 55% at 50% 58%, rgba(40, 210, 74, 0.32), rgba(3, 14, 7, 0.9) 75%);
+  border: 1px solid rgba(93, 255, 138, 0.3);
+}
+.rva-floor {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 62%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(93, 255, 138, 0.35);
+}
+.rva-moon {
+  position: absolute;
+  left: 50%;
+  top: -16%;
+  width: 34%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 40%, #c9ffb4, #7ee86a 60%, #2bff5a);
+  box-shadow: 0 0 30px rgba(43, 255, 90, 0.6);
+}
+.rva-booth {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 7%;
+  height: 4%;
+  transform: translate(-50%, -50%);
+  border-radius: 3px;
+  background: #b9ffc4;
+  box-shadow: 0 0 12px #8dff9a;
+}
+.rvc .rva-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 0;
+  padding: 0;
+  border: 2px solid #5dff8a;
+  background: rgba(93, 255, 138, 0.28);
+  box-shadow: 0 0 10px rgba(93, 255, 138, 0.6);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.rvc .rva-pin::after {
+  /* 44 px touch target round a small mark */
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+.rvc .rva-k-screen {
+  width: 26px;
+  height: 15px;
+}
+.rvc .rva-k-banner {
+  width: 24px;
+  height: 7px;
+}
+.rvc .rva-k-tower {
+  width: 8px;
+  height: 22px;
+}
+.rvc .rva-k-blimp {
+  width: 22px;
+  height: 11px;
+  border-radius: 999px;
+}
+.rvc .rva-k-moon {
+  width: 30px;
+  height: 10px;
+}
+.rvc .rva-pin.rva-is-taken {
+  border-color: rgba(234, 255, 240, 0.25);
+  background: rgba(234, 255, 240, 0.08);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+}
+.rvc .rva-pin.rva-on {
+  border-color: #ff5fa8;
+  background: #ff5fa8;
+  box-shadow: 0 0 0 3px rgba(255, 95, 168, 0.3), 0 0 18px #ff5fa8;
+}
+/* Slot name on hover, keyboard focus or press. */
+.rvc .rva-pin .rva-pin-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(2, 10, 5, 0.92);
+  border: 1px solid rgba(93, 255, 138, 0.45);
+  color: #eafff0;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+  z-index: 2;
+}
+.rvc .rva-pin:hover .rva-pin-label,
+.rvc .rva-pin:focus-visible .rva-pin-label,
+.rvc .rva-pin:active .rva-pin-label,
+.rvc .rva-pin.rva-on .rva-pin-label {
+  opacity: 1;
+}
+/* Kind key under the map: the same shapes as the pins. */
+.rva-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--rvc-dim);
+}
+.rva-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rva-kind-mark {
+  display: inline-block;
+  border: 2px solid #5dff8a;
+  background: rgba(93, 255, 138, 0.28);
+  border-radius: 3px;
+}
+.rva-kind-mark.rva-k-screen { width: 16px; height: 9px; }
+.rva-kind-mark.rva-k-banner { width: 16px; height: 5px; }
+.rva-kind-mark.rva-k-tower { width: 5px; height: 14px; }
+.rva-kind-mark.rva-k-blimp { width: 14px; height: 7px; border-radius: 999px; }
+.rva-kind-mark.rva-k-moon { width: 18px; height: 6px; }
+.rva-seen {
+  font-size: 12.5px;
+  color: var(--rvc-green);
+}
+.rva-legend {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--rvc-dim);
+}
+.rva-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rva-key i {
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+  border: 2px solid #5dff8a;
+  background: rgba(93, 255, 138, 0.28);
+}
+.rva-key.rva-taken i {
+  border-color: rgba(234, 255, 240, 0.25);
+  background: rgba(234, 255, 240, 0.08);
+}
+.rva-key.rva-sel i {
+  border-color: #ff5fa8;
+  background: #ff5fa8;
+}
+.rva-pick-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0;
+  min-height: 42px;
+  font-size: 14px;
+}
+.rva-pick-info b {
+  font-size: 17px;
+  color: #fff;
+}
+.rva-slot-line {
+  margin: 4px 0 10px;
+  font-weight: 700;
+  color: var(--rvc-green);
+}
+
+/* ------------------------------------------------------------ form */
+.rva-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.rva-imgbox,
+.rva-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.rva-drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-height: 220px;
+  min-height: 64px;
+  border-radius: 12px;
+  border: 2px dashed rgba(93, 255, 138, 0.5);
+  background: rgba(70, 255, 122, 0.06);
+  cursor: pointer;
+  overflow: hidden;
+  margin: 0 auto;
+}
+.rva-tower-shape {
+  max-width: 120px;
+}
+.rva-drop:focus-within,
+.rva-drop:hover {
+  border-color: #5dff8a;
+}
+.rva-drop-text {
+  position: relative;
+  z-index: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(2, 10, 5, 0.7);
+  text-align: center;
+}
+.rva-drop.rva-has .rva-drop-text {
+  align-self: end;
+  margin-bottom: 8px;
+}
+.rva-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rva-done-preview {
+  position: static;
+  display: block;
+  max-height: 200px;
+  margin: 8px auto 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(93, 255, 138, 0.4);
+}
+.rva-hold {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rvc-green);
+}
+.rva-hold.rva-hold-low {
+  color: #ffb3d4;
+}
+
+/* ------------------------------------------------------------ HUD: sponsors + advertise */
+.rv-sponsors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(100%, 520px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(2, 10, 5, 0.6);
+  border: 1px solid rgba(93, 255, 138, 0.25);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.rv-sponsors[hidden] {
+  display: none;
+}
+.rv-sponsors::-webkit-scrollbar {
+  display: none;
+}
+.rv-sponsors-title {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(234, 255, 240, 0.7);
+}
+#hud .rv-sponsor {
+  color: #eafff0;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(93, 255, 138, 0.1);
+}
+#hud .rv-sponsor:hover {
+  background: rgba(93, 255, 138, 0.22);
+}
+#hud .rv-advertise {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(93, 255, 138, 0.7);
+  background: rgba(2, 10, 5, 0.6);
+  color: #eafff0;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 0 14px rgba(93, 255, 138, 0.35);
+}
+#hud .rv-advertise[hidden] {
+  display: none;
+}
+.rv-sponsored-tag {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #02150a;
+  background: #5dff8a;
+}
+.rv-sponsored-img {
+  display: block;
+  width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  margin: 8px 0;
+  border-radius: 8px;
+}
+@media (max-width: 420px) {
+  #hud .rv-advertise {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+}
+
+/* The empty drop zone's label: two lines ("Tap to add an image" / formats), never to the box edge. */
+.rva-drop-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+.rva-drop-text small {
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.85;
+}

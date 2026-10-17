@@ -1,0 +1,208 @@
+{
+  "id": "daily-018",
+  "shell": 3,
+  "routine": 6,
+  "event": 11,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 7,
+    "z": 5
+  },
+  "props": [
+    {
+      "kind": 2,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 36,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 60,
+      "x": 10,
+      "z": 6,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 15,
+      "x": 10,
+      "z": 0,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 60,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 60,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 26,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 11,
+      "x": 5,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 26,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 51,
+      "x": 9,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 51,
+      "x": 11,
+      "z": 2,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 19,
+      "x": 1,
+      "z": 3,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 0,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 8,
+      "x": 11,
+      "z": 4,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 36,
+      "x": 9,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 15,
+      "x": 11,
+      "z": 6,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 10,
+      "x": 0,
+      "z": 7,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 2,
+      "x": 1,
+      "z": 7,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 9,
+      "x": 2,
+      "z": 7,
+      "level": 2,
+      "rot": 1,
+      "cable": {
+        "x": 3,
+        "z": 7
+      }
+    },
+    {
+      "kind": 20,
+      "x": 4,
+      "z": 7,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 11,
+      "z": 7,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 51,
+      "x": 0,
+      "z": 9,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 18,
+      "x": 4,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 16,
+      "x": 6,
+      "z": 9,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 10,
+      "x": 8,
+      "z": 9,
+      "level": 1,
+      "rot": 0
+    }
+  ],
+  "seed": 2150141570,
+  "ticks": 2250,
+  "title": "Home office #18: Zoom Call",
+  "telegraph": 19,
+  "theme": "xmas",
+  "accomplice": {
+    "pinkPawId": "69a5341d3ee4d7b657941bb8",
+    "wishPropIndex": 6,
+    "x": 0,
+    "z": 6,
+    "level": 1
+  }
+}

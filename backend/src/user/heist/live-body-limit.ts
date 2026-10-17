@@ -5,6 +5,9 @@ import { LIVE_GAME_BODY_LIMIT } from '../dto/live-game.dto';
 /** The score route (`UserController.Tcatbassadors`). No global prefix is set in main.ts. */
 export const LIVE_GAME_PATH = '/user/catbassadors/live';
 
+/** Stripe webhooks: raw body for the signature check (the portrait webhook, Bad Cat Daily's and Moon Rave's). */
+export const RAW_BODY_PATHS = ['/image/webhook', '/badcat/stripe/webhook', '/rave/stripe/webhook'];
+
 /** Every other JSON body. An existing, very loose limit: a known issue (plan F6), not changed here. */
 export const GLOBAL_JSON_BODY_LIMIT = '50mb';
 
@@ -29,7 +32,7 @@ export function rejectNonJsonBody(req: Request, res: Response, next: NextFunctio
 /**
  * Registers the body parsers in the order they must run (call before `app.listen`):
  *
- * 1. `/image/webhook`: raw body for the Stripe signature check.
+ * 1. `/image/webhook` and `/badcat/stripe/webhook` (RAW_BODY_PATHS): raw body for the Stripe signature check.
  * 2. `POST /user/catbassadors/live`: JSON up to 64 KB (plan F6). A larger body is 413 with a JSON
  *    error, before any guard, pipe or replay. Registered before the global parser, which then skips
  *    the already-parsed request (body-parser leaves a request alone once `req._body` is set).
@@ -40,19 +43,21 @@ export function rejectNonJsonBody(req: Request, res: Response, next: NextFunctio
  * Nest's own parsers are added later, at init, and skip parsed requests the same way.
  */
 export function applyBodyParsers(app: INestApplication): void {
-    app.use(
-        '/image/webhook',
-        raw({
-            type: 'application/json',
-            verify: (req: any, _res, buf) => {
-                // Store raw body in request for Stripe webhook verification
-                if (Buffer.isBuffer(buf)) {
-                    req.rawBody = buf;
-                }
-                return true;
-            },
-        })
-    );
+    for (const path of RAW_BODY_PATHS) {
+        app.use(
+            path,
+            raw({
+                type: 'application/json',
+                verify: (req: any, _res, buf) => {
+                    // Store raw body in request for Stripe webhook verification
+                    if (Buffer.isBuffer(buf)) {
+                        req.rawBody = buf;
+                    }
+                    return true;
+                },
+            })
+        );
+    }
 
     app.use(LIVE_GAME_PATH, json({ limit: LIVE_GAME_BODY_LIMIT }));
     // Error handler for the route parser only: body-parser reports `entity.too.large` with status 413.

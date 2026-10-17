@@ -262,6 +262,7 @@ const query = <T>(run: () => Promise<T>) => {
         lean: () => chain,
         exec: () => run(),
         limit: (count: number) => query(async () => ((await run()) as any).slice(0, count)),
+        skip: (count: number) => query(async () => ((await run()) as any).slice(count)),
         sort: () => chain,
         maxTimeMS: () => chain,
         then: (resolve: any, reject: any) => run().then(resolve, reject),

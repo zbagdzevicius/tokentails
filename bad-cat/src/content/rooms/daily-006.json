@@ -1,0 +1,285 @@
+{
+  "id": "daily-006",
+  "shell": 6,
+  "routine": 12,
+  "event": 7,
+  "width": 14,
+  "depth": 12,
+  "spawn": {
+    "x": 11,
+    "z": 9
+  },
+  "props": [
+    {
+      "kind": 6,
+      "x": 13,
+      "z": 8,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 30,
+      "x": 10,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 31,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 30,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 7,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 28,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 3,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 27,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 48,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 28,
+      "x": 12,
+      "z": 1,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 13,
+      "z": 1,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 9,
+      "z": 2,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 28,
+      "x": 13,
+      "z": 2,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 30,
+      "x": 0,
+      "z": 3,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 30,
+      "x": 13,
+      "z": 3,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 14,
+      "x": 3,
+      "z": 4,
+      "level": 2,
+      "rot": 0,
+      "w": 6,
+      "d": 2
+    },
+    {
+      "kind": 58,
+      "x": 12,
+      "z": 4,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 27,
+      "x": 13,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 28,
+      "x": 3,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 28,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 3,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 3,
+      "x": 6,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 3,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 6,
+      "x": 8,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 3,
+      "x": 10,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 11,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 4,
+      "x": 12,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 13,
+      "z": 5,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 20,
+      "x": 8,
+      "z": 6,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 6,
+      "z": 7,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 28,
+      "x": 2,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 18,
+      "x": 10,
+      "z": 8,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 3,
+      "x": 12,
+      "z": 8,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 28,
+      "x": 2,
+      "z": 10,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 28,
+      "x": 0,
+      "z": 11,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 32,
+      "x": 3,
+      "z": 11,
+      "level": 0,
+      "rot": 1
+    }
+  ],
+  "seed": 3628488456,
+  "ticks": 2700,
+  "routine2": 9,
+  "title": "Boss: Birthday Party #6",
+  "telegraph": 15,
+  "theme": "birthday",
+  "boss": true,
+  "accomplice": {
+    "pinkPawId": "6a30473c1d6649b19b03622b",
+    "wishPropIndex": 35,
+    "x": 12,
+    "z": 0,
+    "level": 3
+  }
+}

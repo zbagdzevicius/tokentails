@@ -1,0 +1,39 @@
+{
+  "name": "bad-cat",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bad Cat Daily: a daily cat-chaos game for Token Tails (GDD docs/plans/viral-game/GDD.md)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "BADCAT_BASE=/badcat-game/ vite build --outDir ../client/public/badcat-game --emptyOutDir && node tools/og-pages.mjs ../client/public/badcat-game",
+    "preview": "vite preview --port 4174",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "validate": "node tools/validate.mjs",
+    "par": "node tools/par.mjs",
+    "og": "node tools/render-og.mjs",
+    "og:pages": "node tools/og-pages.mjs",
+    "sync:pinkpaw": "node tools/sync-pink-paw.mjs",
+    "budget": "node tools/budget.mjs",
+    "vendor-sim": "node tools/vendor-sim.mjs",
+    "vendor-sim:check": "node tools/vendor-sim.mjs --check",
+    "vendor-sim:check-remote": "node tools/vendor-sim.mjs --check-remote"
+  },
+  "dependencies": {
+    "mediabunny": "^1.61.5",
+    "qrcode-generator": "^1.5.2",
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.183.1",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

@@ -1,0 +1,233 @@
+{
+  "id": "daily-015",
+  "shell": 0,
+  "routine": 2,
+  "event": 0,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 1,
+    "z": 8
+  },
+  "props": [
+    {
+      "kind": 48,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 47,
+      "x": 9,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 3,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 37,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 3,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 2,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 8,
+      "x": 10,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 21,
+      "x": 11,
+      "z": 1,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 1,
+      "z": 2,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 20,
+      "x": 9,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 2,
+      "x": 1,
+      "z": 3,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 2,
+      "z": 3,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 2,
+      "x": 0,
+      "z": 4,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 44,
+      "x": 1,
+      "z": 4,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 7,
+      "x": 10,
+      "z": 4,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 44,
+      "x": 11,
+      "z": 4,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 14,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 0,
+      "w": 4,
+      "d": 2
+    },
+    {
+      "kind": 2,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 15,
+      "x": 10,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 3,
+      "x": 4,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 48,
+      "x": 7,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 10,
+      "x": 10,
+      "z": 6,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 1,
+      "x": 3,
+      "z": 7,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 2,
+      "x": 6,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 8,
+      "x": 7,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 2,
+      "x": 8,
+      "z": 8,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 2,
+      "x": 9,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 18,
+      "x": 0,
+      "z": 9,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 50,
+      "x": 11,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    }
+  ],
+  "seed": 2096095200,
+  "ticks": 2250,
+  "title": "Kitchen #15: Leftovers",
+  "telegraph": 24,
+  "accomplice": {
+    "pinkPawId": "6a30507d1d6649b19b036626",
+    "wishPropIndex": 28,
+    "x": 11,
+    "z": 0,
+    "level": 3
+  }
+}

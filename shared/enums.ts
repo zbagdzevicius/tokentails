@@ -33,6 +33,12 @@ export enum GameType {
     PIXEL_RESCUE = 'PIXEL_RESCUE',
     MATCH_3 = 'MATCH_3',
     CATNIP_HEIST = 'CATNIP_HEIST',
+    /**
+     * Bad Cat Daily ranked runs (GDD 10 Phase 2). Saved only through the replay-verified `BAD_CAT` branch of
+     * `POST /user/catbassadors/live` (vendored sim, `backend/src/badcat/badcat-live.ts`), behind
+     * BADCAT_SCORES_ENABLED; never through the plain scored-type path.
+     */
+    BAD_CAT = 'BAD_CAT',
 }
 
 /** Where a game was played. Rows saved before this field existed have no value. */

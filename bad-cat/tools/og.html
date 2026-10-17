@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bad Cat Daily OG renderer (tools/render-og.mjs)</title>
+    <style>
+      html, body { margin: 0; background: #2b1d2e; color: #fff3dc; font: 14px system-ui, sans-serif; }
+      #out { padding: 8px; }
+      #out canvas { width: 600px; height: 315px; display: block; margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <div id="out">Dev page: tools/render-og.mjs drives window.__og. Open ?preview=18 to see one card.</div>
+    <script type="module">
+      import { renderRoomStill, renderCatPortrait } from '/src/render/index.ts';
+      import { content } from '/src/content/index.ts';
+      import { decodeCatOrDefault } from '/src/codec/index.ts';
+
+      const W = 1200;
+      const H = 630;
+      const C = { bg: '#2b1d2e', cream: '#fff3dc', butter: '#ffd27a', rose: '#ff6f91' };
+
+      async function still(roomDef, mode, dayNo, w = W, h = H) {
+        const play = content.resolve(roomDef, mode, dayNo);
+        const blob = await renderRoomStill(play, { w, h });
+        if (!blob) throw new Error('renderRoomStill returned null (no WebGL?)');
+        return createImageBitmap(blob);
+      }
+
+      function fitText(ctx, text, maxW, size, weight = 800) {
+        let s = size;
+        do {
+          ctx.font = `${weight} ${s}px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
+          if (ctx.measureText(text).width <= maxW) break;
+          s -= 2;
+        } while (s > 18);
+        return s;
+      }
+
+      /** 1200 x 630 card: the image(s), a brand chip, and the title band along the bottom. */
+      function card(draw, title, sub = 'tokentails.com/badcat') {
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = C.bg;
+        ctx.fillRect(0, 0, W, H);
+        draw(ctx);
+        // brand chip
+        ctx.font = "800 26px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+        const chip = '😼 Bad Cat Daily';
+        const cw = ctx.measureText(chip).width + 36;
+        ctx.fillStyle = 'rgba(43,29,46,0.82)';
+        ctx.beginPath();
+        ctx.roundRect(28, 26, cw, 50, 25);
+        ctx.fill();
+        ctx.fillStyle = C.butter;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(chip, 46, 52);
+        // title band
+        const bandH = 132;
+        const g = ctx.createLinearGradient(0, H - bandH - 40, 0, H);
+        g.addColorStop(0, 'rgba(43,29,46,0)');
+        g.addColorStop(0.3, 'rgba(43,29,46,0.88)');
+        g.addColorStop(1, 'rgba(43,29,46,0.96)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, H - bandH - 40, W, bandH + 40);
+        ctx.fillStyle = C.rose;
+        ctx.fillRect(0, H - 8, W, 8);
+        ctx.fillStyle = C.cream;
+        ctx.textBaseline = 'alphabetic';
+        fitText(ctx, title, W - 80, 48);
+        ctx.fillText(title, 40, H - 70);
+        ctx.fillStyle = C.butter;
+        ctx.font = "600 26px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillText(sub, 40, H - 28);
+        return c;
+      }
+
+      const cover = (ctx, img, x = 0, y = 0, w = W, h = H) => ctx.drawImage(img, x, y, w, h);
+      const png = (c) => c.toDataURL('image/png').split(',')[1];
+
+      function dayTitle(e) {
+        const name = e.title.startsWith(`${e.label}: `) ? e.title.slice(e.label.length + 2) : '';
+        return `${name ? `${e.label} · ${name}` : e.title} · can your cat wreck it?`;
+      }
+
+      /** First day (1..730) whose room uses `shell`. */
+      function dayForShell(shell) {
+        for (let n = 1; n <= 730; n++) if (content.dailyRoom(n).shell === shell) return n;
+        return 1;
+      }
+
+      window.__og = {
+        shells: () => content.shells.map((s, i) => ({ i, name: s.name })),
+        async day(n) {
+          const e = content.dailyEntry(n);
+          const img = await still(content.dailyRoom(n), 'ranked', n);
+          return png(card((ctx) => cover(ctx, img), dayTitle(e)));
+        },
+        async shell(i) {
+          const n = dayForShell(i);
+          const img = await still(content.dailyRoom(n), 'ranked', n);
+          const name = content.shells[i]?.name ?? 'Room';
+          return png(card((ctx) => cover(ctx, img), `${name} · can your cat wreck it?`));
+        },
+        async glass() {
+          const img = await still(content.glassRoom(), 'practice');
+          return png(card((ctx) => cover(ctx, img), 'The Glass · can your cat knock it off?'));
+        },
+        async pick() {
+          const shells = [0, 1, 2, 4];
+          const imgs = [];
+          for (const s of shells) {
+            const n = dayForShell(s);
+            imgs.push(await still(content.dailyRoom(n), 'ranked', n, W / 2, H / 2));
+          }
+          return png(card((ctx) => imgs.forEach((img, k) => cover(ctx, img, (k % 2) * (W / 2), Math.floor(k / 2) * (H / 2), W / 2, H / 2)), 'Which room did you see? · pick it and play'));
+        },
+        async r() {
+          const img = await still(content.dailyRoom(dayForShell(1)), 'ranked', dayForShell(1));
+          return png(card((ctx) => cover(ctx, img), 'A player-made room · can your cat wreck it?'));
+        },
+        async c() {
+          const cat = decodeCatOrDefault('');
+          const port = await renderCatPortrait(cat, null, { w: 630, h: 630, pose: 'plinth' });
+          if (!port) throw new Error('renderCatPortrait returned null (no WebGL?)');
+          const bg = await still(content.dailyRoom(1), 'ranked', 1);
+          return png(
+            card((ctx) => {
+              cover(ctx, bg);
+              ctx.fillStyle = 'rgba(43,29,46,0.55)';
+              ctx.fillRect(0, 0, W, H);
+              ctx.drawImage(port, (W - 630) / 2, -20, 630, 630);
+            }, 'Play as a cat like this one · make yours from a photo'),
+          );
+        },
+      };
+
+      const q = new URLSearchParams(location.search);
+      const prev = q.get('preview');
+      if (prev) {
+        const b64 = await (/^\d+$/.test(prev) ? window.__og.day(Number(prev)) : window.__og[prev]());
+        const img = new Image();
+        img.src = `data:image/png;base64,${b64}`;
+        img.style.width = '100%';
+        document.getElementById('out').replaceChildren(img);
+      }
+      window.__ogReady = true;
+    </script>
+  </body>
+</html>

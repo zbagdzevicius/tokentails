@@ -37,6 +37,11 @@ import { CryptoPayConfig, readCryptoPayConfig } from './crypto-pay.config';
  * What reached the shelter is read from the receipt: ShelterSplit pays its shelters only their
  * registered bps and the rest to its own treasury, so a confirmed row stores the batch's `toShelters`
  * (`amountBase`, `amountUsdCents`), never the amount sent (`sentBase`).
+ *
+ * Reversed rows: a refund or dispute (Moon Rave, backend/src/rave/rave-share.ts) sets
+ * `shelterShare.reversed` whatever the row's state. Such a row is never taken or signed, and whenever it
+ * is (back) at `due` it becomes `void`, so a reverted tx, a definite send error or a stale lock can never
+ * re-send it.
  */
 
 export const SHELTER_SHARE_JOB = 'crypto-shelter-share';
@@ -46,6 +51,15 @@ export const SHELTER_SHARE_BATCH = 10;
 export const SHELTER_SHARE_MAX_ATTEMPTS = 3;
 /** A `sent` share with no receipt after this long and a used nonce is `failed` for a person to check. */
 export const SHELTER_SHARE_STUCK_MS = 30 * 60 * 1000;
+
+/** Thrown from `onSigned` when the row was reversed after it was taken: nothing is broadcast. */
+export class ReversedShareError extends Error {
+    constructor() {
+        super('reversed (refund or dispute) before broadcast');
+    }
+}
+
+const NOT_REVERSED = { 'shelterShare.reversed': { $exists: false } };
 
 export interface ShelterShareRun {
     sent: number;
@@ -92,9 +106,19 @@ export class CryptoShelterShareService {
         }
         const held = new Set([...cfg.heldWallets, ...shelter.heldWallets].map(w => w.toLowerCase()));
         await this.unlockStale(now);
+        await this.voidReversed();
         await this.settle(now, shelter, hot, cfg.handedOver, held, result);
+        await this.voidReversed();
         await this.send(now, shelter, hot, result);
         return result;
+    }
+
+    /** A reversed row (refunded or disputed) that is, or came back to, `due` is never sent: it becomes `void`. */
+    private async voidReversed() {
+        await this.checkoutModel.updateMany(
+            { 'shelterShare.state': 'due', 'shelterShare.reversed': { $exists: true } },
+            { $set: { 'shelterShare.state': 'void', 'shelterShare.evidenceTier': null } }
+        );
     }
 
     /**
@@ -234,7 +258,7 @@ export class CryptoShelterShareService {
         }
 
         const rows: any[] = await this.checkoutModel
-            .find({ 'shelterShare.state': 'due' })
+            .find({ 'shelterShare.state': 'due', ...NOT_REVERSED })
             .sort({ updatedAt: 1 })
             .limit(SHELTER_SHARE_BATCH)
             .lean();
@@ -248,13 +272,24 @@ export class CryptoShelterShareService {
                 result.failed++;
                 continue;
             }
-            const amount = BigInt(cents) * BigInt(10) ** BigInt(decimals - 2);
-            const locked = await this.checkoutModel.findOneAndUpdate(
-                { _id: row._id, 'shelterShare.state': 'due' },
+            const locked: any = await this.checkoutModel.findOneAndUpdate(
+                { _id: row._id, 'shelterShare.state': 'due', ...NOT_REVERSED },
                 { $set: { 'shelterShare.state': 'sending', 'shelterShare.lockedAt': now } },
                 { new: true, lean: true }
             );
             if (!locked) continue;
+            // The amount comes from the locked document, not the find() snapshot: a partial refund
+            // (rave-share.ts shrinkShare, which only touches `due` rows) may have lowered it in between.
+            const lockedCents = Number(locked.shelterShare?.amountUsdCents);
+            if (!Number.isSafeInteger(lockedCents) || lockedCents <= 0) {
+                await this.checkoutModel.updateOne(
+                    { _id: row._id, 'shelterShare.state': 'sending' },
+                    { $set: { 'shelterShare.state': 'failed', 'shelterShare.error': 'no amount' } }
+                );
+                result.failed++;
+                continue;
+            }
+            const amount = BigInt(lockedCents) * BigInt(10) ** BigInt(decimals - 2);
             try {
                 if (allowance < amount) {
                     const approve = await this.chain.sendContractCall(
@@ -269,7 +304,7 @@ export class CryptoShelterShareService {
                     }
                     allowance = MaxUint256;
                 }
-                const memo = row.shelterShare.memo;
+                const memo = locked.shelterShare?.memo ?? row.shelterShare.memo;
                 await this.chain.sendContractCall(
                     split,
                     shelterSplitInterface.encodeFunctionData('disburse', [amount, memo]),
@@ -277,8 +312,8 @@ export class CryptoShelterShareService {
                     {
                         config: shelter,
                         onSigned: async tx => {
-                            await this.checkoutModel.updateOne(
-                                { _id: row._id, 'shelterShare.state': 'sending' },
+                            const stored: any = await this.checkoutModel.updateOne(
+                                { _id: row._id, 'shelterShare.state': 'sending', ...NOT_REVERSED },
                                 {
                                     $set: {
                                         'shelterShare.state': 'sent',
@@ -292,12 +327,21 @@ export class CryptoShelterShareService {
                                     },
                                 }
                             );
+                            // Reversed since it was taken: throwing here stops the broadcast.
+                            if (stored && stored.matchedCount === 0) throw new ReversedShareError();
                         },
                     }
                 );
                 allowance -= amount;
                 result.sent++;
             } catch (error) {
+                if (error instanceof ReversedShareError) {
+                    await this.checkoutModel.updateOne(
+                        { _id: row._id, 'shelterShare.state': 'sending' },
+                        { $set: { 'shelterShare.state': 'void', 'shelterShare.evidenceTier': null } }
+                    );
+                    continue;
+                }
                 const ambiguous = error instanceof DonationBroadcastError && !error.definite;
                 if (ambiguous) {
                     // Signed and maybe broadcast: it stays `sent` and the next run settles it by receipt.

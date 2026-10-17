@@ -159,6 +159,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
+| `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
 | `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
 | `/airdrop`, `/airdrop/*` | none | Redirect to `/shelter-payouts` (task 5e). |
@@ -915,3 +916,96 @@ Known limits: a wallet with EIP-7702 delegation code (several public dev account
 upgraded "smart account" EOAs) is checked by FiatToken as an ERC-1271 contract, so the page does not
 offer it the gasless signature; the Arc native path still works for it. The
 claim step checks EIP-191 signatures only (no ERC-1271 smart wallets yet).
+
+## Bad Cat Daily (/badcat)
+
+Bad Cat Daily is a separate Vite + three.js package (`bad-cat/`, design in `docs/plans/viral-game/GDD.md`). The
+client only hosts its static build. It is served top level at `/badcat`, with no iframe (GDD 6.6: an iframe
+breaks safe areas, zoom, edge swipes and `navigator.share`). The Catnip Heist host (`pages/heist.tsx`) is not
+involved.
+
+**Hosting.** `bad-cat` builds into `client/public/badcat-game/` with the base `/badcat-game/`.
+`next.config.js` maps the public URLs to those files with rewrites. The rewrites exist only when the build-time
+flag `BADCAT_ROUTES` is `1`, `true`, `yes` or `on`, and only in web builds (the Capacitor export has none).
+With the flag off, the files are still reachable at `/badcat-game/...`, but `/badcat` returns 404.
+
+| Public path | File in `public/badcat-game/` |
+|---|---|
+| `/badcat` | `index.html` |
+| `/badcat/d/<n>` (1 to 4 digits) | `d/<n>.html`. If that day has no page, a fallback rewrite serves `index.html`, and the game reads the day from the path |
+| `/badcat/d/p<n>`, `/badcat/d/-<n>` | `index.html`: pre-launch preview days (`daySlug`, "p30" = 30 days before Day #1) and old negative links have no pre-rendered page |
+| `/badcat/glass`, `/badcat/pick`, `/badcat/r`, `/badcat/c` | `glass.html`, `pick.html`, `r.html`, `c.html` |
+| `/badcat/c/<cat>` | `c.html` |
+| `/badcat/thanks`, `/badcat/redeem`, `/badcat/restore`, `/badcat/maker` | the matching `.html` (thanks, redeem and restore are `noindex`) |
+| `/badcat/club`, `archive`, `rapsheet`, `brand`, `cameo`, `settings`, `gift`, `shop` | `index.html` (the game's own router) |
+| `/badcat/<anything else>` | `/badcat-game/<anything else>` (bundle, `og/`, `daily/`, `sw.js`, manifest) |
+
+With the flag on, `sw.js` (at `/badcat-game/sw.js` and `/badcat/sw.js`) is also served with
+`Service-Worker-Allowed: /badcat/` and `Cache-Control: no-cache`, so a worker can control the `/badcat/*`
+pages. A page opened under `/badcat/*` registers `/badcat-game/sw.js` with scope `/badcat/` (the worker routes
+the `/badcat-game/` assets relative to its own folder); `/badcat-game/*` pages keep the `/badcat-game/` scope.
+Every page loads the same bundle. The per-day and per-link pages exist only so link previews show the
+right title and image. The existing redirects and the Firebase auth rewrites are unchanged.
+
+**Build and deploy flow** (run inside `bad-cat/`; no backend is needed):
+
+1. `npm run validate`: checks every daily (1 to 200), The Glass, the Kitchen variants and one room per shell.
+   Exits 1 on any error.
+2. `npm run og`: renders the OG images (1200 × 630) into `bad-cat/public/og/` with Playwright Chromium on its
+   own Vite server (port 5175 to 5179): `d/<n>.png` per day, `s/<shell>.png` per shell, plus `glass.png`,
+   `pick.png`, `r.png` and `c.png`. If no browser is installed, it prints a warning and exits 0.
+3. `npm run build:client`: Vite build into `client/public/badcat-game/`, then step 4 on that output.
+4. `npm run og:pages -- ../client/public/badcat-game` (run by step 3; run it by hand only to refresh): writes `d/<n>.html` and the link-shell pages. Each is a
+   copy of the built `index.html` with its own `<title>`, description, `og:*` and `twitter:*` tags. Images use
+   absolute URLs (`BADCAT_PUBLIC_URL`, default `https://tokentails.com`, then `/badcat-game/og/...`). A day with
+   no image of its own uses its shell's image. The default range is days 1 to max(63, today + 180), and
+   `--days N` changes it. Re-running the step gives the same files.
+5. `npm run budget` (after `npm run build`): fails if the first-load JS (entry + three) is over 450 KB gzip.
+6. Set `BADCAT_ROUTES=1` in the client's Vercel environment, then deploy.
+
+Par paws come from recorded dev runs: `bad-cat/tools/RECORDING.md`, then `npm run par`. The Pink Paw cast
+snapshot is `bad-cat/public/pink-paw-cats.json`. `npm run sync:pinkpaw` with no source rewrites the snapshot
+without any network call. With a saved `GET /cat/sale` body, or with `--url` given explicitly, it refreshes it.
+
+**Game build variables** (Vite, read at `bad-cat` build time; only `VITE_*` reach the page; all default off):
+
+| Variable | Effect |
+|---|---|
+| `VITE_BADCAT_API_URL` | Backend origin for the badcat module. If unset, the game runs offline and hides every server feature |
+| `VITE_BADCAT_CLUB` | `1` shows the Club, cameo, gift and shop UI (it also needs the API URL) |
+| `VITE_BADCAT_POSTHOG_KEY` | PostHog EU key. Events are sent only with this key and `tt-analytics-consent = granted` |
+| `VITE_BADCAT_STUDIO` | `1` allows `?studio=1` in production builds |
+| `VITE_BADCAT_SHORT_URL` | Short URL shown on the clip's URL line |
+| `VITE_BADCAT_PRESALE_URL` | Presale link (existing) |
+| `VITE_BADCAT_QA` | `1` installs the `window.__BADCAT_QA__` hook (QA and e2e only) |
+| `VITE_BADCAT_ONLINE` | Phase 2: `1` turns on `src/online` (accounts, ranked saves, daily board, short links, room feed, live treat meter, push). It also needs the API URL; each feature then waits for the backend's own flag in `GET /badcat/status`. Unset: zero requests |
+| `VITE_BADCAT_AUTH_ORIGIN` | Phase 2: the Token Tails origin that serves `/badcat-account` (sign-in and the token bridge). Unset: the page's own origin on `tokentails.com`, so accounts are off on any other host |
+| `VITE_BADCAT_LIVE_PINKPAW` | Phase 2: `1` reads Pink Paw statuses from `GET /shelter/rozine-pedute/gallery` (display only: badges, "went home" clip lines; the daily rotation keeps the bundled cast) |
+| `VITE_BADCAT_YOURCAT_IMPORT` | Phase 2: `1` offers "Import my cat from /yourcat" in Settings (signed in; reads `GET /yourcat/me`, no AI call) |
+| `VITE_BADCAT_TREAT_URL` | Phase 2: https page of the existing guest treat flow (for example `https://tokentails.com/heist?treat=1`); a PERFECT CRIME result shows "Give a Pink Paw cat a treat" linking there. Unset: hidden. Never a new spend path |
+
+Build-only names: `BADCAT_BASE` (Vite base; `build:client` sets `/badcat-game/`), `BADCAT_BUILD_ID` (service
+worker cache id), `BADCAT_PUBLIC_URL` (the origin used in OG tags; the same name exists on the backend).
+Client app: `BADCAT_ROUTES`.
+
+**Short domain (typed arrivals).** The short domain does not point at the client. It points at the backend's
+`GET /badcat/t` (flag `BADCAT_TYPED_REDIRECT_ENABLED`, docs/BACKEND.md "Bad Cat Daily (badcat)"). That route
+counts the arrival per UTC day and answers 302 to `<BADCAT_PUBLIC_URL>/badcat/pick?e=t`. The rewrites above keep
+the query string, so the room picker sees `e=t`.
+
+Payments, entitlements and cameos also live in the backend `badcat` module, behind flags that default off. The
+client app has no Bad Cat API routes.
+
+**Accounts: `/badcat-account` (Phase 2).** `pages/badcat-account.tsx` with `lib/badcatBridge.ts` (tests:
+`__test__/badcat-bridge.test.ts`). Auth mode `optional`: it reuses a Token Tails session and never creates one.
+
+- `?bridge=1&origin=<game origin>`: the game loads it in a hidden iframe. It posts the session (`signedIn`,
+  `guest`, `verified`) and answers `getToken` with a fresh Firebase ID token (`fb`-prefixed, as the
+  `accesstoken` header wants) by `postMessage` to that exact origin, only when the origin is this site, an https
+  `tokentails.com` host, or (development) `http://localhost:5174`-`5179`. `signOut` signs out.
+- `?return=<game url>`: the visible sign-in hop. It opens the account sheet (`requireAccount('save-progress')`)
+  and sends the player back to the game, only to a `/badcat` page on an allowed origin (no open redirect).
+- `MainLayout` mounts no consent banner on this page.
+
+With accounts on, a ranked run is saved through `POST /user/catbassadors/live` with `type: 'BAD_CAT'` (the server
+replays it; docs/API.md "Scores"). That is still the only score write path; no Bad Cat route writes a score.

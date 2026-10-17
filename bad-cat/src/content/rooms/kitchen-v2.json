@@ -1,0 +1,230 @@
+{
+  "id": "kitchen-v2",
+  "shell": 0,
+  "routine": 1,
+  "event": 0,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 1,
+    "z": 8
+  },
+  "props": [
+    {
+      "kind": 2,
+      "x": 3,
+      "z": 7,
+      "level": 1,
+      "rot": 0,
+      "target": true
+    },
+    {
+      "kind": 3,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 7,
+      "x": 0,
+      "z": 4,
+      "level": 3,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 1,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 1,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 1,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 1,
+      "x": 9,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 4,
+      "x": 11,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 2,
+      "x": 1,
+      "z": 2,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 15,
+      "x": 1,
+      "z": 3,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 19,
+      "x": 4,
+      "z": 3,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 18,
+      "x": 9,
+      "z": 3,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 15,
+      "x": 1,
+      "z": 4,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 8,
+      "z": 4,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 7,
+      "x": 10,
+      "z": 4,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 7,
+      "x": 11,
+      "z": 4,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 6,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 1,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 6,
+      "x": 6,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 4,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 7,
+      "x": 10,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 1,
+      "x": 4,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 10,
+      "x": 7,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 15,
+      "x": 10,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 8,
+      "x": 6,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 11,
+      "x": 7,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 10,
+      "x": 8,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 8,
+      "x": 9,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 18,
+      "x": 4,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 20,
+      "x": 11,
+      "z": 9,
+      "level": 0,
+      "rot": 0
+    }
+  ],
+  "seed": 4148927074,
+  "ticks": 2250,
+  "title": "Kitchen: Breakfast Heist"
+}

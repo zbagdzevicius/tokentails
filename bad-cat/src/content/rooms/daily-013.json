@@ -1,0 +1,257 @@
+{
+  "id": "daily-013",
+  "shell": 7,
+  "routine": 10,
+  "event": 7,
+  "width": 14,
+  "depth": 12,
+  "spawn": {
+    "x": 11,
+    "z": 9
+  },
+  "props": [
+    {
+      "kind": 6,
+      "x": 8,
+      "z": 6,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 55,
+      "x": 13,
+      "z": 6,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 56,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 0,
+      "target": true
+    },
+    {
+      "kind": 1,
+      "x": 12,
+      "z": 0,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 56,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 2,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 55,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 44,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 56,
+      "x": 5,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 1,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 44,
+      "x": 8,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 1,
+      "x": 9,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 56,
+      "x": 11,
+      "z": 2,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 7,
+      "x": 0,
+      "z": 3,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 7,
+      "x": 7,
+      "z": 3,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 7,
+      "x": 13,
+      "z": 3,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 1,
+      "z": 4,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 18,
+      "x": 3,
+      "z": 5,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 14,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 0,
+      "w": 4,
+      "d": 2
+    },
+    {
+      "kind": 3,
+      "x": 5,
+      "z": 6,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 6,
+      "x": 6,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 56,
+      "x": 7,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 55,
+      "x": 11,
+      "z": 6,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 58,
+      "x": 12,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 30,
+      "x": 0,
+      "z": 7,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 20,
+      "x": 5,
+      "z": 7,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 55,
+      "x": 2,
+      "z": 8,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 56,
+      "x": 3,
+      "z": 8,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 6,
+      "x": 1,
+      "z": 10,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 7,
+      "x": 13,
+      "z": 10,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 1,
+      "x": 1,
+      "z": 11,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 29,
+      "x": 6,
+      "z": 11,
+      "level": 0,
+      "rot": 1
+    }
+  ],
+  "seed": 3879318907,
+  "ticks": 2700,
+  "routine2": 11,
+  "title": "Boss: Wedding Cake #13",
+  "telegraph": 15,
+  "theme": "wedding",
+  "boss": true,
+  "accomplice": {
+    "pinkPawId": "6a085bc0a885f725f7a94d0a",
+    "wishPropIndex": 31,
+    "x": 13,
+    "z": 0,
+    "level": 3
+  }
+}

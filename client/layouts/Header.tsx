@@ -57,15 +57,13 @@ export const Header = () => {
           href="/"
           className="flex items-center transition gap-2 lg:-ml-24 xl:ml-0"
         >
+          {/* The landing's lockup (ringed cat + TOKEN TAILS wordmark), 600 x 337. */}
           <img
             draggable={false}
-            className={`${isTop ? `h-12 md:h-20` : `h-8 md:h-12`}`}
-            src={cdnFile("logo/logo.webp")}
-            alt="logo"
+            className={`${isTop ? `h-14 md:h-24` : `h-10 md:h-14`} w-auto`}
+            src={cdnFile("logo/logo-text.webp")}
+            alt="Token Tails"
           />
-          <div className="text-h3 font-primary hidden md:block">
-            TOKEN TAILS
-          </div>
         </a>
         <Socials />
       </div>

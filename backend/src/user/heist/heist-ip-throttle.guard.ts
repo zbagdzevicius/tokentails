@@ -27,13 +27,19 @@ import { isProxyUntrusted } from './proxy-warning';
  */
 export const HEIST_REPLAY_IP_THROTTLE = { limit: 30, ttl: 60000 };
 
-/** True for a `/live` body that would run a Heist replay. */
+/** True for a `/live` body that would run a replay (Heist, or Bad Cat Daily). */
 export const wantsReplay = (body: unknown): boolean => {
     if (!body || typeof body !== 'object') {
         return false;
     }
-    const record = body as { type?: unknown; replay?: unknown };
-    return record.type === GameType.CATNIP_HEIST || record.replay !== undefined;
+    const record = body as { type?: unknown; replay?: unknown; badcat?: unknown };
+    // Bad Cat Daily ranked runs replay too (GDD 10 Phase 2): the same per-IP bucket bounds both.
+    return (
+        record.type === GameType.CATNIP_HEIST ||
+        record.replay !== undefined ||
+        record.type === GameType.BAD_CAT ||
+        record.badcat !== undefined
+    );
 };
 
 /** The throttle key: the client address, or address plus player when the address is shared. */

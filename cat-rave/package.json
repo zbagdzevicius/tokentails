@@ -1,0 +1,29 @@
+{
+  "name": "cat-rave",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Moon Rave: every $1 paid out to Pink Paw on-chain is one dancing cat. three.js environment for Token Tails",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4180",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "snapshot": "node scripts/snapshot.mjs",
+    "og": "node scripts/og.mjs",
+    "build:client": "tsc --noEmit && RAVE_BASE=/rave/ RAVE_API_URL=https://api.tokentails.com vite build --outDir ../client/public/rave --emptyOutDir"
+  },
+  "dependencies": {
+    "@stripe/stripe-js": "^8.11.0",
+    "postprocessing": "^6.39.5",
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.183.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

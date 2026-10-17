@@ -24,6 +24,8 @@ backend/        NestJS API
 client/         Next.js web app, Capacitor shells, Phaser games
 cms/            Next.js admin console
 catnip-heist/   Catnip Heist: standalone three.js game (Vite), built into client/public/heist-game
+bad-cat/        Bad Cat Daily: standalone three.js game (Vite), built into client/public/badcat-game
+cat-rave/       Cat Rave: three.js page (Vite), built into client/public/rave (committed, served at /rave)
 shared/         Framework-free TypeScript contracts copied into every package (plan F2)
 scripts/        Repo-level scripts: sync-contracts.mjs and its tests
 tools/          copy-lint (tone and claims lint, own package.json)
@@ -188,6 +190,39 @@ treat button (an empty `HEIST_GIVE_URL` hides it); runtime config comes from
 counts as empty). Otherwise the API is picked from the page host, `tokentails.com` to `api.tokentails.com` and `localhost:3000/3001` to `localhost:3005`).
 `vendor-sim:check-remote` takes the backend URL as an argument or `HEIST_BACKEND_URL`.
 
+## Bad Cat Daily
+
+```bash
+cd bad-cat
+npm install
+npm run dev                  # Vite on :5174 (strict); a second server goes on 5175-5179
+npx tsc --noEmit
+npx vitest run               # unit tests; node --test tools for the tool scripts
+npm run build && npm run budget   # first-load JS (entry + three) must stay under 450 KB gzip
+npm run validate             # every daily, The Glass, the variants and one room per shell
+npm run e2e                  # Playwright (QA build, VITE_BADCAT_QA=1, port 4392)
+npm run build:client         # BADCAT_BASE=/badcat-game/ into ../client/public/badcat-game, then og:pages
+npm run vendor-sim           # re-vendor src/server (sim, content, codec, room check) into backend/src/vendor/badcat-sim
+npm run vendor-sim:check     # CI: the backend copy matches a fresh build
+npm run vendor-sim:check-remote -- <backend url>   # deploy gate: that backend replays with this exact sim
+BADCAT_WRITE_GOLDEN=1 npx vitest run src/server   # after a SIM_VERSION bump: rewrite backend/src/badcat/fixtures/badcat-golden.json
+```
+
+The design is `docs/plans/viral-game/GDD.md`; `bad-cat/README.md` lists what is built and the known gaps, and
+`bad-cat/FULL-PLAN.md` the build waves. Hosting, build variables and the deploy order are in `docs/CLIENT.md`
+("Bad Cat Daily"); the backend `badcat` module and its `BADCAT_*` flags are in `docs/BACKEND.md`. The sim is
+integer-only and deterministic; a rule change that alters outcomes bumps `SIM_VERSION` in `bad-cat/src/types.ts`
+and keeps older ghosts replayable as "replay only".
+
+Phase 2 (ranked saves): the backend replays BAD_CAT runs with `backend/src/vendor/badcat-sim/`, generated from
+`bad-cat/src/server/index.ts`. Any change under `bad-cat/src/sim`, `src/content` (rooms, `public/daily/index.json`),
+`src/codec` or the editor's room check may change the bundle: run `npm run vendor-sim`, commit the three generated
+files with the game change, and deploy the backend before the game (`vendor-sim:check-remote`). A SIM_VERSION bump
+also rewrites the golden fixture (above). Game-side Phase 2 code is `bad-cat/src/online/` (offline unless
+`VITE_BADCAT_ONLINE=1`); the client's account bridge is `client/pages/badcat-account.tsx`; the CMS moderation page
+is `cms/pages/badcat.tsx`. `GameType.BAD_CAT` lives in `shared/enums.ts`: run `node scripts/sync-contracts.mjs`
+after editing it (it writes every copy, including `catnip-heist/src/shared-contracts/`).
+
 ## CMS
 
 ```bash
@@ -327,6 +362,8 @@ Hand-kept copies that remain (keep them equal by hand; most are pinned by a test
 | Crypto checkout chains `backend/src/payments/crypto/crypto-chains.ts`; error codes and types `client/models/crypto-pay.ts` | `funding/framework/tracks/a-build/chains.json`; `CRYPTO_PAY_CODES` in `crypto-checkout.service.ts` | `crypto-chains.spec.ts`, `crypto-pay-contract.test.ts` |
 | Shelter payout chains (Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood Chain, Monad; mainnet and testnet each): `SHELTER_CHAINS` and `CHAIN_ROLES` in `client/components/shelter-payouts/chains.ts`, `WALLET_FAMILIES` in `giveRails.ts`, `CIRCLE_FAUCET_CHAINS` in `giveMode.ts`, `treatChains.ts`, `OTHER_CHAINS` in `ShelterOnboard.tsx`; `PAYOUT_CHAINS` in `catnip-heist/src/ui/payouts.ts`, `PAYOUT_CHAIN_META`, `PAYOUT_CHAIN_ROLES` and `TESTNET_CHAIN_IDS` in `catnip-heist/src/ui/shelter-payouts-chains.ts`; `DEFAULT_RPC`, `TREAT_COIN`, `TESTNET_CHAIN_IDS` and `EXPLORER` in `backend/src/shelter/onchain/shelter-onchain.config.ts`; `CHAINS` in `shelter-rail/src/sdk.mjs` (and the widget copies); `treat_rpc` in `funding/e2e/start-local.sh` | `funding/framework/tracks/a-build/chains.json` (chain ids, tokens, explorers); deployments come from `deployments.json` through `fund a:ingest` | `shelter-deployment-token.test.ts`, `shelter-give-rails.test.ts`, `shelter-chain-proof.test.ts`, the heist `payout-chains-client-parity` test, `shelter-onchain.config.spec.ts` |
 | Rail treat amounts C-004, C-005, C-006 in `facts.json` | `backend/src/shelter/onchain/shelter-onchain.config.ts` | `facts build --check` fails on a mismatch |
+| Bad Cat Daily money and cameo contract: `backend/src/badcat/badcat.contracts.ts` (SKUs and prices, `CheckoutMeta`, request and response shapes, `BADCAT_ROUTES` incl. the Phase 2 routes, the Phase 2 status flags and shapes, cameo kinds, weights and constants, Day #1) | The money and cameo block of `bad-cat/src/types.ts` (the game package is the source of truth) and `DAY1` in `bad-cat/src/content/daily.ts` | `backend/src/badcat/badcat.contracts.spec.ts` reads both files and fails on drift |
+| Bad Cat Daily sim on the backend: `backend/src/vendor/badcat-sim/` (generated) and `backend/src/badcat/fixtures/badcat-golden.json` | `bad-cat/src/server/index.ts` and everything it imports | `npm run vendor-sim:check` in bad-cat/, `backend/src/badcat/badcat-sim.spec.ts` (hash + golden replays), `bad-cat/src/server/server.test.ts` (golden fixture) |
 
 ## Continuous integration
 

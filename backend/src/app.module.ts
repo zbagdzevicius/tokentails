@@ -157,6 +157,26 @@ import { YourCat, YourCatSchema } from './yourcat/yourcat.schema';
 import { YourcatService } from './yourcat/yourcat.service';
 import { PortraitDeliveryService } from './yourcat/portrait-delivery.service';
 import { YourcatRetentionJob } from './yourcat/yourcat-retention.job';
+import { BadcatController } from './badcat/badcat.controller';
+import { BADCAT_SCHEMAS, BadcatStore } from './badcat/badcat.schema';
+import { BadcatStripeService } from './badcat/badcat-stripe.service';
+import { BadcatWebhookService } from './badcat/badcat-webhook.service';
+import { BadcatAccountService } from './badcat/badcat-account.service';
+import { BadcatCameoService } from './badcat/badcat-cameo.service';
+import { BadcatAdminService } from './badcat/badcat-admin.service';
+import { BadcatSeenEmailJob } from './badcat/badcat-seen-email.job';
+import { BadcatOnlineController } from './badcat/badcat-online.controller';
+import { BADCAT_ONLINE_SCHEMAS, BadcatOnlineStore } from './badcat/badcat-online.schema';
+import { BadcatOnlineService } from './badcat/badcat-online.service';
+import { BadcatLinksService } from './badcat/badcat-links.service';
+import { BadcatPushService } from './badcat/badcat-push.service';
+import { RaveController } from './rave/rave.controller';
+import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
+import { RaveService } from './rave/rave.service';
+import { RaveWebhookService } from './rave/rave-webhook.service';
+import { RaveAdsController } from './rave/ads/rave-ads.controller';
+import { RaveAd, RaveAdSchema } from './rave/ads/rave-ads.schema';
+import { RaveAdsService } from './rave/ads/rave-ads.service';
 
 const JwtModules = [
     PassportModule,
@@ -233,6 +253,15 @@ const config = {
             { name: YourCat.name, schema: YourCatSchema },
             { name: AiBudgetDay.name, schema: AiBudgetDaySchema },
             { name: AiQuota.name, schema: AiQuotaSchema },
+            // Bad Cat Daily (bad-cat/FULL-PLAN.md decision 1), every route behind BADCAT_* flags.
+            ...BADCAT_SCHEMAS,
+            // Bad Cat Daily Phase 2: short links, room feed, push subscriptions, streak-email opt-ins.
+            ...BADCAT_ONLINE_SCHEMAS,
+            // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md), behind RAVE_CHECKOUT_ENABLED.
+            { name: RaveOrder.name, schema: RaveOrderSchema },
+            { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
+            // Moon Rave ad slots (cat-rave/src/ads), behind RAVE_ADS_ENABLED.
+            { name: RaveAd.name, schema: RaveAdSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -263,6 +292,14 @@ const config = {
         RescueGoalController,
         // Bet #3: one photo becomes the player's cat.
         YourcatController,
+        // Bad Cat Daily: Stripe test-mode checkout, entitlements, cameos (flags default off).
+        BadcatController,
+        // Bad Cat Daily Phase 2: boards, accounts, short links + server OG, room feed, meter, push (flags off).
+        BadcatOnlineController,
+        // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain (flag off).
+        RaveController,
+        // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject (flag off).
+        RaveAdsController,
     ],
     providers: [
         UserRepository,
@@ -324,6 +361,22 @@ const config = {
         YourcatService,
         PortraitDeliveryService,
         YourcatRetentionJob,
+        // Bad Cat Daily.
+        BadcatStore,
+        BadcatStripeService,
+        BadcatWebhookService,
+        BadcatAccountService,
+        BadcatCameoService,
+        BadcatAdminService,
+        BadcatSeenEmailJob,
+        BadcatOnlineStore,
+        BadcatOnlineService,
+        BadcatLinksService,
+        BadcatPushService,
+        // Moon Rave checkout.
+        RaveService,
+        RaveWebhookService,
+        RaveAdsService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

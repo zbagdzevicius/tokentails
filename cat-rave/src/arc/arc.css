@@ -1,0 +1,191 @@
+/* Arc week: the "LIVE ON Arc" badge. The neon belongs to the frame; the logo itself is never tinted,
+   glowed or overlapped (Circle brand rules), sits on a dark plate with clear space, and is >= 50 px tall. */
+
+.rv-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.rv-arc-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 7px 8px 8px;
+  border-radius: 16px;
+  text-decoration: none;
+  background: rgba(2, 10, 5, 0.72);
+  border: 1.5px solid #5dff8a;
+  box-shadow: 0 0 0 1px rgba(93, 255, 138, 0.25) inset, 0 0 16px rgba(93, 255, 138, 0.55), 0 0 36px rgba(162, 107, 255, 0.35);
+  animation: rv-arc-pulse 1.765s ease-in-out infinite; /* 4 beats at 136 BPM */
+}
+.rv-arc-badge[hidden] {
+  display: none;
+}
+/* "● LIVE ON [logo]" on one line. */
+.rv-arc-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+/* The phone pill (text only) is hidden on desktop. */
+.rv-arc-pill {
+  display: none;
+}
+/* Our wordmark leads: Moon Rave stays the primary brand (public/brand/SOURCE.md). */
+.rv-arc-brand {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 0 10px #ff4f9e, 0 0 22px rgba(255, 79, 158, 0.75), 0 2px 0 #b0277a;
+  white-space: nowrap;
+  text-align: center;
+}
+.rv-arc-week {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  color: #c9ffd8;
+  white-space: nowrap;
+  text-align: center;
+}
+.rv-arc-live {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: #eafff0;
+  text-shadow: 0 0 8px #5dff8a, 0 0 18px rgba(93, 255, 138, 0.7);
+}
+.rv-arc-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff4f9e;
+  box-shadow: 0 0 8px #ff4f9e, 0 0 16px rgba(255, 79, 158, 0.8);
+  animation: rv-arc-blink 0.882s steps(2, jump-none) infinite;
+}
+/* Dark, calm plate: clear space round the mark (~ its inner-arch height) and no effects on it. */
+.rv-arc-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 18px;
+  border-radius: 10px;
+  background: #0b1730;
+}
+.rv-arc-logo {
+  display: block;
+  height: 50px;
+  width: auto;
+  filter: none;
+}
+.rv-arc-text {
+  font-size: 34px;
+  line-height: 50px;
+  color: #fff;
+}
+@keyframes rv-arc-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(93, 255, 138, 0.25) inset, 0 0 14px rgba(93, 255, 138, 0.5), 0 0 30px rgba(162, 107, 255, 0.3);
+  }
+  12% {
+    box-shadow: 0 0 0 1px rgba(93, 255, 138, 0.4) inset, 0 0 22px rgba(93, 255, 138, 0.85), 0 0 44px rgba(162, 107, 255, 0.5);
+  }
+}
+@keyframes rv-arc-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (min-width: 760px) {
+  .rv-arc-live {
+    font-size: 17px;
+  }
+}
+@media (max-width: 759px) {
+  /* Phones: a one-line pill about 32 px tall in the top-left stats block ("● LIVE ON Arc · this week"),
+     never over Add a cat, the arrivals list, the moon, the DJ or the shout-outs. Text only: the Arc logo's
+     50 px minimum height does not fit a 32 px pill, so the logo stays on the DJ desk on phones. */
+  .rv-arc-badge {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    width: max-content;
+    max-width: 100%;
+    height: 32px;
+    box-sizing: border-box;
+    margin-top: 6px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border-width: 1px;
+    pointer-events: auto;
+  }
+  .rv-arc-brand,
+  .rv-arc-row,
+  .rv-arc-week {
+    display: none;
+  }
+  .rv-arc-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    white-space: nowrap;
+    color: #eafff0;
+    text-shadow: 0 0 6px rgba(93, 255, 138, 0.6);
+  }
+  .rv-arc-pill-name {
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    color: #fff;
+  }
+  .rv-arc-dot {
+    width: 7px;
+    height: 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv-arc-badge,
+  .rv-arc-dot {
+    animation: none;
+  }
+}
+
+/* "paid on Arc" accent on a cat's info card. */
+.rv-card.rv-c-arc {
+  border-color: rgba(120, 160, 255, 0.7);
+  box-shadow: 0 0 28px rgba(110, 140, 255, 0.3), 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.rv-c-arcline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #dfe7ff;
+  background: rgba(27, 49, 88, 0.85);
+  border: 1px solid rgba(140, 170, 255, 0.55);
+}
+.rv-c-arcline::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9db4ff;
+}

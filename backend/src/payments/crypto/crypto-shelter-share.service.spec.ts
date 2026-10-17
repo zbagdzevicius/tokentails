@@ -116,6 +116,21 @@ describe('CryptoShelterShareService', () => {
         );
     });
 
+    it('sends the amount of the locked row, so a partial refund between find and lock is respected', async () => {
+        const { service, model, calls, addDue } = setup({ allowance: BigInt(10_000_000) });
+        addDue(500);
+        const original = model.findOneAndUpdate.bind(model);
+        model.findOneAndUpdate = (...args: any[]) => {
+            // rave-share.ts shrinkShare lands after the keeper's find() and before its due → sending lock.
+            // A new object, so the find() snapshot keeps 500 as a real Mongo read would.
+            model.rows[0].shelterShare = { ...model.rows[0].shelterShare, amountUsdCents: 300 };
+            return original(...args);
+        };
+        await service.runOnce(T0, cfg(), shelter);
+        expect(shelterSplitInterface.decodeFunctionData('disburse', calls[0].data)[0]).toBe(BigInt(3000000));
+        expect(model.rows[0].shelterShare.sentBase).toBe('3000000');
+    });
+
     it('skips the approve when the allowance covers the share', async () => {
         const { service, calls, addDue } = setup({ allowance: BigInt(10_000_000) });
         addDue(250);
@@ -261,5 +276,38 @@ describe('CryptoShelterShareService', () => {
         expect(run.sent).toBe(0);
         expect(model.rows.map((r: any) => r.shelterShare.state)).toEqual(['due', 'due']);
         expect(chain.sendContractCall).toHaveBeenCalledTimes(1);
+    });
+
+    it('never sends a reversed row: it is voided at due, after a revert, and even between taking and signing', async () => {
+        const { service, model, chain, addDue } = setup({ allowance: BigInt(10_000_000) });
+        addDue(250, { reversed: 'refunded' });
+        expect((await service.runOnce(T0, cfg(), shelter)).sent).toBe(0);
+        expect(model.rows[0].shelterShare.state).toBe('void');
+
+        // A sent row is refunded, then its tx reverts: it comes back to due and is voided, never re-sent.
+        model.rows.splice(0);
+        addDue(250, {
+            state: 'sent',
+            txHash: '0x' + '01'.padStart(64, '0'),
+            nonce: 1,
+            sentAt: T0,
+            reversed: 'disputed',
+        });
+        chain.getReceipt.mockResolvedValueOnce({ status: 0, logs: [] });
+        await service.runOnce(T0, cfg(), shelter);
+        expect(model.rows[0].shelterShare.state).toBe('void');
+        expect(chain.sendContractCall).not.toHaveBeenCalled();
+
+        // Reversed while the keeper holds the lock: onSigned refuses, nothing is broadcast.
+        model.rows.splice(0);
+        addDue(250);
+        chain.sendContractCall.mockImplementationOnce(async (_to: string, _data: string, _v: bigint, opts: any) => {
+            model.rows[0].shelterShare.reversed = 'refunded';
+            await opts.onSigned({ hash: '0x' + '02'.padStart(64, '0'), nonce: 2, from: '0xhot' });
+            return { txHash: 'never', nonce: 2, from: '0xhot' };
+        });
+        expect((await service.runOnce(T0, cfg(), shelter)).sent).toBe(0);
+        expect(model.rows[0].shelterShare.state).toBe('void');
+        expect(model.rows[0].shelterShare.txHash).toBeUndefined();
     });
 });

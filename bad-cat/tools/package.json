@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "bad-cat build tools; main lets `node --test tools` run every tools/*.test.mjs",
+  "main": "all.mjs"
+}

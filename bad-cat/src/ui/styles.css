@@ -1,0 +1,792 @@
+/* Bad Cat Daily UI (L5). Warm, playful, readable; portrait first; safe-area aware. */
+:root {
+  --bg: #2b1d2e;
+  --bg2: #3a2740;
+  --card: #fff3dc;
+  --card-ink: #2a1a22;
+  --cream: #fff3dc;
+  --butter: #ffd27a;
+  --peach: #ff9f7a;
+  --rose: #ff6f91;
+  --sage: #a8d5a2;
+  --sky: #9fd3ff;
+  --ink: #2a1a22;
+  --danger: #e5484d;
+  --muted: rgba(255, 243, 220, 0.72);
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --radius: 18px;
+  --font: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bc-app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 0%, #4a2f4f 0%, var(--bg) 60%);
+  color: var(--cream);
+  font-family: var(--font);
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------- stage (3D + HUD + controls) */
+.bc-stage-wrap { position: absolute; inset: 0; display: flex; justify-content: center; }
+.bc-stage {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  background: #1d1420;
+}
+@media (min-aspect-ratio: 3/4) {
+  /* Desktop / landscape: always the GDD's 3:4 portrait stage, centred (the whole room fits, window to bench). */
+  .bc-stage { width: auto; aspect-ratio: 3 / 4; max-width: 100%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 30px 80px rgba(0, 0, 0, 0.5); }
+}
+/* Wide desktop (round 2: a ~600 px column at 1280 cut the boss room and its second human): the stage grows toward
+   square, leaving the side bands for the panels. The camera fits the whole room at any aspect. */
+:root { --stage-w: 75vh; }
+@media (min-width: 1000px) and (min-aspect-ratio: 5/4) {
+  :root { --stage-w: max(75vh, min(100vh, calc(100vw - 560px))); }
+  .bc-stage { aspect-ratio: auto; width: var(--stage-w); }
+}
+.bc-stage.is-backdrop canvas { visibility: hidden; }
+.bc-backdrop { position: absolute; inset: -12px; width: calc(100% + 24px); height: calc(100% + 24px); object-fit: cover; filter: blur(6px) brightness(0.5); pointer-events: none; }
+.bc-stage canvas, .bc-canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
+
+.bc-layer { position: absolute; inset: 0; pointer-events: none; }
+.bc-layer > * { pointer-events: auto; }
+.bc-app.is-run .bc-layer { display: none; }
+
+/* ---------------------------------------------------------------- screens */
+.bc-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(20px + var(--sab)) calc(16px + var(--sal));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto;
+  animation: bc-in 0.22s ease-out;
+}
+/* the consent banner (fixed, bottom) gets its own room under the screen's last buttons */
+.bc-app.has-consent .bc-screen { padding-bottom: calc(112px + var(--sab)); }
+@media (max-width: 360px) { .bc-app.has-consent .bc-screen { padding-bottom: calc(150px + var(--sab)); } }
+@keyframes bc-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.bc-center { justify-content: center; align-items: center; text-align: center; }
+/* Menu and meta screens: no live 3D behind their see-through cards (the Rap Sheet, Season and Weekly cards were
+   unreadable over the room after a run). The app background shows instead. */
+.bc-app:is([data-screen='boot'], [data-screen='linkIntro'], [data-screen='picker'], [data-screen='archive'], [data-screen='catmaker'], [data-screen='home'], [data-screen='settings'], [data-screen='offer'], [data-screen='rapsheet'], [data-screen='season'], [data-screen='weekly'], [data-screen='friends'], [data-screen='rooms'], [data-screen='cats'], [data-screen='sheet'], [data-screen='studio']) .bc-stage-wrap { visibility: hidden; }
+
+h1, h2 { margin: 0; line-height: 1.1; }
+h2 { font-size: 22px; }
+.bc-title { font-size: 38px; letter-spacing: -0.5px; font-weight: 900; }
+.bc-muted { color: var(--muted); margin: 0; }
+.bc-small { font-size: 13px; }
+.bc-kicker { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--butter); }
+
+.bc-card {
+  background: rgba(255, 243, 220, 0.08);
+  border: 1px solid rgba(255, 243, 220, 0.14);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bc-row { display: flex; gap: 10px; }
+.bc-row > * { flex: 1; }
+.bc-head { display: flex; align-items: center; gap: 12px; }
+.bc-head h2 { flex: 1; }
+.bc-head-float { position: absolute; top: calc(10px + var(--sat)); left: calc(12px + var(--sal)); z-index: 2; }
+
+/* ---------------------------------------------------------------- buttons */
+button { font-family: inherit; }
+.bc-cta {
+  min-height: 48px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--butter);
+  box-shadow: 0 4px 0 #c9922e;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.06s ease, box-shadow 0.06s ease, opacity 0.2s;
+}
+.bc-cta:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #c9922e; }
+.bc-cta:disabled { opacity: 0.45; cursor: default; }
+.bc-cta-big { min-height: 58px; font-size: 20px; }
+.bc-cta-soft { background: rgba(255, 243, 220, 0.14); color: var(--cream); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25); }
+.bc-cta-gold { background: linear-gradient(180deg, #ffe08a, #ffbf47); }
+.bc-link { background: none; border: 0; color: var(--cream); opacity: 0.85; font-size: 15px; font-weight: 700; padding: 10px 6px; min-height: 44px; cursor: pointer; }
+.bc-icon-btn { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, 0.28); color: var(--cream); font-size: 18px; cursor: pointer; }
+.bc-x { background: none; border: 0; color: inherit; font-size: 16px; min-width: 44px; min-height: 36px; cursor: pointer; }
+.bc-progress { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: var(--rose); transition: width 0.2s; }
+.bc-share-btn.is-rendering, .bc-post.is-rendering { background: rgba(255, 243, 220, 0.18); color: var(--cream); box-shadow: none; }
+.bc-share-btn.is-ready, .bc-post.is-ready { background: linear-gradient(180deg, #ff8fab, var(--rose)); color: #fff; box-shadow: 0 4px 0 #b8405f; animation: bc-glow 1.4s ease-in-out infinite; }
+.bc-share-btn.is-used, .bc-post.is-used { animation: none; }
+@keyframes bc-glow { 50% { filter: brightness(1.12); transform: scale(1.02); } }
+
+.bc-toggle { display: flex; align-items: center; gap: 12px; min-height: 44px; font-weight: 700; }
+.bc-toggle input { width: 22px; height: 22px; accent-color: var(--rose); }
+/* Every checkbox in the app is a small switch (round 2: "Add music", settings and cameo boxes were browser defaults) */
+.bc-app input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(255, 243, 220, 0.18);
+  border: 1px solid rgba(255, 243, 220, 0.3);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  vertical-align: middle;
+}
+.bc-app input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+.bc-app input[type='checkbox']:checked { background: var(--rose); border-color: var(--rose); }
+.bc-app input[type='checkbox']:checked::after { transform: translateX(18px); }
+.bc-app input[type='checkbox']:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.bc-app input[type='checkbox']:disabled { opacity: 0.5; cursor: default; }
+.bc-app :is(.bmt-paper, .bm-offer, .bc-brief-card) input[type='checkbox']:not(:checked) { background: rgba(42, 26, 34, 0.16); border-color: rgba(42, 26, 34, 0.3); }
+
+.bc-toast {
+  position: fixed;
+  width: max-content !important;
+  box-sizing: border-box;
+  pointer-events: none;
+  left: 50%;
+  bottom: calc(24px + var(--sab));
+  transform: translateX(-50%);
+  background: var(--card);
+  color: var(--ink);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  z-index: 50;
+  transition: opacity 0.35s;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+.bc-toast.is-out { opacity: 0; }
+
+/* ---------------------------------------------------------------- boot */
+.bc-boot { justify-content: center; text-align: center; }
+.bc-boot-mid { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.bc-logo { font-size: 64px; animation: bc-bob 1.6s ease-in-out infinite; }
+@keyframes bc-bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
+.bc-tagline { font-size: 20px; font-weight: 800; margin: 0; color: var(--peach); }
+.bc-room-chip { background: var(--card); color: var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 800; }
+.bc-dots { display: flex; gap: 6px; }
+.bc-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--butter); animation: bc-dot 0.9s infinite; }
+.bc-dots i:nth-child(2) { animation-delay: 0.15s; }
+.bc-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bc-dot { 50% { opacity: 0.25; transform: scale(0.7); } }
+.bc-banner {
+  position: absolute;
+  top: calc(8px + var(--sat));
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--sky);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 6px 6px 6px 14px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- picker / home */
+.bc-list { display: flex; flex-direction: column; gap: 10px; }
+.bc-room-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: rgba(255, 243, 220, 0.1);
+  color: var(--cream);
+  cursor: pointer;
+}
+.bc-room-card.is-glass { background: linear-gradient(135deg, rgba(159, 211, 255, 0.22), rgba(255, 111, 145, 0.18)); }
+.bc-room-thumb { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: rgba(0, 0, 0, 0.25); font-size: 26px; flex: none; }
+.bc-room-txt { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.bc-room-txt small { color: var(--muted); }
+.bc-badge { background: var(--rose); color: #fff; font-size: 11px; font-weight: 900; padding: 3px 8px; border-radius: 999px; }
+.bc-home-head { display: flex; align-items: center; justify-content: space-between; }
+.bc-brand { display: flex; gap: 8px; align-items: center; font-weight: 900; font-size: 20px; }
+.bc-today { background: var(--card); color: var(--ink); border: 0; }
+.bc-today .bc-muted { color: rgba(42, 26, 34, 0.7); }
+.bc-today .bc-kicker { color: #c46a2a; }
+.bc-today.is-ready { box-shadow: 0 0 0 3px var(--rose); }
+.bc-ready { background: var(--rose); color: #fff; border-radius: 10px; padding: 6px 10px; font-weight: 800; }
+.bc-presale { align-items: stretch; text-align: center; }
+
+/* ---------------------------------------------------------------- briefing */
+/* Briefing: full-width layer (no darker 520 px band on desktop); the card itself is capped. Desktop: the card sits
+   low over the floor in front of the room. Portrait phones: the card goes to the top, compact, so the cat (spawn
+   near the front) and the lower room stay visible behind it. */
+.bc-briefing { justify-content: flex-end; align-items: center; max-width: none; background: linear-gradient(180deg, rgba(29, 20, 32, 0) 55%, rgba(29, 20, 32, 0.55) 100%); cursor: pointer; }
+.bc-briefing > .bc-brief-card { width: 100%; max-width: 440px; box-sizing: border-box; }
+@media (max-aspect-ratio: 3/4) {
+  .bc-briefing { justify-content: flex-start; background: linear-gradient(180deg, rgba(29, 20, 32, 0.6) 0%, rgba(29, 20, 32, 0) 42%); }
+  .bc-brief-card { padding: 12px 14px 10px; gap: 6px; }
+  .bc-brief-card h2 { font-size: 19px; }
+  .bc-brief-card .bc-small { display: none; }
+  .bc-targets li { flex-direction: row; justify-content: center; gap: 4px; padding: 5px 4px; font-size: 11px; line-height: 1.15; }
+  .bc-t-ico { font-size: 20px; }
+}
+.bc-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bc-brief-head .bc-link { color: var(--ink); opacity: 0.7; padding: 4px 0; min-height: 32px; font-size: 14px; }
+.bc-brief-card {
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 24px;
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  animation: bc-slide 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes bc-slide { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+.bc-brief-card .bc-muted { color: rgba(42, 26, 34, 0.7); }
+.bc-brief-card .bc-kicker { color: #c46a2a; }
+.bc-human { margin: 0; font-weight: 800; }
+.bc-human small { font-weight: 600; opacity: 0.7; }
+.bc-mode { align-self: flex-start; font-size: 11px; font-weight: 900; letter-spacing: 1.2px; padding: 4px 10px; border-radius: 999px; background: #e8dcc6; }
+.bc-mode-ranked { background: var(--rose); color: #fff; }
+.bc-mode-ftue { background: var(--sage); }
+.bc-targets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bc-targets li { background: #f6e7cb; border-radius: 14px; padding: 8px 4px; text-align: center; font-weight: 800; font-size: 13px; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.bc-t-ico { font-size: 28px; }
+.bc-tap { text-align: center; font-weight: 900; font-size: 18px; padding: 11px 14px; border-radius: 999px; color: #fff; background: var(--rose); box-shadow: 0 4px 0 #b8405f; animation: bc-tap 1.2s ease-in-out infinite; }
+.bc-briefing.is-loading .bc-tap { color: rgba(42, 26, 34, 0.55); background: #ecdcc0; box-shadow: none; animation: none; }
+@keyframes bc-tap { 50% { transform: scale(1.03); filter: brightness(1.08); } }
+@keyframes bc-pulse { 50% { opacity: 0.55; } }
+
+/* ---------------------------------------------------------------- HUD */
+.bc-hud { position: absolute; inset: 0; pointer-events: none; z-index: 3; font-weight: 900; }
+.bc-hud-top {
+  position: absolute;
+  top: calc(8px + var(--sat));
+  left: calc(10px + var(--sal));
+  right: calc(10px + var(--sar));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+}
+.bc-hud-mid { display: flex; flex-direction: column; align-items: center; }
+.bc-hud-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.bc-tgt { display: flex; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.32); border-radius: 999px; padding: 3px 10px 3px 8px; font-size: 14px; line-height: 1; }
+.bc-tgt b { font-variant-numeric: tabular-nums; margin-right: 2px; }
+.bc-tgt-i { font-style: normal; font-size: 15px; position: relative; transition: opacity 0.2s; margin-right: 5px; }
+.bc-tgt-i:last-child { margin-right: 3px; }
+.bc-tgt-i.is-done { opacity: 0.45; }
+.bc-tgt-i.is-done::after { content: '✓'; position: absolute; right: -6px; bottom: -3px; font-size: 11px; color: #7bd389; text-shadow: 0 1px 0 #000; }
+.bc-tgt.is-all { background: rgba(123, 211, 137, 0.35); }
+.bc-tgt.is-bump { animation: bc-bump 0.3s ease-out; }
+.bc-hud-right { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.bc-score { font-size: 34px; line-height: 1; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); font-variant-numeric: tabular-nums; }
+/* QA round 3: a backing pill keeps a white "0" readable over the bright kitchen window */
+.bc-score { background: rgba(0, 0, 0, 0.32); border-radius: 999px; padding: 2px 10px 3px; min-width: 40px; text-align: center; }
+/* the score pill made the middle column wider: both side columns may shrink below their content (the right one
+   still fits timer + pause on a 390 px phone), the target row wraps its icons */
+.bc-hud-top { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); column-gap: 6px; }
+.bc-hud-left { min-width: 0; }
+.bc-tgt { flex-wrap: wrap; max-width: 100%; box-sizing: border-box; }
+.bc-score.is-bump { animation: bc-bump 0.25s ease-out; }
+@keyframes bc-bump { 40% { transform: scale(1.25); color: var(--butter); } }
+.bc-combo { font-size: 15px; color: var(--butter); opacity: 0; transition: opacity 0.2s; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+.bc-combo.is-on { opacity: 1; }
+.bc-combo { display: inline-flex; align-items: center; gap: 6px; }
+.bc-combo-ring { width: 16px; height: 16px; border-radius: 50%; flex: none; background: conic-gradient(var(--butter) var(--combo-left, 0%), rgba(255, 255, 255, 0.18) 0); -webkit-mask: radial-gradient(circle, transparent 4px, #000 5px); mask: radial-gradient(circle, transparent 4px, #000 5px); }
+.bc-combo.is-low .bc-combo-ring { background: conic-gradient(var(--rose) var(--combo-left, 0%), rgba(255, 255, 255, 0.18) 0); }
+/* QA round 3: a draining bar under "×3 combo" (the 4 s window, read at a glance) */
+.bc-combo { flex-wrap: wrap; justify-content: center; max-width: 140px; }
+.bc-combo-bar { flex: 0 0 100%; display: block; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.bc-combo-bar b { display: block; height: 100%; width: var(--combo-left, 0%); background: var(--butter); border-radius: inherit; transition: width 0.1s linear; }
+.bc-combo.is-low .bc-combo-bar b { background: var(--rose); }
+.bc-timer { font-size: 20px; background: rgba(0, 0, 0, 0.32); padding: 4px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.bc-timer.is-low { background: var(--danger); animation: bc-pulse 1s infinite; }
+.bc-pause-btn { pointer-events: auto; width: 40px; height: 40px; font-size: 14px; }
+.bc-eye { display: flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.32); border-radius: 999px; padding: 4px 10px 4px 6px; justify-self: start; }
+.bc-eye-ico { font-size: 20px; transition: transform 0.15s; }
+.bc-eye-bar { width: 72px; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
+/* suspicion meter: amber below 50, red from 50 (the Perfect Crime line) */
+.bc-eye-fill { display: block; height: 100%; width: 0; background: #ffb347; transition: width 0.12s linear, background 0.2s; }
+.bc-eye.is-hot .bc-eye-fill { background: #ff4d4d; }
+.bc-eye.is-max { animation: bc-pulse 0.8s infinite; }
+/* suspicion vignette (red screen edges above 50 %), crash flash, run intro GO! */
+.bc-vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.15s linear; box-shadow: inset 0 0 90px 30px rgba(255, 40, 40, 0.35); }
+.bc-flash { position: absolute; inset: 0; pointer-events: none; background: #fff; opacity: 0; }
+.bc-flash.is-on { animation: bc-flash 0.12s linear; }
+@keyframes bc-flash { 0% { opacity: 0.25; } 100% { opacity: 0; } }
+.bc-go { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0.4); opacity: 0; font-size: 72px; font-weight: 900; color: var(--butter); text-shadow: 0 5px 0 #7a3b1c, 0 0 30px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.bc-go.is-on { animation: bc-go 0.9s ease-out forwards; }
+.bc-hud.is-paused .bc-go { visibility: hidden; animation: none; }
+@keyframes bc-go { 0% { transform: translate(-50%, -50%) scale(0.4) rotate(-6deg); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.15) rotate(-6deg); opacity: 1; } 39% { transform: translate(-50%, -50%) scale(1) rotate(-6deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1) rotate(-6deg); opacity: 0; } }
+.bc-pop.is-at { position: absolute; translate: -50% -50%; white-space: nowrap; pointer-events: none; font-size: 26px; }
+/* crash points (round 3): 30 px, weight 900, butter with a 3 px dark outline, rising 40 px over 0.6 s, 1.3 → 1.0 */
+.bc-pop.is-points {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--butter);
+  -webkit-text-stroke: 3px #2b1d2e;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  animation: bc-pop-points 1.1s ease-out forwards;
+}
+@keyframes bc-pop-points { 0% { transform: translateY(0) scale(1.3); opacity: 1; } 55% { transform: translateY(-40px) scale(1); opacity: 1; } 100% { transform: translateY(-48px) scale(1); opacity: 0; } }
+.bc-pop.is-reach { font-size: 17px; color: var(--ink); background: var(--cream); padding: 6px 12px; border-radius: 999px; text-shadow: none; }
+.bc-eye.is-seen .bc-eye-ico { transform: scale(1.35); animation: bc-eye-shake 0.12s linear infinite; }
+@keyframes bc-eye-shake { 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
+/* spotted: a 120 ms red edge flash */
+.bc-edge { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 7px #ff3b3b, inset 0 0 40px 10px rgba(255, 40, 40, 0.45); }
+.bc-edge.is-on { animation: bc-edge 0.12s linear; }
+@keyframes bc-edge { 0% { opacity: 1; } 100% { opacity: 0; } }
+.bc-hint {
+  position: absolute;
+  /* round 3: the HUD's info row, above the back wall and off Chef Dad's head (the turn must stay readable);
+     the steeper phone camera leaves this band free, and the room front is where the cat plays */
+  top: calc(80px + var(--sat));
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  opacity: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 15px;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.15s;
+  background: rgba(0, 0, 0, 0.4);
+}
+.bc-hint.is-on { opacity: 1; transform: translateX(-50%); }
+.bc-hint.is-busy { opacity: 0.7; font-size: 13px; }
+.bc-hint.is-telegraph { background: var(--butter); color: var(--ink); animation: bc-shake 0.18s linear infinite; font-size: 20px; }
+.bc-hint.is-look { background: var(--danger); color: #fff; font-size: 18px; }
+.bc-hint.is-frozen { background: var(--butter); color: var(--ink); font-size: 16px; }
+@keyframes bc-shake { 25% { margin-left: -3px; } 75% { margin-left: 3px; } }
+.bc-banner-run {
+  position: absolute;
+  /* round 3: under the info row, over the back wall, never over the human */
+  top: calc(116px + var(--sat));
+  left: 50%;
+  transform: translate(-50%, 0) scale(0.6);
+  opacity: 0;
+  font-size: 28px;
+  color: var(--butter);
+  text-shadow: 0 3px 0 #7a3b1c, 0 0 20px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  transition: opacity 0.2s, transform 0.25s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.bc-banner-run.is-on { opacity: 1; transform: translate(-50%, 0); }
+.bc-banner-run.is-lastcall { color: var(--rose); }
+.bc-prompt {
+  position: absolute;
+  left: 50%;
+  /* in the control band, above the JUMP button (its top edge is 202 px up), never under a thumb */
+  bottom: max(calc(20% + var(--sab)), calc(214px + var(--sab)));
+  transform: translateX(-50%);
+  background: var(--card);
+  color: var(--ink);
+  padding: 10px 16px;
+  border-radius: 16px;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  max-width: min(80%, 340px);
+  width: max-content;
+  text-align: center;
+  pointer-events: none;
+}
+.bc-prompt:not(.is-on) { visibility: hidden; }
+.bc-prompt.is-on { opacity: 1; animation: bc-bob-c 1.4s ease-in-out infinite; }
+.bc-prompt-2 { background: var(--peach); font-size: 22px; font-weight: 900; }
+.bc-prompt-5 { background: rgba(255, 243, 220, 0.92); font-size: 15px; }
+@keyframes bc-bob-c { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-6px); } }
+.bc-prompt-3 { background: var(--danger); color: #fff; bottom: auto; top: calc(80px + var(--sat)); }
+.bc-hud.is-paused .bc-hint,
+.bc-hud.is-paused .bc-prompt,
+.bc-hud.is-paused .bc-banner-run { visibility: hidden; }
+.bc-pops { position: absolute; left: 0; right: 0; top: 40%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+/* Must-Wreck / stash pops and "Hop on a chair first": under the event banner (QA round 3: they sat on top of it) */
+.bc-pops-under { position: absolute; left: 0; right: 0; top: calc(212px + var(--sat)); display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+/* coach lines (red-pawed, "let him turn"): their own slot under the banner */
+.bc-coach {
+  position: absolute;
+  top: calc(176px + var(--sat));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(92%, 360px);
+  width: max-content;
+  text-align: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  background: rgba(43, 29, 46, 0.72);
+  color: #fff3dc;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.bc-coach.is-on { opacity: 1; }
+.bc-coach.is-red { background: var(--danger); color: #fff; }
+.bc-hud.is-paused .bc-coach { visibility: hidden; }
+.bc-pop { font-size: 22px; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); animation: bc-pop 1.2s ease-out forwards; }
+.bc-pop.is-target { color: var(--butter); font-size: 20px; }
+@keyframes bc-pop { 0% { transform: scale(0.4); opacity: 0; } 15% { transform: scale(1.15); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
+.bc-side { display: none; }
+.bc-side li.is-done { opacity: 0.5; text-decoration: line-through; }
+@media (min-width: 1000px) and (min-aspect-ratio: 1/1) {
+  /* desktop: no thumbs, so the run text sits in the free band under the room (round 3: off the room and him) */
+  .bc-prompt { bottom: calc(1.5% + var(--sab)); }
+  .bc-hint,
+  .bc-prompt-3 { top: auto; bottom: calc(7.5% + var(--sab)); }
+  .bc-banner-run { top: auto; bottom: calc(13% + var(--sab)); }
+  .bc-coach { top: auto; bottom: calc(19% + var(--sab)); }
+  .bc-pops-under { top: calc(128px + var(--sat)); }
+}
+@media (min-width: 1000px) and (min-aspect-ratio: 1/1) {
+  /* in the free band left of the centred 3:4 stage (stage width = 75vh), never over the room */
+  .bc-side {
+    display: block;
+    position: fixed;
+    left: max(12px, calc(50vw - var(--stage-w) / 2 - 186px));
+    top: 50%;
+    transform: translateY(-50%);
+    width: 160px;
+    font-size: 13px;
+    background: rgba(29, 20, 32, 0.55);
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
+  .bc-side ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+}
+.bc-pause { position: absolute; inset: 0; display: none; place-items: center; background: rgba(29, 20, 32, 0.72); pointer-events: auto; z-index: 10; }
+.bc-pause.is-on { display: grid; }
+.bc-pause-card { display: flex; flex-direction: column; gap: 12px; align-items: stretch; text-align: center; min-width: 240px; padding: 16px; }
+
+/* ---------------------------------------------------------------- touch controls */
+.bc-touch { position: absolute; inset: 0; z-index: 2; display: none; touch-action: none; }
+.bc-app.is-run .bc-touch { display: block; }
+.bc-touch:not(.is-visible) .bc-btn { display: none; }
+.bc-touch.is-disabled { pointer-events: none; }
+.bc-stick {
+  position: absolute;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(255, 243, 220, 0.12);
+  border: 2px solid rgba(255, 243, 220, 0.35);
+  display: none;
+  pointer-events: none;
+}
+.bc-stick.is-on { display: block; }
+.bc-stick-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: var(--cream); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); opacity: 0.9; }
+.bc-btn {
+  position: absolute;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-weight: 900;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.05s;
+}
+.bc-btn.is-down { transform: translateY(4px) scale(0.96); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
+.bc-btn-ico { font-size: 28px; line-height: 1; }
+.bc-btn-lbl { font-size: 11px; letter-spacing: 1px; margin-top: 2px; }
+.bc-btn-swat { width: 92px; height: 92px; right: calc(18px + var(--sar)); bottom: calc(28px + var(--sab)); background: var(--peach); }
+.bc-btn-swat.is-grab { background: var(--sage); }
+.bc-btn-jump { width: 66px; height: 66px; right: calc(30px + var(--sar)); bottom: calc(136px + var(--sab)); background: var(--sky); }
+.bc-btn-jump .bc-btn-ico { font-size: 22px; }
+
+/* ---------------------------------------------------------------- result + share */
+.bc-result { align-items: center; text-align: center; justify-content: center; background: rgba(29, 20, 32, 0.45); max-width: none; }
+.bc-result > * { width: 100%; max-width: 480px; }
+.bc-nowrap { white-space: nowrap; }
+.bc-result .bc-kicker { text-wrap: balance; }
+.bc-result-score { font-size: 64px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 4px 0 rgba(0, 0, 0, 0.4); }
+.bc-stamp {
+  align-self: center;
+  width: auto !important;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 6px 16px;
+  border: 4px solid currentColor;
+  border-radius: 10px;
+  transform: rotate(-8deg) scale(2.4);
+  opacity: 0;
+}
+.bc-stamp.is-in { animation: bc-stamp 0.32s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+@keyframes bc-stamp { to { transform: rotate(-8deg) scale(1); opacity: 1; } }
+.bc-stamp-perfect { color: var(--sage); }
+.bc-stamp-clean { color: var(--butter); }
+.bc-stamp-caught { color: var(--danger); }
+.bc-rank { font-size: 22px; font-weight: 900; color: var(--peach); opacity: 0; transition: opacity 0.4s 0.2s; }
+.bc-rank.is-in { opacity: 1; }
+.bc-timeline { font-size: 26px; letter-spacing: 2px; }
+.bc-stats { display: flex; justify-content: center; gap: 14px; color: var(--muted); font-weight: 700; flex-wrap: wrap; }
+.bc-actions { display: flex; flex-direction: column; gap: 10px; }
+.bc-share { background: rgba(29, 20, 32, 0.6); max-width: none; align-items: center; }
+.bc-share > * { width: 100%; max-width: 480px; }
+.bc-clip-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.bc-clip-poster { max-height: 40vh; max-width: 100%; border-radius: 14px; object-fit: cover; aspect-ratio: 9 / 16; /* round 3: favour the room over the empty band under it */ object-position: 50% 35%; }
+.bc-clip-preview video { max-height: 46vh; border-radius: 14px; touch-action: auto; -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; cursor: pointer; }
+.bc-inapp { background: rgba(159, 211, 255, 0.16); }
+.bc-offer { justify-content: center; background: rgba(29, 20, 32, 0.92); }
+/* archive_old: the offer as a bottom sheet over the archive (the rooms stay visible behind the scrim) */
+.bc-offer-overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; background: rgba(29, 20, 32, 0.55); animation: bc-in 0.18s ease-out; }
+.bc-offer-sheet { width: 100%; max-width: 520px; box-sizing: border-box; padding: 0 calc(12px + var(--sar)) calc(16px + var(--sab)) calc(12px + var(--sal)); }
+.bc-catmaker-host { padding: 0; max-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+/* the in-game Reduce motion setting (app-shell applyReduceMotion): same rule, for every screen and sheet */
+html.bc-reduce-motion *, html.bc-reduce-motion *::before, html.bc-reduce-motion *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+
+/* Dare outcome line on the result screen (GDD 6.3). */
+.bc-dare-note {
+  margin: 6px 0 0;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: rgba(255, 210, 122, 0.16);
+  color: var(--butter);
+  font-weight: 800;
+  text-align: center;
+  box-sizing: border-box;
+  max-width: calc(100% - 32px);
+  margin-left: auto;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.bc-dare-intro { font-size: 20px; margin: 10px auto; }
+.bc-brief-card .bc-dare-note {
+  background: rgba(255, 111, 145, 0.14);
+  color: #a3264f;
+}
+
+/* Home: streak and the last 7 days (fills the lower half). */
+.bc-homeprog { display: flex; flex-direction: column; gap: 10px; }
+.bc-homeprog-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bc-streak-num { font-size: 26px; font-weight: 900; color: var(--butter); }
+.bc-week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.bc-week-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bc-week-dot {
+  width: 34px; height: 34px; max-width: 100%; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.08); border: 2px dashed rgba(255, 255, 255, 0.18); font-size: 16px;
+}
+.bc-week-day.is-perfect .bc-week-dot { background: var(--butter); border: 0; }
+.bc-week-day.is-clean .bc-week-dot { background: rgba(159, 211, 255, 0.7); border: 0; }
+.bc-week-day.is-caught .bc-week-dot { background: rgba(255, 111, 145, 0.7); border: 0; }
+.bc-week-day.is-today .bc-week-dot { outline: 2px solid var(--butter); outline-offset: 2px; }
+.bc-week-day small { font-size: 11px; opacity: 0.7; }
+
+/* Phone held sideways: the 3:4 stage would be ~290 px wide. Ask for portrait (the run pauses). */
+.bc-rotate { display: none; }
+@media (orientation: landscape) and (max-height: 500px) and (min-aspect-ratio: 6/5) {
+  .bc-rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--bg);
+    color: var(--cream);
+    font-weight: 800;
+    font-size: 20px;
+    text-align: center;
+    padding: 16px;
+  }
+  .bc-rotate-ico { font-size: 54px; animation: bc-rot 1.6s ease-in-out infinite; }
+}
+@keyframes bc-rot { 0%, 30% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0deg); } }
+
+/* ----- FULL build wave-1 wiring: briefing notes, home links, settings actions, Rap Sheet, sheets ----- */
+.bc-brief-notes { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.bc-brief-notes li { line-height: 1.3; }
+.bc-homeprog-season { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+/* round 3: "Rap Sheet ›" wrapped onto two lines */
+.bc-homeprog-season .bc-link { white-space: nowrap; flex: none; }
+.bc-home-links { flex-wrap: wrap; }
+.bc-home-links > * { flex: 1 1 40%; }
+.bc-a2hs { display: grid; gap: 6px; }
+.bc-treat { text-align: center; }
+.bc-settings-actions { display: grid; gap: 10px; }
+.bc-settings-action { display: grid; gap: 2px; }
+.bc-rapsheet { overflow-y: auto; }
+.bc-rap-top, .bc-rap-crimes { margin: 6px 0 0; padding-left: 18px; }
+.bc-rap-crimes { columns: 2; font-size: 13px; }
+.bc-tiers { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.bc-tier { display: flex; align-items: center; gap: 8px; opacity: .55; font-size: 14px; }
+.bc-tier.is-open { opacity: 1; }
+.bc-tier.is-claimed .bc-tier-r { text-decoration: line-through; opacity: .7; }
+.bc-tier-n { min-width: 26px; text-align: right; font-weight: 800; }
+.bc-tier-r { flex: 1; }
+.bc-sheet-host { overflow-y: auto; }
+
+/* ---------------------------------------------------------------- wave 2: share formats, maker host */
+.bc-formats { display: flex; flex-wrap: wrap; gap: 6px 8px; padding: 2px 2px 6px; align-items: center; position: relative; min-width: 0; }
+/* "Post as" sits on its own line so the first chip is never cut at 390 px (round 2) */
+.bc-formats .bc-formats-scroll { flex: 1 0 100%; }
+.bc-formats .bc-chip { max-width: calc(100vw - 64px); overflow: hidden; text-overflow: ellipsis; }
+/* inline @handle question (stitch / reply): in-app browsers block window.prompt */
+.bc-ask:empty { display: none; }
+.bc-ask { display: flex; flex-direction: column; gap: 6px; }
+.bc-ask-label { font-weight: 800; font-size: 14px; }
+.bc-ask-row { display: flex; gap: 8px; align-items: center; }
+.bc-ask-input { flex: 1; min-width: 0; min-height: 44px; border-radius: 12px; border: 1px solid rgba(255, 243, 220, 0.3); background: rgba(255, 243, 220, 0.1); color: var(--cream); font: inherit; font-size: 16px; padding: 0 12px; -webkit-user-select: text; user-select: text; touch-action: auto; }
+.bc-ask-ok { flex: none; min-height: 44px; padding: 0 18px; }
+.bc-formats:empty { display: none; }
+.bc-formats .bc-kicker { flex: none; }
+/* the chips scroll on their own row; a fade at a cut edge says there is more (review round 1) */
+.bc-formats-scroll { display: flex; gap: 8px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; touch-action: pan-x; padding: 2px 0; }
+.bc-formats-scroll::-webkit-scrollbar { display: none; }
+.bc-formats.fade-r .bc-formats-scroll { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.bc-formats.fade-l .bc-formats-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%); mask-image: linear-gradient(90deg, transparent, #000 15%); }
+.bc-formats.fade-l.fade-r .bc-formats-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+.bc-chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255, 243, 220, 0.24); background: rgba(255, 243, 220, 0.08); color: var(--cream); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.bc-chip.is-on { background: var(--butter); color: var(--ink); border-color: var(--butter); }
+.bc-chip.is-off { opacity: 0.5; }
+.bc-intent:empty { display: none; }
+.bc-intent .bc-cta { display: inline-flex; justify-content: center; text-decoration: none; margin-top: 8px; }
+.bc-maker-host { padding: 0; max-width: none; overflow: hidden; }
+/* the share screen scrolls instead of squashing the clip preview; the "Post as" row costs the preview a little height */
+.bc-share > * { flex-shrink: 0; }
+.bc-share:has(.bc-formats:not(:empty)) .bc-clip-preview video,
+.bc-share:has(.bc-formats:not(:empty)) .bc-clip-poster { max-height: 38vh; }
+
+/* ---------------------------------------------------------------- wave 3 (W3-UI-SHELL) */
+/* home: today's room card, tomorrow teaser, Nine Lives, seen counter, weekly badge, small offer slot */
+.bc-boss-badge { margin-left: 8px; background: var(--butter); color: var(--ink); font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.04em; }
+.bc-room-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.bc-chip-static { font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, 0.12); }
+.bc-twist { margin: 4px 0 8px; font-weight: 700; }
+.bc-tomorrow { margin: 2px 4px 0; text-align: center; color: var(--muted); font-size: 14px; }
+.bc-lives { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.bc-seen { margin: 0; text-align: center; font-size: 14px; color: var(--butter); font-weight: 800; }
+.bc-weekly-ready { width: 100%; animation: bc-glow 1.8s ease-in-out infinite; }
+.bc-offer-slot:empty { display: none; }
+.bc-room-thumb { position: relative; overflow: hidden; }
+.bc-room-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.2s; }
+.bc-room-thumb.has-img .bc-room-img { opacity: 1; }
+
+/* briefing: boss banner, Felony Friday chooser */
+.bc-boss-banner { margin: 2px 0 6px; padding: 6px 10px; border-radius: 12px; background: linear-gradient(90deg, var(--butter), var(--peach)); color: var(--ink); font-weight: 900; font-size: 13px; letter-spacing: 0.04em; text-align: center; }
+.bc-chooser { margin: 8px 0; }
+.bc-chooser-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none; touch-action: pan-x; }
+.bc-chooser-row::-webkit-scrollbar { display: none; }
+.bc-brief-card .bc-chip { color: inherit; border-color: rgba(42, 26, 34, 0.25); background: rgba(42, 26, 34, 0.06); }
+.bc-brief-card .bc-chip.is-on { background: var(--rose); border-color: var(--rose); color: #fff; }
+.bc-chooser-line { margin: 4px 0 0; }
+
+/* result: par paws, wish, new stamps, XP */
+.bc-paws { display: flex; gap: 4px; align-items: center; justify-content: center; margin: 4px 0; }
+.bc-paw { font-size: 22px; filter: grayscale(1) opacity(0.35); }
+.bc-paw.is-on { filter: none; }
+.bc-paws.is-1 .bc-paw.is-on { filter: sepia(1) saturate(3) hue-rotate(-20deg); }
+.bc-paws.is-2 .bc-paw.is-on { filter: grayscale(1) brightness(1.4); }
+.bc-paws small { margin-left: 6px; color: var(--muted); font-weight: 800; }
+.bc-wish { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0; font-weight: 800; font-size: 14px; }
+.bc-wish.is-granted { color: var(--rose); }
+.bc-adopt { font-size: 14px; }
+.bc-new-stamps { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; margin: 4px 0; }
+.bc-stamp-mini { font-size: 12px; font-weight: 900; padding: 3px 8px; border: 2px dashed var(--butter); border-radius: 8px; color: var(--butter); transform: rotate(-2deg); }
+.bc-dare-extra { margin: 0; }
+
+/* share: more menu, steps */
+.bc-more { width: 100%; }
+.bc-more > summary { list-style: none; text-align: center; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 48px; box-sizing: border-box; }
+.bc-more > summary::-webkit-details-marker { display: none; }
+.bc-more-list { display: grid; gap: 8px; margin-top: 8px; }
+.bc-steps { margin: 6px 0; padding-left: 20px; font-size: 14px; line-height: 1.4; text-align: left; }
+.bc-done { align-self: center; }
+.bc-share-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bc-share-head h2 { flex: 1; min-width: 0; }
+.bc-done-top { flex: none; min-height: 44px; padding: 0 6px; }
+
+/* studio */
+.bc-studio { background: var(--bg); max-width: none; padding-left: max(calc(16px + var(--sal)), calc((100% - 520px) / 2)); padding-right: max(calc(16px + var(--sar)), calc((100% - 520px) / 2)); }
+.bc-studio .bc-card { background: var(--bg2); }
+.bc-studio-list { margin: 8px 0; padding-left: 20px; display: grid; gap: 4px; max-height: 30vh; overflow-y: auto; touch-action: pan-y; }
+.bc-studio-row.is-current strong { color: var(--rose); }
+.bc-studio-row.is-saved { opacity: 0.6; }
+.bc-studio-row.is-skipped { opacity: 0.4; text-decoration: line-through; }
+.bc-studio-row small { display: block; }
+.bc-studio-batch { width: 100%; box-sizing: border-box; min-height: 84px; border-radius: 12px; border: 1px solid rgba(42, 26, 34, 0.25); padding: 8px; font: inherit; font-size: 14px; -webkit-user-select: text; user-select: text; touch-action: auto; }
+/* round 3: the batch list box was browser-white on the dark studio */
+.bc-studio-batch { background: rgba(0, 0, 0, 0.28); color: var(--cream); border-color: rgba(255, 243, 220, 0.22); }
+.bc-studio-batch::placeholder { color: rgba(255, 243, 220, 0.5); }
+
+/* desktop side panels (and the Club streamer layout with its dare QR): only on wide, non-touch screens */
+.bc-sides { display: none; }
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) and (hover: hover) {
+  .bc-app.is-stage .bc-sides { display: block; }
+  /* the panels carry the Must-Wreck list: the run HUD's own aside (.bc-side) would repeat it */
+  .bc-app.is-stage:has(.bc-sides) .bc-side { display: none; }
+  .bc-sp { position: absolute; top: 50%; transform: translateY(-50%); width: min(240px, calc((100vw - var(--stage-w)) / 2 - 32px)); padding: 14px 16px; border-radius: var(--radius); background: rgba(0, 0, 0, 0.32); color: var(--cream); font-size: 14px; pointer-events: none; }
+  .bc-sp-left { left: 16px; }
+  .bc-sp-right { right: 16px; }
+  .bc-sp ul { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
+  .bc-sp li.is-hit { text-decoration: line-through; opacity: 0.6; }
+  .bc-sp-qr svg { width: 100%; height: auto; background: #fff; border-radius: 8px; padding: 6px; box-sizing: border-box; }
+  .bc-sp-qr small { display: block; margin-top: 4px; word-break: break-all; color: var(--muted); }
+  .bc-sides.is-streamer .bc-sp { background: rgba(0, 0, 0, 0.55); }
+}
+.bc-brief-card .bc-chooser-line { color: rgba(42, 26, 34, 0.72); font-weight: 700; }
+
+/* round 3: the desktop share preview was ~170 px wide: let the clip use the height a desktop has */
+@media (min-width: 1000px) and (min-aspect-ratio: 1/1) {
+  .bc-clip-preview video,
+  .bc-clip-poster,
+  .bc-share:has(.bc-formats:not(:empty)) .bc-clip-preview video,
+  .bc-share:has(.bc-formats:not(:empty)) .bc-clip-poster { max-height: 64vh; min-width: 260px; }
+}
