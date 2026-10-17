@@ -3,6 +3,7 @@ import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
 import type { AccountReason } from "@/context/auth/types";
+import { LAST_METHOD_LABEL, type LastMethod, maskEmail } from "@/context/auth/lastMethod";
 import { useProfile } from "@/context/ProfileContext";
 import { useToastHold } from "@/context/ToastContext";
 import clsx from "clsx";
@@ -36,6 +37,7 @@ export const SHEET_TITLES: Record<AccountReason, string> = {
   share: "WELCOME TO TOKEN TAILS",
   support: "WELCOME TO TOKEN TAILS",
   "sign-in": "WELCOME TO TOKEN TAILS",
+  returning: "WELCOME BACK",
 };
 
 /**
@@ -59,6 +61,8 @@ export const reasonLine = (reason: AccountReason, catName?: string, view?: Sheet
       return "Invites are linked to your account, so your friends find you.";
     case "support":
       return "Sign in so we can answer you.";
+    case "returning":
+      return "Sign in the way you did before: your cat, your Tails and your progress are waiting.";
     default:
       return "Sign in to keep your progress on every device.";
   }
@@ -295,6 +299,66 @@ const LegalFooter = () => (
 );
 
 /** Google and Apple in the right order, or the in-app browser notice instead of them. */
+/** The ring around the method this device used last time. */
+const LAST_USED_RING = "rounded-[6px] ring-2 ring-tt-gold-400 ring-offset-2 ring-offset-tt-night-700";
+
+/** "Last time on this device you used Google (z•••@motored.lt)." */
+const LastMethodLine = ({ last }: { last: LastMethod }) => (
+  <p className={clsx(bodyText, "text-center")} data-testid="last-method">
+    Last time on this device you used <strong className="font-bold text-tt-gold-400">{LAST_METHOD_LABEL[last.provider]}</strong>
+    {last.emailHint ? (
+      <>
+        {" "}
+        (<span className="font-semibold">{last.emailHint}</span>)
+      </>
+    ) : null}
+    .
+  </p>
+);
+
+/**
+ * Inside a social app's or a wallet's browser (MetaMask, Trust, Phantom, Coinbase Wallet, ...)
+ * Google refuses to sign in. The notice says where to go and copies the link, the one step that
+ * works in every in-app browser.
+ */
+const InAppNotice = () => {
+  const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
+  const url = typeof window !== "undefined" ? window.location.href : "";
+  const copy = () => {
+    const write = typeof navigator !== "undefined" ? navigator.clipboard?.writeText(url) : undefined;
+    if (!write) {
+      setCopied("failed");
+      return;
+    }
+    void write.then(
+      () => setCopied("done"),
+      () => setCopied("failed")
+    );
+  };
+  return (
+    <div className="rounded-[4px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-3" data-testid="in-app-notice">
+      <p className={bodyText}>
+        Google and Apple sign-in don&apos;t work inside this app&apos;s browser. Copy the link, open Safari or Chrome, and
+        paste it there. Or use your email below.
+      </p>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2">
+        <button type="button" className={clsx(textButton, "px-0")} onClick={copy} data-testid="in-app-copy">
+          {copied === "done" ? "Link copied. Paste it in Safari or Chrome" : "Copy link"}
+        </button>
+        <a className={textButton} href={url || "/game"} target="_blank" rel="noopener noreferrer">
+          Open in your browser
+        </a>
+      </div>
+      {copied === "failed" && (
+        <p className="select-all break-all font-sans text-p6 text-tt-cream" data-testid="in-app-url">
+          {url}
+        </p>
+      )}
+    </div>
+  );
+};
+
+/** Google and Apple in the right order, or the in-app browser notice instead of them. */
 const ProviderButtons = ({
   controller,
   exclude,
@@ -302,29 +366,11 @@ const ProviderButtons = ({
   controller: AuthSheetController;
   exclude?: BrandProvider;
 }) => {
-  const [copied, setCopied] = useState(false);
-  if (controller.inAppBrowser) {
-    const openOutside = () => {
-      const url = typeof window !== "undefined" ? window.location.href : "";
-      void navigator.clipboard?.writeText(url).then(
-        () => setCopied(true),
-        () => setCopied(false)
-      );
-      window.open(url, "_blank", "noopener");
-    };
-    return (
-      <div className="rounded-[4px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-3" data-testid="in-app-notice">
-        <p className={bodyText}>
-          Google and Apple sign-in don&apos;t work inside this app&apos;s browser. Open Token Tails in Safari or Chrome, or
-          use your email below.
-        </p>
-        <button type="button" className={clsx(textButton, "mt-1 px-0")} onClick={openOutside}>
-          {copied ? "Link copied. Paste it in your browser" : "Open in your browser"}
-        </button>
-      </div>
-    );
-  }
-  const order: BrandProvider[] = controller.appleFirst ? ["apple", "google"] : ["google", "apple"];
+  if (controller.inAppBrowser) return <InAppNotice />;
+  const last = controller.lastMethod?.provider;
+  const base: BrandProvider[] = controller.appleFirst ? ["apple", "google"] : ["google", "apple"];
+  // The method this device used last goes first, ringed, so a returning player taps it at once.
+  const order = last === "google" || last === "apple" ? [last, ...base.filter((p) => p !== last)] : base;
   return (
     <div className="flex flex-col gap-4 pb-1 pr-1">
       {order
@@ -333,6 +379,8 @@ const ProviderButtons = ({
           <BrandSignInButton
             key={provider}
             provider={provider}
+            className={provider === last ? LAST_USED_RING : undefined}
+            lastUsed={provider === last}
             // Synchronous: the popup must open inside this click (G9).
             onClick={() => controller.oauth(provider)}
           />
@@ -352,24 +400,49 @@ const KeepPlaying = ({ controller }: { controller: AuthSheetController }) => {
   );
 };
 
+/**
+ * Which tab the email form opens on: Sign in for a returning player (and anyone who is not a
+ * guest), Create account only for a guest saving its cat.
+ */
+export const emailTabFor = (reason: AccountReason, isAnonymous: boolean): "sign-in" | "create" =>
+  reason === "returning" || !isAnonymous ? "sign-in" : "create";
+
 const ChooseView = ({ controller }: BodyProps) => {
-  // A guest saving its cat creates an account; anyone else (including a returning player on the
-  // fallback sheet, where no Firebase user exists) most likely signs in.
-  const emailTab = controller.user?.isAnonymous ? "create" : "sign-in";
+  const returning = controller.sheet.reason === "returning";
+  const emailTab = emailTabFor(controller.sheet.reason, !!controller.user?.isAnonymous);
+  const last = controller.lastMethod ?? null;
+  const emailLast = last?.provider === "email";
+  const emailButton = (
+    <ModalButton
+      variant={emailLast ? "primary" : "secondary"}
+      icon="mail"
+      fullWidth
+      className={clsx(CTA_CLASS, emailLast && LAST_USED_RING)}
+      onClick={() => controller.setView({ name: "email", tab: emailTab })}
+    >
+      {returning ? "SIGN IN WITH EMAIL" : "CONTINUE WITH EMAIL"}
+    </ModalButton>
+  );
   return (
     <>
+      {last && <LastMethodLine last={last} />}
+      {/* A returning player who used email goes straight to it; otherwise Google and Apple are the
+          quick path and email the alternative. */}
+      {emailLast && emailButton}
+      {emailLast && !controller.inAppBrowser && <Divider />}
       <ProviderButtons controller={controller} />
-      {!controller.inAppBrowser && <Divider />}
-      {/* Secondary: Google and Apple above are the quick path; email is the alternative. */}
-      <ModalButton
-        variant="secondary"
-        icon="mail"
-        fullWidth
-        className={CTA_CLASS}
-        onClick={() => controller.setView({ name: "email", tab: emailTab })}
-      >
-        CONTINUE WITH EMAIL
-      </ModalButton>
+      {!emailLast && !controller.inAppBrowser && <Divider />}
+      {!emailLast && emailButton}
+      {!returning && controller.switchToSignIn && (
+        // A guest who had an account before: Google, Apple and email above all sign in to it, but
+        // the email form would open on Create account, so the switch says it out loud.
+        <p className={clsx(bodyText, "text-center")} data-testid="returning-switch">
+          Already have an account?{" "}
+          <button type="button" className={clsx(textButton, "px-1")} onClick={controller.switchToSignIn}>
+            Sign in
+          </button>
+        </p>
+      )}
       <div className="flex flex-col items-center">
         <KeepPlaying controller={controller} />
       </div>
@@ -460,15 +533,24 @@ const EmailView = ({
     </button>
   );
 
+  // A returning player signs in: one form, no tabs, with "New here? Create an account" under it.
+  const signInOnly = controller.sheet.reason === "returning" && tab === "sign-in";
+
   return (
     <>
-      <div role="tablist" aria-label="Sign in or create an account" className="flex gap-1 rounded-[6px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-1">
-        {tabButton("sign-in", "Sign in")}
-        {tabButton("create", "Create account")}
-      </div>
+      {signInOnly ? (
+        <Heading>
+          <span id={`${ids.tabs}-${tab}`}>Sign in with email</span>
+        </Heading>
+      ) : (
+        <div role="tablist" aria-label="Sign in or create an account" className="flex gap-1 rounded-[6px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-1">
+          {tabButton("sign-in", "Sign in")}
+          {tabButton("create", "Create account")}
+        </div>
+      )}
       <form
         id={`${ids.tabs}-panel`}
-        role="tabpanel"
+        role={signInOnly ? undefined : "tabpanel"}
         aria-labelledby={`${ids.tabs}-${tab}`}
         className="flex flex-col gap-3"
         onSubmit={submit}
@@ -546,6 +628,14 @@ const EmailView = ({
           Other ways to sign in
         </button>
       </div>
+      {signInOnly && (
+        <p className={clsx(bodyText, "text-center")}>
+          New here?{" "}
+          <button type="button" className={clsx(textButton, "px-1")} onClick={() => switchTab("create")}>
+            Create an account
+          </button>
+        </p>
+      )}
     </>
   );
 };
@@ -659,8 +749,11 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
         </p>
       ) : (
         <p className={bodyText}>
-          Confirm <strong className="font-bold text-tt-gold-400">{view.email || "your email"}</strong> to keep playing.
-          Tap &ldquo;Resend email&rdquo; for a new link, open it, then come back here.
+          Welcome back. This is your account from before, and it&apos;s safe. Confirm{" "}
+          <strong className="font-bold text-tt-gold-400" data-testid="verify-email-hint">
+            {maskEmail(view.email) || "your email"}
+          </strong>{" "}
+          to keep playing: tap &ldquo;Resend email&rdquo; for a new link, open it, then come back here.
         </p>
       )}
       <p className="sr-only" role="status" aria-live="polite" data-testid="resend-ready">
@@ -676,7 +769,7 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
           {cooldown > 0 ? `Resend email in ${cooldown} s` : "Resend email"}
         </button>
         <button type="button" className={textButton} onClick={() => void controller.signOut()}>
-          Use a different account
+          Use a different sign-in
         </button>
       </div>
     </>
@@ -790,7 +883,7 @@ const ConflictView = ({ controller }: BodyProps) => {
 
 const MergedView = ({ controller, view }: BodyProps & { view: Extract<SheetView, { name: "merged" }> }) => (
   <>
-    <Heading>{view.note ? "You're signed in" : "Welcome back!"}</Heading>
+    <Heading>Welcome back!</Heading>
     {view.note ? (
       <p className={bodyText}>{view.note}</p>
     ) : (
@@ -830,7 +923,11 @@ const FallbackView = ({ controller }: BodyProps) => (
       TRY AGAIN
     </ModalButton>
     <div className="flex flex-col items-center">
-      <button type="button" className={textButton} onClick={() => controller.setView({ name: "choose" })}>
+      <button
+        type="button"
+        className={textButton}
+        onClick={() => (controller.switchToSignIn ? controller.switchToSignIn() : controller.setView({ name: "choose" }))}
+      >
         Sign in instead
       </button>
       {/* Full load on purpose: /heist is its own page. */}

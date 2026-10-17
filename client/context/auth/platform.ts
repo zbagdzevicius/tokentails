@@ -11,9 +11,14 @@ interface EnvLike {
   maxTouchPoints?: number;
 }
 
-/** Social-app web views where Google blocks OAuth (`disallowed_useragent`) and Apple popups fail. */
+/**
+ * Social-app and wallet web views where Google blocks OAuth (`disallowed_useragent`) and Apple
+ * popups fail. Wallets: MetaMask (`MetaMaskMobile`), Trust Wallet (`Trust/`, `TrustWallet`),
+ * Phantom, Coinbase Wallet (`CoinbaseWallet`, `CoinbaseBrowser`), OKX (`OKApp`, `OKEx`) and
+ * Binance (`BNC/`, `Binance`).
+ */
 const IN_APP_BROWSER =
-  /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Twitter for|MicroMessenger/i;
+  /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Twitter for|MicroMessenger|MetaMaskMobile|TrustWallet|\bTrust\/|Phantom|CoinbaseWallet|CoinbaseBrowser|OKApp|OKEx|\bBNC\/|Binance/i;
 
 /** True inside a social app's browser. Never true in the Capacitor app (it is a web view too). */
 export function isInAppBrowser(env: EnvLike): boolean {

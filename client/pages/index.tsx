@@ -10,7 +10,7 @@ import { RaveSection } from "@/components/landing/RaveSection";
 import { SwordcatSection } from "@/components/landing/SwordcatSection";
 import { BadcatSection } from "@/components/landing/BadcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
-import { landingCtaHref } from "@/components/landing/landingCta";
+import { landingCtaHref, SIGN_IN_HREF } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
 import {
   type CrewCtaState,
@@ -132,6 +132,17 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
             <span className="absolute max-sm:top-32 sm:top-2 z-40 max-sm:left-1/2 max-sm:-translate-x-1/2 sm:right-2">
               <Socials />
             </span>
+            {/* Returning players: one tap to the sign-in sheet (WELCOME BACK) on /game. Hidden once
+                this browser is signed in to an account. Plain anchor: the game needs a full load. */}
+            {!player.account && (
+              <a
+                href={SIGN_IN_HREF}
+                data-testid="landing-sign-in"
+                className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 inline-flex min-h-[44px] items-center rounded-full border-2 border-tt-gold-500 bg-tt-night-800/90 px-4 font-primary text-p5 uppercase tracking-wide text-tt-cream shadow-[0_3px_0_rgb(var(--tt-night-950))] transition hover:border-tt-gold-400 hover:bg-tt-night-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
+              >
+                Sign in
+              </a>
+            )}
 
             {/* Phones: PLAY GAME first, the store badge (when shown) under it, so neither sits on the hero cat. */}
             <div className="absolute z-50 bottom-16 sm:bottom-12 lg:bottom-14 xl:bottom-16 2xl:bottom-20 3xl:bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 md:gap-4 w-max max-w-[calc(100vw-2rem)]">

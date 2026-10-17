@@ -11,6 +11,8 @@ interface IProps {
   /** Defaults to "Continue with Google" / "Continue with Apple". */
   label?: string;
   className?: string;
+  /** This device signed in with this provider last time: a "Last used" tag on the button. */
+  lastUsed?: boolean;
 }
 
 /** Google's official four-colour "G" (Sign in with Google branding guidelines). */
@@ -75,7 +77,7 @@ const VARIANTS: Record<
  * guidelines ask for the plain button, and a gold plate offset to one side read as misregistered
  * against the panel). 4 px radius, 48 px tall like the sheet's other buttons, full column width.
  */
-export const BrandSignInButton = ({ provider, onClick, disabled, label, className }: IProps) => {
+export const BrandSignInButton = ({ provider, onClick, disabled, label, className, lastUsed }: IProps) => {
   const variant = VARIANTS[provider];
   const Mark = variant.mark;
   return (
@@ -97,7 +99,17 @@ export const BrandSignInButton = ({ provider, onClick, disabled, label, classNam
           // eslint-disable-next-line tt/no-raw-font
           style={{ fontFamily: variant.family }}
         >{label ?? variant.label}</span>
+        {lastUsed && <span className="sr-only">, used last time</span>}
       </button>
+      {lastUsed && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-2.5 right-2 rounded-[3px] bg-tt-gold-400 px-1.5 py-0.5 font-sans text-[11px] font-extrabold uppercase leading-none tracking-wide text-tt-gold-ink"
+          data-testid="last-used-tag"
+        >
+          Last used
+        </span>
+      )}
     </span>
   );
 };

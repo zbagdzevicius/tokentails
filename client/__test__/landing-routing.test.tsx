@@ -677,4 +677,16 @@ describe("playerStateFrom (the landing's optional, non-creating profile read)", 
     const legacy = playerStateFrom("ready", { cat });
     expect(legacy.onboardingState).toBe("done");
   });
+
+  it("marks a real account, so the landing hides its Sign in; a guest still sees it", () => {
+    expect(playerStateFrom("ready", { cat, isGuest: false }).account).toBe(true);
+    expect(playerStateFrom("guest", { cat, isGuest: true }).account).toBeUndefined();
+  });
+
+  it("the landing Sign in opens the returning sheet on /game and is tracked as a landing CTA", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SIGN_IN_HREF, landingCtaFromSearch } = require("@/components/landing/landingCta");
+    expect(SIGN_IN_HREF).toBe("/game?signin=1&from=landing_signin");
+    expect(landingCtaFromSearch(SIGN_IN_HREF.slice("/game".length))).toBe("signin");
+  });
 });

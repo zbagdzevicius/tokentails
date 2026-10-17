@@ -21,7 +21,9 @@ export type AuthStatus =
 
 /**
  * Why the AuthSheet opened. Picks the title (decision #64) and the line under it.
- * `save-progress` is the guest pill, the save nudges and the end of a guest run.
+ * `save-progress` is the guest pill, the save nudges and the end of a guest run. `returning` is a
+ * player who had an account before (the landing's "Sign in", "Already have an account?"): the
+ * sheet says "WELCOME BACK" and the email form opens on Sign in.
  */
 export type AccountReason =
   | "save-progress"
@@ -31,7 +33,8 @@ export type AccountReason =
   | "give-treat"
   | "share"
   | "support"
-  | "sign-in";
+  | "sign-in"
+  | "returning";
 
 export type AccountResult = "signed-in" | "dismissed";
 

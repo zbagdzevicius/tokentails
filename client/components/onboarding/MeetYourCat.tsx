@@ -60,6 +60,12 @@ export interface MeetYourCatProps {
   onCommitted?: (outcome: MeetCommitOutcome) => void;
   /** The ceremony ended (finished or skipped). The caller shows the lobby and hands off. */
   onDone: (summary: MeetSummary) => void;
+  /**
+   * "Already have an account? Sign in" on the first screen, for a guest who played before on
+   * another device or browser. The caller opens the returning sign-in and closes the ceremony
+   * once the player is in their account.
+   */
+  onSignIn?: () => void;
 }
 
 function track<E extends AnalyticsEventName>(name: E, properties?: AnalyticsEventProperties[E]) {
@@ -79,7 +85,7 @@ function preload(urls: ReadonlyArray<string>) {
   });
 }
 
-export const MeetYourCat = ({ open, uid, onCommitted, onDone }: MeetYourCatProps) => {
+export const MeetYourCat = ({ open, uid, onCommitted, onDone, onSignIn }: MeetYourCatProps) => {
   const [state, dispatch] = useReducer(meetReducer, undefined, initialMeetState);
   const reducedMotion = useReducedMotion();
   const viewport = useVisualViewport();
@@ -429,6 +435,21 @@ export const MeetYourCat = ({ open, uid, onCommitted, onDone }: MeetYourCatProps
                   />
                   {/* Bet #3: your own cat from a photo, only while /yourcat is on and open. */}
                   <YourcatEntryLink className={ENTRY_TEXT_LINK} testId="meet-yourcat-entry" />
+                  {onSignIn && (
+                    <p className="font-sans text-p5 font-semibold text-tt-cream" data-testid="meet-sign-in">
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={onSignIn}
+                        className={clsx(
+                          "inline-flex min-h-[44px] items-center px-1 font-sans text-p5 font-extrabold text-tt-gold-400 underline underline-offset-4",
+                          "rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
+                        )}
+                      >
+                        Sign in
+                      </button>
+                    </p>
+                  )}
                 </div>
               </MeetPanel>
             )}

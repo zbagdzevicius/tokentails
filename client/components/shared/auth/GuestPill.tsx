@@ -4,6 +4,8 @@ import clsx from "clsx";
 interface IProps {
   /** Opens `requireAccount('save-progress')`. */
   onSave: () => void;
+  /** Opens `requireAccount('returning')`: a player who had an account before signs back in. */
+  onSignIn?: () => void;
   catName?: string;
   /** The starter's portrait, shown in the pill's badge. */
   catImg?: string;
@@ -25,10 +27,14 @@ const NUDGE_COPY: Record<SaveNudgeTrigger, string> = {
  * The guest HUD pill (plan G1): "Guest · Save your cat". Sits on the HUD layer, opens the
  * AuthSheet on a deliberate tap, and carries the session's single soft save nudge.
  */
-export const GuestPill = ({ onSave, catName, catImg, signedOut, nudge, onDismissNudge, className }: IProps) => {
+export const GuestPill = ({ onSave, onSignIn, catName, catImg, signedOut, nudge, onDismissNudge, className }: IProps) => {
   const label = signedOut ? "Sign in" : "Save your cat";
+  // A second "Sign in" next to "Save your cat" (md and up; phones reach it from the sheet's
+  // "Already have an account? Sign in", the pill being as wide as the sky between the HUD columns).
+  const showSignIn = !signedOut && !!onSignIn;
   return (
     <div className={clsx("pointer-events-none flex flex-col items-center gap-2", className)} data-testid="guest-pill">
+      <div className="flex items-center gap-2" data-pill-row>
       <button
         type="button"
         onClick={onSave}
@@ -49,15 +55,37 @@ export const GuestPill = ({ onSave, catName, catImg, signedOut, nudge, onDismiss
             <span className="font-primary text-[15px] leading-none text-tt-gold-400">?</span>
           )}
         </span>
-        <span className="whitespace-nowrap font-sans text-[length:max(14px,0.875rem)] font-extrabold leading-none text-tt-cream">
-          {/* Phones show the action only; the badge says "guest" already. */}
-          <span className="max-md:sr-only">{signedOut ? "Not signed in" : "Guest"}</span>
+        <span className="flex whitespace-nowrap font-sans text-[length:max(14px,0.875rem)] font-extrabold leading-none text-tt-cream max-md:flex-col max-md:items-start max-md:gap-0.5">
+          {/* Phones stack "Guest" over the action, so the pill stays as narrow as before. */}
+          <span
+            className="max-md:text-[12px] max-md:uppercase max-md:tracking-wider max-md:text-tt-lilac"
+            data-testid="guest-pill-status"
+          >
+            {signedOut ? "Not signed in" : "Guest"}
+          </span>
           <span aria-hidden="true" className="px-1.5 text-tt-muted max-md:hidden">
             ·
           </span>
           <span className="text-tt-gold-400">{label}</span>
         </span>
       </button>
+      {showSignIn && (
+        <button
+          type="button"
+          onClick={onSignIn}
+          aria-label="Already have an account? Sign in"
+          data-testid="guest-pill-sign-in"
+          className={clsx(
+            "pointer-events-auto min-h-[44px] rounded-full border-2 border-tt-lilac/60 bg-tt-night-800/90 px-4 max-md:hidden",
+            "font-sans text-[length:max(14px,0.875rem)] font-extrabold leading-none text-tt-cream shadow-[0_3px_0_rgb(var(--tt-night-950))]",
+            "transition hover:border-tt-gold-400 hover:bg-tt-night-700",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400"
+          )}
+        >
+          Sign in
+        </button>
+      )}
+      </div>
       {nudge && !signedOut && (
         <div
           role="status"

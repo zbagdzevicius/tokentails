@@ -404,12 +404,20 @@ const GuestSaveCard = () => {
       tone="highlight"
       title="Save your progress"
       icon="bookmark"
-      helper="You are playing as a guest. Save to keep your cat and Tails, and to play on other devices."
+      helper="You are playing as a guest. Save to keep your cat and Tails, and to play on other devices. Had an account before? Sign in to it."
       data-testid="guest-save"
     >
       <ActionRow>
         <ModalButton variant="primary" icon="bookmark" onClick={() => void auth.requireAccount("save-progress")}>
           SAVE PROGRESS
+        </ModalButton>
+        <ModalButton
+          variant="secondary"
+          icon="user"
+          onClick={() => void auth.requireAccount("returning")}
+          data-testid="guest-sign-in"
+        >
+          SIGN IN TO MY ACCOUNT
         </ModalButton>
       </ActionRow>
     </ModalSection>
