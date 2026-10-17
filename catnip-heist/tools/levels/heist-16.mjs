@@ -49,9 +49,9 @@ const map = [
   '#......#...$.................###.....5.#', // 19  5 lapdog
   '#.12.$.#.6........$.....7..@.###.......#', // 20  spawns 1 2; 6 7 8 9 Barkley's loop; @ concierge
   '#...g..#....bb.......b.......A.A..$....#', // 21  g lift plate; A.A the office airlock (plate a)
-  '#......G+...$.........$......###...b...#', // 22  G glass lift door; + checkpoint just inside it
+  '#......G....$.........$......###...b...#', // 22  G glass lift door
   '#....t.#...$.......bb........###......$#', // 23  t lobby plate
-  '#......#.9..............8....###.h.....#', // 24  h helipad plate (in the office)
+  '#......#.9..............8...+###.h.....#', // 24  h helipad plate (in the office); + hall checkpoint by plate a (out of Barkley's sight)
   '#$.....#$......$...........$a###.....E.#', // 25  a airlock plate; E laundry chute
   '########################################', // 26
 ];
