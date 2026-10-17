@@ -297,6 +297,14 @@ export function delayedNames(stale: readonly StaleChain[]): string[] {
 // The count rule
 // =============================================================================================
 
+/** DEMO flags: a weighted mix so a `?cats=` crowd shows a leaderboard; about 1 cat in 4 holds none. */
+const DEMO_COUNTRIES = ['LT', 'LT', 'LT', 'US', 'US', 'DE', 'GB', 'FR', 'PL', 'UA', 'BR', 'JP', 'IT', 'ES', 'NL', 'SE', 'CA', 'IN', 'KR', 'MX', 'LV', 'EE'];
+export function demoCountry(seed: number): string | null {
+  const r = (seed * 7919) % 1;
+  if (r < 0.25) return null;
+  return DEMO_COUNTRIES[Math.floor(((r - 0.25) / 0.75) * DEMO_COUNTRIES.length) % DEMO_COUNTRIES.length];
+}
+
 /**
  * The count rule: payouts oldest first (timestamp, chainId, logIndex); the running total in
  * micro-USD; each whole dollar crossed is one cat, named by the payout that crossed it. Totals are
@@ -343,7 +351,8 @@ export function buildSnapshot(
   // count shows fewer cats (for testing the lonely floor).
   const shown = catList.slice(0, cats);
   for (let i = shown.length; i < cats; i++) {
-    shown.push({ index: i, payout: null, contributors: 0, completedAt: 0, demo: true, seed: hashSeed(`demo#${i}`) });
+    const seed = hashSeed(`demo#${i}`);
+    shown.push({ index: i, payout: null, contributors: 0, completedAt: 0, demo: true, seed, country: demoCountry(seed) });
   }
   return {
     asOf: file.asOf,

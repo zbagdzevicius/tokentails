@@ -183,7 +183,7 @@ describe('createRaveOrders', () => {
     expect(feed.current!.realCats).toBe(5);
 
     const cat = feed.current!.catList[3];
-    expect(store.namesForCat(cat)).toEqual({ orderId: OID, position: 3, name: 'Bean', x: 'someone', xUrl: 'https://x.com/someone' });
+    expect(store.namesForCat(cat)).toEqual({ orderId: OID, position: 3, name: 'Bean', x: 'someone', xUrl: 'https://x.com/someone', country: null });
     expect(store.recent()[0]).toMatchObject({ orderId: OID, phase: 'landed' });
 
     // Re-delivery of the same snapshot / later polls never shout again.
@@ -310,6 +310,65 @@ describe('createRaveOrders', () => {
     const store = createRaveOrders({ api: null, feed, visibility: null });
     await store.load();
     expect(feed.current!.catList.every((c) => store.namesForCat(c) === null)).toBe(true);
+    store.dispose();
+  });
+});
+
+describe('buyer countries', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW_S * 1000);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('parses the order country (unknown / XX / junk → null)', () => {
+    expect(parseOrder(order({ country: 'lt' }))!.country).toBe('LT');
+    expect(parseOrder(order({ country: 'XX' }))!.country).toBeNull();
+    expect(parseOrder(order({ country: '<b>' }))!.country).toBeNull();
+    expect(parseOrder(order())!.country).toBeNull();
+  });
+
+  it('gives each rave cat its order country, holograms too, and builds the leaderboard', async () => {
+    const OID3 = 'rv_1111111111111111';
+    const feed = fakeFeed(snap([ev(1, '0.37'), { ...ev(9, '5', { timestamp: NOW_S - 30 }), memo: `tt:rave:${HEX}` }]));
+    const { fn } = fakeFetch(() => ({
+      status: 200,
+      body: {
+        orders: [
+          order({ country: 'LT', status: 'onchain', chainId: 5042, payoutTx: tx(9) }),
+          order({ orderId: OID2, cats: 2, names: ['Zed', 'Ari'], country: 'DE' }),
+          order({ orderId: OID3, cats: 1, names: ['Nox'] }),
+        ],
+      },
+    }));
+    const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
+    await store.load();
+    expect(store.namesForCat(feed.current!.catList[0])!.country).toBe('LT');
+    expect(store.arrivingNames(10).map((n) => [n.name, n.country])).toEqual(
+      expect.arrayContaining([
+        ['Zed', 'DE'],
+        ['Nox', null],
+      ]),
+    );
+    const b = store.countries();
+    expect(b.rows.map((r) => [r.code, r.cats, r.landed])).toEqual([
+      ['LT', 5, 5],
+      ['DE', 2, 0],
+    ]);
+    expect(b.unknownCats).toBe(1);
+    // The viewer's own unpaid USDC order is not on the board.
+    store.track({ orderId: 'rv_1111222233334444', cats: 7, names: ['Tux'], country: 'US' }, 'pending');
+    expect(store.countries().rows.map((r) => r.code)).toEqual(['LT', 'DE']);
+    store.dispose();
+  });
+
+  it('a checkout answer without a country does not erase the server one', async () => {
+    const feed = fakeFeed(snap([ev(1, '0.37')]));
+    const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ country: 'FR' })] } }));
+    const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
+    await store.load();
+    store.track({ orderId: OID, cats: 5, names: ['Mochi'] });
+    expect(store.order(OID)!.country).toBe('FR');
     store.dispose();
   });
 });

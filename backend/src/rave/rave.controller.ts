@@ -19,7 +19,8 @@ import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottleOptions, ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
 import { PermissionGuard } from 'src/shared/guards/permission.guard';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
-import { RaveCheckoutBody, RaveService } from './rave.service';
+import { raveCountryFromRequest } from './rave-country';
+import { RaveCheckoutBody, RaveGeo, RaveService } from './rave.service';
 import { RaveWebhookService } from './rave-webhook.service';
 
 /*
@@ -38,6 +39,8 @@ export const RAVE_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     order: { limit: 30, ttl: MINUTE },
     usdcTx: { limit: 10, ttl: 10 * MINUTE },
     cats: { limit: 60, ttl: MINUTE },
+    geo: { limit: 60, ttl: MINUTE },
+    countries: { limit: 60, ttl: MINUTE },
 };
 
 @Controller('rave')
@@ -64,7 +67,23 @@ export class RaveController {
     async checkout(@Body() body: RaveCheckoutBody, @Req() req: any, @Res({ passthrough: true }) res: any) {
         this.rave.assertOpen();
         await this.throttle('checkout', req, res);
-        return this.rave.checkout(body);
+        return this.rave.checkout(body, new Date(), raveCountryFromRequest(req));
+    }
+
+    /** The visitor's IP country (rave-country.ts). Per visitor, so never cached by a shared cache. */
+    @Header('Cache-Control', 'private, no-store')
+    @Get('geo')
+    async geo(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<RaveGeo> {
+        await this.throttle('geo', req, res);
+        return { country: raveCountryFromRequest(req) };
+    }
+
+    /** Countries leaderboard: listed orders grouped by the buyer's country. Readable while checkout is off. */
+    @Header('Cache-Control', 'public, max-age=15')
+    @Get('countries')
+    async countries(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('countries', req, res);
+        return this.rave.listCountries();
     }
 
     @Header('Cache-Control', 'public, max-age=15')

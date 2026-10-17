@@ -19,6 +19,11 @@ export interface RaveStatusOn {
   prices: { fixed: number[]; customMin: number; max: number };
   fee: { percentBps: number; fixedCents: number };
   payoutsDelayed: boolean;
+  /**
+   * The buyer's country from the request IP, when the backend puts it here (null = not detected: the
+   * sheet shows the country picker). Absent = the page asks `GET /rave/geo` instead.
+   */
+  country?: string | null;
 }
 export type RaveStatus = RaveStatusOff | RaveStatusOn;
 
@@ -31,6 +36,8 @@ export interface CheckoutRequest {
   restName: string;
   x: string;
   clientKey: string;
+  /** ISO 3166-1 alpha-2 (IP country when detected, else the buyer's pick), or "none" (Show my flag off). Left out when unknown. */
+  country?: string;
 }
 
 /** POST /rave/checkout answer (card: clientSecret; usdc: memo + usdc). */

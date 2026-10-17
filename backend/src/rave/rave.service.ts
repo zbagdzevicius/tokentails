@@ -34,6 +34,7 @@ import Stripe from 'stripe';
 import { RaveConfig, readRaveConfig } from './rave.config';
 import { RAVE_ERRORS } from './rave.errors';
 import { raveQuote } from './rave-fee';
+import { RaveCountrySource, resolveRaveCountry } from './rave-country';
 import { normalizeXHandle, RAVE_NAMED_SLOTS, resolveRaveNames } from './rave-names';
 import { reverseShare, shrinkShare } from './rave-share';
 import { IRaveOrder, RaveMethod, RaveOrder, RaveOrderDocument, RaveOrderStatus } from './rave.schema';
@@ -119,6 +120,11 @@ export interface RaveCheckoutBody {
     names?: unknown;
     restName?: unknown;
     x?: unknown;
+    /**
+     * ISO alpha-2 the buyer picked, used only when the IP country is not detected; `"none"` = no flag,
+     * which always wins (rave-country.ts).
+     */
+    country?: unknown;
     clientKey?: unknown;
 }
 
@@ -128,6 +134,8 @@ export interface RavePublicOrder {
     names: string[];
     restName?: string;
     x?: string;
+    /** ISO alpha-2 of the buyer's country (the flag the cats hold); absent when unknown. */
+    country?: string;
     status: string;
     chainId?: number;
     payoutTx?: string;
@@ -151,9 +159,31 @@ export interface RaveCheckoutResponse {
     names: string[];
     restName?: string;
     x: string | null;
+    country: string | null;
+    countrySource: RaveCountrySource | null;
     status: string;
     memo?: string;
     usdc?: { chains: number[]; amountUnits6: string };
+}
+
+/** GET /rave/geo: the visitor's IP country, or null (the sheet then shows the country picker). */
+export interface RaveGeo {
+    country: string | null;
+}
+
+export interface RaveCountryRow {
+    country: string;
+    cats: number;
+    orders: number;
+}
+
+/** GET /rave/countries: listed orders grouped by country, most cats first. */
+export interface RaveCountriesPage {
+    asOf: string;
+    countries: RaveCountryRow[];
+    /** Cats of listed orders with no country (orders made before flags, or nothing detected or picked). */
+    unknownCats: number;
+    totalCats: number;
 }
 
 export type MarkPaidOutcome = 'ignored' | 'not-succeeded' | 'mismatch' | 'already' | 'review' | 'mode-skipped' | 'paid';
@@ -337,7 +367,14 @@ export class RaveService implements OnModuleDestroy {
 
     // ------------------------------------------------------------------ checkout
 
-    async checkout(body: RaveCheckoutBody, now: Date = new Date()): Promise<RaveCheckoutResponse> {
+    /**
+     * `detectedCountry` is the IP country the controller read (rave-country.ts); it wins over `body.country`.
+     */
+    async checkout(
+        body: RaveCheckoutBody,
+        now: Date = new Date(),
+        detectedCountry: string | null = null
+    ): Promise<RaveCheckoutResponse> {
         const cfg = readRaveConfig(this.env);
         const shelter = this.assertOpen(cfg);
         if (!body || typeof body !== 'object') throw RAVE_ERRORS.invalid('Expected a JSON body');
@@ -365,6 +402,8 @@ export class RaveService implements OnModuleDestroy {
         if (body.x !== undefined && body.x !== null && typeof body.x !== 'string') {
             throw RAVE_ERRORS.invalid('x must be text');
         }
+        const country = resolveRaveCountry(detectedCountry, body.country);
+        if (country === 'invalid') throw RAVE_ERRORS.invalid('country must be an ISO 3166-1 alpha-2 code or "none"');
         let clientKey: string | undefined;
         if (body.clientKey !== undefined && body.clientKey !== null) {
             if (typeof body.clientKey !== 'string' || !RAVE_CLIENT_KEY_RE.test(body.clientKey)) {
@@ -379,6 +418,7 @@ export class RaveService implements OnModuleDestroy {
         const rawRest = cats > RAVE_NAMED_SLOTS && typeof body.restName === 'string' ? body.restName.trim() : '';
         const rawX = typeof body.x === 'string' ? body.x.trim() : '';
         const requestHash = createHash('sha256')
+            // The resolved country is left out: a repeat from another network returns the first order as is.
             .update(JSON.stringify({ cats, method, coverFee, rawNames, rawRest, rawX }))
             .digest('hex');
 
@@ -420,6 +460,7 @@ export class RaveService implements OnModuleDestroy {
             ...(resolved.value.restName !== undefined ? { restName: resolved.value.restName } : {}),
             defaultNames: resolved.value.defaultNames,
             ...(x.handle ? { xHandle: x.handle, xHandleLower: x.handle.toLowerCase() } : {}),
+            ...(country ? { country: country.country, countrySource: country.source } : {}),
             hidden: false,
             status: 'created',
             expireAt: new Date(now.getTime() + (method === 'card' ? RAVE_CARD_TTL_MS : RAVE_USDC_TTL_MS)),
@@ -505,6 +546,8 @@ export class RaveService implements OnModuleDestroy {
             names: [...order.names],
             ...(order.restName !== undefined && order.restName !== null ? { restName: order.restName } : {}),
             x: order.xHandle || null,
+            country: order.country || null,
+            countrySource: order.countrySource || null,
             status: privateStatus(order.status),
         };
         if (order.method === 'usdc') {
@@ -921,6 +964,51 @@ export class RaveService implements OnModuleDestroy {
         return value;
     }
 
+    /**
+     * GET /rave/countries: the countries leaderboard. Same rows as GET /rave/cats (listed statuses, hidden
+     * orders included), grouped by country, most cats first, ties by code. A hidden order publishes no
+     * country (publicOrder), so its cats count as unknown here too.
+     */
+    async listCountries(now: Date = new Date()): Promise<RaveCountriesPage> {
+        const cached = this.listCache.get('countries');
+        if (cached && now.getTime() - cached.at < RAVE_LIST_CACHE_MS) return cached.value as RaveCountriesPage;
+        const groups: Array<{ _id: { country?: unknown; hidden?: unknown } | null; cats: number; orders: number }> =
+            await this.orders
+                .aggregate([
+                    { $match: { status: { $in: LISTED } } },
+                    {
+                        $group: {
+                            _id: { country: '$country', hidden: '$hidden' },
+                            cats: { $sum: '$cats' },
+                            orders: { $sum: 1 },
+                        },
+                    },
+                ])
+                .exec();
+        let unknownCats = 0;
+        let totalCats = 0;
+        const byCountry = new Map<string, RaveCountryRow>();
+        for (const g of groups) {
+            const cats = Number(g.cats) || 0;
+            totalCats += cats;
+            const code = g._id?.country;
+            if (!g._id?.hidden && typeof code === 'string' && /^[A-Z]{2}$/.test(code)) {
+                const row = byCountry.get(code) || { country: code, cats: 0, orders: 0 };
+                row.cats += cats;
+                row.orders += Number(g.orders) || 0;
+                byCountry.set(code, row);
+            } else {
+                unknownCats += cats;
+            }
+        }
+        const countries = [...byCountry.values()];
+        countries.sort((a, b) => b.cats - a.cats || b.orders - a.orders || a.country.localeCompare(b.country));
+        const value: RaveCountriesPage = { asOf: now.toISOString(), countries, unknownCats, totalCats };
+        if (this.listCache.size > 50) this.listCache.clear();
+        this.listCache.set('countries', { at: now.getTime(), value });
+        return value;
+    }
+
     // ------------------------------------------------------------------ USDC
 
     async reportUsdcTx(orderId: string, body: { chainId?: unknown; txHash?: unknown }, now: Date = new Date()) {
@@ -1155,6 +1243,8 @@ export function publicOrder(order: IRaveOrder | any): RavePublicOrder {
         if (rest) out.restName = String(rest);
     }
     if (!hidden && order.xHandle) out.x = String(order.xHandle);
+    // Moderation hides the flag too (a hidden order shows default names and no country).
+    if (!hidden && order.country) out.country = String(order.country);
     if (order.status === 'onchain' && order.payout?.txHash) {
         out.chainId = Number(order.payout.chainId);
         out.payoutTx = String(order.payout.txHash);
