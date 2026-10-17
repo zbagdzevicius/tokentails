@@ -2,31 +2,31 @@
   "id": "heist-16",
   "tiles": [
     "########################################",
-    "#.............................#........#",
-    "#...................bb........#........#",
-    "#.............................#..b.....#",
+    "#.............................###......#",
+    "#...................bb........###......#",
+    "#.............................###.b....#",
     "#.....bb...............................#",
-    "#............bbb........bb....#........#",
-    "#.............................#..b.....#",
-    "#.............................#........#",
-    "#.....b..........b............#........#",
+    "#............bbb........bb....###......#",
+    "#.............................###.b....#",
+    "#.............................###......#",
+    "#.....b..........b............###......#",
     "#...................b.........##########",
     "#.............................##########",
     "#.............................##########",
     "###.#######################.############",
     "#.....#####################.############",
     "#.....#####################.############",
-    "#.....#####################.###........#",
-    "#.....#####################.###........#",
-    "#.....#####################.###........#",
-    "###.#######################.###...b....#",
-    "#......#.....................##........#",
-    "#......#.....................##........#",
-    "#......#....bb..........b..............#",
-    "#............................##....bb..#",
-    "#......#...........bb........##........#",
-    "#......#.....................##........#",
-    "#......#.....................##........#",
+    "#.....#####################.####.......#",
+    "#.....#####################.####.......#",
+    "#.....#####################.####.......#",
+    "###.#######################.#######.####",
+    "#......#.....................###.......#",
+    "#......#.....................###.......#",
+    "#......#....bb.......b.................#",
+    "#............................###...b...#",
+    "#......#...........bb........###.......#",
+    "#......#.....................###.......#",
+    "#......#.....................###.......#",
     "########################################"
   ],
   "catSpawns": [
@@ -51,7 +51,7 @@
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 6,
       "turns": [
         {
           "facing": {
@@ -88,13 +88,13 @@
       "sprite": "black-white",
       "waypoints": [
         {
-          "x": 22,
-          "y": 7
+          "x": 25,
+          "y": 6
         }
       ],
       "speed": 1,
       "sniffTicks": 0,
-      "visionTiles": 5,
+      "visionTiles": 6,
       "turns": [
         {
           "facing": {
@@ -127,12 +127,89 @@
       ]
     },
     {
+      "id": "g-roof",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 19,
+          "y": 9
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 10,
+      "visionTiles": 5
+    },
+    {
+      "id": "g-pilot",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 21,
+          "y": 8
+        },
+        {
+          "x": 29,
+          "y": 8
+        }
+      ],
+      "speed": 2,
+      "sniffTicks": 40,
+      "visionTiles": 4
+    },
+    {
       "id": "s-lapdog",
       "sprite": "exotic",
       "waypoints": [
         {
-          "x": 35,
+          "x": 37,
           "y": 19
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 5,
+      "turns": [
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": -1
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 75
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 75
+        }
+      ]
+    },
+    {
+      "id": "s-concierge",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 27,
+          "y": 20
         }
       ],
       "speed": 1,
@@ -142,16 +219,30 @@
         {
           "facing": {
             "x": 0,
-            "y": 1
+            "y": -1
           },
-          "ticks": 120
+          "ticks": 90
         },
         {
           "facing": {
             "x": 1,
             "y": 0
           },
-          "ticks": 120
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 90
         }
       ]
     },
@@ -164,11 +255,11 @@
           "y": 20
         },
         {
-          "x": 26,
+          "x": 24,
           "y": 20
         },
         {
-          "x": 26,
+          "x": 24,
           "y": 24
         },
         {
@@ -177,8 +268,8 @@
         }
       ],
       "speed": 2,
-      "sniffTicks": 6,
-      "visionTiles": 4
+      "sniffTicks": 14,
+      "visionTiles": 5
     }
   ],
   "coins": [
@@ -277,7 +368,7 @@
       "id": "coin-14",
       "tile": {
         "x": 27,
-        "y": 14
+        "y": 15
       }
     },
     {
@@ -374,7 +465,7 @@
     {
       "id": "coin-28",
       "tile": {
-        "x": 28,
+        "x": 27,
         "y": 25
       }
     }
@@ -406,7 +497,25 @@
       "axis": "v"
     },
     {
-      "id": "door-helipad",
+      "id": "door-airlock-1",
+      "tile": {
+        "x": 29,
+        "y": 21
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-airlock-2",
+      "tile": {
+        "x": 31,
+        "y": 21
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-helipad-1",
       "tile": {
         "x": 30,
         "y": 4
@@ -415,13 +524,22 @@
       "axis": "v"
     },
     {
-      "id": "door-ceo",
+      "id": "door-helipad-2",
       "tile": {
-        "x": 30,
-        "y": 21
+        "x": 32,
+        "y": 4
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-safe",
+      "tile": {
+        "x": 35,
+        "y": 18
       },
       "kind": "VAULT",
-      "axis": "v"
+      "axis": "h"
     }
   ],
   "plates": [
@@ -456,13 +574,25 @@
       ]
     },
     {
+      "id": "plate-a1",
+      "tile": {
+        "x": 28,
+        "y": 25
+      },
+      "doors": [
+        "door-airlock-1",
+        "door-airlock-2"
+      ]
+    },
+    {
       "id": "plate-h1",
       "tile": {
         "x": 33,
         "y": 24
       },
       "doors": [
-        "door-helipad"
+        "door-helipad-1",
+        "door-helipad-2"
       ]
     }
   ],
@@ -496,35 +626,43 @@
     {
       "id": "cp-1",
       "tile": {
-        "x": 28,
+        "x": 29,
         "y": 11
       }
     },
     {
       "id": "cp-2",
       "tile": {
-        "x": 4,
-        "y": 16
+        "x": 27,
+        "y": 14
       }
     },
     {
       "id": "cp-3",
       "tile": {
-        "x": 32,
-        "y": 25
+        "x": 3,
+        "y": 17
+      }
+    },
+    {
+      "id": "cp-4",
+      "tile": {
+        "x": 8,
+        "y": 22
       }
     }
   ],
   "meta": {
     "title": "Heist 16: Kibble Corp Tower",
-    "parTicks": 3300,
+    "parTicks": 6900,
     "meowRadiusTiles": 7,
     "investigateTicks": 210,
     "maxCoins": 28,
     "twoCatRequired": true,
     "objectives": [
-      "Reach the roof, take Barkley's key and free {cat}",
-      "One cat on the helipad, one in the laundry chute, or both on one"
+      "Take Barkley's key from the roof between the searchlight sweeps",
+      "Get one cat through the airlock into the CEO's office, open the safe and free {cat}",
+      "Split up: one cat on the helipad, the other down the laundry chute"
     ],
     "hints": [
       {
@@ -537,23 +675,30 @@
       },
       {
         "x0": 26,
+        "y0": 19,
+        "x1": 28,
+        "y1": 25,
+        "text": "The airlock plate opens both airlock doors at once, so only one cat can ever get through. Pick who goes in."
+      },
+      {
+        "x0": 26,
         "y0": 1,
         "x1": 29,
         "y1": 7,
         "fromObjective": 1,
-        "text": "The helipad gate opens only from the CEO's office. Wait here for your partner."
+        "text": "The helipad valve opens only from the CEO's office. Wait here for your partner."
       },
       {
-        "x0": 31,
-        "y0": 23,
+        "x0": 32,
+        "y0": 19,
         "x1": 38,
         "y1": 25,
-        "fromObjective": 1,
-        "text": "Hold the plate till your partner is on the helipad, then jump down the chute."
+        "fromObjective": 2,
+        "text": "Hold the helipad plate till your partner is through, then drop down the laundry chute."
       }
     ],
     "name": "Kibble Corp Tower",
     "intro": "Barkley's tower: the roof, the CEO and one last cat. Two ways off. Take both.",
-    "idea": "Finale: leapfrog or prop out of the lobby, read the searchlight clocks, pass the key, then split the getaway"
+    "idea": "Finale: two airlocks force the split getaway; reprises the doorstop, the sentry clock and the key pass"
   }
 }
