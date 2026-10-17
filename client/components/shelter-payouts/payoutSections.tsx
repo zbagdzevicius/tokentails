@@ -20,7 +20,7 @@ import {
   resolveChain,
 } from "./rpc";
 import { treatJarOpen } from "./treatChains";
-import { CHIP, HEADLINE, Kicker, MEMO, PANEL, PILL, PinkCat } from "./ui";
+import { CHIP, HEADLINE, Kicker, MEMO, PANEL, PILL, PinkCat, Skeleton } from "./ui";
 
 // The pieces of /shelter-payouts that /impact shows too (the payouts feed, how it works, the give
 // call to action) and the reads behind them, so both pages render the same code.
@@ -405,7 +405,31 @@ export const TreatCta = ({
     </NextLink>
   );
 
-/** The payouts feed panel: every mainnet payout, or the reading / empty line. */
+/** Feed rows in skeleton blocks, shaped like PayoutFeed's rows, while the first chains are read. */
+export const FeedSkeleton = ({ rows = 3 }: { rows?: number }) => (
+  <div aria-busy="true" data-testid="payouts-feed-loading">
+    <span className="sr-only">Reading payouts…</span>
+    <ul className="flex flex-col gap-3" aria-hidden="true">
+      {Array.from({ length: rows }, (_, k) => (
+        <li
+          key={k}
+          className="flex flex-col gap-2 rounded-2xl border-2 border-tt-cream/25 bg-tt-night-900/70 p-3 md:flex-row md:items-center md:gap-4 md:p-4"
+        >
+          <span className="flex items-center gap-3 md:w-64 md:shrink-0">
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <Skeleton className="h-6 w-32 md:h-7" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            <Skeleton className="h-5 w-24" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+/** The payouts feed panel: every mainnet payout, or the reading (skeleton) / empty state. */
 export const FeedSection = ({
   feed,
   pending,
@@ -427,10 +451,10 @@ export const FeedSection = ({
     <div className="mt-5 md:mt-7">
       {feed.length > 0 ? (
         <PayoutFeed items={feed} shelterName={shelterName} target={target} />
+      ) : pending ? (
+        <FeedSkeleton />
       ) : (
-        <p className={pending ? "motion-safe:animate-pulse" : ""}>
-          {pending ? "Reading payouts…" : "No payouts yet. The first one shows up here."}
-        </p>
+        <p>No payouts yet. The first one shows up here.</p>
       )}
     </div>
   </section>
