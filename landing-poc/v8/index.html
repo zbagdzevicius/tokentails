@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Influencer Pack Shop</title>
+<meta name="description" content="The Influencer pack in Token Tails, a cozy cat game: $25 for one cat card that could be Legendary. Exact odds listed. Pay by card.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#ffffff">
+<meta property="og:type" content="website">
+<meta property="og:title" content="$25. One cat card. It could be Legendary.">
+<meta property="og:description" content="The Influencer pack in Token Tails, a cozy cat game. Every pack holds one cat card. Rarer packs find rarer cats.">
+<meta property="og:image" content="https://tokentails.com/logo/og-v2-1200x630.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Passion+One:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.com/cards/packs/INFLUENCER.webp">
+<!--
+  POC v8 "The Middle Pack". Goal: buy a pack, Influencer ($25) preset; Legendary anchors, Starter one tap away.
+  Prices (display only; the server decides): client/models/order.ts packPrices + LEGENDARY_PROMO,
+  backend/src/payments/price-table.ts. Starter $5, Influencer $25, Legendary $100 (regular $350)
+  until the exclusive instant 2026-11-28T00:00:00Z (last second 27 Nov 23:59:59 UTC). After it: $350 only.
+  Odds: PACK_ODDS in client/models/order.ts, verbatim.
+  Pills and rarity lines: client/components/shared/PacksModal.tsx (PACK_OFFERS, RARITIES), verbatim.
+  Lines "Every pack holds one cat card. Rarer packs find rarer cats.", "Your pack opens right after you pay." and the checkout labels "Pay with Card" / "Pay with crypto (stablecoins)" are live copy (PacksModal.tsx, Payment.tsx).
+  No sign-in claim: /packs has no auth provider (useAccountAction.ts), so a guest goes straight to checkout.
+  No F- ids: this page carries no real-world figures. No popularity, shelter or donation claims.
+-->
+<style>
+:root{
+  --white:#ffffff;--panel:#f4f4f6;--line:#e5e5ea;--muted:#6b6b7b;--ink:#0b0820;--ink-2:#2a2540;
+  --cream:#fcecbb;--pink:#ff7aa2;--lilac:#f0c5fd;--sky:#90c5e9;--gold:#ffcc55;--mint:#7fd66b;
+  --holo:linear-gradient(120deg,#ff7aa2 0%,#f9a3c9 45%,#f0c5fd 100%);
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--white);color:var(--ink);font:400 16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 16px}
+.price{font-family:"Passion One",Inter,sans-serif;font-weight:400;letter-spacing:.01em;line-height:1}
+
+/* header: brand only, no nav */
+.top{border-bottom:1px solid var(--line);background:var(--white)}
+.top .wrap{display:flex;align-items:center;gap:10px;height:52px}
+.top img{width:30px;height:30px}
+.top b{font-weight:800;font-size:15px;letter-spacing:-.01em}
+.crumb{color:var(--muted);font-size:13px;margin-left:4px}
+.crumb::before{content:"/";margin-right:8px;color:var(--line)}
+
+/* product block */
+.product{display:grid;gap:18px;padding-top:12px;padding-bottom:32px}
+.gallery{position:relative;display:grid;grid-template-columns:1fr 64px;gap:10px}
+.stage{position:relative;aspect-ratio:1/1;background:var(--panel);border-radius:var(--r);overflow:hidden;display:grid;place-items:center}
+.stage img{position:absolute;left:6%;top:6%;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 14px 18px rgba(11,8,32,.16))}
+.stage .tag{position:absolute;left:12px;bottom:12px;font-size:12px;color:var(--muted);background:var(--white);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.thumbs{display:flex;flex-direction:column;gap:10px}
+.thumb{display:grid;place-items:center;aspect-ratio:1/1;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:border-color .15s}
+.thumb{position:relative}.thumb img{position:absolute;left:12%;top:9%;width:76%;height:82%;object-fit:contain}
+.thumb:hover{border-color:#c9c9d2}
+
+.buy h1{font-size:clamp(26px,7vw,40px);line-height:1.08;letter-spacing:-.03em;font-weight:800;margin:0 0 8px}
+.buy h1 .price{font-size:1.18em;letter-spacing:0;margin-right:.08em}
+.sub{margin:0 0 14px;color:var(--ink-2);font-size:15px;line-height:1.45;max-width:46ch}
+.meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-bottom:12px}
+.name{font-weight:700;font-size:15px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:4px 10px 4px 8px;border:1px solid transparent}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.p-s{background:#eef9eb;color:#2f6b22;border-color:#cfeec6}
+.pill.p-i{background:#fff0f5;color:#b0285a;border-color:#ffd3e2}
+.pill.p-l{background:#fff7e0;color:#7a5200;border-color:#ffe5a3}
+.pricerow{display:flex;align-items:baseline;gap:10px;margin:2px 0 4px}
+.pricerow .now{font-size:56px;color:var(--ink)}
+.pricerow s{font-size:28px;color:var(--muted);text-decoration-thickness:2px}
+.until{font-size:13px;font-weight:600;color:#b0285a}
+.odds{margin:0 0 14px;font-size:13.5px;color:var(--muted)}
+.odds b{color:var(--ink-2);font-weight:600}
+
+/* selector */
+.seg{border:0;margin:0 0 14px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px;min-height:64px;padding:8px 4px;border-radius:10px;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.seg label:hover{background:#ebebef}
+.seg label .n{font-size:13.5px;font-weight:700}
+.seg label .pp{font-size:19px}
+.seg label .pp s{font-family:Inter,sans-serif;font-size:11px;margin-left:3px;opacity:.8}
+.seg label .u{font-size:10.5px;font-weight:600}
+.seg input:checked+label{background:var(--holo);color:var(--ink);box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 2px 8px rgba(255,122,162,.28)}
+.seg input:focus-visible+label{outline:3px solid var(--ink);outline-offset:2px}
+
+.cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:54px;padding:0 20px;border-radius:12px;background:var(--ink);color:var(--cream);font-weight:700;font-size:17px;text-decoration:none;letter-spacing:-.01em;transition:transform .12s,background .15s}
+.cta:hover{background:#221b3d}
+.cta:active{transform:translateY(1px)}
+.cta svg{width:18px;height:18px}
+.note{margin:10px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.assure{list-style:none;margin:18px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13.5px;color:var(--ink-2)}
+.assure li{display:flex;gap:10px;align-items:flex-start}
+.assure svg{flex:none;width:18px;height:18px;margin-top:1px;color:var(--muted)}
+
+/* sections */
+section.blk{padding:40px 0;border-top:1px solid var(--line)}
+.blk h2{font-size:22px;letter-spacing:-.02em;margin:0 0 6px;font-weight:800}
+.blk .lede{margin:0 0 20px;color:var(--muted);font-size:15px}
+.specs{width:100%;border-collapse:collapse;font-size:15px}
+.specs th,.specs td{text-align:left;vertical-align:top;padding:14px 0;border-bottom:1px solid var(--line)}
+.specs tr:last-child th,.specs tr:last-child td{border-bottom:0}
+.specs th{width:38%;font-weight:600;color:var(--muted);padding-right:16px;font-size:14px}
+.bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--panel);margin-top:10px}
+.bar i{display:block;height:100%}
+.c-c{background:#cfcfd8}.c-r{background:var(--sky)}.c-e{background:#d59cf0}.c-l{background:var(--gold)}
+.key{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.key span::before{content:"";width:9px;height:9px;border-radius:3px;background:var(--k)}
+.small{font-size:13px;color:var(--muted)}
+
+.rar{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 14px 14px;transition:opacity .2s}
+.gem{width:14px;height:14px;transform:rotate(45deg);border-radius:3px;margin:2px 0 12px 2px}
+.card h3{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em}
+.card p{margin:0 0 12px;font-size:13.5px;color:var(--ink-2);line-height:1.4}
+.card .in{font-size:12px;color:var(--muted)}
+.card .od{position:absolute;top:14px;right:14px;font-size:20px;color:var(--ink)}
+.card .od.no{font-family:Inter,sans-serif;font-size:11.5px;font-weight:600;color:var(--muted);top:16px}
+
+.qa details{border-bottom:1px solid var(--line)}
+.qa details:first-of-type{border-top:1px solid var(--line)}
+.qa .qh+details{margin-top:0}
+.qa summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;font-weight:600;font-size:16px}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary::after{content:"+";font-size:22px;font-weight:400;color:var(--muted);transition:transform .2s}
+.qa details[open] summary::after{transform:rotate(45deg)}
+.qa details p{margin:0 0 18px;color:var(--ink-2);max-width:60ch}
+.qa a.tl{font-weight:600;text-underline-offset:3px}
+
+footer{border-top:1px solid var(--line);padding:24px 0 120px;font-size:13px;color:var(--muted)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+footer a{color:var(--muted);text-underline-offset:3px}
+footer .home{margin-left:auto}
+
+/* sticky bar, phones only, shown once the buy box button scrolls away */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px;transform:translateY(110%);transition:transform .2s}
+.sticky.on{transform:none}
+.sticky .lbl{flex:1;min-width:0;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sticky .lbl .price{font-size:22px;margin-left:4px}
+.sticky .cta{width:auto;min-height:48px;padding:0 26px;font-size:16px}
+
+.poc{position:fixed;top:12px;right:12px;z-index:30;font-size:11px;background:var(--white);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--muted)}
+.poc a{color:var(--ink)}
+
+/* which pack is showing: body[data-pack] = s | i | l; body[data-sale] = on | off */
+[data-pack="s"] .x-i,[data-pack="s"] .x-l,
+[data-pack="i"] .x-s,[data-pack="i"] .x-l,
+[data-pack="l"] .x-s,[data-pack="l"] .x-i{display:none!important}
+[data-sale="off"] .sale{display:none!important}
+[data-sale="on"] .reg{display:none!important}
+[data-pack="s"] .card:not(.in-s)>:not(.od),[data-pack="i"] .card:not(.in-i)>:not(.od),[data-pack="l"] .card:not(.in-l)>:not(.od){opacity:.4}
+[data-pack="s"] .card:not(.in-s),[data-pack="i"] .card:not(.in-i),[data-pack="l"] .card:not(.in-l){background:var(--white);border-style:dashed}
+[data-pack="s"] .thumb.t-s,[data-pack="i"] .thumb.t-i,[data-pack="l"] .thumb.t-l{border:2px solid var(--pink);background:#fff6f9}
+
+@media (min-width:880px){
+  .product{grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:56px;padding-top:40px;padding-bottom:56px;align-items:start}
+  .gallery{grid-template-columns:76px 1fr;gap:14px;position:sticky;top:24px}
+  .thumbs{order:-1}
+  .buy{padding-top:8px}
+  .buy h1{font-size:44px}
+  .rar{grid-template-columns:repeat(2,1fr)}
+  .qa{display:grid;grid-template-columns:1fr 2fr;column-gap:64px;align-items:start}
+  .qa .qh{grid-row:span 4}
+  .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:64px}
+  .cols section.blk{border-top:0;padding-top:8px}
+  .sticky{display:none}
+  footer{padding-bottom:64px}
+  .poc{top:auto;bottom:14px;right:14px}
+}
+@media (max-width:879px){
+  .crumb{display:none}
+  /* phones: a shorter stage so the buy button clears the fold on a 360x740 screen too */
+  .gallery{grid-template-columns:1fr 56px}
+  .stage{aspect-ratio:4/3}
+  .stage .tag{display:none}
+  .poc{position:absolute;top:13px}
+  .pricerow .now{font-size:46px}
+  .assure{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body data-pack="i" data-sale="on">
+
+<header class="top"><div class="wrap">
+  <img src="https://tokentails.com/logo/logo.webp" width="30" height="30" alt="">
+  <b>Token Tails</b><span class="crumb">Card packs</span>
+</div></header>
+
+<main>
+<div class="wrap product">
+
+  <div class="gallery">
+    <div class="stage">
+      <img class="x-i" src="https://tokentails.com/cards/packs/INFLUENCER.webp" width="1521" height="2363" alt="The Influencer pack: a white cat holding a holo card">
+      <img class="x-s" src="https://tokentails.com/cards/packs/STARTER.webp" width="1322" height="2213" alt="The Starter pack" loading="lazy">
+      <img class="x-l" src="https://tokentails.com/cards/packs/LEGENDARY.webp" width="1000" height="1685" alt="The Legendary pack" loading="lazy">
+      <span class="tag">1 cat card inside</span>
+    </div>
+    <div class="thumbs" aria-hidden="true">
+      <label class="thumb t-l" for="pk-l"><img src="https://tokentails.com/cards/packs/LEGENDARY.webp" width="1000" height="1685" alt=""></label>
+      <label class="thumb t-i" for="pk-i"><img src="https://tokentails.com/cards/packs/INFLUENCER.webp" width="1521" height="2363" alt=""></label>
+      <label class="thumb t-s" for="pk-s"><img src="https://tokentails.com/cards/packs/STARTER.webp" width="1322" height="2213" alt=""></label>
+    </div>
+  </div>
+
+  <div class="buy">
+    <h1>
+      <span class="x-i"><span class="price">$25.</span> One cat card. It could be Legendary.</span>
+      <span class="x-s"><span class="price">$5.</span> One cat card. Best for newcomers.</span>
+      <span class="x-l"><span class="price sale">$100.</span><span class="price reg">$350.</span> One cat card. Best Legendary odds.</span>
+    </h1>
+    <p class="sub">The Influencer pack in Token Tails, a cozy cat game. Every pack holds one cat card. Rarer packs find rarer cats. Pay by card.</p>
+
+    <div class="meta">
+      <span class="name"><span class="x-l">Legendary</span><span class="x-i">Influencer</span><span class="x-s">Starter</span> pack</span>
+      <span class="pill p-i x-i">Can hold a Legendary</span>
+      <span class="pill p-s x-s">Best for newcomers</span>
+      <span class="pill p-l x-l reg">Best Legendary odds</span>
+      <span class="pill p-i x-l sale">Sale until 27 Nov</span>
+    </div>
+
+    <div class="pricerow" aria-live="polite">
+      <span class="x-i price now">$25</span>
+      <span class="x-s price now">$5</span>
+      <span class="x-l sale"><span class="price now">$100</span> <s class="price" aria-hidden="true">$350</s><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">was $350</span></span>
+      <span class="x-l reg price now">$350</span>
+    </div>
+    <p class="odds"><b>Odds:</b>
+      <span class="x-s">90% Common, 9% Rare, 1% Epic</span><span class="x-i">75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary</span><span class="x-l">20% Rare, 50% Epic, 30% Legendary</span>
+    </p>
+
+    <fieldset class="seg">
+      <legend>Choose a pack</legend>
+      <input type="radio" name="pack" id="pk-l" value="l">
+      <label for="pk-l"><span class="n">Legendary</span><span class="pp price"><span class="sale">$100<s>$350</s></span><span class="reg">$350</span></span><span class="u sale">until 27 Nov</span></label>
+      <input type="radio" name="pack" id="pk-i" value="i" checked>
+      <label for="pk-i"><span class="n">Influencer</span><span class="pp price">$25</span></label>
+      <input type="radio" name="pack" id="pk-s" value="s">
+      <label for="pk-s"><span class="n">Starter</span><span class="pp price">$5</span></label>
+    </fieldset>
+
+    <a class="cta" id="buy" href="https://tokentails.com/packs?from=poc_v8&amp;utm_source=landing-poc&amp;utm_campaign=v8">
+      <span class="x-i">Get Influencer · $25</span><span class="x-s">Get Starter · $5</span><span class="x-l"><span class="sale">Get Legendary · $100</span><span class="reg">Get Legendary · $350</span></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+    <p class="note">Opens the Token Tails pack shop.</p>
+
+    <ul class="assure">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Pay by card at checkout.</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16v12H4zM8 7V5h8v2"/></svg>Your pack opens right after you pay.</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Exact odds for every pack, listed below.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="cols">
+    <section class="blk" aria-labelledby="h-specs">
+      <h2 id="h-specs">Specs: <span class="x-l">Legendary</span><span class="x-i">Influencer</span><span class="x-s">Starter</span> pack</h2>
+      <p class="lede">Every pack holds one cat card. Rarer packs find rarer cats.</p>
+      <table class="specs">
+        <tr><th scope="row">Price</th><td><span class="x-s">$5</span><span class="x-i">$25</span><span class="x-l"><span class="sale">$100, regular $350. Sale until 27 Nov 2026, 23:59:59 UTC.</span><span class="reg">$350</span></span></td></tr>
+        <tr><th scope="row">Contents</th><td>1 cat card</td></tr>
+        <tr><th scope="row">Odds</th><td>
+          <span class="x-s">90% Common, 9% Rare, 1% Epic</span><span class="x-i">75% Common, 21% Rare, 3.5% Epic, 0.5% Legendary</span><span class="x-l">20% Rare, 50% Epic, 30% Legendary</span>
+          <div class="bar x-s" aria-hidden="true"><i class="c-c" style="width:90%"></i><i class="c-r" style="width:9%"></i><i class="c-e" style="width:1%"></i></div>
+          <div class="bar x-i" aria-hidden="true"><i class="c-c" style="width:75%"></i><i class="c-r" style="width:21%"></i><i class="c-e" style="width:3.5%"></i><i class="c-l" style="width:.5%"></i></div>
+          <div class="bar x-l" aria-hidden="true"><i class="c-r" style="width:20%"></i><i class="c-e" style="width:50%"></i><i class="c-l" style="width:30%"></i></div>
+          <div class="key" aria-hidden="true"><span style="--k:#cfcfd8">Common</span><span style="--k:var(--sky)">Rare</span><span style="--k:#d59cf0">Epic</span><span style="--k:var(--gold)">Legendary</span></div>
+          <div class="small" style="margin-top:6px">Bar widths are to scale.</div>
+        </td></tr>
+        <tr><th scope="row">Payment</th><td>Card, or crypto (stablecoins) at checkout.</td></tr>
+        <tr><th scope="row">After you pay</th><td>Your pack opens right after you pay.</td></tr>
+      </table>
+    </section>
+
+    <section class="blk" aria-labelledby="h-rar">
+      <h2 id="h-rar">Rarity guide</h2>
+      <p class="lede">The four card tiers, and the packs that can hold each one. Numbers show the odds in the <span class="x-l">Legendary</span><span class="x-i">Influencer</span><span class="x-s">Starter</span> pack.</p>
+      <div class="rar">
+        <article class="card in-s in-i">
+          <div class="gem" style="background:#cfcfd8"></div>
+          <span class="od price x-s">90%</span><span class="od price x-i">75%</span><span class="od no x-l">Not in this pack</span>
+          <h3>Common</h3><p>Most cards are Common. Start here.</p><div class="in">Starter and Influencer packs</div>
+        </article>
+        <article class="card in-s in-i in-l">
+          <div class="gem" style="background:var(--sky)"></div>
+          <span class="od price x-s">9%</span><span class="od price x-i">21%</span><span class="od price x-l">20%</span>
+          <h3>Rare</h3><p>An early find to show off.</p><div class="in">Every pack</div>
+        </article>
+        <article class="card in-s in-i in-l">
+          <div class="gem" style="background:#d59cf0"></div>
+          <span class="od price x-s">1%</span><span class="od price x-i">3.5%</span><span class="od price x-l">50%</span>
+          <h3>Epic</h3><p>The real chase. Best odds in the Legendary pack.</p><div class="in">Every pack</div>
+        </article>
+        <article class="card in-i in-l">
+          <div class="gem" style="background:var(--gold)"></div>
+          <span class="od no x-s">Not in this pack</span><span class="od price x-i">0.5%</span><span class="od price x-l">30%</span>
+          <h3>Legendary</h3><p>The rarest card. Best odds in the Legendary pack.</p><div class="in">Influencer and Legendary packs</div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <section class="blk qa" aria-labelledby="h-qa">
+    <div class="qh"><h2 id="h-qa">Questions</h2>
+    <p class="lede">Short answers before you buy.</p></div>
+    <details open>
+      <summary>Which pack do I tap?</summary>
+      <p>Pick <strong><span class="x-l">Legendary</span><span class="x-i">Influencer</span><span class="x-s">Starter</span></strong> again on the next screen. The shop there shows all three packs.</p>
+    </details>
+    <details>
+      <summary>Can I try first?</summary>
+      <p>Yes, the game is free. <a class="tl" href="https://tokentails.com/game?from=poc_v8&amp;utm_source=landing-poc&amp;utm_campaign=v8">Try the game free first</a></p>
+    </details>
+    <details>
+      <summary>How do I pay?</summary>
+      <p>At checkout, tap <strong>Pay with Card</strong>. Crypto (stablecoins) is the other option there.</p>
+    </details>
+  </section>
+</div>
+</main>
+
+<footer><div class="wrap">
+  <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+  <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+  <a class="home" href="https://tokentails.com/?from=poc_v8&amp;utm_source=landing-poc&amp;utm_campaign=v8">tokentails.com</a>
+</div></footer>
+
+<div class="sticky" id="bar">
+  <span class="lbl"><span class="x-l">Legendary</span><span class="x-i">Influencer</span><span class="x-s">Starter</span> ·<span class="price"><span class="x-s">$5</span><span class="x-i">$25</span><span class="x-l"><span class="sale">$100</span><span class="reg">$350</span></span></span></span>
+  <a class="cta" href="https://tokentails.com/packs?from=poc_v8&amp;utm_source=landing-poc&amp;utm_campaign=v8">Buy</a>
+</div>
+
+<div class="poc">POC variant v8 · <a href="../">all variants</a></div>
+
+<script>
+(function(){
+  var b = document.body;
+  // Sale rule: LEGENDARY_PROMO.endsAt, exclusive. After it the Legendary stop shows $350 only.
+  if (Date.now() >= Date.parse('2026-11-28T00:00:00Z')) b.dataset.sale = 'off';
+  var names = {s:'Starter', i:'Influencer', l:'Legendary'};
+  document.querySelectorAll('input[name=pack]').forEach(function(r){
+    r.addEventListener('change', function(){
+      b.dataset.pack = r.value;
+      document.querySelector('.sub').firstChild.textContent = 'The ' + names[r.value] + ' pack in Token Tails, a cozy cat game. Every pack holds one cat card. Rarer packs find rarer cats. Pay by card.';
+    });
+  });
+  var bar = document.getElementById('bar');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function(e){
+      bar.classList.toggle('on', !e[0].isIntersecting && e[0].boundingClientRect.top < 0);
+    }).observe(document.getElementById('buy'));
+  } else bar.classList.add('on');
+})();
+</script>
+</body>
+</html>
