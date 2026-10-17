@@ -1,4 +1,5 @@
 import { PixelButton } from "./PixelButton";
+import { BADCAT_PATH, BADCAT_PREVIEW, BADCAT_TITLE, badcatEntryEnabled, badcatHref } from "@/components/badcat/entry";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
@@ -79,6 +80,11 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 =======
 >>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
+/** The Bad Cat Daily card's key: a free string, not a GameType (its runs save as `BAD_CAT` from the game). */
+export const BADCAT_CARD_KEY = "BADCAT";
+/** The Bad Cat card's line: the game's own pitch, short enough for the phone column. */
+export const BADCAT_PICKER_DESCRIPTION = "Be the cat: wreck the room before the human turns";
+
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
  * decision #15's Poki hold). `NEXT_PUBLIC_HEIST_PICKER=0`/`false`/`off` hides it.
@@ -112,6 +118,7 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
+<<<<<<< HEAD
   previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "PAWLEGENDS";
 }
 
@@ -121,12 +128,28 @@ const FROM_PICKER_KEYS: readonly string[] = [GameType.CATNIP_HEIST, PAWLEGENDS_C
 /** A card's link: the Heist's and Pawlegends' carry `?from=picker`; others go as they are. */
 export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
   card.href ? (FROM_PICKER_KEYS.includes(card.key) ? heistHref(card.href) : card.href) : undefined;
+=======
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT";
+}
+
+/**
+ * A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`), Bad Cat's too (`badcatHref`);
+ * others go as they are.
+ */
+export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
+  if (!card.href) return undefined;
+  if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
+  if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
+  return card.href;
+};
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 
 /** The link's test id: the Heist keeps `game-card-heist`, others are `game-card-<key>`. */
 const cardTestId = (card: GameCard) =>
   card.key === GameType.CATNIP_HEIST ? "game-card-heist" : `game-card-${card.key.toLowerCase()}`;
 
 /**
+<<<<<<< HEAD
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
 <<<<<<< HEAD
@@ -148,12 +171,24 @@ const cardTestId = (card: GameCard) =>
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). The Pawlegends card comes last,
  * only when `includePawlegends` is set (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches).
 >>>>>>> c346bc8e5 (feat(pawlegends): Phase 1 POC of the cats vs dogs MOBA)
+=======
+ * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, and five or
+ * six sit three to a row (3 + 2 centred, or 3 + 3). Cupid Cat is seasonal (January to March,
+ * `components/game/seasons`): outside the season it is left out. The Swordcat card (`SWORDCAT_TITLE`)
+ * comes after the Heist, only when `includeSwordcat` is set (`swordcatPickerEnabled()`: on by default,
+ * the env flags are kill switches). Bad Cat Daily comes last, when `includeBadcat` is set
+ * (`badcatEntryEnabled()`: every web build, no flag; never the app build).
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
  */
 export function gameCards(
   includeHeist: boolean,
   now: Date = new Date(),
   includeSwordcat = false,
+<<<<<<< HEAD
   includePawlegends = false
+=======
+  includeBadcat = false
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 ): GameCard[] {
   const cards: GameCard[] = [];
   if (isCupidSeason(now)) {
@@ -223,6 +258,7 @@ export function gameCards(
       previewVariant: "SWORDCAT",
     });
   }
+<<<<<<< HEAD
   if (includePawlegends) {
     cards.push({
       key: PAWLEGENDS_CARD_KEY,
@@ -232,6 +268,17 @@ export function gameCards(
       badge: "NEW",
       image: PAWLEGENDS_PREVIEW.src,
       previewVariant: "PAWLEGENDS",
+=======
+  if (includeBadcat) {
+    cards.push({
+      key: BADCAT_CARD_KEY,
+      href: BADCAT_PATH,
+      title: BADCAT_TITLE.toUpperCase(),
+      description: BADCAT_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: BADCAT_PREVIEW.src,
+      previewVariant: "BADCAT",
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
     });
   }
   return cards;
@@ -400,6 +447,7 @@ const SwordcatPreview = () => (
   </span>
 );
 
+<<<<<<< HEAD
 /** A real match frame; the "3v3 cats vs dogs" tile if the image cannot load. */
 const PawlegendsPreview = () => {
   const [failed, setFailed] = useState(false);
@@ -437,6 +485,27 @@ const PawlegendsPreview = () => {
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
   if (card.previewVariant === "PAWLEGENDS") return <PawlegendsPreview />;
+=======
+/** A frame of the first heist, captured from the built game (`BADCAT_PREVIEW`). */
+const BadcatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={BADCAT_PREVIEW.src}
+      width={BADCAT_PREVIEW.width}
+      height={BADCAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-badcat-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
+const Preview = ({ card }: { card: GameCard }) => {
+  if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
+  if (card.previewVariant === "BADCAT") return <BadcatPreview />;
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -504,8 +573,13 @@ interface GameSelectModalProps {
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
 >>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   showSwordcat?: boolean;
+<<<<<<< HEAD
   /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` hides it) (tests). */
   showPawlegends?: boolean;
+=======
+  /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */
+  showBadcat?: boolean;
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -515,6 +589,7 @@ interface GameSelectModalProps {
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
  * Every card is one tap target (a button, or a link for the Heist and Swordcat).
 =======
  * Every card is one tap target (a button, or a link for the Heist and Pink Paw Knight).
@@ -522,13 +597,20 @@ interface GameSelectModalProps {
 =======
  * Every card is one tap target (a button, or a link for the Heist and Swordcat).
 >>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
+=======
+ * Every card is one tap target (a button, or a link for the Heist, Swordcat and Bad Cat Daily).
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
   setGameType,
   showHeist,
   showSwordcat,
+<<<<<<< HEAD
   showPawlegends,
+=======
+  showBadcat,
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
   navigate,
 }) => {
   const now = new Date();
@@ -536,7 +618,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     showHeist ?? heistPickerEnabled(),
     now,
     showSwordcat ?? swordcatPickerEnabled(),
+<<<<<<< HEAD
     showPawlegends ?? pawlegendsPickerEnabled(isAppBuild())
+=======
+    showBadcat ?? badcatEntryEnabled()
+>>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
   );
   const cupidOpen = isCupidSeason(now);
 
@@ -611,7 +697,8 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
 
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
-    cards.length > 3 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]"
+    // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
+    cards.length === 4 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]"
   );
   const targetClass =
     "group flex h-full w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";

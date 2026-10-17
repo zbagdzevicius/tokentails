@@ -8,6 +8,7 @@ import { HeistPill } from "@/components/landing/HeistPill";
 import { HeistSection } from "@/components/landing/HeistSection";
 import { RaveSection } from "@/components/landing/RaveSection";
 import { SwordcatSection } from "@/components/landing/SwordcatSection";
+import { BadcatSection } from "@/components/landing/BadcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
 import { landingCtaHref } from "@/components/landing/landingCta";
 import { ProofSection } from "@/components/landing/ProofSection";
@@ -210,6 +211,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
 >>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
         <SectionBoundary name="swordcat">
           <SwordcatSection railState={impact?.rail.state ?? null} />
+        </SectionBoundary>
+
+        {/* Bad Cat Daily (/badcat, bad-cat/): web only, no flag; the poster is a frame of the built game. */}
+        <SectionBoundary name="badcat">
+          <BadcatSection />
         </SectionBoundary>
 
         <SectionBoundary name="globe">
