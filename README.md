@@ -47,10 +47,10 @@ on Stellar.
 cd backend && cp .env.example .env && npm install && npm run dev        # :3005
 
 # Website
-cd client && npm install && npm run dev                                  # :3000, needs NEXT_PUBLIC_BE_URL
+cd client && cp .env.example .env.local && npm install && npm run dev  # :3000
 
 # Admin
-cd cms && npm install && npx next dev --turbo -p 3001                    # :3001, needs NEXT_PUBLIC_BE_URL
+cd cms && cp .env.example .env.local && npm install && npx next dev --turbo -p 3001  # :3001
 ```
 
 Full setup, environment variables, and gotchas are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
