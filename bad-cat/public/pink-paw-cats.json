@@ -1,0 +1,111 @@
+{
+  "asOf": "2026-10-04",
+  "shelter": "Pink Paw (Rožinė pėdutė)",
+  "source": "catnip-heist rescue-cats snapshot (refresh: npm run sync:pinkpaw)",
+  "cats": [
+    {
+      "id": "6992227d890a12f52a317e22",
+      "name": "Gabė",
+      "status": "WAITING",
+      "pattern": "solid",
+      "base": "#eadfcf",
+      "secondary": "#5a4434",
+      "tertiary": "#f6f0e6",
+      "eyes": 2,
+      "bio": "Seal-point face. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/6992227d890a12f52a317e22",
+      "photo": null
+    },
+    {
+      "id": "69a5341d3ee4d7b657941bb8",
+      "name": "Medutis",
+      "status": "WAITING",
+      "pattern": "tabby",
+      "base": "#e39a4f",
+      "secondary": "#b46a2c",
+      "tertiary": "#f7e3c8",
+      "eyes": 0,
+      "bio": "Ginger. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/69a5341d3ee4d7b657941bb8",
+      "photo": null
+    },
+    {
+      "id": "6987c3a51fc0c504e354d2cc",
+      "name": "Tita",
+      "status": "WAITING",
+      "pattern": "solid",
+      "base": "#c9c7cc",
+      "secondary": "#9c9aa2",
+      "tertiary": "#efedf0",
+      "eyes": 1,
+      "bio": "Pale grey, long hair. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/6987c3a51fc0c504e354d2cc",
+      "photo": null
+    },
+    {
+      "id": "699221a0890a12f52a317dca",
+      "name": "Aukste",
+      "status": "WAITING",
+      "pattern": "solid",
+      "base": "#f4efe7",
+      "secondary": "#e0904a",
+      "tertiary": "#f4efe7",
+      "eyes": 0,
+      "bio": "White with ginger patches. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/699221a0890a12f52a317dca",
+      "photo": null
+    },
+    {
+      "id": "6a085bc0a885f725f7a94d0a",
+      "name": "Unis",
+      "status": "WAITING",
+      "pattern": "tabby",
+      "base": "#9a9aa2",
+      "secondary": "#55555f",
+      "tertiary": "#efebe4",
+      "eyes": 1,
+      "bio": "Grey tabby. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/6a085bc0a885f725f7a94d0a",
+      "photo": null
+    },
+    {
+      "id": "6a30473c1d6649b19b03622b",
+      "name": "Lambo",
+      "status": "WAITING",
+      "pattern": "tabby",
+      "base": "#6e5440",
+      "secondary": "#3a2a20",
+      "tertiary": "#cdb79c",
+      "eyes": 0,
+      "bio": "Dark brown tabby. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/6a30473c1d6649b19b03622b",
+      "photo": null
+    },
+    {
+      "id": "6a30507d1d6649b19b036626",
+      "name": "Mora",
+      "status": "WAITING",
+      "pattern": "solid",
+      "base": "#4a4850",
+      "secondary": "#2e2c33",
+      "tertiary": "#77757c",
+      "eyes": 3,
+      "bio": "Dark smoke coat. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/6a30507d1d6649b19b036626",
+      "photo": null
+    },
+    {
+      "id": "69d27ed0a885f725f7a52631",
+      "name": "Vane",
+      "status": "WAITING",
+      "pattern": "solid",
+      "base": "#f6f4f0",
+      "secondary": "#e6e1d8",
+      "tertiary": "#ffffff",
+      "eyes": 2,
+      "bio": "White, long hair. Waiting at Pink Paw.",
+      "adoptUrl": "https://tokentails.com/cats/69d27ed0a885f725f7a52631",
+      "photo": null
+    }
+  ]
+}

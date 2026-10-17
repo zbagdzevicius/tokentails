@@ -1,9 +1,9 @@
-import { Body, Controller, INestApplication, Module, Post } from '@nestjs/common';
+import { Body, Controller, INestApplication, Module, Post, Req } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { request as httpRequest } from 'http';
 import { AddressInfo } from 'net';
 import { goldenLog } from './heist-test-logs.helper-spec';
-import { applyBodyParsers, LIVE_GAME_PATH } from './live-body-limit';
+import { applyBodyParsers, LIVE_GAME_PATH, RAW_BODY_PATHS } from './live-body-limit';
 
 /*
  * The body parsers as main.ts registers them, on a real HTTP server (plan F6: a 64 KB route parser
@@ -21,6 +21,31 @@ class EchoController {
     @Post('other')
     other(@Body() body: unknown) {
         return { size: JSON.stringify(body).length };
+    }
+
+    // The Stripe webhooks verify the exact bytes Stripe signed.
+    @Post('badcat/stripe/webhook')
+    badcatWebhook(@Req() req: any) {
+        return {
+            raw: Buffer.isBuffer(req.rawBody),
+            text: Buffer.isBuffer(req.rawBody) ? req.rawBody.toString() : null,
+        };
+    }
+
+    @Post('image/webhook')
+    imageWebhook(@Req() req: any) {
+        return {
+            raw: Buffer.isBuffer(req.rawBody),
+            text: Buffer.isBuffer(req.rawBody) ? req.rawBody.toString() : null,
+        };
+    }
+
+    @Post('rave/stripe/webhook')
+    raveWebhook(@Req() req: any) {
+        return {
+            raw: Buffer.isBuffer(req.rawBody),
+            text: Buffer.isBuffer(req.rawBody) ? req.rawBody.toString() : null,
+        };
     }
 }
 
@@ -121,5 +146,17 @@ describe('body limits (main.ts applyBodyParsers)', () => {
         const body = JSON.stringify({ type: 'CATNIP_CHAOS', points: 1 });
         expect((await post(app, LIVE_GAME_PATH, body, 'application/json; charset=utf-8')).status).toBe(201);
         expect((await post(app, '/other', 'a=1', 'application/x-www-form-urlencoded')).status).toBe(201);
+    });
+
+    it('keeps the raw body for both Stripe webhooks, byte for byte', async () => {
+        expect(RAW_BODY_PATHS).toEqual(['/image/webhook', '/badcat/stripe/webhook', '/rave/stripe/webhook']);
+        const payload = '{"id":"evt_1",  "type":"checkout.session.completed"}';
+        for (const path of RAW_BODY_PATHS) {
+            const res = await post(app, path, payload);
+            expect(res.status).toBe(201);
+            expect(res.body).toEqual({ raw: true, text: payload });
+        }
+        const other = await post(app, '/other', payload);
+        expect(other.status).toBe(201);
     });
 });

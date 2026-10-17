@@ -68,6 +68,11 @@ const gameTypeScoreMeta: Record<GameType, { icon: string; label: string }> = {
     icon: "catnip",
     label: "catnip",
   },
+  // Bad Cat Daily (/badcat, its own build): listed because GameType is shared; its score is chaos points.
+  [GameType.BAD_CAT]: {
+    icon: cdnFile("logo/logo.webp"),
+    label: "chaos",
+  },
 };
 
 /** What happened to the run's points (GameContext's save decision, read from the stop event). */

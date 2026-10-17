@@ -68,6 +68,10 @@ export interface ILiveGameRow {
     replayDigest?: string;
     /** Heist rows only: the stars bitmask of the run. */
     stars?: number;
+    /** BAD_CAT rows only (`src/badcat/badcat-live.ts`). */
+    catCode?: string;
+    catName?: string;
+    stamp?: string;
 }
 
 export interface ILiveGame {
@@ -93,6 +97,10 @@ export const resolveLiveGame = (game: LiveGameDto): ILiveGame => {
         // Heist runs take the replay branch (src/user/heist/heist-live.ts); a replay on any other
         // type is a malformed request.
         throw new BadRequestException(`A replay is only accepted with ${GameType.CATNIP_HEIST}`);
+    }
+    if (game.type === GameType.BAD_CAT || game.badcat !== undefined) {
+        // Bad Cat Daily runs take their own replay branch (src/badcat/badcat-live.ts), never this points path.
+        throw new BadRequestException(`A badcat log is only accepted with ${GameType.BAD_CAT}`);
     }
     const { levels, caps, field, clearedField, infiniteLevels } = LIVE_GAME_LEVELS[game.type];
     const levelIndex = game.level === undefined ? -1 : levels.indexOf(game.level);

@@ -31,9 +31,10 @@ export type ScoredGameType = typeof scoredGameTypes[number];
 
 /**
  * Every `type` the `/live` body may name: the scored types plus CATNIP_HEIST, which the DTO accepts
- * only together with a `replay` and which takes the replay-verified branch (`src/user/heist`).
+ * only together with a `replay` and which takes the replay-verified branch (`src/user/heist`), and BAD_CAT
+ * (Bad Cat Daily ranked runs, GDD 10 Phase 2), only with a `badcat` log, replayed by `src/badcat/badcat-live.ts`.
  */
-export const liveGameTypes = [...scoredGameTypes, GameType.CATNIP_HEIST] as const;
+export const liveGameTypes = [...scoredGameTypes, GameType.CATNIP_HEIST, GameType.BAD_CAT] as const;
 export type LiveGameType = typeof liveGameTypes[number];
 
 export const seasonEventLevels = SEASON_EVENT_LEVELS;
@@ -89,6 +90,18 @@ export class Game extends CommonSchema {
      */
     @Prop()
     stars?: number;
+
+    /** BAD_CAT rows only (GDD 10 Phase 2): the player's game cat as a codec cat code, shown on the board. */
+    @Prop({ type: String })
+    catCode?: string;
+
+    /** BAD_CAT rows only: the cat's name through the game's name filter (never the account name). */
+    @Prop({ type: String })
+    catName?: string;
+
+    /** BAD_CAT rows only: the server replay's stamp (`perfect`, `clean`, `caught`). */
+    @Prop({ type: String })
+    stamp?: string;
 }
 
 export type GameDocument = Game & Document;
@@ -116,3 +129,22 @@ GameSchema.plugin(uniqueValidator);
 // Heist save would fail as "not unique". The index itself does the job (E11000 -> 409, heist-live.ts).
 // A copy of the options: Mongoose adds `background: true` to the object it is given.
 GameSchema.index({ ...REPLAY_DIGEST_INDEX.key }, { ...REPLAY_DIGEST_INDEX.options });
+
+/**
+ * Bad Cat Daily (GDD 10 Phase 2): one ranked run per player and day. `level` is `d<dayNo>`. Partial on the type, so
+ * no other game is affected; declared after the unique-validator plugin for the reason above (a race between two
+ * saves loses on the index: 409 BADCAT_ALREADY_RANKED). Also created by the migration listed in docs/BACKEND.md
+ * where autoIndex is off.
+ */
+export const BADCAT_DAY_INDEX = {
+    key: { user: 1, level: 1 },
+    options: {
+        name: 'badcat_user_day_unique',
+        unique: true,
+        partialFilterExpression: { type: 'BAD_CAT' },
+    },
+} as const;
+GameSchema.index({ ...BADCAT_DAY_INDEX.key }, { ...BADCAT_DAY_INDEX.options });
+/** The daily board: top scores of one day (`type`, `level` = `d<dayNo>`, `score` descending). */
+export const BADCAT_BOARD_INDEX = { key: { type: 1, level: 1, score: -1 }, options: { name: 'badcat_board' } } as const;
+GameSchema.index({ ...BADCAT_BOARD_INDEX.key }, { ...BADCAT_BOARD_INDEX.options });

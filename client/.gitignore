@@ -43,3 +43,4 @@ sitemap*.xml
 certificates
 .env.development
 tokentails-keystore
+.vitest/

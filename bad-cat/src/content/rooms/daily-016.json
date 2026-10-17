@@ -1,0 +1,229 @@
+{
+  "id": "daily-016",
+  "shell": 1,
+  "routine": 4,
+  "event": 3,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 2,
+    "z": 4
+  },
+  "props": [
+    {
+      "kind": 16,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 60,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 22,
+      "x": 6,
+      "z": 8,
+      "level": 1,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 36,
+      "x": 10,
+      "z": 0,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 7,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 2
+    },
+    {
+      "kind": 44,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 61,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 42,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 36,
+      "x": 5,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 8,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 30,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 20,
+      "x": 2,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 18,
+      "x": 3,
+      "z": 2,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 8,
+      "x": 11,
+      "z": 3,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 22,
+      "x": 8,
+      "z": 4,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 11,
+      "z": 4,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 57,
+      "x": 6,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 36,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 58,
+      "x": 8,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 8,
+      "x": 0,
+      "z": 6,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 9,
+      "x": 1,
+      "z": 8,
+      "level": 2,
+      "rot": 3,
+      "cable": {
+        "x": 0,
+        "z": 8
+      }
+    },
+    {
+      "kind": 57,
+      "x": 2,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 57,
+      "x": 3,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 22,
+      "x": 4,
+      "z": 8,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 22,
+      "x": 7,
+      "z": 8,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 23,
+      "x": 4,
+      "z": 9,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 19,
+      "x": 7,
+      "z": 9,
+      "level": 0,
+      "rot": 1
+    }
+  ],
+  "seed": 961213726,
+  "ticks": 2250,
+  "title": "Living room #16: Tinsel TV Night",
+  "telegraph": 22,
+  "theme": "xmas",
+  "accomplice": {
+    "pinkPawId": "69d27ed0a885f725f7a52631",
+    "wishPropIndex": 26,
+    "x": 8,
+    "z": 0,
+    "level": 1
+  }
+}

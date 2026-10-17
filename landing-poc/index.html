@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Landing Lab</title>
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fbf6ec;--fg:#2a2118;--muted:#6f6254;--card:#fff;--line:#eadfcc;--accent:#e2557a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17130f;--fg:#f3ece2;--muted:#b3a696;--card:#221c16;--line:#3a3028;--accent:#ff7a9c}}
+:root[data-theme="dark"]{--bg:#17130f;--fg:#f3ece2;--muted:#b3a696;--card:#221c16;--line:#3a3028;--accent:#ff7a9c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 Nunito,system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:0 0 8px;font-weight:900}
+.lede{color:var(--muted);max-width:720px;margin:0 0 32px}
+details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:32px}
+summary{cursor:pointer;font-weight:700}
+details ol{margin:12px 0 0;padding-left:20px;color:var(--muted)}details li{margin:6px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.frame{position:relative;height:420px;overflow:hidden;border-bottom:1px solid var(--line);background:#000}
+.frame iframe{position:absolute;top:0;left:0;width:390px;height:844px;border:0;transform-origin:0 0;pointer-events:none}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+.tag{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.card h2{margin:0;font-size:20px}.card p{margin:0;color:var(--muted);font-size:15px}
+.open{margin-top:auto;padding-top:10px}.open a{color:var(--fg);font-weight:700}
+a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+<h1>Token Tails landing lab</h1>
+<p class="lede">Five single-goal alternatives to tokentails.com. Each page has one main button, uses only verified facts, and links to flows already live on tokentails.com, tagged per variant (<code>from=poc_vN</code>, <code>utm_campaign=vN</code>).</p>
+<details>
+<summary>Why the current landing feels overwhelming</summary>
+<ol>
+<li>The page has no single job: it is a game launcher, a proof deck for judges, an impact report, a card showcase and a team page at once.</li>
+<li>The hero text is part of an image and there is no h1, so a visitor can't tell what the site is or what playing does.</li>
+<li>There is nothing to buy or donate on the landing, even though the $5 shelter cat and the $100 Legendary sale exist.</li>
+<li>The first thing a visitor reads is crypto proof meant for judges (wallets, chains, "verified" chips).</li>
+<li>About 20 calls to action lead to 14 places, and on mobile the social icons sit above the main button.</li>
+<li>Three art styles, six backgrounds, glowing headlines everywhere and about 30 autoplaying videos.</li>
+<li>The emotional hook, a real shelter cat waiting for a home, sits about 5,100px down with no way to help her.</li>
+<li>The page is about 7,000px tall and about 19 MB, and it takes about 6 s to load.</li>
+</ol>
+</details>
+<div class="grid">
+<article class="card"><div class="frame"><iframe src="v1/" title="v1 preview" loading="lazy" tabindex="-1"></iframe></div><div class="body"><span class="tag">v1 · Sale + donation</span><h2>Sponsor Batukas</h2><p>One real cat at Pink Paw in Kaunas, one photo, one $5 button: get Batukas as a cat card.</p><div class="open"><a href="v1/">Open v1 →</a></div></div></article>
+<article class="card"><div class="frame"><iframe src="v2/" title="v2 preview" loading="lazy" tabindex="-1"></iframe></div><div class="body"><span class="tag">v2 · Free donation</span><h2>Play free, Token Tails feeds a cat</h2><p>One big "Play Catnip Heist" button. Free the shelter cat in the game and Token Tails can send Pink Paw a treat.</p><div class="open"><a href="v2/">Open v2 →</a></div></div></article>
+<article class="card"><div class="frame"><iframe src="v3/" title="v3 preview" loading="lazy" tabindex="-1"></iframe></div><div class="body"><span class="tag">v3 · Sale</span><h2>Legendary pack sale</h2><p>$100 instead of $350 until Nov 27, the real deadline. Secondary link: try the game free first.</p><div class="open"><a href="v3/">Open v3 →</a></div></div></article>
+<article class="card"><div class="frame"><iframe src="v4/" title="v4 preview" loading="lazy" tabindex="-1"></iframe></div><div class="body"><span class="tag">v4 · 5-second test</span><h2>One-screen poster</h2><p>One sentence, one button: play Pink Paw Knight free with no sign-up, and Token Tails can send Pink Paw a treat.</p><div class="open"><a href="v4/">Open v4 →</a></div></div></article>
+<article class="card"><div class="frame"><iframe src="v5/" title="v5 preview" loading="lazy" tabindex="-1"></iframe></div><div class="body"><span class="tag">v5 · Trust</span><h2>Where the money goes</h2><p>Meet Avietė, get her card for $5, and check every payout Token Tails sends to the shelter.</p><div class="open"><a href="v5/">Open v5 →</a></div></div></article>
+</div>
+</main>
+<script>
+function fit(){document.querySelectorAll('.frame').forEach(function(f){var i=f.querySelector('iframe');i.style.transform='scale('+(f.clientWidth/390)+')';});}
+addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

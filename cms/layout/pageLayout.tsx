@@ -1,6 +1,6 @@
 'use client';
 
-import { Cat, Flag, PanelLeft, Users2, Home, Quote, Settings, Receipt, HeartHandshake, Target, Camera } from 'lucide-react';
+import { Cat, Flag, PanelLeft, Users2, Home, Quote, Settings, Receipt, HeartHandshake, Target, Camera, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,10 @@ function DesktopNav() {
         <NavItem href="/yourcat" label="YourCat">
           <Camera className="h-5 w-5" />
         </NavItem>
+
+        <NavItem href="/badcat" label="Bad Cat Daily">
+          <Gamepad2 className="h-5 w-5" />
+        </NavItem>
       </nav>
     </aside>
   );
@@ -147,6 +151,13 @@ function MobileNav() {
           >
             <Camera className="h-5 w-5" />
             YourCat
+          </Link>
+          <Link
+            href="/badcat"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <Gamepad2 className="h-5 w-5" />
+            Bad Cat Daily
           </Link>
         </nav>
       </SheetContent>

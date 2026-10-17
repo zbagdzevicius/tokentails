@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.e2e-dist/
+test-results/
+playwright-report/
+.vitest/
+e2e/screens/

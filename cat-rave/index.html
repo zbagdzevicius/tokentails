@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#020a05" />
+    <title>Moon Rave</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content="Every $1 paid out to the Pink Paw cat shelter is one dancing cat under the green moon. Live from public on-chain payouts. Add a cat to the dance floor." />
+    <link rel="canonical" href="https://tokentails.com/rave" />
+
+    <!-- Share cards. og.jpg is rendered from the scene by L-UI (public/og.jpg, 1200x630, ~120 KB); never a frame of the meme video. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Token Tails" />
+    <meta property="og:title" content="Moon Rave: $1 raised = 1 dancing cat" />
+    <meta property="og:description" content="No sleep, just grind. Every dollar paid out to the Pink Paw shelter adds one cat to the moon rave. Fill the dance floor." />
+    <meta property="og:url" content="https://tokentails.com/rave" />
+    <meta property="og:image" content="https://tokentails.com/rave/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Moon Rave: $1 raised = 1 dancing cat" />
+    <meta name="twitter:description" content="Every dollar paid out to the Pink Paw shelter adds one cat to the moon rave." />
+    <meta name="twitter:image" content="https://tokentails.com/rave/og.jpg" />
+
+    <!-- Runtime config: empty = the default for this host (src/config.ts API_BY_HOST). -->
+    <meta name="rave:api-url" content="" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --rave-display: 'Lilita One';
+        --rave-bg: #020a05;
+        --rave-green: #5dff8a;
+        --rave-green-dim: #1f7a3c;
+        --rave-pink: #ff5fa8;
+        --rave-violet: #a26bff;
+        --rave-ink: #eafff0;
+        --rave-ink-dim: rgba(234, 255, 240, 0.72);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--rave-bg);
+        color: var(--rave-ink);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100dvh;
+        display: block;
+        touch-action: none;
+        outline: none;
+      }
+      #hud {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        padding: calc(12px + var(--safe-top)) calc(16px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(16px + var(--safe-left));
+        box-sizing: border-box;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(ellipse at 50% 38%, #0b3a1a 0%, #041509 45%, var(--rave-bg) 75%);
+        color: var(--rave-green);
+        transition: opacity 0.6s ease, visibility 0.6s;
+        --boot-progress: 0.05;
+      }
+      #boot.boot-done {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .boot-inner {
+        display: grid;
+        justify-items: center;
+        gap: 18px;
+        padding: 0 16px;
+        text-align: center;
+      }
+      .boot-moon {
+        width: min(46vw, 200px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.55), transparent 22%),
+          radial-gradient(circle at 62% 58%, rgba(30, 120, 60, 0.35) 0 9%, transparent 10%),
+          radial-gradient(circle at 38% 66%, rgba(30, 120, 60, 0.3) 0 6%, transparent 7%),
+          radial-gradient(circle at 70% 30%, rgba(30, 120, 60, 0.25) 0 5%, transparent 6%),
+          radial-gradient(circle, #d8ffe0 0%, #9dffb4 45%, #3dff6e 100%);
+        box-shadow: 0 0 40px #3dff6e, 0 0 120px rgba(61, 255, 110, 0.55), 0 0 240px rgba(61, 255, 110, 0.25);
+        animation: boot-moon 1.765s ease-in-out infinite;
+      }
+      @keyframes boot-moon {
+        0%, 100% { transform: scale(1); }
+        8% { transform: scale(1.035); }
+      }
+      .boot-title {
+        font-family: var(--rave-display), system-ui, sans-serif;
+        font-size: clamp(30px, 9vw, 46px);
+        color: #eafff0;
+        text-shadow: 0 0 14px var(--rave-green), 0 0 34px rgba(61, 255, 110, 0.6);
+        letter-spacing: 0.02em;
+      }
+      .boot-sub {
+        margin-top: -10px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #ffd1e6;
+        text-shadow: 0 0 10px rgba(255, 79, 158, 0.7);
+      }
+      .boot-bar {
+        width: min(64vw, 240px);
+        height: 6px;
+        border-radius: 99px;
+        background: rgba(93, 255, 138, 0.15);
+        overflow: hidden;
+      }
+      .boot-bar::after {
+        content: '';
+        display: block;
+        height: 100%;
+        width: calc(var(--boot-progress) * 100%);
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--rave-green), var(--rave-pink));
+        box-shadow: 0 0 12px var(--rave-pink);
+        transition: width 0.4s ease;
+      }
+      #boot-step {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--rave-ink-dim);
+      }
+      .boot-fallback .boot-card {
+        max-width: 420px;
+        padding: 0 16px;
+        text-align: center;
+        color: var(--rave-ink);
+      }
+      .boot-fallback .boot-moon {
+        margin: 0 auto 18px;
+        width: 140px;
+      }
+      .boot-fallback h1 {
+        font-family: var(--rave-display), system-ui, sans-serif;
+        font-weight: 400;
+        color: #eafff0;
+        text-shadow: 0 0 14px var(--rave-green);
+      }
+      .boot-fallback a {
+        color: var(--rave-pink);
+        font-weight: 800;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-moon {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage" aria-label="A dance floor under a green moon. Each dancing cat is one dollar paid out to the Pink Paw shelter."></canvas>
+    <div id="hud"></div>
+    <div id="boot" role="status" aria-label="Loading">
+      <div class="boot-inner">
+        <div class="boot-moon" aria-hidden="true"></div>
+        <div class="boot-title">MOON RAVE</div>
+        <div class="boot-sub">$1 raised = 1 dancing cat</div>
+        <div class="boot-bar" aria-hidden="true"></div>
+        <div id="boot-step">loading the moon</div>
+      </div>
+    </div>
+    <noscript>Moon Rave needs JavaScript and WebGL. See the payouts at https://tokentails.com/shelter-payouts</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

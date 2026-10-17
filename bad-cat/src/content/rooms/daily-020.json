@@ -1,0 +1,275 @@
+{
+  "id": "daily-020",
+  "shell": 8,
+  "routine": 14,
+  "event": 8,
+  "width": 14,
+  "depth": 12,
+  "spawn": {
+    "x": 12,
+    "z": 9
+  },
+  "props": [
+    {
+      "kind": 17,
+      "x": 5,
+      "z": 1,
+      "level": 0,
+      "rot": 0,
+      "target": true
+    },
+    {
+      "kind": 36,
+      "x": 7,
+      "z": 6,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 60,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 30,
+      "x": 3,
+      "z": 0,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 4,
+      "z": 1,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 6,
+      "z": 1,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 61,
+      "x": 7,
+      "z": 1,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 60,
+      "x": 8,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 9,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 7,
+      "x": 12,
+      "z": 1,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 7,
+      "x": 13,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 30,
+      "x": 12,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 18,
+      "x": 9,
+      "z": 3,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 30,
+      "x": 1,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 20,
+      "x": 3,
+      "z": 4,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 19,
+      "x": 12,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 14,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 0,
+      "w": 4,
+      "d": 2
+    },
+    {
+      "kind": 8,
+      "x": 13,
+      "z": 5,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 29,
+      "x": 1,
+      "z": 6,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 61,
+      "x": 2,
+      "z": 6,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 1,
+      "x": 4,
+      "z": 6,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 58,
+      "x": 5,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 2,
+      "x": 6,
+      "z": 6,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 30,
+      "x": 9,
+      "z": 6,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 36,
+      "x": 3,
+      "z": 9,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 22,
+      "x": 4,
+      "z": 9,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 10,
+      "x": 5,
+      "z": 9,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 42,
+      "x": 6,
+      "z": 9,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 22,
+      "x": 7,
+      "z": 9,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 57,
+      "x": 8,
+      "z": 9,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 16,
+      "x": 9,
+      "z": 9,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 9,
+      "x": 10,
+      "z": 9,
+      "level": 2,
+      "rot": 1,
+      "cable": {
+        "x": 11,
+        "z": 9
+      }
+    },
+    {
+      "kind": 61,
+      "x": 0,
+      "z": 10,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 1,
+      "z": 11,
+      "level": 0,
+      "rot": 0
+    }
+  ],
+  "seed": 2651396463,
+  "ticks": 2700,
+  "routine2": 9,
+  "title": "Boss: Christmas Tree #20",
+  "telegraph": 15,
+  "theme": "xmas",
+  "boss": true,
+  "accomplice": {
+    "pinkPawId": "699221a0890a12f52a317dca",
+    "wishPropIndex": 18,
+    "x": 13,
+    "z": 0,
+    "level": 3
+  }
+}

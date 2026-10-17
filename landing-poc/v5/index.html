@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Where It Goes · Token Tails</title>
+<meta name="description" content="Meet Avietė, a shelter cat at Pink Paw in Kaunas, and check every payout. Every Token Tails payout to Pink Paw is public, each linked to its transaction.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#fbf7ec">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Meet a shelter cat. Check every payout.">
+<meta property="og:description" content="Pink Paw is a cat shelter in Kaunas. Every payout from Token Tails is public, each linked to its transaction.">
+<meta property="og:image" content="https://tokentails.com/logo/og-v2-1200x630.jpg">
+<meta property="og:site_name" content="Token Tails">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<!--
+  POC v5 "Where the money goes" (receipts). Facts used, all from client/public/facts/facts.json or live pages (checked 2026-10-16):
+  C-001 goal (only with /shelter-payouts link) · F-026 donations (company-reported, dated) · shelters from api.tokentails.com/impact
+  Pink Paw wallet from api.tokentails.com/impact shelters.items[2].publicWallet · Avietė story verbatim from /blessing/featured
+  Treat line uses "can send" (R4): this static page cannot check the rail state (no CORS on /impact).
+  50% share line intentionally omitted (founder OK pending).
+-->
+<style>
+:root{
+  --paper:#fbf7ec; --paper-2:#f4ecd6; --sheet:#fffdf7; --rule:#e6dcc2; --rule-2:#d6c8a4;
+  --ink:#0b0820; --ink-2:#3a2d5c; --ink-3:#5d5178;
+  --mint:#7fd66b; --mint-ink:#2f7a22; --sky:#90c5e9; --link:#1f5f8b;
+  --pink:#ff7aa2; --gold-ink:#4a1d08; --gold:#ffcc55;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.55 var(--sans);overflow-x:hidden;
+  background-image:repeating-linear-gradient(to bottom,transparent 0 31px,rgba(214,200,164,.28) 31px 32px)}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--link);text-decoration-color:var(--sky);text-decoration-thickness:2px;text-underline-offset:3px}
+a:hover{text-decoration-color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+.mono{font-family:var(--mono)}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+/* masthead */
+.mast{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid var(--ink);font:500 12px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.mast a{color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:8px;font-weight:600}
+.mast img{width:28px;height:28px}
+.mast .date{color:var(--ink-3)}
+
+/* hero */
+.hero{display:grid;gap:28px;padding:32px 0 40px}
+h1{font:900 clamp(40px,10.5vw,76px)/.98 var(--sans);letter-spacing:-.03em;margin:14px 0 18px}
+h1 .u{background:linear-gradient(transparent 62%,rgba(127,214,107,.55) 62% 92%,transparent 92%);padding:0 .04em}
+.lede{font-size:clamp(18px,4.6vw,21px);color:var(--ink-2);max-width:34ch;margin:0 0 26px}
+.cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 26px;border-radius:999px;
+  background:var(--ink);color:var(--paper);font:800 18px/1 var(--sans);text-decoration:none;border:2px solid var(--ink);
+  box-shadow:0 4px 0 var(--ink-2);transition:transform .12s, box-shadow .12s}
+.cta:hover{transform:translateY(-1px);box-shadow:0 5px 0 var(--ink-2)}
+.cta:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink-2)}
+.cta .p{font-family:var(--mono);font-weight:600;background:var(--mint);color:var(--ink);border-radius:999px;padding:5px 10px;font-size:15px}
+.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px}
+.note{font:500 13px/1.4 var(--mono);color:var(--ink-3);margin:12px 0 0}
+.textlink{font-weight:700}
+
+/* stapled photo */
+.photo{position:relative;justify-self:center;width:min(100%,360px);margin-top:6px}
+.photo figure{margin:0;background:var(--sheet);padding:12px 12px 14px;border:1px solid var(--rule-2);border-radius:6px;transform:rotate(1.4deg);box-shadow:0 18px 40px -22px rgba(11,8,32,.45)}
+.photo img{border-radius:3px;aspect-ratio:3/4;object-fit:cover;width:100%}
+.photo figcaption{display:flex;justify-content:space-between;gap:8px;font:500 12px/1.3 var(--mono);color:var(--ink-3);padding-top:10px}
+.photo figcaption b{color:var(--ink);font-weight:600}
+.staple{position:absolute;top:-8px;left:50%;width:58px;height:10px;margin-left:-29px;border-radius:3px;background:linear-gradient(#cfd3da,#9aa1ac);transform:rotate(-3deg);z-index:2;box-shadow:0 1px 1px rgba(0,0,0,.25)}
+.stamp{position:absolute;right:-6px;bottom:58px;transform:rotate(-9deg);border:2px solid var(--mint-ink);color:var(--mint-ink);background:rgba(251,247,236,.9);font:600 12px/1.15 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:6px 9px;border-radius:6px;text-align:center}
+
+/* receipt sheet */
+.sheet{background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r);position:relative;margin:0 0 28px;box-shadow:0 1px 0 var(--rule)}
+.sheet::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:10px;
+  background:radial-gradient(circle at 8px -2px,transparent 7px,var(--sheet) 7.5px) 0 0/16px 10px repeat-x;filter:drop-shadow(0 1px 0 var(--rule-2))}
+.sec{padding:26px 18px 30px}
+.sec-h{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px}
+.sec-h .n{font:600 13px/1 var(--mono);color:var(--ink-3)}
+h2{font:900 clamp(26px,6.6vw,38px)/1.08 var(--sans);letter-spacing:-.02em;margin:0}
+.sec p{margin:14px 0 0;color:var(--ink-2);max-width:60ch}
+
+/* ledger rows */
+.ledger{list-style:none;margin:0;padding:0}
+.ledger li{display:grid;grid-template-columns:28px 1fr;gap:4px 12px;padding:16px 0;border-bottom:1px dashed var(--rule-2)}
+.ledger li:last-child{border-bottom:0}
+.tick{width:24px;height:24px;border-radius:50%;background:var(--mint);display:grid;place-items:center;margin-top:2px}
+.tick svg{width:14px;height:14px}
+.ledger .k{font:600 12px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.ledger .v{font-weight:700;font-size:18px;line-height:1.35;color:var(--ink);margin-top:2px}
+.ledger .s{grid-column:2;font-size:15px;color:var(--ink-3)}
+.ledger .row-body{min-width:0}
+
+details.addr{margin-top:10px}
+details.addr summary{cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px;font:600 14px/1 var(--mono);color:var(--link);list-style:none}
+details.addr summary::-webkit-details-marker{display:none}
+details.addr summary::before{content:"+";display:inline-grid;place-items:center;width:22px;height:22px;border:1.5px solid var(--link);border-radius:5px}
+details.addr[open] summary::before{content:"\2212"}
+.addr-box{margin-top:6px;padding:12px;border:1px solid var(--rule-2);background:var(--paper);border-radius:8px;font:500 13px/1.5 var(--mono);word-break:break-all;color:var(--ink)}
+.addr-box small{display:block;word-break:normal;color:var(--ink-3);font-family:var(--sans);font-size:13px;margin-top:6px}
+
+/* goal */
+.goal{display:grid;gap:4px;margin-top:18px;padding:18px;border:2px solid var(--ink);border-radius:10px;background:var(--paper)}
+.goal .amt{font:600 clamp(30px,8.4vw,48px)/1.05 var(--mono);letter-spacing:-.02em}
+.goal .amt small{font-size:.45em;font-weight:500;color:var(--ink-3);letter-spacing:.02em}
+.goal .by{font:500 14px/1.4 var(--mono);color:var(--ink-3)}
+
+/* track record */
+.figure{font:600 clamp(36px,10vw,60px)/1 var(--mono);letter-spacing:-.03em;margin:18px 0 6px}
+.chip{display:inline-block;font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;border:1.5px solid var(--ink-3);color:var(--ink-3);padding:5px 8px;border-radius:5px;vertical-align:middle}
+.shelters{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:0;border-top:1px solid var(--rule-2)}
+.shelters li{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-weight:700}
+.shelters li span{font:500 13px/1.4 var(--mono);color:var(--ink-3);text-align:right}
+
+/* ask */
+.ask{display:grid;gap:22px;margin-top:20px}
+.cat{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:start}
+.cat img{width:112px;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--rule-2)}
+.cat h3{font:900 28px/1.1 var(--sans);margin:0 0 4px;letter-spacing:-.01em}
+.cat .meta{font:500 12px/1.4 var(--mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em}
+.cat blockquote{margin:10px 0 0;padding-left:12px;border-left:3px solid var(--pink);color:var(--ink-2);font-size:16px}
+.line-items{border-top:2px solid var(--ink);font-family:var(--mono);font-size:15px}
+.line-items div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px dashed var(--rule-2)}
+.line-items div:last-child{border-bottom:2px solid var(--ink);font-weight:600;font-size:17px}
+.line-items span:first-child{color:var(--ink-2)}
+.signoff{display:flex;align-items:flex-end;gap:14px;margin-top:4px}
+.signoff img{width:84px;height:auto;flex:none}
+.signoff p{margin:0 0 6px;font-size:15px;color:var(--ink-3)}
+
+/* free path */
+.free{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;margin-top:24px;padding:16px 18px;border:1.5px dashed var(--ink-3);border-radius:12px}
+.free p{margin:0;color:var(--ink-2);font-size:16px;max-width:44ch}
+
+footer{padding:28px 0 96px;border-top:1px solid var(--ink);margin-top:12px;font:500 13px/1.5 var(--mono);color:var(--ink-3);display:flex;flex-wrap:wrap;gap:8px 20px}
+footer a{color:var(--ink-2)}
+.poc{position:fixed;left:12px;bottom:12px;z-index:20;font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:var(--paper);padding:8px 10px;border-radius:999px;display:flex;gap:8px;align-items:center}
+.poc a{color:var(--gold);text-decoration:none}
+.poc a:hover{text-decoration:underline}
+
+/* sticky mobile CTA */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:15;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(251,247,236,.96);border-top:1px solid var(--rule-2);backdrop-filter:blur(6px);transform:translateY(110%);transition:transform .25s}
+.sticky.on{transform:none}
+.sticky .cta{width:100%}
+body.has-sticky .poc{bottom:86px}
+
+@media (min-width:760px){
+  body{font-size:18px}
+  .wrap{padding:0 32px}
+  .hero{grid-template-columns:1.25fr .9fr;align-items:center;gap:48px;padding:64px 0 72px}
+  .photo{justify-self:end}
+  .sec{padding:40px 44px 46px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .two .sheet{margin-bottom:28px;display:flex;flex-direction:column}
+
+  .two .sec>p:first-of-type{margin-bottom:18px}
+  .ask{grid-template-columns:1.2fr 1fr;gap:40px;align-items:start}
+  .cat{grid-template-columns:160px 1fr}
+  .cat img{width:160px;height:213px}
+  .sticky{display:none}
+  body.has-sticky .poc{bottom:12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <a href="https://tokentails.com/?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5"><img src="https://tokentails.com/logo/logo.webp" alt="" width="28" height="28">Token Tails</a>
+    <span class="date">For Pink Paw · Kaunas</span>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="h">
+      <div>
+        <p class="eyebrow">Where Token Tails' payouts go</p>
+        <h1 id="h">Meet a shelter cat. <span class="u">Check every payout.</span></h1>
+        <p class="lede">Pink Paw is a cat shelter in Kaunas. Every payout Token Tails sends it is public, each linked to its transaction.</p>
+        <div class="cta-row">
+          <a id="hero-cta" class="cta" href="https://tokentails.com/cats/6965203d0a2c7b325b78f7e2?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">Get a shelter cat <span class="p">$5</span></a>
+          <a class="textlink" href="https://tokentails.com/shelter-payouts?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">See every payout</a>
+        </div>
+        <p class="note">Pay by card · sign in at checkout</p>
+      </div>
+      <div class="photo">
+        <span class="staple" aria-hidden="true"></span>
+        <figure>
+          <img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/25032721909.webp" alt="Avietė, a black-and-white tuxedo cat at Pink Paw shelter" width="750" height="1000" fetchpriority="high">
+          <figcaption><b>Avietė</b><span>Pink Paw, Kaunas</span></figcaption>
+        </figure>
+        <span class="stamp" aria-hidden="true">Waiting<br>for home</span>
+      </div>
+    </section>
+
+    <div class="two">
+      <section class="sheet sec" aria-labelledby="s1">
+        <div class="sec-h"><span class="n">01</span><h2 id="s1">Who holds the money</h2></div>
+        <ul class="ledger">
+          <li>
+            <span class="tick" aria-hidden="true"><svg viewBox="0 0 14 14" fill="none" stroke="#0b0820" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5l3 3 6-7"/></svg></span>
+            <div class="row-body">
+              <div class="k">Recipient</div>
+              <div class="v">Pink Paw (Rožinė Pėdutė), a cat shelter in Kaunas</div>
+            </div>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"><svg viewBox="0 0 14 14" fill="none" stroke="#0b0820" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5l3 3 6-7"/></svg></span>
+            <div class="row-body">
+              <div class="k">Where payouts land</div>
+              <div class="v">Token Tails' payouts go to Pink Paw's wallet.</div>
+              <div class="s">Token Tails created it and gave the recovery phrase to Pink Paw staff. Token Tails also keeps a backup copy for the shelter.</div>
+              <details class="addr">
+                <summary>Show address</summary>
+                <div class="addr-box" data-source="api.tokentails.com/impact shelters.items[2].publicWallet">0x3c833562e682dB66C2415b34961595df135f4771<small>Paste it into any block explorer to see what arrives.</small></div>
+              </details>
+            </div>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"><svg viewBox="0 0 14 14" fill="none" stroke="#0b0820" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5l3 3 6-7"/></svg></span>
+            <div class="row-body">
+              <div class="k">Proof</div>
+              <div class="v">Every payout is public, each linked to its transaction.</div>
+              <div class="s"><a href="https://tokentails.com/shelter-payouts?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">Open the payout list</a></div>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section class="sheet sec" aria-labelledby="s2">
+        <div class="sec-h"><span class="n">02</span><h2 id="s2">The goal, in writing</h2></div>
+        <p>One target, with a date, so you can check progress against it.</p>
+        <div class="goal" data-fact="C-001">
+          <span class="eyebrow">Goal · for Pink Paw</span>
+          <span class="amt">50,000 <small>USDC</small></span>
+          <span class="by">by 30 Sep 2027</span>
+        </div>
+        <p><a href="https://tokentails.com/shelter-payouts?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">See every payout toward it</a></p>
+      </section>
+    </div>
+
+    <section class="sheet sec" aria-labelledby="s3">
+      <div class="sec-h"><span class="n">03</span><h2 id="s3">Track record</h2></div>
+      <div class="figure" data-fact="F-026">$40K+</div>
+      <p style="margin-top:4px">donated directly in crypto and goods <span class="chip">Oct 2026 · company-reported</span></p>
+      <p>Shelters on Token Tails:</p>
+      <ul class="shelters" data-source="api.tokentails.com/impact shelters">
+        <li>Pink Paw (Rožinė Pėdutė)<span>Kaunas</span></li>
+        <li>Mil Bigotes</li>
+        <li>Puppy Kitty NYC</li>
+      </ul>
+    </section>
+
+    <section class="sheet sec" aria-labelledby="s4">
+      <div class="sec-h"><span class="n">04</span><h2 id="s4">The ask: Avietė, $5</h2></div>
+      <div class="ask">
+        <div>
+          <div class="cat">
+            <img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/25032721909.webp" alt="Avietė" width="160" height="213" loading="lazy">
+            <div>
+              <h3>Avietė</h3>
+              <div class="meta">Waiting for home · Pink Paw</div>
+              <!-- verbatim API excerpt (truncated by the API) from GET api.tokentails.com/blessing/featured?limit=6, 2026-10-16 -->
+              <blockquote>Lovely tuxedo cat Avietė is FeLV-positive and full of quiet charm. She loves to hide in cozy corners, but when she feels safe, she's happy…</blockquote>
+            </div>
+          </div>
+          <p>Get Avietė as a Common card, by card or crypto. She is a real cat at Pink Paw in Kaunas, and her full story is on her page.</p>
+        </div>
+        <div>
+          <div class="line-items" role="table" aria-label="What you get">
+            <div role="row"><span role="cell">Avietė, Common cat card</span><span role="cell">$5.00</span></div>
+            <div role="row"><span role="cell">Pay by card</span><span role="cell">or crypto</span></div>
+            <div role="row"><span role="cell">Total</span><span role="cell">$5.00</span></div>
+          </div>
+          <div style="margin-top:20px">
+            <a class="cta" style="width:100%" href="https://tokentails.com/cats/6965203d0a2c7b325b78f7e2?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">Get Avietė's card <span class="p">$5</span></a>
+            <p class="note">Sign in at checkout</p>
+          </div>
+          <div class="signoff">
+            <img src="https://tokentails.com/tail/mascot-matters.webp" alt="Tail, the Token Tails mascot, saying: Collect what matters." width="84" height="126" loading="lazy">
+            <p>Or browse every shelter cat: <a href="https://tokentails.com/cats?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">tokentails.com/cats</a></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="free">
+        <p><b>No money right now?</b> Play Catnip Heist free, and Token Tails can send Pink Paw a treat.</p>
+        <a class="textlink" href="https://tokentails.com/heist?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">Play free</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms</a>
+    <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+    <a href="https://tokentails.com/?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">tokentails.com</a>
+  </footer>
+</div>
+
+<div class="sticky" id="sticky" aria-hidden="true">
+  <a class="cta" tabindex="-1" href="https://tokentails.com/cats/6965203d0a2c7b325b78f7e2?from=poc_v5&amp;utm_source=landing-poc&amp;utm_campaign=v5">Get a shelter cat <span class="p">$5</span></a>
+</div>
+<div class="poc">POC variant v5 <a href="../">All variants</a></div>
+
+<script>
+(function(){
+  var s=document.getElementById('sticky'),h=document.getElementById('hero-cta');
+  if(!('IntersectionObserver' in window)||!s||!h)return;
+  new IntersectionObserver(function(e){
+    var on=!e[0].isIntersecting&&e[0].boundingClientRect.top<0;
+    s.classList.toggle('on',on);document.body.classList.toggle('has-sticky',on);
+    s.setAttribute('aria-hidden',on?'false':'true');s.firstElementChild.tabIndex=on?0:-1;
+  }).observe(h);
+})();
+</script>
+</body>
+</html>

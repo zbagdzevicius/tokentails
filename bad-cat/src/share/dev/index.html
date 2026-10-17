@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Bad Cat share dev</title>
+    <style>
+      html, body { margin: 0; background: #2b1d2e; color: #fff4e4; font: 13px/1.4 system-ui, sans-serif; }
+      #stage { position: fixed; right: 0; top: 0; width: 360px; height: 640px; }
+      #panel { padding: 12px; max-width: 520px; }
+      button { min-height: 40px; margin: 4px 4px 4px 0; border: 0; border-radius: 20px; padding: 0 16px; background: #ffcf5c; color: #2b1d2e; font-weight: 700; }
+      #log { white-space: pre-wrap; font: 12px ui-monospace, monospace; }
+      #out video, #out img { max-width: 160px; margin: 4px; border-radius: 8px; vertical-align: top; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="panel">
+      <b>Share dev</b> (not shipped): exports every clip format and card. <code>?fallback=1</code> forces fallback 2.
+      <div><button id="go">Unlock audio + export all</button></div>
+      <div id="log"></div>
+      <div id="out"></div>
+    </div>
+    <script type="module" src="./dev.ts"></script>
+  </body>
+</html>

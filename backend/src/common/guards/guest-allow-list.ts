@@ -54,4 +54,8 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'POST /image/portrait': {},
     // Regenerate: guests only for images they own (the handler checks `owner`), same caps.
     'PUT /image/portrait/:id/regenerate': {},
+    // Bad Cat Daily Phase 2: read-only, the guest's own run of a day ("you scored N; sign in to rank") and its
+    // account summary. Guests never appear on the board itself.
+    'GET /badcat/board/:day/me': { transient: true },
+    'GET /badcat/account': { transient: true },
 };

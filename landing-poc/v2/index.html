@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Catnip Heist: Play Free</title>
+<meta name="description" content="Free cat heist game in your browser, no sign-up needed. Free the shelter cat, and Token Tails can send Pink Paw, a cat shelter in Kaunas, a small treat.">
+<meta name="theme-color" content="#07051a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Play a cat heist for a real shelter.">
+<meta property="og:description" content="Free in your browser, no sign-up needed. Token Tails can send Pink Paw shelter in Kaunas a small treat.">
+<meta property="og:image" content="https://tokentails.com/landing/heist-reel-poster-v1.jpg">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.com/landing/heist-reel-poster-v1.jpg">
+<style>
+:root{
+  --n950:#07051a;--n900:#0b0820;--n700:#1e1633;--n500:#3a2d5c;
+  --gold:#ffcc55;--ink:#4a1d08;--mint:#7fd66b;--pink:#ff7aa2;--lilac:#f0c5fd;
+  --cream:#fcecbb;--muted:#b6a8dd;--line:rgba(240,197,253,.14);
+  --head:"Bebas Neue",Impact,"Arial Narrow",sans-serif;
+  --body:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{background:var(--n950);color:#efe9ff;font:400 17px/1.55 var(--body);overflow-x:hidden;
+  background-image:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 78% 9%,#fff6 50%,transparent 51%),radial-gradient(1.5px 1.5px at 64% 42%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 30% 66%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 90% 74%,#fff6 50%,transparent 51%),radial-gradient(120% 70% at 50% -10%,#2a1650 0%,transparent 60%);
+  background-attachment:fixed;padding-bottom:28px}
+img{display:block;max-width:100%;height:auto}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--mint);outline-offset:3px;border-radius:6px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 16px}
+.brand{display:flex;align-items:center;gap:10px;padding:18px 0 0;text-decoration:none;width:max-content}
+.brand img{width:30px;height:35px}
+.brand span{font:400 22px/1 var(--head);letter-spacing:.06em;color:var(--lilac)}
+
+/* hero */
+.hero{display:grid;gap:28px;padding:28px 0 56px;align-items:center}
+.kicker{display:inline-flex;align-items:center;gap:8px;font:400 16px/1 var(--head);letter-spacing:.14em;color:var(--mint);
+  border:1px solid rgba(127,214,107,.4);padding:7px 12px 6px;border-radius:99px;margin-bottom:16px}
+.kicker i{width:8px;height:8px;border-radius:50%;background:var(--mint);display:block}
+h1{font:400 clamp(54px,14vw,104px)/.88 var(--head);letter-spacing:.01em;color:#fff;text-transform:uppercase}
+h1 .nw{white-space:nowrap}
+h1 em{font-style:normal;color:var(--gold)}
+h1 b{font-weight:400;color:var(--mint)}
+.sub{margin-top:18px;font-size:clamp(17px,2.2vw,20px);color:#d9cff5;max-width:30em}
+.sub strong{color:#fff;font-weight:800}
+.cta{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:26px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:60px;padding:0 20px;border-radius:14px;white-space:nowrap;
+  background:var(--gold);color:var(--ink);font:400 clamp(22px,6.6vw,28px)/1 var(--head);letter-spacing:.05em;text-decoration:none;
+  box-shadow:0 6px 0 #b8862a,0 0 34px rgba(255,204,85,.55);transition:transform .12s,box-shadow .12s;width:100%;max-width:420px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 0 #b8862a,0 0 46px rgba(255,204,85,.7)}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b8862a,0 0 24px rgba(255,204,85,.5)}
+.btn:focus-visible{outline-color:#fff;outline-offset:4px}
+.btn svg{width:20px;height:20px;flex:none}
+.free{font:400 17px/1 var(--head);letter-spacing:.16em;color:var(--muted);padding-left:4px}
+.free b{color:#fff;font-weight:400}
+
+/* arcade screen */
+.screen{position:relative;border-radius:18px;padding:10px;background:linear-gradient(160deg,#2b1d4d,#140d2b);border:1px solid var(--line)}
+.screen img{border-radius:10px;width:100%;aspect-ratio:16/9;object-fit:cover}
+.screen .cat{position:absolute;width:72px;height:72px;bottom:-26px;image-rendering:pixelated}
+.screen .c1{left:14px}.screen .c2{right:14px;transform:scaleX(-1)}
+.scan{position:absolute;inset:10px;border-radius:10px;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)}
+.tag{position:absolute;top:20px;right:20px;font:400 14px/1 var(--head);letter-spacing:.12em;background:rgba(7,5,26,.75);color:var(--gold);
+  padding:6px 9px 5px;border-radius:6px;border:1px solid rgba(255,204,85,.35)}
+
+/* sections */
+section{padding:56px 0;border-top:1px solid var(--line)}
+.eyebrow{font:400 16px/1 var(--head);letter-spacing:.18em;color:var(--muted);margin-bottom:12px}
+h2{font:400 clamp(40px,8vw,64px)/.95 var(--head);color:#fff;text-transform:uppercase}
+.beats{list-style:none;padding:0;display:grid;gap:14px;margin-top:28px;counter-reset:b}
+.beats li{position:relative;background:var(--n700);border:1px solid var(--line);border-radius:16px;padding:22px 20px 22px 76px;min-height:96px}
+.beats li::before{counter-increment:b;content:"0" counter(b);position:absolute;left:18px;top:18px;font:400 40px/1 var(--head);color:var(--n500)}
+.beats h3{font:400 28px/1 var(--head);letter-spacing:.03em;color:var(--gold)}
+.beats p{margin-top:6px;color:#d9cff5}
+.beats li.treat{border-color:rgba(127,214,107,.45);background:linear-gradient(135deg,rgba(127,214,107,.14),var(--n700) 70%)}
+.beats li.treat::before{color:var(--mint)}
+.beats li.treat h3{color:var(--mint)}
+
+.shelter{display:grid;gap:24px;align-items:center;margin-top:28px;background:var(--n900);border:1px solid var(--line);border-radius:20px;padding:24px}
+.shelter img{width:112px;height:112px;border-radius:50%;background:#fff;border:4px solid var(--pink)}
+.shelter h3{font:400 34px/1 var(--head);color:#fff;letter-spacing:.02em}
+.shelter .where{color:var(--pink);font:400 18px/1 var(--head);letter-spacing:.14em;margin-top:6px}
+.shelter p{margin-top:12px;color:#d9cff5}
+.link{display:inline-flex;align-items:center;gap:6px;margin-top:14px;color:var(--mint);font-weight:800;text-decoration:underline;text-underline-offset:4px;min-height:44px}
+.link:hover{color:#fff}
+
+.final{text-align:center}
+.final .cta{align-items:center}
+.final p.lead{margin:14px auto 0;max-width:28em;color:#d9cff5}
+
+footer{border-top:1px solid var(--line);padding:28px 0 64px;font-size:14px;color:var(--muted)}
+footer nav{display:flex;flex-wrap:wrap;gap:6px 22px}
+footer a{color:#cfc4f0;text-underline-offset:3px;display:inline-block;padding:8px 0}
+footer a:hover{color:#fff}
+
+/* sticky mobile CTA */
+.sticky{position:fixed;left:0;right:0;bottom:26px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,var(--n950) 60%,rgba(7,5,26,0));transform:translateY(130%);transition:transform .25s;z-index:20}
+.sticky.on{transform:none}
+.sticky .btn{max-width:none;min-height:54px;font-size:24px;box-shadow:0 5px 0 #b8862a}
+.poc{position:fixed;left:0;right:0;bottom:0;height:26px;z-index:30;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--n900);border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.poc a{color:var(--lilac)}
+
+@media (min-width:860px){
+  .hero{grid-template-columns:1.15fr 1fr;gap:56px;padding:48px 0 88px}
+  h1{font-size:clamp(64px,6.4vw,92px)}
+  .screen{transform:rotate(1.2deg)}
+  .cta{flex-direction:row;align-items:center;gap:20px}
+  .btn{width:auto}
+  .beats{grid-template-columns:repeat(3,1fr)}
+  .shelter{grid-template-columns:auto 1fr;padding:32px 36px;gap:32px}
+  .final .cta{justify-content:center}
+  .sticky{display:none}
+  section{padding:80px 0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="https://tokentails.com/?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2" aria-label="Token Tails home">
+    <img src="https://tokentails.com/logo/logo.webp" alt="" width="30" height="35"><span>Token Tails</span>
+  </a>
+
+  <header class="hero">
+    <div>
+      <p class="kicker"><i aria-hidden="true"></i>Catnip Heist · browser game</p>
+      <h1><span class="nw">Play a</span> <em class="nw">cat heist</em><br><span class="nw">for a <b>real</b></span> <span class="nw">shelter.</span></h1>
+      <p class="sub">Two cats, one vault. <span class="treat-line" data-fact="C-004">Free the shelter cat, and Token Tails can send <strong>Pink Paw</strong>, a cat shelter in Kaunas, a small treat.</span></p>
+      <div class="cta">
+        <a id="hero-cta" class="btn" href="https://tokentails.com/heist?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2&amp;utm_content=hero">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M5 3.2v13.6c0 .8.9 1.3 1.6.8l10-6.8c.6-.4.6-1.2 0-1.6l-10-6.8C5.9 1.9 5 2.4 5 3.2z"/></svg>
+          Play Catnip Heist, free
+        </a>
+        <span class="free"><b>Free</b> · no sign-up</span>
+      </div>
+    </div>
+    <figure class="screen">
+      <img src="https://tokentails.com/landing/heist-reel-poster-v1.jpg" width="1280" height="720" alt="Catnip Heist: a pixel cat in a purple-lit vault, with the words Swap, free the shelter cat" fetchpriority="high">
+      <span class="scan" aria-hidden="true"></span>
+      <span class="tag" aria-hidden="true">Player 1 ready</span>
+      <img class="cat c1" src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/CHARMIE/base/IDLE.gif" width="72" height="72" alt="">
+      <img class="cat c2" src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/BOB/base/SITTING.gif" width="72" height="72" alt="">
+    </figure>
+  </header>
+
+  <section aria-labelledby="how">
+    <p class="eyebrow">How it works</p>
+    <h2 id="how">Three beats. One good deed.</h2>
+    <ol class="beats">
+      <li><h3>Two cats, one vault</h3><p>You control two cats and swap between them. One holds the door while you swap to the other.</p></li>
+      <li><h3>Sneak and grab</h3><p>Slip past Kibble Corp's guard dogs, grab the catnip and free the shelter cat.</p></li>
+      <li class="treat"><h3>A treat for Pink Paw</h3><p class="treat-line2" data-fact="C-004">Free the shelter cat and tap. Token Tails can send Pink Paw a small treat, no sign-in needed.</p></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="where">
+    <p class="eyebrow">Where the treat goes</p>
+    <h2 id="where">To a real cat shelter.</h2>
+    <div class="shelter">
+      <img src="https://tokentails.com/logo/shelters/pink-paw.webp" width="112" height="112" alt="Pink Paw shelter logo" loading="lazy">
+      <div>
+        <h3>Pink Paw</h3>
+        <p class="where">Rožinė Pėdutė · Kaunas, Lithuania</p>
+        <p>Treats go to Pink Paw's wallet. Every payout is public, each linked to its transaction.</p>
+        <a class="link" href="https://tokentails.com/shelter-payouts?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2&amp;utm_content=payouts">See every payout <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" aria-labelledby="go">
+    <p class="eyebrow">Ready, player one?</p>
+    <h2 id="go">The vault is open.</h2>
+    <p class="lead">Plays in your browser with touch or keyboard. Nothing to install, no sign-up.</p>
+    <div class="cta">
+      <a class="btn" href="https://tokentails.com/heist?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2&amp;utm_content=final">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M5 3.2v13.6c0 .8.9 1.3 1.6.8l10-6.8c.6-.4.6-1.2 0-1.6l-10-6.8C5.9 1.9 5 2.4 5 3.2z"/></svg>
+        Play Catnip Heist, free
+      </a>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <nav aria-label="Legal">
+      <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+      <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+      <a href="https://tokentails.com/?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2&amp;utm_content=footer">tokentails.com</a>
+    </nav>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky" aria-hidden="true">
+  <a class="btn" tabindex="-1" href="https://tokentails.com/heist?from=poc_v2&amp;utm_source=landing-poc&amp;utm_campaign=v2&amp;utm_content=sticky">Play Catnip Heist, free</a>
+</div>
+<div class="poc">POC variant v2 · <a href="../">all variants</a></div>
+
+<script>
+// Sticky CTA once the hero button scrolls away.
+(function(){
+  var s=document.getElementById('sticky'),h=document.getElementById('hero-cta'),f=document.querySelector('.final .btn'),hv=true,fv=false;
+  if(!('IntersectionObserver' in window))return;
+  function upd(){s.classList.toggle('on',!hv&&!fv)}
+  new IntersectionObserver(function(e){hv=e[0].isIntersecting;upd()}).observe(h);
+  new IntersectionObserver(function(e){fv=e[0].isIntersecting;upd()}).observe(f);
+})();
+// R4: present tense only while the treat rail is live with treats left today. Default stays "can send".
+fetch('https://api.tokentails.com/impact').then(function(r){return r.ok?r.json():null}).then(function(d){
+  var r=d&&d.rail;if(!r||r.state!=='live'||!(r.treatsLeftToday>0))return;
+  document.querySelector('.treat-line').innerHTML='Free the shelter cat, and Token Tails sends <strong>Pink Paw</strong>, a cat shelter in Kaunas, a small treat.';
+  document.querySelector('.treat-line2').textContent='Free the shelter cat and tap. Token Tails sends Pink Paw a small treat, no sign-in needed.';
+}).catch(function(){});
+</script>
+</body>
+</html>

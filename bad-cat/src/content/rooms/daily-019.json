@@ -1,0 +1,220 @@
+{
+  "id": "daily-019",
+  "shell": 4,
+  "routine": 7,
+  "event": 5,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 10,
+    "z": 5
+  },
+  "props": [
+    {
+      "kind": 36,
+      "x": 6,
+      "z": 5,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 30,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 27,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 61,
+      "x": 10,
+      "z": 0,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 8,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 36,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 31,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 1,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 29,
+      "x": 1,
+      "z": 3,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 11,
+      "z": 3,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 0,
+      "z": 4,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 14,
+      "x": 3,
+      "z": 4,
+      "level": 2,
+      "rot": 0,
+      "w": 6,
+      "d": 2
+    },
+    {
+      "kind": 36,
+      "x": 3,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 28,
+      "x": 4,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 61,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 22,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 60,
+      "x": 8,
+      "z": 5,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 11,
+      "z": 5,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 19,
+      "x": 1,
+      "z": 6,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 20,
+      "x": 5,
+      "z": 6,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 18,
+      "x": 11,
+      "z": 6,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 30,
+      "x": 0,
+      "z": 7,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 2,
+      "z": 8,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 28,
+      "x": 11,
+      "z": 8,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 60,
+      "x": 2,
+      "z": 9,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 27,
+      "x": 9,
+      "z": 9,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 28,
+      "x": 10,
+      "z": 9,
+      "level": 0,
+      "rot": 0
+    }
+  ],
+  "seed": 628252258,
+  "ticks": 2250,
+  "title": "Party room #19: Ugly Sweater Felony Friday",
+  "telegraph": 17,
+  "theme": "xmas",
+  "accomplice": {
+    "pinkPawId": "6987c3a51fc0c504e354d2cc",
+    "wishPropIndex": 8,
+    "x": 0,
+    "z": 9,
+    "level": 1
+  }
+}

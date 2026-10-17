@@ -1,0 +1,217 @@
+{
+  "id": "daily-003",
+  "shell": 2,
+  "routine": 5,
+  "event": 2,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 9,
+    "z": 6
+  },
+  "props": [
+    {
+      "kind": 12,
+      "x": 10,
+      "z": 4,
+      "level": 1,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 13,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 2,
+      "target": true
+    },
+    {
+      "kind": 25,
+      "x": 5,
+      "z": 1,
+      "level": 2,
+      "rot": 3,
+      "target": true
+    },
+    {
+      "kind": 33,
+      "x": 8,
+      "z": 0,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 46,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 64,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 3
+    },
+    {
+      "kind": 45,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 57,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 33,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 20,
+      "x": 1,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 18,
+      "x": 8,
+      "z": 2,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 46,
+      "x": 1,
+      "z": 3,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 12,
+      "x": 11,
+      "z": 3,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 12,
+      "x": 1,
+      "z": 4,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 24,
+      "x": 3,
+      "z": 4,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 12,
+      "x": 11,
+      "z": 4,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 19,
+      "x": 2,
+      "z": 5,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 33,
+      "x": 0,
+      "z": 6,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 33,
+      "x": 11,
+      "z": 6,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 46,
+      "x": 11,
+      "z": 7,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 45,
+      "x": 0,
+      "z": 8,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 12,
+      "x": 1,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 45,
+      "x": 2,
+      "z": 8,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 58,
+      "x": 3,
+      "z": 8,
+      "level": 1,
+      "rot": 3
+    },
+    {
+      "kind": 58,
+      "x": 4,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    },
+    {
+      "kind": 58,
+      "x": 6,
+      "z": 9,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 45,
+      "x": 8,
+      "z": 9,
+      "level": 1,
+      "rot": 2
+    }
+  ],
+  "seed": 1094696458,
+  "ticks": 2250,
+  "title": "Bathroom #3: Toilet Paper Wednesday",
+  "telegraph": 20,
+  "accomplice": {
+    "pinkPawId": "6987c3a51fc0c504e354d2cc",
+    "wishPropIndex": 14,
+    "x": 9,
+    "z": 0,
+    "level": 2
+  }
+}

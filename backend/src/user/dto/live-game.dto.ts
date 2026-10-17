@@ -19,6 +19,8 @@ import {
 import { GamePlatform, GameType, liveGameTypes, LiveGameType, MAX_MATCH3_SCORE_PER_LEVEL } from 'src/game/game.schema';
 import { LIVE_GAME_OUTCOMES, LiveGameOutcome } from 'src/shared-contracts/enums';
 import { ErrorCode } from 'src/shared-contracts/errors';
+import { BadcatRunDto } from 'src/badcat/badcat-run.dto';
+import { badcatSimErrorDetail } from 'src/badcat/badcat-sim-info';
 import { HeistReplayDto } from '../heist/heist-replay.dto';
 import { heistSimErrorDetail } from '../heist/heist-sim-info';
 
@@ -43,6 +45,9 @@ export const LIVE_GAME_USER_THROTTLE = { limit: 30, ttl: 60000 };
 export const LIVE_GAME_BODY_LIMIT = '64kb';
 
 const isHeist = (body: { type?: unknown }) => body.type === GameType.CATNIP_HEIST;
+const isBadcat = (body: { type?: unknown }) => body.type === GameType.BAD_CAT;
+/** Replay-verified types: the server takes score and time from its own replay, never from `points`. */
+const isReplayed = (body: { type?: unknown }) => isHeist(body) || isBadcat(body);
 
 /**
  * Body of `POST /user/catbassadors/live`, the only write path for game scores.
@@ -59,8 +64,8 @@ export class LiveGameDto {
     @IsIn(liveGameTypes)
     type: LiveGameType;
 
-    /** Catnip (Purrsuit, Paw Match) or hearts (Cupid Cat) earned in the run. Ignored for CATNIP_HEIST. */
-    @ValidateIf(body => !isHeist(body))
+    /** Catnip (Purrsuit, Paw Match) or hearts (Cupid Cat) earned in the run. Ignored for CATNIP_HEIST and BAD_CAT. */
+    @ValidateIf(body => !isReplayed(body))
     @IsInt()
     @Min(0)
     points: number;
@@ -110,6 +115,17 @@ export class LiveGameDto {
     @ValidateNested()
     @Type(() => HeistReplayDto)
     replay?: HeistReplayDto;
+
+    /**
+     * The Bad Cat Daily ranked-run log (GDD 10 Phase 2). Required for BAD_CAT; refused on every other type.
+     * The server replays it with the vendored sim (`src/badcat/badcat-live.ts`).
+     */
+    @ValidateIf(body => isBadcat(body) || body.badcat !== undefined)
+    @IsDefined()
+    @IsObject()
+    @ValidateNested()
+    @Type(() => BadcatRunDto)
+    badcat?: BadcatRunDto;
 }
 
 /** `property.child: constraint message` for every failed constraint, as Nest's default pipe lists them. */
@@ -137,11 +153,23 @@ export function liveGameValidationError(errors: ValidationError[]): BadRequestEx
         : replayFailures.length
         ? ErrorCode.HEIST_REPLAY_INVALID
         : undefined;
+    // Bad Cat Daily logs (GDD 10 Phase 2): a stale sim (BADCAT_SIM_VERSION, the game keeps the run as practice)
+    // or a bad log (BADCAT_REPLAY_INVALID, dropped).
+    const badcatFailures = failed.filter(({ path }) => path === 'badcat' || path.startsWith('badcat.'));
+    const badcatCode = badcatFailures.some(({ path }) => path === 'badcat.simVersion')
+        ? ErrorCode.BADCAT_SIM_VERSION
+        : badcatFailures.length
+        ? ErrorCode.BADCAT_REPLAY_INVALID
+        : undefined;
     return new BadRequestException({
         statusCode: 400,
         message,
         error: 'Bad Request',
-        ...(code ? { code, ...heistSimErrorDetail() } : {}),
+        ...(code
+            ? { code, ...heistSimErrorDetail() }
+            : badcatCode
+            ? { code: badcatCode, ...badcatSimErrorDetail() }
+            : {}),
     });
 }
 

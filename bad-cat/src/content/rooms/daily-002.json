@@ -1,0 +1,228 @@
+{
+  "id": "daily-002",
+  "shell": 1,
+  "routine": 4,
+  "event": 10,
+  "width": 12,
+  "depth": 10,
+  "spawn": {
+    "x": 2,
+    "z": 4
+  },
+  "props": [
+    {
+      "kind": 10,
+      "x": 4,
+      "z": 8,
+      "level": 1,
+      "rot": 0,
+      "target": true
+    },
+    {
+      "kind": 22,
+      "x": 7,
+      "z": 5,
+      "level": 2,
+      "rot": 1,
+      "target": true
+    },
+    {
+      "kind": 9,
+      "x": 1,
+      "z": 8,
+      "level": 2,
+      "rot": 3,
+      "target": true,
+      "cable": {
+        "x": 0,
+        "z": 8
+      }
+    },
+    {
+      "kind": 1,
+      "x": 10,
+      "z": 0,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 7,
+      "x": 0,
+      "z": 1,
+      "level": 3,
+      "rot": 0
+    },
+    {
+      "kind": 51,
+      "x": 1,
+      "z": 1,
+      "level": 3,
+      "rot": 1
+    },
+    {
+      "kind": 10,
+      "x": 2,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 42,
+      "x": 3,
+      "z": 1,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 40,
+      "x": 4,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 40,
+      "x": 5,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 15,
+      "x": 6,
+      "z": 1,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 7,
+      "x": 7,
+      "z": 1,
+      "level": 2,
+      "rot": 3
+    },
+    {
+      "kind": 7,
+      "x": 11,
+      "z": 1,
+      "level": 2,
+      "rot": 0
+    },
+    {
+      "kind": 20,
+      "x": 2,
+      "z": 2,
+      "level": 0,
+      "rot": 0
+    },
+    {
+      "kind": 19,
+      "x": 3,
+      "z": 2,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 23,
+      "x": 9,
+      "z": 3,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 40,
+      "x": 11,
+      "z": 3,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 18,
+      "x": 1,
+      "z": 4,
+      "level": 0,
+      "rot": 2
+    },
+    {
+      "kind": 22,
+      "x": 8,
+      "z": 4,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 15,
+      "x": 11,
+      "z": 4,
+      "level": 0,
+      "rot": 3
+    },
+    {
+      "kind": 22,
+      "x": 5,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 41,
+      "x": 6,
+      "z": 5,
+      "level": 2,
+      "rot": 1
+    },
+    {
+      "kind": 58,
+      "x": 8,
+      "z": 5,
+      "level": 2,
+      "rot": 2
+    },
+    {
+      "kind": 15,
+      "x": 0,
+      "z": 6,
+      "level": 0,
+      "rot": 1
+    },
+    {
+      "kind": 57,
+      "x": 2,
+      "z": 8,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 22,
+      "x": 3,
+      "z": 8,
+      "level": 1,
+      "rot": 1
+    },
+    {
+      "kind": 22,
+      "x": 6,
+      "z": 8,
+      "level": 1,
+      "rot": 0
+    },
+    {
+      "kind": 22,
+      "x": 7,
+      "z": 8,
+      "level": 1,
+      "rot": 2
+    }
+  ],
+  "seed": 3176277545,
+  "ticks": 2250,
+  "title": "Living room #2: TV Night",
+  "telegraph": 22,
+  "accomplice": {
+    "pinkPawId": "69a5341d3ee4d7b657941bb8",
+    "wishPropIndex": 15,
+    "x": 8,
+    "z": 0,
+    "level": 1
+  }
+}
