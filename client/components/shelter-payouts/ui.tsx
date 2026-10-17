@@ -36,6 +36,18 @@ export const CHIP =
 export const MEMO =
   "inline-flex items-center rounded-lg border-2 border-tt-cream/50 bg-tt-cream/10 px-2 py-0.5 text-p6 md:text-p5 text-tt-cream break-all";
 
+/**
+ * Skeleton block: a dim cream slab with a light sweeping across it (motion-safe only; with
+ * reduced motion it is a still slab). Size it with width and height classes.
+ */
+export const SKELETON =
+  "block rounded-lg bg-tt-cream/10 bg-[linear-gradient(90deg,transparent_0%,rgb(var(--tt-cream)/.16)_50%,transparent_100%)] bg-[length:50%_100%] bg-no-repeat motion-safe:animate-tt-shimmer";
+
+/** A decorative skeleton block; the busy region around it carries the screen-reader text. */
+export const Skeleton = ({ className = "", testId }: { className?: string; testId?: string }) => (
+  <span aria-hidden="true" className={`${SKELETON} ${className}`} data-testid={testId} />
+);
+
 /** Same markup as the landing's Kicker (the Rescue Mission Hub badge). */
 export const Kicker = ({ children }: { children: ReactNode }) => (
   <div className="inline-flex items-center gap-2 rounded-xl border-2 border-tt-cream bg-tt-cream/20 px-3 py-1 font-primary text-p6 md:text-p5 uppercase tracking-wide text-tt-cream">

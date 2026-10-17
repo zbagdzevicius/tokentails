@@ -132,6 +132,9 @@ const config: Config = {
         "float-delayed": "float-delayed 7s ease-in-out infinite 1s",
         "gradient-text": "gradient-text var(--speed, 8s) linear infinite",
         "shiny-text": "shiny-text 8s linear infinite",
+        // Skeleton loaders (shelter payouts): a soft light sweeping across the block.
+        "tt-shimmer": "tt-shimmer 1.6s ease-in-out infinite",
+        "tt-reveal": "tt-fade-in 420ms ease-out both",
         "shine-border": "shine-border var(--duration, 14s) linear infinite",
         // GameModal (plan F3.3). Enter only: closing is instant, so focus returns at once.
         // `backwards`, not `both`: a filled end keyframe interpolated to `transform: none` stays
@@ -191,6 +194,10 @@ const config: Config = {
         },
         "gradient-text": {
           to: { backgroundPosition: "var(--bg-size, 300%) 0" },
+        },
+        "tt-shimmer": {
+          "0%": { backgroundPosition: "-50% 0" },
+          "100%": { backgroundPosition: "150% 0" },
         },
         "shiny-text": {
           "0%": { backgroundPosition: "-200% 0" },

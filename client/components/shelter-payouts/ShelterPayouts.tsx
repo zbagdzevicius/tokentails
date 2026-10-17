@@ -29,7 +29,6 @@ import {
   feedItems,
   stillReading,
   totalsBySymbol,
-  updatingCount,
   updatingText,
   twoDp,
   usePayouts,
@@ -40,7 +39,8 @@ import { ShelterDeployment, deploymentToken, resolveChain } from "./rpc";
 import { isPinkPawWallet } from "./pinkPaw";
 import { PinkPawShowcase } from "./PinkPawShowcase";
 import { ShelterProfile } from "./ShelterProfile";
-import { CARD, CHIP, FIGURE, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat } from "./ui";
+import { TotalsBillboard } from "./TotalsBillboard";
+import { CARD, CHIP, FIGURE, HEADLINE, Kicker, NightStage, PANEL, PILL, PinkCat, Skeleton } from "./ui";
 import { WalletChoice, WalletDonate } from "./WalletDonate";
 
 export { claimsDateLabel };
@@ -179,8 +179,13 @@ export const ChainCard = ({
         </p>
       )}
 
+      {/* Shaped like the card's total and its count line, so the figure lands in place. */}
       {result.status === "loading" && (
-        <p className="motion-safe:animate-pulse">Reading payouts…</p>
+        <div aria-busy="true" data-testid="chain-card-loading">
+          <span className="sr-only">Reading payouts…</span>
+          <Skeleton className="h-9 w-40 md:h-11 md:w-48" />
+          <Skeleton className="mt-2 h-4 w-36" />
+        </div>
       )}
       {result.status === "error" && (
         <p className="text-tt-cream/85" role="status">
@@ -241,28 +246,8 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
     };
   }, []);
 
-  // Totals per symbol: amounts of different coins are never added together.
-  const totals: Record<string, { amount: bigint; count: number }> = {};
-  if (page.status === "done") {
-    page.deployments.forEach((d, i) => {
-      const r = results[i];
-      if (r?.status !== "done") return;
-      for (const t of totalsBySymbol(r.items, resolveChain(d))) {
-        const acc = totals[t.symbol] || { amount: BigInt(0), count: 0 };
-        acc.amount += t.amount;
-        acc.count += t.count;
-        totals[t.symbol] = acc;
-      }
-    });
-  }
-  const totalEntries = Object.entries(totals);
-  const payoutCount = totalEntries.reduce((n, [, t]) => n + t.count, 0);
+  // The hero board needs only to know whether the list is read; the totals are its own (per coin).
   const pending = page.status === "done" && stillReading(page.deployments, results);
-
-  const unread =
-    page.status === "done" && page.deployments.some((_, i) => results[i]?.status === "error");
-  const updating = page.status === "done" ? updatingCount(page.deployments, results) : 0;
-  const chainsTotal = page.status === "done" ? chainCount(page.deployments) : 0;
 
   const deployments = page.status === "done" ? page.deployments : [];
   const campaignDeployment = campaign
@@ -339,49 +324,9 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             Shelter <span className="glow text-tt-cream">payouts</span>
           </h1>
 
-          {page.status === "done" && page.deployments.length > 0 && (
-            <div className="flex flex-col items-center gap-2" data-testid="payouts-totals" aria-live="polite">
-              {totalEntries.length === 0 && pending && (
-                <p className={`${FIGURE} text-h3 md:text-h1 motion-safe:animate-pulse`}>…</p>
-              )}
-              {/* Never "0 USDC": a chain that could not be read is not a chain with no payouts. */}
-              {totalEntries.length === 0 && !pending && unread && (
-                <p className="max-w-xl text-p4 md:text-p3 text-tt-cream/90" data-testid="payouts-unread">
-                  The chains are busy right now. Reload in a minute to see the live total.
-                </p>
-              )}
-              {totalEntries.length === 0 && !pending && !unread && (
-                <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
-              )}
-              {totalEntries.map(([symbol, t]) => (
-                <p key={symbol} className={`${FIGURE} text-[64px] md:text-[120px] lg:text-[160px]`}>
-                  {twoDp(t.amount)} <span className="text-h5 md:text-h3 normal-case">{symbol}</span>
-                </p>
-              ))}
-              {totalEntries.length > 0 && (
-                <p className="font-primary text-p4 md:text-p2 uppercase tracking-wide text-tt-cream">
-                  across {payoutCount} payout{payoutCount === 1 ? "" : "s"} on {chainsTotal} chain
-                  {chainsTotal === 1 ? "" : "s"}
-                  {chainsTotal !== deployments.length ? ` (${deployments.length} contracts)` : ""}
-                  {pending ? " · still counting…" : ""}
-                </p>
-              )}
-              {/* Partial figures must say they are partial: a chain that could not be read is missing. */}
-              {totalEntries.length > 0 && !pending && unread && (
-                <p className="max-w-xl text-p5 md:text-p4 text-tt-cream/90" data-testid="payouts-partial">
-                  Some chains could not be read right now, so these totals may be incomplete. Reload in a minute.
-                </p>
-              )}
-              {/* Last-known figures are counted, and said to be last-known (the card names the time). */}
-              {totalEntries.length > 0 && !pending && !unread && updating > 0 && (
-                <p className="max-w-xl text-p6 md:text-p5 text-tt-cream/70" data-testid="payouts-updating">
-                  Updating:{" "}
-                  {updating === 1
-                    ? "one contract shows its last indexed payouts while its chain is busy, so the newest may be missing. Reload in a minute."
-                    : `${updating} contracts show their last indexed payouts while their chains are busy, so the newest may be missing. Reload in a minute.`}
-                </p>
-              )}
-            </div>
+          {/* The totals billboard: skeleton while reading, then every coin at once (never summed). */}
+          {(page.status === "loading" || (page.status === "done" && page.deployments.length > 0)) && (
+            <TotalsBillboard loading={page.status === "loading"} deployments={deployments} results={results} />
           )}
           {/* Motored sponsor money, labelled live from its first gift (never counted as donors). */}
           <MotoredLine items={feed} shelterName={campaign?.shelter.name || "Pink Paw"} />
@@ -447,7 +392,21 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           )}
 
           {page.status === "loading" && (
-            <p className="text-center motion-safe:animate-pulse">Loading deployments…</p>
+            <section className={PANEL} aria-busy="true" data-testid="deployments-loading">
+              <span className="sr-only">Loading deployments…</span>
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="mt-3 h-8 w-[min(100%,24rem)] md:h-10" />
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:mt-7 md:gap-4 xl:grid-cols-3">
+                {[0, 1, 2].map((k) => (
+                  <div key={k} className={`${CARD} flex flex-col gap-3`}>
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-9 w-40 md:h-11" />
+                    <Skeleton className="h-4 w-36" />
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
           {page.status === "error" && (
             <p className={`${PANEL} text-tt-rust`} role="alert">
