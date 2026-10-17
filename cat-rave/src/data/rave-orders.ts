@@ -2,8 +2,9 @@
  * F-DATA: Moon Rave orders → named cats, "arriving" holograms and name shout-outs.
  * CHECKOUT-SPEC.md sections 3, 4 (`GET /rave/cats`, `GET /rave/orders/:id`), 6 and 11 (F-DATA).
  *
- * The $1 = 1 cat rule does not change: a cat is real only when its payout is in the payout feed
- * (`GET /shelter/payouts`). This module never adds to the count. It only:
+ * The $1 = 1 cat rule: a paid order's cats dance from the moment it is paid (`aheadCats`, added to
+ * the floor by `data/floor.ts`) and its payout in the feed (`GET /shelter/payouts`) later takes their
+ * place one for one. Besides that, this module:
  *  - names real cats whose payout memo was `tt:rave:<16 hex>` (`namesForCat`), by position among
  *    that order's cats in feed order;
  *  - lists paid orders whose payout the feed does not hold yet (`arriving`: hologram cats, never

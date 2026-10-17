@@ -383,8 +383,8 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     pawFill.style.clipPath = `inset(${((1 - progress) * 100).toFixed(1)}% 0 0 0)`;
     nextText.innerHTML =
       micro <= 0
-        ? `cat #${realNext} is on its way <span class="rv-pending">✦</span>`
-        : `${formatToNext(micro)} to cat #${realNext.toLocaleString('en-US')}` + (pending ? ' <span class="rv-pending">· treat on its way</span>' : '');
+        ? `cat #${realNext} is forming <span class="rv-pending">✦</span>`
+        : `${formatToNext(micro)} to cat #${realNext.toLocaleString('en-US')}` + (pending ? ' <span class="rv-pending">· treat counted</span>' : '');
     paw.setAttribute('aria-label', `${Math.round(progress * 100)}% of the next cat`);
   };
 
@@ -404,6 +404,11 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     // next one's title and close button.
     sheet.scrollTop = 0;
     lastFocus = document.activeElement as HTMLElement | null;
+    // A modal sheet over a pinned cat card would leave the card showing beneath it.
+    if (card.classList.contains('rv-on')) {
+      hideCard();
+      h.onCardClosed();
+    }
     sheetKind = kind;
     sheetBody.innerHTML = '';
     sheetBody.classList.remove('rv-board-sheet');
@@ -494,7 +499,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
         if (r.ok) {
           msg.className = 'rv-msg rv-ok';
           const href = safeHttpsUrl(r.explorerUrl);
-          msg.innerHTML = `Treat sent! ${href ? `<a href="${esc(href)}" target="_blank" rel="noopener">View tx ↗</a>` : ''} It reaches the floor in ~2 min.`;
+          msg.innerHTML = `Treat sent! ${href ? `<a href="${esc(href)}" target="_blank" rel="noopener">View tx ↗</a>` : ''} It already counts toward the next cat.`;
         } else {
           b.disabled = false;
           msg.className = 'rv-msg rv-err';
@@ -506,7 +511,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     sheetBody.append(
       msg,
       opt('a', { ico: '🐈', title: 'Adopt a $5 shelter cat', sub: adoptLine(snap?.microToNext ?? MICRO), go: '↗', href: LINKS.adopt }),
-      el('p', 'rv-land', 'Your cat lands here in ~2 min. Keep this tab open, or paste your tx in Find my cat 🔍 later.'),
+      el('p', 'rv-land', 'Your cat lands here as soon as its payout is on-chain. Paste your tx in Find my cat 🔍 any time.'),
     );
     const foot = el('div', 'rv-foot');
     foot.innerHTML = `<span>Counts come from public on-chain payouts.</span><a href="${LINKS.payouts}" target="_blank" rel="noopener">Every payout ↗</a>`;
@@ -648,7 +653,29 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     hideCard();
     h.onCardClosed();
   });
+  /** Visible, enabled controls inside the open sheet (Tab stays inside the modal). */
+  const sheetFocusables = () =>
+    [...sheet.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, iframe, [tabindex]:not([tabindex="-1"])')].filter(
+      (n) => !(n as HTMLButtonElement).disabled && n.getClientRects().length > 0 && !n.closest('[hidden]'),
+    );
   const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Tab' && sheetKind) {
+      const list = sheetFocusables();
+      if (!list.length) return;
+      const active = document.activeElement as HTMLElement | null;
+      const i = active ? list.indexOf(active) : -1;
+      if (!active || !sheet.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? list[list.length - 1] : list[0]).focus({ preventScroll: true });
+      } else if (!e.shiftKey && i === list.length - 1) {
+        e.preventDefault();
+        list[0].focus({ preventScroll: true });
+      } else if (e.shiftKey && i === 0) {
+        e.preventDefault();
+        list[list.length - 1].focus({ preventScroll: true });
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       if (sheetKind) closeSheet();
       else if (card.classList.contains('rv-on')) {

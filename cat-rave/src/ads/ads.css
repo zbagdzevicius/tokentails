@@ -93,7 +93,9 @@
   background: #ff5fa8;
   box-shadow: 0 0 0 3px rgba(255, 95, 168, 0.3), 0 0 18px #ff5fa8;
 }
-/* Slot name on hover, keyboard focus or press. */
+/* Slot name on hover, keyboard focus or press. Never takes clicks: a hidden label sits over the
+   pins above it (Blimp 4 over Banner 3). #hud beats checkout.css's `#hud .rvc *` auto rule. */
+#hud .rvc .rva-pin .rva-pin-label,
 .rvc .rva-pin .rva-pin-label {
   position: absolute;
   left: 50%;
