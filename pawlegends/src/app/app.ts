@@ -16,16 +16,17 @@ import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../
 import type { SkuId } from '../money/skus';
 import { bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
-import { bakePortraits } from '../render/portraits';
+import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, type QualityTier } from '../render/quality';
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, SUDDEN_DEATH_S, titleScreen, type Choice } from '../ui/screens';
 import { consentPrompt, settingsPanel } from '../ui/settings';
-import { storePanel } from '../ui/store';
+import { notePurchase, storePanel } from '../ui/store';
+import { HERO_TEXT } from '../ui/heroText';
 import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
@@ -87,6 +88,8 @@ export class App {
   private hostOffer: Offer | null | undefined = undefined;
   private offerShown = false;
   private matchesThisSession = 0;
+  /** A purchase the host confirmed: once its items arrive, the lobby hero puts the new look on ("New!"). */
+  private pendingReveal: SkuId | null = null;
   private frameMs: number[] = [];
   /** `?perf=1` on-screen readout for the device gate (§15 item 27); null otherwise. */
   private readonly perf: PerfReadout | null;
@@ -113,6 +116,10 @@ export class App {
     this.human.install(window);
     this.analytics = createAnalytics(() => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier }));
     this.checkout = new CheckoutBridge(bridge, this.ent);
+    this.checkout.onResult((sku, ok) => {
+      notePurchase(ok);
+      if (ok) this.pendingReveal = sku;
+    });
     rotatePrompt(root);
     addEventListener('resize', () => this.gr.resize());
     addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
@@ -172,8 +179,41 @@ export class App {
       this.offerEl?.close();
       this.offerEl = null;
     } else this.overlay?.refresh?.();
+    this.revealPurchase();
     if (this.screen === 'title') this.showTitle();
     else if (this.screen === 'pick') this.lobby.setHero(this.choice.hero, 0, this.lookFor(this.choice.hero));
+  }
+
+  /** The lobby hero's portrait in its look, for the frame badge (baked on demand). */
+  private badgePortrait(): string | null {
+    const hero = this.dare?.hero ?? this.choice.hero;
+    const look = this.lookFor(hero);
+    bakePortrait(this.gr, hero, look);
+    return portraitUrl(hero, look);
+  }
+
+  /** The bought look goes on the lobby hero, with confetti and a short "New!" line, as proof the purchase arrived. */
+  private revealPurchase(): void {
+    const sku = this.pendingReveal;
+    if (!sku || !this.ent.snapshot().skus.has(sku)) return;
+    this.pendingReveal = null;
+    const hero: HeroId = sku === 'pl_founder' ? this.choice.hero : 'clem';
+    const coat = sku === 'pl_founder' ? `coat.founder.${hero}` : sku === 'pl_starter' ? 'skin.clem.pink_bow' : 'skin.clem.dawnblade';
+    const p = loadProfile();
+    p.looks[hero] = { coat, chroma: (p.looks[hero] as Partial<Look> | undefined)?.chroma ?? null };
+    saveProfile(p);
+    this.choice = { ...this.choice, hero };
+    this.lobby.confetti(2.5);
+    const name = sku === 'pl_founder' ? `Founder coat on ${HERO_NAME(hero)}` : sku === 'pl_starter' ? 'Pink Bow Clem' : 'Dawnblade Clem';
+    const el = document.createElement('div');
+    el.className = 'pl-new';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<b>New!</b><span></span>`;
+    (el.querySelector('span') as HTMLElement).textContent = `${name} is yours. Wearing it now.`;
+    this.root.appendChild(el);
+    setTimeout(() => el.classList.add('out'), 3600);
+    setTimeout(() => el.remove(), 4200);
+    if (this.screen === 'pick') this.setLobbyHero(hero);
   }
 
   private setLobbyHero(hero: HeroId): void {
@@ -222,6 +262,7 @@ export class App {
         storeOpen: s.storeOpen,
         frame: bestFrame(owned),
         title: titleOf(owned),
+        portrait: this.badgePortrait(),
         onPlay: (c, seed) => {
           sfx.play('click');
           if (seed !== undefined) this.dare = null;
@@ -288,6 +329,8 @@ export class App {
       seed,
       speed: this.speed,
       firstMatch: tips,
+      newPlayer: p.matches < 5,
+      emote: owned.items.has('emote.starter'),
       muted: sfx.isMuted,
       look,
       frame: bestFrame(owned),
@@ -346,7 +389,7 @@ export class App {
     if (won) {
       const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
-        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds }, base);
+        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < SUDDEN_DEATH_S ? seconds : 0 }, base);
       } catch {
         link = null;
       }
@@ -366,6 +409,8 @@ export class App {
         firstWin: rec.firstWin,
         best: rec.best,
         dareLink: link,
+        deathsBy: e.deathsBy,
+        touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
         speed: this.speed,
         storeOpen: s.storeOpen,
         notifyOpen: s.notifyOpen,
@@ -389,10 +434,11 @@ export class App {
         onNotify: () => this.notify('results'),
       }),
     );
-    // the offer card waits for the staged results reveal
-    setTimeout(() => {
-      if (this.screen === 'results') this.maybeOffer('results');
-    }, 2500);
+    // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen)
+    if (won)
+      setTimeout(() => {
+        if (this.screen === 'results') this.maybeOffer('results');
+      }, 2500);
   }
 
   // ------------------------------------------------------------------------------------- store and offers
@@ -404,6 +450,7 @@ export class App {
     this.analytics.track('store_open', { from });
     const panel = storePanel(this.root, {
       snapshot: () => this.ent.snapshot(),
+      termsUrl: this.termsUrl(),
       checkout: this.checkout,
       onClose: () => {
         this.overlay = null;
@@ -452,7 +499,18 @@ export class App {
       onClose: () => {
         this.offerEl = null;
       },
+      onDetails: () => this.openStore(screen === 'results' ? 'results' : 'lobby'),
     });
+  }
+
+  /** The host's terms page (POC.md §8.6): next to the host page that frames the game. */
+  private termsUrl(): string | null {
+    try {
+      if (this.bridge.active && document.referrer) return `${new URL(document.referrer).origin}/pawlegends/terms`;
+    } catch {
+      /* no referrer */
+    }
+    return null;
   }
 
   // ------------------------------------------------------------------------------------ settings, consent
@@ -528,6 +586,8 @@ export class App {
     requestAnimationFrame((t) => this.frame(t));
   }
 }
+
+const HERO_NAME = (h: HeroId): string => HERO_TEXT[h].title;
 
 /** The SKU an item came from (analytics only). */
 function skuOfItem(item: string): string {

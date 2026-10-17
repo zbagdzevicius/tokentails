@@ -52,8 +52,14 @@ export function dareUrl(d: Dare, base: string): string {
   return u.toString();
 }
 
+/**
+ * "Beat my 7:12 vs Easy bots" when the match ended on a core kill before Sudden Death; a win that came after 10:00
+ * was mostly set by the Sudden Death clock, so that dare (seconds 0) is just to win the same match.
+ */
 export function dareText(d: Dare): string {
+  const bots = d.difficulty === 'normal' ? 'Normal' : 'Easy';
+  if (d.seconds <= 0 || d.seconds >= 600) return `Win my match vs ${bots} bots in Pawlegends!`;
   const m = Math.floor(d.seconds / 60);
   const s = String(d.seconds % 60).padStart(2, '0');
-  return `Beat my ${m}:${s} vs ${d.difficulty === 'normal' ? 'Normal' : 'Easy'} bots in Pawlegends!`;
+  return `Beat my ${m}:${s} vs ${bots} bots in Pawlegends!`;
 }

@@ -2,12 +2,14 @@
  * Team readability (POC.md §6.8): from the iso camera (which sees surfaces that face up) every hero shows a large
  * patch of its team's main colour, whatever its species, and almost none of the other team's. Screenshots at Low on
  * 844×390 (2026-10-17) read clearly at these shares; the old thin sash measured ~5% (and a Woof Clem wore 9% rose).
+ * The upright heroes carry it on the shoulder mantle, the helmet / hood / cap and the pauldrons. The geometry is
+ * indexed now, so triangles come from the index buffer.
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
 import { TEAM } from '../../src/render/palette';
-import { heroGeometry } from '../../src/render/views/models';
+import { DETAIL, heroBuilt } from '../../src/render/chars';
 
 const HEROES: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 
@@ -15,6 +17,9 @@ const HEROES: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 function upShare(g: THREE.BufferGeometry, hex: number): number {
   const pos = g.getAttribute('position');
   const col = g.getAttribute('color');
+  const idx = g.index;
+  const tri = idx ? idx.count : pos.count;
+  const at = (k: number): number => (idx ? idx.getX(k) : k);
   const c = new THREE.Color(hex);
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
@@ -22,10 +27,11 @@ function upShare(g: THREE.BufferGeometry, hex: number): number {
   const n = new THREE.Vector3();
   let all = 0;
   let hit = 0;
-  for (let i = 0; i < pos.count; i += 3) {
+  for (let k = 0; k < tri; k += 3) {
+    const i = at(k);
     a.fromBufferAttribute(pos, i);
-    b.fromBufferAttribute(pos, i + 1).sub(a);
-    d.fromBufferAttribute(pos, i + 2).sub(a);
+    b.fromBufferAttribute(pos, at(k + 1)).sub(a);
+    d.fromBufferAttribute(pos, at(k + 2)).sub(a);
     n.crossVectors(b, d);
     const area = n.length() / 2;
     if (area === 0 || n.y / (2 * area) <= 0.35) continue;
@@ -40,13 +46,12 @@ describe('team colours on hero models (§6.8)', () => {
   for (const hero of HEROES) {
     for (const team of [0, 1] as const) {
       it(`${hero} on ${TEAM[team].name} wears its team colour where the camera sees it`, () => {
-        const g = heroGeometry(hero, team);
+        const g = heroBuilt(hero, team, null, DETAIL.low).geometry;
         const mine = upShare(g, TEAM[team].main);
         const theirs = upShare(g, TEAM[(1 - team) as 0 | 1].main);
         console.log(`${hero} ${TEAM[team].name}: own ${(100 * mine).toFixed(1)}%, other ${(100 * theirs).toFixed(1)}%`);
         expect(mine).toBeGreaterThanOrEqual(0.15);
         expect(theirs).toBeLessThan(0.03);
-        g.dispose();
       });
     }
   }

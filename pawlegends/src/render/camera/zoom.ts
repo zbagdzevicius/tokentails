@@ -1,4 +1,5 @@
 /**
+<<<<<<< HEAD
  * Match camera zoom (render only): a factor on the camera distance (renderer.ts MOBA_DIST × zoom, × the short-landscape
  * factor on phones). The wheel and the +/− keys (desktop), a pinch (touch) and the Settings / pause-menu slider move
  * the target; the match view eases toward it. Clamped to ZOOM_MIN..zoomMax(width) and remembered per viewer (browser
@@ -37,26 +38,51 @@ export const ZOOM_KEY = 'pawlegends.zoom.v2';
 const KEY = ZOOM_KEY;
 
 export const clampZoom = (z: number, max = ZOOM_MAX): number => (Number.isFinite(z) ? Math.min(max, Math.max(ZOOM_MIN, z)) : ZOOM_DEFAULT);
+=======
+ * Match camera zoom (render only): a target the wheel (and later pinch) moves in smooth, delta-sized steps, eased by
+ * the match view, clamped to 0.72x..1.35x of the default distance and remembered per viewer (browser storage, a
+ * convenience only: it may be missing or throw, and the default is used then).
+ */
+export const ZOOM_MIN = 0.72;
+export const ZOOM_MAX = 1.35;
+/** Desktop default: a little closer than the old 1.0 so a hero reads at ~70 px tall on 1280x720. */
+export const ZOOM_DEFAULT = 0.88;
+const KEY = 'pawlegends.zoom';
+
+export const clampZoom = (z: number): number => (Number.isFinite(z) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) : ZOOM_DEFAULT);
+>>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
 
 /**
  * The next zoom after a wheel event. One notch (deltaY ~100 px, or 3 lines) is about 9%; a trackpad's many small
  * deltas add up to the same, and one big synthetic delta (deltaY 800) moves the whole way, not one fixed step.
  */
+<<<<<<< HEAD
 export function wheelZoom(zoom: number, deltaY: number, deltaMode = 0, max = ZOOM_MAX): number {
   const px = deltaMode === 1 ? deltaY * 33 : deltaMode === 2 ? deltaY * 400 : deltaY;
   const d = Math.max(-1200, Math.min(1200, px));
   return clampZoom(zoom * Math.exp(d * 0.00088), max);
+=======
+export function wheelZoom(zoom: number, deltaY: number, deltaMode = 0): number {
+  const px = deltaMode === 1 ? deltaY * 33 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  const d = Math.max(-1200, Math.min(1200, px));
+  return clampZoom(zoom * Math.exp(d * 0.00088));
+>>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
 }
 
 export function loadZoom(): number {
   try {
     const v = Number(localStorage.getItem(KEY));
+<<<<<<< HEAD
     return v > 0 ? clampZoom(v, ZOOM_MAX_WIDE) : ZOOM_DEFAULT;
+=======
+    return v > 0 ? clampZoom(v) : ZOOM_DEFAULT;
+>>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
   } catch {
     return ZOOM_DEFAULT;
   }
 }
 
+<<<<<<< HEAD
 /** Window event sent by saveZoom (detail: the zoom), so an open slider (ui/zoomSlider.ts) follows the wheel, +/− or a pinch. */
 export const ZOOM_EVENT = 'pl:zoom';
 
@@ -82,3 +108,12 @@ export function pinchZoom(z0: number, d0: number, d: number, max = ZOOM_MAX): nu
 
 /** The slider's label: the view size against the default (100% = default, bigger = more of the map). */
 export const zoomPercent = (z: number): number => Math.round((z / ZOOM_DEFAULT) * 100);
+=======
+export function saveZoom(z: number): void {
+  try {
+    localStorage.setItem(KEY, clampZoom(z).toFixed(3));
+  } catch {
+    /* storage blocked: the zoom just is not remembered */
+  }
+}
+>>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)

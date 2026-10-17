@@ -1,5 +1,6 @@
 /**
- * Procedural low-poly character kit (POC.md §6.9 fallback: models built at runtime, one draw call each).
+ * Procedural low-poly part kit for props and structures (towers, core, fountain, rats, Pudding, siege carts) and the
+ * instanced upright minion shader. Characters (heroes, minions' bodies, Companion Kittens) are built by render/chars/.
  *
  * A model is a set of primitives merged into ONE BufferGeometry with per-vertex colour, a part id and a pivot.
  * The rig material rotates each part around its pivot in the vertex shader (legs walk, head nods, tail wags,
@@ -171,6 +172,54 @@ export function rigMaterial(): THREE.MeshLambertMaterial & { userData: { rig: Ri
       .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uFlash, uFlashK);\ngl_FragColor.a *= uOpacity;');
   };
   m.customProgramCacheKey = () => 'pl-rig-v1';
+  return m;
+}
+
+const UPRIGHT_PARS = /* glsl */ `
+attribute float aPart;
+attribute vec3 aPivot;
+attribute vec4 aAnim;
+uniform float uTime;
+mat3 plRz(float a){ float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
+mat3 plRy(float a){ float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 plRx(float a){ float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
+// aAnim: x walk phase, y walk weight, z attack swing (1 at the start, decaying), w hit (1 decaying)
+mat3 plUpright(float p){
+  float s = sin(aAnim.x) * aAnim.y;
+  float sw = sin(clamp(aAnim.z, 0.0, 1.0) * 3.14159);
+  float idle = sin(uTime * 2.1 + aAnim.x * 0.3);
+  if (p < 0.5) return mat3(1.0);
+  if (p < 1.5) return plRz(idle * 0.04 - sw * 0.2 - aAnim.w * 0.35 + aAnim.y * sin(aAnim.x * 2.0) * 0.05);
+  if (p < 2.5) return plRz(-s * 0.8) * plRx(-0.08 - aAnim.w * 0.5);
+  if (p < 3.5) return plRz(s * 0.7 + sw * 2.1) * plRx(0.08 + aAnim.w * 0.5);
+  if (p < 4.5) return plRz(s * 0.7);
+  if (p < 5.5) return plRz(-s * 0.7);
+  return plRy(sin(uTime * 3.2 + aAnim.x * 0.5) * (0.3 + aAnim.y * 0.3));
+}
+`;
+
+/**
+ * The upright minion material (kitten squires, pup guards, siege carts): instanced, with the body-part rotation driven
+ * by a per-copy `aAnim` attribute (walk phase, walk weight, swing, hit), so every minion of a wave walks on its own
+ * cycle in one draw call per team and variant. Parts follow chars/index.ts `UPRIGHT_PART`.
+ */
+export function uprightMaterial(): THREE.MeshLambertMaterial & { userData: { rig: { uTime: { value: number } } } } {
+  const rig = { uTime: { value: 0 } };
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true }) as THREE.MeshLambertMaterial & { userData: { rig: { uTime: { value: number } } } };
+  m.userData.rig = rig;
+  m.onBeforeCompile = (shader) => {
+    compiled++;
+    Object.assign(shader.uniforms, rig);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${UPRIGHT_PARS}`)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nmat3 plR = plUpright(aPart);\nobjectNormal = plR * objectNormal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = plR * (transformed - aPivot) + aPivot;');
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      '#include <opaque_fragment>\nfloat plEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));\ngl_FragColor.rgb *= 1.0 - 0.5 * smoothstep(0.62, 0.92, plEdge);',
+    );
+  };
+  m.customProgramCacheKey = () => 'pl-rig-v2';
   return m;
 }
 

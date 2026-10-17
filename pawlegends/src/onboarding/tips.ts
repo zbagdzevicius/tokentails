@@ -10,13 +10,33 @@ import { icon } from '../ui/icons';
 
 export type TipId = 'move' | 'attack' | 'q' | 'dodge' | 'ult';
 
-const TEXT: Record<TipId, { kbm: string; touch: string }> = {
-  move: { kbm: 'Right-click the ground to walk', touch: 'Drag on the left to walk' },
-  attack: { kbm: 'Right-click an enemy minion to attack', touch: 'Tap ATK to attack the nearest enemy' },
-  q: { kbm: 'Enemy hero! Press Q to strike', touch: 'Enemy hero! Tap Q to strike' },
-  dodge: { kbm: 'Incoming! Press E to Tumble out of the way', touch: 'Incoming! Tap E to Tumble out of the way' },
-  ult: { kbm: 'Level 4! Press R for your ultimate', touch: 'Level 4! Tap R for your ultimate' },
-};
+/** Ability names for the touch wording (the touch buttons show icons, not Q/W/E/R). */
+export interface TipNames {
+  q: string;
+  e: string;
+  r: string;
+}
+
+const DEFAULT_NAMES: TipNames = { q: 'your first ability', e: 'your third ability', r: 'the big gold button' };
+
+/** Tip text; touch names the button by its skill (and the button pulses), keyboard names the key. */
+export function tipText(id: TipId, touch: boolean, n: TipNames = DEFAULT_NAMES): string {
+  switch (id) {
+    case 'move':
+      return touch ? 'Drag on the left to walk' : 'Right-click the ground to walk';
+    case 'attack':
+      return touch ? 'Tap ATK to attack the nearest enemy' : 'Right-click an enemy minion to attack';
+    case 'q':
+      return touch ? `Enemy hero! Tap ${n.q} (glowing) to strike` : 'Enemy hero! Press Q to strike';
+    case 'dodge':
+      return touch ? `Incoming! Tap ${n.e} (glowing) to get out of the way` : 'Incoming! Press E to Tumble out of the way';
+    case 'ult':
+      return touch ? `Level 4! Tap ${n.r} (glowing) for your ultimate` : 'Level 4! Press R for your ultimate';
+  }
+}
+
+/** The touch button a tip points at (html[data-tip-key] pulses it). */
+const TIP_KEY: Record<TipId, string> = { move: '', attack: 'attack', q: 'q', dodge: 'e', ult: 'r' };
 
 export const TIP_HIDE_S = 8;
 
@@ -29,6 +49,8 @@ export class Tips {
   /** Tips completed in this match (analytics `tip_done`). */
   readonly completed: TipId[] = [];
   touch = false;
+  /** The player's ability names (touch wording). */
+  names: TipNames = DEFAULT_NAMES;
 
   constructor(
     parent: HTMLElement | null,
@@ -56,8 +78,9 @@ export class Tips {
     this.fired.add(id);
     this.active = { id, left: TIP_HIDE_S };
     if (this.el) {
-      this.el.innerHTML = `<span class="ghost">${icon('paw')}</span><b>${TEXT[id][this.touch ? 'touch' : 'kbm']}</b>`;
+      this.el.innerHTML = `<span class="ghost">${icon('paw')}</span><b>${tipText(id, this.touch, this.names)}</b>`;
       this.el.classList.add('on');
+      setTipKey(this.touch ? TIP_KEY[id] : '');
     }
   }
 
@@ -87,6 +110,7 @@ export class Tips {
 
   private hide(): void {
     this.active = null;
+    setTipKey('');
     this.el?.classList.remove('on');
     this.queue = this.queue.filter((q) => !this.done.has(q) && !this.fired.has(q));
     const next = this.queue.shift();
@@ -101,5 +125,16 @@ export class Tips {
 
   dispose(): void {
     this.el?.remove();
+    setTipKey('');
+  }
+}
+
+function setTipKey(k: string): void {
+  try {
+    const d = document.documentElement.dataset;
+    if (k) d.tipKey = k;
+    else delete d.tipKey;
+  } catch {
+    /* no document (node tests) */
   }
 }

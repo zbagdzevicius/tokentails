@@ -7,6 +7,30 @@ import { MAP } from '../data/map';
 import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type TalentTier, type TrickId } from '../sim/api';
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
+import { cellOf, centreX, centreY, createGrid, snapCell, type NavGrid } from '../sim/map/grid';
+
+let walls: NavGrid | null = null;
+
+/**
+ * A move goal the sim can reach (input side, static walls only): the sim snaps a blocked goal to walkable ground
+ * within 6 m (NAV.snapCells) and ignores it beyond that, so a right-click deep into a hedge did nothing. Here the
+ * goal walks back along the line toward the hero until the sim's snap would land, like LoL's "walk to the nearest
+ * reachable point". Pure apart from the cached wall grid; floats are fine (the command carries integers).
+ */
+export function reachableGoal(fromX: number, fromY: number, x: number, y: number): { x: number; y: number } {
+  walls ??= createGrid();
+  if (snapCell(walls, cellOf(x, y)) >= 0) return { x, y };
+  const d = Math.hypot(x - fromX, y - fromY);
+  const steps = Math.max(1, Math.ceil(d / 500));
+  for (let k = 1; k <= steps; k++) {
+    const t = k / steps;
+    const px = x + (fromX - x) * t;
+    const py = y + (fromY - y) * t;
+    const c = snapCell(walls, cellOf(px, py));
+    if (c >= 0) return { x: centreX(c), y: centreY(c) };
+  }
+  return { x, y };
+}
 
 export interface OrderEnv {
   send(cmd: Command): void;
@@ -79,7 +103,9 @@ export class Orders {
 
   move(x: number, y: number): void {
     this.pending = null;
-    this.emit({ op: Op.Move, x: clampX(x), y: clampY(y) });
+    const me = this.env.units().find((u) => u.id === this.env.meId);
+    const g = me ? reachableGoal(me.x, me.y, clampX(x), clampY(y)) : { x, y };
+    this.emit({ op: Op.Move, x: clampX(g.x), y: clampY(g.y) });
   }
 
   attackMove(x: number, y: number): void {

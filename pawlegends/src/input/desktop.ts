@@ -10,6 +10,7 @@ import type { GameView } from '../render/gameView';
 import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { actionFor, type Action } from './presets';
+import { saveZoom, wheelZoom } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { isEnemy, pickNearest, type Unit } from './targeting';
 
@@ -224,8 +225,9 @@ export class DesktopInput {
 
   private wheel(e: WheelEvent): void {
     e.preventDefault();
-    const gr = this.h.view.gr;
-    gr.zoom = Math.min(1.35, Math.max(0.72, gr.zoom * (e.deltaY > 0 ? 1.07 : 1 / 1.07)));
+    const v = this.h.view;
+    v.zoomTarget = wheelZoom(v.zoomTarget, e.deltaY, e.deltaMode);
+    saveZoom(v.zoomTarget);
   }
 
   private cancelAim(): void {

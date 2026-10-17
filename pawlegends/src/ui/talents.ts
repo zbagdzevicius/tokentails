@@ -1,17 +1,25 @@
 /**
- * Talent picker (POC.md §6.1, §9): at levels 3, 6 and 9 a card with two big options; keys 1 and 2 on desktop, tap
- * on touch. Offers queue if a second one arrives first. Bots take the first option inside the sim.
+ * Talent picker (POC.md §6.1, §9): at levels 3, 6 and 9 a compact strip with two options; keys 1 and 2 on desktop,
+ * tap on touch. It sits clear of the hero (above the ability bar on desktop, under the hero box on touch) and never
+ * blocks the fight: when the player does not choose within `TALENT_AUTO_S` match seconds, option 1 is taken for them
+ * (the same default the bots take inside the sim), and a bar on the strip shows the time left. Offers queue if a
+ * second one arrives first.
  */
 import { HEROES } from '../data/heroes';
 import type { HeroId, TalentTier } from '../sim/api';
 import { HERO_TEXT } from './heroText';
 
 const LEVEL_OF_TIER = [3, 6, 9];
+/** Seconds (unpaused) an offer stays open before option 1 is picked for the player. */
+export const TALENT_AUTO_S = 10;
 
 export class TalentPicker {
   readonly root: HTMLElement;
   private queue: TalentTier[] = [];
   private picked = new Set<number>();
+  private left = TALENT_AUTO_S;
+  /** Tiers picked by the timeout, not by the player (analytics may tell them apart). */
+  readonly auto: number[] = [];
 
   constructor(
     parent: HTMLElement,
@@ -41,13 +49,28 @@ export class TalentPicker {
   }
 
   /** Returns true when a card was open. */
-  pick(choice: 0 | 1): boolean {
+  pick(choice: 0 | 1, auto = false): boolean {
     const tier = this.queue.shift();
     if (tier === undefined) return false;
     this.picked.add(tier);
+    if (auto) this.auto.push(tier);
     this.choose(tier, choice);
     this.render();
     return true;
+  }
+
+  /** Advance the auto-pick timer (call with 0 while paused). */
+  update(dt: number): void {
+    if (!this.open) return;
+    this.left -= dt;
+    const bar = this.root.querySelector<HTMLElement>('.time');
+    if (bar) bar.style.setProperty('--left', Math.max(0, this.left / TALENT_AUTO_S).toFixed(3));
+    if (this.left <= 0) this.pick(0, true);
+  }
+
+  /** Seconds before the open offer is auto-picked (tests). */
+  get timeLeft(): number {
+    return this.open ? Math.max(0, this.left) : 0;
   }
 
   private render(): void {
@@ -59,7 +82,8 @@ export class TalentPicker {
     }
     const opts = HEROES[this.hero].talents[tier];
     const words = HERO_TEXT[this.hero].talents;
-    this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent</div>${opts
+    this.left = TALENT_AUTO_S;
+    this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent: pick one</div><i class="time"></i>${opts
       .map((o, i) => `<button data-c="${i}"><kbd>${i + 1}</kbd><b>${o.name}</b><span>${words[o.id] ?? ''}</span></button>`)
       .join('')}`;
     this.root.classList.add('on');

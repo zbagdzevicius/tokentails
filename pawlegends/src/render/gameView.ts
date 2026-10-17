@@ -4,11 +4,12 @@
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
 import * as THREE from 'three';
+import { loadZoom } from './camera/zoom';
 import type { HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
-import { Particles } from './fx/Particles.js';
+import { Particles, SHAPE } from './fx/Particles.js';
 import { Shockwaves } from './fx/Shockwaves.js';
 import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
@@ -44,7 +45,17 @@ export interface GameViewHooks {
   onTowerDown?(ours: boolean): void;
 }
 
+/**
+ * Camera framing (m). The focus may run a few metres past the playable edge (the outer ground plane fills it), so a
+ * hero at its fountain or in a lane corner stays near the middle of the screen instead of in a corner under the
+ * minimap. `lead` is the look-ahead toward the enemy base, `below` shifts the focus south a little (the hero sits
+ * slightly above centre, clear of the bottom bar).
+ */
+export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8 });
+export const clampFocusX = (x: number): number => Math.min(CAMERA_FRAME.maxX, Math.max(CAMERA_FRAME.minX, x));
+export const clampFocusZ = (z: number): number => Math.min(CAMERA_FRAME.maxZ, Math.max(CAMERA_FRAME.minZ, z));
 const WHO_TTL = 3;
+const _sw = new THREE.Vector3();
 
 export class GameView {
   readonly scene: THREE.Scene;
@@ -127,6 +138,7 @@ export class GameView {
         onSwing: (id) => {
           this.heroes.swing(id);
           this.minions.swing(id);
+          this.swipe(id);
         },
         onCast: (id) => this.heroes.cast(id),
         onHit: (id, kind, heavy) => {
@@ -145,9 +157,11 @@ export class GameView {
     const shake = this.juice.shake as unknown as { apply(cam: THREE.Camera, dt: number, scale: number, mix: object): void };
     gr.preRender = (cam) => shake.apply(cam, this.lastDt, 1, { rotMul: 0.5, rotMaxDeg: 1.2, transMul: 2, transMax: 0.35 });
     this.setShadows(gr.settings.shadows);
+    gr.zoom = this.zoomTarget;
   }
 
   private lastDt = 0;
+  private wasDead = false;
 
   setShadows(on: boolean): void {
     this.heroes.setShadows(on);
@@ -181,6 +195,50 @@ export class GameView {
       this.companions.myTeam = this.myTeam;
       this.scene.add(this.companions.group);
     }
+  }
+
+  /**
+   * A melee hero's basic attack: a quick bright arc of sprites sweeping in front of it (one batched particle draw),
+   * so the swing reads at ~25 px tall where the pose alone did not.
+   */
+  private swipe(id: number): void {
+    const w = this.who.get(id);
+    if (!w || w.kind !== 'hero' || !w.hero || w.hero === 'sage') return;
+    const color = w.hero === 'clem' ? 0xfff1c4 : w.hero === 'brutus' ? 0xeef3fa : 0xe9e0ff;
+    const r = w.hero === 'brutus' ? 1.7 : 1.5;
+    const n = 7;
+    const side = (this.swipeSide = -this.swipeSide);
+    for (let k = 0; k < n; k++) {
+      const t = k / (n - 1);
+      const a = w.yaw + side * (t - 0.5) * 2.1;
+      const ca = Math.cos(a);
+      const sa = -Math.sin(a);
+      _sw.set(w.x + ca * r, 1.1 + t * 0.25, w.z + sa * r);
+      this.particles.single(_sw, {
+        shape: SHAPE.SOFT,
+        color,
+        intensity: 1.7,
+        size0: 0.55 - t * 0.25,
+        size1: 0.08,
+        life: 0.12 + t * 0.1,
+        vx: -sa * side * 3,
+        vz: ca * side * 3,
+        alpha: 0.9,
+      });
+    }
+  }
+
+  private swipeSide = 1;
+
+  /** Wheel zoom target (render/camera/zoom.ts); `gr.zoom` eases toward it. */
+  zoomTarget = loadZoom();
+
+  /**
+   * The camera looks a few metres ahead of the hero toward the enemy base (MOBA lead), so the fight in front of the
+   * hero sits in the middle of the screen, not under the ability cluster on the right. Scales with the zoom.
+   */
+  lead(): number {
+    return (this.myTeam === 0 ? 1 : -1) * CAMERA_FRAME.lead * this.gr.zoom;
   }
 
   /** The player's hero in the current frame. */
@@ -245,6 +303,7 @@ export class GameView {
       this.remember(frame);
       const me = frame.byId.get(this.mySlot) ?? null;
       this.lastMe = me;
+      this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlines);
       this.heroes.update(frame, dt);
       this.minions.update(frame, dt, this.time);
       this.structures.me = me && me.state !== 'dead' ? { x: toX(me.fx), z: toZ(me.fy) } : null;
@@ -256,6 +315,15 @@ export class GameView {
       this.drawWindups(frame);
       this.drawAim();
       if (me) this.follow.set(toX(me.fx), 0, toZ(me.fy));
+      // respawn: snap the camera onto the fountain at once, so the pop-then-cheer plays on screen (a smoothed pan
+      // across the map arrived after it)
+      const meDead = me?.state === 'dead';
+      if (me && this.wasDead && !meDead) {
+        this.recentre();
+        this.gr.focus.x = clampFocusX(this.follow.x + this.lead());
+        this.gr.focus.z = clampFocusZ(this.follow.z + CAMERA_FRAME.below);
+      }
+      this.wasDead = meDead;
     }
     this.map.update(frame, dt);
     this.particles.update(dt);
@@ -267,8 +335,10 @@ export class GameView {
       this.pan.multiplyScalar(Math.max(0, 1 - dt * 3));
       if (this.pan.lengthSq() < 0.01) this.recentre();
     }
-    const tx = Math.min(90, Math.max(10, this.follow.x + this.pan.x));
-    const tz = Math.min(-6, Math.max(-56, this.follow.z + this.pan.z + 1.5));
+    // ease the zoom toward the wheel's target
+    this.gr.zoom += (this.zoomTarget - this.gr.zoom) * Math.min(1, dt * 10);
+    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead()));
+    const tz = clampFocusZ(this.follow.z + this.pan.z + CAMERA_FRAME.below);
     const k = Math.min(1, dt * (this.panned ? 12 : 7));
     this.gr.focus.x += (tx - this.gr.focus.x) * k;
     this.gr.focus.z += (tz - this.gr.focus.z) * k;
@@ -285,7 +355,8 @@ export class GameView {
       const aim = fx.aimOf(who ?? null, w.slot);
       if (!who || !aim) continue;
       const fill = Math.max(0, Math.min(1, (frame.tick - w.start) / w.ticks));
-      const color = who.team === 2 ? RELATION.neutral : who.team === this.myTeam ? RELATION.ally : RELATION.enemy;
+      // wind-ups are threats: enemy ones in danger red, ours in the team rose
+      const color = who.team === 2 ? RELATION.neutral : who.team === this.myTeam ? RELATION.ally : RELATION.danger;
       const tx = w.x / 1000;
       const tz = -w.y / 1000;
       const yaw = Math.atan2(-(tz - who.z), tx - who.x);

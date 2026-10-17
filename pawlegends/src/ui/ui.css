@@ -5,7 +5,7 @@
   --panel-2: rgba(43, 29, 46, 0.66);
   --line: rgba(255, 243, 220, 0.16);
   --self: #ffd34d;
-  --ally: #5fd3c6;
+  --ally: #ff7a9a;
   --enemy: #ff4d5e;
   --t0: #ff6f91;
   --t1: #6f8fe0;
@@ -127,6 +127,11 @@ kbd {
 .pl-results.won h1 { color: var(--butter); }
 .pl-results.lost h1 { color: #c9b8ff; }
 .pl-results .sub { font-size: 20px; margin: 4px 0 20px; opacity: 0.9; }
+.pl-result-tip {
+  display: flex; gap: 10px; align-items: center; margin: 12px 0 0; padding: 8px 12px; border-radius: 12px; background: rgba(255, 243, 220, 0.1);
+  border: 1px solid var(--line); font-size: 14px; line-height: 1.3; max-width: 440px;
+}
+.pl-result-tip .pl-icon { width: 22px; height: 22px; flex: none; color: var(--butter); }
 .pl-results .stats { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
 .pl-results .stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
 .pl-results .stats b { font-size: 24px; display: block; }
@@ -189,6 +194,8 @@ kbd {
 .pl-score .team { display: flex; align-items: center; gap: 8px; font-size: 26px; min-width: 64px; }
 .pl-score .team.t0 { color: var(--t0); justify-content: flex-end; }
 .pl-score .team.t1 { color: var(--t1); }
+.pl-score .team i em { font-style: normal; }
+.pl-score .team i svg { vertical-align: -1px; margin-right: 3px; opacity: 0.8; }
 .pl-score .team i { font-style: normal; font-size: 12px; background: rgba(255, 243, 220, 0.12); color: var(--cream); border-radius: 6px; padding: 2px 6px; }
 .pl-score .mid { display: flex; flex-direction: column; align-items: center; min-width: 108px; }
 .pl-score .clock { font-size: 22px; letter-spacing: 0.02em; }
@@ -235,7 +242,7 @@ kbd {
 .pl-hp .shield { position: absolute; top: 0; bottom: 0; background: #f4f8ff; }
 .pl-hp .txt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; text-shadow: 0 1px 0 #000; }
 
-.pl-feed { position: absolute; right: calc(14px + var(--safe-r)); top: calc(160px + var(--safe-t)); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.pl-feed { position: absolute; right: calc(14px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .pl-feed-row {
   display: flex; align-items: center; gap: 6px; background: var(--panel); border-radius: 10px; padding: 5px 10px; font-size: 13px;
   animation: pl-slide 0.25s; transition: opacity 0.5s;
@@ -245,16 +252,26 @@ kbd {
 @keyframes pl-slide { from { transform: translateX(30px); opacity: 0; } }
 
 .pl-respawn {
-  position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%); text-align: center; display: none;
-  background: var(--panel); border-radius: 18px; padding: 14px 26px; border: 1px solid var(--line);
+  /* A compact chip under the score bar, never over the hero (the old centre card hid the faint, then the respawn pop). */
+  position: absolute; left: 50%; top: calc(60px + var(--safe-t)); transform: translateX(-50%); text-align: center; display: none;
+  background: var(--panel); border-radius: 999px; padding: 4px 16px; border: 1px solid var(--line); white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
-.pl-respawn div { font-size: 22px; }
-.pl-respawn b { color: var(--butter); font-size: 34px; }
-.pl-respawn small { opacity: 0.7; }
+.pl-respawn div { font-size: 15px; display: inline; }
+.pl-respawn b { color: var(--butter); font-size: 20px; }
+.pl-respawn small { opacity: 0.7; font-size: 12px; margin-left: 8px; }
 .pl-hud.dead .pl-respawn { display: block; }
+/* While dead: no coaching toasts, banners drop below the chip; while a talent card is open it carries the countdown. */
+.pl-match:has(.pl-hud.dead) .pl-tip { opacity: 0 !important; }
+.pl-match:has(.pl-hud.dead) .pl-banner { top: calc(100px + var(--safe-t)); }
+.pl-match:has(.pl-talents.on) .pl-respawn { display: none; }
+.pl-talents .head[data-respawn]::after {
+  content: attr(data-respawn); margin-left: 10px; padding: 1px 9px; border-radius: 999px; background: var(--panel); color: var(--cream); font-size: 12px;
+}
 
 .pl-minimap {
-  position: absolute; right: calc(12px + var(--safe-r)); top: calc(10px + var(--safe-t)); width: 220px; height: 132px; border-radius: 12px; overflow: hidden;
+  /* Desktop: bottom right (LoL standard), clear of the top-right corner where Sunny Lane enemies come from. */
+  position: absolute; right: calc(12px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: 196px; height: 118px; border-radius: 12px; overflow: hidden;
   border: 2px solid rgba(255, 243, 220, 0.4); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); z-index: 4; pointer-events: auto !important;
 }
 .pl-minimap canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
@@ -301,23 +318,27 @@ kbd {
 .pl-scoreboard .hint { text-align: center; font-size: 11px; opacity: 0.5; margin: 8px 0 0; }
 
 .pl-talents {
-  position: absolute; left: 50%; bottom: calc(112px + var(--safe-b)); transform: translateX(-50%) translateY(20px); display: flex; gap: 10px; opacity: 0;
-  transition: opacity 0.2s, transform 0.2s; z-index: 5; align-items: stretch;
+  /* A compact strip above the ability bar: clear of the hero (centre screen) and its own nameplate. */
+  position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%) translateY(16px); display: flex; gap: 8px; opacity: 0;
+  transition: opacity 0.2s, transform 0.2s; z-index: 5; align-items: stretch; padding-top: 4px;
 }
 .pl-talents.on { opacity: 1; transform: translateX(-50%); pointer-events: auto !important; }
 .pl-talents .head {
-  position: absolute; left: 50%; top: -26px; transform: translateX(-50%); font-size: 14px; color: var(--butter); white-space: nowrap;
+  position: absolute; left: 50%; top: -20px; transform: translateX(-50%); font-size: 13px; color: var(--butter); white-space: nowrap;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
+/* Time left before option 1 is taken for the player. */
+.pl-talents .time { position: absolute; left: 6px; right: 6px; top: 0; height: 3px; border-radius: 2px; background: rgba(255, 243, 220, 0.18); overflow: hidden; }
+.pl-talents .time::after { content: ''; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--left, 1)); background: var(--butter); }
 .pl-talents button {
-  font: inherit; color: var(--cream); background: var(--panel); border: 2px solid rgba(255, 210, 122, 0.55); border-radius: 16px; padding: 10px 14px;
-  width: 210px; text-align: left; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center;
+  font: inherit; color: var(--cream); background: var(--panel); border: 2px solid rgba(255, 210, 122, 0.55); border-radius: 12px; padding: 6px 10px;
+  width: 190px; text-align: left; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: center;
   animation: pl-pop 0.3s both;
 }
 .pl-talents button:hover { border-color: var(--butter); }
 .pl-talents button kbd { grid-row: span 2; }
-.pl-talents button b { font-size: 15px; color: var(--butter); }
-.pl-talents button span { font-size: 12px; opacity: 0.85; line-height: 1.25; }
+.pl-talents button b { font-size: 13px; color: var(--butter); }
+.pl-talents button span { font-size: 11px; opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .pl-tip {
   position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%) translateY(14px); opacity: 0; z-index: 5;
@@ -327,6 +348,46 @@ kbd {
 .pl-tip.on { opacity: 1; transform: translateX(-50%); }
 .pl-tip .ghost { width: 30px; height: 30px; color: var(--rose); animation: pl-tap 1s ease-in-out infinite; }
 @keyframes pl-tap { 50% { transform: translateY(-4px) scale(0.9); } }
+
+/* A touch tip names a skill: its button glows until the tip hides. */
+html[data-tip-key='q'] .pl-tbtn.q, html[data-tip-key='e'] .pl-tbtn.e, html[data-tip-key='r'] .pl-tbtn.r, html[data-tip-key='attack'] .pl-tbtn.attack {
+  border-color: var(--butter); animation: pl-tipglow 0.9s ease-in-out infinite;
+}
+@keyframes pl-tipglow { 50% { box-shadow: 0 0 0 6px rgba(255, 210, 122, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35); } }
+
+/* Touch pause button (top centre, left of the score bar) and the tap-to-close scoreboard. */
+.pl-pause { display: none; }
+html[data-touch='1'] .pl-pause {
+  position: absolute; top: calc(10px + var(--safe-t)); left: calc(50% - 168px); width: 40px; height: 40px; border-radius: 50%; z-index: 5;
+  display: flex; align-items: center; justify-content: center; gap: 5px; pointer-events: auto !important; background: var(--panel);
+  border: 1px solid var(--line); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+html[data-touch='1'] .pl-pause i { width: 5px; height: 15px; border-radius: 2px; background: var(--cream); }
+html[data-touch='1'] .pl-score { pointer-events: auto; }
+.pl-scoreboard.tap { pointer-events: auto !important; z-index: 30; }
+
+/* The "Starter" emote chip (owned only): right of the score bar. */
+.pl-emote {
+  position: absolute; top: calc(10px + var(--safe-t)); left: calc(50% + 168px); z-index: 5; pointer-events: auto !important; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; font: 600 13px var(--font); color: var(--cream); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 10px 5px 7px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.pl-emote .pl-icon { width: 18px; height: 18px; color: var(--rose); }
+.pl-emote kbd { font-size: 9px; padding: 1px 4px; }
+.pl-emote:active { transform: scale(0.94); }
+html[data-touch='1'] .pl-emote kbd { display: none; }
+
+/* A tower (or core) is hitting the player (new players): red, short, above the bar; never over the hero. */
+.pl-alert {
+  position: absolute; left: 50%; bottom: calc(196px + var(--safe-b)); transform: translateX(-50%) translateY(10px); opacity: 0; z-index: 6;
+  display: flex; align-items: center; gap: 8px; background: #e5484d; color: #fff; border-radius: 14px; padding: 7px 14px; font-size: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); transition: opacity 0.2s, transform 0.2s; white-space: nowrap;
+}
+.pl-alert.on { opacity: 1; transform: translateX(-50%); animation: pl-alert 0.5s 2; }
+.pl-alert .pl-icon { width: 20px; height: 20px; }
+.pl-alert span { font-size: 12px; opacity: 0.9; }
+@keyframes pl-alert { 50% { box-shadow: 0 0 0 5px rgba(229, 72, 77, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35); } }
+html[data-touch='1'] .pl-alert { bottom: auto; top: calc(120px + var(--safe-t)); }
 
 /* ---------------------------------------------------------------------------------------------- touch */
 .pl-touch { position: absolute; inset: 0; display: none; z-index: 4; }
@@ -342,7 +403,7 @@ kbd {
 }
 .pl-tcluster { position: absolute; right: calc(28px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); width: 96px; height: 96px; }
 .pl-tbtn {
-  position: absolute; pointer-events: auto; border-radius: 50%; border: 3px solid rgba(255, 243, 220, 0.55); background: rgba(58, 39, 66, 0.82);
+  position: absolute; pointer-events: auto; border-radius: 50%; border: 3px solid rgba(255, 243, 220, 0.55); background: rgba(58, 39, 66, 0.66);
   color: var(--cream); font: 700 16px var(--font); display: grid; place-items: center; touch-action: none; overflow: hidden;
   width: 60px; height: 60px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
@@ -373,10 +434,16 @@ html[data-touch='1'] .pl-bar { left: calc(16px + var(--safe-l)); transform: none
 html[data-touch='1'] .pl-portrait { width: 44px; height: 44px; }
 html[data-touch='1'] .pl-portrait span { font-size: 20px; }
 html[data-touch='1'] .pl-hp { width: 150px; }
-html[data-touch='1'] .pl-minimap { width: 150px; height: 90px; }
+/* Touch: the ability cluster owns the bottom right, so the minimap stays top right, small and see-through. */
+html[data-touch='1'] .pl-minimap { width: 132px; height: 80px; bottom: auto; top: calc(10px + var(--safe-t)); opacity: 0.82; }
 html[data-touch='1'] .pl-feed { top: calc(110px + var(--safe-t)); }
-html[data-touch='1'] .pl-talents { bottom: auto; top: 30%; }
-html[data-touch='1'] .pl-talents button { width: 190px; padding: 14px; }
+/* Touch: under the hero box (top left), never over the hero in the middle of the screen. */
+html[data-touch='1'] .pl-talents { bottom: auto; top: calc(92px + var(--safe-t)); left: calc(16px + var(--safe-l)); transform: translateY(-8px); }
+html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents .head { left: 4px; transform: none; top: -18px; }
+html[data-touch='1'] .pl-talents button { width: 150px; padding: 8px 10px; }
+html[data-touch='1'] .pl-talents button kbd { display: none; }
+html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 
 /* ----------------------------------------------------------------------------------- small landscape */
@@ -390,10 +457,17 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-pick h2 { font-size: 20px; }
   .pl-pick .detail { padding: 10px 12px; }
   .pl-pick .kit { gap: 4px; font-size: 12px; }
+  /* Play docks bottom right, under the hero, so it never covers the ability list (it was sticky over the R text). */
+  .pl-pick .pl-btn.big { position: fixed; right: calc(18px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); margin: 0; }
+  /* The difficulty sits right above Play (it was below the fold of the scrolling column at 844x390). */
+  .pl-pick .row.bots { position: fixed; right: calc(18px + var(--safe-r)); bottom: calc(70px + var(--safe-b)); z-index: 2; flex-wrap: nowrap; gap: 6px; }
+  .pl-pick .row.bots .lbl { width: auto; }
+  .pl-pick .row.bots .chip { font-size: 13px; padding: 5px 11px; }
   .hero-card i { width: 34px; height: 34px; font-size: 16px; }
   .hero-card i.pic { width: 40px; height: 40px; }
   .pl-results h1 { font-size: 40px; }
   .pl-results .sub { font-size: 14px; margin: 2px 0 8px; }
+  .pl-result-tip { font-size: 12px; padding: 5px 8px; margin-top: 6px; }
   /* Short landscape: a narrow two-by-two stats block, so the hero turntable on the right stays clear. */
   .pl-results-col { max-width: min(330px, 44vw); top: calc(8px + var(--safe-t)); bottom: calc(8px + var(--safe-b)); transform: none; overflow-y: auto; }
   .pl-results .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
@@ -427,6 +501,7 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 
 .pl-badge { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; opacity: 0.95; }
 .pl-badge .ring { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--line); }
+.pl-badge .ring.pic { width: 44px; height: 44px; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.12); }
 .pl-badge b { color: var(--butter); }
 [data-frame='frame.rare'] { --frame: #7fc8ff; }
 [data-frame='frame.epic'] { --frame: #c58cff; }
@@ -455,7 +530,20 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 .pl-sku {
   display: flex; flex-direction: column; gap: 8px; background: rgba(255, 243, 220, 0.06); border: 1px solid var(--line); border-radius: 16px; padding: 12px;
 }
-.pl-sku .pl-sku-art { width: 44px; height: 44px; border-radius: 12px; padding: 8px; color: var(--ink); background: var(--rose); }
+.pl-sku .pl-sku-art { width: 44px; height: 44px; border-radius: 12px; padding: 8px; color: var(--ink); background: var(--rose); flex: none; }
+.pl-sku .pl-sku-art.pic { width: 64px; height: 64px; padding: 0; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.12); }
+.pl-sku p.gloss { font-size: 11px; opacity: 0.65; }
+.pl-store .fine.safe a { color: var(--butter); }
+.pl-new {
+  position: absolute; right: calc(24px + var(--safe-r)); top: calc(70px + var(--safe-t)); z-index: 40; display: flex; gap: 10px; align-items: center;
+  background: var(--cream); color: var(--ink); border-radius: 16px; padding: 10px 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: pl-pop 0.35s both; transition: opacity 0.5s; font-size: 15px;
+}
+.pl-new b { color: #c94a72; font-size: 18px; }
+.pl-new.out { opacity: 0; }
+.pl-sku.compact .pl-sku-art.pic { width: 48px; height: 48px; }
+.pl-offer .details { align-self: flex-start; margin-top: 6px; }
+.pl-sku.compact p.now { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pl-sku .sku-pl_founder, .pl-sku .sku-pl_founder_legend, .pl-sku .sku-pl_founder_legend_upgrade { background: linear-gradient(135deg, #ffd34d, #ff9f7a); }
 .pl-sku .name { font-size: 17px; display: block; }
 .pl-sku .tag { opacity: 0.75; font-size: 12px; }

@@ -7,19 +7,15 @@
 import * as THREE from 'three';
 import type { Companion } from '../../meta/roster';
 import { ELEMENT_COLOR, kittenCoat } from '../cosmetics';
+import { makeKitten, type Character } from '../chars';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
-import { kittenGeometry } from './models';
-import { rigMaterial, type RigUniforms } from './rig';
 
 const LANES = ['sunny', 'puddle'] as const;
-const KITTEN_SCALE = 0.62;
 
 interface Kitten {
   c: Companion;
-  mesh: THREE.Mesh;
-  rig: RigUniforms;
-  material: THREE.MeshLambertMaterial;
+  ch: Character;
   tag: THREE.Sprite;
   pos: THREE.Vector3;
   yaw: number;
@@ -66,13 +62,11 @@ export class CompanionView {
   constructor(companions: readonly Companion[]) {
     this.group.name = 'companions';
     companions.slice(0, 2).forEach((c, i) => {
-      const material = rigMaterial();
-      const mesh = new THREE.Mesh(kittenGeometry(kittenCoat(c.coat), ELEMENT_COLOR[c.element]), material);
-      mesh.name = `kitten-${i}`;
-      mesh.scale.setScalar(KITTEN_SCALE);
+      const ch = makeKitten(kittenCoat(c.coat), ELEMENT_COLOR[c.element], c.coat === 'SCOUT');
+      ch.object.name = `kitten-${i}`;
       const tag = nameTag(c.name, ELEMENT_COLOR[c.element]);
-      this.group.add(mesh, tag);
-      this.kittens.push({ c, mesh, rig: material.userData.rig, material, tag, pos: new THREE.Vector3(), yaw: 0, phase: i * 2.1, walk: 0, napping: true });
+      this.group.add(ch.object, tag);
+      this.kittens.push({ c, ch, tag, pos: new THREE.Vector3(), yaw: 0, phase: i * 2.1, walk: 0, napping: true });
     });
     this.group.userData.count = this.kittens.length;
   }
@@ -121,23 +115,16 @@ export class CompanionView {
       }
       const moving = d > 0.15;
       k.napping = !lead && !moving;
-      k.walk += ((moving ? 1 : 0) - k.walk) * Math.min(1, dt * 8);
-      k.phase += dt * (moving ? 10 : 1.2);
-      const breathe = k.napping ? 1 + Math.sin(this.time * 1.6 + i) * 0.03 : 1;
-      k.mesh.position.set(k.pos.x, k.napping ? -0.12 : Math.abs(Math.sin(k.phase)) * 0.05 * k.walk, k.pos.z);
-      k.mesh.rotation.set(0, k.yaw, 0);
-      k.mesh.scale.set(KITTEN_SCALE, KITTEN_SCALE * (k.napping ? 0.78 : 1) * breathe, KITTEN_SCALE);
-      k.rig.uTime.value = this.time + i;
-      k.rig.uPhase.value = k.phase;
-      k.rig.uWalk.value = k.walk;
-      k.tag.position.set(k.pos.x, k.napping ? 0.95 : 1.15, k.pos.z);
+      k.ch.anim.update(dt, { state: k.napping ? 'napping' : moving ? 'moving' : 'idle', speed: moving ? Math.min(6, d / Math.max(dt, 1e-3)) : 0, height: k.ch.height, yawRate: 0 });
+      k.ch.object.position.set(k.pos.x, 0, k.pos.z);
+      k.ch.object.rotation.y = k.yaw;
+      k.tag.position.set(k.pos.x, k.napping ? 0.75 : 1.2, k.pos.z);
     });
   }
 
   dispose(): void {
     for (const k of this.kittens) {
-      k.material.dispose();
-      k.mesh.geometry.dispose();
+      k.ch.dispose();
       (k.tag.material as THREE.SpriteMaterial).map?.dispose();
       k.tag.material.dispose();
     }

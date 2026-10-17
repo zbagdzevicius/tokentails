@@ -14,6 +14,8 @@ export interface OfferCardOpts {
   now: () => number;
   onClick?(sku: SkuId): void;
   onClose?(): void;
+  /** "Details": open the full store cards (what is delivered now and at full launch). */
+  onDetails?(): void;
 }
 
 export function offerCard(parent: HTMLElement, o: OfferCardOpts): { el: HTMLElement; close(): void } {
@@ -21,11 +23,12 @@ export function offerCard(parent: HTMLElement, o: OfferCardOpts): { el: HTMLElem
   root.className = `pl-offer kind-${o.offer.kind}`;
   root.dataset.offer = o.offer.kind;
   const currency = browserCurrency();
-  const head = o.offer.kind === 'starter' ? 'A little welcome gift' : 'Become a Founder';
+  const head = o.offer.kind === 'starter' ? 'Starter pack' : 'Become a Founder';
   const ends = endsText(o.offer.endsAt, o.now());
   root.innerHTML = `<button class="x" data-a="close" aria-label="Close">✕</button>
     <b class="head">${head}</b>${ends ? `<small class="ends">${ends}</small>` : ''}
-    <div class="row">${o.offer.skus.map((k) => skuCard(k, currency, { compact: true })).join('')}</div>`;
+    <div class="row">${o.offer.skus.map((k) => skuCard(k, currency, { compact: true })).join('')}</div>
+    ${o.onDetails ? `<button class="pl-btn ghost small details" data-a="details">Details</button>` : ''}`;
   const close = (): void => root.remove();
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
@@ -33,6 +36,10 @@ export function offerCard(parent: HTMLElement, o: OfferCardOpts): { el: HTMLElem
     if (sku) {
       o.onClick?.(sku);
       if (o.checkout.buy(sku)) close();
+    } else if (t.closest('[data-a="details"]')) {
+      close();
+      o.onClose?.();
+      o.onDetails?.();
     } else if (t.closest('[data-a="close"]')) {
       close();
       o.onClose?.();

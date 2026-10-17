@@ -8,8 +8,12 @@ import { maxCooldown, ULT_LEVEL } from '../input/abilities';
 import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
+import type { Look } from '../render/cosmetics';
 import { HERO_TEXT, TRICK_TEXT } from './heroText';
 import { icon } from './icons';
+
+/** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
+const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
 
 const SLOT_ACTIONS: readonly Action[] = ['q', 'w', 'e', 'r', 'trick', 'nap'];
 
@@ -59,8 +63,11 @@ export class Hud {
     private readonly hero: HeroId,
     private readonly trick: TrickId,
     private readonly host: HudHost,
+    look: Look | null = null,
   ) {
     const t = HERO_TEXT[hero];
+    // the portrait shows the equipped look (a bought skin shows in the HUD too)
+    const pic = portraitUrl(hero, look);
     const tt = TRICK_TEXT[trick];
     const root = document.createElement('div');
     root.className = 'pl-hud';
@@ -72,15 +79,15 @@ export class Hud {
     root.innerHTML = `
       <div class="pl-top">
         <div class="pl-score">
-          <span class="team t0"><b class="k0">0</b><i class="tw0" title="Towers taken">0</i></span>
+          <span class="team t0"><b class="k0">0</b><i title="Towers taken">${TOWER_SVG}<em class="tw0">0</em></i></span>
           <span class="mid"><span class="clock">0:00</span><span class="phase"></span></span>
-          <span class="team t1"><i class="tw1" title="Towers taken">0</i><b class="k1">0</b></span>
+          <span class="team t1"><i title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i><b class="k1">0</b></span>
         </div>
       </div>
       <div class="pl-feed"></div>
       <div class="pl-respawn"><div>Back in <b>0</b></div><small>Your team is still fighting!</small></div>
       <div class="pl-bar">
-        <div class="pl-portrait${portraitUrl(hero) ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${portraitUrl(hero) ? `;background-image:url(${portraitUrl(hero)})` : ''}"><span>${portraitUrl(hero) ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b></div>
+        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b></div>
         <div class="pl-bar-main">
           <div class="pl-slots">${slotHtml}</div>
           <div class="pl-hp"><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
@@ -128,7 +135,17 @@ export class Hud {
     if (!me) return;
     const dead = me.state === 'dead';
     this.root.classList.toggle('dead', dead);
-    if (dead) this.set('respawn', this.respawnNum, String(Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30))));
+    const back = Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30));
+    if (dead) this.set('respawn', this.respawnNum, String(back));
+    // an open talent card hides the respawn chip (CSS) and shows the countdown as a badge on its header
+    const head = this.root.parentElement?.querySelector<HTMLElement>('.pl-talents.on .head') ?? null;
+    if (head) {
+      const want = dead ? `Back in ${back}` : '';
+      if ((head.dataset.respawn ?? '') !== want) {
+        if (want) head.dataset.respawn = want;
+        else delete head.dataset.respawn;
+      }
+    }
     const total = Math.max(me.maxHp, me.hp + me.shield) || 1;
     this.hpFill.style.width = `${(Math.max(0, me.hp) / total) * 100}%`;
     this.hpShield.style.left = `${(Math.max(0, me.hp) / total) * 100}%`;

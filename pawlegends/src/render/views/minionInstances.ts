@@ -1,6 +1,8 @@
 /**
- * Minions: one InstancedMesh per team × variant (6 draw calls for up to 40 minions, POC.md §10). Each instance hops
- * while it walks, leans into its swing and squashes when hit. Render only.
+ * Minions: one InstancedMesh per team × variant (6 draw calls for up to 40 minions, POC.md §10). Kitten squires and
+ * pup guards are upright chibi characters (render/chars/); each copy walks on its own leg / arm cycle, swings its
+ * weapon arm and flinches through a per-instance `aAnim` attribute read by the upright part shader. Siege carts
+ * roll. Render only.
  */
 import * as THREE from 'three';
 import { CAPS } from '../../data/map';
@@ -9,14 +11,18 @@ import { toX, toZ } from '../coords';
 import { minionGeometry, type MinionVariant } from './models';
 import { RELATION } from '../palette';
 import { DecalLayer, ringTexture } from './decals';
-import { rigMaterial } from './rig';
+import { uprightMaterial } from './rig';
 
 const VARIANTS: readonly MinionVariant[] = ['melee', 'ranged', 'siege'];
-/** About 1.4× the first cut: at 844×390 the minions were ~25 px tall and hard to tell apart (readability pass). */
-const SCALE: Record<MinionVariant, number> = { melee: 1.8, ranged: 1.8, siege: 1.95 };
+/**
+ * Instance scale: the upright minions are built in H (≈ 1 unit to the ear tips), so this is their height in metres;
+ * the siege cart is built in metres. Kept near the readability-pass size (~1.5 m tall at 844×390).
+ */
+const SCALE: Record<MinionVariant, number> = { melee: 1.65, ranged: 1.6, siege: 1.95 };
 
 interface Anim {
   phase: number;
+  walk: number;
   hit: number;
   swing: number;
   x: number;
@@ -33,7 +39,8 @@ export class MinionInstances {
   readonly group = new THREE.Group();
   private meshes: THREE.InstancedMesh[] = [];
   private anim = new Map<number, Anim>();
-  private material = rigMaterial();
+  private material = uprightMaterial();
+  private animAttr: THREE.InstancedBufferAttribute[] = [];
   /** A team-coloured ring under every minion (one draw call), so a wave reads as ours or theirs at a glance. */
   private rings = new DecalLayer(ringTexture(), CAPS.minions, { additive: false, y: 0.04, name: 'minion-rings' });
   myTeam: 0 | 1 = 0;
@@ -43,7 +50,12 @@ export class MinionInstances {
     this.group.add(this.rings.mesh);
     for (const team of [0, 1] as const) {
       for (const v of VARIANTS) {
-        const mesh = new THREE.InstancedMesh(minionGeometry(v, team), this.material, CAPS.minions);
+        const geo = minionGeometry(v, team);
+        const aa = new THREE.InstancedBufferAttribute(new Float32Array(CAPS.minions * 4), 4);
+        aa.setUsage(THREE.DynamicDrawUsage);
+        geo.setAttribute('aAnim', aa);
+        this.animAttr.push(aa);
+        const mesh = new THREE.InstancedMesh(geo, this.material, CAPS.minions);
         mesh.name = `minions-${team}-${v}`;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         mesh.count = 0;
@@ -76,6 +88,7 @@ export class MinionInstances {
   }
 
   update(frame: ViewFrame, dt: number, time: number): void {
+    this.material.userData.rig.uTime.value = time;
     const counts = new Array(this.meshes.length).fill(0);
     const seen = new Set<number>();
     this.rings.begin();
@@ -90,20 +103,24 @@ export class MinionInstances {
       seen.add(e.id);
       let a = this.anim.get(e.id);
       if (!a) {
-        a = { phase: e.id * 0.7, hit: 0, swing: 0, x: 0, z: 0 };
+        a = { phase: e.id * 0.7, walk: 0, hit: 0, swing: 0, x: 0, z: 0 };
         this.anim.set(e.id, a);
       }
       const mps = (e.speed * 30) / 1000;
       const moving = mps > 0.3;
-      a.phase += dt * (moving ? 11 : 2);
+      // phase from ground distance over the stride (~0.55 of the height), so the feet keep pace
+      a.phase += moving ? (mps * dt * Math.PI) / (SCALE[v] * 0.55) : 0;
+      a.walk += ((moving ? 1 : 0) - a.walk) * Math.min(1, dt * 10);
       a.hit = Math.max(0, a.hit - dt * 5);
-      a.swing = Math.max(0, a.swing - dt * 4);
+      a.swing = Math.max(0, a.swing - dt * 3);
       a.x = toX(e.fx);
       a.z = toZ(e.fy);
-      const hop = moving && v !== 'siege' ? Math.abs(Math.sin(a.phase)) * 0.12 : v === 'siege' && moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
-      const sq = 1 - a.hit * 0.25;
+      const upright = v !== 'siege';
+      const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
+      const sq = 1 - a.hit * 0.18;
       const s = SCALE[v];
-      _e.set(0, e.yaw, -Math.sin(a.swing * Math.PI) * 0.35 + (moving ? Math.sin(a.phase) * 0.06 : 0) + Math.sin(time * 2 + e.id) * 0.02);
+      this.animAttr[k].setXYZW(i, a.phase, a.walk, a.swing, a.hit);
+      _e.set(0, e.yaw, upright ? -a.walk * 0.08 + a.hit * 0.15 : -Math.sin(a.swing * Math.PI) * 0.35 + Math.sin(time * 2 + e.id) * 0.02);
       _q.setFromEuler(_e);
       _m.compose(_p.set(a.x, hop, a.z), _q, _s.set(s * (1 + a.hit * 0.15), s * sq, s * (1 + a.hit * 0.15)));
       mesh.setMatrixAt(i, _m);
@@ -113,6 +130,7 @@ export class MinionInstances {
     for (let k = 0; k < this.meshes.length; k++) {
       this.meshes[k].count = Math.min(CAPS.minions, counts[k]);
       this.meshes[k].instanceMatrix.needsUpdate = true;
+      this.animAttr[k].needsUpdate = true;
     }
     for (const id of this.anim.keys()) if (!seen.has(id)) this.anim.delete(id);
   }

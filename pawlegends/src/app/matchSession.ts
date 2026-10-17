@@ -16,6 +16,7 @@ import { TouchControls } from '../input/touch/touchControls';
 import type { Companion } from '../meta/roster';
 import { Tips } from '../onboarding/tips';
 import { lookKey, type FrameId, type Look } from '../render/cosmetics';
+import { bakePortrait } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { GameView } from '../render/gameView';
@@ -40,6 +41,10 @@ export interface MatchSetup {
   speed?: number;
   firstMatch: boolean;
   muted: boolean;
+  /** Fewer than five matches played: extra warnings (a tower is hitting you, lane arrow in the first match). */
+  newPlayer?: boolean;
+  /** The player owns the "Starter" emote (render only: a wave on the T key or the emote chip). */
+  emote?: boolean;
   /** Render-only cosmetics for the player's hero, frame and title, and Companion Kittens. */
   look?: Look | null;
   frame?: FrameId | null;
@@ -59,6 +64,8 @@ export interface MatchEnd {
   tips: string[];
   /** Real input events in the match (analytics human filter). */
   activity: number;
+  /** What knocked the player out, by killer kind (hero, tower, minion, ...): the results tip reads it. */
+  deathsBy: Record<string, number>;
 }
 
 export interface SessionHooks {
@@ -109,6 +116,7 @@ export class MatchSession {
   private muted: boolean;
   private lastLevel = 1;
   private disposed = false;
+  private deathsBy: Record<string, number> = {};
   /** Count of real input events (analytics human filter). */
   activity = 0;
   /** The player's hits that landed (e2e telemetry). */
@@ -210,6 +218,8 @@ export class MatchSession {
     const ht = HERO_TEXT[hero];
     this.touch.setIcons({ q: icon(ht.abilities[0].icon), w: icon(ht.abilities[1].icon), e: icon(ht.abilities[2].icon), r: icon(ht.abilities[3].icon), trick: icon(TRICK_TEXT[trick].icon) });
     this.tips.touch = coarse;
+    this.tips.names = { q: ht.abilities[0].name, e: ht.abilities[2].name, r: ht.abilities[3].name };
+    if (this.setup.look) bakePortrait(this.gr, hero, this.setup.look);
     this.hud = new Hud(this.ui, hero, trick, {
       onSlot: (i) => {
         const me = this.units.find((u) => u.id === w.slot);
@@ -217,7 +227,7 @@ export class MatchSession {
         if (i === 5) this.orders.nap();
         else this.orders.cast(i as 0 | 1 | 2 | 3 | 4, me.x + Math.cos(this.view.me()?.yaw ?? 0) * 2000, me.y + Math.sin(this.view.me()?.yaw ?? 0) * 2000);
       },
-    });
+    }, this.setup.look ?? null);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
     if (portrait && this.setup.frame) portrait.dataset.frame = this.setup.frame;
     if (portrait && this.setup.title) portrait.dataset.title = this.setup.title;
@@ -228,6 +238,12 @@ export class MatchSession {
       d.kittens = String(this.view.companions?.count ?? 0);
     }
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot);
+    this.scoreboard.root.addEventListener('pointerdown', (e) => {
+      if (!this.scoreboard?.root.classList.contains('tap')) return;
+      e.stopPropagation();
+      this.showScores(false);
+    });
+    this.mountTouchChrome();
     this.talents = new TalentPicker(this.ui, hero, (tier, choice) => {
       this.orders?.talent(tier, choice);
       this.hooks.onTalent?.(tier, choice);
@@ -259,6 +275,7 @@ export class MatchSession {
       move(x, y);
       this.tips.complete('move');
     };
+    if (this.setup.emote) this.mountEmote();
     document.documentElement.dataset.match = 'live';
     setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
   }
@@ -273,12 +290,161 @@ export class MatchSession {
       return;
     }
     this.scoreboard?.death(e.id, e.killer);
+    if (e.id === this.view.mySlot) {
+      const k = killer?.kind ?? 'other';
+      this.deathsBy[k] = (this.deathsBy[k] ?? 0) + 1;
+    }
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
     const victimName = e.id === this.view.mySlot ? 'You' : victim.hero ? HERO_TEXT[victim.hero].title : 'A hero';
     const killerLabel = e.killer === this.view.mySlot ? 'You' : killerName(killer);
     this.hud?.kill({ name: killerLabel, rel: rel(killer?.team, e.killer) }, { name: victimName, rel: rel(victim.team, e.id) }, good);
+  }
+
+  private chromeOff: (() => void) | null = null;
+
+  /**
+   * Touch has no Esc or Tab: a pause button at the top (menu with Scores, Sound, Leave), a tap on the score bar
+   * shows the scoreboard, and turning the phone to portrait pauses the bot match (the rotate prompt covers it).
+   */
+  private mountTouchChrome(): void {
+    const b = document.createElement('button');
+    b.className = 'pl-pause';
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Pause');
+    b.innerHTML = '<i></i><i></i>';
+    b.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (this.menu) this.resume();
+      else this.openMenu();
+    });
+    this.ui.appendChild(b);
+    const score = this.ui.querySelector<HTMLElement>('.pl-score');
+    const onScore = (e: PointerEvent): void => {
+      if (document.documentElement.dataset.touch !== '1') return;
+      e.stopPropagation();
+      this.showScores(!this.scoreOn);
+    };
+    score?.addEventListener('pointerdown', onScore);
+    let mq: MediaQueryList | null = null;
+    const onTurn = (): void => {
+      if (mq?.matches && !this.ended) this.openMenu();
+    };
+    try {
+      mq = matchMedia('(orientation: portrait) and (pointer: coarse)');
+      mq.addEventListener('change', onTurn);
+      onTurn();
+    } catch {
+      mq = null;
+    }
+    this.chromeOff = () => {
+      b.remove();
+      score?.removeEventListener('pointerdown', onScore);
+      mq?.removeEventListener('change', onTurn);
+    };
+  }
+
+  private emoteAt = -1e9;
+  private emoteOff: (() => void) | null = null;
+
+  /** The "Starter" emote (owned): a chip by the score bar and the T key. Render only; nothing is sent to the sim. */
+  private mountEmote(): void {
+    const b = document.createElement('button');
+    b.className = 'pl-emote';
+    b.type = 'button';
+    b.title = 'Starter emote (T)';
+    b.innerHTML = `${icon('paw')}<span>Wave</span><kbd>T</kbd>`;
+    b.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.emote();
+    });
+    this.ui.appendChild(b);
+    const key = (e: KeyboardEvent): void => {
+      if (e.code !== 'KeyT' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      this.emote();
+    };
+    addEventListener('keydown', key);
+    this.emoteOff = () => {
+      removeEventListener('keydown', key);
+      b.remove();
+    };
+  }
+
+  /** Wave (Clem waves her paw, the others cheer) with a puff of hearts, at most every 3 s. */
+  emote(): boolean {
+    if (!this.setup.emote || this.ended || this.paused || !this.welcome) return false;
+    const now = performance.now();
+    if (now - this.emoteAt < 3000) return false;
+    const me = this.view.me();
+    if (!me || me.state === 'dead') return false;
+    const hero = this.welcome.picks[this.welcome.slot];
+    if (!this.view.heroes.emote(this.welcome.slot, hero === 'clem' ? 'wave' : 'cheer')) return false;
+    this.emoteAt = now;
+    const p = new THREE.Vector3(toX(me.fx), 1.62 * HERO_SCALE[hero], toZ(me.fy));
+    this.view.particles.ring(p, { n: 8, r0: 0.3, speed: [0.6, 1.2], up: 1.4, color: 0xff7a9a, alpha: 0.95, additive: true, size: [0.18, 0.28], life: [0.6, 0.9], fade: FADE.LINEAR });
+    sfx.play('click', { vol: 0.4, rate: 1.5 });
+    if (this.e2e) document.documentElement.dataset.emotes = String(Number(document.documentElement.dataset.emotes ?? 0) + 1);
+    return true;
+  }
+
+  /** Per core team: last "under attack" call (ms) and whether the "falling" call was made. */
+  private coreCall: [number, number] = [-1e9, -1e9];
+  private coreLow: [boolean, boolean] = [false, false];
+
+  /**
+   * A core took a hit: "Our core is under attack!" / "Their core is under attack!" (at most every 20 s per core)
+   * with a minimap ping, and one "falling" call under 30%, so a win or a loss never pops up without warning.
+   */
+  private coreHit(core: { team: number; fx: number; fy: number; hp: number; maxHp: number }): void {
+    if (core.team !== 0 && core.team !== 1) return;
+    const ours = core.team === this.view.myTeam;
+    const now = performance.now();
+    const low = core.maxHp > 0 && core.hp < core.maxHp * 0.3;
+    const color = ours ? '#ff4d5e' : '#ffd34d';
+    if (low && !this.coreLow[core.team]) {
+      this.coreLow[core.team] = true;
+      this.coreCall[core.team] = now;
+      this.view.juice.banner({ title: ours ? 'Our core is falling!' : 'Their core is falling!', sub: ours ? 'Everyone home: defend it.' : 'Finish it!', tone: ours ? 'bad' : 'gold' });
+      this.minimap.ping(core.fx, core.fy, color, 4000);
+      return;
+    }
+    if (now - this.coreCall[core.team] < 20000 / Math.max(1, this.buffer.speed)) return;
+    this.coreCall[core.team] = now;
+    this.view.juice.banner({ title: ours ? 'Our core is under attack!' : 'Their core is under attack!', tone: ours ? 'bad' : 'good' });
+    this.minimap.ping(core.fx, core.fy, color);
+  }
+
+  private alertEl: HTMLElement | null = null;
+  private alertAt = -1e9;
+
+  /**
+   * An enemy tower (or core) hit the player: a red dashed beam from it to the hero every time, and for new players a
+   * "Tower is hitting you!" alert (at most every 6 s), since the dashed range ring alone went unnoticed.
+   */
+  private towerHit(src: number): void {
+    this.overhead.beam(src, this.view.mySlot);
+    if (!this.setup.newPlayer) return;
+    const now = performance.now();
+    if (now - this.alertAt < 6000) return;
+    this.alertAt = now;
+    if (!this.alertEl) {
+      this.alertEl = document.createElement('div');
+      this.alertEl.className = 'pl-alert';
+      this.alertEl.setAttribute('role', 'alert');
+      this.ui.appendChild(this.alertEl);
+    }
+    const el = this.alertEl;
+    el.innerHTML = `${icon('shield')}<b>Tower is hitting you!</b><span>Step back until your minions walk in.</span>`;
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+    sfx.play('click', { vol: 0.5, rate: 0.6 });
+    setTimeout(() => el.classList.remove('on'), 2400 / Math.max(1, this.buffer.speed));
   }
 
   private marker(x: number, z: number, attack: boolean): void {
@@ -310,8 +476,11 @@ export class MatchSession {
     this.paused = true;
     this.host.pause(true);
     this.hooks.onPaused?.(true);
+    const touch = document.documentElement.dataset.touch === '1';
     this.menu = menuScreen(this.ui, {
       muted: this.muted,
+      touch,
+      onScores: () => this.showScores(true),
       onResume: () => this.resume(),
       onMute: (m) => {
         this.muted = m;
@@ -324,7 +493,15 @@ export class MatchSession {
     });
   }
 
+  /** Scoreboard by tap (pause menu or the score bar on touch); a tap on it closes it. */
+  private showScores(on: boolean): void {
+    this.scoreOn = on;
+    this.scoreboard?.root.classList.toggle('tap', on);
+    this.scoreboard?.show(on, this.frameNow);
+  }
+
   resume(): void {
+    if (this.scoreboard?.root.classList.contains('tap')) this.showScores(false);
     this.menu?.remove();
     this.menu = null;
     if (this.paused) {
@@ -346,6 +523,10 @@ export class MatchSession {
     const me = this.welcome.slot;
     const won = result.outcome === 'won';
     this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad' });
+    // cut to the core that fell, so the end is seen, not just announced
+    const loser = won ? 1 - this.welcome.team : this.welcome.team;
+    const fallen = this.buffer.latest?.entities.find((e) => e.kind === 'core' && e.team === loser);
+    if (fallen) this.view.lookAt(toX(fallen.x), toZ(fallen.y), 10);
     sfx.play(won ? 'victory' : 'defeat');
     const myStats = result.stats.find((s) => s.slot === me);
     const sb = this.scoreboard;
@@ -367,6 +548,7 @@ export class MatchSession {
           teamKills: team === 0 ? [k[0], k[1]] : [k[1], k[0]],
           tips: [...this.tips.completed],
           activity: this.activity,
+          deathsBy: { ...this.deathsBy },
         });
       },
       Math.max(300, RESULTS_AFTER_END_MS / Math.max(1, this.buffer.speed)),
@@ -386,12 +568,21 @@ export class MatchSession {
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
         // The attack tip is done once the player's hit lands on a minion (a right-click, A-move or the ATK button).
+        if (ev.type === 'hit') {
+          const dst = frame.byId.get(ev.dst);
+          if (dst?.kind === 'core') this.coreHit(dst);
+        }
+        if (ev.type === 'hit' && ev.dst === this.view.mySlot) {
+          const src = frame.byId.get(ev.src);
+          if (src && (src.kind === 'tower' || src.kind === 'core') && src.team !== this.view.myTeam) this.towerHit(ev.src);
+        }
         if (ev.type === 'hit' && ev.src === this.view.mySlot) {
           this.hitsLanded++;
           if (frame.byId.get(ev.dst)?.kind === 'minion') this.tips.complete('attack');
         }
       }
       this.tipTriggers(frame);
+      this.overhead.guide = this.guideTarget(frame);
     }
     this.orders?.update();
     this.desktop?.update(dt);
@@ -399,6 +590,7 @@ export class MatchSession {
     this.overhead.draw(frame, this.gr.camera, (e) => (e.hero ? HERO_SCALE[e.hero] : 1));
     this.minimap.draw(frame);
     this.tips.update(dt);
+    this.talents?.update(this.paused || this.ended ? 0 : dt * this.buffer.speed);
     if (this.e2e) this.telemetry(frame);
     if (frame && this.hud && this.welcome) {
       const me = frame.byId.get(this.welcome.slot) ?? null;
@@ -496,6 +688,39 @@ export class MatchSession {
     return inside ? `${Math.round(p.x)},${Math.round(p.y)}${suffix}` : '';
   }
 
+  private guideDone = false;
+
+  /**
+   * First match only, the first two minutes: where the ground arrow points (the nearest allied minion, else the
+   * Sunny Lane bend), until the player has walked up to an allied wave once.
+   */
+  private guideTarget(frame: ViewFrame): { x: number; y: number } | null {
+    if (!this.setup.firstMatch || this.guideDone || !this.welcome) return null;
+    const me = frame.byId.get(this.welcome.slot);
+    if (!me || frame.latest.clock.seconds > 120) {
+      if (frame.latest.clock.seconds > 120) this.guideDone = true;
+      return null;
+    }
+    if (frame.latest.clock.seconds < 6) return null;
+    const team = this.welcome.team;
+    let best: { x: number; y: number } | null = null;
+    let bd = Infinity;
+    for (const u of this.units) {
+      if (u.kind !== 'minion' || u.team !== team || u.state === 'dead') continue;
+      const d = Math.hypot(u.x - me.fx, u.y - me.fy);
+      if (d < bd) {
+        bd = d;
+        best = { x: u.x, y: u.y };
+      }
+    }
+    if (best && bd < 9000) {
+      this.guideDone = true;
+      return null;
+    }
+    // no wave out yet: the Sunny Lane bend on our side (POC.md §5 waypoints, mirrored for Woof)
+    return best ?? { x: team === 0 ? 22000 : 78000, y: 50000 };
+  }
+
   private tipTriggers(frame: ViewFrame): void {
     if (!this.tips.enabled || !this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
@@ -517,6 +742,8 @@ export class MatchSession {
     this.host.dispose();
     this.desktop?.dispose();
     this.touch?.dispose();
+    this.emoteOff?.();
+    this.chromeOff?.();
     this.hud?.dispose();
     this.scoreboard?.dispose();
     this.talents?.dispose();

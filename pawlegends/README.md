@@ -45,10 +45,27 @@ Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see
 
 ## Hero art (POC.md §6.9)
 
-Decision for the POC: no baked GLBs. All four heroes are our own procedural runtime models
-(`src/render/views/models.ts`, a vertex-shader part rig in `rig.ts`), one draw call per hero, dressed by the
-roster look (coat, chroma gem, tier frame, purchased items). This is a variant of the §6.9 fallback;
-`bake:heroes` and `bake:map` stay unwritten. Low tier measured 20 draw calls in a match (swiftshader).
+Decision for the POC: no baked GLBs and no KayKit models. Heroes, minions and Companion Kittens are upright,
+chibi PPK-style characters built at runtime by `src/render/chars/` (founder feedback 2026-10-17: "make them upright
+like in Pink Paw Knight"):
+
+- **Skeleton and poses:** PPK's 27-bone kitten rig plus a weapon socket (`skeleton.ts`, ported from
+  `KittenBuilder.js`), posed with PPK's own pose library and two-bone IK (`Poses.js`, lifted whole).
+- **Geometry:** PPK's cheap-tier cat recipe rebuilt at low segment counts (`chibi.ts`), gear from `Accessories.js`,
+  `Armour.js` and `Sword.js` (`gear.ts`), and the dogs' pug / spotted heads from `BeastHead.js` on the same skeleton
+  (`beast.ts`). Everything per hero is ONE skinned mesh with vertex colours: 4.5k to 5.9k triangles at Med, 2.2k to
+  2.8k at Low. Dogs are Kibble Corp guard dogs in uniform (charcoal, never the Woof navy).
+- **Look:** the global PPK toon ramp, a dark ink rim in the shader on every tier, and an inverted-hull outline (one
+  extra draw per hero) on Med and High only.
+- **Animation** (`motion.ts`, from `SwordcatModel.js`): idle, run (ground-paced gait), per-hero attack (Clem's three
+  slashes, Sage's draw and release, Brutus's shield bash, Cacklejaw's claw thrusts), cast, hit flinch, block /
+  channel / stun / fear poses, faint on death, PPK's `nap` while recalling, and a respawn pop.
+- **Minions:** kitten squires and pup guards from the same builder, posed on the CPU and tagged by body part, then
+  drawn instanced (6 draws) with a per-copy `aAnim` attribute so each one walks on its own cycle. Siege carts and
+  rat camps stay as they were.
+
+Team colour sits on the shoulder mantle, the helmet / hood / cap, the pauldrons and the cape (21% to 34% of the
+up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` stay unwritten.
 
 ## Pink Paw Knight lift
 

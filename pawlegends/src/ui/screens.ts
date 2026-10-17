@@ -40,6 +40,8 @@ export interface TitleOpts {
   storeOpen?: boolean;
   frame?: FrameId | null;
   title?: string | null;
+  /** The lobby hero's portrait (in its look), drawn inside the frame ring. */
+  portrait?: string | null;
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -47,9 +49,10 @@ export interface TitleOpts {
   onSettings?(): void;
 }
 
-function badge(frame: FrameId | null | undefined, title: string | null | undefined): string {
+function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null): string {
   if (!frame && !title) return '';
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''}><span class="ring"></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  const face = portrait ? ` style="background-image:url(${portrait})"` : '';
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''}><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -66,7 +69,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
       <p class="tag">3v3 cats and dogs. Nine-minute matches.</p>
       <div class="actions">${primary}</div>
       <p class="sub">No account needed. ${o.firstTime ? 'Your first match is against Easy bots.' : ''}</p>
-      ${badge(o.frame, o.title)}
+      ${badge(o.frame, o.title, o.portrait)}
     </div>
     <div class="pl-corner">
       ${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}
@@ -127,7 +130,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
         <div class="heroes">${HERO_IDS.map((h) => {
           const x = HERO_TEXT[h];
-          const pic = portraitUrl(h);
+          const pic = portraitUrl(h, lookOf(h));
           const face = pic ? `<i class="pic" style="background-image:url(${pic})"></i>` : `<i>${esc(x.title.replace('Sir ', '').slice(0, 2))}</i>`;
           return `<button class="hero-card ${h === c.hero ? 'on' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
         }).join('')}</div>
@@ -141,7 +144,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         </div>
         <div class="row"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(TRICK_TEXT[tr].text)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
         ${wardrobeRow(c.hero)}
-        <div class="row"><span class="lbl">Bots</span>${DIFFICULTIES.map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}">${DIFFICULTY_TEXT[d]}</button>`).join('')}</div>
+        <div class="row bots"><span class="lbl">Bots</span>${DIFFICULTIES.map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}">${DIFFICULTY_TEXT[d]}</button>`).join('')}</div>
         <button class="pl-btn big" data-a="start">Play</button>
       </div>`;
   };
@@ -191,6 +194,10 @@ export interface ResultsOpts {
   firstWin: boolean;
   best: boolean;
   dareLink: string | null;
+  /** What knocked the player out, by killer kind (results tip). */
+  deathsBy?: Record<string, number>;
+  /** Touch controls (tip wording). */
+  touch?: boolean;
   storeOpen?: boolean;
   notifyOpen?: boolean;
   /** Match speed (e2e and the 64× check); the staged reveal runs this much faster. */
@@ -202,23 +209,55 @@ export interface ResultsOpts {
   onNotify?(): void;
 }
 
+/** Sudden Death starts at 10:00 (data/timeline.ts TIMELINE.suddenDeath): after it the clock, not the player, ends the match. */
+export const SUDDEN_DEATH_S = 600;
+
+/** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
+export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty'>): string {
+  const [ours, theirs] = o.teamKills;
+  if (o.won) {
+    if (o.kills === 0) return 'Your team took the core. Next time, jump into a fight!';
+    return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
+  }
+  const gap = theirs - ours;
+  if (gap >= 6) return o.difficulty === 'normal' ? 'Tough one. Try Easy bots or a new hero.' : 'Tough one. The tip below helps.';
+  if (gap >= 3) return 'They pulled ahead. You can turn the next one.';
+  return 'So close. The next one is yours.';
+}
+
+/** One concrete tip from how the match went (null when there is nothing useful to say). Pure. */
+export function resultTip(o: Pick<ResultsOpts, 'won' | 'kills' | 'deaths' | 'level' | 'seconds' | 'deathsBy' | 'touch'>): string | null {
+  const by = o.deathsBy ?? {};
+  const towers = (by.tower ?? 0) + (by.core ?? 0);
+  const heroes = by.hero ?? 0;
+  const nap = o.touch ? 'tap Nap' : 'press B to Nap';
+  if (towers >= 2) return `Towers knocked you out ${towers} times. Walk in behind your minions: the tower hits them first.`;
+  if (heroes >= 3 && o.deaths >= 4) return `Enemy heroes caught you ${heroes} times. Under a third of your health, step back to your tower or ${nap}.`;
+  if (o.level <= 3 && o.seconds >= 300) return 'Stand near enemy minions when they fall: that is where your levels come from.';
+  if (o.kills === 0 && !o.won) return `Use your abilities when an enemy hero comes close: they do most of a hero's damage.`;
+  if (o.deaths >= 5) return `Under a third of your health, step back or ${nap}: your fountain heals you fast.`;
+  return null;
+}
+
 export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement {
   const root = el(`pl-screen pl-results ${o.won ? 'won' : 'lost'}`);
   const m = Math.floor(o.seconds / 60);
   const s = String(o.seconds % 60).padStart(2, '0');
+  const tip = resultTip(o);
   root.innerHTML = `
     <div class="pl-results-col">
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>
-      <p class="sub">${o.won ? (o.kills === 0 ? 'Your team took the core. Next time, jump into a fight!' : 'The core is yours.') : 'So close. The next one is yours.'}</p>
+      <p class="sub">${esc(resultLine(o))}</p>
       <div class="stats">
-        <div><b>${m}:${s}</b><small>Match time${o.best ? ' · best!' : ''}</small></div>
+        <div><b>${m}:${s}</b><small>Match time${o.best && o.seconds < SUDDEN_DEATH_S ? ' · best!' : ''}</small></div>
         <div><b>${o.kills} / ${o.deaths}</b><small>Takedowns / knocked out</small></div>
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">
-        <p>Dare a friend: <b>${o.dareLink ? esc(dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds })) : ''}</b></p>
+        <p>Dare a friend: <b>${o.dareLink ? esc(dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < SUDDEN_DEATH_S ? o.seconds : 0 })) : ''}</b></p>
         <button class="pl-btn ghost" data-a="share">Copy dare link</button>
       </div>
       <div class="actions"><button class="pl-btn big" data-a="again">Play again</button><button class="pl-btn ghost" data-a="change">Change hero</button></div>
@@ -255,6 +294,10 @@ export const RESULTS_REVEAL_MS = Object.freeze({ dare: 5000, actions: 10000 });
 
 export interface MenuOpts {
   muted: boolean;
+  /** Touch: no key list (the pause button opened this menu). */
+  touch?: boolean;
+  /** Show the scoreboard (touch has no Tab key). */
+  onScores?(): void;
   onResume(): void;
   onMute(m: boolean): void;
   onLeave(): void;
@@ -264,13 +307,15 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   const root = el('pl-screen pl-menu');
   root.innerHTML = `<div class="card"><h2>Paused</h2>
     <button class="pl-btn big" data-a="resume">Resume</button>
+    ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${o.muted ? 'Sound: off' : 'Sound: on'}</button>
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    <p class="keys"><kbd>RMB</kbd> move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> hold to aim, release to cast · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p></div>`;
+    ${o.touch ? '' : `<p class="keys"><kbd>RMB</kbd> move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> hold to aim, release to cast · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
   let muted = o.muted;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'resume') o.onResume();
+    else if (a === 'scores') o.onScores?.();
     else if (a === 'leave') o.onLeave();
     else if (a === 'mute') {
       muted = !muted;

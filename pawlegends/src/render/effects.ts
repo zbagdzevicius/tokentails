@@ -16,6 +16,16 @@ import { FADE, GROW, SHAPE, type Particles } from './fx/Particles.js';
 import type { Shockwaves } from './fx/Shockwaves.js';
 import type { Juice } from './juice';
 import { RELATION, TEAM } from './palette';
+import { HERO_TOP } from './chars/specs';
+
+/** "Press R" on a keyboard; touch buttons carry icons, not letters, so name the button there. */
+export function ultHint(): string {
+  try {
+    return document.documentElement.dataset.touch === '1' ? 'Tap the big gold button' : 'Press R';
+  } catch {
+    return 'Press R';
+  }
+}
 
 export interface Who {
   id: number;
@@ -58,11 +68,15 @@ export interface EffectsHooks {
 }
 
 const _p = new THREE.Vector3();
+const _np = new THREE.Vector3();
 const _d = new THREE.Vector3();
 
 export class Effects {
   readonly numbers: DamageNumbers;
   readonly windups: ActiveWindup[] = [];
+  /** Render clock (s) and the last CLANK per target. */
+  private time = 0;
+  private readonly clankAt = new Map<number, number>();
 
   constructor(
     private readonly particles: Particles,
@@ -157,21 +171,27 @@ export class Effects {
       gravity: 6,
     });
     this.particles.single(pos, { shape: SHAPE.STAR4, color: 0xfff6da, intensity: 2, size0: heavy ? 0.9 : 0.55, size1: 0.1, life: 0.14, rot: Math.random() * 3 });
-    if (e.shielded > 0) this.numbers.pop('clank', pos);
-    // numbers: what I deal and what I take
+    // at most one CLANK per target per 0.5 s (a shielded tank in a teamfight stacked ten of them)
+    if (e.shielded > 0 && this.time - (this.clankAt.get(e.dst) ?? -9) >= 0.5) {
+      this.clankAt.set(e.dst, this.time);
+      this.numbers.pop('clank', pos);
+    }
+    // numbers: what I deal and what I take. On a hero they spawn ABOVE the nameplate with a little sideways jitter
+    // (on the body they hid the model in teamfights); repeat hits merge into one counter per target (DamageNumbers).
+    const npos = heroDst && dst.hero ? _np.set(dst.x + (Math.random() - 0.5) * 0.7, HERO_TOP[dst.hero] + 1.0, dst.z + (Math.random() - 0.5) * 0.7) : pos;
     if (e.src === me) {
-      this.numbers.show(pos, String(e.amount), heavy ? 'heavy' : 'normal', e.dst, e.amount);
+      this.numbers.show(npos, String(e.amount), heavy ? 'heavy' : 'normal', e.dst, e.amount);
       if (heroDst) {
         this.juice.hitstop(e.kind === 'ability' ? 55 : 28);
         this.juice.kick(e.kind === 'ability' ? 0.16 : 0.08);
       }
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
     } else if (e.dst === me) {
-      this.numbers.show(pos, String(e.amount), 'hurt', e.dst, e.amount);
+      this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
       this.juice.kick(Math.min(0.35, 0.1 + e.amount / 600));
       sfx.play('hurt');
     } else {
-      if (heroDst && src?.kind === 'hero') this.numbers.show(pos, String(e.amount), 'info', e.dst, e.amount);
+      if (heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
       sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
     }
   }
@@ -324,7 +344,7 @@ export class Effects {
       sfx.play('levelup');
       this.hooks.onLevel?.(e.level);
       this.juice.callout(`Level ${e.level}`, 'gold');
-      if (e.level === 4) this.juice.banner({ title: 'Ultimate ready', sub: 'Press R', tone: 'gold' });
+      if (e.level === 4) this.juice.banner({ title: 'Ultimate ready', sub: ultHint(), tone: 'gold' });
     }
   }
 
@@ -373,6 +393,7 @@ export class Effects {
   }
 
   render(dt: number): void {
+    this.time += dt;
     this.numbers.render(dt);
   }
 
