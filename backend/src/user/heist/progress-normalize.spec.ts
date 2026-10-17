@@ -1,3 +1,4 @@
+import { HEIST_LEVELS } from 'src/shared-contracts/caps';
 import { normalizeProgressArrays, progressOpsUpdate } from '../utils/live-game';
 
 // Review 3b findings 5 and 6: the read-then-repair step in the recomputes must never write a
@@ -9,7 +10,7 @@ describe('normalizeProgressArrays (per-slot repairs only)', () => {
     it('writes nothing for missing or null fields (finding 6)', () => {
         const { values, ops } = normalizeProgressArrays({ heistStars: null }, ALL);
         expect(progressOpsUpdate(ops)).toEqual({});
-        expect(values.heistScore).toEqual(Array(8).fill(0));
+        expect(values.heistScore).toEqual(Array(HEIST_LEVELS.length).fill(0));
         expect(values.catnipChaosCleared).toHaveLength(97);
     });
 
@@ -42,6 +43,6 @@ describe('normalizeProgressArrays (per-slot repairs only)', () => {
     it('replaces a legacy object-shaped value whole (the one case)', () => {
         const { ops } = normalizeProgressArrays({ heistScore: { '3': 50 } }, ['heistScore']);
         expect(Object.keys(progressOpsUpdate(ops))).toEqual(['$set']);
-        expect(ops.$set.heistScore).toHaveLength(8);
+        expect(ops.$set.heistScore).toHaveLength(HEIST_LEVELS.length);
     });
 });

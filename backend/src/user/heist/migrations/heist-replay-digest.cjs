@@ -14,8 +14,8 @@ const INDEX = {
 
 /** Lengths match shared/caps.ts (pinned by src/user/heist/heist-migrations.spec.ts). */
 const ARRAYS = [
-    { field: 'heistScore', length: 8 },
-    { field: 'heistStars', length: 8, integers: true },
+    { field: 'heistScore', length: 16 },
+    { field: 'heistStars', length: 16, integers: true },
     { field: 'catnipChaosCleared', length: 97 },
     { field: 'seasonEventCleared', length: 14 },
     { field: 'match3Cleared', length: 30 },

@@ -50,7 +50,7 @@ describe('shared caps', () => {
     it('pins the guest, pledge and Heist limits', () => {
         expect(GUEST_TAILS_LIFETIME_CAP).toBe(2000);
         expect(PLEDGE_DAILY_CAP).toBe(5000);
-        expect(HEIST_LEVEL_CAPS).toEqual([250, 240, 220, 270, 240, 240, 240, 310]);
+        expect(HEIST_LEVEL_CAPS).toEqual([250, 240, 220, 270, 240, 240, 240, 310, 270, 270, 270, 260, 270, 290, 270, 330]);
     });
 
     it('bounds Heist run logs to the replay default of 10 minutes at 30 Hz', () => {

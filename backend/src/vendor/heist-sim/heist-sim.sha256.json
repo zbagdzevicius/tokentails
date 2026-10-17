@@ -9,7 +9,15 @@
     "heist-05",
     "heist-06",
     "heist-07",
-    "heist-08"
+    "heist-08",
+    "heist-09",
+    "heist-10",
+    "heist-11",
+    "heist-12",
+    "heist-13",
+    "heist-14",
+    "heist-15",
+    "heist-16"
   ],
   "levelCaps": [
     250,
@@ -19,11 +27,19 @@
     240,
     240,
     240,
-    310
+    310,
+    270,
+    270,
+    270,
+    260,
+    270,
+    290,
+    270,
+    330
   ],
   "files": {
-    "heist-sim.bundle.ts": "05f7b0b4643319afc27b1484d852136829eb39fb1945c9d2e6b1ca1cd6d844ef",
-    "index.ts": "fc48f4df527ff1843953cfefa3dd554b560fd3ff8795217d4a5461e25619428a"
+    "heist-sim.bundle.ts": "d0c697784f6b5a7dbe1cbe696f46d3705aaf09bb27506a6fa88902aedbc1cf95",
+    "index.ts": "f338b58252f35faaa63c819fc6ed74f5d08331ed1bfe6edc3e0e68e3e29b05bc"
   },
   "modules": [
     "public/assets/manifest.json",
@@ -43,6 +59,22 @@
     "src/levels/heist-07.solution.json",
     "src/levels/heist-08.json",
     "src/levels/heist-08.solution.json",
+    "src/levels/heist-09.json",
+    "src/levels/heist-09.solution.json",
+    "src/levels/heist-10.json",
+    "src/levels/heist-10.solution.json",
+    "src/levels/heist-11.json",
+    "src/levels/heist-11.solution.json",
+    "src/levels/heist-12.json",
+    "src/levels/heist-12.solution.json",
+    "src/levels/heist-13.json",
+    "src/levels/heist-13.solution.json",
+    "src/levels/heist-14.json",
+    "src/levels/heist-14.solution.json",
+    "src/levels/heist-15.json",
+    "src/levels/heist-15.solution.json",
+    "src/levels/heist-16.json",
+    "src/levels/heist-16.solution.json",
     "src/levels/index.ts",
     "src/sim/grid.ts",
     "src/sim/hash.ts",
