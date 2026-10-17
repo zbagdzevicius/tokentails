@@ -1,0 +1,41 @@
+/*
+ * Lifted from Pink Paw Knight (swordcat) at commit 7714dcb: src/ui/tricks.css
+ * Licence: all rights reserved, pending founder decision (POC.md §17, GDD §12 decision #3). Not MIT.
+ * Changes: relative imports rewritten by tools/lift-ppk.mjs; any later hand edit is marked "pawlegends:".
+ */
+/* src/ui/tricks.css  (owner: ui, TT3 package A) — the Paw Trick controls (docs/TOKENTAILS-PLAN.md §11.3): the touch ":3"
+   button and its long-press picker, the ability-bar trick slot. Imported by touch.js (one <style id="trick-style">).
+   Candy skin like ui.css: cream / gold body, cocoa border, a soft lip. Nothing here is visible before a trick is owned. */
+
+/* ---- touch: the ":3" button (placed by touchLayout.js like every cluster button) */
+.tb-trick { background: radial-gradient(circle at 35% 30%, #FFF6DA, #FFE08A 58%, #E0A23A); border-color: #A87C32; overflow: visible; }
+.tb-trick .tb-ico { width: 64%; }
+.tb-trick[data-trick="cloud"] { background: radial-gradient(circle at 35% 30%, #FFF4FF, #E7D2FB 58%, #B79BE0); border-color: #7E6BB0; }
+.tb-trick .tb-ring .ring-fg { stroke: #FFF6DA; }
+.tb-trick.is-cd .tb-ico { opacity: .55; filter: saturate(.5); }
+.tb-trick.is-out .tb-ico { opacity: .35; transform: scale(.82); transition: transform .12s, opacity .12s; }
+.tb-trick.is-aiming { box-shadow: 0 0 0 4px #FFD34DAA; }
+.tb-trick.is-reveal { animation: trickPop .6s ease-out; }
+@keyframes trickPop { 0% { transform: scale(.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* the picker: three bubbles fanned above the ":3" button (positioned by touch.js) */
+.tb-trick-picker { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.tb-pick { position: absolute; left: 0; top: 0; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: #FFF6E6; border: 3px solid #6B4A2B; box-shadow: 0 4px 0 #6B4A2B; opacity: 0; transform-origin: 50% 50%;
+  transition: opacity .12s; pointer-events: none; touch-action: none; }
+.tb-trick-picker.is-open .tb-pick { opacity: 1; pointer-events: auto; }
+.tb-pick .tb-ico { width: 66%; display: flex; pointer-events: none; }
+.tb-pick .tb-ico svg { width: 100%; height: auto; display: block; }
+.tb-pick-n { position: absolute; right: -6px; bottom: -8px; min-width: 18px; padding: 0 4px; border-radius: 9px; background: #6B4A2B; color: #FFF6E6;
+  font-weight: 800; font-size: 13px; line-height: 18px; text-align: center; pointer-events: none; }
+.tb-pick.is-on { background: #FFE08A; border-color: #A87C32; }
+.tb-pick.is-locked { opacity: .35 !important; filter: grayscale(.8); }
+.tb-pick-twirl { background: #FFE4EE; border-color: #D9668A; }
+
+/* ---- the ability bar's trick slot (after Golden Hour) */
+.ab-trick.is-hidden { display: none; }
+.ab-trick { background: radial-gradient(circle at 35% 30%, #FFF6DA, #FFE08A 60%, #E0A23A); }
+.ab-trick[data-trick="cloud"] { background: radial-gradient(circle at 35% 30%, #FFF4FF, #E7D2FB 60%, #B79BE0); }
+.ab-trick .ab-ico { width: 70%; }
+.ab-trick.is-out .ab-ico { opacity: .35; transform: scale(.85); }
+.ab-trick.is-aiming { box-shadow: 0 0 0 3px #FFD34D; }

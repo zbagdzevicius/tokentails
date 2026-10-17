@@ -102,6 +102,10 @@ export const resolveLiveGame = (game: LiveGameDto): ILiveGame => {
         // Bad Cat Daily runs take their own replay branch (src/badcat/badcat-live.ts), never this points path.
         throw new BadRequestException(`A badcat log is only accepted with ${GameType.BAD_CAT}`);
     }
+    if (game.type === GameType.PAWLEGENDS || game.pawlegends !== undefined) {
+        // Pawlegends matches take their own replay branch (src/pawlegends/pawlegends-live.ts), never this points path.
+        throw new BadRequestException(`A pawlegends replay is only accepted with ${GameType.PAWLEGENDS}`);
+    }
     const { levels, caps, field, clearedField, infiniteLevels } = LIVE_GAME_LEVELS[game.type];
     const levelIndex = game.level === undefined ? -1 : levels.indexOf(game.level);
     if (levelIndex < 0) {
@@ -394,7 +398,7 @@ export interface IGameTotalsRepository {
 }
 
 export const GAME_TOTALS_PROJECTION =
-    'catnipChaos catnipChaosCount catnipCount seasonEvent seasonEventCount match3 match3Count match3Score match3ScoreCount catnipChaosCleared seasonEventCleared match3Cleared heistScore heistStars';
+    'catnipChaos catnipChaosCount catnipCount seasonEvent seasonEventCount match3 match3Count match3Score match3ScoreCount catnipChaosCleared seasonEventCleared match3Cleared heistScore heistStars pawlegendsCatnip';
 
 /**
  * Re-derives a user's per-level best arrays and totals from what is stored: every value is clamped
@@ -415,7 +419,7 @@ export async function recomputeGameTotals(repository: IGameTotalsRepository, use
         throw new BadRequestException('User not found');
     }
 
-    const catnipSnapshot = buildCatnipAccountingSnapshot(latest.catnipChaos, latest.match3);
+    const catnipSnapshot = buildCatnipAccountingSnapshot(latest.catnipChaos, latest.match3, latest.pawlegendsCatnip);
     const catnipSanitization = buildCatnipSanitizationUpdate(latest.catnipChaos, latest.match3);
     const normalizedSeasonEvent = normalizeSeasonEventScores(latest.seasonEvent);
     const seasonEventCount = normalizedSeasonEvent.reduce((acc, curr) => acc + curr, 0);
@@ -519,6 +523,25 @@ export async function recomputeGameTotals(repository: IGameTotalsRepository, use
         heistScore: progress.values.heistScore,
         heistStars: progress.values.heistStars,
     };
+}
+
+/**
+ * `catnipCount` after a Pawlegends save (POC.md §11.5): the Catnip Chaos and Paw Match totals plus the Pawlegends
+ * first-win catnip. Reads three fields and writes only `catnipCount`, and only when it changed. Returns it.
+ */
+export async function recomputeCatnipCount(repository: IGameTotalsRepository, userId: string): Promise<number> {
+    const latest = await repository.findOne({
+        searchObject: { _id: userId },
+        projection: 'catnipChaos match3 pawlegendsCatnip catnipCount',
+    });
+    if (!latest) {
+        throw new BadRequestException('User not found');
+    }
+    const snapshot = buildCatnipAccountingSnapshot(latest.catnipChaos, latest.match3, latest.pawlegendsCatnip);
+    if ((latest.catnipCount || 0) !== snapshot.catnipCount) {
+        await repository.update(userId, { $set: { catnipCount: snapshot.catnipCount } });
+    }
+    return snapshot.catnipCount;
 }
 
 /**

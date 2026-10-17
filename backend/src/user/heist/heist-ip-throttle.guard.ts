@@ -25,18 +25,21 @@ import { requestIp } from '../guest/ip-throttle';
  */
 export const HEIST_REPLAY_IP_THROTTLE = { limit: 30, ttl: 60000 };
 
-/** True for a `/live` body that would run a replay (Heist, or Bad Cat Daily). */
+/** True for a `/live` body that would run a replay (Heist, Bad Cat Daily, or Pawlegends). */
 export const wantsReplay = (body: unknown): boolean => {
     if (!body || typeof body !== 'object') {
         return false;
     }
-    const record = body as { type?: unknown; replay?: unknown; badcat?: unknown };
+    const record = body as { type?: unknown; replay?: unknown; badcat?: unknown; pawlegends?: unknown };
     // Bad Cat Daily ranked runs replay too (GDD 10 Phase 2): the same per-IP bucket bounds both.
     return (
         record.type === GameType.CATNIP_HEIST ||
         record.replay !== undefined ||
         record.type === GameType.BAD_CAT ||
-        record.badcat !== undefined
+        record.badcat !== undefined ||
+        // Pawlegends matches re-sim in a worker (POC.md §11.5): counted in the same per-IP bucket.
+        record.type === GameType.PAWLEGENDS ||
+        record.pawlegends !== undefined
     );
 };
 

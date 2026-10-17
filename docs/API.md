@@ -184,6 +184,26 @@ run per player and day. The same per-IP replay bucket, replay queue and 503 rule
 | 409 | `BADCAT_DUPLICATE` | This exact log is already saved (any account) |
 | 409 | `BADCAT_ALREADY_RANKED` | The caller already has a ranked run of that day |
 
+Pawlegends saves (POC.md §11.5; always on): `{ type: 'PAWLEGENDS', platform?, pawlegends: { v: 1, simVersion,
+seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash } }`. `difficulty` is `easy` or `normal`,
+`ticks` at most 19,800 (11:00), `inputs` base64 of at most 40,000 characters, `outcome` `won` or `lost`,
+`finalHash` 8 hex digits. `points`, `score`, `time` and `level` are ignored; `replay` and `badcat` are
+refused, and `pawlegends` on any other type is a 400. Lost matches are saved too. The record's digest is
+checked first (409 for one already saved by any account; a failed record is cached and refused without a
+re-sim), then the vendored sim replays it in a worker thread through its own queue (concurrency 1, 8 waiting).
+The `Game` row gets `level: <difficulty>`, `score: ticks`, `time: ticks / 30`, `points` = the catnip paid
+and `outcome` `won` or `died` (a lost match; `LiveGameOutcome` has no `lost`). The user gets
+`$min pawlegendsFastestWin.<d>` and `$max pawlegendsCatnip.<d>` on a win, `$inc pawlegendsMatches.<d>` and
+`lastPlayedAt`. The same per-IP replay bucket as the Heist applies.
+
+| Status | Body `code` | Meaning |
+|---|---|---|
+| 201 | none | `{difficulty, outcome, ticks, finalHash, catnipPaid, fastestWin}`; `catnipPaid` is the difficulty's cap (20 Easy, 40 Normal) on the first win, else 0 |
+| 400 | `PAWLEGENDS_REPLAY_INVALID`, `PAWLEGENDS_TOO_LONG`, `PAWLEGENDS_NOT_ENDED`, `PAWLEGENDS_OUTCOME_MISMATCH`, `PAWLEGENDS_HASH_MISMATCH` | The record does not replay to what it claims; drop it |
+| 400 | `PAWLEGENDS_SIM_VERSION` | Another sim version; the body carries `sim: {simVersion, bundleSha256}`. Keep the match until the backend runs that version |
+| 409 | `PAWLEGENDS_DUPLICATE` | Already saved (any account) |
+| 429 | none, `Retry-After` header | Per-IP replay bucket, per-player limit, or a full replay queue |
+
 ## Cats
 
 | Method | Path | Purpose | Auth |
@@ -646,6 +666,36 @@ are saved by `POST /user/catbassadors/live` (see "Scores"), never by a `/badcat`
 | GET | `/badcat/admin/rooms?status=` | `{ items }`: rooms by status (`pending` default, `approved`, `rejected`, `hidden`) with reports and plays | – | Perm(5) |
 | POST | `/badcat/admin/rooms/:id/approve\|reject\|hide` | Review a room | – | Perm(5) |
 
+## Pawlegends (pawlegends)
+
+Store, entitlements and offers for the `pawlegends/` game (POC.md §8). Behaviour is in docs/BACKEND.md
+("Pawlegends"); shapes and prices in `backend/src/pawlegends/pawlegends.contracts.ts`.
+
+- **Always on, no flags.** A route that needs a secret answers 503 while it is missing, and `GET
+  /pawlegends/status` reports `store: false`. Checkout is ready only with a Stripe key of the right mode, the
+  webhook secret and an entitlement key, so no money is taken that the webhook cannot confirm.
+- **No accounts.** Checkout ignores `accesstoken`; a buyer is matched by email, device id and entitlement
+  token. The token goes in the `x-pawlegends-token` header.
+- **Throttling.** Every route skips the global throttler and checks its own per-client-IP limit first.
+- **No route writes a score.** Matches are saved by `POST /user/catbassadors/live` (see "Scores").
+
+| Method | Path | Purpose | Needs | Auth, limit |
+|---|---|---|---|---|
+| GET | `/pawlegends/status` | `{store, email, termsVersion, skus: [{sku, label, cents: {usd, eur}, deliveredNow, deliveredAtMvp}]}`. `Cache-Control: public, max-age=30` | – | Public, 60/min |
+| GET | `/pawlegends/sim` | `{simVersion, bundleSha256, placeholder, levels}`: the vendored sim `/live` replays with | – | Public (cached 60 s) |
+| POST | `/pawlegends/checkout` | `{sku, currency, email?, ageBand, consentVersion, deviceId, token?}` (`currency` `usd` or `eur`; `token` proves Founder for the upgrade) → `{url, sessionId}`, a Stripe Checkout Session with inline `price_data` (tax inclusive; a client price is ignored). Refuses under 16, a second Starter, the rolling 30-day spend cap (€30 for 16-17, €200 for 18+; the strictest of email and device), a sold-out Founder Legend and an upgrade without Founder. 503 without the Stripe key, webhook secret or entitlement key | Stripe key + webhook secret + entitlement key | Public, 5/min |
+| POST | `/pawlegends/stripe/webhook` | Stripe events (raw body). Idempotent per event and per session; grants each paid session once, handles expiry and refunds. 400 on a bad signature; 503 without `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` | webhook secret | Stripe |
+| GET | `/pawlegends/entitlements?sessionId=` | After Checkout: pending until the webhook landed, then the signed entitlement token and items. With `x-pawlegends-token` instead: a refreshed token | entitlement key | Public, 30/min |
+| POST | `/pawlegends/restore` | `{email}` → the same answer for any valid email; emails a single-use 30-minute restore link (SendGrid) | entitlement key; SendGrid | Public, 3 per 10 min |
+| POST | `/pawlegends/restore/verify` | `{t}` → entitlements. Single use | entitlement key | Public, 10/min |
+| GET | `/pawlegends/offer` | The §8.4 offer for this device and screen, or none (never in session 1, in the app, outside the lobby or results, or at the spend cap; at most one card a session) | – | Public, 60/min |
+| POST | `/pawlegends/offer/seen` | Records that an offer card was shown | – | Public, 30/min |
+| GET | `/pawlegends/founders` | `{left, cap: 500}`: Founder Legend seats left. `Cache-Control: public, max-age=15` | – | Public, 60/min |
+| POST | `/pawlegends/notify` | `{email, source?}`: Legends Pass notify-me, double opt-in by email | SendGrid | Public, 3 per 10 min |
+| POST | `/pawlegends/notify/confirm` | `{t}`: confirms a notify-me sign-up | – | Public, 10/min |
+
+Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
+
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |
@@ -992,7 +1042,7 @@ The enums marked "shared" live in `shared/enums.ts` and are generated into every
 
 | Enum | Values |
 |---|---|
-| `GameType` (shared) | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST` |
+| `GameType` (shared) | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST`, `PAWLEGENDS` |
 | `GamePlatform` (shared) | `web`, `ios`, `android` |
 | `LiveGameOutcome` (shared) | `won`, `died`, `timeout`, `quit` |
 | `StarterBreed` (shared) | `SCOUT`, `PINKIE`, `SHADOW`, `MISTY`, `SUNNY` |

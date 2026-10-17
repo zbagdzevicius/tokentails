@@ -228,8 +228,8 @@ nothing (decision #36): the purchase steps became Tails given and goals helped, 
 ### Games
 
 The backend is a score sink. All gameplay runs on the client; Catnip Heist runs are re-simulated on
-the server. Game types are `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`,
-`PIXEL_RESCUE`, `MATCH_3` and `CATNIP_HEIST`.
+the server, and so are Pawlegends matches. Game types are `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`,
+`CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST`, `BAD_CAT` and `PAWLEGENDS`.
 
 The single ingestion endpoint, and the only score writer, is `POST /user/catbassadors/live`
 (`src/one-writer.spec.ts` scans every source for Game-row writes). The body goes through `LiveGameDto`
@@ -257,6 +257,20 @@ lives (decisions #14 and #17). Wire contract: API.md, "Scores". When the sim cha
 deploy the backend first and then the Heist site; the Pages workflow checks
 `GET /user/catbassadors/heist-sim` serves the same bundle hash before it publishes.
 
+`PAWLEGENDS` is accepted only with a `pawlegends` replay record (POC.md §11.5;
+`src/pawlegends/pawlegends-live.ts`). It is in `liveGameTypes`, not in `scoredGameTypes`, so the plain path
+refuses it. The handler checks `simVersion` before anything is queued (400 `PAWLEGENDS_SIM_VERSION` naming
+the backend's sim), refuses a cached failure or a known digest (409 `PAWLEGENDS_DUPLICATE`) without a re-sim,
+then replays the record with the vendored sim (`src/vendor/pawlegends-sim/`) in a long-lived worker thread
+(`pawlegends-replay.worker.ts`, 10 s timeout; under jest it registers ts-node first) through its own queue
+(concurrency 1, 8 waiting, 429 with `Retry-After`). Won and lost matches are saved; a lost one is stored with
+outcome `died`. A win sets `$min pawlegendsFastestWin.<d>` and pays `PAWLEGENDS_LEVEL_CAPS` catnip once per
+difficulty: an atomic claim (`UserRepository.claimBelowCap` raises `pawlegendsCatnip.<d>` to the cap only when it
+is below it), so two winning replays saved at once pay once; every save does `$inc pawlegendsMatches.<d>`. The
+catnip counts in `catnipCount` (`recomputeCatnipCount`; `catnip-accounting.ts` sums Catnip Chaos, Paw Match and
+`pawlegendsCatnip`) and in `TOTAL_CATNIP_CAP` (`PAWLEGENDS_TOTAL_CAP`, 60). Known gap: a guest merge moves the
+`Game` rows but not these three maps, so a guest's first-win catnip does not follow it to the account. Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket.
+
 The route is limited to 30 saves per minute per player (`LiveGameUserThrottleGuard`, after auth; it
 fails closed with 401 when the user id is missing) and 120 per minute per IP, loose enough for
 players sharing a carrier-NAT, school or office address. A 429 carries `Retry-After`, which CORS
@@ -268,6 +282,7 @@ filter them out.
 | Catnip Chaos (Purrsuit) | 97 (`01`, then `11` to `166`) | `catnipChaos[]`, `catnipChaosCleared[]` | 500 for the endless level `01` (decision #57), 10 for every other level |
 | Pixel Rescue (Cupid Cat, season event) | 14 | `seasonEvent[]`, `seasonEventCleared[]` | 500 per level |
 | Paw Match (Match 3) | 30 | `match3[]` catnip and `match3Score[]` raw score, `match3Cleared[]` | Catnip per level from a formula capped at 85; score capped at one million |
+| Pawlegends | 2 (`easy`, `normal`) | `pawlegendsFastestWin`, `pawlegendsCatnip`, `pawlegendsMatches` (maps by difficulty) | `PAWLEGENDS_LEVEL_CAPS` 20 and 40 catnip, paid on the first verified win only |
 | Catnip Heist | 16 (`heist-01` to `heist-16`: Act 1 is 01-08, Act 2 is 09-16) | `heistScore[]` (best server score), `heistStars[]` (star bit mask) | `HEIST_LEVEL_CAPS` 250, 240, 220, 270, 240, 240, 240, 310 (Act 1), 270, 270, 270, 260, 270, 290, 270, 330 (Act 2), derived from the sim (`coins x 10 + 50`). Accounts saved with 8 slots grow to 16 on their next Heist save (`arrayGuardPipeline` pads `heistStars`; `$max` pads `heistScore`) |
 
 The caps live in `shared/caps.ts` (copied into `src/shared-contracts/caps.ts`). `MAX_LEGIT_CATNIP_SCORE`
@@ -994,6 +1009,34 @@ Limits of this build:
   copy would replay. Known gap; the board shows replayed scores only.
 - The OG card uses the server's fonts; a host without fonts draws the shapes and no text.
 
+### Pawlegends
+
+Store and entitlements for the `pawlegends/` game (POC.md §8), plus its replay-verified `/live` branch
+(see "Games"). Routes are in docs/API.md. Every route is served; a part whose secret is missing answers 503
+and `GET /pawlegends/status` reports `store: false`, so the game hides its store button and still plays.
+
+Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the controller, 5 providers):
+
+| File | Role |
+|---|---|
+| `pawlegends.contracts.ts` | The 4 SKUs with inline USD and EUR prices, item ids, "delivered now" and "at MVP" lines, the 500-seat Founder Legend cap, age bands, spend caps (€30 for 16-17, €200 for 18+, rolling 30 days, €1 = $1), offer windows, terms version |
+| `pawlegends-env.ts` | Env readers (key fallbacks, no flags) and `pawlegendsCheckoutReady` |
+| `pawlegends.schema.ts` | `pawlegendspurchases` (also the spend ledger), `pawlegendsbuyers` (age band), `pawlegendsoffers`, `pawlegendsrestoretokens`, `pawlegendsnotify`, `pawlegendswebhookevents` |
+| `pawlegends-stripe.service.ts` | Checkout Sessions with inline `price_data` and `tax_behavior: 'inclusive'`; metadata carries `deferred`, `terms_version`, `age_band` and `currency`. An email is required (or a token with a verified email) and Checkout opens with it locked; the age band, the spend cap and the once-only SKUs are keyed by email, device id and, with a Token Tails session (`POST /pawlegends/checkout/account`, AppAuthGuard, registered accounts only), the account id. A pending hold row is written before the seat count and re-checked after (`firstClaim`), so two buyers cannot both take the last Founder Legend seat or a second starter. `refundUnderTerms` refunds a presale purchase and keeps its delivered-now items (GDD §8.3) |
+| `pawlegends-webhook.service.ts` | Signature check, idempotent per event and per session, grants once, expiry and refunds. A session whose charged amount or currency is not the table price, or that has no checkout hold, is stored `review` (no items, no seat). A paid session that breaks a checkout rule by the email Stripe collected (a second once-only SKU, a stored under-16 band, the spend cap, no seat left) is stored `voided` and refunded automatically. A refund marked `pawlegends_terms_refund` keeps the delivered-now items |
+| `pawlegends-account.service.ts` | Entitlements from a session id or a refreshed token, restore (single use, 30 min), notify-me with double opt-in. Without `SENDGRID_API_KEY` restore and notify answer 503 `PAWLEGENDS_EMAIL_UNAVAILABLE` (the host hides both forms on `status.email: false`), unless `PAWLEGENDS_DEV_LINKS=true` outside production |
+| `pawlegends-offer.service.ts` | The §8.4 offer rules |
+| `pawlegends-token.ts` | HMAC entitlement tokens (the Bad Cat format) |
+| `pawlegends-live.ts`, `pawlegends-replay.worker.ts`, `pawlegends-replay.dto.ts`, `pawlegends-sim-info.ts` | The `/live` branch, its worker thread, the record DTO and `GET /pawlegends/sim` |
+
+`src/vendor/pawlegends-sim/` is generated by `npm run vendor-sim` in `pawlegends/` (never edit it by hand);
+`npm run vendor-sim:check` there fails when the copy is stale. Deploy the backend before a client build with a new sim.
+
+Known gaps: checkout ignores `accesstoken` (there is no optional-auth guard), so the account-id key of the
+spend cap is wired but never filled; the `purchase{sku}` analytics event is not sent from the webhook (no
+server-side PostHog); the specs mock the sim (the real bundle is exercised by the game's tests and was checked
+by hand against browser-recorded replays).
+
 ## Scheduled jobs
 
 All jobs use `@Cron`, declared inside controllers and services. Every job except the traction
@@ -1060,6 +1103,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Goal count | `SHELTER_GOAL_SCAN` (`off` stops the C-001 scan; default on), `SHELTER_GOAL_RPC_URL` (default: the campaign chain's public RPC, `https://rpc.mainnet.arc.io` for C-001). The counted wallets come from the facts (`campaign.wallets`), never from the environment |
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
 | Bad Cat Daily (always on, no on/off flags; docs "Bad Cat Daily (badcat)") | `BADCAT_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY` is used; live keys only in production, test keys only elsewhere), `BADCAT_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `checkout: false`, checkout answers 503 and the webhook answers 503), `BADCAT_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `BADCAT_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs, restore links, the typed redirect), `BADCAT_RESTORE_DEV_LINK` (off; local testing only: the restore answer carries the link itself, never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore, seen and streak emails are sent only when it is set; restore mails only addresses with a purchase), `DO_SPACES_*` (shared; cameo and `/yourcat` faces). Phase 2: `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1), `BADCAT_SHORT_LINK_BASE` and `BADCAT_API_PUBLIC_URL` (origin in short links; default `https://api.tokentails.com`), `BADCAT_FEED_AUTO_APPROVE` (moderation policy, off: feed rooms wait for an admin), `BADCAT_FEED_REPORT_HIDE` (default 3), `BADCAT_VAPID_PUBLIC_KEY`, `BADCAT_VAPID_PRIVATE_KEY`, `BADCAT_VAPID_SUBJECT` (`mailto:` or `https:`, default `mailto:hello@tokentails.com`; push works only when the keys are set) |
+| Pawlegends (always on, no on/off flags; "Pawlegends" above) | `PAWLEGENDS_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY`; live keys only in production, test keys only elsewhere), `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `store: false` and checkout and the webhook answer 503), `PAWLEGENDS_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `PAWLEGENDS_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs and email links), `PAWLEGENDS_DEV_LINKS` (`true` puts the restore and notify links in the answer; never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore and notify emails) |
 | Print | `PRINTIFY_API_KEY` |
 | Rescue points (G5) | `TAILS_TOKEN_MODE` (`POINTS` default, or `TOKEN`; read by the public `GET /user/token-status`), `TAILS_TGE_AT` (ISO date, exposed only in `TOKEN` mode), `TAILS_EARNED_BACKFILL_DONE` (`true` once `scripts/backfill-tails-earned.js --apply` ran; the earned board then sorts on `tailsEarned`) |
 | Unused | `GTM_ID` |

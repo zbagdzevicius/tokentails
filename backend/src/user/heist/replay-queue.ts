@@ -23,14 +23,13 @@ export interface IReplayQueueOptions {
     /** Runs a task. Defaults to `setImmediate` then the task, on this thread. */
     execute?: <T>(task: () => T) => Promise<T>;
     now?: () => number;
+    /** The 429 message (default: the Heist one). */
+    fullMessage?: string;
 }
 
 export class ReplayQueueFullException extends HttpException {
-    constructor(readonly retryAfterSeconds: number) {
-        super(
-            { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: 'Too many Heist replays right now, retry shortly' },
-            HttpStatus.TOO_MANY_REQUESTS
-        );
+    constructor(readonly retryAfterSeconds: number, message = 'Too many Heist replays right now, retry shortly') {
+        super({ statusCode: HttpStatus.TOO_MANY_REQUESTS, message }, HttpStatus.TOO_MANY_REQUESTS);
     }
 }
 
@@ -82,8 +81,20 @@ export class ReplayQueue {
      * calling `task`, when `concurrency` tasks run and `maxQueued` already wait.
      */
     run<T>(task: () => T): Promise<T> {
+        return this.enqueue(() => this.execute(task));
+    }
+
+    /**
+     * Like `run`, for a task that is already asynchronous (a replay posted to a worker thread, Pawlegends): the
+     * slot is held until its promise settles, and `execute` is not used.
+     */
+    runAsync<T>(task: () => Promise<T>): Promise<T> {
+        return this.enqueue(task);
+    }
+
+    private enqueue<T>(task: () => Promise<T>): Promise<T> {
         if (this.active >= this.options.concurrency && this.waiting.length >= this.options.maxQueued) {
-            throw new ReplayQueueFullException(this.retryAfterSeconds());
+            throw new ReplayQueueFullException(this.retryAfterSeconds(), this.options.fullMessage);
         }
         return new Promise<T>((resolve, reject) => {
             const start = () => {
@@ -94,7 +105,13 @@ export class ReplayQueue {
                     this.active -= 1;
                     this.waiting.shift()?.();
                 };
-                this.execute(task).then(
+                let started: Promise<T>;
+                try {
+                    started = task();
+                } catch (error) {
+                    started = Promise.reject(error);
+                }
+                started.then(
                     value => {
                         done();
                         resolve(value);

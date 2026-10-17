@@ -336,6 +336,19 @@ export class User extends CommonSchema {
     @Prop({ type: [Number], required: false, default: undefined })
     heistStars?: number[];
 
+    // Pawlegends (docs/plans/moba/POC.md §11.5), keyed by difficulty ('easy', 'normal'). Written only by the
+    // replay-verified branch of `/live`: fastest win in ticks (`$min`), catnip of the first win (raised to
+    // PAWLEGENDS_LEVEL_CAPS, claimed atomically so it pays once), matches saved (`$inc`). The catnip counts in
+    // `catnipCount` (user/utils/catnip-accounting.ts).
+    @Prop({ type: Object, required: false, default: undefined })
+    pawlegendsFastestWin?: Record<string, number>;
+
+    @Prop({ type: Object, required: false, default: undefined })
+    pawlegendsCatnip?: Record<string, number>;
+
+    @Prop({ type: Object, required: false, default: undefined })
+    pawlegendsMatches?: Record<string, number>;
+
     @Prop({ required: false, default: 0 })
     monthPacks: number;
 

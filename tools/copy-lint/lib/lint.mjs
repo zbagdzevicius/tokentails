@@ -46,6 +46,18 @@ export const TARGETS = [
     jsonPaths: ['meta.title', 'meta.objectives[]', 'meta.hints[].text'],
   },
   {
+    // Pawlegends (docs/plans/moba/POC.md §15 item 24): every player-visible string of the game. The sim is
+    // integer state, never copy. `gameCopy` adds R13 (no shelter, impact or money words) everywhere except the
+    // store files, which show prices; R10 already bans chain names (the STELLAR element is labelled "Star").
+    name: 'pawlegends',
+    include: ['pawlegends/src/**/*.{ts,js}'],
+    exclude: ['pawlegends/src/sim/**', '**/__tests__/**', '**/*.test.ts', '**/*.d.ts'],
+    ruleset: 'client',
+    app: true,
+    gameCopy: true,
+    storeFiles: ['pawlegends/src/money/**', 'pawlegends/src/ui/store.ts', 'pawlegends/src/ui/offerCard.ts'],
+  },
+  {
     name: 'backend',
     include: ['backend/src/**/*.ts'],
     exclude: ['**/*.spec.ts', 'backend/src/shared-contracts/**', 'backend/src/impact/facts.generated.ts', 'backend/src/**/*.schema.ts', 'backend/src/**/dto/**'],
@@ -130,6 +142,7 @@ export function surfaceOf(file) {
   if (/shelter-payouts/.test(file)) return 'shelter-payouts';
   if (/^client\/(?:pages|components)\/impact/.test(file)) return 'impact';
   if (file.startsWith('catnip-heist/')) return 'heist';
+  if (file.startsWith('pawlegends/')) return 'game';
   if (file.startsWith('client/') || file.startsWith('backend/')) return 'game';
   return null;
 }
@@ -173,6 +186,7 @@ const WINDOW = 3;
 export function lintSource(file, text, { facts, target, toneExempt = false }) {
   const findings = [];
   const surface = surfaceOf(file);
+  const gameCopy = !!target.gameCopy && !matcher(target.storeFiles || [])(file);
   const units = target.json ? extractJson(file, text, { paths: target.jsonPaths }) : extractTs(file, text, { ruleset: target.ruleset });
   const markers = target.json ? { ids: [], fiction: [], ignores: [] } : scanMarkers(text);
   const add = (line, rule, message, unitText) => {
@@ -197,7 +211,7 @@ export function lintSource(file, text, { facts, target, toneExempt = false }) {
       for (const r of checkCitation(u.claim, { facts, surface })) add(u.line, r.rule, r.message, u.text);
     }
     const fiction = markers.fiction.some((x) => fictionReasonOk(x.reason) && x.line >= lo && x.line <= hi);
-    const ctx = { facts, surface, toneExempt, appScope: !!target.app, near: { ids, fiction } };
+    const ctx = { facts, surface, toneExempt, appScope: !!target.app, gameCopy, near: { ids, fiction } };
     for (const r of checkUnit(u, ctx)) add(u.line, r.rule, r.message, u.text);
   }
   return findings;

@@ -100,6 +100,8 @@ export function applyUpdate(doc: Doc, update: any) {
                         ? operand
                         : current
                 );
+            } else if (operator === '$inc') {
+                writePath(doc, path, current => (Number(current) || 0) + Number(operand));
             } else if (operator === '$bit') {
                 writePath(doc, path, current => {
                     const isAnd = operand.and !== undefined;
@@ -135,6 +137,18 @@ export class FakeUsers {
     findOne = jest.fn(async ({ searchObject, projection }: { searchObject: Doc; projection?: string }) => {
         const doc = this.docs.get(String(searchObject._id));
         return doc ? project(doc, projection) : null;
+    });
+
+    /** UserRepository.claimBelowCap: one synchronous check-and-write per call, as MongoDB's findOneAndUpdate. */
+    claimBelowCap = jest.fn(async (id: string, path: string, cap: number) => {
+        await Promise.resolve();
+        const doc = this.docs.get(String(id));
+        if (!doc) return null;
+        const [field, key] = path.split('.');
+        const current = key === undefined ? doc[field] : doc[field]?.[key];
+        if (typeof current === 'number' && current >= cap) return null;
+        writePath(doc, path, () => cap);
+        return typeof current === 'number' ? Math.max(0, current) : 0;
     });
 
     update = jest.fn(async (id: string, update: any) => {

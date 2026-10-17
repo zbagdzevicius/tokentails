@@ -61,6 +61,7 @@ import {
 import { HeistReplayIpThrottleGuard } from './heist/heist-ip-throttle.guard';
 import { saveHeistRun } from './heist/heist-live';
 import { saveBadcatRun } from 'src/badcat/badcat-live';
+import { savePawlegendsMatch } from 'src/pawlegends/pawlegends-live';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -1400,6 +1401,24 @@ export class UserController {
     ): Promise<any> {
         if (body.badcat !== undefined && body.type !== GameType.BAD_CAT) {
             throw new BadRequestException('badcat is only accepted with type BAD_CAT');
+        }
+        if (body.pawlegends !== undefined && body.type !== GameType.PAWLEGENDS) {
+            throw new BadRequestException('pawlegends is only accepted with type PAWLEGENDS');
+        }
+        if (body.type === GameType.PAWLEGENDS) {
+            // Pawlegends matches (POC.md §11.5): re-simulated in a worker thread through their own bounded queue.
+            try {
+                return await savePawlegendsMatch(
+                    { users: this.repository as any, games: this.gameRepository as any },
+                    userId,
+                    body
+                );
+            } catch (error) {
+                if (error instanceof ReplayQueueFullException) {
+                    req?.res?.setHeader('Retry-After', String(error.retryAfterSeconds));
+                }
+                throw error;
+            }
         }
         if (body.type === GameType.BAD_CAT) {
             // Bad Cat Daily ranked runs (GDD 10 Phase 2): replay-verified, always on.

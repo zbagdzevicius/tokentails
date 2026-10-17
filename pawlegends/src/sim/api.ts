@@ -1,0 +1,304 @@
+/**
+ * THE CONTRACT between the sim and everything else (render, input, host, backend). Parallel lanes code against
+ * these types; change them only additively, and note any breaking change in the same commit.
+ *
+ * Units everywhere (POC.md §4.2): positions and distances in integer mm (map 100,000 × 60,000, origin bottom-left,
+ * +y up), time in ticks at 30 Hz, angles in 1/4096 turn (0 = +x, counter-clockwise), percentages in basis points.
+ * Render code converts at the edge: metres = mm / 1000, world z = −y / 1000 or as the renderer chooses.
+ *
+ * Pure types and constants only: no DOM, no three, no floats. Node-importable.
+ */
+import type { HeroId } from '../data/heroes/types';
+import type { Difficulty } from '../data/bots';
+import type { TrickId } from '../data/tricks';
+
+export type { HeroId, Difficulty, TrickId };
+
+/** 0 = Purrhaven (left, the human's team), 1 = Woof (right). */
+export type Team = 0 | 1;
+/** Entity team in snapshots: 2 = neutral (rat camp, Pudding). */
+export type EntityTeam = 0 | 1 | 2;
+/** Hero slot: 0..2 Purrhaven (the human is slot 0), 3..5 Woof. */
+export type Slot = 0 | 1 | 2 | 3 | 4 | 5;
+
+export const HUMAN_SLOT = 0;
+export const SLOTS_PER_TEAM = 3;
+export const SLOT_COUNT = 6;
+export const teamOfSlot = (slot: number): Team => (slot < SLOTS_PER_TEAM ? 0 : 1);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Match setup
+
+/**
+ * Render-only cosmetics (coats, chromas, frames, Companion Kittens). The sim never reads them and they are not
+ * part of the replay or the hash (POC.md §7.1).
+ */
+export interface CosmeticsConfig {
+  /** Per hero slot: a coat or chroma id, or null for the default. */
+  heroSkins?: readonly (string | null)[];
+  /** Token Tails cat ids shown as Companion Kittens on the player's team. */
+  companionCats?: readonly string[];
+  frame?: string | null;
+}
+
+export interface MatchConfig {
+  /** uint32. A dare link carries it; otherwise the host draws one. */
+  seed: number;
+  /** Hero per slot (length 6). Use `fillPicks` to draw the bot slots from the seed. */
+  picks: readonly HeroId[];
+  /** Paw Trick per slot (length 6). */
+  tricks: readonly TrickId[];
+  difficulty: Difficulty;
+  cosmetics?: CosmeticsConfig;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Commands (§11.3). Coordinates in mm; the binary stream quantises them to 250 mm.
+
+export const Op = Object.freeze({
+  Move: 1,
+  AttackMove: 2,
+  Attack: 3,
+  Cast: 4,
+  Trick: 5,
+  Stop: 6,
+  Nap: 7,
+  Talent: 8,
+} as const);
+export type Op = (typeof Op)[keyof typeof Op];
+
+/** Ability slot index for `cast`: 0 Q, 1 W, 2 E, 3 R. */
+export type CastSlot = 0 | 1 | 2 | 3;
+/** Talent tier index (0 = level 3, 1 = level 6, 2 = level 9) and choice (0 or 1). */
+export type TalentTier = 0 | 1 | 2;
+
+export type Command =
+  | { op: typeof Op.Move; x: number; y: number }
+  | { op: typeof Op.AttackMove; x: number; y: number }
+  | { op: typeof Op.Attack; id: number }
+  /** `id` = target entity id, or NO_TARGET (255) for a ground-aimed cast. */
+  | { op: typeof Op.Cast; slot: CastSlot; x: number; y: number; id: number }
+  | { op: typeof Op.Trick; x: number; y: number }
+  | { op: typeof Op.Stop }
+  | { op: typeof Op.Nap }
+  | { op: typeof Op.Talent; tier: TalentTier; choice: 0 | 1 };
+
+export const NO_TARGET = 0xff;
+
+/** One command at a tick (the replay and the protocol carry these). */
+export interface TimedCommand {
+  tick: number;
+  cmd: Command;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Snapshots (per team: what that team may see, POC.md §7.3 brush rule)
+
+export type EntityKind = 'hero' | 'minion' | 'tower' | 'core' | 'fountain' | 'camp' | 'pudding';
+
+/** Coarse state for animation. */
+export type UnitStateName = 'idle' | 'moving' | 'attacking' | 'casting' | 'dead' | 'napping';
+
+/** Bit flags in `EntitySnap.buffs` (same values as `Buff` in world.ts). */
+export const BuffFlag = Object.freeze({
+  Stealth: 1 << 0,
+  Untargetable: 1 << 1,
+  Invulnerable: 1 << 2,
+  Stunned: 1 << 3,
+  Rooted: 1 << 4,
+  Feared: 1 << 5,
+  Slowed: 1 << 6,
+  Shielded: 1 << 7,
+  Hasted: 1 << 8,
+  InBrush: 1 << 9,
+  Marked: 1 << 10,
+  Channeling: 1 << 11,
+  Blocking: 1 << 12,
+  Tethered: 1 << 13,
+} as const);
+
+export interface EntitySnap {
+  /** Entity id (stable for the match; ids are slot indices, heroes 0..5). */
+  id: number;
+  kind: EntityKind;
+  team: EntityTeam;
+  /** Hero slot (0..5) for heroes; index within its kind otherwise. */
+  slot: number;
+  /** Heroes only. */
+  hero?: HeroId;
+  /** Heroes only: 1..10. */
+  level?: number;
+  /** Minions: 'melee' | 'ranged' | 'siege'. Towers: 'outer' | 'inner'. */
+  variant?: string;
+  /** Lane for minions and towers. */
+  lane?: 'sunny' | 'puddle';
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  shield: number;
+  state: UnitStateName;
+  facing: number;
+  buffs: number;
+  /** Heroes only, the viewer's own team: ticks left on Q, W, E, R, Trick (0 = ready). */
+  cooldowns?: readonly [number, number, number, number, number];
+  /** Heroes only, while dead: ticks until respawn. */
+  respawnIn?: number;
+  /** Heroes only, the viewer's own team: cumulative XP (levels at data/xp.ts XP.toLevel). */
+  xp?: number;
+  /** Heroes only, the viewer's own team: talent choice per tier (levels 3, 6, 9): −1 not chosen, else 0 or 1. */
+  talents?: readonly [number, number, number];
+  /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100), else 0. */
+  resource?: number;
+}
+
+export interface ProjectileSnap {
+  index: number;
+  team: Team;
+  owner: number;
+  x: number;
+  y: number;
+  /** mm per tick, for interpolation. */
+  vx: number;
+  vy: number;
+  kind: number;
+}
+
+export interface ZoneSnap {
+  index: number;
+  team: EntityTeam;
+  owner: number;
+  x: number;
+  y: number;
+  radius: number;
+  ttl: number;
+  kind: number;
+}
+
+export type MatchPhase = 'gate' | 'play' | 'sunset' | 'suddenDeath' | 'ended';
+
+export interface MatchClock {
+  tick: number;
+  /** Whole seconds since the start (tick / 30, truncated). */
+  seconds: number;
+  phase: MatchPhase;
+  /** Ticks until the next phase change, or 0 when none is left. */
+  nextPhaseIn: number;
+}
+
+export interface MatchScore {
+  /** Takedowns per team. */
+  kills: readonly [number, number];
+  /** Towers destroyed BY each team. */
+  towers: readonly [number, number];
+}
+
+/** FX events for the render (hits, casts, deaths, level-ups ...). `tick` is the tick they happened on. */
+export type SimEvent =
+  | { type: 'hit'; tick: number; src: number; dst: number; amount: number; shielded: number; kind: 'basic' | 'ability' | 'tower' | 'zone' }
+  | { type: 'cast'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; target: number }
+  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; ticks: number }
+  | { type: 'death'; tick: number; id: number; killer: number }
+  | { type: 'levelup'; tick: number; id: number; level: number }
+  | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }
+  | { type: 'tower'; tick: number; id: number; destroyedBy: Team }
+  | { type: 'pudding'; tick: number; what: 'spawn' | 'hop' | 'calmed' | 'escort' | 'leave'; team?: Team }
+  | { type: 'sunset'; tick: number }
+  | { type: 'suddenDeath'; tick: number };
+
+export type SimEventType = SimEvent['type'];
+
+export interface Snapshot {
+  /** The team this snapshot is filtered for. */
+  team: Team;
+  clock: MatchClock;
+  score: MatchScore;
+  /** Visible entities, ascending id. */
+  entities: EntitySnap[];
+  projectiles: ProjectileSnap[];
+  zones: ZoneSnap[];
+  /** Events of the last stepped tick that this team may see. */
+  events: SimEvent[];
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Result and replay
+
+export type Outcome = 'won' | 'lost';
+
+export interface SlotStats {
+  slot: number;
+  hero: HeroId;
+  kills: number;
+  deaths: number;
+  assists: number;
+  heroDamage: number;
+  towerDamage: number;
+  level: number;
+}
+
+export interface MatchResult {
+  /** From the human's (slot 0, Purrhaven) point of view. */
+  outcome: Outcome;
+  winner: Team;
+  reason: 'core' | 'safetyEnd';
+  ticks: number;
+  /** 8-digit hex FNV-1a of the final state. */
+  finalHash: string;
+  stats: SlotStats[];
+}
+
+/** The replay the game posts to `/user/catbassadors/live` in the `pawlegends` field (§11.3). */
+export interface ReplayRecord {
+  v: 1;
+  simVersion: number;
+  /** uint32 */
+  seed: number;
+  difficulty: Difficulty;
+  /** The human (slot 0); bot picks and tricks come from the seed (`fillPicks`). */
+  hero: HeroId;
+  trick: TrickId;
+  /** <= MAX_TICKS (19,800). */
+  ticks: number;
+  /** base64 of the binary command stream (≤ MAX_INPUT_CHARS). */
+  inputs: string;
+  outcome: Outcome;
+  /** hex FNV-1a */
+  finalHash: string;
+}
+
+/** Alias with the spec's name. */
+export type PawlegendsReplay = ReplayRecord;
+
+export { MAX_INPUT_CHARS, MAX_TICKS } from '../data/limits';
+
+export type VerifyCode =
+  | 'PAWLEGENDS_REPLAY_INVALID'
+  | 'PAWLEGENDS_SIM_VERSION'
+  | 'PAWLEGENDS_TOO_LONG'
+  | 'PAWLEGENDS_OUTCOME_MISMATCH'
+  | 'PAWLEGENDS_HASH_MISMATCH'
+  | 'PAWLEGENDS_NOT_ENDED';
+
+export type VerifyResult =
+  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[] }
+  | { ok: false; code: VerifyCode; message: string };
+
+// ---------------------------------------------------------------------------------------------------------------
+// The sim's functional surface (implemented in src/sim/index.ts)
+
+/** Opaque match handle. */
+export interface Match {
+  readonly config: MatchConfig;
+}
+
+export interface SimApi {
+  createMatch(config: MatchConfig): Match;
+  /** Advance one tick. `commands` are the human's (slot 0) commands for this tick; the latest one wins. */
+  step(match: Match, commands?: readonly Command[]): void;
+  snapshot(match: Match, team: Team): Snapshot;
+  /** Hash of the current state (uint32). */
+  hash(match: Match): number;
+  /** Null while the match runs. */
+  result(match: Match): MatchResult | null;
+}

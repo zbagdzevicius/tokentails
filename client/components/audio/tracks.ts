@@ -31,6 +31,8 @@ const GAME_TRACKS: Record<GameType, string | null> = {
   [GameType.CATNIP_HEIST]: null,
   // Bad Cat Daily is a separate top-level build (/badcat) with its own WebAudio; never hosted by the shell.
   [GameType.BAD_CAT]: null,
+  // Pawlegends (/pawlegends) runs in its own iframe with its own audio.
+  [GameType.PAWLEGENDS]: null,
 };
 
 /**

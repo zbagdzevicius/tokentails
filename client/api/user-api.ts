@@ -8,6 +8,7 @@ import { getPlatform } from "@/analytics/platform";
 import { GameType } from "@/models/game";
 import type { ErrorCode } from "@/shared-contracts/errors";
 import type { HeistRunLog } from "@/shared-contracts/heist-bridge";
+import type { PawlegendsReplay } from "@/components/pawlegends/bridge";
 import {
   ApiError,
   apiFetch,
@@ -340,13 +341,23 @@ export interface HeistMatch {
 }
 
 /**
+ * The body a Pawlegends save posts (POC.md §11.5): the type and the match replay in `pawlegends`. The
+ * backend re-simulates it; no score field is read.
+ */
+export interface PawlegendsMatch {
+  type: typeof GameType.PAWLEGENDS;
+  pawlegends: PawlegendsReplay;
+  platform?: IMatch["platform"];
+}
+
+/**
  * `POST /user/catbassadors/live` for callers that handle every outcome (the Heist host page). Unlike
  * `saveMatch` it never waits for a token (no `waitForLocalStorageKey`), never retries a 429 on its
  * own and never throws: it returns `{ ok, status, code }`. A 428 GUEST_SESSION_REQUIRED creates the
  * guest session once and retries once (the API wrapper); a 403 never opens the sheet.
  */
 const saveMatchDetailed = async (
-  match: IMatch | HeistMatch,
+  match: IMatch | HeistMatch | PawlegendsMatch,
   options: { signal?: AbortSignal } = {}
 ): Promise<MatchSaveResult> => {
   const body = JSON.stringify({

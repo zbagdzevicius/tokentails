@@ -14,6 +14,24 @@ export class UserRepository extends BaseRepository<UserDocument> {
         super(collectionModel);
     }
 
+    /**
+     * Atomically raises the number at `path` to `cap` when it is below it (or missing). Returns the value it had
+     * (0 when missing), or null when it was already at the cap and nothing changed. The Pawlegends first-win
+     * catnip claim (POC.md §11.5): of two saves racing for the same first win, exactly one gets a non-null answer.
+     */
+    async claimBelowCap(id: string, path: string, cap: number): Promise<number | null> {
+        const before = (await this.collectionModel
+            .findOneAndUpdate(
+                { _id: id, $or: [{ [path]: { $lt: cap } }, { [path]: { $exists: false } }, { [path]: null }] },
+                { $set: { [path]: cap } },
+                { new: false, projection: { [path]: 1 } }
+            )
+            .lean()) as any;
+        if (!before) return null;
+        const value = path.split('.').reduce((node, key) => node?.[key], before);
+        return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
+    }
+
     async weeklyCount(): Promise<Array<{ [key: string]: number }>> {
         const startDate = new Date('2025-04-14');
         const currentDate = new Date();
