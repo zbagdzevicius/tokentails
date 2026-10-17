@@ -38,8 +38,6 @@ export const FULL_REREAD_MS = 10 * 60_000;
 export const MAX_OWN_PER_POLL = 4;
 /** A payout older than this (block time) is only shouted out when we saw it arriving live, or it is the viewer's. */
 export const LANDED_RECENT_S = 15 * 60;
-/** An arriving order older than this is flagged `delayed` (float empty, RPC down, review). */
-export const DELAYED_AFTER_MS = 30 * 60_000;
 /** A landed payout whose order is still unknown is retried for names this long, then dropped. */
 export const AWAIT_NAMES_MS = 2 * 60_000;
 /** After an order turns `onchain` but is not in the feed yet, re-read the feed at these delays. */
@@ -92,9 +90,8 @@ export interface CatName {
 }
 
 export interface RaveOrderView extends RaveOrder {
+  /** 'landed' = dancing: paid (its cats dance right away) or its payout is in the feed. */
   phase: 'arriving' | 'landed';
-  /** Arriving for over DELAYED_AFTER_MS. */
-  delayed: boolean;
   /** Explorer link of the payout (mainnet chains only), else null. */
   payoutUrl: string | null;
   xUrl: string | null;
@@ -103,16 +100,16 @@ export interface RaveOrderView extends RaveOrder {
 }
 
 export interface Arriving {
-  /** Hologram cats: sum of `cats` over arriving orders. Never part of the counter. */
+  /** Hologram cats: sum of `cats` over orders still confirming (`pending`). Never part of the counter. */
   count: number;
   /** Newest first. */
   orders: RaveOrderView[];
 }
 
-/** The DJ shout-out payload: an order's payout just landed in the feed. */
+/** The DJ shout-out payload: an order just joined the floor (paid, or its payout reached the feed first). */
 export interface NameShoutout {
   order: RaveOrder;
-  /** The order's real cats in the current snapshot (may be fewer when a DEMO count cuts the list). */
+  /** The order's payout cats in the current snapshot; empty while it dances ahead of its payout. */
   cats: RaveCat[];
   names: string[];
   x: string | null;
@@ -162,9 +159,14 @@ export interface RaveOrders {
   track(order: unknown, status?: 'pending' | 'paid'): RaveOrder | null;
   /** Poll fast (5 s) for the next 2 min. */
   boost(): void;
-  /** Name + X of a real cat whose payout was a Moon Rave payout, else null. */
+  /** Name + X of a Moon Rave cat (a payout cat, or a paid order's cat dancing ahead of it), else null. */
   namesForCat(cat: RaveCat | null | undefined): CatName | null;
-  /** Paid orders whose payout is not in the feed yet. */
+  /**
+   * Cats of paid orders whose payout is not in the feed yet, oldest order first, indexed from
+   * `start`. They dance right away; the payout later replaces them one for one (no second drop-in).
+   */
+  aheadCats(start: number): RaveCat[];
+  /** Orders still confirming (`pending`: a USDC tx being checked, a bank confirming): holograms. */
   arriving(): Arriving;
   /** Up to `limit` names of arriving cats, newest order first (hologram labels). */
   arrivingNames(limit?: number): CatName[];
@@ -177,7 +179,7 @@ export interface RaveOrders {
    * `landed` = cats whose payout is in the feed. Orders without a country add to `unknownCats`.
    */
   countries(): CountryBoard;
-  /** Shout-out when an order's payout first appears in the feed. */
+  /** Shout-out once per order, when it joins the floor (paid, or first seen in the feed). */
   onLanded(cb: (e: NameShoutout) => void): () => void;
   /** Any change to orders, arriving or landed. */
   subscribe(cb: () => void): () => void;
@@ -424,6 +426,8 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
   let indexedSnap: PayoutSnapshot | null = null;
   let indexDirty = true;
   let baselined = false;
+  /** The first orders read is done: paid orders it brings are history unless fresh (15 min). */
+  let ordersBaselined = false;
   let lastError: string | null = null;
   let failures = 0;
   let lastFullAt = 0;
@@ -502,8 +506,29 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
     }
   }
 
+  /** Paid or on-chain: its cats dance (from the feed once the payout is there, else ahead of it). */
+  function isDancing(o: RaveOrder, idx: RaveCatIndex) {
+    return o.status === 'paid' || o.status === 'onchain' || idx.inFeed.has(o.orderId);
+  }
+
+  function isAhead(o: RaveOrder, idx: RaveCatIndex) {
+    return (o.status === 'paid' || o.status === 'onchain') && !idx.inFeed.has(o.orderId);
+  }
+
   function isArriving(o: RaveOrder, idx: RaveCatIndex) {
-    return o.status !== 'created' && !idx.inFeed.has(o.orderId);
+    return o.status === 'pending' && !idx.inFeed.has(o.orderId);
+  }
+
+  function emitJoined(order: RaveOrder, cats: RaveCat[]) {
+    const names = orderNames(order, Math.min(order.cats, 3));
+    const e: NameShoutout = { order, cats, names, x: order.x, xUrl: xUrlOf(order.x), text: shoutoutText(names, order.cats, order.x) };
+    for (const cb of [...landedListeners]) {
+      try {
+        cb(e);
+      } catch (err) {
+        console.error('[cat-rave] landed subscriber failed', err);
+      }
+    }
   }
 
   /** Landed / arriving bookkeeping. Emits shout-outs. Returns true when something changed. */
@@ -520,15 +545,27 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
     const nowMs = now();
     const live = snap.origin === 'live';
     for (const o of orders.values()) {
-      if (!isArriving(o, idx)) continue;
-      if (live) seenArriving.add(o.orderId);
-      if (o.status === 'onchain') scheduleFeedRefresh(o.orderId);
+      if (live && isArriving(o, idx)) seenArriving.add(o.orderId);
+      if (o.status === 'onchain' && !idx.inFeed.has(o.orderId)) scheduleFeedRefresh(o.orderId);
+    }
+    // Paid orders join the floor now, ahead of their payout: one shout-out each, never again when
+    // the payout lands. Older paid orders seen on the first look are history (no shout-out).
+    const recentS = Math.floor(nowMs / 1000) - LANDED_RECENT_S;
+    for (const o of orders.values()) {
+      if (shouted.has(o.orderId) || !isAhead(o, idx)) continue;
+      shouted.add(o.orderId);
+      changed = true;
+      const created = o.createdAt ? Math.floor(Date.parse(o.createdAt) / 1000) : Math.floor((firstSeen.get(o.orderId) ?? nowMs) / 1000);
+      const fresh = ordersBaselined ? created >= recentS : false;
+      if (!(fresh || tracked.has(o.orderId) || seenArriving.has(o.orderId))) continue;
+      landedThisSession.set(o.orderId, nowMs);
+      emitJoined(o, []);
     }
     let needNames = false;
     for (const id of idx.inFeed) {
       if (shouted.has(id)) continue;
       const order = orders.get(id);
-      const recent = (idx.landedAt.get(id) ?? 0) >= Math.floor(nowMs / 1000) - LANDED_RECENT_S;
+      const recent = (idx.landedAt.get(id) ?? 0) >= recentS;
       if (!order) {
         const since = awaitingNames.get(id);
         if (since === undefined) {
@@ -545,16 +582,7 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
       changed = true;
       if (!(recent || order.mine || seenArriving.has(id))) continue;
       landedThisSession.set(id, nowMs);
-      const cats = idx.catsByOrder.get(id) ?? [];
-      const names = orderNames(order, Math.min(order.cats, 3));
-      const e: NameShoutout = { order, cats, names, x: order.x, xUrl: xUrlOf(order.x), text: shoutoutText(names, order.cats, order.x) };
-      for (const cb of [...landedListeners]) {
-        try {
-          cb(e);
-        } catch (err) {
-          console.error('[cat-rave] landed subscriber failed', err);
-        }
-      }
+      emitJoined(order, idx.catsByOrder.get(id) ?? []);
     }
     if (needNames) void store.refresh();
     return changed;
@@ -601,6 +629,18 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
       }
     }
     lastFetchAt = now();
+    if (!ordersBaselined && feed.current) {
+      // History: every paid order of the first read joined the floor before we looked, except the
+      // viewer's tracked purchase and fresh ones (paid in the last 15 min still get their shout-out).
+      const idx0 = currentIndex();
+      const recent0 = Math.floor(now() / 1000) - LANDED_RECENT_S;
+      for (const o of orders.values()) {
+        if (!isAhead(o, idx0) || tracked.has(o.orderId)) continue;
+        const created = o.createdAt ? Math.floor(Date.parse(o.createdAt) / 1000) : 0;
+        if (created < recent0) shouted.add(o.orderId);
+      }
+      ordersBaselined = true;
+    }
     if (ok) {
       failures = 0;
       lastError = null;
@@ -651,13 +691,10 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
   });
 
   function view(o: RaveOrder, idx: RaveCatIndex): RaveOrderView {
-    const arriving = isArriving(o, idx);
     const chain = o.chainId !== null ? CHAINS[o.chainId] : undefined;
-    const since = o.createdAt ? Date.parse(o.createdAt) : (firstSeen.get(o.orderId) ?? now());
     return {
       ...o,
-      phase: arriving ? 'arriving' : 'landed',
-      delayed: arriving && now() - since > DELAYED_AFTER_MS,
+      phase: isDancing(o, idx) ? 'landed' : 'arriving',
       payoutUrl: chain && o.payoutTx ? explorerTx(chain.explorer, o.payoutTx) : null,
       xUrl: xUrlOf(o.x),
       previewNames: orderNames(o, NAMED_FIELDS + (o.cats > NAMED_FIELDS ? 1 : 0)),
@@ -711,12 +748,30 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
       if (polling) schedule(ORDERS_FAST_MS);
     },
     namesForCat(cat) {
-      if (!cat || cat.demo || !cat.payout) return null;
+      if (!cat || cat.demo) return null;
+      if (cat.order) {
+        const o = orders.get(cat.order.id);
+        if (!o) return null;
+        return { orderId: o.orderId, position: cat.order.position, name: catNameAt(o, cat.order.position), x: o.x, xUrl: xUrlOf(o.x), country: o.country };
+      }
+      if (!cat.payout) return null;
       const hit = currentIndex().byCat.get(cat.index);
       if (!hit) return null;
       const o = orders.get(hit.orderId);
       const x = o?.x ?? null;
       return { orderId: hit.orderId, position: hit.position, name: o ? catNameAt(o, hit.position) : null, x, xUrl: xUrlOf(x), country: o?.country ?? null };
+    },
+    aheadCats(start) {
+      const idx = currentIndex();
+      const list = [...orders.values()].filter((o) => isAhead(o, idx)).sort((a, b) => newestFirst(b, a));
+      const out: RaveCat[] = [];
+      for (const o of list) {
+        const created = o.createdAt ? Math.floor(Date.parse(o.createdAt) / 1000) : Math.floor((firstSeen.get(o.orderId) ?? now()) / 1000);
+        for (let i = 0; i < o.cats; i++) {
+          out.push({ index: start + out.length, payout: null, contributors: 0, completedAt: created, demo: false, seed: seedOf(`${o.orderId}:${i}`), country: o.country, order: { id: o.orderId, position: i } });
+        }
+      }
+      return out;
     },
     arriving() {
       const idx = currentIndex();
@@ -747,7 +802,7 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
         // Same rows as GET /rave/countries: what the public list carries, plus the viewer's own orders
         // once paid. The viewer's unpaid USDC order (tracked as pending) is not a cat yet.
         .filter((o) => publicIds.has(o.orderId) || o.status === 'paid' || o.status === 'onchain')
-        .map((o) => ({ country: o.country, cats: o.cats, landed: idx.inFeed.has(o.orderId) }));
+        .map((o) => ({ country: o.country, cats: o.cats, landed: isDancing(o, idx) }));
       return countryLeaderboard(entries);
     },
     order(orderId) {
@@ -777,6 +832,16 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
     },
   };
   return store;
+}
+
+/** Stable 0..1 look seed (FNV-1a) for a cat dancing ahead of its payout. */
+function seedOf(key: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) / 0x100000000;
 }
 
 function rank(s: RaveOrderStatus): number {

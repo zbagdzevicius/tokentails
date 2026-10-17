@@ -158,7 +158,7 @@ describe('createRaveOrders', () => {
 
   const base = [ev(1, '0.37')];
 
-  it('shows a paid order as arriving (never counted), then names its cats and shouts once when the payout lands', async () => {
+  it('dances a paid order right away and shouts once; its payout landing later adds nothing', async () => {
     const feed = fakeFeed(snap(base));
     let listed: unknown[] = [order()];
     const { fn } = fakeFetch(() => ({ status: 200, body: { asOf: 'x', orders: listed } }));
@@ -167,19 +167,22 @@ describe('createRaveOrders', () => {
     store.onLanded((e) => shouts.push(e));
     await store.load();
 
-    const a = store.arriving();
-    expect(a.count).toBe(5);
-    expect(a.orders[0]).toMatchObject({ orderId: OID, phase: 'arriving', xUrl: 'https://x.com/someone', delayed: false });
-    expect(store.arrivingNames(3).map((n) => n.name)).toEqual(['Mochi', 'Pixel', 'Noodle']);
-    expect(feed.current!.realCats).toBe(0); // holograms never add to the counter
-
-    // The payout lands (block time now).
-    listed = [order({ status: 'onchain', chainId: 5042, payoutTx: tx(9) })];
-    feed.set(snap([...base, { ...ev(9, '5', { timestamp: NOW_S - 30 }), memo: `tt:rave:${HEX}` }]));
+    // Paid: no hologram, five real cats ahead of the payout, named, shouted out once.
     expect(store.arriving().count).toBe(0);
+    const ahead = store.aheadCats(7);
+    expect(ahead.map((c) => c.index)).toEqual([7, 8, 9, 10, 11]);
+    expect(ahead.every((c) => !c.demo && c.payout === null && c.order?.id === OID)).toBe(true);
+    expect(store.namesForCat(ahead[1])).toEqual({ orderId: OID, position: 1, name: 'Pixel', x: 'someone', xUrl: 'https://x.com/someone', country: null });
+    expect(store.recent()[0]).toMatchObject({ orderId: OID, phase: 'landed', xUrl: 'https://x.com/someone' });
     expect(shouts).toHaveLength(1);
     expect(shouts[0].text).toBe('Shout-out to Mochi, Pixel and 3 more! Shout-out to @someone!');
-    expect(shouts[0].cats.map((c) => c.index)).toEqual([0, 1, 2, 3, 4]);
+    expect(shouts[0].cats).toEqual([]);
+
+    // The payout lands (block time now): its cats take the place of the ahead ones, no new shout.
+    listed = [order({ status: 'onchain', chainId: 5042, payoutTx: tx(9) })];
+    feed.set(snap([...base, { ...ev(9, '5', { timestamp: NOW_S - 30 }), memo: `tt:rave:${HEX}` }]));
+    expect(store.aheadCats(5)).toEqual([]);
+    expect(shouts).toHaveLength(1);
     expect(feed.current!.realCats).toBe(5);
 
     const cat = feed.current!.catList[3];
@@ -196,7 +199,7 @@ describe('createRaveOrders', () => {
   it('does not shout for orders already in the feed at load, nor for old payouts first seen on a bundle', async () => {
     const old = { ...ev(5, '3', { timestamp: NOW_S - 86_400 }), memo: `tt:rave:${HEX}` };
     const feed = fakeFeed(snap([...base, old], 'snapshot'));
-    const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ cats: 3, names: ['A', 'B', 'C'], status: 'onchain' }), order({ orderId: OID2, cats: 1, names: ['Zed'], status: 'onchain' })] } }));
+    const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ cats: 3, names: ['A', 'B', 'C'], status: 'onchain' }), order({ orderId: OID2, cats: 1, names: ['Zed'], status: 'onchain', createdAt: new Date((NOW_S - 86_100) * 1000).toISOString() })] } }));
     const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
     const shouts: NameShoutout[] = [];
     store.onLanded((e) => shouts.push(e));
@@ -211,9 +214,10 @@ describe('createRaveOrders', () => {
     store.dispose();
   });
 
-  it('shouts an old-block payout when it was seen arriving against the live feed', async () => {
+  it('shouts an old-block payout when it was seen confirming against the live feed', async () => {
     const feed = fakeFeed(snap(base, 'live'));
-    const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ orderId: OID2, cats: 1, names: ['Zed'], status: 'onchain' })] } }));
+    const old = new Date((NOW_S - 86_100) * 1000).toISOString();
+    const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ orderId: OID2, cats: 1, names: ['Zed'], status: 'pending', createdAt: old })] } }));
     const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
     const shouts: NameShoutout[] = [];
     store.onLanded((e) => shouts.push(e));
@@ -244,7 +248,8 @@ describe('createRaveOrders', () => {
     store.startPolling();
     const t = store.track({ orderId: OID, cats: 5, names: ['Mochi', 'Pixel', 'Noodle', 'Bean', 'Tofu'], x: 'someone', clientSecret: 'pi_secret' });
     expect(t).toMatchObject({ orderId: OID, mine: true, status: 'paid' });
-    expect(store.arriving().count).toBe(5);
+    expect(store.arriving().count).toBe(0);
+    expect(store.aheadCats(0)).toHaveLength(5);
 
     calls.length = 0;
     await vi.advanceTimersByTimeAsync(ORDERS_FAST_MS * 3);
@@ -253,7 +258,7 @@ describe('createRaveOrders', () => {
     own = { status: 404, body: { code: 'NOT_FOUND' } };
     await vi.advanceTimersByTimeAsync(ORDERS_FAST_MS);
     expect(goneIds).toEqual([`${OID}:missing`]);
-    expect(store.arriving().count).toBe(0);
+    expect(store.aheadCats(0)).toHaveLength(0);
 
     calls.length = 0;
     await vi.advanceTimersByTimeAsync(ORDERS_FAST_FOR_MS);
@@ -278,7 +283,7 @@ describe('createRaveOrders', () => {
     const { fn } = fakeFetch(() => ({ status: 200, body: { orders: [order({ status: 'onchain', chainId: 5042, payoutTx: tx(9) })] } }));
     const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
     await store.load();
-    expect(store.arriving().orders[0].payoutUrl).toBe(`https://explorer.arc.io/tx/${tx(9)}`);
+    expect(store.recent()[0].payoutUrl).toBe(`https://explorer.arc.io/tx/${tx(9)}`);
     await vi.advanceTimersByTimeAsync(FEED_REFRESH_AFTER_ONCHAIN_MS[1]);
     expect(feed.refresh).toHaveBeenCalledTimes(2);
     store.dispose();
@@ -328,7 +333,7 @@ describe('buyer countries', () => {
     expect(parseOrder(order())!.country).toBeNull();
   });
 
-  it('gives each rave cat its order country, holograms too, and builds the leaderboard', async () => {
+  it('gives each rave cat its order country, ahead cats and holograms too, and builds the leaderboard', async () => {
     const OID3 = 'rv_1111111111111111';
     const feed = fakeFeed(snap([ev(1, '0.37'), { ...ev(9, '5', { timestamp: NOW_S - 30 }), memo: `tt:rave:${HEX}` }]));
     const { fn } = fakeFetch(() => ({
@@ -337,23 +342,22 @@ describe('buyer countries', () => {
         orders: [
           order({ country: 'LT', status: 'onchain', chainId: 5042, payoutTx: tx(9) }),
           order({ orderId: OID2, cats: 2, names: ['Zed', 'Ari'], country: 'DE' }),
-          order({ orderId: OID3, cats: 1, names: ['Nox'] }),
+          order({ orderId: OID3, cats: 1, names: ['Nox'], status: 'pending' }),
         ],
       },
     }));
     const store = createRaveOrders({ api: 'https://api.test', feed, fetch: fn, visibility: null });
     await store.load();
     expect(store.namesForCat(feed.current!.catList[0])!.country).toBe('LT');
-    expect(store.arrivingNames(10).map((n) => [n.name, n.country])).toEqual(
-      expect.arrayContaining([
-        ['Zed', 'DE'],
-        ['Nox', null],
-      ]),
-    );
+    expect(store.aheadCats(5).map((c) => [store.namesForCat(c)!.name, c.country])).toEqual([
+      ['Zed', 'DE'],
+      ['Ari', 'DE'],
+    ]);
+    expect(store.arrivingNames(10).map((n) => [n.name, n.country])).toEqual([['Nox', null]]);
     const b = store.countries();
     expect(b.rows.map((r) => [r.code, r.cats, r.landed])).toEqual([
       ['LT', 5, 5],
-      ['DE', 2, 0],
+      ['DE', 2, 2],
     ]);
     expect(b.unknownCats).toBe(1);
     // The viewer's own unpaid USDC order is not on the board.

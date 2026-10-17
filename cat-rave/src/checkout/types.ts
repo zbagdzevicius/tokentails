@@ -25,7 +25,6 @@ export interface RaveStatusOn {
   reasons: { card: string | null; usdc: string | null };
   prices: { fixed: number[]; customMin: number; max: number };
   fee: { percentBps: number; fixedCents: number };
-  payoutsDelayed: boolean;
   /**
    * The buyer's country from the request IP, when the backend puts it here (null = not detected: the
    * sheet shows the country picker). Absent = the page asks `GET /rave/geo` instead.

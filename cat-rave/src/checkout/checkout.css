@@ -866,11 +866,6 @@
   border-color: rgba(93, 255, 138, 0.6);
   color: var(--rave-green, #5dff8a) !important;
 }
-.rvc-chip.rvc-tone-slow {
-  border-color: rgba(255, 207, 61, 0.6);
-  color: #ffe9a8 !important;
-}
-
 /* ------------------------------------------------------------ layout */
 @media (max-width: 360px) {
   .rvc-opt-big {

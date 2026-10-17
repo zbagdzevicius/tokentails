@@ -10,7 +10,6 @@ const ON = {
   usdc: { enabled: true, chains: [5042] },
   prices: { fixed: [1, 5], customMin: 10, max: 500 },
   fee: { percentBps: 290, fixedCents: 30 },
-  payoutsDelayed: false,
 };
 
 const res = (status: number, body: unknown) =>

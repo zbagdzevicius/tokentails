@@ -99,8 +99,8 @@ export interface Hud {
    * A pinned card closes itself after `autoCloseMs` (default CARD_AUTO_CLOSE_MS; 0 = never).
    */
   showCat(cat: RaveCat | null, opts?: { mode?: 'hover' | 'pin'; x?: number; y?: number; siblings?: number; place?: 'top' | 'bottom'; autoCloseMs?: number }): void;
-  /** An arriving (paid, not yet on the floor) Moon Rave cat: its name, buyer's X, and status. */
-  showArriving(info: (CatNameInfo & { status: string; delayed?: boolean }) | null, opts?: { mode?: 'hover' | 'pin'; x?: number; y?: number; place?: 'top' | 'bottom' }): void;
+  /** A Moon Rave cat still confirming (hologram): its name, buyer's X, and status. */
+  showArriving(info: (CatNameInfo & { status: string }) | null, opts?: { mode?: 'hover' | 'pin'; x?: number; y?: number; place?: 'top' | 'bottom' }): void;
   /**
    * In-page checkout (GET /rave/status said enabled): Add a cat opens it instead of today's sheet.
    * null keeps today's sheet.
@@ -116,7 +116,7 @@ export interface Hud {
   mountSponsors(el: HTMLElement): void;
   /** The Arc week badge, under the tool buttons. */
   mountBadge(el: HTMLElement): void;
-  /** The arrivals list ("Arriving now"), shown above the Add-a-cat button. */
+  /** The arrivals list ("Just joined"), shown above the Add-a-cat button. */
   mountArrivals(el: HTMLElement): void;
   /** Max cats this device draws; above it the HUD says "+N more dancing off-screen". */
   setCapacity(n: number): void;
@@ -839,9 +839,9 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
       const h3 = el('h3', 'rv-display rv-c-named');
       h3.textContent = info.name ?? 'A new cat';
       const amount = el('div', 'rv-c-amount');
-      amount.textContent = info.delayed ? 'Arriving · payout running late' : info.status === 'onchain' ? 'On-chain ✓ landing any moment' : 'Arriving 🛸 paid, on its way to the floor';
+      amount.textContent = 'Confirming the payment…';
       const meta = el('div', 'rv-c-meta');
-      meta.textContent = 'Becomes a dancing cat when the $1 payout to Pink Paw lands on-chain.';
+      meta.textContent = 'Starts dancing the moment the payment is confirmed.';
       cardBody.replaceChildren(h3, nameLine('Moon Rave cat', info.x, info.country), amount, meta);
       placeCard(o);
     },

@@ -157,7 +157,6 @@ export function parseStatus(body: unknown): RaveStatus {
     },
     prices: { fixed: fixed.length ? fixed : [1, 5], customMin: Math.max(2, int(prices.customMin, 10)), max },
     fee: { percentBps: Math.min(2000, Math.max(0, int(fee.percentBps, 290))), fixedCents: Math.min(500, Math.max(0, int(fee.fixedCents, 30))) },
-    payoutsDelayed: b.payoutsDelayed === true,
     ...('country' in b ? { country: cleanCountry(b.country) } : {}),
   };
 }
