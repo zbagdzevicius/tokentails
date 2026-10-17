@@ -529,6 +529,18 @@ describe("parseCustomAmount", () => {
     expect(parseCustomAmount("0")).toEqual({ error: "The smallest gift is 0.01 USDC." });
     expect(parseCustomAmount("10000.01", "pathUSD")).toEqual({ error: "Up to 10,000 pathUSD per gift from this page." });
   });
+
+  it("refuses a thousands separator instead of reading 1,000 as 1", () => {
+    const sep = { error: "No thousands separators: type 1000 or 2.5." };
+    expect(parseCustomAmount("1,000")).toEqual(sep);
+    expect(parseCustomAmount("10,000")).toEqual(sep);
+    expect(parseCustomAmount("1,000.50")).toEqual(sep);
+    expect(parseCustomAmount("1.000,50")).toEqual(sep);
+    expect(parseCustomAmount("1,000,000")).toEqual(sep);
+    // A decimal comma still works when it is not three digits.
+    expect(parseCustomAmount("12,25")).toEqual({ amount: "12.25" });
+    expect(parseCustomAmount("1,0001")).toEqual({ amount: "1.0001" });
+  });
 });
 
 describe("a custom amount in each coin's own units", () => {
