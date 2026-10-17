@@ -1,7 +1,7 @@
 /**
  * CLI for the synthetic-player playtest (bundled and launched by tools/playtest/run.mjs).
  *
- *   --levels heist-01,heist-02   levels (default: all 8)
+ *   --levels heist-01,heist-02   levels (default: the whole campaign, heist-01..16)
  *   --personas novice,rusher     personas (default: novice,cautious,rusher,explorer; 'oracle' is a diagnostic)
  *   --runs 200                   seeded runs per level and persona (seeds seed0 .. seed0+runs-1)
  *   --seed0 1                    first seed

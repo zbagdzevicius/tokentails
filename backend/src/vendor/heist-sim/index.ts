@@ -73,7 +73,7 @@ export const STAR_CLEAN: number = sim.STAR_CLEAN;
 export const STAR_ALL: number = sim.STAR_ALL;
 export const STAR_RULES: readonly HeistStarRule[] = sim.STAR_RULES;
 /** sha256 of heist-sim.bundle.ts: which sim this backend replays with (GET /user/catbassadors/heist-sim). */
-export const BUNDLE_SHA256 = '05f7b0b4643319afc27b1484d852136829eb39fb1945c9d2e6b1ca1cd6d844ef';
+export const BUNDLE_SHA256 = 'd0c697784f6b5a7dbe1cbe696f46d3705aaf09bb27506a6fa88902aedbc1cf95';
 
 export const verifyRun: (log: unknown) => HeistVerifyResult = sim.verifyRun;
 export const checkRunLog: (log: unknown) => HeistLevelInfo | HeistRejectedRun = sim.checkRunLog;

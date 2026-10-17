@@ -64,9 +64,11 @@ uncapped) through `shared/pink-paw.ts`, the same list the Heist's payouts modal 
 storefront (`GET /cat/sale`, the newest 200 cats per shelter) and then never shows its counts as
 the shelter's totals ("of the newest"). It opens on the first tab that has cats.
 
-Token Tails created the Pink Paw wallet and holds it on the shelter's behalf until handover. The
-profile block, the give page and the receipt page all say so. Set `shelter.handover` to
-`"handed-over"` only after the shelter controls its own keys.
+Token Tails created Pink Paw's wallet. Since 2026-10-16 every mainnet split pays it, and
+`campaign.json` says `shelter.handover: "handed-over"`. Payouts before then went to `0xE299…0f37`, a
+wallet Token Tails held for the shelter: the profile, the payouts page and the receipt page say so
+(the receipt per payout, via `TOKEN_TAILS_HELD_WALLETS`). Token Tails keeps a recovery backup of Pink
+Paw's wallet, so no copy claims the shelter alone holds the key.
 
 Each deployment card also shows the contract's native balance (`eth_getBalance`). ShelterSplit
 forwards donations in the same transaction, so it should read 0.
@@ -86,16 +88,17 @@ Query params, not dynamic segments, because the app build is a static export.
 `WalletDonate` gives on any of the seven chains (`giveRails.ts`): through a DonateRouter listed in
 `routers.json` (one signature), or, on a chain without a router or whose token has no EIP-3009
 (Tempo, Robinhood), straight into the listed ShelterSplit (approve, then `disburse`). It is gated by
-`walletGiveMode` (`giveMode.ts`): real money only with `NEXT_PUBLIC_WALLET_DONATE=true` and after the
-handover, a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
-seven testnets, and "Opens when Pink Paw holds its own key" otherwise. Full flow,
+`walletGiveMode` (`giveMode.ts`): real money by default once the campaign pays Pink Paw's wallet
+(`NEXT_PUBLIC_WALLET_DONATE=false` hides it), a testnet "Try it live" block for `NEXT_PUBLIC_WALLET_DONATE_CHAIN` with a picker over the
+seven testnets, and "Opens when Pink Paw's wallet is set up" otherwise. Full flow,
 env and fork E2E: `docs/CLIENT.md`, "Wallet giving". `/shelter-payouts/onboard` is the shelter's
 handover page (claim message in `claim.ts`).
 
 ## Disclosure
 
-The page always shows: "Shelter wallet held by Token Tails on behalf of the shelter until handover".
-Remove it only after the shelter controls its own wallet.
+Since 2026-10-16 the page shows: "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a
+wallet Token Tails held for the shelter." If `campaign.json` ever names a held wallet again, it shows:
+"Payouts go to a wallet Token Tails holds for the shelter."
 
 ## Tests
 

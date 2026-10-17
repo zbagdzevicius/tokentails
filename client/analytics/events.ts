@@ -6,7 +6,7 @@
  * personal data: no user id, email, name, cat name or wallet address.
  * PostHog's own random anonymous id is the only identifier.
  *
- * The names, areas, consent key, scrubber and session budget live in
+ * The names, areas, scrubber and session budget live in
  * `shared/analytics-core.ts`, copied into the client and into Catnip Heist,
  * so both apps send from one catalog (F9). This file adds the property
  * shapes and builders. The Heist sends `heist_open` (standalone loads),

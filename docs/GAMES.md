@@ -29,7 +29,7 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
-Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`.
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -68,7 +68,7 @@ and `components/game/DeathCard.tsx`.
 ## Save flow
 
 1. A scene pushes `GAME_STOP` with score, time, completed level and `outcome`, for Paw Match `rawScore` and `catnipEarned`. Paw Match `time` is the seconds actually played, so streak, star and last-chance bonus seconds never make it negative.
-2. `GameContext.gameStopCallback` applies the save policy, builds `{ type, points, score, time, level, outcome }` and calls `USER_API.saveMatch`, which adds `platform` (`web`, `ios` or `android` from `Capacitor.getPlatform()`) and posts to `POST /user/catbassadors/live`. A transient guest's first save gets 428, the client creates the guest session once and retries. Before saving it sends the consent-gated `game_finish` or `game_fail` event; telemetry never writes scores.
+2. `GameContext.gameStopCallback` applies the save policy, builds `{ type, points, score, time, level, outcome }` and calls `USER_API.saveMatch`, which adds `platform` (`web`, `ios` or `android` from `Capacitor.getPlatform()`) and posts to `POST /user/catbassadors/live`. A transient guest's first save gets 428, the client creates the guest session once and retries. Before saving it sends the scrubbed `game_finish` or `game_fail` event; telemetry never writes scores.
 3. The backend rejects unknown fields, unknown types, unknown levels and `points` above the level cap with 400 before writing anything. It then writes a `Game` row, applies `$max` to the per-level arrays, marks the level cleared on `won`, recomputes catnip totals, and returns the snapshot. Saves are limited to 30 per minute per player and 120 per minute per IP. Scores in these modes are accepted by cap validation, not verified.
 4. `GameContext` patches the profile (including the cleared arrays), records `lastOutcome`, and for Paw Match invalidates the per-level leaderboard queries. Runs consume no lives. A 429 is retried once after `Retry-After`; if that is throttled too, `saveMatch` throws `MatchSaveThrottledError` and the player is told the run was not saved. Any other failure shows "Could not save your score, try again" (`context/game-save-feedback.ts`).
 
@@ -81,7 +81,7 @@ Caps (from `shared/caps.ts`; the client copy is `constants/catnip-accounting.ts`
 | Cupid Cat | 500 |
 | Paw Match catnip | Per-level value up to 85 |
 | Paw Match raw score | 1,000,000 |
-| Catnip Heist | Server score; `HEIST_LEVEL_CAPS` 250 to 310 per level |
+| Catnip Heist | Server score; `HEIST_LEVEL_CAPS` 220 to 330 per level (16 levels) |
 
 ## Catnip Chaos (Purrsuit)
 
@@ -133,7 +133,7 @@ The shipped configuration supersedes it.
 ## Catnip Heist
 
 A single-player 3D stealth run in `catnip-heist/` (three.js, Vite): guide two cats past Kibble Corp's
-guards, grab catnip coins, open the vault and free a shelter cat. Eight campaign levels. The rules
+guards, grab catnip coins, open the vault and free a shelter cat. Sixteen campaign levels in two acts of eight. The rules
 run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the backend replays.
 
 - **Hosting** (plan G2): the static build lives at `/heist-game/` (`npm run build:client`). `pages/heist.tsx` hosts it in an iframe (`/heist-game/index.html?embed=1`) with an optional auth provider. `components/heist/hostBridge.ts` speaks `shared/heist-bridge.ts`: `hello` every 500 ms for up to 10 s; after `ready`, `session {signedIn, progress, insets}`, `save-result`, `pause`, `resume`; the Heist sends `run-complete {runId, won, levelId, log}`, `request-sign-in` and `exit`. The iframe is same-origin, so the bridge is not a security boundary; the replay is. Old `/heist/*` asset URLs redirect to `/heist-game/*`. GameModals pause the Heist through a stand-in registry entry.
@@ -143,8 +143,56 @@ run in a deterministic integer simulation (`catnip-heist/src/sim/`), which the b
 - **Rail copy** (`src/ui/rail.ts`, plan G11): the results screen reads `GET /shelter/donate/status` (3 s timeout) and shows pre-launch ("Real shelter treats open soon.", an "Opens soon" badge), live (the treat button) or exhausted copy; the amount comes from the public facts (C-004). App builds never name the chain. Fixed (task 7b): the win screen's "Token Tails has sent {amount} to shelters so far, on-chain" line (`ui/payouts.ts` `shelterTotal()`, `L-disbursed`) also rendered in app builds; it now returns null off the web host.
 - **Payouts modal** (`src/ui/shelter-payouts.ts`, web hosts only): "Sent to shelters", opened from the title, the pause menu and the win screen, or on load with `?payouts` or `#payouts`. It reads the ShelterSplit payout events from the backend's index (`GET /shelter/payouts`) plus the newer blocks from each chain, or from the chains alone when there is no backend, it does not answer, or its index is stale (`src/ui/payouts.ts`, `public/payouts/deployments.json`) and shows the total per coin, a row per deployment, the latest payouts, the Pink Paw showcase and the give button. A separate "Testnet proof" section reads `public/payouts/testnet-deployments.json` (one card per testnet, never added to the real totals). `fund a:ingest` writes both lists, plus the built Heist's mainnet copy under `client/public/heist-game/payouts/`. The mainnet read is shared per page load (the title prefetches it; the win screen's total reuses it), and the title's 3D scene draws no frames while the modal is open (without a GPU its frames held the rows back for seconds). On `/heist?payouts` an inline script in `HeistHost` points the server-rendered frame at the payouts link before hydration, so the game loads once.
 - **Look**: coin gold-400, night-900 background, Nunito secondary text (decisions #48, #85), the shared Token Tails icon (decision #93), voxel catnip sprigs from the 16 px master.
-- **Analytics and crashes**: consent-gated `heist_open`, `heist_run_complete` and the first-run funnel (`ftue_gate_shown`, `game_start`, `ftue_hint_shown`, `ftue_hint_done`, `life_lost`, `game_fail`, `game_finish`, `ftue_first_clear`), and a crash overlay ("Something went wrong. Your cats are safe.") on a boot failure, an error burst or a 5 s frame stall. Both need `VITE_POSTHOG_KEY` in the build and are compiled out of `VITE_HEIST_BUILD=replay|verify` builds.
+- **Analytics and crashes**: scrubbed `heist_open`, `heist_run_complete` and the first-run funnel (`ftue_gate_shown`, `game_start`, `ftue_hint_shown`, `ftue_hint_done`, `life_lost`, `game_fail`, `game_finish`, `ftue_first_clear`), and a crash overlay ("Something went wrong. Your cats are safe.") on a boot failure, an error burst or a 5 s frame stall. Both need `VITE_POSTHOG_KEY` in the build and are compiled out of `VITE_HEIST_BUILD=replay|verify` builds.
 - **Sim changes**: re-run `npm run vendor-sim` and deploy the backend before the Heist site (`vendor-sim:check-remote` gates the Pages workflow).
+
+## Pink Paw Knight (Swordcat)
+
+The founder's third-person three.js + Vite adventure ("Swordcat"), a tiny knight with a pink bow
+rescuing lost kittens. It lives in its own repository, not in this monorepo, and is shown in the Token
+Tails shell at `/swordcat` (CLIENT.md, "Pink Paw Knight (/swordcat)"). It is on by default (launch, Oct 16 2026) with
+no env needed: `NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`,
+`false`, `no` or `off` turns off the page or the picker card), and `NEXT_PUBLIC_SWORDCAT_URL` is an optional
+override.
+
+- **Title** (one constant): "Pink Paw Knight", subtitle "A Token Tails Adventure", in
+  `client/components/swordcat/title.ts` (`SWORDCAT_TITLE`, `SWORDCAT_SUBTITLE`). The page meta, the host
+  (iframe title, loading and error lines), the picker card (upper-cased) and the tests read it; it must
+  match `BRAND.title` in the Swordcat repo's `src/core/brand.js`. Pink Paw has not yet approved its name
+  as the title. To rename the game: (1) change `SWORDCAT_TITLE` (and `SWORDCAT_SUBTITLE` if needed) in
+  `title.ts`; (2) change `BRAND` in the Swordcat repo's `src/core/brand.js` to the same text; (3) update
+  the expected string in `__test__/swordcat-title.test.ts`; (4) rebuild the game with `npm run
+  build:tokentails` so `client/public/swordcat-game/` carries the new name. Nothing else in `client/`
+  holds the name: the same test fails on a literal copy in the page, host, flags, bridge or picker.
+- **Picker card**: an inline pixel SVG (no image file) on the night/gold palette: Clem, the game's knight,
+  as an ivory cat with an ink outline and her pink bow on the left ear, under the gold ":3" coin. Text
+  "Rescue lost kittens with a tiny knight": no shelter, impact or money words (CLAIMS R2/R3/R9/R10).
+- **Catnip stays in the game.** The game's catnip is its own currency; nothing reaches the player's
+  Token Tails catnip, Tails or lives.
+- **Hosting** (founder decision 2026-10-14): same origin, like the Heist. The Swordcat repo's
+  `npm run build:tokentails` builds and copies `dist/` (minus the chunk manifest and maps) into
+  `client/public/swordcat-game/`; `/swordcat` frames `/swordcat-game/index.html?embed=1`. The game's
+  `base: './'` keeps every path relative, so the folder name is free. Size: about 58 MB in some 560 files
+  (largest files are music MP3s of a few MB; nothing near GitHub's 50 MB per-file warning). That is far
+  more than the Heist and it lands in every Vercel deploy and in the Capacitor app's `public/` copy;
+  options if that is too much: an asset diet (trim music and the KayKit/level packs further), Git LFS
+  for the binaries, or the `NEXT_PUBLIC_SWORDCAT_URL` override to a CDN. Local dev against the game's
+  dev server: `NEXT_PUBLIC_SWORDCAT_URL=http://localhost:5175/` with `npm run dev` there.
+- **Bridge v1** (`components/swordcat/bridge.ts`): envelope `{ns: 'tt-swordcat', v: 1, type}`; unknown
+  types are ignored. The host sends `hello` until the game answers `ready {version}`: every 500 ms for
+  10 s, then every 2 s with no hard stop (a slow phone can need longer to boot; the page shows a "still
+  loading" note with Reload after 10 s and a Reload / Back to games panel after 2 min, and a late `ready`
+  still connects). When the frame reloads after the handshake it says hello again. After `ready` it sends `session {signedIn}`, `audio {muted}` (the shell's one mute), `pause` and `resume`
+  (while a GameModal is open). The game sends `level-complete {levelId, time, kittens, catnip, lives,
+  rank}`, `kitten-rescued {kittenId}` and `paused {paused}`. The host accepts a message only from the
+  iframe's window and the game's origin and posts to that exact origin, never `'*'`. No `accesstoken`
+  or Firebase token ever crosses the bridge.
+- **Phase 1 saves nothing.** `level-complete` is not stored or posted anywhere; it adds no game type,
+  catnip, Tails or lives.
+- **Phase 2** (needs a founder decision): add a `GameType` and its caps in `shared/` and in every copy
+  (DEVELOPMENT.md), and save only through `POST /user/catbassadors/live` from the host. No second
+  write path. The game has no deterministic replay, so a posted result could be forged; caps must
+  reflect that.
 
 ## Base (Home)
 

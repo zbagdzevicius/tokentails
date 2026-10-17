@@ -39,6 +39,14 @@ export interface RailInfo {
   pending?: boolean;
   /** What that treat is paid in there (USDC, USDC.e, USDG). */
   coin?: string;
+  /** The status says treats are paused (shown as "paused", not "open soon"). */
+  paused?: boolean;
+  /**
+   * No status could be read (no API for this host, or the request failed for good). The web then
+   * says so instead of promising "open soon", and the treat panel decides (a copyable
+   * tokentails.com/heist link off tokentails.com, else the button: the backend answers the send).
+   */
+  unread?: boolean;
 }
 
 export interface RailCopy {
@@ -141,8 +149,11 @@ export function railFromStatus(body: unknown, fallbackAmount: string, preferredC
     if (preferred && (!best || RANK[preferred.state] >= RANK[best.state])) best = preferred;
     if (best) {
       const amount = (typeof best.c.amountWei === 'string' && weiToUsdc(best.c.amountWei)) || fallbackAmount;
+      // Nothing live or used up, and a network that is paused: say "paused", not "open soon".
+      const paused = best.state === 'pre-launch' && list.some((c) => !!c && typeof c === 'object' && (c as { railState?: unknown }).railState === 'paused');
       return {
         state: best.state,
+        ...(paused ? { paused: true } : {}),
         amountUsdc: amount,
         source: 'status',
         ...(typeof best.c.chainId === 'number' ? { chainId: best.c.chainId } : {}),
@@ -157,7 +168,7 @@ export function railFromStatus(body: unknown, fallbackAmount: string, preferredC
   // A paused rail is shown like pre-launch: nothing is sent, so nothing is promised.
   let state: RailState = backend === 'live' ? 'live' : backend === 'exhausted' ? 'exhausted' : 'pre-launch';
   if (state === 'live' && typeof b.treatsLeftToday === 'number' && b.treatsLeftToday <= 0) state = 'exhausted';
-  return { state, amountUsdc: amount, source: 'status' };
+  return backend === 'paused' ? { state, amountUsdc: amount, source: 'status', paused: true } : { state, amountUsdc: amount, source: 'status' };
 }
 
 /** The C-004 amount from a public facts file (`{ facts: PublicFact[] }`), or null. */
@@ -197,6 +208,30 @@ export function railCopy(info: RailInfo, isWeb: boolean): RailCopy {
       foot: "Today's treats are gone, back at 00:00 UTC.",
     };
   }
+  if (info.paused && !info.pending) {
+    return {
+      state: 'pre-launch',
+      // claim: L-rail (the backend says treats are paused; nothing is sent)
+      line: 'Treats are paused right now.',
+      chip: 'Paused',
+      showGive: false,
+      // claim: L-rail
+      foot: 'Play to save: shelter treats are paused right now.',
+    };
+  }
+  if (info.unread && !info.pending && isWeb) {
+    return {
+      state: 'pre-launch',
+      // No claim either way: the status could not be read from this page.
+      line: "Today's shelter treats could not be checked.",
+      chip: null,
+      // The treat panel decides: a copyable tokentails.com/heist link off tokentails.com, else the
+      // button (the backend answers the send, so nothing is promised here).
+      showGive: true,
+      // claim:fiction the in-game rescue; no treat is promised
+      foot: 'Play to save the shelter cat.',
+    };
+  }
   if (info.pending) {
     return {
       state: 'pre-launch',
@@ -204,6 +239,7 @@ export function railCopy(info: RailInfo, isWeb: boolean): RailCopy {
       line: "Checking today's shelter treats…",
       chip: 'Checking…',
       showGive: false,
+      // claim:fiction the in-game rescue; the status is still being read
       foot: "Play to save: checking today's shelter treats…",
     };
   }
@@ -243,6 +279,15 @@ export const DEFAULT_API_BY_HOST: Readonly<Record<string, string>> = Object.free
   'localhost:3000': 'http://localhost:3005',
   'localhost:3001': 'http://localhost:3005',
 });
+
+/** The page is on a Token Tails host (one of DEFAULT_API_BY_HOST). Never throws. */
+export function isTokenTailsHost(win?: { location?: { host?: string } }): boolean {
+  try {
+    return Object.prototype.hasOwnProperty.call(DEFAULT_API_BY_HOST, String(win?.location?.host ?? '').toLowerCase());
+  } catch {
+    return false;
+  }
+}
 
 /** The runtime config (see the module comment). Never throws. */
 export function heistRuntimeConfig(win?: ConfigWindow, doc?: { querySelector(sel: string): { getAttribute(n: string): string | null } | null }): HeistRuntimeConfig {
@@ -309,7 +354,7 @@ export async function loadRail(config: HeistRuntimeConfig, f: Fetch | undefined 
     const live = railFromStatus(status, amount);
     if (live) return live;
   }
-  return { state: 'pre-launch', amountUsdc: amount, source };
+  return { state: 'pre-launch', amountUsdc: amount, source, unread: true };
 }
 
 /** One request's outcome: the body, a failed request (network error or HTTP error), or a timeout. */
@@ -394,10 +439,12 @@ export async function watchRail(
   const facts = await factsP;
   const fromFacts = config.factsUrl ? amountFromFacts(facts) : null;
   const amount = fromFacts || BAKED_RAIL.amountUsdc;
-  const fallback: RailInfo = fromFacts ? { state: 'pre-launch', amountUsdc: amount, source: 'facts' } : BAKED_RAIL;
+  // No status (no API for this host, or it failed): `unread`, so the web never promises "open soon".
+  const base: RailInfo = fromFacts ? { state: 'pre-launch', amountUsdc: amount, source: 'facts' } : BAKED_RAIL;
+  const fallback: RailInfo = { ...base, unread: true };
   const now = early !== PENDING && config.apiUrl ? railFromStatus(early, amount) : null;
   // Still out after the first-paint budget: "Checking…" until it lands or finally fails.
-  const firstPaint = now ?? (early === PENDING && config.apiUrl ? { ...fallback, pending: true } : fallback);
+  const firstPaint = now ?? (early === PENDING && config.apiUrl ? { ...base, pending: true } : fallback);
   onRail(firstPaint);
   if (early === PENDING) {
     void statusP.then((body) => {

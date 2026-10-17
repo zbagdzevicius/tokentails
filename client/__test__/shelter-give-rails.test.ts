@@ -265,7 +265,9 @@ describe("the chain picker's rails", () => {
     expect(walletGiveMode(campaign("handed-over"), MAINNET_SPLITS, [], on)).toBe("mainnet");
     expect(mainnetRails(campaign("handed-over"), [], MAINNET_SPLITS, on).map((r) => r.chainId)).toEqual([5042, 8453]);
     expect(walletGiveMode(campaign("held-by-token-tails"), MAINNET_SPLITS, [], on)).toBe("awaiting-handover");
-    expect(walletGiveMode(campaign("handed-over"), MAINNET_SPLITS, [], { chains: "5042,8453" })).toBe("hidden");
+    // On by default: no NEXT_PUBLIC_WALLET_DONATE needed; an off value hides it.
+    expect(walletGiveMode(campaign("handed-over"), MAINNET_SPLITS, [], { chains: "5042,8453" })).toBe("mainnet");
+    expect(walletGiveMode(campaign("handed-over"), MAINNET_SPLITS, [], { walletDonate: "false", chains: "5042,8453" })).toBe("hidden");
     // Flag on, no chain list, no router: today's rule, hidden.
     expect(walletGiveMode(campaign("handed-over"), MAINNET_SPLITS, [], { walletDonate: "true" })).toBe("hidden");
   });

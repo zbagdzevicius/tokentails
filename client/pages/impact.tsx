@@ -48,6 +48,7 @@ import {
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { cdnFile } from "@/constants/utils";
 import { useImpact } from "@/hooks/useImpact";
+import { MOTORED_DISCLOSURE, MOTORED_EVENT, MOTORED_LABEL } from "@/components/shelter-payouts/motored";
 import type { GetStaticProps } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -107,6 +108,7 @@ const BUCKET_LABEL: Record<PayoutBucket, string> = {
   direct: "Other payouts",
   wallet: "Public gifts",
   match: "Token Tails match",
+  motored: `${MOTORED_EVENT}: ${MOTORED_LABEL.toLowerCase()} gifts to Pink Paw on behalf of its users, counted as one sponsor. ${MOTORED_DISCLOSURE}`,
 };
 
 const RAIL_COPY: Record<RailState, string> = {
@@ -627,6 +629,12 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
   const partnerPhrase = custody.partnerName
     ? `its partner shelter ${custody.partnerName}`
     : "its partner shelters";
+  // claim: fiction where payouts go (a custody description), not an impact figure
+  const custodyHanded = isApp ? "Payouts go to each partner shelter." : "Payouts go to each partner shelter's wallet.";
+  // claim: fiction where payouts go (a custody description), not an impact figure
+  const custodyHeld = isApp
+    ? "Since 16 Oct 2026 payouts go to the shelter."
+    : `Payouts before 16 Oct 2026 went to a wallet Token Tails held for ${partnerPhrase}. Since then they go to the shelter's wallet.`;
 
   // A link to a folded section (#money, #rail, …) opens "Opening soon" first, then scrolls to it.
   useEffect(() => {
@@ -791,11 +799,7 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
                 <EvidenceChip kind={tier} isApp={isApp} />
               </span>
               <p className="font-sans text-p5 md:text-p4 text-tt-cream/90">
-                {impact?.money.custody === "handed-over"
-                  ? "Every partner shelter now holds its own money."
-                  : isApp
-                  ? `Token Tails holds the money for ${partnerPhrase} until the shelter takes it over.`
-                  : `Token Tails still holds the wallet key for ${partnerPhrase}. The shelter takes the key over at the handover, and the tier then changes.`}
+                {impact?.money.custody === "handed-over" ? custodyHanded : custodyHeld}
               </p>
             </>
           ) : (
@@ -809,14 +813,13 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
                 <li key={s.slug}>
                   {s.name}
                   {s.countryCode ? ` · ${countryName(s.countryCode)}` : ""}
+                  {/* claim: fiction where payouts go (a custody description), not an impact figure */}
                   {s.handoverStatus === "handed-over"
                     ? isApp
-                      ? " · held by the shelter"
-                      : " · holds its own key"
+                      ? " · paid to the shelter"
+                      : " · shelter's wallet"
                     : s.handoverStatus === "held-by-token-tails"
-                    ? isApp
-                      ? " · held by Token Tails"
-                      : " · key held by Token Tails"
+                    ? " · held by Token Tails"
                     : ""}
                 </li>
               ))}
@@ -871,7 +874,7 @@ export default function ImpactPage({ impact: initial }: ImpactPageProps) {
           >
             {factText(goal, {}, isApp)}.
             {!isApp &&
-              " It counts the USDC that comes in to Pink Paw's campaign wallet: today, sponsored treats. Gifts, the match and x402 payments count once Pink Paw holds its own wallet, and most of the goal has to come from people giving."}
+              " It counts the USDC that comes in to Pink Paw's wallet, and most of the goal has to come from people giving."}
           </p>
         )}
       </Section>

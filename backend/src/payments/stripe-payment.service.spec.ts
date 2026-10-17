@@ -11,13 +11,10 @@ import {
     PORTRAIT_CHECKOUT_CURRENCY,
     PORTRAIT_CHECKOUT_PRICES_CENTS,
     PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
-    PORTRAIT_LEGACY_GRACE_MS,
     PORTRAIT_PRICES_CENTS,
-    PORTRAIT_USD_PRICE_CHANGED_AT,
     portraitPriceUsdForStats,
-    portraitUsdFloorCents,
-    portraitUsdPriceChangedAt,
 } from './price-table';
+import * as priceTable from './price-table';
 import { StripePaymentService } from './stripe-payment.service';
 
 // The real repositories pull in Mongoose models; the service only needs the methods mocked below.
@@ -66,8 +63,8 @@ const DURING_SALE = new Date('2026-10-04T12:00:00Z');
 const LAST_SALE_SECOND = new Date('2026-11-27T23:59:59Z');
 const AFTER_SALE = new Date('2026-11-28T00:00:00Z');
 
-const BEFORE_PRICE_CHANGE = new Date(PORTRAIT_USD_PRICE_CHANGED_AT.getTime() - 60_000);
-const AFTER_PRICE_GRACE = new Date(PORTRAIT_USD_PRICE_CHANGED_AT.getTime() + PORTRAIT_LEGACY_GRACE_MS);
+const LONG_AGO = new Date('2026-09-01T12:00:00Z');
+const FAR_LATER = new Date('2027-06-01T12:00:00Z');
 
 describe('price table', () => {
     it('matches the catalogue: card portraits €14/€49/€69, USD portraits $16, packs $5/$25/$350 regular', () => {
@@ -79,31 +76,12 @@ describe('price table', () => {
         expect(PACK_PRICES_CENTS).toEqual({ STARTER: 500, INFLUENCER: 2500, LEGENDARY: 35000 });
     });
 
-    it('keeps the retired $6 digital price as the floor only for payments created before the change plus 48 h', () => {
+    it('keeps the retired $6 digital price only as a historical value, with no date or env switch', () => {
         expect(PORTRAIT_LEGACY_DIGITAL_USD_CENTS).toBe(600);
-        expect(PORTRAIT_LEGACY_GRACE_MS).toBe(48 * 60 * 60 * 1000);
-        expect(PORTRAIT_USD_PRICE_CHANGED_AT.getUTCHours()).toBe(0);
-        expect(portraitUsdFloorCents(ProductType.DIGITAL, BEFORE_PRICE_CHANGE)).toBe(600);
-        expect(portraitUsdFloorCents(ProductType.DIGITAL, new Date(AFTER_PRICE_GRACE.getTime() - 1))).toBe(600);
-        expect(portraitUsdFloorCents(ProductType.DIGITAL, AFTER_PRICE_GRACE)).toBe(1600);
-        expect(portraitUsdFloorCents(ProductType.PRINT, BEFORE_PRICE_CHANGE)).toBe(4900);
-        expect(portraitUsdFloorCents(ProductType.CANVAS, AFTER_PRICE_GRACE)).toBe(6900);
-    });
-
-    it('PORTRAIT_USD_PRICE_CHANGED_AT in the env moves the change later, never earlier', () => {
-        const later = new Date('2026-10-20T00:00:00Z');
-        const env = { PORTRAIT_USD_PRICE_CHANGED_AT: later.toISOString() } as NodeJS.ProcessEnv;
-        expect(portraitUsdPriceChangedAt(env).getTime()).toBe(later.getTime());
-        // A $6 intent made by the old backend on Oct 20 and paid after the deploy still verifies.
-        expect(portraitUsdFloorCents(ProductType.DIGITAL, new Date('2026-10-20T09:00:00Z'), env)).toBe(600);
-        expect(
-            portraitUsdFloorCents(ProductType.DIGITAL, new Date(later.getTime() + PORTRAIT_LEGACY_GRACE_MS), env)
-        ).toBe(1600);
-        const earlier = { PORTRAIT_USD_PRICE_CHANGED_AT: '2026-10-01T00:00:00Z' } as NodeJS.ProcessEnv;
-        expect(portraitUsdPriceChangedAt(earlier).getTime()).toBe(PORTRAIT_USD_PRICE_CHANGED_AT.getTime());
-        expect(portraitUsdPriceChangedAt({ PORTRAIT_USD_PRICE_CHANGED_AT: 'soon' } as any).getTime()).toBe(
-            PORTRAIT_USD_PRICE_CHANGED_AT.getTime()
-        );
+        const table = priceTable as Record<string, unknown>;
+        expect(table.PORTRAIT_USD_PRICE_CHANGED_AT).toBeUndefined();
+        expect(table.portraitUsdFloorCents).toBeUndefined();
+        expect(table.portraitUsdPriceChangedAt).toBeUndefined();
     });
 
     it('converts euro cents to a USD stats value in dollars', () => {
@@ -207,6 +185,20 @@ describe('StripePaymentService', () => {
             expect(stripe.paymentIntents.create.mock.calls[1][0].amount).toBe(2500);
         });
 
+        it("gives no discount (and so no affiliate share) for the buyer's own code", async () => {
+            const { service, stripe, userRepository } = createService();
+            userRepository.findOne.mockResolvedValueOnce({ _id: USER_ID });
+            await service.createPaymentIntent({
+                entityType: EntityType.PACK,
+                packType: PackType.INFLUENCER,
+                userId: USER_ID,
+                discount: 'mine',
+            });
+            const params = stripe.paymentIntents.create.mock.calls[0][0];
+            expect(params.amount).toBe(2500);
+            expect(params.metadata.discount ?? '').toBe('');
+        });
+
         it('rejects an unknown pack type', async () => {
             const { service, stripe } = createService();
             await expect(
@@ -288,31 +280,74 @@ describe('StripePaymentService', () => {
                 { entityType: EntityType.IMAGE, imageId: IMAGE_ID, id: IMAGE_ID, expectedAmount }
             );
 
-        it('accepts a $6 portrait intent created before the price change', () => {
+        it('confirms a $6 portrait intent at its stored price, at any date', () => {
             const { service } = createService();
-            const verified = service.verifySucceededPaymentIntent(
-                portraitIntent(600, BEFORE_PRICE_CHANGE, '600'),
-                USER_ID
+            for (const created of [LONG_AGO, FAR_LATER]) {
+                const verified = service.verifySucceededPaymentIntent(portraitIntent(600, created, '600'), USER_ID);
+                expect(verified).toMatchObject({ entityType: EntityType.IMAGE, imageId: IMAGE_ID, amountCents: 600 });
+            }
+        });
+
+        it('holds a $16 portrait intent at its stored price: 600 received is refused', () => {
+            const { service } = createService();
+            for (const created of [LONG_AGO, FAR_LATER]) {
+                expect(() =>
+                    service.verifySucceededPaymentIntent(portraitIntent(600, created, '1600'), USER_ID)
+                ).toThrow('Payment amount does not match the price');
+                expect(
+                    service.verifySucceededPaymentIntent(portraitIntent(1600, created, '1600'), USER_ID).amountCents
+                ).toBe(1600);
+            }
+        });
+
+        it('confirms an already-paid $6 digital portrait intent from the old backend (no expectedAmount)', () => {
+            const { service } = createService();
+            for (const created of [LONG_AGO, FAR_LATER]) {
+                expect(service.verifySucceededPaymentIntent(portraitIntent(600, created, ''), USER_ID)).toMatchObject({
+                    entityType: EntityType.IMAGE,
+                    imageId: IMAGE_ID,
+                    amountCents: 600,
+                });
+                expect(() => service.verifySucceededPaymentIntent(portraitIntent(599, created, ''), USER_ID)).toThrow(
+                    'Payment amount does not match the price'
+                );
+            }
+        });
+
+        it('a print portrait intent with no expectedAmount must still cover its table price minus 20%', () => {
+            const { service } = createService();
+            const printIntent = (amount: number) =>
+                intent(
+                    { amount, amount_received: amount, created: Math.floor(FAR_LATER.getTime() / 1000) },
+                    {
+                        entityType: EntityType.IMAGE,
+                        imageId: IMAGE_ID,
+                        id: IMAGE_ID,
+                        productType: ProductType.PRINT,
+                        expectedAmount: '',
+                    }
+                );
+            expect(() => service.verifySucceededPaymentIntent(printIntent(600), USER_ID)).toThrow(
+                'Payment amount does not match the price'
             );
-            expect(verified).toMatchObject({ entityType: EntityType.IMAGE, imageId: IMAGE_ID, amountCents: 600 });
+            expect(service.verifySucceededPaymentIntent(printIntent(3920), USER_ID).amountCents).toBe(3920);
         });
 
-        it('rejects a $6 portrait intent created after the grace', () => {
+        it('ignores any PORTRAIT_USD_PRICE_CHANGED_AT left in the env', () => {
             const { service } = createService();
-            expect(() =>
-                service.verifySucceededPaymentIntent(portraitIntent(600, AFTER_PRICE_GRACE, '600'), USER_ID)
-            ).toThrow('Payment amount does not match the price');
-        });
-
-        it('holds an intent created after the change at its $16 expectedAmount, even inside the grace', () => {
-            const { service } = createService();
-            const insideGrace = new Date(PORTRAIT_USD_PRICE_CHANGED_AT.getTime() + 60_000);
-            expect(() =>
-                service.verifySucceededPaymentIntent(portraitIntent(600, insideGrace, '1600'), USER_ID)
-            ).toThrow('Payment amount does not match the price');
-            expect(
-                service.verifySucceededPaymentIntent(portraitIntent(1600, insideGrace, '1600'), USER_ID).amountCents
-            ).toBe(1600);
+            const saved = process.env.PORTRAIT_USD_PRICE_CHANGED_AT;
+            process.env.PORTRAIT_USD_PRICE_CHANGED_AT = '2099-01-01T00:00:00Z';
+            try {
+                expect(() =>
+                    service.verifySucceededPaymentIntent(portraitIntent(600, FAR_LATER, '1600'), USER_ID)
+                ).toThrow('Payment amount does not match the price');
+                expect(
+                    service.verifySucceededPaymentIntent(portraitIntent(600, FAR_LATER, '600'), USER_ID).amountCents
+                ).toBe(600);
+            } finally {
+                if (saved === undefined) delete process.env.PORTRAIT_USD_PRICE_CHANGED_AT;
+                else process.env.PORTRAIT_USD_PRICE_CHANGED_AT = saved;
+            }
         });
 
         it('rejects a portrait intent without a valid image id', () => {
@@ -435,6 +470,25 @@ describe('StripePaymentService', () => {
                 /currency usd, order expects eur/
             );
             expect(service.checkPaidCheckoutSession(session({ currency: 'gbp' }), eurOrder())).toMatch(/currency gbp/);
+        });
+
+        it('completes a USD order with a stored $6 price when 600 is paid, at any date', () => {
+            const { service } = createService();
+            for (const createdAt of [LONG_AGO, FAR_LATER]) {
+                expect(
+                    service.checkPaidCheckoutSession(
+                        session({ currency: 'usd', amount_total: 600 }),
+                        usdOrder({ createdAt })
+                    )
+                ).toBeNull();
+            }
+            // No stored price: the $16 table.
+            expect(
+                service.checkPaidCheckoutSession(
+                    session({ currency: 'usd', amount_total: 600 }),
+                    usdOrder({ price: 0 })
+                )
+            ).toMatch(/price is 1600/);
         });
 
         it('honours the stored order price and refuses an underpayment', () => {

@@ -34,7 +34,7 @@ Requirements:
 - Stripe webhook endpoint registered as `https://<api>/image/webhook` for `checkout.session.completed`.
 - Outbound access to Firebase, OpenAI, Google GenAI, Stripe, Stellar Horizon, DigitalOcean Spaces, SendGrid, and Binance.
 - A single instance, or accept that in-memory caches diverge across replicas. Cron jobs take a lease in `jobruns`, so more than one instance runs each job once per tick.
-- `TRUST_PROXY` set to the proxy hop count when the API runs behind a load balancer or reverse proxy, otherwise every client shares one rate-limit bucket and every Heist replay is refused with 503 (see BACKEND.md, "Production checklist for the flags").
+- No proxy env is needed: the backend trusts private, CGNAT and Cloudflare hops by default. `TRUST_PROXY` is an optional override; check the startup `first request: req.ip is ...` line (see BACKEND.md, "Production checklist for the flags").
 - `IMPACT_JOBS_ENABLED=true` (and `CRONS_ENABLED=true` unless `NODE_ENV=production`) on the instance(s) that run jobs.
 - Deploy the backend before any client that sends `outcome` or a Heist `replay`, then run the migrations, then deploy the client (plan F6). Run the data scripts in the order listed in BACKEND.md, "Data scripts".
 - For the 2026-10 codex cycle: deploy before 2026-10-01 00:00 server time, or run `backend/scripts/skip-codex-cycle.js --period 2026-10 --apply` before 2026-10-08T23:00Z (BACKEND.md known issues).
@@ -66,10 +66,13 @@ host that does not set it must pin the network with `SHELTER_CHAIN_ID=5042` or
 fine). Check after a deploy: `GET /shelter/donate/status` reports `chainId: 5042`. The dev keystore
 unlock in `main.ts` never runs under `NODE_ENV=production`.
 
-Treats and x402 are on by default wherever a split is recorded. Mainnet x402, relay and match stay
-closed per chain until the shelter's v2 wallet claim is rotated on that chain; relay and match also
-need their own flag. Kill switches: `SHELTER_DONATE_ENABLED=false`, `SHELTER_X402_ENABLED=false`,
-`SHELTER_HANDED_OVER=false`, `SHELTER_AUTO_CHAINS=off` (BACKEND.md, "Shelter gifts on Arc").
+Treats and x402 are on by default wherever a split is recorded. Mainnet x402, relay and match open per
+chain only while the split, read on chain, pays Pink Paw's wallet or rotated shelter claims and no held
+wallet; relay and match also need their own flag (off by default). Kill switches:
+`SHELTER_DONATE_ENABLED=false`, `SHELTER_X402_ENABLED=false` and per-chain
+`SHELTER_CHAIN_<id>_X402_ENABLED=false`, `SHELTER_AUTO_CHAINS=off` (BACKEND.md, "Shelter gifts on Arc").
+`SHELTER_HANDED_OVER` no longer exists; remove it from the backend env. The client's
+`NEXT_PUBLIC_WALLET_DONATE` is on by default; set it to `false` only to hide the wallet block.
 
 Going to mainnet (a person runs it, never an AI session; the scripts refuse when an AI-agent env is
 set):
@@ -191,7 +194,7 @@ migrations use `migrate-mongo` with scripts that currently exist only on develop
 
 ## Release checklist
 
-1. Backend: run `npm run build`, deploy, confirm `GET /`, `GET /count`, `GET /impact` and `GET /user/catbassadors/heist-sim` respond. Check the startup log for the `TRUST_PROXY` and "Impact jobs are off" warnings.
+1. Backend: run `npm run build`, deploy, confirm `GET /`, `GET /count`, `GET /impact` and `GET /user/catbassadors/heist-sim` respond. Check the startup log for the `first request: req.ip is ...` line and the "Impact jobs are off" warning.
 2. Migrations and data scripts, dry run first (BACKEND.md, "Data scripts").
 3. CMS: `npm run build`, deploy (before or with the backend when the user form changed), log in and open `/blessings`.
 4. Client: bump nothing (the web app has no version), refresh `public/impact/snapshot.json` from production, run `fund facts gate`, `npm run build:prod`, deploy, check `/game`, `/heist`, `/impact`, `/portrait`, `/feed`, and run `npm run meta:check -- --base https://tokentails.com`.

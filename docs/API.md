@@ -167,7 +167,6 @@ log needs seed 1, the current `SIM_VERSION`, two different known cat ids, at mos
 | 413 | none | Body over 64 KB |
 | 415 | none | Not `application/json` |
 | 429 | none, `Retry-After` header | Per-IP replay bucket (30 a minute), per-player limit, or a full replay queue |
-| 503 | none | Production without `TRUST_PROXY`: replays are refused (plain saves pass) |
 
 Bad Cat Daily ranked saves (GDD 10 Phase 2; off unless `BADCAT_ENABLED` and `BADCAT_SCORES_ENABLED`): `{ type:
 'BAD_CAT', platform?, badcat: { dayNo, simVersion, runs, finalHash?, score?, catCode?, name? } }`; `points`,
@@ -285,13 +284,14 @@ budget is per chain.
 | 200 | `{ txHash, chainId, amountWei, explorerUrl, coin? }` | Broadcast; `explorerUrl` is the chain's explorer (`https://explorer.arc.io/tx/<hash>` on Arc mainnet, `https://explorer.testnet.arc.io/tx/<hash>` on Arc testnet, basescan, arbiscan, the Avalanche, Tempo and Robinhood explorers, MonadVision on Monad). `amountWei` is 18 decimals on every chain; `coin` is set on a token treat. The call returns once broadcast, not once mined; the reconcile job settles it to CONFIRMED or FAILED on its own chain |
 | 400 | Validation error | `source` is not `heist` or `page`, `chainId` is not a positive whole number, or the body has other keys |
 | 403 | `{code: GUEST_FORBIDDEN}` | A guest token on `POST /shelter/donate` (guests send through `POST /shelter/donate/guest`). `EMAIL_UNVERIFIED` and `DONATE_NOT_ELIGIBLE` are no longer sent by this route (Oct 8, 2026) |
-| 503 | `{statusCode, message}` | `POST /shelter/donate/guest` only: production finds no public visitor address (no `cf-connecting-ip` and `TRUST_PROXY` unset, or a private address) |
+| 503 | `{statusCode, message}` | `POST /shelter/donate/guest` only: production finds no public visitor address (no usable `cf-connecting-ip` and no public Express address) |
 | 429 | `{code: DONATE_ALREADY_TODAY}` | This user (or, on the guest route, this address) already has a treat for the current UTC day (or the per-user or per-IP limit) |
 | 409 | `{statusCode, code, message}` (`DONATE_PAUSED`, `DONATE_BUDGET_SPENT`) | Treats are switched off (emergency off), the split address or hot wallet key is missing, the picked chain fails its health check (no token or gas on the hot wallet, split paused, RPC down), that chain's daily budget is spent, or `chainId` names a chain that sends no treats (`DONATE_PAUSED`, "Treats are not sent on that network right now") |
 | 424 | `{statusCode, code: DONATE_SEND_FAILED, message}` | The broadcast failed; the user may retry later |
 
-The showcase recipient is Pink Paw (Rožinė pėdutė). Its wallet is created and held by Token Tails on
-the shelter's behalf until handover; the split's recipients are set in the contract, not by this API.
+The showcase recipient is Pink Paw (Rožinė pėdutė). Payouts go to Pink Paw's wallet; since 2026-10-16
+every mainnet split pays it (before then, a wallet Token Tails held for the shelter). The split's
+recipients are set in the contract, not by this API.
 
 ### Agent cat card (x402-compatible, `onchain-receipt` scheme)
 
@@ -371,7 +371,7 @@ every entry; the `onchain-receipt` offer then moves to a top-level `onchainRecei
 must be an x402 v1 name (base-sepolia uses the public x402.org facilitator; any other network needs
 `SHELTER_X402_FACILITATOR_URL`). It is not offered when `payTo` is the split, the router, the treasury
 or the hot wallet, when the token's on-chain name, version or decimals (6) do not match, or on a mainnet
-before `SHELTER_HANDED_OVER=true`. An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
+when `payTo` is not the one wallet the split pays on chain (default there: Pink Paw's wallet). An authorization valid longer than `maxTimeoutSeconds` + 60 s is a 402.
 
 **x402 v2 headers.** The endpoint also speaks the v2 HTTP transport: send the payment as
 `PAYMENT-SIGNATURE` (base64 `{x402Version: 2, accepted: {scheme, network: "eip155:<id>", ...}, payload}`)
@@ -389,14 +389,16 @@ pays the relay gas and sends the match from Token Tails' own funds, and never re
 
 **Mainnet gate.** On a mainnet (`5042` or any chain id not in the testnet list of
 `shelter-onchain.config.ts`), relay, match, flush and the onchain-receipt x402 offer stay closed (`RELAY_AWAITING_HANDOVER` /
-state `awaiting-handover`) until the shelter's own wallet is claimed and rotated on that chain.
-Testnets work whenever enabled (test money). Two checks decide it: `publicGivingAllowed(config)` (only
-the emergency off `SHELTER_HANDED_OVER=false` closes it), then
-`ShelterClaimService.publicGivingVerified(config)`, read on chain: every wallet in
-`split.preview(1 USDC).wallets` must be a `rotated` claim on that chain and none may be the hot wallet,
+state `awaiting-handover`) unless the split pays shelter wallets only. Since 2026-10-16 every mainnet
+split pays Pink Paw's wallet, so the check passes with no database row. Testnets work whenever enabled
+(test money). One check decides it, `ShelterClaimService.publicGivingVerified(config)`, read on chain:
+the split keeps nothing for the treasury, and every wallet in `split.preview(1 USDC).wallets` must be
+either a `rotated` claim on that chain or the chain's generated Pink Paw wallet (`wallet.config.ts`),
+not a mix. None may be a held wallet (`TOKEN_TAILS_HELD_WALLETS`, `SHELTER_HELD_WALLETS`), the hot wallet,
 the treasury, the split, the router, an `IMPACT_PAWS_SENDERS` or a `SHELTER_MATCH_EXCLUDE` address (cached
 10 minutes; a failed read is closed). Neither check can stop a stranger calling a deployed router
-directly, so no DonateRouter is deployed on a mainnet before the handover.
+directly, so a DonateRouter only goes on a mainnet whose split pays the shelter's wallet. Relay and match
+also need `SHELTER_RELAY_ENABLED` / `SHELTER_MATCH_ENABLED` (off by default).
 
 **`POST /shelter/relay`.** The donor signs USDC's `ReceiveWithAuthorization` (EIP-712 domain: the
 token's `name()` and `version()`, `chainId`, the USDC address) with `to` = the router and
@@ -555,7 +557,7 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 One photo becomes the visitor's playable cat; see docs/plans/yourcat-v2.md. Shapes are in
 `backend/src/yourcat/yourcat.contracts.ts` (client copy `client/models/yourcat.ts`); errors are
 `{ statusCode, code, message }` with the `YOURCAT_*` codes. Every route skips the global throttler and
-has a per-user and a per-client-IP limit (per minute, in memory, per replica) instead; in production every client address that is not proven (no origin secret, no trusted proxy) shares one per-route bucket with 10 times the limit. `GET /yourcat/status` and `GET /yourcat/public/:shareId` take their per-IP limit in the handler, and the checkout's daily limit is counted in the handler too, after `AppAuthGuard`. Guest routes need
+has a per-user and a per-client-IP limit (per minute, in memory, per replica) instead; keyed on the client address (`cf-connecting-ip` when usable, else the Express address). `GET /yourcat/status` and `GET /yourcat/public/:shareId` take their per-IP limit in the handler, and the checkout's daily limit is counted in the handler too, after `AppAuthGuard`. Guest routes need
 the guest session (428 `GUEST_SESSION_REQUIRED` otherwise), except `GET /yourcat/me`.
 
 | Method | Path | Purpose | Auth |
@@ -648,7 +650,7 @@ are saved by `POST /user/catbassadors/live` (see "Scores"), never by a `/badcat`
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE` or `LOOT_BOX` (with no `id`), else 400 before any order exists. **`PACK` is deprecated (2026-10-04): the client no longer offers it; packs are bought through the crypto checkout below or Stripe.** Because the client pays before it confirms, a pack payment that still arrives (a cached old tab, a payment in flight at deploy) is verified and recorded first: one whose Stellar ledger closed before `STELLAR_PACKS_SUNSET_AT` (ISO time; closed `2026-10-09T18:00:00Z`, the env can only move it earlier) is granted as before; a later one is `FAILED_GRANT` (`STELLAR_DEPRECATED`) with `refund: 'due'` and answers 410 `{code: 'STELLAR_PACKS_DEPRECATED', refund: 'due'}`, so no payment is lost. `STELLAR_PACKS_ENABLED=true` turns the old path back on (rollback switch only). Loot boxes are still sold on Stellar (`MysteryBoxCat` uses `Web3Transfer`); whether to move them to the crypto checkout is an open decision. Existing Stellar pack orders, their history, the audit scripts and `refund: 'due'` handling are unchanged. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the verified amount. A loot box whose grant fails is `FAILED_GRANT` and answers `{success: false, refund: 'due'}`: the treasury refunds Stellar orders by hand. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
+| POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE` or `LOOT_BOX` (with no `id`), else 400 before any order exists. **`PACK` is deprecated (2026-10-04): the client no longer offers it; packs are bought through the crypto checkout below or Stripe.** Because the client pays before it confirms, a pack payment that still arrives (a cached old tab, a payment in flight at deploy) is verified and recorded first: one whose Stellar ledger closed before `STELLAR_PACKS_SUNSET_AT` (ISO time; closed `2026-10-09T18:00:00Z`, the env can only move it earlier) is granted as before; a later one is `FAILED_GRANT` (`STELLAR_DEPRECATED`) with `refund: 'due'` and answers 410 `{code: 'STELLAR_PACKS_DEPRECATED', refund: 'due'}`, so no payment is lost. `STELLAR_PACKS_ENABLED=true` turns the old path back on (rollback switch only). Loot boxes are still sold on Stellar (`MysteryBoxCat` uses `Web3Transfer`); whether to move them to the crypto checkout is an open decision. Existing Stellar pack orders, their history, the audit scripts and `refund: 'due'` handling are unchanged. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the verified amount. A loot box whose grant fails is `FAILED_GRANT` and answers `{success: false, refund: 'due'}`: the treasury refunds Stellar orders by hand. A digital portrait paid at least the retired $6 (less a verified discount) but less than today's price (an old tab) is `FAILED_GRANT` (`PRICE_CHANGED`) with `refund: 'due'`, grants nothing, counts no spend and answers 409 `{code: 'PORTRAIT_PRICE_CHANGED', refund: 'due'}`; the hash stays on the order. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
 | POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price; a sent `amount` is ignored. Packs (`entityType: 'PACK'`, `id` = pack type) and portraits: table price less a verified `discount` code. **Shelter cats** (`entityType: 'CAT'`, `id` = the catalogue cat id from `GET /cat/sale`): a fixed $5 (no env override), never discounted; 400 `Cat is not for sale` for anything that is not an unowned shelter cat, 409 `User already owns this NFT cat` when the caller already has a copy. Returns `clientSecret` | Auth |
 | POST | `/web3/confirm-payment` | Verify the PaymentIntent belongs to the caller, succeeded, is in USD and covers the server price, then grant once: a replayed confirm returns `{ success: false }` and grants nothing. The discount comes from the intent, not the body. A pack rolls a tier; a shelter cat is granted at the basic tier (`COMMON`, origin `adopt`) through the same adoption path packs use, and its shelter share is recorded exactly like a crypto purchase paid to the treasury (a `card` row in `cryptocheckouts` for the keeper; see "Shelter cats" in BACKEND.md). A failed grant is refunded through Stripe (`{success: false, refund: 'refunded'}`). Stripe and database errors return a fixed message | Auth |
 | POST | `/web3/validate-discount` | Validate a discount code; returns the percentage | Public |
@@ -663,7 +665,11 @@ the unique `hash` index then turned into a permanent 409 for the real buyer.
 
 `src/payments/crypto/`. Replaces the Stellar pack purchase. The server prices an order, lists every
 chain and token it accepts, the buyer pays from their own wallet, and the server verifies the
-transaction on-chain before it grants anything, exactly once. Off unless `CRYPTO_PAY_ENABLED=true`.
+transaction on-chain before it grants anything, exactly once. There is no on/off flag: it is on
+wherever a chain resolves with a treasury (in production, all seven mainnets from `treasury.public.ts`)
+or with a live split route (on a mainnet, only while the on-chain giving check passes for that
+route's own split). `enabled` in the config response is true when at
+least one chain has a treasury or a live split route. Rollback is a revert and a redeploy.
 Environment variables are in BACKEND.md "Crypto checkout".
 Client: `client/components/web3/crypto/` (packs and shelter cats, web only; docs/CLIENT.md "Crypto
 checkout"). It checks every option's `steps` against its coin, recipient and exact amount before a
@@ -682,7 +688,7 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
 
 | Code | Status | Meaning |
 |---|---|---|
-| `CRYPTO_PAY_DISABLED` | 503 | `CRYPTO_PAY_ENABLED` is not true, no chain has both an RPC and a receiving address, or the unique index `amount_reserved` is missing (checked before the first order, again every minute while missing) |
+| `CRYPTO_PAY_DISABLED` | 503 | No chain has both an RPC and a receiving address, or the unique index `amount_reserved` is missing (checked before the first order, again every minute while missing) |
 | `CRYPTO_PAY_BAD_SKU` | 400 | Unknown `sku.kind`, pack type, or a malformed `catId` |
 | `CRYPTO_PAY_NOT_FOR_SALE` | 404 | The cat is not an unowned shelter cat on sale (`GET /cat/sale`) |
 | `CRYPTO_PAY_ALREADY_OWNED` | 409 | The caller already owns a copy of that cat, or a payment of theirs for it is being granted |
@@ -706,7 +712,7 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
   "enabled": true,
   "network": "mainnet",
   "orderTtlSeconds": 1800,
-  "shelterHandedOver": false,
+  "shelterHandedOver": true,
   "prices": { "packs": { "STARTER": 5, "INFLUENCER": 25, "LEGENDARY": 350 }, "shelterCat": 5, "lootBox": 1 },
   "fx": { "EURC": { "perUsd": "1", "asOf": null, "source": "fixed" } },
   "chains": [
@@ -721,6 +727,8 @@ Errors carry `{ statusCode, code, message }` with these payment-local codes (not
 }
 ```
 
+- `shelterHandedOver` is deprecated and always `true` (the `SHELTER_HANDED_OVER` flag was removed on
+  2026-10-16). It will be removed in a later release; do not read it.
 - `network` is `mainnet` or `testnet` (`CRYPTO_PAY_NETWORK`; default `mainnet` when `NODE_ENV=production`,
   else `testnet`). Mainnet and testnet options are never mixed in one response.
 - A chain is listed only when it has an RPC URL and a receiving address. A mainnet needs a configured RPC
@@ -812,7 +820,8 @@ per caller (429 `CRYPTO_PAY_TOO_MANY_ORDERS`). A cat with a paid order still bei
 - `binding` says how the payment is tied to this order:
   - `amount`: the default. `amount` is the price plus a unique tag of 1 to 9,999 base units (under one
     cent), reserved for this order on that chain and token (unique index `amount_reserved`) until 2 hours
-    after `expiresAt`, or 24 hours after it once someone has called `confirm` on the order. The server
+    after `expiresAt`, or 24 hours after it once a `confirm` showed a transfer to the order's recipient
+    mined after the order (paid or short). The server
     matches a `Transfer(from, recipient, amount)` log of `tokenAddress` exactly. Buyers must send from
     their own wallet: an exchange withdrawal that takes a fee does not match (the client says so).
   - `memo`: Tempo (`route: 'transferWithMemo'`, TIP-20 `transferWithMemo(recipient, amount, memo)`; `memo` is
@@ -821,9 +830,9 @@ per caller (429 `CRYPTO_PAY_TOO_MANY_ORDERS`). A cat with a paid order still bei
     `TransferWithMemo` (or split batch) with this order's memo and at least `amount` is accepted, and a
     plain `Transfer` never is (TIP-20 also emits one for every memo transfer; matching it would let
     another buyer claim this payment).
-- `route: 'split'` appears only for shelter cats, only once the shelter holds its own key
-  (`SHELTER_HANDED_OVER=true`, and on a mainnet the on-chain check that every split recipient is a rotated
-  shelter-held wallet), and only on chains where that shelter's ShelterSplit is configured. The buyer
+- `route: 'split'` appears only for shelter cats, only on chains where that shelter's ShelterSplit is
+  configured, and on a mainnet only while the on-chain check passes (every split recipient is a rotated
+  claim or Pink Paw's wallet, none a held wallet). The buyer
   pays the split directly: `approve(split, amount)`, then `disburse(amount, memo)`; the split pays the
   shelter its on-chain share and the Token Tails treasury the rest in the same transaction.
 - `recipient` for `transfer` and `transferWithMemo` is the Token Tails treasury on that chain (public
@@ -896,7 +905,8 @@ The grant takes a lease (`grantStartedAt`) before it runs. If the process dies b
 stored, the order stays `PAID` with no `grant`; confirm answers 202 for it. Every 5 minutes (and on
 `POST /payments/crypto/recover-grants`) orders `PAID` with no grant whose lease is over 5 minutes old are
 finished: when their `Order` is already `COMPLETE` or `FAILED_GRANT` that result (and its refund) is
-copied; a shelter cat the buyer already holds counts as delivered; otherwise the grant runs again under a
+copied; a shelter cat the buyer already holds counts as delivered, unless another completed purchase (card
+or crypto) gave it, in which case the grant runs and refunds like any failed adoption; otherwise the grant runs again under a
 new lease, with the spend counted once. Known gap: a pack whose adoption succeeded in the single write
 before the crash, without its `Order` being marked, is granted a second cat.
 

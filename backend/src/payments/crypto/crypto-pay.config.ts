@@ -15,7 +15,7 @@ export interface ResolvedChain {
     tokens: CryptoPayToken[];
 }
 
-/** A ShelterSplit a buyer can pay directly once the shelter holds its own key (route `split`). */
+/** A ShelterSplit a buyer can pay directly (route `split`) once the on-chain giving check passes. */
 export interface SplitRoute {
     chainId: number;
     token: CryptoPayTokenKind;
@@ -23,6 +23,10 @@ export interface SplitRoute {
 }
 
 export interface CryptoPayConfig {
+    /**
+     * Derived, not a flag: true when at least one chain resolves with a treasury. In production that is
+     * every mainnet in treasury.public.ts. Rollback is a revert and a redeploy, not an env switch.
+     */
     enabled: boolean;
     network: CryptoPayNetwork;
     orderTtlMs: number;
@@ -42,11 +46,7 @@ export interface CryptoPayConfig {
     catShelterBps: number | null;
     /** Shelters whose share goes through ShelterSplit (default Pink Paw). Others get no on-chain share. */
     splitShelterIds: string[];
-    /** The keeper that sends treasury-route shelter shares from the hot wallet (off by default). */
-    shelterShareEnabled: boolean;
     splits: SplitRoute[];
-    /** SHELTER_HANDED_OVER: the shelter holds its own payout key. */
-    handedOver: boolean;
     /** Wallets Token Tails holds for a shelter (lowercased); never a purchase recipient. */
     heldWallets: string[];
 }
@@ -216,7 +216,11 @@ function bps(value: string | undefined): number | null {
     return (value || '').trim() && Number.isInteger(n) && n > 0 && n <= 10000 ? n : null;
 }
 
-/** Reads CRYPTO_PAY_*. Missing or malformed values fall back to safe defaults (feature off, no chains). */
+/**
+ * Reads CRYPTO_PAY_*. Missing or malformed values fall back to safe defaults. Checkout is on wherever a
+ * chain resolves with a treasury (treasury.public.ts on mainnet; CRYPTO_PAY_TREASURY[_<chainId>] is an
+ * optional override, needed on testnets and the local chain, which have no checked-in treasury).
+ */
 export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: Date = new Date()): CryptoPayConfig {
     const net = network(env);
     const eurc = eurcPricing(env, now);
@@ -255,8 +259,13 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
         .split(',')
         .map(id => id.trim().toLowerCase())
         .filter(id => /^[0-9a-f]{24}$/.test(id));
+    const splits = splitRoutes(env);
+    // A split route counts towards `enabled`; createOrder still offers a mainnet one only once the
+    // on-chain giving check passes there.
+    const splitLive = (chainId: number) => splits.some(s => s.chainId === chainId);
     return {
-        enabled: flag(env.CRYPTO_PAY_ENABLED),
+        // On when at least one chain can take a payment: a treasury, or a live split route.
+        enabled: chains.some(c => c.treasury !== null || splitLive(c.chain.chainId)),
         network: net,
         orderTtlMs:
             (Number.isFinite(ttlMin) && ttlMin >= 5 && ttlMin <= 24 * 60 ? ttlMin : DEFAULT_ORDER_TTL_MIN) * 60000,
@@ -267,9 +276,7 @@ export function readCryptoPayConfig(env: NodeJS.ProcessEnv = process.env, now: D
         chains,
         catShelterBps: catShelterBps(env.CRYPTO_PAY_CAT_SHELTER_BPS),
         splitShelterIds: shelterIds.length ? shelterIds : [PACK_SHELTER_IDS.pinkPaw],
-        shelterShareEnabled: flag(env.CRYPTO_PAY_SHELTER_SHARE_ENABLED),
-        splits: splitRoutes(env),
-        handedOver: shelter.handedOver,
+        splits,
         heldWallets: [...held],
     };
 }

@@ -41,7 +41,11 @@ describe('wallet.config.ts (generated) stays in sync with the client deployment 
     });
 
     it('carries Pink Paw, the testnet treasury and hot wallet, and the held wallet list agrees', () => {
-        expect(WALLETS.mainnet.pinkPaw!.toLowerCase()).toBe(TOKEN_TAILS_HELD_WALLETS[0]);
+        // Since 2026-10-16 every mainnet split pays Pink Paw's wallet; the testnet splits still pay 0xE299,
+        // which stays a Token Tails held wallet.
+        expect(WALLETS.mainnet.pinkPaw!.toLowerCase()).toBe('0x3c833562e682db66c2415b34961595df135f4771');
+        expect(TOKEN_TAILS_HELD_WALLETS).not.toContain(WALLETS.mainnet.pinkPaw!.toLowerCase());
+        expect(WALLETS.testnet.pinkPaw!.toLowerCase()).toBe(TOKEN_TAILS_HELD_WALLETS[0]);
         expect(WALLETS.testnet.treasury).toMatch(/^0x[0-9a-fA-F]{40}$/);
         expect(WALLETS.testnet.donateHot).toMatch(/^0x[0-9a-fA-F]{40}$/);
     });

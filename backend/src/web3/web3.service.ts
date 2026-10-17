@@ -1,12 +1,17 @@
 import { BadRequestException, ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Types } from 'mongoose';
-import { applyDiscountCents, discountPercentageForCode } from 'src/payments/price-table';
+import {
+    applyDiscountCents,
+    discountPercentageForCode,
+    PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
+} from 'src/payments/price-table';
+import { EntityType } from 'src/shared/interfaces/common.interface';
 import { currencyRate, CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { UserRepository } from 'src/user/user.repository';
 import { getOrderCatalogueCents } from './order-catalogue';
 import { HASH_ALREADY_USED, OrderRepository } from './order.repository';
-import { IOrder, OrderStatus } from './order.schema';
+import { IOrder, OrderStatus, ProductType } from './order.schema';
 import {
     canonicalStellarHash,
     checkStellarPayment,
@@ -45,6 +50,15 @@ export interface VerifiedStellarPayment {
     priceUsd: number;
     /** When the payment's ledger closed (Horizon `created_at`); absent when Horizon did not say. */
     closedAt?: Date;
+    /**
+     * A digital portrait paid at least the retired $6 price but less than today's price (a tab opened
+     * before the price changed). The payment is real, so the caller records a refund and grants nothing.
+     */
+    priceChanged?: true;
+}
+
+function isDigitalPortrait(order: { entityType?: string; id?: unknown }): boolean {
+    return order.entityType === EntityType.IMAGE && String(order.id ?? ProductType.DIGITAL) === ProductType.DIGITAL;
 }
 
 @Injectable()
@@ -143,13 +157,30 @@ export class Web3Service {
             }
         }
 
-        const check = checkStellarPayment({
+        const payment = {
             transaction,
             operations,
             destination: getStellarTreasury(),
             asset,
-            minStroops: minimumStroops(asset, priceCents, xlmUsdRate),
-        });
+        };
+        let check = checkStellarPayment({ ...payment, minStroops: minimumStroops(asset, priceCents, xlmUsdRate) });
+        let priceChanged = false;
+        // There is no create step on this route, so an old tab can pay the retired $6 before it confirms.
+        // That payment is real: it is recorded for a refund, never refused with only the hash released.
+        if (!check.ok && check.reason === 'UNDERPAID' && isDigitalPortrait(order)) {
+            const legacyCents = applyDiscountCents(
+                PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
+                await this.discountPercentage(order.discount)
+            );
+            const legacy = checkStellarPayment({
+                ...payment,
+                minStroops: minimumStroops(asset, legacyCents, xlmUsdRate),
+            });
+            if (legacy.ok) {
+                check = legacy;
+                priceChanged = true;
+            }
+        }
         if (!check.ok) {
             return this.reject(
                 order,
@@ -169,6 +200,7 @@ export class Web3Service {
             amount,
             priceUsd,
             ...(closed && !isNaN(closed.getTime()) ? { closedAt: closed } : {}),
+            ...(priceChanged ? { priceChanged: true as const } : {}),
         };
     }
 

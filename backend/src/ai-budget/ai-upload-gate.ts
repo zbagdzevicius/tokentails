@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { IAuthUser } from 'src/common/decorators/auth-user.decorator';
 import { guestSessionRequired } from 'src/common/guards/auth-errors';
-import { clientIp, UNTRUSTED_IP_BUCKET } from 'src/shared/client-ip';
+import { clientIp } from 'src/shared/client-ip';
 import { verifyAppCheckToken } from 'src/user/guest/app-check';
 import { firebaseIdentity, IFirebaseIdentity } from 'src/user/guest/firebase-identity';
 import { YOURCAT_ERRORS } from 'src/yourcat/yourcat.errors';
@@ -26,14 +26,6 @@ interface IKindLimits {
     failures: number;
     user: number;
     enforceAppCheck: boolean;
-}
-
-/** Previews per day for the shared untrusted bucket and its failure cap (production, no proven IP). */
-export function untrustedPreviewLimits(env: NodeJS.ProcessEnv = process.env): { daily: number; failures: number } {
-    return {
-        daily: envNumber('AI_PREVIEW_UNTRUSTED_DAILY', 5, env),
-        failures: envNumber('AI_PREVIEW_UNTRUSTED_FAILURES_DAILY', 20, env),
-    };
 }
 
 export function kindLimits(kind: AiKind, env: NodeJS.ProcessEnv = process.env): IKindLimits {
@@ -104,10 +96,6 @@ export class AiUploadGate {
         if (!ip) {
             throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
         }
-        if (kind === 'yourcat' && isProduction(env) && !ip.trusted) {
-            // A forged `cf-connecting-ip` would otherwise give unlimited per-IP quota.
-            throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
-        }
         const salt = ipSalt(env);
         if (!salt) {
             throw await this.refused('refusedNoClientIp', day, YOURCAT_ERRORS.noClientIp());
@@ -125,15 +113,11 @@ export class AiUploadGate {
                 appCheck === 'missing' ? YOURCAT_ERRORS.appCheckRequired() : YOURCAT_ERRORS.appCheckInvalid()
             );
         }
-        // A preview from an address we cannot prove (production only; `yourcat` refused it above) shares
-        // one bucket with every other such request, with its own daily and failure caps.
-        const shared = kind === 'portrait-preview' && isProduction(env) && !ip.trusted;
-        const verified = appCheck === 'verified' && !shared;
-        const untrusted = untrustedPreviewLimits(env);
-        const ipLimit = shared ? untrusted.daily : verified ? limits.ipVerified : limits.ipUnverified;
-        const failureLimit = shared ? untrusted.failures : limits.failures;
+        const verified = appCheck === 'verified';
+        const ipLimit = verified ? limits.ipVerified : limits.ipUnverified;
+        const failureLimit = limits.failures;
 
-        const ipKey = shared ? UNTRUSTED_IP_BUCKET : ipDayKey(salt, day, ip.key);
+        const ipKey = ipDayKey(salt, day, ip.key);
         const ticket: AiTicket = {
             kind,
             day,

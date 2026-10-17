@@ -746,13 +746,6 @@ describe("YourcatHeader", () => {
     expect(header.className).toContain("motion-reduce:transition-none");
   });
 
-  it("holds the consent chip next to the logo and never hides while it is shown", () => {
-    render(<YourcatHeader aside={<div data-variant="compact" data-testid="chip" />} />);
-    const header = screen.getByTestId("yourcat-header");
-    expect(header.contains(screen.getByTestId("chip"))).toBe(true);
-    expect(header.className).toContain("[&:has([data-variant=compact])]:!translate-y-0");
-  });
-
   it("takes the night glass when scrolled and hides on scroll down, returning on scroll up", () => {
     jest.useFakeTimers();
     const raf = window.requestAnimationFrame;

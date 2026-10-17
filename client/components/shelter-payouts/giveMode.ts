@@ -2,16 +2,18 @@
 // Which wallet-giving block the payouts page shows, as a pure function so the custody rules are
 // unit-tested (__test__/shelter-give-mode.test.ts).
 //
-// - "mainnet": real money. Only when NEXT_PUBLIC_WALLET_DONATE is "true", the campaign's shelter has
-//   handed over (it holds its own key), and at least one mainnet chain has a wallet path: by default a
+// - "mainnet": real money. On by default: NEXT_PUBLIC_WALLET_DONATE only turns it off (`0`, `false`, `no`
+//   or `off`). Shown when campaign.json says the campaign pays Pink Paw's wallet ("handed-over") and at
+//   least one mainnet chain has a wallet path: by default a
 //   DonateRouter listed for the campaign chain; NEXT_PUBLIC_WALLET_DONATE_CHAINS names more chains
 //   (giveRails.campaignRails).
-// - "awaiting-handover": the campaign's wallet is still held by Token Tails. No button: a public gift
-//   must never land in a wallet Token Tails controls. Links to the onboarding page instead.
+// - "awaiting-handover": the campaign's wallet is a Token Tails held wallet (the state before 2026-10-16).
+//   No button: a public gift must never land in a wallet Token Tails holds. Links to the onboarding page.
 // - "testnet": the separate "try it live" block for NEXT_PUBLIC_WALLET_DONATE_CHAIN (test coins, no
 //   real money), when that testnet has a wallet path (a router, or a listed ShelterSplit). The giver
 //   can switch to any of the seven testnets (giveRails.walletRails).
 // - "hidden": nothing to show.
+import { flagNotOff } from "@/lib/flags";
 import type { Campaign } from "./campaign";
 import { GiveRail, TEMPO_CHAIN_IDS, campaignRails, walletRails } from "./giveRails";
 import type { MatchStatus } from "./relayApi";
@@ -22,7 +24,7 @@ export type GiveMode = "mainnet" | "testnet" | "awaiting-handover" | "hidden";
 export type GiveSlot = "campaign" | "try-it";
 
 export interface GiveEnv {
-  /** NEXT_PUBLIC_WALLET_DONATE */
+  /** NEXT_PUBLIC_WALLET_DONATE: on unless `0`, `false`, `no` or `off`. */
   walletDonate?: string;
   /** NEXT_PUBLIC_WALLET_DONATE_CHAIN */
   tryChain?: string;
@@ -71,7 +73,7 @@ export function walletGiveMode(
   }
   if (!campaign || !campaign.shelter.wallet) return "hidden";
   if (campaign.shelter.handover !== "handed-over") return "awaiting-handover";
-  if (env.walletDonate !== "true") return "hidden";
+  if (!flagNotOff(env.walletDonate)) return "hidden";
   return campaignRails(campaign.chainId, routers, deployments, env.chains).some((r) => hasWalletPath(r.chainId))
     ? "mainnet"
     : "hidden";
@@ -122,7 +124,7 @@ export const ONBOARD_URL = "/shelter-payouts/onboard";
 export const shortShelterName = (name: string) => name.replace(/\s*\(.*\)\s*$/, "").trim() || name;
 
 /**
- * Wallets Token Tails holds for a shelter (Pink Paw's payout wallet until the handover). A real-money
+ * Wallets Token Tails holds (0xE299 was Pink Paw's payout wallet until 2026-10-16). A real-money
  * gift is refused while the split would pay any of them, whatever campaign.json says (wallet.CustodyGuard).
  */
 export const TOKEN_TAILS_HELD_WALLETS: readonly string[] = ["0xe299299b846ba629f5a591dbf4f562bcc07a0f37"];

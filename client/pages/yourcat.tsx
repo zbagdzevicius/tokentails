@@ -4,12 +4,7 @@ import { YourCatPage } from "@/components/yourcat/YourCatPage";
 import { YourcatHeader } from "@/components/yourcat/YourcatHeader";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import { Footer } from "@/layouts/Footer";
-import dynamic from "next/dynamic";
 import Head from "next/head";
-
-// The compact consent chip lives in the header here (`MainLayout` mounts no banner on /yourcat). It
-// reads localStorage on first render, so it is client only.
-const AnalyticsConsentBanner = dynamic(() => import("@/components/shared/AnalyticsConsentBanner"), { ssr: false });
 
 /**
  * `/yourcat` meta (bet #3, docs/plans/yourcat-polish.md §9.4): the B9 title separator and the page's
@@ -45,7 +40,7 @@ export default function YourcatRoute() {
         <link key="yc-sky" rel="preload" as="image" type="image/webp" href={SKY_SRC} />
       </Head>
       <div className="flex min-h-[100svh] flex-col bg-tt-night-900">
-        <YourcatHeader aside={<AnalyticsConsentBanner variant="compact" />} />
+        <YourcatHeader />
         <YourCatPage className="flex-1" />
         <Footer tone="night" />
       </div>

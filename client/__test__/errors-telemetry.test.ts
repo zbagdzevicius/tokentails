@@ -2,10 +2,9 @@
  * @jest-environment jsdom
  *
  * F9 crash telemetry: the scrubber, the per-session and per-code caps,
- * consent gating, and that nothing goes through posthog.captureException.
+ * and that nothing goes through posthog.captureException.
  */
 import { createAnalytics, type AnalyticsClient } from "@/analytics/client";
-import type { ConsentState } from "@/analytics/consent";
 import {
   APP_ERROR_MAX_PER_SESSION,
   APP_ERROR_SESSION_KEY,
@@ -158,7 +157,7 @@ describe("scrubStack, scrubRoute, scrubContext", () => {
   it("reports carry the route pattern set by _app, never the real path", () => {
     window.history.replaceState(null, "", "/cats/mister-whiskers");
     const track = jest.fn<void, [AnalyticsEvent]>();
-    const reporter = createErrorReporter({ track, getConsent: () => "granted" });
+    const reporter = createErrorReporter({ track });
     setErrorRoute("");
     window.sessionStorage.clear();
     reporter.report("route_a", new Error("a"));
@@ -232,21 +231,13 @@ describe("buildAppErrorProperties", () => {
 describe("createErrorReporter", () => {
   beforeEach(() => window.sessionStorage.clear());
 
-  const make = (consent: ConsentState = "granted", enabled = true) => {
+  const make = (enabled = true) => {
     const track = jest.fn<void, [AnalyticsEvent]>();
-    let state = consent;
     const reporter = createErrorReporter({
       track,
-      getConsent: () => state,
       isEnabled: () => enabled,
     });
-    return {
-      track,
-      reporter,
-      setConsent: (next: ConsentState) => {
-        state = next;
-      },
-    };
+    return { track, reporter };
   };
 
   it("sends a scrubbed app_error event", () => {
@@ -280,19 +271,15 @@ describe("createErrorReporter", () => {
     expect(window.sessionStorage.getItem(APP_ERROR_SESSION_KEY)).toContain("code_0");
   });
 
-  it("sends and counts nothing without consent", () => {
-    const { track, reporter, setConsent } = make("unset");
-    expect(reporter.report("a", new Error("x"))).toBe(false);
-    setConsent("denied");
-    expect(reporter.report("a", new Error("x"))).toBe(false);
-    expect(track).not.toHaveBeenCalled();
-    // The budget is intact after a later opt-in.
-    setConsent("granted");
+  it("reports with no consent key in storage", () => {
+    window.localStorage.clear();
+    const { track, reporter } = make();
     expect(reporter.report("a", new Error("x"))).toBe(true);
+    expect(track).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing when analytics has no key", () => {
-    const { track, reporter } = make("granted", false);
+    const { track, reporter } = make(false);
     expect(reporter.report("a", new Error("x"))).toBe(false);
     expect(track).not.toHaveBeenCalled();
   });
@@ -302,7 +289,6 @@ describe("createErrorReporter", () => {
       track: () => {
         throw new Error("analytics down");
       },
-      getConsent: () => "granted",
     });
     expect(() => reporter.report("a", new Error("x"))).not.toThrow();
   });
@@ -326,22 +312,15 @@ describe("app_error through the real analytics client", () => {
     const client = {
       capture: jest.fn(),
       register: jest.fn(),
-      opt_in_capturing: jest.fn(),
-      opt_out_capturing: jest.fn(),
-      has_opted_out_capturing: jest.fn(() => false),
-      reset: jest.fn(),
       captureException: jest.fn(),
     };
     const analytics = createAnalytics({
       apiKey: "phc_test",
       load: async () => client as AnalyticsClient,
       superProperties: () => ({ app: "core", platform: "web", device_tier: "unknown" }),
-      readConsent: () => "granted",
-      writeConsent: jest.fn(),
     });
     const reporter = createErrorReporter({
       track: analytics.track,
-      getConsent: analytics.getConsent,
       isEnabled: () => analytics.enabled,
     });
     reporter.report("root_crash:app", new Error(`seed ${FAKE_SEED}`));

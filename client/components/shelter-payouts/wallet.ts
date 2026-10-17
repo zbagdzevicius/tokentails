@@ -200,7 +200,7 @@ export class RevertedError extends GiftError {
 export class CustodyError extends GiftError {
   constructor() {
     // claim: fiction a refusal message about this gift, not an impact figure
-    super("Gifts from your wallet are closed: the payout list does not point to a wallet the shelter holds. Nothing was sent.");
+    super("Gifts from your wallet are closed: the payout list does not point to the shelter's wallet. Nothing was sent.");
     this.name = "CustodyError";
     Object.setPrototypeOf(this, CustodyError.prototype);
   }

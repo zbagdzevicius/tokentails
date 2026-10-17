@@ -71,8 +71,8 @@ class MyDocument extends Document {
             />
           ))}
           <script dangerouslySetInnerHTML={{ __html: WARM_BRAND_FONTS }} />
-          {/* Google Tag Manager is not injected here: it loads only after
-              analytics consent, from components/GoogleTagManager.tsx. */}
+          {/* Google Tag Manager is not injected here: it loads on mount
+              from components/GoogleTagManager.tsx. */}
         </Head>
         <body>
           <Main />

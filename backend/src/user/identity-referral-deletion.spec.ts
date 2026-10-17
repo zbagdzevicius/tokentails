@@ -455,8 +455,8 @@ describe('identity helpers', () => {
         expect(requestIp(undefined)).toBe('unknown');
     });
 
-    // 2a review fix #3: behind a load balancer with TRUST_PROXY unset every request carries the
-    // balancer's private address; one shared bucket would 429 every new player of the site.
+    // 2a review fix #3: a request that only carries a private proxy address (a balancer's) cannot
+    // identify a player; one shared bucket would 429 every new player of the site.
     it('IpWindowThrottle fails open for addresses that cannot identify a client', () => {
         const throttle = new IpWindowThrottle(() => 1, 'slow down');
         for (const ip of [

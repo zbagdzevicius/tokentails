@@ -90,7 +90,7 @@ describe("Catnip Heist section", () => {
     expect(fs.statSync(path.join(pub, HEIST_REEL.webm)).size).toBeLessThan(4.5 * 1024 * 1024);
   });
 
-  it("says 8 heists because the game ships exactly that many levels", () => {
+  it("says 16 heists because the game ships exactly that many levels", () => {
     const levels = fs
       .readdirSync(path.resolve(__dirname, "../../catnip-heist/src/levels"))
       .filter((f) => /^heist-\d+\.json$/.test(f));
@@ -243,13 +243,14 @@ describe("Catnip Heist section", () => {
     expect(heistTreatBeat("not-deployed", false)).toMatch(/open soon/);
     expect(heistTreatBeat(null, false)).toMatch(/open soon/);
     expect(heistTreatBeat("live", false)).toBe(
-      "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain (wallet held by Token Tails until handover)."
+      "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain to Pink Paw's wallet."
     );
     expect(heistTreatBeat("live", true)).not.toMatch(/on-?chain/i);
-    // No sign-in is needed (Oct 8, 2026), and the custody disclosure travels with the claim.
+    // No sign-in is needed (Oct 8, 2026). Since 16 Oct 2026 the treat goes to Pink Paw's wallet.
+    expect(heistTreatBeat("live", true)).not.toMatch(/wallet/i);
     for (const isApp of [false, true]) {
       expect(heistTreatBeat("live", isApp)).toMatch(/no sign-in needed/);
-      expect(heistTreatBeat("live", isApp)).toMatch(/held by Token Tails until handover/);
+      expect(heistTreatBeat("live", isApp)).not.toMatch(/until handover/);
     }
     expect(heistTreatBeat("exhausted", false)).toMatch(/used up/);
     expect(heistTreatBeat("paused", false)).toMatch(/paused/);

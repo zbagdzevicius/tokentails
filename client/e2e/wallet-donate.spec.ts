@@ -9,8 +9,8 @@
  *   FORK_E2E=1 E2E_CHROMIUM_PATH=... ./node_modules/.bin/playwright test e2e/wallet-donate.spec.ts --project=mobile-390
  *
  * What it proves:
- * - the real campaign (Pink Paw, wallet still held by Token Tails) shows "Opens when Pink Paw holds
- *   its own key" and no give button;
+ * - the campaign as it was before the 16 Oct 2026 rotation (Pink Paw, wallet held by Token Tails; served
+ *   by page.route) shows "Opens when Pink Paw's wallet is set up" and no give button;
  * - the testnet "Try it live" block takes one EIP-712 signature from the donor, the relay (mocked
  *   here by anvil dev account #1 when the backend is not running) submits it, and the USDC goes donor
  *   -> DonateRouter -> ShelterSplit -> Pink Paw's test wallet in that one transaction;
@@ -18,7 +18,7 @@
  *
  * FORK_SHOTS=<dir> saves screenshots for the demo video.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { encodeDonateCalldata } from "../components/shelter-payouts/calldata";
@@ -115,11 +115,12 @@ test.describe("wallet giving on an Arc testnet fork", () => {
     });
 
     const before = await nativeBalance(PINK_PAW_TEST_WALLET);
+    await serveHeldCampaign(page);
     await page.goto("/shelter-payouts");
 
-    // The real campaign: Pink Paw's wallet is still held by Token Tails, so no public button.
+    // The pre-rotation campaign: Pink Paw's wallet held by Token Tails, so no public button.
     const awaiting = page.getByTestId("wallet-donate-awaiting");
-    await expect(awaiting).toContainText("Opens when Pink Paw holds its own key");
+    await expect(awaiting).toContainText("Opens when Pink Paw's wallet is set up");
     await expect(awaiting.getByRole("button")).toHaveCount(0);
     await expect(page.getByTestId("wallet-donate")).toHaveCount(0);
 
@@ -155,3 +156,15 @@ test.describe("wallet giving on an Arc testnet fork", () => {
     expect(afterMatch - before).toBe(BigInt("1000000000000000000"));
   });
 });
+
+// The campaign as it was before the 16 Oct 2026 rotation (wallet held by Token Tails).
+const HELD_WALLET = "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37";
+async function serveHeldCampaign(page: Page) {
+  await page.route("**/shelter-payouts/campaign.json", async (route) => {
+    const res = await route.fetch();
+    const c = await res.json();
+    c.shelter = { ...c.shelter, wallet: HELD_WALLET, handover: "held-by-token-tails" };
+    c.wallets = [{ wallet: HELD_WALLET.toLowerCase(), fromBlock: c.fromBlock, toBlock: null, holder: "token-tails" }];
+    await route.fulfill({ response: res, json: c });
+  });
+}

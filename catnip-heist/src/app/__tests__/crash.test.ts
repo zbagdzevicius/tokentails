@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  CONSENT_KEY,
   CRASH_COPY,
   CRASH_MAX_PER_SESSION,
   HEARTBEAT_STALL_MS,
@@ -160,26 +159,23 @@ describe('scrub', () => {
 });
 
 describe('createCrashReporter', () => {
-  const make = (consent: string | null) => {
+  const make = () => {
     const send = vi.fn<(p: CrashPayload) => void>();
     const report = createCrashReporter({
-      consentStorage: memoryStorage(consent ? { [CONSENT_KEY]: consent } : {}),
       sessionStorage: memoryStorage(),
       send,
     });
     return { send, report };
   };
 
-  it('sends nothing unless tt-analytics-consent is granted', () => {
-    for (const consent of [null, 'denied', 'unset']) {
-      const { send, report } = make(consent);
-      expect(report('a', new Error('x'), 'boot')).toBe(false);
-      expect(send).not.toHaveBeenCalled();
-    }
+  it('reports with no consent key or local storage at all', () => {
+    const { send, report } = make();
+    expect(report('a', new Error('x'), 'boot')).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('sends one per code and at most 5 per session', () => {
-    const { send, report } = make('granted');
+    const { send, report } = make();
     expect(report('a', new Error('x'), 'boot')).toBe(true);
     expect(report('a', new Error('x'), 'boot')).toBe(false);
     for (let i = 0; i < 10; i++) report(`c${i}`, new Error('x'), 'window');
@@ -206,14 +202,13 @@ describe('posthogSender', () => {
 });
 
 describe('installCrashGuard', () => {
-  const setup = (consent: string | null, reporting = true) => {
+  const setup = (reporting = true) => {
     const { doc, body } = fakeDoc();
     const w = fakeWin();
     const send = vi.fn<(p: CrashPayload) => void>();
     const guard = installCrashGuard({
       win: w.win,
       doc,
-      localStorage: memoryStorage(consent ? { [CONSENT_KEY]: consent } : {}),
       sessionStorage: memoryStorage(),
       send,
       reporting,
@@ -221,8 +216,8 @@ describe('installCrashGuard', () => {
     return { ...w, body, send, guard };
   };
 
-  it('a boot crash shows the overlay and reports with consent', () => {
-    const { body, send, guard, reload } = setup('granted');
+  it('a boot crash shows the overlay and reports', () => {
+    const { body, send, guard, reload } = setup();
     guard.crash(new Error('manifest 404'));
     const overlay = body.find((el) => el.id === OVERLAY_ID)!;
     expect(overlay).toBeTruthy();
@@ -231,21 +226,14 @@ describe('installCrashGuard', () => {
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ code: 'heist_boot_error', source: 'boot' }));
   });
 
-  it('shows the overlay but reports nothing without consent', () => {
-    const { body, send, guard } = setup(null);
-    guard.crash(new Error('boom'));
-    expect(body.find((el) => el.id === OVERLAY_ID)).toBeTruthy();
-    expect(send).not.toHaveBeenCalled();
-  });
-
   it('replays show the overlay but never report', () => {
-    const { send, guard } = setup('granted', false);
+    const { send, guard } = setup(false);
     guard.crash(new Error('boom'));
     expect(send).not.toHaveBeenCalled();
   });
 
   it('a single same-origin window error reports without ending the run; foreign ones are ignored', () => {
-    const { fire, body, send } = setup('granted');
+    const { fire, body, send } = setup();
     fire('error', { filename: 'chrome-extension://x/inject.js', message: 'Script error.' });
     fire('error', { message: 'Script error.' });
     expect(send).not.toHaveBeenCalled();
@@ -261,7 +249,7 @@ describe('installCrashGuard', () => {
     const send = vi.fn<(p: CrashPayload) => void>();
     installCrashGuard({
       win: w.win, doc, send, now: () => t,
-      localStorage: memoryStorage({ [CONSENT_KEY]: 'granted' }), sessionStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
     });
     const err = { filename: 'https://tokentails.com/heist/build/index.js', error: new Error('every frame') };
     w.fire('error', err);
@@ -284,7 +272,7 @@ describe('installCrashGuard', () => {
       Object.defineProperty(doc, 'visibilityState', { get: visibility });
       const guard = installCrashGuard({
         win: fakeWin().win, doc, send: vi.fn(), now: () => t,
-        localStorage: null, sessionStorage: null,
+        sessionStorage: null,
         setInterval: (fn) => { tick = fn; return 1; }, clearInterval: () => { tick = () => {}; },
       });
       let frame = 0;
@@ -343,7 +331,7 @@ describe('installCrashGuard', () => {
   });
 
   it('same-origin rejections report without the overlay', () => {
-    const { fire, body, send } = setup('granted');
+    const { fire, body, send } = setup();
     const ours = new Error('audio');
     ours.stack = 'Error: audio\n    at play (https://tokentails.com/heist/build/index.js:1:2)';
     fire('unhandledrejection', { reason: ours });
@@ -354,7 +342,7 @@ describe('installCrashGuard', () => {
   });
 
   it('dispose removes the listeners', () => {
-    const { guard, handlers } = setup('granted');
+    const { guard, handlers } = setup();
     guard.dispose();
     expect(handlers.error).toHaveLength(0);
     expect(handlers.unhandledrejection).toHaveLength(0);

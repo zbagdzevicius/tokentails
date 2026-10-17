@@ -147,6 +147,10 @@ domain API modules, layouts, toasts, and the card components are untested.
 Coverage collection is restricted to `components/blessings/*` in `jest.config.ts`, so the committed
 `coverage.xml` is not a project-wide figure.
 
+## Shelter wallet panel
+
+`/shelters/[id]` shows a read-only Wallet panel (`components/shelters/shelter-wallet.tsx`). The browser reads balances straight from the 7 mainnets over public JSON-RPC (`eth_getBalance`, ERC-20 `balanceOf`): no backend call, no keys, no transactions. The address is the shelter's `publicWallet`, else Pink Paw's wallet for the Pink Paw shelter; an admin can paste another one. Each chain fails on its own (8 s timeout). The USD total counts stablecoins only; EURC is shown apart. Arc native USDC (18 decimals) is the same balance as its USDC ERC-20, so only native is read. Recent Arc payouts come from ShelterSplit `NativeDisbursed` logs over the last 50,000 blocks and are hidden when the public RPC rate-limits them. Chains live in `lib/shelter-wallet/chains.ts`; `__tests__/shelter-wallet.test.ts` fails if they drift from `backend/src/shelter/onchain/wallet.config.ts`.
+
 ## Known issues
 
 Security and hygiene:

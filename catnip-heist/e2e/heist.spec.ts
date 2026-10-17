@@ -7,7 +7,7 @@ import { seedFtueSeen } from './ftue-seed';
 const here = dirname(fileURLToPath(import.meta.url));
 const SCREENS = join(here, 'screens');
 mkdirSync(SCREENS, { recursive: true });
-const LEVEL_IDS = ['heist-01', 'heist-02', 'heist-03', 'heist-04', 'heist-05', 'heist-06', 'heist-07', 'heist-08'];
+const LEVEL_IDS = Array.from({ length: 16 }, (_, i) => `heist-${String(i + 1).padStart(2, '0')}`);
 const solutionPath = (id: string) => join(here, `../src/levels/${id}.solution.json`);
 const SOLUTION_PATH = solutionPath('heist-01');
 const SOLUTION = JSON.parse(readFileSync(SOLUTION_PATH, 'utf8')) as { finalHash: number; catIds: [string, string]; score: number };
@@ -202,17 +202,18 @@ test('the heist-01 solution replays to Results with the vitest final hash', asyn
   expect(errors).toEqual([]);
 });
 
-test('level select shows 8 heists with only the first unlocked on a fresh profile', async ({ page }) => {
+test('level select shows 16 heists in two acts with only the first unlocked on a fresh profile', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Play' }).click();
   await page.getByRole('button', { name: 'Start heist' }).click();
   await expect.poll(() => screenOf(page)).toBe('levels');
   const cards = page.locator('.ch-lv-card');
-  await expect(cards).toHaveCount(8);
+  await expect(cards).toHaveCount(16);
+  await expect(page.locator('.ch-lv-act')).toHaveText(['Act 1', 'Act 2']);
   expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.level))).toEqual(LEVEL_IDS);
-  expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled))).toEqual([false, true, true, true, true, true, true, true]);
+  expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled))).toEqual(LEVEL_IDS.map((_, i) => i > 0));
   await expect(page.locator('.ch-lv-card[data-level="heist-02"]')).toContainText('Win heist 1 to unlock');
-  await expect(page.locator('.ch-lv-total')).toContainText('0 / 24');
+  await expect(page.locator('.ch-lv-total')).toContainText('0 / 48');
   await expect(page.getByRole('list', { name: 'Star rules' })).toContainText('Clean and quick');
   await page.waitForTimeout(400);
   await shot(page, '02b-levels');
@@ -239,6 +240,7 @@ test('every level solution replays to Results with won = true and the recorded h
     await expect(page.locator('.ch-results')).toContainText(new RegExp((sol.finalHash >>> 0).toString(16).padStart(8, '0'), 'i'));
     await expect(page.locator('.ch-results')).toContainText(id);
     if (id === 'heist-08') await shot(page, '05c-results-finale');
+    if (id === 'heist-16') await shot(page, '05d-results-act2-finale');
   }
   // Watching replays earns nothing.
   const prog = await page.evaluate(() => (window.__heist as unknown as { progress(): { levels: Record<string, unknown> } }).progress());
@@ -282,7 +284,7 @@ test('winning level 1 unlocks level 2 and it persists across a reload', async ({
   await page.evaluate(() => (window.__heist as unknown as { levels(): void }).levels());
   await expect.poll(() => screenOf(page)).toBe('levels');
   const locked = await page.locator('.ch-lv-card').evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled));
-  expect(locked).toEqual([false, false, true, true, true, true, true, true]);
+  expect(locked).toEqual([false, false, ...Array(14).fill(true)]);
   await expect(page.locator('.ch-lv-card[data-level="heist-01"]')).toContainText('Best');
   await expect(page.locator('.ch-lv-card[data-level="heist-01"] .ch-lv-stars .ch-on')).toHaveCount(3);
   // The level select now points at level 2; Next level from Results starts it.

@@ -107,6 +107,28 @@ describe("/impact", () => {
     ).not.toBeNull();
   });
 
+  it("shows Motored event gifts as their own sponsor row with the disclosure, apart from public gifts", () => {
+    const impact = result((s) => {
+      s.money.bySymbol = { USDC: "3000000000000000000" };
+      s.money.byBucket = {
+        wallet: { USDC: "1000000000000000000" },
+        motored: { USDC: "2000000000000000000" },
+      };
+      s.asOf.chain = "2026-10-17T05:00:00.000Z";
+    });
+    const { container } = render(<ImpactPage impact={impact} />);
+    const rows = Array.from(
+      container.querySelectorAll('[data-testid="money-buckets"] tbody tr')
+    ).map((r) => r.textContent || "");
+    const motored = rows.find((r) => r.includes("Motored"));
+    expect(motored).toContain("counted as one sponsor");
+    expect(motored).toContain("Motored is linked to the Token Tails founder.");
+    expect(motored).toContain("2.00 USDC");
+    const publicGifts = rows.find((r) => r.startsWith("Public gifts"));
+    expect(publicGifts).toContain("1.00 USDC");
+    expect(publicGifts).not.toContain("Motored");
+  });
+
   it("says 'Not measured yet' for partner countries while the backfill has not run", () => {
     const empty = result();
     expect(empty.impact.shelters.countries).toEqual([]);
@@ -142,7 +164,7 @@ describe("/impact", () => {
     expect(view.shelters.map((s) => s.slug)).toEqual(["a"]);
     const page = render(<ImpactPage impact={funded} />).container.querySelector("#custody")!;
     expect(page.querySelector('[data-chip="onchain-custodial"]')).not.toBeNull();
-    expect(page.textContent).toContain("wallet key for its partner shelter Shelter A");
+    expect(page.textContent).toContain("went to a wallet Token Tails held for its partner shelter Shelter A");
     expect(page.textContent).not.toContain("Shelter B");
     expect(page.textContent).not.toContain("Pink Paw");
 
@@ -257,7 +279,7 @@ describe("/impact", () => {
       /USDC|ON-CHAIN|explorer|wallet|\b(SEI|Stellar|Arc)\b|key held|holds its own key|Merkle|memo/i
     );
     expect(text).toContain("Pink Paw · Lithuania · held by Token Tails");
-    expect(text).toContain("held by the shelter");
+    expect(text).toContain("paid to the shelter");
     expect(container.querySelector('a[href*="explorer"]')).toBeNull();
     // The snapshot has no payout time: the app says when it was checked (review 3f #4).
     expect(text).toContain("Recorded, checked 1 Oct 2026");

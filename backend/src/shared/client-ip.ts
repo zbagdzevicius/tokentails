@@ -1,21 +1,22 @@
-import { createHash, timingSafeEqual } from 'crypto';
 import { isIP } from 'net';
 import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
 import { isCloudflareIp } from './cloudflare-ips';
 
 /*
- * The visitor's address for the AI quotas and the per-IP throttler (bet #3, docs/plans/yourcat-v2.md
- * section 3.1, layer 2).
+ * The visitor's address for the AI quotas, the per-IP throttlers and the Heist replay bucket (bet #3,
+ * docs/plans/yourcat-v2.md section 3.1, layer 2).
  *
- * `cf-connecting-ip` is believed only when the request provably came through Cloudflare:
- * (a) CF_ORIGIN_SECRET is set and the request carries the same value in `x-tt-origin-auth` (a Cloudflare
- *     Transform Rule adds it to every proxied request), compared in constant time; or
- * (b) TRUST_PROXY is set and `req.ip` (the hop in front of the DigitalOcean balancer) is a Cloudflare
- *     edge address.
- * Otherwise `req.ip` under TRUST_PROXY is trusted, and a raw `cf-connecting-ip` may still be used as a
- * quota key, but `trusted: false`: a request sent straight to the origin can forge it.
+ * 1. `cf-connecting-ip` when it is a usable public address (Cloudflare sets it on every proxied
+ *    request; it keeps working if another public hop sits in front of the origin).
+ * 2. Else the Express address (`requestIp`: `req.ips[0]` or `req.ip`), which the default `trust proxy`
+ *    setting (shared/trust-proxy.ts) resolves to the first hop that is not ours. A Cloudflare edge
+ *    address is never used as a visitor: it is shared by many visitors.
  *
- * The address checks follow `guestTreatIp` (shelter module, not imported) and use `isUsableClientIp`.
+ * There is no origin secret (removed 2026-10-16, founder decision). A caller who reaches the origin
+ * directly can set `cf-connecting-ip` and get a fresh per-IP bucket; docs/BACKEND.md "Known issues"
+ * records this accepted risk. The per-chain treat budget and the AI euro caps still bound the cost.
+ *
+ * The address checks use `isUsableClientIp` (no loopback, private, link-local or CGNAT addresses).
  */
 
 export interface ClientIp {
@@ -23,28 +24,6 @@ export interface ClientIp {
     ip: string;
     /** The bucket key: the address, or its /64 for IPv6 (one home network rotates through a /64). */
     key: string;
-    trusted: boolean;
-}
-
-export const ORIGIN_AUTH_HEADER = 'x-tt-origin-auth';
-
-/**
- * The one bucket every unprovable address shares in production (the AI preview quota and the per-IP
- * throttler). Keying those requests on the raw `cf-connecting-ip` let a forger mint a fresh bucket per
- * request; one shared key caps them all.
- */
-export const UNTRUSTED_IP_BUCKET = 'untrusted';
-
-const digest = (value: string) => createHash('sha256').update(value).digest();
-
-/** Constant-time comparison of the origin secret header with CF_ORIGIN_SECRET. */
-export function hasOriginProof(req: any, env: NodeJS.ProcessEnv = process.env): boolean {
-    const secret = env.CF_ORIGIN_SECRET;
-    const header = req?.headers?.[ORIGIN_AUTH_HEADER];
-    if (!secret || typeof header !== 'string' || !header) {
-        return false;
-    }
-    return timingSafeEqual(digest(header), digest(secret));
 }
 
 export function clientIpKey(ip: string): string {
@@ -68,7 +47,7 @@ export function clientIpKey(ip: string): string {
         .join(':')}::/64`;
 }
 
-const result = (ip: string, trusted: boolean): ClientIp => ({ ip, key: clientIpKey(ip), trusted });
+const result = (ip: string): ClientIp => ({ ip, key: clientIpKey(ip) });
 
 /**
  * The client address, or null in production when none is usable. Outside production a request with
@@ -77,25 +56,15 @@ const result = (ip: string, trusted: boolean): ClientIp => ({ ip, key: clientIpK
 export function clientIp(req: any, env: NodeJS.ProcessEnv = process.env): ClientIp | null {
     const header = req?.headers?.['cf-connecting-ip'];
     const cf = typeof header === 'string' ? header.trim() : '';
-    const trustProxy = !!env.TRUST_PROXY;
-    const viaCloudflare = hasOriginProof(req, env) || (trustProxy && isCloudflareIp(req?.ip));
-
-    if (viaCloudflare && isUsableClientIp(cf)) {
-        return result(cf, true);
+    if (isUsableClientIp(cf) && !isCloudflareIp(cf)) {
+        return result(cf);
     }
     const express = requestIp(req);
-    // Under TRUST_PROXY `req.ip` is the client, unless it is Cloudflare's own edge address.
-    if (trustProxy && isUsableClientIp(express) && !isCloudflareIp(express)) {
-        return result(express, true);
-    }
-    if (isUsableClientIp(cf)) {
-        return result(cf, false);
-    }
-    if (isUsableClientIp(express)) {
-        return result(express, false);
+    if (isUsableClientIp(express) && !isCloudflareIp(express)) {
+        return result(express);
     }
     if (env.NODE_ENV === 'production') {
         return null;
     }
-    return { ip: 'dev', key: 'dev', trusted: false };
+    return { ip: 'dev', key: 'dev' };
 }

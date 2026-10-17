@@ -282,9 +282,9 @@ describe('payouts modal: live cats and the goal meter', () => {
     const bar = meter.querySelector('[role=progressbar]')!;
     expect(bar.getAttribute('aria-valuenow')).toBe('0.02');
     expect(bar.getAttribute('aria-valuetext')).toBe('0.02% of the goal');
-    // Today only treats can reach the wallet Token Tails holds: the line never names the rest as counting.
-    expect(meter.textContent).toContain('Counts what comes in to the wallet Token Tails holds for Pink Paw: today, sponsored treats.');
-    expect(meter.textContent).toContain('Gifts, the match and x402 payments count once Pink Paw holds its own wallet.');
+    // Only the sources the backend reports live: the line never names the rest as counting.
+    expect(meter.textContent).toContain("Counts what comes in to Pink Paw's wallet: today, sponsored treats.");
+    expect(meter.textContent).not.toMatch(/Gifts|holds its own|until handover/);
     expect(meter.textContent).not.toMatch(/shop shares/);
     // The goal is said once (the meter's value line); its date sits under the bar.
     expect(modal.el.querySelector('.ch-pay-goal')).toBeNull();

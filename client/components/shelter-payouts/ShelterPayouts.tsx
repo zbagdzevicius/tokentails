@@ -9,6 +9,7 @@ import { ChainInfo, SHELTER_CHAINS, chainRole } from "./chains";
 import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
 import { useCampaignGoal } from "./goal";
 import { formatUnits } from "./logs";
+import { MotoredLine } from "./MotoredLine";
 import {
   Addr,
   Balance,
@@ -55,12 +56,15 @@ export function chainFor(chainId: number, deployments: ShelterDeployment[]): Cha
 // The match meter renders inside each wallet block, for that block's own chain (WalletDonate).
 export { matchMeterCopy } from "./giveMode";
 
-export const DISCLOSURE =
-  "Shelter wallet held by Token Tails on behalf of the shelter until handover";
+/** The fallback line when campaign.json does not say "handed-over" (the setup before 16 Oct 2026). */
+export const DISCLOSURE = "Payouts go to a wallet Token Tails holds for the shelter.";
 
 /** The page's custody line, following campaign.json `shelter.handover` (gate G12). */
+// claim: C-001 (campaign.wallets: a wallet Token Tails held until 16 Oct 2026, Pink Paw's wallet since)
 export const disclosureFor = (handover: HandoverStatus | undefined) =>
-  handover === "handed-over" ? "The shelter holds its own wallet keys" : DISCLOSURE;
+  handover === "handed-over"
+    ? "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter."
+    : DISCLOSURE;
 
 // ShelterSplit forwards every donation in the same transaction, so this should read 0.
 const BalanceLine = ({
@@ -266,7 +270,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
     : undefined;
   const campaignChain = campaignDeployment ? resolveChain(campaignDeployment) : null;
 
-  // Wallet giving: the campaign slot (real money, only after the handover) and, separately, the
+  // Wallet giving: the campaign slot (real money, only while the split pays the shelter's wallet) and, separately, the
   // testnet "try it live" slot. The rules live in giveMode.ts.
   // Mainnet and testnet ShelterSplits: a chain without a router gives straight into its split.
   const giveDeployments = [...deployments, ...testnet];
@@ -304,6 +308,7 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           chain={campaignChain || chainFor(campaign.chainId, deployments)}
           router={routerFor(routers, campaign.chainId)}
           shelterName={campaign.shelter.name}
+          shelterWallet={campaign.shelter.handover === "handed-over" ? campaign.shelter.wallet : null}
           choices={campaignChoices}
         />
         {tryId !== null && (
@@ -378,6 +383,8 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
               )}
             </div>
           )}
+          {/* Motored sponsor money, labelled live from its first gift (never counted as donors). */}
+          <MotoredLine items={feed} shelterName={campaign?.shelter.name || "Pink Paw"} />
           {page.status === "done" && page.deployments.length === 0 && (
             <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
           )}

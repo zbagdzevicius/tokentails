@@ -76,8 +76,10 @@ The game pauses when the window loses focus.
 
 ## Campaign
 
-Eight heists, each teaching one idea and the finale combining them. Title → Play → Crew pick →
-Level select → Heist. Level N unlocks when level N-1 is won. Progress (best score, best time, stars)
+Sixteen heists in two acts. Act 1 (heist-01..08) teaches one idea per level and its finale combines
+them; Act 2 (heist-09..16) gives each level one new trick built on those ideas, and its finale
+reprises them with a forced split getaway. Title → Play → Crew pick → Level select (the cards sit
+under an Act 1 and an Act 2 heading) → Heist. Level N unlocks when level N-1 is won. Progress (best score, best time, stars)
 is saved in browser storage under `catnip-heist.progress.v1`; every access is wrapped in try/catch,
 and in private mode it lives in memory for the session. Watching a replay earns nothing.
 
@@ -91,13 +93,29 @@ and in private mode it lives in memory for the session. Watching a replay earns 
 | 6 | heist-06 | Conveyor Halls | Tight patrol timing in 1-tile corridors with niches | 30×16 | 19 (20) | 3 fast pacers | 2 | 1:55 | 1625 t (0:54) | yes | 98% / 100% |
 | 7 | heist-07 | Split Shift | Split up: each wing's doors are opened from the other wing | 38×15 | 19 (22) | 4 patrols, 1 sentry | 5 | 1:35 | 1215 t (0:41) | yes | 100% / 100% |
 | 8 | heist-08 | Kibble Corp HQ | Finale: all of the above | 40×27 | 26 (28) | loop, turning doorman, 2 sentries, pacer | 3 | 2:50 | 2550 t (1:25) | yes | 52% / 81% |
+| 9 | heist-09 | Deep Blue | Stare-down: a meow through the glass freezes a dog that cannot path to you | 34×23 | 22 (24) | 2 ring patrols (fast shark, slow eel), 1 turning sentry | 2 | 1:50 | 2041 t (1:08) | yes | 100% / 100% |
+| 10 | heist-10 | After Hours | Reroute a patrol: opening the pharmacy vault gives the nurse a shortcut, so she leaves the kennel ward for good | 34×23 | 22 (24) | 1 patrol, 2 turning sentries | 2 | 1:45 | 1925 t (1:04) | yes | 94% / 100% |
+| 11 | heist-11 | Signal Box | Signal sentries on one clock (a green wave down the crossing); one switch plate opens two gates | 34×21 | 22 (24) | 3 signal sentries, 1 patrol | 3 | 2:20 | 2591 t (1:26) | yes | 100% / 100% |
+| 12 | heist-12 | Spin Cycle | Doorstop: a cat standing in a doorway keeps a plate door open, so both cats get through on one plate | 32×20 | 21 (24) | 2 patrols, 1 sentry | 2 | 1:35 | 1768 t (0:59) | yes | 14% / 80% * |
+| 13 | heist-13 | Kibble Factory | The long-way lure: meow through a held-open cat flap into the doorman's booth; it can't use the flap and walks all the way round | 30×17 | 22 (24) | 1 doorman, 1 fast patrol | 2 | 1:10 | 1271 t (0:42) | yes | 0% / 0% * |
+| 14 | heist-14 | The Golden Bowl | Pass the key: one cat grabs it, the other opens the cage far away | 36×20 | 24 (26) | 3 turning sentries, 3 patrols | 3 | 2:25 | 2707 t (1:30) | yes | 39% / 76% |
+| 15 | heist-15 | Night Gallery | Statues: meow the exhibit dogs into place, facing a wall; opening the vault wakes them all, so leave through the staff door | 36×22 | 22 (24) | 4 statues, 1 sentry | 2 | 2:15 | 2468 t (1:22) | yes | 0% / 0% * |
+| 16 | heist-16 | Kibble Corp Tower | Finale: two airlocks force the split getaway (one cat sealed in the office drops down the chute, the other takes the helipad); reprises the doorstop, the sentry clock and the key pass | 40×27 | 28 (28) | 4 turning sentries (2 searchlights, concierge, lapdog), 3 patrols (Barkley, roof guard, pilot) | 4 | 3:50 | 3068 t (1:42) | yes | 41% / 68% |
+
+\* The bots cannot prop a door by standing in it, meow through a held-open door or flap, or treat a
+lured dog that stops as a new stationary guard. So on heist-12 they win only by the fallback
+leapfrog (never the doorstop), and on heist-13 and heist-15, where the trick is required, they never
+win. Those three are measured from the solver term of the par rule below, and need a human playtest.
+On heist-09, 10 and 11 the twist is optional and the bots win by timing alone, so read their rates as
+an upper bound.
 
 "Solution" is the solver's planned run (30 ticks per second): it collects every coin, is never
 spotted and finishes under par, so all three stars are reachable on every level.
 
 **Par** is set from play, not from the solver: the median win time of the cautious synthetic player
 (`npm run playtest:bots`, 200 seeds) times 1.2, rounded up to 5 s, and at least 60 s (the campaign
-test keeps par between 1 and 4 minutes). The source line in `tools/levels/<id>.mjs` records the
+test keeps par between 1 and 4 minutes). Act 2 also takes the solver's run times 1.6 into account
+(par = the largest of the three), which is what sets par where the bots cannot play the trick. The source line in `tools/levels/<id>.mjs` records the
 median it came from. The last column is the bots' completion rate; `playtest/BOT-REPORT.md` has the
 full tables and the before/after of the 2026-10-01 tuning pass.
 
@@ -222,7 +240,7 @@ src/
     controls.ts   screen-to-grid direction mapping for the iso camera
     qa.ts         window.__heist hooks
   sim/            deterministic integer sim (SimAPI), replay/log encoding, ASCII debug
-  levels/         heist-01..08.json + their solution input logs; index.ts is the campaign registry
+  levels/         heist-01..16.json + their solution input logs; index.ts is the campaign registry
   render/         three.js GameRenderer (RendererAPI); voxel/ = sprite extrusion + geometry cache
   ui/             DOM overlay: title, cat pick, HUD, pause, results, touch controls, input layer
     levels/       level select, results campaign strip, progress store and star rules
@@ -297,7 +315,8 @@ The e2e suite (`e2e/heist.spec.ts`) checks:
   pausing from Esc and from window blur, and resuming.
 - The heist-01 solution, loaded through the QA hook, reaches Results with `won = true`. Its final
   hash matches the `finalHash` that the vitest replay asserts (451370211 at SIM_VERSION 4).
-- The level select shows 8 cards with only heist-01 unlocked on a fresh profile.
+- The level select shows 16 cards under an Act 1 and an Act 2 heading, with only heist-01 unlocked
+  on a fresh profile.
 - Every level's solution replays to Results with `won = true` and its recorded hash (and earns no
   progress, since it is a replay).
 - Playing heist-01's inputs live wins it, awards 3 stars, offers Next level, unlocks heist-02, and
@@ -444,8 +463,9 @@ is stale. Every payout links to its transaction on the chain's explorer; no wall
 The rescue screen also has one prominent button, "Send Pink Paw a rescue treat 🐾". It only opens
 the client's give page (`/shelter-payouts/give?from=heist&cat=<rescued cat>`), which does the
 one-tap donation through the backend; the game never signs, pays or holds keys. Pink Paw
-(Rožinė pėdutė) is the showcase shelter. Its wallet is created and held by Token Tails on its
-behalf until handover; the give page and payouts page disclose this.
+(Rožinė pėdutė) is the showcase shelter. Since 16 Oct 2026 payouts go to Pink Paw's wallet, which
+Token Tails created; earlier payouts went to a wallet Token Tails held for the shelter. The give page
+and payouts page disclose this.
 
 On web hosts the payouts live in the game: `src/ui/shelter-payouts.ts` is a DOM modal ("Sent to
 shelters") with the total, the latest payouts (memo, amount, time, explorer tx link), a row per

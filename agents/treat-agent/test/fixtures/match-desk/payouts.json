@@ -1,0 +1,43 @@
+{
+  "network": "testnet",
+  "generatedAt": "2026-10-03T04:00:00.000Z",
+  "source": "index",
+  "contracts": [
+    {
+      "chainId": 5042002,
+      "contract": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "symbol": "USDC",
+      "decimals": 6,
+      "nativeSymbol": "USDC",
+      "nativeDecimals": 18,
+      "fromBlock": 1,
+      "head": 200000,
+      "indexedThrough": { "block": 199950, "time": 1790999975, "at": "2026-10-03T03:59:40.000Z" },
+      "lastRunFailed": false,
+      "count": 1,
+      "totals": []
+    }
+  ],
+  "chains": [{ "chainId": 5042002, "indexedThrough": { "block": 199950, "time": 1790999975, "at": "2026-10-03T03:59:40.000Z" } }],
+  "totals": [],
+  "count": 1,
+  "events": [
+    {
+      "chainId": 5042002,
+      "contract": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "txHash": "0x00000000000000000000000000000000000000000000000000000000000000a1",
+      "logIndex": 3,
+      "blockNumber": 199000,
+      "timestamp": 1790999400,
+      "shelter": "0xe299299b846ba629f5a591dbf4f562bcc07a0f37",
+      "kind": "native",
+      "amount": "20000000000000000",
+      "decimals": 18,
+      "symbol": "USDC",
+      "amount18": "20000000000000000",
+      "memo": "fan gift",
+      "memoRaw": "fan gift"
+    }
+  ],
+  "nextCursor": null
+}

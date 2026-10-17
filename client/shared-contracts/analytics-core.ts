@@ -6,7 +6,6 @@
  *
  * - the event names and their F9 areas (one catalog; the property shapes stay in
  *   `client/analytics/events.ts`, which re-exports everything here);
- * - the consent key both apps read (`tt-analytics-consent`, same origin);
  * - the scrubber that strips personal data and secrets from error text;
  * - the per-session budget that caps and dedupes reports (at most N per session, one per code).
  *
@@ -15,23 +14,11 @@
  */
 
 // ---------------------------------------------------------------------------------------------
-// Consent and endpoint
+// Endpoint
 // ---------------------------------------------------------------------------------------------
-
-/** localStorage key of the player's analytics choice. `granted` is the only value that sends. */
-export const CONSENT_STORAGE_KEY = 'tt-analytics-consent';
 
 /** PostHog EU ingestion host (the only analytics host either app talks to). */
 export const POSTHOG_EU_HOST = 'https://eu.i.posthog.com';
-
-/** True only when the stored choice is `granted`. Never throws (blocked storage reads as denied). */
-export function consentGrantedIn(storage: { getItem(key: string): string | null } | null | undefined): boolean {
-    try {
-        return !!storage && storage.getItem(CONSENT_STORAGE_KEY) === 'granted';
-    } catch {
-        return false;
-    }
-}
 
 // ---------------------------------------------------------------------------------------------
 // Event catalog

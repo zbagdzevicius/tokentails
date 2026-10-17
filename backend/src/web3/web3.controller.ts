@@ -25,7 +25,7 @@ import { EntityType, IMessage } from 'src/shared/interfaces/common.interface';
 import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { getPackCardTier } from 'src/shared/utils/content.utils';
 import { CryptoCheckoutService } from 'src/payments/crypto/crypto-checkout.service';
-import { getShelterCatPriceCents, isPackType } from 'src/payments/price-table';
+import { getPortraitPriceCents, getShelterCatPriceCents, isPackType, isProductType } from 'src/payments/price-table';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { UserRepository } from 'src/user/user.repository';
@@ -52,6 +52,14 @@ export { PACK_GRANT_FAILED_MESSAGE };
  * `refund: 'due'` (`STELLAR_DEPRECATED`) and answered 410. Reads, history, audits and refunds of
  * existing Stellar orders are unchanged. `STELLAR_PACKS_ENABLED=true` is the rollback switch.
  */
+/** create-payment for a portrait from a tab that shows a lower price than the server charges. */
+export const PORTRAIT_PRICE_CHANGED_MESSAGE = 'The price changed. Reload the page to see the new price.';
+
+/** A Stellar portrait paid at the retired $6 price: recorded for a refund, nothing granted (409). */
+export const PORTRAIT_PRICE_CHANGED = 'PORTRAIT_PRICE_CHANGED';
+export const PORTRAIT_PRICE_CHANGED_REFUND_MESSAGE =
+    'The portrait price changed before this payment. Your payment is recorded and will be refunded to the sending account. Reload the page to see the new price.';
+
 export const STELLAR_PACKS_DEPRECATED = 'STELLAR_PACKS_DEPRECATED';
 export const STELLAR_PACKS_DEPRECATED_MESSAGE =
     'Packs are no longer sold through Stellar. Your payment is recorded and will be refunded to the sending account. Pay with USDC or EURC in the crypto checkout, or by card.';
@@ -139,8 +147,8 @@ export class Web3Controller {
         return this.grants.refundOrder(order, user, reason, amountUsd);
     }
 
-    private creditAffiliate(discount: string | undefined, amountUsd: number) {
-        return this.grants.creditAffiliate(discount, amountUsd);
+    private creditAffiliate(discount: string | undefined, amountUsd: number, buyerId: unknown) {
+        return this.grants.creditAffiliate(discount, amountUsd, buyerId);
     }
 
     @UseGuards(AppAuthGuard)
@@ -229,6 +237,20 @@ export class Web3Controller {
                 });
             }
         }
+        // A portrait paid at the retired $6 price from an old tab: recorded for a refund, never lost.
+        if (verified.priceChanged) {
+            const orderRef = { _id: order._id, chainType, hash };
+            await this.grants.markGrantFailed(order._id, 'PRICE_CHANGED', `paid ${priceUsd} USD`);
+            const refund = await this.grants.refundOrder(orderRef, user, 'PRICE_CHANGED', priceUsd, {
+                takeBackSpend: false,
+            });
+            throw new ConflictException({
+                statusCode: 409,
+                code: PORTRAIT_PRICE_CHANGED,
+                message: PORTRAIT_PRICE_CHANGED_REFUND_MESSAGE,
+                refund: refund || 'due',
+            });
+        }
         await this.userRepository.update(user!, { $inc: spendIncrement(priceUsd) });
 
         if (entityType === EntityType.IMAGE) {
@@ -262,7 +284,7 @@ export class Web3Controller {
             amountUsd: priceUsd,
         });
         if (response.success) {
-            await this.creditAffiliate(discount, priceUsd);
+            await this.creditAffiliate(discount, priceUsd, user);
         }
         return response;
     }
@@ -272,13 +294,16 @@ export class Web3Controller {
     async createPayment(
         @Body()
         {
+            amount,
             id,
             entityType,
             productType,
             imageId,
             discount,
         }: {
-            amount?: number; // ignored: the price comes from the server price table
+            // Never charged: the price comes from the server price table. For a portrait it is the price the
+            // tab shows, in dollars; a lower one means the tab is older than the price (409, reload).
+            amount?: number;
             discount?: string;
             id: string;
             entityType?: EntityType;
@@ -318,6 +343,17 @@ export class Web3Controller {
                 });
                 if (!image) {
                     throw new BadRequestException('Generated portrait not found');
+                }
+                // A tab opened before the $16 price still shows $6. The card form does not show the amount,
+                // so do not charge more than the tab showed: ask it to reload instead.
+                if (
+                    isProductType(targetProductType) &&
+                    typeof amount === 'number' &&
+                    Number.isFinite(amount) &&
+                    amount > 0 &&
+                    Math.round(amount * 100) < getPortraitPriceCents(targetProductType)
+                ) {
+                    throw new ConflictException(PORTRAIT_PRICE_CHANGED_MESSAGE);
                 }
             }
 
@@ -470,7 +506,7 @@ export class Web3Controller {
                 amountUsd: verified.amountUsd,
             });
             if (response.success) {
-                await this.creditAffiliate(verified.discount, verified.amountUsd);
+                await this.creditAffiliate(verified.discount, verified.amountUsd, userId);
             }
 
             return response;

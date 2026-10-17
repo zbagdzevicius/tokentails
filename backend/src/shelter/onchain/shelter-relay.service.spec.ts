@@ -11,13 +11,7 @@ import {
     ROUTER_DONATION_TOPIC,
 } from './donate-router';
 import { DonationBroadcastError } from './shelter-chain';
-import {
-    isTestnetChain,
-    publicGivingAllowed,
-    readShelterConfig,
-    relayReady,
-    ShelterOnchainConfig,
-} from './shelter-onchain.config';
+import { isTestnetChain, readShelterConfig, relayReady, ShelterOnchainConfig } from './shelter-onchain.config';
 import { ipHash, RELAY_PER_SIGNER_DAILY, ShelterRelayService } from './shelter-relay.service';
 
 // These specs cover the rail before the mainnet wave: wallet.config.ts without its mainnet splits (recorded since 2026-10-07).
@@ -116,24 +110,19 @@ async function refusal(promise: Promise<unknown>): Promise<{ status: number; cod
     throw new Error('expected a refusal');
 }
 
-describe('publicGivingAllowed (mainnet gate)', () => {
-    it('allows testnets always and mainnets unless SHELTER_HANDED_OVER=false (the on-chain claim check follows)', () => {
-        expect(publicGivingAllowed({ chainId: 5042002 })).toBe(true);
-        expect(publicGivingAllowed({ chainId: 84532, givingKilled: true })).toBe(true);
-        expect(publicGivingAllowed({ chainId: 5042 })).toBe(true);
-        expect(publicGivingAllowed({ chainId: 8453, givingKilled: true })).toBe(false);
-        expect(readShelterConfig({ SHELTER_HANDED_OVER: 'false' } as any).givingKilled).toBe(true);
-        expect(readShelterConfig({} as any).givingKilled).toBe(false);
-    });
-
+describe('mainnet gate', () => {
     it('treats an unknown chain id as a mainnet', () => {
         expect(isTestnetChain(999999)).toBe(false);
-        expect(publicGivingAllowed({ chainId: 999999, givingKilled: true })).toBe(false);
     });
 
-    it('reads SHELTER_HANDED_OVER as true only for the literal "true", and everything is off by default', () => {
-        expect(readShelterConfig({ SHELTER_HANDED_OVER: 'yes' } as any).handedOver).toBe(false);
-        expect(readShelterConfig({ SHELTER_HANDED_OVER: 'TRUE' } as any).handedOver).toBe(true);
+    it('ignores SHELTER_HANDED_OVER (removed 2026-10-16), and relay and match are off by default', () => {
+        for (const value of ['true', 'false']) {
+            const cfg: any = readShelterConfig({ SHELTER_HANDED_OVER: value } as any);
+            expect(cfg.handedOver).toBeUndefined();
+            expect(cfg.givingKilled).toBeUndefined();
+            expect(cfg.relayEnabled).toBe(false);
+            expect(cfg.matchEnabled).toBe(false);
+        }
         // A production instance's defaults (Arc mainnet main chain, nothing recorded there).
         const defaults = readShelterConfig({ SHELTER_NETWORK: 'mainnet' } as any);
         expect(defaults.relayEnabled).toBe(false);
@@ -248,9 +237,9 @@ describe('ShelterRelayService.relay', () => {
         ['over max', () => body({ value: '100000001' }), () => config(), 400, 'RELAY_AMOUNT'],
         ['under min', () => body({ value: '9999' }), () => config(), 400, 'RELAY_AMOUNT'],
         [
-            'mainnet without handover',
+            'mainnet without the on-chain giving check',
             () => body({ chainId: 5042 }),
-            () => config({ chainId: 5042, handedOver: false }),
+            () => config({ chainId: 5042 }),
             409,
             'RELAY_AWAITING_HANDOVER',
         ],
@@ -266,7 +255,6 @@ describe('ShelterRelayService.relay', () => {
         const saved = { ...process.env };
         try {
             process.env.SHELTER_CHAIN_ID = '5042';
-            process.env.SHELTER_HANDED_OVER = 'false';
             process.env.SHELTER_TRY_CHAIN_ID = '5042002';
             process.env.SHELTER_TRY_ROUTER_ADDRESS = ROUTER;
             process.env.SHELTER_TRY_SPLIT_ADDRESS = SPLIT;
@@ -291,7 +279,6 @@ describe('ShelterRelayService.relay', () => {
         const BASE_ROUTER = '0x5555555555555555555555555555555555555555';
         try {
             process.env.SHELTER_CHAIN_ID = '5042';
-            process.env.SHELTER_HANDED_OVER = 'false';
             process.env.SHELTER_RELAY_ENABLED = 'false';
             process.env.SHELTER_RELAY_CHAINS = '84532,421614';
             process.env.SHELTER_CHAIN_84532_ROUTER_ADDRESS = BASE_ROUTER;
@@ -341,15 +328,15 @@ describe('ShelterRelayService.relay', () => {
         ).resolves.toMatchObject({ status: 'submitted' });
     });
 
-    it('relays on mainnet only once handed over and verified on chain, and on a testnet whenever enabled', async () => {
+    it('relays on mainnet only once verified on chain, and on a testnet whenever enabled', async () => {
         const verified = jest.fn(async () => true);
         const ctx = setup({ publicGivingVerified: verified });
-        const mainnet = config({ chainId: 5042, handedOver: true });
+        const mainnet = config({ chainId: 5042 });
         await expect(ctx.service.relay(body({ chainId: 5042 }), undefined, NOW, mainnet)).resolves.toMatchObject({
             status: 'submitted',
         });
         expect(verified).toHaveBeenCalledWith(mainnet);
-        // The flag alone is not enough: the split's recipients must be rotated, shelter-held claims.
+        // A failed on-chain check (the split pays a held wallet, a treasury share, an RPC error) refuses.
         verified.mockResolvedValueOnce(false);
         await expect(refusal(ctx.service.relay(body({ chainId: 5042 }), undefined, NOW, mainnet))).resolves.toEqual({
             status: 409,
@@ -359,9 +346,22 @@ describe('ShelterRelayService.relay', () => {
         await expect(refusal(setup().service.relay(body({ chainId: 5042 }), undefined, NOW, mainnet))).resolves.toEqual(
             { status: 409, code: 'RELAY_AWAITING_HANDOVER' }
         );
-        await expect(ctx.service.relay(body(), undefined, NOW, config({ handedOver: false }))).resolves.toMatchObject({
+        await expect(ctx.service.relay(body(), undefined, NOW, config())).resolves.toMatchObject({
             status: 'submitted',
         });
+    });
+
+    it('stays off on a verified mainnet without SHELTER_RELAY_ENABLED', async () => {
+        const verified = jest.fn(async () => true);
+        const ctx = setup({ publicGivingVerified: verified });
+        const off = config({ chainId: 5042, relayEnabled: false });
+        await expect(refusal(ctx.service.relay(body({ chainId: 5042 }), undefined, NOW, off))).resolves.toEqual({
+            status: 409,
+            code: 'RELAY_OFF',
+        });
+        expect(ctx.chain.sendContractCall).not.toHaveBeenCalled();
+        // And a production default config has the relay off.
+        expect(relayReady(readShelterConfig({ SHELTER_NETWORK: 'mainnet' } as any))).toBe(false);
     });
 
     it('refuses a replayed authorization (same salt and memo)', async () => {

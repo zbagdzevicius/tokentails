@@ -130,7 +130,7 @@
           data-shelter="Pink Paw"
           data-testnet="true"
           data-theme="dark"
-          data-disclosure="Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover."
+          data-disclosure="On testnet, payouts go to a wallet Token Tails holds for the shelter. On mainnet, payouts go to Pink Paw's wallet, which Token Tails created."
           data-target="#rail-gasless"></script>
         <p class="hint" id="hint">Needs a browser wallet on Arc testnet with test USDC from the Circle faucet. One transaction; USDC also pays the network fee.</p>
       </div>
@@ -163,11 +163,11 @@
 
     <section class="panel agents" aria-labelledby="agents">
       <h2 id="agents">For AI agents: standard x402</h2>
-      <p>The Token Tails cat-card endpoint answers <code>402 Payment Required</code> with the standard x402 <code>exact</code> scheme. Its <code>payTo</code> is the shelter's own wallet: the agent signs one USDC <code>transferWithAuthorization</code>, a facilitator settles it and pays the gas, and the agent gets an adoptable-cat card back.</p>
-      <p>Works with the rail's SDK in one call: <code>payAndFetch(url, { maxAmountBase: 10000n, provider })</code>. Standard x402 clients: the off-the-shelf <code>x402-fetch</code> client reads the offer, signs it and passes the public facilitator's verify step on a testnet; a full settlement through that facilitator is still being tested. On mainnet the scheme opens once the shelter holds its own wallet key.</p>
+      <p>The Token Tails cat-card endpoint answers <code>402 Payment Required</code> with the standard x402 <code>exact</code> scheme. Its <code>payTo</code> is the shelter's wallet: the agent signs one USDC <code>transferWithAuthorization</code>, a facilitator settles it and pays the gas, and the agent gets an adoptable-cat card back.</p>
+      <p>Works with the rail's SDK in one call: <code>payAndFetch(url, { maxAmountBase: 10000n, provider })</code>. Standard x402 clients: the off-the-shelf <code>x402-fetch</code> client reads the offer, signs it and passes the public facilitator's verify step on a testnet; a full settlement through that facilitator is still being tested. On mainnet the scheme opens once Token Tails records the shelter's wallet handover.</p>
     </section>
 
-    <p class="disclosure"><b>Disclosure:</b> Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover. The contracts are non-custodial; that wallet is not yet. This page uses testnet tokens with no real value.</p>
+    <p class="disclosure"><b>Disclosure:</b> On testnet, payouts go to a wallet Token Tails holds for the shelter. On mainnet, payouts go to Pink Paw's wallet, which Token Tails created. The contracts are non-custodial. This page uses testnet tokens with no real value.</p>
     <footer>MIT licensed · <a href="widget.js">widget.js</a> · <a href="/shelter-payouts">Shelter payouts</a></footer>
   </main>
 
@@ -178,7 +178,7 @@
       var hint = document.getElementById("hint");
       var code = document.querySelector("#snippet code");
       var DEPLOYMENTS = "/shelter-payouts/testnet-deployments.json";
-      var DISCLOSURE = "Pink Paw's wallet was created by Token Tails and is held by Token Tails on behalf of the shelter until handover.";
+      var DISCLOSURE = "On testnet, payouts go to a wallet Token Tails holds for the shelter. On mainnet, payouts go to Pink Paw's wallet, which Token Tails created.";
       function hintFor(id, chain) {
         if (chain.symbol === "USDC") return "Needs a browser wallet on " + chain.name + " with test USDC from the Circle faucet. One transaction; USDC also pays the network fee.";
         var fee = chain.noNative ? "a little pathUSD for the network fee (Tempo has no gas coin)" : "a little test " + chain.symbol + " for gas";

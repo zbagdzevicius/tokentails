@@ -3,6 +3,7 @@ import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import mongoose, { Connection, Model, Types } from 'mongoose';
 import { GameRepository } from 'src/game/game.repository';
 import { GameSchema } from 'src/game/game.schema';
+import { HEIST_LEVELS } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { AppValidationPipe } from '../dto/live-game.dto';
 import { UserController } from '../user.controller';
@@ -156,7 +157,7 @@ maybe('/live and migrations on a real MongoDB', () => {
         expect(doc.catnipChaosCleared[1]).toBe(1);
         expect(doc.heistScore[2]).toBe(200);
         expect(doc.heistStars.slice(0, 3)).toEqual([0, 0, 5]);
-        expect(doc.heistStars).toHaveLength(8);
+        expect(doc.heistStars).toHaveLength(HEIST_LEVELS.length);
     });
 
     it('leaves catnipCount and the loot-drop inputs alone after every Heist level', async () => {
@@ -167,16 +168,7 @@ maybe('/live and migrations on a real MongoDB', () => {
             match3: [40],
             match3Count: 40,
         });
-        for (const levelId of [
-            'heist-01',
-            'heist-02',
-            'heist-03',
-            'heist-04',
-            'heist-05',
-            'heist-06',
-            'heist-07',
-            'heist-08',
-        ]) {
+        for (const levelId of HEIST_LEVELS) {
             await post(userId, { type: 'CATNIP_HEIST', replay: goldenLog(levelId) });
         }
         expect(await raw(userId)).toMatchObject({

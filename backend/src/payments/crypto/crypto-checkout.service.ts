@@ -122,8 +122,8 @@ export const TX_CLOCK_SKEW_MS = 2 * 60 * 1000;
  */
 export const PAYMENT_GRACE_MS = 2 * 60 * 60 * 1000;
 /**
- * Unique amounts of an order with a confirm attempt stay reserved this long after expiry, so a late
- * payment never matches a newer order. An order nobody tried to confirm frees them after
+ * Unique amounts of an order with a confirm attempt (a confirm whose receipt shows a transfer to us,
+ * mined after the order) stay reserved this long after expiry, so a late payment never matches a newer order. An order nobody tried to confirm frees them after
  * PAYMENT_GRACE_MS, so abandoned orders cannot exhaust the 9,999 tags of one price.
  */
 export const RESERVATION_GRACE_MS = 24 * 60 * 60 * 1000;
@@ -239,7 +239,8 @@ export class CryptoCheckoutService {
             enabled: cfg.enabled && chains.length > 0,
             network: cfg.network,
             orderTtlSeconds: Math.round(cfg.orderTtlMs / 1000),
-            shelterHandedOver: cfg.handedOver,
+            // Deprecated (docs/API.md): always true since SHELTER_HANDED_OVER was removed on 2026-10-16.
+            shelterHandedOver: true,
             prices: {
                 // The price charged now (the Legendary sale while it runs); `packsRegular` is the list price.
                 packs: Object.fromEntries(
@@ -290,7 +291,8 @@ export class CryptoCheckoutService {
 
         // The same item again (a reload, a second tab, a double tap, START A NEW ORDER at 0:59): the open
         // order is handed back, renewed when it is about to close, so retries never use up unique amounts
-        // and one buyer never holds two orders for one cat.
+        // and one buyer never holds two orders for one cat. Only at today's price: an order opened before
+        // a price change (the Legendary sale ending) is left to expire, never renewed at the old price.
         const reusable = (await this.checkoutModel
             .findOne({
                 user,
@@ -299,6 +301,7 @@ export class CryptoCheckoutService {
                 expiresAt: { $gt: now },
                 ...skuFilter(sku),
                 ...(discount ? { discount } : { discount: { $exists: false } }),
+                priceUsdCents,
             })
             .sort({ createdAt: -1 })
             .lean()) as unknown as ICryptoCheckout | null;
@@ -320,7 +323,7 @@ export class CryptoCheckoutService {
 
         const orderId = `co_${randomBytes(8).toString('hex')}`;
         const shelterId = shareShelterId(sku, cfg);
-        const splitChains = shelterId && cfg.handedOver ? await this.splitChains(cfg) : new Set<string>();
+        const splitChains = shelterId ? await this.splitChains(cfg) : new Set<string>();
 
         await this.releaseReservations(now);
         for (let attempt = 0; attempt < RESERVE_ATTEMPTS; attempt++) {
@@ -359,6 +362,9 @@ export class CryptoCheckoutService {
                     createdAt: now,
                 } as any);
                 const doc = (created as any).toObject ? (created as any).toObject() : created;
+                if (sku.kind === 'CAT') {
+                    return this.view(await this.oneOpenOrderPerCat(doc as ICryptoCheckout, cfg, now), now);
+                }
                 return this.view(doc as ICryptoCheckout, now);
             } catch (error) {
                 if (isDuplicateKey(error)) {
@@ -413,7 +419,8 @@ export class CryptoCheckoutService {
                 throw payError('BAD_SKU', HttpStatus.BAD_REQUEST);
             }
             const { code, percentage } = await this.stripePayments.resolveDiscount(
-                typeof body.discount === 'string' ? body.discount : undefined
+                typeof body.discount === 'string' ? body.discount : undefined,
+                userId
             );
             return {
                 sku: { kind, packType } as CheckoutSku,
@@ -471,9 +478,10 @@ export class CryptoCheckoutService {
     }
 
     /**
-     * `chainId:TOKEN` of the split routes a buyer may pay directly: only after the handover, and on a
-     * mainnet only when every split recipient is a rotated, shelter-held wallet (the same on-chain
-     * check that opens public giving).
+     * `chainId:TOKEN` of the split routes a buyer may pay directly: a testnet always, a mainnet only when
+     * ShelterClaimService.publicGivingVerified passes for that route's own split address (the same on-chain
+     * check that opens public giving: the split pays only Pink Paw's wallet or rotated claims, never a held
+     * wallet).
      */
     private async splitChains(cfg: CryptoPayConfig): Promise<Set<string>> {
         const allowed = new Set<string>();
@@ -482,7 +490,13 @@ export class CryptoCheckoutService {
             if (!chain) continue;
             if (!chain.chain.testnet) {
                 const shelterConfig = shelterConfigFor(split.chainId);
-                if (!shelterConfig || !this.claims || !(await this.claims.publicGivingVerified(shelterConfig))) {
+                // Read preview() on the route's own split, not the chain's main split: the buyer pays
+                // split.address, so its payees are the ones that must pass.
+                if (
+                    !shelterConfig ||
+                    !this.claims ||
+                    !(await this.claims.publicGivingVerified({ ...shelterConfig, splitAddress: split.address }))
+                ) {
                     continue;
                 }
             }
@@ -545,6 +559,36 @@ export class CryptoCheckoutService {
             }
         }
         return options;
+    }
+
+    /**
+     * Two creates for one cat at once (a double tap, two tabs) both miss the reuse lookup above. After
+     * the insert, the earliest open order for that buyer and cat wins; a later one deletes itself
+     * (its id was never answered, so nobody can pay it) and answers with the winner. Both requests
+     * pick the same winner, so one buyer never holds two orders for one cat.
+     */
+    private async oneOpenOrderPerCat(doc: ICryptoCheckout, cfg: CryptoPayConfig, now: Date): Promise<ICryptoCheckout> {
+        const open = ((await this.checkoutModel
+            .find({
+                user: doc.user,
+                status: 'OPEN',
+                network: cfg.network,
+                expiresAt: { $gt: now },
+                ...skuFilter(doc.sku),
+            })
+            .lean()) || []) as unknown as ICryptoCheckout[];
+        const rank = (o: ICryptoCheckout) => [new Date(o.createdAt!).getTime(), String(o._id)] as const;
+        const first = open.reduce<ICryptoCheckout | null>((best, o) => {
+            if (!best) return o;
+            const [ta, ia] = rank(o);
+            const [tb, ib] = rank(best);
+            return ta < tb || (ta === tb && ia < ib) ? o : best;
+        }, null);
+        if (!first || String(first._id) === String(doc._id)) {
+            return doc;
+        }
+        await this.checkoutModel.deleteOne({ _id: doc._id, status: 'OPEN' });
+        return first;
     }
 
     /**
@@ -650,13 +694,6 @@ export class CryptoCheckoutService {
         if (!Number.isSafeInteger(chainId) || !options.length) {
             throw payError('WRONG_CHAIN', HttpStatus.BAD_REQUEST);
         }
-        if (!doc.confirmAttemptAt) {
-            // Someone says they paid: the unique amounts stay reserved the long way (24 hours).
-            await this.checkoutModel.updateOne(
-                { _id: doc._id, confirmAttemptAt: { $exists: false } },
-                { $set: { confirmAttemptAt: now } }
-            );
-        }
         const chain = cfg.chains.find(c => c.chain.chainId === chainId);
         if (!chain) {
             throw payError('RPC_UNAVAILABLE', HttpStatus.SERVICE_UNAVAILABLE);
@@ -703,6 +740,15 @@ export class CryptoCheckoutService {
                 break;
             }
             underpaid = underpaid || check.reason === 'UNDERPAID';
+        }
+        if ((matched || underpaid) && !doc.confirmAttemptAt) {
+            // A transfer to us, mined after the order: the unique amounts stay reserved the long way
+            // (24 hours). Recorded only now, not for any well-formed hash, so made-up confirms cannot
+            // pin the tags of a price.
+            await this.checkoutModel.updateOne(
+                { _id: doc._id, confirmAttemptAt: { $exists: false } },
+                { $set: { confirmAttemptAt: now } }
+            );
         }
         if (!matched) {
             throw payError(underpaid ? 'UNDERPAID' : 'NO_MATCHING_TRANSFER', HttpStatus.BAD_REQUEST);
@@ -912,7 +958,7 @@ export class CryptoCheckoutService {
                 amountUsd,
             });
             if (result.success) {
-                await this.grants.creditAffiliate(doc.discount, amountUsd);
+                await this.grants.creditAffiliate(doc.discount, amountUsd, user);
             }
         }
 
@@ -1074,7 +1120,8 @@ export class CryptoCheckoutService {
     /**
      * Finishes orders left PAID with no grant result (the process died while granting). When the
      * `Order` already says COMPLETE or FAILED_GRANT, that result is copied; otherwise the grant runs
-     * again under a new lease. A shelter cat the buyer already holds counts as delivered. A pack whose
+     * again under a new lease. A shelter cat the buyer already holds counts as delivered, unless another
+     * completed purchase gave it (then the grant runs and refunds). A pack whose
      * adoption succeeded in the instant before the crash, without its order being marked, can be
      * granted twice (in the buyer's favour); that window is a single write.
      */
@@ -1137,7 +1184,22 @@ export class CryptoCheckoutService {
                 if (!lease) continue;
                 if (doc.sku.kind === 'CAT') {
                     const held = await this.catSale.check(doc.sku.catId, doc.user);
-                    if (!held.ok && held.reason === 'ALREADY_OWNED') {
+                    // Delivered by this order only when no other completed purchase (card or crypto)
+                    // gave the buyer this cat; otherwise the normal grant fails on ownership and the
+                    // payment is refunded.
+                    const otherPurchase =
+                        !held.ok && held.reason === 'ALREADY_OWNED'
+                            ? await this.orderRepository.findOne({
+                                  searchObject: {
+                                      user: doc.user,
+                                      entityType: EntityType.CAT,
+                                      id: doc.sku.catId,
+                                      status: OrderStatus.COMPLETE,
+                                      _id: { $ne: order._id },
+                                  },
+                              })
+                            : null;
+                    if (!held.ok && held.reason === 'ALREADY_OWNED' && !otherPurchase) {
                         await this.orderRepository.update(order._id!, { $set: { status: OrderStatus.COMPLETE } });
                         await this.storeGrant(
                             doc,

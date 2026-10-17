@@ -76,6 +76,50 @@ What the chain enforces:
 The ABI is in `abi/DonateRouter.json`
 (`forge inspect src/DonateRouter.sol:DonateRouter abi --json > abi/DonateRouter.json`).
 
+### CappedSpender
+
+`CappedSpender(split, agent, owner, perTxCap, dailyCap, native)` holds a small float that one agent
+address can give only into one ShelterSplit, with `give(amount, memo)`:
+
+- at most `perTxCap` per gift (`OverTxCap(amount, cap)`, checked first) and `dailyCap` per UTC
+  calendar day (`OverDailyCap(spentToday + amount, cap)`). The day resets at 00:00 UTC, so up to
+  2 × `dailyCap` can go out across midnight; it is not a rolling 24 hours;
+- only while `preview(amount)` sends nothing to the split's treasury, never while the split is paused,
+  and only with a memo that starts with `tt:agent:` (at most 256 bytes);
+- the owner can only fund the float (native mode: plain transfers from the owner only) and withdraw
+  it to its own address. Nobody can raise the caps or change the agent, split or mode: they are
+  immutable.
+
+Every gift emits `AgentGift(batchId, amount, memo, spentToday)`. The treat agent and the Sponsor
+Match Desk ([`agents/treat-agent`](../../agents/treat-agent/), spec `MATCH-DESK.md`) use it; the
+match desk's memo is `tt:agent:m:<sponsor>:<hash8>`, the first 8 hex of its receipt's sha256.
+
+**Units.** In native mode (Arc only, 5042 / 5042002) the coin is USDC with **18 decimals**, so the
+match desk's caps are `CAPPED_PER_TX=50000000000000000` (0.05 USDC) and
+`CAPPED_DAILY=200000000000000000` (0.20 USDC). In ERC-20 mode they are token units (USDC: 6
+decimals, 0.05 = 50000).
+
+**Deploy guards** (`script/DeployCappedSpender.s.sol`, all from the environment):
+`EXPECTED_CHAIN_ID` is required; native mode reverts off Arc; a per-gift cap above 1 USDC in the
+mode's units reverts (`PerTxAboveCeiling`, `CAPPED_MAX_PER_TX` overrides), and so does a daily cap
+above 100 × that; a per-gift cap below 0.001 USDC in the mode's units reverts
+(`PerTxBelowFloor`, `CAPPED_MIN_PER_TX` overrides). The floor catches a 6-decimal number in native
+mode: `CAPPED_PER_TX=50000` would be 5×10⁻¹⁴ USDC.
+
+```sh
+CAPPED_SPLIT=<ShelterSplit> CAPPED_AGENT=<agent EOA> CAPPED_OWNER=<owner> CAPPED_NATIVE=1 \
+CAPPED_PER_TX=50000000000000000 CAPPED_DAILY=200000000000000000 EXPECTED_CHAIN_ID=5042002 \
+forge script script/DeployCappedSpender.s.sol --rpc-url <rpc>        # simulate; add --broadcast --account <keystore>
+```
+
+After the deploy, read `native()`, `perTxCap()` and `dailyCap()` back before funding
+(`agents/treat-agent/match-desk.sh check` does this). Tests: `test/CappedSpender.t.sol` and
+`test/CappedSpenderMatchDesk.t.sol` (the match-desk memo, both over-cap refusals with the runbook
+caps, the floor guard, and the script's whole deploy path through `deploy(Config)`: guards, console
+log and broadcast). The script logs through a low-level `staticcall` to the console address: that
+address has no code, so a high-level call reverted every `forge script` run with empty data once the
+guards had passed (fixed Oct 13).
+
 ## Deployments
 
 The public deployment lists are the source of truth. They are generated from the deploy records and
@@ -113,7 +157,8 @@ On Arc, the first sponsored treat sent from the live game is a native-USDC `dona
 On Tempo a second payout, [0xcd33…b8b5](https://explore.tempo.xyz/tx/0xcd33906ebff5f978faaf6406e6b5bbf5506159a170ea964a9feec49a2d91b8b5),
 is a `disburseWithMemo` call: Pink Paw's share arrives through TIP-20 `transferWithMemo` with the memo
 "Catnip Heist campaign". Every mainnet payout so far is Token Tails'
-own money, paid to the wallet it holds for Pink Paw until handover (see Disclosures).
+own money. Until 2026-10-16 it went to a wallet Token Tails held for Pink Paw; since then every
+mainnet split pays Pink Paw's wallet (see Disclosures).
 
 **Why some addresses repeat.** One deployer key deployed every contract, and a contract address follows
 from the deployer and its nonce. The same address can therefore appear on several chains, and in a
@@ -182,10 +227,12 @@ Without `--broadcast` both scripts only simulate.
 
 ## Disclosures
 
-- **Custody.** The first shelter is Pink Paw (Rožinė pėdutė). Its receiving wallet was created and
-  is held by Token Tails on the shelter's behalf until handover. The chain proves that funds reached
-  the registered wallet, not who controls it. At handover the shelter's own address is registered in
-  the contract, and the public gift paths stay off until then.
+- **Custody.** The first shelter is Pink Paw (Rožinė pėdutė). Until 2026-10-16 its receiving wallet
+  `0xE299…0f37` was held by Token Tails on the shelter's behalf. On 2026-10-16 all 8 mainnet splits
+  were rotated to Pink Paw's wallet `0x3c83…4771`, which Token Tails created (it keeps a recovery
+  backup), and the old wallet's shelter balances were swept to it. The chain proves that funds reached
+  the registered wallet, not who controls it. The backend opens a public gift path on a chain only
+  while that chain's split, read on chain, pays Pink Paw's wallet and no wallet Token Tails holds.
 - **Prior work.** Token Tails existed before these contracts: the game and app, three Soroban
   contracts on Stellar mainnet and ERC-721 contracts on SKALE. ShelterSplit itself was written from
   2026-09-25.

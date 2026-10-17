@@ -37,6 +37,7 @@ import {
     DecodedPayout,
     hasWalletMemo,
     isPayoutLog,
+    MOTORED_MEMO_REGEX,
     needsSender,
     RpcLog,
     to18,
@@ -490,7 +491,7 @@ export class ImpactIndexerService {
     }
 
     /**
-     * Rows indexed as `direct` in the last 24 hours get another chance: an older gift row may have been
+     * Rows indexed as `direct` in the last 24 hours (and Motored event rows of any age) get another chance: an older gift row may have been
      * written after the index ran, and a paw-memo sender the node did not know yet may be known now.
      */
     private async reattributeRecent(
@@ -505,7 +506,12 @@ export class ImpactIndexerService {
                     chainId: config.chainId,
                     contract,
                     bucket: 'direct',
-                    createdAt: { $gte: new Date(now.getTime() - REATTRIBUTE_WINDOW_MS) },
+                    // Motored event gifts indexed as `direct` before this backend knew the bucket are
+                    // moved at any age, so the sponsor label holds from the first gift.
+                    $or: [
+                        { createdAt: { $gte: new Date(now.getTime() - REATTRIBUTE_WINDOW_MS) } },
+                        { memo: { $regex: MOTORED_MEMO_REGEX } },
+                    ],
                 },
                 { _id: 1, txHash: 1, memo: 1, txFrom: 1, shelter: 1 }
             )

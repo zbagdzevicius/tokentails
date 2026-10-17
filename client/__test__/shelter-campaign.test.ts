@@ -17,7 +17,14 @@ import factsJson from "@/public/facts/facts.json";
 const PINK = "0x" + "aa".repeat(20);
 const E18 = BigInt("1000000000000000000");
 const usdc = (n: number | string) => usdcTo18(String(n));
-const base = parseCampaign({ ...campaignJson, shelter: { ...campaignJson.shelter, wallet: PINK } });
+const HELD = "0xe299299b846ba629f5a591dbf4f562bcc07a0f37";
+// The campaign as it was before the 16 Oct 2026 rotation: one wallet, held by Token Tails.
+const heldJson = {
+  ...campaignJson,
+  wallets: [{ wallet: HELD, fromBlock: 23790973, toBlock: null, holder: "token-tails" }],
+  shelter: { ...campaignJson.shelter, wallet: HELD, handover: "held-by-token-tails" },
+};
+const base = parseCampaign({ ...heldJson, shelter: { ...heldJson.shelter, wallet: PINK } });
 const reading = (over: Partial<WalletReading> = {}): WalletReading => ({ balance: BigInt(0), start: BigInt(0), nonce: 0, ...over });
 const counted = (raised: bigint, exact = true): GoalCount => ({ raised, exact });
 const view = (over: Partial<ShelterGoalView> = {}): ShelterGoalView => ({
@@ -38,15 +45,15 @@ const view = (over: Partial<ShelterGoalView> = {}): ShelterGoalView => ({
 const fallback = (raised: bigint): GoalCount => ({ raised, exact: false, partial: true });
 
 describe("campaign.json (generated from C-001)", () => {
-  it("ships the Pink Paw goal: 50,000 USDC to the held wallet, counting everything that reaches it", () => {
+  it("ships the Pink Paw goal: 50,000 USDC, counting the held wallet until 16 Oct 2026 and Pink Paw's wallet since", () => {
     const c = parseCampaign(campaignJson);
     expect(c.name).toBe("Pink Paw rescue fund");
     expect(c.goalUsdc).toBe("50000");
     expect(c.startDate).toBe("2026-10-02");
     expect(c.endDate).toBe("2027-09-30");
     expect(c.shelter.name).toBe("Pink Paw (Rožinė pėdutė)");
-    expect(c.shelter.wallet).toBe("0xe299299b846ba629f5a591dbf4f562bcc07a0f37");
-    expect(c.shelter.handover).toBe("held-by-token-tails");
+    expect(c.shelter.wallet).toBe("0x3c833562e682db66c2415b34961595df135f4771");
+    expect(c.shelter.handover).toBe("handed-over");
     expect(c.chainId).toBe(5042);
     // First Arc block at or after the campaign startDate, so money from before the goal never counts.
     expect(c.fromBlock).toBe(23790973);
@@ -54,7 +61,10 @@ describe("campaign.json (generated from C-001)", () => {
     expect(c.token).toEqual({ address: "0x3600000000000000000000000000000000000000", decimals: 6 });
     expect(c.startBalance).toBe("0");
     // The goal counts what comes in to these wallets, each inside its block range.
-    expect(c.wallets).toEqual([{ wallet: "0xe299299b846ba629f5a591dbf4f562bcc07a0f37", fromBlock: 23790973, toBlock: null, holder: "token-tails" }]);
+    expect(c.wallets).toEqual([
+      { wallet: HELD, fromBlock: 23790973, toBlock: 26229681, holder: "token-tails" },
+      { wallet: "0x3c833562e682db66c2415b34961595df135f4771", fromBlock: 26229682, toBlock: null, holder: "shelter" },
+    ]);
   });
 
   it("agrees with the public facts copy of C-001", () => {

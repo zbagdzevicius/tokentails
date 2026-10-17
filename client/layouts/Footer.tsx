@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Socials } from "./Socials";
 import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "@/components/shared/PixelButton";
-import { AnalyticsSettingsLink } from "@/components/shared/AnalyticsConsentBanner";
 
 interface FooterProps {
   title: string;
@@ -106,7 +105,6 @@ export const Footer: React.FC<{ tone?: "cream" | "night" }> = ({ tone = "cream" 
                   {l.title}
                 </a>
               ))}
-              <AnalyticsSettingsLink className="whitespace-nowrap text-tt-gold-400 underline decoration-dotted underline-offset-4 hover:text-tt-cream" />
             </span>
           </div>
         </div>
@@ -161,7 +159,6 @@ export const Footer: React.FC<{ tone?: "cream" | "night" }> = ({ tone = "cream" 
             >
               Privacy Policy
             </a>
-            <AnalyticsSettingsLink />
           </div>
         </div>
       </footer>

@@ -1,0 +1,437 @@
+{
+  "id": "heist-15",
+  "tiles": [
+    "####################################",
+    "################################...#",
+    "#########......................#...#",
+    "#########.......b.......b..........#",
+    "#########......................#...#",
+    "#########.....#############....#...#",
+    "#########..b..#############....#####",
+    "#########.....#.........###....#####",
+    "#########.....#..b...b..###....#####",
+    "#########.....#.........###....#####",
+    "#########.................#.b..#####",
+    "#########.....#.........#.#....#####",
+    "#########.....#..b...b..#.#....#####",
+    "#########..b..#.........#.#....#####",
+    "#.......#.....###########.#....#####",
+    "#.......#.....###########.#....#####",
+    "#.......#.....###########.#....#####",
+    "#.......#......b...............#####",
+    "#...................b..........#####",
+    "#.......############################",
+    "#.......############################",
+    "####################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 15
+    },
+    {
+      "x": 3,
+      "y": 15
+    }
+  ],
+  "guards": [
+    {
+      "id": "st-hall",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 19,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 5,
+      "facing": {
+        "x": 1,
+        "y": 0
+      }
+    },
+    {
+      "id": "st-gallery",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 12,
+          "y": 3
+        },
+        {
+          "x": 19,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 6,
+      "facing": {
+        "x": 1,
+        "y": 0
+      }
+    },
+    {
+      "id": "st-east",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 29,
+          "y": 12
+        },
+        {
+          "x": 19,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 5,
+      "facing": {
+        "x": 0,
+        "y": -1
+      }
+    },
+    {
+      "id": "st-south",
+      "sprite": "exotic",
+      "waypoints": [
+        {
+          "x": 29,
+          "y": 17
+        },
+        {
+          "x": 19,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 30,
+      "visionTiles": 6,
+      "facing": {
+        "x": -1,
+        "y": 0
+      }
+    },
+    {
+      "id": "s-laser",
+      "sprite": "black-white",
+      "waypoints": [
+        {
+          "x": 20,
+          "y": 3
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 7,
+      "turns": [
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 120
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 120
+        }
+      ]
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 32,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 14,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 26,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 9,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 22,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 34,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 30,
+        "y": 6
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 16,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 22,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 25,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 30,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 16,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 22,
+        "y": 13
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 27,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 10,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 4,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 18,
+        "y": 17
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 13,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 23,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 27,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 6,
+        "y": 20
+      }
+    }
+  ],
+  "key": {
+    "id": "key-vault",
+    "tile": {
+      "x": 33,
+      "y": 4
+    }
+  },
+  "doors": [
+    {
+      "id": "door-vault",
+      "tile": {
+        "x": 14,
+        "y": 10
+      },
+      "kind": "VAULT",
+      "axis": "v"
+    },
+    {
+      "id": "door-staff",
+      "tile": {
+        "x": 24,
+        "y": 10
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    },
+    {
+      "id": "door-studio",
+      "tile": {
+        "x": 31,
+        "y": 3
+      },
+      "kind": "PLATE",
+      "axis": "v"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-s1",
+      "tile": {
+        "x": 25,
+        "y": 14
+      },
+      "doors": [
+        "door-staff"
+      ]
+    },
+    {
+      "id": "plate-q1",
+      "tile": {
+        "x": 28,
+        "y": 7
+      },
+      "doors": [
+        "door-studio"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 19,
+      "y": 10
+    },
+    "catId": "white",
+    "catName": "Marble"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 2,
+        "y": 19
+      },
+      {
+        "x": 3,
+        "y": 19
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 33,
+        "y": 2
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 5,
+        "y": 15
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 15: Night Gallery",
+    "parTicks": 4050,
+    "meowRadiusTiles": 7,
+    "investigateTicks": 18,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "Rearrange the exhibits, open the gem room and free {cat}",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 9,
+        "y0": 11,
+        "x1": 13,
+        "y1": 18,
+        "untilObjective": 0,
+        "text": "These dogs are exhibits: they don't move until something calls them. Meow ({meow}) and they walk to you, and stay there. Step aside after you meow!"
+      },
+      {
+        "x0": 24,
+        "y0": 11,
+        "x1": 26,
+        "y1": 17,
+        "untilObjective": 0,
+        "text": "When the vault opens, EVERY exhibit wakes up. Have your partner hold the staff door first."
+      }
+    ],
+    "name": "Night Gallery",
+    "intro": "The exhibits are dogs, frozen on their plinths. Move them. Then open the vault, and run.",
+    "idea": "Statues: dogs whose rounds lead into the locked vault stand still; a meow drags one and it stays; the vault wakes them all"
+  }
+}

@@ -313,12 +313,12 @@ const WebPayment = ({
           {(
             [
               // copy-lint-ignore R10 WebPayment renders only on web; app builds get AppCheckoutNotice above
-              ["crypto", "Pay with crypto (stablecoins)", "coins"],
-              ["stripe", "Pay with Card", "wallet"],
+              ["crypto", "Pay with crypto", "coins", "(stablecoins)"],
+              ["stripe", "Pay with Card", "wallet", null],
             ] as const
           )
             .filter(([method]) => method === "stripe" || cryptoOffered)
-            .map(([method, label, icon]) => (
+            .map(([method, label, icon, sub]) => (
               <ModalButton
                 key={method}
                 variant="secondary"
@@ -328,11 +328,14 @@ const WebPayment = ({
                 onClick={() => setPaymentMethod(method)}
                 className={
                   paymentMethod === method
-                    ? "!bg-tt-night-500 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400))]"
-                    : "opacity-80 hover:opacity-100"
+                    ? "!bg-tt-gold-400 !text-tt-gold-ink shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-500))]"
+                    : "opacity-70 hover:opacity-100"
                 }
               >
                 {label}
+                {/* Own line: the full label overflows the half-width button on phones. */}
+                {sub && " "}
+                {sub && <span className="mt-1 block text-[0.75em] opacity-80">{sub}</span>}
               </ModalButton>
             ))}
         </div>

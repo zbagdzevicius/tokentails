@@ -122,7 +122,8 @@ export async function fetchDonateMe({
 
 /** What one send answered. */
 export type TreatSend =
-  | { kind: "sent" }
+  /** `receipt`: the explorer link from the 200 body (https only), when the backend gave one. */
+  | { kind: "sent"; receipt?: string }
   | { kind: "already-today" }
   | { kind: "not-eligible"; reason: TreatIneligible; eligibleAt: string | null }
   | { kind: "paused" }
@@ -141,10 +142,13 @@ export type TreatSend =
 export async function sendTreat({
   fetchImpl,
   chainId,
+  source = "page",
 }: {
   fetchImpl?: (input: string, init: RequestInit) => Promise<Response>;
   /** Another network than the main chain (DonateRail.chainId), when only that one is open. */
   chainId?: number;
+  /** Where the treat was sent from (backend DONATE_SOURCES). The Heist's own panel uses `heist`. */
+  source?: "page" | "heist";
 } = {}): Promise<TreatSend> {
   const base = root();
   const token = currentAccessToken();
@@ -152,7 +156,7 @@ export async function sendTreat({
   const send =
     fetchImpl ??
     ((input: string, init: RequestInit) => apiFetch(input, init, { guestSession: false, requireAccount: false }));
-  const payload = JSON.stringify(chainId ? { source: "page", chainId } : { source: "page" });
+  const payload = JSON.stringify(chainId ? { source, chainId } : { source });
   const post = (path: string, auth: Record<string, string>) =>
     send(`${base}${path}`, {
       method: "POST",
@@ -181,7 +185,10 @@ export async function sendTreat({
   } catch {
     return { kind: "retry" };
   }
-  if (res.ok) return { kind: "sent" };
+  if (res.ok) {
+    const receipt = receiptOf(await readBody(res));
+    return receipt ? { kind: "sent", receipt } : { kind: "sent" };
+  }
   const code = errorCodeOf(body);
   switch (code) {
     case ErrorCode.DONATE_ALREADY_TODAY:
@@ -209,6 +216,18 @@ export async function sendTreat({
   if (res.status === 503 || res.status === 409) return { kind: "paused" };
   if (res.status === 424) return { kind: "failed" };
   return { kind: "retry" };
+}
+
+/** The explorer link of a 200 donate body (`DonateResult.explorerUrl`), https only. */
+export function receiptOf(body: unknown): string | undefined {
+  const url = isObj(body) ? body.explorerUrl : undefined;
+  if (typeof url !== "string" || url.length > 512) return undefined;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Telemetry status of a send (`treat_sent {status}`). */

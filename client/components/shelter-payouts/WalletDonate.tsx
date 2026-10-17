@@ -146,6 +146,7 @@ export const WalletDonate = ({
   chain,
   router,
   shelterName,
+  shelterWallet = null,
   choices = [],
 }: {
   mode: GiveMode;
@@ -153,6 +154,8 @@ export const WalletDonate = ({
   chain: ChainInfo | null;
   router: RouterEntry | null;
   shelterName: string;
+  /** The shelter's published wallet (campaign.json, handed over): the custody guard's fallback. */
+  shelterWallet?: string | null;
   /** Every network the donor may pick (the six chains that have a wallet path); `chainId` is the default. */
   choices?: WalletChoice[];
 }) => {
@@ -181,11 +184,12 @@ export const WalletDonate = ({
         </h3>
         <p className="text-tt-cream" data-testid="wallet-donate-awaiting-copy">
           <span aria-hidden="true">🔑 </span>
-          Opens when {short} holds its own key.
+          Opens when {short}&apos;s wallet is set up.
         </p>
+        {/* claim: fiction why the button waits, not an impact figure */}
         <p className="text-tt-cream/80">
-          Until then the shelter&apos;s wallet is held by Token Tails, so there is no public button: a gift from
-          your wallet should only ever land in a wallet the shelter controls.
+          The split now pays a wallet Token Tails holds, so there is no public button: a gift from your
+          wallet should go to the shelter&apos;s wallet, not one Token Tails holds.
         </p>
         <Link href={ONBOARD_URL} className={`${PILL} mt-2 self-start`} data-testid="wallet-donate-onboard-link">
           How the handover works ›
@@ -238,6 +242,7 @@ export const WalletDonate = ({
         chain={rail.chain}
         rail={rail}
         shelterName={shelterName}
+        shelterWallet={shelterWallet}
         relayStatus={status}
       />
     </section>
@@ -251,6 +256,7 @@ const GiveBlock = ({
   chain,
   rail,
   shelterName,
+  shelterWallet,
   relayStatus,
 }: {
   mode: GiveMode;
@@ -258,6 +264,7 @@ const GiveBlock = ({
   chain: ChainInfo;
   rail: GiveRail;
   shelterName: string;
+  shelterWallet?: string | null;
   relayStatus: MatchStatus | null;
 }) => {
   const router = rail.router;
@@ -301,14 +308,16 @@ const GiveBlock = ({
       if (cancelled) return;
       // The claim is a personal_sign by the shelter's own key (an EOA), which is the same wallet on
       // every chain; the guard still reads this chain's payout list before anything is signed.
-      setCustody(
-        c && c.status === "rotated" ? { shelterWallets: [c.wallet], heldWallets: [...TOKEN_TAILS_HELD_WALLETS] } : null
-      );
+      // A rotated claim names the wallet; otherwise the handed-over campaign's published wallet does
+      // (the backend's on-chain gate uses the same generated wallet). The guard still refuses unless the
+      // live payout list pays only that wallet and none Token Tails holds.
+      const wallet = c && c.status === "rotated" ? c.wallet : shelterWallet || null;
+      setCustody(wallet ? { shelterWallets: [wallet], heldWallets: [...TOKEN_TAILS_HELD_WALLETS] } : null);
     });
     return () => {
       cancelled = true;
     };
-  }, [mode, chainId]);
+  }, [mode, chainId, shelterWallet]);
 
   const testnet = mode === "testnet";
   // A second coin's router (EURC on Arc) is never a native gift: the native coin is USDC.

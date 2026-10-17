@@ -4,7 +4,7 @@ import type { LabelSet } from "./tiers";
 /** Web labels (plan F7.2). App builds use labels.app.ts, which has no chain words. */
 export const WEB_LABELS: LabelSet = {
   chip: {
-    "onchain-shelter-held": "ON-CHAIN · SHELTER-HELD",
+    "onchain-shelter-held": "ON-CHAIN · SHELTER WALLET",
     "onchain-custodial": "ON-CHAIN · CUSTODIAL",
     "shelter-signed": "SHELTER-SIGNED",
     "shelter-confirmed": "SHELTER-CONFIRMED",
@@ -19,10 +19,10 @@ export const WEB_LABELS: LabelSet = {
   },
   explain: {
     "onchain-shelter-held":
-      "Indexed on-chain payout to a shelter wallet that the shelter itself holds the key to.",
+      "Indexed on-chain payout to the shelter's wallet.",
     "onchain-custodial":
-      "Indexed on-chain payout to a shelter wallet that Token Tails still holds the key for, until the handover.",
-    "shelter-signed": "Off-chain payout the shelter signed with its own key.",
+      "Indexed on-chain payout to a wallet Token Tails held for the shelter.",
+    "shelter-signed": "Off-chain payout signed from the shelter's wallet.",
     "shelter-confirmed":
       "Off-chain payout a shelter member confirmed; the receipt's SHA-256 is stored.",
     pledged: "Committed by Token Tails but not paid yet.",

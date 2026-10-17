@@ -34,18 +34,72 @@ export function fakePolicy(facts, { demo }) {
   });
 }
 
+/**
+ * Match-desk stand-in. Deterministic:
+ * - TREAT_AGENT_FAKE_WRONG=1: match the newest eligible gift with match_if_alone + 0.000001 USDC, so the
+ *   checker rejection can be shown (tests, fork demo);
+ * - else match the newest eligible gift that is not in a farming signal, alone, with match_if_alone_usdc and the
+ *   sponsor_id code picked for it;
+ * - else flag farming when a signal lists eligible gifts;
+ * - else hold.
+ */
+export function fakeMatchPolicy(facts, { wrong = false } = {}) {
+  const gifts = facts.eligible_gifts.filter((g) => g.match_if_alone_usdc !== '0');
+  if (wrong && gifts[0]) {
+    const g = gifts[0];
+    return tool('match_gift', {
+      gift_ids: [g.gift_id],
+      amount_usdc: addMicro(g.match_if_alone_usdc, 1n),
+      sponsor_id: g.sponsor_id || '',
+      rationale: `Matching a fresh ${g.gift_usdc} USDC gift (deliberately off by 0.000001 USDC to show the checker).`,
+    });
+  }
+  const farmed = new Set(facts.farming_signals.flatMap((f) => f.gift_ids));
+  const g = gifts.find((x) => !farmed.has(x.gift_id));
+  if (g) {
+    return tool('match_gift', {
+      gift_ids: [g.gift_id],
+      amount_usdc: g.match_if_alone_usdc,
+      sponsor_id: g.sponsor_id || '',
+      rationale: `Matching a fresh ${g.gift_usdc} USDC public gift ${ratioFor(facts, g)} from ${sponsorName(facts, g)}, within its limits.`,
+    });
+  }
+  const f = facts.farming_signals.find((x) => x.gift_ids.length);
+  if (f) {
+    return tool('flag', { kind: 'farming', gift_ids: f.gift_ids, rationale: `Possible farming: ${f.reason} from ${f.donor_short}. Not matching these.` });
+  }
+  return tool('hold', { rationale: 'No eligible gift to match right now.' });
+}
+
+const sponsorOf = (facts, g) => (facts.sponsors || []).find((s) => s.sponsor_id === g.sponsor_id) || null;
+const ratioFor = (facts, g) => sponsorOf(facts, g)?.ratio || facts.ratio || '1:1';
+const sponsorName = (facts, g) => (sponsorOf(facts, g)?.label || facts.sponsor_label || 'the sponsor').split(',')[0];
+
+/** "0.02" + 1 micro -> "0.020001" (exact decimal arithmetic). */
+function addMicro(usdc, micro) {
+  const [w, f = ''] = usdc.split('.');
+  const total = BigInt(w) * 1_000_000n + BigInt((f + '000000').slice(0, 6)) + micro;
+  const frac = (total % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return (total / 1_000_000n).toString() + (frac ? '.' + frac : '');
+}
+
 function tool(name, input) {
   return { type: 'tool_use', id: 'toolu_fake', name, input };
 }
 
 /** A fetch() that answers Messages API requests locally. */
-export async function fakeFetch(_url, init) {
+export const fakeFetch = (url, init) => makeFakeFetch({ wrong: process.env.TREAT_AGENT_FAKE_WRONG === '1' })(url, init);
+
+/** fakeFetch with an explicit match-desk "wrong amount" switch (TREAT_AGENT_FAKE_WRONG). */
+export const makeFakeFetch = ({ wrong = false } = {}) => async (_url, init) => {
   const body = JSON.parse(init.body);
   const text = body.messages[0].content;
   const json = text.slice(text.indexOf('{'), text.indexOf('\n\nDecide now'));
   const facts = JSON.parse(json);
   const demo = text.includes('DEMONSTRATION ROUND');
-  const block = fakePolicy(facts, { demo });
+  const block = Array.isArray(facts.eligible_gifts)
+    ? fakeMatchPolicy(facts, { wrong })
+    : fakePolicy(facts, { demo });
   const msg = { id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake-llm', stop_reason: 'tool_use', content: [block] };
   return { ok: true, status: 200, json: async () => msg, text: async () => JSON.stringify(msg) };
-}
+};

@@ -35,7 +35,6 @@ const ENV = {
     NODE_ENV: 'development',
     // The shelter main chain as in production (Arc mainnet, no recorded split), so only anvil receives.
     SHELTER_NETWORK: 'mainnet',
-    CRYPTO_PAY_ENABLED: 'true',
     CRYPTO_PAY_LOCAL_USDC: USDC,
     CRYPTO_PAY_LOCAL_EURC: EURC,
     CRYPTO_PAY_RPC_31337: 'http://127.0.0.1:8545',
@@ -79,10 +78,15 @@ function setup({
             orders.push(row);
             return row;
         }),
+        // Equality on every field, plus `{ $ne }`.
         findOne: jest.fn(
             async ({ searchObject }: any) =>
                 orders.find(o =>
-                    searchObject._id ? String(o._id) === String(searchObject._id) : o.hash === searchObject.hash
+                    Object.entries(searchObject).every(([key, want]: [string, any]) =>
+                        want && typeof want === 'object' && '$ne' in want
+                            ? String(o[key]) !== String(want.$ne)
+                            : String(o[key]) === String(want)
+                    )
                 ) || null
         ),
         update: jest.fn(async (id: any, update: any) => {
@@ -92,7 +96,8 @@ function setup({
     };
     const userRepository = { update: jest.fn(), findOne: jest.fn() };
     const stripePayments = {
-        resolveDiscount: jest.fn(async (code?: string) =>
+        // Called with (code, buyerId).
+        resolveDiscount: jest.fn<Promise<{ code?: string; percentage: number }>, [string?, unknown?]>(async code =>
             code === 'friend' ? { code, percentage: 20 } : { percentage: 0 }
         ),
     };
@@ -135,6 +140,7 @@ function setup({
         chain,
         reader,
         claims,
+        stripePayments,
         pay,
     };
 }
@@ -148,14 +154,14 @@ const codeOf = async (promise: Promise<unknown>): Promise<Record<string, any>> =
 afterEach(() => jest.restoreAllMocks());
 
 describe('POST /payments/crypto/orders', () => {
-    it('is 503 CRYPTO_PAY_DISABLED while the checkout is off', async () => {
+    it('is 503 CRYPTO_PAY_DISABLED while no chain has a treasury', async () => {
         const { service } = setup();
         const res = await codeOf(
             service.createOrder(
                 USER,
                 { sku: { kind: 'PACK', packType: 'STARTER' } },
                 T0,
-                config({ CRYPTO_PAY_ENABLED: 'false' })
+                config({ CRYPTO_PAY_TREASURY_31337: '' })
             )
         );
         expect(res).toEqual(expect.objectContaining({ status: 503, code: 'CRYPTO_PAY_DISABLED' }));
@@ -163,7 +169,7 @@ describe('POST /payments/crypto/orders', () => {
 
     it('prices a pack from the server table less a verified code, with a unique reserved amount per token', async () => {
         jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(137 as any);
-        const { service, checkoutModel } = setup();
+        const { service, checkoutModel, stripePayments } = setup();
         const order = await service.createOrder(
             USER,
             { sku: { kind: 'PACK', packType: 'INFLUENCER' }, discount: 'friend' },
@@ -173,6 +179,8 @@ describe('POST /payments/crypto/orders', () => {
 
         expect(order.priceUsdCents).toBe(2000);
         expect(order.discount).toEqual({ code: 'friend', percentage: 20 });
+        // The buyer id goes with the code, so a buyer's own code gives nothing.
+        expect(String(stripePayments.resolveDiscount.mock.calls[0][1])).toBe(String(USER));
         expect(order.status).toBe('OPEN');
         expect(order.orderId).toMatch(/^co_[0-9a-f]{16}$/);
         expect(new Date(order.expiresAt).getTime() - T0.getTime()).toBe(30 * 60000);
@@ -280,6 +288,39 @@ describe('POST /payments/crypto/orders', () => {
         expect(checkoutModel.rows).toHaveLength(2);
     });
 
+    it('never renews an open order at an old price (the Legendary sale ends while it is open)', async () => {
+        const { service, checkoutModel } = setup();
+        const SALE_END = new Date('2026-11-28T00:00:00Z');
+        const beforeEnd = new Date(SALE_END.getTime() - 60000);
+        const sale = await service.createOrder(
+            USER,
+            { sku: { kind: 'PACK', packType: 'LEGENDARY' } },
+            beforeEnd,
+            config()
+        );
+        expect(sale.priceUsdCents).toBe(10000);
+        // 28 minutes later the old order is about to close and the sale is over: a new order at $350.
+        const t28 = new Date(beforeEnd.getTime() + 28 * 60000);
+        const after = await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'LEGENDARY' } }, t28, config());
+        expect(after.orderId).not.toBe(sale.orderId);
+        expect(after.priceUsdCents).toBe(35000);
+        const old = checkoutModel.rows.find((r: any) => r.orderId === sale.orderId);
+        expect(new Date(old.expiresAt).getTime()).toBe(beforeEnd.getTime() + 30 * 60000);
+    });
+
+    it('two parallel creates for one cat end in one open order (a double tap, two tabs)', async () => {
+        const spy = jest.spyOn(nodeCrypto, 'randomInt');
+        spy.mockReturnValueOnce(11 as any).mockReturnValueOnce(12 as any);
+        const { service, checkoutModel } = setup();
+        const [a, b] = await Promise.all([
+            service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config()),
+            service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config()),
+        ]);
+        expect(a.orderId).toBe(b.orderId);
+        expect(a.accepted).toEqual(b.accepted);
+        expect(checkoutModel.rows.filter((r: any) => r.sku.kind === 'CAT')).toHaveLength(1);
+    });
+
     it('caps open orders per buyer, so one account cannot hold the unique amounts of a price', async () => {
         const { service } = setup();
         await service.createOrder(USER, { sku: { kind: 'PACK', packType: 'STARTER' } }, T0, config());
@@ -298,7 +339,7 @@ describe('POST /payments/crypto/orders', () => {
 
     it('frees the amount of an order nobody confirmed 2 hours after expiry, and of a confirmed one after 24 hours', async () => {
         jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(9 as any);
-        const { service, checkoutModel } = setup();
+        const { service, checkoutModel, pay, chain } = setup();
         const untouched = await service.createOrder(USER, { sku: { kind: 'LOOT_BOX' } }, T0, config());
         const touched = await service
             .createOrder(OTHER_USER, { sku: { kind: 'LOOT_BOX' } }, T0, config())
@@ -314,8 +355,16 @@ describe('POST /payments/crypto/orders', () => {
         const t1 = new Date(T0.getTime() + 3 * 3600000);
         const held = await service.createOrder(third, { sku: { kind: 'LOOT_BOX' } }, t1, config());
         expect(held.accepted[0].amount).toBe('1000009');
-        // Someone says they paid: the amount stays reserved for 24 hours after expiry.
-        await service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(90) }, t1, config());
+        // A made-up hash (no receipt) holds nothing: freed 2 hours after expiry like an untouched order.
+        await service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(89) }, t1, config());
+        expect(row(held.orderId).confirmAttemptAt).toBeUndefined();
+        // A transfer to us, mined after the order (here short): the amount stays reserved 24 hours after expiry.
+        pay([transferLog(USDC, TREASURY, '1000000')]);
+        chain.blockTime = Math.floor(t1.getTime() / 1000) + 60;
+        const short = await codeOf(
+            service.confirm(third, held.orderId, { chainId: 31337, txHash: TX(90) }, t1, config())
+        );
+        expect(short.code).toBe('CRYPTO_PAY_UNDERPAID');
         await service.releaseReservations(new Date(t1.getTime() + 30 * 60000 + 3 * 3600000));
         expect(row(held.orderId).reserved).toBe(true);
         await service.releaseReservations(new Date(t1.getTime() + 30 * 60000 + 24 * 3600000 + 1000));
@@ -336,21 +385,17 @@ describe('POST /payments/crypto/orders', () => {
         ).resolves.toEqual(expect.objectContaining({ status: 'OPEN' }));
     });
 
-    it('offers the split route for a shelter cat only after the handover', async () => {
-        const splits = { CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` };
-        const before = await setup().service.createOrder(
-            USER,
-            { sku: { kind: 'CAT', catId: CAT_ID } },
-            T0,
-            config(splits)
-        );
-        expect(before.accepted.some(o => o.route === 'split')).toBe(false);
+    it('publicConfig keeps the deprecated shelterHandedOver field, always true', () => {
+        expect(setup().service.publicConfig(config()).shelterHandedOver).toBe(true);
+    });
 
+    it('offers the split route for a shelter cat on a testnet without any handover flag', async () => {
+        const splits = { CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` };
         const after = await setup().service.createOrder(
             USER,
             { sku: { kind: 'CAT', catId: CAT_ID } },
             T0,
-            config({ ...splits, SHELTER_HANDED_OVER: 'true' })
+            config(splits)
         );
         const split = after.accepted.find(o => o.route === 'split')!;
         expect(split).toEqual(
@@ -372,7 +417,7 @@ describe('POST /payments/crypto/orders', () => {
             USER,
             { sku: { kind: 'PACK', packType: 'STARTER' } },
             T0,
-            config({ ...splits, SHELTER_HANDED_OVER: 'true' })
+            config(splits)
         );
         expect(pack.accepted.some(o => o.route === 'split')).toBe(false);
     });
@@ -383,7 +428,7 @@ describe('POST /payments/crypto/orders', () => {
         const savedChain = process.env.SHELTER_CHAIN_ID;
         process.env.SHELTER_CHAIN_ID = '5042';
         try {
-            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`, SHELTER_HANDED_OVER: 'true' });
+            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` });
             const local = base.chains.find(c => c.chain.chainId === 31337)!;
             const mainnet: CryptoPayConfig = {
                 ...base,
@@ -402,6 +447,34 @@ describe('POST /payments/crypto/orders', () => {
                 mainnet
             );
             expect(verified.accepted.some(o => o.route === 'split')).toBe(true);
+        } finally {
+            if (savedChain === undefined) delete process.env.SHELTER_CHAIN_ID;
+            else process.env.SHELTER_CHAIN_ID = savedChain;
+        }
+    });
+    it("on a mainnet, checks the route's own split, not the chain's main split", async () => {
+        const savedChain = process.env.SHELTER_CHAIN_ID;
+        process.env.SHELTER_CHAIN_ID = '5042';
+        const OTHER_SPLIT = '0x00000000000000000000000000000000000000aa';
+        try {
+            const base = config({ CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}` });
+            const local = base.chains.find(c => c.chain.chainId === 31337)!;
+            const mainnet: CryptoPayConfig = {
+                ...base,
+                network: 'mainnet',
+                chains: [{ ...local, chain: { ...local.chain, chainId: 5042, testnet: false } }],
+                splits: [{ chainId: 5042, token: 'USDC', address: OTHER_SPLIT }],
+            };
+            const s = setup({ givingVerified: true });
+            // Only the chain's main split pays Pink Paw's wallet; the route's split is unknown.
+            s.claims.publicGivingVerified.mockImplementation(
+                (async (cfg: { splitAddress?: string }) => cfg.splitAddress?.toLowerCase() !== OTHER_SPLIT) as any
+            );
+            const order = await s.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, mainnet);
+            expect(s.claims.publicGivingVerified).toHaveBeenCalledWith(
+                expect.objectContaining({ splitAddress: OTHER_SPLIT })
+            );
+            expect(order.accepted.some(o => o.route === 'split')).toBe(false);
         } finally {
             if (savedChain === undefined) delete process.env.SHELTER_CHAIN_ID;
             else process.env.SHELTER_CHAIN_ID = savedChain;
@@ -462,7 +535,8 @@ describe('POST /payments/crypto/orders/:orderId/confirm', () => {
         expect(grants.grantPack).toHaveBeenCalledWith(
             expect.objectContaining({ packType: PackType.STARTER, amountUsd: 4 })
         );
-        expect(grants.creditAffiliate).toHaveBeenCalledWith('friend', 4);
+        expect(grants.creditAffiliate).toHaveBeenCalledWith('friend', 4, expect.anything());
+        expect(String((grants.creditAffiliate as jest.Mock).mock.calls[0][2])).toBe(String(USER));
         expect(userRepository.update).toHaveBeenCalledWith(expect.anything(), {
             $inc: { spent: 4, monthSpent: 4, spentUsd: 4 },
         });
@@ -758,11 +832,10 @@ describe('shelter cats', () => {
         );
     });
 
-    it('after the handover: the buyer pays the split directly and the share is recorded as on-chain, shelter-held', async () => {
+    it('split route: the buyer pays the split directly and the share is recorded as on-chain, shelter-held', async () => {
         const ctx = setup();
         const cfg = config({
             CRYPTO_PAY_CAT_SPLITS: `31337:USDC:${SPLIT}`,
-            SHELTER_HANDED_OVER: 'true',
             CRYPTO_PAY_CAT_SHELTER_BPS: '5000',
         });
         const order = await buyCat(ctx, cfg);
@@ -934,6 +1007,51 @@ describe('stuck grants', () => {
     });
 });
 
+describe('stuck shelter cat grants', () => {
+    async function catPaidButCrashed() {
+        const ctx = setup();
+        jest.spyOn(nodeCrypto, 'randomInt').mockReturnValue(137 as any);
+        const order = await ctx.service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config());
+        ctx.pay([transferLog(USDC, TREASURY, order.accepted.find(o => o.token === 'USDC')!.amount)]);
+        ctx.grants.grantShelterCat.mockImplementationOnce(async () => {
+            throw new Error('process died');
+        });
+        await ctx.service
+            .confirm(USER, order.orderId, { chainId: 31337, txHash: TX(41) }, T0, config())
+            .catch(() => undefined);
+        // The buyer now holds the cat.
+        ctx.catSale.check.mockResolvedValue({ ok: false, reason: 'ALREADY_OWNED' } as any);
+        return { ...ctx, order };
+    }
+
+    it('counts an owned cat as delivered by this order when no other purchase gave it', async () => {
+        const ctx = await catPaidButCrashed();
+        const run = await ctx.service.recoverStuckGrants(new Date(T0.getTime() + 6 * 60000), config());
+        expect(run).toEqual({ settled: 1, regranted: 0 });
+        expect(ctx.grants.grantShelterCat).toHaveBeenCalledTimes(1);
+        expect((await ctx.service.getOrder(USER, ctx.order.orderId, T0)).status).toBe('COMPLETE');
+    });
+
+    it('runs the normal grant (and its refund) when another completed purchase gave the buyer that cat', async () => {
+        const ctx = await catPaidButCrashed();
+        // Paid by card while the crypto order was stuck.
+        ctx.orders.push({
+            _id: new Types.ObjectId(),
+            user: new Types.ObjectId(USER),
+            entityType: EntityType.CAT,
+            id: CAT_ID,
+            status: OrderStatus.COMPLETE,
+            hash: 'pi_card',
+        });
+        const run = await ctx.service.recoverStuckGrants(new Date(T0.getTime() + 6 * 60000), config());
+        expect(run).toEqual({ settled: 0, regranted: 1 });
+        expect(ctx.grants.grantShelterCat).toHaveBeenCalledTimes(2);
+        expect(ctx.orderRepository.update).not.toHaveBeenCalledWith(ctx.orders[0]._id, {
+            $set: { status: OrderStatus.COMPLETE },
+        });
+    });
+});
+
 describe('Legendary pack sale', () => {
     it('prices a Legendary order at $100 during the sale and $350 from 28 Nov 2026 00:00 UTC', async () => {
         const { service } = setup();
@@ -986,7 +1104,7 @@ describe('GET /payments/crypto/config', () => {
             config({ CRYPTO_PAY_EURC_PER_USD: '0.92', CRYPTO_PAY_EURC_FX_DATE: '2026-08-01' })
         );
         expect(stale.chains[0].tokens.map(t => t.token)).toEqual(['USDC']);
-        expect(service.publicConfig(config({ CRYPTO_PAY_ENABLED: 'false' }))).toEqual(
+        expect(service.publicConfig(config({ CRYPTO_PAY_TREASURY_31337: '' }))).toEqual(
             expect.objectContaining({ enabled: false, chains: [] })
         );
     });

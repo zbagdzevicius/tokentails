@@ -2,8 +2,8 @@
  * Catnip Heist product analytics (plan F9): the Heist's mirror of `client/analytics`, from the same
  * catalog (`shared/analytics-core.ts`).
  *
- * - Sends only when the player accepted analytics on tokentails.com: the same-origin
- *   `tt-analytics-consent` key must read `granted` at the moment of each send. "Unset" sends nothing.
+ * - Sends for every player whenever a PostHog key is built in (no consent step; the data is
+ *   scrubbed and anonymous).
  * - Sends only the Heist's own events (`HEIST_SENDABLE_EVENTS`): `heist_open` (standalone loads; the
  *   `/heist` host page sends its own with `from`), `heist_run_complete`, and the G10 first-run
  *   funnel with `mode: 'heist'` (`HEIST_RUN_EVENTS`: brief shown, run start, route and rewind hints,
@@ -14,17 +14,13 @@
  *   build-time flag as the crash fallback, so the import is dead code there.
  */
 import {
-  CONSENT_STORAGE_KEY,
   HEIST_APP_EVENTS,
   POSTHOG_EU_HOST,
-  consentGrantedIn,
   isAnalyticsEventName,
   scrubContext,
   type AnalyticsEventName,
   type ScrubbedValue,
 } from '../shared-contracts/analytics-core';
-
-export { CONSENT_STORAGE_KEY };
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -80,8 +76,6 @@ export type HeistEventName = keyof HeistEventProperties;
 export interface HeistAnalyticsOptions {
   apiKey?: string;
   host?: string;
-  /** localStorage: where the consent choice lives (same origin as the core app). */
-  localStorage: StorageLike | null;
   /** sessionStorage: the per-tab anonymous id. */
   sessionStorage: StorageLike | null;
   /** Posts one JSON body; returns false when it could not be queued. */
@@ -148,8 +142,6 @@ export function createHeistAnalytics(opts: HeistAnalyticsOptions): HeistAnalytic
   const track = <K extends HeistEventName>(name: K, properties: HeistEventProperties[K]): boolean => {
     try {
       if (!enabled || !isHeistEvent(name)) return false;
-      // Read the choice at send time: revoking consent on tokentails.com stops the next event.
-      if (!consentGrantedIn(opts.localStorage)) return false;
       const body = JSON.stringify({
         api_key: apiKey,
         event: name,

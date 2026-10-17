@@ -144,7 +144,7 @@ for a refund (410 `STELLAR_PACKS_DEPRECATED`). Portraits and loot boxes are stil
 ### Buying with USDC or EURC (crypto checkout)
 
 1. Client creates an order through `POST /payments/crypto/orders` for a pack, a loot box or one shelter cat; the server prices it and lists every accepted chain and token with the exact amount, the recipient and ready-to-send transactions. Accepted on mainnet: USDC on Arc, Base, Arbitrum, Avalanche and Monad, USDC.e on Tempo, USDG on Robinhood Chain, and EURC on Arc, Base and Avalanche (`backend/src/payments/crypto/crypto-chains.ts`). Native coins are never accepted.
-2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat after the shelter's key handover, straight into the shelter's ShelterSplit with the order memo.
+2. The buyer pays from their own wallet: a token transfer to the Token Tails treasury (bound to the order by a unique amount, or a TIP-20 memo on Tempo), or, for a shelter cat while the on-chain giving check passes on that chain, straight into the shelter's ShelterSplit with the order memo.
 3. Client sends `{chainId, txHash}` to `POST /payments/crypto/orders/:orderId/confirm`; the backend reads the receipt over RPC, checks token contract, recipient, amount or memo, confirmations and expiry, creates the `Order` keyed on the transaction hash and grants once. Details: BACKEND.md "Payments".
 
 ### Registering a rescued cat
@@ -217,7 +217,7 @@ native builds still load them.
 | Client app build | `NEXT_PUBLIC_IS_APP` |
 | Look version | `public/look/manifest.json` `lookVersion`, with a per-device `localStorage` override |
 | Shelter payout network | `SHELTER_CHAIN_ID` (backend; a testnet id serves the testnets, a mainnet id the mainnets) |
-| Feature flags | `NEXT_PUBLIC_HEIST_PICKER` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_WALLET_DONATE`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
+| Feature flags | `NEXT_PUBLIC_HEIST_PICKER` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_HEIST_LANDING_PILL`, `NEXT_PUBLIC_WALLET_DONATE` (on unless `0`, `false`, `no` or `off`), `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY` (client); `TAILS_TOKEN_MODE`, `AUTH_ENFORCE_EMAIL_VERIFIED`, `APP_CHECK_ENFORCE`, `IMPACT_JOBS_ENABLED`, `PAWS_SETTLEMENT_ENABLED` (backend) |
 | Backend CORS origins | `FRONT_END_URLS` plus hardcoded localhost, Capacitor, and production domains |
 
 Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, and the API at
@@ -226,7 +226,7 @@ Known origins: `tokentails.com`, `cats.tokentails.com`, `test.tokentails.com`, a
 ## Cross-cutting concerns
 
 - **In-process state**: traction counters, the storefront, featured and Paw Match leaderboard caches live in memory on the API and diverge across replicas (known issue, kept). Public numbers no longer read the counters: the landing, `/impact` and `/stats` read the Mongo-backed impact snapshot (plan F7). Cron jobs take a lease in `jobruns`, so they run once per tick across replicas.
-- **Resilience**: error boundaries at root, page, scene, modal and section level, a Phaser crash guard and scrubbed, consent-gated crash telemetry. See [RESILIENCE.md](RESILIENCE.md).
+- **Resilience**: error boundaries at root, page, scene, modal and section level, a Phaser crash guard and scrubbed crash telemetry. See [RESILIENCE.md](RESILIENCE.md).
 - **Synchronous AI**: portrait and blessing generation run inside the request. There is no job queue.
 - **Client-supplied prices**: fixed. Stripe Checkout, Stripe PaymentIntents and Stellar all verify against the server price table, and spend and affiliate counters use the verified amount; see the backend known issues.
 - **Duplicated domain code**: enums, error codes, caps and reward constants are generated from `shared/` into every package (`scripts/sync-contracts.mjs --check` in CI); the remaining hand-kept copies are listed in DEVELOPMENT.md.

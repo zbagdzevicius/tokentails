@@ -8,8 +8,8 @@ export function requestIp(req: { ips?: string[]; ip?: string } | undefined | nul
 
 /**
  * Whether `ip` can identify one client: false for `'unknown'`, loopback, private (RFC 1918, unique
- * local IPv6), link-local and carrier-grade NAT addresses. Behind a load balancer with TRUST_PROXY
- * unset, `req.ip` is the balancer's private address, shared by every player.
+ * local IPv6), link-local and carrier-grade NAT addresses. Such an address is a proxy hop (for
+ * example the balancer's), shared by every player.
  */
 export function isUsableClientIp(ip: string | undefined | null): boolean {
     if (typeof ip !== 'string' || !ip || ip === 'unknown') {
@@ -57,7 +57,7 @@ export const tooManyRequests = (message: string) =>
  * limits are loose.
  *
  * Fails open (2a review fix #3): an address that cannot identify a client (`isUsableClientIp`: a
- * missing address, or the balancer's private address when TRUST_PROXY is unset) is neither checked
+ * missing address, or a private proxy address) is neither checked
  * nor recorded, and one warning is logged. Otherwise every new player of the site would share one
  * bucket and get 429 after the first few sign-ups of the hour.
  */
@@ -89,7 +89,7 @@ export class IpWindowThrottle {
         if (!warnedUnusableIp) {
             warnedUnusableIp = true;
             logger.warn(
-                'per-IP throttle skipped: the request has no public client address (set TRUST_PROXY behind a load balancer)'
+                'per-IP throttle skipped: the request has no public client address (check the trust proxy setting, shared/trust-proxy.ts)'
             );
         }
         return false;

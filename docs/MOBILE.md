@@ -33,7 +33,7 @@ Core, Android, iOS and the CLI are pinned to `~7.2.0`. Android uses
 
 `@capacitor/core`'s `Capacitor.getPlatform()` tags every score save (`platform` on the `/live`
 body and the `Game` row) and every analytics event as `ios`, `android` or `web`. Analytics is
-consent-gated and off unless `NEXT_PUBLIC_POSTHOG_KEY` is set for the build (see CLIENT.md,
+scrubbed, runs for every player and is off unless `NEXT_PUBLIC_POSTHOG_KEY` is set for the build (see CLIENT.md,
 "Analytics").
 
 ## Build flow

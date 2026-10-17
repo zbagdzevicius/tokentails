@@ -20,9 +20,12 @@ module.exports = {
     robotsTxtOptions: {},
     sitemapSize: 1000,
     // /gaming is a noindex redirect stub for legacy links; /cats/view and
-    // /feed/article are the app export's client routes (noindex). /yourcat is paused until launch
-    // (YOURCAT_ENABLED off, docs/YOURCAT.md): remove it here as a launch checklist step.
-    exclude: ['/gaming', '/cats/view', '/feed/article', '/yourcat'],
+    // /feed/article are the app export's client routes (noindex).
+    // /swordcat (Pink Paw Knight) is on by default (NEXT_PUBLIC_SWORDCAT=0 turns it off) but stays
+    // noindex in SeoHead, so it stays out of the sitemap until it is indexed.
+    // /yourcat is paused until launch (YOURCAT_ENABLED off, docs/YOURCAT.md): remove it here as a
+    // launch checklist step.
+    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat'],
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
             return [];

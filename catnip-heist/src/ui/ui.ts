@@ -15,7 +15,7 @@
  * The UI owns no game state. Navigation between Title and Cat pick is internal; everything that
  * affects the game goes out through `handlers`.
  */
-import { TESTNET_DEPLOYMENTS_URL, giveHref, shelterTotalLine } from './payouts';
+import { TESTNET_DEPLOYMENTS_URL, shelterTotalLine } from './payouts';
 import { ASSET_BASE, DEPLOYMENTS_URL, GIVE_URL, PAYOUTS_URL, TICK_HZ, type AssetManifest, type LevelDef, type RunResult, type SheetEntry, type SimEvent, type SimState } from '../types';
 import { formatTime, h, hashHex, isCoarsePointer, prefersReducedMotion, safeStorageGet, safeStorageSet, setText } from './dom';
 import type { InputController } from './input';
@@ -27,10 +27,12 @@ import { icon } from './icons';
 import { ensureStyles } from './styles';
 import { createDiorama, type Diorama } from '../render/diorama';
 import { createTouchControls, type TouchControls } from './touch';
-import { BAKED_RAIL, heistRuntimeConfig, isWebHost, mergeRail, railCopy, watchRail, type RailInfo } from './rail';
+import { BAKED_RAIL, heistRuntimeConfig, isTokenTailsHost, isWebHost, mergeRail, railCopy, watchRail, type RailInfo } from './rail';
 import { createFtueOverlay, type FtueOverlay } from './ftue';
 import { createPayoutsModal, type PayoutsModal } from './shelter-payouts';
 import type { ShelterPayouts } from './payouts';
+import { createTreatController, createTreatPanel, type TreatPanel } from './treat';
+import { createDirectTreatSender, type TreatOutcome, type TreatSender } from '../embed/treat-bridge';
 
 export type ScreenName = 'none' | 'title' | 'pick' | 'hud' | 'yard' | 'results';
 
@@ -81,8 +83,16 @@ export interface UIOptions {
   testnetDeploymentsUrl?: string;
   /** Testnet proof data source (tests, the UI bench). Default: read the testnets; none when `loadPayouts` is set. */
   loadTestnetPayouts?: (testnetUrl: string) => Promise<ShelterPayouts>;
-  /** Give page behind the win screen's "rescue treat" button. Default GIVE_URL; '' hides the button. */
+  /** '' hides the win screen's "rescue treat" button (it sends in place since Oct 15, 2026). Default GIVE_URL. */
   giveUrl?: string;
+  /**
+   * Sends the rescue treat in place (src/embed/treat-bridge.ts). Default: the guest route on the
+   * runtime config's API (none on other hosts: the panel offers a tokentails.com link). main.ts
+   * passes the host bridge in embed mode. `null`: no sender (the panel says where to play).
+   */
+  treat?: TreatSender | null;
+  /** A treat send finished (analytics). */
+  onTreatResult?(outcome: TreatOutcome): void;
   /**
    * Treat rail state (plan G11). Default: start from the baked facts (pre-launch) and load the live
    * state at boot (src/ui/rail.ts). Pass a state to fix it (tests, the UI bench), or `false` to
@@ -197,14 +207,33 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       paintRail();
     });
   }
-  // The one-tap "rescue treat" for the showcase shelter (the give page does the rest).
-  const giveButton = (catName: string) => {
-    // `?chain=<id>` on the game's own URL (the /heist host forwards it) preselects the treat network.
-    const href = giveHref(giveUrl, catName, new URLSearchParams(window.location.search).get('chain'));
-    if (!href) return null;
-    const a = h('a.ch-give', { href, target: '_blank', rel: 'noopener', 'data-testid': 'give-treat' }, 'Send Pink Paw a rescue treat 🐾');
-    a.addEventListener('click', () => handlers.onClick?.());
-    return a;
+  // The one-tap "rescue treat" for the showcase shelter: sent in place, the game never navigates.
+  // One send state for the win screen and the payouts modal (src/ui/treat.ts).
+  const treatSender: TreatSender | null =
+    opts.treat !== undefined
+      ? opts.treat
+      : typeof window === 'undefined'
+        ? null
+        : createDirectTreatSender({
+            apiUrl: heistRuntimeConfig(window as never, document).apiUrl,
+            homeSite: isTokenTailsHost(window),
+          });
+  const treat = createTreatController({ sender: treatSender, rail: () => rail, onResult: (o) => opts.onTreatResult?.(o) });
+  const treatPanels: Record<'results' | 'modal', TreatPanel | null> = { results: null, modal: null };
+  const giveButton = (catName: string, slot: 'results' | 'modal' = 'results') => {
+    if (!giveUrl.trim()) return null;
+    treatPanels[slot]?.dispose();
+    const panel = createTreatPanel({
+      controller: treat,
+      rail: () => rail,
+      web,
+      catName: () => catName,
+      // The modal's shelter card says it right above the button.
+      custody: slot === 'results',
+      onClick: () => handlers.onClick?.(),
+    });
+    treatPanels[slot] = panel;
+    return panel.el;
   };
   // Read-only on-chain total under the rescue line; stays empty (hidden) until it resolves. Web host
   // only: the line names coins and the chain, which app builds never show (claims rule R10).
@@ -980,21 +1009,25 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
     const copy = railCopy(rail, web);
     const giveName = r.rescuedName || lv?.crate.catName || '';
     const railChip = (text: string) => h('span.ch-rail-chip', { role: 'status', 'data-testid': 'rail-chip', 'data-claim': 'L-rail' }, text);
-    let giveEl = r.rescued && copy.showGive ? giveButton(giveName) : null;
+    let giveEl = r.rescued && (copy.showGive || treat.settled) ? giveButton(giveName) : null;
     let chipEl = r.rescued && !giveEl && copy.chip ? railChip(copy.chip) : null;
     // claim: C-004, L-rail
     const rescueNote = h('small', { 'data-testid': 'rail-line', 'data-claim': 'L-rail', 'data-rail': copy.state }, copy.line);
+    // Repaint key: the state alone misses paused / unread (both stay 'pre-launch').
+    let paintedKey = `${copy.state}|${copy.line}|${copy.showGive}`;
     // A rail that changes while this screen shows (a late live status) repaints the line and the
     // give link in place.
     resultsRailPaint = r.rescued
       ? () => {
           const c = railCopy(rail, web);
-          if (rescueNote.dataset.rail === c.state) return;
+          const key = `${c.state}|${c.line}|${c.showGive}`;
+          if (key === paintedKey) return;
+          paintedKey = key;
           rescueNote.dataset.rail = c.state;
           setText(rescueNote, c.line);
           giveEl?.remove();
           chipEl?.remove();
-          giveEl = c.showGive ? giveButton(giveName) : null;
+          giveEl = c.showGive || treat.settled ? giveButton(giveName) : null;
           chipEl = !giveEl && c.chip ? railChip(c.chip) : null;
           rescueNote.after(...[giveEl, chipEl].filter((x): x is HTMLElement => !!x));
         }
@@ -1096,7 +1129,7 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       // The rail decides the CTA, as on the win screen: the give link while live, else its badge.
       giveCta: () => {
         const copy = railCopy(rail, web);
-        if (copy.showGive) return giveButton(lastRescued);
+        if (copy.showGive || treat.settled) return giveButton(lastRescued, 'modal');
         return copy.chip ? h('span.ch-rail-chip', { role: 'status', 'data-claim': 'L-rail' }, copy.chip) : null;
       },
       // claim: C-004, L-rail
@@ -1212,6 +1245,9 @@ export function createUI(parent: HTMLElement, opts: UIOptions): UI {
       window.removeEventListener('keydown', onRouteKey);
       ftue.dispose();
       payoutsModal?.dispose();
+      treatPanels.results?.dispose();
+      treatPanels.modal?.dispose();
+      treat.dispose();
       narrowMq?.removeEventListener?.('change', onNarrowChange);
       touch?.dispose();
       diorama?.dispose();

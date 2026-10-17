@@ -586,7 +586,7 @@ export class ImpactService implements OnApplicationBootstrap {
             .lean();
         // House zones (Token Tails' own) are not shelters: left out of the total, the list and the
         // partners. Partner means `active` (2.13 #25).
-        const items = (rows || []).filter(row => !isHouseShelter(row)).map(publicShelter);
+        const items = (rows || []).filter(row => !isHouseShelter(row)).map(row => publicShelter(row));
         const partners = items.filter(s => s.partnerStatus === 'active');
         const countries = [...new Set(partners.map(s => s.countryCode).filter((c): c is string => !!c))].sort();
         return { total: items.length, partners: partners.length, countries, items };

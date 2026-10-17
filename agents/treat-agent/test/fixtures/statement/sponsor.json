@@ -1,0 +1,44 @@
+{
+  "schema": "tt.match-desk.sponsor/v1",
+  "sponsor": {
+    "id": "motored",
+    "name": "Motored.lt",
+    "relatedParty": true,
+    "relation": "founder's company"
+  },
+  "chainId": 5042002,
+  "spender": {
+    "address": "0x1111111111111111111111111111111111111111",
+    "deployBlock": 1000,
+    "owner": "0x3333333333333333333333333333333333333333",
+    "agent": "0x2222222222222222222222222222222222222222"
+  },
+  "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+  "router": null,
+  "shelter": {
+    "name": "Pink Paw (Rožinė pėdutė)",
+    "wallet": "0xE299299b846Ba629f5A591dBF4F562bcC07A0f37",
+    "custody": "held-by-token-tails"
+  },
+  "policy": {
+    "ratioBps": 10000,
+    "perGiftMaxUsdc": "0.05",
+    "perDonorDailyMaxUsdc": "0.05",
+    "budgetUsdc": "1.00",
+    "minGiftUsdc": "0.01",
+    "maxGiftAgeHours": 48,
+    "validFrom": "2026-10-14T00:00:00Z",
+    "eligible": {
+      "chains": [5042002],
+      "kinds": ["public", "router-native", "router-authorization"],
+      "senders": "any",
+      "matchTreats": false,
+      "treatsDailyMaxUsdc": "0"
+    },
+    "excludedSenders": [],
+    "farming": { "maxGiftsPerDonorDay": 5 },
+    "pace": { "from": "2026-10-15", "to": "2026-11-15", "floatLowUsdc": "0.10" },
+    "refund": { "after": "2026-11-15", "to": "owner" },
+    "plannedTtlMinutes": 30
+  }
+}

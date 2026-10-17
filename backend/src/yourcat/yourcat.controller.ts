@@ -42,7 +42,7 @@ import { IUploadBody, yourcatEnabled, YourcatService } from './yourcat.service';
 /*
  * Bet #3 `/yourcat` (docs/plans/yourcat-v2.md section 2.2). Guests may call every route except the
  * stats (each route is in GUEST_ALLOW_LIST); `status` and `public/:shareId` are public (no guard list).
- * The global throttler is skipped (its bucket is site-wide while TRUST_PROXY is unset); each route has a
+ * The global throttler is skipped (its limit is site-wide in scale, not per route); each route has a
  * per-user and a per-client-IP burst limit instead, and the paid AI work is capped per day by
  * `AiUploadGate`.
  *

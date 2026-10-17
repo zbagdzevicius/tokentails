@@ -6,6 +6,7 @@ import { Dispatch, ReactNode, SetStateAction, useEffect, useState } from "react"
 import { claimsDateLabel } from "./campaign";
 import { ChainInfo, explorerAddress, explorerTx } from "./chains";
 import { Disbursement, displayMemo, formatUnits, payoutUnit, to18 } from "./logs";
+import { MOTORED_DISCLOSURE, MOTORED_LABEL, isMotoredGift } from "./motored";
 import {
   PayoutsUpdating,
   ShelterDeployment,
@@ -207,6 +208,11 @@ export const PayoutFeed = ({
             </span>
             <span className="flex flex-wrap gap-2">
               <span className={CHIP}>{chainName}</span>
+              {isMotoredGift(d) && (
+                <span className={CHIP} title={MOTORED_DISCLOSURE} data-testid="feed-motored">
+                  {MOTORED_LABEL}
+                </span>
+              )}
               {memo && <span className={MEMO}>{memo}</span>}
             </span>
           </span>
@@ -440,8 +446,8 @@ export const HOW_IT_WORKS: readonly string[] = [
   // claim: L-disbursed (every payout is a public chain event, listed here)
   "Every payout is a public chain event, listed here with a link to its transaction on the explorer.",
 
-  // claim: C-001 (the goal counts the USDC that comes in to the campaign wallets; today, treats only)
-  "The USDC that comes in to Pink Paw's wallet counts toward its goal: today, sponsored treats. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.",
+  // claim: C-001 (the goal counts the USDC that comes in to the campaign wallets)
+  "The USDC that comes in to Pink Paw's wallet counts toward its goal.",
 ];
 
 export const HowItWorks = ({ id }: { id?: string }) => (

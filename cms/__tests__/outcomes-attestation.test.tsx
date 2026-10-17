@@ -206,7 +206,7 @@ describe('SignaturePanel', () => {
       <SignaturePanel payout={await payout()} onSign={jest.fn()} />
     );
     expect(
-      screen.getByText(/Opens once the shelter holds its own wallet key/)
+      screen.getByText(/Opens once the shelter's wallet handover is recorded/)
     ).toBeInTheDocument();
 
     const onSign = jest.fn().mockResolvedValue({ ok: true, data: {} });

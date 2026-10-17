@@ -164,6 +164,31 @@ describe("root visit", () => {
     expectGamingLanding(container);
   });
 
+  it("shows the Swordcat section after the Heist by default and hides it with NEXT_PUBLIC_SWORDCAT=0 (plan §12)", () => {
+    expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
+    {
+      const { container, unmount } = render(<HomePage />);
+      expectGamingLanding(container);
+      const heist = container.querySelector('[data-testid="heist-section"]');
+      const sword = container.querySelector('[data-testid="swordcat-section"]');
+      const globe = container.querySelector('[data-testid="globe"]');
+      expect(sword).not.toBeNull();
+      expect(heist!.compareDocumentPosition(sword!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sword!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sword!.querySelectorAll("a")).toHaveLength(1);
+      expect(sword!.querySelector("a")?.getAttribute("href")).toBe("/swordcat?from=landing_swordcat");
+      unmount();
+    }
+    process.env.NEXT_PUBLIC_SWORDCAT = "0";
+    try {
+      const { container } = render(<HomePage />);
+      expectGamingLanding(container);
+      expect(container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
+    } finally {
+      delete process.env.NEXT_PUBLIC_SWORDCAT;
+    }
+  });
+
   it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
     expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();
@@ -409,6 +434,14 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       source: "/proof",
       destination: "/impact",
       permanent: true,
+    });
+  });
+
+  it("sends the bare /swordcat-game (the embed's og:url) to the /swordcat page on web", async () => {
+    await expect(nextConfig.redirects()).resolves.toContainEqual({
+      source: "/swordcat-game",
+      destination: "/swordcat",
+      permanent: false,
     });
   });
 

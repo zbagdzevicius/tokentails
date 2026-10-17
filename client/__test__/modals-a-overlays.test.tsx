@@ -79,7 +79,6 @@ jest.mock("@/components/shared/Wheel", () => {
   return { __esModule: true, default: Wheel };
 });
 jest.mock("@/components/shared/GameMusicToggler", () => ({ GameMusicToggle: () => null }));
-jest.mock("@/components/shared/AnalyticsConsentBanner", () => ({ AnalyticsSettingsButton: () => null }));
 jest.mock("@/components/shared/Countdown", () => ({ Countdown: () => <p>countdown</p> }));
 jest.mock("next-share", () => ({
   FacebookShareButton: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,

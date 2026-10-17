@@ -7,6 +7,7 @@ import {
   formatTreat,
   DEFAULT_API_BY_HOST,
   heistRuntimeConfig,
+  isTokenTailsHost,
   isWebHost,
   loadRail,
   mergeRail,
@@ -70,6 +71,20 @@ describe('rail copy (plan G11 three states)', () => {
 });
 
 describe('rail state sources', () => {
+  it('a paused status says paused, not "open soon" (main chain or every network)', () => {
+    const top = railFromStatus(status({ railState: 'paused' }), '0.01');
+    expect(top).toMatchObject({ state: 'pre-launch', paused: true });
+    expect(railCopy(top!, true)).toMatchObject({ line: 'Treats are paused right now.', chip: 'Paused', showGive: false });
+    expect(railCopy(top!, false).line).toBe('Treats are paused right now.');
+    const chains = railFromStatus({ chains: [{ chainId: 5042, railState: 'paused' }, { chainId: 8453, railState: 'not-deployed' }] }, '0.01', null);
+    expect(chains).toMatchObject({ state: 'pre-launch', paused: true });
+    // A live network still wins over a paused one.
+    const mixed = railFromStatus({ chains: [{ chainId: 5042, railState: 'paused' }, { chainId: 8453, railState: 'live', enabled: true }] }, '0.01', null);
+    expect(mixed?.state).toBe('live');
+    expect(mixed?.paused).toBeUndefined();
+    expect(railFromStatus(status({ railState: 'not-deployed' }), '0.01')?.paused).toBeUndefined();
+  });
+
   it('maps the backend states: not-deployed and paused read as pre-launch', () => {
     expect(railFromStatus(status(), '0.01')?.state).toBe('live');
     expect(railFromStatus(status({ railState: 'exhausted' }), '0.01')?.state).toBe('exhausted');
@@ -104,11 +119,11 @@ describe('rail state sources', () => {
       url.endsWith('/shelter/donate/status') ? okJson(status({ railState: 'exhausted' })) : okJson({ facts: [{ id: 'C-004', value: '0.02' }] }),
     );
     expect(await loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, f)).toEqual({ state: 'exhausted', amountUsdc: '0.01', source: 'status' });
-    expect(await loadRail({ apiUrl: '', factsUrl: '/facts/facts.json' }, f)).toEqual({ state: 'pre-launch', amountUsdc: '0.02', source: 'facts' });
+    expect(await loadRail({ apiUrl: '', factsUrl: '/facts/facts.json' }, f)).toEqual({ state: 'pre-launch', amountUsdc: '0.02', source: 'facts', unread: true });
     const down = vi.fn(() => Promise.reject(new Error('offline')));
-    expect(await loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, down)).toEqual(BAKED_RAIL);
+    expect(await loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, down)).toEqual({ ...BAKED_RAIL, unread: true });
     const bad = vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
-    expect(await loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, bad)).toEqual(BAKED_RAIL);
+    expect(await loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, bad)).toEqual({ ...BAKED_RAIL, unread: true });
   });
 
   it('loadRail gives up on a hung request after the timeout', async () => {
@@ -120,7 +135,7 @@ describe('rail state sources', () => {
       const pending = loadRail({ apiUrl: 'https://api.example', factsUrl: '/facts/facts.json' }, hung, 3000);
       // Both requests run in parallel, so one timeout window (3 s), not two, ends the wait.
       await vi.advanceTimersByTimeAsync(3100);
-      expect(await pending).toEqual(BAKED_RAIL);
+      expect(await pending).toEqual({ ...BAKED_RAIL, unread: true });
     } finally {
       vi.useRealTimers();
     }
@@ -178,7 +193,7 @@ describe('watchRail (a slow status still lands)', () => {
     }
   });
 
-  it('a status that never answers goes from "Checking…" to "Opens soon" at the late limit', async () => {
+  it('a status that never answers goes from "Checking…" to "could not be checked" at the late limit (no "open soon")', async () => {
     vi.useFakeTimers();
     try {
       const f = vi.fn((url: string, init?: { signal?: AbortSignal }) => {
@@ -190,8 +205,12 @@ describe('watchRail (a slow status still lands)', () => {
       await vi.advanceTimersByTimeAsync(3100);
       expect(seen.map((i) => railCopy(i, true).chip)).toEqual(['Checking…']);
       await vi.advanceTimersByTimeAsync(20_000);
-      expect(seen.map((i) => railCopy(i, true).chip)).toEqual(['Checking…', 'Opens soon']);
+      expect(seen.map((i) => railCopy(i, true).chip)).toEqual(['Checking…', null]);
       expect(seen[1].pending).toBeUndefined();
+      expect(seen[1].unread).toBe(true);
+      expect(railCopy(seen[1], true)).toMatchObject({ line: "Today's shelter treats could not be checked.", showGive: true });
+      // The app keeps its old copy (no link out of the app, nothing widened).
+      expect(railCopy(seen[1], false)).toMatchObject({ chip: 'Opens soon', showGive: false });
     } finally {
       vi.useRealTimers();
     }
@@ -363,5 +382,16 @@ describe('ux-1: the best state across every network the backend serves', () => {
     expect(preferredChainFromUrl('?chain=8453')).toBe(8453);
     expect(preferredChainFromUrl('?chain=base')).toBeNull();
     expect(preferredChainFromUrl('')).toBeNull();
+  });
+});
+
+describe('isTokenTailsHost', () => {
+  it('is true only on the hosts with a default API', () => {
+    expect(isTokenTailsHost({ location: { host: 'tokentails.com' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'TokenTails.com' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'localhost:3000' } })).toBe(true);
+    expect(isTokenTailsHost({ location: { host: 'html-classic.itch.zone' } })).toBe(false);
+    expect(isTokenTailsHost({ location: { host: 'constructor' } })).toBe(false);
+    expect(isTokenTailsHost(undefined)).toBe(false);
   });
 });

@@ -1,0 +1,107 @@
+{
+  "chain": {
+    "explorer": "https://explorer.arc.io",
+    "id": 5042,
+    "name": "Arc"
+  },
+  "contract": {
+    "agent": null,
+    "split": "0x457c89e10a6e66633eda5bf82fd086febb5db147"
+  },
+  "days": [],
+  "disclosures": [
+    "Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.",
+    "Token Tails runs this desk and matches with its own money (operator's own money). It is not an outside or independent sponsor.",
+    "Matched money goes to the wallet of Pink Paw (Rožinė pėdutė).",
+    "Each company's money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault.",
+    "The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.",
+    "The agent's code enforces the per-donor limit. The contract does not.",
+    "This statement is not a tax receipt.",
+    "We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.",
+    "Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.",
+    "A match counts only once its AgentGift event has been read back from the chain (reconciled)."
+  ],
+  "excluded": [],
+  "generatedAt": null,
+  "notTaxReceipt": true,
+  "policy": {
+    "allocation": "highest priority first, then lowest id; one vault per match",
+    "perDonorDailyMaxUsdc": "0.05"
+  },
+  "receipts": [],
+  "shelter": {
+    "custody": "pink-paw-wallet",
+    "name": "Pink Paw (Rožinė pėdutė)",
+    "wallet": "0x3c833562e682db66c2415b34961595df135f4771"
+  },
+  "sponsors": [
+    {
+      "id": "motored",
+      "label": "related-party sponsor (founder's company)",
+      "name": "Motored.lt",
+      "onchain": null,
+      "policy": {
+        "budgetUsdc": "1.00",
+        "perGiftMaxUsdc": "0.05",
+        "policySha256": "3a4c1ffc6fc958842296242bbbd9ea80395a1707fea8aea1eb3a478e6ed425d5",
+        "ratio": "1:1"
+      },
+      "priority": 20,
+      "relatedParty": true,
+      "totals": {
+        "donors": 0,
+        "giftsMatched": 0,
+        "giftsMatchedUsdc": "0",
+        "pendingUsdc": "0",
+        "receipts": 0,
+        "reconciledUsdc": "0"
+      },
+      "vault": {
+        "deployBlock": null,
+        "owner": "0xfe7d5aa030d14213bf1684d4c28fe7f32a4dbc8d",
+        "spender": null
+      }
+    },
+    {
+      "id": "tokentails",
+      "label": "operator's own money",
+      "name": "Token Tails",
+      "onchain": null,
+      "policy": {
+        "budgetUsdc": "1.00",
+        "perGiftMaxUsdc": "0.05",
+        "policySha256": "fbb569066937e2537107a47a700371790c3440473b6028700174fa333ea256d8",
+        "ratio": "1:1"
+      },
+      "priority": 10,
+      "relatedParty": true,
+      "totals": {
+        "donors": 0,
+        "giftsMatched": 0,
+        "giftsMatchedUsdc": "0",
+        "pendingUsdc": "0",
+        "receipts": 0,
+        "reconciledUsdc": "0"
+      },
+      "vault": {
+        "deployBlock": null,
+        "owner": null,
+        "spender": null
+      }
+    }
+  ],
+  "totals": {
+    "donors": 0,
+    "floatLeftUsdc": null,
+    "fundedUsdc": null,
+    "giftsMatched": 0,
+    "giftsMatchedUsdc": "0",
+    "paidToShelterUsdc": "0",
+    "pendingUsdc": "0",
+    "receipts": 0,
+    "reconciledUsdc": "0"
+  },
+  "type": "tt.match-desk.statement",
+  "v": 2,
+  "verifiedOnchain": false
+}

@@ -2,6 +2,8 @@ import { PixelButton } from "./PixelButton";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
+import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
@@ -16,6 +18,26 @@ export const HEIST_PICKER_HREF = "/heist";
 
 /** The Heist card's link: `from=picker` feeds `heist_open {from}` on the host page. */
 export const heistHref = (href: string) => `${href}?from=picker`;
+
+/** Where the Swordcat card (`SWORDCAT_TITLE`) goes: the flagged host page, by a full page load. */
+export const SWORDCAT_PICKER_HREF = "/swordcat";
+/** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
+export const SWORDCAT_CARD_KEY = "SWORDCAT";
+/** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
+export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
+
+/**
+ * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
+ * frame of the game's own trailer footage cropped to the card's 312x218 box. One 2x file (624x436, about 30 KB),
+ * drawn in the 312x218 box: with a 1x/2x `srcSet`, Chromium kept the 1x file for this card on 2x screens in testing.
+ * Served from client/public (not the CDN). It replaced an inline pixel cat with the Token Tails ":3" coin, which is
+ * the brand mark, not the game's hero.
+ */
+export const SWORDCAT_PREVIEW = Object.freeze({
+  src: "/game-select/swordcat-preview@2x.webp",
+  width: 312,
+  height: 218,
+});
 
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
@@ -50,14 +72,24 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST";
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT";
 }
+
+/** A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`); others go as they are. */
+export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
+  card.href ? (card.key === GameType.CATNIP_HEIST ? heistHref(card.href) : card.href) : undefined;
+
+/** The link's test id: the Heist keeps `game-card-heist`, others are `game-card-<key>`. */
+const cardTestId = (card: GameCard) =>
+  card.key === GameType.CATNIP_HEIST ? "game-card-heist" : `game-card-${card.key.toLowerCase()}`;
 
 /**
  * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
  * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
+ * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
+ * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
  */
-export function gameCards(includeHeist: boolean, now: Date = new Date()): GameCard[] {
+export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
   const cards: GameCard[] = [];
   if (isCupidSeason(now)) {
     cards.push({
@@ -100,6 +132,17 @@ export function gameCards(includeHeist: boolean, now: Date = new Date()): GameCa
       // A crop of the Heist's own level 1 (not on the CDN: served from client/public).
       image: "/game-select/heist-preview.webp",
       previewVariant: "HEIST",
+    });
+  }
+  if (includeSwordcat) {
+    cards.push({
+      key: SWORDCAT_CARD_KEY,
+      href: SWORDCAT_PICKER_HREF,
+      title: SWORDCAT_TITLE.toUpperCase(),
+      description: SWORDCAT_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: SWORDCAT_PREVIEW.src,
+      previewVariant: "SWORDCAT",
     });
   }
   return cards;
@@ -151,7 +194,23 @@ const PawPost = () => (
   />
 );
 
+const SwordcatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={SWORDCAT_PREVIEW.src}
+      width={SWORDCAT_PREVIEW.width}
+      height={SWORDCAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-swordcat-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
+  if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -209,6 +268,8 @@ interface GameSelectModalProps {
   setGameType: (gameType: GameType) => void;
   /** Override the `NEXT_PUBLIC_HEIST_PICKER` flag (tests). */
   showHeist?: boolean;
+  /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
+  showSwordcat?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -216,16 +277,17 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
- * Every card is one tap target (a button, or a link for the Heist).
+ * Every card is one tap target (a button, or a link for the Heist and Swordcat).
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
   setGameType,
   showHeist,
+  showSwordcat,
   navigate,
 }) => {
   const now = new Date();
-  const cards = gameCards(showHeist ?? heistPickerEnabled(), now);
+  const cards = gameCards(showHeist ?? heistPickerEnabled(), now, showSwordcat ?? swordcatPickerEnabled());
   const cupidOpen = isCupidSeason(now);
 
   const pick = (card: GameCard) => (event: MouseEvent<HTMLElement>) => {
@@ -237,7 +299,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       // feeds `heist_open {from}` there and is stripped from the address bar on arrival.
       event.preventDefault();
       const go = navigate ?? ((url: string) => window.location.assign(url));
-      go(heistHref(card.href));
+      go(cardHref(card) ?? card.href);
       return;
     }
     if (card.type) {
@@ -264,7 +326,13 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       {/* Phones (and short landscape screens, where four cards share a narrow frame) get a compact
           label at its real size: no transform shrink, so no dead layout box under it. The pixel
           button only where it fits (md and up, at least 521 px tall). */}
-      <span className="mt-2 whitespace-nowrap rounded-md border-[3px] border-yellow-900 bg-tt-cream px-2 py-1 font-primary text-p6 uppercase leading-none tracking-wide text-tt-gold-ink shadow-[0_3px_0_#e2c05a] group-hover:brightness-110 [@media(min-width:768px)_and_(min-height:521px)]:hidden">
+      <span
+        className={clsx(
+          // Long titles (Swordcat's) wrap on the narrow phone column instead of overflowing it.
+          card.title.length > 12 ? "max-w-full text-balance text-center" : "whitespace-nowrap",
+          "mt-2 rounded-md border-[3px] border-yellow-900 bg-tt-cream px-2 py-1 font-primary text-p6 uppercase leading-none tracking-wide text-tt-gold-ink shadow-[0_3px_0_#e2c05a] group-hover:brightness-110 [@media(min-width:768px)_and_(min-height:521px)]:hidden"
+        )}
+      >
         {card.title}
       </span>
       <PixelButton
@@ -356,11 +424,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
               <li key={card.key} className={cardClass} data-card={card.key}>
                 {card.href ? (
                   <a
-                    href={heistHref(card.href)}
+                    href={cardHref(card)}
                     onClick={pick(card)}
                     aria-label={label}
                     aria-describedby={descriptionId(card)}
-                    data-testid="game-card-heist"
+                    data-testid={cardTestId(card)}
                     className={targetClass}
                   >
                     {cardBody(card)}

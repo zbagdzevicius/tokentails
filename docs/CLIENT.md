@@ -61,8 +61,8 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SITE_NAME` | Brand name for Open Graph and JSON-LD |
 | `NEXT_PUBLIC_IS_PROD` | Switches Stellar mainnet vs testnet and CDN vs local assets |
 | `NEXT_PUBLIC_IS_APP` | Marks a Capacitor build: static export, no ISR, no robots or sitemap extras, no feed ad slots, web checkout hidden, app-only profile UI |
-| `NEXT_PUBLIC_GTM_ID` | Google Tag Manager container, loaded only after analytics consent. Omit to disable GTM |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key (EU host `eu.i.posthog.com`, fixed in code). Omit to turn product analytics and its consent banner off |
+| `NEXT_PUBLIC_GTM_ID` | Google Tag Manager container, loaded on every page for every visitor. Omit to disable GTM |
+| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key (EU host `eu.i.posthog.com`, fixed in code). Omit to turn product analytics off |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Passed to `loadStripe` |
 | `NEXT_PUBLIC_FB_APP_ID`, `NEXT_PUBLIC_FB_PAGES`, `NEXT_PUBLIC_TWITTER_PAGE` | Social meta tags |
 | `NEXT_PUBLIC_THEME` | Legacy asset-path prefix |
@@ -73,12 +73,15 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_HEIST_PICKER` | The Catnip Heist card in the PLAY picker is on by default in every build (decision #15 overridden 2026-10-05); `0` hides it |
 | `NEXT_PUBLIC_HEIST_LANDING_PILL` | `1`, `true` or `on` shows "Or play Catnip Heist now, no sign-up" under the landing hero. Default off (decision #15) |
 | `NEXT_PUBLIC_HEIST_LANDING_SECTION` | The landing's Catnip Heist section (showreel or poster, three beats, PLAY CATNIP HEIST) between the proof section and the globe. Default on since the founder overrode decision #15 (Poki carve-out) for this section on 2026-10-04; `0`, `false` or `off` hides it. The pill stays off under #15 |
+| `NEXT_PUBLIC_SWORDCAT` | Kill switch only: `/swordcat` (Pink Paw Knight, GAMES.md), the picker card and the landing section (web only) are on by default. `0`, `false`, `no` or `off` turns them off: the page then only does a client-side `router.replace("/game")` |
+| `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
+| `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
-| `NEXT_PUBLIC_WALLET_DONATE` | `true` allows the real-money "Give from your wallet" block on `/shelter-payouts` (web only). It still shows only after the handover (`campaign.json` `shelter.handover` is `"handed-over"`) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). Before the handover the page shows "Opens when Pink Paw holds its own key" and no button, whatever this flag says |
+| `NEXT_PUBLIC_WALLET_DONATE` | On by default: the real-money "Give from your wallet" block on `/shelter-payouts` (web only) shows without any env. `0`, `false`, `no` or `off` hides it (`flagNotOff` in `lib/flags.ts`). It shows only when `campaign.json` `shelter.handover` is `"handed-over"` (Pink Paw's wallet, since 2026-10-16) and when `public/shelter-payouts/routers.json` lists a `mainnet` DonateRouter for the campaign chain (or, with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`, a router or a listed mainnet ShelterSplit for each chain named there). While the campaign pays a wallet Token Tails holds, the page shows "Opens when Pink Paw's wallet is set up" and no button, whatever this flag says |
 | `NEXT_PUBLIC_WALLET_DONATE_CHAIN` | A testnet chain id (e.g. `5042002`, Arc testnet) for the separate "Try it live" block: test USDC, no real money, a TESTNET badge and a Circle faucet link. Shows when that testnet has a wallet path: a `testnet` router in `routers.json`, or its ShelterSplit in `testnet-deployments.json`. The block has a network picker for all seven testnets (Arc, Tempo, Arbitrum Sepolia, Avalanche Fuji, Base Sepolia, Robinhood, Monad): router chains give with one signature, the others approve the split and call `disburse` (`disburseWithMemo` on Tempo). Unset: no try-it block |
-| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Needs `NEXT_PUBLIC_WALLET_DONATE=true` and the handover |
+| `NEXT_PUBLIC_WALLET_DONATE_CHAINS` | Comma-separated mainnet chain ids the real-money block offers in its network picker (e.g. `5042,8453,4217`), each with a router or a listed mainnet ShelterSplit (`giveRails.campaignRails`). Unset: only the campaign chain with a mainnet router, as before. Opt-in; ignored when `NEXT_PUBLIC_WALLET_DONATE` is an off value |
 | `NEXT_PUBLIC_E2E` | `1` compiles in the E2E-only hooks (fake Firebase adapter, crash probes, `window.__ttGames`, `window.__TT_E2E_GAME__`). CI's e2e build only; never deploy it |
 | `NEXT_PUBLIC_CAPTURE` | `1` compiles in the frame-stepping capture hooks (`window.__TT_CAPTURE__`) for the reel. Capture builds only |
 
@@ -119,6 +122,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
+| `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
 | `components/Phaser/look/` | Render foundation, tiers, camera rig, world look, backdrop, ambience, look manifest and settings, capture hooks. |
@@ -134,7 +138,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
 | `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
-| `analytics/` | Consent-gated PostHog EU events. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `consent.ts` the stored choice, `client.ts` the gate, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager gate, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
+| `analytics/` | Scrubbed PostHog EU events for every visitor. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `client.ts` the lazy PostHog client, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager loader, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
 | `constants/` | Utilities, catnip accounting (with its only real test), rewards, static props helper. |
 | `models/` | Domain types and enums. |
@@ -158,10 +162,11 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/gaming` | `pages/gaming.tsx` | Legacy URL. Permanent (308) redirect to `/` via `next.config.js`; the page itself is a `noindex` stub that does `router.replace("/")` for static exports, and is excluded from the sitemap. |
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
+| `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
-| `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet handover (`noindex`, web only, wallet code loaded with `ssr: false`): why the shelter should hold its own key, connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. Token Tails never sees the key. App builds show the proof notice. |
+| `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet claim (`noindex`, web only, wallet code loaded with `ssr: false`): why a shelter wallet, and how a signed claim records which wallet is the shelter's. Connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. App builds show the proof notice. |
 | `/airdrop`, `/airdrop/*` | none | Redirect to `/shelter-payouts` (task 5e). |
 | `/catbassadors` | none | Legacy URL of the retired game shell. Permanent redirect to `/game` via `next.config.js`; redirects do not apply to the static export, so the Capacitor bundle has no page there. |
 | `/box` | `pages/box.tsx` | Retired (decision #43): redirects to `/game` (server redirect on the web, a client redirect in the static export). |
@@ -182,8 +187,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 HTML for the night routes (`/`, `/packs`, `/shelter-payouts/*`, `/impact`, `/heist`, `/game`;
 `components/shared/skyScope.ts`), an inline first-paint night background, `theme-color` `#0b0820`,
 one icon set (`favicon.ico`, the 32 and 192 PNGs, the apple-touch icon), the manifest link and the
-font preloads. It no longer injects Google Tag Manager; GTM loads only after analytics consent (see
-"Analytics"). `pages/_app.tsx` wraps everything in the `RootBoundary` and `MainLayout`, renders one
+font preloads. It no longer injects Google Tag Manager; GTM loads on mount from
+`components/GoogleTagManager.tsx` (see "Analytics"). `pages/_app.tsx` wraps everything in the `RootBoundary` and `MainLayout`, renders one
 keyed viewport tag per route (zoom is allowed everywhere except `/game`, which adds
 `maximum-scale=1, user-scalable=no`), re-applies `data-sky` on client navigation and mounts
 `NativeChrome`. The PWA manifest (`public/manifest.webmanifest`) is night, PNG-only, `start_url: /game`,
@@ -392,6 +397,58 @@ is `shared/home-yard.ts`. Local files only, so the Capacitor export ships it.
 - Changing the yard: edit `catnip-heist/src/yard` or `src/home`, run its `tsc` and `vitest`, then
   `npm run build:client` there and commit the rebuilt `public/heist-game` and the generated entry.
 
+### Pink Paw Knight (/swordcat)
+
+Pink Paw Knight is the Swordcat game (a separate three.js repo, GAMES.md), hosted full-bleed in an
+iframe by `components/swordcat/SwordcatHost.tsx`. It is on by default (launch, Oct 16 2026), with no env
+needed: the page, the picker card and the landing section (web only, never in the app build) show.
+`NEXT_PUBLIC_SWORDCAT` and `NEXT_PUBLIC_SWORDCAT_PICKER` are kill switches only (`0`, `false`, `no` or
+`off`, `flagNotOff` in `flags.ts`); the picker card needs both not off.
+
+- Title: `components/swordcat/title.ts` (`SWORDCAT_TITLE` "Pink Paw Knight", `SWORDCAT_SUBTITLE` "A Token
+  Tails Adventure") is the only place it is written in `client/`; the page meta, host and picker card read
+  it, and it must match the game's `src/core/brand.js`. Pink Paw has not yet approved the name. To rename
+  the game: edit `title.ts`, the same text in `brand.js`, the expected string in
+  `__test__/swordcat-title.test.ts`, then rebuild the game (`npm run build:tokentails`, GAMES.md). That test
+  also fails on a literal copy in the page, host, flags, bridge or picker, mocks the constant to another name and
+  checks every surface follows, that with no `NEXT_PUBLIC_SWORDCAT*` set the page and card show, and that `NEXT_PUBLIC_SWORDCAT=0` hides them.
+- The picker card's preview is an inline pixel SVG (`SwordcatPreview` in `GameSelectModal.tsx`): Clem in
+  ivory with her pink bow and the gold ":3" coin on the night sky.
+- The game's catnip stays in the game for now: nothing it earns reaches the player's Token Tails
+  catnip (see "Phase 1 saves nothing" below).
+
+- The iframe loads the same-origin build `/swordcat-game/index.html` plus `embed=1` (or a valid
+  `NEXT_PUBLIC_SWORDCAT_URL` override), with `allow="autoplay; fullscreen; gamepad"` and no `sandbox` (the
+  game needs its own storage and WebGL). Same origin keeps the game's saves first-party.
+- Updating the build (like the Heist's `heist-game/`): in the Swordcat repo run `npm run build:tokentails`
+  (`npm run build`, then `scripts/copy-to-tokentails.mjs`, which replaces `client/public/swordcat-game/`
+  in the worktree next to it; `--dest <dir>` or `TT_SWORDCAT_DEST` for another checkout). It prints the
+  file count and size and refuses a single file over 50 MB. The build is about 58 MB in some 560 files,
+  so it also ships in the Capacitor app's `public/` copy; see GAMES.md for the size note.
+- The iframe fills the safe area (inside a frame the game reads no safe-area insets of its own). An exit
+  button ("Back to games", 44 px at every width, 6 px inside the frame's top-left corner) does a full load
+  of `/game`; in embed mode the game keeps a 56 px top-left corner free of HUD (Swordcat `src/ui/ui.css`,
+  `--embed-gut`; `SWORDCAT_EXIT_GUTTER_PX` here), so it never covers Clem's portrait or hearts. Portrait
+  touch screens get a dismissable "Turn your phone sideways for the best view" hint, remembered in
+  `localStorage` (`tt:swordcat:rotate-hint:v1`).
+- `components/swordcat/bridge.ts` speaks bridge v1 (GAMES.md). Messages count only from the iframe's
+  window and the game's origin; posts name that exact origin. The game learns only `signedIn` and the
+  shell's mute; no token is ever sent.
+- Any GameModal pauses the game through the Heist's suspension stand-in (`registerHeistSuspension`)
+  and makes the frame inert.
+- Phase 1 saves nothing: `level-complete` is logged with `console.debug` in development only.
+- Treats: one send at a time. A `treat-request` that arrives while a send is in flight (the game's
+  15 s timeout, then Try again) waits for that send and gets its result under its own id, never an
+  instant `retry`. Each rail read sets "sent today" from the current identity's row, so a sign-in or
+  an account switch is not told the previous identity's treat was already sent.
+- Local dev: the game accepts embed messages only from the origins in its `VITE_EMBED_ORIGINS`
+  (default tokentails.com and www.tokentails.com; `http://localhost:3000` only in the game's dev
+  server and test builds) plus its own origin when the parent is same-origin, so the copied build
+  works on any client port. Against the game's dev server from another port, start Swordcat with
+  `VITE_EMBED_ORIGINS=http://localhost:<port>`, or the bridge stays silent. Run the client from a real `npm ci` in the worktree's `client/`: a
+  `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
+  node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
+
 ### Other
 
 Support tickets, share modal (native clipboard on Capacitor), stats page, pixel globe of partner
@@ -437,8 +494,8 @@ do not exist in the current backend controllers. Those calls fail silently.
 
 ## State management
 
-Provider tree from `layouts/MainLayout`: query client, Google Tag Manager, toast, profile, cat,
-and the analytics consent banner (`next/dynamic`, `ssr: false`).
+Provider tree from `layouts/MainLayout`: query client, Google Tag Manager (which also starts
+PostHog), toast, profile and cat. There is no analytics consent banner (removed 2026-10-16).
 Pages add Firebase auth, the game provider, web3 (always dynamically imported with
 `ssr: false`), and entity metadata inside blog layouts.
 
@@ -493,25 +550,21 @@ and effects sliders, Graphics); the profile sheet has the same sound panel.
 
 ## Analytics
 
-Per-mode product events go to PostHog EU through `analytics/`. Nothing loads or sends until the
-player presses ACCEPT on `components/shared/AnalyticsConsentBanner.tsx`; the default is off and
-events from before consent are dropped, not queued. The choice is stored in `localStorage` under
-`tt-analytics-consent` (reads and writes are wrapped in try/catch). Players change or revoke it
-from the ANALYTICS button in the profile modal or the "Analytics settings" footer link; revoking
-calls `reset()` and `opt_out_capturing()`. `posthog-js` is imported dynamically only after
-consent. Autocapture, pageviews, session replay, surveys, flags and remote scripts are off,
+Analytics run for every visitor. There is no consent card, chip or settings link (founder decision,
+2026-10-16). Per-mode product events go to PostHog EU through `analytics/`.
+`components/GoogleTagManager.tsx` calls `analytics.init()` on mount, which imports `posthog-js`
+dynamically in the browser only. Players who pressed "No thanks" on the old card are opted back in
+once (PostHog's own opt-out flag is cleared); the old `tt-analytics-consent` key is no longer read.
+Autocapture, pageviews, session replay, surveys, flags and remote scripts are off,
 `person_profiles` is `never`, and `identify` is never called, so the only id is PostHog's random
-anonymous one. Events carry no user id, email, name or wallet.
+anonymous one. Events carry no user id, email, name or wallet, and no photo is ever sent.
 
-Google Tag Manager (`NEXT_PUBLIC_GTM_ID`) sits behind the same choice through `analytics/gtm.ts`.
-Before ACCEPT nothing is sent: `gtm.js` is not requested, no `dataLayer` exists, and `page_view`
-and `trackEvent` pushes are dropped, not queued. On ACCEPT (or on load with consent stored)
-`components/GoogleTagManager.tsx` pushes Consent Mode v2 defaults (all `denied`), then an update
-granting `analytics_storage` only, then loads the container and records the current page. Ad
-storage, ad user data and ad personalisation stay `denied` because the banner asks about
-analytics only. Revoking stops all pushes and sends `analytics_storage: denied`; the loaded script
-stays until the next page load. There is no `<noscript>` iframe. The banner only renders when
-`NEXT_PUBLIC_POSTHOG_KEY` is set, so a build with a GTM id but no PostHog key never loads GTM.
+Google Tag Manager (`NEXT_PUBLIC_GTM_ID`) loads on mount for every visitor through
+`analytics/gtm.ts`: `components/GoogleTagManager.tsx` starts it, pushes `page_view` after 100 ms
+and on every route change, and `trackEvent` pushes the portrait shop steps. No Consent Mode
+commands are pushed, so Google Analytics 4 in the container uses its default storage and sets its
+cookies. If the GTM container has its own consent settings in the GTM web UI, they still apply.
+There is no `<noscript>` iframe.
 
 | Event | Sent when | Properties |
 |---|---|---|
@@ -542,10 +595,10 @@ runs, heist, impact, health) with property shapes that never carry a user id, em
 removes emails, JWTs and `fb` tokens, Stellar seeds and addresses, `0x` values, ObjectIds, long hex,
 phone numbers and national-id-like digit runs, IBANs, `did:` ids, opaque tokens, URL queries and
 quoted names (code-shaped quoted identifiers stay), and cuts stacks to 8 frames without the origin.
-`app_error` reports go through the same consent gate, at most 5 per tab session and one per code
+`app_error` reports go through the same client, at most 5 per tab session and one per code
 (counts in `sessionStorage["tt-app-error-session"]`), and never call `posthog.captureException`.
-Catnip Heist sends its own consent-gated events with the same core (GAMES.md); it reads consent from
-the same `tt-analytics-consent` key on the same origin.
+Catnip Heist sends its own scrubbed events with the same core (GAMES.md) whenever its build has a
+PostHog key.
 
 ## SEO
 
@@ -570,12 +623,10 @@ sums, and the total cap. `__test__/landing-routing.test.tsx` covers the root lan
 jsdom with a docblock and mocks the page's heavy components. `__test__/proof-section.test.tsx` covers the
 homepage proof section: copy guard, video attributes, marquee duplication, the lazy motion-aware
 playback controller (stubbed `IntersectionObserver`, `matchMedia`, and `HTMLMediaElement`
-`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/analytics.test.ts` covers the consent gate (nothing
-loaded or sent before consent, no queueing, revoke, no key), the `GAME_*` to event mapping, the
-run tracker and `getPlatform`. `__test__/gtm-consent.test.ts` covers the GTM gate (no script,
-`dataLayer` or events before consent, Consent Mode order, no replay, revoke, no id, no window,
-no snippet in `_document.js`), the `GoogleTagManager` component, and `/feed`-prefixed article URLs
-in the sitemap config. `__test__/app-export.test.ts` covers the app-build switches
+`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/analytics.test.ts` covers the client with no consent
+state (sends at once, `init()`, the one-time opt-in after an old opt-out, throwing storage, no
+key), the `GAME_*` to event mapping, the run tracker and `getPlatform`. `__test__/gtm.test.ts`
+covers GTM (loads on start, pushes at once, no Consent Mode commands, no id, no window). `__test__/app-export.test.ts` covers the app-build switches
 (`output: "export"` and no redirects, no ISR or fallback, client-route links and `webPath`), and
 `__test__/app-route-restore.test.tsx` covers routing a cold app load to the page the URL names.
 `__test__/test.ts` is a placeholder
@@ -594,7 +645,7 @@ Build and SSR:
 
 Privacy:
 
-- Fixed (KI-19, 2026-10-11): the consent banner described game-event counting only, did not name Google Tag Manager or the portrait `view_item`/`add_to_cart`/`begin_checkout`/`purchase` events GTM receives after ACCEPT, and appeared only when `NEXT_PUBLIC_POSTHOG_KEY` was set, so a build with `NEXT_PUBLIC_GTM_ID` but no PostHog key could never get consent and GTM/GA received nothing. The banner (and the ANALYTICS settings button and link) now appear when either PostHog or GTM is configured, and its text names only what this build turns on: for PostHog, game starts and finishes, app errors and the steps of signing in, picking a starter cat, making your cat (`/yourcat` upload and share, with the incoming link's UTM tags) and buying a portrait, with no photo, name or email (CR2-04, 2026-10-11: it had named game counts only and called them anonymous); for GTM the page views and the portrait shop steps sent to Google Analytics, which sets cookies (`components/shared/AnalyticsConsentBanner.tsx`, `consentCopy`). Still for production: set the PostHog key if the game-event funnel is wanted.
+- Superseded (KI-19, 2026-10-16): the analytics consent banner, chip and settings links were removed. PostHog and GTM (with Google Analytics 4, which sets cookies) now run for every visitor; no photo, name or email is sent. Still for production: set the PostHog key if the game-event funnel is wanted.
 
 Auth and storage:
 
@@ -697,7 +748,7 @@ Hygiene:
 - `npm` itself is listed as a runtime dependency.
 - `pages/portraits.tsx` duplicates most of `pages/portrait.tsx`.
 - Fixed (KI-08, 2026-10-11, server side): `POST /image/portrait` returned the full-resolution `aiUrl` before payment, so the paid digital portrait on `/portrait` and `/portraits` could be downloaded free. The server now answers a watermarked preview of at most 1024 px in `aiUrl` until the order is complete, then the full file (BACKEND.md known issues); the pages need no change because they keep polling `GET /image/:id`. Portraits made before the change keep their full file.
-- Portrait previews (open until the launch checklist steps 1 and 2 in YOURCAT.md): until `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is set on Vercel, the client sends no App Check token, so every `/portrait` visitor is "unverified": 1 preview per address per day (`AI_PREVIEW_IP_DAILY_UNVERIFIED`), shared with regenerate. Until `CF_ORIGIN_SECRET` (or `TRUST_PROXY`) proves the address, every production preview shares one site-wide bucket instead (`AI_PREVIEW_UNTRUSTED_DAILY`, default 5 a day, 20 failures). Fixed copy (KI-10, 2026-10-11): the pages no longer promise a portrait "in under 2 minutes" or "in minutes", or that a visitor can "regenerate and rotate through" styles; the FAQ says each new style is a new preview that counts toward a small daily limit (`PORTRAIT_FAQ_REGENERATE` in `pages/portrait.tsx`, pinned by `__test__/portrait-no-fabricated-proof.test.ts`).
+- Portrait previews (open until the launch checklist step 1 in YOURCAT.md, App Check): until `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is set on Vercel, the client sends no App Check token, so every `/portrait` visitor is "unverified": 1 preview per address per day (`AI_PREVIEW_IP_DAILY_UNVERIFIED`), shared with regenerate. Fixed copy (KI-10, 2026-10-11): the pages no longer promise a portrait "in under 2 minutes" or "in minutes", or that a visitor can "regenerate and rotate through" styles; the FAQ says each new style is a new preview that counts toward a small daily limit (`PORTRAIT_FAQ_REGENERATE` in `pages/portrait.tsx`, pinned by `__test__/portrait-no-fabricated-proof.test.ts`).
 - Fixed (KI-04, KI-05, 2026-10-11): the portrait option badges "Most Popular", "Recommended" and "The Perfect Gift" were backed by no data, and the FAQ refund answer ("support can help with a resolution") did not match the policy. The badges now state what the option includes ("Instant download", "Includes the digital file") and the digital option is highlighted by its id; the refund answer (`PORTRAIT_FAQ_REFUNDS`) names the 14-day right of withdrawal, which ends on delivery only if the buyer agreed at checkout, and the 30-day replacement for damaged prints. `Highness` example 1 (and `highness.webp`) is no longer shown: it shows a famous internet cat's likeness. All pinned by `__test__/portrait-no-fabricated-proof.test.ts`.
 - Fixed (bet #3): the portrait pages showed invented Trustpilot reviews, stock-photo testimonials, "As Seen In" press logos, "50K+ portraits" and "4.9/5", "#1 in Pet Portraits", a 15-minute countdown that restarted on every load, made-up "was" prices and a "30-day money-back" line. They are deleted; `__test__/portrait-no-fabricated-proof.test.ts` keeps them out.
 - Empty folders: `cats/`, `icons/`. `gg.js` is an empty file.
@@ -716,7 +767,7 @@ Pink Paw on the payout pages (`components/shelter-payouts/PinkPawShowcase.tsx`, 
 - Partly fixed (Oct 3): Passion One (`font-primary`) has no Ą Č Ę Ė Į Ų Ū (or their lowercase; Š and Ž are there, checked with fontTools), so a Lithuanian name in it mixed in a thin fallback letter. Headings show "Pink Paw" with "Rožinė pėdutė" under it in the body font (Nunito); the landing shelter list does the same for `rozine-pedute`. Any other name with one of those letters (cat captions and "Meet …" links on the payout pages, card names, Meet your cat, the landing shelter list) goes through `lib/glyphs.ts` `nameFont()`, which sets the whole name in Nunito extra-bold. Still open: other display text that could carry such a letter does not use the helper; the real fix is a display face with full Lithuanian coverage.
 - Fixed (Oct 3): Tails cards rendered the shelter-entered description with `dangerouslySetInnerHTML` (`CardFront.tsx`). 21 Pink Paw descriptions carry pasted ChatGPT page markup (`data-turn-id` wrappers), which broke the card text and was an HTML-injection path through shelter data. Descriptions are now plain text (`lib/plainText.ts`). Still open: the stored descriptions should be cleaned on the backend.
 - Open (QA, Oct 3): the CDN mirror of `impact.json` answers 403 on production and locally. The page falls back to `GET /impact`, but logs a console error on every load. Make the object public, or keep `IMPACT_CDN_ENABLED` off and skip that fetch.
-- The Pink Paw logo, cards and photos show only when the campaign (or a receipt payout) is Pink Paw's own wallet (`PINK_PAW_WALLET`, compared in lowercase). Change that constant together with `public/shelter-payouts/campaign.json` if the wallet moves.
+- The Pink Paw logo, cards and photos show only when the campaign (or a receipt payout) is one of Pink Paw's payout wallets (`PINK_PAW_WALLETS` in `pinkPaw.ts`, compared in lowercase): Pink Paw's wallet `0x3c83…4771` (`PINK_PAW_WALLET`, since 2026-10-16) and `0xE299…0f37`, which Token Tails held for the shelter before that. Change them together with `public/shelter-payouts/campaign.json` if the wallet moves.
 - The Heist modal ships local copies of four Pink Paw cats (`catnip-heist/src/ui/pink-paw.ts`, photos from 3 Oct 2026). Run `npm run check:pink-paw` in `catnip-heist/` before a demo or a build: it fails when any of them is ADOPTED, in HEAVEN or gone from `GET /cat/sale`.
 
 Typography and catnip art (fixed in task 3e, plan G12 and G8):
@@ -838,8 +889,9 @@ Payments and shelter pages QA (2026-10-04, 1440x900 and 390x844):
 `components/shelter-payouts/` lets a person give to the campaign shelter from their own wallet,
 with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
 
-- **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` only with
-  `NEXT_PUBLIC_WALLET_DONATE=true`, `shelter.handover === "handed-over"` and a `mainnet` router for the
+- **Gate** (`giveMode.ts`, `walletGiveMode`, unit-tested). Campaign slot: `mainnet` by default
+  (`NEXT_PUBLIC_WALLET_DONATE` only hides it with `0`/`false`/`no`/`off`), with
+  `shelter.handover === "handed-over"` and a `mainnet` router for the
   campaign chain (with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit
   on each chain named there); `awaiting-handover` (notice, no button, link to
   `/shelter-payouts/onboard`) while Token Tails holds the wallet; otherwise hidden. Try-it slot:

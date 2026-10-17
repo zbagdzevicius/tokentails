@@ -101,7 +101,9 @@ export const SEASON_EVENT_LEVEL_POINT_CAPS: number[] = frozen(
  * Heist campaign level ids in play order. Index `i` is the slot of `heistScore` and `heistStars` on a
  * user (plan G2 layer 2). Must match `LEVELS` of the vendored sim (`backend/src/vendor/heist-sim`).
  */
-export const HEIST_LEVELS: string[] = frozen(Array.from({ length: 8 }, (_, index) => `heist-0${index + 1}`));
+export const HEIST_LEVELS: string[] = frozen(
+    Array.from({ length: 16 }, (_, index) => `heist-${index < 9 ? '0' : ''}${index + 1}`)
+);
 
 /**
  * Highest score a won run of each Heist level can reach, in level order: every catnip coin (10 each)
@@ -110,7 +112,12 @@ export const HEIST_LEVELS: string[] = frozen(Array.from({ length: 8 }, (_, index
  * `catnip-heist/src/sim/__tests__/server.test.ts`, so a level edit that changes a cap fails CI until
  * this table is updated. The backend scores Heist runs itself; these are display and sanity bounds.
  */
-export const HEIST_LEVEL_CAPS: number[] = frozen([250, 240, 220, 270, 240, 240, 240, 310]);
+export const HEIST_LEVEL_CAPS: number[] = frozen([
+    // Act 1: heist-01..08
+    250, 240, 220, 270, 240, 240, 240, 310,
+    // Act 2: heist-09..16
+    270, 270, 270, 260, 270, 290, 270, 330,
+]);
 
 /** All three Heist star bits (win 1, every coin 2, clean and quick 4). */
 export const HEIST_STAR_MASK = 7;

@@ -1,0 +1,404 @@
+{
+  "id": "heist-10",
+  "tiles": [
+    "##################################",
+    "#......#....#..........#........##",
+    "#......#.......b.......#........##",
+    "#......#....#......b...#..b.....##",
+    "#......#....#..........#........##",
+    "#......#....############........##",
+    "#......#....############.....b..##",
+    "#......#....##........##........##",
+    "#...........##..b.....##........##",
+    "#...............................##",
+    "#...........##.....b..##........##",
+    "#......#....##........##........##",
+    "#..b...#....############........##",
+    "#......#....############........##",
+    "#......#........................##",
+    "#......#.....b............b.....##",
+    "#......#..............b.........##",
+    "#......#........................##",
+    "#......##.##.######.####.##.##.###",
+    "#......##########.....############",
+    "#......##########b....############",
+    "#......##########.....############",
+    "##################################"
+  ],
+  "catSpawns": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 3,
+      "y": 2
+    }
+  ],
+  "guards": [
+    {
+      "id": "g-nurse",
+      "sprite": "base",
+      "waypoints": [
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 28,
+          "y": 9
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 45,
+      "visionTiles": 4
+    },
+    {
+      "id": "s-xray",
+      "sprite": "black",
+      "waypoints": [
+        {
+          "x": 17,
+          "y": 3
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "facing": {
+        "x": -1,
+        "y": 0
+      },
+      "turns": [
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        },
+        {
+          "facing": {
+            "x": 1,
+            "y": 0
+          },
+          "ticks": 90
+        },
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 60
+        }
+      ]
+    },
+    {
+      "id": "s-surgeon",
+      "sprite": "brown",
+      "waypoints": [
+        {
+          "x": 29,
+          "y": 4
+        }
+      ],
+      "speed": 1,
+      "sniffTicks": 0,
+      "visionTiles": 4,
+      "facing": {
+        "x": 0,
+        "y": 1
+      },
+      "turns": [
+        {
+          "facing": {
+            "x": 0,
+            "y": 1
+          },
+          "ticks": 120
+        },
+        {
+          "facing": {
+            "x": -1,
+            "y": 0
+          },
+          "ticks": 120
+        }
+      ]
+    }
+  ],
+  "coins": [
+    {
+      "id": "coin-01",
+      "tile": {
+        "x": 14,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-02",
+      "tile": {
+        "x": 22,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-03",
+      "tile": {
+        "x": 31,
+        "y": 1
+      }
+    },
+    {
+      "id": "coin-04",
+      "tile": {
+        "x": 25,
+        "y": 2
+      }
+    },
+    {
+      "id": "coin-05",
+      "tile": {
+        "x": 10,
+        "y": 3
+      }
+    },
+    {
+      "id": "coin-06",
+      "tile": {
+        "x": 5,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-07",
+      "tile": {
+        "x": 20,
+        "y": 4
+      }
+    },
+    {
+      "id": "coin-08",
+      "tile": {
+        "x": 30,
+        "y": 5
+      }
+    },
+    {
+      "id": "coin-09",
+      "tile": {
+        "x": 18,
+        "y": 7
+      }
+    },
+    {
+      "id": "coin-10",
+      "tile": {
+        "x": 15,
+        "y": 9
+      }
+    },
+    {
+      "id": "coin-11",
+      "tile": {
+        "x": 21,
+        "y": 11
+      }
+    },
+    {
+      "id": "coin-12",
+      "tile": {
+        "x": 20,
+        "y": 14
+      }
+    },
+    {
+      "id": "coin-13",
+      "tile": {
+        "x": 2,
+        "y": 15
+      }
+    },
+    {
+      "id": "coin-14",
+      "tile": {
+        "x": 11,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-15",
+      "tile": {
+        "x": 29,
+        "y": 16
+      }
+    },
+    {
+      "id": "coin-16",
+      "tile": {
+        "x": 9,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-17",
+      "tile": {
+        "x": 12,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-18",
+      "tile": {
+        "x": 24,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-19",
+      "tile": {
+        "x": 27,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-20",
+      "tile": {
+        "x": 30,
+        "y": 18
+      }
+    },
+    {
+      "id": "coin-21",
+      "tile": {
+        "x": 21,
+        "y": 19
+      }
+    },
+    {
+      "id": "coin-22",
+      "tile": {
+        "x": 18,
+        "y": 21
+      }
+    }
+  ],
+  "key": {
+    "id": "key-vault",
+    "tile": {
+      "x": 21,
+      "y": 2
+    }
+  },
+  "doors": [
+    {
+      "id": "door-pharmacy",
+      "tile": {
+        "x": 13,
+        "y": 9
+      },
+      "kind": "VAULT",
+      "axis": "v"
+    },
+    {
+      "id": "door-isolation",
+      "tile": {
+        "x": 19,
+        "y": 18
+      },
+      "kind": "PLATE",
+      "axis": "h"
+    }
+  ],
+  "plates": [
+    {
+      "id": "plate-j1",
+      "tile": {
+        "x": 16,
+        "y": 15
+      },
+      "doors": [
+        "door-isolation"
+      ]
+    }
+  ],
+  "crate": {
+    "id": "crate",
+    "tile": {
+      "x": 19,
+      "y": 21
+    },
+    "catId": "peachies",
+    "catName": "Patches"
+  },
+  "exit": {
+    "id": "exit",
+    "tiles": [
+      {
+        "x": 2,
+        "y": 20
+      },
+      {
+        "x": 3,
+        "y": 20
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "cp-1",
+      "tile": {
+        "x": 4,
+        "y": 6
+      }
+    },
+    {
+      "id": "cp-2",
+      "tile": {
+        "x": 31,
+        "y": 17
+      }
+    }
+  ],
+  "meta": {
+    "title": "Heist 10: After Hours",
+    "parTicks": 3150,
+    "meowRadiusTiles": 6,
+    "investigateTicks": 150,
+    "maxCoins": 24,
+    "twoCatRequired": true,
+    "objectives": [
+      "Free {cat} from the isolation kennel. Tip: open the pharmacy and watch where the nurse goes",
+      "Free {cat} from the isolation kennel",
+      "Both cats to the exit"
+    ],
+    "hints": [
+      {
+        "x0": 8,
+        "y0": 7,
+        "x1": 12,
+        "y1": 11,
+        "untilObjective": 1,
+        "text": "The pharmacy key opens a shortcut. The nurse will take it, and leave the kennel ward. Open it while she's in the east wing."
+      },
+      {
+        "x0": 8,
+        "y0": 14,
+        "x1": 30,
+        "y1": 17,
+        "untilObjective": 1,
+        "text": "Hold the plate and slip into isolation between her rounds, or reroute her first."
+      }
+    ],
+    "name": "After Hours",
+    "intro": "The nurse walks the ward all night. Open the pharmacy and she takes the shortcut.",
+    "idea": "Reroute a patrol: opening the vault gives the nurse a shorter way, so she leaves the kennel ward for good"
+  }
+}

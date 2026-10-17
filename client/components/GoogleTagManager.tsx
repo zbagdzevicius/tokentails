@@ -1,3 +1,4 @@
+import { analytics } from "@/analytics";
 import { gtm } from "@/analytics/gtm";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
@@ -68,9 +69,9 @@ type TrackEventMap = {
 type EventName = keyof TrackEventMap;
 
 /**
- * Starts GTM once the player has opted in (see `analytics/gtm.ts`) and pushes
- * `page_view` on route changes. Before consent it sends nothing. Renders
- * nothing and only touches `window` in effects, so it is SSR safe.
+ * Starts GTM and PostHog on mount for every visitor (see `analytics/gtm.ts`)
+ * and pushes `page_view` on route changes. Renders nothing and only touches
+ * `window` in effects, so it is SSR safe.
  */
 export const GoogleTagManager = () => {
   const router = useRouter();
@@ -80,9 +81,8 @@ export const GoogleTagManager = () => {
       gtm.push({ event: "page_view", page_path: pagePath });
     };
 
-    // Loads GTM now if consent is stored; otherwise waits for "Accept" and
-    // records the page the player is on at that moment.
-    const stop = gtm.start(() => pushPageView(window.location.pathname));
+    const stop = gtm.start();
+    analytics.init();
 
     // Small delay so the container can initialise before the first event.
     const timeoutId = setTimeout(
@@ -103,8 +103,7 @@ export const GoogleTagManager = () => {
 };
 
 /**
- * Pushes an event to the GTM dataLayer. Dropped, not queued, unless the
- * player has granted analytics consent.
+ * Pushes an event to the GTM dataLayer. A no-op without a container id.
  */
 export function trackEvent<T extends EventName>(
   eventName: T,

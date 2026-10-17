@@ -3,11 +3,11 @@
  */
 /**
  * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
- * load to /heist, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+ * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
  * the frame post), and axe on the open picker.
  */
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import axe from "axe-core";
 
 jest.mock("@/analytics", () => ({ reportAppError: jest.fn() }));
@@ -18,7 +18,14 @@ import {
   gameCards,
   heistPickerEnabled,
   HEIST_PICKER_HREF,
+  SWORDCAT_CARD_KEY,
+  SWORDCAT_PICKER_HREF,
+  SWORDCAT_PREVIEW,
 } from "@/components/shared/GameSelectModal";
+import fs from "fs";
+import path from "path";
+import { swordcatPickerEnabled } from "@/components/swordcat/flags";
+import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -62,11 +69,17 @@ describe("gameCards", () => {
 });
 
 describe("GameSelectModal", () => {
-  it("shows four cards in a GameModal, the Heist as a link with its badge", () => {
+  it("shows five cards in a GameModal (the Swordcat card is on by default), the Heist as a link with its badge", () => {
     const { dialog } = open();
     expect(within(dialog).getByRole("heading", { name: "Choose your adventure" })).toBeTruthy();
     const cards = within(dialog).getAllByRole("listitem");
-    expect(cards).toHaveLength(4);
+    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual([
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      "CATNIP_HEIST",
+      SWORDCAT_CARD_KEY,
+    ]);
     const heist = within(dialog).getByRole("link", { name: "CATNIP HEIST · NO SIGN-UP" });
     expect(heist.getAttribute("href")).toBe("/heist?from=picker");
     expect(within(dialog).getByRole("button", { name: "PURRSUIT · CLASSIC" })).toBeTruthy();
@@ -114,6 +127,16 @@ describe("GameSelectModal", () => {
 
   it("hides the Heist card when the flag is off", () => {
     const { dialog } = open({ showHeist: false });
+    const cards = within(dialog).getAllByRole("listitem");
+    expect(cards.map((card) => card.getAttribute("data-card"))).toEqual(["PIXEL_RESCUE", "CATNIP_CHAOS", "MATCH_3", SWORDCAT_CARD_KEY]);
+    expect(within(dialog).queryByTestId("game-card-heist")).toBeNull();
+    expect(within(dialog).queryByRole("link", { name: /CATNIP HEIST/ })).toBeNull();
+    // The only link left is the Swordcat card.
+    expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([SWORDCAT_PICKER_HREF]);
+  });
+
+  it("shows only the three Phaser cards with the Heist and Swordcat cards both off", () => {
+    const { dialog } = open({ showHeist: false, showSwordcat: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
@@ -138,5 +161,87 @@ describe("GameSelectModal", () => {
       runOnly: { type: "rule", values: ["button-name", "link-name", "nested-interactive", "aria-dialog-name", "image-alt", "list", "listitem"] },
     });
     expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe("Swordcat card (SWORDCAT_TITLE)", () => {
+  it("is in the picker by default (NEXT_PUBLIC_SWORDCAT* unset)", () => {
+    expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
+    expect(swordcatPickerEnabled()).toBe(true);
+    const { dialog } = open();
+    expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+  });
+
+  it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
+    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
+    const first = open({ showSwordcat: false });
+    expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+    expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
+    cleanup();
+    process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
+    try {
+      expect(swordcatPickerEnabled()).toBe(false);
+      const second = open();
+      expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
+      expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
+    } finally {
+      delete process.env.NEXT_PUBLIC_SWORDCAT_PICKER;
+    }
+  });
+
+  it("comes after the Heist when enabled, as a link with no GameType", () => {
+    const cards = gameCards(true, new Date(), true);
+    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
+    expect(cards[4]).toMatchObject({
+      key: "SWORDCAT",
+      href: SWORDCAT_PICKER_HREF,
+      badge: "NEW",
+      description: "Every cat you save is a real Pink Paw cat",
+      image: SWORDCAT_PREVIEW.src,
+      previewVariant: "SWORDCAT",
+    });
+    expect(cards[4].type).toBeUndefined();
+    expect(Object.values(GameType)).not.toContain("SWORDCAT");
+  });
+
+  it("opens /swordcat with a full page load and keeps the Heist card's test id", () => {
+    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true });
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
+    const card = within(dialog).getByTestId("game-card-swordcat");
+    expect(card.getAttribute("href")).toBe("/swordcat");
+    expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
+    const art = within(dialog).getByTestId("game-card-swordcat-preview");
+    expect(art.tagName).toBe("IMG");
+    expect(art.getAttribute("src")).toBe(SWORDCAT_PREVIEW.src);
+    expect(art.getAttribute("width")).toBe("312");
+    expect(art.getAttribute("height")).toBe("218");
+    expect(art.getAttribute("alt")).toBe("");
+    // Not the old inline pixel cat with the Token Tails ":3" coin.
+    expect(card.querySelector("svg")).toBeNull();
+    fireEvent.click(card);
+    expect(navigate).toHaveBeenCalledWith("/swordcat");
+    expect(setGameType).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("has no axe violations with the card shown", async () => {
+    open({ showSwordcat: true });
+    const result = await axe.run(document.body, {
+      runOnly: { type: "rule", values: ["button-name", "link-name", "nested-interactive", "image-alt", "svg-img-alt", "list", "listitem"] },
+    });
+    expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
+  it("ships a 2x trailer-frame WebP for the card's 312x218 box", () => {
+    const pub = path.resolve(__dirname, "../public");
+    expect(SWORDCAT_PREVIEW).toMatchObject({ width: 312, height: 218 });
+    expect(SWORDCAT_PREVIEW.src).toMatch(/@2x\.webp$/);
+    const buf = fs.readFileSync(path.join(pub, SWORDCAT_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
   });
 });

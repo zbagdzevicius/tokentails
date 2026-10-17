@@ -12,26 +12,30 @@ import {
     shelterSplitInterface,
     TOKEN_BATCH_TOPIC,
 } from 'src/shelter/onchain/shelter-chain';
-import { readShelterConfig, ShelterOnchainConfig } from 'src/shelter/onchain/shelter-onchain.config';
+import {
+    isProductionEnv,
+    isTestnetChain,
+    readShelterConfig,
+    ShelterOnchainConfig,
+} from 'src/shelter/onchain/shelter-onchain.config';
 import { CryptoCheckout, CryptoCheckoutDocument, ShelterShareTier } from './crypto-checkout.schema';
 import { erc20PayInterface } from './crypto-evm';
 import { CryptoPayConfig, readCryptoPayConfig } from './crypto-pay.config';
 
 /*
- * Shelter share of a shelter cat bought on the treasury route (before the handover, or on a chain
- * without the shelter's split). The buyer paid the Token Tails treasury (commerce); this keeper pays
+ * Shelter share of a shelter cat bought on the treasury route (on a chain without a verified shelter
+ * split route). The buyer paid the Token Tails treasury (commerce); this keeper pays
  * the shelter its share from Token Tails' own hot-wallet float through ShelterSplit.disburse on the
  * main shelter chain (SHELTER_CHAIN_ID), memo `tt:cat:<16 hex>`, so the payout is a public on-chain
  * event like every other shelter payout. The treasury tops the float up; the hot wallet never receives
  * buyer money.
  *
- * Custody: before the handover the split pays the wallet Token Tails holds for the shelter, so the
- * share is `onchain-custodial` (disclosed, like treats and the match); after it, `onchain-shelter-held`.
- * The tier is read from the receipt, not from the config at settle time: a share sent just before the
- * handover and settled after it went to the held wallet, so it stays custodial (shareTier).
+ * Custody: the tier is read from the receipt (shareTier). A share the split paid to a wallet Token Tails
+ * holds (0xE299 until 2026-10-16) is `onchain-custodial` (disclosed, like treats and the match); a share
+ * paid only to other wallets (Pink Paw's wallet since 2026-10-16) is `onchain-shelter-held`.
  *
- * Off unless CRYPTO_PAY_SHELTER_SHARE_ENABLED=true and the main shelter config has an RPC, the split and
- * the hot wallet key. One send per row; a send whose fate is unknown is never repeated automatically:
+ * On by default (no flag). It does nothing until the main shelter config has an RPC, the split and the
+ * hot wallet key; rollback is a revert and a redeploy. One send per row; a send whose fate is unknown is never repeated automatically:
  * it stays `sent` until its receipt settles it, and a reverted send goes back to `due` at most twice.
  *
  * What reached the shelter is read from the receipt: ShelterSplit pays its shelters only their
@@ -68,6 +72,31 @@ export interface ShelterShareRun {
     skipped: string | null;
 }
 
+/** The keeper can send only with the main shelter config's RPC, split and hot wallet key. */
+function shelterShareReady(shelter: ShelterOnchainConfig): boolean {
+    return !!shelter.rpcUrl && !!shelter.splitAddress && !!hotWalletAddress(shelter);
+}
+
+/**
+ * The keeper pays only on the network the checkout sells on, and never from a testnet in production.
+ * Without this a dev or staging box with only the shelter hot key (it falls back to the Arc testnet
+ * split) could pay real mainnet or card shares in testnet USDC and mark them confirmed.
+ */
+export function shelterShareNetworkOk(
+    shelter: ShelterOnchainConfig,
+    cfg: CryptoPayConfig,
+    env: NodeJS.ProcessEnv = process.env
+): boolean {
+    const testnet = isTestnetChain(shelter.chainId);
+    if (testnet && isProductionEnv(env)) return false;
+    return testnet === (cfg.network === 'testnet');
+}
+
+/** The rows a keeper on this shelter chain may pay: card shares are paid only by a mainnet keeper. */
+function networkFilter(shelter: ShelterOnchainConfig) {
+    return { network: { $in: isTestnetChain(shelter.chainId) ? ['testnet'] : ['mainnet', 'card'] } };
+}
+
 @Injectable()
 export class CryptoShelterShareService {
     private readonly logger = new Logger(CryptoShelterShareService.name);
@@ -79,8 +108,12 @@ export class CryptoShelterShareService {
 
     @Cron(SHELTER_SHARE_CRON, { name: SHELTER_SHARE_JOB })
     async cron() {
-        if (!readCryptoPayConfig().shelterShareEnabled) {
-            return 'disabled';
+        const shelter = readShelterConfig();
+        if (!shelterShareReady(shelter)) {
+            return 'not-ready';
+        }
+        if (!shelterShareNetworkOk(shelter, readCryptoPayConfig())) {
+            return 'network-mismatch';
         }
         return runLeased({
             jobRuns: this.checkoutModel.db.collection(JOB_RUNS_COLLECTION) as unknown as ILeaseCollection,
@@ -97,17 +130,17 @@ export class CryptoShelterShareService {
         shelter: ShelterOnchainConfig = readShelterConfig()
     ): Promise<ShelterShareRun> {
         const result: ShelterShareRun = { sent: 0, confirmed: 0, failed: 0, skipped: null };
-        if (!cfg.shelterShareEnabled) {
-            return { ...result, skipped: 'disabled' };
-        }
         const hot = hotWalletAddress(shelter);
         if (!shelter.rpcUrl || !shelter.splitAddress || !hot) {
             return { ...result, skipped: 'not-ready' };
         }
+        if (!shelterShareNetworkOk(shelter, cfg)) {
+            return { ...result, skipped: 'network-mismatch' };
+        }
         const held = new Set([...cfg.heldWallets, ...shelter.heldWallets].map(w => w.toLowerCase()));
         await this.unlockStale(now);
         await this.voidReversed();
-        await this.settle(now, shelter, hot, cfg.handedOver, held, result);
+        await this.settle(now, shelter, hot, held, result);
         await this.voidReversed();
         await this.send(now, shelter, hot, result);
         return result;
@@ -144,12 +177,11 @@ export class CryptoShelterShareService {
         now: Date,
         shelter: ShelterOnchainConfig,
         hot: string,
-        handedOver: boolean,
         held: ReadonlySet<string>,
         result: ShelterShareRun
     ) {
         const rows: any[] = await this.checkoutModel
-            .find({ 'shelterShare.state': 'sent' })
+            .find({ 'shelterShare.state': 'sent', ...networkFilter(shelter) })
             .limit(SHELTER_SHARE_BATCH)
             .lean();
         for (const row of rows) {
@@ -176,11 +208,7 @@ export class CryptoShelterShareService {
                     continue;
                 }
                 const decimals = Number(share.decimals ?? 6);
-                const tier = shareTier(
-                    handedOver,
-                    disbursedShelters(receipt.logs || [], shelter.splitAddress!, share.memo),
-                    held
-                );
+                const tier = shareTier(disbursedShelters(receipt.logs || [], shelter.splitAddress!, share.memo), held);
                 await this.checkoutModel.updateOne(
                     { _id: row._id, 'shelterShare.state': 'sent' },
                     {
@@ -258,7 +286,7 @@ export class CryptoShelterShareService {
         }
 
         const rows: any[] = await this.checkoutModel
-            .find({ 'shelterShare.state': 'due', ...NOT_REVERSED })
+            .find({ 'shelterShare.state': 'due', ...networkFilter(shelter), ...NOT_REVERSED })
             .sort({ updatedAt: 1 })
             .limit(SHELTER_SHARE_BATCH)
             .lean();
@@ -416,11 +444,10 @@ export function disbursedShelters(
 }
 
 /**
- * A settled share's evidence tier. `onchain-shelter-held` only when the shelter holds its key now AND
- * no wallet the split paid is one Token Tails holds; a share sent before the handover (paid to the
- * held wallet) stays `onchain-custodial` even when its receipt is read after it.
+ * A settled share's evidence tier, from the wallets the split paid in its receipt: `onchain-custodial`
+ * when any of them is one Token Tails holds (or none was read), else `onchain-shelter-held`.
  */
-export function shareTier(handedOver: boolean, paid: readonly string[], held: ReadonlySet<string>): ShelterShareTier {
-    if (!handedOver) return 'onchain-custodial';
+export function shareTier(paid: readonly string[], held: ReadonlySet<string>): ShelterShareTier {
+    if (!paid.length) return 'onchain-custodial';
     return paid.some(wallet => held.has(wallet.toLowerCase())) ? 'onchain-custodial' : 'onchain-shelter-held';
 }

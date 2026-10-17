@@ -1,5 +1,6 @@
 /**
- * Level select: 8 heist cards on a winding path, each with a still of the level (real gameplay) and
+ * Level select: the heist cards (16: Act 1 and Act 2, 8 each, under an act heading) on a winding
+ * path, each with a still of the level (real gameplay) and
  * a short muted loop on the card in focus, lock state, best score and stars; plus a brief panel
  * (hero image, intro, par, the real shelter cat to rescue, star rules) and a Start button. DOM only;
  * owns no game state.
@@ -55,6 +56,19 @@ export function pathSlot(i: number, cols: number): { col: number; row: number } 
   const row = Math.floor(i / cols);
   const k = i % cols;
   return { row: row + 1, col: (row % 2 === 0 ? k : cols - 1 - k) + 1 };
+}
+
+/** Levels per act: heist-01..08 are Act 1, heist-09..16 Act 2. */
+export const ACT_SIZE = 8;
+
+/**
+ * Grid slot of card `i` when the cards are split into acts: the serpentine slot, pushed down one row
+ * per act heading above it (each act starts on a new row, since ACT_SIZE is a multiple of `cols`).
+ * With one act there are no headings and this is `pathSlot`.
+ */
+export function actSlot(i: number, cols: number, count: number): { col: number; row: number } {
+  const s = pathSlot(i, cols);
+  return count > ACT_SIZE ? { col: s.col, row: s.row + Math.floor(i / ACT_SIZE) + 1 } : s;
 }
 
 function starsRow(mask: number, size?: number): HTMLElement {
@@ -138,9 +152,19 @@ export function createLevelSelect(parent: HTMLElement, opts: LevelSelectOptions)
   const rescue = (id: string): RescueCat => getRescueCatCached(id, { base });
 
   // ------------------------------------------------------------ cards (built once, painted often)
+  const acts = levels.length > ACT_SIZE;
   levels.forEach((lv, i) => {
-    const a = pathSlot(i, 4);
-    const b = pathSlot(i, 2);
+    if (acts && i % ACT_SIZE === 0) {
+      // A heading row before each act (decorative: every card's label already names its heist).
+      const act = i / ACT_SIZE;
+      const at4 = actSlot(i, 4, levels.length).row - 1;
+      const at2 = actSlot(i, 2, levels.length).row - 1;
+      map.appendChild(
+        h('div.ch-lv-act', { 'aria-hidden': 'true', 'data-act': String(act + 1), style: `--r4:${at4};--r2:${at2}` }, `Act ${act + 1}`),
+      );
+    }
+    const a = actSlot(i, 4, levels.length);
+    const b = actSlot(i, 2, levels.length);
     const card = h('button.ch-lv-card', { type: 'button', role: 'listitem', 'data-level': lv.id, style: `--c4:${a.col};--r4:${a.row};--c2:${b.col};--r2:${b.row}` });
     const p = getLevelPreview(lv.id);
     const media = h('span.ch-lv-media', { 'data-state': p ? 'loading' : 'none' });
@@ -440,14 +464,28 @@ export function createLevelSelect(parent: HTMLElement, opts: LevelSelectOptions)
     }
   }
 
-  /** In the strip layout, bring the selected card to the middle (only the strip scrolls). */
+  /**
+   * Bring the selected card into view: to the middle of the strip on phones, and in the grid (which
+   * scrolls vertically once there are more rows than fit, e.g. both acts) to the middle of the map.
+   */
   function revealSelected(smooth: boolean) {
-    if (!mq(STRIP_QUERY)) return;
     const c = cards.get(selected)?.card;
-    if (!c || mapWrap.scrollWidth <= mapWrap.clientWidth) return;
-    const left = Math.max(0, c.offsetLeft - (mapWrap.clientWidth - c.offsetWidth) / 2);
-    if (typeof mapWrap.scrollTo === 'function') mapWrap.scrollTo({ left, behavior: smooth && !reduced ? 'smooth' : 'auto' });
-    else mapWrap.scrollLeft = left;
+    if (!c) return;
+    const behavior = smooth && !reduced ? 'smooth' : 'auto';
+    if (mq(STRIP_QUERY)) {
+      if (mapWrap.scrollWidth <= mapWrap.clientWidth) return;
+      const left = Math.max(0, c.offsetLeft - (mapWrap.clientWidth - c.offsetWidth) / 2);
+      if (typeof mapWrap.scrollTo === 'function') mapWrap.scrollTo({ left, behavior });
+      else mapWrap.scrollLeft = left;
+      return;
+    }
+    if (mapWrap.scrollHeight <= mapWrap.clientHeight) return;
+    const wrap = mapWrap.getBoundingClientRect();
+    const r = c.getBoundingClientRect();
+    if (r.top >= wrap.top && r.bottom <= wrap.bottom) return;
+    const top = Math.max(0, mapWrap.scrollTop + r.top - wrap.top - (mapWrap.clientHeight - r.height) / 2);
+    if (typeof mapWrap.scrollTo === 'function') mapWrap.scrollTo({ top, behavior });
+    else mapWrap.scrollTop = top;
   }
 
   function paint() {

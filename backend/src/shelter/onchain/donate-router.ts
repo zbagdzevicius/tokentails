@@ -7,8 +7,8 @@ import { getAddress, getBigInt, Interface, keccak256, AbiCoder, Signature, toUtf
  * USDC straight from the donor and disburses it through ShelterSplit in the same transaction. The
  * router has no owner and keeps no balance. The donor also signs the payout list (recipientsHash: every
  * shelter wallet and its exact amount), so a gift reverts with RecipientsChanged if that list changes
- * between signing and submitting. Until the shelter holds its own key (handover), the registered shelter
- * wallet is held by Token Tails; the relay refuses mainnet gifts until then.
+ * between signing and submitting. The relay refuses mainnet gifts unless the split pays only the shelter's
+ * wallet (ShelterClaimService.publicGivingVerified), never a wallet Token Tails holds.
  *
  * This file is the backend's copy of the shared interface. It does not change the Solidity.
  */
@@ -250,7 +250,7 @@ export function decodeRouterDonation(log: {
  */
 export const RELAY_ERRORS = {
     RELAY_OFF: 'Wallet gifts through Token Tails are off right now.',
-    RELAY_AWAITING_HANDOVER: 'Wallet gifts open once the shelter holds its own wallet.',
+    RELAY_AWAITING_HANDOVER: "Wallet gifts open while the split pays the shelter's wallet.",
     RELAY_WRONG_CHAIN: 'This gift was signed for a different network.',
     RELAY_BAD_MEMO: 'The gift memo must look like tt:wallet:<8 hex>.',
     RELAY_AMOUNT: 'The gift amount is outside the allowed range.',

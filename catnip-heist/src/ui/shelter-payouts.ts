@@ -138,6 +138,8 @@ const SHELTER_NAME = 'Pink Paw (Rožinė pėdutė)';
 const SHELTER_SHORT = 'Pink Paw';
 const SHELTER_LOCAL = 'Rožinė pėdutė';
 const LATEST = 8;
+// claim: custody (since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
+const PAYOUTS_CUSTODY = "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.";
 
 // ---------- the Pink Paw goal meter (fact C-001) ----------
 
@@ -339,16 +341,16 @@ const SOURCE_WORDS: Record<GoalSource, string> = {
 const listWords = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 /**
- * The meter's sources line: only what can reach the open wallet today. While Token Tails holds the
- * wallet that is sponsored treats (custody rules), plus shop shares only while the backend reports
- * them settled through the split.
+ * The meter's sources line: only what can reach the open wallet today. Until gifts open (claim rows
+ * and env) that is sponsored treats, plus shop shares only while the backend reports them settled
+ * through the split.
  */
 export function goalSourcesLine(sources: GoalSource[], chainCount = 1): string {
   const where = chainCount > 1 ? ` on ${chainCount} chains` : '';
   // claim: C-001 (the goal counts the USD stablecoins that come in to the campaign wallets), C-004 (treats)
   if (!sources.includes('gifts')) {
     const today = listWords(sources.map((x) => (x === 'treats' ? 'sponsored treats' : SOURCE_WORDS[x])));
-    return `Counts what comes in to the wallet Token Tails holds for Pink Paw${where}: today, ${today || 'nothing yet'}. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.`;
+    return `Counts what comes in to Pink Paw's wallet${where}: today, ${today || 'nothing yet'}.`;
   }
   return `Counts the ${listWords(sources.map((x) => SOURCE_WORDS[x]))} that come in to Pink Paw's wallets${where}, indexed from public on-chain events.`;
 }
@@ -497,6 +499,11 @@ function css(base: string): string {
   font-family: ${HEIST_BODY_FONT}; font-weight: 800; font-size: 16px; letter-spacing: 0; text-decoration: none; text-align: center; text-wrap: balance; box-shadow: 0 4px 0 var(--ch-ol), inset 0 2px 0 rgba(255,255,255,.45); pointer-events: auto; }
 .ch-pay .ch-give:hover, .ch-pay .ch-give:focus-visible { background: #ffb3cf; color: var(--ch-ol); transform: translateY(-1px); }
 .ch-pay .ch-give:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ch-ol); }
+.ch-pay .ch-treat { align-items: stretch; margin-top: 0; min-height: 50px; }
+.ch-pay .ch-treat .ch-give { width: 100%; }
+.ch-pay .ch-treat-line { font-size: 14px; text-align: center; }
+.ch-pay .ch-treat-extra { justify-content: center; }
+.ch-pay .ch-treat-receipt { font-size: 14px; }
 .ch-pay .ch-rail-chip { align-self: flex-start; display: inline-block; padding: 4px 10px; border: 1px dashed var(--tt-lilac); border-radius: 6px; color: var(--tt-lilac);
   font-family: ${HEIST_BODY_FONT}; font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .ch-pay-foot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 2px; }
@@ -557,6 +564,9 @@ function css(base: string): string {
   .ch-pay-title { font-size: 30px; margin-top: 6px; }
   .ch-pay-total { min-height: 0; }
   .ch-pay-amount { font-size: 54px; }
+  /* Landscape phones: the shelter card is taller than the view, so a sticky card would keep its
+     treat button under the footer. It scrolls with the page instead. */
+  .ch-pay-side { position: static; }
 }
 @media (prefers-reduced-motion: reduce) { .ch-pay-skel { animation: none; } }
 ${PINK_PAW_CSS}`;
@@ -608,8 +618,8 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
     null,
     h('p.ch-pay-pill', { style: 'margin:0' }, h('i', { 'aria-hidden': 'true' }), 'Public, on-chain'),
     title,
-    // claim: custody (the shelter wallet is held by Token Tails until handover; same words as /shelter-payouts)
-    h('p.ch-pay-note.ch-pay-custody', { 'data-testid': 'payouts-custody' }, 'Shelter wallet held by Token Tails on behalf of the shelter until handover.'),
+    // claim: custody (since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
+    h('p.ch-pay-note.ch-pay-custody', { 'data-testid': 'payouts-custody' }, PAYOUTS_CUSTODY),
     total,
   );
   const lists = h('div.ch-pay-col');
@@ -706,7 +716,7 @@ export function createPayoutsModal(root: HTMLElement, opts: PayoutsModalOptions)
       goalMeter(),
       // claim: C-004, L-rail (the rail line from railCopy)
       line ? h('p.ch-pay-small', { 'data-claim': 'L-rail' }, line) : null,
-      h('p.ch-pay-small', null, "Token Tails holds this shelter's wallet on its behalf until handover. Every payout is listed here."),
+      h('p.ch-pay-small', null, `${PAYOUTS_CUSTODY} Every payout is listed here.`),
       cta ? h('div.ch-pay-cta', null, cta) : null,
     );
   }

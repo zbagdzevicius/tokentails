@@ -172,7 +172,8 @@ export class CryptoCheckout {
     reserved?: boolean;
 
     /**
-     * Set by the first confirm call. An order nobody tried to confirm frees its unique amounts
+     * Set by the first confirm whose receipt shows a transfer to us (paid or short) mined after the
+     * order; a made-up or unrelated hash never sets it. An order without it frees its unique amounts
      * PAYMENT_GRACE_MS after expiry; one with a confirm attempt keeps them RESERVATION_GRACE_MS.
      */
     @Prop({ required: false, type: Date })

@@ -25,7 +25,7 @@ describe('level previews', () => {
     expect(getLevelPreview('custom-map')).toBeNull();
   });
 
-  it('stay inside the size budget (stills <= 60 KB, all files <= 1.5 MB)', () => {
+  it('stay inside the size budget (stills <= 60 KB, all files <= 3 MB)', () => {
     let total = 0;
     for (const id of LEVEL_IDS) {
       const p = getLevelPreview(id)!;
@@ -34,6 +34,6 @@ describe('level previews', () => {
       expect(size(p.loop!), p.loop).toBeLessThanOrEqual(150 * 1024);
       total += size(p.thumb) + size(p.thumb2x!) + size(p.loop!);
     }
-    expect(total).toBeLessThanOrEqual(1.5 * 1024 * 1024);
+    expect(total).toBeLessThanOrEqual(3 * 1024 * 1024);
   });
 });

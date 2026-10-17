@@ -21,9 +21,9 @@ const solution = (id: string): InputLog => JSON.parse(JSON.stringify(getSolution
 const withRuns = (log: InputLog, runs: InputRun[]): InputLog => ({ ...log, runs, ticks: runs.reduce((n, r) => n + r[3], 0) });
 
 describe('sim server entry', () => {
-  it('exports the 8 campaign levels in order with caps derived from the level files', () => {
+  it('exports the 16 campaign levels in order with caps derived from the level files', () => {
     expect(LEVELS.map((l) => l.id)).toEqual(LEVEL_IDS);
-    expect(LEVELS.map((l) => l.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(LEVELS.map((l) => l.index)).toEqual(Array.from({ length: 16 }, (_, i) => i));
     for (const info of LEVELS) {
       const level = getLevel(info.id);
       expect(info.coins).toBe(level.coins.length);
@@ -33,9 +33,9 @@ describe('sim server entry', () => {
     }
   });
 
-  it('pins HEIST_LEVEL_CAPS in shared/caps.ts to the sim (plan G2: 250, 240, 220, 270, 240, 240, 240, 310)', () => {
+  it('pins HEIST_LEVEL_CAPS in shared/caps.ts to the sim (plan G2 Act 1 + Act 2)', () => {
     expect(LEVELS.map((l) => l.maxScore)).toEqual(HEIST_LEVEL_CAPS);
-    expect(HEIST_LEVEL_CAPS).toEqual([250, 240, 220, 270, 240, 240, 240, 310]);
+    expect(HEIST_LEVEL_CAPS).toEqual([250, 240, 220, 270, 240, 240, 240, 310, 270, 270, 270, 260, 270, 290, 270, 330]);
     expect(MAX_REPLAY_TICKS).toBe(HEIST_MAX_TICKS);
   });
 

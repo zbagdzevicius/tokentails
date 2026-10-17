@@ -33,8 +33,8 @@ What is in the box:
 
 ## Custody statement
 
-Every path moves money donor → ShelterSplit → shelter wallet, or donor → shelter wallet. None of
-them passes through a wallet the integrator or Token Tails controls.
+Every path moves money donor → ShelterSplit → shelter wallet, or donor → shelter wallet. No path
+holds funds in a contract or relay in between. Who holds the shelter wallet is in the disclosure below.
 
 - **ShelterSplit** splits each gift across the registered shelter wallets in the same transaction and
   keeps no balance.
@@ -46,17 +46,17 @@ them passes through a wallet the integrator or Token Tails controls.
   where `recipients` is `router.recipientsHash(amount)`: if the shelter list changes after signing, the
   gift reverts). USDC sent to the router by plain transfer waits there until anyone calls `flush`,
   which can only pay it on to the shelters.
-- **x402 `exact`** pays the **shelter's own wallet** (`payTo`) directly with a USDC
+- **x402 `exact`** pays the **shelter's wallet** (`payTo`) directly with a USDC
   `transferWithAuthorization`; the facilitator settles it and pays the gas.
 
 ## Showcase shelter and custody disclosure
 
 The first shelter on the rail is **Pink Paw (Rožinė pėdutė)**.
 
-**Disclosure:** the Pink Paw wallet was created by Token Tails and is **held by Token Tails on behalf
-of the shelter until handover**. Until the shelter holds its own key, Token Tails controls the funds
-that reach that wallet. The contract itself is non-custodial; the shelter wallet is not yet. Any page
-that shows this shelter must show this disclosure, and it will be updated when the handover happens.
+**Disclosure:** payouts go to Pink Paw's wallet, which Token Tails created. Since 2026-10-16 every
+mainnet split pays it. Before then they went to a wallet Token Tails held for the shelter, and the
+testnet splits still pay that wallet. The contract itself is non-custodial. Any page that shows this
+shelter must show this disclosure.
 
 ## Chains and addresses
 
@@ -113,7 +113,7 @@ Memos are public and permanent. Keep them short and never put personal data in t
   data-deployments="https://tokentails.com/shelter-payouts/deployments.json"
   data-amount="1000000000000000000"
   data-memo="mygame"
-  data-disclosure="Pink Paw (Rožinė pėdutė): wallet held by Token Tails on behalf of the shelter until handover."></script>
+  data-disclosure="Pink Paw (Rožinė pėdutė): payouts go to Pink Paw's wallet."></script>
 ```
 
 | Attribute | Default | Meaning |
@@ -244,7 +244,8 @@ const { response, paid } = await payAndFetch(url, {
 ```
 
 `paid` is `null` (and `error` holds the server's reason) when the server refuses the authorization.
-On mainnet the server offers `exact` only once the shelter holds its own wallet key.
+On mainnet the server offers `exact` only with `SHELTER_X402_EXACT_ENABLED=true`, and only while
+`payTo` is the one wallet the chain's split pays on chain (Pink Paw's wallet since 2026-10-16).
 
 ### 4. AI agents: x402-compatible "onchain-receipt" flow, on several chains
 
@@ -270,9 +271,9 @@ transaction receipt on the chain itself.
    summing to the price, tx hash used once, nonce issued by the server, not expired and used once) and
    answers `200` with the card and an `X-PAYMENT-RESPONSE` header.
 
-Testnets are always offered. A mainnet chain is offered only once the split there pays nothing but
-shelter wallets that signed their claim and were rotated in on-chain (until the Pink Paw handover, no
-mainnet offer appears).
+Testnets are always offered. A mainnet chain is offered only while the split there, read on chain,
+pays nothing but shelter wallets: Pink Paw's wallet, or wallets that signed their claim and were
+rotated in. A split that pays a wallet Token Tails holds gets no mainnet offer.
 
 ```js
 import { payAndFetch } from "./src/sdk.mjs";

@@ -29,7 +29,7 @@ afterAll(() => {
 });
 
 const HASH = 'cd'.repeat(32);
-// Created before the $6 to $16 digital portrait change (PORTRAIT_USD_PRICE_CHANGED_AT) and well after it.
+// Before and well after the $6 to $16 digital portrait price. The audit no longer reads the date.
 const LEGACY_CREATED_AT = new Date('2026-10-01T00:00:00Z');
 const CURRENT_CREATED_AT = new Date('2026-11-01T00:00:00Z');
 const options = { treasury: DEFAULT_STELLAR_TREASURY, maxXlmUsd: 1 };
@@ -124,7 +124,7 @@ describe('order audit', () => {
             ).toBeNull();
         });
 
-        it('accepts a legacy $6 digital portrait created before the price change, and $16 after it', () => {
+        it('accepts the retired $6 and the current $16 for a digital portrait at any date, and nothing lower', () => {
             const usd = (price: number, createdAt: Date) =>
                 stripe({
                     entityType: EntityType.IMAGE,
@@ -135,8 +135,20 @@ describe('order audit', () => {
                     createdAt,
                 });
             expect(auditStripeOrder(usd(6, LEGACY_CREATED_AT))).toBeNull();
+            expect(auditStripeOrder(usd(6, CURRENT_CREATED_AT))).toBeNull();
             expect(auditStripeOrder(usd(16, CURRENT_CREATED_AT))).toBeNull();
-            expect(auditStripeOrder(usd(6, CURRENT_CREATED_AT))?.issue).toBe('BELOW_CATALOGUE');
+            expect(auditStripeOrder(usd(5, CURRENT_CREATED_AT))?.issue).toBe('BELOW_CATALOGUE');
+            // The historical $6 is for digital portraits only.
+            expect(
+                auditStripeOrder(
+                    stripe({
+                        entityType: EntityType.IMAGE,
+                        id: ProductType.PRINT,
+                        currencyType: CurrencyType.USD,
+                        price: 6,
+                    })
+                )?.issue
+            ).toBe('BELOW_CATALOGUE');
         });
 
         it('ignores Stellar orders', () => {
@@ -183,7 +195,7 @@ describe('order audit', () => {
             expect(findings.map(f => f.issue)).toEqual(['UNDERPAID', 'BELOW_CLAIMED_PRICE']);
         });
 
-        it('checks USDC 1:1 against the catalogue at the order creation time', () => {
+        it('checks USDC 1:1 against the catalogue, accepting the retired $6 digital price', () => {
             const order = stellar({
                 currencyType: CurrencyType.USDC,
                 entityType: EntityType.IMAGE,
@@ -192,9 +204,9 @@ describe('order audit', () => {
                 createdAt: CURRENT_CREATED_AT,
             });
             expect(auditStellarOrder(order, tx([usdcOp('16')]), options)).toEqual([]);
-            expect(auditStellarOrder({ ...order, price: 6 }, tx([usdcOp('6')]), options)[0].issue).toBe('UNDERPAID');
+            expect(auditStellarOrder({ ...order, price: 6 }, tx([usdcOp('6')]), options)).toEqual([]);
 
-            // A legacy $6 order bought before the change has no finding.
+            // A legacy $6 order has no finding, whatever its date; less than $6 is underpaid.
             const legacy = { ...order, price: 6, createdAt: LEGACY_CREATED_AT };
             expect(auditStellarOrder(legacy, tx([usdcOp('6')]), options)).toEqual([]);
             expect(auditStellarOrder({ ...legacy, price: 5 }, tx([usdcOp('5')]), options)[0].issue).toBe('UNDERPAID');

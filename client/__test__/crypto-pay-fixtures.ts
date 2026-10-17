@@ -99,7 +99,7 @@ export const config = (over: Partial<CryptoPayConfig> = {}): CryptoPayConfig => 
   enabled: true,
   network: "testnet",
   orderTtlSeconds: 1800,
-  shelterHandedOver: false,
+  shelterHandedOver: true,
   prices: { packs: { STARTER: 5, INFLUENCER: 25, LEGENDARY: 350 }, shelterCat: 5, lootBox: 1 },
   fx: { EURC: { perUsd: "0.9", asOf: "2026-10-04", source: "dated" } },
   chains: [

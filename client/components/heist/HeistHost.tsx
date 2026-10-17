@@ -13,6 +13,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HeistSaveChip, type SaveChipState } from "./HeistSaveChip";
 import { analyticsStatus, HeistSaver } from "./heistSaves";
 import { createHostBridge, type HostBridge } from "./hostBridge";
+import { createTreatHost } from "./treatBridge";
+import { fetchDonateMe, sendTreat, treatSentStatus } from "@/components/codex/impact/treat";
 import {
   HEIST_EXIT_PATH,
   HEIST_FRAME_ENTRY_SCRIPT,
@@ -186,6 +188,21 @@ export const HeistHost = () => {
       bridge.dispose();
       bridgeRef.current = null;
     };
+  }, []);
+
+  // The rescue treat, sent in place from the Heist's own screens (its `tt-heist-treat` channel):
+  // the signed-in account first, else the guest route. Never navigates, never opens sign-in.
+  useEffect(() => {
+    const origin = window.location.origin;
+    const host = createTreatHost({
+      win: window,
+      origin: origin && origin !== "null" ? origin : "",
+      target: () => frameRef.current?.contentWindow ?? null,
+      send: ({ chainId }) => sendTreat({ chainId, source: "heist" }),
+      me: () => fetchDonateMe(),
+      onSent: (result) => track(buildEvent("treat_sent", { status: treatSentStatus(result) })),
+    });
+    return () => host.dispose();
   }, []);
 
   // Session: sign-in state, server progress and insets, re-sent whenever one changes.

@@ -31,9 +31,8 @@ import { copyFindings } from "./fixtures/copy-scan";
  * - the runtime copy scan, and (fixture) every backend call carries a lowercase `fb` accesstoken.
  *
  * Firebase is faked in the page (`window.__TT_E2E_AUTH__`, development and E2E builds only); every
- * backend call is a real request answered by the `backend` mock. Analytics consent is set before the
- * page loads, so the consent banner (a shared component, see docs/YOURCAT.md "Known issues") does not
- * cover the stage.
+ * backend call is a real request answered by the `backend` mock. There is no analytics consent
+ * banner or chip anywhere (removed 2026-10-16).
  */
 
 const RECORD_ID = "64e2e0000000000000000c01";
@@ -96,12 +95,6 @@ async function useFakeFirebase(page: Page) {
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__TT_E2E_AUTH__ = {};
     (window as unknown as Record<string, unknown>).__TT_E2E__ = true;
-    // Consent answered: the shared banner stays closed (docs/YOURCAT.md "Known issues").
-    try {
-      window.localStorage.setItem("tt-analytics-consent", "denied");
-    } catch {
-      // Storage blocked: the banner may show; the layout checks then fail loudly.
-    }
   });
 }
 
@@ -749,74 +742,12 @@ test.describe("/yourcat", () => {
     });
   });
 
-  test.describe("the consent chip", () => {
-    /** A first visit: no stored consent, so the compact chip asks (builds with analytics only). */
-    async function firstVisit(page: Page) {
-      await page.addInitScript(() => {
-        try {
-          window.localStorage.removeItem("tt-analytics-consent");
-        } catch {
-          // Storage blocked: the test skips below when no chip shows.
-        }
-      });
-    }
-    /** Buttons, links and fields on screen that the chip's box touches. */
-    const coveredByChip = (page: Page) =>
-      page.evaluate(() => {
-        const chip = document.querySelector('[data-testid="analytics-consent-compact-chip"]')?.getBoundingClientRect();
-        if (!chip) return ["no chip"];
-        return [...document.querySelectorAll<HTMLElement>("button, a[href], input, [role=switch]")]
-          .filter((node) => !node.closest('[data-testid="analytics-consent-compact"]'))
-          .filter((node) => {
-            const r = node.getBoundingClientRect();
-            if (!(r.width > 0 && r.height > 0) || r.bottom <= 0 || r.top >= innerHeight) return false;
-            if (getComputedStyle(node).visibility === "hidden") return false;
-            return r.left < chip.right && r.right > chip.left && r.top < chip.bottom && r.bottom > chip.top;
-          })
-          .map((node) => (node.innerText || node.getAttribute("aria-label") || node.tagName).slice(0, 40));
-      });
-
-    test("sits in the header and covers no control on S1, the cap screen, the manual pick and S3", async ({ page, backend }) => {
-      mockYourcat(backend, { upload: { status: 429, body: { statusCode: 429, code: "YOURCAT_IP_DAILY_CAP", message: "cap" } } });
-      await useFakeFirebase(page);
-      await firstVisit(page);
-      await gotoAndSettle(page, "/yourcat");
-      const chip = page.getByTestId("analytics-consent-compact");
-      test.skip(!(await chip.isVisible()), "this build asks for no analytics consent");
-      await expect(page.getByTestId("yourcat-header").getByTestId("analytics-consent-compact")).toBeVisible();
-      expect(await coveredByChip(page), "S1").toEqual([]);
-      await choosePhoto(page);
-      const own = page.getByRole("button", { name: "Pick your cat's look yourself" });
-      await expect(own).toBeVisible();
-      expect(await coveredByChip(page), "own cap").toEqual([]);
-      await own.click();
-      await expect(page.getByRole("heading", { level: 1, name: "Pick your cat's look" })).toBeVisible();
-      expect(await coveredByChip(page), "manual pick").toEqual([]);
-    });
-
-    test("covers no S3 action at any width, and Accept closes it", async ({ page, backend }) => {
-      mockYourcat(backend, { me: view({ name: "Mochi", named: true, ...READY }) });
-      await useFakeFirebase(page);
-      await withoutWebShare(page);
-      await firstVisit(page);
-      for (const size of [
-        { width: 360, height: 780 },
-        { width: 390, height: 844 },
-        { width: 768, height: 1024 },
-        { width: 1280, height: 800 },
-        { width: 1440, height: 900 },
-      ]) {
-        await page.setViewportSize(size);
-        await gotoAndSettle(page, "/yourcat");
-        await expect(page.getByRole("heading", { name: "Meet Mochi." })).toBeVisible();
-        const chip = page.getByTestId("analytics-consent-compact");
-        test.skip(!(await chip.isVisible()), "this build asks for no analytics consent");
-        await expect(primaryShare(page)).toBeVisible();
-        expect(await coveredByChip(page), `S3 at ${size.width}`).toEqual([]);
-      }
-      await page.getByTestId("analytics-consent-compact").getByRole("button", { name: "Accept" }).click();
-      await expect(page.getByTestId("analytics-consent-compact")).toHaveCount(0);
-    });
+  test("shows no analytics consent card or chip", async ({ page, backend }) => {
+    mockYourcat(backend, {});
+    await useFakeFirebase(page);
+    await gotoAndSettle(page, "/yourcat");
+    await expect(page.locator('[data-testid^="analytics-consent"]')).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: /analytics|cookie/i })).toHaveCount(0);
   });
 
   test("S6, the paid return: the visitor's cat is on the stage", async ({ page, backend }) => {

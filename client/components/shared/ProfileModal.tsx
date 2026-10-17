@@ -1,6 +1,5 @@
 import { ApiError } from "@/api/api";
 import { USER_API } from "@/api/user-api";
-import { analytics, openConsentSettings } from "@/analytics";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { GameModal as GameDialog } from "@/components/ui/GameModal";
 import {
@@ -319,7 +318,7 @@ const ProfileUpdate = ({ isGuest }: { isGuest: boolean }) => {
 
 // ---- help and settings -----------------------------------------------------------------------
 
-/** Sound (a summary and a way into Settings), help and, when analytics run, consent. */
+/** Sound (a summary and a way into Settings) and help. */
 const HelpSection = ({ onSupport }: { onSupport: () => void }) => (
   <ModalSection title="Help and settings" icon="sliders" helper="Sound, graphics and support.">
     <KeyValueList>
@@ -336,19 +335,6 @@ const HelpSection = ({ onSupport }: { onSupport: () => void }) => (
           </ModalButton>
         }
       />
-      {analytics.enabled && (
-        <KeyValueRow
-          label="Analytics"
-          icon="chart"
-          value="Choose what we measure."
-          wrapValue
-          action={
-            <ModalButton variant="secondary" size="sm" aria-label="Change analytics choice" onClick={openConsentSettings}>
-              Change
-            </ModalButton>
-          }
-        />
-      )}
     </KeyValueList>
   </ModalSection>
 );

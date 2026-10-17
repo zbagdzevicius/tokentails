@@ -187,7 +187,7 @@ Indexes: `shelter`, `{ kind, status }`, `nftId` (stale).
 | `countryCode` | string | ISO 3166 alpha-2 (validated in the schema and the DTO) |
 | `partnerStatus` | `active` \| `past` \| `prospect` | Only `active` counts as a partner and a partner country |
 | `role` | `partner` \| `house` | House zones (Token Tails' own) never count as partners or rescues |
-| `handoverStatus`, `handoverAt`, `handoverTx`, `publicWallet` | string, Date, string, string | Custody (ADMIN-only writes); money is `held-by-token-tails` until handover |
+| `handoverStatus`, `handoverAt`, `handoverTx`, `publicWallet` | string, Date, string, string | Custody (ADMIN-only writes); `held-by-token-tails` until handover, then `handed-over` (Pink Paw: payouts go to its wallet since 2026-10-16; the founder sets these fields with `PUT /shelter/:id`) |
 | `members` | ref User[] | Shelter members who confirm payouts (ADMIN-granted); never in a public projection |
 
 Indexes: `name`, `{ partnerStatus, countryCode }`, `members` (sparse).
@@ -210,7 +210,7 @@ Index: `createdAt`.
 |---|---|---|
 | `status` | enum, required | `COMPLETE`, `PENDING`, `LOCKED`, `FAILED`, `FAILED_GRANT` (paid, but the cat could not be granted) |
 | `hash` | string, required | Stellar transaction hash, Stripe session id, PaymentIntent id, or `evm:<chainId>:<txHash>` (crypto checkout) |
-| `failedHash`, `failureReason` | string | A released hash after a failed verification; the grant failure reason (`EMPTY_POOL`, `ADOPT_FAILED: …`, `NO_CAT`, `PAID_AFTER_EXPIRY`, `DUPLICATE_PAYMENT`, `NOT_FOR_SALE`, `STELLAR_DEPRECATED`) |
+| `failedHash`, `failureReason` | string | A released hash after a failed verification; the grant failure reason (`EMPTY_POOL`, `ADOPT_FAILED: …`, `NO_CAT`, `PAID_AFTER_EXPIRY`, `DUPLICATE_PAYMENT`, `NOT_FOR_SALE`, `STELLAR_DEPRECATED`, `PRICE_CHANGED`) |
 | `refund` | `{ state: 'due' \| 'refunded' \| …, reason, amountUsd?, requestedAt, refundedAt?, refundId?, error? }` | Set when a failed grant is refunded (Stripe automatically, Stellar and crypto checkout by hand) |
 | `chainType` | enum | `STELLAR`, `FIAT`, `EVM` (crypto checkout) |
 | `chainId`, `checkoutId` | number, string | Crypto checkout only: the EVM chain and the `cryptocheckouts.orderId` |

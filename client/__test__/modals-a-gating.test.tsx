@@ -90,7 +90,6 @@ jest.mock("@/components/shared/Wheel", () => {
   return { __esModule: true, default: Wheel };
 });
 jest.mock("@/components/shared/GameMusicToggler", () => ({ GameMusicToggle: () => null }));
-jest.mock("@/components/shared/AnalyticsConsentBanner", () => ({ AnalyticsSettingsButton: () => null }));
 jest.mock("@/components/tailsCard/TailsCardPack", () => ({ TailsCardPack: () => null }));
 jest.mock("@/components/web3/Payment", () => ({ Payment: () => <p>checkout</p> }));
 jest.mock("next/dynamic", () => () => (props: Record<string, unknown>) => <p>checkout {String(props.price ?? "")}</p>);

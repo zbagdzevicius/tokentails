@@ -23,7 +23,6 @@ import { utcDay } from './shelter-donate.service';
 import { ShelterClaimService } from './shelter-claim.service';
 import {
     isTestnetChain,
-    publicGivingAllowed,
     readShelterConfig,
     relayReady,
     shelterConfigFor,
@@ -206,9 +205,6 @@ export class ShelterRelayService {
 
     /** The full giving gate. Without the claim service a mainnet is refused (fail closed). */
     private async givingVerified(config: ShelterOnchainConfig): Promise<boolean> {
-        if (!publicGivingAllowed(config)) {
-            return false;
-        }
         return this.claims ? this.claims.publicGivingVerified(config) : isTestnet(config);
     }
 
@@ -226,9 +222,6 @@ export class ShelterRelayService {
         }
         if (Number(body.chainId) !== config.chainId) {
             throw relayError('RELAY_WRONG_CHAIN', HttpStatus.BAD_REQUEST, { chainId: config.chainId });
-        }
-        if (!publicGivingAllowed(config)) {
-            throw relayError('RELAY_AWAITING_HANDOVER', HttpStatus.CONFLICT);
         }
         if (!RELAY_MEMO_RE.test(String(body.memo))) {
             throw relayError('RELAY_BAD_MEMO', HttpStatus.BAD_REQUEST);

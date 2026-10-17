@@ -14,11 +14,11 @@ import {
     getPortraitCheckoutPrice,
     getPortraitPriceCents,
     getShelterCatPriceCents,
-    portraitUsdFloorCents,
     SHELTER_CAT_MIN_PRICE_CENTS,
     isPackType,
     isProductType,
     MAX_DISCOUNT_PERCENTAGE,
+    PORTRAIT_LEGACY_DIGITAL_USD_CENTS,
 } from './price-table';
 
 export const STRIPE_API_VERSION = '2025-12-15.clover';
@@ -92,8 +92,11 @@ export class StripePaymentService {
         return getPortraitCheckoutPrice(productType).cents;
     }
 
-    /** Returns the discount percentage for a code that belongs to a user, else 0. */
-    async resolveDiscount(code?: string): Promise<{ code?: string; percentage: number }> {
+    /**
+     * Returns the discount percentage for a code that belongs to a user, else 0. A buyer's own code
+     * gives nothing: no discount, and so no affiliate share to themselves.
+     */
+    async resolveDiscount(code?: string, buyerId?: unknown): Promise<{ code?: string; percentage: number }> {
         const normalized = code?.trim().toLowerCase();
         if (!normalized) {
             return { percentage: 0 };
@@ -102,7 +105,7 @@ export class StripePaymentService {
             searchObject: { discount: normalized },
             projection: '_id',
         });
-        if (!owner) {
+        if (!owner || (buyerId != null && String(owner._id) === String(buyerId))) {
             return { percentage: 0 };
         }
         return { code: normalized, percentage: discountPercentageForCode(normalized) };
@@ -151,7 +154,7 @@ export class StripePaymentService {
             baseCents = getPackPriceCents(input.packType, now);
         }
 
-        const { code, percentage } = await this.resolveDiscount(input.discount);
+        const { code, percentage } = await this.resolveDiscount(input.discount, input.userId);
         const amountCents = applyDiscountCents(baseCents, percentage);
 
         return {
@@ -243,9 +246,8 @@ export class StripePaymentService {
             if (!imageId || !Types.ObjectId.isValid(imageId)) {
                 throw new BadRequestException('Generated image id is missing for portrait checkout');
             }
-            // Price at the intent's creation: a $6 intent created before the $16 change (plus the grace)
-            // still verifies; intents created after it carry expectedAmount 1600, which holds them at $16.
-            baseCents = portraitUsdFloorCents(productType, createdAt);
+            // Only used when the intent has no expectedAmount: today's table price.
+            baseCents = getPortraitPriceCents(productType);
         } else {
             const rawPack = metadata.packType || metadata.id;
             if (!isPackType(rawPack)) {
@@ -256,13 +258,25 @@ export class StripePaymentService {
             baseCents = getPackPriceCents(packType, createdAt);
         }
 
-        // Intents created by this service carry the server-computed amount. Older intents do not,
-        // so they must at least cover the table price minus the largest possible discount.
+        // Intents created by this service carry the server-computed amount (`expectedAmount`). Older intents
+        // do not, so they must at least cover the table price minus the largest possible discount.
+        // A portrait intent is confirmed at the price stored on it, even if the table changed since (a $16
+        // one must pay $16). Only the server writes intent metadata. Packs also keep the table floor at the
+        // intent's creation (sale rules).
+        // Only the old backend made digital portrait intents without `expectedAmount`, at the retired $6
+        // price. One started before the deploy and confirmed after it has already been charged, so it is held
+        // to $6, not to the $16 table. The old backend let the client pick the amount, so $6 stays the floor.
         const expectedAmount = Number(metadata.expectedAmount);
-        const minimumCents =
-            Number.isFinite(expectedAmount) && expectedAmount > 0
-                ? Math.max(expectedAmount, applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE))
-                : applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE);
+        const hasExpected = Number.isFinite(expectedAmount) && expectedAmount > 0;
+        const tableFloor = applyDiscountCents(baseCents, MAX_DISCOUNT_PERCENTAGE);
+        let minimumCents: number;
+        if (hasExpected) {
+            minimumCents = entityType === EntityType.IMAGE ? expectedAmount : Math.max(expectedAmount, tableFloor);
+        } else if (entityType === EntityType.IMAGE && productType === ProductType.DIGITAL) {
+            minimumCents = PORTRAIT_LEGACY_DIGITAL_USD_CENTS;
+        } else {
+            minimumCents = tableFloor;
+        }
 
         const received = intent.amount_received ?? 0;
         if (received < minimumCents || intent.amount < minimumCents) {
@@ -317,11 +331,10 @@ export class StripePaymentService {
             return `session ${session.id} has currency ${paidCurrency || 'none'}, order expects ${expectedCurrency}`;
         }
         const storedCents = typeof order.price === 'number' && order.price > 0 ? Math.round(order.price * 100) : 0;
-        const createdAt = (order as IOrder & { createdAt?: Date }).createdAt;
         const tableCents =
             expectedCurrency === 'eur'
                 ? getPortraitCheckoutPrice(productType).cents
-                : portraitUsdFloorCents(productType, createdAt ? new Date(createdAt) : new Date());
+                : getPortraitPriceCents(productType);
         const expected = storedCents || tableCents;
         if (paidCents < expected) {
             return `session ${session.id} paid ${paidCents} ${paidCurrency} cents, price is ${expected}`;

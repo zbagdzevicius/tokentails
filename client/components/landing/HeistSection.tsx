@@ -1,9 +1,8 @@
 import { railCopyState, railIsDeployed, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
-import { useReducedMotion } from "@/components/globe/useReducedMotion";
 import { PixelButton } from "@/components/shared/PixelButton";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useReelPlayback } from "@/components/landing/useReelPlayback";
 
 /**
  * The Catnip Heist section (founder request, Oct 2026): the 30 s showreel, three beats and the
@@ -65,10 +64,10 @@ export function heistReelAllowed(
 export const HEIST_SECTION_HREF = "/heist?from=landing_heist";
 
 /**
- * The levels in catnip-heist/src/levels (heist-01 to heist-08). A test counts the level files, so
- * this copy cannot drift from the game.
+ * The levels in catnip-heist/src/levels (heist-01 to heist-16: Act 1 and Act 2). A test counts the
+ * level files, so this copy cannot drift from the game.
  */
-export const HEIST_LEVEL_COUNT = 8;
+export const HEIST_LEVEL_COUNT = 16;
 
 /**
  * The note under the CTA: /heist plays straight away, sign-in is only offered after a run. It is
@@ -94,10 +93,10 @@ export function heistSectionEnabled(
 export function heistTreatBeat(state: RailState | null | undefined, isApp: boolean): string {
   const copy: Record<RailCopyState, string> = {
     // claim: L-rail (only while the rail is live). Anyone can send one, no sign-in (POST
-    // /shelter/donate/guest, Oct 8, 2026); the wallet is held by Token Tails until handover (donations-STATUS).
+    // /shelter/donate/guest, Oct 8, 2026); since 16 Oct 2026 the splits pay Pink Paw's wallet (donations-STATUS).
     open: isApp
-      ? "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, held by Token Tails until handover."
-      : "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain (wallet held by Token Tails until handover).",
+      ? "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat."
+      : "Free the shelter cat. Tap, no sign-in needed, and Token Tails sends Pink Paw a small treat, on-chain to Pink Paw's wallet.",
     // claim: L-rail
     exhausted: "Free the shelter cat. Today's treats for Pink Paw are used up; back at 00:00 UTC.",
     // claim: L-rail
@@ -113,77 +112,6 @@ const BEAT_CLASS =
 
 const BEAT_NUMBER_CLASS =
   "flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl border-2 font-primary text-p4 md:text-p3 leading-none";
-
-/**
- * Plays the reel only while the section is in view and motion is allowed; the sources are attached
- * the first time it comes near the viewport, so nothing downloads before.
- */
-function useReelPlayback(enabled: boolean) {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const reducedMotion = useReducedMotion();
-  const [inView, setInView] = useState(false);
-  const [armed, setArmed] = useState(false);
-  const [userPaused, setUserPaused] = useState(false);
-  // Reduced motion never starts the reel by itself; the play button opts in.
-  const [optedIn, setOptedIn] = useState(false);
-  const motionOk = !reducedMotion || optedIn;
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section || !enabled) return;
-    if (typeof IntersectionObserver === "undefined") {
-      // No observer: behave as if in view (the old browsers that lack it also lack lazy loading).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInView(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const latest = entries[entries.length - 1];
-        if (latest) setInView(latest.isIntersecting);
-      },
-      { rootMargin: "200px 0px" }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, [enabled]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (enabled && inView && motionOk) setArmed(true);
-  }, [enabled, inView, motionOk]);
-
-  // Sources were just added: make the element pick them up.
-  useEffect(() => {
-    if (armed) videoRef.current?.load?.();
-  }, [armed]);
-
-  const playing = enabled && armed && inView && motionOk && !userPaused;
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !armed) return;
-    if (playing) {
-      const attempt = video.play?.();
-      // Autoplay policy or a missing decoder can reject; the poster stays up.
-      if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
-    } else {
-      video.pause?.();
-    }
-  }, [playing, armed]);
-
-  const togglePause = useCallback(() => {
-    if (!motionOk) {
-      setOptedIn(true);
-      setUserPaused(false);
-      return;
-    }
-    setUserPaused((p) => !p);
-  }, [motionOk]);
-
-  return { sectionRef, videoRef, armed, playing, userPaused: userPaused || !motionOk, togglePause };
-}
 
 export interface HeistSectionProps {
   /** The rail state from the impact snapshot; unknown reads as "opens soon". */
@@ -201,7 +129,7 @@ export const HeistSection = ({
 }: HeistSectionProps) => {
   const isApp = isAppBuild();
   const withVideo = enabled && !isApp && heistReelAllowed(railState, reelCleared);
-  const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback(withVideo);
+  const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback<HTMLElement>(withVideo);
   if (!enabled) return null;
   const showPayoutsLink = !isApp && railIsDeployed(railState);
 

@@ -4,6 +4,7 @@ import {
     TOKEN_TAILS_HELD_WALLETS,
     decimalToBase,
     explorerTxUrl,
+    generatedShelterWallet,
     isTestnetChain,
     publicRpcUrl,
     x402Ready,
@@ -37,7 +38,6 @@ const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
     SHELTER_RELAY_ENABLED: 'true',
     SHELTER_DONATE_ENABLED: 'true',
     SHELTER_X402_ENABLED: 'true',
-    SHELTER_HANDED_OVER: 'true',
     SHELTER_CLAIM_ALLOWED_WALLETS: '0x' + '33'.repeat(20),
     ...extra,
 });
@@ -67,7 +67,6 @@ describe('readTryShelterConfig (the try-it testnet)', () => {
             matchEnabled: true,
             donateEnabled: false,
             x402Enabled: false,
-            handedOver: false,
             claimAllowedWallets: [],
             privateKey: null,
         });
@@ -144,7 +143,6 @@ describe('readRelayChainConfigs (multi-chain relay, SHELTER_RELAY_CHAINS)', () =
             matchEnabled: false,
             donateEnabled: false,
             x402Enabled: false,
-            handedOver: false,
             claimAllowedWallets: [],
         });
         expect(base.routerAddress?.toLowerCase()).toBe(ROUTER_B);
@@ -177,20 +175,16 @@ describe('readRelayChainConfigs (multi-chain relay, SHELTER_RELAY_CHAINS)', () =
             readRelayChainConfigs(env({ ...common, SHELTER_CHAIN_84532_KEY_ENV: 'HOT', HOT: 'not-a-key' }))[0]
                 .privateKey
         ).toBeNull();
-        // A mainnet entry may share the main hot wallet (gas on several chains) and follows the handover flag.
+        // A mainnet entry may share the main hot wallet (gas on several chains).
         const main = readRelayChainConfigs(
             env({ ...common, SHELTER_RELAY_CHAINS: '8453', SHELTER_CHAIN_8453_KEY_ENV: 'SHELTER_DONATE_PRIVATE_KEY' })
         )[0];
         expect(main).toMatchObject({
             chainId: 8453,
             privateKey: HEX_MAIN,
-            handedOver: true,
             rpcUrl: 'https://mainnet.base.org',
         });
-        expect(
-            readRelayChainConfigs(env({ ...common, SHELTER_HANDED_OVER: 'false', SHELTER_RELAY_CHAINS: '8453' }))[0]
-                .handedOver
-        ).toBe(false);
+        expect((main as any).handedOver).toBeUndefined();
     });
 
     it('knows a public RPC for all six chains, mainnet and testnet', () => {
@@ -200,6 +194,20 @@ describe('readRelayChainConfigs (multi-chain relay, SHELTER_RELAY_CHAINS)', () =
         for (const c of list) {
             expect(c.rpcUrl).toMatch(/^https:\/\//);
         }
+    });
+});
+
+describe('generatedShelterWallet', () => {
+    it("is Pink Paw's wallet on a recorded mainnet chain, null on a testnet or an unknown chain", () => {
+        const pinkPaw = WALLETS.mainnet.pinkPaw!.toLowerCase();
+        expect(pinkPaw).toBe('0x3c833562e682db66c2415b34961595df135f4771');
+        for (const chainId of [5042, 8453, 42161, 43114, 4217, 4663, 143]) {
+            expect(generatedShelterWallet(chainId)).toBe(pinkPaw);
+        }
+        expect(generatedShelterWallet(5042002)).toBeNull();
+        expect(generatedShelterWallet(84532)).toBeNull();
+        expect(generatedShelterWallet(999999)).toBeNull();
+        expect(TOKEN_TAILS_HELD_WALLETS).not.toContain(pinkPaw);
     });
 });
 

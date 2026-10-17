@@ -1,7 +1,7 @@
 // copy-lint: web-only app builds render AppProofNotice instead (the isAppBuild gate in ShelterOnboard)
-// /shelter-payouts/onboard: the shelter takes its own payout wallet. The shelter connects any wallet
-// it controls, signs the claim message, and Token Tails records the claim; the ShelterSplit owner then
-// re-points the shelter's entry on-chain. Token Tails never sees or stores the shelter's key.
+// /shelter-payouts/onboard: the shelter registers its payout wallet. The shelter connects the wallet,
+// signs the claim message, and Token Tails records the claim; the ShelterSplit owner then points the
+// shelter's entry on each chain at that wallet (where it does not already).
 import { isAppBuild } from "@/components/claims/build";
 import NextLink from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -124,6 +124,10 @@ const WebShelterOnboard = () => {
   const chainName = SHELTER_CHAINS[chainId]?.name || `chain ${chainId}`;
   const wallet = "wallet" in step && step.wallet ? step.wallet : null;
   const handedOver = campaign?.shelter.handover === "handed-over";
+  // Nothing left to sign: every chain (or the one chain an older backend serves) shows a registered claim.
+  const allRegistered = chainClaims
+    ? chainClaims.length > 0 && chainClaims.every((row) => row.claim?.status === "rotated")
+    : claim?.status === "rotated";
 
   const connect = async () => {
     const eth = getInjectedProvider();
@@ -171,36 +175,41 @@ const WebShelterOnboard = () => {
         <div className="flex flex-col items-center gap-3 text-center">
           <Kicker>For the shelter</Kicker>
           <h1 className="font-primary text-h5 md:text-h2 font-bold uppercase leading-none text-white drop-shadow-lg text-balance">
-            Your wallet, <span className="glow text-tt-cream">your key.</span>
+            Your wallet, <span className="glow text-tt-cream">on record.</span>
           </h1>
           <p className="max-w-xl text-p5 md:text-p4 text-tt-cream/90">
-            Four steps for {shelter} to take its payout wallet over from Token Tails. About two minutes.
+            Four steps for {shelter} to register its payout wallet with Token Tails. About two minutes.
           </p>
         </div>
 
         {handedOver && (
           <p className={`${PANEL} text-center`} data-testid="onboard-handed-over">
-            {shelter} already holds its own key. Nothing to do here.
+            {/* claim: fiction onboarding status text, not an impact figure */}
+            {allRegistered
+              ? `${shelter}'s wallet is registered. Nothing to do here.`
+              : `Payouts already go to ${shelter}'s wallet. Sign the claim below once so Token Tails can record it.`}
           </p>
         )}
 
         <ol className="flex flex-col gap-4" data-testid="onboard-steps">
           {/* claim: fiction how custody works, not an impact figure */}
-          <StepCard n={1} title="Why hold your own key" done={!!wallet}>
+          <StepCard n={1} title="Why a shelter wallet" done={!!wallet}>
             <p>
-              Today Token Tails holds {shelter}&apos;s payout wallet on its behalf. That works for treats Token Tails
-              pays for, but a gift from someone&apos;s own wallet should land in a wallet only the shelter controls.
+              {/* claim: fiction how custody works, not an impact figure */}
+              {handedOver
+                ? `Since 16 Oct 2026 payouts go to ${shelter}'s wallet. Before that they went to a wallet Token Tails held for the shelter.`
+                : `Today payouts go to a wallet Token Tails holds for ${shelter}.`}
             </p>
             <p>
-              Once {shelter} holds its own key, the &ldquo;Give from your wallet&rdquo; button opens on the payouts page,
-              and nobody at Token Tails can move what arrives.
+              {/* claim: fiction what the signed claim does, not an impact figure */}
+              A signed claim records which wallet is {shelter}&apos;s.
             </p>
           </StepCard>
 
           <StepCard n={2} title="Connect your wallet" done={!!wallet}>
             <p>
-              Use any wallet the shelter controls. Write its recovery phrase down offline: Token Tails never sees
-              it and cannot recover it.
+              Use the wallet {shelter} receives payouts in. Keep its recovery phrase written down offline and never
+              type it into a website.
             </p>
             <p data-testid="onboard-tell-first">
               First tell Token Tails the wallet address through a channel you already use with us (email or a

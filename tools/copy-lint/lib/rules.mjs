@@ -96,7 +96,7 @@ export const APP_WORDS = [
   { re: /\b(?:block|chain|tx)[\s-]?explorers?\b|\b(?:on|in|the|an?|via)\s+explorers?\b|\bexplorers?\s+(?:links?|pages?|url)\b|\b(?:etherscan|arcscan|blockscout|stellar\.expert|stellarchain)\b/i, what: 'an explorer' },
   { re: /\bwallets?\b/i, what: 'wallet' },
   { re: /\b(?:Stellar|Soroban|SEI|Ethereum|Solana|SKALE|Polygon|Mantle|Arbitrum|Monad|Mezo|Avalanche)\b|\bArc\b(?!\w)/, what: 'a chain name' },
-  { re: /\bon-?chain\b/i, what: '"ON-CHAIN" (use HELD BY TOKEN TAILS / HELD BY SHELTER)' },
+  { re: /\bon-?chain\b/i, what: '"ON-CHAIN" (use HELD BY TOKEN TAILS / PAID TO SHELTER)' },
 ];
 
 const DATE_MARK = /\b(?:19|20)\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\b|\{[^}]*(?:asOf|date|Date)[^}]*\}/;

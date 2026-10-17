@@ -75,6 +75,18 @@ describe('AppThrottlerGuard', () => {
             '10.0.0.1'
         );
     });
+
+    it('tracks the visitor from cf-connecting-ip, so visitors behind one edge are not one bucket', async () => {
+        const guard = await createGuard();
+        const tracker = (req: Record<string, any>) => (guard as any).getTracker(req);
+
+        await expect(
+            tracker({ ip: '172.70.1.2', ips: [], headers: { 'cf-connecting-ip': '198.51.100.9' } })
+        ).resolves.toBe('198.51.100.9');
+        await expect(
+            tracker({ ip: '172.70.1.2', ips: [], headers: { 'cf-connecting-ip': '198.51.100.10' } })
+        ).resolves.toBe('198.51.100.10');
+    });
 });
 
 describe('AppModule throttling', () => {

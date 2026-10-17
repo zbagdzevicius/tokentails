@@ -17,9 +17,6 @@ import {
   PINK_PAW_WALLET,
 } from "@/components/shelter-payouts/pinkPaw";
 
-jest.mock("@/components/shared/AnalyticsConsentBanner", () => ({
-  AnalyticsSettingsLink: () => null,
-}));
 jest.mock("@/components/shared/PixelButton", () => ({
   PixelButton: ({ text }: { text: string }) => <span>{text}</span>,
 }));

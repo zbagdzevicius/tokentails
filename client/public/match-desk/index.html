@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Match Desk Statement</title>
+<meta name="description" content="Motored.lt (related-party sponsor (founder&#39;s company)) and Token Tails (operator&#39;s own money) will match public gifts to Pink Paw (Rožinė pėdutė). Every match has a receipt you can verify. Not a tax receipt.">
+<style>
+:root{--bg:#fbf7f9;--surface:#ffffff;--ink:#22161c;--muted:#6f5d66;--line:#ead9e1;--accent:#c2306f;--accent-ink:#ffffff;--ok:#1f7a4d;--ok-bg:#e3f4ea;--wait:#8a5a00;--wait-bg:#fbf0d9;--bad:#a1263a;--bad-bg:#fbe4e8;--code:#f4ecf0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17111a;--surface:#211a25;--ink:#f3e9ef;--muted:#b6a3ae;--line:#3a2e3f;--accent:#f16da5;--accent-ink:#1a0d14;--ok:#7fd8a6;--ok-bg:#163526;--wait:#f0c46b;--wait-bg:#3a2d12;--bad:#ff8fa0;--bad-bg:#3d1820;--code:#2c2331}}
+:root[data-theme="dark"]{--bg:#17111a;--surface:#211a25;--ink:#f3e9ef;--muted:#b6a3ae;--line:#3a2e3f;--accent:#f16da5;--accent-ink:#1a0d14;--ok:#7fd8a6;--ok-bg:#163526;--wait:#f0c46b;--wait-bg:#3a2d12;--bad:#ff8fa0;--bad-bg:#3d1820;--code:#2c2331}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.7rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.1rem;margin:32px 0 10px}
+p{margin:8px 0}
+a{color:var(--accent)}
+code{font:0.86em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 5px;border-radius:5px}
+code.wrap{word-break:break-all}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.lede{color:var(--muted);max-width:60ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.notice{border-left:4px solid var(--accent)}
+.notice strong{display:block;font-size:1.05rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.stat .v{font-size:1.4rem;font-weight:650;font-variant-numeric:tabular-nums}
+.stat .k{color:var(--muted);font-size:.82rem}
+h3{font-size:1.05rem;margin:0 0 4px}
+.card.sponsor .grid{margin:10px 0}
+ul.disc{margin:0;padding-left:20px}
+ul.disc li{margin:6px 0}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:12px 0;min-width:0}
+dl.kv dt{color:var(--muted);font-size:.86rem}
+dl.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between;align-items:flex-start}
+.right{text-align:right}
+.amount{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.unit{font-size:.9rem;color:var(--muted);font-weight:500}
+.pill{display:inline-block;font-size:.78rem;padding:2px 9px;border-radius:999px;background:var(--code);color:var(--muted);margin:4px 6px 0 0}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.wait{background:var(--wait-bg);color:var(--wait)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:7px 6px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.8rem;border-top:0}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+button.verify{font:inherit;font-size:.88rem;background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;padding:7px 13px;cursor:pointer}
+button.verify:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.verify-out.ok{color:var(--ok)}
+.verify-out.bad{color:var(--bad)}
+footer{margin-top:40px;color:var(--muted);font-size:.86rem}
+@media (max-width:560px){
+  h1{font-size:1.4rem}
+  dl.kv{grid-template-columns:1fr}
+  dl.kv dt{margin-top:4px}
+  table thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tr{border-top:1px solid var(--line);padding:6px 0}
+  td{border:0;padding:3px 0;text-align:left}
+  td.num{text-align:left}
+  td[data-l]::before{content:attr(data-l) ": ";color:var(--muted);font-size:.8rem}
+  td:first-child::before{content:none}
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="small muted">Token Tails · Match Desk · Arc</p>
+    <h1>Match Desk Statement</h1>
+    <p class="lede">Motored.lt, a related-party sponsor (founder&#39;s company), and Token Tails, with the operator&#39;s own money, will match public gifts to Pink Paw (Rožinė pėdutė) on Arc once their match vaults are deployed and funded. One AI agent holds spending power over every vault, inside on-chain caps, and can pay only the shelter wallet through ShelterSplit. Claude will propose each match, code will pick the paying vault and check the amount against the written policy, and a capped contract will pay it.</p>
+  </header>
+  <div class="card notice"><strong>Not deployed yet. No matches.</strong><p class="small muted">The match vaults are not on-chain yet. This page fills in from receipts once they are.</p></div>
+  <h2>Read this first</h2>
+  <div class="card"><ul class="disc">
+    <li>Motored.lt is a related-party sponsor (founder&#39;s company). It is not an outside or independent sponsor.</li>
+    <li>Token Tails runs this desk and matches with its own money (operator&#39;s own money). It is not an outside or independent sponsor.</li>
+    <li>Matched money goes to the wallet of Pink Paw (Rožinė pėdutė).</li>
+    <li>Each company&#39;s money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault.</li>
+    <li>The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.</li>
+    <li>The agent&#39;s code enforces the per-donor limit. The contract does not.</li>
+    <li>This statement is not a tax receipt.</li>
+    <li>We use USDC on Arc (Arc&#39;s native coin). We do not use Circle Wallets, Paymaster or Gateway.</li>
+    <li>Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.</li>
+    <li>A match counts only once its AgentGift event has been read back from the chain (reconciled).</li>
+  </ul></div>
+
+  <h2>Desk total</h2>
+  <div class="grid"><div class="stat"><div class="v">0 USDC</div><div class="k">Paid to the shelter wallet (reconciled matches)</div></div><div class="stat"><div class="v">–</div><div class="k">Funded by the companies</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vaults</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div><div class="stat"><div class="v">0</div><div class="k">Donors</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Gifts matched, value</div></div></div>
+  <p class="small muted">Only reconciled receipts count. Sent and freshly planned receipts show as pending; failed, expired, duplicate and mismatched receipts are listed but never counted. Every match goes through ShelterSplit to the shelter wallet.</p>
+
+  <h2>Sponsors</h2>
+  <p class="small muted">Each company has its own vault. Code picks the paying vault for each match: the highest priority first that can pay the whole amount. One match is paid by one vault.</p>
+  
+    <article class="card sponsor" id="s-motored">
+      <h3>Motored.lt</h3>
+      <p class="small"><span class="pill">related-party sponsor (founder&#39;s company)</span><span class="pill wait">Not deployed yet</span></p>
+      <div class="grid"><div class="stat"><div class="v">–</div><div class="k">Funded by the company</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Matched (reconciled)</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vault</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div></div>
+      <p class="small muted">Funded and float left: not deployed yet.</p>
+      <dl class="kv">
+        <dt>Match vault (CappedSpender)</dt><dd><span class="muted">not set</span></dd>
+        <dt>Vault owner (Motored.lt)</dt><dd><a href="https://explorer.arc.io/address/0xfe7d5aa030d14213bf1684d4c28fe7f32a4dbc8d" rel="noopener" title="0xfe7d5aa030d14213bf1684d4c28fe7f32a4dbc8d"><code>0xfe7d5a…4dbc8d</code></a> <span class="small muted">(only the owner can fund it or take the float back)</span></dd>
+        <dt>Ratio</dt><dd>1:1</dd>
+        <dt>Most per match</dt><dd>0.05 USDC</dd>
+        <dt>Budget</dt><dd>1.00 USDC</dd>
+        <dt>Match order</dt><dd>priority 20</dd>
+        <dt>Policy SHA-256</dt><dd><code class="wrap">3a4c1ffc6fc958842296242bbbd9ea80395a1707fea8aea1eb3a478e6ed425d5</code></dd>
+      </dl>
+    </article>
+    <article class="card sponsor" id="s-tokentails">
+      <h3>Token Tails</h3>
+      <p class="small"><span class="pill">operator&#39;s own money</span><span class="pill wait">Not deployed yet</span></p>
+      <div class="grid"><div class="stat"><div class="v">–</div><div class="k">Funded by the company</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Matched (reconciled)</div></div><div class="stat"><div class="v">–</div><div class="k">Float left in the vault</div></div><div class="stat"><div class="v">0 USDC</div><div class="k">Pending</div></div><div class="stat"><div class="v">0</div><div class="k">Receipts counted</div></div><div class="stat"><div class="v">0</div><div class="k">Gifts matched</div></div></div>
+      <p class="small muted">Funded and float left: not deployed yet.</p>
+      <dl class="kv">
+        <dt>Match vault (CappedSpender)</dt><dd><span class="muted">not set</span></dd>
+        <dt>Vault owner (Token Tails)</dt><dd><span class="muted">not set</span> <span class="small muted">(only the owner can fund it or take the float back)</span></dd>
+        <dt>Ratio</dt><dd>1:1</dd>
+        <dt>Most per match</dt><dd>0.05 USDC</dd>
+        <dt>Budget</dt><dd>1.00 USDC</dd>
+        <dt>Match order</dt><dd>priority 10</dd>
+        <dt>Policy SHA-256</dt><dd><code class="wrap">fbb569066937e2537107a47a700371790c3440473b6028700174fa333ea256d8</code></dd>
+      </dl>
+    </article>
+
+  <h2>Shared rules and wallets</h2>
+  <div class="card"><dl class="kv">
+    <dt>Most per donor per UTC day</dt><dd>0.05 USDC, across all sponsors (enforced by the agent's code)</dd>
+    <dt>Agent wallet (every vault)</dt><dd><span class="muted">not set</span></dd>
+    <dt>ShelterSplit</dt><dd><a href="https://explorer.arc.io/address/0x457c89e10a6e66633eda5bf82fd086febb5db147" rel="noopener" title="0x457c89e10a6e66633eda5bf82fd086febb5db147"><code>0x457c89…5db147</code></a></dd>
+    <dt>Pink Paw (Rožinė pėdutė)</dt><dd><a href="https://explorer.arc.io/address/0x3c833562e682db66c2415b34961595df135f4771" rel="noopener" title="0x3c833562e682db66c2415b34961595df135f4771"><code>0x3c8335…5f4771</code></a> <span class="small muted">(the shelter&#39;s wallet)</span></dd>
+  </dl></div>
+
+  <h2>By day</h2>
+  <p class="muted">No reconciled days yet.</p>
+
+  <h2>Receipts</h2>
+  <p class="small muted">Newest first. "Verify hash" recomputes the receipt's SHA-256 in your browser; its first 8 characters are the end of the on-chain memo.</p>
+  <p class="muted">No receipts yet.</p>
+  
+
+  <footer>
+    <p>This statement is not a tax receipt.</p>
+    <p><a href="https://tokentails.com/shelter-payouts">Every shelter payout on tokentails.com</a></p>
+  </footer>
+</main>
+<script type="application/json" id="statement">{"chain":{"explorer":"https://explorer.arc.io","id":5042,"name":"Arc"},"contract":{"agent":null,"split":"0x457c89e10a6e66633eda5bf82fd086febb5db147"},"days":[],"disclosures":["Motored.lt is a related-party sponsor (founder's company). It is not an outside or independent sponsor.","Token Tails runs this desk and matches with its own money (operator's own money). It is not an outside or independent sponsor.","Matched money goes to the wallet of Pink Paw (Rožinė pėdutė).","Each company's money sits in its own capped vault, and only that company can fund it or take back what is left. One AI agent can spend from every vault, only through ShelterSplit to the shelter wallet. Code picks which vault pays each match; one match is paid by one vault.","The contract caps each gift and each UTC calendar day. The day resets at 00:00 UTC, so up to 2x the daily cap can go out across midnight.","The agent's code enforces the per-donor limit. The contract does not.","This statement is not a tax receipt.","We use USDC on Arc (Arc's native coin). We do not use Circle Wallets, Paymaster or Gateway.","Claude proposes. Code recomputes the amount and refuses a proposal that differs. The contract has the last word.","A match counts only once its AgentGift event has been read back from the chain (reconciled)."],"excluded":[],"generatedAt":null,"notTaxReceipt":true,"policy":{"allocation":"highest priority first, then lowest id; one vault per match","perDonorDailyMaxUsdc":"0.05"},"receipts":[],"shelter":{"custody":"pink-paw-wallet","name":"Pink Paw (Rožinė pėdutė)","wallet":"0x3c833562e682db66c2415b34961595df135f4771"},"sponsors":[{"id":"motored","label":"related-party sponsor (founder's company)","name":"Motored.lt","onchain":null,"policy":{"budgetUsdc":"1.00","perGiftMaxUsdc":"0.05","policySha256":"3a4c1ffc6fc958842296242bbbd9ea80395a1707fea8aea1eb3a478e6ed425d5","ratio":"1:1"},"priority":20,"relatedParty":true,"totals":{"donors":0,"giftsMatched":0,"giftsMatchedUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"vault":{"deployBlock":null,"owner":"0xfe7d5aa030d14213bf1684d4c28fe7f32a4dbc8d","spender":null}},{"id":"tokentails","label":"operator's own money","name":"Token Tails","onchain":null,"policy":{"budgetUsdc":"1.00","perGiftMaxUsdc":"0.05","policySha256":"fbb569066937e2537107a47a700371790c3440473b6028700174fa333ea256d8","ratio":"1:1"},"priority":10,"relatedParty":true,"totals":{"donors":0,"giftsMatched":0,"giftsMatchedUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"vault":{"deployBlock":null,"owner":null,"spender":null}}],"totals":{"donors":0,"floatLeftUsdc":null,"fundedUsdc":null,"giftsMatched":0,"giftsMatchedUsdc":"0","paidToShelterUsdc":"0","pendingUsdc":"0","receipts":0,"reconciledUsdc":"0"},"type":"tt.match-desk.statement","v":2,"verifiedOnchain":false}</script>
+<script>
+(function(){
+  var data = JSON.parse(document.getElementById('statement').textContent);
+  var byHash = {};
+  (data.receipts || []).forEach(function(e){ byHash[e.sha256] = e; });
+  function canonical(v){
+    if (Array.isArray(v)) return '[' + v.map(canonical).join(',') + ']';
+    if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(function(k){ return JSON.stringify(k) + ':' + canonical(v[k]); }).join(',') + '}';
+    return JSON.stringify(v);
+  }
+  function hex(buf){ return Array.prototype.map.call(new Uint8Array(buf), function(b){ return b.toString(16).padStart(2, '0'); }).join(''); }
+  document.querySelectorAll('button.verify').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var out = btn.parentNode.querySelector('.verify-out');
+      var env = byHash[btn.getAttribute('data-sha')];
+      out.className = 'verify-out small';
+      if (!env) { out.textContent = 'Receipt not found in the embedded data.'; return; }
+      if (!(window.crypto && crypto.subtle)) { out.textContent = 'This browser cannot hash here (needs a secure page).'; return; }
+      var bytes = new TextEncoder().encode(canonical(env.receipt));
+      crypto.subtle.digest('SHA-256', bytes).then(function(d){
+        var h = hex(d);
+        var memoOk = env.memo === 'tt:agent:m:' + env.receipt.sponsor + ':' + h.slice(0, 8);
+        if (h === env.sha256 && memoOk) {
+          out.className = 'verify-out small ok';
+          out.textContent = 'Hash matches. The on-chain memo carries its first 8 characters: ' + h.slice(0, 8) + '.';
+        } else {
+          out.className = 'verify-out small bad';
+          out.textContent = 'Hash differs: computed ' + h.slice(0, 16) + '…, receipt says ' + String(env.sha256).slice(0, 16) + '…';
+        }
+      }, function(err){ out.textContent = 'Could not hash: ' + err; });
+    });
+  });
+})();
+</script>
+</body>
+</html>

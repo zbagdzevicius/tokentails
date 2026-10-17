@@ -6,7 +6,8 @@ import type { LabelSet } from "./tiers";
  */
 export const APP_LABELS: LabelSet = {
   chip: {
-    "onchain-shelter-held": "HELD BY SHELTER",
+    // claim: fiction a tier label, not an impact figure
+    "onchain-shelter-held": "PAID TO SHELTER",
     "onchain-custodial": "HELD BY TOKEN TAILS",
     "shelter-signed": "SHELTER-SIGNED",
     "shelter-confirmed": "SHELTER-CONFIRMED",
@@ -20,10 +21,10 @@ export const APP_LABELS: LabelSet = {
     stale: "STALE",
   },
   explain: {
-    "onchain-shelter-held": "Held by the shelter itself.",
-    "onchain-custodial":
-      "Held by Token Tails for the shelter until the shelter takes it over.",
-    "shelter-signed": "A payout the shelter signed with its own key.",
+    // claim: fiction a tier explanation, not an impact figure
+    "onchain-shelter-held": "Paid to the shelter.",
+    "onchain-custodial": "Held by Token Tails for the shelter before 16 Oct 2026.",
+    "shelter-signed": "A payout the shelter signed.",
     "shelter-confirmed":
       "A payout a shelter member confirmed, with a stored receipt.",
     pledged: "Committed by Token Tails but not paid yet.",

@@ -97,14 +97,14 @@ describe('payouts modal', () => {
   const make = (load: () => Promise<ShelterPayouts>, extra: Partial<Parameters<typeof createPayoutsModal>[1]> = {}) =>
     (modal = createPayoutsModal(root, { deploymentsUrl: '/d.json', base: '/a/', payoutsUrl: '/shelter-payouts', load, ...extra }));
 
-  it('says right under "Sent to shelters" that Token Tails holds the shelter wallet until handover', async () => {
+  it('says right under "Sent to shelters" that payouts go to Pink Paw\'s wallet', async () => {
     const m = make(async () => empty());
     await m.show();
     const title = m.el.querySelector('#ch-pay-title');
     const custody = m.el.querySelector('[data-testid="payouts-custody"]');
     expect(title?.textContent).toBe('Sent to shelters');
     expect(title?.nextElementSibling).toBe(custody);
-    expect(custody?.textContent).toBe('Shelter wallet held by Token Tails on behalf of the shelter until handover.');
+    expect(custody?.textContent).toBe("Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.");
   });
 
   it('opens as a dialog, shows the friendly empty state, and closes on Escape with focus returned', async () => {
@@ -243,6 +243,7 @@ describe('UI entry points', () => {
   afterEach(() => {
     ui?.dispose();
     ui = null;
+    vi.unstubAllGlobals();
   });
   const manifest = { version: 1, frame: 48, cats: [], dogs: [], images: { coin: 'c.png', catnip: 'n.png', heart: 'h.png', paw: 'p.png', logo: 'l.png' } };
   const makeUI = (handlers: Record<string, () => void> = {}) => {
@@ -334,12 +335,67 @@ describe('UI entry points', () => {
       expect(card()?.textContent).not.toMatch(/open soon/i);
       expect(ui.root.querySelector('[data-testid="rail-foot"]')?.textContent).toMatch(/send Pink Paw a real treat/);
       expect(ui.root.querySelector('.ch-results [data-testid="give-treat"]')).not.toBeNull();
+      // Sent in place (Oct 15, 2026): a button, never a link that leaves the game.
+      for (const give of ui.root.querySelectorAll('[data-testid="give-treat"]')) {
+        expect(give.tagName).toBe('BUTTON');
+        expect(give.hasAttribute('href')).toBe(false);
+      }
+      expect(ui.root.querySelector('.ch-results [data-testid="treat-custody"]')?.textContent).toBe("The treat goes to Pink Paw's wallet.");
       expect(ui.root.querySelector('[data-testid="rail-chip"]')).toBeNull();
       expect(ui.root.querySelector('[data-testid="rail-line"]')?.getAttribute('data-rail')).toBe('live');
     } finally {
       delete w.__TT_HEIST_CONFIG__;
       vi.unstubAllGlobals();
       vi.useRealTimers();
+    }
+  });
+
+  const win = { levelId: 'heist-01', catIds: ['a', 'b'] as [string, string], seed: 1, ticks: 600, coins: 0, rescued: true, rescuedName: 'Judas', spottedCount: 0, score: 50, hash: 1 };
+  const railUI = (rail: object, treat: unknown = null) => {
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // No network from these cases (the shelter total read gets a 404).
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('', { status: 404 }))));
+    ui = createUI(document.getElementById('app')!, { manifest, base: '/a/', rail: rail as never, treat: treat as never, deploymentsUrl: '/d.json', loadPayouts: async () => empty(), handlers: { onStart() {} } });
+    return ui;
+  };
+
+  it('no status off tokentails.com: the win screen offers the copyable link, never "open soon"', () => {
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true });
+    u.showResults(win);
+    const panel = u.root.querySelector('.ch-results [data-testid="treat-panel"]') as HTMLElement;
+    expect(panel?.dataset.state).toBe('unavailable');
+    expect(panel.querySelector('[data-testid="treat-line"]')?.textContent).toBe('Play on tokentails.com/heist to send a treat.');
+    expect(panel.querySelector('[data-testid="treat-copy"]')).not.toBeNull();
+    expect(u.root.querySelector('.ch-results')?.textContent).not.toMatch(/open soon/i);
+    expect(u.root.querySelector('[data-testid="rail-chip"]')).toBeNull();
+  });
+
+  it('no status on tokentails.com (API down): the button shows and the backend answers the send', () => {
+    const sender = { mode: 'direct', today: () => new Promise(() => {}), send: vi.fn() };
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true }, sender);
+    u.showResults(win);
+    expect(u.root.querySelector('.ch-results [data-testid="give-treat"]')).not.toBeNull();
+    expect(u.root.querySelector('.ch-results')?.textContent).not.toMatch(/open soon/i);
+  });
+
+  it('a paused rail says so on the win screen before any send', () => {
+    const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'status', paused: true });
+    u.showResults(win);
+    expect(u.root.querySelector('[data-testid="rail-line"]')?.textContent).toBe('Treats are paused right now.');
+    expect(u.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Paused');
+    expect(u.root.querySelector('.ch-results [data-testid="give-treat"]')).toBeNull();
+  });
+
+  it('the app build keeps "open soon" and no link when there is no status', () => {
+    (window as unknown as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
+    try {
+      const u = railUI({ state: 'pre-launch', amountUsdc: '0.01', source: 'baked', unread: true });
+      u.showResults(win);
+      expect(u.root.querySelector('[data-testid="treat-panel"]')).toBeNull();
+      expect(u.root.querySelector('[data-testid="rail-chip"]')?.textContent).toBe('Opens soon');
+    } finally {
+      delete (window as unknown as { Capacitor?: unknown }).Capacitor;
     }
   });
 
@@ -450,13 +506,13 @@ describe('goal meter reading (fact C-001)', () => {
     ]);
     expect(goalChainsLine(count.chains)).toBe('Arc: 3 USDC · Robinhood Chain: 1.5 USDG');
     expect(goalChainsLine([{ chainId: 5042, raised: 1n, symbols: ['USDC'] }])).toBe('');
-    expect(goalSourcesLine(['treats'], 3)).toMatch(/^Counts what comes in to the wallet Token Tails holds for Pink Paw on 3 chains: today, sponsored treats\./);
+    expect(goalSourcesLine(['treats'], 3)).toMatch(/^Counts what comes in to Pink Paw's wallet on 3 chains: today, sponsored treats\.$/);
     expect(goalSourcesLine(['gifts', 'treats'], 7)).toBe("Counts the gifts and treats that come in to Pink Paw's wallets on 7 chains, indexed from public on-chain events.");
   });
 
   it('names only the sources live today', async () => {
     const { goalSourcesLine } = await import('../shelter-payouts');
-    expect(goalSourcesLine(['treats', 'purchase-shares'])).toBe('Counts what comes in to the wallet Token Tails holds for Pink Paw: today, sponsored treats and shop shares. Gifts, the match and x402 payments count once Pink Paw holds its own wallet.');
+    expect(goalSourcesLine(['treats', 'purchase-shares'])).toBe("Counts what comes in to Pink Paw's wallet: today, sponsored treats and shop shares.");
     expect(goalSourcesLine(['gifts', 'match', 'treats', 'x402'])).toBe("Counts the gifts, Token Tails' match, treats and x402 payments that come in to Pink Paw's wallets, indexed from public on-chain events.");
   });
 

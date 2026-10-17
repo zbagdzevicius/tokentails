@@ -140,6 +140,29 @@ describe('ImpactService snapshot (plan F7.3)', () => {
         expect(data.rail.state).toBe('paused');
     });
 
+    it("reports Pink Paw's wallet as handed-over from the campaign facts, with past 0xE299 payouts", async () => {
+        deployedEnv();
+        const { service, cursors, events } = impactFixture();
+        cursors.rows.push({
+            _id: CURSOR_ID,
+            chainId: 5042,
+            contract: SPLIT,
+            lastScannedBlock: 2000,
+            totals: { page: { USDC: '10' } },
+            eventCount: 2,
+            lastTxHash: '0xabc',
+            lastSuccessAt: new Date(NOW.getTime() - 60000),
+        });
+        for (const shelter of [
+            '0xe299299b846ba629f5a591dbf4f562bcc07a0f37',
+            '0x3c833562e682db66c2415b34961595df135f4771',
+        ]) {
+            events.rows.push({ _id: new Types.ObjectId(), chainId: 5042, contract: SPLIT, shelter });
+        }
+        const data = await service.build(NOW);
+        expect(data.money.custody).toBe('handed-over');
+    });
+
     it('carries forward on RPC failure with the old asOf and sources.chain error, never zeros', async () => {
         deployedEnv();
         const { service, cursors, snapshots } = impactFixture();

@@ -1,10 +1,15 @@
-import { BadRequestException, GoneException, HttpException } from '@nestjs/common';
+import { BadRequestException, ConflictException, GoneException, HttpException } from '@nestjs/common';
 import { Tier } from 'src/cat/cat.schema';
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { PackType } from './order.schema';
 import { ChainType } from './web3.model';
-import { STELLAR_PACKS_DEPRECATED, stellarPacksSunset, Web3Controller } from './web3.controller';
+import {
+    PORTRAIT_PRICE_CHANGED,
+    STELLAR_PACKS_DEPRECATED,
+    stellarPacksSunset,
+    Web3Controller,
+} from './web3.controller';
 
 jest.mock('stripe', () => ({ __esModule: true, default: jest.fn(() => ({})) }));
 jest.mock('src/cat/cat.service', () => ({ CatService: class {} }));
@@ -137,6 +142,40 @@ describe('POST /web3/confirm', () => {
         expect(userRepository.update).not.toHaveBeenCalled();
     });
 
+    it('records a $6 Stellar portrait from an old tab for a refund and answers 409, granting nothing', async () => {
+        const { ctrl, orderRepository, web3Service, userRepository } = setup(6);
+        const imageRepository = {
+            findOne: jest.fn().mockResolvedValue({ _id: 'img', aiUrl: 'https://cdn.test/a.png' }),
+        };
+        (ctrl as any).imageRepository = imageRepository;
+        web3Service.validatePrice.mockResolvedValue({ success: true, amount: 6, priceUsd: 6, priceChanged: true });
+
+        const error = await ctrl
+            .checkTransaction(USER, body({ entityType: EntityType.IMAGE, id: '64b7f0c2a1b2c3d4e5f60718', price: 6 }))
+            .catch((e: HttpException) => e);
+        expect(error).toBeInstanceOf(ConflictException);
+        expect((error as HttpException).getResponse()).toEqual(
+            expect.objectContaining({ code: PORTRAIT_PRICE_CHANGED, refund: 'due' })
+        );
+        expect(orderRepository.update).toHaveBeenCalledWith('order-1', {
+            $set: expect.objectContaining({
+                status: 'FAILED_GRANT',
+                failureReason: expect.stringMatching(/^PRICE_CHANGED/),
+            }),
+        });
+        expect(orderRepository.model.findOneAndUpdate).toHaveBeenCalledWith(
+            { _id: 'order-1', refund: { $exists: false } },
+            { $set: { refund: expect.objectContaining({ state: 'due', reason: 'PRICE_CHANGED', amountUsd: 6 }) } },
+            { new: true }
+        );
+        // No COMPLETE status, no spend, no portrait counters.
+        expect(orderRepository.update).not.toHaveBeenCalledWith(
+            'order-1',
+            expect.objectContaining({ status: 'COMPLETE' })
+        );
+        expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
     it('closes at 2026-10-09 18:00 UTC; STELLAR_PACKS_SUNSET_AT can only move it earlier', () => {
         expect(stellarPacksSunset({}).toISOString()).toBe('2026-10-09T18:00:00.000Z');
         expect(stellarPacksSunset({ STELLAR_PACKS_SUNSET_AT: '2026-10-20T12:00:00Z' }).toISOString()).toBe(
@@ -174,6 +213,18 @@ describe('POST /web3/confirm', () => {
         );
         expect(userRepository.update).toHaveBeenCalledWith(USER, { $inc: { spent: 5, monthSpent: 5, spentUsd: 5 } });
         expect(userRepository.update).toHaveBeenCalledWith('owner', { $inc: { affiliated: 1 } });
+    });
+
+    it("never credits the affiliate share to the buyer's own code", async () => {
+        const { ctrl, userRepository } = setup(5);
+        userRepository.findOne.mockResolvedValue({ _id: USER });
+
+        await ctrl.checkTransaction(USER, body({ discount: 'Mine' }));
+
+        expect(userRepository.update).not.toHaveBeenCalledWith(USER, { $inc: { affiliated: 1 } });
+        expect(userRepository.update).not.toHaveBeenCalledWith(expect.anything(), {
+            $inc: { affiliated: expect.anything() },
+        });
     });
 
     it('stores the hash lowercased, so one payment has one order key', async () => {

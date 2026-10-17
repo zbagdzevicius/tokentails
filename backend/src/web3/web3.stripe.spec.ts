@@ -1,7 +1,7 @@
 import { EntityType } from 'src/shared/interfaces/common.interface';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PackType } from 'src/web3/order.schema';
-import { Web3Controller } from './web3.controller';
+import { PORTRAIT_PRICE_CHANGED_MESSAGE, Web3Controller } from './web3.controller';
 
 jest.mock('stripe', () => {
     const client = { paymentIntents: { create: jest.fn(), retrieve: jest.fn() } };
@@ -90,6 +90,38 @@ describe('web3 Stripe PaymentIntents', () => {
         stripe.paymentIntents.create.mockResolvedValue({ client_secret: 's' });
         await ctrl.createPayment({ amount: 1, id: PackType.LEGENDARY }, USER);
         expect(stripe.paymentIntents.create.mock.calls[0][0].amount).toBe(35000);
+    });
+
+    describe('create-payment for a portrait', () => {
+        const IMG = '64b7f0c2a1b2c3d4e5f60720';
+        const portraitSetup = () => {
+            const ctx = setup();
+            (ctx.ctrl as any).imageRepository = { findOne: jest.fn().mockResolvedValue({ _id: IMG }) };
+            stripe.paymentIntents.create.mockResolvedValue({ client_secret: 's' });
+            return ctx;
+        };
+        const body = (amount?: number) =>
+            ({ amount, id: IMG, imageId: IMG, entityType: EntityType.IMAGE, productType: 'digital' } as any);
+
+        it('answers 409 to a tab that still shows $6, and creates no intent', async () => {
+            const { ctrl } = portraitSetup();
+            await expect(ctrl.createPayment(body(6), USER)).rejects.toMatchObject({
+                status: 409,
+                message: PORTRAIT_PRICE_CHANGED_MESSAGE,
+            });
+            expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+        });
+
+        it('charges $16 to a tab that shows $16, or that sends no amount', async () => {
+            const { ctrl } = portraitSetup();
+            await ctrl.createPayment(body(16), USER);
+            await ctrl.createPayment(body(undefined), USER);
+            expect(stripe.paymentIntents.create).toHaveBeenCalledTimes(2);
+            for (const call of stripe.paymentIntents.create.mock.calls) {
+                expect(call[0].amount).toBe(1600);
+                expect(call[0].metadata.expectedAmount).toBe('1600');
+            }
+        });
     });
 
     it('does not grant an underpaid intent', async () => {

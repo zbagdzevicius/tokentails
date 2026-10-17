@@ -58,7 +58,7 @@ function gift(over: Partial<DecodedRouterDonation> = {}): DecodedRouterDonation 
     };
 }
 
-function setup() {
+function setup(claims?: { publicGivingVerified: jest.Mock }) {
     const matches = memoryModel({ unique: [['donorTxHash']], now: () => NOW });
     const counters = memoryModel({ unique: [['key']] });
     const scans = memoryModel({ unique: [['key']] });
@@ -105,7 +105,13 @@ function setup() {
             return (chain.ethCall as any)(...args);
         },
     };
-    const service = new ShelterMatchService(matches as any, counters as any, scans as any, routed as any);
+    const service = new ShelterMatchService(
+        matches as any,
+        counters as any,
+        scans as any,
+        routed as any,
+        claims as any
+    );
     return { matches, counters, scans, chain, split, service };
 }
 
@@ -307,17 +313,22 @@ describe('ShelterMatchService.runOnce', () => {
         expect(ctx.chain.getRouterLogs.mock.calls[1][1]).toBe(101);
     });
 
-    it('does not scan or send on mainnet before the handover, and reports awaiting-handover', async () => {
+    it('does not scan or send on a mainnet without the on-chain giving check, and reports awaiting-handover', async () => {
         const ctx = setup();
-        const c = config({ chainId: 5042, handedOver: false });
+        const c = config({ chainId: 5042 });
         await ctx.service.runOnce(NOW, c);
         expect(ctx.chain.getRouterLogs).not.toHaveBeenCalled();
         expect(ctx.chain.sendContractCall).not.toHaveBeenCalled();
-        // Handed over by flag but no claim service to verify the recipients: still closed.
-        await expect(ctx.service.status(NOW, config({ chainId: 5042, handedOver: true }))).resolves.toMatchObject({
-            state: 'awaiting-handover',
-        });
+        // No claim service to verify the recipients: closed (fail closed).
         await expect(ctx.service.status(NOW, c)).resolves.toMatchObject({ state: 'awaiting-handover' });
+        // A verified mainnet: live with the flag, still off without SHELTER_MATCH_ENABLED.
+        const verified = setup({ publicGivingVerified: jest.fn(async () => true) });
+        await expect(verified.service.status(NOW, c)).resolves.toMatchObject({ state: 'live' });
+        await expect(
+            verified.service.status(NOW, config({ chainId: 5042, matchEnabled: false }))
+        ).resolves.toMatchObject({ state: 'off' });
+        await verified.service.runOnce(NOW, config({ chainId: 5042, matchEnabled: false }));
+        expect(verified.chain.sendContractCall).not.toHaveBeenCalled();
         await expect(ctx.service.status(NOW, config({ matchEnabled: false }))).resolves.toMatchObject({ state: 'off' });
         await expect(ctx.service.status(NOW, config())).resolves.toEqual({
             state: 'live',
