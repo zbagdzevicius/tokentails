@@ -1,10 +1,10 @@
 /**
- * F-CHECKOUT: the USDC tab. Wallet gifts straight into Pink Paw's ShelterSplit with the order's memo
- * `tt:rave:<16 hex>`, through the repo's own shelter-rail SDK: Arc sends native USDC with
- * donate(memo), every other chain approve + disburse(amount, memo) (Tempo: disburseWithMemo with the
- * bytes32 memo). The buyer pays gas (the gasless relay accepts only tt:wallet: memos). Chains come
- * from GET /rave/status (already filtered by the public giving gate) intersected with the published
- * split list. EURC splits are never used: a cat is a dollar.
+ * F-CHECKOUT: the Crypto tab (USDC on Arc only). Wallet gifts straight into Pink Paw's ShelterSplit
+ * with the order's memo `tt:rave:<16 hex>`, through the repo's own shelter-rail SDK: Arc sends native
+ * USDC with donate(memo). The buyer pays the (USDC) gas; the gasless relay accepts only tt:wallet:
+ * memos. Chains come from GET /rave/status intersected with Arc and the published split list, so a
+ * server that lists other chains still shows Arc alone. The token path (approve + disburse) stays for
+ * the SDK's other chains but the rave never offers them. EURC splits are never used: a cat is a dollar.
  */
 import type { Eip1193Provider, SdkChain, SdkCoin, ShelterRailSdk } from './sdk';
 
@@ -81,16 +81,16 @@ export function usdCoin(chain: SdkChain | undefined): SdkCoin | null {
   return chain?.coins.find((c) => USD_COINS.includes(c.symbol)) ?? null;
 }
 
-/** Arc mainnet and Arc testnet: the USDC tab opens on Arc (Arc week; Arc-first by default). */
+/** Arc mainnet and Arc testnet: the only chains the rave takes crypto on. */
 export const ARC_FIRST: readonly number[] = Object.freeze([5042, 5042002]);
 
 /**
- * Status chains that have both a published dollar split and an SDK entry: Arc first (the tab's default
- * pick), then the rest in status order.
+ * Arc status chains that have both a published dollar split and an SDK entry. Every non-Arc chain is
+ * dropped (client-side safeguard: crypto in the rave is USDC on Arc only).
  */
 export function usdcChoices(statusChains: readonly number[], deployments: readonly SplitDeployment[], chains: Readonly<Record<number, SdkChain>>): UsdcChoice[] {
   const out: UsdcChoice[] = [];
-  const ordered = [...statusChains.filter((c) => ARC_FIRST.includes(c)), ...statusChains.filter((c) => !ARC_FIRST.includes(c))];
+  const ordered = statusChains.filter((c, i) => ARC_FIRST.includes(c) && statusChains.indexOf(c) === i);
   for (const chainId of ordered) {
     const chain = chains[chainId];
     const split = pickSplit(deployments, chainId);
@@ -109,6 +109,42 @@ export function units6ToWei18(units6: string): bigint {
 export function injectedProvider(): Eip1193Provider | null {
   const eth = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
   return eth && typeof eth.request === 'function' ? eth : null;
+}
+
+/**
+ * Deep links that open `href` inside a wallet app's browser (MetaMask, Coinbase Wallet), for a buyer with
+ * no injected wallet. On desktop they lead to the app's download page.
+ */
+export function walletAppLinks(href: string): { name: string; url: string }[] {
+  let u: URL;
+  try {
+    u = new URL(href);
+  } catch {
+    return [];
+  }
+  if (u.protocol !== 'https:') return [];
+  const bare = `${u.host}${u.pathname}${u.search}`;
+  return [
+    { name: 'MetaMask', url: `https://metamask.app.link/dapp/${bare}` },
+    { name: 'Coinbase Wallet', url: `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(u.href)}` },
+  ];
+}
+
+/** Fills `el` with the no-wallet line plus links that open this page in a wallet app. */
+export function fillNoWallet(el: HTMLElement, cardOpen: boolean, href: string = globalThis.location?.href ?? ''): void {
+  el.replaceChildren(
+    document.createTextNode(`No wallet found in this browser.${cardOpen ? ' Pay by card, or open' : ' Open'} this page in your wallet app: `),
+  );
+  const links = walletAppLinks(href);
+  links.forEach((l, i) => {
+    const a = document.createElement('a');
+    a.href = l.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = l.name;
+    el.append(a, document.createTextNode(i < links.length - 1 ? ' · ' : '.'));
+  });
+  if (!links.length) el.append(document.createTextNode('MetaMask, Coinbase Wallet or any wallet with a browser.'));
 }
 
 /** Wallet errors → one buyer-facing line. */

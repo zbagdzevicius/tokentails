@@ -25,10 +25,10 @@ describe('countries leaderboard helpers', () => {
   });
 
   it('summarises countries and flagged cats', () => {
-    expect(boardSummary(board)).toBe('3 countries · 43 cats');
-    expect(boardSummary(countryLeaderboard([{ country: 'JP', cats: 1 }]))).toBe('1 country · 1 cat');
+    expect(boardSummary(board)).toBe('43 cats from 3 countries (rave buyers)');
+    expect(boardSummary(countryLeaderboard([{ country: 'JP', cats: 1 }]))).toBe('1 cat from 1 country (rave buyers)');
     expect(boardSummary(null)).toBe('No flags on the floor yet.');
-    expect(boardSummary({ ...board, demo: true })).toBe('DEMO · 3 countries · 43 cats');
+    expect(boardSummary({ ...board, demo: true })).toBe('DEMO · 43 cats from 3 countries (rave buyers)');
     expect(boardKey({ ...board, demo: true })).not.toBe(boardKey(board));
     expect(boardSummary(countryLeaderboard([{ country: null, cats: 3 }]))).toBe('No flags on the floor yet.');
     expect(chipLabel(board)).toBe('3 countries');

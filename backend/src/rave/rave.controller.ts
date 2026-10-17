@@ -26,9 +26,11 @@ import { RaveWebhookService } from './rave-webhook.service';
 /*
  * Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md section 4). Guest page, no login: public routes carry no
  * auth. They skip the global throttler (one site-wide bucket while TRUST_PROXY is unset) and count a
- * per-client-IP limit instead, like /yourcat and /badcat. Checkout routes answer 503 while
- * something they need is missing (GET /rave/status then says `enabled: false` with a reason); GET /rave/cats stays readable
- * so earlier orders keep their names. The webhook has its own gate (secret + signature). Admin routes need
+ * per-client-IP limit instead, like /yourcat and /badcat. Checkout routes answer 503 while neither the card
+ * nor the USDC (Arc) tab is open (GET /rave/status then says `enabled: false` with a reason), and checkout
+ * answers 503 for a closed tab; GET /rave/cats stays readable so earlier orders keep their names. The
+ * webhook is optional and has its own gate (secret + signature); without it RaveWebhookService.pullEvents
+ * reads the same events from Stripe's Events API every minute. Admin routes need
  * AppAuthGuard + PermissionGuard. No route here writes a game score.
  */
 
@@ -65,7 +67,8 @@ export class RaveController {
 
     @Post('checkout')
     async checkout(@Body() body: RaveCheckoutBody, @Req() req: any, @Res({ passthrough: true }) res: any) {
-        this.rave.assertOpen();
+        // Open when the card or the USDC tab is; checkout() then checks the tab the buyer picked.
+        await this.rave.assertAnyOpen();
         await this.throttle('checkout', req, res);
         return this.rave.checkout(body, new Date(), raveCountryFromRequest(req));
     }
@@ -107,7 +110,7 @@ export class RaveController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ) {
-        this.rave.assertOpen();
+        // No open-tab check: a buyer who already paid is credited even if the crypto tab closed meanwhile.
         await this.throttle('usdcTx', req, res);
         return this.rave.reportUsdcTx(orderId, body);
     }

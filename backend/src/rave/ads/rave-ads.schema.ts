@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { RaveAdUsdc } from './rave-ads.crypto';
 
 /*
  * Moon Rave ads (`raveads`). One document per purchase of one slot. `slotLock` holds the slot id while
@@ -7,8 +8,11 @@ import { Document, Types } from 'mongoose';
  * slot can never be sold twice at once. Releasing a slot is `$unset: { slotLock }`.
  *
  *   held ──paid──▶ review ──approve──▶ live ──(days)──▶ ended
- *     │               └──reject + Stripe refund──▶ rejected
+ *     │               └──reject + Stripe refund──▶ rejected   (USDC: refund by hand, `refund.state: manual`)
  *     └──hold expired, unpaid──▶ expired           (refund / dispute ▶ refunded)
+ *
+ * `method` is `card` (Stripe PaymentIntent) or `usdc` (USDC on Arc to the treasury, bound by its exact
+ * amount: `usdcAmountKey` unique; the paying tx: `usdcTxHash` unique).
  *
  * No email, no IP address and no user id is stored. The image is the server's own re-encoded WebP.
  */
@@ -28,8 +32,14 @@ export type RaveAdStatus = typeof RAVE_AD_STATUSES[number];
 /** Statuses that occupy their slot (they carry `slotLock`). */
 export const RAVE_AD_LOCKING: RaveAdStatus[] = ['held', 'review', 'live'];
 
+export const RAVE_AD_METHODS = ['card', 'usdc'] as const;
+export type RaveAdMethod = typeof RAVE_AD_METHODS[number];
+
 export interface RaveAdRefund {
-    state: 'due' | 'refunded' | 'failed';
+    /** `manual`: a USDC payment, to be sent back by hand to `payer` (no automatic on-chain refund). */
+    state: 'due' | 'refunded' | 'failed' | 'manual';
+    /** USDC refunds: the wallet that paid. */
+    payer?: string;
     refundId?: string;
     reason: string;
     at: Date;
@@ -57,6 +67,22 @@ export class RaveAd {
 
     @Prop({ required: true, enum: RAVE_AD_STATUSES })
     status: RaveAdStatus;
+
+    /** Absent on ads made before crypto: card. */
+    @Prop({ required: false, enum: RAVE_AD_METHODS })
+    method?: RaveAdMethod;
+
+    /** USDC on Arc: chain, token, treasury, exact amount, then the paying tx (rave-ads.crypto.ts). */
+    @Prop({ required: false, type: Object, _id: false })
+    usdc?: RaveAdUsdc;
+
+    /** `<chainId>:<token>:<amount>` of a USDC ad; unique, so one exact amount binds one ad. */
+    @Prop({ required: false })
+    usdcAmountKey?: string;
+
+    /** The tx that paid a USDC ad (lowercased); unique, so one transfer pays one ad. */
+    @Prop({ required: false })
+    usdcTxHash?: string;
 
     @Prop({ required: true })
     name: string;
@@ -168,5 +194,17 @@ RaveAdSchema.index(
         name: 'rave_ad_payment_intent_unique',
         partialFilterExpression: { paymentIntentId: { $type: 'string' } },
     }
+);
+RaveAdSchema.index(
+    { usdcAmountKey: 1 },
+    {
+        unique: true,
+        name: 'rave_ad_usdc_amount_unique',
+        partialFilterExpression: { usdcAmountKey: { $type: 'string' } },
+    }
+);
+RaveAdSchema.index(
+    { usdcTxHash: 1 },
+    { unique: true, name: 'rave_ad_usdc_tx_unique', partialFilterExpression: { usdcTxHash: { $type: 'string' } } }
 );
 RaveAdSchema.index({ status: 1, createdAt: -1 });

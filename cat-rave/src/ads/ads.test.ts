@@ -165,23 +165,24 @@ describe('ad purchase form', () => {
   it('posts the form as multipart with the server-side fields only (no price)', async () => {
     const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
       const form = init.body as FormData;
-      expect([...form.keys()].sort()).toEqual(['clientKey', 'coverFee', 'image', 'name', 'slotId', 'url', 'x']);
+      expect([...form.keys()].sort()).toEqual(['clientKey', 'coverFee', 'image', 'method', 'name', 'slotId', 'url', 'x']);
       expect(form.get('coverFee')).toBe('true');
       expect(form.get('slotId')).toBe('banner-2');
+      expect(form.get('method')).toBe('card');
       return new Response(
         JSON.stringify({ adId: 'ad_0123456789abcdef', slotId: 'banner-2', status: 'held', name: 'Purr', url: 'https://purr.example.com/', x: 'purr', imageUrl: 'https://cdn.example.com/a.webp', priceCents: 10000, feeCents: 330, amountCents: 10330, holdUntil: '2026-10-16T12:15:00Z', liveUntil: null, clientSecret: 'pi_1_secret_2' }),
         { status: 201 },
       );
     });
     const api = createAdsApi({ base: 'https://api.example.com/', fetchFn: fetchFn as unknown as typeof fetch });
-    const order = await api.checkout({ slotId: 'banner-2', name: 'Purr', url: 'https://purr.example.com/', x: 'purr', coverFee: true, clientKey: 'k-12345678', image: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }) });
+    const order = await api.checkout({ slotId: 'banner-2', name: 'Purr', url: 'https://purr.example.com/', x: 'purr', coverFee: true, clientKey: 'k-12345678', image: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), method: 'card' });
     expect(fetchFn.mock.calls[0][0]).toBe('https://api.example.com/rave/ads/checkout');
     expect(order).toMatchObject({ adId: 'ad_0123456789abcdef', amountCents: 10330, clientSecret: 'pi_1_secret_2' });
   });
   it('turns a taken slot into a readable error', async () => {
     const fetchFn = vi.fn(async () => new Response(JSON.stringify({ statusCode: 409, code: 'RAVE_AD_SLOT_TAKEN', message: 'x' }), { status: 409 }));
     const api = createAdsApi({ base: 'https://api.example.com', fetchFn: fetchFn as unknown as typeof fetch });
-    await expect(api.checkout({ slotId: 'screen-1', name: 'Purr', url: 'https://a.com/', x: '', coverFee: false, clientKey: 'k-12345678', image: new Blob(['x']) })).rejects.toMatchObject({
+    await expect(api.checkout({ slotId: 'screen-1', name: 'Purr', url: 'https://a.com/', x: '', coverFee: false, clientKey: 'k-12345678', image: new Blob(['x']), method: 'card' })).rejects.toMatchObject({
       code: 'RAVE_AD_SLOT_TAKEN',
       message: 'Someone just took that slot. Pick another one.',
     });

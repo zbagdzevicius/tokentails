@@ -5,17 +5,24 @@
  */
 import { AD_SLOT_IDS, type AdKind } from './slots';
 import { normalizeAdUrl } from './form';
+import { ARC_FIRST } from '../checkout/usdc';
+import { PK_RE } from '../checkout/api';
 
 export const ADS_PATHS = Object.freeze({
   status: '/rave/ads/status',
   list: '/rave/ads',
   checkout: '/rave/ads/checkout',
   ad: '/rave/ads/',
+  /** POST /rave/ads/:adId/usdc-tx { txHash } */
+  usdcTx: '/usdc-tx',
 });
+
+export type AdMethod = 'card' | 'usdc';
 
 export const AD_ID_RE = /^ad_[0-9a-f]{16}$/;
 const X_RE = /^[A-Za-z0-9_]{1,15}$/;
-const PK_RE = /^pk_(live|test)_[A-Za-z0-9]+$/;
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const TX_RE = /^0x[0-9a-fA-F]{64}$/;
 const SECRET_RE = /^pi_[A-Za-z0-9]+_secret_[A-Za-z0-9]+$/;
 
 export class AdApiError extends Error {
@@ -43,7 +50,12 @@ export type AdsStatus =
   | {
       enabled: true;
       livemode: boolean;
-      publishableKey: string;
+      /** Null when card is closed (the server may omit the key then). */
+      publishableKey: string | null;
+      card: boolean;
+      /** Crypto is USDC on Arc only (5042, or 5042002 in test mode). */
+      usdc: { enabled: boolean; chains: number[] };
+      reasons: { card: string | null; usdc: string | null };
       priceCents: number;
       fee: { percentBps: number; fixedCents: number };
       holdMinutes: number;
@@ -79,6 +91,20 @@ export interface AdOrder {
   holdUntil: string | null;
   liveUntil: string | null;
   clientSecret?: string | null;
+  method?: AdMethod;
+  /** Crypto checkout answer: send exactly `amount` (base units) of `token` to `recipient` on Arc. */
+  usdc?: AdUsdcPay | null;
+  /** The buyer's USDC transfer, once reported. */
+  payTx?: string | null;
+}
+
+export interface AdUsdcPay {
+  chainId: number;
+  token: string;
+  decimals: number;
+  recipient: string;
+  /** Integer base units as a decimal string ($100 plus a unique micro tag, e.g. "100004321"). */
+  amount: string;
 }
 
 export interface AdCheckoutInput {
@@ -89,6 +115,7 @@ export interface AdCheckoutInput {
   coverFee: boolean;
   clientKey: string;
   image: Blob;
+  method: AdMethod;
 }
 
 export interface AdsApi {
@@ -96,6 +123,8 @@ export interface AdsApi {
   list(): Promise<LiveAd[]>;
   checkout(input: AdCheckoutInput): Promise<AdOrder>;
   ad(adId: string): Promise<AdOrder | null>;
+  /** Reports the buyer's USDC transfer for an ad held with `method: 'usdc'`. */
+  usdcTx(adId: string, txHash: string): Promise<AdOrder | null>;
 }
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -118,7 +147,14 @@ export function parseAdsStatus(body: unknown): AdsStatus {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'unknown' };
   const key = str(b.publishableKey);
-  if (!key || !PK_RE.test(key)) return { enabled: false, reason: 'stripe' };
+  const keyOk = !!key && PK_RE.test(key);
+  const usdcRaw = (b.usdc && typeof b.usdc === 'object' ? b.usdc : {}) as Record<string, unknown>;
+  const reasons = (b.reasons && typeof b.reasons === 'object' ? b.reasons : {}) as Record<string, unknown>;
+  const listed = Array.isArray(usdcRaw.chains) ? usdcRaw.chains.filter((n): n is number => Number.isInteger(n) && n > 0) : [];
+  const chains = listed.filter((c) => ARC_FIRST.includes(c));
+  const card = b.card !== false && keyOk;
+  const usdcOn = usdcRaw.enabled === true && chains.length > 0;
+  if (!card && !usdcOn) return { enabled: false, reason: str(reasons.card) ?? str(b.cardReason) ?? (keyOk ? 'off' : 'stripe') };
   const fee = (b.fee && typeof b.fee === 'object' ? b.fee : {}) as Record<string, unknown>;
   const raw = Array.isArray(b.slots) ? b.slots : [];
   const byId = new Map<string, AdSlotState>();
@@ -132,7 +168,13 @@ export function parseAdsStatus(body: unknown): AdsStatus {
   return {
     enabled: true,
     livemode: b.livemode === true,
-    publishableKey: key,
+    publishableKey: card ? key : null,
+    card,
+    usdc: { enabled: usdcOn, chains: usdcOn ? chains : [] },
+    reasons: {
+      card: card ? null : str(reasons.card) ?? str(b.cardReason) ?? 'stripe',
+      usdc: usdcOn ? null : str(reasons.usdc) ?? (listed.length && !chains.length ? 'chain' : 'off'),
+    },
     priceCents: Math.max(1, int(b.priceCents, 10000)),
     fee: { percentBps: Math.min(2000, Math.max(0, int(fee.percentBps, 290))), fixedCents: Math.min(500, Math.max(0, int(fee.fixedCents, 30))) },
     holdMinutes: Math.max(1, int(b.holdMinutes, 15)),
@@ -187,7 +229,28 @@ export function parseAdOrder(body: unknown): AdOrder | null {
     holdUntil: str(b.holdUntil),
     liveUntil: str(b.liveUntil),
     ...(b.clientSecret !== undefined ? { clientSecret: secret && SECRET_RE.test(secret) ? secret : null } : {}),
+    ...(b.method === 'usdc' || b.method === 'card' ? { method: b.method } : {}),
+    ...(b.usdc !== undefined ? { usdc: parseAdUsdcPay(b.usdc) } : {}),
+    ...(b.payTx !== undefined ? { payTx: str(b.payTx) && TX_RE.test(str(b.payTx)!) ? str(b.payTx) : null } : {}),
   };
+}
+
+/**
+ * The crypto pay instruction. Arc only, a 6-decimal coin, plain addresses and a positive integer
+ * amount; anything else → null (the sheet then refuses to open the wallet).
+ */
+export function parseAdUsdcPay(v: unknown): AdUsdcPay | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const chainId = typeof o.chainId === 'number' && Number.isInteger(o.chainId) ? o.chainId : null;
+  const token = str(o.token);
+  const recipient = str(o.recipient);
+  const decimals = typeof o.decimals === 'number' ? o.decimals : 6;
+  const rawAmount = typeof o.amount === 'number' && Number.isSafeInteger(o.amount) ? String(o.amount) : str(o.amount);
+  if (chainId === null || !ARC_FIRST.includes(chainId)) return null;
+  if (!token || !ADDRESS_RE.test(token) || !recipient || !ADDRESS_RE.test(recipient) || /^0x0{40}$/i.test(recipient)) return null;
+  if (decimals !== 6 || !rawAmount || !/^[1-9]\d{0,17}$/.test(rawAmount)) return null;
+  return { chainId, token, decimals, recipient, amount: rawAmount };
 }
 
 /** Short buyer-facing text per error code. */
@@ -197,6 +260,11 @@ export function adErrorMessage(code: string, status: number, server?: string | n
       return 'Someone just took that slot. Pick another one.';
     case 'RAVE_AD_OFF':
       return 'Ad checkout is paused right now. Try again later.';
+    case 'RAVE_AD_TX_MISMATCH':
+    case 'RAVE_TX_MISMATCH':
+      return 'That transaction is not the payment for this ad. Check the amount and the address.';
+    case 'RAVE_AD_TX_PENDING':
+      return 'Your payment is not confirmed on Arc yet. We keep checking.';
     case 'RAVE_AD_KEY_REUSED':
       return 'Your ad changed. Tap continue again.';
     case 'RAVE_AD_STORAGE':
@@ -263,7 +331,8 @@ export function createAdsApi(opts: { base: string; fetchFn?: FetchFn; timeoutMs?
       form.append('name', input.name);
       form.append('url', input.url);
       form.append('x', input.x);
-      form.append('coverFee', input.coverFee ? 'true' : 'false');
+      form.append('coverFee', input.method === 'card' && input.coverFee ? 'true' : 'false');
+      form.append('method', input.method);
       form.append('clientKey', input.clientKey);
       form.append('image', input.image, 'ad.png');
       const order = parseAdOrder(await call(fetchFn, base + ADS_PATHS.checkout, { method: 'POST', body: form }, timeout));
@@ -278,6 +347,12 @@ export function createAdsApi(opts: { base: string; fetchFn?: FetchFn; timeoutMs?
         if (err instanceof AdApiError && err.status === 404) return null;
         throw err;
       }
+    },
+    async usdcTx(adId, txHash) {
+      if (!AD_ID_RE.test(adId) || !TX_RE.test(txHash)) throw new AdApiError(400, 'BAD_INPUT', 'That transaction hash does not look right.');
+      return parseAdOrder(
+        await call(fetchFn, base + ADS_PATHS.ad + adId + ADS_PATHS.usdcTx, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ txHash }) }, timeout),
+      );
     },
   };
 }

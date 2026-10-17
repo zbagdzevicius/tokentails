@@ -363,3 +363,30 @@
   font-weight: 600;
   opacity: 0.85;
 }
+
+/* Crypto pay box: exact amount, network, recipient. */
+.rva-usdc {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--rvc-line, rgba(93, 255, 138, 0.3));
+  background: rgba(0, 0, 0, 0.35);
+}
+.rva-usdc dt {
+  opacity: 0.72;
+  font-size: 13px;
+  align-self: center;
+}
+.rva-usdc dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.rva-usdc .rva-usdc-amount {
+  font-size: 22px;
+  color: #fff;
+}

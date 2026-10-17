@@ -2,8 +2,9 @@
  * "Advertise here": the in-page ad purchase sheet, in the rave checkout's style.
  *
  *   pick  →  a free slot on the mini-map (moon on top, booth in the middle)
- *   form  →  image (cropped to the slot's shape), name, https link, optional X handle, fee toggle
- *   pay   →  Stripe Payment Element (card, Apple Pay, Google Pay), the slot held for 15 minutes
+ *   form  →  image (cropped to the slot's shape), name, https link, optional X handle, Card | Crypto, fee toggle
+ *   pay   →  card: Stripe Payment Element (card, Apple Pay, Google Pay), the slot held for 15 minutes
+ *   wallet → crypto: one USDC transfer on Arc to the Token Tails treasury, then POST usdc-tx
  *   done  →  "In review": it goes live after approval, or the payment is refunded in full
  *
  * Never navigates away. All user text goes in with textContent; there is no innerHTML here.
@@ -11,9 +12,12 @@
 import '../checkout/checkout.css';
 import './ads.css';
 import { newClientKey } from '../checkout/api';
+import { createMethodTabs, defaultMethod } from '../checkout/methods';
 import { declineNextStep, mountPaymentElement, type ConfirmOutcome, type MountedPayment } from '../checkout/stripe';
+import { fillNoWallet, injectedProvider, walletMessage } from '../checkout/usdc';
 import { normalizeXHandle, X_HANDLE_MESSAGES } from '../checkout/xhandle';
-import { AdApiError, type AdOrder, type AdsApi, type AdsStatusOn } from './api';
+import { AdApiError, type AdMethod, type AdOrder, type AdsApi, type AdsStatusOn } from './api';
+import { formatUnits6, sendAdUsdc, shortAddress } from './usdc';
 import { adQuote, checkAdName, checkImageFile, cropImageToSlot, formatCents, normalizeAdUrl } from './form';
 import { AD_KINDS, AD_SEEN_IN, AD_SLOTS, adSlot, miniMapPoint, slotLabel, type AdSlot } from './slots';
 
@@ -35,7 +39,7 @@ export interface MountedAdSheet {
   destroy(): void;
 }
 
-type Step = 'pick' | 'form' | 'pay' | 'done';
+type Step = 'pick' | 'form' | 'pay' | 'wallet' | 'done';
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -51,6 +55,39 @@ const fmtClock = (ms: number) => {
 
 let uid = 0;
 
+/**
+ * A sent USDC ad transfer the server has not accepted yet, kept in localStorage so closing the sheet or
+ * the tab never loses the link between the payment and the ad (only POST usdc-tx makes it). Re-sent on
+ * the next mount. Storage may be blocked: every access is guarded.
+ */
+const PENDING_TX_KEY = 'rave:ad-pending-tx';
+const TX_RE = /^0x[0-9a-fA-F]{64}$/;
+const AD_ID_RE = /^ad_[0-9a-f]{16}$/;
+
+export function loadPendingAdTx(): { adId: string; txHash: string } | null {
+  try {
+    const raw = globalThis.localStorage?.getItem(PENDING_TX_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { adId?: unknown; txHash?: unknown };
+    return typeof v.adId === 'string' && AD_ID_RE.test(v.adId) && typeof v.txHash === 'string' && TX_RE.test(v.txHash) ? { adId: v.adId, txHash: v.txHash } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingAdTx(p: { adId: string; txHash: string } | null): void {
+  try {
+    if (p) globalThis.localStorage?.setItem(PENDING_TX_KEY, JSON.stringify(p));
+    else globalThis.localStorage?.removeItem(PENDING_TX_KEY);
+  } catch {
+    /* storage blocked: the in-memory retry still runs while the sheet is open */
+  }
+}
+
+/** A final answer (stop retrying): any 4xx except rate limits and "not mined yet". */
+const finalTxError = (err: unknown) =>
+  err instanceof AdApiError && err.status >= 400 && err.status < 500 && err.status !== 429 && err.code !== 'RAVE_AD_TX_PENDING';
+
 export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): MountedAdSheet {
   const { api } = opts;
   let status = opts.status;
@@ -64,6 +101,12 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   let order: AdOrder | null = null;
   let payment: MountedPayment | null = null;
   let coverFee = true;
+  let method: AdMethod = defaultMethod({ card: status.card, usdc: status.usdc.enabled });
+  /** A USDC transfer sent but not yet accepted by POST usdc-tx (retried by the done-screen poll). */
+  let pendingTx: { adId: string; txHash: string } | null = null;
+  /** The server refused the reported transfer: shown until the buyer sends again (the poll stops). */
+  let txError: string | null = null;
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let holdTimer: ReturnType<typeof setInterval> | null = null;
   const touched = new Set<string>();
 
@@ -75,7 +118,7 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   root.setAttribute('aria-labelledby', title.id);
   const lede = h('p', 'rvc-lede');
   root.append(title, lede);
-  const testBanner = h('p', 'rvc-banner rvc-test', 'Test mode: use a Stripe test card. No real money moves.');
+  const testBanner = h('p', 'rvc-banner rvc-test', 'Test mode: use a Stripe test card or Arc testnet USDC. No real money moves.');
   root.append(testBanner);
 
   // ================================================================== pick
@@ -186,6 +229,13 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   xF.input.setAttribute('autocapitalize', 'off');
   const xHelp = h('div', 'rvc-hint', 'Shown publicly with your ad.');
   xF.box.insertBefore(xHelp, xF.msg);
+  // -- Card | Crypto (USDC on Arc)
+  const methodTabs = createMethodTabs({ card: status.card, usdc: status.usdc.enabled, reasons: status.reasons }, (m) => {
+    if (busy || method === m) return;
+    method = m;
+    renderForm();
+  });
+  const usdcNote = h('p', 'rvc-hint');
   // -- fee + total
   const feeLabel = h('label', 'rvc-fee');
   const feeBox = h('input', 'rvc-fee-input');
@@ -211,7 +261,7 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   // Sticky footer: total and the button stay on screen while the buyer scrolls the form.
   const formFoot = h('div', 'rvc-foot');
   formFoot.append(formMsg, total, formGo);
-  formStep.append(back1, slotLine, imgBox, nameF.box, urlF.box, xF.box, feeLabel, formFoot, formLegal);
+  formStep.append(back1, slotLine, imgBox, nameF.box, urlF.box, xF.box, methodTabs.el, methodTabs.note, feeLabel, usdcNote, formFoot, formLegal);
 
   // ================================================================== pay
   const payStep = h('section', 'rvc-step rva-pay');
@@ -230,6 +280,21 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   const payLegal = h('p', 'rvc-legal');
   payStep.append(payBack, paySummary, hold, paySkel, payEl, payMsg, payGo, payLegal);
 
+  // ================================================================== wallet (crypto)
+  const walletStep = h('section', 'rvc-step rva-wallet');
+  const walletBack = h('button', 'rvc-link-btn', '← Edit');
+  walletBack.type = 'button';
+  const walletSummary = h('div', 'rvc-summary');
+  const walletHold = h('p', 'rva-hold');
+  walletHold.setAttribute('aria-live', 'polite');
+  const walletBox = h('dl', 'rva-usdc');
+  const walletMsg = h('div', 'rv-msg rvc-msg');
+  walletMsg.setAttribute('aria-live', 'polite');
+  const walletGo = h('button', 'rvc-go');
+  walletGo.type = 'button';
+  const walletLegal = h('p', 'rvc-legal');
+  walletStep.append(walletBack, walletSummary, walletHold, walletBox, walletMsg, walletGo, walletLegal);
+
   // ================================================================== done
   const doneStep = h('section', 'rvc-step rva-done');
   const doneTitle = h('h3', 'rv-display rvc-done-title', 'Your ad is in review 🪩');
@@ -238,11 +303,16 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
   donePreview.alt = 'Your ad';
   const doneLine = h('p', 'rvc-done-status');
   const doneOrder = h('p', 'rvc-done-order');
+  const doneTx = h('p', 'rvc-done-order');
+  doneTx.hidden = true;
   const doneClose = h('button', 'rvc-go', 'Back to the rave');
   doneClose.type = 'button';
-  doneStep.append(doneTitle, donePreview, doneLine, doneOrder, doneClose);
+  const doneRetry = h('button', 'rvc-link-btn', 'Send again');
+  doneRetry.type = 'button';
+  doneRetry.hidden = true;
+  doneStep.append(doneTitle, donePreview, doneLine, doneTx, doneOrder, doneRetry, doneClose);
 
-  root.append(pickStep, formStep, payStep, doneStep);
+  root.append(pickStep, formStep, payStep, walletStep, doneStep);
   container.append(root);
 
   // ------------------------------------------------------------------ render
@@ -255,10 +325,11 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     pickStep.hidden = s !== 'pick';
     formStep.hidden = s !== 'form';
     payStep.hidden = s !== 'pay';
+    walletStep.hidden = s !== 'wallet';
     doneStep.hidden = s !== 'done';
     lede.hidden = s === 'done';
     testBanner.hidden = status.livemode || s === 'done';
-    if (s !== 'pay' && holdTimer) {
+    if (s !== 'pay' && s !== 'wallet' && holdTimer) {
       clearInterval(holdTimer);
       holdTimer = null;
     }
@@ -329,19 +400,27 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
       xF.msg.textContent = `Links to x.com/${x.handle}`;
     }
     if (showAll && !image) imgMsg.textContent = 'Add an image for your ad.';
+    const price = formatCents(status.priceCents);
+    const share = status.shelterBps > 0 ? Math.round(status.shelterBps / 100) : 0;
+    const shelterLine = share ? `${share}% of it goes to the Pink Paw shelter on-chain; the rest funds the rave.` : 'It funds the rave; ad money is not part of the Pink Paw donation.';
+    if (!status.card && method === 'card' && status.usdc.enabled) method = 'usdc';
+    if (!status.usdc.enabled && method === 'usdc' && status.card) method = 'card';
+    methodTabs.render(method, busy);
+    const crypto = method === 'usdc';
+    feeLabel.hidden = crypto;
+    usdcNote.hidden = !crypto;
     const q = adQuote(status.priceCents, coverFee, status.fee);
     const feeIf = adQuote(status.priceCents, true, status.fee).feeCents;
     feeMain.textContent = `Cover the card fee (+${formatCents(feeIf)})`;
-    const price = formatCents(status.priceCents);
-    feeSub.textContent =
-      status.shelterBps > 0
-        ? `Stripe’s card fee on top, so the full ${price} is paid. ${Math.round(status.shelterBps / 100)}% of it goes to Pink Paw on-chain; the rest funds the rave.`
-        : `Stripe’s card fee on top, so the full ${price} funds the rave. Ad money is not part of the Pink Paw donation.`;
-    totalVal.textContent = formatCents(q.amountCents);
-    formGo.textContent = busy ? 'Reserving your slot…' : `Continue · ${formatCents(q.amountCents)}`;
+    feeSub.textContent = `Stripe’s card fee on top, so the full ${price} is paid. ${shelterLine}`;
+    usdcNote.textContent = `Pay ${status.priceCents / 100} USDC from your wallet on Arc, straight to Token Tails. No card fee; Arc gas is a fraction of a cent, paid in USDC. The exact amount carries a tiny tag (1 to 2¢) so we can match your payment. ${shelterLine}`;
+    totalVal.textContent = crypto ? `${formatCents(status.priceCents).slice(1)} USDC` : formatCents(q.amountCents);
+    formGo.textContent = busy ? 'Reserving your slot…' : crypto ? `Continue · ${status.priceCents / 100} USDC on Arc` : `Continue · ${formatCents(q.amountCents)}`;
     formGo.disabled = busy;
     formGo.classList.toggle('rvc-busy', busy);
-    formLegal.textContent = `Your slot is held for ${status.holdMinutes} minutes while you pay. Ads are reviewed before they show; a rejected ad is refunded in full. Ads open their link in a new tab, marked sponsored.${status.shelterBps > 0 ? ` ${Math.round(status.shelterBps / 100)}% of every approved ad goes to the Pink Paw shelter on-chain.` : ''}`;
+    formLegal.textContent = `Your slot is held for ${status.holdMinutes} minutes while you pay. Ads are reviewed before they show; ${
+      crypto ? 'a rejected ad is refunded in full, by hand, in USDC to the wallet that paid' : 'a rejected ad is refunded in full'
+    }. Ads open their link in a new tab, marked sponsored.${share ? ` ${share}% of every approved ad goes to the Pink Paw shelter on-chain.` : ''}`;
   }
 
   function setMsg(el: HTMLElement, text: string, tone: 'err' | 'ok' | '' = '') {
@@ -413,11 +492,17 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
       setMsg(formMsg, 'Check the fields above.', 'err');
       return;
     }
+    const m = method;
+    if (m === 'usdc' && !injectedProvider()) {
+      setMsg(formMsg, '', 'err');
+      fillNoWallet(formMsg, status.card);
+      return;
+    }
     busy = true;
     setMsg(formMsg, '');
     renderForm();
     try {
-      order = await api.checkout({ slotId: pick.id, name: n.value, url: u.url, x: x.handle ?? '', coverFee, clientKey, image: image.blob });
+      order = await api.checkout({ slotId: pick.id, name: n.value, url: u.url, x: x.handle ?? '', coverFee: m === 'card' && coverFee, clientKey, image: image.blob, method: m });
     } catch (err) {
       busy = false;
       const e = err instanceof AdApiError ? err : null;
@@ -441,6 +526,15 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     }
     busy = false;
     renderForm();
+    if (m === 'usdc') {
+      if (!order.usdc) {
+        setMsg(formMsg, order.status === 'held' ? 'Something went wrong on our side. Nothing was sent; try again.' : 'That hold ran out. Pick the slot again.', 'err');
+        clientKey = newClientKey();
+        return;
+      }
+      openWallet(order);
+      return;
+    }
     if (!order.clientSecret) {
       setMsg(formMsg, 'That hold ran out. Pick the slot again.', 'err');
       clientKey = newClientKey();
@@ -449,8 +543,203 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     void openPay(order);
   });
 
+  /** A fresh status: slots and which methods are open (an open card stays the default). */
+  function applyStatus(next: AdsStatusOn) {
+    status = next;
+    methodTabs.setAvailability({ card: next.card, usdc: next.usdc.enabled, reasons: next.reasons });
+    if (step === 'pick') method = defaultMethod({ card: next.card, usdc: next.usdc.enabled });
+  }
+
   function markTaken(slotId: string) {
     status = { ...status, slots: status.slots.map((s) => (s.slotId === slotId ? { ...s, free: false } : s)) };
+  }
+
+  function startHold(o: AdOrder, el: HTMLElement) {
+    const until = o.holdUntil ? Date.parse(o.holdUntil) : NaN;
+    const tick = () => {
+      if (!Number.isFinite(until)) {
+        el.textContent = '';
+        return;
+      }
+      const left = until - Date.now();
+      el.textContent =
+        left > 0
+          ? `Slot held for you · ${fmtClock(left)}`
+          : o.usdc
+            ? 'The hold ran out. Pay now and you keep the slot if it is still free; otherwise the USDC is refunded by hand.'
+            : 'The hold ran out. Pay now and you keep the slot if it is still free; otherwise you are refunded at once.';
+      el.classList.toggle('rva-hold-low', left < 120_000);
+    };
+    tick();
+    if (holdTimer) clearInterval(holdTimer);
+    holdTimer = setInterval(tick, 1000);
+  }
+
+  function openWallet(o: AdOrder) {
+    const pay = o.usdc!;
+    setStep('wallet');
+    const slot = adSlot(o.slotId)!;
+    const amount = formatUnits6(pay.amount);
+    walletSummary.replaceChildren(h('div', 'rvc-sum-line', `${slotLabel(slot)} · ${AD_KINDS[slot.kind].label}`), h('div', 'rvc-sum-line', `“${o.name}” → ${new URL(o.url).hostname}`));
+    const row = (k: string, v: string, cls = '') => {
+      const dt = h('dt', '', k);
+      const dd = h('dd', cls, v);
+      walletBox.append(dt, dd);
+    };
+    walletBox.replaceChildren();
+    row('Send exactly', `${amount} USDC`, 'rv-display rva-usdc-amount');
+    row('Network', pay.chainId === 5042 ? 'Arc' : 'Arc Testnet');
+    row('To', `Token Tails · ${shortAddress(pay.recipient)}`);
+    walletLegal.textContent = 'Your wallet sends one USDC transfer on Arc (it may first ask to switch to, or add, Arc). The tiny tag after the decimal point matches the payment to your ad. A rejected ad is refunded in full, by hand, in USDC to the wallet that paid.';
+    setMsg(walletMsg, '');
+    walletGo.disabled = false;
+    walletBack.disabled = false;
+    walletGo.textContent = `Send ${amount} USDC on Arc`;
+    startHold(o, walletHold);
+  }
+
+  walletBack.addEventListener('click', () => {
+    if (busy) return;
+    setStep('form');
+    renderForm();
+  });
+  walletGo.addEventListener('click', async () => {
+    const o = order;
+    if (busy || !o?.usdc) return;
+    const provider = injectedProvider();
+    if (!provider) {
+      setMsg(walletMsg, '', 'err');
+      fillNoWallet(walletMsg, false);
+      return;
+    }
+    busy = true;
+    walletGo.disabled = walletBack.disabled = true;
+    walletGo.classList.add('rvc-busy');
+    walletGo.textContent = 'Confirm in your wallet…';
+    setMsg(walletMsg, '');
+    let sent: { txHash: string; explorerUrl: string | null };
+    try {
+      sent = await sendAdUsdc({ provider, pay: o.usdc, priceCents: status.priceCents });
+    } catch (err) {
+      if (destroyed) return;
+      busy = false;
+      walletGo.classList.remove('rvc-busy');
+      walletGo.disabled = walletBack.disabled = false;
+      walletGo.textContent = `Send ${formatUnits6(o.usdc.amount)} USDC on Arc`;
+      const code = (err as { code?: unknown })?.code;
+      setMsg(
+        walletMsg,
+        /bad pay instruction/.test((err as Error)?.message ?? '')
+          ? 'Something went wrong on our side. Nothing was sent.'
+          : code === 'WRONG_CHAIN'
+            ? 'Your wallet did not switch to Arc. Switch it to Arc yourself, then try again. Nothing was sent.'
+            : walletMessage(err),
+        'err',
+      );
+      return;
+    }
+    if (destroyed) return;
+    busy = false;
+    walletGo.classList.remove('rvc-busy');
+    pendingTx = { adId: o.adId, txHash: sent.txHash };
+    savePendingAdTx(pendingTx);
+    txError = null;
+    markTaken(o.slotId);
+    done(o, sent);
+    await reportTx();
+  });
+
+  /** Tells the server the transfer (retried by the poll until it sticks). */
+  async function reportTx(): Promise<AdOrder | null> {
+    const p = pendingTx;
+    if (!p) return null;
+    try {
+      const row = await api.usdcTx(p.adId, p.txHash);
+      pendingTx = null;
+      savePendingAdTx(null);
+      if (row) renderUsdcDone(row);
+      return row;
+    } catch (err) {
+      if (finalTxError(err)) {
+        pendingTx = null;
+        savePendingAdTx(null);
+        txError = `${(err as AdApiError).message} If you think the payment went through, write to us with the transaction link and ad ${p.adId}.`;
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = null;
+        if (!destroyed && step === 'done') {
+          doneTitle.textContent = 'Payment not matched';
+          doneLine.textContent = txError;
+          // The hold may still be open: the buyer can send the exact amount again for the same ad.
+          doneRetry.hidden = !(order && order.adId === p.adId && order.usdc && order.holdUntil && Date.parse(order.holdUntil) > Date.now());
+        }
+      }
+      return null;
+    }
+  }
+
+  function renderUsdcDone(o: AdOrder) {
+    if (destroyed || step !== 'done' || txError) return;
+    const where = slotLabel(adSlot(o.slotId)!);
+    doneTitle.textContent =
+      o.status === 'held'
+        ? 'Checking your payment 🪩'
+        : o.status === 'review'
+          ? 'Your ad is in review 🪩'
+          : o.status === 'live'
+            ? 'Your ad is live 🪩'
+            : o.status === 'expired' || o.status === 'canceled'
+              ? 'The hold ran out'
+              : 'Not approved';
+    switch (o.status) {
+      case 'held':
+        doneLine.textContent = 'Payment sent ✓ Checking it on Arc…';
+        break;
+      case 'review':
+        doneLine.textContent = `Payment received ✓ “${o.name}” goes live on ${where} after a quick check (usually within a day) and stays up for ${status.days} days. If it is not approved, the USDC is refunded by hand to the wallet that paid.`;
+        break;
+      case 'live':
+        doneLine.textContent = `“${o.name}” is live on ${where} ✓`;
+        break;
+      case 'expired':
+      case 'canceled':
+        doneLine.textContent = 'The hold ran out before the payment arrived. If the slot was taken meanwhile, the USDC is refunded by hand to the wallet that paid.';
+        break;
+      case 'rejected':
+      case 'refunded':
+        doneLine.textContent = 'This ad was not approved; the USDC is refunded by hand to the wallet that paid.';
+        break;
+      default:
+        break;
+    }
+  }
+
+  function pollUsdc(adId: string) {
+    const started = Date.now();
+    if (pollTimer) clearTimeout(pollTimer);
+    const tick = async () => {
+      pollTimer = null;
+      if (destroyed || step !== 'done' || txError) return;
+      let row: AdOrder | null = null;
+      try {
+        if (pendingTx) row = await reportTx();
+        row = row ?? (await api.ad(adId));
+      } catch {
+        row = null;
+      }
+      if (destroyed || step !== 'done' || txError) return;
+      if (row) {
+        renderUsdcDone(row);
+        if (row.status !== 'held') return;
+      }
+      const age = Date.now() - started;
+      if (age > 15 * 60_000) {
+        // Stop polling, but never leave "Checking…" on screen without an end.
+        doneLine.textContent = `Still confirming on Arc. Your ad ${adId} moves to review once the transfer is seen; reopen this page later, or write to us with the transaction link.`;
+        return;
+      }
+      pollTimer = setTimeout(tick, age < 2 * 60_000 ? 4_000 : 15_000);
+    };
+    pollTimer = setTimeout(tick, 4_000);
   }
 
   async function openPay(o: AdOrder) {
@@ -463,21 +752,14 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     payEl.replaceChildren();
     payGo.disabled = true;
     payGo.textContent = `Pay ${formatCents(o.amountCents)}`;
-    const until = o.holdUntil ? Date.parse(o.holdUntil) : NaN;
-    const tick = () => {
-      if (!Number.isFinite(until)) {
-        hold.textContent = '';
-        return;
-      }
-      const left = until - Date.now();
-      hold.textContent = left > 0 ? `Slot held for you · ${fmtClock(left)}` : 'The hold ran out. Pay now and you keep the slot if it is still free; otherwise you are refunded at once.';
-      hold.classList.toggle('rva-hold-low', left < 120_000);
-    };
-    tick();
-    if (holdTimer) clearInterval(holdTimer);
-    holdTimer = setInterval(tick, 1000);
+    startHold(o, hold);
     payment?.destroy();
     payment = null;
+    if (!status.publishableKey) {
+      paySkel.hidden = true;
+      setMsg(payMsg, 'Card payments are not available right now.', 'err');
+      return;
+    }
     try {
       const mounted = await mountPaymentElement(payEl, {
         publishableKey: status.publishableKey,
@@ -529,7 +811,7 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     payGo.textContent = `Pay ${formatCents(o.amountCents)}`;
     if (!r.ok) {
       payGo.disabled = false;
-      setMsg(payMsg, r.declined ? `${r.message} ${declineNextStep(false)}` : r.message, 'err');
+      setMsg(payMsg, r.declined ? `${r.message} ${declineNextStep(status.usdc.enabled).replace('switch to crypto', 'go back and switch to crypto')}` : r.message, 'err');
       if (r.declined) payment?.focus();
       return;
     }
@@ -537,7 +819,7 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
     done(o);
   });
 
-  function done(o: AdOrder) {
+  function done(o: AdOrder, usdcTx: { txHash: string; explorerUrl: string | null } | null = null) {
     setStep('done');
     payment?.destroy();
     payment = null;
@@ -545,15 +827,48 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
       donePreview.src = image.url;
       donePreview.hidden = false;
     } else donePreview.hidden = true;
-    doneLine.textContent = `Paid, thank you! “${o.name}” goes live on ${slotLabel(adSlot(o.slotId)!)} after a quick check (usually within a day) and stays up for ${status.days} days. If it is not approved, you get a full refund.`;
+    doneTx.replaceChildren();
+    doneTx.hidden = !usdcTx;
+    doneRetry.hidden = true;
+    doneTitle.textContent = usdcTx ? 'Checking your payment 🪩' : 'Your ad is in review 🪩';
+    if (usdcTx) {
+      doneLine.textContent = 'Payment sent ✓ Checking it on Arc…';
+      if (usdcTx.explorerUrl) {
+        const a = h('a', '', 'View your payment on Arc ↗');
+        a.href = usdcTx.explorerUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        doneTx.append(a);
+      } else doneTx.textContent = `Transaction ${usdcTx.txHash.slice(0, 10)}…`;
+    } else {
+      doneLine.textContent = `Paid, thank you! “${o.name}” goes live on ${slotLabel(adSlot(o.slotId)!)} after a quick check (usually within a day) and stays up for ${status.days} days. If it is not approved, you get a full refund.`;
+    }
     doneOrder.textContent = `Ad ${o.adId}`;
     clientKey = newClientKey();
     opts.onPaid?.(o);
     requestAnimationFrame(() => doneTitle.focus({ preventScroll: true }));
+    if (usdcTx) pollUsdc(o.adId);
     // The webhook may lag a moment; one read confirms the review state server side.
-    setTimeout(() => void api.ad(o.adId).catch(() => null), 2500);
+    else setTimeout(() => void api.ad(o.adId).catch(() => null), 2500);
   }
   doneClose.addEventListener('click', () => opts.onClose?.());
+  doneRetry.addEventListener('click', () => {
+    if (busy || !order?.usdc) return;
+    txError = null;
+    doneRetry.hidden = true;
+    openWallet(order);
+  });
+
+  // A transfer sent in an earlier visit but never accepted by the server: report it again (best effort).
+  const stored = loadPendingAdTx();
+  if (stored) {
+    void api
+      .usdcTx(stored.adId, stored.txHash)
+      .then(() => savePendingAdTx(null))
+      .catch((err) => {
+        if (finalTxError(err)) savePendingAdTx(null);
+      });
+  }
 
   setStep('pick');
   renderPick();
@@ -571,7 +886,7 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
         .status()
         .then((st) => {
           if (destroyed || !st.enabled) return;
-          status = st;
+          applyStatus(st);
           opts.onStatus?.(st);
           if (step === 'pick') {
             if (!pick && s && free(s.id)) pick = s;
@@ -581,12 +896,13 @@ export function mountAdSheet(container: HTMLElement, opts: AdSheetOptions): Moun
         .catch(() => undefined);
     },
     setStatus(next) {
-      status = next;
+      applyStatus(next);
       if (step === 'pick') renderPick();
     },
     destroy() {
       destroyed = true;
       if (holdTimer) clearInterval(holdTimer);
+      if (pollTimer) clearTimeout(pollTimer);
       payment?.destroy();
       if (image) URL.revokeObjectURL(image.url);
       root.remove();

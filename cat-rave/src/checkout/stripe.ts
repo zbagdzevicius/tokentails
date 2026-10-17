@@ -56,7 +56,7 @@ export type ConfirmOutcome =
 
 /** What to try next after a decline, so the message is never a dead end. */
 export function declineNextStep(usdc: boolean): string {
-  return usdc ? 'Try another card or Apple Pay / Google Pay, or switch to USDC.' : 'Try another card or Apple Pay / Google Pay.';
+  return usdc ? 'Try another card or Apple Pay / Google Pay, or switch to crypto (USDC on Arc).' : 'Try another card or Apple Pay / Google Pay.';
 }
 
 export interface MountedPayment {

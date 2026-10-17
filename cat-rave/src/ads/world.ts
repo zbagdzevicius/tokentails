@@ -55,6 +55,11 @@ export interface AdBoards {
   visibleSlots(camera: Camera): string[];
   /** World centre of a slot face now. */
   slotPosition(slotId: string, out: Vector3): boolean;
+  /**
+   * Screen rectangles (CSS px) of the visible slots that show an approved ad, for the HUD to yield to
+   * (a paid ad never stays under the counter or the badge).
+   */
+  liveRects(camera: Camera, width: number, height: number): { slotId: string; x0: number; y0: number; x1: number; y1: number }[];
   dispose(): void;
 }
 
@@ -207,6 +212,8 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
   const dark = keep(new MeshBasicMaterial({ color: new Color(0x050f09) }));
   const neon = keep(new MeshBasicMaterial({ color: new Color(0.3, 1.4, 0.5) }));
   const darkParts: BufferGeometry[] = [];
+  // The moon banners' backing plate: like `dark`, but no fog (the moon is far beyond the fog range).
+  const darkFog = keep(new MeshBasicMaterial({ color: new Color(0x050f09), fog: false }));
   const neonParts: BufferGeometry[] = [];
 
   // One shared envelope: baked shading (light top, dark belly, a neon belt) so the unlit body reads round.
@@ -251,6 +258,8 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
       }),
     );
     const front = new Mesh(geo, material);
+    // Moon banners draw after the (transparent) ring round the moon, never under its neon line.
+    if (slot.kind === 'moon') front.renderOrder = 2;
     front.userData.adSlot = slot.id;
     front.name = `ad-face-${slot.id}`;
     const faces = [front];
@@ -266,7 +275,13 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
     const view: SlotView = { slot, root, faces, material, ad: null, texture: null };
 
     if (slot.kind === 'moon') {
-      // Placed relative to the moon every frame (portrait phones move it).
+      // Placed relative to the moon every frame (portrait phones move it). An opaque dark plate just
+      // behind the face hides the ring's neon line where it passes behind the (half-faded) banner.
+      const plate = new Mesh(geo, darkFog);
+      plate.position.z = -0.2;
+      plate.scale.set(1.04, 1.1, 1);
+      plate.name = `ad-plate-${slot.id}`;
+      root.add(plate);
     } else if (slot.kind !== 'blimp') {
       root.position.set(slot.pos[0], slot.pos[1], slot.pos[2]);
       root.rotation.y = slot.yaw;
@@ -310,6 +325,7 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
   const ringGeo = keep(new TorusGeometry(MOON_RING_R, 0.55, 6, 160));
   const ring = new Mesh(ringGeo, keep(new MeshBasicMaterial({ color: new Color(0.35, 1.5, 0.55), fog: false, transparent: true, opacity: 0.85 })));
   ring.name = 'ad-moon-ring';
+  ring.renderOrder = 1;
   ring.userData.noMirror = true;
   group.add(ring);
 
@@ -450,6 +466,40 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
         v.root.updateMatrixWorld();
         v.faces[0].getWorldPosition(tmp);
         if (frustum.containsPoint(tmp)) out.push(v.slot.id);
+      }
+      return out;
+    },
+    liveRects(camera, width, height) {
+      const out: { slotId: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+      if (!group.visible) return out;
+      camera.updateMatrixWorld();
+      for (const v of views) {
+        if (!v.ad || !v.root.visible) continue;
+        v.root.updateMatrixWorld();
+        let x0 = Infinity;
+        let y0 = Infinity;
+        let x1 = -Infinity;
+        let y1 = -Infinity;
+        let front = false;
+        for (const [cx, cy] of [
+          [-1, -1],
+          [1, -1],
+          [1, 1],
+          [-1, 1],
+        ] as const) {
+          tmp.set((cx * v.slot.w) / 2, (cy * v.slot.h) / 2, 0);
+          v.faces[0].localToWorld(tmp);
+          tmp.project(camera);
+          if (tmp.z < 1) front = true;
+          const x = (tmp.x * 0.5 + 0.5) * width;
+          const y = (-tmp.y * 0.5 + 0.5) * height;
+          x0 = Math.min(x0, x);
+          y0 = Math.min(y0, y);
+          x1 = Math.max(x1, x);
+          y1 = Math.max(y1, y);
+        }
+        if (!front || x1 < 0 || y1 < 0 || x0 > width || y0 > height) continue;
+        out.push({ slotId: v.slot.id, x0, y0, x1, y1 });
       }
       return out;
     },

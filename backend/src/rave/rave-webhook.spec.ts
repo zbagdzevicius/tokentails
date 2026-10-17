@@ -27,7 +27,7 @@ describe('RaveWebhookService', () => {
     }
 
     it('is 503 without its secret and 400 on a missing or wrong signature', () => {
-        const noSecret = raveHarness({ ...ENV_ON, RAVE_STRIPE_WEBHOOK_SECRET: '' });
+        const noSecret = raveHarness({ ...ENV_ON, RAVE_STRIPE_WEBHOOK_SECRET: '', STRIPE_WEBHOOK_SECRET: '' });
         expectRaveError(() => noSecret.webhooks.verify(Buffer.from('{}'), 'sig'), 503, 'RAVE_WEBHOOK_UNAVAILABLE');
         const { webhooks } = raveHarness();
         const payload = JSON.stringify(event('evt_1', 'payment_intent.succeeded', {}));
@@ -43,6 +43,20 @@ describe('RaveWebhookService', () => {
             'RAVE_BAD_SIGNATURE'
         );
         expect(webhooks.verify(Buffer.from(payload), sign(payload)).id).toBe('evt_1');
+    });
+
+    it('falls back to STRIPE_WEBHOOK_SECRET when the rave has no secret of its own', () => {
+        const shared = raveHarness({
+            ...ENV_ON,
+            RAVE_STRIPE_WEBHOOK_SECRET: '',
+            STRIPE_WEBHOOK_SECRET: 'whsec_shared',
+        });
+        const payload = JSON.stringify(event('evt_1', 'payment_intent.succeeded', {}));
+        expect(shared.webhooks.verify(Buffer.from(payload), sign(payload, 'whsec_shared')).id).toBe('evt_1');
+        expectRaveError(() => shared.webhooks.verify(Buffer.from(payload), sign(payload)), 400, 'RAVE_BAD_SIGNATURE');
+        // The rave's own secret wins.
+        const own = raveHarness({ ...ENV_ON, STRIPE_WEBHOOK_SECRET: 'whsec_shared' });
+        expect(own.webhooks.verify(Buffer.from(payload), sign(payload)).id).toBe('evt_1');
     });
 
     it('works while checkout is not ready, so late payments and refunds are not dropped', () => {
