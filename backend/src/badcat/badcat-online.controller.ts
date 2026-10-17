@@ -21,15 +21,14 @@ import {
     ShortLinkResponse,
 } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { BadcatFlags, badcatFlags } from './badcat-flags';
 import { BadcatLinksService } from './badcat-links.service';
 import { BadcatOnlineService, TreatMeterView } from './badcat-online.service';
 import { BadcatPushService } from './badcat-push.service';
 import { BADCAT_SIM_INFO, IBadcatSimInfo } from './badcat-sim-info';
 
 /*
- * Bad Cat Daily Phase 2 routes (GDD 10, 17.3). Same rules as BadcatController: 404 unless BADCAT_ENABLED and the
- * route's feature flag are on, a per-client-IP limit counted in the handler after the flag check, admin routes behind
+ * Bad Cat Daily Phase 2 routes (GDD 10, 17.3). Same rules as BadcatController: always on (push answers 503 without
+ * the BADCAT_VAPID_* keys), a per-client-IP limit counted in the handler, admin routes behind
  * AppAuthGuard + PermissionGuard(ADMIN). Signed-in routes take the lowercase `accesstoken` header (Firebase `fb`
  * token) through AppAuthGuard. No route here writes a score (ranked runs: the one score route (/live in the user module), BAD_CAT).
  */
@@ -67,24 +66,16 @@ export class BadcatOnlineController {
         private readonly ipThrottler: ClientIpThrottlerGuard
     ) {}
 
-    private async gate(
-        features: (keyof BadcatFlags)[],
-        throttle: keyof typeof BADCAT_ONLINE_THROTTLES | null,
-        req: any,
-        res?: any
-    ): Promise<void> {
-        const flags = badcatFlags();
-        if (!flags.enabled || features.some(feature => !flags[feature])) throw BADCAT_ERRORS.notFound();
-        if (throttle) {
-            await this.ipThrottler.consume(`BadcatOnline.${throttle}`, req, BADCAT_ONLINE_THROTTLES[throttle], res);
-        }
+    /** The per-client-IP limit of one public route. */
+    private async throttle(name: keyof typeof BADCAT_ONLINE_THROTTLES, req: any, res?: any): Promise<void> {
+        await this.ipThrottler.consume(`BadcatOnline.${name}`, req, BADCAT_ONLINE_THROTTLES[name], res);
     }
 
     /** Which sim the BAD_CAT branch of /live replays with (the game's deploy compares it with its build). */
     @Header('Cache-Control', 'public, max-age=60')
     @Get('sim')
     async sim(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<IBadcatSimInfo> {
-        await this.gate(['scores'], 'sim', req, res);
+        await this.throttle('sim', req, res);
         return BADCAT_SIM_INFO;
     }
 
@@ -97,7 +88,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<BoardResponse> {
-        await this.gate(['boards'], 'board', req, res);
+        await this.throttle('board', req, res);
         return this.online.board(intParam(day));
     }
 
@@ -111,7 +102,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<BoardMeResponse> {
-        await this.gate(['boards'], 'boardMe', req, res);
+        await this.throttle('boardMe', req, res);
         return this.online.boardMe(intParam(day), user);
     }
 
@@ -126,7 +117,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<AccountResponse> {
-        await this.gate(['accounts'], 'account', req, res);
+        await this.throttle('account', req, res);
         return this.online.accountSummary(user);
     }
 
@@ -138,7 +129,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<EntitlementResponse> {
-        await this.gate(['accounts', 'checkout'], 'claim', req, res);
+        await this.throttle('claim', req, res);
         return this.online.claim(user);
     }
 
@@ -151,7 +142,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; on: boolean }> {
-        await this.gate(['accounts', 'streakEmail'], 'account', req, res);
+        await this.throttle('account', req, res);
         return this.online.setStreakEmail(user, body?.on);
     }
 
@@ -163,7 +154,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<CreatorDashboard> {
-        await this.gate(['accounts', 'creatorDashboard'], 'creator', req, res);
+        await this.throttle('creator', req, res);
         return this.online.creatorDashboard(user);
     }
 
@@ -176,7 +167,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; status: 'approved' }> {
-        await this.gate(['accounts', 'faceUploads'], 'face', req, res);
+        await this.throttle('face', req, res);
         return this.online.faceFromYourcat(cameoId, user);
     }
 
@@ -189,13 +180,13 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<ShortLinkResponse> {
-        await this.gate(['shortLinks'], 'link', req, res);
+        await this.throttle('link', req, res);
         return this.links.createLink(body);
     }
 
     @Get('s/:id')
     async shortLink(@Param('id') id: string, @Req() req: any, @Res() res: any): Promise<void> {
-        await this.gate(['shortLinks'], 'linkGet', req, res);
+        await this.throttle('linkGet', req, res);
         const html = await this.links.linkPage(id);
         if (!html) throw BADCAT_ERRORS.notFound();
         res.set({
@@ -210,7 +201,7 @@ export class BadcatOnlineController {
 
     @Get('og/:file')
     async ogImage(@Param('file') file: string, @Req() req: any, @Res() res: any): Promise<void> {
-        await this.gate(['shortLinks'], 'linkGet', req, res);
+        await this.throttle('linkGet', req, res);
         const match = /^([A-Za-z0-9]{8})\.png$/.exec(file || '');
         const png = match ? await this.links.linkCard(match[1]) : null;
         if (!png) throw BADCAT_ERRORS.notFound();
@@ -231,14 +222,14 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<RoomPublishResponse> {
-        await this.gate(['feed'], 'room', req, res);
+        await this.throttle('room', req, res);
         return this.links.publishRoom(body, null);
     }
 
     @Header('Cache-Control', 'public, max-age=60')
     @Get('room/:id')
     async room(@Param('id') id: string, @Req() req: any, @Res({ passthrough: true }) res: any): Promise<FeedRoom> {
-        await this.gate(['feed'], 'roomGet', req, res);
+        await this.throttle('roomGet', req, res);
         const room = await this.links.room(id);
         if (!room) throw BADCAT_ERRORS.notFound();
         return room;
@@ -251,7 +242,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean }> {
-        await this.gate(['feed'], 'play', req, res);
+        await this.throttle('play', req, res);
         return this.links.play(id);
     }
 
@@ -262,7 +253,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean }> {
-        await this.gate(['feed'], 'report', req, res);
+        await this.throttle('report', req, res);
         return this.links.report(id);
     }
 
@@ -274,7 +265,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<FeedResponse> {
-        await this.gate(['feed'], 'feed', req, res);
+        await this.throttle('feed', req, res);
         return this.links.feed(sort, cursor);
     }
 
@@ -283,7 +274,7 @@ export class BadcatOnlineController {
     @Header('Cache-Control', 'public, max-age=300')
     @Get('meter')
     async meter(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<TreatMeterView> {
-        await this.gate(['meter'], 'meter', req, res);
+        await this.throttle('meter', req, res);
         return this.online.meter();
     }
 
@@ -292,7 +283,7 @@ export class BadcatOnlineController {
     @Header('Cache-Control', 'public, max-age=3600')
     @Get('push/key')
     async pushKey(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<{ publicKey: string }> {
-        await this.gate(['push'], 'push', req, res);
+        await this.throttle('push', req, res);
         return this.push.publicKey();
     }
 
@@ -303,7 +294,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; utcHour: number }> {
-        await this.gate(['push'], 'push', req, res);
+        await this.throttle('push', req, res);
         return this.push.subscribe(body);
     }
 
@@ -314,7 +305,7 @@ export class BadcatOnlineController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean }> {
-        await this.gate(['push'], 'push', req, res);
+        await this.throttle('push', req, res);
         return this.push.unsubscribe(body?.endpoint);
     }
 
@@ -322,16 +313,14 @@ export class BadcatOnlineController {
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('admin/rooms')
-    async adminRooms(@Query('status') status: string, @Req() req: any) {
-        await this.gate(['enabled'], null, req);
+    async adminRooms(@Query('status') status: string) {
         return { items: await this.links.adminRooms(status) };
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @HttpCode(200)
     @Post('admin/rooms/:id/:decision')
-    async reviewRoom(@Param('id') id: string, @Param('decision') decision: string, @Req() req: any) {
-        await this.gate(['enabled'], null, req);
+    async reviewRoom(@Param('id') id: string, @Param('decision') decision: string) {
         if (decision !== 'approve' && decision !== 'reject' && decision !== 'hide') throw BADCAT_ERRORS.notFound();
         return this.links.reviewRoom(id, decision);
     }

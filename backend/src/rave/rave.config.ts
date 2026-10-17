@@ -1,13 +1,13 @@
 /*
- * Moon Rave checkout config (cat-rave/CHECKOUT-SPEC.md sections 4, 8, 9). Off unless
- * RAVE_CHECKOUT_ENABLED=true. Secrets are never returned: only whether a key is set and its mode.
+ * Moon Rave checkout config (cat-rave/CHECKOUT-SPEC.md sections 4, 8, 9). No on/off flag: checkout is
+ * open whenever its Stripe keys, webhook secret and shelter keeper resolve (RaveService.readiness), and the
+ * USDC tab whenever a chain qualifies (RaveService.usdcChains). Secrets are never returned: only whether a
+ * key is set and its mode.
  */
 
 export type StripeKeyMode = 'live' | 'test';
 
 export interface RaveConfig {
-    enabled: boolean;
-    usdcEnabled: boolean;
     /** Stripe percentage fee in basis points (default 290 = 2.9 %). */
     feePercentBps: number;
     /** Stripe fixed fee in cents (default 30). */
@@ -34,8 +34,6 @@ export const RAVE_DEFAULTS = Object.freeze({
     createdPerHour: 200,
 });
 
-const flag = (value: string | undefined) => (value || '').trim().toLowerCase() === 'true';
-
 /** A whole number in [min, max], else the fallback. */
 function int(value: string | undefined, fallback: number, min: number, max: number): number {
     const trimmed = (value || '').trim();
@@ -61,8 +59,6 @@ export function stripePublishableKeyMode(key: string | undefined): StripeKeyMode
 export function readRaveConfig(env: NodeJS.ProcessEnv = process.env): RaveConfig {
     const publishableKey = (env.STRIPE_PUBLISHABLE_KEY || '').trim() || null;
     return {
-        enabled: flag(env.RAVE_CHECKOUT_ENABLED),
-        usdcEnabled: flag(env.RAVE_USDC_ENABLED),
         feePercentBps: int(env.RAVE_FEE_PERCENT_BPS, RAVE_DEFAULTS.feePercentBps, 0, 2000),
         feeFixedCents: int(env.RAVE_FEE_FIXED_CENTS, RAVE_DEFAULTS.feeFixedCents, 0, 500),
         maxCats: int(env.RAVE_MAX_CATS, RAVE_DEFAULTS.maxCats, 10, 10000),

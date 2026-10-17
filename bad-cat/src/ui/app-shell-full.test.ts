@@ -300,7 +300,7 @@ describe('QA hook (VITE_BADCAT_QA)', () => {
 
 describe('studio (?studio=1, GDD 6.2)', () => {
   it('queue → studio cat maker → 40 s run → stitch clip with the handle → save → back to the queue', async () => {
-    const w = returning(world({ ghosts: [], studio: true }, { env: { studioAllowed: true } }), 3);
+    const w = returning(world({ ghosts: [], studio: true }), 3);
     w.services.catMaker.open = async (_h, o) => {
       w.catmakerOpens.push(o as unknown as Record<string, unknown>);
       return { spec: { ...DEFAULT_CAT, name: 'Luna' }, method: 'gallery', handle: '@luna.mom' };

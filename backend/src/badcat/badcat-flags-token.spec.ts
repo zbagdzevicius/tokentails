@@ -1,16 +1,21 @@
 import { CLUB_LIMITS, Entitlements, FREE_LIMITS } from './badcat.contracts';
-import { badcatFlags, badcatPublicUrl, badcatStripeKey } from './badcat-flags';
+import {
+    badcatCheckoutReady,
+    badcatEntitlementSecret,
+    badcatFeedAutoApprove,
+    badcatPublicUrl,
+    badcatStripeKey,
+    ENTITLEMENT_SECRET_LABEL,
+} from './badcat-flags';
+import { createHmac } from 'crypto';
 import { signEntitlements, verifyEntitlementToken } from './badcat-token';
 import { addMonths, dayNoOf, filterName, isFriday, weekStartOf, weightedSample, xorshift32 } from './badcat-util';
 import { buildHarness, NOW, ON_ENV, statusOf, useEnv } from './badcat-harness.helper-spec';
 
-describe('badcat flags', () => {
-    it('every flag is off without env, and every feature needs the master switch', () => {
-        expect(Object.values(badcatFlags({}))).toEqual(Object.values(badcatFlags({})).map(() => false));
-        const featuresOnly = { ...ON_ENV, BADCAT_ENABLED: undefined } as NodeJS.ProcessEnv;
-        expect(Object.values(badcatFlags(featuresOnly)).every(value => value === false)).toBe(true);
-        expect(badcatFlags({ BADCAT_ENABLED: '1', BADCAT_CHECKOUT_ENABLED: 'true' }).checkout).toBe(false);
-        expect(badcatFlags(ON_ENV).checkout).toBe(true);
+describe('badcat env readers', () => {
+    it('has no on/off switches: only the feed auto-approve policy, off by default', () => {
+        expect(badcatFeedAutoApprove({})).toBe(false);
+        expect(badcatFeedAutoApprove({ BADCAT_FEED_AUTO_APPROVE: 'true' })).toBe(true);
     });
 
     it('defaults the public URL to tokentails.com and trims a trailing slash', () => {
@@ -18,31 +23,78 @@ describe('badcat flags', () => {
         expect(badcatPublicUrl({ BADCAT_PUBLIC_URL: 'https://example.test/' })).toBe('https://example.test');
     });
 
-    it('uses only BADCAT_STRIPE_SECRET_KEY and refuses a live key without the override', () => {
+    it('uses BADCAT_STRIPE_SECRET_KEY, else STRIPE_SECRET_KEY: test keys outside production', () => {
+        expect(badcatStripeKey({})).toMatchObject({ usable: false, reason: 'missing' });
         expect(badcatStripeKey({ STRIPE_SECRET_KEY: 'sk_test_main' })).toMatchObject({
-            usable: false,
-            reason: 'missing',
-        });
-        expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'sk_test_x' })).toMatchObject({
+            key: 'sk_test_main',
             usable: true,
             testMode: true,
         });
+        expect(
+            badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'sk_test_own', STRIPE_SECRET_KEY: 'sk_test_main' })
+        ).toMatchObject({ key: 'sk_test_own', usable: true, testMode: true });
         expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'rk_test_x' })).toMatchObject({
             usable: true,
             testMode: true,
         });
+        expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'pk_test_x' })).toMatchObject({
+            usable: false,
+            reason: 'unknown_prefix',
+        });
+    });
+
+    it('never takes real money outside production: a live key there is refused (mode)', () => {
         expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'sk_live_x' })).toMatchObject({
             usable: false,
-            reason: 'live_refused',
+            reason: 'mode',
         });
-        expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'rk_live_x' })).toMatchObject({
+        expect(badcatStripeKey({ NODE_ENV: 'staging', STRIPE_SECRET_KEY: 'rk_live_x' })).toMatchObject({
             usable: false,
-            reason: 'live_refused',
+            reason: 'mode',
+        });
+        // a live shared key next to a test badcat key: the test one is used
+        expect(
+            badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'sk_test_own', STRIPE_SECRET_KEY: 'sk_live_main' })
+        ).toMatchObject({ key: 'sk_test_own', testMode: true });
+    });
+
+    it('in production takes only a live key, skipping a leftover test BADCAT_STRIPE_SECRET_KEY', () => {
+        const prod = { NODE_ENV: 'production' };
+        expect(badcatStripeKey({ ...prod, BADCAT_STRIPE_SECRET_KEY: 'sk_live_own' })).toMatchObject({
+            key: 'sk_live_own',
+            usable: true,
+            testMode: false,
         });
         expect(
-            badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'sk_live_x', BADCAT_STRIPE_ALLOW_LIVE: 'true' })
-        ).toMatchObject({ usable: true, testMode: false });
-        expect(badcatStripeKey({ BADCAT_STRIPE_SECRET_KEY: 'pk_test_x' })).toMatchObject({ usable: false });
+            badcatStripeKey({ ...prod, BADCAT_STRIPE_SECRET_KEY: 'sk_test_old', STRIPE_SECRET_KEY: 'sk_live_main' })
+        ).toMatchObject({ key: 'sk_live_main', usable: true, testMode: false });
+        expect(badcatStripeKey({ ...prod, BADCAT_STRIPE_SECRET_KEY: 'sk_test_old' })).toMatchObject({
+            usable: false,
+            reason: 'mode',
+        });
+    });
+
+    it('derives the entitlement key from INVALIDATE_CACHE_SECRET when its own is unset', () => {
+        expect(badcatEntitlementSecret({})).toBeNull();
+        expect(badcatEntitlementSecret({ BADCAT_ENTITLEMENT_SECRET: 'own', INVALIDATE_CACHE_SECRET: 'x' })).toBe('own');
+        const derived = badcatEntitlementSecret({ INVALIDATE_CACHE_SECRET: 'shared-secret' });
+        expect(derived).toBe(
+            createHmac('sha256', 'shared-secret').update(ENTITLEMENT_SECRET_LABEL).digest('base64url')
+        );
+        expect(derived).not.toContain('shared-secret');
+        expect(badcatEntitlementSecret({ INVALIDATE_CACHE_SECRET: 'shared-secret' })).toBe(derived);
+    });
+
+    it('checkout is ready only with a key, the webhook secret and an entitlement key', () => {
+        const full = {
+            STRIPE_SECRET_KEY: 'sk_test_x',
+            BADCAT_STRIPE_WEBHOOK_SECRET: 'whsec_x',
+            INVALIDATE_CACHE_SECRET: 'shared',
+        };
+        expect(badcatCheckoutReady(full)).toBe(true);
+        expect(badcatCheckoutReady({ ...full, STRIPE_SECRET_KEY: undefined })).toBe(false);
+        expect(badcatCheckoutReady({ ...full, BADCAT_STRIPE_WEBHOOK_SECRET: undefined })).toBe(false);
+        expect(badcatCheckoutReady({ ...full, INVALIDATE_CACHE_SECRET: undefined })).toBe(false);
     });
 });
 
@@ -50,69 +102,102 @@ describe('GET /badcat/status', () => {
     let restore: () => void;
     afterEach(() => restore());
 
-    it('answers all false with no env (and without throttling)', async () => {
+    const club = {
+        sku: 'club_monthly' as const,
+        meta: { trigger: 'home' as const, from_in_app: false },
+        returnBase: 'https://tokentails.com/badcat',
+    };
+
+    it('reports every feature on and the secret-backed ones not ready with no env', async () => {
         restore = useEnv({});
         const h = buildHarness();
         expect(await h.controller.status({}, {})).toEqual({
-            enabled: false,
+            enabled: true,
             checkout: false,
-            cameos: false,
+            cameos: true,
             gifts: false,
             restoreEmail: false,
-            faceUploads: false,
-            creatorCodes: false,
+            faceUploads: true,
+            creatorCodes: true,
             brand: false,
             testMode: false,
+            scores: true,
+            boards: true,
+            accounts: true,
+            shortLinks: true,
+            feed: true,
+            meter: true,
+            push: false,
+            streakEmail: false,
+            creatorDashboard: true,
         });
-        expect(h.ipThrottler.consume).not.toHaveBeenCalled();
+        expect(h.ipThrottler.consume).toHaveBeenCalledTimes(1);
+        expect(await statusOf(h.controller.checkout(club as any, {}, {}))).toBe(503);
     });
 
-    it('reports the flags, test mode and founding places left', async () => {
-        restore = useEnv(ON_ENV);
+    it('reports checkout ready, test mode and founding places left', async () => {
+        restore = useEnv({ ...ON_ENV, SENDGRID_API_KEY: 'SG.test' });
         const h = buildHarness();
         expect(await h.controller.status({}, {})).toEqual({
             enabled: true,
             checkout: true,
             cameos: true,
             gifts: true,
-            restoreEmail: false,
+            restoreEmail: true,
             faceUploads: true,
             creatorCodes: true,
             brand: true,
             testMode: true,
             foundingLeft: 200,
-            scores: false,
-            boards: false,
-            accounts: false,
-            shortLinks: false,
-            feed: false,
-            meter: false,
+            scores: true,
+            boards: true,
+            accounts: true,
+            shortLinks: true,
+            feed: true,
+            meter: true,
             push: false,
-            streakEmail: false,
-            creatorDashboard: false,
+            streakEmail: true,
+            creatorDashboard: true,
         });
     });
 
-    it('turns checkout off with a live key, and a live checkout is refused with 503', async () => {
-        restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_SECRET_KEY: 'sk_live_nope' });
+    it('accepts a live key in production (test mode off)', async () => {
+        restore = useEnv({ ...ON_ENV, NODE_ENV: 'production', BADCAT_STRIPE_SECRET_KEY: 'sk_live_ok' });
+        const h = buildHarness();
+        expect(await h.controller.status({}, {})).toMatchObject({ checkout: true, testMode: false });
+    });
+
+    it('refuses a live key outside production: checkout not ready, 503, no session', async () => {
+        restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_SECRET_KEY: 'sk_live_ok' });
+        const h = buildHarness();
+        expect(await h.controller.status({}, {})).toMatchObject({ checkout: false, testMode: false });
+        expect(await statusOf(h.controller.checkout(club as any, {}, {}))).toBe(503);
+        expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses a test key in production: no free entitlements from test cards', async () => {
+        restore = useEnv({ ...ON_ENV, NODE_ENV: 'production' });
+        const h = buildHarness();
+        expect(await h.controller.status({}, {})).toMatchObject({ checkout: false });
+        expect(await statusOf(h.controller.checkout(club as any, {}, {}))).toBe(503);
+        expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('takes no money without the webhook secret: checkout not ready and 503', async () => {
+        restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_WEBHOOK_SECRET: undefined });
         const h = buildHarness();
         const status = await h.controller.status({}, {});
-        expect(status).toMatchObject({ enabled: true, checkout: false, gifts: false, brand: false, testMode: false });
+        expect(status).toMatchObject({ enabled: true, checkout: false, gifts: false, brand: false, testMode: true });
         expect(status.foundingLeft).toBeUndefined();
-        expect(() => h.stripe.stripe()).toThrow();
-        expect(
-            await statusOf(
-                h.controller.checkout(
-                    {
-                        sku: 'club_monthly',
-                        meta: { trigger: 'home', from_in_app: false },
-                        returnBase: 'https://tokentails.com/badcat',
-                    },
-                    {},
-                    {}
-                )
-            )
-        ).toBe(503);
+        expect(await statusOf(h.controller.checkout(club as any, {}, {}))).toBe(503);
+        expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('takes no money without an entitlement key: 503', async () => {
+        restore = useEnv({ ...ON_ENV, BADCAT_ENTITLEMENT_SECRET: undefined });
+        const h = buildHarness();
+        expect((await h.controller.status({}, {})).checkout).toBe(false);
+        expect(await statusOf(h.controller.checkout(club as any, {}, {}))).toBe(503);
         expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
     });
 });

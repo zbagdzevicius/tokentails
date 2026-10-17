@@ -977,9 +977,8 @@ breaks safe areas, zoom, edge swipes and `navigator.share`). The Catnip Heist ho
 involved.
 
 **Hosting.** `bad-cat` builds into `client/public/badcat-game/` with the base `/badcat-game/`.
-`next.config.js` maps the public URLs to those files with rewrites. The rewrites exist only when the build-time
-flag `BADCAT_ROUTES` is `1`, `true`, `yes` or `on`, and only in web builds (the Capacitor export has none).
-With the flag off, the files are still reachable at `/badcat-game/...`, but `/badcat` returns 404.
+`next.config.js` maps the public URLs to those files with rewrites. The rewrites are always on in web builds
+(no flag); the Capacitor export has none.
 
 | Public path | File in `public/badcat-game/` |
 |---|---|
@@ -992,7 +991,7 @@ With the flag off, the files are still reachable at `/badcat-game/...`, but `/ba
 | `/badcat/club`, `archive`, `rapsheet`, `brand`, `cameo`, `settings`, `gift`, `shop` | `index.html` (the game's own router) |
 | `/badcat/<anything else>` | `/badcat-game/<anything else>` (bundle, `og/`, `daily/`, `sw.js`, manifest) |
 
-With the flag on, `sw.js` (at `/badcat-game/sw.js` and `/badcat/sw.js`) is also served with
+In web builds, `sw.js` (at `/badcat-game/sw.js` and `/badcat/sw.js`) is also served with
 `Service-Worker-Allowed: /badcat/` and `Cache-Control: no-cache`, so a worker can control the `/badcat/*`
 pages. A page opened under `/badcat/*` registers `/badcat-game/sw.js` with scope `/badcat/` (the worker routes
 the `/badcat-game/` assets relative to its own folder); `/badcat-game/*` pages keep the `/badcat-game/` scope.
@@ -1013,39 +1012,40 @@ right title and image. The existing redirects and the Firebase auth rewrites are
    no image of its own uses its shell's image. The default range is days 1 to max(63, today + 180), and
    `--days N` changes it. Re-running the step gives the same files.
 5. `npm run budget` (after `npm run build`): fails if the first-load JS (entry + three) is over 450 KB gzip.
-6. Set `BADCAT_ROUTES=1` in the client's Vercel environment, then deploy.
+6. Commit `client/public/badcat-game` and deploy the client; `/badcat` is served as soon as it is deployed.
 
 Par paws come from recorded dev runs: `bad-cat/tools/RECORDING.md`, then `npm run par`. The Pink Paw cast
 snapshot is `bad-cat/public/pink-paw-cats.json`. `npm run sync:pinkpaw` with no source rewrites the snapshot
 without any network call. With a saved `GET /cat/sale` body, or with `--url` given explicitly, it refreshes it.
 
-**Game build variables** (Vite, read at `bad-cat` build time; only `VITE_*` reach the page; all default off):
+**Game build variables** (Vite, read at `bad-cat` build time; only `VITE_*` reach the page). There are no on/off feature switches: the
+Club, cameo, gift and shop UI and every Phase 2 online feature are always built in, and each one follows
+`GET /badcat/status` on the backend at runtime:
 
 | Variable | Effect |
 |---|---|
-| `VITE_BADCAT_API_URL` | Backend origin for the badcat module. If unset, the game runs offline and hides every server feature |
-| `VITE_BADCAT_CLUB` | `1` shows the Club, cameo, gift and shop UI (it also needs the API URL) |
+| `VITE_BADCAT_API_URL` | Backend origin for the badcat module and the Phase 2 services. Without an API URL the game runs offline and hides every server feature |
 | `VITE_BADCAT_POSTHOG_KEY` | PostHog EU key. Events are sent only with this key and `tt-analytics-consent = granted` |
-| `VITE_BADCAT_STUDIO` | `1` allows `?studio=1` in production builds |
 | `VITE_BADCAT_SHORT_URL` | Short URL shown on the clip's URL line |
 | `VITE_BADCAT_PRESALE_URL` | Presale link (existing) |
 | `VITE_BADCAT_QA` | `1` installs the `window.__BADCAT_QA__` hook (QA and e2e only) |
-| `VITE_BADCAT_ONLINE` | Phase 2: `1` turns on `src/online` (accounts, ranked saves, daily board, short links, room feed, live treat meter, push). It also needs the API URL; each feature then waits for the backend's own flag in `GET /badcat/status`. Unset: zero requests |
 | `VITE_BADCAT_AUTH_ORIGIN` | Phase 2: the Token Tails origin that serves `/badcat-account` (sign-in and the token bridge). Unset: the page's own origin on `tokentails.com`, so accounts are off on any other host |
-| `VITE_BADCAT_LIVE_PINKPAW` | Phase 2: `1` reads Pink Paw statuses from `GET /shelter/rozine-pedute/gallery` (display only: badges, "went home" clip lines; the daily rotation keeps the bundled cast) |
-| `VITE_BADCAT_YOURCAT_IMPORT` | Phase 2: `1` offers "Import my cat from /yourcat" in Settings (signed in; reads `GET /yourcat/me`, no AI call) |
 | `VITE_BADCAT_TREAT_URL` | Phase 2: https page of the existing guest treat flow (for example `https://tokentails.com/heist?treat=1`); a PERFECT CRIME result shows "Give a Pink Paw cat a treat" linking there. Unset: hidden. Never a new spend path |
 
 Build-only names: `BADCAT_BASE` (Vite base; `build:client` sets `/badcat-game/`), `BADCAT_BUILD_ID` (service
 worker cache id), `BADCAT_PUBLIC_URL` (the origin used in OG tags; the same name exists on the backend).
-Client app: `BADCAT_ROUTES`.
+
+Always-on behaviour that used to need a switch: `?studio=1` opens the clip studio in any build (UI only; admin
+routes stay role 5 on the server); live Pink Paw statuses are read from `GET /shelter/rozine-pedute/gallery`
+(display only: badges, "went home" clip lines; the daily rotation keeps the bundled cast); signed-in players get
+"Import my cat from /yourcat" in Settings (reads `GET /yourcat/me`, no AI call).
 
 **Short domain (typed arrivals).** The short domain does not point at the client. It points at the backend's
-`GET /badcat/t` (flag `BADCAT_TYPED_REDIRECT_ENABLED`, docs/BACKEND.md "Bad Cat Daily (badcat)"). That route
+`GET /badcat/t` (docs/BACKEND.md "Bad Cat Daily (badcat)"). That route
 counts the arrival per UTC day and answers 302 to `<BADCAT_PUBLIC_URL>/badcat/pick?e=t`. The rewrites above keep
 the query string, so the room picker sees `e=t`.
 
-Payments, entitlements and cameos also live in the backend `badcat` module, behind flags that default off. The
+Payments, entitlements and cameos also live in the backend `badcat` module (always on; no flags). The
 client app has no Bad Cat API routes.
 
 **Accounts: `/badcat-account` (Phase 2).** `pages/badcat-account.tsx` with `lib/badcatBridge.ts` (tests:

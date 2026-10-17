@@ -2,7 +2,7 @@
  * Money screens (DOM, no framework): Club sheet, Thanks, Redeem, Restore, Cameo flow, Gift flow, Shop, Brand
  * page and the small paywall Offer card. Portrait first, 44 px targets, warm and honest copy: renewal terms are
  * always stated, cancel is two taps in the Stripe portal, nothing is pre-ticked, nothing blocks play.
- * Offline (no API URL, Club UI flag off, or the server flag off) every mount shows a polite "Coming soon" card.
+ * Offline (no API URL, the server unreachable, or checkout not ready) every mount shows a polite "Coming soon" card.
  * Every mount returns an unmount function and never throws.
  */
 import './money.css';

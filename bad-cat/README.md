@@ -8,7 +8,7 @@ cat's face goes on the 3D cat from one photo, and you can build rooms for your f
 Spec: `docs/plans/viral-game/GDD.md` v1.2. The FULL build plan (M0 + M1a + M1b + M2) and its wave log are in
 `FULL-PLAN.md`; `LANES.md` is the M0 record; each package's handover note is in `LANE-NOTES/`. Phase 2 (GDD 10,
 17.3: accounts, server-verified ranked runs, boards, server OG and short links, the room feed, live data, push,
-the full store) is built on top, every piece behind flags that default off (see "Phase 2" below).
+the full store) is built on top, always on, with no on/off flags (see "Phase 2" below).
 
 - Portrait first: iPhone Safari and Chrome Android, then desktop (side panels, streamer layout).
 - No downloaded assets. All 3D is procedural low-poly three.js (merged primitives, flat shading, a warm toon
@@ -56,30 +56,27 @@ Run everything from `bad-cat/`.
 | Render dev page | `npm run dev`, then open `/src/render/dev.html` (not shipped) |
 | Re-bake rooms | `BADCAT_WRITE_ROOMS=1 npx vitest run src/content/rooms.bake.test.ts` |
 
-## Env flags
+## Env config
 
-Only `VITE_*` variables reach the page (`vite.config.ts` sets `envPrefix`). Every flag defaults off: with no env
-the game shows no Club, cameo, gift or shop UI and makes no request beyond its own static files.
+Only `VITE_*` variables reach the page (`vite.config.ts` sets `envPrefix`). There are no on/off feature switches:
+the Club, cameo, gift and shop UI, the clip studio (`?studio=1`) and every Phase 2 online feature are always built
+in, and each server feature follows `GET /badcat/status` at runtime. Without an API origin (no API URL and not on
+tokentails.com) the game runs offline and makes no request beyond its own static files.
 
-| Flag | Effect |
+| Variable | Effect |
 |---|---|
-| `VITE_BADCAT_API_URL` | Backend origin of the `badcat` module (`backend/src/badcat/`). Unset: offline, every server feature hidden |
-| `VITE_BADCAT_CLUB` | `1` shows the Club, cameo, gift and shop UI (needs the API URL too) |
+| `VITE_BADCAT_API_URL` | Backend origin of the `badcat` module (`backend/src/badcat/`). Unset: `https://api.tokentails.com` when the page is served from tokentails.com (the hosted `build:client` game is online with no env), else offline with every server feature hidden (local dev, e2e, standalone builds) |
 | `VITE_BADCAT_POSTHOG_KEY` | PostHog EU key; events are sent only with it and `tt-analytics-consent = granted` |
-| `VITE_BADCAT_STUDIO` | `1` honours `?studio=1` in production builds (always on in dev) |
 | `VITE_BADCAT_SHORT_URL` | Short URL on the clip's URL line |
 | `VITE_BADCAT_PRESALE_URL` | Pre-sale Payment Link button (valid `https:` URL only) |
 | `VITE_BADCAT_QA` | `1` installs `window.__BADCAT_QA__` (`screen`, `state`, `play`, `scoring`, `goto`, `setDay`, `services`, `router`, `events`). Never in production |
-| `VITE_BADCAT_ONLINE` | Phase 2: `1` turns on `src/online` (needs the API URL; each feature also waits for its backend flag in `GET /badcat/status`). Unset: zero requests |
 | `VITE_BADCAT_AUTH_ORIGIN` | Phase 2: origin of the client's `/badcat-account` page (sign-in + token bridge). Unset: the page's own origin on tokentails.com, else accounts are off |
-| `VITE_BADCAT_LIVE_PINKPAW` | Phase 2: `1` reads Pink Paw statuses from the shelter gallery (badges and "went home" lines only) |
-| `VITE_BADCAT_YOURCAT_IMPORT` | Phase 2: `1` offers "Import my cat from /yourcat" in Settings (signed in) |
 | `VITE_BADCAT_TREAT_URL` | Phase 2: https page of the existing guest treat flow, linked from a PERFECT CRIME result. Unset: hidden |
 
 Build-only (Node): `BADCAT_BASE`, `BADCAT_BUILD_ID`, `BADCAT_PUBLIC_URL`, `BADCAT_E2E_PORT`, `BADCAT_WRITE_ROOMS`.
-The client app's `BADCAT_ROUTES` adds the `/badcat/*` rewrites (`docs/CLIENT.md`, "Bad Cat Daily"). The backend's
-`BADCAT_*` flags (checkout, cameos, gifts, brand, faces, restore email, seen email, creator codes, typed redirect)
-are in `docs/BACKEND.md`; Stripe runs in test mode only and a live key is refused unless `BADCAT_STRIPE_ALLOW_LIVE`.
+The client app always serves the `/badcat/*` rewrites in web builds (`docs/CLIENT.md`, "Bad Cat Daily"). The backend
+module is always on too; its secrets and config values (Stripe key with the shared-key fallback, webhook and
+entitlement secrets, VAPID keys) are in `docs/BACKEND.md`. Stripe takes live keys only in production and test keys elsewhere.
 
 ## Architecture
 
@@ -99,7 +96,7 @@ IndexedDB, WebCodecs, MediaRecorder) are created inside functions, so every modu
 | `src/platform/` | Env, storage, PostHog sender with consent, PWA (`sw.js`, A2HS), `.ics` reminder, treat meter, Pink Paw data |
 | `src/progress/` | Streak with Club freezes, Rap Sheet, weekly card, season track S0–S3, par paws, friends board, My rooms, owned cosmetics, save code + QR |
 | `src/money/` | Badcat API client, entitlement cache, Club checkout (monthly / annual), thanks, restore, portal, redeem, gifts, cameos and guest stars, shop, Brand Shelf, paywall engine with A/B, creator codes |
-| `src/online/` | Phase 2 (offline unless `VITE_BADCAT_ONLINE=1`): account bridge to the client's `/badcat-account` iframe, ranked saves to `POST /user/catbassadors/live` (type BAD_CAT) with an offline queue, board, account, purchase claim, short links, room feed, live meter and Pink Paw statuses, `/yourcat` import, web-push subscription, creator dashboard |
+| `src/online/` | Phase 2 (offline only without an API URL): account bridge to the client's `/badcat-account` iframe, ranked saves to `POST /user/catbassadors/live` (type BAD_CAT) with an offline queue, board, account, purchase claim, short links, room feed, live meter and Pink Paw statuses, `/yourcat` import, web-push subscription, creator dashboard |
 | `src/server/` | Phase 2: the pure entry the backend vendors (`verifyRanked`, `checkRoom`, canonical logs, day numbers, name filter). No browser API |
 | `src/share/` | Clip planner and 12 s export, 6 post formats plus household, Stitch / reply template, studio queue, Rap Sheet / cat / cameo / story cards, carousel, fallback-2 GIF, music toggle, MediaRecorder audio, in-app handoff and Android `intent://` |
 | `src/editor/` | Room Maker: 6 shells, palette tabs, place / move / rotate / delete, undo / redo, routine and event, 3 targets, limits and BFS, clear-to-publish, link and 1200×630 card, remix, speed build, admin JSON |
@@ -128,9 +125,9 @@ The only score write path in the repo stays `POST /user/catbassadors/live`; Phas
 
 ## Phase 2 (GDD 10, 17.3)
 
-Two switches per feature: the game's `VITE_BADCAT_ONLINE=1` (plus `VITE_BADCAT_API_URL`), and the backend's
-`BADCAT_ENABLED` plus the feature flag (`docs/BACKEND.md`, "Bad Cat Daily (badcat)", Phase 2). With either off the
-feature is hidden and makes no request.
+No switches: every Phase 2 feature is on whenever the game has an API URL. A feature the backend reports not ready
+in `GET /badcat/status` (for example push without VAPID keys) is hidden and makes no request (`docs/BACKEND.md`,
+"Bad Cat Daily (badcat)", Phase 2).
 
 - **Accounts.** Token Tails sign-in through the client page `/badcat-account` (a full-page hop there and back; a
   hidden iframe of `/badcat-account?bridge=1` then hands out fresh Firebase ID tokens by `postMessage`, sent as the
@@ -154,7 +151,7 @@ feature is hidden and makes no request.
 - **Return reasons.** Web push "Today's room is open" at the hour you pick (service worker `push` handler), and an
   opt-in streak email the evening a streak would end.
 - **Store.** Four more looks (Spiked collar, Wizard hat, Bubble trail, Neon stamp) and a second bundle, through the
-  same Stripe test-mode Checkout and entitlements; "Claim my purchases" moves them to any device signed in with
+  same Stripe Checkout (live in production, test elsewhere) and entitlements; "Claim my purchases" moves them to any device signed in with
   the purchase email.
 - **Other.** Gamepad (stick or d-pad, A jump, X/B swat, Y grab, Start pause), "Import my cat from /yourcat" (the
   family's coat on your cat), a cameo face from your `/yourcat` portrait (no AI call), the creator dashboard, and

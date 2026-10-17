@@ -37,8 +37,8 @@ import { RaveAdCheckoutBody, RaveAdsService } from './rave-ads.service';
 
 /*
  * Moon Rave ad space (cat-rave/src/ads). Guest routes, no login, a per-client-IP limit like the rave
- * checkout. Buyer routes answer 404 while RAVE_ADS_ENABLED is off (GET /rave/ads/status then says
- * `enabled: false`); GET /rave/ads stays readable so live ads keep showing. Payments arrive through the
+ * checkout. Buyer routes answer 503 while something they need is missing (GET /rave/ads/status
+ * then says `enabled: false` with a reason); GET /rave/ads stays readable so live ads keep showing. Payments arrive through the
  * rave webhook (POST /rave/stripe/webhook). Approve / reject (with a Stripe refund) need ADMIN (5).
  */
 
@@ -55,7 +55,7 @@ export const RAVE_AD_MULTER = {
 };
 
 /**
- * Flag and per-IP limit of POST /rave/ads/checkout, as the FIRST interceptor (before FileInterceptor),
+ * Readiness check and per-IP limit of POST /rave/ads/checkout, as the FIRST interceptor (before FileInterceptor),
  * so a closed or throttled request is refused before multer reads up to 2 MB into memory. An interceptor,
  * not a guard: every guarded route must start with AppAuthGuard (guard-migration.spec.ts), and this
  * route is a guest route.
@@ -123,7 +123,7 @@ export class RaveAdsController {
         @UploadedFile() file: { buffer?: Buffer; mimetype?: string } | undefined,
         @Req() req: any
     ) {
-        // Flag and per-IP limit: RaveAdCheckoutGate (first interceptor), before the upload is read.
+        // Readiness and per-IP limit: RaveAdCheckoutGate (first interceptor), before the upload is read.
         return this.ads.checkout(body || {}, file, new Date(), clientIpBucket(req));
     }
 

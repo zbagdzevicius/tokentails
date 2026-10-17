@@ -37,49 +37,42 @@ const firebaseAuthRewrites = authProxyOn
 
 // Bad Cat Daily (bad-cat/, GDD 6.6, docs/CLIENT.md "Bad Cat Daily (/badcat)"): the static game build in
 // public/badcat-game (bad-cat: `npm run build:client`, then `npm run og:pages -- ../client/public/badcat-game`)
-// served top level at /badcat, no iframe. Off unless BADCAT_ROUTES is set at build time; web builds only (the
-// Capacitor export has no rewrites). Every page loads the same bundle; d/<n>.html and the link shells only carry
-// their own OG tags. A day without a pre-rendered page falls back to index.html (the game reads the path).
-const badcatRoutesOn = /^(1|true|yes|on)$/i.test(process.env.BADCAT_ROUTES || "");
+// served top level at /badcat, no iframe. Always on in web builds (the Capacitor export has no rewrites). Every
+// page loads the same bundle; d/<n>.html and the link shells only carry their own OG tags. A day without a
+// pre-rendered page falls back to index.html (the game reads the path).
 const BADCAT = "/badcat-game";
-const badcatRewrites = badcatRoutesOn
-  ? [
-      { source: "/badcat", destination: `${BADCAT}/index.html` },
-      { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/d/:n.html` },
-      // Pre-launch preview days ("p30" = 30 days before Day #1, link.ts daySlug) and old negative links have no
-      // pre-rendered page: the SPA shell reads the day from the path.
-      { source: "/badcat/d/:n(p\\d{1,5})", destination: `${BADCAT}/index.html` },
-      { source: "/badcat/d/:n(-\\d{1,5})", destination: `${BADCAT}/index.html` },
-      { source: "/badcat/c/:cat", destination: `${BADCAT}/c.html` },
-      ...["glass", "pick", "r", "c", "thanks", "redeem", "restore", "maker"].map((page) => ({
-        source: `/badcat/${page}`,
-        destination: `${BADCAT}/${page}.html`,
-      })),
-      ...["club", "archive", "rapsheet", "brand", "cameo", "settings", "gift", "shop"].map((route) => ({
-        source: `/badcat/${route}`,
-        destination: `${BADCAT}/index.html`,
-      })),
-      { source: "/badcat/:path*", destination: `${BADCAT}/:path*` },
-    ]
-  : [];
+const badcatRewrites = [
+  { source: "/badcat", destination: `${BADCAT}/index.html` },
+  { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/d/:n.html` },
+  // Pre-launch preview days ("p30" = 30 days before Day #1, link.ts daySlug) and old negative links have no
+  // pre-rendered page: the SPA shell reads the day from the path.
+  { source: "/badcat/d/:n(p\\d{1,5})", destination: `${BADCAT}/index.html` },
+  { source: "/badcat/d/:n(-\\d{1,5})", destination: `${BADCAT}/index.html` },
+  { source: "/badcat/c/:cat", destination: `${BADCAT}/c.html` },
+  ...["glass", "pick", "r", "c", "thanks", "redeem", "restore", "maker"].map((page) => ({
+    source: `/badcat/${page}`,
+    destination: `${BADCAT}/${page}.html`,
+  })),
+  ...["club", "archive", "rapsheet", "brand", "cameo", "settings", "gift", "shop"].map((route) => ({
+    source: `/badcat/${route}`,
+    destination: `${BADCAT}/index.html`,
+  })),
+  { source: "/badcat/:path*", destination: `${BADCAT}/:path*` },
+];
 // Checked after pages and public files: a day past the pre-rendered range (its d/<n>.html is missing) still
 // opens the game with the generic tags.
-const badcatFallbackRewrites = badcatRoutesOn
-  ? [
-      { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/index.html` },
-      { source: `${BADCAT}/d/:n(\\d{1,4}).html`, destination: `${BADCAT}/index.html` },
-    ]
-  : [];
+const badcatFallbackRewrites = [
+  { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/index.html` },
+  { source: `${BADCAT}/d/:n(\\d{1,4}).html`, destination: `${BADCAT}/index.html` },
+];
 // The service worker ships at /badcat-game/sw.js; this header lets it control the /badcat/* pages too.
-const badcatHeaders = badcatRoutesOn
-  ? [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
-      source,
-      headers: [
-        { key: "Service-Worker-Allowed", value: "/badcat/" },
-        { key: "Cache-Control", value: "no-cache" },
-      ],
-    }))
-  : [];
+const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
+  source,
+  headers: [
+    { key: "Service-Worker-Allowed", value: "/badcat/" },
+    { key: "Cache-Control", value: "no-cache" },
+  ],
+}));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -132,20 +125,15 @@ const nextConfig = {
           ];
         },
         async rewrites() {
-          if (!badcatRoutesOn) return [...firebaseAuthRewrites, ...raveRewrites];
           return {
             beforeFiles: [],
             afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
         },
-        ...(badcatRoutesOn
-          ? {
-              async headers() {
-                return badcatHeaders;
-              },
-            }
-          : {}),
+        async headers() {
+          return badcatHeaders;
+        },
       }),
   images: {
     remotePatterns: [

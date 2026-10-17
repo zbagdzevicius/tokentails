@@ -197,22 +197,14 @@ describe('GET /badcat/cameos', () => {
         expect(await statusOf(get('1.5', 0))).toBe(400);
         expect(await statusOf(get(TODAY + 1, 0))).toBe(200);
         expect(await statusOf(get(-30, 7))).toBe(200);
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_CAMEOS_ENABLED: undefined });
-        expect(await statusOf(get(TODAY, 0))).toBe(404);
-        expect(await statusOf(h.controller.seen(CAT, {}, {}))).toBe(404);
-        expect(h.models.counters.docs.filter(d => d.key === `load:${TODAY}:0`)).toHaveLength(0);
     });
 
     it('admin grants free / streak / reply / community cameos', async () => {
-        const { id } = await h.controller.adminCameo(
-            { catCode: CAT, name: 'Winner', dayNo: TODAY, kind: 'streak' },
-            {}
-        );
+        const { id } = await h.controller.adminCameo({ catCode: CAT, name: 'Winner', dayNo: TODAY, kind: 'streak' });
         expect(h.models.cameos.docs[0]).toMatchObject({ kind: 'streak', catCode: CAT, name: 'Winner' });
         expect((await get(TODAY, 0)).spectators.map(e => e.id)).toEqual([id]);
-        expect(await statusOf(h.controller.adminCameo({ catCode: CAT, dayNo: TODAY, kind: 'paid' }, {}))).toBe(400);
-        expect(await statusOf(h.controller.adminCameo({ catCode: 'x', dayNo: TODAY }, {}))).toBe(400);
+        expect(await statusOf(h.controller.adminCameo({ catCode: CAT, dayNo: TODAY, kind: 'paid' }))).toBe(400);
+        expect(await statusOf(h.controller.adminCameo({ catCode: 'x', dayNo: TODAY }))).toBe(400);
     });
 });
 
@@ -285,10 +277,10 @@ describe('cameo faces', () => {
         expect((await h.controller.cameoBundle(String(TODAY), '0', {}, {})).spectators[0].faceUrl).toBeNull();
         expect(await statusOf(h.controller.face(`${faceId}.png`, {}, fakeRes()))).toBe(404);
 
-        const pending = await h.controller.adminFaces({});
+        const pending = await h.controller.adminFaces();
         expect(pending.items).toEqual([expect.objectContaining({ id: faceId, catCode: CAT, cameoId })]);
         expect(pending.items[0].dataUrl).toBe(`data:image/png;base64,${PNG.toString('base64')}`);
-        expect(await h.controller.approveFace(faceId, {})).toEqual({ ok: true, status: 'approved' });
+        expect(await h.controller.approveFace(faceId)).toEqual({ ok: true, status: 'approved' });
 
         expect((await h.controller.cameoBundle(String(TODAY), '0', {}, {})).spectators[0].faceUrl).toBe(
             `/badcat/face/${faceId}.png`
@@ -312,9 +304,6 @@ describe('cameo faces', () => {
         const stranger = (await h.account.issue('stranger@ex.com')).token;
         expect(await statusOf(upload(PNG.toString('base64'), cameoId, stranger))).toBe(403);
         expect(await statusOf(upload(PNG.toString('base64'), cameoId, 'bad.token'))).toBe(401);
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_FACE_UPLOADS_ENABLED: undefined });
-        expect(await statusOf(upload(PNG.toString('base64')))).toBe(404);
         expect(h.models.faces.docs).toHaveLength(0);
     });
 
@@ -329,17 +318,17 @@ describe('cameo faces', () => {
         await upload(PNG.toString('base64'), second, (await h.account.issue('second@ex.com')).token);
         expect(h.models.faces.docs).toHaveLength(2);
         const [a, b] = h.models.faces.docs.map(d => String(d._id));
-        await h.controller.approveFace(a, {});
+        await h.controller.approveFace(a);
         expect(h.models.faces.docs.map(d => d.status)).toEqual(['approved', 'rejected']);
-        expect(await statusOf(h.controller.approveFace(b, {}))).toBe(409);
-        expect(await statusOf(h.controller.rejectFace(a, {}))).toBe(409);
+        expect(await statusOf(h.controller.approveFace(b))).toBe(409);
+        expect(await statusOf(h.controller.rejectFace(a))).toBe(409);
     });
 
     it('replaces a pending face from the same owner instead of queueing another', async () => {
         await upload(PNG.toString('base64'));
         await upload(PNG.toString('base64'));
         expect(h.models.faces.docs).toHaveLength(1);
-        await h.controller.rejectFace(String(h.models.faces.docs[0]._id), {});
+        await h.controller.rejectFace(String(h.models.faces.docs[0]._id));
         expect(h.models.faces.docs[0].status).toBe('rejected');
         expect(NOW).toBeDefined();
     });

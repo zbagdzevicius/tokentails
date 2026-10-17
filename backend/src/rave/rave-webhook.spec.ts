@@ -45,8 +45,9 @@ describe('RaveWebhookService', () => {
         expect(webhooks.verify(Buffer.from(payload), sign(payload)).id).toBe('evt_1');
     });
 
-    it('works while checkout is switched off, so late payments and refunds are not dropped', () => {
-        const off = raveHarness({ ...ENV_ON, RAVE_CHECKOUT_ENABLED: '' });
+    it('works while checkout is not ready, so late payments and refunds are not dropped', () => {
+        // Checkout reports not-ready (no keeper key); the webhook only needs its own secret.
+        const off = raveHarness({ ...ENV_ON, SHELTER_DONATE_PRIVATE_KEY: '' });
         const payload = JSON.stringify(event('evt_1', 'charge.refunded', {}));
         expect(off.webhooks.verify(payload, sign(payload)).type).toBe('charge.refunded');
     });

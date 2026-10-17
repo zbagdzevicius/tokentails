@@ -1,8 +1,8 @@
 # W1-BACKEND handover
 
 `backend/src/badcat/`: the server side of every paid and cameo feature of Bad Cat Daily, registered in the one
-`AppModule`. Every flag defaults off: with no env, every `/badcat/*` route answers 404 and `GET /badcat/status`
-answers all false. Stripe runs in TEST mode only. Docs: `docs/BACKEND.md` "Bad Cat Daily (badcat)" (module map,
+`AppModule`. No on/off flags (Oct 17): every route is on; a feature that needs a secret reports not ready in
+`GET /badcat/status` and answers 503 until it is set. Stripe takes live keys only in production, test keys elsewhere. Docs: `docs/BACKEND.md` "Bad Cat Daily (badcat)" (module map,
 flows, env names with defaults, the job row) and `docs/API.md` "Bad Cat Daily (badcat)" (every route).
 
 ## Built
@@ -10,7 +10,7 @@ flows, env names with defaults, the job row) and `docs/API.md` "Bad Cat Daily (b
 | File | What |
 |---|---|
 | `badcat.contracts.ts` | Mirror of the money and cameo block of `bad-cat/src/types.ts` (SKUs, CheckoutMeta, request and response shapes, `BADCAT_ROUTES`, cameo constants), plus backend constants (`MAX_SPECTATORS` 15, `MAX_GUEST_STARS` 3, limits, `BADCAT_DAY1`, creator code rules, `FACE_MAX_BYTES`) |
-| `badcat-flags.ts` | `badcatFlags(env)`, `badcatStripeKey(env)` (test key only; live refused unless `BADCAT_STRIPE_ALLOW_LIVE=true`), `badcatPublicUrl`, secrets |
+| `badcat-flags.ts` | `badcatStripeKey(env)` (`BADCAT_STRIPE_SECRET_KEY`, else `STRIPE_SECRET_KEY`; live in production, test elsewhere), `badcatCheckoutReady`, `badcatEntitlementSecret`, `badcatFeedAutoApprove`, `badcatPublicUrl`, secrets |
 | `badcat-util.ts` | Day numbers (UTC, day 1 = 2026-11-16, a Monday), `filterName`, `normalizeEmail`, `isCatCode`, `hash32`, `xorshift32`, `weightedSample`, `addMonths` |
 | `badcat.schema.ts` | 10 schemas (`BadcatPurchase`, `BadcatCameo`, `BadcatShuffle`, `BadcatCounter`, `BadcatGift`, `BadcatFace`, `BadcatCreatorCode`, `BadcatRestoreToken`, `BadcatClubCat`, `BadcatWebhookEvent`), `BADCAT_SCHEMAS`, `BadcatStore` |
 | `badcat-token.ts` | `signEntitlements`, `verifyEntitlementToken` (HMAC-SHA256, timing-safe, optional grace) |
@@ -38,7 +38,7 @@ Checks run: `npm run lint`, `npm run build`, `npx jest src/badcat src/user/heist
 
 - Base URL = `VITE_BADCAT_API_URL`; no `accesstoken` header (no accounts): authed calls put the entitlement
   `token` in the JSON body.
-- Errors are `{ statusCode, code, message }` with `BADCAT_*` codes. 404 `BADCAT_NOT_FOUND` = switched off.
+- Errors are `{ statusCode, code, message }` with `BADCAT_*` codes. 404 `BADCAT_NOT_FOUND` = a missing resource; 503 = a feature whose secret is not set.
 - `POST /badcat/entitlement { sessionId }` answers `{ ok: false, pending: true }` until the webhook landed;
   poll. A session id is honoured for 30 days. `{ token }` refreshes (a token up to a year past expiry works).
 - `POST /badcat/redeem` business failures are 200 `{ ok: false, error: 'unknown_code' | 'already_redeemed' }`;
@@ -71,9 +71,9 @@ Checks run: `npm run lint`, `npm run build`, `npx jest src/badcat src/user/heist
 
 ## Not done / gaps
 
-- No live Stripe run: nothing was called (no test keys supplied). A founder with test keys sets
-  `BADCAT_ENABLED`, `BADCAT_CHECKOUT_ENABLED`, `BADCAT_STRIPE_SECRET_KEY` (sk_test_), `BADCAT_STRIPE_WEBHOOK_SECRET`,
-  `BADCAT_ENTITLEMENT_SECRET` and points a Stripe test webhook (events listed in docs/API.md) at
+- No live Stripe run: nothing was called (no test keys supplied). A founder sets
+  `BADCAT_STRIPE_SECRET_KEY` (or relies on `STRIPE_SECRET_KEY`), `BADCAT_STRIPE_WEBHOOK_SECRET`,
+  optionally `BADCAT_ENTITLEMENT_SECRET` (else derived from `INVALIDATE_CACHE_SECRET`) and points a Stripe test webhook (events listed in docs/API.md) at
   `/badcat/stripe/webhook`.
 - No admin UI (cms) for faces, creator codes, the brand queue or stats; the routes exist.
 - Brand queue has no "placed" route (set `queue` by hand in MongoDB for now).

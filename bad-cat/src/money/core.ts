@@ -1,7 +1,7 @@
 /**
  * The non-UI half of MoneyApi: status, entitlement cache, checkout, thanks polling, restore, portal, redeem, Club
- * cat, face upload, creator codes, cameos, seen counter and the paywall engine. Never throws; offline (no
- * VITE_BADCAT_API_URL, or VITE_BADCAT_CLUB unset) every call answers locally with zero network requests.
+ * cat, face upload, creator codes, cameos, seen counter and the paywall engine. Never throws; offline (no API origin)
+ * every call answers locally with zero network requests.
  */
 import {
   BADCAT_ROUTES,
@@ -166,8 +166,7 @@ export type MoneyCore = ReturnType<typeof createMoneyCore>;
 export function createMoneyCore(deps: MoneyDeps) {
   const env = deps.env;
   const store = deps.store;
-  const clubUi = env.clubUi === true;
-  const api: ApiClient = createApi(env.apiUrl ?? null, { fetch: deps.fetch, enabled: clubUi });
+  const api: ApiClient = createApi(env.apiUrl ?? null, { fetch: deps.fetch });
   const fromInApp = env.inApp !== 'none';
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let statusP: Promise<BadcatServerStatus> | null = null;

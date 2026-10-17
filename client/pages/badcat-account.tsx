@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef } from "react";
  * - `?return=<game url>`: the visible sign-in step. It opens the usual account sheet, then sends the player back to
  *   the game (only to a /badcat page on an allowed origin).
  *
- * The game only uses this when its own VITE_BADCAT_ONLINE flag and the backend's BADCAT_ACCOUNTS_ENABLED are on.
+ * The game uses this whenever it has an API URL; accounts are always on in the backend (no feature flags).
  */
 
 const dev = process.env.NODE_ENV !== "production";

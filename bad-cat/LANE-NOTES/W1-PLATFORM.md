@@ -8,9 +8,9 @@ reaches the bundle).
 ## Built
 
 **Env** (`env.ts`): `apiUrl` (https origin only, `http://localhost|127.0.0.1` only in dev, credentials/paths
-dropped), `clubUi` (`VITE_BADCAT_CLUB=1|true`), `posthogKey` (`phc_…` only), `studioAllowed` (dev or
-`VITE_BADCAT_STUDIO`), `shortUrl` (`VITE_BADCAT_SHORT_URL`, default `tokentails.com/badcat`), `isAndroidChrome`.
-All default off/null.
+dropped; unset = `https://api.tokentails.com` when served from tokentails.com, else null/offline), `posthogKey`
+(`phc_…` only), `shortUrl` (`VITE_BADCAT_SHORT_URL`, default `tokentails.com/badcat`), `isAndroidChrome`.
+`clubUi` and `studioAllowed` were removed Oct 17 (no game-side switches; `?studio=1` is always honoured).
 
 **Analytics** (`analytics.ts`, `posthog.ts`): `track()` unchanged for callers. Common props via
 `configureAnalytics({ common })` (null removes a key); createPlatform sets `sim_version`, `platform`,
@@ -106,4 +106,4 @@ kept), a shorter list is accepted as a deletion; `editableCats`. createPlatform 
   does not control `/badcat/*` navigations. Either serve `sw.js` with `Service-Worker-Allowed: /badcat/` and
   register with scope `/badcat/`, or accept asset-only caching (W2-TOOLS-HOSTING / integrator).
 - No known bugs from `docs/*.md` were touched.
-- Done (W1-PLATFORM): the MONEY request above is applied; platform/index.ts re-exports those 8 entitlement names, and env fills apiUrl/clubUi.
+- Done (W1-PLATFORM): the MONEY request above is applied; platform/index.ts re-exports those 8 entitlement names, and env fills apiUrl (`clubUi` was removed Oct 17).

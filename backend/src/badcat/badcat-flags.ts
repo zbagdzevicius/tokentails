@@ -1,73 +1,21 @@
+import { createHmac } from 'crypto';
+
 /*
- * Bad Cat Daily (badcat) environment readers. Every flag defaults off; only the exact string 'true'
- * switches one on. Nothing here reads a file: values come from process.env (names in docs/BACKEND.md).
+ * Bad Cat Daily (badcat) environment readers. There are no on/off switches: every feature is on, and a feature
+ * that needs a secret (Stripe, webhook, VAPID, SendGrid) reports not-ready in GET /badcat/status and answers
+ * 503 (or skips its cron) until the secret is set. Nothing here reads a file: values come from process.env
+ * (names in docs/BACKEND.md).
  */
 
 export type Env = NodeJS.ProcessEnv;
 
 const on = (env: Env, name: string) => env[name] === 'true';
 
-export interface BadcatFlags {
-    enabled: boolean;
-    checkout: boolean;
-    cameos: boolean;
-    gifts: boolean;
-    brand: boolean;
-    faceUploads: boolean;
-    restoreEmail: boolean;
-    seenEmail: boolean;
-    creatorCodes: boolean;
-    typedRedirect: boolean;
-    // ----- Phase 2 (GDD 10, 17.3) -----
-    /** BADCAT_SCORES_ENABLED: ranked runs save through the one score route (`/live` in the user module) (type BAD_CAT). */
-    scores: boolean;
-    /** BADCAT_BOARDS_ENABLED: GET /badcat/board/:day (top 100, registered players only). */
-    boards: boolean;
-    /** BADCAT_ACCOUNTS_ENABLED: GET /badcat/account, purchase claim by verified email, /yourcat face import. */
-    accounts: boolean;
-    /** BADCAT_SHORT_LINKS_ENABLED: POST /badcat/link, GET /badcat/s/:id (OG page) and /badcat/og/:id.png. */
-    shortLinks: boolean;
-    /** BADCAT_FEED_ENABLED: POST /badcat/room, GET /badcat/feed (rooms wait for review unless auto-approve). */
-    feed: boolean;
-    /** BADCAT_FEED_AUTO_APPROVE: a room that passes every server check is listed without review. */
-    feedAutoApprove: boolean;
-    /** BADCAT_METER_ENABLED: GET /badcat/meter (this month's Pink Paw share from purchases). */
-    meter: boolean;
-    /** BADCAT_PUSH_ENABLED: web-push daily reminders (needs the BADCAT_VAPID_* keys). */
-    push: boolean;
-    /** BADCAT_STREAK_EMAIL_ENABLED: opt-in "your streak ends tonight" email (needs SendGrid). */
-    streakEmail: boolean;
-    /** BADCAT_CREATOR_DASHBOARD_ENABLED: GET /badcat/creator/me for a signed-in creator. */
-    creatorDashboard: boolean;
-}
-
-/** Every feature flag ANDed with the master switch `BADCAT_ENABLED`. */
-export function badcatFlags(env: Env = process.env): BadcatFlags {
-    const enabled = on(env, 'BADCAT_ENABLED');
-    const flag = (name: string) => enabled && on(env, name);
-    return {
-        enabled,
-        checkout: flag('BADCAT_CHECKOUT_ENABLED'),
-        cameos: flag('BADCAT_CAMEOS_ENABLED'),
-        gifts: flag('BADCAT_GIFTS_ENABLED'),
-        brand: flag('BADCAT_BRAND_ENABLED'),
-        faceUploads: flag('BADCAT_FACE_UPLOADS_ENABLED'),
-        restoreEmail: flag('BADCAT_RESTORE_EMAIL_ENABLED'),
-        seenEmail: flag('BADCAT_SEEN_EMAIL_ENABLED'),
-        creatorCodes: flag('BADCAT_CREATOR_CODES_ENABLED'),
-        typedRedirect: flag('BADCAT_TYPED_REDIRECT_ENABLED'),
-        scores: flag('BADCAT_SCORES_ENABLED'),
-        boards: flag('BADCAT_BOARDS_ENABLED'),
-        accounts: flag('BADCAT_ACCOUNTS_ENABLED'),
-        shortLinks: flag('BADCAT_SHORT_LINKS_ENABLED'),
-        feed: flag('BADCAT_FEED_ENABLED'),
-        feedAutoApprove: flag('BADCAT_FEED_ENABLED') && on(env, 'BADCAT_FEED_AUTO_APPROVE'),
-        meter: flag('BADCAT_METER_ENABLED'),
-        push: flag('BADCAT_PUSH_ENABLED'),
-        streakEmail: flag('BADCAT_STREAK_EMAIL_ENABLED'),
-        creatorDashboard: flag('BADCAT_CREATOR_DASHBOARD_ENABLED'),
-    };
-}
+/**
+ * BADCAT_FEED_AUTO_APPROVE (moderation policy, default off): a room that passes every server check is listed
+ * without waiting for an admin.
+ */
+export const badcatFeedAutoApprove = (env: Env = process.env) => on(env, 'BADCAT_FEED_AUTO_APPROVE');
 
 export const isProduction = (env: Env = process.env) => env.NODE_ENV === 'production';
 
@@ -81,31 +29,57 @@ export function badcatPublicUrl(env: Env = process.env): string {
 
 export interface StripeKeyState {
     key?: string;
-    /** A key is set and allowed (a test key, or a live key with BADCAT_STRIPE_ALLOW_LIVE=true). */
+    /** A key of the mode this server may use is set (live in production, test elsewhere). */
     usable: boolean;
     /** The key is a test key (sk_test_ / rk_test_). */
     testMode: boolean;
-    reason?: 'missing' | 'live_refused' | 'unknown_prefix';
+    /** missing: no key; unknown_prefix: not a secret or restricted key; mode: only a key of the wrong mode is set. */
+    reason?: 'missing' | 'unknown_prefix' | 'mode';
 }
 
+const keyMode = (key: string): 'test' | 'live' | null =>
+    /^(sk|rk)_test_/.test(key) ? 'test' : /^(sk|rk)_live_/.test(key) ? 'live' : null;
+
 /**
- * `BADCAT_STRIPE_SECRET_KEY` only (never `STRIPE_SECRET_KEY`). A live key (sk_live_ / rk_live_) is refused
- * unless `BADCAT_STRIPE_ALLOW_LIVE=true` (a founder decision, never set in this build).
+ * `BADCAT_STRIPE_SECRET_KEY`, else the shared `STRIPE_SECRET_KEY`, taking the first one whose mode this server
+ * may use: a live key only with NODE_ENV=production (a staging or local server never takes real money, as in
+ * rave) and a test key only outside production (a test payment would grant real entitlements there). So a
+ * leftover test BADCAT_STRIPE_SECRET_KEY in production is skipped in favour of the live shared key.
  */
 export function badcatStripeKey(env: Env = process.env): StripeKeyState {
-    const key = (env.BADCAT_STRIPE_SECRET_KEY || '').trim();
-    if (!key) return { usable: false, testMode: false, reason: 'missing' };
-    if (/^(sk|rk)_test_/.test(key)) return { key, usable: true, testMode: true };
-    if (/^(sk|rk)_live_/.test(key)) {
-        return on(env, 'BADCAT_STRIPE_ALLOW_LIVE')
-            ? { key, usable: true, testMode: false }
-            : { usable: false, testMode: false, reason: 'live_refused' };
-    }
+    const wanted = isProduction(env) ? 'live' : 'test';
+    const keys = [env.BADCAT_STRIPE_SECRET_KEY, env.STRIPE_SECRET_KEY]
+        .map(value => (value || '').trim())
+        .filter(Boolean);
+    if (!keys.length) return { usable: false, testMode: false, reason: 'missing' };
+    const key = keys.find(candidate => keyMode(candidate) === wanted);
+    if (key) return { key, usable: true, testMode: wanted === 'test' };
+    if (keys.some(candidate => keyMode(candidate))) return { usable: false, testMode: false, reason: 'mode' };
     return { usable: false, testMode: false, reason: 'unknown_prefix' };
 }
 
+/** Mandatory for checkout: without it no payment could be confirmed, so checkout answers 503. */
 export const badcatWebhookSecret = (env: Env = process.env) => (env.BADCAT_STRIPE_WEBHOOK_SECRET || '').trim() || null;
-export const badcatEntitlementSecret = (env: Env = process.env) => (env.BADCAT_ENTITLEMENT_SECRET || '').trim() || null;
+
+/** Fixed label for the entitlement key derived from INVALIDATE_CACHE_SECRET; changing it logs every buyer out. */
+export const ENTITLEMENT_SECRET_LABEL = 'tokentails:badcat:entitlement:v1';
+
+/**
+ * `BADCAT_ENTITLEMENT_SECRET`, else HMAC-SHA256(INVALIDATE_CACHE_SECRET, ENTITLEMENT_SECRET_LABEL) (an existing
+ * server secret, as the shelter and AI upload salts use; the HMAC keeps it one-way), else null (503).
+ */
+export function badcatEntitlementSecret(env: Env = process.env): string | null {
+    const own = (env.BADCAT_ENTITLEMENT_SECRET || '').trim();
+    if (own) return own;
+    const shared = (env.INVALIDATE_CACHE_SECRET || '').trim();
+    if (!shared) return null;
+    return createHmac('sha256', shared).update(ENTITLEMENT_SECRET_LABEL).digest('base64url');
+}
+
+/** Checkout can take money only when the key, the webhook secret (to confirm it) and the entitlement key exist. */
+export const badcatCheckoutReady = (env: Env = process.env) =>
+    badcatStripeKey(env).usable && !!badcatWebhookSecret(env) && !!badcatEntitlementSecret(env);
+
 export const sendgridConfigured = (env: Env = process.env) => !!(env.SENDGRID_API_KEY || '').trim();
 
 /**

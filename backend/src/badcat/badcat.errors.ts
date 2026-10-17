@@ -5,7 +5,7 @@ export const badcatError = (status: HttpStatus, code: string, message: string) =
     new HttpException({ statusCode: status, code, message }, status);
 
 export const BADCAT_ERRORS = {
-    /** Every route while BADCAT_ENABLED (or the route's feature flag) is off. */
+    /** An unknown id, file or decision. */
     notFound: () => badcatError(HttpStatus.NOT_FOUND, 'BADCAT_NOT_FOUND', 'Not found'),
     invalid: (message: string) => badcatError(HttpStatus.BAD_REQUEST, 'BADCAT_INVALID', message),
     stripeUnavailable: () =>
@@ -16,6 +16,8 @@ export const BADCAT_ERRORS = {
             'BADCAT_ENTITLEMENT_UNAVAILABLE',
             'Entitlements are not configured'
         ),
+    pushUnavailable: () =>
+        badcatError(HttpStatus.SERVICE_UNAVAILABLE, 'BADCAT_PUSH_UNAVAILABLE', 'Push keys are not configured'),
     webhookUnavailable: () =>
         badcatError(HttpStatus.SERVICE_UNAVAILABLE, 'BADCAT_WEBHOOK_UNAVAILABLE', 'Webhook secret is not configured'),
     badSignature: () => badcatError(HttpStatus.BAD_REQUEST, 'BADCAT_BAD_SIGNATURE', 'Invalid webhook signature'),

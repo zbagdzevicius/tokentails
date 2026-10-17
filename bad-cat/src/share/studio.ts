@@ -204,8 +204,7 @@ export function parseStudioBatch(text: string): { handle: string; name: string; 
   return out;
 }
 
-/** Is `?studio=1` honoured here (dev build, or VITE_BADCAT_STUDIO=1)? */
-export function studioEnabled(env: { studioAllowed?: boolean; dev?: boolean }, search: string): boolean {
-  if (!/(^|[?&])studio=1(&|$)/.test(search)) return false;
-  return env.studioAllowed === true || env.dev === true;
+/** Does the link ask for the studio (`?studio=1`)? Honoured in every build; admin routes stay role-checked on the server. */
+export function studioEnabled(search: string): boolean {
+  return /(^|[?&])studio=1(&|$)/.test(search);
 }

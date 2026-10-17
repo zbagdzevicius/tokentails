@@ -106,13 +106,13 @@ need. Phase 2 (accounts, `BAD_CAT` score type, global boards, server OG and shor
    Capacitor build is `output: "export"` (API routes are not allowed there), and it has no key-value store. The
    backend already has Stripe (`stripe` 20), MongoDB, a raw-body Stripe webhook pattern, `PermissionGuard`, throttling
    and SendGrid. So: new `backend/src/badcat/` module (controller + services + Mongo schemas, registered in the one
-   `AppModule`), every route behind `BADCAT_*` flags that default off. This reverses GDD 10's "MVP Vercel functions,
+   `AppModule`). (Update Oct 17: the module's on/off flags were removed; every route is always on.) This reverses GDD 10's "MVP Vercel functions,
    backend in Phase 2" for payments only; it is not Phase 2 (no accounts, no scores, no boards). Recorded as a
    deviation for the founder ("Your call": default backend).
 2. **No score write path is added.** Scores stay local. The only score write path in the repo stays
    `POST /user/catbassadors/live`; the badcat module never touches scores.
-3. **Stripe TEST mode only.** The badcat module uses its own key `BADCAT_STRIPE_SECRET_KEY` and refuses any live
-   key (`sk_live_`/`rk_live_`) unless `BADCAT_STRIPE_ALLOW_LIVE=true`. Prices are inline `price_data` from
+3. **Stripe key.** The badcat module uses `BADCAT_STRIPE_SECRET_KEY`, else the shared `STRIPE_SECRET_KEY`; live
+   keys only with NODE_ENV=production and test keys only elsewhere (Oct 17; it was test mode only before). Prices are inline `price_data` from
    `BADCAT_SKUS` (no dashboard setup). Tests mock Stripe; nothing calls Stripe, SendGrid or PostHog in tests.
 4. **Rules versioning.** v5 rules are gated by `SimState.rules`; v4 ghosts replay bit-exact as "replay only".
    Preview days (dayNo ≤ 0), The Glass and `kitchen-v1..7` never change, so pre-launch v4 links keep their rooms.
@@ -120,7 +120,7 @@ need. Phase 2 (accounts, `BAD_CAT` score type, global boards, server OG and shor
 6. **Analytics** use the shared consent key `tt-analytics-consent` and PostHog EU via a fetch sender (no SDK), only
    when `VITE_BADCAT_POSTHOG_KEY` is set and consent is `granted`.
 7. **Hosting**: `client/next.config.js` gets `/badcat/*` rewrites to `client/public/badcat-game/` behind the
-   build-time flag `BADCAT_ROUTES` (default off), web build only (the Capacitor export is untouched).
+   web build only (the Capacitor export is untouched); always on since Oct 17.
 
 ## 2. New environment variable names (values never read by tooling)
 
@@ -128,26 +128,17 @@ Backend (`docs/BACKEND.md`, written by W1-BACKEND):
 
 | Name | Default | Effect |
 |---|---|---|
-| `BADCAT_ENABLED` | off | Master switch; every `/badcat/*` route answers 404 when off (status answers all-false) |
-| `BADCAT_CHECKOUT_ENABLED` | off | Checkout, webhook, entitlement, portal, redeem |
-| `BADCAT_STRIPE_SECRET_KEY` | unset | Stripe key for the badcat module (test key required) |
-| `BADCAT_STRIPE_WEBHOOK_SECRET` | unset | Signing secret of `/badcat/stripe/webhook` |
-| `BADCAT_STRIPE_ALLOW_LIVE` | off | Only this allows a live key (founder decision, never in this build) |
-| `BADCAT_ENTITLEMENT_SECRET` | unset | HMAC key of entitlement tokens; entitlement routes 503 without it |
+| `BADCAT_STRIPE_SECRET_KEY` | unset | Stripe key for the badcat module; unset: the shared `STRIPE_SECRET_KEY` (test or live) |
+| `BADCAT_STRIPE_WEBHOOK_SECRET` | unset | Signing secret of `/badcat/stripe/webhook`; checkout reports not ready and answers 503 without it |
+| `BADCAT_ENTITLEMENT_SECRET` | unset | HMAC key of entitlement tokens; unset: derived from `INVALIDATE_CACHE_SECRET`; 503 only without either |
 | `BADCAT_PUBLIC_URL` | `https://tokentails.com` | Origin for Stripe return URLs, redeem/restore links, the typed redirect |
-| `BADCAT_CAMEOS_ENABLED` | off | Cameo pool, shuffles, seen counter |
-| `BADCAT_GIFTS_ENABLED` | off | Gift SKUs and redeem |
-| `BADCAT_BRAND_ENABLED` | off | Brand Shelf and sponsor SKUs |
-| `BADCAT_FACE_UPLOADS_ENABLED` | off | Cameo face upload + admin approval list |
-| `BADCAT_RESTORE_EMAIL_ENABLED` | off | Restore magic link by SendGrid (off: dev returns the link outside production) |
-| `BADCAT_SEEN_EMAIL_ENABLED` | off | Weekly "seen N times" email job for Club members |
-| `BADCAT_CREATOR_CODES_ENABLED` | off | Creator code requests and the admin report |
-| `BADCAT_TYPED_REDIRECT_ENABLED` | off | `GET /badcat/t` short-domain redirect + typed-arrival counter |
+
+The per-feature on/off flags this table once listed were removed Oct 17: every feature is always on.
 
 Game build (`bad-cat`, Vite, `docs/CLIENT.md` via W2-TOOLS-HOSTING): `VITE_BADCAT_API_URL` (backend origin; unset =
-offline, every server feature hidden), `VITE_BADCAT_CLUB` (`1` shows Club/cameo/gift/shop UI), `VITE_BADCAT_POSTHOG_KEY`,
-`VITE_BADCAT_STUDIO` (`1` allows `?studio=1` in production builds), `VITE_BADCAT_SHORT_URL` (clip URL line), existing
-`VITE_BADCAT_PRESALE_URL`, `VITE_BADCAT_QA`. Client app: `BADCAT_ROUTES` (`1` adds the `/badcat/*` rewrites).
+offline, every server feature hidden), `VITE_BADCAT_POSTHOG_KEY`, `VITE_BADCAT_SHORT_URL` (clip URL line), existing
+`VITE_BADCAT_PRESALE_URL`, `VITE_BADCAT_QA`. The Club UI and `?studio=1` are always available; the client app always
+adds the `/badcat/*` rewrites in web builds.
 
 ## 3. Waves and ownership (disjoint inside a wave)
 
@@ -205,7 +196,7 @@ through their `index.ts`. No downloaded assets: procedural three.js geometry and
 Browser-only APIs (WebGL, WebAudio, IndexedDB, WebCodecs, MediaRecorder, `window`) are never touched at module top
 level, so every module imports in Node tests. The sim stays integer-only and deterministic. The dev server already
 runs on `http://localhost:5174` with an HTTPS tunnel: reuse it, never kill or restart it; start your own only on
-5175–5179. Money and server features are behind env flags that default off; Stripe test mode only; never charge;
+5175–5179. Money and server features have no on/off flags (Oct 17): each is on once its secrets are set; tests never charge;
 never call an external paid API (tests mock `fetch`, Stripe and SendGrid). Known bugs listed in `docs/*.md` are not
 fixed silently; mention them. Done means `npx tsc --noEmit` and `npx vitest run` green in `bad-cat/` (backend: `npm
 run lint`, `npm run build`, `npx jest src/badcat src/user/heist`), your acceptance checks pass, and a handover note
@@ -232,7 +223,7 @@ Each package receives a full, self-contained brief from the orchestrator (owners
 | W2-EDITOR | 2 | Room Maker: 6 shells, 6 palette tabs, place/move/rotate/delete, undo/redo 20, routine + event, 3 targets, limits + BFS, clear-to-publish, publish link + 1200×630 card, remix with 3 ancestors, speed build, admin JSON export |
 | W2-META | 2 | Archive, Rap Sheet, season track, settings (consent, sliders, streamer, caption style, save code + QR, .ics, A2HS, restore, portal, cats, creator code), friends board, weekly card viewer, consent banner, my rooms |
 | W2-UI-RUN | 2 | Run session and HUD for every v5 mechanic: ghost race with replay-only ghosts, two humans, noise meter, mirror/on-camera cues, crime popups, 12 event banners, suspicion eye above the human, haptics |
-| W2-TOOLS-HOSTING | 2 | `tools/validate.mjs`, `par.mjs` + run recorder, `render-og.mjs` (Playwright), `og-pages.mjs` (per-day and per-shell HTML), `sync-pink-paw.mjs`, `budget.mjs`; `client/next.config.js` rewrites behind `BADCAT_ROUTES`; `docs/CLIENT.md` |
+| W2-TOOLS-HOSTING | 2 | `tools/validate.mjs`, `par.mjs` + run recorder, `render-og.mjs` (Playwright), `og-pages.mjs` (per-day and per-shell HTML), `sync-pink-paw.mjs`, `budget.mjs`; `client/next.config.js` rewrites (always on in web builds); `docs/CLIENT.md` |
 | W3-UI-SHELL | 3 | Router and every flow: home (streak, seen counter, treat meter, A2HS), picker 14, briefing (twist, accomplice, guest star choice, sponsor, community credit, boss), result (par paws, wish, adopt link, dare result), share screen with formats, paywall moments, money screens, meta screens, editor + room links + remix + Community Sunday, Felony Friday, household, studio, streamer layout, clip handoff re-render, consent, SW, analytics; e2e suite |
 
 ## 7. Integrator (lead) after wave 3: wire-up and release
@@ -243,8 +234,8 @@ Each package receives a full, self-contained brief from the orchestrator (owners
    (first-load JS ≤ 450 KB gzip without share/clip/editor/mediabunny chunks), `npm run e2e`; backend `npm run lint`,
    `npm run build`, `npm test`.
 3. Chain `og:pages` into `build:client` in `package.json`; do not commit `client/public/badcat-game`.
-4. Check every flag defaults off: with no env, the game shows no Club/cameo/shop UI, makes no network call except
-   static files, and the backend answers `GET /badcat/status` all-false.
+4. Check the offline path: with no API URL (local dev, tests, standalone builds) the game shows no Club/cameo/shop UI
+   and makes no network call except static files; without its secrets the backend reports that feature not ready.
 5. Check the one-score-path rule: `rtk grep -rn "catbassadors/live" backend/src/badcat bad-cat/src` finds nothing.
 6. Manual pass on the running dev server (http://localhost:5174, do not restart it): FTUE from a link, ranked run,
    clip export, each weekday room, a boss room, Sunday Napper, Felony Friday, Room Maker publish + open link, dare
@@ -258,7 +249,7 @@ Each package receives a full, self-contained brief from the orchestrator (owners
 
 ## 8. Excluded (Phase 2 and other cuts)
 
-> Update (Oct 16, 2026, Phase 2 build): the Phase 2 items below are now built behind flags that default off
+> Update (Oct 16, 2026, Phase 2 build): the Phase 2 items below are now built (always on since Oct 17, no flags)
 > (accounts, `BAD_CAT` replay-verified saves through the one score route, boards, server OG + short links, the room
 > feed, the live treat meter, live Pink Paw statuses, `/yourcat` import and faces, web push and streak emails, the
 > full store, the creator dashboard) plus gamepad and the CMS moderation page. See `README.md` "Phase 2". Still not
@@ -282,7 +273,7 @@ Each package receives a full, self-contained brief from the orchestrator (owners
 - [W1-MONEY] types.ts `OfferCardProps`: add `onSecondary?(sku: BadcatSku): void` (the offer's secondary button, e.g. "every week with Club"); workaround: `OfferCardPropsX`, without it the secondary calls onAccept.
 - [W1-MONEY] types.ts `RedeemProps` and `ThanksProps`/`BrandProps`: add `todayNo?: number; dayLabel?(dayNo: number): string` (day picker for gift cameos, day labels on thanks/brand); workaround: `RedeemPropsX`/`ThanksPropsX` (without them the picker is hidden and labels read "Day #N").
 - [W1-PLATFORM] platform/index.ts: also re-export `KEY_ENTITLEMENTS, decodeEntitlementToken, sanitizeEntitlements, cachedEntitlementToken, entitlementsExpired, cosmeticsForSkus, ownsCosmetic, OWNED_SKUS` from './entitlements' (money imports them from '../platform/entitlements' directly meanwhile; both files are W1-MONEY's).
-- [W1-PLATFORM] detectEnv must fill `EnvInfo.apiUrl` (VITE_BADCAT_API_URL) and `clubUi` (VITE_BADCAT_CLUB=1); money treats `clubUi !== true` or no apiUrl as fully offline (zero requests).
+- [W1-PLATFORM] detectEnv must fill `EnvInfo.apiUrl` (VITE_BADCAT_API_URL) (the `clubUi` env field was removed Oct 17; the shell works it out from the API URL and `GET /badcat/status`); money treats no apiUrl as fully offline (zero requests).
 - [W1-BACKEND] face upload contract chosen by money: `POST /badcat/face/:cameoId` JSON `{ token?, sessionId?, png: <base64 PNG, <= 64 KB raw> }` (~88 KB body); please accept that shape (or tell the integrator).
 - [W1-PLATFORM] types.ts: document `ProgressApi.ownedCosmetics` as keys `slotIndex*256 + id` (slots collar, hat, trail, caption, stamp; ids are only unique per slot); workaround: `cosmeticKey`/`cosmeticFromKey`/`ownedCosmeticDefs` exported from src/progress.
 - [W1-PLATFORM] index.html (W3): manifest and icon links should be relative (`manifest.webmanifest`, `icon.svg`) so they work under base `./` and `/badcat-game/`; main.ts should wire `progress` from src/progress and call `platform.registerServiceWorker?.()` at boot; workaround: none needed in platform.
@@ -299,7 +290,7 @@ Each package receives a full, self-contained brief from the orchestrator (owners
 - [W1-RENDER-ACTORS] W1-SIM/W1-CONTENT: the Home office webcam (shell 3, (5,0) on the desk, facing S) sees 1 cell because `shortConeCells` occludes on the desk cell next to it; the Thursday wedge is a single cell. Suggest the webcam/mirror line walk skip occluders at the origin's level or start beyond the furniture it sits on; workaround: render draws whatever cells the sim returns (sim cells win over the render fallback).
 - [W1-RENDER-ACTORS] Cameo faces: `setCameos(bundle, faces)` takes decoded images keyed by `CameoEntry.id`; the caller (W1-MONEY / W3-UI) fetches `VITE_BADCAT_API_URL + faceUrl` and decodes it; render never fetches. Workaround: none needed.
 - [W2-META] types.ts `SeasonView.tiers[]`: add optional `title?: string` (progress `tierTitle(t)`) so title-only tiers show their name; workaround: meta shows "Bragging rights" / "Title earned".
-- [W2-TOOLS-HOSTING] W1-PLATFORM/W3: with `BADCAT_ROUTES` on, `next.config.js` serves `/badcat-game/sw.js` and `/badcat/sw.js` with `Service-Worker-Allowed: /badcat/`; to control `/badcat/*` navigations, register with `{ scope: '/badcat/' }` when `location.pathname` starts with `/badcat/` (today's default scope is `/badcat-game/`); workaround: asset-only caching as now. Integrator: chain `node tools/og-pages.mjs ../client/public/badcat-game` after `build:client` (plan 7.3).
+- [W2-TOOLS-HOSTING] W1-PLATFORM/W3: in web builds, `next.config.js` serves `/badcat-game/sw.js` and `/badcat/sw.js` with `Service-Worker-Allowed: /badcat/`; to control `/badcat/*` navigations, register with `{ scope: '/badcat/' }` when `location.pathname` starts with `/badcat/` (today's default scope is `/badcat-game/`); workaround: asset-only caching as now. Integrator: chain `node tools/og-pages.mjs ../client/public/badcat-game` after `build:client` (plan 7.3).
 - [W2-SHARE] types.ts `ShareApi.exportClip` opts: add `adopted?: boolean` (still_waiting "went home"), `link?: string` (fallback-2 card link), `secondFaces?: Map<number, FaceDecal>` and `restore?: { cats: CatSpec[]; faces?: Map<number, FaceDecal> }` (household reloads the renderer's cat model for pass B and restores it after); workaround: `ExportClipOptions` in share/index.ts accepts them, callers typed against `ShareApi` cannot pass them yet (default restore = `[cat]` without face decal).
 - [W2-SHARE] types.ts `FormatContext`: add `secondName?: string` (household label "Mochi vs Luna"); workaround: `FormatContextX` in share/formats.ts.
 - [W2-SHARE] types.ts `ShareApi`: add `renderRapSheetLoop?(input: Extract<CardInput, { kind: 'rapsheet' }>, opts?: { signal?: AbortSignal }): Promise<{ blob: Blob; mime: string } | null>` (animated Club Rap Sheet, 3 s loop); workaround: exported from share/index.ts as a module function.

@@ -19,9 +19,9 @@ describe('parseStatus', () => {
   it('passes a good status through', () => {
     expect(parseStatus(ON)).toEqual(ON);
   });
-  it('off, missing key, bad key, zero cap → enabled false', () => {
-    expect(parseStatus({ enabled: false, reason: 'off' })).toEqual({ enabled: false, reason: 'off' });
-    expect(parseStatus(null)).toEqual({ enabled: false, reason: 'off' });
+  it('not ready, missing key, bad key, zero cap → enabled false', () => {
+    expect(parseStatus({ enabled: false, reason: 'keeper' })).toEqual({ enabled: false, reason: 'keeper' });
+    expect(parseStatus(null)).toEqual({ enabled: false, reason: 'unknown' });
     expect(parseStatus({ ...ON, publishableKey: 'sk_live_x' })).toMatchObject({ enabled: false });
     expect(parseStatus({ ...ON, prices: { ...ON.prices, max: 0 } })).toEqual({ enabled: false, reason: 'cap' });
   });

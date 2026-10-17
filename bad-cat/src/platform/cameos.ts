@@ -36,7 +36,7 @@ export async function loadCameos(dayNo: number, slots: number): Promise<Cameo[]>
   }
 }
 
-/** Server cameos are a src/money feature (VITE_BADCAT_API_URL + VITE_BADCAT_CLUB + server flag); off here. */
+/** Server cameos are a src/money feature (API origin + server status); off here. */
 export function cameosEnabled(): boolean {
   return false;
 }

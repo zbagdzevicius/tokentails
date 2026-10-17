@@ -4,8 +4,9 @@
  * server OG cards, the public room feed, the live treat meter, live Pink Paw statuses, "/yourcat" import, web push and
  * the creator dashboard.
  *
- * Off by default: with VITE_BADCAT_ONLINE unset (or no VITE_BADCAT_API_URL) every call answers null / false / 'off'
- * and makes ZERO requests. With it on, each feature still waits for the backend's own flag (GET /badcat/status).
+ * Online whenever the game has an API origin (EnvInfo.apiUrl: VITE_BADCAT_API_URL, else the production API on
+ * tokentails.com); each feature then follows the backend's GET /badcat/status. Without an origin every call answers
+ * null / false / 'off' and makes ZERO requests.
  * Accounts also need an auth origin (VITE_BADCAT_AUTH_ORIGIN, or the page itself on tokentails.com).
  */
 import {
@@ -68,23 +69,15 @@ export const NO_FEATURES: OnlineFeatures = Object.freeze({
 });
 
 export interface OnlineEnvRaw {
-  online?: string | boolean;
   authOrigin?: string;
-  livePinkPaw?: string | boolean;
-  yourcat?: string | boolean;
 }
 
-const truthy = (v: unknown): boolean => v === true || v === '1' || v === 'true';
-
-/** VITE_BADCAT_ONLINE, VITE_BADCAT_AUTH_ORIGIN, VITE_BADCAT_LIVE_PINKPAW, VITE_BADCAT_YOURCAT_IMPORT. */
+/** VITE_BADCAT_AUTH_ORIGIN (config, not a switch). */
 export function readOnlineEnvRaw(): OnlineEnvRaw {
   try {
     const e = (import.meta.env ?? {}) as Record<string, string | boolean | undefined>;
     return {
-      online: e.VITE_BADCAT_ONLINE,
       authOrigin: typeof e.VITE_BADCAT_AUTH_ORIGIN === 'string' ? e.VITE_BADCAT_AUTH_ORIGIN : undefined,
-      livePinkPaw: e.VITE_BADCAT_LIVE_PINKPAW,
-      yourcat: e.VITE_BADCAT_YOURCAT_IMPORT,
     };
   } catch {
     return {};
@@ -112,7 +105,7 @@ type Status = Partial<Record<keyof OnlineFeatures, boolean>> & { enabled?: boole
 
 export function createOnline(deps: OnlineDeps): OnlineApi {
   const raw = deps.raw ?? readOnlineEnvRaw();
-  const base = truthy(raw.online) ? sanitizeBase(deps.env.apiUrl ?? null, deps.env.dev) : null;
+  const base = sanitizeBase(deps.env.apiUrl ?? null, deps.env.dev);
   const enabled = !!base;
   const http: Http = createHttp(base, { fetch: deps.fetch });
   const now = deps.now ?? (() => Date.now());
@@ -140,8 +133,8 @@ export function createOnline(deps: OnlineDeps): OnlineApi {
           push: on('push'),
           streakEmail: on('streakEmail') && accounts,
           creatorDashboard: on('creatorDashboard') && accounts,
-          livePinkPaw: truthy(raw.livePinkPaw),
-          yourcat: truthy(raw.yourcat) && accounts,
+          livePinkPaw: true,
+          yourcat: accounts,
         };
       });
     }
@@ -198,7 +191,7 @@ export function createOnline(deps: OnlineDeps): OnlineApi {
     if (res.status === 409) return { status: code === 'BADCAT_ALREADY_RANKED' ? 'already' : 'duplicate' };
     if (res.status === 400 && code === 'BADCAT_SIM_VERSION') return { status: 'stale_sim' };
     if (res.status === 400 && code === 'BADCAT_DAY_CLOSED') return { status: 'closed' };
-    if (res.status === 404) return { status: 'off' };
+    if (res.status === 404) return { status: 'off' }; // an older backend without the BAD_CAT branch
     if (res.status === 401 || res.status === 403 || res.status === 428) return { status: 'signed_out' };
     if (res.status === 400) return { status: 'rejected' };
     return { status: 'queued' };

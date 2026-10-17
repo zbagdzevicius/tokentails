@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { claimJobPeriod, IJobRunsCollection, JOB_RUNS_COLLECTION } from 'src/shared/jobs/lease';
 import { FetchLike, seenEmailHtml, sendBadcatEmail } from './badcat-email';
-import { badcatFlags, badcatPublicUrl, Env, sendgridConfigured } from './badcat-flags';
+import { badcatPublicUrl, Env, sendgridConfigured } from './badcat-flags';
 import { BadcatStore } from './badcat.schema';
 import { BadcatAccountService } from './badcat-account.service';
 import { BadcatCameoService, loadKey } from './badcat-cameo.service';
@@ -10,7 +10,7 @@ import { dayNoOf, weekStartOf } from './badcat-util';
 
 /*
  * Weekly "Mochi was seen in N rooms this week" email to Club members with a Club cat (GDD 6.5, M2).
- * Mondays 09:00 UTC, about last week. A no-op unless BADCAT_SEEN_EMAIL_ENABLED=true and SendGrid is set;
+ * Mondays 09:00 UTC, about last week. A no-op until SendGrid is set;
  * `claimJobPeriod` makes it run once per week across replicas.
  */
 
@@ -40,7 +40,7 @@ export class BadcatSeenEmailJob {
     }
 
     async runOnce(env: Env = process.env): Promise<SeenEmailResult> {
-        if (!badcatFlags(env).seenEmail || !sendgridConfigured(env)) return { skipped: 'disabled', sent: 0, failed: 0 };
+        if (!sendgridConfigured(env)) return { skipped: 'disabled', sent: 0, failed: 0 };
         const now = this.now();
         const thisWeek = weekStartOf(dayNoOf(now));
         const jobRuns = (this.store.clubCats as any).db.collection(JOB_RUNS_COLLECTION) as IJobRunsCollection;

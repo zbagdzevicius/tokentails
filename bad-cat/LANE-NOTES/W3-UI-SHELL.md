@@ -10,7 +10,7 @@ types.ts change needed). No sim change, no SIM_VERSION bump. No git operations.
   `studioPlay`, `household`; `replayReady { reAdd }` (clip handoff: catmaker re-add, skippable, then the result);
   `RouterCtx.ftueGlass(dayNo)` (the 40 s first heist on a boss or Napper day plays The Glass); `RunPlan.studio` /
   `household`; `RouterState.reAdd`, `offerBack`, `hhPlan`; the post-share offer now also requires session ≥ 2;
-  `Router.jump()` for the QA hook. `Entry.studio` (`?studio=1` alone, when `env.studioAllowed`).
+  `Router.jump()` for the QA hook. `Entry.studio` (`?studio=1` alone).
 - **Pure helpers** (`shell-model.ts`): GDD 14 `entry` mapping (incl. `typed_or_direct`), tomorrow teaser, room chips,
   seen line, Felony Friday options and "names both cats" line, dare outcomes vs g + g2 (replay-only excluded),
   local hide list (`hidden`, 200 payload hashes), paywall gate, XP line, household second cat.
@@ -70,7 +70,7 @@ types.ts change needed). No sim change, no SIM_VERSION bump. No git operations.
 ## Deviations / decisions
 
 - Studio saves the studio cat's photo in cat slot 4 (catMaker has no "do not store" option); fine on the founder's
-  device, but it overwrites a Club player's 5th cat photo if they open `?studio=1` (dev/VITE_BADCAT_STUDIO only).
+  device, but it overwrites a Club player's 5th cat photo if they open `?studio=1` (any build since Oct 17, when the studio switch was removed).
 - Studio runs use mode `ftue` (40 s, spawn by the quickest target, fixed event) because RunMode has no 40 s practice.
 - Consent banner: session ≥ 2 and only where analytics could send (PostHog key or dev); with an empty env it never
   shows (e2e checks absence).

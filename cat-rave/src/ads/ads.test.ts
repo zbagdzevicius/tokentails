@@ -191,8 +191,9 @@ describe('ad purchase form', () => {
 // ------------------------------------------------------------------ answers from the server
 
 describe('ad API answers', () => {
-  it('status: unknown or missing slots are not for sale; off stays off', () => {
-    expect(parseAdsStatus({ enabled: false, reason: 'off' })).toEqual({ enabled: false, reason: 'off' });
+  it('status: unknown or missing slots are not for sale; not ready stays closed', () => {
+    expect(parseAdsStatus({ enabled: false, reason: 'stripe' })).toEqual({ enabled: false, reason: 'stripe' });
+    expect(parseAdsStatus(null)).toEqual({ enabled: false, reason: 'unknown' });
     expect(parseAdsStatus({ enabled: true, publishableKey: 'sk_live_x' })).toEqual({ enabled: false, reason: 'stripe' });
     const st = parseAdsStatus({ enabled: true, publishableKey: 'pk_test_abc', priceCents: 10000, slots: [{ slotId: 'screen-1', free: true }, { slotId: 'evil', free: true }] });
     if (!st.enabled) throw new Error('expected on');

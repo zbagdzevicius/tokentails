@@ -135,24 +135,9 @@ describe('POST /badcat/checkout', () => {
         expect(meta.ab_arm).toBeUndefined();
     });
 
-    it('gates SKU families by their flags (404)', async () => {
+    it('falls back to the shared STRIPE_SECRET_KEY', async () => {
         restore();
-        restore = useEnv({
-            ...ON_ENV,
-            BADCAT_CAMEOS_ENABLED: undefined,
-            BADCAT_GIFTS_ENABLED: undefined,
-            BADCAT_BRAND_ENABLED: undefined,
-        });
-        for (const sku of [
-            'cameo',
-            'guest_star',
-            'gift_cameo',
-            'gift_club_3m',
-            'brand_shelf',
-            'sponsor_day',
-        ] as BadcatSku[]) {
-            expect(await statusOf(checkout(request(sku)))).toBe(404);
-        }
+        restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_SECRET_KEY: undefined, STRIPE_SECRET_KEY: 'sk_test_shared' });
         expect(await statusOf(checkout(request('club_monthly')))).toBe(200);
     });
 

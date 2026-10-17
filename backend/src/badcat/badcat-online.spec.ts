@@ -10,12 +10,13 @@ import { BadcatOnlineStore } from './badcat-online.schema';
 import { BadcatOnlineService, isAvatarUrl } from './badcat-online.service';
 import { BadcatPushService } from './badcat-push.service';
 import { buildHarness, NOW, useEnv } from './badcat-harness.helper-spec';
+import { BADCAT_SIM_INFO } from './badcat-sim-info';
 import sharp = require('sharp');
 
 /*
  * Phase 2 reads and writes outside /live: short links and server OG cards, the room feed, the board, the account
- * summary and purchase claim, the live meter, the creator dashboard and the /yourcat cameo face. Every route is 404
- * while its flag is off.
+ * summary and purchase claim, the live meter, the creator dashboard and the /yourcat cameo face. Every route is on;
+ * push answers 503 until the VAPID keys are set.
  */
 
 const golden = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'badcat-golden.json'), 'utf8'));
@@ -113,19 +114,9 @@ function setup(env: Record<string, string>) {
 }
 
 const ALL_ON = {
-    BADCAT_ENABLED: 'true',
-    BADCAT_CHECKOUT_ENABLED: 'true',
     BADCAT_STRIPE_SECRET_KEY: 'sk_test_badcat_spec',
+    BADCAT_STRIPE_WEBHOOK_SECRET: 'whsec_test_badcat',
     BADCAT_ENTITLEMENT_SECRET: 'entitlement-secret-for-specs',
-    BADCAT_BOARDS_ENABLED: 'true',
-    BADCAT_ACCOUNTS_ENABLED: 'true',
-    BADCAT_SHORT_LINKS_ENABLED: 'true',
-    BADCAT_FEED_ENABLED: 'true',
-    BADCAT_METER_ENABLED: 'true',
-    BADCAT_FACE_UPLOADS_ENABLED: 'true',
-    BADCAT_CREATOR_DASHBOARD_ENABLED: 'true',
-    BADCAT_CAMEOS_ENABLED: 'true',
-    BADCAT_CREATOR_CODES_ENABLED: 'true',
 };
 
 describe('short links and server OG', () => {
@@ -365,38 +356,15 @@ describe('boards, accounts, meter, creator dashboard', () => {
     });
 });
 
-describe('Phase 2 flags default off', () => {
-    it('answers 404 on every route with no env', async () => {
+describe('Phase 2 routes are always on', () => {
+    it('serves the sim and the board with no env, and push answers 503 without the VAPID keys', async () => {
         const t = setup({});
         try {
-            const u = { _id: t.userA };
-            const calls: Promise<unknown>[] = [
-                t.controller.sim({}, {}),
-                t.controller.board('5', {}, {}),
-                t.controller.boardMe('5', u, {}, {}),
-                t.controller.account(u, {}, {}),
-                t.controller.claim(u, {}, {}),
-                t.controller.streakEmail(u, { on: true }, {}, {}),
-                t.controller.creator(u, {}, {}),
-                t.controller.faceFromYourcat('x', u, {}, {}),
-                t.controller.link({ path: '/badcat/d/1', kind: 'day' }, {}, {}),
-                t.controller.shortLink('abcdefgh', {}, {}),
-                t.controller.ogImage('abcdefgh.png', {}, {}),
-                t.controller.publishRoom(golden.room, {}, {}),
-                t.controller.room('abcdefgh', {}, {}),
-                t.controller.play('abcdefgh', {}, {}),
-                t.controller.report('abcdefgh', {}, {}),
-                t.controller.feed('new', '', {}, {}),
-                t.controller.meter({}, {}),
-                t.controller.pushKey({}, {}),
-                t.controller.pushSubscribe({} as any, {}, {}),
-                t.controller.pushUnsubscribe({}, {}, {}),
-                t.controller.adminRooms('pending', {}),
-                t.controller.reviewRoom('abcdefgh', 'approve', {}),
-            ];
-            for (const call of calls) expect(await statusOf(call)).toBe(404);
-            expect(t.online.links.docs).toHaveLength(0);
-            expect(t.online.rooms.docs).toHaveLength(0);
+            expect(await t.controller.sim({}, {})).toEqual(BADCAT_SIM_INFO);
+            expect(await statusOf(t.controller.board('5', {}, {}))).toBe(200);
+            expect(await statusOf(t.controller.pushKey({}, {}))).toBe(503);
+            expect(await statusOf(t.controller.pushSubscribe({} as any, {}, {}))).toBe(503);
+            expect(t.online.pushSubs.docs).toHaveLength(0);
         } finally {
             t.restore();
         }

@@ -1,7 +1,7 @@
 /*
  * Bad Cat Daily emails over SendGrid (the restore magic link and the weekly Club "seen" email). Resolves
- * true only when SendGrid accepted the message; never throws. Callers check their own flag first
- * (BADCAT_RESTORE_EMAIL_ENABLED, BADCAT_SEEN_EMAIL_ENABLED); specs replace `fetch`.
+ * true only when SendGrid accepted the message; never throws. Callers check `sendgridConfigured`
+ * first; specs replace `fetch`.
  */
 
 export const escapeHtml = (value: string) =>

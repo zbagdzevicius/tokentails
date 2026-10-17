@@ -116,7 +116,7 @@ export function safeImageUrl(v: unknown): string | null {
 
 export function parseAdsStatus(body: unknown): AdsStatus {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'off' };
+  if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'unknown' };
   const key = str(b.publishableKey);
   if (!key || !PK_RE.test(key)) return { enabled: false, reason: 'stripe' };
   const fee = (b.fee && typeof b.fee === 'object' ? b.fee : {}) as Record<string, unknown>;

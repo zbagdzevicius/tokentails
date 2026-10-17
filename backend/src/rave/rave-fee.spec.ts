@@ -27,11 +27,11 @@ describe('raveQuote (fee gross-up)', () => {
 });
 
 describe('readRaveConfig', () => {
-    it('is off by default with the US standard fee', () => {
+    it('has no on/off flag and defaults to the US standard fee', () => {
         const cfg = readRaveConfig({});
+        expect(cfg).not.toHaveProperty('enabled');
+        expect(cfg).not.toHaveProperty('usdcEnabled');
         expect(cfg).toMatchObject({
-            enabled: false,
-            usdcEnabled: false,
             feePercentBps: 290,
             feeFixedCents: 30,
             maxCats: 500,
@@ -45,13 +45,11 @@ describe('readRaveConfig', () => {
 
     it('reads key modes without keeping the secret key', () => {
         const cfg = readRaveConfig({
-            RAVE_CHECKOUT_ENABLED: 'true',
             STRIPE_SECRET_KEY: 'sk_test_x',
             STRIPE_PUBLISHABLE_KEY: 'pk_test_y',
             RAVE_FEE_PERCENT_BPS: '9999',
             RAVE_MAX_CATS: '3',
         });
-        expect(cfg.enabled).toBe(true);
         expect(cfg.secretKeyMode).toBe('test');
         expect(cfg.publishableKeyMode).toBe('test');
         expect(JSON.stringify(cfg)).not.toContain('sk_test_x');

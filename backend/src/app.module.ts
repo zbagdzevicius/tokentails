@@ -253,14 +253,14 @@ const config = {
             { name: YourCat.name, schema: YourCatSchema },
             { name: AiBudgetDay.name, schema: AiBudgetDaySchema },
             { name: AiQuota.name, schema: AiQuotaSchema },
-            // Bad Cat Daily (bad-cat/FULL-PLAN.md decision 1), every route behind BADCAT_* flags.
+            // Bad Cat Daily (bad-cat/FULL-PLAN.md decision 1): always on; secret-backed features answer 503 until configured.
             ...BADCAT_SCHEMAS,
             // Bad Cat Daily Phase 2: short links, room feed, push subscriptions, streak-email opt-ins.
             ...BADCAT_ONLINE_SCHEMAS,
-            // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md), behind RAVE_CHECKOUT_ENABLED.
+            // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
-            // Moon Rave ad slots (cat-rave/src/ads), behind RAVE_ADS_ENABLED.
+            // Moon Rave ad slots (cat-rave/src/ads): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveAd.name, schema: RaveAdSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
@@ -292,13 +292,13 @@ const config = {
         RescueGoalController,
         // Bet #3: one photo becomes the player's cat.
         YourcatController,
-        // Bad Cat Daily: Stripe test-mode checkout, entitlements, cameos (flags default off).
+        // Bad Cat Daily: Stripe checkout (live in production, test elsewhere), entitlements, cameos.
         BadcatController,
-        // Bad Cat Daily Phase 2: boards, accounts, short links + server OG, room feed, meter, push (flags off).
+        // Bad Cat Daily Phase 2: boards, accounts, short links + server OG, room feed, meter, push.
         BadcatOnlineController,
-        // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain (flag off).
+        // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
-        // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject (flag off).
+        // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
         RaveAdsController,
     ],
     providers: [

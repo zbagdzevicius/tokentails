@@ -8,7 +8,7 @@ export type RaveMethod = 'card' | 'usdc';
 /** GET /rave/status. `enabled: false` → the page keeps today's Add-a-cat sheet. */
 export interface RaveStatusOff {
   enabled: false;
-  reason?: 'off' | 'stripe' | 'keeper' | 'mode' | 'cap' | 'unreachable' | string;
+  reason?: 'stripe' | 'keeper' | 'mode' | 'cap' | 'unreachable' | 'unknown' | string;
 }
 export interface RaveStatusOn {
   enabled: true;

@@ -31,9 +31,9 @@ describe('offline mode', () => {
     expect(h.assigned).toEqual([]);
   });
 
-  it('VITE_BADCAT_CLUB unset is offline too, even with an API URL', async () => {
+  it('an invalid API URL is offline too (no game-side switch)', async () => {
     const spy = vi.fn();
-    const h = harness({ fetch: spy as never }, { clubUi: false });
+    const h = harness({ fetch: spy as never }, { apiUrl: 'http://evil.example' });
     const m = createMoney(h.deps);
     expect(m.online).toBe(false);
     await m.status();
@@ -147,7 +147,7 @@ describe('checkout', () => {
     expect(h.assigned).toEqual([]);
   });
 
-  it('gift and brand SKUs need their server flags', async () => {
+  it('gift and brand SKUs need the server to report them ready', async () => {
     const f = fakeFetch((p) => (p === '/badcat/status' ? { json: { ...ALL_ON, gifts: false, brand: false } } : undefined));
     const m = createMoney(harness({ fetch: f.fetch }).deps);
     expect(await m.checkout({ sku: 'gift_cameo', meta: { trigger: 'gift_flow', from_in_app: false } })).toEqual({ ok: false, error: 'unavailable' });

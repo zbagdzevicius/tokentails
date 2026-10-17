@@ -116,7 +116,7 @@ export function friendlyMessage(code: string, status: number, serverMessage?: st
 /** Defensive parse of GET /rave/status. Anything odd → `{ enabled: false }`. */
 export function parseStatus(body: unknown): RaveStatus {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'off' };
+  if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'unknown' };
   const key = str(b.publishableKey);
   if (!key || !/^pk_(live|test)_[A-Za-z0-9]+$/.test(key)) return { enabled: false, reason: 'stripe' };
   const prices = (b.prices && typeof b.prices === 'object' ? b.prices : {}) as Record<string, unknown>;

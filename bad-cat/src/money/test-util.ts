@@ -31,7 +31,6 @@ export function fakeEnv(over: Partial<EnvInfo> = {}): EnvInfo {
     webcodecs: false,
     audioEncoder: false,
     apiUrl: 'https://api.test',
-    clubUi: true,
     ...over,
   };
 }

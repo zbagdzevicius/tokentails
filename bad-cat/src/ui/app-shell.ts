@@ -317,7 +317,7 @@ class App {
   private audioGate = false;
   private analyticsLog: { e: string; p: Record<string, unknown> }[] = [];
   // ----- Phase 2 (src/online) -----
-  /** What the backend has on (all false offline; one GET /badcat/status when VITE_BADCAT_ONLINE=1). */
+  /** What the backend has ready (all false offline; one GET /badcat/status when the game has an API origin). */
   private onlineFeatures: OnlineFeatures = OFFLINE_FEATURES;
   private onlineSession: OnlineSession | null = null;
   /** The ranked save of the last run (the result screen shows its line). */
@@ -381,8 +381,8 @@ class App {
     this.todayNo = this.safe(() => this.sv.content.dayNoFor(new Date()), 1) | 0;
     this.link = this.safe(() => this.sv.codec.parseLink(new URL(window.location.href)), null);
     this.entry = entryFromLink(this.link);
-    // ?studio=1 alone (dev, or VITE_BADCAT_STUDIO=1): the founder's clip studio opens first (GDD 6.2)
-    if (this.link?.studio && this.env.studioAllowed && this.entry.kind === 'direct') this.entry = { ...this.entry, studio: true };
+    // ?studio=1 alone: the founder's clip studio opens first (GDD 6.2)
+    if (this.link?.studio && this.entry.kind === 'direct') this.entry = { ...this.entry, studio: true };
     this.adoptLinkRoom();
     if (this.entry.catCode) this.pendingCat = this.safe(() => this.sv.codec.decodeCat(this.entry.catCode!, (this.link as { catName?: string } | null)?.catName), null);
     const ftueDone = this.p.store.get<boolean>('ftueDone', false) === true;
@@ -405,7 +405,7 @@ class App {
         if (m && m.cents > 0) this.treatLine = `${formatTreatMeter(m)} to Pink Paw shelter cats this month`;
       })
       .catch(() => undefined);
-    // Money switches: offline (no API URL or no VITE_BADCAT_CLUB) answers locally with zero requests.
+    // Money: offline (no API origin) answers locally with zero requests; online it follows GET /badcat/status.
     if (this.sv.money)
       void this.sv.money
         .status()
@@ -416,7 +416,7 @@ class App {
         })
         .catch(() => undefined);
     this.router.on((s, prev) => this.onRoute(s, prev));
-    // Phase 2 online services: zero requests unless VITE_BADCAT_ONLINE=1 and an API url are set.
+    // Phase 2 online services: zero requests without an API origin.
     this.bootOnline();
 
     // GDD 12: muted by default in in-app browsers until a tap; the player's volumes apply from the start
@@ -541,7 +541,7 @@ class App {
 
   private async loadSeen(): Promise<void> {
     const money = this.sv.money;
-    if (!money || !this.env.clubUi || !this.env.apiUrl) return;
+    if (!money || !this.env.apiUrl) return;
     try {
       const st = this.status ?? (await money.status());
       if (!st.enabled || !st.cameos || !this.entitlements().club) return;
@@ -1112,8 +1112,8 @@ class App {
           catIndex: this.profile.active,
           owned,
           ...(linked ? { linked: { keepName: this.cat.name || 'my cat', canAdd } } : {}),
-          // ?studio=1 (dev, or VITE_BADCAT_STUDIO): the Stitch / reply template asks for the poster's @handle
-          studio: !!(this.link?.studio && this.env.studioAllowed),
+          // ?studio=1: the Stitch / reply template asks for the poster's @handle
+          studio: !!this.link?.studio,
           // clip handoff in a new browser: "Add Mochi's photo again for the clip opener" (spec untouched)
           ...(s.reAdd ? { reAdd: { name: this.cat.name || 'your cat' } } : {}),
         }),
@@ -1742,9 +1742,9 @@ class App {
     };
   }
 
-  /** Club UI is on (VITE_BADCAT_CLUB=1 + API URL) and the server takes checkouts. */
+  /** Club UI is on: the game is online (API origin) and the server answered its status. */
   private clubOnline(): boolean {
-    return !!(this.env.clubUi && this.env.apiUrl && this.status?.enabled);
+    return !!(this.env.apiUrl && this.status?.enabled);
   }
 
   /** Paywall context of this session (GDD 9.2); money decides, the shell only adds its own gate. */
@@ -1764,7 +1764,7 @@ class App {
       streak: streak?.current ?? this.sv.progress?.streakStatus?.(this.p.store, this.todayNo).current,
       ...(streak ? { freezesLeft: streak.freezesLeft, breaksTonight: streak.breaksTonight } : {}),
       stamp: r?.stamp,
-      serverCheckout: !!(this.status?.checkout && this.env.clubUi),
+      serverCheckout: !!(this.status?.checkout && this.env.apiUrl),
       ...extra,
     };
   }
@@ -2448,7 +2448,7 @@ class App {
     this.makerInitial = null;
     // admin (no budget, every shell, Export JSON, skip the clear) only when asked for: ?admin=1 on a dev build, or
     // the founder's studio (round 3: every dev build opened in admin, so QA saw Export JSON and could skip step 5)
-    const admin = (this.env.dev && rawLinkParams().get('admin') === '1') || !!(this.link?.studio && this.env.studioAllowed);
+    const admin = (this.env.dev && rawLinkParams().get('admin') === '1') || !!this.link?.studio;
     void this.releaseRenderer()
       .then(() => loadEditor())
       .then((ed) => {
@@ -2668,7 +2668,7 @@ class App {
     return !!this.sv.online?.enabled;
   }
 
-  /** One GET /badcat/status (only with VITE_BADCAT_ONLINE=1), then the live meter, Pink Paw, the session and the queue. */
+  /** One GET /badcat/status (only online), then the live meter, Pink Paw, the session and the queue. */
   private bootOnline(): void {
     const on = this.sv.online;
     if (!on?.enabled) return;

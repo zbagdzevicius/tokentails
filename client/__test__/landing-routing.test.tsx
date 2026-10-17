@@ -450,9 +450,18 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
   });
 
   it("keeps the auth rewrites off unless the flag is set (decision #6)", async () => {
-    // The /rave rewrite (Moon Rave, cat-rave/) is always on for web builds.
+    // The /rave rewrite (Moon Rave, cat-rave/) and the /badcat rewrites (Bad Cat Daily) are always on for web builds.
     const rave = { source: "/rave", destination: "/rave/index.html" };
-    await expect(nextConfig.rewrites()).resolves.toEqual([rave]);
+    const auth = [
+      { source: "/__/auth/:path*", destination: "https://news-ccd33.firebaseapp.com/__/auth/:path*" },
+      {
+        source: "/__/firebase/init.json",
+        destination: "https://news-ccd33.firebaseapp.com/__/firebase/init.json",
+      },
+    ];
+    const plain = await nextConfig.rewrites();
+    expect(plain.afterFiles).toContainEqual(rave);
+    expect(plain.afterFiles).not.toContainEqual(auth[0]);
     let flagged: typeof nextConfig | undefined;
     jest.isolateModules(() => {
       process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY = "true";
@@ -463,14 +472,18 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
         delete process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY;
       }
     });
-    await expect(flagged!.rewrites()).resolves.toEqual([
-      { source: "/__/auth/:path*", destination: "https://news-ccd33.firebaseapp.com/__/auth/:path*" },
-      {
-        source: "/__/firebase/init.json",
-        destination: "https://news-ccd33.firebaseapp.com/__/firebase/init.json",
-      },
-      rave,
-    ]);
+    const withAuth = await flagged!.rewrites();
+    expect(withAuth.afterFiles.slice(0, 2)).toEqual(auth);
+    expect(withAuth.afterFiles).toContainEqual(rave);
+  });
+
+  it("always serves Bad Cat Daily at /badcat on web (no BADCAT_ROUTES flag)", async () => {
+    const { afterFiles, fallback } = await nextConfig.rewrites();
+    expect(afterFiles).toContainEqual({ source: "/badcat", destination: "/badcat-game/index.html" });
+    expect(afterFiles).toContainEqual({ source: "/badcat/:path*", destination: "/badcat-game/:path*" });
+    expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
+    const headers = await nextConfig.headers();
+    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js"]);
   });
 });
 

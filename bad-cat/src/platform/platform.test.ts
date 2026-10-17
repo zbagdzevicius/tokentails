@@ -24,6 +24,7 @@ import {
   pinkPawWaiting,
   pinkPawCatSpec,
   sanitizeApiUrl,
+  apiUrlFor,
   sanitizePosthogKey,
   sanitizeShortUrl,
   detectAndroidChrome,
@@ -282,10 +283,21 @@ describe('pink paw + checkout', () => {
 // FULL build (W1-PLATFORM)
 // ---------------------------------------------------------------------------------------------
 
-describe('env flags (FULL build)', () => {
-  it('everything defaults off / null', () => {
+describe('env config (FULL build)', () => {
+  it('no config and no host: offline, no analytics', () => {
     const e = detectEnv(baseSrc);
-    expect(e).toMatchObject({ apiUrl: null, clubUi: false, posthogKey: null, studioAllowed: false, shortUrl: 'tokentails.com/badcat', isAndroidChrome: false });
+    expect(e).toMatchObject({ apiUrl: null, posthogKey: null, shortUrl: 'tokentails.com/badcat', isAndroidChrome: false });
+    expect(e).not.toHaveProperty('clubUi');
+    expect(e).not.toHaveProperty('studioAllowed');
+  });
+  it('on tokentails.com the production API is the default; VITE_BADCAT_API_URL overrides it', () => {
+    expect(detectEnv({ ...baseSrc, host: 'tokentails.com' }).apiUrl).toBe('https://api.tokentails.com');
+    expect(detectEnv({ ...baseSrc, host: 'WWW.tokentails.com' }).apiUrl).toBe('https://api.tokentails.com');
+    expect(detectEnv({ ...baseSrc, host: 'tokentails.com', apiRaw: 'https://api.example.test' }).apiUrl).toBe('https://api.example.test');
+    expect(detectEnv({ ...baseSrc, host: 'tokentails.com', apiRaw: 'http://evil.example' }).apiUrl).toBe('https://api.tokentails.com');
+    expect(detectEnv({ ...baseSrc, host: 'localhost:5174' }).apiUrl).toBeNull();
+    expect(detectEnv({ ...baseSrc, host: 'evil.example' }).apiUrl).toBeNull();
+    expect(apiUrlFor(undefined, undefined)).toBeNull();
   });
   it('API URL: https origin only; http://localhost only in dev; garbage is null', () => {
     expect(sanitizeApiUrl('https://api.tokentails.com/')).toBe('https://api.tokentails.com');
@@ -301,14 +313,10 @@ describe('env flags (FULL build)', () => {
     expect(sanitizeApiUrl('')).toBeNull();
     expect(detectEnv({ ...baseSrc, apiRaw: 'https://api.example.test' }).apiUrl).toBe('https://api.example.test');
   });
-  it('club, posthog, studio, short URL, Android Chrome', () => {
-    expect(detectEnv({ ...baseSrc, clubRaw: '1' }).clubUi).toBe(true);
-    expect(detectEnv({ ...baseSrc, clubRaw: 'yes' }).clubUi).toBe(false);
+  it('posthog, short URL, Android Chrome', () => {
     expect(sanitizePosthogKey('phc_abcdefgh12345')).toBe('phc_abcdefgh12345');
     expect(sanitizePosthogKey('sk_live_x')).toBeNull();
     expect(sanitizePosthogKey('phc_<script>')).toBeNull();
-    expect(detectEnv({ ...baseSrc, studioRaw: '1' }).studioAllowed).toBe(true);
-    expect(detectEnv({ ...baseSrc, dev: true }).studioAllowed).toBe(true);
     expect(sanitizeShortUrl('https://bad.cat/')).toBe('bad.cat');
     expect(sanitizeShortUrl('javascript:alert(1)')).toBe('tokentails.com/badcat');
     expect(detectEnv({ ...baseSrc, shortUrlRaw: 'tokentails.com/bc' }).shortUrl).toBe('tokentails.com/bc');

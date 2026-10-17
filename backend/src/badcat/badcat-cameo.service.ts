@@ -425,7 +425,7 @@ export class BadcatCameoService {
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Faces (BADCAT_FACE_UPLOADS_ENABLED): PNG ≤ 64 KB, manual approval once per cat
+    // Faces: PNG ≤ 64 KB, manual approval once per cat
     // ---------------------------------------------------------------------------------------------
 
     /** POST /badcat/face/:cameoId { token, png }: pending until an admin approves it. */

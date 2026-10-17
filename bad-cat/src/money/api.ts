@@ -1,6 +1,6 @@
 /**
  * Tiny JSON client for the badcat backend routes (BADCAT_ROUTES). Rules:
- * - base = env.apiUrl; no base (or the Club UI flag off) = offline: every call resolves to null with ZERO requests;
+ * - base = env.apiUrl; no base = offline: every call resolves to null with ZERO requests;
  * - 8 s timeout, `credentials: 'omit'`, never an `accesstoken` header (the game has no accounts in the MVP);
  * - never throws: network, HTTP and JSON errors all resolve to `{ ok: false }`.
  */

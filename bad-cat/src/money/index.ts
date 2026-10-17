@@ -1,9 +1,9 @@
 /**
  * src/money (W1-MONEY): the client side of every paid feature (GDD 6.5, 8, 9, 10, 14).
  *
- * Off by default: without VITE_BADCAT_API_URL and VITE_BADCAT_CLUB=1 every call answers locally with zero network
- * requests and every screen shows "Coming soon". With them, each feature also needs the backend's BADCAT_* flag
- * (GET /badcat/status). Stripe runs in TEST mode on the server; this module never charges anything itself.
+ * Online whenever the game has an API origin (VITE_BADCAT_API_URL, else the production API on tokentails.com); each
+ * feature then follows the backend's readiness (GET /badcat/status). Without an origin every call answers locally
+ * with zero network requests and every screen shows "Coming soon". This module never charges anything itself.
  * Never sells power: no SKU touches the sim, ranked runs or scores.
  */
 import type { AnalyticsEvent, AnalyticsProps, Entitlements, EnvInfo, MoneyApi, Store } from '../types';
@@ -48,7 +48,7 @@ export interface MoneyApiX extends MoneyApi {
   safariPayLink(sku: Parameters<MoneyCore['safariPayLink']>[0]): string;
   /** The cached token expired: call refreshEntitlements() when online. */
   needsRefresh(): boolean;
-  /** True when the Club UI flag and an API URL are both set (the server flags still apply). */
+  /** True when an API URL is set (the server's per-feature readiness still applies). */
   readonly online: boolean;
   /** Phase 2: caches a token from POST /badcat/account/claim (local only, no request). */
   adoptToken(res: { token?: unknown; entitlements?: Entitlements | null } | null): Entitlements | null;

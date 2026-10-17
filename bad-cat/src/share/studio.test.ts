@@ -58,10 +58,10 @@ describe('studio session', () => {
     expect(studioFileName(studioCurrent(s)!)).toBe('badcat-luna.mom-luna-belle.mp4');
   });
 
-  it('?studio=1 only in dev or with VITE_BADCAT_STUDIO', () => {
-    expect(studioEnabled({ dev: true }, '?studio=1')).toBe(true);
-    expect(studioEnabled({ dev: false, studioAllowed: false }, '?studio=1')).toBe(false);
-    expect(studioEnabled({ studioAllowed: true }, '?x=1&studio=1')).toBe(true);
-    expect(studioEnabled({ dev: true }, '?studio=10')).toBe(false);
+  it('?studio=1 is honoured in every build', () => {
+    expect(studioEnabled('?studio=1')).toBe(true);
+    expect(studioEnabled('?x=1&studio=1')).toBe(true);
+    expect(studioEnabled('?studio=10')).toBe(false);
+    expect(studioEnabled('')).toBe(false);
   });
 });

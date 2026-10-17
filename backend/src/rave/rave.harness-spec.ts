@@ -11,9 +11,8 @@ export const FAKE_KEY = '0x' + 'ab'.repeat(32);
 export const WHSEC = 'whsec_test_rave';
 export const T0 = new Date('2026-10-16T12:00:00Z');
 
-/** Checkout on, Stripe TEST keys, keeper on Arc testnet. */
+/** Checkout ready: Stripe TEST keys, keeper on Arc testnet. */
 export const ENV_ON: NodeJS.ProcessEnv = {
-    RAVE_CHECKOUT_ENABLED: 'true',
     STRIPE_SECRET_KEY: 'sk_test_rave_fake',
     STRIPE_PUBLISHABLE_KEY: 'pk_test_rave_fake',
     RAVE_STRIPE_WEBHOOK_SECRET: WHSEC,

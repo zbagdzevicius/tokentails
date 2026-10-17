@@ -13,15 +13,15 @@ Built `backend/src/rave/**` per CHECKOUT-SPEC.md sections 4–9. Checks: backend
 - NOT done (integrator): `docs/BACKEND.md` "Moon Rave checkout" section + env rows, `docs/API.md` routes.
 
 ## API as built (differences from the spec are marked ⚠)
-- `GET /rave/status` → spec shape. Off: `{ enabled:false, reason:'off'|'stripe'|'keeper'|'mode'|'cap' }` only.
+- `GET /rave/status` → spec shape. Not ready: `{ enabled:false, reason:'stripe'|'keeper'|'mode'|'cap' }` only (no on/off flag since Oct 17).
   ⚠ Per-IP limit 60/min instead of the global throttle (global is one site-wide bucket without TRUST_PROXY).
 - `POST /rave/checkout` body `{cats, method?='card', coverFee?=true (card), names?, restName?, x?, clientKey?}`.
   `clientKey` must match `^[A-Za-z0-9-]{8,64}$` (a UUID works). Response adds ⚠ `status` and `restName` (cats > 10).
   Card: `clientSecret`; USDC: `clientSecret:null`, `memo`, `usdc:{chains, amountUnits6}`.
 - Errors `{statusCode, code, message, ...}`: 400 `RAVE_AMOUNT`, `RAVE_INVALID`, `RAVE_METHOD`,
   `RAVE_NAME` (`fields:[{index: 0..9|'rest', code: NAME_TOO_SHORT|NAME_TOO_LONG|NAME_CHARS|NAME_RESERVED|NAME_BLOCKED|NAME_REPEAT}]`),
-  ⚠ `RAVE_X_HANDLE` with the detail in `fieldCode` (`X_HANDLE_INVALID|X_HANDLE_BLOCKED`), 404 `RAVE_NOT_FOUND`
-  (flag off), 409 `RAVE_KEY_REUSED`, 429, 502 `RAVE_STRIPE`, 503 `RAVE_OFF` (`reason`), `RAVE_CAP`, `RAVE_BUSY`.
+  ⚠ `RAVE_X_HANDLE` with the detail in `fieldCode` (`X_HANDLE_INVALID|X_HANDLE_BLOCKED`),
+  409 `RAVE_KEY_REUSED`, 429, 502 `RAVE_STRIPE`, 503 `RAVE_OFF` (`reason`), `RAVE_CAP`, `RAVE_BUSY`.
 - `GET /rave/orders/:id` → public row + `amountCents`, `donationCents`, `feeCents` (+`memo` for USDC). ⚠ `status` is
   the raw one (`created|pending|paid|onchain|canceled|refunded|disputed|expired`; `review` shows as `paid`).
   404 `RAVE_ORDER_NOT_FOUND` for unknown / expired-created. Polls Stripe at most once per 5 s per order.
@@ -45,7 +45,7 @@ Built `backend/src/rave/**` per CHECKOUT-SPEC.md sections 4–9. Checks: backend
 ## Gaps / for a person
 - USDC verification reads receipts through `shelterConfigFor(chainId)`: a chain only verifies when it is served
   (main, try-it or SHELTER_RELAY_CHAINS); otherwise the order stays `pending` and expires after 30 min. USDC
-  is off by default (`RAVE_USDC_ENABLED`).
+  has no flag since Oct 17: it is offered whenever a chain qualifies.
 - A refund/dispute after the payout left logs an error and sets `reversedAfterPayout`; nothing is undone.
 - Payout rows use `user: ObjectId(0)` and `sku.kind: 'RAVE'` (not in `SKU_KINDS`; the field is `type: Object`).
 - Known issues seen, not fixed: impact `direct` bucket will count rave payouts; shelter-payouts page shows the raw

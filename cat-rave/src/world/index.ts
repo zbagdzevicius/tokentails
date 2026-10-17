@@ -28,6 +28,7 @@ import { createHaze } from './haze';
 import { createPost, EXPOSURE, POST_DPR_CAP } from './post';
 import { FLASH_RGB, FlashEnvelope, LASER_RIGS, aimToDir, autoLaserMode, beamSplit, beamViolet, laserAim, spotPath, type LaserAim } from './show';
 import { createMoon, createSky } from './sky';
+import { createTokenTailsLogo, type TokenTailsLogo } from './ttLogo';
 
 /** Linear RGB of the drop flash (white-green). */
 const DROP_FLASH_RGB = [0.75, 1.0, 0.8] as const;
@@ -43,6 +44,8 @@ export interface WorldExtras {
   readonly laserMode: LaserMode;
   /** Whether the bloom composer is active. */
   readonly postActive: boolean;
+  /** Token Tails hero sign and booth-side marks (always on). */
+  readonly ttLogo: TokenTailsLogo;
 }
 
 /** Device pixel ratio for a tier: its cap, and at most POST_DPR_CAP while the bloom composer runs. */
@@ -105,6 +108,9 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
   });
   const booth = createBooth(shared, LAYOUT.boothSize, PALETTE.boothGlow);
   scene.add(sky, moon, floor.mesh, booth.group);
+  // The host's brand: the Token Tails lockup as the hero sign behind the DJ, the cat mark on the booth sides.
+  const ttLogo = createTokenTailsLogo(LAYOUT.boothSize, renderer, profile);
+  scene.add(ttLogo.sign, ttLogo.sides);
 
   // ------------------------------------------------------------------ lights show
   const MAX_BEAMS = 24;
@@ -188,6 +194,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
     renderer.toneMapping = post ? NoToneMapping : ACESFilmicToneMapping;
     floor.setMirror(p.reflections === 'mirror', p.quality === 'high' ? 0.5 : 0.35);
     floor.setCausticIters(p.quality === 'low' ? 3 : 4);
+    ttLogo.setQuality(p);
     if (haze.meshes.length !== Math.max(1, Math.min(3, p.haze))) {
       scene.remove(...haze.meshes, haze.flash);
       haze.dispose();
@@ -297,6 +304,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
     get laserMode() {
       return laserMode;
     },
+    ttLogo,
     get postActive() {
       return post !== null;
     },
@@ -309,6 +317,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       const portrait = width < height;
       moonCenter.y = portrait ? LAYOUT.moon.center[1] - 8 : LAYOUT.moon.center[1];
       moonCenter.z = portrait ? LAYOUT.moon.center[2] * 1.2 : LAYOUT.moon.center[2];
+      ttLogo.setPortrait(portrait);
       shared.uMoonCenter.value.copy(moonCenter);
       dprIn = dpr || 1;
       renderer.setPixelRatio(pixelRatio(dprIn, current));
@@ -408,6 +417,8 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       haze.flash.visible = f > 0.01;
       updateLasers(beat);
       updateSpots(beat, dt);
+      ttLogo.update(beat, shared.uDrop.value, reduced);
+      ttLogo.follow(frame.camera, frame.dt);
       post?.setPump(Math.max(beat.section === 'drop' && !reduced ? 0.18 * beat.kick : 0.05 * beat.kick, DROP_PUMP * dropPump));
     },
     setQuality(p) {
@@ -422,6 +433,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       spots.dispose();
       floor.dispose();
       booth.dispose();
+      ttLogo.dispose();
       sky.geometry.dispose();
       (sky.material as { dispose(): void }).dispose();
       moon.geometry.dispose();

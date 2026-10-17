@@ -9,8 +9,8 @@ import { useState } from 'react';
 /*
  * Bad Cat Daily moderation (bad-cat/README.md "Known gaps": cameo faces, creator codes and the room feed had
  * backend routes but no CMS screen). Every call is an admin route (AppAuthGuard + PermissionGuard(ADMIN), role 5)
- * under /badcat/admin/*, sent with the lowercase `accesstoken` header by `request`. All of them answer 404 while
- * BADCAT_ENABLED is off on the backend, which this page shows as "Bad Cat is switched off".
+ * under /badcat/admin/*, sent with the lowercase `accesstoken` header by `request`. A failed call (not an admin, or
+ * the backend unreachable) returns null, which this page shows as "Nothing to show".
  */
 
 export interface IBadcatFace {
@@ -71,7 +71,7 @@ export const badcatAdmin = {
 export const dollars = (cents: number) => `$${((Number(cents) || 0) / 100).toFixed(2)}`;
 
 function Off() {
-  return <p role="status">Nothing to show. Bad Cat is switched off on the backend, or this account is not an admin (role 5).</p>;
+  return <p role="status">Nothing to show. This account is not an admin (role 5), or the backend could not be reached.</p>;
 }
 
 export function FacesTable({ items, onReview }: { items: IBadcatFace[] | null; onReview(id: string, d: 'approve' | 'reject'): void }) {

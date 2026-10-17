@@ -9,8 +9,8 @@ import { RaveAdsService } from './rave-ads.service';
 
 export { T0 };
 
-/** Ads on, Stripe TEST keys (shared with the rave checkout), keeper on Arc testnet. */
-export const ENV_ADS: NodeJS.ProcessEnv = { ...ENV_ON, RAVE_ADS_ENABLED: 'true' };
+/** Ads ready: Stripe TEST keys (shared with the rave checkout), keeper on Arc testnet. No on/off flag. */
+export const ENV_ADS: NodeJS.ProcessEnv = { ...ENV_ON };
 
 export async function png(width = 640, height = 360, color = '#ff4f9e'): Promise<Buffer> {
     return sharp({ create: { width, height, channels: 3, background: color } })

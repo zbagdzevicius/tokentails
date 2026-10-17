@@ -1,7 +1,8 @@
 /**
  * Environment probes (GDD 7, 8, 13): in-app browser detection, iOS (incl. iPadOS posing as a Mac),
- * WebCodecs / AudioEncoder / file-share support, and the build-time env flags (FULL-PLAN 2: every flag
- * defaults off / null). Never throws.
+ * WebCodecs / AudioEncoder / file-share support, and the build-time config (API URL, PostHog key, short URL). There are
+ * no on/off feature switches: on tokentails.com the game talks to the production API by default and every server
+ * feature follows GET /badcat/status. Never throws.
  */
 import type { EnvInfo, InAppBrowser } from '../types';
 
@@ -19,17 +20,26 @@ export interface EnvSource {
   webcodecs: boolean;
   audioEncoder: boolean;
   canShareFiles: boolean;
-  // ----- FULL build (all optional; unset = off) -----
-  /** VITE_BADCAT_API_URL */
+  // ----- config (all optional) -----
+  /** VITE_BADCAT_API_URL (overrides the host default) */
   apiRaw?: string;
-  /** VITE_BADCAT_CLUB */
-  clubRaw?: string | boolean;
+  /** The page's host (location.host), for the default API origin. */
+  host?: string;
   /** VITE_BADCAT_POSTHOG_KEY */
   posthogRaw?: string;
-  /** VITE_BADCAT_STUDIO */
-  studioRaw?: string | boolean;
   /** VITE_BADCAT_SHORT_URL */
   shortUrlRaw?: string;
+}
+
+/** Default backend origin per page host: the hosted game on tokentails.com talks to the production API. */
+export const API_BY_HOST: Readonly<Record<string, string>> = Object.freeze({
+  'tokentails.com': 'https://api.tokentails.com',
+  'www.tokentails.com': 'https://api.tokentails.com',
+});
+
+/** VITE_BADCAT_API_URL when valid, else the default for this host (tokentails.com), else null (offline). */
+export function apiUrlFor(raw: string | undefined | null, host: string | undefined, dev = false): string | null {
+  return sanitizeApiUrl(raw, dev) ?? (host ? (API_BY_HOST[host.toLowerCase()] ?? null) : null);
 }
 
 export function detectInApp(ua: string): InAppBrowser {
@@ -58,8 +68,6 @@ export function sanitizePresaleUrl(raw: string | undefined | null): string | nul
     return null;
   }
 }
-
-const truthy = (v: unknown): boolean => v === true || v === '1' || v === 'true';
 
 /**
  * Backend origin (VITE_BADCAT_API_URL): https only; `http://localhost`/`127.0.0.1` only in dev builds.
@@ -138,9 +146,8 @@ export function readEnvSource(): EnvSource {
     audioEncoder: safe(() => typeof g.AudioEncoder === 'function', false),
     canShareFiles,
     apiRaw: typeof env.VITE_BADCAT_API_URL === 'string' ? env.VITE_BADCAT_API_URL : undefined,
-    clubRaw: env.VITE_BADCAT_CLUB,
+    host: safe(() => ((g.location as Location | undefined)?.host ?? '') || undefined, undefined),
     posthogRaw: typeof env.VITE_BADCAT_POSTHOG_KEY === 'string' ? env.VITE_BADCAT_POSTHOG_KEY : undefined,
-    studioRaw: env.VITE_BADCAT_STUDIO,
     shortUrlRaw: typeof env.VITE_BADCAT_SHORT_URL === 'string' ? env.VITE_BADCAT_SHORT_URL : undefined,
   };
 }
@@ -159,10 +166,8 @@ export function detectEnv(src: EnvSource = readEnvSource()): EnvInfo {
     canShareFiles: src.canShareFiles,
     webcodecs: src.webcodecs,
     audioEncoder: src.audioEncoder,
-    apiUrl: sanitizeApiUrl(src.apiRaw, src.dev),
-    clubUi: truthy(src.clubRaw),
+    apiUrl: apiUrlFor(src.apiRaw, src.host, src.dev),
     posthogKey: sanitizePosthogKey(src.posthogRaw),
-    studioAllowed: src.dev || truthy(src.studioRaw),
     isAndroidChrome: detectAndroidChrome(src.ua),
   };
 }

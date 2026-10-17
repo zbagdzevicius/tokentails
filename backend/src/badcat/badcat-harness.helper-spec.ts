@@ -24,16 +24,9 @@ export const ENTITLEMENT_SECRET = 'entitlement-secret-for-specs';
 export const CAT = 'AbCdEfGhIjKlMnOpQr';
 export const CAT2 = 'ZyXwVuTsRqPoNmLkJi';
 
+/** Every secret checkout needs, so every feature is ready (there are no on/off flags). */
 export const ON_ENV = {
     NODE_ENV: 'test',
-    BADCAT_ENABLED: 'true',
-    BADCAT_CHECKOUT_ENABLED: 'true',
-    BADCAT_CAMEOS_ENABLED: 'true',
-    BADCAT_GIFTS_ENABLED: 'true',
-    BADCAT_BRAND_ENABLED: 'true',
-    BADCAT_FACE_UPLOADS_ENABLED: 'true',
-    BADCAT_CREATOR_CODES_ENABLED: 'true',
-    BADCAT_TYPED_REDIRECT_ENABLED: 'true',
     BADCAT_STRIPE_SECRET_KEY: 'sk_test_badcat_spec',
     BADCAT_STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
     BADCAT_ENTITLEMENT_SECRET: ENTITLEMENT_SECRET,
@@ -43,25 +36,13 @@ export const ON_ENV = {
 /** Every BADCAT_* name and the ones the module reads, cleared before each spec. */
 export const BADCAT_ENV_NAMES = [
     ...Object.keys(ON_ENV),
-    'BADCAT_STRIPE_ALLOW_LIVE',
     'BADCAT_PUBLIC_URL',
-    'BADCAT_RESTORE_EMAIL_ENABLED',
-    'BADCAT_SEEN_EMAIL_ENABLED',
     'SENDGRID_API_KEY',
     'STRIPE_SECRET_KEY',
+    'INVALIDATE_CACHE_SECRET',
     // Phase 2
-    'BADCAT_SCORES_ENABLED',
-    'BADCAT_BOARDS_ENABLED',
-    'BADCAT_ACCOUNTS_ENABLED',
-    'BADCAT_SHORT_LINKS_ENABLED',
-    'BADCAT_FEED_ENABLED',
     'BADCAT_FEED_AUTO_APPROVE',
     'BADCAT_FEED_REPORT_HIDE',
-    'BADCAT_METER_ENABLED',
-    'BADCAT_PUSH_ENABLED',
-    'BADCAT_STREAK_EMAIL_ENABLED',
-    'BADCAT_CREATOR_DASHBOARD_ENABLED',
-    'BADCAT_CAMEOS_ENABLED',
     'BADCAT_VAPID_PUBLIC_KEY',
     'BADCAT_VAPID_PRIVATE_KEY',
     'BADCAT_VAPID_SUBJECT',

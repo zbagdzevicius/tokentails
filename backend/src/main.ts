@@ -19,6 +19,8 @@ function initializeCors(app: INestApplication): void {
             'https://cats.tokentails.com',
             'https://test.tokentails.com',
             'https://tokentails.com',
+            // the Bad Cat embed on www defaults its API to api.tokentails.com too
+            'https://www.tokentails.com',
             ...(process.env.FRONT_END_URLS?.split(',') || ['*']),
         ],
         credentials: true,

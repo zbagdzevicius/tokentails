@@ -132,8 +132,6 @@ describe('BadcatPushService', () => {
     it('stores a subscription with the hour in UTC and sends once a day', async () => {
         const keys = vapid();
         const env = {
-            BADCAT_ENABLED: 'true',
-            BADCAT_PUSH_ENABLED: 'true',
             BADCAT_VAPID_PUBLIC_KEY: keys.publicKey,
             BADCAT_VAPID_PRIVATE_KEY: keys.privateKey,
         };
@@ -184,7 +182,7 @@ describe('BadcatPushService', () => {
         ).rejects.toThrow();
     });
 
-    it('does nothing while off', async () => {
+    it('does nothing without the VAPID keys or SendGrid', async () => {
         const h = setup({});
         expect(await h.service.sendReminders({})).toMatchObject({ skipped: 'disabled' });
         expect(await h.service.sendStreakEmails({})).toMatchObject({ skipped: 'disabled' });
@@ -192,9 +190,6 @@ describe('BadcatPushService', () => {
 
     it('emails a streak that ends tonight (played yesterday, not today)', async () => {
         const env = {
-            BADCAT_ENABLED: 'true',
-            BADCAT_ACCOUNTS_ENABLED: 'true',
-            BADCAT_STREAK_EMAIL_ENABLED: 'true',
             SENDGRID_API_KEY: 'SG.test',
         };
         const h = setup(env);

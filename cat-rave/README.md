@@ -163,7 +163,7 @@ by the shelter-share keeper on `SHELTER_CHAIN_ID`, which defaults to Arc.
 banners, 6 laser-tower wraps, 4 blimps and 2 banners on a neon ring round the moon. None covers the
 moon or the DJ in the hero shot (`src/ads/ads.test.ts`); all 20 show up across the shots (orbit, POV,
 sweep, and the blimps over their 140 s orbit). While `GET /rave/ads/status` is enabled
-(`RAVE_ADS_ENABLED`), empty slots say "Your ad here · $100", sold ones "Ad space sold · coming soon",
+(Stripe keys and webhook secret set; no on/off flag), empty slots say "Your ad here · $100", sold ones "Ad space sold · coming soon",
 and "📣 Advertise" (or a tap on an empty slot) opens the in-page sheet: pick a slot on the mini-map,
 upload an image (cropped to the slot's shape), name, https link, optional X handle, card fee toggle,
 then the Stripe Payment Element with the slot held for 15 minutes. Paid ads wait for an admin

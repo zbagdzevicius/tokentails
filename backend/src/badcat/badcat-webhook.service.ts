@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import Stripe from 'stripe';
 import { BADCAT_SKUS, BadcatSku, BRAND_SKUS, CAMEO_SKUS, GIFT_SKUS, isBadcatSku } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { badcatWebhookSecret, Env } from './badcat-flags';
+import { badcatWebhookSecret, Env, isProduction } from './badcat-flags';
 import { BadcatStore } from './badcat.schema';
 import { BadcatStripeService } from './badcat-stripe.service';
 import { addMonths, filterName, isCatCode, MS_DAY, normalizeEmail } from './badcat-util';
@@ -58,14 +58,17 @@ export class BadcatWebhookService {
 
     constructor(private readonly store: BadcatStore, private readonly stripe: BadcatStripeService) {}
 
-    /** Verifies the signature (400) and returns the event; 503 without the webhook secret or a usable key. */
+    /**
+     * Verifies the signature (400) and returns the event; 503 only without the webhook secret. Uses the static
+     * verifier, so refunds and cancellations still arrive while no usable Stripe key is set.
+     */
     verify(rawBody: Buffer | string | undefined, signature: string | undefined, env: Env = process.env): Stripe.Event {
         const secret = badcatWebhookSecret(env);
         if (!secret) throw BADCAT_ERRORS.webhookUnavailable();
         if (!signature || !rawBody) throw BADCAT_ERRORS.badSignature();
         const buffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
         try {
-            return this.stripe.stripe(env).webhooks.constructEvent(buffer, signature, secret);
+            return Stripe.webhooks.constructEvent(buffer, signature, secret);
         } catch {
             throw BADCAT_ERRORS.badSignature();
         }
@@ -91,6 +94,8 @@ export class BadcatWebhookService {
     }
 
     private async dispatch(event: Stripe.Event, env: Env): Promise<WebhookOutcome> {
+        // production never creates test sessions; a test-mode event there would grant real entitlements for free
+        if (isProduction(env) && !event.livemode) return 'ignored';
         switch (event.type) {
             case 'checkout.session.completed':
             case 'checkout.session.async_payment_succeeded':

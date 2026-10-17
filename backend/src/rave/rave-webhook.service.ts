@@ -13,7 +13,7 @@ import { RaveAdsService } from './ads/rave-ads.service';
 /*
  * POST /rave/stripe/webhook (cat-rave/CHECKOUT-SPEC.md section 4). Its own signing secret
  * (RAVE_STRIPE_WEBHOOK_SECRET): 503 without it, 400 on a bad signature. It keeps working while
- * RAVE_CHECKOUT_ENABLED is off, so refunds and late payments of earlier orders are never dropped.
+ * checkout reports not-ready, so refunds and late payments of earlier orders are never dropped.
  *
  * Event ids are recorded only AFTER a successful dispatch (Bad Cat round 3: recording first loses the
  * event on a crash); every write is idempotent on the PaymentIntent id anyway.

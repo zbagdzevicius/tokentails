@@ -80,7 +80,7 @@ export function mountSeason(host: HTMLElement, p: SeasonProps): Unmount {
     p.club ? null : btn('Join the Chaos Club', p.onJoinClub, 'bc-cta bc-cta-gold bmt-joinclub-big'),
   );
 
-  // offline builds (flags off): no Club track, no "Join Club" (GDD 7.4, 0c)
+  // offline (no API URL or no server): no Club track, no "Join Club" (GDD 7.4, 0c)
   const root = screen('bmt-season', header('Season track', p.onBack, 'Season'), head, freeSec, p.clubUi === false && !p.club ? null : clubSec);
   escapeTo(s, p.onBack);
   const un = s.mount(host, root);
