@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import {
     BADCAT_SKUS,
     BRAND_SKUS,
-    CAMEO_SKUS,
     CHECKOUT_TRIGGERS,
     CheckoutRequest,
     CheckoutResponse,
@@ -17,7 +16,14 @@ import {
 } from './badcat.contracts';
 import { randomBytes } from 'crypto';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { badcatFlags, badcatPublicUrl, badcatStripeKey, Env, isProduction } from './badcat-flags';
+import {
+    badcatEntitlementSecret,
+    badcatPublicUrl,
+    badcatStripeKey,
+    badcatWebhookSecret,
+    Env,
+    isProduction,
+} from './badcat-flags';
 import { BadcatStore } from './badcat.schema';
 import {
     bookableDays,
@@ -33,8 +39,9 @@ import {
 } from './badcat-util';
 
 /*
- * Bad Cat Daily Stripe client (GDD 9.2, 10; FULL-PLAN decision 3). Its own key `BADCAT_STRIPE_SECRET_KEY`
- * (never STRIPE_SECRET_KEY), a live key refused unless BADCAT_STRIPE_ALLOW_LIVE=true. Prices are inline
+ * Bad Cat Daily Stripe client (GDD 9.2, 10; FULL-PLAN decision 3). Key: `BADCAT_STRIPE_SECRET_KEY`, else the
+ * shared `STRIPE_SECRET_KEY` (test or live). Checkout answers 503 until the key, BADCAT_STRIPE_WEBHOOK_SECRET
+ * and the entitlement key are all set, so no payment is taken that could not be confirmed. Prices are inline
  * `price_data` from BADCAT_SKUS: no dashboard products. Every session carries the CheckoutMeta in its
  * metadata so purchases are counted from Stripe itself (GDD 14).
  */
@@ -161,7 +168,7 @@ export class BadcatStripeService {
 
     constructor(private readonly store: BadcatStore) {}
 
-    /** The badcat Stripe client; 503 without a usable key (missing, or live without the override). */
+    /** The badcat Stripe client; 503 without a usable key (missing, an unknown prefix, or the wrong mode here). */
     stripe(env: Env = process.env): Stripe {
         const state = badcatStripeKey(env);
         if (!state.usable || !state.key) {
@@ -190,15 +197,11 @@ export class BadcatStripeService {
         return Math.max(0, FOUNDING_CAP - (await this.foundingTaken()));
     }
 
-    /** Validates the request against the SKU table and the flags; throws 400/404 with a reason. */
+    /** Validates the request against the SKU table; throws 400 with a reason. */
     validate(req: CheckoutRequest, env: Env = process.env): { returnBase: string; email: string | null } {
-        const flags = badcatFlags(env);
         if (!req || typeof req !== 'object' || !isBadcatSku(req.sku)) {
             throw BADCAT_ERRORS.invalid('Unknown sku');
         }
-        if (CAMEO_SKUS.includes(req.sku) && !flags.cameos) throw BADCAT_ERRORS.notFound();
-        if (GIFT_SKUS.includes(req.sku) && !flags.gifts) throw BADCAT_ERRORS.notFound();
-        if (BRAND_SKUS.includes(req.sku) && !flags.brand) throw BADCAT_ERRORS.notFound();
         if (!req.meta || typeof req.meta !== 'object') throw BADCAT_ERRORS.invalid('meta is required');
         const returnBase = validReturnBase(req.returnBase, env);
         if (!returnBase) throw BADCAT_ERRORS.invalid('returnBase must start with BADCAT_PUBLIC_URL');
@@ -249,6 +252,9 @@ export class BadcatStripeService {
     async createCheckout(req: CheckoutRequest, env: Env = process.env): Promise<CheckoutResponse> {
         const { returnBase, email } = this.validate(req, env);
         const stripe = this.stripe(env);
+        // Never take money that could not be confirmed (webhook) or turned into an entitlement.
+        if (!badcatWebhookSecret(env)) throw BADCAT_ERRORS.webhookUnavailable();
+        if (!badcatEntitlementSecret(env)) throw BADCAT_ERRORS.secretMissing();
         const params = buildCheckoutParams(req, { returnBase, email });
         let holdId: string | null = null;
         if (req.sku === 'founding') {

@@ -4,7 +4,7 @@ import type { SettingsScreenProps } from '../types';
 import { meta } from './index';
 import { sampleEntries, sampleProfile, sampleRecords, sampleSeason } from './fixtures';
 
-// Round 3 QA: with VITE_BADCAT_CLUB and the API URL unset the offline build still showed 15 "Join Club" buttons,
+// Round 3 QA: with no API origin the offline build still showed 15 "Join Club" buttons,
 // the boss-pack lock row and the Restore / Creator code / Club rows. Plan 7.4 and 0c: no Club UI offline.
 
 let host: HTMLElement;

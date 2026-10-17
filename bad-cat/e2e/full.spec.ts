@@ -331,7 +331,7 @@ test('archive: days older than 14 are locked (no card in session 1)', async ({ b
   await expect(page.locator('.bmt-case.is-locked').first()).toBeVisible();
   await shot(page, 'archive');
   await page.locator('.bmt-case.is-locked').first().click();
-  // flags off (no Club UI, plan 7.4 / 0c): the lock says so without selling the Club
+  // offline (no API URL: no Club UI, plan 7.4 / 0c): the lock says so without selling the Club
   await expect(page.locator('.bc-toast')).toContainText(/older than 14 days: it stays locked for now/);
   expect(await screen(page)).toBe('archive');
   await page.locator('.bmt-case:not(.is-locked)').nth(1).click();

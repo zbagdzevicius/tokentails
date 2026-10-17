@@ -522,7 +522,7 @@ async function boot() {
 
   // ------------------------------------------------------------------ ad space
   // Live ads always show (GET /rave/ads); empty slots, "Advertise" and the buy sheet only while
-  // GET /rave/ads/status says enabled (RAVE_ADS_ENABLED on the backend).
+  // GET /rave/ads/status says enabled (Stripe keys, webhook secret and, with a shelter share, the keeper are ready).
   const adsApi = api && !og ? createAdsApi({ base: api }) : null;
   let liveAds: LiveAd[] = [];
   let adSheet: MountedAdSheet | null = null;

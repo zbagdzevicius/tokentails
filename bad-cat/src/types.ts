@@ -1528,14 +1528,13 @@ export interface EnvInfo {
   webcodecs: boolean;
   audioEncoder: boolean;
   // ----- FULL build (optional) -----
-  /** VITE_BADCAT_API_URL (backend origin, e.g. https://api.tokentails.com); null = offline, every server feature off. */
+  /**
+   * Backend origin: VITE_BADCAT_API_URL, else https://api.tokentails.com on tokentails.com; null = offline (a
+   * standalone or local build without the env), every server feature hidden.
+   */
   apiUrl?: string | null;
-  /** VITE_BADCAT_CLUB=1: show Club / cameo / gift / shop UI (still needs the server's status flags). */
-  clubUi?: boolean;
   /** VITE_BADCAT_POSTHOG_KEY (PostHog EU project key); null = no analytics network at all. */
   posthogKey?: string | null;
-  /** ?studio=1 is honoured (dev builds, or VITE_BADCAT_STUDIO=1). */
-  studioAllowed?: boolean;
   isAndroidChrome?: boolean;
 }
 
@@ -2065,7 +2064,7 @@ export interface RedeemResponse {
   /** A redeemed gift cameo: its id, so the recipient can upload a face (POST /badcat/face/:cameoId). */
   cameoId?: string;
 }
-/** GET /badcat/status: what the server has switched on (all false when BADCAT_ENABLED is unset). */
+/** GET /badcat/status: which features are ready (always on; a secret-backed one is false until its secret is set). */
 export interface BadcatServerStatus {
   enabled: boolean;
   checkout: boolean;
@@ -2075,7 +2074,7 @@ export interface BadcatServerStatus {
   faceUploads: boolean;
   creatorCodes: boolean;
   brand: boolean;
-  /** Stripe key is a test key (the server refuses live keys unless BADCAT_STRIPE_ALLOW_LIVE=true). */
+  /** Stripe key is a test key (test keys outside production only; production takes only live keys). */
   testMode: boolean;
   foundingLeft?: number;
   // ----- Phase 2 (GDD 10, 17.3); absent from older backends = off -----
@@ -2154,7 +2153,7 @@ export interface PaywallContext {
   /** streak_break: the streak breaks tonight unless played (ProgressApi.streakDetail). Undefined = trust the caller. */
   breaksTonight?: boolean;
   stamp?: StampId;
-  serverCheckout: boolean; // BadcatServerStatus.checkout && env.clubUi
+  serverCheckout: boolean; // BadcatServerStatus.checkout (online)
 }
 export interface PaywallOffer {
   trigger: PaywallTrigger;
@@ -2327,7 +2326,7 @@ export interface ArchiveProps {
   entries: DailyEntry[]; // newest first
   records: (dayNo: number) => DayRecord | null;
   club: boolean;
-  /** Club UI is on (flags + server). False: no Club rows, locks or "Join" buttons (GDD 7.4, 0c). Default true. */
+  /** Club UI is on (online + server status). False: no Club rows, locks or "Join" buttons (GDD 7.4, 0c). Default true. */
   clubUi?: boolean;
   freeDays: number; // 14
   onPlay(dayNo: number): void;
@@ -2602,7 +2601,7 @@ export interface CreatorDashboard {
   minPayoutCents: number;
 }
 
-/** What the backend says is on (GET /badcat/status, Phase 2 fields) plus the game's own flags. All false offline. */
+/** What the backend says is ready (GET /badcat/status, Phase 2 fields). All false offline. */
 export interface OnlineFeatures {
   accounts: boolean;
   scores: boolean;
@@ -2613,9 +2612,9 @@ export interface OnlineFeatures {
   push: boolean;
   streakEmail: boolean;
   creatorDashboard: boolean;
-  /** Pink Paw statuses from the shelter gallery (VITE_BADCAT_LIVE_PINKPAW=1). */
+  /** Pink Paw statuses from the shelter gallery (on whenever the game is online). */
   livePinkPaw: boolean;
-  /** "Import my /yourcat cat" (VITE_BADCAT_YOURCAT_IMPORT=1, signed in). */
+  /** "Import my /yourcat cat" (signed in). */
   yourcat: boolean;
 }
 
@@ -2640,12 +2639,12 @@ export interface YourcatImport {
 }
 
 /**
- * Phase 2 services (GDD 10, 17.3). Every call answers `null` / `false` / 'off' with ZERO requests unless
- * VITE_BADCAT_ONLINE=1, VITE_BADCAT_API_URL is set and the backend reports the feature on.
+ * Phase 2 services (GDD 10, 17.3). Every call answers `null` / `false` / 'off' with ZERO requests while the game has
+ * no API origin (offline build); online, each feature follows the backend's GET /badcat/status.
  */
 export interface OnlineApi {
   readonly enabled: boolean;
-  /** Fetches the server flags once per session (cached). */
+  /** Fetches the server's feature readiness once per session (cached). */
   features(): Promise<OnlineFeatures>;
   /** The Token Tails session through the account bridge (null while unknown / off). */
   session(): OnlineSession | null;

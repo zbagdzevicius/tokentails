@@ -60,7 +60,7 @@ const IMAGE_DROP_STATUSES: RaveAdStatus[] = ['canceled', 'ended', 'rejected', 'r
 
 export const raveAdMemo = (adId: string) => `tt:ravead:${adId.slice(3)}`;
 
-export type RaveAdsOffReason = 'off' | 'stripe' | 'mode' | 'keeper';
+export type RaveAdsOffReason = 'stripe' | 'mode' | 'keeper';
 
 export interface RaveAdsSlotState {
     slotId: string;
@@ -192,7 +192,6 @@ export class RaveAdsService {
     // ------------------------------------------------------------------ status
 
     readiness(cfg: RaveAdsConfig = readRaveAdsConfig(this.env)): RaveAdsOffReason | null {
-        if (!cfg.enabled) return 'off';
         if (!cfg.secretKeyMode || !cfg.publishableKeyMode || !cfg.webhookSecret) return 'stripe';
         if (cfg.publishableKeyMode !== cfg.secretKeyMode) return 'mode';
         const live = cfg.secretKeyMode === 'live';
@@ -208,10 +207,9 @@ export class RaveAdsService {
         return null;
     }
 
-    /** 404 while the flag is off, 503 when on but not ready. */
+    /** 503 while something ad checkout needs is missing (no on/off flag). */
     assertOpen(cfg: RaveAdsConfig = readRaveAdsConfig(this.env)) {
         const reason = this.readiness(cfg);
-        if (reason === 'off') throw RAVE_AD_ERRORS.notFound();
         if (reason) throw RAVE_AD_ERRORS.off(reason);
     }
 
@@ -643,7 +641,7 @@ export class RaveAdsService {
         };
     }
 
-    /** GET /rave/ads: approved, running ads only. Readable while the flag is off, so live ads keep showing. */
+    /** GET /rave/ads: approved, running ads only. Readable while ad checkout is not ready, so live ads keep showing. */
     async listPublic(now: Date = new Date()): Promise<{ asOf: string; ads: RavePublicAd[] }> {
         if (this.listCache && now.getTime() - this.listCache.at < RAVE_AD_LIST_CACHE_MS) return this.listCache.value;
         await this.sweep(now).catch(error => this.logger.warn(`rave ad sweep: ${(error as Error)?.message}`));

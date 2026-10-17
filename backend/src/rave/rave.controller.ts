@@ -25,8 +25,8 @@ import { RaveWebhookService } from './rave-webhook.service';
 /*
  * Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md section 4). Guest page, no login: public routes carry no
  * auth. They skip the global throttler (one site-wide bucket while TRUST_PROXY is unset) and count a
- * per-client-IP limit instead, like /yourcat and /badcat. Checkout routes answer 404 while
- * RAVE_CHECKOUT_ENABLED is off (GET /rave/status then says `enabled: false`); GET /rave/cats stays readable
+ * per-client-IP limit instead, like /yourcat and /badcat. Checkout routes answer 503 while
+ * something they need is missing (GET /rave/status then says `enabled: false` with a reason); GET /rave/cats stays readable
  * so earlier orders keep their names. The webhook has its own gate (secret + signature). Admin routes need
  * AppAuthGuard + PermissionGuard. No route here writes a game score.
  */

@@ -8,7 +8,7 @@ import { dayNoUtc, dayTitle } from 'src/vendor/badcat-sim';
 import { PushSubscribeRequest } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
 import { escapeHtml, sendBadcatEmail } from './badcat-email';
-import { badcatFlags, badcatPublicUrl, badcatVapidKeys, Env, sendgridConfigured } from './badcat-flags';
+import { badcatPublicUrl, badcatVapidKeys, Env, sendgridConfigured } from './badcat-flags';
 import { badcatLevel } from './badcat-live';
 import { BadcatOnlineStore } from './badcat-online.schema';
 import { buildPushRequest, isPushEndpoint } from './badcat-webpush';
@@ -16,11 +16,11 @@ import { buildPushRequest, isPushEndpoint } from './badcat-webpush';
 /*
  * Bad Cat Daily Phase 2 return reasons (GDD 3.5 "Return reasons", 17.1 "web push"):
  * - Web push: the player picks a local hour in Settings; the browser's PushSubscription is stored with that hour in
- *   UTC. Every hour on the hour, subscriptions of that hour get "Today's room is open" once a day. Off unless
- *   BADCAT_PUSH_ENABLED and the BADCAT_VAPID_* keys are set; a 404/410 from the push service deletes the row.
+ *   UTC. Every hour on the hour, subscriptions of that hour get "Today's room is open" once a day. Runs when
+ *   the BADCAT_VAPID_* keys are set; a 404/410 from the push service deletes the row.
  * - Streak emails: signed-in players with a verified email who opted in, and whose ranked streak (2+ days) ends
- *   tonight (played yesterday, not today, UTC), get one email at 18:00 UTC. Off unless BADCAT_STREAK_EMAIL_ENABLED
- *   and SendGrid is configured.
+ *   tonight (played yesterday, not today, UTC), get one email at 18:00 UTC. Runs when SendGrid is
+ *   configured.
  * Both run once per period across replicas (`claimJobPeriod`). Specs replace `fetchImpl`.
  */
 
@@ -53,12 +53,12 @@ export class BadcatPushService {
 
     publicKey(env: Env = process.env): { publicKey: string } {
         const keys = badcatVapidKeys(env);
-        if (!keys) throw BADCAT_ERRORS.notFound();
+        if (!keys) throw BADCAT_ERRORS.pushUnavailable();
         return { publicKey: keys.publicKey };
     }
 
     async subscribe(body: PushSubscribeRequest, env: Env = process.env): Promise<{ ok: boolean; utcHour: number }> {
-        if (!badcatVapidKeys(env)) throw BADCAT_ERRORS.notFound();
+        if (!badcatVapidKeys(env)) throw BADCAT_ERRORS.pushUnavailable();
         const sub = body?.subscription;
         const endpoint = sub?.endpoint;
         if (!isPushEndpoint(endpoint)) throw BADCAT_ERRORS.invalid('subscription endpoint is not a known push service');
@@ -94,7 +94,7 @@ export class BadcatPushService {
 
     async sendReminders(env: Env = process.env): Promise<PushRunResult> {
         const keys = badcatVapidKeys(env);
-        if (!badcatFlags(env).push || !keys) return { skipped: 'disabled', sent: 0, failed: 0, removed: 0 };
+        if (!keys) return { skipped: 'disabled', sent: 0, failed: 0, removed: 0 };
         const now = this.now();
         const hour = now.getUTCHours();
         const today = dayNoUtc(now.getTime());
@@ -148,8 +148,7 @@ export class BadcatPushService {
     }
 
     async sendStreakEmails(env: Env = process.env): Promise<PushRunResult> {
-        const flags = badcatFlags(env);
-        if (!flags.streakEmail || !flags.accounts || !sendgridConfigured(env)) {
+        if (!sendgridConfigured(env)) {
             return { skipped: 'disabled', sent: 0, failed: 0, removed: 0 };
         }
         const now = this.now();

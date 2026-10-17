@@ -1385,7 +1385,7 @@ export class UserController {
      * The only write path for game scores (CLAUDE.md, plan F6). Plain modes are checked against
      * their level table and caps; CATNIP_HEIST takes the replay-verified branch
      * (`src/user/heist/heist-live.ts`, plan G2 layer 2) and BAD_CAT the Bad Cat Daily one
-     * (`src/badcat/badcat-live.ts`, behind BADCAT_SCORES_ENABLED). Guards, in order: auth (first, as on every
+     * (`src/badcat/badcat-live.ts`). Guards, in order: auth (first, as on every
      * route), the per-IP Heist replay bucket (counts replay requests only), the per-player bucket.
      * The body is parsed by a 64 KB route parser (`src/user/heist/live-body-limit.ts`).
      */
@@ -1402,7 +1402,7 @@ export class UserController {
             throw new BadRequestException('badcat is only accepted with type BAD_CAT');
         }
         if (body.type === GameType.BAD_CAT) {
-            // Bad Cat Daily ranked runs (GDD 10 Phase 2): replay-verified, off unless BADCAT_SCORES_ENABLED.
+            // Bad Cat Daily ranked runs (GDD 10 Phase 2): replay-verified, always on.
             try {
                 return await saveBadcatRun(
                     { users: this.repository as any, games: this.gameRepository as any, queue: heistReplayQueue },

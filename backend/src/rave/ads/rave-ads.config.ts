@@ -1,7 +1,8 @@
 import { RAVE_DEFAULTS, stripePublishableKeyMode, stripeSecretKeyMode, StripeKeyMode } from '../rave.config';
 
 /*
- * Moon Rave ad space config. Off unless RAVE_ADS_ENABLED=true. Stripe keys and the webhook secret are
+ * Moon Rave ad space config. No on/off flag: ads open whenever the config resolves
+ * (RaveAdsService.readiness). Stripe keys and the webhook secret are
  * the rave checkout's (same PaymentIntent flow, same POST /rave/stripe/webhook). Ad money is Token Tails
  * revenue; RAVE_AD_SHELTER_BPS (default 0) routes a share of each approved ad to Pink Paw through the
  * shelter-share keeper (then those dollars become cats too).
@@ -16,7 +17,6 @@ export const RAVE_AD_DEFAULTS = Object.freeze({
 });
 
 export interface RaveAdsConfig {
-    enabled: boolean;
     priceCents: number;
     holdMs: number;
     days: number;
@@ -30,8 +30,6 @@ export interface RaveAdsConfig {
     production: boolean;
 }
 
-const flag = (value: string | undefined) => (value || '').trim().toLowerCase() === 'true';
-
 function int(value: string | undefined, fallback: number, min: number, max: number): number {
     const trimmed = (value || '').trim();
     if (!/^\d{1,9}$/.test(trimmed)) return fallback;
@@ -42,7 +40,6 @@ function int(value: string | undefined, fallback: number, min: number, max: numb
 export function readRaveAdsConfig(env: NodeJS.ProcessEnv = process.env): RaveAdsConfig {
     const publishableKey = (env.STRIPE_PUBLISHABLE_KEY || '').trim() || null;
     return {
-        enabled: flag(env.RAVE_ADS_ENABLED),
         priceCents: RAVE_AD_PRICE_CENTS,
         holdMs: int(env.RAVE_AD_HOLD_MINUTES, RAVE_AD_DEFAULTS.holdMinutes, 5, 60) * 60 * 1000,
         days: int(env.RAVE_AD_DAYS, RAVE_AD_DEFAULTS.days, 1, 365),

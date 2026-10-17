@@ -13,13 +13,13 @@ import { SIM_VERSION } from 'src/vendor/badcat-sim';
 import { badcatDigest, saveBadcatRun, scoreGraceDays } from './badcat-live';
 
 /*
- * The BAD_CAT branch of POST /user/catbassadors/live (GDD 10 Phase 2): off by default, replay-verified, one ranked
+ * The BAD_CAT branch of POST /user/catbassadors/live (GDD 10 Phase 2): always on, replay-verified, one ranked
  * run per player and day, duplicates refused without a replay, the server's score only.
  */
 
 const golden = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'badcat-golden.json'), 'utf8'));
 const RUN = golden.runs[0];
-const ON = { BADCAT_ENABLED: 'true', BADCAT_SCORES_ENABLED: 'true' };
+const ON: Record<string, string> = {};
 /** A moment inside the golden run's day (UTC noon). */
 const DAY_NOON = (dayNo: number) => new Date(Date.UTC(2026, 10, 16 + dayNo - 1, 12));
 
@@ -73,12 +73,6 @@ const body = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe('POST /user/catbassadors/live, type BAD_CAT', () => {
-    it('is off unless BADCAT_ENABLED and BADCAT_SCORES_ENABLED', async () => {
-        const h = harness({ BADCAT_ENABLED: 'true' });
-        expect(await codeOf(saveBadcatRun(h.deps, h.userId, body() as any))).toBe('404 BADCAT_SCORES_OFF');
-        expect(h.games.docs).toHaveLength(0);
-    });
-
     it('saves the server replay result, not the client claim', async () => {
         const h = harness();
         const res = await saveBadcatRun(h.deps, h.userId, body({ score: 99_999_999 }) as any);

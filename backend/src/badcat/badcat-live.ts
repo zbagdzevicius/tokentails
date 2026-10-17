@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { GamePlatform, GameType } from 'src/game/game.schema';
 import { ErrorCode } from 'src/shared-contracts/errors';
@@ -14,13 +14,13 @@ import {
     TICK_HZ,
     verifyRanked,
 } from 'src/vendor/badcat-sim';
-import { badcatFlags, Env } from './badcat-flags';
+import { Env } from './badcat-flags';
 import { badcatSimErrorDetail } from './badcat-sim-info';
 import { BadcatRunDto } from './badcat-run.dto';
 
 /**
  * The replay-verified BAD_CAT branch of `POST /user/catbassadors/live` (GDD 10 Phase 2). There is no other Bad Cat
- * score route: this is still the one score writer, and it is off unless BADCAT_ENABLED and BADCAT_SCORES_ENABLED.
+ * score route: this is still the one score writer (always on).
  *
  * 1. The DTO checked the log's shape (current sim version, input runs within one boss run). The day must be open:
  *    the UTC day, yesterday or tomorrow (players' local days), or up to `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1)
@@ -101,14 +101,6 @@ export async function saveBadcatRun(
     body: { type?: unknown; badcat?: BadcatRunDto; replay?: unknown; platform?: GamePlatform }
 ): Promise<IBadcatLiveResult> {
     const env = deps.env || process.env;
-    if (!badcatFlags(env).scores) {
-        throw new NotFoundException({
-            statusCode: 404,
-            message: 'Bad Cat scores are not open',
-            error: 'Not Found',
-            code: ErrorCode.BADCAT_SCORES_OFF,
-        });
-    }
     const log = body.badcat;
     if (!log) throw badcatError(ErrorCode.BADCAT_REPLAY_INVALID, 'badcat is required for BAD_CAT');
     if (body.replay !== undefined) throw badcatError(ErrorCode.BADCAT_REPLAY_INVALID, 'replay is for CATNIP_HEIST');

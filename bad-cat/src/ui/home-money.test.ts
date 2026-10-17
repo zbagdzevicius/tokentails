@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 async function homeLinks(sessionsBefore: number, createdAt: number): Promise<string> {
-  const w = world({ ghosts: [] }, { env: { clubUi: true, apiUrl: 'https://api.test' } });
+  const w = world({ ghosts: [] }, { env: { apiUrl: 'https://api.test' } });
   w.kv.set('ftueDone', true);
   w.profile.p = { ...w.profile.p, sessions: sessionsBefore, createdAt, cats: [{ ...DEFAULT_CAT, name: 'Mochi' }] };
   w.services.money = fakeMoney({ status: async () => ({ enabled: true, checkout: true, cameos: true, gifts: true, restoreEmail: false, faceUploads: false, creatorCodes: false, brand: true, testMode: true }) });

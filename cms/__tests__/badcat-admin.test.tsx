@@ -36,9 +36,9 @@ describe('badcat admin api', () => {
 });
 
 describe('badcat admin tables', () => {
-  it('says when Bad Cat is off', () => {
+  it('says when the admin call failed', () => {
     render(<FacesTable items={null} onReview={() => undefined} />);
-    expect(screen.getByRole('status')).toHaveTextContent('switched off');
+    expect(screen.getByRole('status')).toHaveTextContent('not an admin');
   });
 
   it('approves a face', () => {

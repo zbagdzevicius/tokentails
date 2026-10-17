@@ -3,9 +3,9 @@
 ## Built
 
 - `src/money/api.ts`: JSON client. 8 s timeout, `credentials: 'omit'`, never an `accesstoken` header. https base only
-  (http for localhost). No base, or `env.clubUi !== true`, means offline: every call answers locally and makes zero requests.
+  (http for localhost). No base means offline: every call answers locally and makes zero requests.
 - `src/money/core.ts`: `createMoneyCore(deps)`, which provides:
-  - `status()`, cached per session; all false when offline or when the server is off.
+  - `status()`, cached per session; all false when offline or when the server is unreachable.
   - The entitlement cache `{ token, entitlements }` under the store key `entitlements`, and `refreshEntitlements()`
     (`POST /badcat/entitlement {token}`).
   - `checkout()`: builds a `CheckoutRequest`. `returnBase` is origin + `/badcat` on tokentails.com, otherwise the
@@ -25,7 +25,7 @@
 - `src/money/cameos.ts`: `fnv1a`, `shuffleFor`, plus a sanitiser for server bundles (cat-code regex, https or relative
   face URLs only) and the offline bundle.
 - `src/money/screens.ts` + `money.css`: Club sheet, Thanks, Redeem, Restore, Cameo/guest star, Gift, Shop, Brand and the
-  Offer card. When offline or when the server flag is off, every screen shows a "Coming soon" card.
+  Offer card. When offline or when checkout is not ready, every screen shows a "Coming soon" card.
 - `src/money/index.ts`: `createMoney(deps)` returns `MoneyApiX` (`MoneyApi` plus `online`, `safariPayLink`, `needsRefresh`).
   `defaultMoneyDeps()` and the lazy `money` instance build nothing until first use.
 - `src/platform/entitlements.ts`: `getEntitlements(store?, now?)` stays synchronous. It decodes the cached token payload
@@ -40,7 +40,7 @@
 - Thanks route: read `session_id` from the Stripe return URL and call `mount.thanks`. Restore route: read `?t=` and call
   `mount.restore({ token })`. Redeem route: read `?code=`. The Safari pay link is `<base>/club?sku=<sku>`, and
   `mount.club` accepts an extra `sku` prop to preselect the plan.
-- `PaywallContext.serverCheckout` must be `status.checkout && env.clubUi`. Call `paywall()` only after the share sheet
+- `PaywallContext.serverCheckout` must be `status.checkout` (the `env.clubUi` switch was removed Oct 17). Call `paywall()` only after the share sheet
   has been shared or dismissed. `mount.offerCard` already calls `markPaywallShown` (it is idempotent).
 - Pass the cat name to `mount.club` in `catName`. Brand, cameo and redeem take an optional `dayLabel`.
 

@@ -6,8 +6,8 @@ import { RAVE_AD_THROTTLES, RaveAdCheckoutGate, RaveAdsController } from './rave
 import { adsHarness, ENV_ADS, png } from './rave-ads.harness-spec';
 
 /*
- * Routes, gates and limits of /rave/ads. The checkout's flag check and per-IP limit run in a guard
- * (RaveAdCheckoutGate), before FileInterceptor reads the upload; the flag check comes first.
+ * Routes, gates and limits of /rave/ads. The checkout's readiness check and per-IP limit run in a guard
+ * (RaveAdCheckoutGate), before FileInterceptor reads the upload; the readiness check comes first.
  */
 
 const httpContext = (req: any, res: any = {}) =>
@@ -23,21 +23,21 @@ const canActivate = (guard: any, permission: number) =>
     new guard().canActivate({ switchToHttp: () => ({ getRequest: () => ({ user: { permission } }) }) } as any);
 
 describe('RaveAdsController', () => {
-    it('flag off: status says disabled, the checkout gate is 404 before any throttle; the public list stays readable', async () => {
+    it('not ready: status says disabled, the checkout gate is 503 before any throttle; the public list stays readable', async () => {
         const { h, ctl, ipThrottler } = controller({});
-        expect(await ctl.status({}, {})).toEqual({ enabled: false, reason: 'off' });
+        expect(await ctl.status({}, {})).toEqual({ enabled: false, reason: 'stripe' });
         const gate = new RaveAdCheckoutGate(h.service, ipThrottler);
         const next = { handle: jest.fn() };
         const error: any = await gate.intercept(httpContext({ ip: '1.2.3.4' }), next).catch(e => e);
         expect(next.handle).not.toHaveBeenCalled();
         expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(404);
+        expect(error.getStatus()).toBe(503);
         expect(ipThrottler.consume).toHaveBeenCalledTimes(1);
         expect(h.stripe.paymentIntents.create).not.toHaveBeenCalled();
         expect((await ctl.list({}, {})).ads).toEqual([]);
     });
 
-    it('flag on: the checkout gate counts the per-IP limit (6 per 10 min), then checkout holds the slot', async () => {
+    it('ready: the checkout gate counts the per-IP limit (6 per 10 min), then checkout holds the slot', async () => {
         const { h, ctl, ipThrottler } = controller(ENV_ADS);
         const gate = new RaveAdCheckoutGate(h.service, ipThrottler);
         const next = { handle: jest.fn(() => 'handled') };

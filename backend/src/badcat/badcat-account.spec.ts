@@ -30,7 +30,8 @@ describe('restore by email', () => {
         expect(h.fetchImpl).not.toHaveBeenCalled();
     });
 
-    it('never returns the link in production, and emails only with the flag and SendGrid', async () => {
+    it('never returns the link in production, and emails only buyers and only with SendGrid', async () => {
+        await buy(h, 'cosmetic_trail', { email: 'b@ex.com' });
         restore();
         restore = useEnv({ ...ON_ENV, NODE_ENV: 'production' });
         expect(await ask('a@ex.com')).toEqual({ ok: true });
@@ -40,9 +41,10 @@ describe('restore by email', () => {
         restore = useEnv({
             ...ON_ENV,
             NODE_ENV: 'production',
-            BADCAT_RESTORE_EMAIL_ENABLED: 'true',
             SENDGRID_API_KEY: 'SG.test',
         });
+        expect(await ask('stranger@ex.com')).toEqual({ ok: true });
+        expect(h.fetchImpl).not.toHaveBeenCalled();
         expect(await ask('b@ex.com')).toEqual({ ok: true });
         expect(h.fetchImpl).toHaveBeenCalledTimes(1);
         expect(h.sent[0].url).toBe('https://api.sendgrid.com/v3/mail/send');
@@ -50,7 +52,7 @@ describe('restore by email', () => {
         expect(h.sent[0].body.content[0].value).toContain('https://tokentails.com/badcat/restore?t=');
 
         restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_RESTORE_EMAIL_ENABLED: 'true' }); // flag but no SendGrid key
+        restore = useEnv(ON_ENV); // no SendGrid key: the local dev link
         expect((await ask('c@ex.com')).devLink).toBeDefined();
         expect(h.fetchImpl).toHaveBeenCalledTimes(1);
     });
@@ -186,9 +188,6 @@ describe('portal, redeem and the Club cat', () => {
             error: 'unknown_code',
         });
         expect(await statusOf(h.controller.redeem({ code: 'ZZZZZZZZZZ', email: 'bad' }, {}, {}))).toBe(400);
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_GIFTS_ENABLED: undefined });
-        expect(await statusOf(h.controller.redeem({ code: 'ZZZZZZZZZZ', email: 'a@ex.com' }, {}, {}))).toBe(404);
     });
 
     it('sets the Club cat for members only', async () => {

@@ -18,7 +18,6 @@ import { BADCAT_ERRORS } from './badcat.errors';
 import { FetchLike, restoreEmailHtml, sendBadcatEmail } from './badcat-email';
 import {
     badcatEntitlementSecret,
-    badcatFlags,
     badcatPublicUrl,
     Env,
     restoreDevLinkAllowed,
@@ -298,8 +297,10 @@ export class BadcatAccountService {
 
     /**
      * POST /badcat/restore: the same answer whether or not the email bought anything. A link is made for
-     * every valid email (at most 3 an hour per address); it is emailed only with BADCAT_RESTORE_EMAIL_ENABLED
-     * and SendGrid, else returned as `devLink` only when BADCAT_RESTORE_DEV_LINK=true outside production.
+     * every valid email (at most 3 an hour per address); it is emailed when SendGrid is configured and the
+     * address has a purchase (a restore link for anyone else restores nothing, and mailing every typed address
+     * would let the route spam third parties), else returned as `devLink` only when BADCAT_RESTORE_DEV_LINK=true
+     * outside production.
      */
     async restore(rawEmail: unknown, env: Env = process.env): Promise<{ ok: boolean; devLink?: string }> {
         this.secret(env);
@@ -317,7 +318,8 @@ export class BadcatAccountService {
             expiresAt: new Date(this.now().getTime() + RESTORE_TTL_MS),
         });
         const link = `${badcatPublicUrl(env)}/badcat/restore?t=${raw}`;
-        if (badcatFlags(env).restoreEmail && sendgridConfigured(env)) {
+        if (sendgridConfigured(env)) {
+            if (!(await this.store.purchases.findOne({ email }).lean())) return { ok: true };
             await sendBadcatEmail(
                 email,
                 'Restore your Bad Cat Daily purchases',

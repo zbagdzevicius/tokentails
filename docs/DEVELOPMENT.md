@@ -218,8 +218,8 @@ Phase 2 (ranked saves): the backend replays BAD_CAT runs with `backend/src/vendo
 `bad-cat/src/server/index.ts`. Any change under `bad-cat/src/sim`, `src/content` (rooms, `public/daily/index.json`),
 `src/codec` or the editor's room check may change the bundle: run `npm run vendor-sim`, commit the three generated
 files with the game change, and deploy the backend before the game (`vendor-sim:check-remote`). A SIM_VERSION bump
-also rewrites the golden fixture (above). Game-side Phase 2 code is `bad-cat/src/online/` (offline unless
-`VITE_BADCAT_ONLINE=1`); the client's account bridge is `client/pages/badcat-account.tsx`; the CMS moderation page
+also rewrites the golden fixture (above). Game-side Phase 2 code is `bad-cat/src/online/` (online whenever the
+game has an API URL); the client's account bridge is `client/pages/badcat-account.tsx`; the CMS moderation page
 is `cms/pages/badcat.tsx`. `GameType.BAD_CAT` lives in `shared/enums.ts`: run `node scripts/sync-contracts.mjs`
 after editing it (it writes every copy, including `catnip-heist/src/shared-contracts/`).
 

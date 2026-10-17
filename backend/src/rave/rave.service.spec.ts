@@ -14,9 +14,9 @@ import { isRaveAmount, publicOrder, raveMemo, raveMemo32, RAVE_SYSTEM_USER, usdc
 const card = (extra: Record<string, unknown> = {}) => ({ cats: 5, method: 'card', coverFee: true, ...extra });
 
 describe('RaveService status', () => {
-    it('is disabled by default and says nothing else', async () => {
+    it('has no on/off flag: with no config it reports the missing Stripe setup and nothing else', async () => {
         const { service } = raveHarness({});
-        expect(await service.status(T0)).toEqual({ enabled: false, reason: 'off' });
+        expect(await service.status(T0)).toEqual({ enabled: false, reason: 'stripe' });
     });
 
     it('names what is missing: Stripe, the keeper, or a key/chain mode mismatch', async () => {
@@ -38,8 +38,9 @@ describe('RaveService status', () => {
         }
     });
 
-    it('returns the publishable key, prices, fee and USDC off when enabled; never a secret', async () => {
+    it('returns the publishable key, prices, fee, and USDC off when no chain is verified; never a secret', async () => {
         const { service } = raveHarness();
+        (service as any).claims = { publicGivingVerified: async () => false };
         const status = await service.status(T0);
         expect(status).toEqual({
             enabled: true,
@@ -55,7 +56,7 @@ describe('RaveService status', () => {
     });
 
     it('lists USDC chains only where public giving is verified (testnets of the keeper class)', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const status = await h.service.status(T0);
         const testnetSplits = Object.values(CHAINS)
             .filter(c => c.split && c.network === 'testnet' && !/^EUR/i.test(c.split.token.symbol))
@@ -67,8 +68,8 @@ describe('RaveService status', () => {
 });
 
 describe('RaveService checkout', () => {
-    it('is 404 while the flag is off and 503 when on but not ready', async () => {
-        await expectRaveError(raveHarness({}).service.checkout(card(), T0), 404, 'RAVE_NOT_FOUND');
+    it('is 503 while anything it needs is missing (no on/off flag, no 404)', async () => {
+        await expectRaveError(raveHarness({}).service.checkout(card(), T0), 503, 'RAVE_OFF');
         await expectRaveError(
             raveHarness({ ...ENV_ON, SHELTER_DONATE_PRIVATE_KEY: '' }).service.checkout(card(), T0),
             503,
@@ -178,12 +179,15 @@ describe('RaveService checkout', () => {
         expect(h.stripe.paymentIntents.create).not.toHaveBeenCalled();
     });
 
-    it('refuses the USDC tab while RAVE_USDC_ENABLED is off', async () => {
-        await expectRaveError(raveHarness().service.checkout(card({ method: 'usdc' }), T0), 400, 'RAVE_METHOD');
+    it('refuses the USDC tab while no chain has verified public giving', async () => {
+        const h = raveHarness();
+        (h.service as any).claims = { publicGivingVerified: async () => false };
+        await expectRaveError(h.service.checkout(card({ method: 'usdc' }), T0), 400, 'RAVE_METHOD');
+        expect(h.orders.rows).toHaveLength(0);
     });
 
     it('answers a USDC order with the rave memo and the 6-decimal amount, no Stripe call', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const res = await h.service.checkout({ cats: 10, method: 'usdc', coverFee: true }, T0);
         expect(res).toMatchObject({ clientSecret: null, feeCents: 0, amountCents: 1000, donationCents: 1000 });
         expect(res.memo).toBe(`tt:rave:${res.orderId.slice(3)}`);
@@ -463,7 +467,7 @@ describe('USDC gifts', () => {
     });
 
     it('stores the reported tx, verifies the receipt read-only and marks the order onchain', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const res = await h.service.checkout({ cats: 5, method: 'usdc' }, T0);
         const arc = Object.values(CHAINS).find(c => c.chainId === 5042002)!;
         const memo = res.memo!;
@@ -484,7 +488,7 @@ describe('USDC gifts', () => {
     });
 
     it('refuses a mined tx that pays less than the order or another memo', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const res = await h.service.checkout({ cats: 5, method: 'usdc' }, T0);
         h.chain.getReceipt.mockResolvedValue({ status: 1, logs: [] });
         await expectRaveError(
@@ -573,7 +577,7 @@ describe('RaveService round-1 fixes', () => {
     });
 
     it('re-verifies an expired USDC order when the same tx is reported again or in the background', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const res = await h.service.checkout({ cats: 5, method: 'usdc' }, T0);
         const arc = Object.values(CHAINS).find(c => c.chainId === 5042002)!;
         const txHash = '0x' + 'ef'.repeat(32);
@@ -655,7 +659,7 @@ describe('RaveService round-2 fixes', () => {
     });
 
     it('a reported USDC tx is neither listed nor counted until its receipt is verified', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true', RAVE_DAILY_CAP_USD: '10' });
+        const h = raveHarness({ ...ENV_ON, RAVE_DAILY_CAP_USD: '10' });
         const res = await h.service.checkout({ cats: 10, method: 'usdc', names: ['Spam'], x: '@spammer' }, T0);
         const made = '0x' + '12'.repeat(32);
         const out: any = await h.service.reportUsdcTx(res.orderId, { chainId: 5042002, txHash: made }, T0);
@@ -672,7 +676,7 @@ describe('RaveService round-2 fixes', () => {
     });
 
     it('reads a reported USDC receipt at most once per 10 s per order from GET /rave/orders/:id', async () => {
-        const h = raveHarness({ ...ENV_ON, RAVE_USDC_ENABLED: 'true' });
+        const h = raveHarness(ENV_ON);
         const res = await h.service.checkout({ cats: 5, method: 'usdc' }, T0);
         await h.service.reportUsdcTx(res.orderId, { chainId: 5042002, txHash: '0x' + '34'.repeat(32) }, T0);
         expect(h.chain.getReceipt).toHaveBeenCalledTimes(1);

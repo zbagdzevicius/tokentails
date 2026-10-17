@@ -40,12 +40,10 @@ describe('POST /badcat/stripe/webhook', () => {
         restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_WEBHOOK_SECRET: undefined });
         expect(await statusOf(h.controller.webhook({ rawBody: event.rawBody } as any, event.signature))).toBe(503);
         restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_CHECKOUT_ENABLED: undefined });
+        restore = useEnv({ ...ON_ENV, BADCAT_ENTITLEMENT_SECRET: undefined });
         expect(await statusOf(h.controller.webhook({ rawBody: event.rawBody } as any, event.signature))).toBe(200);
-        // Sales paused: a cancellation still lands.
+        // Checkout not ready (no entitlement key): a cancellation still lands.
         await buy(h, 'club_monthly', { session: { subscription: 'sub_paused' }, email: 'p@ex.com' });
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_CHECKOUT_ENABLED: undefined, BADCAT_ENABLED: undefined });
         expect(
             await deliver(h, {
                 id: 'evt_paused_del',
@@ -345,6 +343,28 @@ describe('POST /badcat/stripe/webhook', () => {
         expect(
             (await deliver(h, { id: 'evt_other', type: 'payment_intent.created', data: { object: {} } })).outcome
         ).toBe('ignored');
+    });
+
+    it('verifies without any Stripe key, so refunds and cancellations still land', async () => {
+        restore();
+        restore = useEnv({ ...ON_ENV, BADCAT_STRIPE_SECRET_KEY: undefined });
+        expect(
+            (await deliver(h, { id: 'evt_nokey', type: 'payment_intent.created', data: { object: {} } })).outcome
+        ).toBe('ignored');
+    });
+
+    it('in production ignores test-mode events: a test card never grants real entitlements', async () => {
+        restore();
+        restore = useEnv({ ...ON_ENV, NODE_ENV: 'production', BADCAT_STRIPE_SECRET_KEY: 'sk_live_spec' });
+        const test = checkoutEvent({
+            id: 'cs_test_prod0001',
+            metadata: { badcat: '1', sku: 'cameo', cat: CAT, day: '7' },
+        });
+        expect((await deliver(h, test)).outcome).toBe('ignored');
+        expect(h.models.purchases.docs).toHaveLength(0);
+        const live = checkoutEvent({ id: 'cs_live_prod0001', metadata: { badcat: '1', sku: 'cosmetic_hat' } });
+        expect((await deliver(h, { ...live, livemode: true })).outcome).toBe('processed');
+        expect(h.models.purchases.docs).toHaveLength(1);
     });
 });
 

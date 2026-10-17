@@ -3,7 +3,7 @@
  * `markPaywallShown` when a card is actually displayed.
  *
  * Rules (in order):
- * - nothing without server checkout (BadcatServerStatus.checkout && env.clubUi), in session 1, or after a card
+ * - nothing without server checkout (BadcatServerStatus.checkout, online), in session 1, or after a card
  *   was already shown this session;
  * - Club members see nothing, except the S1 gift card;
  * - post_share / perfect_crime only after the share sheet was shared or dismissed; A/B: arm A offers on

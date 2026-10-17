@@ -89,7 +89,7 @@ function online(routes: Record<string, Route>, opts: { raw?: Record<string, stri
   const api = createOnline({
     env: { apiUrl: API, dev: false },
     store,
-    raw: opts.raw ?? { online: '1' },
+    raw: opts.raw ?? {},
     fetch: f as never,
     bridge: opts.bridge === undefined ? fakeBridge() : opts.bridge,
     location: LOC,
@@ -98,13 +98,12 @@ function online(routes: Record<string, Route>, opts: { raw?: Record<string, stri
   return { api, calls, store };
 }
 
-describe('online services are off by default', () => {
-  it('makes zero requests without VITE_BADCAT_ONLINE or an API url', async () => {
+describe('online services without an API origin', () => {
+  it('makes zero requests without a (valid) API url', async () => {
     const f = vi.fn();
     for (const deps of [
-      { env: { apiUrl: API, dev: false }, raw: {} },
-      { env: { apiUrl: null, dev: false }, raw: { online: '1' } },
-      { env: { apiUrl: 'http://evil.example', dev: false }, raw: { online: '1' } },
+      { env: { apiUrl: null, dev: false }, raw: {} },
+      { env: { apiUrl: 'http://evil.example', dev: false }, raw: {} },
     ]) {
       const api = createOnline({ ...deps, store: memStore(), fetch: f as never, location: LOC });
       expect(api.enabled).toBe(false);
@@ -118,9 +117,14 @@ describe('online services are off by default', () => {
     expect(f).not.toHaveBeenCalled();
   });
 
-  it('keeps every feature off when the server says so', async () => {
+  it('is on with just an API url (no game-side switch)', () => {
+    const api = createOnline({ env: { apiUrl: API, dev: false }, raw: {}, store: memStore(), fetch: vi.fn() as never, location: LOC });
+    expect(api.enabled).toBe(true);
+  });
+
+  it('keeps every server feature off when the server says so', async () => {
     const { api, calls } = online({ 'GET /badcat/status': () => ({ status: 200, body: { enabled: true } }) });
-    expect(await api.features()).toEqual(NO_FEATURES);
+    expect(await api.features()).toEqual({ ...NO_FEATURES, livePinkPaw: true });
     expect(await api.submitRanked(run(), {})).toEqual({ status: 'off' });
     expect(await api.feed('new')).toBeNull();
     expect(calls.map((c) => c.url)).toEqual([`${API}/badcat/status`]);
@@ -218,7 +222,7 @@ describe('boards, links, feed, meter, Pink Paw, /yourcat', () => {
     expect(await api.reportRoom('../../x')).toBe(false);
   });
 
-  it('parses the live meter and Pink Paw statuses (only with their flags)', async () => {
+  it('parses the live meter and Pink Paw statuses', async () => {
     const { api } = online(
       {
         'GET /badcat/meter': () => ({ status: 200, body: { month: '2026-11', cents: 500, currency: 'usd', collars: 1, updated: '2026-11-20' } }),
@@ -227,7 +231,6 @@ describe('boards, links, feed, meter, Pink Paw, /yourcat', () => {
           body: { atShelter: [{ id: '6992227d890a12f52a317e22', status: 'WAITING' }], adopted: [{ id: '69a5341d3ee4d7b657941bb8', status: 'ADOPTED' }, { id: 'bad' }] },
         }),
       },
-      { raw: { online: '1', livePinkPaw: '1' } },
     );
     expect(await api.meter()).toEqual({ month: '2026-11', cents: 500, currency: 'usd', collars: 1, updated: '2026-11-20' });
     expect(await api.pinkPaw()).toEqual({ '6992227d890a12f52a317e22': 'WAITING', '69a5341d3ee4d7b657941bb8': 'ADOPTED' });
@@ -243,7 +246,6 @@ describe('boards, links, feed, meter, Pink Paw, /yourcat', () => {
           body: { item: { family: 'YELLOW', familyLabel: 'Ginger', named: true, name: 'Mochi', avatar: { status: 'ready', url: 'https://cdn.example/a.png' } } },
         }),
       },
-      { raw: { online: '1', yourcat: '1' } },
     );
     const imp = await api.yourcat();
     expect(imp).toMatchObject({ spec: { pattern: 'tabby' }, name: 'Mochi', familyLabel: 'Ginger', avatarUrl: 'https://cdn.example/a.png' });

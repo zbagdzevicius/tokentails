@@ -27,8 +27,8 @@ export function buildIdFor(command: string, raw: string | undefined): string {
 }
 
 export default defineConfig(({ command }) => ({
-  // Only VITE_* reaches the page (VITE_BADCAT_PRESALE_URL, VITE_BADCAT_API_URL, VITE_BADCAT_CLUB,
-  // VITE_BADCAT_POSTHOG_KEY, VITE_BADCAT_STUDIO, VITE_BADCAT_SHORT_URL, VITE_BADCAT_QA; all default off).
+  // Only VITE_* reaches the page (config only: VITE_BADCAT_PRESALE_URL, VITE_BADCAT_API_URL, VITE_BADCAT_POSTHOG_KEY,
+  // VITE_BADCAT_SHORT_URL, VITE_BADCAT_AUTH_ORIGIN, VITE_BADCAT_TREAT_URL; VITE_BADCAT_QA is dev tooling).
   envPrefix: ['VITE_'],
   base,
   define: {

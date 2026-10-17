@@ -18,6 +18,8 @@ export {
   detectAndroidChrome,
   sanitizePresaleUrl,
   sanitizeApiUrl,
+  apiUrlFor,
+  API_BY_HOST,
   sanitizePosthogKey,
   sanitizeShortUrl,
   readEnvSource,

@@ -49,7 +49,7 @@ export type Screen =
   /** Phase 2 (src/online): the daily board (top 100) and the public room feed. */
   | 'board'
   | 'feed'
-  /** ?studio=1 (dev or VITE_BADCAT_STUDIO): the founder's stitch / reply clip queue (GDD 6.2). */
+  /** ?studio=1: the founder's stitch / reply clip queue (GDD 6.2). */
   | 'studio';
 
 /** Side screens opened with { t: 'open' } (back → home). */
@@ -68,7 +68,7 @@ export interface Entry {
   ugc?: boolean;
   /** /badcat/<route> links (thanks, redeem, restore, club, ...). */
   route?: LinkRoute;
-  /** ?studio=1 honoured (dev or VITE_BADCAT_STUDIO): the studio session opens first. */
+  /** ?studio=1: the studio session opens first. */
   studio?: boolean;
 }
 

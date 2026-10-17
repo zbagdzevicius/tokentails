@@ -84,49 +84,35 @@ describe('BadcatController routes', () => {
     });
 });
 
-describe('every /badcat route is 404 while switched off', () => {
+describe('money routes with no secrets', () => {
     let restore: () => void;
     afterEach(() => restore());
 
-    it.each([
-        ['no env', {}],
-        ['features without the master switch', { ...ON_ENV, BADCAT_ENABLED: undefined }],
-    ])('%s', async (_label, env) => {
-        restore = useEnv(env as Record<string, string | undefined>);
+    it('answer 503 and take no money; the free routes still work', async () => {
+        restore = useEnv({});
         const h = buildHarness();
         const c = h.controller;
-        const res = { set: jest.fn(), send: jest.fn(), redirect: jest.fn() };
-        const calls: Promise<unknown>[] = [
-            c.checkout({ sku: 'club_monthly' } as any, {}, {}),
+        const money: Promise<unknown>[] = [
+            c.checkout(
+                {
+                    sku: 'club_monthly',
+                    meta: { trigger: 'home', from_in_app: false },
+                    returnBase: 'https://tokentails.com/badcat',
+                } as any,
+                {},
+                {}
+            ),
             c.entitlement({ sessionId: 'cs_test_12345678' }, {}, {}),
             c.restore({ email: 'a@ex.com' }, {}, {}),
             c.restoreVerify({ t: 'x'.repeat(32) }, {}, {}),
             c.portal({ token: 'a.b' }, {}, {}),
-            c.redeem({ code: 'ABCDEFGHJK', email: 'a@ex.com' }, {}, {}),
             c.clubCat({ token: 'a.b', catCode: CAT, name: 'x' }, {}, {}),
-            c.cameoBundle('1', '0', {}, {}),
-            c.seen(CAT, {}, {}),
-            c.uploadFace('0'.repeat(24), { token: 'a.b', png: 'x' }, {}, {}),
-            c.face(`${'0'.repeat(24)}.png`, {}, res),
-            c.creatorCode({ code: 'mochifan', email: 'a@ex.com' }, {}, {}),
-            c.typed({}, res),
-            c.adminFaces({}),
-            c.approveFace('0'.repeat(24), {}),
-            c.rejectFace('0'.repeat(24), {}),
-            c.adminCameo({ catCode: CAT, dayNo: 1 }, {}),
-            c.adminStats('30', {}),
-            c.adminCreatorCodes({}),
-            c.adminCreatorReport({}),
-            c.approveCreatorCode('mochifan', {}),
-            c.rejectCreatorCode('mochifan', {}),
         ];
-        expect(calls).toHaveLength(routes().length - 2); // every route except status and the webhook (own gate)
-        for (const call of calls) expect(await statusOf(call)).toBe(404);
-        expect(res.redirect).not.toHaveBeenCalled();
+        for (const call of money) expect(await statusOf(call)).toBe(503);
         expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
-        expect(h.ipThrottler.consume).not.toHaveBeenCalled();
-        for (const model of Object.values(h.models)) expect(model.docs).toHaveLength(0);
-        expect((await c.status({}, {})).enabled).toBe(false);
+        expect(await statusOf(c.cameoBundle('5', '0', {}, {}))).toBe(200);
+        expect(await statusOf(c.seen(CAT, {}, {}))).toBe(200);
+        expect((await c.status({}, {})).enabled).toBe(true);
     });
 });
 
@@ -152,12 +138,9 @@ describe('creator codes, typed redirect, admin stats', () => {
         }
         expect(await statusOf(ask('validcode', 'nope'))).toBe(400);
         expect(await statusOf(ask('mochi_fan'))).toBe(409);
-        expect((await h.controller.adminCreatorCodes({})).items).toHaveLength(1);
-        expect(await h.controller.approveCreatorCode('mochi_fan', {})).toEqual({ ok: true, status: 'approved' });
-        expect(await statusOf(h.controller.approveCreatorCode('missing', {}))).toBe(404);
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_CREATOR_CODES_ENABLED: undefined });
-        expect(await statusOf(ask('another1'))).toBe(404);
+        expect((await h.controller.adminCreatorCodes()).items).toHaveLength(1);
+        expect(await h.controller.approveCreatorCode('mochi_fan')).toEqual({ ok: true, status: 'approved' });
+        expect(await statusOf(h.controller.approveCreatorCode('missing'))).toBe(404);
     });
 
     it('reports 20 % of net per code over each buyer’s first 6 months', async () => {
@@ -178,7 +161,7 @@ describe('creator codes, typed redirect, admin stats', () => {
             meta: { via: 'pending1' },
             session: { amount_total: 299 },
         });
-        const [row, ...rest] = (await h.controller.adminCreatorReport({})).items;
+        const [row, ...rest] = (await h.controller.adminCreatorReport()).items;
         expect(rest).toHaveLength(0);
         const net = 3999 - (Math.round(3999 * 0.029) + 30) + 299 - (Math.round(299 * 0.029) + 30);
         expect(row).toMatchObject({
@@ -199,9 +182,6 @@ describe('creator codes, typed redirect, admin stats', () => {
         expect(res.redirect).toHaveBeenCalledWith(302, 'https://tokentails.com/badcat/pick?e=t');
         expect(h.models.counters.docs).toEqual([expect.objectContaining({ key: 'typed:2026-11-20', n: 2 })]);
         expect(JSON.stringify(h.models.counters.docs)).not.toContain('1.2.3.4');
-        restore();
-        restore = useEnv({ ...ON_ENV, BADCAT_TYPED_REDIRECT_ENABLED: undefined });
-        expect(await statusOf(h.controller.typed({}, res))).toBe(404);
     });
 
     it('stats: typed per day, purchases by sku/trigger/via/in-app/arm, gross MRR without the collar', async () => {
@@ -218,7 +198,7 @@ describe('creator codes, typed redirect, admin stats', () => {
             session: { amount_total: 19900, subscription: 's4' },
         });
         await buy(h, 'collar_pinkpaw', { meta, session: { amount_total: 499 } });
-        const stats = await h.controller.adminStats('7', {});
+        const stats = await h.controller.adminStats('7');
         expect(stats.typed[0]).toEqual({ date: '2026-11-20', n: 1 });
         expect(stats.typed).toHaveLength(7);
         expect(stats.purchases.bySku.club_monthly).toEqual({ count: 1, cents: 499 });
@@ -254,17 +234,14 @@ describe('weekly seen email job', () => {
         return h;
     }
 
-    it('is a no-op without the flag or SendGrid', async () => {
-        let h = await setup(ON_ENV);
-        expect(await h.job.runOnce()).toEqual({ skipped: 'disabled', sent: 0, failed: 0 });
-        restore();
-        h = await setup({ ...ON_ENV, BADCAT_SEEN_EMAIL_ENABLED: 'true' });
+    it('is a no-op without SendGrid', async () => {
+        const h = await setup(ON_ENV);
         expect(await h.job.runOnce()).toEqual({ skipped: 'disabled', sent: 0, failed: 0 });
         expect(h.fetchImpl).not.toHaveBeenCalled();
     });
 
     it('emails each Club cat owner once a week', async () => {
-        const h = await setup({ ...ON_ENV, BADCAT_SEEN_EMAIL_ENABLED: 'true', SENDGRID_API_KEY: 'SG.test' });
+        const h = await setup({ ...ON_ENV, SENDGRID_API_KEY: 'SG.test' });
         expect(await h.job.runOnce()).toEqual({ sent: 1, failed: 0 });
         expect(h.sent[0].body.personalizations[0]).toMatchObject({
             to: [{ email: 'm@ex.com' }],

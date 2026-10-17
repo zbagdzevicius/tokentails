@@ -774,15 +774,17 @@ One photo becomes the visitor's playable cat (docs/plans/yourcat-v2.md; routes i
 
 Payments, entitlements and cameos for the browser game in `bad-cat/`. The design is in
 `docs/plans/viral-game/GDD.md` 6.5, 9 and 10. `bad-cat/FULL-PLAN.md` section 1 records the decision to
-move the GDD's "Vercel functions" into this backend. Routes are in docs/API.md. Everything is off by
-default: with no env, every `/badcat/*` route answers 404 and `GET /badcat/status` answers all false.
+move the GDD's "Vercel functions" into this backend. Routes are in docs/API.md. Every feature is on; there
+are no on/off flags (removed Oct 17). A
+feature that needs a secret reports itself not ready in `GET /badcat/status` and answers 503 until that secret
+is set; it never takes money without the webhook secret that confirms it.
 
 Module map (`src/badcat/`, registered in the one `AppModule`):
 
 | File | Role |
 |---|---|
 | `badcat.contracts.ts` | Mirror of the money and cameo block of `bad-cat/src/types.ts` (SKUs, request and response shapes, `BADCAT_ROUTES`, cameo constants). `badcat.contracts.spec.ts` reads the game file as text and fails on drift |
-| `badcat-flags.ts` | Env readers. Every flag defaults off, only `'true'` turns one on, and each feature is ANDed with `BADCAT_ENABLED` |
+| `badcat-flags.ts` | Env readers for secrets and config values (Stripe key with its fallback, webhook and entitlement secrets, VAPID keys, URLs, caps, grace days, `BADCAT_FEED_AUTO_APPROVE`, `BADCAT_RESTORE_DEV_LINK`). No on/off feature flags |
 | `badcat.schema.ts` | Ten collections and `BadcatStore` (all models in one provider) |
 | `badcat-stripe.service.ts` | Own Stripe client, Checkout Session params, founding coupon and cap, portal |
 | `badcat-webhook.service.ts` | `POST /badcat/stripe/webhook` handling |
@@ -790,7 +792,7 @@ Module map (`src/badcat/`, registered in the one `AppModule`):
 | `badcat-cameo.service.ts` | Cameo pool, shuffles, load counters, seen counter, faces |
 | `badcat-admin.service.ts` | Status, creator codes and report, typed redirect counter, admin stats |
 | `badcat-seen-email.job.ts` | Weekly Club "seen N times" email |
-| `badcat.controller.ts` | Routes. Each public handler checks its flag, then a per-client-IP limit (`ClientIpThrottlerGuard.consume`, the `/yourcat` pattern); the global throttler is skipped |
+| `badcat.controller.ts` | Routes. Each public handler checks a per-client-IP limit (`ClientIpThrottlerGuard.consume`, the `/yourcat` pattern); the global throttler is skipped |
 | `badcat-live.ts` | Phase 2: the replay-verified `BAD_CAT` branch of `POST /user/catbassadors/live` (the one score route; called only from `user.controller.ts`) |
 | `badcat-run.dto.ts`, `badcat-sim-info.ts` | Phase 2: the `badcat` log of a BAD_CAT `/live` body; which vendored sim this backend replays with |
 | `badcat-online.schema.ts` | Phase 2: `badcatlinks`, `badcatrooms`, `badcatpushsubs`, `badcatstreakemails` and `BadcatOnlineStore` |
@@ -815,9 +817,14 @@ Collections:
 
 Flows:
 
-- **Stripe, test mode only.** The module reads `BADCAT_STRIPE_SECRET_KEY`, never `STRIPE_SECRET_KEY`. A
-  live key (`sk_live_`, `rk_live_`) is refused: status reports checkout off and calls answer 503. Only
-  `BADCAT_STRIPE_ALLOW_LIVE=true` allows one; that is a founder decision and this build never sets it.
+- **Stripe key.** The module uses `BADCAT_STRIPE_SECRET_KEY` when it is set, else the shared
+  `STRIPE_SECRET_KEY` (the Moon Rave pattern), taking the first one of the right mode: with
+  `NODE_ENV=production` only a live key (a leftover test `BADCAT_STRIPE_SECRET_KEY` is skipped, so a test card
+  never buys real entitlements), elsewhere only a test key (a staging or local server never takes real money).
+  In production the webhook also ignores test-mode events. Bad Cat creates no payout rows. Checkout is ready
+  only when a key of the right mode, `BADCAT_STRIPE_WEBHOOK_SECRET` and the entitlement key are all set;
+  otherwise status reports `checkout: false` and checkout calls answer 503. The webhook verifies signatures
+  with the static Stripe verifier, so it needs only its secret, not a key.
   Prices are inline `price_data` from the SKU table, so the Stripe dashboard needs no products.
 - **Checkout Sessions.** Club, founding and Brand Shelf are `subscription` sessions. Everything else is
   `payment` with `customer_creation: 'always'`. Checkout always collects an email. `success_url` is
@@ -852,7 +859,9 @@ Flows:
     and a redeemed gift cameo is hidden. The cameo pool also skips cameos of refunded purchases and of
     canceled gifts.
 - **Entitlement tokens.** The format is `<base64url(JSON)>.<base64url(HMAC-SHA256)>`, keyed with
-  `BADCAT_ENTITLEMENT_SECRET`; every entitlement route answers 503 without it.
+  `BADCAT_ENTITLEMENT_SECRET`, else an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label (the pattern of
+  `treat-guest-key.ts`); every entitlement route answers 503 only when neither is set. Setting or changing
+  `BADCAT_ENTITLEMENT_SECRET` later invalidates tokens signed with the fallback (players restore them).
   - Club comes from a Club subscription that is active, trialing or past due with a future period end,
     or from an unexpired redeemed Club gift.
   - `skus` lists paid, unrefunded collar and cosmetic purchases.
@@ -871,8 +880,8 @@ Flows:
     new purchase to its scope.
 - **Restore.** Every valid email gets one hashed, single-use link valid for 30 minutes, and the answer
   is the same whether or not the email bought anything. An address gets at most 3 links an hour; after
-  that the answer stays the same but no link is made. The link is emailed through SendGrid only when
-  `BADCAT_RESTORE_EMAIL_ENABLED=true` and `SENDGRID_API_KEY` is set. Without email, the response
+  that the answer stays the same but no link is made. The link is emailed through SendGrid whenever
+  `SENDGRID_API_KEY` is set. Without email, the response
   carries `devLink` only when `BADCAT_RESTORE_DEV_LINK=true` and `NODE_ENV` is not `production`, so a
   staging server never hands out a restore link for any email.
 - **Gifts.** A Club gift gives the recipient's email 3 calendar months of Club. It is an entitlement,
@@ -911,13 +920,13 @@ Flows:
 
 #### Phase 2 (GDD 10, 17.3): ranked saves, boards, accounts, links, feed, meter, push
 
-Every Phase 2 piece has its own flag, ANDed with `BADCAT_ENABLED`, and answers 404 while off.
+Every Phase 2 piece is on (no flags). Pieces that need a secret say so in `GET /badcat/status`.
 
-- **Ranked saves** (`BADCAT_SCORES_ENABLED`). Game scores still have one write path: `POST
+- **Ranked saves**. Game scores still have one write path: `POST
   /user/catbassadors/live`. Its body may now be `{ type: 'BAD_CAT', platform, badcat: { dayNo, simVersion, runs,
   finalHash?, score?, catCode?, name? } }`; `GameType.BAD_CAT` is in `shared/enums.ts` and `liveGameTypes`, never
   in `scoredGameTypes`, and the plain points path refuses it. `src/badcat/badcat-live.ts`:
-  1. Off: 404 `BADCAT_SCORES_OFF`. The DTO checks the log (current `SIM_VERSION` else 400 `BADCAT_SIM_VERSION`
+  1. The DTO checks the log (current `SIM_VERSION` else 400 `BADCAT_SIM_VERSION`
      with `sim` info; runs `[dir 0..8, speed 0..2, buttons 0..7, count]` within one boss run else 400
      `BADCAT_REPLAY_INVALID`).
   2. The day must be open: UTC today, yesterday or tomorrow (players' local days), plus `BADCAT_SCORE_GRACE_DAYS`
@@ -933,53 +942,52 @@ Every Phase 2 piece has its own flag, ANDed with `BADCAT_ENABLED`, and answers 4
   5. The `Game` row: `type: 'BAD_CAT'`, `level: 'd<dayNo>'`, the server's score (also as `points`), time,
      `outcome` (`won`, or `died` for a cuddle), `stamp`, `replayDigest`, and the filtered cat name and cat code
      for the board. The user gets `lastPlayedAt` only: no catnip, Tails, arrays or board reward.
-- **Boards** (`BADCAT_BOARDS_ENABLED`). `GET /badcat/board/:day`: top 100 of a day by score (ties by the earlier
+- **Boards**. `GET /badcat/board/:day`: top 100 of a day by score (ties by the earlier
   save), registered players only (guests and deleted accounts dropped by a `$lookup` on `users`), the cat's
   name and code only, cached 30 s. `GET /badcat/board/:day/me` (accesstoken; guests allowed, on the guest
   allow-list) answers the caller's row and rank (no rank for a guest). Index `badcat_board`
   `{type, level, score: -1}`.
-- **Accounts** (`BADCAT_ACCOUNTS_ENABLED`). `GET /badcat/account` (accesstoken, guests allowed): signed in, guest,
+- **Accounts**. `GET /badcat/account` (accesstoken, guests allowed): signed in, guest,
   verified email, ranked days, best score, current streak, streak-email opt-in. `POST /badcat/account/claim`
-  (accesstoken, needs `BADCAT_CHECKOUT_ENABLED` too): with a verified account email (`emailVerifiedAt`), a
+  (accesstoken; 503 while the entitlement secret is missing): with a verified account email (`emailVerifiedAt`), a
   verified entitlement token for the purchases made with that email (the same token "Restore purchases" gives).
   The game signs in through the client page `/badcat-account` (docs/CLIENT.md).
-- **Cameo face from /yourcat** (`BADCAT_ACCOUNTS_ENABLED` and `BADCAT_FACE_UPLOADS_ENABLED`). `POST
+- **Cameo face from /yourcat**. `POST
   /badcat/face/:cameoId/yourcat` (accesstoken, verified email that bought the cameo): the caller's newest
   `/yourcat` record with `avatarStatus: 'ready'` (its photo passed the `/yourcat` checks) is fetched from the
   Spaces CDN (https, DigitalOcean Spaces or tokentails.com hosts only), cut to 128 px and stored as an approved
   face. No AI call.
-- **Short links and server OG** (`BADCAT_SHORT_LINKS_ENABLED`). `POST /badcat/link { path, kind, name?, score?,
+- **Short links and server OG**. `POST /badcat/link { path, kind, name?, score?,
   dayNo?, catCode? }`: `path` must be a shareable game path (`/badcat`, `/badcat/d/<n>`, `/glass`, `/pick`, `/r`,
   `/c/<cat>`, `/maker`; never restore, thanks or redeem links, nor params `t`, `session_id`, `code`, `token`,
   `email`); one stable 8-character id per path. `GET /badcat/s/:id`: a small HTML page with that link's OG tags
   ("Mochi scored 8,420. Your cat can't.") and an immediate redirect to `BADCAT_PUBLIC_URL` + path; hits counted.
   `GET /badcat/og/:id.png`: the 1200 x 630 card, drawn by sharp from an SVG (server fonts: whatever the host has).
   Links point at `BADCAT_SHORT_LINK_BASE` (else `BADCAT_API_PUBLIC_URL`, else `https://api.tokentails.com`).
-- **Room feed** (`BADCAT_FEED_ENABLED`). `POST /badcat/room { code, clear?, feed? }`: the vendored Room Maker
+- **Room feed**. `POST /badcat/room { code, clear?, feed? }`: the vendored Room Maker
   check (props, budget, 3 targets, reachability, sight lines) and, for the feed, a replay of the maker's clear run
   (at least one target). One row per gameplay hash. `pending` until an admin approves it, or `approved` at once
   with `BADCAT_FEED_AUTO_APPROVE=true`. `GET /badcat/feed?sort=new|top&cursor=`: approved feed rooms, 20 a page.
   `GET /badcat/room/:id`, `POST /badcat/room/:id/play` (counter), `POST /badcat/room/:id/report` (hidden after
   `BADCAT_FEED_REPORT_HIDE` reports, default 3). Admin: `GET /badcat/admin/rooms?status=`, `POST
   /badcat/admin/rooms/:id/approve|reject|hide` (CMS page `/badcat`).
-- **Treat meter** (`BADCAT_METER_ENABLED`). `GET /badcat/meter`: this UTC month's Pink Paw share from paid USD
+- **Treat meter**. `GET /badcat/meter`: this UTC month's Pink Paw share from paid USD
   purchases: 10 % of the estimated net (gross − 2.9 % − 30 c) of revenue-bearing SKUs, plus the whole net of each
   charity collar. Refunded rows are left out. Cached a minute. An estimate, not the transfer amount.
-- **Web push** (`BADCAT_PUSH_ENABLED` and the three `BADCAT_VAPID_*` values). `GET /badcat/push/key`, `POST
+- **Web push** (works when the three `BADCAT_VAPID_*` values are set; status says `push: false` otherwise). `GET /badcat/push/key`, `POST
   /badcat/push/subscribe { subscription, hour, tzOffsetMin }` (only endpoints of known push services: FCM,
   Mozilla, Apple, Windows), `POST /badcat/push/unsubscribe { endpoint }`. Generate the keys once with
   `node -e "const c=require('crypto');const k=c.generateKeyPairSync('ec',{namedCurve:'prime256v1'});const j=k.privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(j.x,'base64url'),Buffer.from(j.y,'base64url')]).toString('base64url'),j.d)"`
   (public key, then private key).
-- **Streak emails** (`BADCAT_STREAK_EMAIL_ENABLED` with accounts, SendGrid configured). `POST
+- **Streak emails** (when SendGrid is configured). `POST
   /badcat/account/streak-email { on }` (accesstoken, verified email).
-- **Creator dashboard** (`BADCAT_CREATOR_DASHBOARD_ENABLED` with accounts). `GET /badcat/creator/me` (accesstoken):
+- **Creator dashboard**. `GET /badcat/creator/me` (accesstoken):
   the codes requested with the account's verified email, purchases, gross and the 20 % share.
-- `GET /badcat/sim` (with scores on): the vendored sim's version and bundle sha256; `npm run
+- `GET /badcat/sim`: the vendored sim's version and bundle sha256; `npm run
   vendor-sim:check-remote -- <backend url>` in bad-cat/ compares it with a build before deploying the game.
 
 Limits of this build:
 
-- Stripe test mode only (the live switch stays a founder decision).
 - Face approval (outside the `/yourcat` path), feed review, brand placement and creator payouts are manual
   (CMS page `/badcat`).
 - A ranked log can be copied from a dare link (ghosts carry inputs): the digest stops an exact copy, but an edited
@@ -1015,9 +1023,9 @@ under `NODE_ENV=production`); the impact, treat and paw jobs need `IMPACT_JOBS_E
 | `/yourcat` retention (`yourcat-retention`) | `src/yourcat/yourcat-retention.job.ts` | Daily 03:15 UTC | Deletes `/yourcat` originals past `originalDeleteAfter` (30 days; kept while a paid portrait is undelivered), removes records whose owner is gone (both objects and the record), hard-deletes placeholder records (`creatingAt` set) older than 10 minutes with their objects, and marks avatars still `pending` 10 minutes after creation as `failed`. |
 | `/yourcat` portrait delivery sweep (`yourcat-portrait-delivery-sweep`, plus a per-order lease `portrait-delivery:<orderId>`) | `src/yourcat/portrait-delivery.service.ts` | Every 10 minutes | Retries paid `/yourcat` portraits of the last 7 days that have no `aiUrl` and fewer than 3 attempts (the third failure sends an alert), and painted ones whose email SendGrid has not accepted, up to 5 sends (alerts on the first and the last). |
 | Goal count (`shelter-goal-scan`) | `src/shelter/goal/shelter-goal.service.ts` | Every minute | Advances the C-001 inflow scan: up to 40 `eth_getLogs` windows of 9,999 blocks (the public Arc RPC refuses 10,000), 300 ms apart, counting Transfer logs to the campaign wallets into `sheltergoalcursors` (compare-and-set per window). A view of `GET /shelter/goal/:id` also nudges it, at most once a minute. On unless `SHELTER_GOAL_SCAN=off`; needs no key. |
-| Bad Cat seen email (`badcat-seen-email`, once per week via `claimJobPeriod`) | `src/badcat/badcat-seen-email.job.ts` | Mondays 09:00 UTC | Emails each active Club member with a Club cat "<name> was seen in N rooms this week" (last week's shuffle counters). No-op unless `BADCAT_SEEN_EMAIL_ENABLED=true` and `SENDGRID_API_KEY` is set |
-| Bad Cat push reminder (`badcat-push`, once per UTC hour via `claimJobPeriod`) | `src/badcat/badcat-push.service.ts` | Hourly at :00 UTC | Sends "Today's room is open" to the push subscriptions of that UTC hour, once a day each; 404/410 deletes a subscription, 5 failures in a row too. No-op unless `BADCAT_PUSH_ENABLED=true` and the `BADCAT_VAPID_*` keys are set |
-| Bad Cat streak email (`badcat-streak-email`, once per day via `claimJobPeriod`) | `src/badcat/badcat-push.service.ts` | Daily 18:00 UTC | Emails opted-in accounts whose ranked streak (2+ days) ends tonight (played yesterday, not today, UTC). No-op unless `BADCAT_STREAK_EMAIL_ENABLED`, `BADCAT_ACCOUNTS_ENABLED` and SendGrid are set |
+| Bad Cat seen email (`badcat-seen-email`, once per week via `claimJobPeriod`) | `src/badcat/badcat-seen-email.job.ts` | Mondays 09:00 UTC | Emails each active Club member with a Club cat "<name> was seen in N rooms this week" (last week's shuffle counters). No-op unless `SENDGRID_API_KEY` is set |
+| Bad Cat push reminder (`badcat-push`, once per UTC hour via `claimJobPeriod`) | `src/badcat/badcat-push.service.ts` | Hourly at :00 UTC | Sends "Today's room is open" to the push subscriptions of that UTC hour, once a day each; 404/410 deletes a subscription, 5 failures in a row too. No-op unless the `BADCAT_VAPID_*` keys are set |
+| Bad Cat streak email (`badcat-streak-email`, once per day via `claimJobPeriod`) | `src/badcat/badcat-push.service.ts` | Daily 18:00 UTC | Emails opted-in accounts whose ranked streak (2+ days) ends tonight (played yesterday, not today, UTC). No-op unless SendGrid is set |
 
 ## Environment variables
 
@@ -1043,15 +1051,15 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Storage | `DO_SPACES_ENDPOINT`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_NAME`, `DO_SPACES_CDN` |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` (in the example file, unused in code), optional `STELLAR_TREASURY_ADDRESS` and `STELLAR_USDC_ISSUER` (default to the public values in `src/web3/stellar-payment.ts`) |
 | Crypto checkout | No on/off flag: checkout is on wherever a chain resolves with a treasury or a live split route (on a mainnet, only while the on-chain giving check passes for that split), and the shelter-share keeper runs whenever the shelter config is ready and its chain is on the checkout network (rollback: revert and redeploy). `CRYPTO_PAY_NETWORK` (`mainnet` or `testnet`; default `mainnet` under `NODE_ENV=production`), `CRYPTO_PAY_TREASURY` (one public treasury address for every chain) and `CRYPTO_PAY_TREASURY_<chainId>` (per chain); both are optional overrides of the checked-in `src/payments/crypto/treasury.public.ts`, needed only on testnets and the local chain, `CRYPTO_PAY_RPC_<chainId>` (optional override; else the funding variable such as `RPC_BASE_MAINNET`; else the checked-in official RPC of the chain), `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD` (needed for `CRYPTO_PAY_NETWORK=testnet` under production), `CRYPTO_PAY_ORDER_TTL_MIN` (5 to 1440, default 30), `CRYPTO_PAY_EURC_PER_USD` (EURC per USD of price; unset: a fixed euro price, 1 EURC per USD) and `CRYPTO_PAY_EURC_FX_DATE` (required with a set rate; EURC stops after 30 days), `CRYPTO_PAY_CAT_SHELTER_BPS` (shelter share of a shelter cat on the treasury route; unset: 5000; malformed: undecided, nothing sent), `CRYPTO_PAY_SPLIT_SHELTER_IDS` (default Pink Paw), `CRYPTO_PAY_CAT_SPLITS` (`chainId:TOKEN:0xsplit,...`; default the main split for USDC), local E2E only: `CRYPTO_PAY_LOCAL_USDC`, `CRYPTO_PAY_LOCAL_EURC` (chain 31337, testnet mode). `STELLAR_PACKS_ENABLED` (`true` reopens Stellar packs; rollback only), `STELLAR_PACKS_SUNSET_AT` (ISO time; Stellar pack payments before it are still granted, later ones recorded for a refund; fixed at `2026-10-09T18:00:00Z`, the env can only move it earlier) |
-| Moon Rave checkout (`cat-rave/CHECKOUT-SPEC.md`) | `RAVE_CHECKOUT_ENABLED` (default off; off: `GET /rave/status` says `enabled:false`, `POST /rave/checkout` is 404 and the page keeps its old Add-a-cat sheet), `RAVE_STRIPE_WEBHOOK_SECRET` (own signing secret for `POST /rave/stripe/webhook`, which keeps working while checkout is off), `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` (used here; their modes must match the payout chain's network or status says `mode`), `RAVE_USDC_ENABLED` (default off; the USDC tab), `RAVE_FEE_PERCENT_BPS` (290), `RAVE_FEE_FIXED_CENTS` (30), `RAVE_MAX_CATS` (500), `RAVE_DAILY_CAP_USD` (100; paid orders count in full, unpaid ones of the last 15 min hold at most 10% of it together), `RAVE_CREATED_PER_HOUR` (200, card-testing brake). A paid card order adds one row to the shelter-share keeper for the full donation (less any refund recorded before the row exists), memo `tt:rave:<16 hex>`, idempotent on the PaymentIntent id; the row's `network` is `card` for a live payment (paid only by a mainnet keeper) and `testnet` for a test one (paid only by a testnet keeper), and a payment whose mode does not match the keeper's chain queues nothing. Status says `keeper` while the keeper cannot run (no RPC, split or hot wallet key, or its `network-mismatch` check fails); the keeper has no flag. Code: `src/rave/` |
-| Moon Rave ad space (`/rave/ads`) | `RAVE_ADS_ENABLED` (default off; off: `GET /rave/ads/status` says `enabled:false`, checkout is 404, approved ads still list), `RAVE_AD_HOLD_MINUTES` (default 15, 5–60), `RAVE_AD_DAYS` (default 30), `RAVE_AD_SHELTER_BPS` (default 0 = Token Tails revenue; > 0 queues that share of an approved ad for Pink Paw through the shelter-share keeper, memo `tt:ravead:<16 hex>`, row `network` `card` (live) or `testnet` (test), and then needs the keeper config and a matching `CRYPTO_PAY_NETWORK`). Shares `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `RAVE_STRIPE_WEBHOOK_SECRET`, `RAVE_FEE_PERCENT_BPS` and `RAVE_FEE_FIXED_CENTS` with the rave checkout; images go to the public bucket (`DO_SPACES_*`, `DO_SPACES_CDN`; WebGL needs CORS `GET` from tokentails.com on the CDN) |
+| Moon Rave checkout (`cat-rave/CHECKOUT-SPEC.md`) | Always on, no on/off flag; `GET /rave/status` says `enabled:false` with a `reason` and `POST /rave/checkout` answers 503 while a required value below is missing. `RAVE_STRIPE_WEBHOOK_SECRET` (own signing secret for `POST /rave/stripe/webhook`; required before checkout takes money), `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` (used here; their modes must match the payout chain's network or status says `mode`), the USDC tab shows whenever a shelter chain is configured, `RAVE_FEE_PERCENT_BPS` (290), `RAVE_FEE_FIXED_CENTS` (30), `RAVE_MAX_CATS` (500), `RAVE_DAILY_CAP_USD` (100; paid orders count in full, unpaid ones of the last 15 min hold at most 10% of it together), `RAVE_CREATED_PER_HOUR` (200, card-testing brake). A paid card order adds one row to the shelter-share keeper for the full donation (less any refund recorded before the row exists), memo `tt:rave:<16 hex>`, idempotent on the PaymentIntent id; the row's `network` is `card` for a live payment (paid only by a mainnet keeper) and `testnet` for a test one (paid only by a testnet keeper), and a payment whose mode does not match the keeper's chain queues nothing. Status says `keeper` while the keeper cannot run (no RPC, split or hot wallet key, or its `network-mismatch` check fails); the keeper has no flag. Code: `src/rave/` |
+| Moon Rave ad space (`/rave/ads`) | Always on, no on/off flag; `GET /rave/ads/status` says `enabled:false` with a `reason` and ad checkout answers 503 while the Stripe keys or webhook secret are missing (approved ads still list). `RAVE_AD_HOLD_MINUTES` (default 15, 5–60), `RAVE_AD_DAYS` (default 30), `RAVE_AD_SHELTER_BPS` (default 0 = Token Tails revenue; > 0 queues that share of an approved ad for Pink Paw through the shelter-share keeper, memo `tt:ravead:<16 hex>`, row `network` `card` (live) or `testnet` (test), and then needs the keeper config and a matching `CRYPTO_PAY_NETWORK`). Shares `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `RAVE_STRIPE_WEBHOOK_SECRET`, `RAVE_FEE_PERCENT_BPS` and `RAVE_FEE_FIXED_CENTS` with the rave checkout; images go to the public bucket (`DO_SPACES_*`, `DO_SPACES_CDN`; WebGL needs CORS `GET` from tokentails.com on the CDN) |
 | Shelter gifts (all chains) | Required in production: only `SHELTER_DONATE_PRIVATE_KEY` (a dev box needs nothing: the key comes from the local `donatehot` Foundry keystore, `SHELTER_DEV_KEYSTORE` names another); everything else in this row and the next three is an optional override. `SHELTER_CHAIN_ID` (default `5042` Arc mainnet under `NODE_ENV=production`, else `5042002` Arc Testnet), `SHELTER_NETWORK` (`mainnet` or `testnet`; overrides that default), `SHELTER_ARC_RPC_URL` (defaults to `https://rpc.mainnet.arc.io` or `https://rpc.testnet.arc.io` by chain), `SHELTER_SPLIT_ADDRESS` (optional override; default the main chain's split in `wallet.config.ts`), `SHELTER_DONATE_PRIVATE_KEY` (server hot wallet; keep only a small float of USDC on it), `SHELTER_DONATE_AMOUNT_WEI` (default 0.01 USDC), `SHELTER_DONATE_DAILY_BUDGET_WEI` (default 1 USDC), `SHELTER_X402_PRICE_WEI` (default 0.01 USDC) |
 | Wallet gifts (F2) | `SHELTER_ROUTER_ADDRESS` (DonateRouter, empty until deployed), `SHELTER_ROUTER_FROM_BLOCK` (first block of the RouterDonation scan; unset: 5000 blocks behind the head on the first run), `SHELTER_RELAY_ENABLED` (default off), `SHELTER_RELAY_DAILY_TX` (default 50), `SHELTER_RELAY_MIN_USDC` (default 0.01), `SHELTER_RELAY_MAX_USDC` (default 100), `SHELTER_MATCH_ENABLED` (default off), `SHELTER_MATCH_PER_GIFT` (default 1 USDC, `DEFAULT_MATCH_PER_GIFT`), `SHELTER_MATCH_MIN_GIFT` (default 0.10), `SHELTER_MATCH_DAILY` (default 2 USDC), `SHELTER_MATCH_POOL` (default 10 USDC in total), `SHELTER_TREASURY_ADDRESS` (optional; refused as a claimed shelter wallet, never matched), `SHELTER_CLAIM_ALLOWED_WALLETS` (comma-separated; the only wallets `POST /shelter/claim` accepts; empty refuses all), `SHELTER_MATCH_EXCLUDE` (comma-separated team wallets: never matched, never counted as public wallet gifts), `SHELTER_RELAY_IP_PEPPER` (secret HMAC key for the stored relay IP hash; unset stores none), `SHELTER_HELD_WALLETS` (comma-separated wallets Token Tails holds for a shelter, added to the built-in `TOKEN_TAILS_HELD_WALLETS` (`0xE299…0f37`, a Token Tails wallet): never accepted as a shelter claim, a public-giving recipient or an x402 `payTo`). USDC amounts are decimal strings; a malformed value falls back to the default |
 | Try-it testnet (F3) | `SHELTER_TRY_CHAIN_ID` (a testnet id other than `SHELTER_CHAIN_ID`, e.g. `5042002`; unset: off), `SHELTER_TRY_RPC_URL`, `SHELTER_TRY_ROUTER_ADDRESS`, `SHELTER_TRY_ROUTER_FROM_BLOCK`, `SHELTER_TRY_SPLIT_ADDRESS`, `SHELTER_TRY_TREASURY_ADDRESS`, `SHELTER_TRY_PRIVATE_KEY` (a separate testnet-only hot wallet; never falls back to the main key), `SHELTER_TRY_RELAY_ENABLED`, `SHELTER_TRY_MATCH_ENABLED` (both default off). A second relay and match next to the main chain (`readTryShelterConfig`), so the payouts page's testnet block is gasless and matched while treats, claims and the campaign stay on `SHELTER_CHAIN_ID`. No treats, no x402, no claims there; caps and counters are per chain. |
 | Multi-chain relay | `SHELTER_RELAY_CHAINS` (comma-separated chain ids, e.g. `84532,421614`; unset: the relay serves `SHELTER_CHAIN_ID`, the try-it testnet and the `wallet.config.ts` chains of the main chain's class, each only with its own relay flag). Per chain: `SHELTER_CHAIN_<id>_RPC_URL` (default: the chain's public RPC), `SHELTER_CHAIN_<id>_SPLIT_ADDRESS`, `SHELTER_CHAIN_<id>_ROUTER_ADDRESS`, `SHELTER_CHAIN_<id>_ROUTER_FROM_BLOCK`, `SHELTER_CHAIN_<id>_KEY_ENV` (the NAME of the variable holding that chain's hot wallet key, gas only; a testnet never takes the `SHELTER_DONATE_PRIVATE_KEY` value), `SHELTER_CHAIN_<id>_RELAY_ENABLED`, `SHELTER_CHAIN_<id>_RELAY_DAILY_TX` (daily budget), `SHELTER_CHAIN_<id>_MATCH_ENABLED`, `SHELTER_CHAIN_<id>_TREASURY_ADDRESS` (`readRelayChainConfigs`). Treats on a picked network (the give page's chips): `SHELTER_CHAIN_<id>_TREAT_ENABLED` (`true` lists the chain in `GET /shelter/donate/status` `chains` and lets `POST /shelter/donate {chainId}` pay there; needs `SPLIT_ADDRESS` and `KEY_ENV`, whose wallet holds the token float plus gas), `SHELTER_CHAIN_<id>_TREAT_AMOUNT` (decimal token amount, default `0.01`), `SHELTER_CHAIN_<id>_TREAT_DAILY_BUDGET` (default `1`; a budget per chain), `SHELTER_CHAIN_<id>_TREAT_COIN` (optional label; default USDC, `USDC.e` on Tempo 4217, `USDG` on Robinhood 4663, `pathUSD`/`mUSDC` on their testnets). x402 agent cards there: `SHELTER_CHAIN_<id>_X402_ENABLED` (default on for a `wallet.config.ts` chain, off for a chain named only here; needs a split, no key; a mainnet waits for the per-chain claim check like the main chain), `SHELTER_CHAIN_<id>_X402_PRICE` (decimal in the chain's payment coin, default `0.01`, scaled by the token's on-chain decimals). Built-in public RPCs and explorers cover Arc, Tempo, Arbitrum, Avalanche, Base, Robinhood and Monad (143 `https://rpc.monad.xyz`, 10143 `https://testnet-rpc.monad.xyz`, explorer MonadVision). The token must have 6 decimals (all seven chains' payout tokens do). A testnet entry may share the main key only when `SHELTER_CHAIN_ID` is itself a testnet. The main chain and the try-it chain are never repeated. A mainnet entry still waits for the on-chain giving check. Only router gifts (EIP-3009) can be relayed; a gift straight into a ShelterSplit (Tempo, Robinhood, any chain without a router) is sent and paid for by the donor's wallet. |
 | Goal count | `SHELTER_GOAL_SCAN` (`off` stops the C-001 scan; default on), `SHELTER_GOAL_RPC_URL` (default: the campaign chain's public RPC, `https://rpc.mainnet.arc.io` for C-001). The counted wallets come from the facts (`campaign.wallets`), never from the environment |
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
-| Bad Cat Daily (all off by default; docs "Bad Cat Daily (badcat)") | `BADCAT_ENABLED` (master switch; off: every `/badcat/*` route is 404 and status is all false), `BADCAT_CHECKOUT_ENABLED` (checkout, entitlement, restore, portal, redeem, Club cat; the Stripe webhook has its own gate, its secret, and keeps working while checkout is paused), `BADCAT_STRIPE_SECRET_KEY` (unset; a test key `sk_test_`/`rk_test_`; never `STRIPE_SECRET_KEY`), `BADCAT_STRIPE_WEBHOOK_SECRET` (unset; webhook answers 503), `BADCAT_STRIPE_ALLOW_LIVE` (off; only this allows a live key, a founder decision), `BADCAT_ENTITLEMENT_SECRET` (unset; entitlement routes answer 503), `BADCAT_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs, restore links, the typed redirect), `BADCAT_CAMEOS_ENABLED` (cameo pool, shuffles, seen counter, cameo and guest star SKUs), `BADCAT_GIFTS_ENABLED` (gift SKUs and redeem), `BADCAT_BRAND_ENABLED` (Brand Shelf and sponsor SKUs), `BADCAT_FACE_UPLOADS_ENABLED` (cameo face upload), `BADCAT_RESTORE_EMAIL_ENABLED` (restore link by SendGrid), `BADCAT_RESTORE_DEV_LINK` (off; local testing only: the restore answer carries the link itself, never with `NODE_ENV=production`), `BADCAT_SEEN_EMAIL_ENABLED` (weekly Club seen email), `BADCAT_CREATOR_CODES_ENABLED` (creator code requests), `BADCAT_TYPED_REDIRECT_ENABLED` (`GET /badcat/t`). Phase 2: `BADCAT_SCORES_ENABLED` (BAD_CAT ranked saves on `/live`, `GET /badcat/sim`), `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1), `BADCAT_BOARDS_ENABLED` (daily board), `BADCAT_ACCOUNTS_ENABLED` (account summary, purchase claim, `/yourcat` cameo face with face uploads on), `BADCAT_SHORT_LINKS_ENABLED` (short links, OG page and card), `BADCAT_SHORT_LINK_BASE` and `BADCAT_API_PUBLIC_URL` (origin in short links; default `https://api.tokentails.com`), `BADCAT_FEED_ENABLED` (room publish and feed), `BADCAT_FEED_AUTO_APPROVE` (off: feed rooms wait for an admin), `BADCAT_FEED_REPORT_HIDE` (default 3), `BADCAT_METER_ENABLED` (live treat meter), `BADCAT_PUSH_ENABLED` with `BADCAT_VAPID_PUBLIC_KEY`, `BADCAT_VAPID_PRIVATE_KEY`, `BADCAT_VAPID_SUBJECT` (`mailto:` or `https:`, default `mailto:hello@tokentails.com`), `BADCAT_STREAK_EMAIL_ENABLED`, `BADCAT_CREATOR_DASHBOARD_ENABLED` |
+| Bad Cat Daily (always on, no on/off flags; docs "Bad Cat Daily (badcat)") | `BADCAT_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY` is used; live keys only in production, test keys only elsewhere), `BADCAT_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `checkout: false`, checkout answers 503 and the webhook answers 503), `BADCAT_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `BADCAT_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs, restore links, the typed redirect), `BADCAT_RESTORE_DEV_LINK` (off; local testing only: the restore answer carries the link itself, never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore, seen and streak emails are sent only when it is set; restore mails only addresses with a purchase), `DO_SPACES_*` (shared; cameo and `/yourcat` faces). Phase 2: `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1), `BADCAT_SHORT_LINK_BASE` and `BADCAT_API_PUBLIC_URL` (origin in short links; default `https://api.tokentails.com`), `BADCAT_FEED_AUTO_APPROVE` (moderation policy, off: feed rooms wait for an admin), `BADCAT_FEED_REPORT_HIDE` (default 3), `BADCAT_VAPID_PUBLIC_KEY`, `BADCAT_VAPID_PRIVATE_KEY`, `BADCAT_VAPID_SUBJECT` (`mailto:` or `https:`, default `mailto:hello@tokentails.com`; push works only when the keys are set) |
 | Print | `PRINTIFY_API_KEY` |
 | Rescue points (G5) | `TAILS_TOKEN_MODE` (`POINTS` default, or `TOKEN`; read by the public `GET /user/token-status`), `TAILS_TGE_AT` (ISO date, exposed only in `TOKEN` mode), `TAILS_EARNED_BACKFILL_DONE` (`true` once `scripts/backfill-tails-earned.js --apply` ran; the earned board then sorts on `tailsEarned`) |
 | Unused | `GTM_ID` |
@@ -1184,6 +1192,15 @@ mongorestore --gzip --db=tokentails ./backup/tokentails-YYYY-MM-DD --uri=<connec
 
 Route and logic bugs:
 
+- Open (Bad Cat meter, 2026-10-17): `GET /badcat/meter` reads `livemode` but does not filter on it, so
+  test-mode purchases count toward the public Pink Paw meter. Display only (no payout). Since Oct 17 production
+  creates no test sessions and its webhook ignores test events, so only rows from a non-production database
+  (or from before Oct 17) are affected.
+- Open (Bad Cat faces, predates 2026-10-17): `faceFromYourcat` stores a face imported from /yourcat as
+  `approved` without admin review (uploaded faces start `pending`). Bounded by `YOURCAT_ENABLED`; decide
+  whether the AI portrait counts as moderated.
+- Note (2026-10-17): Bad Cat Daily and Moon Rave have no on/off flags; they deploy on with the backend.
+  Before this, `/badcat/*` and `/rave/checkout` were 404 until a flag was set.
 - Open (guest treats, 2026-10-08): `POST /shelter/donate/guest` is keyed per client address, so a
   visitor with many addresses (VPNs, mobile IP changes) can send more than one treat a day, and a
   shared address (office, carrier NAT) gets one treat a day for everyone behind it. `cf-connecting-ip`

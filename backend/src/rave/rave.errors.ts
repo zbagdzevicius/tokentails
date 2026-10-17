@@ -16,8 +16,6 @@ export const raveError = (status: HttpStatus, code: string, message: string, ext
     new HttpException({ statusCode: status, code, message, ...extra }, status);
 
 export const RAVE_ERRORS = {
-    /** Every checkout route while RAVE_CHECKOUT_ENABLED is off. */
-    notFound: () => raveError(HttpStatus.NOT_FOUND, 'RAVE_NOT_FOUND', 'Not found'),
     off: (reason: string) =>
         raveError(HttpStatus.SERVICE_UNAVAILABLE, 'RAVE_OFF', 'Checkout is not available right now', { reason }),
     cap: () =>

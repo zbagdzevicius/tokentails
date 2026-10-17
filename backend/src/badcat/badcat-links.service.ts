@@ -15,7 +15,7 @@ import {
     ShortLinkResponse,
 } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { badcatFlags, badcatPublicUrl, badcatShortLinkBase, Env } from './badcat-flags';
+import { badcatFeedAutoApprove, badcatPublicUrl, badcatShortLinkBase, Env } from './badcat-flags';
 import { escapeHtml } from './badcat-email';
 import { BadcatOnlineStore, BadcatRoomStatus } from './badcat-online.schema';
 import sharp = require('sharp');
@@ -246,7 +246,6 @@ export class BadcatLinksService {
         if (!res.ok || !res.room) {
             throw BADCAT_ERRORS.invalid(`room not accepted: ${(res.errors || []).slice(0, 3).join('; ') || 'invalid'}`);
         }
-        const flags = badcatFlags(env);
         const existing = (await this.store.rooms.findOne({ gameplayHash: res.room.gameplayHash }).lean()) as any;
         if (existing) {
             if (wantsFeed && !existing.feed) {
@@ -259,7 +258,7 @@ export class BadcatLinksService {
                 feed: wantsFeed || !!existing.feed,
             };
         }
-        const status: BadcatRoomStatus = flags.feedAutoApprove ? 'approved' : 'pending';
+        const status: BadcatRoomStatus = badcatFeedAutoApprove(env) ? 'approved' : 'pending';
         const owner =
             user && !isGuestUser(user) && isValidObjectId(String(user._id))
                 ? new Types.ObjectId(String(user._id))
@@ -298,10 +297,9 @@ export class BadcatLinksService {
         throw BADCAT_ERRORS.conflict('Could not store the room, try again');
     }
 
-    /** A short link when short links are on, else the long room link. */
+    /** A short link, else (the link could not be stored) the long room link. */
     private async roomUrl(slug: string, code: string, env: Env): Promise<string> {
         const long = `/badcat/r?r=${encodeURIComponent(code)}`;
-        if (!badcatFlags(env).shortLinks) return `${badcatPublicUrl(env)}${long}`;
         try {
             return (await this.createLink({ path: long, kind: 'room' }, env)).url;
         } catch {

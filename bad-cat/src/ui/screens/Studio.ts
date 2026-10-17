@@ -1,5 +1,5 @@
 /**
- * Studio (GDD 6.2, `?studio=1` in dev or with VITE_BADCAT_STUDIO=1): the founder's stitch / reply clip queue.
+ * Studio (GDD 6.2, `?studio=1`): the founder's stitch / reply clip queue.
  * Each cat goes: screenshot + @handle in the cat maker (studio mode) → 40 s practice run by hand → the clip with
  * the handle pill → save. Batch mode moves to the next cat after each save. Pure DOM driven by props.
  */

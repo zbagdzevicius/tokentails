@@ -52,10 +52,10 @@ async function buyPaid(h: ReturnType<typeof adsHarness>, extra: Record<string, u
 }
 
 describe('RaveAdsService config and pricing', () => {
-    it('is off by default: status says off, checkout is 404', async () => {
+    it('has no on/off flag: with no config, status names Stripe and checkout is 503', async () => {
         const h = adsHarness({});
-        expect(await h.service.status(T0)).toEqual({ enabled: false, reason: 'off' });
-        await expectAdError(h.service.checkout(body(), { buffer: image }, T0), 404, 'RAVE_AD_NOT_FOUND');
+        expect(await h.service.status(T0)).toEqual({ enabled: false, reason: 'stripe' });
+        await expectAdError(h.service.checkout(body(), { buffer: image }, T0), 503, 'RAVE_AD_OFF');
     });
 
     it('needs the Stripe keys, matching modes, and a live key only in production', async () => {

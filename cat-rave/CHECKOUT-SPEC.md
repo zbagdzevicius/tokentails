@@ -16,8 +16,9 @@ Apple Pay / Google Pay through the Stripe Payment Element plus a **USDC** tab, a
   rule"). A paid order shows **arriving** holograms with names; holograms never add to the counter.
 - **Never double-pay.** One PaymentIntent → at most one payout row, enforced by unique indexes (section 6).
 - **Stripe test mode only in tests.** No test touches the network, a real key, or a real chain.
-- **Off by default.** `RAVE_CHECKOUT_ENABLED` unset → `GET /rave/status` says `enabled: false` and the page keeps
-  today's Add-a-cat sheet (wallet gift link, free treat, adopt link) exactly as it is.
+- **On whenever its config is ready (no on/off flag, Oct 17).** If a Stripe key, the webhook secret or the keeper is
+  missing, `GET /rave/status` says `enabled: false` with the reason and the page keeps today's Add-a-cat sheet
+  (wallet gift link, free treat, adopt link) exactly as it is.
 - **Raw memos stay internal**, except the rave memo `tt:rave:<16 hex>`, which carries only the public order id.
 
 ## 2. What exists today (discovery)
@@ -87,14 +88,15 @@ are always computed by the server.
 }
 ```
 
-- `enabled` = `RAVE_CHECKOUT_ENABLED=true` AND `STRIPE_SECRET_KEY` AND `STRIPE_PUBLISHABLE_KEY` AND
+- `enabled` = `STRIPE_SECRET_KEY` AND `STRIPE_PUBLISHABLE_KEY` AND
   `RAVE_STRIPE_WEBHOOK_SECRET` are set AND the keeper can pay (main shelter config has RPC, split and hot wallet;
   the keeper has no flag since the go-live) AND the key mode matches the shelter chain (live key ↔
   mainnet chain, test key ↔ testnet chain) AND, outside `NODE_ENV=production`, the key is not `sk_live_`.
-  Otherwise `{ "enabled": false, "reason": "off" | "stripe" | "keeper" | "mode" }` and nothing else.
+  Otherwise `{ "enabled": false, "reason": "stripe" | "keeper" | "mode" }` and nothing else (the page reads a
+  missing reason as `unknown`).
 - `card` is `enabled`; `publishableKey` is sent only when `enabled`.
 - `prices.max` = `min(RAVE_MAX_CATS, what is left of RAVE_DAILY_CAP_USD today)`; below 1 → `enabled: false, reason: "cap"`.
-- `usdc.enabled` = `enabled` AND `RAVE_USDC_ENABLED=true`; `chains` = mainnet chains (testnets when the main chain
+- `usdc.enabled` = `enabled` AND at least one chain qualifies (no flag since Oct 17); `chains` = mainnet chains (testnets when the main chain
   is a testnet) from `wallet.config.ts` whose split pays a USD coin AND `publicGivingVerified(chainId)` passes
   (buyer money never lands in a wallet Token Tails holds).
 - `payoutsDelayed`: some rave share row has been `due`/`sending`/`sent` for over 30 min (float empty, RPC down).
@@ -482,8 +484,8 @@ splits as of Oct 16. The rave code uses only the shared interfaces (the `cryptoc
    `payment_intent.canceled`, `charge.refunded`, `charge.dispute.created`; put its signing secret in
    `RAVE_STRIPE_WEBHOOK_SECRET`. Same in test mode for staging.
 2. **Apple Pay domain**: add `tokentails.com` and `www.tokentails.com` under Settings → Payment method domains.
-3. **Env on the backend** (names only): `RAVE_CHECKOUT_ENABLED=true` (last), `RAVE_STRIPE_WEBHOOK_SECRET`,
-   `STRIPE_PUBLISHABLE_KEY` (exists, now used), `STRIPE_SECRET_KEY` (exists); optional `RAVE_USDC_ENABLED`,
+3. **Env on the backend** (names only): `RAVE_STRIPE_WEBHOOK_SECRET` (checkout opens once it is set; there is no
+   on/off flag since Oct 17), `STRIPE_PUBLISHABLE_KEY` (exists, now used), `STRIPE_SECRET_KEY` (exists); optional
    `RAVE_FEE_PERCENT_BPS`, `RAVE_FEE_FIXED_CENTS`, `RAVE_MAX_CATS`, `RAVE_DAILY_CAP_USD`, `RAVE_CREATED_PER_HOUR`;
    and `TRUST_PROXY` or `CF_ORIGIN_SECRET` so per-address
    limits work in production. No new env on Vercel (the publishable key comes from `/rave/status`).
@@ -500,7 +502,7 @@ splits as of Oct 16. The rave code uses only the shared interfaces (the `cryptoc
    the order id and the payout tx.]
 9. **Radar**: turn on the card-testing rules; [hold `elevated` risk for review, as above].
 10. **USDC tab**: the gasless relay only takes `tt:wallet:` memos, so rave USDC gifts pay their own gas, and only on
-    chains that pass the public giving gate. [Ship card first with `RAVE_USDC_ENABLED` off.]
+    chains that pass the public giving gate. [Decided Oct 17: no flag; the tab shows whenever a chain qualifies.]
 11. Known issues seen while reading, **not fixed here**: Base and Avalanche payout index on `lastRunFailed` (rave
     payouts on Arc are unaffected); `IMPACT_CHAIN_UNITS` lists only Arc chains (docs/BACKEND.md known issues); the
     impact `direct` bucket will also count rave payouts (no `rave` bucket); the shelter-payouts page will show the raw

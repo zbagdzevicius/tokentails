@@ -4,8 +4,6 @@ import { raveError } from '../rave.errors';
 /* Moon Rave ad space errors: `{ statusCode, code, message, fieldCode? }`, codes prefixed `RAVE_AD_`. */
 
 export const RAVE_AD_ERRORS = {
-    /** Every buyer route while RAVE_ADS_ENABLED is off. */
-    notFound: () => raveError(HttpStatus.NOT_FOUND, 'RAVE_AD_NOT_FOUND', 'Not found'),
     off: (reason: string) =>
         raveError(HttpStatus.SERVICE_UNAVAILABLE, 'RAVE_AD_OFF', 'Ad checkout is not available right now', { reason }),
     invalid: (message: string) => raveError(HttpStatus.BAD_REQUEST, 'RAVE_AD_INVALID', message),

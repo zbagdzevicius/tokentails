@@ -30,7 +30,6 @@ import {
     SeenResponse,
 } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { BadcatFlags, badcatFlags } from './badcat-flags';
 import { BadcatAccountService } from './badcat-account.service';
 import { BadcatAdminService } from './badcat-admin.service';
 import { BadcatCameoService } from './badcat-cameo.service';
@@ -39,10 +38,9 @@ import { BadcatWebhookService } from './badcat-webhook.service';
 
 /*
  * Bad Cat Daily (badcat), FULL-PLAN decision 1: payments, entitlements, cameos and the typed redirect live
- * in the backend. Every route answers 404 unless BADCAT_ENABLED=true and its feature flag is on
- * (GET /badcat/status then answers all false). Public routes skip the global throttler (one site-wide
- * bucket while TRUST_PROXY is unset) and count a per-client-IP limit in the handler, like /yourcat;
- * the flag check comes first, so a switched-off route costs nothing. Admin routes need
+ * in the backend. Every route is always on; a route whose secret is missing answers 503 and GET /badcat/status
+ * reports it not ready. Public routes skip the global throttler (one site-wide bucket while TRUST_PROXY is
+ * unset) and count a per-client-IP limit in the handler, like /yourcat. Admin routes need
  * AppAuthGuard + PermissionGuard(ADMIN). No route here writes a score.
  */
 
@@ -80,26 +78,15 @@ export class BadcatController {
         private readonly ipThrottler: ClientIpThrottlerGuard
     ) {}
 
-    /** 404 unless the master switch and `feature` are on, then the per-IP limit. */
-    private async gate(
-        feature: keyof BadcatFlags,
-        throttle: keyof typeof BADCAT_THROTTLES | null,
-        req: any,
-        res?: any
-    ): Promise<void> {
-        const flags = badcatFlags();
-        if (!flags.enabled || !flags[feature]) throw BADCAT_ERRORS.notFound();
-        if (throttle) {
-            await this.ipThrottler.consume(`BadcatController.${throttle}`, req, BADCAT_THROTTLES[throttle], res);
-        }
+    /** The per-client-IP limit of one public route. */
+    private async throttle(name: keyof typeof BADCAT_THROTTLES, req: any, res?: any): Promise<void> {
+        await this.ipThrottler.consume(`BadcatController.${name}`, req, BADCAT_THROTTLES[name], res);
     }
 
     @Header('Cache-Control', 'public, max-age=30')
     @Get('status')
     async status(@Req() req: any, @Res({ passthrough: true }) res: any): Promise<BadcatServerStatus> {
-        if (badcatFlags().enabled) {
-            await this.ipThrottler.consume('BadcatController.status', req, BADCAT_THROTTLES.status, res);
-        }
+        await this.throttle('status', req, res);
         return this.admin.status();
     }
 
@@ -109,7 +96,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<CheckoutResponse> {
-        await this.gate('checkout', 'checkout', req, res);
+        await this.throttle('checkout', req, res);
         return this.stripe.createCheckout(body);
     }
 
@@ -119,8 +106,8 @@ export class BadcatController {
         @Req() req: RawBodyRequest<any>,
         @Headers('stripe-signature') signature: string
     ): Promise<{ received: boolean; outcome: string }> {
-        // Its own gate: only the webhook secret (503 without it) and the signature (400). Pausing checkout, or
-        // all of Bad Cat, must not drop cancellations, refunds and renewals: Stripe stops retrying after ~3 days.
+        // Only the webhook secret (503 without it) and the signature (400) gate it, never the Stripe key's
+        // checkout readiness: cancellations, refunds and renewals must not drop (Stripe stops retrying after ~3 days).
         const event = this.webhooks.verify(req.rawBody, signature);
         const outcome = await this.webhooks.handle(event);
         return { received: true, outcome };
@@ -134,7 +121,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<CheckoutCompletion | EntitlementResponse> {
-        await this.gate('checkout', 'entitlement', req, res);
+        await this.throttle('entitlement', req, res);
         if (body?.sessionId !== undefined) return this.account.complete(body.sessionId, process.env, body.token);
         if (body?.token !== undefined) return this.account.refresh(body.token);
         throw BADCAT_ERRORS.invalid('sessionId or token is required');
@@ -147,7 +134,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; devLink?: string }> {
-        await this.gate('checkout', 'restore', req, res);
+        await this.throttle('restore', req, res);
         return this.account.restore(body?.email);
     }
 
@@ -158,7 +145,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<EntitlementResponse> {
-        await this.gate('checkout', 'restoreVerify', req, res);
+        await this.throttle('restoreVerify', req, res);
         return this.account.verifyRestore(body?.t);
     }
 
@@ -169,7 +156,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ url: string }> {
-        await this.gate('checkout', 'portal', req, res);
+        await this.throttle('portal', req, res);
         return this.account.portal(body?.token);
     }
 
@@ -180,8 +167,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<RedeemResponse> {
-        await this.gate('checkout', null, req);
-        await this.gate('gifts', 'redeem', req, res);
+        await this.throttle('redeem', req, res);
         return this.account.redeem(body);
     }
 
@@ -192,7 +178,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean }> {
-        await this.gate('checkout', 'clubCat', req, res);
+        await this.throttle('clubCat', req, res);
         return this.account.setClubCat(body?.token, body?.catCode, body?.name);
     }
 
@@ -205,7 +191,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<CameoBundle> {
-        await this.gate('cameos', 'cameos', req, res);
+        await this.throttle('cameos', req, res);
         return this.cameos.bundle(intParam(day), intParam(s));
     }
 
@@ -216,7 +202,7 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<SeenResponse> {
-        await this.gate('cameos', 'seen', req, res);
+        await this.throttle('seen', req, res);
         return this.cameos.seen(cat);
     }
 
@@ -228,14 +214,14 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; status: 'pending' }> {
-        await this.gate('faceUploads', 'faceUpload', req, res);
+        await this.throttle('faceUpload', req, res);
         return this.cameos.uploadFace(cameoId, body?.token, body?.png);
     }
 
     /** `/badcat/face/<id>.png`: approved faces only. */
     @Get('face/:file')
     async face(@Param('file') file: string, @Req() req: any, @Res() res: any): Promise<void> {
-        await this.gate('enabled', 'faceGet', req, res);
+        await this.throttle('faceGet', req, res);
         const match = /^([0-9a-f]{24})\.png$/.exec(file || '');
         const png = match ? await this.cameos.facePng(match[1]) : null;
         if (!png) throw BADCAT_ERRORS.notFound();
@@ -254,89 +240,77 @@ export class BadcatController {
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ): Promise<{ ok: boolean; status: 'pending' }> {
-        await this.gate('creatorCodes', 'creatorCode', req, res);
+        await this.throttle('creatorCode', req, res);
         return this.admin.requestCreatorCode(body?.code, body?.email);
     }
 
     /** The short domain lands here: 302 to /badcat/pick?e=t and one typed arrival counted (no personal data). */
     @Get('t')
     async typed(@Req() req: any, @Res() res: any): Promise<void> {
-        await this.gate('typedRedirect', 'typed', req, res);
+        await this.throttle('typed', req, res);
         res.set('Cache-Control', 'no-store');
         res.redirect(302, await this.admin.typedArrival());
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Admin (PermissionGuard(ADMIN)); 404 while BADCAT_ENABLED is off
+    // Admin (PermissionGuard(ADMIN))
     // ---------------------------------------------------------------------------------------------
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('admin/faces')
-    async adminFaces(@Req() req: any) {
-        await this.gate('enabled', null, req);
+    async adminFaces() {
         return { items: await this.cameos.pendingFaces() };
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @HttpCode(200)
     @Post('admin/faces/:id/approve')
-    async approveFace(@Param('id') id: string, @Req() req: any) {
-        await this.gate('enabled', null, req);
+    async approveFace(@Param('id') id: string) {
         return this.cameos.reviewFace(id, 'approve');
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @HttpCode(200)
     @Post('admin/faces/:id/reject')
-    async rejectFace(@Param('id') id: string, @Req() req: any) {
-        await this.gate('enabled', null, req);
+    async rejectFace(@Param('id') id: string) {
         return this.cameos.reviewFace(id, 'reject');
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Post('admin/cameo')
-    async adminCameo(
-        @Body() body: { catCode?: string; name?: string; dayNo?: number; kind?: string },
-        @Req() req: any
-    ) {
-        await this.gate('enabled', null, req);
+    async adminCameo(@Body() body: { catCode?: string; name?: string; dayNo?: number; kind?: string }) {
         return this.cameos.grant(body);
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('admin/stats')
-    async adminStats(@Query('days') days: string, @Req() req: any) {
-        await this.gate('enabled', null, req);
+    async adminStats(@Query('days') days: string) {
         return this.admin.stats(intParam(days) || 30);
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('admin/creator-codes')
-    async adminCreatorCodes(@Req() req: any) {
-        await this.gate('enabled', null, req);
+    async adminCreatorCodes() {
         return { items: await this.admin.listCreatorCodes() };
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @Get('admin/creator-codes/report')
-    async adminCreatorReport(@Req() req: any) {
-        await this.gate('enabled', null, req);
+    async adminCreatorReport() {
         return { items: await this.admin.creatorReport() };
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @HttpCode(200)
     @Post('admin/creator-codes/:code/approve')
-    async approveCreatorCode(@Param('code') code: string, @Req() req: any) {
-        await this.gate('enabled', null, req);
+    async approveCreatorCode(@Param('code') code: string) {
         return this.admin.reviewCreatorCode(code, 'approve');
     }
 
     @UseGuards(AppAuthGuard, PermissionGuard(PERMISSION_LEVEL.ADMIN))
     @HttpCode(200)
     @Post('admin/creator-codes/:code/reject')
-    async rejectCreatorCode(@Param('code') code: string, @Req() req: any) {
-        await this.gate('enabled', null, req);
+    async rejectCreatorCode(@Param('code') code: string) {
         return this.admin.reviewCreatorCode(code, 'reject');
     }
 }

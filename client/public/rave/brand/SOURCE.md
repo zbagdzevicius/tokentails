@@ -24,3 +24,14 @@
 - Attribution: "Arc is a trademark of Circle Internet Group, Inc. and/or its affiliates." (shown in the badge's
   title/tooltip and the sponsors panel).
 - Circle may review or revoke use at any time (respond within three business days): trademarks@circle.com.
+
+# Token Tails logo (our own brand, unmodified copies)
+
+| File | From | sha256 |
+|---|---|---|
+| `tokentails-logo.webp` | `client/public/logo/logo-text.webp` (600 x 337): the landing lockup, ringed cat + TOKEN TAILS wordmark, as in the site header | `779a921e765bf8fae25a1e4e11f7998a8e274ddd34d7407ee008e9a24eecc8ad` |
+| `tokentails-cat.webp` | `client/public/logo/logo.webp` (240 x 280): the cat mark | `65460a32e570786a6666a8ac57ae9ef8838e29a0183b8864dd823271ac53b515` |
+
+- Copied 2026-10-17. Used by `src/world/ttLogo.ts`: the lockup is the venue's hero sign behind the DJ booth, the cat
+  mark sits on dark plates on the booth's side faces. Always shown (not tied to Arc week). If the site logo
+  changes, copy the new files over these and keep the aspect constants in `src/world/ttLogoLayout.ts` in step.

@@ -27,7 +27,6 @@ describe('shared error codes', () => {
             'BADCAT_DUPLICATE',
             'BADCAT_ALREADY_RANKED',
             'BADCAT_DAY_CLOSED',
-            'BADCAT_SCORES_OFF',
             'DONATE_PAUSED',
             'DONATE_BUDGET_SPENT',
             'DONATE_SEND_FAILED',

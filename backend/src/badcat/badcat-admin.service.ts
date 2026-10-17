@@ -10,7 +10,14 @@ import {
     isBadcatSku,
 } from './badcat.contracts';
 import { BADCAT_ERRORS } from './badcat.errors';
-import { badcatFlags, badcatPublicUrl, badcatStripeKey, badcatVapidKeys, Env } from './badcat-flags';
+import {
+    badcatCheckoutReady,
+    badcatPublicUrl,
+    badcatStripeKey,
+    badcatVapidKeys,
+    Env,
+    sendgridConfigured,
+} from './badcat-flags';
 import { BadcatStore } from './badcat.schema';
 import { ACTIVE_SUB_STATUSES } from './badcat-account.service';
 import { typedKey } from './badcat-cameo.service';
@@ -44,44 +51,35 @@ export class BadcatAdminService {
 
     constructor(private readonly store: BadcatStore, private readonly stripe: BadcatStripeService) {}
 
-    /** GET /badcat/status: all false while BADCAT_ENABLED is unset. */
+    /**
+     * GET /badcat/status. Every feature is on; the secret-backed ones report whether their secrets are set:
+     * checkout (and gifts, brand) needs the Stripe key, BADCAT_STRIPE_WEBHOOK_SECRET and the entitlement key;
+     * restore and streak emails need SendGrid; push needs the BADCAT_VAPID_* keys.
+     */
     async status(env: Env = process.env): Promise<BadcatServerStatus> {
-        const flags = badcatFlags(env);
         const key = badcatStripeKey(env);
-        if (!flags.enabled) {
-            return {
-                enabled: false,
-                checkout: false,
-                cameos: false,
-                gifts: false,
-                restoreEmail: false,
-                faceUploads: false,
-                creatorCodes: false,
-                brand: false,
-                testMode: false,
-            };
-        }
-        const checkout = flags.checkout && key.usable;
+        const checkout = badcatCheckoutReady(env);
+        const email = sendgridConfigured(env);
         const status: BadcatServerStatus = {
             enabled: true,
             checkout,
-            cameos: flags.cameos,
-            gifts: checkout && flags.gifts,
-            restoreEmail: flags.restoreEmail,
-            faceUploads: flags.faceUploads,
-            creatorCodes: flags.creatorCodes,
-            brand: checkout && flags.brand,
+            cameos: true,
+            gifts: checkout,
+            restoreEmail: email,
+            faceUploads: true,
+            creatorCodes: true,
+            brand: checkout,
             testMode: key.usable && key.testMode,
             // Phase 2 (GDD 10, 17.3)
-            scores: flags.scores,
-            boards: flags.boards,
-            accounts: flags.accounts,
-            shortLinks: flags.shortLinks,
-            feed: flags.feed,
-            meter: flags.meter,
-            push: flags.push && !!badcatVapidKeys(env),
-            streakEmail: flags.streakEmail && flags.accounts,
-            creatorDashboard: flags.creatorDashboard && flags.accounts,
+            scores: true,
+            boards: true,
+            accounts: true,
+            shortLinks: true,
+            feed: true,
+            meter: true,
+            push: !!badcatVapidKeys(env),
+            streakEmail: email,
+            creatorDashboard: true,
         };
         if (checkout) status.foundingLeft = await this.stripe.foundingLeft();
         return status;

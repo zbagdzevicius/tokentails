@@ -2,9 +2,10 @@
  * Composition root. Wires every lane through GameServices, then hands control to the UI router. A lane that throws
  * while building its service object shows the fallback card instead of a blank page.
  *
- * Every server feature is off by default: money answers locally (zero requests) unless VITE_BADCAT_API_URL and
- * VITE_BADCAT_CLUB=1 are set, the Phase 2 online services likewise need VITE_BADCAT_ONLINE=1, and analytics send
- * nothing without VITE_BADCAT_POSTHOG_KEY plus consent.
+ * Server features are on whenever the game has an API origin (VITE_BADCAT_API_URL, else https://api.tokentails.com
+ * on tokentails.com): money and the Phase 2 online services then follow GET /badcat/status. A standalone or local
+ * build without that answers locally with zero requests. Analytics send nothing without VITE_BADCAT_POSTHOG_KEY
+ * plus consent.
  */
 import type { GameServices, PlatformApi } from './types';
 import { sim } from './sim';
@@ -45,7 +46,7 @@ function moneyFor(platform: PlatformApi): MoneyApiX | undefined {
   }
 }
 
-/** Phase 2 online services: zero requests unless VITE_BADCAT_ONLINE=1 and VITE_BADCAT_API_URL are set. */
+/** Phase 2 online services: zero requests without an API origin. */
 function onlineFor(platform: PlatformApi): GameServices['online'] {
   try {
     return createOnline({ env: platform.env, store: platform.store });
@@ -75,7 +76,7 @@ function boot(): void {
       // Room Maker, which stays in its own lazy chunk
       meta,
       loadEditor: () => import('./editor').then((m) => m.editor),
-      // Phase 2: accounts, ranked saves, boards, short links, the room feed, live data, push (all flags off)
+      // Phase 2: accounts, ranked saves, boards, short links, the room feed, live data, push (server status decides)
       online: onlineFor(platform),
     };
     // PWA: asset cache + Add to Home Screen capture (skipped in dev, in-app browsers and without SW support).

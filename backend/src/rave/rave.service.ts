@@ -98,7 +98,7 @@ export const raveMemo = (orderId: string) => `tt:rave:${orderId.slice(3)}`;
 /** Tempo's bytes32 memo as the split emits it (`_hex`): UTF-8, right-padded, lowercase hex. */
 export const raveMemo32 = (memo: string) => '0x' + Buffer.from(memo, 'utf8').toString('hex').padEnd(64, '0');
 
-export type RaveOffReason = 'off' | 'stripe' | 'keeper' | 'mode' | 'cap';
+export type RaveOffReason = 'stripe' | 'keeper' | 'mode' | 'cap';
 
 export interface RaveStatus {
     enabled: boolean;
@@ -205,7 +205,6 @@ export class RaveService implements OnModuleDestroy {
         shelter: ShelterOnchainConfig;
     } {
         const shelter = readShelterConfig(this.env);
-        if (!cfg.enabled) return { reason: 'off', shelter };
         if (!cfg.secretKeyMode || !cfg.publishableKeyMode || !cfg.webhookSecret) return { reason: 'stripe', shelter };
         if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) {
             return { reason: 'keeper', shelter };
@@ -263,7 +262,7 @@ export class RaveService implements OnModuleDestroy {
         if (reason) return { enabled: false, reason };
         const max = Math.min(cfg.maxCats, Math.floor((await this.remainingTodayCents(cfg, now)) / 100));
         if (max < 1) return { enabled: false, reason: 'cap' };
-        const usdcChains = cfg.usdcEnabled ? await this.usdcChains(shelter, now) : [];
+        const usdcChains = await this.usdcChains(shelter, now);
         return {
             enabled: true,
             livemode: cfg.secretKeyMode === 'live',
@@ -329,16 +328,11 @@ export class RaveService implements OnModuleDestroy {
         return !!waiting;
     }
 
-    /** 404 while the flag is off, 503 when it is on but something is missing. */
+    /** 503 while something checkout needs is missing (no on/off flag). */
     assertOpen(cfg: RaveConfig = readRaveConfig(this.env)): ShelterOnchainConfig {
         const { reason, shelter } = this.readiness(cfg);
-        if (reason === 'off') throw RAVE_ERRORS.notFound();
         if (reason) throw RAVE_ERRORS.off(reason);
         return shelter;
-    }
-
-    isEnabledFlag(): boolean {
-        return readRaveConfig(this.env).enabled;
     }
 
     // ------------------------------------------------------------------ checkout
@@ -378,7 +372,7 @@ export class RaveService implements OnModuleDestroy {
             }
             clientKey = body.clientKey;
         }
-        const usdcChains = method === 'usdc' ? (cfg.usdcEnabled ? await this.usdcChains(shelter, now) : []) : [];
+        const usdcChains = method === 'usdc' ? await this.usdcChains(shelter, now) : [];
         if (method === 'usdc' && !usdcChains.length) throw RAVE_ERRORS.method();
 
         const rawNames = Array.isArray(body.names) ? body.names.map(n => (typeof n === 'string' ? n.trim() : '')) : [];
@@ -932,7 +926,6 @@ export class RaveService implements OnModuleDestroy {
     async reportUsdcTx(orderId: string, body: { chainId?: unknown; txHash?: unknown }, now: Date = new Date()) {
         const cfg = readRaveConfig(this.env);
         const shelter = this.assertOpen(cfg);
-        if (!cfg.usdcEnabled) throw RAVE_ERRORS.method();
         if (!RAVE_ORDER_ID_RE.test(String(orderId || ''))) throw RAVE_ERRORS.orderNotFound();
         const chainId = Number(body?.chainId);
         const txHash = typeof body?.txHash === 'string' ? body.txHash.toLowerCase() : '';
