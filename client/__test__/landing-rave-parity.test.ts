@@ -7,9 +7,38 @@ import fs from "fs";
 import path from "path";
 import { RAVE_MAINNET_CHAIN_IDS, raveTotalFromIndex, toUsdMicro } from "@/components/landing/raveLive";
 import type { PayoutIndex } from "@/components/shelter-payouts/payoutIndex";
+import ts from "typescript";
 
 const RAVE = path.resolve(__dirname, "../../cat-rave/src");
 const config = fs.readFileSync(path.join(RAVE, "config.ts"), "utf8");
+
+/**
+ * Loads cat-rave's own data module (compiled here for ES2020: the client's jest target is ES5, which
+ * turns its BigInt `**` into Math.pow). Relative imports only (config, types, snapshot.json).
+ */
+function loadRaveModule(file: string): Record<string, unknown> {
+  const cache = new Map<string, { exports: Record<string, unknown> }>();
+  const load = (abs: string): Record<string, unknown> => {
+    if (abs.endsWith(".json")) return { default: JSON.parse(fs.readFileSync(abs, "utf8")) };
+    const hit = cache.get(abs);
+    if (hit) return hit.exports;
+    const mod = { exports: {} as Record<string, unknown> };
+    cache.set(abs, mod);
+    const out = ts.transpileModule(fs.readFileSync(abs, "utf8"), {
+      compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const req = (spec: string) => {
+      if (!spec.startsWith(".")) throw new Error(`cat-rave import outside src: ${spec}`);
+      const base = path.resolve(path.dirname(abs), spec);
+      const hitFile = [base, `${base}.ts`, path.join(base, "index.ts")].find((f) => fs.existsSync(f) && fs.statSync(f).isFile());
+      if (!hitFile) throw new Error(`cannot resolve ${spec} from ${abs}`);
+      return load(hitFile);
+    };
+    new Function("require", "module", "exports", out)(req, mod, mod.exports);
+    return mod.exports;
+  };
+  return load(file);
+}
 
 describe("landing rave count = cat-rave's rule", () => {
   it("uses cat-rave's chains, dollar coins and EURC rate", () => {
@@ -41,5 +70,13 @@ describe("landing rave count = cat-rave's rule", () => {
     const expected = snap.totals.reduce((n, t) => n + (toUsdMicro(t.symbol, t.amount18) ?? 0), 0);
     expect(total!.usdMicro).toBe(expected);
     expect(total!.cats).toBe(Math.floor(expected / 1_000_000));
+
+    // And the rave's own buildSnapshot (its dedupe, filters and cat rule) lands on the same numbers.
+    const { buildSnapshot } = loadRaveModule(path.join(RAVE, "data/index.ts")) as {
+      buildSnapshot: (file: unknown, opts: { origin: "snapshot" }) => { totalUsdMicro: number; realCats: number };
+    };
+    const rave = buildSnapshot(snap, { origin: "snapshot" });
+    expect(total!.usdMicro).toBe(rave.totalUsdMicro);
+    expect(total!.cats).toBe(rave.realCats);
   });
 });

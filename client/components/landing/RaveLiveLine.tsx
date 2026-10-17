@@ -23,10 +23,13 @@ export const RaveLiveLine = ({
   live,
   className,
   skeletonClassName,
+  stackOnPhone = false,
 }: {
   live: RaveLive;
   className?: string;
   skeletonClassName?: string;
+  /** Phones: the two halves on their own lines, no dangling "·" (the hero pill). */
+  stackOnPhone?: boolean;
 }) => {
   if (live.state === "loading") {
     return (
@@ -34,7 +37,7 @@ export const RaveLiveLine = ({
         aria-hidden
         data-testid="rave-live-skeleton"
         className={clsx(
-          "inline-block h-5 md:h-6 w-56 max-w-full animate-pulse rounded-full bg-tt-mint/20",
+          "inline-block h-5 md:h-6 w-56 max-w-full animate-pulse rounded-full bg-tt-cream/25 ring-1 ring-tt-mint/40",
           skeletonClassName
         )}
       />
@@ -45,7 +48,15 @@ export const RaveLiveLine = ({
     <span data-testid="rave-live-line" className={className}>
       {/* claim: live rave total, read live (see above) */}
       <strong className="whitespace-nowrap font-bold text-tt-mint">{formatRaveUsd(live.total.usdMicro)}</strong> paid out
-      for Pink Paw on-chain ·{" "}
+      for Pink Paw on-chain
+      {stackOnPhone ? (
+        <>
+          <span className="hidden sm:inline"> · </span>
+          <br className="sm:hidden" />
+        </>
+      ) : (
+        " · "
+      )}
       <strong className="whitespace-nowrap font-bold text-tt-pink">{catsDancing(live.total.cats)}</strong>
     </span>
   );

@@ -6,7 +6,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * the first time it comes near the viewport, so nothing downloads before. Shared by the landing's
  * Catnip Heist reel and the Pink Paw Knight trailer. `sectionRef` goes on the element to observe.
  */
-export function useReelPlayback<T extends Element = HTMLElement>(enabled: boolean) {
+export function useReelPlayback<T extends Element = HTMLElement>(
+  enabled: boolean,
+  {
+    rootMargin = "200px 0px",
+    minRatio = 0,
+  }: {
+    /** How near the viewport counts as in view (arms the source, plays). */
+    rootMargin?: string;
+    /** The visible share needed to count as in view; 0 = any pixel. */
+    minRatio?: number;
+  } = {}
+) {
   const sectionRef = useRef<T | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const reducedMotion = useReducedMotion();
@@ -29,13 +40,13 @@ export function useReelPlayback<T extends Element = HTMLElement>(enabled: boolea
     const observer = new IntersectionObserver(
       (entries) => {
         const latest = entries[entries.length - 1];
-        if (latest) setInView(latest.isIntersecting);
+        if (latest) setInView(latest.isIntersecting && (minRatio === 0 || latest.intersectionRatio >= minRatio));
       },
-      { rootMargin: "200px 0px" }
+      { rootMargin, threshold: minRatio > 0 ? [0, minRatio] : 0 }
     );
     observer.observe(section);
     return () => observer.disconnect();
-  }, [enabled]);
+  }, [enabled, rootMargin, minRatio]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
