@@ -7,7 +7,7 @@
  * outside the world and return commands for the caller to pass to `step`, so a match they play records and
  * replays like a human one.
  */
-import { BOTS, BOT_TEAMS, type BotParams, type PlayerProfile } from '../../data/bots';
+import { BOTS, BOT_TEAMS, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
 import { TIMELINE } from '../../data/timeline';
 import { HUMAN_SLOT, Op, teamOfSlot, type Command } from '../api';
 import { quantize } from '../commands';
@@ -22,9 +22,18 @@ import { noviceThink } from './novice';
 
 export { pushLane } from './brain';
 
+/**
+ * The human's allies: BOT_TEAMS.allies, except that they group when the enemy team does (the enemy difficulty's
+ * groupAt), so they never leave the lanes to an enemy that is still spread out in them.
+ */
+const ALLIES: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({
+  easy: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.easy.groupAt }),
+  normal: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.normal.groupAt }),
+});
+
 /** Difficulty parameters of the bot in `slot`. */
 export function botParams(m: MatchHandle, slot: number): BotParams {
-  return BOTS[teamOfSlot(slot) === teamOfSlot(HUMAN_SLOT) ? BOT_TEAMS.allies : m.config.difficulty];
+  return teamOfSlot(slot) === teamOfSlot(HUMAN_SLOT) ? ALLIES[m.config.difficulty] : BOTS[m.config.difficulty];
 }
 
 const thinksNow = (tick: number, slot: number): boolean => (tick + slot) % TIMELINE.botThinkEvery === 0;

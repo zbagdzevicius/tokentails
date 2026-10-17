@@ -95,6 +95,26 @@ test('draw calls on Med ≤ 110 at the busiest frame', async ({ page }) => {
   expect(p.maxDraws).toBeLessThanOrEqual(110);
 });
 
+test('?perf=1 shows the device-gate readout in a match; without it there is none', async ({ page }) => {
+  const globals = () => page.evaluate(() => Object.keys(window).sort());
+  await page.goto('/?e2e=1&quality=low');
+  await page.waitForSelector('html[data-screen="title"]');
+  await expect(page.locator('.pl-perf')).toHaveCount(0);
+  const without = await globals();
+  await page.goto('/?e2e=1&quality=low&perf=1');
+  await page.waitForSelector('html[data-screen="title"]');
+  // Not a debug hook: the readout adds nothing to window.
+  expect(await globals()).toEqual(without);
+  await page.locator('.pl-btn.big').first().click();
+  await page.waitForSelector('html[data-match="live"]');
+  const el = page.locator('.pl-perf');
+  await expect(el).toContainText(/\d+ fps · low/, { timeout: 5000 });
+  await expect(el).toContainText(/p95 \d+\.\d ms · match \d+\.\d/);
+  await expect(el).toContainText(/draws \d+ · max \d+/);
+  await expect(el).toContainText(/heap \d+ MB/);
+  console.log(`perf readout: ${(await el.textContent())?.replace(/\n/g, ' | ')}`);
+});
+
 test('the built files carry no debug hooks', async () => {
   const { DEBUG_HOOK_RE } = await import('../../tools/lib/budget-lib.mjs');
   const dist = path.join(ROOT, '.e2e-dist');

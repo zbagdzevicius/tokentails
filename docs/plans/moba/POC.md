@@ -348,6 +348,7 @@ Talents: L3 *Long Jeer* (Q 5.5 m) or *Cruel Jeer* (Q recast slows 30% for 1 s). 
 
 - The player's team is always Purrhaven (left). Enemy is always Woof.
 - The player picks any of the 4 heroes. A dog hero on Purrhaven wears the cream-and-rose sash; a cat hero on Woof wears the navy-and-brass sash (one material swap each).
+- Readability (recorded 2026-10-17 after Low-tier screenshots at 844×390): a thin sash was invisible at phone size (about 20 CSS px per hero), so every hero wears its team colours as a blanket over the back and flanks with a stripe in the second colour, plus a broad sash; Clem's neck scarf takes the team colour. It stays in the hero's one merged geometry (no extra draw call). `tests/unit/team-read.test.ts` checks that at least 15% of each hero's up-facing surface is its team colour and under 3% the other team's (the old sash: about 5%).
 - Bots fill: no duplicate heroes within a team; duplicates across teams are allowed. Bot picks and bot Paw Tricks are drawn from the match seed (`rng.fork('picks')`).
 - Difficulties: **Easy and Normal**. Hard is MVP. The first match is always Easy with Clem pre-selected ("Play as Clem").
 
@@ -390,6 +391,8 @@ Utility AI scored every 6 ticks (staggered by slot), inside the sim. Actions: fa
 **Tuning targets:** a scripted novice player-bot (`npm run match -- --profile novice`) beats Easy bots about 90% of the time and Normal bots 40% to 60% of the time.
 
 **Who plays at which level (recorded 2026-10-17 for founder review):** the match difficulty sets the three **enemy** bots only. The human's two allied bots always play at Normal (`BOT_TEAMS.allies` in `src/data/bots.ts`), so "vs Easy bots" means a novice plus two Normal allies against three Easy bots. Two Easy allies would lose the lanes the novice is not in and turn the first match into a loss nobody caused. The tuning targets above and §15 item 12 are measured this way.
+
+**Normal bots group at 3:55 (recorded 2026-10-17, sim v3).** Beyond the table, each difficulty sets when its bots leave their lanes and group in one push lane (`groupAt` in `src/data/bots.ts`; Easy 6:00). Normal grouped at 5:00 in sim v2, and the novice beat Normal only 41.5% of 400 seeds, next to the 40% floor: the novice keeps to Sunny Lane, so the push it is not in decides the match. Normal now groups at 3:55, and the human's allies group when the enemy difficulty does (Normal's 3:55 against Normal, 6:00 against Easy: grouping early against Easy bots that still hold their lanes dropped the novice to 84% vs Easy). Nightly, 400 seeds each: novice vs Normal 52.8%, vs Easy 92.8%. Normal vs Normal, 2,000 seeds: median 7:36, p95 8:41, every match ends by a core kill, Purrhaven 49.0%, heroes 44.1% (Sir Brutus) to 52.7%; the 200-seed `npm run match -- --balance` run passes (Purrhaven 47.0%). `SIM_VERSION` is 3, so v2 replays are refused.
 
 ### 7.3 Timeline
 

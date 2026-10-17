@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, startFirstMatch } from './helpers';
+import { attr, me, startFirstMatch } from './helpers';
 
 // POC.md §12, §15 item 20: the first Easy match is one tap from the title; each of the five tips fires on its
 // event and hides once done. The `?e2e=1` data attributes report the tip on screen (`data-tip`), the tips shown
-// and done, the hero's level, and where the nearest enemy minion and hero are on screen.
+// and done, the hero's level, where the nearest enemy minion and hero are on screen, and the point just behind the
+// player's own wave front.
 
 const TEXT: Record<string, RegExp> = {
   move: /Right-click the ground to walk/,
@@ -77,7 +78,18 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
           await page.keyboard.press('b');
         }
       } else if (tick++ % 2 === 0) {
-        await aMove(page, await point(page, 'foeMinion'));
+        // Follow the own wave from just behind its front minion (the minions tank the towers, and every minion that
+        // dies within 10 m gives XP); with no wave in view, walk up Sunny Lane to this side of the river and wait.
+        const front = await point(page, 'allyFront');
+        const self = await point(page, 'meScreen');
+        const pos = await me(page);
+        // (Not before the move tip has had its turn: walking first would complete it unseen.)
+        const moveTipped = (await list(page, 'tipsShown')).includes('move');
+        if (front) await aMove(page, front);
+        else if (moveTipped && self && pos.x < 40000) {
+          const [dx, dy] = pos.y < 48000 ? [120, -110] : [220, 0];
+          await page.mouse.click(self.x + dx, self.y + dy, { button: 'right' });
+        }
       }
     }
     await page.waitForTimeout(250);
@@ -86,11 +98,10 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
   const done = await list(page, 'tipsDone');
   const level = maxLevel;
   console.log(`first-match tips: shown ${shown.join(' ')}, done ${done.join(' ')}, highest level ${level}`);
-  // The R tip needs level 4, which this scripted player (it walks home at 30% HP, no tower sense) reaches in about
-  // half the runs; when it does, the tip must have shown and been done. tests/unit/tips.test.ts covers it always.
-  const ids = level >= 4 ? Object.keys(TEXT) : Object.keys(TEXT).filter((id) => id !== 'ult');
-  if (level < 4) test.info().annotations.push({ type: 'note', description: `level ${level} only: the R tip was not reached` });
-  for (const id of ids) {
+  // The R tip needs level 4. The scripted player follows its own wave (data-ally-front) instead of attack-moving
+  // onto the nearest enemy minion, so it farms XP under its minions' cover and reaches level 4 every run.
+  expect(level, 'highest level').toBeGreaterThanOrEqual(4);
+  for (const id of Object.keys(TEXT)) {
     expect(shown, `tip ${id} shown`).toContain(id);
     expect(seen[id] ?? '', `tip ${id} text`).toMatch(TEXT[id]);
     expect(done, `tip ${id} done`).toContain(id);

@@ -20,8 +20,9 @@ const botsOn = <T extends { world: { globals: Int32Array } }>(m: T): T => {
 describe('bots (§7.2)', { timeout: 300000 }, () => {
   it('the match difficulty sets the enemy bots; the human’s allies play at the allied level', () => {
     const easy = quietMatch(3);
-    expect(botParams(easy, 1)).toBe(BOTS[BOT_TEAMS.allies]);
-    expect(botParams(easy, 2)).toBe(BOTS[BOT_TEAMS.allies]);
+    // Allies play at BOT_TEAMS.allies but group when the enemy difficulty does.
+    expect(botParams(easy, 1)).toEqual({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.easy.groupAt });
+    expect(botParams(easy, 2)).toBe(botParams(easy, 1));
     for (const s of [3, 4, 5]) expect(botParams(easy, s)).toBe(BOTS.easy);
     expect(BOTS.easy.reactionTicks).toBe(18);
     expect(BOTS.normal.reactionTicks).toBe(9);
@@ -132,8 +133,8 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
 });
 
 /**
- * §15 item 12, nightly (PAWLEGENDS_NIGHTLY=1): 400 seeds each (more than the 200 asked, because the Normal result
- * sits near its 40% floor), in parallel processes on the bundled sim. The novice is slot 0; its two allies play at
+ * §15 item 12, nightly (PAWLEGENDS_NIGHTLY=1): 400 seeds each (more than the 200 asked; the Normal result sat
+ * near its 40% floor before sim v3), in parallel processes on the bundled sim. The novice is slot 0; its two allies play at
  * BOT_TEAMS.allies (Normal) and the three enemies at the match difficulty (POC.md §7.2 decision).
  */
 describe.skipIf(!NIGHTLY)('bots nightly (§15 item 12)', { timeout: 3600000 }, () => {

@@ -107,9 +107,9 @@ describe('input gate (§11.3)', { timeout: 120000 }, () => {
   });
   it('a worst-case 11:00 touch match encodes to ≤ 40,000 characters and verifies', () => {
     // Joystick: a move 2 m ahead every 3 ticks with the direction turning, plus attack, cast and stop spam.
-    // A seed whose match runs past 10:00 with this input (bots group at 5:00 since the §15 item 11 tuning, so most
-    // matches end sooner; this one lasts 18,204 ticks and hits the 40,000-character input gate).
-    const seed = 139;
+    // A seed whose match runs past 10:00 with this input (Normal bots group at 3:55 since sim v3, so most matches
+    // end sooner; this one lasts 18,211 ticks and hits the 40,000-character input gate).
+    const seed = 181;
     const { picks, tricks } = fillPicks(seed, 'sage', 'pounce');
     const m = createMatch({ seed, picks, tricks, difficulty: 'normal' });
     let a = 0;

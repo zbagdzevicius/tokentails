@@ -67,10 +67,17 @@ their own licences, listed in [public/assets/LICENSES.md](public/assets/LICENSES
 
 ## Device performance results
 
-Real devices (iPhone 11, Pixel 6a, Iris Xe; POC.md §15 item 27): not measured yet (M4).
+Real devices (iPhone 11, Pixel 6a, Iris Xe; POC.md §15 item 27): not measured yet (M4, Tue 2026-11-10). Steps:
+[`LAUNCH.md`](../docs/plans/moba/LAUNCH.md) §a.4 (`index.html?quality=low&perf=1` on the phones, `?quality=med&perf=1`
+at 1280×720 on Iris Xe; record the worse of two 20 s teamfight runs). Pass: phones p95 ≤ 33 ms, draw calls ≤ 90,
+heap ≤ 150 MB; Iris Xe p95 ≤ 16.7 ms. Note in the row when a number came from the remote profiler or from
+`perf.spec.ts` instead of the overlay.
 
-| Device | Tier | p95 frame | Draw calls | Heap | Date |
-|---|---|---|---|---|---|
+| Device | OS, browser | Tier | p95 frame | Draw calls | Heap | Pass | Date |
+|---|---|---|---|---|---|---|---|
+| iPhone 11 | | Low | | | | | |
+| Pixel 6a | | Low | | | | | |
+| Iris Xe laptop, 1280×720 | | Med | | | | | |
 
 Automated (`tests/e2e/perf.spec.ts`, `perf-load.spec.ts`; Chromium headless, SwiftShader, Apple M3 Pro; busiest frame of a
 6× first match, 6 heroes, 24 minions, 8 towers alive at once), 2026-10-17:
@@ -89,7 +96,25 @@ Automated (`tests/e2e/perf.spec.ts`, `perf-load.spec.ts`; Chromium headless, Swi
 
 Not run against Stripe yet: the backend specs use a fake Stripe client (no network), and `store.spec.ts` uses a mock
 host. A real test-mode run needs the `PAWLEGENDS_STRIPE_*` keys in the local backend env and the Stripe CLI forwarding
-`POST /pawlegends/stripe/webhook`; one checkout per SKU in USD and EUR, then record the session ids here.
+`POST /pawlegends/stripe/webhook`; one checkout per SKU in USD and EUR, then record the session ids here. Exact
+commands, the two-profile order (the starter and the upgrade are once per email and device; the upgrade needs a
+Founder) and the test cards: [`LAUNCH.md`](../docs/plans/moba/LAUNCH.md) §a.3. "Item seen" = the item shows on the hero in
+the lobby and in the next match.
 
-| SKU | Currency | Session id | Date |
-|---|---|---|---|
+| Run | Profile | SKU | Currency | Session id (`cs_test_…`) | Granted (`/entitlements`) | Item seen | Date |
+|---|---|---|---|---|---|---|---|
+| 1 | A | `pl_starter` | USD | | | | |
+| 2 | A | `pl_founder` | USD | | | | |
+| 3 | A | `pl_founder_legend_upgrade` | USD | | | | |
+| 4 | B | `pl_founder_legend` | USD | | | | |
+| 5 | C | `pl_starter` | EUR | | | | |
+| 6 | C | `pl_founder` | EUR | | | | |
+| 7 | C | `pl_founder_legend_upgrade` | EUR | | | | |
+| 8 | D | `pl_founder_legend` | EUR | | | | |
+
+Once-only checks (any profile): second starter refused ( ), under-16 blocked ( ), refund removes the item ( ).
+
+## Launch
+
+Launch kit for Thu 2026-11-12 (founder checklist, trademark searches, playtest, deploy, Stripe live mode,
+distribution plan and launch copy): [`docs/plans/moba/LAUNCH.md`](../docs/plans/moba/LAUNCH.md).

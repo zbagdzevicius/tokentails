@@ -22,6 +22,7 @@ import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { offerCard } from '../ui/offerCard';
+import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { storePanel } from '../ui/store';
@@ -87,6 +88,8 @@ export class App {
   private offerShown = false;
   private matchesThisSession = 0;
   private frameMs: number[] = [];
+  /** `?perf=1` on-screen readout for the device gate (§15 item 27); null otherwise. */
+  private readonly perf: PerfReadout | null;
   private readonly sessionNo: number;
 
   constructor(
@@ -98,6 +101,7 @@ export class App {
     this.tier = start.tier;
     this.probe = start.probe;
     this.gr = createRenderer(root, this.tier);
+    this.perf = perfFromUrl() ? new PerfReadout(root) : null;
     // Hero portraits for the pick cards and the HUD, rendered once by this renderer (render/portraits.ts).
     bakePortraits(this.gr);
     document.documentElement.dataset.quality = this.tier;
@@ -520,6 +524,7 @@ export class App {
       this.lobby.update(dt);
       this.gr.render();
     }
+    this.perf?.sample({ frameMs: raw, draws: this.gr.renderer.info.render.calls, tier: this.tier, inMatch: this.screen === 'match' });
     requestAnimationFrame((t) => this.frame(t));
   }
 }
