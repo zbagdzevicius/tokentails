@@ -178,6 +178,16 @@ export interface RaveCat {
   demo: boolean;
   /** Stable 0..1 seed for looks (fur shade, ear tilt, dance offset), from the payout id. */
   seed: number;
+  /**
+   * Flag the cat holds (ISO 3166-1 alpha-2). Set only on DEMO cats (a mixed sample so flags show
+   * locally); real cats get their buyer's country from the rave orders (`crowd.setCountries`).
+   */
+  country?: string | null;
+  /**
+   * A paid Moon Rave order's cat that dances before its on-chain payout reaches the index
+   * (payout null, demo false). It becomes a payout cat when the payout lands, with no second drop-in.
+   */
+  order?: { id: string; position: number };
 }
 
 export interface PayoutSnapshot {

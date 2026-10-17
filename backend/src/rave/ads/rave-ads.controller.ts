@@ -38,9 +38,11 @@ import { RaveAdCheckoutBody, RaveAdsService } from './rave-ads.service';
 
 /*
  * Moon Rave ad space (cat-rave/src/ads). Guest routes, no login, a per-client-IP limit like the rave
- * checkout. Buyer routes answer 503 while something they need is missing (GET /rave/ads/status
- * then says `enabled: false` with a reason); GET /rave/ads stays readable so live ads keep showing. Payments arrive through the
- * rave webhook (POST /rave/stripe/webhook). Approve / reject (with a Stripe refund) need ADMIN (5).
+ * checkout. Checkout answers 503 while neither the card nor the crypto (USDC on Arc) tab is open (GET
+ * /rave/ads/status then says `enabled: false` with a reason), and for a closed tab; GET /rave/ads stays
+ * readable so live ads keep showing. Card payments arrive through the rave webhook (POST
+ * /rave/stripe/webhook, optional) or the Events API pull; USDC payments through POST /rave/ads/:adId/usdc-tx.
+ * Approve / reject (with a Stripe refund, or a USDC refund flagged for doing by hand) need ADMIN (5).
  */
 
 const MINUTE = 60_000;
@@ -49,6 +51,7 @@ export const RAVE_AD_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     list: { limit: 60, ttl: MINUTE },
     checkout: { limit: 6, ttl: 10 * MINUTE },
     ad: { limit: 30, ttl: MINUTE },
+    usdcTx: { limit: 10, ttl: 10 * MINUTE },
 };
 
 export const RAVE_AD_MULTER = {
@@ -156,6 +159,18 @@ export class RaveAdsController {
     @Post(':adId/reject')
     async reject(@Param('adId') adId: string, @Body() body: { reason?: unknown }, @Req() req: any) {
         return this.ads.reject(adId, body?.reason, req.user?._id ? String(req.user._id) : undefined);
+    }
+
+    /** The buyer's wallet paid a USDC ad: record the tx and read its receipt (works while crypto reports closed). */
+    @Post(':adId/usdc-tx')
+    async usdcTx(
+        @Param('adId') adId: string,
+        @Body() body: { txHash?: unknown },
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ) {
+        await this.throttle('usdcTx', req, res);
+        return this.ads.reportUsdcTx(adId, body || {});
     }
 
     @Header('Cache-Control', 'no-store')

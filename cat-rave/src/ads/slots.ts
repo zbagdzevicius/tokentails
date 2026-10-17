@@ -30,18 +30,19 @@ export const MOON = Object.freeze({ radius: 70, center: [0, 22, -260] as const }
 /** Moon-ring radius: clear of the disc (70) by more than half a moon banner. */
 export const MOON_RING_R = 92;
 /**
- * Angle (deg, up from horizontal) of the moon-ring banners on the ring. Landscape: 30° (beside the disc,
- * inside a 16:9 frame). Portrait phones (aspect < PORTRAIT_ASPECT): 60°, closer to the top of the disc, so
+ * Angle (deg, up from horizontal) of the moon-ring banners on the ring. Landscape: 18° (beside the disc;
+ * at 30° a 16:9 laptop hero frame (1280x720) cut them off at the top edge). Portrait phones (aspect < PORTRAIT_ASPECT): 60°, closer to the top of the disc, so
  * both banners are inside the narrow hero frame instead of just past its edges.
  */
-export const MOON_RING_DEG = Object.freeze({ landscape: 30, portrait: 60 });
+export const MOON_RING_DEG = Object.freeze({ landscape: 18, portrait: 60 });
 export const PORTRAIT_ASPECT = 0.8;
 
 /** Offset from the moon centre of moon-ring banner `index` (0 left, 1 right). */
 export function moonRingOffset(index: number, portrait = false): readonly [number, number, number] {
   const side = index === 0 ? -1 : 1;
   const a = ((portrait ? MOON_RING_DEG.portrait : MOON_RING_DEG.landscape) * Math.PI) / 180;
-  return [side * MOON_RING_R * Math.cos(a), MOON_RING_R * Math.sin(a), 30];
+  // z 31.5: in front of the ring's tube (z 30 ± 0.55), so the neon line never cuts through the banner.
+  return [side * MOON_RING_R * Math.cos(a), MOON_RING_R * Math.sin(a), 31.5];
 }
 
 /** Where a slot shows up, for the purchase sheet (camera shots, SPEC.md "Shots"). */
@@ -103,7 +104,7 @@ function build(): AdSlot[] {
     const p = blimpPosition(phase, 0);
     add('blimp', i, { w: 3.2, h: 3.2 / aspect('blimp'), pos: [p.x, p.y, p.z], yaw: 0, twoSided: true, phase });
   }
-  // Moon ring: upper left and upper right of the disc (30° up the ring), slightly in front of the moon
+  // Moon ring: upper left and upper right of the disc (MOON_RING_DEG up the ring), slightly in front of the moon
   // (offsets from its centre), above the screens in the hero shot.
   [0, 1].forEach((i) => {
     add('moon', i, { w: 30, h: 10, pos: moonRingOffset(i), yaw: 0, twoSided: false });

@@ -14,6 +14,7 @@
 #hud button,
 #hud a,
 #hud input,
+#hud select,
 #hud .rv-card,
 #hud .rv-sheet,
 #hud .rv-backdrop {
@@ -464,7 +465,17 @@
   line-height: 1;
 }
 .rv-x:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+/* A visible 44 px close button (the bare glyph was hard to see and to hit on the dark green). */
+#hud .rv-sheet > .rv-x {
+  width: 44px;
+  height: 44px;
+  top: 8px;
+  right: 8px;
+  font-size: 28px;
   background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(234, 255, 240, 0.28);
 }
 
 /* ---------------------------------------------------------------- sheets */
@@ -756,7 +767,9 @@
   position: absolute;
   z-index: -1;
   inset: -40px -60px -30px -40px;
-  background: radial-gradient(ellipse at 30% 40%, rgba(2, 12, 6, 0.6), rgba(2, 12, 6, 0.25) 45%, transparent 72%);
+  /* Darker than a plain glow: the counter sits over 3D billboards ("YOUR AD HERE") in some shots, and
+     two layers of text must not both stay legible-ish and unreadable. */
+  background: radial-gradient(ellipse at 30% 40%, rgba(2, 12, 6, 0.78), rgba(2, 12, 6, 0.45) 50%, transparent 76%);
   pointer-events: none;
 }
 
@@ -865,4 +878,233 @@
   .rv-own-tag.rv-own-pulse {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------- countries leaderboard */
+/* The countries chip on the source line (opens the leaderboard). A label, not a notification badge. */
+.rv-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.rv-board-chip {
+  position: relative;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px 0 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(93, 255, 138, 0.4);
+  background: rgba(4, 22, 11, 0.6);
+  color: var(--rave-ink) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  white-space: nowrap;
+  text-shadow: none;
+}
+/* A 44 px tall tap area round the 26 px chip. */
+.rv-board-chip::after {
+  content: '';
+  position: absolute;
+  inset: -9px -4px;
+}
+.rv-board-chip:hover {
+  border-color: var(--rave-green);
+}
+.rv-board-ico svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  stroke: var(--rave-green);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Painted flags (ui/board.ts flagImg): same on every OS. */
+.rv-flag {
+  display: block;
+  width: 24px;
+  height: 16px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.rv-flag-inline {
+  display: inline-block;
+  width: 18px;
+  height: 12px;
+  vertical-align: -1px;
+}
+.rv-sheet p.rv-board-sum {
+  margin: 0 0 12px;
+  color: #b8ffc8;
+  font-weight: 700;
+}
+.rv-board {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rv-board-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 12px;
+  background: rgba(70, 255, 122, 0.06);
+  border: 1px solid rgba(93, 255, 138, 0.18);
+  overflow: hidden;
+}
+.rv-board-top {
+  border-color: rgba(255, 79, 158, 0.45);
+  background: rgba(255, 79, 158, 0.08);
+}
+.rv-board-rank {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--rave-ink-dim);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rv-board-top .rv-board-rank {
+  font-size: 20px;
+}
+.rv-board-flag {
+  display: flex;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--rave-ink-dim);
+}
+.rv-board-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #eafff0;
+}
+.rv-board-n {
+  font-weight: 800;
+  color: #eafff0;
+  font-variant-numeric: tabular-nums;
+}
+.rv-board-n small {
+  margin-left: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--rave-ink-dim);
+}
+/* Share of the top country's cats, as a thin bar along the bottom of the row. */
+.rv-board-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: var(--w, 0%);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, var(--rave-green), var(--rave-pink));
+}
+.rv-sheet p.rv-board-more,
+.rv-sheet p.rv-board-foot {
+  font-size: 12.5px;
+  margin: 0 0 8px;
+}
+.rv-board-go {
+  width: 100%;
+}
+.rv-c-country {
+  white-space: nowrap;
+}
+
+/* Phones (portrait): the tool column moves from the top-right corner, where the hero shot puts the
+   moon-ring ad slots, to the bottom-right above the hint (the crowd), clear of Add a cat. */
+@media (max-width: 759px) and (orientation: portrait) {
+  .rv-tools {
+    position: fixed;
+    right: calc(12px + var(--safe-right, 0px));
+    bottom: calc(150px + var(--safe-bottom));
+    gap: 8px;
+  }
+  .rv-arrivals,
+  .rv-sponsors-slot {
+    margin-right: 52px;
+  }
+}
+
+/* 760-1199 px landscape: the first-run hint stays in the bottom stack, above Add a cat and Advertise.
+   Pinned to the bottom-right corner it sat on the Advertise button at 1024 px. */
+@media (min-width: 760px) and (max-width: 1199px) and (min-aspect-ratio: 1/1) {
+  .rv-hint {
+    position: static;
+    max-width: none;
+  }
+  /* ...and the arrivals list sits above the hint's row. */
+  .rv-arrivals {
+    bottom: calc(112px + var(--safe-bottom)) !important;
+  }
+}
+
+/* Desktop: "ARRIVING NOW" moves to the bottom-left, off the DJ booth and its Arc desk logo (a sponsor
+   placement) in the middle of the hero and DJ shots. */
+@media (min-width: 760px) and (min-aspect-ratio: 1/1) {
+  .rv-arrivals {
+    position: fixed;
+    left: calc(16px + var(--safe-left, 0px));
+    bottom: calc(84px + var(--safe-bottom));
+    /* 26vw: at 1024 px it ends left of the centred first-run hint above Add a cat. */
+    width: min(320px, 26vw);
+    z-index: 1;
+  }
+  #hud.rv-has-sheet .rv-arrivals {
+    visibility: hidden;
+  }
+}
+
+/* Portrait phones: the tool column (fixed bottom-right) hides under an open sheet like the bottom bar. */
+@media (max-width: 759px) and (orientation: portrait) {
+  #hud.rv-has-sheet .rv-tools {
+    visibility: hidden;
+  }
+}
+
+/* Short phones (375x667 and the like): a slimmer stats block and one arrival row, so the scene (DJ,
+   floor) keeps more than a sliver between the top and bottom HUD. */
+@media (max-height: 700px) and (orientation: portrait) {
+  .rv-hook,
+  .rv-source {
+    display: none;
+  }
+  .rv-amount .rv-num {
+    font-size: 34px;
+  }
+  .rv-arrivals .rvc-arrivals-list > :nth-child(n + 2) {
+    display: none;
+  }
+}
+
+/* A HUD block over a live (paid) ad fades so the ad reads (main.ts yieldHud); hover or focus brings it back. */
+#hud .rv-yield {
+  opacity: 0.22;
+  transition: opacity 0.35s;
+}
+#hud .rv-yield:hover,
+#hud .rv-yield:focus-within {
+  opacity: 1;
+}
+#hud .rv-counter,
+#hud .rv-side,
+#hud .rv-arrivals,
+#hud .rv-arc-badge,
+#hud .rv-sponsors-slot {
+  transition: opacity 0.35s;
 }

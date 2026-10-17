@@ -3,6 +3,8 @@
  * Every call has its own AbortController timeout. Answers are checked before use; nothing here
  * trusts a URL or HTML from the server.
  */
+import { cleanCountry } from '../data/countries';
+import { ARC_FIRST } from './usdc';
 import type { CheckoutAnswer, CheckoutRequest, RaveFieldError, RaveOrderRow, RaveOrderStatus, RaveStatus } from './types';
 
 export const RAVE_API_PATHS = Object.freeze({
@@ -97,7 +99,11 @@ export function friendlyMessage(code: string, status: number, serverMessage?: st
     case 'RAVE_KEY_REUSED':
       return 'Your order changed. Tap pay again.';
     case 'RAVE_OFF':
-      return 'Card checkout is paused right now. Try again later.';
+      return 'Checkout is paused right now. Try again later.';
+    case 'RAVE_CARD_OFF':
+      return 'Card payments are paused right now. Pay with crypto (USDC on Arc), or try again later.';
+    case 'RAVE_USDC_OFF':
+      return 'Crypto payments are paused right now. Pay by card, or try again later.';
     case 'RAVE_CAP':
       return 'Today’s cat quota is full (the shelter wallet refills tomorrow). Try a smaller amount or come back tomorrow.';
     case 'RAVE_BUSY':
@@ -113,28 +119,45 @@ export function friendlyMessage(code: string, status: number, serverMessage?: st
   }
 }
 
-/** Defensive parse of GET /rave/status. Anything odd → `{ enabled: false }`. */
+export const PK_RE = /^pk_(live|test)_[A-Za-z0-9]+$/;
+
+/**
+ * Defensive parse of GET /rave/status. The sheet opens when card or crypto is open:
+ *  - card: `card !== false` and a well-formed publishable key;
+ *  - crypto: `usdc.enabled` with at least one Arc chain (5042, 5042002). Every other chain is dropped:
+ *    the rave takes crypto on Arc only.
+ * Anything odd → `{ enabled: false }`.
+ */
 export function parseStatus(body: unknown): RaveStatus {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   if (b.enabled !== true) return { enabled: false, reason: str(b.reason) ?? 'unknown' };
   const key = str(b.publishableKey);
-  if (!key || !/^pk_(live|test)_[A-Za-z0-9]+$/.test(key)) return { enabled: false, reason: 'stripe' };
+  const keyOk = !!key && PK_RE.test(key);
   const prices = (b.prices && typeof b.prices === 'object' ? b.prices : {}) as Record<string, unknown>;
   const fee = (b.fee && typeof b.fee === 'object' ? b.fee : {}) as Record<string, unknown>;
   const usdc = (b.usdc && typeof b.usdc === 'object' ? b.usdc : {}) as Record<string, unknown>;
+  const reasons = (b.reasons && typeof b.reasons === 'object' ? b.reasons : {}) as Record<string, unknown>;
   const max = int(prices.max, 0);
   if (max < 1) return { enabled: false, reason: 'cap' };
   const fixed = Array.isArray(prices.fixed) ? prices.fixed.filter((n): n is number => Number.isInteger(n) && n > 0) : [1, 5];
-  const chains = Array.isArray(usdc.chains) ? usdc.chains.filter((n): n is number => Number.isInteger(n) && n > 0) : [];
+  const listed = Array.isArray(usdc.chains) ? usdc.chains.filter((n): n is number => Number.isInteger(n) && n > 0) : [];
+  const chains = listed.filter((c) => ARC_FIRST.includes(c));
+  const card = b.card !== false && keyOk;
+  const usdcOn = usdc.enabled === true && chains.length > 0;
+  if (!card && !usdcOn) return { enabled: false, reason: str(reasons.card) ?? str(b.cardReason) ?? (keyOk ? 'off' : 'stripe') };
   return {
     enabled: true,
     livemode: b.livemode === true,
-    publishableKey: key,
-    card: b.card !== false,
-    usdc: { enabled: usdc.enabled === true && chains.length > 0, chains },
+    publishableKey: card ? key : null,
+    card,
+    usdc: { enabled: usdcOn, chains: usdcOn ? chains : [] },
+    reasons: {
+      card: card ? null : str(reasons.card) ?? str(b.cardReason) ?? 'stripe',
+      usdc: usdcOn ? null : str(reasons.usdc) ?? (listed.length && !chains.length ? 'chain' : 'off'),
+    },
     prices: { fixed: fixed.length ? fixed : [1, 5], customMin: Math.max(2, int(prices.customMin, 10)), max },
     fee: { percentBps: Math.min(2000, Math.max(0, int(fee.percentBps, 290))), fixedCents: Math.min(500, Math.max(0, int(fee.fixedCents, 30))) },
-    payoutsDelayed: b.payoutsDelayed === true,
+    ...('country' in b ? { country: cleanCountry(b.country) } : {}),
   };
 }
 

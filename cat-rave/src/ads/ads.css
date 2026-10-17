@@ -93,7 +93,9 @@
   background: #ff5fa8;
   box-shadow: 0 0 0 3px rgba(255, 95, 168, 0.3), 0 0 18px #ff5fa8;
 }
-/* Slot name on hover, keyboard focus or press. */
+/* Slot name on hover, keyboard focus or press. Never takes clicks: a hidden label sits over the
+   pins above it (Blimp 4 over Banner 3). #hud beats checkout.css's `#hud .rvc *` auto rule. */
+#hud .rvc .rva-pin .rva-pin-label,
 .rvc .rva-pin .rva-pin-label {
   position: absolute;
   left: 50%;
@@ -362,4 +364,31 @@
   font-size: 11.5px;
   font-weight: 600;
   opacity: 0.85;
+}
+
+/* Crypto pay box: exact amount, network, recipient. */
+.rva-usdc {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--rvc-line, rgba(93, 255, 138, 0.3));
+  background: rgba(0, 0, 0, 0.35);
+}
+.rva-usdc dt {
+  opacity: 0.72;
+  font-size: 13px;
+  align-self: center;
+}
+.rva-usdc dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.rva-usdc .rva-usdc-amount {
+  font-size: 22px;
+  color: #fff;
 }

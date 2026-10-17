@@ -41,12 +41,18 @@ describe('format', () => {
     expect(hookLine(0)).toMatch(/empty/);
     expect(hookLine(9)).toBe('Fill the dance floor.');
   });
-  it('source line says live, stale or snapshot', () => {
+  it('source line says live or snapshot, never delayed', () => {
     expect(sourceLine({ origin: 'live', stale: false, asOf: '' })).toBe('live · public on-chain payouts');
-    expect(sourceLine({ origin: 'live', stale: true, asOf: '' })).toBe('live · index catching up');
-    expect(sourceLine({ origin: 'live', stale: true, asOf: '', delayedChains: ['Base', 'Avalanche'] })).toBe('live · Base, Avalanche delayed');
+    expect(sourceLine({ origin: 'live', stale: true, asOf: '' })).toBe('live · public on-chain payouts');
+    expect(sourceLine({ origin: 'live', stale: true, asOf: '', delayedChains: ['Base', 'Avalanche'] })).toBe('live · public on-chain payouts');
     expect(sourceLine({ origin: 'snapshot', stale: true, asOf: '2026-10-16T15:33:55Z' })).toContain('Oct 16, 15:33 UTC');
     expect(formatAsOf('nope')).toBe('nope');
+  });
+  it('a paid order\'s cat dancing ahead of its payout gets its own card, never "Demo cat"', () => {
+    const cat: RaveCat = { index: 41, payout: null, contributors: 0, completedAt: 0, demo: false, seed: 0.3, order: { id: 'rv_abcdef0123456789', position: 1 } };
+    expect(catCard(cat, 5)).toMatchObject({ title: 'Cat #42', amount: '1 of 5 cats from a $5 Moon Rave gift', href: null });
+    expect(catCard(cat, 1).amount).toBe('A $1 Moon Rave gift');
+    expect(catCard(cat, 1).meta).not.toMatch(/slow|delay|late/i);
   });
   it('never says live after a failed read', () => {
     expect(sourceLine({ origin: 'live', stale: true, asOf: '2026-10-16T15:33:55Z', fetchFailed: true })).toBe('as of Oct 16, 15:33 UTC · public on-chain payouts');

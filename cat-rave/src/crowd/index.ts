@@ -6,6 +6,10 @@
  * Draw calls: near cats (1), impostors (1), ghost paw prints + landing rings (1), the next-cat
  * hologram (1, only while the floor has room), the find-my-cat beam + ring (2, only while set),
  * the arriving holograms of paid Moon Rave orders (1 instanced, only while some are arriving).
+ *
+ * Flags: each cat whose buyer country is known holds that country's flag (part of the cat mesh and
+ * the impostor SDF, sampling one canvas atlas: no extra draw calls). Countries come from
+ * `RaveCat.country` when L-DATA sets it, or from `setCountries()` (index = cat index).
  */
 import {
   AdditiveBlending,
@@ -32,6 +36,7 @@ import {
 import { PALETTE, QUALITY } from '../config';
 import type { CrowdApi, CrowdFormation, FrameContext, QualityProfile, RaveCat, WorldApi } from '../types';
 import { buildCatGeometry } from './catGeometry';
+import { createFlagAtlas } from './flags';
 import { buildGrid, pickCat, type PickState } from './pick';
 import {
   BEAM_FRAGMENT,
@@ -61,7 +66,21 @@ const LOD_SECONDS = 0.25;
 /** "Not dropping": a start time far in the past. */
 const NO_DROP = -1e6;
 
-export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi {
+/** A cat that may carry its buyer's country (ISO 3166-1 alpha-2, L-DATA `countries.ts`). */
+export type FlagCat = RaveCat & { country?: string | null };
+
+/** CrowdApi plus the flag extras (kept here until types.ts gains them). */
+export interface CrowdWithFlags extends CrowdApi {
+  /**
+   * Buyer country per cat index (`'LT'`, null = no flag). Overrides `RaveCat.country`; entries past
+   * the end keep what `setCats` gave. Cheap to call on every orders change (only changes re-upload).
+   */
+  setCountries(countries: readonly (string | null | undefined)[]): void;
+  /** Cats on the floor holding a flag right now. */
+  readonly flagCount: number;
+}
+
+export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdWithFlags {
   let prof = profile;
   const group = new Group();
   group.name = 'crowd';
@@ -78,6 +97,12 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   let fur = new Float32Array(0);
   let scale = new Float32Array(0);
   let dropAt = new Float32Array(0);
+  /** Flag atlas cell per cat, −1 = no flag. */
+  let flagCell = new Float32Array(0);
+  /** Country per cat index from setCats (RaveCat.country) and setCountries (wins). */
+  let catCountry: (string | null)[] = [];
+  let overrideCountry: (string | null | undefined)[] = [];
+  const atlas = createFlagAtlas();
   let hiIndex: number | null = null;
   /** Cats highlighted from hiIndex on (a $5 payout made 5 cats: all of them glow). */
   let hiCount = 1;
@@ -114,6 +139,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     uGreen: { value: lin(PALETTE.floorGlow) },
     uFill: { value: lin(0x3dff6a) },
     uInnerEar: { value: lin(0xffa3bf) },
+    uFlags: { value: atlas.texture },
   };
   const jumpVec = shared.uJump.value as number[];
   let coneAmt = 0;
@@ -123,9 +149,10 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   const nearMat = new ShaderMaterial({ uniforms: withFog(shared), vertexShader: NEAR_VERTEX, fragmentShader: NEAR_FRAGMENT, fog: true });
   const farMat = new ShaderMaterial({ uniforms: withFog(shared), vertexShader: IMPOSTOR_VERTEX, fragmentShader: IMPOSTOR_FRAGMENT, fog: true });
   const catGeo = buildCatGeometry();
-  // Wide and tall enough for the raised paws (and the drop's wide V) plus their pink spill.
-  const impGeo = new PlaneGeometry(1.36, 1.42, 1, 1);
-  impGeo.translate(0, 0.65, 0);
+  // x -0.75..0.75, y -0.06..1.26: wide and tall enough for the flag (pole top 1.14, cloth out to
+  // x 0.49) with the flag arm's clamped swing (shaders.ts: outer top corner stays under x 0.65).
+  const impGeo = new PlaneGeometry(1.5, 1.32, 1, 1);
+  impGeo.translate(0, 0.6, 0);
 
   let near: InstancedMesh | null = null;
   let far: InstancedMesh | null = null;
@@ -133,13 +160,17 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   let nearData: InstancedBufferAttribute | null = null;
   let farSlot: InstancedBufferAttribute | null = null;
   let farData: InstancedBufferAttribute | null = null;
+  let nearFlag: InstancedBufferAttribute | null = null;
+  let farFlag: InstancedBufferAttribute | null = null;
 
   function makeMesh(geo: BufferGeometry, mat: ShaderMaterial, n: number, name: string) {
     const g = geo.clone();
     const slot = new InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(DynamicDrawUsage);
     const data = new InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(DynamicDrawUsage);
+    const flag = new InstancedBufferAttribute(new Float32Array(n).fill(-1), 1).setUsage(DynamicDrawUsage);
     g.setAttribute('aSlot', slot);
     g.setAttribute('aData', data);
+    g.setAttribute('aFlag', flag);
     const mesh = new InstancedMesh(g, mat, n);
     mesh.name = name;
     mesh.count = 0;
@@ -147,7 +178,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     // Far impostors stay out of the high tier's planar mirror pass (most of its triangles).
     mesh.userData.noMirror = name === 'crowd-far';
     group.add(mesh);
-    return { mesh, slot, data };
+    return { mesh, slot, data, flag };
   }
 
   /** Grow CPU arrays and GPU instance buffers to hold `n` cats. */
@@ -163,6 +194,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     fur = grow(fur, 0);
     scale = grow(scale, 1);
     dropAt = grow(dropAt, NO_DROP);
+    flagCell = grow(flagCell, -1);
     for (const m of [near, far]) {
       if (!m) continue;
       group.remove(m);
@@ -177,6 +209,8 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     far = fm.mesh;
     farSlot = fm.slot;
     farData = fm.data;
+    nearFlag = nm.flag;
+    farFlag = fm.flag;
     alloc = size;
   }
 
@@ -191,7 +225,8 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   let vortex = 0;
   let formation: CrowdFormation = 'floor';
 
-  function writeCat(slotArr: Float32Array, dataArr: Float32Array, k: number, i: number) {
+  function writeCat(slotArr: Float32Array, dataArr: Float32Array, flagArr: Float32Array, k: number, i: number) {
+    flagArr[k] = flagCell[i];
     const o = k * 4;
     slotArr[o] = layout.x[i];
     slotArr[o + 1] = layout.z[i];
@@ -230,7 +265,9 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   }
 
   function repack(cam: Vector3 | null) {
-    if (!near || !far || !nearSlot || !nearData || !farSlot || !farData) return;
+    if (!near || !far || !nearSlot || !nearData || !farSlot || !farData || !nearFlag || !farFlag) return;
+    const nf = nearFlag.array as Float32Array;
+    const ff = farFlag.array as Float32Array;
     const n = shown;
     const nearN = Math.min(prof.nearCats, n);
     const ns = nearSlot.array as Float32Array;
@@ -241,8 +278,8 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     let kf = 0;
     if (nearN >= n || !cam) {
       for (let i = 0; i < n; i++) {
-        if (kn < nearN) writeCat(ns, nd, kn++, i);
-        else writeCat(fs, fd, kf++, i);
+        if (kn < nearN) writeCat(ns, nd, nf, kn++, i);
+        else writeCat(fs, fd, ff, kf++, i);
       }
     } else {
       if (dist.length < n) {
@@ -259,11 +296,11 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
       scratch.set(dist.subarray(0, n));
       const thr = kth(scratch, n, nearN - 1);
       // Strictly closer first, then ties until the near set is full; the rest are impostors.
-      for (let i = 0; i < n; i++) if (dist[i] < thr) writeCat(ns, nd, kn++, i);
+      for (let i = 0; i < n; i++) if (dist[i] < thr) writeCat(ns, nd, nf, kn++, i);
       for (let i = 0; i < n; i++) {
         if (dist[i] < thr) continue;
-        if (dist[i] === thr && kn < nearN) writeCat(ns, nd, kn++, i);
-        else writeCat(fs, fd, kf++, i);
+        if (dist[i] === thr && kn < nearN) writeCat(ns, nd, nf, kn++, i);
+        else writeCat(fs, fd, ff, kf++, i);
       }
     }
     near.count = kn;
@@ -272,6 +309,8 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     nearData.needsUpdate = true;
     farSlot.needsUpdate = true;
     farData.needsUpdate = true;
+    nearFlag.needsUpdate = true;
+    farFlag.needsUpdate = true;
     lodDirty = false;
     lodAge = 0;
     if (cam) lastCam.copy(cam);
@@ -294,7 +333,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     depthWrite: false,
     fog: true,
   });
-  const holo = new Mesh(buildCatGeometry(), holoMat);
+  const holo = new Mesh(buildCatGeometry({ flag: false }), holoMat);
   holo.name = 'crowd-next-cat';
   holo.renderOrder = 2;
   group.add(holo);
@@ -488,6 +527,20 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     lodDirty = true;
   }
 
+  /** Re-resolve flag cells for the cats on the floor; marks the instance buffers dirty on change. */
+  function refreshFlags() {
+    let changed = false;
+    for (let i = 0; i < shown; i++) {
+      const o = overrideCountry[i];
+      const cell = atlas.cellOf(o !== undefined ? o : (catCountry[i] ?? null));
+      if (flagCell[i] !== cell) {
+        flagCell[i] = cell;
+        changed = true;
+      }
+    }
+    if (changed) lodDirty = true;
+  }
+
   const raycaster = new Raycaster();
   const ndc = new Vector2();
   const pickState: PickState = {
@@ -503,7 +556,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
   ensureAlloc(64);
   layoutNext();
 
-  const api: CrowdApi = {
+  const api: CrowdWithFlags = {
     get capacity() {
       return capacityNow();
     },
@@ -518,14 +571,30 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
       cats = next;
       const n = Math.min(cats.length, capacityNow());
       ensureAlloc(n);
+      catCountry = new Array(n);
       for (let i = 0; i < n; i++) {
         const s = cats[i].seed;
         const look = catLook(s);
         seed[i] = s;
         fur[i] = look.fur;
         scale[i] = look.scale;
+        catCountry[i] = (cats[i] as FlagCat).country ?? null;
       }
       setShown(n);
+      refreshFlags();
+    },
+
+    setCountries(countries) {
+      // Every orders poll sends the list again: skip the walk when nothing changed.
+      if (countries.length === overrideCountry.length && countries.every((c, i) => c === overrideCountry[i])) return;
+      overrideCountry = countries.slice();
+      refreshFlags();
+    },
+
+    get flagCount() {
+      let k = 0;
+      for (let i = 0; i < shown; i++) if (flagCell[i] >= 0) k++;
+      return k;
     },
 
     dropIn(index, delayS = 0) {
@@ -734,6 +803,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
     setQuality(p) {
       prof = p;
       setShown(Math.min(cats.length, capacityNow()));
+      refreshFlags();
     },
 
     dispose() {
@@ -745,6 +815,7 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdApi 
         m.dispose();
       }
       catGeo.dispose();
+      atlas.dispose();
       impGeo.dispose();
       holo.geometry.dispose();
       arrivingMat.dispose();

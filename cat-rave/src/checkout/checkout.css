@@ -339,6 +339,64 @@
 .rvc-xfield {
   position: relative;
 }
+/* Country picker ("Your flag"): only when the server could not tell the country from the IP. */
+.rvc-country {
+  margin: 0 0 14px;
+  min-width: 0;
+}
+.rvc-country[hidden] {
+  display: none;
+}
+.rvc-country-field {
+  position: relative;
+}
+.rvc-country-known {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(93, 255, 138, 0.3);
+  background: rgba(70, 255, 122, 0.06);
+}
+.rvc-country-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+}
+.rvc-country-show {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rvc-country-show input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff4f9e;
+}
+.rvc-country [hidden] {
+  display: none !important;
+}
+.rvc .rvc-country-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, #b8ffc8 50%), linear-gradient(135deg, #b8ffc8 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+.rvc-country-select option {
+  color: #0b1a10;
+  background: #eafff0;
+}
 .rvc-x-ico {
   position: absolute;
   left: 12px;
@@ -365,7 +423,7 @@
 /* ------------------------------------------------------------ tabs + panels */
 .rvc-tabs {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   padding: 4px;
   margin: 0 0 10px;
@@ -390,6 +448,52 @@
   background: linear-gradient(180deg, rgba(255, 95, 168, 0.35), rgba(255, 95, 168, 0.18));
   color: #fff !important;
   box-shadow: 0 0 16px rgba(255, 95, 168, 0.35);
+}
+/* Card | Crypto: name on top, what it covers below ("Apple Pay · Google Pay", "USDC on Arc"). */
+.rvc-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 50px;
+  padding: 4px 10px;
+  line-height: 1.15;
+}
+.rvc-tab-main,
+.rvc-tab-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rvc-tab-sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.rvc-tab[aria-disabled='true'] {
+  cursor: default;
+}
+.rvc-tab:focus-visible {
+  outline: 2px solid var(--rvc-pink);
+  outline-offset: 2px;
+}
+.rvc-tab.rvc-tab-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.rvc-tabs-note {
+  margin: -4px 0 10px;
+}
+.rvc-chain-fixed {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rvc-dim);
+  cursor: default;
+}
+.rvc-chain-fixed b {
+  color: #fff;
 }
 .rvc-panel {
   margin-bottom: 8px;
@@ -762,11 +866,6 @@
   border-color: rgba(93, 255, 138, 0.6);
   color: var(--rave-green, #5dff8a) !important;
 }
-.rvc-chip.rvc-tone-slow {
-  border-color: rgba(255, 207, 61, 0.6);
-  color: #ffe9a8 !important;
-}
-
 /* ------------------------------------------------------------ layout */
 @media (max-width: 360px) {
   .rvc-opt-big {
@@ -930,4 +1029,25 @@
 }
 .rvc-opt-fee[hidden] {
   display: none;
+}
+
+/* Wallet step: what the wallet is about to send. */
+.rvc-wallet-sum {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 10px 0 12px;
+  font-size: 13px;
+  text-align: left;
+}
+.rvc-wallet-sum dt {
+  color: var(--rvc-dim);
+}
+.rvc-wallet-sum dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rvc-msg a {
+  color: inherit;
+  text-decoration: underline;
 }

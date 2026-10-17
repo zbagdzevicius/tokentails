@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { RaveStatusOn } from './types';
 import { RaveApiError, createRaveApi, newClientKey, parseCheckout, parseOrder, parseStatus, toApiError } from './api';
 
 const ON = {
@@ -6,27 +7,52 @@ const ON = {
   livemode: false,
   publishableKey: 'pk_test_abc123',
   card: true,
-  usdc: { enabled: true, chains: [5042, 8453] },
+  usdc: { enabled: true, chains: [5042] },
   prices: { fixed: [1, 5], customMin: 10, max: 500 },
   fee: { percentBps: 290, fixedCents: 30 },
-  payoutsDelayed: false,
 };
 
 const res = (status: number, body: unknown) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response;
 
 describe('parseStatus', () => {
+  const on = (body: unknown): RaveStatusOn => {
+    const st = parseStatus(body);
+    if (!st.enabled) throw new Error(`expected on, got ${st.reason}`);
+    return st;
+  };
   it('passes a good status through', () => {
-    expect(parseStatus(ON)).toEqual(ON);
+    expect(parseStatus(ON)).toEqual({ ...ON, reasons: { card: null, usdc: null } });
   });
-  it('not ready, missing key, bad key, zero cap → enabled false', () => {
+  it('not ready, zero cap, nothing open → enabled false', () => {
     expect(parseStatus({ enabled: false, reason: 'keeper' })).toEqual({ enabled: false, reason: 'keeper' });
     expect(parseStatus(null)).toEqual({ enabled: false, reason: 'unknown' });
-    expect(parseStatus({ ...ON, publishableKey: 'sk_live_x' })).toMatchObject({ enabled: false });
     expect(parseStatus({ ...ON, prices: { ...ON.prices, max: 0 } })).toEqual({ enabled: false, reason: 'cap' });
+    expect(parseStatus({ ...ON, publishableKey: 'sk_live_x', usdc: { enabled: false, chains: [] } })).toEqual({ enabled: false, reason: 'stripe' });
+    expect(parseStatus({ ...ON, card: false, publishableKey: undefined, usdc: { enabled: false, chains: [] }, reasons: { card: 'keeper' } })).toEqual({ enabled: false, reason: 'keeper' });
   });
-  it('usdc is off without chains', () => {
-    expect(parseStatus({ ...ON, usdc: { enabled: true, chains: [] } }).enabled && (parseStatus({ ...ON, usdc: { enabled: true, chains: [] } }) as typeof ON).usdc.enabled).toBe(false);
+  it('crypto alone opens the sheet: card false needs no publishable key', () => {
+    const st = on({ ...ON, card: false, publishableKey: undefined, reasons: { card: 'stripe' } });
+    expect(st.card).toBe(false);
+    expect(st.publishableKey).toBeNull();
+    expect(st.usdc).toEqual({ enabled: true, chains: [5042] });
+    expect(st.reasons).toEqual({ card: 'stripe', usdc: null });
+  });
+  it('a bad key closes card only', () => {
+    const st = on({ ...ON, publishableKey: 'sk_live_x' });
+    expect(st).toMatchObject({ card: false, publishableKey: null, reasons: { card: 'stripe', usdc: null } });
+  });
+  it('card alone opens the sheet; usdc is off without chains', () => {
+    const st = on({ ...ON, usdc: { enabled: true, chains: [] } });
+    expect(st.card).toBe(true);
+    expect(st.usdc.enabled).toBe(false);
+    expect(st.reasons.usdc).toBe('off');
+  });
+  it('crypto is Arc only: other chains are dropped, a non-Arc list closes crypto', () => {
+    expect(on({ ...ON, usdc: { enabled: true, chains: [8453, 5042, 42161, 5042002] } }).usdc.chains).toEqual([5042, 5042002]);
+    const st = on({ ...ON, usdc: { enabled: true, chains: [8453, 42161] } });
+    expect(st.usdc).toEqual({ enabled: false, chains: [] });
+    expect(st.reasons.usdc).toBe('chain');
   });
 });
 
@@ -97,5 +123,23 @@ describe('createRaveApi', () => {
   });
   it('makes UUID client keys', () => {
     expect(newClientKey()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+});
+
+describe('parseStatus with the backend shape', () => {
+  it('reads cardReason (and reasons) so the buyer sees why card is closed', () => {
+    const body = {
+      enabled: true,
+      livemode: true,
+      card: false,
+      cardReason: 'keeper',
+      usdc: { enabled: true, chains: [5042] },
+      prices: { fixed: [1, 5], customMin: 10, max: 100 },
+      fee: { percentBps: 290, fixedCents: 30 },
+    };
+    const s = parseStatus(body);
+    expect(s.enabled && s.reasons.card).toBe('keeper');
+    const s2 = parseStatus({ ...body, cardReason: undefined, reasons: { card: 'cap' } });
+    expect(s2.enabled && s2.reasons.card).toBe('cap');
   });
 });

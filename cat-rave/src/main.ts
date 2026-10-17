@@ -17,13 +17,15 @@ import { createRaveApi } from './checkout/api';
 import { createArrivalsList } from './checkout/arrivals';
 import { forgetMyOrder, readMyOrderIds } from './checkout/myorders';
 import { mountCheckout } from './checkout/sheet';
+import { countryLeaderboard, fetchGeoCountry } from './data/countries';
 import { API_BY_HOST, LAYOUT, LINKS, QUALITY, SHOTS } from './config';
-import { createCrowd } from './crowd';
+import { createCrowd, type CrowdWithFlags } from './crowd';
 import { createPayoutFeed, safeHttpsUrl, treatAllowedHere, treatStatus } from './data';
+import { createFloor } from './data/floor';
 import { createRaveOrders, type NameShoutout } from './data/rave-orders';
 import { createOwnTag } from './ui/ownTag';
 import { createDj } from './dj';
-import type { BeatEventPayload, CrowdApi, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, Section, WorldApi } from './types';
+import type { BeatEventPayload, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, RaveCat, Section, WorldApi } from './types';
 import { createDirector } from './ui/director';
 import { counterText, formatUsd, shareText, shoutFor } from './ui/format';
 import { COUNT_UP_MS, createHud, type TreatMode } from './ui/hud';
@@ -32,6 +34,15 @@ import { parseParams } from './ui/params';
 import { FrameGovernor, pickQuality, readDeviceHints, stepDown } from './ui/quality';
 import { composePicture, savePicture, shareLink, shareUrl } from './ui/share';
 import { createWorld } from './world';
+
+/** localStorage, or null where it throws (private windows, blocked site data). */
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function apiBase(override: string | null): string | null {
   if (override) return override;
@@ -144,7 +155,7 @@ async function boot() {
 
   const storedMute = store.get('rave:muted') === '1';
   const clock = createBeatClock({ muted: params.mute || storedMute || og });
-  const crowd: CrowdApi = createCrowd(world, profile);
+  const crowd: CrowdWithFlags = createCrowd(world, profile);
   setBoot('waking the kittens', 0.55);
   await nextFrame();
   const dj = createDj(world, clock, profile);
@@ -180,21 +191,65 @@ async function boot() {
   let snapshot: PayoutSnapshot | null = null;
   let pinned: number | null = null;
   // Treats sent from this page and not yet in the index: the feed matches them by tx hash and
-  // forgets them after 10 minutes, so an unrelated payout never clears "treat on its way".
+  // forgets them after 10 minutes, so an unrelated payout never clears the counted treat.
   let pending = 0;
-  const applySnapshot = (s: PayoutSnapshot) => {
+  // The floor = feed cats + paid orders' cats ahead of their payout (src/data/floor.ts).
+  const danceFloor = createFloor(orders);
+  /** Cats on the floor after the last apply (−1 = none yet); growth past it is celebrated. */
+  let floorCount = -1;
+  /** Until the first orders read: paid orders it brings are already dancing, not new. */
+  let floorQuiet = true;
+  /** The order this viewer just paid (the receipt's "Watch" flies to its first cat). */
+  let lastPaidOrder: string | null = null;
+  const applySnapshot = (input: PayoutSnapshot) => {
+    const { snapshot: s, fresh } = danceFloor.apply(input);
     pending = s.demo ? 0 : feed.pendingUsdMicro;
     snapshot = s;
     crowd.setCats(s.catList.slice(0, crowd.capacity));
+    syncFlags();
     crowd.setNextCat(s.demo ? 0 : Math.min(0.999, s.progressToNext + pending / 1_000_000));
     hud.setSnapshot(s);
     hud.setPending(pending);
     hud.setCapacity(crowd.capacity);
+    const prev = floorCount;
+    floorCount = s.catList.length;
+    if (prev >= 0 && !floorQuiet && !s.demo && fresh.length) celebrate(fresh, s);
+  };
+
+  /**
+   * Flags: each real cat holds its buyer's country (rave orders); DEMO cats keep the sample country
+   * the snapshot gave them (undefined = keep). The leaderboard is the orders' board, or a DEMO board.
+   */
+  const syncFlags = () => {
+    const s = snapshot;
+    if (!s) return;
+    // crowd.setCountries skips the walk when the list did not change (every orders poll lands here).
+    crowd.setCountries(s.catList.slice(0, crowd.capacity).map((c) => (c.demo ? undefined : (orders.namesForCat(c)?.country ?? null))));
+    const real = orders.countries();
+    if (!s.demo) {
+      hud.setCountries(real);
+      return;
+    }
+    // DEMO: the real buyers' countries plus the demo cats' sample ones, marked DEMO.
+    const board = countryLeaderboard([
+      ...real.rows.map((r) => ({ country: r.code, cats: r.cats, landed: r.landed > 0 })),
+      { country: null, cats: real.unknownCats },
+      ...s.catList.filter((c) => c.demo).map((c) => ({ country: c.country, cats: 1 })),
+    ]);
+    hud.setCountries({ ...board, demo: true });
   };
 
   /** Every cat one payout made (a $5 gift = 5 cats) glows, not only the one tapped. */
   const siblingRange = (index: number): { start: number; count: number } => {
     const cat = snapshot?.catList[index];
+    if (cat?.order && snapshot) {
+      // A paid order's cats dancing ahead of its payout sit side by side: all of them glow.
+      const id = cat.order.id;
+      const start = index - cat.order.position;
+      let count = 0;
+      while (snapshot.catList[start + count]?.order?.id === id) count++;
+      return { start, count: Math.max(1, Math.min(count, crowd.capacity - start)) };
+    }
     const sibs = cat?.payout ? feed.catsForTx(cat.payout.txHash) : [];
     if (sibs.length < 2) return { start: index, count: 1 };
     const start = sibs[0].index;
@@ -206,8 +261,8 @@ async function boot() {
     pinnedShot = director.shot;
     const cat = snapshot?.catList[index];
     if (!cat) return;
-    const siblings = cat.payout ? feed.catsForTx(cat.payout.txHash).length : 1;
     const range = siblingRange(index);
+    const siblings = cat.payout ? feed.catsForTx(cat.payout.txHash).length : cat.order ? range.count : 1;
     pinned = index;
     if (opts.fly) director.focusCat(index);
     crowd.highlight(range.start, range.count);
@@ -235,6 +290,11 @@ async function boot() {
     const num = q.match(/^(?:cat\s*)?#?\s*(\d{1,7})$/i);
     const isTx = /^(0x)?[0-9a-f]{8,64}$/i.test(q);
     if (!num && !isTx) return { ok: false, message: help };
+    const ahead = num ? snapshot?.catList[Number(num[1]) - 1] : undefined;
+    if (ahead?.order && ahead.index < crowd.capacity) {
+      focusCatIndex(ahead.index, { fly: true });
+      return { ok: true, message: `Found cat #${ahead.index + 1}!` };
+    }
     const cat = feed.findCat(q);
     if (!cat) {
       if (num) return { ok: false, message: `There is no cat #${Number(num[1]).toLocaleString('en-US')} yet.` };
@@ -250,7 +310,7 @@ async function boot() {
         }
         return { ok: true, message: msg };
       }
-      return { ok: false, message: 'No cat for that tx yet. New payouts take about 2 minutes to reach the index.' };
+      return { ok: false, message: 'No cat for that tx yet. Try again once the payout is confirmed on-chain.' };
     }
     if (cat.index >= crowd.capacity) return { ok: false, message: `Cat #${cat.index + 1} is dancing off-screen (beyond what this device draws).` };
     focusCatIndex(cat.index, { fly: true });
@@ -321,7 +381,7 @@ async function boot() {
       if (r.ok) {
         if (snapshot) applySnapshot(snapshot);
         const href = safeHttpsUrl(r.explorerUrl);
-        hud.shout('Treat sent! 🍬 On its way to the floor', href ? { href, label: 'tx ↗' } : undefined);
+        hud.shout('Treat sent! 🍬 It counts toward the next cat', href ? { href, label: 'tx ↗' } : undefined);
         crowd.pulsePaws(1);
         flash('pink', 0.6);
       }
@@ -334,7 +394,7 @@ async function boot() {
     },
     nameFor(cat) {
       const n = orders.namesForCat(cat);
-      return n ? { name: n.name, x: n.x, xUrl: n.xUrl } : null;
+      return n ? { name: n.name, x: n.x, xUrl: n.xUrl, country: n.country } : null;
     },
   });
   const badge = createArcBadge();
@@ -385,9 +445,9 @@ async function boot() {
   // about new money wait for the counter's count-up, so the text never runs ahead of the number.
   let newCatGlow = 0;
   const NEW_CAT_GLOW_MS = 10_000;
-  feed.subscribe((next, diff) => {
-    applySnapshot(next);
-    const landed = diff.newCats.filter((c) => c.index < crowd.capacity);
+  /** New cats on the floor (payouts or paid orders, counted once): drop in, glow, shout. */
+  function celebrate(newCats: readonly RaveCat[], next: PayoutSnapshot) {
+    const landed = newCats.filter((c) => c.index < crowd.capacity);
     if (landed.length && pinned === null && director.focused === null && !next.demo) {
       const first = landed[0];
       director.landing(first.index, 6 + Math.min(landed.length, 8) * 0.28);
@@ -404,21 +464,25 @@ async function boot() {
     const last = landed[landed.length - 1];
     const tmp = new Vector3();
     if (last && crowd.catPosition(last.index, tmp)) dj.pointAt(tmp);
-    if (diff.newCats.length) {
-      const first = diff.newCats[0];
-      const n = diff.newCats.length;
-      // A Moon Rave order's cats land under the buyer's names ("Mochi just landed! 🪩",
-      // "Mochi + 4 friends landed!"), in the DJ bubble and the toast alike; other payouts keep "Cat #N".
-      const named = orders.namesForCat(first)?.name ?? null;
-      const landedLine = named ? (n > 1 ? `${named} + ${n - 1} ${n - 1 === 1 ? 'friend' : 'friends'} landed! 🪩` : `${named} just landed! 🪩`) : null;
-      dj.shout(landedLine ?? (n > 1 ? `${n} new cats! Paws up!` : `Cat #${first.index + 1} just landed!`));
-      clock.meow(n > 1 ? 84 : 81);
-      hud.celebrateCats(n);
-      const text = landedLine ?? (n > 1 ? `${n} new cats just landed! Cat #${first.index + 1}–#${first.index + n}` : shoutFor(first));
-      setTimeout(() => hud.shout(text), COUNT_UP_MS);
-      clock.queueDrop('new-cat');
-      flash('green', 0.8);
-    } else if (diff.newPayouts.length) {
+    const first = newCats[0];
+    const n = newCats.length;
+    // A Moon Rave order's cats land under the buyer's names ("Mochi just landed! 🪩",
+    // "Mochi + 4 friends landed!"), in the DJ bubble and the toast alike; other payouts keep "Cat #N".
+    const named = orders.namesForCat(first)?.name ?? null;
+    const landedLine = named ? (n > 1 ? `${named} + ${n - 1} ${n - 1 === 1 ? 'friend' : 'friends'} landed! 🪩` : `${named} just landed! 🪩`) : null;
+    dj.shout(landedLine ?? (n > 1 ? `${n} new cats! Paws up!` : `Cat #${first.index + 1} just landed!`));
+    clock.meow(n > 1 ? 84 : 81);
+    hud.celebrateCats(n);
+    const text = landedLine ?? (n > 1 ? `${n} new cats just landed! Cat #${first.index + 1}–#${first.index + n}` : shoutFor(first));
+    setTimeout(() => hud.shout(text), COUNT_UP_MS);
+    clock.queueDrop('new-cat');
+    flash('green', 0.8);
+  }
+  feed.subscribe((next, diff) => {
+    // applySnapshot celebrates the floor's growth. A paid order's payout landing makes no new cats
+    // (its cats were already dancing) and no "+$ landed" line either: that money was counted.
+    applySnapshot(next);
+    if (!diff.newCats.length && diff.newPayouts.length) {
       const micro = diff.newPayouts.reduce((n, p) => n + p.usdMicro, 0);
       setTimeout(() => hud.shout(`+${formatUsd(micro)} just landed for the shelter`), COUNT_UP_MS);
       crowd.pulsePaws(0.7);
@@ -427,19 +491,34 @@ async function boot() {
   feed.startPolling();
 
   // ------------------------------------------------------------------ Moon Rave orders (names, holograms)
-  // Paid orders whose payout is not in the feed yet stand on the floor as pink holograms (never
-  // counted); when the payout lands they become real cats and the DJ shouts out their names.
-  const arrivals = createArrivalsList({ title: 'Arriving now', max: 6 });
+  // A paid order's cats dance right away (floorOf) and the DJ shouts out their names; the payout
+  // to Pink Paw later takes their place one for one. Orders still confirming (a USDC tx being
+  // checked) stand on the floor as pink holograms, never counted.
+  const arrivals = createArrivalsList({ title: 'Just joined', max: 6 });
   if (!params.embed && !og) hud.mountArrivals(arrivals.el);
-  // The viewer's own arriving hologram carries a floating name tag (the first one, if several).
+  // The viewer's own cat carries a floating name tag: its confirming hologram, else its newest cat.
   const ownTag = createOwnTag(hudRoot);
   let ownK = -1;
+  let ownCat = -1;
+  /** Floor index of the first cat of an order (ahead of its payout or from it), else −1. */
+  const firstCatOf = (orderId: string): number => {
+    const list = snapshot?.catList ?? [];
+    for (let i = 0; i < list.length; i++) if (orders.namesForCat(list[i])?.orderId === orderId) return i;
+    return -1;
+  };
+  const ownPosition = (out: Vector3): Vector3 | null => {
+    if (ownK >= 0) return crowd.arrivingPosition(ownK, out);
+    return ownCat >= 0 && ownCat < crowd.capacity ? crowd.catPosition(ownCat, out) : null;
+  };
   // "dancing" rows leave the list DANCING_ROW_MS after they landed, so it does not keep growing.
   const DANCING_ROW_MS = 30_000;
   const landedSeen = new Map<string, number>();
   let collapseTimer = 0;
   const syncOrders = () => {
     crowd.setArriving(orders.arriving().count);
+    // The floor follows the orders too (a paid order's cats join it now): applySnapshot also syncs flags.
+    if (feed.current) applySnapshot(feed.current);
+    else syncFlags();
     const nowMs = Date.now();
     let nextCollapse = Infinity;
     const rows = orders.recent(12).filter((r) => {
@@ -458,15 +537,33 @@ async function boot() {
     const names = shown ? orders.arrivingNames(shown) : [];
     ownK = names.findIndex((n) => orders.order(n.orderId)?.mine);
     const own = ownK >= 0 ? names[ownK] : null;
-    ownTag.set(own ? (own.name ?? 'Your cat') : null, own ? (orders.order(own.orderId)?.cats ?? 1) : 1);
+    ownCat = -1;
+    if (own) ownTag.set(own.name ?? 'Your cat', orders.order(own.orderId)?.cats ?? 1, 'confirming');
+    else {
+      // Newest own cat on the floor (the list is oldest first; a fresh purchase sits at the end).
+      const list = snapshot?.catList ?? [];
+      let hit: ReturnType<typeof orders.namesForCat> = null;
+      for (let i = list.length - 1; i >= 0 && !hit; i--) {
+        const n = list[i].order || list[i].payout ? orders.namesForCat(list[i]) : null;
+        if (n && orders.order(n.orderId)?.mine) {
+          hit = n;
+          ownCat = i - n.position;
+        }
+      }
+      ownTag.set(hit ? (catNameOf(hit.orderId) ?? 'Your cat') : null, hit ? (orders.order(hit.orderId)?.cats ?? 1) : 1);
+    }
+  };
+  const catNameOf = (orderId: string) => {
+    const i = firstCatOf(orderId);
+    return i >= 0 && snapshot ? (orders.namesForCat(snapshot.catList[i])?.name ?? null) : null;
   };
   orders.subscribe(syncOrders);
   // Tapping your own row in the arrivals list: the DJ points at your hologram and its tag pulses.
   arrivals.el.addEventListener('click', (ev) => {
     const row = (ev.target as HTMLElement | null)?.closest?.('.rvc-arr-mine');
-    if (!row || (ev.target as HTMLElement).closest('a') || ownK < 0) return;
+    if (!row || (ev.target as HTMLElement).closest('a') || (ownK < 0 && ownCat < 0)) return;
     const tmp = new Vector3();
-    if (crowd.arrivingPosition(ownK, tmp)) dj.pointAt(tmp);
+    if (ownPosition(tmp)) dj.pointAt(tmp);
     ownTag.pulse();
   });
   /** Name, X and status of arriving hologram `k` (newest order first, like crowd.pickArriving). */
@@ -474,7 +571,7 @@ async function boot() {
     const n = orders.arrivingNames(Math.max(k + 1, crowd.arrivingShown))[k];
     if (!n) return null;
     const view = orders.arriving().orders.find((o) => o.orderId === n.orderId);
-    return { name: n.name, x: n.x, xUrl: n.xUrl, status: view?.status ?? 'paid', delayed: view?.delayed ?? false };
+    return { name: n.name, x: n.x, xUrl: n.xUrl, country: n.country, status: view?.status ?? 'pending' };
   };
   const shoutNames = (e: NameShoutout) => {
     // The canvas bubble takes plain text; the HUD toast gets the buyer's X as a real link (ugc rel).
@@ -487,32 +584,50 @@ async function boot() {
       else hud.shout(names);
     }, COUNT_UP_MS + 3800);
     const tmp = new Vector3();
-    const cat = e.cats[0];
-    if (cat && cat.index < crowd.capacity && crowd.catPosition(cat.index, tmp)) dj.pointAt(tmp);
+    const at = e.cats[0]?.index ?? firstCatOf(e.order.orderId);
+    if (at >= 0 && at < crowd.capacity && crowd.catPosition(at, tmp)) dj.pointAt(tmp);
     clock.meow(86);
   };
   orders.onLanded(shoutNames);
   void orders.load().then(() => {
     syncOrders();
+    // From here on, growth of the floor is new cats (paid orders included) and gets its drop-in.
+    floorQuiet = false;
     orders.startPolling();
   });
 
-  // In-page checkout: only when GET /rave/status says enabled; otherwise today's Add-a-cat sheet.
+  // In-page checkout when GET /rave/status opens card or crypto (USDC on Arc); otherwise today's Add-a-cat sheet.
   void raveStatus?.then((st) => {
     if (!st.enabled || !raveApi) return;
     hud.setCheckout((host) =>
       mountCheckout(host, {
         api: raveApi,
         status: st,
+        // The IP country hides the "Your flag" picker; asked once, when the sheet first opens.
+        country: st.country !== undefined ? st.country : fetchGeoCountry(api),
+        storage: safeLocalStorage(),
         onPaid(o) {
+          // A paid card order dances now (the floor grows, so the drop-in and the DJ's shout-out run);
+          // a USDC order waits as a hologram for the few seconds its tx takes to check.
+          lastPaidOrder = o.orderId;
+          floorQuiet = false;
           orders.track(o.answer, o.status === 'paid' ? 'paid' : 'pending');
-          syncOrders();
-          dj.shout(o.cats > 1 ? `${o.cats} cats on their way! 🛸` : `${o.names[0] ?? 'A new cat'} is on the way! 🛸`, 4);
           crowd.pulsePaws(1);
           flash('pink', 0.7);
         },
+        onOrderUpdate(row) {
+          // The receipt's fast poll saw the payment confirm: pull the order in now, not on the next poll.
+          const known = orders.order(row.orderId)?.status;
+          if ((row.status === 'paid' || row.status === 'review' || row.status === 'onchain') && known !== 'paid' && known !== 'onchain') void orders.refresh();
+        },
         onDone() {
           hud.closeSheet();
+          // Fly to the buyer's own cat (dancing already, or its hologram while it confirms).
+          const at = lastPaidOrder ? firstCatOf(lastPaidOrder) : -1;
+          if (at >= 0 && at < crowd.capacity) {
+            focusCatIndex(at, { fly: true });
+            return;
+          }
           const tmp = new Vector3();
           if (crowd.arrivingShown && crowd.arrivingPosition(0, tmp)) dj.pointAt(tmp);
         },
@@ -522,7 +637,7 @@ async function boot() {
 
   // ------------------------------------------------------------------ ad space
   // Live ads always show (GET /rave/ads); empty slots, "Advertise" and the buy sheet only while
-  // GET /rave/ads/status says enabled (Stripe keys, webhook secret and, with a shelter share, the keeper are ready).
+  // GET /rave/ads/status says enabled: card (Stripe keys) or crypto (USDC on Arc to the treasury) is open.
   const adsApi = api && !og ? createAdsApi({ base: api }) : null;
   let liveAds: LiveAd[] = [];
   let adSheet: MountedAdSheet | null = null;
@@ -787,6 +902,23 @@ async function boot() {
     if (snapshot) applySnapshot(snapshot);
   };
 
+  let yieldTick = 0;
+  const yielded = new Set<Element>();
+  const yieldHud = () => {
+    const rects = adBoards.liveRects(director.camera, window.innerWidth, window.innerHeight);
+    const next = new Set<Element>();
+    if (rects.length && !hud.sheetOpen) {
+      for (const el of hudRoot.querySelectorAll('.rv-counter, .rv-side, .rv-arrivals, .rv-arc-badge, .rv-sponsors-slot')) {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        if (rects.some((a) => a.x0 < r.right && r.left < a.x1 && a.y0 < r.bottom && r.top < a.y1)) next.add(el);
+      }
+    }
+    for (const el of yielded) if (!next.has(el)) el.classList.remove('rv-yield');
+    for (const el of next) el.classList.add('rv-yield');
+    yielded.clear();
+    for (const el of next) yielded.add(el);
+  };
   const ownTagPos = new Vector3();
   const t0 = performance.now();
   let last = t0;
@@ -808,7 +940,10 @@ async function boot() {
     dj.update(f);
     director.update(f);
     adBoards.update(f.time, director.camera, world.moonCenter);
-    ownTag.update(director.camera, ownK >= 0 ? crowd.arrivingPosition(ownK, ownTagPos) : null, window.innerWidth, window.innerHeight);
+    // A paid ad never stays under the HUD: a few times a second, any HUD block over a live ad's screen
+    // rectangle fades (CSS .rv-yield) until the camera moves on.
+    if (++yieldTick % 12 === 0) yieldHud();
+    ownTag.update(director.camera, ownPosition(ownTagPos), window.innerWidth, window.innerHeight);
     // A tapped cat's card closes on the next camera cut (find fly-tos hold the camera, so no cut).
     if (pinned !== null && director.focused === null && director.shot !== pinnedShot) closePinned();
     world.render(director.camera);

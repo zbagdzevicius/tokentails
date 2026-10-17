@@ -1,8 +1,9 @@
 /**
  * The "MOON RAVE · LIVE ON Arc · THIS WEEK" HUD badge: a neon frame with our wordmark, "LIVE ON" and the
- * official white Arc logo on a dark plate on one line, and "THIS WEEK" under it. Desktop: a column under
- * the tool buttons. Phone (< 760 px): a one-line pill about 32 px tall in the top-left stats block
- * ("● LIVE ON Arc · this week", hud.ts places it), so it never covers Add a cat or the arrivals list.
+ * official white Arc logo on a dark plate. Wide desktops (>= 1180 px): the bottom-right corner above the
+ * hint (under or beside the tool buttons it covered the right moon-ring ad slot). Narrower screens:
+ * a one-line pill about 32 px tall in the top-left stats block ("● LIVE ON Arc · this week", hud.ts places
+ * it), so it never covers Add a cat, the arrivals list or an ad slot.
  *
  * The phone pill spells "Arc" in text instead of the logo: Arc's logo guidelines (v1.0, 08.2025, section
  * 3.3) set a 50 px minimum height, which a 32 px pill cannot hold. The logo itself stays unmodified: the

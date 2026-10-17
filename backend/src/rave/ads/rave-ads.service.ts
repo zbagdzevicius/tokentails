@@ -8,6 +8,9 @@ import {
     CryptoCheckout,
     CryptoCheckoutDocument,
 } from 'src/payments/crypto/crypto-checkout.schema';
+import { CryptoChainReader } from 'src/payments/crypto/crypto-chain-reader';
+import { checkPayment } from 'src/payments/crypto/crypto-evm';
+import { cryptoPayChain } from 'src/payments/crypto/crypto-chains';
 import { readCryptoPayConfig } from 'src/payments/crypto/crypto-pay.config';
 import { CryptoShelterShareService, shelterShareNetworkOk } from 'src/payments/crypto/crypto-shelter-share.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
@@ -18,12 +21,14 @@ import { hotWalletAddress } from 'src/shelter/onchain/shelter-chain';
 import { isTestnetChain, readShelterConfig } from 'src/shelter/onchain/shelter-onchain.config';
 import Stripe from 'stripe';
 import { RAVE_SYSTEM_USER } from '../rave.service';
+import { checkRaveStripeAccount, noteRaveStripeError, raveStripeBroken } from '../rave-stripe-health';
 import { normalizeXHandle } from '../rave-names';
 import { reverseShare, shrinkShare } from '../rave-share';
 import { raveAdQuote, raveAdShelterCents, RaveAdsConfig, readRaveAdsConfig } from './rave-ads.config';
+import { RaveAdUsdc, raveAdAmountKey, raveAdUsdcAmount, raveAdUsdcTarget, RaveAdUsdcTarget } from './rave-ads.crypto';
 import { RAVE_AD_ERRORS } from './rave-ads.errors';
 import { AdImageError, sanitizeAdImage } from './rave-ads.image';
-import { RaveAd, RaveAdDocument, RaveAdStatus } from './rave-ads.schema';
+import { RaveAd, RaveAdDocument, RaveAdMethod, RaveAdRefund, RaveAdStatus } from './rave-ads.schema';
 import { RAVE_AD_SLOTS, raveAdSlot, RaveAdSlotKind } from './rave-ads.slots';
 import { normalizeAdName, normalizeAdUrl } from './rave-ads.validation';
 
@@ -34,6 +39,11 @@ import { normalizeAdName, normalizeAdUrl } from './rave-ads.validation';
  * the rave checkout). The slot is held for RAVE_AD_HOLD_MINUTES (15) from checkout; a unique index on
  * `slotLock` means it is never sold twice at once. A paid ad waits for an admin: approve makes it live for
  * RAVE_AD_DAYS (30), reject refunds it through Stripe and frees the slot. GET /rave/ads lists live ads only.
+ *
+ * Crypto (USDC on Arc only, rave-ads.crypto.ts): the same hold, then the buyer's wallet sends the exact
+ * tagged amount to the Token Tails treasury and POSTs the tx hash (POST /rave/ads/:adId/usdc-tx); the
+ * receipt is read (read-only) and the ad moves `held → review` like a card payment. A rejected USDC ad, or
+ * one paid after its slot was taken, is refunded by hand to the paying wallet (`refund.state: manual`).
  *
  * Ad money is Token Tails revenue. RAVE_AD_SHELTER_BPS (default 0) queues that share of an approved ad's
  * price for Pink Paw as an ordinary shelter-share keeper row (memo `tt:ravead:<16 hex>`), the payout path of
@@ -57,10 +67,24 @@ export const RAVE_AD_HOLDS_SHARED = 10;
 /** An expired hold keeps its private image this long: a payment racing the expiry can re-take the slot. */
 export const RAVE_AD_IMAGE_GRACE_MS = 60 * 60 * 1000;
 const IMAGE_DROP_STATUSES: RaveAdStatus[] = ['canceled', 'ended', 'rejected', 'refunded', 'expired'];
+const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+/** Least time between two receipt reads of one reported USDC ad from GET /rave/ads/:adId. */
+export const RAVE_AD_USDC_POLL_MS = 10 * 1000;
+/** A reported tx with no receipt after this long is dropped, so the buyer can report the right one. */
+export const RAVE_AD_USDC_GIVE_UP_MS = 30 * 60 * 1000;
+/** A paying transfer may be mined at most this long before the ad was created (clock skew). */
+const RAVE_AD_USDC_SKEW_S = 5 * 60;
+/** A reported tx keeps a held ad's slot at least this long (the transfer may still be mining). */
+export const RAVE_AD_USDC_REPORT_HOLD_MS = 10 * 60 * 1000;
+/** An unpaid USDC ad's amount tag is freed this long after its hold ended (as RESERVATION_GRACE_MS). */
+export const RAVE_AD_USDC_TAG_GRACE_MS = 24 * 60 * 60 * 1000;
+/** Tries to find a free amount tag before giving up (9,999 tags per chain and token). */
+const RAVE_AD_TAG_TRIES = 8;
 
 export const raveAdMemo = (adId: string) => `tt:ravead:${adId.slice(3)}`;
 
-export type RaveAdsOffReason = 'stripe' | 'mode' | 'keeper';
+/** `chain`: no Arc USDC treasury on the checkout network (the crypto tab only). */
+export type RaveAdsOffReason = 'stripe' | 'mode' | 'keeper' | 'chain';
 
 export interface RaveAdsSlotState {
     slotId: string;
@@ -74,7 +98,15 @@ export interface RaveAdsStatus {
     enabled: boolean;
     reason?: RaveAdsOffReason;
     livemode?: boolean;
+    /** Only while the card tab is open. */
     publishableKey?: string;
+    card?: boolean;
+    /** Why the card tab is closed while crypto is open. */
+    cardReason?: RaveAdsOffReason;
+    /** Why each closed tab is closed (`card` repeats cardReason). */
+    reasons?: { card?: RaveAdsOffReason; usdc?: RaveAdsOffReason };
+    /** Crypto: USDC on Arc only (`chains` is `[5042]` on mainnet, `[5042002]` on testnet). */
+    usdc?: { enabled: boolean; chains: number[] };
     priceCents?: number;
     fee?: { percentBps: number; fixedCents: number };
     holdMinutes?: number;
@@ -89,6 +121,8 @@ export interface RaveAdCheckoutBody {
     url?: unknown;
     x?: unknown;
     coverFee?: unknown;
+    /** `card` (default) or `usdc`. */
+    method?: unknown;
     clientKey?: unknown;
 }
 
@@ -115,6 +149,21 @@ export interface RaveAdBuyerView {
     amountCents: number;
     holdUntil: string | null;
     liveUntil: string | null;
+    method: RaveAdMethod;
+    /** USDC ads: what to send (exact `amount` base units of `token` to `recipient` on `chainId`) and the tx. */
+    usdc: RaveAdUsdcView | null;
+    /** Set once a refund is due, done, failed, or (USDC) to be sent by hand. */
+    refund: { state: RaveAdRefund['state']; reason: string } | null;
+}
+
+export interface RaveAdUsdcView {
+    chainId: number;
+    token: string;
+    decimals: number;
+    recipient: string;
+    amount: string;
+    txHash: string | null;
+    payer: string | null;
 }
 
 export interface RaveAdCheckoutResponse extends RaveAdBuyerView {
@@ -177,12 +226,14 @@ export class RaveAdsService {
     io: RaveAdsIo = defaultRaveAdsIo;
     private listCache: { at: number; value: { asOf: string; ads: RavePublicAd[] } } | null = null;
     private readonly lastStripePoll = new Map<string, number>();
+    private readonly lastUsdcPoll = new Map<string, number>();
 
     constructor(
         @InjectModel(RaveAd.name) private ads: Model<RaveAdDocument>,
         @InjectModel(CryptoCheckout.name) private checkouts: Model<CryptoCheckoutDocument>,
         private stripePayments: StripePaymentService,
-        @Optional() private shares?: CryptoShelterShareService
+        @Optional() private shares?: CryptoShelterShareService,
+        @Optional() private reader?: CryptoChainReader
     ) {}
 
     private get stripe(): Stripe {
@@ -191,32 +242,49 @@ export class RaveAdsService {
 
     // ------------------------------------------------------------------ status
 
+    /** Why the CARD tab is closed, or null. No webhook secret needed (the Events API pull confirms payments). */
     readiness(cfg: RaveAdsConfig = readRaveAdsConfig(this.env)): RaveAdsOffReason | null {
-        if (!cfg.secretKeyMode || !cfg.publishableKeyMode || !cfg.webhookSecret) return 'stripe';
+        if (!cfg.secretKeyMode || !cfg.publishableKeyMode || raveStripeBroken(cfg.publishableKey)) return 'stripe';
         if (cfg.publishableKeyMode !== cfg.secretKeyMode) return 'mode';
         const live = cfg.secretKeyMode === 'live';
         if (live && !cfg.production) return 'mode';
-        if (cfg.shelterBps > 0) {
-            // A shelter share needs the keeper, on the network class of the key.
-            const shelter = readShelterConfig(this.env);
-            if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) return 'keeper';
-            if (live === isTestnetChain(shelter.chainId)) return 'mode';
-            // The keeper has no flag; it runs only when its chain matches the checkout network (main, Oct 14).
-            if (!shelterShareNetworkOk(shelter, readCryptoPayConfig(this.env), this.env)) return 'keeper';
-        }
+        return this.shareReason(cfg, live);
+    }
+
+    /** Why the CRYPTO tab (USDC on Arc) is closed, or null, with its payment target. Needs no Stripe. */
+    usdcReadiness(cfg: RaveAdsConfig = readRaveAdsConfig(this.env)): {
+        reason: RaveAdsOffReason | null;
+        target: RaveAdUsdcTarget | null;
+    } {
+        const target = raveAdUsdcTarget(this.env, cfg.production);
+        if (!target) return { reason: 'chain', target: null };
+        const reason = this.shareReason(cfg, !target.testnet);
+        return { reason, target: reason ? null : target };
+    }
+
+    /** A shelter share (RAVE_AD_SHELTER_BPS > 0) needs the keeper on the payment's network class. */
+    private shareReason(cfg: RaveAdsConfig, live: boolean): RaveAdsOffReason | null {
+        if (cfg.shelterBps <= 0) return null;
+        const shelter = readShelterConfig(this.env);
+        if (!shelter.rpcUrl || !shelter.splitAddress || !hotWalletAddress(shelter)) return 'keeper';
+        if (live === isTestnetChain(shelter.chainId)) return 'mode';
+        // The keeper has no flag; it runs only when its chain matches the checkout network (main, Oct 14).
+        if (!shelterShareNetworkOk(shelter, readCryptoPayConfig(this.env), this.env)) return 'keeper';
         return null;
     }
 
-    /** 503 while something ad checkout needs is missing (no on/off flag). */
+    /** 503 while neither the card nor the crypto tab is open (no on/off flag). */
     assertOpen(cfg: RaveAdsConfig = readRaveAdsConfig(this.env)) {
-        const reason = this.readiness(cfg);
-        if (reason) throw RAVE_AD_ERRORS.off(reason);
+        const card = this.readiness(cfg);
+        if (card && this.usdcReadiness(cfg).reason) throw RAVE_AD_ERRORS.off(card);
     }
 
     async status(now: Date = new Date()): Promise<RaveAdsStatus> {
         const cfg = readRaveAdsConfig(this.env);
+        await checkRaveStripeAccount(this.stripePayments, cfg, now);
         const reason = this.readiness(cfg);
-        if (reason) return { enabled: false, reason };
+        const usdc = this.usdcReadiness(cfg);
+        if (reason && usdc.reason) return { enabled: false, reason };
         await this.sweep(now);
         const taken: any[] = await this.ads
             .find({ slotLock: { $exists: true } }, { slotLock: 1, status: 1, holdUntil: 1 })
@@ -225,8 +293,11 @@ export class RaveAdsService {
         const bySlot = new Map(taken.map(t => [String(t.slotLock), t]));
         return {
             enabled: true,
-            livemode: cfg.secretKeyMode === 'live',
-            publishableKey: cfg.publishableKey!,
+            livemode: !reason ? cfg.secretKeyMode === 'live' : !usdc.target!.testnet,
+            ...(!reason ? { publishableKey: cfg.publishableKey! } : { cardReason: reason }),
+            card: !reason,
+            reasons: { ...(reason ? { card: reason } : {}), ...(usdc.reason ? { usdc: usdc.reason } : {}) },
+            usdc: { enabled: !!usdc.target, chains: usdc.target ? [usdc.target.chainId] : [] },
             priceCents: cfg.priceCents,
             fee: { percentBps: cfg.feePercentBps, fixedCents: cfg.feeFixedCents },
             holdMinutes: Math.round(cfg.holdMs / 60000),
@@ -271,6 +342,17 @@ export class RaveAdsService {
             { $set: { status: 'ended' }, $unset: { slotLock: 1 } }
         );
         if (stale.length || ended?.modifiedCount) this.listCache = null;
+        // Unpaid USDC holds give their amount tag back a day after they ended (9,999 tags per price).
+        await this.ads.updateMany(
+            {
+                method: 'usdc',
+                status: { $in: ['expired', 'canceled'] },
+                usdcAmountKey: { $exists: true },
+                usdcTxHash: { $exists: false },
+                updatedAt: { $lte: new Date(now.getTime() - RAVE_AD_USDC_TAG_GRACE_MS) },
+            },
+            { $unset: { usdcAmountKey: 1 } }
+        );
         await this.dropClosedImages(now).catch(error =>
             this.logger.warn(`rave ad image cleanup: ${(error as Error)?.message}`)
         );
@@ -328,8 +410,22 @@ export class RaveAdsService {
         ipBucket?: string
     ): Promise<RaveAdCheckoutResponse> {
         const cfg = readRaveAdsConfig(this.env);
+        await checkRaveStripeAccount(this.stripePayments, cfg, now);
         this.assertOpen(cfg);
         if (!body || typeof body !== 'object') throw RAVE_AD_ERRORS.invalid('Expected a form body');
+        const methodRaw = body.method === undefined || body.method === '' ? 'card' : body.method;
+        if (methodRaw !== 'card' && methodRaw !== 'usdc') throw RAVE_AD_ERRORS.method();
+        const method: RaveAdMethod = methodRaw as RaveAdMethod;
+        // Each tab on its own: crypto needs no Stripe, card needs no Arc treasury.
+        let target: RaveAdUsdcTarget | null = null;
+        if (method === 'card') {
+            const reason = this.readiness(cfg);
+            if (reason) throw RAVE_AD_ERRORS.off(reason);
+        } else {
+            const usdc = this.usdcReadiness(cfg);
+            if (usdc.reason || !usdc.target) throw RAVE_AD_ERRORS.off(usdc.reason || 'chain');
+            target = usdc.target;
+        }
         const slot = raveAdSlot(body.slotId);
         if (!slot) throw RAVE_AD_ERRORS.slot();
         const name = normalizeAdName(body.name);
@@ -343,7 +439,8 @@ export class RaveAdsService {
         if (coverRaw !== undefined && ![true, false, 'true', 'false'].includes(coverRaw as any)) {
             throw RAVE_AD_ERRORS.invalid('coverFee must be true or false');
         }
-        const coverFee = coverRaw !== false && coverRaw !== 'false';
+        // No card fee on crypto.
+        const coverFee = method === 'card' && coverRaw !== false && coverRaw !== 'false';
         let clientKey: string | undefined;
         if (body.clientKey !== undefined && body.clientKey !== null && body.clientKey !== '') {
             if (typeof body.clientKey !== 'string' || !CLIENT_KEY_RE.test(body.clientKey)) {
@@ -360,6 +457,7 @@ export class RaveAdsService {
                     url: url.url,
                     x: x.handle || '',
                     coverFee,
+                    ...(method === 'usdc' ? { method } : {}),
                     image: upload ? createHash('sha256').update(upload).digest('hex') : '',
                 })
             )
@@ -403,6 +501,7 @@ export class RaveAdsService {
             feeCents: quote.feeCents,
             amountCents: quote.amountCents,
             coverFee,
+            method,
             holdUntil: new Date(now.getTime() + cfg.holdMs),
             ...(holdIpHash ? { holdIpHash } : {}),
         };
@@ -435,16 +534,51 @@ export class RaveAdsService {
         }
         await this.ads.updateOne({ adId }, { $set: { imageKey: key } });
 
+        if (method === 'usdc') {
+            if (!(await this.assignUsdcAmount(adId, target!, quote.priceCents))) {
+                await release();
+                throw RAVE_AD_ERRORS.state('Crypto checkout is busy, try again');
+            }
+            const ad: any = await this.ads.findOne({ adId }).lean();
+            return { ...this.buyerView(ad), clientSecret: null };
+        }
+
         let intent: Stripe.PaymentIntent;
         try {
             intent = await this.createIntent({ ...doc, adId });
         } catch (error) {
             this.logger.warn(`rave ad ${adId}: PaymentIntent not created: ${(error as Error)?.message}`);
+            noteRaveStripeError(error, now);
             await release();
             throw RAVE_AD_ERRORS.stripe();
         }
         const ad: any = await this.ads.findOne({ adId }).lean();
         return { ...this.buyerView(ad), clientSecret: intent.client_secret };
+    }
+
+    /** Writes a free exact amount (price + unique tag) on a held USDC ad; false when no tag was free. */
+    private async assignUsdcAmount(adId: string, target: RaveAdUsdcTarget, priceCents: number): Promise<boolean> {
+        for (let i = 0; i < RAVE_AD_TAG_TRIES; i++) {
+            const amount = raveAdUsdcAmount(priceCents, target.decimals);
+            const usdc: RaveAdUsdc = {
+                chainId: target.chainId,
+                token: target.token,
+                decimals: target.decimals,
+                recipient: target.recipient,
+                amount: amount.toString(),
+            };
+            try {
+                await this.ads.updateOne(
+                    { adId, usdcAmountKey: { $exists: false } },
+                    { $set: { usdc, usdcAmountKey: raveAdAmountKey(target, amount) } }
+                );
+                return true;
+            } catch (error) {
+                if (!isDuplicateKeyError(error)) throw error;
+            }
+        }
+        this.logger.error(`rave ad ${adId}: no free USDC amount tag after ${RAVE_AD_TAG_TRIES} tries`);
+        return false;
     }
 
     /** Server-priced PaymentIntent. Metadata carries no name, link or handle, so /web3 never grants anything for it. */
@@ -474,9 +608,14 @@ export class RaveAdsService {
     }
 
     private async repeatCheckout(ad: any, requestHash: string, now: Date): Promise<RaveAdCheckoutResponse> {
-        if (ad.requestHash !== requestHash) throw RAVE_AD_ERRORS.keyReused();
+        if (ad.requestHash !== requestHash) {
+            // The same buyer changed something (method, name, image) after a hold: free their own unpaid
+            // hold so the retry with a new key can take the slot again.
+            await this.releaseOwnHold(ad);
+            throw RAVE_AD_ERRORS.keyReused();
+        }
         let secret: string | null = null;
-        if (ad.status === 'held' && ad.holdUntil && new Date(ad.holdUntil) > now) {
+        if (ad.method !== 'usdc' && ad.status === 'held' && ad.holdUntil && new Date(ad.holdUntil) > now) {
             if (!ad.paymentIntentId) throw RAVE_AD_ERRORS.state('This checkout is still starting, try again');
             const intent = await this.stripe.paymentIntents.retrieve(ad.paymentIntentId).catch(() => {
                 throw RAVE_AD_ERRORS.stripe();
@@ -484,6 +623,33 @@ export class RaveAdsService {
             secret = intent.client_secret;
         }
         return { ...this.buyerView(ad), clientSecret: secret };
+    }
+
+    /**
+     * Frees a held, unpaid ad of the buyer who holds its client key. A card hold frees only once its
+     * PaymentIntent is canceled (Stripe refuses that for a succeeded or processing one); a USDC hold only
+     * while no tx was reported.
+     */
+    private async releaseOwnHold(ad: any) {
+        if (ad.status !== 'held') return;
+        if (ad.method === 'usdc') {
+            if (ad.usdcTxHash) return;
+        } else if (ad.paymentIntentId) {
+            try {
+                const intent = await this.stripe.paymentIntents.cancel(ad.paymentIntentId);
+                if (intent?.status !== 'canceled') return;
+            } catch {
+                return;
+            }
+        }
+        const res: any = await this.ads.updateOne(
+            { adId: ad.adId, status: 'held', usdcTxHash: { $exists: false } },
+            { $set: { status: 'canceled' }, $unset: { slotLock: 1, holdUntil: 1 } }
+        );
+        if (res?.modifiedCount) {
+            this.listCache = null;
+            await this.dropImages(ad.adId, 'canceled');
+        }
     }
 
     // ------------------------------------------------------------------ paid
@@ -541,6 +707,222 @@ export class RaveAdsService {
             }
         );
         await this.refund(adId, intent.id, 'slot-lost');
+        return 'slot-lost';
+    }
+
+    // ------------------------------------------------------------------ USDC on Arc
+
+    /**
+     * POST /rave/ads/:adId/usdc-tx: the buyer's wallet sent the exact amount; record the tx (unique) and
+     * read its receipt. Works while the crypto tab reports closed, so a payment already sent is never lost.
+     */
+    async reportUsdcTx(adId: string, body: { txHash?: unknown }, now: Date = new Date()): Promise<RaveAdBuyerView> {
+        if (!RAVE_AD_ID_RE.test(String(adId || ''))) throw RAVE_AD_ERRORS.adNotFound();
+        const txHash = typeof body?.txHash === 'string' ? body.txHash.toLowerCase() : '';
+        if (!TX_HASH_RE.test(txHash)) throw RAVE_AD_ERRORS.invalid('Expected { txHash }');
+        const ad: any = await this.ads.findOne({ adId }).lean();
+        if (!ad || ad.method !== 'usdc' || !ad.usdc) throw RAVE_AD_ERRORS.adNotFound();
+        if (ad.usdcTxHash && ad.usdcTxHash !== txHash) {
+            throw RAVE_AD_ERRORS.state('This ad already has a transaction');
+        }
+        if (!ad.usdcTxHash) {
+            if (!['held', 'expired'].includes(ad.status)) throw RAVE_AD_ERRORS.state('This ad is closed');
+            // A day after the hold ended its amount tag went back to the pool: match it by hand.
+            if (!ad.usdcAmountKey) throw RAVE_AD_ERRORS.state('This checkout ran out; contact support');
+            const write = () =>
+                this.ads.updateOne(
+                    { adId, usdcTxHash: { $exists: false } },
+                    {
+                        $set: {
+                            usdcTxHash: txHash,
+                            usdc: { ...ad.usdc, txHash, reportedAt: now },
+                            // The transfer may still be mining: keep the slot a little longer.
+                            ...(ad.status === 'held'
+                                ? {
+                                      holdUntil: new Date(
+                                          Math.max(
+                                              new Date(ad.holdUntil || 0).getTime(),
+                                              now.getTime() + RAVE_AD_USDC_REPORT_HOLD_MS
+                                          )
+                                      ),
+                                  }
+                                : {}),
+                        },
+                    }
+                );
+            try {
+                await write();
+            } catch (error) {
+                if (!isDuplicateKeyError(error)) throw error;
+                // Another ad holds this hash. If its own check fails (someone reported a tx that was not
+                // theirs), that ad drops the hash and this report takes it.
+                const other: any = await this.ads.findOne({ usdcTxHash: txHash }).lean();
+                const outcome = other && other.adId !== adId ? await this.verifyUsdc(other, now) : 'already';
+                if (!['mismatch', 'underpaid', 'too-old', 'dropped'].includes(String(outcome))) {
+                    throw RAVE_AD_ERRORS.txUsed();
+                }
+                try {
+                    await write();
+                } catch (again) {
+                    if (isDuplicateKeyError(again)) throw RAVE_AD_ERRORS.txUsed();
+                    throw again;
+                }
+            }
+        }
+        const fresh: any = await this.ads.findOne({ adId }).lean();
+        this.lastUsdcPoll.set(adId, now.getTime());
+        const outcome = await this.verifyUsdc(fresh, now);
+        if (outcome === 'mismatch') {
+            throw RAVE_AD_ERRORS.txMismatch('That transaction did not send this ad’s exact USDC amount to Token Tails');
+        }
+        if (outcome === 'underpaid') {
+            throw RAVE_AD_ERRORS.txMismatch(
+                'That transfer paid less than the exact amount (an exchange fee?). Contact support for a refund.'
+            );
+        }
+        if (outcome === 'too-old') {
+            throw RAVE_AD_ERRORS.txMismatch('That transfer was sent before this ad was made');
+        }
+        if (outcome === 'tx-used') {
+            throw RAVE_AD_ERRORS.txMismatch('That transaction already paid for another Token Tails order');
+        }
+        return this.buyerView(await this.ads.findOne({ adId }).lean());
+    }
+
+    /** The RPC URL of a USDC ad's chain (the crypto checkout's, else the chain's public RPC). */
+    private usdcRpc(chainId: number): string | null {
+        const pay = readCryptoPayConfig(this.env);
+        const resolved = pay.chains.find(c => c.chain.chainId === chainId);
+        return resolved?.rpcUrl || cryptoPayChain(chainId)?.publicRpc || null;
+    }
+
+    /**
+     * Read-only receipt check of a reported USDC tx: a `Transfer` of exactly the ad's amount of its token to
+     * its treasury, mined after the ad was made. A wrong or failed tx is dropped so the buyer can report the
+     * right one; a tx with no receipt after RAVE_AD_USDC_GIVE_UP_MS too.
+     */
+    async verifyUsdc(
+        ad: any,
+        now: Date
+    ): Promise<RaveAdPaidOutcome | 'pending' | 'mismatch' | 'underpaid' | 'too-old' | 'tx-used' | 'dropped'> {
+        if (!ad?.usdcTxHash || !ad.usdc) return 'pending';
+        if (!['held', 'expired', 'canceled'].includes(ad.status)) return 'already';
+        const chainId = Number(ad.usdc.chainId);
+        const rpc = this.usdcRpc(chainId);
+        if (!this.reader || !rpc) return 'pending';
+        let receipt: Awaited<ReturnType<CryptoChainReader['receipt']>> = null;
+        try {
+            receipt = await this.reader.receipt(chainId, rpc, ad.usdcTxHash);
+        } catch {
+            receipt = null;
+        }
+        const drop = async () => {
+            await this.ads.updateOne(
+                { adId: ad.adId, usdcTxHash: ad.usdcTxHash, status: { $in: ['held', 'expired', 'canceled'] } },
+                { $unset: { usdcTxHash: 1, 'usdc.txHash': 1, 'usdc.reportedAt': 1 } }
+            );
+        };
+        if (!receipt) {
+            const reported = ad.usdc.reportedAt ? new Date(ad.usdc.reportedAt).getTime() : now.getTime();
+            if (now.getTime() - reported > RAVE_AD_USDC_GIVE_UP_MS) {
+                await drop();
+                return 'dropped';
+            }
+            return 'pending';
+        }
+        const check =
+            receipt.status === 1
+                ? checkPayment(receipt.logs || [], {
+                      route: 'transfer',
+                      binding: 'amount',
+                      tokenAddress: ad.usdc.token,
+                      recipient: ad.usdc.recipient,
+                      amount: String(ad.usdc.amount),
+                      memo: null,
+                  })
+                : { ok: false as const, reason: 'NO_MATCHING_TRANSFER' as const };
+        if (!check.ok) {
+            await drop();
+            if (check.reason === 'UNDERPAID') {
+                this.logger.error(
+                    `rave ad ${ad.adId}: tx ${ad.usdcTxHash} paid ${String(check.paid)} of ${
+                        ad.usdc.amount
+                    } USDC base units to the treasury; refund it by hand`
+                );
+                await this.ads.updateOne(
+                    { adId: ad.adId },
+                    { $set: { 'usdc.underpaidTx': ad.usdcTxHash, 'usdc.underpaidAmount': String(check.paid) } }
+                );
+                return 'underpaid';
+            }
+            return 'mismatch';
+        }
+        const created = ad.createdAt ? Math.floor(new Date(ad.createdAt).getTime() / 1000) : null;
+        if (created !== null) {
+            const mined = await this.reader.blockTime(chainId, rpc, receipt.blockNumber).catch(() => null);
+            // Unknown block time (RPC error): never accept an old transfer on trust; read it again later.
+            if (mined === null || !Number.isFinite(mined)) return 'pending';
+            if (mined < created - RAVE_AD_USDC_SKEW_S) {
+                await drop();
+                return 'too-old';
+            }
+        }
+        // One transfer pays one thing: refuse a tx that already backs a crypto checkout (packs, cats).
+        if (await this.checkouts.findOne({ 'payment.txHash': String(ad.usdcTxHash).toLowerCase() }).lean()) {
+            await drop();
+            this.logger.error(`rave ad ${ad.adId}: tx ${ad.usdcTxHash} already paid a crypto checkout`);
+            return 'tx-used';
+        }
+        return this.markUsdcPaid(ad, check.payer || receipt.from || '', now);
+    }
+
+    /** The USDC counterpart of markPaid: `held → review`, or re-take a lapsed slot, or a manual refund. */
+    private async markUsdcPaid(ad: any, payer: string, now: Date): Promise<RaveAdPaidOutcome> {
+        const adId = ad.adId;
+        const paid = {
+            paidAt: now,
+            livemode: !isTestnetChain(Number(ad.usdc.chainId)),
+            usdc: { ...ad.usdc, txHash: ad.usdcTxHash, payer: payer.toLowerCase(), paidAt: now },
+        };
+        const won = await this.ads
+            .findOneAndUpdate(
+                { adId, status: 'held', usdcTxHash: ad.usdcTxHash },
+                { $set: { status: 'review', ...paid }, $unset: { holdUntil: 1 } },
+                { new: true }
+            )
+            .lean();
+        this.listCache = null;
+        if (won) return 'review';
+        const current: any = await this.ads.findOne({ adId }).lean();
+        if (!current || !['expired', 'canceled'].includes(current.status)) return 'already';
+        try {
+            const res: any = await this.ads.updateOne(
+                {
+                    adId,
+                    status: { $in: ['expired', 'canceled'] },
+                    usdcTxHash: ad.usdcTxHash,
+                    slotLock: { $exists: false },
+                },
+                { $set: { status: 'review', slotLock: ad.slotId, ...paid } }
+            );
+            if (res?.modifiedCount || res?.matchedCount) return 'review';
+            return 'already';
+        } catch (error) {
+            if (!isDuplicateKeyError(error)) throw error;
+        }
+        await this.ads.updateOne(
+            { adId, status: { $in: ['expired', 'canceled'] } },
+            {
+                $set: {
+                    status: 'refunded',
+                    ...paid,
+                    refund: { state: 'manual', reason: 'slot-lost', payer: payer.toLowerCase(), at: now },
+                },
+            }
+        );
+        this.logger.error(
+            `rave ad ${adId}: USDC paid after its slot was taken; refund ${ad.usdc.amount} base units by hand to ${payer}`
+        );
         return 'slot-lost';
     }
 
@@ -607,6 +989,17 @@ export class RaveAdsService {
         if (!RAVE_AD_ID_RE.test(String(adId || ''))) throw RAVE_AD_ERRORS.adNotFound();
         let ad: any = await this.ads.findOne({ adId }).lean();
         if (!ad) throw RAVE_AD_ERRORS.adNotFound();
+        if (ad.method === 'usdc' && ad.usdcTxHash && ['held', 'expired', 'canceled'].includes(ad.status)) {
+            const last = this.lastUsdcPoll.get(adId) || 0;
+            if (now.getTime() - last >= RAVE_AD_USDC_POLL_MS) {
+                if (this.lastUsdcPoll.size > 5000) this.lastUsdcPoll.clear();
+                this.lastUsdcPoll.set(adId, now.getTime());
+                await this.verifyUsdc(ad, now).catch(error =>
+                    this.logger.warn(`rave ad ${adId}: USDC receipt not read: ${(error as Error)?.message}`)
+                );
+                ad = await this.ads.findOne({ adId }).lean();
+            }
+        }
         if (ad.status === 'held' && ad.paymentIntentId) {
             const last = this.lastStripePoll.get(adId) || 0;
             if (now.getTime() - last >= STRIPE_POLL_MS) {
@@ -638,6 +1031,20 @@ export class RaveAdsService {
             amountCents: ad.amountCents,
             holdUntil: ad.status === 'held' ? iso(ad.holdUntil) : null,
             liveUntil: ad.status === 'live' ? iso(ad.liveUntil) : null,
+            method: ad.method === 'usdc' ? 'usdc' : 'card',
+            usdc:
+                ad.method === 'usdc' && ad.usdc
+                    ? {
+                          chainId: Number(ad.usdc.chainId),
+                          token: String(ad.usdc.token),
+                          decimals: Number(ad.usdc.decimals),
+                          recipient: String(ad.usdc.recipient),
+                          amount: String(ad.usdc.amount),
+                          txHash: ad.usdcTxHash || null,
+                          payer: ad.usdc.payer || null,
+                      }
+                    : null,
+            refund: ad.refund?.state ? { state: ad.refund.state, reason: String(ad.refund.reason || '') } : null,
         };
     }
 
@@ -790,8 +1197,10 @@ export class RaveAdsService {
                 throw RAVE_AD_ERRORS.state('Only a paid ad in review or live can be rejected');
             }
         }
-        await this.voidShare(adId, ad.paymentIntentId, 'refunded');
+        await this.voidShare(adId, ad.method === 'usdc' ? null : ad.paymentIntentId, 'refunded');
         await this.dropImages(adId, 'rejected');
+        if (ad.method === 'usdc')
+            return { adId, status: 'rejected' as const, refund: await this.manualRefund(ad, now) };
         const refund = ad.paymentIntentId ? await this.refund(adId, ad.paymentIntentId, 'rejected') : 'failed';
         return { adId, status: 'rejected' as const, refund };
     }
@@ -808,6 +1217,21 @@ export class RaveAdsService {
             this.logger.warn(`rave ad ${adId}: image not read: ${(error as Error)?.message}`);
             throw RAVE_AD_ERRORS.storage();
         }
+    }
+
+    /** A rejected USDC ad: no on-chain refund from here; it is flagged for a refund by hand to the payer. */
+    private async manualRefund(ad: any, now: Date): Promise<'manual'> {
+        const payer = String(ad.usdc?.payer || '');
+        await this.ads.updateOne(
+            { adId: ad.adId },
+            { $set: { refund: { state: 'manual', reason: 'rejected', ...(payer ? { payer } : {}), at: now } } }
+        );
+        this.logger.error(
+            `rave ad ${ad.adId}: rejected USDC ad; refund ${ad.usdc?.amount} base units on chain ${
+                ad.usdc?.chainId
+            } by hand to ${payer || 'the payer'}`
+        );
+        return 'manual';
     }
 
     private async refund(adId: string, paymentIntentId: string, reason: string): Promise<'refunded' | 'failed'> {
@@ -860,9 +1284,9 @@ export class RaveAdsService {
             await this.checkouts.create({
                 orderId: ad.adId,
                 user: RAVE_SYSTEM_USER,
-                rail: 'card',
-                network: ad.livemode ? 'card' : 'testnet',
-                cardIntent: ad.paymentIntentId,
+                rail: ad.method === 'usdc' ? 'crypto' : 'card',
+                network: !ad.livemode ? 'testnet' : ad.method === 'usdc' ? 'mainnet' : 'card',
+                ...(ad.paymentIntentId ? { cardIntent: ad.paymentIntentId } : {}),
                 sku: { kind: 'RAVE_AD', name: `Moon Rave ad ${ad.slotId}` },
                 priceUsdCents: cents,
                 discountPercentage: 0,
@@ -881,8 +1305,9 @@ export class RaveAdsService {
     }
 
     /** Marks the ad's shelter-share row reversed whatever its state (rave-share.ts); voids it if nothing left. */
-    private async voidShare(adId: string, paymentIntentId: string | undefined, why: string) {
-        if (!paymentIntentId) return;
+    /** `paymentIntentId` null: a USDC ad's row, which has no card intent (matched by the ad id alone). */
+    private async voidShare(adId: string, paymentIntentId: string | null | undefined, why: string) {
+        if (paymentIntentId === undefined) return;
         const { outcome, state } = await reverseShare(this.checkouts, adId, paymentIntentId, why);
         if (outcome === 'none') return;
         if (outcome === 'voided') {

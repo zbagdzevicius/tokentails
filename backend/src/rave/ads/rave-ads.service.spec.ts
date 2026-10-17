@@ -59,8 +59,10 @@ describe('RaveAdsService config and pricing', () => {
     });
 
     it('needs the Stripe keys, matching modes, and a live key only in production', async () => {
-        expect((await adsHarness({ ...ENV_ADS, RAVE_STRIPE_WEBHOOK_SECRET: '' }).service.status(T0)).reason).toBe(
-            'stripe'
+        expect((await adsHarness({ ...ENV_ADS, STRIPE_SECRET_KEY: '' }).service.status(T0)).reason).toBe('stripe');
+        // No webhook secret needed: the Events API pull confirms payments.
+        expect((await adsHarness({ ...ENV_ADS, RAVE_STRIPE_WEBHOOK_SECRET: '' }).service.status(T0)).enabled).toBe(
+            true
         );
         expect((await adsHarness({ ...ENV_ADS, STRIPE_PUBLISHABLE_KEY: 'pk_live_x' }).service.status(T0)).reason).toBe(
             'mode'

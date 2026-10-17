@@ -12,12 +12,14 @@ function controller(env: NodeJS.ProcessEnv) {
 }
 
 describe('RaveController', () => {
-    it('not ready: status says disabled, checkout and usdc-tx are 503 before any throttle or Stripe call', async () => {
-        const { h, ctl, ipThrottler } = controller({});
+    it('not ready: status says disabled, checkout is 503 before any throttle or Stripe call', async () => {
+        // Production with no Stripe env and no verified Arc split: both tabs closed.
+        const { h, ctl, ipThrottler } = controller({ NODE_ENV: 'production' });
         expect(await ctl.status({}, {})).toEqual({ enabled: false, reason: 'stripe' });
         await expectRaveError(ctl.checkout({ cats: 5 }, {}, {}), 503, 'RAVE_OFF');
-        await expectRaveError(ctl.usdcTx('rv_0000000000000001', {}, {}, {}), 503, 'RAVE_OFF');
-        expect(ipThrottler.consume).toHaveBeenCalledTimes(1);
+        // usdc-tx has no open-tab check (a buyer who already paid is credited): its own limit, then 400.
+        await expectRaveError(ctl.usdcTx('rv_0000000000000001', {}, {}, {}), 400, 'RAVE_INVALID');
+        expect(ipThrottler.consume).toHaveBeenCalledTimes(2);
         expect(h.stripe.paymentIntents.create).not.toHaveBeenCalled();
         // The public list stays readable (empty).
         expect((await ctl.cats({}, {}, {})).orders).toEqual([]);

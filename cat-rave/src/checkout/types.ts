@@ -10,15 +10,26 @@ export interface RaveStatusOff {
   enabled: false;
   reason?: 'stripe' | 'keeper' | 'mode' | 'cap' | 'unreachable' | 'unknown' | string;
 }
+/**
+ * `enabled: true` when card or crypto is open. Card needs a Stripe publishable key; crypto is USDC on
+ * Arc only (the client drops every other chain the server might list).
+ */
 export interface RaveStatusOn {
   enabled: true;
   livemode: boolean;
-  publishableKey: string;
+  /** Null when card is closed (the server may omit the key then). */
+  publishableKey: string | null;
   card: boolean;
   usdc: { enabled: boolean; chains: number[] };
+  /** Why a method is closed (`reasons.card` / `reasons.usdc` from the server, or a client reason). */
+  reasons: { card: string | null; usdc: string | null };
   prices: { fixed: number[]; customMin: number; max: number };
   fee: { percentBps: number; fixedCents: number };
-  payoutsDelayed: boolean;
+  /**
+   * The buyer's country from the request IP, when the backend puts it here (null = not detected: the
+   * sheet shows the country picker). Absent = the page asks `GET /rave/geo` instead.
+   */
+  country?: string | null;
 }
 export type RaveStatus = RaveStatusOff | RaveStatusOn;
 
@@ -31,6 +42,8 @@ export interface CheckoutRequest {
   restName: string;
   x: string;
   clientKey: string;
+  /** ISO 3166-1 alpha-2 (IP country when detected, else the buyer's pick), or "none" (Show my flag off). Left out when unknown. */
+  country?: string;
 }
 
 /** POST /rave/checkout answer (card: clientSecret; usdc: memo + usdc). */
