@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Ask Tail</title>
+<meta name="description" content="Free knight game. Every kitten is a real shelter cat. Play in your browser, no sign-up needed. Ask Tail anything first.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Token Tails">
+<meta property="og:title" content="Free knight game. Every kitten is a real shelter cat.">
+<meta property="og:description" content="Play in your browser, no sign-up needed.">
+<meta property="og:image" content="https://tokentails.com/logo/og-v2-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&family=Passion+One:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky-50:#eaf4fb; --sky:#90c5e9; --sky-deep:#5d9fcc; --night:#0b0820; --night-2:#1d1838;
+  --cream:#fcecbb; --pink:#ff7aa2; --pink-soft:#ffd3e0; --white:#fff; --muted:#4b5a6b;
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--sky-50);color:var(--night);
+  font:400 16.5px/1.45 "DM Sans",system-ui,-apple-system,sans-serif;
+  overflow-x:hidden;
+}
+a{color:inherit}
+img{display:block;max-width:100%}
+:focus-visible{outline:3px solid var(--night);outline-offset:3px;border-radius:12px}
+
+/* App shell: phone-first, a chat window on wide screens */
+.app{
+  position:relative;min-height:100vh;min-height:100svh;
+  display:flex;flex-direction:column;
+  background-color:var(--sky-50);
+  /* faint paw prints, drawn as inline SVG */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%2390c5e9' fill-opacity='.22'%3E%3Cg transform='translate(26 30) rotate(-18)'%3E%3Cellipse cx='0' cy='6' rx='7.5' ry='6.5'/%3E%3Ccircle cx='-8' cy='-4' r='3'/%3E%3Ccircle cx='-3' cy='-9' r='3'/%3E%3Ccircle cx='3' cy='-9' r='3'/%3E%3Ccircle cx='8' cy='-4' r='3'/%3E%3C/g%3E%3Cg transform='translate(86 86) rotate(22)'%3E%3Cellipse cx='0' cy='6' rx='7.5' ry='6.5'/%3E%3Ccircle cx='-8' cy='-4' r='3'/%3E%3Ccircle cx='-3' cy='-9' r='3'/%3E%3Ccircle cx='3' cy='-9' r='3'/%3E%3Ccircle cx='8' cy='-4' r='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-size:120px 120px;
+}
+
+/* Header */
+.top{
+  position:sticky;top:0;z-index:4;
+  display:flex;align-items:center;gap:12px;
+  padding:max(10px,env(safe-area-inset-top)) 16px 10px;
+  background:rgba(255,255,255,.92);
+  -webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid rgba(11,8,32,.08);
+}
+.ava{
+  position:relative;flex:none;width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff 0,var(--pink-soft) 70%);
+  border:2px solid var(--pink);overflow:hidden;
+}
+.ava img{width:52px;height:auto;position:absolute;left:-2px;top:3px}
+.who{min-width:0;line-height:1.15}
+.who b{font:700 22px/1 "Passion One",sans-serif;letter-spacing:.01em}
+.who .org{font-weight:500;color:var(--muted);font-size:15px}
+.who small{display:block;font-size:13px;color:var(--muted);margin-top:3px}
+.who small::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--pink);margin-right:6px;vertical-align:1px}
+
+/* Thread */
+.thread{flex:1;padding:18px 16px 8px;display:flex;flex-direction:column;gap:8px}
+.day{align-self:center;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,.7);padding:5px 12px;border-radius:999px;margin-bottom:6px}
+.row{display:flex;align-items:flex-end;gap:8px}
+.row .mini{flex:none;width:28px;height:28px;border-radius:50%;background:var(--pink-soft);border:1.5px solid var(--pink);overflow:hidden;position:relative}
+.row .mini img{width:34px;height:auto;position:absolute;left:-2px;top:2px}
+.stack{display:flex;flex-direction:column;gap:6px;min-width:0;max-width:min(86%,440px)}
+.spacer{flex:none;width:28px}
+
+.b{
+  background:var(--white);color:var(--night);
+  padding:11px 15px;border-radius:var(--r);border-bottom-left-radius:7px;
+  box-shadow:0 1px 0 rgba(11,8,32,.06),0 6px 18px -10px rgba(11,8,32,.25);
+  width:max-content;max-width:100%;
+}
+.stack .b:not(:last-child){border-bottom-left-radius:7px}
+.stack .b+.b{border-top-left-radius:7px}
+h1.b{font-weight:800;font-size:clamp(22px,6.2vw,27px);line-height:1.18;letter-spacing:-.01em;padding:14px 17px}
+h1 .hl{background:linear-gradient(transparent 62%,var(--pink-soft) 0);padding:0 2px}
+.b p+p{margin-top:6px}
+.b .k{font-weight:700}
+
+/* Play bubble */
+.playb{background:transparent;box-shadow:none;padding:2px 0 0}
+.play{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  min-height:54px;padding:0 24px 0 20px;border-radius:999px;
+  background:var(--night);color:var(--cream);text-decoration:none;
+  font-weight:800;font-size:18px;letter-spacing:.005em;
+  box-shadow:0 10px 22px -10px rgba(11,8,32,.7);
+  transition:transform .15s ease,background .15s ease;
+}
+.play svg{width:22px;height:22px;flex:none}
+.play:hover{background:var(--night-2);transform:translateY(-1px)}
+.play:active{transform:translateY(1px)}
+.play:focus-visible{outline:3px solid var(--pink);outline-offset:3px;border-radius:999px}
+.note{font-size:13.5px;color:var(--muted);margin:6px 0 0 6px}
+
+/* Typing dots */
+.typing{display:inline-flex;gap:4px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:#b3c3d3;animation:dot 1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-4px);opacity:1}}
+
+/* Q&A: details/summary, works without JS */
+.ask{margin-top:14px}
+.ask-label{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 8px 36px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.qa{display:block;scroll-margin:84px 0 96px}
+.qa>summary{
+  list-style:none;cursor:pointer;user-select:none;
+  background:var(--white);color:var(--night);
+  border:2px solid var(--pink);
+  padding:9px 15px;border-radius:999px;min-height:44px;
+  display:inline-flex;align-items:center;gap:6px;
+  font-weight:700;font-size:15.5px;
+  transition:background .15s ease,transform .15s ease;
+}
+.qa>summary::-webkit-details-marker{display:none}
+.qa>summary::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--pink)}
+.qa>summary:hover{background:var(--pink-soft)}
+.qa>summary:active{transform:scale(.97)}
+.qa>summary:focus-visible{outline:3px solid var(--night);outline-offset:2px;border-radius:999px}
+
+/* An opened question becomes a turn in the thread */
+.qa[open]{display:block;flex-basis:100%;width:100%;margin:6px 0 4px}
+.qa[open] .row{margin-top:8px}
+.qa[open]>summary{display:flex;width:fit-content;margin-left:auto}
+.qa[open]>summary{
+  align-self:flex-end;cursor:default;
+  background:var(--pink);border-color:var(--pink);color:var(--night);
+  border-radius:var(--r);border-bottom-right-radius:7px;
+  padding:11px 15px;max-width:80%;
+}
+.qa[open]>summary::before{display:none}
+.qa[open]>summary:hover{background:var(--pink)}
+.qa[open] .row{animation:pop .35s cubic-bezier(.2,.9,.3,1.3) both}
+.qa[open] .typing-row{overflow:hidden;max-height:60px;animation:typing .01s .75s forwards}
+.qa[open] .row.r1{animation-delay:.8s}
+.qa[open] .row.r2{animation-delay:1.25s}
+.qa[open] .row.r3{animation-delay:1.7s}
+@keyframes typing{to{visibility:hidden;max-height:0;margin-top:0;opacity:0}}
+
+/* Opener sequence */
+.opener .row{animation:pop .4s cubic-bezier(.2,.9,.3,1.3) both}
+.opener .o1{animation-delay:.15s}
+.opener .o2{animation-delay:.75s}
+.opener .o3{animation-delay:1.35s}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+
+/* Photo bubble */
+.photo{padding:6px;border-radius:var(--r);border-bottom-left-radius:7px}
+.photo img{width:210px;height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:17px;background:var(--pink-soft)}
+.photo figcaption{font-size:14px;font-weight:500;padding:8px 8px 4px;max-width:210px}
+
+/* Link card bubble (secondary CTA) */
+.linkcard{
+  display:flex;align-items:center;gap:12px;text-decoration:none;
+  background:var(--white);border-radius:18px;border-bottom-left-radius:7px;
+  padding:10px 14px 10px 10px;border:2px solid var(--sky);
+  box-shadow:0 6px 18px -10px rgba(11,8,32,.25);
+  transition:background .15s ease;
+}
+.linkcard:hover{background:#f3f9fd}
+.linkcard .ic{flex:none;width:40px;height:40px;border-radius:12px;background:var(--sky);display:grid;place-items:center}
+.linkcard .ic svg{width:22px;height:22px}
+.linkcard b{display:block;font-size:15.5px;text-decoration:underline;text-decoration-color:var(--sky-deep);text-underline-offset:3px;text-decoration-thickness:2px}
+.linkcard span{font-size:13px;color:var(--muted)}
+
+.done{display:none}
+.all-asked .ask-label{display:none}
+.all-asked .done{display:flex;animation:pop .4s .3s both}
+
+/* System line footer */
+.sys{
+  text-align:center;font-size:13px;color:var(--muted);
+  padding:26px 16px 18px;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;
+}
+.sys a{padding:6px 2px;text-underline-offset:3px;text-decoration-color:var(--sky-deep)}
+.sys a:hover{color:var(--night)}
+
+/* Bottom bar in place of the message box */
+.bar{
+  position:sticky;bottom:0;z-index:4;
+  padding:10px 16px max(12px,env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.94);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border-top:1px solid rgba(11,8,32,.08);
+  display:flex;align-items:center;gap:12px;
+}
+.bar .play{flex:1;min-height:56px;font-size:19px}
+.bar .hint{flex:none;font-size:12.5px;line-height:1.25;color:var(--muted);font-weight:500;max-width:9.5em}
+
+.poc{
+  position:fixed;top:max(14px,env(safe-area-inset-top));right:12px;z-index:6;
+  background:var(--night);color:var(--cream);
+  font-size:11.5px;font-weight:700;letter-spacing:.02em;
+  padding:6px 10px;border-radius:999px;opacity:.88;
+}
+.poc a{color:var(--cream);text-underline-offset:2px}
+.poc a:focus-visible{outline-color:var(--pink)}
+
+@media (max-width:759px){
+  .poc{display:flex;flex-direction:column;align-items:flex-end;gap:2px;border-radius:12px;padding:6px 9px;font-size:11px;line-height:1.15;top:max(12px,env(safe-area-inset-top))}
+  .poc .sep{display:none}
+  .top{padding-right:118px}
+}
+@media (max-width:370px){
+  .bar .hint{display:none}
+}
+
+/* Wide screens: a chat window on a sky desk */
+@media (min-width:760px){
+  body{
+    background:
+      radial-gradient(ellipse at 15% 10%,#fff 0,transparent 45%),
+      radial-gradient(ellipse at 90% 95%,var(--pink-soft) 0,transparent 40%),
+      #d7eaf7;
+    padding:28px 16px;
+  }
+  .app{
+    max-width:600px;margin:0 auto;min-height:calc(100vh - 56px);
+    border-radius:32px;overflow:clip;
+    box-shadow:0 2px 0 rgba(11,8,32,.05),0 40px 80px -40px rgba(11,8,32,.45),0 0 0 1px rgba(11,8,32,.06);
+  }
+  .top{padding:14px 22px;top:0}
+  .thread{padding:24px 22px 8px}
+  .bar{padding:12px 22px 14px}
+  .side{
+    position:fixed;left:calc(50% - 300px - 250px);top:50%;transform:translateY(-50%);
+    width:210px;font-size:15px;color:var(--muted);line-height:1.45;
+  }
+  .side b{display:block;font:700 34px/1 "Passion One",sans-serif;color:var(--night);margin-bottom:8px}
+}
+@media (max-width:1159px){.side{display:none}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .typing-row{display:none}
+  .opener .o-typing{display:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="ava"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt=""></div>
+    <div class="who">
+      <div><b>Tail</b> <span class="org">· Token Tails</span></div>
+      <small>Pink Paw Knight guide</small>
+    </div>
+  </header>
+
+  <main class="thread" id="thread">
+    <span class="day">Pink Paw Knight</span>
+
+    <div class="opener">
+      <div class="row o1">
+        <div class="spacer" aria-hidden="true"></div>
+        <div class="stack">
+          <h1 class="b">Free knight game. <span class="hl">Every kitten is a real shelter cat.</span></h1>
+          <!-- live copy: "No sign-up needed" -->
+          <p class="b">Play in your browser, no sign-up needed.</p>
+        </div>
+      </div>
+      <div class="row o2" style="margin-top:8px">
+        <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt=""></div>
+        <div class="stack">
+          <div class="b playb">
+            <a class="play" href="https://tokentails.com/swordcat?from=poc_v7&amp;utm_source=landing-poc&amp;utm_campaign=v7">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg>
+              Play free
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="ask" aria-label="Questions for Tail">
+      <p class="ask-label">Questions? Ask Tail</p>
+      <div class="chips" id="chips">
+
+        <details class="qa">
+          <summary>Is it really free?</summary>
+          <div class="row typing-row" aria-hidden="true"><div class="mini"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div><div class="b typing"><i></i><i></i><i></i></div></div>
+          <div class="row r1">
+            <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+            <div class="stack"><p class="b"><span class="k">Yes.</span> Free in your browser, no sign-up needed.</p></div>
+          </div>
+        </details>
+
+        <details class="qa">
+          <summary>Are the kittens real?</summary>
+          <div class="row typing-row" aria-hidden="true"><div class="mini"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div><div class="b typing"><i></i><i></i><i></i></div></div>
+          <div class="row r1">
+            <div class="spacer" aria-hidden="true"></div>
+            <!-- live copy: origin/main client/components/landing/SwordcatSection.tsx:53 -->
+            <div class="stack"><p class="b">Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.</p></div>
+          </div>
+          <div class="row r2">
+            <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+            <!-- Balandis: name + photo in the Pink Paw Knight kitten list (origin/main client/public/swordcat-game bundle); status WAITING, shelter Rožinė Pėdutė, per api.tokentails.com/cat/6a304f491d6649b19b036568 blessing (checked 2026-10-17); licence for named cats exists (Oct 11) -->
+            <div class="stack">
+              <figure class="b photo">
+                <img src="https://tokentails.fra1.cdn.digitaloceanspaces.com/36679198975.webp" width="750" height="1000" alt="Balandis, a black-and-white tuxedo cat at Pink Paw shelter in Kaunas" loading="lazy">
+                <figcaption>Balandis is waiting for a home at Pink Paw. You can meet him in the game.</figcaption>
+              </figure>
+            </div>
+          </div>
+        </details>
+
+        <details class="qa">
+          <summary>What does saving one do?</summary>
+          <div class="row typing-row" aria-hidden="true"><div class="mini"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div><div class="b typing"><i></i><i></i><i></i></div></div>
+          <div class="row r1">
+            <div class="spacer" aria-hidden="true"></div>
+            <!-- live copy: SwordcatSection.tsx:56 SWORDCAT_SECTION_TREAT_BEAT; C-004 as "free treat", "can send" (R3/R4: CORS blocks a rail check, sendEnabled false) -->
+            <div class="stack">
+              <p class="b">Save one, and Token Tails can send Pink Paw a free treat. It goes to Pink Paw's wallet.</p>
+              <p class="b">Every payout is public, each linked to its transaction.</p>
+            </div>
+          </div>
+          <div class="row r2">
+            <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+            <div class="stack">
+              <a class="linkcard" href="https://tokentails.com/shelter-payouts?from=poc_v7&amp;utm_source=landing-poc&amp;utm_campaign=v7">
+                <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#0b0820" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9.5 12h6M9.5 16h6M9.5 8h3"/></svg></span>
+                <span><b>See every payout</b><span>tokentails.com/shelter-payouts</span></span>
+              </a>
+            </div>
+          </div>
+        </details>
+
+        <details class="qa">
+          <summary>Do I pay for the treat?</summary>
+          <div class="row typing-row" aria-hidden="true"><div class="mini"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div><div class="b typing"><i></i><i></i><i></i></div></div>
+          <div class="row r1">
+            <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+            <!-- R3: Token Tails is the subject of the money verb -->
+            <div class="stack"><p class="b"><span class="k">No.</span> Playing stays free. Token Tails pays for the treats it sends.</p></div>
+          </div>
+        </details>
+
+        <details class="qa">
+          <summary>Who are you?</summary>
+          <div class="row typing-row" aria-hidden="true"><div class="mini"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div><div class="b typing"><i></i><i></i><i></i></div></div>
+          <div class="row r1">
+            <div class="spacer" aria-hidden="true"></div>
+            <div class="stack"><p class="b">I'm Tail. Token Tails makes cozy cat games.</p></div>
+          </div>
+          <div class="row r2">
+            <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+            <!-- F-026, company-reported (R12) -->
+            <div class="stack"><p class="b" data-fact="F-026"><span class="k">$40K+ donated directly</span> in crypto and goods (Oct 2026, company-reported).</p></div>
+          </div>
+        </details>
+
+      </div>
+
+      <div class="row done" id="done" style="margin-top:10px">
+        <div class="mini" aria-hidden="true"><img src="https://tokentails.com/tail/mascot-point-right.webp" width="251" height="239" alt="" loading="lazy"></div>
+        <div class="stack"><p class="b">That's everything. Ready when you are: the Play button is right below.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="sys">
+    <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+    <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+    <a href="https://tokentails.com/?from=poc_v7&amp;utm_source=landing-poc&amp;utm_campaign=v7">tokentails.com</a>
+  </footer>
+
+  <div class="bar">
+    <a class="play" href="https://tokentails.com/swordcat?from=poc_v7&amp;utm_source=landing-poc&amp;utm_campaign=v7">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg>
+      Play free
+    </a>
+    <span class="hint">In your browser. No sign-up needed.</span>
+  </div>
+</div>
+
+<aside class="side" aria-hidden="true"><b>Ask Tail.</b>Tap a question in the chat. Every answer is short, and the Play button never moves.</aside>
+
+<div class="poc"><span>POC variant v7</span><span class="sep"> · </span><a href="../">all variants</a></div>
+
+<script>
+(function(){
+  var chips=document.getElementById('chips'),app=document.getElementById('app'),ask=chips.parentNode,thread=document.getElementById('thread');
+  var calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  chips.querySelectorAll('.qa').forEach(function(d){
+    d.querySelector('summary').addEventListener('click',function(e){ if(d.open) e.preventDefault(); });
+    d.addEventListener('toggle',function(){
+      if(!d.open) return;
+      thread.insertBefore(d,ask); // the opened question joins the thread in tap order
+      d.querySelector('summary').setAttribute('aria-disabled','true');
+      if(!chips.querySelector('.qa')) app.classList.add('all-asked');
+      setTimeout(function(){ d.scrollIntoView({behavior:calm?'auto':'smooth',block:'nearest'}); },calm?0:900);
+    });
+  });
+})();
+</script>
+</body>
+</html>

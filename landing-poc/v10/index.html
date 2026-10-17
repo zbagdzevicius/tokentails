@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Follow One Treat</title>
+<meta name="description" content="Play Catnip Heist free, no sign-up needed, and follow one treat from your game to Pink Paw, a cat shelter in Kaunas. Every payout is public.">
+<meta name="theme-color" content="#07051a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Follow one treat from your game to a cat shelter.">
+<meta property="og:description" content="Play Catnip Heist free, no sign-up needed. See where Token Tails sends the treat.">
+<meta property="og:image" content="https://tokentails.com/landing/heist-reel-poster-v1.jpg">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.com/landing/heist-reel-poster-v1.jpg">
+<style>
+:root{
+  --n950:#07051a;--n900:#0e0a26;--n800:#1c1240;--dusk:#7a3e6e;--horizon:#ee8a5c;--cream:#fcecbb;
+  --gold:#ffcc55;--gold-d:#c9952c;--mint:#7fd66b;--ink:#2a0f1e;
+  --light:#fbf3e4;--soft:#d9cde8;
+  --head:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:Nunito,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --rx:12px;--ind:50px;--pp:96px;
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;background:var(--n950)}
+body{background:var(--n950);color:var(--light);font:400 18px/1.6 var(--body);overflow-x:hidden}
+img{display:block;max-width:100%;height:auto}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radius:8px}
+.wrap{width:100%;max-width:1160px;margin:0 auto;padding:0 16px}
+
+/* skies: one continuous night, one dawn, joined by a horizon band */
+.night{background:linear-gradient(180deg,var(--n950) 0%,var(--n950) 16%,var(--n900) 34%,var(--n800) 58%,#41225a 80%,var(--dusk) 100%)}
+.horizon{position:relative;height:clamp(150px,28vw,280px);overflow:hidden;
+  background:linear-gradient(180deg,var(--dusk) 0%,#b4596a 48%,var(--horizon) 100%)}
+.sun{position:absolute;left:50%;bottom:0;width:clamp(220px,40vw,460px);aspect-ratio:2/1;transform:translateX(-50%);
+  border-radius:999px 999px 0 0;background:linear-gradient(180deg,#ffd77a,#ffb35e)}
+.sun::after{content:"";position:absolute;left:-60vw;right:-60vw;bottom:0;height:2px;background:rgba(42,15,30,.28)}
+.dawn{background:linear-gradient(180deg,var(--horizon) 0%,#f4a874 30%,#f8cd98 62%,var(--cream) 100%);color:var(--ink)}
+.dawn :focus-visible{outline-color:var(--ink)}
+
+/* top */
+.top{display:flex;align-items:center;gap:10px;padding:18px 0 0}
+.top img{width:28px;height:33px}
+.top span{font:700 17px/1 var(--head);letter-spacing:-.01em}
+
+/* hero = scene 1 */
+.hero{display:grid;gap:40px;padding:26px 0 72px}
+h1{font:700 clamp(38px,10.4vw,78px)/1.02 var(--head);letter-spacing:-.035em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gold);white-space:nowrap}
+h1 em::after{content:"";display:inline-block;width:.26em;height:.26em;border-radius:50%;background:var(--gold);margin-left:.08em;vertical-align:.08em}
+.sub{margin-top:16px;font-size:clamp(18px,2.1vw,21px);color:var(--soft);max-width:30em}
+.sub b{color:var(--light);font-weight:800}
+.go{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:58px;padding:0 26px;border-radius:999px;
+  background:var(--gold);color:var(--n950);font:700 19px/1 var(--head);letter-spacing:-.01em;text-decoration:none;white-space:nowrap;
+  border:2px solid var(--gold);box-shadow:0 4px 0 var(--gold-d);transition:transform .15s,box-shadow .15s,background .15s;width:100%;max-width:400px}
+.btn:hover{background:#ffd877;transform:translateY(-2px);box-shadow:0 6px 0 var(--gold-d)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--gold-d)}
+.btn svg{width:20px;height:20px;flex:none}
+.free{font-size:15px;color:var(--soft);padding-left:6px}
+.free b{color:var(--light)}
+
+.label{display:flex;align-items:baseline;gap:12px;font:500 14px/1 var(--head);letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.label b{font-weight:700;color:var(--gold);letter-spacing:.04em}
+.dawn .label{color:#4a1f2c}.dawn .label b{color:var(--ink)}
+.scene-h{font:700 clamp(40px,10vw,92px)/1 var(--head);letter-spacing:-.04em;margin-top:14px;text-wrap:balance}
+.play .scene-h{font-size:clamp(40px,10vw,64px)}
+.poster{margin-top:20px;border-radius:20px;overflow:hidden;border:1px solid rgba(251,243,228,.16);background:var(--n900)}
+.poster img{width:100%;aspect-ratio:16/9;object-fit:cover}
+.line{margin-top:16px;font-size:clamp(18px,2vw,20px);color:var(--soft);max-width:30em}
+.line q{quotes:none;color:var(--light)}
+
+/* the journey: one dashed rail, one sticky treat */
+.journey{position:relative;padding-left:var(--ind)}
+.rail{position:absolute;left:var(--rx);top:0;bottom:calc(var(--pp) / 2);width:2px;clip-path:inset(-4px -40px);
+  background:repeating-linear-gradient(180deg,rgba(255,204,85,.5) 0 7px,transparent 7px 15px)}
+.treat{position:sticky;top:50svh;display:block;width:20px;height:20px;margin:0 0 -10px -9px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 0 5px rgba(255,204,85,.18)}
+.treat::before{content:"";position:absolute;left:9px;bottom:20px;width:2px;height:130px;background:linear-gradient(180deg,rgba(255,204,85,0),var(--gold))}
+.scene{min-height:92svh;display:grid;align-content:center;padding:72px 0}
+.scene p.say{margin-top:18px;font-size:clamp(19px,2.2vw,23px);line-height:1.5;max-width:28em}
+.scene p.say b{font-weight:800}
+
+.rule{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;max-width:480px;border-radius:18px;overflow:hidden;
+  border:1px solid rgba(255,204,85,.3);background:rgba(7,5,26,.4)}
+.rule div{padding:16px 18px}
+.rule div+div{border-left:1px dashed rgba(255,204,85,.3)}
+.rule strong{display:flex;align-items:center;gap:8px;font:700 clamp(26px,7vw,36px)/1 var(--head);letter-spacing:-.03em;color:var(--gold)}
+.rule strong i{width:12px;height:12px;border-radius:50%;background:var(--gold);flex:none}
+.rule span{display:block;margin-top:8px;font:500 14px/1.35 var(--head);color:var(--soft)}
+
+.s3{min-height:auto;padding:22svh 0 0}
+.arrive{display:flex;align-items:center;margin-top:34px;margin-left:calc(var(--rx) - var(--ind) + 1px)}
+.wire{position:relative;width:calc(var(--ind) - var(--rx) - 4px);height:2px;flex:none;
+  background:repeating-linear-gradient(90deg,rgba(255,204,85,.6) 0 7px,transparent 7px 13px)}
+.wire::after{content:"";position:absolute;top:-6px;left:0;width:14px;height:14px;border-radius:50%;background:var(--gold);opacity:0}
+.arrived .wire::after{animation:hop 1s .1s ease-in-out forwards}
+@keyframes hop{0%{opacity:1;left:0}85%{opacity:1;left:calc(100% - 4px)}100%{opacity:0;left:calc(100% - 4px)}}
+.pp{width:var(--pp);height:var(--pp);flex:none;border-radius:50%;padding:5px;background:var(--light);border:3px solid rgba(255,204,85,.4);transition:border-color .5s .9s,transform .5s .9s}
+.pp img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.arrived .pp{border-color:var(--gold);transform:scale(1.04)}
+.who{margin-left:14px;font-size:17px;line-height:1.4;color:var(--soft)}
+.who b{display:block;font:700 19px/1.25 var(--head);color:var(--light)}
+.foot{padding:20px 0 0 var(--ind);font-size:14px;line-height:1.5;color:var(--soft);max-width:calc(30em + var(--ind))}
+.foot::before{content:"* ";color:var(--gold)}
+
+.s4{padding-left:var(--ind);min-height:88svh}
+.tick{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--mint);color:var(--n950);margin-bottom:22px}
+.tick svg{width:28px;height:28px}
+.s4 .scene-h{margin-top:12px}
+.more{display:inline-flex;align-items:center;gap:8px;margin-top:22px;font:700 19px/1.2 var(--head);text-decoration:underline;
+  text-decoration-thickness:2px;text-underline-offset:6px;text-decoration-color:var(--mint);padding:8px 0}
+.more:hover{color:#fff;text-decoration-color:currentColor}
+
+.s5{min-height:auto;padding:56px 0 96px}
+.goal{display:block;margin-top:26px;max-width:640px;padding:22px 24px;border-radius:20px;border:2px solid var(--ink);
+  background:rgba(252,236,187,.38);text-decoration:none;font:700 clamp(21px,3vw,28px)/1.25 var(--head);letter-spacing:-.02em}
+.goal span{display:block;margin-top:10px;font:700 15px/1.3 var(--body);text-decoration:underline;text-underline-offset:4px}
+.goal:hover{background:rgba(252,236,187,.7)}
+
+.s6{min-height:auto;padding:40px 0 64px;text-align:left}
+.s6 .scene-h{font-size:clamp(52px,14vw,128px)}
+.s6 .go{margin-top:28px}
+.s6 .btn{min-height:66px;font-size:21px;border-color:var(--ink);box-shadow:0 5px 0 var(--ink)}
+.s6 .btn:hover{box-shadow:0 7px 0 var(--ink)}
+.s6 .free{color:#5b3236}.s6 .free b{color:var(--ink)}
+.s6 .more{text-decoration-color:var(--ink)}
+footer{border-top:1px solid rgba(42,15,30,.18);padding:22px 0 84px;font-size:14px;color:#5b3236}
+footer nav{display:flex;flex-wrap:wrap;gap:4px 22px}
+footer a{display:inline-block;padding:8px 0;text-underline-offset:3px}
+
+/* sticky mobile CTA once the hero button has scrolled away */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  background:rgba(7,5,26,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-top:1px solid rgba(255,204,85,.25);
+  transform:translateY(110%);transition:transform .3s}
+.sticky.on{transform:none}
+.sticky .btn{max-width:none;min-height:54px}
+.poc{position:fixed;top:10px;right:10px;z-index:30;padding:5px 10px;border-radius:999px;font:500 12px/1.2 var(--body);
+  background:rgba(7,5,26,.78);color:var(--soft);border:1px solid rgba(251,243,228,.16)}
+.poc a{color:var(--gold);padding:4px 0}
+
+/* scene reveals: scroll-driven first, IntersectionObserver fallback (.io) */
+@media (prefers-reduced-motion:no-preference){
+  @supports (animation-timeline:view()){
+    .rv{animation:rise linear both;animation-timeline:view();animation-range:entry 5% cover 32%}
+    .sun{animation:sunup linear both;animation-timeline:view();animation-range:entry 0% exit 30%}
+  }
+  .io .rv{opacity:0;transform:translateY(36px);transition:opacity .8s,transform .8s}
+  .io .rv.in{opacity:1;transform:none}
+}
+@keyframes rise{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+@keyframes sunup{from{transform:translate(-50%,40%)}to{transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .treat{position:absolute;top:auto;bottom:-10px}
+  .pp{border-color:var(--gold)}
+  .scene{min-height:auto}
+}
+
+@media (min-width:880px){
+  :root{--rx:36px;--ind:150px;--pp:128px}
+  .dawn .scene,.night .s4{padding-left:var(--ind)}
+  .hero .go{flex-direction:column;align-items:flex-start;gap:12px}
+  .hero{grid-template-columns:1.05fr 1fr;gap:64px;align-items:center;padding:48px 0 120px}
+  .go{flex-direction:row;align-items:center;gap:18px}
+  .btn{width:auto}
+  .play{padding-top:8px}
+  .scene{padding:96px 0}
+  .s3{padding:24svh 0 0}
+  .who{margin-left:22px;font-size:19px}
+  .s5{padding:72px 0 120px}
+  .s6{padding:72px 0 88px}
+  .sticky{display:none}
+  .poc{top:auto;bottom:14px;right:14px}
+}
+</style>
+</head>
+<body>
+<p class="poc">POC variant v10 · <a href="../">all variants</a></p>
+
+<div class="night">
+  <div class="wrap">
+    <div class="top"><img src="https://tokentails.com/logo/logo.webp" alt="" width="28" height="33"><span>Token Tails</span></div>
+
+    <header class="hero">
+      <div>
+        <h1>Follow <em>one treat</em> from your game to a cat shelter.</h1>
+        <p class="sub">Catnip Heist is a free cat game. Scroll to see how Token Tails can send <b>Pink Paw</b> in Kaunas a treat.</p>
+        <div class="go">
+          <a class="btn" href="https://tokentails.com/heist?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">Play Catnip Heist, free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <span class="free">Free in your browser · <b>no sign-up needed</b></span>
+        </div>
+      </div>
+
+      <section class="play" aria-labelledby="s1h">
+        <p class="label"><b>01</b>The game</p>
+        <h2 class="scene-h" id="s1h">You play.</h2>
+        <div class="poster">
+          <img src="https://tokentails.com/landing/heist-reel-poster-v1.jpg" alt="Catnip Heist: two cats sneak through a guarded vault at night" width="1280" height="720" fetchpriority="high">
+        </div>
+        <!-- live copy: client/components/landing/HeistSection.tsx -->
+        <p class="line"><q>Two cats, one vault. Slip past Kibble Corp's guard dogs, grab the catnip and free the shelter cat.</q></p>
+      </section>
+    </header>
+
+    <div class="journey" id="journey">
+      <div class="rail" aria-hidden="true"><span class="treat"></span></div>
+
+      <section class="scene s2" id="s2" aria-labelledby="s2h">
+        <div class="rv">
+          <p class="label"><b>02</b>The treat</p>
+          <h2 class="scene-h" id="s2h">Token Tails can send Pink Paw a treat.</h2>
+          <p class="say" data-fact="C-004 C-005">A treat is 0.01 USDC, a digital dollar. Token Tails sets aside 1 USDC of treats a day.</p>
+          <div class="rule" data-fact="C-004 C-005" aria-hidden="true">
+            <div><strong><i></i>0.01</strong><span>USDC per treat</span></div>
+            <div><strong>1</strong><span>USDC of treats a day</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene s3" aria-labelledby="s3h">
+        <div class="rv">
+          <p class="label"><b>03</b>The wallet</p>
+          <h2 class="scene-h" id="s3h">It goes to Pink Paw's wallet.</h2>
+        </div>
+        <div class="arrive" id="arrive">
+          <span class="wire" aria-hidden="true"></span>
+          <span class="pp"><img src="https://tokentails.com/logo/shelters/pink-paw.webp" alt="Pink Paw shelter logo" width="128" height="128" loading="lazy"></span>
+          <p class="who"><b>Pink Paw</b>(Rožinė Pėdutė), a cat shelter in Kaunas.</p>
+        </div>
+      </section>
+    </div>
+    <!-- custody: live disclosure for "handed-over" (client shelter-payouts disclosureFor), api /impact money.custody -->
+    <p class="foot">Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.</p>
+
+    <section class="scene s4" aria-labelledby="s4h">
+      <div class="rv">
+        <span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <p class="label"><b>04</b>The proof</p>
+        <h2 class="scene-h" id="s4h">And anyone can check it.</h2>
+        <p class="say">Every payout is public, each linked to its transaction.</p>
+        <a class="more" href="https://tokentails.com/shelter-payouts?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">See every payout <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="horizon" aria-hidden="true"><div class="sun"></div></div>
+
+<div class="dawn">
+  <div class="wrap">
+    <section class="scene s5" aria-labelledby="s5h">
+      <div class="rv">
+        <p class="label"><b>05</b>The goal</p>
+        <h2 class="scene-h" id="s5h">There's a goal.</h2>
+        <a class="goal" data-fact="C-001" href="https://tokentails.com/shelter-payouts?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">Goal: 50,000 USDC for Pink Paw by 30 Sep 2027<span>See every payout →</span></a>
+      </div>
+    </section>
+
+    <section class="scene s6" id="end" aria-labelledby="s6h">
+      <div class="rv">
+        <p class="label"><b>06</b>You</p>
+        <h2 class="scene-h" id="s6h">Your turn.</h2>
+        <div class="go">
+          <a class="btn" href="https://tokentails.com/heist?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">Play Catnip Heist, free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <span class="free">Free in your browser · <b>no sign-up needed</b></span>
+        </div>
+        <a class="more" href="https://tokentails.com/shelter-payouts?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">See every payout <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+
+    <footer>
+      <nav aria-label="Legal">
+        <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+        <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+        <a href="https://tokentails.com/?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">tokentails.com</a>
+      </nav>
+    </footer>
+  </div>
+</div>
+
+<div class="sticky" id="sticky">
+  <a class="btn" href="https://tokentails.com/heist?from=poc_v10&amp;utm_source=landing-poc&amp;utm_campaign=v10">Play Catnip Heist, free</a>
+</div>
+
+<script>
+(function(){
+  var d=document.documentElement,st=document.getElementById('sticky'),past=false,end=false;
+  if(!('IntersectionObserver' in window))return;
+  if(!(window.CSS&&CSS.supports('animation-timeline','view()'))){
+    d.classList.add('io');
+    var ro=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ro.unobserve(e.target)}})},{threshold:.2});
+    document.querySelectorAll('.rv').forEach(function(el){ro.observe(el)});
+  }
+  function upd(){st.classList.toggle('on',past&&!end)}
+  new IntersectionObserver(function(es){past=!es[0].isIntersecting&&es[0].boundingClientRect.top<0;upd()}).observe(document.querySelector('.hero .btn'));
+  new IntersectionObserver(function(es){end=es[0].isIntersecting;upd()}).observe(document.querySelector('#end .go'));
+  var ar=document.getElementById('arrive');
+  new IntersectionObserver(function(es,o){if(es[0].isIntersecting){ar.classList.add('arrived');o.disconnect()}},{rootMargin:'0px 0px -40% 0px'}).observe(ar);
+})();
+</script>
+</body>
+</html>
