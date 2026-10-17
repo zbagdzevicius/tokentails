@@ -15,6 +15,7 @@ import { catsLabel, formatCents, parseCustom, quote, isValidCats } from './amoun
 import type { PriceRules } from './amount';
 import { RaveApiError, newClientKey } from './api';
 import type { RaveApi } from './api';
+import { createCountryPicker } from './country';
 import { addMyOrder } from './myorders';
 import { CAT_NAME_MAX_LENGTH, checkNames, expandNames, nameFieldCount, nameMessage, namesSummary, NAME_EXAMPLE, SURPRISE_PLACEHOLDER } from './names';
 import { declineNextStep, mountPaymentElement } from './stripe';
@@ -35,6 +36,14 @@ export interface CheckoutOptions {
   onDone?: () => void;
   /** Placeholder shuffle seed (tests); random by default. */
   seed?: number;
+  /**
+   * The buyer's IP country (`fetchGeoCountry(api)`): a code hides the picker, null shows it. Falls back to
+   * `status.country` when the status carries one; with neither the picker stays hidden (the server sets
+   * the country from the IP on its own).
+   */
+  country?: string | null | Promise<string | null>;
+  /** Picker memory (localStorage); none in tests. */
+  storage?: (Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>) | null;
 }
 
 export interface MountedCheckout {
@@ -324,6 +333,14 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     renderX();
   });
 
+  // -- country (the flag the cats hold): hidden when the server knows it from the IP
+  const countryPicker = createCountryPicker({
+    id,
+    detected: opts.country !== undefined ? opts.country : status.country,
+    storage: opts.storage,
+    languages: typeof navigator !== 'undefined' ? navigator.languages : [],
+  });
+
   // -- method tabs
   const tabs = h('div', 'rvc-tabs');
   tabs.setAttribute('role', 'tablist');
@@ -385,7 +402,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   // Sticky footer: the total and Continue stay on screen while the buyer scrolls the names.
   const foot = h('div', 'rvc-foot');
   foot.append(buildMsg, total, go);
-  build.append(landed, optsRow, customBox, preview, namesSet, xBox, tabs, cardPanel, usdcPanel, foot, legal);
+  build.append(landed, optsRow, customBox, preview, namesSet, xBox, countryPicker.el, tabs, cardPanel, usdcPanel, foot, legal);
 
   // ================================================================== step: pay (card)
   const pay = h('section', 'rvc-step rvc-pay');
@@ -621,6 +638,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       names: names.names,
       restName: names.restName,
       x: x.handle ?? '',
+      ...(countryPicker.value() ? { country: countryPicker.value()! } : {}),
     };
     // Same body → same clientKey → the server returns the same order (double tap, retry).
     const key = JSON.stringify(body);

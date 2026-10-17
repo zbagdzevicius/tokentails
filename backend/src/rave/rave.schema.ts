@@ -5,7 +5,7 @@ import { Document, Types } from 'mongoose';
  * Moon Rave orders (`raveorders`, cat-rave/CHECKOUT-SPEC.md section 5). One order = N cats = N USD for
  * Pink Paw. The payout itself is an ordinary row of the shelter-share keeper (`cryptocheckouts`, memo
  * `tt:rave:<16 hex>`); this collection keeps the names, the optional X handle and the order's state.
- * No email, no IP address, no user id is stored.
+ * No email, no IP address, no user id is stored; only the buyer's country code (rave-country.ts).
  */
 
 export const RAVE_ORDER_STATUSES = [
@@ -84,6 +84,13 @@ export class RaveOrder {
 
     @Prop({ required: false })
     xHandleLower?: string;
+
+    /** ISO 3166-1 alpha-2 code: Cloudflare's IP country, else the one the buyer picked. The cats hold its flag. */
+    @Prop({ required: false })
+    country?: string;
+
+    @Prop({ required: false, enum: ['ip', 'picked'] })
+    countrySource?: 'ip' | 'picked';
 
     @Prop({ required: true, default: false })
     hidden: boolean;

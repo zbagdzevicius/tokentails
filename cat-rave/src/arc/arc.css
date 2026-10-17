@@ -106,15 +106,74 @@
     opacity: 0.35;
   }
 }
-@media (min-width: 760px) {
+/* Wide desktops (>= 1180 px): the bottom-right corner, above the first-run hint
+   ([MOON RAVE / LIVE ON · THIS WEEK] [logo plate], ~88 px tall). The top band is out: under the tool
+   buttons, and beside them, is where the hero shot puts the right moon-ring ad slot (and, at 1280-1366 px,
+   the world's Token Tails logo). A paid slot must never sit under the HUD; the bottom corner is crowd. */
+@media (min-width: 1180px) {
+  /* [MOON RAVE            ] [logo plate]
+     [● LIVE ON · THIS WEEK]              */
+  .rv-arc-badge {
+    position: fixed;
+    right: calc(16px + var(--safe-right, 0px));
+    bottom: calc(96px + var(--safe-bottom, 0px));
+    z-index: 2;
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-areas: 'brand brand plate' 'live week plate';
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
+    padding: 6px 6px 6px 14px;
+  }
+  .rv-arc-badge[hidden] {
+    display: none;
+  }
+  #hud.rv-has-sheet .rv-arc-badge {
+    visibility: hidden;
+  }
+  .rv-arc-row {
+    display: contents;
+  }
+  .rv-arc-brand {
+    grid-area: brand;
+    align-self: end;
+    text-align: left;
+  }
   .rv-arc-live {
-    font-size: 17px;
+    grid-area: live;
+    align-self: start;
+    justify-content: flex-start;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .rv-arc-week {
+    grid-area: week;
+    align-self: start;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    margin-right: 4px;
+  }
+  .rv-arc-week::before {
+    content: '· ';
+  }
+  .rv-arc-plate {
+    grid-area: plate;
+    margin-left: 4px;
+  }
+  .rv-arc-dot {
+    width: 8px;
+    height: 8px;
   }
 }
-@media (max-width: 759px) {
-  /* Phones: a one-line pill about 32 px tall in the top-left stats block ("● LIVE ON Arc · this week"),
-     never over Add a cat, the arrivals list, the moon, the DJ or the shout-outs. Text only: the Arc logo's
-     50 px minimum height does not fit a 32 px pill, so the logo stays on the DJ desk on phones. */
+@media (max-width: 1179px) {
+  /* Phones, tablets and narrow desktops: a one-line pill about 32 px tall in the top-left stats block
+     ("● LIVE ON Arc · this week"), never over Add a cat, the arrivals list, the moon, the DJ, the
+     shout-outs or an ad slot (the moon-ring slots sit right under the tool buttons at these widths).
+     Text only: the Arc logo's 50 px minimum height does not fit a 32 px pill, so the logo stays on the
+     DJ desk here. */
   .rv-arc-badge {
     flex-direction: row;
     align-items: center;

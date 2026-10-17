@@ -1,7 +1,7 @@
 /**
  * L-UI: HUD. Counter "$X raised · N cats dancing", next-cat progress paw, "Add a cat" CTA sheet
  * (free treat, wallet gift, adopt), cat card, find my cat, share sheet, shot picker, mute, DEMO
- * banner, DJ shout-outs, the drop stamp and the debug line. SPEC.md "HUD".
+ * banner, DJ shout-outs, the drop stamp, the countries leaderboard and the debug line. SPEC.md "HUD".
  */
 import '../fonts/fonts.css';
 import './hud.css';
@@ -9,9 +9,13 @@ import { LINKS, MICRO } from '../config';
 import type { PayoutSnapshot, RaveCat, ShotId } from '../types';
 import { isArcChain } from '../arc/arcweek';
 import { safeHttpsUrl, type TreatResult } from '../data';
+import type { CountryBoard } from '../data/countries';
+import { BADGE_ROW_MIN_WIDTH, BOARD_MAX_ROWS, boardKey, boardSummary, chipLabel, flagImg, isTied, rankLabel, type SheetKind } from './board';
+import { countryName } from '../data/countries';
 import { adoptLine, catCard, counterText, demoHeadline, demoLine, formatToNext, formatUsd, hookLine, plural, sourceLine } from './format';
 
 export { formatUsd };
+export type { SheetKind };
 
 export type TreatMode = 'inpage' | 'link' | 'hidden';
 
@@ -21,6 +25,8 @@ export interface CatNameInfo {
   x: string | null;
   /** `https://x.com/<handle>`, built by the data lane from a re-checked handle. */
   xUrl: string | null;
+  /** The buyer's country (ISO alpha-2): the flag the cat holds. Null or absent: no flag. */
+  country?: string | null;
 }
 
 /** Mounts the in-page checkout into `host` (once; it stays mounted across sheet closes). */
@@ -124,7 +130,12 @@ export interface Hud {
   stamp(text: string): void;
   hint(text: string): void;
   setDebug(text: string | null): void;
-  openSheet(kind: 'add' | 'find' | 'share' | 'shots' | 'ads'): void;
+  /**
+   * The countries leaderboard (data lane `orders.countries()`): the 🌍 tool button shows how many
+   * countries took part and opens the board. null = no rave orders known (the button stays, the board says so).
+   */
+  setCountries(board: CountryBoard | null): void;
+  openSheet(kind: SheetKind): void;
   closeSheet(): void;
   readonly sheetOpen: boolean;
   dispose(): void;
@@ -203,7 +214,19 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   source.append(dot, sourceText);
   const more = el('div', 'rv-more');
   more.hidden = true;
-  counter.append(demo, amountRow, cats, hook, next, source, more, live);
+  // The countries chip (the leaderboard button) sits on the source line: no extra row in the stats
+  // block, nothing more in the tool column (both sit next to moon-ring ad slots on phones).
+  const sourceRow = el('div', 'rv-source-row');
+  const boardBtn = el('button', 'rv-board-btn rv-board-chip') as HTMLButtonElement;
+  boardBtn.type = 'button';
+  const boardIco = el('span', 'rv-board-ico');
+  boardIco.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z"/></svg>';
+  const boardText = el('span', '', 'Countries');
+  boardBtn.append(boardIco, boardText);
+  boardBtn.setAttribute('aria-label', 'Countries leaderboard');
+  boardBtn.title = 'Countries leaderboard';
+  sourceRow.append(source, boardBtn);
+  counter.append(demo, amountRow, cats, hook, next, sourceRow, more, live);
 
   const tools = el('nav', 'rv-tools');
   tools.setAttribute('aria-label', 'Rave controls');
@@ -230,7 +253,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   /** Shout-outs never cover the Arc badge (no text on top of the logo): they start below it when it is in their column. */
   const placeShout = () => {
     let min = 0;
-    // Only the desktop badge carries the logo; the phone pill is text and sits in the stats block.
+    // Only the wide-desktop badge carries the logo; the pill is text and sits in the stats block.
     if (badgeNode && badgeNode.isConnected && !badgeNode.hidden && !phoneMq?.matches) {
       const r = badgeNode.getBoundingClientRect();
       const half = Math.min(window.innerWidth * 0.88, 520) / 2;
@@ -262,16 +285,17 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   const sponsorsSlot = el('div', 'rv-sponsors-slot');
   bottom.append(arrivalsSlot, hintEl, soundBtn, sponsorsSlot, ctaRow);
 
-  // The Arc week badge: under the tool buttons on desktop; on phones a one-line 32 px pill at the end of
-  // the top-left stats block (text only, arc/badge.ts), so the bottom bar keeps Add a cat and the
-  // arrivals list clear and the centre keeps the moon, the DJ and the shout-outs.
+  // The Arc week badge: on wide desktops (>= 1180 px) in the bottom-right corner above the hint (fixed,
+  // arc/arc.css); below that a one-line 32 px pill at the end of the top-left stats block (text only,
+  // arc/badge.ts). The top band is where the hero shot puts the moon-ring ad slots and the world's
+  // Token Tails logo, and the bottom centre keeps Add a cat and the arrivals list clear.
   let badgeNode: HTMLElement | null = null;
-  const phoneMq = typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 759px)') : null;
+  const phoneMq = typeof window.matchMedia === 'function' ? window.matchMedia(`(max-width: ${BADGE_ROW_MIN_WIDTH - 1}px)`) : null;
   const placeBadge = () => {
     if (!badgeNode) return;
     if (phoneMq?.matches) {
       if (badgeNode.parentElement !== counter || badgeNode.nextSibling !== live) counter.insertBefore(badgeNode, live);
-    } else if (badgeNode.parentElement !== side) side.append(badgeNode);
+    } else if (badgeNode.parentElement !== root) root.append(badgeNode);
   };
   phoneMq?.addEventListener?.('change', placeBadge);
 
@@ -323,6 +347,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   let adMount: AdSheetMount | null = null;
   let adSheet: ReturnType<AdSheetMount> | null = null;
   let adSelect: string | null = null;
+  let board: CountryBoard | null = null;
 
   const bump = (e: HTMLElement) => {
     e.classList.remove('rv-bump');
@@ -372,7 +397,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   };
 
   // ------------------------------------------------------------------ sheets
-  const openSheet = (kind: 'add' | 'find' | 'share' | 'shots' | 'ads') => {
+  const openSheet = (kind: SheetKind) => {
     if (h.embed) return;
     if (kind === 'ads' && !adMount) return;
     // One .rv-sheet serves every kind: start each at the top, or a sheet scrolled earlier hides the
@@ -381,6 +406,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     lastFocus = document.activeElement as HTMLElement | null;
     sheetKind = kind;
     sheetBody.innerHTML = '';
+    sheetBody.classList.remove('rv-board-sheet');
     const inPage = kind === 'add' && !!checkoutMount;
     const ads = kind === 'ads';
     sheetBody.hidden = inPage || ads;
@@ -408,6 +434,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     } else if (kind === 'add') buildAdd();
     else if (kind === 'find') buildFind();
     else if (kind === 'share') buildShare();
+    else if (kind === 'countries') buildCountries();
     else buildShots();
     sheet.scrollTop = 0; // again, after the new content replaced the old
     sheet.classList.add('rv-on');
@@ -551,12 +578,65 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     if (!h.coarse) sheetBody.append(el('div', 'rv-kbd', 'Keys: hold Space = build · Enter = drop · 1–6 shots · A auto · M mute · F find'));
   }
 
+  /** Countries leaderboard: which countries joined the rave and how many cats each. */
+  function buildCountries() {
+    sheetBody.classList.add('rv-board-sheet');
+    const title = el('h2', 'rv-display', 'Countries at the rave 🌍');
+    const sum = el('p', 'rv-board-sum');
+    sum.textContent = boardSummary(board);
+    sheetBody.append(title, sum);
+    const rows = board?.rows ?? [];
+    if (!rows.length) {
+      const empty = el('p', 'rv-board-empty');
+      empty.textContent = 'Add a cat and your country goes on the board. Your cats dance holding its flag.';
+      const go = el('button', 'rv-btn rv-board-go', 'Add a cat 🐾');
+      go.type = 'button';
+      go.addEventListener('click', () => openSheet('add'));
+      sheetBody.append(empty, go);
+      return;
+    }
+    const max = Math.max(1, rows[0].cats);
+    const shownRows = rows.slice(0, BOARD_MAX_ROWS);
+    const list = el('ol', 'rv-board');
+    list.setAttribute('aria-label', 'Cats per country');
+    shownRows.forEach((r, i) => {
+      const tied = isTied(shownRows, i);
+      const li = el('li', `rv-board-row${r.rank <= 3 && !tied ? ' rv-board-top' : ''}`);
+      const rank = el('span', 'rv-board-rank');
+      rank.textContent = rankLabel(r.rank, tied);
+      // A painted flag (same designs as the crowd's), not emoji: Windows shows emoji flags as letters.
+      const flag = el('span', 'rv-board-flag');
+      const img = flagImg(r.code);
+      if (img) flag.append(img);
+      else flag.textContent = r.code;
+      flag.setAttribute('aria-hidden', 'true');
+      const name = el('span', 'rv-board-name');
+      name.textContent = r.name || r.code;
+      const bar = el('span', 'rv-board-bar');
+      bar.style.setProperty('--w', `${Math.max(4, Math.round((r.cats / max) * 100))}%`);
+      bar.setAttribute('aria-hidden', 'true');
+      const n = el('span', 'rv-board-n');
+      n.append(document.createTextNode(r.cats.toLocaleString('en-US')), el('small', '', r.cats === 1 ? 'cat' : 'cats'));
+      li.setAttribute('aria-label', `${r.rank}. ${r.name || r.code}: ${plural(r.cats, 'cat', 'cats')}`);
+      li.append(rank, flag, name, n, bar);
+      list.append(li);
+    });
+    sheetBody.append(list);
+    const extra = rows.length - BOARD_MAX_ROWS;
+    if (extra > 0) sheetBody.append(el('p', 'rv-board-more', `+${plural(extra, 'more country', 'more countries')}`));
+    const unknown = board?.unknownCats ?? 0;
+    const foot = el('p', 'rv-board-foot');
+    foot.textContent = `Each cat holds its buyer's flag, from the country we see at checkout (or the one you pick).${unknown ? ` ${plural(unknown, 'cat has', 'cats have')} no country yet.` : ''}`;
+    sheetBody.append(foot);
+  }
+
   // ------------------------------------------------------------------ events
   cta.addEventListener('click', () => openSheet('add'));
   advertise.addEventListener('click', () => openSheet('ads'));
   shareBtn.addEventListener('click', () => openSheet('share'));
   findBtn.addEventListener('click', () => openSheet('find'));
   shotBtn.addEventListener('click', () => openSheet('shots'));
+  boardBtn.addEventListener('click', () => openSheet('countries'));
   muteBtn.addEventListener('click', () => setMuted(h.onMute()));
   soundBtn.addEventListener('click', () => {
     if (h.muted) setMuted(h.onMute());
@@ -605,11 +685,19 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   card.addEventListener('pointerenter', () => clearTimeout(cardTimer));
   card.addEventListener('pointerleave', armCardTimer);
 
-  function nameLine(prefix: string | null, x: string | null): HTMLElement {
+  function nameLine(prefix: string | null, x: string | null, country?: string | null): HTMLElement {
     const line = el('div', 'rv-c-who');
     if (prefix) line.append(document.createTextNode(prefix));
     const link = xHandleLink(x);
     if (link) line.append(document.createTextNode(prefix ? ' · from ' : 'From '), link);
+    const place = countryName(country);
+    if (place) {
+      const span = el('span', 'rv-c-country');
+      const img = flagImg(country, 'rv-flag rv-flag-inline');
+      if (img) span.append(img, document.createTextNode(' '));
+      span.append(document.createTextNode(place));
+      line.append(document.createTextNode(link ? ' in ' : prefix ? ' · from ' : 'From '), span);
+    }
     return line;
   }
   function placeCard(o: { mode?: 'hover' | 'pin'; x?: number; y?: number; place?: 'top' | 'bottom'; autoCloseMs?: number }) {
@@ -727,13 +815,13 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
       } catch {
         named = null;
       }
-      if (named?.name || named?.x) {
+      if (named?.name || named?.x || named?.country) {
         const h3 = cardBody.querySelector('h3')!;
         if (named.name) {
           h3.textContent = named.name;
           h3.classList.add('rv-c-named');
         }
-        cardBody.insertBefore(nameLine(named.name ? t.title : null, named.x), h3.nextSibling);
+        cardBody.insertBefore(nameLine(named.name ? t.title : null, named.x, named.country), h3.nextSibling);
       }
       if (arc) {
         const line = el('div', 'rv-c-arcline');
@@ -754,7 +842,7 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
       amount.textContent = info.delayed ? 'Arriving · payout running late' : info.status === 'onchain' ? 'On-chain ✓ landing any moment' : 'Arriving 🛸 paid, on its way to the floor';
       const meta = el('div', 'rv-c-meta');
       meta.textContent = 'Becomes a dancing cat when the $1 payout to Pink Paw lands on-chain.';
-      cardBody.replaceChildren(h3, nameLine('Moon Rave cat', info.x), amount, meta);
+      cardBody.replaceChildren(h3, nameLine('Moon Rave cat', info.x, info.country), amount, meta);
       placeCard(o);
     },
     setAdSheet(mount) {
@@ -862,6 +950,22 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     setDebug(text) {
       debug.hidden = text === null;
       if (text !== null) debug.textContent = text;
+    },
+    setCountries(b) {
+      const prevKey = boardKey(board);
+      board = b;
+      const n = b?.countries ?? 0;
+      boardText.textContent = `${b?.demo && n ? 'DEMO · ' : ''}${chipLabel(b)}`;
+      const label = n > 0 ? `Countries leaderboard: ${plural(n, 'country', 'countries')}` : 'Countries leaderboard';
+      boardBtn.setAttribute('aria-label', label);
+      boardBtn.title = label;
+      // Live update while the board is open (keeps its scroll position).
+      if (sheetKind === 'countries' && boardKey(b) !== prevKey) {
+        const y = sheet.scrollTop;
+        sheetBody.replaceChildren();
+        buildCountries();
+        sheet.scrollTop = y;
+      }
     },
     openSheet,
     closeSheet,

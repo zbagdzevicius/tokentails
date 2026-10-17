@@ -17,13 +17,14 @@ import { createRaveApi } from './checkout/api';
 import { createArrivalsList } from './checkout/arrivals';
 import { forgetMyOrder, readMyOrderIds } from './checkout/myorders';
 import { mountCheckout } from './checkout/sheet';
+import { countryLeaderboard, fetchGeoCountry } from './data/countries';
 import { API_BY_HOST, LAYOUT, LINKS, QUALITY, SHOTS } from './config';
-import { createCrowd } from './crowd';
+import { createCrowd, type CrowdWithFlags } from './crowd';
 import { createPayoutFeed, safeHttpsUrl, treatAllowedHere, treatStatus } from './data';
 import { createRaveOrders, type NameShoutout } from './data/rave-orders';
 import { createOwnTag } from './ui/ownTag';
 import { createDj } from './dj';
-import type { BeatEventPayload, CrowdApi, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, Section, WorldApi } from './types';
+import type { BeatEventPayload, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, Section, WorldApi } from './types';
 import { createDirector } from './ui/director';
 import { counterText, formatUsd, shareText, shoutFor } from './ui/format';
 import { COUNT_UP_MS, createHud, type TreatMode } from './ui/hud';
@@ -32,6 +33,15 @@ import { parseParams } from './ui/params';
 import { FrameGovernor, pickQuality, readDeviceHints, stepDown } from './ui/quality';
 import { composePicture, savePicture, shareLink, shareUrl } from './ui/share';
 import { createWorld } from './world';
+
+/** localStorage, or null where it throws (private windows, blocked site data). */
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function apiBase(override: string | null): string | null {
   if (override) return override;
@@ -144,7 +154,7 @@ async function boot() {
 
   const storedMute = store.get('rave:muted') === '1';
   const clock = createBeatClock({ muted: params.mute || storedMute || og });
-  const crowd: CrowdApi = createCrowd(world, profile);
+  const crowd: CrowdWithFlags = createCrowd(world, profile);
   setBoot('waking the kittens', 0.55);
   await nextFrame();
   const dj = createDj(world, clock, profile);
@@ -186,10 +196,34 @@ async function boot() {
     pending = s.demo ? 0 : feed.pendingUsdMicro;
     snapshot = s;
     crowd.setCats(s.catList.slice(0, crowd.capacity));
+    syncFlags();
     crowd.setNextCat(s.demo ? 0 : Math.min(0.999, s.progressToNext + pending / 1_000_000));
     hud.setSnapshot(s);
     hud.setPending(pending);
     hud.setCapacity(crowd.capacity);
+  };
+
+  /**
+   * Flags: each real cat holds its buyer's country (rave orders); DEMO cats keep the sample country
+   * the snapshot gave them (undefined = keep). The leaderboard is the orders' board, or a DEMO board.
+   */
+  const syncFlags = () => {
+    const s = snapshot;
+    if (!s) return;
+    // crowd.setCountries skips the walk when the list did not change (every orders poll lands here).
+    crowd.setCountries(s.catList.slice(0, crowd.capacity).map((c) => (c.demo ? undefined : (orders.namesForCat(c)?.country ?? null))));
+    const real = orders.countries();
+    if (!s.demo) {
+      hud.setCountries(real);
+      return;
+    }
+    // DEMO: the real buyers' countries plus the demo cats' sample ones, marked DEMO.
+    const board = countryLeaderboard([
+      ...real.rows.map((r) => ({ country: r.code, cats: r.cats, landed: r.landed > 0 })),
+      { country: null, cats: real.unknownCats },
+      ...s.catList.filter((c) => c.demo).map((c) => ({ country: c.country, cats: 1 })),
+    ]);
+    hud.setCountries({ ...board, demo: true });
   };
 
   /** Every cat one payout made (a $5 gift = 5 cats) glows, not only the one tapped. */
@@ -334,7 +368,7 @@ async function boot() {
     },
     nameFor(cat) {
       const n = orders.namesForCat(cat);
-      return n ? { name: n.name, x: n.x, xUrl: n.xUrl } : null;
+      return n ? { name: n.name, x: n.x, xUrl: n.xUrl, country: n.country } : null;
     },
   });
   const badge = createArcBadge();
@@ -440,6 +474,7 @@ async function boot() {
   let collapseTimer = 0;
   const syncOrders = () => {
     crowd.setArriving(orders.arriving().count);
+    syncFlags();
     const nowMs = Date.now();
     let nextCollapse = Infinity;
     const rows = orders.recent(12).filter((r) => {
@@ -474,7 +509,7 @@ async function boot() {
     const n = orders.arrivingNames(Math.max(k + 1, crowd.arrivingShown))[k];
     if (!n) return null;
     const view = orders.arriving().orders.find((o) => o.orderId === n.orderId);
-    return { name: n.name, x: n.x, xUrl: n.xUrl, status: view?.status ?? 'paid', delayed: view?.delayed ?? false };
+    return { name: n.name, x: n.x, xUrl: n.xUrl, country: n.country, status: view?.status ?? 'paid', delayed: view?.delayed ?? false };
   };
   const shoutNames = (e: NameShoutout) => {
     // The canvas bubble takes plain text; the HUD toast gets the buyer's X as a real link (ugc rel).
@@ -504,6 +539,9 @@ async function boot() {
       mountCheckout(host, {
         api: raveApi,
         status: st,
+        // The IP country hides the "Your flag" picker; asked once, when the sheet first opens.
+        country: st.country !== undefined ? st.country : fetchGeoCountry(api),
+        storage: safeLocalStorage(),
         onPaid(o) {
           orders.track(o.answer, o.status === 'paid' ? 'paid' : 'pending');
           syncOrders();

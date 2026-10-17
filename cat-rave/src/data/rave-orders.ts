@@ -16,6 +16,7 @@
  */
 import { CHAINS, explorerTx, POLL_MS } from '../config';
 import type { PayoutDiff, PayoutSnapshot, RaveCat } from '../types';
+import { countryLeaderboard, cleanCountry, type CountryBoard } from './countries';
 import { cleanRaveOrderId, pollDelay, raveOrderIdOf } from './index';
 
 // =============================================================================================
@@ -66,6 +67,8 @@ export interface RaveOrder {
   restName: string | null;
   /** Bare X handle (`^[A-Za-z0-9_]{1,15}$`), or null. */
   x: string | null;
+  /** Buyer country, ISO 3166-1 alpha-2 upper case (from IP, else the buyer's pick), or null. */
+  country: string | null;
   status: RaveOrderStatus;
   chainId: number | null;
   payoutTx: string | null;
@@ -84,6 +87,8 @@ export interface CatName {
   x: string | null;
   /** `https://x.com/<handle>`, built here from the checked handle. */
   xUrl: string | null;
+  /** The buyer's country (the cat holds this flag), or null: no flag. */
+  country: string | null;
 }
 
 export interface RaveOrderView extends RaveOrder {
@@ -166,6 +171,12 @@ export interface RaveOrders {
   /** Arriving orders plus orders that landed in this session, newest first (the arrivals list). */
   recent(limit?: number): RaveOrderView[];
   order(orderId: string): RaveOrder | null;
+  /**
+   * Countries leaderboard: cats per buyer country over the public orders (the rows GET /rave/countries
+   * counts) plus the viewer's own paid ones. Never the viewer's unpaid orders.
+   * `landed` = cats whose payout is in the feed. Orders without a country add to `unknownCats`.
+   */
+  countries(): CountryBoard;
   /** Shout-out when an order's payout first appears in the feed. */
   onLanded(cb: (e: NameShoutout) => void): () => void;
   /** Any change to orders, arriving or landed. */
@@ -270,6 +281,7 @@ export function parseOrder(raw: unknown, mine = false): RaveOrder | null {
     names,
     restName,
     x: cleanXHandle(b.x),
+    country: cleanCountry(b.country),
     status,
     chainId,
     payoutTx,
@@ -401,6 +413,8 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
   /** Orders whose onchain → feed refresh is scheduled. */
   const refreshScheduled = new Set<string>();
   const firstSeen = new Map<string, number>();
+  /** Orders the public list (GET /rave/cats) carried: the server counts them, so the board does too. */
+  const publicIds = new Set<string>();
 
   const landedListeners = new Set<(e: NameShoutout) => void>();
   const changeListeners = new Set<() => void>();
@@ -456,7 +470,9 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
     const mine = o.mine || prev?.mine || isMine(o.orderId);
     // A public row (cached 15 s) never downgrades a fresher status.
     const status = !own && prev && rank(prev.status) > rank(o.status) ? prev.status : o.status;
-    orders.set(o.orderId, { ...o, mine, status, payoutTx: o.payoutTx ?? prev?.payoutTx ?? null, chainId: o.chainId ?? prev?.chainId ?? null });
+    // The checkout answer may lack the country the server set from the IP: keep a known one.
+    const country = o.country ?? prev?.country ?? null;
+    orders.set(o.orderId, { ...o, mine, status, country, payoutTx: o.payoutTx ?? prev?.payoutTx ?? null, chainId: o.chainId ?? prev?.chainId ?? null });
     if (!firstSeen.has(o.orderId)) firstSeen.set(o.orderId, now());
     indexDirty = true;
   }
@@ -559,7 +575,10 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
         }
         indexDirty = true;
       }
-      for (const o of list) upsert(o);
+      for (const o of list) {
+        publicIds.add(o.orderId);
+        upsert(o);
+      }
       if (full) lastFullAt = now();
     } catch (err) {
       ok = false;
@@ -697,7 +716,7 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
       if (!hit) return null;
       const o = orders.get(hit.orderId);
       const x = o?.x ?? null;
-      return { orderId: hit.orderId, position: hit.position, name: o ? catNameAt(o, hit.position) : null, x, xUrl: xUrlOf(x) };
+      return { orderId: hit.orderId, position: hit.position, name: o ? catNameAt(o, hit.position) : null, x, xUrl: xUrlOf(x), country: o?.country ?? null };
     },
     arriving() {
       const idx = currentIndex();
@@ -708,7 +727,7 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
       const out: CatName[] = [];
       for (const o of store.arriving().orders) {
         for (let i = 0; i < o.cats && out.length < limit; i++) {
-          out.push({ orderId: o.orderId, position: i, name: catNameAt(o, i), x: o.x, xUrl: o.xUrl });
+          out.push({ orderId: o.orderId, position: i, name: catNameAt(o, i), x: o.x, xUrl: o.xUrl, country: o.country });
         }
         if (out.length >= limit) break;
       }
@@ -721,6 +740,15 @@ export function createRaveOrders(opts: RaveOrdersOptions): RaveOrders {
         .sort(newestFirst)
         .slice(0, limit)
         .map((o) => view(o, idx));
+    },
+    countries() {
+      const idx = currentIndex();
+      const entries = [...orders.values()]
+        // Same rows as GET /rave/countries: what the public list carries, plus the viewer's own orders
+        // once paid. The viewer's unpaid USDC order (tracked as pending) is not a cat yet.
+        .filter((o) => publicIds.has(o.orderId) || o.status === 'paid' || o.status === 'onchain')
+        .map((o) => ({ country: o.country, cats: o.cats, landed: idx.inFeed.has(o.orderId) }));
+      return countryLeaderboard(entries);
     },
     order(orderId) {
       const id = cleanRaveOrderId(orderId);

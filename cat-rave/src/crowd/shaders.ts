@@ -8,11 +8,14 @@
  */
 import { LAYOUT } from '../config';
 import { CAT_SHAPE } from './catGeometry';
+import { FLAG_ATLAS } from './flags';
 import { CAT_CENTER_Y, DROP_IN_SECONDS, VORTEX_AREA, VORTEX_FALLOFF, VORTEX_INNER, VORTEX_LIFT, VORTEX_PITCH, VORTEX_SPEED } from './slots';
 
 const f = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`);
 
 const S = CAT_SHAPE;
+const F = S.flag;
+const A = FLAG_ATLAS;
 
 export const POSE_GLSL = /* glsl */ `
 uniform float uTime;
@@ -35,8 +38,11 @@ uniform float uConeAmt;
 attribute vec4 aSlot;
 // x: seed; y: drop-in start (uTime seconds); z: highlight 0/1
 attribute vec4 aData;
+// Flag atlas cell of the buyer's country, or -1: no flag (FLAG_ATLAS, flags.ts).
+attribute float aFlag;
 
 varying float vSeed;
+varying float vFlag;
 varying float vFur;
 varying float vHi;
 varying float vGlow;
@@ -138,8 +144,9 @@ Pose catPose() {
   float amp = 0.1 + 0.12 * e;
   float buzz = 0.18 * uBuild * sin(uTime * 31.0 + seed * 9.0);
   float vee = -0.1 - 0.12 * pump;
-  P.armL = mix(amp * alt, vee, uDrop) + buzz - 0.2 * jump;
-  P.armR = mix(-amp * alt, vee, uDrop) - buzz - 0.2 * jump;
+  // Biased outwards (-0.08): the short arms only brush the cheeks, never cross into the face.
+  P.armL = mix(amp * alt - 0.08, vee, uDrop) + buzz - 0.2 * jump;
+  P.armR = mix(-amp * alt - 0.08, vee, uDrop) - buzz - 0.2 * jump;
   P.armFwd = (0.18 * land * (0.3 + e) - 0.08) * (1.0 - uVortex) + 0.7 * uVortex;
   P.nod = (0.2 * land * (0.4 + e) - 0.05) * (1.0 - 0.5 * uVortex) + 0.25 * uBuild * sin(uTime * 24.0 + seed);
   P.tilt = (seed - 0.5) * 0.35 + P.roll * 0.8;
@@ -168,10 +175,18 @@ Pose catPose() {
     float sq = t > 0.72 ? sin(PI * (t - 0.72) / 0.28) : 0.0;
     P.sy *= 1.0 - 0.4 * sq;
     P.sxz *= 1.0 + 0.3 * sq;
-    P.armL += 0.6 * (1.0 - fall);
-    P.armR += 0.6 * (1.0 - fall);
+    // Arms flung out while falling (outwards: the short arms would hit the head inwards).
+    P.armL -= 0.45 * (1.0 - fall);
+    P.armR -= 0.45 * (1.0 - fall);
     P.glow = 1.0 - t;
   }
+
+  // The paws sit at the cheeks on a very short stub, so the swing is wider in angle than it looks.
+  P.armL *= 1.8;
+  P.armR *= 1.8;
+  // The flag arm (+X, armR) dances half as wide and is clamped, so the flag stays near the cat and
+  // inside the impostor quad (its outer top corner must stay under x = 0.75 there).
+  if (aFlag >= 0.0) P.armR = clamp(P.armR * 0.55, -0.3, 0.35);
 
   P.yaw = atan(fwd.x, fwd.y) + yawSpin;
   P.scale = aSlot.z * (1.0 + 0.1 * aData.z) * vis;
@@ -181,6 +196,7 @@ Pose catPose() {
   vFur = aSlot.w;
   vHi = aData.z;
   vGlow = P.glow;
+  vFlag = aFlag;
   return P;
 }
 
@@ -263,6 +279,18 @@ const CROWD_FOG = /* glsl */ `
 #endif
 `;
 
+/** Atlas lookup: cell `cell` (flags.ts FLAG_ATLAS, canvas rows top-down, flipY off), uv 0..1 bottom-up. */
+const FLAG_SAMPLE_GLSL = /* glsl */ `
+vec3 flagColor(float cell, vec2 uv) {
+  vec2 grid = vec2(${f(A.cols)}, ${f(A.rows)});
+  vec2 c = vec2(mod(cell, grid.x), floor(cell / grid.x));
+  // The flag is painted inside a gutter (flags.ts); sample its inner rectangle.
+  vec2 pad = vec2(${f(+(A.padX / A.cellW).toFixed(5))}, ${f(+(A.padY / A.cellH).toFixed(5))});
+  vec2 fuv = pad + clamp(vec2(uv.x, 1.0 - uv.y), 0.0, 1.0) * (1.0 - 2.0 * pad);
+  return texture2D(uFlags, (c + fuv) / grid).rgb;
+}
+`;
+
 export const NEAR_VERTEX = /* glsl */ `
 ${POSE_GLSL}
 attribute float aPart;
@@ -271,6 +299,7 @@ varying vec3 vWorld;
 varying vec3 vLocal;
 varying vec3 vLocalN;
 varying float vPart;
+varying vec2 vFlagUv;
 #include <fog_pars_vertex>
 
 void main() {
@@ -278,8 +307,36 @@ void main() {
   vec3 q = position;
   vec3 n = normal;
   float side = q.x >= 0.0 ? 1.0 : -1.0;
-  if (aPart > 2.5 && aPart < 4.5) {
-    // Arm + paw: around the shoulder.
+  vFlagUv = vec2(0.0);
+  if (aPart > 6.5) {
+    // Flag pole + cloth, held in the +X paw. No country: collapsed to a point (zero-area triangles).
+    side = 1.0;
+    if (aFlag < 0.0) {
+      q = vec3(${f(S.paw.x)}, ${f(S.paw.y)}, ${f(S.paw.z)});
+    } else if (aPart > 7.5) {
+      float u = clamp((position.x - ${f(F.x)}) / ${f(F.w)}, 0.0, 1.0);
+      vFlagUv = vec2(u, (position.y - ${f(+(F.y1 - F.h).toFixed(4))}) / ${f(F.h)});
+      // Flutter: a travelling ripple, still at the pole, a little droop at the fly end.
+      float ph = u * 6.0 - uTime * 7.0 + aData.x * 6.2831;
+      q.z += sin(ph) * 0.03 * u * (0.6 + 0.6 * uEnergy);
+      q.y -= 0.025 * u * u;
+      n = normalize(n + vec3(-cos(ph) * 0.5 * u, 0.0, 0.0));
+      // Turn the cloth round its pole to face the camera (it always flies outwards, +X side), so a
+      // flag seen from the side is a flag, not a dark sliver. Camera direction in the cat's frame
+      // (yaw only; the pitch and roll are small on the floor).
+      vec3 toCam = cameraPosition - P.pos;
+      float cy = cos(-P.yaw), sy = sin(-P.yaw);
+      vec2 vl = vec2(cy * toCam.x + sy * toCam.z, -sy * toCam.x + cy * toCam.z);
+      float th = atan(vl.x, abs(vl.y) + 1e-3) * sign(vl.y + 1e-6);
+      th = clamp(th, -1.35, 1.35);
+      vec3 pole = vec3(${f(F.x)}, 0.0, ${f(F.z)});
+      mat3 Rc = rotY(th);
+      q = Rc * (q - pole) + pole;
+      n = Rc * n;
+    }
+  }
+  if ((aPart > 2.5 && aPart < 4.5) || aPart > 6.5) {
+    // Arm + paw (+ flag): around the shoulder.
     vec3 S = vec3(side * ${f(S.shoulder.x)}, ${f(S.shoulder.y)}, ${f(S.shoulder.z)});
     float a = side > 0.0 ? P.armR : P.armL;
     mat3 R = rotX(P.armFwd) * rotZ(side * a);
@@ -297,8 +354,8 @@ void main() {
     mat3 R = rotZ(P.tilt) * rotX(P.nod);
     q = R * (q - H) + H;
     n = R * n;
-  } else if (aPart > 5.5) {
-    vec3 T = vec3(0.0, 0.14, -0.12);
+  } else if (aPart > 5.5 && aPart < 6.5) {
+    vec3 T = vec3(0.0, ${f(S.tail.y)}, ${f(S.tail.z)});
     mat3 R = rotY(P.tail) * rotZ(P.tail * 0.4);
     q = R * (q - T) + T;
     n = R * n;
@@ -326,7 +383,12 @@ varying vec3 vWorld;
 varying vec3 vLocal;
 varying vec3 vLocalN;
 varying float vPart;
+varying float vFlag;
+varying vec2 vFlagUv;
+uniform sampler2D uFlags;
 #include <fog_pars_fragment>
+
+${FLAG_SAMPLE_GLSL}
 
 void main() {
   // Cats within 1 m of the camera are culled (hard cut, no screen-door dither) so the crowd POV
@@ -342,12 +404,34 @@ void main() {
   vec3 emiss = vec3(0.0);
   float pad = 0.0;
 
+  float collar = 0.0;
+  if (vPart > 6.5) {
+    // Flag: the pole is light birch, the cloth samples the atlas (self-lit a little so the colours
+    // read in the night scene; shaded along the ripple).
+    if (vPart < 7.5) {
+      vec3 pole = vec3(0.9, 0.86, 0.78);
+      vec3 cp = litFur(pole, N, V) + pole * 0.08;
+      gl_FragColor = vec4(cp, 1.0);
+    } else {
+      vec3 fc = flagColor(vFlag, vFlagUv);
+      float ripple = 0.86 + 0.14 * sin(vFlagUv.x * 6.0 - uTime * 7.0 + vSeed * 6.2831 + 1.2);
+      float diff = abs(dot(N, normalize(vec3(0.25, 0.9, -0.35))));
+      vec3 cf = fc * (0.42 + 0.3 * diff + 0.1 * uKick) * ripple;
+      gl_FragColor = vec4(cf, 1.0);
+    }
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    ${CROWD_FOG}
+    return;
+  }
+
   if (vPart < 0.5) {
-    // Body: pale belly, faint tabby stripes on the back of gingery cats.
+    // Body: pale belly, faint tabby stripes on the back of gingery cats, a glowing pink collar.
     float belly = smoothstep(0.15, 0.75, vLocalN.z);
     col = mix(col, cream, belly * 0.65);
     float stripes = smoothstep(0.35, 0.95, sin(vLocal.y * 40.0 + vSeed * 6.0)) * smoothstep(0.1, -0.6, vLocalN.z);
     col *= 1.0 - 0.08 * stripes * vFur;
+    collar = smoothstep(${f(S.collar.y0 - 0.008)}, ${f(S.collar.y0 + 0.006)}, vLocal.y) * (1.0 - smoothstep(${f(S.collar.y1 - 0.006)}, ${f(S.collar.y1 + 0.008)}, vLocal.y));
   } else if (vPart < 1.5) {
     vec2 fc = vLocal.xy - vec2(0.0, ${f(S.head.y)});
     if (vLocal.z > 0.05) {
@@ -369,11 +453,10 @@ void main() {
   } else if (vPart < 3.5) {
     col = mix(col, cream, 0.12);
   } else if (vPart < 4.5) {
-    // Mitten: a glowing paw print (a big main pad and four toe beans) on the top of the raised
-    // paw, so it is hot pink seen from behind, above and the front alike (not a pink cap), fur
-    // round the bottom with a soft pink spill.
+    // Mitten: a glowing paw print (a big main pad and four toe beans) on the PALM only (+Z, the
+    // booth side). From behind the mitten is plain fur: no pink tip on a raised arm.
     vec3 pn = normalize(vLocalN + vec3(0.0, 1e-5, 0.0));
-    vec3 A = normalize(vec3(0.0, 1.0, 0.35));
+    vec3 A = normalize(vec3(0.0, 0.2, 1.0));
     float up = dot(pn, A);
     vec2 pq = vec2(dot(pn, vec3(1.0, 0.0, 0.0)), dot(pn, normalize(cross(A, vec3(1.0, 0.0, 0.0)))));
     float dp = length((pq - vec2(0.0, -0.2)) / vec2(0.36, 0.3)) - 1.0;
@@ -382,8 +465,8 @@ void main() {
       vec2 c = vec2(sin(a) * 0.5, 0.2 + cos(a) * 0.22);
       dp = min(dp, length((pq - c) / vec2(0.15, 0.17)) - 1.0);
     }
-    pad = (1.0 - smoothstep(-0.12, 0.08, dp)) * smoothstep(-0.25, 0.1, up);
-    emiss = uPink * 0.45 * smoothstep(-0.45, 0.2, up);
+    pad = (1.0 - smoothstep(-0.12, 0.08, dp)) * smoothstep(0.15, 0.45, up);
+    emiss = uPink * 0.1 * smoothstep(0.2, 0.7, up); // the beans glow, not the whole mitten
     col = mix(col, cream, 0.25);
   } else if (vPart < 5.5) {
     col = mix(col, cream, 0.4);
@@ -392,6 +475,8 @@ void main() {
   vec3 c = litFur(col, N, V) * grain + emiss;
   // The pad glow does not depend on the view angle: hot pink from any side.
   if (pad > 0.0) c = mix(c, padGlow(vGlow, vHi), pad);
+  // The collar carries the pink glow from every side (the hero camera sees the backs).
+  if (collar > 0.0) c = mix(c, padGlow(vGlow, vHi) * 0.55, collar);
   // Highlight (find my cat / hover): pulsing green-white outline glow.
   float fres = pow(1.0 - max(dot(N, V), 0.0), 2.0);
   c += vHi * (0.35 + 0.2 * sin(uTime * 7.0)) * fres * vec3(0.4, 1.0, 0.55);
@@ -410,6 +495,7 @@ ${POSE_GLSL}
 varying vec2 vCat;
 varying vec2 vArm;
 varying float vFacing;
+varying float vSide;
 #include <fog_pars_vertex>
 
 void main() {
@@ -429,7 +515,7 @@ void main() {
   }
   u = normalize(u);
   vec3 rt = normalize(cross(u, Vd));
-  vec2 q = position.xy;  // cat units: x -0.68..0.68, y -0.06..1.36 (raised paws fit)
+  vec2 q = position.xy;  // cat units: x -0.75..0.75, y -0.06..1.26 (the flag fits)
   vec2 o = vec2(q.x * P.sxz * wide, (q.y - CENTER_Y) * P.sy * fore) * P.scale;
   vec4 world = modelMatrix * vec4(C + rt * o.x + u * o.y, 1.0);
   vec4 mvPosition = viewMatrix * world;
@@ -437,8 +523,11 @@ void main() {
   vCat = q;
   vec3 fw = rotY(P.yaw) * vec3(0.0, 0.0, 1.0);
   vFacing = dot(fw, Vd);
-  // Seen from behind the cat's right arm is on screen right too (symmetric enough).
   vArm = vec2(P.armL, P.armR);
+  // Which way the cat's +X (flag paw) points on the quad: +1 = quad +x. Seen from behind it is on
+  // the left, so the fragment mirrors the quad into the cat's own frame (the flag stays in the same
+  // paw as on the near mesh when a cat crosses the near/far switch).
+  vSide = dot(rt, rotY(P.yaw) * vec3(1.0, 0.0, 0.0)) >= 0.0 ? 1.0 : -1.0;
   #include <fog_vertex>
 }
 `;
@@ -452,7 +541,12 @@ varying float vGlow;
 varying vec2 vCat;
 varying vec2 vArm;
 varying float vFacing;
+varying float vSide;
+varying float vFlag;
+uniform sampler2D uFlags;
 #include <fog_pars_fragment>
+
+${FLAG_SAMPLE_GLSL}
 
 float sdEll(vec2 p, vec2 c, vec2 r) { return (length((p - c) / r) - 1.0) * min(r.x, r.y); }
 float sdCap(vec2 p, vec2 a, vec2 b, float r) {
@@ -463,10 +557,11 @@ float sdCap(vec2 p, vec2 a, vec2 b, float r) {
 vec2 rot2(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }
 
 void main() {
-  vec2 p = vCat;
+  // The cat's own frame: x = its +X side (vSide), so pawR, armR and the flag match the near mesh.
+  vec2 p = vec2(vCat.x * vSide, vCat.y);
   vec2 sh = vec2(${f(S.shoulder.x)}, ${f(S.shoulder.y)});
   vec2 arm = vec2(${f(S.paw.x - S.shoulder.x)}, ${f(S.paw.y - S.shoulder.y)});
-  // Seen from behind, screen right is the cat's right: rotZ(+a) swings it in towards the head.
+  // rotZ(+a) swings a paw in towards the head, as on the near mesh.
   vec2 pawR = sh + rot2(arm, vArm.y);
   vec2 pawL = vec2(-sh.x, sh.y) + rot2(arm * vec2(-1.0, 1.0), -vArm.x);
   float d = sdEll(p, vec2(0.0, ${f(S.body.y)}), vec2(${f(S.body.r[0])}, ${f(S.body.r[1])}));
@@ -478,8 +573,32 @@ void main() {
   // Chubby forearms (the quad SDF reads thinner than the mesh at distance, so it is drawn fatter).
   d = min(d, sdCap(p, sh, pawR, ${f(+(S.armR * 1.15).toFixed(3))}));
   d = min(d, sdCap(p, vec2(-sh.x, sh.y), pawL, ${f(+(S.armR * 1.15).toFixed(3))}));
-  float dp = min(length(p - pawR), length(p - pawL)) - ${f(S.paw.r)};
-  if (min(d, dp - 0.05) > 0.0) discard;
+  // Mittens: fur discs (part of the silhouette); the pink pad only when the palm faces the camera.
+  float dp = min(length(p - pawR), length(p - pawL)) - ${f(+(S.paw.r * 1.1).toFixed(4))};
+  d = min(d, dp);
+  // Flag in the +X paw: undo the arm swing, then a thin pole and the cloth rectangle.
+  float dflag = 1.0;
+  float onCloth = 0.0;
+  vec2 fuv = vec2(0.0);
+  if (vFlag >= 0.0) {
+    vec2 lp = sh + rot2(p - sh, -vArm.y);
+    float dpole = sdCap(lp, vec2(${f(F.x)}, ${f(F.y0)}), vec2(${f(F.x)}, ${f(F.y1)}), 0.016);
+    vec2 bc = vec2(${f(+(F.x + F.w / 2).toFixed(4))}, ${f(+(F.y1 - F.h / 2).toFixed(4))});
+    vec2 bq = abs(lp - bc) - vec2(${f(+(F.w / 2).toFixed(4))}, ${f(+(F.h / 2).toFixed(4))});
+    float dbox = length(max(bq, 0.0)) + min(max(bq.x, bq.y), 0.0);
+    dflag = min(dpole, dbox);
+    onCloth = step(dbox, 0.0);
+    fuv = vec2((lp.x - ${f(F.x)}) / ${f(F.w)}, (lp.y - ${f(+(F.y1 - F.h).toFixed(4))}) / ${f(F.h)});
+  }
+  if (min(d, dflag) > 0.0) discard;
+  if (dflag <= 0.0 && dflag < d) {
+    vec3 fc = onCloth > 0.5 ? flagColor(vFlag, fuv) * (0.55 + 0.1 * uKick) : vec3(0.75, 0.71, 0.64);
+    gl_FragColor = vec4(fc, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    ${CROWD_FOG}
+    return;
+  }
 
   vec3 col = furColor(vFur);
   vec3 cream = mix(uCream, vec3(1.0, 0.93, 0.85), 0.35);
@@ -495,8 +614,11 @@ void main() {
     float belly = 1.0 - smoothstep(0.05, 0.14, length((p - vec2(0.0, ${f(S.body.y + 0.05)})) / vec2(1.0, 2.0)));
     c = mix(c, cream * 0.6, belly * 0.5);
   }
-  if (dp < 0.0) c = padGlow(vGlow, vHi);
-  else c += uPink * 1.8 * exp(-max(dp, 0.0) * 30.0);
+  float pawPad = min(length(p - pawR - vec2(0.0, -0.01)), length(p - pawL - vec2(0.0, -0.01))) - ${f(+(S.paw.r * 0.55).toFixed(4))};
+  if (vFacing > 0.15 && pawPad < 0.0) c = padGlow(vGlow, vHi);
+  // Pink collar under the head (seen from every side).
+  float cy = abs(p.y - ${f(+((S.collar.y0 + S.collar.y1) / 2).toFixed(4))}) - ${f(+((S.collar.y1 - S.collar.y0) / 2).toFixed(4))};
+  if (cy < 0.0 && abs(p.x) < ${f(S.body.r[0])}) c = padGlow(vGlow, vHi) * 0.55;
   c += vHi * (0.6 + 0.4 * sin(uTime * 7.0)) * edge * vec3(0.45, 1.3, 0.6);
   c += vHi * vGlow * vec3(0.5, 1.4, 0.7) * 0.35;
 
@@ -554,7 +676,7 @@ varying vec3 vN;
 varying vec3 vV;
 #include <fog_pars_fragment>
 void main() {
-  float fillY = uProgress * 1.17;
+  float fillY = uProgress * 1.06;
   float y = vLocal.y;
   float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
   float scan = 0.5 + 0.5 * sin(y * 150.0 - uTime * 7.0);

@@ -108,6 +108,8 @@ describe('RaveService checkout', () => {
             cats: 5,
             names: ['Mochi', defaults[1], 'Disco Paws', defaults[3], defaults[4]],
             x: 'SomeOne',
+            country: null,
+            countrySource: null,
             status: 'created',
         });
         const [params, opts] = h.stripe.paymentIntents.create.mock.calls[0] as unknown as [any, any];
