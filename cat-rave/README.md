@@ -22,6 +22,8 @@ Design spec and lane notes: `SPEC.md`, `LANE-NOTES/`.
    100 contributors ("made of N payouts").
 3. Cats on the floor = `floor(total USD)`. The remainder is the progress paw ("97¢ to cat #16"), drawn
    as a translucent hologram filling bottom-up in the next free slot.
+4. Plus paid Moon Rave orders whose payout is not indexed yet: their cats dance from the moment the
+   payment is confirmed and count once; the payout later replaces them one for one (CHECKOUT-SPEC.md).
 4. Never fabricated. `?cats=N` is a demo override with a permanent DEMO banner; the real total and the
    CTA stay real, and demo cats have no payout.
 5. Conversion: USDC, USDC.e, USDG and pathUSD at 1:1. EURC at a fixed 1.00 USD (undercounts, never

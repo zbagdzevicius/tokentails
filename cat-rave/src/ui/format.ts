@@ -95,9 +95,7 @@ export function adoptLine(microToNext: number): string {
  */
 export function sourceLine(s: Pick<PayoutSnapshot, 'origin' | 'stale' | 'asOf'> & { fetchFailed?: boolean; delayedChains?: readonly string[] }): string {
   if (s.origin === 'snapshot' || s.fetchFailed) return `as of ${formatAsOf(s.asOf)} · public on-chain payouts`;
-  // Name the lagging chains (the line links to the payouts page) instead of a vague "catching up".
-  if (s.stale && s.delayedChains?.length) return `live · ${s.delayedChains.join(', ')} delayed`;
-  if (s.stale) return 'live · index catching up';
+  // A lagging chain index is not the viewer's concern (no "delayed" / "catching up" wording).
   return 'live · public on-chain payouts';
 }
 
@@ -145,6 +143,16 @@ const article = (money: string) => (/^(8|11\.|18\.)/.test(money) ? 'an' : 'a');
  */
 export function catCard(cat: RaveCat, siblings = 1): CatCardText {
   const title = `Cat #${(cat.index + 1).toLocaleString('en-US')}`;
+  if (!cat.payout && cat.order && !cat.demo) {
+    // A paid Moon Rave order's cat, dancing before its payout reaches the index.
+    return {
+      title,
+      amount: siblings > 1 ? `1 of ${siblings} cats from a $${siblings} Moon Rave gift` : 'A $1 Moon Rave gift',
+      meta: 'Paid ✓ Token Tails pays it to Pink Paw on-chain',
+      extra: [],
+      href: null,
+    };
+  }
   if (!cat.payout) {
     return { title, amount: 'Demo cat', meta: 'Not a real payout (DEMO mode)', extra: [], href: null };
   }

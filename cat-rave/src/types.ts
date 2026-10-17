@@ -183,6 +183,11 @@ export interface RaveCat {
    * locally); real cats get their buyer's country from the rave orders (`crowd.setCountries`).
    */
   country?: string | null;
+  /**
+   * A paid Moon Rave order's cat that dances before its on-chain payout reaches the index
+   * (payout null, demo false). It becomes a payout cat when the payout lands, with no second drop-in.
+   */
+  order?: { id: string; position: number };
 }
 
 export interface PayoutSnapshot {

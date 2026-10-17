@@ -13,7 +13,6 @@ export interface ArrivalView {
   x: string | null;
   status: string;
   phase: 'arriving' | 'landed';
-  delayed?: boolean;
   payoutUrl: string | null;
   previewNames: string[];
   mine?: boolean;
@@ -36,12 +35,10 @@ const httpsOnly = (u: string | null | undefined): string | null => {
 };
 
 /** The status chip text for a row. */
-export function arrivalChip(row: Pick<ArrivalView, 'phase' | 'status' | 'delayed'>): { text: string; tone: 'arriving' | 'onchain' | 'landed' | 'slow' } {
+export function arrivalChip(row: Pick<ArrivalView, 'phase' | 'status'>): { text: string; tone: 'arriving' | 'onchain' | 'landed' } {
   if (row.phase === 'landed') return { text: 'dancing 🪩', tone: 'landed' };
   if (row.status === 'onchain') return { text: 'on-chain ✓', tone: 'onchain' };
-  if (row.delayed) return { text: 'arriving · payout delayed', tone: 'slow' };
-  if (row.status === 'pending') return { text: 'arriving · confirming', tone: 'arriving' };
-  return { text: 'arriving', tone: 'arriving' };
+  return { text: 'confirming', tone: 'arriving' };
 }
 
 export function createArrivalsList(opts: { title?: string; max?: number; doc?: Document } = {}): ArrivalsList {

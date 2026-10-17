@@ -5,7 +5,7 @@
  *   build  →  pick $1 / $5 / custom (≥ $10), name the cats, optional X handle, Card | Crypto, fee toggle
  *   pay    →  Stripe Payment Element (card, Apple Pay, Google Pay, Link), 3DS in Stripe's own modal
  *   wallet →  USDC gift on Arc from the injected wallet with the order memo, then POST usdc-tx
- *   done   →  "Your N cats are arriving" with their names; onPaid() starts the floor's arrival
+ *   done   →  "Your N cats are dancing" with their names; onPaid() puts them on the floor right away
  *
  * Never navigates away. All user text goes in with textContent; there is no innerHTML here.
  */
@@ -29,11 +29,11 @@ import { X_HANDLE_MESSAGES, normalizeXHandle, xLink } from './xhandle';
 export interface CheckoutOptions {
   api: RaveApi;
   status: RaveStatusOn;
-  /** Payment went through (card succeeded/processing, or the USDC tx was sent). Start the arrival. */
+  /** Payment went through (card succeeded/processing, or the USDC tx was sent): the cats join the floor. */
   onPaid?: (order: PaidOrder) => void;
   /** Every fresh read of the buyer's order while the success screen is open. */
   onOrderUpdate?: (row: RaveOrderRow) => void;
-  /** "Watch them land": the page closes the sheet. */
+  /** "Watch them dance": the page closes the sheet and flies to the buyer's cat. */
   onDone?: () => void;
   /** Placeholder shuffle seed (tests); random by default. */
   seed?: number;
@@ -113,11 +113,8 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   title.tabIndex = -1;
   root.setAttribute('role', 'region');
   root.setAttribute('aria-labelledby', title.id);
-  const lede = h('p', 'rvc-lede', 'Every $1 paid out to the Pink Paw shelter on-chain is one dancing cat. Name yours.');
+  const lede = h('p', 'rvc-lede', 'Every $1 is one dancing cat, on the floor right away. Token Tails pays it to the Pink Paw shelter on-chain. Name yours.');
   root.append(title, lede);
-  if (status.payoutsDelayed) {
-    root.append(h('p', 'rvc-banner', 'Payouts are running slow right now. Your cats will still arrive, just a little later.'));
-  }
   const testBanner = h('p', 'rvc-banner rvc-test', cardEnabled ? 'Test mode: use a Stripe test card (or Arc testnet USDC). No real money moves.' : 'Test mode: Arc testnet USDC only. No real money moves.');
   testBanner.hidden = status.livemode;
   root.append(testBanner);
@@ -434,7 +431,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   doneStatus.setAttribute('aria-live', 'polite');
   const doneOrder = h('p', 'rvc-done-order');
   const doneBtns = h('div', 'rvc-done-btns');
-  const watch = h('button', 'rvc-go', 'Watch them land 🪩');
+  const watch = h('button', 'rvc-go', 'Watch them dance 🪩');
   watch.type = 'button';
   const again = h('button', 'rvc-link-btn', 'Add more cats');
   again.type = 'button';
@@ -916,6 +913,12 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   }
 
   // ------------------------------------------------------------------ success
+  /** "Your 5 cats are dancing 🪩" once paid; "…start dancing in a moment" while it confirms. */
+  function doneTitleFor(n: number, st: string): string {
+    const who = n === 1 ? 'Your cat' : `Your ${n.toLocaleString('en-US')} cats`;
+    if (st === 'paid' || st === 'review' || st === 'onchain') return `${who} ${n === 1 ? 'is' : 'are'} dancing 🪩`;
+    return `${who} start${n === 1 ? 's' : ''} dancing in a moment`;
+  }
   function succeed(a: CheckoutAnswer, st: 'paid' | 'pending', txHash: string | null, chainId: number | null, m: RaveMethod) {
     if (m === 'card') addMyOrder(a.orderId);
     payment?.destroy();
@@ -924,7 +927,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     const paid: PaidOrder = { orderId: a.orderId, cats: a.cats, names: all, x: a.x ?? null, method: m, status: st, txHash, chainId, answer: a };
     setStep('done');
     lastDone = { names: all, cats: a.cats, status: st };
-    doneTitle.textContent = `Your ${a.cats === 1 ? 'cat is' : `${a.cats.toLocaleString('en-US')} cats are`} arriving 🛸`;
+    doneTitle.textContent = doneTitleFor(a.cats, st);
     const holos: HTMLElement[] = [];
     all.slice(0, HOLO_MAX).forEach((name, i) => {
       const cell = h('span', 'rvc-holo-cat');
@@ -938,8 +941,8 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     holo.replaceChildren(...holos);
     doneWho.replaceChildren();
     const link = xLink(a.x);
-    if (link) doneWho.append(document.createTextNode('The DJ will shout out '), link, document.createTextNode(' when they land.'));
-    else doneWho.textContent = 'The DJ will shout out their names when they land.';
+    if (link) doneWho.append(document.createTextNode('The DJ shouts out '), link, document.createTextNode(' on the floor.'));
+    else doneWho.textContent = 'The DJ shouts out their names on the floor.';
     doneOrder.textContent = `Order ${a.orderId}`;
     renderDoneStatus({ orderId: a.orderId, cats: a.cats, names: a.names, status: st, chainId, payoutTx: null, method: m });
     requestAnimationFrame(() => doneTitle.focus({ preventScroll: true }));
@@ -958,16 +961,12 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     doneStatus.replaceChildren();
     switch (row.status) {
       case 'pending':
-        doneStatus.textContent = m === 'usdc' ? 'Checking your gift on-chain…' : 'Your bank is confirming the payment…';
+        doneStatus.textContent = m === 'usdc' ? 'Checking your gift on Arc… your cats start dancing in a moment.' : 'Your bank is confirming the payment…';
         break;
       case 'paid':
-        doneStatus.textContent =
-          m === 'usdc'
-            ? 'Gift received ✓ Your cats are on their way to the floor…'
-            : `Paid ✓ Token Tails is sending ${amount} to Pink Paw on-chain…${status.payoutsDelayed ? ' (payouts are slow right now)' : ''}`;
-        break;
       case 'review':
-        doneStatus.textContent = 'Paid ✓ A quick safety check, then the payout goes out.';
+        doneStatus.classList.add('rvc-ok');
+        doneStatus.textContent = m === 'usdc' ? `Gift received ✓ ${amount} went to Pink Paw on Arc.` : `Paid ✓ Token Tails pays ${amount} to Pink Paw on-chain.`;
         break;
       case 'onchain': {
         doneStatus.classList.add('rvc-ok');
@@ -1003,8 +1002,9 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     const on = lastDone.status === 'onchain';
     const gone = ['refunded', 'disputed', 'canceled', 'expired'].includes(lastDone.status);
     landed.hidden = gone;
-    landed.classList.toggle('rvc-ok', on);
-    landed.textContent = on ? `${who} landed ✓` : `${who} ${lastDone.cats === 1 ? 'is' : 'are'} arriving…`;
+    const dancing = on || lastDone.status === 'paid' || lastDone.status === 'review';
+    landed.classList.toggle('rvc-ok', dancing);
+    landed.textContent = dancing ? `${who} ${lastDone.cats === 1 ? 'is' : 'are'} dancing ✓` : `${who} ${lastDone.cats === 1 ? 'is' : 'are'} confirming…`;
   }
 
   function startPolling(orderId: string, m: RaveMethod) {
@@ -1025,6 +1025,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       if (row) {
         if (!row.method) row.method = m;
         renderDoneStatus(row);
+        if (step === 'done' && answer?.orderId === orderId) doneTitle.textContent = doneTitleFor(row.cats, row.status);
         if (lastDone) {
           lastDone.status = row.status;
           renderLanded();
@@ -1038,9 +1039,11 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       }
       const age = Date.now() - started;
       if (age > 30 * 60_000) return;
-      pollTimer = setTimeout(tick, age < 2 * 60_000 ? 4_000 : 15_000);
+      // Every second until the payment is confirmed (the cats start dancing on that answer), then calmer.
+      const confirmed = !!row && ['paid', 'review', 'onchain'].includes(row.status);
+      pollTimer = setTimeout(tick, !confirmed && age < 2 * 60_000 ? 1_000 : age < 2 * 60_000 ? 4_000 : 15_000);
     };
-    pollTimer = setTimeout(tick, 2_500);
+    pollTimer = setTimeout(tick, 1_000);
   }
 
   /** A fresh build step. The last order's poll keeps running (its cats still land) and shows as a note. */

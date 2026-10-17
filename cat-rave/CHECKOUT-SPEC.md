@@ -12,8 +12,11 @@ Apple Pay / Google Pay through the Stripe Payment Element plus a **USDC** tab, a
 
 ## 1. The rules that do not change
 
-- **$1 on-chain = 1 cat.** A cat is real only when its payout is in `GET /shelter/payouts` (README "The $1 = 1 cat
-  rule"). A paid order shows **arriving** holograms with names; holograms never add to the counter.
+- **$1 = 1 cat, right away (founder decision 2026-10-17).** A paid order's cats dance the moment the payment is
+  confirmed (card succeeded, or the USDC tx checked on Arc), named and holding the buyer's flag, and count in the
+  headline once. Its on-chain payout later takes their place one for one (no second drop-in, no second shout-out).
+  Only an order still confirming (`pending`) shows a hologram, never counted. No buyer-facing "slow" or "delayed"
+  wording anywhere.
 - **Never double-pay.** One PaymentIntent → at most one payout row, enforced by unique indexes (section 6).
 - **Stripe test mode only in tests.** No test touches the network, a real key, or a real chain.
 - **On whenever its config is ready (no on/off flag, Oct 17).** If a Stripe key, the webhook secret or the keeper is
@@ -59,10 +62,10 @@ Apple Pay / Google Pay through the Stripe Payment Element plus a **USDC** tab, a
 5. **Pay:** tab **Card** (Payment Element: card, Apple Pay, Google Pay, Link) with a pre-checked
    **"Cover the card fee (+$0.46)"** that adds the fee so Pink Paw gets the full amount either way; tab **USDC**
    (wallet on Arc, Base, Arbitrum, Avalanche, Monad, Tempo or Robinhood; buyer pays gas) when status lists chains.
-6. **After payment:** the sheet shows "Your N cats are arriving" with the names; the floor shows N **arriving**
-   holograms (glowing, names on hover/tap); the arrivals list gets a row. When the payout confirms on-chain the row
-   says "on-chain ✓" with the tx; when the payout index lists it, the holograms become real dancing cats and the
-   DJ shouts them out ("Shout-out to Mochi, Pixel and 3 more! Shout-out to @handle!").
+6. **After payment:** the sheet shows "Your N cats are dancing 🪩" with the names; the floor gets N real cats at
+   once (drop-in, glow) and the DJ shouts them out ("Shout-out to Mochi, Pixel and 3 more! Shout-out to @handle!");
+   "Watch them dance" flies the camera to the buyer's first cat. The receipt polls `GET /rave/orders/:id` every
+   second until paid. A USDC order shows holograms for the seconds its tx takes to check.
 
 No navigation away at any point. 3DS opens in Stripe's own in-page modal (`redirect: 'if_required'`, and the
 PaymentIntent is created with `automatic_payment_methods: { enabled: true, allow_redirects: 'never' }`, so no
@@ -285,7 +288,7 @@ keeper ─► ShelterSplit.disburse(donation, 'tt:rave:<hex>') on SHELTER_CHAIN_
 list refresher (on GET /rave/cats, cached 15 s) ─► copies shelterShare.{state, txHash, chainId} into
    raveorders; confirmed → status 'onchain', payout {chainId, txHash}
 payout index job (every 2 min) ─► GET /shelter/payouts lists the event with memo tt:rave:<hex>
-cat-rave feed ─► the payout's N cats get the order's names; holograms → real cats; DJ shout-out
+cat-rave feed ─► the payout's N cats replace the order's N ahead cats (same names, no new drop-in or shout-out)
 ```
 
 - **Memo:** `tt:rave:<16 hex>` (24 bytes, fits Tempo's bytes32). The order id is public, so the memo is too.
@@ -300,7 +303,8 @@ cat-rave feed ─► the payout's N cats get the order's names; holograms → re
   all funnel into the same `markPaid`.
 - **Same retry semantics as $5 shelter cats:** the row is an ordinary keeper row (`due`, max 3 attempts, `failed`
   for a person, stuck `sent` → `failed` once its nonce is used). An empty float leaves rows `due`; they retry every
-  5 min and the order stays `paid` ("arriving") with `payoutsDelayed: true` on the status endpoint.
+  5 min; the order stays `paid` and its cats keep dancing. The status endpoint still carries `payoutsDelayed` for
+  operators; the page never shows it.
 - **Refund before payout** voids the row (`due → void`, atomic), so nothing is sent. After payout nothing is undone.
 
 ## 7. Names and X handle
@@ -447,9 +451,9 @@ Owns `cat-rave/src/data/**` and `cat-rave/scripts/snapshot.mjs`:
 - `rave-orders.ts`: `createRaveOrders(api)` polls `GET /rave/cats` (with the payout feed's cadence, plus a fast
   5 s poll for 2 min after the viewer pays), merges `myorders` from `GET /rave/orders/:id`, and exposes
   `namesForCat(cat)` (`{ name, x?, orderId }` for cats whose payout memo is `tt:rave:<id>`, by position among that
-  payout's cats), `arriving()` (orders `pending`/`paid`/`onchain` whose payout the feed does not list yet: count +
-  names, never added to the counter), and events `landed(order, cats)` for the DJ shout-out when a rave payout
-  first appears in the feed.
+  payout's cats, or by `cat.order` for an ahead cat), `aheadCats(start)` (cats of `paid`/`onchain` orders whose payout
+  the feed does not list yet; main.ts appends them to the floor and the counter), `arriving()` (orders still
+  `pending`: hologram count + names, never counted), and `onLanded` once per order when it joins the floor.
 - Types for these live in `src/data/` (not `src/types.ts`). Tests next to them.
 
 ### H-HOSTING

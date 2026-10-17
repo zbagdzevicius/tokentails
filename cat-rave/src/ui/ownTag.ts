@@ -1,6 +1,6 @@
 /**
- * L-UI: a floating name tag over the viewer's own arriving hologram ("Mochi · yours, arriving"), so a buyer
- * can tell which pink hologram on the floor is theirs. A DOM label projected from the hologram's floor
+ * L-UI: a floating name tag over the viewer's own cat ("Mochi · yours, dancing", or its confirming hologram), so a buyer
+ * can tell which cat on the floor is theirs. A DOM label projected from the hologram's floor
  * position each frame; the name goes in with textContent only. Hidden behind the camera, off screen and
  * while a sheet is open (hud.css).
  */
@@ -8,8 +8,8 @@ import { Vector3, type Camera } from 'three';
 
 export interface OwnTag {
   readonly el: HTMLElement;
-  /** The tag text (the buyer's first cat name), or null to hide it. */
-  set(name: string | null, cats?: number): void;
+  /** The tag text (the buyer's first cat name), or null to hide it; `confirming` while its payment confirms. */
+  set(name: string | null, cats?: number, state?: 'dancing' | 'confirming'): void;
   /** Places the tag over `world` (hologram floor point) for `camera`; null hides it. */
   update(camera: Camera, world: Vector3 | null, width: number, height: number): void;
   /** A short pulse (the viewer tapped their own arrivals row). */
@@ -27,7 +27,7 @@ export function createOwnTag(parent: HTMLElement, doc: Document = document): Own
   el.setAttribute('aria-hidden', 'true');
   const name = doc.createElement('b');
   const sub = doc.createElement('small');
-  sub.textContent = 'yours · arriving 🛸';
+  sub.textContent = 'yours · dancing 🪩';
   el.append(name, sub);
   el.hidden = true;
   parent.append(el);
@@ -38,12 +38,13 @@ export function createOwnTag(parent: HTMLElement, doc: Document = document): Own
   const p = new Vector3();
   return {
     el,
-    set(text, cats = 1) {
+    set(text, cats = 1, state = 'dancing') {
       on = !!text;
       if (!text) {
         el.hidden = true;
         return;
       }
+      sub.textContent = state === 'confirming' ? 'yours · confirming' : 'yours · dancing 🪩';
       name.textContent = cats > 1 ? `${text} +${cats - 1}` : text;
       tagW = 0;
     },
