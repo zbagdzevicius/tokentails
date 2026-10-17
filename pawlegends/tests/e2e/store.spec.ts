@@ -72,7 +72,7 @@ test('no offer card in session 1; the starter offer from session 2 after a first
   await page.reload();
   const game2 = await openHost(page);
   await expect(game2.locator('.pl-offer[data-offer="starter"]')).toBeVisible();
-  await expect(game2.locator('.pl-offer .ends')).toContainText(/Ends in 4[78] h/);
+  await expect(game2.locator('.pl-offer .ends')).toContainText(/This card hides in 4[78] h\. Same price in the store/);
   await game2.locator('.pl-offer [data-a="close"]').click();
   // at most one card per session: going to pick and back shows none
   await game2.locator('[data-a="choose"]').click();

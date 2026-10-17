@@ -7,10 +7,18 @@ import { isoPitch, isoPosition } from './camera/IsoRig.js';
 import { CAMERA_YAW } from './coords';
 import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
+import { setOutlineViewport } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 
 /** Camera distance (m) at zoom 1. */
 export const MOBA_DIST = 27;
+/**
+ * Camera distance factor on short landscape screens (phones, ≤ 480 CSS px tall): ~15% closer, so a hero is ~30 px
+ * tall at 844×390 instead of ~25 and attacks read (POC.md §10 touch landscape).
+ */
+export const SHORT_LANDSCAPE_ZOOM = 0.87;
+export const isShortLandscape = (w: number, h: number): boolean => h <= 480 && w / Math.max(1, h) >= 1.6;
+
 /** Radians below IsoRig's pitch: a MOBA reads better a little more side-on (heroes, not hats). */
 export const MOBA_PITCH_DROP = 0.16;
 
@@ -64,6 +72,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
   const focus = new THREE.Vector3(10, 0, -30);
   const pos = { x: 0, y: 0, z: 0 };
+  let near = 1;
 
   const gr: GameRenderer = {
     renderer,
@@ -87,8 +96,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       const h = Math.max(1, container.clientHeight);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
+      near = isShortLandscape(w, h) ? SHORT_LANDSCAPE_ZOOM : 1;
     },
     render() {
+      setOutlineViewport(renderer.domElement.width, renderer.domElement.height);
       // PPK frames one knight at 9–18 m; a MOBA needs the lane in view, so the distance is MOBA_DIST × zoom and the
       // pitch follows IsoRig's distance curve (58° at the far end).
       if (gr.place) {
@@ -97,7 +108,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         renderer.render(gr.active, camera);
         return;
       }
-      const d = MOBA_DIST * gr.zoom;
+      const d = MOBA_DIST * gr.zoom * near;
       isoPosition(focus, CAMERA_YAW, Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
       camera.position.set(pos.x, pos.y, pos.z);
       camera.lookAt(focus);

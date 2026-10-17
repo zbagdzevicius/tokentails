@@ -90,10 +90,14 @@ export function offerOf(v: unknown): Offer | null | undefined {
   return undefined;
 }
 
-/** "Ends in 47 h" / "Ends in 12 min" for a genuine window. */
+/**
+ * What the starter window really limits: this card (it is not shown again after 48 h). The price does not end, the
+ * store keeps selling the pack at the same price, so the line says exactly that (no fake urgency).
+ */
 export function endsText(endsAt: number | null, now: number): string {
   if (endsAt === null) return '';
   const ms = Math.max(0, endsAt - now);
   const h = Math.floor(ms / 3600000);
-  return h >= 1 ? `Ends in ${h} h` : `Ends in ${Math.max(1, Math.ceil(ms / 60000))} min`;
+  const left = h >= 1 ? `${h} h` : `${Math.max(1, Math.ceil(ms / 60000))} min`;
+  return `This card hides in ${left}. Same price in the store after that.`;
 }

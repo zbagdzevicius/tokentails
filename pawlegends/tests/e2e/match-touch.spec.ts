@@ -57,10 +57,23 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
   await expect.poll(async () => Number(await attr(page, 'casts'))).toBe(Number(before) + 1);
 });
 
-/** POC.md §9: enemy hero in range first (lowest HP share), then the lowest-HP minion, then a tower; else nearest. */
+/**
+ * POC.md §9: enemy hero in range first (lowest HP share), then the lowest-HP minion, then a tower; else the nearest,
+ * but never a walk-in to a unit under an enemy tower or core that no allied minion is tanking (playtest fix).
+ */
 const BODY: Record<string, number> = { hero: 500, minion: 400, tower: 1300, core: 3000, fountain: 0, camp: 500, pudding: 2000 };
-type Seen = { id: number; kind: string; x: number; y: number; hp: number; maxHp: number };
-function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[] }): { id: number | null; why: string } {
+const TOWER_RANGE = 7000;
+type Seen = { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number };
+function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[] }): { id: number | null; why: string } {
+  const dd = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+  const guarded = (u: Seen) =>
+    p.seen.some(
+      (t) =>
+        (t.kind === 'tower' || t.kind === 'core') &&
+        t.team <= 1 &&
+        dd(t, u) <= TOWER_RANGE + BODY.hero + BODY[t.kind] &&
+        !p.allyMinions.some((m) => dd(m, t) <= TOWER_RANGE + BODY.tower),
+    );
   const d = (u: Seen) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - BODY[u.kind];
   const inRange = p.seen.filter((u) => d(u) <= p.range + 300);
   const by = <T,>(xs: T[], key: (x: T) => number) => xs.reduce<T | null>((b, x) => (b === null || key(x) < key(b) ? x : b), null);
@@ -70,7 +83,7 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
   if (minion) return { id: minion.id, why: 'lowest-HP minion in range' };
   const tower = by(inRange.filter((u) => u.kind === 'tower' || u.kind === 'core'), (u) => u.hp);
   if (tower) return { id: tower.id, why: 'tower in range' };
-  const near = (k: (u: Seen) => boolean) => by(p.seen.filter((u) => k(u) && d(u) <= 7000), d);
+  const near = (k: (u: Seen) => boolean) => by(p.seen.filter((u) => k(u) && d(u) <= 7000 && !guarded(u)), d);
   const nh = near((u) => u.kind === 'hero');
   if (nh) return { id: nh.id, why: 'nearest hero' };
   const nm = near((u) => u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding');

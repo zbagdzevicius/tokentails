@@ -75,6 +75,9 @@ export const SUPPORT = [
   'src/fx/util.js',
   'src/fx/Marks.js',
   'src/characters/palette.js',
+  // upright PPK-style heroes (src/render/chars/): the pose library + IK, and the geometry builder / colour helpers
+  'src/characters/Poses.js',
+  'src/characters/util.js',
   'src/ui/dom.js',
   'src/ui/icons.js',
   'src/ui/text.js',
@@ -99,6 +102,10 @@ export const STUBS = {
   'src/ui/portraits.js': {
     why: 'PPK kitten portraits (needs the PPK character configs); Pawlegends hero portraits come from the bake',
     body: "export function portraitSVG() { return ''; }\n",
+  },
+  'src/core/Assets.js': {
+    why: 'PPK asset loader; characters/util.js only needs a URL resolver (Pawlegends characters load no asset files)',
+    body: "export function assetUrl(p) { return `${(typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || './'}assets/${p}`; }\n",
   },
   'src/story/strings.js': {
     why: 'PPK story copy is not used in Pawlegends; ui/text.js reads the one key below at load',
@@ -132,12 +139,19 @@ export function header(commit, from, kind) {
 export const HEADER_RE = /Lifted from Pink Paw Knight \(swordcat\) at commit [0-9a-f]{4,40}: /;
 
 /**
- * Ported files: our own rewrite of a PPK idea (integer maths for the sim), not a copy. They are not produced by this
+ * Ported files: our own rewrite of a PPK idea (integer maths for the sim; the TypeScript character rebuild in
+ * src/render/chars/), not a copy. They are not produced by this
  * tool but carry the same provenance and licence note, with "Ported from" instead of "Lifted from" (§15 item 26).
  */
 export const PORTED = [
   ['src/physics/Pathfind.js', 'src/sim/nav/astar.ts'],
   ['src/companions/abilityAim.js', 'src/sim/bots/casts.ts'],
+  // upright PPK-style characters (render only): our TypeScript rebuild of the cheap-tier kitten recipe
+  ['src/characters/KittenBuilder.js', 'src/render/chars/skeleton.ts'],
+  ['src/characters/KittenBuilder.js', 'src/render/chars/chibi.ts'],
+  ['src/characters/Accessories.js', 'src/render/chars/gear.ts'],
+  ['src/characters/BeastHead.js', 'src/render/chars/beast.ts'],
+  ['src/player/SwordcatModel.js', 'src/render/chars/motion.ts'],
 ];
 export const PORT_HEADER_RE = /Ported from Pink Paw Knight \(swordcat\) at commit [0-9a-f]{4,40}: /;
 export function portHeader(commit, from) {

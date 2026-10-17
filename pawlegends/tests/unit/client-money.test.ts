@@ -10,7 +10,7 @@ import { Entitlements, decodeToken } from '../../src/money/entitlements';
 import { FOUNDER_GAP_MS, STARTER_WINDOW_MS, markShown, offerOf, pickOffer, type OfferInput } from '../../src/money/offer';
 import { SKUS, SKU_IDS, buyable, currencyFor, priceText, type SkuId } from '../../src/money/skus';
 import { bestFrame, resolveLook, wardrobe, type Owned } from '../../src/render/cosmetics';
-import { heroGeometry, kittenGeometry } from '../../src/render/views/models';
+import { heroBuilt, makeKitten } from '../../src/render/chars';
 import type { HostMessage } from '../../src/embed/bridge';
 
 const b64url = (s: string): string => Buffer.from(s).toString('base64url');
@@ -183,10 +183,14 @@ describe('roster → cosmetics', () => {
     expect(bestFrame({ ...owned, items: new Set() })).toBe('frame.legendary');
   });
   it('dressed heroes are still one merged geometry with more parts', () => {
-    const plain = heroGeometry('clem', 0).getAttribute('position').count;
-    const dressed = heroGeometry('clem', 0, { coat: 'skin.clem.dawnblade', chroma: 'FIRE' }).getAttribute('position').count;
+    const plain = heroBuilt('clem', 0).geometry.getAttribute('position').count;
+    const dressed = heroBuilt('clem', 0, { coat: 'skin.clem.dawnblade', chroma: 'FIRE' }).geometry.getAttribute('position').count;
     expect(dressed).toBeGreaterThan(plain);
-    expect(kittenGeometry({ base: 1, light: 2, dark: 3, accent: 4 }, 0xff0000).getAttribute('aPart')).toBeTruthy();
+    // a Companion Kitten is one skinned mesh on its own skeleton
+    const k = makeKitten({ base: 1, light: 2, dark: 3, accent: 4 }, 0xff0000);
+    expect(k.mesh.isSkinnedMesh).toBe(true);
+    expect(k.mesh.geometry.getAttribute('skinIndex')).toBeTruthy();
+    k.dispose();
   });
 });
 

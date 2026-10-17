@@ -172,7 +172,7 @@ export class StructureView {
         const d = Math.hypot(this.me.x - s.x, this.me.z - s.z);
         if (d < TOWER_RANGE_M + 4) {
           const a = Math.min(1, (TOWER_RANGE_M + 4 - d) / 3);
-          this.ranges.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.enemy, 0.55 * a);
+          this.ranges.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.danger, 0.55 * a);
         }
       }
     }

@@ -533,7 +533,28 @@ export const PurchaseSheet = ({
   const [restoreEmail, setRestoreEmail] = useState("");
   const [restoreLine, setRestoreLine] = useState<string | null>(null);
   const [notifyLine, setNotifyLine] = useState<string | null>(null);
+  const [seats, setSeats] = useState<{ left: number; cap: number } | null>(null);
   const owned = tokenSkus(token);
+
+  // Founder Legend's "first 500" is a real counter: show it on the sheet, so the claim can be checked.
+  useEffect(() => {
+    if (sku !== "pl_founder_legend" && sku !== "pl_founder_legend_upgrade") return;
+    let live = true;
+    void api.founders().then((r) => {
+      if (live && r.ok && r.body) setSeats(r.body);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, sku]);
+
+  // Picking "Under 16" is stored on this device at once and locks the question: switching the radio to 18+
+  // straight after (or on a later visit) must not unlock the purchase. The server still keys the cap by email.
+  const chooseBand = (value: PawlegendsAgeBand) => {
+    if (band === "under16") return;
+    setBand(value);
+    if (value === "under16") writeAgeBand("under16");
+  };
 
   const underAge = band === "under16";
   const emailOk = isEmail(email);
@@ -606,6 +627,11 @@ export const PurchaseSheet = ({
               {priceLabel(def.cents[currency], currency)}{" "}
               <span className="font-sans text-p6">VAT included</span>
             </p>
+            {seats && (
+              <p className="text-p6" data-testid="pawlegends-seats">
+                {seats.left} of {seats.cap} Founder Legend seats left
+              </p>
+            )}
             <div>
               <p className="font-bold">Delivered now</p>
               <p data-testid="pawlegends-now">{def.deliveredNow}</p>
@@ -639,7 +665,8 @@ export const PurchaseSheet = ({
                       name="pawlegends-age"
                       value={value}
                       checked={band === value}
-                      onChange={() => setBand(value)}
+                      disabled={underAge && value !== "under16"}
+                      onChange={() => chooseBand(value)}
                     />
                     {AGE_LABELS[value]}
                   </label>

@@ -110,6 +110,12 @@ export class Minimap {
     return c;
   }
 
+  /** Pulsing rings on the minimap (core under attack), sim mm, until `until` (ms, performance clock). */
+  private pings: { x: number; y: number; color: string; until: number }[] = [];
+  ping(xMm: number, yMm: number, color: string, ms = 3000): void {
+    this.pings.push({ x: xMm, y: yMm, color, until: performance.now() + ms });
+  }
+
   draw(frame: ViewFrame | null): void {
     if ((this.n++ & 1) === 1) return;
     this.size();
@@ -151,6 +157,18 @@ export class Minimap {
       g.beginPath();
       g.arc(x, y, e.id === me ? 4.5 : 3.6, 0, Math.PI * 2);
       g.fill();
+    }
+    const now = performance.now();
+    this.pings = this.pings.filter((p) => p.until > now);
+    for (const p of this.pings) {
+      const k = ((now / 700) % 1);
+      g.strokeStyle = p.color;
+      g.globalAlpha = 1 - k;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(this.X(p.x), this.Y(p.y), 5 + k * 12, 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = 1;
     }
     const q = this.host.viewQuad();
     if (q) {

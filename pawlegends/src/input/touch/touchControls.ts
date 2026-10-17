@@ -268,7 +268,13 @@ export class TouchControls {
   }
 
   /** The last Attack button choice and the enemies it saw (e2e only), and how many there were. */
-  lastPick: { id: number | null; range: number; me: { x: number; y: number }; seen: { id: number; kind: string; x: number; y: number; hp: number; maxHp: number }[] } | null = null;
+  lastPick: {
+    id: number | null;
+    range: number;
+    me: { x: number; y: number };
+    seen: { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number }[];
+    allyMinions: { x: number; y: number }[];
+  } | null = null;
   picks = 0;
 
   private attackNow(): void {
@@ -283,7 +289,8 @@ export class TouchControls {
       id,
       range,
       me: { x: me.x, y: me.y },
-      seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
+      seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
+      allyMinions: units.filter((u) => u.kind === 'minion' && u.team === this.h.view.myTeam && u.state !== 'dead').map((u) => ({ x: u.x, y: u.y })),
     };
     this.picks++;
     if (id !== null) this.h.orders.attack(id);

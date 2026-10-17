@@ -43,7 +43,7 @@ export class Scoreboard {
         })
         .join('');
     const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th>Takedowns</th><th>Knocked out</th><th>Health</th></tr>';
-    this.root.innerHTML = `<div class="card"><h3 class="t0">Purrhaven</h3><table>${head}${rows(0)}</table><h3 class="t1">Woof</h3><table>${head}${rows(1)}</table><p class="hint">Hold Tab</p></div>`;
+    this.root.innerHTML = `<div class="card"><h3 class="t0">Purrhaven</h3><table>${head}${rows(0)}</table><h3 class="t1">Woof</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
   }
 
   dispose(): void {

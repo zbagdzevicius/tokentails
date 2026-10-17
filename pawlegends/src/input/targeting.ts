@@ -5,6 +5,7 @@
  * the command carries integers).
  */
 import type { EntitySnap } from '../sim/api';
+import { TOWERS } from '../data/towers';
 import type { AimSpec } from './abilities';
 
 export interface Unit {
@@ -36,9 +37,25 @@ export const isEnemy = (u: Unit, myTeam: number): boolean => u.team !== myTeam &
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }): number => Math.hypot(a.x - b.x, a.y - b.y);
 
 /**
+ * Is `u` inside the range of a living enemy (to us) tower or core that no allied minion is tanking? Walking in to
+ * hit it would put the player under fire alone (the playtest's tower deaths: auto-attack chased a hero under one).
+ */
+export function guardedByTower(units: readonly Unit[], u: { x: number; y: number }, myTeam: number): boolean {
+  const reach = TOWERS.outer.range + BODY_MM.hero;
+  for (const t of units) {
+    if ((t.kind !== 'tower' && t.kind !== 'core') || t.team === myTeam || t.state === 'dead' || t.team > 1) continue;
+    if (dist(t, u) > reach + BODY_MM[t.kind]) continue;
+    const tanked = units.some((m) => m.kind === 'minion' && m.team === myTeam && m.state !== 'dead' && dist(m, t) <= TOWERS.outer.range + BODY_MM.tower);
+    if (!tanked) return true;
+  }
+  return false;
+}
+
+/**
  * The Attack button target (§9): an enemy hero in range first (lowest HP share), then the lowest-HP minion or camp
  * monster in range, then a tower or core in range; with nothing in range, the nearest enemy hero, then minion,
- * within `seek` mm. Null when nothing qualifies.
+ * within `seek` mm, but never one that sits under an untanked enemy tower (that walk-in is how new players died).
+ * Null when nothing qualifies.
  */
 export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number, range: number, seek = 7000): number | null {
   let hero: Unit | null = null;
@@ -52,10 +69,10 @@ export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number,
     const inRange = d <= range + 300;
     if (u.kind === 'hero') {
       if (inRange && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
-      if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero)) nearHero = u;
+      if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
       if (inRange && (!minion || u.hp < minion.hp)) minion = u;
-      if (d <= seek && (!nearMinion || d < dist(nearMinion, me) - BODY_MM[nearMinion.kind])) nearMinion = u;
+      if (d <= seek && (!nearMinion || d < dist(nearMinion, me) - BODY_MM[nearMinion.kind]) && !guardedByTower(units, u, myTeam)) nearMinion = u;
     } else if (inRange && (!tower || u.hp < tower.hp)) tower = u;
   }
   return (hero ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;

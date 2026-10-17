@@ -463,6 +463,14 @@ export function createPawlegendsApi(
       call("/notify", postJson({ email, source }), (b) => okBody(b)),
     confirmNotify: (t: string) =>
       call("/notify/confirm", postJson({ t }), (b) => okBody(b)),
+    /** Founder Legend seats left (`GET /pawlegends/founders`, POC.md §8.3), shown on its purchase sheet. */
+    founders: () =>
+      call("/founders", { method: "GET" }, (b) => {
+        const o = okBody(b);
+        return typeof o.left === "number" && typeof o.cap === "number" && o.left >= 0
+          ? { left: Math.floor(o.left), cap: Math.floor(o.cap) }
+          : null;
+      }),
   };
 }
 

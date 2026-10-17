@@ -21,14 +21,15 @@ export const DAMAGE_STYLE = Object.freeze({
   heavy: { color: '#FFF1C4', size: 32 },
   crit: { color: '#FFD34D', size: 36 },
   heal: { color: '#9BE3C4', size: 28 },
-  hurt: { color: '#FF8FB1', size: 24 },
+  hurt: { color: '#FF7A3D', size: 24 },                 // pawlegends: red-orange (the team pink read as 'ours')
   info: { color: '#F4E7C9', size: 22 },
   word: { color: '#FFF6DA', size: 30, under: '#FF9EC0', every: 0.25 },
   pop: { color: '#FFE066', fill: '#FFE066', stroke: '#4A2A1F', size: 40 },
 });
 
 /** WA §5.2 / §5.3 timing and motion (s, m). */
-export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.35, bump: 1.15, life: 0.95, lifeCrit: 1.2, rise: 0.6, dx: 0.25,
+// pawlegends: a 0.8 s merge window (one counter per target in a teamfight) and at most `perKey` numbers per target.
+export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.8, perKey: 3, bump: 1.15, life: 0.95, lifeCrit: 1.2, rise: 0.6, dx: 0.25,
   t1: 0.06, s1: 1.35, t2: 0.14, s2: 0.95, t3: 0.2, outScale: 0.7, fade: 0.25, wordLift: 0.25, wordLife: 0.8, popLife: 0.7, popIn: 0.18, popPeak: 1.2,
   wordCap: 2, wordLane: 0.35 });
 
@@ -94,7 +95,8 @@ export function formatHeal(amount) {
   return a > 0 ? { text: '+' + a, style: 'heal', value: a } : null;
 }
 
-const NUMERIC = new Set(['normal', 'heavy', 'crit']);
+// pawlegends: hits you take and hero-on-hero hits merge too (one counter per target in a teamfight)
+const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info']);
 const RANK = { normal: 0, heavy: 1, crit: 2 };
 
 const CSS = `
@@ -204,6 +206,15 @@ export class DamageNumbers {
       }
     }
     this.shown++;
+    // pawlegends: at most DAMAGE_FX.perKey numbers live on one target: retire the oldest before adding one
+    if (key != null) {
+      let live = 0, oldest = null;
+      for (const o of this.pool) {
+        if (!o.active || o.kind !== 'num' || o.key !== key || o.t >= o.life - DAMAGE_FX.fade) continue;   // fading already
+        live++; if (!oldest || o.t > oldest.t) oldest = o;
+      }
+      if (live >= DAMAGE_FX.perKey && oldest) oldest.t = Math.max(oldest.t, oldest.life - DAMAGE_FX.fade);
+    }
     const n = this._take();
     const iso = this._iso();
     n.pos.copy(pos); n.t = 0; n.kind = 'num'; n.active = true; n.key = key; n.style = style;
