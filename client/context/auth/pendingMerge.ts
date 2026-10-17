@@ -95,3 +95,22 @@ export function isRetryableMergeError(status: number | null | undefined, code?: 
   if (status >= 500) return true;
   return status === 403 && code === "EMAIL_UNVERIFIED";
 }
+
+/**
+ * The note on the `merged` view when the guest's progress could not join the account. The player
+ * is signed in either way. 429: the account already took in a guest in the last 30 days
+ * (backend `GUEST_MERGE_COOLDOWN_MS`); 409: this guest is being saved to another account; a
+ * retryable failure is tried again while the tab stays open.
+ */
+export function mergeFailureNote(status: number, retryable: boolean): string {
+  if (status === 429) {
+    return "You're in your account. It already took in guest progress in the last 30 days, so this guest's runs stay separate.";
+  }
+  if (status === 409) {
+    return "You're in your account. This guest's progress is already being saved to another account, so it stays there.";
+  }
+  if (retryable) {
+    return "You're in your account, but we couldn't move your guest progress just now. We'll try again while this tab stays open, for up to an hour.";
+  }
+  return "You're in your account. We couldn't move this guest's progress, so its runs stay separate.";
+}

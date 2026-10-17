@@ -299,7 +299,7 @@ test.describe("guest play (G1)", () => {
     await expect(pill).toBeFocused();
     // The signed-out pill offers a plain sign-in: no guest (or template cat) to save.
     await pill.click();
-    await expect(sheet(page).getByRole("heading", { name: "WELCOME TO TOKEN TAILS" })).toBeVisible();
+    await expect(sheet(page).getByRole("heading", { name: "WELCOME BACK" })).toBeVisible();
     await expect(sheet(page).getByText(/Keep Scout/)).toHaveCount(0);
   });
 
@@ -308,7 +308,7 @@ test.describe("guest play (G1)", () => {
     await useFakeFirebase(page, { anonymous: "fail" });
     await gotoAndSettle(page, "/game", 1500);
     await sheet(page).getByRole("button", { name: "Sign in instead" }).click();
-    await expect(sheet(page).getByRole("button", { name: /CONTINUE WITH EMAIL/ })).toBeVisible();
+    await expect(sheet(page).getByRole("button", { name: /SIGN IN WITH EMAIL/ })).toBeVisible();
     await expect(sheet(page).getByRole("button", { name: "Not now" })).toBeVisible();
     await expect(sheet(page).getByRole("button", { name: "Keep playing as guest" })).toHaveCount(0);
   });

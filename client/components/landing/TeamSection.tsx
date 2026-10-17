@@ -288,6 +288,8 @@ export interface CrewCtaState {
   /** `onboarding.state` from the profile (plan G3). */
   onboardingState?: string | null;
   catName?: string | null;
+  /** Signed in to a real account, not a guest: the landing hides its "Sign in". */
+  account?: boolean;
 }
 
 /** The crew CTA button: `text` plus an optional `subtext`, laid out like the hero's PixelButton. */

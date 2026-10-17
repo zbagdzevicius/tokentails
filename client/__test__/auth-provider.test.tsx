@@ -272,6 +272,62 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
     expect(calls.filter((call) => call.path === "/user/guest/merge")).toHaveLength(1);
   });
 
+  it("the 30-day merge limit (429) keeps the player signed in to their account with a gentle note", async () => {
+    mockLink.signInWithEmail.mockImplementation(async () => {
+      control().signIn({ uid: "existing" });
+      return { kind: "merge", guestToken: "GUEST_TOKEN", provider: "email" };
+    });
+    routes["POST /user/guest/merge"] = () => ({ status: 429, body: { message: "limit" } });
+    const flow = await signInByEmailFromGuest();
+    expect(await screen.findByText(/already took in guest progress in the last 30 days/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Welcome back!" })).toBeTruthy();
+    // Not an error: no retry promised, nothing kept, and the account is signed in.
+    expect(screen.queryByText(/try again while this tab stays open/)).toBeNull();
+    expect(sessionStorage.getItem(PENDING_MERGE_KEY)).toBeNull();
+    await waitFor(() => expect(flow.result()).toBe("signed-in"));
+    expect(latest.auth?.authStatus).toBe("ready");
+    expect(latest.auth?.user?.uid).toBe("existing");
+    expect(calls.filter((call) => call.path === "/user/guest/merge")).toHaveLength(1);
+  });
+
+  it("remembers the last sign-in method on this device, with a masked email only", async () => {
+    mockLink.signInWithEmail.mockImplementation(async () => {
+      control().signIn({ uid: "existing", email: "zygis@motored.lt", providers: ["password"] });
+      return { kind: "done", linked: false, provider: "email" };
+    });
+    await signInByEmailFromGuest();
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("tt.lastSignIn")!)).toEqual({ provider: "email", emailHint: "z•••@motored.lt" })
+    );
+    expect(localStorage.getItem("tt.lastSignIn")).not.toContain("zygis");
+  });
+
+  it("returning: opens WELCOME BACK and the email form on Sign in, with no tabs", async () => {
+    renderProvider("guest");
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("guest"));
+    act(() => {
+      void latest.auth!.requireAccount("returning");
+    });
+    expect(await screen.findByRole("heading", { name: "WELCOME BACK" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /SIGN IN WITH EMAIL/ }));
+    expect(await screen.findByRole("button", { name: "SIGN IN" })).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.getByRole("button", { name: "Forgot password?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Create an account" }));
+    expect(await screen.findByRole("tab", { name: "Create account", selected: true })).toBeTruthy();
+  });
+
+  it("save sheet: 'Already have an account? Sign in' turns it into the returning sheet", async () => {
+    renderProvider("guest");
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("guest"));
+    act(() => {
+      void latest.auth!.requireAccount("save-progress");
+    });
+    await screen.findByRole("heading", { name: "SAVE YOUR CAT" });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("heading", { name: "WELCOME BACK" })).toBeTruthy();
+  });
+
   it("a merge into an unverified account waits for the verification, then runs again", async () => {
     let verified = false;
     mockLink.signInWithEmail.mockImplementation(async () => {
@@ -409,8 +465,8 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /SIGN IN TO MY ACCOUNT/ }));
     });
-    expect(await screen.findByRole("heading", { name: "WELCOME TO TOKEN TAILS" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /CONTINUE WITH EMAIL/ })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "WELCOME BACK" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /SIGN IN WITH EMAIL/ })).toBeTruthy();
     // On /game a fresh guest starts underneath; the sheet stays on the sign-in options.
     await waitFor(() => expect(latest.auth?.authStatus).toBe("guest"));
     expect(screen.getByRole("dialog")).toBeTruthy();

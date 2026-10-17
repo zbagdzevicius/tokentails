@@ -102,6 +102,22 @@ describe("Meet your cat", () => {
     expect(screen.getByRole("heading", { name: "Your cat awaits…" })).toBeTruthy();
   });
 
+  it("offers 'Already have an account? Sign in' on the first screen only when the caller can sign in", async () => {
+    const onSignIn = jest.fn();
+    const { unmount } = renderMeet({ onSignIn });
+    await toAwaits();
+    const link = screen.getByRole("button", { name: "Sign in" });
+    expect(screen.getByTestId("meet-sign-in").textContent).toContain("Already have an account?");
+    fireEvent.click(link);
+    expect(onSignIn).toHaveBeenCalledTimes(1);
+    // Nothing is committed: the caller decides once the player is in their account.
+    expect(api.commitStarter).not.toHaveBeenCalled();
+    unmount();
+    renderMeet();
+    await toAwaits();
+    expect(screen.queryByTestId("meet-sign-in")).toBeNull();
+  });
+
   it("puts SKIP first in the focus order", async () => {
     renderMeet();
     await toAwaits();

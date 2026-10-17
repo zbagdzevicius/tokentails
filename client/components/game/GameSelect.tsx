@@ -285,7 +285,7 @@ const LobbyScene = ({
   const reducedMotion = useReducedMotion();
   const view = useLobbyViewport();
   const pill = useGuestPillShown();
-  const pillWidth = useElementWidth('[data-testid="guest-pill"] > button', pill);
+  const pillWidth = useElementWidth('[data-testid="guest-pill"] > [data-pill-row]', pill);
   const [stripHeight, setStripHeight] = useState(0);
   // The plate row's natural width (the full name, not its truncation, plus MY PETS).
   const nameRef = useRef<HTMLSpanElement | null>(null);
