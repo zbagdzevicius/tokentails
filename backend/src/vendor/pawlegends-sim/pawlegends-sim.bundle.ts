@@ -31,10 +31,17 @@ var BOTS = Object.freeze({
 		abilityUseBp: 1e4,
 		waveClear: true,
 		/**
-		* 5:00, when Pudding spawns (was 6:00; moved for the §15 item 11 p95 gate: grouping at 6:00 left
-		* even teams trading at mid past 10:00 in ~6% of matches).
+		* 3:55 (sim v3; was 5:00 in v2 and 6:00 before that: grouping at 6:00 left even teams trading at mid past 10:00
+		* in ~6% of matches, §15 item 11 p95). At 5:00 the novice (§7.2, §15 item 12) beat Normal only 41.5% of 400 seeds,
+		* next to the 40% floor: it keeps to Sunny Lane, so the push it is not in decided the match. Grouping earlier
+		* lets its two Normal allies take that push while the enemy is still spread: 49.4% of 800 seeds, with the
+		* Normal-vs-Normal gates green (seeds 1..2,000 and 2,001..4,000: median 7:36 / 7:37, p95 8:41, Purrhaven 49.0% /
+		* 46.9%, heroes 44.1% to 53.7%; the 200-seed day-to-day run 47.0%). Tried on 400 to 800 seeds: 3:30 47.4%, 3:50
+		* 52.0% (200-seed side 45.0%, on the floor), 4:00 50.1% (200-seed side 44.5%, fails), 4:10 45.3%, 4:30 43.0%;
+		* allies grouping in the human's lane 31.8%; weaker Normal bots (abilityUseBp 7000, fightPowerBp 10000) 37% to
+		* 39%. The allies group with the enemy difficulty (bots/index.ts ALLIES), so vs Easy they still wait for 6:00.
 		*/
-		groupAt: 9e3,
+		groupAt: 7050,
 		dives: true,
 		structureFirst: true,
 		fightPowerBp: 8500
@@ -5677,7 +5684,7 @@ function separate(w) {
 //#endregion
 //#region src/sim/version.ts
 /** Bumped whenever a change alters any replay's outcome or hash. The backend refuses an unknown version (POC.md §11.5). */
-var SIM_VERSION = 2;
+var SIM_VERSION = 3;
 //#endregion
 //#region src/sim/bots/sense.ts
 /**
@@ -6268,9 +6275,23 @@ function worldMem(w) {
 * outside the world and return commands for the caller to pass to `step`, so a match they play records and
 * replays like a human one.
 */
+/**
+* The human's allies: BOT_TEAMS.allies, except that they group when the enemy team does (the enemy difficulty's
+* groupAt), so they never leave the lanes to an enemy that is still spread out in them.
+*/
+var ALLIES = Object.freeze({
+	easy: Object.freeze({
+		...BOTS[BOT_TEAMS.allies],
+		groupAt: BOTS.easy.groupAt
+	}),
+	normal: Object.freeze({
+		...BOTS[BOT_TEAMS.allies],
+		groupAt: BOTS.normal.groupAt
+	})
+});
 /** Difficulty parameters of the bot in `slot`. */
 function botParams(m, slot) {
-	return BOTS[teamOfSlot(slot) === teamOfSlot(0) ? BOT_TEAMS.allies : m.config.difficulty];
+	return teamOfSlot(slot) === teamOfSlot(0) ? ALLIES[m.config.difficulty] : BOTS[m.config.difficulty];
 }
 var thinksNow = (tick, slot) => (tick + slot) % TIMELINE.botThinkEvery === 0;
 /** Step 2: the in-sim bots think and act. */
@@ -6542,7 +6563,7 @@ function checkReplayShape(r) {
 	if (!r || typeof r !== "object") return fail("PAWLEGENDS_REPLAY_INVALID", "not an object");
 	const x = r;
 	if (x.v !== 1) return fail("PAWLEGENDS_REPLAY_INVALID", "v must be 1");
-	if (x.simVersion !== 2) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 2`);
+	if (x.simVersion !== 3) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 3`);
 	if (typeof x.seed !== "number" || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 4294967295) return fail("PAWLEGENDS_REPLAY_INVALID", "seed must be a uint32");
 	if (typeof x.difficulty !== "string" || !DIFFICULTIES.includes(x.difficulty)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown difficulty");
 	if (typeof x.hero !== "string" || !HERO_IDS.includes(x.hero)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown hero");

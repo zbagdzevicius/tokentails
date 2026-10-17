@@ -8,6 +8,12 @@ import { GUEST_IDLE_MS, GUEST_MERGE_COOLDOWN_MS, MERGE_RESUME_AFTER_MS } from '.
 import { tooManyRequests } from './ip-throttle';
 import { arrayGuardPipeline, dottedArrayFields } from '../utils/live-game';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
+import {
+    PAWLEGENDS_MERGE_FIELDS,
+    pawlegendsBestsUpdate,
+    pawlegendsFieldRepair,
+    pawlegendsMatchesInc,
+} from 'src/pawlegends/pawlegends-merge';
 
 /*
  * Guest lifecycle without transactions (plan G1, F5.5): the resumable merge, the explicit erase and
@@ -21,8 +27,10 @@ import { isDuplicateKeyError } from 'src/shared/jobs/lease';
  *                idempotent), then the target's totals re-derived through `recomputeGameTotals`,
  *                the same code /live uses, so caps can never be exceeded. Bests end up equal to
  *                the elementwise max.
- * - bestsMerged: pending Tails credited once, capped by GUEST_TAILS_LIFETIME_CAP. Exactly-once
- *                through `mergedGuestIds` on the target.
+ *                Pawlegends (D44): first-win catnip `$max` (clamped per difficulty, so a difficulty both
+ *                accounts claimed pays once) and fastest wins `$min`, before that re-derive.
+ * - bestsMerged: pending Tails credited once, capped by GUEST_TAILS_LIFETIME_CAP, and the Pawlegends
+ *                match counts added in the same write. Exactly-once through `mergedGuestIds` on the target.
  * - done:        guest starter dropped (decision #8), guest Firebase user and guest doc deleted.
  *
  * Every step re-reads the guest as a guest still claimed by this target and stops otherwise, and
@@ -227,12 +235,26 @@ export async function mergeCodex(deps: IGuestLifecycleDeps, guest: any, targetId
 /** Credits the guest's pending Tails into the target once. Returns the amount credited now. */
 export async function creditPendingTails(deps: IGuestLifecycleDeps, guest: any, targetId: Types.ObjectId) {
     for (let attempt = 0; attempt < 5; attempt += 1) {
-        const target = await deps.users.findOne({ _id: targetId }, { guestMergedTails: 1, mergedGuestIds: 1 }).lean();
+        const target = await deps.users
+            .findOne(
+                { _id: targetId },
+                {
+                    guestMergedTails: 1,
+                    mergedGuestIds: 1,
+                    ...Object.fromEntries(PAWLEGENDS_MERGE_FIELDS.map(f => [f, 1])),
+                }
+            )
+            .lean();
         if (!target) {
             return 0;
         }
         if ((target.mergedGuestIds || []).some((id: unknown) => sameId(id, guest._id))) {
             return 0;
+        }
+        const matches = pawlegendsMatchesInc(guest);
+        const repair = Object.keys(matches).length ? pawlegendsFieldRepair(target) : null;
+        if (repair) {
+            await deps.users.updateOne({ _id: targetId }, { $set: repair });
         }
         const alreadyMerged = Number(target.guestMergedTails) || 0;
         const pending = Math.max(0, Math.floor(Number(guest.pendingTails) || 0));
@@ -246,7 +268,8 @@ export async function creditPendingTails(deps: IGuestLifecycleDeps, guest: any, 
             },
             {
                 $addToSet: { mergedGuestIds: guest._id },
-                $inc: { ...earnTailsInc(credit), monthTails: credit, guestMergedTails: credit },
+                // Pawlegends match counts (D44) ride on this exactly-once write: a `$inc` must never replay.
+                $inc: { ...earnTailsInc(credit), monthTails: credit, guestMergedTails: credit, ...matches },
             }
         );
         if ((result as { modifiedCount?: number }).modifiedCount) {
@@ -254,6 +277,29 @@ export async function creditPendingTails(deps: IGuestLifecycleDeps, guest: any, 
         }
     }
     throw new ConflictException({ statusCode: 409, message: 'Guest Tails could not be credited, retry' });
+}
+
+/**
+ * Pawlegends first-win catnip (`$max`, clamped per difficulty) and fastest wins (`$min`) of the guest into the
+ * target (D44, src/pawlegends/pawlegends-merge.ts). Idempotent; the catnip reaches `catnipCount` through the
+ * `recomputeTotals` that follows. A target field that is not a sub-document is repaired first, as `/live` does.
+ */
+export async function mergePawlegendsBests(deps: IGuestLifecycleDeps, guest: any, targetId: Types.ObjectId) {
+    const update = pawlegendsBestsUpdate(guest);
+    if (!update) {
+        return;
+    }
+    const target = await deps.users
+        .findOne({ _id: targetId }, Object.fromEntries(PAWLEGENDS_MERGE_FIELDS.map(field => [field, 1])))
+        .lean();
+    if (!target) {
+        return;
+    }
+    const repair = pawlegendsFieldRepair(target);
+    if (repair) {
+        await deps.users.updateOne({ _id: targetId }, { $set: repair });
+    }
+    await deps.users.updateOne({ _id: targetId }, update);
 }
 
 /**
@@ -331,6 +377,7 @@ export async function runGuestMerge(deps: IGuestLifecycleDeps, claimedGuest: any
                 await deps.users.updateOne({ _id: targetId }, { $max: max });
             }
             await mergeCodex(deps, guest, targetId);
+            await mergePawlegendsBests(deps, guest, targetId);
             await deps.recomputeTotals(targetId.toString());
         }
         state = await advance(deps, guestId, 'gamesMoved', 'bestsMerged');

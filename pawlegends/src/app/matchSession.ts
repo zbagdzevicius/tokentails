@@ -446,6 +446,7 @@ export class MatchSession {
       d.hp = me && me.maxHp > 0 ? String(Math.round((100 * me.hp) / me.maxHp)) : '';
       d.foeMinion = this.nearestFoeOnScreen('minion');
       d.foeHero = this.nearestFoeOnScreen('hero');
+      d.allyFront = this.allyFrontOnScreen();
       const self = this.units.find((u) => u.id === this.view.mySlot);
       d.meScreen = self ? this.onScreen(self.x, self.y) : '';
     }
@@ -466,6 +467,23 @@ export class MatchSession {
     }
     if (!best) return '';
     return this.onScreen(best.x, best.y, `,${Math.round(bestD)}`);
+  }
+
+  /**
+   * A point 1.5 m behind the allied minion furthest toward the enemy in the player's lane (within 12 m of the player
+   * across the lane), on screen, or ''. first-match.spec.ts follows its wave with it like a careful new player.
+   */
+  private allyFrontOnScreen(): string {
+    const me = this.units.find((u) => u.id === this.view.mySlot);
+    if (!me || !this.welcome) return '';
+    const team = this.welcome.team;
+    const ahead = team === 0 ? 1 : -1;
+    let best: Unit | null = null;
+    for (const u of this.units) {
+      if (u.kind !== 'minion' || u.team !== team || u.state === 'dead' || Math.abs(u.y - me.y) > 12000) continue;
+      if (!best || (u.x - best.x) * ahead > 0) best = u;
+    }
+    return best ? this.onScreen(best.x - ahead * 1500, best.y) : '';
   }
 
   /** Client pixel of a sim point when it is well inside the canvas (no edge pan for a test's click), else ''. */

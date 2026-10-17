@@ -495,3 +495,10 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-sku p.later { display: none; }
   .pl-offer { width: 280px; }
 }
+
+/* ?perf=1 device-gate readout (ui/perfReadout.ts): top left, never takes input. */
+.pl-perf {
+  position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(6px + env(safe-area-inset-left, 0px));
+  z-index: 1100; pointer-events: none; white-space: pre; padding: 4px 6px; border-radius: 6px;
+  font: 600 11px/1.35 ui-monospace, Menlo, monospace; color: #fff; background: rgba(20, 12, 24, 0.72);
+}

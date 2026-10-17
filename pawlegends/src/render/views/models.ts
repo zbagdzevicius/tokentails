@@ -36,10 +36,19 @@ function legs(b: ModelBuilder, c: Coat, r: number, fx = 0.2, bx = -0.2, dz = 0.1
   }
 }
 
-function sash(b: ModelBuilder, team: 0 | 1, k = 1): void {
+/**
+ * Team colours (POC.md §6.8): Purrhaven cream and rose, Woof navy and brass, on every hero whatever its species. The
+ * iso camera mostly sees a hero's back, and at Low on a phone a hero is ~20 CSS px tall, so the team reads from a big
+ * shape rather than a thin sash: a team blanket over the back and flanks with a stripe in the second colour, plus a
+ * broad sash. (A pennant above the back was tried: the overhead HP bar covers it.) `top` is the height of the
+ * body's back (cats 0.9 m, dogs 0.95 m).
+ */
+function sash(b: ModelBuilder, team: 0 | 1, k = 1, top = 0.9): void {
   const t = TEAM[team];
-  b.torus(0.31 * k, 0.045, t.main, { at: [0.04, 0.62, 0], rot: [0, HALF_PI, 0.55], scale: [1, 1.05, 1.1] });
-  b.sphere(0.075, t.second, { at: [0.3 * k, 0.78, 0.18 * k] }, 8);
+  b.sphere(1, t.main, { at: [-0.06, top - 0.09, 0], scale: [0.34 * k, 0.17, 0.345 * k] }, 14);
+  b.sphere(1, t.second, { at: [-0.06, top - 0.075, 0], scale: [0.35 * k, 0.17, 0.09] }, 10);
+  b.torus(0.32 * k, 0.07, t.main, { at: [0.06, 0.62, 0], rot: [0, HALF_PI, 0.55], scale: [1, 1.05, 1.1] });
+  b.sphere(0.09, t.second, { at: [0.3 * k, 0.78, 0.2 * k] }, 8);
 }
 
 function catBase(b: ModelBuilder, c: Coat): void {
@@ -91,8 +100,8 @@ function clem(b: ModelBuilder, team: 0 | 1, look: Look): void {
   b.sphere(0.075, 0xff6f91, { ...head, at: [0.22, 1.42, -0.04], scale: [0.8, 1, 1.3] }, 8);
   b.sphere(0.075, 0xff6f91, { ...head, at: [0.22, 1.42, 0.12], scale: [0.8, 1, 1.3] }, 8);
   b.sphere(0.045, 0xffd34d, { ...head, at: [0.24, 1.43, 0.04] }, 6);
-  // rose neck scarf
-  b.torus(0.22, 0.06, 0xff6f91, { at: [0.22, 0.86, 0], rot: [HALF_PI, 0.25, 0] });
+  // neck scarf in the team colour (rose on Purrhaven; a rose scarf on a Woof Clem read as the wrong team)
+  b.torus(0.22, 0.06, TEAM[team].main, { at: [0.22, 0.86, 0], rot: [HALF_PI, 0.25, 0] });
   // sword in the right paw
   const w = { part: Part.Weapon, pivot: [0.2, 0.7, 0.3] as const };
   b.sphere(0.1, c.light, { ...w, at: [0.3, 0.66, 0.33] }, 8);
@@ -143,7 +152,7 @@ function brutus(b: ModelBuilder, team: 0 | 1, look: Look): void {
   b.cyl(0.38, 0.38, 0.08, 0xd9a441, { ...w, at: [0.3, 0.78, 0.46], rot: [HALF_PI, 0, 0] }, 16);
   b.cyl(0.29, 0.29, 0.1, TEAM[team].main, { ...w, at: [0.3, 0.78, 0.47], rot: [HALF_PI, 0, 0] }, 16);
   b.sphere(0.09, 0xfff3dc, { ...w, at: [0.3, 0.78, 0.53] }, 8);
-  sash(b, team, 1.05);
+  sash(b, team, 1.05, 0.95);
 }
 
 function cacklejaw(b: ModelBuilder, team: 0 | 1, look: Look): void {
@@ -172,7 +181,7 @@ function cacklejaw(b: ModelBuilder, team: 0 | 1, look: Look): void {
   const w = { part: Part.Weapon, pivot: [0.22, 0.72, 0.3] as const };
   b.sphere(0.11, c.light, { ...w, at: [0.36, 0.7, 0.34] }, 8);
   for (const dz of [-0.06, 0, 0.06]) b.cone(0.03, 0.22, 0xe9e0ff, { ...w, at: [0.5, 0.74, 0.34 + dz], rot: [0, 0, -1.2] }, 5);
-  sash(b, team, 1.02);
+  sash(b, team, 1.02, 0.95);
 }
 
 const HERO_BUILD: Record<HeroId, (b: ModelBuilder, team: 0 | 1, look: Look) => void> = { clem, sage, brutus, cacklejaw };
