@@ -1,7 +1,7 @@
 /**
  * Pink Paw in the world, always on: the rave raises money for the Pink Paw (Rožinė pėdutė) cat shelter, so its
  * logo hangs on stage as a lit sign: the round logo on its own white disc, a pink neon rim, a soft pink glow
- * that breathes with the kick, and a small caption plate under it ("ALL PROCEEDS → / PINK PAW SHELTER").
+ * that breathes with the kick, and a small caption plate under it ("EVERY CAT → / PINK PAW SHELTER").
  * Layout and the occlusion maths live in pinkPawLayout.ts.
  *
  * The logo is the shelter's own file (copied unmodified to public/brand/, see SOURCE.md there): sRGB,
