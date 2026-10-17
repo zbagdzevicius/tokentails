@@ -26,6 +26,7 @@ import {
   encodeDisburseWithMemoCalldata,
   encodeDonateCalldata,
   memoToBytes32,
+  parseUnits,
 } from "@/components/shelter-payouts/calldata";
 import { SHELTER_CHAINS } from "@/components/shelter-payouts/chains";
 import { NO_WALLET_PATH, mainnetRails, parseCustomAmount, tryItRails, walletGiveMode } from "@/components/shelter-payouts/giveMode";
@@ -198,11 +199,18 @@ describe("the chain picker's rails", () => {
     expect(extraCoinRails(42431, [R(42431, "testnet", { symbol: "USDC.e" })], TESTNET_DEPLOYMENTS)).toEqual([]);
   });
 
-  it("the try-it block lists the extra-coin routers; the real-money campaign rails never do", () => {
+  it("both blocks list an EIP-3009 extra-coin router (EURC) as its own option, right after its chain", () => {
     const routers = [R(5042002, "testnet"), R(5042002, "testnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" })];
     expect(tryItRails(routers, TESTNET_DEPLOYMENTS, { tryChain: "5042002" }).map(railKey)).toContain("5042002-EURC");
-    const mainnet = [R(5042, "mainnet"), R(5042, "mainnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" })];
-    expect(campaignRails(5042, mainnet, MAINNET_SPLITS, "5042").map(railKey)).toEqual(["5042"]);
+    const eurc = R(5042, "mainnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" });
+    const mainnet = [R(5042, "mainnet"), eurc];
+    expect(campaignRails(5042, mainnet, MAINNET_SPLITS, "5042").map(railKey)).toEqual(["5042", "5042-EURC"]);
+    const unset = campaignRails(5042, mainnet, MAINNET_SPLITS, undefined);
+    expect(unset.slice(0, 2).map(railKey)).toEqual(["5042", "5042-EURC"]);
+    expect(unset[1]).toMatchObject({ path: "router", native: false, symbol: "EURC", network: "mainnet" });
+    // Only a router flagged EIP-3009, and never without the chain's own rail.
+    expect(campaignRails(5042, [R(5042, "mainnet"), { ...eurc, eip3009: false }], MAINNET_SPLITS, "5042").map(railKey)).toEqual(["5042"]);
+    expect(campaignRails(5042, [eurc], MAINNET_SPLITS, undefined)).toEqual([]);
   });
 
   it("picks the newest split of the chain's own coin, never a EURC one", () => {
@@ -228,8 +236,7 @@ describe("the chain picker's rails", () => {
     expect(unset.map((r) => r.chainId)).toEqual(WALLET_CHAIN_IDS.mainnet);
     expect(unset[0]).toMatchObject({ chainId: 5042, path: "router" });
     expect(unset.every((r) => r.network === "mainnet")).toBe(true);
-    // Never a second coin (EURC) on the real-money block, and never a testnet split.
-    expect(campaignRails(5042, [R(5042, "mainnet"), R(5042, "mainnet", { router: "0x" + "ee".repeat(20), symbol: "EURC" })], MAINNET_SPLITS, undefined).map(railKey)).not.toContain("5042-EURC");
+    // Never a testnet split or router on the real-money block.
     expect(campaignRails(5042, [R(5042, "mainnet")], [], undefined).map((r) => r.chainId)).toEqual([5042]);
     expect(campaignRails(5042, [R(5042, "testnet")], MAINNET_SPLITS, undefined)).toEqual([]);
     // Set: those mainnet chains, the campaign chain first; testnet ids and junk are ignored.
@@ -521,5 +528,57 @@ describe("parseCustomAmount", () => {
     expect(parseCustomAmount("0.009")).toEqual({ error: "The smallest gift is 0.01 USDC." });
     expect(parseCustomAmount("0")).toEqual({ error: "The smallest gift is 0.01 USDC." });
     expect(parseCustomAmount("10000.01", "pathUSD")).toEqual({ error: "Up to 10,000 pathUSD per gift from this page." });
+  });
+});
+
+describe("a custom amount in each coin's own units", () => {
+  const typed = (raw: string) => {
+    const p = parseCustomAmount(raw);
+    if (!("amount" in p)) throw new Error(p.error);
+    return p.amount;
+  };
+
+  it("converts the typed amount with 6 decimals (ERC-20 USDC, EURC, pathUSD, USDG) and 18 (Arc's native USDC)", () => {
+    expect(parseUnits(typed("2,5"), 6)).toBe(BigInt(2_500_000));
+    expect(parseUnits(typed("0.01"), 6)).toBe(BigInt(10_000));
+    expect(parseUnits(typed("10000"), 6)).toBe(BigInt(10_000_000_000));
+    expect(parseUnits(typed("1.234567"), 6)).toBe(BigInt(1_234_567));
+    expect(parseUnits(typed("2,5"), 18)).toBe(BigInt("2500000000000000000"));
+    expect(parseUnits(typed("0.01"), 18)).toBe(BigInt("10000000000000000"));
+    // Every amount the field accepts fits 6 decimals, so no rail ever rounds it.
+    expect(parseCustomAmount("1.0000001")).toHaveProperty("error");
+  });
+
+  it("approves and gives exactly the typed amount on Tempo (6-decimal pathUSD, disburseWithMemo)", async () => {
+    const { eth, sent } = splitProvider({ chainId: "0xa5bf" });
+    const res = await giveToSplit({
+      chainId: 42431, chain: SHELTER_CHAINS[42431], split: SPLIT, amount: typed("2,5"), symbol: "pathUSD", memo32: true, provider: eth, rand: fixedRand, sleep: noSleep,
+    });
+    expect(sent[0].data).toBe(encodeApproveCalldata(SPLIT, BigInt(2_500_000)));
+    expect(sent[1].data).toBe(encodeDisburseWithMemoCalldata(BigInt(2_500_000), memoToBytes32(res.memo)));
+  });
+
+  it("sends the typed amount as an 18-decimal value on Arc's native path", async () => {
+    const { eth, sent } = splitProvider();
+    await giveNativeToSplit({ provider: eth, chainId: 5042002, chain: SHELTER_CHAINS[5042002], split: SPLIT, amount: typed("7,5"), rand: fixedRand });
+    expect(sent[0].value).toBe("0x" + BigInt("7500000000000000000").toString(16));
+  });
+});
+
+describe("the live mainnet lists (public routers.json and deployments.json)", () => {
+  const read = (f: string) => JSON.parse(readFileSync(join(__dirname, "../public/shelter-payouts", f), "utf8"));
+  const routers: RouterEntry[] = read("routers.json");
+  const deployments: ShelterDeployment[] = read("deployments.json");
+
+  it("offers every mainnet chain with a path, Arc's USDC first and Arc's EURC as its own option", () => {
+    const rails = campaignRails(5042, routers, deployments, undefined);
+    const keys = rails.map(railKey);
+    expect(keys[0]).toBe("5042");
+    expect(keys[1]).toBe("5042-EURC");
+    expect(rails.every((r) => r.network === "mainnet")).toBe(true);
+    for (const id of [42161, 43114, 8453, 143]) expect(rails.find((r) => r.chainId === id)?.path).toBe("router");
+    // Tempo never on a router (TIP-20 has no EIP-3009).
+    const tempo = rails.find((r) => r.chainId === 4217);
+    if (tempo) expect(tempo).toMatchObject({ path: "split", memo32: true });
   });
 });
