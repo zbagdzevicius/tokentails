@@ -41,11 +41,8 @@ describe("CampaignMeter", () => {
     const bar = screen.getByRole("progressbar");
     expect(bar.getAttribute("aria-valuenow")).toBe("2.46");
     expect(screen.getByTestId("campaign-meter").textContent).toContain("Goal date: 30 September 2027");
-    // Today only treats can reach the wallet Token Tails holds: the copy never names the rest as counting.
-    const sources = screen.getByTestId("campaign-meter-sources").textContent!;
-    expect(sources).toMatch(/comes in to the wallet Token Tails holds for Pink Paw on Arc mainnet: today, sponsored treats\./);
-    expect(sources).toMatch(/The USDC that comes in to Pink Paw's wallet counts toward its goal\./);
-    expect(sources).not.toMatch(/shop shares/);
+    // The breakdown, the "at least" note and the sources paragraph were removed from the page (17 Oct 2026).
+    expect(screen.queryByTestId("campaign-meter-sources")).toBeNull();
     expect(screen.getByTestId("campaign-meter").getAttribute("data-claim")).toBe("C-001");
   });
 
@@ -56,51 +53,17 @@ describe("CampaignMeter", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBeNull();
   });
 
-  it("lists shop shares only when the backend reports them live, and the handed-over wording", () => {
-    const shares = campaignProgress(campaign, { raised: usdc("1"), exact: true }, ["treats", "purchase-shares"]);
-    const { unmount } = render(<CampaignMeter campaign={campaign} progress={shares} state="ok" />);
-    expect(screen.getByTestId("campaign-meter-sources").textContent).toMatch(/today, sponsored treats and shop shares\./);
-    unmount();
-    // The real campaign.json: handed over on 16 Oct 2026.
-    const handed = parseCampaign(campaignJson);
-    expect(handed.shelter.handover).toBe("handed-over");
-    render(<CampaignMeter campaign={handed} progress={campaignProgress(handed, { raised: usdc("1"), exact: true })} state="ok" />);
-    expect(screen.getByTestId("campaign-meter-sources").textContent).toMatch(
-      /Pink Paw's wallets on Arc mainnet: gifts from people, Token Tails' match, sponsored treats and x402 payments\. Money moved between Pink Paw's wallets counts once, and spending never lowers it\./
-    );
-  });
-
-  it("names every counted chain and coin, and breaks the figure down by chain", () => {
+  it("shows no per-chain breakdown, sources paragraph or catching-up note", () => {
     const chains = [
       { chainId: 5042, raised: usdc("3"), symbols: ["USDC"], counted: true },
-      { chainId: 4217, raised: BigInt(0), symbols: ["USDC.e"], counted: true },
       { chainId: 4663, raised: usdc("1.5"), symbols: ["USDG"], counted: true },
-      { chainId: 143, raised: BigInt(0), symbols: ["USDC"], counted: true },
     ];
-    const progress = campaignProgress(campaign, { raised: usdc("4.5"), exact: true, chains });
-    render(<CampaignMeter campaign={campaign} progress={progress} state="ok" />);
-    const sources = screen.getByTestId("campaign-meter-sources").textContent!;
-    expect(sources).toMatch(
-      /Counts every US dollar stablecoin \(USDC, USDC\.e and USDG\) that comes in to the wallet Token Tails holds for Pink Paw on Arc, Tempo, Robinhood Chain and Monad: today, sponsored treats\./
-    );
-    expect(sources).toMatch(/Indexed from public on-chain events on each chain\./);
-    const list = screen.getByTestId("campaign-meter-chains");
-    expect(Array.from(list.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["Arc: 3 USDC", "Robinhood Chain: 1.5 USDG"]);
-  });
-
-  it('says "at least" for the balance fallback, which reads the campaign chain only', () => {
-    const progress = campaignProgress(campaign, { raised: usdc("2"), exact: false, partial: true });
-    render(<CampaignMeter campaign={campaign} progress={progress} state="ok" />);
-    expect(screen.getByTestId("campaign-meter-value").textContent).toMatch(/^at least 2of/);
-    expect(screen.getByTestId("campaign-meter-floor").textContent).toMatch(/Read from Arc mainnet only right now/);
+    render(<CampaignMeter campaign={campaign} progress={campaignProgress(campaign, { raised: usdc("4.5"), exact: false, chains })} state="ok" />);
     expect(screen.queryByTestId("campaign-meter-chains")).toBeNull();
-  });
-
-  it('says "at least" while the count is still catching up', () => {
-    const progress = campaignProgress(campaign, { raised: usdc("10"), exact: false });
-    render(<CampaignMeter campaign={campaign} progress={progress} state="ok" compact />);
-    expect(screen.getByTestId("campaign-meter-value").textContent).toMatch(/^at least 10of/);
-    expect(screen.getByTestId("campaign-meter-floor")).toBeTruthy();
+    expect(screen.queryByTestId("campaign-meter-sources")).toBeNull();
+    expect(screen.queryByTestId("campaign-meter-floor")).toBeNull();
+    // The figure itself still says it is a floor.
+    expect(screen.getByTestId("campaign-meter-value").textContent).toMatch(/^at least 4\.5of/);
   });
 
   it("shows a plain cream stub at 0 and the pink-gold fill only once money came in", () => {
