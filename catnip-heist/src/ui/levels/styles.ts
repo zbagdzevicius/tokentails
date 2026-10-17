@@ -28,6 +28,11 @@ const CSS = `
 .ch-lv-path .ch-lv-open { stroke: ${COIN}; }
 .ch-lv-path .ch-lv-shut { stroke: rgba(153,102,204,.45); }
 
+/* ---- act headings (a row of their own before each act's cards) ---- */
+.ch-lv-act { grid-column: 1 / -1; grid-row: var(--r4); justify-self: center; align-self: end; position: relative; z-index: 1;
+  margin: 4px 0 -4px; padding: 3px 16px; border: 3px solid ${OL}; border-radius: 999px; background: rgba(11,8,32,.7);
+  color: ${COIN}; font: 800 14px/1.2 ${HEIST_BODY_FONT}; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 3px 0 ${OL}; }
+
 /* ---- cards ---- */
 .ch-lv-card { position: relative; z-index: 1; grid-column: var(--c4); grid-row: var(--r4); align-self: center;
   display: flex; flex-direction: column; align-items: stretch; gap: 6px; text-align: left; cursor: pointer;
@@ -226,6 +231,7 @@ const CSS = `
   .ch-lv-card:not(:last-child)::after { content: ''; position: absolute; top: 34%; right: -15px; width: 12px; height: 6px; border-radius: 3px;
     background: rgba(255,204,85,.7); box-shadow: 0 0 0 2px ${OL}; }
   .ch-lv-card[disabled]::after { background: rgba(153,102,204,.6); }
+  .ch-lv-act { flex: 0 0 auto; align-self: center; margin: 0; padding: 12px 4px; font-size: 12px; writing-mode: vertical-rl; transform: rotate(180deg); }
 }
 @media (max-width: 760px) and (min-height: 501px), (max-height: 500px) and (max-width: 599px) {
   .ch-lv-body { flex-direction: column; gap: 6px; overflow-y: auto; overflow-x: hidden; margin: 8px -16px 0; padding: 0 16px; }

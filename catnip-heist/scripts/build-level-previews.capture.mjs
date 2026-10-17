@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Captures real gameplay frames for levels that have no promo clip (today: heist-03), for
+// Captures real gameplay frames for levels that have no promo clip (heist-03 and heist-09..16), for
 // scripts/build-level-previews.mjs. Same method as promo/tools/capture.mjs: a solution replay with
 // the sim frozen, one sim tick per frame under a Playwright fake clock, so the frames are
 // deterministic. Nothing here changes the sim: it only steps the shipped solution.
@@ -25,6 +25,24 @@ export const CAPTURES = [
   { name: 'h03-twin-locks', level: 'heist-03', start: 84, frames: 150 },
   // heist-03 rescue: Luna's crate opens at t1111, both cats head to the exit (win t1143).
   { name: 'h03-rescue', level: 'heist-03', start: 1080, frames: 62 },
+  // Act 2 (heist-09..16): no promo clips, so every still and loop is captured here. Ticks are from
+  // the shipped solutions (events listed in the comment of each row).
+  // heist-09 Deep Blue: plate held (t426), MEOW through the glass (t455) freezes the shark and the eel.
+  { name: 'h09-deep-blue', level: 'heist-09', start: 420, frames: 120 },
+  // heist-10 After Hours: the vault key (t304) opens the pharmacy (t469), the nurse's new shortcut.
+  { name: 'h10-after-hours', level: 'heist-10', start: 430, frames: 120 },
+  // heist-11 Signal Box: one switch plate (t201) opens both gates; SWAP (t205) under the sentries.
+  { name: 'h11-signal-box', level: 'heist-11', start: 170, frames: 120 },
+  // heist-12 Spin Cycle: plate let go (t1127) while the partner stands in the doorway, door stays open.
+  { name: 'h12-spin-cycle', level: 'heist-12', start: 1100, frames: 120 },
+  // heist-13 Kibble Factory: MEOW through the held cat flap (t510) sends the doorman the long way round.
+  { name: 'h13-kibble-factory', level: 'heist-13', start: 480, frames: 120 },
+  // heist-14 The Golden Bowl: key grabbed (t1629), SWAP (t1681), the far cage opens (t1682).
+  { name: 'h14-golden-bowl', level: 'heist-14', start: 1640, frames: 120 },
+  // heist-15 Night Gallery: the staff door held (t1896), SWAP, the vault opens (t1901) and wakes the statues.
+  { name: 'h15-night-gallery', level: 'heist-15', start: 1880, frames: 120 },
+  // heist-16 Kibble Corp Tower: plate h in the office (t2748) opens the helipad doors; SWAP (t2751).
+  { name: 'h16-tower', level: 'heist-16', start: 2720, frames: 120 },
 ];
 
 const HIDE_CSS = '.ch-ui{visibility:hidden !important}';

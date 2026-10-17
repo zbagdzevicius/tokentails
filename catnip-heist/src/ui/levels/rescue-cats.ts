@@ -43,8 +43,13 @@ export const RESCUE_SHELTER_LINE = 'Real cat at Pink Paw shelter, Lithuania';
 /** When the local copies (images and statuses) were taken from GET /cat/sale on api.tokentails.com. */
 export const RESCUE_FALLBACK_FETCHED = '2026-10-04';
 
-/** The campaign's levels, in order (src/levels/heist-0N.json). */
-export const RESCUE_LEVEL_IDS = ['heist-01', 'heist-02', 'heist-03', 'heist-04', 'heist-05', 'heist-06', 'heist-07', 'heist-08'] as const;
+/** The campaign's levels, in order (src/levels/heist-NN.json; a test keeps it equal to LEVEL_IDS). */
+export const RESCUE_LEVEL_IDS = [
+  // Act 1
+  'heist-01', 'heist-02', 'heist-03', 'heist-04', 'heist-05', 'heist-06', 'heist-07', 'heist-08',
+  // Act 2
+  'heist-09', 'heist-10', 'heist-11', 'heist-12', 'heist-13', 'heist-14', 'heist-15', 'heist-16',
+] as const;
 
 export interface RescueFallbackCat {
   levelId: string;
@@ -76,6 +81,24 @@ export const RESCUE_FALLBACK: readonly RescueFallbackCat[] = [
   { levelId: 'heist-07', id: '6a30507d1d6649b19b036626', name: 'Mora', file: 'mora', status: 'WAITING', spriteCatId: 'grey', look: 'dark smoke coat, like Grey' },
   { levelId: 'heist-08', id: '69d27ed0a885f725f7a52631', name: 'Vane', file: 'vane', status: 'WAITING', spriteCatId: 'white', look: 'white long hair, like White' },
 ];
+
+/**
+ * Act 2 levels (heist-09..16) have no pinned cat of their own: no new shelter photos or statuses were
+ * taken for them, and none may be made up. With the API they get a real cat like any level (an
+ * unused one from the shelter's gallery, rule 3). Offline, each shows the Act 1 pinned cat whose
+ * crate sprite it reuses (its look-alike), so the photo still resembles the pixel cat in the crate.
+ * A test checks each pair's sprite against both level files.
+ */
+export const RESCUE_LOOKALIKE: Readonly<Record<string, string>> = Object.freeze({
+  'heist-09': 'heist-01', // siamese
+  'heist-10': 'heist-04', // peachies
+  'heist-11': 'heist-03', // mist
+  'heist-12': 'heist-07', // grey
+  'heist-13': 'heist-02', // cheesy
+  'heist-14': 'heist-06', // maine
+  'heist-15': 'heist-08', // white
+  'heist-16': 'heist-05', // olive
+});
 
 export interface RescueCat {
   levelId: string;
@@ -130,12 +153,17 @@ export function safeImageUrl(value: unknown, base?: string): string | null {
 
 const levelIndex = (levelId: string, levelIds: readonly string[]) => levelIds.indexOf(levelId);
 const fallbackFor = (levelId: string) => RESCUE_FALLBACK.find((c) => c.levelId === levelId);
-/** The level's crate sprite: the pinned entry's copy of crate.catId (a test keeps them equal). */
-const spriteFor = (levelId: string) => fallbackFor(levelId)?.spriteCatId ?? 'mist';
+/** The level's own pinned cat, else (Act 2) its look-alike's. */
+const lookalikeFor = (levelId: string) => fallbackFor(levelId) ?? (RESCUE_LOOKALIKE[levelId] ? fallbackFor(RESCUE_LOOKALIKE[levelId]) : undefined);
+/** The level's crate sprite: the pinned (or look-alike) entry's copy of crate.catId (a test keeps them equal). */
+const spriteFor = (levelId: string) => lookalikeFor(levelId)?.spriteCatId ?? 'mist';
 
-/** A level id outside the campaign gets the pinned cat of `heist-0((n-1) mod 8 + 1)`, else heist-01's. */
+/**
+ * The local cat of a level: its pinned cat, else its look-alike (Act 2), else for an id outside the
+ * campaign the pinned cat of `heist-0((n-1) mod 8 + 1)`, else heist-01's.
+ */
 function pinnedFor(levelId: string): RescueFallbackCat {
-  const own = fallbackFor(levelId);
+  const own = lookalikeFor(levelId);
   if (own) return own;
   const n = Number(/(\d+)$/.exec(levelId)?.[1] ?? '1');
   return RESCUE_FALLBACK[(((Number.isFinite(n) ? n : 1) - 1) % RESCUE_FALLBACK.length + RESCUE_FALLBACK.length) % RESCUE_FALLBACK.length];
@@ -151,7 +179,7 @@ export function fallbackRescueCat(levelId: string, base: string = ASSET_BASE, si
     name: c.name,
     status: c.status,
     photo: `${base}${PINK_PAW_DIR}${c.file}-photo.webp`,
-    spriteCatId: fallbackFor(levelId)?.spriteCatId ?? c.spriteCatId,
+    spriteCatId: lookalikeFor(levelId)?.spriteCatId ?? c.spriteCatId,
     shelterName: RESCUE_SHELTER_NAME,
     ...(profileUrl ? { profileUrl } : {}),
     source: 'fallback',
