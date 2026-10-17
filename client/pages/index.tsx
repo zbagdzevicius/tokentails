@@ -6,6 +6,8 @@ import { isAppBuild } from "@/components/claims/build";
 import { SectionBoundary } from "@/components/errors/SectionBoundary";
 import { HeistPill } from "@/components/landing/HeistPill";
 import { HeistSection } from "@/components/landing/HeistSection";
+import { RavePill } from "@/components/landing/RavePill";
+import { RaveSection } from "@/components/landing/RaveSection";
 import { SwordcatSection } from "@/components/landing/SwordcatSection";
 import { ImpactGlobeSection } from "@/components/landing/ImpactGlobeSection";
 import { landingCtaHref } from "@/components/landing/landingCta";
@@ -169,6 +171,8 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
                   </a>
                 )}
               </div>
+              {/* Moon Rave, the headline feature: web only, the live line read from the rave's own source. */}
+              <RavePill />
               <HeistPill />
               {/* Bet #3: only while /yourcat is on and open (NEXT_PUBLIC_YOURCAT_ENTRY and the status). */}
               <YourcatEntryLink />
@@ -185,6 +189,11 @@ export default function HomePage({ impact: initial = null }: HomePageProps) {
 
         <SectionBoundary name="proof">
           <ProofSection impact={impact} />
+        </SectionBoundary>
+
+        {/* Moon Rave first among the game sections: the promo reel, the $1 = 1 cat rule and JOIN THE RAVE (web only). */}
+        <SectionBoundary name="rave">
+          <RaveSection />
         </SectionBoundary>
 
         {/* Catnip Heist, the new game mode: showreel, three beats and PLAY CATNIP HEIST. */}

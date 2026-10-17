@@ -1,6 +1,6 @@
 // Removes web-only media from the Capacitor export in out/ (run by `npm run build:app`).
 // The landing showreel and trailer never play in app builds (HeistSection shows the poster;
-// SwordcatSection is web only), so their video must not ship inside the app. `check-app-export.mjs` asserts these are gone.
+// SwordcatSection and RaveSection are web only), so their video must not ship inside the app. `check-app-export.mjs` asserts these are gone.
 import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,11 @@ export const WEB_ONLY_FILES = Object.freeze([
   // The Pink Paw Knight trailer: SwordcatSection never renders in app builds.
   "landing/pinkpaw-knight-trailer-v1.mp4",
   "landing/pinkpaw-knight-trailer-v1.webm",
+  // The Moon Rave promo reel and its posters: RaveSection never renders in app builds.
+  "landing/rave/rave-promo-v1-16x9.mp4",
+  "landing/rave/rave-promo-v1-9x16.mp4",
+  "landing/rave/rave-promo-v1-poster-16x9.jpg",
+  "landing/rave/rave-promo-v1-poster.jpg",
 ]);
 
 export function pruneAppExport(outDir) {

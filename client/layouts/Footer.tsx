@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Socials } from "./Socials";
 import { cdnFile } from "@/constants/utils";
 import { PixelButton } from "@/components/shared/PixelButton";
+import { isAppBuild } from "@/components/claims/build";
 
 interface FooterProps {
   title: string;
@@ -10,7 +11,10 @@ interface FooterProps {
   onSet?: () => void;
 }
 
-const navConsts: FooterProps[] = [
+/** Moon Rave (/rave) is a web page with its own card and USDC checkout: never linked in the app build. */
+const RAVE_NAV: FooterProps = { title: "MOON RAVE", link: "/rave" };
+
+const baseNav: FooterProps[] = [
   {
     title: "BLOG",
     link: "/feed",
@@ -51,6 +55,7 @@ const LEGAL = [
  */
 export const Footer: React.FC<{ tone?: "cream" | "night" }> = ({ tone = "cream" }) => {
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const navConsts: FooterProps[] = isAppBuild() ? baseNav : [RAVE_NAV, ...baseNav];
 
   const handleTitleClick = (title: string) => {
     setActiveTitle(title === activeTitle ? null : title);

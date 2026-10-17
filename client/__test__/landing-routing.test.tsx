@@ -189,6 +189,22 @@ describe("root visit", () => {
     }
   });
 
+  it("headlines Moon Rave: the hero pill and the rave section first among the game sections (web)", () => {
+    const { container } = render(<HomePage />);
+    expectGamingLanding(container);
+    const pill = container.querySelector('[data-testid="rave-pill"]');
+    expect(pill?.getAttribute("href")).toBe("/rave?from=landing_hero");
+    const rave = container.querySelector('[data-testid="rave-section"]');
+    const heist = container.querySelector('[data-testid="heist-section"]');
+    const sword = container.querySelector('[data-testid="swordcat-section"]');
+    expect(rave).not.toBeNull();
+    expect(rave!.compareDocumentPosition(heist!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rave!.compareDocumentPosition(sword!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-testid="rave-section-cta"]')?.getAttribute("href")).toBe(
+      "/rave?from=landing_rave"
+    );
+  });
+
   it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
     expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();
