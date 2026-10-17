@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Bad Cat Daily",
+  "short_name": "Bad Cat",
+  "description": "Be a bad cat. One new room every day.",
+  "start_url": "./?src=a2hs",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b1d2e",
+  "theme_color": "#2b1d2e",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "icons/monochrome.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "monochrome" }
+  ]
+}
