@@ -4,7 +4,7 @@
 import { Result, FeedSection } from "@/components/shelter-payouts/payoutSections";
 import { ChainCard } from "@/components/shelter-payouts/ShelterPayouts";
 import { ShelterDeployment } from "@/components/shelter-payouts/rpc";
-import { REVEAL_AFTER_MS, TotalsBillboard, heroTotals } from "@/components/shelter-payouts/TotalsBillboard";
+import { REVEAL_AFTER_MS, TotalsBillboard, expectedTileCoins, headlineCoin, heroTotals } from "@/components/shelter-payouts/TotalsBillboard";
 import { act, render, screen } from "@testing-library/react";
 
 /*
@@ -91,9 +91,82 @@ describe("hero totals billboard", () => {
       jest.advanceTimersByTime(REVEAL_AFTER_MS);
     });
     expect(screen.getByTestId("payouts-headline").textContent).toBe("3 USDC");
-    expect(screen.getByTestId("payouts-count").textContent).toContain("still counting…");
+    expect(screen.getByTestId("payouts-count").textContent).toBe("across 1 payout on 2 chains");
+    expect(screen.getByTestId("payouts-counting").textContent).toBe("still counting…");
     // The EURC chain is still read: its tile stays sketched, so the board keeps its shape.
     expect(screen.getAllByTestId("payouts-skeleton-tile")).toHaveLength(1);
+  });
+
+  it("the wait starts when the deployment list is in, not when the board mounts", () => {
+    const deployments = [USDC_ARB, EURC_ARC];
+    const { rerender } = render(<TotalsBillboard loading deployments={[]} results={{}} />);
+    act(() => {
+      jest.advanceTimersByTime(REVEAL_AFTER_MS * 2);
+    });
+    // The list arrives late and the first chain answers at once: still no pop-in.
+    rerender(<TotalsBillboard loading={false} deployments={deployments} results={{ 0: done(item(addr(1), 3_000_000, 1)) }} />);
+    expect(screen.queryByTestId("payouts-headline")).toBeNull();
+    expect(screen.getByTestId("payouts-skeleton-headline")).toBeTruthy();
+    act(() => {
+      jest.advanceTimersByTime(REVEAL_AFTER_MS);
+    });
+    expect(screen.getByTestId("payouts-headline").textContent).toBe("3 USDC");
+  });
+
+  it("the skeleton turns into every figure at once, in the same board", () => {
+    const deployments = [USDC_ARB, USDC_BASE, EURC_ARC];
+    const { rerender } = render(<TotalsBillboard loading={false} deployments={deployments} results={{ 2: done(item(addr(3), 100_000, 3)) }} />);
+    const board = screen.getByTestId("payouts-billboard");
+    rerender(
+      <TotalsBillboard loading={false} deployments={deployments} results={{ 0: done(item(addr(1), 2_000_000, 1)), 2: done(item(addr(3), 100_000, 3)) }} />
+    );
+    expect(screen.queryByTestId("payouts-headline")).toBeNull();
+    expect(screen.queryByTestId("payouts-coin-tile")).toBeNull();
+    rerender(
+      <TotalsBillboard
+        loading={false}
+        deployments={deployments}
+        results={{ 0: done(item(addr(1), 2_000_000, 1)), 1: done(item(addr(2), 1_000_000, 2)), 2: done(item(addr(3), 100_000, 3)) }}
+      />
+    );
+    expect(screen.getByTestId("payouts-billboard")).toBe(board);
+    expect(screen.getByTestId("payouts-headline").textContent).toBe("3 USDC");
+    expect(screen.getAllByTestId("payouts-coin-tile")).toHaveLength(1);
+    expect(screen.queryByTestId("payouts-skeleton-tile")).toBeNull();
+    expect(screen.queryByTestId("payouts-counting")).toBeNull();
+  });
+
+  it("the headline coin is fixed up front: a bigger other coin read first never takes it", () => {
+    const deployments = [USDC_ARB, USDC_BASE, EURC_ARC];
+    const { rerender } = render(<TotalsBillboard loading={false} deployments={deployments} results={{ 2: done(item(addr(3), 9_000_000, 3)) }} />);
+    act(() => {
+      jest.advanceTimersByTime(REVEAL_AFTER_MS);
+    });
+    // Only EURC is known: the board waits for the headline coin instead of crowning EURC.
+    expect(screen.queryByTestId("payouts-headline")).toBeNull();
+    expect(totalsText()).not.toContain("EURC");
+    rerender(<TotalsBillboard loading={false} deployments={deployments} results={{ 0: done(item(addr(1), 1_000_000, 1)), 2: done(item(addr(3), 9_000_000, 3)) }} />);
+    expect(screen.getByTestId("payouts-headline").textContent).toBe("1 USDC");
+    expect(screen.getAllByTestId("payouts-coin-tile")[0].textContent).toContain("9 EURC");
+    expect(screen.getByTestId("payouts-counting")).toBeTruthy();
+  });
+
+  it("headlineCoin picks the coin most contracts pay; the rest get one sketched tile each", () => {
+    expect(headlineCoin([EURC_ARC, USDC_ARB, USDC_BASE])).toBe("USDC");
+    expect(headlineCoin([EURC_ARC, USDC_ARB])).toBe("USDC");
+    expect(headlineCoin([])).toBeNull();
+    expect(expectedTileCoins([EURC_ARC, USDC_ARB, USDC_BASE])).toEqual(["EURC"]);
+  });
+
+  it("with only other coins paid, the biggest takes the headline once every chain is read", () => {
+    render(<TotalsBillboard loading={false} deployments={[USDC_ARB, EURC_ARC]} results={{ 0: done(), 1: done(item(addr(3), 2_000_000, 1)) }} />);
+    expect(screen.getByTestId("payouts-headline").textContent).toBe("2 EURC");
+  });
+
+  it("with no contracts listed the board says first payouts land soon", () => {
+    render(<TotalsBillboard loading={false} deployments={[]} results={{}} />);
+    expect(screen.getByTestId("payouts-totals").getAttribute("aria-busy")).toBe("false");
+    expect(totalsText()).toContain("First payouts land soon");
   });
 
   it("with nothing read yet the wait keeps the skeleton (never 0 USDC)", () => {

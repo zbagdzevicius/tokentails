@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Result, chainCount, stillReading, totalsBySymbol, twoDp, updatingCount } from "./payoutSections";
 import { ShelterDeployment, resolveChain } from "./rpc";
 import { FIGURE, Skeleton } from "./ui";
 
 /*
- * The hero's payout totals as one board: the biggest coin total as the headline figure, every other
+ * The hero's payout totals as one board: the main coin's total as the headline figure, every other
  * coin as an equal tile under it, and the payout and chain count at the foot. While the chains are
  * read the board keeps its final shape with skeleton blocks, so the figures land together instead
  * of popping in one coin at a time, and nothing below it jumps.
  */
 
-/** How long the board waits for slow chains before it shows what is known ("still counting…"). */
+/** How long the board waits for slow chains, once the deployment list is in, before it shows what is known. */
 export const REVEAL_AFTER_MS = 7000;
-/** Tiles to sketch before the deployment list has loaded. */
+/** Tiles to sketch before the deployment list has loaded (the 7 mainnets pay 4 coins: USDC + 3). */
 const DEFAULT_SKELETON_TILES = 3;
 
 export interface CoinTotal {
@@ -63,18 +63,35 @@ export function heroTotals(deployments: ShelterDeployment[], results: Record<num
   };
 }
 
-/** The coins the listed contracts pay: the tiles the skeleton sketches (the headline takes one). */
-export function expectedCoins(deployments: ShelterDeployment[]): number {
-  return new Set(deployments.map((d) => resolveChain(d)?.symbol || "USDC")).size;
+/** The payout token a deployment pays (native gifts of a chain are rare and not predicted). */
+const tokenOf = (d: ShelterDeployment) => resolveChain(d)?.symbol || "USDC";
+
+/**
+ * The headline coin, fixed from the deployment list before any chain answers, so the headline never
+ * switches coin while slow chains land: the coin most listed contracts pay (USDC on a tie).
+ */
+export function headlineCoin(deployments: ShelterDeployment[]): string | null {
+  const n: Record<string, number> = {};
+  for (const d of deployments) n[tokenOf(d)] = (n[tokenOf(d)] || 0) + 1;
+  const ranked = Object.keys(n).sort((a, b) =>
+    n[b] !== n[a] ? n[b] - n[a] : a === "USDC" ? -1 : b === "USDC" ? 1 : a.localeCompare(b)
+  );
+  return ranked[0] ?? null;
 }
 
-/** False until `ms` have passed since the board mounted. */
-function useElapsed(ms: number) {
+/** The other coins the listed contracts pay: one sketched tile each. */
+export function expectedTileCoins(deployments: ShelterDeployment[], head = headlineCoin(deployments)): string[] {
+  return Array.from(new Set(deployments.map(tokenOf))).filter((s) => s !== head);
+}
+
+/** False until `ms` have passed while `active` (the wait starts when the deployment list is in). */
+function useElapsed(ms: number, active: boolean) {
   const [elapsed, setElapsed] = useState(false);
   useEffect(() => {
+    if (!active) return;
     const t = setTimeout(() => setElapsed(true), ms);
     return () => clearTimeout(t);
-  }, [ms]);
+  }, [ms, active]);
   return elapsed;
 }
 
@@ -85,12 +102,20 @@ const BOARD =
   "relative w-full max-w-4xl overflow-hidden rounded-[28px] border-4 border-tt-cream/80 bg-tt-night-900/85 px-4 py-5 md:px-8 md:py-8 shadow-[0_0_0_4px_rgb(var(--tt-night-950)),0_0_42px_rgb(var(--tt-gold-400)/.22)]";
 const LEDS =
   "pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(rgb(var(--tt-gold-400)/.28)_1px,transparent_1.6px)] bg-[length:9px_9px]";
+// Two equal columns on phones (an odd last tile spans both), a centred wrapping row from md up.
+const TILES =
+  "grid grid-cols-2 gap-3 [&>*:last-child:nth-child(odd)]:col-span-2 md:flex md:flex-wrap md:justify-center";
 const TILE =
-  "flex min-h-[6.25rem] min-w-[8.5rem] max-w-[14rem] flex-1 basis-[8.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-tt-cream/45 bg-black/45 px-3 py-3";
+  "flex min-h-[6.25rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-tt-cream/45 bg-black/45 px-3 py-3 md:min-w-[8.5rem] md:max-w-[14rem] md:flex-1 md:basis-[8.5rem]";
 // The headline figure's line, reserved in both states so the swap does not move the page.
 const HEAD_LINE = "min-h-[56px] md:min-h-[96px] lg:min-h-[128px]";
 const HEAD_SIZE = "text-[56px] md:text-[96px] lg:text-[128px]";
 const LABEL = "font-primary text-p6 md:text-p5 uppercase tracking-[0.2em] text-tt-cream/80";
+// The count line, one line in both states.
+const COUNT_LINE = "min-h-[1.375rem] md:min-h-[2.0625rem]";
+// The status slot under the count: "still counting…" while chains are read, then the updating or
+// partial note. Kept at the note's height while reading, so neither moves the page when it lands.
+const STATUS_SLOT = "min-h-12 md:min-h-11";
 
 // claim: L-disbursed (the board sums the ShelterSplit payout events read from each chain)
 const BoardLabel = () => (
@@ -103,34 +128,47 @@ const BoardLabel = () => (
 
 const Divider = () => <div aria-hidden="true" className="my-4 border-t-2 border-dashed border-tt-cream/20 md:my-6" />;
 
-const TileSkeleton = () => (
-  <div className={TILE} data-testid="payouts-skeleton-tile" aria-hidden="true">
+const TileSkeleton = ({ ghost = false }: { ghost?: boolean }) => (
+  <div className={TILE} data-testid={ghost ? undefined : "payouts-skeleton-tile"} aria-hidden="true">
     <Skeleton className="h-7 w-20 md:h-8 md:w-24" />
     <Skeleton className="h-3 w-14" />
   </div>
 );
 
-/** The board's final shape in skeleton blocks. */
-const BoardSkeleton = ({ tiles }: { tiles: number }) => (
+/** The board's final shape in skeleton blocks. A `ghost` copy only holds the space (invisible, no labels). */
+const BoardSkeleton = ({ tiles, ghost = false }: { tiles: number; ghost?: boolean }) => (
   <>
-    <span className="sr-only">Loading payout totals</span>
+    {!ghost && <span className="sr-only">Loading payout totals</span>}
     <div className={`${HEAD_LINE} flex items-center justify-center`}>
-      <Skeleton testId="payouts-skeleton-headline" className="h-[56px] w-[min(100%,18rem)] rounded-xl md:h-[96px] md:w-[30rem] lg:h-[128px] lg:w-[40rem]" />
+      <Skeleton
+        testId={ghost ? undefined : "payouts-skeleton-headline"}
+        className="h-[56px] w-[min(100%,18rem)] rounded-xl md:h-[96px] md:w-[22rem] lg:h-[128px] lg:w-[26rem]"
+      />
     </div>
     <div className="mt-3 flex justify-center">
-      <Skeleton className="h-4 w-36 md:h-5 md:w-48" />
+      <Skeleton className="h-4 w-28 md:h-[1.375rem] md:w-36" />
     </div>
     {tiles > 0 && (
       <>
         <Divider />
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className={TILES}>
           {Array.from({ length: tiles }, (_, k) => (
-            <TileSkeleton key={k} />
+            <TileSkeleton key={k} ghost={ghost} />
           ))}
         </div>
       </>
     )}
   </>
+);
+
+/** A message in the headline's place, at the skeleton's height so the board does not collapse. */
+const BoardMessage = ({ tiles, children }: { tiles: number; children: ReactNode }) => (
+  <div className="grid">
+    <div aria-hidden="true" className="invisible [grid-area:1/1]">
+      <BoardSkeleton tiles={tiles} ghost />
+    </div>
+    <div className="flex items-center justify-center [grid-area:1/1]">{children}</div>
+  </div>
 );
 
 const CoinTile = ({ t }: { t: CoinTotal }) => (
@@ -157,19 +195,37 @@ export const TotalsBillboard = ({
   results: Record<number, Result>;
   revealAfterMs?: number;
 }) => {
-  const timedOut = useElapsed(revealAfterMs);
+  const timedOut = useElapsed(revealAfterMs, !loading);
   const h = heroTotals(deployments, results);
-  const [head, ...rest] = h.totals;
+  const headSymbol = headlineCoin(deployments);
+  const expected = loading ? [] : expectedTileCoins(deployments, headSymbol);
+  const tiles = loading ? DEFAULT_SKELETON_TILES : expected.length;
+  // The headline coin is fixed up front; only with every chain read and none of it paid does the
+  // biggest other coin take the headline (nothing can change after that).
+  const head = h.totals.find((t) => t.symbol === headSymbol) || (h.pending ? undefined : h.totals[0]);
+  const rest = h.totals.filter((t) => t !== head);
   // Figures land together: the skeleton stays until every chain answered, or until the wait is up
-  // and something is known (slow chains then show "still counting…").
-  const skeleton = loading || (h.pending && (!timedOut || h.totals.length === 0));
-  const tiles = loading ? DEFAULT_SKELETON_TILES : Math.max(0, expectedCoins(deployments) - 1);
-  // Shown after the wait while slow chains are still read: their coins keep a sketched tile.
-  const waiting = !skeleton && h.pending && head ? Math.max(0, tiles - rest.length) : 0;
+  // and the headline coin is known (slow chains then show "still counting…").
+  const skeleton = loading || (h.pending && (!timedOut || !head));
+  // After the wait, coins of chains still being read keep a sketched tile until they land.
+  const known = new Set(h.totals.map((t) => t.symbol));
+  const waiting =
+    !skeleton && h.pending
+      ? new Set(
+          deployments
+            .filter((_, i) => results[i]?.status !== "done" && results[i]?.status !== "error")
+            .map(tokenOf)
+            .filter((s) => s !== head?.symbol && !known.has(s))
+        ).size
+      : 0;
+  // While reading, the status slot keeps its height for the note that may follow; a board with only
+  // a message keeps it too, so it stays the skeleton's size.
+  const reserveStatus = loading || h.pending || !head;
+  const note = !skeleton && head && !h.pending && (h.unread || h.updating > 0);
 
   return (
     <div
-      className="flex w-full flex-col items-center gap-3"
+      className="flex w-full flex-col items-center"
       data-testid="payouts-totals"
       aria-live="polite"
       aria-busy={skeleton}
@@ -191,12 +247,23 @@ export const TotalsBillboard = ({
                     >
                       {twoDp(head.amount)} <span className="text-h5 md:text-h3 normal-case">{head.symbol}</span>
                     </p>
-                    <p className={`${LABEL} mt-3`}>
-                      {head.symbol} · {plural(head.count, "payout")}
-                    </p>
+                    <p className={`${LABEL} mt-3`}>{plural(head.count, "payout")}</p>
+                    {rest.length + waiting > 0 && (
+                      <>
+                        <Divider />
+                        <div className={TILES} data-testid="payouts-coin-tiles">
+                          {rest.map((t) => (
+                            <CoinTile key={t.symbol} t={t} />
+                          ))}
+                          {Array.from({ length: waiting }, (_, k) => (
+                            <TileSkeleton key={`waiting-${k}`} />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : (
-                  <div className={`${HEAD_LINE} flex items-center justify-center`}>
+                  <BoardMessage tiles={tiles}>
                     {/* Never "0 USDC": a chain that could not be read is not a chain with no payouts. */}
                     {h.unread ? (
                       <p className="max-w-xl text-p4 md:text-p3 text-tt-cream/90" data-testid="payouts-unread">
@@ -205,55 +272,46 @@ export const TotalsBillboard = ({
                     ) : (
                       <p className={`${FIGURE} text-h4 md:text-h2`}>First payouts land soon</p>
                     )}
-                  </div>
-                )}
-                {rest.length + waiting > 0 && (
-                  <>
-                    <Divider />
-                    <div className="flex flex-wrap justify-center gap-3" data-testid="payouts-coin-tiles">
-                      {rest.map((t) => (
-                        <CoinTile key={t.symbol} t={t} />
-                      ))}
-                      {/* Coins of chains still being read keep their sketched tile until they land. */}
-                      {Array.from({ length: waiting }, (_, k) => (
-                        <TileSkeleton key={`waiting-${k}`} />
-                      ))}
-                    </div>
-                  </>
+                  </BoardMessage>
                 )}
               </div>
             )}
           </div>
-          {/* The foot line: its height is kept while loading so the reveal does not move the page. */}
-          <div className="mt-4 flex min-h-6 items-center justify-center md:mt-6 md:min-h-8">
+          {/* The foot: the count line, then the status slot. Both keep their height while reading. */}
+          <div className={`mt-4 flex items-center justify-center md:mt-6 ${COUNT_LINE}`}>
             {skeleton ? (
               <Skeleton className="h-4 w-56 md:h-6 md:w-80" />
             ) : head ? (
               <p className="font-primary text-p5 md:text-p3 uppercase tracking-wide text-tt-cream" data-testid="payouts-count">
                 across {plural(h.payoutCount, "payout")} on {plural(h.chains, "chain")}
                 {h.chains !== h.contracts ? ` (${h.contracts} contracts)` : ""}
-                {h.pending ? " · still counting…" : ""}
               </p>
             ) : null}
           </div>
+          <div className={`flex items-start justify-center ${reserveStatus ? `mt-2 ${STATUS_SLOT}` : note ? "mt-2" : ""}`}>
+            {!skeleton && head && h.pending && (
+              <p className="font-primary text-p6 md:text-p5 uppercase tracking-wide text-tt-gold-400" data-testid="payouts-counting">
+                still counting…
+              </p>
+            )}
+            {/* Partial figures must say they are partial: a chain that could not be read is missing. */}
+            {!skeleton && head && !h.pending && h.unread && (
+              <p className="max-w-xl text-p6 md:text-p5 text-tt-cream/90" data-testid="payouts-partial">
+                Some chains could not be read right now, so these totals may be incomplete. Reload in a minute.
+              </p>
+            )}
+            {/* Last-known figures are counted, and said to be last-known (the card names the time). */}
+            {!skeleton && head && !h.pending && !h.unread && h.updating > 0 && (
+              <p className="max-w-xl text-p6 md:text-p5 text-tt-cream/70" data-testid="payouts-updating">
+                Updating:{" "}
+                {h.updating === 1
+                  ? "one contract shows its last indexed payouts while its chain is busy, so the newest may be missing. Reload in a minute."
+                  : `${h.updating} contracts show their last indexed payouts while their chains are busy, so the newest may be missing. Reload in a minute.`}
+              </p>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Partial figures must say they are partial: a chain that could not be read is missing. */}
-      {!skeleton && head && !h.pending && h.unread && (
-        <p className="max-w-xl text-p5 md:text-p4 text-tt-cream/90" data-testid="payouts-partial">
-          Some chains could not be read right now, so these totals may be incomplete. Reload in a minute.
-        </p>
-      )}
-      {/* Last-known figures are counted, and said to be last-known (the card names the time). */}
-      {!skeleton && head && !h.pending && !h.unread && h.updating > 0 && (
-        <p className="max-w-xl text-p6 md:text-p5 text-tt-cream/70" data-testid="payouts-updating">
-          Updating:{" "}
-          {h.updating === 1
-            ? "one contract shows its last indexed payouts while its chain is busy, so the newest may be missing. Reload in a minute."
-            : `${h.updating} contracts show their last indexed payouts while their chains are busy, so the newest may be missing. Reload in a minute.`}
-        </p>
-      )}
     </div>
   );
 };

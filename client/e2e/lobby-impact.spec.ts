@@ -237,6 +237,9 @@ test.describe("lobby impact (G4, task 5e)", () => {
     mockBackend(backend);
     await gotoAndSettle(page, "/shelter-payouts", 3000);
     await expect(page.getByTestId("payouts-empty").or(page.getByTestId("payouts-totals"))).toBeVisible({ timeout: 20_000 });
+    // The totals board is a skeleton while chains are read: give the figures a chance to land first
+    // (live chain reads can be slow in CI, so a board still reading is checked as it is).
+    await page.locator("[data-testid=payouts-totals][aria-busy=false]").waitFor({ timeout: 20_000 }).catch(() => undefined);
     await shot(page, "shelter-payouts", testInfo.project.name);
     const results = await new AxeBuilder({ page }).include("#shelter-payouts").withRules(AXE_RULES).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
