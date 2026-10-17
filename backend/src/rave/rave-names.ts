@@ -118,10 +118,28 @@ export function resolveRaveNames(input: RaveNamesInput, orderId: string): RaveNa
     };
 
     const names: string[] = [];
+    const surprise: number[] = [];
     for (let i = 0; i < slots; i += 1) {
+        if (isEmpty(raw[i])) surprise.push(i);
         names.push(one(raw[i], i, defaults[i]));
     }
-    const restName = hasRest ? one(input.restName, 'rest', defaults[slots]) : undefined;
+    const restSurprise = hasRest && isEmpty(input.restName);
+    let restName = hasRest ? one(input.restName, 'rest', defaults[slots]) : undefined;
+
+    // A surprise name never repeats a name the buyer typed (their rest name "Disco" next to a
+    // surprise "Disco" would read "Disco", "Disco 11", "Disco 12"…). Deterministic per order.
+    const taken = new Set(typed.map(t => t.name.toLowerCase()));
+    const pool = RAVE_DEFAULT_NAMES.length;
+    const fresh = (name: string): string => {
+        let at = RAVE_DEFAULT_NAMES.indexOf(name);
+        for (let k = 0; k < pool && taken.has(RAVE_DEFAULT_NAMES[at].toLowerCase()); k += 1) at = (at + 1) % pool;
+        return RAVE_DEFAULT_NAMES[at];
+    };
+    for (const i of surprise) {
+        names[i] = fresh(names[i]);
+        taken.add(names[i].toLowerCase());
+    }
+    if (restSurprise && restName !== undefined) restName = fresh(restName);
 
     const counts = new Map<string, number>();
     for (const entry of typed) {

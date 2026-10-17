@@ -387,6 +387,9 @@ describe('RaveService markPaid and the payout row', () => {
         expect(await h.service.markPaid(h.pay(intentId), T0)).toBe('mode-skipped');
         expect(h.checkouts.rows).toHaveLength(0);
         expect(h.orders.rows[0]).toMatchObject({ status: 'paid', payoutSkipped: 'mode' });
+        // Its payout never comes, so it is not listed (the client would dance its cats forever).
+        expect((await h.service.listCats({}, T0)).orders).toEqual([]);
+        expect((await h.service.listCountries(T0)).totalCats).toBe(0);
     });
 
     it('refuses an intent whose amount, currency or id does not match the order', async () => {

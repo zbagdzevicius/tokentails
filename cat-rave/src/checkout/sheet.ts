@@ -22,7 +22,7 @@ import { createMethodTabs, defaultMethod } from './methods';
 import { declineNextStep, mountPaymentElement } from './stripe';
 import type { ConfirmOutcome, MountedPayment } from './stripe';
 import type { CheckoutAnswer, CheckoutRequest, PaidOrder, RaveMethod, RaveOrderRow, RaveStatusOn } from './types';
-import { fillNoWallet, giveUsdc, injectedProvider, loadDeployments, loadSdk, usdcChoices, walletMessage } from './usdc';
+import { deploymentsUrl, fillNoWallet, giveUsdc, injectedProvider, loadDeployments, loadSdk, usdcChoices, walletMessage } from './usdc';
 import type { UsdcChoice } from './usdc';
 import { X_HANDLE_MESSAGES, normalizeXHandle, xLink } from './xhandle';
 
@@ -416,9 +416,13 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
   walletLine.setAttribute('aria-live', 'polite');
   // What the wallet is about to send (like the ad wallet step), so the buyer can check it in the popup.
   const walletSummary = h('dl', 'rvc-wallet-sum');
+  // After a wallet refusal: ask the wallet again for the same order (no new order is created).
+  const walletRetry = h('button', 'rvc-go', 'Try again in my wallet');
+  walletRetry.type = 'button';
+  walletRetry.hidden = true;
   const walletBack = h('button', 'rvc-link-btn', '← Edit / cancel');
   walletBack.type = 'button';
-  wallet.append(walletOrb, walletLine, walletSummary, walletBack);
+  wallet.append(walletOrb, walletLine, walletSummary, walletRetry, walletBack);
   let walletWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ================================================================== step: done
@@ -451,6 +455,15 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     done.hidden = s !== 'done';
     lede.hidden = s === 'done';
     testBanner.hidden = status.livemode || s === 'done';
+    // The step that held focus may now be hidden: keep focus in the sheet (the done step and the
+    // title focus themselves; this only catches focus that fell out to <body>).
+    setTimeout(() => {
+      if (destroyed || step !== s) return;
+      const a = document.activeElement as HTMLElement | null;
+      if (a && a !== document.body && a.getClientRects().length > 0) return;
+      const box = s === 'build' ? build : s === 'pay' ? pay : s === 'wallet' ? wallet : done;
+      box.querySelector<HTMLElement>('h2[tabindex], h3[tabindex], button:not([disabled]), input, a[href]')?.focus({ preventScroll: true });
+    }, 0);
   }
 
   function renderPreview() {
@@ -500,8 +513,13 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     return check;
   }
 
+  let xShown = '';
   function renderX(showAll = false) {
     const r = normalizeXHandle(xInput.value);
+    // Unchanged: keep the nodes (rebuilding on blur removed the link Tab was moving to, dropping focus to <body>).
+    const key = !r.ok ? (showAll || touched.has('x') ? `e:${r.message}` : 'e') : `ok:${r.handle ?? ''}`;
+    if (key === xShown) return r;
+    xShown = key;
     xMsg.replaceChildren();
     xInput.removeAttribute('aria-invalid');
     xMsg.className = 'rvc-field-msg';
@@ -678,6 +696,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     }
     if (err.code === 'RAVE_X_HANDLE' || err.code.startsWith('X_HANDLE_')) {
       const sub = err.fieldCode ?? err.fields.find((f) => f.code.startsWith('X_HANDLE_'))?.code ?? err.code;
+      xShown = 'server';
       xMsg.className = 'rvc-field-msg';
       xMsg.textContent = sub === 'X_HANDLE_BLOCKED' ? X_HANDLE_MESSAGES.X_HANDLE_BLOCKED : X_HANDLE_MESSAGES.X_HANDLE_INVALID;
       xInput.setAttribute('aria-invalid', 'true');
@@ -817,7 +836,7 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     usdcLoading = true;
     renderBuild(false);
     try {
-      const [sdk, deployments] = await Promise.all([loadSdk(), loadDeployments()]);
+      const [sdk, deployments] = await Promise.all([loadSdk(), loadDeployments(undefined, deploymentsUrl(globalThis.location, !status.livemode))]);
       usdcList = usdcChoices(status.usdc.chains, deployments, sdk.CHAINS);
       usdcPick = usdcList[0] ?? null;
     } catch {
@@ -866,6 +885,13 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     ] as const) {
       walletSummary.append(h('dt', '', k), h('dd', '', v));
     }
+    await sendUsdc(a, pick, provider);
+  }
+
+  /** Ask the wallet to send the order's USDC; on a refusal, offer a retry of the same order. */
+  async function sendUsdc(a: CheckoutAnswer, pick: NonNullable<typeof usdcPick>, provider: NonNullable<ReturnType<typeof injectedProvider>>) {
+    busy = true;
+    walletRetry.hidden = true;
     walletBack.hidden = true;
     // A popup closed without an answer leaves the wallet call hanging: offer a way back after a while.
     if (walletWaitTimer) clearTimeout(walletWaitTimer);
@@ -882,7 +908,9 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       if (destroyed || step !== 'wallet') return;
       busy = false;
       walletLine.textContent = walletMessage(err);
+      walletRetry.hidden = false;
       walletBack.hidden = false;
+      walletRetry.focus({ preventScroll: true });
       return;
     }
     if (walletWaitTimer) clearTimeout(walletWaitTimer);
@@ -1015,11 +1043,13 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       pollTimer = null;
       if (destroyed || pollOrderId !== orderId) return;
       let row: RaveOrderRow | null = null;
+      let throttled = false;
       try {
         if (pendingUsdcReport) row = await reportUsdc(orderId);
         row = row ?? (await api.order(orderId));
-      } catch {
+      } catch (e) {
         row = null;
+        throttled = (e as { status?: number })?.status === 429;
       }
       if (destroyed || pollOrderId !== orderId) return;
       if (row) {
@@ -1039,11 +1069,16 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
       }
       const age = Date.now() - started;
       if (age > 30 * 60_000) return;
-      // Every second until the payment is confirmed (the cats start dancing on that answer), then calmer.
+      // GET /rave/orders/:id allows 30/min per IP, shared with the floor's own-order poll (12/min),
+      // and the server re-checks Stripe every 5 s and a USDC receipt every 10 s: 2.5 s for the
+      // first 15 s, then 5 s for 2 min (≈ 15/min), then 15 s. A 429 or a hidden tab waits 20 s.
+      // A card payment needs none of this to dance: the sheet marks it paid on Stripe's answer.
       const confirmed = !!row && ['paid', 'review', 'onchain'].includes(row.status);
-      pollTimer = setTimeout(tick, !confirmed && age < 2 * 60_000 ? 1_000 : age < 2 * 60_000 ? 4_000 : 15_000);
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = throttled || hidden ? 20_000 : age >= 2 * 60_000 ? 15_000 : !confirmed && age < 15_000 ? 2_500 : 5_000;
+      pollTimer = setTimeout(tick, delay);
     };
-    pollTimer = setTimeout(tick, 1_000);
+    pollTimer = setTimeout(tick, 1_500);
   }
 
   /** A fresh build step. The last order's poll keeps running (its cats still land) and shows as a note. */
@@ -1078,6 +1113,18 @@ export function mountCheckout(container: HTMLElement, opts: CheckoutOptions): Mo
     payment = null;
     setStep('build');
     renderBuild();
+  });
+  walletRetry.addEventListener('click', () => {
+    const a = answer;
+    const pick = usdcPick;
+    const provider = injectedProvider();
+    if (!a || !pick || busy || step !== 'wallet') return;
+    if (!provider) {
+      walletLine.textContent = 'No wallet found in this browser.';
+      return;
+    }
+    walletLine.textContent = `Confirm in your wallet: ${a.cats.toLocaleString('en-US')} USDC to Pink Paw on ${pick.name}.`;
+    void sendUsdc(a, pick, provider);
   });
   walletBack.addEventListener('click', () => {
     // While the wallet still waits, going back is allowed (nothing is sent until the wallet answers).

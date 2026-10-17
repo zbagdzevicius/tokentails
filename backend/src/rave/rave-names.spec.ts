@@ -88,6 +88,25 @@ describe('resolveRaveNames', () => {
     });
 });
 
+describe('resolveRaveNames surprise names', () => {
+    it('never picks a surprise name the buyer typed (rest name or a named slot)', () => {
+        const defaults = raveDefaultNames(ORDER, 11);
+        const typedRest = defaults[2];
+        const typedSlot = defaults[4];
+        const names: string[] = Array(10).fill('');
+        names[0] = typedSlot;
+        const r = resolveRaveNames({ cats: 25, names, restName: typedRest }, ORDER);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.value.restName).toBe(typedRest);
+        const lower = r.value.names.map(n => n.toLowerCase());
+        expect(lower.filter(n => n === typedRest.toLowerCase())).toHaveLength(0);
+        expect(lower.filter(n => n === typedSlot.toLowerCase())).toHaveLength(1);
+        expect(new Set(lower).size).toBe(10);
+        expect(resolveRaveNames({ cats: 25, names, restName: typedRest }, ORDER)).toEqual(r);
+    });
+});
+
 describe('normalizeXHandle', () => {
     const ok = (input: unknown, handle: string | null) => expect(normalizeXHandle(input)).toEqual({ ok: true, handle });
     const bad = (input: unknown, code = 'X_HANDLE_INVALID') =>

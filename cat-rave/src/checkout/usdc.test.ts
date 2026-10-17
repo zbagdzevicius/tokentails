@@ -36,6 +36,8 @@ describe('usdc chain choice', () => {
   it('reads deployments same-origin only on tokentails.com', () => {
     expect(deploymentsUrl({ hostname: 'tokentails.com' })).toBe('/shelter-payouts/deployments.json');
     expect(deploymentsUrl({ hostname: 'localhost' })).toBe('https://tokentails.com/shelter-payouts/deployments.json');
+    expect(deploymentsUrl({ hostname: 'localhost' }, true)).toBe('https://tokentails.com/shelter-payouts/testnet-deployments.json');
+    expect(deploymentsUrl({ hostname: 'www.tokentails.com' }, true)).toBe('/shelter-payouts/testnet-deployments.json');
   });
 });
 

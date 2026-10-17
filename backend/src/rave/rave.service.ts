@@ -92,6 +92,12 @@ const HOLD_RISK = ['elevated', 'highest'];
  * `reported` USDC order (a tx hash the buyer sent, receipt not read yet) until verifyUsdc confirms it.
  */
 const LISTED: RaveOrderStatus[] = ['pending', 'paid', 'onchain'];
+/**
+ * Public rows: listed statuses, minus paid orders whose payout will never be queued (`payoutSkipped`:
+ * a test payment against the mainnet keeper, or refunded in full before its payout). The client
+ * dances a paid order's cats before its payout lands, so such an order would count forever.
+ */
+const LISTED_MATCH = { status: { $in: LISTED }, payoutSkipped: { $exists: false } };
 const COUNTED_TODAY: RaveOrderStatus[] = ['pending', 'paid', 'review', 'onchain'];
 /** A USDC order whose tx hash is waiting for its receipt (`pending` only on rows written before `reported`). */
 const USDC_WAITING: RaveOrderStatus[] = ['reported', 'pending'];
@@ -1024,7 +1030,7 @@ export class RaveService implements OnModuleDestroy {
         if (!before) await this.refreshAll(now);
 
         const rows: any[] = await this.orders
-            .find({ status: { $in: LISTED }, ...(before ? { createdAt: { $lt: before } } : {}) })
+            .find({ ...LISTED_MATCH, ...(before ? { createdAt: { $lt: before } } : {}) })
             .sort({ createdAt: -1 })
             .limit(limit + 1)
             .lean();
@@ -1050,7 +1056,7 @@ export class RaveService implements OnModuleDestroy {
         const groups: Array<{ _id: { country?: unknown; hidden?: unknown } | null; cats: number; orders: number }> =
             await this.orders
                 .aggregate([
-                    { $match: { status: { $in: LISTED } } },
+                    { $match: LISTED_MATCH },
                     {
                         $group: {
                             _id: { country: '$country', hidden: '$hidden' },

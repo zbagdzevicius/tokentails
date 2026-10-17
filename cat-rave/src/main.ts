@@ -21,6 +21,7 @@ import { countryLeaderboard, fetchGeoCountry } from './data/countries';
 import { API_BY_HOST, LAYOUT, LINKS, QUALITY, SHOTS } from './config';
 import { createCrowd, type CrowdWithFlags } from './crowd';
 import { createPayoutFeed, safeHttpsUrl, treatAllowedHere, treatStatus } from './data';
+import { createFloor } from './data/floor';
 import { createRaveOrders, type NameShoutout } from './data/rave-orders';
 import { createOwnTag } from './ui/ownTag';
 import { createDj } from './dj';
@@ -190,28 +191,18 @@ async function boot() {
   let snapshot: PayoutSnapshot | null = null;
   let pinned: number | null = null;
   // Treats sent from this page and not yet in the index: the feed matches them by tx hash and
-  // forgets them after 10 minutes, so an unrelated payout never clears "treat on its way".
+  // forgets them after 10 minutes, so an unrelated payout never clears the counted treat.
   let pending = 0;
-  /**
-   * The floor: the feed's payout cats plus the cats of paid Moon Rave orders whose payout is not in
-   * the feed yet (they dance from the moment the order is paid; the payout later takes their place
-   * one for one, so nothing drops in twice). DEMO snapshots stay as they are.
-   */
-  const floorOf = (s: PayoutSnapshot): PayoutSnapshot => {
-    if (s.demo) return s;
-    const ahead = orders.aheadCats(s.catList.length);
-    if (!ahead.length) return s;
-    const n = ahead.length;
-    return { ...s, totalUsdMicro: s.totalUsdMicro + n * 1_000_000, realCats: s.realCats + n, cats: s.cats + n, catList: [...s.catList, ...ahead] };
-  };
+  // The floor = feed cats + paid orders' cats ahead of their payout (src/data/floor.ts).
+  const danceFloor = createFloor(orders);
   /** Cats on the floor after the last apply (−1 = none yet); growth past it is celebrated. */
   let floorCount = -1;
   /** Until the first orders read: paid orders it brings are already dancing, not new. */
   let floorQuiet = true;
   /** The order this viewer just paid (the receipt's "Watch" flies to its first cat). */
   let lastPaidOrder: string | null = null;
-  const applySnapshot = (raw: PayoutSnapshot) => {
-    const s = floorOf(raw);
+  const applySnapshot = (input: PayoutSnapshot) => {
+    const { snapshot: s, fresh } = danceFloor.apply(input);
     pending = s.demo ? 0 : feed.pendingUsdMicro;
     snapshot = s;
     crowd.setCats(s.catList.slice(0, crowd.capacity));
@@ -222,7 +213,7 @@ async function boot() {
     hud.setCapacity(crowd.capacity);
     const prev = floorCount;
     floorCount = s.catList.length;
-    if (prev >= 0 && !floorQuiet && !s.demo && s.catList.length > prev) celebrate(s.catList.slice(prev), s);
+    if (prev >= 0 && !floorQuiet && !s.demo && fresh.length) celebrate(fresh, s);
   };
 
   /**
@@ -319,7 +310,7 @@ async function boot() {
         }
         return { ok: true, message: msg };
       }
-      return { ok: false, message: 'No cat for that tx yet. New payouts take about 2 minutes to reach the index.' };
+      return { ok: false, message: 'No cat for that tx yet. Try again once the payout is confirmed on-chain.' };
     }
     if (cat.index >= crowd.capacity) return { ok: false, message: `Cat #${cat.index + 1} is dancing off-screen (beyond what this device draws).` };
     focusCatIndex(cat.index, { fly: true });
@@ -390,7 +381,7 @@ async function boot() {
       if (r.ok) {
         if (snapshot) applySnapshot(snapshot);
         const href = safeHttpsUrl(r.explorerUrl);
-        hud.shout('Treat sent! 🍬 On its way to the floor', href ? { href, label: 'tx ↗' } : undefined);
+        hud.shout('Treat sent! 🍬 It counts toward the next cat', href ? { href, label: 'tx ↗' } : undefined);
         crowd.pulsePaws(1);
         flash('pink', 0.6);
       }

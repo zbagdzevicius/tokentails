@@ -44,10 +44,14 @@ export function loadSdk(): Promise<ShelterRailSdk> {
   return sdkPromise;
 }
 
-/** The published split list: same origin on tokentails.com, the production copy elsewhere. */
-export function deploymentsUrl(loc: Pick<Location, 'hostname'> | undefined = globalThis.location): string {
+/**
+ * The published split list: same origin on tokentails.com, the production copy elsewhere. Test mode
+ * (`status.livemode` false: the backend offers Arc testnet 5042002) reads the testnet list.
+ */
+export function deploymentsUrl(loc: Pick<Location, 'hostname'> | undefined = globalThis.location, testnet = false): string {
   const host = loc?.hostname ?? '';
-  return host === 'tokentails.com' || host === 'www.tokentails.com' ? '/shelter-payouts/deployments.json' : 'https://tokentails.com/shelter-payouts/deployments.json';
+  const file = testnet ? 'testnet-deployments.json' : 'deployments.json';
+  return host === 'tokentails.com' || host === 'www.tokentails.com' ? `/shelter-payouts/${file}` : `https://tokentails.com/shelter-payouts/${file}`;
 }
 
 export async function loadDeployments(fetchFn: typeof fetch = (...a) => fetch(...a), url = deploymentsUrl()): Promise<SplitDeployment[]> {
