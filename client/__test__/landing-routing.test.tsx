@@ -189,15 +189,19 @@ describe("root visit", () => {
     }
   });
 
-  it("headlines Moon Rave: the hero pill and the rave section first among the game sections (web)", () => {
+  it("headlines Moon Rave: the pill above PLAY GAME, the rave section straight under the hero (web)", () => {
     const { container } = render(<HomePage />);
     expectGamingLanding(container);
     const pill = container.querySelector('[data-testid="rave-pill"]');
     expect(pill?.getAttribute("href")).toBe("/rave?from=landing_hero");
+    const heroCta = container.querySelector('[data-testid="hero-cta"]');
+    expect(pill!.compareDocumentPosition(heroCta!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const rave = container.querySelector('[data-testid="rave-section"]');
+    const proof = container.querySelector('[data-testid="proof-section"]');
     const heist = container.querySelector('[data-testid="heist-section"]');
     const sword = container.querySelector('[data-testid="swordcat-section"]');
     expect(rave).not.toBeNull();
+    expect(rave!.compareDocumentPosition(proof!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(rave!.compareDocumentPosition(heist!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(rave!.compareDocumentPosition(sword!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelector('[data-testid="rave-section-cta"]')?.getAttribute("href")).toBe(
