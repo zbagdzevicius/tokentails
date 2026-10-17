@@ -36,7 +36,7 @@ describe("BadcatSection", () => {
     expect(getByTestId("badcat-section")).toBeTruthy();
     expect(container.textContent).toContain("Bad Cat Daily");
     expect(container.textContent).toContain(BADCAT_LINE);
-    expect(BADCAT_SECTION_HREF).toBe("/badcat?from=landing_badcat");
+    expect(BADCAT_SECTION_HREF).toBe("/badcat?from=landing_badcat&utm_source=tt_landing");
     expect(getByTestId("badcat-section-cta").getAttribute("href")).toBe(BADCAT_SECTION_HREF);
     expect(getByTestId("badcat-section-cta").textContent).toContain("BAD CAT");
     const poster = getByTestId("badcat-section-poster");

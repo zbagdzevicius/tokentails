@@ -999,14 +999,19 @@ it, so the game could only be reached by typing the URL. Now `components/badcat/
 `badcatHref(from)`, `BADCAT_LINE`, the art paths and `badcatEntryEnabled` = not `isAppBuild()`) feeds:
 
 - the PLAY picker (`GameSelectModal.tsx`): a BAD CAT DAILY card (key `BADCAT`, test id `game-card-badcat`,
-  badge NEW) after the Swordcat card, a full page load to `/badcat?from=picker`. From `md` the picker puts
-  four cards on one row and five or six three to a row (3 + 2 centred, or 3 + 3); phones keep two per row.
+  badge NEW) after the Swordcat card, a full page load to `/badcat?from=picker&utm_source=tt_picker`. From `md` the picker puts
+  four cards on one row and five or six three to a row (3 + 2 centred, or 3 + 3); short landscape screens
+  (`md` and at most 520 px tall) put every card on one row so none hides below the list's fold; phones keep
+  two per row.
 - the landing (`components/landing/BadcatSection.tsx`, after the Swordcat section): a poster, the game's own
-  line (its `<meta name="description">`), a hook and PLAY BAD CAT to `/badcat?from=landing_badcat`. No money,
+  line (its `<meta name="description">`), a hook and PLAY BAD CAT to
+  `/badcat?from=landing_badcat&utm_source=tt_landing`. No money,
   treat or shelter claim: the game's treat link only shows when its build sets `VITE_BADCAT_TREAT_URL`.
 
 Both are web only because the Capacitor export has no rewrites (`/badcat` does not resolve there) and the
-game sells the Chaos Club and cameos through Stripe. The game ignores `from`. The art is a frame of the
+game sells the Chaos Club and cameos through Stripe. The game ignores `from`; its analytics reads
+`utm_source` (`linkAttribution` in `bad-cat/src/platform/analytics.ts`), hence `tt_picker` and `tt_landing`.
+The 25 MB game folder `public/badcat-game/` still ships inside the app export (pre-existing; not pruned yet). The art is a frame of the
 first heist (the Kitchen) captured from the built game on Oct 17: `public/game-select/badcat-preview@2x.webp`
 (624x436 for the 312x218 card box) and `public/landing/badcat/badcat-poster-v1.webp` (1280x800);
 `scripts/prune-app-export.mjs` drops both from the app export. Tests: `__test__/landing-badcat-section.test.tsx`,

@@ -143,7 +143,7 @@ describe("GameSelectModal", () => {
     // The links left are the Swordcat and Bad Cat cards.
     expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       SWORDCAT_PICKER_HREF,
-      "/badcat?from=picker",
+      "/badcat?from=picker&utm_source=tt_picker",
     ]);
   });
 
@@ -270,7 +270,7 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
     const items = within(dialog).getAllByRole("listitem");
     expect(items[items.length - 1].getAttribute("data-card")).toBe(BADCAT_CARD_KEY);
     const card = within(dialog).getByTestId("game-card-badcat");
-    expect(card.getAttribute("href")).toBe("/badcat?from=picker");
+    expect(card.getAttribute("href")).toBe("/badcat?from=picker&utm_source=tt_picker");
     expect(card.getAttribute("aria-label")).toBe("BAD CAT DAILY · NEW");
     const art = within(dialog).getByTestId("game-card-badcat-preview");
     expect(art.getAttribute("src")).toBe(BADCAT_PREVIEW.src);
@@ -282,7 +282,7 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
   it("opens /badcat with a full page load and never picks a Phaser mode", () => {
     const { navigate, setGameType, onClose, dialog } = open();
     fireEvent.click(within(dialog).getByTestId("game-card-badcat"));
-    expect(navigate).toHaveBeenCalledWith("/badcat?from=picker");
+    expect(navigate).toHaveBeenCalledWith("/badcat?from=picker&utm_source=tt_picker");
     expect(setGameType).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });

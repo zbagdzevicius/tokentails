@@ -218,7 +218,7 @@ describe("root visit", () => {
     expect(rave!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sword!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelector('[data-testid="badcat-section-cta"]')?.getAttribute("href")).toBe(
-      "/badcat?from=landing_badcat"
+      "/badcat?from=landing_badcat&utm_source=tt_landing"
     );
   });
 

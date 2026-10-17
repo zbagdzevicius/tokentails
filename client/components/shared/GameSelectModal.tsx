@@ -43,7 +43,7 @@ export const SWORDCAT_PREVIEW = Object.freeze({
 /** The Bad Cat Daily card's key: a free string, not a GameType (its runs save as `BAD_CAT` from the game). */
 export const BADCAT_CARD_KEY = "BADCAT";
 /** The Bad Cat card's line: the game's own pitch, short enough for the phone column. */
-export const BADCAT_PICKER_DESCRIPTION = "Be the cat: wreck the room before the human turns";
+export const BADCAT_PICKER_DESCRIPTION = "Be the cat: wreck the room, don't get caught";
 
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
@@ -410,7 +410,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
-    cards.length === 4 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]"
+    cards.length === 4 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
+    // Short landscape phones: a second row would sit below the fold of the scrolling list, so every
+    // card shares one row there.
+    cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]",
+    cards.length === 6 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(16.666%-0.84rem)]"
   );
   const targetClass =
     "group flex h-full w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";
