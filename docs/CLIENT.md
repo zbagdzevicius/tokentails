@@ -895,11 +895,17 @@ with no web3 dependency (raw EIP-1193, an inline keccak in `keccak.ts`).
   campaign chain (the picker then offers every mainnet chain with a path, Arc first and preselected,
   Arc's EURC router as its own option, never relayed or matched, custody-checked on its own split;
   with `NEXT_PUBLIC_WALLET_DONATE_CHAINS`: a router or a listed mainnet ShelterSplit on each chain
-  named there). The giver picks a preset or types an amount ("Other amount", 0.01 to 10,000, at most
-  6 decimals, `giveMode.parseCustomAmount`); `awaiting-handover` (notice, no button, link to
+  named there). The giver picks a preset or types an amount ("Other", 0.01 to 10,000, at most
+  6 decimals, a decimal comma accepted, thousands separators such as "1,000" refused,
+  `giveMode.parseCustomAmount`). Above `giveMode.RELAY_MAX` (100, the backend's default
+  `SHELTER_RELAY_MAX_USDC`) the page does not use the relay: Arc gives in one native transaction and
+  other chains offer the self-submit at once. The picker is locked while a gift is being signed or sent.
+  `awaiting-handover` (notice, no button, link to
   `/shelter-payouts/onboard`) while Token Tails holds the wallet; otherwise hidden. Try-it slot:
   `testnet` when `NEXT_PUBLIC_WALLET_DONATE_CHAIN` names a testnet with a wallet path (a `testnet`
-  router or a ShelterSplit in `testnet-deployments.json`).
+  router or a ShelterSplit in `testnet-deployments.json`). Arc is preselected whenever it is offered, so
+  `NEXT_PUBLIC_WALLET_DONATE_CHAIN` (and the campaign `chainId`) picks the default only when Arc is not
+  in the list.
 - **Seven chains, two paths** (`giveRails.ts`, unit-tested). The picker offers Arc, Tempo, Arbitrum,
   Avalanche, Base, Robinhood Chain and Monad (mainnet or testnet ids). A chain with a router for its
   own coin uses the router path below (never on Tempo). A chain without one, or whose token has no

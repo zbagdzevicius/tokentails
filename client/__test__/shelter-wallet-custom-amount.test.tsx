@@ -95,7 +95,7 @@ describe("Give from your wallet on mainnet", () => {
     typeAmount("12,25");
     pick("5042-EURC");
     expect((screen.getByTestId("wallet-amount-input") as HTMLInputElement).value).toBe("12,25");
-    expect(screen.getByLabelText(/Your amount in EURC/)).toBe(screen.getByTestId("wallet-amount-input"));
+    expect(screen.getByLabelText("Your amount")).toBe(screen.getByTestId("wallet-amount-input"));
     await waitFor(() => expect(screen.getByTestId("wallet-give").textContent).toBe("Give 12.25 EURC to Pink Paw"));
     expect(screen.getByTestId("wallet-give-how").textContent).toBe("Sign once in your wallet.");
   });
@@ -136,6 +136,42 @@ describe("Give from your wallet on mainnet", () => {
     expect((screen.getByTestId("wallet-give") as HTMLButtonElement).disabled).toBe(true);
     typeAmount("");
     expect(screen.getByTestId("wallet-give").textContent).toBe("Type an amount");
-    expect(screen.queryByTestId("wallet-amount-error")).toBeNull();
+    expect(screen.getByTestId("wallet-amount-error").textContent).toBe("");
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(input.getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("keeps the network fixed while a gift is being signed", async () => {
+    let finish: (v: unknown) => void = () => {};
+    (wallet.giveNative as jest.Mock).mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    renderMainnet();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("wallet-give"));
+    });
+    expect((screen.getByTestId("wallet-network") as HTMLFieldSetElement).disabled).toBe(true);
+    await act(async () => finish(RESULT));
+    await waitFor(() => expect(screen.getByTestId("wallet-give-sent")).toBeTruthy());
+    expect((screen.getByTestId("wallet-network") as HTMLFieldSetElement).disabled).toBe(false);
+  });
+
+  it("above the relay's 100 USDC limit, never asks for a signature the relay would refuse", async () => {
+    const relayApi = jest.requireMock("@/components/shelter-payouts/relayApi");
+    const live = { state: "live", chainId: 8453, relay: true, perGift: "0", dailyLeft: "0", poolLeft: "0" };
+    (relayApi.getMatchStatus as jest.Mock).mockImplementation(async () => live);
+    renderMainnet();
+    pick("8453");
+    // The relay serves Base: a 5 USDC gift would go through it (no stub relay passed).
+    await waitFor(() => expect(relayApi.getMatchStatus).toHaveBeenCalledWith(8453));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    typeAmount("150");
+    await give();
+    const args = (wallet.signAndGive as jest.Mock).mock.calls[0][0];
+    expect(args).toEqual(expect.objectContaining({ chainId: 8453, amount: "150" }));
+    expect(await args.relay()).toEqual(
+      expect.objectContaining({ ok: false, message: "Token Tails pays network fees only for gifts up to 100 USDC." })
+    );
+    (relayApi.getMatchStatus as jest.Mock).mockImplementation(async () => null);
   });
 });
