@@ -594,7 +594,7 @@ const GiveBlock = ({
           ) : (
             <>
               <p className="text-tt-cream/85" data-testid="relay-refused-fee">
-                You can still send the same signed gift yourself. Your wallet then pays a small network fee in{" "}
+                You can still send the same signed gift of {state.amount} {symbol} yourself. Your wallet then pays a small network fee in{" "}
                 {fee} on {chain.name}, so it needs a little {fee} first.
               </p>
               <button type="button" onClick={() => run("self")} className={`${PILL} self-start`} data-testid="relay-self-submit">
