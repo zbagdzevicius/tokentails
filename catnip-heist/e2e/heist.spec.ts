@@ -284,7 +284,7 @@ test('winning level 1 unlocks level 2 and it persists across a reload', async ({
   await page.evaluate(() => (window.__heist as unknown as { levels(): void }).levels());
   await expect.poll(() => screenOf(page)).toBe('levels');
   const locked = await page.locator('.ch-lv-card').evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled));
-  expect(locked).toEqual([false, false, true, true, true, true, true, true]);
+  expect(locked).toEqual([false, false, ...Array(14).fill(true)]);
   await expect(page.locator('.ch-lv-card[data-level="heist-01"]')).toContainText('Best');
   await expect(page.locator('.ch-lv-card[data-level="heist-01"] .ch-lv-stars .ch-on')).toHaveCount(3);
   // The level select now points at level 2; Next level from Results starts it.

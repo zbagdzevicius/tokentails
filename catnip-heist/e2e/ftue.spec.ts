@@ -76,7 +76,7 @@ test('a first visit opens on the level brief; the clock waits for it; it shows o
   await page.getByRole('button', { name: 'Start Kibble Corp Warehouse' }).click();
   const brief = page.getByRole('dialog', { name: 'Kibble Corp Warehouse' });
   await expect(brief).toBeVisible({ timeout: 45_000 });
-  await expect(brief).toContainText('Heist 1 of 8');
+  await expect(brief).toContainText('Heist 1 of 16');
   await expect(brief).toContainText('The plan');
   await expect(brief).toContainText('Hold the plate and swap to open the door');
   await expect(brief).toContainText('Tap the objective for a route');
@@ -195,7 +195,7 @@ test('no rewind on level 4 and later; the brief there has no rewind tip', async 
   await page.evaluate(() => (window as unknown as { __heist: QA }).__heist.start(['bob', 'oreo'], 'heist-04'));
   const brief = page.getByRole('dialog', { name: 'Counting House' });
   await expect(brief).toBeVisible({ timeout: 45_000 });
-  await expect(brief).toContainText('Heist 4 of 8');
+  await expect(brief).toContainText('Heist 4 of 16');
   await expect(brief).not.toContainText('Rewind');
   await page.keyboard.press('Enter');
   await expect(brief).toBeHidden();

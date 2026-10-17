@@ -9,7 +9,7 @@ import { canRewind } from './rewind';
 
 export interface BriefContent {
   levelId: string;
-  /** "Heist 1 of 8". */
+  /** "Heist 1 of 16". */
   kicker: string;
   title: string;
   intro: string;

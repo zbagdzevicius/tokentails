@@ -328,6 +328,21 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             expect(users.updates.some(entry => Array.isArray(entry.update))).toBe(false);
         });
 
+        it('grows an 8-slot Act 1 account when it saves an Act 2 level, keeping Act 1 progress', async () => {
+            const { controller, users } = createController();
+            const act1Score = [250, 240, 220, 270, 240, 240, 240, 310];
+            const act1Stars = [7, 7, 7, 7, 7, 7, 7, 7];
+            const userId = users.add({ heistScore: [...act1Score], heistStars: [...act1Stars] });
+            const log = goldenLog('heist-12');
+            const response = await post(controller, userId, heistBody(log));
+            const user = users.get(userId);
+            expect(user.heistStars).toHaveLength(HEIST_LEVELS.length);
+            expect(user.heistStars.slice(0, 8)).toEqual(act1Stars);
+            expect(user.heistStars[11]).toBe(response.stars);
+            expect(user.heistScore.slice(0, 8)).toEqual(act1Score);
+            expect(user.heistScore[11]).toBe(log.score);
+        });
+
         it('keeps earlier stars (bitwise or) and the best score ($max)', async () => {
             const { controller, users } = createController();
             const userId = users.add({ heistScore: [999, 0, 0, 0, 0, 0, 0, 0], heistStars: [4, 0, 0, 0, 0, 0, 0, 0] });
