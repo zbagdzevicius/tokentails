@@ -9,7 +9,6 @@ import { ChainInfo, SHELTER_CHAINS, arcFirst, chainRole, isArcMainnet } from "./
 import { mainnetRails, readGiveEnv, tryChainId, tryItRails, walletGiveMode } from "./giveMode";
 import { useCampaignGoal } from "./goal";
 import { formatUnits } from "./logs";
-import { MotoredLine } from "./MotoredLine";
 import {
   Addr,
   Balance,
@@ -366,8 +365,6 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
           {page.status !== "error" && (
             <TotalsBillboard loading={page.status === "loading"} deployments={deployments} results={results} />
           )}
-          {/* Motored sponsor money, labelled live from its first gift (never counted as donors). */}
-          <MotoredLine items={feed} shelterName={campaign?.shelter.name || "Pink Paw"} />
           {page.status === "done" && page.deployments.length === 0 && testnet.length > 0 && (
             <a href="#testnet-proof" className={PILL} data-testid="testnet-proof-link">
               Already live on {chainCount(testnet)} testnets: see the proof ›
@@ -395,13 +392,6 @@ const WebShelterPayouts = ({ embed }: { embed: boolean }) => {
             </div>
           </div>
 
-          <p
-            className="inline-flex items-center gap-2 rounded-xl border-2 border-tt-cream/70 bg-tt-night-900/80 px-4 py-2 text-p6 md:text-p5 text-tt-cream"
-            data-testid="shelter-disclosure"
-          >
-            <span aria-hidden="true">🔑</span>
-            {disclosureFor(campaign?.shelter.handover)}
-          </p>
         </section>
       </NightStage>
 
