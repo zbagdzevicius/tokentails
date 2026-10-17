@@ -4,7 +4,7 @@
  * centre or an ad slot in the hero shot, and stays under the phone HUD.
  *
  * The sign: the shelter's round logo (a white disc) with a pink neon rim and a soft pink glow, and a small dark
- * caption plate under it ("ALL PROCEEDS → / PINK PAW SHELTER"). It floats on stage left, behind the booth and
+ * caption plate under it ("EVERY CAT → / PINK PAW SHELTER"). It floats on stage left, behind the booth and
  * the DJ, in front of the lower left of the moon. Landscape keeps one pose; phones (portrait) fit it to the hero
  * camera (`pinkPawPortraitPose`): in the gap between the screen's left edge and the DJ, under the HUD.
  */
@@ -15,7 +15,7 @@ import { DJ_TOP_Y, moonFor, portraitSignPose, type Cam, type SignPose } from './
 export const PP_LOGO_FILE = 'brand/pink-paw-logo.webp';
 export const PP_LOGO_ALT = 'Rožinė pėdutė (Pink Paw) shelter logo: a cat’s paw holding a daisy';
 /** Caption lines on the plate under the logo. */
-export const PP_CAPTION = Object.freeze(['ALL PROCEEDS →', 'PINK PAW SHELTER'] as const);
+export const PP_CAPTION = Object.freeze(['EVERY CAT →', 'PINK PAW SHELTER'] as const);
 
 /**
  * Sign geometry in units of the disc's diameter (the sign group is scaled by the pose's `s`): disc centred on
