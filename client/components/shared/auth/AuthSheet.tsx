@@ -3,7 +3,8 @@ import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
 import type { AccountReason } from "@/context/auth/types";
-import { LAST_METHOD_LABEL, type LastMethod, maskEmail } from "@/context/auth/lastMethod";
+import { LAST_METHOD_LABEL, type LastMethod } from "@/context/auth/lastMethod";
+import { externalBrowserLink, signInLink } from "@/context/auth/platform";
 import { useProfile } from "@/context/ProfileContext";
 import { useToastHold } from "@/context/ToastContext";
 import clsx from "clsx";
@@ -298,32 +299,46 @@ const LegalFooter = () => (
   </p>
 );
 
-/** Google and Apple in the right order, or the in-app browser notice instead of them. */
 /** The ring around the method this device used last time. */
 const LAST_USED_RING = "rounded-[6px] ring-2 ring-tt-gold-400 ring-offset-2 ring-offset-tt-night-700";
 
-/** "Last time on this device you used Google (z•••@motored.lt)." */
-const LastMethodLine = ({ last }: { last: LastMethod }) => (
-  <p className={clsx(bodyText, "text-center")} data-testid="last-method">
-    Last time on this device you used <strong className="font-bold text-tt-gold-400">{LAST_METHOD_LABEL[last.provider]}</strong>
-    {last.emailHint ? (
-      <>
-        {" "}
-        (<span className="font-semibold">{last.emailHint}</span>)
-      </>
-    ) : null}
-    .
-  </p>
-);
+/**
+ * "Last time on this device you used Google (z•••@motored.lt)." In an in-app browser, where the
+ * Google and Apple buttons are replaced by the notice, it also says how to reach that method.
+ */
+const LastMethodLine = ({ last, inAppBrowser }: { last: LastMethod; inAppBrowser?: boolean }) => {
+  const blocked = !!inAppBrowser && last.provider !== "email";
+  return (
+    <p className={clsx(bodyText, "text-center")} data-testid="last-method">
+      Last time on this device you used <strong className="font-bold text-tt-gold-400">{LAST_METHOD_LABEL[last.provider]}</strong>
+      {last.emailHint ? (
+        <>
+          {" "}
+          (<span className="font-semibold">{last.emailHint}</span>)
+        </>
+      ) : null}
+      .
+      {blocked && (
+        <>
+          {" "}
+          It doesn&apos;t work in this app&apos;s browser: copy the link below and open it in Safari or Chrome.
+        </>
+      )}
+    </p>
+  );
+};
 
 /**
  * Inside a social app's or a wallet's browser (MetaMask, Trust, Phantom, Coinbase Wallet, ...)
  * Google refuses to sign in. The notice says where to go and copies the link, the one step that
  * works in every in-app browser.
  */
-const InAppNotice = () => {
+const InAppNotice = ({ emphasise }: { emphasise?: boolean }) => {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
-  const url = typeof window !== "undefined" ? window.location.href : "";
+  // With `signin=1`, so the pasted link opens this sign-in again (Game drops it from the address bar).
+  const url = typeof window !== "undefined" ? signInLink(window.location.href) : "";
+  const external = typeof navigator !== "undefined" ? externalBrowserLink(url, navigator.userAgent) : null;
+  const copyLabel = copied === "done" ? "Link copied. Paste it in Safari or Chrome" : "Copy link";
   const copy = () => {
     const write = typeof navigator !== "undefined" ? navigator.clipboard?.writeText(url) : undefined;
     if (!write) {
@@ -341,14 +356,27 @@ const InAppNotice = () => {
         Google and Apple sign-in don&apos;t work inside this app&apos;s browser. Copy the link, open Safari or Chrome, and
         paste it there. Or use your email below.
       </p>
-      <div className="mt-1 flex flex-wrap items-center gap-x-2">
-        <button type="button" className={clsx(textButton, "px-0")} onClick={copy} data-testid="in-app-copy">
-          {copied === "done" ? "Link copied. Paste it in Safari or Chrome" : "Copy link"}
-        </button>
-        <a className={textButton} href={url || "/game"} target="_blank" rel="noopener noreferrer">
-          Open in your browser
-        </a>
+      <div className={clsx("mt-1 flex flex-wrap items-center gap-x-2", emphasise && "mt-3 flex-col items-stretch gap-1")}>
+        {emphasise ? (
+          // The way back to the method this device used last: the sheet's main action.
+          <ModalButton variant="primary" icon="copy" fullWidth className={CTA_CLASS} onClick={copy} data-testid="in-app-copy">
+            {copied === "done" ? "LINK COPIED" : "COPY LINK"}
+          </ModalButton>
+        ) : (
+          <button type="button" className={clsx(textButton, "px-0")} onClick={copy} data-testid="in-app-copy">
+            {copyLabel}
+          </button>
+        )}
+        {/* Android only: an intent leaves the wallet's web view. iOS has no such link. */}
+        {external && (
+          <a className={textButton} href={external} data-testid="in-app-open">
+            Open in Chrome
+          </a>
+        )}
       </div>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="in-app-copied">
+        {copied === "done" ? "Link copied. Paste it in Safari or Chrome." : ""}
+      </p>
       {copied === "failed" && (
         <p className="select-all break-all font-sans text-p6 text-tt-cream" data-testid="in-app-url">
           {url}
@@ -366,7 +394,10 @@ const ProviderButtons = ({
   controller: AuthSheetController;
   exclude?: BrandProvider;
 }) => {
-  if (controller.inAppBrowser) return <InAppNotice />;
+  if (controller.inAppBrowser) {
+    const last = controller.lastMethod?.provider;
+    return <InAppNotice emphasise={last === "google" || last === "apple"} />;
+  }
   const last = controller.lastMethod?.provider;
   const base: BrandProvider[] = controller.appleFirst ? ["apple", "google"] : ["google", "apple"];
   // The method this device used last goes first, ringed, so a returning player taps it at once.
@@ -409,6 +440,15 @@ export const emailTabFor = (reason: AccountReason, isAnonymous: boolean): "sign-
 
 const ChooseView = ({ controller }: BodyProps) => {
   const returning = controller.sheet.reason === "returning";
+  // "Already have an account? Sign in" unmounts the button that had focus: move it to the first
+  // sign-in option, so a keyboard player keeps their place.
+  const wasReturning = useRef(returning);
+  useEffect(() => {
+    const switched = !wasReturning.current && returning;
+    wasReturning.current = returning;
+    if (!switched) return;
+    document.querySelector<HTMLElement>('[data-auth-view="choose"] button')?.focus({ preventScroll: true });
+  }, [returning]);
   const emailTab = emailTabFor(controller.sheet.reason, !!controller.user?.isAnonymous);
   const last = controller.lastMethod ?? null;
   const emailLast = last?.provider === "email";
@@ -425,7 +465,7 @@ const ChooseView = ({ controller }: BodyProps) => {
   );
   return (
     <>
-      {last && <LastMethodLine last={last} />}
+      {last && <LastMethodLine last={last} inAppBrowser={controller.inAppBrowser} />}
       {/* A returning player who used email goes straight to it; otherwise Google and Apple are the
           quick path and email the alternative. */}
       {emailLast && emailButton}
@@ -578,9 +618,21 @@ const EmailView = ({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={ids.password} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
-            Password
-          </label>
+          <div className="flex items-end justify-between gap-2">
+            <label htmlFor={ids.password} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
+              Password
+            </label>
+            {tab === "sign-in" && (
+              // Next to the field it is about.
+              <button
+                type="button"
+                className={clsx(textButton, "-mb-2 -mr-3 text-p6")}
+                onClick={() => controller.setView({ name: "reset", email })}
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
           <div className="relative">
             <input
               ref={passwordRef}
@@ -619,11 +671,6 @@ const EmailView = ({
         </ModalButton>
       </form>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
-        {tab === "sign-in" && (
-          <button type="button" className={textButton} onClick={() => controller.setView({ name: "reset", email })}>
-            Forgot password?
-          </button>
-        )}
         <button type="button" className={textButton} onClick={() => controller.setView({ name: "choose" })}>
           Other ways to sign in
         </button>
@@ -750,8 +797,9 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
       ) : (
         <p className={bodyText}>
           Welcome back. This is your account from before, and it&apos;s safe. Confirm{" "}
-          <strong className="font-bold text-tt-gold-400" data-testid="verify-email-hint">
-            {maskEmail(view.email) || "your email"}
+          {/* In full: it is the signed-in player's own address, often typed seconds ago. */}
+          <strong className="break-all font-bold text-tt-gold-400" data-testid="verify-email-hint">
+            {view.email || "your email"}
           </strong>{" "}
           to keep playing: tap &ldquo;Resend email&rdquo; for a new link, open it, then come back here.
         </p>

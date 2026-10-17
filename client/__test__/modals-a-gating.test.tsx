@@ -421,4 +421,12 @@ describe("requestAccountDeletion", () => {
     expect(d.deleteMe).toHaveBeenCalledWith(undefined);
     expect(d.signOut).toHaveBeenCalledTimes(1);
   });
+
+  it("forgets this device's last sign-in method once the account is gone, not before", async () => {
+    localStorage.setItem("tt.lastSignIn", JSON.stringify({ provider: "google", emailHint: "z•••@motored.lt" }));
+    await requestAccountDeletion(deps({ deleteMe: jest.fn(async () => Promise.reject(new ApiError(500, null))) }));
+    expect(localStorage.getItem("tt.lastSignIn")).not.toBeNull();
+    await expect(requestAccountDeletion(deps())).resolves.toEqual({ status: "deleted" });
+    expect(localStorage.getItem("tt.lastSignIn")).toBeNull();
+  });
 });

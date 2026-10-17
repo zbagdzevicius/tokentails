@@ -467,6 +467,30 @@ test.describe("Meet your cat (G3)", () => {
     await expect(page).toHaveURL(/\/game$/);
   });
 
+  test("/game?signin=1 (the landing's Sign in) opens WELCOME BACK first; closing it starts the ceremony", async ({ page, backend }) => {
+    mockMeetBackend(backend);
+    await useFakeFirebase(page);
+    await page.goto("/game?signin=1", { waitUntil: "load" });
+    await expect(page.getByRole("heading", { name: "WELCOME BACK" })).toBeVisible({ timeout: 20_000 });
+    await expect(dialog(page)).toHaveCount(0);
+    // Dropped from the address bar, so a reload does not open it again.
+    await expect(page).toHaveURL(/\/game$/);
+    await page.getByRole("button", { name: "Keep playing as guest" }).click();
+    await step(page, "awaits");
+  });
+
+  test("/game?meet=1&signin=1 never opens the ceremony under the sign-in sheet", async ({ page, backend }) => {
+    mockMeetBackend(backend, { done: true });
+    await useFakeFirebase(page);
+    await page.goto("/game?meet=1&signin=1", { waitUntil: "load" });
+    await expect(page.getByRole("heading", { name: "WELCOME BACK" })).toBeVisible({ timeout: 20_000 });
+    // Longer than the profile settle timer: still no ceremony while the sheet is open.
+    await page.waitForTimeout(1500);
+    await expect(dialog(page)).toHaveCount(0);
+    await page.getByRole("button", { name: "Keep playing as guest" }).click();
+    await step(page, "awaits");
+  });
+
   test("a slow sign-in (auth after the curtain's 2.5 s cap) holds the altar, never the lobby", async ({ page, backend }) => {
     test.setTimeout(60_000);
     mockMeetBackend(backend);

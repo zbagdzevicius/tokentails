@@ -26,8 +26,8 @@ import {
   readLastMethod,
   rememberLastMethod,
 } from "@/context/auth/lastMethod";
-import { isRetryableMergeError, mergeFailureNote } from "@/context/auth/pendingMerge";
-import { isInAppBrowser } from "@/context/auth/platform";
+import { isMergeCooldown, isRetryableMergeError, mergeFailureNote } from "@/context/auth/pendingMerge";
+import { externalBrowserLink, isInAppBrowser, signInLink } from "@/context/auth/platform";
 import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
 import type { AccountReason } from "@/context/auth/types";
 import { ToastProvider } from "@/context/ToastContext";
@@ -172,14 +172,27 @@ describe("in-app browsers", () => {
 });
 
 describe("guest merge after signing in to an existing account", () => {
+  const COOLDOWN = "This account already saved guest progress in the last 30 days";
+
   it("the 30-day limit (429) is a gentle note, never a retry promise", () => {
-    expect(isRetryableMergeError(429, null)).toBe(false);
-    const note = mergeFailureNote(429, false);
+    expect(isMergeCooldown(429, COOLDOWN)).toBe(true);
+    expect(isRetryableMergeError(429, null, COOLDOWN)).toBe(false);
+    const note = mergeFailureNote(429, false, COOLDOWN);
     expect(note).toMatch(/You're in your account/);
     expect(note).toMatch(/last 30 days/);
     expect(note).not.toMatch(/try again/);
     expect(mergeFailureNote(503, true)).toMatch(/try again while this tab stays open/);
     expect(mergeFailureNote(409, false)).toMatch(/another account/);
+  });
+
+  it("a 429 from the general rate limiter is retried, not reported as the 30-day limit", () => {
+    expect(isMergeCooldown(429, "ThrottlerException: Too Many Requests")).toBe(false);
+    expect(isMergeCooldown(429, null)).toBe(false);
+    expect(isRetryableMergeError(429, null, "ThrottlerException: Too Many Requests")).toBe(true);
+    expect(isRetryableMergeError(429, null)).toBe(true);
+    const note = mergeFailureNote(429, true, "Request failed with status 429");
+    expect(note).toMatch(/try again while this tab stays open/);
+    expect(note).not.toMatch(/30 days/);
   });
 });
 
@@ -242,7 +255,7 @@ describe("AuthSheet, returning mode", () => {
     expect(emailIndex).toBeLessThan(googleIndex);
   });
 
-  it("in-app browser: no Google or Apple, a Copy link button that copies this page", async () => {
+  it("in-app browser: no Google or Apple, Copy link copies a link that opens this sign-in again", async () => {
     const writeText = jest.fn(async () => undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     renderSheet(controller({ name: "choose" }, "returning", { inAppBrowser: true }));
@@ -251,20 +264,47 @@ describe("AuthSheet, returning mode", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
     });
-    expect(writeText).toHaveBeenCalledWith(window.location.href);
+    expect(writeText).toHaveBeenCalledWith(signInLink(window.location.href));
+    expect(String((writeText.mock.calls[0] as unknown[])[0])).toContain("signin=1");
     expect(screen.getByRole("button", { name: /Link copied/ })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open in your browser" })).toBeTruthy();
+    // Announced politely, and no link that only opens another tab inside the wallet (jsdom is not Android).
+    expect(screen.getByTestId("in-app-copied").getAttribute("aria-live")).toBe("polite");
+    expect(screen.getByTestId("in-app-copied").textContent).toMatch(/Link copied/);
+    expect(screen.queryByTestId("in-app-open")).toBeNull();
   });
 
-  it("an old account with an unverified email: says it is theirs, masks the email, Resend and another sign-in", async () => {
+  it("in-app browser after Google last time: says Google is blocked here and makes Copy link the main action", () => {
+    renderSheet(
+      controller({ name: "choose" }, "returning", {
+        inAppBrowser: true,
+        lastMethod: { provider: "google", emailHint: null },
+      })
+    );
+    expect(screen.getByTestId("last-method").textContent).toMatch(/used Google\..*doesn't work in this app's browser/);
+    expect(screen.getByRole("button", { name: /COPY LINK/ })).toBeTruthy();
+  });
+
+  it("switching from the save sheet to sign in keeps keyboard focus inside the options", () => {
+    const save = controller({ name: "choose" }, "save-progress");
+    const { rerender } = renderSheet(save);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    rerender(
+      <ToastProvider>
+        <AuthSheet controller={{ ...save, sheet: { ...save.sheet, reason: "returning" } }} />
+      </ToastProvider>
+    );
+    expect(document.activeElement?.closest("[data-brand]")?.getAttribute("data-brand")).toBe("google");
+  });
+
+  it("an old account with an unverified email: says it is theirs, shows the email, Resend and another sign-in", async () => {
     const c = controller({ name: "verify-email", email: "zygis@motored.lt", justSent: false }, "returning", {
       user: { uid: "acc", isAnonymous: false, email: "zygis@motored.lt", emailVerified: false, providers: ["password"] },
       status: "needs-verification",
     });
     renderSheet(c);
     expect(screen.getByText(/This is your account from before/)).toBeTruthy();
-    expect(screen.getByTestId("verify-email-hint").textContent).toBe("z•••@motored.lt");
-    expect(screen.queryByText("zygis@motored.lt")).toBeNull();
+    // In full: the player's own address, so a typo is visible.
+    expect(screen.getByTestId("verify-email-hint").textContent).toBe("zygis@motored.lt");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Resend email" }));
     });
@@ -288,9 +328,63 @@ describe("GuestPill", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
+  const asPhone = (phone: boolean) =>
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({
+        matches: phone && query.includes("max-width"),
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  afterEach(() => {
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+
+  it("phones: a device that signed in before gets one-tap 'Sign in' on the pill", () => {
+    asPhone(true);
+    rememberLastMethod("google", "zygis@motored.lt");
+    const onSave = jest.fn();
+    const onSignIn = jest.fn();
+    render(<GuestPill onSave={onSave} onSignIn={onSignIn} />);
+    expect(screen.getByTestId("guest-pill-status").textContent).toBe("Guest");
+    fireEvent.click(screen.getByTestId("guest-pill-main"));
+    expect(onSignIn).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByTestId("guest-pill-main").getAttribute("aria-label")).toBe("Playing as a guest. Sign in");
+  });
+
+  it("phones: a new device gets 'Save or sign in', which opens the save sheet", () => {
+    asPhone(true);
+    const onSave = jest.fn();
+    render(<GuestPill onSave={onSave} onSignIn={jest.fn()} />);
+    expect(screen.getByTestId("guest-pill-main").textContent).toContain("Save or sign in");
+    fireEvent.click(screen.getByTestId("guest-pill-main"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("signed out: one Sign in action, no second button", () => {
     render(<GuestPill onSave={jest.fn()} onSignIn={jest.fn()} signedOut />);
     expect(screen.getByTestId("guest-pill-status").textContent).toBe("Not signed in");
     expect(screen.queryByTestId("guest-pill-sign-in")).toBeNull();
   });
 });
+
+describe("in-app browser links", () => {
+  it("puts signin=1 back on the copied link", () => {
+    expect(signInLink("https://tokentails.com/game")).toBe("https://tokentails.com/game?signin=1");
+    expect(signInLink("https://tokentails.com/game?from=x")).toBe("https://tokentails.com/game?from=x&signin=1");
+    expect(signInLink("https://tokentails.com/game?signin=1")).toBe("https://tokentails.com/game?signin=1");
+  });
+
+  it("opens Chrome with an intent on Android only", () => {
+    const android = "Mozilla/5.0 (Linux; Android 14) MetaMaskMobile";
+    const intent = externalBrowserLink("https://tokentails.com/game?signin=1", android);
+    expect(intent).toMatch(/^intent:\/\/tokentails\.com\/game\?signin=1#Intent;scheme=https;package=com\.android\.chrome;/);
+    expect(intent).toContain(`S.browser_fallback_url=${encodeURIComponent("https://tokentails.com/game?signin=1")}`);
+    expect(externalBrowserLink("https://tokentails.com/game", "Mozilla/5.0 (iPhone) MetaMaskMobile")).toBeNull();
+    expect(externalBrowserLink("http://localhost:3000/game", android)).toBeNull();
+  });
+});
+

@@ -8,8 +8,10 @@ import type { CrewCtaState } from "./TeamSection";
 const Reporter = ({ onChange }: { onChange: (state: CrewCtaState) => void }) => {
   const { authStatus } = useFirebaseAuth();
   const { profile } = useProfile();
-  const state = playerStateFrom(authStatus, profile as SessionProfile | null);
-  const key = `${state.signedIn}|${state.onboardingState ?? ""}|${state.catName ?? ""}`;
+  // `settled`: the session read is over, so the landing can show or hide its "Sign in" for good.
+  const settled = authStatus !== "unknown" && authStatus !== "loading-profile";
+  const state = { ...playerStateFrom(authStatus, profile as SessionProfile | null), settled };
+  const key = `${state.signedIn}|${state.onboardingState ?? ""}|${state.catName ?? ""}|${!!state.account}|${settled}`;
   useEffect(() => {
     onChange(state);
     // `key` captures every field of `state`.

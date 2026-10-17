@@ -84,3 +84,12 @@ export function methodFromProviders(providers: readonly string[], current?: Last
   if (current && known.includes(current.provider)) return current.provider;
   return known[0];
 }
+
+/** Forgets the hint: after the account was deleted, so the next player here is not pointed at it. */
+export function clearLastMethod(): void {
+  try {
+    storage()?.removeItem(LAST_METHOD_KEY);
+  } catch {
+    // Storage blocked: nothing was stored.
+  }
+}

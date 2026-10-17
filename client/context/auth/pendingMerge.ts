@@ -87,23 +87,37 @@ export function clearPendingMerge(): void {
 }
 
 /**
- * Whether a failed merge is worth retrying: a network error, a server error, or an account that
- * is not verified yet. 409 (the monthly limit) and other 4xx answers are final.
+ * The backend's 30-day limit on taking in guest progress (`GUEST_MERGE_COOLDOWN_MS`). It answers
+ * 429 like the general rate limiter (`AppThrottlerGuard`), so only its message tells them apart.
  */
-export function isRetryableMergeError(status: number | null | undefined, code?: string | null): boolean {
+export function isMergeCooldown(status: number | null | undefined, message?: string | null): boolean {
+  return status === 429 && /30 days/i.test(message ?? "");
+}
+
+/**
+ * Whether a failed merge is worth retrying: a network error, a server error, a short rate limit
+ * (429 that is not the 30-day limit), or an account that is not verified yet. 409 (this guest is
+ * already being saved elsewhere), the 30-day limit and other 4xx answers are final.
+ */
+export function isRetryableMergeError(
+  status: number | null | undefined,
+  code?: string | null,
+  message?: string | null
+): boolean {
   if (!status) return true;
   if (status >= 500) return true;
+  if (status === 429) return !isMergeCooldown(status, message);
   return status === 403 && code === "EMAIL_UNVERIFIED";
 }
 
 /**
  * The note on the `merged` view when the guest's progress could not join the account. The player
- * is signed in either way. 429: the account already took in a guest in the last 30 days
- * (backend `GUEST_MERGE_COOLDOWN_MS`); 409: this guest is being saved to another account; a
- * retryable failure is tried again while the tab stays open.
+ * is signed in either way. The 30-day limit: the account already took in a guest recently; 409:
+ * this guest is being saved to another account; a retryable failure (a short rate limit
+ * included) is tried again while the tab stays open.
  */
-export function mergeFailureNote(status: number, retryable: boolean): string {
-  if (status === 429) {
+export function mergeFailureNote(status: number, retryable: boolean, message?: string | null): string {
+  if (isMergeCooldown(status, message)) {
     return "You're in your account. It already took in guest progress in the last 30 days, so this guest's runs stay separate.";
   }
   if (status === 409) {

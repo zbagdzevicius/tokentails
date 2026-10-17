@@ -276,6 +276,8 @@ const FirebaseAuthProvider = ({
   const latestProfileRef = React.useRef<{ profile: SessionProfile; seq: number } | null>(null);
   const mergeRunningRef = React.useRef(false);
   const mergeAttemptsRef = React.useRef(new Set<string>());
+  /** The sign-in the player tried last from the sheet, so an error names only other methods. */
+  const attemptRef = React.useRef<OAuthProviderName | "email" | null>(null);
 
   const user = fb.phase === "user" ? fb.user : null;
   const authStatus = deriveAuthStatus(mode, fb, profileState);
@@ -323,8 +325,13 @@ const FirebaseAuthProvider = ({
     gate.dismiss();
   }, [gate]);
 
-  const showError = useCallback((error: unknown, native = false) => {
-    const copy = withLastMethodHint(native ? mapNativeAuthError(error) : mapAuthError(error), error, readLastMethod());
+  /**
+   * `lastMethodHint`: only after an email sign-in failed, so a failed Google popup never says
+   * "try Continue with Google".
+   */
+  const showError = useCallback((error: unknown, native = false, lastMethodHint = false) => {
+    const mapped = native ? mapNativeAuthError(error) : mapAuthError(error);
+    const copy = lastMethodHint ? withLastMethodHint(mapped, error, readLastMethod()) : mapped;
     if (!copy) return false;
     setMessage({ text: copy.message, field: copy.field });
     track(buildEvent("auth_error", { code: authErrorCode(error) || "unknown" }));
@@ -693,7 +700,9 @@ const FirebaseAuthProvider = ({
       } catch (error) {
         const status = error instanceof ApiError ? error.status : 0;
         const code = error instanceof ApiError ? error.code : null;
-        if (isRetryableMergeError(status, code)) savePendingMerge(guestToken, account?.uid);
+        const detail = error instanceof ApiError ? error.message : null;
+        const retryable = isRetryableMergeError(status, code, detail);
+        if (retryable) savePendingMerge(guestToken, account?.uid);
         else clearPendingMerge();
         if (status === 403 && code === ErrorCode.EMAIL_UNVERIFIED) {
           // Signed in to an account whose email is not confirmed yet: the merge runs again once
@@ -704,7 +713,7 @@ const FirebaseAuthProvider = ({
             name: "merged",
             gamesMoved: 0,
             tailsCredited: 0,
-            note: mergeFailureNote(status, isRetryableMergeError(status, code)),
+            note: mergeFailureNote(status, retryable, detail),
           });
         }
       } finally {
@@ -768,7 +777,7 @@ const FirebaseAuthProvider = ({
           return;
         case "error":
           backToForm();
-          showError(outcome.error, outcome.native);
+          showError(outcome.error, outcome.native, attemptRef.current === "email");
           return;
       }
     },
@@ -813,7 +822,7 @@ const FirebaseAuthProvider = ({
         (error) => {
           const status = error instanceof ApiError ? error.status : 0;
           const code = error instanceof ApiError ? error.code : null;
-          if (!isRetryableMergeError(status, code)) clearPendingMerge();
+          if (!isRetryableMergeError(status, code, error instanceof ApiError ? error.message : null)) clearPendingMerge();
         }
       )
       .finally(() => {
@@ -825,11 +834,12 @@ const FirebaseAuthProvider = ({
   // the hint current, so it is there when the session ends and they come back.
   const accountProviders = readyAccount && user ? user.providers.join(",") : "";
   const accountEmail = readyAccount && user ? user.email : null;
+  // Not on the landing (`passive`): it reads the session and writes nothing, not even this.
   React.useEffect(() => {
-    if (!accountProviders) return;
+    if (passive || !accountProviders) return;
     const method = methodFromProviders(accountProviders.split(","), readLastMethod());
     if (method) rememberLastMethod(method, accountEmail);
-  }, [accountProviders, accountEmail]);
+  }, [passive, accountProviders, accountEmail]);
 
   const handleOutcome = useCallback(
     async (outcome: AuthOutcome) => {
@@ -853,6 +863,7 @@ const FirebaseAuthProvider = ({
     (provider: OAuthProviderName) => {
       // Synchronous until the popup opened: beginFlow only sets a ref.
       const pending = startOAuth(auth, provider, isNative());
+      attemptRef.current = provider;
       beginFlow();
       setMessage(null);
       setView({ name: "busy", label: provider === "google" ? "Waiting for Google…" : "Waiting for Apple…" });
@@ -865,6 +876,7 @@ const FirebaseAuthProvider = ({
     (tab: "sign-in" | "create", email: string, password: string) => {
       setMessage(null);
       setView({ name: "busy", label: tab === "create" ? "Creating your account…" : "Signing you in…" });
+      attemptRef.current = "email";
       beginFlow();
       const run = tab === "create" ? createEmailAccount(auth, email, password) : signInWithEmail(auth, email, password);
       void run.then(handleOutcome, (error) => handleOutcome({ kind: "error", error }));

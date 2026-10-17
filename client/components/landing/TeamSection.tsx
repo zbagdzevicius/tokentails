@@ -290,6 +290,8 @@ export interface CrewCtaState {
   catName?: string | null;
   /** Signed in to a real account, not a guest: the landing hides its "Sign in". */
   account?: boolean;
+  /** The session read finished (LandingPlayer); until then the landing holds its "Sign in". */
+  settled?: boolean;
 }
 
 /** The crew CTA button: `text` plus an optional `subtext`, laid out like the hero's PixelButton. */
