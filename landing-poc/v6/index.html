@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cat Matchmaker · Token Tails</title>
+<meta name="description" content="Which Pink Paw cat is yours? One tap matches you with a real shelter cat in Kaunas. Get their cat card for $5.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f0c5fd">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="https://tokentails.com/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Which Pink Paw cat is yours?">
+<meta property="og:description" content="One tap matches you with a real shelter cat in Kaunas. Get their cat card for $5.">
+<meta property="og:image" content="https://tokentails.fra1.cdn.digitaloceanspaces.com/31347467739.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://tokentails.fra1.cdn.digitaloceanspaces.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="https://tokentails.fra1.cdn.digitaloceanspaces.com/31347467739.webp">
+<link rel="prefetch" as="image" href="https://tokentails.fra1.cdn.digitaloceanspaces.com/22747418657.webp">
+<link rel="prefetch" as="image" href="https://tokentails.fra1.cdn.digitaloceanspaces.com/75470495674.webp">
+<link rel="prefetch" as="image" href="https://tokentails.fra1.cdn.digitaloceanspaces.com/36679198975.webp">
+<!--
+  POC v6 "Cat Matchmaker". Goal: buy the $5 shelter cat card, cat chosen by the visitor with one tap.
+  Cat data baked in on 2026-10-17 from GET https://api.tokentails.com/cat/<id>:
+  - all four: blessing.status WAITING, shelter "Rožinė Pėdutė", tier COMMON
+  - story = blessing.description with HTML tags stripped and entities decoded, verbatim (emoji kept)
+  - photo = blessing.image.url (all four return 200)
+  Munis 6a3050d01d6649b19b036660 · Lyja 697b557cbe0de315f8d8642b · Norkis 6987c1651fc0c504e354d1de · Balandis 6a304f491d6649b19b036568
+  $5 = SHELTER_CAT_MIN_PRICE_CENTS. "Get {name} as a Common card, by card or crypto." = live ShelterCatBuy copy.
+  Shelter names = api.tokentails.com/impact shelters.items (live landing: "Cats in the game come from Mil Bigotes / Puppy Kitty NYC / Pink Paw"). "Buy for $5" = live cat-page button (ShelterCatBuy).
+  F-026 kept with its label and date (R12). No 50% share claim (no founder OK). No "adopt" / "take home".
+  Gate: re-fetch each id before deploy and drop any cat that is no longer WAITING.
+-->
+<style>
+:root{
+  --lilac:#f0c5fd;--lilac-2:#e6b0f7;--lilac-3:#f7e1fe;--cream:#fcecbb;--cream-2:#fff6db;
+  --ink:#0b0820;--ink-2:#3b2f52;--pink:#ff7aa2;--pink-2:#ff5c8d;--white:#fffdf7;
+  --shadow:0 1px 0 rgba(11,8,32,.08),0 14px 30px -12px rgba(59,22,92,.38);
+  --r:18px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--lilac);color:var(--ink);font:400 16px/1.55 Nunito,system-ui,-apple-system,sans-serif;overflow-x:hidden;
+  background-image:radial-gradient(circle at 1px 1px,rgba(11,8,32,.07) 1.2px,transparent 1.6px);background-size:22px 22px}
+img{display:block;max-width:100%}
+a{color:var(--ink)}
+h1,h2,h3,.f{font-family:Fredoka,Nunito,sans-serif;font-weight:600;letter-spacing:-.01em}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:10px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* top */
+.top{display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font:700 18px/1 Fredoka,sans-serif}
+.top img{width:34px;height:40px}
+.booth{font:600 12px/1 Fredoka,sans-serif;letter-spacing:.14em;text-transform:uppercase;background:var(--ink);color:var(--cream);padding:7px 10px 6px;border-radius:999px}
+
+/* hero */
+.hero{display:grid;gap:22px;padding:10px 0 28px}
+h1{font-size:clamp(34px,9.4vw,64px);line-height:1;margin:6px 0 10px}
+h1 em{font-style:normal;background:linear-gradient(transparent 62%,var(--cream) 62%);padding:0 .06em}
+.sub{font-size:17px;line-height:1.45;margin:0 0 16px;color:var(--ink-2);max-width:34ch}
+.q{font:600 19px/1.2 Fredoka,sans-serif;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.q span{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--cream);font-size:14px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0;padding:0;list-style:none}
+.tile{position:relative;width:100%;min-height:72px;display:flex;align-items:center;gap:10px;text-align:left;padding:12px 10px;border:2px solid var(--ink);border-radius:16px;background:var(--white);color:var(--ink);
+  font:600 15px/1.15 Fredoka,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--ink);transition:transform .12s,box-shadow .12s,background .15s;-webkit-tap-highlight-color:transparent}
+.tile svg{flex:none;width:26px;height:26px}
+.tile:hover{background:var(--cream-2)}
+.tile:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.tile[aria-pressed="true"]{background:var(--pink);box-shadow:0 4px 0 var(--ink)}
+.tile::after{content:"";position:absolute;right:8px;top:8px;width:18px;height:18px;opacity:0;transform:scale(.4);
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230b0820'%3E%3Cellipse cx='12' cy='16' rx='5' ry='4.2'/%3E%3Ccircle cx='5.5' cy='10' r='2.2'/%3E%3Ccircle cx='9.5' cy='6' r='2.3'/%3E%3Ccircle cx='14.5' cy='6' r='2.3'/%3E%3Ccircle cx='18.5' cy='10' r='2.2'/%3E%3C/svg%3E") center/contain no-repeat}
+.tile[aria-pressed="true"]::after{opacity:1;transform:scale(1)}
+.tile.press{animation:press .42s cubic-bezier(.3,1.6,.5,1)}
+.tile.press::after{animation:paw .5s cubic-bezier(.3,1.8,.5,1)}
+@keyframes press{0%{transform:translateY(0) scale(1)}30%{transform:translateY(3px) scale(.95);box-shadow:0 1px 0 var(--ink)}100%{transform:none}}
+@keyframes paw{0%{opacity:0;transform:scale(.2) rotate(-30deg)}60%{opacity:1;transform:scale(1.35) rotate(8deg)}100%{opacity:1;transform:scale(1)}}
+
+/* polaroid reveal */
+.stage{scroll-margin-top:44px;perspective:1400px;display:flex;flex-direction:column;align-items:center}
+.kicker{font:600 14px/1 Fredoka,sans-serif;letter-spacing:.08em;text-transform:uppercase;margin:0 0 24px;display:flex;align-items:center;gap:8px}
+.kicker::before,.kicker::after{content:"";width:22px;height:2px;background:var(--ink);border-radius:2px}
+.card{position:relative;width:100%;max-width:400px;transform:rotate(-2deg);transform-style:preserve-3d}
+.card.flip{animation:flip .7s cubic-bezier(.25,.9,.3,1.15)}
+@keyframes flip{0%{transform:rotate(-2deg) rotateY(180deg)}100%{transform:rotate(-2deg) rotateY(0)}}
+.face{background:var(--cream);border-radius:6px;padding:14px 14px 18px;box-shadow:var(--shadow),inset 0 0 0 1px rgba(74,29,8,.08);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.back{position:absolute;inset:0;transform:rotateY(180deg);display:grid;place-items:center;
+  background:var(--pink) radial-gradient(circle at 50% 50%,rgba(255,255,255,.25) 2px,transparent 2.5px) 0 0/18px 18px}
+.back b{font:700 28px/1 Fredoka,sans-serif;color:var(--ink);background:var(--cream);padding:12px 18px;border-radius:12px;transform:rotate(3deg)}
+.tape{position:absolute;top:-12px;left:50%;width:96px;height:26px;margin-left:-48px;background:rgba(255,255,255,.55);transform:rotate(3deg);box-shadow:0 1px 2px rgba(0,0,0,.08);z-index:2;backdrop-filter:blur(1px)}
+.photo{position:relative;aspect-ratio:5/4;background:#d9c9a0;overflow:hidden;border-radius:2px}
+.photo img{width:100%;height:100%;object-fit:cover;object-position:50% 38%}
+.chip{position:absolute;left:10px;bottom:10px;font:700 12.5px/1 Nunito,sans-serif;background:var(--white);color:var(--ink);padding:7px 10px 7px 9px;border-radius:999px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.chip i{width:8px;height:8px;border-radius:50%;background:#2fa65a;box-shadow:0 0 0 3px rgba(47,166,90,.2)}
+.cap{padding:12px 4px 0}
+.name{font:700 clamp(30px,8vw,40px)/1 Fredoka,sans-serif;margin:0}
+.where{margin:5px 0 0;font-size:14px;font-weight:700;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.where svg{width:14px;height:14px;flex:none}
+.story{margin:10px 0 14px;font-size:15.5px;line-height:1.5;color:var(--ink);min-height:3em}
+.buy{display:flex;align-items:center;gap:12px}
+.price{font:700 30px/1 Fredoka,sans-serif;flex:none}
+.price small{display:block;font:700 11px/1.2 Nunito,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.cta{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:12px 18px;border-radius:999px;background:var(--pink);color:var(--ink);text-decoration:none;
+  font:700 17px/1.1 Fredoka,sans-serif;border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);transition:transform .12s,box-shadow .12s,background .15s;text-align:center}
+.cta:hover{background:var(--pink-2)}
+.cta:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.cta svg{width:18px;height:18px;flex:none}
+.buy .cta{flex:1}
+.note{margin:10px 0 0;font-size:13px;color:var(--ink-2);text-align:center}
+
+/* lower sections */
+section.band{padding:40px 0}
+.panel{background:var(--white);border:2px solid var(--ink);border-radius:var(--r);padding:22px 20px;box-shadow:0 5px 0 var(--ink)}
+h2{font-size:clamp(26px,6vw,36px);line-height:1.08;margin:0 0 12px}
+.get{display:grid;gap:18px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.steps li{display:flex;gap:12px;align-items:flex-start;font-size:16px}
+.steps b{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--cream);border:2px solid var(--ink);font:700 14px/1 Fredoka,sans-serif}
+.again{text-align:center}
+.again p{margin:0 auto 16px;max-width:36ch;color:var(--ink-2)}
+.btn2{display:inline-flex;align-items:center;gap:8px;min-height:50px;padding:10px 20px;border-radius:999px;border:2px solid var(--ink);background:var(--cream);color:var(--ink);font:600 16px/1 Fredoka,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+.btn2:hover{background:var(--cream-2)}
+.btn2:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn2 svg{width:18px;height:18px}
+.link{display:inline-block;margin-top:14px;font-weight:800;text-underline-offset:3px}
+.who{display:flex;gap:16px;align-items:center}
+.who img{flex:none;width:72px;height:72px;border-radius:50%;background:var(--white);border:2px solid var(--ink);object-fit:contain;padding:6px}
+.who p{margin:0}
+.fact{display:inline-block;margin-top:8px;font-weight:800;background:var(--cream);padding:4px 8px;border-radius:8px}
+.fact small{font-weight:600;color:var(--ink-2)}
+.final{text-align:center;padding:24px 0 56px}
+.final .mini{width:96px;height:96px;margin:0 auto 14px;border:7px solid var(--cream);border-bottom-width:18px;border-radius:3px;transform:rotate(4deg);box-shadow:var(--shadow);overflow:hidden;background:#d9c9a0}
+.final .mini img{width:100%;height:100%;object-fit:cover}
+.final .cta{display:inline-flex;width:100%;max-width:380px}
+footer{border-top:2px dashed rgba(11,8,32,.25);padding:20px 0 120px;font-size:14px;color:var(--ink-2)}
+footer nav{display:flex;flex-wrap:wrap;gap:8px 18px}
+footer a{color:var(--ink-2);font-weight:700}
+
+/* sticky (mobile) */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(240,197,253,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border-top:2px solid var(--ink);display:flex;gap:10px;align-items:center;transition:transform .25s}
+.sticky.off{transform:translateY(110%)}
+.sticky img{width:46px;height:46px;border-radius:10px;object-fit:cover;border:2px solid var(--ink);flex:none}
+.sticky .cta{flex:1;min-height:50px;font-size:16px}
+.poc{position:fixed;top:8px;right:8px;z-index:30;font:700 11px/1 Nunito,sans-serif;background:var(--ink);color:var(--cream);padding:6px 9px;border-radius:999px;opacity:.88}
+.poc a{color:var(--cream)}
+
+@media (max-width:520px){.who{flex-direction:column;align-items:flex-start;gap:12px}.who img{width:60px;height:60px}}
+@media (max-width:370px){.tile{font-size:14.5px;padding:10px;gap:8px}.tile svg{width:26px;height:26px}h1{font-size:33px}}
+@media (min-width:860px){
+  .top{padding:22px 0 8px}
+  .hero{grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding:18px 0 56px;min-height:min(780px,calc(100vh - 80px))}
+  .sub{font-size:19px}
+  .tiles{gap:14px}
+  .tile{min-height:84px;font-size:18px;padding:14px 16px}
+  .tile:nth-child(odd){transform:rotate(-1deg)}.tile:nth-child(even){transform:rotate(1deg)}
+  .tile:active,.tile.press{transform:translateY(3px)}
+  .photo{aspect-ratio:1/1}
+  .card{transform:rotate(1.5deg)}
+  @keyframes flip{0%{transform:rotate(1.5deg) rotateY(180deg)}100%{transform:rotate(1.5deg) rotateY(0)}}
+  .lower{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:24px 0}
+  section.band{padding:0}
+  .lower .panel{height:100%}
+  .sticky{display:none}
+  footer{padding-bottom:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="poc">POC variant v6 · <a href="../">all variants</a></div>
+
+<div class="wrap">
+  <header class="top">
+    <span class="brand"><img src="https://tokentails.com/logo/logo.webp" alt="" width="34" height="40">Token Tails</span>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="h">
+      <div>
+        <span class="booth">Cat matchmaker</span>
+        <h1 id="h">Which Pink Paw cat is <em>yours?</em></h1>
+        <p class="sub">One tap matches you with a real shelter cat in Kaunas. Get their cat card for $5.</p>
+        <p class="q" id="q"><span aria-hidden="true">?</span>What do you want from a cat?</p>
+        <ul class="tiles" role="list" aria-labelledby="q" id="tiles">
+          <li><button class="tile" type="button" data-cat="0" aria-pressed="false" aria-controls="match">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27s-10-6.2-10-13.2A5.6 5.6 0 0 1 16 10a5.6 5.6 0 0 1 10 3.8C26 20.8 16 27 16 27z" fill="#ff7aa2" stroke="#0b0820" stroke-width="2.2" stroke-linejoin="round"/></svg>
+            An affectionate soul</button></li>
+          <li><button class="tile" type="button" data-cat="1" aria-pressed="false" aria-controls="match">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M20 5a11 11 0 1 0 7 19.5A9 9 0 0 1 20 5z" fill="#fcecbb" stroke="#0b0820" stroke-width="2.2" stroke-linejoin="round"/><circle cx="24" cy="9" r="1.6" fill="#0b0820"/></svg>
+            Calm company</button></li>
+          <li><button class="tile" type="button" data-cat="2" aria-pressed="false" aria-controls="match">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="17" r="11" fill="#f7e1fe" stroke="#0b0820" stroke-width="2.2"/><path d="M10.5 15.5q2 1.6 4 0M17.5 15.5q2 1.6 4 0M13 21.5q3 1.8 6 0" fill="none" stroke="#0b0820" stroke-width="2" stroke-linecap="round"/><ellipse cx="9.5" cy="20" rx="2" ry="1.2" fill="#ff7aa2"/><ellipse cx="22.5" cy="20" rx="2" ry="1.2" fill="#ff7aa2"/></svg>
+            A shy heart to win over</button></li>
+          <li><button class="tile" type="button" data-cat="3" aria-pressed="false" aria-controls="match">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 9l10 5.5v3L4 23zM28 9l-10 5.5v3L28 23z" fill="#0b0820"/><rect x="13" y="12.5" width="6" height="7" rx="2" fill="#ff7aa2" stroke="#0b0820" stroke-width="2"/></svg>
+            A dapper charmer</button></li>
+        </ul>
+      </div>
+
+      <div class="stage" id="match">
+        <p class="sr" id="live" aria-live="polite"></p>
+        <p class="kicker" id="kick">Our pick until you tap</p>
+        <article class="card" id="card" aria-labelledby="nm">
+          <div class="face front">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="photo">
+              <img id="ph" src="https://tokentails.fra1.cdn.digitaloceanspaces.com/31347467739.webp" alt="Munis, a black and white cat, lying on a pink blanket" width="750" height="1000" fetchpriority="high">
+              <span class="chip"><i aria-hidden="true"></i>Waiting for home</span>
+            </div>
+            <div class="cap">
+              <h2 class="name" id="nm">Munis</h2>
+              <p class="where"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-7.2 7-12.5A7 7 0 0 0 5 9.5C5 14.8 12 22 12 22z" fill="#ff7aa2" stroke="#0b0820" stroke-width="2"/><circle cx="12" cy="9.5" r="2.4" fill="#0b0820"/></svg>Lives at Pink Paw (Rožinė Pėdutė), Kaunas</p>
+              <p class="story" id="st">Munis is a very affectionate blind cat who has bravely battled a fungal infection. 🐾💛 Despite his challenges, he’s full of love and always ready for cuddles and companionship. 🥹</p>
+              <div class="buy">
+                <p class="price" style="margin:0"><small>Cat card</small>$5</p>
+                <a class="cta go" id="cta-card" href="https://tokentails.com/cats/6a3050d01d6649b19b036660?from=poc_v6&amp;utm_source=landing-poc&amp;utm_campaign=v6"><span class="lbl">Get Munis’s card · $5</span></a>
+              </div>
+            </div>
+          </div>
+          <div class="face back" aria-hidden="true"><b>It’s a match!</b></div>
+        </article>
+        <p class="note">Takes 1 minute, sign in at checkout.</p>
+      </div>
+    </section>
+
+    <div class="lower">
+      <section class="band" aria-labelledby="g">
+        <div class="panel get">
+          <div>
+            <h2 id="g">What you get</h2>
+            <ol class="steps">
+              <li><b>1</b><span>Open <strong class="nmi">Munis</strong>’s page and tap “Buy for $5”. You see the card there before you pay.</span></li>
+              <li><b>2</b><span>Get <strong class="nmi">Munis</strong> as a Common card, by card or crypto.</span></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" aria-labelledby="a">
+        <div class="panel again">
+          <h2 id="a">Not the one?</h2>
+          <p>Every tile is a different cat at the same shelter. Tap another one and see who you get.</p>
+          <button class="btn2" type="button" id="again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Pick again</button><br>
+          <a class="link" href="https://tokentails.com/cats?from=poc_v6&amp;utm_source=landing-poc&amp;utm_campaign=v6">See all shelter cats →</a>
+        </div>
+      </section>
+    </div>
+
+    <section class="band" aria-labelledby="w">
+      <div class="panel who">
+        <img src="https://tokentails.com/logo/shelters/pink-paw.webp" alt="" width="72" height="72" loading="lazy">
+        <div>
+          <h2 id="w" style="font-size:24px;margin-bottom:4px">Who’s behind it</h2>
+          <p>Pink Paw (Rožinė Pėdutė) is a cat shelter in Kaunas. The cats in Token Tails come from Pink Paw, Mil Bigotes and Puppy Kitty NYC.</p>
+          <p class="fact" data-fact="F-026">$40K+ donated directly in crypto and goods <small>(Oct 2026, company-reported)</small></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="final" id="final" aria-label="Get your match">
+      <div class="mini"><img class="thumb" src="https://tokentails.fra1.cdn.digitaloceanspaces.com/31347467739.webp" alt="" width="96" height="96" loading="lazy"></div>
+      <h2 style="margin-bottom:16px"><span class="nmi">Munis</span> is waiting.</h2>
+      <a class="cta go" href="https://tokentails.com/cats/6a3050d01d6649b19b036660?from=poc_v6&amp;utm_source=landing-poc&amp;utm_campaign=v6"><span class="lbl">Get Munis’s card · $5</span></a>
+      <p class="note">Takes 1 minute, sign in at checkout.</p>
+    </section>
+  </main>
+
+  <footer>
+    <nav aria-label="Legal">
+      <a href="https://docs.tokentails.com/community-and-social-impact/terms-and-conditions">Terms &amp; Conditions</a>
+      <a href="https://docs.tokentails.com/community-and-social-impact/privacy-policy">Privacy</a>
+      <a href="https://tokentails.com/?from=poc_v6&amp;utm_source=landing-poc&amp;utm_campaign=v6">tokentails.com</a>
+    </nav>
+  </footer>
+</div>
+
+<div class="sticky" id="sticky">
+  <img class="thumb" src="https://tokentails.fra1.cdn.digitaloceanspaces.com/31347467739.webp" alt="" width="46" height="46">
+  <a class="cta go" href="https://tokentails.com/cats/6a3050d01d6649b19b036660?from=poc_v6&amp;utm_source=landing-poc&amp;utm_campaign=v6"><span class="lbl">Get Munis’s card · $5</span></a>
+</div>
+
+<script>
+(function(){
+  var C='https://tokentails.fra1.cdn.digitaloceanspaces.com/',Q='?from=poc_v6&utm_source=landing-poc&utm_campaign=v6';
+  var D=[['Munis','6a3050d01d6649b19b036660','31347467739','a black and white cat, lying on a pink blanket','Munis is a very affectionate blind cat who has bravely battled a fungal infection. 🐾💛 Despite his challenges, he’s full of love and always ready for cuddles and companionship. 🥹'],
+    ['Lyja','697b557cbe0de315f8d8642b','22747418657','a black and white cat, resting in a cat bed','Gentle, calm, and lovely Lyja 🤍'],
+    ['Norkis','6987c1651fc0c504e354d1de','75470495674','a tabby and white cat, sitting in a pen','Norkis is a shy little soul who’s wary of humans, but with a gentle heart—he lets you pet him even when he’s scared, making every trust-filled purr feel extra special.'],
+    ['Balandis','6a304f491d6649b19b036568','36679198975','a black and white tuxedo cat, looking at the camera','Balandis is a maximally adorable tuxedo cat, rocking his black-and-white suit with endless charm and cuteness.']];
+  var $=function(s){return document.querySelectorAll(s)},card=document.getElementById('card'),tiles=$('.tile');
+  function pick(i,btn){var d=D[i];
+    tiles.forEach(function(t){t.setAttribute('aria-pressed',t===btn);t.classList.remove('press')});
+    void btn.offsetWidth;btn.classList.add('press');card.classList.remove('flip');void card.offsetWidth;card.classList.add('flip');
+    document.getElementById('ph').src=C+d[2]+'.webp';document.getElementById('ph').alt=d[0]+', '+d[3];
+    document.getElementById('nm').textContent=d[0];document.getElementById('st').textContent=d[4];
+    document.getElementById('kick').textContent='It’s a match!';document.getElementById('live').textContent='It’s a match: '+d[0]+'. Get '+d[0]+'’s card for $5.';
+    $('.nmi').forEach(function(e){e.textContent=d[0]});$('.thumb').forEach(function(e){e.src=C+d[2]+'.webp'});
+    $('.go').forEach(function(a){a.href='https://tokentails.com/cats/'+d[1]+Q;a.querySelector('.lbl').textContent='Get '+d[0]+'’s card · $5'});
+    if(innerWidth<860)document.getElementById('match').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'});}
+  tiles.forEach(function(t){t.addEventListener('click',function(){pick(+t.dataset.cat,t)})});
+  document.getElementById('again').addEventListener('click',function(){document.getElementById('h').scrollIntoView({block:'start'});tiles[0].focus({preventScroll:true})});
+  var s=document.getElementById('sticky'),seen={},io;if('IntersectionObserver'in window){io=new IntersectionObserver(function(es){es.forEach(function(e){seen[e.target.id]=e.isIntersecting});s.classList.toggle('off',!!(seen['cta-card']||seen.final))},{threshold:.5});io.observe(document.getElementById('cta-card'));io.observe(document.getElementById('final'));}
+})();
+</script>
+</body>
+</html>
