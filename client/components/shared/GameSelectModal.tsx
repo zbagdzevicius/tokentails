@@ -276,7 +276,7 @@ const BadcatPreview = () => (
   </span>
 );
 
-/** The Moon Rave reel's opening frame: the DJ cat at the booth, the crowd dancing (`RAVE_PREVIEW`). */
+/** The live Moon Rave scene: the DJ cat at the booth under the green moon, the crowd dancing (`RAVE_PREVIEW`). */
 const RavePreview = () => (
   <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
     <img
@@ -393,8 +393,8 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       // or window), with the same `?from=picker` href.
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
       // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat) is
-      // its own app shell. `from` feeds `heist_open {from}` there and is stripped from the address bar
-      // on arrival.
+      // its own app shell. On the Heist, `from` feeds `heist_open {from}` and is stripped from the
+      // address bar on arrival; the rave ignores it and keeps it in the URL.
       event.preventDefault();
       const go = navigate ?? ((url: string) => window.location.assign(url));
       go(cardHref(card) ?? card.href);
@@ -454,11 +454,10 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
     // Seven (the Cupid season): four to a row, 4 + 3 centred.
     cards.length === 4 || cards.length === 7 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
-    // Short landscape phones: a second row would sit below the fold of the scrolling list, so five or
-    // six cards share one row there. Seven would be too narrow to read in one row: they keep 4 + 3
-    // and the list scrolls.
-    cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]",
-    cards.length === 6 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(16.666%-0.84rem)]"
+    // Short landscape phones: five cards share one row there (a second row would sit below the fold of
+    // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
+    // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.
+    cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]"
   );
   const targetClass =
     "group flex h-full w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";

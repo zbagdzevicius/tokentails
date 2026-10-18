@@ -18,14 +18,16 @@ export const raveHref = (from: RaveFrom) => `${RAVE_PATH}?from=${from}`;
  * claim: the rave rule "every $1 paid out to Pink Paw on-chain = one dancing cat", whoever pays it
  *   (cat-rave/README.md "The $1 = 1 cat rule"; RaveSection's claim comments). Token Tails pays out the
  *   free treats, the card cats and the 50% Pink Paw share of each $5 shelter cat; givers pay out their
- *   wallet gifts, sponsor matches and USDC cats.
+ *   wallet gifts, sponsor matches and USDC cats. "here": only gifts made through Token Tails count (a
+ *   direct donation to Pink Paw adds no cat).
  */
-export const RAVE_PICKER_DESCRIPTION = "Every $1 you give Pink Paw adds a dancing cat";
+export const RAVE_PICKER_DESCRIPTION = "Every $1 you give Pink Paw here adds a dancing cat";
 
 /**
- * The card art: the reel's opening frame (the DJ cat at the Arc booth under the green moon, the crowd
- * dancing), from `public/landing/rave/rave-promo-v3-16x9.mp4` at 0 s, before any caption, cropped below
- * the Token Tails logo to the picker's 312x218 box at 2x.
+ * The card art: the live rave scene at 1440x900 with the HUD and the Token Tails logo cropped out (the
+ * DJ cat at the booth's blank front, the green moon, the lasers, the Pink Paw sign, the crowd), a little
+ * more contrast and saturation so it reads at card size, saved for the picker's 312x218 box at 2x. No
+ * text but the Pink Paw sign, no sponsor logo, no wallet addresses.
  */
 export const RAVE_PREVIEW = Object.freeze({
   src: "/game-select/rave-preview@2x.webp",

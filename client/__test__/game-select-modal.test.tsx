@@ -327,7 +327,8 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
     const six = open({ showRave: false });
     const item = within(six.dialog).getAllByRole("listitem")[0];
     expect(item.className).toContain("md:w-[calc(33.333%-0.75rem)]");
-    expect(item.className).toContain("[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(16.666%-0.84rem)]");
+    // Six on a short landscape phone: 3 + 3 and the list scrolls (one row of six cut the lines off).
+    expect(item.className).not.toContain("max-height:520px");
     cleanup();
     const four = open({ showSwordcat: false, showBadcat: false, showRave: false });
     expect(within(four.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(25%-0.75rem)]");
