@@ -1,8 +1,10 @@
 import { pawlegendsEnabled, PAWLEGENDS_EXIT_PATH } from "@/components/pawlegends/flags";
 import { PawlegendsHost } from "@/components/pawlegends/PawlegendsHost";
+import { lockPageZoom, PAWLEGENDS_VIEWPORT } from "@/components/pawlegends/noZoom";
 import { PAWLEGENDS_SUBTITLE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
@@ -29,10 +31,17 @@ const BackToGame = () => {
  * existing session is reused, none is created; the game only learns whether the player is signed in.
  */
 export default function PawlegendsPage() {
-  if (!pawlegendsEnabled()) return <BackToGame />;
+  const enabled = pawlegendsEnabled();
+  // No page zoom around the game iframe (components/pawlegends/noZoom.ts); restored when the page unmounts.
+  useEffect(() => (enabled ? lockPageZoom() : undefined), [enabled]);
+  if (!enabled) return <BackToGame />;
   return (
     <FirebaseAuthProvider authMode="optional">
       <SeoHead {...PAWLEGENDS_SEO} noindex />
+      <Head>
+        {/* Same key as _app's tag, so next/head keeps this one on this page only. */}
+        <meta name="viewport" content={PAWLEGENDS_VIEWPORT} key="viewport" />
+      </Head>
       <PawlegendsHost />
     </FirebaseAuthProvider>
   );

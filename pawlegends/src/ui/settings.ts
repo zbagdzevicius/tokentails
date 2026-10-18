@@ -1,8 +1,10 @@
 /**
- * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, first-match tips and anonymous play stats (the
+ * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, the desktop controls (quick cast or aim on hold,
+ * trackpad mode Auto / On / Off; input/presets.ts keeps them), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
  * session when the choice is still open and the game runs outside the Token Tails page (the page asks on its own).
  */
+import { castMode, setCastMode, setTrackpadPref, trackpadPref, type CastMode, type TrackpadPref } from '../input/presets';
 import type { QualityTier } from '../render/quality';
 
 export interface SettingsState {
@@ -23,11 +25,24 @@ export interface SettingsOpts {
 }
 
 const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high: 'High' };
+const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on hold' };
+const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
+
+/** Phones and tablets have no keys or cursor: the controls rows hide. */
+const keyboardDevice = (): boolean => {
+  try {
+    return !(typeof matchMedia === 'function' && matchMedia('(hover: none)').matches);
+  } catch {
+    return true;
+  }
+};
 
 export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement {
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
+  const ctl = { cast: castMode(), pad: trackpadPref() };
+  const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
   const render = (): void => {
@@ -36,6 +51,12 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Graphics</span><span class="chips">${(['low', 'med', 'high'] as const)
         .map((t) => `<button class="chip ${s.tier === t ? 'on' : ''}" data-t="${t}">${TIER_NAME[t]}</button>`)
         .join('')}</span></div>
+      ${showControls ? `<div class="set-row"><span>Ability keys</span><span class="chips">${(['quick', 'hold'] as const)
+        .map((m) => `<button class="chip ${ctl.cast === m ? 'on' : ''}" data-cast="${m}">${CAST_NAME[m]}</button>`)
+        .join('')}</span></div>
+      <div class="set-row"><span>Trackpad mode (click to move)</span><span class="chips">${(['auto', 'on', 'off'] as const)
+        .map((m) => `<button class="chip ${ctl.pad === m ? 'on' : ''}" data-pad="${m}">${PAD_NAME[m]}</button>`)
+        .join('')}</span></div>` : ''}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
@@ -46,7 +67,15 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const t = e.target as HTMLElement;
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     const tier = t.closest<HTMLElement>('[data-t]')?.dataset.t as QualityTier | undefined;
-    if (tier) {
+    const cast = t.closest<HTMLElement>('[data-cast]')?.dataset.cast as CastMode | undefined;
+    const pad = t.closest<HTMLElement>('[data-pad]')?.dataset.pad as TrackpadPref | undefined;
+    if (cast) {
+      ctl.cast = cast;
+      setCastMode(cast);
+    } else if (pad) {
+      ctl.pad = pad;
+      setTrackpadPref(pad);
+    } else if (tier) {
       s.tier = tier;
       o.onTier(tier);
     } else if (a === 'sound') {

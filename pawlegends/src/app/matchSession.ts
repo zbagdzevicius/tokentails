@@ -329,6 +329,7 @@ export class MatchSession {
     const ht = HERO_TEXT[hero];
     this.touch.setIcons({ q: icon(ht.abilities[0].icon), w: icon(ht.abilities[1].icon), e: icon(ht.abilities[2].icon), r: icon(ht.abilities[3].icon), trick: icon(TRICK_TEXT[trick].icon) });
     this.tips.touch = coarse;
+    this.tips.padMode = () => this.desktop?.padMode;
     this.tips.names = { q: ht.abilities[0].name, e: ht.abilities[2].name, r: ht.abilities[3].name };
     this.goals.touch = coarse;
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };

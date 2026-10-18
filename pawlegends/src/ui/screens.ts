@@ -18,6 +18,7 @@ import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
 import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
+import { castMode, trackpadOn } from '../input/presets';
 import type { QuestView } from '../meta/quests';
 import type { TreatGain } from '../meta/treats';
 
@@ -423,7 +424,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${o.muted ? 'Sound: off' : 'Sound: on'}</button>
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    ${o.touch ? '' : `<p class="keys"><kbd>RMB</kbd> move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> hold to aim, release to cast · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
+    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
   let muted = o.muted;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;

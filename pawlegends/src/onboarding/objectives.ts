@@ -6,6 +6,7 @@
  * The DOM part is optional (null parent in node tests).
  */
 import { icon } from '../ui/icons';
+import { savedPadMode, type PadMode } from './tips';
 import type { GuideMode } from '../app/firstSession';
 
 export type BeatId = 'lane' | 'minions' | 'dog' | 'ult' | 'pudding' | 'push' | 'sunset';
@@ -26,12 +27,14 @@ const LITE: readonly BeatId[] = ['ult', 'pudding'];
 /** Seconds a beat stays up when the player does not do it. */
 export const BEAT_TTL: Readonly<Record<BeatId, number>> = Object.freeze({ lane: 22, minions: 16, dog: 14, ult: 14, pudding: 30, push: 9, sunset: 9 });
 
-export function beatText(id: BeatId, touch: boolean, n: BeatNames = { q: 'Q', r: 'R' }): BeatText {
+export function beatText(id: BeatId, touch: boolean, n: BeatNames = { q: 'Q', r: 'R' }, pad: PadMode = savedPadMode()): BeatText {
+  // Same wording rule as the tips: name both buttons while Auto trackpad detection still watches.
+  const click = pad === null ? 'Click or right-click' : pad ? 'Click' : 'Right-click';
   switch (id) {
     case 'lane':
-      return { title: 'Run to the lane!', sub: touch ? 'Drag left to follow the arrow' : 'Right-click along the arrow', icon: 'paw' };
+      return { title: 'Run to the lane!', sub: touch ? 'Drag left to follow the arrow' : `${click} along the arrow`, icon: 'paw' };
     case 'minions':
-      return { title: 'Hit minions', sub: touch ? 'Tap ATK next to the dog minions' : 'Right-click a dog minion', icon: 'sword' };
+      return { title: 'Hit minions', sub: touch ? 'Tap ATK next to the dog minions' : `${click} a dog minion`, icon: 'sword' };
     case 'dog':
       return { title: touch ? `A dog! Tap ${n.q}` : 'A dog! Press Q', sub: 'Your abilities do most of your damage', icon: 'sword' };
     case 'ult':

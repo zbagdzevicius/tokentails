@@ -133,3 +133,43 @@ export function pickNearest<T extends { id: number; kind: string }>(cands: reado
   }
   return best;
 }
+
+/** Quick cast: how far (mm) from the cursor a unit-target ability still finds an enemy hero. */
+export const QUICK_UNIT_SEEK = 3000;
+
+/**
+ * Desktop cast at the cursor (quick cast on key press, or the hold-to-aim release): the point (mm) and target id a
+ * cast command carries, or null when a unit-target ability has no enemy hero under or near the cursor (the cast is
+ * refused, not wasted). Self casts go at the hero; directions toward the cursor; ground points at the cursor,
+ * pulled in to the range when `clamp` (quick cast fires at once instead of walking in); unit aims at the enemy hero
+ * under the cursor, else the one nearest the cursor within QUICK_UNIT_SEEK. No cursor on the ground: straight ahead
+ * (+x), like the touch smart-cast fallback.
+ */
+export function cursorCast(aim: AimSpec, me: Unit, cursor: { x: number; y: number } | null, under: Unit | null, units: readonly Unit[], myTeam: number, clamp: boolean): { x: number; y: number; id: number } | null {
+  if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
+  if (aim.kind === 'unit') {
+    let t = under && under.kind === 'hero' && isEnemy(under, myTeam) ? under : null;
+    if (!t && cursor) {
+      let bd = QUICK_UNIT_SEEK;
+      for (const u of units) {
+        if (u.kind !== 'hero' || !isEnemy(u, myTeam)) continue;
+        const d = dist(u, cursor);
+        if (d < bd) {
+          bd = d;
+          t = u;
+        }
+      }
+    }
+    return t ? { x: t.x, y: t.y, id: t.id } : null;
+  }
+  const p = cursor ?? { x: me.x + Math.max(aim.range, 1000), y: me.y };
+  if (aim.kind === 'point' && clamp) {
+    const d = dist(p, me);
+    if (d > aim.range && d > 0) {
+      // a hair inside, so rounding never pushes it out of reach (Orders walks in past the range)
+      const k = (aim.range - 5) / d;
+      return { x: me.x + (p.x - me.x) * k, y: me.y + (p.y - me.y) * k, id: 0xff };
+    }
+  }
+  return { x: p.x, y: p.y, id: 0xff };
+}

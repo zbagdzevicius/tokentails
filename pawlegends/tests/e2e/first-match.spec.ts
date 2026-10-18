@@ -7,8 +7,9 @@ import { attr, me, startFirstMatch } from './helpers';
 // player's own wave front.
 
 const TEXT: Record<string, RegExp> = {
-  move: /Right-click the ground to walk/,
-  attack: /Right-click an enemy minion to attack/,
+  // "Click or right-click" while Auto trackpad still watches, "Right-click" once the player right-clicked
+  move: /right-click the ground to walk/i,
+  attack: /right-click an enemy minion to attack/i,
   q: /Enemy hero! Press Q to strike/,
   dodge: /Incoming! Press E to Tumble out of the way/,
   ult: /Level 4! Press R for your ultimate/,

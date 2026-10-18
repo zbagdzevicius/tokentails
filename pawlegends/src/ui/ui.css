@@ -16,6 +16,14 @@
 }
 body, button { font-family: var(--font); }
 button { -webkit-tap-highlight-color: transparent; }
+/* No double-tap zoom on anything tappable (with app/noZoom.ts for iOS, which does not always honour this in an
+   iframe). Overlays appended to body (#crash) match too. Scrolling panels keep their pan. */
+button, a, label, [role='button'], [data-a], [data-t], [data-c], .chip, .pl-btn, .pl-screen, .pl-menu, .card, #crash {
+  touch-action: manipulation;
+}
+#game-canvas, canvas { touch-action: none; }
+/* iOS zooms into a focused field under 16px. */
+input, select, textarea { font-size: max(16px, 1em); }
 
 #crash {
   position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
