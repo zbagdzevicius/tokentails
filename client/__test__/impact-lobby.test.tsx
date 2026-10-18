@@ -11,9 +11,22 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}`, bgStyle: () => ({}), isMobile: () => false }));
 jest.mock("@/components/claims/Claim", () => ({
-  Claim: ({ id, values, text }: { id: string; values: Record<string, unknown>; text?: string }) => (
+  // Board slots draw their face from the claim's parts; the mock hands it fixed ones.
+  Claim: ({
+    id,
+    values,
+    text,
+    face,
+  }: {
+    id: string;
+    values: Record<string, unknown>;
+    text?: string;
+    face?: (parts: Record<string, unknown>) => React.ReactNode;
+  }) => (
     <span data-testid="claim" data-claim={id} data-text={text}>
-      {JSON.stringify(values)}
+      {face
+        ? face({ text: text ?? "", figure: "$40K+", rest: "donated in crypto and goods", date: "2 Oct 2026", chips: <span data-testid="chip">chips</span> })
+        : JSON.stringify(values)}
     </span>
   ),
 }));
@@ -332,56 +345,110 @@ describe("live figures", () => {
   });
 });
 
-describe("ImpactStrip", () => {
+describe("ImpactStrip (the lobby board)", () => {
   const paw = pawView("registered", me());
+  const paid = snapshot({
+    sources: { chain: "ok", mongo: "ok" },
+    money: {
+      custody: "handed-over",
+      bySymbol: { USDC: "63850000000000000000", "USDC.e": "200000000000000000", USDG: "100000000000000000" },
+      byBucket: {},
+      eventCount: 60,
+      lastTxHash: null,
+    },
+    treats: { confirmedCount: 86, onTheirWayCount: 0, totalConfirmedWei: "860000000000000000" },
+  });
 
-  it("is static: aria-live off, a pause control, and a future-tense empty state", () => {
-    const onOpen = jest.fn();
-    render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={onOpen} isApp={false} />);
-    const strip = screen.getByTestId("impact-strip");
-    expect(strip.getAttribute("aria-live")).toBe("off");
+  it("is static: aria-live off and a future-tense empty state once loaded", () => {
+    render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
+    expect(screen.getByTestId("impact-strip").getAttribute("aria-live")).toBe("off");
     expect(screen.getByTestId("impact-strip-empty").textContent).toMatch(/^No treat-rail payouts yet\. The first goes out when the rail opens\.$/);
-    const pause = screen.getByTestId("impact-strip-pause");
+    expect(screen.queryByTestId("impact-strip-skeleton")).toBeNull();
+  });
+
+  it("shows empty slots, not the empty-state sentence, while the snapshot loads", () => {
+    render(<ImpactStrip impact={null} loading paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
+    expect(screen.getAllByTestId("impact-strip-skeleton")).toHaveLength(2);
+    expect(screen.queryByTestId("impact-strip-empty")).toBeNull();
+    expect(screen.getByText("Loading the impact figures.")).toBeTruthy();
+  });
+
+  it("the pause is a small toggle: aria-pressed flips, the name stays, the look changes", () => {
+    const onPausedChange = jest.fn();
+    render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} onPausedChange={onPausedChange} />);
+    const pause = screen.getByRole("button", { name: "Pause lobby animations" });
+    expect(pause).toBe(screen.getByTestId("impact-strip-pause"));
     expect(pause.getAttribute("aria-pressed")).toBe("false");
+    expect(pause.className).not.toMatch(/\bbg-tt-gold-400\b/);
     act(() => {
       fireEvent.click(pause);
     });
+    expect(onPausedChange).toHaveBeenCalledWith(true);
     expect(pause.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByTestId("impact-strip-heart").getAttribute("data-paused")).toBe("true");
+    expect(pause.getAttribute("aria-label")).toBe("Pause lobby animations");
+    expect(pause.className).toMatch(/\bbg-tt-gold-400\b/);
+    expect(pause.getAttribute("title")).toMatch(/paused/i);
+  });
+
+  it("follows a controlled pause from the lobby", () => {
+    const { rerender } = render(
+      <ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} paused={false} onPausedChange={jest.fn()} />
+    );
+    expect(screen.getByTestId("impact-strip-pause").getAttribute("aria-pressed")).toBe("false");
+    rerender(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} paused onPausedChange={jest.fn()} />);
+    expect(screen.getByTestId("impact-strip-pause").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("MY IMPACT opens the tab; PROOF links to /impact", () => {
+    const onOpen = jest.fn();
+    render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={onOpen} isApp={false} />);
     fireEvent.click(screen.getByRole("button", { name: "My impact" }));
     expect(onOpen).toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "Proof" }).getAttribute("href")).toBe("/impact");
   });
 
-  it("a controlled pause is reported to the lobby, which pauses the RESCUE heart too", () => {
-    const onPausedChange = jest.fn();
-    const { rerender } = render(
-      <ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} paused={false} onPausedChange={onPausedChange} />
-    );
-    fireEvent.click(screen.getByTestId("impact-strip-pause"));
-    expect(onPausedChange).toHaveBeenCalledWith(true);
-    rerender(
-      <ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} paused onPausedChange={onPausedChange} />
-    );
-    expect(screen.getByTestId("impact-strip-heart").getAttribute("data-paused")).toBe("true");
-  });
-
-  it("renders money through Claim with a claim id", () => {
-    const paid = snapshot({
-      treats: { confirmedCount: 1, onTheirWayCount: 0, totalConfirmedWei: "10000000000000000" },
-    });
+  it("renders every figure through Claim: treats, shelters, then the direct donations", () => {
     render(<ImpactStrip impact={paid} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
-    expect(screen.getAllByTestId("claim").map((c) => c.getAttribute("data-claim"))).toEqual(["F-026", "L-treats"]);
+    expect(screen.getAllByTestId("claim").map((c) => c.getAttribute("data-claim"))).toEqual(["L-treats", "L-disbursed", "F-026"]);
     expect(screen.queryByTestId("impact-strip-empty")).toBeNull();
   });
 
-  it("uses the registry's short words for F-026 and labels the rail group after it", () => {
+  it("shows one numeral per coin and never a sum", () => {
+    render(<ImpactStrip impact={paid} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
+    const shelters = screen.getAllByTestId("claim").find((c) => c.getAttribute("data-claim") === "L-disbursed")!;
+    const amounts = Array.from(shelters.querySelectorAll('[data-testid="board-amount"]')).map((a) => a.textContent);
+    expect(amounts).toEqual(["63.85USDC", "0.20USDC.e", "0.10USDG"]);
+    expect(shelters.textContent).not.toMatch(/64\.15/);
+    // Every money slot shows its date and its chips.
+    expect(shelters.querySelector('[data-testid="board-asof"]')?.getAttribute("title")).toBe("As of 2 Oct 2026");
+    expect(shelters.querySelector('[data-testid="chip"]')).toBeTruthy();
+  });
+
+  it("uses the registry's short words for F-026: the figure big, its words as the caption", () => {
     render(<ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
     const given = screen.getAllByTestId("claim").find((c) => c.getAttribute("data-claim") === "F-026")!;
     expect(given.getAttribute("data-text")).toBe("$40K+ donated in crypto and goods");
-    const label = screen.getByTestId("impact-strip-rail-label");
-    expect(label.textContent).toBe("On the treat rail:");
-    expect(given.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(given.textContent).toContain("$40K+");
+    expect(given.textContent).toContain("donated in crypto and goods");
+  });
+
+  it("today's paw: one stamp per run, the runs left, the full sentence for screen readers", () => {
+    render(
+      <ImpactStrip impact={snapshot()} paw={paw} onOpenImpact={jest.fn()} isApp={false} now={new Date("2026-10-02T20:00:00Z")} />
+    );
+    const stamps = screen.getByTestId("paw-stamps").children;
+    expect(stamps).toHaveLength(2);
+    expect(stamps[0].getAttribute("data-done")).toBe("true");
+    expect(stamps[1].getAttribute("data-done")).toBeNull();
+    expect(screen.getByTestId("paw-text").textContent).toMatch(/^1 more run for today's paw\. 4h 0m left today \(until .+\)\.$/);
+    expect(screen.getByTestId("paw-countdown").textContent).toBe("4h 0m");
+    expect(screen.getByTestId("paw-countdown").getAttribute("title")).toMatch(/^4h 0m left today/);
+  });
+
+  it("a guest sees the save-progress line and no stamps", () => {
+    render(<ImpactStrip impact={snapshot()} paw={pawView("guest", null)} onOpenImpact={jest.fn()} isApp={false} now={null} />);
+    expect(screen.queryByTestId("paw-stamps")).toBeNull();
+    expect(screen.getByTestId("paw-progress").textContent).toMatch(/Save your progress/);
   });
 
   it("opens web proof from an app build instead of a link", () => {

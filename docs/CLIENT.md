@@ -119,7 +119,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/ui/` | `GameModal`, `PixelFrame`, `lowfx.ts`; `modal/` holds the modal body primitives (see "Modal system"). |
 | `components/errors/` | Root, page, scene, modal and section boundaries, `CrashPanel`, crash probes (RESILIENCE.md). |
 | `components/claims/` | `Claim`, `ProofDrawer`, evidence chips, the web and app label sets, money formatting, fact helpers (plan G11, CLAIMS.md). |
-| `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
+| `components/impact/` | Lobby RESCUE tile, impact board (`ImpactStrip`), `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
@@ -284,7 +284,7 @@ through the web3 module, paid or free.
 - **Leaderboards**: earned Tails, catnip ("TOP CATNIP COLLECTORS", no payout promise), rescuers (Tails given, `GET /user/leaderboard/rescuers`), and per-level Paw Match with exact self rank. Guests see "you would be #N".
 - **Referrals**: web links carry `?ref=<profileId>`. Both sides earn 100 Tails once the referred player's account exists.
 - **Meet your cat** (`components/onboarding/`, plan G3): after the night intro curtain, a pending player (guests included) meets their cat on the landing's altar: the painted tabby crossfades to pixel Scout, then choose one of five starters (decision #19), name it (shared `normalizeCatName`, "Surprise me", featured real-cat names reserved), the reveal ("Meet {name}!"), and three featured rescue cats to follow. SKIP commits the default at any step. The commit is `POST /user/starter` (409 means done); an offline commit is kept as `localStorage["tt.starterDraft"]` (per uid, 30 days) and retried silently. The lobby hero slot shows the cat at an integer scale. `RenameSheet` renames later (one free rename per 30 days).
-- **Impact in the game** (plan G4, G5): the lobby RESCUE tile (badge: lifetime paws, or NEW), MEET SHELTER CATS, the md+ impact strip (today's paw, treats, payouts as claims), MY IMPACT in ABOUT ME, and the end-of-run paw line ("Paw earned: tonight Token Tails pays a treat to Pink Paw." only when the paw is earned and paw sends are on).
+- **Impact in the game** (plan G4, G5): the lobby RESCUE tile (badge: lifetime paws, or NEW), MEET SHELTER CATS, the md+ impact board (`ImpactStrip`: a gold-framed scoreboard of slots: today's paw as run stamps with a countdown, treats sent, paid to shelters with one numeral per coin and never a sum, and the company-reported direct donations; each money slot is a `<Claim variant="tile">` with its as-of date and compact tier/status chips, full label in the tooltip and the full sentence as its accessible name; MY IMPACT, PROOF and a small pause toggle, `aria-pressed`, that stops all looping lobby motion through `components/game/lobbyMotion.ts`: `html[data-motion-paused]` holds every CSS animation outside dialogs and the cat GIFs show a still frame, WCAG 2.2.2), MY IMPACT in ABOUT ME, and the end-of-run paw line ("Paw earned: tonight Token Tails pays a treat to Pink Paw." only when the paw is earned and paw sends are on).
 
 ### Payments
 

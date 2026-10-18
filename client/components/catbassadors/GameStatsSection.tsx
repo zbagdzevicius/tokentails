@@ -1,4 +1,5 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
+import { useLobbyMotionPaused, useStillFrame } from "@/components/game/lobbyMotion";
 import { HUD_LEFT, HUD_RIGHT, HUD_TOP } from "@/components/audio/hudPlacement";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { useGame } from "@/context/GameContext";
@@ -46,6 +47,9 @@ export const GameStatsSection = ({
   setOpenedModal: (modal: GameModal) => void;
 }) => {
   const { gameType } = useGame();
+  // The lobby's pause also holds the ABOUT ME cat still (components/game/lobbyMotion.ts).
+  const motionPaused = useLobbyMotionPaused();
+  const aboutCatStill = useStillFrame(profile?.cat?.catImg, motionPaused);
   const catnipBreakdown = getCatnipBreakdown({
     catnipChaos: profile?.catnipChaos,
     match3: profile?.match3,
@@ -72,7 +76,7 @@ export const GameStatsSection = ({
                 draggable={false}
                 alt=""
                 className="w-20 h-20 -mt-8 pixelated"
-                src={profile.cat?.catImg}
+                src={aboutCatStill ?? profile.cat?.catImg}
               />
             </span>
           )}
