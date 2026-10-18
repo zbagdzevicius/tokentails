@@ -58,11 +58,16 @@ export class Objectives {
   /** 0..1 progress on the chip's ring (Pudding), or null for none. */
   private progress: number | null = null;
 
+  /** Round 1 standing goal: shown whenever no beat is up ("between them the HUD goal was often blank"). */
+  private standingText: BeatText | null = null;
+  private standingKey = '';
+
   constructor(
     parent: HTMLElement | null,
     readonly mode: GuideMode,
   ) {
-    if (parent && mode !== 'off') {
+    // every match has the chip now: matches 4+ only ever show the standing goal
+    if (parent) {
       this.el = document.createElement('div');
       this.el.className = 'pl-goal';
       this.el.setAttribute('role', 'status');
@@ -101,6 +106,37 @@ export class Objectives {
     this.show(id);
   }
 
+  /** The standing goal (null: none). Drawn at once when no beat is up; a beat replaces it while it runs. */
+  standing(t: BeatText | null): void {
+    const key = t ? `${t.title}|${t.sub}` : '';
+    if (key === this.standingKey) return;
+    this.standingKey = key;
+    this.standingText = t;
+    if (!this.active) this.drawStanding();
+  }
+
+  /** The standing goal on screen now (tests, e2e), or null. */
+  get standingTitle(): string | null {
+    return this.active ? null : (this.standingText?.title ?? null);
+  }
+
+  private drawStanding(): void {
+    const el = this.el;
+    if (!el) return;
+    const t = this.standingText;
+    if (!t) {
+      el.classList.remove('on', 'standing');
+      return;
+    }
+    el.dataset.goal = 'standing';
+    el.innerHTML = `<span class="ico">${icon(t.icon)}</span><span class="txt"><b></b><small></small></span>`;
+    (el.querySelector('b') as HTMLElement).textContent = t.title;
+    (el.querySelector('small') as HTMLElement).textContent = t.sub;
+    this.ringEl = null;
+    el.classList.remove('done', 'prog');
+    el.classList.add('on', 'standing');
+  }
+
   private show(id: BeatId): void {
     this.fired.add(id);
     this.active = { id, left: BEAT_TTL[id] };
@@ -113,7 +149,7 @@ export class Objectives {
     (el.querySelector('b') as HTMLElement).textContent = t.title;
     (el.querySelector('small') as HTMLElement).textContent = t.sub;
     this.ringEl = el.querySelector('.ring');
-    el.classList.remove('done');
+    el.classList.remove('done', 'standing');
     el.classList.add('on');
     setGoalAttr(id);
   }
@@ -154,6 +190,7 @@ export class Objectives {
     this.queue = this.queue.filter((q) => !this.done.has(q) && !this.fired.has(q));
     const next = this.queue.shift();
     if (next) this.show(next);
+    else this.drawStanding();
   }
 
   dispose(): void {

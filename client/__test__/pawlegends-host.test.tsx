@@ -319,9 +319,9 @@ describe("PawlegendsHost: account and saves", () => {
       type: "session",
       signedIn: true,
       progress: {
-        catnip: { easy: 20, normal: 0, rookie: 0 },
-        matches: { easy: 3, normal: 1, rookie: 0 },
-        fastestWin: { easy: 8123, normal: 0, rookie: 0 },
+        catnip: { easy: 20, normal: 0, rookie: 0, hard: 0 },
+        matches: { easy: 3, normal: 1, rookie: 0, hard: 0 },
+        fastestWin: { easy: 8123, normal: 0, rookie: 0, hard: 0 },
       },
     });
   });
@@ -348,9 +348,9 @@ describe("PawlegendsHost: account and saves", () => {
     });
     expect(mockSetProfileUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        pawlegendsCatnip: { easy: 20, normal: 0, rookie: 0 },
-        pawlegendsMatches: { easy: 1, normal: 0, rookie: 0 },
-        pawlegendsFastestWin: { easy: 9000, normal: 0, rookie: 0 },
+        pawlegendsCatnip: { easy: 20, normal: 0, rookie: 0, hard: 0 },
+        pawlegendsMatches: { easy: 1, normal: 0, rookie: 0, hard: 0 },
+        pawlegendsFastestWin: { easy: 9000, normal: 0, rookie: 0, hard: 0 },
         catnipCount: 140,
       })
     );

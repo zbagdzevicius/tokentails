@@ -4,7 +4,8 @@
  * *which* cat; this mirror only decides whether the game may show it now. The local starter/founder engine is
  * retired: without a host answer there is no card.
  *
- * Never: in session 1, outside the lobby (title) and results screens, in app builds, without the host checkout, for
+ * Never: in session 1 (counted from the first finished match, round 2: `playSession`), for a card the player closed
+ * lately (MEET_SNOOZE), outside the lobby (title) and results screens, in app builds, without the host checkout, for
  * a cat the player already owns or the host did not feature, or twice in a page session.
  *
  * The legacy exports (`pickOffer`, `offerOf`, `markShown`, `endsText`, the starter/founder `Offer`) stay so older
@@ -29,7 +30,14 @@ export interface MeetInput {
   featured: readonly string[];
   /** Catalog ids the player owns (roster). */
   owned: readonly string[];
+  /** Round 2: the Meet card the player closed last and the current page session and time (ms). */
+  closed?: { id: string; session: number; at: number } | null;
+  pageSession?: number;
+  now?: number;
 }
+
+/** Round 2: a closed Meet card stays away for MEET_SNOOZE.sessions page sessions and at least MEET_SNOOZE.ms. */
+export const MEET_SNOOZE = Object.freeze({ sessions: 3, ms: 3 * 24 * 3600 * 1000 });
 
 /** Pure: the Meet offer to show now, or null. */
 export function pickMeet(i: MeetInput): MeetOffer | null {
@@ -39,6 +47,8 @@ export function pickMeet(i: MeetInput): MeetOffer | null {
   const o = i.hostOffer;
   if (!o || o.kind !== 'meet') return null;
   if (!i.featured.includes(o.catalogId) || i.owned.includes(o.catalogId)) return null;
+  const c = i.closed;
+  if (c && c.id === o.catalogId && ((i.pageSession ?? c.session) - c.session <= MEET_SNOOZE.sessions || (i.now ?? c.at) - c.at < MEET_SNOOZE.ms)) return null;
   return o;
 }
 

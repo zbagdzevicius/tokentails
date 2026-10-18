@@ -17,7 +17,7 @@ import type { AnalyticsEvent, AnalyticsProps } from '../analytics/posthog';
 import { CheckoutBridge, INTENT_HOLD_MS } from '../money/checkoutBridge';
 import type { Entitlements } from '../money/entitlements';
 import { pickMeet } from '../money/offer';
-import { accountState, mergeServerProgress, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
+import { accountState, mergeServerProgress, playSession, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
 import { parseRoster, rosterCosmetics, setAppBuild, type RosterCat } from '../meta/roster';
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
 import { meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
@@ -54,6 +54,8 @@ export interface IntegrationDeps {
   /** Where the screens live (default `#app`). */
   root?: HTMLElement | null;
   now?: () => number;
+  /** Round 1: a portrait of the player's hero in an element's chroma, for the Meet card preview (null: none). */
+  chromaPreview?: (element: string) => { url: string; hero: string } | null;
 }
 
 export interface MatchInfo {
@@ -212,9 +214,9 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   // the host tracks the prompt (`pawlegends_signin_prompt`); the game only asks
   const signIn = (reason: SignInReason): void => void bridge.post('request-sign-in', { reason });
 
-  const mate = (c: { id: string; name: string; element: RosterCat['type']; tier: RosterCat['tier']; art?: string }): SquadMate => {
+  const mate = (c: { id: string; name: string; element: RosterCat['type']; tier: RosterCat['tier']; art?: string; fromPack?: boolean }): SquadMate => {
     const art = c.art ?? s.roster.find((r) => r.id === c.id)?.art;
-    return { id: c.id, name: c.name, type: c.element, tier: c.tier, ...(art ? { art } : {}) };
+    return { id: c.id, name: c.name, type: c.element, tier: c.tier, ...(art ? { art } : {}), ...(c.fromPack ? { fromPack: true } : {}) };
   };
   const squad = (): SquadMate[] => cosmetics().companions.map(mate);
   /** Every other owned cat (the pick screen's swap row). */
@@ -229,13 +231,18 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     }
     // fun plan F4: no offer after a Rookie match
     if (screen === 'results' && s.match?.difficulty === 'rookie') return null;
+    const prof = deps.profile();
     const o = pickMeet({
-      session: deps.profile().sessions,
+      session: playSession(prof),
+      closed: prof.meetClosed,
+      pageSession: prof.sessions,
+      now: Date.now(),
       screen: screen === 'title' ? 'lobby' : 'results',
       store: deps.ent.snapshot(),
       shownThisSession: s.offerShown,
       hostOffer: s.hostOffer,
-      featured: featuredIds(),
+      // round 1: only cats with art get a Meet card (never ask to adopt a cat the player cannot see)
+      featured: s.featured.filter((c) => !!c.art).map((c) => c.catalogId),
       owned: cosmetics().catalogIds,
     });
     if (!o) return null;
@@ -251,6 +258,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   const meetModel = (cat: FeaturedCat) => ({
     cat,
+    preview: deps.chromaPreview?.(cat.type) ?? null,
     waiting: checkout.waiting() === cat.catalogId,
     onMeet: () => {
       deps.analytics.track('offer_click', { kind: 'meet', catalogId: cat.catalogId });
@@ -270,6 +278,16 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     s.liveOffer = null;
     document.documentElement.dataset.offer = '';
   };
+  /** Round 2: the player closed the card (✕): remember it, so it does not come back on every page load. */
+  const dismissMeet = (): void => {
+    const live = s.liveOffer;
+    if (live) {
+      const p = deps.profile();
+      p.meetClosed = { id: live.offer.catalogId, session: p.sessions, at: Date.now() };
+      saveProfile(p);
+    }
+    closeMeet();
+  };
 
   /** The inline part goes in the slot, the corner cards (Meet, squad, companion) in the screen dock. */
   const renderCards = (slot: HTMLElement, kind: ScreenKind, scr: HTMLElement): void => {
@@ -284,10 +302,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       slot.replaceChildren(
         titleCards(
           { badges: levelBadges(s.progress, p.fastest), askSignIn: ask && p.matches >= 1, meet: null, joined: s.joined, squad: s.signedIn ? squad() : [] },
-          { signIn: () => signIn('save-progress'), meetClosed: closeMeet },
+          { signIn: () => signIn('save-progress'), meetClosed: dismissMeet },
         ),
       );
-      dock.replaceChildren(...(cat ? [meetCard({ ...meetModel(cat), onClose: closeMeet })] : []));
+      dock.replaceChildren(...(cat ? [meetCard({ ...meetModel(cat), onClose: dismissMeet })] : []));
     } else if (kind === 'pick') {
       slot.replaceChildren();
       dock.replaceChildren(
@@ -318,7 +336,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
             notify: !!s.app?.notify && deps.ent.snapshot().notifyOpen && !scr.querySelector('[data-a="notify"]'),
           },
           {
-            meetClosed: closeMeet,
+            meetClosed: dismissMeet,
             notify: () => {
               if (bridge.post('notify', { where: 'results' })) deps.analytics.track('notify_signup', { where: 'results' });
             },

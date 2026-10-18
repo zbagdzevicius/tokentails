@@ -6,6 +6,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
   name: 'Sir Brutus',
   side: 'dog',
   role: 'tank',
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+  pvp: { dmgBp: 11100, takenBp: 9250 },
   element: 'SAND',
   base: { hp: 760, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 36, range: 1600, speed: 4800, armour: 40, armourPerLevel: 3 },
   /** Honour: damage from heroes builds a shield up to 12% max HP over 4 s; decays after 3 s out of combat. */

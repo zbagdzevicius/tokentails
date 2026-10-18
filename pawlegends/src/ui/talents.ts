@@ -92,6 +92,18 @@ export class TalentPicker {
     if (this.left <= 0) this.pick(0, true);
   }
 
+  private lastAt = -1;
+  /**
+   * Round 2 (a card stayed open 12 to 20 s on a slow phone: frame dt is clamped, so summed dt ran slow): advance the
+   * timer by wall-clock time × `speed` (match speed), at most 1 s a call; `running` false (paused, ended) holds it.
+   */
+  tick(running: boolean, speed: number, now: number = performance.now()): void {
+    const last = this.lastAt;
+    this.lastAt = now;
+    if (!running || last < 0) return;
+    this.update(Math.min(1, Math.max(0, (now - last) / 1000)) * speed);
+  }
+
   /** Seconds before the open offer is auto-picked (tests). */
   get timeLeft(): number {
     return this.open ? Math.max(0, this.left) : 0;

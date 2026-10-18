@@ -19,7 +19,7 @@ export interface Quest {
 export const QUEST_XP = 50;
 
 export const QUEST_POOL: readonly Quest[] = Object.freeze([
-  { id: 'takedowns5', text: 'Get 5 takedowns', goal: 5, metric: 'takedowns' },
+  { id: 'takedowns5', text: 'Get 5 takedowns (K + A)', goal: 5, metric: 'takedowns' },
   { id: 'pudding', text: 'Calm Pudding', goal: 1, metric: 'pudding' },
   { id: 'win', text: 'Win a match', goal: 1, metric: 'win' },
   { id: 'win_clem', text: 'Win with Clem', goal: 1, metric: 'win', hero: 'clem' },
@@ -29,7 +29,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'play2', text: 'Play 2 matches', goal: 2, metric: 'matches' },
   { id: 'towers2', text: 'Take down 2 towers', goal: 2, metric: 'towers' },
   { id: 'combo3', text: 'Land 3 combos', goal: 3, metric: 'combos' },
-  { id: 'takedowns10', text: 'Get 10 takedowns', goal: 10, metric: 'takedowns' },
+  { id: 'takedowns10', text: 'Get 10 takedowns (K + A)', goal: 10, metric: 'takedowns' },
 ] as Quest[]);
 
 export interface QuestState {

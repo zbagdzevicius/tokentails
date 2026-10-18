@@ -132,7 +132,7 @@ export const G = Object.freeze({
   HumanPY: 39, // lint-sim: allow
   /** Sim v5: the human's team's core cannot be hit before this tick (DifficultyRules.humanCoreOpenAt). */
   HumanCoreOpenAt: 40, // lint-sim: allow
-  /** Sim v5: 1 = data/heroes SIDE_EDGE applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
+  /** Sim v5: 1 = the per-hero tuning (HeroData.pvp, sim v8; SIDE_EDGE before) applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
   SideEdge: 41, // lint-sim: allow
   Count: 42, // lint-sim: allow
 } as const);

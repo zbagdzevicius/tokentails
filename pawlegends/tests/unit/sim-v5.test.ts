@@ -3,7 +3,9 @@
  * that scales with how open the core is, the last-hit XP bonus, and species teams.
  */
 import { describe, expect, it } from 'vitest';
-import { DIFFICULTY_RULES } from '../../src/data/bots';
+import { BOTS, DIFFICULTIES, DIFFICULTY_RULES } from '../../src/data/bots';
+import { TRICK_IDS } from '../../src/data/tricks';
+import { offenseTrick } from '../../src/sim/bots/casts';
 import { FOUNTAIN, HERO_SPAWNS, LANE_WAYPOINTS, MAP, NAV, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS } from '../../src/data/map';
 import { SUNSET } from '../../src/data/timeline';
 import { MINIONS } from '../../src/data/minions';
@@ -88,15 +90,15 @@ describe('sim v5 carry leash', () => {
 });
 
 describe('sim v5 Rookie core floor and Sunset', () => {
-  it("Rookie: the human's core keeps 15% before 6:00, then can fall", () => {
+  it("Rookie: the human's core keeps 15% before 6:30 (sim v7; 6:00 in v5), then can fall", () => {
     const m = quietMatch(1, false, 'rookie');
     const w = m.world;
     const core = coreId(0);
-    expect(DIFFICULTY_RULES.rookie.humanCoreOpenAt).toBe(10800);
+    expect(DIFFICULTY_RULES.rookie.humanCoreOpenAt).toBe(11700);
     w.globals[G.Tick] = 5000;
     dealDamage(m, -1, 1, Kind.None, core, w.maxHp[core] * 2, 'zone', { pure: true, pierce: true });
     expect(w.hp[core]).toBe(applyBp(w.maxHp[core], DIFFICULTY_RULES.rookie.humanCoreFloorBp));
-    w.globals[G.Tick] = 10800;
+    w.globals[G.Tick] = 11700;
     dealDamage(m, -1, 1, Kind.None, core, w.maxHp[core] * 2, 'zone', { pure: true, pierce: true });
     expect(w.hp[core]).toBeLessThanOrEqual(0);
   });
@@ -134,5 +136,38 @@ describe('sim v5 last-hit XP', () => {
     const gained0 = w.xp[0] - xp0;
     const gained1 = w.xp[1] - xp1;
     expect(gained0 - gained1).toBe(applyBp(MINIONS.melee.xp, XP.lastHitBp));
+  });
+});
+
+describe('sim v6 Hard bots', () => {
+  it('Hard reacts in ≤ 5 ticks, aims within ±5°, slips ≤ 4% and uses its Paw Trick to engage', () => {
+    const h = BOTS.hard;
+    expect(DIFFICULTIES).toEqual(['easy', 'normal', 'rookie', 'hard']);
+    expect(h.reactionTicks).toBeLessThanOrEqual(5);
+    expect(h.aimErrorSteps).toBeLessThanOrEqual(60);
+    expect(h.mistakeBp).toBeLessThanOrEqual(400);
+    expect(h.trick).toBe('offensive');
+    expect(h.retreatHpBp).toBeGreaterThan(BOTS.normal.retreatHpBp);
+    // Sim v7 (playtest round 1: "a veteran will call hidden edges rigged"): Hard is harder through behaviour only.
+    expect(DIFFICULTY_RULES.hard.enemyRespawnBp).toBe(10000);
+    expect(DIFFICULTY_RULES.hard.humanTakenBp).toBe(10000);
+    expect(h.defendBase && h.hunts).toBe(true);
+    expect(DIFFICULTY_RULES.hard.nineLivesLossBp).toBeGreaterThanOrEqual(4000);
+
+  });
+
+  it('a Hard bot with Pounce blinks onto a low foe just out of reach; Normal never does', () => {
+    const m = quietMatch(1, false, 'hard');
+    const w = m.world;
+    const bot = 3;
+    w.trick[bot] = TRICK_IDS.indexOf('pounce');
+    putHero(m, bot, 50000, 30000);
+    putHero(m, 0, 50000 - 3500, 30000);
+    w.hp[0] = applyBp(w.maxHp[0], 2000);
+    const c = offenseTrick(w, bot, 0, BOTS.hard);
+    expect(c?.op).toBe(Op.Trick);
+    expect(offenseTrick(w, bot, 0, BOTS.normal)).toBeNull();
+    w.hp[0] = w.maxHp[0];
+    expect(offenseTrick(w, bot, 0, BOTS.hard)).toBeNull();
   });
 });

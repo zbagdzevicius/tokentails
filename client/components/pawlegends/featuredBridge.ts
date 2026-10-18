@@ -70,7 +70,9 @@ export function pickFeatured(
         isCatForSale(cat) &&
         !ownsCopy(owned, cat) &&
         ABILITY_TYPES.has(String(cat.type)) &&
-        !!catNameOf(cat.name)
+        !!catNameOf(cat.name) &&
+        // Pawlegends playtest round 1: never offer a cat the player cannot see (the Meet card showed a paw placeholder)
+        !!artUrlOf(cat.catImg)
     )
     .map((cat) => ({ cat, missing: !have.has(String(cat.type)), order: hash(`${day}:${cat._id}`) }))
     .sort((a, b) => Number(b.missing) - Number(a.missing) || a.order - b.order);

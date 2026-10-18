@@ -50,6 +50,8 @@ export class StructureView {
   private geoCache = new Map<string, THREE.BufferGeometry>();
   private time = 0;
   myTeam: 0 | 1 = 0;
+  /** Round 2: team 0 is the dogs (the human picked a dog): each base wears the other team's style. */
+  styleSwap = false;
   /** Player hero position (m) for the range rings; null when dead. */
   me: { x: number; z: number } | null = null;
   /** Hero positions (m) this frame, for the x-ray fade. */
@@ -61,7 +63,8 @@ export class StructureView {
   }
 
   private geo(e: ViewEntity): THREE.BufferGeometry {
-    const team = (e.team === 1 ? 1 : 0) as 0 | 1;
+    // round 2: the base looks like its species (a dog-picking human defends the bone-topped doghouse)
+    const team = ((e.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) as 0 | 1;
     const key = `${e.kind}:${team}:${e.variant ?? ''}`;
     let g = this.geoCache.get(key);
     if (!g) {

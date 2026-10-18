@@ -122,10 +122,10 @@ export function installBridge(win: Window = window, version = String(import.meta
 // fields are dropped, never passed on.
 
 /** Difficulty keys of `session.progress` (shared/caps.ts PAWLEGENDS_LEVELS). */
-export const PROGRESS_LEVELS = Object.freeze(['easy', 'normal', 'rookie'] as const);
+export const PROGRESS_LEVELS = Object.freeze(['easy', 'normal', 'rookie', 'hard'] as const);
 export type ProgressLevel = (typeof PROGRESS_LEVELS)[number];
 /** shared/caps.ts PAWLEGENDS_LEVEL_CAPS by level (display only: the backend pays; a unit test pins the mirror). */
-export const LEVEL_CATNIP: Readonly<Record<ProgressLevel, number>> = Object.freeze({ easy: 20, normal: 40, rookie: 10 });
+export const LEVEL_CATNIP: Readonly<Record<ProgressLevel, number>> = Object.freeze({ easy: 20, normal: 40, rookie: 10, hard: 0 });
 /** shared/caps.ts PAWLEGENDS_MAX_TICKS (30 Hz × 660 s). */
 export const PROGRESS_MAX = 19800;
 

@@ -12,6 +12,8 @@ import { BP_ONE, applyBp, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, RANGE, type World } from '../world';
 import { offerTalent } from '../heroes/talents';
+import { HUMAN_SLOT, teamOfSlot } from '../api';
+import { rulesOf } from '../rules';
 
 export type XpReason = Extract<SimEvent, { type: 'xp' }>['reason'];
 
@@ -44,7 +46,13 @@ export function grantXp(m: MatchHandle, id: number, amount: number, reason: XpRe
   const w = m.world;
   if (amount <= 0 || w.alive[id] === 0 || w.hp[id] <= 0) return;
   const bonus = exact ? 0 : catchUpBp(w, id);
-  const total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
+  let total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
+  // Sim v7 rubber band (DifficultyRules.enemyAheadXpBp, Rookie): an enemy hero XP.aheadLevels or more above the human
+  // earns less XP, so a first-timer who feeds is not facing level 10s at 5:00 with level 7 allies.
+  const rules = rulesOf(m);
+  if (rules.enemyAheadXpBp < BP_ONE && w.team[id] !== teamOfSlot(HUMAN_SLOT) && w.level[id] >= w.level[HUMAN_SLOT] + XP.aheadLevels) {
+    total = Math.max(1, applyBp(total, rules.enemyAheadXpBp));
+  }
   w.xp[id] += total;
   m.events.push({ type: 'xp', tick: w.globals[G.Tick], id, amount: total, reason });
   const target = levelForXp(w.xp[id]);

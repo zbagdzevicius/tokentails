@@ -6,12 +6,13 @@
 var DIFFICULTIES = Object.freeze([
 	"easy",
 	"normal",
-	"rookie"
+	"rookie",
+	"hard"
 ]);
 var DIFFICULTY_RULES = Object.freeze({
 	rookie: Object.freeze({
 		coreOpenAt: 0,
-		humanCoreOpenAt: 10800,
+		humanCoreOpenAt: 11700,
 		humanCoreFloorBp: 1500,
 		pushNeedsHuman: true,
 		sideEdge: false,
@@ -34,7 +35,14 @@ var DIFFICULTY_RULES = Object.freeze({
 		rallyBp: 1100,
 		rallyCap: 8,
 		scriptFrom: 450,
-		scriptUntil: 1800
+		scriptUntil: 1800,
+		leadPressure: false,
+		takedownChipBp: 0,
+		takedownChipCapBp: 0,
+		takedownTowerChipBp: 0,
+		truceUntil: 1200,
+		enemyAheadXpBp: 5e3,
+		humanDeathCore: false
 	}),
 	easy: Object.freeze({
 		coreOpenAt: 10800,
@@ -51,7 +59,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		towerKnockback: false,
 		carryAllies: 2,
 		enemiesToHuman: false,
-		humanDamageBp: 10500,
+		humanDamageBp: 10300,
 		humanTakenBp: 1e4,
 		humanRegenBp: 1e4,
 		humanPanicBp: 0,
@@ -61,7 +69,54 @@ var DIFFICULTY_RULES = Object.freeze({
 		rallyBp: 0,
 		rallyCap: 0,
 		scriptFrom: 0,
-		scriptUntil: 0
+		scriptUntil: 0,
+		leadPressure: false,
+		takedownChipBp: 0,
+		takedownChipCapBp: 0,
+		takedownTowerChipBp: 0,
+		truceUntil: 1200,
+		enemyAheadXpBp: 1e4,
+		humanDeathCore: true
+	}),
+	/**
+	* Sim v6 Hard: Normal's structures; Nine Lives starts later (a clean combo can finish a hero); enemy heroes are back
+	* in 0.65 of the time and hit the human 10% harder. Better decisions alone barely moved the odds (a Normal-level
+	* player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
+	* two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
+	*/
+	hard: Object.freeze({
+		coreOpenAt: 0,
+		humanCoreOpenAt: 0,
+		humanCoreFloorBp: 0,
+		pushNeedsHuman: false,
+		sideEdge: true,
+		nineLivesLossBp: 4500,
+		enemyBackdoor: true,
+		structureHpBp: 13500,
+		coreHpBp: 13e3,
+		humanRespawnBp: 1e4,
+		nearAssists: false,
+		towerKnockback: false,
+		carryAllies: 0,
+		enemiesToHuman: false,
+		humanDamageBp: 1e4,
+		humanTakenBp: 1e4,
+		humanRegenBp: 1e4,
+		humanPanicBp: 0,
+		spareHuman: 0,
+		enemyRespawnBp: 1e4,
+		enemyComeback: true,
+		rallyBp: 0,
+		rallyCap: 0,
+		scriptFrom: 0,
+		scriptUntil: 0,
+		leadPressure: true,
+		takedownChipBp: 500,
+		takedownChipCapBp: 2e3,
+		takedownTowerChipBp: 1500,
+		truceUntil: 0,
+		enemyAheadXpBp: 1e4,
+		humanDeathCore: true
 	}),
 	normal: Object.freeze({
 		coreOpenAt: 0,
@@ -88,7 +143,14 @@ var DIFFICULTY_RULES = Object.freeze({
 		rallyBp: 0,
 		rallyCap: 0,
 		scriptFrom: 0,
-		scriptUntil: 0
+		scriptUntil: 0,
+		leadPressure: true,
+		takedownChipBp: 500,
+		takedownChipCapBp: 2e3,
+		takedownTowerChipBp: 2e3,
+		truceUntil: 900,
+		enemyAheadXpBp: 1e4,
+		humanDeathCore: true
 	})
 });
 var BOTS = Object.freeze({
@@ -112,7 +174,9 @@ var BOTS = Object.freeze({
 		/** Takes bad fights: engages at 40% of the other side's power. */
 		fightPowerBp: 4e3,
 		pickups: false,
-		pressAhead: 0
+		pressAhead: 0,
+		defendBase: false,
+		hunts: false
 	}),
 	easy: Object.freeze({
 		reactionTicks: 18,
@@ -132,7 +196,9 @@ var BOTS = Object.freeze({
 		structureFirst: false,
 		fightPowerBp: 16e3,
 		pickups: true,
-		pressAhead: 0
+		pressAhead: 0,
+		defendBase: false,
+		hunts: false
 	}),
 	normal: Object.freeze({
 		reactionTicks: 9,
@@ -159,7 +225,33 @@ var BOTS = Object.freeze({
 		structureFirst: true,
 		fightPowerBp: 6e3,
 		pickups: true,
-		pressAhead: 3
+		pressAhead: 3,
+		defendBase: true,
+		hunts: false
+	}),
+	/**
+	* Sim v6 Hard (playtest round 0): reacts in 5 ticks, ±5° aim, 3% mistakes, every ability in a fight, Paw Tricks
+	* used to engage too (bots/casts.ts offenseTrick), retreats at 20% and engages at 70% of the other side's power
+	* (5000 threw fights away: the Normal player-bot won 54.5% against it).
+	*/
+	hard: Object.freeze({
+		reactionTicks: 5,
+		/** ±5° (5/360 × 4096 ≈ 57). */
+		aimErrorSteps: 57,
+		mistakeBp: 300,
+		retreatHpBp: 2e3,
+		trick: "offensive",
+		contestPuddingBp: 1e4,
+		abilityUseBp: 1e4,
+		waveClear: true,
+		groupAt: 7050,
+		dives: true,
+		structureFirst: true,
+		fightPowerBp: 7e3,
+		pickups: true,
+		pressAhead: 3,
+		defendBase: true,
+		hunts: true
 	})
 });
 var BOT_TEAMS = Object.freeze({ allies: "normal" });
@@ -265,7 +357,22 @@ var BOT_AI = Object.freeze({
 	leashObjective: 1e4,
 	/** Below the retreat threshold a bot walks home only when threatened (an aware enemy hero, tower fire) or below
 	*  this share of the threshold; otherwise it keeps farming without starting fights. */
-	retreatAlwaysBp: 5e3
+	retreatAlwaysBp: 5e3,
+	/** Sim v7 base defence (BotParams.defendBase): an enemy hero, or this many enemy minions, within baseThreatRange
+	*  of an own inner tower or the core is a base threat. Bots further than napMinDist from it nap home first. */
+	baseThreatRange: 9e3,
+	coreThreatRange: 15e3,
+	baseThreatMinions: 2,
+	/** A minion-only base threat pulls only bots this close to the threatened structure. */
+	baseThreatPull: 2e4,
+	/** Sim v7 lead pressure (DifficultyRules.leadPressure): a team this far ahead (takedowns + 3 per tower) groups and
+	*  sieges from leadGroupFrom on, before its groupAt. */
+	leadGroup: 5,
+	leadGroupFrom: 3600,
+	/** Sim v7 Hard (BotParams.hunts): steps back when this far ahead of its own wave front with no allied hero near. */
+	overextend: 6e3,
+	/** Sim v7 Hard: a huntable foe (under crowd control, or inside our tower's reach) scores this much better (HP). */
+	huntKey: 400
 });
 /** Bot modes (`World.botMode`). */
 var BOT_MODE = Object.freeze({
@@ -282,7 +389,8 @@ Object.freeze([
 	"easy",
 	"normal",
 	"naive",
-	"parked"
+	"parked",
+	"feeder"
 ]);
 Object.freeze({
 	at: 900,
@@ -309,7 +417,12 @@ Object.freeze({
 	/** Follows its wave: attack-moves to this far behind the front allied minion (mm). */
 	followBehind: 1500
 });
-Object.freeze({
+/**
+* The naive player-bot (src/sim/bots/naive.ts): a scripted stand-in for a real first-timer, built from the playtest
+* diagnosis. It is the fun gate's player (`npm run match -- --gate fun1`): it chases, mashes Q/E/R, ignores towers
+* and never naps. On sim v3 it reproduced the diagnosis vs Easy (see naive.ts).
+*/
+var NAIVE = Object.freeze({
 	/** Notices an enemy hero after this many ticks in view. */
 	reactionTicks: 12,
 	/** Attack-moves to the nearest enemy hero this close. */
@@ -337,6 +450,17 @@ Object.freeze({
 	/** Follows its wave: attack-moves to this far behind the front allied minion (mm). */
 	followBehind: 1500
 });
+Object.freeze({
+	...NAIVE,
+	seekRange: 22e3,
+	chaseRange: 3e4,
+	towerHits: 1e3,
+	retreatHpBp: 800,
+	returnHpBp: 6e3,
+	idleBp: 1500,
+	/** Walks at the nearest enemy structure in its lane instead of behind its wave. */
+	dive: true
+});
 //#endregion
 //#region src/data/heroes/brutus.ts
 var BRUTUS = Object.freeze({
@@ -344,6 +468,11 @@ var BRUTUS = Object.freeze({
 	name: "Sir Brutus",
 	side: "dog",
 	role: "tank",
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11100,
+		takenBp: 9250
+	},
 	element: "SAND",
 	base: {
 		hp: 760,
@@ -432,6 +561,11 @@ var CACKLEJAW = Object.freeze({
 	name: "Cacklejaw",
 	side: "dog",
 	role: "assassin",
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11100,
+		takenBp: 9250
+	},
 	element: "DARK",
 	base: {
 		hp: 520,
@@ -530,6 +664,11 @@ var CLEM = Object.freeze({
 	name: "Clem",
 	side: "cat",
 	role: "fighter",
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 1e4,
+		takenBp: 1e4
+	},
 	element: "FAIRY",
 	base: {
 		hp: 620,
@@ -624,6 +763,11 @@ var SAGE = Object.freeze({
 	name: "Sage",
 	side: "cat",
 	role: "marksman",
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 1e4,
+		takenBp: 1e4
+	},
 	element: "WIND",
 	base: {
 		hp: 480,
@@ -742,21 +886,6 @@ var HEROES = Object.freeze({
 var HERO_HP_BP = 1e4;
 /** Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. */
 var HERO_VS_HERO_BP = 13e3;
-/**
-* Species edge (sim v5, species teams: cats vs dogs). A team is all cats or all dogs, so the two sides are tuned as
-* a whole: in hero-vs-hero damage, each side's heroes deal heroDmgBp and take heroTakenBp (balance gate: every
-* hero 42% to 58% on Normal vs Normal). Only where DifficultyRules.sideEdge is on (the sim's G.SideEdge flag).
-*/
-var SIDE_EDGE = Object.freeze({
-	cat: Object.freeze({
-		heroDmgBp: 1e4,
-		heroTakenBp: 1e4
-	}),
-	dog: Object.freeze({
-		heroDmgBp: 11800,
-		heroTakenBp: 8800
-	})
-});
 //#endregion
 //#region src/data/timeline.ts
 var TIMELINE = Object.freeze({
@@ -804,7 +933,15 @@ var SUDDEN_DEATH = Object.freeze({
 	/** Cores lose 3% max HP a second (v4; 2% before). */
 	coreDecayBpPerSecond: 300,
 	/** Each takedown deals 10% core damage to the victim's core. */
-	takedownCoreBp: 1e3
+	takedownCoreBp: 1e3,
+	/**
+	* Sim v7 (playtest round 1: "losing every fight still wins"): a core's decay grows by this much per takedown its
+	* team trails by (and shrinks by it per takedown ahead), within decayMinBp..decayMaxBp. A team 10 behind burns at
+	* 5.5% a second, the team ahead at 1%.
+	*/
+	decayPerTakedownBp: 25,
+	decayMinBp: 100,
+	decayMaxBp: 600
 });
 var TIMELINE_BY = Object.freeze({
 	/** Match 1: 4:00 Sunset, 6:15 Sudden Death (the plan said 5:30; at 5:30 a third of the fun1 matches reached it). */
@@ -818,6 +955,10 @@ var TIMELINE_BY = Object.freeze({
 	}),
 	/** Sim v5: 6:00 Sunset, 7:45 Sudden Death, so a late teamfight can still turn a Normal match. */
 	normal: Object.freeze({
+		sunset: 10800,
+		suddenDeath: 13950
+	}),
+	hard: Object.freeze({
 		sunset: 10800,
 		suddenDeath: 13950
 	})
@@ -1576,13 +1717,19 @@ var XP = Object.freeze({
 	shareRange: 1e4,
 	/** Assists count if they hit the victim in the last 10 s (v4; 6 s before). */
 	assistWindow: 300,
-	/** Catch-up per hero (v4): +25% XP from every source per level below the enemy average, at most +75%. */
-	catchUpPerLevelBp: 2500,
+	/** Catch-up per hero (v4): +25% XP from every source per level below the enemy average, at most +75%. Sim v8
+	*  (playtest round 2: "once behind, the human falls 2 to 4 levels below the lobby and the gap never closes"): +35%. */
+	catchUpPerLevelBp: 3500,
 	catchUpMaxBp: 7500,
 	/** The first level behind earns no catch-up (a small team lead stays a lead). */
 	catchUpFreeLevels: 1,
 	/** A victim more than one level above its killer gives +50% kill XP. */
 	upsetBp: 15e3,
+	/** Sim v7 rubber band (DifficultyRules.enemyAheadXpBp): enemy heroes this many levels above the human. */
+	aheadLevels: 2,
+	/** Sim v8 (playtest round 2: "once behind, the gap never closes"): a team whose summed level is below the other
+	*  team's gets this share of the rat camp's XP (on top of the catch-up), so the trailing team has a reason to farm it. */
+	campBehindBp: 15e3,
 	/** Sim v5: the hero who last-hits a lane minion gets this share of its XP on top of its split share. */
 	lastHitBp: 5e3,
 	/** XP trickle: per living hero per second, from the first wave on. */
@@ -1604,7 +1751,15 @@ var RESPAWN = Object.freeze({
 	perLevel: 18,
 	cap: 270,
 	earlyCap: 120,
-	earlyUntil: 3600
+	earlyUntil: 3600,
+	/**
+	* Sim v7 (DifficultyRules.leadPressure, playtest round 1): a dead hero whose team trails by more than gapFree
+	* takedowns waits gapPerBp longer per extra takedown, at most gapCapBp longer (a 10-takedown gap: +64%), so the
+	* team that wins the fights gets the time to take the towers.
+	*/
+	gapFree: 2,
+	gapPerBp: 800,
+	gapCapBp: 6400
 });
 /**
 * Zoomies (v4): +80% move speed for 6 s after leaving the fountain or respawning (it refreshes while the hero stands
@@ -1981,7 +2136,7 @@ var G = Object.freeze({
 	HumanPY: 39,
 	/** Sim v5: the human's team's core cannot be hit before this tick (DifficultyRules.humanCoreOpenAt). */
 	HumanCoreOpenAt: 40,
-	/** Sim v5: 1 = data/heroes SIDE_EDGE applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
+	/** Sim v5: 1 = the per-hero tuning (HeroData.pvp, sim v8; SIDE_EDGE before) applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
 	SideEdge: 41,
 	Count: 42
 });
@@ -2883,7 +3038,9 @@ function grantXp(m, id, amount, reason = "minion", exact = false) {
 	const w = m.world;
 	if (amount <= 0 || w.alive[id] === 0 || w.hp[id] <= 0) return;
 	const bonus = exact ? 0 : catchUpBp(w, id);
-	const total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
+	let total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
+	const rules = rulesOf(m);
+	if (rules.enemyAheadXpBp < 1e4 && w.team[id] !== teamOfSlot(0) && w.level[id] >= w.level[0] + XP.aheadLevels) total = Math.max(1, applyBp(total, rules.enemyAheadXpBp));
 	w.xp[id] += total;
 	m.events.push({
 		type: "xp",
@@ -4627,7 +4784,15 @@ function campKilled(m, id) {
 		if (dist2(w.x[h], w.y[h], w.x[id], w.y[id]) <= r2) share[n++] = h;
 	}
 	if (n === 0) return team;
-	const each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
+	let each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
+	let ours = 0;
+	let theirs = 0;
+	for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+		if (w.kind[h] !== Kind.Hero) continue;
+		if (w.team[h] === team) ours += w.level[h];
+		else theirs += w.level[h];
+	}
+	if (ours < theirs) each = applyBp(each, XP.campBehindBp);
 	for (let i = 0; i < n; i++) grantXp(m, share[i], each, "camp");
 	return team;
 }
@@ -5100,8 +5265,8 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 		if (w.kind[dst] === Kind.Hero) {
 			raw = applyBp(raw, HERO_VS_HERO_BP);
 			if (w.globals[G.SideEdge] !== 0) {
-				raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[src]]].side].heroDmgBp);
-				raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[dst]]].side].heroTakenBp);
+				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
+				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
 			}
 		}
 		if (src === 0) raw = applyBp(raw, rulesOf(m).humanDamageBp);
@@ -5190,6 +5355,22 @@ function clearOnDeath(w, id) {
 	w.packT[id] = 0;
 	for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zOwner[z] === id && w.zKind[z] === ZONE_KIND.arena) endArena(w, z);
 }
+/** Sim v8: the standing tower of `team` that can be hit with the lowest HP share (lowest id on a tie), else its core, else −1. */
+function weakestTower(w, team) {
+	let best = -1;
+	let bestBp = 0;
+	for (let id = RANGE.towers; id < RANGE.cores; id++) {
+		if (w.alive[id] === 0 || w.team[id] !== team || w.hp[id] <= 0 || isInvulnerable(w, id)) continue;
+		const bp = idiv(w.hp[id] * BP_ONE, Math.max(1, w.maxHp[id]));
+		if (best < 0 || bp < bestBp) {
+			best = id;
+			bestBp = bp;
+		}
+	}
+	if (best >= 0) return best;
+	const core = RANGE.cores + team;
+	return w.alive[core] === 1 && !isInvulnerable(w, core) ? core : -1;
+}
 /** Step 7: every unit at or below 0 HP dies, ascending id. */
 function resolveDeaths(m) {
 	const w = m.world;
@@ -5224,9 +5405,26 @@ function resolveDeaths(m) {
 			m.stats[id].deaths++;
 			const enemy = 1 - w.team[id];
 			w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
+			if (rulesOf(m).leadPressure) {
+				const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
+				if (gap > 0) w.timer[id] = applyBp(w.timer[id], BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp));
+			}
 			heroKilled(m, id);
 			const victimTeam = w.team[id];
-			if (tick >= w.globals[G.Sunset]) {
+			const chip = rulesOf(m).takedownChipBp;
+			if (tick < w.globals[G.Sunset]) {
+				const chips = w.globals[enemy === 0 ? G.Kills0 : G.Kills1];
+				if (chip > 0 && (chips * chip <= rulesOf(m).takedownChipCapBp || coreExposed(w, victimTeam))) {
+					const core = RANGE.cores + victimTeam;
+					dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], chip), "chip", {
+						pure: true,
+						pierce: true
+					});
+				} else if (chip > 0 && rulesOf(m).takedownTowerChipBp > 0) {
+					const t = weakestTower(w, victimTeam);
+					if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), "chip", { pure: true });
+				}
+			} else if (id !== 0 || rulesOf(m).humanDeathCore) {
 				const core = RANGE.cores + victimTeam;
 				const bp = tick >= w.globals[G.SuddenDeath] ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
 				dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], bp), "zone", {
@@ -5685,7 +5883,7 @@ function waveAt(tick, siegeWavesSoFar) {
 * Fountains and the per-second rules (POC.md §5, §6.1, §7.3; sim v4 numbers in data/): a fountain heals allies inside
 * 10% max HP a second and shoots enemies inside; heroes out of combat (no damage from an enemy hero for
 * HERO_RULES.outOfCombat) regenerate HERO_RULES.regenBpPerSecond a second (the human × DIFFICULTY_RULES.humanRegenBp);
-* in Sudden Death each core loses SUDDEN_DEATH.coreDecayBpPerSecond a second.
+* in Sudden Death each core loses SUDDEN_DEATH.coreDecayBpPerSecond a second, more when its team trails on takedowns (sim v7).
 */
 function stepSeconds(m) {
 	const w = m.world;
@@ -5712,7 +5910,10 @@ function stepSeconds(m) {
 	}
 	if (tick >= w.globals[G.SuddenDeath]) for (let c = RANGE.cores; c < RANGE.fountains; c++) {
 		if (w.alive[c] === 0) continue;
-		dealDamage(m, -1, 2, Kind.None, c, applyBp(w.maxHp[c], SUDDEN_DEATH.coreDecayBpPerSecond), "zone", {
+		const team = c - RANGE.cores;
+		const behind = rulesOf(m).leadPressure ? w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1] : 0;
+		const bp = Math.max(SUDDEN_DEATH.decayMinBp, Math.min(SUDDEN_DEATH.decayMaxBp, SUDDEN_DEATH.coreDecayBpPerSecond + behind * SUDDEN_DEATH.decayPerTakedownBp));
+		dealDamage(m, -1, 2, Kind.None, c, applyBp(w.maxHp[c], bp), "zone", {
 			pure: true,
 			pierce: true
 		});
@@ -6309,7 +6510,8 @@ function checkComeback(m) {
 		if (w.globals[left] > 0 || tick - w.globals[at] < COMEBACK.cooldown) continue;
 		const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
 		const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
-		if (towersBehind < COMEBACK.structuresBehind && killsBehind < COMEBACK.takedownsBehind) continue;
+		const byKills = !DIFFICULTY_RULES[m.config.difficulty].leadPressure && killsBehind >= COMEBACK.takedownsBehind;
+		if (towersBehind < COMEBACK.structuresBehind && !byKills) continue;
 		w.globals[left] = COMEBACK.waves;
 		w.globals[at] = tick;
 		m.events.push({
@@ -6465,7 +6667,7 @@ function separate(w) {
 //#endregion
 //#region src/sim/version.ts
 /** Bumped whenever a change alters any replay's outcome or hash. The backend refuses an unknown version (POC.md §11.5). */
-var SIM_VERSION = 5;
+var SIM_VERSION = 8;
 //#endregion
 //#region src/sim/units/pickup.ts
 /**
@@ -6712,8 +6914,23 @@ var cast = (slot, x, y, id) => slot === 4 ? {
 	id
 };
 var distTo = (w, a, b) => isqrt(dist2(w.x[a], w.y[a], w.x[b], w.y[b]));
+/**
+* Hard (TrickUse 'offensive'): Pounce onto a foe below BOT_AI.finishHpBp just out of reach, Hiss when the foe stands
+* inside its radius and the bot is the healthier one. Null otherwise.
+*/
+function offenseTrick(w, id, foe, p) {
+	if (p.trick !== "offensive" || !canCast(w, id, 4)) return null;
+	const d = distTo(w, id, foe);
+	switch (TRICK_IDS[w.trick[id]]) {
+		case "pounce": return hpBp(w, foe) <= BOT_AI.finishHpBp && d > attackRange(w, id) + RANGE_PAD && d <= TRICKS.pounce.blink + attackRange(w, id) ? cast(4, w.x[foe], w.y[foe], 255) : null;
+		case "hiss": return d <= TRICKS.hiss.radius && hpBp(w, id) > hpBp(w, foe) ? cast(4, w.x[id], w.y[id], 255) : null;
+		default: return null;
+	}
+}
 /** Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. */
 function fightCast(w, id, foe, p, rng) {
+	const trick = offenseTrick(w, id, foe, p);
+	if (trick) return trick;
 	const a = abil(w, id);
 	const d = distTo(w, id, foe);
 	const fx = w.x[foe];
@@ -6826,7 +7043,7 @@ function escapeCast(w, id, foe, p) {
 			if (canCast(w, id, 1) && d <= abil(w, id).w.range) return cast(1, w.x[foe], w.y[foe], 255);
 			if (canCast(w, id, 2)) return cast(2, w.x[id], w.y[id], 255);
 	}
-	if (p.trick !== "defensive" || !canCast(w, id, 4)) return null;
+	if (p.trick === "never" || !canCast(w, id, 4)) return null;
 	switch (TRICK_IDS[w.trick[id]]) {
 		case "pounce": return cast(4, hx, hy, 255);
 		case "hiss": return d <= TRICKS.hiss.radius ? cast(4, w.x[id], w.y[id], 255) : null;
@@ -6835,7 +7052,7 @@ function escapeCast(w, id, foe, p) {
 }
 /** Snack Break when hurt and nobody is near (defensive only). */
 function snackCast(w, id, p) {
-	if (p.trick !== "defensive" || TRICK_IDS[w.trick[id]] !== "snack" || !canCast(w, id, 4)) return null;
+	if (p.trick === "never" || TRICK_IDS[w.trick[id]] !== "snack" || !canCast(w, id, 4)) return null;
 	if (hpBp(w, id) >= BOT_AI.snackHpBp || nearestFoe(w, id, BOT_AI.trickThreat) >= 0) return null;
 	return cast(4, w.x[id], w.y[id], 255);
 }
@@ -6919,7 +7136,13 @@ function goodFight(w, id, foe, p) {
 	if (ownCover(w, team, fx, fy)) ours += BOT_AI.towerPower;
 	if (untankedThreat(w, team, fx, fy, 0) >= 0) theirs += BOT_AI.towerPower;
 	if (ours * 1e4 >= theirs * p.fightPowerBp) return true;
+	if (p.hunts && huntable(w, team, foe) && hpBp(w, id) > BOT_AI.objectiveHpBp) return true;
 	return hpBp(w, foe) < BOT_AI.finishHpBp && hpBp(w, id) > BOT_AI.objectiveHpBp;
+}
+/** Sim v7 Hard (BotParams.hunts): a foe under crowd control, or one standing inside our structure's reach. */
+function huntable(w, team, foe) {
+	if (w.stunT[foe] > 0 || w.rootT[foe] > 0 || w.fearT[foe] > 0 || w.slowT[foe] > 0) return true;
+	return ownCover(w, team, w.x[foe], w.y[foe]);
 }
 /**
 * Carry allies (DifficultyRules.carryAllies) leave a nearly dead enemy hero to the human: one under
@@ -6936,10 +7159,12 @@ function leaveToHuman(w, e) {
 function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare) {
 	out[0] = -1;
 	const team = w.team[id];
+	const truce = team !== w.team[0] && !brave && tick < truceUntil;
 	let best = -1;
 	let bestKey = 0;
 	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
 		if (!seenEnemy(w, team, e) || !aware(mem, id, e, tick, p) || !targetable(w, e, team)) continue;
+		if (truce && e === 0) continue;
 		const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
 		const peel = carry && w.target[e] === 0 && w.alive[0] === 1;
 		if (d > BOT_AI.engageRange + (e === mem.foe[id] || peel || brave ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0)) continue;
@@ -6951,6 +7176,7 @@ function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare) {
 		}
 		let key = Math.max(0, w.hp[e]) + idiv(d, BOT_AI.distWeight) - (peel || brave && e === 0 ? BOT_AI.peelKey : 0);
 		if (e === 0 && !brave) key += spare;
+		if (p.hunts && huntable(w, team, e)) key -= BOT_AI.huntKey;
 		if (best < 0 || key < bestKey) {
 			best = e;
 			bestKey = key;
@@ -6959,6 +7185,8 @@ function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare) {
 	return best;
 }
 var scratch = /* @__PURE__ */ new Int32Array(1);
+/** DifficultyRules.truceUntil of the match being thought about (set before pickFoe; the brain is single-threaded). */
+var truceUntil = 0;
 /** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
 function alliesNear(w, team, id) {
 	const r2 = BOT_AI.powerRange * BOT_AI.powerRange;
@@ -6976,6 +7204,14 @@ function raiders(w, team, lane) {
 	let n = 0;
 	for (let e = RANGE.heroes; e < RANGE.minions; e++) if (w.alive[e] === 1 && seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], w.x[s], w.y[s]) <= r2) n++;
 	return n;
+}
+/**
+* Has `team` grouped (BotParams.groupAt)? Sim v7 (DifficultyRules.leadPressure): a team BOT_AI.leadGroup or more
+* ahead groups and sieges from BOT_AI.leadGroupFrom on, so a lead in fights becomes map pressure.
+*/
+function groupedNow(m, team, tick, p) {
+	if (tick >= p.groupAt) return true;
+	return rulesOf(m).leadPressure && tick >= BOT_AI.leadGroupFrom && -scoreBehind(m.world, team) >= BOT_AI.leadGroup;
 }
 /** How far `team` trails: the enemy's takedowns minus ours, plus 3 per tower the enemy took more (≤ 0: not behind). */
 function scoreBehind(w, team) {
@@ -7015,10 +7251,11 @@ function humanEngaged(w) {
 /** The human's lane by where it stands (Sunny above the middle). */
 var humanLane = (w) => w.y[0] >= MAP.height >> 1 ? 0 : 1;
 /** The lane bot `id` plays now. */
-function laneFor(w, id, tick, p, carry, hunt) {
+function laneFor(m, id, tick, p, carry, hunt) {
+	const w = m.world;
 	const team = w.team[id];
 	if (carry || hunt) return humanLane(w);
-	if (tick >= p.groupAt) return pushLane(w, team, id, p.pressAhead);
+	if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
 	const role = roleOf(id);
 	if (role !== ROAM) return role;
 	const a = laneTowers(w, team, 0);
@@ -7033,10 +7270,11 @@ function mayDive(w, id, s, p) {
 	if (w.kind[s] === Kind.Core || w.hp[s] <= BOT_AI.diveTowerHp) return true;
 	if (thinkingCarry && !defended(w, w.team[id], s)) return true;
 	const team = w.team[id];
-	return w.globals[G.Tick] >= p.groupAt && heroesAlive(w, team) - heroesAlive(w, 1 - team) >= BOT_AI.pushAdvantage;
+	return thinkingGrouped && heroesAlive(w, team) - heroesAlive(w, 1 - team) >= BOT_AI.pushAdvantage;
 }
-/** Set by `think` for the bot thinking now: is it a carry ally? (read by mayDive) */
+/** Set by `think` for the bot thinking now: is it a carry ally? Has its team grouped? (read by mayDive) */
 var thinkingCarry = false;
+var thinkingGrouped = false;
 /** Is an enemy hero (of `team`'s enemy) in view within BOT_AI.awareRange of structure `s`? */
 function defended(w, team, s) {
 	const r2 = BOT_AI.awareRange * BOT_AI.awareRange;
@@ -7154,6 +7392,76 @@ function sieging(w, id) {
 	for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.team[s] !== w.team[id] && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) <= r2) return true;
 	return false;
 }
+/**
+* Sim v7 base threat (BotParams.defendBase): the own inner tower or core (the core first) with a visible enemy hero,
+* or BOT_AI.baseThreatMinions enemy minions, within BOT_AI.baseThreatRange; −1 when the base is safe.
+*/
+function baseThreat(w, team) {
+	heroThreat = false;
+	const core = RANGE.cores + team;
+	for (let pass = 0; pass < 3; pass++) {
+		const s = pass === 0 ? core : innerTower(w, team, pass - 1);
+		if (s < 0 || w.alive[s] === 0) continue;
+		const range = pass === 0 ? BOT_AI.coreThreatRange : BOT_AI.baseThreatRange;
+		const r2 = range * range;
+		let minions = 0;
+		for (let e = RANGE.heroes; e < RANGE.towers; e++) {
+			if (!seenEnemy(w, team, e) || dist2(w.x[e], w.y[e], w.x[s], w.y[s]) > r2) continue;
+			if (e < RANGE.minions) {
+				heroThreat = true;
+				return s;
+			}
+			if (w.kind[e] === Kind.Minion && ++minions >= BOT_AI.baseThreatMinions) return s;
+		}
+	}
+	return -1;
+}
+/** Set by baseThreat: is an enemy hero part of the threat (else minions only)? */
+var heroThreat = false;
+/** `team`'s inner tower in `lane` while it stands, else −1. */
+function innerTower(w, team, lane) {
+	const base = RANGE.towers + team * TOWER_SPOTS.length;
+	for (let k = 0; k < TOWER_SPOTS.length; k++) if (TOWER_SPOTS[k].lane === LANES[lane] && TOWER_SPOTS[k].tier === "inner") return w.alive[base + k] === 1 ? base + k : -1;
+	return -1;
+}
+/** Defend structure `s`: fight the nearest enemy near it, else nap or walk back to it. */
+function defend(w, id, mem, s, p, rng) {
+	const team = w.team[id];
+	const range = s === RANGE.cores + team ? BOT_AI.coreThreatRange : BOT_AI.baseThreatRange;
+	const r2 = range * range;
+	const aware2 = BOT_AI.awareRange * BOT_AI.awareRange;
+	let best = -1;
+	let bestD = 0;
+	for (let e = RANGE.heroes; e < RANGE.towers; e++) {
+		if (!seenEnemy(w, team, e) || dist2(w.x[e], w.y[e], w.x[s], w.y[s]) > r2) continue;
+		const d = dist2(w.x[id], w.y[id], w.x[e], w.y[e]) - (e < RANGE.minions ? aware2 : 0);
+		if (best < 0 || d < bestD) {
+			best = e;
+			bestD = d;
+		}
+	}
+	mem.mode[id] = BOT_MODE.Push;
+	if (best >= 0 && dist2(w.x[id], w.y[id], w.x[best], w.y[best]) <= aware2) {
+		if (best < RANGE.minions) {
+			mem.foe[id] = best;
+			return (rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, best, p, rng) : null) ?? attack(w, id, mem, best);
+		}
+		return (p.waveClear ? clearCast(w, id, best) : null) ?? attack(w, id, mem, best);
+	}
+	if (dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+		mem.op[id] = Op.Nap;
+		return { op: Op.Nap };
+	}
+	return moveTo(w, id, mem, w.x[s], w.y[s]);
+}
+/** Sim v7 Hard: is bot `id` far ahead of its own wave front in `lane` with no allied hero near? */
+function overextended(w, id, lane) {
+	const team = w.team[id];
+	const front = laneFront(w, team, lane);
+	const fp = front >= 0 ? progressOf(team, w.x[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)]);
+	if (progressOf(team, w.x[id]) - fp <= BOT_AI.overextend) return false;
+	return alliesNear(w, team, id) <= 1;
+}
 /** Mistake kinds (§7.2): ignore a gank, chase too far, miss a last-hit. */
 var SLIP = Object.freeze({
 	Gank: 0,
@@ -7189,6 +7497,7 @@ function think(m, id, p, mem, rng) {
 	const w = m.world;
 	const tick = w.globals[G.Tick];
 	thinkingCarry = false;
+	thinkingGrouped = false;
 	if (w.alive[id] === 0) {
 		mem.mode[id] = BOT_MODE.Lane;
 		mem.foe[id] = -1;
@@ -7213,6 +7522,11 @@ function think(m, id, p, mem, rng) {
 	const carry = id !== 0 && w.team[id] === w.team[0] && rules.carryAllies >= (roleOf(id) === ROAM ? 1 : 2) && humanEngaged(w);
 	thinkingCarry = carry;
 	const script = id === 3 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
+	if (p.defendBase && !low && !carry && !script) {
+		const s = baseThreat(w, w.team[id]);
+		if (s === RANGE.cores + w.team[id] && heroThreat && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.coreThreatRange * BOT_AI.coreThreatRange) return defend(w, id, mem, s, p, rng);
+	}
+	truceUntil = rules.truceUntil;
 	const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[0] ? 0 : rules.spareHuman);
 	if (low) scratch[0] = -1;
 	if (foe >= 0) {
@@ -7247,14 +7561,21 @@ function think(m, id, p, mem, rng) {
 		const pk = fr >= 0 ? fr : sn;
 		if (pk >= 0) return moveTo(w, id, mem, w.pkX[pk], w.pkY[pk]);
 	}
+	if (p.defendBase && !carry && hp >= BOT_AI.objectiveHpBp) {
+		const s = baseThreat(w, team);
+		const near = s >= 0 && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) <= BOT_AI.baseThreatPull * BOT_AI.baseThreatPull;
+		if (s >= 0 && (heroThreat || near && (s === RANGE.cores + team || -scoreBehind(w, team) < BOT_AI.leadGroup))) return defend(w, id, mem, s, p, rng);
+	}
 	const hunt = rules.enemiesToHuman && w.team[id] !== w.team[0] && tick >= rules.scriptUntil;
-	const lane = laneFor(w, id, tick, p, carry, hunt);
-	const grouped = tick >= p.groupAt && !carry;
+	const lane = laneFor(m, id, tick, p, carry, hunt);
+	thinkingGrouped = groupedNow(m, team, tick, p);
+	const grouped = thinkingGrouped && !carry;
 	const bad = scratch[0];
 	let shotBy = -1;
 	for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.target[s] === id && w.team[s] !== team) shotBy = s;
 	const shot = shotBy >= 0 && !tanked(w, shotBy, team) && !(targetable(w, shotBy, team) && mayDive(w, id, shotBy, p));
-	if (bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange || shot) {
+	const exposed = p.hunts && !grouped && overextended(w, id, lane);
+	if (bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange || shot || exposed) {
 		const own = laneStructure(w, team, lane, true);
 		mem.mode[id] = BOT_MODE.Lane;
 		return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);
@@ -7326,7 +7647,8 @@ var ALLIES = Object.freeze({
 	normal: Object.freeze({
 		...BOTS[BOT_TEAMS.allies],
 		groupAt: BOTS.normal.groupAt
-	})
+	}),
+	hard: BOTS.hard
 });
 /** Difficulty parameters of the bot in `slot`. */
 function botParams(m, slot) {
@@ -7622,7 +7944,7 @@ function checkReplayShape(r) {
 	if (!r || typeof r !== "object") return fail("PAWLEGENDS_REPLAY_INVALID", "not an object");
 	const x = r;
 	if (x.v !== 1) return fail("PAWLEGENDS_REPLAY_INVALID", "v must be 1");
-	if (x.simVersion !== 5) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 5`);
+	if (x.simVersion !== 8) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 8`);
 	if (typeof x.seed !== "number" || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 4294967295) return fail("PAWLEGENDS_REPLAY_INVALID", "seed must be a uint32");
 	if (typeof x.difficulty !== "string" || !DIFFICULTIES.includes(x.difficulty)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown difficulty");
 	if (typeof x.hero !== "string" || !HERO_IDS.includes(x.hero)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown hero");

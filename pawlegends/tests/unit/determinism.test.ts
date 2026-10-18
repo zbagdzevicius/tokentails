@@ -145,7 +145,7 @@ describe('determinism fuzz (§15 item 1)', { timeout: 600000 }, () => {
     for (let i = 0; i < 24; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i)));
     expect(rows.filter((r) => !r.ok)).toEqual([]);
     expect(new Set(rows.map((r) => r.hero)).size).toBe(4);
-    expect(new Set(rows.map((r) => r.difficulty)).size).toBe(2);
+    expect(new Set(rows.map((r) => r.difficulty)).size).toBe(3);
   });
 });
 

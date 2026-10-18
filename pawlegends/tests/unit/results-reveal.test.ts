@@ -38,7 +38,7 @@ describe('results reveal', () => {
     expect(root.classList.contains('actions-in')).toBe(false);
     at(20);
     expect(root.classList.contains('actions-in')).toBe(true);
-    expect(RESULTS_REVEAL_MS).toEqual({ dare: 5000, actions: 10000 });
+    expect(RESULTS_REVEAL_MS).toEqual({ dare: 5000, actions: 10000, quick: 2500 });
     root.remove();
   });
 

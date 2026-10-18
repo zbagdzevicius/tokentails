@@ -15,7 +15,7 @@ import { ELEMENT_COLOR } from '../render/cosmetics';
 import { icon } from './icons';
 import './cards.css';
 
-const LEVEL_NAME: Readonly<Record<ProgressLevel, string>> = Object.freeze({ easy: 'Easy', normal: 'Normal', rookie: 'Rookie' });
+const LEVEL_NAME: Readonly<Record<ProgressLevel, string>> = Object.freeze({ easy: 'Easy', normal: 'Normal', rookie: 'Rookie', hard: 'Hard' });
 const TICK_HZ = 30;
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string): HTMLElementTagNameMap[K] {
@@ -130,7 +130,8 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
     if (won) {
       const line = [b.catnip ? `${b.catnip} catnip` : '', b.fastest !== null ? `best ${clock(b.fastest)}` : ''].filter(Boolean).join(' · ');
       chip.appendChild(h('small', '', line || 'won'));
-    } else chip.appendChild(h('small', 'goal', `First win: +${LEVEL_CATNIP[b.level]} catnip`));
+    // round 2: Hard pays no catnip (a new reward is a founder decision), so its chip names what it does give: a badge
+    } else chip.appendChild(h('small', 'goal', LEVEL_CATNIP[b.level] > 0 ? `First win: +${LEVEL_CATNIP[b.level]} catnip` : 'First win: badge'));
     row.appendChild(chip);
   }
   return row;
@@ -138,6 +139,8 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
 
 export interface MeetCardOpts {
   cat: FeaturedCat;
+  /** Round 1: the player's hero in this cat's chroma (a fair preview: no price, no timer). */
+  preview?: { url: string; hero: string } | null;
   /** Waiting for the host to open its sheet. */
   waiting?: boolean;
   onMeet(): void;
@@ -155,7 +158,15 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
   const body = h('div', 'plc-meet-body');
   body.appendChild(h('small', 'plc-kicker', 'A new squad mate?'));
   body.appendChild(h('b', 'plc-meet-name', o.cat.name));
-  body.appendChild(h('p', 'plc-meet-line', `${elementName(o.cat.type)} cat. Walks with your waves and unlocks the ${elementName(o.cat.type)} chroma for every hero.`));
+  body.appendChild(h('p', 'plc-meet-line', `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma for every hero.`));
+  if (o.preview) {
+    const pv = h('div', 'plc-meet-preview');
+    const pic = h('i', 'plc-meet-pic');
+    pic.style.backgroundImage = `url("${o.preview.url}")`;
+    pic.style.setProperty('--el', elementColor(o.cat.type));
+    pv.append(pic, h('small', '', `Your ${o.preview.hero} in ${elementName(o.cat.type)}`));
+    body.appendChild(pv);
+  }
   const btn = h('button', 'pl-btn small plc-meet-go', o.waiting ? 'Opening...' : `Meet ${o.cat.name} ›`);
   btn.dataset.a = 'meet';
   btn.disabled = !!o.waiting;
@@ -219,6 +230,10 @@ export function titleCards(m: TitleCardsModel, on: { signIn(): void; meetClosed(
       const chip = h('span', 'plc-squad-cat', c.name);
       chip.style.setProperty('--el', elementColor(c.type));
       if (c.tier && c.tier !== 'COMMON') chip.dataset.tier = c.tier.toLowerCase();
+      if (c.fromPack) chip.dataset.pack = '1';
+      // round 2: the tier shows positively ("Legendary · Fire"), never "no frame"; the hover text explains frames
+      chip.appendChild(h('small', 'plc-tier', tierLabel(c)));
+      chip.title = mateTitle(c, 'walks with your waves');
       sq.appendChild(chip);
     }
     root.appendChild(sq);
@@ -234,6 +249,21 @@ export function titleCards(m: TitleCardsModel, on: { signIn(): void; meetClosed(
 export interface SquadMate extends CardCat {
   id: string;
   tier?: string;
+  /** Pack origin: no tier frame (decision #19); its chip says "no frame" (never the word pack) instead of leaving the player to guess. */
+  fromPack?: boolean;
+}
+
+/** "Legendary · Fire" (round 2: a tier is named positively on every squad chip; Common shows the element only). */
+export function tierLabel(c: Pick<SquadMate, 'tier' | 'type'>): string {
+  const t = c.tier && c.tier !== 'COMMON' ? `${c.tier.charAt(0)}${c.tier.slice(1).toLowerCase()} · ` : '';
+  return `${t}${elementName(c.type)}`;
+}
+
+/** Hover text on a squad or bench chip: the element, and why a pack cat gives no frame. */
+function mateTitle(c: SquadMate, action: string): string {
+  const tier = c.tier && c.tier !== 'COMMON' ? `${c.tier.charAt(0)}${c.tier.slice(1).toLowerCase()} ` : '';
+  // the game never names packs (GDD §7.2): it only says where frames come from
+  return `${tier}${elementName(c.type)} cat: ${action}${c.fromPack ? '. It walks and gives its chroma; frames come from cats you adopted by name' : ''}`;
 }
 
 export interface PickCardsModel {
@@ -253,7 +283,8 @@ export function pickCards(m: PickCardsModel, on: { signIn(): void; choose?(id: s
   head.appendChild(h('small', '', m.squad.length ? 'They walk with your waves and nap at the fountain.' : 'Your Token Tails cats walk with your waves.'));
   root.appendChild(head);
   const row = h('div', 'plc-row');
-  m.squad.slice(0, 2).forEach((c, i) => row.appendChild(catCard(c, { flip: true, delay: 80 + i * 140, small: true })));
+  // face up (round 1: the pick dock redraws, and a flip restarted face down each time: blank cards with a paw)
+  m.squad.slice(0, 2).forEach((c) => row.appendChild(catCard(c, { small: true })));
   if (!m.squad.length && m.guest) row.appendChild(catCard({ name: m.guest.name, type: m.guest.type, art: m.guest.art, ribbon: 'Guest' }, { guest: true, small: true }));
   if (row.childElementCount) root.appendChild(row);
   if (m.squad.length) {
@@ -276,7 +307,9 @@ export function pickCards(m: PickCardsModel, on: { signIn(): void; choose?(id: s
       b.dataset.cat = c.id;
       b.style.setProperty('--el', elementColor(c.type));
       if (c.tier && c.tier !== 'COMMON') b.dataset.tier = c.tier.toLowerCase();
-      b.title = `${elementName(c.type)} cat: walk with ${c.name}`;
+      if (c.fromPack) b.dataset.pack = '1';
+      b.appendChild(h('small', 'plc-tier', tierLabel(c)));
+      b.title = mateTitle(c, `walk with ${c.name}`);
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         on.choose?.(c.id);

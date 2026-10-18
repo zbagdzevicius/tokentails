@@ -8,7 +8,7 @@ import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type TalentTie
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
 import { edgeGoal } from './touch/assist';
-import { cellOf, centreX, centreY, createGrid, snapCell, type NavGrid } from '../sim/map/grid';
+import { cellOf, centreX, centreY, createGrid, snapCell, walkable, type NavGrid } from '../sim/map/grid';
 
 let walls: NavGrid | null = null;
 
@@ -31,6 +31,41 @@ export function reachableGoal(fromX: number, fromY: number, x: number, y: number
     if (c >= 0) return { x: centreX(c), y: centreY(c) };
   }
   return { x, y };
+}
+
+/** Is the ground clear (static walls) for `probe` mm from (x, y) along angle `a`? Sampled every 400 mm. */
+function clearAlong(x: number, y: number, a: number, probe: number): boolean {
+  walls ??= createGrid();
+  const cx = Math.cos(a);
+  const cy = Math.sin(a);
+  for (let d = 400; d <= probe; d += 400) {
+    const px = x + cx * d;
+    const py = y + cy * d;
+    if (px < 0 || py < 0 || px >= MAP.width || py >= MAP.height || !walkable(walls, cellOf(px, py))) return false;
+  }
+  return true;
+}
+
+/**
+ * Round 2 ("dragging up toward Sunny Lane walks into the trees beside the core and sticks there"): the joystick slides
+ * along a wall. When the next `probe` mm along angle `a` hit a wall, the angle turns toward the open side in 20°
+ * steps (up to 80°, the side nearer the stick first), so the input is projected onto the wall tangent instead of
+ * pushing into it. Returns `a` when the way is clear or no side is.
+ */
+export function slideAngle(x: number, y: number, a: number, probe = 2400): number {
+  if (clearAlong(x, y, a, probe)) return a;
+  const step = Math.PI / 9;
+  for (let k = 1; k <= 4; k++) {
+    const l = a + step * k;
+    const r = a - step * k;
+    const lc = clearAlong(x, y, l, probe);
+    const rc = clearAlong(x, y, r, probe);
+    // both open: the side that stays open further (the wall's slope), else the left one
+    if (lc && rc) return clearAlong(x, y, r, probe * 2) && !clearAlong(x, y, l, probe * 2) ? r : l;
+    if (lc) return l;
+    if (rc) return r;
+  }
+  return a;
 }
 
 export interface OrderEnv {

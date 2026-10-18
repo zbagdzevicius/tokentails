@@ -142,7 +142,7 @@ describe('levels and XP (§6.1)', () => {
     expect(m.stats[0].kills).toBe(1);
   });
 
-  it('minion XP is shared by enemy heroes within 10 m; catch-up +25% a level behind the enemy average beyond the first, max +75%', () => {
+  it('minion XP is shared by enemy heroes within 10 m; catch-up +35% a level behind the enemy average beyond the first (sim v8), max +75%', () => {
     const m = match();
     const w = m.world;
     const minion = putMinion(m, 1, MID.x, MID.y);
@@ -160,8 +160,8 @@ describe('levels and XP (§6.1)', () => {
       return m2.world.xp[0];
     };
     expect(minionXp(2)).toBe(30); // one level behind: free
-    expect(minionXp(3)).toBe(Math.trunc((30 * 12500) / 10000)); // two behind: +25%
-    expect(minionXp(4)).toBe(Math.trunc((30 * 15000) / 10000));
+    expect(minionXp(3)).toBe(Math.trunc((30 * 13500) / 10000)); // two behind: +35%
+    expect(minionXp(4)).toBe(Math.trunc((30 * 17000) / 10000));
     expect(minionXp(8)).toBe(Math.trunc((30 * 17500) / 10000)); // capped at +75%
   });
 

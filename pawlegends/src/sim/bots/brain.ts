@@ -21,7 +21,7 @@ import { TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
 import { HUMAN_SLOT, Op, type Command } from '../api';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
-import { MAP, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX } from '../../data/map';
 import { nearLane } from '../map/grid';
 import type { Rng } from '../rng';
 import type { MatchHandle } from '../state';
@@ -113,7 +113,14 @@ function goodFight(w: World, id: number, foe: number, p: BotParams): boolean {
   if (ownCover(w, team, fx, fy)) ours += BOT_AI.towerPower;
   if (untankedThreat(w, team, fx, fy, 0) >= 0) theirs += BOT_AI.towerPower;
   if (ours * BP_ONE >= theirs * p.fightPowerBp) return true;
+  if (p.hunts && huntable(w, team, foe) && hpBp(w, id) > BOT_AI.objectiveHpBp) return true;
   return hpBp(w, foe) < BOT_AI.finishHpBp && hpBp(w, id) > BOT_AI.objectiveHpBp;
+}
+
+/** Sim v7 Hard (BotParams.hunts): a foe under crowd control, or one standing inside our structure's reach. */
+function huntable(w: World, team: number, foe: number): boolean {
+  if (w.stunT[foe] > 0 || w.rootT[foe] > 0 || w.fearT[foe] > 0 || w.slowT[foe] > 0) return true;
+  return ownCover(w, team, w.x[foe], w.y[foe]);
 }
 
 /**
@@ -132,10 +139,13 @@ function leaveToHuman(w: World, e: number): boolean {
 function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, slip: boolean, out: Int32Array, carry: boolean, brave: boolean, spare: number): number {
   out[0] = -1;
   const team = w.team[id];
+  // Sim v8: before DifficultyRules.truceUntil an enemy bot never picks the human (the Rookie scripted fight excepted).
+  const truce = team !== w.team[HUMAN_SLOT] && !brave && tick < truceUntil;
   let best = -1;
   let bestKey = 0;
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
     if (!seenEnemy(w, team, e) || !aware(mem, id, e, tick, p) || !targetable(w, e, team)) continue;
+    if (truce && e === HUMAN_SLOT) continue;
     const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
     // Carry allies peel: an enemy hero on the human is fought first, from further away, whatever the odds.
     const peel = carry && w.target[e] === HUMAN_SLOT && w.alive[HUMAN_SLOT] === 1;
@@ -151,6 +161,7 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
     // Peel targets first; the scripted first fight (brave) goes for the human.
     let key = Math.max(0, w.hp[e]) + idiv(d, BOT_AI.distWeight) - (peel || (brave && e === HUMAN_SLOT) ? BOT_AI.peelKey : 0);
     if (e === HUMAN_SLOT && !brave) key += spare;
+    if (p.hunts && huntable(w, team, e)) key -= BOT_AI.huntKey;
     if (best < 0 || key < bestKey) {
       best = e;
       bestKey = key;
@@ -160,6 +171,8 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
 }
 
 const scratch = new Int32Array(1);
+/** DifficultyRules.truceUntil of the match being thought about (set before pickFoe; the brain is single-threaded). */
+let truceUntil = 0;
 
 /** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
 function alliesNear(w: World, team: number, id: number): number {
@@ -181,6 +194,15 @@ function raiders(w: World, team: number, lane: number): number {
     if (w.alive[e] === 1 && seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], w.x[s], w.y[s]) <= r2) n++;
   }
   return n;
+}
+
+/**
+ * Has `team` grouped (BotParams.groupAt)? Sim v7 (DifficultyRules.leadPressure): a team BOT_AI.leadGroup or more
+ * ahead groups and sieges from BOT_AI.leadGroupFrom on, so a lead in fights becomes map pressure.
+ */
+function groupedNow(m: MatchHandle, team: number, tick: number, p: BotParams): boolean {
+  if (tick >= p.groupAt) return true;
+  return rulesOf(m).leadPressure && tick >= BOT_AI.leadGroupFrom && -scoreBehind(m.world, team) >= BOT_AI.leadGroup;
 }
 
 /** How far `team` trails: the enemy's takedowns minus ours, plus 3 per tower the enemy took more (≤ 0: not behind). */
@@ -233,10 +255,11 @@ function humanEngaged(w: World): boolean {
 const humanLane = (w: World): number => (w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
 
 /** The lane bot `id` plays now. */
-function laneFor(w: World, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
+function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
+  const w = m.world;
   const team = w.team[id];
   if (carry || hunt) return humanLane(w);
-  if (tick >= p.groupAt) return pushLane(w, team, id, p.pressAhead);
+  if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
   const role = roleOf(id);
   if (role !== ROAM) return role;
   // The roamer helps the lane with fewer own towers; tie: the one whose laner is hurt more.
@@ -254,11 +277,12 @@ function mayDive(w: World, id: number, s: number, p: BotParams): boolean {
   // Carry allies push a structure no enemy hero defends (the fight in front of it was won).
   if (thinkingCarry && !defended(w, w.team[id], s)) return true;
   const team = w.team[id];
-  return w.globals[G.Tick] >= p.groupAt && heroesAlive(w, team) - heroesAlive(w, 1 - team) >= BOT_AI.pushAdvantage;
+  return thinkingGrouped && heroesAlive(w, team) - heroesAlive(w, 1 - team) >= BOT_AI.pushAdvantage;
 }
 
-/** Set by `think` for the bot thinking now: is it a carry ally? (read by mayDive) */
+/** Set by `think` for the bot thinking now: is it a carry ally? Has its team grouped? (read by mayDive) */
 let thinkingCarry = false;
+let thinkingGrouped = false;
 
 /** Is an enemy hero (of `team`'s enemy) in view within BOT_AI.awareRange of structure `s`? */
 function defended(w: World, team: number, s: number): boolean {
@@ -395,6 +419,88 @@ function sieging(w: World, id: number): boolean {
   return false;
 }
 
+/**
+ * Sim v7 base threat (BotParams.defendBase): the own inner tower or core (the core first) with a visible enemy hero,
+ * or BOT_AI.baseThreatMinions enemy minions, within BOT_AI.baseThreatRange; −1 when the base is safe.
+ */
+export function baseThreat(w: World, team: number): number {
+  heroThreat = false;
+  const core = RANGE.cores + team;
+  for (let pass = 0; pass < 3; pass++) {
+    // pass 0: the core (within BOT_AI.coreThreatRange: attackers gather just outside its reach); 1 and 2: the inner
+    // tower of Sunny, then Puddle.
+    const s = pass === 0 ? core : innerTower(w, team, pass - 1);
+    if (s < 0 || w.alive[s] === 0) continue;
+    const range = pass === 0 ? BOT_AI.coreThreatRange : BOT_AI.baseThreatRange;
+    const r2 = range * range;
+    let minions = 0;
+    for (let e = RANGE.heroes; e < RANGE.towers; e++) {
+      if (!seenEnemy(w, team, e) || dist2(w.x[e], w.y[e], w.x[s], w.y[s]) > r2) continue;
+      if (e < RANGE.minions) {
+        heroThreat = true;
+        return s;
+      }
+      if (w.kind[e] === Kind.Minion && ++minions >= BOT_AI.baseThreatMinions) return s;
+    }
+  }
+  return -1;
+}
+
+/** Set by baseThreat: is an enemy hero part of the threat (else minions only)? */
+let heroThreat = false;
+
+/** `team`'s inner tower in `lane` while it stands, else −1. */
+function innerTower(w: World, team: number, lane: number): number {
+  const base = RANGE.towers + team * TOWER_SPOTS.length;
+  for (let k = 0; k < TOWER_SPOTS.length; k++) {
+    if (TOWER_SPOTS[k].lane === LANES[lane] && TOWER_SPOTS[k].tier === 'inner') return w.alive[base + k] === 1 ? base + k : -1;
+  }
+  return -1;
+}
+
+/** Defend structure `s`: fight the nearest enemy near it, else nap or walk back to it. */
+function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng: Rng): Command | null {
+  const team = w.team[id];
+  const range = s === RANGE.cores + team ? BOT_AI.coreThreatRange : BOT_AI.baseThreatRange;
+  const r2 = range * range;
+  const aware2 = BOT_AI.awareRange * BOT_AI.awareRange;
+  let best = -1;
+  let bestD = 0;
+  for (let e = RANGE.heroes; e < RANGE.towers; e++) {
+    if (!seenEnemy(w, team, e) || dist2(w.x[e], w.y[e], w.x[s], w.y[s]) > r2) continue;
+    // Heroes first: a hero counts as this much closer.
+    const d = dist2(w.x[id], w.y[id], w.x[e], w.y[e]) - (e < RANGE.minions ? aware2 : 0);
+    if (best < 0 || d < bestD) {
+      best = e;
+      bestD = d;
+    }
+  }
+  mem.mode[id] = BOT_MODE.Push;
+  if (best >= 0 && dist2(w.x[id], w.y[id], w.x[best], w.y[best]) <= aware2) {
+    if (best < RANGE.minions) {
+      mem.foe[id] = best;
+      const c = rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, best, p, rng) : null;
+      return c ?? attack(w, id, mem, best);
+    }
+    return (p.waveClear ? clearCast(w, id, best) : null) ?? attack(w, id, mem, best);
+  }
+  const far = dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist;
+  if (far && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+    mem.op[id] = Op.Nap;
+    return { op: Op.Nap };
+  }
+  return moveTo(w, id, mem, w.x[s], w.y[s]);
+}
+
+/** Sim v7 Hard: is bot `id` far ahead of its own wave front in `lane` with no allied hero near? */
+function overextended(w: World, id: number, lane: number): boolean {
+  const team = w.team[id];
+  const front = laneFront(w, team, lane);
+  const fp = front >= 0 ? progressOf(team, w.x[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)]);
+  if (progressOf(team, w.x[id]) - fp <= BOT_AI.overextend) return false;
+  return alliesNear(w, team, id) <= 1;
+}
+
 /** Mistake kinds (§7.2): ignore a gank, chase too far, miss a last-hit. */
 const SLIP = Object.freeze({ Gank: 0, Chase: 1, LastHit: 2 });
 const SLIP_KINDS = 3;
@@ -430,6 +536,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const w = m.world;
   const tick = w.globals[G.Tick];
   thinkingCarry = false;
+  thinkingGrouped = false;
   if (w.alive[id] === 0) {
     mem.mode[id] = BOT_MODE.Lane;
     mem.foe[id] = -1;
@@ -459,6 +566,14 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   thinkingCarry = carry;
   // Rookie: slot 3 walks into Sunny Lane early and picks the first fight (DifficultyRules.scriptFrom).
   const script = id === 3 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
+  // Sim v7: enemy heroes at the own core come before any fight elsewhere (a base race is not a lead).
+  if (p.defendBase && !low && !carry && !script) {
+    const s = baseThreat(w, w.team[id]);
+    if (s === RANGE.cores + w.team[id] && heroThreat && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.coreThreatRange * BOT_AI.coreThreatRange) {
+      return defend(w, id, mem, s, p, rng);
+    }
+  }
+  truceUntil = rules.truceUntil;
   const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman);
   if (low) scratch[0] = -1;
   if (foe >= 0) {
@@ -493,15 +608,26 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     const pk = fr >= 0 ? fr : sn;
     if (pk >= 0) return moveTo(w, id, mem, w.pkX[pk], w.pkY[pk]);
   }
+  // Sim v7: a base threat comes before pickups, objectives and lane work (BotParams.defendBase).
+  // Enemy heroes at the base pull every bot back; minions alone pull only bots within baseThreatPull, and a team
+  // well ahead (BOT_AI.leadGroup) keeps its siege unless they are at its core.
+  if (p.defendBase && !carry && hp >= BOT_AI.objectiveHpBp) {
+    const s = baseThreat(w, team);
+    const near = s >= 0 && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) <= BOT_AI.baseThreatPull * BOT_AI.baseThreatPull;
+    const pull = s >= 0 && (heroThreat || (near && (s === RANGE.cores + team || -scoreBehind(w, team) < BOT_AI.leadGroup)));
+    if (pull) return defend(w, id, mem, s, p, rng);
+  }
   const hunt = rules.enemiesToHuman && w.team[id] !== w.team[HUMAN_SLOT] && tick >= rules.scriptUntil;
-  const lane = laneFor(w, id, tick, p, carry, hunt);
-  const grouped = tick >= p.groupAt && !carry;
+  const lane = laneFor(m, id, tick, p, carry, hunt);
+  thinkingGrouped = groupedNow(m, team, tick, p);
+  const grouped = thinkingGrouped && !carry;
   // A strong enemy close by, or a tower shooting us with no minion to tank it: step back to cover.
   const bad = scratch[0];
   let shotBy = -1;
   for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.target[s] === id && w.team[s] !== team) shotBy = s;
   const shot = shotBy >= 0 && !tanked(w, shotBy, team) && !(targetable(w, shotBy, team) && mayDive(w, id, shotBy, p));
-  if ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || shot) {
+  const exposed = p.hunts && !grouped && overextended(w, id, lane);
+  if ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || shot || exposed) {
     const own = laneStructure(w, team, lane, true);
     mem.mode[id] = BOT_MODE.Lane;
     return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);

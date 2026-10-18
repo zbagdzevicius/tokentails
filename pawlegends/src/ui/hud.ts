@@ -9,8 +9,9 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT } from './heroText';
+import { HERO_TEXT, TRICK_TEXT, abilityNumbers, trickNumbers } from './heroText';
 import { icon } from './icons';
+import { XP } from '../data/xp';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
@@ -86,8 +87,16 @@ export class Hud {
     const slotHtml = SLOT_ACTIONS.map((a, i) => {
       const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : { name: 'Nap', text: 'Channel for 4 s to return to your fountain. Damage breaks it.', icon: 'nap' as const };
       const big = i === 3 ? ' ult' : i >= 4 ? ' small' : '';
-      return `<button class="pl-slot${big}" data-i="${i}" title="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b><kbd>${keyLabel(a)}</kbd></button>`;
+      return `<button class="pl-slot${big}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b><kbd>${keyLabel(a)}</kbd></button>`;
     }).join('');
+    // Round 1 ("hovering Q shows nothing"): a hover card with the words and the numbers from src/data.
+    const tipText = (i: number): string => {
+      const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : null;
+      const nums = i < 4 ? abilityNumbers(hero, i) : i === 4 ? trickNumbers(trick) : '4 s channel';
+      const name = ab ? ab.name : 'Nap';
+      const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
+      return `<b>${name}</b><span>${text}</span><small>${nums}</small>`;
+    };
     root.innerHTML = `
       <div class="pl-top">
         <div class="pl-score">
@@ -99,7 +108,7 @@ export class Hud {
       <div class="pl-feed"></div>
       <div class="pl-respawn"><div>Back in <b>0</b></div><small class="recap">Your team is still fighting!</small></div>
       <div class="pl-bar">
-        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b></div>
+        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b><i class="xpbar"><i></i></i><em class="gap"></em></div>
         <div class="pl-bar-main">
           <div class="pl-slots">${slotHtml}</div>
           <div class="pl-hp"><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
@@ -108,8 +117,20 @@ export class Hud {
     parent.appendChild(root);
     this.root = root;
     const q = <T extends HTMLElement>(s: string): T => root.querySelector(s) as T;
+    const tip = document.createElement('div');
+    tip.className = 'pl-slot-tip';
+    root.appendChild(tip);
     for (const el of root.querySelectorAll<HTMLElement>('.pl-slot')) {
       this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, last: '' });
+      el.addEventListener('pointerenter', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        tip.innerHTML = tipText(Number(el.dataset.i));
+        const r = el.getBoundingClientRect();
+        tip.style.left = `${r.left + r.width / 2}px`;
+        tip.style.top = `${r.top}px`;
+        tip.classList.add('on');
+      });
+      el.addEventListener('pointerleave', () => tip.classList.remove('on'));
       el.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         if (e.pointerType !== 'touch') this.host.onSlot(Number(el.dataset.i));
@@ -139,7 +160,30 @@ export class Hud {
     el.textContent = text;
   }
 
-  update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number): void {
+  /**
+   * Round 2 ("once behind, the human falls 2 to 4 levels below the lobby and nothing shows it"): an XP bar on the
+   * portrait, and when the enemy team's average level is 2+ above, a "−2 lv · +35% XP" tag (the sim's catch-up,
+   * data/xp.ts XP.catchUp*). `enemyAvg` is the enemy heroes' average level (0 = unknown).
+   */
+  private xpUpdate(me: EntitySnap, enemyAvg: number): void {
+    const lv = me.level ?? 1;
+    const xp = me.xp ?? 0;
+    const lo = XP.toLevel[lv - 1] ?? 0;
+    const hi = XP.toLevel[lv] ?? lo;
+    const f = lv >= XP.maxLevel || hi <= lo ? 1 : Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
+    const bar = this.level.parentElement?.querySelector<HTMLElement>('.xpbar > i');
+    if (bar) bar.style.width = `${Math.round(f * 100)}%`;
+    const behind = enemyAvg > 0 ? enemyAvg - lv : 0;
+    const bonus = Math.min(XP.catchUpMaxBp, Math.max(0, Math.round((behind - XP.catchUpFreeLevels) * XP.catchUpPerLevelBp))) / 100;
+    const tag = behind >= 2 ? `−${Math.floor(behind)} lv${bonus > 0 ? ` · +${Math.round(bonus)}% XP` : ''}` : '';
+    const gap = this.level.parentElement?.querySelector<HTMLElement>('.gap');
+    if (gap && gap.textContent !== tag) {
+      gap.textContent = tag;
+      gap.title = tag ? 'You are behind the enemy team: you earn bonus XP until you catch up.' : '';
+    }
+  }
+
+  update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number, enemyAvg = 0): void {
     this.set('clock', this.clock, fmtClock(clock.seconds));
     this.set('phase', this.phase, phaseLine(clock));
     this.root.dataset.phase = clock.phase;
@@ -171,6 +215,7 @@ export class Hud {
     this.root.classList.toggle('low', me.hp < me.maxHp * 0.3);
     const lv = me.level ?? 1;
     this.set('lvl', this.level, String(lv));
+    this.xpUpdate(me, enemyAvg);
     const cds = me.cooldowns;
     for (let i = 0; i < 5; i++) {
       const s = this.slots[i];
@@ -211,6 +256,18 @@ export class Hud {
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
     setTimeout(() => el.classList.add('out'), 5000);
     setTimeout(() => el.remove(), 5600);
+  }
+
+  /** A neutral line in the kill feed ("Blaze cheered your takedown"; round 1: the squad mates get a moment). */
+  note(text: string): void {
+    const el = document.createElement('div');
+    el.className = 'pl-feed-row note';
+    el.innerHTML = `<span>${icon('paw')}</span><b></b>`;
+    (el.querySelector('b') as HTMLElement).textContent = text;
+    this.feed.prepend(el);
+    while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
+    setTimeout(() => el.classList.add('out'), 4000);
+    setTimeout(() => el.remove(), 4600);
   }
 
   /**

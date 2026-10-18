@@ -20,7 +20,7 @@ export function heroMatch(picks: readonly HeroId[], tricks: readonly TrickId[] =
   const m = createMatch({ seed, picks, tricks, difficulty: 'normal' });
   m.world.globals[G.Tick] = 300;
   m.world.globals[G.BotsOff] = 1;
-  // Kit numbers as POC.md §6 states them: no species edge (data/heroes SIDE_EDGE, Normal since sim v5).
+  // Kit numbers as POC.md §6 states them: no per-hero tuning (HeroData.pvp, Normal and Hard).
   m.world.globals[G.SideEdge] = 0;
   return m;
 }

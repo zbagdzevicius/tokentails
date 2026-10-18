@@ -68,10 +68,10 @@ describe('bridge protocol: shared fixture', () => {
   });
 });
 
-const progress = (o: Partial<Record<keyof Progress, Partial<Record<'easy' | 'normal' | 'rookie', number>>>> = {}): Progress => ({
-  catnip: { easy: 0, normal: 0, rookie: 0, ...o.catnip },
-  matches: { easy: 0, normal: 0, rookie: 0, ...o.matches },
-  fastestWin: { easy: 0, normal: 0, rookie: 0, ...o.fastestWin },
+const progress = (o: Partial<Record<keyof Progress, Partial<Record<'easy' | 'normal' | 'rookie' | 'hard', number>>>> = {}): Progress => ({
+  catnip: { easy: 0, normal: 0, rookie: 0, hard: 0, ...o.catnip },
+  matches: { easy: 0, normal: 0, rookie: 0, hard: 0, ...o.matches },
+  fastestWin: { easy: 0, normal: 0, rookie: 0, hard: 0, ...o.fastestWin },
 });
 
 describe('mergeServerProgress', () => {
@@ -177,7 +177,9 @@ function harness(opts: { sessions?: number; matches?: number } = {}) {
   return { root, posted, emit, screen, integ, tracked, metaChanges: () => metaChanges, ent };
 }
 
-const featured = { type: 'featured', cats: [{ catalogId: CAT_A, name: 'Pumpkin', type: 'GRASS' }, { catalogId: CAT_B, name: 'Nova', type: 'STELLAR' }] };
+// round 1: only cats with art get a Meet card (the bucket host is the one the bridge accepts)
+const ART = (n: string): string => `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/tokentails-nfts/test/${n}.png`;
+const featured = { type: 'featured', cats: [{ catalogId: CAT_A, name: 'Pumpkin', type: 'GRASS', art: ART('pumpkin') }, { catalogId: CAT_B, name: 'Nova', type: 'STELLAR', art: ART('nova') }] };
 
 describe('mounted cards', () => {
   it('signed out: Save your wins asks the host to sign in; the session progress merges in', () => {

@@ -53,6 +53,9 @@ kbd {
 .pl-btn.ghost { background: rgba(255, 243, 220, 0.1); color: var(--cream); box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.35); }
 .pl-btn.ghost:active { box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.6); }
 .pl-btn.danger { color: #ffb3bf; }
+/* Round 2: a solid dark secondary button (the ghost "Change hero" vanished on the pale results pedestal). */
+.pl-btn.solid { background: #2b1d2e; color: var(--cream); box-shadow: 0 4px 0 #120a14, 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 243, 220, 0.5); }
+.pl-btn.solid small { display: block; font-size: 11px; font-weight: 600; opacity: 0.75; margin-top: 3px; }
 
 /* ------------------------------------------------------------------------------------------ screens */
 .pl-screen { position: absolute; inset: 0; z-index: 20; color: var(--cream); pointer-events: none; }
@@ -118,7 +121,16 @@ kbd {
 }
 .chip .pl-icon { width: 18px; height: 18px; color: var(--butter); }
 .chip.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
-.pl-pick .pl-btn.big { align-self: flex-start; margin-top: 4px; position: sticky; bottom: 0; z-index: 1; }
+/* Playtest round 1: Play and the bots chips live in a footer OUTSIDE the scrolling column. Inside it, the column's
+   fade mask (short screens) clipped the fixed Play button and the lobby canvas took the taps. */
+.pl-pick-foot {
+  position: absolute; left: calc(36px + var(--safe-l)); bottom: 24px; width: min(520px, 48vw); z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+.pl-pick-foot .pl-btn.big { margin: 0; }
+.pl-pick-foot .bots-hint { margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.8; max-width: 100%; }
+.pl-pick .kit .num { display: block; font-size: 11px; opacity: 0.75; margin-top: 1px; color: var(--butter); }
+.pl-pick .detail h3 .numbers { float: right; font-size: 11px; padding: 3px 9px; }
 
 .pl-results-col {
   position: absolute; left: calc(56px + var(--safe-l)); top: 50%; transform: translateY(-50%); max-width: 520px;
@@ -131,6 +143,7 @@ kbd {
   display: flex; gap: 10px; align-items: center; margin: 12px 0 0; padding: 8px 12px; border-radius: 12px; background: rgba(255, 243, 220, 0.1);
   border: 1px solid var(--line); font-size: 14px; line-height: 1.3; max-width: 440px;
 }
+.pl-results .pl-cause { margin: 4px 0 10px; font-size: 15px; line-height: 1.35; max-width: 520px; color: var(--butter); }
 .pl-result-tip .pl-icon { width: 22px; height: 22px; flex: none; color: var(--butter); }
 .pl-results .stats { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
 .pl-results .stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
@@ -217,6 +230,12 @@ kbd {
   position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--butter);
   display: grid; place-items: center; font-size: 14px; box-shadow: 0 0 0 2px var(--self);
 }
+/* Round 2: XP to the next level on the portrait, and the level gap when the enemy team is ahead. */
+.pl-portrait .xpbar { position: absolute; left: 6px; right: 6px; bottom: -9px; height: 5px; border-radius: 3px; background: rgba(20, 12, 22, 0.8); overflow: hidden; }
+.pl-portrait .xpbar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #b48cff, #e1c6ff); transition: width 0.3s; }
+.pl-portrait .gap { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); white-space: nowrap; font: 700 11px/1 var(--font); font-style: normal;
+  color: #2b1d2e; background: #e1c6ff; border-radius: 8px; padding: 2px 6px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.pl-portrait .gap:empty { display: none; }
 .pl-bar-main { display: flex; flex-direction: column; gap: 7px; }
 .pl-slots { display: flex; gap: 7px; align-items: flex-end; }
 .pl-slot {
@@ -457,10 +476,7 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-pick h2 { font-size: 20px; }
   .pl-pick .detail { padding: 10px 12px; }
   .pl-pick .kit { gap: 4px; font-size: 12px; }
-  /* Play docks bottom right, under the hero, so it never covers the ability list (it was sticky over the R text). */
-  .pl-pick .pl-btn.big { position: fixed; right: calc(18px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); margin: 0; }
-  /* The difficulty sits right above Play (it was below the fold of the scrolling column at 844x390). */
-  .pl-pick .row.bots { position: fixed; right: calc(18px + var(--safe-r)); bottom: calc(70px + var(--safe-b)); z-index: 2; flex-wrap: nowrap; gap: 6px; }
+  .pl-pick .row.bots { flex-wrap: nowrap; gap: 6px; }
   .pl-pick .row.bots .lbl { width: auto; }
   .pl-pick .row.bots .chip { font-size: 13px; padding: 5px 11px; }
   .hero-card i { width: 34px; height: 34px; font-size: 16px; }
@@ -759,13 +775,76 @@ html[data-touch='1'] .pl-talents button span.s { -webkit-line-clamp: 2; }
 .pl-pick .chip.chroma[data-chroma=''] { background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.25) 0 4px, transparent 4px 8px); }
 .pl-pick .chip.chroma.on { border-color: var(--butter); box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.55); }
 @media (min-height: 481px) {
-  .pl-pick-col { bottom: 96px; }
-  .pl-pick .pl-btn.big { position: fixed; left: calc(36px + var(--safe-l)); bottom: 24px; margin: 0; }
+  .pl-pick-col { bottom: 170px; }
 }
 @media (max-height: 480px) {
   .pl-pick .row.bots { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
   .pl-pick .row.bots .note { font-size: 12px; opacity: 0.9; }
   .pl-pick .blurb { display: none; }
+  /* short landscape (844x390, 932x430): Play and the bots bottom right under the hero; the column keeps the kit to
+     one line per ability so the Paw Trick and Look chips fit above the fold */
+  .pl-pick-foot { left: auto; right: calc(18px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: auto; max-width: 42vw; align-items: flex-end; gap: 6px; }
+  .pl-pick-foot .bots-hint { display: none; }
+  .pl-pick .kit .t { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .pl-pick .kit .num { display: none; }
+  .pl-pick .kit li .ico { width: 20px; height: 20px; }
+  .pl-pick .kit li { grid-template-columns: 22px 1fr; }
+  .pl-pick .detail h3 { font-size: 17px; }
+  .hero-card { padding: 5px 4px; }
+  .hero-card small { display: none; }
   .pl-pick-col { -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); padding-bottom: 18px; }
 }
 .pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }
+
+/* Round 1: ability hover card (desktop) with the numbers from src/data. */
+.pl-slot-tip {
+  position: fixed; z-index: 12; transform: translate(-50%, calc(-100% - 10px)); max-width: 260px; padding: 8px 11px; border-radius: 12px;
+  background: rgba(30, 20, 34, 0.94); border: 1px solid var(--line); color: var(--cream); font-size: 12px; line-height: 1.3;
+  display: none; flex-direction: column; gap: 2px; pointer-events: none; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.pl-slot-tip.on { display: flex; }
+.pl-slot-tip b { color: var(--butter); font-size: 13px; }
+.pl-slot-tip small { color: var(--butter); opacity: 0.85; }
+
+/* Round 1: one centre-screen item at a time (ui/stage.ts sets .pl-match[data-stage] to the item on stage). A death
+   recap beats everything, a tower warning beats banners, a banner beats callouts, an open talent card beats callouts,
+   and a coaching tip never shows next to any of them. */
+.pl-match[data-stage] .pl-tip { opacity: 0 !important; }
+.pl-match[data-stage='recap'] .pl-banner, .pl-match[data-stage='recap'] .pl-callouts, .pl-match[data-stage='recap'] .pl-alert,
+.pl-match[data-stage='urgent'] .pl-callouts, .pl-match[data-stage='urgent'] .pl-alert,
+.pl-match[data-stage='alert'] .pl-banner:not(.urgent), .pl-match[data-stage='alert'] .pl-callouts,
+.pl-match[data-stage='talent'] .pl-callouts, .pl-match[data-stage='banner'] .pl-callouts { opacity: 0 !important; visibility: hidden; }
+/* Round 2: the standing goal chip covered the death recap and the respawn timer: it steps aside for the recap and
+   for urgent calls. */
+.pl-match[data-stage='recap'] .pl-goal, .pl-match[data-stage='urgent'] .pl-goal { opacity: 0 !important; visibility: hidden; }
+/* In-world callouts ("First Blood!", "Takedown!") sit in the banner band under the score bar, not over the hero. */
+.pl-callouts { top: calc(118px + var(--safe-t)); }
+@media (max-height: 480px) {
+  .pl-callouts { top: calc(96px + var(--safe-t)); }
+  .pl-callout { font-size: 28px; -webkit-text-stroke: 5px #4a2a1f; }
+}
+/* Touch: the talent card docks bottom centre between the stick and the buttons, clear of the hero, its nameplate
+   and the tip line at the top. */
+html[data-touch='1'] .pl-talents { top: auto; bottom: calc(8px + var(--safe-b)); left: calc(50% - 28px); transform: translate(-50%, 8px); }
+/* Round 2: the card's right edge cut "Nap" to "ap": narrower cards, docked left of the ability cluster. */
+html[data-touch='1'] .pl-talents button { width: 148px; }
+html[data-touch='1'] .pl-talents.on { transform: translate(-50%, 0); }
+html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%); }
+
+.pl-feed-row.note { color: var(--butter); }
+.pl-feed-row.note span { color: var(--butter); opacity: 1; }
+
+/* Round 1: the standing goal (no beat up): the same chip, quieter. */
+.pl-goal.standing { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); background: rgba(255, 243, 220, 0.9); padding: 4px 12px 4px 5px; animation: none; }
+.pl-goal.standing .ico { width: 26px; height: 26px; }
+.pl-goal.standing .ico .pl-icon { width: 15px; height: 15px; }
+.pl-goal.standing .txt b { font-size: 14px; }
+.pl-goal.standing .txt small { font-size: 11px; }
+@media (max-height: 480px) { .pl-goal.standing .txt small { display: none; } }
+/* Round 1: on short screens the tower alert sits in the top band under the goal chip, never over the hero. */
+@media (max-height: 480px) {
+  .pl-alert { bottom: auto; top: calc(96px + var(--safe-t)); }
+  .pl-match:has(.pl-goal.on) .pl-banner { top: calc(96px + var(--safe-t)); }
+  .pl-banner-title { font-size: 26px; }
+  .pl-banner-sub { font-size: 13px; }
+}

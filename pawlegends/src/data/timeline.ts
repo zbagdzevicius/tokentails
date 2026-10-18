@@ -52,6 +52,14 @@ export const SUDDEN_DEATH = Object.freeze({
   coreDecayBpPerSecond: 300,
   /** Each takedown deals 10% core damage to the victim's core. */
   takedownCoreBp: 1000,
+  /**
+   * Sim v7 (playtest round 1: "losing every fight still wins"): a core's decay grows by this much per takedown its
+   * team trails by (and shrinks by it per takedown ahead), within decayMinBp..decayMaxBp. A team 10 behind burns at
+   * 5.5% a second, the team ahead at 1%.
+   */
+  decayPerTakedownBp: 25,
+  decayMinBp: 100,
+  decayMaxBp: 600,
 });
 
 /** Per-difficulty phase ticks (the match stores them in its globals at createMatch). */
@@ -59,10 +67,11 @@ export interface PhaseTimes {
   sunset: number;
   suddenDeath: number;
 }
-export const TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal', Readonly<PhaseTimes>>> = Object.freeze({
+export const TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', Readonly<PhaseTimes>>> = Object.freeze({
   /** Match 1: 4:00 Sunset, 6:15 Sudden Death (the plan said 5:30; at 5:30 a third of the fun1 matches reached it). */
   rookie: Object.freeze({ sunset: 7200, suddenDeath: 11700 }),
   easy: Object.freeze({ sunset: TIMELINE.sunset, suddenDeath: TIMELINE.suddenDeath }),
   /** Sim v5: 6:00 Sunset, 7:45 Sudden Death, so a late teamfight can still turn a Normal match. */
   normal: Object.freeze({ sunset: 10800, suddenDeath: 13950 }),
+  hard: Object.freeze({ sunset: 10800, suddenDeath: 13950 }),
 });

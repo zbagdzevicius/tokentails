@@ -6,6 +6,8 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
   name: 'Sage',
   side: 'cat',
   role: 'marksman',
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+  pvp: { dmgBp: 10000, takenBp: 10000 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */

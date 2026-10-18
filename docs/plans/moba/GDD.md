@@ -11,7 +11,7 @@ Sources used: Pink Paw Knight (PPK, the Swordcat repo, checked out next to this 
 ## 0. Summary
 
 - **Name:** **Pawlegends**, one coined word. It is the closest safe mark to the founder's "Cats Legends". Alternates: **Meowba** and **Nine Lives Arena** (§1).
-- **Logline:** *Eight-minute cats vs dogs battles. Pick a legend, push the lane, pop the Bone Throne. Bring your own cat.*
+- **Logline:** *Seven-minute cats vs dogs battles. Pick a legend, push the lane, pop the Bone Throne. Bring your own cat.*
 - **Core mode:** 3v3, two lanes, a small jungle, two neutral objectives (the POC ships one, Pudding). Median match 7 to 9 minutes, hard end at 11:00. Desktop plays like LoL (right-click to move, QWER). Phones get the Wild Rift layout, landscape only.
 - **Why we can build it:** PPK already has a LoL-style iso camera, MOBA orders, the Wild Rift touch cluster, ability aiming, telegraphs, a procedural cat rig and a dog faction with lore. Catnip Heist and Bad Cat already prove a deterministic sim that the backend re-simulates before it saves a score.
 - **Key architecture call:** a new integer deterministic sim runs in a Web Worker ("LocalHost") in Phase 1. It speaks the same message protocol the Phase 2 match server will use. MVP netcode is then a transport swap, not a rewrite.
@@ -332,17 +332,17 @@ The host page calls `GET /user/cats` (signed-in or guest session) and passes a s
 
 | You own on Token Tails | You get in Pawlegends (cosmetic only) | Phase |
 |---|---|---|
-| Any cat | It walks in your minion wave as a **Companion Kitten** (name tag, coat, element colour) and naps at your fountain | P1 |
+| Any cat | It walks as a **Companion Kitten** (name tag, coat, element colour): at your hero's heels while you are out in a lane (round 1; it trotted with a wave in another lane before), with your wave while you are dead or home, and it naps at your fountain. It hops and cheers your takedowns ("Blaze cheered your takedown" in the kill feed) | P1 |
 | A cat of element X | The **X element chroma** on every hero you play. Owning a FIRE cat gives fire VFX on Clem, Sage and the rest | P1 |
 | RARE tier | Rare profile frame | P1 |
-| EPIC tier | Epic frame + recall sparkle | P1 |
-| LEGENDARY tier | Legendary frame, gold name plate, "Legend's Recall" animation | P1 |
+| EPIC tier | Epic frame + recall sparkle (built: violet sparkles while the hero naps) | P1 |
+| LEGENDARY tier | Legendary frame, gold name plate over the hero, "Legend's Recall" animation (built: a gold sparkle column while the hero naps; a bespoke recall animation is P2) | P1 |
 | Starter cat (`isStarter`, `starterBreed`, 5 breeds) | A free first coat matching the breed on every cat hero | P1 |
 | A shelter cat (`origin: 'adopt'`, or a cat with a `blessing`) | A **Rescue coat** with that cat's name and photo card. Copy follows CLAIMS R2/R3 | P2 |
 
 Tier sets frames and VFX intensity only. No stat effect anywhere.
 
-**Revenue effect, without importing paid randomness.** Token Tails packs give random tiers, so the game **never links to, names or advertises packs**, in any build. The in-game "Get more coats" button (web only, hidden in app builds) opens the host's direct-purchase cats (named shelter cats at a fixed price), never the packs page. Tier frames apply to every owned cat whatever its origin, including cats from packs bought before; whether pack-origin tiers should count at all is founder decision #19. Game copy has no money words.
+**Revenue effect, without importing paid randomness.** Token Tails packs give random tiers, so the game **never links to, names or advertises packs**, in any build. The in-game "Get more coats" button (web only, hidden in app builds) opens the host's direct-purchase cats (named shelter cats at a fixed price), never the packs page. **Pack-origin tiers (decision #19, default in force since round 0):** a cat from a pack still walks as a Companion Kitten and gives its element chroma, but its tier gives no frame and no tier perk, so no in-game look depends on pack luck. The game says so where the player looks (playtest round 1): the frame badge's tooltip reads "Frames come from cats you adopted by name", and such a cat's squad and bench chip carries "no frame". It never uses the word "pack". If the founder settles #19 the other way, `rosterCosmetics` in `pawlegends/src/meta/roster.ts` and these two lines change together. Game copy has no money words.
 
 ---
 
@@ -588,7 +588,7 @@ Heroes: 1 skinned mesh each, shared skeletons, a 256² palette texture. Minions:
 ### 10.1 Phase 1: POC "First Blood" (build Thu Oct 22 to Wed Nov 11 2026, launch Thu Nov 12)
 
 - **Goal.** Prove four things before paying for servers:
-  1. **Core loop:** an 8-minute 3v3 cats vs dogs match against bots is fun on a phone and a laptop, and players start a second one.
+  1. **Core loop:** a 7-minute 3v3 cats vs dogs match against bots is fun on a phone and a laptop, and players start a second one.
   2. **Purchase loop:** tap Buy in the game, pay on the web, come back, see the item on your hero in the next match.
   3. It runs in the performance budget on a mid-range phone.
   4. People pay for it.
@@ -723,7 +723,7 @@ Spend in two tranches: €500 in week 1 after launch, the rest only if cost per 
 | 16 | Presale delivery target | MVP live **2027-04-30**; refund window opens if not live by **2027-06-30** |
 | 17 | EU VAT on digital sales | VAT-inclusive prices; the accountant confirms Lithuanian VAT vs OSS (and Stripe Tax) before Stripe live mode. Same open question as the Etsy row in the funding tracker |
 | 18 | App builds | Pawlegends plays in the app with no store, no offers and no web-bought items until IAP; the `/game` card is web only in P1 and P2 |
-| 19 | Pack-origin tiers as cosmetics | Tier frames apply to every owned cat, pack-origin ones included; the game never links to or names packs. Alternative: count only non-pack cats, which removes any paid-randomness link |
+| 19 | Pack-origin tiers as cosmetics | **Default (in the code):** count only non-pack cats for frames and tier perks, which removes any paid-randomness link; pack cats still walk and give their chroma, and the game explains the missing frame without naming packs (§7.2). Alternative: tier frames for every owned cat, pack-origin ones included |
 | 20 | Offer pressure | Max one offer card per session, none in session 1 (§8.1). Stricter alternative: offers on results screens only |
 
 ---

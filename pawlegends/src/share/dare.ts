@@ -18,7 +18,7 @@ const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function encodeDare(d: Dare): string {
-  return [(d.seed >>> 0).toString(36), HEROES.indexOf(d.hero), TRICKS.indexOf(d.trick), d.difficulty === 'normal' ? 1 : 0, Math.max(0, Math.min(3600, Math.floor(d.seconds))).toString(36)].join('.');
+  return [(d.seed >>> 0).toString(36), HEROES.indexOf(d.hero), TRICKS.indexOf(d.trick), d.difficulty === 'hard' ? 2 : d.difficulty === 'normal' ? 1 : 0, Math.max(0, Math.min(3600, Math.floor(d.seconds))).toString(36)].join('.');
 }
 
 export function decodeDare(s: string | null | undefined): Dare | null {
@@ -28,7 +28,7 @@ export function decodeDare(s: string | null | undefined): Dare | null {
   const seed = parseInt(parts[0], 36);
   const hero = HEROES[Number(parts[1])];
   const trick = TRICKS[Number(parts[2])];
-  const diff = parts[3] === '1' ? 'normal' : parts[3] === '0' ? 'easy' : null;
+  const diff = parts[3] === '2' ? 'hard' : parts[3] === '1' ? 'normal' : parts[3] === '0' ? 'easy' : null;
   const seconds = parseInt(parts[4], 36);
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff || !hero || !trick || !diff || !Number.isFinite(seconds)) return null;
   return { seed, hero, trick, difficulty: diff, seconds };
@@ -57,7 +57,8 @@ export function dareUrl(d: Dare, base: string): string {
  * was mostly set by the Sudden Death clock, so that dare (seconds 0) is just to win the same match.
  */
 export function dareText(d: Dare): string {
-  const bots = d.difficulty === 'normal' ? 'Normal' : 'Easy';
+  // Round 2: a Rookie (assisted) win says Rookie, not Easy.
+  const bots = d.difficulty === 'hard' ? 'Hard' : d.difficulty === 'normal' ? 'Normal' : d.difficulty === 'rookie' ? 'Rookie' : 'Easy';
   if (d.seconds <= 0 || d.seconds >= 600) return `Win my match vs ${bots} bots in Pawlegends!`;
   const m = Math.floor(d.seconds / 60);
   const s = String(d.seconds % 60).padStart(2, '0');

@@ -33,11 +33,11 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
   const msgs = await received(page);
   expect(msgs[0]).toMatchObject({ type: 'ready' });
 
-  // first match: one tap, wearing the Pinkie coat (the starter breed) and the first squad mate's chroma (Mochi,
-  // the starter: FIRE; round 0), with two kittens
+  // first match: one tap, wearing the Pinkie coat (the starter breed) and the first squad mate's chroma (round 1:
+  // the highest tier walks first, Biscuit the LEGENDARY: ICE), with two kittens
   await game.locator('.pl-btn.big').first().click();
   await game.waitForSelector('html[data-match="live"]');
-  await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|FIRE');
+  await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|ICE');
   expect(await gattr(game, 'kittens')).toBe('2');
   expect(await gattr(game, 'matchFrame')).toBe('frame.legendary');
 

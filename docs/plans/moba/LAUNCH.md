@@ -4,6 +4,15 @@ Launch readiness for Phase 1 "First Blood" of [`GDD.md`](GDD.md), built per [`PO
 Three parts: (a) the founder checklist in order, (b) the distribution plan for the €1,500 budget and the 4-week
 measurement window (to Thu 2026-12-10), (c) launch copy.
 
+**Changed since this kit was written (2026-10-18).** The game no longer sells the `pl_*` SKUs (Starter, Founder,
+Founder Legend, upgrade): it sends no `purchase-intent`, and the routes stay only so earlier purchases restore. The one
+thing on sale from the game is a direct-purchase Token Tails cat ($5) from the session's single "Meet <cat>" card
+(never in session 1, at most one a session), through the host's cat sheet and the Token Tails checkout with the
+Pawlegends age band and spend caps (BACKEND.md, "Pawlegends"). So §a.3 becomes one test-mode $5 cat purchase from the
+Meet card plus one restore of an old token, §a.7 step 5 one real $5 cat, and the store copy in §c.5 and the Founder
+lines in §b and §c are not used until the founder decides to sell packs again. Rows 3 and 7 of the checklist keep
+their dates.
+
 Times: Vilnius is EET (UTC+2) from Oct 25, so the whole launch window is UTC+2.
 
 Where results go:
@@ -24,7 +33,7 @@ Where results go:
 |---|---|---|---|
 | 1 | Trademark searches for "Pawlegends" | Mon Nov 9 | Every public use: the launch post, removing `noindex`, any portal page |
 | 2 | Accountant answer on EU VAT for digital sales (GDD §12 #17) | Mon Nov 9 | Stripe live mode |
-| 3 | Stripe test-mode run: 4 SKUs × USD and EUR | Mon Nov 9 (M3 done) | Stripe live mode |
+| 3 | Stripe test-mode run: one $5 cat from the Meet card (card), one restore (was: 4 SKUs × USD and EUR) | Mon Nov 9 (M3 done) | Stripe live mode |
 | 4 | Device gate on iPhone 11, Pixel 6a, Iris Xe | Tue Nov 10 | Launch (POC proof 3) |
 | 5 | 10-person playtest | Tue Nov 10 | Tuning pass on Nov 11 |
 | 6 | Push, PR, merge, deploy | Wed Nov 11 | Live mode, launch |
@@ -231,8 +240,9 @@ no `pawlegends` job, so these run on your machine; CI does run copy-lint over `p
 client jobs.
 
 ```bash
-cd pawlegends && npx tsc --noEmit && npx vitest run && npm run lint:sim \
-  && npm run build && npm run budget && npm run e2e && npm run vendor-sim:check \
+cd pawlegends && npx tsc --noEmit && npx vitest run && npm run lint:sim && npm run lift -- --check \
+  && npm run build && npm run budget && npx playwright test --workers=2 && npm run vendor-sim:check \
+  && npm run match -- --seeds 400 --balance --check-determinism && npm run determinism -- --seeds 200 \
   && npm run build:client                         # writes client/public/pawlegends-game (commit it)
 cd ../backend && npm run lint && npm run build && npm test
 cd ../client && npx tsc --noEmit && npx eslint . && npm test
@@ -262,8 +272,8 @@ curl -s https://api.tokentails.com/pawlegends/status | jq '{store, email, termsV
 cd pawlegends && npm run vendor-sim:check-remote -- https://api.tokentails.com   # backend sim = game sim
 ```
 
-Then play one match on `https://tokentails.com/pawlegends` signed in and confirm the save (the note under the exit
-button says "Match saved"; saves go only through `POST /user/catbassadors/live`).
+Then play one match on `https://tokentails.com/pawlegends` signed in and confirm the save (the results save chip
+says "Saved to your account"; saves go only through `POST /user/catbassadors/live`).
 
 **Rollback = fix forward.** Never revert. If production breaks: fix on a branch, run the checks above, push to `main`.
 While the fix is on its way: `NEXT_PUBLIC_PAWLEGENDS=0` on Vercel plus a redeploy closes the page (the one kill
@@ -397,7 +407,7 @@ shelter, impact or money words), the store block as a store file (prices allowed
 
 <!-- copy:game -->
 ```text
-Pawlegends is out. Cats vs dogs, 3v3, right in your browser. Eight-minute matches, four heroes, no download, no account. Pick Clem, Sage, Sir Brutus or Cacklejaw and pop the Bone Throne. tokentails.com/pawlegends
+Pawlegends is out. Cats vs dogs, 3v3, right in your browser. Seven-minute matches, four heroes, no download, no account. Pick Clem, Sage, Sir Brutus or Cacklejaw and pop the Bone Throne. tokentails.com/pawlegends
 
 On a laptop: right-click to move, QWER to cast. On a phone: joystick and drag-to-aim, in landscape. You play with two bot allies against three bots, at Easy or Normal.
 
@@ -429,7 +439,7 @@ r/WebGames (read the sidebar first; post once, answer every comment for the firs
 
 <!-- copy:game -->
 ```text
-Pawlegends: a cats vs dogs 3v3 MOBA that runs in a browser tab (eight-minute matches vs bots, laptop and phone)
+Pawlegends: a cats vs dogs 3v3 MOBA that runs in a browser tab (seven-minute matches vs bots, laptop and phone)
 
 Hi r/WebGames. We made a small MOBA where cats and dogs settle their disputes on a neutral crossing: two lanes, towers, a rat camp and Pudding, a giant dragon who is scared of everything. You pick one of four heroes and play with two bot allies against three bots. No download, no account.
 
@@ -462,7 +472,7 @@ that the standalone build (no host page) shows no store button.
 ```text
 Pawlegends
 
-Cats vs dogs 3v3 battles. Eight-minute matches, four heroes, play with bots in your browser.
+Cats vs dogs 3v3 battles. Seven-minute matches, four heroes, play with bots in your browser.
 
 The Truce Games have begun. Cats and dogs no longer fight over the best sunbeam: they settle it on the Crossing, three heroes a side. Push your lane, take the rat camp, calm Pudding before the other team does, and knock over the Bone Throne.
 
@@ -479,7 +489,7 @@ Tags: moba, cats, dogs, 3v3, strategy, action, cartoon, browser, mobile
 
 <!-- copy:game -->
 ```text
-Clip A, teamfight. On screen 0 to 2 s: "cats vs dogs, but it's a MOBA". 2 to 13 s: the fight. End card: "Play in your browser, link in bio". Caption: Team Cat or Team Dog? Eight-minute matches, no download. #catsvsdogs #moba #indiegame #browsergame
+Clip A, teamfight. On screen 0 to 2 s: "cats vs dogs, but it's a MOBA". 2 to 13 s: the fight. End card: "Play in your browser, link in bio". Caption: Team Cat or Team Dog? Seven-minute matches, no download. #catsvsdogs #moba #indiegame #browsergame
 
 Clip B, parry. On screen: "he sent it back". Clem's Stand sends the shot back, "Purrfect!" pops. Caption: Timing is everything. #moba #gaming #cats
 

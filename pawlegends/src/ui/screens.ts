@@ -13,7 +13,7 @@ const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
 import type { Dare } from '../share/dare';
 import { dareText } from '../share/dare';
-import { DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT } from './heroText';
+import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickNumbers } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
 import * as TL from '../data/timeline';
@@ -65,7 +65,8 @@ function questRow(q: QuestView): string {
 function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null): string {
   if (!frame && !title) return '';
   const face = portrait ? ` style="background-image:url(${portrait})"` : '';
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''}><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  // round 1: say where frames come from (a Legendary from a pack gives none: decision #19)
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="Frames come from cats you adopted by name, by their tier."><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -124,6 +125,11 @@ export interface PickOpts {
   difficulties?: readonly Difficulty[];
   /** Shown instead of the chips while they are locked. */
   difficultyNote?: string;
+  /** Ability numbers on (round 1: "no numbers anywhere"); the Numbers chip toggles it. */
+  numbers?: boolean;
+  onNumbers?(on: boolean): void;
+  /** Round 1: an experienced player can unlock the chips right away ("I've played MOBAs before"). */
+  onVeteran?(): void;
 }
 
 export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
@@ -141,6 +147,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       .map((k) => `<button class="chip ${k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`)
       .join('')}${chromas.length > 1 ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
   };
+  let numbers = o.numbers === true;
   const render = (): void => {
     const t = HERO_TEXT[c.hero];
     root.innerHTML = `
@@ -152,17 +159,21 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           const face = pic ? `<i class="pic" style="background-image:url(${pic})"></i>` : `<i>${esc(x.title.replace('Sir ', '').slice(0, 2))}</i>`;
           return `<button class="hero-card ${h === c.hero ? 'on' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
         }).join('')}</div>
+        ${wardrobeRow(c.hero)}
         <div class="detail">
-          <h3>${esc(t.title)} <small>${t.side} ${t.role}</small></h3>
+          <h3>${esc(t.title)} <small>${t.side} ${t.role}</small>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
           <ul class="kit">
             <li><span class="ico passive">${icon('paw')}</span><span class="t"><b>${esc(t.passive.name)}</b> ${esc(t.passive.text)}</span></li>
-            ${t.abilities.map((a, i) => `<li><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}</span></li>`).join('')}
+            ${t.abilities.map((a, i) => `<li title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}
           </ul>
+          ${numbers && pvpNumbers(c.hero) ? `<p class="num pvp">${esc(pvpNumbers(c.hero))}</p>` : ''}
         </div>
-        <div class="row"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(TRICK_TEXT[tr].text)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
-        ${wardrobeRow(c.hero)}
-        ${o.difficultyNote ? `<div class="row bots"><span class="lbl">Bots</span><span class="note">${esc(o.difficultyNote)}</span></div>` : `<div class="row bots"><span class="lbl">Bots</span>${(o.difficulties ?? DIFFICULTIES).map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}">${esc((DIFFICULTY_TEXT as Record<string, string>)[d] ?? d)}</button>`).join('')}</div>`}
+        <div class="row"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
+      </div>
+      <div class="pl-pick-foot">
+        ${o.difficultyNote ? `<div class="row bots"><span class="lbl">Bots</span><span class="note">${esc(o.difficultyNote)}</span>${o.onVeteran ? `<button class="chip veteran" data-a="veteran">Played MOBAs before? Unlock</button>` : ''}</div>` : `<div class="row bots"><span class="lbl">Bots</span>${(o.difficulties ?? DIFFICULTIES).map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc((DIFFICULTY_TEXT as Record<string, string>)[d] ?? d)}</button>`).join('')}</div>`}
+        ${!o.difficultyNote && DIFFICULTY_HINT[c.difficulty] ? `<p class="bots-hint">${esc(DIFFICULTY_HINT[c.difficulty] as string)}</p>` : ''}
         <button class="pl-btn big" data-a="start">Play</button>
       </div>`;
   };
@@ -190,6 +201,12 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     }
     if (tr) c.trick = tr;
     if (d) c.difficulty = d;
+    if (a === 'numbers') {
+      numbers = !numbers;
+      o.onNumbers?.(numbers);
+      return render();
+    }
+    if (a === 'veteran') return o.onVeteran?.();
     if (a === 'start') return o.onStart({ ...c });
     if (a === 'back') return o.onBack();
     if (h || tr || d) render();
@@ -207,6 +224,8 @@ export interface ResultsOpts {
   difficulty: Difficulty;
   kills: number;
   deaths: number;
+  /** Round 1: shown as K / D / A, the same takedowns (K + A) the quests and personal bests count. */
+  assists?: number;
   level: number;
   teamKills: [number, number];
   firstWin: boolean;
@@ -236,9 +255,15 @@ export interface ResultsOpts {
   /** Per-player rows (round 0: a veteran wants to see why it lost): own team first. */
   table?: readonly ResultRow[];
   /** Bot-ladder rating after this match and its change (meta/ladder.ts); null on Rookie. */
-  ladder?: { rating: number; delta: number } | null;
+  ladder?: { rating: number; delta: number; placement?: number; impact?: number } | null;
   /** "New personal best: fastest Clem win" (meta/ladder.ts), or null. */
   personal?: string | null;
+  /** Round 2: what decided the match, one line (app/endCause.ts). */
+  cause?: string;
+  /** Round 2: a returning player (4+ matches or the veteran flag) gets Play again at End + RESULTS_REVEAL_MS.quick. */
+  quick?: boolean;
+  /** Round 2: a hero to tease on the Change hero button ("Try Sage: ranged healer"). */
+  tryHero?: HeroId | null;
 }
 
 export interface ResultRow {
@@ -271,7 +296,7 @@ export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 
     return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
   const gap = theirs - ours;
-  if (gap >= 6) return o.difficulty === 'normal' ? 'Tough one. Try Easy bots or a new hero.' : 'Tough one. The tip below helps.';
+  if (gap >= 6) return o.difficulty === 'hard' ? 'Hard bots punish a lone hero. Fight next to your team.' : o.difficulty === 'normal' ? 'Tough one. Try Easy bots or a new hero.' : 'Tough one. The tip below helps.';
   if (gap >= 3) return 'They pulled ahead. You can turn the next one.';
   return 'So close. The next one is yours.';
 }
@@ -297,6 +322,13 @@ export function suddenDeathS(difficulty: Difficulty): number {
   return Math.floor(t / TL.TICK_HZ);
 }
 
+/** "Bot ladder 1012 +12", "Placement 2 of 3: no points lost", "+4 (small share: more takedowns, fewer knockouts)". */
+function ladderLine(l: NonNullable<ResultsOpts['ladder']>, won: boolean): string {
+  const sign = l.delta > 0 ? '+' : '';
+  const note = l.placement ? `<small>Placement ${l.placement} of 3${won ? '' : ': no points lost'}</small>` : won && (l.impact ?? 1) < 0.5 ? '<small>Small share: more takedowns, fewer knockouts</small>' : '';
+  return `<p class="pl-ladder" data-rating="${l.rating}">Bot ladder <b>${l.rating}</b> <span class="${l.delta >= 0 ? 'up' : 'down'}">${l.delta === 0 ? '±0' : `${sign}${l.delta}`}</span>${note}</p>`;
+}
+
 function treatBlock(t: TreatGain): string {
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   const opened = t.rewards.length > 0;
@@ -319,14 +351,15 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     <div class="pl-results-col">
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>
       <p class="sub">${esc(resultLine(o))}</p>
+      ${o.cause ? `<p class="pl-cause" data-cause>${esc(o.cause)}</p>` : ''}
       <div class="stats">
         <div><b>${m}:${s}</b><small>Match time${o.won && o.best && o.seconds < sd ? ' · best!' : ''}</small></div>
-        <div><b>${o.kills} / ${o.deaths}</b><small>Takedowns / knocked out</small></div>
+        <div data-kda="${o.kills}/${o.deaths}/${o.assists ?? 0}"><b>${o.kills} / ${o.deaths} / ${o.assists ?? 0}</b><small>K / D / A</small></div>
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
-      ${o.ladder ? `<p class="pl-ladder" data-rating="${o.ladder.rating}">Bot ladder <b>${o.ladder.rating}</b> <span class="${o.ladder.delta >= 0 ? 'up' : 'down'}">${o.ladder.delta >= 0 ? '+' : ''}${o.ladder.delta}</span></p>` : ''}
+      ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
       ${o.table && o.table.length ? resultTable(o.table) : ''}
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
@@ -340,7 +373,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
-    <div class="actions pinned"><button class="pl-btn ghost" data-a="change">Change hero</button><button class="pl-btn big" data-a="again">Play again</button></div>`;
+    <div class="actions pinned"><button class="pl-btn solid" data-a="change">${o.tryHero ? `Try ${esc(HERO_TEXT[o.tryHero].title)}<small>${esc(HERO_TEXT[o.tryHero].role)}</small>` : 'Change hero'}</button><button class="pl-btn big" data-a="again">Play again</button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
@@ -358,15 +391,17 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
   // at End + 5 s, "Play again" at End + 10 s (both inert until then, so a stray tap does not skip them).
   requestAnimationFrame(() => root.classList.add('in'));
   const k = 1 / Math.max(1, o.speed ?? 1);
-  setTimeout(() => root.classList.add('dare-in'), Math.max(0, RESULTS_REVEAL_MS.dare - RESULTS_AFTER_END_MS) * k);
-  setTimeout(() => root.classList.add('actions-in'), Math.max(0, RESULTS_REVEAL_MS.actions - RESULTS_AFTER_END_MS) * k);
+  const dareAt = o.quick ? RESULTS_REVEAL_MS.quick : RESULTS_REVEAL_MS.dare;
+  const actionsAt = o.quick ? RESULTS_REVEAL_MS.quick : RESULTS_REVEAL_MS.actions;
+  setTimeout(() => root.classList.add('dare-in'), Math.max(0, dareAt - RESULTS_AFTER_END_MS) * k);
+  setTimeout(() => root.classList.add('actions-in'), Math.max(0, actionsAt - RESULTS_AFTER_END_MS) * k);
   return root;
 }
 
 /** The match view keeps playing this long after the end before the results screen opens (matchSession onEnd). */
 export const RESULTS_AFTER_END_MS = 2200;
-/** POC.md §12: the dare link at End + 5 s, "Play again" at End + 10 s. */
-export const RESULTS_REVEAL_MS = Object.freeze({ dare: 5000, actions: 10000 });
+/** POC.md §12: the dare link at End + 5 s, "Play again" at End + 10 s; a returning player both at End + 2.5 s (round 2). */
+export const RESULTS_REVEAL_MS = Object.freeze({ dare: 5000, actions: 10000, quick: 2500 });
 
 // ---------------------------------------------------------------------------------------------- Esc menu
 

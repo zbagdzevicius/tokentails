@@ -7,7 +7,7 @@
  * outside the world and return commands for the caller to pass to `step`, so a match they play records and
  * replays like a human one.
  */
-import { BOTS, BOT_TEAMS, PARKED, ROOKIE_ALLIES, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
+import { BOTS, BOT_TEAMS, FEEDER, PARKED, ROOKIE_ALLIES, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
 import { TIMELINE } from '../../data/timeline';
 import { HUMAN_SLOT, Op, teamOfSlot, type Command } from '../api';
 import { quantize } from '../commands';
@@ -33,6 +33,8 @@ const ALLIES: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze(
   rookie: Object.freeze({ ...BOTS.easy, ...ROOKIE_ALLIES, groupAt: BOTS.rookie.groupAt }),
   easy: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.easy.groupAt }),
   normal: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.normal.groupAt }),
+  // Sim v8 (playtest round 2: "Hard tests how much you can carry"): Hard is a mirror, the allies play at Hard too.
+  hard: BOTS.hard,
 });
 
 /** Difficulty parameters of the bot in `slot`. */
@@ -89,8 +91,8 @@ export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
   const cmd =
     bot.profile === 'novice'
       ? noviceThink(m, bot.slot, bot.mem, bot.rng)
-      : bot.profile === 'naive'
-        ? naiveThink(m, bot.slot, bot.mem, bot.rng)
+      : bot.profile === 'naive' || bot.profile === 'feeder'
+        ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === 'feeder' ? FEEDER : undefined)
         : think(m, bot.slot, BOTS[bot.profile], bot.mem, bot.rng);
   return cmd ? [cmd] : [];
 }

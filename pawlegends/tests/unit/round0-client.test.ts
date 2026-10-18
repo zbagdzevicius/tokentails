@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadProfile, resetProfileCache, saveProfile } from '../../src/meta/profile';
 import { parseRoster, rosterCosmetics } from '../../src/meta/roster';
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../../src/meta/squad';
-import { recordLadder } from '../../src/meta/ladder';
+import { PLACEMENT, impactOf, recordLadder } from '../../src/meta/ladder';
 import { dailyQuests, freshQuests, progressQuests } from '../../src/meta/quests';
 import { TalentPicker } from '../../src/ui/talents';
 import { Juice } from '../../src/render/juice';
@@ -29,7 +29,8 @@ describe('round 0: squad mates', () => {
   });
 
   it('a cat bought on a 6-cat roster walks in the next match (the "Luna walks with your waves" promise)', () => {
-    expect(rosterCosmetics(SIX).companions.map((c) => c.name)).toEqual(['Scout', 'Pumpkin']);
+    // round 1: no saved choice → the highest tiers walk (Blaze LEGENDARY, Nova EPIC), not two Commons
+    expect(rosterCosmetics(SIX).companions.map((c) => c.name)).toEqual(['Blaze', 'Nova']);
     noteNewCat('bbbbbbbbbbbbbbbbbbbbbbbb');
     const r = rosterCosmetics(SIX, squadPrefs());
     expect(r.companions[0].name).toBe('Luna');
@@ -76,14 +77,19 @@ describe('round 0: quests, ladder', () => {
   });
 
   it('the bot ladder moves on wins and losses (not on Rookie) and keeps personal bests', () => {
+    // round 1: the first PLACEMENT ladder matches never lose points
+    const p0 = loadProfile();
+    p0.ladderGames = PLACEMENT;
+    saveProfile(p0);
     const a = recordLadder({ won: true, difficulty: 'normal', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 6 });
     expect(a?.delta).toBe(25);
-    const b = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 300, takedowns: 2 });
+    const b = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 300, takedowns: 0, deaths: 4 });
     expect(b?.delta).toBe(-8);
     const c = recordLadder({ won: true, difficulty: 'rookie', hero: 'clem', heroName: 'Clem', seconds: 350, takedowns: 9 });
     expect(c?.delta).toBe(0);
     expect(c?.personal).toMatch(/fastest Clem win/);
     expect(loadProfile().rating).toBe(1017);
+    expect(c?.personal).toBeTruthy();
     const p = loadProfile();
     p.rating = 3;
     saveProfile(p);
@@ -124,5 +130,21 @@ describe('round 0: HUD channels', () => {
     expect(el.textContent).toBe('');
     expect(document.documentElement.dataset.banner).toBeUndefined();
     j.dispose();
+  });
+});
+
+describe('round 1: ladder impact and placement', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    resetProfileCache();
+  });
+
+  it('placement matches never lose points; a 1/14 win earns almost nothing', () => {
+    const l = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 1, deaths: 6 });
+    expect(l).toMatchObject({ delta: 0, placement: 1 });
+    expect(impactOf(1, 14)).toBe(0.1);
+    expect(impactOf(6, 2)).toBe(1);
+    const w = recordLadder({ won: true, difficulty: 'hard', hero: 'sage', heroName: 'Sage', seconds: 421, takedowns: 1, deaths: 14 });
+    expect(w?.delta).toBe(4);
   });
 });

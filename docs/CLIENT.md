@@ -124,7 +124,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
-| `components/pawlegends/` | The `/pawlegends` host: flags, title, the v1 bridge, roster bridge, store client (`checkout.ts`), saves queue, `PawlegendsHost`. |
+| `components/pawlegends/` | The `/pawlegends` host: flags, title, the v1 bridge, roster and featured-cat bridges, session, offer and retired store client (`checkout.ts`), cat sheet, saves queue, `PawlegendsHost`. |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
@@ -467,28 +467,33 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
   origin, posts only to that origin, builds every payload field by field (no `accesstoken`), and checks a
   replay against the same bounds as the backend DTO before it is queued.
 - `rosterBridge.ts` turns the signed-in player's cats into `{id, name, type, tier, isStarter, starterBreed?,
-  origin?}`, starters first, 24 cats and 32-character names at most.
+  origin?, art?, catalogId?}`, starters first, 24 cats and 32-character names at most. App builds send starter
+  and redeemed cats only.
+- `featuredBridge.ts` picks at most two unowned direct-purchase cats from `GET /cat/sale` (`isCatForSale`,
+  `ownsCopy`; elements the roster lacks first, ties rotate once a UTC day). Never packs, never random; `[]` in
+  app builds.
+- `session.ts` sends `session {signedIn, progress}` with the account's Pawlegends fields from `GET /user/profile`.
 - `saves.ts` (`PawlegendsSaver`, the Heist saves pattern) posts every finished match to
-  `POST /user/catbassadors/live`; without a Firebase user it queues on the device (`tt.pawlegends.queue.v1`).
-- `checkout.ts` calls `/pawlegends/status`, `checkout`, `entitlements`, `restore`, `restore/verify`, `notify`
-  and `notify/confirm`. A checkout request carries the SKU and currency (EUR when the browser time zone is in
-  Europe), never a price or `accesstoken`. The token, device id and age band are kept in browser storage
-  (every access in try/catch). The purchase sheet shows the price with VAT included, "Delivered now" and
-  "Delivered at MVP launch (target 2027-04-30)", the age question once, an under-16 block, the consent
-  checkbox and the terms link, then redirects to Stripe Checkout. On return it handles `?checkout=ok` (asks
-  for the items up to 6 times, 2 s apart), `?checkout=cancel`, `?restore=` and `?notify=`, then removes them
-  from the address bar.
-- If `/pawlegends/status` says the store is not ready, the game hears `app {store: false}` and every
-  purchase intent is answered `purchase-result {ok: false}`. App builds read no status and send no store,
-  offers or entitlement token; owned cats still reach the game.
+  `POST /user/catbassadors/live` and answers the game with `save-result`. Without a Firebase user it queues the
+  match on the device (`tt.pawlegends.queue.v1`); after sign-in the "ADD YOUR MATCHES?" prompt adds or declines
+  them (`claim(uid)`, `decline()`). A guest's matches go back to the prompt when another uid signs in.
+- `checkout.ts` has the offer API (`GET /pawlegends/offer` once per visit, after `ready` and the featured list;
+  `POST /pawlegends/offer/seen` on `offer-seen`), the device id, the age band and the session counter (every
+  storage access in try/catch). It also keeps the retired `pl_*` store client (`status`, `checkout`,
+  `checkout/account` with a session, `entitlements`, `restore`, `notify`) so tokens bought earlier restore.
+- `open-cat {catalogId}` opens `PawlegendsCatSheet.tsx`: the cat, the age question once, the under-16 block and
+  the $5 Token Tails checkout (`<Payment entityType={EntityType.CAT}>` with `context: 'pawlegends'`, so the
+  backend runs `PawlegendsCheckoutGuard`). Purchase answers `purchase-result {catalogId, ok}` and refreshes the
+  storefront. App builds drop `open-cat` and send no featured cats, offer or entitlement token.
+- Host analytics (`analytics/pawlegends-events.ts`): `pawlegends_open`, `pawlegends_save`,
+  `pawlegends_guest_claim`, `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`.
 - Any GameModal pauses the game. The exit button ("Back to games") does a full load of `/game`.
-- Hand-kept mirrors: the SKU ids, consent version, MVP date and age bands come from
-  `backend/src/pawlegends/pawlegends.contracts.ts`; hero and trick ids from `pawlegends/src/data/`.
+- Hand-kept mirrors: the SKU ids, consent version and age bands come from
+  `backend/src/pawlegends/pawlegends.contracts.ts`; hero and trick ids from `pawlegends/src/data/`; difficulty
+  ids and caps from `shared/caps.ts` (synced).
 - Local dev: run `next dev --webpack` (`npm run dev`); with a symlinked `node_modules` Turbopack refuses to
   start. The committed build accepts the host on any port because it is same-origin.
-- Not built yet: the offer engine and results-screen notify-me have no bridge message, so the host never
-  calls `GET /pawlegends/offer` or `POST /pawlegends/offer/seen`; no claim prompt for matches played signed
-  out; host analytics (`store_open`, `checkout_start`, `offer_*`); the picker card art is a placeholder.
+- Not built yet: the picker card art is a placeholder "3v3" tile.
 
 ### Other
 

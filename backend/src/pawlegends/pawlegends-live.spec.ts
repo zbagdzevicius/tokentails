@@ -202,7 +202,7 @@ describe('PAWLEGENDS /live branch', () => {
         expect((await save(rookie)).catnipPaid).toBe(PAWLEGENDS_LEVEL_CAPS[2]);
 
         const user = users.get(userId);
-        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal', 'rookie']);
+        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal', 'rookie', 'hard']);
         expect(user.pawlegendsCatnip).toEqual({ easy: 20, normal: 40, rookie: 10 });
         expect(user.pawlegendsFastestWin).toEqual({ easy: 13_000, normal: 16_000, rookie: 9_000 });
         expect(user.pawlegendsMatches).toEqual({ easy: 2, normal: 2, rookie: 1 });

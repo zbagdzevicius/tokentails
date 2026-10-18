@@ -52,7 +52,7 @@ const sim: any = bundle;
 
 export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw';
 export type PawlegendsTrickId = string;
-export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie';
+export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
 
 export interface PawlegendsReplay {

@@ -10,7 +10,7 @@ If this file and the GDD disagree on a POC detail, this file wins. If a number h
 
 ## 1. What the POC must prove
 
-1. **Core loop is fun.** A human finishes an 8-minute 3v3 match against bots and starts another one (the "second match within 24 h" metric).
+1. **Core loop is fun.** A human finishes a 6-to-7-minute 3v3 match against bots and starts another one (the "second match within 24 h" metric).
 2. **Purchase loop works and converts.** A player taps Buy in the game, pays on the web through Stripe, comes back, and sees the item on their hero in the next match. Real money, three SKUs, before any server is paid for.
 3. **Performance.** It holds the budget on an iPhone 11 and a Pixel 6a in landscape, and on an Iris Xe laptop.
 4. **Architecture.** The sim runs in a Worker behind the Phase 2 protocol, and the backend re-sims every saved match.
@@ -79,7 +79,7 @@ pawlegends/
     sim/                  # INTEGER ONLY. No three, no DOM, no float maths. Node-importable. Vendored to the backend
       index.ts            # createMatch(config) / step(inputs) / snapshot(team) / hash() / result()
       server.ts           # verifyReplay(replay) → {ok, outcome, finalHash, stats}: the only export the backend uses (catnip-heist/src/sim/server.ts pattern)
-      version.ts          # SIM_VERSION = 1
+      version.ts          # SIM_VERSION (1 at the start; 8 on 2026-10-18)
       fixed.ts            # idiv, isqrt, sin/cos tables (4096 steps), clamp, dist2, moveToward (fraction carry)
       rng.ts              # mulberry32 + fork (pattern: catnip-heist/src/sim/rng.ts)
       hash.ts             # FNV-1a over the typed arrays (pattern: catnip-heist/src/sim/hash.ts)
@@ -354,8 +354,8 @@ Talents: L3 *Long Jeer* (Q 5.5 m) or *Cruel Jeer* (Q recast slows 30% for 1 s). 
 - The player's team is always Purrhaven (left). Enemy is always Woof.
 - The player picks any of the 4 heroes. A dog hero on Purrhaven wears the cream-and-rose sash; a cat hero on Woof wears the navy-and-brass sash (one material swap each).
 - Readability (recorded 2026-10-17 after Low-tier screenshots at 844×390): a thin sash was invisible at phone size (about 20 CSS px per hero), so every hero wears its team colours as a blanket over the back and flanks with a stripe in the second colour, plus a broad sash; Clem's neck scarf takes the team colour. It stays in the hero's one merged geometry (no extra draw call). `tests/unit/team-read.test.ts` checks that at least 15% of each hero's up-facing surface is its team colour and under 3% the other team's (the old sash: about 5%).
-- Bots fill: no duplicate heroes within a team; duplicates across teams are allowed. Bot picks and bot Paw Tricks are drawn from the match seed (`rng.fork('picks')`).
-- Difficulties: **Easy and Normal**. Hard is MVP. The first match is always Easy with Clem pre-selected ("Play as Clem").
+- Bots fill (sim v5, species teams, playtest round 0: "dogs fight for the cats" broke the fantasy): the human's allies are heroes of its hero's side, the enemies are the other side, and a team takes each hero of its side once before it repeats one (2 heroes a side for 3 slots, so one mirror inside a team; the second one is named "Sage 2"). The scoreboard names a team by its side (cats Purrhaven, dogs the Woof pack). On Normal and Hard each hero has its own hero-vs-hero tuning (`HeroData.pvp` in `src/data/heroes/*.ts`, sim v8; the species-wide `SIDE_EDGE` before): Sir Brutus and Cacklejaw × 1.11 dealt, × 0.925 taken, Clem and Sage none, so every hero stays at 42% to 58%; the Numbers chip on the pick screen shows it per hero. Bot picks and bot Paw Tricks are drawn from the match seed (`rng.fork('picks')`).
+- Difficulties: **Rookie** (match 1 only), **Easy**, **Normal** and **Hard** (sim v6). The first match is Rookie with Clem pre-selected ("Play as Clem"); matches 2 and 3 are Easy; the chips (Easy, Normal, Hard) unlock from match 4.
 
 ### 6.9 Hero art in the POC
 
@@ -395,13 +395,51 @@ Utility AI scored every 6 ticks (staggered by slot), inside the sim. Actions: fa
 | Contests Pudding | rarely | rarely | yes |
 | Groups from | 3:30 | 4:30 | 3:55 |
 
+**Hard (sim v6, playtest round 0: "Normal is the highest difficulty, nothing to grind toward"; sim v7 replaced the two stat edges below with behaviour, see round 1).** Reaction 5 ticks, aim ±5°, mistakes 3%, retreat at 20% HP, every ability in a fight, Paw Tricks offensively too (Pounce onto a foe under 50% just out of reach, Hiss in a brawl it is winning; `offenseTrick` in `src/sim/bots/casts.ts`), engages at 70% of the other side's power, groups at 3:55. Rules: Normal's structures, Nine Lives from 45% lost in a second (Normal 40%, Easy and Rookie 28%), enemy heroes respawn × 0.65 and hit the human × 1.10. Better decisions alone did not separate it from Normal (the Normal player-bot won 54.5%, then 42% of 200 seeds), hence the two edges. Gate `hard` (Normal player-bot vs Hard): 36.0% (seeds 1..200) and 29.5% (1,001..1,200). A Hard first win pays no catnip (`PAWLEGENDS_LEVEL_CAPS` 0: a new reward is a founder decision); it saves the time and the match count. The local bot ladder (`src/meta/ladder.ts`: start 1000, Easy +12/−8, Normal +25/−12, Hard +40/−15, Rookie 0) and personal bests per hero (fastest win, most takedowns) are display only.
+
 **Sim v4 difficulty rules (`DIFFICULTY_RULES` in `src/data/bots.ts`).** Rookie is match 1 only: the human's two allies "carry" (they follow its lane, peel for it, and stop hitting an enemy hero below 25% HP when the human is within 8 m and fighting it), slot 3 walks into Sunny Lane at 0:15 for the first fight, the human deals × 1.4 and takes × 1.15, regenerates × 4 out of combat, and each takedown it takes part in gives its minions +11% (up to 8). Easy also has carry allies and near-assists; its cores open at 6:00. Normal towers have × 1.35 HP and cores × 1.3, and a grouped Normal team 3 or more ahead (takedowns + 3 per tower) turns back to defend a raided lane only when it outnumbers the raiders (`pressAhead`), so a lead becomes a push: without it the trailing team won 40% to 42% of matches, with it 33.7%.
 
 **The naive player-bot (sim v4, `src/sim/bots/naive.ts`, `NAIVE` in `src/data/bots.ts`).** The fun gates' stand-in for a first-timer: it acts through commands only, attack-moves to the nearest enemy hero within 15 m, chases up to 18 m, casts Q, E and R when ready with ±25° aim error, walks home below 20% HP, never naps or uses its Paw Trick, takes a pickup within 6 m, hesitates 0.5 to 2 s in 5% of thinks, and takes talent 1.
 
 **Tuning targets:** a scripted novice player-bot (`npm run match -- --profile novice`) beats Easy bots about 90% of the time and Normal bots 40% to 60% of the time.
 
-**Who plays at which level (recorded 2026-10-17 for founder review):** the match difficulty sets the three **enemy** bots only. The human's two allied bots always play at Normal (`BOT_TEAMS.allies` in `src/data/bots.ts`), so "vs Easy bots" means a novice plus two Normal allies against three Easy bots. Two Easy allies would lose the lanes the novice is not in and turn the first match into a loss nobody caused. The tuning targets above and §15 item 12 are measured this way.
+**Who plays at which level (recorded 2026-10-17 for founder review):** the match difficulty sets the three **enemy** bots only. The human's two allied bots play at Normal (`BOT_TEAMS.allies` in `src/data/bots.ts`) on Easy and Normal, and at Hard on Hard (sim v8, playtest round 2: "Hard tests how much you can carry": Hard is a mirror), so "vs Easy bots" means a novice plus two Normal allies against three Easy bots. Two Easy allies would lose the lanes the novice is not in and turn the first match into a loss nobody caused. The tuning targets above and §15 item 12 are measured this way.
+
+**Playtest round 0 (2026-10-18, sim v5; average fun 5.2/10).** Fixes for the blockers, measured on the headless gates below:
+- **Playfield boundary.** The nav grid blocks a 2 m outer rim and every cell outside the lane loop, the jungle corridors and the objectives (`onPlayfield` in `src/sim/map/grid.ts`); move goals, including minimap clicks, snap to the last reachable point (`reachableGoal` in `src/input/orders.ts`). A hero could walk the map border into a corner before.
+- **Carry leash.** Rookie and Easy carry allies follow the human only while it acted in the last 8 s and stands within 9 m of a lane or 10 m of the rat camp or Pudding (`BOT_AI.leashIdle`, `leashLane`, `leashObjective`); otherwise they go back to lane work. On Rookie the human's allies hit enemy structures only while the human plays (`pushNeedsHuman`). Gate `parked` (a human parked off the lanes at 0:30, Easy, 100 seeds): allies beside it 0.0% of the time (median), shortest match 5:53.
+- **Rookie core floor.** Before 6:00 the human's core never drops below 15% of its HP (`humanCoreOpenAt`, `humanCoreFloorBp`): match 1 cannot end in a 4:28 defeat. Gate `idle` vs Rookie: wins 26.0%, earliest loss 6:00.
+- **Sunset core damage scales with how open the core is.** A takedown after Sunset deals 15% of the victim's core HP only once an inner tower of that side is down, else 5% (`SUNSET.closedCoreBp`). Normal Sunset moved to 6:00 and Sudden Death to 7:45, so a late teamfight can still turn a match.
+- **Last-hit XP.** The hero who last-hits a minion gets +50% of its XP on top of its share (`XP.lastHitBp`).
+- **Nine Lives per difficulty.** It starts at 28% of max HP lost in a second on Rookie and Easy, 40% on Normal, 45% on Hard (`nineLivesLossBp`), so a well-landed combo can kill on the higher levels.
+
+Gate results on sim v6 (2026-10-18): `fun1` win 96.0%, deaths median 2, takedowns median 12, length median 5:06 (p95 6:44); `fun2` win 75.0%, length median 6:39, 2.51 takedowns a minute; `novice` vs Easy 91.8%, vs Normal 42.5%; `balance` (2,000 seeds) median 6:44, p95 7:52, no safety end, 89.1% core kills before Sudden Death, Purrhaven 47.7%, heroes 48.2% to 52.7%, 2.95 takedowns a minute, trailing at 3:30 wins 35.4%.
+
+**Playtest round 1 (2026-10-18, sim v7; average fun 5.0/10).** The blocker "kills and fights barely decide the match" (a 1/14 Hard win, idle humans winning while 0 to 9 behind) measured headless as: a team down 10 or more takedowns at the end won 18.2% of Normal and 20.8% of Hard matches. Sim v7 (`SIM_VERSION` 7):
+- **Base defence** (`BotParams.defendBase`, Normal and Hard): an enemy hero, or 2 enemy minions, within 9 m of an own inner tower or 15 m of the core is a base threat (`baseThreat` in `src/sim/bots/brain.ts`). Enemy heroes at the core pull every bot back before any fight elsewhere (a nap when far and safe); minion-only threats pull bots within 20 m, and a team 5 or more ahead keeps its siege unless they are at its core.
+- **Lead pressure** (`DifficultyRules.leadPressure`, Normal and Hard): a dead hero whose team trails by more than 2 takedowns waits 8% longer per extra takedown, at most +64% (`RESPAWN.gap*`); before Sunset every takedown chips 5% off the victim's core (`takedownChipBp`); in Sudden Death a core burns 0.25% a second faster per takedown its team trails by, 1% to 6% (`SUDDEN_DEATH.decay*`); a team 5 or more ahead groups and sieges from 2:00 (`BOT_AI.leadGroup*`); takedown-triggered comeback waves are off there (towers still start them).
+- **Hard is harder through behaviour, not stats.** Hard bots hunt (`BotParams.hunts`): a foe under crowd control or inside their tower's reach is always a good fight and is chosen first (focus fire, dive after a CC, punish overextension), and a Hard bot more than 6 m ahead of its wave with no ally near steps back. The hidden edges are gone (`enemyRespawnBp` and `humanTakenBp` back to 10000); the bots chip and the pick-screen hint say what each level does, including the species balance.
+- **Species balance retuned** for the new rules: dogs × 1.13 hero damage dealt, × 0.915 taken (`SIDE_EDGE`; × 1.18 / × 0.88 in v5/v6 made dogs win 64%).
+- **Rookie protects a feeder.** A new `feeder` player-bot (`FEEDER` in `src/data/bots.ts`: never backs off a tower, walks home only under 8%, walks at the enemy structures ahead of its wave) reproduces the signed-in player who lost match 1. Rookie now: enemy heroes 2+ levels above the human earn half XP (`enemyAheadXpBp`), the human's own deaths cost its core nothing after Sunset (`humanDeathCore`), and the core floor holds until Sudden Death (6:30, `humanCoreOpenAt` 11,700).
+- **Gates changed:** `balance` and `hard` add "down 10+ takedowns at the end wins < 5%"; `balance`'s "trailing at 3:30 wins" band moved from 30%..40% to 20%..40% (a fight lead is meant to be worth more now); new gate `feeder` (feeder vs Rookie, 200 seeds) wins ≥ 80%. The metric is `deficitWonRate` in `tools/lib/funstats.mjs`.
+
+Gate results on sim v7 (2026-10-18, full seed counts): `fun1` win 96.5%, deaths median 1, takedowns median 12, length median 5:05 (p95 6:47), 86.5% core kills before Sudden Death; `fun2` win 78.5%, length median 6:43, 2.52 takedowns a minute; `novice` vs Easy 86.8%, vs Normal 41.8%; `idle` vs Rookie 32.0%, earliest loss 6:32; `parked` allies beside it 1.7%, shortest match 6:04; `hard` (Normal player-bot vs Hard, no stat edges) 33.0%, median 7:02, down-10 wins 3.6% of 28; `feeder` 91.5%; `balance` (2,000 seeds) median 7:01, p95 7:51, no safety end, 78.5% core kills before Sudden Death, Purrhaven 48.4%, heroes 43.5% (Sage) to 54.0% (Sir Brutus), 3.19 takedowns a minute, trailing at 3:30 wins 23.3%, down 10+ at the end wins 4.4% of 226.
+
+**Round 1 client fixes (no sim effect).** Pick screen: Play and the bots chips in a footer outside the scrolling column (its fade mask clipped the fixed Play button under the lobby canvas at 844×390 and 932×430), a one-line kit at heights ≤ 480 px, a Numbers chip with cooldown, damage and range from `src/data`, a bots hint per level, and "Played MOBAs before? Unlock" after match 1 (`profile.veteran`). One centre-screen item at a time (`src/ui/stage.ts`: recap > urgent banner > tower alert > talent card > banner > callout > tip; ordinary banners older than 3 s are dropped), callouts in the top band, the touch talent card bottom centre, coaching tips expire after 20 s in the queue and the move and attack tips step aside in hero fights. One takedown definition: the results card shows K / D / A from the sim's stats, and the quests and personal bests count K + A. The enemy fountain shows a red no-entry ring; held into a wall for 2 s the game says why and points back to the lane; 45 s without a fight: "Your team needs you in Sunny Lane". A standing goal chip (Pudding countdown and reward, next tower) whenever no beat is up. "Your team is behind" names the reason. New players get "Too far ahead of your minions" on entering an untanked tower's reach. Bigger nameplates (× 1.5 at heights ≤ 480 px, side-coloured pills, crown left of the name), the camera 14% closer there (`SHORT_LANDSCAPE_ZOOM` 0.75), "Clem 2" names everywhere, Tab scoreboard K / D / A and hero damage, ability hover cards. The bot ladder pays a win by impact (a 1/14 win gets a tenth) and the first 3 ladder matches never lose points. Squad: highest tier walks first, kittens at the hero's heels × 1.5 and cheering takedowns, pack cats say "no frame" (round 2: replaced by a positive "Legendary · Fire" tag), Meet cards need art and preview the hero in the cat's chroma, Legendary frame: gold name plate; Epic and Legendary: nap sparkles.
+
+**Playtest round 2 (2026-10-18, sim v8; average fun 5.2/10, goal 8+).** Sim v8 (`SIM_VERSION` 8):
+- **The takedown chip is capped.** Before Sunset the chips stop at 20% of the victim's core in total (`DifficultyRules.takedownChipCapBp`); past the cap a takedown chips 20% (Hard 15%) off the victim team's weakest tower that can be hit (`takedownTowerChipBp`), or keeps chipping the core once an inner tower of that side is down. Hits from the chip are kind `chip`. A 10-takedown lead no longer deletes a closed core at 4:16; it makes the next tower easy.
+- **Hard is a mirror.** On Hard the human's allies play at Hard too (`src/sim/bots/index.ts` ALLIES). The `hard` gate's band moved from 20%..40% to 30%..48% (the Normal player-bot is now the weakest of six, not carried by two Normal allies against three Hard bots).
+- **Opening truce.** Before `DifficultyRules.truceUntil` enemy bots never pick the human as a foe (Rookie's scripted first fight excepted): Rookie and Easy 0:40, Normal 0:30, Hard none. A first-timer is no longer dived by two heroes at the 0:16 river brawl. On Normal it also lifts the novice gate (39.8% → 41.7% of 1,600 seeds) that the chip cap had pushed under its 40% floor.
+- **Catch-up.** Catch-up XP is +35% a level behind the enemy average beyond the first (+25% before, still at most +75%), and the team whose summed level is lower gets 1.5× the rat camp's XP (`XP.campBehindBp`). The HUD shows it (below).
+- **Per-hero tuning** (`HeroData.pvp`) replaced `SIDE_EDGE` with the dogs at × 1.11 / × 0.925 (× 1.13 / × 0.915 before: with the cap, dogs won 56%).
+- **Gates changed:** `hard` band 30%..48%; the `novice` gate on Normal and Hard also asserts "down 10+ takedowns at the end wins < 5%"; new gate `feedNormal` (the feeder vs Normal, 200 seeds) asserts it for a human who feeds (round 2: "we won down 11 on Normal").
+
+Gate results on sim v8 (2026-10-18, full seed counts): `fun1` win 97.0%, deaths median 2, takedowns median 12, length median 5:04 (p95 6:39), 89.0% core kills before Sudden Death; `fun2` win 76.5%, length median 6:41, 2.60 takedowns a minute; `novice` vs Easy 87.0%, vs Normal 40.5% (down-10 wins 2.6% of 38); `idle` vs Rookie 31.0%, earliest loss 6:31; `parked` allies beside it 1.8%, shortest match 6:04; `hard` (Hard allies) 38.0%, median 7:30, down-10 wins 0.0% of 19; `feeder` 84.5%; `feedNormal` down-10 wins 0.7% of 136; `balance` (2,000 seeds) median 7:10, p95 7:54, no safety end, 75.4% core kills before Sudden Death, Purrhaven 47.8%, heroes 48.0% (Cacklejaw) to 54.2% (Clem), 3.34 takedowns a minute, trailing at 3:30 wins 27.6%, down 10+ at the end wins 2.8% of 214.
+
+**Round 2 client fixes (no sim effect).** Results: one line naming what decided the match from the losing core's last 20 s, the phase and where the team stood (`src/app/endCause.ts`: "Their minions broke our core in Sudden Death while all 3 of us were in their base. Takedowns help, but towers and the core win."); Play again and the dare at End + 2.5 s for a returning player (4+ matches or the veteran flag; first sessions keep the slow reveal); "Change hero" is a solid dark button that names a hero to try ("Try Sage · Marksman", from match 2) and opens the pick on it; the dare after a Rookie match says Rookie. In the match: "Our core is under attack!" only when units hit it (no false alarm from a chip), and "Defend!" with a minimap ping when the player is more than 40 m from its own core under attack; Nine Lives is a short "Run!" over the hero, never a centre banner; the "Tower aiming at you!" world text is gone (the red tower alert carries the words); a banner holds the centre band for its real display time (a callout showed beside it at match speed > 1); the goal chip steps aside for the death recap and urgent calls; the recap names the slot ("Biscuit the Clem"). Camera: on short landscape screens the hero sits at about 57% of the height (`CAMERA_FRAME.shortBelow`), plates under the top HUD fade, and enemy heroes just off screen (within 30 m) get an arrow at the edge; desktop windows ≥ 1,100 px wide zoom out to 1.9× (1.35× before). Lane help: the joystick slides along walls (`slideAngle`), "Can't go that way" repeats every 5 s while blocked, the lane prompt comes after 10 s with no progress, and new players get "Too far ahead of your minions" on crossing the river with none of their wave ahead. HUD: an XP bar on the portrait and a "−2 lv · +35% XP" tag when the enemy team is 2+ levels ahead. Talents: the auto-pick runs on wall-clock time; the touch card docks left of the ability cluster (it cut "Nap" to "ap"). Variety: bots get persona names from the seed ("Biscuit the Clem", "Rex the Brutus") and seeded coats from the free coat pool; a dog-picking human's base and minions take the dog style. Cats: squad chips say "Legendary · Fire" (never "no frame"); a chroma dyes the cape, mantle trim and blade; a kitten without a breed coat takes its element colour; Epic and Legendary kittens glow on the ground in lane; an adoption keeps the higher-tier squad mate. Pick: the Look row sits above the kit (it was under the footer at 1280×720). Title: Hard's chip says "First win: badge"; on phones (≤ 430 px tall) the Meet card is a one-line chip with its own ✕. Meet offer: sessions count from the first finished match (`profile.firstPlaySession`, `playSession`), so a page load without play is never session 2, and a closed card stays away for 3 page sessions and at least 3 days (`MEET_SNOOZE`).
+
+Not done in round 2 (recorded for the MVP): mixed-species teams (round 0 decided species teams: "dogs fight for the cats" broke the fantasy), item slots or shape-changing talent tiers, and rotating match modifiers (Pudding early, Frenzy-heavy) on matches 2 and 3.
 
 **Normal bots group at 3:55 (recorded 2026-10-17, sim v3).** Beyond the table, each difficulty sets when its bots leave their lanes and group in one push lane (`groupAt` in `src/data/bots.ts`; Easy 6:00). Normal grouped at 5:00 in sim v2, and the novice beat Normal only 41.5% of 400 seeds, next to the 40% floor: the novice keeps to Sunny Lane, so the push it is not in decides the match. Normal now groups at 3:55, and the human's allies group when the enemy difficulty does (Normal's 3:55 against Normal, 6:00 against Easy: grouping early against Easy bots that still hold their lanes dropped the novice to 84% vs Easy). Nightly, 400 seeds each: novice vs Normal 52.8%, vs Easy 92.8%. Normal vs Normal, 2,000 seeds: median 7:36, p95 8:41, every match ends by a core kill, Purrhaven 49.0%, heroes 44.1% (Sir Brutus) to 52.7%; the 200-seed `npm run match -- --balance` run passes (Purrhaven 47.0%). `SIM_VERSION` is 3, so v2 replays are refused.
 
@@ -416,8 +454,8 @@ Utility AI scored every 6 ticks (staggered by slot), inside the sim. Actions: fa
 | 0:45 | 1,350 | First Frenzy Catnip pair |
 | 2:00 | 3,600 | Siege units start |
 | 2:30 | 4,500 | Pudding |
-| 5:00 (Rookie 4:00) | 9,000 (7,200) | **Sunset**: towers and cores take double damage, respawn × 1.25, minions +25% dmg; each takedown deals 15% core damage to the victim's core |
-| 7:00 (Rookie 6:15) | 12,600 (11,250) | **Sudden Death**: cores lose 3% max HP a second; each takedown deals 10% core damage to the victim's core |
+| 5:00 (Rookie 4:00, Normal and Hard 6:00) | 9,000 (7,200; 10,800) | **Sunset**: towers and cores take double damage, respawn × 1.25, minions +25% dmg; each takedown deals 15% core damage to the victim's core once an inner tower of that side is down, else 5% (sim v5) |
+| 7:00 (Rookie 6:30, Normal and Hard 7:45) | 12,600 (11,700; 13,950) | **Sudden Death**: cores lose 3% max HP a second (Normal and Hard, sim v7: +0.25% per takedown the team trails by, 1% to 6%); each takedown deals 10% core damage to the victim's core |
 | 11:00 | 19,800 | **Safety end**: lower core HP loses; tie-break total tower damage dealt; then a seeded coin |
 
 **Vision in the POC:** no fog of war (the whole map is visible). The brush rule is real: a unit in a Catnip Bush is absent from the other team's snapshot unless an enemy is within 2 m or in the same bush. `snapshot(team)` already filters, so adding the fog grid in the MVP changes one function.
@@ -557,7 +595,7 @@ type PawlegendsReplay = {
   v: 1;
   simVersion: number;
   seed: number;                 // uint32
-  difficulty: 'easy' | 'normal';
+  difficulty: 'easy' | 'normal' | 'rookie' | 'hard';
   hero: HeroId; trick: TrickId; // the human (slot 0); bot picks come from the seed
   ticks: number;                // ≤ PAWLEGENDS_MAX_TICKS
   inputs: string;               // base64 of the binary command stream
@@ -579,8 +617,8 @@ Binary command stream: per record a varint tick delta, a 1-byte opcode, then the
 **`/live` branch** (`backend/src/pawlegends/pawlegends-live.ts`): validate the DTO → check `simVersion` (an unknown version is refused with 4xx) → re-sim with the vendored sim **in a `worker_threads` worker** through its own `ReplayQueue` (concurrency 1, max 8 queued, 429 with `Retry-After` when full; `backend/src/user/heist/replay-queue.ts` documents that a main-thread replay over 50 ms p95 needs a worker, and a Pawlegends match takes up to 1.5 s) → compare outcome and final hash → reject a mismatch with 4xx and no write → idempotent by replay hash → update the per-difficulty fastest win and pay catnip once for the first win per difficulty. Caps in `shared/caps.ts`:
 
 ```ts
-export const PAWLEGENDS_LEVELS: string[] = frozen(['easy', 'normal']);       // 'hard' appended in the MVP
-export const PAWLEGENDS_LEVEL_CAPS: number[] = frozen([20, 40]);             // catnip for the first win per difficulty
+export const PAWLEGENDS_LEVELS: string[] = frozen(['easy', 'normal', 'rookie', 'hard']); // appended, never reordered
+export const PAWLEGENDS_LEVEL_CAPS: number[] = frozen([20, 40, 10, 0]);               // catnip for the first win per difficulty
 export const PAWLEGENDS_TICK_HZ = 30;
 export const PAWLEGENDS_MAX_TICKS = PAWLEGENDS_TICK_HZ * 660;               // 11:00 safety end
 export const PAWLEGENDS_MAX_INPUT_CHARS = 40000;                            // base64 command stream
@@ -650,7 +688,12 @@ The POC is done when every item passes.
     - `fun1` (match 1: `--profile naive --difficulty rookie --hero random`): win ≥ 85%; player deaths median ≤ 3, p90 ≤ 4; tower deaths mean ≤ 1; player takedowns median ≥ 5; first player takedown < 60 s in ≥ 80% of matches; first fight with a hero median ≤ 25 s; the match's first takedown median ≤ 40 s; Level 2 median ≤ 0:30, Level 4 median ≤ 2:00 (p90 ≤ 2:30); length median 5:00 to 6:00, p95 ≤ 7:00; ≥ 85% end by a core kill before Sudden Death; time in action ≥ 60%; big-moment gap median ≤ 30 s, longest gap per match median ≤ 45 s (p90 ≤ 60 s); back in the fight median ≤ 12 s; worst 1 s HP loss p99 ≤ 35%; 90%-to-dead median 5 to 6 s, p10 ≥ 3 s.
     - `fun2` (match 2+: `--profile naive --difficulty easy`): win 70% to 80%; deaths median ≤ 4; takedowns median ≥ 4; Level 4 median ≤ 2:15; length median 6:00 to 7:30; takedowns 2.5 to 3.5 a minute; level gap to the enemy average at 5:00 median ≤ 1.
     - `novice` (400 seeds): the novice profile beats Easy ≥ 85% and Normal ≥ 40% (`--difficulty normal`).
-    - `idle` (`--profile idle --difficulty rookie`): win ≤ 50% (doing nothing must not reliably win).
+    - `idle` (`--profile idle --difficulty rookie`): win ≤ 50% (doing nothing must not reliably win), and no loss before 6:00 (sim v5).
+    - `parked` (100 seeds, sim v5): a human parked off the lanes at 0:30 vs Easy: allies beside it ≤ 10% of the time (median), no match ends within 2:00 of the park.
+    - `hard` (sim v6, `--profile normal --difficulty hard`): the Normal player-bot wins 30% to 48% (sim v8, Hard allies; 20% to 40% before), no safety end, length median 5:30 to 8:30, and (sim v7) a team down 10+ takedowns at the end wins < 5%.
+    - `feeder` (sim v7, `--profile feeder --difficulty rookie`): a first-timer who dives under towers and feeds wins ≥ 80%.
+    - `feedNormal` (sim v8, `--profile feeder --difficulty normal`): a team down 10+ takedowns at the end wins < 5%; the `novice` gate checks the same on Normal and Hard.
+    - `balance` (sim v7 additions): a team down 10+ takedowns at the end wins < 5%; trailing at 3:30 wins 20% to 40%.
 13. `protocol.test.ts`: every message type round-trips; the Worker and a mock WebSocket transport produce identical snapshot streams for the same seed.
 
 **Backend (jest)**
@@ -675,6 +718,16 @@ The POC is done when every item passes.
 **Device gate (manual, recorded in `pawlegends/README.md`)**
 27. iPhone 11 and Pixel 6a, landscape Low, full teamfight with a wave: p95 ≤ 33 ms, draw calls within §10, heap ≤ 150 MB. Iris Xe Med p95 ≤ 16.7 ms.
 
+
+**Status on 2026-10-18 (final POC pass, branch `feat/pawlegends`, sim v8).** Passing: item 1 at 200 seeds (`npm run determinism -- --seeds 200`;
+the 1,000-seed nightly run was not repeated), items 3 to 10, 12 and 13 (`npx vitest run`: 452 passed, 4 nightly skipped),
+11 at 400 seeds (`npm run match -- --seeds 400 --balance`: every gate passes; 40 seeds is too few for the hero bands),
+14 to 17 (backend jest 2,539 passed, client jest 3,528 passed, `sync-contracts --check` clean), 2 and 18 to 23 (Playwright
+`--workers=2`, every spec green after a fix to the tip-text capture in `first-match.spec.ts`), 24 (copy-lint: the 9
+findings that pre-exist on `main`, none in Pawlegends), 25 and 26. Not met: item 22's Stripe test-mode run (the specs
+use a fake Stripe client and a mock host; the game's `pl_*` store is retired in favour of the Token Tails cat
+checkout, so the run is now one $5 cat from the Meet card) and item 27, the device gate (LAUNCH.md §a.4).
+
 ---
 
 ## 16. Out of scope for the POC (moved to the MVP unless noted)
@@ -682,11 +735,10 @@ The POC is done when every item passes.
 - Realtime PvP, the match server, matchmaking, ranked, MMR, parties, invites; own-hero prediction and reconcile, the netsim latency option.
 - Chat of any kind; report and block come with PvP.
 - Fog of war, Grizzlechop, the crow roost, the second rat camp per side, 4 more bushes.
-- Hard bots.
 - The separate tutorial map, the 7-day Welcome Path, the Legend Moment clip, the share card.
 - Controls listed in §9 "MVP adds".
 - My Cat Hero (coat builder and photo), names in credits and on the Founders' Banner.
-- Yarn, account levels, mastery, free rotation, daily quests, faction war.
+- Yarn, account levels, mastery, free rotation, faction war. (Daily quests, the Treat Track and the bot ladder were built anyway as local-only progress, fun plan F4.)
 - Premium currency, pass, Club, à la carte skins, bundles, cameo minions, billboards, the Shelter Bow, crypto checkout.
 - Rescue coats for shelter-origin cats.
 - IAP and any purchase or purchased item in app builds.

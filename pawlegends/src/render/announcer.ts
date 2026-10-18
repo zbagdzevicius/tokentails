@@ -178,10 +178,11 @@ export class Announcer {
       if (this.firstTakedownTick < 0) this.firstTakedownTick = this.tick;
     }
     if (killerHero) this.streak[e.killer]++;
-    // First Blood: the first hero knocked out by a hero
-    if (killerHero && this.firstBloodAt < 0) {
+    // First Blood: the match's first hero knockout, when a hero made it (round 1: "First Blood!" at 2:15 with the
+    // score already 3 to 2, because the earlier knockouts were by towers and minions)
+    if (this.firstBloodAt < 0) {
       this.firstBloodAt = this.tick;
-      out.push(this.firstBlood(e.killer));
+      if (killerHero) out.push(this.firstBlood(e.killer));
     }
     if (killerHero && hadBounty && victimStreak >= 3) {
       this.lastShutdown = { victim: e.id, tick: this.tick };
@@ -301,10 +302,9 @@ export class Announcer {
         return [];
       case 'buff':
         if (isNineLives(e) && e.id === this.mySlot) {
-          // the first time it explains itself; later it is a short callout
-          return this.nineSeen++ === 0
-            ? [{ key: 'nineLives', title: 'Nine Lives', sub: 'Big hits are softened for a moment: get out!', tone: 'gold', size: 'banner', crowd: 'ooh' }]
-            : [{ key: 'nineLives', title: 'Nine Lives', tone: 'gold', size: 'callout', crowd: 'ooh' }];
+          // Round 2: a centre "Nine Lives" banner just before a death read like a save that did not work, and the word
+          // meant nothing to a new player. Now a plain verb over the hero (and the white rim flash): never a banner.
+          return [{ key: 'nineLives', title: this.nineSeen++ === 0 ? 'Big hits softened: run!' : 'Run!', tone: 'gold', size: 'pop', crowd: 'ooh' }];
         }
         if (isCampBuff(e) && e.id === this.mySlot) return [{ key: 'pack', title: 'Pack power!', sub: 'The rat camp gives your team +15% damage.', tone: 'good', size: 'banner', crowd: 'cheer' }];
         return [];

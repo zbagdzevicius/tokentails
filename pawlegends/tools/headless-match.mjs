@@ -3,9 +3,9 @@
  * npm run match: N seeded headless matches in Node (POC.md §3 tools, §7.2, §14 M3, §15 items 11 and 12, the fun
  * gates of the fun plan).
  *
- *   npm run match -- [--seeds 20] [--from 1] [--difficulty rookie|easy|normal] [--hero clem|random] [--trick pounce|random]
- *                    [--profile idle|novice|naive|easy|normal|parked] [--json] [--quiet] [--fun] [--procs N]
- *                    [--check-determinism] [--gate fun1|fun2|novice|idle|parked|balance] [--balance]
+ *   npm run match -- [--seeds 20] [--from 1] [--difficulty rookie|easy|normal|hard] [--hero clem|random] [--trick pounce|random]
+ *                    [--profile idle|novice|naive|easy|normal|parked|feeder] [--json] [--quiet] [--fun] [--procs N]
+ *                    [--check-determinism] [--gate fun1|fun2|novice|idle|parked|balance|hard|feeder|feedNormal] [--balance]
  *
  * Slot 0 is played by the profile: `idle` never acts, `novice` follows the first-match tips, `naive` is the
  * scripted first-timer of the fun gates, `easy` / `normal` run the bot brain from outside the sim (through
@@ -20,6 +20,10 @@
  *   parked   parked vs easy (or --difficulty rookie), 100 seeds: a human parked off the lanes at 0:30 is not
  *            followed (allies beside it ≤ 10% of the time) and the match runs at least 2:00 past the park
  *   balance  normal vs normal, 2,000 seeds     length, side, heroes, pace, comebacks (`--balance` is an alias)
+ *   hard     normal vs hard, 200 seeds         a Normal-level player wins 20% to 40% against Hard bots (sim v6)
+ *   feeder   feeder vs rookie, 200 seeds       a first-timer who dives under towers and feeds still wins ≥ 80% (sim v7)
+ *   feedNormal feeder vs normal, 200 seeds    (sim v8, playtest round 2) a human who feeds is in the deficit gate too:
+ *            its team, down 10+ takedowns at the end, wins < 5% (the novice gate checks it on Normal and Hard)
  * `--fun` prints the fun metrics (tools/lib/funstats.mjs). `--check-determinism` plays every seed twice and fails
  * unless both runs give the same hash trail and final hash. Batches of 40+ seeds run in `--procs` processes
  * (default: cores − 2); every match is still one deterministic run.
@@ -39,6 +43,9 @@ const GATES = {
   idle: { profile: 'idle', difficulty: 'rookie', seeds: 200 },
   parked: { profile: 'parked', difficulty: 'easy', seeds: 100 },
   balance: { profile: 'normal', difficulty: 'normal', seeds: 2000 },
+  hard: { profile: 'normal', difficulty: 'hard', seeds: 200 },
+  feeder: { profile: 'feeder', difficulty: 'rookie', seeds: 200 },
+  feedNormal: { profile: 'feeder', difficulty: 'normal', seeds: 200 },
 };
 const gate = argValue('--gate') ?? (hasFlag('--balance') ? 'balance' : null);
 if (gate && !GATES[gate]) {

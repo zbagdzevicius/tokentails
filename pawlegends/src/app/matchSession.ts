@@ -28,14 +28,20 @@ import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
 import { HERO_SCALE } from '../render/views/models';
+import { FOUNTAIN, MAP } from '../data/map';
+import { TOWERS } from '../data/towers';
+import { HEROES } from '../data/heroes';
+import { TICK_HZ, TIMELINE } from '../data/timeline';
 import { BuffFlag, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
-import { HERO_TEXT, TRICK_TEXT } from '../ui/heroText';
+import { HERO_TEXT, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
 import { Minimap } from '../ui/minimap';
 import { Overhead } from '../ui/overhead';
 import { Scoreboard } from '../ui/scoreboard';
+import { Stage } from '../ui/stage';
 import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
+import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
 
 export interface MatchSetup {
@@ -90,6 +96,8 @@ export interface MatchEnd {
   welcome: WelcomeMsg;
   kills: number;
   deaths: number;
+  /** Round 1: K / D / A from the sim's own stats (one definition on the card, the quest and the personal best). */
+  assists: number;
   level: number;
   teamKills: [number, number];
   /** First-match tips completed (analytics `tip_done`). */
@@ -99,6 +107,8 @@ export interface MatchEnd {
   /** What knocked the player out, by killer kind (hero, tower, minion, ...): the results tip reads it. */
   deathsBy: Record<string, number>;
   fun: MatchFun;
+  /** Round 2: one line naming what decided the match ("Their minions broke our core in Sudden Death ..."). */
+  cause?: string;
 }
 
 export interface SessionHooks {
@@ -109,6 +119,12 @@ export interface SessionHooks {
   onError(msg: string): void;
   onPaused?(p: boolean): void;
 }
+
+/** Round 2: "Can't go that way" repeats this often (ms) while the player stays blocked (12 s before). */
+const STUCK_REPEAT_MS = 5000;
+
+/** Round 2: "Defend!" instead of "Our core is under attack!" when the player is further than this from it (mm). */
+const DEFEND_FAR_MM = 40000;
 
 /** The attack tip fires at the latest this many match seconds in (the first wave spawns at 0:30). */
 const TIPS_FIRST_WAVE_S = 36;
@@ -124,11 +140,24 @@ const killerName = (who: { kind: string; hero?: HeroId } | null): string => {
   return 'Rats';
 };
 
+/**
+ * Round 1 ("'Your team is behind' appeared while my team led on takedowns"): say what "behind" means. Towers count 3
+ * takedowns each in the gap, so a team ahead on takedowns can trail on towers. Pure.
+ */
+export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tTheirs: number): { title: string; sub: string; tone: 'info' } {
+  const towers = (n: number): string => `${n} tower${n === 1 ? '' : 's'}`;
+  if (tTheirs > tOurs && kOurs >= kTheirs) return { title: `They took ${towers(tTheirs)} to your ${tOurs}`, sub: 'Push a lane with your minions!', tone: 'info' };
+  if (tTheirs > tOurs) return { title: `They lead: ${towers(tTheirs)} to ${tOurs}`, sub: 'Group up and push a lane together.', tone: 'info' };
+  return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
+}
+
 export class MatchSession {
   readonly host: LocalHost;
   readonly buffer = new SnapBuffer();
   readonly view: GameView;
   readonly ui: HTMLElement;
+  /** Round 1: one centre-screen item at a time (ui/stage.ts). */
+  readonly stage: Stage;
   private orders: Orders | null = null;
   private desktop: DesktopInput | null = null;
   private touch: TouchControls | null = null;
@@ -147,6 +176,7 @@ export class MatchSession {
   private lowAt = -1e9;
   private wasLow = false;
   private trailAt = 0;
+  private napFxAt = 0;
   private menu: HTMLElement | null = null;
   private welcome: WelcomeMsg | null = null;
   private units: Unit[] = [];
@@ -159,6 +189,8 @@ export class MatchSession {
   private lastLevel = 1;
   private disposed = false;
   private deathsBy: Record<string, number> = {};
+  /** Display names by slot ("Clem 2" for a team's second Clem). */
+  private names: string[] = [];
   /** Count of real input events (analytics human filter). */
   activity = 0;
   /** The player's hits that landed (e2e telemetry). */
@@ -182,6 +214,7 @@ export class MatchSession {
     this.ui = document.createElement('div');
     this.ui.className = 'pl-match';
     parent.appendChild(this.ui);
+    this.stage = new Stage(this.ui);
     this.view = new GameView(gr, this.ui, {
       onKill: (e, victim, killer) => this.onKill(e, victim, killer),
       onTalentOffer: (tier) => this.talents?.offer(tier, this.inFight()),
@@ -218,7 +251,10 @@ export class MatchSession {
         this.view.zoomTarget = Math.max(0.6, this.view.zoomTarget * 0.75);
       },
     });
+    this.view.juice.stage = this.stage;
+    this.view.juice.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
     this.overhead = new Overhead(this.ui);
+    this.overhead.goldPlate = setup.frame === 'frame.legendary';
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),
       moveTo: (x, y) => this.orders?.move(x, y),
@@ -251,6 +287,8 @@ export class MatchSession {
   private onWelcome(w: WelcomeMsg): void {
     this.welcome = w;
     this.view.setTeam(w.slot, w.team, w.tricks);
+    this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
+    this.view.dressBots(w.seed, w.picks);
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
     this.overhead.mySlot = w.slot;
     this.overhead.myTeam = w.team;
@@ -294,13 +332,10 @@ export class MatchSession {
     this.tips.names = { q: ht.abilities[0].name, e: ht.abilities[2].name, r: ht.abilities[3].name };
     this.goals.touch = coarse;
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };
-    this.announcer = new Announcer(w.slot, w.team, (s) => {
-      const h = w.picks[s];
-      const t = h ? HERO_TEXT[h].title : 'A hero';
-      // sim v5 species teams: a hero twice in one team, the second one is "Sage 2"
-      const twin = w.picks.slice(0, s).filter((p, i) => p === h && (i < 3) === (s < 3)).length > 0;
-      return twin ? `${t} 2` : t;
-    });
+    // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
+    this.names = slotNames(w.picks, w.seed, w.slot);
+    this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero');
+    this.overhead.names = this.names;
     this.overhead.bounty = (slot) => {
       const snap = this.frameNow?.byId.get(slot)?.bountyStreak ?? 0;
       return Math.max(this.announcer?.bounty(slot) ?? 0, snap >= 3 ? snap : 0);
@@ -325,7 +360,7 @@ export class MatchSession {
       d.kittens = String(this.view.companions?.count ?? 0);
       d.squadNames = (this.setup.companions ?? []).slice(0, 2).map((c) => c.name).join(',');
     }
-    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot);
+    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names);
     this.scoreboard.root.addEventListener('pointerdown', (e) => {
       if (!this.scoreboard?.root.classList.contains('tap')) return;
       e.stopPropagation();
@@ -375,12 +410,35 @@ export class MatchSession {
     o.move = (x, y) => {
       move(x, y);
       this.tips.complete('move');
+      this.gateNote();
+    };
+    const amove = o.attackMove.bind(o);
+    o.attackMove = (x, y) => {
+      amove(x, y);
+      this.gateNote();
     };
     if (this.setup.emote) this.mountEmote();
     this.countdown(() => {
       document.documentElement.dataset.match = 'live';
       setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
     });
+  }
+
+  private gateNoteAt = -1e9;
+
+  /**
+   * Round 1 ("a move order in the first seconds is dropped"): it is not dropped, the gate barrier holds every hero at
+   * its 8 m line until 0:03. Say so over the hero instead of looking like an ignored click.
+   */
+  private gateNote(): void {
+    const clock = this.frameNow?.latest.clock;
+    if (!clock || clock.phase !== 'gate') return;
+    const now = performance.now();
+    if (now - this.gateNoteAt < 1200) return;
+    this.gateNoteAt = now;
+    const at = this.heroScreen();
+    const left = Math.max(1, Math.ceil(clock.nextPhaseIn / TICK_HZ));
+    if (at) this.view.juice.pop(`Gates open in ${left}...`, at.x, at.y - 30, 'info');
   }
 
   private talentsBlock(): boolean {
@@ -400,13 +458,13 @@ export class MatchSession {
       const k = killer?.kind ?? 'other';
       this.deathsBy[k] = (this.deathsBy[k] ?? 0) + 1;
       this.clearTowerWarnings();
-      this.hud?.recap(this.recapLine(killer));
+      this.hud?.recap(this.recapLine(killer, e.killer));
     }
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
-    const victimName = e.id === this.view.mySlot ? 'You' : victim.hero ? HERO_TEXT[victim.hero].title : 'A hero';
-    const killerLabel = e.killer === this.view.mySlot ? 'You' : killerName(killer);
+    const victimName = e.id === this.view.mySlot ? 'You' : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
+    const killerLabel = e.killer === this.view.mySlot ? 'You' : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     this.hud?.kill({ name: killerLabel, rel: rel(killer?.team, e.killer) }, { name: victimName, rel: rel(victim.team, e.id) }, good);
   }
 
@@ -503,12 +561,16 @@ export class MatchSession {
   /** Per core team: last "under attack" call (ms) and whether the "falling" call was made. */
   private coreCall: [number, number] = [-1e9, -1e9];
   private coreLow: [boolean, boolean] = [false, false];
+  /** Round 2: what hit each core lately (the results card's "why" line) and each team's last hero death tick. */
+  private coreLog = new CoreLog();
+  private heroDeathTick: [number, number] = [-1, -1];
+  private lastPhase: string = 'play';
 
   /**
    * A core took a hit: "Our core is under attack!" / "Their core is under attack!" (at most every 20 s per core)
    * with a minimap ping, and one "falling" call under 30%, so a win or a loss never pops up without warning.
    */
-  private coreHit(core: { team: number; fx: number; fy: number; hp: number; maxHp: number }): void {
+  private coreHit(core: { team: number; fx: number; fy: number; hp: number; maxHp: number }, byUnit: boolean, frame: ViewFrame): void {
     if (core.team !== 0 && core.team !== 1) return;
     const ours = core.team === this.view.myTeam;
     const now = performance.now();
@@ -521,8 +583,18 @@ export class MatchSession {
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
+    // Round 2: only units hitting it raise the call (the per-takedown chip fired it at 1:35 with every tower up).
+    if (!byUnit) return;
     if (now - this.coreCall[core.team] < 20000 / Math.max(1, this.buffer.speed)) return;
     this.coreCall[core.team] = now;
+    const me = frame.byId.get(this.view.mySlot);
+    const far = !!me && me.hp > 0 && Math.hypot(me.fx - core.fx, me.fy - core.fy) > DEFEND_FAR_MM;
+    if (ours && far) {
+      // Round 2: "Defend!" with a ping when the player is far from its own core under attack.
+      this.view.juice.banner({ title: 'Defend!', sub: this.touch ? 'Our core is under attack: tap Nap to go home.' : 'Our core is under attack: press B to Nap home.', tone: 'bad', urgent: true });
+      this.minimap.ping(core.fx, core.fy, color, 4000);
+      return;
+    }
     this.view.juice.banner({ title: ours ? 'Our core is under attack!' : 'Their core is under attack!', tone: ours ? 'bad' : 'good', urgent: true });
     this.minimap.ping(core.fx, core.fy, color);
   }
@@ -536,6 +608,14 @@ export class MatchSession {
 
   private calmFor = 0;
   private behindSaid = false;
+  /** Round 1 lane help: stuck against a wall (enemy fountain), or 45 s with nothing to do. */
+  private stuckFrom = 0;
+  private stuckAt = { x: 0, y: 0 };
+  private stuckSaidAt = -1e9;
+  private lastUseful = -1;
+  private idleSaidAt = -1e9;
+  private laneArrow: { x: number; y: number } | null = null;
+  private laneArrowUntil = 0;
 
   /** Once a match, for newer players: the team trails by 4+ (takedowns + 3 a tower): one calm call to group up. */
   private behindCall(score: { kills: readonly number[]; towers: readonly number[] }, team: number): void {
@@ -544,7 +624,7 @@ export class MatchSession {
     const gap = score.kills[them] - score.kills[team] + 3 * (score.towers[them] - score.towers[team]);
     if (gap < 4) return;
     this.behindSaid = true;
-    this.view.juice.banner({ title: 'Your team is behind', sub: 'Group up with your team and fight together.', tone: 'info' });
+    this.view.juice.banner(behindBanner(score.kills[team], score.kills[them], score.towers[team], score.towers[them]));
   }
 
   /** Is the player fighting: hurt by an enemy in the last 3 s? (talent offers wait then) */
@@ -564,14 +644,15 @@ export class MatchSession {
   }
 
   /** "Knocked out by Cacklejaw + a tower: wait for your minions." from the last 6 s of hits. */
-  private recapLine(killer: { kind: string; hero?: HeroId } | null): string {
+  private recapLine(killer: { kind: string; hero?: HeroId } | null, killerId = -1): string {
     const now = performance.now();
     const recent = this.hurtBy.filter((h) => now - h.at < 6000 / Math.max(1, this.buffer.speed));
     const names: string[] = [];
     const add = (n: string): void => {
       if (n && !names.includes(n)) names.push(n);
     };
-    if (killer?.kind === 'hero' && killer.hero) add(HERO_TEXT[killer.hero].title);
+    // Round 2: the slot's name ("Cacklejaw 2"), the same as the kill feed and the scoreboard.
+    if (killer?.kind === 'hero' && killer.hero) add(this.names[killerId] ?? HERO_TEXT[killer.hero].title);
     for (let i = recent.length - 1; i >= 0; i--) if (!recent[i].tower) add(recent[i].name);
     const tower = killer?.kind === 'tower' || killer?.kind === 'core' || recent.some((h) => h.tower);
     if (tower) add('a tower');
@@ -591,6 +672,16 @@ export class MatchSession {
     const now = performance.now();
     if (now - this.alertAt < 6000) return;
     this.alertAt = now;
+    this.towerAlert(
+      lockOn
+        ? `${icon('shield')}<b>Tower aiming at you!</b><span>Step out of its ring, or let your minions walk in first.</span>`
+        : `${icon('shield')}<b>Tower is hitting you!</b><span>Step back until your minions walk in.</span>`,
+      now,
+    );
+  }
+
+  /** Show the red tower alert (it claims the centre band: ui/stage.ts). */
+  private towerAlert(html: string, now: number): void {
     if (!this.alertEl) {
       this.alertEl = document.createElement('div');
       this.alertEl.className = 'pl-alert';
@@ -598,12 +689,11 @@ export class MatchSession {
       this.ui.appendChild(this.alertEl);
     }
     const el = this.alertEl;
-    el.innerHTML = lockOn
-      ? `${icon('shield')}<b>Tower aiming at you!</b><span>Step out of its ring, or let your minions walk in first.</span>`
-      : `${icon('shield')}<b>Tower is hitting you!</b><span>Step back until your minions walk in.</span>`;
+    el.innerHTML = html;
     el.classList.remove('on');
     void el.offsetWidth;
     el.classList.add('on');
+    this.stage.claim('alert', 2400 / Math.max(1, this.buffer.speed), now);
     sfx.play('click', { vol: 0.5, rate: 0.6 });
     setTimeout(() => {
       el.classList.remove('on');
@@ -739,6 +829,7 @@ export class MatchSession {
     const latest = this.buffer.latest;
     const k = latest?.score.kills ?? [0, 0];
     const team = this.welcome.team;
+    const cause = this.causeLine(result, won, latest);
     // let the last moments play out before the results screen
     const welcome = this.welcome;
     setTimeout(
@@ -750,16 +841,60 @@ export class MatchSession {
           welcome,
           kills: myStats?.kills ?? sb?.kills[me] ?? 0,
           deaths: myStats?.deaths ?? sb?.deaths[me] ?? 0,
+          assists: myStats?.assists ?? 0,
           level: myStats?.level ?? this.lastLevel,
           teamKills: team === 0 ? [k[0], k[1]] : [k[1], k[0]],
           tips: [...this.tips.completed],
           activity: this.activity,
           deathsBy: { ...this.deathsBy },
-          fun: this.funSummary(myStats?.heroDamage ?? 0),
+          cause,
+          fun: { ...this.funSummary(myStats?.heroDamage ?? 0), ...(myStats ? { takedowns: myStats.kills + myStats.assists } : {}) },
         });
       },
       Math.max(300, RESULTS_AFTER_END_MS / Math.max(1, this.buffer.speed)),
     );
+  }
+
+  private hudRectsAt = -1e9;
+  /** Round 2: tell the overhead where the top HUD is (its plates fade there), twice a second. */
+  private hudRectsTick(): void {
+    const now = performance.now();
+    if (now - this.hudRectsAt < 500) return;
+    this.hudRectsAt = now;
+    const rects: { left: number; top: number; right: number; bottom: number }[] = [];
+    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-score, .pl-hp, .pl-portrait, .pl-pause')) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && r.top < window.innerHeight / 3) rects.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
+    }
+    this.overhead.hudRects = rects;
+  }
+
+  /** Round 2: the results card's "why" line (app/endCause.ts). */
+  private causeLine(result: MatchResult, won: boolean, latest: SnapBuffer['latest']): string {
+    const team = this.view.myTeam;
+    const loser = won ? 1 - team : team;
+    const ents = latest?.entities ?? [];
+    const ownCore = ents.find((e) => e.kind === 'core' && e.team === team);
+    const theirCore = ents.find((e) => e.kind === 'core' && e.team === 1 - team);
+    let forward = 0;
+    let alive = 0;
+    for (const e of ents) {
+      if (e.kind !== 'hero' || e.team !== team || e.hp <= 0) continue;
+      alive++;
+      if (ownCore && theirCore && Math.hypot(e.x - theirCore.x, e.y - theirCore.y) < Math.hypot(e.x - ownCore.x, e.y - ownCore.y)) forward++;
+    }
+    const k = latest?.score.kills ?? [0, 0];
+    const t = latest?.score.towers ?? [0, 0];
+    return endCause({
+      won,
+      reason: result.reason,
+      phase: this.lastPhase,
+      top: this.coreLog.top(loser, result.ticks),
+      kills: team === 0 ? [k[0], k[1]] : [k[1], k[0]],
+      towers: team === 0 ? [t[0], t[1]] : [t[1], t[0]],
+      oursForward: forward,
+      oursAlive: alive,
+    });
   }
 
   private funSummary(heroDamage: number): MatchFun {
@@ -835,9 +970,31 @@ export class MatchSession {
     else if (e.type === 'death' && e.killer === me && e.id < 6) this.goals.complete('dog');
   }
 
+  /** Round 1: the goal the chip shows between beats (Pudding first, then the next tower). */
+  private standingGoal(frame: ViewFrame): { title: string; sub: string; icon: 'heart' | 'shield' | 'sun' } | null {
+    if (!this.welcome) return null;
+    const team = this.welcome.team;
+    const sec = frame.latest.clock.seconds;
+    const pud = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
+    if (pud && pud.team === 2) return { title: 'Calm Pudding in the river', sub: 'He marches with the team that calms him', icon: 'heart' };
+    if (pud && pud.team === team) return { title: 'Pudding marches with you', sub: 'Push behind him: he burns towers', icon: 'heart' };
+    if (pud) return { title: 'Their Pudding is coming', sub: 'Hit him together to send him home', icon: 'heart' };
+    const pudAt = Math.floor(TIMELINE.pudding / TICK_HZ);
+    if (sec < pudAt) {
+      const left = pudAt - sec;
+      return { title: `Pudding wakes in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, sub: 'Calm him and he marches with your wave', icon: 'heart' };
+    }
+    const sc = frame.latest.score;
+    const ours = sc.towers[team];
+    const theirs = sc.towers[1 - team];
+    if (frame.latest.clock.phase === 'sunset' || frame.latest.clock.phase === 'suddenDeath') return { title: 'Finish their core', sub: `Towers ${ours} to ${theirs}: takedowns hit cores now`, icon: 'sun' };
+    return { title: 'Take their next tower', sub: `Towers ${ours} to ${theirs}: walk in behind your minions`, icon: 'shield' };
+  }
+
   /** Time and proximity beats, the arrow's target, the Pudding ring. */
   private goalTick(frame: ViewFrame): void {
     const g = this.goals;
+    g.standing(this.standingGoal(frame));
     if (!g.enabled || !this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
     const sec = frame.latest.clock.seconds;
@@ -955,6 +1112,16 @@ export class MatchSession {
       this.view.juice.flash('red');
     }
     this.wasLow = low;
+    // round 1 tier perks: an Epic frame owner's Nap sparkles, a Legendary one's rises in a gold column
+    const tier = this.setup.frame === 'frame.legendary' ? 2 : this.setup.frame === 'frame.epic' ? 1 : 0;
+    if (tier && me.state === 'napping') {
+      this.napFxAt -= dt;
+      if (this.napFxAt <= 0) {
+        this.napFxAt = 0.1;
+        const p = new THREE.Vector3(toX(me.fx), 0.3, toZ(me.fy));
+        this.view.particles.ring(p, { n: tier === 2 ? 5 : 3, r0: 0.7, speed: [0.2, 0.5], up: tier === 2 ? 3.2 : 1.6, color: tier === 2 ? 0xffd34d : 0xc79bff, alpha: 0.9, additive: true, size: [0.12, 0.22], life: [0.6, 0.9], fade: FADE.LINEAR });
+      }
+    }
     this.trailAt -= dt;
     const zoom = ((BuffFlag as Record<string, number>).Zoomies ?? 0) | BuffFlag.Hasted;
     if ((me.buffs & zoom) !== 0 && me.speed > 2 && this.trailAt <= 0) {
@@ -971,6 +1138,7 @@ export class MatchSession {
     const scale = this.view.juice.timeScale(dt);
     const frame = this.paused ? this.buffer.sample(this.buffer.renderTick) : this.buffer.advance(dt, scale);
     this.frameNow = frame;
+    if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.units.length = 0;
       for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
@@ -984,10 +1152,24 @@ export class MatchSession {
         if (isFun(fe) && fe.type === 'xp' && fe.id === this.view.mySlot && fe.reason !== 'trickle') this.xpPops.add(fe.amount, fe.tick ?? frame.latest.clock.tick);
         this.beatsFrom(ev, frame);
         // The attack tip is done once the player's hit lands on a minion (a right-click, A-move or the ATK button).
+        if (ev.type === 'death' && ev.id >= 0 && ev.id < 6) this.heroDeathTick[ev.id < 3 ? 0 : 1] = ev.tick;
         if (ev.type === 'hit') {
           const dst = frame.byId.get(ev.dst);
           if (dst?.kind === 'core') {
-            this.coreHit(dst);
+            // Round 2: map damage (takedown chips, Sudden Death burn, takedown core damage) is not "under attack".
+            const src = ev.src >= 0 ? frame.byId.get(ev.src) : undefined;
+            const from: CoreSource =
+              ev.src < 0
+                ? ev.kind === 'chip' || this.heroDeathTick[dst.team === 1 ? 1 : 0] === ev.tick
+                  ? 'takedowns'
+                  : 'decay'
+                : src?.kind === 'minion'
+                  ? 'minions'
+                  : src?.kind === 'hero'
+                    ? 'heroes'
+                    : 'towers';
+            this.coreLog.add(dst.team, ev.tick, from, ev.amount);
+            this.coreHit(dst, ev.src >= 0, frame);
             this.coreHitAt = performance.now();
           }
         }
@@ -996,18 +1178,34 @@ export class MatchSession {
           if (src && (src.kind === 'tower' || src.kind === 'core') && src.team !== this.view.myTeam) this.towerHit(ev.src);
           if (src && src.team !== this.view.myTeam) {
             const tower = src.kind === 'tower' || src.kind === 'core';
-            this.hurtBy.push({ name: src.hero ? HERO_TEXT[src.hero].title : tower ? 'a tower' : 'minions', tower, at: performance.now() });
+            this.hurtBy.push({ name: src.hero ? (this.names[ev.src] ?? HERO_TEXT[src.hero].title) : tower ? 'a tower' : 'minions', tower, at: performance.now() });
             if (this.hurtBy.length > 24) this.hurtBy.shift();
           }
         }
+        if (ev.type === 'hit') this.scoreboard?.hit(ev.src, ev.dst, ev.amount);
+        if (ev.type === 'buff' && ev.kind === 'takedown') {
+          this.scoreboard?.credit(ev.id);
+          if (ev.id === this.view.mySlot) {
+            const who = this.view.companions?.cheer();
+            if (who) this.hud?.note(`${who} cheered your takedown`);
+          }
+        }
+        if (ev.type === 'hit' && (ev.src === this.view.mySlot || ev.dst === this.view.mySlot)) {
+          const other = frame.byId.get(ev.src === this.view.mySlot ? ev.dst : ev.src);
+          if (other && other.team !== this.view.myTeam) this.lastUseful = performance.now();
+        }
         if (ev.type === 'hit' && ev.src === this.view.mySlot) {
           this.hitsLanded++;
-          if (frame.byId.get(ev.dst)?.kind === 'minion') this.tips.complete('attack');
+          // round 1: any hit the player lands counts (it was minions only, so the tip came at 1:33 after 18 hits)
+          const dst = frame.byId.get(ev.dst);
+          if (dst && dst.team !== this.view.myTeam) this.tips.complete('attack');
         }
       }
       this.tipTriggers(frame);
       this.goalTick(frame);
-      this.overhead.guide = this.goals.enabled ? this.goalTarget(frame) : this.guideTarget(frame);
+      this.helpTick(frame);
+      this.hudRectsTick();
+      this.overhead.guide = this.laneArrow ?? (this.goals.enabled ? this.goalTarget(frame) : this.guideTarget(frame));
       for (const n of this.xpPops.flush(frame.tick)) {
         const at = this.heroScreen();
         if (at) this.view.juice.pop(`+${n} XP`, at.x + (Math.random() - 0.5) * 40, at.y - 24, 'gold');
@@ -1026,11 +1224,27 @@ export class MatchSession {
       this.calmFor = this.inFight() ? 0 : this.calmFor + dt * this.buffer.speed;
       if (this.calmFor >= 2.5) this.talents.reveal();
     }
-    this.talents?.update(this.paused || this.ended ? 0 : dt * this.buffer.speed);
-    if (this.e2e) this.telemetry(frame);
+    this.talents?.tick(!this.paused && !this.ended, this.buffer.speed);
+    // the centre band: the death recap holds it while dead, an open talent card while it is up
+    const nowMs = performance.now();
+    const meNow = frame && this.welcome ? frame.byId.get(this.welcome.slot) : undefined;
+    this.stage.hold('recap', meNow?.state === 'dead', nowMs);
+    this.stage.hold('talent', this.talents?.open ?? false, nowMs);
+    if (this.e2e) {
+      this.telemetry(frame);
+      document.documentElement.dataset.stage = this.stage.top(nowMs) ?? '';
+    }
     if (frame && this.hud && this.welcome) {
       const me = frame.byId.get(this.welcome.slot) ?? null;
-      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team);
+      let lvSum = 0;
+      let lvN = 0;
+      for (const e of frame.entities) {
+        if (e.kind === 'hero' && e.team !== this.welcome.team && e.team !== 2 && e.level) {
+          lvSum += e.level;
+          lvN++;
+        }
+      }
+      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0);
       this.behindCall(frame.latest.score, this.welcome.team);
       const hero = this.welcome.picks[this.welcome.slot];
       const trick = this.welcome.tricks[this.welcome.slot];
@@ -1137,6 +1351,108 @@ export class MatchSession {
    * First match only, the first two minutes: where the ground arrow points (the nearest allied minion, else the
    * Sunny Lane bend), until the player has walked up to an allied wave once.
    */
+  /**
+   * Round 1: "my hero was pinned against the invisible wall at the enemy fountain for 3.5 minutes". Held into a wall
+   * for 2 s: a banner says why (the enemy fountain cannot be entered) and a ground arrow points back to the lane; 45 s
+   * without a fight: "Your team needs you in Sunny Lane" with the same arrow.
+   */
+  private helpTick(frame: ViewFrame): void {
+    if (!this.welcome || this.ended) return;
+    const me = frame.byId.get(this.welcome.slot);
+    const now = performance.now();
+    const sp = Math.max(1, this.buffer.speed);
+    if (this.lastUseful < 0) this.lastUseful = now;
+    if (!me || me.state === 'dead') {
+      this.stuckFrom = now;
+      this.lastUseful = now;
+      return;
+    }
+    const team = this.welcome.team;
+    const fx = team === 0 ? MAP.width - FOUNTAIN.x : FOUNTAIN.x;
+    const nearFountain = Math.hypot(me.fx - fx, me.fy - FOUNTAIN.y) < FOUNTAIN.radius + 8000;
+    this.overhead.enemyFountain = nearFountain ? { x: fx, y: FOUNTAIN.y, r: FOUNTAIN.radius } : null;
+    if (me.state !== 'moving' || Math.hypot(me.fx - this.stuckAt.x, me.fy - this.stuckAt.y) > 600) {
+      this.stuckAt = { x: me.fx, y: me.fy };
+      this.stuckFrom = now;
+    } else if (now - this.stuckFrom > 2000 / sp && now - this.stuckSaidAt > STUCK_REPEAT_MS / sp) {
+      this.stuckSaidAt = now;
+      if (nearFountain) this.overhead.fountainPulse();
+      this.view.juice.banner(nearFountain ? { title: "Enemy fountain: you can't go in", sub: 'Back to the lane! Follow the arrow.', tone: 'info' } : { title: "Can't go that way", sub: 'Back to the lane: follow the arrow.', tone: 'info' });
+      this.pointToLane(frame, now + 5000 / sp);
+    }
+    // Round 2: 10 s of no progress (held into the trees, or walking circles) brings the lane prompt, not only 45 s
+    // without a fight (it came after about 45 s for a player stuck beside the core).
+    if (Math.hypot(me.fx - this.progressAt.x, me.fy - this.progressAt.y) > 3000 || now - this.lastUseful < 3000 / sp) {
+      this.progressAt = { x: me.fx, y: me.fy, t: now };
+    }
+    // (a veteran waiting in a bush is left alone: only new players, or a hero that keeps walking without getting anywhere)
+    const noProgress = (this.setup.newPlayer || me.state === 'moving') && frame.latest.clock.seconds > 20 && now - this.progressAt.t > 10000 / sp;
+    if ((noProgress || (frame.latest.clock.seconds > 60 && now - this.lastUseful > 45000 / sp)) && now - this.idleSaidAt > (noProgress ? 15000 : 60000) / sp) {
+      this.idleSaidAt = now;
+      this.lastUseful = now;
+      const lane = this.pointToLane(frame, now + 8000 / sp);
+      this.view.juice.banner({ title: `Your team needs you in ${lane}`, sub: 'Follow the arrow to the fight.', tone: 'info' });
+    }
+    if (this.laneArrow && now > this.laneArrowUntil) this.laneArrow = null;
+    if (this.setup.newPlayer) this.diveWarn(me, team, now, sp);
+  }
+
+  private diveSaidAt = -1e9;
+  private riverSaidAt = -1e9;
+  private progressAt = { x: 0, y: 0, t: 0 };
+
+  /**
+   * Round 1 ("by 0:30 I had walked past the outer defences to the enemy core"): for newer players, a warning as soon
+   * as they step within an enemy tower's reach + 2 m with none of their minions in it, before the tower locks on.
+   */
+  private diveWarn(me: { fx: number; fy: number }, team: number, now: number, sp: number): void {
+    // Round 2: also when the player crosses the river with none of its minions ahead (the 0:16 river brawl)
+    const across = team === 0 ? me.fx > MAP.riverX[1] : me.fx < MAP.riverX[0];
+    if (across && now - this.riverSaidAt > 20000 / sp && now - this.diveSaidAt > 4000 / sp) {
+      const ahead = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && (team === 0 ? u.x > me.fx - 1500 : u.x < me.fx + 1500) && Math.abs(u.y - me.fy) < 12000);
+      if (!ahead) {
+        this.riverSaidAt = now;
+        this.diveSaidAt = now;
+        this.towerAlert(`${icon('shield')}<b>Too far ahead of your minions!</b><span>Past the river alone, enemy heroes jump you. Wait for your wave.</span>`, now);
+        return;
+      }
+    }
+    if (now - this.diveSaidAt < 8000 / sp) return;
+    const reach = TOWERS.outer.range + 2000;
+    for (const t of this.units) {
+      if ((t.kind !== 'tower' && t.kind !== 'core') || t.team === team || t.team === 2 || t.state === 'dead') continue;
+      if (Math.hypot(t.x - me.fx, t.y - me.fy) > reach) continue;
+      const tanked = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && Math.hypot(u.x - t.x, u.y - t.y) < TOWERS.outer.range);
+      if (tanked) return;
+      this.diveSaidAt = now;
+      this.towerAlert(`${icon('shield')}<b>Too far ahead of your minions!</b><span>That tower hits hard. Wait for your wave to walk in first.</span>`, now);
+      return;
+    }
+  }
+
+  /** Aim the ground arrow at the lane the team plays (most allied heroes; tie: Sunny) and name it. */
+  private pointToLane(frame: ViewFrame, until: number): string {
+    const team = this.welcome?.team ?? 0;
+    const mid = 30000;
+    let sunny = 0;
+    let puddle = 0;
+    for (const e of frame.entities) {
+      if (e.kind !== 'hero' || e.team !== team || e.id === this.view.mySlot || e.state === 'dead') continue;
+      if (e.fy >= mid) sunny++;
+      else puddle++;
+    }
+    const top = sunny >= puddle;
+    // the allied minion furthest along that lane, else the lane bend on our side
+    let best: Unit | null = null;
+    for (const u of this.units) {
+      if (u.kind !== 'minion' || u.team !== team || u.state === 'dead' || (u.y >= mid) !== top) continue;
+      if (!best || (team === 0 ? u.x > best.x : u.x < best.x)) best = u;
+    }
+    this.laneArrow = best ? { x: best.x, y: best.y } : { x: team === 0 ? 22000 : 78000, y: top ? 50000 : 10000 };
+    this.laneArrowUntil = until;
+    return top ? 'Sunny Lane' : 'Puddle Lane';
+  }
+
   private guideTarget(frame: ViewFrame): { x: number; y: number } | null {
     if (!this.setup.firstMatch || this.guideDone || !this.welcome) return null;
     const me = frame.byId.get(this.welcome.slot);
@@ -1168,12 +1484,17 @@ export class MatchSession {
     if (!this.tips.enabled || !this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
     if (!me || me.state === 'dead') return;
+    let fight = false;
     for (const u of this.units) {
       if (!isEnemy(u, this.welcome.team)) continue;
       const d = Math.hypot(u.x - me.fx, u.y - me.fy);
       if (u.kind === 'minion' && d < 9000) this.tips.trigger('attack');
-      if (u.kind === 'hero' && d < 8000) this.tips.trigger('q');
+      if (u.kind === 'hero' && d < 8000) {
+        this.tips.trigger('q');
+        fight = true;
+      }
     }
+    this.tips.combat(fight);
     // The first wave (§12): once it has walked out for a few seconds, even if the player is not next to it yet.
     if (frame.latest.clock.seconds >= TIPS_FIRST_WAVE_S) this.tips.trigger('attack');
   }

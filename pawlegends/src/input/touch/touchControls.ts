@@ -8,7 +8,7 @@
 import { sfx } from '../../audio/sfx';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
-import type { CastIndex } from '../orders';
+import { slideAngle, type CastIndex } from '../orders';
 import { attackPriority, nearestEnemy, smartAim, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet } from './assist';
 
@@ -336,7 +336,8 @@ export class TouchControls {
       const dy = -(s.y - s.by);
       if (Math.hypot(dx, dy) > STICK.dead) {
         // the lane magnet (fun plan F3): close to the lane's direction, walk exactly along it
-        const a = laneMagnet(me.x, me.y, Math.atan2(dy, dx));
+        // round 2: a push into a wall slides along it (orders.ts slideAngle)
+        const a = slideAngle(me.x, me.y, laneMagnet(me.x, me.y, Math.atan2(dy, dx)));
         const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
         const near = Math.hypot(me.x - this.lastStick.tx, me.y - this.lastStick.ty) < STICK.refreshMm;
         if ((turn > STICK.turn || near) && now - this.lastStick.at >= STICK.everyMs) {
