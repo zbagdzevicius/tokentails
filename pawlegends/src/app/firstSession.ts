@@ -20,16 +20,19 @@ export function rookieAvailable(list: readonly string[] = DIFFICULTIES, bots: Re
 /** Is this the Rookie difficulty (also when the type does not list it yet)? */
 export const isRookie = (d: string | null | undefined): boolean => d === 'rookie';
 
-/** The difficulty the next match runs at, from the matches played and the player's pick. */
-export function difficultyFor(matches: number, chosen: Difficulty, list: readonly string[] = DIFFICULTIES, bots: Readonly<Record<string, unknown>> = BOTS): Difficulty {
+/**
+ * The difficulty the next match runs at, from the matches played and the player's pick. `veteran` (round 1: "I've
+ * played MOBAs before") skips the two Easy matches; match 1 stays the guided Rookie match.
+ */
+export function difficultyFor(matches: number, chosen: Difficulty, list: readonly string[] = DIFFICULTIES, bots: Readonly<Record<string, unknown>> = BOTS, veteran = false): Difficulty {
   if (matches <= 0) return rookieAvailable(list, bots) ? ROOKIE : ('easy' as Difficulty);
-  if (matches < PICK_DIFFICULTY_FROM) return 'easy' as Difficulty;
+  if (matches < PICK_DIFFICULTY_FROM && !veteran) return 'easy' as Difficulty;
   // a stored "rookie" (old profile, or a dare) after the first match plays as Easy
   return isRookie(chosen) || !list.includes(chosen) ? ('easy' as Difficulty) : chosen;
 }
 
 /** Can the player choose the bots yet? */
-export const canPickDifficulty = (matches: number): boolean => matches >= PICK_DIFFICULTY_FROM;
+export const canPickDifficulty = (matches: number, veteran = false): boolean => matches >= PICK_DIFFICULTY_FROM || (veteran && matches >= 1);
 
 /** The difficulties the pick screen offers (Rookie is match 1 only, never a chip). */
 export function pickable(list: readonly string[] = DIFFICULTIES): Difficulty[] {

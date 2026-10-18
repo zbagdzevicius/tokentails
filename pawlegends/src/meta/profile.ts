@@ -40,6 +40,19 @@ export interface Profile {
   squad: string[];
   /** The cat adopted last (catalog id): it walks first until the player picks a squad. */
   newCat: string | null;
+  /** Show ability numbers (cooldown, damage, range) on the pick screen and in the match tooltips (round 1). */
+  numbers: boolean;
+  /** "I've played MOBAs before": the difficulty chips unlock now (round 1: veterans sat through 3 guided matches). */
+  veteran: boolean;
+  /** Ladder matches played (Easy and up): the first meta/ladder.ts PLACEMENT never lose points. */
+  ladderGames: number;
+  /**
+   * Round 2: the page session (`sessions`) of the first finished match, 0 = never. The Meet offer counts sessions from
+   * here (`playSession`), so a page load without play is not "session 2".
+   */
+  firstPlaySession: number;
+  /** Round 2: the Meet card the player closed last (catalog id, page session, ms): it stays away for a while. */
+  meetClosed: { id: string; session: number; at: number } | null;
 }
 
 /** The free coat earned by the first win (POC.md §12). */
@@ -52,7 +65,7 @@ const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -68,12 +81,21 @@ export function parseProfile(raw: string | null): Profile {
     p.firstWinDone = o.firstWinDone === true;
     p.hero = HEROES.includes(o.hero as HeroId) ? (o.hero as HeroId) : 'clem';
     p.trick = TRICKS.includes(o.trick as TrickId) ? (o.trick as TrickId) : 'pounce';
-    p.difficulty = o.difficulty === 'normal' ? 'normal' : 'easy';
+    p.difficulty = o.difficulty === 'normal' || o.difficulty === 'hard' ? o.difficulty : 'easy';
     p.muted = o.muted === true;
     p.unlocks = Array.isArray(o.unlocks)
       ? [...new Set(o.unlocks.filter((u): u is string => typeof u === 'string').map((u) => (u === 'coat:brutus-biscuit' ? BISCUIT_UNLOCK : u)))].slice(0, 64)
       : [];
     p.tipsOff = o.tipsOff === true;
+    p.numbers = o.numbers === true;
+    p.veteran = o.veteran === true;
+    p.ladderGames = n(o.ladderGames);
+    p.firstPlaySession = n(o.firstPlaySession);
+    // older profiles: a player who already finished a match played in session 1 at the latest
+    if (p.firstPlaySession === 0 && p.matches > 0) p.firstPlaySession = 1;
+    const mc = o.meetClosed as Record<string, unknown> | null | undefined;
+    p.meetClosed =
+      mc && typeof mc === 'object' && typeof mc.id === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(mc.id) ? { id: mc.id, session: n(mc.session), at: n(mc.at) } : null;
     p.tipsNext = o.tipsNext === true;
     p.knowsUlt = o.knowsUlt === true;
     p.rating = typeof o.rating === 'number' && Number.isFinite(o.rating) ? Math.max(0, Math.min(9999, Math.round(o.rating))) : LADDER_START;
@@ -99,7 +121,7 @@ export function parseProfile(raw: string | null): Profile {
     }
     p.lastMatchAt = n(o.lastMatchAt);
     if (o.fastest && typeof o.fastest === 'object') {
-      for (const d of ['easy', 'normal'] as const) {
+      for (const d of ['easy', 'normal', 'hard'] as const) {
         const v = (o.fastest as Record<string, unknown>)[d];
         if (typeof v === 'number' && v > 0) p.fastest[d] = Math.floor(v);
       }
@@ -141,11 +163,21 @@ export function startSession(): Profile {
   return p;
 }
 
+/**
+ * Round 2: the Meet offer's session number: 1 for the page session of the first finished match, 2 for the next page
+ * session and so on; 0 before any finished match (a page load without play never counts).
+ */
+export function playSession(p: Pick<Profile, 'sessions' | 'firstPlaySession' | 'matches'>): number {
+  const first = p.firstPlaySession > 0 ? p.firstPlaySession : p.matches > 0 ? 1 : 0;
+  return first > 0 ? Math.max(1, p.sessions - first + 1) : 0;
+}
+
 /** Record a finished match. Returns what changed for the results screen. */
 export function recordMatch(won: boolean, seconds: number, difficulty: Difficulty): { firstWin: boolean; best: boolean; second: boolean } {
   const p = loadProfile();
   const second = p.matches >= 1 && Date.now() - p.lastMatchAt < 24 * 3600 * 1000;
   p.matches++;
+  if (p.firstPlaySession === 0) p.firstPlaySession = Math.max(1, p.sessions);
   p.lastMatchAt = Date.now();
   let firstWin = false;
   let best = false;

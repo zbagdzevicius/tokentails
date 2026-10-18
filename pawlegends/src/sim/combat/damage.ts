@@ -4,14 +4,14 @@
  * `dealDamage` applies a hit at once (hp may go below 0); `resolveDeaths` runs once per tick in step 7, so units
  * that hit each other on the same tick both land their hits (no id-order advantage).
  */
-import { HERO_RULES } from '../../data/xp';
-import { HERO_IDS, HERO_VS_HERO_BP, HEROES, SIDE_EDGE } from '../../data/heroes';
+import { HERO_RULES, RESPAWN } from '../../data/xp';
+import { HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
 import { RADIUS } from '../../data/map';
 import { SUDDEN_DEATH, SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
 import type { SimEvent } from '../api';
 import { ZONE_KIND } from '../../data/effects';
-import { applyBp, dist2, idiv } from '../fixed';
+import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, Order, RANGE, UnitState, type World } from '../world';
 import { attackRange, coreExposed, isInvulnerable, isStructure } from '../units/kinds';
@@ -72,8 +72,8 @@ export function dealDamage(
     if (w.kind[dst] === Kind.Hero) {
       raw = applyBp(raw, HERO_VS_HERO_BP);
       if (w.globals[G.SideEdge] !== 0) {
-        raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[src]]].side].heroDmgBp);
-        raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[dst]]].side].heroTakenBp);
+        raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
+        raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
       }
     }
     if (src === HUMAN_SLOT) raw = applyBp(raw, rulesOf(m).humanDamageBp);
@@ -166,6 +166,23 @@ function clearOnDeath(w: World, id: number): void {
   for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zOwner[z] === id && w.zKind[z] === ZONE_KIND.arena) endArena(w, z);
 }
 
+/** Sim v8: the standing tower of `team` that can be hit with the lowest HP share (lowest id on a tie), else its core, else −1. */
+function weakestTower(w: World, team: number): number {
+  let best = -1;
+  let bestBp = 0;
+  for (let id = RANGE.towers; id < RANGE.cores; id++) {
+    if (w.alive[id] === 0 || w.team[id] !== team || w.hp[id] <= 0 || isInvulnerable(w, id)) continue;
+    const bp = idiv(w.hp[id] * BP_ONE, Math.max(1, w.maxHp[id]));
+    if (best < 0 || bp < bestBp) {
+      best = id;
+      bestBp = bp;
+    }
+  }
+  if (best >= 0) return best;
+  const core = RANGE.cores + team;
+  return w.alive[core] === 1 && !isInvulnerable(w, core) ? core : -1;
+}
+
 /** Step 7: every unit at or below 0 HP dies, ascending id. */
 export function resolveDeaths(m: MatchHandle): void {
   const w = m.world;
@@ -195,13 +212,33 @@ export function resolveDeaths(m: MatchHandle): void {
       m.stats[id].deaths++;
       const enemy = 1 - w.team[id];
       w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
+      // Sim v7: a team that keeps losing fights stays down longer (DifficultyRules.leadPressure).
+      if (rulesOf(m).leadPressure) {
+        const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
+        if (gap > 0) w.timer[id] = applyBp(w.timer[id], BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp));
+      }
       heroKilled(m, id);
       // From Sunset (v4; Sudden Death before): each takedown deals core damage to the victim's core.
       // Sim v5: before Sudden Death it scales with how open that core is (an inner tower down: the full share, else
       // SUNSET.closedCoreBp), so towers still decide most matches; the human's core is spared while
       // the human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage).
       const victimTeam = w.team[id];
-      if (tick >= w.globals[G.Sunset]) {
+      const chip = rulesOf(m).takedownChipBp;
+      if (tick < w.globals[G.Sunset]) {
+        // Sim v7: every takedown chips the victim's core (DifficultyRules.takedownChipBp). Sim v8: only until the chips
+        // total takedownChipCapBp; before Sunset each takedown of this team so far was a chip, so its takedown count
+        // (this one included) is the number of chips.
+        const chips = w.globals[enemy === 0 ? G.Kills0 : G.Kills1];
+        // Past the cap the chips go on only into an open base (an inner tower of that side down), else to its weakest tower.
+        if (chip > 0 && (chips * chip <= rulesOf(m).takedownChipCapBp || coreExposed(w, victimTeam))) {
+          const core = RANGE.cores + victimTeam;
+          dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], chip), 'chip', { pure: true, pierce: true });
+        } else if (chip > 0 && rulesOf(m).takedownTowerChipBp > 0) {
+          const t = weakestTower(w, victimTeam);
+          if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), 'chip', { pure: true });
+        }
+      } else if (id !== HUMAN_SLOT || rulesOf(m).humanDeathCore) {
+        // Sim v7: on Rookie the human's own deaths cost its core nothing (DifficultyRules.humanDeathCore).
         const core = RANGE.cores + victimTeam;
         const sd = tick >= w.globals[G.SuddenDeath];
         const bp = sd ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;

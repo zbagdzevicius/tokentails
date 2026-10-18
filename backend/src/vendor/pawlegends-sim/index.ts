@@ -8,7 +8,7 @@ const sim: any = bundle;
 
 export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw';
 export type PawlegendsTrickId = string;
-export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie';
+export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
 
 export interface PawlegendsReplay {
@@ -54,9 +54,9 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = 'a986cb375e49e0faf9a2aa1e16f3c9358c9de8f6e2aada27a2ac7327a07912d5';
-/** The SIM_VERSION this bundle was built with (5). */
-export const BUNDLE_SIM_VERSION = 5;
+export const BUNDLE_SHA256 = '40bbddf9cd2e632544fd3bdc9ff6ad01ae41f3d22d48f0bb78a844adb5b153c7';
+/** The SIM_VERSION this bundle was built with (8). */
+export const BUNDLE_SIM_VERSION = 8;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
 export const PLACEHOLDER = false;
 

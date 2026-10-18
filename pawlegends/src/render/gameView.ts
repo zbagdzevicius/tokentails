@@ -4,7 +4,7 @@
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
 import * as THREE from 'three';
-import { loadZoom } from './camera/zoom';
+import { loadZoom, ZOOM_DEFAULT } from './camera/zoom';
 import type { HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
@@ -15,11 +15,11 @@ import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
 import { RELATION } from './palette';
 import type { GameRenderer } from './renderer';
-import { MOBA_DIST } from './renderer';
+import { isShortLandscape, MOBA_DIST } from './renderer';
 import { TelegraphPool, type TelegraphSpec } from './telegraph';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
-import type { Look } from './cosmetics';
+import { FREE_BISCUIT, FREE_COATS, type Look } from './cosmetics';
 import { CompanionView } from './views/companionView';
 import { HeroView } from './views/heroView';
 import { createMapView, type MapView } from './views/mapView';
@@ -54,7 +54,7 @@ export interface GameViewHooks {
  * minimap. `lead` is the look-ahead toward the enemy base, `below` shifts the focus south a little (the hero sits
  * slightly above centre, clear of the bottom bar).
  */
-export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8 });
+export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8, shortBelow: -1.5 });
 export const clampFocusX = (x: number): number => Math.min(CAMERA_FRAME.maxX, Math.max(CAMERA_FRAME.minX, x));
 export const clampFocusZ = (z: number): number => Math.min(CAMERA_FRAME.maxZ, Math.max(CAMERA_FRAME.minZ, z));
 const WHO_TTL = 3;
@@ -191,6 +191,34 @@ export class GameView {
     this.projectiles.myTeam = team;
   }
 
+  /**
+   * Round 2 ("my pink team is the Woof pack, and the enemy cats defend the bone-topped core"): bases and minions take
+   * their species' style. Team 0 wears the cat style unless its heroes are dogs. Relation colours (rings, plates,
+   * minimap) stay by relation.
+   */
+  setSpecies(team0IsDogs: boolean): void {
+    this.structures.styleSwap = team0IsDogs;
+    this.minions.styleSwap = team0IsDogs;
+  }
+
+  /**
+   * Round 2 ("the same faces every match"): every bot wears a coat from the free unlock pool (or the classic one),
+   * picked from the match seed, and two bots of the same hero never share one.
+   */
+  dressBots(seed: number, picks: readonly HeroId[]): void {
+    const used = new Set<string>();
+    picks.forEach((hero, slot) => {
+      if (slot === this.mySlot) return;
+      const pool: (string | null)[] = [null, ...Object.keys(FREE_COATS).filter((id) => FREE_COATS[id].hero === hero), ...(hero === 'brutus' ? [FREE_BISCUIT] : [])];
+      let k = (Math.imul((seed >>> 0) ^ (slot * 0x27d4eb2f), 0x165667b1) >>> 0) % pool.length;
+      for (let n = 0; n < pool.length && used.has(`${hero}:${pool[k]}`); n++) k = (k + 1) % pool.length;
+      used.add(`${hero}:${pool[k]}`);
+      const coat = pool[k];
+      if (coat) this.heroes.looks.set(slot, { coat, chroma: null });
+      else this.heroes.looks.delete(slot);
+    });
+  }
+
   /** Render-only cosmetics: the player's look (slot `mySlot`) and Companion Kittens. */
   dress(look: Look | null, companions: readonly Companion[]): void {
     if (look) this.heroes.looks.set(this.mySlot, look);
@@ -203,6 +231,7 @@ export class GameView {
     if (companions.length) {
       this.companions = new CompanionView(companions);
       this.companions.myTeam = this.myTeam;
+      this.companions.mySlot = this.mySlot;
       this.scene.add(this.companions.group);
     }
   }
@@ -249,6 +278,16 @@ export class GameView {
    */
   lead(): number {
     return (this.myTeam === 0 ? 1 : -1) * CAMERA_FRAME.lead * this.gr.zoom;
+  }
+
+  /**
+   * Ground offset (m, +z = screen down) from the hero to the camera focus. Round 2: on short landscape screens the
+   * hero sat at ~43% of the height and units north of it hid under the top HUD; there the focus moves north of the
+   * hero (CAMERA_FRAME.shortBelow) so the hero sits at ~57%, with more room above it.
+   */
+  below(): number {
+    const c = this.gr.renderer.domElement;
+    return isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below;
   }
 
   /** The player's hero in the current frame. */
@@ -332,7 +371,7 @@ export class GameView {
       if (me && this.wasDead && !meDead) {
         this.recentre();
         this.gr.focus.x = clampFocusX(this.follow.x + this.lead());
-        this.gr.focus.z = clampFocusZ(this.follow.z + CAMERA_FRAME.below);
+        this.gr.focus.z = clampFocusZ(this.follow.z + this.below());
       }
       this.wasDead = meDead;
     }
@@ -350,7 +389,7 @@ export class GameView {
     // ease the zoom toward the wheel's target
     this.gr.zoom += (this.zoomTarget - this.gr.zoom) * Math.min(1, dt * 10);
     const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead()));
-    const tz = clampFocusZ(this.follow.z + this.pan.z + CAMERA_FRAME.below);
+    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below());
     const k = Math.min(1, dt * (this.panned ? 12 : 7));
     this.gr.focus.x += (tx - this.gr.focus.x) * k;
     this.gr.focus.z += (tz - this.gr.focus.z) * k;

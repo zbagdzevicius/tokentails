@@ -47,8 +47,9 @@ function samples(): { client: ClientMsg[]; host: HostMsg[] } {
     { t: 'pause', paused: false },
   ];
   const core = new HostCore();
-  // Seed 308: the idle human's team holds out past Sunset (8:00), so the samples include a `sunset` event (sim v3).
-  const host: HostMsg[] = [core.join({ ...JOIN, seed: 308 }), core.initial()!];
+  // Seed 301: the idle human's team holds out past Sunset (Normal 6:00), so the samples include a `sunset` event (sim v8;
+  // seed 308 before).
+  const host: HostMsg[] = [core.join({ ...JOIN, seed: 301 }), core.initial()!];
   core.command(encodeCommand({ op: Op.Move, x: 30000, y: 30000 }));
   for (let i = 0; i < 2000 && !core.ended; i++) host.push(...core.advance(30));
   return { client, host };

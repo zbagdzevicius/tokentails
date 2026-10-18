@@ -1,5 +1,7 @@
 /** Player-facing hero copy (POC.md §6). English only in the POC. Numbers live in src/data; this is words. */
 import type { HeroId, TrickId } from '../sim/api';
+import { HEROES, type AbilitySlot } from '../data/heroes';
+import { TRICKS } from '../data/tricks';
 
 export interface AbilityText {
   name: string;
@@ -113,7 +115,55 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
   hiss: { name: 'Hiss', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
 });
 
-export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots' });
+export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots', hard: 'Hard bots' });
+
+/**
+ * What each bots chip means (playtest round 1: "Hard is mostly hidden stat edges, a veteran will call it rigged").
+ * Sim v7 Hard has no stat edge over Normal; sim v8 Hard allies play at Hard too, and the per-hero tuning (HeroData.pvp)
+ * shows in the Numbers chip instead of a species line here (round 2: "the pick screen shows cat players a handicap").
+ */
+export const DIFFICULTY_HINT: Readonly<Partial<Record<string, string>>> = Object.freeze({
+  easy: 'Easy: slow bots that rarely use abilities.',
+  normal: 'Normal: bots defend their base and push when they lead.',
+  hard: 'Hard: you and five Hard bots. They focus the weakest hero, dive after a stun and punish anyone under their tower.',
+});
+
+const sec = (ticks: number): string => `${Math.round(ticks / 3) / 10} s`;
+const metres = (mm: number): string => `${Math.round(mm / 100) / 10} m`;
+
+/** "6 s · 70 dmg (+12/lvl) · 2.4 m" from src/data (playtest round 1: "no numbers anywhere"). */
+export function abilityNumbers(hero: HeroId, slot: number): string {
+  const a = HEROES[hero].abilities[('qwer'[slot] ?? 'q') as AbilitySlot];
+  const parts = [`${sec(a.cooldown)} cooldown`];
+  const dmg = a.dmg ?? a.waveDmg ?? a.boltDmg ?? a.arrowDmg;
+  const per = a.dmgPerLevel ?? a.waveDmgPerLevel ?? a.boltDmgPerLevel ?? a.arrowDmgPerLevel;
+  if (dmg !== undefined) parts.push(`${dmg}${per ? ` (+${per}/lvl)` : ''} dmg`);
+  const reach = a.range ?? a.dash ?? a.blink ?? a.radius ?? a.leap;
+  if (reach !== undefined) parts.push(metres(reach));
+  const dur = a.stun ?? a.root ?? a.fear ?? a.duration;
+  if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : 'lasts'} ${sec(dur)}`);
+  return parts.join(' · ');
+}
+
+/** Sim v8 per-hero tuning (HeroData.pvp) in words, or '' when the hero has none: "Hero fights (Normal, Hard): deals 13% more · takes 8.5% less". */
+export function pvpNumbers(hero: HeroId): string {
+  const { dmgBp, takenBp } = HEROES[hero].pvp;
+  const pct = (bp: number): string => `${Math.round(Math.abs(bp - 10000) / 10) / 10}%`;
+  const parts: string[] = [];
+  if (dmgBp !== 10000) parts.push(`deals ${pct(dmgBp)} ${dmgBp > 10000 ? 'more' : 'less'}`);
+  if (takenBp !== 10000) parts.push(`takes ${pct(takenBp)} ${takenBp > 10000 ? 'more' : 'less'}`);
+  return parts.length ? `Hero fights (Normal, Hard): ${parts.join(' · ')}` : '';
+}
+
+/** "60 s cooldown · 4 m" for a Paw Trick. */
+export function trickNumbers(t: TrickId): string {
+  const d = TRICKS[t] as Readonly<Record<string, number>>;
+  const parts = [`${sec(d.cooldown)} cooldown`];
+  if (d.blink) parts.push(metres(d.blink));
+  if (d.radius) parts.push(metres(d.radius));
+  if (d.healBp) parts.push(`heals ${d.healBp / 100}%`);
+  return parts.join(' · ');
+}
 
 /** Talent subtitles, 2 to 5 words, for small landscape screens (the full line is cut off there: round 0). */
 export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
@@ -142,3 +192,33 @@ export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
   'feeding-frenzy': 'Pack Hunt resets twice',
   ambush: '+40% out of stealth',
 });
+
+/**
+ * Display names per slot (sim v5 species teams: a hero twice in one team, the second is "Clem 2"). Round 1: the
+ * scoreboard, kill feed, nameplates and results all use this, so two "Sir Brutus" rows never read the same.
+ */
+export function slotNames(picks: readonly HeroId[], seed?: number, humanSlot = 0): string[] {
+  if (seed === undefined) {
+    return picks.map((h, s) => {
+      const t = HERO_TEXT[h]?.title ?? 'A hero';
+      const twin = picks.slice(0, s).some((p, i) => p === h && (i < 3) === (s < 3));
+      return twin ? `${t} 2` : t;
+    });
+  }
+  // Round 2 ("three matches show the same faces: Clem 2, Cacklejaw 2, Sir Brutus 2"): every bot gets a persona name
+  // from the match seed ("Biscuit the Clem"), never twice in one match; the human keeps the hero's title.
+  const used = new Set<string>();
+  return picks.map((h, s) => {
+    const t = HERO_TEXT[h]?.title ?? 'A hero';
+    if (s === humanSlot) return t;
+    const pool = HEROES[h]?.side === 'dog' ? DOG_NAMES : CAT_NAMES;
+    let k = (Math.imul((seed >>> 0) ^ (s * 0x9e3779b1), 0x85ebca6b) >>> 0) % pool.length;
+    while (used.has(pool[k])) k = (k + 1) % pool.length;
+    used.add(pool[k]);
+    return `${pool[k]} the ${t.replace('Sir ', '')}`;
+  });
+}
+
+/** Bot persona names (round 2), by side. Generic pet names, not any real Token Tails cat. */
+export const CAT_NAMES: readonly string[] = Object.freeze(['Biscuit', 'Pepper', 'Noodle', 'Tofu', 'Marmalade', 'Socks', 'Pickle', 'Waffle', 'Nutmeg', 'Button']);
+export const DOG_NAMES: readonly string[] = Object.freeze(['Rex', 'Bruno', 'Duke', 'Bean', 'Rocky', 'Muffin', 'Gravy', 'Tank', 'Chomp', 'Bolt']);

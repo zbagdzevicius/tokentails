@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fakeToken, gattr, mockHost, openHost, received } from './host';
+import { art, fakeToken, gattr, mockHost, openHost, received } from './host';
 
 // Integration plan §2 (game side): the game sells nothing of its own. The one offer is the "Meet ‹name›" card for a
 // Token Tails cat the host featured; tapping it asks the host to open its own cat checkout (`open-cat`). The mock
@@ -10,8 +10,8 @@ test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'store 
 const PUMPKIN = '65a1b2c3d4e5f6a7b8c9d0e1';
 const NOVA = '65a1b2c3d4e5f6a7b8c9d0e2';
 const FEATURED = [
-  { catalogId: PUMPKIN, name: 'Pumpkin', type: 'GRASS' },
-  { catalogId: NOVA, name: 'Nova', type: 'STELLAR' },
+  { catalogId: PUMPKIN, name: 'Pumpkin', type: 'GRASS', art: art('pumpkin') },
+  { catalogId: NOVA, name: 'Nova', type: 'STELLAR', art: art('nova') },
 ];
 const BOUGHT = [{ id: 'c1', name: 'Pumpkin', type: 'GRASS', tier: 'COMMON', isStarter: false, origin: 'adopt', catalogId: PUMPKIN }];
 const SESSION_2 = { v: 1, sessions: 1, matches: 1, wins: 1, firstWinDone: true };
@@ -56,7 +56,7 @@ test('round 0: a cat bought on a 6-cat roster walks in the next match (squad str
     app: { isApp: false, store: true },
     signedIn: true,
     roster: six,
-    featured: [{ catalogId: LUNA, name: 'Luna', type: 'DARK' }],
+    featured: [{ catalogId: LUNA, name: 'Luna', type: 'DARK', art: art('luna') }],
     offer: { kind: 'meet', catalogId: LUNA },
     catGrants: { [LUNA]: [...six, luna] },
     profile: SESSION_2,

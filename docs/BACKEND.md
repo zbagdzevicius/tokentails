@@ -268,8 +268,10 @@ outcome `died`. A win sets `$min pawlegendsFastestWin.<d>` and pays `PAWLEGENDS_
 difficulty: an atomic claim (`UserRepository.claimBelowCap` raises `pawlegendsCatnip.<d>` to the cap only when it
 is below it), so two winning replays saved at once pay once; every save does `$inc pawlegendsMatches.<d>`. The
 catnip counts in `catnipCount` (`recomputeCatnipCount`; `catnip-accounting.ts` sums Catnip Chaos, Paw Match and
-`pawlegendsCatnip`) and in `TOTAL_CATNIP_CAP` (`PAWLEGENDS_TOTAL_CAP`, 60). Known gap: a guest merge moves the
-`Game` rows but not these three maps, so a guest's first-win catnip does not follow it to the account. Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket.
+`pawlegendsCatnip`) and in `TOTAL_CATNIP_CAP` (`PAWLEGENDS_TOTAL_CAP`, 70). A guest merge carries the three maps
+into the account (`src/pawlegends/pawlegends-merge.ts`: `$max` of the catnip clamped to each cap, `$min` of the
+fastest win, `$inc` of the match counts on the merge's exactly-once step), so first-win catnip is still paid once.
+Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket.
 
 The route is limited to 30 saves per minute per player (`LiveGameUserThrottleGuard`, after auth; it
 fails closed with 401 when the user id is missing) and 120 per minute per IP, loose enough for
@@ -282,11 +284,12 @@ filter them out.
 | Catnip Chaos (Purrsuit) | 97 (`01`, then `11` to `166`) | `catnipChaos[]`, `catnipChaosCleared[]` | 500 for the endless level `01` (decision #57), 10 for every other level |
 | Pixel Rescue (Cupid Cat, season event) | 14 | `seasonEvent[]`, `seasonEventCleared[]` | 500 per level |
 | Paw Match (Match 3) | 30 | `match3[]` catnip and `match3Score[]` raw score, `match3Cleared[]` | Catnip per level from a formula capped at 85; score capped at one million |
-| Pawlegends | 2 (`easy`, `normal`) | `pawlegendsFastestWin`, `pawlegendsCatnip`, `pawlegendsMatches` (maps by difficulty) | `PAWLEGENDS_LEVEL_CAPS` 20 and 40 catnip, paid on the first verified win only |
+| Pawlegends | 4 (`easy`, `normal`, `rookie`, `hard`) | `pawlegendsFastestWin`, `pawlegendsCatnip`, `pawlegendsMatches` (maps by difficulty) | `PAWLEGENDS_LEVEL_CAPS` 20, 40, 10 and 0 catnip, paid on the first verified win only (Hard pays nothing: a new catnip reward is a founder decision) |
 | Catnip Heist | 16 (`heist-01` to `heist-16`: Act 1 is 01-08, Act 2 is 09-16) | `heistScore[]` (best server score), `heistStars[]` (star bit mask) | `HEIST_LEVEL_CAPS` 250, 240, 220, 270, 240, 240, 240, 310 (Act 1), 270, 270, 270, 260, 270, 290, 270, 330 (Act 2), derived from the sim (`coins x 10 + 50`). Accounts saved with 8 slots grow to 16 on their next Heist save (`arrayGuardPipeline` pads `heistStars`; `$max` pads `heistScore`) |
 
 The caps live in `shared/caps.ts` (copied into `src/shared-contracts/caps.ts`). `MAX_LEGIT_CATNIP_SCORE`
-(`totalCatnipCap`, 2,758 since the cap raise; it was 2,678) filters the catnip boards.
+(`totalCatnipCap`, 2,828: 2,758 for Catnip Chaos and Paw Match since the cap raise, plus Pawlegends' 70) filters
+the catnip boards.
 `GET /user/catbassadors/heist-sim` is a public read-only route that serves `{simVersion,
 bundleSha256, levels}` for that deploy gate; it writes nothing.
 
@@ -1015,7 +1018,7 @@ Store and entitlements for the `pawlegends/` game (POC.md §8), plus its replay-
 (see "Games"). Routes are in docs/API.md. Every route is served; a part whose secret is missing answers 503
 and `GET /pawlegends/status` reports `store: false`, so the game hides its store button and still plays.
 
-Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the controller, 5 providers):
+Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the controller, 6 providers and the `PAWLEGENDS_CAT_SALE` alias of `ShelterCatSaleService`):
 
 | File | Role |
 |---|---|
@@ -1025,15 +1028,19 @@ Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the
 | `pawlegends-stripe.service.ts` | Checkout Sessions with inline `price_data` and `tax_behavior: 'inclusive'`; metadata carries `deferred`, `terms_version`, `age_band` and `currency`. An email is required (or a token with a verified email) and Checkout opens with it locked; the age band, the spend cap and the once-only SKUs are keyed by email, device id and, with a Token Tails session (`POST /pawlegends/checkout/account`, AppAuthGuard, registered accounts only), the account id. A pending hold row is written before the seat count and re-checked after (`firstClaim`), so two buyers cannot both take the last Founder Legend seat or a second starter. `refundUnderTerms` refunds a presale purchase and keeps its delivered-now items (GDD §8.3) |
 | `pawlegends-webhook.service.ts` | Signature check, idempotent per event and per session, grants once, expiry and refunds. A session whose charged amount or currency is not the table price, or that has no checkout hold, is stored `review` (no items, no seat). A paid session that breaks a checkout rule by the email Stripe collected (a second once-only SKU, a stored under-16 band, the spend cap, no seat left) is stored `voided` and refunded automatically. A refund marked `pawlegends_terms_refund` keeps the delivered-now items |
 | `pawlegends-account.service.ts` | Entitlements from a session id or a refreshed token, restore (single use, 30 min), notify-me with double opt-in. Without `SENDGRID_API_KEY` restore and notify answer 503 `PAWLEGENDS_EMAIL_UNAVAILABLE` (the host hides both forms on `status.email: false`), unless `PAWLEGENDS_DEV_LINKS=true` outside production |
-| `pawlegends-offer.service.ts` | The §8.4 offer rules |
+| `pawlegends-offer.service.ts` | The offer rules: one "Meet <cat>" card for a featured cat `ShelterCatSaleService` sells (never in session 1, the app, under 16 or under $5 of cap left; one a session, one a day, a cat not again for 3 days). The `pl_*` cards are retired |
+| `pawlegends-checkout-guard.service.ts` | `PawlegendsCheckoutGuard`: the age band and 30-day spend cap on the Token Tails cat checkout when it opens from the game (`context: 'pawlegends'` on `POST /web3/create-payment` and `POST /payments/crypto/orders`; completed orders' `priceUsd` plus `pl_*` purchases) |
+| `pawlegends-account-id.ts` | `accountIdOf`, the account key of `POST /pawlegends/checkout/account` |
+| `pawlegends-merge.ts` | The guest-merge step for the three Pawlegends maps |
 | `pawlegends-token.ts` | HMAC entitlement tokens (the Bad Cat format) |
 | `pawlegends-live.ts`, `pawlegends-replay.worker.ts`, `pawlegends-replay.dto.ts`, `pawlegends-sim-info.ts` | The `/live` branch, its worker thread, the record DTO and `GET /pawlegends/sim` |
 
 `src/vendor/pawlegends-sim/` is generated by `npm run vendor-sim` in `pawlegends/` (never edit it by hand);
 `npm run vendor-sim:check` there fails when the copy is stale. Deploy the backend before a client build with a new sim.
 
-Known gaps: checkout ignores `accesstoken` (there is no optional-auth guard), so the account-id key of the
-spend cap is wired but never filled; the `purchase{sku}` analytics event is not sent from the webhook (no
+The game no longer sells the `pl_*` SKUs; the routes stay so earlier purchases restore and dress the heroes.
+
+Known gaps: the `purchase{sku}` analytics event is not sent from the webhook (no
 server-side PostHog); the specs mock the sim (the real bundle is exercised by the game's tests and was checked
 by hand against browser-recorded replays).
 

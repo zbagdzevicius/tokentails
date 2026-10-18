@@ -212,7 +212,7 @@ export interface MatchScore {
 
 /** FX events for the render (hits, casts, deaths, level-ups ...). `tick` is the tick they happened on. */
 export type SimEvent =
-  | { type: 'hit'; tick: number; src: number; dst: number; amount: number; shielded: number; kind: 'basic' | 'ability' | 'tower' | 'zone' }
+  | { type: 'hit'; tick: number; src: number; dst: number; amount: number; shielded: number; kind: 'basic' | 'ability' | 'tower' | 'zone' | 'chip' }
   | { type: 'cast'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; target: number }
   | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; ticks: number }
   | { type: 'death'; tick: number; id: number; killer: number }

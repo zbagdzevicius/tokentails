@@ -277,7 +277,7 @@ describe("pawlegends host messages", () => {
 
   it("replayOf enforces the backend DTO bounds", () => {
     expect(replayOf(REPLAY)).toEqual(REPLAY);
-    expect(replayOf({ ...REPLAY, difficulty: "hard" })).toBeNull();
+    expect(replayOf({ ...REPLAY, difficulty: "nightmare" })).toBeNull();
     expect(replayOf({ ...REPLAY, ticks: 19801 })).toBeNull();
     expect(replayOf({ ...REPLAY, inputs: "A".repeat(40001) })).toBeNull();
     expect(replayOf({ ...REPLAY, finalHash: "XYZ" })).toBeNull();

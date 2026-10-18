@@ -163,9 +163,9 @@ describe('Pawlegends progress in the guest merge (D44)', () => {
         const s = scenario(
             { catnipChaos: [500] },
             {
-                pawlegendsCatnip: { easy: 999, normal: 'x', hard: 500, __proto__x: 7 },
-                pawlegendsFastestWin: { easy: -5, normal: PAWLEGENDS_MAX_TICKS + 1, hard: 10 },
-                pawlegendsMatches: { easy: 'many', normal: 2.9, hard: 50 },
+                pawlegendsCatnip: { easy: 999, normal: 'x', nightmare: 500, __proto__x: 7 },
+                pawlegendsFastestWin: { easy: -5, normal: PAWLEGENDS_MAX_TICKS + 1, nightmare: 10 },
+                pawlegendsMatches: { easy: 'many', normal: 2.9, nightmare: 50 },
             }
         );
 
@@ -312,7 +312,7 @@ describe('pawlegends-merge helpers', () => {
     });
 
     it('pawlegendsMatchesInc reads only known difficulties with positive counts', () => {
-        expect(pawlegendsMatchesInc({ pawlegendsMatches: { easy: 2, normal: -1, hard: 3 } })).toEqual({
+        expect(pawlegendsMatchesInc({ pawlegendsMatches: { easy: 2, normal: -1, nightmare: 3 } })).toEqual({
             'pawlegendsMatches.easy': 2,
         });
         expect(pawlegendsMatchesInc({ pawlegendsMatches: null })).toEqual({});

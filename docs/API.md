@@ -185,7 +185,7 @@ run per player and day. The same per-IP replay bucket, replay queue and 503 rule
 | 409 | `BADCAT_ALREADY_RANKED` | The caller already has a ranked run of that day |
 
 Pawlegends saves (POC.md §11.5; always on): `{ type: 'PAWLEGENDS', platform?, pawlegends: { v: 1, simVersion,
-seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash } }`. `difficulty` is `easy` or `normal`,
+seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash } }`. `difficulty` is `easy`, `normal`, `rookie` or `hard` (`PAWLEGENDS_LEVELS`), `simVersion` 8,
 `ticks` at most 19,800 (11:00), `inputs` base64 of at most 40,000 characters, `outcome` `won` or `lost`,
 `finalHash` 8 hex digits. `points`, `score`, `time` and `level` are ignored; `replay` and `badcat` are
 refused, and `pawlegends` on any other type is a 400. Lost matches are saved too. The record's digest is
@@ -194,11 +194,11 @@ re-sim), then the vendored sim replays it in a worker thread through its own que
 The `Game` row gets `level: <difficulty>`, `score: ticks`, `time: ticks / 30`, `points` = the catnip paid
 and `outcome` `won` or `died` (a lost match; `LiveGameOutcome` has no `lost`). The user gets
 `$min pawlegendsFastestWin.<d>` and `$max pawlegendsCatnip.<d>` on a win, `$inc pawlegendsMatches.<d>` and
-`lastPlayedAt`. The same per-IP replay bucket as the Heist applies.
+`lastPlayedAt`, and `catnipCount` is recomputed. The same per-IP replay bucket as the Heist applies.
 
 | Status | Body `code` | Meaning |
 |---|---|---|
-| 201 | none | `{difficulty, outcome, ticks, finalHash, catnipPaid, fastestWin}`; `catnipPaid` is the difficulty's cap (20 Easy, 40 Normal) on the first win, else 0 |
+| 201 | none | `{difficulty, outcome, ticks, finalHash, catnipPaid, catnipCount, fastestWin}`; `catnipPaid` is the difficulty's cap (Easy 20, Normal 40, Rookie 10, Hard 0) on the first win, else 0; `catnipCount` is the account's new total |
 | 400 | `PAWLEGENDS_REPLAY_INVALID`, `PAWLEGENDS_TOO_LONG`, `PAWLEGENDS_NOT_ENDED`, `PAWLEGENDS_OUTCOME_MISMATCH`, `PAWLEGENDS_HASH_MISMATCH` | The record does not replay to what it claims; drop it |
 | 400 | `PAWLEGENDS_SIM_VERSION` | Another sim version; the body carries `sim: {simVersion, bundleSha256}`. Keep the match until the backend runs that version |
 | 409 | `PAWLEGENDS_DUPLICATE` | Already saved (any account) |
@@ -669,13 +669,17 @@ are saved by `POST /user/catbassadors/live` (see "Scores"), never by a `/badcat`
 ## Pawlegends (pawlegends)
 
 Store, entitlements and offers for the `pawlegends/` game (POC.md §8). Behaviour is in docs/BACKEND.md
-("Pawlegends"); shapes and prices in `backend/src/pawlegends/pawlegends.contracts.ts`.
+("Pawlegends"); shapes and prices in `backend/src/pawlegends/pawlegends.contracts.ts`. The game no longer sells
+the `pl_*` SKUs (it sends no `purchase-intent`; the host keeps the routes so earlier purchases restore). Cats
+bought from the game go through `POST /web3/create-payment` or `POST /payments/crypto/orders` with `context:
+'pawlegends'` (see "Web3 and payments").
 
 - **Always on, no flags.** A route that needs a secret answers 503 while it is missing, and `GET
   /pawlegends/status` reports `store: false`. Checkout is ready only with a Stripe key of the right mode, the
   webhook secret and an entitlement key, so no money is taken that the webhook cannot confirm.
-- **No accounts.** Checkout ignores `accesstoken`; a buyer is matched by email, device id and entitlement
-  token. The token goes in the `x-pawlegends-token` header.
+- **Accounts optional.** `POST /pawlegends/checkout` ignores `accesstoken`; a buyer is matched by email, device id
+  and entitlement token. `POST /pawlegends/checkout/account` (AppAuthGuard, registered accounts only) adds the
+  account id as a spend-cap and once-only key. The token goes in the `x-pawlegends-token` header.
 - **Throttling.** Every route skips the global throttler and checks its own per-client-IP limit first.
 - **No route writes a score.** Matches are saved by `POST /user/catbassadors/live` (see "Scores").
 
@@ -684,6 +688,7 @@ Store, entitlements and offers for the `pawlegends/` game (POC.md §8). Behaviou
 | GET | `/pawlegends/status` | `{store, email, termsVersion, skus: [{sku, label, cents: {usd, eur}, deliveredNow, deliveredAtMvp}]}`. `Cache-Control: public, max-age=30` | – | Public, 60/min |
 | GET | `/pawlegends/sim` | `{simVersion, bundleSha256, placeholder, levels}`: the vendored sim `/live` replays with | – | Public (cached 60 s) |
 | POST | `/pawlegends/checkout` | `{sku, currency, email?, ageBand, consentVersion, deviceId, token?}` (`currency` `usd` or `eur`; `token` proves Founder for the upgrade) → `{url, sessionId}`, a Stripe Checkout Session with inline `price_data` (tax inclusive; a client price is ignored). Refuses under 16, a second Starter, the rolling 30-day spend cap (€30 for 16-17, €200 for 18+; the strictest of email and device), a sold-out Founder Legend and an upgrade without Founder. 503 without the Stripe key, webhook secret or entitlement key | Stripe key + webhook secret + entitlement key | Public, 5/min |
+| POST | `/pawlegends/checkout/account` | The same body and answer as `/pawlegends/checkout`, with the caller's account id as one more spend-cap and once-only key. Guests are refused | Stripe key + webhook secret + entitlement key | Auth (registered), 5/min |
 | POST | `/pawlegends/stripe/webhook` | Stripe events (raw body). Idempotent per event and per session; grants each paid session once, handles expiry and refunds. 400 on a bad signature; 503 without `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` | webhook secret | Stripe |
 | GET | `/pawlegends/entitlements?sessionId=` | After Checkout: pending until the webhook landed, then the signed entitlement token and items. With `x-pawlegends-token` instead: a refreshed token | entitlement key | Public, 30/min |
 | POST | `/pawlegends/restore` | `{email}` → the same answer for any valid email; emails a single-use 30-minute restore link (SendGrid) | entitlement key; SendGrid | Public, 3 per 10 min |

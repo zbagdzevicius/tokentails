@@ -12,7 +12,7 @@
  * the helmet / hood / cap, the cape and the pauldrons. Dogs are uniformed rivals, never shelter dogs.
  */
 import type { HeroId } from '../../sim/api';
-import { ELEMENT_COLOR, lookCoat, type Coat, type Look } from '../cosmetics';
+import { ELEMENT_COLOR, lookCoat, mixColor, type Coat, type Look } from '../cosmetics';
 import { TEAM } from '../palette';
 import { PAL } from '../ppk/characters/palette.js';
 import type { ChibiSpec, CoatSpec } from './chibi';
@@ -134,7 +134,11 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
   const dawn = coat === 'skin.clem.dawnblade' && hero === 'clem';
   const pinkBow = coat === 'skin.clem.pink_bow' && hero === 'clem';
   const chroma = look.chroma ? ELEMENT_COLOR[look.chroma] : null;
-  const capeColor = founder ? 0x5a2d6e : dawn ? 0xfff3dc : t.main;
+  // round 2 ("Fire and Fairy chroma differ only in the bow colour"): a chroma dyes the whole cape (65% toward the
+  // element), the mantle trim and the sword's blade glow, not just the hem and the bow; the player's own gold ring
+  // and plate still say whose hero it is
+  const capeColor = founder ? 0x5a2d6e : dawn ? 0xfff3dc : chroma !== null ? mixColor(t.main, chroma, 0.65) : t.main;
+  const trim = chroma !== null && !founder && !dawn ? chroma : null;
   // round 0: a chroma reads at match zoom: the cape hem, Clem's free ribbon and the armband take its colour
   const capeHem = founder || dawn ? GOLD : chroma !== null ? chroma : t.deep;
   const extras = (A: Parameters<NonNullable<ChibiSpec['gear']>>[0]): void => {
@@ -165,11 +169,11 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
         gear: (A) => {
           G.breastplate(A, { coin: true, color: dawn ? 0xfff1c8 : G.STEEL, trim: GOLD });
           G.cape(A, capeColor, capeHem, { len: 0.44, bot: 0.27 });
-          G.mantle(A, t.main, founder || dawn ? GOLD : t.second, { r: 0.22 });
+          G.mantle(A, t.main, founder || dawn ? GOLD : (trim ?? t.second), { r: 0.22 });
           G.pauldrons(A, dawn ? GOLD : t.main, founder || dawn ? GOLD : G.BRASS);
           G.gauntlets(A, G.STEEL);
           G.boots(A, G.STEEL_DARK);
-          G.sword(A, dawn ? { blade: 0xfff1a8, guard: GOLD, wide: 1.6, len: 0.78 } : {});
+          G.sword(A, dawn ? { blade: 0xfff1a8, guard: GOLD, wide: 1.6, len: 0.78 } : trim !== null ? { blade: mixColor(0xdfe6ee, trim, 0.45) } : {});
           // HARD RULE (PPK): the bow sits on her LEFT ear (+X). The PINK bow is the paid "Pink Bow Clem" skin's
           // signature (big, plus one on the tail tip); the free Clem wears a smaller cream ribbon with a gold knot, so
           // the €0.99 skin delivers what its name says (playtest: the free Clem already wore the pink bow).
@@ -203,7 +207,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.hood(A, t.main, 0x6fbf7f);
           G.mantle(A, t.main, 0x6fbf7f, { r: 0.21 });
           G.tunic(A, 0x5e7f3e, 0x3f5a2a);
-          G.cape(A, founder ? capeColor : t.deep, founder ? GOLD : chroma !== null ? chroma : 0x6fbf7f, { len: 0.3, bot: 0.2 });
+          G.cape(A, founder || trim !== null ? capeColor : t.deep, founder ? GOLD : chroma !== null ? chroma : 0x6fbf7f, { len: 0.3, bot: 0.2 });
           G.quiver(A);
           G.shortBow(A, undefined, undefined, 'bowIdle', new THREE.Vector3(0.2, 0.31, 0.17), -0.52);
           G.pauldrons(A, t.main, 0x6fbf7f, 0.8);
@@ -230,7 +234,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.breastplate(A, { color: G.STEEL });
           // the helmet dome stays steel (the pug's tan coat dominates); team colour on the crest, mantle, shield rim, cape
           G.helmet(A, G.STEEL, G.BRASS, t.main, { y: 0.245, r: 0.165 });
-          G.mantle(A, t.main, G.BRASS, { r: 0.21 });
+          G.mantle(A, t.main, trim ?? G.BRASS, { r: 0.21 });
           G.pauldrons(A, G.STEEL, G.BRASS, 1.15);
           G.cape(A, capeColor, capeHem, { len: 0.34, top: 0.15, bot: 0.26 });
           G.gauntlets(A, G.STEEL_DARK);

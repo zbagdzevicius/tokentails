@@ -45,17 +45,30 @@ export const clampZoom = (z: number, max = ZOOM_MAX): number => (Number.isFinite
  */
 export const ZOOM_MIN = 0.72;
 export const ZOOM_MAX = 1.35;
+/**
+ * Round 2 ("at 1280x720 only ~25 m of field shows, long-range kits fire blind"): on desktop windows at least
+ * ZOOM_WIDE_FROM CSS px wide the wheel zooms out to ZOOM_MAX_WIDE (about 1.4x the old limit).
+ */
+export const ZOOM_MAX_WIDE = 1.9;
+export const ZOOM_WIDE_FROM = 1100;
+/** The zoom-out limit for a viewport `width` CSS px wide. */
+export const zoomMax = (width: number): number => (width >= ZOOM_WIDE_FROM ? ZOOM_MAX_WIDE : ZOOM_MAX);
 /** Desktop default: a little closer than the old 1.0 so a hero reads at ~70 px tall on 1280x720. */
 export const ZOOM_DEFAULT = 0.88;
 const KEY = 'pawlegends.zoom';
 
+<<<<<<< HEAD
 export const clampZoom = (z: number): number => (Number.isFinite(z) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) : ZOOM_DEFAULT);
 >>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
+=======
+export const clampZoom = (z: number, max = ZOOM_MAX): number => (Number.isFinite(z) ? Math.min(max, Math.max(ZOOM_MIN, z)) : ZOOM_DEFAULT);
+>>>>>>> 522e23314 (feat(pawlegends): fun pass, Token Tails sign-in, cat cards and checkout funnel, playtest fixes, docs)
 
 /**
  * The next zoom after a wheel event. One notch (deltaY ~100 px, or 3 lines) is about 9%; a trackpad's many small
  * deltas add up to the same, and one big synthetic delta (deltaY 800) moves the whole way, not one fixed step.
  */
+<<<<<<< HEAD
 <<<<<<< HEAD
 export function wheelZoom(zoom: number, deltaY: number, deltaMode = 0, max = ZOOM_MAX): number {
   const px = deltaMode === 1 ? deltaY * 33 : deltaMode === 2 ? deltaY * 400 : deltaY;
@@ -67,16 +80,26 @@ export function wheelZoom(zoom: number, deltaY: number, deltaMode = 0): number {
   const d = Math.max(-1200, Math.min(1200, px));
   return clampZoom(zoom * Math.exp(d * 0.00088));
 >>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
+=======
+export function wheelZoom(zoom: number, deltaY: number, deltaMode = 0, max = ZOOM_MAX): number {
+  const px = deltaMode === 1 ? deltaY * 33 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  const d = Math.max(-1200, Math.min(1200, px));
+  return clampZoom(zoom * Math.exp(d * 0.00088), max);
+>>>>>>> 522e23314 (feat(pawlegends): fun pass, Token Tails sign-in, cat cards and checkout funnel, playtest fixes, docs)
 }
 
 export function loadZoom(): number {
   try {
     const v = Number(localStorage.getItem(KEY));
 <<<<<<< HEAD
+<<<<<<< HEAD
     return v > 0 ? clampZoom(v, ZOOM_MAX_WIDE) : ZOOM_DEFAULT;
 =======
     return v > 0 ? clampZoom(v) : ZOOM_DEFAULT;
 >>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
+=======
+    return v > 0 ? clampZoom(v, ZOOM_MAX_WIDE) : ZOOM_DEFAULT;
+>>>>>>> 522e23314 (feat(pawlegends): fun pass, Token Tails sign-in, cat cards and checkout funnel, playtest fixes, docs)
   } catch {
     return ZOOM_DEFAULT;
   }
@@ -111,7 +134,7 @@ export const zoomPercent = (z: number): number => Math.round((z / ZOOM_DEFAULT) 
 =======
 export function saveZoom(z: number): void {
   try {
-    localStorage.setItem(KEY, clampZoom(z).toFixed(3));
+    localStorage.setItem(KEY, clampZoom(z, ZOOM_MAX_WIDE).toFixed(3));
   } catch {
     /* storage blocked: the zoom just is not remembered */
   }

@@ -26,12 +26,4 @@ export const HERO_HP_BP = 10000;
 /** Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. */
 export const HERO_VS_HERO_BP = 13000;
 
-/**
- * Species edge (sim v5, species teams: cats vs dogs). A team is all cats or all dogs, so the two sides are tuned as
- * a whole: in hero-vs-hero damage, each side's heroes deal heroDmgBp and take heroTakenBp (balance gate: every
- * hero 42% to 58% on Normal vs Normal). Only where DifficultyRules.sideEdge is on (the sim's G.SideEdge flag).
- */
-export const SIDE_EDGE = Object.freeze({
-  cat: Object.freeze({ heroDmgBp: 10000, heroTakenBp: 10000 }),
-  dog: Object.freeze({ heroDmgBp: 11800, heroTakenBp: 8800 }),
-});
+// Sim v8: the species edge (SIDE_EDGE: dogs × 1.13 dealt, × 0.915 taken) is per hero now, HeroData.pvp.

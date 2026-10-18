@@ -39,12 +39,18 @@ export function tipText(id: TipId, touch: boolean, n: TipNames = DEFAULT_NAMES):
 const TIP_KEY: Record<TipId, string> = { move: '', attack: 'attack', q: 'q', dodge: 'e', ult: 'r' };
 
 export const TIP_HIDE_S = 8;
+/** Round 1 ("tips for things I had already done appeared late"): a queued tip older than this is dropped. */
+export const TIP_QUEUE_S = 20;
+/** Tips that make no sense in a hero fight (they step aside while an enemy hero is in combat range). */
+const CALM_ONLY: readonly TipId[] = ['move', 'attack'];
 
 export class Tips {
   private el: HTMLElement | null = null;
   private active: { id: TipId; left: number } | null = null;
   private fired = new Set<TipId>();
-  private queue: TipId[] = [];
+  private queue: { id: TipId; at: number }[] = [];
+  /** Seconds since the match started (update's dt). */
+  private clock = 0;
   private done = new Set<TipId>();
   /** Tips completed in this match (analytics `tip_done`). */
   readonly completed: TipId[] = [];
@@ -68,7 +74,7 @@ export class Tips {
   trigger(id: TipId): void {
     if (!this.enabled || this.fired.has(id) || this.done.has(id)) return;
     if (this.active) {
-      if (this.active.id !== id && !this.queue.includes(id)) this.queue.push(id);
+      if (this.active.id !== id && !this.queue.some((q) => q.id === id)) this.queue.push({ id, at: this.clock });
       return;
     }
     this.show(id);
@@ -78,6 +84,7 @@ export class Tips {
     this.fired.add(id);
     this.active = { id, left: TIP_HIDE_S };
     if (this.el) {
+      this.el.dataset.id = id;
       this.el.innerHTML = `<span class="ghost">${icon('paw')}</span><b>${tipText(id, this.touch, this.names)}</b>`;
       this.el.classList.add('on');
       setTipKey(this.touch ? TIP_KEY[id] : '');
@@ -88,7 +95,7 @@ export class Tips {
   complete(id: TipId): void {
     if (!this.enabled || this.done.has(id)) return;
     this.done.add(id);
-    this.queue = this.queue.filter((q) => q !== id);
+    this.queue = this.queue.filter((q) => q.id !== id);
     this.completed.push(id);
     this.onDone?.(id);
     if (this.active?.id === id) this.hide();
@@ -112,12 +119,18 @@ export class Tips {
     this.active = null;
     setTipKey('');
     this.el?.classList.remove('on');
-    this.queue = this.queue.filter((q) => !this.done.has(q) && !this.fired.has(q));
+    this.queue = this.queue.filter((q) => !this.done.has(q.id) && !this.fired.has(q.id) && this.clock - q.at <= TIP_QUEUE_S);
     const next = this.queue.shift();
-    if (next) this.show(next);
+    if (next) this.show(next.id);
+  }
+
+  /** An enemy hero is in combat range: a move or attack tip steps aside (it does not come back). */
+  combat(on: boolean): void {
+    if (on && this.active && CALM_ONLY.includes(this.active.id)) this.hide();
   }
 
   update(dt: number): void {
+    this.clock += dt;
     if (!this.active) return;
     this.active.left -= dt;
     if (this.active.left <= 0) this.hide();

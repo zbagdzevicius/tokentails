@@ -44,6 +44,8 @@ export class MinionInstances {
   /** A team-coloured ring under every minion (one draw call), so a wave reads as ours or theirs at a glance. */
   private rings = new DecalLayer(ringTexture(), CAPS.minions, { additive: false, y: 0.04, name: 'minion-rings' });
   myTeam: 0 | 1 = 0;
+  /** Round 2: team 0 is the dogs (the human picked a dog): each team wears the other style. */
+  styleSwap = false;
 
   constructor() {
     this.group.name = 'minions';
@@ -96,7 +98,8 @@ export class MinionInstances {
       if (e.kind !== 'minion' || e.state === 'dead') continue;
       const v = (VARIANTS as readonly string[]).includes(e.variant ?? '') ? (e.variant as MinionVariant) : 'melee';
       const team = e.team === 1 ? 1 : 0;
-      const k = team * 3 + VARIANTS.indexOf(v);
+      // round 2: a dog-picking human's own wave are pups (styleSwap: the species, not the slot, picks the look)
+      const k = (this.styleSwap ? 1 - team : team) * 3 + VARIANTS.indexOf(v);
       const mesh = this.meshes[k];
       const i = counts[k]++;
       if (i >= CAPS.minions) continue;

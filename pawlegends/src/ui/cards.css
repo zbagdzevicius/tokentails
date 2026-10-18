@@ -165,6 +165,8 @@
 .plc-dock .plc-row { justify-content: flex-end; }
 .plc-dock .plc-meet { max-width: 100%; }
 .plc-dock.dock-pick { top: calc(16px + var(--safe-t, 0px)); bottom: auto; width: min(250px, calc(100vw - 32px)); }
+/* Results (playtest round 1): the cat card sat on top of the pinned Play again; it docks above the action row now. */
+.plc-dock.dock-results { bottom: calc(92px + var(--safe-b, 0px)); }
 .plc-pick {
   align-items: stretch !important; padding: 10px 12px; border-radius: 16px; width: 100%; box-sizing: border-box;
   background: var(--panel-2, rgba(43, 29, 46, 0.66)); border: 1px solid var(--line, rgba(255, 243, 220, 0.16));
@@ -182,6 +184,7 @@
   .plc-pick .plc-card.small .plc-el { display: none; }
   .plc-pick .plc-save-wins { font-size: 11px; padding: 6px 10px; }
   .plc-dock.dock-results .plc-card { width: 72px; height: 96px; }
+  .plc-dock.dock-results { bottom: calc(66px + var(--safe-b, 0px)); }
 }
 
 /* Round 0: the pick screen's swap row, the title's read-only squad strip, the Meet card's "where it goes" cue. */
@@ -196,3 +199,26 @@
 .plc-squad { display: flex; gap: 6px; align-items: center; margin: 6px 0; color: rgba(255, 243, 220, 0.72); font-size: 12px; }
 .plc-squad-cat { cursor: default; }
 .plc-meet-where { display: block; margin-top: 4px; font-size: 11px; opacity: 0.75; }
+
+/* Round 2: every squad chip names its tier and element positively ("Legendary · Fire"); "no frame" is gone (decision
+   #19 still holds: the hover text says where frames come from). */
+.plc-tier { margin-left: 5px; font-size: 10px; font-weight: 600; color: var(--el, #ffd34d); opacity: 0.95; }
+.plc-bench-cat[data-tier='legendary'] .plc-tier, .plc-squad-cat[data-tier='legendary'] .plc-tier { color: #ffd34d; }
+
+/* Round 1: the Meet card previews the player's hero in the cat's chroma. */
+.plc-meet-preview { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.plc-meet-pic { width: 34px; height: 34px; border-radius: 50%; background-color: var(--el); background-size: 118%; background-position: 50% 30%; border: 2px solid var(--el); flex: none; }
+.plc-meet-preview small { font-size: 11px; opacity: 0.85; }
+@media (max-height: 520px) { .plc-meet-preview small { display: none; } }
+
+/* Round 2 (phones, 844x390: the Meet card covered a quarter of the hero, its ✕ sat on the kicker and "Adopt on Token
+   Tails" hit the bottom edge): at heights ≤ 430 px it is a compact one-line chip, the ✕ with its own padding. */
+@media (max-height: 430px) {
+  .plc-meet { gap: 8px; padding: 6px 34px 6px 10px; border-radius: 999px; max-width: min(340px, calc(100vw - 32px)); }
+  .plc-meet > .plc-card, .plc-meet .plc-meet-preview, .plc-meet .plc-meet-line, .plc-meet .plc-kicker { display: none; }
+  .plc-meet-body { flex-direction: row; align-items: center; gap: 8px; flex-wrap: nowrap; }
+  .plc-meet-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+  .plc-meet-go { margin-top: 0; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+  .plc-meet-where { margin-top: 0; font-size: 10px; white-space: nowrap; }
+  .plc-meet .plc-x { top: 50%; right: 6px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.22); }
+}

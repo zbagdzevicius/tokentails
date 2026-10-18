@@ -6,6 +6,8 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
   name: 'Cacklejaw',
   side: 'dog',
   role: 'assassin',
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+  pvp: { dmgBp: 11100, takenBp: 9250 },
   element: 'DARK',
   base: { hp: 520, hpPerLevel: 55, attack: 60, attackPerLevel: 6, attackEvery: 29, range: 1600, speed: 5200, armour: 20, armourPerLevel: 2 },
   /** Pack Flank: +20% damage from behind (angle over 120°) or when an allied hero is within 4 m of the target. */

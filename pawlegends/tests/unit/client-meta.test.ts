@@ -10,8 +10,9 @@ describe('dare links', () => {
   it('round-trips and rejects junk', () => {
     const d = { seed: 0xdeadbeef, hero: 'sage' as const, trick: 'hiss' as const, difficulty: 'normal' as const, seconds: 432 };
     expect(decodeDare(encodeDare(d))).toEqual(d);
+    expect(decodeDare(encodeDare({ ...d, difficulty: 'hard' }))?.difficulty).toBe('hard');
     expect(decodeDare('zz.9.0.0.1')).toBeNull();
-    expect(decodeDare('1.0.0.2.1')).toBeNull();
+    expect(decodeDare('1.0.0.3.1')).toBeNull();
     expect(decodeDare('<script>.0.0.0.1')).toBeNull();
     expect(decodeDare(null)).toBeNull();
     expect(dareText(d)).toBe('Beat my 7:12 vs Normal bots in Pawlegends!');
@@ -26,7 +27,7 @@ describe('profile', () => {
   });
   it('survives corrupt or hostile storage', () => {
     expect(parseProfile('{bad json').matches).toBe(0);
-    const p = parseProfile(JSON.stringify({ matches: -4, hero: 'evil', difficulty: 'hard', unlocks: [1, 'a'] }));
+    const p = parseProfile(JSON.stringify({ matches: -4, hero: 'evil', difficulty: 'nightmare', unlocks: [1, 'a'] }));
     expect(p).toMatchObject({ matches: 0, hero: 'clem', difficulty: 'easy', unlocks: ['a'] });
   });
   it('records the first win once and the best time', () => {

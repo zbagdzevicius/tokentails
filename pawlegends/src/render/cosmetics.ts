@@ -180,6 +180,23 @@ export function kittenCoat(c: StarterBreed | number): Coat {
   return typeof c === 'number' ? KITTEN_PRESETS[((c % KITTEN_PRESETS.length) + KITTEN_PRESETS.length) % KITTEN_PRESETS.length] : BREED_COAT[c];
 }
 
+/** Mix two 0xRRGGBB colours (t = 0: a, 1: b). */
+export function mixColor(a: number, b: number, t: number): number {
+  const ch = (sh: number): number => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t) << sh;
+  return ch(16) | ch(8) | ch(0);
+}
+
+/**
+ * Round 2 ("a Legendary Fire cat walks as a plain brown tabby"): a kitten without a breed coat takes its element as the
+ * base colour (its preset coat's pattern, tinted halfway toward the element); breed coats stay the breed's own.
+ */
+export function companionCoat(c: StarterBreed | number, element: Element): Coat {
+  const base = kittenCoat(c);
+  if (typeof c !== 'number') return base;
+  const el = ELEMENT_COLOR[element];
+  return { base: mixColor(base.base, el, 0.55), light: mixColor(base.light, el, 0.2), dark: mixColor(base.dark, el, 0.35), accent: base.accent };
+}
+
 /** The coat palette for a hero's look (null = the hero's own default palette). */
 export function lookCoat(hero: HeroId, l: Look): Coat | null {
   const id = l.coat;

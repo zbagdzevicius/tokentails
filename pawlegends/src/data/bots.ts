@@ -1,11 +1,13 @@
 /**
- * Bot difficulties and the bot brain's tuning (POC.md §7.2). Hard is MVP. 'rookie' (sim v4) is match 1 only; it is
- * appended so 'easy' and 'normal' keep their index (shared/caps.ts PAWLEGENDS_LEVELS has the same order).
+ * Bot difficulties and the bot brain's tuning (POC.md §7.2). 'rookie' (sim v4) is match 1 only and 'hard' (sim v5,
+ * playtest round 0: "nothing to grind toward"; sim v6) is for veterans; each is appended so the earlier ones keep their
+ * index (shared/caps.ts PAWLEGENDS_LEVELS has the same order).
  */
-export type Difficulty = 'easy' | 'normal' | 'rookie';
-export const DIFFICULTIES: readonly Difficulty[] = Object.freeze(['easy', 'normal', 'rookie'] as Difficulty[]);
+export type Difficulty = 'easy' | 'normal' | 'rookie' | 'hard';
+export const DIFFICULTIES: readonly Difficulty[] = Object.freeze(['easy', 'normal', 'rookie', 'hard'] as Difficulty[]);
 
-export type TrickUse = 'never' | 'defensive';
+/** 'offensive' (Hard): the defensive uses plus Pounce onto a low foe and Hiss in a melee brawl (bots/casts.ts). */
+export type TrickUse = 'never' | 'defensive' | 'offensive';
 
 export interface BotParams {
   reactionTicks: number;
@@ -40,6 +42,18 @@ export interface BotParams {
    * (balance gate: trailing at 3:30 wins 30% to 40%). 0 = off (defend with as many as the raiders).
    */
   pressAhead: number;
+  /**
+   * Sim v7 (playtest round 1: "losing every fight still wins by core race"): answer a base threat first. When an
+   * enemy hero, or BOT_AI.baseThreatMinions enemy minions, stand within BOT_AI.baseThreatRange of an own inner tower
+   * or the core, the bot walks (or naps) back and fights there, ahead of pickups, objectives and lane work.
+   */
+  defendBase: boolean;
+  /**
+   * Sim v7 Hard: hunts as a team. A foe that is stunned, rooted, feared or slowed, or one standing inside our tower's
+   * reach, is always a good fight and is chosen first (focus fire, dive together after a CC lands, punish
+   * overextension); a bot more than BOT_AI.overextend ahead of its wave with no allied hero near steps back.
+   */
+  hunts: boolean;
 }
 
 /** Match rules that depend on the difficulty (sim v4), beyond the bots. */
@@ -53,7 +67,7 @@ export interface DifficultyRules {
    */
   humanCoreOpenAt: number;
   humanCoreFloorBp: number;
-  /** Sim v5: data/heroes SIDE_EDGE applies (bot-vs-bot species balance; Normal). Off where the human's help knobs set
+  /** Sim v5: the per-hero tuning (data/heroes HeroData.pvp, sim v8) applies (bot-vs-bot species balance; Normal). Off where the human's help knobs set
    *  the odds instead (Rookie, Easy), so a first-timer's odds do not depend on whether it picked a cat or a dog. */
   sideEdge: boolean;
   /** Sim v5: the human's allied bots hit enemy structures only while the human plays (bots/brain.ts humanEngaged). */
@@ -106,12 +120,44 @@ export interface DifficultyRules {
   /** Slot 3 walks into Sunny Lane at scriptFrom and fights there until scriptUntil (the first fight); 0 = off. */
   scriptFrom: number;
   scriptUntil: number;
+  /**
+   * Sim v7 (playtest round 1): a lead in takedowns becomes map pressure. A dead hero whose team trails by more than
+   * RESPAWN.gapFree takedowns waits RESPAWN.gapPerBp longer per extra takedown (at most gapCapBp), and a team
+   * BOT_AI.leadGroup or more ahead groups and sieges before its groupAt. Off on Rookie and Easy (the human's help sets
+   * those odds).
+   */
+  leadPressure: boolean;
+  /** Sim v7: before Sunset each takedown chips this share of max HP off the victim's core (0 = off; Sunset and Sudden
+   *  Death have their own shares in data/timeline.ts). */
+  takedownChipBp: number;
+  /** Sim v8 (playtest round 2: "a 10-takedown lead deletes the core before Sunset"): the pre-Sunset takedown chips
+   *  stop once they total this share of the victim's max core HP, so a kill lead takes towers, not the core. */
+  takedownChipCapBp: number;
+  /** Sim v8: past the cap, a takedown chips this share of max HP off the victim team's weakest tower that can be hit
+   *  (its core once no tower stands): "a kill lead should make the next tower easy to take". */
+  takedownTowerChipBp: number;
+  /** Sim v8 (playtest round 2: "a new player dies in the first river fight"): before this tick enemy bots do not pick
+   *  the human as a foe (lane minions and the Rookie scripted fight only), so a first-timer is not dived at level 1.
+   *  Rookie and Easy 0:40, Normal 0:30 (novice vs Normal 39.8% → 41.7% of 1,600 seeds), Hard none. */
+  truceUntil: number;
+  /** Sim v7 rubber band: enemy heroes XP.aheadLevels or more above the human earn this share of their XP (10000 = off). */
+  enemyAheadXpBp: number;
+  /** Sim v7: the human's own deaths deal the Sunset / Sudden Death takedown core damage (off on Rookie: a
+   *  first-timer who feeds late does not lose match 1 for its team). */
+  humanDeathCore: boolean;
 }
 
 export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRules>>> = Object.freeze({
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 10800, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 9500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1100, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800 }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10500, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0 }),
-  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 13000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0 }),
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 9500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1100, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10300, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true }),
+  /**
+   * Sim v6 Hard: Normal's structures; Nine Lives starts later (a clean combo can finish a hero); enemy heroes are back
+   * in 0.65 of the time and hit the human 10% harder. Better decisions alone barely moved the odds (a Normal-level
+   * player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
+   * two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
+   */
+  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 13000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true }),
+  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 13000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 10000, humanDeathCore: true }),
 });
 
 export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({
@@ -136,6 +182,8 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     fightPowerBp: 4000,
     pickups: false,
     pressAhead: 0,
+    defendBase: false,
+    hunts: false,
   }),
   easy: Object.freeze({
     reactionTicks: 18,
@@ -156,6 +204,8 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     fightPowerBp: 16000,
     pickups: true,
     pressAhead: 0,
+    defendBase: false,
+    hunts: false,
   }),
   normal: Object.freeze({
     reactionTicks: 9,
@@ -183,13 +233,39 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     fightPowerBp: 6000,
     pickups: true,
     pressAhead: 3,
+    defendBase: true,
+    hunts: false,
+  }),
+  /**
+   * Sim v6 Hard (playtest round 0): reacts in 5 ticks, ±5° aim, 3% mistakes, every ability in a fight, Paw Tricks
+   * used to engage too (bots/casts.ts offenseTrick), retreats at 20% and engages at 70% of the other side's power
+   * (5000 threw fights away: the Normal player-bot won 54.5% against it).
+   */
+  hard: Object.freeze({
+    reactionTicks: 5,
+    /** ±5° (5/360 × 4096 ≈ 57). */
+    aimErrorSteps: 57,
+    mistakeBp: 300,
+    retreatHpBp: 2000,
+    trick: 'offensive' as TrickUse,
+    contestPuddingBp: 10000,
+    abilityUseBp: 10000,
+    waveClear: true,
+    groupAt: 7050,
+    dives: true,
+    structureFirst: true,
+    fightPowerBp: 7000,
+    pickups: true,
+    pressAhead: 3,
+    defendBase: true,
+    hunts: true,
   }),
 });
 
 /**
  * Who plays at which difficulty (POC.md §7.2, recorded 2026-10-17): the match difficulty sets the ENEMY
- * bots (Woof, slots 3..5). The human's two allied bots always play at `allies`, so "vs Easy bots" means an easy
- * enemy team, and a novice is carried by competent teammates instead of two more easy bots.
+ * bots (Woof, slots 3..5). The human's two allied bots play at `allies` (Hard: at Hard, sim v8), so "vs Easy bots"
+ * means an easy enemy team, and a novice is carried by competent teammates instead of two more easy bots.
  */
 /** Rally: a minion stores its damage bonus in `level` in steps of this many bp (whole percent). */
 export const RALLY_LEVEL_BP = 100;
@@ -299,14 +375,29 @@ export const BOT_AI = Object.freeze({
   /** Below the retreat threshold a bot walks home only when threatened (an aware enemy hero, tower fire) or below
    *  this share of the threshold; otherwise it keeps farming without starting fights. */
   retreatAlwaysBp: 5000,
+  /** Sim v7 base defence (BotParams.defendBase): an enemy hero, or this many enemy minions, within baseThreatRange
+   *  of an own inner tower or the core is a base threat. Bots further than napMinDist from it nap home first. */
+  baseThreatRange: 9000,
+  coreThreatRange: 15000,
+  baseThreatMinions: 2,
+  /** A minion-only base threat pulls only bots this close to the threatened structure. */
+  baseThreatPull: 20000,
+  /** Sim v7 lead pressure (DifficultyRules.leadPressure): a team this far ahead (takedowns + 3 per tower) groups and
+   *  sieges from leadGroupFrom on, before its groupAt. */
+  leadGroup: 5,
+  leadGroupFrom: 3600,
+  /** Sim v7 Hard (BotParams.hunts): steps back when this far ahead of its own wave front with no allied hero near. */
+  overextend: 6000,
+  /** Sim v7 Hard: a huntable foe (under crowd control, or inside our tower's reach) scores this much better (HP). */
+  huntKey: 400,
 });
 
 /** Bot modes (`World.botMode`). */
 export const BOT_MODE = Object.freeze({ Lane: 0, Retreat: 1, Fight: 2, Camp: 3, Pudding: 4, Push: 5 });
 
 /** Scripted player profiles for slot 0 in headless runs (`npm run match -- --profile ...`, tests). */
-export type PlayerProfile = 'idle' | 'novice' | 'easy' | 'normal' | 'naive' | 'parked';
-export const PLAYER_PROFILES: readonly PlayerProfile[] = Object.freeze(['idle', 'novice', 'easy', 'normal', 'naive', 'parked'] as PlayerProfile[]);
+export type PlayerProfile = 'idle' | 'novice' | 'easy' | 'normal' | 'naive' | 'parked' | 'feeder';
+export const PLAYER_PROFILES: readonly PlayerProfile[] = Object.freeze(['idle', 'novice', 'easy', 'normal', 'naive', 'parked', 'feeder'] as PlayerProfile[]);
 
 /** The `parked` player-bot (sim v5 carry-leash gate): walks to an off-lane jungle spot at `at` and stands there. */
 export const PARKED = Object.freeze({ at: 900, x: 40000, y: 40000 });
@@ -366,3 +457,22 @@ export const NAIVE = Object.freeze({
   /** Follows its wave: attack-moves to this far behind the front allied minion (mm). */
   followBehind: 1500,
 });
+
+/**
+ * The feeder player-bot (sim v7, playtest round 1: a signed-in player lost the guided first match 10 to 15 while
+ * diving under towers): the naive bot that never backs off from a tower, walks home only below 8%, chases anything
+ * it sees and walks ahead of its wave at the enemy's structures. Gate `feeder`: Rookie still wins ≥ 80%.
+ */
+export const FEEDER = Object.freeze({
+  ...NAIVE,
+  seekRange: 22000,
+  chaseRange: 30000,
+  towerHits: 1000,
+  retreatHpBp: 800,
+  returnHpBp: 6000,
+  idleBp: 1500,
+  /** Walks at the nearest enemy structure in its lane instead of behind its wave. */
+  dive: true,
+});
+export type NaiveParams = { readonly [K in keyof typeof NAIVE]: number } & { readonly dive?: boolean };
+

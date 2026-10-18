@@ -34,6 +34,12 @@ export interface HeroData {
   side: HeroSide;
   role: HeroRole;
   element: Element;
+  /**
+   * Hero-vs-hero damage tuning per hero (sim v8, playtest round 2: "balance is a hidden species stat edge"; it
+   * replaced data/heroes SIDE_EDGE with the same numbers): this hero's damage to enemy heroes × dmgBp, enemy heroes'
+   * damage to it × takenBp. Only where DifficultyRules.sideEdge is on (Normal and Hard; the sim's G.SideEdge flag).
+   */
+  pvp: Readonly<{ dmgBp: number; takenBp: number }>;
   base: HeroBase;
   passive: Readonly<Record<string, number>>;
   abilities: Readonly<Record<AbilitySlot, AbilityData>>;

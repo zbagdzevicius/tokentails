@@ -7,7 +7,8 @@ import { HumanFilter, isHeadlessAgent } from '../../src/analytics/human';
 import { parseRoster, rosterCosmetics, stableIndex } from '../../src/meta/roster';
 import { CheckoutBridge } from '../../src/money/checkoutBridge';
 import { Entitlements, decodeToken } from '../../src/money/entitlements';
-import { offerOf, pickMeet, pickOffer, type MeetInput } from '../../src/money/offer';
+import { MEET_SNOOZE, offerOf, pickMeet, pickOffer, type MeetInput } from '../../src/money/offer';
+import { playSession } from '../../src/meta/profile';
 import { SKUS, SKU_IDS, buyable, currencyFor, priceText, type SkuId } from '../../src/money/skus';
 import { bestFrame, resolveLook, wardrobe, type Owned } from '../../src/render/cosmetics';
 import { heroBuilt, makeKitten } from '../../src/render/chars';
@@ -138,6 +139,23 @@ describe('offer rules: the single Meet card', () => {
     expect(pickMeet(base({ hostOffer: undefined }))).toBeNull();
     expect(pickMeet(base({ hostOffer: null }))).toBeNull();
   });
+  it('round 2: a closed card stays away for MEET_SNOOZE (sessions and time)', () => {
+    const closed = { id: CAT_A, session: 4, at: 1_000 };
+    expect(pickMeet(base({ closed, pageSession: 5, now: 1_000 + MEET_SNOOZE.ms }))).toBeNull();
+    expect(pickMeet(base({ closed, pageSession: 4 + MEET_SNOOZE.sessions + 1, now: 2_000 }))).toBeNull();
+    expect(pickMeet(base({ closed, pageSession: 4 + MEET_SNOOZE.sessions + 1, now: 1_000 + MEET_SNOOZE.ms }))).toEqual({ kind: 'meet', catalogId: CAT_A });
+    expect(pickMeet(base({ closed: { ...closed, id: CAT_B }, pageSession: 5, now: 2_000 }))).toEqual({ kind: 'meet', catalogId: CAT_A });
+  });
+  it('round 2: sessions count from the first finished match, not page loads', () => {
+    // four page loads, no match: never "session 2"
+    expect(playSession({ sessions: 4, firstPlaySession: 0, matches: 0 })).toBe(0);
+    expect(pickMeet(base({ session: playSession({ sessions: 4, firstPlaySession: 0, matches: 0 }) }))).toBeNull();
+    // first match in page load 3: that load is play session 1, the next one is 2
+    expect(playSession({ sessions: 3, firstPlaySession: 3, matches: 1 })).toBe(1);
+    expect(playSession({ sessions: 4, firstPlaySession: 3, matches: 1 })).toBe(2);
+    // older profiles without the field
+    expect(playSession({ sessions: 2, firstPlaySession: 0, matches: 1 })).toBe(2);
+  });
   it('never a cat the host did not feature or the player owns', () => {
     expect(pickMeet(base({ featured: [CAT_B] }))).toBeNull();
     expect(pickMeet(base({ owned: [CAT_A] }))).toBeNull();
@@ -171,9 +189,10 @@ describe('roster → cosmetics', () => {
     // c2 is RARE but from a pack: no Rare frame (decision #19); c4 is one named cat: the Buddy frame
     expect(r.frames).toEqual(['frame.buddy', 'frame.epic', 'frame.legendary']);
     expect(r.breedCoats).toEqual(['PINKIE']);
+    // round 1: with no saved choice the highest tier walks first (c4 LEGENDARY), then c1 (EPIC, the starter)
     expect(r.companions.map((c) => [c.id, c.coat])).toEqual([
+      ['c4', stableIndex('c4', 8)],
       ['c1', 'PINKIE'],
-      ['c2', stableIndex('c2', 8)],
     ]);
     expect(stableIndex('c2', 8)).toBe(stableIndex('c2', 8));
   });

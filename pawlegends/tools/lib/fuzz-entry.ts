@@ -11,7 +11,7 @@ import { randomCommand } from '../../tests/unit/helpers';
 
 const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
-const LEVELS: readonly Difficulty[] = ['easy', 'normal'];
+const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 
 /** The i-th fuzz seed: spread over the whole uint32 range; i = 0 is 0 and i = 1 is 0xffffffff. */
 export const fuzzSeed = (i: number): number => (i === 0 ? 0 : i === 1 ? 0xffffffff : Math.imul(i, 0x9e3779b1) >>> 0);

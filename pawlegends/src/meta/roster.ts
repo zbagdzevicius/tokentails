@@ -137,6 +137,8 @@ export interface Companion {
   coat: StarterBreed | number;
   /** Card art (UI only; the 3D kitten uses `coat`). */
   art?: string;
+  /** From a pack: it walks and gives its chroma, but no tier frame (decision #19; round 1 says so on its chip). */
+  fromPack?: boolean;
 }
 
 export interface RosterCosmetics {
@@ -162,7 +164,7 @@ export const isNamedCat = (c: RosterCat): boolean => !c.isStarter && c.origin !=
 
 const TIER_FRAME: Partial<Record<CatTier, TierFrame>> = { RARE: 'frame.rare', EPIC: 'frame.epic', LEGENDARY: 'frame.legendary' };
 
-const asCompanion = (c: RosterCat): Companion => ({ id: c.id, name: c.name, element: c.type, tier: c.tier, coat: c.starterBreed ?? stableIndex(c.id, KITTEN_COATS), ...(c.art ? { art: c.art } : {}) });
+const asCompanion = (c: RosterCat): Companion => ({ id: c.id, name: c.name, element: c.type, tier: c.tier, coat: c.starterBreed ?? stableIndex(c.id, KITTEN_COATS), ...(c.art ? { art: c.art } : {}), ...(c.origin === 'pack' ? { fromPack: true } : {}) });
 
 /** `prefer`: cat ids or catalog ids that walk first, in order (meta/squad.ts squadPrefs). */
 export function rosterCosmetics(cats: readonly RosterCat[], prefer: readonly string[] = []): RosterCosmetics {
@@ -183,11 +185,27 @@ export function rosterCosmetics(cats: readonly RosterCat[], prefer: readonly str
   for (const [n, f] of COLLECTION_FRAMES) if (named.size >= n) frames.add(f);
   // Preferred cats first (the newest adoption, then the chosen squad), then starters, then roster order. A cat bought
   // after the first two never walked before (round 0 blocker: "Luna walks with your waves" was not true).
+  // Round 1 ("my Legendary and Epic sat on the bench behind two Commons"): with no saved choice the highest tier walks
+  // first, then starters, then roster order.
   const rank = (c: RosterCat): number => {
     const k = prefer.findIndex((id) => id === c.id || (!!c.catalogId && id === c.catalogId));
-    return k >= 0 ? k : prefer.length + (c.isStarter ? 0 : 1);
+    if (k >= 0) return k;
+    // round 2: at the same tier a cat adopted by name walks before a pack cat (it carries the frame)
+    return prefer.length + (TIERS.length - 1 - TIERS.indexOf(c.tier)) * 4 + (c.origin === 'pack' ? 2 : 0) + (c.isStarter ? 0 : 1);
   };
-  const ordered = cats.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
+  let ordered = cats.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
+  // Round 2 ("adopting Luna pushed my Legendary Queenie out of the squad"): a new adoption on top of a full chosen
+  // squad replaces the lower-tier of the two (ties: the second), not always the second one.
+  if (prefer.length > COMPANION_MAX && ordered.length > COMPANION_MAX) {
+    const tierOf = (c: RosterCat): number => TIERS.indexOf(c.tier) * 2 + (c.origin === 'pack' ? 0 : 1);
+    const rest = ordered.slice(1, prefer.length);
+    const keep = rest
+      .map((c, i) => ({ c, i }))
+      .sort((a, b) => tierOf(b.c) - tierOf(a.c) || a.i - b.i)
+      .slice(0, COMPANION_MAX - 1)
+      .map((x) => x.c);
+    ordered = [ordered[0], ...keep, ...ordered.filter((c, i) => i > 0 && !keep.includes(c))];
+  }
   return {
     chromas: ELEMENTS.filter((e) => els.has(e)),
     frames: FRAME_ORDER.filter((f) => frames.has(f)),

@@ -139,7 +139,16 @@ export function campKilled(m: MatchHandle, id: number): number {
     if (dist2(w.x[h], w.y[h], w.x[id], w.y[id]) <= r2) share[n++] = h;
   }
   if (n === 0) return team;
-  const each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
+  let each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
+  // Sim v8: the team behind on levels gets XP.campBehindBp of the camp's XP.
+  let ours = 0;
+  let theirs = 0;
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+    if (w.kind[h] !== Kind.Hero) continue;
+    if (w.team[h] === team) ours += w.level[h];
+    else theirs += w.level[h];
+  }
+  if (ours < theirs) each = applyBp(each, XP.campBehindBp);
   for (let i = 0; i < n; i++) grantXp(m, share[i], each, 'camp');
   return team;
 }

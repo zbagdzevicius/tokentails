@@ -245,6 +245,9 @@ export function pct(a, p) {
   return s[Math.min(s.length - 1, Math.floor((s.length * p) / 100))];
 }
 
+/** Takedown gap at the end that counts as "losing every fight" (playtest round 1 gate: such a team wins < 5%). */
+export const DEFICIT = 10;
+
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 /** null (never happened) counts as +Infinity for medians of "time to". */
 const orInf = (a) => a.map((x) => (x === null ? Infinity : x));
@@ -255,6 +258,9 @@ export function aggregateFun(funRows, sdTick) {
   const r = funRows;
   const trailing = r.filter((x) => x.score330 !== null && Math.abs(x.score330) >= 3);
   const trailingWon = trailing.filter((x) => (x.score330 < 0 ? x.winner === 0 : x.winner === 1)).length;
+  // Playtest round 1 ("kills barely decide the match"): a team down DEFICIT or more takedowns at the end.
+  const deficit = r.filter((x) => Math.abs(x.teamTakedowns[0] - x.teamTakedowns[1]) >= DEFICIT);
+  const deficitWon = deficit.filter((x) => (x.teamTakedowns[0] < x.teamTakedowns[1] ? x.winner === 0 : x.winner === 1)).length;
   return {
     matches: n,
     winRate: (100 * r.filter((x) => x.won).length) / n,
@@ -289,6 +295,8 @@ export function aggregateFun(funRows, sdTick) {
     gap5Median: median(r.map((x) => x.gap5)),
     trailingAt330: trailing.length,
     trailingWonRate: trailing.length ? (100 * trailingWon) / trailing.length : NaN,
+    deficitMatches: deficit.length,
+    deficitWonRate: deficit.length ? (100 * deficitWon) / deficit.length : 0,
     pickupsMean: mean(r.map((x) => x.pickups)),
     bountiesMean: mean(r.map((x) => x.bounties)),
     shutdownsMean: mean(r.map((x) => x.shutdowns)),
@@ -343,9 +351,23 @@ export function funGates(gate, a, perHero, difficulty) {
   } else if (gate === 'novice') {
     const floor = difficulty === 'normal' ? 40 : 85;
     add(`novice vs ${difficulty} win ≥ ${floor}%`, a.winRate >= floor, `${f1(a.winRate)}%`);
+    // Sim v8 (playtest round 2: "we won down 11 on Normal"): the deficit rule holds with a human player-bot too.
+    if (difficulty === 'normal' || difficulty === 'hard') add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
   } else if (gate === 'idle') {
     add('idle win ≤ 50%', a.winRate <= 50, `${f1(a.winRate)}%`);
     if (difficulty === 'rookie') add('idle vs Rookie never loses before 6:00', a.earliestLoss >= 360, mmss(a.earliestLoss));
+  } else if (gate === 'hard') {
+    // Sim v6 Hard: a Normal-level player wins clearly less than half, but can win. Sim v8 (playtest round 2: "Hard
+    // tests how much you can carry"): Hard is a mirror, the allies play at Hard too, so the Normal-level player is the
+    // weakest of six and its own play is the gap: 30% to 48% (it was 20% to 40% with two Normal allies).
+    add('Normal player vs Hard win 30% to 48%', between(a.winRate, 30, 48), `${f1(a.winRate)}%`);
+    add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
+    add('length median 5:30 to 8:30', between(a.lengthMedian, 330, 510), mmss(a.lengthMedian));
+    add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
+  } else if (gate === 'feeder') {
+    add('feeder vs Rookie win ≥ 80%', a.winRate >= 80, `${f1(a.winRate)}%`);
+  } else if (gate === 'feedNormal') {
+    add(`feeder vs ${difficulty}: down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
   } else if (gate === 'parked') {
     add('allies beside the parked human median ≤ 10% of the time', a.followShareMedian <= 10, `${f1(a.followShareMedian)}%`);
     add('no match ends within 2:00 of the park (0:30)', a.shortestMatch >= 150, mmss(a.shortestMatch));
@@ -361,7 +383,10 @@ export function funGates(gate, a, perHero, difficulty) {
       add(`${hero} win rate 42% to 58%`, between(rate, 42, 58), `${f1(rate)}%`);
     }
     add('takedowns a minute 2.5 to 3.5', between(a.tdPerMin, 2.5, 3.5), a.tdPerMin.toFixed(2));
-    add('trailing at 3:30 wins 30% to 40%', between(a.trailingWonRate, 30, 40), `${f1(a.trailingWonRate)}% of ${a.trailingAt330}`);
+    // Sim v7 (playtest round 1: "kills barely decide the match"): a lead in fights is worth more, so the 3:30
+    // comeback band moved from 30%..40% to 20%..40%, and a team down DEFICIT+ takedowns at the end wins < 5%.
+    add('trailing at 3:30 wins 20% to 40%', between(a.trailingWonRate, 20, 40), `${f1(a.trailingWonRate)}% of ${a.trailingAt330}`);
+    add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
   } else throw new Error(`unknown gate ${gate}`);
   return g;
 }
@@ -377,6 +402,6 @@ export function formatFun(a) {
     `  pace: takedowns ${a.tdPerMin.toFixed(2)} a minute, in action ${f1(a.actionShare)}%, big-moment gap median ${f1(a.gapMedian)} s, longest median ${f1(a.gapMaxMedian)} s (p90 ${f1(a.gapMaxP90)} s)`,
     `  burst: 90%-to-dead median ${f1(a.ttkMedian)} s (p10 ${f1(a.ttkP10)} s), worst 1 s loss median ${f1(a.worst1sMedian)}% (p99 ${f1(a.worst1sP99)}%), back in the fight ${f1(a.backInMedian)} s`,
     `  moments: pickups ${f1(a.pickupsMean)}, bounties ${f1(a.bountiesMean)}, shutdowns ${f1(a.shutdownsMean)}, comebacks ${f1(a.comebacksMean)}, Nine Lives ${f1(a.nineLivesMean)} a match; ` +
-      `trailing at 3:30 won ${f1(a.trailingWonRate)}% of ${a.trailingAt330}`,
+      `trailing at 3:30 won ${f1(a.trailingWonRate)}% of ${a.trailingAt330}; down ${DEFICIT}+ takedowns at the end won ${f1(a.deficitWonRate)}% of ${a.deficitMatches}`,
   ].join('\n');
 }

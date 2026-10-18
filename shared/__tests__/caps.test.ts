@@ -65,8 +65,8 @@ describe('shared caps', () => {
     });
 
     it('pins the Pawlegends replay bounds and first-win catnip (POC.md §11.5)', () => {
-        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal', 'rookie']);
-        expect(PAWLEGENDS_LEVEL_CAPS).toEqual([20, 40, 10]);
+        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal', 'rookie', 'hard']);
+        expect(PAWLEGENDS_LEVEL_CAPS).toEqual([20, 40, 10, 0]);
         expect(PAWLEGENDS_LEVEL_CAPS).toHaveLength(PAWLEGENDS_LEVELS.length);
         expect(PAWLEGENDS_TICK_HZ).toBe(30);
         expect(PAWLEGENDS_MAX_TICKS).toBe(19800);

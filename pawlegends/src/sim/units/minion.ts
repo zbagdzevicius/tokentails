@@ -102,7 +102,9 @@ export function checkComeback(m: MatchHandle): void {
     if (w.globals[left] > 0 || tick - w.globals[at] < COMEBACK.cooldown) continue;
     const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
     const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
-    if (towersBehind < COMEBACK.structuresBehind && killsBehind < COMEBACK.takedownsBehind) continue;
+    // Sim v7: where a lead in fights is meant to win (DifficultyRules.leadPressure), only towers start a comeback.
+    const byKills = !DIFFICULTY_RULES[m.config.difficulty].leadPressure && killsBehind >= COMEBACK.takedownsBehind;
+    if (towersBehind < COMEBACK.structuresBehind && !byKills) continue;
     w.globals[left] = COMEBACK.waves;
     w.globals[at] = tick;
     m.events.push({ type: 'comeback', tick, team: team as 0 | 1 });

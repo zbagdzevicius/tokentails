@@ -9,6 +9,8 @@
 import type { BrowserContext, Frame, Page } from '@playwright/test';
 
 export const SITE = 'https://tokentails.com';
+/** A cat art URL the bridge accepts (embed/bridge.ts ART_HOST); the mock serves a 1×1 PNG for it. */
+export const art = (name: string): string => `https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/tokentails-nfts/e2e/${name}.png`;
 export const EVIL = 'https://evil.example';
 
 export interface HostConfig {
@@ -127,6 +129,10 @@ export async function mockHost(context: BrowserContext, baseURL: string, cfg: Ho
       const rest = url.pathname.slice('/pawlegends-game/'.length) || 'index.html';
       const res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
       return route.fulfill({ response: res });
+    }
+    // cat art from the Token Tails bucket (round 1: Meet cards need art): a 1×1 PNG
+    if (url.hostname === 'tokentails-nfts.fra1.cdn.digitaloceanspaces.com') {
+      return route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64') });
     }
     if (url.origin === origin && url.pathname === '/user/catbassadors/live') {
       lives.push(route.request().postDataJSON());

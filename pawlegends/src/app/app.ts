@@ -16,7 +16,7 @@ import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import type { SkuId } from '../money/skus';
-import { bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
+import { ELEMENT_COLOR, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, type QualityTier } from '../render/quality';
@@ -28,7 +28,7 @@ import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel } from '../ui/store';
-import { HERO_TEXT } from '../ui/heroText';
+import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
 import { canPickDifficulty, difficultyFor, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
 import { loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
@@ -63,6 +63,14 @@ function installFont(): void {
 }
 
 /** p95 of a list of frame times (ms). */
+/** Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own. */
+export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
+  const order: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+  const start = order.indexOf(current);
+  const rest = [1, 2, 3].map((k) => order[(start + k) % order.length]);
+  return rest.find((h) => !bests[h]) ?? rest[0];
+}
+
 function p95(xs: number[]): number {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -144,6 +152,14 @@ export class App {
         this.refreshMeta();
       },
       root,
+      chromaPreview: (element) => {
+        const hero = this.choice.hero;
+        if (!(element in ELEMENT_COLOR)) return null;
+        const look: Look = { ...this.lookFor(hero), chroma: element as Look['chroma'] };
+        bakePortrait(this.gr, hero, look);
+        const url = portraitUrl(hero, look);
+        return url ? { url, hero: HERO_TEXT[hero].title } : null;
+      },
     });
     bridge.on((m) => this.onHost(m));
     this.ent.onChange(() => this.refreshMeta());
@@ -303,7 +319,8 @@ export class App {
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
-        quests: p.matches > 0 ? questViews(loadQuests(), p.matches <= PICK_DIFFICULTY_FROM ? p.hero : undefined) : undefined,
+        // round 1: the hero quest always names the hero being played ("Win with Cacklejaw" while playing Sage)
+        quests: p.matches > 0 ? questViews(loadQuests(), this.choice.hero) : undefined,
       }),
     );
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
@@ -339,7 +356,24 @@ export class App {
         },
         onBack: () => this.showTitle(),
         difficulties: pickable(),
-        difficultyNote: canPickDifficulty(p.matches) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+        difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+        numbers: p.numbers,
+        onNumbers: (on) => {
+          const q = loadProfile();
+          q.numbers = on;
+          saveProfile(q);
+        },
+        // round 1: a MOBA veteran need not sit through two more Easy matches (match 1 stays the guided one)
+        onVeteran:
+          p.matches >= 1 && !canPickDifficulty(p.matches, p.veteran)
+            ? () => {
+                const q = loadProfile();
+                q.veteran = true;
+                saveProfile(q);
+                this.choice = { ...this.choice, difficulty: 'normal' };
+                this.showPick();
+              }
+            : undefined,
       }),
     );
   }
@@ -348,7 +382,7 @@ export class App {
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
-    const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty) };
+    const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     p.hero = c.hero;
     p.trick = c.trick;
@@ -431,7 +465,7 @@ export class App {
       pl_rookie: isRookie(e.replay.difficulty),
     });
     // Treat Track and daily quests (local, free, fixed order)
-    const quests = progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, loadProfile().matches <= PICK_DIFFICULTY_FROM);
+    const quests = progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, true);
     saveQuests(quests.state);
     const prof = loadProfile();
     const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);
@@ -465,12 +499,15 @@ export class App {
       lp.knowsUlt = true;
       saveProfile(lp);
     }
-    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns });
+    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, deaths: e.deaths });
+    // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
+    const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const mySlot = e.welcome.slot;
     const myTeam = mySlot < 3 ? 0 : 1;
+    const names = slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot);
     const table = e.result.stats
       .map((st) => ({
-        name: HERO_TEXT[st.hero].title,
+        name: names[st.slot] ?? HERO_TEXT[st.hero].title,
         rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
         k: st.kills,
         d: st.deaths,
@@ -488,6 +525,7 @@ export class App {
         difficulty: e.replay.difficulty,
         kills: e.kills,
         deaths: e.deaths,
+        assists: e.assists,
         level: e.level,
         teamKills: e.teamKills,
         firstWin: rec.firstWin,
@@ -499,8 +537,12 @@ export class App {
         treats,
         quests: quests.views,
         table,
-        ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta } : null,
+        ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta, placement: ladder.placement, impact: ladder.impact } : null,
         personal: ladder?.personal ?? null,
+        cause: e.cause,
+        // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
+        quick: lp.matches >= 4 || lp.veteran,
+        tryHero: tease,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
         speed: this.speed,
         storeOpen: s.storeOpen,
@@ -511,6 +553,8 @@ export class App {
         },
         onChange: () => {
           sfx.play('click');
+          // round 2: the button names a hero ("Try Sage"): the pick screen opens on it
+          if (tease) this.choice = { ...this.choice, hero: tease };
           this.showPick();
         },
         onShare: (url) => {

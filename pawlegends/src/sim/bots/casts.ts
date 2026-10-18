@@ -16,6 +16,7 @@ import type { Rng } from '../rng';
 import { ENTITY_CAP, Kind, RANGE, type World } from '../world';
 import { collect, inCone, inLine, inRing } from '../effects';
 import { canCast, TRICK_SLOT } from '../heroes/kit';
+import { attackRange } from '../units/kinds';
 import { abil } from '../heroes/talents';
 import { fountainX, fountainY, hpBp, seenEnemy } from './sense';
 
@@ -37,8 +38,27 @@ const cast = (slot: number, x: number, y: number, id: number): Command =>
 
 const distTo = (w: World, a: number, b: number): number => isqrt(dist2(w.x[a], w.y[a], w.x[b], w.y[b]));
 
+/**
+ * Hard (TrickUse 'offensive'): Pounce onto a foe below BOT_AI.finishHpBp just out of reach, Hiss when the foe stands
+ * inside its radius and the bot is the healthier one. Null otherwise.
+ */
+export function offenseTrick(w: World, id: number, foe: number, p: BotParams): Command | null {
+  if (p.trick !== 'offensive' || !canCast(w, id, TRICK_SLOT)) return null;
+  const d = distTo(w, id, foe);
+  switch (TRICK_IDS[w.trick[id]]) {
+    case 'pounce':
+      return hpBp(w, foe) <= BOT_AI.finishHpBp && d > attackRange(w, id) + RANGE_PAD && d <= TRICKS.pounce.blink + attackRange(w, id) ? cast(TRICK_SLOT, w.x[foe], w.y[foe], NO_TARGET) : null;
+    case 'hiss':
+      return d <= TRICKS.hiss.radius && hpBp(w, id) > hpBp(w, foe) ? cast(TRICK_SLOT, w.x[id], w.y[id], NO_TARGET) : null;
+    default:
+      return null;
+  }
+}
+
 /** Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. */
 export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: Rng): Command | null {
+  const trick = offenseTrick(w, id, foe, p);
+  if (trick) return trick;
   const a = abil(w, id);
   const d = distTo(w, id, foe);
   const fx = w.x[foe];
@@ -162,7 +182,7 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
       if (canCast(w, id, 2)) return cast(2, w.x[id], w.y[id], NO_TARGET);
       break;
   }
-  if (p.trick !== 'defensive' || !canCast(w, id, TRICK_SLOT)) return null;
+  if (p.trick === 'never' || !canCast(w, id, TRICK_SLOT)) return null;
   switch (TRICK_IDS[w.trick[id]]) {
     case 'pounce':
       return cast(TRICK_SLOT, hx, hy, NO_TARGET);
@@ -175,7 +195,7 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
 
 /** Snack Break when hurt and nobody is near (defensive only). */
 export function snackCast(w: World, id: number, p: BotParams): Command | null {
-  if (p.trick !== 'defensive' || TRICK_IDS[w.trick[id]] !== 'snack' || !canCast(w, id, TRICK_SLOT)) return null;
+  if (p.trick === 'never' || TRICK_IDS[w.trick[id]] !== 'snack' || !canCast(w, id, TRICK_SLOT)) return null;
   if (hpBp(w, id) >= BOT_AI.snackHpBp || nearestFoe(w, id, BOT_AI.trickThreat) >= 0) return null;
   return cast(TRICK_SLOT, w.x[id], w.y[id], NO_TARGET);
 }

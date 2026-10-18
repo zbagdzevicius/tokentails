@@ -13,10 +13,10 @@ import { tierSettings, type QualityTier, type TierSettings } from './quality';
 /** Camera distance (m) at zoom 1. */
 export const MOBA_DIST = 27;
 /**
- * Camera distance factor on short landscape screens (phones, ≤ 480 CSS px tall): ~15% closer, so a hero is ~30 px
- * tall at 844×390 instead of ~25 and attacks read (POC.md §10 touch landscape).
+ * Camera distance factor on short landscape screens (phones, ≤ 480 CSS px tall): 0.87 in round 0 (~15% closer);
+ * round 1 ("units are small, I couldn't tell Cacklejaw from my own Clem") moved it to 0.75, ~16% closer again.
  */
-export const SHORT_LANDSCAPE_ZOOM = 0.87;
+export const SHORT_LANDSCAPE_ZOOM = 0.75;
 export const isShortLandscape = (w: number, h: number): boolean => h <= 480 && w / Math.max(1, h) >= 1.6;
 
 /** Radians below IsoRig's pitch: a MOBA reads better a little more side-on (heroes, not hats). */

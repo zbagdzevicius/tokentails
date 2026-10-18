@@ -21,9 +21,9 @@
         "type": "session",
         "signedIn": true,
         "progress": {
-          "catnip": { "easy": 20, "normal": 0, "rookie": 0 },
-          "matches": { "easy": 3, "normal": 1, "rookie": 0 },
-          "fastestWin": { "easy": 8123, "normal": 0, "rookie": 0 }
+          "catnip": { "easy": 20, "normal": 0, "rookie": 0, "hard": 0 },
+          "matches": { "easy": 3, "normal": 1, "rookie": 0, "hard": 0 },
+          "fastestWin": { "easy": 8123, "normal": 0, "rookie": 0, "hard": 0 }
         }
       },
       "invalid": {
@@ -45,7 +45,7 @@
             "type": "session",
             "signedIn": true,
             "progress": {
-              "catnip": { "easy": 20, "hard": 99 },
+              "catnip": { "easy": 20, "nightmare": 99 },
               "matches": { "easy": 2.5, "normal": 4 },
               "fastestWin": { "easy": -1 }
             }
@@ -56,9 +56,9 @@
             "type": "session",
             "signedIn": true,
             "progress": {
-              "catnip": { "easy": 20, "normal": 0, "rookie": 0 },
-              "matches": { "easy": 0, "normal": 4, "rookie": 0 },
-              "fastestWin": { "easy": 0, "normal": 0, "rookie": 0 }
+              "catnip": { "easy": 20, "normal": 0, "rookie": 0, "hard": 0 },
+              "matches": { "easy": 0, "normal": 4, "rookie": 0, "hard": 0 },
+              "fastestWin": { "easy": 0, "normal": 0, "rookie": 0, "hard": 0 }
             }
           }
         }

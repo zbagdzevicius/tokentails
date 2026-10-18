@@ -1,6 +1,6 @@
 /** Bots (POC.md §7.2, §15 items 9 and 12): lanes, retreat, reaction delay, the brush rule, replays, difficulty. */
 import { describe, expect, it } from 'vitest';
-import { BOTS, BOT_TEAMS } from '../../src/data/bots';
+import { DIFFICULTY_RULES, BOTS, BOT_TEAMS } from '../../src/data/bots';
 import { BUSHES, FOUNTAIN, mirrorX } from '../../src/data/map';
 import { TIMELINE } from '../../src/data/timeline';
 import { botParams } from '../../src/sim/bots';
@@ -62,6 +62,8 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
       const w = m.world;
       for (let id = 0; id < 6; id++) place(m, id, id < 3 ? 20000 : 80000, 10000 + id * 7000);
       hold(m, 0);
+      // sim v8: past the opening truce (DifficultyRules.truceUntil), when enemy bots may pick the human
+      w.globals[G.Tick] = DIFFICULTY_RULES.easy.truceUntil;
       // A weak human 4 m from Woof's Sage, which is rooted in place.
       place(m, 0, 50000, 30000);
       place(m, 4, 54000, 30000);

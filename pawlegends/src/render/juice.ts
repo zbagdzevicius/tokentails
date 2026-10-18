@@ -4,6 +4,11 @@
  * up right after.
  */
 import { CameraShake } from './camera/CameraShake.js';
+import type { Stage } from '../ui/stage';
+
+const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+/** Round 1: a queued ordinary banner older than this is dropped (a "First Blood!" after five knockouts is stale). */
+export const BANNER_STALE_MS = 3000;
 
 export interface Banner {
   title: string;
@@ -11,6 +16,8 @@ export interface Banner {
   tone?: 'good' | 'bad' | 'gold' | 'info';
   /** Kills of structures, the core, the result: shown before ordinary banners. */
   urgent?: boolean;
+  /** When it was queued (ms; set by `banner`). */
+  at?: number;
 }
 
 export class Juice {
@@ -30,6 +37,12 @@ export class Juice {
   private popTimes: number[] = [];
   /** Callouts and pops shown (e2e telemetry and tests). */
   readonly said: string[] = [];
+  /** The centre-screen arbiter (ui/stage.ts); null in tests and the lobby. */
+  stage: Stage | null = null;
+  /** Render-time scale for the stale check (the match speed in e2e runs). */
+  speed = 1;
+  /** The stage kind the banner on screen holds. */
+  private bannerKind: 'urgent' | 'banner' = 'banner';
 
   constructor(root: HTMLElement | null) {
     if (root && typeof document !== 'undefined') {
@@ -88,8 +101,9 @@ export class Juice {
       const k = this.queue.findIndex((q) => !q.urgent);
       this.queue.splice(k >= 0 ? k : 0, 1);
     }
-    if (b.urgent) this.queue.unshift(b);
-    else this.queue.push(b);
+    const q = { ...b, at: nowMs() };
+    if (b.urgent) this.queue.unshift(q);
+    else this.queue.push(q);
   }
 
   /** A short word over the middle of the screen ("Purrfect!", "Takedown!"). */
@@ -97,7 +111,12 @@ export class Juice {
     const layer = this.calloutLayer;
     this.remember(text);
     if (!layer) return;
-    while (layer.childElementCount > 2) layer.firstElementChild?.remove();
+    // round 1: one at a time, and only when nothing more important holds the centre band (it is dropped, not queued:
+    // a callout is a reaction to this very moment)
+    const now = nowMs();
+    if (this.stage && !this.stage.allows('callout', now)) return;
+    while (layer.firstElementChild) layer.firstElementChild.remove();
+    this.stage?.claim('callout', 1300, now);
     const el = document.createElement('div');
     el.className = `pl-callout tone-${tone}`;
     el.textContent = text;
@@ -149,6 +168,9 @@ export class Juice {
     if (!el) return;
     if (this.bannerT > 0) {
       this.bannerT -= dt;
+      // round 2: hold the centre band while the banner is up, however slow the frames (a clamped dt on a slow
+      // device kept it on screen past its claim, and a callout showed beside it)
+      if (this.bannerT > 0) this.stage?.claim(this.bannerKind, 150, nowMs());
       if (this.bannerT <= 0) {
         el.classList.remove('on');
         // gone means gone: no stale text for a reader, test or screen reader (it lingered for 30 s+ before)
@@ -168,8 +190,13 @@ export class Juice {
       }
       if (this.bannerGone > 0) return;
     }
-    const b = this.queue.shift();
-    if (!b) return;
+    // round 1: wait while a death recap or a tower warning holds the centre band; drop stale ordinary banners
+    const now = nowMs();
+    const stale = BANNER_STALE_MS / Math.max(1, this.speed);
+    this.queue = this.queue.filter((q) => q.urgent || now - (q.at ?? now) <= stale);
+    const head = this.queue[0];
+    if (!head || (this.stage && !this.stage.allows(head.urgent ? 'urgent' : 'banner', now))) return;
+    const b = this.queue.shift() as Banner;
     el.className = `pl-banner tone-${b.tone ?? 'info'}`;
     el.innerHTML = '';
     const t = document.createElement('div');
@@ -185,6 +212,10 @@ export class Juice {
     void el.offsetWidth;
     el.classList.add('on');
     this.bannerT = this.queue.length > 1 ? 1.4 : 2.1;
+    // round 2: the banner shows for bannerT seconds of render time (update's dt is not sped up), so it holds the centre
+    // band exactly that long; dividing by the match speed let a callout show beside it (the e2e one-at-a-time check)
+    this.bannerKind = b.urgent ? 'urgent' : 'banner';
+    this.stage?.claim(this.bannerKind, this.bannerT * 1000 + 50, now);
     try {
       document.documentElement.dataset.banner = b.title;
     } catch {

@@ -77,6 +77,10 @@ export class Overhead {
   mySlot = 0;
   myTeam = 0;
   scale = 1;
+  /** Display names by slot ("Clem 2"; ui/heroText.ts slotNames); empty = hero titles. */
+  names: readonly string[] = [];
+  /** Round 1 tier perk: a Legendary frame owner's "You" sits on a gold name plate. */
+  goldPlate = false;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
@@ -85,6 +89,35 @@ export class Overhead {
 
   /** First match: a chevron trail on the ground from the player toward this point (sim mm), or null. */
   guide: { x: number; y: number } | null = null;
+
+  /** Round 1: the enemy fountain's no-entry ring (sim mm), drawn while the player is near it; null = hidden. */
+  enemyFountain: { x: number; y: number; r: number } | null = null;
+  private fountainHit = 0;
+
+  /** The player walked into the enemy fountain's wall: the ring ripples. */
+  fountainPulse(): void {
+    this.fountainHit = performance.now();
+  }
+
+  /**
+   * Round 2: screen rectangles (CSS px) of the top HUD (HP panel, score bar). A plate that lands on one fades, so units
+   * north of the hero no longer bury the HP panel and the score bar in name plates; edge arrows stay below the band.
+   */
+  hudRects: readonly { left: number; top: number; right: number; bottom: number }[] = [];
+  private get safeTop(): number {
+    let b = 0;
+    for (const r of this.hudRects) if (r.top < this.h / 3) b = Math.max(b, r.bottom);
+    return b;
+  }
+  /** Does a hero plate centred at (x, y) touch a HUD rectangle? */
+  private underHud(x: number, y: number): boolean {
+    const box = plateBox(this.scale);
+    for (const r of this.hudRects) if (x + box.right > r.left && x + box.left < r.right && y + box.bottom > r.top && y + box.top < r.bottom) return true;
+    return false;
+  }
+
+  /** Round 2: enemy heroes off screen within this distance (mm) get an arrow at the screen edge. */
+  static readonly EDGE_RANGE = 30000;
 
   /** Bounty crown per hero slot (fun plan F2 item 11): > 0 draws a gold crown over the plate. */
   bounty: (slot: number) => number = () => 0;
@@ -133,7 +166,8 @@ export class Overhead {
     this.canvas.height = Math.round(h * dpr);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
-    this.scale = Math.max(0.75, Math.min(1.1, Math.min(w, h) / 720));
+    // round 1: on short landscape phones (≤ 480 px tall) the 8 px names were unreadable in teamfights: × 1.5 there
+    this.scale = h <= 480 ? 1.15 : Math.max(0.75, Math.min(1.1, Math.min(w, h) / 720));
   }
 
   private color(e: ViewEntity): string {
@@ -164,6 +198,7 @@ export class Overhead {
     this.mirrored.clear();
     for (const e of frame.entities) if (e.kind === 'hero' && e.hero && (e.team === 0 || e.team === 1)) seen[e.team].add(e.hero);
     for (const h of seen[0]) if (seen[1].has(h)) this.mirrored.add(h);
+    const edge: { e: ViewEntity; sx: number; sy: number }[] = [];
     for (const e of frame.entities) {
       if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
       const lift = LIFT[e.kind] * (e.kind === 'hero' ? heroScale(e) : 1);
@@ -171,7 +206,10 @@ export class Overhead {
       if (v.z > 1 || v.z < -1) continue;
       const sx = (v.x * 0.5 + 0.5) * this.w;
       const sy = (-v.y * 0.5 + 0.5) * this.h;
-      if (sx < -80 || sx > this.w + 80 || sy < -40 || sy > this.h + 40) continue;
+      if (sx < -80 || sx > this.w + 80 || sy < -40 || sy > this.h + 40) {
+        if (e.kind === 'hero' && e.team !== this.myTeam && e.team !== 2) edge.push({ e, sx, sy });
+        continue;
+      }
       plates.push({ e, sx, sy, layer: this.layerOf(e), dy: 0, stacked: 0, chip: false });
     }
     // heroes: the player's plate first (stays on its hero), then allies, then enemies; lower plates on screen first
@@ -194,8 +232,58 @@ export class Overhead {
     this.drawBeams(g, frame, camera, heroScale);
     this.drawLocks(g, frame, camera, heroScale);
     this.drawGuide(g, frame, camera);
-    for (const p of plates) this.plate(g, p);
-    for (const p of heroes) if (this.bounty(p.e.id) > 0) this.crown(g, p.sx, p.sy + p.dy - 15 * this.scale);
+    this.drawFountain(g, camera);
+    for (const p of plates) {
+      const fade = this.hudRects.length > 0 && p.e.id !== this.mySlot && this.underHud(p.sx, p.sy + p.dy);
+      if (fade) g.globalAlpha = 0.28;
+      this.plate(g, p);
+      if (fade) g.globalAlpha = 1;
+    }
+    this.drawEdge(g, frame, edge);
+  }
+
+  /** Round 2: a red arrow at the screen edge toward each enemy hero just off screen (assassins came from nowhere). */
+  private drawEdge(g: CanvasRenderingContext2D, frame: ViewFrame, edge: readonly { e: ViewEntity; sx: number; sy: number }[]): void {
+    const me = frame.byId.get(this.mySlot);
+    if (!me || me.state === 'dead' || !edge.length) return;
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const m = 26 * this.scale;
+    for (const { e, sx, sy } of edge) {
+      if (Math.hypot(e.fx - me.fx, e.fy - me.fy) > Overhead.EDGE_RANGE) continue;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      if (dx === 0 && dy === 0) continue;
+      // where the ray from the centre leaves the inset screen rectangle
+      const k = Math.min((this.w / 2 - m) / Math.max(1e-6, Math.abs(dx)), (this.h / 2 - m) / Math.max(1e-6, Math.abs(dy)));
+      const x = cx + dx * k;
+      const y = Math.max(this.safeTop + m, cy + dy * k);
+      const a = Math.atan2(dy, dx);
+      const s = 11 * this.scale;
+      g.save();
+      g.translate(x, y);
+      g.fillStyle = 'rgba(42,26,34,0.85)';
+      g.beginPath();
+      g.arc(0, 0, s * 1.15, 0, Math.PI * 2);
+      g.fill();
+      g.rotate(a);
+      g.fillStyle = RELATION_CSS.enemy;
+      g.beginPath();
+      g.moveTo(s * 1.9, 0);
+      g.lineTo(s * 0.9, -s * 0.75);
+      g.lineTo(s * 0.9, s * 0.75);
+      g.closePath();
+      g.fill();
+      g.rotate(-a);
+      g.fillStyle = '#fff3dc';
+      g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText((e.hero ? HERO_TEXT[e.hero].title.replace('Sir ', '') : '?').slice(0, 2), 0, 0.5);
+      g.restore();
+    }
+    g.textAlign = 'start';
+    g.textBaseline = 'alphabetic';
   }
 
   /** A small gold crown (bounty). */
@@ -264,19 +352,34 @@ export class Overhead {
       }
       g.lineWidth = 3 * this.scale;
       g.stroke();
-      if (l.dst === this.mySlot) {
-        const fs = Math.round(15 * this.scale);
-        g.font = `700 ${fs}px Fredoka, system-ui, sans-serif`;
-        g.textAlign = 'center';
-        g.lineWidth = 4;
-        g.strokeStyle = 'rgba(42,26,34,0.9)';
-        g.strokeText('Tower aiming at you!', x1, y1 + 34 * this.scale);
-        g.fillStyle = '#ff6b78';
-        g.fillText('Tower aiming at you!', x1, y1 + 34 * this.scale);
-        g.textAlign = 'start';
-      }
+      // Round 2: no "Tower aiming at you!" world text any more (it sat on CLANK!, damage numbers and plates); the words
+      // go to the red tower alert bar (matchSession towerHit), the beam and the closing ring stay here.
     }
     this.locks = this.locks.filter((l) => l.t > -0.15);
+  }
+
+  /** A glowing red ring on the ground around the enemy fountain (it cannot be entered), rippling on contact. */
+  private drawFountain(g: CanvasRenderingContext2D, camera: THREE.Camera): void {
+    const f = this.enemyFountain;
+    if (!f) return;
+    const since = (performance.now() - this.fountainHit) / 1000;
+    const ripple = since < 1.2 ? 1 - since / 1.2 : 0;
+    const pulse = 0.55 + 0.25 * Math.sin(performance.now() / 260);
+    for (let ring = 0; ring < (ripple > 0 ? 2 : 1); ring++) {
+      const r = f.r + (ring ? (1 - ripple) * 2500 : 0);
+      g.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const a = (i / 40) * Math.PI * 2;
+        const q = this.v.set((f.x + Math.cos(a) * r) / 1000, 0.12, -(f.y + Math.sin(a) * r) / 1000).project(camera);
+        const qx = (q.x * 0.5 + 0.5) * this.w;
+        const qy = (-q.y * 0.5 + 0.5) * this.h;
+        if (i) g.lineTo(qx, qy);
+        else g.moveTo(qx, qy);
+      }
+      g.strokeStyle = ring ? `rgba(255,77,94,${(0.8 * ripple).toFixed(3)})` : `rgba(255,77,94,${(pulse + 0.3 * ripple).toFixed(3)})`;
+      g.lineWidth = (ring ? 3 : 5 + 4 * ripple) * this.scale;
+      g.stroke();
+    }
   }
 
   private drawGuide(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera): void {
@@ -409,13 +512,38 @@ export class Overhead {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(lv, x - r - 2, sy + 0.5);
-    const name = plateName(e, this.mySlot, this.myTeam, this.mirrored);
-    g.font = `600 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    g.lineWidth = 3;
-    g.strokeStyle = 'rgba(42,26,34,0.85)';
-    g.strokeText(name, sx, y - 9 * this.scale);
-    g.fillStyle = this.color(e);
-    g.fillText(name, sx, y - 9 * this.scale);
+    const name = plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
+    g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    const ny = y - 10 * this.scale;
+    const tw = g.measureText(name).width;
+    if (e.id !== this.mySlot) {
+      // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
+      g.fillStyle = this.color(e);
+      roundRect(g, sx - tw / 2 - 5 * this.scale, ny - 7 * this.scale, tw + 10 * this.scale, 14 * this.scale, 6);
+      g.fill();
+      g.fillStyle = '#2a1a22';
+      g.fillText(name, sx, ny + 0.5);
+    } else if (this.goldPlate) {
+      const grad = g.createLinearGradient(0, ny - 8 * this.scale, 0, ny + 8 * this.scale);
+      grad.addColorStop(0, '#fff1a8');
+      grad.addColorStop(1, '#e0a92e');
+      g.fillStyle = grad;
+      roundRect(g, sx - tw / 2 - 7 * this.scale, ny - 8 * this.scale, tw + 14 * this.scale, 16 * this.scale, 7);
+      g.fill();
+      g.strokeStyle = '#7a4a12';
+      g.lineWidth = 1.5;
+      g.stroke();
+      g.fillStyle = '#4a2a1f';
+      g.fillText(name, sx, ny + 0.5);
+    } else {
+      g.lineWidth = 3;
+      g.strokeStyle = 'rgba(42,26,34,0.85)';
+      g.strokeText(name, sx, ny);
+      g.fillStyle = this.color(e);
+      g.fillText(name, sx, ny);
+    }
+    // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
+    if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)
       const cx = x - 2 * r - 16 * this.scale;
@@ -443,10 +571,10 @@ export class Overhead {
 }
 
 /** The label over a hero: "You" for the player, a team prefix on the enemy copy of a mirrored hero. Pure. */
-export function plateName(e: Pick<ViewEntity, 'id' | 'team' | 'hero'>, mySlot: number, myTeam: number, mirrored: ReadonlySet<string>): string {
+export function plateName(e: Pick<ViewEntity, 'id' | 'team' | 'hero'>, mySlot: number, myTeam: number, mirrored: ReadonlySet<string>, names: readonly string[] = []): string {
   if (e.id === mySlot) return 'You';
   if (!e.hero) return '';
-  const title = HERO_TEXT[e.hero].title;
+  const title = names[e.id] ?? HERO_TEXT[e.hero].title;
   if (e.team !== myTeam && mirrored.has(e.hero) && (e.team === 0 || e.team === 1)) return `${TEAM[e.team].name} ${title}`;
   return title;
 }
