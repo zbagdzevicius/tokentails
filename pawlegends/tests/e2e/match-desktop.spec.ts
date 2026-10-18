@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { FOUNTAIN } from '../../src/data/map';
 import { attr, me, ops, startFirstMatch } from './helpers';
 
@@ -6,8 +6,11 @@ const fromFountain = (p: { x: number; y: number }) => Math.hypot(p.x - FOUNTAIN.
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'desktop controls'));
 
+/** Settings → "Aim on hold" (press aims, release casts) before the page loads. */
+const aimOnHold = (page: Page) => page.addInitScript(() => localStorage.setItem('pawlegends.castMode', 'hold'));
+
 // POC.md §15 item 18.
-test('RMB moves, Q quick-casts, hold shows the indicator, B naps, S stops', async ({ page }) => {
+test('RMB moves, Q quick-casts on press, B naps, S stops', async ({ page }) => {
   await startFirstMatch(page);
   await page.waitForTimeout(400);
   const a = await me(page);
@@ -15,16 +18,46 @@ test('RMB moves, Q quick-casts, hold shows the indicator, B naps, S stops', asyn
   await expect.poll(async () => (await me(page)).x, { timeout: 15000 }).toBeGreaterThan(a.x + 1500);
   expect(await ops(page)).toContain(1);
 
+  // quick cast is the default: the key press alone casts (no hold, no release needed)
   await page.mouse.move(800, 300);
   await page.keyboard.down('q');
-  await expect.poll(() => attr(page, 'aim')).toBe('1');
+  await expect.poll(() => ops(page)).toContain(4);
   await page.keyboard.up('q');
   await expect.poll(() => attr(page, 'aim')).toBe('');
-  expect(await ops(page)).toContain(4);
 
   await page.keyboard.press('s');
   await page.keyboard.press('b');
   await expect.poll(async () => (await ops(page)).slice(-2)).toEqual([6, 7]);
+});
+
+test('Aim on hold: holding Q shows the indicator, release casts', async ({ page }) => {
+  await aimOnHold(page);
+  await startFirstMatch(page);
+  await page.waitForTimeout(400);
+  await page.mouse.move(800, 300);
+  await page.keyboard.down('q');
+  await expect.poll(() => attr(page, 'aim')).toBe('1');
+  expect(await ops(page)).not.toContain(4);
+  await page.keyboard.up('q');
+  await expect.poll(() => attr(page, 'aim')).toBe('');
+  expect(await ops(page)).toContain(4);
+});
+
+test('trackpad mode: left-click moves', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('pawlegends.trackpad', 'on'));
+  await startFirstMatch(page);
+  const a = await me(page);
+  // Re-issue each poll: the first click can land before the match view takes input.
+  await expect
+    .poll(
+      async () => {
+        await page.mouse.click(900, 260);
+        return (await me(page)).x;
+      },
+      { timeout: 15000, intervals: [500] },
+    )
+    .toBeGreaterThan(a.x + 1500);
+  expect(await ops(page)).toContain(1);
 });
 
 test('B: Nap channels, then the hero is back at the fountain, idle', async ({ page }) => {
@@ -71,7 +104,8 @@ test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
     .toBeGreaterThan(0);
 });
 
-test('an out-of-range point cast walks in first (Sage W)', async ({ page }) => {
+test('an out-of-range point cast walks in first (Sage W, Aim on hold; quick cast clamps to the range)', async ({ page }) => {
+  await aimOnHold(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
   await page.evaluate(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, matches: 1, hero: 'sage' })));

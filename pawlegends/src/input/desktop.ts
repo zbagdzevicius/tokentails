@@ -1,18 +1,21 @@
 /**
  * Desktop controls (POC.md §9, `moba` preset): RMB move/attack (hold to keep steering), A + LMB attack-move, S stop,
- * Q/W/E/R and D: press shows the indicator, release casts at the cursor (LMB while holding casts too, RMB or Esc
- * cancels; out of range walks in, then casts), B Nap, 1/2 talent pick, Space centres the camera, wheel zooms, Tab
- * scoreboard, Esc menu; edge pan and arrow keys move the camera.
+ * Q/W/E/R and D quick-cast at the cursor on press (the default; Settings "Aim on hold": press shows the indicator,
+ * release casts, LMB while holding casts too, RMB or Esc cancels; out of range walks in, then casts), B Nap, 1/2
+ * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
+ * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
+ * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
+ * moves and attacks too.
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import type { GameView } from '../render/gameView';
 import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
-import { actionFor, type Action } from './presets';
+import { actionFor, castMode, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
 import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
-import { isEnemy, pickNearest, type Unit } from './targeting';
+import { cursorCast, pickNearest, isEnemy, type Unit } from './targeting';
 
 export interface InputHost {
   canvas: HTMLElement;
@@ -34,12 +37,21 @@ const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 
 const EDGE_PX = 10;
 const EDGE_SPEED = 28;
 const STEER_MS = 140;
+/** Quick cast: the indicator flashes this long at the cast point. */
+const FLASH_MS = 220;
+export const TRACKPAD_TOAST = 'Trackpad mode: click to move';
 
 export class DesktopInput {
   private cursor = { x: -1, y: -1, inside: false };
   private aiming: { slot: CastIndex; code: string } | null = null;
   private attackArmed = false;
-  private rmbHeld = false;
+  /** The button held down to keep steering (2 RMB, 0 LMB in trackpad mode), or -1. */
+  private steerButton = -1;
+  private readonly mode: CastMode = castMode();
+  private trackpad = trackpadOn();
+  /** Auto trackpad watch (this match): play time, left-clicks on the ground, any right-button press. */
+  private auto = { on: trackpadPref() === 'auto' && !trackpadOn(), playMs: 0, groundClicks: 0, rightPressed: false };
+  private flashUntil = 0;
   private lastSteer = 0;
   private keys = new Set<string>();
   private readonly ground = new THREE.Vector3();
@@ -90,18 +102,34 @@ export class DesktopInput {
     this.cursor.x = e.clientX;
     this.cursor.y = e.clientY;
     if (e.button === 2) {
+      if (this.auto.on) {
+        this.auto.rightPressed = true;
+        this.autoCheck();
+      }
       if (this.aiming) {
         this.cancelAim();
         return;
       }
       this.attackArmed = false;
-      this.rmbHeld = true;
+      this.steerButton = 2;
       this.rightClick();
       return;
     }
     if (e.button === 0) {
       if (this.aiming) {
         this.release(this.aiming.code, true);
+        return;
+      }
+      const watching = !this.attackArmed && !this.trackpad && this.auto.on;
+      if (watching && !this.unitUnderCursor(true) && this.groundUnderCursor()) {
+        this.auto.groundClicks++;
+        this.autoCheck();
+      }
+      // While Auto watches, left-click already moves and attacks (the tip says "Click or right-click"), so a trackpad
+      // player's first clicks are not ignored; the first right-click ends the watch and left-click goes quiet again.
+      if (!this.attackArmed && (this.trackpad || watching)) {
+        this.steerButton = 0;
+        this.rightClick();
         return;
       }
       if (this.attackArmed) {
@@ -126,7 +154,7 @@ export class DesktopInput {
     if (u) {
       this.h.orders.attack(u.id);
       this.h.marker(u.x / 1000, -u.y / 1000, true);
-      this.rmbHeld = false;
+      this.steerButton = -1;
       return;
     }
     const g = this.groundUnderCursor();
@@ -137,7 +165,29 @@ export class DesktopInput {
   }
 
   private up(e: PointerEvent): void {
-    if (e.button === 2) this.rmbHeld = false;
+    if (e.button === this.steerButton) this.steerButton = -1;
+  }
+
+  /** Auto trackpad: switch on (with a one-time toast) or stop watching, per trackpadAutoRule. */
+  private autoCheck(): void {
+    if (!this.auto.on) return;
+    const r = trackpadAutoRule(this.auto);
+    if (r === 'wait') return;
+    this.auto.on = false;
+    if (r !== 'switch') return;
+    this.trackpad = true;
+    markTrackpadDetected();
+    this.h.view.juice?.banner({ title: TRACKPAD_TOAST, tone: 'info' });
+  }
+
+  /** The tips' pad mode: true trackpad mode, false a mouse, null while Auto still watches (both buttons work). */
+  get padMode(): boolean | null {
+    return this.trackpad ? true : this.auto.on ? null : false;
+  }
+
+  /** Is left-click moving (trackpad mode on, by choice or by Auto)? */
+  get trackpadMode(): boolean {
+    return this.trackpad;
   }
 
   private moveCursor(e: PointerEvent): void {
@@ -149,7 +199,7 @@ export class DesktopInput {
 
   private blur(): void {
     this.keys.clear();
-    this.rmbHeld = false;
+    this.steerButton = -1;
     this.cancelAim();
     this.h.onScoreboard(false);
   }
@@ -190,6 +240,10 @@ export class DesktopInput {
     if (slot !== undefined) {
       if (!this.h.orders.ready(slot)) {
         sfx.play('deny', { vol: 0.6 });
+        return;
+      }
+      if (this.mode === 'quick') {
+        this.quickCast(slot);
         return;
       }
       this.aiming = { slot, code: e.code };
@@ -242,40 +296,42 @@ export class DesktopInput {
     this.aiming = null;
     this.h.view.aim = null;
     if (!this.h.enabled()) return;
-    const spec = this.h.orders.aimSpec(a.slot);
-    const g = this.groundUnderCursor();
-    const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
-    if (!me) return;
-    let x = g ? toSimX(g.x) : me.x;
-    let y = g ? toSimY(g.z) : me.y;
-    let id = NO_TARGET;
-    if (spec.kind === 'unit') {
-      const u = this.unitUnderCursor(true) ?? this.nearestEnemyHeroToGround(g);
-      if (!u || u.kind !== 'hero') {
-        sfx.play('deny', { vol: 0.6 });
-        return;
-      }
-      id = u.id;
-      x = u.x;
-      y = u.y;
-    }
-    if (this.h.orders.cast(a.slot, x, y, id)) this.casts++;
+    this.castAtCursor(a.slot, false);
     void byClick;
+  }
+
+  /** Quick cast: at the cursor right away (ground points pulled in to the range), with a short indicator flash. */
+  private quickCast(slot: CastIndex): void {
+    const c = this.castAtCursor(slot, true);
+    if (!c) return;
+    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
+    this.flashUntil = performance.now() + FLASH_MS;
+  }
+
+  /** Cast `slot` at the cursor (cursorCast); a unit aim with no enemy hero there is refused with the deny sound. */
+  private castAtCursor(slot: CastIndex, clamp: boolean): { x: number; y: number; id: number } | null {
+    const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
+    if (!me) return null;
+    const spec = this.h.orders.aimSpec(slot);
+    const g = this.groundUnderCursor();
+    const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
+    const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp);
+    if (!c) {
+      sfx.play('deny', { vol: 0.6 });
+      return null;
+    }
+    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) return null;
+    this.casts++;
+    return c;
   }
 
   private nearestEnemyHeroToGround(g: THREE.Vector3 | null): Unit | null {
     if (!g) return null;
-    let best: Unit | null = null;
-    let bd = 3000;
-    for (const u of this.h.units()) {
-      if (u.kind !== 'hero' || !isEnemy(u, this.h.view.myTeam)) continue;
-      const d = Math.hypot(u.x - g.x * 1000, u.y + g.z * 1000);
-      if (d < bd) {
-        bd = d;
-        best = u;
-      }
-    }
-    return best;
+    const cursor = { x: toSimX(g.x), y: toSimY(g.z) };
+    const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
+    if (!me) return null;
+    const c = cursorCast({ kind: 'unit', shape: 'none', range: 0, smart: 'hero' }, me, cursor, null, this.h.units(), this.h.view.myTeam, false);
+    return c ? (this.h.units().find((u) => u.id === c.id) ?? null) : null;
   }
 
   private updateAim(): void {
@@ -290,8 +346,9 @@ export class DesktopInput {
     let valid = true;
     let target = -1;
     if (spec.kind === 'unit') {
-      const u = this.unitUnderCursor(true) ?? this.nearestEnemyHeroToGround(g);
-      valid = !!u && u.kind === 'hero';
+      const under = this.unitUnderCursor(true);
+      const u = under?.kind === 'hero' ? under : this.nearestEnemyHeroToGround(g);
+      valid = !!u;
       target = u?.id ?? -1;
     }
     this.h.view.aim = { spec, x: gx, z: gz, target, valid };
@@ -300,11 +357,20 @@ export class DesktopInput {
   /** Per frame: aim preview, RMB steering, camera pan. */
   update(dt: number): void {
     if (!this.h.enabled()) {
-      if (this.aiming) this.cancelAim();
+      if (this.aiming || this.flashUntil > 0) this.cancelAim();
+      this.flashUntil = 0;
       return;
     }
+    if (this.auto.on) {
+      this.auto.playMs += dt * 1000;
+      this.autoCheck();
+    }
+    if (!this.aiming && this.flashUntil > 0 && performance.now() > this.flashUntil) {
+      this.flashUntil = 0;
+      this.h.view.aim = null;
+    }
     this.updateAim();
-    if (this.rmbHeld && performance.now() - this.lastSteer > STEER_MS) {
+    if (this.steerButton >= 0 && performance.now() - this.lastSteer > STEER_MS) {
       this.lastSteer = performance.now();
       const g = this.groundUnderCursor();
       if (g) this.h.orders.move(toSimX(g.x), toSimY(g.z));

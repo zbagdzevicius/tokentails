@@ -49,3 +49,95 @@ export function keyLabel(a: Action): string {
   if (c === 'Escape') return 'Esc';
   return c;
 }
+
+// ---------------------------------------------------------------------------------------- control options
+
+/**
+ * Desktop control options (Settings): how Q/W/E/R/D cast and whether left-click moves. Quick cast is the default
+ * from the first match (press = cast at the cursor); "Aim on hold" keeps press-to-aim, release-to-cast. Trackpad
+ * mode (left-click moves and attacks, hold to steer) is Auto by default: it turns itself on for a player who clicks
+ * the ground with the left button and never right-clicks (trackpadAutoRule). Browser storage, a convenience only:
+ * it may be missing or throw, and the defaults are used then.
+ */
+export type CastMode = 'quick' | 'hold';
+export type TrackpadPref = 'auto' | 'on' | 'off';
+
+const CAST_KEY = 'pawlegends.castMode';
+const PAD_KEY = 'pawlegends.trackpad';
+/** Auto mode switched trackpad mode on once (it stays on in later matches; the toast shows only that once). */
+const PAD_SEEN_KEY = 'pawlegends.trackpadSeen';
+
+function read(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function write(key: string, v: string): void {
+  try {
+    localStorage.setItem(key, v);
+  } catch {
+    /* storage blocked: the choice lasts this page only */
+  }
+}
+
+/** In-memory copy, so a blocked storage still keeps the choice for this page. */
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean } = {};
+
+export function castMode(): CastMode {
+  return mem.cast ?? (read(CAST_KEY) === 'hold' ? 'hold' : 'quick');
+}
+
+export function setCastMode(m: CastMode): void {
+  mem.cast = m;
+  write(CAST_KEY, m);
+}
+
+export function trackpadPref(): TrackpadPref {
+  if (mem.pad) return mem.pad;
+  const v = read(PAD_KEY);
+  return v === 'on' || v === 'off' ? v : 'auto';
+}
+
+export function setTrackpadPref(p: TrackpadPref): void {
+  mem.pad = p;
+  write(PAD_KEY, p);
+}
+
+/** Did Auto switch trackpad mode on (now or in an earlier match)? */
+export function trackpadDetected(): boolean {
+  return mem.seen ?? read(PAD_SEEN_KEY) === '1';
+}
+
+export function markTrackpadDetected(): void {
+  mem.seen = true;
+  write(PAD_SEEN_KEY, '1');
+}
+
+/** Left-click moves and attacks: On, or Auto once it has switched itself on. */
+export const trackpadOn = (): boolean => {
+  const p = trackpadPref();
+  return p === 'on' || (p === 'auto' && trackpadDetected());
+};
+
+/** Tests: forget the in-memory copy (storage is read again). */
+export function resetControlPrefs(): void {
+  delete mem.cast;
+  delete mem.pad;
+  delete mem.seen;
+}
+
+/** Auto trackpad: how long the opening watch lasts (ms of match play) and how many left-clicks on the ground it needs. */
+export const TRACKPAD_AUTO = Object.freeze({ ms: 8000, clicks: 2 });
+
+/**
+ * Auto trackpad rule: 'never' once the right button was pressed (a mouse player, never switched), 'switch' when the
+ * player has played at least TRACKPAD_AUTO.ms and left-clicked the ground at least TRACKPAD_AUTO.clicks times
+ * without a right-click, else 'wait'.
+ */
+export function trackpadAutoRule(s: { playMs: number; groundClicks: number; rightPressed: boolean }): 'switch' | 'never' | 'wait' {
+  if (s.rightPressed) return 'never';
+  return s.playMs >= TRACKPAD_AUTO.ms && s.groundClicks >= TRACKPAD_AUTO.clicks ? 'switch' : 'wait';
+}

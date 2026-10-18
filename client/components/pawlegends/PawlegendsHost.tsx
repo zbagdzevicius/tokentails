@@ -539,7 +539,7 @@ export const PawlegendsHost = ({
   return (
     <div
       className="fixed inset-0 overflow-hidden bg-tt-night-900"
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "none", overscrollBehavior: "none" }}
       data-testid="pawlegends-host"
       data-bridge={bridgeState}
       data-store={isApp ? "0" : "1"}

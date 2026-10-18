@@ -10,8 +10,8 @@ describe('first-match tips', () => {
     const root = document.createElement('div');
     const tips = new Tips(root, true);
     const text: Record<TipId, RegExp> = {
-      move: /Right-click the ground/,
-      attack: /Right-click an enemy minion/,
+      move: /right-click the ground/i,
+      attack: /right-click an enemy minion/i,
       q: /Press Q/,
       dodge: /Press E to Tumble out of the way/,
       ult: /Press R for your ultimate/,
@@ -28,6 +28,21 @@ describe('first-match tips', () => {
     // Once done, a tip never comes back.
     tips.trigger('move');
     expect(tips.current).toBeNull();
+  });
+
+  it('re-words the move tip when Auto flips the pad mode mid-tip', () => {
+    const root = document.createElement('div');
+    const tips = new Tips(root, true);
+    let pad: boolean | null = null;
+    tips.padMode = () => pad;
+    tips.trigger('move');
+    expect(shown(root)).toMatch(/^Click or right-click the ground/);
+    pad = true;
+    tips.update(0.1);
+    expect(shown(root)).toMatch(/^Click the ground/);
+    pad = false;
+    tips.update(0.1);
+    expect(shown(root)).toMatch(/^Right-click the ground/);
   });
 
   it('hides after 8 s on its own', () => {
