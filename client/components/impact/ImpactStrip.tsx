@@ -24,8 +24,10 @@ interface ImpactStripProps {
   onPausedChange?: (paused: boolean) => void;
   /** Fill the parent's width instead of the default `min(92vw, 54rem)`. */
   fill?: boolean;
-  /** Narrow boards: the tiles wrap onto two rows. */
+  /** Narrower boards: the tiles take two rows. */
   stacked?: boolean;
+  /** The narrowest boards (the md edge): three rows, so no tile or chip is cut. */
+  narrow?: boolean;
   /** Test seam for the paw countdown. */
   now?: Date | null;
   className?: string;
@@ -45,6 +47,9 @@ export function splitAmount(amount: string): { figure: string; unit: string } {
   return m ? { figure: m[1], unit: m[2] } : { figure: amount, unit: "" };
 }
 
+/** App builds' "· FX 2026-10-18" unit: the FX date, shown once per slot instead of after every coin. */
+const FX_UNIT = /^·\s*FX\s+(\S+)$/;
+
 /** "18 Oct 2026" → "18 Oct" for the tile face; the full date stays in its tooltip and accessible name. */
 function shortDate(date: string | null): string | null {
   return date ? date.replace(/\s\d{4}$/, "") : null;
@@ -52,17 +57,25 @@ function shortDate(date: string | null): string | null {
 
 /* One look for every slot on the board: a dark inset well under the gold frame. */
 const SLOT =
-  "relative flex min-w-0 flex-col justify-center gap-[0.2rem] rounded-lg border-2 border-tt-gold-500/35 bg-tt-night-950/60 px-[0.6rem] py-[0.3rem] shadow-[inset_0_2px_0_rgb(0_0_0/0.45),0_1px_0_rgb(var(--tt-gold-400)/0.12)]";
+  "relative flex min-w-0 flex-col justify-center gap-[0.25rem] rounded-lg border-2 border-tt-gold-500/35 bg-tt-night-950/60 px-[0.6rem] py-[0.3rem] shadow-[inset_0_2px_0_rgb(0_0_0/0.45),0_1px_0_rgb(var(--tt-gold-400)/0.12)]";
+/* Tile widths keep one rhythm: the paw and the company-reported slot hug their content, the
+   money slots share the rest (shelters, with up to three coins, get more). */
+const GROW_TREATS = "flex-[1_1_auto]";
+const GROW_SHELTERS = "flex-[1.6_1_auto]";
 /* The tile's caption: small gold caps with its icon. */
 const LABEL =
   "flex min-w-0 items-center gap-[0.3rem] whitespace-nowrap font-primary text-[length:max(11px,0.7rem)] uppercase leading-none tracking-wider text-tt-gold-400";
 /* Scoreboard numerals. */
 const FIGURE =
-  "font-primary text-[length:max(18px,1.3rem)] leading-none text-tt-cream [text-shadow:0_2px_0_rgb(var(--tt-night-950))]";
-const UNIT = "font-primary text-[length:max(11px,0.7rem)] uppercase leading-none tracking-wide text-tt-cream/80";
-/* Date and chips under a figure. */
+  "font-primary text-[length:max(22px,1.6rem)] leading-none text-tt-cream [text-shadow:0_2px_0_rgb(var(--tt-night-950))]";
+/* The company-reported slot's figure: a step smaller than the on-chain numerals. */
+const FIGURE_SM =
+  "font-primary text-[length:max(17px,1.25rem)] leading-none text-tt-cream/90 [text-shadow:0_2px_0_rgb(var(--tt-night-950))]";
+/* Coin symbols as written ("USDC.e", not "USDC.E"). */
+const UNIT = "font-primary text-[length:max(11px,0.75rem)] leading-none tracking-wide text-tt-cream/80";
+/* Date (and the app's FX date) beside a figure. */
 const META =
-  "flex min-w-0 flex-wrap items-center gap-x-[0.35rem] gap-y-0.5 font-primary text-[length:max(11px,0.7rem)] uppercase leading-none tracking-wide text-tt-muted";
+  "flex shrink-0 items-center gap-x-[0.35rem] whitespace-nowrap font-primary text-[length:max(10px,0.65rem)] uppercase leading-none tracking-wide text-tt-muted";
 
 const TileIcon = ({ name, src }: { name?: PixelIconName; src?: string }) =>
   src ? (
@@ -73,7 +86,14 @@ const TileIcon = ({ name, src }: { name?: PixelIconName; src?: string }) =>
     </span>
   );
 
-/** The date with a calendar glyph; the full "as of" date on hover. */
+/** A pixel clock for the paw countdown, drawn on a 7 px grid. */
+const ClockGlyph = () => (
+  <svg aria-hidden="true" viewBox="0 0 7 7" width="10" height="10" shapeRendering="crispEdges" fill="currentColor" className="shrink-0">
+    <path d="M2 0h3v1H2zM1 1h1v1H1zM5 1h1v1H5zM0 2h1v3H0zM6 2h1v3H6zM1 5h1v1H1zM5 5h1v1H5zM2 6h3v1H2zM3 2h1v2H3zM4 3h1v1H4z" />
+  </svg>
+);
+
+/** The short date; the full "as of" date on hover. */
 const AsOf = ({ date }: { date: string | null }) =>
   date ? (
     <span className="whitespace-nowrap" title={`As of ${date}`} data-testid="board-asof">
@@ -82,10 +102,10 @@ const AsOf = ({ date }: { date: string | null }) =>
   ) : null;
 
 /**
- * Today's paw as a stamp card: one stamp per run, the runs left and how long today's runs still
- * count. The full sentence is in the screen-reader text.
+ * Today's paw as a stamp card: one paw stamp per run (gold once earned), the runs left and how long
+ * today's runs still count. The full sentence is in the screen-reader text.
  */
-const PawTile = ({ view, now: nowProp }: { view: PawView; now?: Date | null }) => {
+const PawTile = ({ view, now: nowProp, className }: { view: PawView; now?: Date | null; className?: string }) => {
   const ticking = useClock();
   const now = nowProp === undefined ? ticking : nowProp;
   const left = now ? timeLeft(view.closesAt, now) : null;
@@ -101,7 +121,7 @@ const PawTile = ({ view, now: nowProp }: { view: PawView; now?: Date | null }) =
       : view.text;
 
   return (
-    <div data-testid="paw-progress" data-paw-state={view.state} className={clsx(SLOT, "shrink-0")}>
+    <div data-testid="paw-progress" data-paw-state={view.state} className={clsx(SLOT, className)}>
       <span className="sr-only" data-testid="paw-text">
         {view.text}
         {countdown ? `. ${countdown}.` : ""}
@@ -113,27 +133,28 @@ const PawTile = ({ view, now: nowProp }: { view: PawView; now?: Date | null }) =
           <span
             data-testid="paw-countdown"
             title={countdown ?? undefined}
-            className="ml-auto inline-flex items-center gap-[0.2rem] pl-1 text-tt-muted"
+            className="ml-auto inline-flex items-center gap-[0.25rem] pl-2 text-tt-muted"
           >
+            <ClockGlyph />
             {left}
           </span>
         )}
       </span>
-      <span aria-hidden="true" className="flex min-w-0 items-center gap-[0.4rem]">
+      <span aria-hidden="true" className="flex min-w-0 items-center gap-[0.45rem]">
         {runs && (
-          <span className="flex shrink-0 items-center gap-[0.2rem]" data-testid="paw-stamps">
+          <span className="flex shrink-0 items-center gap-[0.25rem]" data-testid="paw-stamps">
             {Array.from({ length: runs.needed }, (_, i) => (
               <span
                 key={i}
                 data-done={i < runs.done || undefined}
                 className={clsx(
-                  "inline-flex h-[1.15rem] w-[1.15rem] items-center justify-center rounded-[3px] border-2",
+                  "inline-flex h-[max(22px,1.4rem)] w-[max(22px,1.4rem)] items-center justify-center rounded-[3px] border-2",
                   i < runs.done
-                    ? "border-tt-gold-400 bg-tt-gold-400 text-tt-gold-ink shadow-[0_2px_0_rgb(var(--tt-gold-shadow))]"
-                    : "border-dashed border-tt-cream/60 bg-tt-night-900/80 text-tt-cream/55"
+                    ? "border-tt-gold-500 bg-tt-gold-400 text-tt-gold-ink shadow-[0_2px_0_rgb(var(--tt-gold-shadow))]"
+                    : "border-tt-gold-500/50 bg-tt-night-900/80 text-tt-gold-400/40"
                 )}
               >
-                <PixelIcon name={i < runs.done ? "check" : "paw"} size={10} />
+                <PixelIcon name="paw" size={14} />
               </span>
             ))}
           </span>
@@ -152,7 +173,10 @@ const PawTile = ({ view, now: nowProp }: { view: PawView; now?: Date | null }) =
   );
 };
 
-/** A money tile: a caption, the amount(s) as scoreboard numerals (one per coin), date and chips. */
+/**
+ * A money tile: the caption with its chips on one line, then the amount(s) as scoreboard numerals
+ * (one per coin, never summed) with the as-of date (and in app builds the FX date, once).
+ */
 const MoneyFace = ({
   label,
   icon,
@@ -165,31 +189,40 @@ const MoneyFace = ({
   parts: string[];
   date: string | null;
   chips: ReactNode;
-}) => (
-  <>
-    <span className="flex min-w-0 flex-wrap items-center gap-x-[0.6rem] gap-y-[0.2rem]">
-      <span className={LABEL}>
-        {icon}
-        {label}
+}) => {
+  const amounts = parts.map((part) => {
+    const { figure, unit } = splitAmount(part);
+    const fx = FX_UNIT.exec(unit)?.[1] ?? null;
+    return { part, figure, unit: fx ? "" : unit, fx };
+  });
+  const fx = amounts.find((a) => a.fx)?.fx ?? null;
+  return (
+    <>
+      {/* Caption and chips share a line; if the slot is ever too tight the chips drop below, never over. */}
+      <span className="flex min-w-0 flex-wrap items-center gap-x-[0.6rem] gap-y-[0.2rem]">
+        <span className={clsx(LABEL, "shrink-0")}>
+          {icon}
+          {label}
+        </span>
+        <span className="ml-auto flex shrink-0 items-center">{chips}</span>
       </span>
-      <span className={clsx(META, "ml-auto flex-nowrap")}>
-        <AsOf date={date} />
-        {chips}
+      <span className="flex min-w-0 items-baseline gap-x-[0.6rem]">
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-[0.7rem] gap-y-[0.2rem]" data-testid="board-amounts">
+          {amounts.map(({ part, figure, unit }) => (
+            <span key={part} data-testid="board-amount" className="inline-flex items-baseline gap-[0.2rem] whitespace-nowrap">
+              <span className={FIGURE}>{figure}</span>
+              {unit && <span className={UNIT}>{unit}</span>}
+            </span>
+          ))}
+        </span>
+        <span className={clsx(META, "ml-auto")}>
+          {fx && <span data-testid="board-fx">FX {fx}</span>}
+          <AsOf date={date} />
+        </span>
       </span>
-    </span>
-    <span className="flex min-w-0 items-baseline gap-x-[0.6rem]" data-testid="board-amounts">
-      {parts.map((part) => {
-        const { figure, unit } = splitAmount(part);
-        return (
-          <span key={part} data-testid="board-amount" className="inline-flex items-baseline gap-[0.2rem] whitespace-nowrap">
-            <span className={FIGURE}>{figure}</span>
-            {unit && <span className={UNIT}>{unit}</span>}
-          </span>
-        );
-      })}
-    </span>
-  </>
-);
+    </>
+  );
+};
 
 const FIGURE_LOOK: Record<string, { label: string; icon: ReactNode }> = {
   // claim: L-treats (a caption for the figure; the accessible name says "Token Tails has sent …")
@@ -198,7 +231,7 @@ const FIGURE_LOOK: Record<string, { label: string; icon: ReactNode }> = {
   "L-disbursed": { label: "Paid to shelters", icon: <TileIcon src={cdnFile("logo/heart.webp")} /> },
 };
 
-const MoneyTile = ({ figure, isApp }: { figure: LiveFigure; isApp: boolean }) => {
+const MoneyTile = ({ figure, isApp, className }: { figure: LiveFigure; isApp: boolean; className?: string }) => {
   const look = FIGURE_LOOK[figure.id] ?? { label: "", icon: null };
   const parts = figure.parts?.length ? figure.parts : figure.values.amount ? [figure.values.amount] : [];
   return (
@@ -209,7 +242,7 @@ const MoneyTile = ({ figure, isApp }: { figure: LiveFigure; isApp: boolean }) =>
       tier={figure.tier}
       isApp={isApp}
       variant="tile"
-      className={clsx(SLOT, "flex-auto hover:border-tt-gold-400/80")}
+      className={clsx(SLOT, "hover:border-tt-gold-400/80", className)}
       face={({ date, chips }: ClaimFaceParts) => (
         <MoneyFace label={look.label} icon={look.icon} parts={parts} date={date} chips={chips} />
       )}
@@ -220,10 +253,11 @@ const MoneyTile = ({ figure, isApp }: { figure: LiveFigure; isApp: boolean }) =>
 /**
  * The md+ lobby impact board (plan G4 "Client"): a gold-framed scoreboard of slots. Today's paw as
  * stamps, then what Token Tails has sent (treats, and to shelters one numeral per coin, never
- * summed), then the company-reported direct donations; MY IMPACT, PROOF and the pause on the right.
- * Every money slot is a <Claim> (its drawer, its tier and status chips, its as-of date); the slots'
- * accessible names are the full sentences. Nothing rotates or announces itself (`aria-live="off"`).
- * The pause stops the lobby's looping motion (lobbyMotion.ts, WCAG 2.2.2).
+ * summed), then the company-reported direct donations, a step smaller; MY IMPACT, PROOF and the
+ * pause on the right. Every money slot is a <Claim> (its drawer, its tier and status chips, its
+ * as-of date); the slots' accessible names are the full sentences. Nothing rotates or announces
+ * itself (`aria-live="off"`). The pause stops the lobby's looping motion (lobbyMotion.ts, WCAG 2.2.2).
+ * One row on wide boards, two on `stacked`, three on `narrow` ones, so nothing is ever cut.
  */
 export const ImpactStrip = ({
   impact,
@@ -235,6 +269,7 @@ export const ImpactStrip = ({
   onPausedChange,
   fill = false,
   stacked = false,
+  narrow = false,
   now,
   className,
 }: ImpactStripProps) => {
@@ -244,7 +279,10 @@ export const ImpactStrip = ({
     setPausedLocal(next);
     onPausedChange?.(next);
   };
+  const rows = narrow ? 3 : stacked ? 2 : 1;
   const figures = stripFigures(impact, isApp);
+  const treats = figures.find((f) => f.id === "L-treats") ?? null;
+  const shelters = figures.find((f) => f.id === "L-disbursed") ?? null;
   const given = givenDirectlyShort();
   const pauseTitle = paused ? "Lobby animations paused. Play them again" : "Pause the lobby animations";
 
@@ -252,7 +290,7 @@ export const ImpactStrip = ({
     "inline-flex min-h-[24px] items-center justify-center gap-1 px-1 font-primary text-[length:max(12px,0.75rem)] uppercase leading-none text-tt-cream underline decoration-dotted underline-offset-4 hover:text-tt-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400";
 
   const actions = (
-    <div className={clsx("flex shrink-0 items-center gap-[0.35rem] pl-[0.15rem]", stacked && "ml-auto")}>
+    <div className={clsx("flex shrink-0 items-center gap-[0.5rem] pl-[0.15rem]", rows > 1 && "ml-auto")}>
       <button
         type="button"
         onClick={onOpenImpact}
@@ -269,19 +307,21 @@ export const ImpactStrip = ({
           Proof
         </Link>
       )}
-      {/* The lobby's pause (WCAG 2.2.2): stops every looping animation on screen and stills the cat GIFs. */}
+      {/* The lobby's pause (WCAG 2.2.2): stops every looping animation on screen and stills the cat GIFs.
+          Paused, it shows a gold play triangle in a gold-rimmed well (not a second gold button). */}
       <button
         type="button"
         data-testid="impact-strip-pause"
+        data-paused={paused || undefined}
         aria-pressed={paused}
         aria-label="Pause lobby animations"
         title={pauseTitle}
         onClick={() => setPaused(!paused)}
         className={clsx(
-          "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 after:absolute after:-inset-2 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
+          "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 bg-tt-night-950/70 after:absolute after:-inset-1 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
           paused
-            ? "border-tt-gold-400 bg-tt-gold-400 text-tt-gold-ink"
-            : "border-tt-gold-500/50 bg-tt-night-950/60 text-tt-gold-400/80 hover:border-tt-gold-500 hover:text-tt-cream"
+            ? "border-tt-gold-400 text-tt-gold-400 shadow-[0_0_8px_rgb(var(--tt-gold-400)/0.45)]"
+            : "border-tt-gold-500/50 text-tt-gold-400/80 hover:border-tt-gold-500 hover:text-tt-cream"
         )}
       >
         {/* Pixel pause bars / play triangle, drawn on a 7 px grid. */}
@@ -292,18 +332,135 @@ export const ImpactStrip = ({
     </div>
   );
 
+  // The money slots, or what stands in for them: empty slots while loading, a plain line when the
+  // snapshot could not be read (no figure is better than a wrong "none yet"), the future-tense
+  // empty state when nothing has been paid.
+  const unavailable = !impact && !loading;
+  const placeholder =
+    figures.length > 0 ? null : loading ? (
+      <>
+        <span className="sr-only">Loading the impact figures.</span>
+        {[GROW_TREATS, GROW_SHELTERS].map((grow) => (
+          <span
+            key={grow}
+            aria-hidden="true"
+            data-testid="impact-strip-skeleton"
+            className={clsx(SLOT, grow, "min-w-[9rem]")}
+          >
+            <span className="h-[0.6rem] w-[5rem] rounded-sm bg-tt-gold-400/20" />
+            <span className="h-[1.4rem] w-[7rem] rounded-sm bg-tt-cream/15" />
+          </span>
+        ))}
+      </>
+    ) : unavailable ? (
+      <span
+        data-testid="impact-strip-unavailable"
+        className={clsx(SLOT, "min-w-0 flex-1 font-secondary text-[length:max(13px,0.85rem)] leading-tight text-tt-cream/90")}
+      >
+        The live figures could not load. PROOF has the full record.
+      </span>
+    ) : (
+      // claim: L-treats (empty state: nothing is sent yet, so the line is future tense)
+      <span
+        data-testid="impact-strip-empty"
+        className={clsx(SLOT, "min-w-0 flex-1 font-secondary text-[length:max(13px,0.85rem)] leading-tight text-tt-cream/90")}
+      >
+        No treat-rail payouts yet. The first goes out when the rail opens.
+      </span>
+    );
+
+  const treatsTile = treats && <MoneyTile key="treats" figure={treats} isApp={isApp} className={GROW_TREATS} />;
+  const sheltersTile = shelters && <MoneyTile key="shelters" figure={shelters} isApp={isApp} className={GROW_SHELTERS} />;
+  const givenTile = given && (
+    // claim: F-026 (its registry `short` wording; the drawer shows the full words, the slot its
+    // COMPANY-REPORTED chip and its date)
+    <Claim
+      key="given"
+      id={GIVEN_DIRECTLY_ID}
+      text={given}
+      isApp={isApp}
+      variant="tile"
+      className={clsx(SLOT, rows === 1 ? "flex-none" : "flex-[1_1_auto]", "hover:border-tt-gold-400/80")}
+      face={({ figure, rest, date, chips }: ClaimFaceParts) => (
+        <>
+          <span className={LABEL}>
+            <TileIcon src={cdnFile("logo/chest.webp")} />
+            {rest}
+          </span>
+          <span className="flex min-w-0 items-baseline gap-x-[0.5rem]">
+            {figure && <span className={FIGURE_SM}>{figure}</span>}
+            <span className={clsx(META, "ml-auto")}>
+              <AsOf date={date} />
+              {chips}
+            </span>
+          </span>
+        </>
+      )}
+    />
+  );
+
+  const ROW = "flex min-w-0 items-stretch gap-[0.35rem]";
+  let body: ReactNode;
+  if (rows === 1) {
+    body = (
+      <>
+        <PawTile view={paw} now={now} className="shrink-0" />
+        <div data-testid="impact-strip-rail" className={clsx(ROW, "flex-1")}>
+          {treatsTile}
+          {sheltersTile}
+          {placeholder}
+          {givenTile}
+        </div>
+        {actions}
+      </>
+    );
+  } else if (rows === 2) {
+    // Today's paw, the company-reported slot and the buttons on top; the on-chain money below.
+    body = (
+      <>
+        <div className={ROW}>
+          <PawTile view={paw} now={now} className="flex-[1_1_auto]" />
+          {givenTile}
+          {actions}
+        </div>
+        <div data-testid="impact-strip-rail" className={ROW}>
+          {treatsTile}
+          {sheltersTile}
+          {placeholder}
+        </div>
+      </>
+    );
+  } else {
+    // The md edge: today's paw and the buttons; treats and the company-reported slot; shelters.
+    body = (
+      <>
+        <div className={ROW}>
+          <PawTile view={paw} now={now} className="flex-1" />
+          {actions}
+        </div>
+        <div data-testid="impact-strip-rail" className={ROW}>
+          {treatsTile}
+          {givenTile}
+        </div>
+        <div className={ROW}>
+          {sheltersTile}
+          {placeholder}
+        </div>
+      </>
+    );
+  }
+
   return (
     <section
       data-testid="impact-strip"
-      data-stacked={stacked || undefined}
+      data-rows={rows}
+      data-stacked={rows > 1 || undefined}
       aria-label="Rescue impact"
       aria-live="off"
       className={clsx(
-        "pointer-events-auto relative flex items-stretch rounded-xl border-[3px] border-tt-gold-500 bg-[linear-gradient(to_bottom,rgb(var(--tt-night-700)/0.95),rgb(var(--tt-night-900)/0.95))] p-[0.35rem] text-tt-cream shadow-[0_4px_0_rgb(var(--tt-night-950)),inset_0_2px_0_rgb(var(--tt-gold-400)/0.25),0_0_24px_rgb(var(--tt-gold-400)/0.12)] backdrop-blur-sm lowfx:backdrop-blur-none",
+        "pointer-events-auto relative flex gap-[0.35rem] rounded-xl border-[3px] border-tt-gold-500 bg-[linear-gradient(to_bottom,rgb(var(--tt-night-700)/0.95),rgb(var(--tt-night-900)/0.95))] p-[0.35rem] text-tt-cream shadow-[0_4px_0_rgb(var(--tt-night-950)),inset_0_2px_0_rgb(var(--tt-gold-400)/0.25),0_0_24px_rgb(var(--tt-gold-400)/0.12)] backdrop-blur-sm lowfx:backdrop-blur-none",
         fill ? "w-full" : "w-[min(92vw,54rem)]",
-        stacked ? "flex-wrap gap-[0.35rem]" : "gap-[0.35rem]",
-        // Chips keep the board's small caps and stay on one line.
-        "[&_[data-chip]]:px-1 [&_[data-chip]]:py-px [&_[data-chip]]:text-[length:max(10px,0.62rem)]",
+        rows === 1 ? "items-stretch" : "flex-col",
         className
       )}
     >
@@ -311,70 +468,7 @@ export const ImpactStrip = ({
       {["left-1 top-1", "right-1 top-1", "left-1 bottom-1", "right-1 bottom-1"].map((at) => (
         <span key={at} aria-hidden="true" className={clsx("pointer-events-none absolute h-1 w-1 bg-tt-gold-500/70", at)} />
       ))}
-
-      <PawTile view={paw} now={now} />
-      {/* Narrow boards: today's paw and the buttons on the first row, the money slots below. */}
-      {stacked && actions}
-
-      <div
-        data-testid="impact-strip-rail"
-        className={clsx("flex min-w-0 items-stretch gap-[0.35rem]", stacked ? "basis-full" : "flex-1")}
-      >
-        {figures.length > 0 ? (
-          figures.map((f) => <MoneyTile key={f.id} figure={f} isApp={isApp} />)
-        ) : loading ? (
-          <>
-            <span className="sr-only">Loading the impact figures.</span>
-            {[0, 1].map((i) => (
-              <span
-                key={i}
-                aria-hidden="true"
-                data-testid="impact-strip-skeleton"
-                className={clsx(SLOT, "w-[9rem] shrink-0")}
-              >
-                <span className="h-[0.6rem] w-[5rem] rounded-sm bg-tt-gold-400/20" />
-                <span className="h-[1.1rem] w-[6rem] rounded-sm bg-tt-cream/15" />
-              </span>
-            ))}
-          </>
-        ) : (
-          // claim: L-treats (empty state: nothing is sent yet, so the line is future tense)
-          <span
-            data-testid="impact-strip-empty"
-            className={clsx(SLOT, "min-w-0 flex-1 font-secondary text-[length:max(13px,0.85rem)] leading-tight text-tt-cream/90")}
-          >
-            No treat-rail payouts yet. The first goes out when the rail opens.
-          </span>
-        )}
-        {given && (
-          // claim: F-026 (its registry `short` wording; the drawer shows the full words, the slot its
-          // COMPANY-REPORTED chip and its date)
-          <Claim
-            id={GIVEN_DIRECTLY_ID}
-            text={given}
-            isApp={isApp}
-            variant="tile"
-            className={clsx(SLOT, "min-w-0 flex-auto hover:border-tt-gold-400/80")}
-            face={({ figure, rest, date, chips }: ClaimFaceParts) => (
-              <>
-                <span className={LABEL}>
-                  <TileIcon src={cdnFile("logo/chest.webp")} />
-                  <span className="truncate">{rest}</span>
-                </span>
-                <span className="flex min-w-0 items-center gap-x-[0.4rem]">
-                  {figure && <span className={FIGURE}>{figure}</span>}
-                  <span className={META}>
-                    <AsOf date={date} />
-                    {chips}
-                  </span>
-                </span>
-              </>
-            )}
-          />
-        )}
-      </div>
-
-      {!stacked && actions}
+      {body}
     </section>
   );
 };

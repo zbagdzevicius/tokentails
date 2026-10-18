@@ -345,6 +345,11 @@ const LobbyScene = ({
   // The entrance plays once per lobby visit; a paused lobby skips it (a held one-shot animation
   // would hide the cat), and resuming never replays it.
   const [entered, setEntered] = useState(false);
+  // A pause (or a lobby entered already paused) counts as the entrance: resuming never plays it late.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (motionPaused) setEntered(true);
+  }, [motionPaused]);
   const appear = !justFinished && !reducedMotion && !motionPaused && !entered;
   const wingClass = (wing: typeof leftWing) =>
     classNames(
@@ -370,6 +375,7 @@ const LobbyScene = ({
     <div
       className="pointer-events-none fixed inset-0 z-hud overflow-hidden"
       data-testid="lobby-scene"
+      data-lobby-motion
       data-mode={mode}
       data-circle={`${Math.round(stage.cx)} ${Math.round(stage.cy)} ${Math.round(stage.rx)} ${Math.round(stage.ry)}`}
       // Placed from the measured viewport: hidden for the one frame before it is known.
@@ -390,6 +396,7 @@ const LobbyScene = ({
             onPausedChange={setLobbyMotionPaused}
             fill
             stacked={strip.stacked}
+            narrow={strip.narrow}
             className="hidden md:flex [@media(max-height:640px)]:hidden"
           />
         </div>

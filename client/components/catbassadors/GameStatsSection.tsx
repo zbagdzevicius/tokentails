@@ -1,5 +1,6 @@
 import { bgStyle, cdnFile } from "@/constants/utils";
 import { useLobbyMotionPaused, useStillFrame } from "@/components/game/lobbyMotion";
+import { useReducedMotion } from "@/components/onboarding/useReducedMotion";
 import { HUD_LEFT, HUD_RIGHT, HUD_TOP } from "@/components/audio/hudPlacement";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { useGame } from "@/context/GameContext";
@@ -47,9 +48,10 @@ export const GameStatsSection = ({
   setOpenedModal: (modal: GameModal) => void;
 }) => {
   const { gameType } = useGame();
-  // The lobby's pause also holds the ABOUT ME cat still (components/game/lobbyMotion.ts).
+  // The lobby's pause, and reduced motion, hold the ABOUT ME cat still (components/game/lobbyMotion.ts).
   const motionPaused = useLobbyMotionPaused();
-  const aboutCatStill = useStillFrame(profile?.cat?.catImg, motionPaused);
+  const reducedMotion = useReducedMotion();
+  const aboutCatStill = useStillFrame(profile?.cat?.catImg, motionPaused || reducedMotion);
   const catnipBreakdown = getCatnipBreakdown({
     catnipChaos: profile?.catnipChaos,
     match3: profile?.match3,
@@ -59,7 +61,8 @@ export const GameStatsSection = ({
     return <></>;
   }
   return (
-    <div>
+    // data-lobby-motion: the lobby's pause holds this HUD's loops too (styles/globals.scss).
+    <div data-lobby-motion>
       {/* Corner panels, inset past the notch and the landscape camera cutout (hudPlacement). */}
       <div className="fixed flex-col pb-safe z-30 flex justify-between" style={{ top: HUD_TOP, right: HUD_RIGHT }}>
         {/* A real button (keyboard and screen readers). The picker's X no longer sits over it:
@@ -125,11 +128,11 @@ export const GameStatsSection = ({
               />
               <img
                 src={cdnFile("cards/backgrounds/legendary-sparkle.webp")}
-                className="absolute -top-3 left-1/2 -translate-x-1/2 h-8 w-8 object-contain opacity-60 animate-spin-slow pointer-events-none"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 h-8 w-8 object-contain opacity-60 motion-safe:animate-spin-slow pointer-events-none"
                 alt=""
               />
-              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-tt-cream/0 via-tt-cream/70 to-tt-cream/0 animate-pulse pointer-events-none" />
-              <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-tt-cream border border-yellow-900 animate-ping pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-tt-cream/0 via-tt-cream/70 to-tt-cream/0 motion-safe:animate-pulse pointer-events-none" />
+              <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-tt-cream border border-yellow-900 motion-safe:animate-ping pointer-events-none" />
               <img
                 src={cdnFile("codex/codex-1.webp")}
                 className="h-9 -my-1 -mb-1 relative z-10 drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110"

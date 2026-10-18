@@ -207,22 +207,62 @@ test.describe("lobby impact (G4, task 5e)", () => {
       await expect(page.getByTestId("paw-countdown").first()).toHaveText(/^1[12]h \d+m$/);
       await expect(page.getByTestId("paw-countdown").first()).toHaveAttribute("title", /^1[12]h \d+m left today/);
       await expect(page.getByTestId("shelter-tile-caption")).toHaveText(/Meet cats/i);
-      // One pause stops the lobby's looping motion (lobbyMotion.ts): <html> is marked for the CSS
-      // and the RESCUE heart holds still; a second tap plays it again.
-      const pause = page.getByRole("button", { name: "Pause lobby animations" });
-      await pause.click();
-      await expect(pause).toHaveAttribute("aria-pressed", "true");
-      await expect(page.locator("html")).toHaveAttribute("data-motion-paused", "");
-      await expect(page.getByTestId("rescue-heart")).toHaveAttribute("data-paused", "true");
-      await pause.click();
-      await expect(pause).toHaveAttribute("aria-pressed", "false");
-      await expect(page.locator("html")).not.toHaveAttribute("data-motion-paused", "");
     } else {
       // Phones: the strip's one-line chip under the circle, with today's paw; it opens IMPACT.
       await expect(page.getByTestId("impact-strip")).toBeHidden();
       await expect(page.getByTestId("impact-chip")).toBeVisible();
       await expect(page.getByTestId("impact-chip-paw")).toHaveText("1 more run for today's paw");
     }
+  });
+
+  test("the board's pause holds the lobby still, and modals still open dimmed", async ({ page, backend }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "The board shows from md up.");
+    await openLobby(page, backend);
+    const pause = page.getByRole("button", { name: "Pause lobby animations" });
+    await pause.click();
+    await expect(pause).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveAttribute("data-motion-paused", "");
+    await expect(page.getByTestId("rescue-heart")).toHaveAttribute("data-paused", "true");
+    // No looping animation runs inside the lobby's layers while paused.
+    const running = await page.evaluate(() =>
+      document
+        .getAnimations()
+        .filter((a) => a.playState === "running")
+        .filter((a) => {
+          const target = (a.effect as KeyframeEffect | null)?.target as Element | null;
+          return !!target?.closest("[data-lobby-motion]");
+        }).length
+    );
+    expect(running).toBe(0);
+    // A modal opened while paused is not frozen at its first frame: its scrim dims the lobby.
+    await page.getByRole("button", { name: "PLAY", exact: true }).click();
+    const scrim = page.getByTestId("game-modal-scrim").first();
+    await expect(scrim).toBeVisible();
+    await expect
+      .poll(() => scrim.evaluate((el) => Number(getComputedStyle(el).opacity)))
+      .toBeGreaterThan(0.5);
+    await page.keyboard.press("Escape");
+    await pause.click();
+    await expect(pause).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("html")).not.toHaveAttribute("data-motion-paused", "");
+  });
+
+  test("the board cuts no slot or proof label at the md edge", async ({ page, backend }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "Desktop only; resized to 768 wide.");
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openLobby(page, backend);
+    const board = page.getByTestId("impact-strip");
+    await expect(board).toBeVisible();
+    const cut = await board.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return Array.from(el.querySelectorAll<HTMLElement>("[data-claim], [data-chip], [data-testid=paw-progress]"))
+        .filter((n) => {
+          const r = n.getBoundingClientRect();
+          return n.scrollWidth > n.clientWidth + 1 || r.right > box.right + 1 || r.left < box.left - 1;
+        })
+        .map((n) => n.getAttribute("data-claim") || n.getAttribute("data-chip") || n.getAttribute("data-testid"));
+    });
+    expect(cut).toEqual([]);
   });
 
   test("axe: lobby", async ({ page, backend }, testInfo) => {

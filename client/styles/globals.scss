@@ -304,11 +304,12 @@ $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
 }
 
 // The lobby's pause (components/game/lobbyMotion.ts, WCAG 2.2.2): while <html> carries
-// data-motion-paused, every looping CSS animation on screen holds still, except inside dialogs
-// (their loaders and the spin wheel keep working).
-html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *),
-html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *)::before,
-html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *)::after {
+// data-motion-paused, every CSS animation inside the lobby's own layers (marked data-lobby-motion:
+// the lobby scene, the corner HUD, the petals) holds still. Dialogs, their scrims and anything else
+// portalled to <body> sit outside those layers and keep animating, so a modal never opens undimmed.
+html[data-motion-paused] [data-lobby-motion] *:not([role="dialog"], [role="dialog"] *),
+html[data-motion-paused] [data-lobby-motion] *:not([role="dialog"], [role="dialog"] *)::before,
+html[data-motion-paused] [data-lobby-motion] *:not([role="dialog"], [role="dialog"] *)::after {
   animation-play-state: paused !important;
 }
 
