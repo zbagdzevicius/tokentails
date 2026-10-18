@@ -20,9 +20,8 @@ import { apiUrl } from "@/api/api";
 import { loadPayoutIndex, type PayoutIndex } from "@/components/shelter-payouts/payoutIndex";
 import { useEffect, useState } from "react";
 
-/** The rave page. `from` says which landing callout sent the visitor (the rave ignores it). */
-export const RAVE_PATH = "/rave";
-export const raveHref = (from: "landing_rave") => `${RAVE_PATH}?from=${from}`;
+/** The rave page and its links (`from` says which entry point sent the visitor; the rave ignores it). */
+export { RAVE_PATH, raveHref } from "@/components/rave/entry";
 
 /** The 7 mainnets of the Pink Paw splits, as cat-rave/src/config.ts CHAINS (Arc, Base, Arbitrum One, Avalanche, Tempo, Robinhood Chain, Monad). */
 export const RAVE_MAINNET_CHAIN_IDS: readonly number[] = Object.freeze([5042, 8453, 42161, 43114, 4217, 4663, 143]);

@@ -20,6 +20,8 @@ export const WEB_ONLY_FILES = Object.freeze([
   // Bad Cat Daily's poster and picker art: BadcatSection and the picker card never render in app builds.
   "landing/badcat/badcat-poster-v1.webp",
   "game-select/badcat-preview@2x.webp",
+  // The Moon Rave picker art: the picker card never renders in app builds (raveEntryEnabled).
+  "game-select/rave-preview@2x.webp",
 ]);
 
 export function pruneAppExport(outDir) {
