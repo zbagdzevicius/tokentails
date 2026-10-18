@@ -1,4 +1,5 @@
 /** Helpers for sim scenario tests: a quiet match (before the first wave) and hand-placed units. */
+import type { Difficulty } from '../../src/data/bots';
 import { MINIONS, MINION_KINDS, type MinionKind } from '../../src/data/minions';
 import { createMatch, fillPicks, type MatchHandle } from '../../src/sim/index';
 import { G, Kind, NEVER, RANGE, UnitState, allocMinion } from '../../src/sim/world';
@@ -10,9 +11,9 @@ export function botsOff(m: MatchHandle): MatchHandle {
 }
 
 /** A match with idle bots (the M1/M2 scenario baseline); `bots: true` keeps the bots thinking. */
-export function quietMatch(seed = 1, bots = false): MatchHandle {
+export function quietMatch(seed = 1, bots = false, difficulty: Difficulty = 'easy'): MatchHandle {
   const { picks, tricks } = fillPicks(seed, 'clem', 'pounce');
-  const m = createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const m = createMatch({ seed, picks, tricks, difficulty });
   return bots ? m : botsOff(m);
 }
 

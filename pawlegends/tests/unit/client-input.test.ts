@@ -1,3 +1,4 @@
+import { cellOf, createGrid, onPlayfield, snapCell } from '../../src/sim/map/grid';
 import { describe, expect, it } from 'vitest';
 import { aimFor, maxCooldown, trickAim } from '../../src/input/abilities';
 import { Orders, type OrderEnv } from '../../src/input/orders';
@@ -70,10 +71,16 @@ describe('orders → commands', () => {
     const env: OrderEnv = { send: (c) => sent.push(c), units: () => units, meId: 0, hero, trick: 'pounce', cooldowns: () => cds, level: () => level, nowMs: () => t };
     return { o: new Orders(env), sent, units, tick: (ms: number) => (t += ms) };
   }
-  it('clamps moves to the map and rounds to integers', () => {
+  it('keeps moves inside the map edge and rounds to integers (fun plan F3)', () => {
     const { o, sent } = rig();
     o.move(-5, 99999.6);
-    expect(sent[0]).toEqual({ op: Op.Move, x: 0, y: 60000 });
+    // Sim v5: the corner is forest, so the goal walks back along the line to the playfield.
+    const c = sent[0] as { op: number; x: number; y: number };
+    expect(c.op).toBe(Op.Move);
+    expect(Number.isInteger(c.x) && Number.isInteger(c.y)).toBe(true);
+    expect(onPlayfield(c.x, c.y) || snapCell(createGrid(), cellOf(c.x, c.y)) >= 0).toBe(true);
+    expect(c.x).toBeGreaterThanOrEqual(0);
+    expect(c.y).toBeLessThanOrEqual(60000);
   });
   it('a direction cast goes at once; a self cast at the hero', () => {
     const { o, sent } = rig();

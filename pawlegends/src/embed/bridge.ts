@@ -11,14 +11,20 @@ export const EMBED_VERSION = 1;
 export const DEFAULT_EMBED_ORIGINS = 'https://tokentails.com,https://www.tokentails.com';
 export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
 
-/** POC.md §11.1 types, plus the additive `offer{offer}` (a host that runs the server offer engine; optional). */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer'] as const);
+/**
+ * POC.md §11.1 types, plus the additive `offer{offer}` (the server offer engine), `save-result` (the host's save
+ * queue for a `match-result`) and `featured` (unowned direct-purchase cats, display only). Payload shapes:
+ * docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
+ */
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
- * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me): the game sends it only when the
- * host announced support with `app{notify: true}`, so an older host never sees it.
+ * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
+ * `request-sign-in{reason}`, `open-cat{catalogId}` (the host opens its Token Tails cat checkout) and
+ * `offer-seen{kind, catalogId}`. `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it
+ * never sends it (the host still answers older builds).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'purchase-intent', 'share', 'paused', 'notify'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {
@@ -110,3 +116,207 @@ export function installBridge(win: Window = window, version = String(import.meta
   }
   return { active: framed, post, on: (h) => void handlers.push(h) };
 }
+
+// ------------------------------------------------------------------------------------- payload parsers (pure)
+// Every parser takes an untrusted message and returns a clean value, or null for "malformed: ignore it". Unknown
+// fields are dropped, never passed on.
+
+/** Difficulty keys of `session.progress` (shared/caps.ts PAWLEGENDS_LEVELS). */
+export const PROGRESS_LEVELS = Object.freeze(['easy', 'normal', 'rookie'] as const);
+export type ProgressLevel = (typeof PROGRESS_LEVELS)[number];
+/** shared/caps.ts PAWLEGENDS_LEVEL_CAPS by level (display only: the backend pays; a unit test pins the mirror). */
+export const LEVEL_CATNIP: Readonly<Record<ProgressLevel, number>> = Object.freeze({ easy: 20, normal: 40, rookie: 10 });
+/** shared/caps.ts PAWLEGENDS_MAX_TICKS (30 Hz × 660 s). */
+export const PROGRESS_MAX = 19800;
+
+export interface Progress {
+  /** Catnip paid per level (first replay-verified win). */
+  catnip: Record<ProgressLevel, number>;
+  /** Saved matches per level. */
+  matches: Record<ProgressLevel, number>;
+  /** Fastest verified win per level in sim ticks (0 = none yet). */
+  fastestWin: Record<ProgressLevel, number>;
+}
+
+export const MATCH_ID = /^[a-z0-9]{1,16}$/;
+export const CATALOG_ID = /^[0-9a-f]{24}$/;
+/**
+ * Cat art may come only from the Token Tails NFT bucket, https: virtual-host style (`tokentails-nfts.fra1.cdn…`, any
+ * path, what `catImg` holds) or path-style (`fra1.cdn…/tokentails-nfts/…`). Anything else is dropped, never fetched.
+ */
+export const ART_HOST = 'fra1.cdn.digitaloceanspaces.com';
+export const ART_BUCKET_HOST = 'tokentails-nfts.fra1.cdn.digitaloceanspaces.com';
+export const ART_PATH = '/tokentails-nfts/';
+
+const int = (v: unknown, max: number): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max ? v : null);
+
+/** One level map: known levels only, a bad or missing value reads 0 (never a reason to drop the whole message). */
+function levelMap(v: unknown): Record<ProgressLevel, number> {
+  const o = v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  const out = {} as Record<ProgressLevel, number>;
+  for (const l of PROGRESS_LEVELS) out[l] = int(o[l], PROGRESS_MAX) ?? 0;
+  return out;
+}
+
+/** `session.progress`: null when absent or not an object (the game then keeps its local numbers). */
+export function parseProgress(v: unknown): Progress | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  return { catnip: levelMap(o.catnip), matches: levelMap(o.matches), fastestWin: levelMap(o.fastestWin) };
+}
+
+export interface SessionInfo {
+  signedIn: boolean;
+  progress: Progress | null;
+}
+
+export function parseSession(m: Record<string, unknown>): SessionInfo | null {
+  if (typeof m.signedIn !== 'boolean') return null;
+  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null };
+}
+
+export const SAVE_STATUSES = Object.freeze(['saving', 'saved', 'queued', 'failed', 'rejected'] as const);
+export type SaveStatus = (typeof SAVE_STATUSES)[number];
+
+export interface SaveResult {
+  matchId: string;
+  status: SaveStatus;
+  catnipPaid: number;
+  catnipTotal: number | null;
+  fastestWin: number | null;
+  code?: string;
+}
+
+export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
+  if (typeof m.matchId !== 'string' || !MATCH_ID.test(m.matchId)) return null;
+  if (!(SAVE_STATUSES as readonly unknown[]).includes(m.status)) return null;
+  const paid = int(m.catnipPaid, 1_000_000);
+  if (paid === null) return null;
+  const total = m.catnipTotal === null || m.catnipTotal === undefined ? null : int(m.catnipTotal, Number.MAX_SAFE_INTEGER);
+  if (total === null && m.catnipTotal !== null && m.catnipTotal !== undefined) return null;
+  const fastest = m.fastestWin === null || m.fastestWin === undefined ? null : int(m.fastestWin, PROGRESS_MAX);
+  if (fastest === null && m.fastestWin !== null && m.fastestWin !== undefined) return null;
+  const out: SaveResult = { matchId: m.matchId, status: m.status as SaveStatus, catnipPaid: paid, catnipTotal: total, fastestWin: fastest };
+  if (typeof m.code === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(m.code)) out.code = m.code;
+  return out;
+}
+
+/** A cat image URL the game may load, or undefined (anything else is dropped, never fetched). */
+export function cleanArt(v: unknown): string | undefined {
+  if (typeof v !== 'string' || v.length > 512) return undefined;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== 'https:' || u.port || u.username || u.password || /\.\.|%2e%2e/i.test(v)) return undefined;
+    if (u.hostname === ART_BUCKET_HOST) return u.href;
+    if (u.hostname === ART_HOST && u.pathname.startsWith(ART_PATH)) return u.href;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const cleanCatalogId = (v: unknown): string | undefined => (typeof v === 'string' && CATALOG_ID.test(v) ? v : undefined);
+
+const ELEMENT_TYPES: readonly string[] = ['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR'];
+
+export interface FeaturedCat {
+  catalogId: string;
+  name: string;
+  type: string;
+  art?: string;
+}
+
+export const FEATURED_MAX = 2;
+
+function cleanText(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  // eslint-disable-next-line no-control-regex
+  const s = v.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
+  return s ? s.slice(0, 24) : null;
+}
+
+/** `featured.cats`: the first FEATURED_MAX valid cats, bad ones skipped (null when `cats` is not a list). */
+export function parseFeatured(m: Record<string, unknown>): FeaturedCat[] | null {
+  if (!Array.isArray(m.cats)) return null;
+  const out: FeaturedCat[] = [];
+  for (const raw of m.cats.slice(0, 16)) {
+    if (out.length >= FEATURED_MAX) break;
+    if (!raw || typeof raw !== 'object') continue;
+    const c = raw as Record<string, unknown>;
+    const catalogId = cleanCatalogId(c.catalogId);
+    const name = cleanText(c.name);
+    if (!catalogId || !name || typeof c.type !== 'string' || !ELEMENT_TYPES.includes(c.type)) continue;
+    if (out.some((x) => x.catalogId === catalogId)) continue;
+    const cat: FeaturedCat = { catalogId, name, type: c.type };
+    const art = cleanArt(c.art);
+    if (art) cat.art = art;
+    out.push(cat);
+  }
+  return out;
+}
+
+export interface MeetOffer {
+  kind: 'meet';
+  catalogId: string;
+}
+
+/** `offer.offer`: a Meet offer, null (none), or undefined (malformed or a retired kind: ignore). */
+export function parseOffer(m: Record<string, unknown>): MeetOffer | null | undefined {
+  const o = m.offer;
+  if (o === null) return null;
+  if (!o || typeof o !== 'object') return undefined;
+  const r = o as Record<string, unknown>;
+  const catalogId = cleanCatalogId(r.catalogId);
+  if (r.kind !== 'meet' || !catalogId) return undefined;
+  return { kind: 'meet', catalogId };
+}
+
+export interface AppInfo {
+  isApp: boolean;
+  /** The Token Tails cat checkout is reachable (never in an app build). */
+  store: boolean;
+  /** The host takes notify-me sign-ups (the game still shows none in an app build: Entitlements.notifyOpen). */
+  notify: boolean;
+}
+
+export function parseApp(m: Record<string, unknown>): AppInfo | null {
+  if (typeof m.isApp !== 'boolean') return null;
+  return { isApp: m.isApp, store: m.store === true && !m.isApp, notify: m.notify === true };
+}
+
+/** `entitlements.token`: a string or null (the token itself is read by money/entitlements.ts). */
+export function parseEntitlements(m: Record<string, unknown>): { token: string | null } | null {
+  if (m.token === null) return { token: null };
+  return typeof m.token === 'string' && m.token.length <= 9000 ? { token: m.token } : null;
+}
+
+export interface CatPurchaseResult {
+  catalogId: string;
+  ok: boolean;
+}
+
+export function parsePurchaseResult(m: Record<string, unknown>): CatPurchaseResult | null {
+  const catalogId = cleanCatalogId(m.catalogId);
+  if (!catalogId || typeof m.ok !== 'boolean') return null;
+  return { catalogId, ok: m.ok };
+}
+
+export interface AudioInfo {
+  muted: boolean;
+  music?: number;
+  sfx?: number;
+}
+
+export function parseAudio(m: Record<string, unknown>): AudioInfo | null {
+  if (typeof m.muted !== 'boolean') return null;
+  const out: AudioInfo = { muted: m.muted };
+  const vol = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? v : undefined);
+  const music = vol(m.music);
+  const sfx = vol(m.sfx);
+  if (music !== undefined) out.music = music;
+  if (sfx !== undefined) out.sfx = sfx;
+  return out;
+}
+
+export const SIGN_IN_REASONS = Object.freeze(['save-progress', 'claim-rewards'] as const);
+export type SignInReason = (typeof SIGN_IN_REASONS)[number];

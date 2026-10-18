@@ -142,12 +142,13 @@ export const HEIST_MAX_ID_LENGTH = 64;
 /**
  * Pawlegends bot difficulties that save a result, in slot order: index `i` is the slot of
  * `pawlegendsFastestWin` and `pawlegendsFirstWin` on a user. Must match `DIFFICULTIES` of the vendored sim
- * (`backend/src/vendor/pawlegends-sim`). 'hard' is appended in the MVP.
+ * (`backend/src/vendor/pawlegends-sim`). 'rookie' (sim v4, match 1 only) is appended so 'easy' and 'normal'
+ * keep their slot; 'hard' is appended in the MVP.
  */
-export const PAWLEGENDS_LEVELS: string[] = frozen(['easy', 'normal']);
+export const PAWLEGENDS_LEVELS: string[] = frozen(['easy', 'normal', 'rookie']);
 
 /** Catnip paid once, for the first replay-verified win per difficulty, in `PAWLEGENDS_LEVELS` order. */
-export const PAWLEGENDS_LEVEL_CAPS: number[] = frozen([20, 40]);
+export const PAWLEGENDS_LEVEL_CAPS: number[] = frozen([20, 40, 10]);
 
 /** Pawlegends first-win catnip over every difficulty (part of `catnipCount`). */
 export const PAWLEGENDS_TOTAL_CAP = sum(PAWLEGENDS_LEVEL_CAPS);

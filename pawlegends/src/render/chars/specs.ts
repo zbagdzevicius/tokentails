@@ -135,7 +135,8 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
   const pinkBow = coat === 'skin.clem.pink_bow' && hero === 'clem';
   const chroma = look.chroma ? ELEMENT_COLOR[look.chroma] : null;
   const capeColor = founder ? 0x5a2d6e : dawn ? 0xfff3dc : t.main;
-  const capeHem = founder || dawn ? GOLD : t.deep;
+  // round 0: a chroma reads at match zoom: the cape hem, Clem's free ribbon and the armband take its colour
+  const capeHem = founder || dawn ? GOLD : chroma !== null ? chroma : t.deep;
   const extras = (A: Parameters<NonNullable<ChibiSpec['gear']>>[0]): void => {
     if (chroma !== null) {
       A.add('chest', new THREE.OctahedronGeometry(0.03, 0), { m: mat([0, 0.12, 0.17], [0, 0, 0], [0.8, 1.1, 0.6]), color: chroma });
@@ -173,7 +174,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           // signature (big, plus one on the tail tip); the free Clem wears a smaller cream ribbon with a gold knot, so
           // the €0.99 skin delivers what its name says (playtest: the free Clem already wore the pink bow).
           const big = pinkBow ? 1.8 : 1.15;
-          const bow = pinkBow ? { main: PAL.bow, shade: PAL.bowShade, knot: PAL.bowKnot } : { main: 0xfff3dc, shade: 0xd8c6a2, knot: GOLD };
+          const bow = pinkBow ? { main: PAL.bow, shade: PAL.bowShade, knot: PAL.bowKnot } : chroma !== null ? { main: chroma, shade: 0xd8c6a2, knot: GOLD } : { main: 0xfff3dc, shade: 0xd8c6a2, knot: GOLD };
           for (const p of bowPieces(A.seg(10, 6), bow)) {
             A.add('earL', p.geo, { m: mat([0.0, 0.09, 0.03], [-0.6, -0.25, -0.32], big).multiply(p.m), color: p.color });
           }
@@ -202,7 +203,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.hood(A, t.main, 0x6fbf7f);
           G.mantle(A, t.main, 0x6fbf7f, { r: 0.21 });
           G.tunic(A, 0x5e7f3e, 0x3f5a2a);
-          G.cape(A, founder ? capeColor : t.deep, founder ? GOLD : 0x6fbf7f, { len: 0.3, bot: 0.2 });
+          G.cape(A, founder ? capeColor : t.deep, founder ? GOLD : chroma !== null ? chroma : 0x6fbf7f, { len: 0.3, bot: 0.2 });
           G.quiver(A);
           G.shortBow(A, undefined, undefined, 'bowIdle', new THREE.Vector3(0.2, 0.31, 0.17), -0.52);
           G.pauldrons(A, t.main, 0x6fbf7f, 0.8);

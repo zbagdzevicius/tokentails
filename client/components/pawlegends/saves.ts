@@ -3,38 +3,52 @@
  *
  * The one write path is `POST /user/catbassadors/live` with `type: PAWLEGENDS` and the match replay in the
  * `pawlegends` field; the backend re-simulates it in a worker thread and keeps only its own result. Won and lost
- * matches are both posted (the backend counts matches; only a first win per difficulty pays catnip).
+ * matches are both posted (the backend counts matches; only a first win per difficulty pays catnip, within
+ * `PAWLEGENDS_LEVEL_CAPS`).
  *
+ * The queue (`tt.pawlegends.queue.v1`) is keyed by the game's `matchId`, which every `save-result` repeats.
  * - **A Firebase user exists** (an account, or an anonymous guest from `/game`): the match is posted at once. A
- *   428 creates the guest session once (the API wrapper).
- * - **No Firebase user**: the match is queued in `tt.pawlegends.queue.v1` as a device match (owner `null`) and
- *   posted after sign-in. Unlike the Heist there is no claim prompt in the POC: the first uid that signs in on
- *   this device takes the device matches.
+ *   428 creates the guest session once (the API wrapper). A guest's match is marked `anon`: when a different uid
+ *   signs in on the device, it goes back to the device matches (`releaseGuestRuns`), so the claim prompt asks.
+ * - **No Firebase user**: the match is queued as a device match (owner `null`). Device matches are never sent
+ *   on their own: the host asks "ADD YOUR MATCHES?" after sign-in (`claim(uid)` or `decline()`), like the Heist.
  * - **Outcomes** (`classifyPawlegendsSave`): 2xx saved; 409 (`PAWLEGENDS_DUPLICATE`) is done too; 400
  *   `PAWLEGENDS_SIM_VERSION` purges every queued match of that sim version; any other 4xx drops the match; 401,
  *   403 and 428 keep it; 429 (with `Retry-After`), 5xx and network failures back off (5 s, 15 s, 45 s ... 10 min).
+ * - **Statuses** (`save-result.status`): `saving` before the post, then `saved`, `queued` (signed out, offline or
+ *   waiting for an account: kept on the device), `failed` (the server failed, retried later) or `rejected`.
  *
  * No React here: the saver takes its storage, transport and clock, so every rule is unit-tested.
  */
 import type { MatchSaveResult } from "@/api/user-api";
 import { backoffMs, type QueueStorage } from "@/components/heist/heistSaves";
 import { ErrorCode } from "@/shared-contracts/errors";
-import { replayOf, type PawlegendsReplay } from "./bridge";
+import { derivedMatchId, isMatchId, replayOf, type PawlegendsReplay, type PawlegendsSaveResultStatus } from "./bridge";
+import { liveAnswerOf, type PawlegendsLiveAnswer } from "./session";
 
 export const PAWLEGENDS_QUEUE_KEY = "tt.pawlegends.queue.v1";
 /** Most matches kept on the device (each replay is up to 40 KB); the oldest go first. */
 export const PAWLEGENDS_QUEUE_MAX = 12;
 
 export type PawlegendsSaveOutcome = "saved" | "stale" | "dropped" | "keep" | "backoff";
-export type PawlegendsSaveStatus = "saved" | "queued" | "rejected" | "stale";
 
 export interface QueuedMatch {
   id: string;
   owner: string | null;
+  /** Queued under an anonymous Firebase uid (a guest from `/game`). */
+  anon?: boolean;
   replay: PawlegendsReplay;
   createdAt: number;
   attempts: number;
   nextAt: number;
+}
+
+export interface PawlegendsSaveDetail {
+  outcome: PawlegendsSaveOutcome | "device" | "pending";
+  httpStatus: number;
+  code: string | null;
+  /** The `/live` answer of a saved match (null for a 409 or a non-2xx). */
+  answer: PawlegendsLiveAnswer | null;
 }
 
 export function classifyPawlegendsSave(result: Pick<MatchSaveResult, "ok" | "status" | "code">): PawlegendsSaveOutcome {
@@ -46,15 +60,16 @@ export function classifyPawlegendsSave(result: Pick<MatchSaveResult, "ok" | "sta
   return "dropped";
 }
 
-export function statusOf(outcome: PawlegendsSaveOutcome): PawlegendsSaveStatus {
+/** The `save-result.status` of an outcome. A network failure stays on the device (`queued`); a server one is `failed`. */
+export function statusOf(outcome: PawlegendsSaveOutcome, httpStatus = 0): PawlegendsSaveResultStatus {
   if (outcome === "saved") return "saved";
-  if (outcome === "stale") return "stale";
-  if (outcome === "dropped") return "rejected";
-  return "queued";
+  if (outcome === "stale" || outcome === "dropped") return "rejected";
+  if (outcome === "keep") return "queued";
+  return httpStatus === 0 ? "queued" : "failed";
 }
 
-/** A stable id for one match (the same replay posted twice is one match). */
-export const matchIdOf = (replay: PawlegendsReplay) =>
+/** The replay's own key: the same replay posted twice is one match, whatever id it came with. */
+export const replayKeyOf = (replay: PawlegendsReplay) =>
   `${replay.simVersion}-${replay.seed.toString(16)}-${replay.ticks}-${replay.finalHash}`;
 
 function isQueued(value: unknown): value is QueuedMatch {
@@ -64,7 +79,8 @@ function isQueued(value: unknown): value is QueuedMatch {
     typeof m.id === "string" &&
     m.id.length > 0 &&
     m.id.length <= 64 &&
-    (m.owner === null || (typeof m.owner === "string" && m.owner.length > 0)) &&
+    (m.owner === null || (typeof m.owner === "string" && m.owner.length > 0 && m.owner.length <= 128)) &&
+    (m.anon === undefined || typeof m.anon === "boolean") &&
     replayOf(m.replay) !== null &&
     Number.isFinite(m.createdAt) &&
     Number.isFinite(m.attempts) &&
@@ -77,7 +93,10 @@ export function parsePawlegendsQueue(raw: string | null): QueuedMatch[] {
   try {
     const parsed = JSON.parse(raw) as { v?: unknown; matches?: unknown };
     if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.matches)) return [];
-    return parsed.matches.filter(isQueued);
+    // Entries of the first POC build were keyed by `replayKeyOf`: they get the derived match id.
+    return parsed.matches
+      .filter(isQueued)
+      .map((m) => (isMatchId(m.id) ? m : { ...m, id: derivedMatchId(m.replay) }));
   } catch {
     return [];
   }
@@ -87,12 +106,16 @@ export interface PawlegendsSaverOptions {
   save: (replay: PawlegendsReplay) => Promise<MatchSaveResult>;
   /** The current Firebase uid, anonymous included; null with no Firebase user. */
   currentUid: () => string | null;
+  /** True while the current uid is an anonymous guest. */
+  currentIsAnonymous?: () => boolean;
   storage?: QueueStorage | null;
   now?: () => number;
   random?: () => number;
   schedule?: (fn: () => void, ms: number) => () => void;
-  onStatus?: (id: string, status: PawlegendsSaveStatus, detail: { outcome: PawlegendsSaveOutcome | "device"; httpStatus: number }) => void;
+  onStatus?: (matchId: string, status: PawlegendsSaveResultStatus, detail: PawlegendsSaveDetail) => void;
   onStalePurged?: (count: number) => void;
+  /** The queue changed (the claim prompt counts `unclaimed()`). */
+  onChange?: () => void;
 }
 
 export class PawlegendsSaver {
@@ -129,20 +152,38 @@ export class PawlegendsSaver {
   private write(matches: QueuedMatch[]): void {
     this.memory = matches.slice();
     const storage = this.storage;
-    if (!storage) return;
-    try {
-      if (matches.length) storage.setItem(PAWLEGENDS_QUEUE_KEY, JSON.stringify({ v: 1, matches }));
-      else storage.removeItem(PAWLEGENDS_QUEUE_KEY);
-    } catch {
-      // Quota or blocked storage: the in-memory copy holds for this page view.
+    if (storage) {
+      try {
+        if (matches.length) storage.setItem(PAWLEGENDS_QUEUE_KEY, JSON.stringify({ v: 1, matches }));
+        else storage.removeItem(PAWLEGENDS_QUEUE_KEY);
+      } catch {
+        // Quota or blocked storage: the in-memory copy holds for this page view.
+      }
     }
+    this.opts.onChange?.();
+  }
+
+  /** Device matches no account has taken yet (the claim prompt's count). */
+  unclaimed(): QueuedMatch[] {
+    return this.read().filter((m) => m.owner === null);
+  }
+
+  ownedBy(uid: string): QueuedMatch[] {
+    return this.read().filter((m) => m.owner === uid);
   }
 
   private enqueue(entry: QueuedMatch): void {
-    const matches = this.read().filter((m) => m.id !== entry.id);
+    const key = replayKeyOf(entry.replay);
+    const matches = this.read().filter((m) => m.id !== entry.id && replayKeyOf(m.replay) !== key);
     matches.push(entry);
     while (matches.length > PAWLEGENDS_QUEUE_MAX) matches.shift();
     this.write(matches);
+  }
+
+  private remove(id: string): void {
+    const matches = this.read();
+    const keep = matches.filter((m) => m.id !== id);
+    if (keep.length !== matches.length) this.write(keep);
   }
 
   private purgeVersion(simVersion: number): number {
@@ -172,18 +213,26 @@ export class PawlegendsSaver {
     }
   }
 
-  /** One finished match from the game. */
-  async submit(replay: PawlegendsReplay): Promise<PawlegendsSaveStatus | null> {
-    if (this.disposed) return null;
+  private report(id: string, outcome: PawlegendsSaveOutcome, result: MatchSaveResult): PawlegendsSaveResultStatus {
+    const status = statusOf(outcome, result.status);
+    const answer = result.ok ? liveAnswerOf(result.body) : null;
+    const code = outcome === "stale" ? ErrorCode.PAWLEGENDS_SIM_VERSION : (result.code as string | null) ?? null;
+    this.opts.onStatus?.(id, status, { outcome, httpStatus: result.status, code, answer });
+    return status;
+  }
+
+  /** One finished match from the game, under the game's `matchId`. */
+  async submit(matchId: string, replay: PawlegendsReplay): Promise<PawlegendsSaveResultStatus | null> {
+    if (this.disposed || !isMatchId(matchId)) return null;
     this.purgeOlderThan(replay.simVersion);
-    const id = matchIdOf(replay);
     const now = this.now();
     const uid = this.opts.currentUid();
     if (!uid) {
-      this.enqueue({ id, owner: null, replay, createdAt: now, attempts: 0, nextAt: now });
-      this.opts.onStatus?.(id, "queued", { outcome: "device", httpStatus: 0 });
+      this.enqueue({ id: matchId, owner: null, replay, createdAt: now, attempts: 0, nextAt: now });
+      this.opts.onStatus?.(matchId, "queued", { outcome: "device", httpStatus: 0, code: null, answer: null });
       return "queued";
     }
+    this.opts.onStatus?.(matchId, "saving", { outcome: "pending", httpStatus: 0, code: null, answer: null });
     const result = await this.attempt(replay);
     const outcome = classifyPawlegendsSave(result);
     if (outcome === "stale") {
@@ -191,8 +240,9 @@ export class PawlegendsSaver {
       this.opts.onStalePurged?.(purged);
     } else if (outcome === "keep" || outcome === "backoff") {
       this.enqueue({
-        id,
+        id: matchId,
         owner: uid,
+        ...(this.opts.currentIsAnonymous?.() ? { anon: true } : {}),
         replay,
         createdAt: now,
         attempts: 1,
@@ -200,12 +250,55 @@ export class PawlegendsSaver {
       });
       if (outcome === "backoff") this.scheduleDrain();
     }
-    const status = statusOf(outcome);
-    this.opts.onStatus?.(id, status, { outcome, httpStatus: result.status });
-    return status;
+    return this.report(matchId, outcome, result);
   }
 
-  /** Sends the due matches of the signed-in uid (device matches are taken by that uid first). */
+  /** "Add them": the device matches become `uid`'s and are sent. Returns how many were taken. */
+  async claim(uid: string): Promise<number> {
+    const matches = this.read();
+    let claimed = 0;
+    const next = matches.map((m) => {
+      if (m.owner !== null) return m;
+      claimed += 1;
+      const { anon: _anon, ...rest } = m;
+      void _anon;
+      return { ...rest, owner: uid, nextAt: this.now() };
+    });
+    if (claimed) this.write(next);
+    await this.drain();
+    return claimed;
+  }
+
+  /** "Not mine": forgets every device match. */
+  decline(): number {
+    const matches = this.read();
+    const keep = matches.filter((m) => m.owner !== null);
+    const dropped = matches.length - keep.length;
+    if (dropped) this.write(keep);
+    return dropped;
+  }
+
+  /**
+   * Matches queued under an anonymous uid that is no longer the signed-in one go back to the device matches, so
+   * the claim prompt covers them. Only with a uid: while Firebase has not reported, nothing moves.
+   */
+  releaseGuestRuns(): number {
+    const uid = this.opts.currentUid();
+    if (!uid) return 0;
+    const matches = this.read();
+    let released = 0;
+    const next = matches.map((m) => {
+      if (!m.anon || m.owner === null || m.owner === uid) return m;
+      released += 1;
+      const { anon: _anon, ...rest } = m;
+      void _anon;
+      return { ...rest, owner: null, attempts: 0, nextAt: this.now() };
+    });
+    if (released) this.write(next);
+    return released;
+  }
+
+  /** Sends the due matches of the signed-in uid, one at a time. Never sends device matches. */
   drain(): Promise<void> {
     if (this.draining) return this.draining;
     this.draining = this.drainOnce().finally(() => {
@@ -217,20 +310,18 @@ export class PawlegendsSaver {
   private async drainOnce(): Promise<void> {
     const uid = this.opts.currentUid();
     if (!uid || this.disposed) return;
-    const all = this.read();
-    if (all.some((m) => m.owner === null)) {
-      this.write(all.map((m) => (m.owner === null ? { ...m, owner: uid, nextAt: this.now() } : m)));
-    }
+    this.releaseGuestRuns();
     let stale = 0;
-    const due = this.read().filter((m) => m.owner === uid && m.nextAt <= this.now());
+    const due = this.ownedBy(uid).filter((m) => m.nextAt <= this.now());
     for (const match of due) {
       if (this.disposed || this.opts.currentUid() !== uid) break;
       const current = this.read().find((m) => m.id === match.id);
       if (!current || current.owner !== uid) continue;
+      this.opts.onStatus?.(current.id, "saving", { outcome: "pending", httpStatus: 0, code: null, answer: null });
       const result = await this.attempt(current.replay);
       const outcome = classifyPawlegendsSave(result);
       if (outcome === "saved" || outcome === "dropped") {
-        this.write(this.read().filter((m) => m.id !== current.id));
+        this.remove(current.id);
       } else if (outcome === "stale") {
         stale += this.purgeVersion(current.replay.simVersion);
       } else {
@@ -239,7 +330,7 @@ export class PawlegendsSaver {
           this.read().map((m) => (m.id === current.id ? { ...m, attempts: m.attempts + 1, nextAt: this.now() + wait } : m))
         );
       }
-      this.opts.onStatus?.(current.id, statusOf(outcome), { outcome, httpStatus: result.status });
+      this.report(current.id, outcome, result);
       if (outcome === "backoff" || outcome === "keep") break;
     }
     if (stale) this.opts.onStalePurged?.(stale);
@@ -251,7 +342,7 @@ export class PawlegendsSaver {
     this.cancelTimer = null;
     const uid = this.opts.currentUid();
     if (!uid || this.disposed) return;
-    const pending = this.read().filter((m) => m.owner === uid || m.owner === null);
+    const pending = this.ownedBy(uid);
     if (!pending.length) return;
     const wait = Math.max(0, Math.min(...pending.map((m) => m.nextAt)) - this.now());
     const schedule =

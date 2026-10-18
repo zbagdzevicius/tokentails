@@ -10,6 +10,7 @@ import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import type { CastIndex } from '../orders';
 import { attackPriority, nearestEnemy, smartAim, type Unit } from '../targeting';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet } from './assist';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -116,6 +117,7 @@ export class TouchControls {
   /** Touches on the bare canvas: the left side starts the joystick. */
   private canvasDown(e: PointerEvent): void {
     if (e.pointerType !== 'touch') return;
+    this.inputAt = performance.now();
     if (!this.enabled) this.enable(true);
     this.h.onActivity('touch');
     sfx.unlock();
@@ -133,6 +135,7 @@ export class TouchControls {
   private down(e: PointerEvent): void {
     const el = (e.target as HTMLElement).closest('.pl-tbtn') as HTMLElement | null;
     if (!el) return;
+    this.inputAt = performance.now();
     e.preventDefault();
     e.stopPropagation();
     this.h.onActivity('touch');
@@ -297,6 +300,27 @@ export class TouchControls {
     else this.h.orders.attackMove(me.x + Math.cos(this.facing()) * 3000, me.y + Math.sin(this.facing()) * 3000);
   }
 
+  /** Last touch input (ms) and the last auto-attack order. */
+  private inputAt = 0;
+  private autoAt = 0;
+  /** Auto-attacks sent (e2e telemetry). */
+  autos = 0;
+
+  /**
+   * Standing still with no input for 0.6 s attacks the nearest enemy minion in range, then a hero (fun plan F3), so
+   * a thumb resting off the screen still fights. Never walks the hero anywhere: in range only.
+   */
+  private autoAttack(me: Unit, now: number): void {
+    if (now - this.inputAt < ASSIST.idleMs || now - this.autoAt < 900) return;
+    if (me.state !== 'idle') return;
+    const range = this.h.view.me()?.hero === 'sage' ? 6000 : 1800;
+    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range);
+    if (id === null) return;
+    this.autoAt = now;
+    this.autos++;
+    this.h.orders.attack(id);
+  }
+
   /** Per frame: joystick commands, attack repeat, cooldown overlays. */
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
     if (!this.enabled) return;
@@ -305,19 +329,24 @@ export class TouchControls {
     if (this.attackHeld !== null && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
     const s = this.stick;
     const me = this.me();
+    if (s || this.drags.size > 0 || this.attackHeld !== null) this.inputAt = now;
+    else if (me && this.h.enabled()) this.autoAttack(me, now);
     if (s && me && this.h.enabled()) {
       const dx = s.x - s.bx;
       const dy = -(s.y - s.by);
       if (Math.hypot(dx, dy) > STICK.dead) {
-        const a = Math.atan2(dy, dx);
+        // the lane magnet (fun plan F3): close to the lane's direction, walk exactly along it
+        const a = laneMagnet(me.x, me.y, Math.atan2(dy, dx));
         const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
         const near = Math.hypot(me.x - this.lastStick.tx, me.y - this.lastStick.ty) < STICK.refreshMm;
         if ((turn > STICK.turn || near) && now - this.lastStick.at >= STICK.everyMs) {
-          const tx = me.x + Math.cos(a) * STICK.aheadMm;
-          const ty = me.y + Math.sin(a) * STICK.aheadMm;
-          this.lastStick = { a, at: now, tx, ty };
-          this.h.orders.move(tx, ty);
-          this.h.view.recentre();
+          // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
+          const goal = edgeGoal(me.x, me.y, me.x + Math.cos(a) * STICK.aheadMm, me.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
+          if (goal) {
+            this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
+            this.h.orders.move(goal.x, goal.y);
+            this.h.view.recentre();
+          } else this.lastStick = { a, at: now, tx: me.x, ty: me.y };
         }
       }
     }

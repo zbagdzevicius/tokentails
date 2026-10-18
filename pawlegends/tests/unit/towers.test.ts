@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { TOWER_SPOTS } from '../../src/data/map';
-import { TIMELINE } from '../../src/data/timeline';
+import { SUNSET } from '../../src/data/timeline';
+import { DIFFICULTY_RULES } from '../../src/data/bots';
 import { TOWERS } from '../../src/data/towers';
 import { dealDamage, resolveDeaths } from '../../src/sim/combat/damage';
 import { Buff, G, Kind } from '../../src/sim/world';
 import { stepStructures } from '../../src/sim/units/tower';
-import { coreId, putHero, putMinion, quietMatch, towerId } from './sim-helpers';
+import { coreId, putHero, putMinion, quietMatch as quietOn, towerId } from './sim-helpers';
+
+/** Normal: no first-match help changes the human's (slot 0) damage, and cores open at once (no coreOpenAt). */
+const quietMatch = (seed = 1) => quietOn(seed, false, 'normal');
 
 const OUTER = TOWER_SPOTS[0]; // Purrhaven Sunny outer (34, 51)
 
-/** Run the structure step until `tower` fires; returns the fired bolt's damage. */
+/** Run the structure step until `tower` fires (a hero target waits out the lock-on first); returns the bolt's damage. */
 function nextShot(m: ReturnType<typeof quietMatch>, tower: number): number {
   const w = m.world;
-  for (let i = 0; i < TOWERS.outer.attackEvery + 1; i++) {
+  for (let i = 0; i < TOWERS.lockOnTicks + TOWERS.outer.attackEvery + 1; i++) {
     w.pAlive.fill(0);
     stepStructures(m);
     for (let p = 0; p < w.pAlive.length; p++) if (w.pAlive[p] === 1 && w.pOwner[p] === tower) return w.pDmg[p];
@@ -54,17 +58,17 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     stepStructures(m);
     expect(m.world.target[t]).toBe(minion);
   });
-  it('hero damage ramps +25% per consecutive hit, capped at +100%; minions take 110', () => {
+  it('hero damage (sim v4): 90, +20% per consecutive hit, capped at +60%; minions take 110', () => {
     const m = quietMatch();
     const t = towerId(0, 0);
     putHero(m, 3, OUTER.x + 2000, OUTER.y);
     const shots = [0, 1, 2, 3, 4, 5].map(() => nextShot(m, t));
-    expect(shots).toEqual([150, 187, 225, 262, 300, 300]);
+    expect(shots).toEqual([90, 108, 126, 144, 144, 144]);
     // Switching target resets the ramp.
     const minion = putMinion(m, 1, OUTER.x + 1000, OUTER.y);
     expect(nextShot(m, t)).toBe(TOWERS.minionDamage);
     m.world.alive[minion] = 0;
-    expect(nextShot(m, t)).toBe(150);
+    expect(nextShot(m, t)).toBe(90);
   });
   it('a melee minion dies in 3 tower hits', () => {
     const m = quietMatch();
@@ -104,6 +108,15 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     resolveDeaths(m);
     putMinion(m, 0, w.x[core] - 1000, w.y[core]);
     expect(dealDamage(m, minion, 0, Kind.Minion, core, 100, 'basic')).toBe(66);
+    // Easy (sim v4) keeps the cores shut until DifficultyRules.coreOpenAt as well.
+    const easy = quietOn(1, false, 'easy');
+    const ew = easy.world;
+    for (const k of [0, 1, 2, 3]) ew.hp[towerId(1, k)] = 0;
+    resolveDeaths(easy);
+    const em = putMinion(easy, 0, ew.x[core] - 1000, ew.y[core]);
+    expect(dealDamage(easy, em, 0, Kind.Minion, core, 100, 'basic')).toBe(0);
+    ew.globals[G.Tick] = DIFFICULTY_RULES.easy.coreOpenAt; // 6:00, after Sunset: × 2
+    expect(dealDamage(easy, em, 0, Kind.Minion, core, 100, 'basic')).toBe(132);
   });
   it('backdoor protection: heroes deal 50% less when no allied minion is within 8 m', () => {
     const m = quietMatch();
@@ -119,13 +132,14 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     // Minions are never backdoor-reduced.
     expect(dealDamage(m, helper, 0, Kind.Minion, outer, 100, 'basic')).toBe(71);
   });
-  it('Sunset: towers and cores take +40% damage', () => {
+  it('Sunset (sim v4): towers and cores take +100% damage', () => {
     const m = quietMatch();
     const w = m.world;
     const outer = towerId(1, 0);
     const minion = putMinion(m, 0, w.x[outer] - 1000, w.y[outer]);
-    w.globals[G.Tick] = TIMELINE.sunset;
-    expect(dealDamage(m, minion, 0, Kind.Minion, outer, 100, 'basic')).toBe(99); // 71 × 1.4
+    w.globals[G.Tick] = w.globals[G.Sunset]; // the match's own Sunset (Normal: 6:00 since sim v5)
+    expect(SUNSET.structureDamageBp).toBe(20000);
+    expect(dealDamage(m, minion, 0, Kind.Minion, outer, 100, 'basic')).toBe(142); // 71 × 2
   });
   it('a destroyed tower frees its nav cells and counts for the other team', () => {
     const m = quietMatch();

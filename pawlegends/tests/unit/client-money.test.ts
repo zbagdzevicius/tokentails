@@ -7,7 +7,7 @@ import { HumanFilter, isHeadlessAgent } from '../../src/analytics/human';
 import { parseRoster, rosterCosmetics, stableIndex } from '../../src/meta/roster';
 import { CheckoutBridge } from '../../src/money/checkoutBridge';
 import { Entitlements, decodeToken } from '../../src/money/entitlements';
-import { FOUNDER_GAP_MS, STARTER_WINDOW_MS, markShown, offerOf, pickOffer, type OfferInput } from '../../src/money/offer';
+import { offerOf, pickMeet, pickOffer, type MeetInput } from '../../src/money/offer';
 import { SKUS, SKU_IDS, buyable, currencyFor, priceText, type SkuId } from '../../src/money/skus';
 import { bestFrame, resolveLook, wardrobe, type Owned } from '../../src/render/cosmetics';
 import { heroBuilt, makeKitten } from '../../src/render/chars';
@@ -53,18 +53,21 @@ describe('entitlement token', () => {
     expect(decodeToken(`${b64url('{bad')}.${'s'.repeat(20)}`)).toBeNull();
     expect(decodeToken(null)).toBeNull();
   });
-  it('hides the store and purchased items in app builds and without a ready store', () => {
+  it('retires the pl_* store, opens the cat checkout on the web only, keeps restored items', () => {
     const e = new Entitlements();
-    expect(e.snapshot().storeOpen).toBe(false);
+    expect(e.snapshot()).toMatchObject({ storeOpen: false, catCheckout: false });
     e.apply({ type: 'entitlements', token: token({ items: ['frame.founder'], skus: ['pl_founder'], expiresAt: FUTURE }) });
     e.apply({ type: 'app', isApp: false });
-    expect(e.snapshot()).toMatchObject({ embedded: true, storeOpen: false });
+    expect(e.snapshot()).toMatchObject({ embedded: true, storeOpen: false, catCheckout: false });
     expect([...e.snapshot().items]).toEqual(['frame.founder']);
     e.apply({ type: 'app', isApp: false, store: true });
-    expect(e.snapshot().storeOpen).toBe(true);
+    expect(e.snapshot()).toMatchObject({ storeOpen: false, catCheckout: true });
     e.apply({ type: 'app', isApp: true, store: true, notify: true });
-    expect(e.snapshot()).toMatchObject({ isApp: true, storeOpen: false, notifyOpen: false });
+    expect(e.snapshot()).toMatchObject({ isApp: true, storeOpen: false, catCheckout: false, notifyOpen: false });
     expect(e.snapshot().items.size).toBe(0);
+    // the new message types are not entitlement state
+    expect(e.apply({ type: 'featured', cats: [] })).toBe(false);
+    expect(e.apply({ type: 'save-result', matchId: 'a', status: 'saved' })).toBe(false);
   });
 });
 
@@ -79,71 +82,72 @@ function fakeBridge() {
   };
 }
 
-describe('checkout bridge', () => {
-  it('asks the host only when the store is open and the SKU is buyable', () => {
+const CAT_A = '65a1b2c3d4e5f6a7b8c9d0e1';
+const CAT_B = '65a1b2c3d4e5f6a7b8c9d0e2';
+
+describe('checkout bridge (open-cat)', () => {
+  it('asks the host only for a featured cat with the checkout open, one at a time; never purchase-intent', () => {
     const br = fakeBridge();
     const ent = new Entitlements();
     let now = 0;
     const co = new CheckoutBridge(br as never, ent, () => now);
-    expect(co.buy('pl_starter')).toBe(false);
+    expect(co.openCat(CAT_A, [CAT_A])).toBe(false); // no host checkout yet
     ent.apply({ type: 'app', isApp: false, store: true });
-    expect(co.buy('pl_founder_legend_upgrade')).toBe(false);
-    expect(co.buy('pl_starter')).toBe(true);
-    expect(br.posted).toEqual([{ type: 'purchase-intent', payload: { sku: 'pl_starter' } }]);
-    expect(co.buy('pl_founder')).toBe(false); // one at a time
+    expect(co.openCat(CAT_A, [CAT_B])).toBe(false); // not featured
+    expect(co.openCat('../packs', ['../packs'])).toBe(false); // not a catalog id
+    expect(co.buy('pl_starter')).toBe(false); // retired
+    expect(co.openCat(CAT_A, [CAT_A, CAT_B])).toBe(true);
+    expect(br.posted).toEqual([{ type: 'open-cat', payload: { catalogId: CAT_A } }]);
+    expect(co.openCat(CAT_B, [CAT_A, CAT_B])).toBe(false); // one at a time
     const results: [string, boolean][] = [];
-    co.onResult((s, ok) => results.push([s, ok]));
-    br.emit({ type: 'purchase-result', sku: 'pl_starter', ok: true });
-    expect(results).toEqual([['pl_starter', true]]);
+    co.onCatResult((c, ok) => results.push([c, ok]));
+    br.emit({ type: 'purchase-result', sku: 'pl_starter', ok: true }); // the retired shape is ignored
+    br.emit({ type: 'purchase-result', catalogId: CAT_A, ok: true });
+    expect(results).toEqual([[CAT_A, true]]);
     expect(co.waiting()).toBeNull();
-    ent.apply({ type: 'entitlements', token: token({ items: [], skus: ['pl_starter'], expiresAt: FUTURE }) });
-    expect(co.buy('pl_starter')).toBe(false);
-    expect(co.buy('pl_founder')).toBe(true);
+    expect(co.openCat(CAT_B, [CAT_B])).toBe(true);
     now = 10_000;
     expect(co.waiting()).toBeNull();
+    ent.apply({ type: 'app', isApp: true, store: true });
+    expect(co.openCat(CAT_B, [CAT_B])).toBe(false); // app builds: never
+    expect(br.posted.some((m) => m.type === 'purchase-intent')).toBe(false);
   });
 });
 
-describe('offer rules (POC.md §8.4)', () => {
-  const base = (o: Partial<OfferInput> = {}): OfferInput => ({
+describe('offer rules: the single Meet card', () => {
+  const base = (o: Partial<MeetInput> = {}): MeetInput => ({
     session: 2,
-    matches: 1,
-    firstWin: true,
-    store: { storeOpen: true, isApp: false, skus: new Set() },
-    history: {},
     screen: 'lobby',
+    store: { catCheckout: true, isApp: false },
     shownThisSession: false,
-    now: 1_000_000_000,
+    hostOffer: { kind: 'meet', catalogId: CAT_A },
+    featured: [CAT_A, CAT_B],
+    owned: [],
     ...o,
   });
-  it('never in session 1, app builds, pick or match, or twice in a session', () => {
-    expect(pickOffer(base({ session: 1 }))).toBeNull();
-    expect(pickOffer(base({ store: { storeOpen: false, isApp: true, skus: new Set() } }))).toBeNull();
-    expect(pickOffer(base({ screen: 'pick' }))).toBeNull();
-    expect(pickOffer(base({ screen: 'match' }))).toBeNull();
-    expect(pickOffer(base({ shownThisSession: true }))).toBeNull();
+  it('shows the host Meet offer on lobby or results from session 2', () => {
+    expect(pickMeet(base())).toEqual({ kind: 'meet', catalogId: CAT_A });
+    expect(pickMeet(base({ screen: 'results' }))).toEqual({ kind: 'meet', catalogId: CAT_A });
   });
-  it('rule 1: starter with a genuine 48 h window', () => {
-    const o = pickOffer(base());
-    expect(o).toMatchObject({ kind: 'starter', skus: ['pl_starter'], endsAt: 1_000_000_000 + STARTER_WINDOW_MS });
-    const h = markShown({}, o!, 1_000_000_000);
-    expect(pickOffer(base({ history: h, now: 1_000_000_000 + STARTER_WINDOW_MS - 1 }))?.kind).toBe('starter');
-    expect(pickOffer(base({ history: h, now: 1_000_000_000 + STARTER_WINDOW_MS }))).toBeNull();
-    expect(pickOffer(base({ store: { storeOpen: true, isApp: false, skus: new Set(['pl_starter']) } }))).toBeNull();
+  it('never in session 1, app builds, without the checkout, on pick/match/loading, twice, or without a host answer', () => {
+    expect(pickMeet(base({ session: 1 }))).toBeNull();
+    expect(pickMeet(base({ store: { catCheckout: true, isApp: true } }))).toBeNull();
+    expect(pickMeet(base({ store: { catCheckout: false, isApp: false } }))).toBeNull();
+    for (const screen of ['pick', 'match', 'loading'] as const) expect(pickMeet(base({ screen }))).toBeNull();
+    expect(pickMeet(base({ shownThisSession: true }))).toBeNull();
+    expect(pickMeet(base({ hostOffer: undefined }))).toBeNull();
+    expect(pickMeet(base({ hostOffer: null }))).toBeNull();
   });
-  it('rule 2: founder pair after 3 matches, at most every 7 days', () => {
-    const o = pickOffer(base({ firstWin: false, matches: 3 }));
-    expect(o).toMatchObject({ kind: 'founder', skus: ['pl_founder', 'pl_founder_legend'] });
-    const h = markShown({}, o!, 5);
-    expect(pickOffer(base({ firstWin: false, matches: 4, history: h, now: 5 + FOUNDER_GAP_MS - 1 }))).toBeNull();
-    expect(pickOffer(base({ firstWin: false, matches: 4, history: h, now: 5 + FOUNDER_GAP_MS }))?.kind).toBe('founder');
-    expect(pickOffer(base({ firstWin: false, matches: 2 }))).toBeNull();
+  it('never a cat the host did not feature or the player owns', () => {
+    expect(pickMeet(base({ featured: [CAT_B] }))).toBeNull();
+    expect(pickMeet(base({ owned: [CAT_A] }))).toBeNull();
   });
-  it('a host answer picks the card, the never rules still hold', () => {
-    expect(pickOffer(base({ hostOffer: null }))).toBeNull();
-    expect(pickOffer(base({ firstWin: false, hostOffer: offerOf({ kind: 'founder' }) }))?.kind).toBe('founder');
-    expect(pickOffer(base({ session: 1, hostOffer: offerOf({ kind: 'founder' }) }))).toBeNull();
-    expect(offerOf({ kind: 'x' })).toBeUndefined();
+  it('the retired starter/founder engine never produces a card', () => {
+    const legacy = { session: 5, matches: 9, firstWin: true, store: { storeOpen: true, isApp: false, skus: new Set<SkuId>() }, history: {}, screen: 'lobby' as const, shownThisSession: false, now: 1 };
+    expect(pickOffer(legacy)).toBeNull();
+    expect(pickOffer({ ...legacy, hostOffer: { kind: 'founder', skus: ['pl_founder'], endsAt: null } })).toBeNull();
+    expect(offerOf({ kind: 'starter' })).toBeNull();
+    expect(offerOf({ kind: 'meet', catalogId: CAT_A })).toBeNull();
   });
 });
 
@@ -164,7 +168,8 @@ describe('roster → cosmetics', () => {
   it('maps elements to chromas, tiers to frames, starters to breed coats, the first two to kittens', () => {
     const r = rosterCosmetics(cats);
     expect(r.chromas).toEqual(['ICE', 'FIRE', 'STELLAR']);
-    expect(r.frames).toEqual(['frame.rare', 'frame.epic', 'frame.legendary']);
+    // c2 is RARE but from a pack: no Rare frame (decision #19); c4 is one named cat: the Buddy frame
+    expect(r.frames).toEqual(['frame.buddy', 'frame.epic', 'frame.legendary']);
     expect(r.breedCoats).toEqual(['PINKIE']);
     expect(r.companions.map((c) => [c.id, c.coat])).toEqual([
       ['c1', 'PINKIE'],
@@ -176,7 +181,8 @@ describe('roster → cosmetics', () => {
     const owned: Owned = { items: new Set(['skin.clem.pink_bow', 'coat.founder.clem', 'frame.founder']), unlocks: new Set(['coat.brutus.biscuit']), roster: rosterCosmetics(cats) };
     expect(wardrobe('clem', owned).map((c) => c.id)).toEqual([null, 'skin.clem.pink_bow', 'coat.founder.clem', 'coat.breed.PINKIE']);
     expect(wardrobe('brutus', owned).map((c) => c.id)).toEqual([null, 'coat.brutus.biscuit']);
-    expect(resolveLook('clem', owned)).toEqual({ coat: 'skin.clem.pink_bow', chroma: 'ICE' });
+    // round 0: the default chroma is the first squad mate's element, not the first in ELEMENTS order
+    expect(resolveLook('clem', owned)).toEqual({ coat: 'skin.clem.pink_bow', chroma: owned.roster.companions[0].element });
     expect(resolveLook('clem', owned, { coat: 'coat.breed.PINKIE', chroma: null })).toEqual({ coat: 'coat.breed.PINKIE', chroma: null });
     expect(resolveLook('clem', owned, { coat: 'skin.clem.dawnblade' }).coat).toBe('skin.clem.pink_bow');
     expect(bestFrame(owned)).toBe('frame.founder');

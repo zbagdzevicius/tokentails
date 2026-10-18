@@ -10,6 +10,7 @@ import type {
   HeroId,
   MatchPhase,
   MatchResult,
+  PickupKind,
   ReplayRecord,
   SimEvent,
   Slot,
@@ -103,15 +104,18 @@ export type HostMsgType = HostMsg['t'];
 //
 // header (24 B): u32 tick, u8 team, u8 phase, u16 entityCount, u16 projectileCount, u16 zoneCount,
 //                u16 kills0, u16 kills1, u8 towers0, u8 towers1, u16 seconds, u32 nextPhaseIn
-// entity (48 B): u8 id, u8 kind, u8 team, u8 slot, i32 x, i32 y, u16 facing, u8 state, u8 hero | 0x80+variant,
+// entity (56 B): u8 id, u8 kind, u8 team, u8 slot, i32 x, i32 y, u16 facing, u8 state, u8 hero | 0x80+variant,
 //                i32 hp, i32 maxHp, i32 shield, u32 buffs, u8 level, u8 lane, u16 respawnIn, u16 cooldowns[5],
-//                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present), u8 pad,
-//                u16 xp, u8 resource, u8 talents (2 bits per tier: choice + 1), u32 reserved
+//                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
+//                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
+//                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8[3] reserved
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
 // zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u32 reserved
 
 const PHASES: readonly MatchPhase[] = ['gate', 'play', 'sunset', 'suddenDeath', 'ended'];
-const KINDS: readonly EntityKind[] = ['hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding'];
+/** Append only: the index travels on the wire ('pickup' is sim v4). */
+const KINDS: readonly EntityKind[] = ['hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding', 'pickup'];
+const PICKUP_SUBS: readonly PickupKind[] = ['frenzy', 'snack'];
 const STATES: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
 const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 const VARIANTS: readonly string[] = ['', 'melee', 'ranged', 'siege', 'outer', 'inner'];
@@ -167,6 +171,8 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     for (let k = 0; k < 5; k++) v.setUint16(o + 36 + k * 2, cd ? cd[k] : 0, true);
     const extra = e.xp !== undefined;
     v.setUint8(o + 46, (cd ? HAS_COOLDOWNS : 0) | (e.respawnIn !== undefined ? HAS_RESPAWN : 0) | (extra ? HAS_EXTRA : 0));
+    v.setUint8(o + 47, Math.min(255, e.bountyStreak ?? 0));
+    v.setUint8(o + 52, e.sub ? PICKUP_SUBS.indexOf(e.sub) + 1 : 0);
     if (extra) {
       v.setUint16(o + 48, e.xp ?? 0, true);
       v.setUint8(o + 50, e.resource ?? 0);
@@ -234,7 +240,12 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
       if (hv & 0x80) e.variant = VARIANTS[hv & 0x7f];
       else e.hero = HEROES[hv];
     }
-    if (kind === 'hero') e.level = v.getUint8(o + 32);
+    if (kind === 'hero') {
+      e.level = v.getUint8(o + 32);
+      e.bountyStreak = v.getUint8(o + 47);
+    }
+    const sub = v.getUint8(o + 52);
+    if (sub !== 0) e.sub = PICKUP_SUBS[sub - 1];
     if (lane !== NONE) e.lane = LANES[lane];
     if (flags & HAS_RESPAWN) e.respawnIn = v.getUint16(o + 34, true);
     if (flags & HAS_COOLDOWNS) {

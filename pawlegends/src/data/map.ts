@@ -9,7 +9,7 @@ export const MAP = Object.freeze({
   height: 60000,
   /** River band x 46..54 m. */
   riverX: Object.freeze([46000, 54000] as const),
-  /** Gate barrier line, up for the first 10 s (TIMELINE.barrierDrop). */
+  /** Gate barrier line, up until TIMELINE.barrierDrop (0:03 in sim v4). */
   barrierX: 8000,
   /** Nav grid: 1 m cells, 100 × 60. */
   navCell: 1000,
@@ -29,6 +29,9 @@ export const CAPS = Object.freeze({
   pudding: 1,
   projectiles: 48,
   zones: 24,
+  /** Pickups on the map at once (Frenzy Catnip, Fish Snack; data/pickups.ts). A table of their own, outside the
+   *  entity ids (the 63-bit hit masks): the snapshot shows them as entities with ids from ENTITY_CAP. */
+  pickups: 4,
   heroesPerTeam: 3,
 });
 
@@ -38,8 +41,10 @@ export const FOUNTAIN = Object.freeze({
   radius: 4000,
   /** Heals 10% max HP a second. */
   healBpPerSecond: 1000,
-  /** Shoots enemies inside for 500 damage a second. */
+  /** Shoots enemies inside for 500 damage a second; heroes (v4) for 15% of their max HP a second instead (heroes
+   *  cannot walk in: the enemy fountain is a wall, only a dash or knockback gets one inside). */
   damagePerSecond: 500,
+  heroDamageBpPerSecond: 1500,
 });
 
 export const CORE = Object.freeze({ x: 10000, y: 30000 });
@@ -104,6 +109,20 @@ export const WALLS = Object.freeze([
   Object.freeze([35000, 26000, 37000, 34000] as const),
   Object.freeze([16000, 26000, 18000, 34000] as const),
 ]);
+
+/**
+ * The playfield (sim v5): the lane loop and what it encloses, both lanes' shoulders and the two base plazas. Every
+ * other nav cell is forest (the trees in mapView stand exactly there), plus an outer rim, so no hero walks the map
+ * border into a corner. `src/sim/map/grid.ts` bakes it into the static walls.
+ */
+export const PLAYFIELD = Object.freeze({
+  /** Cells whose centre is within this of the map edge are blocked. */
+  rim: 2000,
+  /** A cell within this distance of a lane centre line is walkable (lane 8 m wide + a 1.5 m shoulder each side). */
+  laneHalf: 5500,
+  /** Base plaza, Purrhaven side (mirrored for Woof): [x0, y0, x1, y1]. Holds the fountain, the core and both lane mouths. */
+  base: Object.freeze([1000, 20000, 15000, 40000] as const),
+});
 
 /** Footprint radii (mm): range checks use centre distance ≤ range + target radius. Structures also block the nav grid. */
 export const RADIUS = Object.freeze({

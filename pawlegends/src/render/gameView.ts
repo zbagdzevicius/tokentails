@@ -24,6 +24,7 @@ import { CompanionView } from './views/companionView';
 import { HeroView } from './views/heroView';
 import { createMapView, type MapView } from './views/mapView';
 import { MinionInstances } from './views/minionInstances';
+import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
 
@@ -39,10 +40,12 @@ export interface AimPreview {
 
 export interface GameViewHooks {
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
-  onLevel?(level: number): void;
+  onLevel?(level: number): boolean | void;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
   onTowerDown?(ours: boolean): void;
+  onTowerAim?(src: number, ticks: number): void;
+  onCoreDown?(who: Who): void;
 }
 
 /**
@@ -63,6 +66,7 @@ export class GameView {
   readonly heroes = new HeroView();
   readonly minions = new MinionInstances();
   readonly structures = new StructureView();
+  readonly pickups = new PickupView();
   readonly projectiles: ProjectileView;
   readonly telegraphs = new TelegraphPool(20);
   readonly particles: Particles;
@@ -98,7 +102,7 @@ export class GameView {
     this.shock = new Shockwaves(null, { particles: this.particles, groundY: () => 0, rng: Math.random });
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
-    this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group);
+    this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.juice = new Juice(uiRoot);
     const self = this;
     const numbersCtx = {
@@ -151,6 +155,12 @@ export class GameView {
         onTalentOffer: hooks.onTalentOffer,
         onWindupAtMe: hooks.onWindupAtMe,
         onTowerDown: hooks.onTowerDown,
+        onTowerAim: hooks.onTowerAim,
+        onCoreDown: hooks.onCoreDown,
+        onPickupSpawn: (index, kind, x, y) => this.pickups.spawn(index, kind, x, y),
+        onPickupTaken: (kind, who) => {
+          if (who) this.pickups.take(kind, who.x, who.z);
+        },
       },
       numbersCtx,
     );
@@ -311,6 +321,7 @@ export class GameView {
     for (const e of frame.entities) if (e.kind === 'hero' && e.state !== 'dead') this.structures.heroes.push({ x: toX(e.fx), z: toZ(e.fy) });
     this.structures.update(frame, dt);
       this.projectiles.update(frame, dt);
+      this.pickups.sync(frame.entities);
       this.companions?.update(frame, dt);
       this.drawWindups(frame);
       this.drawAim();
@@ -326,6 +337,7 @@ export class GameView {
       this.wasDead = meDead;
     }
     this.map.update(frame, dt);
+    this.pickups.update(dt);
     this.particles.update(dt);
     this.shock.render(dt, this.time);
     this.effects.render(dt);
@@ -382,7 +394,8 @@ export class GameView {
 
   dispose(): void {
     this.gr.preRender = null;
-    this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group);
+    this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
+    this.pickups.dispose();
     if (this.companions) {
       this.scene.remove(this.companions.group);
       this.companions.dispose();

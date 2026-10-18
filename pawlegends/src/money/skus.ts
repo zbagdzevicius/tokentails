@@ -1,4 +1,8 @@
 /**
+ * Retired from sale (integration plan §2): the game no longer sells these SKUs and never posts `purchase-intent`.
+ * The table stays so entitlement tokens bought earlier still decode and dress the heroes (restore only). New
+ * purchases are Token Tails cats from the host checkout (money/checkoutBridge.ts `openCat`).
+ *
  * Store SKUs, display mirror (POC.md §8.1). The one real table is `backend/src/pawlegends/pawlegends.contracts.ts`
  * (`PAWLEGENDS_SKUS`): the host's purchase sheet and Stripe Checkout use the server price, which always wins. This
  * file only names the items and shows a price on the store cards. Keep the ids, items and lines in step with it

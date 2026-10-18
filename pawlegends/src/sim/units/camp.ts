@@ -75,11 +75,22 @@ export function spawnCamps(m: MatchHandle): void {
   }
 }
 
-/** Step 7: rat `id` died. When its camp is empty, schedule the respawn. */
-export function onRatDied(w: World, id: number): void {
+/** Step 7: rat `id` died. When its camp is empty, schedule the respawn and return true. */
+export function onRatDied(w: World, id: number): boolean {
   const c = campOf(id);
-  for (let k = 0; k < RAT_CAMP_STATS.rats; k++) if (w.alive[firstRat(c) + k] === 1) return;
+  for (let k = 0; k < RAT_CAMP_STATS.rats; k++) if (w.alive[firstRat(c) + k] === 1) return false;
   w.globals[atKey(c)] = w.globals[G.Tick] + RAT_CAMP_STATS.respawn;
+  return true;
+}
+
+/** A camp cleared by `team`: its living heroes get the Pack buff (+15% damage for 45 s, a `buff` event each). */
+export function packBuff(m: MatchHandle, team: number): void {
+  const w = m.world;
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+    if (w.kind[h] !== Kind.Hero || w.team[h] !== team || w.alive[h] === 0) continue;
+    w.packT[h] = RAT_CAMP_STATS.packTicks;
+    m.events.push({ type: 'buff', tick: w.globals[G.Tick], id: h, kind: 'pack', ticks: RAT_CAMP_STATS.packTicks });
+  }
 }
 
 /** Is rat `id` still within its leash of home? */

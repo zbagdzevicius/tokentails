@@ -77,7 +77,7 @@ export class DesktopInput {
 
   private unitUnderCursor(enemiesOnly: boolean): Unit | null {
     const cam = this.h.view.gr.camera;
-    const units = this.h.units().filter((u) => u.state !== 'dead' && u.kind !== 'fountain' && (!enemiesOnly || isEnemy(u, this.h.view.myTeam)));
+    const units = this.h.units().filter((u) => u.state !== 'dead' && u.kind !== 'fountain' && u.kind !== 'pickup' && (!enemiesOnly || isEnemy(u, this.h.view.myTeam)));
     const lift = (u: Unit): number => (u.kind === 'tower' ? 2.5 : u.kind === 'core' ? 2.5 : u.kind === 'pudding' ? 1.5 : 0.6);
     return pickNearest(units, (u) => project(cam, this.h.canvas, u.x / 1000, lift(u), -u.y / 1000), this.cursor.x, this.cursor.y, 44);
   }

@@ -10,7 +10,7 @@ import { BOTS } from '../data/bots';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { CAPS, CORE, FOUNTAIN, LANES, TOWER_SPOTS, mirrorX } from '../data/map';
 import { CORE_STATS, TOWERS } from '../data/towers';
-import { TIMELINE } from '../data/timeline';
+import { TIMELINE, TIMELINE_BY } from '../data/timeline';
 import { TRICK_IDS } from '../data/tricks';
 import {
   HUMAN_SLOT,
@@ -18,6 +18,7 @@ import {
   SLOT_COUNT,
   teamOfSlot,
   type Command,
+  type Difficulty,
   type EntityKind,
   type EntitySnap,
   type HeroId,
@@ -41,13 +42,14 @@ import { encodeCommand, encodeStream, toBase64 } from './commands';
 import { fnvBytes, fnvInt } from './hash';
 import { createGate, gateCommand } from './input';
 import { createGrid } from './map/grid';
+import { heroHp } from './progression/levels';
 import { checkWin } from './match';
 import { Rng } from './rng';
 import type { MatchHandle } from './state';
 import { clockAt, waveAt } from './timeline';
 import { stepSeconds } from './units/core';
 import { applyOrder, placeAtFountain, stepHeroes } from './units/hero';
-import { spawnWave, stepMinions } from './units/minion';
+import { checkComeback, spendComeback, spawnWave, stepMinions } from './units/minion';
 import { coverStructures, stepStructures } from './units/tower';
 import { SIM_VERSION } from './version';
 import { COOLDOWN_SLOTS, G, Kind, RANGE, TALENT_TIERS, UnitState, createWorld, hashWorld, type World } from './world';
@@ -56,6 +58,12 @@ import { CLEM_INDEX } from './heroes/clem';
 import { stepBots } from './bots';
 import { initCamps, spawnCamps, stepCamps } from './units/camp';
 import { initPudding, stepPudding, stepPuddingTimeline } from './units/pudding';
+import { collectPickups, initPickups, spawnPickups } from './units/pickup';
+import { beginTick, stepBonuses } from './effects/bonus';
+import { applyBp } from './fixed';
+import { DIFFICULTY_RULES } from '../data/bots';
+import { PICKUP_KINDS } from '../data/pickups';
+import { PICKUP_ID_BASE } from './api';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -67,7 +75,10 @@ export { tieBreakWinner } from './match';
 export { visibleTo } from './map/brush';
 export { canCast } from './heroes/kit';
 export { createPlayerBot, playerBotCommands, type PlayerBot } from './bots';
-export { PLAYER_PROFILES, type PlayerProfile } from '../data/bots';
+export { PLAYER_PROFILES, DIFFICULTIES, type PlayerProfile } from '../data/bots';
+export { TIMELINE_BY } from '../data/timeline';
+/** Sunset and Sudden Death ticks of a difficulty. */
+export const timelineFor = (d: Difficulty) => TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
 
 const KIND_NAME: readonly EntityKind[] = ['hero', 'hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding'];
 const STATE_NAME: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
@@ -88,9 +99,14 @@ export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: 
       tricks.push(trick);
       continue;
     }
+    // Sim v5: species teams (cats vs dogs). The human's allies are of its hero's side, the enemies of the other
+    // side; a team takes each hero of its side once before it repeats one (2 heroes a side for 3 slots).
     const teamStart = slot < SLOTS_PER_TEAM ? 0 : SLOTS_PER_TEAM;
+    const side = slot < SLOTS_PER_TEAM ? HEROES[hero].side : HEROES[hero].side === 'cat' ? 'dog' : 'cat';
+    const kin = HERO_IDS.filter((h) => HEROES[h].side === side);
     const taken = picks.slice(teamStart, slot);
-    const pool = HERO_IDS.filter((h) => !taken.includes(h));
+    const fresh = kin.filter((h) => !taken.includes(h));
+    const pool = fresh.length > 0 ? fresh : kin;
     picks.push(pool[rng.int(pool.length)]);
     tricks.push(TRICK_IDS[rng.int(TRICK_IDS.length)]);
   }
@@ -103,10 +119,7 @@ function validate(config: MatchConfig): void {
   for (const h of config.picks) if (!HERO_IDS.includes(h)) throw new RangeError(`unknown hero ${h}`);
   for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
   if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
-  for (let team = 0; team < 2; team++) {
-    const s = config.picks.slice(team * SLOTS_PER_TEAM, (team + 1) * SLOTS_PER_TEAM);
-    if (s.some((h, i) => s.indexOf(h) !== i)) throw new RangeError('duplicate hero within a team');
-  }
+  // Sim v5: a team may field a hero twice (species teams: 2 heroes a side for 3 slots).
 }
 
 const sideX = (team: number, x: number): number => (team === 0 ? x : mirrorX(x));
@@ -127,12 +140,20 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.sub[slot] = HERO_IDS.indexOf(hero.id);
     w.trick[slot] = TRICK_IDS.indexOf(config.tricks[slot]);
     w.level[slot] = 1;
-    w.maxHp[slot] = hero.base.hp;
+    w.maxHp[slot] = heroHp(hero.base.hp);
     w.armour[slot] = hero.base.armour;
     placeAtFountain(w, slot);
     stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1 });
   }
   const perTeam = TOWER_SPOTS.length;
+  const rules = DIFFICULTY_RULES[config.difficulty];
+  const phases = TIMELINE_BY[config.difficulty];
+  w.globals[G.Sunset] = phases.sunset;
+  w.globals[G.SuddenDeath] = phases.suddenDeath;
+  w.globals[G.CoreOpenAt] = rules.coreOpenAt;
+  w.globals[G.HumanPanic] = rules.humanPanicBp;
+  w.globals[G.HumanCoreOpenAt] = rules.humanCoreOpenAt;
+  w.globals[G.SideEdge] = rules.sideEdge ? 1 : 0;
   for (let team = 0; team < 2; team++) {
     for (let k = 0; k < perTeam; k++) {
       const id = RANGE.towers + team * perTeam + k;
@@ -143,8 +164,8 @@ export function createMatch(config: MatchConfig): MatchHandle {
       w.alive[id] = 1;
       w.sub[id] = TOWER_VARIANT.indexOf(spot.tier);
       w.lane[id] = LANES.indexOf(spot.lane);
-      w.hp[id] = t.hp;
-      w.maxHp[id] = t.hp;
+      w.hp[id] = applyBp(t.hp, rules.structureHpBp);
+      w.maxHp[id] = w.hp[id];
       w.armour[id] = t.armour;
       w.x[id] = sideX(team, spot.x);
       w.y[id] = spot.y;
@@ -153,8 +174,8 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.kind[core] = Kind.Core;
     w.team[core] = team;
     w.alive[core] = 1;
-    w.hp[core] = CORE_STATS.hp;
-    w.maxHp[core] = CORE_STATS.hp;
+    w.hp[core] = applyBp(CORE_STATS.hp, rules.coreHpBp);
+    w.maxHp[core] = w.hp[core];
     w.armour[core] = CORE_STATS.armour;
     w.x[core] = sideX(team, CORE.x);
     w.y[core] = CORE.y;
@@ -167,6 +188,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
   }
   initCamps(w, TIMELINE.campsUp);
   initPudding(w);
+  initPickups(w);
   const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats };
   coverStructures(m);
   refreshVision(w);
@@ -185,14 +207,17 @@ export function step(match: Match, commands?: readonly Command[]): void {
   const tick = w.globals[G.Tick];
   m.events = [];
 
-  // 0. Hero cooldowns tick (a cooldown of N ticks set on tick t is ready again on tick t + N).
+  // 0. Hero cooldowns tick (a cooldown of N ticks set on tick t is ready again on tick t + N); the Nine Lives
+  //    damage ring forgets this tick's slot.
   tickCooldowns(w);
+  beginTick(w);
   // 1. Human command.
   const cmd = gateCommand(m.gate, tick, commands);
   if (cmd) {
     m.log.push({ tick, cmd });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(cmd)) | 0;
     applyOrder(m, HUMAN_SLOT, cmd);
+    w.globals[G.HumanActAt] = tick;
   }
   // 2. Bots think (every 6 ticks, staggered by slot).
   stepBots(m);
@@ -200,21 +225,31 @@ export function step(match: Match, commands?: readonly Command[]): void {
   const wave = waveAt(tick, w.globals[G.SiegeWaves]);
   if (wave >= 0) {
     if (tick >= TIMELINE.siegeFrom) w.globals[G.SiegeWaves]++;
+    checkComeback(m);
     w.globals[G.Wave]++;
     spawnWave(m, wave === 1);
+    spendComeback(w);
   }
   spawnCamps(m);
+  spawnPickups(m);
   stepPuddingTimeline(m, wave >= 0);
-  if (tick === TIMELINE.sunset) m.events.push({ type: 'sunset', tick });
-  if (tick === TIMELINE.suddenDeath) m.events.push({ type: 'suddenDeath', tick });
+  if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
+  if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
   stepSeconds(m);
   // 4. Movement (heroes by A*, dashes and CC; minions by lane points + separation); swings start here. Then the
   //    status timers, kit timers and heals over time tick, and vision is refreshed for the targeting below.
   stepHeroes(m);
+  if (w.x[HUMAN_SLOT] !== w.globals[G.HumanPX] || w.y[HUMAN_SLOT] !== w.globals[G.HumanPY]) {
+    w.globals[G.HumanPX] = w.x[HUMAN_SLOT];
+    w.globals[G.HumanPY] = w.y[HUMAN_SLOT];
+    w.globals[G.HumanActAt] = tick;
+  }
   stepMinions(m);
   stepCamps(m);
   stepPudding(m);
   clampTethers(m);
+  collectPickups(m);
+  stepBonuses(w);
   tickStatus(w);
   ageZones(w);
   stepKits(m);
@@ -252,6 +287,10 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
     }
     case 'talentOffer':
       return teamOfSlot(e.slot) === team ? e : null;
+    case 'xp':
+      return teamOfSlot(e.id) === team ? e : null;
+    case 'buff':
+      return visibleTo(w, e.id, team) ? e : null;
     default:
       return e;
   }
@@ -298,6 +337,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
         e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : 0;
       }
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
+      e.bountyStreak = w.killStreak[id];
     } else if (k === Kind.Minion) {
       e.variant = MINION_VARIANT[w.sub[id]];
       e.lane = LANES[w.lane[id]];
@@ -306,6 +346,24 @@ export function snapshot(match: Match, team: Team): Snapshot {
       e.lane = LANES[w.lane[id]];
     }
     entities.push(e);
+  }
+  for (let i = 0; i < CAPS.pickups; i++) {
+    if (w.pkAlive[i] === 0) continue;
+    entities.push({
+      id: PICKUP_ID_BASE + i,
+      kind: 'pickup',
+      team: w.pkTeam[i] as 0 | 1 | 2,
+      slot: i,
+      sub: PICKUP_KINDS[w.pkKind[i]],
+      x: w.pkX[i],
+      y: w.pkY[i],
+      hp: 0,
+      maxHp: 0,
+      shield: 0,
+      state: 'idle',
+      facing: 0,
+      buffs: 0,
+    });
   }
   const projectiles: Snapshot['projectiles'] = [];
   for (let i = 0; i < CAPS.projectiles; i++) {
@@ -321,7 +379,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
   }
   return {
     team,
-    clock: clockAt(tick, m.ended !== null),
+    clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], w.globals[G.SuddenDeath]),
     score: { kills: [w.globals[G.Kills0], w.globals[G.Kills1]], towers: [w.globals[G.Towers0], w.globals[G.Towers1]] },
     entities,
     projectiles,

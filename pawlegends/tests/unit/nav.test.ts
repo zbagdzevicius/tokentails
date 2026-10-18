@@ -30,7 +30,7 @@ describe('nav grid + integer A* (§5)', () => {
   });
   it('a clear line is one point; a wall in the way gives a detour that never crosses a blocked cell', () => {
     const g = createGrid();
-    expect(run(5000, 50000, 45000, 55000).pts).toEqual([[45000, 55000]]);
+    expect(run(30000, 45000, 45000, 50000).pts).toEqual([[45000, 50000]]);
     // Through the rock at x 24..30, y 37..41.
     const r = run(27000, 34000, 27000, 44000, g);
     expect(r.complete).toBe(true);

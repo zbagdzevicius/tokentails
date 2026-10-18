@@ -36,6 +36,9 @@ const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
  */
 const COVER = Object.freeze({ halfWidth: 1.9, north: 5.5, south: 0.6, opacity: 0.32 });
 
+/** Kinds this view draws (heroes, minions and pickups have their own views; an unknown kind is skipped). */
+const STRUCTURE_KINDS: ReadonlySet<string> = new Set(['tower', 'core', 'fountain', 'camp', 'pudding']);
+
 export class StructureView {
   readonly group = new THREE.Group();
   private items = new Map<number, Structure>();
@@ -124,7 +127,8 @@ export class StructureView {
     const seen = new Set<number>();
     this.ranges.begin();
     for (const e of frame.entities) {
-      if (e.kind === 'hero' || e.kind === 'minion') continue;
+      // pickups have their own view (views/pickupView.ts)
+      if (!STRUCTURE_KINDS.has(e.kind)) continue;
       seen.add(e.id);
       const s = this.ensure(e);
       s.alive = true;

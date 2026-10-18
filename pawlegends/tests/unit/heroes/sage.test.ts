@@ -6,7 +6,7 @@ import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { NO_TARGET, Op } from '../../../src/sim/api';
 import { snapshot, step } from '../../../src/sim/index';
 import { putMinion, towerId } from '../sim-helpers';
-import { MID, afterArmour, cast, cd, heroMatch, hold, place, setLevel, steps } from './kit-helpers';
+import { MID, afterArmour, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Sage (slot 0) vs Sir Brutus (slot 3, armour 40) and Clem (slot 4, armour 25).
 const SAGE_ID = 0;
@@ -19,6 +19,7 @@ function range() {
   place(m, FOE, MID.x + 1500, MID.y, 2048);
   place(m, FOE2, MID.x + 20000, MID.y + 20000, 2048);
   hold(m, SAGE_ID, FOE, FOE2);
+  tanky(m, SAGE_ID, FOE, FOE2);
   return m;
 }
 
@@ -48,7 +49,7 @@ describe('Sage (§6.4)', () => {
     expect(alive(m, PROJECTILE_KIND.arrow)).toBeGreaterThan(0);
     expect(cd(m, SAGE_ID, 0)).toBe(210);
     steps(m, 15);
-    expect(hp - w.hp[FOE]).toBe(3 * afterArmour(55, 40));
+    expect(hp - w.hp[FOE]).toBe(3 * heroHit(55, 40));
     expect(alive(m, PROJECTILE_KIND.arrow)).toBe(0);
   });
 
@@ -169,7 +170,7 @@ describe('Sage (§6.4)', () => {
     const hp2 = w.hp[FOE2];
     steps(m, 30);
     const dmg = 220 + 40 * 3;
-    expect(hp - w.hp[FOE]).toBe(afterArmour(dmg, 40));
+    expect(hp - w.hp[FOE]).toBe(heroHit(dmg, 40));
     expect(w.hp[FOE2]).toBe(hp2); // stopped at the first hero
     expect(w.maxHp[minion] - w.hp[minion]).toBe(afterArmour(Math.trunc(dmg / 2), 10));
   });

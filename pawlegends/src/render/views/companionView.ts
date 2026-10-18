@@ -24,7 +24,8 @@ interface Kitten {
   napping: boolean;
 }
 
-function nameTag(name: string, color: number): THREE.Sprite {
+/** The kitten's tag: its name, the element dot and, for Rare+ cats, tier sparkles (round 0: show off a cat). */
+function nameTag(name: string, color: number, tier = 'COMMON'): THREE.Sprite {
   const cv = document.createElement('canvas');
   cv.width = 256;
   cv.height = 64;
@@ -43,7 +44,13 @@ function nameTag(name: string, color: number): THREE.Sprite {
     g.arc((256 - w) / 2 + 16, 32, 6, 0, Math.PI * 2);
     g.fill();
     g.fillStyle = '#fff3dc';
-    g.fillText(name, 128 + 6, 33);
+    const stars = tier === 'LEGENDARY' ? ' ✦✦' : tier === 'EPIC' || tier === 'RARE' ? ' ✦' : '';
+    g.fillText(name, 128 + 6 - (stars ? 10 : 0), 33);
+    if (stars) {
+      g.fillStyle = '#ffd34d';
+      g.textAlign = 'left';
+      g.fillText(stars, 128 + 6 + g.measureText(name).width / 2 - 10, 33);
+    }
   }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -64,7 +71,7 @@ export class CompanionView {
     companions.slice(0, 2).forEach((c, i) => {
       const ch = makeKitten(kittenCoat(c.coat), ELEMENT_COLOR[c.element], c.coat === 'SCOUT');
       ch.object.name = `kitten-${i}`;
-      const tag = nameTag(c.name, ELEMENT_COLOR[c.element]);
+      const tag = nameTag(c.name, ELEMENT_COLOR[c.element], c.tier);
       this.group.add(ch.object, tag);
       this.kittens.push({ c, ch, tag, pos: new THREE.Vector3(), yaw: 0, phase: i * 2.1, walk: 0, napping: true });
     });

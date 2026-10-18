@@ -1,9 +1,10 @@
 /**
- * Nav grid (POC.md §5): 1 m cells, 100 × 60, 1 = blocked. Static walls from data/map.ts plus the footprints of the
+ * Nav grid (POC.md §5): 1 m cells, 100 × 60, 1 = blocked. Static walls from data/map.ts (the rocks, and since sim v5
+ * everything outside PLAYFIELD: the forest and the outer rim) plus the footprints of the
  * standing towers and cores (a destroyed structure frees its cells). Derived state: rebuilt the same way in a live
  * match and its replay, so it is not part of the world hash.
  */
-import { MAP, NAV, WALLS, mirrorX } from '../../data/map';
+import { LANE_WAYPOINTS, MAP, NAV, PLAYFIELD, WALLS, mirrorX } from '../../data/map';
 import { idiv } from '../fixed';
 
 export const NX = idiv(MAP.width, MAP.navCell);
@@ -37,8 +38,79 @@ function markRect(a: Uint8Array, x0: number, y0: number, x1: number, y1: number)
   }
 }
 
+/** A lane's centre line from the Purrhaven core to the Woof core (own waypoints, then the mirrored ones back). */
+function laneLine(lane: 'sunny' | 'puddle'): number[] {
+  const pts = LANE_WAYPOINTS[lane];
+  const out: number[] = [];
+  for (let k = 0; k < pts.length; k++) out.push(pts[k][0], pts[k][1]);
+  for (let k = pts.length - 1; k >= 0; k--) {
+    const x = mirrorX(pts[k][0]);
+    if (x !== out[out.length - 2] || pts[k][1] !== out[out.length - 1]) out.push(x, pts[k][1]);
+  }
+  return out;
+}
+
+/** Is (px, py) within `r` of the segment a–b? Integer maths (products stay below 2^53). */
+function nearSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number, r: number): boolean {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let qx = ax;
+  let qy = ay;
+  if (len2 > 0) {
+    const t = Math.max(0, Math.min(len2, (px - ax) * dx + (py - ay) * dy));
+    qx = ax + idiv(dx * t, len2);
+    qy = ay + idiv(dy * t, len2);
+  }
+  return (px - qx) * (px - qx) + (py - qy) * (py - qy) <= r * r;
+}
+
+/** Crossing-number point-in-polygon over a flat [x0, y0, x1, y1, …] ring. */
+function insideRing(px: number, py: number, ring: readonly number[]): boolean {
+  let inside = false;
+  const n = ring.length >> 1;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[i * 2];
+    const yi = ring[i * 2 + 1];
+    const xj = ring[j * 2];
+    const yj = ring[j * 2 + 1];
+    if (yi > py !== yj > py && px < xi + idiv((xj - xi) * (py - yi), yj - yi)) inside = !inside;
+  }
+  return inside;
+}
+
+/** Is the point on the playfield (data/map.ts PLAYFIELD)? */
+export function onPlayfield(x: number, y: number): boolean {
+  const rim = PLAYFIELD.rim;
+  if (x < rim || y < rim || x > MAP.width - rim || y > MAP.height - rim) return false;
+  const [b0, b1, b2, b3] = PLAYFIELD.base;
+  if (y >= b1 && y <= b3 && ((x >= b0 && x <= b2) || (x >= mirrorX(b2) && x <= mirrorX(b0)))) return true;
+  return nearLane(x, y, PLAYFIELD.laneHalf) || insideRing(x, y, LOOP);
+}
+
+const LINES: readonly (readonly number[])[] = [laneLine('sunny'), laneLine('puddle')];
+
+/** Is (x, y) within `r` of either lane's centre line? */
+export function nearLane(x: number, y: number, r: number): boolean {
+  for (const lane of LINES) {
+    for (let k = 0; k + 3 < lane.length; k += 2) if (nearSegment(x, y, lane[k], lane[k + 1], lane[k + 2], lane[k + 3], r)) return true;
+  }
+  return false;
+}
+/** The lane loop: Sunny Lane west to east, then Puddle Lane back east to west (the shared core points once). */
+const LOOP: readonly number[] = (() => {
+  const a = LINES[0];
+  const b = LINES[1];
+  const ring = a.slice();
+  for (let k = b.length - 4; k >= 2; k -= 2) ring.push(b[k], b[k + 1]);
+  return ring;
+})();
+
 export function createGrid(): NavGrid {
   const walls = new Uint8Array(NX * NY);
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) if (!onPlayfield(i * MAP.navCell + HALF, j * MAP.navCell + HALF)) walls[j * NX + i] = 1;
+  }
   for (let k = 0; k < WALLS.length; k++) {
     const [x0, y0, x1, y1] = WALLS[k];
     markRect(walls, x0, y0, x1, y1);

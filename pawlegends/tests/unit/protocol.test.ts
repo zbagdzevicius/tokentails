@@ -73,6 +73,11 @@ describe('protocol (§11.2, §15 item 13)', { timeout: 120000 }, () => {
     const s = snapshot(m, 0);
     s.projectiles.push({ index: 4, team: 1, owner: 3, x: 1, y: -2, vx: 160, vy: -90, kind: 2 });
     s.zones.push({ index: 7, team: 2, owner: -1, x: 50000, y: 30000, radius: 4000, ttl: 24, kind: 1 });
+    // Sim v4: pickups (kind, sub) and a hero's bounty streak travel too.
+    s.entities.push({ id: 63, kind: 'pickup', team: 2, slot: 0, sub: 'frenzy', x: 50000, y: 52000, hp: 0, maxHp: 0, shield: 0, state: 'idle', facing: 0, buffs: 0 });
+    s.entities.push({ id: 64, kind: 'pickup', team: 1, slot: 1, sub: 'snack', x: 80000, y: 8000, hp: 0, maxHp: 0, shield: 0, state: 'idle', facing: 0, buffs: 0 });
+    const hero = s.entities.find((e) => e.kind === 'hero')!;
+    hero.bountyStreak = 4;
     expect(decodeSnap(encodeSnap(s))).toEqual({ ...s, events: [] });
   });
 

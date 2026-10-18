@@ -3,8 +3,8 @@
  * movement and CC, Nap (recall), death and respawn. Abilities resolve through heroes/kit.ts. Bots (slots 1..5) are
  * M3 and idle until then, but they still auto-attack what walks into their attack range.
  */
-import { HERO_SPAWNS, MAP, NAV, mirrorX } from '../../data/map';
-import { HERO_RULES } from '../../data/xp';
+import { FOUNTAIN, HERO_SPAWNS, MAP, NAV, RADIUS, mirrorX } from '../../data/map';
+import { HERO_RULES, ZOOMIES } from '../../data/xp';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { NO_TARGET, Op, type Command } from '../api';
 import { ANGLE_STEPS, clamp, dist2, iatan2, isqrt, moveToward } from '../fixed';
@@ -44,9 +44,10 @@ function toSpawn(w: World, id: number): void {
   w.timer[id] = 0;
 }
 
-/** Put hero `id` at its fountain at full HP (match start and respawn). */
+/** Put hero `id` at its fountain at full HP (match start and respawn), with Zoomies. */
 export function placeAtFountain(w: World, id: number): void {
   w.alive[id] = 1;
+  w.zoomT[id] = ZOOMIES.ticks;
   w.hp[id] = w.maxHp[id];
   toSpawn(w, id);
   w.attackTimer[id] = 0;
@@ -164,6 +165,13 @@ function nearestEnemy(w: World, id: number, reach: number, attackOnly: boolean):
   return best;
 }
 
+/** Is (x, y) inside the fountain of hero `id`'s enemy (its radius + a hero radius)? */
+function inEnemyFountain(w: World, id: number, x: number, y: number): boolean {
+  const fx = w.team[id] === 0 ? mirrorX(FOUNTAIN.x) : FOUNTAIN.x;
+  const r = FOUNTAIN.radius + RADIUS.hero;
+  return dist2(x, y, fx, FOUNTAIN.y) <= r * r;
+}
+
 /** One tick along the hero's path toward (moveX, moveY). Returns true on arrival at the goal. Rooted: stays. */
 function walk(m: MatchHandle, id: number): boolean {
   const w = m.world;
@@ -190,6 +198,11 @@ function walk(m: MatchHandle, id: number): boolean {
   }
   if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
   const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], TICK_HZ, out);
+  // The enemy fountain is a wall (v4): a hero stops at its edge instead of walking into its fire.
+  if (inEnemyFountain(w, id, out[0], out[1]) && !inEnemyFountain(w, id, w.x[id], w.y[id])) {
+    w.state[id] = UnitState.Idle;
+    return false;
+  }
   w.x[id] = out[0];
   w.y[id] = out[1];
   w.moveCarry[id] = out[2];
@@ -241,7 +254,10 @@ export function stepHeroes(m: MatchHandle): void {
     if (w.kind[id] !== Kind.Hero) continue;
     if (w.alive[id] === 0) {
       if (w.timer[id] > 0) w.timer[id]--;
-      if (w.timer[id] === 0) placeAtFountain(w, id);
+      if (w.timer[id] === 0) {
+        placeAtFountain(w, id);
+        m.events.push({ type: 'buff', tick: w.globals[G.Tick], id, kind: 'zoomies', ticks: ZOOMIES.ticks });
+      }
       continue;
     }
     if (w.timer[id] > 0) w.timer[id]--;

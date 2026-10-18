@@ -175,7 +175,8 @@ import { PAWLEGENDS_SCHEMAS, PawlegendsStore } from './pawlegends/pawlegends.sch
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
-import { PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
+import { PAWLEGENDS_CAT_SALE, PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
+import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.service';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -389,6 +390,9 @@ const config = {
         PawlegendsWebhookService,
         PawlegendsAccountService,
         PawlegendsOfferService,
+        { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
+        // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
+        PawlegendsCheckoutGuard,
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,

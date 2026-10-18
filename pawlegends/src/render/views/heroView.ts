@@ -10,8 +10,8 @@ import { BuffFlag, type HeroId } from '../../sim/api';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
-import { lookKey, type Look } from '../cosmetics';
-import { DecalLayer, ringTexture } from './decals';
+import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
+import { DecalLayer, discTexture, ringTexture } from './decals';
 import { HERO_RING } from './models';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
 
@@ -51,6 +51,8 @@ export class HeroView {
   private rigs = new Map<number, HeroRig>();
   // Normal blending: an additive red ring on sand reads yellow, like an ally's (enemy rings must read red).
   private rings = new DecalLayer(ringTexture(), 8, { additive: false, y: 0.05, name: 'hero-rings' });
+  /** Round 0: a chroma reads at match zoom: a soft element-coloured glow underfoot, pulsing with the stride. */
+  private auras = new DecalLayer(discTexture(), 8, { additive: true, y: 0.045, renderOrder: 1, name: 'hero-chroma' });
   private time = 0;
   mySlot = 0;
   myTeam: 0 | 1 = 0;
@@ -64,6 +66,7 @@ export class HeroView {
   constructor() {
     this.group.name = 'heroes';
     this.group.add(this.rings.mesh);
+    this.group.add(this.auras.mesh);
   }
 
   relationOf(e: { id: number; team: number }): Relation {
@@ -146,6 +149,7 @@ export class HeroView {
     this.time += dt;
     const seen = new Set<number>();
     this.rings.begin();
+    this.auras.begin();
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       seen.add(e.id);
@@ -187,6 +191,8 @@ export class HeroView {
         const rel = this.relationOf(e);
         const pulse = rel === 'self' ? 0.85 + Math.sin(this.time * 4) * 0.15 : 0.75;
         this.rings.add(x, z, HERO_RING[r.hero], RELATION[rel], pulse);
+        const chroma = this.looks.get(e.id)?.chroma;
+        if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
       }
     }
     for (const [id, r] of this.rigs) {
@@ -196,11 +202,13 @@ export class HeroView {
       }
     }
     this.rings.end();
+    this.auras.end();
   }
 
   dispose(): void {
     for (const r of [...this.rigs.values()]) this.drop(r);
     this.rings.dispose();
+    this.auras.dispose();
   }
 }
 

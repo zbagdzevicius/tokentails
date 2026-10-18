@@ -28,6 +28,7 @@ export const BODY_MM: Readonly<Record<EntitySnap['kind'], number>> = Object.free
   fountain: 0,
   camp: 500,
   pudding: 2000,
+  pickup: 0,
 });
 
 export const ATTACKABLE: ReadonlySet<EntitySnap['kind']> = new Set(['hero', 'minion', 'tower', 'core', 'camp', 'pudding']);

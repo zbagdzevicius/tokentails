@@ -4,10 +4,14 @@
  * blocks the fight: when the player does not choose within `TALENT_AUTO_S` match seconds, option 1 is taken for them
  * (the same default the bots take inside the sim), and a bar on the strip shows the time left. Offers queue if a
  * second one arrives first.
+ *
+ * Round 0: an offer that comes mid-fight waits (`offer(tier, true)`): the portrait glows "Talent!" and the cards
+ * open on a tap on it, or on their own once the player is out of the fight (`reveal`). Small screens show a 2-5
+ * word subtitle (heroText TALENT_SHORT) instead of the full line, which was cut off.
  */
 import { HEROES } from '../data/heroes';
 import type { HeroId, TalentTier } from '../sim/api';
-import { HERO_TEXT } from './heroText';
+import { HERO_TEXT, TALENT_SHORT } from './heroText';
 
 const LEVEL_OF_TIER = [3, 6, 9];
 /** Seconds (unpaused) an offer stays open before option 1 is picked for the player. */
@@ -42,11 +46,31 @@ export class TalentPicker {
     return this.queue.length > 0;
   }
 
-  offer(tier: number): void {
+  /** An offer is waiting behind the glowing portrait (not shown yet). */
+  waiting = false;
+
+  /** `wait`: the player is fighting, so only the portrait glows until `reveal()`. */
+  offer(tier: number, wait = false): void {
     if (tier < 0 || tier > 2 || this.picked.has(tier) || this.queue.includes(tier as TalentTier)) return;
     this.queue.push(tier as TalentTier);
-    if (this.queue.length === 1) this.render();
+    if (this.queue.length !== 1) return;
+    if (wait) {
+      this.waiting = true;
+      this.root.classList.remove('on');
+      this.onWait?.(true);
+    } else this.render();
   }
+
+  /** Show a waiting offer (a tap on the portrait, or the fight is over). */
+  reveal(): void {
+    if (!this.waiting) return;
+    this.waiting = false;
+    this.onWait?.(false);
+    this.render();
+  }
+
+  /** The session glows the portrait while an offer waits. */
+  onWait?: (on: boolean) => void;
 
   /** Returns true when a card was open. */
   pick(choice: 0 | 1, auto = false): boolean {
@@ -61,7 +85,7 @@ export class TalentPicker {
 
   /** Advance the auto-pick timer (call with 0 while paused). */
   update(dt: number): void {
-    if (!this.open) return;
+    if (!this.open || this.waiting) return;
     this.left -= dt;
     const bar = this.root.querySelector<HTMLElement>('.time');
     if (bar) bar.style.setProperty('--left', Math.max(0, this.left / TALENT_AUTO_S).toFixed(3));
@@ -84,7 +108,7 @@ export class TalentPicker {
     const words = HERO_TEXT[this.hero].talents;
     this.left = TALENT_AUTO_S;
     this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent: pick one</div><i class="time"></i>${opts
-      .map((o, i) => `<button data-c="${i}"><kbd>${i + 1}</kbd><b>${o.name}</b><span>${words[o.id] ?? ''}</span></button>`)
+      .map((o, i) => `<button data-c="${i}"><kbd>${i + 1}</kbd><b>${o.name}</b><span class="d">${words[o.id] ?? ''}</span><span class="s">${TALENT_SHORT[o.id] ?? words[o.id] ?? ''}</span></button>`)
       .join('')}`;
     this.root.classList.add('on');
   }

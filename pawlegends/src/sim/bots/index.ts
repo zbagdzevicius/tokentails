@@ -7,7 +7,7 @@
  * outside the world and return commands for the caller to pass to `step`, so a match they play records and
  * replays like a human one.
  */
-import { BOTS, BOT_TEAMS, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
+import { BOTS, BOT_TEAMS, PARKED, ROOKIE_ALLIES, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
 import { TIMELINE } from '../../data/timeline';
 import { HUMAN_SLOT, Op, teamOfSlot, type Command } from '../api';
 import { quantize } from '../commands';
@@ -19,6 +19,7 @@ import { applyOrder } from '../units/hero';
 import { think } from './brain';
 import { createMem, worldMem, type BotMem } from './mem';
 import { noviceThink } from './novice';
+import { naiveThink } from './naive';
 
 export { pushLane } from './brain';
 
@@ -27,6 +28,9 @@ export { pushLane } from './brain';
  * groupAt), so they never leave the lanes to an enemy that is still spread out in them.
  */
 const ALLIES: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({
+  // Rookie (v4): the allies play at Easy (they carry, peel and leave kills to the human, bots/brain.ts), so the
+  // human's own play decides the match: an idle human loses most of them.
+  rookie: Object.freeze({ ...BOTS.easy, ...ROOKIE_ALLIES, groupAt: BOTS.rookie.groupAt }),
   easy: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.easy.groupAt }),
   normal: Object.freeze({ ...BOTS[BOT_TEAMS.allies], groupAt: BOTS.normal.groupAt }),
 });
@@ -77,6 +81,16 @@ export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
       if (w.talents[bot.slot * TALENT_TIERS + t] < 0) return [{ op: Op.Talent, tier: t as 0 | 1 | 2, choice: 0 }];
     }
   }
-  const cmd = bot.profile === 'novice' ? noviceThink(m, bot.slot, bot.mem, bot.rng) : think(m, bot.slot, BOTS[bot.profile], bot.mem, bot.rng);
+  if (bot.profile === 'parked') {
+    // One move at PARKED.at, then nothing (it keeps standing where it got to).
+    const t = w.globals[G.Tick];
+    return t >= PARKED.at && t < PARKED.at + TIMELINE.botThinkEvery && w.alive[bot.slot] === 1 ? [{ op: Op.Move, x: PARKED.x, y: PARKED.y }] : [];
+  }
+  const cmd =
+    bot.profile === 'novice'
+      ? noviceThink(m, bot.slot, bot.mem, bot.rng)
+      : bot.profile === 'naive'
+        ? naiveThink(m, bot.slot, bot.mem, bot.rng)
+        : think(m, bot.slot, BOTS[bot.profile], bot.mem, bot.rng);
   return cmd ? [cmd] : [];
 }

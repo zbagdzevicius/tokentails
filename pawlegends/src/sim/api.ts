@@ -94,7 +94,15 @@ export interface TimedCommand {
 // ---------------------------------------------------------------------------------------------------------------
 // Snapshots (per team: what that team may see, POC.md §7.3 brush rule)
 
-export type EntityKind = 'hero' | 'minion' | 'tower' | 'core' | 'fountain' | 'camp' | 'pudding';
+export type EntityKind = 'hero' | 'minion' | 'tower' | 'core' | 'fountain' | 'camp' | 'pudding' | 'pickup';
+
+/** Pickup kinds (sim v4, data/pickups.ts). */
+export type PickupKind = 'frenzy' | 'snack';
+/** Snapshot ids of pickups start here (after the last unit id; `slot` is the pickup index 0..3). */
+export const PICKUP_ID_BASE = 63; // lint-sim: allow (= ENTITY_CAP in world.ts, pinned by pickups.test.ts)
+/** Bonus kinds of the `buff` event (sim v4). */
+/** 'takedown' (sim v4): a hero credited with a takedown got TAKEDOWN_HEAL back (data/xp.ts); `ticks` is 0. */
+export type BuffKind = 'nineLives' | 'frenzy' | 'snack' | 'pack' | 'zoomies' | 'takedown';
 
 /** Coarse state for animation. */
 export type UnitStateName = 'idle' | 'moving' | 'attacking' | 'casting' | 'dead' | 'napping';
@@ -115,6 +123,11 @@ export const BuffFlag = Object.freeze({
   Channeling: 1 << 11,
   Blocking: 1 << 12,
   Tethered: 1 << 13,
+  /** Sim v4: Zoomies (+80% speed after the fountain), Frenzy Catnip, Nine Lives (burst damage reduced), rat-camp Pack buff. */
+  Zoomies: 1 << 14,
+  Frenzy: 1 << 15,
+  NineLives: 1 << 16,
+  Pack: 1 << 17, // lint-sim: allow (a bit index)
 } as const);
 
 export interface EntitySnap {
@@ -150,6 +163,10 @@ export interface EntitySnap {
   talents?: readonly [number, number, number];
   /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100), else 0. */
   resource?: number;
+  /** Heroes only (sim v4): takedowns since the last death; 3+ means a bounty is on the hero (a crown). */
+  bountyStreak?: number;
+  /** Pickups only (sim v4): which pickup. `team` 2 = anyone may take it, else only that team (Fish Snack). */
+  sub?: PickupKind;
 }
 
 export interface ProjectileSnap {
@@ -204,7 +221,24 @@ export type SimEvent =
   | { type: 'tower'; tick: number; id: number; destroyedBy: Team }
   | { type: 'pudding'; tick: number; what: 'spawn' | 'hop' | 'calmed' | 'escort' | 'leave'; team?: Team }
   | { type: 'sunset'; tick: number }
-  | { type: 'suddenDeath'; tick: number };
+  | { type: 'suddenDeath'; tick: number }
+  // Sim v4 (fun plan §0.2):
+  /** Hero `id` took a pickup. */
+  | { type: 'pickup'; tick: number; id: number; kind: PickupKind; team: Team }
+  /** A pickup appeared (`index` = its snapshot slot; id = PICKUP_ID_BASE + index). */
+  | { type: 'pickupSpawn'; tick: number; index: number; kind: PickupKind; x: number; y: number }
+  /** Hero `id` reached a takedown streak of 3+: killing it now pays `value` bonus XP. */
+  | { type: 'bounty'; tick: number; id: number; value: number }
+  /** `killer` (−1: a tower or minion) ended `victim`'s bounty worth `value` XP. */
+  | { type: 'shutdown'; tick: number; killer: number; victim: number; value: number }
+  /** `team`'s underdog waves start (COMEBACK in data/minions.ts: +10% minion HP on its next 2 waves). */
+  | { type: 'comeback'; tick: number; team: Team }
+  /** XP for hero `id` (sent to its own team only). 'tower' (sim v4): its team took an enemy tower. */
+  | { type: 'xp'; tick: number; id: number; amount: number; reason: 'kill' | 'assist' | 'minion' | 'lastHit' | 'camp' | 'trickle' | 'pickup' | 'tower' }
+  /** The match's first takedown. */
+  | { type: 'firstBlood'; tick: number; killer: number; victim: number }
+  /** A bonus on hero `id` started (for `ticks`): Nine Lives saved it, a pickup, the rat camp's Pack buff, Zoomies. */
+  | { type: 'buff'; tick: number; id: number; kind: BuffKind; ticks: number };
 
 export type SimEventType = SimEvent['type'];
 

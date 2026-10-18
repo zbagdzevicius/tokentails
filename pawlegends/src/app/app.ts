@@ -8,7 +8,9 @@ import { HumanFilter } from '../analytics/human';
 import { createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
 import type { Bridge, HostMessage } from '../embed/bridge';
-import { EMPTY_ROSTER, parseRoster, rosterCosmetics, type RosterCosmetics } from '../meta/roster';
+import { EMPTY_ROSTER, parseRoster, rosterCosmetics, type RosterCat, type RosterCosmetics } from '../meta/roster';
+import { squadPrefs } from '../meta/squad';
+import { recordLadder } from '../meta/ladder';
 import { loadProfile, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
@@ -23,11 +25,17 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, SUDDEN_DEATH_S, titleScreen, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT } from '../ui/heroText';
 import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
+import { canPickDifficulty, difficultyFor, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
+import { loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
+import { addTreatXp, loadTreats, saveTreats, treatXpFor } from '../meta/treats';
+import { parseAudio } from '../embed/bridge';
+import { installIntegration, type Integration } from '../embed/integrate';
+import { suddenDeathS } from '../ui/screens';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
 
@@ -67,6 +75,8 @@ export class App {
   readonly ent = new Entitlements();
   readonly checkout: CheckoutBridge;
   readonly analytics: Analytics;
+  /** Token Tails cards, sign-in, save chip and the Meet card (embed/integrate.ts). */
+  readonly integration: Integration;
   private readonly human = new HumanFilter();
   private screen: Screen = 'title';
   private screenEl: HTMLElement | null = null;
@@ -85,6 +95,7 @@ export class App {
   private lastSetup: MatchSetup | null = null;
   private frames = 0;
   private roster: RosterCosmetics = EMPTY_ROSTER;
+  private rosterCats: RosterCat[] = [];
   private hostOffer: Offer | null | undefined = undefined;
   private offerShown = false;
   private matchesThisSession = 0;
@@ -124,6 +135,16 @@ export class App {
     addEventListener('resize', () => this.gr.resize());
     addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
     addEventListener('keydown', () => sfx.unlock(), { capture: true });
+    this.integration = installIntegration(bridge, {
+      ent: this.ent,
+      profile: loadProfile,
+      analytics: this.analytics,
+      onRosterChange: () => {
+        this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
+        this.refreshMeta();
+      },
+      root,
+    });
     bridge.on((m) => this.onHost(m));
     this.ent.onChange(() => this.refreshMeta());
     document.addEventListener('visibilitychange', () => {
@@ -144,14 +165,21 @@ export class App {
     if (m.type === 'pause' || m.type === 'resume') {
       this.session?.setPaused(m.type === 'pause');
       this.bridge.post('paused', { paused: m.type === 'pause' });
-    } else if (m.type === 'audio') this.setMuted(m.muted === true);
+    } else if (m.type === 'audio') {
+      this.setMuted(m.muted === true);
+      const v = parseAudio(m);
+      if (v) sfx.setVolumes(v);
+    }
     else if (m.type === 'roster') {
-      this.roster = rosterCosmetics(parseRoster(m.cats));
+      this.rosterCats = parseRoster(m.cats);
+      this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
       this.refreshMeta();
     } else if (m.type === 'offer') {
       const o = offerOf(m.offer);
       if (o !== undefined) this.hostOffer = o;
-    } else this.ent.apply(m);
+    } else if (!this.integration.handle(m)) this.ent.apply(m);
+    // save-result and featured belong to the integration: the results save chip shows "+N catnip" once the
+    // server paid it (POST /user/catbassadors/live via the host)
   }
 
   private owned(): Owned {
@@ -275,6 +303,7 @@ export class App {
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
+        quests: p.matches > 0 ? questViews(loadQuests(), p.matches <= PICK_DIFFICULTY_FROM ? p.hero : undefined) : undefined,
       }),
     );
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
@@ -309,19 +338,26 @@ export class App {
           this.startMatch(c);
         },
         onBack: () => this.showTitle(),
+        difficulties: pickable(),
+        difficultyNote: canPickDifficulty(p.matches) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
       }),
     );
   }
 
-  private startMatch(c: Choice, seed?: number): void {
-    this.choice = c;
+  private startMatch(pick: Choice, seed?: number): void {
     const p = loadProfile();
+    // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
+    // a dare keeps its own bots (the seed and the difficulty make the dare)
+    const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty) };
+    this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     p.hero = c.hero;
     p.trick = c.trick;
-    p.difficulty = c.difficulty;
+    if (!isRookie(c.difficulty)) p.difficulty = c.difficulty;
     const tips = tipsDue(p);
     p.tipsNext = false;
     saveProfile(p);
+    // the squad may have changed on the pick screen, or a cat just joined
+    this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
     const owned = this.owned();
     const look = this.lookFor(c.hero);
     const setup: MatchSetup = {
@@ -330,18 +366,21 @@ export class App {
       speed: this.speed,
       firstMatch: tips,
       newPlayer: p.matches < 5,
-      emote: owned.items.has('emote.starter'),
+      emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
       muted: sfx.isMuted,
       look,
       frame: bestFrame(owned),
       title: titleOf(owned),
       companions: this.roster.companions,
+      guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
+      knowsUlt: p.knowsUlt && p.matches > 0,
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero: c.hero, difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
-    const veil = loadingVeil(this.root, 'Into the Crossing...');
+    const mates = this.roster.companions.map((k) => k.name);
+    const veil = loadingVeil(this.root, 'Into the Crossing...', mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined);
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -371,11 +410,37 @@ export class App {
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
+    const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
     this.bridge.post('match-result', {
+      matchId,
       replay: e.replay,
       summary: { won, ticks: e.result.ticks, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills },
     });
-    this.analytics.track('match_end', { result: e.result.outcome, length: seconds, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills });
+    // pl_* (fun plan F5): real-player numbers to check against the fun1 gate
+    this.analytics.track('match_end', {
+      result: e.result.outcome,
+      length: seconds,
+      hero: e.replay.hero,
+      difficulty: e.replay.difficulty,
+      takedowns: e.kills,
+      pl_first_takedown_s: e.fun.firstTakedownS,
+      pl_deaths: e.deaths,
+      pl_takedowns: e.fun.takedowns,
+      pl_level4_s: e.fun.level4S,
+      pl_match_len_s: seconds,
+      pl_rookie: isRookie(e.replay.difficulty),
+    });
+    // Treat Track and daily quests (local, free, fixed order)
+    const quests = progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, loadProfile().matches <= PICK_DIFFICULTY_FROM);
+    saveQuests(quests.state);
+    const prof = loadProfile();
+    const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);
+    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding }) + quests.xp, ownedIds);
+    saveTreats(treats.state);
+    if (treats.rewards.length) {
+      for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
+      saveProfile(prof);
+    }
     for (const id of e.tips) this.analytics.track('tip_done', { id });
     if (rec.second) this.analytics.track('second_match', { hero: e.replay.hero });
     if (this.frameMs.length > 60) this.analytics.track('perf_sample', { p95: p95(this.frameMs), tier: this.tier });
@@ -389,12 +454,31 @@ export class App {
     if (won) {
       const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
-        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < SUDDEN_DEATH_S ? seconds : 0 }, base);
+        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
       } catch {
         link = null;
       }
     }
     const s = this.ent.snapshot();
+    const lp = loadProfile();
+    if (e.fun.usedUlt && !lp.knowsUlt) {
+      lp.knowsUlt = true;
+      saveProfile(lp);
+    }
+    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns });
+    const mySlot = e.welcome.slot;
+    const myTeam = mySlot < 3 ? 0 : 1;
+    const table = e.result.stats
+      .map((st) => ({
+        name: HERO_TEXT[st.hero].title,
+        rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
+        k: st.kills,
+        d: st.deaths,
+        a: st.assists,
+        heroDmg: st.heroDamage,
+        towerDmg: st.towerDamage,
+      }))
+      .sort((a, b) => Number(a.rel === 'enemy') - Number(b.rel === 'enemy'));
     this.setScreen(
       'results',
       resultsScreen(this.root, {
@@ -410,6 +494,13 @@ export class App {
         best: rec.best,
         dareLink: link,
         deathsBy: e.deathsBy,
+        heroDamage: e.fun.heroDamage,
+        bestMoment: e.fun.best,
+        treats,
+        quests: quests.views,
+        table,
+        ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta } : null,
+        personal: ladder?.personal ?? null,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
         speed: this.speed,
         storeOpen: s.storeOpen,
@@ -434,8 +525,9 @@ export class App {
         onNotify: () => this.notify('results'),
       }),
     );
-    // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen)
-    if (won)
+    // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
+    // never after the Rookie match (fun plan F4)
+    if (won && !isRookie(e.replay.difficulty))
       setTimeout(() => {
         if (this.screen === 'results') this.maybeOffer('results');
       }, 2500);

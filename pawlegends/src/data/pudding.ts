@@ -1,14 +1,14 @@
 /** Pudding, the shared objective (POC.md §5). */
 export const PUDDING = Object.freeze({
   /** Calm meter, filled by damage (Pudding's HP while wild; armour 0). */
-  calm: 5000,
+  calm: 2500,
   /** Every 4 s a scared-hop knockback ring of 4 m after a 0.8 s telegraph. */
   hopEvery: 120,
   hopRadius: 4000,
   hopTelegraph: 24,
   hopKnockback: 1500,
-  /** First at 5:00 (TIMELINE.pudding), respawn 2:30 after the escort leaves. */
-  respawn: 4500,
+  /** First at 2:30 (TIMELINE.pudding), respawn 2:00 after the escort leaves (v4; 5:00 and 2:30 before). */
+  respawn: 3600,
   /** Pudding's Courage escort (joins the calming team's next wave). */
   escortHp: 3000,
   escortBreathRange: 7000,

@@ -5,23 +5,27 @@
  * that hit each other on the same tick both land their hits (no id-order advantage).
  */
 import { HERO_RULES } from '../../data/xp';
+import { HERO_IDS, HERO_VS_HERO_BP, HEROES, SIDE_EDGE } from '../../data/heroes';
 import { RADIUS } from '../../data/map';
-import { SUDDEN_DEATH, SUNSET, TIMELINE } from '../../data/timeline';
+import { SUDDEN_DEATH, SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
 import type { SimEvent } from '../api';
 import { ZONE_KIND } from '../../data/effects';
 import { applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, Order, RANGE, UnitState, type World } from '../world';
-import { attackRange, isInvulnerable, isStructure } from '../units/kinds';
+import { attackRange, coreExposed, isInvulnerable, isStructure } from '../units/kinds';
 import { onStructureDestroyed } from '../units/tower';
 import { clearStatus } from '../effects/status';
 import { endArena } from '../effects/tether';
 import { kitOf } from '../heroes/kit';
 import { campKilled, heroKilled, minionKilled } from '../progression/xp';
-import { onRatDied } from '../units/camp';
+import { onRatDied, packBuff } from '../units/camp';
 import { onPuddingDown } from '../units/pudding';
 import { respawnTicks } from '../progression/respawn';
+import { bonusDamage, nineLives } from '../effects/bonus';
+import { HUMAN_SLOT, teamOfSlot } from '../api';
+import { rulesOf } from '../rules';
 
 export { respawnTicks } from '../progression/respawn';
 
@@ -63,12 +67,24 @@ export function dealDamage(
   if (structure && !opts.pierce && isInvulnerable(w, dst)) return 0;
   const tick = w.globals[G.Tick];
   const heroSrc = !opts.pure && srcKind === Kind.Hero && src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero;
-  if (heroSrc) raw = kitOf(w, src).outgoing?.(m, src, dst, raw) ?? raw;
+  if (heroSrc) {
+    raw = bonusDamage(w, src, kitOf(w, src).outgoing?.(m, src, dst, raw) ?? raw);
+    if (w.kind[dst] === Kind.Hero) {
+      raw = applyBp(raw, HERO_VS_HERO_BP);
+      if (w.globals[G.SideEdge] !== 0) {
+        raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[src]]].side].heroDmgBp);
+        raw = applyBp(raw, SIDE_EDGE[HEROES[HERO_IDS[w.sub[dst]]].side].heroTakenBp);
+      }
+    }
+    if (src === HUMAN_SLOT) raw = applyBp(raw, rulesOf(m).humanDamageBp);
+  }
+  if (dst === HUMAN_SLOT && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
   let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
   if (structure && !opts.pure) {
-    if (tick >= TIMELINE.sunset) dmg = applyBp(dmg, SUNSET.structureDamageBp);
+    if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
     // Backdoor protection: heroes deal half when no minion of their team is near the structure.
-    if (srcKind === Kind.Hero && !minionNear(w, srcTeam, w.x[dst], w.y[dst])) dmg = applyBp(dmg, TOWERS.backdoorBp);
+    const guarded = w.team[dst] === teamOfSlot(HUMAN_SLOT) || rulesOf(m).enemyBackdoor;
+    if (srcKind === Kind.Hero && guarded && !minionNear(w, srcTeam, w.x[dst], w.y[dst])) dmg = applyBp(dmg, TOWERS.backdoorBp);
   }
   const heroDst = w.kind[dst] === Kind.Hero;
   if (heroDst && !opts.pure) dmg = kitOf(w, dst).incoming?.(m, dst, src, dmg) ?? dmg;
@@ -82,6 +98,16 @@ export function dealDamage(
     const extra = kitOf(w, dst).absorb?.(w, dst, dmg) ?? 0;
     shielded += extra;
     dmg -= extra;
+  }
+  if (heroDst) {
+    dmg = nineLives(m, dst, dmg);
+    // Zoomies end on any damage.
+    if (dmg + shielded > 0) w.zoomT[dst] = 0;
+  }
+  // Sim v5, Rookie: before DifficultyRules.humanCoreOpenAt the human's core never drops below humanCoreFloorBp of
+  // its max HP, so the first match cannot be lost before 6:00 (it can still be nearly lost: an idle human loses it).
+  if (w.kind[dst] === Kind.Core && w.team[dst] === teamOfSlot(HUMAN_SLOT) && tick < w.globals[G.HumanCoreOpenAt]) {
+    dmg = Math.max(0, Math.min(dmg, w.hp[dst] - applyBp(w.maxHp[dst], rulesOf(m).humanCoreFloorBp)));
   }
   w.hp[dst] -= dmg;
   w.hurtTick[dst] = tick;
@@ -133,6 +159,10 @@ function clearOnDeath(w: World, id: number): void {
   w.castT[id] = 0;
   w.napT[id] = 0;
   kitOf(w, id).reset?.(w, id);
+  w.zoomT[id] = 0;
+  w.frenzyT[id] = 0;
+  w.nineT[id] = 0;
+  w.packT[id] = 0;
   for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zOwner[z] === id && w.zKind[z] === ZONE_KIND.arena) endArena(w, z);
 }
 
@@ -159,21 +189,29 @@ export function resolveDeaths(m: MatchHandle): void {
       w.state[id] = UnitState.Dead;
       w.order[id] = Order.None;
       w.pathLen[id] = 0;
-      w.timer[id] = respawnTicks(w.level[id], tick);
+      w.timer[id] = respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
+      if (id === HUMAN_SLOT) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
+      else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;
       const enemy = 1 - w.team[id];
       w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
       heroKilled(m, id);
-      // Sudden Death: each takedown deals 10% core damage to the victim's core.
-      if (tick >= TIMELINE.suddenDeath) {
-        const core = RANGE.cores + w.team[id];
-        dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], SUDDEN_DEATH.takedownCoreBp), 'zone', { pure: true, pierce: true });
+      // From Sunset (v4; Sudden Death before): each takedown deals core damage to the victim's core.
+      // Sim v5: before Sudden Death it scales with how open that core is (an inner tower down: the full share, else
+      // SUNSET.closedCoreBp), so towers still decide most matches; the human's core is spared while
+      // the human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage).
+      const victimTeam = w.team[id];
+      if (tick >= w.globals[G.Sunset]) {
+        const core = RANGE.cores + victimTeam;
+        const sd = tick >= w.globals[G.SuddenDeath];
+        const bp = sd ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
+        dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], bp), 'zone', { pure: true, pierce: true });
       }
     } else if (k === Kind.Minion) {
       minionKilled(m, id);
     } else if (k === Kind.Camp) {
-      campKilled(m, id);
-      onRatDied(w, id);
+      const by = campKilled(m, id);
+      if (onRatDied(w, id) && by >= 0) packBuff(m, by);
     } else if (k === Kind.Tower || k === Kind.Core) {
       onStructureDestroyed(m, id);
     }

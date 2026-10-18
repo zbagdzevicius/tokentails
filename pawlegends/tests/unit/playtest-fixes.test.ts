@@ -40,9 +40,8 @@ describe('honest lines', () => {
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 620 })).toBe('Win my match vs Normal bots in Pawlegends!');
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 0 })).toBe('Win my match vs Normal bots in Pawlegends!');
   });
-  it('the starter window line says that the CARD hides and the price stays', () => {
-    expect(endsText(47 * 3600e3 + 10, 0)).toBe('This card hides in 47 h. Same price in the store after that.');
-    expect(endsText(5 * 60e3, 0)).toMatch(/hides in 5 min/);
+  it('no countdown line at all: the starter window card is retired (the Meet card has no timer)', () => {
+    expect(endsText(47 * 3600e3 + 10, 0)).toBe('');
     expect(endsText(null, 0)).toBe('');
   });
   it('the store names its safeguards and explains the planned extras', () => {

@@ -14,6 +14,8 @@ export async function startFirstMatch(page: Page, query = ''): Promise<void> {
   await page.locator('.pl-btn.big').first().click();
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
+  // the loading veil takes clicks until it fades (app.ts adds .out on a timer, late under CPU load)
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
 }
 
 export const ops = async (page: Page): Promise<number[]> => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number);

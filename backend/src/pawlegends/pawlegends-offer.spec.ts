@@ -1,93 +1,96 @@
-import { buildHarness, buyAndPay, DEVICE, Harness, ON_ENV, statusOf } from './pawlegends-harness.helper-spec';
+import { PawlegendsOfferService } from './pawlegends-offer.service';
+import { buildHarness, DEVICE, Harness, ON_ENV, statusOf } from './pawlegends-harness.helper-spec';
 
-/* POC.md §15 item 16: the offer engine (§8.4). */
+/*
+ * The offer engine since the Token Tails integration: one "Meet <cat>" card for a featured direct-purchase cat,
+ * never in session 1, only on the lobby and results screens, never in app builds, at most one per session and one
+ * a day, the same cat not again for 3 days, nothing under 16 or at the spend cap, and only cats the server sells.
+ */
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
+const CAT_A = '65a1b2c3d4e5f6a7b8c9d0e1';
+const CAT_B = '65a1b2c3d4e5f6a7b8c9d0e2';
 
-describe('Pawlegends offer engine', () => {
+describe('Pawlegends offer engine (Meet)', () => {
     let h: Harness;
     beforeEach(() => {
         h = buildHarness();
     });
     const ask = (over: Record<string, unknown> = {}) =>
-        h.offers.offer({ deviceId: DEVICE, session: 2, matches: 1, firstWin: true, ownedCats: 0, ...over }, ON_ENV);
+        h.offers.offer({ deviceId: DEVICE, session: 2, catalogIds: `${CAT_A},${CAT_B}`, ...over }, ON_ENV);
     const later = (ms: number) => (h.clock.now = new Date(h.clock.now.getTime() + ms));
 
     it('never offers in session 1, whatever else is true', async () => {
-        expect(await ask({ session: 1, matches: 9 })).toEqual({ offer: null });
-        expect(await ask({ session: 0, matches: 9 })).toEqual({ offer: null });
+        expect(await ask({ session: 1 })).toEqual({ offer: null });
+        expect(await ask({ session: 0 })).toEqual({ offer: null });
     });
 
-    it('never offers in app builds or outside the lobby and results', async () => {
+    it('never offers in app builds, outside the lobby and results, or without featured cats', async () => {
         expect((await ask({ app: true })).offer).toBeNull();
+        expect((await ask({ app: 'true' })).offer).toBeNull();
         expect((await ask({ screen: 'match' })).offer).toBeNull();
         expect((await ask({ screen: 'pick' })).offer).toBeNull();
-        expect((await ask({ screen: 'results' })).offer?.kind).toBe('starter');
+        expect((await ask({ catalogIds: '' })).offer).toBeNull();
+        expect((await ask({ catalogIds: 'not-an-id,../packs' })).offer).toBeNull();
+        expect((await ask({ screen: 'results' })).offer).toEqual({ kind: 'meet', catalogId: CAT_A });
     });
 
-    it('rule 1: the starter, from session 2 after the first win, with a genuine 48 h window', async () => {
-        expect((await ask({ firstWin: false })).offer).toBeNull();
-        const first = await ask();
-        expect(first.offer).toEqual({
-            kind: 'starter',
-            skus: ['pl_starter'],
-            endsAt: h.clock.now.getTime() + 48 * HOUR,
-        });
-        await h.offers.seen({ deviceId: DEVICE, kind: 'starter', session: 2 });
-        // The window is fixed by the first show.
-        later(10 * HOUR);
-        const again = await ask({ session: 3 });
-        expect(again.offer?.endsAt).toBe(first.offer!.endsAt);
-        // After 48 h it is gone for good.
-        later(39 * HOUR);
-        expect((await ask({ session: 4 })).offer).toBeNull();
+    it('one card per session and one a day; the same cat waits 3 days, another featured cat may come first', async () => {
+        expect((await ask()).offer).toEqual({ kind: 'meet', catalogId: CAT_A });
+        await h.offers.seen({ deviceId: DEVICE, kind: 'meet', catalogId: CAT_A, session: 2 });
+        expect((await ask()).offer).toBeNull();
+        expect((await ask({ session: 3 })).offer).toBeNull(); // same day
+        later(21 * HOUR);
+        expect((await ask({ session: 3 })).offer).toEqual({ kind: 'meet', catalogId: CAT_B });
+        await h.offers.seen({ deviceId: DEVICE, kind: 'meet', catalogId: CAT_B, session: 3 });
+        later(3 * DAY);
+        expect((await ask({ session: 4 })).offer).toEqual({ kind: 'meet', catalogId: CAT_A });
     });
 
-    it('at most one card per session', async () => {
-        expect((await ask()).offer?.kind).toBe('starter');
-        await h.offers.seen({ deviceId: DEVICE, kind: 'starter', session: 2 });
-        expect((await ask({ matches: 5 })).offer).toBeNull();
-        expect((await ask({ session: 3, matches: 5 })).offer?.kind).toBe('starter');
+    it('only cats the server sells on their own', async () => {
+        const check = jest.fn(async (id: string) =>
+            id === CAT_B
+                ? { ok: true as const, cat: { catId: id } as any }
+                : { ok: false as const, reason: 'NOT_FOR_SALE' as const }
+        );
+        const offers = new PawlegendsOfferService(h.store, h.stripe, h.account, { check } as any);
+        offers.now = () => h.clock.now;
+        expect(
+            (await offers.offer({ deviceId: DEVICE, session: 2, catalogIds: `${CAT_A},${CAT_B}` }, ON_ENV)).offer
+        ).toEqual({ kind: 'meet', catalogId: CAT_B });
+        expect(check).toHaveBeenCalledWith(CAT_A);
     });
 
-    it('rules fire in order: starter first, then Founder after 3 matches, at most every 7 days', async () => {
-        expect((await ask({ matches: 3 })).offer?.kind).toBe('starter');
-        await buyAndPay(h, 'pl_starter');
-        const founder = await ask({ session: 3, matches: 3 });
-        expect(founder.offer).toEqual({ kind: 'founder', skus: ['pl_founder', 'pl_founder_legend'], endsAt: null });
-        expect((await ask({ session: 3, matches: 2 })).offer).toBeNull();
-        await h.offers.seen({ deviceId: DEVICE, kind: 'founder', session: 3 });
-        later(6 * DAY);
-        expect((await ask({ session: 4, matches: 9 })).offer).toBeNull();
-        later(1 * DAY);
-        expect((await ask({ session: 5, matches: 9 })).offer?.kind).toBe('founder');
-        await buyAndPay(h, 'pl_founder');
-        expect((await ask({ session: 6, matches: 9 })).offer).toBeNull();
-    });
-
-    it('none at the spend cap', async () => {
+    it('none at the spend cap, and none under 16', async () => {
         await h.models.purchases.create({
             sessionId: 'cs_cap',
             sku: 'pl_founder',
             status: 'paid',
             deviceId: DEVICE,
             currency: 'eur',
-            amountCents: 20000,
-            capCents: 20000,
+            amountCents: 19800,
+            capCents: 19800,
             items: [],
         });
-        expect((await ask({ matches: 9 })).offer).toBeNull();
+        expect((await ask()).offer).toBeNull();
+        const young = buildHarness();
+        await young.stripe.rememberBand({ deviceId: DEVICE }, 'under16');
+        expect(
+            (await young.offers.offer({ deviceId: DEVICE, session: 2, catalogIds: CAT_A }, ON_ENV)).offer
+        ).toBeNull();
     });
 
     it('validates its input', async () => {
-        expect(await statusOf(h.offers.offer({ deviceId: 'x', session: 2, matches: 1 }, ON_ENV))).toBe(400);
-        expect(await statusOf(h.offers.offer({ deviceId: DEVICE, session: -1, matches: 1 }, ON_ENV))).toBe(400);
-        expect(await statusOf(h.offers.seen({ deviceId: DEVICE, kind: 'other', session: 2 }))).toBe(400);
+        expect(await statusOf(h.offers.offer({ deviceId: 'x', session: 2 }, ON_ENV))).toBe(400);
+        expect(await statusOf(h.offers.offer({ deviceId: DEVICE, session: -1 }, ON_ENV))).toBe(400);
+        expect(await statusOf(h.offers.seen({ deviceId: DEVICE, kind: 'starter', session: 2, catalogId: CAT_A }))).toBe(
+            400
+        );
+        expect(await statusOf(h.offers.seen({ deviceId: DEVICE, kind: 'meet', session: 2, catalogId: 'x' }))).toBe(400);
         // Query strings arrive as strings.
-        expect(
-            (await h.offers.offer({ deviceId: DEVICE, session: '2', matches: '1', firstWin: 'true' }, ON_ENV)).offer
-                ?.kind
-        ).toBe('starter');
+        expect((await h.offers.offer({ deviceId: DEVICE, session: '2', catalogIds: CAT_A }, ON_ENV)).offer?.kind).toBe(
+            'meet'
+        );
     });
 });

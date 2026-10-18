@@ -3,6 +3,13 @@ import type { HeroId } from '../sim/api';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS } from '../render/palette';
 import { HERO_TEXT } from './heroText';
+import { HEROES } from '../data/heroes';
+
+/** A team's name by who is in it (sim v5 species teams): the cats are Purrhaven, the dogs the Woof pack. */
+export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
+  const side = HEROES[picks[team * 3] ?? 'clem']?.side;
+  return side === 'dog' ? 'Woof pack' : 'Purrhaven cats';
+}
 
 export class Scoreboard {
   readonly root: HTMLElement;
@@ -43,7 +50,7 @@ export class Scoreboard {
         })
         .join('');
     const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th>Takedowns</th><th>Knocked out</th><th>Health</th></tr>';
-    this.root.innerHTML = `<div class="card"><h3 class="t0">Purrhaven</h3><table>${head}${rows(0)}</table><h3 class="t1">Woof</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
+    this.root.innerHTML = `<div class="card"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < 3 ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
   }
 
   dispose(): void {

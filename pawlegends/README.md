@@ -1,6 +1,6 @@
 # Pawlegends (Phase 1 POC)
 
-A 3v3 cats-and-dogs MOBA for Token Tails: nine-minute matches against bots in the browser. Build spec:
+A 3v3 cats-and-dogs MOBA for Token Tails: five-to-seven-minute matches against bots in the browser. Build spec:
 [`docs/plans/moba/POC.md`](../docs/plans/moba/POC.md) (wins over [`GDD.md`](../docs/plans/moba/GDD.md)).
 
 ## Run and check

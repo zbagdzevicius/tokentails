@@ -37,6 +37,17 @@ function fmtClock(s: number): string {
 
 const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Sudden Death', suddenDeath: 'Final whistle', ended: '' };
 
+/**
+ * The "Sunset in 7:19" line (fun plan F1): hidden while Sunset is more than a minute away (a far-off countdown
+ * read as "this match is long"); the other phases always show theirs. Pure.
+ */
+export function phaseLine(clock: Pick<MatchClock, 'phase' | 'nextPhaseIn'>): string {
+  const next = PHASE_NEXT[clock.phase];
+  if (!next || clock.nextPhaseIn <= 0) return '';
+  if (clock.phase === 'play' && clock.nextPhaseIn > 60 * 30) return '';
+  return `${next} in ${fmtClock(Math.ceil(clock.nextPhaseIn / 30))}`;
+}
+
 /** A kill-feed name and whose side it is on. */
 export interface FeedName {
   name: string;
@@ -56,6 +67,7 @@ export class Hud {
   private towers: [HTMLElement, HTMLElement];
   private feed: HTMLElement;
   private respawnNum: HTMLElement;
+  private recapEl: HTMLElement;
   private cache = new Map<string, string>();
 
   constructor(
@@ -85,7 +97,7 @@ export class Hud {
         </div>
       </div>
       <div class="pl-feed"></div>
-      <div class="pl-respawn"><div>Back in <b>0</b></div><small>Your team is still fighting!</small></div>
+      <div class="pl-respawn"><div>Back in <b>0</b></div><small class="recap">Your team is still fighting!</small></div>
       <div class="pl-bar">
         <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b></div>
         <div class="pl-bar-main">
@@ -113,6 +125,12 @@ export class Hud {
     this.towers = [q('.tw0'), q('.tw1')];
     this.feed = q('.pl-feed');
     this.respawnNum = q('.pl-respawn b');
+    this.recapEl = q('.pl-respawn .recap');
+  }
+
+  /** The death recap under "Back in N" ("Knocked out by Cacklejaw + a tower: wait for your minions"). */
+  recap(text: string): void {
+    this.set('recap', this.recapEl, text || 'Your team is still fighting!');
   }
 
   private set(key: string, el: HTMLElement, text: string): void {
@@ -123,8 +141,7 @@ export class Hud {
 
   update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number): void {
     this.set('clock', this.clock, fmtClock(clock.seconds));
-    const next = PHASE_NEXT[clock.phase];
-    this.set('phase', this.phase, next && clock.nextPhaseIn > 0 ? `${next} in ${fmtClock(Math.ceil(clock.nextPhaseIn / 30))}` : '');
+    this.set('phase', this.phase, phaseLine(clock));
     this.root.dataset.phase = clock.phase;
     // own team on the left
     const a = myTeam === 0 ? 0 : 1;
@@ -194,6 +211,33 @@ export class Hud {
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
     setTimeout(() => el.classList.add('out'), 5000);
     setTimeout(() => el.remove(), 5600);
+  }
+
+  /**
+   * Level up (fun plan F2 item 6): the portrait pops, the health bar glows as it refills, and at the ultimate's level
+   * the R slot pulses and sparkles for 3 s.
+   */
+  levelUp(level: number, ultLevel = ULT_LEVEL): void {
+    const bar = this.root.querySelector<HTMLElement>('.pl-bar');
+    if (bar) {
+      bar.classList.remove('lvlup');
+      void bar.offsetWidth;
+      bar.classList.add('lvlup');
+      setTimeout(() => bar.classList.remove('lvlup'), 1200);
+    }
+    if (level === ultLevel) {
+      const r = this.slots[3]?.root;
+      if (r) {
+        r.classList.add('ult-ready');
+        setTimeout(() => r.classList.remove('ult-ready'), 3000);
+      }
+      try {
+        document.documentElement.dataset.ultReady = '1';
+        setTimeout(() => delete document.documentElement.dataset.ultReady, 3000);
+      } catch {
+        /* node */
+      }
+    }
   }
 
   /** Flash a slot (cast feedback). */

@@ -39,3 +39,10 @@ export const WAVE = Object.freeze({
   /** Minion XP is shared among heroes within 10 m. */
   xpRange: 10000,
 });
+
+/**
+ * Underdog waves (v4): a team 3+ structures behind, or 8+ takedowns behind, gets +10% minion HP on its next 2 waves
+ * (a `comeback` event; the plan's 2 / 6 / siege / +20% made the trailing team win too often). It can trigger again
+ * `cooldown` ticks after it last did.
+ */
+export const COMEBACK = Object.freeze({ structuresBehind: 3, takedownsBehind: 8, waves: 2, hpBp: 1000, siege: false, cooldown: 1800 });

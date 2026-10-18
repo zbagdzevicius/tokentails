@@ -2,7 +2,7 @@
  * Bundle a sim entry (src/sim/server.ts, src/sim/index.ts) into one self-contained ES module with Vite, for the Node
  * tools: `headless-match.mjs` imports it, `vendor-sim.mjs` writes it into the backend. Unminified, no imports left.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -46,6 +46,12 @@ export async function importSim(entry = 'src/sim/index.ts') {
   const dir = join(tmpdir(), 'pawlegends-sim');
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${createHash('sha256').update(code).digest('hex').slice(0, 16)}.mjs`);
-  writeFileSync(file, code);
+  // Parallel workers bundle the same code: write a private temp file and rename it into place (atomic), so no
+  // process ever imports a half-written module.
+  if (!existsSync(file)) {
+    const tmp = `${file}.${process.pid}.tmp`;
+    writeFileSync(tmp, code);
+    renameSync(tmp, file);
+  }
   return import(pathToFileURL(file).href);
 }

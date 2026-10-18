@@ -1,4 +1,4 @@
-import { STRIPE_API } from "@/api/stripe-api";
+import { STRIPE_API, type PurchaseContext } from "@/api/stripe-api";
 import { useToast } from "@/context/ToastContext";
 import {
   Elements,
@@ -143,6 +143,8 @@ interface StripePaymentProps {
   entityType?: EntityType;
   productType?: "digital" | "print" | "canvas";
   imageId?: string;
+  /** Sent with create-payment (the Pawlegends age band and spend cap check). */
+  purchaseContext?: PurchaseContext | null;
 }
 
 // App builds show a notice instead: digital goods must use store IAP there.
@@ -158,6 +160,7 @@ const WebStripePayment = ({
   entityType,
   productType,
   imageId,
+  purchaseContext,
 }: StripePaymentProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
   const [initializationError, setInitializationError] = useState<string | null>(
@@ -195,6 +198,7 @@ const WebStripePayment = ({
             entityType,
             productType,
             imageId,
+            purchaseContext,
           },
         );
         setClientSecret(clientSecret);
@@ -217,7 +221,9 @@ const WebStripePayment = ({
       clearTimeout(timeoutId);
       isInitializingRef.current = false;
     };
-  }, [price, id, discount, entityType, productType, imageId]);
+    // The context is fixed for one sheet; its fields, not its identity, decide a new intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [price, id, discount, entityType, productType, imageId, purchaseContext?.context, purchaseContext?.ageBand, purchaseContext?.deviceId]);
 
   if (initializationError || stripeUnavailable) {
     return (

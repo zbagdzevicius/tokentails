@@ -9,6 +9,7 @@ import { dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { Buff, G, Kind, RANGE, type World } from '../world';
 import { coverDisc } from '../map/grid';
+import { grantXp } from '../progression/levels';
 import { fireBolt, inAttackRange, structureShot } from '../combat/attack';
 import { attackEvery, isInvulnerable, radiusOf, targetable } from './kinds';
 
@@ -52,6 +53,21 @@ export function stepStructures(m: MatchHandle): void {
     if (w.attackTimer[id] > 0) w.attackTimer[id]--;
     const t = chooseTarget(w, id);
     w.target[id] = t;
+    // Lock-on (v4): a new hero target is marked first and shot only after TOWERS.lockOnTicks.
+    if (t >= 0 && w.kind[t] === Kind.Hero) {
+      if (w.lockId[id] !== t) {
+        w.lockId[id] = t;
+        w.lockT[id] = TOWERS.lockOnTicks;
+        m.events.push({ type: 'windup', tick: w.globals[G.Tick], src: id, slot: 4, x: w.x[t], y: w.y[t], ticks: TOWERS.lockOnTicks });
+      }
+    } else {
+      w.lockId[id] = -1;
+      w.lockT[id] = 0;
+    }
+    if (w.lockT[id] > 0) {
+      w.lockT[id]--;
+      continue;
+    }
     if (t < 0 || w.attackTimer[id] > 0) continue;
     // Ramp: consecutive shots at the same hero.
     if (w.kind[t] === Kind.Hero && w.shotAt[id] === t) w.streak[id]++;
@@ -79,5 +95,6 @@ export function onStructureDestroyed(m: MatchHandle, id: number): void {
     const by = 1 - w.team[id];
     w.globals[by === 0 ? G.Towers0 : G.Towers1]++;
     m.events.push({ type: 'tower', tick: w.globals[G.Tick], id, destroyedBy: by === 0 ? 0 : 1 });
+    for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.team[h] === by) grantXp(m, h, TOWERS.teamXp, 'tower');
   }
 }

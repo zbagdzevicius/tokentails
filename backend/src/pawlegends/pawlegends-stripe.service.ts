@@ -66,6 +66,14 @@ export interface PawlegendsIdentity {
     sessionIds?: string[];
 }
 
+/** The keys an age band answer is kept under: the email, the device and the Token Tails account. */
+export const bandKeys = (identity: PawlegendsIdentity): string[] =>
+    [
+        identity.email && `email:${identity.email}`,
+        identity.deviceId && `device:${identity.deviceId}`,
+        identity.accountId && `account:${identity.accountId}`,
+    ].filter(Boolean) as string[];
+
 /** `$or` clauses matching any of the identity's keys (empty when it has none). */
 export function identityClauses(identity: PawlegendsIdentity): Record<string, unknown>[] {
     const clauses: Record<string, unknown>[] = [];
@@ -207,21 +215,21 @@ export class PawlegendsStripeService {
         return max;
     }
 
-    /** The stored age band of the email or the device (the stricter one), if any. */
+    /** The stored age band of the email, the device or the account (the strictest one), if any. */
     async storedBand(identity: PawlegendsIdentity): Promise<AgeBand | undefined> {
-        const keys = [identity.email && `email:${identity.email}`, identity.deviceId && `device:${identity.deviceId}`];
+        const keys = bandKeys(identity);
         let band: AgeBand | undefined;
-        for (const key of keys.filter(Boolean) as string[]) {
+        for (const key of keys) {
             const row = (await this.store.buyers.findOne({ key }).lean()) as any;
             if (row && isAgeBand(row.ageBand)) band = stricterBand(band, row.ageBand);
         }
         return band;
     }
 
-    /** Stores the first age band answer with the email and the device; a younger later answer replaces it. */
+    /** Stores the first age band answer with the email, the device and the account; a younger later answer replaces it. */
     async rememberBand(identity: PawlegendsIdentity, band: AgeBand): Promise<void> {
-        const keys = [identity.email && `email:${identity.email}`, identity.deviceId && `device:${identity.deviceId}`];
-        for (const key of keys.filter(Boolean) as string[]) {
+        const keys = bandKeys(identity);
+        for (const key of keys) {
             const row = (await this.store.buyers.findOne({ key }).lean()) as any;
             const next = stricterBand(isAgeBand(row?.ageBand) ? row.ageBand : undefined, band)!;
             if (row?.ageBand === next) continue;

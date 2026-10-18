@@ -4,7 +4,9 @@
  * in range, otherwise walks its lane path. Same-team minions push apart so a wave spreads out instead of stacking.
  */
 import { LANES, MAP } from '../../data/map';
-import { MINIONS, MINION_AI, MINION_KINDS, WAVE, type MinionKind } from '../../data/minions';
+import { DIFFICULTY_RULES, RALLY_LEVEL_BP } from '../../data/bots';
+import { HUMAN_SLOT, teamOfSlot } from '../api';
+import { COMEBACK, MINIONS, MINION_AI, MINION_KINDS, WAVE, type MinionKind } from '../../data/minions';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { applyBp, clamp, dist2, idiv, isqrt, iatan2, moveToward } from '../fixed';
 import { LANE_PATHS } from '../map/lanes';
@@ -26,13 +28,18 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
   const minutes = idiv(tick, TIMELINE.minute);
-  const order: MinionKind[] = [];
-  for (let i = 0; i < WAVE.melee; i++) order.push('melee');
-  for (let i = 0; i < WAVE.ranged; i++) order.push('ranged');
-  if (withSiege) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
   const first = (w.globals[G.Wave] + m.config.seed) & 1;
   for (let k2 = 0; k2 < 2; k2++) {
     const team = k2 ^ first;
+    // Underdog waves (v4): a siege and +20% HP while the team's comeback lasts.
+    const boost = w.globals[team === 0 ? G.Comeback0 : G.Comeback1] > 0;
+    // Rally (DifficultyRules.rallyBp): the human's team's minions carry their bonus (whole %) in `level`.
+    const rally = team === teamOfSlot(HUMAN_SLOT) ? w.globals[G.Rally] : 0;
+    const rallyBp = rally * DIFFICULTY_RULES[m.config.difficulty].rallyBp;
+    const order: MinionKind[] = [];
+    for (let i = 0; i < WAVE.melee; i++) order.push('melee');
+    for (let i = 0; i < WAVE.ranged; i++) order.push('ranged');
+    if (withSiege || (boost && COMEBACK.siege)) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
     for (let lane = 0; lane < LANES.length; lane++) {
       const path = LANE_PATHS[team][lane];
       const ax = path.x[0];
@@ -42,11 +49,11 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
       const len = isqrt(dx * dx + dy * dy);
       for (let k = 0; k < order.length; k++) {
         const id = allocMinion(w);
-        if (id < 0) return; // cap reached: the rest of this wave does not spawn
+        if (id < 0) break; // cap reached: the rest of this wave does not spawn
         const kind = order[k];
         const data = MINIONS[kind];
         const along = Math.max(0, MINION_AI.spawnOffset - k * MINION_AI.spacing);
-        const hp = data.hp + applyBp(data.hp, WAVE.hpGrowthBpPerMinute * minutes);
+        const hp = data.hp + applyBp(data.hp, WAVE.hpGrowthBpPerMinute * minutes + (boost ? COMEBACK.hpBp : 0) + rallyBp);
         w.kind[id] = Kind.Minion;
         w.team[id] = team;
         w.alive[id] = 1;
@@ -54,7 +61,7 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
         w.lane[id] = lane;
         w.wave[id] = w.globals[G.Wave];
         w.waypoint[id] = 1;
-        w.level[id] = 0;
+        w.level[id] = Math.min(0xff, idiv(rallyBp, RALLY_LEVEL_BP));
         w.state[id] = UnitState.Moving;
         w.facing[id] = iatan2(dy, dx);
         w.buffs[id] = 0;
@@ -78,6 +85,34 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
       }
     }
   }
+}
+
+/**
+ * Step 3, before a wave spawns: a team 2+ structures or 6+ takedowns behind starts its underdog waves (COMEBACK),
+ * unless it did within COMEBACK.cooldown. Then a wave's spawn spends one of each boosted team's waves.
+ */
+export function checkComeback(m: MatchHandle): void {
+  const w = m.world;
+  const tick = w.globals[G.Tick];
+  const enemyToo = DIFFICULTY_RULES[m.config.difficulty].enemyComeback;
+  for (let team = 0; team < 2; team++) {
+    if (team !== teamOfSlot(HUMAN_SLOT) && !enemyToo) continue;
+    const left = team === 0 ? G.Comeback0 : G.Comeback1;
+    const at = team === 0 ? G.ComebackAt0 : G.ComebackAt1;
+    if (w.globals[left] > 0 || tick - w.globals[at] < COMEBACK.cooldown) continue;
+    const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
+    const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
+    if (towersBehind < COMEBACK.structuresBehind && killsBehind < COMEBACK.takedownsBehind) continue;
+    w.globals[left] = COMEBACK.waves;
+    w.globals[at] = tick;
+    m.events.push({ type: 'comeback', tick, team: team as 0 | 1 });
+  }
+}
+
+/** After a wave spawned: each boosted team used one of its underdog waves. */
+export function spendComeback(w: World): void {
+  if (w.globals[G.Comeback0] > 0) w.globals[G.Comeback0]--;
+  if (w.globals[G.Comeback1] > 0) w.globals[G.Comeback1]--;
 }
 
 /** Target class: 0 minion, 1 structure, 2 hero; lower wins. */

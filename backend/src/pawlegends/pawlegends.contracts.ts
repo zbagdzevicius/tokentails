@@ -160,31 +160,40 @@ export interface PawlegendsEntitlementResponse extends PawlegendsEntitlements {
     token: string;
 }
 
-/** Offer engine input (POC.md §8.4), sent by the game through the host. */
+/**
+ * Offer engine input, sent by the `/pawlegends` host. Since the Token Tails integration the one card is "Meet <cat>":
+ * a direct-purchase Token Tails cat from the host's featured list (`catalogIds`, comma-separated, at most 2).
+ */
 export interface PawlegendsOfferQuery {
     deviceId: string;
     session: number;
-    matches: number;
-    firstWin: boolean;
-    ownedCats: number;
-    /** Set by the host in app builds and outside the lobby/results screens: never an offer then. */
+    /** The featured cats, in the host's order of preference. */
+    catalogIds?: string;
+    /** Set by the host in app builds: never an offer then. */
     app?: boolean;
     screen?: string;
     token?: string;
 }
 
-export type PawlegendsOfferKind = 'starter' | 'founder';
+/** `meet` is the only kind offered now; `starter` and `founder` are the retired `pl_*` cards (kept for old rows). */
+export type PawlegendsOfferKind = 'meet' | 'starter' | 'founder';
 
 export interface PawlegendsOffer {
-    kind: PawlegendsOfferKind;
-    skus: PawlegendsSku[];
-    /** End of a genuine window (starter: 48 h from the first show), or null. */
-    endsAt: number | null;
+    kind: 'meet';
+    /** A catalog cat the Token Tails $5 checkout sells (`ShelterCatSaleService.check`). */
+    catalogId: string;
 }
 
 export interface PawlegendsOfferResponse {
     offer: PawlegendsOffer | null;
 }
+
+/** The same cat is not offered again within this gap (another featured cat may be). */
+export const MEET_SAME_CAT_GAP_MS = 3 * 24 * 60 * 60 * 1000;
+/** At most one Meet card a day per device, on top of one per session. */
+export const MEET_OFFER_GAP_MS = 20 * 60 * 60 * 1000;
+/** The direct-purchase cat's price in the spend cap (euro cents, USD at €1 = $1): `SHELTER_CAT_MIN_PRICE_CENTS`. */
+export const MEET_PRICE_CAP_CENTS = 500;
 
 /** Screens where the game may show an offer card. */
 export const OFFER_SCREENS = ['lobby', 'results'] as const;

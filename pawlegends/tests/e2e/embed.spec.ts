@@ -33,17 +33,20 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
   const msgs = await received(page);
   expect(msgs[0]).toMatchObject({ type: 'ready' });
 
-  // first match: one tap, wearing the Pinkie coat (the starter breed) and the first chroma, with two kittens
+  // first match: one tap, wearing the Pinkie coat (the starter breed) and the first squad mate's chroma (Mochi,
+  // the starter: FIRE; round 0), with two kittens
   await game.locator('.pl-btn.big').first().click();
   await game.waitForSelector('html[data-match="live"]');
-  await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|ICE');
+  await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|FIRE');
   expect(await gattr(game, 'kittens')).toBe('2');
   expect(await gattr(game, 'matchFrame')).toBe('frame.legendary');
 
   await game.waitForSelector('html[data-screen="results"]', { timeout: 120_000 });
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'match-result').length).toBe(1);
-  const result = (await received(page)).find((m) => m.type === "match-result") as unknown as { replay: Record<string, unknown>; summary: Record<string, unknown> };
-  expect(result.replay).toMatchObject({ v: 1, difficulty: 'easy', hero: 'clem', trick: 'pounce' });
+  const result = (await received(page)).find((m) => m.type === "match-result") as unknown as { replay: Record<string, unknown>; summary: Record<string, unknown>; matchId: unknown };
+  // match 1 is the Rookie match (fun plan F1); the integration names it with a match id the host saves under
+  expect(result.replay).toMatchObject({ v: 1, difficulty: 'rookie', hero: 'clem', trick: 'pounce' });
+  expect(String(result.matchId)).toMatch(/^[a-z0-9]{1,16}$/);
   expect(String(result.replay.finalHash)).toMatch(/^[0-9a-f]{8}$/);
   expect(String(result.replay.inputs)).toMatch(/^[A-Za-z0-9+/]*={0,2}$/);
   expect(typeof result.summary.won).toBe('boolean');

@@ -6,7 +6,7 @@ import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { snapshot } from '../../../src/sim/index';
 import { targetable } from '../../../src/sim/units/kinds';
 import { G, Kind } from '../../../src/sim/world';
-import { MID, afterArmour, cast, cd, heroMatch, hold, place, setLevel, steps } from './kit-helpers';
+import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Cacklejaw (slot 0) with Clem (slot 1) vs Sage (slot 3, armour 15) and Sir Brutus (slot 4, armour 40).
 const CJ = 0;
@@ -21,6 +21,7 @@ function hunt() {
   place(m, FOE, MID.x + 1500, MID.y, 0); // facing away from Cacklejaw
   place(m, FOE2, MID.x + 20000, MID.y - 20000, 2048);
   hold(m, CJ, ALLY, FOE, FOE2);
+  tanky(m, ALLY, FOE, FOE2);
   return m;
 }
 
@@ -44,13 +45,13 @@ describe('Cacklejaw (§6.6)', () => {
 
   it('Pack Flank: +20% from behind (over 120°) or with an allied hero within 4 m of the target', () => {
     const m = hunt();
-    const base = afterArmour(100, 15);
-    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(afterArmour(120, 15));
+    const base = heroHit(100, 15);
+    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(120, 15));
     m.world.facing[FOE] = 2048; // now facing Cacklejaw
     expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(base);
     place(m, ALLY, MID.x + 1500, MID.y + 3000, 0);
     m.world.facing[FOE] = 2048;
-    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(afterArmour(120, 15));
+    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(120, 15));
   });
 
   it('Jeer Slash: dash 4 m through a line, 75 (+12/lvl); a hero hit opens one recast within 3 s', () => {
@@ -61,7 +62,7 @@ describe('Cacklejaw (§6.6)', () => {
       cast(m, CJ, 0, MID.x + 5000, MID.y);
       steps(m, 8);
     });
-    expect(lost).toBe(afterArmour(75, 15));
+    expect(lost).toBe(heroHit(75, 15));
     expect(w.x[CJ]).toBe(MID.x + 4000);
     expect(cd(m, CJ, 0)).toBe(0); // recast window open
     expect(w.kWindow[CJ]).toBeGreaterThan(80);
@@ -147,14 +148,15 @@ describe('Cacklejaw (§6.6)', () => {
     setLevel(m, CJ, 4);
     place(m, FOE, MID.x + 8000, MID.y, 2048);
     place(m, FOE2, MID.x + 6000, MID.y + 2000, 2048);
-    w.hp[FOE] = 300; // lower HP than FOE2: the mark goes to FOE although FOE2 is nearer
-    w.hurtTick[FOE] = w.globals[G.Tick]; // in combat: no regen while the dash flies
+    w.hp[FOE] = 3000; // lower HP than FOE2: the mark goes to FOE although FOE2 is nearer
+    w.hurtTick[FOE] = w.globals[G.Tick];
+    w.kHurt[FOE] = w.globals[G.Tick]; // in combat (hit by an enemy hero, sim v4): no regen while the dash flies
     cast(m, CJ, 3, MID.x, MID.y);
     expect(cd(m, CJ, 3)).toBe(1800);
     expect(w.revealT[FOE]).toBeGreaterThan(0);
-    const missing = w.maxHp[FOE] - 300;
+    const missing = w.maxHp[FOE] - 3000;
     const lost = hpLoss(m, FOE, () => steps(m, 20));
-    expect(lost).toBe(afterArmour(150 + 30 * 3 + Math.trunc((missing * 1000) / 10000), 15));
+    expect(lost).toBe(heroHit(150 + 30 * 3 + Math.trunc((missing * 1000) / 10000), 15));
     expect(w.hp[FOE2]).toBe(w.maxHp[FOE2]);
     // Nobody in 12 m: nothing happens, no cooldown.
     const m2 = hunt();
@@ -217,7 +219,7 @@ describe('Cacklejaw (§6.6)', () => {
     chooseTalent(m3, CJ, 2, 1);
     w3.facing[FOE] = 2048;
     cast(m3, CJ, 2, MID.x, MID.y);
-    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(afterArmour(140, 15));
-    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(afterArmour(100, 15));
+    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(140, 15));
+    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(100, 15));
   });
 });

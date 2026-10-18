@@ -83,6 +83,7 @@ describe('rat camps (§5)', () => {
     place(m, 0, RAT_CAMP.x - 3000, RAT_CAMP.y);
     place(m, 1, RAT_CAMP.x - 4000, RAT_CAMP.y);
     const xp0 = w.xp[0];
+    const xp1 = w.xp[1]; // the XP trickle (sim v4) already gave both some
     for (const r of [RAT0, RAT0 + 1]) {
       w.hp[r] = 1;
       dealDamage(m, 0, 0, Kind.Hero, r, 100, 'basic');
@@ -91,7 +92,7 @@ describe('rat camps (§5)', () => {
     // 35 a rat, split between the two heroes in range (integer share).
     const each = Math.trunc(RAT_CAMP_STATS.xpTotal / RAT_CAMP_STATS.rats / 2);
     expect(w.xp[0] - xp0).toBe(2 * each);
-    expect(w.xp[1]).toBe(2 * each);
+    expect(w.xp[1] - xp1).toBe(2 * each);
     const due = w.globals[G.CampAt0];
     expect(due).toBe(w.globals[G.Tick] + RAT_CAMP_STATS.respawn);
     at(m, due);

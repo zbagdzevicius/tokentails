@@ -26,12 +26,14 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
     for (const s of [3, 4, 5]) expect(botParams(easy, s)).toBe(BOTS.easy);
     expect(BOTS.easy.reactionTicks).toBe(18);
     expect(BOTS.normal.reactionTicks).toBe(9);
-    expect(BOTS.easy.retreatHpBp).toBe(2500);
-    expect(BOTS.normal.retreatHpBp).toBe(3000);
+    // Sim v4: low lines (a bot stays in a fight it can still win), so fights end in takedowns.
+    expect(BOTS.easy.retreatHpBp).toBe(800);
+    expect(BOTS.normal.retreatHpBp).toBe(1200);
   });
 
   it('bots walk out to their lanes: Sunny, Puddle and the roamer', () => {
-    const m = quietMatch(11, true);
+    // Normal: on Rookie and Easy the human's allies carry (follow the human, DifficultyRules.carryAllies).
+    const m = quietMatch(11, true, 'normal');
     while (m.world.globals[G.Tick] < TIMELINE.firstWave + 600) step(m);
     const w = m.world;
     // Slot 1 and 4 play Puddle (bottom), slot 3 Sunny (top); every bot left its fountain.
@@ -46,7 +48,7 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
     const m = botsOn(heroMatch(['clem', 'sage', 'brutus', 'cacklejaw', 'clem', 'sage']));
     const w = m.world;
     place(m, 4, 60000, 30000);
-    w.hp[4] = Math.trunc(w.maxHp[4] / 20);
+    w.hp[4] = Math.trunc(w.maxHp[4] / 50); // 2%: under BOT_AI.retreatAlwaysBp of the retreat line (sim v4)
     const before = Math.abs(w.x[4] - mirrorX(FOUNTAIN.x));
     steps(m, 60);
     const napping = w.state[4] === UnitState.Napping || w.napT[4] > 0;

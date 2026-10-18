@@ -1,4 +1,5 @@
 import { ORDER_API } from "@/api/order-api";
+import type { PurchaseContext } from "@/api/stripe-api";
 import { useToast } from "@/context/ToastContext";
 import { PACK_ODDS, PackType } from "@/models/order";
 import { EntityType } from "@/models/save";
@@ -42,6 +43,11 @@ interface PaymentProps {
    * and the payment method in the modal's own buttons. Same flow, same payment calls.
    */
   compact?: boolean;
+  /**
+   * Where the purchase starts, sent with both checkouts. `pawlegends` makes the backend apply the Pawlegends age
+   * band and spend cap first; leave it out everywhere else.
+   */
+  purchaseContext?: PurchaseContext | null;
 }
 
 const productNameOverviewMap = {
@@ -115,6 +121,7 @@ const WebPayment = ({
   onRemove,
   hideMascot,
   compact,
+  purchaseContext,
 }: PaymentProps) => {
   // Crypto is the default whenever the server offers it; the player's own pick wins. The config
   // loads after mount, so "no pick yet" follows it instead of locking in card first.
@@ -219,6 +226,7 @@ const WebPayment = ({
         discount={discountable && discountPercentage ? discountCode : undefined}
         onSuccess={onSuccess}
         onProcessingChange={onProcessingChange}
+        purchaseContext={purchaseContext}
       />
     ) : (
       <StripePayment
@@ -228,6 +236,7 @@ const WebPayment = ({
         onProcessingChange={onProcessingChange}
         discount={discountCode}
         entityType={entityType}
+        purchaseContext={purchaseContext}
       />
     );
 

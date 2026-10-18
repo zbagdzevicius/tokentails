@@ -6,7 +6,8 @@ import { CORE_STATS, TOWERS } from '../../data/towers';
 import { EFFECTS } from '../../data/effects';
 import { RAT_CAMP_STATS } from '../../data/camps';
 import { BP_ONE, applyBp, idiv } from '../fixed';
-import { Buff, Kind, RANGE, type World } from '../world';
+import { Buff, G, Kind, RANGE, type World } from '../world';
+import { bonusSpeedBp } from '../effects/bonus';
 
 const RADIUS_BY_KIND: readonly number[] = [0, RADIUS.hero, RADIUS.minion, RADIUS.tower, RADIUS.core, RADIUS.fountain, RADIUS.camp, RADIUS.pudding];
 
@@ -74,7 +75,7 @@ function baseSpeed(w: World, id: number): number {
 /** Move speed with the active slow and haste (never below EFFECTS.minSpeedBp of the base). */
 export function moveSpeed(w: World, id: number): number {
   const base = baseSpeed(w, id);
-  const bp = BP_ONE - w.slowBp[id] + w.hasteBp[id];
+  const bp = BP_ONE - w.slowBp[id] + w.hasteBp[id] + bonusSpeedBp(w, id);
   return applyBp(base, Math.max(bp, EFFECTS.minSpeedBp));
 }
 
@@ -96,14 +97,20 @@ export function isInvulnerable(w: World, id: number): boolean {
     return false;
   }
   if (k === Kind.Core) {
-    const perTeam = TOWER_SPOTS.length;
-    const base = RANGE.towers + w.team[id] * perTeam;
-    for (let k2 = 0; k2 < perTeam; k2++) {
-      if (TOWER_SPOTS[k2].tier === 'inner' && w.alive[base + k2] === 0) return false;
-    }
-    return true;
+    if (w.globals[G.Tick] < w.globals[G.CoreOpenAt]) return true;
+    return !coreExposed(w, w.team[id]);
   }
   return (w.buffs[id] & Buff.Invulnerable) !== 0;
+}
+
+/** Is `team`'s core open to hits by its towers alone: is one of its inner towers down? */
+export function coreExposed(w: World, team: number): boolean {
+  const perTeam = TOWER_SPOTS.length;
+  const base = RANGE.towers + team * perTeam;
+  for (let k2 = 0; k2 < perTeam; k2++) {
+    if (TOWER_SPOTS[k2].tier === 'inner' && w.alive[base + k2] === 0) return true;
+  }
+  return false;
 }
 
 export const isStructure = (w: World, id: number): boolean => w.kind[id] === Kind.Tower || w.kind[id] === Kind.Core;

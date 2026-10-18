@@ -42,9 +42,17 @@ test('B: Nap channels, then the hero is back at the fountain, idle', async ({ pa
 test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
   test.setTimeout(120_000);
   await startFirstMatch(page, '&speed=4');
-  await page.keyboard.press('a');
-  await page.mouse.click(900, 300);
-  await expect.poll(async () => (await ops(page)).some((o) => o === 2 || o === 3)).toBe(true);
+  // Re-issue each poll: under load the first A + click can land before the match view takes input.
+  await expect
+    .poll(
+      async () => {
+        await page.keyboard.press('a');
+        await page.mouse.click(900, 300);
+        return (await ops(page)).some((o) => o === 2 || o === 3);
+      },
+      { timeout: 15000, intervals: [500] },
+    )
+    .toBe(true);
   // Keep attack-moving into the lane: the hero stops for the first enemy it meets and hits it.
   await expect
     .poll(

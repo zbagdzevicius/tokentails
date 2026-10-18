@@ -17,6 +17,7 @@ import type { Shockwaves } from './fx/Shockwaves.js';
 import type { Juice } from './juice';
 import { RELATION, TEAM } from './palette';
 import { HERO_TOP } from './chars/specs';
+import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 
 /** "Press R" on a keyboard; touch buttons carry icons, not letters, so name the button there. */
 export function ultHint(): string {
@@ -61,10 +62,18 @@ export interface EffectsHooks {
   onCast(id: number): void;
   onHit(id: number, kind: string, heavy: boolean): void;
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
-  onLevel?(level: number): void;
+  /** Returns true when the session shows its own ultimate prompt (goal chip or tip): no ULTIMATE READY banner then. */
+  onLevel?(level: number): boolean | void;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
   onTowerDown?(destroyedByMyTeam: boolean): void;
+  /** An enemy tower or core locked on to the player (fun plan S5 lock-on; the `windup` with slot 4). */
+  onTowerAim?(src: number, ticks: number): void;
+  /** Pickups (fun plan S9): a new one on the ground, or one taken by `who`. */
+  onPickupSpawn?(index: number, kind: PickupKind, x: number, y: number): void;
+  onPickupTaken?(kind: PickupKind, who: Who | null): void;
+  /** A core fell (the match is ending): the session pushes the camera in. */
+  onCoreDown?(who: Who): void;
 }
 
 const _p = new THREE.Vector3();
@@ -110,7 +119,9 @@ export class Effects {
     return slot === 4 ? trickAim(this.hooks.trickOf(who.id)) : aimFor(who.hero, slot);
   }
 
-  handle(e: SimEvent): void {
+  handle(ev: AnyEvent): void {
+    if (isFun(ev)) return this.fun(ev);
+    const e = ev as SimEvent;
     switch (e.type) {
       case 'hit':
         return this.hit(e);
@@ -137,6 +148,49 @@ export class Effects {
         sfx.play('horn', { rate: 0.8 });
         this.juice.banner({ title: 'Sudden Death', sub: 'Cores crumble. Every takedown hits the core.', tone: 'bad' });
         this.juice.kick(0.3);
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** The fun-plan events (pickups, Nine Lives): visuals and sounds only; the announcer does the words. */
+  private fun(e: FunEvent): void {
+    switch (e.type) {
+      case 'pickupSpawn': {
+        this.hooks.onPickupSpawn?.(e.index, e.kind, e.x, e.y);
+        _p.set(e.x / 1000, 0.4, -e.y / 1000);
+        const c = e.kind === 'frenzy' ? 0x7dff8a : 0xffa64d;
+        this.particles.burst(_p, { additive: true, n: 14, shape: SHAPE.STAR4, color: c, intensity: 1.8, size: [0.18, 0.3], life: [0.5, 0.8], speed: [1, 3], up: 3 });
+        this.shock.start(_p.setY(0), { r1: 2.5, dur: 0.35, color: e.kind === 'frenzy' ? '#7DFF8A' : '#FFA64D', height: 0.3 });
+        if (e.kind === 'frenzy') sfx.play('pickup', { at: { x: e.x / 1000, z: -e.y / 1000 }, rate: 0.7 });
+        return;
+      }
+      case 'pickup': {
+        const who = this.hooks.who(e.id);
+        this.hooks.onPickupTaken?.(e.kind, who);
+        if (!who) return;
+        const c = e.kind === 'frenzy' ? 0x7dff8a : 0xffa64d;
+        this.particles.ring(this.at(who, 0.2), { n: 16, r0: 0.4, speed: [2, 3.5], up: 2, color: c, alpha: 0.95, additive: true, size: [0.2, 0.32], shape: SHAPE.STAR4, intensity: 1.8 });
+        if (e.kind === 'snack') this.particles.burst(this.at(who, 1.2), { n: 8, shape: SHAPE.HEART, color: 0xff8fb1, size: [0.22, 0.32], life: [0.6, 0.9], speed: [0.5, 1.2], up: 1.6, gravity: -0.5 });
+        sfx.play('pickup', { at: who, rate: e.kind === 'frenzy' ? 1 : 1.3 });
+        if (e.id === this.hooks.mySlot) this.juice.kick(0.12);
+        return;
+      }
+      case 'buff': {
+        if (!isNineLives(e)) return;
+        const who = this.hooks.who(e.id);
+        if (who) {
+          this.particles.ring(this.at(who, 0.9), { n: 18, r0: 0.7, speed: [1.5, 2.5], up: 0.6, color: 0xffffff, alpha: 1, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 2.2 });
+          this.hooks.onHit(e.id, 'hero', true);
+        }
+        if (e.id === this.hooks.mySlot) {
+          this.juice.flash('white');
+          sfx.play('ooh', { vol: 0.8 });
+        }
+        return;
+      }
+      default:
         return;
     }
   }
@@ -188,7 +242,7 @@ export class Effects {
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
     } else if (e.dst === me) {
       this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
-      this.juice.kick(Math.min(0.35, 0.1 + e.amount / 600));
+      this.juice.kick(Math.max(e.kind === 'tower' ? 0.18 : 0, Math.min(0.35, 0.1 + e.amount / 600)));
       sfx.play('hurt');
     } else {
       if (heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
@@ -297,6 +351,15 @@ export class Effects {
     this.windups.push({ src: e.src, slot: e.slot, x: e.x, y: e.y, start: e.tick, ticks: e.ticks });
     const src = this.hooks.who(e.src);
     if (!src) return;
+    if ((src.kind === 'tower' || src.kind === 'core') && src.team !== this.hooks.myTeam) {
+      // tower lock-on (fun plan S5): the red line and ring are drawn by the session's overlay
+      const me = this.hooks.who(this.hooks.mySlot);
+      if (me && Math.hypot(me.x - e.x / 1000, me.z + e.y / 1000) < 3) {
+        this.hooks.onTowerAim?.(e.src, e.ticks);
+        sfx.play('windup', { at: src, vol: 0.8, rate: 0.6 });
+      }
+      return;
+    }
     sfx.play('windup', { at: src, vol: 0.6 });
     if (src.team !== this.hooks.myTeam) {
       const me = this.hooks.who(this.hooks.mySlot);
@@ -319,10 +382,10 @@ export class Effects {
       this.particles.burst(pos, { additive: true, n: 18, shape: SHAPE.STAR5, color: this.rel(v.team, v.id), intensity: 1.8, size: [0.2, 0.36], life: [0.5, 0.9], speed: [3, 6], up: 3, gravity: 7 });
       this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: '#FFE0C8', height: 0.3 });
       sfx.play('death', { at: v });
+      // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {
-        this.juice.hitstop(110, 0.08);
+        this.juice.hitstop(120, 0.08);
         this.juice.kick(0.3);
-        this.juice.callout('Takedown!', 'gold');
       }
       if (e.id === this.hooks.mySlot) this.juice.kick(0.35);
     } else {
@@ -342,9 +405,17 @@ export class Effects {
     }
     if (e.id === this.hooks.mySlot) {
       sfx.play('levelup');
-      this.hooks.onLevel?.(e.level);
+      const guided = this.hooks.onLevel?.(e.level) === true;
+      // the satisfying level-up (fun plan F2 item 6): a gold shockwave, a fountain of stars and a rim flash
+      if (v) {
+        this.shock.start(this.at(v, 0), { r1: 5, dur: 0.5, color: '#FFD34D', height: 0.5 });
+        this.particles.burst(this.at(v, 0.4), { additive: true, n: 26, shape: SHAPE.STAR5, color: 0xffd34d, intensity: 2, size: [0.2, 0.36], life: [0.6, 1], speed: [2, 4.5], up: 5, gravity: 6 });
+      }
+      this.juice.flash('gold');
+      this.juice.kick(0.12);
       this.juice.callout(`Level ${e.level}`, 'gold');
-      if (e.level === 4) this.juice.banner({ title: 'Ultimate ready', sub: ultHint(), tone: 'gold' });
+      // one channel per message: the goal chip or tip carries it when the session guides; else the banner
+      if (e.level === 4 && !guided) this.juice.banner({ title: 'ULTIMATE READY', sub: ultHint(), tone: 'gold' });
     }
   }
 
@@ -355,10 +426,13 @@ export class Effects {
     // Which lane, so two towers falling at once read as two events (sim +y is north: Sunny Lane is on top).
     const lane = v ? (-v.z * 1000 > MAP_MID_Y ? 'Sunny Lane' : 'Puddle Lane') : undefined;
     const what = v?.kind === 'core' ? 'core' : 'tower';
-    this.juice.banner({ title: good ? `Enemy ${what} down!` : `We lost a ${what}`, sub: lane, tone: good ? 'good' : 'bad' });
+    this.juice.banner({ title: good ? `Enemy ${what} down!` : `We lost a ${what}`, sub: what === 'core' ? undefined : lane, tone: good ? 'good' : 'bad' });
     sfx.play('boom');
-    this.juice.kick(0.45);
+    sfx.play('roar', { vol: good ? 1 : 0.6 });
+    this.juice.kick(what === 'core' ? 0.7 : 0.45);
+    if (what === 'core') this.juice.slowmo(1200, 0.25);
     if (!v) return;
+    if (what === 'core') this.hooks.onCoreDown?.(v);
     for (let i = 0; i < 3; i++) this.shock.start(this.at(v, 0), { r1: 4 + i * 2.5, dur: 0.4 + i * 0.15, color: i === 0 ? '#FFD34D' : '#FFE0C8', height: 0.6 });
     this.particles.burst(this.at(v, 2.5), { n: 40, shape: SHAPE.SHARD, color: 0xc9b8a8, tint: 0.2, size: [0.15, 0.35], life: [0.8, 1.3], speed: [4, 9], up: 5, gravity: 14, spin: 10, floor: true, fade: FADE.HOLD });
     this.particles.burst(this.at(v, 2.5), { additive: true, n: 30, shape: SHAPE.STAR5, color: TEAM[v.team === 1 ? 1 : 0].main, intensity: 2, size: [0.25, 0.45], life: [0.6, 1], speed: [3, 7], up: 4, gravity: 6 });

@@ -250,17 +250,22 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
 });
 
 describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => {
-  it("comes last and opens /pawlegends with a full page load", () => {
+  it("comes last and opens /pawlegends?from=picker with a full page load, showing a real match frame", () => {
     const { navigate, setGameType, dialog } = open({ showSwordcat: true, showPawlegends: true });
     const items = within(dialog).getAllByRole("listitem");
     expect(items).toHaveLength(6);
     expect(items[items.length - 1].getAttribute("data-card")).toBe(PAWLEGENDS_CARD_KEY);
     const card = within(dialog).getByTestId("game-card-pawlegends");
-    expect(card.getAttribute("href")).toBe(PAWLEGENDS_PICKER_HREF);
+    expect(card.getAttribute("href")).toBe(`${PAWLEGENDS_PICKER_HREF}?from=picker`);
     expect(card.getAttribute("aria-label")).toBe(`${PAWLEGENDS_TITLE.toUpperCase()} · NEW`);
-    expect(within(dialog).getByTestId("game-card-pawlegends-preview")).toBeTruthy();
+    const preview = within(dialog).getByTestId("game-card-pawlegends-preview");
+    expect(preview.getAttribute("src")).toBe("/game-select/pawlegends.webp");
+    // A missing file falls back to the text tile.
+    fireEvent.error(preview);
+    expect(within(dialog).getByTestId("game-card-pawlegends-preview").tagName).toBe("SPAN");
+    expect(within(dialog).getByTestId("game-card-pawlegends-preview").textContent).toMatch(/3v3/);
     fireEvent.click(card);
-    expect(navigate).toHaveBeenCalledWith("/pawlegends");
+    expect(navigate).toHaveBeenCalledWith("/pawlegends?from=picker");
     expect(setGameType).not.toHaveBeenCalled();
   });
 

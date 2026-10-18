@@ -11,7 +11,7 @@ import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
 import clsx from "clsx";
-import type { MouseEvent, ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 
 /** The Paw Match preview tile that shows the catnip sprig (CatnipIcon, plan G8). */
 const CATNIP_TILE = "catnip";
@@ -34,6 +34,16 @@ export const PAWLEGENDS_PICKER_HREF = "/pawlegends";
 /** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
 export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
 export const PAWLEGENDS_PICKER_DESCRIPTION = "3v3 hero battles with your cats vs dog bots";
+/**
+ * The Pawlegends card art: a frame of a real match (Clem at the fountain, the pink yarn base, cat minions marching),
+ * captured from the built game and cropped to the card's box. One 2x file (624x436, about 20 KB), served from
+ * client/public. The "3v3 cats vs dogs" tile stays as the fallback if the file cannot load.
+ */
+export const PAWLEGENDS_PREVIEW = Object.freeze({
+  src: "/game-select/pawlegends.webp",
+  width: 312,
+  height: 218,
+});
 
 /**
  * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
@@ -84,9 +94,12 @@ export interface GameCard {
   previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "PAWLEGENDS";
 }
 
-/** A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`); others go as they are. */
+/** Cards whose host page reports where it was opened from (`heist_open`, `pawlegends_open`). */
+const FROM_PICKER_KEYS: readonly string[] = [GameType.CATNIP_HEIST, PAWLEGENDS_CARD_KEY];
+
+/** A card's link: the Heist's and Pawlegends' carry `?from=picker`; others go as they are. */
 export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
-  card.href ? (card.key === GameType.CATNIP_HEIST ? heistHref(card.href) : card.href) : undefined;
+  card.href ? (FROM_PICKER_KEYS.includes(card.key) ? heistHref(card.href) : card.href) : undefined;
 
 /** The link's test id: the Heist keeps `game-card-heist`, others are `game-card-<key>`. */
 const cardTestId = (card: GameCard) =>
@@ -167,6 +180,7 @@ export function gameCards(
       title: PAWLEGENDS_TITLE.toUpperCase(),
       description: PAWLEGENDS_PICKER_DESCRIPTION,
       badge: "NEW",
+      image: PAWLEGENDS_PREVIEW.src,
       previewVariant: "PAWLEGENDS",
     });
   }
@@ -234,20 +248,39 @@ const SwordcatPreview = () => (
   </span>
 );
 
-/** Placeholder art until the hero bake lands (POC.md §6.9): the mode name on a night tile. */
-const PawlegendsPreview = () => (
-  <span
-    data-testid="game-card-pawlegends-preview"
-    className="relative flex aspect-[312/218] h-full flex-col items-center justify-center overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-gradient-to-br from-tt-night-700 to-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]"
-  >
-    <span aria-hidden="true" className="font-primary text-[1.4rem] leading-none text-tt-gold-400 md:text-[2rem]">
-      3v3
+/** A real match frame; the "3v3 cats vs dogs" tile if the image cannot load. */
+const PawlegendsPreview = () => {
+  const [failed, setFailed] = useState(false);
+  const frame =
+    "relative flex aspect-[312/218] h-full flex-col items-center justify-center overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-gradient-to-br from-tt-night-700 to-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]";
+  if (!failed) {
+    return (
+      <span className={frame}>
+        <img
+          src={PAWLEGENDS_PREVIEW.src}
+          width={PAWLEGENDS_PREVIEW.width}
+          height={PAWLEGENDS_PREVIEW.height}
+          alt=""
+          draggable={false}
+          decoding="async"
+          data-testid="game-card-pawlegends-preview"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      </span>
+    );
+  }
+  return (
+    <span data-testid="game-card-pawlegends-preview" className={frame}>
+      <span aria-hidden="true" className="font-primary text-[1.4rem] leading-none text-tt-gold-400 md:text-[2rem]">
+        3v3
+      </span>
+      <span aria-hidden="true" className="mt-1 font-secondary text-[7px] uppercase tracking-[0.12em] text-tt-cream md:text-[10px]">
+        cats vs dogs
+      </span>
     </span>
-    <span aria-hidden="true" className="mt-1 font-secondary text-[7px] uppercase tracking-[0.12em] text-tt-cream md:text-[10px]">
-      cats vs dogs
-    </span>
-  </span>
-);
+  );
+};
 
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;

@@ -19,6 +19,12 @@ export interface HostConfig {
   roster?: unknown[];
   /** Answer each purchase intent with `purchase-result{ok:true}` and this token (a Stripe test checkout return). */
   buyGrants?: Record<string, string>;
+  /** `featured{cats}` sent on every ready (unowned direct-purchase cats). */
+  featured?: unknown[];
+  /** `offer{offer}` sent on every ready (the server Meet answer). */
+  offer?: unknown;
+  /** Answer `open-cat{catalogId}` with `purchase-result{catalogId, ok:true}` and then this roster (a test checkout). */
+  catGrants?: Record<string, unknown[]>;
   /** localStorage profile written before the game loads (same origin as the game). */
   profile?: Record<string, unknown>;
   /** Extra game query (e.g. `&speed=64`). */
@@ -53,6 +59,8 @@ function hostHtml(cfg: HostConfig): string {
       send('session', { signedIn: !!cfg.signedIn });
       if (cfg.roster) send('roster', { cats: cfg.roster });
       if (token) send('entitlements', { token: token });
+      if (cfg.featured) send('featured', { cats: cfg.featured });
+      if (cfg.offer !== undefined) send('offer', { offer: cfg.offer });
     };
     addEventListener('message', function (e) {
       if (e.source !== f.contentWindow) return;
@@ -63,6 +71,10 @@ function hostHtml(cfg: HostConfig): string {
       if (m.type === 'purchase-intent' && cfg.buyGrants && cfg.buyGrants[m.sku]) {
         token = cfg.buyGrants[m.sku];
         setTimeout(function () { send('purchase-result', { sku: m.sku, ok: true }); send('entitlements', { token: token }); }, 50);
+      }
+      if (m.type === 'open-cat' && cfg.catGrants && cfg.catGrants[m.catalogId]) {
+        var cats = cfg.catGrants[m.catalogId];
+        setTimeout(function () { send('purchase-result', { catalogId: m.catalogId, ok: true }); send('roster', { cats: cats }); }, 50);
       }
       if (m.type === 'match-result') {
         fetch('/user/catbassadors/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'PAWLEGENDS', pawlegends: m.replay }) });

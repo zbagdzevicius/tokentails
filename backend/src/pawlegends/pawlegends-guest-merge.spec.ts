@@ -24,7 +24,7 @@ jest.mock('src/shared/encryption.service', () => ({
  * caps (PAWLEGENDS_TOTAL_CAP, TOTAL_CATNIP_CAP) and a difficulty both accounts claimed pays once.
  */
 
-const [EASY_CAP, NORMAL_CAP] = PAWLEGENDS_LEVEL_CAPS;
+const [EASY_CAP, NORMAL_CAP, ROOKIE_CAP] = PAWLEGENDS_LEVEL_CAPS;
 const DAY = 24 * 60 * 60 * 1000;
 
 function scenario(targetFields: Record<string, unknown> = {}, guestFields: Record<string, unknown> = {}) {
@@ -125,14 +125,14 @@ describe('Pawlegends progress in the guest merge (D44)', () => {
     it('a difficulty both accounts claimed pays once; fastest is the min and matches add up', async () => {
         const s = scenario(
             {
-                pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP },
-                pawlegendsFastestWin: { easy: 12000, normal: 15000 },
-                pawlegendsMatches: { easy: 1, normal: 4 },
-                catnipCount: 100 + EASY_CAP + NORMAL_CAP,
+                pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP, rookie: ROOKIE_CAP },
+                pawlegendsFastestWin: { easy: 12000, normal: 15000, rookie: 9500 },
+                pawlegendsMatches: { easy: 1, normal: 4, rookie: 1 },
+                catnipCount: 100 + EASY_CAP + NORMAL_CAP + ROOKIE_CAP,
             },
             {
-                pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP },
-                pawlegendsFastestWin: { easy: 9000, normal: 16000 },
+                pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP, rookie: ROOKIE_CAP },
+                pawlegendsFastestWin: { easy: 9000, normal: 16000, rookie: 9200 },
             }
         );
 
@@ -140,9 +140,8 @@ describe('Pawlegends progress in the guest merge (D44)', () => {
 
         expect(account(s)).toMatchObject({
             catnipCount: 100 + PAWLEGENDS_TOTAL_CAP,
-            pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP },
-            pawlegendsFastestWin: { easy: 9000, normal: 15000 },
-            pawlegendsMatches: { easy: 4, normal: 6 },
+            pawlegendsCatnip: { easy: EASY_CAP, normal: NORMAL_CAP, rookie: ROOKIE_CAP },
+            pawlegendsFastestWin: { easy: 9000, normal: 15000, rookie: 9200 },
         });
     });
 
