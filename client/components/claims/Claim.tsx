@@ -28,7 +28,19 @@ const ProofDrawer = dynamic(
 /** A trailing "(Oct 2026, company-reported)" on registry words. */
 const TRAILING_PAREN = /\s*\([^)]*\)\s*$/;
 
-export type ClaimVariant = "inline" | "chip" | "stat" | "hero";
+export type ClaimVariant = "inline" | "chip" | "stat" | "hero" | "tile";
+
+/** What a `tile` face gets to lay out: the words, the figure split from them, the date and chips. */
+export interface ClaimFaceParts {
+  text: string;
+  /** "$40K+" from "$40K+ donated…", or null. */
+  figure: string | null;
+  rest: string;
+  /** "18 Oct 2026", or null when there is none. */
+  date: string | null;
+  /** The tier, status and STALE chips (compact). */
+  chips: ReactNode;
+}
 
 export interface ClaimProps {
   id: FactId;
@@ -45,6 +57,8 @@ export interface ClaimProps {
   children?: ReactNode;
   /** Plain words right after the claim text and before its date and chips (inline variant). */
   suffix?: ReactNode;
+  /** `tile` variant: draws the claim from its parts (the lobby board). The accessible name stays the full sentence. */
+  face?: (parts: ClaimFaceParts) => ReactNode;
   /** `false` for rows that already are the proof (/impact). */
   interactive?: boolean;
   /** Overrides the build flag (tests and previews). */
@@ -68,6 +82,7 @@ export const Claim = ({
   text: override,
   children,
   suffix,
+  face,
   interactive = true,
   isApp = isAppBuild(),
   now,
@@ -92,11 +107,12 @@ export const Claim = ({
   const dateSource = fact.status === "live" ? liveAsOf : fact.asOf;
   const date = textHasDate(text) ? null : formatFactDate(dateSource);
 
+  const compact = variant === "tile";
   const chips = (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {tier && <EvidenceChip kind={tier} isApp={isApp} />}
-      {!statusInText && <EvidenceChip kind={fact.status} isApp={isApp} />}
-      {stale && <EvidenceChip kind="stale" isApp={isApp} />}
+    <span className={clsx("inline-flex items-center gap-1", compact ? "flex-nowrap" : "flex-wrap")}>
+      {tier && <EvidenceChip kind={tier} isApp={isApp} compact={compact} />}
+      {!statusInText && <EvidenceChip kind={fact.status} isApp={isApp} compact={compact} />}
+      {stale && <EvidenceChip kind="stale" isApp={isApp} compact={compact} />}
     </span>
   );
 
@@ -112,7 +128,15 @@ export const Claim = ({
   ) : null;
 
   let body: ReactNode;
-  if (variant === "stat") {
+  if (variant === "tile") {
+    const { figure, rest } = splitFigure(text);
+    const parts: ClaimFaceParts = { text, figure, rest, date: formatFactDate(dateSource), chips };
+    body = face ? face(parts) : (
+      <>
+        <span className="claim-text">{text}</span> {dateNode} {chips}
+      </>
+    );
+  } else if (variant === "stat") {
     const { figure, rest } = splitFigure(text);
     body = (
       <>
@@ -182,6 +206,7 @@ export const Claim = ({
     variant === "stat" && "block w-full text-center",
     variant === "hero" && "block w-full text-left",
     variant === "inline" && "inline",
+    variant === "tile" && "block text-left",
     className
   );
 

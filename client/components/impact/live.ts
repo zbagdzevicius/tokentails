@@ -18,6 +18,8 @@ import type { FactId } from "@/lib/facts.generated";
 export interface LiveFigure {
   id: FactId;
   values: { n?: number; amount?: string };
+  /** Money figures: the amount per currency, for boards that show each coin on its own. */
+  parts?: string[];
   asOf: string;
   /** Money evidence tier, for money figures. */
   tier?: MoneyTier;
@@ -25,17 +27,17 @@ export interface LiveFigure {
 
 const SYMBOL_ORDER = ["USDC", "EURC", "USDT", "USD"];
 
-function moneyText(bySymbol: Record<string, string>, isApp: boolean, asOf: string): string | null {
+/** One formatted amount per currency, in display order; never summed across coins. */
+export function moneyParts(bySymbol: Record<string, string>, isApp: boolean, asOf: string): string[] {
   const rank = (s: string) => {
     const i = SYMBOL_ORDER.indexOf(s);
     return i === -1 ? SYMBOL_ORDER.length : i;
   };
-  const parts = Object.entries(bySymbol)
+  return Object.entries(bySymbol)
     .filter(([, wei]) => !isZeroAmount(wei))
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
     .map(([symbol, wei]) => formatMoney(wei, symbol, { isApp, asOf }))
     .filter((a): a is string => !!a);
-  return parts.length ? parts.join(" · ") : null;
 }
 
 /** Treats Token Tails has sent (CONFIRMED only), or null while there are none. */
@@ -44,16 +46,16 @@ export function treatsFigure(impact: PublicImpact | null, isApp: boolean): LiveF
   const asOf = impactAsOf(impact, "mongo");
   const amount = formatMoney(impact.treats.totalConfirmedWei, "USDC", { isApp, asOf });
   if (!amount) return null;
-  return { id: "L-treats", values: { amount }, asOf, tier: moneyTierFor(impact.money.custody) };
+  return { id: "L-treats", values: { amount }, parts: [amount], asOf, tier: moneyTierFor(impact.money.custody) };
 }
 
 /** Everything the indexer saw paid to shelters, per currency, or null while nothing was. */
 export function disbursedFigure(impact: PublicImpact | null, isApp: boolean): LiveFigure | null {
   if (!impact || impact.sources.chain === "not-deployed" || impact.money.eventCount === 0) return null;
   const asOf = impactAsOf(impact, "chain");
-  const amount = moneyText(impact.money.bySymbol, isApp, asOf);
-  if (!amount) return null;
-  return { id: "L-disbursed", values: { amount }, asOf, tier: moneyTierFor(impact.money.custody) };
+  const parts = moneyParts(impact.money.bySymbol, isApp, asOf);
+  if (!parts.length) return null;
+  return { id: "L-disbursed", values: { amount: parts.join(" · ") }, parts, asOf, tier: moneyTierFor(impact.money.custody) };
 }
 
 /** Partner countries; null while the country list is empty (not measured yet, not zero). */

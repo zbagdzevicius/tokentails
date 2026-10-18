@@ -303,6 +303,15 @@ $custom-background: linear-gradient(90.26deg, #c1260f 0.34%, #ee642a 96.66%);
   }
 }
 
+// The lobby's pause (components/game/lobbyMotion.ts, WCAG 2.2.2): while <html> carries
+// data-motion-paused, every looping CSS animation on screen holds still, except inside dialogs
+// (their loaders and the spin wheel keep working).
+html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *),
+html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *)::before,
+html[data-motion-paused] *:not([role="dialog"], [role="dialog"] *)::after {
+  animation-play-state: paused !important;
+}
+
 body,
 html {
   margin: 0;
