@@ -116,6 +116,40 @@ describe("lobby board claims", () => {
     expect(board.textContent).not.toMatch(/on-?chain|wallet/i);
     expect(board.querySelector('[data-chip="onchain-shelter-held"]')?.textContent).toBe("PAID TO SHELTER");
   });
+
+  it("app builds show the FX date once per slot, not after every coin", () => {
+    render(<ImpactStrip impact={paidSnapshot()} paw={guest} onOpenImpact={jest.fn()} isApp now={null} />);
+    const shelters = document.querySelector('[data-claim="L-disbursed"]') as HTMLElement;
+    const amounts = Array.from(shelters.querySelectorAll('[data-testid="board-amount"]')).map((a) => a.textContent);
+    expect(amounts.length).toBeGreaterThan(0);
+    for (const a of amounts) expect(a).not.toMatch(/FX/);
+    expect(shelters.querySelectorAll('[data-testid="board-fx"]')).toHaveLength(1);
+    expect(shelters.querySelector('[data-testid="board-fx"]')?.textContent).toMatch(/^FX \d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("keeps coin symbols as written (USDC.e, not USDC.E)", () => {
+    render(<ImpactStrip impact={paidSnapshot()} paw={guest} onOpenImpact={jest.fn()} isApp={false} now={null} />);
+    const units = Array.from(document.querySelectorAll('[data-claim="L-disbursed"] [data-testid="board-amount"] > span:last-child'));
+    const e = units.find((u) => u.textContent === "USDC.e") as HTMLElement;
+    expect(e).toBeTruthy();
+    expect(e.className).not.toMatch(/\buppercase\b/);
+  });
+
+  it.each([
+    [{}, "1"],
+    [{ stacked: true }, "2"],
+    [{ stacked: true, narrow: true }, "3"],
+  ])("lays the same slots out on one, two or three rows (%o)", (layout, rows) => {
+    render(<ImpactStrip impact={paidSnapshot()} paw={guest} onOpenImpact={jest.fn()} isApp={false} now={null} {...layout} />);
+    const board = screen.getByTestId("impact-strip");
+    expect(board.getAttribute("data-rows")).toBe(rows);
+    // Every slot and every proof label is there in each layout.
+    expect(Array.from(board.querySelectorAll("[data-claim]")).map((c) => c.getAttribute("data-claim")).sort()).toEqual(["F-026", "L-disbursed", "L-treats"]);
+    expect(board.querySelectorAll('[data-chip="live"]')).toHaveLength(2);
+    expect(board.querySelectorAll('[data-chip="company-reported"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "My impact" })).toBeTruthy();
+    expect(screen.getByTestId("impact-strip-pause")).toBeTruthy();
+  });
 });
 
 describe("lobby motion pause", () => {
@@ -164,6 +198,22 @@ describe("lobby motion pause", () => {
     act(() => screen.getByTestId("impact-strip-pause").click());
     expect(paused.result.current).toBe(false);
     expect(document.documentElement.hasAttribute(MOTION_PAUSED_ATTR)).toBe(false);
+  });
+
+  it("the paused CSS only reaches the lobby's own layers, never dialogs or their scrims", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const read = (p: string) => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
+    const css = read("styles/globals.scss");
+    const selectors = css.match(/html\[data-motion-paused\][^{,]*/g) ?? [];
+    expect(selectors.length).toBeGreaterThan(0);
+    // A document-wide rule froze Radix scrims (portalled outside role="dialog") at opacity 0.
+    for (const sel of selectors) expect(sel).toMatch(/\[data-lobby-motion\]/);
+    expect(read("components/game/GameSelect.tsx")).toMatch(/data-testid="lobby-scene"\s+data-lobby-motion/);
+    expect(read("components/catbassadors/GameStatsSection.tsx")).toMatch(/<div data-lobby-motion>/);
+    expect(read("components/ui/GameModal.tsx")).not.toMatch(/data-lobby-motion/);
   });
 
   it("a paused GIF shows the cat's still frame", () => {

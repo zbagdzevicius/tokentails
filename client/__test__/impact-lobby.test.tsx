@@ -366,6 +366,13 @@ describe("ImpactStrip (the lobby board)", () => {
     expect(screen.queryByTestId("impact-strip-skeleton")).toBeNull();
   });
 
+  it("says the figures could not load, not \"none yet\", when the snapshot failed", () => {
+    render(<ImpactStrip impact={null} paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
+    expect(screen.getByTestId("impact-strip-unavailable").textContent).toMatch(/could not load/);
+    expect(screen.queryByTestId("impact-strip-empty")).toBeNull();
+    expect(screen.queryByTestId("impact-strip-skeleton")).toBeNull();
+  });
+
   it("shows empty slots, not the empty-state sentence, while the snapshot loads", () => {
     render(<ImpactStrip impact={null} loading paw={paw} onOpenImpact={jest.fn()} isApp={false} />);
     expect(screen.getAllByTestId("impact-strip-skeleton")).toHaveLength(2);
@@ -379,14 +386,17 @@ describe("ImpactStrip (the lobby board)", () => {
     const pause = screen.getByRole("button", { name: "Pause lobby animations" });
     expect(pause).toBe(screen.getByTestId("impact-strip-pause"));
     expect(pause.getAttribute("aria-pressed")).toBe("false");
-    expect(pause.className).not.toMatch(/\bbg-tt-gold-400\b/);
+    expect(pause.getAttribute("data-paused")).toBeNull();
     act(() => {
       fireEvent.click(pause);
     });
     expect(onPausedChange).toHaveBeenCalledWith(true);
     expect(pause.getAttribute("aria-pressed")).toBe("true");
     expect(pause.getAttribute("aria-label")).toBe("Pause lobby animations");
-    expect(pause.className).toMatch(/\bbg-tt-gold-400\b/);
+    // Paused: a gold-rimmed well with a play triangle, never a second solid gold button.
+    expect(pause.getAttribute("data-paused")).toBe("true");
+    expect(pause.className).not.toMatch(/\bbg-tt-gold-400\b/);
+    expect(pause.className).toMatch(/\bborder-tt-gold-400\b/);
     expect(pause.getAttribute("title")).toMatch(/paused/i);
   });
 

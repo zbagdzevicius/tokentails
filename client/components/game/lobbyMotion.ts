@@ -3,12 +3,14 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 /*
  * One pause for the lobby's looping motion (WCAG 2.2.2 Pause, Stop, Hide). The impact board's
  * pause control sets it. While the lobby is on screen and paused:
- *   - <html> carries `data-motion-paused`, and styles/globals.scss stops every CSS animation outside
- *     dialogs (the hearts' glow, the PLAY/PACKS/EVENTS shine, the PROGRESS ping and its bar);
+ *   - <html> carries `data-motion-paused`, and styles/globals.scss stops every CSS animation inside
+ *     the layers marked `data-lobby-motion` (the lobby scene, the corner HUD, the petals: the RESCUE
+ *     heart, the PLAY/PACKS/EVENTS shine, the PROGRESS ping). Dialogs and their scrims are portalled
+ *     outside those layers, so a modal opened while paused still fades in;
  *   - the cat GIFs (the hero on the altar, ABOUT ME) show a still frame (`useStillFrame`).
  * The choice lasts the session (module state, no storage) and only applies while the lobby is
- * mounted, so a run never starts frozen. Reduced motion never starts the CSS loops in the first
- * place; the pause still freezes the GIFs for anyone who asks.
+ * mounted, so a run never starts frozen. Reduced motion never starts those loops (`motion-safe:`)
+ * and stills the cats; the pause does the same for anyone who asks.
  */
 
 export const MOTION_PAUSED_ATTR = "data-motion-paused";
