@@ -55,6 +55,7 @@ function setup({
     } as any,
     grant = { success: true, message: 'Congratz on your new cat!', cat: { _id: 'granted-cat' } } as any,
     givingVerified = true,
+    pawlegendsGuard = undefined as any,
 } = {}) {
     const checkoutModel: any = memoryModel();
     checkoutModel.indexes = [{ name: 'amount_reserved', unique: true, key: { amountKeys: 1 } }];
@@ -124,7 +125,8 @@ function setup({
         grants as any,
         catSale as any,
         reader as any,
-        claims as any
+        claims as any,
+        pawlegendsGuard
     );
     const pay = (logs: ReceiptLog[], status = 1, blockNumber = 100) => {
         chain.receipt = { status, blockNumber, from: BUYER.toLowerCase(), to: null, logs };
@@ -237,6 +239,52 @@ describe('POST /payments/crypto/orders', () => {
         const res = await codeOf(service.createOrder(USER, { sku: { kind: 'CAT', catId: CAT_ID } }, T0, config()));
         expect(res).toEqual(expect.objectContaining({ status, code }));
         expect(checkoutModel.rows).toHaveLength(0);
+    });
+
+    it("a cat order from Pawlegends runs the game's age band and spend cap before any order exists", async () => {
+        const assert = jest.fn(async () => ({ band: '18+', capLeftCents: 0 }));
+        const { service, checkoutModel } = setup({ pawlegendsGuard: { assert } });
+        const body = {
+            sku: { kind: 'CAT', catId: CAT_ID },
+            context: 'pawlegends',
+            ageBand: '16-17',
+            deviceId: 'device-aaaaaaaa',
+        };
+        await service.createOrder(USER, body, T0, config());
+        expect(assert).toHaveBeenCalledWith({
+            userId: USER,
+            cents: 500,
+            context: 'pawlegends',
+            ageBand: '16-17',
+            deviceId: 'device-aaaaaaaa',
+        });
+        expect(checkoutModel.rows).toHaveLength(1);
+        // Refused (under 16, over the cap): nothing is created.
+        const refused = setup({
+            pawlegendsGuard: {
+                assert: jest.fn(async () => {
+                    throw new HttpException({ code: 'PAWLEGENDS_SPEND_CAP' }, 403);
+                }),
+            },
+        });
+        expect(await codeOf(refused.service.createOrder(USER, body, T0, config()))).toEqual(
+            expect.objectContaining({ status: 403 })
+        );
+        expect(refused.checkoutModel.rows).toHaveLength(0);
+        // The game sells named cats only, and never without the guard.
+        const pack = await codeOf(
+            service.createOrder(
+                USER,
+                { sku: { kind: 'PACK', packType: 'STARTER' }, context: 'pawlegends' },
+                T0,
+                config()
+            )
+        );
+        expect(pack).toEqual(expect.objectContaining({ status: 400, code: 'CRYPTO_PAY_BAD_SKU' }));
+        const unguarded = setup();
+        expect(await codeOf(unguarded.service.createOrder(USER, body, T0, config()))).toEqual(
+            expect.objectContaining({ status: 400 })
+        );
     });
 
     it('refuses an unknown SKU', async () => {

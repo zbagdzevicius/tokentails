@@ -105,10 +105,10 @@ describe('input gate (§11.3)', { timeout: 120000 }, () => {
     expect(g.bytes).toBeLessThanOrEqual(MAX_INPUT_BYTES);
     expect(applied).toBe(Math.floor(MAX_INPUT_BYTES / 8));
   });
-  it('a worst-case 11:00 touch match encodes to ≤ 40,000 characters and verifies', () => {
-    // Joystick: a move 2 m ahead every 3 ticks with the direction turning, plus attack, cast and stop spam.
-    // A seed whose match runs past 10:00 with this input (Normal bots group at 3:55 since sim v3, so most matches
-    // end sooner; this one lasts 18,211 ticks and hits the 40,000-character input gate).
+  it('a dense touch-spam match stays under the 40,000-character input gate and verifies', () => {
+    // Joystick: a move 2 m ahead every tick with the direction turning, plus attack and cast spam, far denser than a
+    // human's. Sim v4 ends every match by Sudden Death's decay (about 7:35, an 11:00 match no longer happens); the gate
+    // itself (MAX_INPUT_BYTES) is pinned by the test above.
     const seed = 181;
     const { picks, tricks } = fillPicks(seed, 'sage', 'pounce');
     const m = createMatch({ seed, picks, tricks, difficulty: 'normal' });
@@ -117,16 +117,14 @@ describe('input gate (§11.3)', { timeout: 120000 }, () => {
       const hx = m.world.x[0];
       const hy = m.world.y[0];
       const cmds: Command[] = [];
-      if (t % 3 === 0) {
-        a = (a + 160) & 4095;
-        cmds.push({ op: Op.Move, x: hx + Math.trunc((icos(a) * 2000) / 65536), y: hy + Math.trunc((isin(a) * 2000) / 65536) });
-      }
-      if (t % 45 === 7) cmds.push({ op: Op.Cast, slot: (t % 4) as 0 | 1 | 2 | 3, x: hx + 3000, y: hy, id: 255 });
-      if (t % 20 === 11) cmds.push({ op: Op.Attack, id: 6 + (t % 40) });
+      a = (a + 160) & 4095;
+      cmds.push({ op: Op.Move, x: hx + Math.trunc((icos(a) * 2000) / 65536), y: hy + Math.trunc((isin(a) * 2000) / 65536) });
+      if (t % 15 === 7) cmds.push({ op: Op.Cast, slot: (t % 4) as 0 | 1 | 2 | 3, x: hx + 3000, y: hy, id: 255 });
+      if (t % 10 === 3) cmds.push({ op: Op.Attack, id: 6 + (t % 40) });
       step(m, cmds);
     }
     const rec = replayRecord(m)!;
-    expect(rec.ticks).toBeGreaterThan(18000);
+    expect(rec.inputs.length).toBeGreaterThan(20000); // the spam was recorded
     expect(rec.inputs.length).toBeLessThanOrEqual(MAX_INPUT_CHARS);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, outcome: rec.outcome, finalHash: rec.finalHash });
   });

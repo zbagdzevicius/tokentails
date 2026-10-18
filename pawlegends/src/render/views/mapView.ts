@@ -10,6 +10,7 @@ import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
+import { onPlayfield } from '../../sim/map/grid';
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
@@ -364,6 +365,18 @@ export function createMapView(): MapView {
     }
     if (x > r0 - 2 && x < r1 + 2) continue;
     tree(x, -y, 0.9 + rnd() * 0.7);
+  }
+  // sim v5: the forest also fills every corner of the map outside the playfield (the same cells the nav grid
+  // blocks), so where a hero cannot walk there are trees, and where there are no trees it can.
+  const clear = (xm: number, ym: number): boolean => !onPlayfield(Math.round(xm * 1000), Math.round(ym * 1000));
+  for (let gx = 1.2; gx < W; gx += 2.6) {
+    for (let gy = 1.2; gy < H; gy += 2.6) {
+      const x = gx + (rnd() - 0.5) * 1.4;
+      const y = gy + (rnd() - 0.5) * 1.4;
+      if (!clear(x, y) || !clear(x + 1.3, y) || !clear(x - 1.3, y) || !clear(x, y + 1.3) || !clear(x, y - 1.3)) continue;
+      if (x > r0 - 1 && x < r1 + 1) continue;
+      tree(x, -y, 0.75 + rnd() * 0.6);
+    }
   }
   addMerged(trees, 'forest');
 

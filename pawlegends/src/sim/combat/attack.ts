@@ -6,8 +6,9 @@
 import { HERO_RULES } from '../../data/xp';
 import { MINIONS } from '../../data/minions';
 import { RAT_CAMP_STATS } from '../../data/camps';
-import { SUNSET, TIMELINE } from '../../data/timeline';
+import { SUNSET } from '../../data/timeline';
 import { CORE_STATS, PROJECTILE_KIND, TOWERS } from '../../data/towers';
+import { RALLY_LEVEL_BP } from '../../data/bots';
 import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, RANGE, UnitState, allocProjectile, type World } from '../world';
@@ -66,8 +67,10 @@ export function fireBolt(w: World, src: number, dst: number, dmg: number, speed:
 function swingDamage(w: World, id: number, dst: number): number {
   let dmg = attackDamage(w, id);
   if (w.kind[id] === Kind.Minion) {
-    if (w.globals[G.Tick] >= TIMELINE.sunset) dmg = applyBp(dmg, SUNSET.minionDamageBp);
+    if (w.globals[G.Tick] >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.minionDamageBp);
     if (w.kind[dst] === Kind.Tower) dmg = applyBp(dmg, minionData(w, id).towerBp);
+    // Rally (v4): a minion's `level` is its damage bonus in whole percent.
+    if (w.level[id] > 0) dmg = applyBp(dmg, BP_ONE + w.level[id] * RALLY_LEVEL_BP);
   }
   return dmg;
 }

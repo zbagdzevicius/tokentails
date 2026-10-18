@@ -87,6 +87,10 @@ export function refreshFlags(w: World): void {
         shield += w.kHonour[id];
         if (w.napT[id] > 0 || (w.castPhase[id] === 2 && w.castT[id] > 0)) b |= Buff.Channeling;
         if (w.kWT[id] > 0) b |= Buff.Blocking; // Clem's The Stand, Sir Brutus's Front Guard
+        if (w.zoomT[id] > 0) b |= Buff.Zoomies;
+        if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
+        if (w.nineT[id] > 0) b |= Buff.NineLives;
+        if (w.packT[id] > 0) b |= Buff.Pack;
       }
       if (shield > 0) b |= Buff.Shielded;
     }

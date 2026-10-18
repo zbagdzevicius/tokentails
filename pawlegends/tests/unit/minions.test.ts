@@ -31,15 +31,18 @@ describe('minion waves (§7.1)', { timeout: 120000 }, () => {
     }
     expect(list.find((e) => e.variant === 'melee')!.maxHp).toBe(MINIONS.melee.hp);
   });
-  it('from 3:00 every 3rd wave adds a siege; HP grows 3% a minute', () => {
+  it('from 2:00 every 3rd wave adds a siege; HP grows 3% a minute', () => {
     const m = quietMatch();
-    while (m.world.globals[0] <= TIMELINE.siegeFrom) step(m);
-    const spawned = minions(m).filter((e) => e.maxHp > MINIONS.melee.hp + 20);
-    const siege = spawned.filter((e) => e.variant === 'siege');
+    // The first wave at or after TIMELINE.siegeFrom (sim v4: 2:00) carries the first siege.
+    const at = TIMELINE.firstWave + Math.ceil((TIMELINE.siegeFrom - TIMELINE.firstWave) / TIMELINE.waveEvery) * TIMELINE.waveEvery;
+    while (m.world.globals[0] <= at) step(m);
+    const growth = Math.trunc(at / TIMELINE.minute) * 300; // +3% a whole minute
+    const siege = minions(m).filter((e) => e.variant === 'siege');
     expect(siege).toHaveLength(4);
-    expect(siege[0].maxHp).toBe(MINIONS.siege.hp + Math.trunc((MINIONS.siege.hp * 900) / 10000)); // minute 3: +9%
-    const melee = spawned.filter((e) => e.variant === 'melee');
-    expect(melee[0].maxHp).toBe(327);
+    expect(siege[0].maxHp).toBe(MINIONS.siege.hp + Math.trunc((MINIONS.siege.hp * growth) / 10000));
+    const melee = minions(m).filter((e) => e.variant === 'melee' && e.maxHp > MINIONS.melee.hp);
+    expect(melee.length).toBeGreaterThan(0);
+    expect(Math.max(...melee.map((e) => e.maxHp))).toBe(MINIONS.melee.hp + Math.trunc((MINIONS.melee.hp * growth) / 10000));
   });
   it('waves walk their lane and meet at the river', () => {
     const m = quietMatch();

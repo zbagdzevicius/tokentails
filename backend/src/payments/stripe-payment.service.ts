@@ -35,6 +35,11 @@ export interface PaymentIntentQuoteInput {
     imageId?: string;
     userId: string;
     discount?: string;
+    /**
+     * Where the purchase started, kept in the intent metadata for reporting. `pawlegends`: the caller already ran
+     * `PawlegendsCheckoutGuard.assert` (age band and spend cap) before asking for the intent.
+     */
+    context?: 'pawlegends';
 }
 
 export interface PaymentIntentQuote {
@@ -137,6 +142,7 @@ export class StripePaymentService {
                     discount: '',
                     discountPercentage: '0',
                     expectedAmount: String(amountCents),
+                    ...(input.context === 'pawlegends' ? { context: 'pawlegends' } : {}),
                 },
             };
         }

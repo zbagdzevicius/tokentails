@@ -6,7 +6,8 @@ import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { invalidateStorefront } from "@/hooks/useStorefront";
 import { isApp } from "@/models/app";
-import { BlessingStatus, ICat, IMessage, Prices } from "@/models/cats";
+import { ICat, IMessage, Prices } from "@/models/cats";
+import { isCatForSale, ownsCopy } from "./catSale";
 import { EntityType } from "@/models/save";
 import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
@@ -28,32 +29,7 @@ const Payment = dynamic(() => import("@/components/web3/Payment").then((module) 
  * App builds never show it: digital goods there must use store IAP, which is not built (AppCheckoutNotice).
  */
 
-const NOT_FOR_SALE: readonly string[] = [BlessingStatus.ADOPTED, BlessingStatus.HEAVEN];
-
-export function isCatForSale(
-  cat: Pick<ICat, "_id" | "owner" | "blessing" | "isStarter" | "isGuestStarter"> | null | undefined
-): boolean {
-  if (!cat?._id || !/^[0-9a-f]{24}$/i.test(cat._id) || cat.owner || !cat.blessing) return false;
-  if (cat.isStarter || cat.isGuestStarter) return false;
-  return !NOT_FOR_SALE.includes(String(cat.blessing.status || ""));
-}
-
-const idOf = (value: unknown): string =>
-  typeof value === "string"
-    ? value
-    : value && typeof value === "object"
-    ? String((value as { _id?: unknown })._id ?? "")
-    : "";
-
-/** The player already holds a copy (same cat, or a copy of its blessing): the server would refuse. */
-export function ownsCopy(owned: ICat[] | undefined, cat: Pick<ICat, "_id" | "blessing">): boolean {
-  const blessing = idOf(cat.blessing);
-  return (owned || []).some(
-    (mine) =>
-      (!!cat._id && (mine._id === cat._id || idOf((mine as ICat & { sourceCat?: unknown }).sourceCat) === cat._id)) ||
-      (!!blessing && idOf(mine.blessing) === blessing)
-  );
-}
+export { isCatForSale, ownsCopy };
 
 /** The offer under a shelter cat's card: price, tier, and where rarer tiers come from. */
 export const ShelterCatOffer = ({ cat, onBuy, bought = false }: { cat: ICat; onBuy: () => void; bought?: boolean }) => {

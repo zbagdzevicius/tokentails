@@ -106,7 +106,7 @@ describe('effect primitives (§4.4)', () => {
     const w = m.world;
     addShield(w, 3, 50, 10);
     const hp = w.hp[3];
-    dealDamage(m, 0, 0, Kind.Hero, 3, 46, 'basic'); // 40 after armour 15
+    dealDamage(m, 0, 0, Kind.Hero, 3, 36, 'basic'); // × 1.3 hero vs hero (sim v4) = 46, 40 after armour 15
     expect(w.hp[3]).toBe(hp);
     expect(w.shield[3]).toBe(10);
     steps(m, 10);

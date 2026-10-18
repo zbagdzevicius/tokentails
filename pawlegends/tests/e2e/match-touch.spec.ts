@@ -127,3 +127,17 @@ test('portrait shows the rotate prompt', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.pl-rotate')).toBeVisible();
 });
+
+// Fun plan F3: holding the joystick into the map edge never walks the hero outside the map (or into a corner).
+test('a held joystick stops at the map edge', async ({ page }) => {
+  test.setTimeout(90_000);
+  await startFirstMatch(page, '&speed=4');
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  // up and left from the fountain: straight into the west edge and the north-west corner
+  await touchDrag(page, 200, 250, 140, 190, 12000);
+  const p = await me(page);
+  expect(p.x).toBeGreaterThanOrEqual(500);
+  expect(p.y).toBeLessThanOrEqual(59500);
+  expect(p.x).toBeLessThanOrEqual(99500);
+  expect(p.y).toBeGreaterThanOrEqual(500);
+});

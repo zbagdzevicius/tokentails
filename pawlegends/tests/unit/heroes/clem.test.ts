@@ -6,7 +6,7 @@ import { dealDamage, resolveDeaths } from '../../../src/sim/combat/damage';
 import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { attackEvery, targetable } from '../../../src/sim/units/kinds';
 import { Kind } from '../../../src/sim/world';
-import { MID, afterArmour, cast, cd, heroMatch, hold, place, setLevel, steps } from './kit-helpers';
+import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Clem (slot 0) vs Sage (slot 3, armour 15) in the open.
 const CLEM_ID = 0;
@@ -18,6 +18,7 @@ function duel() {
   place(m, CLEM_ID, MID.x, MID.y, 0);
   place(m, FOE, MID.x + 1500, MID.y, 2048);
   hold(m, CLEM_ID, FOE);
+  tanky(m, CLEM_ID, FOE);
   return m;
 }
 
@@ -37,7 +38,7 @@ describe('Clem (§6.3)', () => {
     const m = duel();
     const w = m.world;
     const hp = w.hp[FOE];
-    const per = afterArmour(70, FOE_ARMOUR);
+    const per = heroHit(70, FOE_ARMOUR);
     cast(m, CLEM_ID, 0, MID.x + 1500, MID.y);
     expect(hp - w.hp[FOE]).toBe(per);
     expect(cd(m, CLEM_ID, 0)).toBe(0); // recast window open
@@ -78,7 +79,7 @@ describe('Clem (§6.3)', () => {
     w.kValor[CLEM_ID] = 100;
     const hp = w.hp[FOE];
     cast(m, CLEM_ID, 0, MID.x + 1500, MID.y);
-    expect(hp - w.hp[FOE]).toBe(afterArmour(105, FOE_ARMOUR));
+    expect(hp - w.hp[FOE]).toBe(heroHit(105, FOE_ARMOUR));
     expect(w.kValor[CLEM_ID]).toBe(10); // reset, then this hit adds 10
   });
 
@@ -89,16 +90,16 @@ describe('Clem (§6.3)', () => {
     expect(w.kWT[CLEM_ID]).toBe(23);
     let hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(16); // 100 → 80 after armour 25 → 16
+    expect(hp - w.hp[CLEM_ID]).toBe(20); // 100 × 1.3 (hero vs hero) = 130 → 104 after armour 25 → 20
     place(m, FOE, MID.x - 1500, MID.y, 0);
     hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(80);
+    expect(hp - w.hp[CLEM_ID]).toBe(104);
     steps(m, 23);
     place(m, FOE, MID.x + 1500, MID.y, 2048);
     hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(80);
+    expect(hp - w.hp[CLEM_ID]).toBe(104);
   });
 
   it('The Stand parries: a projectile in the first 0.3 s flies back at its shooter', () => {

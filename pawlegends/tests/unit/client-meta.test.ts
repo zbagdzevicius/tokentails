@@ -32,10 +32,12 @@ describe('profile', () => {
   it('records the first win once and the best time', () => {
     expect(loadProfile().firstWinDone).toBe(false);
     expect(recordMatch(false, 500, 'easy')).toMatchObject({ firstWin: false });
-    expect(recordMatch(true, 480, 'easy')).toMatchObject({ firstWin: true, best: true, second: true });
+    // the first win sets the time; "best!" needs a stored time to beat (fun plan F4)
+    expect(recordMatch(true, 480, 'easy')).toMatchObject({ firstWin: true, best: false, second: true });
     expect(recordMatch(true, 490, 'easy')).toMatchObject({ firstWin: false, best: false });
+    expect(recordMatch(true, 470, 'easy')).toMatchObject({ firstWin: false, best: true });
     resetProfileCache();
-    expect(loadProfile()).toMatchObject({ matches: 3, wins: 2, firstWinDone: true });
+    expect(loadProfile()).toMatchObject({ matches: 4, wins: 3, firstWinDone: true });
     expect(loadProfile().unlocks).toContain('coat.brutus.biscuit');
   });
 });

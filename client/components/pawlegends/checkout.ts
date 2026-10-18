@@ -1,6 +1,13 @@
 /**
- * The Pawlegends web store, host side (POC.md §8.2, §8.3). The game asks with `purchase-intent {sku}`; the host
- * shows the purchase sheet (`PurchaseSheet` in `PawlegendsHost.tsx`), then:
+ * The Pawlegends `pl_*` store client and the offer API, host side (POC.md §8.2, §8.3).
+ *
+ * Since the Token Tails integration the game sells nothing itself: its one card is "Meet <cat>", which opens the
+ * Token Tails $5 named-cat checkout (`PawlegendsCatSheet`, `<Payment entityType={EntityType.CAT}>`). The offer
+ * comes from `GET /pawlegends/offer` (`offer()` below) and is recorded with `POST /pawlegends/offer/seen`. The
+ * `pl_*` routes stay so earlier buyers keep their items: the stored token is refreshed and sent as `entitlements`,
+ * a restore link still works, and a Checkout return still fetches its token. No new `pl_*` purchase starts here.
+ *
+ * The legacy flow, kept for those returns:
  *
  * 1. `POST /pawlegends/checkout {sku, currency, email, ageBand, consentVersion, deviceId, token?}` answers a
  *    Stripe Checkout URL and the page goes there (a full redirect works in TikTok and Instagram in-app browsers).
@@ -28,6 +35,8 @@ import { isPawlegendsSku, type PawlegendsSku } from "./bridge";
 export const PAWLEGENDS_TOKEN_KEY = "tt.pawlegends.token.v1";
 export const PAWLEGENDS_DEVICE_KEY = "tt.pawlegends.device.v1";
 export const PAWLEGENDS_AGE_KEY = "tt.pawlegends.age.v1";
+/** How many times this browser opened `/pawlegends` (the offer engine's `session`: never an offer in session 1). */
+export const PAWLEGENDS_SESSIONS_KEY = "tt.pawlegends.sessions.v1";
 /** Mirror of `PAWLEGENDS_CONSENT_VERSIONS` / `PAWLEGENDS_TERMS_VERSION` in the backend contracts. */
 export const PAWLEGENDS_CONSENT_VERSION = "2026-10-17";
 /** Mirror of `PAWLEGENDS_MVP_TARGET`. */
@@ -158,6 +167,14 @@ export function deviceId(
   const id = `d${randomId(random)}`;
   write(storage, PAWLEGENDS_DEVICE_KEY, id);
   return id;
+}
+
+/** Counts this page view as one more session (once per mount) and answers the new count; 1 without storage. */
+export function nextSession(storage = browserStorage()): number {
+  const stored = Number(read(storage, PAWLEGENDS_SESSIONS_KEY));
+  const next = Number.isInteger(stored) && stored >= 0 && stored < 1_000_000 ? stored + 1 : 1;
+  write(storage, PAWLEGENDS_SESSIONS_KEY, String(next));
+  return next;
 }
 
 /** The SKUs an entitlement token lists (display only: the server verifies the token). */
@@ -463,6 +480,30 @@ export function createPawlegendsApi(
       call("/notify", postJson({ email, source }), (b) => okBody(b)),
     confirmNotify: (t: string) =>
       call("/notify/confirm", postJson({ t }), (b) => okBody(b)),
+    /**
+     * `GET /pawlegends/offer`: one `meet` card for a cat of `catalogIds` (the featured list), or null. The server
+     * applies the rules (session >= 2, lobby or results, one card per session, never in app builds, the spend cap).
+     */
+    offer: (query: { deviceId: string; session: number; catalogIds: string[]; screen?: "lobby" | "results"; token?: string | null }) => {
+      const params = new URLSearchParams({
+        deviceId: query.deviceId,
+        session: String(query.session),
+        screen: query.screen ?? "lobby",
+        catalogIds: query.catalogIds.filter((id) => /^[0-9a-f]{24}$/.test(id)).slice(0, 2).join(","),
+      });
+      const init: RequestInit = query.token ? { method: "GET", headers: { "x-pawlegends-token": query.token } } : { method: "GET" };
+      return call(`/offer?${params.toString()}`, init, (b) => {
+        const offer = okBody(b).offer;
+        if (offer === null) return { offer: null };
+        const o = okBody(offer);
+        return o.kind === "meet" && typeof o.catalogId === "string" && /^[0-9a-f]{24}$/.test(o.catalogId)
+          ? { offer: { kind: "meet" as const, catalogId: o.catalogId } }
+          : { offer: null };
+      });
+    },
+    /** `POST /pawlegends/offer/seen`: the card showed in this session (no other card this session). */
+    offerSeen: (body: { deviceId: string; session: number; catalogId: string }) =>
+      call("/offer/seen", postJson({ ...body, kind: "meet" }), (b) => okBody(b)),
     /** Founder Legend seats left (`GET /pawlegends/founders`, POC.md §8.3), shown on its purchase sheet. */
     founders: () =>
       call("/founders", { method: "GET" }, (b) => {

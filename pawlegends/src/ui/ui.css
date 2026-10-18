@@ -590,3 +590,182 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   z-index: 1100; pointer-events: none; white-space: pre; padding: 4px 6px; border-radius: 6px;
   font: 600 11px/1.35 ui-monospace, Menlo, monospace; color: #fff; background: rgba(20, 12, 24, 0.72);
 }
+
+/* ---------------------------------------------------------------- fun plan F1 / F2 / F4 (FEEL lane) */
+/* Objective chip (the Rookie match's beats), under the score bar; the banner sits below it while both show. */
+.pl-goal {
+  position: absolute; left: 50%; top: calc(52px + var(--safe-t)); transform: translate(-50%, -8px); opacity: 0; z-index: 6; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 8px; border-radius: 999px; background: var(--cream); color: var(--ink);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 3px rgba(255, 211, 77, 0.55); transition: opacity 0.25s, transform 0.25s; white-space: nowrap;
+}
+.pl-goal.on { opacity: 1; transform: translate(-50%, 0); animation: pl-goal-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1); }
+.pl-goal .ico { position: relative; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--butter); color: #4a2a1f; flex: none; }
+.pl-goal .ico .pl-icon { width: 20px; height: 20px; }
+.pl-goal .ring { position: absolute; inset: -4px; border-radius: 50%; display: none;
+  background: conic-gradient(#7dff8a calc(var(--p, 0) * 360deg), rgba(74, 42, 31, 0.15) 0); -webkit-mask: radial-gradient(circle, transparent 18px, #000 19px); mask: radial-gradient(circle, transparent 18px, #000 19px); }
+.pl-goal.prog .ring { display: block; }
+.pl-goal .txt b { display: block; font-size: 17px; line-height: 1.1; }
+.pl-goal .txt small { display: block; font-size: 12px; opacity: 0.75; }
+.pl-goal.done { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 3px #7dff8a; }
+.pl-goal.done .ico { background: #7dff8a; }
+.pl-goal.done .txt b::after { content: ' ✓'; color: #2f9e44; }
+@keyframes pl-goal-in { 0% { transform: translate(-50%, -8px) scale(0.7); } 60% { transform: translate(-50%, 0) scale(1.06); } }
+.pl-match:has(.pl-goal.on) .pl-banner { top: calc(108px + var(--safe-t)); }
+
+/* Floating text over the player's hero: "+40 XP", "Combo x2", "+FRENZY". */
+.pl-pops { position: absolute; inset: 0; pointer-events: none; z-index: 7; overflow: hidden; }
+.pl-pop {
+  position: absolute; transform: translate(-50%, -50%); font-size: 20px; font-weight: 700; white-space: nowrap; color: var(--butter);
+  -webkit-text-stroke: 4px #4a2a1f; paint-order: stroke fill; text-shadow: 0 3px 0 #4a2a1f; animation: pl-pop-up 1.15s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+.pl-pop.big { font-size: 28px; }
+.pl-pop.tone-good { color: #7dff8a; }
+.pl-pop.tone-bad { color: #ff8a9a; }
+@keyframes pl-pop-up {
+  0% { transform: translate(-50%, -30%) scale(0.4); opacity: 0; }
+  20% { transform: translate(-50%, -60%) scale(1.15); opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translate(-50%, -150%) scale(0.95); opacity: 0; }
+}
+
+/* Rim flash: Nine Lives (white), a level up or a big play (gold), low health (red). */
+.pl-flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0; }
+.pl-flash.on { animation: pl-flash 0.7s ease-out both; }
+.pl-flash.white { box-shadow: inset 0 0 90px 20px rgba(255, 255, 255, 0.85); }
+.pl-flash.gold { box-shadow: inset 0 0 110px 18px rgba(255, 211, 77, 0.6); }
+.pl-flash.red { box-shadow: inset 0 0 120px 26px rgba(255, 59, 77, 0.6); animation-duration: 1.1s; }
+@keyframes pl-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Level up: the bar pops and the health glows as it refills; at level 4 the ultimate pulses for 3 s. */
+.pl-bar.lvlup .pl-portrait { animation: pl-lvl 0.6s cubic-bezier(0.2, 1.6, 0.4, 1); box-shadow: 0 0 0 4px var(--butter), 0 0 24px 6px rgba(255, 211, 77, 0.7); }
+.pl-bar.lvlup .pl-hp .fill { filter: brightness(1.5) saturate(1.3); transition: width 0.5s ease-out, filter 1s; }
+@keyframes pl-lvl { 40% { transform: scale(1.22) rotate(-4deg); } }
+.pl-slot.ult-ready, html[data-ult-ready='1'] .pl-tbtn.r { animation: pl-ultready 0.6s ease-in-out infinite; border-color: var(--butter); }
+@keyframes pl-ultready {
+  50% { box-shadow: 0 0 0 6px rgba(255, 211, 77, 0.7), 0 0 26px 10px rgba(255, 211, 77, 0.55); transform: scale(1.08); }
+}
+
+/* Results: best moment, Treat Track, daily quests. */
+.pl-results-col { max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: none; }
+.pl-best {
+  display: flex; gap: 8px; align-items: center; margin: 10px 0 0; font-size: 15px;
+}
+.pl-best .pl-icon { width: 22px; height: 22px; color: var(--butter); flex: none; }
+.pl-best b { color: var(--butter); }
+.pl-treats { margin-top: 12px; padding: 10px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); max-width: 440px; }
+.pl-treats .head { display: flex; justify-content: space-between; align-items: baseline; }
+.pl-treats .head small { color: var(--butter); font-weight: 600; }
+.pl-treats .bar { height: 12px; border-radius: 6px; background: rgba(255, 243, 220, 0.14); margin: 8px 0 4px; overflow: hidden; }
+.pl-treats .fill { display: block; height: 100%; width: var(--from); border-radius: 6px; background: linear-gradient(90deg, #ffb347, var(--butter));
+  animation: pl-treat-fill 1.4s 0.6s cubic-bezier(0.3, 0.9, 0.3, 1) forwards; }
+@keyframes pl-treat-fill { to { width: var(--to); } }
+.pl-treats .open { display: flex; gap: 10px; align-items: center; margin-top: 6px; animation: pl-chest 0.7s 2s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.pl-treats .open .pl-icon { width: 30px; height: 30px; color: var(--butter); }
+.pl-treats .open b { display: block; font-size: 14px; }
+.pl-treats .open small { opacity: 0.7; font-size: 12px; }
+@keyframes pl-chest { 0% { opacity: 0; transform: scale(0.4) rotate(-10deg); } 100% { opacity: 1; transform: none; } }
+.pl-treats .next { margin: 4px 0 0; font-size: 12px; opacity: 0.85; }
+.pl-quests { margin-top: 10px; display: grid; gap: 4px; max-width: 440px; font-size: 13px; }
+.pl-quests > b { font-size: 13px; opacity: 0.75; font-weight: 600; }
+.pl-quests .q { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 4px 10px; border-radius: 10px; background: rgba(255, 243, 220, 0.08); }
+.pl-quests .q .tick { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 12px; color: #2f9e44; }
+.pl-quests .q.done .tick { background: #7dff8a; border-color: #7dff8a; }
+.pl-quests .q.done .t { opacity: 0.65; text-decoration: line-through; }
+.pl-quests .q.fresh { animation: pl-pop 0.5s 1.6s both; box-shadow: 0 0 0 2px #7dff8a; }
+.pl-quests .q .n { opacity: 0.7; font-variant-numeric: tabular-nums; }
+.pl-quests.mini { margin-top: 14px; max-width: 320px; }
+.pl-pick .row.bots .note { font-size: 13px; opacity: 0.75; }
+@media (max-height: 460px) {
+  .pl-results h1 { font-size: 44px; }
+  .pl-results .sub { margin: 2px 0 10px; font-size: 16px; }
+  .pl-quests.mini { display: none; }
+  .pl-goal .txt b { font-size: 14px; }
+  .pl-goal .txt small { display: none; }
+  .pl-pop { font-size: 16px; }
+  .pl-pop.big { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-pop, .pl-goal.on, .pl-flash.on, .pl-slot.ult-ready, .pl-treats .fill, .pl-treats .open { animation-duration: 0.01ms !important; }
+  .pl-treats .fill { width: var(--to); }
+}
+
+/* ------------------------------------------------------------------- round 0: one message lane, countdown */
+/* The match starts on "Go!": the sim is held until the scene drew (round 0: the clock ran during the load). */
+.pl-count {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 9; pointer-events: none; font-size: 72px; font-weight: 700;
+  color: var(--butter); -webkit-text-stroke: 8px #4a2a1f; paint-order: stroke fill; text-shadow: 0 6px 0 #4a2a1f; opacity: 0;
+}
+.pl-count.on { animation: pl-count 0.68s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes pl-count { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; } }
+/* The tip and the goal chip share the top slot on touch: the tip sits under the chip, and hides while a banner
+   is up (one message at a time; the banner itself drops under the chip). */
+html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-tip { top: calc(104px + var(--safe-t)); }
+html[data-touch='1'] .pl-match:has(.pl-banner.on) .pl-tip { opacity: 0; }
+.pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(78px + var(--safe-t)); }
+html[data-touch='1'] .pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(118px + var(--safe-t)); }
+/* The tower alert is a desktop/bottom toast; on touch it sits under the tip row, never on the hero. */
+html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-alert { top: calc(150px + var(--safe-t)); }
+.pl-respawn .recap { display: block; max-width: 46ch; margin: 2px auto 0; }
+@media (max-height: 480px) {
+  .pl-count { font-size: 52px; }
+  .pl-match:has(.pl-goal.on) .pl-banner { top: calc(100px + var(--safe-t)); }
+  .pl-match:has(.pl-goal.on) .pl-banner .pl-banner-sub { display: none; }
+}
+
+/* Talent cards: the full line on wide screens, a 2-5 word subtitle on small ones; a waiting offer glows the portrait. */
+.pl-talents button .s { display: none; }
+@media (max-height: 480px), (max-width: 900px) {
+  .pl-talents button .d { display: none; }
+  .pl-talents button .s { display: block; font-size: 12px; opacity: 0.92; line-height: 1.2; white-space: normal; }
+}
+html[data-touch='1'] .pl-talents button { width: 168px; }
+html[data-touch='1'] .pl-talents button span.s { -webkit-line-clamp: 2; }
+.pl-portrait.talent-ready { animation: pl-talent-ready 0.9s ease-in-out infinite; cursor: pointer; pointer-events: auto !important; }
+.pl-portrait.talent-ready::after {
+  content: 'Talent!'; position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px;
+  background: var(--butter); color: #4a2a1f; font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+@keyframes pl-talent-ready { 50% { box-shadow: 0 0 0 5px var(--butter), 0 0 22px 6px rgba(255, 211, 77, 0.7); } }
+
+/* Results (round 0): Play again and Change hero pinned bottom right over the hero stage, always on screen; the
+   scoreboard folds open; the bot ladder and personal bests under the best moment. */
+.pl-results .actions.pinned {
+  position: absolute; right: calc(18px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); margin: 0; z-index: 3; flex-direction: row; align-items: center;
+}
+.pl-results .pl-ladder, .pl-results .pl-personal { margin: 6px 0 0; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+.pl-results .pl-ladder b { color: var(--butter); font-size: 17px; }
+.pl-results .pl-ladder .up { color: #7dff8a; }
+.pl-results .pl-ladder .down { color: #ff8a9a; }
+.pl-results .pl-personal .pl-icon { width: 18px; height: 18px; color: var(--butter); }
+.pl-table { margin-top: 8px; font-size: 12px; }
+.pl-table summary { cursor: pointer; font-weight: 700; opacity: 0.9; pointer-events: auto; }
+.pl-table table { border-collapse: collapse; margin-top: 4px; width: 100%; }
+.pl-table th, .pl-table td { text-align: left; padding: 2px 6px; white-space: nowrap; }
+.pl-table th { opacity: 0.7; font-weight: 600; }
+.pl-table tr.self td { color: var(--butter); font-weight: 700; }
+.pl-table tr.enemy td { color: #ffb3bd; }
+@media (max-height: 480px) {
+  /* the column scrolls: a fade at its foot says so */
+  .pl-results-col { -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent); mask-image: linear-gradient(to bottom, #000 88%, transparent); padding-bottom: 24px; }
+  .pl-results .actions.pinned { bottom: calc(10px + var(--safe-b)); }
+  .pl-results .actions.pinned .pl-btn.big { font-size: 17px; padding: 10px 22px; }
+}
+
+/* Pick screen (round 0): chromas are colour swatches (the name in the tooltip and for screen readers), Play and the
+   bots line sit outside the scrolling column so neither covers the other or the ability list. */
+.pl-pick .swatches { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pl-pick .chip.chroma { position: relative; width: 28px; height: 28px; padding: 0; justify-content: center; background: var(--el); border-color: rgba(255, 243, 220, 0.4); }
+.pl-pick .chip.chroma span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pl-pick .chip.chroma[data-chroma=''] { background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.25) 0 4px, transparent 4px 8px); }
+.pl-pick .chip.chroma.on { border-color: var(--butter); box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.55); }
+@media (min-height: 481px) {
+  .pl-pick-col { bottom: 96px; }
+  .pl-pick .pl-btn.big { position: fixed; left: calc(36px + var(--safe-l)); bottom: 24px; margin: 0; }
+}
+@media (max-height: 480px) {
+  .pl-pick .row.bots { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+  .pl-pick .row.bots .note { font-size: 12px; opacity: 0.9; }
+  .pl-pick .blurb { display: none; }
+  .pl-pick-col { -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); padding-bottom: 18px; }
+}
+.pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }

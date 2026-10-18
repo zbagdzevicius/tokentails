@@ -114,3 +114,31 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
 });
 
 export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots' });
+
+/** Talent subtitles, 2 to 5 words, for small landscape screens (the full line is cut off there: round 0). */
+export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
+  'pounce-finish': 'Stun on 3rd swipe',
+  'long-swipe': 'Longer swipe',
+  'second-wind': 'Takedown resets Tumble',
+  'steady-stand': 'Longer Stand',
+  'golden-afternoon': 'Longer Golden Hour',
+  'sunlit-mend': 'Heal in Golden Hour',
+  'wide-volley': '7 arrows',
+  'sticky-arrows': 'Volley slows',
+  'twin-snares': '3 traps, longer roots',
+  'quick-hop': 'Faster Hop Back',
+  'full-moon': 'Faster Moonshot',
+  'moon-mark': 'Moonshot outlines target',
+  'heavy-slam': 'Slam slows more',
+  'wide-slam': 'Wider Slam',
+  bulwark: 'Longer Front Guard',
+  'long-charge': 'Longer Pug Charge',
+  'arena-of-honour': 'Ring lasts 4 s',
+  'rally-howl': 'Friends run faster',
+  'long-jeer': 'Longer Jeer dash',
+  'cruel-jeer': 'Second Jeer slows',
+  smug: 'Faster Gloat',
+  'wide-gloat': 'Wider Gloat',
+  'feeding-frenzy': 'Pack Hunt resets twice',
+  ambush: '+40% out of stealth',
+});

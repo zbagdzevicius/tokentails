@@ -4,9 +4,11 @@
  * not verify it: it only decides which cosmetics to draw, the server verifies the token whenever it matters (upgrade,
  * offers, restore). The game reads `items` and `skus` and drops anything it does not know.
  *
- * `app{isApp, store}`: in app builds there is no store, no offer and no purchased cosmetic (GDD §9.8), even when a
- * token arrives. `store: false` (a missing backend secret answers 503) hides the store button; the game still plays.
- * Outside an embed there is no host, so no store at all.
+ * `app{isApp, store, notify}`: in app builds there is no checkout, no offer and no purchased cosmetic (GDD §9.8),
+ * even when a token arrives. `store` now means "the Token Tails cat checkout is reachable" (web, not app): it opens
+ * the Meet card (`catCheckout`). The game's own `pl_*` store is retired (integration plan §2): `storeOpen` is always
+ * false, so the old store button and offer card never show, while tokens bought earlier still dress the heroes.
+ * Outside an embed there is no host, so no checkout at all.
  *
  * The token lives in memory only: the host keeps it and re-sends it on every `ready`.
  */
@@ -50,8 +52,10 @@ export interface StoreSnapshot {
   /** Framed by a host that answered the handshake. */
   embedded: boolean;
   isApp: boolean;
-  /** The store button and offers may show (embedded, web build, backend store ready). */
+  /** Retired `pl_*` store: always false (kept so older callers compile and stay closed). */
   storeOpen: boolean;
+  /** The host can open its Token Tails cat checkout (embedded, web build, `app.store`): the Meet card may show. */
+  catCheckout: boolean;
   /** The host can take a "notify me" sign-up (additive `app.notify`; hidden until the host says so). */
   notifyOpen: boolean;
   signedIn: boolean;
@@ -110,7 +114,8 @@ export class Entitlements {
     return {
       embedded: this.embedded,
       isApp: this.isApp,
-      storeOpen: this.embedded && this.store && !this.isApp,
+      storeOpen: false,
+      catCheckout: this.embedded && this.store && !this.isApp,
       notifyOpen: this.embedded && this.notify && !this.isApp,
       signedIn: this.signedIn,
       items: new Set(paid?.items ?? []),

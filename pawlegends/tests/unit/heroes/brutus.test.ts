@@ -8,7 +8,7 @@ import { dealDamage } from '../../../src/sim/combat/damage';
 import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { applyOrder } from '../../../src/sim/units/hero';
 import { Kind } from '../../../src/sim/world';
-import { MID, afterArmour, cast, cd, heroMatch, hold, place, setLevel, steps } from './kit-helpers';
+import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Sir Brutus (slot 0) with Sage (slot 1) vs Clem (slot 3, armour 25) and Sage (slot 4).
 const BRUTUS_ID = 0;
@@ -23,6 +23,7 @@ function arena() {
   place(m, FOE, MID.x + 2000, MID.y, 2048);
   place(m, FOE2, MID.x + 20000, MID.y - 20000, 2048);
   hold(m, BRUTUS_ID, ALLY, FOE, FOE2);
+  tanky(m, ALLY, FOE, FOE2); // not Brutus: Honour is a share of his max HP
   return m;
 }
 
@@ -60,7 +61,7 @@ describe('Sir Brutus (§6.5)', () => {
     const w = m.world;
     const hp = w.hp[FOE];
     cast(m, BRUTUS_ID, 0, MID.x, MID.y);
-    expect(hp - w.hp[FOE]).toBe(afterArmour(60, 25));
+    expect(hp - w.hp[FOE]).toBe(heroHit(60, 25));
     expect([w.slowBp[FOE], w.slowT[FOE]]).toEqual([3000, 45]);
     expect(cd(m, BRUTUS_ID, 0)).toBe(210);
     place(m, FOE, MID.x + 3600, MID.y, 2048);
@@ -75,7 +76,7 @@ describe('Sir Brutus (§6.5)', () => {
     place(m2, FOE, MID.x + 4200, MID.y, 2048);
     const hp3 = m2.world.hp[FOE];
     cast(m2, BRUTUS_ID, 0, MID.x, MID.y);
-    expect(hp3 - m2.world.hp[FOE]).toBe(afterArmour(60 + 2 * 10, 25));
+    expect(hp3 - m2.world.hp[FOE]).toBe(heroHit(60 + 2 * 10, 25));
 
     const m3 = arena();
     setLevel(m3, BRUTUS_ID, 3);
@@ -154,7 +155,7 @@ describe('Sir Brutus (§6.5)', () => {
     const hp = w.hp[BRUTUS_ID];
     w.kHonour[BRUTUS_ID] = 0;
     dealDamage(m, FOE, 1, Kind.Hero, BRUTUS_ID, 100, 'basic');
-    expect(hp - w.hp[BRUTUS_ID]).toBe(Math.trunc((afterArmour(100, 40 + 3 * 3) * 7000) / 10000));
+    expect(hp - w.hp[BRUTUS_ID]).toBe(Math.trunc((heroHit(100, 40 + 3 * 3) * 7000) / 10000));
     steps(m, 31);
     expect(w.tether[FOE]).toBe(-1);
     steps(m, 60);

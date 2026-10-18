@@ -7,6 +7,7 @@ import { MAP } from '../data/map';
 import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type TalentTier, type TrickId } from '../sim/api';
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
+import { edgeGoal } from './touch/assist';
 import { cellOf, centreX, centreY, createGrid, snapCell, type NavGrid } from '../sim/map/grid';
 
 let walls: NavGrid | null = null;
@@ -104,7 +105,11 @@ export class Orders {
   move(x: number, y: number): void {
     this.pending = null;
     const me = this.env.units().find((u) => u.id === this.env.meId);
-    const g = me ? reachableGoal(me.x, me.y, clampX(x), clampY(y)) : { x, y };
+    // the map edge and the enemy fountain stop a move (fun plan F3): no walking into a corner
+    const team = me ? (me.team === 1 ? 1 : 0) : 0;
+    const e = me ? edgeGoal(me.x, me.y, x, y, team) : { x, y };
+    if (!e) return;
+    const g = me ? reachableGoal(me.x, me.y, clampX(e.x), clampY(e.y)) : { x, y };
     this.emit({ op: Op.Move, x: clampX(g.x), y: clampY(g.y) });
   }
 

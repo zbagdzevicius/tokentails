@@ -103,7 +103,7 @@ PawlegendsPurchaseSchema.index({ deviceId: 1, createdAt: -1 });
 
 @Schema({ collection: 'pawlegendsbuyers', timestamps: true })
 export class PawlegendsBuyer extends CommonSchema {
-    /** `email:<address>` or `device:<id>`. */
+    /** `email:<address>`, `device:<id>` or `account:<user id>`. */
     @Prop({ required: true, unique: true })
     key: string;
 
@@ -128,6 +128,13 @@ export class PawlegendsOfferState extends CommonSchema {
 
     @Prop()
     founderLastShownAt?: Date;
+
+    /** The last "Meet <cat>" card shown (the Token Tails named-cat offer), and for which catalog cat. */
+    @Prop()
+    meetLastShownAt?: Date;
+
+    @Prop()
+    meetLastCatalogId?: string;
 
     /** The game session count of the last shown card (at most one card per session). */
     @Prop()

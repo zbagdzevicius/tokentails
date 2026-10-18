@@ -18,8 +18,8 @@ import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
 
-const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8 };
-const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9] };
+const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
+const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0] };
 
 interface Plate {
   e: ViewEntity;
@@ -86,6 +86,27 @@ export class Overhead {
   /** First match: a chevron trail on the ground from the player toward this point (sim mm), or null. */
   guide: { x: number; y: number } | null = null;
 
+  /** Bounty crown per hero slot (fun plan F2 item 11): > 0 draws a gold crown over the plate. */
+  bounty: (slot: number) => number = () => 0;
+
+  /** Tower lock-ons (fun plan S5 / F2 item 9): src tower → dst hero, seconds left of `total`. */
+  private locks: { src: number; dst: number; t: number; total: number }[] = [];
+
+  /** An enemy tower is aiming at `dst` for `seconds`: a red line that thickens, and a ring under the hero. */
+  lockOn(src: number, dst: number, seconds: number): void {
+    const s = Math.max(0.2, seconds);
+    const l = this.locks.find((q) => q.src === src && q.dst === dst);
+    if (l) {
+      l.t = s;
+      l.total = s;
+    } else this.locks.push({ src, dst, t: s, total: s });
+  }
+
+  /** Drop every lock-on aimed at `dst` (the player died, respawned or walked away). */
+  clearLocks(dst: number): void {
+    this.locks = this.locks.filter((l) => l.dst !== dst);
+  }
+
   /** Draw a red beam from a tower to the hero it hits, for a moment. */
   beam(src: number, dst: number, seconds = 0.7): void {
     const b = this.beams.find((q) => q.src === src && q.dst === dst);
@@ -144,7 +165,7 @@ export class Overhead {
     for (const e of frame.entities) if (e.kind === 'hero' && e.hero && (e.team === 0 || e.team === 1)) seen[e.team].add(e.hero);
     for (const h of seen[0]) if (seen[1].has(h)) this.mirrored.add(h);
     for (const e of frame.entities) {
-      if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0) continue;
+      if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
       const lift = LIFT[e.kind] * (e.kind === 'hero' ? heroScale(e) : 1);
       v.set(e.fx / 1000, lift, -e.fy / 1000).project(camera);
       if (v.z > 1 || v.z < -1) continue;
@@ -171,8 +192,91 @@ export class Overhead {
     }
     plates.sort((a, b) => a.layer - b.layer);
     this.drawBeams(g, frame, camera, heroScale);
+    this.drawLocks(g, frame, camera, heroScale);
     this.drawGuide(g, frame, camera);
     for (const p of plates) this.plate(g, p);
+    for (const p of heroes) if (this.bounty(p.e.id) > 0) this.crown(g, p.sx, p.sy + p.dy - 15 * this.scale);
+  }
+
+  /** A small gold crown (bounty). */
+  private crown(g: CanvasRenderingContext2D, x: number, y: number): void {
+    const s = 9 * this.scale;
+    const bob = Math.sin(performance.now() / 220) * 1.5;
+    g.save();
+    g.translate(x, y + bob);
+    g.fillStyle = '#ffd34d';
+    g.strokeStyle = '#4a2a1f';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(-s, s * 0.5);
+    g.lineTo(-s, -s * 0.4);
+    g.lineTo(-s * 0.5, s * 0.05);
+    g.lineTo(0, -s * 0.7);
+    g.lineTo(s * 0.5, s * 0.05);
+    g.lineTo(s, -s * 0.4);
+    g.lineTo(s, s * 0.5);
+    g.closePath();
+    g.stroke();
+    g.fill();
+    g.restore();
+  }
+
+  private drawLocks(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
+    if (!this.locks.length) return;
+    const dt = 1 / 60;
+    for (const l of this.locks) {
+      l.t -= dt;
+      const s = frame.byId.get(l.src);
+      const d = frame.byId.get(l.dst);
+      if (!s || !d || s.state === 'dead' || d.state === 'dead') {
+        l.t = -1;
+        continue;
+      }
+      // out of the tower's reach (it re-targets): the lock-on is over
+      if (Math.hypot(s.fx - d.fx, s.fy - d.fy) > 10000) {
+        l.t = -1;
+        continue;
+      }
+      const p0 = this.v.set(s.fx / 1000, s.kind === 'core' ? 4.5 : 5.6, -s.fy / 1000).project(camera);
+      const x0 = (p0.x * 0.5 + 0.5) * this.w;
+      const y0 = (-p0.y * 0.5 + 0.5) * this.h;
+      const p1 = this.v.set(d.fx / 1000, 0.9 * (d.hero ? heroScale(d) : 1), -d.fy / 1000).project(camera);
+      const x1 = (p1.x * 0.5 + 0.5) * this.w;
+      const y1 = (-p1.y * 0.5 + 0.5) * this.h;
+      const k = 1 - Math.max(0, l.t) / l.total;
+      const blink = 0.65 + 0.35 * Math.sin(performance.now() / (k > 0.7 ? 40 : 90));
+      g.strokeStyle = `rgba(255,59,77,${(0.55 + 0.4 * k) * blink})`;
+      g.lineWidth = (2 + 5 * k) * this.scale;
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+      // a ground ring under the hero that closes in as the shot comes
+      const r = (1.8 - 0.9 * k) * 1000;
+      g.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        const q = this.v.set((d.fx + Math.cos(a) * r) / 1000, 0.1, -(d.fy + Math.sin(a) * r) / 1000).project(camera);
+        const qx = (q.x * 0.5 + 0.5) * this.w;
+        const qy = (-q.y * 0.5 + 0.5) * this.h;
+        if (i) g.lineTo(qx, qy);
+        else g.moveTo(qx, qy);
+      }
+      g.lineWidth = 3 * this.scale;
+      g.stroke();
+      if (l.dst === this.mySlot) {
+        const fs = Math.round(15 * this.scale);
+        g.font = `700 ${fs}px Fredoka, system-ui, sans-serif`;
+        g.textAlign = 'center';
+        g.lineWidth = 4;
+        g.strokeStyle = 'rgba(42,26,34,0.9)';
+        g.strokeText('Tower aiming at you!', x1, y1 + 34 * this.scale);
+        g.fillStyle = '#ff6b78';
+        g.fillText('Tower aiming at you!', x1, y1 + 34 * this.scale);
+        g.textAlign = 'start';
+      }
+    }
+    this.locks = this.locks.filter((l) => l.t > -0.15);
   }
 
   private drawGuide(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera): void {

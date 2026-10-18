@@ -5,6 +5,7 @@
  * the server's `CRYPTO_PAY_*` code (or null when the server could not be reached).
  */
 import { apiUrl } from "@/api/api";
+import { purchaseContextFields, type PurchaseContext } from "@/api/stripe-api";
 import {
   CRYPTO_PAY_ERROR_CODES,
   CryptoPayConfig,
@@ -77,11 +78,20 @@ export const CRYPTO_PAY_API = {
   config: async (fetchFn?: FetchFn): Promise<CryptoPayConfig> =>
     (await call<CryptoPayConfig>("/payments/crypto/config", {}, fetchFn)).body,
 
-  createOrder: async (sku: CryptoPaySku, discount?: string, fetchFn?: FetchFn): Promise<CryptoPayOrder> =>
+  createOrder: async (
+    sku: CryptoPaySku,
+    discount?: string,
+    fetchFn?: FetchFn,
+    purchaseContext?: PurchaseContext | null
+  ): Promise<CryptoPayOrder> =>
     (
       await call<CryptoPayOrder>(
         "/payments/crypto/orders",
-        { method: "POST", auth: true, body: discount ? { sku, discount } : { sku } },
+        {
+          method: "POST",
+          auth: true,
+          body: { sku, ...(discount ? { discount } : {}), ...purchaseContextFields(purchaseContext) },
+        },
         fetchFn
       )
     ).body,

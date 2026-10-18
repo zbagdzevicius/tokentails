@@ -10,6 +10,7 @@ import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { getPackCardTier } from 'src/shared/utils/content.utils';
 import { ShelterClaimService } from 'src/shelter/onchain/shelter-claim.service';
 import { shelterConfigFor } from 'src/shelter/onchain/shelter-onchain.config';
+import { isPawlegendsContext, PawlegendsCheckoutGuard } from 'src/pawlegends/pawlegends-checkout-guard.service';
 import { ShelterCatSaleService } from 'src/shelter/shelter-cat-sale.service';
 import { UserRepository } from 'src/user/user.repository';
 import { LOOT_BOX_ENTITY, LOOT_BOX_PRICE_CENTS } from 'src/web3/order-catalogue';
@@ -147,6 +148,10 @@ const INDEX_RECHECK_MS = 60 * 1000;
 export interface CreateOrderBody {
     sku?: { kind?: unknown; packType?: unknown; catId?: unknown } | null;
     discount?: unknown;
+    /** `pawlegends`: opened from the game, so its age band and 30-day spend cap apply first (CAT only). */
+    context?: unknown;
+    ageBand?: unknown;
+    deviceId?: unknown;
 }
 
 export interface ConfirmBody {
@@ -229,7 +234,8 @@ export class CryptoCheckoutService {
         private grants: PurchaseGrantService,
         private catSale: ShelterCatSaleService,
         private reader: CryptoChainReader,
-        @Optional() private claims?: ShelterClaimService
+        @Optional() private claims?: ShelterClaimService,
+        @Optional() private pawlegendsGuard?: PawlegendsCheckoutGuard
     ) {}
 
     /** GET /payments/crypto/config. */
@@ -287,6 +293,17 @@ export class CryptoCheckoutService {
         }
         await this.assertReservationIndex(now);
         const { sku, priceUsdCents, discount, discountPercentage } = await this.priceSku(userId, body, now);
+        if (isPawlegendsContext(body)) {
+            // The game only sells named cats, and never without its guardrails.
+            if (sku.kind !== 'CAT' || !this.pawlegendsGuard) throw payError('BAD_SKU', HttpStatus.BAD_REQUEST);
+            await this.pawlegendsGuard.assert({
+                userId,
+                cents: priceUsdCents,
+                context: body.context,
+                ageBand: body.ageBand,
+                deviceId: body.deviceId,
+            });
+        }
         const user = new Types.ObjectId(userId);
 
         // The same item again (a reload, a second tab, a double tap, START A NEW ORDER at 0:59): the open

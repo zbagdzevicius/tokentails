@@ -19,11 +19,15 @@ import { RAT_CAMP_STATS } from '../../data/camps';
 import { PUD_STATE } from '../../data/pudding';
 import { TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
-import { Op, type Command } from '../api';
+import { HUMAN_SLOT, Op, type Command } from '../api';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
+import { MAP, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { nearLane } from '../map/grid';
 import type { Rng } from '../rng';
 import type { MatchHandle } from '../state';
-import { G, Kind, Order, RANGE, type World } from '../world';
+import { G, Kind, NEVER, Order, RANGE, type World } from '../world';
+import { rulesOf } from '../rules';
+import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
 import { firstRat } from '../units/camp';
 import type { BotMem } from './mem';
@@ -112,8 +116,20 @@ function goodFight(w: World, id: number, foe: number, p: BotParams): boolean {
   return hpBp(w, foe) < BOT_AI.finishHpBp && hpBp(w, id) > BOT_AI.objectiveHpBp;
 }
 
+/**
+ * Carry allies (DifficultyRules.carryAllies) leave a nearly dead enemy hero to the human: one under
+ * BOT_AI.stealHpBp that the human, within BOT_AI.stealRange, hit in the last BOT_AI.stealTicks or is attacking.
+ */
+function leaveToHuman(w: World, e: number): boolean {
+  const h = HUMAN_SLOT;
+  if (w.alive[h] === 0 || hpBp(w, e) >= BOT_AI.stealHpBp) return false;
+  if (dist2(w.x[h], w.y[h], w.x[e], w.y[e]) > BOT_AI.stealRange * BOT_AI.stealRange) return false;
+  const t = w.assistTick[e * HEROES_N + h];
+  return w.target[h] === e || (t !== NEVER && w.globals[G.Tick] - t <= BOT_AI.stealTicks);
+}
+
 /** The enemy hero to fight now, or −1. Sets `bad` to an aware enemy that is too strong to fight here. */
-function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, slip: boolean, out: Int32Array): number {
+function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, slip: boolean, out: Int32Array, carry: boolean, brave: boolean, spare: number): number {
   out[0] = -1;
   const team = w.team[id];
   let best = -1;
@@ -121,15 +137,20 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
     if (!seenEnemy(w, team, e) || !aware(mem, id, e, tick, p) || !targetable(w, e, team)) continue;
     const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
-    const reach = BOT_AI.engageRange + (e === mem.foe[id] ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
+    // Carry allies peel: an enemy hero on the human is fought first, from further away, whatever the odds.
+    const peel = carry && w.target[e] === HUMAN_SLOT && w.alive[HUMAN_SLOT] === 1;
+    const reach = BOT_AI.engageRange + (e === mem.foe[id] || peel || brave ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
     if (d > reach) continue;
+    if (carry && leaveToHuman(w, e)) continue;
     // Never chase into an untanked enemy tower, unless the foe is nearly dead or this is a mistake.
-    if (!slip && hpBp(w, e) > BOT_AI.finishHpBp && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
-    if (!goodFight(w, id, e, p)) {
+    if (!slip && !brave && hpBp(w, e) > BOT_AI.finishHpBp && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
+    if (!peel && !brave && !goodFight(w, id, e, p)) {
       if (out[0] < 0) out[0] = e;
       continue;
     }
-    const key = Math.max(0, w.hp[e]) + idiv(d, BOT_AI.distWeight);
+    // Peel targets first; the scripted first fight (brave) goes for the human.
+    let key = Math.max(0, w.hp[e]) + idiv(d, BOT_AI.distWeight) - (peel || (brave && e === HUMAN_SLOT) ? BOT_AI.peelKey : 0);
+    if (e === HUMAN_SLOT && !brave) key += spare;
     if (best < 0 || key < bestKey) {
       best = e;
       bestKey = key;
@@ -140,8 +161,48 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
 
 const scratch = new Int32Array(1);
 
-/** Lane the team groups in from BotParams.groupAt: the fewest enemy towers left; tie: our wave is further on; tie: Sunny. */
-export function pushLane(w: World, team: number): number {
+/** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
+function alliesNear(w: World, team: number, id: number): number {
+  const r2 = BOT_AI.powerRange * BOT_AI.powerRange;
+  let n = 0;
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+    if (w.team[h] !== team || w.alive[h] === 0) continue;
+    if (id < 0 || dist2(w.x[h], w.y[h], w.x[id], w.y[id]) <= r2) n++;
+  }
+  return n;
+}
+
+/** Visible enemy heroes (of `team`) within BOT_AI.defendRange of `team`'s outermost structure in `lane`. */
+function raiders(w: World, team: number, lane: number): number {
+  const s = laneStructure(w, team, lane, true);
+  const r2 = BOT_AI.defendRange * BOT_AI.defendRange;
+  let n = 0;
+  for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+    if (w.alive[e] === 1 && seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], w.x[s], w.y[s]) <= r2) n++;
+  }
+  return n;
+}
+
+/** How far `team` trails: the enemy's takedowns minus ours, plus 3 per tower the enemy took more (≤ 0: not behind). */
+function scoreBehind(w: World, team: number): number {
+  const kills = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
+  const towers = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
+  return kills + 3 * towers;
+}
+
+/**
+ * Lane the team groups in from BotParams.groupAt (sim v4): the lane where enemy heroes threaten an own structure
+ * (defend: the teams meet instead of racing each other's bases); else the fewest enemy towers left; tie: our wave is
+ * further on; tie: Sunny.
+ */
+export function pushLane(w: World, team: number, id = -1, pressAhead = 0): number {
+  // Defend only with the numbers to hold: allied heroes alive within BOT_AI.powerRange of bot `id` (itself
+  // included; −1: every allied hero alive). A hero farming far away does not count. A team pressAhead or more
+  // ahead (BotParams.pressAhead) turns back only with strictly more heroes near than raiders: it keeps pushing.
+  const ra = raiders(w, team, 0);
+  const rb = raiders(w, team, 1);
+  const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
+  if (ra !== rb && Math.max(ra, rb) + need <= alliesNear(w, team, id)) return ra > rb ? 0 : 1;
   const a = laneTowers(w, 1 - team, 0);
   const b = laneTowers(w, 1 - team, 1);
   if (a !== b) return a < b ? 0 : 1;
@@ -152,10 +213,30 @@ export function pushLane(w: World, team: number): number {
   return pb > pa ? 1 : 0;
 }
 
+/**
+ * Is the human playing (sim v5 carry leash): alive, it gave a command or moved in the last BOT_AI.leashIdle ticks,
+ * and it stands within BOT_AI.leashLane of a lane or within BOT_AI.leashObjective of a rat camp or Pudding.
+ */
+function humanEngaged(w: World): boolean {
+  const h = HUMAN_SLOT;
+  if (w.alive[h] === 0 || w.globals[G.Tick] - w.globals[G.HumanActAt] > BOT_AI.leashIdle) return false;
+  const x = w.x[h];
+  const y = w.y[h];
+  if (nearLane(x, y, BOT_AI.leashLane)) return true;
+  const r2 = BOT_AI.leashObjective * BOT_AI.leashObjective;
+  return (
+    dist2(x, y, RAT_CAMP.x, RAT_CAMP.y) <= r2 || dist2(x, y, mirrorX(RAT_CAMP.x), RAT_CAMP.y) <= r2 || dist2(x, y, PUDDING_SPOT.x, PUDDING_SPOT.y) <= r2
+  );
+}
+
+/** The human's lane by where it stands (Sunny above the middle). */
+const humanLane = (w: World): number => (w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
+
 /** The lane bot `id` plays now. */
-function laneFor(w: World, id: number, tick: number, groupAt: number): number {
+function laneFor(w: World, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
   const team = w.team[id];
-  if (tick >= groupAt) return pushLane(w, team);
+  if (carry || hunt) return humanLane(w);
+  if (tick >= p.groupAt) return pushLane(w, team, id, p.pressAhead);
   const role = roleOf(id);
   if (role !== ROAM) return role;
   // The roamer helps the lane with fewer own towers; tie: the one whose laner is hurt more.
@@ -170,8 +251,29 @@ function laneFor(w: World, id: number, tick: number, groupAt: number): number {
 function mayDive(w: World, id: number, s: number, p: BotParams): boolean {
   if (!p.dives || hpBp(w, id) < BOT_AI.diveHpBp) return false;
   if (w.kind[s] === Kind.Core || w.hp[s] <= BOT_AI.diveTowerHp) return true;
+  // Carry allies push a structure no enemy hero defends (the fight in front of it was won).
+  if (thinkingCarry && !defended(w, w.team[id], s)) return true;
   const team = w.team[id];
   return w.globals[G.Tick] >= p.groupAt && heroesAlive(w, team) - heroesAlive(w, 1 - team) >= BOT_AI.pushAdvantage;
+}
+
+/** Set by `think` for the bot thinking now: is it a carry ally? (read by mayDive) */
+let thinkingCarry = false;
+
+/** Is an enemy hero (of `team`'s enemy) in view within BOT_AI.awareRange of structure `s`? */
+function defended(w: World, team: number, s: number): boolean {
+  const r2 = BOT_AI.awareRange * BOT_AI.awareRange;
+  for (let e = RANGE.heroes; e < RANGE.minions; e++) if (seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], w.x[s], w.y[s]) <= r2) return true;
+  return false;
+}
+
+/** Is the human out in its lane (not behind its own outer structure on the way home)? */
+function humanOut(w: World): boolean {
+  const h = HUMAN_SLOT;
+  if (w.alive[h] === 0) return false;
+  const team = w.team[h];
+  const own = laneStructure(w, team, humanLane(w), true);
+  return progressOf(team, w.x[h]) >= progressOf(team, w.x[own]) - BOT_AI.holdAhead;
 }
 
 /** Heroes of `team` alive (the scoreboard shows who is down, so bots may read it). */
@@ -182,14 +284,17 @@ function heroesAlive(w: World, team: number): number {
 }
 
 /** Stand-point in `lane`: behind the lane front, outside any untanked enemy tower. Writes [x, y]. */
-function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Array): void {
+function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Array, carry = false): void {
   const team = w.team[id];
   const s = sign(team);
   const front = laneFront(w, team, lane);
+  const hold = isRanged(w, id) ? BOT_AI.holdRanged : BOT_AI.holdMelee;
+  const outer = laneStructure(w, team, lane, true);
   let gx: number;
   let gy: number;
-  if (front >= 0) {
-    gx = w.x[front] - s * (isRanged(w, id) ? BOT_AI.holdRanged : BOT_AI.holdMelee);
+  // v4: a wave still behind the own outer structure (just spawned) is waited for in front of it, not walked back to.
+  if (front >= 0 && progressOf(team, w.x[front]) - hold > progressOf(team, w.x[outer]) + BOT_AI.holdAhead) {
+    gx = w.x[front] - s * hold;
     gy = w.y[front];
   } else {
     const own = laneStructure(w, team, lane, true);
@@ -201,6 +306,13 @@ function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Ar
     gx = w.x[t];
     gy = w.y[t];
   } else if (t >= 0) gx = w.x[t] - s * (structReach(w, t) + BOT_AI.towerMargin);
+  // Carry allies never stand more than BOT_AI.leadMax ahead of the human (or of the own tower while it is dead).
+  if (carry) {
+    const h = HUMAN_SLOT;
+    const anchor = humanOut(w) ? w.x[h] : w.x[laneStructure(w, team, lane, true)];
+    const maxP = progressOf(team, anchor) + BOT_AI.leadMax;
+    if (progressOf(team, gx) > maxP) gx = team === 0 ? maxP : MAP.width - maxP;
+  }
   out[0] = gx;
   out[1] = gy;
 }
@@ -208,7 +320,7 @@ function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Ar
 const goal = new Int32Array(2);
 
 /** Lane work: last-hit, a tanked structure, the wave, else the stand-point. */
-function laneAct(w: World, id: number, mem: BotMem, lane: number, slip: boolean, p: BotParams): Command | null {
+function laneAct(w: World, id: number, mem: BotMem, lane: number, slip: boolean, p: BotParams, carry = false, noSiege = false): Command | null {
   const team = w.team[id];
   const reach = attackRange(w, id) + radiusOf(w, id) + BOT_AI.farmReach;
   const hit = attackDamage(w, id);
@@ -224,7 +336,7 @@ function laneAct(w: World, id: number, mem: BotMem, lane: number, slip: boolean,
     if (weakest < 0 || w.hp[e] < w.hp[weakest]) weakest = e;
   }
   if (lastHit >= 0 && !slip) return attack(w, id, mem, lastHit);
-  if (p.structureFirst || weakest < 0) {
+  if (!noSiege && (p.structureFirst || weakest < 0)) {
     for (let s = RANGE.towers; s < RANGE.fountains; s++) {
       if (w.alive[s] === 0 || w.team[s] === team || !targetable(w, s, team)) continue;
       if (!tanked(w, s, team) && !mayDive(w, id, s, p)) continue;
@@ -233,7 +345,7 @@ function laneAct(w: World, id: number, mem: BotMem, lane: number, slip: boolean,
     }
   }
   if (weakest >= 0) return (p.waveClear ? clearCast(w, id, weakest) : null) ?? attack(w, id, mem, weakest);
-  laneGoal(w, id, lane, p, goal);
+  laneGoal(w, id, lane, p, goal, carry);
   return moveTo(w, id, mem, goal[0], goal[1]);
 }
 
@@ -317,6 +429,7 @@ function healthyAllies(w: World, id: number): number {
 export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng: Rng): Command | null {
   const w = m.world;
   const tick = w.globals[G.Tick];
+  thinkingCarry = false;
   if (w.alive[id] === 0) {
     mem.mode[id] = BOT_MODE.Lane;
     mem.foe[id] = -1;
@@ -331,13 +444,22 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     if (hp < BOT_AI.retreatExitBp) return retreat(w, id, mem, p);
     mem.mode[id] = BOT_MODE.Lane;
   }
-  const low = hp < p.retreatHpBp;
+  // The scripted first fight is fought to the end (DifficultyRules.scriptFrom).
+  const scripted = id === 3 && rulesOf(m).scriptFrom > 0 && tick >= rulesOf(m).scriptFrom && tick < rulesOf(m).scriptUntil;
+  const low = hp < p.retreatHpBp && !scripted;
   if (low && (hp < applyBp(p.retreatHpBp, BOT_AI.retreatAlwaysBp) || threatened(w, id, mem, p, tick))) return retreat(w, id, mem, p);
   if (w.napT[id] > 0) return null;
   const snack = snackCast(w, id, p);
   if (snack) return snack;
 
-  const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch);
+  const rules = rulesOf(m);
+  // The roamer (team slot 2) carries first, then the Puddle laner (DifficultyRules.carryAllies).
+  // Sim v5: only while the human plays (humanEngaged): a human parked off the lanes, or idle, is not followed.
+  const carry = id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roleOf(id) === ROAM ? 1 : 2) && humanEngaged(w);
+  thinkingCarry = carry;
+  // Rookie: slot 3 walks into Sunny Lane early and picks the first fight (DifficultyRules.scriptFrom).
+  const script = id === 3 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
+  const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman);
   if (low) scratch[0] = -1;
   if (foe >= 0) {
     mem.mode[id] = BOT_MODE.Fight;
@@ -347,8 +469,33 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   }
   mem.foe[id] = -1;
   const team = w.team[id];
-  const lane = laneFor(w, id, tick, p.groupAt);
-  const grouped = tick >= p.groupAt;
+  if (script) {
+    // Toward the human's side of Sunny Lane, swinging at what it meets.
+    const toHuman = humanOut(w) && w.y[HUMAN_SLOT] >= MAP.height >> 1;
+    const tx = toHuman ? w.x[HUMAN_SLOT] : BOT_AI.scriptX;
+    const ty = toHuman ? w.y[HUMAN_SLOT] : BOT_AI.scriptY;
+    mem.mode[id] = BOT_MODE.Lane;
+    if (mem.op[id] === Op.AttackMove && Math.abs(mem.x[id] - tx) <= BOT_AI.repeatSlack && Math.abs(mem.y[id] - ty) <= BOT_AI.repeatSlack) return null;
+    mem.op[id] = Op.AttackMove;
+    mem.x[id] = tx;
+    mem.y[id] = ty;
+    return { op: Op.AttackMove, x: tx, y: ty };
+  }
+  // Carry allies: back to the human when it walked away.
+  if (carry && humanOut(w) && dist2(w.x[id], w.y[id], w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]) > BOT_AI.followRange * BOT_AI.followRange) {
+    mem.mode[id] = BOT_MODE.Lane;
+    return moveTo(w, id, mem, w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]);
+  }
+  // Pickups: a Frenzy Catnip close by (carry allies leave it to the human), a Fish Snack when hurt.
+  if (p.pickups) {
+    const fr = carry ? -1 : nearestPickup(w, id, BOT_AI.pickupRange, PICKUP_FRENZY);
+    const sn = hp < BOT_AI.pickupSnackHpBp ? nearestPickup(w, id, BOT_AI.snackRange, PICKUP_SNACK) : -1;
+    const pk = fr >= 0 ? fr : sn;
+    if (pk >= 0) return moveTo(w, id, mem, w.pkX[pk], w.pkY[pk]);
+  }
+  const hunt = rules.enemiesToHuman && w.team[id] !== w.team[HUMAN_SLOT] && tick >= rules.scriptUntil;
+  const lane = laneFor(w, id, tick, p, carry, hunt);
+  const grouped = tick >= p.groupAt && !carry;
   // A strong enemy close by, or a tower shooting us with no minion to tank it: step back to cover.
   const bad = scratch[0];
   let shotBy = -1;
@@ -365,13 +512,14 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   if (w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1) {
     const spawns = w.globals[G.PudSpawns];
     if (mem.pud[id] < 0 || mem.pud[id] >> 1 !== spawns) mem.pud[id] = spawns * 2 + (rng.chanceBp(p.contestPuddingBp) ? 1 : 0);
-    if ((mem.pud[id] & 1) === 1 && hp >= BOT_AI.objectiveHpBp && healthyAllies(w, id) >= BOT_AI.pudAllies && (!grouped || !sieging(w, id))) {
+    const withHuman = !carry || dist2(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT], w.x[pud], w.y[pud]) <= BOT_AI.awareRange * BOT_AI.awareRange;
+    if ((mem.pud[id] & 1) === 1 && withHuman && hp >= BOT_AI.objectiveHpBp && healthyAllies(w, id) >= BOT_AI.pudAllies && (!grouped || !sieging(w, id))) {
       mem.mode[id] = BOT_MODE.Pudding;
       return (p.waveClear ? clearCast(w, id, pud) : null) ?? attack(w, id, mem, pud);
     }
   }
   // The roamer clears the own rat camp until the team groups.
-  if (roleOf(id) === ROAM && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp) {
+  if (!carry && !hunt && roleOf(id) === ROAM && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp) {
     const rat = campRat(w, id);
     if (rat >= 0) {
       mem.mode[id] = BOT_MODE.Camp;
@@ -380,5 +528,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   }
   mem.mode[id] = grouped ? BOT_MODE.Push : BOT_MODE.Lane;
   mem.lane[id] = lane;
-  return laneAct(w, id, mem, lane, slip === SLIP.LastHit, p);
+  // Rookie (DifficultyRules.pushNeedsHuman): the human's allies hit enemy structures only while the human plays, so
+  // a parked human's team holds its lanes (its waves still push) but does not win the match for it.
+  const noSiege = rules.pushNeedsHuman && team === w.team[HUMAN_SLOT] && !humanEngaged(w);
+  return laneAct(w, id, mem, lane, slip === SLIP.LastHit, p, carry, noSiege);
 }

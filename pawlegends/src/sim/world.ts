@@ -4,6 +4,7 @@
  * typed array or in `globals`, so `hashWorld` covers the whole state.
  */
 import { CAPS, NAV } from '../data/map';
+import { NINE_LIVES } from '../data/xp';
 import { FNV_OFFSET, fnvInt, fnvInts } from './hash';
 import { Rng } from './rng';
 
@@ -55,6 +56,10 @@ export const Buff = Object.freeze({
   Channeling: 1 << 11,
   Blocking: 1 << 12,
   Tethered: 1 << 13,
+  Zoomies: 1 << 14,
+  Frenzy: 1 << 15,
+  NineLives: 1 << 16,
+  Pack: 1 << 17, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -100,7 +105,36 @@ export const G = Object.freeze({
   PudSpawns: 21, // lint-sim: allow
   /** Escort breath timer (ticks to the next breath). */
   PudBreath: 22, // lint-sim: allow
-  Count: 23, // lint-sim: allow
+  /** Sim v4: this match's Sunset and Sudden Death ticks (data/timeline.ts TIMELINE_BY, by difficulty). */
+  Sunset: 23, // lint-sim: allow
+  SuddenDeath: 24, // lint-sim: allow
+  /** Tick of the next Frenzy Catnip and Fish Snack spawn, and how many Frenzy / Snack spawns so far. */
+  FrenzyAt: 25, // lint-sim: allow
+  SnackAt: 26, // lint-sim: allow
+  FrenzySpawns: 27, // lint-sim: allow
+  SnackSpawns: 28, // lint-sim: allow
+  /** 1 once the match's first takedown happened. */
+  FirstBlood: 29, // lint-sim: allow
+  /** Underdog waves left per team, and the tick each team's comeback last started (−big: never). */
+  Comeback0: 30, // lint-sim: allow
+  Comeback1: 31, // lint-sim: allow
+  ComebackAt0: 32, // lint-sim: allow
+  ComebackAt1: 33, // lint-sim: allow
+  /** Rally stacks of the human's team (DifficultyRules.rallyBp): takedowns the human took part in, capped. */
+  Rally: 34, // lint-sim: allow
+  /** Cores are invulnerable before this tick (DifficultyRules.coreOpenAt). */
+  CoreOpenAt: 35, // lint-sim: allow
+  /** The human's low-HP move-speed bonus in bp (DifficultyRules.humanPanicBp; 0 = none). */
+  HumanPanic: 36, // lint-sim: allow
+  /** Sim v5: the last tick the human gave a command or its hero moved, and where it stood then (carry allies leash). */
+  HumanActAt: 37, // lint-sim: allow
+  HumanPX: 38, // lint-sim: allow
+  HumanPY: 39, // lint-sim: allow
+  /** Sim v5: the human's team's core cannot be hit before this tick (DifficultyRules.humanCoreOpenAt). */
+  HumanCoreOpenAt: 40, // lint-sim: allow
+  /** Sim v5: 1 = data/heroes SIDE_EDGE applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
+  SideEdge: 41, // lint-sim: allow
+  Count: 42, // lint-sim: allow
 } as const);
 export type G = (typeof G)[keyof typeof G];
 
@@ -207,6 +241,18 @@ export interface World {
   killStreak: Int32Array;
   /** Tick hero j last damaged hero i, at i × heroes + j (assists). */
   assistTick: Int32Array;
+  /** Sim v4 bonuses, ticks left per hero: Zoomies, Frenzy Catnip, Nine Lives, the rat camp's Pack buff. */
+  zoomT: Int32Array;
+  frenzyT: Int32Array;
+  nineT: Int32Array;
+  packT: Int32Array;
+  /** Tick from which Nine Lives can trigger again. */
+  nineReady: Int32Array;
+  /** HP damage taken per tick over the last NINE_LIVES.window ticks (heroes × window, index tick % window). */
+  dmgRing: Int32Array;
+  /** Towers and cores: the hero they locked on to (−1 none) and the lock-on ticks left. */
+  lockId: Int32Array;
+  lockT: Int32Array;
   /** Kit state, meaning per hero (see src/sim/heroes/*): passive resource, recast stage and window, R and W timers. */
   kValor: Int32Array;
   kStage: Int32Array;
@@ -285,6 +331,12 @@ export interface World {
   zArm: Int32Array;
   /** Zone number (trap: root ticks; arena: the challenged hero). */
   zVal: Int32Array;
+  // Pickups (units/pickup.ts): alive, PICKUP_KIND, team allowed to take it (2 = anyone), position
+  pkAlive: Uint8Array;
+  pkKind: Uint8Array;
+  pkTeam: Uint8Array;
+  pkX: Int32Array;
+  pkY: Int32Array;
   // Scalars
   globals: Int32Array;
   rng: Rng;
@@ -404,6 +456,14 @@ export function createWorld(seed: number): World {
     talents: new Int32Array(h * TALENT_TIERS).fill(-1),
     killStreak: new Int32Array(h),
     assistTick: new Int32Array(h * h).fill(NEVER),
+    zoomT: new Int32Array(h),
+    frenzyT: new Int32Array(h),
+    nineT: new Int32Array(h),
+    packT: new Int32Array(h),
+    nineReady: new Int32Array(h),
+    dmgRing: new Int32Array(h * NINE_LIVES.window),
+    lockId: new Int32Array(n).fill(-1),
+    lockT: new Int32Array(n),
     kValor: new Int32Array(h),
     kStage: new Int32Array(h),
     kWindow: new Int32Array(h),
@@ -461,12 +521,19 @@ export function createWorld(seed: number): World {
     zTtl: new Int32Array(z),
     zArm: new Int32Array(z),
     zVal: new Int32Array(z).fill(-1),
+    pkAlive: new Uint8Array(CAPS.pickups),
+    pkKind: new Uint8Array(CAPS.pickups),
+    pkTeam: new Uint8Array(CAPS.pickups),
+    pkX: new Int32Array(CAPS.pickups),
+    pkY: new Int32Array(CAPS.pickups),
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
   };
   w.globals[G.Winner] = -1;
   w.globals[G.InputHash] = FNV_OFFSET | 0;
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
+  w.globals[G.ComebackAt0] = NEVER;
+  w.globals[G.ComebackAt1] = NEVER;
   return w;
 }
 
@@ -481,12 +548,14 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.stealthT, w.untargT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
     w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak, w.assistTick,
+    w.zoomT, w.frenzyT, w.nineT, w.packT, w.nineReady, w.dmgRing, w.lockId, w.lockT,
     w.kValor, w.kStage, w.kWindow, w.kRT, w.kWT, w.kWAge, w.kCount, w.kHonour, w.kHuntT, w.kHuntVictim, w.kChain,
     w.kFoe, w.kEmpower, w.kHurt, w.volleyHits, w.wave,
     w.botMode, w.botLane, w.botFoe, w.botPud, w.botSeen, w.botOp, w.botX, w.botY, w.botId, w.botSlip,
     w.pAlive, w.pTeam, w.pKind, w.pOwner, w.pTarget, w.pX, w.pY, w.pVx, w.pVy, w.pTtl, w.pDmg,
     w.pSpeed, w.pFlags, w.pHitLo, w.pHitHi, w.pRadius, w.pEffect, w.pEffA, w.pEffB, w.pBp, w.pRange,
     w.zAlive, w.zTeam, w.zKind, w.zOwner, w.zX, w.zY, w.zRadius, w.zTtl, w.zArm, w.zVal,
+    w.pkAlive, w.pkKind, w.pkTeam, w.pkX, w.pkY,
     w.globals,
   ];
 }

@@ -2,6 +2,8 @@
  * Local profile (POC.md §3 meta/): match counts, first win, last picks and settings. Browser storage in try/catch;
  * a blocked or empty store just means a fresh profile. Never holds anything personal and never reaches the sim.
  */
+import { TICK_HZ } from '../data/timeline';
+import { PROGRESS_LEVELS, type Progress } from '../embed/bridge';
 import type { OfferHistory } from '../money/offer';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
 
@@ -28,17 +30,29 @@ export interface Profile {
   tipsOff: boolean;
   /** Show the tips again in the next match (settings). */
   tipsNext: boolean;
+  /** The player has cast an ultimate (no more "ULTIMATE READY" prompts after its first match). */
+  knowsUlt: boolean;
+  /** Bot-ladder rating (local display): moves on each win or loss by the bots' level (meta/ladder.ts). */
+  rating: number;
+  /** Personal bests per hero: fastest win (s) and most takedowns in one match. */
+  bests: Partial<Record<HeroId, { fastest: number; takedowns: number }>>;
+  /** Squad mates the player chose on the pick screen (roster cat ids, at most 2; empty = the default pick). */
+  squad: string[];
+  /** The cat adopted last (catalog id): it walks first until the player picks a squad. */
+  newCat: string | null;
 }
 
 /** The free coat earned by the first win (POC.md §12). */
 export const BISCUIT_UNLOCK = 'coat.brutus.biscuit';
 
 const KEY = 'tt.pawlegends.profile.v1';
+/** A fresh bot-ladder rating. */
+export const LADDER_START = 1000;
 const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -61,6 +75,16 @@ export function parseProfile(raw: string | null): Profile {
       : [];
     p.tipsOff = o.tipsOff === true;
     p.tipsNext = o.tipsNext === true;
+    p.knowsUlt = o.knowsUlt === true;
+    p.rating = typeof o.rating === 'number' && Number.isFinite(o.rating) ? Math.max(0, Math.min(9999, Math.round(o.rating))) : LADDER_START;
+    p.squad = Array.isArray(o.squad) ? o.squad.filter((x): x is string => typeof x === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(x)).slice(0, 2) : [];
+    p.newCat = typeof o.newCat === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(o.newCat) ? o.newCat : null;
+    if (o.bests && typeof o.bests === 'object') {
+      for (const h of HEROES) {
+        const b = (o.bests as Record<string, unknown>)[h] as Record<string, unknown> | undefined;
+        if (b && typeof b === 'object') p.bests[h] = { fastest: n(b.fastest), takedowns: n(b.takedowns) };
+      }
+    }
     const id = (v: unknown): string | null => (typeof v === 'string' && /^[A-Za-z0-9_.-]{1,48}$/.test(v) ? v : null);
     if (o.looks && typeof o.looks === 'object') {
       for (const h of HEROES) {
@@ -135,7 +159,8 @@ export function recordMatch(won: boolean, seconds: number, difficulty: Difficult
     const prev = p.fastest[difficulty];
     if (!prev || seconds < prev) {
       p.fastest[difficulty] = seconds;
-      best = true;
+      // "best!" only when this win beat a stored time for the same bots (fun plan F4), not on the first one
+      best = prev !== undefined && prev > 0;
     }
   }
   saveProfile(p);
@@ -147,7 +172,53 @@ export function tipsDue(p: Profile): boolean {
   return !p.tipsOff && (p.matches === 0 || p.tipsNext);
 }
 
+/**
+ * Account progress from the host (`session.progress`) folded into the local profile, so unlocks and records follow
+ * the account across devices. Per level, the better value wins: first win (any catnip paid or any verified win),
+ * fastest win (the lower time), and the match count (the higher total). Never lowers anything local. Pure: returns
+ * a new profile.
+ */
+export function mergeServerProgress(local: Profile, progress: Progress | null): Profile {
+  if (!progress) return local;
+  const p: Profile = { ...local, fastest: { ...local.fastest }, unlocks: [...local.unlocks] };
+  let serverMatches = 0;
+  let serverWins = 0;
+  for (const l of PROGRESS_LEVELS) {
+    serverMatches += progress.matches[l];
+    const ticks = progress.fastestWin[l];
+    if (ticks > 0 || progress.catnip[l] > 0) serverWins++;
+    if (ticks > 0) {
+      const s = Math.max(1, Math.ceil(ticks / TICK_HZ));
+      const prev = p.fastest[l];
+      if (!prev || s < prev) p.fastest[l] = s;
+    }
+  }
+  p.matches = Math.max(p.matches, serverMatches);
+  p.wins = Math.max(p.wins, serverWins);
+  if (serverWins > 0 && !p.firstWinDone) p.firstWinDone = true;
+  if (p.firstWinDone && !p.unlocks.includes(BISCUIT_UNLOCK)) p.unlocks.push(BISCUIT_UNLOCK);
+  return p;
+}
+
+/** Whether the merge changed anything the player can see (so callers redraw only then). */
+export function progressChanged(a: Profile, b: Profile): boolean {
+  return a.matches !== b.matches || a.wins !== b.wins || a.firstWinDone !== b.firstWinDone || a.unlocks.length !== b.unlocks.length || JSON.stringify(a.fastest) !== JSON.stringify(b.fastest);
+}
+
+/** Signed-in state and the account progress, as the host last said (UI only; never stored). */
+export interface AccountState {
+  signedIn: boolean;
+  progress: Progress | null;
+}
+
+let account: AccountState = { signedIn: false, progress: null };
+export const accountState = (): AccountState => account;
+export function setAccountState(a: AccountState): void {
+  account = { signedIn: a.signedIn, progress: a.signedIn ? a.progress : null };
+}
+
 /** Tests only. */
 export function resetProfileCache(): void {
   cached = null;
+  account = { signedIn: false, progress: null };
 }

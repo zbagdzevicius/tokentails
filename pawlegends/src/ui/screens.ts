@@ -2,17 +2,24 @@
  * Out-of-match screens (POC.md §12): title → pick (4 heroes, Paw Trick, difficulty) → match → results, plus the
  * Esc menu and the portrait rotate prompt. DOM overlays over the lobby turntable. English only.
  */
+import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HERO_IDS } from '../data/heroes';
 import { TRICK_IDS } from '../data/tricks';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
-import { chromaOptions, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
+import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
+
+const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
 import type { Dare } from '../share/dare';
 import { dareText } from '../share/dare';
 import { DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
+import * as TL from '../data/timeline';
+import { rookieAvailable } from '../app/firstSession';
+import type { QuestView } from '../meta/quests';
+import type { TreatGain } from '../meta/treats';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -47,6 +54,12 @@ export interface TitleOpts {
   onMute(m: boolean): void;
   onStore?(): void;
   onSettings?(): void;
+  /** Today's quests (fun plan F4), shown under the play button. */
+  quests?: readonly QuestView[];
+}
+
+function questRow(q: QuestView): string {
+  return `<div class="q ${q.done ? 'done' : ''} ${q.fresh ? 'fresh' : ''}"><span class="tick">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? '' : `${q.value}/${q.quest.goal}`}</span></div>`;
 }
 
 function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null): string {
@@ -66,9 +79,10 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
   root.innerHTML = `
     <div class="pl-title-col">
       <div class="logo"><span class="paw">${icon('paw')}</span><h1>Paw<b>legends</b></h1></div>
-      <p class="tag">3v3 cats and dogs. Nine-minute matches.</p>
+      <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
       <div class="actions">${primary}</div>
-      <p class="sub">No account needed. ${o.firstTime ? 'Your first match is against Easy bots.' : ''}</p>
+      <p class="sub"><span class="acct">${accountState().signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span> ${o.firstTime ? (rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.') : ''}</p>
+      ${o.quests && o.quests.length ? `<div class="pl-quests mini"><b>Today</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${badge(o.frame, o.title, o.portrait)}
     </div>
     <div class="pl-corner">
@@ -106,6 +120,10 @@ export interface PickOpts {
   onHero(h: HeroId): void;
   onStart(c: Choice): void;
   onBack(): void;
+  /** The bots chips (fun plan F1: hidden until the player has played a few matches). */
+  difficulties?: readonly Difficulty[];
+  /** Shown instead of the chips while they are locked. */
+  difficultyNote?: string;
 }
 
 export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
@@ -121,7 +139,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const l = lookOf(h) as Look;
     return `<div class="row wardrobe"><span class="lbl">Look</span>${coats
       .map((k) => `<button class="chip ${k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`)
-      .join('')}${chromas.length > 1 ? chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}">${esc(k.name)}</button>`).join('') : ''}</div>`;
+      .join('')}${chromas.length > 1 ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
   };
   const render = (): void => {
     const t = HERO_TEXT[c.hero];
@@ -144,7 +162,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         </div>
         <div class="row"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(TRICK_TEXT[tr].text)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
         ${wardrobeRow(c.hero)}
-        <div class="row bots"><span class="lbl">Bots</span>${DIFFICULTIES.map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}">${DIFFICULTY_TEXT[d]}</button>`).join('')}</div>
+        ${o.difficultyNote ? `<div class="row bots"><span class="lbl">Bots</span><span class="note">${esc(o.difficultyNote)}</span></div>` : `<div class="row bots"><span class="lbl">Bots</span>${(o.difficulties ?? DIFFICULTIES).map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}">${esc((DIFFICULTY_TEXT as Record<string, string>)[d] ?? d)}</button>`).join('')}</div>`}
         <button class="pl-btn big" data-a="start">Play</button>
       </div>`;
   };
@@ -207,16 +225,49 @@ export interface ResultsOpts {
   onShare(url: string): void;
   onStore?(): void;
   onNotify?(): void;
+  /** The player's damage to enemy heroes (0 = never joined a fight). */
+  heroDamage?: number;
+  /** The best moment's title ("Triple Pounce"), or null. */
+  bestMoment?: string | null;
+  /** Treat Track progress from this match (fun plan F4). */
+  treats?: TreatGain | null;
+  /** Today's quests after this match. */
+  quests?: readonly QuestView[];
+  /** Per-player rows (round 0: a veteran wants to see why it lost): own team first. */
+  table?: readonly ResultRow[];
+  /** Bot-ladder rating after this match and its change (meta/ladder.ts); null on Rookie. */
+  ladder?: { rating: number; delta: number } | null;
+  /** "New personal best: fastest Clem win" (meta/ladder.ts), or null. */
+  personal?: string | null;
+}
+
+export interface ResultRow {
+  name: string;
+  /** 'self' | 'ally' | 'enemy' */
+  rel: string;
+  k: number;
+  d: number;
+  a: number;
+  heroDmg: number;
+  towerDmg: number;
+}
+
+function resultTable(rows: readonly ResultRow[]): string {
+  const tr = (r: ResultRow): string =>
+    `<tr class="${r.rel}"><td>${esc(r.name)}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td></tr>`;
+  return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
 /** Sudden Death starts at 10:00 (data/timeline.ts TIMELINE.suddenDeath): after it the clock, not the player, ends the match. */
 export const SUDDEN_DEATH_S = 600;
 
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
-export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty'>): string {
+export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'>): string {
   const [ours, theirs] = o.teamKills;
   if (o.won) {
-    if (o.kills === 0) return 'Your team took the core. Next time, jump into a fight!';
+    // only when the player really stayed out of every fight (real stats, not just no takedowns)
+    if (o.heroDamage !== undefined ? o.heroDamage === 0 : o.kills === 0) return 'Your team took the core. Next time, jump into a fight!';
+    if (o.kills === 0) return 'Your team took the core, with your help.';
     return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
   const gap = theirs - ours;
@@ -239,30 +290,57 @@ export function resultTip(o: Pick<ResultsOpts, 'won' | 'kills' | 'deaths' | 'lev
   return null;
 }
 
+/** The Sudden Death second for a difficulty (data/timeline.ts, with the fun plan's per-difficulty overrides). */
+export function suddenDeathS(difficulty: Difficulty): number {
+  const by = (TL as unknown as { TIMELINE_BY?: Record<string, { suddenDeath?: number }> }).TIMELINE_BY;
+  const t = by?.[difficulty]?.suddenDeath ?? TL.TIMELINE.suddenDeath;
+  return Math.floor(t / TL.TICK_HZ);
+}
+
+function treatBlock(t: TreatGain): string {
+  const pct = (v: number): string => `${Math.round(v * 100)}%`;
+  const opened = t.rewards.length > 0;
+  const fillTo = opened ? 1 : t.after;
+  return `<div class="pl-treats ${opened ? 'chest' : ''}" style="--from:${pct(t.before)};--to:${pct(fillTo)};--after:${pct(t.after)}">
+    <div class="head"><b>Treat Track</b><small>+${t.gained} Treat XP</small></div>
+    <div class="bar"><i class="fill"></i></div>
+    ${opened ? `<div class="open">${icon('crown')}<span><b>Chest opened: ${esc(t.rewards.map((r) => r.name).join(', '))}</b><small>Free, yours to keep.</small></span></div>` : ''}
+    ${t.next ? `<p class="next">Next chest: <b>${esc(t.next.name)}</b></p>` : `<p class="next">Track complete. More chests soon.</p>`}
+  </div>`;
+}
+
 export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement {
   const root = el(`pl-screen pl-results ${o.won ? 'won' : 'lost'}`);
   const m = Math.floor(o.seconds / 60);
   const s = String(o.seconds % 60).padStart(2, '0');
   const tip = resultTip(o);
+  const sd = suddenDeathS(o.difficulty);
   root.innerHTML = `
     <div class="pl-results-col">
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>
       <p class="sub">${esc(resultLine(o))}</p>
       <div class="stats">
-        <div><b>${m}:${s}</b><small>Match time${o.best && o.seconds < SUDDEN_DEATH_S ? ' · best!' : ''}</small></div>
+        <div><b>${m}:${s}</b><small>Match time${o.won && o.best && o.seconds < sd ? ' · best!' : ''}</small></div>
         <div><b>${o.kills} / ${o.deaths}</b><small>Takedowns / knocked out</small></div>
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
+      ${o.ladder ? `<p class="pl-ladder" data-rating="${o.ladder.rating}">Bot ladder <b>${o.ladder.rating}</b> <span class="${o.ladder.delta >= 0 ? 'up' : 'down'}">${o.ladder.delta >= 0 ? '+' : ''}${o.ladder.delta}</span></p>` : ''}
+      ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
+      ${o.table && o.table.length ? resultTable(o.table) : ''}
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
+      <div data-slot="save"></div>
+      ${o.treats ? treatBlock(o.treats) : ''}
+      ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">
-        <p>Dare a friend: <b>${o.dareLink ? esc(dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < SUDDEN_DEATH_S ? o.seconds : 0 })) : ''}</b></p>
+        <p>Dare a friend: <b>${o.dareLink ? esc(dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 })) : ''}</b></p>
         <button class="pl-btn ghost" data-a="share">Copy dare link</button>
       </div>
-      <div class="actions"><button class="pl-btn big" data-a="again">Play again</button><button class="pl-btn ghost" data-a="change">Change hero</button></div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
-    </div>`;
+    </div>
+    <div class="actions pinned"><button class="pl-btn ghost" data-a="change">Change hero</button><button class="pl-btn big" data-a="again">Play again</button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
@@ -335,8 +413,8 @@ export function rotatePrompt(parent: HTMLElement): HTMLElement {
 }
 
 /** Loading veil between screens. */
-export function loadingVeil(parent: HTMLElement, text: string): HTMLElement {
-  const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>`);
+export function loadingVeil(parent: HTMLElement, text: string, sub?: string): HTMLElement {
+  const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}`);
   parent.appendChild(r);
   return r;
 }

@@ -30,6 +30,19 @@ export const PL_SFX = {
   defeat: [0.5, 0, 330, 0.03, 0.25, 0.6, 1, 1, -0.6, 0, -40, 0.18, 0, 0, 0, 0, 0.1, 0.6, 0.05, 0, -1800],
   coin: [0.45, 0, 1500, 0, 0.03, 0.18, 0, 1, 0, 0, 500, 0.05, 0, 0, 0, 0, 0, 0.7, 0.01, 0, 0],
   horn: [0.6, 0, 180, 0.05, 0.35, 0.3, 2, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0.7, 0.05, 0.1, -1400],
+  // Crowd (fun plan F2 item 12), procedural: a band-limited noise swell reads as a far-off stadium.
+  /** Takedowns: a bright swell of voices. */
+  cheer: [0.55, 0, 700, 0.12, 0.35, 0.55, 4, 1, 0, 0, 0, 0, 0.09, 1.6, 0, 0, 0.03, 0.75, 0.1, 0.35, 1800],
+  /** Towers and cores: a deep rumbling roar. */
+  roar: [0.8, 0, 260, 0.1, 0.55, 0.8, 4, 1, -0.2, 0, 0, 0, 0.11, 1.9, 0, 0.05, 0.05, 0.75, 0.15, 0.3, -2400],
+  /** The player is low: a short rising gasp. */
+  gasp: [0.4, 0, 420, 0.06, 0.06, 0.18, 4, 1, 4, 0, 0, 0, 0, 1.2, 0, 0, 0, 0.6, 0.04, 0, 1200],
+  /** Nine Lives saved someone: a falling "ooh". */
+  ooh: [0.45, 0, 300, 0.08, 0.2, 0.35, 0, 1, -0.6, 0, 0, 0, 0, 0.15, 5, 0, 0.04, 0.8, 0.05, 0.25, -1600],
+  /** Combo / multikill sting: two quick rising notes. */
+  sting: [0.45, 0, 660, 0.005, 0.05, 0.16, 1, 1, 0, 0, 330, 0.05, 0, 0, 0, 0, 0.02, 0.8, 0.02, 0, 0],
+  /** A pickup was taken. */
+  pickup: [0.5, 0, 880, 0.005, 0.06, 0.2, 0, 1, 6, 0, 440, 0.06, 0, 0, 0, 0, 0, 0.7, 0.02, 0, 0],
 } satisfies Record<string, number[]>;
 
 export type SfxName = keyof typeof PL_SFX | 'shieldUp' | 'shieldChime' | 'squeak' | 'hyenaLaugh' | 'blip';
@@ -45,10 +58,15 @@ export interface PlayOpts {
 export class Sfx {
   private ac: AudioContext | null = null;
   private master: GainNode | null = null;
+  /** Sound effects only (the host's sfx volume), into the master. Music has its own bus (audio/music.ts). */
+  private fx: GainNode | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private lastAt = new Map<string, number>();
   private muted = false;
   private volume = 0.7;
+  /** Host volumes (`audio{music, sfx}`, 0..1); 1 = the built-in mix. */
+  private fxScale = 1;
+  private musicScale = 1;
   /** Listener (camera focus, m). */
   ear = { x: 0, z: 0 };
 
@@ -66,6 +84,9 @@ export class Sfx {
       this.master = this.ac.createGain();
       this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ac.destination);
+      this.fx = this.ac.createGain();
+      this.fx.gain.value = this.fxScale;
+      this.fx.connect(this.master);
       const defs: Record<string, number[]> = { ...PL_SFX };
       for (const k of PPK_USED) defs[k] = (ZZFX_DEFS as Record<string, number[]>)[k];
       // Bake in small slices so the first gesture never stalls a frame.
@@ -92,14 +113,37 @@ export class Sfx {
     if (this.master) this.master.gain.value = m ? 0 : this.volume;
   }
 
+  /** Host volumes (0..1 each; a missing one keeps its value). Mute still wins over both. */
+  setVolumes(v: { music?: number; sfx?: number }): void {
+    const clamp = (x: number): number => Math.max(0, Math.min(1, x));
+    if (typeof v.sfx === 'number' && Number.isFinite(v.sfx)) this.fxScale = clamp(v.sfx);
+    if (typeof v.music === 'number' && Number.isFinite(v.music)) this.musicScale = clamp(v.music);
+    if (this.fx) this.fx.gain.value = this.fxScale;
+  }
+
+  /** The host's music volume (0..1): audio/music.ts scales its bus by it. */
+  get musicVolume(): number {
+    return this.musicScale;
+  }
+
   get isMuted(): boolean {
     return this.muted;
+  }
+
+  /** The audio context once unlocked (music builds its layers on it), else null. */
+  get context(): AudioContext | null {
+    return this.ac;
+  }
+
+  /** The master gain (mute and volume apply to everything routed into it). */
+  get output(): GainNode | null {
+    return this.master;
   }
 
   play(name: SfxName, o: PlayOpts = {}): void {
     const ac = this.ac;
     const buf = this.buffers.get(name);
-    if (!ac || !buf || !this.master || this.muted) return;
+    if (!ac || !buf || !this.fx || this.muted) return;
     const now = ac.currentTime;
     // the same sound at most every 40 ms (a wave of minions should not machine-gun)
     if (now - (this.lastAt.get(name) ?? -1) < 0.04) return;
@@ -128,7 +172,7 @@ export class Sfx {
         tail = p;
       }
       src.connect(g);
-      tail.connect(this.master);
+      tail.connect(this.fx);
       src.start();
     } catch {
       /* audio is best effort */

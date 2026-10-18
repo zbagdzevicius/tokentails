@@ -2,6 +2,7 @@
  * Minimap (POC.md §3, §9): lanes, river, structures, units and the camera's view on a small 2D canvas. Desktop:
  * left-click looks there, right-click moves there. Touch: tap to peek for a moment.
  */
+import { NX, NY, createGrid } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { RELATION_CSS } from '../render/palette';
@@ -81,6 +82,13 @@ export class Minimap {
     g.fillRect(0, 0, this.w, this.h);
     g.fillStyle = '#6fb7e0';
     g.fillRect(this.X(MAP.riverX[0]), 0, this.X(MAP.riverX[1]) - this.X(MAP.riverX[0]), this.h);
+    // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
+    // "not walkable"
+    const wall = createGrid().walls;
+    g.fillStyle = '#3d6e3a';
+    const cw = this.w / NX;
+    const ch = this.h / NY;
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) if (wall[j * NX + i]) g.fillRect(i * cw, this.h - (j + 1) * ch, cw + 0.5, ch + 0.5);
     g.strokeStyle = '#e6cf98';
     g.lineCap = 'round';
     g.lineJoin = 'round';
@@ -116,6 +124,9 @@ export class Minimap {
     this.pings.push({ x: xMm, y: yMm, color, until: performance.now() + ms });
   }
 
+  /** Pickups on the ground (sim mm): a glowing dot each (fun plan F2 item 8). Set by the match session. */
+  pickups: () => readonly { x: number; y: number; kind: 'frenzy' | 'snack' }[] = () => [];
+
   draw(frame: ViewFrame | null): void {
     if ((this.n++ & 1) === 1) return;
     this.size();
@@ -129,7 +140,7 @@ export class Minimap {
     const team = this.host.myTeam();
     const col = (t: number, id: number): string => (id === me ? RELATION_CSS.self : t === 2 ? RELATION_CSS.neutral : t === team ? RELATION_CSS.ally : RELATION_CSS.enemy);
     for (const e of frame.entities) {
-      if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero') continue;
+      if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || (e.kind as string) === 'pickup') continue;
       const x = this.X(e.fx);
       const y = this.Y(e.fy);
       g.fillStyle = col(e.team, e.id);
@@ -144,6 +155,19 @@ export class Minimap {
         g.arc(x, y, 4.5, 0, Math.PI * 2);
         g.fill();
       } else g.fillRect(x - 1.5, y - 1.5, 3, 3);
+    }
+    const glow = 0.6 + 0.4 * Math.sin(performance.now() / 180);
+    for (const p of this.pickups()) {
+      const x = this.X(p.x);
+      const y = this.Y(p.y);
+      g.fillStyle = p.kind === 'frenzy' ? `rgba(125,255,138,${(0.35 * glow).toFixed(3)})` : `rgba(255,166,77,${(0.3 * glow).toFixed(3)})`;
+      g.beginPath();
+      g.arc(x, y, 7, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = p.kind === 'frenzy' ? '#7dff8a' : '#ffa64d';
+      g.beginPath();
+      g.arc(x, y, 3, 0, Math.PI * 2);
+      g.fill();
     }
     for (const e of frame.entities) {
       if (e.kind !== 'hero' || e.state === 'dead') continue;

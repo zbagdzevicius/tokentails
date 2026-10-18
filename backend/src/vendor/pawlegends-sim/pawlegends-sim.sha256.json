@@ -1,7 +1,7 @@
 {
-  "bundle": "2b33d6ecb34373f6a9824ec643e43208d78058f45b565018c488f5329a16260e",
-  "facade": "f270e6ba736cd6d62abdec755eb77bdb8ac3f030f5da59e241d58a117b632a04",
-  "simVersion": 3,
+  "bundle": "a986cb375e49e0faf9a2aa1e16f3c9358c9de8f6e2aada27a2ac7327a07912d5",
+  "facade": "284fcbdced6fc6f11ad1c7fd3a3cc3e516ca972867544c999760ba9513ca0eaa",
+  "simVersion": 5,
   "vite": "8.3.4",
-  "modules": 78
+  "modules": 82
 }

@@ -90,12 +90,27 @@ export interface Owned {
 }
 
 export const FREE_BISCUIT = 'coat.brutus.biscuit';
+
+/**
+ * Treat Track coats (meta/treats.ts, fixed order, free by playing): an unlock id → hero, name and palette. Like the
+ * Biscuit coat they live in the local profile's unlocks.
+ */
+export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; coat: Coat }>> = Object.freeze({
+  'coat.clem.marmalade': { hero: 'clem', name: 'Marmalade coat', coat: { base: 0xf0a04b, light: 0xffe2b8, dark: 0xb5652a, accent: 0xff7a3d } },
+  'coat.clem.snowpaw': { hero: 'clem', name: 'Snowpaw coat', coat: { base: 0xf4f1ec, light: 0xffffff, dark: 0xb9c3cf, accent: 0x8fc8ff } },
+  'coat.sage.midnight': { hero: 'sage', name: 'Midnight coat', coat: { base: 0x3a3f5c, light: 0x8a90b8, dark: 0x1f2236, accent: 0x9be3c4 } },
+  'coat.sage.sunrise': { hero: 'sage', name: 'Sunrise coat', coat: { base: 0xffc58a, light: 0xfff0dc, dark: 0xd98a4a, accent: 0xff8fb1 } },
+  'coat.brutus.ember': { hero: 'brutus', name: 'Ember coat', coat: { base: 0x8a3b2a, light: 0xe8a07a, dark: 0x4a1d14, accent: 0xffb347 } },
+  'coat.cacklejaw.spotted': { hero: 'cacklejaw', name: 'Spotted coat', coat: { base: 0xc9a26b, light: 0xf2dcb4, dark: 0x5a4028, accent: 0xb07cff } },
+  'coat.cacklejaw.dusk': { hero: 'cacklejaw', name: 'Dusk coat', coat: { base: 0x6a5a8a, light: 0xc0b0e0, dark: 0x352a4a, accent: 0xffd34d } },
+});
 export const breedCoatId = (b: StarterBreed): string => `coat.breed.${b}`;
 
 /** The coats a hero can wear, default first. */
 export function wardrobe(hero: HeroId, o: Owned): CoatOption[] {
   const out: CoatOption[] = [{ id: null, name: 'Classic', from: 'default' }];
   if (hero === 'brutus' && o.unlocks.has(FREE_BISCUIT)) out.push({ id: FREE_BISCUIT, name: 'Biscuit coat', from: 'free' });
+  for (const [id, f] of Object.entries(FREE_COATS)) if (f.hero === hero && o.unlocks.has(id)) out.push({ id, name: f.name, from: 'free' });
   if (hero === 'clem' && o.items.has('skin.clem.pink_bow')) out.push({ id: 'skin.clem.pink_bow', name: 'Pink Bow Clem', from: 'store' });
   if (o.items.has(`coat.founder.${hero}`)) out.push({ id: `coat.founder.${hero}`, name: 'Founder coat', from: 'store' });
   if (hero === 'clem' && o.items.has('skin.clem.dawnblade')) out.push({ id: 'skin.clem.dawnblade', name: 'Dawnblade Clem', from: 'store' });
@@ -124,7 +139,8 @@ export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | nul
   const chromas = o.roster.chromas;
   let chroma: Element | null;
   if (chosen && chosen.chroma !== undefined && (chosen.chroma === null || chromas.includes(chosen.chroma))) chroma = chosen.chroma;
-  else chroma = chromas[0] ?? null;
+  // round 0: the first squad mate's element (the newest adoption or the chosen squad), not the first in ELEMENTS order
+  else chroma = o.roster.companions.find((c) => chromas.includes(c.element))?.element ?? chromas[0] ?? null;
   return { coat, chroma };
 }
 
@@ -134,11 +150,14 @@ export const FRAME_NAME: Readonly<Record<FrameId, string>> = Object.freeze({
   'frame.rare': 'Rare frame',
   'frame.epic': 'Epic frame',
   'frame.legendary': 'Legendary frame',
+  'frame.buddy': 'Buddy frame',
+  'frame.crew': 'Crew frame',
+  'frame.clowder': 'Clowder frame',
   'frame.founder': 'Founder frame',
   'frame.legend': 'Legend frame',
 });
 
-/** Best frame owned: Legend > Founder > Legendary > Epic > Rare, or null. */
+/** Best frame owned: Legend > Founder > the best roster frame (meta/roster.ts FRAME_ORDER, pack cats excluded), or null. */
 export function bestFrame(o: Owned): FrameId | null {
   if (o.items.has('frame.legend')) return 'frame.legend';
   if (o.items.has('frame.founder')) return 'frame.founder';
@@ -169,6 +188,8 @@ export function lookCoat(hero: HeroId, l: Look): Coat | null {
     const b = id.slice('coat.breed.'.length) as StarterBreed;
     return CAT_HEROES.includes(hero) && BREED_COAT[b] ? BREED_COAT[b] : null;
   }
+  const free = FREE_COATS[id];
+  if (free) return free.hero === hero ? free.coat : null;
   if (id === FREE_BISCUIT && hero === 'brutus') return { base: 0xc98a4b, light: 0xfbe6c4, dark: 0x7a4a24, accent: 0x7a4a24 };
   if (id === 'skin.clem.pink_bow' && hero === 'clem') return { base: 0xffb3c4, light: 0xfff4f6, dark: 0xe5788f, accent: 0xff6f91 };
   if (id === 'skin.clem.dawnblade' && hero === 'clem') return { base: 0xfff0d0, light: 0xffffff, dark: 0xf0b84a, accent: 0xffd34d };

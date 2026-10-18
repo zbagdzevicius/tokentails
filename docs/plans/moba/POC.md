@@ -241,22 +241,24 @@ y=0  └────────────────────────
 | Element | Position (m), Purrhaven side | Numbers |
 |---|---|---|
 | Fountain | (3, 30), radius 4 | Heals 10% max HP a second; shoots enemies inside (500 dmg a second) |
-| Core | (10, 30) | HP 4,000, armour 50, shoots (120 dmg, range 7 m, every 1.0 s); invulnerable until one inner tower falls |
+| Core | (10, 30) | HP 3,000 (sim v4; Normal × 1.3), armour 50, shoots (120 dmg, range 7 m, every 1.0 s); invulnerable until one inner tower falls |
 | Sunny Lane waypoints | (10,30) (16,44) (22,50) (50,53) | Mirrored to the Woof core. Lane width 8 m |
 | Puddle Lane waypoints | (10,30) (16,16) (22,10) (50,7) | Mirrored |
-| Inner towers | (20, 48) Sunny, (20, 12) Puddle | HP 3,000, armour 50, range 7 m, attack every 1.0 s; invulnerable until that lane's outer falls |
-| Outer towers | (34, 51) Sunny, (34, 9) Puddle | HP 2,500, armour 40, range 7 m, attack every 1.0 s |
-| Rat camp | (30, 30) | 2 rats, each HP 450, dmg 25, leash 8 m; 70 XP total; first at 1:00, respawn 60 s |
+| Inner towers | (20, 48) Sunny, (20, 12) Puddle | HP 2,200 (sim v4; Normal × 1.35), armour 50, range 7 m, attack every 1.0 s; invulnerable until that lane's outer falls |
+| Outer towers | (34, 51) Sunny, (34, 9) Puddle | HP 1,800 (sim v4; Normal × 1.35), armour 40, range 7 m, attack every 1.0 s |
+| Rat camp | (30, 30) | 2 rats, each HP 450, dmg 25, leash 8 m; 70 XP total; first at 0:30, respawn 60 s; clearing it gives the team +15% damage for 45 s (sim v4) |
 | Catnip Bushes | (40, 44) and (40, 16), each 3 × 6 m | 2 per side, 4 total |
-| Gate barrier | x = 8 m line | Up for the first 10 s |
-| Pudding | (50, 30), shared | Calm meter 5,000 (filled by damage); does not attack; every 4 s a "scared hop" knockback ring 4 m (0.8 s telegraph); first 5:00, respawn 2:30 |
+| Gate barrier | x = 8 m line | Up for the first 3 s (sim v4; 10 s before) |
+| Pudding | (50, 30), shared | Calm meter 2,500 (sim v4; 5,000 before; filled by damage); does not attack; every 4 s a "scared hop" knockback ring 4 m (0.8 s telegraph); first 2:30, respawn 2:00 after the escort leaves |
 | Nav grid | 1 m cells, 100 × 60 | Baked by `bake-map.mjs` from `data/map.ts` |
 
 Travel at 5 m/s: fountain to river about 9 s, fountain to the enemy outer tower about 13 s.
 
 **Tower rules:**
 - Targets the nearest enemy minion. Switches to an enemy hero that damages an allied hero in range.
-- Damage to heroes 150, +25% for each consecutive hit on the same hero, capped at +100%. Damage to minions 110 (a melee minion dies in 3 hits).
+- Damage to heroes 90, +20% for each consecutive hit on the same hero, capped at +60% (sim v4; 150 / 25% / 100% before). Damage to minions 110 (a melee minion dies in 3 hits).
+- **Lock-on (sim v4):** a tower or core that switches to a hero marks it for 1.2 s first (a `windup` event, slot 4, drawn as a red line) and fires only after that; a hero that leaves range during the lock-on is not shot. Rookie: the first hit on a level 1 to 2 hero of the human's team knocks it back 3 m.
+- A fallen tower gives every living hero of the team that took it 120 XP (sim v4).
 - **Backdoor protection:** takes 50% less damage from heroes when no minion of the attacker's team is within 8 m.
 
 **Pudding's Courage:** the team that fills the calm meter gets Pudding as an escort for its next wave in the lane with the most enemy towers left (tie: Sunny). Escort Pudding has 3,000 HP, breathes on towers in 7 m for 200 damage every 2 s, and leaves when the wave dies or the enemy deals 3,000 damage to him.
@@ -269,15 +271,18 @@ Travel at 5 m/s: fountain to river about 9 s, fountain to the enemy outer tower 
 
 ### 6.1 Shared rules
 
-- Levels 1 to 10. XP to reach level n (cumulative): 0, 120, 300, 540, 840, 1,200, 1,620, 2,100, 2,640, 3,240.
+- Levels 1 to 10. XP to reach level n (cumulative, sim v4): 0, 60, 200, 360, 580, 860, 1,200, 1,600, 2,060, 2,580 (v3: 0, 120, 300, 540, 840, 1,200, 1,620, 2,100, 2,640, 3,240). Every living hero also gets 2 XP a second from the first wave on. A level-up heals 30% of max HP.
 - Ultimate unlocks at level 4. Abilities scale per level as listed.
 - Talents at levels 3, 6 and 9 (two options each; bots take the first).
-- Respawn: 4 s + 0.8 s × level, capped at 12 s. ×1.5 after Sunset.
-- Kill XP: 100 + 20 × victim level, +25 per victim streak step (max +100). Shared equally among heroes within 10 m; assists count if they hit the victim in the last 6 s.
-- Minion XP: melee 30, ranged 25, siege 60, shared among heroes within 10 m. Catch-up: +20% if the team's total level is behind.
+- Respawn (sim v4): 3 s + 0.6 s × level, capped at 9 s, and at most 4 s before 2:00; × 1.25 after Sunset. Rookie: the human × 0.6, the enemy bots × 1.5. Zoomies: +80% move speed for 6 s after leaving the fountain or respawning, ended by damage.
+- Kill XP (sim v4): 80 + 15 × victim level; bounty +20 per streak step from a 3-takedown streak (max +80, a `bounty` event; killing that hero sends `shutdown`). Shared equally among heroes within 10 m; assists count if they hit the victim in the last 10 s (Rookie and Easy: any ally within 10 m counts). Every credited hero gets 40% of its max HP back.
+- Minion XP: melee 30, ranged 25, siege 60, shared among heroes within 10 m. Catch-up per hero (sim v4): +25% XP from every source for each level beyond the first that the hero is below the enemy average, at most +75%; a victim more than 1 level above its killer gives +50% kill XP.
+- Nine Lives (sim v4): damage beyond 28% of max HP within 1 s is reduced by 95% (a `buff` flash at most once every 15 s).
+- Pickups (sim v4): Frenzy Catnip pairs on the river from 0:45, every 30 s (+25% damage, +20% speed for 8 s, 20% HP back); a Fish Snack per team behind its outer tower from 0:30, every 30 s (35% HP, refreshes Zoomies). At most 4 at once.
 - Nap (recall): 4 s channel, broken by damage.
 - Damage: `idiv(dmg × 100, 100 + armour)`.
-- Regen 1% max HP a second out of combat (no damage for 5 s).
+- Regen 3% max HP a second out of combat (no damage from an enemy hero for 3 s; sim v4, 1% after 5 s before).
+- Hero damage to enemy heroes × 1.3 (sim v4, `HERO_VS_HERO_BP`); hero HP is unchanged.
 
 ### 6.2 Base stats
 
@@ -371,7 +376,8 @@ Talents: L3 *Long Jeer* (Q 5.5 m) or *Cruel Jeer* (Q recast slows 30% for 1 s). 
 | Ranged Cadet / Trooper | 220 | 20 | 1.4 s | 5.0 m | 3.6 | 5 | 25 |
 | Yarn Catapult / Bone Cart (siege) | 700 | 40 (×2 vs towers) | 2.0 s | 6.0 m | 3.2 | 30 | 60 |
 
-- Waves every 25 s from 0:30: 2 melee + 1 ranged per lane. From 3:00 every 3rd wave adds 1 siege.
+- Waves every 20 s from 0:08 (sim v4; every 25 s from 0:30 before): 2 melee + 1 ranged per lane. From 2:00 every 3rd wave adds 1 siege.
+- Underdog waves (sim v4): a team 3+ towers or 8+ takedowns behind gets +10% minion HP on its next 2 waves (a `comeback` event; not for the enemy on Rookie).
 - Minion HP grows 3% a minute (integer bp, applied at spawn).
 - Owned Token Tails cats replace up to 2 Kitten Cadet skins per wave as Companion Kittens (cosmetic only; the player's team only; never in the sim).
 
@@ -379,14 +385,19 @@ Talents: L3 *Long Jeer* (Q 5.5 m) or *Cruel Jeer* (Q recast slows 30% for 1 s). 
 
 Utility AI scored every 6 ticks (staggered by slot), inside the sim. Actions: farm lane (last-hit priority), trade with the lane opponent, retreat, nap, take the rat camp, contest Pudding, defend a tower, group for a teamfight. Abilities are cast when the shape covers a target (integer port of the `planAbility()` heuristics in `swordcat/src/companions/abilityAim.js`). Bots never read the stealth flag or the position of a unit hidden in brush; the sim exposes to bots only what `snapshot(team)` would show.
 
-| Parameter | Easy | Normal |
-|---|---|---|
-| Reaction delay | 18 ticks (0.6 s) | 9 ticks |
-| Skillshot aim error (seeded) | ±20° | ±10° |
-| Mistake rate (miss a last-hit, chase too far, ignore a gank) | 25% | 10% |
-| Retreat threshold | 25% HP | 30% HP |
-| Uses Paw Trick | never | defensive only |
-| Contests Pudding | rarely | yes |
+| Parameter | Rookie (match 1, sim v4) | Easy | Normal |
+|---|---|---|---|
+| Reaction delay | 30 ticks (1.0 s) | 18 ticks (0.6 s) | 9 ticks |
+| Skillshot aim error (seeded) | ±35° | ±20° | ±10° |
+| Mistake rate (miss a last-hit, chase too far, ignore a gank) | 35% | 25% | 10% |
+| Retreat threshold | 12% HP | 8% HP | 12% HP |
+| Uses Paw Trick | never | never | defensive only |
+| Contests Pudding | rarely | rarely | yes |
+| Groups from | 3:30 | 4:30 | 3:55 |
+
+**Sim v4 difficulty rules (`DIFFICULTY_RULES` in `src/data/bots.ts`).** Rookie is match 1 only: the human's two allies "carry" (they follow its lane, peel for it, and stop hitting an enemy hero below 25% HP when the human is within 8 m and fighting it), slot 3 walks into Sunny Lane at 0:15 for the first fight, the human deals × 1.4 and takes × 1.15, regenerates × 4 out of combat, and each takedown it takes part in gives its minions +11% (up to 8). Easy also has carry allies and near-assists; its cores open at 6:00. Normal towers have × 1.35 HP and cores × 1.3, and a grouped Normal team 3 or more ahead (takedowns + 3 per tower) turns back to defend a raided lane only when it outnumbers the raiders (`pressAhead`), so a lead becomes a push: without it the trailing team won 40% to 42% of matches, with it 33.7%.
+
+**The naive player-bot (sim v4, `src/sim/bots/naive.ts`, `NAIVE` in `src/data/bots.ts`).** The fun gates' stand-in for a first-timer: it acts through commands only, attack-moves to the nearest enemy hero within 15 m, chases up to 18 m, casts Q, E and R when ready with ±25° aim error, walks home below 20% HP, never naps or uses its Paw Trick, takes a pickup within 6 m, hesitates 0.5 to 2 s in 5% of thinks, and takes talent 1.
 
 **Tuning targets:** a scripted novice player-bot (`npm run match -- --profile novice`) beats Easy bots about 90% of the time and Normal bots 40% to 60% of the time.
 
@@ -399,13 +410,14 @@ Utility AI scored every 6 ticks (staggered by slot), inside the sim. Actions: fa
 | Time | Ticks | Event |
 |---|---|---|
 | 0:00 | 0 | Spawn, gate barrier |
-| 0:10 | 300 | Barrier drops |
-| 0:30 | 900 | First wave |
-| 1:00 | 1,800 | Rat camps up |
-| 3:00 | 5,400 | Siege units start |
-| 5:00 | 9,000 | Pudding |
-| 8:00 | 14,400 | **Sunset**: towers and cores take +40% damage, respawn ×1.5, minions +25% dmg |
-| 10:00 | 18,000 | **Sudden Death**: cores lose 2% max HP a second; each takedown deals 10% core damage to the victim's core |
+| 0:03 | 90 | Barrier drops (sim v4) |
+| 0:08 | 240 | First wave, then every 20 s |
+| 0:30 | 900 | Rat camps up, first Fish Snacks |
+| 0:45 | 1,350 | First Frenzy Catnip pair |
+| 2:00 | 3,600 | Siege units start |
+| 2:30 | 4,500 | Pudding |
+| 5:00 (Rookie 4:00) | 9,000 (7,200) | **Sunset**: towers and cores take double damage, respawn × 1.25, minions +25% dmg; each takedown deals 15% core damage to the victim's core |
+| 7:00 (Rookie 6:15) | 12,600 (11,250) | **Sudden Death**: cores lose 3% max HP a second; each takedown deals 10% core damage to the victim's core |
 | 11:00 | 19,800 | **Safety end**: lower core HP loses; tie-break total tower damage dealt; then a seeded coin |
 
 **Vision in the POC:** no fog of war (the whole map is visible). The brush rule is real: a unit in a Catnip Bush is absent from the other team's snapshot unless an enemy is within 2 m or in the same bush. `snapshot(team)` already filters, so adding the fog grid in the MVP changes one function.
@@ -611,7 +623,7 @@ PostHog, consent-gated (`bad-cat/src/platform/posthog.ts`); no event before cons
 | **M0** | 1 to 2 (Thu Oct 22 to Fri Oct 23) | Package scaffold; `fixed.ts`, `rng.ts`, `hash.ts`, `world.ts`; `lint:sim` | `lift-ppk.mjs` lifts camera, input, touch, FX, HUD bits with provenance headers; empty map renders with IsoRig; budget gate; crash overlay; host page stub with bridge handshake | `npm run build && npm run budget` green; `lint:sim` green; the iframe loads in `/pawlegends` locally |
 | **M1** | 3 to 6 (Oct 26 to 29) | Map data, lanes, waves, towers, cores, win; commands and replay; `headless-match.mjs`; Worker + protocol | Renderer consumes snapshots (minions, towers); desktop input → commands; HUD skeleton; backend module skeleton, SKU table, Stripe test checkout and webhook | A minions-only match ends with a core kill; same seed gives the same hash twice in Node and in the Worker; a Stripe test purchase grants once |
 | **M2** | 7 to 10 (Oct 30 to Nov 4) | 18 primitives; 4 kits, talents, Paw Tricks; XP, levels, respawn; `verifyReplay` + vendor-sim | Hero bake (or the §6.9 fallback by day 8); telegraphs and indicators; touch cluster; entitlements bridge and cosmetics; `GameType.PAWLEGENDS` touch points (§3.1); `/live` branch in a worker | Each hero's unit test matches §6; a full human-vs-idle match plays at 60 fps desktop; a genuine replay saves once and a tampered one is refused |
-| **M3** | 11 to 13 (Nov 5 to 9) | Bots Easy and Normal; rat camp, Pudding, brush, timeline rails; balance batch | First-match tips, results, dare link, roster cosmetics; offer engine, age bands, caps, restore, terms page, notify-me; copy-lint target | 500 Normal-vs-Normal matches: median 7:00 to 9:00, 100% end by 11:00, side win rate 45% to 55%, each hero 42% to 58%; novice beats Easy ≥ 85%; buy → return → item visible in the next match |
+| **M3** | 11 to 13 (Nov 5 to 9) | Bots Easy and Normal; rat camp, Pudding, brush, timeline rails; balance batch | First-match tips, results, dare link, roster cosmetics; offer engine, age bands, caps, restore, terms page, notify-me; copy-lint target | 2,000 Normal-vs-Normal matches: median 6:00 to 8:00, p95 ≤ 8:30, no safety end, ≥ 70% core kill before Sudden Death, side win rate 45% to 55%, each hero 42% to 58%, takedowns 2.5 to 3.5 a minute, trailing at 3:30 wins 30% to 40%; the fun1 and fun2 gates (§15 item 12); novice beats Easy ≥ 85%; buy → return → item visible in the next match |
 | **M4** | 14 to 15 (Nov 10 to 11) | Tuning pass from the playtest | Device perf runs; 10-person playtest; trademark search result; Stripe live mode; PostHog dashboards for every gate metric | All acceptance tests in §15 pass; launch post and distribution tranche 1 on Thu Nov 12 |
 
 If a milestone slips, cut in this order before moving the launch: talents at L9 (keep L3 and L6), Pudding's escort (keep the calm race and give team XP instead), the upgrade SKU, the dare link.
@@ -633,8 +645,12 @@ The POC is done when every item passes.
 8. `towers.test.ts`: aggro switches to a hero that hits an allied hero; inner and core invulnerability; backdoor protection; ramp cap.
 9. `brush.test.ts`: a unit in a bush is absent from the other team's snapshot unless an enemy is within 2 m or in the same bush; bots never target an absent unit.
 10. `heroes/*.test.ts`: every number in §6 matches the data and behaves as listed (cooldowns, damage, CC durations, talents).
-11. `balance.test.ts` (nightly, 2,000 seeds): median 7:00 to 9:00, p95 ≤ 10:30, 100% end by 11:00; side win rate 45% to 55%; each hero 42% to 58%.
-12. `bots.test.ts`: novice profile beats Easy ≥ 85% and Normal 40% to 60%.
+11. `balance.test.ts` (nightly) and `npm run match -- --gate balance` (2,000 seeds, sim v4): median 6:00 to 8:00, p95 ≤ 8:30, no safety end, ≥ 70% end by a core kill before Sudden Death; side win rate 45% to 55%; each hero 42% to 58%; takedowns 2.5 to 3.5 a minute; a team trailing at 3:30 (takedown difference + 3 per tower ≥ 3) wins 30% to 40%.
+12. Bot gates (`npm run match -- --gate <name>`, 200 seeds unless noted, each also with `--check-determinism`):
+    - `fun1` (match 1: `--profile naive --difficulty rookie --hero random`): win ≥ 85%; player deaths median ≤ 3, p90 ≤ 4; tower deaths mean ≤ 1; player takedowns median ≥ 5; first player takedown < 60 s in ≥ 80% of matches; first fight with a hero median ≤ 25 s; the match's first takedown median ≤ 40 s; Level 2 median ≤ 0:30, Level 4 median ≤ 2:00 (p90 ≤ 2:30); length median 5:00 to 6:00, p95 ≤ 7:00; ≥ 85% end by a core kill before Sudden Death; time in action ≥ 60%; big-moment gap median ≤ 30 s, longest gap per match median ≤ 45 s (p90 ≤ 60 s); back in the fight median ≤ 12 s; worst 1 s HP loss p99 ≤ 35%; 90%-to-dead median 5 to 6 s, p10 ≥ 3 s.
+    - `fun2` (match 2+: `--profile naive --difficulty easy`): win 70% to 80%; deaths median ≤ 4; takedowns median ≥ 4; Level 4 median ≤ 2:15; length median 6:00 to 7:30; takedowns 2.5 to 3.5 a minute; level gap to the enemy average at 5:00 median ≤ 1.
+    - `novice` (400 seeds): the novice profile beats Easy ≥ 85% and Normal ≥ 40% (`--difficulty normal`).
+    - `idle` (`--profile idle --difficulty rookie`): win ≤ 50% (doing nothing must not reliably win).
 13. `protocol.test.ts`: every message type round-trips; the Worker and a mock WebSocket transport produce identical snapshot streams for the same seed.
 
 **Backend (jest)**

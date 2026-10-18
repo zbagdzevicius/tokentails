@@ -19,7 +19,7 @@ describe('bot nap safety (napSafeRange)', () => {
       m.world.globals[G.BotsOff] = 0;
       const w = m.world;
       place(m, BOT, AT.x, AT.y);
-      w.hp[BOT] = Math.trunc(w.maxHp[BOT] / 20);
+      w.hp[BOT] = Math.trunc(w.maxHp[BOT] / 50); // 2%: under BOT_AI.retreatAlwaysBp of the retreat line (sim v4)
       for (const s of [0, 1, 2]) {
         if (s === near) place(m, s, AT.x - BOT_AI.napSafeRange / 2, AT.y);
         else place(m, s, 8000, 8000);
@@ -41,7 +41,7 @@ describe('bot nap safety (napSafeRange)', () => {
     m.world.globals[G.BotsOff] = 0;
     const w = m.world;
     place(m, BOT, AT.x, AT.y);
-    w.hp[BOT] = Math.trunc(w.maxHp[BOT] / 20);
+    w.hp[BOT] = Math.trunc(w.maxHp[BOT] / 50); // 2%: under BOT_AI.retreatAlwaysBp of the retreat line (sim v4)
     for (const s of [0, 1, 2]) {
       place(m, s, 8000, 8000);
       hold(m, s);

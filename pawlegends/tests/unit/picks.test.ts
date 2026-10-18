@@ -2,21 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { createMatch, fillPicks, snapshot } from '../../src/sim/index';
 
 describe('fillPicks and createMatch (§6.8)', () => {
-  it('keeps the human pick, no duplicates within a team, stable per seed', () => {
-    for (let seed = 0; seed < 300; seed++) {
-      const { picks, tricks } = fillPicks(seed, 'cacklejaw', 'hiss');
-      expect(picks[0]).toBe('cacklejaw');
-      expect(tricks[0]).toBe('hiss');
-      expect(new Set(picks.slice(0, 3)).size).toBe(3);
-      expect(new Set(picks.slice(3)).size).toBe(3);
-      expect(fillPicks(seed, 'cacklejaw', 'hiss')).toEqual({ picks, tricks });
+  it('keeps the human pick, species teams (sim v5: cats vs dogs, each side hero at least once), stable per seed', () => {
+    for (const human of ['cacklejaw', 'clem'] as const) {
+      const own = human === 'clem' ? ['clem', 'sage'] : ['brutus', 'cacklejaw'];
+      const other = human === 'clem' ? ['brutus', 'cacklejaw'] : ['clem', 'sage'];
+      for (let seed = 0; seed < 300; seed++) {
+        const { picks, tricks } = fillPicks(seed, human, 'hiss');
+        expect(picks[0]).toBe(human);
+        expect(tricks[0]).toBe('hiss');
+        expect(new Set(picks.slice(0, 3))).toEqual(new Set(own));
+        expect(new Set(picks.slice(3))).toEqual(new Set(other));
+        expect(fillPicks(seed, human, 'hiss')).toEqual({ picks, tricks });
+      }
     }
   });
   it('validates configs', () => {
     const { picks, tricks } = fillPicks(1, 'clem', 'pounce');
     expect(() => createMatch({ seed: -1, picks, tricks, difficulty: 'easy' })).toThrow();
     expect(() => createMatch({ seed: 1, picks: picks.slice(0, 5), tricks, difficulty: 'easy' })).toThrow();
-    expect(() => createMatch({ seed: 1, picks: ['clem', 'clem', 'sage', ...picks.slice(3)], tricks, difficulty: 'easy' })).toThrow();
+    expect(() => createMatch({ seed: 1, picks: ['clem', 'tabby' as 'clem', 'sage', ...picks.slice(3)], tricks, difficulty: 'easy' })).toThrow();
+    // Sim v5: a team may field a hero twice (2 heroes a side for 3 slots).
+    expect(() => createMatch({ seed: 1, picks: ['clem', 'clem', 'sage', ...picks.slice(3)], tricks, difficulty: 'easy' })).not.toThrow();
   });
   it('places 6 heroes, 8 towers, 2 cores and 2 fountains, mirrored', () => {
     const { picks, tricks } = fillPicks(1, 'clem', 'pounce');

@@ -7,25 +7,26 @@ import type { MatchClock, MatchPhase } from './api';
 import { idiv } from './fixed';
 import { TICK_HZ } from '../data/timeline';
 
-export function phaseAt(tick: number, ended: boolean): MatchPhase {
+/** Phase at `tick`; `sunset` and `suddenDeath` are the match's own (by difficulty, data/timeline.ts TIMELINE_BY). */
+export function phaseAt(tick: number, ended: boolean, sunset: number = TIMELINE.sunset, suddenDeath: number = TIMELINE.suddenDeath): MatchPhase {
   if (ended) return 'ended';
   if (tick < TIMELINE.barrierDrop) return 'gate';
-  if (tick < TIMELINE.sunset) return 'play';
-  if (tick < TIMELINE.suddenDeath) return 'sunset';
+  if (tick < sunset) return 'play';
+  if (tick < suddenDeath) return 'sunset';
   return 'suddenDeath';
 }
 
-function nextPhaseTick(tick: number): number {
+function nextPhaseTick(tick: number, sunset: number, suddenDeath: number): number {
   if (tick < TIMELINE.barrierDrop) return TIMELINE.barrierDrop;
-  if (tick < TIMELINE.sunset) return TIMELINE.sunset;
-  if (tick < TIMELINE.suddenDeath) return TIMELINE.suddenDeath;
+  if (tick < sunset) return sunset;
+  if (tick < suddenDeath) return suddenDeath;
   if (tick < TIMELINE.safetyEnd) return TIMELINE.safetyEnd;
   return 0;
 }
 
-export function clockAt(tick: number, ended: boolean): MatchClock {
-  const next = ended ? 0 : nextPhaseTick(tick);
-  return { tick, seconds: idiv(tick, TICK_HZ), phase: phaseAt(tick, ended), nextPhaseIn: next === 0 ? 0 : next - tick };
+export function clockAt(tick: number, ended: boolean, sunset: number = TIMELINE.sunset, suddenDeath: number = TIMELINE.suddenDeath): MatchClock {
+  const next = ended ? 0 : nextPhaseTick(tick, sunset, suddenDeath);
+  return { tick, seconds: idiv(tick, TICK_HZ), phase: phaseAt(tick, ended, sunset, suddenDeath), nextPhaseIn: next === 0 ? 0 : next - tick };
 }
 
 /** Is a minion wave due at `tick`, and does it carry a siege unit? (−1 none, 0 plain, 1 with siege.) */

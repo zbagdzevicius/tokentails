@@ -9,7 +9,7 @@ import { useEffect } from "react";
 /** `/pawlegends` meta. `noindex` until the trademark search passes (POC.md §11.4); left out of the sitemap. */
 export const PAWLEGENDS_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} - Token Tails`,
-  description: `${PAWLEGENDS_SUBTITLE}. Nine-minute matches in your browser, no download.`,
+  description: `${PAWLEGENDS_SUBTITLE}. Six-minute matches in your browser, no download.`,
   path: "/pawlegends",
 });
 

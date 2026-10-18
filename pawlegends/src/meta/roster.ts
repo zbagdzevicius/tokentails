@@ -1,16 +1,22 @@
 /**
  * Host roster → cosmetics (POC.md §11.1, GDD "your cats in the game"). The host sends the signed-in player's Token
- * Tails cats as `roster{cats[]}`: `{id, name, type, tier, isStarter, starterBreed?, origin?}`. Render only, never in
- * a replay or the hash, and owned cats show in app builds too (they are not Pawlegends purchases).
+ * Tails cats as `roster{cats[]}`: `{id, name, type, tier, isStarter, starterBreed?, origin?, art?, catalogId?}`.
+ * Render only, never in a replay or the hash. In app builds the host sends only starter and redeemed cats; the game
+ * filters the same way again (`setAppBuild`), so a stray paid cat never shows there.
  *
  * - every cat of element X → the X chroma, usable on every hero
- * - tier → frames: RARE → Rare frame, EPIC → Epic frame, LEGENDARY → Legendary frame (the best one is worn)
+ * - tier → frames, for cats not from a pack only (decision #19: no frame depends on pack luck): RARE → Rare frame,
+ *   EPIC → Epic frame, LEGENDARY → Legendary frame
+ * - collection frames, deterministic: 1, 3 and 5 distinct named cats (not starter, not pack) → Buddy, Crew and
+ *   Clowder frames. The best frame owned is worn.
  * - a starter cat with a `starterBreed` → that breed's free coat on every cat hero
- * - the first two cats walk with the player's waves as Companion Kittens and nap at the fountain; the coat comes
- *   from `starterBreed`, else a stable hash of the cat id into 8 preset coats (owned cats carry no breed)
+ * - two cats walk with the player's waves as Companion Kittens and nap at the fountain: first the `prefer` ids (the
+ *   cat just adopted, then the squad the player chose on the pick screen; meta/squad.ts), then starters, then
+ *   roster order. The coat comes from `starterBreed`, else a stable hash of the cat id into 8 preset coats
  *
  * Tier sets frames and effect intensity only; nothing here changes a number in the match.
  */
+import { cleanArt, cleanCatalogId } from '../embed/bridge';
 
 export const ELEMENTS = Object.freeze(['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR'] as const);
 export type Element = (typeof ELEMENTS)[number];
@@ -42,7 +48,21 @@ export interface RosterCat {
   isStarter: boolean;
   starterBreed?: StarterBreed;
   origin?: string;
+  /** Card art (allowlisted CDN only, embed/bridge.ts `cleanArt`). */
+  art?: string;
+  /** The catalog cat this one was adopted from (24 hex). */
+  catalogId?: string;
 }
+
+/** Origins an app build may show (Apple 3.1.3(b): nothing bought on the web). */
+export const APP_ORIGINS: readonly string[] = Object.freeze(['starter', 'redeem']);
+
+let appBuild = false;
+/** The host said this is an app build: `parseRoster` keeps starter and redeemed cats only from now on. */
+export function setAppBuild(isApp: boolean): void {
+  appBuild = isApp;
+}
+export const isAppBuild = (): boolean => appBuild;
 
 export const ROSTER_MAX = 24;
 export const COMPANION_MAX = 2;
@@ -59,8 +79,9 @@ export function cleanName(v: unknown): string | null {
   return s ? s.slice(0, 24) : null;
 }
 
-/** Untrusted `roster.cats` → valid cats, de-duplicated, at most ROSTER_MAX. */
-export function parseRoster(v: unknown): RosterCat[] {
+/** Untrusted `roster.cats` → valid cats, de-duplicated, at most ROSTER_MAX (app builds: starter and redeem only). */
+export function parseRoster(v: unknown, opts: { isApp?: boolean } = {}): RosterCat[] {
+  const isApp = opts.isApp ?? appBuild;
   if (!Array.isArray(v)) return [];
   const out: RosterCat[] = [];
   const seen = new Set<string>();
@@ -76,6 +97,11 @@ export function parseRoster(v: unknown): RosterCat[] {
     const cat: RosterCat = { id, name, type: c.type as Element, tier: c.tier as CatTier, isStarter: c.isStarter === true };
     if ((STARTER_BREEDS as readonly unknown[]).includes(c.starterBreed)) cat.starterBreed = c.starterBreed as StarterBreed;
     if ((CAT_ORIGINS as readonly unknown[]).includes(c.origin)) cat.origin = c.origin as string;
+    if (isApp && !(cat.origin && APP_ORIGINS.includes(cat.origin)) && !(cat.isStarter && cat.origin === undefined)) continue;
+    const art = cleanArt(c.art);
+    if (art) cat.art = art;
+    const catalogId = cleanCatalogId(c.catalogId);
+    if (catalogId) cat.catalogId = catalogId;
     out.push(cat);
   }
   return out;
@@ -91,7 +117,16 @@ export function stableIndex(id: string, n: number): number {
   return h % n;
 }
 
-export type TierFrame = 'frame.rare' | 'frame.epic' | 'frame.legendary';
+export type TierFrame = 'frame.rare' | 'frame.epic' | 'frame.legendary' | CollectionFrame;
+export type CollectionFrame = 'frame.buddy' | 'frame.crew' | 'frame.clowder';
+/** Collection frames by distinct named cats owned. */
+export const COLLECTION_FRAMES: readonly (readonly [number, CollectionFrame])[] = Object.freeze([
+  [1, 'frame.buddy'],
+  [3, 'frame.crew'],
+  [5, 'frame.clowder'],
+] as const);
+/** Every roster frame, worst first (bestFrame wears the last one owned). */
+export const FRAME_ORDER: readonly TierFrame[] = Object.freeze(['frame.buddy', 'frame.rare', 'frame.crew', 'frame.epic', 'frame.clowder', 'frame.legendary']);
 
 export interface Companion {
   id: string;
@@ -100,6 +135,8 @@ export interface Companion {
   tier: CatTier;
   /** A breed coat, or a preset index 0..KITTEN_COATS-1. */
   coat: StarterBreed | number;
+  /** Card art (UI only; the 3D kitten uses `coat`). */
+  art?: string;
 }
 
 export interface RosterCosmetics {
@@ -110,30 +147,57 @@ export interface RosterCosmetics {
   /** Breed coats for the cat heroes (from starter cats). */
   breedCoats: StarterBreed[];
   companions: Companion[];
+  /** Every owned cat as a squad candidate (pick screen swap), companions first. */
+  cats: Companion[];
   /** Number of cats (offer input). */
   count: number;
+  /** Distinct named cats (not starter, not pack): the collection frame count. */
+  named: number;
+  /** Catalog ids owned (the Meet card never offers one of these). */
+  catalogIds: string[];
 }
+
+/** A named cat: adopted by name (not a starter, not from a pack). Counted once per catalog cat. */
+export const isNamedCat = (c: RosterCat): boolean => !c.isStarter && c.origin !== 'starter' && c.origin !== 'pack';
 
 const TIER_FRAME: Partial<Record<CatTier, TierFrame>> = { RARE: 'frame.rare', EPIC: 'frame.epic', LEGENDARY: 'frame.legendary' };
 
-export function rosterCosmetics(cats: readonly RosterCat[]): RosterCosmetics {
+const asCompanion = (c: RosterCat): Companion => ({ id: c.id, name: c.name, element: c.type, tier: c.tier, coat: c.starterBreed ?? stableIndex(c.id, KITTEN_COATS), ...(c.art ? { art: c.art } : {}) });
+
+/** `prefer`: cat ids or catalog ids that walk first, in order (meta/squad.ts squadPrefs). */
+export function rosterCosmetics(cats: readonly RosterCat[], prefer: readonly string[] = []): RosterCosmetics {
   const els = new Set<Element>();
   const tiers = new Set<CatTier>();
   const breeds = new Set<StarterBreed>();
+  const named = new Set<string>();
+  const catalog = new Set<string>();
   for (const c of cats) {
     els.add(c.type);
-    tiers.add(c.tier);
+    // decision #19: a frame never depends on pack luck
+    if (c.origin !== 'pack') tiers.add(c.tier);
     if (c.starterBreed && (c.isStarter || c.origin === 'starter')) breeds.add(c.starterBreed);
+    if (isNamedCat(c)) named.add(c.catalogId ?? c.id);
+    if (c.catalogId) catalog.add(c.catalogId);
   }
-  // Starters first (the host sorts them first too), then roster order.
-  const ordered = [...cats].sort((a, b) => Number(b.isStarter) - Number(a.isStarter));
+  const frames = new Set<TierFrame>(TIERS.filter((t) => tiers.has(t) && TIER_FRAME[t]).map((t) => TIER_FRAME[t] as TierFrame));
+  for (const [n, f] of COLLECTION_FRAMES) if (named.size >= n) frames.add(f);
+  // Preferred cats first (the newest adoption, then the chosen squad), then starters, then roster order. A cat bought
+  // after the first two never walked before (round 0 blocker: "Luna walks with your waves" was not true).
+  const rank = (c: RosterCat): number => {
+    const k = prefer.findIndex((id) => id === c.id || (!!c.catalogId && id === c.catalogId));
+    return k >= 0 ? k : prefer.length + (c.isStarter ? 0 : 1);
+  };
+  const ordered = cats.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
   return {
     chromas: ELEMENTS.filter((e) => els.has(e)),
-    frames: TIERS.filter((t) => tiers.has(t) && TIER_FRAME[t]).map((t) => TIER_FRAME[t] as TierFrame),
+    frames: FRAME_ORDER.filter((f) => frames.has(f)),
     breedCoats: STARTER_BREEDS.filter((b) => breeds.has(b)),
-    companions: ordered.slice(0, COMPANION_MAX).map((c) => ({ id: c.id, name: c.name, element: c.type, tier: c.tier, coat: c.starterBreed ?? stableIndex(c.id, KITTEN_COATS) })),
+    companions: ordered.slice(0, COMPANION_MAX).map(asCompanion),
+    cats: ordered.map(asCompanion),
     count: cats.length,
+    named: named.size,
+    catalogIds: [...catalog],
   };
 }
 
-export const EMPTY_ROSTER: RosterCosmetics = Object.freeze({ chromas: [], frames: [], breedCoats: [], companions: [], count: 0 }) as RosterCosmetics;
+export const EMPTY_ROSTER: RosterCosmetics = Object.freeze({ chromas: [], frames: [], breedCoats: [], companions: [], cats: [], count: 0, named: 0, catalogIds: [] }) as RosterCosmetics;

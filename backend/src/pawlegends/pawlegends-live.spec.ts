@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, HttpException } from '@nestjs/common';
 import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { Types } from 'mongoose';
 import { isMainThread, threadId as mainThreadId } from 'worker_threads';
 import { GameType } from 'src/game/game.schema';
-import { PAWLEGENDS_LEVEL_CAPS } from 'src/shared-contracts/caps';
+import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { AppValidationPipe } from 'src/user/dto/live-game.dto';
 import { FailedReplayCache } from 'src/user/heist/failed-replay-cache';
@@ -188,7 +190,8 @@ describe('PAWLEGENDS /live branch', () => {
         const easy2 = genuine({ seed: 2, ticks: 13_000 });
         const normal = genuine({ seed: 3, difficulty: 'normal', ticks: 16_000 });
         const lost = genuine({ seed: 4, difficulty: 'normal', outcome: 'lost', finalHash: '00000001' });
-        const { users, userId, save } = setup(easy1, easy2, normal, lost);
+        const rookie = genuine({ seed: 5, difficulty: 'rookie', ticks: 9_000 });
+        const { users, userId, save } = setup(easy1, easy2, normal, lost, rookie);
 
         expect((await save(easy1)).catnipPaid).toBe(PAWLEGENDS_LEVEL_CAPS[0]);
         const second = await save(easy2);
@@ -196,11 +199,13 @@ describe('PAWLEGENDS /live branch', () => {
         expect(second.fastestWin).toBe(13_000);
         expect((await save(lost)).catnipPaid).toBe(0);
         expect((await save(normal)).catnipPaid).toBe(PAWLEGENDS_LEVEL_CAPS[1]);
+        expect((await save(rookie)).catnipPaid).toBe(PAWLEGENDS_LEVEL_CAPS[2]);
 
         const user = users.get(userId);
-        expect(user.pawlegendsCatnip).toEqual({ easy: 20, normal: 40 });
-        expect(user.pawlegendsFastestWin).toEqual({ easy: 13_000, normal: 16_000 });
-        expect(user.pawlegendsMatches).toEqual({ easy: 2, normal: 2 });
+        expect(PAWLEGENDS_LEVELS).toEqual(['easy', 'normal', 'rookie']);
+        expect(user.pawlegendsCatnip).toEqual({ easy: 20, normal: 40, rookie: 10 });
+        expect(user.pawlegendsFastestWin).toEqual({ easy: 13_000, normal: 16_000, rookie: 9_000 });
+        expect(user.pawlegendsMatches).toEqual({ easy: 2, normal: 2, rookie: 1 });
         const total = Object.values(user.pawlegendsCatnip as Record<string, number>).reduce((a, b) => a + b, 0);
         expect(total).toBe(PAWLEGENDS_LEVEL_CAPS.reduce((a, b) => a + b, 0));
     });
@@ -311,6 +316,31 @@ describe('PAWLEGENDS /live branch', () => {
             expect(failure?.code).toMatch(/^PAWLEGENDS_/);
             expect(games.rows).toHaveLength(0);
             expect(users.updates).toHaveLength(0);
+        }, 60_000);
+
+        it('re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once', async () => {
+            // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.
+            const record: PawlegendsReplayRecord = JSON.parse(
+                readFileSync(join(__dirname, '..', 'vendor', 'pawlegends-sim', 'rookie-replay.fixture.json'), 'utf8')
+            );
+            expect(record).toMatchObject({ difficulty: 'rookie', outcome: 'won', simVersion: SIM_VERSION });
+            const users = new FakeUsers();
+            const games = new FakeGames();
+            const userId = users.add({});
+            const deps = {
+                users,
+                games,
+                failures: new FailedReplayCache({ maxEntries: 10, ttlMs: 60_000 }),
+                queue: new ReplayQueue(PAWLEGENDS_REPLAY_QUEUE),
+            };
+            const result = await savePawlegendsMatch(deps, userId, { pawlegends: record as any });
+            expect(result).toMatchObject({ difficulty: 'rookie', outcome: 'won', ticks: record.ticks });
+            expect(result.catnipPaid).toBe(PAWLEGENDS_LEVEL_CAPS[PAWLEGENDS_LEVELS.indexOf('rookie')]);
+            expect(users.get(userId).pawlegendsCatnip).toEqual({ rookie: 10 });
+            expect(games.rows).toHaveLength(1);
+            expect(await codeOf(savePawlegendsMatch(deps, userId, { pawlegends: record as any }))).toMatchObject({
+                status: 409,
+            });
         }, 60_000);
     });
 

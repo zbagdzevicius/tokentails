@@ -5,7 +5,10 @@
  * skillshot flies back the way it came, both owned by the reflector.
  */
 import { MAP } from '../../data/map';
-import { PROJECTILE_KIND } from '../../data/towers';
+import { PROJECTILE_KIND, TOWERS } from '../../data/towers';
+import { HUMAN_SLOT, teamOfSlot } from '../api';
+import { knockback } from '../effects/knockback';
+import { rulesOf } from '../rules';
 import { TICK_HZ } from '../../data/timeline';
 import { applyBp, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -48,7 +51,15 @@ function landBolt(m: MatchHandle, p: number, dst: number): void {
     }
   }
   w.pAlive[p] = 0;
-  dealDamage(m, w.pOwner[p], w.pTeam[p], srcKindOf(w, p), dst, w.pDmg[p], hitKind(w, p));
+  const src = w.pOwner[p];
+  dealDamage(m, src, w.pTeam[p], srcKindOf(w, p), dst, w.pDmg[p], hitKind(w, p));
+  // Rookie (v4): a tower's first hit on a low-level hero of the human's team knocks it back out of reach.
+  const k = w.pKind[p];
+  if ((k === PROJECTILE_KIND.tower || k === PROJECTILE_KIND.core) && src >= 0 && w.kind[dst] === Kind.Hero && w.alive[dst] === 1) {
+    if (rulesOf(m).towerKnockback && w.team[dst] === teamOfSlot(HUMAN_SLOT) && w.level[dst] <= TOWERS.rookieKnockLevel && w.streak[src] === 0) {
+      knockback(m, dst, w.x[src], w.y[src], TOWERS.rookieKnockback, w.facing[dst]);
+    }
+  }
 }
 
 function stepBolt(m: MatchHandle, p: number): void {
