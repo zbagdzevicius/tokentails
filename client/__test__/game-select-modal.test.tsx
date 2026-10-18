@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 /**
- * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
- * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
+ * The game picker (plan G2 layer 1, G14): the Moon Rave card first (web only), the Phaser cards, Catnip
+ * Heist behind its flag with a full page load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -15,10 +15,12 @@ jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 
 import {
   BADCAT_CARD_KEY,
+  cardHref,
   GameSelectModal,
   gameCards,
   heistPickerEnabled,
   HEIST_PICKER_HREF,
+  RAVE_CARD_KEY,
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
   SWORDCAT_PREVIEW,
@@ -28,6 +30,8 @@ import path from "path";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { BADCAT_PREVIEW, badcatEntryEnabled } from "@/components/badcat/entry";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
+import { RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, raveEntryEnabled } from "@/components/rave/entry";
+import { RAVE_SECTION_HREF } from "@/components/landing/RaveSection";
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -71,11 +75,12 @@ describe("gameCards", () => {
 });
 
 describe("GameSelectModal", () => {
-  it("shows six cards in a GameModal (Swordcat and Bad Cat on by default), the Heist as a link with its badge", () => {
+  it("shows seven cards in a GameModal (the Moon Rave first; Swordcat and Bad Cat on by default), the Heist as a link with its badge", () => {
     const { dialog } = open();
     expect(within(dialog).getByRole("heading", { name: "Choose your adventure" })).toBeTruthy();
     const cards = within(dialog).getAllByRole("listitem");
     expect(cards.map((card) => card.getAttribute("data-card"))).toEqual([
+      RAVE_CARD_KEY,
       "PIXEL_RESCUE",
       "CATNIP_CHAOS",
       "MATCH_3",
@@ -132,6 +137,7 @@ describe("GameSelectModal", () => {
     const { dialog } = open({ showHeist: false });
     const cards = within(dialog).getAllByRole("listitem");
     expect(cards.map((card) => card.getAttribute("data-card"))).toEqual([
+      RAVE_CARD_KEY,
       "PIXEL_RESCUE",
       "CATNIP_CHAOS",
       "MATCH_3",
@@ -140,15 +146,16 @@ describe("GameSelectModal", () => {
     ]);
     expect(within(dialog).queryByTestId("game-card-heist")).toBeNull();
     expect(within(dialog).queryByRole("link", { name: /CATNIP HEIST/ })).toBeNull();
-    // The links left are the Swordcat and Bad Cat cards.
+    // The links left are the Moon Rave, Swordcat and Bad Cat cards.
     expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/rave?from=picker",
       SWORDCAT_PICKER_HREF,
       "/badcat?from=picker&utm_source=tt_picker",
     ]);
   });
 
-  it("shows only the three Phaser cards with the Heist, Swordcat and Bad Cat cards all off", () => {
-    const { dialog } = open({ showHeist: false, showSwordcat: false, showBadcat: false });
+  it("shows only the three Phaser cards with the Moon Rave, Heist, Swordcat and Bad Cat cards all off", () => {
+    const { dialog } = open({ showHeist: false, showSwordcat: false, showBadcat: false, showRave: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
@@ -182,19 +189,19 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(swordcatPickerEnabled()).toBe(true);
     const { dialog } = open();
     expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(6);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(7);
   });
 
   it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
     expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
-    const first = open({ showSwordcat: false, showBadcat: false });
+    const first = open({ showSwordcat: false, showBadcat: false, showRave: false });
     expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
     cleanup();
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
     try {
       expect(swordcatPickerEnabled()).toBe(false);
-      const second = open({ showBadcat: false });
+      const second = open({ showBadcat: false, showRave: false });
       expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
       expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
     } finally {
@@ -218,7 +225,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
   });
 
   it("opens /swordcat with a full page load and keeps the Heist card's test id", () => {
-    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true, showBadcat: false });
+    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true, showBadcat: false, showRave: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
     expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
     const card = within(dialog).getByTestId("game-card-swordcat");
@@ -316,12 +323,97 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
   });
 
-  it("uses three to a row from md with five or six cards, one row with four", () => {
-    const { dialog } = open();
-    const item = within(dialog).getAllByRole("listitem")[0];
+  it("uses three to a row from md with five or six cards, four to a row with four or seven", () => {
+    const six = open({ showRave: false });
+    const item = within(six.dialog).getAllByRole("listitem")[0];
     expect(item.className).toContain("md:w-[calc(33.333%-0.75rem)]");
+    expect(item.className).toContain("[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(16.666%-0.84rem)]");
     cleanup();
-    const four = open({ showSwordcat: false, showBadcat: false });
+    const four = open({ showSwordcat: false, showBadcat: false, showRave: false });
     expect(within(four.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(25%-0.75rem)]");
+    cleanup();
+    // Seven (every card, in the Cupid season): 4 + 3, and no one-row squeeze on short landscape screens.
+    const seven = open();
+    const first = within(seven.dialog).getAllByRole("listitem")[0];
+    expect(within(seven.dialog).getAllByRole("listitem")).toHaveLength(7);
+    expect(first.className).toContain("md:w-[calc(25%-0.75rem)]");
+    expect(first.className).not.toContain("max-height:520px");
+  });
+});
+
+describe("Moon Rave card (no flag, web only)", () => {
+  const envBefore = { ...process.env };
+  afterEach(() => {
+    process.env = { ...envBefore };
+  });
+
+  it("is in the picker by default with no env set, first, linking to /rave?from=picker", () => {
+    expect(raveEntryEnabled(false)).toBe(true);
+    const { dialog } = open();
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items[0].getAttribute("data-card")).toBe(RAVE_CARD_KEY);
+    const card = within(dialog).getByTestId("game-card-rave");
+    expect(card.tagName).toBe("A");
+    expect(card.getAttribute("href")).toBe("/rave?from=picker");
+    expect(card.getAttribute("aria-label")).toBe("MOON RAVE · NEW");
+    expect(within(dialog).getByText(RAVE_PICKER_DESCRIPTION)).toBeTruthy();
+    const art = within(dialog).getByTestId("game-card-rave-preview");
+    expect(art.getAttribute("src")).toBe(RAVE_PREVIEW.src);
+    expect(art.getAttribute("width")).toBe("312");
+    expect(art.getAttribute("height")).toBe("218");
+    expect(art.getAttribute("alt")).toBe("");
+  });
+
+  it("links to the same /rave page as the landing section, tagged with the picker as its source", () => {
+    expect(cardHref({ key: RAVE_CARD_KEY, href: "/rave" })).toBe("/rave?from=picker");
+    expect(RAVE_SECTION_HREF).toBe("/rave?from=landing_rave");
+  });
+
+  it("opens /rave with a full page load and never picks a Phaser mode", () => {
+    const { navigate, setGameType, onClose, dialog } = open();
+    fireEvent.click(within(dialog).getByTestId("game-card-rave"));
+    expect(navigate).toHaveBeenCalledWith("/rave?from=picker");
+    expect(setGameType).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("comes first in gameCards, before Cupid Cat, with no GameType", () => {
+    const cards = gameCards(true, new Date(), true, true, true);
+    expect(cards.map((card) => card.key)).toEqual([
+      RAVE_CARD_KEY,
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      "CATNIP_HEIST",
+      SWORDCAT_CARD_KEY,
+      BADCAT_CARD_KEY,
+    ]);
+    expect(cards[0]).toMatchObject({ title: "MOON RAVE", href: "/rave", previewVariant: "RAVE", badge: "NEW" });
+    expect(cards[0].type).toBeUndefined();
+    expect(Object.values(GameType)).not.toContain(RAVE_CARD_KEY);
+    // The $1 = 1 dancing cat rule, with Token Tails or the giver as the subject.
+    expect(cards[0].description).toMatch(/\$1/);
+    expect(cards[0].description).toMatch(/Token Tails|you/);
+    expect(cards[0].description).not.toMatch(/adopt|token(?! tails)/i);
+    // Left out unless asked for.
+    expect(gameCards(true, new Date(), true, true).map((card) => card.key)).not.toContain(RAVE_CARD_KEY);
+  });
+
+  it("is left out of the app build (no /rave rewrite there)", () => {
+    process.env.NEXT_PUBLIC_IS_APP = "1";
+    expect(raveEntryEnabled()).toBe(false);
+    const { dialog } = open();
+    expect(within(dialog).queryByTestId("game-card-rave")).toBeNull();
+    expect(within(dialog).queryByRole("link", { name: /MOON RAVE/ })).toBeNull();
+  });
+
+  it("ships a 2x WebP for the card's 312x218 box", () => {
+    expect(RAVE_PREVIEW).toMatchObject({ width: 312, height: 218 });
+    const buf = fs.readFileSync(path.join(path.resolve(__dirname, "../public"), RAVE_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+    // The app export prunes it (the card never renders there).
+    const prune = fs.readFileSync(path.resolve(__dirname, "../scripts/prune-app-export.mjs"), "utf8");
+    expect(prune).toContain(`"${RAVE_PREVIEW.src.slice(1)}"`);
   });
 });
