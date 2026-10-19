@@ -7,14 +7,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:client": "MEOW_BASE=/formula-meow-game/ vite build --outDir ../client/public/formula-meow-game --emptyOutDir",
+    "build:client": "MEOW_BASE=/formula-meow-game/ vite build --outDir ../client/public/formula-meow-game --emptyOutDir && node tools/og-pages.mjs ../client/public/formula-meow-game",
     "preview": "vite preview --port 4175",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
-    "tracks": "vitest run src/core/track"
+    "tracks": "vitest run src/core/track",
+    "og": "node tools/render-og.mjs",
+    "og:pages": "node tools/og-pages.mjs"
   },
   "dependencies": {
+    "mediabunny": "^1.61.6",
     "three": "^0.183.2"
   },
   "devDependencies": {

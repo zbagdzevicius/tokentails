@@ -2,7 +2,7 @@
  * Share lane extension points (GDD 8–9). The core shell calls these; the share lane fills them in (finish clip,
  * dare links, result card, daily cup, Pink Paw adopt line). Nothing here may move money or claim donations.
  */
-import type { RaceConfig, RaceEvent, RaceResult } from '../types';
+import type { CatSpec, RaceConfig, RaceEvent, RaceResult } from '../types';
 import type { Replay } from '../core/sim/replay';
 
 export interface ResultAction {
@@ -38,6 +38,8 @@ export interface ShareHooks {
   onResult?(ctx: ResultContext): ResultExtras | void;
   /** parse the page URL (dares, UGC tracks, daily) into a race setup; null = default race */
   resolveRoute?(loc: Location): RouteSetup | null;
+  /** the player's own racer (cat maker): name and coat for the player slot; null = the default cat, "You" */
+  playerRacer?(): { name: string; cat: CatSpec } | null;
 }
 
 let hooks: ShareHooks = {};
