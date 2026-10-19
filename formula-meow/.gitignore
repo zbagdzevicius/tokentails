@@ -5,3 +5,4 @@ test-results/
 playwright-report/
 .vitest/
 e2e/screens/
+review/*.png
