@@ -88,7 +88,7 @@ describe('determinism (GDD 3.1)', () => {
   it('golden hash: Kitchen, seed 42, AI-only, 10 s after GO (bump SIM_VERSION when this changes on purpose)', () => {
     const w = world(raceConfig(KITCHEN, { seed: 42 }));
     while (w.tick < GO_TICK + 600) w.step();
-    expect(w.hash()).toMatchInlineSnapshot(`4023406763`);
+    expect(w.hash()).toMatchInlineSnapshot(`953886849`);
   });
 
   it('a replay re-simulates to the exact same finish time and final hash', () => {

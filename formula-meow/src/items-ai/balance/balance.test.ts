@@ -27,10 +27,11 @@ describe('balance (GDD 5.3)', () => {
     }
   });
 
-  it('the field stays close: the Kitten pack finishes within 12 s of the winner', { timeout: 60_000 }, () => {
+  // iteration 2 (feel lane): the field spreads out on purpose (target 8–15 s first to last at 50cc), but never strings out
+  it('the field stays together: the Kitten pack finishes within 15 s of the winner', { timeout: 60_000 }, () => {
     const w = world({ ...raceConfig(KITCHEN, { seed: 2, cls: 0 }), tailTicks: 60 * 60 });
     while (!w.done) w.step();
     const t = w.result().places.map((p) => p.time!);
-    expect(Math.max(...t) - Math.min(...t)).toBeLessThan(12);
+    expect(Math.max(...t) - Math.min(...t)).toBeLessThan(15);
   });
 });

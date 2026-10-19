@@ -13,6 +13,8 @@ export function installItemsAi(shell: Shell): ItemView {
       const s = shell.world?.st.karts[k];
       if (s && shell.view) shell.view.burst(s.x, s.y + 0.4, s.z, color, n, speed);
     },
+    spark: (x, y, z, vx, vy, vz, color) => shell.view?.emit(x, y, z, vx, vy, vz, color),
+    puff: (x, y, z, color, size) => shell.view?.puffs.spawn(x, y, z, 0, 0.6, 0, color, size, 0.5),
   });
   shell.bus.add(view);
   return view;

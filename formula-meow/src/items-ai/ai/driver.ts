@@ -8,7 +8,7 @@
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, DRIFT } from '../../tuning';
+import { AI, BOOST, DRIFT, ticks } from '../../tuning';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
 import { curvatureAhead, followLine } from '../../core/sim/autopilot';
 import { speedOf } from '../../core/sim/kart';
@@ -34,18 +34,36 @@ interface Memory {
   dodge: boolean;
   /** ticks before another drift may start (after letting one go) */
   driftCool: number;
+  /** this drift is let go before the first tier (a missed mini-turbo, low skill): release at this charge, else -1 */
+  missAt: number;
+  /** rival grudge: ticks left of chasing the player after the player hit this cat */
+  grudge: number;
+  /** this jump gets a trick tap */
+  trickTry: boolean;
 }
+
+/** The driver's shared view of the race (one per SimWorld): how far the event log has been read for grudges. */
+interface Shared {
+  eventsRead: number;
+  lastTick: number;
+}
+
+const TIER_T = DRIFT.tiers.map((s) => ticks(s));
+const WIDE_TICKS = ticks(AI.wideTime);
+const GRUDGE_TICKS = ticks(AI.rival.grudge);
+const TRICK_T = ticks(BOOST.trick.window);
 
 const DEFAULT_P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
 
 export function createAIDriver(): AIDriver {
   const mem: Memory[] = [];
+  const shared: Shared = { eventsRead: 0, lastTick: -1 };
   return {
     init(ctx) {
       for (let i = 0; i < ctx.st.karts.length; i++) {
         const k = ctx.st.karts[i];
         const p = ctx.cfg.racers[i]?.ai ?? DEFAULT_P;
-        const tryPounce = draw(k, 'rngAi') < 0.25 + 0.6 * p.skill;
+        const tryPounce = draw(k, 'rngAi') < 0.1 + 0.9 * p.skill;
         const jitter = Math.floor(draw(k, 'rngAi') * 12) - 6;
         mem.push({
           startPress: tryPounce ? ctx.goTick + jitter : ctx.goTick + 15 + Math.floor(draw(k, 'rngAi') * 20),
@@ -57,13 +75,39 @@ export function createAIDriver(): AIDriver {
           dodgeId: 0,
           dodge: false,
           driftCool: 0,
+          missAt: -1,
+          grudge: 0,
+          trickTry: false,
         });
       }
     },
     drive(ctx, i, out) {
+      if (ctx.st.tick !== shared.lastTick) {
+        shared.lastTick = ctx.st.tick;
+        readGrudges(ctx, mem, shared);
+      }
       drive(ctx, i, out, mem[i], ctx.cfg.racers[i]?.ai ?? DEFAULT_P);
     },
   };
+}
+
+/**
+ * Rival grudges (feel lane): the player hitting their rival starts a 20 s grudge (`grudge` event, b = the player).
+ * Read once per tick from the event log, so it replays exactly.
+ */
+function readGrudges(ctx: SimContext, mem: Memory[], sh: Shared): void {
+  const ev = ctx.st.events;
+  const human = ctx.cfg.humans[0];
+  for (let e = sh.eventsRead; e < ev.length; e++) {
+    const x = ev[e];
+    if (x.type !== 'hit' || human == null || x.b !== human || x.kart === human) continue;
+    const m = mem[x.kart];
+    if (!m || !ctx.cfg.racers[x.kart]?.rival) continue;
+    if (m.grudge === 0) ctx.emit({ type: 'grudge', kart: x.kart, b: human });
+    m.grudge = GRUDGE_TICKS;
+  }
+  sh.eventsRead = ev.length;
+  for (const m of mem) if (m.grudge > 0) m.grudge--;
 }
 
 function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Personality): void {
@@ -77,11 +121,13 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     return;
   }
 
-  // mistakes: a seeded wobble off the line (late turn-in, wide exit)
+  // mistakes (low skill): run wide for ~0.4 s, to the outside of the bend ahead (a late turn-in, a wide exit)
   if (m.slipTicks > 0) m.slipTicks--;
-  else if (draw(k, 'rngAi') < p.mistakeRate * 0.004) {
-    m.slipTicks = 30 + Math.floor(draw(k, 'rngAi') * 40);
-    m.slipBias = (draw(k, 'rngAi') - 0.5) * 1.6;
+  else if (draw(k, 'rngAi') < p.mistakeRate * AI.mistakeChance) {
+    m.slipTicks = WIDE_TICKS + Math.floor(draw(k, 'rngAi') * 12);
+    const bend = curvatureAhead(ctx, k.si, 4, 24);
+    const out = bend > 0.01 ? 1 : bend < -0.01 ? -1 : draw(k, 'rngAi') < 0.5 ? -1 : 1;
+    m.slipBias = out * (0.6 + 0.4 * draw(k, 'rngAi'));
   }
   let bias = clamp(p.lineBias + (m.slipTicks > 0 ? m.slipBias : 0), -1, 1);
   // pass a kart that sits on our line just ahead instead of rear-ending it
@@ -96,6 +142,15 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     }
   }
   bias = dodgeBias(ctx, i, m, p, bias);
+  // a rival with a grudge closing in from behind lines up on the player (a bump, a slipstream, a hairball)
+  if (m.grudge > 0 && m.slipTicks === 0) {
+    const h = ctx.cfg.humans[0];
+    const o = h != null ? st.karts[h] : null;
+    if (o && !o.finished) {
+      const gap = o.dist - k.dist;
+      if (gap > 2 && gap < 20) bias = clamp(o.d / Math.max(1, ctx.track.halfW[k.si] - AI.edge), -1, 1);
+    }
+  }
   followLine(ctx, i, out, bias, m.slipTicks > 0 ? 1.4 : 1);
 
   // drift where the track bends
@@ -103,37 +158,47 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const c = curvatureAhead(ctx, k.si, 2, 14);
   const turnDir = c > 0 ? -1 : 1; // left turn → drift left (steer negative)
   if (m.driftCool > 0) m.driftCool--;
+  // skilled cats drift gentler bends too, and hold them longer (more orange and pink mini-turbos)
+  const curvFor = AI.driftCurv * (1.25 - AI.driftSkill * p.skill);
   if (k.driftDir === 0) {
     // start only when the line itself asks to turn that way (never force a drift against the line)
-    if (Math.abs(c) > AI.driftCurv && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
+    if (Math.abs(c) > curvFor && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
       if (!m.driftWant) {
         m.driftWant = 1;
         // skilled drivers hold for orange/pink; 50cc rarely reaches pink
-        const tiers = [36, 72, 120];
         const r = draw(k, 'rngAi');
-        m.driftHold = r < p.skill * 0.45 ? tiers[2] : r < p.skill ? tiers[1] : tiers[0];
+        m.driftHold = r < p.skill * 0.45 ? TIER_T[2] : r < p.skill ? TIER_T[1] : TIER_T[0];
+        // low skill now and then lets go too early: no mini-turbo at all
+        m.missAt = draw(k, 'rngAi') < (1 - p.skill) * AI.missTurbo ? TIER_T[0] * (0.45 + 0.4 * draw(k, 'rngAi')) : -1;
       }
       out.drift = k.pDrift === 0; // press edge → hop, then hold
       if (Math.abs(out.steer) < 4 || Math.sign(out.steer) !== turnDir) out.steer = turnDir * 5;
     } else m.driftWant = 0;
   } else {
     // hold through the bend; low skill lets go early now and then (a missed tier)
-    const stillBending = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > AI.driftCurv * 0.5;
-    const early = k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08;
+    const stillBending = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > curvFor * 0.5;
+    const early = (k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08) || (m.missAt >= 0 && k.driftCharge >= m.missAt);
     // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
     const overturning = out.steer * k.driftDir <= -5;
     out.drift = stillBending && !early && !overturning;
     if (!out.drift) {
       m.driftWant = 0;
       m.driftCool = 20;
+      m.missAt = -1;
     }
+  }
+
+  // ramp tricks: a tap just after the lip (skilled cats nearly always, Kittens now and then)
+  if (k.air && k.lipTicks >= 1 && k.lipTicks <= TRICK_T - 1 && !k.trick) {
+    if (k.lipTicks === 1) m.trickTry = draw(k, 'rngAi') < AI.trickBase + (1 - AI.trickBase) * p.skill;
+    if (m.trickTry) out.drift = k.pDrift === 0;
   }
 
   // corner speed (B15): lift, then brake, when the bend ahead needs more turn than the kart has without a drift
   if (k.driftDir === 0 && !k.air && !out.drift) {
     const ahead = Math.max(10, sp * 0.9);
     const c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
-    const vmax = Math.sqrt(AI.cornerAccel / Math.max(1e-4, c));
+    const vmax = Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / Math.max(1e-4, c));
     if (sp > vmax * 1.12) {
       out.gas = false;
       out.brake = true;
@@ -155,7 +220,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   }
 
   // items (item-brain.ts) and the capped rubber band (rubber-band.ts)
-  useItems(ctx, i, out, m.brain, p);
+  useItems(ctx, i, out, m.brain, p, m.grudge > 0);
   k.topScale = bandScale(ctx, i, p);
 }
 

@@ -4,6 +4,11 @@
  * hairballs, homing yarn balls, the Laser Dot (dot + light pillar), yarn tangles, cucumbers (lob arc), the yarn
  * trailing behind a kart that holds one, the Cardboard Box shield, the Zoomies aura and the Bell ring. The player
  * also gets a "LASER DOT INCOMING" banner while the dot is about to reach them.
+ *
+ * Iteration 2 (feel lane): each item has a travel and a hit visual too. Hairballs leave a spark trail; a homing yarn
+ * ball pulls a thread behind it (one line, one draw call for every ball); a lobbed cucumber shows a shadow ring where
+ * it will land; a kart caught by yarn is wrapped in a tangle for a second; the box's flaps pop open when it blocks a
+ * hit. The cat's own reactions (cough, throw, duck, roof run, barrel roll, head tracking the dot) are in KartView.
  */
 import {
   AdditiveBlending,
@@ -23,7 +28,7 @@ import {
   TorusGeometry,
   TorusKnotGeometry,
   type Material,
-  type BufferGeometry,
+
   type Object3D,
   type Scene,
 } from 'three';
@@ -32,6 +37,8 @@ import type { FrameInfo, JuiceListener } from '../../juice/bus';
 import { toonMaterial } from '../../core/render/toon';
 import { ProjKind, TrapKind, itemsOf } from '../items/state';
 import { ITEMS } from '../../tuning';
+import { t } from '../../ui/i18n';
+import { BufferAttribute, BufferGeometry, DynamicDrawUsage, LineBasicMaterial, LineSegments } from 'three';
 // LUT trig even in render code: items-ai/** is linted with the sim rules (core/sim/fixed.test.ts)
 import { atan2L, cosL, sinL } from '../../core/sim/fixed';
 
@@ -45,7 +52,14 @@ export interface ItemViewHost {
   overlay: HTMLElement;
   /** the camera position (B60: rings fade as their edge passes the lens) */
   camera?(): { x: number; y: number; z: number };
+  /** one spark / one puff (render-only particle pools) */
+  spark?(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number): void;
+  puff?(x: number, y: number, z: number, color: number, size: number): void;
 }
+
+/** Yarn thread: points kept per ball, and how many balls can pull a thread at once. */
+const THREAD_PTS = 14;
+const THREAD_MAX = 6;
 
 class Pool {
   private items: Object3D[] = [];
@@ -165,6 +179,8 @@ function boxShield(): Object3D {
     const flap = new Mesh(new BoxGeometry(0.75, t, D * 0.96), mat);
     flap.position.set(s * (W / 2 + 0.3), Hh + 0.2, 0);
     flap.rotation.z = s * -0.65;
+    flap.userData.side = s;
+    flap.name = 'flap';
     g.add(flap);
   }
   const tape = new Mesh(new BoxGeometry(0.3, 0.02, D + 0.02), toonMaterial({ color: 0xe8d7a8 }));
@@ -193,8 +209,20 @@ function setSeeThrough(o: Object3D, opacity: number): void {
   });
 }
 
+function landingRing(): Object3D {
+  const m = new Mesh(new RingGeometry(0.9, 1.2, 24), new MeshBasicMaterial({ color: 0x1a1238, transparent: true, opacity: 0.45, depthWrite: false, side: DoubleSide }));
+  m.rotation.x = -Math.PI / 2;
+  return m;
+}
+
+function wrapKnot(): Object3D {
+  const m = new Mesh(new TorusKnotGeometry(1.1, 0.09, 64, 4, 3, 5), toonMaterial({ color: YARN_PINK }));
+  m.scale.set(1, 0.55, 1.25);
+  return m;
+}
+
 function aura(): Object3D {
-  return new Mesh(new SphereGeometry(1.9, 14, 10), new MeshBasicMaterial({ color: 0xff3ea5, transparent: true, opacity: 0.5, depthWrite: false, blending: AdditiveBlending, side: BackSide }));
+  return new Mesh(new SphereGeometry(1.9, 14, 10), new MeshBasicMaterial({ color: 0xff3ea5, transparent: true, opacity: 0.22, depthWrite: false, blending: AdditiveBlending, side: BackSide }));
 }
 
 function bellRing(): Object3D {
@@ -222,7 +250,20 @@ export class ItemView implements JuiceListener {
   private readonly boxes: Pool;
   private readonly auras: Pool;
   private readonly rings: Pool;
+  private readonly landings: Pool;
+  private readonly wraps: Pool;
   private readonly warn: HTMLDivElement;
+  /** yarn threads: one LineSegments for every ball's trailing thread */
+  private readonly thread: LineSegments;
+  private readonly threadPos: Float32Array;
+  private readonly threadHist = new Map<number, number[]>();
+  /** per kart: tangle wrap time left, box flap pop time left */
+  private wrapT: number[] = [];
+  private popT: number[] = [];
+  /** yarn entities seen last frame (x, z pairs), to tell a yarn hit from other spins */
+  private yarnSeen: number[] = [];
+  private sparkT = 0;
+  private readonly live = new Set<number>();
   /** every pool, for the per-frame begin / end (B58: no array literal per frame) */
   private readonly pools: Pool[];
   private bells: Array<{ x: number; y: number; z: number; t: number; own: number }> = [];
@@ -240,7 +281,16 @@ export class ItemView implements JuiceListener {
     this.boxes = new Pool(s, boxShield);
     this.auras = new Pool(s, aura);
     this.rings = new Pool(s, bellRing);
-    this.pools = [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings];
+    this.landings = new Pool(s, landingRing);
+    this.wraps = new Pool(s, wrapKnot);
+    this.pools = [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings, this.landings, this.wraps];
+    this.threadPos = new Float32Array(THREAD_MAX * (THREAD_PTS - 1) * 2 * 3);
+    const tg = new BufferGeometry();
+    tg.setAttribute('position', new BufferAttribute(this.threadPos, 3).setUsage(DynamicDrawUsage));
+    this.thread = new LineSegments(tg, new LineBasicMaterial({ color: 0xff8fc4, transparent: true, opacity: 0.9 }));
+    this.thread.frustumCulled = false;
+    this.thread.visible = false;
+    s.add(this.thread);
     if (typeof document !== 'undefined' && !document.getElementById('fm-items-style')) {
       const st = document.createElement('style');
       st.id = 'fm-items-style';
@@ -250,11 +300,28 @@ export class ItemView implements JuiceListener {
     this.warn = document.createElement('div');
     this.warn.className = 'fm-laser-warn';
     this.warn.setAttribute('role', 'status');
-    this.warn.textContent = '🔴 LASER DOT INCOMING!';
+    this.warn.textContent = `🔴 ${t('LASER DOT INCOMING!')}`;
     host.overlay.appendChild(this.warn);
   }
 
   onEvent(e: RaceEvent, info: FrameInfo): void {
+    if (e.type === 'hit' && e.a === 0 && e.kart >= 0) {
+      // a spin next to a yarn ball or tangle that was there last frame: the cat is wrapped up for a second
+      const k = info.st.karts[e.kart];
+      for (let i = 0; i < this.yarnSeen.length; i += 2) {
+        const dx = this.yarnSeen[i] - k.x;
+        const dz = this.yarnSeen[i + 1] - k.z;
+        if (dx * dx + dz * dz < 16) {
+          this.wrapT[e.kart] = 1;
+          break;
+        }
+      }
+      return;
+    }
+    if (e.type === 'blocked' && e.kart >= 0) {
+      if (info.st.karts[e.kart].shieldTicks > 0) this.popT[e.kart] = 0.45;
+      return;
+    }
     if (e.type !== 'itemUse') return;
     const k = info.st.karts[e.kart];
     if (e.item === 'bell') this.bells.push({ x: k.x, y: k.y + 0.3, z: k.z, t: 0, own: e.kart });
@@ -266,6 +333,10 @@ export class ItemView implements JuiceListener {
   onReset(): void {
     this.bells = [];
     this.warn.classList.remove('on');
+    this.threadHist.clear();
+    this.wrapT = [];
+    this.popT = [];
+    this.yarnSeen = [];
   }
 
   onFrame(info: FrameInfo): void {
@@ -275,15 +346,26 @@ export class ItemView implements JuiceListener {
     const s = itemsOf(info.st);
     for (const p of this.pools) p.begin();
 
+    this.sparkT -= dt;
+    const sparkNow = this.sparkT <= 0 && dt > 0;
+    if (sparkNow) this.sparkT = 1 / 40;
+    this.yarnSeen.length = 0;
+    let threads = 0;
+    this.live.clear();
     for (const p of s.proj) {
       if (p.kind === ProjKind.Hairball) {
         const o = this.hair.next();
         o.position.set(p.x, p.y, p.z);
         o.rotation.set(tm * 14, atan2L(p.vx, p.vz), 0);
+        // a spark trail behind the fur ball
+        if (sparkNow) this.host.spark?.(p.x, p.y + 0.2, p.z, -p.vx * 0.05 + sinL(tm * 50 + p.id) * 0.8, 1.2, -p.vz * 0.05, (p.id + Math.floor(tm * 30)) % 2 ? 0xffd27a : 0xfff3dc);
       } else if (p.kind === ProjKind.YarnBall) {
         const o = this.balls.next();
         o.position.set(p.x, p.y, p.z);
         o.rotation.set(tm * 12, tm * 3, 0);
+        this.yarnSeen.push(p.x, p.z);
+        this.live.add(p.id);
+        if (threads < THREAD_MAX) this.pullThread(p.id, p.x, p.y, p.z, threads++, dt);
       } else {
         const o = this.dots.next();
         o.position.set(p.x, p.y + 0.05, p.z);
@@ -292,8 +374,17 @@ export class ItemView implements JuiceListener {
       }
     }
 
+    // threads of balls that are gone go with them
+    for (const id of this.threadHist.keys()) if (!this.live.has(id)) this.threadHist.delete(id);
+    this.thread.visible = threads > 0;
+    if (threads > 0) {
+      this.thread.geometry.setDrawRange(0, threads * (THREAD_PTS - 1) * 2);
+      (this.thread.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
+    }
+
     for (const t of s.traps) {
       if (t.kind === TrapKind.Yarn) {
+        this.yarnSeen.push(t.x, t.z);
         const o = this.tangles.next();
         o.position.set(t.x, t.y + 0.22, t.z);
         o.rotation.y = t.id * 1.7;
@@ -303,6 +394,11 @@ export class ItemView implements JuiceListener {
           const u = 1 - t.flight / t.flightMax;
           o.position.set(t.fx + (t.x - t.fx) * u, t.fy + (t.y + 0.3 - t.fy) * u + 4 * u * (1 - u) * 2, t.fz + (t.z - t.fz) * u);
           o.rotation.set(tm * 9, t.id, tm * 7);
+          // where it will land: a shadow ring that tightens as it falls
+          const r = this.landings.next();
+          r.position.set(t.x, t.y + 0.06, t.z);
+          const sc = 1.6 - 0.8 * u;
+          r.scale.set(sc, sc, sc);
         } else {
           o.position.set(t.x, t.y + 0.27, t.z);
           o.rotation.set(0, t.id * 2.3, 0);
@@ -310,12 +406,16 @@ export class ItemView implements JuiceListener {
       }
     }
 
-    // per-kart item looks: trailing yarn, box shield, zoomies aura
+    // per-kart item looks: trailing yarn, box shield, zoomies aura, a yarn tangle wrapped round a caught cat
     for (let i = 0; i < info.st.karts.length; i++) {
       const k = info.st.karts[i];
       if (k.respawnTicks > 0) continue;
-      const needTrail = k.item === 'yarn' && k.rouletteTicks === 0;
-      if (!needTrail && k.shieldTicks <= 0 && k.autoTicks <= 0) continue;
+      const wrap = this.wrapT[i] ?? 0;
+      if (wrap > 0) this.wrapT[i] = Math.max(0, wrap - dt);
+      const pop = this.popT[i] ?? 0;
+      if (pop > 0) this.popT[i] = Math.max(0, pop - dt);
+      const needTrail = k.item === 'yarn' && k.rouletteTicks === 0 && !k.finished;
+      if (!needTrail && k.shieldTicks <= 0 && k.autoTicks <= 0 && wrap <= 0) continue;
       const at = this.host.kartAt(i, info.alpha);
       if (!at) continue;
       const fx = sinL(at.heading);
@@ -335,6 +435,17 @@ export class ItemView implements JuiceListener {
         setSeeThrough(o, i === info.me ? 0.45 : 1);
         o.position.set(at.x, at.y + 0.05, at.z);
         o.rotation.set(0, at.heading + sinL(tm * 11) * 0.05, sinL(tm * 9) * 0.04);
+        // a blocked hit pops the flaps wide open, then they flop back
+        const open = pop > 0 ? sinL((1 - pop / 0.45) * 3.14159) : 0;
+        o.scale.set(1 + open * 0.08, 1 - open * 0.05, 1 + open * 0.08);
+        for (const c of o.children) if (c.name === 'flap') c.rotation.z = (c.userData.side as number) * (-0.65 - 0.9 * open);
+      }
+      if (wrap > 0) {
+        const o = this.wraps.next();
+        o.position.set(at.x, at.y + 0.9, at.z);
+        o.rotation.set(0, at.heading + tm * 4, 0);
+        const sc = 0.85 + 0.15 * wrap;
+        o.scale.set(sc, sc * 0.55, sc * 1.25);
       }
       if (k.autoTicks > 0) {
         const o = this.auras.next() as Mesh;
@@ -374,8 +485,38 @@ export class ItemView implements JuiceListener {
     this.warn.classList.toggle('on', s.laserWarn === info.me && !info.paused);
   }
 
+  /** Append the ball's position to its thread history and write its segments into slot `slot`. */
+  private pullThread(id: number, x: number, y: number, z: number, slot: number, dt: number): void {
+    let h = this.threadHist.get(id);
+    if (!h) {
+      h = [];
+      this.threadHist.set(id, h);
+    }
+    if (dt > 0) {
+      h.unshift(x, y + 0.1, z);
+      if (h.length > THREAD_PTS * 3) h.length = THREAD_PTS * 3;
+    }
+    const n = h.length / 3;
+    const base = slot * (THREAD_PTS - 1) * 6;
+    for (let j = 0; j < THREAD_PTS - 1; j++) {
+      const a = Math.min(j, n - 1) * 3;
+      const b = Math.min(j + 1, n - 1) * 3;
+      const o = base + j * 6;
+      // the thread sags a little behind the ball
+      this.threadPos[o] = h[a];
+      this.threadPos[o + 1] = h[a + 1] - j * 0.02;
+      this.threadPos[o + 2] = h[a + 2];
+      this.threadPos[o + 3] = h[b];
+      this.threadPos[o + 4] = h[b + 1] - (j + 1) * 0.02;
+      this.threadPos[o + 5] = h[b + 2];
+    }
+  }
+
   dispose(): void {
     for (const p of this.pools) p.dispose();
+    this.host.scene.remove(this.thread);
+    this.thread.geometry.dispose();
+    (this.thread.material as Material).dispose();
     this.warn.remove();
   }
 }

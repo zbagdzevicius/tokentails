@@ -7,10 +7,13 @@
  * - Cucumber: dropped on a tailgater, lobbed at a rival 12–40 m ahead.
  * - Catnip on straights; Box when a projectile or the Laser Dot is coming; Bell with 2+ rivals within 25 m.
  * - Zoomies and Laser Dot soon after the roulette.
- * - AI karts more than 4 s ahead of the player use items half as often (slower to act, longer holds).
+ * - AI karts more than 4 s ahead of the player are a little less eager (AI.farAheadEager), so fights still happen
+ *   ahead of the player (feel lane: they used to be half as eager, and the front of the field went quiet).
+ * - The player's rival (`RacerInfo.rival`) aims at the player twice as often: it reacts and fires sooner and takes
+ *   longer shots when the player is the target; a grudge (the player hit it in the last 20 s) doubles that again.
  */
 import type { ItemId, Personality, TickInput } from '../../types';
-import { ITEMS } from '../../tuning';
+import { AI, ITEMS } from '../../tuning';
 import type { SimContext } from '../../core/sim/plugins';
 import { curvatureAhead } from '../../core/sim/autopilot';
 import { atan2L, wrapAngle } from '../../core/sim/fixed';
@@ -43,12 +46,17 @@ interface Seen {
   behindLane: boolean;
   /** rivals within the bell radius */
   near: number;
+  /** the player: track gap (> 0 ahead), straight-line distance, inside the aim cone */
+  player: number;
+  playerDist: number;
+  playerCone: boolean;
 }
 
 function look(ctx: SimContext, i: number, cone: number): Seen {
   const ks = ctx.st.karts;
   const k = ks[i];
-  const s: Seen = { aheadCone: Infinity, ahead: Infinity, behind: Infinity, behindLane: false, near: 0 };
+  const s: Seen = { aheadCone: Infinity, ahead: Infinity, behind: Infinity, behindLane: false, near: 0, player: 0, playerDist: Infinity, playerCone: false };
+  const human = ctx.cfg.humans[0] ?? -1;
   const r2 = ITEMS.bell.radius * ITEMS.bell.radius;
   for (let j = 0; j < ks.length; j++) {
     if (j === i) continue;
@@ -59,6 +67,11 @@ function look(ctx: SimContext, i: number, cone: number): Seen {
     const d2 = dx * dx + dz * dz;
     if (d2 <= r2) s.near++;
     const g = o.dist - k.dist;
+    if (j === human) {
+      s.player = g;
+      s.playerDist = Math.sqrt(d2);
+      s.playerCone = g > 0 && Math.abs(wrapAngle(atan2L(dx, dz) - k.heading)) < cone * 1.5;
+    }
     if (g > 0) {
       if (g < s.ahead) s.ahead = g;
       if (d2 < 30 * 30 && Math.abs(wrapAngle(atan2L(dx, dz) - k.heading)) < cone) s.aheadCone = Math.min(s.aheadCone, Math.sqrt(d2));
@@ -88,7 +101,7 @@ export function threatened(ctx: SimContext, i: number): boolean {
 }
 
 /** Fill `out.item` / `out.itemBack` for AI kart i. */
-export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMemory, p: Personality): void {
+export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMemory, p: Personality, grudge = false): void {
   const k = ctx.st.karts[i];
   out.item = false;
   out.itemBack = false;
@@ -97,35 +110,39 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
     m.pressed = false;
     return;
   }
+  const human = ctx.cfg.humans[0];
+  const rival = human != null && !!ctx.cfg.racers[i]?.rival;
+  const eager = rival ? AI.rival.eager * (grudge ? 2 : 1) : 1;
   if (m.id !== k.item) {
     m.id = k.item;
     m.held = 0;
-    m.react = 10 + Math.floor(draw(k, 'rngAi') * (40 - 25 * p.skill));
+    m.react = Math.floor((10 + Math.floor(draw(k, 'rngAi') * (40 - 25 * p.skill))) / eager);
   }
   m.held++;
-  // far ahead of the player (> 4 s): half as eager
-  const human = ctx.cfg.humans[0];
-  const slow = human != null && -gapToPlayer(ctx, i) > 4 * ctx.tun.topSpeed ? 2 : 1;
+  // far ahead of the player (> 4 s): a little less eager
+  const slow = human != null && -gapToPlayer(ctx, i) > 4 * ctx.tun.topSpeed ? 1 / AI.farAheadEager : 1;
   if (m.held < m.react * slow) return;
   if (m.pressed) {
     m.pressed = false; // release between presses (Catnip ×3 needs fresh edges)
     return;
   }
-  const maxHold = (6 - 4 * p.aggression) * 60 * slow;
+  const maxHold = ((6 - 4 * p.aggression) * 60 * slow) / eager;
   const late = m.held > maxHold;
   const cone = (10 + 8 * p.aggression) * 0.017453292519943295;
   const s = look(ctx, i, cone);
   let fire = false;
   let back = false;
+  // the rival takes longer shots at the player: up to 30 m × eagerness, in a wider cone
+  const atPlayer = rival && s.playerCone && s.playerDist < 30 * Math.min(2, eager);
   switch (k.item) {
     case 'hairball':
-      if (s.aheadCone < 30) fire = true;
+      if (s.aheadCone < 30 || atPlayer) fire = true;
       else if (s.behind < 12 && s.behindLane && m.held > maxHold / 2) fire = back = true;
       else fire = late;
       break;
     case 'yarn':
-      if (s.behind < 15 && m.held < maxHold * 2) fire = false; // trailing shield
-      else if (s.ahead < 50) fire = true;
+      if (s.behind < 15 && m.held < maxHold * 2 && !atPlayer) fire = false; // trailing shield
+      else if (s.ahead < 50 || (rival && s.player > 0 && s.player < 50 * Math.min(2, eager))) fire = true;
       else if (late) {
         fire = true;
         back = s.behind < 40;
@@ -133,7 +150,7 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
       break;
     case 'cucumber':
       if (s.behind < 25 && s.behindLane) fire = back = true;
-      else if (s.ahead > 12 && s.ahead < 40) fire = true;
+      else if ((s.ahead > 12 && s.ahead < 40) || (rival && s.player > 12 && s.player < 40)) fire = true;
       else fire = late;
       break;
     case 'catnip':
