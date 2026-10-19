@@ -62,6 +62,12 @@ Owns `src/juice/**`.
   loop), `feel.ts` (trauma, bursts, haptics through injected hooks), `vfx/speed-lines.ts`.
 - Camera feel (FOV kick, trauma shake, reduced motion) lives in `core/camera/chase-camera.ts`; call
   `addTrauma(v)`. Sparks: `RaceView.burst/emit`.
+- Built (lane/fm-juice): `juice/index.ts` `installJuice(shell)` (one line in `src/lanes.ts`). `StarterAudio` is now an
+  alias of `audio/race-audio.ts` (engine purr + 3 panned rivals, cat voices, item SFX, adaptive `audio/music.ts`,
+  24-voice budget). VFX are one InstancedMesh each (`vfx/kart-fx.ts`), `vfx/speed-lines.ts` is the combined screen
+  pass (`SpeedLines.current.flash/tint`), `vfx/sky-fx.ts`, `vfx/confetti.ts`, `vfx/popups.ts`. `perf/quality.ts`
+  replaces `Stage.govern` (DPR + tier governors, AI outline LOD); `window.__fmPerf`, `?perf=1`, `?quality=`.
+  Hit-stop / slow-mo go through `shell.timeScale(dt)` (marked `[juice lane]` in `core/app/shell.ts`).
 
 ### ugc
 Owns `src/ugc/**`.
