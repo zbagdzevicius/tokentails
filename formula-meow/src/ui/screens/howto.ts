@@ -53,7 +53,7 @@ export function mount(root: HTMLElement, _params: unknown, api: ScreenApi): Scre
     card('⏩', t('Boost pads'), t('Drive over a pad for a burst of speed.')),
     card('🛹', t('Ramps and tricks'), t('Hop as you leave a ramp to do a trick. Land it for a boost.')),
     card('🌬️', t('Slipstream'), t('Tuck in right behind another cat to charge a slipstream boost.')),
-    card('🐟', t('Fish coins'), t('Every coin you hold adds a little top speed, up to 10. Getting hit drops 3.')),
+    card('🐟', t('Fish coins'), t('Every coin you hold adds a little top speed, up to 10. Spinning out or leaping in fright drops 3.')),
   ]);
   const controls = h('div', { class: 'fm-howto', role: 'tabpanel' }, [
     card('👆', t('Touch'), t('Left thumb steers. Right thumb: tap to hop, swipe up for an item forward, down to throw it back. ☰ pauses.')),
