@@ -6,10 +6,20 @@ import { fromBase64url, toBase64url } from './base64url';
 import { extractCode, readTrackCode, trackLink, wantsEditor } from './link';
 import { setTrackCodec, trackFromLocation } from './track-codec';
 
-/** Drop the fields the code does not carry the same way (id, sides the decoder fills in). */
+/**
+ * Drop the fields the code does not carry the same way (id, sides the decoder fills in) or at all (the iteration-2
+ * authored extras: branches, hazards, coins, flyover, music; authored tracks travel by id, UGC by code).
+ */
 function norm(def: TrackDef): unknown {
+  const { branches, hazards, coins, flyover, music, kind, ...rest } = def;
+  void branches;
+  void hazards;
+  void coins;
+  void flyover;
+  void music;
+  void kind;
   return {
-    ...def,
+    ...rest,
     id: '',
     features: def.features.map((f) => ({ s: f.s, kind: f.kind, side: f.side ?? 0 })),
   };
@@ -44,7 +54,8 @@ describe('track share code (GDD 6.3)', () => {
       const back = decodeTrackCode(code);
       expect(back.ok, def.id).toBe(true);
       if (!back.ok) continue;
-      expect(norm(back.track)).toEqual(norm(def));
+      // names travel in the 6-bit charset, accents folded and cut at 16 (Cat Café Chaos → Cat Cafe Chaos)
+      expect(norm(back.track)).toEqual(norm({ ...def, name: cleanName(def.name, 16) }));
       expect(back.track.id).toBe(ugcId(def));
       expect(back.track.id.startsWith('u-')).toBe(true);
     }
@@ -90,9 +101,9 @@ describe('track share code (GDD 6.3)', () => {
     expect(decodeTrackCode('')).toEqual({ ok: false, reason: 'crc' });
     expect(decodeTrackCode('not a code!')).toEqual({ ok: false, reason: 'crc' });
     expect(decodeTrackCode('AAAA').ok).toBe(false);
-    // version 2 with a valid CRC
+    // an unknown version (3) with a valid CRC (v2 is the iteration-2 theme field)
     const v2 = bytes.slice(0, bytes.length - 2);
-    v2[0] = (v2[0] & 0x0f) | 0x20;
+    v2[0] = (v2[0] & 0x0f) | 0x30;
     const { withCrc16 } = (() => {
       let crc = 0xffff;
       for (const b of v2) {
@@ -128,13 +139,44 @@ describe('track share code (GDD 6.3)', () => {
 
   it('registers as the core TrackCodec and reads ?t= and #t= links', () => {
     setTrackCodec(trackCodecV1);
-    const code = encodeTrack(TRACKS[1]);
+    const code = encodeTrack(TRACKS.find((d) => d.id === 'rooftops')!);
     const a = trackFromLocation({ search: `?t=${code}`, hash: '' });
     const b = trackFromLocation({ search: '', hash: `#t=${code}` });
     expect(a?.ok && a.track.name).toBe('Neon Rooftops');
     expect(b?.ok && b.track.name).toBe('Neon Rooftops');
     expect(trackFromLocation({ search: '?track=kitchen', hash: '' })).toBeNull();
     expect(trackFromLocation({ search: '?t=broken', hash: '' })).toEqual({ ok: false, reason: 'crc' });
+  });
+});
+
+describe('track share code v2 (iteration 2)', () => {
+  it('themes 0–3 still encode as v1, byte for byte; themes 4–6 as v2, and both decode', () => {
+    const base = bigTrack();
+    const v1 = fromBase64url(encodeTrack(base))!;
+    expect(v1[0] >> 4).toBe(1);
+    for (const theme of [4, 5, 6] as const) {
+      const code = encodeTrack({ ...base, theme });
+      expect(fromBase64url(code)![0] >> 4).toBe(2);
+      const back = decodeTrackCode(code, { validate: false });
+      expect(back.ok && back.track.theme).toBe(theme);
+      expect(back.ok && norm(back.track)).toEqual(norm({ ...base, theme }));
+    }
+  });
+
+  it('a hazard sticker and a shortcut sticker keep their kind and side', () => {
+    const base = bigTrack();
+    const def: TrackDef = {
+      ...base,
+      features: [...base.features.slice(0, 10), { s: 230, kind: 'hazard', side: -1 }, { s: 240, kind: 'shortcut', side: 0 }, { s: 250, kind: 'hazard', side: 0 }],
+    };
+    const back = decodeTrackCode(encodeTrack(def), { validate: false });
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.track.features.slice(-3)).toEqual([
+      { s: 230, kind: 'hazard', side: -1 },
+      { s: 240, kind: 'shortcut', side: 0 },
+      { s: 250, kind: 'hazard', side: 0 },
+    ]);
   });
 });
 

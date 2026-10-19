@@ -21,7 +21,8 @@ describe('race rules (GDD 1.2)', () => {
     expect(lapOf(2100, 700)).toBe(4);
   });
 
-  it('every authored track runs an AI-only race to the end in every class, nobody stuck', () => {
+  // [tracks lane] six tracks now: a longer timeout
+  it('every authored track runs an AI-only race to the end in every class, nobody stuck', { timeout: 120_000 }, () => {
     for (const def of TRACKS)
       for (const cls of [0, 1, 2] as RaceClass[]) {
         const run = simulate({ ...raceConfig(def, { seed: 11, cls }), tailTicks: 60 * 60 }, createSimPlugins(), undefined);
@@ -29,8 +30,9 @@ describe('race rules (GDD 1.2)', () => {
         expect(w.done).toBe(true);
         expect(w.st.karts.every((k) => k.finished)).toBe(true);
         const times = run.result.places.map((p) => p.time!);
-        // GDD 1.2: races last 75–95 s at 150cc-ish speeds; Kitten on the longest track stays under 110 s
-        expect(Math.max(...times)).toBeLessThan(110);
+        // [tracks lane] ITERATION-2.md: laps are 900–1100 m (35–40 s at 100cc), so Kitten on the longest track stays
+        // under 160 s (GDD 1.2's 75–95 s was for the 650–750 m v1 laps)
+        expect(Math.max(...times)).toBeLessThan(160);
         expect(Math.min(...times)).toBeGreaterThan(45);
         // respawns (big hand) are rare
         expect(w.st.events.filter((e) => e.type === 'respawn').length).toBeLessThanOrEqual(4);
@@ -88,7 +90,7 @@ describe('determinism (GDD 3.1)', () => {
   it('golden hash: Kitchen, seed 42, AI-only, 10 s after GO (bump SIM_VERSION when this changes on purpose)', () => {
     const w = world(raceConfig(KITCHEN, { seed: 42 }));
     while (w.tick < GO_TICK + 600) w.step();
-    expect(w.hash()).toMatchInlineSnapshot(`4023406763`);
+    expect(w.hash()).toMatchInlineSnapshot(`673570260`);
   });
 
   it('a replay re-simulates to the exact same finish time and final hash', () => {
@@ -100,7 +102,8 @@ describe('determinism (GDD 3.1)', () => {
       rec.push(i);
       w.step([i]);
     }
-    const again = simulate(cfg, createSimPlugins(), rec.replay());
+    // [tracks lane] the same plugins as the live race (its hazards and track rules), as replay.ts asks
+    const again = simulate(cfg, createSimPlugins(cfg), rec.replay());
     expect(again.result.player.time).not.toBeNull();
     expect(again.result.player.time).toBe(w.result().player.time);
     expect(again.world.hash()).toBe(w.hash());

@@ -85,6 +85,62 @@ export function densePolyline(pts: readonly Vec3[], sub = 48): Polyline {
   return { x, y, z, len, pointAt, total: len[m] };
 }
 
+/**
+ * Dense polyline through an OPEN chain (iteration 2 branches): segments pts[1] → pts[n-2]; pts[0] and pts[n-1] are
+ * the phantom neighbours that set the tangent at both ends (the main loop just before the fork and after the merge).
+ */
+export function densePolylineOpen(pts: readonly Vec3[], sub = 48): Polyline {
+  const segs = pts.length - 3;
+  const m = segs * sub;
+  const x = new Float64Array(m + 1);
+  const y = new Float64Array(m + 1);
+  const z = new Float64Array(m + 1);
+  const len = new Float64Array(m + 1);
+  const pointAt: number[] = [];
+  const o: Vec3 = { x: 0, y: 0, z: 0 };
+  let k = 0;
+  for (let i = 1; i <= segs; i++) {
+    pointAt.push(k);
+    for (let j = 0; j < sub; j++) {
+      segPoint(pts[i - 1], pts[i], pts[i + 1], pts[i + 2], j / sub, o);
+      x[k] = o.x;
+      y[k] = o.y;
+      z[k] = o.z;
+      k++;
+    }
+  }
+  const last = pts[pts.length - 2];
+  x[m] = last.x;
+  y[m] = last.y;
+  z[m] = last.z;
+  pointAt.push(m);
+  for (let i = 1; i <= m; i++) {
+    const dx = x[i] - x[i - 1];
+    const dz = z[i] - z[i - 1];
+    len[i] = len[i - 1] + Math.sqrt(dx * dx + dz * dz);
+  }
+  return { x, y, z, len, pointAt, total: len[m] };
+}
+
+/** Resample an open dense polyline to `count` points (both ends included) evenly spaced in planar arc length. */
+export function resampleOpen(p: Polyline, count: number): { x: Float64Array; y: Float64Array; z: Float64Array; step: number } {
+  const x = new Float64Array(count);
+  const y = new Float64Array(count);
+  const z = new Float64Array(count);
+  const step = p.total / (count - 1);
+  let j = 0;
+  for (let i = 0; i < count; i++) {
+    const s = Math.min(p.total, i * step);
+    while (j < p.len.length - 2 && p.len[j + 1] < s) j++;
+    const seg = p.len[j + 1] - p.len[j];
+    const f = seg > 1e-9 ? Math.min(1, (s - p.len[j]) / seg) : 0;
+    x[i] = p.x[j] + (p.x[j + 1] - p.x[j]) * f;
+    y[i] = p.y[j] + (p.y[j + 1] - p.y[j]) * f;
+    z[i] = p.z[j] + (p.z[j + 1] - p.z[j]) * f;
+  }
+  return { x, y, z, step };
+}
+
 /** Resample a closed dense polyline to `count` points evenly spaced in planar arc length. */
 export function resample(p: Polyline, count: number): { x: Float64Array; y: Float64Array; z: Float64Array; step: number } {
   const x = new Float64Array(count);

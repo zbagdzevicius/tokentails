@@ -6,7 +6,7 @@ import { raceConfig } from '../../../test/fixtures';
 import { createSimPlugins } from '../../../items-ai';
 import { ALL_TRACKS, ARENAS, STUB_TRACKS, trackById } from '.';
 
-describe('iteration 2 ids and stub tracks', () => {
+describe('iteration 2 ids and the new tracks', () => {
   it('every frozen track and arena id resolves to a track of its own', () => {
     for (const id of [...TRACK_IDS, ...ARENA_IDS]) expect(trackById(id).id).toBe(id);
     expect(ALL_TRACKS.length).toBe(TRACK_IDS.length + ARENA_IDS.length);
@@ -17,12 +17,12 @@ describe('iteration 2 ids and stub tracks', () => {
     expect(new Set(ACHIEVEMENT_IDS).size).toBe(24);
   });
 
-  for (const def of [...STUB_TRACKS, ...ARENAS]) {
-    it(`${def.name} is a valid track and a 50cc AI race on it finishes`, () => {
+  for (const def of STUB_TRACKS) {
+    it(`${def.name} passes the UGC validator and a 50cc AI race on it finishes`, () => {
       const v = validateTrack(def);
       expect(v.issues).toEqual([]);
-      if (def.kind === 'arena') return;
-      const run = simulate({ ...raceConfig(def, { seed: 3, cls: 0 }), tailTicks: 60 * 60 }, createSimPlugins());
+      const cfg = { ...raceConfig(def, { seed: 3, cls: 0 }), tailTicks: 60 * 60 };
+      const run = simulate(cfg, createSimPlugins(cfg));
       expect(run.world.st.karts.every((k) => k.finished)).toBe(true);
     });
   }

@@ -9,7 +9,7 @@
  */
 import { FEATURE_KINDS, type TrackDef } from '../../types';
 import { TRACK } from '../../tuning';
-import { buildTrack, type BuiltTrack } from '../../core/track/build';
+import { buildTrack, outerWall, type BuiltTrack } from '../../core/track/build';
 
 export type IssueCode =
   | 'points'
@@ -135,12 +135,12 @@ export function validateTrack(def: TrackDef): Validation {
     let hitJ = -1;
     let worst = Infinity;
     for (let i = 0; i < n; i += stride) {
-      const ri = Math.max(t.wallL[i], t.wallR[i]);
+      const ri = outerWall(t, i);
       for (let j = i + sepMin; j < n; j += stride) {
         if (n - (j - i) < sepMin) break;
         const dx = t.px[i] - t.px[j];
         const dz = t.pz[i] - t.pz[j];
-        const reach = ri + Math.max(t.wallL[j], t.wallR[j]) + LIMITS.minGap;
+        const reach = ri + outerWall(t, j) + LIMITS.minGap;
         if (dx * dx + dz * dz >= reach * reach) continue;
         const gap = Math.sqrt(dx * dx + dz * dz) - reach;
         if (gap < worst) {
