@@ -5,7 +5,7 @@
  */
 import type { TickInput } from '../../types';
 import { AI } from '../../tuning';
-import { atan2L, clamp, cosL, lerp, sinL, wrapAngle } from './fixed';
+import { atan2L, clamp, cosL, sinL, wrapAngle } from './fixed';
 import { speedOf } from './kart';
 import type { SimContext } from './plugins';
 
@@ -27,14 +27,27 @@ export function curvatureAhead(ctx: SimContext, si: number, from: number, to: nu
   return s / (Math.floor((b - a) / 2) + 1);
 }
 
+/**
+ * Steer toward the racing line (+ `bias`) a speed-dependent distance ahead: `speed × AI.lookTime`, clamped to
+ * lookMin..lookMax (B15: a fixed long look cut corners into the inside wall on doodle tracks). The target stays
+ * `AI.edge` inside the road edge.
+ */
 export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale = 1): number {
   const t = ctx.track;
   const k = ctx.st.karts[idx];
   const sp = speedOf(k);
-  const look = lerp(AI.lookMin, AI.lookMax, clamp(sp / ctx.tun.topSpeed, 0, 1)) * lookScale;
+  const look = clamp(sp * AI.lookTime, AI.lookMin, AI.lookMax) * lookScale;
   const j = aheadIndex(ctx, k.si, look);
-  const lim = t.halfW[j] - 1.4;
-  const d = clamp(t.line[j] + bias * lim, -lim, lim);
+  const lim = Math.max(0.5, t.halfW[j] - AI.edge);
+  // steering at a point ahead cuts the chord of a bend by look²·κ/8: aim that much wider so the kart rides the line
+  // instead of the inside wall (B15)
+  const kap = curvatureAhead(ctx, k.si, 0, look);
+  const chord = (look * look * kap) / 8;
+  // in a bend the inside limit sits another metre in (the kart overshoots its target toward the apex)
+  const inside = Math.max(0.5, lim - 1);
+  const lo = kap > 0.012 ? -inside : -lim;
+  const hi = kap < -0.012 ? inside : lim;
+  const d = clamp(t.line[j] + bias * lim + chord, lo, hi);
   const tx = t.px[j] - t.tz[j] * d;
   const tz = t.pz[j] + t.tx[j] * d;
   const want = atan2L(tx - k.x, tz - k.z);

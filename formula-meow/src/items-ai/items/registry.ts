@@ -47,7 +47,8 @@ export function effectivePosition(ctx: SimContext, kart: number): number {
 /** The weights a kart at effective position `pos` (1..8) rolls with right now, in ITEM_IDS order. */
 export function rollWeights(ctx: SimContext, kart: number, pos: number): number[] {
   const k = ctx.st.karts[kart];
-  const row = ITEM_WEIGHTS[Math.max(0, Math.min(ITEM_WEIGHTS.length - 1, pos - 1))];
+  // a mode (battle, time trial) may replace the position table for this kart (iteration 2 contract)
+  const row = ctx.plugins?.mode?.itemRow?.(ctx, kart) ?? ITEM_WEIGHTS[Math.max(0, Math.min(ITEM_WEIGHTS.length - 1, pos - 1))];
   const mods = ctx.cfg.modifiers;
   const lap1 = k.lap <= 1;
   return ITEM_IDS.map((id, i) => {

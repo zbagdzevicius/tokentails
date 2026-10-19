@@ -5,6 +5,7 @@
  *
  *   byte 0      version:4 | flags:4 (bit 0 = runs are deflate-raw)
  *   header      trackKey:32  seed:32  cls:2 modifiers:6  forgiving:1 slot:3 reserved:4  simVersion:8  ticks:16
+ *   (v2 only)   body:3 mode:3 reserved:2      (iteration 2: the player's kart body and the race mode)
  *   runs        packed TickInput:10 (types.ts packInput), count as 3-bit groups with a continuation bit
  *   crc16
  *
@@ -12,14 +13,16 @@
  * merge into runs on their own. A ghost carries no time: opening one re-simulates it and shows the recomputed time.
  * Pure, no DOM.
  */
-import { SIM_VERSION, type RaceClass } from '../../types';
+import { RACE_MODES, SIM_VERSION, type BodyId, type RaceClass, type RaceMode } from '../../types';
 import { BitReader, BitWriter } from './bits';
 import { fromBase64url, toBase64url } from './base64url';
 import { checkCrc16, withCrc16 } from './crc16';
 
-export const GHOST_VERSION = 1;
+/** v2 (SIM_VERSION 4) adds the body and mode byte; v1 links still decode (they open as a target-time race). */
+export const GHOST_VERSION = 2;
 const FLAG_DEFLATE = 1;
-const HEADER_BYTES = 13; // 104 header bits
+const HEADER_BYTES_V1 = 13; // 104 header bits
+const HEADER_BYTES = 14; // + body:3 mode:3 reserved:2
 /** ticks:16 (18 minutes at 60 Hz; races stop long before) */
 export const GHOST_MAX_TICKS = 65535;
 /** longest payload accepted from a link */
@@ -35,6 +38,10 @@ export interface GhostHeader {
   slot: number;
   simVersion: number;
   ticks: number;
+  /** the recorded kart's body (0 for v1 links) */
+  body?: BodyId;
+  /** race mode (v1 links: 'race') */
+  mode?: RaceMode;
 }
 
 export interface Ghost extends GhostHeader {
@@ -63,12 +70,16 @@ function packHeader(g: GhostHeader): Uint8Array {
   w.write(0, 4);
   w.write(g.simVersion & 0xff, 8);
   w.write(Math.min(GHOST_MAX_TICKS, g.ticks), 16);
+  w.write((g.body ?? 0) & 7, 3);
+  w.write(Math.max(0, RACE_MODES.indexOf(g.mode ?? 'race')) & 7, 3);
+  w.write(0, 2);
   return w.bytes();
 }
 
-function readHeader(b: Uint8Array): GhostHeader | null {
-  if (b.length < HEADER_BYTES) return null;
-  const r = new BitReader(b.subarray(0, HEADER_BYTES));
+function readHeader(b: Uint8Array, version: number): GhostHeader | null {
+  const size = version === 1 ? HEADER_BYTES_V1 : HEADER_BYTES;
+  if (b.length < size) return null;
+  const r = new BitReader(b.subarray(0, size));
   const trackKeyV = r.read(32);
   const seedU = r.read(32);
   const cls = r.read(2);
@@ -79,7 +90,16 @@ function readHeader(b: Uint8Array): GhostHeader | null {
   const simVersion = r.read(8);
   const ticks = r.read(16);
   if (cls > 2) return null;
-  return { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks };
+  let body: BodyId = 0;
+  let mode: RaceMode = 'race';
+  if (version >= 2) {
+    const bv = r.read(3);
+    const mv = r.read(3);
+    if (bv > 5 || mv >= RACE_MODES.length) return null;
+    body = bv as BodyId;
+    mode = RACE_MODES[mv];
+  }
+  return { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks, body, mode };
 }
 
 type Run = [value: number, count: number];
@@ -151,11 +171,14 @@ function unframe(payload: string): { flags: number; header: GhostHeader; body: U
   const raw = fromBase64url(payload);
   if (!raw) return null;
   const bytes = checkCrc16(raw);
-  if (!bytes || bytes.length < 1 + HEADER_BYTES) return null;
-  if (bytes[0] >> 4 !== GHOST_VERSION) return null;
-  const header = readHeader(bytes.subarray(1, 1 + HEADER_BYTES));
+  if (!bytes || bytes.length < 1) return null;
+  const version = bytes[0] >> 4;
+  if (version !== 1 && version !== GHOST_VERSION) return null;
+  const size = version === 1 ? HEADER_BYTES_V1 : HEADER_BYTES;
+  if (bytes.length < 1 + size) return null;
+  const header = readHeader(bytes.subarray(1, 1 + size), version);
   if (!header) return null;
-  return { flags: bytes[0] & 15, header, body: bytes.subarray(1 + HEADER_BYTES) };
+  return { flags: bytes[0] & 15, header, body: bytes.subarray(1 + size) };
 }
 
 function headerOf(g: Omit<GhostHeader, 'ticks' | 'simVersion'> & { simVersion?: number }, inputs: readonly number[]): GhostHeader {

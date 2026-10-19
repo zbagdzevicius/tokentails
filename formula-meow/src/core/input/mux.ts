@@ -35,7 +35,8 @@ export function bendAgrees(steer: number, curve: number | undefined, min: number
 
 export class InputMux {
   readonly raw: RawInput = emptyRaw();
-  private sticky = { drift: false, item: false, gas: false };
+  /** presses kept for one latch so a short tap is never lost; `itemBack` latches with its item press (B24) */
+  private sticky = { drift: false, item: false, itemBack: false, gas: false };
   private latched: TickInput = { steer: 0, gas: false, brake: false, drift: false, item: false, itemBack: false };
   private autoHold = 0;
   private autoDrift = false;
@@ -73,7 +74,10 @@ export class InputMux {
       } else this.autoHold += dt;
     } else this.autoDrift = false;
     if (r.drift || this.autoDrift) this.sticky.drift = true;
-    if (r.item) this.sticky.item = true;
+    if (r.item) {
+      this.sticky.item = true;
+      if (r.itemBack) this.sticky.itemBack = true;
+    }
     if (r.gas) this.sticky.gas = true;
   }
 
@@ -88,10 +92,10 @@ export class InputMux {
         brake: r.brake,
         drift: r.drift || this.autoDrift || this.sticky.drift,
         item: this.sticky.item,
-        itemBack: r.itemBack,
+        itemBack: this.sticky.item ? this.sticky.itemBack : r.itemBack,
       };
       // a sticky press stays down for one latch, then follows the device again
-      this.sticky = { drift: false, item: false, gas: false };
+      this.sticky = { drift: false, item: false, itemBack: false, gas: false };
     }
     return this.latched;
   }

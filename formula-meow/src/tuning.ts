@@ -73,20 +73,37 @@ export const PHYS = {
   offroadTop: 0.6,
   offroadAccel: 0.5,
   curbTop: 0.92,
-  wallGrazeLoss: 0.15,
-  wallHeadOnLoss: 0.4,
-  wallBounce: 4.5, // m/s outward, ~1.5 m of travel
-  wallGrazeAngle: 30 * DEG,
-  wallHeadOnAngle: 60 * DEG,
-  kartRadius: 0.9,
-  /** how far past the road edge the invisible wall sits, m */
+  /** graze (< 50°): lose this once on contact, then `wallScrape` per second while scraping (the tangent is kept) */
+  wallGrazeLoss: 0.12,
+  wallScrape: 0.1,
+  /** head-on (> 50°): bounce back this fast along the wall normal, with a short wobble */
+  wallHeadOnAngle: 50 * DEG,
+  wallBounce: 3,
+  wallWobble: 0.3,
+  /** kart footprint for walls: the body's half width (the barrier face is drawn at the wall line) */
+  kartHalfWidth: 0.8,
+  /** kart-kart contact: two circles per kart at ±kartCircleOffset along the heading (B7) */
+  kartRadius: 0.75,
+  kartCircleOffset: 0.8,
+  /** ticks between two `bump` events of one kart pair (the push itself runs every tick) */
+  bumpCooldownTicks: 20,
+  /** how far past the road edge the wall sits, m (the kerb band fills it) */
   wallMargin: 1.5,
   /** off-road features push the wall out this far beyond the road edge */
   offroadMargin: 9,
-  curbWidth: 1.0,
+  /** kerb band: halfW .. halfW + curbWidth is Surface.Curb (drivable, small drag), beyond is off-road */
+  curbWidth: 1.5,
+  /** grounded height follow per tick (B12): at most this much up / down plus `stepGrade` × travel */
+  stepUp: 0.12,
+  stepDown: 0.25,
+  stepGrade: 0.3,
   respawnDelay: 1.2,
   respawnImmunity: 0.5,
+  /** wrong way: banner after this long, respawn facing forward after `wrongWayRespawn` (GDD 3.3) */
   wrongWay: 1.5,
+  wrongWayRespawn: 3,
+  /** progress watchdog counts only below this speed (m/s), and never while reversing on purpose */
+  stuckSpeed: 4,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -157,6 +174,29 @@ export const RACE = {
   roulette: 1.2,
   boxRadius: 1.7,
   stuckRespawn: 4,
+  /** position hysteresis (B3): a kart moves ahead when it leads by this much, or has led for `leadTicks` */
+  leadMargin: 0.6,
+  leadTicks: 8,
+  /** overtake events: per ordered pair cooldown, and none this long after GO */
+  overtakeCooldownTicks: 45,
+  overtakeQuietTicks: 180,
+  /** an item press is kept this long until it can fire (B22) */
+  itemBufferTicks: 9,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// fish coins (iteration 2, core/sim/coins.ts)
+// ---------------------------------------------------------------------------------------------
+export const COINS = {
+  radius: 1.3,
+  respawn: 10,
+  max: 10,
+  /** top speed bonus per coin held */
+  speedPer: 0.005,
+  /** a spin or a leap drops this many */
+  drop: 3,
+  /** spacing of a coin row across the road, m */
+  spacing: 1.6,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -184,8 +224,12 @@ export const ITEMS = {
   cucumber: { lob: 18, flight: 0.6, ownerPass: 2.5 },
   box: { time: 3 },
   bell: { radius: 25 },
-  zoomies: { time: 3, knock: 2.3 },
-  laser: { speedMult: 1.5, warn: 1.5, cooldown: 10, life: 20 },
+  /** knock: hull gap (m) at which a Zoomies kart spins a kart out (core/sim/contact.ts hullGap) */
+  zoomies: { time: 3, knock: 0.5 },
+  /** minArm: never hits within this many seconds of firing (the warning always shows first) */
+  laser: { speedMult: 1.5, warn: 1.5, cooldown: 10, life: 20, minArm: 0.75 },
+  /** ticks between two `blocked` events of one attacker → victim pair */
+  blockedCooldownTicks: 30,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -200,6 +244,15 @@ export const AI = {
   bandK: 0.003,
   /** drift where the turn ahead exceeds this curvature (1/m) */
   driftCurv: 0.035,
+  /** the line target stays this far inside the road edge (B15) */
+  edge: 1.5,
+  /** look-ahead time (s) for the line target, clamped to lookMin..lookMax metres */
+  lookTime: 0.6,
+  /** lateral acceleration an AI corners at without drifting, m/s²: it lifts above it (B15) */
+  cornerAccel: 34,
+  /** AI with skill ≥ padSkill aims at a boost pad within padLook metres (B16) */
+  padSkill: 0.5,
+  padLook: 40,
 } as const;
 
 // ---------------------------------------------------------------------------------------------

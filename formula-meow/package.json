@@ -6,7 +6,7 @@
   "description": "Formula Meow: an 8-cat kart race for Token Tails (GDD docs/plans/formula-meow/GDD.md)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node tools/budget.mjs dist",
     "build:client": "MEOW_BASE=/formula-meow-game/ vite build --outDir ../client/public/formula-meow-game --emptyOutDir && node tools/og-pages.mjs ../client/public/formula-meow-game",
     "preview": "vite preview --port 4175",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,8 @@
     "tracks": "vitest run src/core/track",
     "og": "node tools/render-og.mjs",
     "og:pages": "node tools/og-pages.mjs",
-    "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts"
+    "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts",
+    "budget": "node tools/budget.mjs dist"
   },
   "dependencies": {
     "mediabunny": "^1.61.6",

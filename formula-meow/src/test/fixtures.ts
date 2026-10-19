@@ -38,5 +38,5 @@ export function raceConfig(track: TrackDef, opts: { seed?: number; cls?: RaceCla
 }
 
 export function world(cfg: RaceConfig): SimWorld {
-  return new SimWorld(cfg, createSimPlugins());
+  return new SimWorld(cfg, createSimPlugins(cfg));
 }

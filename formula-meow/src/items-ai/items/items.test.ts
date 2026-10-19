@@ -65,6 +65,12 @@ describe('items (GDD 4)', () => {
     expect(w.st.karts[0].item).toBeNull();
     give(w, 0, 'hairball');
     const before = hitsOn(w, 2).length;
+    // the kart behind sits in the thrower's lane, 12 m back
+    const k0 = w.st.karts[0];
+    const k2 = w.st.karts[2];
+    placeOnTrack(w.ctx, k2, k0.si - Math.round(12 / w.track.step), k0.d);
+    k2.dist = k0.dist - 12;
+    k2.progDist = k2.dist;
     drive([{ item: true, itemBack: true }]);
     run(drive, 60);
     expect(hitsOn(w, 2).length).toBeGreaterThan(before);

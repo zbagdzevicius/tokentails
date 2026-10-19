@@ -1,35 +1,16 @@
-/** Player settings and local progress (GDD 2.1, 5.4). Device-only; nothing is sent anywhere. */
+/**
+ * Player settings and local progress (GDD 2.1, 5.4): thin wrappers over the versioned save (save.ts). Device-only.
+ */
 import type { RaceClass } from '../../types';
-import { load, save } from './storage';
+import { coreSlot, DEFAULT_PROGRESS, DEFAULT_SETTINGS, save, type Progress, type Settings } from './save';
 
-export interface Settings {
-  autoGas: boolean;
-  oneThumb: boolean;
-  reducedMotion: boolean;
-  muted: boolean;
-  cls: RaceClass;
-}
+export type { Progress, Settings } from './save';
+export { DEFAULT_PROGRESS, DEFAULT_SETTINGS };
 
-export interface Progress {
-  races: number;
-  /** highest unlocked class (GDD 5.4) */
-  unlocked: RaceClass;
-  /** FTUE: times each action was done (hints stop at 2) */
-  pounces: number;
-  drifts: number;
-  bestTimes: Record<string, number>;
-}
-
-const inAppWebview = typeof navigator !== 'undefined' && /Instagram|FBAN|FBAV|TikTok|musical_ly|Bytedance/i.test(navigator.userAgent);
-const prefersReduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-export const DEFAULT_SETTINGS: Settings = { autoGas: false, oneThumb: true, reducedMotion: prefersReduced, muted: inAppWebview, cls: 0 };
-export const DEFAULT_PROGRESS: Progress = { races: 0, unlocked: 0, pounces: 0, drifts: 0, bestTimes: {} };
-
-export const loadSettings = (): Settings => load('settings', DEFAULT_SETTINGS);
-export const saveSettings = (s: Settings): void => save('settings', s);
-export const loadProgress = (): Progress => load('progress', DEFAULT_PROGRESS);
-export const saveProgress = (p: Progress): void => save('progress', p);
+export const loadSettings = (): Settings => ({ ...save.settings() });
+export const saveSettings = (s: Settings): void => void save.setSettings(s);
+export const loadProgress = (): Progress => coreSlot().get();
+export const saveProgress = (p: Progress): void => coreSlot().set(p);
 
 /** Unlocks after a finish (GDD 5.4): finishing Kitten unlocks Alley Cat; a podium at 100cc unlocks Zoomies. */
 export function applyUnlocks(p: Progress, cls: RaceClass, place: number, finished: boolean): RaceClass | null {

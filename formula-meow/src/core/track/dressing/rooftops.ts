@@ -27,8 +27,10 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
   const gap = Math.round(2.5 / t.step);
   for (let i0 = 0; i0 < t.n; i0 += block + gap) {
     const mid = (i0 + Math.floor(block / 2)) % t.n;
+    // the box is straight while the road bends: take the lowest road over a wider stretch, so no corner of the roof
+    // pokes up through a lower part of the bend (B14)
     let minY = Infinity;
-    for (let k = 0; k < block; k++) minY = Math.min(minY, t.py[(i0 + k) % t.n] - 1.2);
+    for (let k = -block; k < 2 * block; k++) minY = Math.min(minY, t.py[(i0 + k + t.n) % t.n] - 1.2);
     const ry = Math.atan2(t.tx[mid], t.tz[mid]);
     const w = (Math.max(t.wallL[mid], t.wallR[mid]) + 2.4) * 2;
     const len = block * t.step + 1.5;
@@ -108,7 +110,13 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
   if (cut) {
     const i = (cut.i + Math.round(23 / t.step)) % t.n;
     const side = cut.side === 0 ? -1 : cut.side;
-    const off = (side > 0 ? t.wallR[i] : t.wallL[i]) + 3;
+    // clear of the widest wall nearby (the off-road cut pushes the wall out; B14: props stay outside every wall)
+    let wmax = 0;
+    for (let k = -80; k <= 80; k++) {
+      const j = (i + k + t.n) % t.n;
+      wmax = Math.max(wmax, side > 0 ? t.wallR[j] : t.wallL[j]);
+    }
+    const off = wmax + 6; // the poles stand 5 m either side along a bend
     const x = t.px[i] - t.tz[i] * off * side;
     const z = t.pz[i] + t.tx[i] * off * side;
     const ry = Math.atan2(t.tx[i], t.tz[i]) + Math.PI / 2;

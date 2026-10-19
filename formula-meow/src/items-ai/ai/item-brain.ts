@@ -16,6 +16,7 @@ import { curvatureAhead } from '../../core/sim/autopilot';
 import { atan2L, wrapAngle } from '../../core/sim/fixed';
 import { draw } from '../../core/sim/rng';
 import { ProjKind, itemsOf } from '../items/state';
+import { ownerLeads } from '../items/projectiles';
 import { gapToPlayer } from './rubber-band';
 
 export interface BrainMemory {
@@ -146,8 +147,11 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
       fire = s.near >= 2 || (late && s.near >= 1) || m.held > maxHold * 2;
       break;
     case 'zoomies':
-    case 'laser':
       fire = true;
+      break;
+    case 'laser':
+      // the leader keeps it (fired from the front it would only fizzle, B17)
+      fire = !ownerLeads(ctx, i);
       break;
   }
   if (fire) {

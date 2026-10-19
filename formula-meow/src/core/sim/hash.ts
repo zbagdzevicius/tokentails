@@ -39,6 +39,8 @@ const KART_FIELDS: readonly (keyof KartState)[] = [
   'stallTicks', 'respawnTicks', 'lipTicks', 'trick', 'slipTicks', 'si', 's', 'd', 'dist', 'surface', 'wall', 'pGas', 'pDrift',
   'pItem', 'startJudged', 'itemCount', 'rouletteTicks', 'rngItems', 'rngAi', 'lap', 'lapStartTick', 'bestLapTicks', 'finished',
   'finishTime', 'place', 'stuckTicks', 'progDist', 'topScale',
+  // SIM_VERSION 4
+  'lapMax', 'lapStartPrev', 'coins', 'balloons', 'out', 'itemBuf', 'itemBufBack', 'wrongTicks', 'branch',
 ];
 
 /** Full race-state hash (GDD 3.1: every 60 ticks; tests assert golden values). The items lane hashes its own slot. */
@@ -50,5 +52,7 @@ export function hashState(st: RaceState, extra?: (h: number) => number): number 
   }
   for (const b of st.boxes) h = fnvInt(h, b.respawn);
   h = fnvInt(h, st.rngHazards);
+  if (st.coins) for (const c of st.coins) h = fnvInt(h, c);
+  if (st.pairs) for (const a of [st.pairs.bump, st.pairs.overtake, st.pairs.blocked, st.pairs.lead]) for (const v of a) h = fnvInt(h, v);
   return extra ? extra(h) >>> 0 : h;
 }

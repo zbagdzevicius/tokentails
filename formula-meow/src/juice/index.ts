@@ -16,21 +16,15 @@ import type { RaceEvent } from '../types';
 import { DRIFT } from '../tuning';
 import { GO_TICK } from '../core/sim/world';
 import type { FrameInfo, JuiceListener } from './bus';
+import { vibrate } from './haptics';
 import { TimeWarp } from './time';
 import { KartFx, boostColor } from './vfx/kart-fx';
 import { SkyFx } from './vfx/sky-fx';
 import { Confetti } from './vfx/confetti';
-import { Popups, overtakeCallout } from './vfx/popups';
+import { overtakeCallout, type PopTone } from './vfx/popups';
 import { SpeedLines } from './vfx/speed-lines';
 import { Quality, TIERS } from './perf/quality';
 
-function vibrate(p: number | number[]): void {
-  try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(p);
-  } catch {
-    /* iOS Safari has no vibrate */
-  }
-}
 
 const HIT_CALLS = ['BONK!', 'GOTCHA!', 'PURRFECT HIT!'];
 
@@ -40,10 +34,13 @@ export class JuiceDirector implements JuiceListener {
   private kfx: KartFx | null = null;
   private sky: SkyFx | null = null;
   private readonly confetti: Confetti;
-  private readonly popups: Popups;
   private scaleNow = 1;
   private chain = 0;
   private chainTick = -999;
+  /** karts passed in the current chain (B3: a pass-back of the same kart is not a new pass) */
+  private chainKarts = new Set<number>();
+  /** who passed me last, and when (a pass-back within the chain window cancels it) */
+  private passedBy = new Map<number, number>();
   private hitChain = 0;
   private hitTick = -999;
   private myTier = 1;
@@ -69,7 +66,6 @@ export class JuiceDirector implements JuiceListener {
     (window as unknown as { __fmPerf?: unknown }).__fmPerf = this.quality.stats;
 
     this.confetti = new Confetti(shell.camera.cam);
-    this.popups = new Popups(shell.host);
     shell.audio.themeOf = () => shell.setup?.track.theme ?? 0;
   }
 
@@ -87,9 +83,9 @@ export class JuiceDirector implements JuiceListener {
     this.sky = null;
     this.warp.reset();
     this.confetti.clear();
-    this.popups.clear();
-    this.popups.setVisible(true);
     this.chain = 0;
+    this.chainKarts.clear();
+    this.passedBy.clear();
     this.hitChain = 0;
     this.finalLap = false;
     const view = this.shell.view;
@@ -127,7 +123,7 @@ export class JuiceDirector implements JuiceListener {
           sl?.flash(0xffffff, 0.18, 0.15);
           this.hitChain = e.tick - this.hitTick < 300 ? this.hitChain + 1 : 1;
           this.hitTick = e.tick;
-          this.popups.show(HIT_CALLS[Math.min(HIT_CALLS.length - 1, this.hitChain - 1)], 'gold');
+          this.pop(HIT_CALLS[Math.min(HIT_CALLS.length - 1, this.hitChain - 1)], 'gold');
           this.shell.camera.addTrauma(0.15);
           vibrate(20);
         }
@@ -148,7 +144,7 @@ export class JuiceDirector implements JuiceListener {
       case 'boost':
         if (mine && theme) {
           sl?.setBoostColor(boostColor(a, this.myTier, theme));
-          if (a === 4) this.popups.show('SLIPSTREAM!', 'cyan');
+          if (a === 4) this.pop('SLIPSTREAM!', 'cyan');
         }
         break;
       case 'pounce':
@@ -162,17 +158,31 @@ export class JuiceDirector implements JuiceListener {
         }
         break;
       case 'blocked':
-        if (mine) this.popups.show('BLOCKED!', 'cyan');
+        if (mine) this.pop('BLOCKED!', 'cyan');
         break;
       case 'land':
-        if (mine && a > 45) this.popups.show('BIG AIR!', 'gold');
+        if (mine && a > 45) this.pop('BIG AIR!', 'gold');
         break;
       case 'overtake':
-        if (mine && e.tick > GO_TICK) {
-          this.chain = e.tick - this.chainTick < 180 ? this.chain + 1 : 1;
+        if (e.b === me && e.kart !== me) {
+          this.passedBy.set(e.kart, e.tick);
+          break;
+        }
+        if (mine && e.tick > GO_TICK && e.b != null) {
+          // re-passing a kart that just passed me is not a new pass; a chain counts distinct karts (B3)
+          const back = this.passedBy.get(e.b);
+          this.passedBy.delete(e.b);
+          if (back != null && e.tick - back < 180) break;
+          if (e.tick - this.chainTick >= 180) {
+            this.chain = 0;
+            this.chainKarts.clear();
+          }
           this.chainTick = e.tick;
+          if (this.chainKarts.has(e.b)) break;
+          this.chainKarts.add(e.b);
+          this.chain = this.chainKarts.size;
           const c = overtakeCallout(this.chain, a);
-          this.popups.show(c.text, c.tone, c.sub);
+          this.pop(c.text, c.tone, c.sub);
           vibrate(10);
         }
         break;
@@ -190,10 +200,14 @@ export class JuiceDirector implements JuiceListener {
           this.confetti.fire(a <= 3, this.quality.look.confetti);
           this.shell.camera.addTrauma(0.3);
           vibrate(a === 1 ? [40, 60, 40, 60, 120] : 40);
-          this.popups.setVisible(false);
         }
         break;
     }
+  }
+
+  /** Style callouts go through the HUD's one message slot (B33), below the race banners in priority. */
+  private pop(text: string, tone: PopTone, sub?: string): void {
+    this.shell.hud.say(text, { prio: 1, tone, sub, ms: 1000 });
   }
 
   onFrame(info: FrameInfo): void {
@@ -207,15 +221,16 @@ export class JuiceDirector implements JuiceListener {
       sl.detail = this.quality.look.streaks;
       sl.setPulse(this.finalLap && !k.finished && k.place > 1 && info.st.lapLength > 0 && k.s / info.st.lapLength > 0.82);
     }
-    // rivals right behind you sit between the chase camera and your kart: hide any kart within 4.8 m of the lens (the player sits ~6 m out)
-    // (Mario Kart style) so the screen never fills with a cat's head
+    // rivals right behind you sit between the chase camera and your kart: fade any kart near the lens (B59: 0 at 4 m,
+    // solid from 8 m; the player sits ~6 m out, Mario Kart style) so the screen never fills with a cat's head
     const view = this.shell.view;
     if (view) {
       const cp = this.shell.camera.cam.position;
       for (let i = 0; i < view.karts.length; i++) {
         if (i === info.me) continue;
         const o = info.st.karts[i];
-        if ((o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 + (o.z - cp.z) ** 2 < 4.8 * 4.8) view.karts[i].root.visible = false;
+        const d = Math.sqrt((o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 + (o.z - cp.z) ** 2);
+        view.karts[i].setFade(Math.max(0, Math.min(1, (d - 4) / 4)));
       }
     }
     // outline LOD, 6 times a second

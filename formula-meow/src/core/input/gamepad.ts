@@ -1,8 +1,12 @@
-/** Gamepad API, standard mapping (GDD 2.3). Dead zone 0.12, rescaled to full range. */
+/**
+ * Gamepad API, standard mapping (GDD 2.3). Dead zone 0.12, rescaled to full range. Start pauses, Select restarts.
+ * Menus read the pad through the UI kit's `focusNav` (src/ui/kit), not through this race input.
+ */
 import { mergeSteer, type InputSource, type RawInput } from './raw';
 
 const DEAD = 0.12;
 const prevStart: boolean[] = [];
+const prevSelect: boolean[] = [];
 
 export class GamepadInput implements InputSource {
   poll(out: RawInput): void {
@@ -26,6 +30,10 @@ export class GamepadInput implements InputSource {
       const start = b(9);
       out.pause ||= start && !prevStart[p.index];
       prevStart[p.index] = start;
+      // Select / Back restarts the race (B31)
+      const select = b(8);
+      out.restart ||= select && !prevSelect[p.index];
+      prevSelect[p.index] = select;
       out.any ||= p.buttons.some((x) => x.pressed);
     }
   }

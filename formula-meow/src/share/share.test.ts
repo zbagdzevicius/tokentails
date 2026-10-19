@@ -72,7 +72,7 @@ describe('routes and links (GDD 8.3)', () => {
   it('parses the daily path and query, ignores junk', () => {
     expect(parseRoute({ ...prod, pathname: '/meow-race/d/12' })).toEqual({ kind: 'daily', day: 12 });
     expect(parseRoute({ ...dev, search: '?daily=4' })).toEqual({ kind: 'daily', day: 4 });
-    expect(parseRoute({ ...dev, hash: '#g=nonsense' }).kind).toBe('home');
+    expect(parseRoute({ ...dev, hash: '#g=nonsense' }).kind).toBe('dare-broken');
     expect(parseRoute(prod).kind).toBe('home');
   });
 });

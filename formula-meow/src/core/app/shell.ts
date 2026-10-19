@@ -1,10 +1,16 @@
 /**
- * App shell (core lane): boots straight onto the starting grid (no menu, GDD 1.1), runs the fixed-step loop with
- * render interpolation (GDD 3.1), feeds the HUD, juice bus and camera, and shows the results with Again / Next.
+ * App shell (integrator-owned): boots straight onto the starting grid (deep links and v1 behaviour; the modes lane
+ * puts a title and menu in front through the screen stack), runs the fixed-step loop with render interpolation
+ * (GDD 3.1), feeds the HUD, juice bus and camera, and shows pause and results as screens.
  *
- * Lanes plug in through: SimPlugins (items-ai), JuiceBus listeners (juice), ShareHooks (share), TrackCodec (ugc).
+ * Lanes plug in through: SimPlugins (items-ai / tracks / modes), JuiceBus listeners (juice, audio-ui), ShareHooks
+ * (share), TrackCodec (ugc), screens + app bus + result sections + `hudExtras` (iteration 2, src/lanes.ts).
+ *
+ * Iteration 2 API for the modes lane: `startRace(req)` resolves once the player leaves the results (Again / Next /
+ * Menu) or quits, so a Grand Prix can chain races; `pause(on)`, `quitToMenu()`, `setCameraMode(m)`,
+ * `hudExtras(model)`.
  */
-import { DT, type RaceClass, type RaceConfig, type RacerInfo, type TickInput, type TrackDef } from '../../types';
+import { DT, type RaceClass, type RaceConfig, type RaceMode, type RaceResult, type RacerInfo, type TickInput, type TrackDef, type KartLook } from '../../types';
 import { CLASSES, classTuning } from '../../tuning';
 import { SimWorld } from '../sim/world';
 import { ReplayRecorder } from '../sim/replay';
@@ -15,25 +21,32 @@ import { buildTrack } from '../track/build';
 import { TRACKS, trackById } from '../track/tracks';
 import { Stage } from '../render/scene';
 import { RaceView } from '../render/race-view';
-import { ChaseCamera } from '../camera/chase-camera';
-import { Hud } from '../hud/hud';
-import { renderResults } from '../hud/results';
+import { ChaseCamera, type CameraMode, type CameraModeParams } from '../camera/chase-camera';
+import { Hud, type HudModel } from '../hud/hud';
+import { renderResults, type ResultsHandle } from '../hud/results';
 import { KeyboardInput } from '../input/keyboard';
 import { GamepadInput } from '../input/gamepad';
 import { TouchInput } from '../input/touch';
 import { InputMux } from '../input/mux';
 import { applyUnlocks, loadProgress, loadSettings, saveProgress, saveSettings, type Progress, type Settings } from './settings';
+import { bestKey } from './save';
 import { JuiceBus, type FrameInfo } from '../../juice/bus';
 import { StarterAudio } from '../../juice/audio/starter-audio';
 import { StarterFeel } from '../../juice/feel';
+import { armHaptics } from '../../juice/haptics';
 import { SpeedLines } from '../../juice/vfx/speed-lines';
-import { shareHooks } from '../../share/hooks';
+import { shareHooks, type ResultExtras } from '../../share/hooks';
 import { trackFromLocation } from '../../ugc/codec/track-codec';
 import { buildField, createSimPlugins } from '../../items-ai';
 import { ITEM_ICON, fmtTime } from '../hud/hud';
 import { displayName } from '../../ugc/actions';
 import { OUTLINE_UNIFORMS } from '../render/cat-outline';
 import { GO_TICK } from '../sim/world';
+import { hasScreen, registerScreen, screens } from './screens';
+import { appBus } from './app-bus';
+import { setA11y } from '../../ui/a11y';
+import { localeFromUrl, setLocale, t } from '../../ui/i18n';
+import { button, h, toggle } from '../../ui/kit';
 import '../hud/hud.css';
 
 export interface RaceSetup {
@@ -41,13 +54,43 @@ export interface RaceSetup {
   cls: RaceClass;
   seed: number;
   modifiers: number;
+  /** default 'race' */
+  mode?: RaceMode;
+  /** Daily Cup day number (banner, HUD tag) */
+  day?: number;
+}
+
+/** What a mode asks the shell to race (iteration 2). */
+export interface RaceRequest extends RaceSetup {
+  cupId?: string;
+  raceIndex?: number;
+  /** replaces the default field (modes: GP grid order, rival flags); the player's slot is `playerSlot` */
+  racers?: RacerInfo[];
+  playerSlot?: number;
+  /** the player's kart look (garage) */
+  playerKart?: KartLook;
+  /** battle round length, ticks */
+  timeLimitTicks?: number;
+  /** keep the countdown waiting for a first input (default true; false for chained GP races) */
+  waitForInput?: boolean;
+}
+
+/** How a race request ended. */
+export interface RaceOutcome {
+  result: RaceResult | null;
+  /** 'again' | 'next' | 'menu' | 'quit' | 'continue' */
+  exit: 'again' | 'next' | 'menu' | 'quit' | 'continue';
 }
 
 const PLAYER_SLOT = 5; // 6th on the grid: overtakes come early
+/** GPU resources of a finished race are freed this long after the next one starts (B61: programs still compiling) */
+const RETIRE_MS = 1500;
 
 function hex(c: number): string {
   return '#' + c.toString(16).padStart(6, '0');
 }
+
+const newSeed = (): number => (Math.random() * 0x7fffffff) | 0;
 
 export class Shell {
   readonly stage: Stage;
@@ -57,6 +100,8 @@ export class Shell {
   readonly bus = new JuiceBus();
   readonly audio = new StarterAudio();
   readonly camera: ChaseCamera;
+  readonly screens = screens;
+  readonly appBus = appBus;
   settings: Settings = loadSettings();
   progress: Progress = loadProgress();
   /** [juice lane] real-time scale for hit-stop / slow-mo, set by installJuice; the sim still steps whole ticks */
@@ -74,40 +119,54 @@ export class Shell {
   private paused = false;
   private finishShownAt = -1;
   private resultsShown = false;
-  private readonly overlay: HTMLDivElement;
+  private results: ResultsHandle | null = null;
+  private resultExtras: ResultExtras | undefined;
   private readonly menuBtn: HTMLButtonElement;
   private readonly bot: boolean;
   /** QA only (`?speed=4`): sim steps per real second multiplier, for the e2e smoke */
   private readonly simSpeed: number;
   private me = PLAYER_SLOT;
-  /** the grid waits for the first input (tap / key / pad): audio unlocks with it, then 3-2-1 (no menu) */
+  /** the grid waits for the first input (tap / key / pad): audio unlocks with it, then 3-2-1 */
   private armed = false;
   /** drift hint: shown this race, when it went up */
   private hintShows = 0;
   private hintAt = -1;
+  /** B32: the "Pounce Start" hint's timer (cleared on every start, so a stale one never hits the next race) */
+  private pounceTimer: ReturnType<typeof setTimeout> | null = null;
   private frameInfo!: FrameInfo;
   private kartColors: string[] = [];
+  private request: RaceRequest | null = null;
+  /** bumped on every start: late async results of an older race are ignored (B49) */
+  raceToken = 0;
+  private outcome: ((o: RaceOutcome) => void) | null = null;
+  private retired: Array<{ at: number; fn: () => void }> = [];
+  private readonly snap = { x: 0, y: 0, z: 0, heading: 0 };
+  private readonly muxCtx = { racing: false, speedFrac: 0, drifting: false, curve: 0, wall: false };
 
   constructor(readonly host: HTMLElement) {
+    const q = new URLSearchParams(location.search);
+    setLocale(localeFromUrl(location.search) ?? this.settings.lang);
     this.stage = new Stage(host);
     this.camera = new ChaseCamera(this.stage.aspect);
     this.stage.scene.add(this.camera.cam);
     this.hud = new Hud(host);
     this.touch = new TouchInput(host);
     this.mux = new InputMux([new KeyboardInput(), new GamepadInput(), this.touch], { autoGas: this.settings.autoGas, oneThumb: this.settings.oneThumb });
-    const q = new URLSearchParams(location.search);
+    this.touch.oneThumb = this.settings.oneThumb;
     this.bot = q.has('bot');
     this.simSpeed = Math.max(1, Math.min(8, Number(q.get('speed')) || 1));
 
     this.menuBtn = document.createElement('button');
     this.menuBtn.className = 'fm-menu-btn fm-sticker';
-    this.menuBtn.setAttribute('aria-label', 'Menu');
+    this.menuBtn.setAttribute('aria-label', t('Pause'));
     this.menuBtn.textContent = '☰';
-    this.menuBtn.addEventListener('click', () => this.togglePause());
+    this.menuBtn.addEventListener('click', () => this.pause(!this.paused));
     host.appendChild(this.menuBtn);
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'fm-overlay';
-    host.appendChild(this.overlay);
+    screens.attach(host);
+    screens.onChange((top, prev) => appBus.emit('screen', { id: top, prev }));
+    registerScreen('pause', () => ({ mount: (root) => this.mountPause(root) }));
+    // the shell fills the results layer itself (showResults); lanes add to it with registerResultSection
+    registerScreen('results', () => ({ mount: () => ({ back: () => (this.quitToMenuIfAny(), true) }) }));
 
     this.audio.muted = this.settings.muted;
     this.bus.add(this.audio);
@@ -121,19 +180,43 @@ export class Shell {
         reducedMotion: () => this.settings.reducedMotion,
       }),
     );
-    this.camera.feel.reducedMotion = this.settings.reducedMotion;
+    this.applySettings();
 
     this.armed = this.bot;
     const unlock = () => {
       this.audio.unlock();
+      armHaptics();
       this.arm();
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     window.addEventListener('resize', () => this.onResize());
+    // B34: hiding the tab pauses (idempotent: a queued Escape can no longer flip it back) and silences the audio
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.world && !this.world.done && !this.paused) this.togglePause();
+      if (document.hidden) {
+        if (this.world && !this.world.done) this.pause(true);
+        this.audio.suspend();
+      } else this.audio.resume();
     });
+  }
+
+  /** Push settings into every system that reads them (audio, input, camera, a11y). */
+  applySettings(): void {
+    const s = this.settings;
+    this.audio.setMuted(s.muted);
+    this.audio.setMixer({ music: s.musicVol, sfx: s.sfxVol, engine: s.sfxVol });
+    this.mux.settings = { autoGas: s.autoGas, oneThumb: s.oneThumb };
+    this.touch.oneThumb = s.oneThumb;
+    this.camera.feel.reducedMotion = s.reducedMotion;
+    setA11y({ reducedMotion: s.reducedMotion, colourblind: s.colourblind, highContrast: s.highContrast, textScale: s.textScale, captions: s.captions, haptics: s.haptics });
+  }
+
+  /** Change and save settings (the settings screen, the pause toggles). */
+  updateSettings(next: Partial<Settings>): void {
+    Object.assign(this.settings, next);
+    saveSettings(this.settings);
+    this.applySettings();
+    for (const k of Object.keys(next)) appBus.emit('settingsChanged', { key: k });
   }
 
   /** First input: start the countdown. */
@@ -158,35 +241,67 @@ export class Shell {
     // ugc lane: `?t=CODE` / `#t=CODE` races a shared track (a broken code falls back; the ugc hub says so)
     const shared = trackFromLocation(location);
     const track = shared?.ok ? shared.track : trackById(route?.trackId ?? q.get('track'));
+    // B6: only whole classes, and never one that is still locked (the QA bot may pick any)
     const clsQ = Number(q.get('cls'));
-    const cls = (route?.cls ?? (clsQ >= 0 && clsQ <= 2 && q.has('cls') ? clsQ : Math.min(this.settings.cls, this.progress.unlocked))) as RaceClass;
-    const seed = route?.seed ?? (q.has('seed') ? Number(q.get('seed')) | 0 : (Math.random() * 0x7fffffff) | 0);
-    return { track, cls, seed, modifiers: route?.modifiers ?? 0 };
+    const want = q.has('cls') && Number.isInteger(clsQ) && clsQ >= 0 && clsQ <= 2 ? clsQ : this.settings.cls;
+    const cls = (route?.cls ?? (this.bot ? want : Math.min(want, this.progress.unlocked))) as RaceClass;
+    const seed = route?.seed ?? (q.has('seed') ? Number(q.get('seed')) | 0 : newSeed());
+    return { track, cls, seed, modifiers: route?.modifiers ?? 0, mode: route?.mode ?? 'race', day: route?.day };
   }
 
-  start(setup: RaceSetup): void {
+  /**
+   * Race a request and resolve when the player leaves its results (or quits). The modes lane chains Grand Prix
+   * races with this; `start()` is the same race without the promise.
+   */
+  startRace(req: RaceRequest): Promise<RaceOutcome> {
+    this.finishOutcome({ result: null, exit: 'quit' });
+    return new Promise((resolve) => {
+      this.start(req);
+      this.outcome = resolve;
+    });
+  }
+
+  private finishOutcome(o: RaceOutcome): void {
+    const fn = this.outcome;
+    this.outcome = null;
+    fn?.(o);
+  }
+
+  start(setup: RaceSetup | RaceRequest): void {
+    const req = setup as RaceRequest;
+    // a race started some other way ends a pending startRace() (its caller hears 'quit')
+    this.finishOutcome({ result: null, exit: 'quit' });
     this.teardown();
-    this.setup = setup;
+    this.raceToken++;
+    this.request = req;
+    this.setup = { track: setup.track, cls: setup.cls, seed: setup.seed, modifiers: setup.modifiers, mode: setup.mode ?? 'race', day: setup.day };
+    const mode = this.setup.mode ?? 'race';
     // share lane: the player's own cat from the cat maker, when one is saved (share/hooks.ts playerRacer)
     const own = shareHooks().playerRacer?.() ?? null;
-    this.racers = buildField({ seed: setup.seed, cls: setup.cls, playerSlot: PLAYER_SLOT, playerName: own?.name ?? 'You', playerCat: own?.cat });
-    this.me = PLAYER_SLOT;
+    const slot = req.playerSlot ?? PLAYER_SLOT;
+    this.racers = req.racers ?? buildField({ seed: setup.seed, cls: setup.cls, playerSlot: slot, playerName: own?.name ?? 'You', playerCat: own?.cat, playerKart: req.playerKart });
+    this.me = slot;
     const cfg: RaceConfig = {
       track: setup.track,
       seed: setup.seed,
       cls: setup.cls,
       modifiers: setup.modifiers,
       racers: this.racers,
-      humans: [PLAYER_SLOT],
+      humans: [slot],
       forgiving: this.progress.races === 0,
+      mode,
+      cupId: req.cupId,
+      raceIndex: req.raceIndex,
+      timeLimitTicks: req.timeLimitTicks,
     };
     const built = buildTrack(setup.track, setup.modifiers);
-    this.world = new SimWorld(cfg, createSimPlugins(), built);
+    this.world = new SimWorld(cfg, createSimPlugins(cfg), built);
     this.view = new RaceView(this.stage.scene, built, this.racers);
     this.view.capture(this.world.st);
     this.view.capture(this.world.st);
     const k = this.world.st.karts[this.me];
     this.camera.snap(k.x, k.y, k.z, k.heading);
+    this.camera.setMode('chase');
     // compile every shader now, on the grid, so the first rendered frames of the countdown never stall (iOS links
     // programs synchronously on first use). The sim step clamps dt, so a slow compile costs no countdown time.
     try {
@@ -198,6 +313,8 @@ export class Shell {
     this.hintShows = 0;
     this.hintAt = -1;
     this.hud.setTrack(built, hex(this.view.world.theme.accent));
+    this.hud.setTouch(this.touchMode());
+    this.hud.setModel({ mode, tag: mode === 'daily' && setup.day ? t('Daily Cup #{n}', { n: setup.day }) : undefined });
     this.kartColors = this.racers.map((r) => hex(r.kart.paint[0]));
     this.speedLines = new SpeedLines(this.camera.cam, this.view.world.theme.accent);
     this.recorder = new ReplayRecorder();
@@ -205,28 +322,69 @@ export class Shell {
     this.acc = 0;
     this.finishShownAt = -1;
     this.resultsShown = false;
+    this.results = null;
+    this.resultExtras = undefined;
     this.paused = false;
-    this.overlay.classList.remove('on');
+    screens.remove('pause');
+    screens.remove('results');
     this.hud.setVisible(true);
     this.bus.reset();
     this.onResize();
     const hintPounce = this.progress.pounces < 2 && !this.bot;
-    this.hud.setHint(hintPounce ? (this.touchMode() ? 'Tap on MEOW! = Pounce Start' : '↑ on MEOW! = Pounce Start') : null);
-    if (!this.armed) this.hud.setTapPrompt(this.touchMode() ? 'TAP TO RACE' : 'PRESS ANY KEY', this.touchMode() ? 'gas is automatic · left thumb steers' : '←→ steer · ↑ gas · Space drift');
+    this.hud.setHint(hintPounce ? (this.touchMode() ? t('Tap on MEOW! = Pounce Start') : t('↑ on MEOW! = Pounce Start')) : null);
+    if (req.waitForInput === false) this.arm();
+    if (!this.armed) this.hud.setTapPrompt(this.touchMode() ? t('TAP TO RACE') : t('PRESS ANY KEY'), this.touchMode() ? t('gas is automatic · left thumb steers') : t('←→ steer · ↑ gas · Space drift'));
     this.touch.setGrid(true);
+    // a fresh focus: a button that started this race no longer swallows the race keys
+    (document.activeElement as HTMLElement | null)?.blur?.();
     (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
+    appBus.emit('raceStart', { mode, trackId: setup.track.id, cls: setup.cls, cupId: req.cupId, raceIndex: req.raceIndex });
   }
 
   private touchMode(): boolean {
     return this.touch.active || (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches);
   }
 
+  /**
+   * Leave the current race. Its GPU resources are freed a little later (B61: disposing programs that are still
+   * being linked logged dozens of GL_INVALID_VALUE warnings after a restart during the countdown); the next race
+   * re-uses the same programs from three's cache meanwhile.
+   */
   private teardown(): void {
-    this.speedLines?.dispose();
+    if (this.pounceTimer) clearTimeout(this.pounceTimer);
+    this.pounceTimer = null;
+    const lines = this.speedLines;
+    const view = this.view;
     this.speedLines = null;
-    this.view?.dispose();
     this.view = null;
     this.world = null;
+    if (view) for (const kv of view.karts) kv.root.visible = false;
+    if (view) view.world.group.visible = false;
+    const now = performance.now();
+    this.retired.push({
+      at: now + RETIRE_MS,
+      fn: () => {
+        lines?.dispose();
+        view?.dispose();
+      },
+    });
+    this.flushRetired(false);
+  }
+
+  /** Free retired races whose time has come (all of them when `all`). */
+  private flushRetired(all: boolean): void {
+    const now = performance.now();
+    const keep: typeof this.retired = [];
+    for (const r of this.retired) {
+      if (all || r.at <= now) {
+        try {
+          r.fn();
+        } catch (err) {
+          console.warn('[shell] dispose failed', err);
+        }
+      } else keep.push(r);
+    }
+    this.retired = keep;
   }
 
   run(): void {
@@ -235,6 +393,7 @@ export class Shell {
       requestAnimationFrame(loop);
       const dt = Math.min(0.1, (now - this.last) / 1000);
       this.last = now;
+      if (this.retired.length) this.flushRetired(false);
       this.frame(dt);
     };
     requestAnimationFrame(loop);
@@ -247,15 +406,21 @@ export class Shell {
     this.stage.govern(dt);
     const top = classTuning(this.setup.cls).topSpeed;
     const me = w.st.karts[this.me];
-    const muxCtx = { racing: w.st.tick >= GO_TICK, speedFrac: speedOf(me) / top, drifting: me.driftDir !== 0, curve: curvatureAhead(w.ctx, me.si, 4, 24), wall: !!me.wall };
-    this.mux.frame(dt, muxCtx);
+    const mc = this.muxCtx; // B58: reused every frame
+    mc.racing = w.st.tick >= GO_TICK;
+    mc.speedFrac = speedOf(me) / top;
+    mc.drifting = me.driftDir !== 0;
+    mc.curve = curvatureAhead(w.ctx, me.si, 4, 24);
+    mc.wall = !!me.wall;
+    this.mux.frame(dt, mc);
     if (!this.armed && this.mux.any) this.arm();
     const countdown = w.st.tick < GO_TICK;
     this.touch.countdown = countdown;
     this.touch.setGrid(countdown);
-    if (this.mux.pause) this.togglePause();
-    if (this.mux.restart && !this.paused) {
-      this.start({ ...this.setup });
+    this.hud.setTouch(this.touchMode());
+    if (this.mux.pause) this.pause(!this.paused);
+    if (this.mux.restart && !this.paused && !this.resultsShown) {
+      this.restart();
       return;
     }
 
@@ -266,7 +431,7 @@ export class Shell {
       const maxSteps = 5 * this.simSpeed;
       let steps = 0;
       while (this.acc >= DT && steps < maxSteps) {
-        const input = this.bot ? this.botDrive() : this.mux.sample(w.tick, muxCtx);
+        const input = this.bot ? this.botDrive() : this.mux.sample(w.tick, mc);
         this.recorder.push(input);
         w.step([input]);
         v.capture(w.st);
@@ -277,20 +442,22 @@ export class Shell {
     }
     const alpha = this.paused ? 1 : this.acc / DT;
 
-    // events → HUD + juice
+    // events → HUD + juice (B58: no slice; the bus walks the new range)
     const events = w.st.events;
     this.frameInfo = { st: w.st, me: this.me, dt, alpha, topSpeed: top, paused: this.paused };
-    const fresh = events.slice(this.eventIdx);
+    const from = this.eventIdx;
     this.eventIdx = events.length;
-    for (const e of fresh) {
+    for (let i = from; i < events.length; i++) {
+      const e = events[i];
       this.hud.onEvent(e, this.me);
-      if (e.kart === this.me) this.ftue(e.type);
+      // B32: race-wide events (kart -1, e.g. GO) reach the FTUE too
+      if (e.kart === this.me || e.kart === -1) this.ftue(e.type);
     }
-    this.bus.emit(fresh, this.frameInfo);
+    if (from < events.length) this.bus.emitRange(events, from, this.frameInfo);
 
     // render
     v.update(w.st, alpha, this.paused ? 0 : sdt, top); // [juice lane] sdt
-    const snap = v.lerpKart(this.me, alpha, { x: 0, y: 0, z: 0, heading: 0 });
+    const snap = v.lerpKart(this.me, alpha, this.snap);
     this.camera.lookBack = this.mux.lookBack;
     this.camera.update(me, snap.x, snap.y, snap.z, snap.heading, speedOf(me), top, this.paused ? 0 : dt);
     this.speedLines?.update(dt, speedOf(me), top, me.boostTicks > 0, this.settings.reducedMotion);
@@ -301,10 +468,21 @@ export class Shell {
     this.bus.frame(this.frameInfo);
     this.stage.renderer.render(this.stage.scene, this.camera.cam);
 
-    // finish → results 2.5 s later (the field keeps racing behind the panel)
+    // finish → results 2.5 s later (the field keeps racing behind the panel, B35: rows fill in live)
     if (me.finished && this.finishShownAt < 0) this.finishShownAt = performance.now();
     if (!this.resultsShown && ((this.finishShownAt > 0 && performance.now() - this.finishShownAt > 2500) || w.done)) this.showResults();
+    else if (this.resultsShown && this.results) {
+      let n = 0;
+      for (const k of w.st.karts) n += k.finished;
+      if (n !== this.finishedRows) {
+        this.finishedRows = n;
+        this.results.update(w.result(), this.resultExtras?.ghost);
+      }
+    }
   }
+
+  /** karts finished when the results rows were last drawn (B35) */
+  private finishedRows = 0;
 
   /** `?bot=1`: the player kart is driven by the scripted average-player bot (e2e smoke, attract mode). */
   private botDrive(): TickInput {
@@ -317,7 +495,13 @@ export class Shell {
       this.progress.pounces++;
       this.hud.setHint(null);
     }
-    if (type === 'go') setTimeout(() => this.hud.setHint(null), 1200);
+    if (type === 'go') {
+      if (this.pounceTimer) clearTimeout(this.pounceTimer);
+      this.pounceTimer = setTimeout(() => {
+        this.pounceTimer = null;
+        this.hud.setHint(null);
+      }, 1200);
+    }
     if (type === 'driftStart') {
       // any drift start counts (short taps too): the hint is for players who have not found drifting yet
       this.progress.drifts++;
@@ -343,110 +527,193 @@ export class Shell {
     const c = curvatureAhead(w.ctx, k.si, 10, 40);
     if (Math.abs(c) <= 0.03) return;
     const arrow = c > 0 ? '↩' : '↪'; // curvature + = left turn
+    // B28: the hint names the drift method that is actually on
     const text = this.touchMode()
       ? this.settings.oneThumb
-        ? `FULL STICK INTO THE TURN = DRIFT ${arrow}`
-        : `HOLD RIGHT THUMB = DRIFT ${arrow}`
-      : `HOLD SPACE TO DRIFT ${arrow}`;
+        ? t('FULL STICK INTO THE TURN = DRIFT {a}', { a: arrow })
+        : t('HOLD RIGHT THUMB = DRIFT {a}', { a: arrow })
+      : t('HOLD SPACE TO DRIFT {a}', { a: arrow });
     this.hud.setHint(text);
     this.hintAt = now;
     this.hintShows++;
+  }
+
+  /** Restart: same track, class and mode; a new seed except for dares and rematches (B37). */
+  restart(): void {
+    if (!this.setup) return;
+    const s = this.setup;
+    const keepSeed = s.mode === 'dare' || s.mode === 'daily';
+    this.start({ ...(this.request ?? s), ...s, seed: keepSeed ? s.seed : newSeed() });
   }
 
   private showResults(): void {
     const w = this.world!;
     const setup = this.setup!;
     this.resultsShown = true;
+    this.finishedRows = w.st.karts.reduce((n, k) => n + k.finished, 0);
+    this.paused = false;
+    screens.remove('pause');
     const result = w.result();
     const me = w.st.karts[this.me];
     this.progress.races++;
     const extras = shareHooks().onResult?.({ result, replay: this.recorder.replay(), cfg: w.cfg, events: w.st.events }) ?? undefined;
+    this.resultExtras = extras || undefined;
     // the Daily Cup and dares run at a fixed class: they never unlock a class
     const unlocked = extras?.noUnlock ? null : applyUnlocks(this.progress, setup.cls, result.player.place, !!me.finished);
+    const mode = setup.mode ?? 'race';
+    // B36: bests per mode, track, class and modifiers (a Daily Cup run is not a normal best)
+    const key = bestKey(mode, setup.track.id, setup.cls, setup.modifiers);
     if (result.player.time != null) {
-      const key = `${setup.track.id}:${setup.cls}`;
       const best = this.progress.bestTimes[key];
       if (best == null || result.player.time < best) this.progress.bestTimes[key] = result.player.time;
     }
     saveProgress(this.progress);
     const lines = [...(extras?.lines ?? [])];
-    if (unlocked != null) lines.unshift(`Unlocked: ${CLASSES[unlocked].name} ${CLASSES[unlocked].cc}`);
-    const best = this.progress.bestTimes[`${setup.track.id}:${setup.cls}`];
-    if (best != null) lines.push(`Your best here: ${fmtTime(best)}`);
-    renderResults(this.overlay, {
-      result,
-      racers: this.racers,
-      ghost: extras?.ghost,
-      trackName: displayName(setup.track),
-      className: `${CLASSES[setup.cls].name} ${CLASSES[setup.cls].cc}`,
-      actions: extras?.actions ?? [],
-      lines,
+    const best = this.progress.bestTimes[key];
+    if (best != null) lines.push(t('Your best here: {t}', { t: fmtTime(best) }));
+    appBus.emit('raceEnd', { result, stats: result.stats, mode });
+    if (unlocked != null) appBus.emit('unlock', { kind: 'class', id: String(unlocked) });
+    const exitTo = (exit: RaceOutcome['exit']) => this.finishOutcome({ result, exit });
+    void screens.push('results').then((root) => {
+      if (!root) return;
+      this.results = renderResults(root, {
+        result,
+        racers: this.racers,
+        ghost: extras?.ghost,
+        trackName: displayName(setup.track),
+        className: `${CLASSES[setup.cls].name} ${CLASSES[setup.cls].cc}`,
+        actions: extras?.actions ?? [],
+        lines,
+        cfg: w.cfg,
+        // B43: the unlock is a button that starts the new class
+        unlock:
+          unlocked != null
+            ? {
+                label: t('Unlocked: {c} → race it', { c: `${CLASSES[unlocked].name} ${CLASSES[unlocked].cc}` }),
+                run: () => {
+                  exitTo('next');
+                  this.updateSettings({ cls: unlocked });
+                  this.start({ ...setup, cls: unlocked, seed: newSeed(), mode: 'race' });
+                },
+              }
+            : undefined,
+        extra: hasScreen('menu') ? [{ label: t('Menu'), act: 'menu', run: () => this.quitToMenu() }] : [],
+      });
+      // results that arrive late (the dare ghost's recomputed time): only for these results, still on screen
+      const token = this.raceToken;
+      void extras?.later?.then((late) => {
+        if (!late || token !== this.raceToken || !this.results) return;
+        if (late.ghost) {
+          this.resultExtras = { ...(this.resultExtras ?? {}), ghost: late.ghost };
+          this.results.update(this.world ? this.world.result() : result, late.ghost);
+        }
+        if (late.lines?.length) this.results.addLines(late.lines);
+      });
+      root.querySelector('[data-act="again"]')?.addEventListener('click', () => {
+        exitTo('again');
+        this.restart();
+      });
+      root.querySelector('[data-act="next"]')?.addEventListener('click', () => {
+        exitTo('next');
+        // B43: Next keeps the newest unlocked class the player picked; a normal race on the next authored track
+        const i = TRACKS.findIndex((x) => x.id === setup.track.id);
+        this.start({ track: TRACKS[(i + 1) % TRACKS.length], cls: this.settings.cls <= this.progress.unlocked ? this.settings.cls : setup.cls, seed: newSeed(), modifiers: 0, mode: 'race' });
+      });
     });
-    this.overlay.querySelector('[data-act="again"]')?.addEventListener('click', () => this.start({ ...setup }));
-    this.overlay.querySelector('[data-act="next"]')?.addEventListener('click', () => {
-      const i = TRACKS.findIndex((t) => t.id === setup.track.id);
-      this.start({ ...setup, track: TRACKS[(i + 1) % TRACKS.length], seed: (Math.random() * 0x7fffffff) | 0 });
-    });
-    this.overlay.classList.add('on');
     this.hud.setVisible(false);
   }
 
-  togglePause(): void {
+  /** Pause on / off (idempotent, B34). Paused races show the pause screen. */
+  pause(on: boolean): void {
     if (!this.world || this.resultsShown) return;
-    this.paused = !this.paused;
-    if (!this.paused) {
-      this.overlay.classList.remove('on');
+    if (on === this.paused) return;
+    this.paused = on;
+    if (on) void screens.push('pause');
+    else {
+      screens.remove('settings');
+      screens.remove('pause');
       this.last = performance.now();
-      return;
     }
+  }
+
+  /** v1 name, kept for the ugc hub. */
+  togglePause(): void {
+    this.pause(!this.paused);
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** Esc / B on the results: the menu when there is one (modes lane), else nothing. */
+  private quitToMenuIfAny(): void {
+    if (hasScreen('menu')) this.quitToMenu();
+  }
+
+  /** Leave the race for the menu (modes lane registers the 'menu' screen; without one the race restarts). */
+  quitToMenu(): void {
+    this.finishOutcome({ result: this.world && this.resultsShown ? this.world.result() : null, exit: 'menu' });
+    this.paused = false;
+    screens.clear();
+    if (hasScreen('menu')) {
+      this.teardown();
+      this.hud.setVisible(false);
+      void screens.push('menu');
+    } else if (this.setup) this.restart();
+  }
+
+  /** Camera modes (iteration 2): flyover, finish orbit, podium and attract come from the feel lane. */
+  setCameraMode(m: CameraMode, params?: CameraModeParams): void {
+    this.camera.setMode(m, params);
+  }
+
+  /** Fields for the HUD model (modes: balloons, timer, splits, GP race; progression: rival). */
+  hudExtras(model: Partial<HudModel>): void {
+    this.hud.setModel(model);
+  }
+
+  /** The pause screen (B38: no track / class selects; B42: only the controls of the input in use, real toggles). */
+  private mountPause(root: HTMLElement): { back(): boolean; unmount(): void } {
     const s = this.settings;
-    const setup = this.setup!;
-    const classOpts = CLASSES.map((c, i) => `<option value="${i}" ${i === setup.cls ? 'selected' : ''} ${i > this.progress.unlocked ? 'disabled' : ''}>${c.name} ${c.cc}${i > this.progress.unlocked ? ' 🔒' : ''}</option>`).join('');
-    const trackOpts = TRACKS.map((t) => `<option value="${t.id}" ${t.id === setup.track.id ? 'selected' : ''}>${t.name}</option>`).join('') +
-      // ugc lane: list the shared track too (its name is filtered and limited to [A-Za-z0-9 -] by the codec)
-      (TRACKS.some((t) => t.id === setup.track.id) ? '' : `<option value="${setup.track.id}" selected>${setup.track.name || 'Shared track'}</option>`);
-    this.overlay.innerHTML = `
-      <div class="fm-panel fm-sticker">
-        <h1>Paused</h1>
-        <div class="fm-settings">
-          <label>Track <select data-k="track">${trackOpts}</select></label>
-          <label>Class <select data-k="cls">${classOpts}</select></label>
-          <label>Sound <input type="checkbox" data-k="sound" ${s.muted ? '' : 'checked'}></label>
-          <label>One-thumb drift (touch) <input type="checkbox" data-k="oneThumb" ${s.oneThumb ? 'checked' : ''}></label>
-          <label>Auto-gas (keyboard / pad) <input type="checkbox" data-k="autoGas" ${s.autoGas ? 'checked' : ''}></label>
-          <label>Reduced motion <input type="checkbox" data-k="reducedMotion" ${s.reducedMotion ? 'checked' : ''}></label>
-        </div>
-        <p class="fm-line">Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart</p>
-        <div class="fm-row-btns">
-          <button class="fm-btn primary" data-act="resume">Resume</button>
-          <button class="fm-btn" data-act="restart">Restart</button>
-        </div>
-      </div>`;
-    const get = (k: string) => this.overlay.querySelector<HTMLInputElement & HTMLSelectElement>(`[data-k="${k}"]`)!;
-    const persist = () => {
-      s.muted = !get('sound').checked;
-      s.oneThumb = get('oneThumb').checked;
-      s.autoGas = get('autoGas').checked;
-      s.reducedMotion = get('reducedMotion').checked;
-      this.audio.setMuted(s.muted);
-      this.mux.settings = { autoGas: s.autoGas, oneThumb: s.oneThumb };
-      this.camera.feel.reducedMotion = s.reducedMotion;
-      saveSettings(s);
+    const touch = this.touchMode();
+    const toggles: HTMLElement[] = [
+      toggle(t('Sound'), !s.muted, (v) => this.updateSettings({ muted: !v })),
+      toggle(t('Reduced motion'), s.reducedMotion, (v) => this.updateSettings({ reducedMotion: v })),
+    ];
+    if (touch) toggles.push(toggle(t('One-thumb drift'), s.oneThumb, (v) => this.updateSettings({ oneThumb: v })));
+    else toggles.push(toggle(t('Auto-gas'), s.autoGas, (v) => this.updateSettings({ autoGas: v })));
+    const help = touch
+      ? s.oneThumb
+        ? t('Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.')
+        : t('Left thumb steers. Hold the right thumb to drift. Swipe up or down for items.')
+      : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause');
+    const btns = [
+      button(t('Resume'), () => this.pause(false), { primary: true, act: 'resume' }),
+      button(t('Restart'), () => this.restart(), { act: 'restart' }),
+    ];
+    if (hasScreen('settings')) btns.push(button(t('Settings'), () => void screens.push('settings'), { act: 'settings' }));
+    if (hasScreen('menu')) btns.push(button(t('Quit to menu'), () => this.quitToMenu(), { act: 'menu' }));
+    const panel = h('div', { class: 'fm-panel fm-sticker', role: 'dialog', 'aria-label': t('Paused') }, [
+      h('h1', {}, [t('Paused')]),
+      h('div', { class: 'fm-settings' }, toggles),
+      h('p', { class: 'fm-line' }, [help]),
+      h('div', { class: 'fm-row-btns sticky' }, btns),
+    ]);
+    root.append(panel);
+    return {
+      back: () => {
+        this.pause(false);
+        return true;
+      },
+      unmount: () => {
+        if (this.paused && !this.resultsShown) {
+          // removed from outside (a screen replaced it): keep the race paused state honest
+          this.paused = false;
+          this.last = performance.now();
+        }
+      },
     };
-    this.overlay.querySelectorAll('input').forEach((el) => el.addEventListener('change', persist));
-    const restartWith = () => {
-      const cls = Number(get('cls').value) as RaceClass;
-      s.cls = cls;
-      saveSettings(s);
-      // ugc lane: a shared track is not in TRACKS; keep it when only the class changes
-      const tid = get('track').value;
-      this.start({ ...setup, track: tid === setup.track.id ? setup.track : trackById(tid), cls, seed: (Math.random() * 0x7fffffff) | 0 });
-    };
-    get('track').addEventListener('change', restartWith);
-    get('cls').addEventListener('change', restartWith);
-    this.overlay.querySelector('[data-act="resume"]')!.addEventListener('click', () => this.togglePause());
-    this.overlay.querySelector('[data-act="restart"]')!.addEventListener('click', () => this.start({ ...setup }));
-    this.overlay.classList.add('on');
   }
 }
 
+export { newSeed };

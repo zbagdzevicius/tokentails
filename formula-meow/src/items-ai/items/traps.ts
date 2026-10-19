@@ -7,7 +7,7 @@ import { ITEMS, ticks } from '../../tuning';
 import type { SimContext } from '../../core/sim/plugins';
 import { speedOf } from '../../core/sim/kart';
 import { clamp } from '../../core/sim/fixed';
-import { TrapKind, itemsOf, trackPoint, type Trap } from './state';
+import { TrapKind, itemsOf, sampleAt, trackPoint, type Trap } from './state';
 import { itemHit, touchable } from './hits';
 
 const T = ITEMS.trap;
@@ -16,7 +16,8 @@ const pt = { x: 0, y: 0, z: 0, si: 0 };
 function place(ctx: SimContext, owner: number, kind: Trap['kind'], dist: number, d: number, flight: number): Trap {
   const s = itemsOf(ctx.st);
   const k = ctx.st.karts[owner];
-  const lim = ctx.track.halfW[k.si] - 1;
+  // clamp to the road width where the trap lands, not where it was thrown (B21)
+  const lim = ctx.track.halfW[sampleAt(ctx.track, dist)] - 1;
   const tr: Trap = { id: s.nextId++, kind, owner, x: 0, y: 0, z: 0, dist, d: clamp(d, -lim, lim), life: ticks(T.life), flight, flightMax: flight, fx: k.x, fy: k.y + 1, fz: k.z, imm: ticks(T.ownerImmune) };
   trackPoint(ctx.track, tr.dist, tr.d, pt);
   tr.x = pt.x;
@@ -59,7 +60,8 @@ export function stepTraps(ctx: SimContext): void {
       if (!touchable(k) || (j === tr.owner && tr.imm > 0)) continue;
       const dx = k.x - tr.x;
       const dz = k.z - tr.z;
-      if (dx * dx + dz * dz > r2 || k.y - tr.y > 1.2) continue;
+      // a kart passing well above or below (a ramp jump, a bridge) misses it (B20)
+      if (dx * dx + dz * dz > r2 || Math.abs(k.y - tr.y) > 1.2) continue;
       itemHit(ctx, j, tr.kind === TrapKind.Cucumber ? 'leap' : 'spin', tr.owner, tr.kind === TrapKind.Cucumber ? 'cucumber' : 'yarn');
       tr.life = 0;
       break;

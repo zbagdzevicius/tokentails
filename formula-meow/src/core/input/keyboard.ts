@@ -1,6 +1,23 @@
 /** Keyboard (GDD 2.2): arrows/WASD, Space hop/drift, Shift/E item (with ↓ held: backwards), Q look back, R restart, Esc pause. */
 import { mergeSteer, type InputSource, type RawInput } from './raw';
 
+/** Where menu buttons live: a focused button in one of these owns the keys (the corner ☰ button does not). */
+const UI_LAYERS = '[data-ui-layer], .fm-overlay.on, .fm-ugc-sheet.on, .fm-maker, .fm-ed, .fm-dare-name';
+
+/** A menu control has the keyboard focus: a text field anywhere, or a button / link inside an open menu layer. */
+export function uiFocused(): boolean {
+  if (typeof document === 'undefined') return false;
+  const a = document.activeElement as HTMLElement | null;
+  if (!a || a === document.body || a === document.documentElement) return false;
+  const tag = a.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || a.isContentEditable) return true;
+  return (tag === 'BUTTON' || tag === 'A' || a.tabIndex >= 0) && !!a.closest(UI_LAYERS);
+}
+
+function layerOpen(): boolean {
+  return typeof document !== 'undefined' && !!document.querySelector('[data-ui-layer]:not([hidden])');
+}
+
 export class KeyboardInput implements InputSource {
   private down = new Set<string>();
   private pressed = new Set<string>();
@@ -8,7 +25,10 @@ export class KeyboardInput implements InputSource {
   private readonly onDown = (e: KeyboardEvent) => {
     if (e.repeat) return;
     const c = e.code;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(c)) e.preventDefault();
+    // B30: the race keeps arrows / Space from scrolling, but a focused button, field or select keeps its keys
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(c) && !uiFocused()) e.preventDefault();
+    // Esc belongs to the screen stack while a menu layer is open (it goes back), judged when the key goes down
+    if (c === 'Escape' && layerOpen()) return;
     this.down.add(c);
     this.pressed.add(c);
   };
@@ -28,6 +48,11 @@ export class KeyboardInput implements InputSource {
   }
 
   poll(out: RawInput, dt: number): void {
+    // a focused menu control owns the keys (Space presses it, arrows move focus): the race sees nothing
+    if (uiFocused()) {
+      this.pressed.clear();
+      return;
+    }
     const left = this.is('ArrowLeft', 'KeyA');
     const right = this.is('ArrowRight', 'KeyD');
     const want = (right ? 1 : 0) - (left ? 1 : 0);
@@ -44,6 +69,7 @@ export class KeyboardInput implements InputSource {
     out.item ||= item;
     out.itemBack ||= item && back;
     out.lookBack ||= this.is('KeyQ');
+    // Esc belongs to the screen stack while a menu layer is open (it goes back); P always toggles pause
     out.pause ||= this.pressed.has('Escape') || this.pressed.has('KeyP');
     out.restart ||= this.pressed.has('KeyR');
     out.any ||= this.pressed.size > 0;

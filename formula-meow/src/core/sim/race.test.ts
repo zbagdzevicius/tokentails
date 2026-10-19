@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { packInput, unpackInput, type RaceClass, type TickInput } from '../../types';
+import { RACE } from '../../tuning';
 import { TRACKS, KITCHEN } from '../track/tracks';
 import { ovalTrack, raceConfig, world } from '../../test/fixtures';
 import { createSimPlugins } from '../../items-ai';
@@ -64,11 +65,11 @@ describe('race rules (GDD 1.2)', () => {
     expect(k.lap).toBe(1);
   });
 
-  it('positions and finish order are consistent with distance', () => {
+  it('positions and finish order are consistent with distance (within the 0.6 m hysteresis, B3)', () => {
     const w = world(raceConfig(KITCHEN, { seed: 5 }));
     for (let i = 0; i < 1500; i++) w.step();
     const ord = w.st.order;
-    for (let p = 1; p < ord.length; p++) expect(w.st.karts[ord[p - 1]].dist).toBeGreaterThanOrEqual(w.st.karts[ord[p]].dist);
+    for (let p = 1; p < ord.length; p++) expect(w.st.karts[ord[p - 1]].dist).toBeGreaterThanOrEqual(w.st.karts[ord[p]].dist - RACE.leadMargin);
     ord.forEach((kart, p) => expect(w.st.karts[kart].place).toBe(p + 1));
   });
 });
@@ -87,7 +88,7 @@ describe('determinism (GDD 3.1)', () => {
   it('golden hash: Kitchen, seed 42, AI-only, 10 s after GO (bump SIM_VERSION when this changes on purpose)', () => {
     const w = world(raceConfig(KITCHEN, { seed: 42 }));
     while (w.tick < GO_TICK + 600) w.step();
-    expect(w.hash()).toMatchInlineSnapshot(`425313966`);
+    expect(w.hash()).toMatchInlineSnapshot(`4023406763`);
   });
 
   it('a replay re-simulates to the exact same finish time and final hash', () => {

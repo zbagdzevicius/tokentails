@@ -50,7 +50,7 @@ export function runBalance(tracks: readonly TrackDef[], classes: readonly RaceCl
       for (let seed = 1; seed <= seeds; seed++) {
         const s = seed * 7919 + cls * 104729;
         const cfg = { track: def, seed: s, cls, modifiers: 0, racers: buildField({ seed: s, cls, playerSlot: -1 }), humans: [], forgiving: false, tailTicks: 60 * 60 };
-        const w = new SimWorld(cfg, createSimPlugins(), built.get(def.id));
+        const w = new SimWorld(cfg, createSimPlugins(cfg), built.get(def.id));
         const lap1: number[] = new Array(cfg.racers.length).fill(0);
         let seen = 0;
         while (!w.done) {

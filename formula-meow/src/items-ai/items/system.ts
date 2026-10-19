@@ -10,20 +10,21 @@ import { hashItems, itemsOf, newItemsState } from './state';
 import { stepProjectiles } from './projectiles';
 import { stepTraps } from './traps';
 import { itemHit, touchable } from './hits';
+import { hullGap } from '../../core/sim/contact';
 
-/** Zoomies karts knock anyone they touch into a spin (GDD 4: "knocks karts aside"). */
+/**
+ * Zoomies karts knock anyone they touch into a spin (GDD 4: "knocks karts aside"). Karts that cannot be hit
+ * (shield, their own Zoomies, respawn immunity) are skipped, so no `blocked` spam (B18).
+ */
 function stepZoomies(ctx: SimContext): void {
   const ks = ctx.st.karts;
-  const r2 = ITEMS.zoomies.knock * ITEMS.zoomies.knock;
   for (let i = 0; i < ks.length; i++) {
     const a = ks[i];
     if (a.autoTicks <= 0 || !touchable(a)) continue;
     for (let j = 0; j < ks.length; j++) {
       const b = ks[j];
-      if (j === i || !touchable(b) || b.spinTicks > 0) continue;
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      if (dx * dx + dz * dz <= r2 && Math.abs(b.y - a.y) < 1.6) itemHit(ctx, j, 'spin', i, 'zoomies');
+      if (j === i || !touchable(b) || b.spinTicks > 0 || b.shieldTicks > 0 || b.autoTicks > 0 || b.invTicks > 0) continue;
+      if (Math.abs(b.y - a.y) < 1.6 && hullGap(a, b) <= ITEMS.zoomies.knock) itemHit(ctx, j, 'spin', i, 'zoomies');
     }
   }
 }

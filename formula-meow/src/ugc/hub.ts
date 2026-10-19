@@ -1,10 +1,11 @@
 /**
- * UGC hub (main bundle, small): the "🏁 Tracks" sticker shown while paused and on the results screen, the track
+ * UGC hub (main bundle, small): the "🏁 Tracks" sticker shown with the pause and results screens, the track
  * banner with "Remix" when a shared track loads, the broken-link notice, and `?make` / `/make`. The Track Doodle
  * editor itself is a lazy chunk.
  *
- * Reads the race through the juice bus (read-only) and drives the shell only through its public API
- * (`start`, `togglePause`, `setup`, `world`).
+ * The Tracks sheet and the editor are screens on the shell's one overlay stack ('tracks', 'editor'), so whatever was
+ * open below them (the pause panel) is hidden while they are up (B46). Reads the race through the juice bus
+ * (read-only) and drives the shell only through its public API (`start`, `pause`, `setup`, `world`, `screens`).
  */
 import type { TrackDef } from '../types';
 import type { Shell } from '../core/app/shell';
@@ -18,6 +19,7 @@ import { trackCodecV1 } from './codec/track-code';
 import { listSaved, loadDraft, removeSaved, type SavedTrack } from './store';
 import { byline, displayName, remixOf, shareTrack } from './actions';
 import type { EditorOptions } from './editor/TrackDoodle';
+import { registerScreen } from '../core/app/screens';
 import './ugc.css';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -25,8 +27,9 @@ const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeA
 export class UgcHub {
   private readonly btn: HTMLButtonElement;
   private readonly banner: HTMLDivElement;
-  private readonly sheet: HTMLDivElement;
-  private info: FrameInfo | null = null;
+  /** the Tracks screen's root while it is open */
+  private sheet: HTMLElement | null = null;
+  private pendingNotice: (() => void) | null = null;
   private shown = false;
   private bannerFor = '';
   private bannerOff = false;
@@ -40,13 +43,54 @@ export class UgcHub {
     this.btn.addEventListener('click', () => this.openSheet());
     this.banner = document.createElement('div');
     this.banner.className = 'fm-ugc-banner fm-sticker';
-    this.sheet = document.createElement('div');
-    this.sheet.className = 'fm-ugc-sheet';
-    this.sheet.addEventListener('click', (e) => {
-      if (e.target === this.sheet) this.closeSheet();
-    });
-    this.sheet.addEventListener('keydown', (e) => e.stopPropagation());
-    shell.host.append(this.btn, this.banner, this.sheet);
+    shell.host.append(this.btn, this.banner);
+    registerScreen('tracks', () => ({
+      mount: (root) => {
+        this.sheet = root;
+        root.classList.add('fm-ugc-sheet', 'on');
+        root.addEventListener('click', (e) => {
+          if (e.target === root) this.closeSheet();
+        });
+        root.addEventListener('keydown', (e) => {
+          if (e.key !== 'Escape') e.stopPropagation();
+        });
+        const fill = this.pendingNotice ?? (() => this.renderSheet());
+        this.pendingNotice = null;
+        fill();
+        return { unmount: () => (this.sheet = null) };
+      },
+    }));
+    registerScreen('editor', () =>
+      import('./editor/TrackDoodle').then((mod) => ({
+        mount: (root: HTMLElement, params: unknown) => {
+          const o = params as Partial<EditorOptions>;
+          const ed = mod.openTrackDoodle(
+            {
+              def: o.def,
+              slot: o.slot,
+              theme: this.shell.setup?.track.theme ?? 0,
+              host: {
+                play: (d) => {
+                  this.editorOpen = false;
+                  this.shell.screens.remove('editor');
+                  this.play(d);
+                },
+                closed: () => {
+                  this.editorOpen = false;
+                  this.shell.screens.remove('editor');
+                },
+              },
+            },
+            root,
+          );
+          return {
+            // Esc is the editor's own (it asks first when there are changes)
+            back: () => true,
+            unmount: () => ed.root.remove(),
+          };
+        },
+      })),
+    );
 
     shell.bus.add({
       onFrame: (info) => this.onFrame(info),
@@ -73,9 +117,9 @@ export class UgcHub {
   }
 
   private onFrame(info: FrameInfo): void {
-    this.info = info;
-    const me = info.st.karts[info.me];
-    const show = !this.editorOpen && (info.paused || info.st.phase === 'done' || (me?.finished ?? 0) === 1);
+    // B44: the sticker comes with the pause and results screens (never over the finish celebration)
+    const top = this.shell.screens.top();
+    const show = !this.editorOpen && (top === 'pause' || top === 'results');
     if (show !== this.shown) {
       this.shown = show;
       this.btn.classList.toggle('on', show);
@@ -100,7 +144,7 @@ export class UgcHub {
 
   private pauseRace(): void {
     const w = this.shell.world;
-    if (w && !w.done && !(this.info?.paused ?? false)) this.shell.togglePause();
+    if (w && !w.done) this.shell.pause(true);
   }
 
   async openEditor(o: Partial<EditorOptions>): Promise<void> {
@@ -110,32 +154,17 @@ export class UgcHub {
     this.pauseRace();
     this.btn.classList.remove('on');
     this.banner.classList.remove('on');
-    try {
-      const mod = await import('./editor/TrackDoodle');
-      let def = o.def;
-      let slot = o.slot;
-      if (!def) {
-        const draft = loadDraft();
-        if (draft && draft.def.points.length) {
-          def = draft.def;
-          slot = draft.slot;
-        }
+    let def = o.def;
+    let slot = o.slot;
+    if (!def) {
+      const draft = loadDraft();
+      if (draft && draft.def.points.length) {
+        def = draft.def;
+        slot = draft.slot;
       }
-      mod.openTrackDoodle({
-        def,
-        slot,
-        theme: this.shell.setup?.track.theme ?? 0,
-        host: {
-          play: (d) => {
-            this.editorOpen = false;
-            this.play(d);
-          },
-          closed: () => {
-            this.editorOpen = false;
-          },
-        },
-      });
-    } catch {
+    }
+    const root = await this.shell.screens.push('editor', { def, slot });
+    if (!root) {
       this.editorOpen = false;
       this.notice('The editor did not load.', 'Check the connection and try again.', [['OK', () => this.closeSheet()]]);
     }
@@ -162,6 +191,13 @@ export class UgcHub {
   }
 
   openSheet(): void {
+    if (this.sheet) this.renderSheet();
+    else void this.shell.screens.push('tracks');
+  }
+
+  private renderSheet(): void {
+    const sheet = this.sheet;
+    if (!sheet) return;
     const cur = this.current();
     const saved = listSaved();
     const rows = saved
@@ -175,7 +211,7 @@ export class UgcHub {
         </li>`,
       )
       .join('');
-    this.sheet.innerHTML = `
+    sheet.innerHTML = `
       <div class="fm-panel fm-sticker fm-ugc-panel" role="dialog" aria-label="Tracks">
         <h1>Tracks</h1>
         <div class="fm-row-btns">
@@ -193,10 +229,10 @@ export class UgcHub {
         <p class="fm-line fm-ugc-msg" role="status" aria-live="polite"></p>
         <div class="fm-row-btns"><button class="fm-btn" data-a="close">Close</button></div>
       </div>`;
-    const msg = this.sheet.querySelector<HTMLElement>('.fm-ugc-msg')!;
+    const msg = sheet.querySelector<HTMLElement>('.fm-ugc-msg')!;
     const say = (t: string) => (msg.textContent = t);
     const on = (a: string, fn: (b: HTMLButtonElement) => void) =>
-      this.sheet.querySelectorAll<HTMLButtonElement>(`[data-a="${a}"]`).forEach((b) => b.addEventListener('click', () => fn(b)));
+      sheet.querySelectorAll<HTMLButtonElement>(`[data-a="${a}"]`).forEach((b) => b.addEventListener('click', () => fn(b)));
     const entry = (b: HTMLButtonElement): SavedTrack => saved[Number(b.dataset.i)];
     on('close', () => this.closeSheet());
     on('make', () => void this.openEditor({}));
@@ -225,9 +261,9 @@ export class UgcHub {
     });
     on('del', (b) => {
       removeSaved(entry(b).slot);
-      this.openSheet();
+      this.renderSheet();
     });
-    const input = this.sheet.querySelector<HTMLInputElement>('.fm-ugc-paste input')!;
+    const input = sheet.querySelector<HTMLInputElement>('.fm-ugc-paste input')!;
     const race = () => {
       const code = extractCode(input.value);
       if (!code) return say('That does not look like a track link.');
@@ -239,25 +275,32 @@ export class UgcHub {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') race();
     });
-    this.sheet.classList.add('on');
   }
 
   private notice(title: string, line: string, buttons: Array<[string, () => void]>): void {
-    this.sheet.innerHTML = `<div class="fm-panel fm-sticker fm-ugc-panel" role="alertdialog"><h1>${esc(title)}</h1><p class="fm-line">${esc(line)}</p><div class="fm-row-btns"></div></div>`;
-    const row = this.sheet.querySelector('.fm-row-btns')!;
-    buttons.forEach(([label, fn], i) => {
-      const b = document.createElement('button');
-      b.className = 'fm-btn' + (i === 0 ? ' primary' : '');
-      b.textContent = label;
-      b.addEventListener('click', fn);
-      row.append(b);
-    });
-    this.sheet.classList.add('on');
+    const fill = () => {
+      const sheet = this.sheet;
+      if (!sheet) return;
+      sheet.innerHTML = `<div class="fm-panel fm-sticker fm-ugc-panel" role="alertdialog"><h1>${esc(title)}</h1><p class="fm-line">${esc(line)}</p><div class="fm-row-btns"></div></div>`;
+      const row = sheet.querySelector('.fm-row-btns')!;
+      buttons.forEach(([label, fn], i) => {
+        const b = document.createElement('button');
+        b.className = 'fm-btn' + (i === 0 ? ' primary' : '');
+        b.textContent = label;
+        b.addEventListener('click', fn);
+        row.append(b);
+      });
+    };
+    if (this.sheet) fill();
+    else {
+      this.pendingNotice = fill;
+      void this.shell.screens.push('tracks');
+    }
   }
 
   closeSheet(): void {
-    this.sheet.classList.remove('on');
-    this.sheet.innerHTML = '';
+    this.shell.screens.remove('tracks');
+    this.sheet = null;
   }
 }
 

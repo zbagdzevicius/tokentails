@@ -43,6 +43,8 @@ export interface ItemViewHost {
   burst?(kart: number, color: number, n: number, speed?: number): void;
   /** where the laser banner goes */
   overlay: HTMLElement;
+  /** the camera position (B60: rings fade as their edge passes the lens) */
+  camera?(): { x: number; y: number; z: number };
 }
 
 class Pool {
@@ -174,6 +176,23 @@ function boxShield(): Object3D {
   return g;
 }
 
+/** Fade an item mesh group (toggles transparency only when the value changes). */
+function setSeeThrough(o: Object3D, opacity: number): void {
+  if (o.userData.seeThrough === opacity) return;
+  o.userData.seeThrough = opacity;
+  o.traverse((c) => {
+    const m = (c as Mesh).material as MeshBasicMaterial | undefined;
+    if (!m || Array.isArray(m)) return;
+    const t = opacity < 1;
+    if (m.transparent !== t) {
+      m.transparent = t;
+      m.needsUpdate = true;
+    }
+    m.opacity = opacity;
+    m.depthWrite = !t;
+  });
+}
+
 function aura(): Object3D {
   return new Mesh(new SphereGeometry(1.9, 14, 10), new MeshBasicMaterial({ color: 0xff3ea5, transparent: true, opacity: 0.5, depthWrite: false, blending: AdditiveBlending, side: BackSide }));
 }
@@ -204,7 +223,9 @@ export class ItemView implements JuiceListener {
   private readonly auras: Pool;
   private readonly rings: Pool;
   private readonly warn: HTMLDivElement;
-  private bells: Array<{ x: number; y: number; z: number; t: number }> = [];
+  /** every pool, for the per-frame begin / end (B58: no array literal per frame) */
+  private readonly pools: Pool[];
+  private bells: Array<{ x: number; y: number; z: number; t: number; own: number }> = [];
   private time = 0;
   private readonly col = new Color();
 
@@ -219,6 +240,7 @@ export class ItemView implements JuiceListener {
     this.boxes = new Pool(s, boxShield);
     this.auras = new Pool(s, aura);
     this.rings = new Pool(s, bellRing);
+    this.pools = [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings];
     if (typeof document !== 'undefined' && !document.getElementById('fm-items-style')) {
       const st = document.createElement('style');
       st.id = 'fm-items-style';
@@ -235,7 +257,7 @@ export class ItemView implements JuiceListener {
   onEvent(e: RaceEvent, info: FrameInfo): void {
     if (e.type !== 'itemUse') return;
     const k = info.st.karts[e.kart];
-    if (e.item === 'bell') this.bells.push({ x: k.x, y: k.y + 0.3, z: k.z, t: 0 });
+    if (e.item === 'bell') this.bells.push({ x: k.x, y: k.y + 0.3, z: k.z, t: 0, own: e.kart });
     else if (e.item === 'catnip') this.host.burst?.(e.kart, 0x7cff6a, 18, 5);
     else if (e.item === 'zoomies') this.host.burst?.(e.kart, 0xff3ea5, 30, 9);
     else if (e.item === 'box') this.host.burst?.(e.kart, CARDBOARD, 14, 4);
@@ -251,7 +273,7 @@ export class ItemView implements JuiceListener {
     this.time += dt;
     const tm = this.time;
     const s = itemsOf(info.st);
-    for (const p of [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings]) p.begin();
+    for (const p of this.pools) p.begin();
 
     for (const p of s.proj) {
       if (p.kind === ProjKind.Hairball) {
@@ -309,6 +331,8 @@ export class ItemView implements JuiceListener {
         // the box wobbles and flashes in its last half second
         const ending = k.shieldTicks < 30 && Math.floor(tm * 16) % 2 === 0;
         o.visible = !ending;
+        // B60: the player's own box is see-through, so it never fills the screen in front of the chase camera
+        setSeeThrough(o, i === info.me ? 0.45 : 1);
         o.position.set(at.x, at.y + 0.05, at.z);
         o.rotation.set(0, at.heading + sinL(tm * 11) * 0.05, sinL(tm * 9) * 0.04);
       }
@@ -328,21 +352,30 @@ export class ItemView implements JuiceListener {
     // bell rings expand to the 25 m radius in 0.45 s
     const R = ITEMS.bell.radius;
     this.bells = this.bells.filter((b) => (b.t += dt) < 0.6);
+    const cam = this.host.camera?.();
     for (const b of this.bells) {
       const o = this.rings.next() as Mesh;
       const u = Math.min(1, b.t / 0.45);
       const r = 1 + (R - 1) * (1 - (1 - u) * (1 - u));
       o.position.set(b.x, b.y, b.z);
       o.scale.set(r, r, 1);
-      (o.material as MeshBasicMaterial).opacity = 0.85 * (1 - b.t / 0.6);
+      // B60: the player's own ring at half strength, and any ring fades while its edge passes the camera
+      let a = 0.85 * (1 - b.t / 0.6) * (b.own === info.me ? 0.5 : 1);
+      if (cam) {
+        const cx = cam.x - b.x;
+        const cz = cam.z - b.z;
+        const edge = Math.abs(Math.sqrt(cx * cx + cz * cz) - r);
+        if (edge < 6 && Math.abs(cam.y - b.y) < 6) a *= edge / 6;
+      }
+      (o.material as MeshBasicMaterial).opacity = a;
     }
 
-    for (const p of [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings]) p.end();
+    for (const p of this.pools) p.end();
     this.warn.classList.toggle('on', s.laserWarn === info.me && !info.paused);
   }
 
   dispose(): void {
-    for (const p of [this.hair, this.balls, this.dots, this.tangles, this.cukes, this.trail, this.boxes, this.auras, this.rings]) p.dispose();
+    for (const p of this.pools) p.dispose();
     this.warn.remove();
   }
 }

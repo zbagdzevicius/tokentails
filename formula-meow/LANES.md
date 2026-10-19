@@ -1,11 +1,94 @@
 # Formula Meow: lanes and extension points
 
-GDD: `docs/plans/formula-meow/GDD.md` (section 16 has the layout). The **core** lane (this commit) is the M0 base:
-a playable race on two tracks. The other four lanes plug in through the interfaces below and should rarely
-need to edit core files. If a lane needs a contract change, change `src/types.ts` or the interface file in one
-small commit that every lane can rebase on.
+GDD: `docs/plans/formula-meow/GDD.md` (section 16 has the layout). Iteration 2 plan:
+`docs/plans/formula-meow/ITERATION-2.md`.
 
-## Shared files (change only with every lane in the loop)
+## Iteration 2 (current)
+
+Stabilise (one commit on `feat/formula-meow`) fixed the bug list (B1–B62, `SIM_VERSION` 3 → 4) and added the shared
+contracts below. Five lanes then branch from it (`lane/fm2-modes`, `-tracks`, `-feel`, `-progression`,
+`-audio-ui`); each edits only the files it owns and appends to registries instead of editing shared files. One
+integrator merges feel → tracks → progression → modes → audio-ui, bumps `SIM_VERSION` 4 → 5 once and regenerates the
+golden hashes (`src/core/sim/race.test.ts`), the only expected merge conflict.
+
+A lane that needs a change outside its files writes a **contract request** in its final report; the integrator
+applies it. Lanes never edit `SIM_VERSION`.
+
+### Frozen after Stabilise (integrator only)
+
+| Path | What |
+|---|---|
+| `src/types.ts` | `RaceMode`, optional `TrackDef` fields (`kind`, `branches`, `hazards`, `coins`, `flyover`, `music`), `KartState` iteration-2 fields (`lapMax`, `lapStartPrev`, `coins`, `balloons`, `out`, `itemBuf`, `itemBufBack`, `wrongTicks`, `branch`), `RaceState.hazards` / `.mode` / `.coins` / `.pairs`, new event types, `RaceResult.mode` / `.coins` / `.stats` / `.battle` / `.splits`, `RaceStats`, `BodyId`, `RacerInfo.rival` / `.hat` / `.trail` |
+| `src/lanes.ts`, `src/main.ts` | the five lanes' install lines are pre-wired |
+| `src/core/sim/{world,race,hash,replay,plugins,rng,fixed,coins,mode-registry,arena,harness}.ts` | tick order, race rules, hashing, `SimPlugins` (`hazards?`, `mode?`), coin rule, `registerModeRules`, `nearestKart` / `dirTo` |
+| `src/core/app/{shell,screens,app-bus,save,storage,settings,race-stats}.ts` | `startRace` / `pause` / `quitToMenu` / `setCameraMode` / `hudExtras`, `registerScreen` + `screens`, `appBus`, `save.slot(name, defaults, migrate)`, `buildRaceStats` |
+| `src/content/ids.ts` | track, arena, body, hat, trail, cup and achievement ids |
+| `src/share/**` | except `share/pinkpaw/unlocks.ts` (progression) |
+| `src/core/input/**` | keyboard, gamepad, touch, mux |
+| `src/ui/i18n.ts`, `src/ui/a11y.ts` (API), `src/ui/kit/index.ts` (API) | `t()`, `registerStrings`, `setA11y`, `driftTierColors()`, the kit helpers and `focusNav` |
+| `src/tracks/hazards/registry.ts` (API) | `registerHazard`, `createHazardSystem` |
+| `src/core/hud/results.ts` (API), `src/core/hud/hud.ts` (`say`, `HudModel` API) | `registerResultSection`; the look is audio-ui's |
+| `index.html`, `vite.config.ts`, `package.json`, `playwright.config.ts`, `tools/budget.mjs` | `npm run build` fails over 450 kB initial JS gzip |
+| `src/core/sim/race.test.ts` | golden hash: lanes may update it on their branch, the integrator regenerates it |
+
+### Lanes
+
+| Lane | Owns | Install |
+|---|---|---|
+| modes | `src/modes/**`, `src/content/cups.ts`, `src/ui/strings/modes.en.ts`, `e2e/modes.spec.ts` | `src/modes/install.ts` |
+| tracks | `src/core/track/**` (build, query, spline, racing line, mesh, themes, dressing, tracks incl. `tracks/stubs.ts`), `src/tracks/**` (hazard sims and views, coin view, flyover paths), `src/ugc/**`, `src/ui/strings/tracks.en.ts`, `e2e/tracks.spec.ts` | `src/tracks/install.ts` |
+| feel | `src/core/sim/{kart,contact,autopilot}.ts`, `src/core/render/**`, `src/core/camera/**`, `src/juice/vfx/**`, `src/juice/{feel,time,haptics}.ts`, `src/juice/perf/**`, `src/items-ai/**`, `src/tuning.ts`, `src/content/karts.ts` (numbers), `src/ui/strings/feel.en.ts`, `e2e/feel.spec.ts` | `src/core/render/install.ts` |
+| progression | `src/progression/**`, `src/content/cosmetics.ts`, `src/share/pinkpaw/unlocks.ts`, `src/ui/strings/progression.en.ts`, `e2e/progression.spec.ts` | `src/progression/install.ts` |
+| audio-ui | `src/juice/audio/**`, `src/juice/index.ts`, `src/core/hud/**` (look), `src/ui/**` except the frozen APIs and the other lanes' string tables, `src/ui/strings/core.en.ts`, `e2e/a11y.spec.ts`, `review/**` | `src/ui/install.ts` |
+
+### Extension points (Stabilise)
+
+- **Sim plugins** (`src/core/sim/plugins.ts`): `SimPlugins = { ai, items, hazards?, mode? }`, built per race by
+  `createSimPlugins(cfg)` (`src/items-ai/index.ts`) from the hazard registry and `registerModeRules(mode, factory)`.
+  Tick order: countdown → inputs (item buffer) → item use → kart physics → contacts (+ wall re-clamp) → slipstream →
+  coins → item boxes → `items.step` → `hazards.step` → `mode.step` → laps (skipped on arenas) → positions →
+  `mode.isOver`. `applyHit` calls `mode.onHit`; contacts call `mode.onBump`; the item roll asks `mode.itemRow`.
+- **Arenas**: `TrackDef.kind = 'arena'` turns off laps, wrong way and the distance watchdog (a still-and-stuck check
+  replaces it); the race ends at `RaceConfig.timeLimitTicks` or `mode.isOver`. Stub arena: `rug`.
+- **Track query**: `queryTrack` returns `{ i, s, d, y, surface, wallL, wallR, branch, ramp }`; `kart.ts` reads walls
+  and surface only from it, so branches need no kart change.
+- **Coins**: `TrackDef.coins` rows → `BuiltTrack.coins`; the sim rule is `core/sim/coins.ts` (1.3 m pickup, 10 s
+  respawn, max 10 held, +0.5 % top speed each via `COINS` in `tuning.ts`, a spin or leap drops 3).
+- **Bodies**: `KartLook.body` (0..5) applies `content/karts.ts` stats in the sim (top speed, accel, yaw, contact
+  weight); ghosts carry the body in the v2 ghost header (with the race mode).
+- **Screens** (`core/app/screens.ts`): `registerScreen(id, loader)`, `screens.push / replace / pop / remove`; one
+  stack, the layer below is hidden; every layer gets `focusNav` (arrows, D-pad, stick, A, B, Esc).
+- **Shell** (`core/app/shell.ts`): `startRace(req)` → `Promise<RaceOutcome>` (resolves on Again / Next / Menu /
+  quit), `pause(on)` (idempotent), `quitToMenu()` (needs a registered `menu` screen), `setCameraMode(m)`,
+  `hudExtras(model)`, `updateSettings(partial)`. Pause and results are screens (`pause`, `results`).
+- **App bus** (`core/app/app-bus.ts`): `screen`, `raceStart`, `raceEnd`, `cupEnd`, `unlock`, `achievement`,
+  `fishEarned`, `purchase`, `settingsChanged`.
+- **Results**: `registerResultSection(order, render)`; rows update live as karts finish.
+- **HUD**: `hud.say(text, { prio, ms, sub, tone })` is the one centre message slot; `HudModel` via
+  `shell.hudExtras`.
+- **Save** (`core/app/save.ts`): one blob `fm:save` `{ v: 2, settings, slots }`; `save.slot('modes' |
+  'progression' | 'audio-ui', defaults, migrate)`; the shell's `core` slot holds the v1 progress (migrated once).
+- **Strings and a11y**: `t(key, vars)`, `registerStrings(locale, table)`, `?lang=xx` pseudo-locale; `setA11y`,
+  `driftTierColors()`, `reducedMotion()`, `onA11yChange`.
+- **Camera**: `ChaseCamera.setMode('chase' | 'lookBack' | 'flyover' | 'finishOrbit' | 'podium' | 'attract')`;
+  Stabilise ships `chase` and `lookBack`, the rest fall back to chase until feel implements them.
+- **Hazards** (`src/tracks/hazards/registry.ts`): `registerHazard(kind, { init?, step })`, state in
+  `RaceState.hazards`, sim math only (the lint in `fixed.test.ts` covers `src/tracks/hazards` and `src/modes/battle`).
+
+### Checks
+
+`npx tsc --noEmit`, `npx vitest run` (includes the 72-race stabilise harness, `FM_HARNESS_PRINT=1` prints it),
+`npm run build` (with the bundle budget), `npm run e2e`. The integrator also runs `npm run build:client` and commits
+`client/public/formula-meow-game`.
+
+---
+
+## Iteration 1 (history)
+
+The **core** lane was the M0 base: a playable race on two tracks. The other four lanes plugged in through the
+interfaces below.
+
+### Shared files (iteration 1)
 
 | File | What |
 |---|---|

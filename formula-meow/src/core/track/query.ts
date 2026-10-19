@@ -1,8 +1,11 @@
 /**
  * Track query (GDD 3.2): for a position, the nearest sample, continuous arc length `s`, lateral offset `d`
- * (+ = right), the surface height and the surface type. A local window search from the kart's last sample keeps it
- * O(window) per kart per tick and stops a kart "teleporting" between close parts of a loop; a grid lookup is the
- * fallback when there is no hint.
+ * (+ = right), the surface height, the surface type and the walls there. A continuity search from the kart's last
+ * sample keeps it O(window) per kart per tick and stops a kart "teleporting" between close parts of a loop (B4: the
+ * Kitchen hairpin once made `s` jump 4 m in a tick); a grid lookup is the fallback when there is no hint.
+ *
+ * `kart.ts` reads walls and surface only from this result (iteration 2 contract), so the tracks lane can add
+ * branches here without touching the kart physics.
  */
 import { Surface } from '../../types';
 import { PHYS } from '../../tuning';
@@ -15,31 +18,61 @@ export interface TrackHit {
   /** surface height at (s, d), including banking and ramps */
   y: number;
   surface: Surface;
+  /** wall distance from the centre line on each side at this point (positive numbers) */
+  wallL?: number;
+  wallR?: number;
+  /** alternative route the point is on, -1 = the main loop */
+  branch?: number;
+  /** height of a ramp run-up under the point (0 off ramps) */
+  ramp?: number;
 }
 
+/** Continuity window: the search never leaves ±WINDOW samples of the hint (a kart moves < 2 samples a tick). */
 const WINDOW = 24;
 
-/** Nearest sample index to (x, z). `hint` < 0 searches the whole track through the grid; `y` breaks ties on bridges. */
+function dist2(t: BuiltTrack, i: number, x: number, z: number, y: number): number {
+  const dx = t.px[i] - x;
+  const dz = t.pz[i] - z;
+  let dd = dx * dx + dz * dz;
+  if (y === y) {
+    const dy = t.py[i] - y;
+    dd += dy * dy * 4;
+  }
+  return dd;
+}
+
+/**
+ * Nearest sample index to (x, z). With a hint it walks downhill from the hint (the local minimum next to where the
+ * kart was, so `s` changes by the smallest amount), never further than ±WINDOW samples. `hint` < 0 searches the whole
+ * track through the grid; `y` breaks ties on bridges.
+ */
 export function nearestSample(t: BuiltTrack, x: number, z: number, hint: number, y = NaN): number {
+  if (hint >= 0) {
+    const n = t.n;
+    let i = hint % n;
+    let d = dist2(t, i, x, z, y);
+    const fwd = dist2(t, (i + 1) % n, x, z, y);
+    const back = dist2(t, (i - 1 + n) % n, x, z, y);
+    const dir = fwd < d && fwd <= back ? 1 : back < d ? -1 : 0;
+    if (dir === 0) return i;
+    for (let k = 0; k < WINDOW; k++) {
+      const j = (i + dir + n) % n;
+      const dj = dist2(t, j, x, z, y);
+      if (dj >= d) break;
+      i = j;
+      d = dj;
+    }
+    return i;
+  }
   let best = -1;
   let bestD = Infinity;
   const consider = (i: number) => {
-    const dx = t.px[i] - x;
-    const dz = t.pz[i] - z;
-    let dd = dx * dx + dz * dz;
-    if (y === y) {
-      const dy = t.py[i] - y;
-      dd += dy * dy * 4;
-    }
+    const dd = dist2(t, i, x, z, y);
     if (dd < bestD) {
       bestD = dd;
       best = i;
     }
   };
-  if (hint >= 0) {
-    for (let k = -WINDOW; k <= WINDOW; k++) consider((hint + k + t.n) % t.n);
-    return best;
-  }
   for (let r = 1; r <= 6 && best < 0; r++) {
     for (let cx = -r; cx <= r; cx++)
       for (let cz = -r; cz <= r; cz++) {
@@ -65,6 +98,10 @@ export function queryTrack(t: BuiltTrack, x: number, z: number, hint: number, ou
   out.d = d;
   out.y = surfaceY(t, i, along, d);
   out.surface = surfaceAt(t, i, along, d);
+  out.ramp = rampHeight(t, i, along, d);
+  out.wallL = t.wallL[i];
+  out.wallR = t.wallR[i];
+  out.branch = -1;
   return out;
 }
 

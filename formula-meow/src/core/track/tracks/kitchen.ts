@@ -39,7 +39,7 @@ export const KITCHEN: TrackDef = {
     { s: 40, kind: 'items' },
     { s: 135, kind: 'offroad', side: -1 },
     { s: 150, kind: 'items' },
-    { s: 167, kind: 'pad', side: 0 },
+    { s: 167, kind: 'pad', side: -1 }, // on the racing line (B16: centred, it sat beside the line and saw 1 use a race)
     { s: 186, kind: 'ramp', side: 0 },
     { s: 210, kind: 'lowgrip' },
     { s: 232, kind: 'items' },

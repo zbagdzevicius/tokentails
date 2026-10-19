@@ -9,7 +9,7 @@ import { itemsOf, lapGap } from './state';
 
 /** A kart that items can touch this tick (not respawning, not finished). */
 export function touchable(k: KartState): boolean {
-  return k.respawnTicks === 0 && k.finished === 0;
+  return k.respawnTicks === 0 && k.finished === 0 && k.out === 0;
 }
 
 /**

@@ -60,7 +60,7 @@ describe('AI item brain (GDD 5.2)', () => {
     const w = setup();
     expect(hold(w, 'box', 120).some((o) => o.item)).toBe(false);
     const k = w.st.karts[0];
-    itemsOf(w.st).proj.push({ id: 99, kind: ProjKind.Hairball, owner: 3, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: k.si, dist: k.dist - 10, d: k.d, life: 100, bounces: 0, target: -1, imm: 0 });
+    itemsOf(w.st).proj.push({ id: 99, kind: ProjKind.Hairball, owner: 3, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: k.si, dist: k.dist - 10, d: k.d, life: 100, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0 });
     expect(threatened(w.ctx, 0)).toBe(true);
     expect(hold(w, 'box', 120).some((o) => o.item)).toBe(true);
   });
