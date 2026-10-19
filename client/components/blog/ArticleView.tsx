@@ -11,8 +11,10 @@ import { ArticleBody, Faq, ShareBar, Sources } from "./ArticleParts";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { CategoryChip } from "./CategoryChip";
 import { CtaCard } from "./CtaCard";
+import { endCtaKey } from "./ctaCopy";
+import { isApp } from "@/models/app";
 import s from "./feed.module.scss";
-import { Toc } from "./Toc";
+import { MIN_TOC_ITEMS, Toc } from "./Toc";
 
 export interface ArticleViewProps {
   article: FeedArticle;
@@ -33,6 +35,9 @@ export const ARTICLE_BODY_ID = "article-content";
 export const ArticleView = ({ article, category, related, prev, next }: ArticleViewProps) => {
   const url = `${siteOrigin()}${article.path}`;
   const updated = !sameDay(article.publishedAt, article.updatedAt);
+  const showToc = article.toc.length >= MIN_TOC_ITEMS;
+  const inlineCtas = article.segments.flatMap((seg) => (seg.type === "cta" ? [seg.cta] : []));
+  const endCta = endCtaKey(article.cta, inlineCtas, article.category, isApp);
   return (
     <article data-testid="feed-article">
       <header className={clsx(s.night, "overflow-hidden pb-28 pt-8 md:pb-40 md:pt-14")}>
@@ -61,30 +66,22 @@ export const ArticleView = ({ article, category, related, prev, next }: ArticleV
           <p className="mt-5 max-w-[60ch] text-[1.15rem] leading-relaxed text-tt-cream/90 md:text-[1.3rem]" style={{ "--i": 3 } as CSSProperties}>
             {article.description}
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-p5 font-bold text-tt-cream/80 md:text-[1rem]" style={{ "--i": 4 } as CSSProperties}>
+          <div
+            className={clsx(s.meta, "mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-3 text-p5 font-bold text-tt-cream/80 md:text-[1rem]")}
+            style={{ "--i": 4 } as CSSProperties}
+          >
             <span className="inline-flex items-center gap-2">
               <img src="/logo/logo.webp" alt="" aria-hidden="true" width={28} height={28} className="h-7 w-7 rounded-full bg-tt-cream/10 object-contain p-0.5" />
               <span>{article.author}</span>
-            </span>
-            <span aria-hidden="true" className="text-tt-cream/40">
-              ·
             </span>
             <span>
               Published <time dateTime={machineDate(article.publishedAt)}>{formatFeedDate(article.publishedAt)}</time>
             </span>
             {updated && (
-              <>
-                <span aria-hidden="true" className="text-tt-cream/40">
-                  ·
-                </span>
-                <span className="text-tt-gold-400">
-                  Updated <time dateTime={machineDate(article.updatedAt)}>{formatFeedDate(article.updatedAt)}</time>
-                </span>
-              </>
+              <span className="text-tt-gold-400">
+                Updated <time dateTime={machineDate(article.updatedAt)}>{formatFeedDate(article.updatedAt)}</time>
+              </span>
             )}
-            <span aria-hidden="true" className="text-tt-cream/40">
-              ·
-            </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock aria-hidden="true" className="h-4 w-4" /> {article.readingMinutes} min read
             </span>
@@ -101,20 +98,31 @@ export const ArticleView = ({ article, category, related, prev, next }: ArticleV
             height={article.heroImage.height}
             priority
             sizes="(min-width: 1024px) 960px, 100vw"
-            className="h-auto max-h-[34rem] w-full object-cover"
+            // Phones: a 16:9 crop, so the first screen still reaches the text under square heroes.
+            className="aspect-[16/9] w-full object-cover md:aspect-auto md:h-auto md:max-h-[34rem]"
            
           />
         </figure>
       </div>
 
-      <div className="mx-auto grid max-w-[80rem] gap-10 px-4 pb-20 pt-10 md:px-8 md:pt-14 lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_4rem]">
-        <aside className="hidden lg:block">
-          <Toc items={article.toc} variant="sidebar" />
-        </aside>
+      <div
+        className={clsx(
+          "mx-auto grid gap-10 px-4 pb-20 pt-10 md:px-8 md:pt-14",
+          // Short posts have no contents list: one centred column.
+          showToc ? "max-w-[80rem] lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_4rem]" : "max-w-[46rem] box-content"
+        )}
+      >
+        {showToc && (
+          <aside className="hidden lg:block">
+            <Toc items={article.toc} variant="sidebar" />
+          </aside>
+        )}
         <div id={ARTICLE_BODY_ID} className="min-w-0">
-          <div className="lg:hidden">
-            <Toc items={article.toc} variant="inline" />
-          </div>
+          {showToc && (
+            <div className="lg:hidden">
+              <Toc items={article.toc} variant="inline" />
+            </div>
+          )}
           <TrustLine updatedAt={article.updatedAt} />
           <ArticleBody segments={article.segments} />
           <Faq items={article.faq} />
@@ -128,7 +136,7 @@ export const ArticleView = ({ article, category, related, prev, next }: ArticleV
       <section aria-label="What to do next" className={clsx(s.night, "overflow-hidden py-16 md:py-24")}>
         <div className={s.stars} aria-hidden="true" />
         <div className="mx-auto max-w-[68rem] px-4 md:px-8">
-          <CtaCard cta={article.cta} variant="end" />
+          {endCta && <CtaCard cta={endCta} variant="end" />}
           {(prev || next) && (
             <nav aria-label={`More in ${category.name}`} className="mt-12 grid gap-3 md:grid-cols-2">
               {prev ? <NeighbourLink article={prev} dir="prev" /> : <span className="hidden md:block" />}

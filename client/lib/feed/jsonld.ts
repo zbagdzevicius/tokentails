@@ -1,6 +1,7 @@
 /**
  * Structured data for the blog (schema.org JSON-LD): BlogPosting, BreadcrumbList, FAQPage,
- * VideoGame (game guides), Organization and the Blog hub. Pure functions, so tests check the shape
+ * Organization and the Blog hub. No VideoGame: Google reads it as a software rich result that needs
+ * ratings or reviews, and the blog never invents those. Pure functions, so tests check the shape
  * without a DOM. Every URL is absolute on the site origin (components/seo/site.ts).
  */
 import { absoluteUrl, siteName, siteOrigin, SITE_LOGO } from "@/components/seo/site";
@@ -87,33 +88,6 @@ export function faqJsonLd(faq: FaqItem[]): Json | null {
       name: f.q,
       acceptedAnswer: { "@type": "Answer", text: f.a },
     })),
-  };
-}
-
-/** The browser games a guide can be about (frontmatter `cta`). */
-const GAMES: Record<string, { name: string; path: string; genre: string[] }> = {
-  heist: { name: "Catnip Heist", path: "/heist", genre: ["Stealth", "Puzzle"] },
-  game: { name: "Token Tails", path: "/game", genre: ["Casual", "Pet simulation"] },
-  swordcat: { name: "Pink Paw Knight", path: "/swordcat", genre: ["Adventure"] },
-  badcat: { name: "Bad Cat Daily", path: "/badcat", genre: ["Casual", "Arcade"] },
-};
-
-/** VideoGame for a guide in the games category whose main call to action is a game; null otherwise. */
-export function videoGameJsonLd(article: FeedSummary, origin: string = siteOrigin()): Json | null {
-  const game = article.category === "games" ? GAMES[article.cta] : undefined;
-  if (!game) return null;
-  return {
-    "@context": "https://schema.org",
-    "@type": "VideoGame",
-    name: game.name,
-    url: abs(game.path, origin),
-    genre: game.genre,
-    gamePlatform: "Web browser",
-    applicationCategory: "Game",
-    operatingSystem: "Any",
-    isAccessibleForFree: true,
-    publisher: { "@id": `${origin}/#organization` },
-    offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
   };
 }
 

@@ -1,7 +1,8 @@
 // copy-lint: web-only data helper for the blog's live payout widget; PayoutsLive renders nothing in app builds
 // The figures of the blog's `<!-- payouts-live -->` widget, read live from the same public index as
 // /shelter-payouts (GET /shelter/payouts, components/shelter-payouts/payoutIndex.ts). Per coin, never
-// summed across coins; Motored sponsor money is counted apart and always disclosed (motored.ts).
+// summed across coins; each coin's Motored sponsor share is counted apart, in that coin, and always
+// disclosed next to it (motored.ts).
 import type { PayoutIndex } from "@/components/shelter-payouts/payoutIndex";
 import { isMotoredMemo } from "@/components/shelter-payouts/motored";
 
@@ -10,6 +11,8 @@ export interface CoinTotal {
   /** "92.11": truncated to cents, never rounded up. */
   amount: string;
   count: number;
+  /** The part of this coin's total that is Motored sponsor money (same coin, never converted). */
+  motored: { amount: string; count: number } | null;
 }
 
 export interface PayoutTotals {
@@ -17,12 +20,11 @@ export interface PayoutTotals {
   count: number;
   /** Unix seconds of the newest payout. */
   latest: number | null;
-  /** Motored-sponsored payouts in US dollar stablecoins (one sponsor's money, linked to the founder). */
-  motored: { count: number; usd: string } | null;
+  /** How many payouts, across coins, are Motored-sponsored (one sponsor's money, linked to the founder). */
+  motoredCount: number;
 }
 
 const ORDER = ["USDC", "USDC.e", "USDG", "EURC"];
-const USD = new Set(["USDC", "USDC.E", "USDG"]);
 const E16 = BigInt("10000000000000000");
 
 /** 18-decimal units -> "1,234.56" (rounded down to the cent). */
@@ -41,10 +43,9 @@ export function payoutTotals(index: PayoutIndex | null | undefined): PayoutTotal
   const held = index.contracts.reduce((n, c) => n + (Number.isSafeInteger(c.count) ? c.count : 0), 0);
   if (index.events.length < held) return null;
   const seen = new Set<string>();
-  const bySymbol = new Map<string, { sum: bigint; count: number }>();
+  const bySymbol = new Map<string, { sum: bigint; count: number; motoredSum: bigint; motoredCount: number }>();
   let count = 0;
   let latest: number | null = null;
-  let motoredSum = BigInt(0);
   let motoredCount = 0;
   for (const e of index.events) {
     const id = `${e.chainId}:${String(e.txHash).toLowerCase()}:${e.logIndex}`;
@@ -57,26 +58,27 @@ export function payoutTotals(index: PayoutIndex | null | undefined): PayoutTotal
       continue;
     }
     if (v <= BigInt(0)) continue;
-    const row = bySymbol.get(e.symbol) ?? { sum: BigInt(0), count: 0 };
+    const row = bySymbol.get(e.symbol) ?? { sum: BigInt(0), count: 0, motoredSum: BigInt(0), motoredCount: 0 };
     row.sum += v;
     row.count += 1;
+    if (isMotoredMemo(e.memo)) {
+      row.motoredSum += v;
+      row.motoredCount += 1;
+      motoredCount += 1;
+    }
     bySymbol.set(e.symbol, row);
     count += 1;
     if (latest === null || e.timestamp > latest) latest = e.timestamp;
-    if (isMotoredMemo(e.memo) && USD.has(e.symbol.toUpperCase())) {
-      motoredSum += v;
-      motoredCount += 1;
-    }
   }
   if (!count) return null;
   const rank = (s: string) => (ORDER.indexOf(s) === -1 ? ORDER.length : ORDER.indexOf(s));
   const coins = Array.from(bySymbol.entries())
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-    .map(([symbol, { sum, count: n }]) => ({ symbol, amount: centsText(sum), count: n }));
-  return {
-    coins,
-    count,
-    latest,
-    motored: motoredCount ? { count: motoredCount, usd: `$${centsText(motoredSum)}` } : null,
-  };
+    .map(([symbol, r]) => ({
+      symbol,
+      amount: centsText(r.sum),
+      count: r.count,
+      motored: r.motoredCount ? { amount: centsText(r.motoredSum), count: r.motoredCount } : null,
+    }));
+  return { coins, count, latest, motoredCount };
 }

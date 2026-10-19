@@ -4,7 +4,7 @@
  */
 import path from "path";
 import { buildRss, feedRedirects, loadFeed, resetFeedCache, sitemapEntries, slugMap, legacyRedirectTable, categories } from "@/lib/feed/engine";
-import { blogJsonLd, blogPostingJsonLd, breadcrumbJsonLd, collectionJsonLd, faqJsonLd, ldJson, organizationJsonLd, videoGameJsonLd } from "@/lib/feed/jsonld";
+import { blogJsonLd, blogPostingJsonLd, breadcrumbJsonLd, collectionJsonLd, faqJsonLd, ldJson, organizationJsonLd } from "@/lib/feed/jsonld";
 import { articleTitleTag, formatFeedDate } from "@/lib/feed/view";
 import { buildSeoTags } from "@/components/seo/SeoHead";
 
@@ -127,12 +127,6 @@ describe("JSON-LD", () => {
     expect(collectionJsonLd(categories()[0], articles.slice(0, 1), ORIGIN)).toMatchObject({ "@type": "CollectionPage", url: `${ORIGIN}/feed/games` });
   });
 
-  it("adds a VideoGame only to game guides", () => {
-    const [guide, care] = load().articles;
-    expect(videoGameJsonLd(guide, ORIGIN)).toMatchObject({ "@type": "VideoGame", name: "Catnip Heist", url: `${ORIGIN}/heist`, isAccessibleForFree: true });
-    expect(videoGameJsonLd(care, ORIGIN)).toBeNull();
-  });
-
   it("escapes < so article text can never close the script tag", () => {
     expect(ldJson({ headline: "</script><b>" })).toBe('{"headline":"\\u003c/script>\\u003cb>"}');
   });
@@ -172,7 +166,11 @@ describe("RSS", () => {
     expect(xml.indexOf("sample-heist-guide")).toBeLessThan(xml.indexOf("sample-cat-care"));
     expect(xml).toContain(`<guid isPermaLink="true">${ORIGIN}/feed/news/sample-shelter-news</guid>`);
     expect(xml).toContain("<pubDate>Mon, 10 Mar 2025 09:00:00 GMT</pubDate>");
-    expect(xml).toContain(`<enclosure url="https://tokentails.fra1.cdn.digitaloceanspaces.com/sample.jpeg" type="image/jpeg" length="0"/>`);
+    // Enclosures carry the real byte length: local files only, remote images are left out.
+    const size = jest.requireActual<typeof import("fs")>("fs").statSync(path.join(__dirname, "../public/game-select/heist-og.jpg")).size;
+    expect(xml).toContain(`<enclosure url="${ORIGIN}/game-select/heist-og.jpg" type="image/jpeg" length="${size}"/>`);
+    expect(xml).not.toContain("sample.jpeg");
+    expect(xml).not.toContain('length="0"');
     expect(buildRss([{ ...articles[0], title: "Cats & <dogs>" }], ORIGIN)).toContain("<title>Cats &amp; &lt;dogs&gt;</title>");
   });
 });

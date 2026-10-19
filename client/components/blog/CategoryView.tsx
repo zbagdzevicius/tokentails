@@ -23,7 +23,16 @@ export const CategoryView = ({ category, articles, others }: CategoryViewProps) 
       <header className={clsx(s.night, "overflow-hidden pb-14 pt-8 md:pb-20 md:pt-14")}>
         <div className={s.stars} aria-hidden="true" />
         <div className={s.dusk} aria-hidden="true" />
-        <div className={clsx(s.stagger, "mx-auto max-w-[80rem] px-4 md:px-8")}>
+        {/* The hub's moon, smaller: wide screens get art beside the headline instead of an empty half. */}
+        <div aria-hidden="true" className="pointer-events-none absolute right-[8%] top-1/2 hidden -translate-y-1/2 lg:block">
+          <div className="relative h-[15rem] w-[15rem] xl:h-[17rem] xl:w-[17rem]">
+            <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_38%_32%,rgb(var(--tt-cream)/.95)_0%,rgb(var(--tt-gold-400)/.55)_42%,rgb(var(--tt-dusk-horizon)/.18)_66%,transparent_72%)] opacity-80" />
+            <div className="absolute inset-x-0 bottom-[6%] flex justify-center">
+              <img src="/cats/pinkie/pink-respirando-ropa.gif" alt="" width={68} height={68} className="pixelated h-40 w-40 drop-shadow-[0_14px_22px_rgb(var(--tt-night-950)/.55)] xl:h-44 xl:w-44" />
+            </div>
+          </div>
+        </div>
+        <div className={clsx(s.stagger, "relative mx-auto max-w-[80rem] px-4 md:px-8")}>
           <Breadcrumbs
             surface="night"
             items={[
@@ -39,7 +48,7 @@ export const CategoryView = ({ category, articles, others }: CategoryViewProps) 
           <h1 className="mt-3 max-w-[22ch] font-primary text-[2.5rem] leading-[1.02] text-white [text-wrap:balance] md:text-[3.75rem]" style={{ "--i": 2 } as CSSProperties}>
             {category.headline}
           </h1>
-          <p className="mt-5 max-w-[62ch] text-[1.1rem] leading-relaxed text-tt-cream/90 md:text-[1.25rem]" style={{ "--i": 3 } as CSSProperties}>
+          <p className="mt-5 max-w-[62ch] text-[1.1rem] lg:max-w-[50ch] xl:max-w-[58ch] leading-relaxed text-tt-cream/90 md:text-[1.25rem]" style={{ "--i": 3 } as CSSProperties}>
             {category.intro}
           </p>
         </div>

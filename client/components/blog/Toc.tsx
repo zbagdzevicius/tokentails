@@ -7,6 +7,9 @@ import s from "./feed.module.scss";
 /** The reading line: a heading counts as "being read" once its top passes this far down the view. */
 export const SPY_OFFSET = 140;
 
+/** Fewer entries than this and the article shows no contents list (a short post reads fine without). */
+export const MIN_TOC_ITEMS = 4;
+
 /** The id of the section being read: the last heading whose top is above the reading line. */
 export function activeHeading(tops: { id: string; top: number }[], offset = SPY_OFFSET): string | null {
   let current: string | null = null;
@@ -88,12 +91,12 @@ const TocList = ({ items, active, onPick, rail }: { items: TocItem[]; active: st
 
 /**
  * "On this page": a sticky list with a sliding rail on wide screens, a collapsible panel on phones.
- * Hidden when the article has fewer than two sections.
+ * Hidden when the article has fewer than MIN_TOC_ITEMS entries.
  */
 export const Toc = ({ items, variant }: { items: TocItem[]; variant: "sidebar" | "inline" }) => {
   const active = useScrollSpy(items.map((i) => i.id));
   const details = useRef<HTMLDetailsElement>(null);
-  if (items.length < 2) return null;
+  if (items.length < MIN_TOC_ITEMS) return null;
   if (variant === "sidebar") {
     return (
       <nav aria-label="On this page" className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pb-6 pr-2" data-testid="toc-sidebar">

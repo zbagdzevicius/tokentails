@@ -9,7 +9,7 @@
  * (no enums, namespaces or parameter properties), imports nothing through the `@/` alias and reads
  * its JSON data with `fs`. Never import it from a component: import its types with `import type`.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from "node:fs";
 import { join } from "node:path";
 import MarkdownIt from "markdown-it";
 import { parse as parseYaml } from "yaml";
@@ -373,12 +373,16 @@ export function validateFrontmatter(data: unknown, fileSlug: string): { value: F
 /** The contract's ideal ranges: printed during the build, never fatal. */
 export function contractWarnings(fm: FeedFrontmatter, wordCount: number): string[] {
   const out: string[] = [];
-  if (fm.title.length > 60) out.push(`title is ${fm.title.length} characters (ideal at most 60; set seoTitle)`);
+  if (!fm.seoTitle && fm.title.length > 60) out.push(`title is ${fm.title.length} characters (ideal at most 60; set seoTitle)`);
   if (fm.seoTitle && fm.seoTitle.length > 60) out.push(`seoTitle is ${fm.seoTitle.length} characters (ideal at most 60)`);
   if (fm.description.length < 140 || fm.description.length > 158) out.push(`description is ${fm.description.length} characters (ideal 140-158)`);
   const long = fm.intent !== "news";
   if (long && (wordCount < 700 || wordCount > 1600)) out.push(`${wordCount} words (guides: 700-1,600)`);
   if (!long && (wordCount < 300 || wordCount > 700)) out.push(`${wordCount} words (news: 300-700)`);
+  // The CDN serves remote images as they are (loader.js): a PNG there is usually megabytes.
+  if (/^https?:\/\//.test(fm.heroImage.src) && /\.png($|\?)/i.test(fm.heroImage.src)) {
+    out.push(`heroImage is a remote PNG (${fm.heroImage.src}): convert it to WebP under client/public/feed/`);
+  }
   return out;
 }
 
@@ -404,6 +408,60 @@ export function slugifyHeading(text: string): string {
     .trim()
     .replace(/[\s-]+/g, "-");
   return s || "section";
+}
+
+/** The file under client/public a root path points at, or null for remote URLs. */
+export function publicFile(src: string): string | null {
+  if (!/^\/(?!\/)/.test(src)) return null;
+  const path = decodeURIComponent(src.split(/[?#]/)[0]);
+  if (path.includes("..")) return null;
+  return join(clientRoot(), "public", path);
+}
+
+/** Pixel size of a PNG, JPEG, GIF or WebP under client/public (reads the header only), or null. */
+export function localImageSize(src: string): { width: number; height: number } | null {
+  const file = publicFile(src);
+  if (!file || !existsSync(file)) return null;
+  let buf: Buffer;
+  try {
+    const fd = openSync(file, "r");
+    try {
+      buf = Buffer.alloc(Math.min(65536, statSync(file).size));
+      readSync(fd, buf, 0, buf.length, 0);
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+  if (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length >= 10 && buf.toString("ascii", 0, 3) === "GIF") return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  if (buf.length >= 30 && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") {
+    const kind = buf.toString("ascii", 12, 16);
+    if (kind === "VP8 ") return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+    if (kind === "VP8L") {
+      const b = buf.readUInt32LE(21);
+      return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 };
+    }
+    if (kind === "VP8X") return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+    return null;
+  }
+  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marker = buf[i + 1];
+      const len = buf.readUInt16BE(i + 2);
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+        return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
+      }
+      i += 2 + len;
+    }
+  }
+  return null;
 }
 
 function createMarkdown(): MarkdownIt {
@@ -437,6 +495,12 @@ function createMarkdown(): MarkdownIt {
   md.renderer.rules.image = (list, idx, options, env, self) => {
     const token = list[idx];
     token.attrSet("alt", self.renderInlineAsText(token.children || [], options, env));
+    // Files under client/public get their real size, so the browser reserves the box (no layout shift).
+    const size = localImageSize(token.attrGet("src") || "");
+    if (size) {
+      token.attrSet("width", String(size.width));
+      token.attrSet("height", String(size.height));
+    }
     token.attrSet("loading", "lazy");
     token.attrSet("decoding", "async");
     return self.renderToken(list, idx, options);
@@ -582,6 +646,55 @@ export const APP_WORDS: readonly RegExp[] = [
 
 export const isAppSafeText = (text: string): boolean => !APP_WORDS.some((re) => re.test(text));
 
+/** Pages the app export does not have (web rewrites and static folders): a link to one keeps the article web only. */
+export const WEB_ONLY_PATHS: readonly string[] = ["/badcat", "/rave", "/match-desk"];
+
+/**
+ * Media the app export never ships (scripts/prune-app-export.mjs WEB_ONLY_FILES, plus every
+ * client/public/feed/web-* image, which the prune step removes): an article using one is web only.
+ */
+export const WEB_ONLY_MEDIA: readonly RegExp[] = [
+  /^\/landing\/(?:badcat|rave)\//,
+  /^\/landing\/(?:heist-reel|pinkpaw-knight-trailer)-v\d+\.(?:mp4|webm)$/,
+  /^\/game-select\/(?:badcat|rave)-preview/,
+  /^\/feed\/web-/,
+];
+
+const pathOf = (href: string) => href.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+export const isWebOnlyPath = (href: string): boolean => {
+  const path = pathOf(href);
+  return WEB_ONLY_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+};
+export const isWebOnlyMedia = (src: string): boolean => WEB_ONLY_MEDIA.some((re) => re.test(src));
+
+/** Root-relative link and image targets in a Markdown body (inline links and images). */
+export function localTargets(body: string): { links: string[]; images: string[] } {
+  const links: string[] = [];
+  const images: string[] = [];
+  const re = /(!?)\[[^\]]*\]\((\/[^)\s]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) (m[1] ? images : links).push(m[2]);
+  return { links, images };
+}
+
+/**
+ * App builds: links to /feed pages the build does not ship become plain text (the static export has
+ * no redirects, so they would 404 inside the app). `shipped` holds the build's /feed paths.
+ */
+export function unlinkMissing(html: string, shipped: Set<string>): string {
+  return html.replace(/<a href="(\/feed[^"]*)"[^>]*>([\s\S]*?)<\/a>/g, (whole, href: string, text: string) =>
+    shipped.has(pathOf(href)) ? whole : `<span>${text}</span>`
+  );
+}
+
+/** The article as an app build shows it: dead /feed links unlinked. */
+export function forApp(article: FeedArticle, shipped: Set<string>): FeedArticle {
+  return {
+    ...article,
+    segments: article.segments.map((seg) => (seg.type === "html" || seg.type === "key-takeaways" ? { ...seg, html: unlinkMissing(seg.html, shipped) } : seg)),
+  };
+}
+
 // ---------- loading ----------
 
 export const articlePathFor = (category: string, slug: string) => `/feed/${category}/${slug}`;
@@ -621,11 +734,17 @@ export function parseArticle(source: string, fileSlug: string): { article: FeedA
   problems.push(...body.problems);
   if (!body.plainText) problems.push("the body is empty");
   if (!fm || problems.length) return { article: null, problems, warnings: [] };
-  const appSafe = isAppSafeText([fm.title, fm.description, fm.excerpt, body.plainText, ...(fm.faq || []).map((f) => `${f.q} ${f.a}`)].join(" \n "));
+  const targets = localTargets(split.body);
+  const appSafe =
+    isAppSafeText([fm.title, fm.description, fm.excerpt, body.plainText, ...(fm.faq || []).map((f) => `${f.q} ${f.a}`)].join(" \n ")) &&
+    !targets.links.some(isWebOnlyPath) &&
+    ![fm.heroImage.src, ...targets.images].some(isWebOnlyMedia);
+  // The FAQ renders after the body (ArticleParts Faq, id "faq"): the contents list ends with it.
+  const toc: TocItem[] = fm.faq?.length ? [...body.toc, { id: "faq", text: "Frequently asked questions", level: 2 }] : body.toc;
   const article: FeedArticle = {
     ...toSummary(fm, body.wordCount, appSafe),
     segments: body.segments,
-    toc: body.toc,
+    toc,
     wordCount: body.wordCount,
     faq: fm.faq ?? [],
     sources: fm.sources ?? [],
@@ -643,6 +762,9 @@ export interface FeedStore {
 }
 
 const storeCache = new Map<string, FeedStore>();
+
+/** How many articles may share one hero image before the build prints a style note. */
+export const MAX_HERO_USES = 2;
 
 /**
  * Every article in `dir`, newest first. Throws FeedValidationError listing every problem in every
@@ -668,6 +790,12 @@ export function loadFeed(dir: string = DEFAULT_CONTENT_DIR(), { cache = true }: 
     seen.set(a.slug, `${a.slug}.md`);
   }
   if (problems.length) throw new FeedValidationError(problems);
+  // One image as the hero of many articles makes the cards and "Keep reading" look the same.
+  const heroUse = new Map<string, string[]>();
+  for (const a of articles) heroUse.set(a.heroImage.src, [...(heroUse.get(a.heroImage.src) ?? []), a.slug]);
+  heroUse.forEach((slugs, src) => {
+    if (slugs.length > MAX_HERO_USES) slugs.forEach((slug) => warnings.push({ file: `${slug}.md`, message: `heroImage ${src} is the hero of ${slugs.length} articles (at most ${MAX_HERO_USES}): ${slugs.join(", ")}` }));
+  });
   articles.sort(byNewest);
   const store = { articles, warnings };
   if (cache) storeCache.set(dir, store);
@@ -726,9 +854,15 @@ const keywordSet = (a: FeedSummary) =>
 export function relatedFor(article: FeedArticle, pool: FeedArticle[], limit = 3): FeedSummary[] {
   const bySlug = new Map(pool.map((a) => [a.slug, a]));
   const picked: FeedArticle[] = [];
+  // Cards side by side must not repeat the article's own hero or each other's.
+  const heroes = new Set([article.heroImage.src]);
+  const take = (a: FeedArticle) => {
+    picked.push(a);
+    heroes.add(a.heroImage.src);
+  };
   for (const slug of article.related) {
     const a = bySlug.get(slug);
-    if (a && a.slug !== article.slug && !picked.includes(a)) picked.push(a);
+    if (a && a.slug !== article.slug && !picked.includes(a) && !heroes.has(a.heroImage.src)) take(a);
   }
   if (picked.length < limit) {
     const mine = keywordSet(article);
@@ -746,7 +880,7 @@ export function relatedFor(article: FeedArticle, pool: FeedArticle[], limit = 3)
       .sort((x, y) => y.score - x.score || byNewest(x.a, y.a));
     for (const { a } of scored) {
       if (picked.length >= limit) break;
-      picked.push(a);
+      if (!heroes.has(a.heroImage.src)) take(a);
     }
   }
   return picked.slice(0, limit).map(summaryOf);
@@ -840,6 +974,16 @@ export function slugMap(store: FeedStore, articles: FeedArticle[] = store.articl
 const xmlEscape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 
+const IMAGE_TYPES: Record<string, string> = { png: "image/png", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif" };
+
+/** An RSS enclosure needs the real byte length: local files only (remote images are left out). */
+function enclosure(src: string, abs: (p: string) => string): string[] {
+  const file = publicFile(src);
+  const ext = (/\.([a-z0-9]+)$/i.exec(src.split(/[?#]/)[0])?.[1] ?? "").toLowerCase();
+  if (!file || !existsSync(file) || !IMAGE_TYPES[ext]) return [];
+  return [`<enclosure url="${xmlEscape(abs(src))}" type="${IMAGE_TYPES[ext]}" length="${statSync(file).size}"/>`];
+}
+
 /** RSS 2.0 of the newest `limit` articles. `origin` is https://tokentails.com. */
 export function buildRss(articles: FeedSummary[], origin: string, { limit = 50, title = "Token Tails Blog", now = new Date() } = {}): string {
   const items = [...articles].sort(byNewest).slice(0, limit);
@@ -867,7 +1011,7 @@ export function buildRss(articles: FeedSummary[], origin: string, { limit = 50, 
       `<pubDate>${new Date(a.publishedAt).toUTCString()}</pubDate>`,
       `<description>${xmlEscape(a.description)}</description>`,
       ...(cat ? [`<category>${xmlEscape(cat.name)}</category>`] : []),
-      `<enclosure url="${xmlEscape(abs(a.heroImage.src))}" type="${/\.png($|\?)/i.test(a.heroImage.src) ? "image/png" : /\.webp($|\?)/i.test(a.heroImage.src) ? "image/webp" : "image/jpeg"}" length="0"/>`,
+      ...enclosure(a.heroImage.src, abs),
       `</item>`
     );
   }

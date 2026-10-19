@@ -22,7 +22,8 @@ interface Props {
 
 /**
  * An article card. The whole card is one link (the title carries the accessible name), the image
- * reserves its box (no layout shift) and the meta row says when it was updated and how long it reads.
+ * reserves its box (no layout shift) and the meta row says when it was published and how long it reads
+ * (the article page shows the "Updated" date).
  */
 export const ArticleCard = ({ article, variant = "card", index = 0, headingLevel = 3, priority = false }: Props) => {
   const H = headingLevel === 2 ? "h2" : "h3";
@@ -53,8 +54,9 @@ export const ArticleCard = ({ article, variant = "card", index = 0, headingLevel
         {!row && <CategoryChip slug={article.category} className="self-start" />}
         <H
           className={clsx(
-            "font-extrabold tracking-[-0.01em] text-[rgb(var(--ink))] [text-wrap:balance]",
-            feature ? "font-primary text-[1.75rem] leading-[1.08] md:text-[2.25rem] lg:text-[2.5rem]" : row ? "text-[1rem] leading-snug" : "text-[1.25rem] leading-snug"
+            "tracking-[-0.01em] text-[rgb(var(--ink))] [text-wrap:balance]",
+            // Passion One ships one weight (400): never let the browser fake a bold.
+            feature ? "font-primary font-normal [font-synthesis:none] text-[1.75rem] leading-[1.08] md:text-[2.25rem] lg:text-[2.5rem]" : row ? "font-extrabold text-[1rem] leading-snug" : "font-extrabold text-[1.25rem] leading-snug"
           )}
         >
           <Link
@@ -68,7 +70,7 @@ export const ArticleCard = ({ article, variant = "card", index = 0, headingLevel
           <p className={clsx("text-[rgb(var(--ink-2))]", feature ? "text-p4 leading-relaxed" : "line-clamp-3 text-p5 leading-relaxed")}>{article.excerpt}</p>
         )}
         <p className="mt-auto flex flex-wrap items-center gap-x-2 pt-1 text-p6 font-bold text-[rgb(var(--muted))] md:text-p5">
-          <time dateTime={machineDate(article.updatedAt)}>{formatFeedDate(article.updatedAt)}</time>
+          <time dateTime={machineDate(article.publishedAt)}>{formatFeedDate(article.publishedAt)}</time>
           <span aria-hidden="true">·</span>
           <span>{article.readingMinutes} min read</span>
         </p>

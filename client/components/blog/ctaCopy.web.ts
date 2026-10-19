@@ -38,7 +38,7 @@ export const WEB_CTAS: Record<string, CtaDef> = {
     // The treat's size lives on /shelter-payouts/give (C-004), never printed here.
     body: "Tap and Token Tails sends Pink Paw a small stablecoin treat, split on-chain by ShelterSplit. It costs you nothing.",
     button: "Send a free treat",
-    art: { src: "/logo/shelter.webp", width: 800, height: 735, alt: "Pixel art of a cosy cat shelter" },
+    art: { src: "/feed/web-give-treat.webp", width: 1280, height: 720, alt: "The Send a treat to Pink Paw page, with the Rožinė pėdutė logo and a network picker" },
     webOnly: true,
   },
   payouts: {
@@ -48,7 +48,7 @@ export const WEB_CTAS: Record<string, CtaDef> = {
     title: "See every payout",
     body: "Every ShelterSplit payout for Pink Paw is listed with a link to its transaction on a public block explorer.",
     button: "Open the payout ledger",
-    art: { src: "/logo/shelter.webp", width: 800, height: 735, alt: "Pixel art of a cosy cat shelter" },
+    art: { src: "/feed/web-payout-feed.webp", width: 1152, height: 648, alt: "The payout ledger's feed: each payout to Pink Paw with its network, its memo and a link to its transaction" },
     webOnly: true,
   },
   packs: {

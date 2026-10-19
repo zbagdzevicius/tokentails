@@ -33,7 +33,8 @@ const SHARED_CTAS: Record<string, CtaDef> = {
     // The treat's size and daily budget live on /heist (C-004, C-005), never printed here.
     body: "Guide two cats past Kibble Corp's guards, open the vault and free a captive cat. Win, tap, and Token Tails sends Pink Paw a small treat.",
     button: "Play Catnip Heist",
-    art: { src: "/game-select/heist-og.jpg", width: 1200, height: 630, alt: "Catnip Heist: two pixel cats sneak toward a guarded vault" },
+    // A real game screen with no dated text on it (the old title card said treats "open soon").
+    art: { src: "/feed/heist-crew.webp", width: 1280, height: 720, alt: "Catnip Heist's Pick your crew screen: a grid of pixel cats, with two picked for the heist" },
     webOnly: false,
   },
   game: {
@@ -66,12 +67,38 @@ const SHARED_CTAS: Record<string, CtaDef> = {
     // The figures themselves stay on /impact (L-disbursed), read live there.
     body: "What Token Tails has sent to Pink Paw so far, with every figure dated and linked to where it comes from.",
     button: "Open the impact page",
-    art: { src: "/logo/shelter.webp", width: 800, height: 735, alt: "Pixel art of a cosy cat shelter" },
+    art: { src: "/feed/impact.webp", width: 1280, height: 720, alt: "The Token Tails impact page: every public number with its date, its status and where to check it" },
     webOnly: false,
   },
 };
 
 export const CTAS: Record<string, CtaDef> = { ...SHARED_CTAS, ...WEB_CTAS };
+
+/**
+ * The closing card when the body already showed the article's own `cta` card: the next of these that
+ * this build can show and the body has not shown, so a reader never meets the same card twice.
+ */
+export const END_FALLBACK: Readonly<Record<string, readonly string[]>> = {
+  heist: ["game", "swordcat"],
+  game: ["heist", "swordcat"],
+  swordcat: ["heist", "game"],
+  badcat: ["game", "heist"],
+  rave: ["payouts", "heist"],
+  give: ["rave", "payouts", "heist"],
+  payouts: ["rave", "give", "heist"],
+  packs: ["game", "heist"],
+  impact: ["rave", "heist"],
+};
+
+/** Giving and cat-care readers who came for a free game get the $1 rave next, not another game. */
+const GIVING_FALLBACK: Readonly<Record<string, readonly string[]>> = { heist: ["rave", "game"] };
+
+/** The `cta` key of an article's closing card (null: nothing this build can show). */
+export function endCtaKey(primary: string, inline: readonly string[], category: string, isApp: boolean): string | null {
+  if (!inline.includes(primary) && ctaFor(primary, isApp)) return primary;
+  const order = (category === "giving" || category === "cats" ? GIVING_FALLBACK[primary] : undefined) ?? END_FALLBACK[primary] ?? [];
+  return order.find((key) => !inline.includes(key) && ctaFor(key, isApp)) ?? (ctaFor(primary, isApp) ? primary : null);
+}
 
 /** The card for `key` in this build, or null (unknown, or web only in an app build). */
 export function ctaFor(key: string, isApp: boolean): CtaDef | null {

@@ -290,7 +290,7 @@ migrated).
 | `category` | yes | `games`, `giving`, `cats`, `build` or `news` (`lib/feed/taxonomy.json`). |
 | `publishedAt`, `updatedAt` | yes | ISO dates (`2026-10-19` or a full timestamp); updated not before published. Legacy articles keep their original date. |
 | `author` | yes | `Token Tails team`. |
-| `heroImage` | yes | `{ src, alt, width, height }`: an https URL or a path under `client/public`, a real description, the real pixel size. Never AI-made photos of real cats. |
+| `heroImage` | yes | `{ src, alt, width, height }`: a path under `client/public` (blog images live in `client/public/feed/`, WebP, about 150 KB; name an image used only by web-only articles or cards `web-*` so the app export drops it) or an https URL, an alt that describes what the picture really shows, the real pixel size. Never AI-made photos of real cats. The build notes a remote PNG and any hero used by more than 2 articles. |
 | `keywords` | yes | Primary keyword first, then 2-5 more. |
 | `intent` | yes | `play`, `give`, `learn`, `build` or `news`. |
 | `cta` | yes | The closing conversion card: `heist`, `swordcat`, `rave`, `game`, `give`, `payouts`, `packs`, `impact` or `badcat`. |
@@ -302,13 +302,15 @@ migrated).
 
 **Directives** (an HTML comment alone on its line; any other comment is an editor note and is dropped):
 
-- `<!-- cta:heist -->` (any `cta` value): an inline conversion card. At most 2 per article, never in the first two paragraphs.
+- `<!-- cta:heist -->` (any `cta` value): an inline conversion card. At most 2 per article, never in the first two paragraphs. When the body already shows the article's `cta` card, the closing card switches to the next card in `components/blog/ctaCopy.ts` `END_FALLBACK`, so a reader never sees the same card twice.
 - `<!-- payouts-live -->`: the live payout figures for Pink Paw (per coin, never summed, Motored sponsor money disclosed), read from `GET /shelter/payouts` in the browser. At most one.
 - `<!-- key-takeaways -->` followed by a bullet list: the summary box.
 
 **Builds.** Web builds generate every article. App builds (Capacitor export) generate only the
 sections that are not web only (`games`, `cats`, `news`) and only articles whose text names no coin,
-chain, wallet or explorer (copy-lint R10 words, `engine.APP_WORDS`); web-only CTA cards
+chain, wallet or explorer (copy-lint R10 words, `engine.APP_WORDS`), link no page the export lacks (`/badcat`,
+`/rave`) and use no pruned image (`engine.WEB_ONLY_MEDIA`). Links to blog pages an app build does not
+ship become plain text (`engine.unlinkMissing`), and `check:app-export` fails on any that remain. Web-only CTA cards
 (`rave`, `give`, `payouts`, `packs`, `badcat`) and the payouts widget render nothing there.
 
 **Redirects.** `lib/feed/legacy-redirects.json` maps all 61 legacy CMS article URLs to their new
@@ -319,8 +321,8 @@ written yet goes to its section as a temporary redirect until it exists. App bui
 redirects: `pages/feed/article.tsx` and `appPath()` forward old links instead.
 
 **SEO.** Each page has its own title, description and canonical; articles send Open Graph article
-tags and the hero image, JSON-LD BlogPosting, BreadcrumbList, FAQPage (when there is an FAQ) and
-VideoGame (game guides), the hub a Blog with the Organization (Token Tails MB). The sitemap rows
+tags and the hero image, JSON-LD BlogPosting, BreadcrumbList and FAQPage (when there is an FAQ; no
+VideoGame, which Google only accepts with ratings or reviews), the hub a Blog with the Organization (Token Tails MB). The sitemap rows
 come from the same content with real `lastmod` and hero images, without priority, changefreq or a
 Google News block. `/feed/rss.xml` is written after the web build by
 `scripts/build-feed-rss.mjs` (gitignored, pruned from the app export).

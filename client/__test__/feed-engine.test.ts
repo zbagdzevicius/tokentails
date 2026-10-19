@@ -5,8 +5,11 @@
  */
 import path from "path";
 import {
+  contractWarnings,
   FeedValidationError,
+  forApp,
   loadFeed,
+  localImageSize,
   neighboursFor,
   parseArticle,
   readingMinutes,
@@ -14,6 +17,8 @@ import {
   renderBody,
   resetFeedCache,
   slugifyHeading,
+  splitFrontmatter,
+  unlinkMissing,
   validateFrontmatter,
   visibleArticles,
   visibleCategories,
@@ -181,6 +186,8 @@ describe("headings, TOC and reading time", () => {
       { id: "vision-cones", text: "Vision cones", level: 3 },
       { id: "how-do-i-open-the-vault", text: "How do I open the vault?", level: 2 },
       { id: "how-do-i-open-the-vault-2", text: "How do I open the vault?", level: 2 },
+      // The FAQ renders after the body: the contents list ends with it.
+      { id: "faq", text: "Frequently asked questions", level: 2 },
     ]);
     const html = guide.segments.map((s) => ("html" in s ? s.html : "")).join("");
     expect(html).toMatch(/<h2 id="how-do-the-guards-work">/);
@@ -228,5 +235,55 @@ describe("relations and builds", () => {
     expect(visibleArticles(store, false)).toHaveLength(3);
     expect(visibleArticles(store, true).map((a) => a.slug)).toEqual(["sample-heist-guide", "sample-cat-care"]);
     expect(visibleCategories(true).map((c) => c.slug)).toEqual(["games", "cats", "news"]);
+  });
+});
+
+describe("review fixes", () => {
+  it("only asks for a seoTitle when there is none", () => {
+    const fm = validateFrontmatter(splitFrontmatter(FRONT)!.data, "test-article").value!;
+    const long = { ...fm, title: "x".repeat(70) };
+    expect(contractWarnings(long, 800).join(" ")).toMatch(/set seoTitle/);
+    expect(contractWarnings({ ...long, seoTitle: "Short" }, 800).join(" ")).not.toMatch(/set seoTitle/);
+    expect(contractWarnings({ ...fm, heroImage: { ...fm.heroImage, src: "https://cdn.example.com/a.png" } }, 800).join(" ")).toMatch(/remote PNG/);
+  });
+
+  it("reads the real size of local images and gives inline images their box", () => {
+    expect(localImageSize("/logo/shelter.webp")).toEqual({ width: 800, height: 735 });
+    expect(localImageSize("/landing/heist-reel-poster-v1.jpg")).toEqual({ width: 1280, height: 720 });
+    expect(localImageSize("https://example.com/a.png")).toBeNull();
+    const html = renderBody("One.\n\n![A shelter](/logo/shelter.webp)").segments.map((x) => ("html" in x ? x.html : "")).join("");
+    expect(html).toMatch(/<img src="\/logo\/shelter.webp" alt="A shelter" width="800" height="735"/);
+  });
+
+  it("keeps an article that links a web-only page or uses a pruned image out of app builds", () => {
+    expect(article("One.\n\nPlay [Bad Cat Daily](/badcat).").article?.appSafe).toBe(false);
+    expect(article("One.\n\n![Poster](/landing/badcat/badcat-poster-v1.webp)").article?.appSafe).toBe(false);
+    expect(article("One.\n\nSee [the payouts](/shelter-payouts) and [the game](/game).").article?.appSafe).toBe(true);
+  });
+
+  it("turns links to blog pages an app build does not ship into text", () => {
+    const html = '<p><a href="/feed/games/a">A</a> and <a href="/feed/news/b">B</a> and <a href="/game">C</a></p>';
+    expect(unlinkMissing(html, new Set(["/feed/games/a"]))).toBe('<p><a href="/feed/games/a">A</a> and <span>B</span> and <a href="/game">C</a></p>');
+    const [guide] = load().articles;
+    const app = forApp(guide, new Set());
+    expect(app.segments.filter((x) => "html" in x).map((x) => ("html" in x ? x.html : "")).join("")).not.toMatch(/href="\/feed\//);
+  });
+
+  it("never puts the article's own hero, or one hero twice, under Keep reading", () => {
+    const { articles } = load();
+    const [guide, care, news] = articles;
+    const same = [guide, { ...care, heroImage: guide.heroImage }, news];
+    expect(relatedFor(same[0], same).map((a) => a.slug)).toEqual(["sample-shelter-news"]);
+  });
+
+  it("notes a hero image used by more than two articles", () => {
+    const fs = jest.requireActual<typeof import("fs")>("fs");
+    const os = jest.requireActual<typeof import("os")>("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "feed-hero-"));
+    for (const slug of ["a-one", "a-two", "a-three"]) {
+      fs.writeFileSync(path.join(dir, `${slug}.md`), `${FRONT.replace("slug: test-article", `slug: ${slug}`)}One.\n`);
+    }
+    const warnings = loadFeed(dir, { cache: false }).warnings.filter((w) => /hero of 3 articles/.test(w.message));
+    expect(warnings).toHaveLength(3);
   });
 });

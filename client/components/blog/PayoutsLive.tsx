@@ -1,7 +1,7 @@
 // copy-lint: web-only the live payout widget returns null in app builds (no coins or chains in the app)
 import { apiUrl } from "@/api/api";
 import { loadPayoutIndex } from "@/components/shelter-payouts/payoutIndex";
-import { motoredNote } from "@/components/shelter-payouts/motored";
+import { MOTORED_DISCLOSURE, MOTORED_SPONSOR, motoredNote } from "@/components/shelter-payouts/motored";
 import { isApp } from "@/models/app";
 import { formatFeedDate } from "@/lib/feed/view";
 import { ArrowRight } from "lucide-react";
@@ -18,7 +18,8 @@ type State = { status: "loading" } | { status: "ready"; totals: PayoutTotals } |
  * it loads; if the read fails the widget says so and links the ledger. Web builds only.
  *
  * claim: live payout totals (GET /shelter/payouts, the /shelter-payouts source), per coin and never
- *   summed; Motored sponsor gifts are counted apart with the founder disclosure (motored.ts). "for
+ *   summed; each coin's Motored sponsor share is shown in that coin's tile with the founder
+ *   disclosure (motored.ts). "for
  *   Pink Paw", not "to": before 16 Oct 2026 the splits paid a wallet Token Tails held for the shelter.
  */
 export const PayoutsLive = ({ appBuild = isApp }: { appBuild?: boolean }) => {
@@ -93,12 +94,17 @@ export const PayoutsLive = ({ appBuild = isApp }: { appBuild?: boolean }) => {
                   <span className="mt-1 block text-p6 font-bold text-[rgb(var(--muted))] md:text-p5">
                     {c.count.toLocaleString("en-US")} {c.count === 1 ? "payout" : "payouts"}
                   </span>
+                  {c.motored && (
+                    <span className="mt-2 block rounded-lg bg-tt-gold-400/20 px-2.5 py-1.5 text-p6 font-bold leading-snug text-[rgb(var(--ink))] md:text-p5" data-testid="payouts-live-coin-motored">
+                      Of which {c.motored.amount} {c.symbol} from {MOTORED_SPONSOR} (a sponsor; {MOTORED_DISCLOSURE.replace(/\.$/, "")})
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-            {state.totals.motored && (
+            {state.totals.motoredCount > 0 && (
               <p className="mt-4 text-p6 leading-relaxed text-[rgb(var(--ink-2))] md:text-p5" data-testid="payouts-live-motored">
-                Includes {state.totals.motored.usd} from Motored&apos;s fundraising event: {motoredNote(state.totals.motored.count)}
+                About the {MOTORED_SPONSOR} share: {motoredNote(state.totals.motoredCount)}
               </p>
             )}
           </>

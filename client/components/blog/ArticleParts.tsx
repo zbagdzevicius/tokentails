@@ -35,7 +35,7 @@ export const Faq = ({ items }: { items: FaqItem[] }) => {
   if (!items.length) return null;
   return (
     <section aria-labelledby="faq" className="mt-14 max-w-[46rem]" data-testid="article-faq">
-      <h2 id="faq" className="mb-4 scroll-mt-28 text-[1.6rem] font-extrabold leading-tight tracking-[-0.01em] text-[rgb(var(--ink))] md:text-[1.8rem]">
+      <h2 id="faq" className="mb-4 scroll-mt-32 sm:scroll-mt-28 text-[1.6rem] font-extrabold leading-tight tracking-[-0.01em] text-[rgb(var(--ink))] md:text-[1.8rem]">
         Frequently asked questions
       </h2>
       <div className="divide-y divide-[rgb(var(--line)/0.1)] rounded-2xl bg-white/70 ring-1 ring-[rgb(var(--line)/0.1)]">

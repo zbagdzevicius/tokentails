@@ -1,7 +1,7 @@
 // Removes web-only media from the Capacitor export in out/ (run by `npm run build:app`).
 // The landing showreel and trailer never play in app builds (HeistSection shows the poster;
 // SwordcatSection, RaveSection and BadcatSection are web only), so their video must not ship inside the app. `check-app-export.mjs` asserts these are gone.
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,8 +26,28 @@ export const WEB_ONLY_FILES = Object.freeze([
   "feed/rss.xml",
 ]);
 
+/** Blog images named web-* (client/public/feed/web-*) belong to web-only articles and cards (lib/feed/engine.ts WEB_ONLY_MEDIA). */
+export const WEB_ONLY_PREFIXES = Object.freeze(["feed/web-"]);
+
+/** Every file under out/ that matches a web-only prefix. */
+export function webOnlyPrefixed(outDir) {
+  const found = [];
+  for (const prefix of WEB_ONLY_PREFIXES) {
+    const dir = prefix.slice(0, prefix.lastIndexOf("/"));
+    const start = prefix.slice(prefix.lastIndexOf("/") + 1);
+    const full = join(outDir, dir);
+    if (!existsSync(full)) continue;
+    for (const name of readdirSync(full)) if (name.startsWith(start)) found.push(`${dir}/${name}`);
+  }
+  return found;
+}
+
 export function pruneAppExport(outDir) {
   const removed = [];
+  for (const file of webOnlyPrefixed(outDir)) {
+    rmSync(join(outDir, file));
+    removed.push(file);
+  }
   for (const file of WEB_ONLY_FILES) {
     const full = join(outDir, file);
     if (existsSync(full)) {
