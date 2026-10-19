@@ -100,6 +100,18 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 
 ### Wave A (no sim change; `npm run determinism` hash trails stay identical)
 
+**Status (2026-10-20, uncommitted on `feat/pawlegends`; `git diff HEAD -- pawlegends/src/sim` is empty, SIM_VERSION 9):**
+
+| Item | Status | Note |
+|---|---|---|
+| A0 Cacklejaw coats | Done | `lookCoat('cacklejaw', …)` in `specs.ts`; a card skin still wins; the default look is unchanged |
+| A1 Treat Track and quests | Done | 30 chests + a 32-coat loop, target picker, postcards, quests 11 → 17 with the round-robin hero slot. The second emote is a palette coat (the match has one emote slot). "Earn an A grade" is not added: it waits for A2's calibration |
+| A2 Grade, MVP, Best on your team | Partial | Formula, MVP, Treat XP and the ladder swap are in. Calibration gate not met on fresh seeds: mage about 6.2 and support about 6.0 points off the ±5 target (`tools/grade-calibrate.mjs --check`); re-fit after v10 adds frontline stats |
+| A3 Run it back / Switch cat | Done | `rematch_click` event; same page session, so no second offer |
+| A4 Objective and respawn timers | Done | Chip, minimap rings, portrait strip with death timers. The chip tap sends no ping until B1 (as planned) |
+| A5 Touch target lock | Done | 5 s / 9 m lock from a hero or portrait tap, "Target first" setting, optional last-hit and tower buttons (off). The −40% minion-hit measure needs round-3 data |
+| A6 Small items | Done | First win of the day +150 Treat XP, loading-screen hero count and Bond, role label only on the pick screen, ally barks |
+
 **A0. Cacklejaw coats.** S (2–4 h). Wire `lookCoat('cacklejaw', …)` into his spec in `src/render/chars/specs.ts`. Listed on its own, not as a silent side fix: his two Track coats ship today and do nothing.
 
 **A1. Treat Track for all 8 heroes, 30 chests, then a loop; quests for all 8.** S–M (1.5 days plus data).

@@ -19,7 +19,7 @@ import { isShortLandscape, MOBA_DIST } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
-import { FREE_BISCUIT, FREE_COATS, cardLook, type Look } from './cosmetics';
+import { BOT_COATS, FREE_BISCUIT, FREE_COATS, cardLook, type Look } from './cosmetics';
 import { setCharTime } from './chars/charMaterial';
 import { getSkin } from './skins/skinStore';
 import { TierFx, type SkinFxMode } from './skins/tierFx';
@@ -110,6 +110,8 @@ export class GameView {
   aim: AimPreview | null = null;
   /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
   hover: { id: number; rel: 'enemy' | 'ally'; castId?: number } | null = null;
+  /** GAPS A5: the touch-locked enemy hero (TouchControls.lock): the same ring as an enemy hover while it holds. */
+  lock: number | null = null;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -252,7 +254,7 @@ export class GameView {
     const shown = new Map<number, string>();
     picks.forEach((hero, slot) => {
       if (slot === this.mySlot) return;
-      const pool: (string | null)[] = [null, ...Object.keys(FREE_COATS).filter((id) => FREE_COATS[id].hero === hero), ...(hero === 'brutus' ? [FREE_BISCUIT] : [])];
+      const pool: (string | null)[] = [null, ...BOT_COATS.filter((id) => FREE_COATS[id].hero === hero), ...(hero === 'brutus' ? [FREE_BISCUIT] : [])];
       let k = (Math.imul((seed >>> 0) ^ (slot * 0x27d4eb2f), 0x165667b1) >>> 0) % pool.length;
       for (let n = 0; n < pool.length && used.has(`${hero}:${pool[k]}`); n++) k = (k + 1) % pool.length;
       used.add(`${hero}:${pool[k]}`);
@@ -404,10 +406,11 @@ export class GameView {
   /** Hover ring and order markers for this frame (no allocation). */
   private drawMarks(frame: ViewFrame | null, dt: number): void {
     this.hoverRing.begin();
-    // the desktop hover, else a unit aim's target (touch drag-aim and hold-aim show who the cast will hit)
+    // the desktop hover, else a unit aim's target (touch drag-aim and hold-aim show who the cast will hit), else the
+    // touch lock (GAPS A5: one ring means "what you hit" on both inputs)
     const a = this.aim;
     const aimId = a && a.spec.kind === 'unit' && a.valid && a.target >= 0 && a.target !== 0xff ? a.target : -1;
-    const id = this.hover ? this.hover.id : aimId;
+    const id = this.hover ? this.hover.id : aimId >= 0 ? aimId : (this.lock ?? -1);
     const e = id >= 0 && frame ? frame.byId.get(id) : null;
     if (e && e.state !== 'dead') {
       const size = hoverRingSize(e.kind, e.hero);

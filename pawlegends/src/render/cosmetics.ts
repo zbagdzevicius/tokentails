@@ -15,6 +15,10 @@
 import type { HeroId } from '../sim/api';
 import { ELEMENT_NAME, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
 import { isCardSkinId, skinRev } from './skins/skinStore';
+import { LOOP_PALETTES, LOOP_REWARDS, TRACK_TITLES } from '../meta/treats';
+import { SHELTER_CHAMPIONS } from '../data/heroes/shelter';
+
+const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.cardName])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
 
 export interface Coat {
   base: number;
@@ -111,11 +115,23 @@ export interface Owned {
 
 export const FREE_BISCUIT = 'coat.brutus.biscuit';
 
+/** Loop palette colours (meta/treats.ts LOOP_PALETTES), the same on every original hero. */
+const LOOP_COAT: Readonly<Record<string, Coat>> = Object.freeze({
+  peach: { base: 0xf6b48f, light: 0xffeadc, dark: 0xc47a56, accent: 0xff8fb1 },
+  plum: { base: 0x7a4a7e, light: 0xd2b0d6, dark: 0x40243f, accent: 0xffd34d },
+  moss: { base: 0x6f7f45, light: 0xd6dcb0, dark: 0x3c4624, accent: 0xffb347 },
+  slate: { base: 0x5f6e80, light: 0xc6d0dc, dark: 0x323b46, accent: 0x9be3c4 },
+  honey: { base: 0xe8b84f, light: 0xfff0c8, dark: 0xa87a24, accent: 0xff7a3d },
+  coral: { base: 0xf08070, light: 0xffdcd4, dark: 0xb44c40, accent: 0x8fc8ff },
+  ink: { base: 0x2c3046, light: 0x8c92b0, dark: 0x14162a, accent: 0xff8fb1 },
+  cocoa: { base: 0x8a5a3c, light: 0xe6c8b0, dark: 0x4a2c1a, accent: 0xffd34d },
+});
+
 /**
  * Treat Track coats (meta/treats.ts, fixed order, free by playing): an unlock id → hero, name and palette. Like the
  * Biscuit coat they live in the local profile's unlocks.
  */
-export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; coat: Coat }>> = Object.freeze({
+export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; coat: Coat; loop?: true }>> = Object.freeze({
   'coat.clem.marmalade': { hero: 'clem', name: 'Marmalade coat', coat: { base: 0xf0a04b, light: 0xffe2b8, dark: 0xb5652a, accent: 0xff7a3d } },
   'coat.clem.snowpaw': { hero: 'clem', name: 'Snowpaw coat', coat: { base: 0xf4f1ec, light: 0xffffff, dark: 0xb9c3cf, accent: 0x8fc8ff } },
   'coat.sage.midnight': { hero: 'sage', name: 'Midnight coat', coat: { base: 0x3a3f5c, light: 0x8a90b8, dark: 0x1f2236, accent: 0x9be3c4 } },
@@ -123,7 +139,46 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.brutus.ember': { hero: 'brutus', name: 'Ember coat', coat: { base: 0x8a3b2a, light: 0xe8a07a, dark: 0x4a1d14, accent: 0xffb347 } },
   'coat.cacklejaw.spotted': { hero: 'cacklejaw', name: 'Spotted coat', coat: { base: 0xc9a26b, light: 0xf2dcb4, dark: 0x5a4028, accent: 0xb07cff } },
   'coat.cacklejaw.dusk': { hero: 'cacklejaw', name: 'Dusk coat', coat: { base: 0x6a5a8a, light: 0xc0b0e0, dark: 0x352a4a, accent: 0xffd34d } },
+  // GAPS A1: one more coat per original hero, and palette variants of the earlier coats
+  'coat.clem.lilac': { hero: 'clem', name: 'Lilac coat', coat: { base: 0xd8c4ee, light: 0xf6f0fc, dark: 0x9a82bc, accent: 0xff8fb1 } },
+  'coat.sage.fern': { hero: 'sage', name: 'Fern coat', coat: { base: 0x7f9a6a, light: 0xdfe8cf, dark: 0x4a5e3c, accent: 0xffd34d } },
+  'coat.brutus.storm': { hero: 'brutus', name: 'Storm coat', coat: { base: 0x7d8692, light: 0xd2d8e0, dark: 0x454c56, accent: 0x8fc8ff } },
+  'coat.cacklejaw.frost': { hero: 'cacklejaw', name: 'Frost coat', coat: { base: 0xdfe8ef, light: 0xffffff, dark: 0x5a7a99, accent: 0x8fc8ff } },
+  'coat.clem.marmalade.rose': { hero: 'clem', name: 'Rose Marmalade coat', coat: { base: 0xf0a08a, light: 0xffe2da, dark: 0xb5604f, accent: 0xff6f91 } },
+  'coat.sage.midnight.teal': { hero: 'sage', name: 'Teal Midnight coat', coat: { base: 0x2f5a5c, light: 0x86b8b4, dark: 0x173436, accent: 0x9be3c4 } },
+  'coat.brutus.ember.ash': { hero: 'brutus', name: 'Ash Ember coat', coat: { base: 0x5a4a46, light: 0xc8b2a8, dark: 0x2e2422, accent: 0xffb347 } },
+  'coat.cacklejaw.spotted.mint': { hero: 'cacklejaw', name: 'Mint Spotted coat', coat: { base: 0xa9d6b8, light: 0xe6f6ea, dark: 0x3f6a52, accent: 0xb07cff } },
+  'coat.clem.snowpaw.sky': { hero: 'clem', name: 'Sky Snowpaw coat', coat: { base: 0xe4eef8, light: 0xffffff, dark: 0x9cb6d2, accent: 0x8fc8ff } },
+  ...loopCoats(),
 });
+
+/**
+ * The loop after chest 30 (meta/treats.ts LOOP_REWARDS): each palette on every original hero. Never on a champion
+ * (they wear their real card's coat).
+ */
+function loopCoats(): Record<string, { hero: HeroId; name: string; coat: Coat; loop: true }> {
+  const out: Record<string, { hero: HeroId; name: string; coat: Coat; loop: true }> = {};
+  for (const r of LOOP_REWARDS) {
+    const key = r.id.slice(r.id.lastIndexOf('.') + 1);
+    const pal = LOOP_COAT[key];
+    const name = LOOP_PALETTES.find((p) => p.key === key)?.name ?? key;
+    if (pal && r.hero) out[r.id] = { hero: r.hero, name: `${name} coat`, coat: pal, loop: true };
+  }
+  return out;
+}
+
+/** Bots dress from the first seven Treat Track coats only (gameView.dressBots: the same faces as before GAPS A1). */
+export const BOT_COATS: readonly string[] = Object.freeze(['coat.clem.marmalade', 'coat.clem.snowpaw', 'coat.sage.midnight', 'coat.sage.sunrise', 'coat.brutus.ember', 'coat.cacklejaw.spotted', 'coat.cacklejaw.dusk']);
+
+/** Track frames (GAPS A1): one per shelter champion, in that champion's colour. Never a card perk. */
+export const TRACK_FRAME_NAME: Readonly<Record<TrackFrame, string>> = Object.freeze({
+  'frame.champ.lambo': `${SHELTER_NAME.lambo} frame`,
+  'frame.champ.aviete': `${SHELTER_NAME.aviete} frame`,
+  'frame.champ.bengas': `${SHELTER_NAME.bengas} frame`,
+  'frame.champ.gabe': `${SHELTER_NAME.gabe} frame`,
+});
+export type TrackFrame = 'frame.champ.lambo' | 'frame.champ.aviete' | 'frame.champ.bengas' | 'frame.champ.gabe';
+export const isTrackFrame = (id: unknown): id is TrackFrame => typeof id === 'string' && id in TRACK_FRAME_NAME;
 export const breedCoatId = (b: StarterBreed): string => `coat.breed.${b}`;
 
 /** The coats a hero can wear, default first. */
@@ -168,9 +223,10 @@ export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | nul
   return { coat, chroma };
 }
 
-export type FrameId = TierFrame | 'frame.founder' | 'frame.legend';
+export type FrameId = TierFrame | 'frame.founder' | 'frame.legend' | TrackFrame;
 
 export const FRAME_NAME: Readonly<Record<FrameId, string>> = Object.freeze({
+  ...TRACK_FRAME_NAME,
   'frame.rare': 'Rare frame',
   'frame.epic': 'Epic frame',
   'frame.legendary': 'Legendary frame',
@@ -182,15 +238,18 @@ export const FRAME_NAME: Readonly<Record<FrameId, string>> = Object.freeze({
 });
 
 /** Best frame owned: Legend > Founder > the best roster frame (meta/roster.ts FRAME_ORDER, pack cats excluded), or null. */
-export function bestFrame(o: Owned): FrameId | null {
+export function bestFrame(o: Owned, worn?: string | null): FrameId | null {
+  // GAPS A1: a track frame the player chose to wear (and owns) comes first
+  if (isTrackFrame(worn) && o.unlocks.has(worn)) return worn;
   if (o.items.has('frame.legend')) return 'frame.legend';
   if (o.items.has('frame.founder')) return 'frame.founder';
   const f = o.roster.frames;
   return f.length ? f[f.length - 1] : null;
 }
 
-/** "Founder" title, or null. */
-export function titleOf(o: Owned): string | null {
+/** The title worn: a champion title from the track the player chose (and owns), else "Founder", or null. */
+export function titleOf(o: Owned, worn?: string | null): string | null {
+  if (worn && TRACK_TITLES[worn] && o.unlocks.has(worn)) return TRACK_TITLES[worn];
   return o.items.has('title.founder') ? 'Founder' : null;
 }
 

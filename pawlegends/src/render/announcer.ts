@@ -19,8 +19,13 @@ export interface Moment {
   title: string;
   sub?: string;
   tone: MomentTone;
-  /** banner = the big line at the top, callout = the word over the middle, pop = text over the player's hero. */
-  size: 'banner' | 'callout' | 'pop' | 'ping';
+  /**
+   * banner = the big line at the top, callout = the word over the middle, pop = text over the player's hero, bark = an
+   * allied bot's line over that bot (`slot`).
+   */
+  size: 'banner' | 'callout' | 'pop' | 'ping' | 'bark';
+  /** bark: the allied bot slot that says it (the session tries the other ally when this one is down or off screen). */
+  slot?: number;
   slowmo?: { ms: number; scale: number };
   shake?: number;
   crowd?: CrowdSfx;
@@ -40,6 +45,14 @@ export const WINDOW = Object.freeze({
   assist: 300,
   /** Sim shutdown / first blood events within this many ticks of an inferred one are the same kill. */
   same: 6,
+  /** GAPS A6: at most one ally bark in this many ticks (8 s), so a teamfight is not a wall of text. */
+  bark: 240,
+});
+
+/** GAPS A6: allied bots cheer the player's takedowns and assists (fixed lines, chosen in turn: no randomness). */
+export const BARKS = Object.freeze({
+  kill: ['Nice one!', 'Great paws!', 'Purr-fect!', 'Go, go, go!', 'What a play!'],
+  assist: ['Thanks for the help!', 'Teamwork!', 'Got your back!', 'We did it together!'],
 });
 
 export const STREAK_NAMES: Readonly<Record<number, string>> = Object.freeze({ 3: 'On a Roll', 4: 'Unstoppa-paw', 5: 'Legend-dairy' });
@@ -68,6 +81,8 @@ export class Announcer {
   private best: Moment | null = null;
   private frenzySpawns = 0;
   private nineSeen = 0;
+  private barkAt = -1e9;
+  private barks = 0;
 
   /** First takedown (kill or assist) by the player, in ticks, or -1. */
   firstTakedownTick = -1;
@@ -219,10 +234,30 @@ export class Announcer {
     } else if (killerHero && teamOf(e.killer) === this.myTeam && !out.length) {
       out.push({ key: 'allyTakedown', title: assist ? 'Assist!' : 'Takedown', tone: 'good', size: 'callout', crowd: 'cheer' });
     }
+    if (mine || assist) {
+      const b = this.bark(mine, e.killer);
+      if (b) out.push(b);
+    }
     if (killerHero && teamOf(e.killer) !== this.myTeam && this.streak[e.killer] === 3) {
       out.push({ key: 'enemyStreak', title: `${this.name(e.killer)} is on a roll`, sub: 'Take them down for a bounty.', tone: 'bad', size: 'banner' });
     }
     return out;
+  }
+
+  /**
+   * GAPS A6: an allied bot's cheer on the player's takedown (an ally speaks, in turn) or assist (the ally who made the
+   * kill thanks the player). At most one per WINDOW.bark; never on an enemy's takedown.
+   */
+  private bark(mine: boolean, killer: number): Moment | null {
+    if (this.tick - this.barkAt < WINDOW.bark) return null;
+    const allies = [0, 1, 2].map((k) => this.myTeam * 3 + k).filter((s) => s !== this.mySlot);
+    if (!allies.length) return null;
+    const ally = !mine && allies.includes(killer) ? killer : allies[this.barks % allies.length];
+    const lines = mine ? BARKS.kill : BARKS.assist;
+    const title = lines[this.barks % lines.length];
+    this.barks++;
+    this.barkAt = this.tick;
+    return { key: mine ? 'barkKill' : 'barkAssist', title, tone: 'good', size: 'bark', slot: ally };
   }
 
   private firstBlood(killer: number): Moment {

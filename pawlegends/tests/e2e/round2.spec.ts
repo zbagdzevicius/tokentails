@@ -78,7 +78,7 @@ test('results: a returning player gets Play again at once and a line saying what
   await expect(page.locator('.pl-results [data-cause]')).toContainText(/core|Time ran out/);
   // quick reveal (round 2): Play again within a second of the screen opening, even at 1× it is End + 2.5 s
   await page.waitForSelector('.pl-results.actions-in', { timeout: 3_000 });
-  await expect(page.locator('[data-a="change"]')).toContainText(/Try |Change hero/);
+  await expect(page.locator('[data-a="change"]')).toContainText('Switch cat');
 });
 
 test('short landscape: the hero sits below the middle, with room above it under the top HUD', async ({ page }, info) => {

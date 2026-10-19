@@ -1,6 +1,7 @@
 /**
  * Minimap (POC.md §3, §9): lanes, river, structures, units and the camera's view on a small 2D canvas. Desktop:
- * left-click looks there, right-click moves there. Touch: tap to peek for a moment.
+ * left-click looks there, right-click moves there. Touch: tap to peek for a moment. GAPS A4: countdown rings on
+ * Pudding's spot and the rat camps (onboarding/objectives.ts ObjectiveClock.timers).
  */
 import { NX, NY, createGrid } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
@@ -127,6 +128,47 @@ export class Minimap {
   /** Pickups on the ground (sim mm): a glowing dot each (fun plan F2 item 8). Set by the match session. */
   pickups: () => readonly { x: number; y: number; kind: 'frenzy' | 'snack' }[] = () => [];
 
+  /** GAPS A4: objective countdowns (sim mm; ticks left of total). A ring fills as the timer runs out. */
+  timers: () => readonly { key: string; x: number; y: number; left: number; total: number }[] = () => [];
+
+  /** Rings drawn last frame (e2e and tests). */
+  ringsDrawn = 0;
+
+  private drawTimers(g: CanvasRenderingContext2D): void {
+    let n = 0;
+    for (const t of this.timers()) {
+      if (t.left <= 0 || t.total <= 0) continue;
+      const x = this.X(t.x);
+      const y = this.Y(t.y);
+      const done = Math.max(0, Math.min(1, 1 - t.left / t.total));
+      const r = 6;
+      const color = t.key === 'pudding' ? '#ffd34d' : t.key === 'rats' ? RELATION_CSS.ally : RELATION_CSS.enemy;
+      g.fillStyle = 'rgba(42,26,34,0.75)';
+      g.beginPath();
+      g.arc(x, y, r + 2, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(255,243,220,0.35)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.stroke();
+      g.strokeStyle = color;
+      g.beginPath();
+      g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+      g.stroke();
+      const secs = Math.ceil(t.left / 30);
+      if (secs <= 99) {
+        g.fillStyle = '#fff3dc';
+        g.font = '700 7px Fredoka, system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText(String(secs), x, y + 0.5);
+      }
+      n++;
+    }
+    this.ringsDrawn = n;
+  }
+
   draw(frame: ViewFrame | null): void {
     if ((this.n++ & 1) === 1) return;
     this.size();
@@ -169,6 +211,7 @@ export class Minimap {
       g.arc(x, y, 3, 0, Math.PI * 2);
       g.fill();
     }
+    this.drawTimers(g);
     for (const e of frame.entities) {
       if (e.kind !== 'hero' || e.state === 'dead') continue;
       const x = this.X(e.fx);

@@ -4,8 +4,10 @@
  * try/catch. Copy follows docs/CLAIMS.md: play goals only, no money or currency words.
  */
 import type { HeroId } from '../sim/api';
+import { HERO_IDS } from '../data/heroes';
+import { CHAMPION_IDS, uiName } from '../data/heroes/shelter';
 
-export type QuestMetric = 'takedowns' | 'pudding' | 'win' | 'matches' | 'towers' | 'combos';
+export type QuestMetric = 'takedowns' | 'pudding' | 'win' | 'matches' | 'towers' | 'combos' | 'champion';
 
 export interface Quest {
   id: string;
@@ -30,7 +32,25 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'towers2', text: 'Take down 2 towers', goal: 2, metric: 'towers' },
   { id: 'combo3', text: 'Land 3 combos', goal: 3, metric: 'combos' },
   { id: 'takedowns10', text: 'Get 10 takedowns (K + A)', goal: 10, metric: 'takedowns' },
+  // GAPS A1: the four shelter champions join the hero slot, plus two play goals. A quest may lead to a champion; its
+  // reward is Treat XP only, never an offer, and finishing it never opens one (money/offer.ts is unchanged)
+  { id: 'win_lambo', text: 'Win with Lambo', goal: 1, metric: 'win', hero: 'lambo' },
+  { id: 'win_aviete', text: `Win with ${uiName('Avietė')}`, goal: 1, metric: 'win', hero: 'aviete' },
+  { id: 'win_bengas', text: 'Win with Bengas', goal: 1, metric: 'win', hero: 'bengas' },
+  { id: 'win_gabe', text: `Win with ${uiName('Gabė')}`, goal: 1, metric: 'win', hero: 'gabe' },
+  { id: 'champion', text: 'Play a shelter champion', goal: 1, metric: 'champion' },
+  { id: 'pudding2', text: 'Calm Pudding twice', goal: 2, metric: 'pudding' },
 ] as Quest[]);
+
+/**
+ * Matches played before which the hero quest follows the hero being played (the guided first matches, app/firstSession
+ * PICK_DIFFICULTY_FROM); from then on it is the day's round-robin hero, so it can lead to any hero.
+ */
+export const QUEST_FOLLOW_UNTIL = 3;
+export const followsHero = (matchesBefore: number): boolean => matchesBefore < QUEST_FOLLOW_UNTIL;
+
+/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 8 days. */
+export const QUEST_HEROES: readonly HeroId[] = HERO_IDS;
 
 export interface QuestState {
   v: 1;
@@ -67,9 +87,10 @@ function fnv(s: string): number {
 }
 
 /**
- * The day's three quests: a fixed pick per date, at most one "win with a hero". Pure. `hero` (the player's first
- * matches, round 0): the "win with a hero" quest names the hero being played, since the first route never shows
- * the pick screen ("Win with Cacklejaw" while the game put the player on Clem).
+ * The day's three quests: a fixed pick per date. Slot 1 is "win with a hero", round-robin over all 8 heroes by the
+ * date (each hero every 8 days); the other two come from the play goals by a date seed. Pure. `hero` (the player's
+ * first matches): the hero quest names the hero being played instead, since the first route never shows the pick
+ * screen ("Win with Cacklejaw" while the game put the player on Clem).
  */
 export function dailyQuests(day: string, hero?: HeroId): Quest[] {
   const base = dayPick(day);
@@ -78,19 +99,29 @@ export function dailyQuests(day: string, hero?: HeroId): Quest[] {
   return mine ? base.map((q) => (q.hero && !base.includes(mine) ? mine : q)) : base;
 }
 
+/** Days since 1970-01-01 for a YYYY-MM-DD key (0 for a malformed one). Pure. */
+export function dayIndex(day: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!m) return 0;
+  return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000);
+}
+
+/** The hero whose "win with" quest the day shows (round-robin). Pure. */
+export function questHero(day: string): HeroId {
+  const n = QUEST_HEROES.length;
+  return QUEST_HEROES[((dayIndex(day) % n) + n) % n];
+}
+
 function dayPick(day: string): Quest[] {
-  const out: Quest[] = [];
+  const heroQuest = QUEST_POOL.find((q) => q.metric === 'win' && q.hero === questHero(day));
+  const out: Quest[] = heroQuest ? [heroQuest] : [];
+  const goals = QUEST_POOL.filter((q) => !q.hero);
   let h = fnv(`pawlegends:${day}`);
-  let heroWin = false;
   for (let guard = 0; out.length < 3 && guard < 64; guard++) {
-    const q = QUEST_POOL[h % QUEST_POOL.length];
+    const q = goals[h % goals.length];
     h = Math.imul(h ^ (h >>> 13), 0x5bd1e995) >>> 0;
     if (out.includes(q)) continue;
-    if (q.hero) {
-      if (heroWin) continue;
-      heroWin = true;
-    }
-    if (q.metric === 'takedowns' && out.some((o) => o.metric === 'takedowns')) continue;
+    if ((q.metric === 'takedowns' || q.metric === 'pudding') && out.some((o) => o.metric === q.metric)) continue;
     out.push(q);
   }
   return out;
@@ -147,6 +178,8 @@ function amount(q: Quest, m: MatchFacts): number {
       return m.towers;
     case 'combos':
       return m.combos;
+    case 'champion':
+      return (CHAMPION_IDS as readonly HeroId[]).includes(m.hero) ? 1 : 0;
   }
 }
 

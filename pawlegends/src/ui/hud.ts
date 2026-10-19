@@ -2,6 +2,9 @@
  * Match HUD (POC.md §3): the ability bar (portrait, level, health with shield, Q W E R, Paw Trick, Nap with
  * cooldown sweeps and key labels), the top score and clock with the next phase, a kill feed and the respawn
  * overlay. DOM, updated from the latest snapshot; writes only when a value changes.
+ *
+ * GAPS A4: a portrait strip (allies left of the score bar, enemies right of it) with each hero's death timer from
+ * `respawnIn`. GAPS A5: a tap on an enemy portrait locks that hero on touch (`HudHost.onPortrait`).
  */
 import type { EntitySnap, HeroId, MatchClock, MatchScore, TrickId } from '../sim/api';
 import { maxCooldown, ULT_LEVEL } from '../input/abilities';
@@ -29,6 +32,33 @@ interface SlotEl {
 export interface HudHost {
   /** A slot button was clicked or tapped (desktop users may click the bar). */
   onSlot(index: number): void;
+  /** GAPS A5: an enemy portrait in the strip was tapped (touch only: the strip takes no mouse input). */
+  onPortrait?(slot: number): void;
+}
+
+/**
+ * One strip portrait's read (GAPS A4), pure: `until` is the tick the hero is back (kept while it is out of sight, so
+ * an enemy who died in view keeps its timer), `secs` the whole seconds left while dead (null alive), `seen` whether
+ * the snapshot shows it now.
+ */
+export function portraitTimer(e: Pick<EntitySnap, 'state' | 'respawnIn'> | undefined, tick: number, until: number): { until: number; secs: number | null; seen: boolean } {
+  if (e) {
+    if (e.state === 'dead') {
+      const u = tick + Math.max(0, e.respawnIn ?? 0);
+      return { until: u, secs: Math.max(1, Math.ceil((u - tick) / 30)), seen: true };
+    }
+    return { until: -1, secs: null, seen: true };
+  }
+  if (until > tick) return { until, secs: Math.max(1, Math.ceil((until - tick) / 30)), seen: false };
+  return { until: -1, secs: null, seen: false };
+}
+
+interface StripEl {
+  slot: number;
+  el: HTMLElement;
+  t: HTMLElement;
+  until: number;
+  state: string;
 }
 
 function fmtClock(s: number): string {
@@ -71,6 +101,7 @@ export class Hud {
   private respawnNum: HTMLElement;
   private recapEl: HTMLElement;
   private cache = new Map<string, string>();
+  private strip: StripEl[] = [];
 
   constructor(
     parent: HTMLElement,
@@ -148,6 +179,66 @@ export class Hud {
     this.feed = q('.pl-feed');
     this.respawnNum = q('.pl-respawn b');
     this.recapEl = q('.pl-respawn .recap');
+  }
+
+  /**
+   * GAPS A4: the portrait strip for the other five heroes (allies and enemies, by slot). `names` are the slot labels
+   * (ui/heroText.ts slotNames). Enemy portraits are buttons: a tap locks that hero on touch (A5).
+   */
+  mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[]): void {
+    for (const s of this.strip) s.el.remove();
+    this.strip = [];
+    this.root.querySelectorAll('.pl-strip').forEach((el) => el.remove());
+    const mk = (side: 'ally' | 'enemy'): HTMLElement => {
+      const box = document.createElement('div');
+      box.className = `pl-strip ${side}`;
+      return box;
+    };
+    const allies = mk('ally');
+    const enemies = mk('enemy');
+    picks.forEach((hero, slot) => {
+      if (slot === mySlot || !hero) return;
+      const enemy = (slot < 3 ? 0 : 1) !== myTeam;
+      const el: HTMLElement = document.createElement(enemy ? 'button' : 'div');
+      el.className = 'pp';
+      if (enemy) (el as HTMLButtonElement).type = 'button';
+      el.dataset.slot = String(slot);
+      const pic = portraitUrl(hero);
+      el.style.setProperty('--hero', HERO_COLOR_CSS[hero]);
+      el.style.setProperty('--rel', RELATION_CSS[enemy ? 'enemy' : 'ally']);
+      const label = names[slot] ?? HERO_TEXT[hero].title;
+      el.setAttribute('aria-label', enemy ? `Lock ${label}` : label);
+      el.title = label;
+      el.innerHTML = `<i class="pic${pic ? '' : ' none'}"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : HERO_TEXT[hero].title.replace('Sir ', '').slice(0, 2)}</i><b class="t"></b>`;
+      if (enemy) {
+        el.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (e.pointerType === 'touch' || document.documentElement.dataset.touch === '1') this.host.onPortrait?.(slot);
+        });
+      }
+      (enemy ? enemies : allies).appendChild(el);
+      this.strip.push({ slot, el, t: el.querySelector('.t') as HTMLElement, until: -1, state: '' });
+    });
+    this.root.appendChild(allies);
+    this.root.querySelector('.pl-top')?.appendChild(enemies);
+  }
+
+  /** GAPS A4: death timers and who is out of sight; `lock` is the touch-locked enemy (A5), or null. */
+  stripUpdate(byId: ReadonlyMap<number, EntitySnap>, tick: number, lock: number | null): void {
+    for (const s of this.strip) {
+      const r = portraitTimer(byId.get(s.slot), tick, s.until);
+      s.until = r.until;
+      const state = `${r.secs !== null ? 'D' : ''}${r.seen ? '' : 'U'}${lock === s.slot ? 'L' : ''}`;
+      if (state !== s.state) {
+        s.state = state;
+        s.el.classList.toggle('dead', r.secs !== null);
+        s.el.classList.toggle('unseen', !r.seen && r.secs === null);
+        s.el.classList.toggle('locked', lock === s.slot);
+      }
+      const txt = r.secs !== null ? String(r.secs) : '';
+      if (s.t.textContent !== txt) s.t.textContent = txt;
+    }
   }
 
   /** The death recap under "Back in N" ("Knocked out by Cacklejaw + a tower: wait for your minions"). */

@@ -15,6 +15,7 @@ export type AnalyticsEvent =
   | 'match_start'
   | 'match_end'
   | 'second_match'
+  | 'rematch_click'
   | 'talent_pick'
   | 'tip_done'
   | 'dare_open'

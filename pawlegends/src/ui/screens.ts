@@ -26,6 +26,8 @@ import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
 import type { QuestView } from '../meta/quests';
 import type { TreatGain } from '../meta/treats';
+import type { Grade } from '../meta/grade';
+import { toGoText } from './collection';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -60,6 +62,8 @@ export interface TitleOpts {
   onMute(m: boolean): void;
   onStore?(): void;
   onSettings?(): void;
+  /** GAPS A1: the Treat Track chest screen and profile shelf (shown once the player has finished a match). */
+  onCollection?(): void;
   /** Today's quests (fun plan F4), shown under the play button. */
   quests?: readonly QuestView[];
   /** GDD §7.2: the card skin the lobby hero wears ("Wearing <name>"), or null. */
@@ -74,7 +78,9 @@ function badge(frame: FrameId | null | undefined, title: string | null | undefin
   if (!frame && !title) return '';
   const face = portrait ? ` style="background-image:url(${portrait})"` : '';
   // round 1: say where frames come from (a Legendary from a pack gives none: decision #19)
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="Frames come from cats you adopted by name, by their tier."><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  // GAPS A1: a champion frame comes from the Treat Track
+  const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -96,6 +102,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
     </div>
     <div class="pl-corner">
       ${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}
+      ${o.onCollection ? `<button class="pl-btn ghost small" data-a="collection">${icon('crown')}Treat Track</button>` : ''}
       ${o.onSettings ? `<button class="pl-btn ghost small" data-a="settings">Settings</button>` : ''}
       <button class="pl-mute" data-a="mute" aria-label="Sound">${o.muted ? 'Sound off' : 'Sound on'}</button>
     </div>`;
@@ -108,6 +115,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
     else if (a === 'dare' && dare) o.onPlay({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
     else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
+    else if (a === 'collection') o.onCollection?.();
     else if (a === 'mute') {
       const b = root.querySelector('.pl-mute') as HTMLElement;
       const m = b.textContent === 'Sound on';
@@ -228,7 +236,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           .join('')}
         ${wardrobeRow(c.hero)}
         <div class="detail">
-          <h3>${esc(t.title)} <small>${t.side} ${t.role}</small>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
+          <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
           ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
           <ul class="kit">
@@ -365,7 +373,12 @@ export interface ResultsOpts {
   /** Per-player rows (round 0: a veteran wants to see why it lost): own team first. */
   table?: readonly ResultRow[];
   /** Bot-ladder rating after this match and its change (meta/ladder.ts); null on Rookie. */
-  ladder?: { rating: number; delta: number; placement?: number; impact?: number } | null;
+  ladder?: { rating: number; delta: number; placement?: number; impact?: number; grade?: Grade } | null;
+  /**
+   * GAPS A2: the player's grade, its Treat XP, the match MVP (best on the winning team) and, on a loss, the best on
+   * the player's team. Names are display names; `you` marks the player.
+   */
+  grade?: ResultGrade | null;
   /** "New personal best: fastest Clem win" (meta/ladder.ts), or null. */
   personal?: string | null;
   /** Round 2: what decided the match, one line (app/endCause.ts). */
@@ -378,8 +391,21 @@ export interface ResultsOpts {
   skin?: { name: string; art?: string; bond: number; next: number | null } | null;
 }
 
+export interface ResultGrade {
+  grade: Grade;
+  /** Treat XP the grade added (GRADE_TREAT_XP). */
+  xp: number;
+  mvp: { name: string; you: boolean };
+  /** A loss only: the best on the player's team. */
+  bestOnTeam?: { name: string; you: boolean } | null;
+}
+
 export interface ResultRow {
   name: string;
+  /** GAPS A2: this slot's grade, and MVP / best-on-a-losing-team markers. */
+  grade?: Grade;
+  mvp?: boolean;
+  best?: boolean;
   /** 'self' | 'ally' | 'enemy' */
   rel: string;
   k: number;
@@ -390,9 +416,11 @@ export interface ResultRow {
 }
 
 function resultTable(rows: readonly ResultRow[]): string {
+  const graded = rows.some((r) => r.grade);
+  const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
-    `<tr class="${r.rel}"><td>${esc(r.name)}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td></tr>`;
-  return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
+    `<tr class="${r.rel}"><td>${esc(r.name)}${tag(r)}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
+  return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
 /** Sudden Death starts at 10:00 (data/timeline.ts TIMELINE.suddenDeath): after it the clock, not the player, ends the match. */
@@ -437,8 +465,26 @@ export function suddenDeathS(difficulty: Difficulty): number {
 /** "Bot ladder 1012 +12", "Placement 2 of 3: no points lost", "+4 (small share: more takedowns, fewer knockouts)". */
 function ladderLine(l: NonNullable<ResultsOpts['ladder']>, won: boolean): string {
   const sign = l.delta > 0 ? '+' : '';
-  const note = l.placement ? `<small>Placement ${l.placement} of 3${won ? '' : ': no points lost'}</small>` : won && (l.impact ?? 1) < 0.5 ? '<small>Small share: more takedowns, fewer knockouts</small>' : '';
+  const note = l.placement
+    ? `<small>Placement ${l.placement} of 3${won ? '' : ': no points lost'}</small>`
+    : won && (l.impact ?? 1) < 0.75
+      ? '<small>Small share: more takedowns, fewer knockouts</small>'
+      : !won && (l.grade === 'S' || l.grade === 'A')
+        ? `<small>Grade ${l.grade}: half the points lost</small>`
+        : '';
   return `<p class="pl-ladder" data-rating="${l.rating}">Bot ladder <b>${l.rating}</b> <span class="${l.delta >= 0 ? 'up' : 'down'}">${l.delta === 0 ? '±0' : `${sign}${l.delta}`}</span>${note}</p>`;
+}
+
+/** GAPS A2: the grade badge, its Treat XP, the MVP and (on a loss) the best on the player's team. */
+function gradeBlock(g: ResultGrade, won: boolean): string {
+  const who = (x: { name: string; you: boolean }): string => (x.you ? 'You' : esc(x.name));
+  const lines = [`<span class="mvp" data-mvp="${g.mvp.you ? 'you' : 'other'}">MVP: <b>${who(g.mvp)}</b></span>`];
+  if (!won && g.bestOnTeam) lines.push(`<span class="best" data-best="${g.bestOnTeam.you ? 'you' : 'other'}">Best on your team: <b>${who(g.bestOnTeam)}</b></span>`);
+  return `<div class="pl-grade" data-grade="${g.grade}">
+    <b class="letter">${g.grade}</b>
+    <span class="what"><b>Grade ${g.grade}</b><small>${g.xp > 0 ? `+${g.xp} Treat XP` : 'Join more fights for a B'}</small></span>
+    <span class="who">${lines.join('')}</span>
+  </div>`;
 }
 
 function treatBlock(t: TreatGain): string {
@@ -449,7 +495,8 @@ function treatBlock(t: TreatGain): string {
     <div class="head"><b>Treat Track</b><small>+${t.gained} Treat XP</small></div>
     <div class="bar"><i class="fill"></i></div>
     ${opened ? `<div class="open">${icon('crown')}<span><b>Chest opened: ${esc(t.rewards.map((r) => r.name).join(', '))}</b><small>Free, yours to keep.</small></span></div>` : ''}
-    ${t.next ? `<p class="next">Next chest: <b>${esc(t.next.name)}</b></p>` : `<p class="next">Track complete. More chests soon.</p>`}
+    ${t.dayBonus > 0 ? `<p class="bonus" data-daybonus="${t.dayBonus}">First win of the day: +${t.dayBonus} Treat XP</p>` : ''}
+    <p class="next">Next chest: <b>${esc(t.next.name)}</b> <small data-togo="${t.toGo}">${esc(toGoText(t.toGo))}</small></p>
   </div>`;
 }
 
@@ -470,6 +517,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
@@ -486,7 +534,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
-    <div class="actions pinned"><button class="pl-btn solid" data-a="change">${o.tryHero ? `Try ${esc(HERO_TEXT[o.tryHero].title)}<small>${esc(HERO_TEXT[o.tryHero].role)}</small>` : 'Change hero'}</button><button class="pl-btn big" data-a="again">Play again</button></div>`;
+    <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
@@ -561,8 +609,20 @@ export function rotatePrompt(parent: HTMLElement): HTMLElement {
 }
 
 /** Loading veil between screens. */
-export function loadingVeil(parent: HTMLElement, text: string, sub?: string, wearing?: { name: string; type: string; art?: string; frame?: string } | null): HTMLElement {
-  const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}`);
+/** GAPS A6: the loading screen's line for this hero: matches played on it and, in a card skin, that cat's Bond. */
+export interface VeilHero {
+  name: string;
+  /** Finished matches on this hero before this one. */
+  matches: number;
+  /** Bond with the worn card skin's cat, or null. */
+  bond: number | null;
+}
+
+export function loadingVeil(parent: HTMLElement, text: string, sub?: string, wearing?: { name: string; type: string; art?: string; frame?: string } | null, hero?: VeilHero | null): HTMLElement {
+  const line = hero
+    ? `<p class="hero-line" data-hero-matches="${hero.matches}">${hero.bond !== null ? `<span class="bond" data-bond="${hero.bond}">Bond ${hero.bond}</span>` : ''}<span>${hero.matches === 0 ? `First match as ${esc(hero.name)}` : `${hero.matches} ${hero.matches === 1 ? 'match' : 'matches'} as ${esc(hero.name)}`}</span></p>`
+    : '';
+  const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}${line}`);
   if (wearing) r.appendChild(wearingCard(wearing));
   parent.appendChild(r);
   return r;

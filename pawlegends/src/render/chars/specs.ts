@@ -342,9 +342,12 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Dre
       };
     }
     case 'cacklejaw': {
+      // GAPS A0: his Treat Track coats (render/cosmetics.ts FREE_COATS) recolour the spotted fur and the head; a card
+      // skin still wins, and the default look (lc null) stays byte-identical
+      const lc = skin ? null : lookCoat('cacklejaw', look);
       return {
         rig: { width: 0.95, tier: 'hero', headScale: 1.08 },
-        coat: skinCoat ?? { pattern: 'spots', base: 0xf0a92e, deep: 0x5b3a8c, light: 0xf6dcae, cream: 0xf6dcae },
+        coat: skinCoat ?? coatOf(lc, 'spots', { pattern: 'spots', base: 0xf0a92e, deep: 0x5b3a8c, light: 0xf6dcae, cream: 0xf6dcae }),
         eyes: { inner: 0xf6d27a, outer: 0xd9962e, ring: 0x5a3a22 },
         earInner: 0xd9a494,
         nose: 0x3a2e4a,
@@ -360,7 +363,7 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Dre
             hyenaHead(A, { earStyle: 'cat', earCoat: suit, earInner: skin.earInner });
             G.jacket(A, (_v, _n, lp) => coatColor(suit, 'body', lp));
           } else {
-            hyenaHead(A);
+            hyenaHead(A, lc ? { fur: lc.base, furDark: mixColor(lc.base, lc.dark, 0.35), spots: lc.dark, belly: lc.light } : {});
             G.jacket(A, G.KIBBLE);
           }
           G.securityCap(A, t.main, { y: 0.335, r: 0.13, z: -0.045, crest: GOLD });
