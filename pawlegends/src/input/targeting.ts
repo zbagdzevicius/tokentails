@@ -7,6 +7,7 @@
 import type { EntitySnap } from '../sim/api';
 import { TOWERS } from '../data/towers';
 import type { AimSpec } from './abilities';
+import type { TargetFirst } from './presets';
 
 export interface Unit {
   id: number;
@@ -57,17 +58,32 @@ export function guardedByTower(units: readonly Unit[], u: { x: number; y: number
  * monster in range, then a tower or core in range; with nothing in range, the nearest enemy hero, then minion,
  * within `seek` mm, but never one that sits under an untanked enemy tower (that walk-in is how new players died).
  * Null when nothing qualifies.
+ *
+ * GAPS A5 `first` (Settings "Target first"): 'heroes' is the order above (the default). 'lowest' takes the lowest HP
+ * share among the heroes, minions and camp monsters in range; 'closest' the nearest of them. Both still put towers
+ * after units in range and keep the same out-of-range fallback ('closest' takes the nearer of the two fallbacks).
  */
-export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number, range: number, seek = 7000): number | null {
+export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number, range: number, seek = 7000, first: TargetFirst = 'heroes'): number | null {
   let hero: Unit | null = null;
   let minion: Unit | null = null;
   let tower: Unit | null = null;
   let nearHero: Unit | null = null;
   let nearMinion: Unit | null = null;
+  let lowest: Unit | null = null;
+  let closest: Unit | null = null;
+  let closestD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam)) continue;
     const d = dist(u, me) - BODY_MM[u.kind];
     const inRange = d <= range + 300;
+    const unit = u.kind === 'hero' || u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding';
+    if (inRange && unit) {
+      if (!lowest || u.hp / Math.max(1, u.maxHp) < lowest.hp / Math.max(1, lowest.maxHp)) lowest = u;
+      if (d < closestD) {
+        closestD = d;
+        closest = u;
+      }
+    }
     if (u.kind === 'hero') {
       if (inRange && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
       if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
@@ -76,7 +92,48 @@ export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number,
       if (d <= seek && (!nearMinion || d < dist(nearMinion, me) - BODY_MM[nearMinion.kind]) && !guardedByTower(units, u, myTeam)) nearMinion = u;
     } else if (inRange && (!tower || u.hp < tower.hp)) tower = u;
   }
+  if (first === 'lowest') return (lowest ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
+  if (first === 'closest') {
+    const edge = (u: Unit | null): number => (u ? dist(u, me) - BODY_MM[u.kind] : Infinity);
+    const fallback = edge(nearMinion) < edge(nearHero) ? nearMinion : nearHero;
+    return (closest ?? tower ?? fallback)?.id ?? null;
+  }
   return (hero ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
+}
+
+/**
+ * GAPS A5 last-hit button (MLBB Advanced Aim): the lowest-HP enemy minion or camp monster in range, never a hero or a
+ * structure; null when none is in range (the button never walks the hero anywhere).
+ */
+export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number): number | null {
+  let best: Unit | null = null;
+  for (const u of units) {
+    if (u.id === me.id || !isEnemy(u, myTeam) || (u.kind !== 'minion' && u.kind !== 'camp')) continue;
+    if (dist(u, me) - BODY_MM[u.kind] > range + 300) continue;
+    if (!best || u.hp < best.hp) best = u;
+  }
+  return best?.id ?? null;
+}
+
+/**
+ * GAPS A5 tower button: the lowest-HP enemy tower or core in range, else the nearest one within `seek` mm that an
+ * allied minion is tanking (the button never walks the hero into an untanked tower); null when none.
+ */
+export function towerTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, seek = 9000): number | null {
+  let inRange: Unit | null = null;
+  let near: Unit | null = null;
+  let nearD = Infinity;
+  for (const u of units) {
+    if (!isEnemy(u, myTeam) || (u.kind !== 'tower' && u.kind !== 'core')) continue;
+    const d = dist(u, me) - BODY_MM[u.kind];
+    if (d <= range + 300) {
+      if (!inRange || u.hp < inRange.hp) inRange = u;
+    } else if (d <= seek && d < nearD && !guardedByTower(units, u, myTeam)) {
+      nearD = d;
+      near = u;
+    }
+  }
+  return (inRange ?? near)?.id ?? null;
 }
 
 /** Nearest enemy (optionally heroes only) within `range` mm of `me`. */
@@ -98,9 +155,10 @@ export function nearestEnemy(units: readonly Unit[], me: Unit, myTeam: number, r
 
 /**
  * Smart-cast (tap): where to aim `aim` from `me` facing `facing` (rad). Returns a point in mm and a target id
- * (255 = none).
+ * (255 = none). GAPS A5 `lock`: a touch-locked enemy hero wins the smart pick while it is within the cast's own
+ * smart reach (a unit-target cast then carries its id); otherwise the usual pick runs.
  */
-export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam: number, facing: number): { x: number; y: number; id: number } {
+export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam: number, facing: number, lock: number | null = null): { x: number; y: number; id: number } {
   const ahead = (k: number): { x: number; y: number; id: number } => ({ x: me.x + Math.cos(facing) * aim.range * k, y: me.y + Math.sin(facing) * aim.range * k, id: 0xff });
   if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
   if (aim.smart === 'ally') {
@@ -113,6 +171,10 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
     return best && best.hp < best.maxHp ? { x: best.x, y: best.y, id: 0xff } : { x: me.x, y: me.y, id: 0xff };
   }
   const reach = aim.kind === 'unit' ? aim.range + 3000 : aim.range * 1.3;
+  if (lock !== null && aim.smart !== 'none' && !aim.away) {
+    const l = units.find((u) => u.id === lock && u.kind === 'hero' && isEnemy(u, myTeam));
+    if (l && dist(l, me) <= reach) return { x: l.x, y: l.y, id: aim.kind === 'unit' ? l.id : 0xff };
+  }
   let t = aim.smart !== 'none' ? nearestEnemy(units, me, myTeam, reach, true) : null;
   if (!t && aim.smart === 'any') t = nearestEnemy(units, me, myTeam, aim.range, false);
   if (aim.away) {

@@ -16,7 +16,7 @@ import { isEnemy, type Unit } from '../input/targeting';
 import { TouchControls } from '../input/touch/touchControls';
 import type { Companion } from '../meta/roster';
 import { Tips } from '../onboarding/tips';
-import { Objectives, type BeatId } from '../onboarding/objectives';
+import { ObjectiveClock, Objectives, type BeatId } from '../onboarding/objectives';
 import { Announcer, XpPops, type Moment } from '../render/announcer';
 import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
@@ -35,7 +35,7 @@ import { HERO_SCALE } from '../render/views/models';
 import { FOUNTAIN, MAP } from '../data/map';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
-import { TICK_HZ, TIMELINE } from '../data/timeline';
+import { TICK_HZ } from '../data/timeline';
 import { BuffFlag, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
 import { HERO_TEXT, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { icon } from '../ui/icons';
@@ -207,6 +207,8 @@ export class MatchSession {
   private talents: TalentPicker | null = null;
   private tips: Tips;
   private goals: Objectives;
+  /** GAPS A4: the next objective and its timers (snapshots and events only). */
+  private objClock: ObjectiveClock | null = null;
   private announcer: Announcer | null = null;
   private readonly xpPops = new XpPops();
   private readonly music = new Music();
@@ -308,6 +310,11 @@ export class MatchSession {
     this.tips = new Tips(this.ui, setup.firstMatch);
     this.goals = new Objectives(this.ui, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
+    this.minimap.timers = () => this.objClock?.timers() ?? [];
+    // GAPS A4: a tap on the objective chip names it; B1 turns it into a ping (no ping is sent yet)
+    this.goals.onTap = (key) => {
+      if (this.e2e) document.documentElement.dataset.chipTap = key;
+    };
     this.host = new LocalHost();
     this.buffer.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
     this.host.listen({
@@ -330,6 +337,7 @@ export class MatchSession {
   private onWelcome(w: WelcomeMsg): void {
     this.welcome = w;
     this.view.setTeam(w.slot, w.team, w.tricks);
+    this.objClock = new ObjectiveClock(w.team);
     this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
     const shown = this.view.dressBots(w.seed, w.picks, this.setup.showcase ?? []);
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
@@ -407,7 +415,12 @@ export class MatchSession {
         if (i === 5) this.orders.nap();
         else this.orders.cast(i as 0 | 1 | 2 | 3 | 4, me.x + Math.cos(this.view.me()?.yaw ?? 0) * 2000, me.y + Math.sin(this.view.me()?.yaw ?? 0) * 2000);
       },
+      onPortrait: (slot) => {
+        this.touch?.lockOn(slot);
+      },
     }, this.setup.look ?? null);
+    // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
+    this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
     if (portrait && this.setup.frame) portrait.dataset.frame = this.setup.frame;
     if (portrait && this.setup.title) portrait.dataset.title = this.setup.title;
@@ -417,6 +430,9 @@ export class MatchSession {
       d.matchFrame = this.setup.frame ?? '';
       d.kittens = String(this.view.companions?.count ?? 0);
       d.squadNames = (this.setup.companions ?? []).slice(0, 2).map((c) => c.name).join(',');
+      // GAPS A3 (rematch.spec.ts): what Run it back must keep (hero, trick, difficulty) and change (the seed)
+      d.matchPick = `${this.setup.hero},${this.setup.trick},${this.setup.difficulty}`;
+      d.matchSeed = String(w.seed);
     }
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames);
     this.scoreboard.root.addEventListener('pointerdown', (e) => {
@@ -983,6 +999,25 @@ export class MatchSession {
     return p.on ? { x: p.x, y: p.y } : null;
   }
 
+  /** A living allied bot on screen to say a bark: `slot` first, then the other ally (px), or null. */
+  private barkScreen(slot: number): { x: number; y: number } | null {
+    const w = this.welcome;
+    const frame = this.view.frame;
+    if (!w || !frame) return null;
+    const team = w.slot < 3 ? 0 : 1;
+    const order = [slot, ...[0, 1, 2].map((k) => team * 3 + k).filter((s) => s !== slot)];
+    const c = this.gr.renderer.domElement;
+    for (const s of order) {
+      if (s === w.slot || s < team * 3 || s >= team * 3 + 3) continue;
+      const e = frame.byId.get(s);
+      const hero = w.picks[s];
+      if (!e || !hero || e.state === 'dead' || e.hp <= 0) continue;
+      const p = project(this.gr.camera, c, toX(e.fx), 2.2 * HERO_SCALE[hero], toZ(e.fy));
+      if (p.on) return { x: p.x, y: p.y };
+    }
+    return null;
+  }
+
   /** Show what the announcer called. */
   private present(list: readonly Moment[]): void {
     const j = this.view.juice;
@@ -992,6 +1027,12 @@ export class MatchSession {
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
+        continue;
+      }
+      if (m.size === 'bark') {
+        // GAPS A6: the ally's line over that ally (the other ally when it is down or off screen; else nothing)
+        const at = this.barkScreen(m.slot ?? -1);
+        if (at) j.pop(m.title, at.x, at.y - 10, 'good');
         continue;
       }
       if (m.size === 'banner') j.banner({ title: m.title, sub: m.sub, tone: m.tone });
@@ -1029,31 +1070,10 @@ export class MatchSession {
     else if (e.type === 'death' && e.killer === me && e.id < 6) this.goals.complete('dog');
   }
 
-  /** Round 1: the goal the chip shows between beats (Pudding first, then the next tower). */
-  private standingGoal(frame: ViewFrame): { title: string; sub: string; icon: 'heart' | 'shield' | 'sun' } | null {
-    if (!this.welcome) return null;
-    const team = this.welcome.team;
-    const sec = frame.latest.clock.seconds;
-    const pud = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
-    if (pud && pud.team === 2) return { title: 'Calm Pudding in the river', sub: 'He marches with the team that calms him', icon: 'heart' };
-    if (pud && pud.team === team) return { title: 'Pudding marches with you', sub: 'Push behind him: he burns towers', icon: 'heart' };
-    if (pud) return { title: 'Their Pudding is coming', sub: 'Hit him together to send him home', icon: 'heart' };
-    const pudAt = Math.floor(TIMELINE.pudding / TICK_HZ);
-    if (sec < pudAt) {
-      const left = pudAt - sec;
-      return { title: `Pudding wakes in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, sub: 'Calm him and he marches with your wave', icon: 'heart' };
-    }
-    const sc = frame.latest.score;
-    const ours = sc.towers[team];
-    const theirs = sc.towers[1 - team];
-    if (frame.latest.clock.phase === 'sunset' || frame.latest.clock.phase === 'suddenDeath') return { title: 'Finish their core', sub: `Towers ${ours} to ${theirs}: takedowns hit cores now`, icon: 'sun' };
-    return { title: 'Take their next tower', sub: `Towers ${ours} to ${theirs}: walk in behind your minions`, icon: 'shield' };
-  }
-
   /** Time and proximity beats, the arrow's target, the Pudding ring. */
   private goalTick(frame: ViewFrame): void {
     const g = this.goals;
-    g.standing(this.standingGoal(frame));
+    g.standing(this.objClock?.chip() ?? null);
     if (!g.enabled || !this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
     const sec = frame.latest.clock.seconds;
@@ -1211,6 +1231,7 @@ export class MatchSession {
         if (isFun(fe) && fe.type === 'xp' && fe.id === this.view.mySlot && fe.reason !== 'trickle') this.xpPops.add(fe.amount, fe.tick ?? frame.latest.clock.tick);
         this.beatsFrom(ev, frame);
         // The attack tip is done once the player's hit lands on a minion (a right-click, A-move or the ATK button).
+        this.objClock?.feed(ev);
         if (ev.type === 'death' && ev.id >= 0 && ev.id < 6) this.heroDeathTick[ev.id < 3 ? 0 : 1] = ev.tick;
         if (ev.type === 'hit') {
           const dst = frame.byId.get(ev.dst);
@@ -1261,6 +1282,7 @@ export class MatchSession {
         }
       }
       this.tipTriggers(frame);
+      this.objClock?.frame(frame.latest.entities, frame.latest.clock);
       this.goalTick(frame);
       this.helpTick(frame);
       this.hudRectsTick();
@@ -1305,6 +1327,9 @@ export class MatchSession {
         }
       }
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0);
+      const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
+      this.hud.stripUpdate(frame.byId, frame.tick, lock);
+      this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;
       this.behindCall(frame.latest.score, this.welcome.team);
       const hero = this.welcome.picks[this.welcome.slot];
       const trick = this.welcome.tricks[this.welcome.slot];
@@ -1348,6 +1373,11 @@ export class MatchSession {
       d.difficulty = this.setup.difficulty;
       d.goalsShown = this.goals.shown.join(',');
       d.goalsDone = this.goals.completed.join(',');
+      const chip = this.objClock?.chip();
+      d.objChip = chip ? `${chip.key}|${chip.title}` : '';
+      d.rings = String(this.minimap.ringsDrawn);
+      d.lock = String(this.touch?.lockedId() ?? '');
+      d.locks = String(this.touch?.locks ?? 0);
       d.music = String(this.music.intensity);
       d.autos = String(this.touch?.autos ?? 0);
       d.pickups = String(this.view.pickups.count);
@@ -1355,11 +1385,15 @@ export class MatchSession {
       d.hp = me && me.maxHp > 0 ? String(Math.round((100 * me.hp) / me.maxHp)) : '';
       d.foeMinion = this.nearestFoeOnScreen('minion');
       d.foeHero = this.nearestFoeOnScreen('hero');
+      d.foeHeroId = this.foeId;
       d.allyFront = this.allyFrontOnScreen();
       const self = this.units.find((u) => u.id === this.view.mySlot);
       d.meScreen = self ? this.onScreen(self.x, self.y) : '';
     }
   }
+
+  /** The id of the enemy hero nearestFoeOnScreen('hero') last found (e2e: A5 lock spec), or ''. */
+  private foeId = '';
 
   private nearestFoeOnScreen(kind: 'minion' | 'hero'): string {
     const me = this.units.find((u) => u.id === this.view.mySlot);
@@ -1374,6 +1408,7 @@ export class MatchSession {
         best = u;
       }
     }
+    if (kind === 'hero') this.foeId = best ? String(best.id) : '';
     if (!best) return '';
     return this.onScreen(best.x, best.y, `,${Math.round(bestD)}`);
   }

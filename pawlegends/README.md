@@ -19,6 +19,7 @@ Install and run inside this package (`npm install` here; it has its own `node_mo
 | Embed build | `npm run build:client` → `../client/public/pawlegends-game/` (commit it) |
 | Headless matches | `npm run match -- --seeds 40 [--profile idle\|novice\|easy\|normal] [--difficulty easy\|normal] [--hero random] [--trick random] [--check-determinism] [--balance]` (`--balance` checks median, p95 ≤ 10:30, core kills, side and hero gates) |
 | Determinism fuzz | `npm run determinism -- --seeds 1000` (record → replay, hash trails every 30 ticks, parallel processes) |
+| Grade calibration (GAPS A2) | `node tools/grade-calibrate.mjs [--seeds 400] [--from 1] [--check]` (per-role S/A/B/C shares for a Normal human vs Normal bots; thresholds live in `src/meta/grade.ts`) |
 | Nightly gates | `PAWLEGENDS_NIGHTLY=1 npx vitest run --project unit tests/unit/balance.test.ts tests/unit/bots.test.ts tests/unit/determinism.test.ts` (2,000 balance seeds, 400 novice seeds per difficulty, 1,000 fuzz seeds) |
 | Card skin palettes | `npm run gen:skins` (writes `src/render/skins/families.gen.ts` from `../client/public/heist-game/assets/cats/*.png`; `-- --sheet <png>` writes a contact sheet), `npm run gen:skins:check` fails when the table is stale |
 | Backend sim copy | `npm run vendor-sim` → `../backend/src/vendor/pawlegends-sim/`; `vendor-sim:check` fails when it is stale; `vendor-sim:check-remote -- <backend url>` compares `GET /pawlegends/sim` |

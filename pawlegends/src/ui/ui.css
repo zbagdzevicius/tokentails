@@ -549,6 +549,11 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 [data-frame='frame.legendary'] { --frame: #ffb347; }
 [data-frame='frame.founder'] { --frame: #ffd34d; }
 [data-frame='frame.legend'] { --frame: #fff1a8; }
+/* GAPS A1: Treat Track frames, one per shelter champion */
+[data-frame='frame.champ.lambo'] { --frame: #f2b84b; }
+[data-frame='frame.champ.aviete'] { --frame: #d8e86a; }
+[data-frame='frame.champ.bengas'] { --frame: #ff8a4d; }
+[data-frame='frame.champ.gabe'] { --frame: #8fc8ff; }
 .pl-badge[data-frame] .ring { border-color: var(--frame); box-shadow: 0 0 10px var(--frame); }
 .pl-portrait[data-frame] { box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18), 0 0 0 3px var(--frame), 0 0 14px var(--frame); }
 .pl-portrait[data-frame='frame.founder'], .pl-portrait[data-frame='frame.legend'], .pl-badge[data-frame='frame.founder'] .ring, .pl-badge[data-frame='frame.legend'] .ring {
@@ -706,6 +711,32 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 .pl-treats .open small { opacity: 0.7; font-size: 12px; }
 @keyframes pl-chest { 0% { opacity: 0; transform: scale(0.4) rotate(-10deg); } 100% { opacity: 1; transform: none; } }
 .pl-treats .next { margin: 4px 0 0; font-size: 12px; opacity: 0.85; }
+.pl-treats .next small, .pl-treats .bonus { color: var(--butter); }
+.pl-treats .bonus { margin: 2px 0 0; font-size: 12px; font-weight: 600; }
+
+/* GAPS A1: the Treat Track chest screen and the profile shelf */
+.pl-collection .card { text-align: left; max-width: 640px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.pl-collection h2 { text-align: center; }
+.pl-collection h3 { margin: 6px 0 0; font-size: 15px; }
+.pl-collection .next-chest { margin: 0; }
+.pl-collection .next-chest small { color: var(--butter); margin-left: 6px; }
+.pl-collection .targets { display: flex; flex-direction: column; gap: 6px; }
+.pl-collection .targets .lbl { font-size: 12px; opacity: 0.75; }
+.pl-collection .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-collection .chip.target { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.pl-collection .chip.target small { font-size: 10px; opacity: 0.75; }
+.pl-collection .postcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.pl-collection .postcard { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 14px; background: rgba(255, 243, 220, 0.08); border: 1px solid var(--line); }
+.pl-collection .postcard img, .pl-collection .postcard .pic { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: rgba(255, 243, 220, 0.1); display: grid; place-items: center; }
+.pl-collection .postcard .pic .pl-icon { width: 36px; height: 36px; opacity: 0.6; }
+.pl-collection .postcard small { font-size: 11px; opacity: 0.85; line-height: 1.3; }
+.pl-collection .postcard.locked { opacity: 0.55; }
+.pl-collection .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.pl-collection .fine { font-size: 12px; opacity: 0.6; margin: 0; }
+.pl-collection .pl-btn.big { align-self: center; }
+.pl-loading .hero-line { display: flex; gap: 8px; align-items: center; font-size: 13px; opacity: 0.9; }
+.pl-loading .hero-line .bond { padding: 2px 8px; border-radius: 999px; background: rgba(255, 211, 77, 0.18); color: var(--butter); font-weight: 600; }
+.pl-pick .role-label { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: rgba(255, 243, 220, 0.12); }
 .pl-quests { margin-top: 10px; display: grid; gap: 4px; max-width: 440px; font-size: 13px; }
 .pl-quests > b { font-size: 13px; opacity: 0.75; font-weight: 600; }
 .pl-quests .q { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 4px 10px; border-radius: 10px; background: rgba(255, 243, 220, 0.08); }
@@ -778,6 +809,22 @@ html[data-touch='1'] .pl-talents button span.s { -webkit-line-clamp: 2; }
 .pl-results .pl-ladder .up { color: #7dff8a; }
 .pl-results .pl-ladder .down { color: #ff8a9a; }
 .pl-results .pl-personal .pl-icon { width: 18px; height: 18px; color: var(--butter); }
+/* GAPS A2: the grade badge (S/A/B/C), its Treat XP, the MVP and "Best on your team" on a loss; Run it back's line. */
+.pl-results .pl-grade { margin: 8px 0 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.pl-results .pl-grade .letter {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; font-size: 26px; line-height: 1;
+  background: rgba(255, 243, 220, 0.14); color: var(--cream); box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.35);
+}
+.pl-results .pl-grade[data-grade="S"] .letter { background: var(--butter); color: #4a2a1f; box-shadow: 0 0 14px rgba(255, 211, 77, 0.6); }
+.pl-results .pl-grade[data-grade="A"] .letter { color: var(--butter); box-shadow: inset 0 0 0 2px var(--butter); }
+.pl-results .pl-grade .what { display: flex; flex-direction: column; }
+.pl-results .pl-grade .what small, .pl-results .pl-grade .who { opacity: 0.85; font-size: 12px; }
+.pl-results .pl-grade .who { display: flex; flex-direction: column; gap: 2px; }
+.pl-results .pl-grade .who b { color: var(--butter); }
+.pl-table td em { font-style: normal; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 999px; background: var(--butter); color: #4a2a1f; }
+.pl-table td em.best { background: rgba(255, 243, 220, 0.8); }
+.pl-table td.g { font-weight: 700; }
+.pl-results .actions .pl-btn.big small { display: block; font-size: 11px; font-weight: 600; opacity: 0.8; }
 .pl-table { margin-top: 8px; font-size: 12px; }
 .pl-table summary { cursor: pointer; font-weight: 700; opacity: 0.9; pointer-events: auto; }
 .pl-table table { border-collapse: collapse; margin-top: 4px; width: 100%; }
@@ -928,3 +975,40 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
   .skin-tile .bond { display: none; }
   .pl-wearing .plc-card.small { width: 56px; }
 }
+
+/* ---------------------------------------------------------------------------------------------- GAPS A4 / A5
+   The objective chip is tappable (B1 turns the tap into a ping); the portrait strip flanks the score bar (allies
+   left, enemies right; on touch the allies sit under the hero box) with death timers; a tap on an enemy portrait
+   locks it on touch. */
+.pl-goal.standing[data-ping] { pointer-events: auto; cursor: pointer; }
+.pl-goal.standing[data-ping]:active { transform: translate(-50%, 0) scale(0.96); }
+.pl-strip { position: absolute; display: flex; gap: 4px; z-index: 5; pointer-events: none; }
+.pl-strip.ally { top: calc(10px + var(--safe-t)); right: calc(50% + 156px); }
+.pl-top .pl-strip.enemy { top: 4px; left: calc(100% + 8px); }
+.pl-strip .pp {
+  position: relative; width: 34px; height: 34px; padding: 0; margin: 0; border-radius: 50%; border: 2px solid var(--rel); background: var(--hero);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); font: 700 12px var(--font); color: var(--ink); pointer-events: none; flex: none;
+}
+.pl-strip .pp .pic { position: absolute; inset: 0; border-radius: 50%; background-size: cover; background-position: center; display: grid; place-items: center; font-style: normal; }
+.pl-strip .pp .t { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cream); font-size: 15px; text-shadow: 0 1px 0 #000, 0 0 4px #000; }
+.pl-strip .pp.dead .pic { filter: grayscale(1) brightness(0.45); }
+.pl-strip .pp.unseen { opacity: 0.55; }
+.pl-strip .pp.locked { border-color: #ff4d5e; box-shadow: 0 0 0 3px rgba(255, 77, 94, 0.65), 0 3px 8px rgba(0, 0, 0, 0.35); }
+html[data-touch='1'] .pl-strip.ally { right: auto; left: calc(80px + var(--safe-l)); top: calc(70px + var(--safe-t)); }
+html[data-touch='1'] .pl-strip .pp { width: 30px; height: 30px; }
+html[data-touch='1'] .pl-strip.enemy .pp { pointer-events: auto; touch-action: none; }
+/* a bigger hit area than the 30 px disc */
+html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -6px -3px; }
+/* the owned emote chip moves under the enemy strip */
+.pl-emote { top: calc(56px + var(--safe-t)); }
+/* A5: the Attack button while a hero is locked, and the optional last-hit and tower buttons (off by default) */
+.pl-tbtn.attack.locked-on { border-color: #fff; box-shadow: 0 0 0 4px rgba(255, 77, 94, 0.75), 0 4px 12px rgba(0, 0, 0, 0.35); }
+.pl-tbtn.attack.locked-on::after {
+  content: ''; position: absolute; inset: 4px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(rgba(255, 243, 220, 0.85) calc(var(--lock, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); mask: radial-gradient(circle, transparent 60%, #000 62%);
+}
+.pl-tbtn.lasthit, .pl-tbtn.tower { width: 44px; height: 44px; }
+.pl-tbtn.lasthit span, .pl-tbtn.tower span { font-size: 11px; }
+.pl-tbtn.lasthit { right: 42px; bottom: 182px; }
+.pl-tbtn.tower { right: -18px; bottom: 176px; }

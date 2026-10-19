@@ -63,12 +63,18 @@ export type CastMode = 'quick' | 'hold';
 export type TrackpadPref = 'auto' | 'on' | 'off';
 /** Desktop cursor size (Settings): Normal 32 px, Large 48 px. */
 export type CursorSize = 'normal' | 'large';
+/** Touch Attack button priority (Settings "Target first"): Heroes (default), Lowest HP %, Closest. */
+export type TargetFirst = 'heroes' | 'lowest' | 'closest';
 
 const CAST_KEY = 'pawlegends.castMode';
 const PAD_KEY = 'pawlegends.trackpad';
 /** Auto mode switched trackpad mode on once (it stays on in later matches; the toast shows only that once). */
 const PAD_SEEN_KEY = 'pawlegends.trackpadSeen';
 const CURSOR_KEY = 'pawlegends.cursorSize';
+/** GAPS A5 (touch): what the Attack button hits first, and the optional last-hit and tower buttons (off by default). */
+const TARGET_KEY = 'pawlegends.targetFirst';
+const LASTHIT_KEY = 'pawlegends.lastHitButton';
+const TOWER_KEY = 'pawlegends.towerButton';
 
 function read(key: string): string | null {
   try {
@@ -87,7 +93,7 @@ function write(key: string, v: string): void {
 }
 
 /** In-memory copy, so a blocked storage still keeps the choice for this page. */
-const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize } = {};
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean } = {};
 
 export function castMode(): CastMode {
   return mem.cast ?? (read(CAST_KEY) === 'hold' ? 'hold' : 'quick');
@@ -134,12 +140,46 @@ export const trackpadOn = (): boolean => {
   return p === 'on' || (p === 'auto' && trackpadDetected());
 };
 
+export function targetFirst(): TargetFirst {
+  if (mem.target) return mem.target;
+  const v = read(TARGET_KEY);
+  return v === 'lowest' || v === 'closest' ? v : 'heroes';
+}
+
+export function setTargetFirst(t: TargetFirst): void {
+  mem.target = t;
+  write(TARGET_KEY, t);
+}
+
+/** The touch last-hit button (MLBB Advanced Aim): off by default. */
+export function lastHitButton(): boolean {
+  return mem.lastHit ?? read(LASTHIT_KEY) === '1';
+}
+
+export function setLastHitButton(on: boolean): void {
+  mem.lastHit = on;
+  write(LASTHIT_KEY, on ? '1' : '0');
+}
+
+/** The touch tower button: off by default. */
+export function towerButton(): boolean {
+  return mem.tower ?? read(TOWER_KEY) === '1';
+}
+
+export function setTowerButton(on: boolean): void {
+  mem.tower = on;
+  write(TOWER_KEY, on ? '1' : '0');
+}
+
 /** Tests: forget the in-memory copy (storage is read again). */
 export function resetControlPrefs(): void {
   delete mem.cast;
   delete mem.pad;
   delete mem.seen;
   delete mem.cursor;
+  delete mem.target;
+  delete mem.lastHit;
+  delete mem.tower;
 }
 
 /** Auto trackpad: how long the opening watch lasts (ms of match play) and how many left-clicks on the ground it needs. */

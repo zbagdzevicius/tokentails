@@ -4,13 +4,19 @@
  * Trick and Nap. Tap smart-casts; drag aims (the indicator follows the thumb); dragging onto the ✕ cancels.
  * The joystick sends `move` to a point 2 m ahead when its direction turns by more than 1/32 turn, at most every
  * 3 ticks (and again before the hero reaches that point, so a held stick keeps walking).
+ *
+ * GAPS A5: a tap on an enemy hero (on the field, or its portrait in the HUD strip) locks it for 5 s (assist.ts
+ * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
+ * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  */
 import { sfx } from '../../audio/sfx';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { slideAngle, type CastIndex } from '../orders';
-import { attackPriority, nearestEnemy, smartAim, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet } from './assist';
+import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
+import { project } from '../screen';
+import { attackPriority, BODY_MM, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, TargetLock } from './assist';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -22,8 +28,10 @@ export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: 
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
 const ATTACK_REPEAT_MS = 350;
+/** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
+export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 
-type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap';
+type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
 
 interface Drag {
@@ -50,6 +58,12 @@ export class TouchControls {
   private lastAttack = 0;
   private enabled = false;
   private off: (() => void)[] = [];
+  /** GAPS A5: the tapped enemy hero (5 s, 9 m), the Attack order (Settings), the canvas touch that may be a tap. */
+  readonly lock = new TargetLock();
+  private readonly first: TargetFirst = targetFirst();
+  private tap: { id: number; x: number; y: number; at: number } | null = null;
+  /** Locks set (e2e telemetry). */
+  locks = 0;
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -76,6 +90,8 @@ export class TouchControls {
         <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn trick" data-b="trick" aria-label="Paw Trick"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn nap" data-b="nap" aria-label="Nap"><span>Nap</span></button>
+        ${lastHitButton() ? '<button class="pl-tbtn lasthit" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
+        ${towerButton() ? '<button class="pl-tbtn tower" data-b="tower" aria-label="Attack a tower"><span>TWR</span></button>' : ''}
       </div>`;
     parent.appendChild(root);
     this.root = root;
@@ -122,6 +138,8 @@ export class TouchControls {
     this.h.onActivity('touch');
     sfx.unlock();
     if (!this.h.enabled()) return;
+    // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
+    this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
     if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
       e.preventDefault();
       this.stick = { id: e.pointerId, bx: e.clientX, by: e.clientY, x: e.clientX, y: e.clientY };
@@ -155,6 +173,10 @@ export class TouchControls {
     }
     if (btn === 'nap') {
       this.h.orders.nap();
+      return;
+    }
+    if (btn === 'lasthit' || btn === 'tower') {
+      this.extraButton(btn, el);
       return;
     }
     const slot = SLOT_OF[btn];
@@ -204,6 +226,11 @@ export class TouchControls {
   }
 
   private up(e: PointerEvent, cancelled = false): void {
+    const tp = this.tap;
+    if (tp && tp.id === e.pointerId) {
+      this.tap = null;
+      if (!cancelled && e.timeStamp - tp.at <= TAP.ms && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= TAP.px) this.tapAt(tp.x, tp.y);
+    }
     if (this.stick && e.pointerId === this.stick.id) {
       this.stick = null;
       this.stickEl.classList.remove('on');
@@ -231,7 +258,7 @@ export class TouchControls {
     if (!me) return;
     if (!g.dragging) {
       const aim = this.h.orders.aimSpec(slot);
-      const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing());
+      const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
       this.h.orders.cast(slot, p.x, p.y, p.id);
       return;
     }
@@ -273,6 +300,9 @@ export class TouchControls {
   /** The last Attack button choice and the enemies it saw (e2e only), and how many there were. */
   lastPick: {
     id: number | null;
+    /** GAPS A5: the locked hero the pick took, else null; and the Settings order. */
+    lock: number | null;
+    first: TargetFirst;
     range: number;
     me: { x: number; y: number };
     seen: { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number }[];
@@ -280,16 +310,73 @@ export class TouchControls {
   } | null = null;
   picks = 0;
 
+  /** The locked enemy hero while the lock holds (GAPS A5), else null. */
+  lockedId(): number | null {
+    return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now());
+  }
+
+  /**
+   * Lock enemy hero `id` (a tap on it or its portrait). A second tap on the locked hero lets go. Returns whether a
+   * lock is on afterwards; false when `id` is not a living, visible enemy hero within 9 m.
+   */
+  lockOn(id: number): boolean {
+    const me = this.me();
+    if (!me || !this.h.enabled()) return false;
+    const u = this.h.units().find((q) => q.id === id);
+    if (this.lock.id !== id && !lockable(u, me, this.h.view.myTeam)) return false;
+    const on = this.lock.set(id, performance.now());
+    if (on) {
+      this.locks++;
+      sfx.play('click', { vol: 0.45, rate: 1.4 });
+    }
+    return on;
+  }
+
+  /** A tap on the field: the enemy hero under it (within TAP.pickPx on screen) is locked. */
+  private tapAt(x: number, y: number): void {
+    const me = this.me();
+    if (!me || !this.h.enabled()) return;
+    const team = this.h.view.myTeam;
+    const cands = this.h.units().filter((u) => lockable(u, me, team));
+    if (!cands.length) return;
+    const cam = this.h.view.gr.camera;
+    const hit = pickNearest(cands, (u) => project(cam, this.h.canvas, u.x / 1000, 0.6, -u.y / 1000), x, y, TAP.pickPx);
+    if (hit) this.lockOn(hit.id);
+  }
+
+  /** Attack range (mm) of the player's basic attack, as the Attack button reads it. */
+  private range(): number {
+    return this.h.view.me()?.hero === 'sage' ? 6000 : 1600;
+  }
+
+  /** The optional last-hit / tower button: attack that target, else a short deny flash (never a walk-in). */
+  private extraButton(btn: 'lasthit' | 'tower', el: HTMLElement): void {
+    const me = this.me();
+    if (!me) return;
+    const units = this.h.units();
+    const id = btn === 'lasthit' ? lastHitTarget(units, me, this.h.view.myTeam, this.range()) : towerTarget(units, me, this.h.view.myTeam, this.range());
+    if (id !== null) {
+      this.h.orders.attack(id);
+      return;
+    }
+    sfx.play('deny', { vol: 0.6 });
+    el.classList.add('deny');
+    setTimeout(() => el.classList.remove('deny'), 250);
+  }
+
   private attackNow(): void {
     const me = this.me();
     if (!me) return;
     this.lastAttack = performance.now();
-    const range = this.h.view.me()?.hero === 'sage' ? 6000 : 1600;
+    const range = this.range();
     const units = this.h.units();
-    const id = attackPriority(units, me, this.h.view.myTeam, range);
+    const locked = this.lockedId();
+    const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play).
     this.lastPick = {
       id,
+      lock: locked,
+      first: this.first,
       range,
       me: { x: me.x, y: me.y },
       seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
@@ -314,7 +401,11 @@ export class TouchControls {
     if (now - this.inputAt < ASSIST.idleMs || now - this.autoAt < 900) return;
     if (me.state !== 'idle') return;
     const range = this.h.view.me()?.hero === 'sage' ? 6000 : 1800;
-    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range);
+    // GAPS A5: a locked hero in range is the idle target too
+    const locked = this.lockedId();
+    const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
+    const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
+    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range);
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -367,5 +458,12 @@ export class TouchControls {
     });
     const atk = this.buttons.get('attack');
     if (atk) atk.style.setProperty('--ring', RELATION_CSS.enemy);
+    // GAPS A5: the lock shows as the hover ring on the hero (GameView) and a draining ring on Attack
+    const locked = this.lockedId();
+    this.h.view.lock = locked;
+    if (atk) {
+      atk.classList.toggle('locked-on', locked !== null);
+      atk.style.setProperty('--lock', this.lock.left(now).toFixed(3));
+    }
   }
 }

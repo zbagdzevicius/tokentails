@@ -183,7 +183,8 @@ describe('Treat Track', () => {
     // the Biscuit coat (first win) is already owned: the chest skips it
     const owned = new Set(TREAT_REWARDS.slice(0, 3).map((r) => r.id).concat('coat.brutus.biscuit'));
     expect(nextReward(owned)?.id).toBe('coat.cacklejaw.spotted');
-    expect(parseTreats('{"xp":-5,"chests":99}')).toEqual({ v: 1, xp: 0, chests: 0 });
+    // GAPS A1: version 2 state (target hero, first-win day)
+    expect(parseTreats('{"xp":-5,"chests":99}')).toEqual({ v: 2, xp: 0, chests: 0, target: null, winDay: null });
     expect(parseTreats('nope')).toEqual(freshTreats());
   });
 });

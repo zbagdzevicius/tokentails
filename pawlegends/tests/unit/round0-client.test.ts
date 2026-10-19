@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadProfile, resetProfileCache, saveProfile } from '../../src/meta/profile';
 import { parseRoster, rosterCosmetics } from '../../src/meta/roster';
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../../src/meta/squad';
-import { PLACEMENT, impactOf, recordLadder } from '../../src/meta/ladder';
+import { PLACEMENT, recordLadder } from '../../src/meta/ladder';
 import { dailyQuests, freshQuests, progressQuests } from '../../src/meta/quests';
 import { TalentPicker } from '../../src/ui/talents';
 import { Juice } from '../../src/render/juice';
@@ -81,11 +81,11 @@ describe('round 0: quests, ladder', () => {
     const p0 = loadProfile();
     p0.ladderGames = PLACEMENT;
     saveProfile(p0);
-    const a = recordLadder({ won: true, difficulty: 'normal', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 6 });
+    const a = recordLadder({ won: true, difficulty: 'normal', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 6, grade: 'S' });
     expect(a?.delta).toBe(25);
-    const b = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 300, takedowns: 0, deaths: 4 });
+    const b = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 300, takedowns: 0, grade: 'C' });
     expect(b?.delta).toBe(-8);
-    const c = recordLadder({ won: true, difficulty: 'rookie', hero: 'clem', heroName: 'Clem', seconds: 350, takedowns: 9 });
+    const c = recordLadder({ won: true, difficulty: 'rookie', hero: 'clem', heroName: 'Clem', seconds: 350, takedowns: 9, grade: 'A' });
     expect(c?.delta).toBe(0);
     expect(c?.personal).toMatch(/fastest Clem win/);
     expect(loadProfile().rating).toBe(1017);
@@ -93,7 +93,7 @@ describe('round 0: quests, ladder', () => {
     const p = loadProfile();
     p.rating = 3;
     saveProfile(p);
-    expect(recordLadder({ won: false, difficulty: 'normal', hero: 'sage', heroName: 'Sage', seconds: 1, takedowns: 0 })?.rating).toBe(0);
+    expect(recordLadder({ won: false, difficulty: 'normal', hero: 'sage', heroName: 'Sage', seconds: 1, takedowns: 0, grade: 'C' })?.rating).toBe(0);
   });
 });
 
@@ -139,12 +139,11 @@ describe('round 1: ladder impact and placement', () => {
     resetProfileCache();
   });
 
-  it('placement matches never lose points; a 1/14 win earns almost nothing', () => {
-    const l = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 1, deaths: 6 });
+  it('placement matches never lose points; a C-grade win (1/14) earns 60%', () => {
+    const l = recordLadder({ won: false, difficulty: 'easy', hero: 'clem', heroName: 'Clem', seconds: 400, takedowns: 1, grade: 'C' });
     expect(l).toMatchObject({ delta: 0, placement: 1 });
-    expect(impactOf(1, 14)).toBe(0.1);
-    expect(impactOf(6, 2)).toBe(1);
-    const w = recordLadder({ won: true, difficulty: 'hard', hero: 'sage', heroName: 'Sage', seconds: 421, takedowns: 1, deaths: 14 });
-    expect(w?.delta).toBe(4);
+    // GAPS A2: the grade replaced impactOf (40 × 0.6)
+    const w = recordLadder({ won: true, difficulty: 'hard', hero: 'sage', heroName: 'Sage', seconds: 421, takedowns: 1, grade: 'C' });
+    expect(w?.delta).toBe(24);
   });
 });

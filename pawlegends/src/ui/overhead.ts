@@ -170,6 +170,9 @@ export class Overhead {
   /** Round 2: enemy heroes off screen within this distance (mm) get an arrow at the screen edge. */
   static readonly EDGE_RANGE = 30000;
 
+  /** GAPS A5: the touch-locked enemy hero and the share of its 5 s left (1..0): red brackets round its plate. */
+  targetLock: { id: number; left: number } | null = null;
+
   /** Bounty crown per hero slot (fun plan F2 item 11): > 0 draws a gold crown over the plate. */
   bounty: (slot: number) => number = () => 0;
 
@@ -456,6 +459,32 @@ export class Overhead {
     g.textBaseline = 'alphabetic';
   }
 
+  /** GAPS A5: the lock's brackets round a plate, and a bar under it that drains over the lock's 5 s. */
+  private lockBrackets(g: CanvasRenderingContext2D, x: number, y: number, bw: number, bh: number, left: number): void {
+    const m = 5 * this.scale;
+    const k = 6 * this.scale;
+    const x0 = x - m;
+    const y0 = y - m;
+    const x1 = x + bw + m;
+    const y1 = y + bh + m;
+    g.strokeStyle = RELATION_CSS.danger;
+    g.lineWidth = 2;
+    g.beginPath();
+    for (const [cx, cy, dx, dy] of [
+      [x0, y0, 1, 1],
+      [x1, y0, -1, 1],
+      [x0, y1, 1, -1],
+      [x1, y1, -1, -1],
+    ] as const) {
+      g.moveTo(cx + dx * k, cy);
+      g.lineTo(cx, cy);
+      g.lineTo(cx, cy + dy * k);
+    }
+    g.stroke();
+    g.fillStyle = RELATION_CSS.danger;
+    g.fillRect(x, y1 + 2, bw * Math.max(0, Math.min(1, left)), 2);
+  }
+
   /** A small gold crown (bounty). */
   private crown(g: CanvasRenderingContext2D, x: number, y: number): void {
     const s = 9 * this.scale;
@@ -664,6 +693,7 @@ export class Overhead {
       g.strokeRect(x - 1, y - 1, bw + 2, bh + 2);
     }
     if (e.kind !== 'hero') return;
+    if (this.targetLock && this.targetLock.id === e.id) this.lockBrackets(g, x, y, bw, bh, this.targetLock.left);
     if (e.id === this.mySlot) {
       // the player's own plate: a gold frame so it is found first in a pile
       g.strokeStyle = RELATION_CSS.self;

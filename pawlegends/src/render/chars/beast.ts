@@ -78,13 +78,18 @@ export function pugHead(A: Assembly, o: { fur?: number; dark?: number } = {}): v
  * purple muzzle, a big dark nose, heavy brows, a wide grin with two fangs, and big round dark-rimmed ears that stand
  * above the cap. Front-on, so the face reads at lobby scale and the ears read from above.
  */
-export function hyenaHead(A: Assembly, o: { spotted?: boolean; earStyle?: 'round' | 'cat'; earCoat?: CoatSpec; earInner?: number } = {}): void {
+export function hyenaHead(
+  A: Assembly,
+  o: { spotted?: boolean; earStyle?: 'round' | 'cat'; earCoat?: CoatSpec; earInner?: number; fur?: number; furDark?: number; spots?: number; belly?: number } = {},
+): void {
   const P = HYENA;
-  const furC = C(P.fur);
-  const darkC = C(P.furDark);
-  const spots = C(P.spots);
+  // GAPS A0: a Treat Track coat recolours the skull, its shading, the spots and the light belly fur (muzzle, ears and
+  // mane keep the hyena's own colours, so he still reads as Cacklejaw)
+  const furC = C(o.fur ?? P.fur);
+  const darkC = C(o.furDark ?? P.furDark);
+  const spots = C(o.spots ?? P.spots);
   const muzzle = C(P.muzzle);
-  const belly = C(P.belly);
+  const belly = C(o.belly ?? P.belly);
   const skin = (_v: THREE.Vector3, _n: THREE.Vector3, lp: THREE.Vector3): RGB => {
     let c = mix(furC, darkC, smooth(0.22, 0.32, lp.y) * smooth(0.0, -0.12, lp.z) * 0.45);
     c = mix(c, belly, smooth(0.09, 0.03, lp.y) * 0.5);

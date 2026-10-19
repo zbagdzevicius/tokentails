@@ -15,8 +15,9 @@ import type { SkinTile } from '../ui/screens';
 import { squadPrefs } from '../meta/squad';
 import { DEMO_ROSTER, skinDemoOn } from './skinDemo';
 import { recordLadder } from '../meta/ladder';
+import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS } from '../data/heroes';
-import { accountState, loadProfile, noteBond, noteChampionMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { accountState, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
@@ -36,13 +37,31 @@ import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
 import { canPickDifficulty, difficultyFor, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
-import { loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
-import { addTreatXp, loadTreats, saveTreats, treatXpFor } from '../meta/treats';
+import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
+import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, saveTreats, treatXpFor } from '../meta/treats';
+import { collectionPanel } from '../ui/collection';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { suddenDeathS } from '../ui/screens';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
+
+/**
+ * GAPS A1: a version 1 Treat Track (9 chests) moves to the 30-chest track once; chests that opened empty after the
+ * old track ran out are paid now (meta/treats.ts migrateTreats: idempotent, so nothing is granted twice). The
+ * unlocks are saved before the new track state, so a blocked second write only repeats a no-op.
+ */
+function migrateTreatTrack(): void {
+  const raw = loadTreatsRaw();
+  if (raw === null) return;
+  const p = loadProfile();
+  const m = migrateTreats(raw, new Set(p.unlocks));
+  if (m.grants.length) {
+    for (const r of m.grants) if (!p.unlocks.includes(r.id)) p.unlocks.push(r.id);
+    saveProfile(p);
+  }
+  if (m.migrated) saveTreats(m.state);
+}
 
 function speedFromUrl(): number {
   try {
@@ -147,6 +166,7 @@ export class App {
     this.lobby = new Lobby(this.gr);
     const p = startSession();
     this.sessionNo = p.sessions;
+    migrateTreatTrack();
     sfx.setMuted(p.muted);
     this.choice = { hero: p.hero, trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
@@ -343,15 +363,18 @@ export class App {
     return resolveLook(hero, this.owned(), chosen as Partial<Look> | undefined);
   }
 
-  /** Store, roster or app state changed: redraw the lobby screen so buttons, looks and frames follow. */
-  private refreshMeta(): void {
+  /**
+   * Store, roster or app state changed: redraw the lobby screen so buttons, looks and frames follow. `offer` false
+   * (a lobby panel closed) redraws the title without the offer check.
+   */
+  private refreshMeta(offer = true): void {
     const s = this.ent.snapshot();
     const d = document.documentElement.dataset;
     d.store = s.storeOpen ? '1' : '0';
     d.isApp = s.isApp ? '1' : '0';
     d.items = [...s.items].sort().join(',');
     d.chromas = this.roster.chromas.join(',');
-    d.frame = bestFrame(this.owned()) ?? '';
+    d.frame = bestFrame(this.owned(), loadProfile().wornFrame) ?? '';
     if (!s.storeOpen) {
       this.overlay?.close();
       this.overlay = null;
@@ -359,7 +382,7 @@ export class App {
       this.offerEl = null;
     } else this.overlay?.refresh?.();
     this.revealPurchase();
-    if (this.screen === 'title') this.showTitle();
+    if (this.screen === 'title') this.showTitle(offer);
     else if (this.screen === 'pick') this.lobby.setHero(this.choice.hero, 0, this.lookFor(this.choice.hero));
   }
 
@@ -423,7 +446,8 @@ export class App {
     saveProfile(p);
   }
 
-  showTitle(): void {
+  /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
+  showTitle(offer = true): void {
     const first = this.screen !== 'title' || !this.screenEl;
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
@@ -441,8 +465,8 @@ export class App {
         dare: this.dare,
         muted: sfx.isMuted,
         storeOpen: s.storeOpen,
-        frame: bestFrame(owned),
-        title: titleOf(owned),
+        frame: bestFrame(owned, p.wornFrame),
+        title: titleOf(owned, p.wornTitle),
         portrait: this.badgePortrait(),
         wearing: this.wearing(this.lookFor(this.dare?.hero ?? this.choice.hero)),
         onPlay: (c, seed) => {
@@ -457,12 +481,14 @@ export class App {
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
-        // round 1: the hero quest always names the hero being played ("Win with Cacklejaw" while playing Sage)
-        quests: p.matches > 0 ? questViews(loadQuests(), this.choice.hero) : undefined,
+        onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
+        // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
+        // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
+        quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
       }),
     );
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
-    this.maybeOffer('lobby');
+    if (offer) this.maybeOffer('lobby');
     this.maybeConsent();
   }
 
@@ -558,8 +584,8 @@ export class App {
       emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
       muted: sfx.isMuted,
       look,
-      frame: bestFrame(owned),
-      title: titleOf(owned),
+      frame: bestFrame(owned, p.wornFrame),
+      title: titleOf(owned, p.wornTitle),
       companions: this.roster.companions,
       guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
       knowsUlt: p.knowsUlt && p.matches > 0,
@@ -572,7 +598,15 @@ export class App {
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = this.roster.companions.map((k) => k.name);
-    const veil = loadingVeil(this.root, 'Into the Crossing...', mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined, this.wearing(look));
+    // GAPS A6: the loading screen names this hero's match count and, in a card skin, that cat's Bond
+    const worn = isCardSkinId(look.coat) ? getSkin(look.coat) : null;
+    const veil = loadingVeil(
+      this.root,
+      'Into the Crossing...',
+      mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined,
+      this.wearing(look),
+      { name: HERO_TEXT[c.hero].title, matches: p.heroMatches[c.hero] ?? 0, bond: worn && !worn.featured ? worn.bond : null },
+    );
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -632,12 +666,23 @@ export class App {
     });
     // Sim v9: from a non-owner's 3rd finished match on a shelter champion, the host may offer that card (until shown)
     if (noteChampionMatch(e.replay.hero) > 0) this.integration.championMatch(e.replay.hero);
-    // Treat Track and daily quests (local, free, fixed order)
-    const quests = progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, true);
+    noteHeroMatch(e.replay.hero);
+    // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already
+    const quests = progressQuests(
+      loadQuests(),
+      { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos },
+      followsHero(loadProfile().matches - 1),
+    );
     saveQuests(quests.state);
     const prof = loadProfile();
     const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);
-    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding }) + quests.xp, ownedIds);
+    // GAPS A2: the grade (pure, from the sim's own stats) adds Treat XP (S +40, A +25, B +10; never catnip)
+    const mySlot = e.welcome.slot;
+    const grades = gradeMatch(e.result);
+    const myGrade = grades.slots.find((g) => g.slot === mySlot)?.grade ?? 'C';
+    const gradeXp = GRADE_TREAT_XP[myGrade];
+    // GAPS A6: the first win of the local day adds its bonus (once a day, no streak, no catnip)
+    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding }) + quests.xp + gradeXp, ownedIds, { won, day: dayKey() });
     saveTreats(treats.state);
     if (treats.rewards.length) {
       for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
@@ -667,15 +712,20 @@ export class App {
       lp.knowsUlt = true;
       saveProfile(lp);
     }
-    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, deaths: e.deaths });
+    // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
+    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
-    const mySlot = e.welcome.slot;
     const myTeam = mySlot < 3 ? 0 : 1;
     const names = slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot);
+    const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
+    const bestMine = grades.best[myTeam];
     const table = e.result.stats
       .map((st) => ({
-        name: names[st.slot] ?? HERO_TEXT[st.hero].title,
+        name: nameOf(st.slot),
+        grade: grades.slots.find((g) => g.slot === st.slot)?.grade,
+        mvp: st.slot === grades.mvp,
+        best: !won && st.slot === bestMine,
         rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
         k: st.kills,
         d: st.deaths,
@@ -705,7 +755,13 @@ export class App {
         treats,
         quests: quests.views,
         table,
-        ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta, placement: ladder.placement, impact: ladder.impact } : null,
+        ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta, placement: ladder.placement, impact: ladder.impact, grade: ladder.grade } : null,
+        grade: {
+          grade: myGrade,
+          xp: gradeXp,
+          mvp: { name: nameOf(grades.mvp), you: grades.mvp === mySlot },
+          bestOnTeam: won ? null : { name: nameOf(bestMine), you: bestMine === mySlot },
+        },
         personal: ladder?.personal ?? null,
         cause: e.cause,
         // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
@@ -716,14 +772,19 @@ export class App {
         speed: this.speed,
         storeOpen: s.storeOpen,
         notifyOpen: s.notifyOpen,
+        // GAPS A3 "Run it back": same hero, trick and difficulty, a new seed (no seed passed: the match draws one).
+        // It stays in this page session, so the offer's once-a-session rule (money/offer.ts) never shows a second card.
         onAgain: () => {
           sfx.play('click');
+          this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
           this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
         },
+        // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');
-          // round 2: the button names a hero ("Try Sage"): the pick screen opens on it
-          if (tease) this.choice = { ...this.choice, hero: tease };
+          this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
+          const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
+          this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
           this.showPick();
         },
         onShare: (url) => {
@@ -819,6 +880,43 @@ export class App {
   }
 
   // ------------------------------------------------------------------------------------ settings, consent
+
+  /** GAPS A1: the Treat Track chest screen ("pick your next target") and the profile shelf. Never opens an offer. */
+  private openCollection(): void {
+    if (this.overlay) return;
+    const p = loadProfile();
+    const tiles = this.integration.championTiles();
+    const art: Partial<Record<HeroId, string>> = {};
+    for (const h of HERO_IDS) {
+      const a = tiles[h]?.art;
+      if (a) art[h] = a;
+    }
+    const el = collectionPanel(this.root, {
+      treats: loadTreats(),
+      owned: new Set<string>([...p.unlocks, ...this.ent.snapshot().items]),
+      art,
+      portrait: (h) => portraitUrl(h, null),
+      wornTitle: p.wornTitle,
+      wornFrame: p.wornFrame,
+      onTarget: (h) => {
+        const t = loadTreats();
+        t.target = h;
+        saveTreats(t);
+      },
+      onWear: (kind, id) => {
+        const q = loadProfile();
+        if (kind === 'title') q.wornTitle = id;
+        else q.wornFrame = id;
+        saveProfile(q);
+      },
+      onClose: () => {
+        this.overlay = null;
+        // one redraw, without the offer check: the Treat Track panel never leads to an offer
+        this.refreshMeta(false);
+      },
+    });
+    this.overlay = { close: () => el.remove() };
+  }
 
   private openSettings(): void {
     if (this.overlay) return;

@@ -70,9 +70,16 @@ export interface Profile {
   bond: Record<string, number>;
   /** The newest cat whose skin was put on automatically (once per cat; the chip offers Undo). */
   skinAuto: string | null;
+  /** GAPS A6: finished matches per hero (the loading screen's "N matches as <hero>"). */
+  heroMatches: Partial<Record<HeroId, number>>;
+  /** GAPS A1: the Treat Track title and frame the player chose to wear (ids, checked against the unlocks). */
+  wornTitle: string | null;
+  wornFrame: string | null;
 }
 
 export type SkinFx = 'all' | 'mine' | 'off';
+/** Most free unlocks kept (GAPS A1: 30 track rewards, the 32-coat loop and the first-win coat fit with room). */
+export const UNLOCKS_MAX = 160;
 /** Most bond entries kept (the lowest not in the roster are dropped first). */
 export const BOND_MAX = 64;
 /** Featured-skin previews a page session allows: a guest, a signed-in player. */
@@ -91,7 +98,7 @@ const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -110,7 +117,7 @@ export function parseProfile(raw: string | null): Profile {
     p.difficulty = o.difficulty === 'normal' || o.difficulty === 'hard' ? o.difficulty : 'easy';
     p.muted = o.muted === true;
     p.unlocks = Array.isArray(o.unlocks)
-      ? [...new Set(o.unlocks.filter((u): u is string => typeof u === 'string').map((u) => (u === 'coat:brutus-biscuit' ? BISCUIT_UNLOCK : u)))].slice(0, 64)
+      ? [...new Set(o.unlocks.filter((u): u is string => typeof u === 'string').map((u) => (u === 'coat:brutus-biscuit' ? BISCUIT_UNLOCK : u)))].slice(0, UNLOCKS_MAX)
       : [];
     p.tipsOff = o.tipsOff === true;
     p.numbers = o.numbers === true;
@@ -128,6 +135,17 @@ export function parseProfile(raw: string | null): Profile {
         if (c > 0) p.championMatches[h] = Math.min(c, 9999);
       }
     }
+    if (o.heroMatches && typeof o.heroMatches === 'object') {
+      for (const h of HEROES) {
+        const c = n((o.heroMatches as Record<string, unknown>)[h]);
+        if (c > 0) p.heroMatches[h] = Math.min(c, 99999);
+      }
+    }
+    // older profiles: the champions' counts were already kept
+    for (const h of CHAMPION_IDS) if (!p.heroMatches[h] && p.championMatches[h]) p.heroMatches[h] = p.championMatches[h];
+    const wid = (v: unknown): string | null => (typeof v === 'string' && /^(title|frame)\.champ\.[a-z]{1,16}$/.test(v) ? v : null);
+    p.wornTitle = wid(o.wornTitle);
+    p.wornFrame = wid(o.wornFrame);
     p.championShown = Array.isArray(o.championShown) ? CHAMPION_IDS.filter((h) => (o.championShown as unknown[]).includes(h)) : [];
     p.tipsNext = o.tipsNext === true;
     p.knowsUlt = o.knowsUlt === true;
@@ -245,6 +263,16 @@ export function recordMatch(won: boolean, seconds: number, difficulty: Difficult
   }
   saveProfile(p);
   return { firstWin, best, second };
+}
+
+/** GAPS A6: count a finished match on `hero` (any hero); returns the new count. */
+export function noteHeroMatch(hero: HeroId): number {
+  if (!HEROES.includes(hero)) return 0;
+  const p = loadProfile();
+  const c = Math.min((p.heroMatches[hero] ?? 0) + 1, 99999);
+  p.heroMatches[hero] = c;
+  saveProfile(p);
+  return c;
 }
 
 /** Sim v9: count a finished match on `hero` when it is a shelter champion; returns the new count (0 otherwise). */

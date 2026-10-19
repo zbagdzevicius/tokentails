@@ -5,7 +5,7 @@
  *
  *   npm run match -- [--seeds 20] [--from 1] [--difficulty rookie|easy|normal|hard] [--hero clem|random] [--trick pounce|random]
  *                    [--profile idle|novice|naive|easy|normal|parked|feeder] [--json] [--quiet] [--fun] [--procs N]
- *                    [--check-determinism] [--gate fun1|fun2|novice|idle|parked|balance|hard|feeder|feedNormal] [--balance]
+ *                    [--check-determinism] [--stats] [--gate fun1|fun2|novice|idle|parked|balance|hard|feeder|feedNormal] [--balance]
  *
  * Slot 0 is played by the profile: `idle` never acts, `novice` follows the first-match tips, `naive` is the
  * scripted first-timer of the fun gates, `easy` / `normal` run the bot brain from outside the sim (through
@@ -65,6 +65,8 @@ const quiet = hasFlag('--quiet') || (gate !== null && !hasFlag('--rows'));
 const checkDet = hasFlag('--check-determinism');
 const fun = hasFlag('--fun') || gate !== null;
 const worker = hasFlag('--worker');
+/** `--stats`: every row also carries the match's per-slot `SlotStats` (tools/grade-calibrate.mjs reads them). */
+const withStats = hasFlag('--stats');
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? (seeds >= 40 && !worker ? Math.max(1, cpus().length - 2) : 1)), seeds));
 
 const sim = await importSim('src/sim/index.ts');
@@ -132,6 +134,7 @@ function runRange(f, n) {
       ms: Math.round(a.ms),
       inputChars: a.replay.inputs.length,
       fun: a.fun,
+      ...(withStats ? { stats: a.res.stats } : {}),
     });
     for (const st of a.res.stats) {
       const h = (perHero[st.hero] ??= { slots: 0, wins: 0, kills: 0, deaths: 0, assists: 0, levels: 0, heroDamage: 0 });
@@ -154,6 +157,7 @@ async function runParallel() {
   const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile];
   if (checkDet) passOn.push('--check-determinism');
   if (fun) passOn.push('--fun');
+  if (withStats) passOn.push('--stats');
   const jobs = [];
   for (let i = 0; i < procs; i++) {
     const f = from + i * per;

@@ -3,11 +3,13 @@
  * - lane magnet: a joystick direction within 25° of the lane under the hero snaps to the lane's direction;
  * - map edge: a stick goal past the playable edge or inside the enemy fountain is pulled back, and a goal that
  *   would not move the hero any more means "stop" (a held stick no longer grinds into a corner);
- * - auto-attack: standing still with no input, the nearest enemy minion in range (then a hero) is the target.
+ * - auto-attack: standing still with no input, the nearest enemy minion in range (then a hero) is the target;
+ * - target lock (GAPS A5): a tapped enemy hero (on the field or its portrait) stays the Attack button's and the smart
+ *   casts' target for 5 s, or until it dies, hides or gets more than 9 m away.
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
-import type { Unit } from '../targeting';
+import { isEnemy, type Unit } from '../targeting';
 
 export const ASSIST = Object.freeze({
   /** Snap when the stick is within this angle of the lane (rad). */
@@ -101,4 +103,53 @@ export function autoAttackTarget(units: readonly Unit[], me: Unit, myTeam: numbe
     }
   }
   return minion?.id ?? hero?.id ?? null;
+}
+
+/** GAPS A5: how long a tap lock holds (ms) and how far the locked hero may get from the player (mm). */
+export const LOCK = Object.freeze({ ms: 5000, rangeMm: 9000 });
+
+/** Can the player lock `u`: a living, visible enemy hero within LOCK.rangeMm? */
+export function lockable(u: Unit | null | undefined, me: Unit, myTeam: number): boolean {
+  return !!u && u.kind === 'hero' && isEnemy(u, myTeam) && Math.hypot(u.x - me.x, u.y - me.y) <= LOCK.rangeMm;
+}
+
+/**
+ * The touch target lock (GAPS A5). `set` locks a hero (a second tap on the locked hero lets go); `check` returns the
+ * locked id while the lock holds and drops it once LOCK.ms passed, the hero died or left the snapshot (a bush), or
+ * it is more than LOCK.rangeMm from the player. Client only: it only decides which id an Attack or Cast carries.
+ */
+export class TargetLock {
+  id: number | null = null;
+  private since = 0;
+
+  /** Lock `id` at `now` (ms); a tap on the hero already locked releases it. Returns whether a lock is on. */
+  set(id: number, now: number): boolean {
+    if (this.id === id) {
+      this.clear();
+      return false;
+    }
+    this.id = id;
+    this.since = now;
+    return true;
+  }
+
+  clear(): void {
+    this.id = null;
+  }
+
+  /** The locked id, or null (and the lock is dropped) when it no longer holds. */
+  check(units: readonly Unit[], me: Unit | null, myTeam: number, now: number): number | null {
+    if (this.id === null) return null;
+    const u = units.find((q) => q.id === this.id);
+    if (!me || me.state === 'dead' || now - this.since >= LOCK.ms || !lockable(u, me, myTeam)) {
+      this.clear();
+      return null;
+    }
+    return this.id;
+  }
+
+  /** Share of the lock's time left, 1..0 (0 when none). */
+  left(now: number): number {
+    return this.id === null ? 0 : Math.max(0, Math.min(1, 1 - (now - this.since) / LOCK.ms));
+  }
 }

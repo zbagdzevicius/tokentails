@@ -251,6 +251,37 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   per difficulty; a guest merge carries all three maps (`backend/src/pawlegends/pawlegends-merge.ts`).
 - **Local progress** (browser storage, never in the sim or on the server): daily quests, the Treat Track
   (fixed-order cosmetic chests, nothing random or for sale), the bot ladder and personal bests.
+- **Wave A** (`docs/plans/moba/GAPS.md` §3; render, UI and local meta only: no `SIM_VERSION` change, replays and
+  hash trails unchanged):
+  - **Treat Track** (`src/meta/treats.ts`, state v2; a v1 record migrates once): 30 fixed-order chests for all 8
+    heroes, then a fixed loop of palette coats (8 palettes × the 4 originals), so it never runs dry. Clem, Sage,
+    Sir Brutus and Cacklejaw get coats and palette variants; the shelter champions get a "<name>'s Pal" title, a
+    frame and a "Meet the real cat" postcard (card art and a short story, `src/ui/collection.ts`), never a recolour,
+    since they wear their real card's coat. Nothing a $5 card gives (element chroma, Companion Kitten, card badge,
+    card skin) is on the track. The chest screen ("Pick your next target") sets the hero whose next reward the next
+    chest holds, with "about N matches to go". The second emote is a palette coat (one emote slot in a match).
+  - **Cacklejaw coats**: his Track coats now recolour his fur and head (`src/render/chars/specs.ts`, `lookCoat`).
+  - **Quests** (`src/meta/quests.ts`, 17): adds `win_lambo`, `win_aviete`, `win_bengas`, `win_gabe`, "Play a
+    shelter champion" and "Calm Pudding twice". Slot 1 is the day's "Win with <hero>", round-robin by date (each
+    hero every 8 days; the first 3 matches name the hero being played). Rewards are Treat XP only; no quest opens
+    or triggers an offer (`src/money/offer.ts` unchanged).
+  - **Grade** (`src/meta/grade.ts`, pure on `MatchResult.stats`): S/A/B/C by role (carry vs tank/support weights),
+    MVP, and "Best on your team" on a loss. Treat XP S +40, A +25, B +10, never catnip. On the ladder the grade
+    replaces the old KDA impact (an S or A loss costs half; not stacked). Thresholds per role from
+    `node tools/grade-calibrate.mjs`; on fresh seeds mage and support sit about 6 points off the ±5 target.
+  - **Results**: "Run it back" (same hero, trick and difficulty, a new seed; PostHog `rematch_click`) and "Switch
+    cat" (pick screen, difficulty kept). A rematch stays in the same page session, so no second offer card.
+  - **Timers**: a top-centre next-objective chip ("Pudding in 0:42", "Calm Pudding!", escort HP, camp respawns,
+    "Sunset in …", "Sudden Death in …"), minimap countdown rings and a portrait strip with death timers from
+    `respawnIn`, all from snapshots and events. Enemy camps show once a clear was seen. A chip tap sends no ping yet
+    (Wave B, B1).
+  - **Touch target lock**: tap an enemy hero or its strip portrait to lock it for 5 s (until it dies or is past
+    9 m); Attack and smart casts then take it. Settings "Target first": Heroes (default) / Lowest HP % / Closest,
+    plus optional last-hit and tower buttons (off by default).
+  - **Small items**: first win of the local day +150 Treat XP (no streak, no catnip); the loading screen shows the
+    match count on this hero and, in a card skin, its Bond; the pick screen shows the role label (no lane hint until
+    bots swap lanes in B1); allied bots cheer the player's takedowns and assists (fixed lines in turn, at most one
+    every 8 s).
 - **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames (non-pack cats
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick

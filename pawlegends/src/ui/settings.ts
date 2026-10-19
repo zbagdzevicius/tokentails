@@ -1,10 +1,28 @@
 /**
  * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, the desktop controls (quick cast or aim on hold,
- * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), first-match tips and anonymous play stats (the
+ * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), the touch controls (GAPS
+ * A5: Target first Heroes / Lowest HP % / Closest, the optional last-hit and tower buttons), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
  * session when the choice is still open and the game runs outside the Token Tails page (the page asks on its own).
  */
-import { castMode, cursorSize, setCastMode, setCursorSize, setTrackpadPref, trackpadPref, type CastMode, type CursorSize, type TrackpadPref } from '../input/presets';
+import {
+  castMode,
+  cursorSize,
+  lastHitButton,
+  setCastMode,
+  setCursorSize,
+  setLastHitButton,
+  setTargetFirst,
+  setTowerButton,
+  setTrackpadPref,
+  targetFirst,
+  towerButton,
+  trackpadPref,
+  type CastMode,
+  type CursorSize,
+  type TargetFirst,
+  type TrackpadPref,
+} from '../input/presets';
 import type { QualityTier } from '../render/quality';
 
 export interface SettingsState {
@@ -33,6 +51,7 @@ const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high
 const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on hold' };
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
+const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -47,7 +66,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -65,7 +84,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .join('')}</span></div>
       <div class="set-row"><span>Cursor size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.cursor === m ? 'on' : ''}" data-cursor="${m}">${CURSOR_NAME[m]}</button>`)
-        .join('')}</span></div>` : ''}
+        .join('')}</span></div>` : `<div class="set-row"><span>Target first (Attack button)</span><span class="chips">${(['heroes', 'lowest', 'closest'] as const)
+        .map((m) => `<button class="chip ${ctl.target === m ? 'on' : ''}" data-target="${m}">${TARGET_NAME[m]}</button>`)
+        .join('')}</span></div>
+      ${row('Last-hit button', 'lasthit', ctl.lastHit)}
+      ${row('Tower button', 'tower', ctl.tower)}`}
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
@@ -83,7 +106,17 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const pad = t.closest<HTMLElement>('[data-pad]')?.dataset.pad as TrackpadPref | undefined;
     const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
     const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
-    if (sfx) {
+    const tgt = t.closest<HTMLElement>('[data-target]')?.dataset.target as TargetFirst | undefined;
+    if (tgt) {
+      ctl.target = tgt;
+      setTargetFirst(tgt);
+    } else if (a === 'lasthit') {
+      ctl.lastHit = !ctl.lastHit;
+      setLastHitButton(ctl.lastHit);
+    } else if (a === 'tower') {
+      ctl.tower = !ctl.tower;
+      setTowerButton(ctl.tower);
+    } else if (sfx) {
       s.skinFx = sfx;
       o.onSkinFx?.(sfx);
     } else if (cur) {
