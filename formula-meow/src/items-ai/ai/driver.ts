@@ -1,18 +1,22 @@
 /**
  * Basic AI driver (GDD 5.2–5.3), the v1 seed the items-ai lane deepens: follows the racing line with its
  * personality's line bias, drifts where the track bends (skill decides how long it holds, so how high a tier it
- * reaches), makes seeded mistakes, tries a Pounce Start, uses Catnip on straights, and rides a capped rubber band.
+ * reaches), makes seeded mistakes, tries a Pounce Start, swerves around traps it notices, uses items (item-brain.ts)
+ * and rides a capped rubber band (rubber-band.ts).
  *
  * One driver instance per SimWorld (`createAIDriver()`), so its memory replays with the race. All randomness comes
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, DRIFT, classTuning } from '../../tuning';
+import { AI, DRIFT } from '../../tuning';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
 import { curvatureAhead, followLine } from '../../core/sim/autopilot';
 import { speedOf } from '../../core/sim/kart';
 import { draw } from '../../core/sim/rng';
 import { clamp } from '../../core/sim/fixed';
+import { itemsOf, lapGap } from '../items/state';
+import { newBrain, useItems, type BrainMemory } from './item-brain';
+import { bandScale } from './rubber-band';
 
 interface Memory {
   /** tick to press for the start (−1 = no pounce attempt, presses late) */
@@ -24,8 +28,10 @@ interface Memory {
   driftHold: number;
   driftWant: number;
   /** item use delay */
-  itemWait: number;
-  pressedItem: boolean;
+  brain: BrainMemory;
+  /** last trap considered for a dodge, and whether this cat dodges it */
+  dodgeId: number;
+  dodge: boolean;
 }
 
 const DEFAULT_P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
@@ -45,8 +51,9 @@ export function createAIDriver(): AIDriver {
           slipTicks: 0,
           driftHold: 0,
           driftWant: 0,
-          itemWait: 0,
-          pressedItem: false,
+          brain: newBrain(),
+          dodgeId: 0,
+          dodge: false,
         });
       }
     },
@@ -85,6 +92,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
       break;
     }
   }
+  bias = dodgeBias(ctx, i, m, p, bias);
   followLine(ctx, i, out, bias, m.slipTicks > 0 ? 1.4 : 1);
 
   // drift where the track bends
@@ -111,26 +119,29 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     if (!out.drift) m.driftWant = 0;
   }
 
-  // items: v1 core only has Catnip (use on a straight); other items fire after a short think
-  out.item = false;
-  if (k.item && k.rouletteTicks === 0) {
-    if (m.itemWait <= 0) m.itemWait = 20 + Math.floor(draw(k, 'rngAi') * (90 - 60 * p.aggression));
-    else if (--m.itemWait <= 0) {
-      const straight = Math.abs(curvatureAhead(ctx, k.si, 0, 30)) < 0.015;
-      if (k.item !== 'catnip' || straight) out.item = !m.pressedItem;
-      else m.itemWait = 10;
-    }
-  }
-  m.pressedItem = out.item;
+  // items (item-brain.ts) and the capped rubber band (rubber-band.ts)
+  useItems(ctx, i, out, m.brain, p);
+  k.topScale = bandScale(ctx, i, p);
+}
 
-  // rubber band (GDD 5.3): capped, and never above the player's unboosted top speed
-  const humans = ctx.cfg.humans;
-  const band = classTuning(ctx.cfg.cls);
-  const base = band.aiTop + AI.topSkill * p.skill;
-  if (humans.length > 0) {
-    const h = st.karts[humans[0]];
-    const gap = h.dist - k.dist; // > 0: AI behind the player
-    const adj = clamp(AI.bandK * gap, -band.bandDown, band.bandUp);
-    k.topScale = Math.min(1, base * (1 + adj));
-  } else k.topScale = Math.min(1, base);
+/**
+ * Swerve around a trap on our line 4–24 m ahead. Whether this cat sees it is decided once per trap from the
+ * `rngAi` stream (skilled cats dodge more; Kitten cats walk into cucumbers, which is the point).
+ */
+function dodgeBias(ctx: SimContext, i: number, m: Memory, p: Personality, bias: number): number {
+  const k = ctx.st.karts[i];
+  const hw = ctx.track.halfW[k.si];
+  for (const t of itemsOf(ctx.st).traps) {
+    if (t.flight > 0) continue;
+    const g = lapGap(ctx.track, t.dist - k.dist);
+    if (g < 4 || g > 24 || Math.abs(t.d - k.d) > 2.6) continue;
+    if (m.dodgeId !== t.id) {
+      m.dodgeId = t.id;
+      m.dodge = draw(k, 'rngAi') < 0.3 + 0.65 * p.skill;
+    }
+    if (!m.dodge) return bias;
+    const side = t.d > 0 ? -1 : 1;
+    return clamp((t.d + side * 3.4) / hw, -1, 1);
+  }
+  return bias;
 }

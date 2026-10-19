@@ -46,13 +46,30 @@ Owns `src/items-ai/**`.
   by `createSimPlugins()` in `src/items-ai/index.ts`.
 - `ItemSystem`: `roll(ctx, k)` at pickup (hidden for the 1.2 s roulette), `charges(item)`, `use(ctx, k, back)`,
   `step(ctx)` after physics (projectiles, traps, Laser Dot), `hash(st, h)` for its slot `RaceState.items`.
-- Items are `ItemDef`s in `items/registry.ts` (`registerItem`). v1 core registers Catnip ×3 only
-  (`items/defs.ts`); register Hairball, Yarn, Cucumber, Box, Bell, Zoomies (set `autoTicks`; the core already
-  drives an autopilot kart at the line and makes it invincible) and Laser Dot (`notOnLap1`). The roll already uses
-  the GDD 4.1 table and the effective position.
-- `ai/driver.ts` is the seed AI (line + bias + overtake offset, bend drifts with skill-based tier, seeded mistakes,
-  pounce start, catnip on straights, capped rubber band). `ai/personalities.ts`, `ai/roster.ts` (Pink Paw field).
-- `balance/bots.ts` `playerBot` (average player) and `balance/balance.test.ts` (Kitten podium ≥ 80 %).
+- All 8 items are registered in `items/defs.ts` (`ItemDef`s, `registerItem`); `items/registry.ts` rolls by the
+  GDD 4.1 table and the effective position, skips items whose `blocked(ctx)` is true (Laser Dot: one active, 10 s
+  race-wide cooldown, never two held) so a blocked roll is redrawn from the rest, and applies the daily modifiers
+  (Cucumbers Only, Catnip Rain, Zoomies+, Box Party). `items/system.ts` is the `ItemSystem`.
+- Item entities live in `RaceState.items.s` (`items/state.ts`, plain records, hashed by `hashItems`):
+  projectiles (`projectiles.ts`: Hairball, homing Yarn ball, Laser Dot) and traps (`traps.ts`: Yarn tangle,
+  Cucumber). `hits.ts` has the shared rules (`touchable`, the held-yarn shield, hit stats). Numbers: `ITEMS` in
+  `src/tuning.ts`.
+- Forward / back (`itemBack`): Hairball shoots forward or back; **Yarn forward is a homing yarn ball at the kart
+  ahead** (back drops the tangle trap), and a ready Yarn that is held trails behind the kart and eats one hit from
+  behind; Cucumber lobs ~18 m ahead (the thrower is immune to its own lobbed cucumber for 2.5 s after it lands) or
+  drops back. Box = 3 s shield, Bell = 25 m wobble, Zoomies = 3 s autopilot at 1.40× that spins out anyone it
+  touches, Laser Dot = chase on everyone it passes, spin on the leader (`laserWarn` drives the player's banner).
+- AI: `ai/driver.ts` (line + bias + overtake offset, trap dodging with a per-trap skill roll, bend drifts, seeded
+  mistakes, pounce start), `ai/item-brain.ts` (when to fire, hold or drop each item, GDD 5.2, half as eager more
+  than 4 s ahead of the player), `ai/rubber-band.ts` (capped, never above the unboosted top speed),
+  `ai/personalities.ts`, `ai/roster.ts` (Pink Paw field). Difficulty = the class (`CLASSES` skill band and band caps).
+- Balance: `balance/bots.ts` `playerBot`, `balance/balance.test.ts` (Kitten podium ≥ 80 %), `balance/harness.ts`
+  (place change, close finishes, per-item uses and hit rates). Full run:
+  `FM_BALANCE_N=2000 npx vitest run src/items-ai/balance/harness.test.ts` prints the report.
+- Views: `view/item-view.ts` (procedural meshes for every item, box shield with the cat's head poking out,
+  Zoomies rainbow aura, Bell ring, "LASER DOT INCOMING" banner), installed from `src/lanes.ts` as a JuiceBus
+  listener (`view/install.ts`); it reads the race state and never writes it. Note `items-ai/**` is linted with the
+  sim math rules, so the view uses `sinL`/`cosL`/`atan2L` too.
 
 ### juice
 Owns `src/juice/**`.

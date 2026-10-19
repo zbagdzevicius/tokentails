@@ -2,7 +2,7 @@
 import type { SimPlugins } from '../core/sim/plugins';
 import { createAIDriver } from './ai/driver';
 import { registerDefaultItems } from './items/defs';
-import { createItemSystem } from './items/registry';
+import { createItemSystem } from './items/system';
 
 export function createSimPlugins(): SimPlugins {
   registerDefaultItems();

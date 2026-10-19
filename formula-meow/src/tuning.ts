@@ -166,6 +166,20 @@ export const ITEM_WEIGHTS: readonly (readonly number[])[] = [
   [0, 0, 0, 30, 10, 5, 35, 20],
 ];
 
+/** Item feel numbers (GDD 4), owned by the items-ai lane. Times in s, distances in m, speeds in m/s. */
+export const ITEMS = {
+  hairball: { speed: 45, life: 4, bounces: 3, radius: 1.5, spawn: 2.4, ownerImmune: 0.4, align: 1.2 },
+  /** thrown forward: a homing yarn ball that runs along the road at the kart ahead (GDD deviation, see LANES.md) */
+  yarnBall: { speedMin: 38, speedTop: 1.55, life: 5, radius: 1.5, lockRange: 45, lateral: 14 },
+  /** dropped behind: a tangle on the road */
+  trap: { life: 30, max: 12, radius: 1.45, drop: 2.6, ownerImmune: 0.5 },
+  cucumber: { lob: 18, flight: 0.6, ownerPass: 2.5 },
+  box: { time: 3 },
+  bell: { radius: 25 },
+  zoomies: { time: 3, knock: 2.3 },
+  laser: { speedMult: 1.5, warn: 1.5, cooldown: 10, life: 20 },
+} as const;
+
 // ---------------------------------------------------------------------------------------------
 // AI (GDD 5)
 // ---------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
