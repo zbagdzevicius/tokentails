@@ -4,11 +4,13 @@
  * basin beside the splash zone. One merged toon mesh plus the start banner.
  */
 import { DoubleSide, Group, Mesh } from 'three';
-import type { BuiltTrack } from '../build';
+import { outerWall, type BuiltTrack } from '../build';
+import { inWindow } from '../branch';
 import type { Theme } from '../themes';
 import { GeoBuilder, hash01 } from '../../render/geo';
 import { toonMaterial } from '../../render/toon';
-import { scatter, startGantry } from './common';
+import { branchSigns, scatter, startGantry } from './common';
+import { t as tr } from '../../../ui/i18n';
 
 const MUGS = [0xf25c3b, 0x3bb273, 0x3aa8ff, 0xffc93c, 0xfff3dc];
 
@@ -51,8 +53,10 @@ export function dressKitchen(t: BuiltTrack, theme: Theme): Group {
   const SLAB = 8.6;
   const reach = Math.ceil(SLAB / 2 / t.step);
   for (let i = 0; i < t.n; i += 16) {
+    // not where a branch meets the road (its deck is lower there, and the walls are the union of both roads)
+    if (t.branches.some((b) => inWindow(t, b, i))) continue;
     const ry = Math.atan2(t.tx[i], t.tz[i]);
-    const w = (Math.max(t.wallL[i], t.wallR[i]) + 1.2) * 2;
+    const w = (outerWall(t, i) + 1.2) * 2;
     let low = Infinity;
     for (let k = -reach; k <= reach; k++) {
       const j = (i + k + t.n) % t.n;
@@ -119,10 +123,28 @@ export function dressKitchen(t: BuiltTrack, theme: Theme): Group {
     if (hash01(n * 97) > 0.7) g.sphere(1.2, 0xffc93c, { x: s.x + 4, y: 1.1, z: s.z - 3 }, undefined, 8, 6); // a lemon
   });
 
+  // crumbs strewn over the crumb cut (flat road decals: it is off-road, not walls), a mesh of their own
+  const crumbs = new GeoBuilder();
+  for (const b of t.branches) {
+    for (let j = 0; j < b.m; j += 3) {
+      const u = j * b.step;
+      if (u < b.overlap || u > b.length - b.overlapEnd) continue;
+      for (let k = 0; k < 2; k++) {
+        const d = (hash01(j * 7 + k) - 0.5) * 2 * b.halfW[j];
+        crumbs.box(0.5 + hash01(j + k) * 0.6, 0.12, 0.4 + hash01(j * 3 + k) * 0.5, k ? 0xd9a35c : 0xf2d6b0, { x: b.px[j] - b.tz[j] * d, y: b.py[j] + 0.1, z: b.pz[j] + b.tx[j] * d, ry: j }, { vary: 0.05 });
+      }
+    }
+  }
+  branchSigns(t, g, theme, group, (b) => tr(b.label));
   startGantry(t, g, theme, group);
   const mesh = new Mesh(g.build(), toonMaterial({ vertexColors: true, side: DoubleSide }));
   mesh.name = 'kitchen-props';
   mesh.receiveShadow = true;
   group.add(mesh);
+  if (crumbs.vertexCount) {
+    const c = new Mesh(crumbs.build(), toonMaterial({ vertexColors: true }));
+    c.name = 'kitchen-crumbs';
+    group.add(c);
+  }
   return group;
 }

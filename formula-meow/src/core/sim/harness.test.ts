@@ -11,7 +11,7 @@ describe('stabilise harness', () => {
   it('72 races: no laser multi-hits, bump or overtake spam, finish mismatches or 50cc DNFs; < 3 head-on wall hits a race; no progress jumps', () => {
     const r = runHarness(TRACKS, [0, 1, 2], 12);
     if (process.env.FM_HARNESS_PRINT) console.log(formatHarness(r));
-    expect(r.races).toBe(72);
+    expect(r.races).toBe(TRACKS.length * 36); // [tracks lane] 2 tracks × 3 classes × 12 seeds became 6 tracks
     expect(r.laserMultiHits).toBe(0);
     expect(r.bumpSpam).toBe(0);
     expect(r.overtakeSpam).toBe(0);

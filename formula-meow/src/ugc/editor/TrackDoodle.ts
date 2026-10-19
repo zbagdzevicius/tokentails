@@ -14,6 +14,7 @@ import { modal } from '../../ui/kit';
 import { TRACK } from '../../tuning';
 import { densePolyline } from '../../core/track/spline';
 import { themeOf } from '../../core/track/themes';
+import { t as tr } from '../../ui/i18n';
 import type { BuiltTrack } from '../../core/track/build';
 import { firstMessage, lapsFor, LIMITS, validateTrack, type Validation } from './validate';
 import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, sToSample, starterFeatures, type P2 } from './doodle';
@@ -47,15 +48,25 @@ const STICKERS: ReadonlyArray<{ kind: FeatureKind; icon: string; label: string; 
   { kind: 'ramp', icon: '⤴️', label: 'Ramp', sided: true },
   { kind: 'lowgrip', icon: '💧', label: 'Puddle', sided: false },
   { kind: 'offroad', icon: '🌿', label: 'Rough', sided: true },
+  // iteration 2 (tracks lane, B54): real again. Hazard: centred = a roomba crossing the road, on a side = spilled
+  // milk there. Shortcut: on a corner, an off-road short cut across its inside (a verge when the corner is too gentle)
+  { kind: 'hazard', icon: '⚠️', label: 'Hazard', sided: true },
+  { kind: 'shortcut', icon: '✂️', label: 'Shortcut', sided: true },
 ];
 const ICON: Record<FeatureKind, string> = { start: '🏁', items: '🎁', pad: '⚡', ramp: '⤴️', lowgrip: '💧', offroad: '🌿', hazard: '⚠️', shortcut: '✂️' };
-const SIDED = new Set<FeatureKind>(['pad', 'ramp', 'offroad', 'shortcut']);
+const SIDED = new Set<FeatureKind>(['pad', 'ramp', 'offroad', 'shortcut', 'hazard']);
 const THEMES: ReadonlyArray<{ id: ThemeId; label: string }> = [
   { id: 0, label: '🍳 Kitchen' },
   { id: 1, label: '🌃 Rooftops' },
   { id: 2, label: '🧺 Laundry' },
   { id: 3, label: '🧶 Yarn' },
+  // iteration 2: these three need track code v2 (codec/track-code.ts)
+  { id: 4, label: '☕ Café' },
+  { id: 5, label: '🐾 Shelter' },
+  { id: 6, label: '🛋️ Living room' },
 ];
+/** Night themes (rooftops, café) race after dark. */
+const nightOf = (theme: ThemeId): 0 | 2 => (theme === 1 || theme === 4 ? 2 : 0);
 const WIDTHS = ['S', 'M', 'L', 'XL'] as const;
 /** world half-extent shown on the map */
 const VIEW = 134;
@@ -68,7 +79,7 @@ const clone = (d: TrackDef): TrackDef => JSON.parse(JSON.stringify(d)) as TrackD
 
 function emptyDef(theme: ThemeId): TrackDef {
   const me = loadCreator();
-  const d: TrackDef = { v: 1, id: 'draft', name: '', theme, timeOfDay: theme === 1 ? 2 : 0, laps: 3, points: [], features: [] };
+  const d: TrackDef = { v: 1, id: 'draft', name: '', theme, timeOfDay: nightOf(theme), laps: 3, points: [], features: [] };
   if (me) d.creator = me;
   return d;
 }
@@ -419,7 +430,8 @@ export class TrackDoodle {
     } else if (this.tab === 'stickers') {
       const tray = el('div', 'fm-ed-tray');
       for (const s of STICKERS) {
-        const b = el('button', 'fm-ed-stk fm-sticker', `<span>${s.icon}</span><small>${s.label}</small>`);
+        const b = el('button', 'fm-ed-stk fm-sticker', `<span>${s.icon}</span><small>${tr(s.kind === 'hazard' ? 'editor.sticker.hazard' : s.kind === 'shortcut' ? 'editor.sticker.shortcut' : s.label)}</small>`);
+        if (s.kind === 'hazard' || s.kind === 'shortcut') b.title = tr(`editor.sticker.${s.kind}Hint`);
         b.dataset.kind = s.kind;
         b.addEventListener('pointerdown', (e) => this.startTrayDrag(e, s.kind));
         tray.append(b);
@@ -432,7 +444,7 @@ export class TrackDoodle {
         b.addEventListener('click', () => {
           this.commit((d) => {
             d.theme = t.id;
-            d.timeOfDay = t.id === 1 ? 2 : 0;
+            d.timeOfDay = nightOf(t.id);
           });
           this.renderPanel();
         });
@@ -626,7 +638,7 @@ export class TrackDoodle {
     // zones
     for (const f of t.features) {
       if (f.kind === 'lowgrip') this.ribbon(t, -0.5, 'rgba(127,211,255,0.75)', f.i, f.i + Math.round(36 / t.step));
-      if (f.kind === 'offroad' || f.kind === 'shortcut') {
+      if (f.kind === 'offroad' || (f.kind === 'shortcut' && !t.branches.length)) {
         const len = Math.round(46 / t.step);
         c.fillStyle = 'rgba(90,150,60,0.55)';
         for (let k = f.i; k < f.i + len; k += 4) {
@@ -640,6 +652,27 @@ export class TrackDoodle {
           }
         }
       }
+    }
+    // short cuts (UGC shortcut stickers become off-road branches): crumbly ribbons across the corner
+    for (const b of t.branches) {
+      c.fillStyle = 'rgba(150,110,60,0.85)';
+      c.beginPath();
+      for (let j = 0; j < b.m; j += 2) {
+        const x = b.px[j] + b.tz[j] * b.halfW[j];
+        const z = b.pz[j] - b.tx[j] * b.halfW[j];
+        if (j === 0) c.moveTo(this.sx(x), this.sy(z));
+        else c.lineTo(this.sx(x), this.sy(z));
+      }
+      for (let j = b.m - 1; j >= 0; j -= 2) c.lineTo(this.sx(b.px[j] - b.tz[j] * b.halfW[j]), this.sy(b.pz[j] + b.tx[j] * b.halfW[j]));
+      c.closePath();
+      c.fill();
+    }
+    // hazards: a roomba disc or a milk puddle where they will be
+    for (const h of t.hazards) {
+      c.fillStyle = h.kind === 'milk' ? 'rgba(255,255,255,0.9)' : 'rgba(60,64,74,0.9)';
+      c.beginPath();
+      c.arc(this.sx(h.x), this.sy(h.z), Math.max(4, (h.kind === 'milk' ? 3.4 : 1.2) * this.scale), 0, Math.PI * 2);
+      c.fill();
     }
     // direction chevrons every ~40 m
     c.strokeStyle = th.night ? 'rgba(44,246,243,0.7)' : 'rgba(255,255,255,0.85)';

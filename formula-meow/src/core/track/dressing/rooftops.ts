@@ -10,7 +10,8 @@ import type { Theme } from '../themes';
 import { GeoBuilder, hash01 } from '../../render/geo';
 import { toonMaterial } from '../../render/toon';
 import { TriBuilder } from '../mesh';
-import { clearance, scatter, sign, startGantry, stars } from './common';
+import { branchSigns, branchSupports, clearance, scatter, sign, startGantry, stars } from './common';
+import { t as tr } from '../../../ui/i18n';
 
 const BUILDING = [0x2c2350, 0x352a5e, 0x3d2f66, 0x2a2048, 0x40336e];
 const WINDOW = [0xffd27a, 0xff9fd0, 0x9ff5ff, 0xfff3dc];
@@ -105,27 +106,28 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
     }
   }
 
-  // billboard at the off-road corner cut
-  const cut = t.features.find((f) => f.kind === 'offroad' || f.kind === 'shortcut');
-  if (cut) {
-    const i = (cut.i + Math.round(23 / t.step)) % t.n;
-    const side = cut.side === 0 ? -1 : cut.side;
-    // clear of the widest wall nearby (the off-road cut pushes the wall out; B14: props stay outside every wall)
-    let wmax = 0;
-    for (let k = -80; k <= 80; k++) {
-      const j = (i + k + t.n) % t.n;
-      wmax = Math.max(wmax, side > 0 ? t.wallR[j] : t.wallL[j]);
-    }
-    const off = wmax + 6; // the poles stand 5 m either side along a bend
-    const x = t.px[i] - t.tz[i] * off * side;
-    const z = t.pz[i] + t.tx[i] * off * side;
-    const ry = Math.atan2(t.tx[i], t.tz[i]) + Math.PI / 2;
-    for (const k of [-1, 1]) g.cylUp(0.3, 0.3, 9, 6, 0x6b5f8a, { x: x + Math.cos(ry) * 5 * k, y: t.py[i], z: z - Math.sin(ry) * 5 * k });
-    const s = sign(['MEOW', 'FASTER'], 12, 5, x, t.py[i] + 11.5, z, ry, { bg: '#1a1238', fg: '#2cf6f3', glow: '#2cf6f3' });
+  // the billboard cut: buildings under the alley, and the big neon billboard beside it
+  branchSupports(t, g, ROOF_GROUND, BUILDING[2]);
+  for (const br of t.branches) {
+    const j = br.m >> 1;
+    const rx = -br.tz[j];
+    const rz = br.tx[j];
+    // on the alley's side away from the main road
+    const toMain = (t.px[br.mapI[j]] - br.px[j]) * rx + (t.pz[br.mapI[j]] - br.pz[j]) * rz > 0 ? 1 : -1;
+    const off = -(Math.max(br.ownL[j], br.ownR[j]) + 6) * toMain;
+    const x = br.px[j] + rx * off;
+    const z = br.pz[j] + rz * off;
+    if (clearance(t, x, z) < 4) continue;
+    const ry = Math.atan2(br.tx[j], br.tz[j]) + Math.PI / 2;
+    const y = br.py[j];
+    g.boxUp(16, y - ROOF_GROUND, 6, BUILDING[3], { x, y: ROOF_GROUND, z, ry: ry - Math.PI / 2 });
+    for (const k of [-1, 1]) g.cylUp(0.3, 0.3, 9, 6, 0x6b5f8a, { x: x + Math.cos(ry) * 5 * k, y, z: z - Math.sin(ry) * 5 * k });
+    const s = sign([tr('sign.billboard1'), tr('sign.billboard2')], 12, 5, x, y + 11.5, z, ry, { bg: '#1a1238', fg: '#2cf6f3', glow: '#2cf6f3' });
     if (s) group.add(s);
-    neonBar(lit, x, t.py[i] + 14.2, z, ry, 12.4, theme.neonA);
-    neonBar(lit, x, t.py[i] + 8.8, z, ry, 12.4, theme.neonA);
+    neonBar(lit, x, y + 14.2, z, ry, 12.4, theme.neonA);
+    neonBar(lit, x, y + 8.8, z, ry, 12.4, theme.neonA);
   }
+  branchSigns(t, g, theme, group, (b) => tr(b.label));
 
   pinkPawGarage(t, g, lit, group);
   startGantry(t, g, theme, group);

@@ -19,8 +19,9 @@ import {
   SphereGeometry,
   SRGBColorSpace,
 } from 'three';
-import { cellKey, type BuiltTrack } from '../build';
+import { cellKey, outerWall, type BuiltBranch, type BuiltTrack } from '../build';
 import { nearestSample } from '../query';
+import { inWindow } from '../branch';
 import type { Theme } from '../themes';
 import { GeoBuilder, hash01 } from '../../render/geo';
 
@@ -37,15 +38,27 @@ export function clearance(t: BuiltTrack, x: number, z: number): number {
       for (const i of list) {
         const dx = x - t.px[i];
         const dz = z - t.pz[i];
-        const c = Math.sqrt(dx * dx + dz * dz) - Math.max(t.wallL[i], t.wallR[i]) - 0.6;
+        const c = Math.sqrt(dx * dx + dz * dz) - outerWall(t, i) - 0.6;
         if (c < best) best = c;
       }
     }
-  if (best < Infinity) return best;
-  const i = nearestSample(t, x, z, -1);
-  const dx = x - t.px[i];
-  const dz = z - t.pz[i];
-  return Math.sqrt(dx * dx + dz * dz) - Math.max(t.wallL[i], t.wallR[i]) - 0.6;
+  if (best === Infinity) {
+    const i = nearestSample(t, x, z, -1);
+    const dx = x - t.px[i];
+    const dz = z - t.pz[i];
+    best = Math.sqrt(dx * dx + dz * dz) - outerWall(t, i) - 0.6;
+  }
+  // alternative routes count as road too
+  for (const b of t.branches) {
+    if (x < b.minX - 60 || x > b.maxX + 60 || z < b.minZ - 60 || z > b.maxZ + 60) continue;
+    for (let j = 0; j < b.m; j += 2) {
+      const dx = x - b.px[j];
+      const dz = z - b.pz[j];
+      const c = Math.sqrt(dx * dx + dz * dz) - Math.max(b.ownL[j], b.ownR[j]) - 0.6;
+      if (c < best) best = c;
+    }
+  }
+  return best;
 }
 
 /** Deterministic scatter of `count` spots with at least `margin` clearance, within radius `r` of the origin. */
@@ -104,7 +117,7 @@ export function sign(lines: string[], w: number, h: number, x: number, y: number
 /** The start gantry: two posts and a banner across the start line. */
 export function startGantry(t: BuiltTrack, g: GeoBuilder, theme: Theme, group: Group): void {
   const i = 4;
-  const hw = Math.max(t.wallL[i], t.wallR[i]) + 1.0; // posts clear of the barrier (B14)
+  const hw = outerWall(t, i) + 1.0; // posts clear of the barrier (B14)
   const rx = -t.tz[i];
   const rz = t.tx[i];
   const y = t.py[i];
@@ -159,4 +172,93 @@ export function stars(count: number, seed: number): Points {
   s.name = 'stars';
   s.frustumCulled = false;
   return s;
+}
+
+/**
+ * Route signs at every branch (iteration 2): an arrow board on two posts in the gore where the branch leaves the
+ * main road, readable from the approach, with the branch's name. One sign mesh per branch.
+ */
+export function branchSigns(t: BuiltTrack, g: GeoBuilder, theme: Theme, group: Group, label: (b: BuiltBranch) => string): void {
+  for (const b of t.branches) {
+    // the first spot past the fork with room for the board between the roads (else on the branch's far side)
+    let j = -1;
+    let i = 0;
+    let x = 0;
+    let z = 0;
+    const start = Math.round(b.overlap / b.step);
+    for (const far of [false, true]) {
+      for (let jj = start; jj < b.m / 2 && j < 0; jj += 4) {
+        const ii = nearestSample(t, b.px[jj], b.pz[jj], b.mapI[jj]);
+        let dx = t.px[ii] - b.px[jj];
+        let dz = t.pz[ii] - b.pz[jj];
+        const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+        dx /= dist;
+        dz /= dist;
+        const off = (Math.max(b.ownL[jj], b.ownR[jj]) + 3.8) * (far ? -1 : 1);
+        const cx = b.px[jj] + dx * off;
+        const cz = b.pz[jj] + dz * off;
+        if (clearance(t, cx, cz) < 3) continue;
+        j = jj;
+        i = ii;
+        x = cx;
+        z = cz;
+      }
+      if (j >= 0) break;
+    }
+    if (j < 0) continue;
+    const y = Math.min(b.py[j], t.py[i]);
+    const ry = Math.atan2(b.tx[j], b.tz[j]) + Math.PI;
+    for (const s of [-1, 1]) g.cylUp(0.18, 0.18, 4.2, 6, 0x5a4a4a, { x: x + Math.cos(ry) * 1.6 * s, y, z: z - Math.sin(ry) * 1.6 * s });
+    g.box(4.4, 1.9, 0.25, theme.accent, { x, y: y + 4.3, z, ry }, { vary: 0 });
+    // the arrow points from the main road toward the branch, as seen by a kart coming up to the fork (the board's
+    // local +x is on the viewer's right)
+    const toward = (b.px[j] - t.px[i]) * Math.cos(ry) - (b.pz[j] - t.pz[i]) * Math.sin(ry) > 0 ? 1 : -1;
+    const text = toward > 0 ? `${label(b)}  ▶` : `◀  ${label(b)}`;
+    const s = sign([text], 4.1, 1.6, x - Math.sin(ry) * 0.14, y + 4.3, z - Math.cos(ry) * 0.14, ry, { bg: '#fff3dc', fg: '#2a1a22' });
+    if (s) group.add(s);
+  }
+}
+
+/**
+ * Slabs under every raised stretch of the main road (a cutting board, a folding table, a mesa top): one box per
+ * `every` metres, topped just under the LOWEST road surface over its footprint (a banked turn or a climb never lets a
+ * corner poke through the road, B14), skipped where a branch meets the road.
+ */
+export function raisedDeck(t: BuiltTrack, g: GeoBuilder, opt: { minY: number; color: number; every?: number; inset?: number; vary?: number }): void {
+  const slab = opt.every ?? 8.6;
+  const reach = Math.ceil(slab / 2 / t.step);
+  const stride = Math.round(slab / t.step);
+  for (let i = 0; i < t.n; i += stride) {
+    if (t.branches.some((b) => inWindow(t, b, i)) || t.voidMask[i]) continue;
+    const ry = Math.atan2(t.tx[i], t.tz[i]);
+    const w = (outerWall(t, i) + (opt.inset ?? 1.2)) * 2;
+    let low = Infinity;
+    for (let k = -reach; k <= reach; k++) {
+      const j = (i + k + t.n) % t.n;
+      low = Math.min(low, t.py[j] - (w / 2) * Math.abs(t.bank[j]));
+    }
+    if (low < opt.minY) continue;
+    g.boxUp(w, low - 0.15, slab + 0.2, opt.color, { x: t.px[i], y: 0, z: t.pz[i], ry }, { vary: opt.vary ?? 0.05 });
+  }
+}
+
+/** Piers under an elevated branch deck down to `groundY` (rooftop alleys, decks over the floor). */
+export function branchSupports(t: BuiltTrack, g: GeoBuilder, groundY: number, color: number): void {
+  for (const b of t.branches) {
+    for (let j = 0; j < b.m; j += Math.round(9 / b.step)) {
+      const top = b.py[j] - 0.3;
+      if (top - groundY < 1.2) continue;
+      const w = (b.halfW[j] + 1.5) * 2;
+      const ry = Math.atan2(b.tx[j], b.tz[j]);
+      g.boxUp(w, top - groundY, 2.2, color, { x: b.px[j], y: groundY, z: b.pz[j], ry }, { vary: 0.03 });
+    }
+  }
+}
+
+/** A flat glowing rectangle facing yaw `ry` (displays, neon tubes). */
+export function glowQuad(b: { quad(a: [number, number, number], b: [number, number, number], c: [number, number, number], d: [number, number, number], col: number): void }, x: number, y: number, z: number, ry: number, w: number, h: number, col: number): void {
+  const c = Math.cos(ry);
+  const s = Math.sin(ry);
+  const p = (u: number, v: number): [number, number, number] => [x + u * c, y + v, z - u * s];
+  b.quad(p(-w / 2, -h / 2), p(w / 2, -h / 2), p(w / 2, h / 2), p(-w / 2, h / 2), col);
 }
