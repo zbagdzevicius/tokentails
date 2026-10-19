@@ -8,6 +8,7 @@ import { AI } from '../../tuning';
 import { atan2L, clamp, cosL, sinL, wrapAngle } from './fixed';
 import { speedOf } from './kart';
 import type { SimContext } from './plugins';
+import { branchSteer, routeCurvature } from '../track/branch-ai'; // [tracks lane] alternative routes
 
 export const STEER_GAIN = 2.4;
 
@@ -19,6 +20,9 @@ export function aheadIndex(ctx: SimContext, si: number, metres: number): number 
 
 /** Average signed curvature over [from, to] metres ahead (1/m, + = left). */
 export function curvatureAhead(ctx: SimContext, si: number, from: number, to: number): number {
+  // [tracks lane] on (or heading for) a branch, the bends of the branch (core/track/branch-ai.ts)
+  const viaBranch = routeCurvature(ctx, si, from, to);
+  if (viaBranch !== null) return viaBranch;
   const t = ctx.track;
   const a = Math.round(from / t.step);
   const b = Math.max(a + 1, Math.round(to / t.step));
@@ -33,6 +37,9 @@ export function curvatureAhead(ctx: SimContext, si: number, from: number, to: nu
  * `AI.edge` inside the road edge.
  */
 export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale = 1): number {
+  // [tracks lane] on a branch, or heading for one this kart chose: steer along the branch (core/track/branch-ai.ts)
+  const viaBranch = branchSteer(ctx, idx, out, bias, lookScale);
+  if (viaBranch !== null) return viaBranch;
   const t = ctx.track;
   const k = ctx.st.karts[idx];
   const sp = speedOf(k);

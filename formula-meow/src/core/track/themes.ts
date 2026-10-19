@@ -1,6 +1,6 @@
 /**
- * Theme palettes (GDD 6.1). Colours are sRGB 0xRRGGBB. Laundry, Yarn, Café, Shelter and the Rug arena are first
- * passes; the tracks lane owns their polish (iteration 2).
+ * Theme palettes (GDD 6.1). Colours are sRGB 0xRRGGBB. One per theme (0 kitchen, 1 rooftops, 2 laundry, 3 yarn canyon,
+ * 4 café, 5 shelter, 6 the battle rug); the road always reads darker than the floor round it.
  */
 import type { ThemeId } from '../../types';
 
@@ -104,10 +104,10 @@ export const THEMES: Record<ThemeId, Theme> = {
     fog: 0xeef2ff,
     fogNear: 120,
     fogFar: 420,
-    ground: 0xe8eef6,
-    groundB: 0xdfe6f0,
-    road: 0xb7c3e0,
-    roadB: 0xadb9d6,
+    ground: 0xeef2f8,
+    groundB: 0xdde5f2,
+    road: 0x8e9cc8,
+    roadB: 0x8794bf,
     line: 0xffffff,
     curbA: 0x9fd3ff,
     curbB: 0xffffff,
@@ -166,8 +166,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     fogFar: 380,
     ground: 0x6b4430,
     groundB: 0x5e3b29,
-    road: 0x8c6a55,
-    roadB: 0x83614d,
+    road: 0x4b3a5e,
+    roadB: 0x45355a,
     line: 0xffe6b0,
     curbA: 0xffc93c,
     curbB: 0xfff3dc,

@@ -3,7 +3,7 @@
  * base64url. A 24-point track with 12 stickers, both names, a parent key and a lap time stays at or under 140 chars.
  *
  * Layout (MSB first):
- *   version:4 (=1)  theme:2  timeOfDay:2  fiveLaps:1  pointCount-1:5
+ *   version:4 (=1, or 2 for themes 4–6)  theme:2 (v2: 3)  timeOfDay:2  fiveLaps:1  pointCount-1:5
  *   per point: x:6 z:6 (4 m grid steps + 32, so -128..124 m)  h:3  w:2
  *   featureCount:5, per feature: s:8 kind:3 (FEATURE_KINDS index) side:2 (0 centre, 1 left, 2 right)
  *   props: 3 × 4 (0 = empty)
@@ -13,6 +13,10 @@
  *
  * Names go through the copied text filter on encode AND decode, and the decoder runs the validator, so a
  * hand-made code can only open a drivable, filtered track.
+ *
+ * v2 (iteration 2, tracks lane) differs only in the theme field (3 bits, for the café, shelter and living-room themes);
+ * a track on themes 0–3 still encodes as v1 byte for byte, and every v1 code decodes as before. The hazard and
+ * shortcut stickers always fitted the 3-bit kind field; they now build a real hazard and branch.
  */
 import { FEATURE_KINDS, type FeatureKind, type ThemeId, type TrackDef, type TrackFeature, type TrackPoint } from '../../types';
 import { BitReader, BitWriter } from './bits';
@@ -23,6 +27,8 @@ import { validateTrack } from '../editor/validate';
 import type { DecodeResult, TrackCodec } from './track-codec';
 
 export const TRACK_CODE_VERSION = 1;
+/** v2: a 3-bit theme (4 café, 5 shelter, 6 living room); 7 is reserved and refused */
+export const TRACK_CODE_VERSION_V2 = 2;
 export const NAME_MAX = 16;
 export const CREATOR_MAX = 10;
 /** 64 symbols, 6 bits each. Accents are folded (ž → z); anything else is dropped. */
@@ -57,8 +63,9 @@ const sideBits = (side: TrackFeature['side']): number => (side === -1 ? 1 : side
 /** Encode without any check (the editor encodes drafts too); names are cleaned. */
 export function encodeTrackBytes(def: TrackDef, opts: { creatorLapCs?: number; noLap?: boolean } = {}): Uint8Array {
   const w = new BitWriter();
-  w.write(TRACK_CODE_VERSION, 4);
-  w.write(def.theme & 3, 2);
+  const v2 = def.theme > 3;
+  w.write(v2 ? TRACK_CODE_VERSION_V2 : TRACK_CODE_VERSION, 4);
+  w.write(v2 ? Math.min(6, def.theme) : def.theme & 3, v2 ? 3 : 2);
   w.write(Math.max(0, Math.min(2, def.timeOfDay)), 2);
   w.write(def.laps === 5 ? 1 : 0, 1);
   const pts = def.points.slice(0, 32);
@@ -131,8 +138,10 @@ export function decodeTrackCode(code: string, opts: { validate?: boolean } = {})
   let def: TrackDef;
   let lap: number | undefined;
   try {
-    if (r.read(4) !== TRACK_CODE_VERSION) return { ok: false, reason: 'version' };
-    const theme = r.read(2) as ThemeId;
+    const version = r.read(4);
+    if (version !== TRACK_CODE_VERSION && version !== TRACK_CODE_VERSION_V2) return { ok: false, reason: 'version' };
+    const theme = r.read(version === TRACK_CODE_VERSION_V2 ? 3 : 2) as ThemeId;
+    if (version === TRACK_CODE_VERSION_V2 && (theme < 4 || theme > 6)) return { ok: false, reason: 'invalid' };
     const tod = r.read(2);
     if (tod > 2) return { ok: false, reason: 'invalid' };
     const laps = r.read(1) ? 5 : 3;
@@ -154,7 +163,7 @@ export function decodeTrackCode(code: string, opts: { validate?: boolean } = {})
       if (sb === 3) return { ok: false, reason: 'invalid' };
       const f: TrackFeature = { s, kind };
       if (sb) f.side = sb === 1 ? -1 : 1;
-      else if (kind === 'pad' || kind === 'ramp' || kind === 'offroad' || kind === 'shortcut') f.side = 0;
+      else if (kind === 'pad' || kind === 'ramp' || kind === 'offroad' || kind === 'shortcut' || kind === 'hazard') f.side = 0;
       features.push(f);
     }
     const props: number[] = [];
