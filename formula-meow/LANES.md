@@ -72,14 +72,27 @@ Owns `src/ugc/**`.
   garage (`KartLook.body` 0..2 already renders three bodies in `core/render/kart-view.ts`).
 
 ### share
-Owns `src/share/**` and the integration outside the package.
-- `share/hooks.ts` `setShareHooks({ onResult, resolveRoute })`: `onResult` gets `{ result, replay, cfg, events }`
-  and may return extra result-screen buttons and lines; `resolveRoute(location)` turns `/meow-race/r#…` etc. into a
-  race setup.
-- `share/pinkpaw/pink-paw.ts` is the copied snapshot (status date shown on the results screen).
-- Outside the package (not done yet): `meowRaceRewrites` in `client/next.config.js` modelled on the badcat block,
-  the committed `client/public/formula-meow-game/` build (`npm run build:client`), og pages, rows in the root
-  `CLAUDE.md` and `docs/CLIENT.md`.
+Owns `src/share/**`, `e2e/share.spec.ts`, `e2e/clip.spec.ts`, `tools/og-pages.mjs`, `tools/render-og.mjs`,
+`public/og/`, and the integration outside the package. Installed by `installShare(shell)` in `src/lanes.ts`.
+- `share/hooks.ts` `setShareHooks({ onResult, resolveRoute, playerRacer })`: `onResult` gets `{ result, replay, cfg,
+  events }` and returns the result-screen buttons (index 0 is the clip button) and lines; `resolveRoute` turns the
+  URL into a race setup; `playerRacer` gives the shell the saved cat for the player slot (the one shell line marked
+  "share lane" in `core/app/shell.ts`).
+- Dares: `codec/ghost-codec.ts` (setup header readable synchronously + RLE input runs, deflate-raw, CRC-16,
+  base64url), `links/link.ts` (routes: `/meow-race/r#g=…&c=…&n=…`, `/meow-race/d/<n>`, `?g=` / `?daily=` anywhere),
+  `links/ghost-runner.ts` (shadow `SimWorld` in lockstep, translucent kart + name tag, recomputed ghost time),
+  `links/rivalry.ts` (device-only ledger).
+- Clip: `clip/highlight.ts` (score + shot plan), `clip/clip-job.ts` (re-sim, offscreen 720×1280 render, captions),
+  `clip/clip-audio.ts` (offline synth track), copied `clip/encoder-webcodecs.ts` (mediabunny, lazy). Fallback:
+  `cards/result-card.ts` PNG. `links/share-sheet.ts` is the copied native share / download / long-press chain.
+- Daily Cup: `daily/daily.ts` (UTC day numbers from 2026-10-19, track rotation + mirror, seed, ranked run, streak).
+- Your cat: `yourcat/maker.ts` (photo → face oval → k-means coat + pattern guess, copied from bad-cat catmaker),
+  `yourcat/store.ts` (cat code + name + small face PNG in localStorage; the face never leaves the device).
+- Copy: `cards/card-text.ts` (no invented numbers, no money claims; `BANNED_CLAIMS` is tested).
+- Outside the package: `meowRaceRewrites` in `client/next.config.js`, the committed `client/public/formula-meow-game/`
+  build (`npm run og` then `npm run build:client`), rows in the root `CLAUDE.md` and `docs/CLIENT.md`.
+- Not done: UGC track links (`t=` is parsed but the shell only races authored track ids), `/meow-race/c/<cat>`,
+  the in-app browser handoff, consent-gated analytics.
 
 ## Checks
 

@@ -1070,3 +1070,37 @@ client app has no Bad Cat API routes.
 
 With accounts on, a ranked run is saved through `POST /user/catbassadors/live` with `type: 'BAD_CAT'` (the server
 replays it; docs/API.md "Scores"). That is still the only score write path; no Bad Cat route writes a score.
+
+## Formula Meow (/meow-race)
+
+Formula Meow is a separate Vite + three.js kart game (`formula-meow/`, design in `docs/plans/formula-meow/GDD.md`,
+lanes in `formula-meow/LANES.md`). The client only hosts its static build, served top level at `/meow-race` with no
+iframe, like Bad Cat Daily.
+
+**Hosting.** `formula-meow` builds into `client/public/formula-meow-game/` with the base `/formula-meow-game/`.
+The `meowRaceRewrites` block in `client/next.config.js` maps the public paths (web builds only; the Capacitor
+export has no rewrites):
+
+| Public path | File in `public/formula-meow-game/` |
+|---|---|
+| `/meow-race` | `index.html` |
+| `/meow-race/r#g=<ghost>&c=<cat>&n=<name>` | `r.html` (a dare: the ghost, cat code and name ride in the hash, so they never reach the server or its logs) |
+| `/meow-race/d/<n>` (1 to 4 digits) | `d.html` (Daily Cup day n; the game reads the day from the path) |
+| `/meow-race/<anything else>` | `/formula-meow-game/<anything else>` (bundle, `og/`) |
+
+Every page loads the same bundle; `r.html` and `d.html` only carry their own OG tags. The game moves no money: the
+result screen links to `/shelter-payouts` and to the Pink Paw cat pages, and the share texts say only that the rival
+cats are real Pink Paw shelter cats.
+
+**Build and deploy flow** (run inside `formula-meow/`; no backend is needed):
+
+1. `npm run og`: renders `public/og/og.png`, `r.png` and `d.png` (1200 × 630) from the game with Playwright
+   Chromium on its own Vite server (port 5176 to 5179). If no browser is installed, it prints a warning and exits 0.
+2. `npm run build:client`: Vite build into `client/public/formula-meow-game/`, then `node tools/og-pages.mjs` on that
+   output, which writes the tags of `index.html`, `r.html` and `d.html` (absolute image URLs from `MEOW_PUBLIC_URL`,
+   default `https://tokentails.com`). Re-running it gives the same files.
+3. Commit `client/public/formula-meow-game` and deploy the client.
+
+Build-only names: `MEOW_BASE` (Vite base; `build:client` sets `/formula-meow-game/`), `MEOW_PUBLIC_URL` (origin in the
+OG tags). The game reads no environment variables at runtime.
+

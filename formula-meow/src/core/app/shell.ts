@@ -143,7 +143,9 @@ export class Shell {
   start(setup: RaceSetup): void {
     this.teardown();
     this.setup = setup;
-    this.racers = buildField({ seed: setup.seed, cls: setup.cls, playerSlot: PLAYER_SLOT, playerName: 'You' });
+    // share lane: the player's own cat from the cat maker, when one is saved (share/hooks.ts playerRacer)
+    const own = shareHooks().playerRacer?.() ?? null;
+    this.racers = buildField({ seed: setup.seed, cls: setup.cls, playerSlot: PLAYER_SLOT, playerName: own?.name ?? 'You', playerCat: own?.cat });
     this.me = PLAYER_SLOT;
     const cfg: RaceConfig = {
       track: setup.track,
