@@ -3,7 +3,7 @@
  * Hooks are injected by the shell so this file never touches the sim or the camera class directly.
  */
 import type { RaceEvent } from '../types';
-import { DRIFT } from '../tuning';
+import { driftTierColors } from '../ui/a11y';
 import type { FrameInfo, JuiceListener } from './bus';
 import { vibrate } from './haptics';
 
@@ -36,7 +36,7 @@ export class StarterFeel implements JuiceListener {
         break;
       case 'miniTurbo':
         if (me) this.hooks.trauma(0.15);
-        this.hooks.burst(e.kart, DRIFT.colors[(e.a ?? 1) - 1], 14 + 8 * (e.a ?? 1), 7);
+        this.hooks.burst(e.kart, driftTierColors()[(e.a ?? 1) - 1], 14 + 8 * (e.a ?? 1), 7);
         break;
       case 'driftTier':
         if (me) vibrate(8);

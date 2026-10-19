@@ -16,17 +16,22 @@ export interface ClassTuning {
   topSpeed: number; // m/s, no boost
   zeroTo90: number; // s
   aiSkill: [number, number];
-  /** rubber band: AI may go this much slower (behind) / faster (ahead), fractions */
+  /** rubber band: an AI ahead of the player may go this much slower, one behind this much faster (fractions) */
   bandDown: number;
   bandUp: number;
-  /** AI top-speed scale before the rubber band: aiTop + AI.topSkill × skill (never above 1) */
+  /**
+   * AI top-speed scale before the rubber band, from the band's least skilled cat (`aiTop`) to its most skilled
+   * (`aiTopHi`), linear in skill (never above 1). The gap between them is what spreads the field out.
+   */
   aiTop: number;
+  aiTopHi: number;
 }
 
 export const CLASSES: readonly ClassTuning[] = [
-  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.55, 0.75], bandDown: 0.12, bandUp: 0.03, aiTop: 0.86 },
-  { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.7, 0.85], bandDown: 0.05, bandUp: 0.05, aiTop: 0.89 },
-  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.82, 0.95], bandDown: 0.05, bandUp: 0.05, aiTop: 0.9 },
+  // skill bands are 1.6× wider than v1 (feel lane): the field spreads out instead of driving as one pack
+  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.78, aiTopHi: 0.99 },
+  { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.66, 0.9], bandDown: 0.03, bandUp: 0.04, aiTop: 0.82, aiTopHi: 1 },
+  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.84, 1], bandDown: 0.01, bandUp: 0.045, aiTop: 0.78, aiTopHi: 1 },
 ];
 
 export function classTuning(cls: RaceClass): ClassTuning {
@@ -115,12 +120,15 @@ export const DRIFT = {
   minSteer: 0.3,
   /** s after the hop in which a held drift still starts once steering passes minSteer */
   entryWindow: 0.4,
-  /** charge time per tier, s */
-  tiers: [0.6, 1.2, 2.0],
+  /** charge time per tier, s (iteration 2: reachable in normal bends) */
+  tiers: [0.5, 1.0, 1.7],
   /** boost duration per tier, s */
-  boost: [0.5, 0.9, 1.4],
+  boost: [0.6, 1.0, 1.5],
   level: 1.3,
-  tightFactor: 1.25,
+  /** charge rate steering into the turn (tight) and out of it (wide) */
+  tightFactor: 1.5,
+  /** steer into the drift (0..1 of lock) above which the tight rate applies */
+  tightSteer: 0.5,
   wideFactor: 0.75,
   slipMin: 15 * DEG,
   slipMax: 35 * DEG,
@@ -238,21 +246,36 @@ export const ITEMS = {
 export const AI = {
   lookMin: 8,
   lookMax: 18,
-  /** base top-speed scale = class aiTop + topSkill·skill, then the rubber band, never above 1 unless boosting */
-  topSkill: 0.1,
   /** rubber band gain per metre of gap to the player */
   bandK: 0.003,
   /** drift where the turn ahead exceeds this curvature (1/m) */
   driftCurv: 0.035,
+  /** the drift curvature threshold scales by (1.25 − driftSkill × skill): skilled cats drift gentler bends */
+  driftSkill: 0.4,
   /** the line target stays this far inside the road edge (B15) */
   edge: 1.5,
   /** look-ahead time (s) for the line target, clamped to lookMin..lookMax metres */
   lookTime: 0.6,
   /** lateral acceleration an AI corners at without drifting, m/s²: it lifts above it (B15) */
   cornerAccel: 34,
+  /** skilled cats carry more speed through bends: cornerAccel × (1 + cornerSkill × (skill − 0.7)) */
+  cornerSkill: 1.5,
   /** AI with skill ≥ padSkill aims at a boost pad within padLook metres (B16) */
   padSkill: 0.5,
   padLook: 40,
+  /** chance of a ramp trick = trickBase + (1 − trickBase) × skill */
+  trickBase: 0.2,
+  /**
+   * Mistakes (low skill): per tick chance `mistakeRate × mistakeChance` of running wide for `wideTime` s, and per
+   * drift a `(1 − skill) × missTurbo` chance of letting go before the first tier (no mini-turbo).
+   */
+  mistakeChance: 0.006,
+  wideTime: 0.4,
+  missTurbo: 0.35,
+  /** AI fights: how eager an AI is to use items when it is far ahead of the player (1 = as eager as near) */
+  farAheadEager: 0.75,
+  /** the player's rival (RacerInfo.rival): top scale bonus, its own rubber band up, item eagerness at the player */
+  rival: { top: 0.04, bandUp: 0.08, eager: 2, grudge: 20 },
 } as const;
 
 // ---------------------------------------------------------------------------------------------

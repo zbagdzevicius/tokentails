@@ -40,7 +40,7 @@ describe('kart physics (GDD 3.3–3.6)', () => {
     }
   });
 
-  it('drift charges blue / orange / pink at 0.6 / 1.2 / 2.0 s and releases the tier boost', () => {
+  it('drift charges blue / orange / pink at 0.5 / 1.0 / 1.7 s and releases the tier boost', () => {
     const w = lot(0);
     toGo(w);
     for (let i = 0; i < 120; i++) w.step([input({ gas: true })]);
@@ -67,10 +67,27 @@ describe('kart physics (GDD 3.3–3.6)', () => {
     for (let i = 0; i < 120; i++) w.step([input({ gas: true })]);
     const k = w.st.karts[0];
     w.step([input({ gas: true, drift: true, steer: 5 })]);
-    for (let i = 0; i < 20; i++) w.step([input({ gas: true, drift: true, steer: 5 })]);
+    // steering into the turn charges 1.5× faster: blue comes at 0.5 s / 1.5 = 20 ticks, so let go at 15
+    for (let i = 0; i < 15; i++) w.step([input({ gas: true, drift: true, steer: 5 })]);
+    expect(k.driftTier).toBe(0);
     w.step([input({ gas: true })]);
     expect(k.driftDir).toBe(0);
     expect(k.boostTicks).toBe(0);
+  });
+
+  it('steering into the turn charges 1.5× faster (blue in ≈ 20 ticks at full lock into the drift)', () => {
+    const w = lot(0);
+    toGo(w);
+    for (let i = 0; i < 120; i++) w.step([input({ gas: true })]);
+    const k = w.st.karts[0];
+    w.step([input({ gas: true, drift: true, steer: 7 })]);
+    expect(k.driftDir).toBe(1);
+    let t = 0;
+    while (k.driftTier === 0 && t < 60) {
+      w.step([input({ gas: true, drift: true, steer: 7 })]);
+      t++;
+    }
+    expect(Math.abs(t - ticks(DRIFT.tiers[0]) / DRIFT.tightFactor)).toBeLessThanOrEqual(4);
   });
 
   it('boosts refresh instead of stacking: level capped at 1.35 and speed at 1.35 × top', () => {

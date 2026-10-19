@@ -26,7 +26,7 @@ import {
   type Scene,
 } from 'three';
 import { BoostSource, type KartState, type RaceEvent, type RaceState } from '../../types';
-import { DRIFT } from '../../tuning';
+import { driftTierColors } from '../../ui/a11y';
 import type { RaceView, KartSnap } from '../../core/render/race-view';
 import type { Theme } from '../../core/track/themes';
 
@@ -45,7 +45,7 @@ const STARS_PER_KART = 4;
 export function boostColor(source: number, tier: number, theme: Theme): number {
   switch (source) {
     case BoostSource.MiniTurbo:
-      return DRIFT.colors[Math.max(0, Math.min(2, tier - 1))];
+      return driftTierColors()[Math.max(0, Math.min(2, tier - 1))];
     case BoostSource.Pad:
       return theme.pad;
     case BoostSource.Pounce:
@@ -320,10 +320,10 @@ export class KartFx {
       case 'miniTurbo':
         this.boostTier[k] = e.a ?? 1;
         this.boostSrc[k] = BoostSource.MiniTurbo;
-        this.ring(k, DRIFT.colors[(e.a ?? 1) - 1], 2.4 + (e.a ?? 1) * 0.6);
+        this.ring(k, driftTierColors()[(e.a ?? 1) - 1], 2.4 + (e.a ?? 1) * 0.6);
         break;
       case 'driftTier':
-        this.ring(k, DRIFT.colors[(e.a ?? 1) - 1], 1.8);
+        this.ring(k, driftTierColors()[(e.a ?? 1) - 1], 1.8);
         break;
       case 'land':
         if ((e.a ?? 0) > 20) this.ring(k, 0xfff3dc, 2.2 + Math.min(2, (e.a ?? 0) / 40));
@@ -350,6 +350,7 @@ export class KartFx {
     const view = this.view;
     const meK = st.karts[me];
     const night = this.theme.night;
+    const tiers = driftTierColors();
     let nf = 0;
     let ng = 0;
     let nt = 0;
@@ -359,7 +360,7 @@ export class KartFx {
       const kv = view.karts[i];
       // juice owns the boost flame: the core cone stays hidden
       kv.flame.visible = false;
-      if (k.respawnTicks > 0 || !kv.root.visible) continue;
+      if (k.respawnTicks > 0 || !kv.root.visible || kv.fadedOut) continue;
       const s = view.lerpKart(i, alpha, this.snap);
       const speed = Math.hypot(k.vx, k.vz);
       const near = Math.hypot(k.x - meK.x, k.z - meK.z) < 60;
@@ -383,7 +384,7 @@ export class KartFx {
       // ---- drift glow + skids
       if (k.driftDir !== 0 && !k.air && speed > 5) {
         const tier = k.driftTier;
-        const col = tier > 0 ? DRIFT.colors[tier - 1] : 0xfff3dc;
+        const col = tier > 0 ? tiers[tier - 1] : 0xfff3dc;
         const size = tier > 0 ? 1.1 + 0.25 * tier + 0.12 * Math.sin(this.time * 30 + i) : 0.7;
         for (const side of [-1, 1]) {
           const wx = s.x - sx * 0.75 - sz * 0.72 * side;
@@ -418,12 +419,21 @@ export class KartFx {
       }
 
       // ---- light trails: boosting always, tier 2+ drifts, and faint neon tail-lights at night
-      const trailOn = k.boostTicks > 0 || k.driftTier >= 2 || (night && speed > 12 && near);
+      const trailOn = k.boostTicks > 0 || k.driftTier >= 2 || k.autoTicks > 0 || (night && speed > 12 && near);
       if (trailOn && near) {
+        // Zoomies: a rainbow ribbon (the hue walks along the race clock)
         const col =
-          k.boostTicks > 0 ? boostColor(this.boostSrc[i], this.boostTier[i], this.theme) : k.driftTier >= 2 ? DRIFT.colors[k.driftTier - 1] : i % 2 ? this.theme.neonA || 0xff3ea5 : this.theme.neonB || 0x2cf6f3;
+          k.autoTicks > 0
+            ? _c.setHSL((this.time * 1.5 + i * 0.13) % 1, 1, 0.6).getHex()
+            : k.boostTicks > 0
+              ? boostColor(this.boostSrc[i], this.boostTier[i], this.theme)
+              : k.driftTier >= 2
+                ? tiers[k.driftTier - 1]
+                : i % 2
+                  ? this.theme.neonA || 0xff3ea5
+                  : this.theme.neonB || 0x2cf6f3;
         const dim = k.boostTicks > 0 || k.driftTier >= 2 ? 1 : 0.45;
-        const len = Math.min(7, 1.5 + speed * 0.18) * (k.boostTicks > 0 ? 1.2 : 0.8);
+        const len = Math.min(7, 1.5 + speed * 0.18) * (k.autoTicks > 0 ? 1.7 : k.boostTicks > 0 ? 1.2 : 0.8);
         const vh = speed > 2 ? Math.atan2(k.vx, k.vz) : s.heading;
         for (const side of [-1, 1]) {
           _o.position.set(s.x - sx * 1.0 - sz * 0.62 * side, s.y + 0.42, s.z - sz * 1.0 + sx * 0.62 * side);

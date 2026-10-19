@@ -17,12 +17,18 @@ export interface BodyStats {
 }
 
 export const KART_BODIES: Readonly<Record<BodyId, BodyStats>> = {
+  // the all-rounder: no weak spot
   0: { name: BODY_NAMES[0], speed: 3, accel: 3, handling: 3, weight: 1.0 },
-  1: { name: BODY_NAMES[1], speed: 3, accel: 3, handling: 3, weight: 1.0 },
-  2: { name: BODY_NAMES[2], speed: 3, accel: 3, handling: 3, weight: 1.0 },
-  3: { name: BODY_NAMES[3], speed: 2, accel: 3, handling: 4, weight: 1.2 },
-  4: { name: BODY_NAMES[4], speed: 3, accel: 4, handling: 2, weight: 1.1 },
-  5: { name: BODY_NAMES[5], speed: 4, accel: 2, handling: 3, weight: 0.8 },
+  // light and nimble: quick off the line and through the bends, gives a little top speed, easy to push around
+  1: { name: BODY_NAMES[1], speed: 2, accel: 4, handling: 4, weight: 0.85 },
+  // the straight-line missile: top speed, but slow to get going and a wide turner
+  2: { name: BODY_NAMES[2], speed: 4, accel: 2, handling: 2, weight: 0.95 },
+  // the heavy one: shoves everyone aside, steady, slow to spin up
+  3: { name: BODY_NAMES[3], speed: 3, accel: 2, handling: 3, weight: 1.3 },
+  // the rocket start: best acceleration (it recovers from hits fastest), a stiff turner
+  4: { name: BODY_NAMES[4], speed: 3, accel: 5, handling: 2, weight: 1.1 },
+  // the drift queen: the tightest turner, light, slow to accelerate
+  5: { name: BODY_NAMES[5], speed: 3, accel: 2, handling: 5, weight: 0.8 },
 };
 
 export const BODY_STEP = {

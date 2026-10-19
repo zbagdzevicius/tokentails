@@ -316,7 +316,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
     k.vx = sinL(travel) * sp;
     k.vz = cosL(travel) * sp;
     if (!k.air) {
-      const rate = tight > 0.7 ? DRIFT.tightFactor : tight < -0.3 ? DRIFT.wideFactor : 1;
+      const rate = tight > DRIFT.tightSteer ? DRIFT.tightFactor : tight < -0.3 ? DRIFT.wideFactor : 1;
       k.driftCharge += rate;
       const tier = k.driftCharge >= TIER_TICKS[2] ? 3 : k.driftCharge >= TIER_TICKS[1] ? 2 : k.driftCharge >= TIER_TICKS[0] ? 1 : 0;
       if (tier > k.driftTier) {
