@@ -57,6 +57,8 @@ export class Shell {
   readonly camera: ChaseCamera;
   settings: Settings = loadSettings();
   progress: Progress = loadProgress();
+  /** [juice lane] real-time scale for hit-stop / slow-mo, set by installJuice; the sim still steps whole ticks */
+  timeScale: (dt: number) => number = () => 1;
 
   world: SimWorld | null = null;
   view: RaceView | null = null;
@@ -218,8 +220,9 @@ export class Shell {
     }
 
     // fixed-step sim (GDD 3.1): at most 5 steps per frame, never wall-clock inside the sim
+    const sdt = dt * this.timeScale(dt); // [juice lane] hit-stop / slow-mo
     if (!this.paused) {
-      this.acc += dt * this.simSpeed;
+      this.acc += sdt * this.simSpeed;
       const maxSteps = 5 * this.simSpeed;
       let steps = 0;
       while (this.acc >= DT && steps < maxSteps) {
@@ -246,7 +249,7 @@ export class Shell {
     this.bus.emit(fresh, this.frameInfo);
 
     // render
-    v.update(w.st, alpha, this.paused ? 0 : dt, top);
+    v.update(w.st, alpha, this.paused ? 0 : sdt, top); // [juice lane] sdt
     const snap = v.lerpKart(this.me, alpha, { x: 0, y: 0, z: 0, heading: 0 });
     this.camera.lookBack = this.mux.lookBack;
     this.camera.update(me, snap.x, snap.y, snap.z, snap.heading, speedOf(me), top, this.paused ? 0 : dt);
