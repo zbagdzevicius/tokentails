@@ -62,7 +62,7 @@ export class RaceAudio implements JuiceListener {
     // a low-pass on the music that closes while paused
     this.duck = ctx.createBiquadFilter();
     this.duck.type = 'lowpass';
-    this.duck.frequency.value = 20000;
+    this.duck.frequency.value = Math.min(20000, ctx.sampleRate / 2);
     this.duck.connect(this.master);
     const music = ctx.createGain();
     music.gain.value = 0.32 * this.mixer.music;
@@ -145,7 +145,7 @@ export class RaceAudio implements JuiceListener {
     this.engine.update(st.karts, info.me, info.topSpeed, running);
     if (info.paused !== this.pausedNow && this.duck) {
       this.pausedNow = info.paused;
-      this.duck.frequency.setTargetAtTime(info.paused ? 500 : 20000, this.ctx.currentTime, 0.08);
+      this.duck.frequency.setTargetAtTime(info.paused ? 500 : Math.min(20000, this.ctx.sampleRate / 2), this.ctx.currentTime, 0.08);
     }
     if (this.music && !this.finished) {
       const closing = this.finalLap && st.lapLength > 0 && k.s / st.lapLength > 0.82;

@@ -3,7 +3,8 @@
  * job can plan before it renders anything.
  *
  * Score over a sliding window: +2 per overtake by the player, +3 per item hit the player landed (+4 for a cucumber
- * leap), +2 per pink mini-turbo, +2 per trick.
+ * leap), +2 per pink mini-turbo, +2 per trick. Windows that lose the player are penalised: −6 for a respawn or a hit
+ * taken, −2 for a head-on wall (the clip should show the player winning, not tiny in the sand).
  */
 import type { RaceEvent } from '../../types';
 
@@ -23,7 +24,12 @@ export function eventScore(e: RaceEvent, me: number): number {
     case 'overtake':
       return e.kart === me ? 2 : 0;
     case 'hit':
+      if (e.kart === me && e.b !== me) return -6;
       return e.b === me && e.kart !== me ? (e.a === HIT_LEAP ? 4 : 3) : 0;
+    case 'respawn':
+      return e.kart === me ? -6 : 0;
+    case 'wall':
+      return e.kart === me && e.a === 2 ? -2 : 0;
     case 'miniTurbo':
       return e.kart === me && e.a === 3 ? 2 : 0;
     case 'trick':
@@ -40,9 +46,9 @@ export function eventScore(e: RaceEvent, me: number): number {
 export function bestWindow(events: readonly RaceEvent[], me: number, lo: number, hi: number, len: number): number {
   const last = hi - len;
   if (last <= lo) return lo;
-  const scored = events.filter((e) => e.tick >= lo && e.tick < hi).map((e) => ({ t: e.tick, s: eventScore(e, me) })).filter((x) => x.s > 0);
+  const scored = events.filter((e) => e.tick >= lo && e.tick < hi).map((e) => ({ t: e.tick, s: eventScore(e, me) })).filter((x) => x.s !== 0);
   let best = last;
-  let bestS = -1;
+  let bestS = -Infinity;
   // candidate starts: every 15 ticks, plus the last start
   for (let s = lo; s <= last; s += 15) {
     let sum = 0;

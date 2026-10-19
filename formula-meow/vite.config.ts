@@ -25,7 +25,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rolldownOptions: {
       output: {
-        codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/ }] },
+        codeSplitting: {
+          groups: [
+            { name: 'three', test: /node_modules[\\/]three[\\/]/ },
+            // the clip encoder stays a lazy chunk (its own group keeps rolldown's runtime helpers out of it)
+            { name: 'mediabunny', test: /node_modules[\\/]mediabunny[\\/]/ },
+          ],
+        },
       },
     },
   },

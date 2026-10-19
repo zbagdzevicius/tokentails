@@ -108,10 +108,10 @@ function drawCelestial(themeId: number, theme: Theme): CanvasTexture | null {
     g.globalCompositeOperation = 'source-over';
   } else {
     // day sun (kitchen window / laundry): bright core, soft rays
-    glow(S / 2, themeId === 0 ? '#fff1c4' : '#ffffff', 0.85);
+    glow(S * 0.36, themeId === 0 ? '#ffd98a' : '#ffffff', 0.5); // a smaller, warmer halo: no blown-out portrait sky
     g.save();
     g.translate(cx, cx);
-    g.fillStyle = themeId === 0 ? 'rgba(255,230,160,0.35)' : 'rgba(255,255,255,0.3)';
+    g.fillStyle = themeId === 0 ? 'rgba(255,200,120,0.3)' : 'rgba(255,255,255,0.3)';
     for (let i = 0; i < 12; i++) {
       g.rotate(Math.PI / 6);
       g.beginPath();
@@ -121,7 +121,7 @@ function drawCelestial(themeId: number, theme: Theme): CanvasTexture | null {
       g.fill();
     }
     g.restore();
-    g.fillStyle = themeId === 0 ? '#fffbe8' : '#ffffff';
+    g.fillStyle = themeId === 0 ? '#ffd27a' : '#ffffff';
     g.beginPath();
     g.arc(cx, cx, S * 0.16, 0, Math.PI * 2);
     g.fill();
@@ -180,7 +180,7 @@ export class SkyFx {
       const s = new Sprite(new SpriteMaterial({ map: tex, fog: false, depthWrite: false, transparent: true, toneMapped: false }));
       const dx = track.tx[0];
       const dz = track.tz[0];
-      const size = id === 1 ? 300 : id === 3 ? 340 : 260;
+      const size = id === 1 ? 300 : id === 3 ? 340 : 200;
       s.position.set(track.px[0] + dx * 720, (id === 3 ? 70 : 170) + (id === 1 ? 40 : 0), track.pz[0] + dz * 720);
       s.scale.set(size, size, 1);
       s.renderOrder = -0.5;

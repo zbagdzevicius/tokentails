@@ -141,6 +141,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
   const placeAt = () => world.st.karts[me].place;
   const savedRes = OUTLINE_UNIFORMS.uRes.value.clone();
 
+  let wasRespawning = false;
   const renderAt = (simT: number, dt: number, cam: 'chase' | 'side' | 'orbit' | 'front', localS: number) => {
     const target = Math.ceil(simT);
     stepTo(target);
@@ -148,6 +149,12 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
     view.update(world.st, alpha, dt, top);
     const k = world.st.karts[me];
     const s = view.lerpKart(me, alpha, snap);
+    // the respawn hand teleports the kart: cut the chase rig with it instead of flying across the map
+    if (k.respawnTicks > 0) wasRespawning = true;
+    else if (wasRespawning) {
+      wasRespawning = false;
+      chase.snap(s.x, s.y, s.z, s.heading);
+    }
     let camera: PerspectiveCamera = free;
     const fov = cam === 'side' ? 38 : 52;
     if (free.fov !== fov) {

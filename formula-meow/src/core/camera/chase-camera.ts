@@ -19,6 +19,14 @@ const BACK = 5.6;
 const UP = 2.55;
 const AHEAD = 7;
 const LOOK_Y = 0.55;
+/**
+ * Portrait rig (phones, the clip): higher and pitched down, vertical FOV capped, so the horizon sits about a third
+ * down, the kart about two thirds down and the road ahead fills the middle (more sense of speed, less sky).
+ */
+const P_UP = 3.6;
+const P_AHEAD = 9;
+const P_LOOK_Y = 0;
+const P_VFOV_MAX = 80;
 
 export class ChaseCamera {
   readonly cam: PerspectiveCamera;
@@ -29,11 +37,26 @@ export class ChaseCamera {
   private trauma = 0;
   private time = 0;
   private init = false;
+  /** 0 = landscape rig, 1 = portrait rig */
+  private portrait = 0;
   lookBack = false;
   feel: CameraFeel = { reducedMotion: false, landscapeBonus: 0 };
 
   constructor(aspect: number) {
     this.cam = new PerspectiveCamera(60, aspect, 0.1, 1400);
+    this.setAspect(aspect);
+  }
+
+  private get up(): number {
+    return UP + (P_UP - UP) * this.portrait;
+  }
+
+  private get ahead(): number {
+    return AHEAD + (P_AHEAD - AHEAD) * this.portrait;
+  }
+
+  private get lookY(): number {
+    return LOOK_Y + (P_LOOK_Y - LOOK_Y) * this.portrait;
   }
 
   addTrauma(v: number): void {
@@ -43,13 +66,14 @@ export class ChaseCamera {
   setAspect(aspect: number): void {
     this.cam.aspect = aspect;
     this.feel.landscapeBonus = aspect > 1 ? 8 : 0;
+    this.portrait = aspect >= 1 ? 0 : Math.min(1, (1 - aspect) / 0.35);
   }
 
   /** Snap behind a kart (race start, respawn). */
   snap(x: number, y: number, z: number, heading: number): void {
     this.yaw = heading;
-    this.pos.set(x - Math.sin(heading) * BACK, y + UP, z - Math.cos(heading) * BACK);
-    this.look.set(x + Math.sin(heading) * AHEAD, y + LOOK_Y, z + Math.cos(heading) * AHEAD);
+    this.pos.set(x - Math.sin(heading) * BACK, y + this.up, z - Math.cos(heading) * BACK);
+    this.look.set(x + Math.sin(heading) * this.ahead, y + this.lookY, z + Math.cos(heading) * this.ahead);
     this.init = true;
   }
 
@@ -67,11 +91,11 @@ export class ChaseCamera {
     const lag = 1 - Math.exp(-dt / 0.12);
     this.yaw += dy * Math.min(1, lag * 1.4);
     const back = BACK + Math.min(1.2, speed / topSpeed) * 0.6;
-    const want = new Vector3(x - Math.sin(this.yaw) * back, y + UP + (k.air ? 0.4 : 0), z - Math.cos(this.yaw) * back);
+    const want = new Vector3(x - Math.sin(this.yaw) * back, y + this.up + (k.air ? 0.4 : 0), z - Math.cos(this.yaw) * back);
     this.pos.lerp(want, Math.min(1, lag * 2.2));
     // never fall far below the kart (ramps, drops)
     if (this.pos.y < y + 1.6) this.pos.y = y + 1.6;
-    const lookAt = new Vector3(x + Math.sin(this.yaw) * AHEAD, y + LOOK_Y, z + Math.cos(this.yaw) * AHEAD);
+    const lookAt = new Vector3(x + Math.sin(this.yaw) * this.ahead, y + this.lookY, z + Math.cos(this.yaw) * this.ahead);
     this.look.lerp(lookAt, Math.min(1, lag * 3));
 
     // FOV: horizontal spec → vertical
@@ -83,7 +107,9 @@ export class ChaseCamera {
     const speedFov = rm ? 0 : Math.max(0, speed / topSpeed - 0.5) * 6;
     const hfov = (75 + this.feel.landscapeBonus + this.fovKick + speedFov) * DEG;
     const vfov = 2 * Math.atan(Math.tan(hfov / 2) / this.cam.aspect);
-    this.cam.fov = Math.min(100, vfov / DEG);
+    // portrait: cap the vertical view (the boost kick still widens it a little)
+    const cap = 100 + (P_VFOV_MAX + this.fovKick * 0.6 - 100) * this.portrait;
+    this.cam.fov = Math.min(cap, vfov / DEG);
     this.cam.updateProjectionMatrix();
 
     // trauma shake

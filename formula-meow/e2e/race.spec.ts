@@ -82,3 +82,27 @@ test('a keyboard driver races 20 s with every lane installed and no console erro
   await page.screenshot({ path: 'e2e/screens/keyboard-20s.png' });
   expect(errors).toEqual([]);
 });
+
+test('on a phone the grid waits for the first tap, shows the thumbs, and a tap on the countdown is the start press', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  await page.goto('/?seed=11');
+  await expect(page.locator('canvas.fm-canvas')).toBeVisible();
+  await expect(page.locator('.fm-tap.on')).toContainText('TAP TO RACE');
+  await expect(page.locator('.fm-touch.ghost .fm-thumbs')).toBeVisible();
+  await page.waitForTimeout(2500);
+  expect((await probe(page))?.tick).toBe(0);
+  await page.screenshot({ path: 'e2e/screens/phone-grid.png' });
+  await page.touchscreen.tap(195, 200);
+  await expect(page.locator('.fm-tap.on')).toHaveCount(0);
+  await expect.poll(async () => (await probe(page))?.tick ?? 0, { timeout: 10_000 }).toBeGreaterThan(30);
+  // tap the countdown text near GO: judged as the Pounce Start press (top of the screen counts during the countdown)
+  await expect.poll(async () => (await probe(page))?.tick ?? 0, { timeout: 30_000 }).toBeGreaterThan(150);
+  await page.touchscreen.tap(195, 300);
+  const judged = () => page.evaluate(() => (window as unknown as { __fm: { shell: { world: { st: { karts: Array<{ startJudged: number }> } } } } }).__fm.shell.world.st.karts[5].startJudged);
+  await expect.poll(judged, { timeout: 5_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await probe(page))?.phase, { timeout: 30_000 }).toBe('race');
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: 'e2e/screens/phone-race.png' });
+  await ctx.close();
+});

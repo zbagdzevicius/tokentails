@@ -48,7 +48,9 @@ describe('item registry and roulette (GDD 4, 4.1)', () => {
       return ITEM_IDS.reduce((a, id, i) => a + (set.includes(id) ? wts[i] : 0), 0) / tot;
     };
     for (let pos = 2; pos <= 8; pos++) expect(share(pos, comeback)).toBeGreaterThanOrEqual(share(pos - 1, comeback));
-    expect(share(8, comeback)).toBeGreaterThan(0.9);
+    expect(share(8, comeback)).toBeGreaterThan(0.7);
+    // the back still gets a homing yarn to hit the cat ahead (playtest: being driven for 3 s is not a clip)
+    for (let pos = 5; pos <= 8; pos++) expect(share(pos, ['yarn'])).toBeGreaterThanOrEqual(0.15);
     expect(share(1, ['hairball', 'yarn', 'cucumber'])).toBeGreaterThan(0.85);
     // and the actual rolls follow the table: 2,000 draws as 8th vs as 1st
     const count = (place: number) => {
@@ -65,7 +67,8 @@ describe('item registry and roulette (GDD 4, 4.1)', () => {
     };
     const last = count(8);
     const first = count(1);
-    expect((last.zoomies ?? 0) + (last.laser ?? 0)).toBeGreaterThan(900);
+    expect((last.zoomies ?? 0) + (last.laser ?? 0)).toBeGreaterThan(700);
+    expect(last.yarn ?? 0).toBeGreaterThan(250);
     expect(first.zoomies ?? 0).toBe(0);
     expect(first.laser ?? 0).toBe(0);
     expect((first.hairball ?? 0) + (first.yarn ?? 0) + (first.cucumber ?? 0)).toBeGreaterThan(1700);

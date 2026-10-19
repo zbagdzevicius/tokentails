@@ -34,7 +34,7 @@ export function fnvString(h: number, s: string): number {
 }
 
 const KART_FIELDS: readonly (keyof KartState)[] = [
-  'x', 'y', 'z', 'heading', 'vx', 'vy', 'vz', 'steer', 'air', 'airTicks', 'hopTicks', 'driftDir', 'driftCharge', 'driftTier',
+  'x', 'y', 'z', 'heading', 'vx', 'vy', 'vz', 'steer', 'air', 'airTicks', 'hopTicks', 'armTicks', 'pinTicks', 'driftDir', 'driftCharge', 'driftTier',
   'boostTicks', 'boostLevel', 'spinTicks', 'leapTicks', 'wobbleTicks', 'chaseTicks', 'shieldTicks', 'autoTicks', 'invTicks',
   'stallTicks', 'respawnTicks', 'lipTicks', 'trick', 'slipTicks', 'si', 's', 'd', 'dist', 'surface', 'wall', 'pGas', 'pDrift',
   'pItem', 'startJudged', 'itemCount', 'rouletteTicks', 'rngItems', 'rngAi', 'lap', 'lapStartTick', 'bestLapTicks', 'finished',

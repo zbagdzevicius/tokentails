@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 2;
+export const SIM_VERSION = 3;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -195,6 +195,10 @@ export interface KartState {
   airTicks: number;
   /** visual hop countdown (opens the drift window) */
   hopTicks: number;
+  /** drift entry window after a hop: a held drift starts once steering passes the minimum within it */
+  armTicks: number;
+  /** ticks spent pinned against a wall at low speed (wall-pin respawn) */
+  pinTicks: number;
   /** -1 left, +1 right, 0 none */
   driftDir: number;
   /** drift charge in tick units (scaled by the tight/wide factor) */

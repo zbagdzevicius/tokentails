@@ -30,7 +30,8 @@ import { SpeedLines } from '../../juice/vfx/speed-lines';
 import { shareHooks } from '../../share/hooks';
 import { trackFromLocation } from '../../ugc/codec/track-codec';
 import { buildField, createSimPlugins } from '../../items-ai';
-import { ITEM_ICON } from '../hud/hud';
+import { ITEM_ICON, fmtTime } from '../hud/hud';
+import { displayName } from '../../ugc/actions';
 import { OUTLINE_UNIFORMS } from '../render/cat-outline';
 import { GO_TICK } from '../sim/world';
 import '../hud/hud.css';
@@ -79,6 +80,11 @@ export class Shell {
   /** QA only (`?speed=4`): sim steps per real second multiplier, for the e2e smoke */
   private readonly simSpeed: number;
   private me = PLAYER_SLOT;
+  /** the grid waits for the first input (tap / key / pad): audio unlocks with it, then 3-2-1 (no menu) */
+  private armed = false;
+  /** drift hint: shown this race, when it went up */
+  private hintShows = 0;
+  private hintAt = -1;
   private frameInfo!: FrameInfo;
   private kartColors: string[] = [];
 
@@ -117,13 +123,26 @@ export class Shell {
     );
     this.camera.feel.reducedMotion = this.settings.reducedMotion;
 
-    const unlock = () => this.audio.unlock();
+    this.armed = this.bot;
+    const unlock = () => {
+      this.audio.unlock();
+      this.arm();
+    };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.world && !this.world.done && !this.paused) this.togglePause();
     });
+  }
+
+  /** First input: start the countdown. */
+  private arm(): void {
+    if (this.armed) return;
+    this.armed = true;
+    this.hud.setTapPrompt(null);
+    this.last = performance.now();
+    this.acc = 0;
   }
 
   private onResize(): void {
@@ -168,6 +187,16 @@ export class Shell {
     this.view.capture(this.world.st);
     const k = this.world.st.karts[this.me];
     this.camera.snap(k.x, k.y, k.z, k.heading);
+    // compile every shader now, on the grid, so the first rendered frames of the countdown never stall (iOS links
+    // programs synchronously on first use). The sim step clamps dt, so a slow compile costs no countdown time.
+    try {
+      this.stage.renderer.compile(this.stage.scene, this.camera.cam);
+    } catch {
+      /* compiling early is an optimisation only */
+    }
+    this.last = performance.now();
+    this.hintShows = 0;
+    this.hintAt = -1;
     this.hud.setTrack(built, hex(this.view.world.theme.accent));
     this.kartColors = this.racers.map((r) => hex(r.kart.paint[0]));
     this.speedLines = new SpeedLines(this.camera.cam, this.view.world.theme.accent);
@@ -181,8 +210,10 @@ export class Shell {
     this.hud.setVisible(true);
     this.bus.reset();
     this.onResize();
-    const hintPounce = this.progress.pounces < 2;
-    this.hud.setHint(hintPounce ? (this.touchMode() ? 'Tap on MEOW! for a Pounce Start' : 'Press ↑ on MEOW! for a Pounce Start') : null);
+    const hintPounce = this.progress.pounces < 2 && !this.bot;
+    this.hud.setHint(hintPounce ? (this.touchMode() ? 'Tap on MEOW! = Pounce Start' : '↑ on MEOW! = Pounce Start') : null);
+    if (!this.armed) this.hud.setTapPrompt(this.touchMode() ? 'TAP TO RACE' : 'PRESS ANY KEY', this.touchMode() ? 'gas is automatic · left thumb steers' : '←→ steer · ↑ gas · Space drift');
+    this.touch.setGrid(true);
     (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
   }
 
@@ -216,8 +247,12 @@ export class Shell {
     this.stage.govern(dt);
     const top = classTuning(this.setup.cls).topSpeed;
     const me = w.st.karts[this.me];
-    const muxCtx = { racing: w.st.tick >= GO_TICK, speedFrac: speedOf(me) / top, drifting: me.driftDir !== 0 };
+    const muxCtx = { racing: w.st.tick >= GO_TICK, speedFrac: speedOf(me) / top, drifting: me.driftDir !== 0, curve: curvatureAhead(w.ctx, me.si, 4, 24), wall: !!me.wall };
     this.mux.frame(dt, muxCtx);
+    if (!this.armed && this.mux.any) this.arm();
+    const countdown = w.st.tick < GO_TICK;
+    this.touch.countdown = countdown;
+    this.touch.setGrid(countdown);
     if (this.mux.pause) this.togglePause();
     if (this.mux.restart && !this.paused) {
       this.start({ ...this.setup });
@@ -226,7 +261,7 @@ export class Shell {
 
     // fixed-step sim (GDD 3.1): at most 5 steps per frame, never wall-clock inside the sim
     const sdt = dt * this.timeScale(dt); // [juice lane] hit-stop / slow-mo
-    if (!this.paused) {
+    if (!this.paused && this.armed) {
       this.acc += sdt * this.simSpeed;
       const maxSteps = 5 * this.simSpeed;
       let steps = 0;
@@ -261,7 +296,7 @@ export class Shell {
     this.speedLines?.update(dt, speedOf(me), top, me.boostTicks > 0, this.settings.reducedMotion);
     this.hud.update(w.st, this.me, top, GO_TICK, this.kartColors);
     this.hud.wrongWay(me, w.track, dt, w.st.tick > GO_TICK);
-    this.touch.setItem(me.item && me.rouletteTicks === 0 ? ITEM_ICON[me.item] : '', !!me.item && me.rouletteTicks === 0);
+    this.touch.setItem(me.item ? (me.rouletteTicks === 0 ? ITEM_ICON[me.item] : '❔') : '', !!me.item && me.rouletteTicks === 0);
     this.driftHint(me);
     this.bus.frame(this.frameInfo);
     this.stage.renderer.render(this.stage.scene, this.camera.cam);
@@ -283,18 +318,39 @@ export class Shell {
       this.hud.setHint(null);
     }
     if (type === 'go') setTimeout(() => this.hud.setHint(null), 1200);
-    if (type === 'miniTurbo') {
+    if (type === 'driftStart') {
+      // any drift start counts (short taps too): the hint is for players who have not found drifting yet
       this.progress.drifts++;
-      this.hud.setHint(null);
+      if (this.hintAt >= 0) {
+        this.hud.setHint(null);
+        this.hintAt = -1;
+      }
     }
   }
 
+  /** Drift hint: before a real bend, at most 3 times a race, up for 3 s at most, gone the moment a drift starts. */
   private driftHint(k: { si: number; driftDir: number }): void {
     const w = this.world!;
-    if (this.progress.drifts >= 2 || w.st.tick < GO_TICK + 90 || k.driftDir !== 0) return;
-    const c = Math.abs(curvatureAhead(w.ctx, k.si, 10, 40));
-    if (c > 0.03) this.hud.setHint(this.touchMode() ? 'HOLD RIGHT SIDE TO DRIFT ↪' : 'HOLD SPACE TO DRIFT ↪');
-    else if (c < 0.01) this.hud.setHint(null);
+    const now = w.st.tick;
+    if (this.hintAt >= 0) {
+      if (k.driftDir !== 0 || now - this.hintAt > 180) {
+        this.hud.setHint(null);
+        this.hintAt = -1;
+      }
+      return;
+    }
+    if (this.bot || this.progress.drifts >= 2 || this.hintShows >= 3 || now < GO_TICK + 90 || k.driftDir !== 0) return;
+    const c = curvatureAhead(w.ctx, k.si, 10, 40);
+    if (Math.abs(c) <= 0.03) return;
+    const arrow = c > 0 ? '↩' : '↪'; // curvature + = left turn
+    const text = this.touchMode()
+      ? this.settings.oneThumb
+        ? `FULL STICK INTO THE TURN = DRIFT ${arrow}`
+        : `HOLD RIGHT THUMB = DRIFT ${arrow}`
+      : `HOLD SPACE TO DRIFT ${arrow}`;
+    this.hud.setHint(text);
+    this.hintAt = now;
+    this.hintShows++;
   }
 
   private showResults(): void {
@@ -304,22 +360,24 @@ export class Shell {
     const result = w.result();
     const me = w.st.karts[this.me];
     this.progress.races++;
-    const unlocked = applyUnlocks(this.progress, setup.cls, result.player.place, !!me.finished);
+    const extras = shareHooks().onResult?.({ result, replay: this.recorder.replay(), cfg: w.cfg, events: w.st.events }) ?? undefined;
+    // the Daily Cup and dares run at a fixed class: they never unlock a class
+    const unlocked = extras?.noUnlock ? null : applyUnlocks(this.progress, setup.cls, result.player.place, !!me.finished);
     if (result.player.time != null) {
       const key = `${setup.track.id}:${setup.cls}`;
       const best = this.progress.bestTimes[key];
       if (best == null || result.player.time < best) this.progress.bestTimes[key] = result.player.time;
     }
     saveProgress(this.progress);
-    const extras = shareHooks().onResult?.({ result, replay: this.recorder.replay(), cfg: w.cfg, events: w.st.events }) ?? undefined;
     const lines = [...(extras?.lines ?? [])];
     if (unlocked != null) lines.unshift(`Unlocked: ${CLASSES[unlocked].name} ${CLASSES[unlocked].cc}`);
     const best = this.progress.bestTimes[`${setup.track.id}:${setup.cls}`];
-    if (best != null) lines.push(`Your best here: ${best.toFixed(2)} s`);
+    if (best != null) lines.push(`Your best here: ${fmtTime(best)}`);
     renderResults(this.overlay, {
       result,
       racers: this.racers,
-      trackName: setup.track.name,
+      ghost: extras?.ghost,
+      trackName: displayName(setup.track),
       className: `${CLASSES[setup.cls].name} ${CLASSES[setup.cls].cc}`,
       actions: extras?.actions ?? [],
       lines,

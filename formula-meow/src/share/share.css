@@ -2,6 +2,12 @@
 .fm-overlay .fm-btn[data-x] { font-size: 15px; padding: 8px 12px; min-height: 44px; }
 .fm-overlay .fm-btn[data-x].primary { font-size: 17px; }
 .fm-overlay .fm-btn[data-x].fm-busy { opacity: 0.85; }
+.fm-res-main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+.fm-res-main .fm-btn { padding: 8px 6px; font-size: 16px; }
+.fm-res-main .fm-btn.big { grid-column: 1 / -1; font-size: 21px; min-height: 58px; }
+.fm-res-icons { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.fm-overlay .fm-res-icons .fm-btn[data-x] { font-size: 12px; padding: 3px 7px; white-space: nowrap; min-height: 40px; border-width: 3px; box-shadow: 0 3px 0 var(--ink); }
+.fm-table tr.ghost td { color: #6a3fd0; font-style: italic; }
 
 .fm-maker {
   position: fixed;
@@ -32,8 +38,12 @@
 .fm-dare-banner {
   position: absolute;
   left: 50%;
-  top: calc(84px + env(safe-area-inset-top));
+  /* low on the screen: clear of the LAP chip, the countdown and the ugc track card */
+  bottom: calc(210px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   z-index: 20;
   background: rgba(26, 18, 56, 0.86);
   color: #2cf6f3;

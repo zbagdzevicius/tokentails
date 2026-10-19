@@ -24,7 +24,7 @@ export interface ClassTuning {
 }
 
 export const CLASSES: readonly ClassTuning[] = [
-  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.55, 0.75], bandDown: 0.08, bandUp: 0.03, aiTop: 0.86 },
+  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.55, 0.75], bandDown: 0.12, bandUp: 0.03, aiTop: 0.86 },
   { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.7, 0.85], bandDown: 0.05, bandUp: 0.05, aiTop: 0.89 },
   { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.82, 0.95], bandDown: 0.05, bandUp: 0.05, aiTop: 0.9 },
 ];
@@ -54,6 +54,12 @@ export const PHYS = {
   yawLowSpeed: 8,
   /** below this speed the steering authority fades to zero (no turning on the spot) */
   yawFadeSpeed: 3,
+  /** steering authority kept at a standstill, so a stopped kart can always turn out (touch has no reverse) */
+  yawFadeMin: 0.35,
+  /** 1/s: how fast wall contact turns the nose toward the track direction */
+  wallAlign: 4,
+  /** s pinned on a wall below 25 % of top speed before the respawn hand */
+  pinRespawn: 1.5,
   steerSmooth: 0.08, // s to full lock
   grip: 10, // 1/s
   gripDrift: 2.5,
@@ -90,6 +96,8 @@ export const DRIFT = {
   minSpeed: 10, // entry
   dropSpeed: 8, // ends below this
   minSteer: 0.3,
+  /** s after the hop in which a held drift still starts once steering passes minSteer */
+  entryWindow: 0.4,
   /** charge time per tier, s */
   tiers: [0.6, 1.2, 2.0],
   /** boost duration per tier, s */
@@ -113,7 +121,7 @@ export const BOOST = {
   /** boost acceleration is this multiple of the normal peak until boosted top speed */
   accelMult: 3,
   pad: { level: 1.35, time: 0.8 },
-  pounce: { level: 1.3, time: 1.0, window: 0.15, stall: 0.8 },
+  pounce: { level: 1.3, time: 1.0, window: 0.25, stall: 0.8 },
   trick: { level: 1.25, time: 0.6, window: 0.2 },
   slip: { level: 1.25, time: 1.0, charge: 1.2, range: 8, cone: 15 * DEG },
   catnip: { level: 1.35, time: 1.0 },
@@ -145,7 +153,7 @@ export const RACE = {
   gridRowGap: 6.5,
   gridColGap: 4.2,
   gridFirstRow: 5,
-  boxRespawn: 1.5,
+  boxRespawn: 0.5,
   roulette: 1.2,
   boxRadius: 1.7,
   stuckRespawn: 4,
@@ -160,10 +168,10 @@ export const ITEM_WEIGHTS: readonly (readonly number[])[] = [
   [25, 20, 20, 15, 10, 10, 0, 0],
   [20, 15, 15, 20, 10, 15, 5, 0],
   [15, 10, 10, 25, 15, 15, 10, 0],
-  [10, 5, 10, 30, 15, 15, 15, 0],
-  [5, 0, 5, 35, 15, 10, 25, 5],
-  [0, 0, 5, 30, 15, 5, 30, 15],
-  [0, 0, 0, 30, 10, 5, 35, 20],
+  [10, 15, 10, 25, 15, 15, 10, 0],
+  [5, 15, 5, 30, 15, 10, 15, 5],
+  [0, 18, 5, 25, 12, 5, 20, 15],
+  [0, 20, 0, 25, 10, 5, 20, 20],
 ];
 
 /** Item feel numbers (GDD 4), owned by the items-ai lane. Times in s, distances in m, speeds in m/s. */
@@ -189,7 +197,7 @@ export const AI = {
   /** base top-speed scale = class aiTop + topSkill·skill, then the rubber band, never above 1 unless boosting */
   topSkill: 0.1,
   /** rubber band gain per metre of gap to the player */
-  bandK: 0.0012,
+  bandK: 0.003,
   /** drift where the turn ahead exceeds this curvature (1/m) */
   driftCurv: 0.035,
 } as const;

@@ -41,6 +41,7 @@ export class Hud {
   private banner: HTMLDivElement;
   private hint: HTMLDivElement;
   private wrong: HTMLDivElement;
+  private tap: HTMLDivElement;
   private map: HTMLCanvasElement;
   private mapBg: HTMLCanvasElement | null = null;
   private lastPlace = 0;
@@ -59,6 +60,7 @@ export class Hud {
       <div class="fm-count fm-outline"></div>
       <div class="fm-banner fm-outline"></div>
       <div class="fm-hint fm-outline"></div>
+      <div class="fm-tap fm-outline"></div>
       <div class="fm-wrong fm-outline">⟲ WRONG WAY</div>`;
     parent.appendChild(this.root);
     const q = <T extends Element>(s: string) => this.root.querySelector(s) as T;
@@ -71,6 +73,7 @@ export class Hud {
     this.banner = q('.fm-banner');
     this.hint = q('.fm-hint');
     this.wrong = q('.fm-wrong');
+    this.tap = q('.fm-tap');
     this.map = q('.fm-map');
   }
 
@@ -205,6 +208,16 @@ export class Hud {
     this.banner.className = `fm-banner fm-outline ${tone}`;
     void this.banner.offsetWidth;
     this.banner.classList.add('on');
+  }
+
+  /** "TAP TO RACE": the grid waits for the first input (audio unlocks with it, then 3-2-1). */
+  setTapPrompt(text: string | null, sub = ''): void {
+    if (text) this.tap.innerHTML = `${text}${sub ? `<small>${sub}</small>` : ''}`;
+    this.tap.classList.toggle('on', !!text);
+  }
+
+  get hintText(): string | null {
+    return this.hint.classList.contains('on') ? this.hint.textContent : null;
   }
 
   setHint(text: string | null): void {
