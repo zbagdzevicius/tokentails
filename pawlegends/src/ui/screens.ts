@@ -10,7 +10,8 @@ import { HERO_IDS, HEROES } from '../data/heroes';
 import { championOf } from '../data/heroes/shelter';
 import { TRICK_IDS } from '../data/tricks';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
-import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
+import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
+import { ELEMENT_NAME, type CatTier, type Element } from '../meta/roster';
 
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
@@ -19,6 +20,7 @@ import { dareText } from '../share/dare';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickNumbers } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
+import { wearingCard } from './cards';
 import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
@@ -60,6 +62,8 @@ export interface TitleOpts {
   onSettings?(): void;
   /** Today's quests (fun plan F4), shown under the play button. */
   quests?: readonly QuestView[];
+  /** GDD §7.2: the card skin the lobby hero wears ("Wearing <name>"), or null. */
+  wearing?: { name: string; type: string; art?: string; frame?: string } | null;
 }
 
 function questRow(q: QuestView): string {
@@ -95,6 +99,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
       ${o.onSettings ? `<button class="pl-btn ghost small" data-a="settings">Settings</button>` : ''}
       <button class="pl-mute" data-a="mute" aria-label="Sound">${o.muted ? 'Sound off' : 'Sound on'}</button>
     </div>`;
+  if (o.wearing) root.querySelector('.pl-title-col')?.appendChild(wearingCard(o.wearing));
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'clem') o.onPlay({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
@@ -140,6 +145,41 @@ export interface PickOpts {
    * link here (GDD §8.1 #5: no offers on hero pick).
    */
   champions?: Partial<Record<HeroId, { art?: string; owned: boolean }>>;
+  /**
+   * GDD §7.2 card skins: the player's cats (every one wearable by every champion) and, web only from session 2, up to
+   * two locked featured cats with a Preview (no price, no buy button, no link).
+   */
+  skins?: { owned: readonly SkinTile[]; locked: readonly SkinTile[] };
+  /** Spin a locked featured skin on the turntable for a few seconds; false when the session's previews are used up. */
+  onPreview?(skinId: string): boolean;
+  /** A skin tile scrolled into view (its sprite probe may run). */
+  onTileSeen?(skinId: string): void;
+}
+
+export interface SkinTile {
+  id: string;
+  name: string;
+  element: Element;
+  rung: CatTier;
+  bond: number;
+  art?: string;
+  fromPack?: boolean;
+  /** The next bond threshold (null at Legendary). */
+  next?: number | null;
+}
+
+const RUNG_NAME: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
+
+/** One card skin tile (owned: selectable; locked: greyed with a Preview). */
+export function skinTile(k: SkinTile, on: boolean, locked = false): string {
+  const art = k.art ? `<img src="${esc(k.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="noart">${icon('paw')}</span>`;
+  const el = `<i class="el" style="--el:${cssHex(ELEMENT_COLOR[k.element])}" title="${esc(ELEMENT_NAME[k.element])}"></i>`;
+  if (locked) {
+    return `<div class="skin-tile locked" data-locked="${esc(k.id)}">${art}<b>${esc(k.name)}</b>${el}<button class="chip small" data-preview="${esc(k.id)}">Preview</button></div>`;
+  }
+  // round 2: a pack cat's missing frame is explained in the tooltip (as on its squad chip), never in visible text
+  const title = k.fromPack ? ` title="${esc(`${k.name}: it gives its look and earns Bond; frames come from cats you adopted by name`)}" data-noframe="1"` : '';
+  return `<button class="skin-tile ${on ? 'on' : ''}" data-coat="${esc(k.id)}" data-rung="${k.rung}" aria-pressed="${on}"${title}>${art}<b>${esc(k.name)}</b><span class="pip" data-rung="${k.rung}">${RUNG_NAME[k.rung]}</span>${el}<small class="bond">Bond ${k.bond}</small></button>`;
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
@@ -152,6 +192,10 @@ function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: str
   return `<button class="hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}${card}${badge}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
 }
 
+const faces = new WeakMap<HTMLElement, () => void>();
+/** Redraw a pick screen's hero portraits in place (after a sprite probe changed a palette). */
+export const refreshPickFaces = (root: HTMLElement): void => faces.get(root)?.();
+
 export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
   const root = el('pl-screen pl-pick');
   const c: Choice = { ...o.initial };
@@ -161,11 +205,15 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (!o.owned) return '';
     const coats = wardrobe(h, o.owned);
     const chromas = chromaOptions(o.owned);
-    if (coats.length < 2 && chromas.length < 2) return '';
+    const owned = o.skins?.owned ?? [];
+    const locked = o.skins?.locked ?? [];
+    if (coats.length < 2 && chromas.length < 2 && !owned.length && !locked.length) return '';
     const l = lookOf(h) as Look;
-    return `<div class="row wardrobe"><span class="lbl">Look</span>${coats
+    const card = wearsCardSkin(l);
+    const strip = owned.length || locked.length ? `<div class="skin-strip" role="list">${owned.map((k) => skinTile(k, k.id === l.coat)).join('')}${locked.map((k) => skinTile(k, false, true)).join('')}</div>` : '';
+    return `<div class="row wardrobe skins"><span class="lbl">Skins</span>${coats
       .map((k) => `<button class="chip ${k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`)
-      .join('')}${chromas.length > 1 ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
+      .join('')}${strip}${chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
   };
   let numbers = o.numbers === true;
   const render = (): void => {
@@ -197,7 +245,36 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <button class="pl-btn big" data-a="start">Play</button>
       </div>`;
   };
-  render();
+  // probes run lazily, for the tiles the player can see
+  const io =
+    typeof IntersectionObserver === 'function' && o.onTileSeen
+      ? new IntersectionObserver((list) => {
+          for (const en of list) if (en.isIntersecting) o.onTileSeen?.((en.target as HTMLElement).dataset.coat ?? (en.target as HTMLElement).dataset.locked ?? '');
+        })
+      : null;
+  const watch = (): void => {
+    if (!o.onTileSeen) return;
+    for (const el of root.querySelectorAll<HTMLElement>('.skin-tile')) {
+      if (io) io.observe(el);
+      else o.onTileSeen(el.dataset.coat ?? el.dataset.locked ?? '');
+    }
+  };
+  const render0 = render;
+  const renderAll = (): void => {
+    io?.disconnect();
+    render0();
+    watch();
+  };
+  renderAll();
+  // a sprite probe landed: only the hero portraits are redrawn (the picks, a running Preview and the scroll stay)
+  faces.set(root, () => {
+    for (const box of root.querySelectorAll<HTMLElement>('.heroes[data-side]')) {
+      const side = box.dataset.side;
+      box.innerHTML = HERO_IDS.filter((h) => HEROES[h].side === side)
+        .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h]))
+        .join('');
+    }
+  });
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const h = t.closest<HTMLElement>('[data-h]')?.dataset.h as HeroId | undefined;
@@ -206,6 +283,17 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     const coat = t.closest<HTMLElement>('[data-coat]')?.dataset.coat;
     const chroma = t.closest<HTMLElement>('[data-chroma]')?.dataset.chroma;
+    const pb = t.closest<HTMLElement>('.skin-tile [data-preview]');
+    const preview = pb?.dataset.preview;
+    if (preview) {
+      const ok = o.onPreview?.(preview) ?? false;
+      const b = pb;
+      if (b) {
+        b.classList.add(ok ? 'playing' : 'spent');
+        b.textContent = ok ? 'Previewing' : 'Seen';
+      }
+      return;
+    }
     if (h) {
       c.hero = h;
       o.onHero(h);
@@ -213,23 +301,25 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (coat !== undefined || chroma !== undefined) {
       const cur = lookOf(c.hero);
       if (cur) {
-        const next: Look = { coat: coat !== undefined ? coat || null : cur.coat, chroma: chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma };
+        const nextCoat = coat !== undefined ? coat || null : cur.coat;
+        // card skins never carry a chroma (GDD §7.2)
+        const next: Look = { coat: nextCoat, chroma: nextCoat && nextCoat.startsWith('cat.') ? null : chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma };
         looks[c.hero] = next;
         o.onLook?.(c.hero, next);
       }
-      return render();
+      return renderAll();
     }
     if (tr) c.trick = tr;
     if (d) c.difficulty = d;
     if (a === 'numbers') {
       numbers = !numbers;
       o.onNumbers?.(numbers);
-      return render();
+      return renderAll();
     }
     if (a === 'veteran') return o.onVeteran?.();
     if (a === 'start') return o.onStart({ ...c });
     if (a === 'back') return o.onBack();
-    if (h || tr || d) render();
+    if (h || tr || d) renderAll();
   });
   parent.appendChild(root);
   return root;
@@ -284,6 +374,8 @@ export interface ResultsOpts {
   quick?: boolean;
   /** Round 2: a hero to tease on the Change hero button ("Try Sage: ranged healer"). */
   tryHero?: HeroId | null;
+  /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
+  skin?: { name: string; art?: string; bond: number; next: number | null } | null;
 }
 
 export interface ResultRow {
@@ -378,6 +470,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
@@ -468,8 +561,9 @@ export function rotatePrompt(parent: HTMLElement): HTMLElement {
 }
 
 /** Loading veil between screens. */
-export function loadingVeil(parent: HTMLElement, text: string, sub?: string): HTMLElement {
+export function loadingVeil(parent: HTMLElement, text: string, sub?: string, wearing?: { name: string; type: string; art?: string; frame?: string } | null): HTMLElement {
   const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}`);
+  if (wearing) r.appendChild(wearingCard(wearing));
   parent.appendChild(r);
   return r;
 }

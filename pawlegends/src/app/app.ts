@@ -8,16 +8,20 @@ import { HumanFilter } from '../analytics/human';
 import { createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
 import type { Bridge, HostMessage } from '../embed/bridge';
-import { EMPTY_ROSTER, parseRoster, rosterCosmetics, type RosterCat, type RosterCosmetics } from '../meta/roster';
+import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type RosterCat, type RosterCosmetics } from '../meta/roster';
+import { nextBond, onSkinsChanged, ownedSkins, setFeaturedSkins, setRosterSkins, showcaseGate, wantProbe } from '../render/skins/registry';
+import { FEATURED_SKIN_PREFIX, getSkin, isCardSkinId, skinIdOf, type CatSkin } from '../render/skins/skinStore';
+import type { SkinTile } from '../ui/screens';
 import { squadPrefs } from '../meta/squad';
+import { DEMO_ROSTER, skinDemoOn } from './skinDemo';
 import { recordLadder } from '../meta/ladder';
 import { HERO_IDS } from '../data/heroes';
-import { loadProfile, noteChampionMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { accountState, loadProfile, noteBond, noteChampionMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import type { SkuId } from '../money/skus';
-import { ELEMENT_COLOR, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
+import { ELEMENT_COLOR, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, type QualityTier } from '../render/quality';
@@ -26,7 +30,7 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, refreshPickFaces, resultsScreen, rotatePrompt, titleScreen, type Choice } from '../ui/screens';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
@@ -162,6 +166,8 @@ export class App {
       analytics: this.analytics,
       onRosterChange: () => {
         this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
+        this.syncSkins();
+        this.autoEquip();
         this.refreshMeta();
       },
       root,
@@ -176,6 +182,26 @@ export class App {
       },
     });
     bridge.on((m) => this.onHost(m));
+    // `?skins=demo` (local standalone only, see skinDemo.ts): a fixed roster so card skins show without a host
+    if (skinDemoOn({ search: location.search, protocol: location.protocol, hostname: location.hostname, framed: bridge.active || window.parent !== window, isApp: this.isApp() })) {
+      this.rosterCats = parseRoster(DEMO_ROSTER);
+      this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
+      this.syncSkins();
+      document.documentElement.dataset.skinDemo = '1';
+    }
+    // a sprite probe finished: the palette changed, so the pick tiles, the lobby hero and the portraits follow
+    // (debounced; the pick screen is never rebuilt, so the trick, bots, a running Preview and the strip scroll stay)
+    let skinsTimer: ReturnType<typeof setTimeout> | null = null;
+    onSkinsChanged(() => {
+      if (skinsTimer) clearTimeout(skinsTimer);
+      skinsTimer = setTimeout(() => {
+        skinsTimer = null;
+        if (this.screen === 'match') return;
+        if (this.screen !== 'pick') return this.refreshMeta();
+        if (this.screenEl) refreshPickFaces(this.screenEl);
+        if (!document.documentElement.dataset.skinPreview) this.setLobbyHero(this.choice.hero);
+      }, 120);
+    });
     this.ent.onChange(() => this.refreshMeta());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.session?.setPaused(true);
@@ -203,13 +229,108 @@ export class App {
     else if (m.type === 'roster') {
       this.rosterCats = parseRoster(m.cats);
       this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
+      this.syncSkins();
+      this.autoEquip();
       this.refreshMeta();
     } else if (m.type === 'offer') {
       const o = offerOf(m.offer);
       if (o !== undefined) this.hostOffer = o;
     } else if (!this.integration.handle(m)) this.ent.apply(m);
+    if (m.type === 'featured' || m.type === 'app') this.syncSkins();
     // save-result and featured belong to the integration: the results save chip shows "+N catnip" once the
     // server paid it (POST /user/catbassadors/live via the host)
+  }
+
+  // ------------------------------------------------------------------------------------------- card skins
+
+  private isApp(): boolean {
+    return this.ent.snapshot().isApp || isAppBuild() || this.integration.state().app?.isApp === true;
+  }
+
+  /** GDD §7.2: owned cats (with their Bond) and, on the web, the featured cats as skins. */
+  private syncSkins(): void {
+    setRosterSkins(this.rosterCats, loadProfile().bond);
+    setFeaturedSkins(this.isApp() ? [] : this.integration.state().featured);
+  }
+
+  /**
+   * Locked featured tiles and showcase bots follow the offer gates: web only, from the second play session (never in
+   * session 1). App builds: never.
+   */
+  private skinShowcaseOpen(firstMatch = false): { tiles: boolean; bots: boolean } {
+    return showcaseGate({ isApp: this.isApp(), playSession: playSession(loadProfile()), firstMatch });
+  }
+
+  private skinTile(sk: CatSkin): SkinTile {
+    return { id: sk.id, name: sk.name, element: sk.element, rung: sk.rung, bond: sk.bond, next: nextBond(sk.bond), ...(sk.art ? { art: sk.art } : {}), ...(sk.fromPack ? { fromPack: true } : {}) };
+  }
+
+  /** The card the lobby shows for a worn skin ("Wearing <name>"), or null. */
+  private wearing(look: Look | null): { name: string; type: string; art?: string; frame?: string } | null {
+    const sk = isCardSkinId(look?.coat) ? getSkin(look?.coat) : null;
+    if (!sk || sk.featured) return null;
+    const frame = sk.rung === 'RARE' ? 'frame.rare' : sk.rung === 'EPIC' ? 'frame.epic' : sk.rung === 'LEGENDARY' ? 'frame.legendary' : undefined;
+    return { name: sk.name, type: sk.element, ...(sk.art ? { art: sk.art } : {}), ...(frame ? { frame } : {}) };
+  }
+
+  /**
+   * The newest cat (profile `newCat`) arrives in the roster: its skin goes on the last-picked champion, once, with a
+   * "Now wearing <name> · Undo" chip. Nothing is worn silently.
+   */
+  private autoEquip(leavingMatch = false): void {
+    // never over the match HUD: showTitle runs it again when the match ends
+    if (this.screen === 'match' && !leavingMatch) return;
+    const p = loadProfile();
+    const id = p.newCat;
+    if (!id || p.skinAuto === id) return;
+    const cat = this.rosterCats.find((c) => c.catalogId === id || c.id === id);
+    if (!cat) return;
+    const hero = p.hero;
+    const prev = p.looks[hero] ?? null;
+    p.looks[hero] = cardLook(skinIdOf(cat.id));
+    p.skinAuto = id;
+    saveProfile(p);
+    const chip = document.createElement('div');
+    chip.className = 'pl-new pl-wear-chip';
+    chip.setAttribute('role', 'status');
+    const t = document.createElement('span');
+    t.textContent = `Now wearing ${cat.name}`;
+    const undo = document.createElement('button');
+    undo.className = 'chip small';
+    undo.dataset.a = 'undo-skin';
+    undo.textContent = 'Undo';
+    undo.addEventListener('click', () => {
+      const q = loadProfile();
+      if (prev) q.looks[hero] = prev;
+      else delete q.looks[hero];
+      saveProfile(q);
+      chip.remove();
+      this.refreshMeta();
+      if (this.screen === 'pick') this.showPick();
+    });
+    chip.append(t, document.createTextNode(' · '), undo);
+    this.root.appendChild(chip);
+    setTimeout(() => chip.classList.add('out'), 6000);
+    setTimeout(() => chip.remove(), 6600);
+  }
+
+  /** A locked featured skin spins on the turntable for PREVIEW_MS, then the hero's own look returns. */
+  private previewSkin(id: string): boolean {
+    const sk = getSkin(id);
+    if (!sk?.featured || !this.skinShowcaseOpen().tiles) return false;
+    const p = loadProfile();
+    if (!previewAllowed(p, accountState().signedIn)) return false;
+    notePreview();
+    wantProbe(id);
+    const hero = this.choice.hero;
+    this.lobby.setHero(hero, 0, cardLook(id));
+    document.documentElement.dataset.skinPreview = id;
+    if (sk.catalogId) this.integration.notePreview(sk.catalogId);
+    setTimeout(() => {
+      if (document.documentElement.dataset.skinPreview === id) delete document.documentElement.dataset.skinPreview;
+      if (this.screen === 'pick' && this.choice.hero === hero) this.setLobbyHero(hero);
+    }, PREVIEW_MS);
+    return true;
   }
 
   private owned(): Owned {
@@ -304,6 +425,8 @@ export class App {
 
   showTitle(): void {
     const first = this.screen !== 'title' || !this.screenEl;
+    // a cat that arrived during a match goes on now (never over the match HUD)
+    this.autoEquip(true);
     this.lobby.enter();
     this.lobby.side = 0.42;
     this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
@@ -321,6 +444,7 @@ export class App {
         frame: bestFrame(owned),
         title: titleOf(owned),
         portrait: this.badgePortrait(),
+        wearing: this.wearing(this.lookFor(this.dare?.hero ?? this.choice.hero)),
         onPlay: (c, seed) => {
           sfx.play('click');
           if (seed !== undefined) this.dare = null;
@@ -353,6 +477,19 @@ export class App {
         initial: this.choice,
         owned: this.owned(),
         champions: this.integration.championTiles(),
+        skins: {
+          owned: ownedSkins().map((sk) => this.skinTile(sk)),
+          locked: this.skinShowcaseOpen().tiles
+            ? this.integration
+                .state()
+                .featured.map((f) => getSkin(`${FEATURED_SKIN_PREFIX}${f.catalogId}`))
+                .filter((sk): sk is CatSkin => !!sk)
+                .slice(0, 2)
+                .map((sk) => this.skinTile(sk))
+            : [],
+        },
+        onPreview: (id) => this.previewSkin(id),
+        onTileSeen: (id) => wantProbe(id),
         looks: p.looks as Record<HeroId, Partial<Look>>,
         onLook: (h, look) => {
           const q = loadProfile();
@@ -408,7 +545,10 @@ export class App {
     // the squad may have changed on the pick screen, or a cat just joined
     this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
     const owned = this.owned();
-    const look = this.lookFor(c.hero);
+    // GDD §7.2: the first match never wears a card skin (the tutorial art matches); its coat and chroma stay as before
+    const chosen = this.lookFor(c.hero);
+    const look = p.matches === 0 && isCardSkinId(chosen.coat) ? resolveLook(c.hero, owned, null) : chosen;
+    // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
       seed,
@@ -423,13 +563,16 @@ export class App {
       companions: this.roster.companions,
       guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
       knowsUlt: p.knowsUlt && p.matches > 0,
+      skinFx: p.skinFx,
+      // GDD §7.2 bot showcase: web, from session 2, never the first match
+      showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero: c.hero, difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = this.roster.companions.map((k) => k.name);
-    const veil = loadingVeil(this.root, 'Into the Crossing...', mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined);
+    const veil = loadingVeil(this.root, 'Into the Crossing...', mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined, this.wearing(look));
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -456,6 +599,14 @@ export class App {
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
     const rec = recordMatch(won, seconds, e.replay.difficulty);
+    // GDD §7.2 Bond: one more finished match wearing this cat's skin (earned by play only)
+    const worn = isCardSkinId(setup?.look?.coat) ? getSkin(setup?.look?.coat) : null;
+    let skinLine: { name: string; art?: string; bond: number; next: number | null } | null = null;
+    if (worn && !worn.featured) {
+      const bond = noteBond(worn.catId, this.rosterCats.map((c) => c.id));
+      this.syncSkins();
+      skinLine = { name: worn.name, ...(worn.art ? { art: worn.art } : {}), bond, next: nextBond(bond) };
+    }
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
@@ -560,6 +711,7 @@ export class App {
         // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
         quick: lp.matches >= 4 || lp.veteran,
         tryHero: tease,
+        skin: skinLine,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
         speed: this.speed,
         storeOpen: s.storeOpen,
@@ -672,7 +824,12 @@ export class App {
     if (this.overlay) return;
     const p = loadProfile();
     const el = settingsPanel(this.root, {
-      state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.consentState === 'granted' : null },
+      state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.consentState === 'granted' : null, skinFx: p.skinFx },
+      onSkinFx: (m) => {
+        const q = loadProfile();
+        q.skinFx = m;
+        saveProfile(q);
+      },
       onMute: (m) => this.setMuted(m),
       onTier: (t) => this.setTier(t),
       onTips: (on) => {
@@ -741,6 +898,8 @@ export class App {
 }
 
 const HERO_NAME = (h: HeroId): string => HERO_TEXT[h].title;
+/** How long a featured skin preview spins on the turntable (ms). */
+export const PREVIEW_MS = 8000;
 
 /** The SKU an item came from (analytics only). */
 function skuOfItem(item: string): string {

@@ -12,7 +12,20 @@ export interface CharUniforms {
   uFlash: { value: THREE.Color };
   uOpacity: { value: number };
   uRim: { value: number };
+  /** Card skins (GDD §7.2), Legendary rung on Med / High: the fur foil's strength (0 = off, the default). */
+  uFoil: { value: number };
+  /** The foil's tint (white mixed toward the skin's element). */
+  uFoilColor: { value: THREE.Color };
 }
+
+/** Seconds for the foil sheen, shared by every character material (one write per frame: `setCharTime`). */
+const TIME = { uTime: { value: 0 } };
+export function setCharTime(t: number): void {
+  TIME.uTime.value = t % 3000;
+}
+/** The foil band's period (s) and the strength a Legendary skin uses. */
+export const FOIL_PERIOD = 3;
+export const FOIL_STRENGTH = 0.15;
 
 /** Shared by every outline material: NDC per pixel, set once per frame by the view (`setOutlineViewport`). */
 const OUTLINE = { uPx: { value: new THREE.Vector2(2 / 1280, 2 / 720) }, uWidth: { value: 1.6 } };
@@ -31,14 +44,16 @@ export function charMaterial(rim = 0.55): CharMaterial {
     uFlash: { value: new THREE.Color(0xffffff) },
     uOpacity: { value: 1 },
     uRim: { value: rim },
+    uFoil: { value: 0 },
+    uFoilColor: { value: new THREE.Color(0xffffff) },
   };
   const m = new THREE.MeshLambertMaterial({ vertexColors: true }) as CharMaterial;
   m.userData.u = u;
   m.onBeforeCompile = (shader) => {
     compiled++;
-    Object.assign(shader.uniforms, u);
+    Object.assign(shader.uniforms, u, TIME);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uFlash;\nuniform float uFlashK, uOpacity, uRim;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uFlash, uFoilColor;\nuniform float uFlashK, uOpacity, uRim, uFoil, uTime;')
       .replace(
         '#include <opaque_fragment>',
         [
@@ -46,12 +61,16 @@ export function charMaterial(rim = 0.55): CharMaterial {
           // ink rim: darken where the surface turns away from the eye (a soft PPK-style outline on every tier)
           'float plEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));',
           'gl_FragColor.rgb *= 1.0 - uRim * smoothstep(0.62, 0.92, plEdge);',
+          // card skin foil (Legendary): a soft diagonal sheen band sweeping across the fur every FOIL_PERIOD s;
+          // uniform-coherent (uFoil is per material, 0 for everyone else)
+          `if (uFoil > 0.0) { float plB = fract((vViewPosition.x + vViewPosition.y) * 0.35 - uTime / ${FOIL_PERIOD.toFixed(1)});`,
+          '  gl_FragColor.rgb += uFoilColor * uFoil * smoothstep(0.0, 0.12, plB) * (1.0 - smoothstep(0.12, 0.26, plB)); }',
           'gl_FragColor.rgb = mix(gl_FragColor.rgb, uFlash, uFlashK);',
           'gl_FragColor.a *= uOpacity;',
         ].join('\n'),
       );
   };
-  m.customProgramCacheKey = () => 'pl-char-v1';
+  m.customProgramCacheKey = () => 'pl-char-v2';
   return m;
 }
 

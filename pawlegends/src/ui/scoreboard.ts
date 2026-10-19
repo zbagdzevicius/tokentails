@@ -11,6 +11,8 @@ export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
   return side === 'dog' ? 'Woof pack' : 'Purrhaven cats';
 }
 
+const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
 export class Scoreboard {
   readonly root: HTMLElement;
   readonly kills = [0, 0, 0, 0, 0, 0];
@@ -26,6 +28,8 @@ export class Scoreboard {
     private readonly picks: readonly HeroId[],
     private readonly mySlot: number,
     names?: readonly string[],
+    /** Card skins (GDD §7.2): the cat each hero wears ('' = none), shown as "<Hero> · <cat>". */
+    private readonly cats: readonly string[] = [],
   ) {
     this.names = names ? [...names] : slotNames(picks);
     this.root = document.createElement('div');
@@ -66,7 +70,7 @@ export class Scoreboard {
           const dead = e?.state === 'dead';
           const t = HERO_TEXT[hero];
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}">
-            <td><i class="dot" style="background:${HERO_COLOR_CSS[hero]}"></i>${this.names[slot] ?? t.title}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
+            <td><i class="dot" style="background:${HERO_COLOR_CSS[hero]}"></i>${esc(this.names[slot] ?? t.title)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
             <td>${t.role}</td><td>${e?.level ?? '-'}</td><td>${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })

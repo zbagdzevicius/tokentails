@@ -14,6 +14,9 @@ import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
 import { boldRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
 import { HERO_RING } from './models';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
+import { getSkin, isCardSkinId } from '../skins/skinStore';
+import { TierFx, type FxHero } from '../skins/tierFx';
+import { mixColor } from '../cosmetics';
 
 export type Relation = 'self' | 'ally' | 'enemy' | 'neutral';
 
@@ -79,6 +82,12 @@ export class HeroView {
   outlines = true;
   /** Render-only looks per hero slot (the player's cosmetics; bots wear the default). */
   looks = new Map<number, Look>();
+  /** Card skin rarity effects (render/skins/tierFx.ts); null = none (the lobby). GameView sets it with its particles. */
+  tierFx: TierFx | null = null;
+  /** The camera focus (m) for the team-fight test. */
+  focus = { x: 0, z: 0 };
+  private readonly fxHero: FxHero = { id: 0, x: 0, z: 0, rung: 'COMMON', element: 'FIRE', self: false, moving: false, stealth: false, dead: false, napping: false, phase: 0 };
+  private readonly fxPos: { x: number; z: number; dead: boolean }[] = Array.from({ length: 8 }, () => ({ x: 0, z: 0, dead: true }));
 
   constructor() {
     this.group.name = 'heroes';
@@ -110,13 +119,14 @@ export class HeroView {
     const look = this.looks.get(e.id) ?? null;
     const hero = e.hero ?? 'clem';
     const team = (e.team === 1 ? 1 : 0) as 0 | 1;
-    const key = `${hero}:${team}:${lookKey(look)}:${this.detail}:${this.outlines ? 1 : 0}`;
+    const self = e.id === this.mySlot;
+    const key = `${hero}:${team}:${lookKey(look)}:${this.detail}:${this.outlines ? 1 : 0}:${self ? 1 : 0}`;
     if (r && r.key !== key) {
       this.drop(r);
       r = undefined;
     }
     if (!r) {
-      const ch = makeHero(hero, team, look, { detail: this.detail, outline: this.outlines, shadows: this.shadows });
+      const ch = makeHero(hero, team, look, { detail: this.detail, outline: this.outlines, shadows: this.shadows, match: true, self });
       // no outline hull (Low): a darker ink rim keeps the silhouette off the sand (ivory Clem faded into the lane)
       if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
@@ -170,6 +180,19 @@ export class HeroView {
     this.auras.begin();
     this.selfRing.begin();
     this.selfPing.begin();
+    const fx = this.tierFx;
+    if (fx) {
+      let n = 0;
+      for (const e of frame.entities) {
+        if (e.kind !== 'hero' || n >= this.fxPos.length) continue;
+        const q = this.fxPos[n++];
+        q.x = toX(e.fx);
+        q.z = toZ(e.fy);
+        q.dead = e.state === 'dead';
+      }
+      for (let i = n; i < this.fxPos.length; i++) this.fxPos[i].dead = true;
+      fx.begin(dt, this.focus.x, this.focus.z, this.fxPos);
+    }
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       seen.add(e.id);
@@ -207,6 +230,26 @@ export class HeroView {
         ch.material.needsUpdate = true;
         if (ch.outline) ch.outline.visible = want === 1;
       }
+      // card skins (GDD §7.2): Epic glints, Legendary foil and recall flourish; never an aura
+      const lookCoat = this.looks.get(e.id)?.coat;
+      const skin = fx && isCardSkinId(lookCoat) ? getSkin(lookCoat) : null;
+      if (fx && skin) {
+        const h = this.fxHero;
+        h.id = e.id;
+        h.x = x;
+        h.z = z;
+        h.rung = skin.rung;
+        h.element = skin.element;
+        h.self = e.id === this.mySlot;
+        h.moving = charState(e) === 'moving';
+        h.stealth = stealth;
+        h.dead = dead;
+        h.napping = e.state === 'napping';
+        h.phase = ch.anim.stridePhase;
+        const foil = fx.hero(h);
+        u.uFoil.value = foil;
+        if (foil > 0) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
+      } else u.uFoil.value = 0;
       if (!dead) {
         const rel = this.relationOf(e);
         if (rel === 'self') {
@@ -228,6 +271,7 @@ export class HeroView {
         r.visible = false;
       }
     }
+    fx?.end();
     this.rings.end();
     this.auras.end();
     this.selfRing.end();

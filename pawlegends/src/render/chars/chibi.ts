@@ -27,14 +27,20 @@ export const C = (c: number | string): RGB => rgb(c) as RGB;
 export const mix = (a: RGB | number[], b: RGB | number[], t: number): RGB => mixRgb(a, b, t) as RGB;
 export const shade = (c: number | string, k: number): RGB => mix(C(c), [0, 0, 0], k);
 
-/** Coat (PPK `coat`): solid, tabby stripes, colour points (dark ears, mask, paws, tail) or spots. */
+/**
+ * Coat (PPK `coat`): solid, tabby stripes, colour points (dark ears, mask, paws, tail) or spots; card skins (GDD §7.2)
+ * add tuxedo (a dark coat with a cream bib, muzzle, paws and belly) and calico (a cream base with `patch` and `deep`
+ * patches, never on the muzzle or bib).
+ */
 export interface CoatSpec {
-  pattern: 'solid' | 'tabby' | 'points' | 'spots';
+  pattern: 'solid' | 'tabby' | 'points' | 'spots' | 'tuxedo' | 'calico';
   base: number | string;
   deep: number | string;
   light: number | string;
   cream: number | string;
   stripe?: number;
+  /** Calico's third colour (the orange patches). */
+  patch?: number | string;
 }
 
 export interface EyeSpec {
@@ -120,6 +126,24 @@ export function coatColor(coat: CoatSpec, region: Region, p: THREE.Vector3, o: {
     if (region === 'ear' || region === 'paw') c = mix(c, deep, 0.85);
     else if (region === 'tail') c = mix(c, deep, smooth(0.15, 0.6, o.t ?? 0) * 0.9);
     else if (region === 'muzzle') c = mix(c, deep, 0.55);
+  } else if (coat.pattern === 'tuxedo') {
+    // the dark coat with its white shirt front: bib, muzzle, paws and the belly
+    let k = 0;
+    if (region === 'bib' || region === 'paw') k = 1;
+    else if (region === 'muzzle') k = 0.95;
+    else if (region === 'body') k = smooth(0.03, 0.12, p.z);
+    else if (region === 'head' || region === 'cheek') k = Math.max(smooth(0.07, 0.035, _d3(p, FACE.muzzle)), smooth(0.09, 0.05, p.y) * smooth(0.03, 0.1, p.z));
+    else if (region === 'tail') k = smooth(0.85, 0.97, o.t ?? 0);
+    return k > 0 ? mix(c, cream, k) : c;
+  } else if (coat.pattern === 'calico') {
+    // a cream cat with orange and dark patches (never on the muzzle or the bib)
+    c = cream;
+    if (region !== 'muzzle' && region !== 'bib') {
+      const patch = C(coat.patch ?? coat.base);
+      if (n > 0.58) c = mix(c, patch, smooth(0.58, 0.6, n));
+      else if (n < 0.4) c = mix(c, deep, smooth(0.4, 0.38, n));
+    }
+    return c;
   }
   let creamK = 0;
   if (region === 'head' || region === 'cheek' || region === 'muzzle') {

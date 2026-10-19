@@ -35,7 +35,8 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
     case 'save-result':
       return wrap(parseSaveResult(m));
     case 'roster':
-      return Array.isArray(m.cats) ? wrap({ cats: parseRoster(m.cats, { isApp: opts.isApp ?? false }) }) : null;
+      // the wire shape: `family` and `variant` are derived from `sprite` in the game, never sent
+      return Array.isArray(m.cats) ? wrap({ cats: parseRoster(m.cats, { isApp: opts.isApp ?? false }).map(({ family: _f, variant: _v, ...c }) => c) }) : null;
     case 'featured': {
       const cats = parseFeatured(m);
       return cats ? wrap({ cats }) : null;

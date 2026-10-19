@@ -77,6 +77,20 @@ describe("bridge: champions and champion-offer", () => {
     expect(onChampionOffer.mock.calls).toEqual([[LAMBO]]);
   });
 
+  it("card skins: skin-preview reaches the host only for a featured cat, never in an app build", () => {
+    const onSkinPreview = jest.fn();
+    const FEAT = "65a1b2c3d4e5f6a7b8c9d0e1";
+    const { bridge, send } = setup({ onSkinPreview });
+    bridge.setFeatured([{ catalogId: FEAT, name: "Pumpkin", type: "GRASS" }]);
+    send({ type: "skin-preview", catalogId: FEAT });
+    send({ type: "skin-preview", catalogId: LAMBO });
+    send({ type: "skin-preview", catalogId: "Pumpkin" });
+    expect(onSkinPreview.mock.calls).toEqual([[FEAT]]);
+    bridge.setApp(true, false, false);
+    send({ type: "skin-preview", catalogId: FEAT });
+    expect(onSkinPreview).toHaveBeenCalledTimes(1);
+  });
+
   it("an app build hears no card for sale and drops champion-offer", () => {
     const onChampionOffer = jest.fn();
     const { bridge, posted, send } = setup({ onChampionOffer });

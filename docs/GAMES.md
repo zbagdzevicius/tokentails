@@ -227,11 +227,13 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   `src/embed/integrate.ts`; both test against `shared/pawlegends-bridge.fixtures.json`. The host says `hello`
   until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading" note
   after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp, store,
-  notify}`, `session {signedIn, progress}`, `audio {muted, music?, sfx?}`, `roster {cats}`, `featured {cats}`,
+  notify}`, `session {signedIn, progress}`, `audio {muted, music?, sfx?}`, `roster {cats}` (each cat may carry
+  `sprite`, its sprite sheet, for the game's card skins), `featured {cats}` (optional `sprite` and `tier`),
   `champions {cats}`, `offer {offer}` and `entitlements {token}`, plus a pending `pause`; it also sends `save-result {matchId,
   status, catnipPaid, catnipTotal, fastestWin}`, `resume` and `purchase-result {catalogId, ok}`. The game sends
   `match-result {replay, summary, matchId}`, `request-sign-in {reason}`, `open-cat {catalogId}`, `offer-seen
-  {kind, catalogId}`, `champion-offer {catalogId}`, `notify {where}`, `share {kind, url}` (same-origin
+  {kind, catalogId}`, `champion-offer {catalogId}`, `skin-preview {catalogId}` (a featured cat's card skin was
+  previewed on the pick screen; the host puts that cat first in its next offer ask), `notify {where}`, `share {kind, url}` (same-origin
   `/pawlegends` links only) and `paused`; the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
@@ -253,6 +255,27 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick
   screen, the save chip and companion card on results.
+- **Card skins** (GDD §7.2, `src/render/skins/`, render only: never sim input, no `SIM_VERSION` change, replays
+  unchanged): every owned cat is a skin any of the 8 champions can wear. The roster's `sprite` URL names the breed
+  folder (`assets/<FAMILY>/<variant>.png`), which picks a palette row from `families.gen.ts` (58 families,
+  `npm run gen:skins`, overrides in `overrides.json`); unknown families and accessory colours come from a sprite
+  probe outside matches, then the starter breed coat, then an element preset. The cat's coat, eyes, ears and nose go
+  on the champion's own rig; team-colour parts never change and the chroma path is off while a card skin is worn;
+  the dogs wear a cat costume (fur, pattern and ears, their own heads). **Rarity ladder**, one addition per rung:
+  Common (recolour and an element chest gem), Rare (element trim), Epic (footfall glints), Legendary (fur foil on
+  Med / High and a ring when a Nap recall lands). Rung = max(tier rung, Bond rung): the tier counts only for
+  origins adopt, redeem, portrait and starter (a pack cat or a cat with no origin is Common); **Bond** is finished
+  matches wearing the skin (3 Rare, 10 Epic, 30 Legendary), kept in the local profile. The pick screen's Skins row
+  holds Classic, coats and owned cats (by rung, Bond, newest); Settings has Skin effects All / Mine only / Off. On
+  the web from play session 2, up to two locked featured cats get a Preview (8 s spin, no price, no link; the game
+  sends `skin-preview`), and showcase bots may wear one (capped at Rare). App builds: owned skins only.
+  **Local preview without a host**: open the standalone build with `?skins=demo` (for example
+  `http://127.0.0.1:5176/?skins=demo` under `npm run dev`, or a local static server on the `client/public/pawlegends-game`
+  copy), then Choose hero (the title shows it after the first match; the first match always wears the default looks). It loads a fixed five-cat demo roster (`src/app/skinDemo.ts`: Legendary, Epic and Rare
+  adopted or redeemed cats, a Common adopted cat and an Epic pack cat that shows as Common) through the normal roster
+  path. It runs only on localhost, 127.0.0.1, ::1 or `file://`, never in a host frame or an app build, grants
+  nothing, sends nothing, and seeds no featured cats or offers. Sprite probes need network to the CDN; offline the
+  table palettes still apply.
 - **Shelter champions** (sim v9, POC.md §6 addendum): four heroes inspired by real Pink Paw cats' Token Tails
   cards (`pawlegends/src/data/heroes/shelter.ts`; licence for the names and photos, Oct 11). They are free to
   play for everyone in every build, the app included; bots pick them too. Owning a champion's card (web only)

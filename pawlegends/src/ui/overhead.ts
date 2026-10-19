@@ -122,6 +122,10 @@ export class Overhead {
   names: readonly string[] = [];
   /** Round 1 tier perk: a Legendary frame owner's "You" sits on a gold name plate. */
   goldPlate = false;
+  /** Card skins (GDD §7.2): the cat the player's hero wears, a small line over the own plate only (null = none). */
+  catName: string | null = null;
+  /** A Legendary card skin: an element gem beside the own name (CSS colour, null = none). */
+  plateGem: string | null = null;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
@@ -710,7 +714,35 @@ export class Overhead {
       g.fillText(name, sx, ny);
     }
     if (this.watchers.has(e.id)) this.eyeGlyph(g, sx + tw / 2 + 14 * this.scale, ny);
-    if (e.id === this.mySlot) this.selfChevron(g, sx, ny - 11 * this.scale);
+    let chevronY = ny - 11 * this.scale;
+    if (e.id === this.mySlot && this.catName) {
+      // the worn cat, small, above the own name (canvas text: never HTML)
+      g.font = `600 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
+      const cy = ny - 13 * this.scale;
+      g.lineWidth = 3;
+      g.strokeStyle = 'rgba(42,26,34,0.85)';
+      g.strokeText(this.catName, sx, cy);
+      g.fillStyle = '#fff3dc';
+      g.fillText(this.catName, sx, cy);
+      chevronY = cy - 10 * this.scale;
+      g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    }
+    if (e.id === this.mySlot && this.plateGem) {
+      const gx = sx + tw / 2 + 10 * this.scale;
+      const r = 4 * this.scale;
+      g.fillStyle = this.plateGem;
+      g.strokeStyle = 'rgba(42,26,34,0.9)';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(gx, ny - r);
+      g.lineTo(gx + r * 0.75, ny);
+      g.lineTo(gx, ny + r);
+      g.lineTo(gx - r * 0.75, ny);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    }
+    if (e.id === this.mySlot) this.selfChevron(g, sx, chevronY);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
     if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
     if (p.chip) {

@@ -20,6 +20,7 @@ Install and run inside this package (`npm install` here; it has its own `node_mo
 | Headless matches | `npm run match -- --seeds 40 [--profile idle\|novice\|easy\|normal] [--difficulty easy\|normal] [--hero random] [--trick random] [--check-determinism] [--balance]` (`--balance` checks median, p95 ≤ 10:30, core kills, side and hero gates) |
 | Determinism fuzz | `npm run determinism -- --seeds 1000` (record → replay, hash trails every 30 ticks, parallel processes) |
 | Nightly gates | `PAWLEGENDS_NIGHTLY=1 npx vitest run --project unit tests/unit/balance.test.ts tests/unit/bots.test.ts tests/unit/determinism.test.ts` (2,000 balance seeds, 400 novice seeds per difficulty, 1,000 fuzz seeds) |
+| Card skin palettes | `npm run gen:skins` (writes `src/render/skins/families.gen.ts` from `../client/public/heist-game/assets/cats/*.png`; `-- --sheet <png>` writes a contact sheet), `npm run gen:skins:check` fails when the table is stale |
 | Backend sim copy | `npm run vendor-sim` → `../backend/src/vendor/pawlegends-sim/`; `vendor-sim:check` fails when it is stale; `vendor-sim:check-remote -- <backend url>` compares `GET /pawlegends/sim` |
 
 Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see "Hero art" below).
@@ -41,7 +42,7 @@ Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see
 - `src/render/`, `src/input/`, `src/ui/`: lifted PPK code (JS, provenance header on every file) plus our TS.
   Lifted support modules sit in `src/render/ppk/`; PPK modules we do not use are generated stubs in
   `src/render/ppk/stubs/`.
-- `tools/`: `lift-ppk.mjs`, `lint-sim.mjs`, `budget.mjs`.
+- `tools/`: `lift-ppk.mjs`, `lint-sim.mjs`, `budget.mjs`, `gen-cat-skins.mjs` (with `lib/png.mjs`, a dependency-free PNG decoder).
 
 ## Hero art (POC.md §6.9)
 
@@ -66,6 +67,20 @@ like in Pink Paw Knight"):
 
 Team colour sits on the shoulder mantle, the helmet / hood / cap, the pauldrons and the cape (21% to 34% of the
 up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` stay unwritten.
+
+## Card skins (GDD §7.2)
+
+Every owned Token Tails cat is a skin every champion can wear (`src/render/skins/`, render only):
+
+- `classify.ts`: the pure sprite classifier (palette slots and the coat pattern from 48 px pixel art), shared by
+  `tools/gen-cat-skins.mjs` (Node imports the `.ts` directly, so the file has no imports) and the runtime probe.
+- `families.gen.ts` (generated, never edited) plus `overrides.json` (the reviewed misreads); `registry.ts` turns
+  roster and featured cats into `CatSkin`s (palette chain, rung = max(tier rung, Bond), team-hue clamp);
+  `spriteProbe.ts` (CORS fetch, 48 px decode, 64-entry cache with 24 h failures); `tierFx.ts` (Epic glints,
+  Legendary foil and recall ring, quality and team-fight caps).
+- The character shader gains `uFoil` / `uTime` (one program, `pl-char-v2`); `chars/specs.ts` has one card-skin branch
+  (cats: coat, eyes, ears, nose; dogs: a cat costume). No draw calls are added; the dog costume costs ≤ 160 triangles.
+- `?e2e=1&skins=legendary` dresses every hero in a synthetic Legendary skin (perf.spec.ts); it does nothing outside e2e.
 
 ## Pink Paw Knight lift
 

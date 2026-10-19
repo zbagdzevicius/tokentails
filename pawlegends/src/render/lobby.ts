@@ -7,7 +7,9 @@ import type { HeroId } from '../sim/api';
 import { FADE, Particles, SHAPE } from './fx/Particles.js';
 import { Shockwaves } from './fx/Shockwaves.js';
 import { CONFETTI_COLORS } from './ppk/fx/palette.js';
-import { lookKey, type Look } from './cosmetics';
+import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
+import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
+import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
 import { lobbyHero, type LobbyHero } from './views/heroView';
 
@@ -85,6 +87,11 @@ export class Lobby {
     this.look = key;
     this.hero = lobbyHero(hero, team, look);
     this.hero.object.name = `lobby-hero:${hero}:${key}`;
+    // a Legendary card skin shows its fur foil on the turntable too
+    const skin = isCardSkinId(look?.coat) ? getSkin(look?.coat) : null;
+    const u = this.hero.ch.material.userData.u;
+    u.uFoil.value = skin?.rung === 'LEGENDARY' ? FOIL_STRENGTH : 0;
+    if (skin) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
     this.hero.object.scale.setScalar(1.0);
     const g = this.hero.ch.mesh.geometry;
     if (!g.boundingBox) g.computeBoundingBox();
@@ -158,6 +165,7 @@ export class Lobby {
 
   update(dt: number): void {
     this.t += dt;
+    setCharTime(this.t);
     const h = this.hero;
     if (h) {
       this.spin += dt * 0.55;

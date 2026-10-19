@@ -127,7 +127,8 @@
             "isStarter": false,
             "origin": "adopt",
             "art": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/mochi.png",
-            "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1"
+            "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1",
+            "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/hat-samurai.png"
           },
           {
             "id": "starter-1",
@@ -156,7 +157,8 @@
                 "isStarter": false,
                 "origin": "adopt",
                 "art": "https://evil.example.com/tokentails-nfts/mochi.png",
-                "catalogId": "not-a-catalog-id"
+                "catalogId": "not-a-catalog-id",
+                "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GREY/cat-tate/JUMPING.gif"
               },
               {
                 "id": "64f0a1b2c3d4e5f6a7b8c9d1",
@@ -165,7 +167,8 @@
                 "tier": "RARE",
                 "isStarter": false,
                 "origin": "redeem",
-                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png"
+                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png",
+                "sprite": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/GREY/base.png"
               }
             ]
           },
@@ -189,7 +192,8 @@
                 "tier": "RARE",
                 "isStarter": false,
                 "origin": "redeem",
-                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png"
+                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png",
+                "sprite": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/GREY/base.png"
               }
             ]
           }
@@ -233,7 +237,9 @@
             "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1",
             "name": "Pumpkin",
             "type": "GRASS",
-            "art": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/pumpkin.png"
+            "art": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/pumpkin.png",
+            "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OREO/base.png",
+            "tier": "RARE"
           },
           { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR" }
         ]
@@ -246,9 +252,9 @@
             "v": 1,
             "type": "featured",
             "cats": [
-              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "name": "Pumpkin", "type": "GRASS", "art": "http://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png" },
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "name": "Pumpkin", "type": "GRASS", "art": "http://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png", "tier": "GOLDEN" },
               { "catalogId": "xyz", "name": "Bad", "type": "FIRE" },
-              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR" },
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR", "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base.png", "tier": "EPIC" },
               { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e3", "name": "Third", "type": "ICE" }
             ]
           },
@@ -258,7 +264,7 @@
             "type": "featured",
             "cats": [
               { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "name": "Pumpkin", "type": "GRASS" },
-              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR" }
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR", "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base.png", "tier": "EPIC" }
             ]
           }
         }
@@ -379,6 +385,10 @@
     "champion-offer": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "6a30473c1d6649b19b03622b" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "lambo" }
+    },
+    "skin-preview": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "Pumpkin" }
     }
   }
 }

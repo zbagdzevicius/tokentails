@@ -20,7 +20,11 @@ import { Objectives, type BeatId } from '../onboarding/objectives';
 import { Announcer, XpPops, type Moment } from '../render/announcer';
 import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
-import { lookKey, type FrameId, type Look } from '../render/cosmetics';
+import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
+import { setProbeBlocked } from '../render/skins/spriteProbe';
+import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
+import { eyesOf } from '../render/skins/registry';
+import type { SkinFxMode } from '../render/skins/tierFx';
 import { bakePortrait } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
@@ -65,6 +69,41 @@ export interface MatchSetup {
   guide?: GuideMode;
   /** The player has cast an ultimate in an earlier match: no "ULTIMATE READY" prompt any more. */
   knowsUlt?: boolean;
+  /** Card skin effects (Settings: All / Mine only / Off; GDD §7.2). */
+  skinFx?: SkinFxMode;
+  /** Featured skin ids a showcase bot may wear (empty unless web, session 2+, not the first match). */
+  showcase?: readonly string[];
+}
+
+/** `?e2e=1&skins=legendary` (perf.spec.ts): every hero in a synthetic Legendary card skin. Never outside e2e. */
+function e2eLegendary(): boolean {
+  try {
+    const q = new URLSearchParams(location.search);
+    return q.get('e2e') === '1' && q.get('skins') === 'legendary';
+  } catch {
+    return false;
+  }
+}
+
+function e2eSkin(slot: number): CatSkin {
+  const els = ['FIRE', 'ICE', 'GRASS', 'WATER', 'DARK', 'STELLAR'] as const;
+  const id = `cat.e2e${slot}`;
+  return {
+    id,
+    catId: `e2e${slot}`,
+    name: `Cat ${slot + 1}`,
+    element: els[slot % els.length],
+    tierRung: 'LEGENDARY',
+    bond: 30,
+    rung: 'LEGENDARY',
+    coat: { pattern: slot % 2 ? 'tabby' : 'calico', base: 0xc8891a, deep: 0x3a2a20, light: 0xf0d8b0, cream: 0xfff3dc, patch: 0xe07a2a, stripe: 0.55 },
+    eyes: eyesOf(0x8fd11e),
+    earInner: 0xd58971,
+    nose: 0x6a4438,
+    rev: 0,
+    source: 'family',
+    order: slot,
+  };
 }
 
 /** What the announcer saw (results screen, Treat Track, quests, analytics `pl_*`). */
@@ -195,6 +234,8 @@ export class MatchSession {
   activity = 0;
   /** The player's hits that landed (e2e telemetry). */
   private hitsLanded = 0;
+  /** Card skin cat names by slot ('' = none): the scoreboard's "<Hero> · <cat>". */
+  private catNames: string[] = [];
   /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (no window globals). */
   private readonly e2e = (() => {
     try {
@@ -215,6 +256,8 @@ export class MatchSession {
     this.ui.className = 'pl-match';
     parent.appendChild(this.ui);
     this.stage = new Stage(this.ui);
+    // a match uses the skin palettes cached at its start: no sprite probes until it ends
+    setProbeBlocked(true);
     this.view = new GameView(gr, this.ui, {
       onKill: (e, victim, killer) => this.onKill(e, victim, killer),
       onTalentOffer: (tier) => this.talents?.offer(tier, this.inFight()),
@@ -288,8 +331,22 @@ export class MatchSession {
     this.welcome = w;
     this.view.setTeam(w.slot, w.team, w.tricks);
     this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
-    this.view.dressBots(w.seed, w.picks);
+    const shown = this.view.dressBots(w.seed, w.picks, this.setup.showcase ?? []);
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
+    this.view.setSkinFx(this.setup.skinFx ?? 'all');
+    if (this.e2e && e2eLegendary()) {
+      for (let slot = 0; slot < w.picks.length; slot++) {
+        const sk = e2eSkin(slot);
+        putSkin(sk);
+        this.view.heroes.looks.set(slot, cardLook(sk.id));
+      }
+    }
+    // card skins: the player's own plate names the cat (only the own plate: plates stack in fights); everyone else's
+    // cat shows on the scoreboard only
+    const mine = isCardSkinId(this.setup.look?.coat) ? getSkin(this.setup.look?.coat) : null;
+    this.overhead.catName = mine?.name ?? null;
+    this.overhead.plateGem = mine?.rung === 'LEGENDARY' ? `#${ELEMENT_COLOR[mine.element].toString(16).padStart(6, '0')}` : null;
+    this.catNames = w.picks.map((_, slot) => (slot === w.slot ? (mine?.name ?? '') : (shown.get(slot) ?? '')));
     this.overhead.mySlot = w.slot;
     this.overhead.myTeam = w.team;
     const hero = w.picks[w.slot];
@@ -361,7 +418,7 @@ export class MatchSession {
       d.kittens = String(this.view.companions?.count ?? 0);
       d.squadNames = (this.setup.companions ?? []).slice(0, 2).map((c) => c.name).join(',');
     }
-    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names);
+    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames);
     this.scoreboard.root.addEventListener('pointerdown', (e) => {
       if (!this.scoreboard?.root.classList.contains('tap')) return;
       e.stopPropagation();
@@ -1505,6 +1562,7 @@ export class MatchSession {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    setProbeBlocked(false);
     this.host.leave();
     this.host.dispose();
     this.desktop?.dispose();

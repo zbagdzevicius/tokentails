@@ -13,7 +13,7 @@
 import type { ICat } from "@/models/cats";
 import { CatAbilityType } from "@/models/cats";
 import { isCatForSale, ownsCopy } from "@/components/shelter/catSale";
-import { artUrlOf, catNameOf, PAWLEGENDS_FEATURED_LIMIT, type PawlegendsFeaturedCat, type PawlegendsRosterCat } from "./bridge";
+import { artUrlOf, catNameOf, PAWLEGENDS_FEATURED_LIMIT, spriteUrlOf, type PawlegendsFeaturedCat, type PawlegendsRosterCat } from "./bridge";
 
 const ABILITY_TYPES = new Set<string>(Object.values(CatAbilityType));
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -101,6 +101,10 @@ export function pickFeatured(
     const featured: PawlegendsFeaturedCat = { catalogId, name: catNameOf(cat.name)!, type: String(cat.type) };
     const art = artUrlOf(cat.catImg);
     if (art) featured.art = art;
+    // card skins: a locked preview tile and showcase bots read the sprite; the tier caps their look at Rare
+    const sprite = spriteUrlOf(cat.spriteImg);
+    if (sprite) featured.sprite = sprite;
+    if (typeof cat.tier === "string") featured.tier = String(cat.tier);
     cats.push(featured);
     byId.set(catalogId, cat);
   }

@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { fbm3 } from '../ppk/characters/util.js';
 import { FACE } from './skeleton';
-import { C, mat, mix, type Assembly, type RGB } from './chibi';
+import { C, coatColor, mat, mix, type Assembly, type CoatSpec, type RGB } from './chibi';
 
 const smooth = (e0: number, e1: number, x: number): number => {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
@@ -78,7 +78,7 @@ export function pugHead(A: Assembly, o: { fur?: number; dark?: number } = {}): v
  * purple muzzle, a big dark nose, heavy brows, a wide grin with two fangs, and big round dark-rimmed ears that stand
  * above the cap. Front-on, so the face reads at lobby scale and the ears read from above.
  */
-export function hyenaHead(A: Assembly, o: { spotted?: boolean } = {}): void {
+export function hyenaHead(A: Assembly, o: { spotted?: boolean; earStyle?: 'round' | 'cat'; earCoat?: CoatSpec; earInner?: number } = {}): void {
   const P = HYENA;
   const furC = C(P.fur);
   const darkC = C(P.furDark);
@@ -104,10 +104,22 @@ export function hyenaHead(A: Assembly, o: { spotted?: boolean } = {}): void {
   dogEyes(A, P.eye, { x: 0.068, y: 0.195, z: 0.135, r: 0.04 });
   // heavy brows angled into a scowl-grin
   for (const s of [1, -1]) A.add('head', new THREE.BoxGeometry(0.075, 0.018, 0.02), { m: mat([s * 0.068, 0.248, 0.142], [0.3, 0, -s * 0.38]), color: P.brow });
-  // big round ears with a dark rim, set high so they stand above the cap
-  for (const s of ['L', 'R'] as const) {
-    A.add(`ear${s}`, new THREE.SphereGeometry(0.088, A.seg(10, 6), A.seg(7, 4)).scale(1, 1.05, 0.34), { m: mat([0, 0.11, -0.01]), color: P.ear });
-    A.add(`ear${s}`, new THREE.SphereGeometry(0.064, A.seg(8, 5), A.seg(6, 4)).scale(1, 1.05, 0.3), { m: mat([0, 0.112, 0.012]), color: P.earInner });
+  if (o.earStyle === 'cat' && o.earCoat) {
+    // card skin (GDD §7.2): pointed cat ears in place of the round ones (never four ears), in the cat's colours
+    const coat = o.earCoat;
+    const inner = o.earInner ?? P.earInner;
+    for (const s of ['L', 'R'] as const) {
+      const sign = s === 'L' ? 1 : -1;
+      const m = mat([0, 0.06, -0.01], [0.05, 0, -sign * 0.18]);
+      A.add(`ear${s}`, new THREE.ConeGeometry(0.075, 0.15, A.seg(8, 5), 1).scale(1, 1, 0.5).translate(0, 0.075, 0), { m, color: (_v, _n, lp) => coatColor(coat, 'ear', lp) });
+      A.add(`ear${s}`, new THREE.ConeGeometry(0.045, 0.1, A.seg(8, 5), 1).scale(1, 1, 0.4).translate(0, 0.05, 0.016), { m, color: inner });
+    }
+  } else {
+    // big round ears with a dark rim, set high so they stand above the cap
+    for (const s of ['L', 'R'] as const) {
+      A.add(`ear${s}`, new THREE.SphereGeometry(0.088, A.seg(10, 6), A.seg(7, 4)).scale(1, 1.05, 0.34), { m: mat([0, 0.11, -0.01]), color: P.ear });
+      A.add(`ear${s}`, new THREE.SphereGeometry(0.064, A.seg(8, 5), A.seg(6, 4)).scale(1, 1.05, 0.3), { m: mat([0, 0.112, 0.012]), color: P.earInner });
+    }
   }
   // a short purple mane down the back of the head
   for (let i = 0; i < 4; i++) A.add('head', new THREE.ConeGeometry(0.04, 0.1, 4), { m: mat([0, 0.3 - i * 0.05, -0.12 - i * 0.035], [-0.9 - i * 0.2, 0, 0]), color: 0x6a3f9a });

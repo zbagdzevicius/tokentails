@@ -1,6 +1,7 @@
 /**
  * The signed-in player's Token Tails cats as the game's `roster.cats[]` (POC.md §11.1): `{id, name, type, tier,
- * isStarter, starterBreed?, origin?, art?, catalogId?}`. `art` is the card art (`catImg`, Token Tails CDN only) and
+ * isStarter, starterBreed?, origin?, art?, catalogId?, sprite?}`. `sprite` is the sprite sheet (`spriteImg`, a
+ * Token Tails CDN `.png`): the game's card skins read each cat's palette from it. `art` is the card art (`catImg`, Token Tails CDN only) and
  * `catalogId` the catalog cat it is a copy of (`sourceCat`, else the blessing's cat), so the game can show the
  * card and the host knows which cat `open-cat` names. The game renders them as chromas, frames and Companion Kittens; they are
  * render-only and never part of a replay. Owned cats carry no breed field, so `starterBreed` is sent only when the
@@ -12,7 +13,7 @@
 import type { ICat } from "@/models/cats";
 import { CatAbilityType, Tier } from "@/models/cats";
 import { CAT_ORIGINS, STARTER_BREEDS } from "@/shared-contracts/enums";
-import { artUrlOf, catNameOf, isCatalogId, PAWLEGENDS_CAT_NAME_MAX, type PawlegendsRosterCat } from "./bridge";
+import { artUrlOf, catNameOf, isCatalogId, PAWLEGENDS_CAT_NAME_MAX, spriteUrlOf, type PawlegendsRosterCat } from "./bridge";
 
 /** Most cats sent (the game shows two Companion Kittens; the rest pick chromas). */
 export const PAWLEGENDS_ROSTER_MAX = 24;
@@ -55,6 +56,9 @@ export function rosterCatOf(cat: Partial<ICat> & { starterBreed?: unknown; sourc
   if (typeof cat.origin === "string" && ORIGINS.has(cat.origin)) out.origin = cat.origin;
   const art = artUrlOf(cat.catImg);
   if (art) out.art = art;
+  // the sprite sheet (`.png` only): the game reads the cat's palette and pattern from it for its card skins
+  const sprite = spriteUrlOf(cat.spriteImg);
+  if (sprite) out.sprite = sprite;
   const catalogId = catalogIdOf(cat);
   if (catalogId) out.catalogId = catalogId;
   return out;
