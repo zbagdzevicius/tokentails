@@ -74,6 +74,17 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
+// The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
+// redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
+// `legacySlugs`). lib/feed/engine.ts is TypeScript that Node loads by type stripping (Node >= 22.18);
+// it validates every article, so a broken file fails here, loudly, before the build starts.
+// Web builds only: the static export has no redirects (pages/feed/article.tsx forwards old app links).
+const feedRedirects = () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS config
+  const feed = require("./lib/feed/engine.ts");
+  return feed.feedRedirects(feed.loadFeed());
+};
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // NEXT_DIST_DIR lets a second build (the bundle guards, task 7b) write next to a running dev
@@ -114,6 +125,7 @@ const nextConfig = {
             // The proof page moved into /impact (plan F7.6, 2.13 row 23).
             { source: "/proof", destination: "/impact", permanent: true },
             ...heistRedirects,
+            ...feedRedirects(),
             // The Sponsor Match Desk statement is a static page in public/match-desk. Next.js does
             // not serve a directory's index.html, and it strips the trailing slash of
             // `/match-desk/` before this rule runs.

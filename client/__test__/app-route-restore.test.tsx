@@ -57,7 +57,7 @@ it("does nothing on the web", () => {
   expect(replace).not.toHaveBeenCalled();
 });
 
-it("rewrites old-form dynamic paths to the exported query-param routes", () => {
+it("rewrites old-form dynamic paths to the exported routes", () => {
   window.history.replaceState(null, "", "/cats/abc");
   render(<AppRouteRestore />);
   expect(replace).toHaveBeenCalledWith("/cats/view?id=abc");
@@ -68,6 +68,12 @@ it("rewrites old-form dynamic paths to the exported query-param routes", () => {
   expect(replace).toHaveBeenCalledWith(
     "/feed/article?category=announcements&slug=hello-world#intro"
   );
+
+  // Articles in a current section are prerendered in the export: their path stays.
+  replace.mockClear();
+  window.history.replaceState(null, "", "/feed/games/catnip-heist-guide");
+  render(<AppRouteRestore />);
+  expect(replace).toHaveBeenCalledWith("/feed/games/catnip-heist-guide");
 });
 
 it("tries each path once, so an unservable path cannot reload forever", () => {

@@ -1,40 +1,37 @@
-import {
-  FeedLanding,
-  LandingPageProps,
-} from "@/components/blog/feed/FeedLanding";
+import { BlogFrame } from "@/components/blog/BlogFrame";
+import { CategoryView } from "@/components/blog/CategoryView";
+import { FeedJsonLd } from "@/components/blog/FeedJsonLd";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
-import BlogLayout from "@/layouts/BlogLayout";
-import { WebPageJsonLd } from "next-seo";
-import { useRouter } from "next/router";
+import { breadcrumbJsonLd, collectionJsonLd } from "@/lib/feed/jsonld";
+import { categoryPaths, categoryProps, type CategoryProps } from "@/lib/feed/props";
+import { isApp } from "@/models/app";
+import type { GetStaticPaths, GetStaticProps } from "next";
 
-export default function Category(landingPageProps: LandingPageProps) {
-  const {
-    query: { category },
-  } = useRouter() as unknown as { query: { category: string } };
-
+/** /feed/<category>: an indexable section landing (its own title, description and intro). */
+export default function FeedCategoryPage({ category, articles, others, liveCategories }: CategoryProps) {
+  const path = `/feed/${category.slug}`;
   return (
     <>
-      <SeoHead
-        name={category}
-        description={`${process.env.NEXT_PUBLIC_SITE_NAME} - ${category} straipsniai`}
-        page={`/${category}`}
+      <SeoHead title={category.seoTitle} description={category.description} path={path} />
+      <FeedJsonLd
+        items={[
+          collectionJsonLd(category, articles),
+          breadcrumbJsonLd([
+            { name: "Blog", path: "/feed" },
+            { name: category.name, path },
+          ]),
+        ]}
       />
-
-      <WebPageJsonLd
-        description={`${process.env.NEXT_PUBLIC_DOMAIN} - ${category} straipsniai`}
-        id={`${process.env.NEXT_PUBLIC_DOMAIN!}/${category}`}
-      />
-
-      <FirebaseAuthProvider authMode="optional">
-        <BlogLayout>
-          <FeedLanding
-            category={category}
-            hasCategory={true}
-            {...landingPageProps}
-          />
-        </BlogLayout>
-      </FirebaseAuthProvider>
+      <BlogFrame liveCategories={liveCategories}>
+        <CategoryView category={category} articles={articles} others={others} />
+      </BlogFrame>
     </>
   );
 }
+
+export const getStaticPaths: GetStaticPaths = async () => ({ paths: categoryPaths(isApp), fallback: false });
+
+export const getStaticProps: GetStaticProps<CategoryProps, { category: string }> = async ({ params }) => {
+  const props = categoryProps(params?.category ?? "", isApp);
+  return props ? { props } : { notFound: true };
+};

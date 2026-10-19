@@ -22,6 +22,8 @@ export const WEB_ONLY_FILES = Object.freeze([
   "game-select/badcat-preview@2x.webp",
   // The Moon Rave picker art: the picker card never renders in app builds (raveEntryEnabled).
   "game-select/rave-preview@2x.webp",
+  // The blog RSS (scripts/build-feed-rss.mjs) is written by web builds and covers web-only articles.
+  "feed/rss.xml",
 ]);
 
 export function pruneAppExport(outDir) {

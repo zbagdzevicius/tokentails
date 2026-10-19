@@ -113,7 +113,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/codex/` | PROGRESS (the CODEX modal): IMPACT tab (`impact/`), rewards, missions, tiers, badges, the web-only Vault, the Tails explainer, and the in-game portrait purchase flow. |
 | `components/web3/` | Stellar transfer, Stripe payment, payment chooser, rates hook, the EVM crypto checkout (`crypto/`). |
 | `components/shelter-payouts/` | `/shelter-payouts`, give, receipt and onboarding pages: payout reads, treat and wallet giving, chains (see its `README.md` and "Wallet giving" below). Payout lists read the backend's payout index first (`payoutIndex.ts`, `GET /shelter/payouts` at `NEXT_PUBLIC_BE_URL`), then only the blocks after its `indexedThrough` from the chain (`rpc.ts fetchDisbursements`); a contract the index has not read within 15 minutes, or an unreachable backend, is read from the chain alone as before. Receipts still read their one transaction from the chain. |
-| `components/blog/` | Feed, article, comments, likes. |
+| `components/blog/` | The blog UI (see "Blog" below): `BlogFrame`, `FeedHub`, `CategoryView`, `ArticleView`, cards, TOC, CTA cards, the live payouts widget, `feed.module.scss`. Content and build logic live in `lib/feed/`. |
 | `components/marketplace/` | Cat store listing and detail. |
 | `components/shared/` | Modals (quests, packs, invite, support, wheel), leaderboards, music, joystick, `PixelButton`, `PixelIcon`, `CloseButton`, `CatnipIcon`, `Toast`, the AuthSheet (`auth/`). |
 | `components/ui/` | `GameModal`, `PixelFrame`, `lowfx.ts`; `modal/` holds the modal body primitives (see "Modal system"). |
@@ -135,7 +135,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `shared-contracts/` | Generated copies of `shared/` (never edit). |
 | `art/` | Art sources and masters: the catnip matrices, the palette, `art/src/` (Aseprite and Tiled sources). |
 | `e2e/` | Playwright specs and fixtures, `e2e/capture/` for the reel. |
-| `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
+| `components/seo/` | `SeoHead` (with `ogTitle` and `articleMeta` for blog articles) and `site.ts` URL helpers. Blog JSON-LD is in `lib/feed/jsonld.ts`. |
 | `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `RaveSection.tsx` Moon Rave, the headline feature (the first game section, web only; see "Landing Moon Rave" below), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `BadcatSection.tsx` the Bad Cat Daily section (web only, no flag; see "Bad Cat Daily (/badcat)"), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
 | `analytics/` | Scrubbed PostHog EU events for every visitor. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `client.ts` the lazy PostHog client, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager loader, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
@@ -143,7 +143,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `constants/` | Utilities, catnip accounting (with its only real test), rewards, static props helper. |
 | `models/` | Domain types and enums. |
 | `web3/` | Stellar recipient and asset addresses, Wallets Kit and Horizon setup. |
-| `layouts/` | Main, blog, and airdrop layouts, header, footer, sidebar. |
+| `layouts/` | Main and airdrop layouts, header, footer. (The blog has its own frame, `components/blog/BlogFrame.tsx`.) |
 | `styles/` | Global SCSS including the portrait-page theme and ambient effects. |
 | `public/` | Around 1300 assets: Tiled level JSON for both platformers, tilesets, cards, cats, mascots, portrait samples, audio. |
 | `scripts/` | Android release wrapper, token/palette/font builders, and `scripts/art/` (the G7 art build `build.mjs`, the Tiled tool `tile-legend.mjs`, the catnip exporter). |
@@ -173,8 +173,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/packs` | `pages/packs.tsx` | Card pack store. |
 | `/cats`, `/cats/:cat` | `pages/cats/*` | Marketplace listing and cat detail (ISR, revalidate hourly; web builds only emit the detail on demand). |
 | `/cats/view?id=` | `pages/cats/view.tsx` | Client-rendered cat detail used by app builds instead of `/cats/:cat`. `noindex`, excluded from the sitemap. |
-| `/feed`, `/feed/:category`, `/feed/:category/:article` | `pages/feed/*` | Blog feed, category, and article (ISR). |
-| `/feed/article?category=&slug=` | `pages/feed/article.tsx` | Client-rendered article used by app builds instead of `/feed/:category/:article`. `noindex`, excluded from the sitemap. |
+| `/feed`, `/feed/:category`, `/feed/:category/:article` | `pages/feed/*` | Blog hub, section and article, statically generated from `client/content/feed/*.md` in both builds (no API). See "Blog". |
+| `/feed/article?category=&slug=` | `pages/feed/article.tsx` | Forwards old app links (current or legacy slug) to the article's own path, else `/feed`. `noindex`, excluded from the sitemap. |
 | `/portrait` | `pages/portrait.tsx` | Current AI pet portrait funnel. |
 | `/portraits` | `pages/portraits.tsx` | Older duplicate of the portrait funnel. |
 | `/payment-success` | `pages/payment-success.tsx` | Stripe redirect handler, confirms the intent, returns to `/game`. |
@@ -255,12 +255,79 @@ is for registered players. Bet #3 `/yourcat` (a photo becomes the player's pixel
 upsell): see `docs/YOURCAT.md`. Portrait pages switch the page theme through
 `data-portrait-page` attributes on the document.
 
-### Feed
+### Blog (`/feed`)
 
-Backend-driven blog under `/feed` with infinite scroll, likes, comments, sharing, and three
-hardcoded categories: `cats-nft`, `announcements`, `all-about-cats`. Non-app builds inject an ad
-placeholder every ten items. Article HTML from the backend has `[img-<id>]` placeholders rewritten
-into figures pointing at an external image resizer inherited from a predecessor project.
+The blog is repo content: one Markdown file per article in `client/content/feed/<slug>.md`, read at
+build time by `lib/feed/engine.ts` (markdown-it + yaml, server side only) and rendered by
+`components/blog/`. Nothing on an article page calls the API, except the optional live payouts
+widget, which reads in the browser and says so when it cannot load. Likes, saves and comments were
+removed with the old CMS feed (they needed a signed-in Firebase token; 15 legacy comments were not
+migrated).
+
+**Add an article**
+
+1. Create `client/content/feed/<slug>.md` (kebab-case, the slug is the file name). Files starting
+   with `_` are ignored (drafts).
+2. Fill the frontmatter below, write the body in GitHub-flavoured Markdown (headings from `##`, never
+   `#`: the title is the page's only h1), and add directives where they help.
+3. Check it: `npx jest __test__/feed-` and `npm run build` (or `npm run dev` and open
+   `/feed/<category>/<slug>`). A bad file fails `next.config.js`, the build and the sitemap with a
+   list of every problem; style notes (title length, description 140-158 characters, word counts)
+   are printed as warnings only. Run the copy lint (`tools/copy-lint`) on new copy: it does not read
+   `.md` files, so check the words against `docs/CLAIMS.md` by hand.
+4. Commit the file. It appears on `/feed`, its section page, the sitemap, `/feed/rss.xml` and the
+   related lists on the next deploy.
+
+**Frontmatter** (unknown fields are errors):
+
+| Field | Required | Rule |
+|---|---|---|
+| `title` | yes | The h1, ideally at most 60 characters (hard limit 100). |
+| `seoTitle` | no | The `<title>`, at most 60 ideally (70 hard). Without it the title gets " \| Token Tails" when that fits in 60. |
+| `description` | yes | Meta description, 140-158 characters ideally (70-200 hard). Also the hero's lede. |
+| `excerpt` | yes | 1-2 sentences for cards. |
+| `slug` | yes | Kebab-case, equal to the file name. |
+| `category` | yes | `games`, `giving`, `cats`, `build` or `news` (`lib/feed/taxonomy.json`). |
+| `publishedAt`, `updatedAt` | yes | ISO dates (`2026-10-19` or a full timestamp); updated not before published. Legacy articles keep their original date. |
+| `author` | yes | `Token Tails team`. |
+| `heroImage` | yes | `{ src, alt, width, height }`: an https URL or a path under `client/public`, a real description, the real pixel size. Never AI-made photos of real cats. |
+| `keywords` | yes | Primary keyword first, then 2-5 more. |
+| `intent` | yes | `play`, `give`, `learn`, `build` or `news`. |
+| `cta` | yes | The closing conversion card: `heist`, `swordcat`, `rave`, `game`, `give`, `payouts`, `packs`, `impact` or `badcat`. |
+| `faq` | no | `[{ q, a }]`, rendered as an accordion and FAQPage JSON-LD. |
+| `sources` | no | `[{ label, url }]` for "Check it yourself" (live pages, explorers, repo paths). |
+| `related` | no | Slugs shown first under "Keep reading" (unknown slugs are skipped); the rest are picked by section and keywords. |
+| `legacySlugs` | no | Old slugs (or `/feed/<old-category>/<slug>` paths) that should 301 here. |
+| `claims` | no | Registry ids the article relies on (`C-004`, `F-026`). |
+
+**Directives** (an HTML comment alone on its line; any other comment is an editor note and is dropped):
+
+- `<!-- cta:heist -->` (any `cta` value): an inline conversion card. At most 2 per article, never in the first two paragraphs.
+- `<!-- payouts-live -->`: the live payout figures for Pink Paw (per coin, never summed, Motored sponsor money disclosed), read from `GET /shelter/payouts` in the browser. At most one.
+- `<!-- key-takeaways -->` followed by a bullet list: the summary box.
+
+**Builds.** Web builds generate every article. App builds (Capacitor export) generate only the
+sections that are not web only (`games`, `cats`, `news`) and only articles whose text names no coin,
+chain, wallet or explorer (copy-lint R10 words, `engine.APP_WORDS`); web-only CTA cards
+(`rave`, `give`, `payouts`, `packs`, `badcat`) and the payouts widget render nothing there.
+
+**Redirects.** `lib/feed/legacy-redirects.json` maps all 61 legacy CMS article URLs to their new
+articles; with each article's `legacySlugs` and the old sections (`cats-nft` to `games`,
+`all-about-cats` to `cats`, `announcements` to `news`, any other old article to its new section)
+they are served from `next.config.js` `redirects()` on the web. A redirect whose article is not
+written yet goes to its section as a temporary redirect until it exists. App builds have no
+redirects: `pages/feed/article.tsx` and `appPath()` forward old links instead.
+
+**SEO.** Each page has its own title, description and canonical; articles send Open Graph article
+tags and the hero image, JSON-LD BlogPosting, BreadcrumbList, FAQPage (when there is an FAQ) and
+VideoGame (game guides), the hub a Blog with the Organization (Token Tails MB). The sitemap rows
+come from the same content with real `lastmod` and hero images, without priority, changefreq or a
+Google News block. `/feed/rss.xml` is written after the web build by
+`scripts/build-feed-rss.mjs` (gitignored, pruned from the app export).
+
+**Node.** `next.config.js`, `next-sitemap.config.js` and the RSS script load `lib/feed/engine.ts`
+through Node's built-in type stripping (Node 22.18 or later; Node prints a one-line
+`MODULE_TYPELESS_PACKAGE_JSON` notice). Keep that file to erasable TypeScript and free of `@/` imports.
 
 ### Marketplace
 
@@ -503,7 +570,7 @@ do not exist in the current backend controllers. Those calls fail silently.
 Provider tree from `layouts/MainLayout`: query client, Google Tag Manager (which also starts
 PostHog), toast, profile and cat. There is no analytics consent banner (removed 2026-10-16).
 Pages add Firebase auth, the game provider, web3 (always dynamically imported with
-`ssr: false`), and entity metadata inside blog layouts.
+`ssr: false`), and entity metadata where a page still needs it.
 
 | Context | Role |
 |---|---|
@@ -610,12 +677,11 @@ PostHog key.
 
 `components/seo/SeoHead.tsx` is the single meta source (plan F12): `siteOrigin()` and `new URL()`
 joins in `components/seo/site.ts` (no more `https:/host` or `@undefined`), keyed tags, an absolute
-`og:image` with its size, Twitter and Facebook tags only when configured, and a `noindex` prop. Feed pages add `WebPageJsonLd` and `ArticleJsonLd`. The sitemap
-is generated after build by `next-sitemap`, which fetches `GET /feed/slugs` for article URLs
-(`/feed/<category>/<slug>`, matching `pages/feed/[category]/[article].tsx`; entries missing a
-category or slug are skipped) and
-returns nothing when the backend is unreachable or in app builds. Generated `robots.txt` and
-sitemap files are gitignored but currently present in `public/`.
+`og:image` with its size, Twitter and Facebook tags only when configured, and a `noindex` prop. Blog
+pages add JSON-LD from `lib/feed/jsonld.ts` (see "Blog"). The sitemap is generated after the web
+build by `next-sitemap`: plain URLs for the app pages and the blog rows from the repo content
+(`lib/feed/engine.ts sitemapEntries`). Generated `robots.txt`, sitemap files and
+`public/feed/rss.xml` are gitignored.
 
 ## Testing
 
@@ -647,7 +713,7 @@ collected only from `components/CatnipChaos/**`, so the reported figure is misle
 Build and SSR:
 
 - The Stellar Wallets Kit and Stellar SDK are not SSR safe. `Web3Providers` must stay behind `next/dynamic` with `ssr: false` on `/box` and `/cats/[cat]`. This replaced an earlier AppKit prerender crash that blocked builds for weeks.
-- `/feed` renders nothing until mount, losing server-rendered HTML.
+- Fixed (blog rebuild, 2026-10-19): `/feed` rendered nothing until mount; article pages rendered `<title>avatar</title>`; category pages had Lithuanian descriptions and a wrong JSON-LD id; the sitemap marked every article as Lithuanian Google News; the byline named someone not on the team; every inline legacy image pointed at a dead resizer host.
 
 Privacy:
 
