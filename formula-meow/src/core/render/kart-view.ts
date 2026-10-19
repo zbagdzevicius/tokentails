@@ -16,7 +16,7 @@ import type { KartState, RacerInfo } from '../../types';
 import { GeoBuilder } from './geo';
 import { toonMaterial } from './toon';
 import { buildCatRig, disposeCatRig, poseCat, setCatGhost, type CatRig } from './cat-rig';
-import { outlineFor } from './cat-outline';
+import { OUTLINE_NAME, outlineFor } from './cat-outline';
 import { shadeHex } from './palette';
 
 export const WHEEL_R = 0.38;
@@ -138,9 +138,20 @@ export class KartView {
 
   setGhost(opacity: number): void {
     setCatGhost(this.cat, opacity);
+    const own = new Set<unknown>([this.cat.fur, this.cat.faceMat, this.cat.detailMat]); // per-cat, already faded
     this.body.traverse((o) => {
       const m = o as Mesh;
-      if (m.isMesh && m.material && !Array.isArray(m.material)) {
+      // the outline material is shared by every cat: hide the ghost's outline instead of fading the shared one
+      if (o.name === OUTLINE_NAME) {
+        o.visible = false;
+        return;
+      }
+      if (m.isMesh && m.material && !Array.isArray(m.material) && !own.has(m.material)) {
+        // materials may be shared with the real karts: fade a private copy (once)
+        if (!m.userData.ghostMat) {
+          m.material = m.material.clone();
+          m.userData.ghostMat = true;
+        }
         m.material.transparent = true;
         m.material.opacity = opacity;
       }

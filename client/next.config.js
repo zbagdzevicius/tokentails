@@ -74,6 +74,9 @@ const meowRaceRewrites = [
   { source: "/meow-race", destination: `${MEOW}/index.html` },
   { source: "/meow-race/r", destination: `${MEOW}/r.html` },
   { source: "/meow-race/d/:n(\\d{1,4})", destination: `${MEOW}/d.html` },
+  // UGC tracks: /meow-race/make opens the Track Doodle editor, /meow-race/t?t=CODE races a shared track
+  { source: "/meow-race/make", destination: `${MEOW}/index.html` },
+  { source: "/meow-race/t", destination: `${MEOW}/index.html` },
   { source: "/meow-race/:path*", destination: `${MEOW}/:path*` },
 ];
 // The service worker ships at /badcat-game/sw.js; this header lets it control the /badcat/* pages too.
