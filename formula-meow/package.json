@@ -14,7 +14,8 @@
     "e2e": "playwright test",
     "tracks": "vitest run src/core/track",
     "og": "node tools/render-og.mjs",
-    "og:pages": "node tools/og-pages.mjs"
+    "og:pages": "node tools/og-pages.mjs",
+    "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts"
   },
   "dependencies": {
     "mediabunny": "^1.61.6",

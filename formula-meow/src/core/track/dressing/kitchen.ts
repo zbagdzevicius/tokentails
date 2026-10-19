@@ -45,11 +45,21 @@ export function dressKitchen(t: BuiltTrack, theme: Theme): Group {
   g.boxUp(2 * R, 8, 2, 0xfff4e4, { x: 0, y: 32, z: R });
 
   // cutting board under the raised section (track height > 1 m): wooden slabs along it
+  // The height is the LOWEST road surface over the slab's footprint (its width and its 8.6 m length): a banked
+  // turn lifts its centre line (build.ts tilts it around the low edge) and a climb rises along the slab, so a slab
+  // topped at the centre height poked through the road and walled off the chase camera in the hairpin.
+  const SLAB = 8.6;
+  const reach = Math.ceil(SLAB / 2 / t.step);
   for (let i = 0; i < t.n; i += 16) {
-    if (t.py[i] < 1) continue;
     const ry = Math.atan2(t.tx[i], t.tz[i]);
     const w = (Math.max(t.wallL[i], t.wallR[i]) + 1.2) * 2;
-    g.boxUp(w, t.py[i] - 0.15, 8.6, 0xc58a5c, { x: t.px[i], y: 0, z: t.pz[i], ry }, { vary: 0.05 });
+    let low = Infinity;
+    for (let k = -reach; k <= reach; k++) {
+      const j = (i + k + t.n) % t.n;
+      low = Math.min(low, t.py[j] - (w / 2) * Math.abs(t.bank[j]));
+    }
+    if (low < 1) continue;
+    g.boxUp(w, low - 0.15, SLAB, 0xc58a5c, { x: t.px[i], y: 0, z: t.pz[i], ry }, { vary: 0.05 });
   }
 
   // sink basin by the splash zone
