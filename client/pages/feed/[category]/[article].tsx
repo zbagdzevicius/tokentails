@@ -2,7 +2,7 @@ import { ARTICLE_BODY_ID, ArticleView } from "@/components/blog/ArticleView";
 import { BlogFrame } from "@/components/blog/BlogFrame";
 import { FeedJsonLd } from "@/components/blog/FeedJsonLd";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { blogPostingJsonLd, breadcrumbJsonLd, faqJsonLd, videoGameJsonLd } from "@/lib/feed/jsonld";
+import { blogPostingJsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/feed/jsonld";
 import { articlePaths, articleProps, type ArticleProps } from "@/lib/feed/props";
 import { articleTitleTag } from "@/lib/feed/view";
 import { isApp } from "@/models/app";
@@ -29,7 +29,6 @@ export default function FeedArticlePage({ article, category, related, prev, next
             { name: article.title, path: article.path },
           ]),
           faqJsonLd(article.faq),
-          videoGameJsonLd(article),
         ]}
       />
       <BlogFrame liveCategories={liveCategories} progressTarget={ARTICLE_BODY_ID}>

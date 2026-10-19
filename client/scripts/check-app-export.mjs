@@ -1,8 +1,8 @@
 // Fails when the Capacitor web bundle in out/ is missing or incomplete.
 // Run after `npm run build:app`; Capacitor copies out/ into the native apps.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { WEB_ONLY_FILES } from "./prune-app-export.mjs";
+import { WEB_ONLY_FILES, webOnlyPrefixed } from "./prune-app-export.mjs";
 
 const outDir = resolve(process.argv[2] || "out");
 
@@ -45,7 +45,7 @@ if (missing.length) {
 }
 
 // Web-only media (the landing showreel) must be pruned: the app never plays it.
-const shipped = WEB_ONLY_FILES.filter((file) => existsSync(join(outDir, file)));
+const shipped = [...WEB_ONLY_FILES.filter((file) => existsSync(join(outDir, file))), ...webOnlyPrefixed(outDir)];
 if (shipped.length) {
   console.error(`App export check failed: web-only files ship in ${outDir} (run scripts/prune-app-export.mjs):`);
   shipped.forEach((file) => console.error(`  - ${file}`));
@@ -113,6 +113,28 @@ const facts = readJson("facts/facts.json");
 const factList = Array.isArray(facts) ? facts : facts && (facts.facts || facts.entries);
 if (!Array.isArray(factList) || factList.length === 0 || !factList.every((f) => f && typeof f.id === "string")) {
   console.error('App export check failed: facts/facts.json has no public facts (run "node funding/framework/bin/fund.mjs facts build").');
+  process.exit(1);
+}
+
+// Blog pages link only to blog pages the export ships (the export has no redirects; lib/feed/engine.ts
+// unlinkMissing turns the others into text).
+const walkHtml = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walkHtml(join(dir, e.name)) : e.name.endsWith(".html") ? [join(dir, e.name)] : [],
+  );
+const feedDir = join(outDir, "feed");
+const deadFeedLinks = [];
+for (const file of [join(outDir, "feed.html"), ...(existsSync(feedDir) ? walkHtml(feedDir) : [])]) {
+  if (!existsSync(file)) continue;
+  for (const m of readFileSync(file, "utf8").matchAll(/href="(\/feed[^"#?]*)/g)) {
+    const path = m[1].replace(/\/+$/, "");
+    if (path.endsWith(".xml")) continue;
+    if (!existsSync(join(outDir, `${path.slice(1)}.html`))) deadFeedLinks.push(`${file.slice(outDir.length + 1)} -> ${path}`);
+  }
+}
+if (deadFeedLinks.length) {
+  console.error(`App export check failed: blog links to pages the export does not ship:`);
+  [...new Set(deadFeedLinks)].forEach((l) => console.error(`  - ${l}`));
   process.exit(1);
 }
 

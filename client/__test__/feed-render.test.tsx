@@ -31,7 +31,7 @@ jest.mock("@/components/shelter-payouts/payoutIndex", () => ({
 
 import { ArticleBody } from "@/components/blog/ArticleParts";
 import { CtaCard } from "@/components/blog/CtaCard";
-import { CTAS, ctaFor } from "@/components/blog/ctaCopy";
+import { CTAS, ctaFor, endCtaKey } from "@/components/blog/ctaCopy";
 import { filterArticles } from "@/components/blog/FeedHub";
 import { PayoutsLive } from "@/components/blog/PayoutsLive";
 import { payoutTotals } from "@/components/blog/payoutTotals";
@@ -79,7 +79,18 @@ describe("cta cards", () => {
     render(<CtaCard cta="heist" appBuild={false} />);
     const link = screen.getByRole("link", { name: /Play Catnip Heist/ });
     expect(link.getAttribute("href")).toBe("/heist");
-    expect(screen.getByAltText(/two pixel cats/)).toBeTruthy();
+    expect(screen.getByAltText(/Pick your crew/)).toBeTruthy();
+  });
+
+  it("never repeats the body's card at the end of the article", () => {
+    expect(endCtaKey("heist", [], "games", false)).toBe("heist");
+    expect(endCtaKey("heist", ["heist"], "games", false)).toBe("game");
+    expect(endCtaKey("heist", ["heist"], "giving", false)).toBe("rave");
+    // App builds skip web-only cards: the next shared card instead.
+    expect(endCtaKey("heist", ["heist"], "cats", true)).toBe("game");
+    expect(endCtaKey("payouts", ["payouts"], "build", false)).toBe("rave");
+    expect(endCtaKey("game", ["game", "heist"], "news", false)).toBe("swordcat");
+    for (const key of taxonomy.ctas) expect(endCtaKey(key, [key], "games", false)).not.toBe(key);
   });
 
   it("uses a plain link for pages outside the Next router", () => {
@@ -134,12 +145,12 @@ describe("live payouts widget", () => {
     );
     expect(totals).toEqual({
       coins: [
-        { symbol: "USDC", amount: "3.50", count: 2 },
-        { symbol: "EURC", amount: "0.10", count: 1 },
+        { symbol: "USDC", amount: "3.50", count: 2, motored: { amount: "2.00", count: 1 } },
+        { symbol: "EURC", amount: "0.10", count: 1, motored: null },
       ],
       count: 3,
       latest: 1_760_000_500,
-      motored: { count: 1, usd: "$2.00" },
+      motoredCount: 1,
     });
   });
 
@@ -154,6 +165,9 @@ describe("live payouts widget", () => {
     await waitFor(() => expect(screen.getByTestId("payouts-live-coins")).toBeTruthy());
     expect(screen.getByTestId("payouts-live-coins").textContent).toContain("93.11 USDC");
     expect(screen.getByTestId("payouts-live-motored").textContent).toMatch(/Motored is linked to the Token Tails founder/);
+    // The sponsor share sits in its coin's tile, in that coin (no dollar sign, never summed).
+    expect(screen.getByTestId("payouts-live-coin-motored").textContent).toMatch(/Of which 1.00 USDC from Motored \(a sponsor; Motored is linked to the Token Tails founder\)/);
+    expect(screen.getByTestId("payouts-live").textContent).not.toMatch(/\$/);
     expect(screen.getByRole("link", { name: /Check every payout yourself/ }).getAttribute("href")).toBe("/shelter-payouts");
   });
 
@@ -183,19 +197,21 @@ describe("table of contents", () => {
     expect(activeHeading([], 140)).toBeNull();
   });
 
-  it("lists the sections and hides itself with fewer than two", async () => {
+  it("lists the sections and hides itself with fewer than four", async () => {
     const items = [
       { id: "one", text: "One?", level: 2 as const },
       { id: "two", text: "Two", level: 3 as const },
+      { id: "three", text: "Three", level: 2 as const },
+      { id: "faq", text: "Frequently asked questions", level: 2 as const },
     ];
     document.body.innerHTML = "";
     const { unmount } = render(<Toc items={items} variant="sidebar" />);
     const nav = screen.getByRole("navigation", { name: "On this page" });
     const links = nav.querySelectorAll("a");
-    expect(Array.from(links).map((a) => a.getAttribute("href"))).toEqual(["#one", "#two"]);
+    expect(Array.from(links).map((a) => a.getAttribute("href"))).toEqual(["#one", "#two", "#three", "#faq"]);
     await act(async () => undefined);
     unmount();
-    const { container } = render(<Toc items={items.slice(0, 1)} variant="inline" />);
+    const { container } = render(<Toc items={items.slice(0, 3)} variant="inline" />);
     expect(container.innerHTML).toBe("");
   });
 });

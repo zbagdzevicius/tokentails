@@ -4,6 +4,7 @@
  */
 import {
   categoryBySlug,
+  forApp,
   loadFeed,
   neighboursFor,
   relatedFor,
@@ -89,8 +90,10 @@ export function articleProps(categorySlug: string, slug: string, isApp: boolean,
   const category = article ? categoryBySlug(article.category) : null;
   if (!article || !category) return null;
   const { prev, next } = neighboursFor(article, pool);
+  // The static app export has no redirects: links to /feed pages it does not ship become text.
+  const shipped = new Set(["/feed", ...visibleCategories(isApp).map((c) => `/feed/${c.slug}`), ...pool.map((a) => a.path)]);
   return {
-    article,
+    article: isApp ? forApp(article, shipped) : article,
     category,
     related: relatedFor(article, pool),
     prev,
