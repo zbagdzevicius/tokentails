@@ -29,6 +29,8 @@ import { clearYourCat, initYourCat, saveYourCat, yourCat, type YourCat } from '.
 import { webCodecsAvailable } from './clip/encoder-webcodecs';
 import type { EncodedClip } from './clip/encoder-types';
 import { trackCodec, trackFromLocation } from '../ugc/codec/track-codec';
+import { displayName } from '../ugc/actions';
+import type { TrackDef } from '../types';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -52,6 +54,44 @@ async function shareText(text: string): Promise<void> {
     /* fall through */
   }
   window.prompt('Copy this and send it:', text);
+}
+
+/** The sender's name for dares: the saved cat's name, else a name asked once and kept on this device. */
+function senderName(): string | null {
+  const yc = yourCat();
+  if (yc?.name) return yc.name;
+  const n = load<string>('dareName', '');
+  return n || null;
+}
+
+/** Ask once, inline, for the name a dare is sent under ("Race Žygis's ghost" gets the tap, "Tofu" does not). */
+function askName(host: HTMLElement): Promise<string | null> {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'fm-maker fm-dare-name';
+    wrap.innerHTML = `
+      <form class="fm-panel fm-sticker fm-maker-panel">
+        <h2>Who is daring them?</h2>
+        <label class="fm-maker-name">Your name <input name="n" maxlength="16" autocomplete="nickname" placeholder="Your name"></label>
+        <p class="fm-line">Your friend sees "Race <i>your name</i>'s ghost".</p>
+        <div class="fm-row-btns"><button class="fm-btn primary" type="submit">⚔️ Send dare</button><button class="fm-btn" type="button" data-skip>Skip</button></div>
+      </form>`;
+    host.appendChild(wrap);
+    const input = wrap.querySelector('input')!;
+    setTimeout(() => input.focus(), 50);
+    wrap.addEventListener('keydown', (e) => e.stopPropagation());
+    const done = (v: string | null) => {
+      wrap.remove();
+      resolve(v);
+    };
+    wrap.querySelector('form')!.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const n = input.value.trim().slice(0, 16);
+      if (n) save('dareName', n);
+      done(n || null);
+    });
+    wrap.querySelector('[data-skip]')!.addEventListener('click', () => done(null));
+  });
 }
 
 function linkLabel(): string {
@@ -140,9 +180,9 @@ export function installShare(shell: Shell): void {
       place: ctx.result.player.place,
       time: ctx.result.player.time,
       bestLap: ctx.result.player.bestLap,
-      trackName: ctx.cfg.track.name,
+      trackName: displayName(ctx.cfg.track),
       className: `${CLASSES[ctx.cfg.cls].name} ${CLASSES[ctx.cfg.cls].cc}`,
-      catName: yc?.name ?? DEFAULT_CAT.name,
+      catName: senderName() ?? DEFAULT_CAT.name,
       face: yc?.face ?? null,
       linkLabel: linkLabel(),
       accent,
@@ -152,8 +192,22 @@ export function installShare(shell: Shell): void {
     if (png) await shareImage(png, captionFor(ctx), 'formula-meow.png');
   };
 
+  /** the dare link for the run on the results screen (set once its ghost is encoded): captions point at it */
+  let dareLink: string | null = null;
+  const buildDare = (track: TrackDef, ghost: string, name: string | null) => {
+    const authored = TRACKS.some((x) => x.id === track.id);
+    let trackCode: string | null = null;
+    try {
+      trackCode = authored ? null : (trackCodec()?.encode(track) ?? null);
+    } catch {
+      trackCode = null; // an unencodable track still gets a dare link; it just won't resolve the track
+    }
+    return dareUrl(location, { ghost, cat: yourCat()?.cat ?? null, name: name ?? undefined, trackCode });
+  };
+
+  // the clip and the card are what spreads: their caption links to "race this exact run", not a cold start
   const captionFor = (ctx: ResultContext) =>
-    `${clipCaption({ trackName: ctx.cfg.track.name, time: ctx.result.player.time, place: ctx.result.player.place, link: homeUrl(location) })}\n${PINK_PAW_SHARE_LINE}`;
+    `${clipCaption({ trackName: displayName(ctx.cfg.track), time: ctx.result.player.time, place: ctx.result.player.place, link: dareLink ?? homeUrl(location) })}\n${PINK_PAW_SHARE_LINE}`;
 
   const startClip = (ctx: ResultContext) => {
     if (!webCodecsAvailable()) {
@@ -174,8 +228,8 @@ export function installShare(shell: Shell): void {
               replay: ctx.replay,
               events: ctx.events,
               result: ctx.result,
-              trackName: ctx.cfg.track.name,
-              catName: yc?.name ?? DEFAULT_CAT.name,
+              trackName: displayName(ctx.cfg.track),
+              catName: senderName() ?? DEFAULT_CAT.name,
               face: yc?.face ?? null,
               linkLabel: linkLabel(),
               accent: themeOf(ctx.cfg.track.theme).accent,
@@ -238,6 +292,11 @@ export function installShare(shell: Shell): void {
       const fin = events.find((e) => e.type === 'finish' && e.kart === me);
       const inputs = fin ? replay.inputs.slice(0, fin.tick + 2) : replay.inputs;
       const ghostP = encodeGhost({ trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me }, inputs);
+      dareLink = null;
+      void ghostP.then((g) => {
+        if (g) dareLink = buildDare(cfg.track, g, senderName());
+      });
+      let ghostRow: ResultExtras['ghost'];
 
       // dare outcome (recomputed ghost time)
       let beat: string | null = null;
@@ -245,6 +304,7 @@ export function installShare(shell: Shell): void {
         const name = runner.current.name;
         const gt = runner.finishTime();
         const my = result.player.time;
+        ghostRow = { name: runner.current.name, time: gt };
         const iWon = my != null && (gt == null || my < gt);
         if (iWon) {
           beat = name;
@@ -265,6 +325,7 @@ export function installShare(shell: Shell): void {
         const rec = load<DailyRecord>('daily', EMPTY_DAILY);
         const laps = lapPlaces.length ? lapPlaces.slice() : [result.player.place];
         let ranked = dayOf === today && finished ? recordDaily(rec, { day: dayOf, place: result.player.place, time: result.player.time, laps }) : null;
+        const thisRun = ranked != null;
         if (ranked) {
           save('daily', rec);
           lines.unshift(`Daily Cup #${dayOf}: ranked run${rec.streak > 1 ? ` · ${rec.streak}-day streak` : ''}`);
@@ -275,13 +336,19 @@ export function installShare(shell: Shell): void {
         const run = ranked ?? { day: dayOf, place: result.player.place, time: result.player.time, laps };
         dailyAction = {
           id: 'daily-share',
-          label: `📋 Share Daily #${dayOf}`,
-          run: () => void shareText(dailyCardText({ day: dayOf, place: run.place, time: run.time, laps: run.laps, link: dailyUrl(location, dayOf), streak: rec.streak })),
+          label: `📋 Daily #${dayOf}`,
+          tier: 'icon',
+          // the ranked run's ghost rides along (a dare link on the daily seed is the same race), so friends can race it
+          run: () =>
+            void shareText(
+              dailyCardText({ day: dayOf, place: run.place, time: run.time, laps: run.laps, link: (thisRun && dareLink) || dailyUrl(location, dayOf), streak: rec.streak, ghost: !!(thisRun && dareLink) }),
+            ),
         };
       } else {
         dailyAction = {
           id: 'daily',
-          label: `🏆 Daily Cup #${today}`,
+          label: `🏆 Daily #${today}`,
+          tier: 'icon',
           run: () => {
             const d = dailySetup(today, TRACKS);
             shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers });
@@ -293,7 +360,6 @@ export function installShare(shell: Shell): void {
       actions.push({
         id: 'clip',
         label: webCodecsAvailable() ? '🎬 Clip…' : '🖼️ Share card',
-        primary: true,
         run: () => {
           const c = clip;
           if (!c || c.out === 'failed') void cardShare(ctx, beat ? `Beat ${beat}'s ghost` : null);
@@ -307,27 +373,28 @@ export function installShare(shell: Shell): void {
       // 1: dare
       actions.push({
         id: 'dare',
-        label: beat ? '⚔️ Send revenge →' : finished ? `⚔️ Beat ${fmtRaceTime(result.player.time)} →` : '⚔️ Dare a friend',
-        run: () =>
-          void ghostP.then((ghost) => {
-            const authored = TRACKS.some((x) => x.id === cfg.track.id);
-            let trackCode: string | null = null;
-            try {
-              trackCode = authored ? null : (trackCodec()?.encode(cfg.track) ?? null);
-            } catch {
-              trackCode = null; // an unencodable track still gets a dare link; it just won't resolve the track
-            }
-            const url = dareUrl(location, { ghost, cat: yc?.cat ?? null, name: yc?.name ?? DEFAULT_CAT.name, trackCode });
-            const text = dareText({ trackName: cfg.track.name, time: result.player.time, place: result.player.place, link: url, beat });
-            return shareText(`${text}\n${PINK_PAW_SHARE_LINE}`);
-          }),
+        label: beat ? '⚔️ Send revenge →' : '⚔️ Dare a friend',
+        primary: true,
+        run: () => {
+          const send = (name: string | null) =>
+            ghostP.then((ghost) => {
+              const url = buildDare(cfg.track, ghost, name);
+              dareLink = url;
+              const text = dareText({ trackName: displayName(cfg.track), time: result.player.time, place: result.player.place, link: url, beat });
+              return shareText(`${text}\n${PINK_PAW_SHARE_LINE}`);
+            });
+          const name = senderName();
+          if (name) void send(name);
+          else void askName(shell.host).then((n) => send(n));
+        },
       });
       // 2: daily
       actions.push(dailyAction);
       // 3: your cat
       actions.push({
         id: 'yourcat',
-        label: yc ? `🐱 ${yc.name}` : '🐱 Put YOUR cat in',
+        label: yc ? `🐱 ${yc.name}` : '🐱 Your cat',
+        tier: 'icon',
         run: () =>
           void import('./yourcat/maker').then((m) =>
             m.openMaker(shell.host, yourCat(), DEFAULT_CAT).then((r) => {
@@ -341,12 +408,14 @@ export function installShare(shell: Shell): void {
       // 4: Pink Paw (honest: a page that shows what has been paid to the shelter)
       actions.push({
         id: 'pinkpaw',
-        label: '🐾 Pink Paw payouts ↗',
+        label: '🐾 Pink Paw ↗',
+        tier: 'icon',
         run: () => void window.open(SHELTER_PAYOUTS_URL, '_blank', 'noopener'),
       });
 
       startClip(ctx);
-      return { actions, lines };
+      const noUnlock = route.kind === 'dare' || dayOf != null;
+      return { actions, lines, ghost: ghostRow, noUnlock };
     },
   });
 }

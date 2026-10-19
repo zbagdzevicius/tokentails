@@ -9,6 +9,8 @@ export interface ResultAction {
   id: string;
   label: string;
   primary?: boolean;
+  /** 'icon' actions sit in the small row under the main buttons */
+  tier?: 'main' | 'icon';
   run(): void;
 }
 
@@ -24,6 +26,10 @@ export interface ResultExtras {
   actions?: ResultAction[];
   /** extra lines of text (honest, measured on the device only) */
   lines?: string[];
+  /** a dare ghost raced this run: its row goes into the standings (time recomputed, never trusted) */
+  ghost?: { name: string; time: number | null };
+  /** true when this race must not unlock classes (Daily Cup and dares run at a fixed class) */
+  noUnlock?: boolean;
 }
 
 export interface RouteSetup {

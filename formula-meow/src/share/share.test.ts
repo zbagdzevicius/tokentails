@@ -94,6 +94,7 @@ describe('share texts are honest (GDD 13)', () => {
     expect(fmtRaceTime(84.314)).toBe('1:24.31');
     expect(fmtRaceTime(null)).toBe('DNF');
     expect(dailyCardText({ day: 12, place: 3, time: 101.22, laps: [5, 7, 3], link: 'L' })).toBe('Formula Meow Daily #12 · 3rd/8 · 1:41.22\n🟧⬜🟪\nL');
+    expect(dailyCardText({ day: 12, place: 3, time: 101.22, laps: [5, 7, 3], link: 'L', ghost: true })).toBe('Formula Meow Daily #12 · 3rd/8 · 1:41.22\n🟧⬜🟪\nBeat my 1:41.22 👻\nL');
   });
 });
 
@@ -119,6 +120,15 @@ describe('clip plan (GDD 9.1)', () => {
     expect(p.finishTick).toBe(5000);
     expect(p.hlStart + p.hlLen).toBeLessThanOrEqual(p.finishStart!);
     expect(p.hlLen).toBe(420);
+  });
+
+  it('a window where the player respawns or gets hit loses to an otherwise equal one', () => {
+    // every window around the 3000 overtake also holds a respawn or a hit taken
+    const events = [ev(1000, 'overtake', 5), ev(2950, 'respawn', 5), ev(3000, 'overtake', 5), ev(3050, 'hit', 5, 0, 2), ev(5000, 'finish', 5, 1)];
+    const s = bestWindow(events, 5, 180, 4964, 420);
+    expect(s).toBeLessThanOrEqual(1000);
+    expect(s + 420).toBeGreaterThan(1000);
+    expect(eventScore(ev(10, 'respawn', 5), 5)).toBeLessThanOrEqual(-6);
   });
 
   it('a short race still plans (no finish = no finish shot)', () => {

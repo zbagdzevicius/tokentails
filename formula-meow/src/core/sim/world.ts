@@ -167,6 +167,8 @@ export class SimWorld {
         const dz = k.z - b.z;
         const dy = k.y + 0.6 - b.y;
         if (dx * dx + dz * dz + dy * dy > r2) continue;
+        // a kart that already holds an item passes through without breaking the box
+        if (k.item || k.rouletteTicks > 0) continue;
         b.respawn = ticks(RACE.boxRespawn);
         if (!k.item && k.rouletteTicks === 0) {
           const id = plugins.items.roll(ctx, i);

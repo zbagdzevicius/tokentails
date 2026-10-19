@@ -1,10 +1,11 @@
 /**
  * Style popups (GDD 11 UI, sticker style): short tilted callouts for the moments the HUD banner does not cover —
- * overtake chains, landing a hit, blocking one, slipstream, big air. They stack under the banner, pop in with a
- * squash, float up and fade. DOM only (zero draw calls), at most 3 on screen, never block input.
+ * overtake chains, landing a hit, blocking one, slipstream, big air. One at a time, below the HUD banner (which sits
+ * below the mini-map on phones), so they never pile up unreadably: a callout that lands while another is up replaces
+ * it and counts the streak ("×3"). DOM only (zero draw calls), never block input.
  */
 const CSS = `
-.fmj-pops{position:fixed;left:0;right:0;top:calc(30% + env(safe-area-inset-top));height:0;z-index:11;pointer-events:none;
+.fmj-pops{position:fixed;left:0;right:0;top:calc(max(22%, calc(232px + env(safe-area-inset-top))) + 58px);height:0;z-index:11;pointer-events:none;
   font-family:ui-rounded,'SF Pro Rounded',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;}
 .fmj-pop{position:absolute;left:50%;top:0;white-space:nowrap;font-size:clamp(22px,7vw,40px);letter-spacing:.5px;color:#fff3dc;
   text-shadow:-3px -3px 0 #2a1a22,3px -3px 0 #2a1a22,-3px 3px 0 #2a1a22,3px 3px 0 #2a1a22,0 5px 0 #2a1a22;
@@ -16,6 +17,7 @@ const CSS = `
   32%{transform:translate(-50%,0) rotate(var(--r)) scale(1)}
   75%{opacity:1}
   100%{transform:translate(-50%,-70px) rotate(var(--r)) scale(.92);opacity:0}}
+@media (orientation: landscape) and (max-height: 500px){.fmj-pops{top:30%}}
 @media (prefers-reduced-motion: reduce){.fmj-pop{animation-duration:.01s;animation-name:none}}
 `;
 
@@ -25,6 +27,8 @@ export class Popups {
   private readonly root: HTMLDivElement;
   private readonly live: HTMLDivElement[] = [];
   private slot = 0;
+  private streak = 0;
+  private lastAt = -1e9;
 
   constructor(host: HTMLElement) {
     if (!document.getElementById('fmj-css')) {
@@ -39,6 +43,12 @@ export class Popups {
   }
 
   show(text: string, tone: PopTone = '', sub?: string): void {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.streak = now - this.lastAt < 1000 && this.live.length ? this.streak + 1 : 1;
+    this.lastAt = now;
+    if (this.streak > 1 && !sub) sub = `×${this.streak}`;
+    for (const old of this.live) old.remove();
+    this.live.length = 0;
     const el = document.createElement('div');
     el.className = `fmj-pop ${tone}`;
     el.textContent = text;
@@ -49,10 +59,8 @@ export class Popups {
     }
     this.slot = (this.slot + 1) % 3;
     el.style.setProperty('--r', `${(this.slot - 1) * 6 + (Math.random() - 0.5) * 4}deg`);
-    el.style.top = `${this.slot * 44}px`;
     this.root.appendChild(el);
     this.live.push(el);
-    while (this.live.length > 3) this.live.shift()?.remove();
     setTimeout(() => {
       el.remove();
       const i = this.live.indexOf(el);

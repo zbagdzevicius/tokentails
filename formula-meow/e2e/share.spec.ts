@@ -25,13 +25,20 @@ test('a finished race offers clip, dare, daily, your cat and Pink Paw; the dare 
   await expect(page.locator('.fm-overlay.on .fm-place')).toBeVisible({ timeout: 110_000 });
   const btns = page.locator('.fm-overlay [data-x]');
   await expect(btns).toHaveCount(5);
-  await expect(btns.nth(1)).toContainText('Beat');
-  await expect(btns.nth(2)).toContainText('Daily Cup');
-  await expect(btns.nth(3)).toContainText('YOUR cat');
-  await expect(btns.nth(4)).toContainText('Pink Paw');
+  const x = (i: number) => page.locator(`.fm-overlay [data-x="${i}"]`);
+  // the dare is the one big primary button, first on the screen
+  await expect(btns.first()).toContainText('Dare a friend');
+  await expect(x(1)).toContainText('Dare a friend');
+  await expect(x(2)).toContainText('Daily #');
+  await expect(x(3)).toContainText('Your cat');
+  await expect(x(4)).toContainText('Pink Paw');
   await page.screenshot({ path: 'e2e/screens/share-results.png' });
 
-  await btns.nth(1).click();
+  // no saved cat: the dare asks once for the sender's name
+  await x(1).click();
+  await expect(page.locator('.fm-dare-name input')).toBeVisible();
+  await page.locator('.fm-dare-name input').fill('Mia');
+  await page.locator('.fm-dare-name [type="submit"]').click();
   await expect.poll(async () => (await shared(page)).length, { timeout: 10_000 }).toBe(1);
   const text = (await shared(page))[0];
   expect(text).toContain('#formulameow');
@@ -45,14 +52,15 @@ test('a finished race offers clip, dare, daily, your cat and Pink Paw; the dare 
   await expect(page.locator('.fm-dare-banner')).toBeVisible({ timeout: 15_000 });
   const ghost = await page.evaluate(() => {
     const fm = (window as unknown as { __fm?: { shell: { stage: { scene: { getObjectByName(n: string): unknown } }; setup: { seed: number } } } }).__fm!;
-    return { kart: !!fm.shell.stage.scene.getObjectByName('kart-Tofu'), seed: fm.shell.setup.seed };
+    return { kart: !!fm.shell.stage.scene.getObjectByName('kart-Mia'), seed: fm.shell.setup.seed };
   });
   expect(ghost.kart).toBe(true);
   expect(ghost.seed).toBe(5);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: 'e2e/screens/dare-ghost.png' });
   await expect(page.locator('.fm-overlay.on .fm-place')).toBeVisible({ timeout: 110_000 });
-  await expect(page.locator('.fm-overlay.on')).toContainText("Tofu's ghost");
+  await expect(page.locator('.fm-overlay.on')).toContainText("Mia's ghost");
+  await expect(page.locator('.fm-overlay.on tr.ghost')).toContainText('Mia');
   await expect(page.locator('.fm-overlay.on')).toContainText('Rivalry: You');
   expect(errors).toEqual([]);
 });

@@ -2,7 +2,8 @@
  * Input mux (GDD 2): all devices → one TickInput per sim tick. Steering is quantized to −7..+7; buttons are
  * latched every 2 ticks (30 Hz) for compact ghosts, with presses kept sticky so a short tap is never lost.
  * Touch gets automatic gas (after GO) and the one-thumb auto drift (GDD 2.1): holding the stick past 70 % of lock
- * for 0.25 s above 60 % of top speed starts a drift; releasing back inside 30 % lets it go.
+ * for 0.25 s above 60 % of top speed starts a drift, but only into a bend that turns the same way (a nervous thumb
+ * on a straight is not a drift); releasing back inside 30 %, touching a wall or the bend running out lets it go.
  */
 import type { TickInput } from '../../types';
 import { emptyRaw, type InputSource, type RawInput } from './raw';
@@ -20,6 +21,16 @@ export interface MuxContext {
   speedFrac: number;
   /** player is drifting (sim state) */
   drifting: boolean;
+  /** signed curvature of the road ahead, 1/m (+ = left turn); omitted = no bend check */
+  curve?: number;
+  /** player is touching a wall */
+  wall?: boolean;
+}
+
+/** One-thumb drift: the bend ahead turns the way the stick points (steer + = right, curve + = left). */
+export function bendAgrees(steer: number, curve: number | undefined, min: number): boolean {
+  if (curve === undefined) return true;
+  return Math.abs(curve) > min && Math.sign(curve) === -Math.sign(steer);
 }
 
 export class InputMux {
@@ -54,9 +65,9 @@ export class InputMux {
     if (r.touch && this.settings.oneThumb && ctx.racing) {
       const a = Math.abs(r.steer);
       if (!this.autoDrift) {
-        this.autoHold = a > 0.7 && ctx.speedFrac > 0.6 ? this.autoHold + dt : 0;
+        this.autoHold = a > 0.7 && ctx.speedFrac > 0.6 && !ctx.wall && bendAgrees(r.steer, ctx.curve, 0.025) ? this.autoHold + dt : 0;
         if (this.autoHold > 0.25) this.autoDrift = true;
-      } else if (a < 0.3 || (!ctx.drifting && this.autoHold > 0.6)) {
+      } else if (a < 0.3 || ctx.wall || (!ctx.drifting && this.autoHold > 0.6) || (this.autoHold > 0.5 && !bendAgrees(r.steer, ctx.curve, 0.012))) {
         this.autoDrift = false;
         this.autoHold = 0;
       } else this.autoHold += dt;

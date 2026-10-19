@@ -15,6 +15,8 @@ export interface ResultsView {
   className: string;
   actions: ResultAction[];
   lines: string[];
+  /** the dare ghost this race was run against: shown as its own row at its place by time */
+  ghost?: { name: string; time: number | null };
 }
 
 function esc(s: string): string {
@@ -24,9 +26,27 @@ function esc(s: string): string {
 export function renderResults(host: HTMLElement, v: ResultsView): void {
   const r = v.result;
   const me = r.player;
-  const rows = r.places
-    .map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td>${esc(p.name)}</td><td>${p.time != null ? fmtTime(p.time) : '—'}</td></tr>`)
-    .join('');
+  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td>${esc(p.name)}</td><td>${p.time != null ? fmtTime(p.time) : '—'}</td></tr>`);
+  // the ghost sits at its place by time (seeing yourself one row under your friend is the hook)
+  const g = v.ghost;
+  const ghostLost = !!g && g.time != null && (me.time == null || g.time < me.time);
+  if (g) {
+    let at = rowList.length;
+    if (g.time != null) {
+      const i = r.places.findIndex((p) => p.time == null || p.time > g.time!);
+      if (i >= 0) at = i;
+    }
+    rowList.splice(at, 0, `<tr class="ghost"><td>👻</td><td>${esc(g.name)}</td><td>${g.time != null ? fmtTime(g.time) : '—'}</td></tr>`);
+  }
+  const rows = rowList.join('');
+  const btn = (a: ResultAction, i: number, extra = '') => `<button class="fm-btn${a.primary ? ' primary' : ''}${extra}" data-x="${i}">${esc(a.label)}</button>`;
+  // the primary action (the dare) first and full width, then the rest of the main row
+  const main = v.actions
+    .map((a, i) => [a, i] as const)
+    .filter(([a]) => a.tier !== 'icon')
+    .sort((x, y) => Number(!!y[0].primary) - Number(!!x[0].primary));
+  const icons = v.actions.map((a, i) => [a, i] as const).filter(([a]) => a.tier === 'icon');
+  const mainHtml = main.map(([a, i]) => btn(a, i, a.primary && main.length > 1 ? ' big' : '')).join('');
   // closest Pink Paw rival (by place)
   let rivalLine = '';
   const rivals = r.places.filter((p) => p.kart !== me.kart && v.racers[p.kart]?.pinkPawId);
@@ -45,11 +65,12 @@ export function renderResults(host: HTMLElement, v: ResultsView): void {
       <table class="fm-table">${rows}</table>
       ${v.lines.map((l) => `<p class="fm-line">${esc(l)}</p>`).join('')}
       ${rivalLine}
-      <div class="fm-row-btns">
-        <button class="fm-btn primary" data-act="again">Again ↻</button>
-        <button class="fm-btn" data-act="next">Next track →</button>
-        ${v.actions.map((a, i) => `<button class="fm-btn${a.primary ? ' primary' : ''}" data-x="${i}">${esc(a.label)}</button>`).join('')}
+      <div class="fm-res-main">
+        ${mainHtml}
+        <button class="fm-btn${ghostLost || !main.length ? ' primary' : ''}" data-act="again">${ghostLost ? 'Rematch 👻' : 'Again ↻'}</button>
+        <button class="fm-btn" data-act="next" aria-label="Next track">Next →</button>
       </div>
+      ${icons.length ? `<div class="fm-res-icons">${icons.map(([a, i]) => btn(a, i)).join('')}</div>` : ''}
     </div>`;
   host.querySelectorAll<HTMLButtonElement>('[data-x]').forEach((b) => {
     b.addEventListener('click', () => v.actions[Number(b.dataset.x)]?.run());

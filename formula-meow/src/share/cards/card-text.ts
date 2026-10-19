@@ -48,10 +48,12 @@ export function clipCaption(d: { trackName: string; time: number | null; place: 
 }
 
 /** Wordle-style daily card (GDD 9.2). */
-export function dailyCardText(d: { day: number; place: number; time: number | null; laps: readonly number[]; link: string; streak?: number }): string {
+export function dailyCardText(d: { day: number; place: number; time: number | null; laps: readonly number[]; link: string; streak?: number; ghost?: boolean }): string {
   const squares = d.laps.map(bandEmoji).join('');
   const streak = d.streak && d.streak > 1 ? ` · ${d.streak}-day streak` : '';
-  return `Formula Meow Daily #${d.day} · ${ordinalText(d.place)}/8 · ${fmtRaceTime(d.time)}${streak}\n${squares}\n${d.link}`;
+  // with a ghost in the link, the receiver races this exact run: say so in the chat preview
+  const beat = d.ghost && d.time != null ? `\nBeat my ${fmtRaceTime(d.time)} 👻` : '';
+  return `Formula Meow Daily #${d.day} · ${ordinalText(d.place)}/8 · ${fmtRaceTime(d.time)}${streak}\n${squares}${beat}\n${d.link}`;
 }
 
 /** Phrases a share text must never contain (GDD 13: the game itself moves no money). */

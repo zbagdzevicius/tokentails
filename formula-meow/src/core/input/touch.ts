@@ -29,9 +29,11 @@ export class TouchInput implements InputSource {
   readonly itemBtn: HTMLButtonElement;
   private readonly driftPad: HTMLDivElement;
   private ptrs = new Map<number, Ptr>();
-  private pending = { item: false, itemBack: false, any: false, drift: false };
+  private pending = { item: false, itemBack: false, any: false, drift: false, gas: false };
   /** true once a touch happened (switches the HUD to touch mode) */
   active = false;
+  /** set by the shell before GO: a tap anywhere (also on the countdown text) is the Pounce Start press */
+  countdown = false;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -39,8 +41,11 @@ export class TouchInput implements InputSource {
     this.root.innerHTML = `
       <div class="fm-stick-base"><div class="fm-stick-knob"></div></div>
       <div class="fm-drift-pad"><span>HOLD<br>DRIFT</span></div>
-      <button class="fm-item-btn" aria-label="Use item"><span class="fm-item-icon"></span></button>`;
+      <button class="fm-item-btn" aria-label="Use item"><span class="fm-item-icon"></span></button>
+      <div class="fm-thumbs"><div><div class="stick"></div>STEER<br>left thumb</div><div><div class="stick"></div>HOLD = DRIFT<br>right thumb</div></div>`;
     parent.appendChild(this.root);
+    // phones see ghosted controls from boot (where the thumbs go), not only after the first touch
+    if (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) this.root.classList.add('ghost', 'grid');
     this.base = this.root.querySelector('.fm-stick-base')!;
     this.knob = this.root.querySelector('.fm-stick-knob')!;
     this.itemBtn = this.root.querySelector('.fm-item-btn')!;
@@ -71,7 +76,15 @@ export class TouchInput implements InputSource {
     if (e.target === this.itemBtn || this.itemBtn.contains(e.target as Node)) return;
     const h = window.innerHeight;
     const w = window.innerWidth;
-    if (e.clientY < h * 0.4) return;
+    if (e.clientY < h * 0.4) {
+      if (!this.countdown) return;
+      // countdown: the top of the screen (where "3-2-1" sits) is a gas tap too
+      e.preventDefault();
+      this.markTouch(e);
+      this.pending.any = true;
+      this.pending.gas = true;
+      return;
+    }
     e.preventDefault();
     this.markTouch(e);
     this.pending.any = true;
@@ -149,14 +162,21 @@ export class TouchInput implements InputSource {
     out.itemBack ||= this.pending.itemBack;
     out.any ||= this.pending.any;
     // during the countdown a finger down is the "gas" press for the Pounce Start
-    out.gas ||= this.ptrs.size > 0;
-    this.pending = { item: false, itemBack: false, any: false, drift: false };
+    out.gas ||= this.ptrs.size > 0 || this.pending.gas;
+    this.pending = { item: false, itemBack: false, any: false, drift: false, gas: false };
   }
 
   setItem(label: string, ready: boolean): void {
     const icon = this.itemBtn.querySelector('.fm-item-icon')!;
     if (icon.textContent !== label) icon.textContent = label;
     this.itemBtn.classList.toggle('ready', ready);
+    // no item: no button (a blank disc in prime thumb space reads as broken)
+    this.itemBtn.classList.toggle('has', !!label);
+  }
+
+  /** Grid overlay ("thumb here") while waiting for the first tap and during the countdown. */
+  setGrid(on: boolean): void {
+    this.root.classList.toggle('grid', on && this.root.classList.contains('ghost'));
   }
 
   dispose(): void {

@@ -13,6 +13,8 @@ const SIN30 = 0.5;
 const SIN60 = 0.8660254037844386;
 const TIER_TICKS = DRIFT.tiers.map((s) => ticks(s));
 const HOP_TICKS = ticks(PHYS.hop);
+const ARM_TICKS = ticks(DRIFT.entryWindow);
+const PIN_TICKS = ticks(PHYS.pinRespawn);
 const STEER_RATE = DT / PHYS.steerSmooth;
 const TRICK_WINDOW = ticks(BOOST.trick.window);
 
@@ -20,7 +22,7 @@ const hit: TrackHit = { i: 0, s: 0, d: 0, y: 0, surface: Surface.Road };
 
 export function newKart(): KartState {
   return {
-    x: 0, y: 0, z: 0, heading: 0, vx: 0, vy: 0, vz: 0, steer: 0, air: 0, airTicks: 0, hopTicks: 0, driftDir: 0, driftCharge: 0,
+    x: 0, y: 0, z: 0, heading: 0, vx: 0, vy: 0, vz: 0, steer: 0, air: 0, airTicks: 0, hopTicks: 0, armTicks: 0, pinTicks: 0, driftDir: 0, driftCharge: 0,
     driftTier: 0, boostTicks: 0, boostLevel: 1, spinTicks: 0, leapTicks: 0, wobbleTicks: 0, chaseTicks: 0, shieldTicks: 0,
     autoTicks: 0, invTicks: 0, stallTicks: 0, respawnTicks: 0, lipTicks: -1, trick: 0, slipTicks: 0, si: 0, s: 0, d: 0, dist: 0,
     surface: Surface.Road, wall: 0, pGas: 0, pDrift: 0, pItem: 0, startJudged: 0, item: null, itemCount: 0, rouletteTicks: 0,
@@ -174,6 +176,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   if (k.invTicks > 0) k.invTicks--;
   if (k.stallTicks > 0) k.stallTicks--;
   if (k.hopTicks > 0) k.hopTicks--;
+  if (k.armTicks > 0) k.armTicks--;
 
   const stunned = k.spinTicks > 0 || k.stallTicks > 0 || k.leapTicks > 0;
   let steerIn = stunned ? 0 : inp.steer / 7;
@@ -200,13 +203,15 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   // --- hop and drift entry ------------------------------------------------------------------------------------------
   if (driftEdge && !k.air && !stunned) {
     k.hopTicks = HOP_TICKS;
+    k.armTicks = ARM_TICKS;
     ctx.emit({ type: 'hop', kart: idx });
   }
   let sp = speedOf(k);
-  if (k.driftDir === 0 && inp.drift && k.hopTicks > 0 && Math.abs(steerIn) > DRIFT.minSteer && sp > DRIFT.minSpeed && !stunned) {
+  if (k.driftDir === 0 && inp.drift && k.armTicks > 0 && !k.air && Math.abs(steerIn) > DRIFT.minSteer && sp > DRIFT.minSpeed && !stunned) {
     k.driftDir = steerIn > 0 ? 1 : -1;
     k.driftCharge = 0;
     k.driftTier = 0;
+    k.armTicks = 0;
     ctx.emit({ type: 'driftStart', kart: idx, a: k.driftDir });
   }
 
@@ -271,7 +276,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
     // normal driving: yaw from the steer, then grip pulls the velocity toward the new heading
     const asp = Math.abs(vf);
     const yawMax = asp <= PHYS.yawLowSpeed ? PHYS.yawLow : lerp(PHYS.yawLow, PHYS.yawHigh, clamp((asp - PHYS.yawLowSpeed) / (tun.topSpeed - PHYS.yawLowSpeed), 0, 1));
-    const fade = clamp(asp / PHYS.yawFadeSpeed, 0, 1);
+    const fade = clamp(asp / PHYS.yawFadeSpeed, PHYS.yawFadeMin, 1);
     let auth = (k.air ? PHYS.airSteer : 1) * (k.chaseTicks > 0 ? HITS.chase.authority : 1);
     if (k.spinTicks > 0) auth = 0;
     const yaw = -k.steer * yawMax * fade * auth * (vf < 0 ? -1 : 1);
@@ -326,14 +331,19 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
         if (headOn) {
           k.vx += nx * PHYS.wallBounce;
           k.vz += nz * PHYS.wallBounce;
-          if (k.driftDir !== 0) {
-            ctx.emit({ type: 'driftEnd', kart: idx });
-            endDrift(k);
-          }
+        }
+        if (sinA >= SIN30 && k.driftDir !== 0) {
+          ctx.emit({ type: 'driftEnd', kart: idx });
+          endDrift(k);
         }
         if (sinA > 0.15 || headOn) ctx.emit({ type: 'wall', kart: idx, a: headOn ? 2 : 1 });
       }
     }
+    // slide off the wall: turn the nose toward the track direction (never into the wall), so a pinned kart
+    // always has a way out even with no brake (touch)
+    const along = atan2L(t.tx[hit.i], t.tz[hit.i]);
+    const away = sinL(k.heading) * nx + cosL(k.heading) * nz;
+    if (away < 0.2 && !k.air && k.spinTicks === 0) k.heading = wrapAngle(k.heading + wrapAngle(along - k.heading) * PHYS.wallAlign * DT);
     k.wall = 1;
     queryTrack(t, k.x, k.z, hit.i, hit);
   } else k.wall = 0;
@@ -403,6 +413,14 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
 
   // --- safety: stuck or fell (respawn hand) ------------------------------------------------------------------------------
   if (k.y < groundY - 8) startRespawn(ctx, idx);
+  // wall pin: touching a wall below 25 % of top speed for 1.5 s → the big hand (creeping along a wall is not progress)
+  if (k.wall && !k.finished && speedOf(k) < tun.topSpeed * 0.25) {
+    if (++k.pinTicks > PIN_TICKS) {
+      k.pinTicks = 0;
+      k.progDist = k.dist;
+      startRespawn(ctx, idx);
+    }
+  } else if (k.pinTicks > 0) k.pinTicks--;
   // progress watchdog: no 4 m of progress in 5 s (3 s for AI) → the big hand puts the kart back on the road
   if (k.finished || k.dist > k.progDist + 4) {
     k.progDist = k.dist;
@@ -423,6 +441,7 @@ export function startRespawn(ctx: SimContext, idx: number): void {
   if (k.respawnTicks > 0) return;
   k.respawnTicks = ticks(PHYS.respawnDelay);
   k.stuckTicks = 0;
+  k.pinTicks = 0;
   k.vx = k.vz = k.vy = 0;
   ctx.emit({ type: 'respawn', kart: idx });
 }

@@ -56,4 +56,25 @@ describe('input mux (GDD 2)', () => {
     m.frame(1 / 60, ctx);
     expect(m.sample(42, ctx).drift).toBe(false);
   });
+
+  it('one-thumb drift arms only into a bend that turns the same way, and lets go on a wall', () => {
+    const run = (c: typeof ctx & { curve?: number; wall?: boolean }, steer: number) => {
+      const f = new Fake();
+      const m = new InputMux([f], { autoGas: false, oneThumb: true });
+      f.state = { touch: true, steer };
+      let drift = false;
+      for (let t = 0; t < 30; t++) {
+        m.frame(1 / 60, c);
+        drift ||= m.sample(t, c).drift;
+      }
+      return drift;
+    };
+    // a right-hander (curve < 0) with the stick right: drift
+    expect(run({ ...ctx, curve: -0.05 }, 0.9)).toBe(true);
+    // a straight, or a left-hander with the stick right: no drift
+    expect(run({ ...ctx, curve: 0 }, 0.9)).toBe(false);
+    expect(run({ ...ctx, curve: 0.05 }, 0.9)).toBe(false);
+    // on a wall: no drift
+    expect(run({ ...ctx, curve: -0.05, wall: true }, 0.9)).toBe(false);
+  });
 });

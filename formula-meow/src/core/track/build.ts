@@ -159,6 +159,9 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
   const maxSlope = TRACK.maxBank; // radians ≈ slope for small angles
   for (let i = 0; i < n; i++) bank[i] = clamp(TRACK.bankK * curv[i], -maxSlope, maxSlope);
   smooth(bank, 10, 3);
+  // tilt the road around its low edge (not its centre line), so the inner side of a banked turn never sinks
+  // below the ground it was drawn on: lift the centre by the drop at the wall
+  for (let i = 0; i < n; i++) py[i] += (halfW[i] + PHYS.wallMargin) * Math.abs(bank[i]);
 
   // climb
   let maxClimb = 0;
