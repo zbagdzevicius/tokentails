@@ -1,0 +1,194 @@
+/**
+ * SHARED: every feel number from GDD sections 3–5. Changing one changes the sim: bump SIM_VERSION in types.ts.
+ * Times are given in seconds here and converted to ticks where the sim needs them (`ticks()`).
+ */
+import { TICK_HZ, type RaceClass } from './types';
+
+export const ticks = (seconds: number): number => Math.round(seconds * TICK_HZ);
+const DEG = Math.PI / 180;
+
+// ---------------------------------------------------------------------------------------------
+// physics (GDD 3.3)
+// ---------------------------------------------------------------------------------------------
+export interface ClassTuning {
+  name: string;
+  cc: string;
+  topSpeed: number; // m/s, no boost
+  zeroTo90: number; // s
+  aiSkill: [number, number];
+  /** rubber band: AI may go this much slower (behind) / faster (ahead), fractions */
+  bandDown: number;
+  bandUp: number;
+  /** AI top-speed scale before the rubber band: aiTop + AI.topSkill × skill (never above 1) */
+  aiTop: number;
+}
+
+export const CLASSES: readonly ClassTuning[] = [
+  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.55, 0.75], bandDown: 0.08, bandUp: 0.03, aiTop: 0.86 },
+  { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.7, 0.85], bandDown: 0.05, bandUp: 0.05, aiTop: 0.89 },
+  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.82, 0.95], bandDown: 0.05, bandUp: 0.05, aiTop: 0.9 },
+];
+
+export function classTuning(cls: RaceClass): ClassTuning {
+  return CLASSES[cls] ?? CLASSES[0];
+}
+
+/**
+ * Peak acceleration a0 for `a = a0·(1 − v/vmax)^0.6` so that 0 → 90 % of top takes `zeroTo90` seconds:
+ * (1 − v/V)^0.4 = 1 − 0.4·a0·t/V, and 0.1^0.4 ≈ 0.398, so a0 = 0.602·V / (0.4·T).
+ */
+export function peakAccel(c: ClassTuning): number {
+  return (0.6019 * c.topSpeed) / (0.4 * c.zeroTo90);
+}
+
+export const PHYS = {
+  accelExponent: 0.6,
+  /** above the target speed (boost ended, off-road) the kart sheds speed at this rate, m/s² */
+  overspeedDrag: 14,
+  coastDrag: 4,
+  brakeDecel: 32,
+  reverseMax: 7,
+  /** yaw rate: 120°/s at ≤ 8 m/s falling linearly to 75°/s at top speed */
+  yawLow: 120 * DEG,
+  yawHigh: 75 * DEG,
+  yawLowSpeed: 8,
+  /** below this speed the steering authority fades to zero (no turning on the spot) */
+  yawFadeSpeed: 3,
+  steerSmooth: 0.08, // s to full lock
+  grip: 10, // 1/s
+  gripDrift: 2.5,
+  gripLow: 6,
+  gripAir: 0.6,
+  airSteer: 0.3,
+  gravity: 22,
+  hop: 0.15, // s (visual hop height in render: 0.25 m)
+  hopHeight: 0.25,
+  /** off-road: top speed ×0.6, acceleration ×0.5, unless boosting */
+  offroadTop: 0.6,
+  offroadAccel: 0.5,
+  curbTop: 0.92,
+  wallGrazeLoss: 0.15,
+  wallHeadOnLoss: 0.4,
+  wallBounce: 4.5, // m/s outward, ~1.5 m of travel
+  wallGrazeAngle: 30 * DEG,
+  wallHeadOnAngle: 60 * DEG,
+  kartRadius: 0.9,
+  /** how far past the road edge the invisible wall sits, m */
+  wallMargin: 1.5,
+  /** off-road features push the wall out this far beyond the road edge */
+  offroadMargin: 9,
+  curbWidth: 1.0,
+  respawnDelay: 1.2,
+  respawnImmunity: 0.5,
+  wrongWay: 1.5,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// drift and mini-turbo (GDD 3.4)
+// ---------------------------------------------------------------------------------------------
+export const DRIFT = {
+  minSpeed: 10, // entry
+  dropSpeed: 8, // ends below this
+  minSteer: 0.3,
+  /** charge time per tier, s */
+  tiers: [0.6, 1.2, 2.0],
+  /** boost duration per tier, s */
+  boost: [0.5, 0.9, 1.4],
+  level: 1.3,
+  tightFactor: 1.25,
+  wideFactor: 0.75,
+  slipMin: 15 * DEG,
+  slipMax: 35 * DEG,
+  yawWide: 45 * DEG,
+  yawTight: 120 * DEG,
+  colors: [0x3aa8ff, 0xff8a3d, 0xff3ea5],
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// boosts (GDD 3.5)
+// ---------------------------------------------------------------------------------------------
+export const BOOST = {
+  cap: 1.35,
+  zoomies: 1.4,
+  /** boost acceleration is this multiple of the normal peak until boosted top speed */
+  accelMult: 3,
+  pad: { level: 1.35, time: 0.8 },
+  pounce: { level: 1.3, time: 1.0, window: 0.15, stall: 0.8 },
+  trick: { level: 1.25, time: 0.6, window: 0.2 },
+  slip: { level: 1.25, time: 1.0, charge: 1.2, range: 8, cone: 15 * DEG },
+  catnip: { level: 1.35, time: 1.0 },
+  /** ramp launch vertical speed, m/s (~0.65 s of air at g = 22) */
+  rampLaunch: 7.2,
+  rampMinSpeed: 8,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// hits (GDD 3.6): never more than ~1.5 s lost
+// ---------------------------------------------------------------------------------------------
+export const HITS = {
+  spin: { time: 1.1, speed: 0.3 },
+  leap: { time: 0.9, keep: 0.5, height: 2 },
+  wobble: { time: 0.8, noise: 0.25, speed: 0.85 },
+  chase: { time: 0.5, authority: 0.8 },
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// race (GDD 1.2)
+// ---------------------------------------------------------------------------------------------
+export const RACE = {
+  karts: 8,
+  countdown: 3, // s before GO
+  /** the race ends this long after the first human finishes (AI karts get projected places) */
+  tail: 6,
+  /** hard stop in s (AI-only safety) */
+  maxTime: 240,
+  gridRowGap: 6.5,
+  gridColGap: 4.2,
+  gridFirstRow: 5,
+  boxRespawn: 1.5,
+  roulette: 1.2,
+  boxRadius: 1.7,
+  stuckRespawn: 4,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// items (GDD 4): one-slot weights by effective position, owned by the items-ai lane
+// ---------------------------------------------------------------------------------------------
+export const ITEM_WEIGHTS: readonly (readonly number[])[] = [
+  // hairball, yarn, cucumber, catnip, box, bell, zoomies, laser
+  [30, 35, 25, 5, 5, 0, 0, 0],
+  [25, 20, 20, 15, 10, 10, 0, 0],
+  [20, 15, 15, 20, 10, 15, 5, 0],
+  [15, 10, 10, 25, 15, 15, 10, 0],
+  [10, 5, 10, 30, 15, 15, 15, 0],
+  [5, 0, 5, 35, 15, 10, 25, 5],
+  [0, 0, 5, 30, 15, 5, 30, 15],
+  [0, 0, 0, 30, 10, 5, 35, 20],
+];
+
+// ---------------------------------------------------------------------------------------------
+// AI (GDD 5)
+// ---------------------------------------------------------------------------------------------
+export const AI = {
+  lookMin: 8,
+  lookMax: 18,
+  /** base top-speed scale = class aiTop + topSkill·skill, then the rubber band, never above 1 unless boosting */
+  topSkill: 0.1,
+  /** rubber band gain per metre of gap to the player */
+  bandK: 0.0012,
+  /** drift where the turn ahead exceeds this curvature (1/m) */
+  driftCurv: 0.035,
+} as const;
+
+// ---------------------------------------------------------------------------------------------
+// track build (GDD 6.2)
+// ---------------------------------------------------------------------------------------------
+export const TRACK = {
+  grid: 4,
+  heightStep: 1.5,
+  widths: [10, 12, 14, 16],
+  sample: 0.5,
+  maxBank: 12 * DEG,
+  bankK: 3.5,
+  cell: 8,
+} as const;
