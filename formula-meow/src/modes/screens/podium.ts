@@ -50,15 +50,35 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
   const i = CUPS.findIndex((c) => c.id === run.cupId);
   const nextCup = CUPS[i + 1];
   const nextOpen = nextCup && !f.lock('cup', nextCup.id);
-  if (hasScreen('rewards')) fr.footer.append(primary(t('Rewards 🎁'), () => void screens.push('rewards', { cupId: run.cupId, cls: simClass(run.cls), place: outcome.place, points: outcome.points }), 'rewards'));
-  if (nextOpen) fr.footer.append((hasScreen('rewards') ? plain : primary)(t('Next cup ▶'), () => f.startCup(nextCup.id, run.cls), 'next-cup'));
-  fr.footer.append(plain(t('Again ↻'), () => f.startCup(run.cupId, run.cls), 'again'));
-  fr.footer.append(plain(t('Menu'), () => f.goMenu(), 'menu'));
+  // the rewards show once, before the podium is left whichever way (they used to pop up over the menu later)
+  let seen = !hasScreen('rewards');
+  const rewardsParams = { cupId: run.cupId, cls: simClass(run.cls), place: outcome.place, points: outcome.points };
+  const via = (go: () => void) => () => {
+    if (seen) return go();
+    seen = true;
+    void screens.push('rewards', { ...rewardsParams, then: go });
+  };
+  if (hasScreen('rewards')) {
+    // two rows: Rewards full width, then the three small buttons
+    const rw = primary(
+      t('Rewards 🎁'),
+      () => {
+        seen = true;
+        void screens.push('rewards', rewardsParams);
+      },
+      'rewards',
+    );
+    rw.classList.add('big');
+    fr.footer.append(rw);
+  }
+  if (nextOpen) fr.footer.append((hasScreen('rewards') ? plain : primary)(t('Next cup ▶'), via(() => f.startCup(nextCup.id, run.cls)), 'next-cup'));
+  fr.footer.append(plain(t('Again ↻'), via(() => f.startCup(run.cupId, run.cls)), 'again'));
+  fr.footer.append(plain(t('Menu'), via(() => f.goMenu()), 'menu'));
   focusFirst(root);
   return {
     back: () => {
       if (heldBack()) return true;
-      f.goMenu();
+      via(() => f.goMenu())();
       return true;
     },
   };

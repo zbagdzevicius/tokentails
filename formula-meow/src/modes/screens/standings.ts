@@ -29,31 +29,50 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const table = h('div', { class: 'fm-m-stand', role: 'table', style: `height:${now.length * ROW_H}px` });
   const rows = now.map((fi) => {
     const r = run.field[fi];
-    const row = h('div', { class: `fm-m-srow${r.player ? ' me' : ''}`, role: 'row' }, [
+    const moved = before.indexOf(fi) - now.indexOf(fi);
+    const pts = h('b', { class: 'pts', role: 'cell' }, [String(run.points[fi] - (gained[fi] ?? 0))]);
+    const row = h('div', { class: `fm-m-srow${r.player ? ' me' : ''}${fi === run.rival ? ' rival' : ''}`, role: 'row' }, [
       h('span', { class: 'pos', role: 'cell' }, [String(now.indexOf(fi) + 1)]),
       h('i', { class: 'dot', style: `background:${hex(r.kart.paint[0])}`, 'aria-hidden': 'true' }),
       h('span', { class: 'nm', role: 'cell' }, [r.name, fi === run.rival ? h('small', { class: 'rv' }, [` ${t('RIVAL')}`]) : null]),
+      h('span', { class: `mv${moved > 0 ? ' up' : moved < 0 ? ' down' : ''}`, role: 'cell', 'aria-label': moved ? t(moved > 0 ? 'up {n}' : 'down {n}', { n: Math.abs(moved) }) : '' }, [moved > 0 ? `▲${moved}` : moved < 0 ? `▼${-moved}` : '']),
       gained[fi] ? h('span', { class: 'gain', role: 'cell' }, [`+${gained[fi]}`]) : h('span', { class: 'gain none', role: 'cell' }, ['']),
-      h('b', { class: 'pts', role: 'cell' }, [String(run.points[fi])]),
+      pts,
     ]);
     row.style.transform = `translateY(${before.indexOf(fi) * ROW_H}px)`;
     table.append(row);
-    return { fi, row };
+    return { fi, row, pts };
   });
   fr.body.append(table);
   const me = run.field.findIndex((r) => r.player);
   const myPos = now.indexOf(me) + 1;
   const g = f.lastGp;
   if (g) fr.body.append(h('p', { class: 'fm-line' }, [t('You: {p} in the race, +{n} points, {s} overall', { p: ordinal(g.place), n: g.gained, s: ordinal(myPos) })]));
-  // slide the rows into their new places
+  // count the points up, then slide the rows into their new places (Mario Kart's tension beat between races)
+  const countUp = () => {
+    const t0 = performance.now();
+    const step = () => {
+      if (!root.isConnected) return;
+      const k = Math.min(1, (performance.now() - t0) / 700);
+      for (const { fi, pts } of rows) pts.textContent = String(Math.round(run.points[fi] - (gained[fi] ?? 0) * (1 - k)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
   const slide = () => {
     for (const { fi, row } of rows) {
       row.classList.add('go');
       row.style.transform = `translateY(${now.indexOf(fi) * ROW_H}px)`;
     }
+    table.classList.add('moved');
   };
-  if (reducedMotion()) slide();
-  else setTimeout(slide, 350);
+  if (reducedMotion()) {
+    for (const { fi, pts } of rows) pts.textContent = String(run.points[fi]);
+    slide();
+  } else {
+    setTimeout(countUp, 300);
+    setTimeout(slide, 1050);
+  }
 
   const quit = () =>
     void modal(t('Quit the cup?'), t('Your cup is saved. Resume it from the menu at the next race.'), [t('Quit'), t('Keep racing')]).then((i) => {

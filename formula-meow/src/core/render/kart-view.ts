@@ -152,7 +152,7 @@ export class KartView {
       const m = o as Mesh;
       // the outline material is shared by every cat: hide the ghost's outline instead of fading the shared one
       if (o.name === OUTLINE_NAME) {
-        o.visible = false;
+        o.visible = opacity >= 1;
         return;
       }
       if (m.isMesh && m.material && !Array.isArray(m.material) && !own.has(m.material)) {
@@ -161,7 +161,7 @@ export class KartView {
           m.material = m.material.clone();
           m.userData.ghostMat = true;
         }
-        m.material.transparent = true;
+        m.material.transparent = opacity < 1;
         m.material.opacity = opacity;
       }
     });

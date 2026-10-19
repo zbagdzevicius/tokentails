@@ -60,4 +60,5 @@
 
 /* B44: the clip button keeps one width; making the clip fills it left to right instead of changing its text */
 .fm-overlay [data-x='0'] { min-width: 8.5em; }
-.fm-overlay [data-x='0'].fm-busy { background: linear-gradient(90deg, var(--butter) var(--p, 0%), var(--cream) var(--p, 0%)); }
+/* a thin progress bar along the bottom edge (a half-filled button read as a rendering glitch) */
+.fm-overlay [data-x='0'].fm-busy { background: linear-gradient(90deg, var(--rose) var(--p, 0%), rgba(42, 26, 34, 0.12) var(--p, 0%)) left bottom / 100% 5px no-repeat, var(--cream); }

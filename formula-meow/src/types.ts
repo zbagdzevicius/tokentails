@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 5;
+export const SIM_VERSION = 6;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -493,7 +493,8 @@ export interface PairState {
 
 /** Final result of a race (results screen, share lane). Times are seconds since GO. */
 export interface RaceResult {
-  places: Array<{ kart: number; name: string; place: number; time: number | null; bestLap: number | null }>;
+  /** `gap`: a kart still racing, its projected gap to the winner in s (or −n: n laps down; null: unknown) */
+  places: Array<{ kart: number; name: string; place: number; time: number | null; bestLap: number | null; gap?: number | null }>;
   /** the first human's numbers */
   player: { kart: number; place: number; time: number | null; bestLap: number | null };
   trackId: string;
@@ -507,7 +508,7 @@ export interface RaceResult {
   /** per-kart numbers built from the event log (core/app/race-stats.ts) */
   stats: RaceStats[];
   /** battle: balloons left and eliminated flags per kart */
-  battle?: { balloons: number[]; out: number[] };
+  battle?: { balloons: number[]; out: number[]; score?: number[] };
   /** time trial: the player's checkpoint split times in seconds */
   splits?: number[];
 }

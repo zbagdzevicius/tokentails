@@ -252,7 +252,11 @@ export class SimWorld {
    */
   result(): RaceResult {
     const { st, cfg } = this;
-    const places = st.order.map((kart, p) => {
+    // a battle's ranking is fixed on its last tick (the field keeps driving behind the results, and positions would
+    // re-sort the race order by distance)
+    const rank = (st.mode as { battle?: { rank?: number[] } }).battle?.rank;
+    const order = (cfg.mode ?? 'race') === 'battle' && rank && rank.length === st.karts.length ? rank : st.order;
+    const places = order.map((kart, p) => {
       const k = st.karts[kart];
       return {
         kart,
@@ -260,6 +264,7 @@ export class SimWorld {
         place: p + 1,
         time: k.finished ? k.finishTime / 60 : null,
         bestLap: k.bestLapTicks > 0 ? k.bestLapTicks / 60 : null,
+        ...(k.finished ? {} : { gap: projectGap(st, kart, this.goTick()) }),
       };
     });
     const me = cfg.humans[0] ?? 0;
@@ -279,11 +284,28 @@ export class SimWorld {
         places.forEach((p) => (fp[p.kart] = p.place));
         return fp;
       })()),
-      ...(mode === 'battle' ? { battle: { balloons: st.karts.map((k) => k.balloons), out: st.karts.map((k) => k.out) } } : {}),
+      ...(mode === 'battle' ? { battle: { balloons: st.karts.map((k) => k.balloons), out: st.karts.map((k) => k.out), score: (st.mode as { battle?: { score?: number[] } }).battle?.score?.slice() } } : {}),
     };
   }
 
   private goTick(): number {
     return this.ctx.goTick;
   }
+}
+
+/**
+ * A kart still racing: how far behind the winner it will finish (seconds, at the winner's average speed), or whole
+ * laps when it is a lap or more down (negative). Null before anyone finishes, on arenas and in a battle.
+ */
+function projectGap(st: SimWorld['st'], kart: number, go: number): number | null {
+  const L = st.lapLength;
+  if (!(L > 0) || !st.laps) return null;
+  let win: (typeof st.karts)[number] | null = null;
+  for (const o of st.karts) if (o.finished && (!win || o.finishTime < win.finishTime)) win = o;
+  if (!win || !(win.finishTime > 0)) return null;
+  const left = st.laps * L - st.karts[kart].dist;
+  if (left >= L) return -Math.floor(left / L);
+  const v = (st.laps * L) / (win.finishTime / 60);
+  const eta = (st.tick - go) / 60 + Math.max(0, left) / Math.max(1, v);
+  return Math.max(0, eta - win.finishTime / 60);
 }

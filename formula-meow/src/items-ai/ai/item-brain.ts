@@ -16,6 +16,7 @@ import type { ItemId, Personality, TickInput } from '../../types';
 import { AI, ITEMS } from '../../tuning';
 import type { SimContext } from '../../core/sim/plugins';
 import { curvatureAhead } from '../../core/sim/autopilot';
+import { speedOf } from '../../core/sim/kart';
 import { atan2L, wrapAngle } from '../../core/sim/fixed';
 import { draw } from '../../core/sim/rng';
 import { ProjKind, itemsOf } from '../items/state';
@@ -154,8 +155,13 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
       else fire = late;
       break;
     case 'catnip':
-      fire = k.boostTicks === 0 && Math.abs(curvatureAhead(ctx, k.si, 0, 30)) < 0.015;
-      if (!fire && late && k.boostTicks === 0) fire = true;
+    {
+      // a straight long enough for the whole boost (SIM_VERSION 6: a boosted kart cannot turn into a hairpin)
+      const reach = Math.max(30, speedOf(k) * 1.8);
+      const bend = Math.max(Math.abs(curvatureAhead(ctx, k.si, 0, reach * 0.5)), Math.abs(curvatureAhead(ctx, k.si, reach * 0.5, reach)));
+      fire = k.boostTicks === 0 && bend < 0.015;
+      if (!fire && late && k.boostTicks === 0 && bend < 0.03) fire = true;
+    }
       break;
     case 'box':
       fire = threatened(ctx, i) || m.held > maxHold * 3;

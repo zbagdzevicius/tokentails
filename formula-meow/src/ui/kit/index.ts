@@ -148,23 +148,31 @@ export function toast(text: string, ms = 2600): void {
 export function modal(title: string, text: string, buttons: string[]): Promise<number> {
   return new Promise((resolve) => {
     const wrap = h('div', { class: 'fm-ui-modal', 'data-ui-layer': '' });
+    // focus moves into the modal (an Enter on the button that opened it used to open a second one) and back after
+    const opener = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    let closed = false;
     const done = (i: number) => {
+      if (closed) return;
+      closed = true;
       stop();
+      window.removeEventListener('keydown', onKey, true);
       wrap.remove();
+      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
       resolve(i);
     };
-    const row = actionFooter(buttons.map((b, i) => button(b, () => done(i), { primary: i === 0 })));
+    const btns = buttons.map((b, i) => button(b, () => done(i), { primary: i === 0 }));
+    const row = actionFooter(btns);
     wrap.append(panel(title, [h('p', { class: 'fm-line' }, [text]), row]));
     document.body.appendChild(wrap);
-    const stop = focusNav(wrap, { back: () => done(-1) });
+    const stop = focusNav(wrap, { back: () => done(-1), modal: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      window.removeEventListener('keydown', onKey, true);
       done(-1);
     };
     window.addEventListener('keydown', onKey, true);
+    btns[0]?.focus({ preventScroll: true });
   });
 }
 
@@ -203,6 +211,8 @@ export function nextFocus(items: readonly { x: number; y: number }[], from: numb
 export interface FocusNavOpts {
   /** gamepad B (Esc is routed by the screen stack / modal) */
   back?: () => void;
+  /** a dialog over the screens (kit modal, the cat maker, the dare name): while one is up, only it takes input */
+  modal?: boolean;
 }
 
 /**
@@ -210,9 +220,25 @@ export interface FocusNavOpts {
  * control. The first control gets focus when a key or pad is used (never on touch, so no focus ring on phones).
  * Returns a stop function.
  */
+/**
+ * Live modal focusNav roots, oldest first. While one is connected and shown, only the newest of them takes input, so
+ * a dialog over a screen no longer moves focus (or handles pad B) in both at once. Screen layers are not tracked:
+ * the stack already hides every layer but the top one.
+ */
+const modalStack: HTMLElement[] = [];
+function isTopNav(root: HTMLElement): boolean {
+  for (let i = modalStack.length - 1; i >= 0; i--) {
+    const r = modalStack[i];
+    if (!r.isConnected || r.hidden) continue;
+    return r === root;
+  }
+  return true;
+}
+
 export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   if (typeof window === 'undefined') return () => {};
   let alive = true;
+  if (o.modal) modalStack.push(root);
   const move = (dx: number, dy: number) => {
     if (root.hidden) return;
     const els = focusables(root);
@@ -226,7 +252,7 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
     if (i >= 0) els[i].focus();
   };
   const onKey = (e: KeyboardEvent) => {
-    if (root.hidden || !root.isConnected) return;
+    if (root.hidden || !root.isConnected || !isTopNav(root)) return;
     const a = document.activeElement as HTMLElement | null;
     const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
     const dir: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
@@ -265,7 +291,7 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   const poll = () => {
     if (!alive) return;
     requestAnimationFrame(poll);
-    if (root.hidden || !root.isConnected) {
+    if (root.hidden || !root.isConnected || !isTopNav(root)) {
       Object.assign(prev, sample() ?? {});
       held = 0;
       return;
@@ -299,5 +325,7 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   return () => {
     alive = false;
     window.removeEventListener('keydown', onKey);
+    const i = modalStack.indexOf(root);
+    if (i >= 0) modalStack.splice(i, 1);
   };
 }

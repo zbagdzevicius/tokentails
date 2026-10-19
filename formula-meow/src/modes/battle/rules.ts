@@ -1,12 +1,13 @@
 /**
  * Balloon battle rules (`RaceConfig.mode = 'battle'` on an arena, inside the sim, GDD 3.1 math only).
  *
- * 8 cats, 3 balloons each, a 3-minute round. An item hit that lands pops one balloon (then 1.5 s of balloon
- * immunity); a bump while boosting (mini-turbo, pad, Catnip, Zoomies) at a closing speed above 6 m/s steals one
- * (the thief can hold up to 5). At 0 a cat is out: it greys, parks at the edge and cannot be hit. The round ends when
- * one cat is left, when the time is up, or 4 s after every human is out. Ranking: cats still in by balloons, then
- * fewer hits taken, then the lower slot; then the cats that went out, the last one out first. On the last tick the
- * ranking becomes `RaceState.order` (and each kart's place), so the results show it; nobody gets a finish time.
+ * 8 cats, 3 balloons each, a 2:30 round scored in points (MK8 style, SIM_VERSION 6). An item hit that lands pops one
+ * balloon and scores a point for the thrower (then 3 s of balloon immunity); a bump while boosting (mini-turbo, pad,
+ * Catnip, Zoomies) at a closing speed above 6 m/s steals one and scores a point (the thief can hold up to 5). At 0
+ * balloons a cat is popped out: it loses one point, greys and cannot be hit for `outTime` s, then comes back with 3
+ * balloons and immunity. Nobody is out for good, so every cat plays the whole round. The round ends when the time is
+ * up. Ranking: points, then balloons held, then fewer hits taken, then the lower slot. On the last tick the ranking
+ * becomes `RaceState.order` (and each kart's place), so the results show it; nobody gets a finish time.
  *
  * The free-roam AI (battle/ai.ts) replaces the racing-line driver for the round. State: `RaceState.mode.battle`.
  */
@@ -22,33 +23,37 @@ export const BATTLE = {
   balloons: 3,
   maxBalloons: 5,
   /** round length, seconds */
-  time: 180,
+  time: 150,
   /** closing speed (m/s) a boosting bump needs to steal a balloon */
   stealSpeed: 6,
-  /** balloon immunity after losing one, seconds */
-  immune: 1.5,
-  /** the round ends this long after the last human is out, seconds */
-  outEnd: 4,
+  /** balloon immunity after losing one (and after coming back), seconds */
+  immune: 3,
+  /** a popped-out cat sits out this long, then comes back with full balloons, seconds */
+  outTime: 2.5,
+  /** points lost when popped out */
+  outCost: 1,
 } as const;
 
 export const BATTLE_TICKS = BATTLE.time * TICK_HZ;
 const IMMUNE = Math.round(BATTLE.immune * TICK_HZ);
-const OUT_END = Math.round(BATTLE.outEnd * TICK_HZ);
+const OUT_TICKS = Math.round(BATTLE.outTime * TICK_HZ);
 /** hairball, yarn, cucumber, catnip, box, bell, zoomies, laser (no Laser Dot in battle) */
-export const BATTLE_ITEMS: readonly number[] = [32, 14, 18, 16, 10, 4, 6, 0];
+export const BATTLE_ITEMS: readonly number[] = [16, 18, 18, 18, 14, 4, 8, 0];
 
 export interface BattleState {
   /** balloon immunity ticks per kart */
   imm: number[];
   /** tick a kart went out (0 = still in) */
   outAt: number[];
+  /** points: pops and steals scored, minus one per pop-out (never below 0) */
+  score: number[];
+  /** times each kart was popped out */
+  outs: number[];
   hitsTaken: number[];
   pops: number[];
   steals: number[];
   /** per ordered pair steal cooldown (a × n + b) */
   stealCd: number[];
-  /** tick the round ends because every human is out, -1 = not set */
-  endAt: number;
   over: number;
   /** the final ranking (kart indices, winner first), set on the last tick */
   rank: number[];
@@ -96,8 +101,18 @@ export function createBattleRules(): ModeRules {
     k.rouletteTicks = 0;
     k.itemBuf = 0;
     b.outAt[i] = st.tick;
+    b.outs[i]++;
+    b.score[i] = Math.max(0, b.score[i] - BATTLE.outCost);
     ctx.emit({ type: 'eliminated', kart: i });
-    if (b.endAt < 0 && ctx.cfg.humans.length > 0 && ctx.cfg.humans.every((h) => st.karts[h]?.out)) b.endAt = st.tick + OUT_END;
+  };
+
+  const revive = (ctx: SimContext, i: number) => {
+    const b = battleOf(ctx.st);
+    const k = ctx.st.karts[i];
+    k.out = 0;
+    k.balloons = BATTLE.balloons;
+    b.outAt[i] = 0;
+    b.imm[i] = IMMUNE;
   };
 
   const lose = (ctx: SimContext, victim: number) => {
@@ -119,9 +134,9 @@ export function createBattleRules(): ModeRules {
     idx.sort((x, y) => {
       const kx = st.karts[x];
       const ky = st.karts[y];
-      if (kx.out !== ky.out) return kx.out - ky.out;
-      if (!kx.out) return ky.balloons - kx.balloons || b.hitsTaken[x] - b.hitsTaken[y] || x - y;
-      return b.outAt[y] - b.outAt[x] || x - y;
+      const bx = kx.out ? 0 : kx.balloons;
+      const by = ky.out ? 0 : ky.balloons;
+      return b.score[y] - b.score[x] || by - bx || b.hitsTaken[x] - b.hitsTaken[y] || x - y;
     });
     b.rank = idx;
     for (let r = 0; r < n; r++) ctx.emit({ type: 'finish', kart: idx[r], a: r + 1 });
@@ -133,7 +148,7 @@ export function createBattleRules(): ModeRules {
       const st = ctx.st;
       const n = st.karts.length;
       const z = () => new Array<number>(n).fill(0);
-      (st.mode as { battle?: BattleState }).battle = { imm: z(), outAt: z(), hitsTaken: z(), pops: z(), steals: z(), stealCd: new Array<number>(n * n).fill(0), endAt: -1, over: 0, rank: [], ai: new Array<number>(n * 4).fill(0) };
+      (st.mode as { battle?: BattleState }).battle = { imm: z(), outAt: z(), hitsTaken: z(), pops: z(), steals: z(), score: z(), outs: z(), stealCd: new Array<number>(n * n).fill(0), over: 0, rank: [], ai: new Array<number>(n * 4).fill(0) };
       for (const k of st.karts) {
         k.balloons = BATTLE.balloons;
         k.out = 0;
@@ -153,7 +168,10 @@ export function createBattleRules(): ModeRules {
       // a Laser-Dot style chase is a nuisance, not a pop (there is no Laser Dot in battle, keep it honest anyway)
       if (kind === 'chase') return;
       b.hitsTaken[victim]++;
-      if (by >= 0 && by !== victim) b.pops[by]++;
+      if (by >= 0 && by !== victim) {
+        b.pops[by]++;
+        b.score[by]++;
+      }
       ctx.emit({ type: 'balloonPop', kart: victim, b: by });
       lose(ctx, victim);
     },
@@ -175,6 +193,7 @@ export function createBattleRules(): ModeRules {
       if (kt.out || kv.out || kv.respawnTicks > 0 || kv.shieldTicks > 0 || kv.invTicks > 0 || b.imm[victim] > 0 || b.stealCd[p] > 0) return;
       b.stealCd[p] = IMMUNE * 2;
       b.steals[thief]++;
+      b.score[thief]++;
       b.hitsTaken[victim]++;
       if (kt.balloons < BATTLE.maxBalloons) kt.balloons++;
       ctx.emit({ type: 'balloonSteal', kart: victim, b: thief });
@@ -186,11 +205,10 @@ export function createBattleRules(): ModeRules {
       if (b.over) return;
       for (let i = 0; i < b.imm.length; i++) if (b.imm[i] > 0) b.imm[i]--;
       for (let i = 0; i < b.stealCd.length; i++) if (b.stealCd[i] > 0) b.stealCd[i]--;
-      let alive = 0;
-      for (const k of st.karts) if (!k.out) alive++;
-      // [integrator] the round clock is 3:00 even if `timeLimitTicks` is longer (tests pass a safety margin)
+      for (let i = 0; i < st.karts.length; i++) if (st.karts[i].out && st.tick - b.outAt[i] >= OUT_TICKS) revive(ctx, i);
+      // the round clock is 2:30 even if `timeLimitTicks` is longer (tests pass a safety margin)
       const limit = Math.min(ctx.cfg.timeLimitTicks ?? BATTLE_TICKS, BATTLE_TICKS);
-      if (alive <= 1 || st.tick + 1 - ctx.goTick >= limit || (b.endAt >= 0 && st.tick >= b.endAt)) finish(ctx);
+      if (st.tick + 1 - ctx.goTick >= limit) finish(ctx);
     },
     isOver(ctx) {
       const st = ctx.st;
@@ -207,8 +225,7 @@ export function createBattleRules(): ModeRules {
     hash(st, h) {
       const b = battleOf(st);
       if (!b) return h;
-      for (const a of [b.imm, b.outAt, b.hitsTaken, b.pops, b.steals, b.stealCd, b.ai, b.rank]) for (const v of a) h = fnvInt(h, Math.round(v * 1000));
-      h = fnvInt(h, b.endAt);
+      for (const a of [b.imm, b.outAt, b.hitsTaken, b.pops, b.steals, b.score, b.outs, b.stealCd, b.ai, b.rank]) for (const v of a) h = fnvInt(h, Math.round(v * 1000));
       return fnvInt(h, b.over);
     },
   };

@@ -93,7 +93,7 @@ test('the Tracks screen hides the pause panel under it (B46)', async ({ page }) 
   await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(30);
   await page.locator('.fm-menu-btn').click();
   await expect(page.locator('[data-screen="pause"]')).toBeVisible();
-  await page.locator('.fm-ugc-btn').click();
+  await page.locator('[data-screen="pause"] [data-act="ugc-tracks"]').click();
   await expect(page.locator('[data-screen="tracks"]')).toBeVisible();
   await expect(page.locator('[data-screen="pause"]')).toBeHidden();
   await page.locator('[data-screen="tracks"] [data-a="close"]').click();

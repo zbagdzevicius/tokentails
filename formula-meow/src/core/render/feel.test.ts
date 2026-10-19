@@ -192,7 +192,7 @@ describe('camera modes', () => {
     expect(cam.mode).toBe('chase');
   });
 
-  it('the finish orbit ends in front of the kart at 3 m', () => {
+  it("the finish orbit ends in front of the kart at 3 m (5 m on a portrait phone)", () => {
     const cam = new ChaseCamera(390 / 844);
     for (let f = 0; f < 30; f++) cam.update(k, k.x, k.y, k.z, k.heading, 0, 26, 1 / 60);
     cam.setMode('finishOrbit');
@@ -200,7 +200,7 @@ describe('camera modes', () => {
     const p = cam.cam.position;
     const fwd = (p.x - k.x) * Math.sin(k.heading) + (p.z - k.z) * Math.cos(k.heading);
     expect(fwd).toBeGreaterThan(1.5);
-    expect(Math.hypot(p.x - k.x, p.z - k.z)).toBeCloseTo(ORBIT.radius, 0);
+    expect(Math.hypot(p.x - k.x, p.z - k.z)).toBeCloseTo(ORBIT.radius + 2, 0);
   });
 
   it('the chase camera never sits outside the track walls (B59: scenery lives there)', () => {

@@ -39,7 +39,7 @@ const KART_FIELDS: readonly (keyof KartState)[] = [
   'stallTicks', 'respawnTicks', 'lipTicks', 'trick', 'slipTicks', 'si', 's', 'd', 'dist', 'surface', 'wall', 'pGas', 'pDrift',
   'pItem', 'startJudged', 'itemCount', 'rouletteTicks', 'rngItems', 'rngAi', 'lap', 'lapStartTick', 'bestLapTicks', 'finished',
   'finishTime', 'place', 'stuckTicks', 'progDist', 'topScale',
-  // SIM_VERSION 4
+  // SIM_VERSION 4 (6: battle score fields are hashed by the mode rules)
   'lapMax', 'lapStartPrev', 'coins', 'balloons', 'out', 'itemBuf', 'itemBufBack', 'wrongTicks', 'branch',
 ];
 

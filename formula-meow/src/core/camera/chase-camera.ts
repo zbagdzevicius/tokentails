@@ -45,10 +45,12 @@ const BACK = 5.6;
 const UP = 2.55;
 const AHEAD = 7;
 const LOOK_Y = 0.55;
-const P_UP = 3.6;
-const P_AHEAD = 9;
+/** portrait (phones): further back, higher and looking further ahead, so bends ahead are on screen */
+const P_BACK = 7;
+const P_UP = 4;
+const P_AHEAD = 12;
 const P_LOOK_Y = 0;
-const P_VFOV_MAX = 80;
+const P_VFOV_MAX = 90;
 /** FOV kicks (horizontal degrees) */
 export const FOV_KICK = { boost: 6, strong: 10, drift: 3 } as const;
 /** finish orbit: 180° over this many seconds at this radius / height */
@@ -177,7 +179,8 @@ export class ChaseCamera {
         break;
       case 'finishOrbit':
         // from behind and to the side (clear of anything trailing behind the kart) round to its front
-        this.orbit(x, y, z, Math.min(1, this.modeT / ORBIT.time), ORBIT.radius, ORBIT.height, this.orbitFrom + ORBIT.start, Math.PI);
+        // (portrait pulls out to 5 m: at 3 m the narrow screen showed only the kart's side, a blur of colour)
+        this.orbit(x, y, z, Math.min(1, this.modeT / ORBIT.time), ORBIT.radius + 2 * this.portrait, ORBIT.height + 0.6 * this.portrait, this.orbitFrom + ORBIT.start, Math.PI);
         break;
       case 'attract':
         this.orbit(x, y, z, this.modeT, 7.5, 3.2 + Math.sin(this.modeT * 0.4) * 0.8, this.orbitFrom, 0.22);
@@ -199,6 +202,15 @@ export class ChaseCamera {
     // follow the travel direction (not the drifting body), plus 8° into the drift
     const travel = speed > 2 && k.respawnTicks === 0 ? Math.atan2(k.vx, k.vz) : heading;
     let target = travel + (k.driftDir !== 0 ? -k.driftDir * 8 * DEG : 0);
+    // a slow drift slides sideways: never let the rig swing more than 25° off the kart's nose (it cut the kart off)
+    if (k.spinTicks === 0 && k.respawnTicks === 0) {
+      let off = target - heading;
+      while (off > Math.PI) off -= Math.PI * 2;
+      while (off < -Math.PI) off += Math.PI * 2;
+      const lim = 25 * DEG;
+      if (off > lim) target = heading + lim;
+      else if (off < -lim) target = heading - lim;
+    }
     if (k.spinTicks > 0) target = this.yaw; // do not spin the camera with the kart
     if (this.lookBack || this.modeNow === 'lookBack') target += Math.PI;
     if (!this.init) this.snap(x, y, z, target);
@@ -207,7 +219,7 @@ export class ChaseCamera {
     while (dy < -Math.PI) dy += Math.PI * 2;
     const lag = 1 - Math.exp(-dt / 0.12);
     this.yaw += dy * Math.min(1, lag * 1.4);
-    const back = BACK + Math.min(1.2, speed / topSpeed) * 0.6;
+    const back = BACK + (P_BACK - BACK) * this.portrait + Math.min(1.2, speed / topSpeed) * 0.6;
     this.want.set(x - Math.sin(this.yaw) * back, y + this.up + (k.air ? 0.4 : 0), z - Math.cos(this.yaw) * back);
     this.wallClamp(this.want, x, z, k.si);
     const free = this.modeNow === 'chase' || this.modeNow === 'lookBack';
@@ -230,6 +242,12 @@ export class ChaseCamera {
    * toward the kart along the rig's line. One track query per frame instead of a raycast against the scenery.
    */
   private wallClamp(p: Vector3, kx: number, kz: number, si: number): void {
+    // twice: one pull can land past the wall of the next bend sample (the portrait rig sits 7 m back)
+    this.wallClampOnce(p, kx, kz, si);
+    this.wallClampOnce(p, kx, kz, si);
+  }
+
+  private wallClampOnce(p: Vector3, kx: number, kz: number, si: number): void {
     const s = this.source;
     if (!s || s.track.arena) return;
     const t = s.track;

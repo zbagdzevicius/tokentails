@@ -135,10 +135,10 @@ class ShowroomImpl implements Showroom {
     this.scene.add(this.stage);
     // podium plinths with their numbers
     PLINTH_H.forEach((h, i) => {
-      const plinth = new Mesh(new BoxGeometry(2.4, h, 2.2), toonMaterial({ color: [0xffd27a, 0xfff3dc, 0xff9f7a][i] }));
+      const plinth = new Mesh(new BoxGeometry(2.4, h, 3.2), toonMaterial({ color: [0xffd27a, 0xfff3dc, 0xff9f7a][i] }));
       plinth.position.set(PLINTH_X[i], h / 2 - 0.5, 0);
       const num = new Mesh(new PlaneGeometry(0.8, 0.8), new MeshBasicMaterial({ map: numberTexture(i + 1), transparent: true }));
-      num.position.set(0, 0, 1.11);
+      num.position.set(0, 0, 1.61);
       num.position.y = Math.min(0.1, h / 2 - 0.45);
       plinth.add(num);
       this.podiumGroup.add(plinth);
@@ -265,13 +265,13 @@ class ShowroomImpl implements Showroom {
       for (const i of order) {
         const v = this.karts[i];
         if (!v) continue;
-        const hop = i === 0 && !calm ? Math.abs(Math.sin(this.time * 3.2)) * 0.35 : 0;
+        const hop = i === 0 && !calm ? Math.max(0, Math.sin(this.time * 3.2)) ** 4 * 0.18 : 0;
         f.steer = 0;
         v.update(f, PLINTH_X[i], PLINTH_H[i] - 0.5 + hop, 0, Math.PI * 0.08 * (i === 1 ? 1 : i === 2 ? -1 : 0), 0, 0, 0, dt, 26);
       }
       if (this.trophy) {
         const at = this.trophyAt;
-        this.trophy.position.set(PLINTH_X[at], PLINTH_H[at] + 2.1 + Math.sin(this.time * 2) * 0.1, 0);
+        this.trophy.position.set(PLINTH_X[at], PLINTH_H[at] + 1.6 + Math.sin(this.time * 2) * 0.1, 0);
         this.trophy.rotation.y = this.time * 1.4;
       }
       // the panel covers the bottom (portrait) or the right (landscape): frame the plinths in what is left

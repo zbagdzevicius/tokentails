@@ -8,7 +8,7 @@
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, BOOST, DRIFT, ticks } from '../../tuning';
+import { AI, BOOST, DRIFT, PHYS, classTuning, ticks } from '../../tuning';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
 import { curvatureAhead, followLine } from '../../core/sim/autopilot';
 import { speedOf } from '../../core/sim/kart';
@@ -176,7 +176,9 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     } else m.driftWant = 0;
   } else {
     // hold through the bend; low skill lets go early now and then (a missed tier)
-    const stillBending = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > curvFor * 0.5;
+    // (SIM_VERSION 6) hold through the exit: a mini-turbo fired with the nose still pointing at the outside wall
+    // cannot turn back at boost speed
+    const stillBending = Math.max(Math.abs(curvatureAhead(ctx, k.si, 0, 8)), Math.abs(curvatureAhead(ctx, k.si, -4, 4))) > curvFor * 0.5;
     const early = (k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08) || (m.missAt >= 0 && k.driftCharge >= m.missAt);
     // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
     const overturning = out.steer * k.driftDir <= -5;
@@ -198,7 +200,12 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   if (k.driftDir === 0 && !k.air && !out.drift) {
     const ahead = Math.max(10, sp * 0.9);
     const c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
-    const vmax = Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / Math.max(1e-4, c));
+    const cc = Math.max(1e-4, c);
+    // the grip limit, and the steering limit: yaw rate falls with speed (SIM_VERSION 6), so a tight bend at top speed
+    // needs a lift even when the tyres would hold (v · c ≤ yaw(v), with a little slack for using the road width)
+    const top = classTuning(ctx.cfg.cls).topSpeed;
+    const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
+    const vmax = Math.min(Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / cc), (yaw * (1.08 - 0.03 * ctx.cfg.cls + 0.12 * p.skill)) / cc);
     if (sp > vmax * 1.12) {
       out.gas = false;
       out.brake = true;

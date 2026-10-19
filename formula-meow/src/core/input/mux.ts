@@ -2,7 +2,7 @@
  * Input mux (GDD 2): all devices → one TickInput per sim tick. Steering is quantized to −7..+7; buttons are
  * latched every 2 ticks (30 Hz) for compact ghosts, with presses kept sticky so a short tap is never lost.
  * Touch gets automatic gas (after GO) and the one-thumb auto drift (GDD 2.1): holding the stick past 70 % of lock
- * for 0.25 s above 60 % of top speed starts a drift, but only into a bend that turns the same way (a nervous thumb
+ * for 0.2 s above 60 % of top speed starts a drift, but only into a bend that turns the same way (a nervous thumb
  * on a straight is not a drift); releasing back inside 30 %, touching a wall or the bend running out lets it go.
  */
 import type { TickInput } from '../../types';
@@ -67,7 +67,7 @@ export class InputMux {
       const a = Math.abs(r.steer);
       if (!this.autoDrift) {
         this.autoHold = a > 0.7 && ctx.speedFrac > 0.6 && !ctx.wall && bendAgrees(r.steer, ctx.curve, 0.025) ? this.autoHold + dt : 0;
-        if (this.autoHold > 0.25) this.autoDrift = true;
+        if (this.autoHold > 0.2) this.autoDrift = true;
       } else if (a < 0.3 || ctx.wall || (!ctx.drifting && this.autoHold > 0.6) || (this.autoHold > 0.5 && !bendAgrees(r.steer, ctx.curve, 0.012))) {
         this.autoDrift = false;
         this.autoHold = 0;
@@ -88,7 +88,9 @@ export class InputMux {
       const autoGas = ctx.racing && (r.touch || this.settings.autoGas);
       this.latched = {
         steer: Math.max(-7, Math.min(7, Math.round(r.steer * 7))),
-        gas: autoGas ? !r.brake : r.gas || this.sticky.gas,
+        // touch has no gas pedal to lift: a full-lock stick at speed without a drift lifts for it (B7: the yaw
+        // rate falls with speed, so a tight bend at top speed needs a lift or a drift, SIM_VERSION 6)
+        gas: autoGas ? !r.brake && !(r.touch && Math.abs(r.steer) > 0.95 && !ctx.drifting && !this.autoDrift && ctx.speedFrac > 0.9) : r.gas || this.sticky.gas,
         brake: r.brake,
         drift: r.drift || this.autoDrift || this.sticky.drift,
         item: this.sticky.item,

@@ -65,14 +65,20 @@ function esc(s: string): string {
 function rowsHtml(r: RaceResult, ghost: ResultsView['ghost']): string {
   const me = r.player;
   const battle = r.mode === 'battle' && r.battle;
-  const cell = (kart: number, time: number | null) => {
+  const cell = (kart: number, time: number | null, gap?: number | null) => {
     if (battle) {
+      const sc = r.battle!.score?.[kart];
+      if (sc != null) return `★ ${sc}`;
       if (r.battle!.out[kart]) return `<span class="fm-out">${esc(t('OUT'))}</span>`;
       return `${'🎈'.repeat(Math.max(0, r.battle!.balloons[kart] ?? 0))}`;
     }
-    return time != null ? fmtTime(time) : '—';
+    if (time != null) return fmtTime(time);
+    // still racing: the projected gap to the winner (B: "—" said nothing)
+    if (gap != null && gap < 0) return `<span class="fm-gap">${esc(gap === -1 ? t('+1 lap') : t('+{n} laps', { n: -gap }))}</span>`;
+    if (gap != null) return `<span class="fm-gap">+${gap.toFixed(1)} s</span>`;
+    return '—';
   };
-  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td data-raw>${esc(p.name)}</td><td>${cell(p.kart, p.time)}</td></tr>`);
+  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td data-raw>${esc(p.name)}</td><td>${cell(p.kart, p.time, p.gap)}</td></tr>`);
   // the ghost sits at its place by time (seeing yourself one row under your friend is the hook)
   const g = ghost;
   if (g) {
@@ -125,7 +131,9 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
     .filter(([a]) => a.tier !== 'icon')
     .sort((x, y) => Number(!!y[0].primary) - Number(!!x[0].primary));
   const icons = v.actions.map((a, i) => [a, i] as const).filter(([a]) => a.tier === 'icon');
-  const mainHtml = main.map(([a, i]) => btn(a, i, a.primary && main.length > 1 ? ' big' : '')).join('');
+  // the game loop leads: Next (or the mode's Continue) is the big button; sharing sits beside the rest, never over it
+  const plain = (a: ResultAction, i: number) => `<button class="fm-btn" data-x="${i}" data-raw>${esc(a.label)}</button>`;
+  const mainHtml = main.map(([a, i]) => (ghostLost && a.primary ? btn(a, i) : plain(a, i))).join('');
   // closest Pink Paw rival (by place): their real status, with its date, and the shelter page
   let rivalLine = '';
   const rivals = r.places.filter((p) => p.kart !== me.kart && v.racers[p.kart]?.pinkPawId);
@@ -140,7 +148,7 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
     rivalLine = `<p class="fm-line fm-pinkpaw">${esc(text)} <a href="${pinkPawAdoptUrl(cat)}" target="_blank" rel="noopener">${esc(t('See {name}', { name: cat.name }))}</a></p>`;
   }
   const stats = battle
-    ? `<div><b>${'🎈'.repeat(Math.max(0, r.battle!.balloons[me.kart] ?? 0)) || esc(t('OUT'))}</b>${esc(t('balloons left'))}</div>`
+    ? `<div><b>★ ${r.battle!.score?.[me.kart] ?? 0}</b>${esc((r.battle!.score?.[me.kart] ?? 0) === 1 ? t('point') : t('points'))}</div>`
     : `<div><b class="fm-count" data-to="time">${fmtTime(me.time)}</b>${esc(t('race'))}</div><div><b class="fm-count" data-to="lap">${fmtTime(me.bestLap)}</b>${esc(t('best lap'))}</div>`;
   const splits = r.splits?.length
     ? `<p class="fm-line fm-splits">${esc(t('Splits'))}: ${r.splits.map((s) => `<span>${fmtTime(s)}</span>`).join(' · ')}</p>`
@@ -149,7 +157,7 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   host.innerHTML = `
     <div class="fm-panel fm-sticker fm-results" role="dialog" aria-label="${esc(t('Results'))}">
       <h2><span data-raw>${esc(v.trackName)}</span> · <span data-raw>${esc(v.className)}</span></h2>
-      <div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>
+      ${r.mode === 'tt' ? '' : `<div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>`}
       <div class="fm-stats">${stats}</div>
       ${splits}
       <table class="fm-table">${rowsHtml(r, g)}</table>
@@ -158,10 +166,10 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
       ${rivalLine}
       <div class="fm-sections"></div>
       <div class="fm-res-main">
-        ${mainHtml}
-        <button class="fm-btn${ghostLost || !main.length ? ' primary' : ''}" data-act="again">${esc(again)}</button>
-        <button class="fm-btn" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
+        <button class="fm-btn${ghostLost ? '' : ' primary big'}" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
+        <button class="fm-btn${ghostLost ? ' primary big' : ''}" data-act="again">${esc(again)}</button>
         ${(v.extra ?? []).map((x) => `<button class="fm-btn" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
+        ${mainHtml}
       </div>
       ${icons.length ? `<div class="fm-res-icons">${icons.map(([a, i]) => btn(a, i)).join('')}</div>` : ''}
     </div>`;

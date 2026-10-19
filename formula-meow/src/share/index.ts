@@ -31,6 +31,7 @@ import type { EncodedClip } from './clip/encoder-types';
 import { trackCodec, trackFromLocation } from '../ugc/codec/track-codec';
 import { displayName } from '../ugc/actions';
 import type { TrackDef } from '../types';
+import { focusNav } from '../ui/kit';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -76,11 +77,26 @@ function askName(host: HTMLElement): Promise<string | null> {
         <p class="fm-line">Your friend sees "Race <i>your name</i>'s ghost".</p>
         <div class="fm-row-btns"><button class="fm-btn primary" type="submit">⚔️ Send dare</button><button class="fm-btn" type="button" data-skip>Skip</button></div>
       </form>`;
+    wrap.setAttribute('data-ui-layer', '');
     host.appendChild(wrap);
     const input = wrap.querySelector('input')!;
     setTimeout(() => input.focus(), 50);
+    let closed = false;
+    // Esc (and pad B) skip, like the Skip button; other keys stay inside the form
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      done(null);
+    };
+    window.addEventListener('keydown', onEsc, true);
     wrap.addEventListener('keydown', (e) => e.stopPropagation());
+    const stopNav = focusNav(wrap, { back: () => done(null), modal: true });
     const done = (v: string | null) => {
+      if (closed) return;
+      closed = true;
+      stopNav();
+      window.removeEventListener('keydown', onEsc, true);
       wrap.remove();
       resolve(v);
     };
@@ -129,18 +145,29 @@ export function installShare(shell: Shell): void {
     setTimeout(() => b.classList.add('off'), 3800);
     setTimeout(() => b.remove(), 4400);
   };
-  if (route.kind === 'dare-broken') showToast('That dare link is broken. Racing without the ghost.');
+  // B47: a dare that cannot be raced says so, on the grid as well as in a toast (a toast alone was gone before the
+  // boot loader cleared, so the race looked like a plain Kitchen race)
+  let notice: string | null = null;
+  const tell = (msg: string) => {
+    notice = msg;
+    showToast(msg, 6000);
+    if (shell.world) {
+      showBanner(msg);
+      notice = null;
+    }
+  };
+  if (route.kind === 'dare-broken') tell('That dare link is broken or from an older version. Racing without the ghost.');
   if (route.kind === 'dare') {
     void decodeGhost(route.ghost).then((g) => {
       if (!g) {
-        showToast('That dare link is broken. Racing the track without the ghost.');
+        tell('That dare link is broken or from an older version. Racing without the ghost.');
         return;
       }
       runner.set({ ghost: g, name: route.name, cat: route.cat });
       if (!runner.live && runner.matches()) {
         runner.onReset();
         if (runner.live) showBanner(`👻 Race ${route.name}'s ghost`);
-      } else if (g.simVersion !== SIM_VERSION) showToast('That ghost is from another version of the game. Racing the same track without it.');
+      } else if (g.simVersion !== SIM_VERSION) tell('That ghost is from another version of the game. Racing the same track without it.');
     });
   }
 
@@ -162,7 +189,10 @@ export function installShare(shell: Shell): void {
   shell.bus.add(runner);
   shell.bus.add({
     onReset() {
-      if (runner.live) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
+      if (notice) {
+        showBanner(notice);
+        notice = null;
+      } else if (runner.live) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
       // B36: a Daily Cup race says so on the grid
       else if (shell.setup?.mode === 'daily' && shell.setup.day) showBanner(`🏆 Daily Cup #${shell.setup.day}`);
     },
@@ -280,8 +310,10 @@ export function installShare(shell: Shell): void {
         return { trackId: (t ?? ugc)!.id, cls: r.header.cls, seed: r.header.seed, modifiers: r.header.modifiers, mode: 'dare' };
       }
       if (r.kind === 'daily') {
-        const d = dailySetup(r.day, TRACKS);
-        return { trackId: d.track.id, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day: r.day };
+        // a future day is not out yet (it would spend that day's ranked run early): race today's instead
+        const day = Math.min(r.day, today);
+        const d = dailySetup(day, TRACKS);
+        return { trackId: d.track.id, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day };
       }
       return null;
     },
@@ -340,7 +372,7 @@ export function installShare(shell: Shell): void {
       }
 
       // daily cup
-      const dayOf = [route.kind === 'daily' ? route.day : -1, today].find(
+      const dayOf = [route.kind === 'daily' ? Math.min(route.day, today) : -1, today].find(
         (d) => d > 0 && isDailyRace(d, TRACKS, { trackId: cfg.track.id, seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers }),
       );
       let dailyAction: ResultAction;
