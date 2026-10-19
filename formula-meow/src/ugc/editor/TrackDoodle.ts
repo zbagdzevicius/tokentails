@@ -10,6 +10,7 @@
  * of the road turns red. "Race it" and "Share" unlock once the track is drivable.
  */
 import type { FeatureKind, ThemeId, TrackDef, TrackPoint } from '../../types';
+import { modal } from '../../ui/kit';
 import { TRACK } from '../../tuning';
 import { densePolyline } from '../../core/track/spline';
 import { themeOf } from '../../core/track/themes';
@@ -116,6 +117,11 @@ export class TrackDoodle {
   private dragSticker = -1;
   private dragFrom: { x: number; y: number } | null = null;
   private dragMoved = false;
+  /** mouse hover position (handles show near it, B55); null on touch */
+  private hover: { x: number; y: number } | null = null;
+  private touchUi = false;
+  /** changed since the editor opened (Esc asks before leaving, B55) */
+  private dirty = false;
   private ghost: { kind: FeatureKind; x: number; y: number } | null = null;
   private lastTap = { t: 0, x: 0, y: 0 };
   private pressTimer = 0;
@@ -137,9 +143,17 @@ export class TrackDoodle {
     const top = el('div', 'fm-ed-top');
     const close = el('button', 'fm-ed-ic fm-sticker', '✕');
     close.setAttribute('aria-label', 'Close editor');
-    close.addEventListener('click', () => this.close());
+    close.addEventListener('click', () => void this.askClose());
     this.title = el('div', 'fm-ed-title');
-    const fresh = el('button', 'fm-ed-ic fm-sticker', '🗒️');
+    // B55: the name can be changed from the header (tap the title), not only in Style
+    this.title.tabIndex = 0;
+    this.title.setAttribute('role', 'button');
+    this.title.setAttribute('aria-label', 'Rename the track');
+    this.title.addEventListener('click', () => this.renameInline());
+    this.title.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.renameInline();
+    });
+    const fresh = el('button', 'fm-ed-ic fm-ed-new fm-sticker', '🗒️ <small>New</small>');
     fresh.setAttribute('aria-label', 'New track');
     fresh.title = 'New track';
     fresh.addEventListener('click', () => this.newTrack());
@@ -155,10 +169,11 @@ export class TrackDoodle {
     this.canvas = el('canvas', 'fm-ed-canvas');
     this.ctx = this.canvas.getContext('2d')!;
     this.hint = el('div', 'fm-ed-hint fm-outline');
+    // B55: the status sits in the top bar, never over the drawing area
     this.status = el('div', 'fm-ed-status fm-sticker');
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
-    stage.append(this.canvas, this.hint, this.status);
+    stage.append(this.canvas, this.hint);
 
     this.tabs = el('div', 'fm-ed-tabs');
     for (const [id, label] of [
@@ -186,10 +201,23 @@ export class TrackDoodle {
     this.raceBtn.addEventListener('click', () => this.race());
     actions.append(saveBtn, this.shareBtn, this.raceBtn);
 
-    this.root.append(top, stage, this.tabs, this.panel, actions);
+    this.root.append(top, this.status, stage, this.tabs, this.panel, actions);
 
     this.canvas.addEventListener('pointerdown', this.onDown);
     this.canvas.addEventListener('pointermove', this.onMove);
+    this.canvas.addEventListener('pointermove', (e) => {
+      this.touchUi = e.pointerType !== 'mouse';
+      if (this.touchUi) this.hover = null;
+      else {
+        this.hover = this.local(e);
+        if (this.tab === 'shape' && !this.dragFrom) this.draw();
+      }
+    });
+    this.canvas.addEventListener('pointerleave', () => {
+      this.hover = null;
+      if (this.tab === 'shape') this.draw();
+    });
+    this.canvas.addEventListener('pointerdown', (e) => (this.touchUi = e.pointerType !== 'mouse'), true);
     this.canvas.addEventListener('pointerup', this.onUp);
     this.canvas.addEventListener('pointercancel', this.onCancel);
     // keep the race's keyboard handler (window) out of the editor: R, Esc, Space would drive the race behind
@@ -210,12 +238,14 @@ export class TrackDoodle {
   // ------------------------------------------------------------------------------------------
 
   private commit(mut: (d: TrackDef) => void): void {
+    this.dirty = true;
     this.history.commit(clone(this.def));
     mut(this.def);
     this.revalidate();
   }
 
   private revalidate(): void {
+    this.dirty = true;
     this.v = validateTrack(this.def);
     if (this.v.built) this.def.laps = lapsFor(this.v.length);
     saveDraft({ slot: this.slot, def: this.def });
@@ -270,10 +300,53 @@ export class TrackDoodle {
     this.opts.host.play(def);
   }
 
+  /** Leave the editor. The draft is always kept (B55), valid or not, and the track saved when it has points. */
   close(): void {
-    if (this.def.points.length) this.save();
+    if (this.def.points.length) {
+      saveDraft({ slot: this.slot, def: this.def });
+      this.save();
+    }
     this.dispose();
     this.opts.host.closed();
+  }
+
+  /** Esc: ask first when there are changes (B55: it used to close at once). */
+  private async askClose(): Promise<void> {
+    if (!this.dirty || !this.def.points.length) return this.close();
+    const i = await modal('Leave the editor?', 'Your track stays saved on this device as a draft.', ['Leave', 'Keep editing']);
+    if (i === 0) this.close();
+    else this.root.focus({ preventScroll: true });
+  }
+
+  /** Rename from the header: the title turns into a field until Enter or a tap elsewhere. */
+  private renameInline(): void {
+    if (this.title.querySelector('input')) return;
+    const i = el('input', 'fm-ed-name');
+    i.type = 'text';
+    i.maxLength = NAME_MAX;
+    i.value = this.def.name;
+    i.placeholder = 'Track name';
+    i.setAttribute('aria-label', 'Track name');
+    i.enterKeyHint = 'done';
+    this.title.textContent = '';
+    this.title.append(i);
+    i.focus();
+    const done = () => {
+      const clean = cleanName(i.value, NAME_MAX);
+      if (i.value.trim() && !clean) this.flash("That name can't be used. Try another.");
+      if (clean !== this.def.name) this.commit((d) => (d.name = clean));
+      this.refresh();
+      if (this.tab === 'style') this.renderPanel();
+    };
+    i.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') i.blur();
+      if (e.key === 'Escape') {
+        i.value = this.def.name;
+        i.blur();
+      }
+    });
+    i.addEventListener('blur', done, { once: true });
   }
 
   private dispose(): void {
@@ -322,10 +395,14 @@ export class TrackDoodle {
         down.setAttribute('aria-label', 'Lower');
         const up = el('button', 'fm-ed-chip', '▲');
         up.setAttribute('aria-label', 'Raise');
-        const hl = el('span', 'fm-ed-lbl', `Height ${pt.h}`);
+        // B55: "Height ▼ 0 ▲" reads as one control, the point number sits apart
+        const hl = el('span', 'fm-ed-val', String(pt.h));
+        hl.setAttribute('aria-label', `Height ${pt.h}`);
         down.addEventListener('click', () => this.setPoint({ h: Math.max(0, pt.h - 1) }));
         up.addEventListener('click', () => this.setPoint({ h: Math.min(7, pt.h + 1) }));
-        row.append(el('span', 'fm-ed-lbl', `Point ${this.sel + 1}`), down, hl, up);
+        const grp = el('span', 'fm-ed-group');
+        grp.append(el('span', 'fm-ed-lbl', 'Height'), down, hl, up);
+        row.append(el('span', 'fm-ed-pt', `Point ${this.sel + 1}`), grp);
         const row2 = el('div', 'fm-ed-row');
         row2.append(el('span', 'fm-ed-lbl', 'Width'));
         WIDTHS.forEach((w, i) => {
@@ -403,7 +480,7 @@ export class TrackDoodle {
   }
 
   private refresh(): void {
-    this.title.textContent = this.def.name || 'Track Doodle';
+    if (!this.title.querySelector('input')) this.title.textContent = this.def.name || 'Track Doodle';
     this.undoBtn.disabled = !this.history.canUndo;
     this.redoBtn.disabled = !this.history.canRedo;
     this.raceBtn.disabled = !this.v.ok;
@@ -654,11 +731,32 @@ export class TrackDoodle {
     }
   }
 
+  /**
+   * Point handles (B55: ~28 big handles crowded the loop). With a mouse, full handles only near the cursor; on touch,
+   * the selected point and its neighbours, or small dots for all when nothing is selected. Hit testing is unchanged.
+   */
   private drawHandles(): void {
     const c = this.ctx;
+    const n = this.def.points.length;
+    const near = (i: number, x: number, y: number): boolean => {
+      if (i === this.sel || this.dragPoint === i) return true;
+      if (this.touchUi) {
+        if (this.sel < 0) return false;
+        const d = Math.min((i - this.sel + n) % n, (this.sel - i + n) % n);
+        return d <= 1;
+      }
+      return !!this.hover && Math.hypot(x - this.hover.x, y - this.hover.y) < 140;
+    };
     this.def.points.forEach((p, i) => {
       const x = this.sx(p.x);
       const y = this.sy(p.z);
+      if (!near(i, x, y)) {
+        c.beginPath();
+        c.arc(x, y, this.touchUi && this.sel < 0 ? 5 : 3, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(255,243,220,0.85)';
+        c.fill();
+        return;
+      }
       c.beginPath();
       c.arc(x, y, i === this.sel ? 12 : 8, 0, Math.PI * 2);
       c.fillStyle = i === this.sel ? '#ff3ea5' : '#fff3dc';
@@ -1012,13 +1110,13 @@ export class TrackDoodle {
     } else if (mod && e.key.toLowerCase() === 'y') {
       e.preventDefault();
       this.redo();
-    } else if (e.key === 'Escape') this.close();
+    } else if (e.key === 'Escape') void this.askClose();
     else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel >= 0 && !(e.target instanceof HTMLInputElement)) this.removePoint(this.sel);
   };
 }
 
-export function openTrackDoodle(opts: EditorOptions): TrackDoodle {
+export function openTrackDoodle(opts: EditorOptions, parent?: HTMLElement): TrackDoodle {
   const ed = new TrackDoodle(opts);
-  ed.mount();
+  ed.mount(parent);
   return ed;
 }

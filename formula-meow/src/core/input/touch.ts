@@ -1,25 +1,46 @@
 /**
- * Touch (GDD 2.1, portrait first). Bottom 60 % of the screen is the control area:
+ * Touch (GDD 2.1, portrait first). The control area is the bottom 60 % of the screen in portrait, 85 % in landscape:
  * - left half: floating steer stick from wherever the thumb lands (dead zone 6 px, full lock 70 px, curve x^1.4,
- *   the base follows when the thumb drifts more than 110 px);
- * - right half: press = hop, hold = drift; swipe up/down (> 60 px in < 200 ms) = item forward/backward;
+ *   the base follows when the thumb drifts more than 110 px, and never sits so close to an edge that full lock is
+ *   out of reach). Several fingers on the left: the newest steers; lifting it hands back to the one before.
+ * - right half: press = hop (after 80 ms, so a swipe never hops); in two-thumb mode (one-thumb off) hold = drift.
+ *   Swipe up/down (> 60 px in < 200 ms) = item forward/backward, at any time, also from a finger that is drifting.
  * - item button: a 96 px circle at the right edge above the drift zone (tap = use).
- * Gas is automatic on touch (the mux handles it). Uses pointer events so it also works with a mouse in dev tools.
+ * Gas is automatic on touch after GO (the mux). During the countdown only a fresh tap on the right half or the top of
+ * the screen is the start press; a resting steer thumb never is (B23). Pointer events, so dev-tools mice work too.
  */
 import { mergeSteer, type InputSource, type RawInput } from './raw';
 
 const DEAD = 6;
 const FULL = 70;
 const FOLLOW = 110;
+/** a right-half press hops once it is this old without having moved like a swipe (B25) */
+const HOP_DELAY = 80;
+const SWIPE_SLOP = 15;
+const SWIPE_DIST = 60;
+const SWIPE_TIME = 200;
 
 interface Ptr {
   id: number;
-  kind: 'steer' | 'drift' | 'item';
+  kind: 'steer' | 'drift';
   x0: number;
   y0: number;
   t0: number;
   x: number;
   y: number;
+  /** drift finger: hop / hold active (after HOP_DELAY) */
+  live: boolean;
+  /** swipe reference point (re-anchored every SWIPE_TIME) */
+  sy: number;
+  st: number;
+  /** order of arrival (newest steer finger steers) */
+  seq: number;
+}
+
+export interface TouchCopy {
+  steer: string;
+  drift: string;
+  pad: string;
 }
 
 export class TouchInput implements InputSource {
@@ -28,21 +49,24 @@ export class TouchInput implements InputSource {
   private readonly knob: HTMLDivElement;
   readonly itemBtn: HTMLButtonElement;
   private readonly driftPad: HTMLDivElement;
+  private readonly thumbs: HTMLDivElement;
   private ptrs = new Map<number, Ptr>();
+  private seq = 0;
   private pending = { item: false, itemBack: false, any: false, drift: false, gas: false };
   /** true once a touch happened (switches the HUD to touch mode) */
   active = false;
-  /** set by the shell before GO: a tap anywhere (also on the countdown text) is the Pounce Start press */
+  /** set by the shell before GO: only fresh taps on the right half / top of the screen are the Pounce Start press */
   countdown = false;
+  private oneThumbOn = true;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.className = 'fm-touch';
     this.root.innerHTML = `
       <div class="fm-stick-base"><div class="fm-stick-knob"></div></div>
-      <div class="fm-drift-pad"><span>HOLD<br>DRIFT</span></div>
+      <div class="fm-drift-pad"><span></span></div>
       <button class="fm-item-btn" aria-label="Use item"><span class="fm-item-icon"></span></button>
-      <div class="fm-thumbs"><div><div class="stick"></div>STEER<br>left thumb</div><div><div class="stick"></div>HOLD = DRIFT<br>right thumb</div></div>`;
+      <div class="fm-thumbs"><div><div class="stick"></div><span class="a"></span></div><div><div class="stick"></div><span class="b"></span></div></div>`;
     parent.appendChild(this.root);
     // phones see ghosted controls from boot (where the thumbs go), not only after the first touch
     if (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) this.root.classList.add('ghost', 'grid');
@@ -50,11 +74,33 @@ export class TouchInput implements InputSource {
     this.knob = this.root.querySelector('.fm-stick-knob')!;
     this.itemBtn = this.root.querySelector('.fm-item-btn')!;
     this.driftPad = this.root.querySelector('.fm-drift-pad')!;
+    this.thumbs = this.root.querySelector('.fm-thumbs')!;
     this.root.addEventListener('pointerdown', this.onDown, { passive: false });
     window.addEventListener('pointermove', this.onMove, { passive: false });
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
     this.itemBtn.addEventListener('pointerdown', this.onItem, { passive: false });
+    this.oneThumb = true;
+  }
+
+  /** One-thumb drift (full stick into the bend) vs two-thumb (hold the right thumb): the overlay follows (B28). */
+  get oneThumb(): boolean {
+    return this.oneThumbOn;
+  }
+
+  set oneThumb(on: boolean) {
+    this.oneThumbOn = on;
+    const c = TouchInput.copy(on);
+    this.thumbs.querySelector('.a')!.innerHTML = c.steer;
+    this.thumbs.querySelector('.b')!.innerHTML = c.drift;
+    this.driftPad.querySelector('span')!.innerHTML = c.pad;
+  }
+
+  /** The words on the thumb overlay for a drift setting (also used by hints). */
+  static copy(oneThumb: boolean): TouchCopy {
+    return oneThumb
+      ? { steer: 'STEER<br>full stick = drift', drift: 'TAP = HOP<br>swipe = item', pad: 'HOP' }
+      : { steer: 'STEER<br>left thumb', drift: 'HOLD = DRIFT<br>right thumb', pad: 'HOLD<br>DRIFT' };
   }
 
   private readonly onItem = (e: PointerEvent) => {
@@ -72,13 +118,20 @@ export class TouchInput implements InputSource {
     }
   }
 
-  private readonly onDown = (e: PointerEvent) => {
-    if (e.target === this.itemBtn || this.itemBtn.contains(e.target as Node)) return;
+  /** Top of the screen that is not a control area: 40 % in portrait, 15 % in landscape (B29). */
+  private deadTop(): number {
     const h = window.innerHeight;
     const w = window.innerWidth;
-    if (e.clientY < h * 0.4) {
+    return h * (w > h ? 0.15 : 0.4);
+  }
+
+  private readonly onDown = (e: PointerEvent) => {
+    if (e.target === this.itemBtn || this.itemBtn.contains(e.target as Node)) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (e.clientY < this.deadTop()) {
       if (!this.countdown) return;
-      // countdown: the top of the screen (where "3-2-1" sits) is a gas tap too
+      // countdown: the top of the screen (where "3-2-1" sits) is a start press too
       e.preventDefault();
       this.markTouch(e);
       this.pending.any = true;
@@ -89,18 +142,27 @@ export class TouchInput implements InputSource {
     this.markTouch(e);
     this.pending.any = true;
     const kind = e.clientX < w / 2 ? 'steer' : 'drift';
-    if (kind === 'steer' && [...this.ptrs.values()].some((p) => p.kind === 'steer')) return;
-    const p: Ptr = { id: e.pointerId, kind, x0: e.clientX, y0: e.clientY, t0: performance.now(), x: e.clientX, y: e.clientY };
+    const now = performance.now();
+    const p: Ptr = { id: e.pointerId, kind, x0: e.clientX, y0: e.clientY, t0: now, x: e.clientX, y: e.clientY, live: false, sy: e.clientY, st: now, seq: ++this.seq };
     this.ptrs.set(e.pointerId, p);
     if (kind === 'steer') {
-      this.base.style.transform = `translate(${p.x0}px, ${p.y0}px)`;
-      this.knob.style.transform = 'translate(0px, 0px)';
-      this.base.classList.add('on');
+      // B26: keep the base far enough from the edges that full lock is reachable both ways
+      const m = FULL + 6;
+      p.x0 = Math.max(m, Math.min(w / 2 - 8, p.x0));
+      p.y0 = Math.max(m, Math.min(h - m, p.y0));
+      this.showBase(p);
     } else {
-      this.pending.drift = true;
+      // the start press is the tap itself (timing matters); in the race the hop waits HOP_DELAY (B25)
+      if (this.countdown) this.pending.gas = true;
       this.driftPad.classList.add('on');
     }
   };
+
+  private showBase(p: Ptr): void {
+    this.base.style.transform = `translate(${p.x0}px, ${p.y0}px)`;
+    this.knob.style.transform = `translate(${Math.max(-FULL, Math.min(FULL, p.x - p.x0))}px, 0px)`;
+    this.base.classList.add('on');
+  }
 
   private readonly onMove = (e: PointerEvent) => {
     const p = this.ptrs.get(e.pointerId);
@@ -113,16 +175,21 @@ export class TouchInput implements InputSource {
       if (Math.abs(dx) > FOLLOW) {
         p.x0 += dx - Math.sign(dx) * FOLLOW;
         dx = p.x - p.x0;
-        this.base.style.transform = `translate(${p.x0}px, ${p.y0}px)`;
       }
-      this.knob.style.transform = `translate(${Math.max(-FULL, Math.min(FULL, dx))}px, 0px)`;
+      if (this.activeSteer() === p) this.showBase(p);
     } else {
-      // swipe: > 60 px vertical in < 200 ms
-      const dy = p.y - p.y0;
-      if (Math.abs(dy) > 60 && performance.now() - p.t0 < 200) {
+      // swipe: > 60 px vertical within 200 ms of the reference point, from any right-half finger (drifting or not)
+      const now = performance.now();
+      if (now - p.st > SWIPE_TIME) {
+        p.sy = p.y;
+        p.st = now;
+      }
+      const dy = p.y - p.sy;
+      if (Math.abs(dy) > SWIPE_DIST) {
         this.pending.item = true;
         this.pending.itemBack = dy > 0;
-        p.t0 = -1e9; // one swipe per press
+        p.sy = p.y;
+        p.st = now + 1e9; // one swipe per gesture until it settles
       }
     }
   };
@@ -131,38 +198,66 @@ export class TouchInput implements InputSource {
     const p = this.ptrs.get(e.pointerId);
     if (!p) return;
     this.ptrs.delete(e.pointerId);
-    if (p.kind === 'steer') this.base.classList.remove('on');
-    else if (![...this.ptrs.values()].some((q) => q.kind === 'drift')) this.driftPad.classList.remove('on');
+    if (p.kind === 'steer') {
+      const next = this.activeSteer();
+      if (next) this.showBase(next);
+      else this.base.classList.remove('on');
+    } else {
+      // a quick tap (released before the hop delay, not a swipe) still hops
+      if (!p.live && !this.countdown && Math.abs(p.y - p.y0) < SWIPE_SLOP) this.pending.drift = true;
+      if (![...this.ptrs.values()].some((q) => q.kind === 'drift')) this.driftPad.classList.remove('on');
+    }
   };
+
+  /** The steering finger: the newest one on the left half (B27). */
+  private activeSteer(): Ptr | null {
+    let best: Ptr | null = null;
+    for (const p of this.ptrs.values()) if (p.kind === 'steer' && (!best || p.seq > best.seq)) best = p;
+    return best;
+  }
 
   /** Analog steer from the stick, −1..1 with the x^1.4 response curve. */
   steerValue(): number {
-    for (const p of this.ptrs.values()) {
-      if (p.kind !== 'steer') continue;
-      const dx = p.x - p.x0;
-      const a = Math.abs(dx);
-      if (a < DEAD) return 0;
-      const u = Math.min(1, (a - DEAD) / (FULL - DEAD));
-      return Math.sign(dx) * Math.pow(u, 1.4);
-    }
-    return 0;
+    const p = this.activeSteer();
+    if (!p) return 0;
+    const dx = p.x - p.x0;
+    const a = Math.abs(dx);
+    if (a < DEAD) return 0;
+    const u = Math.min(1, (a - DEAD) / (FULL - DEAD));
+    return Math.sign(dx) * Math.pow(u, 1.4);
   }
 
   get touching(): boolean {
     return this.ptrs.size > 0;
   }
 
+  /** Right-half fingers: arm the hop once a press is HOP_DELAY old and has not moved like a swipe. */
+  private holdingDrift(): boolean {
+    const now = performance.now();
+    let holding = false;
+    for (const p of this.ptrs.values()) {
+      if (p.kind !== 'drift') continue;
+      if (!p.live && !this.countdown && now - p.t0 >= HOP_DELAY && Math.abs(p.y - p.y0) < SWIPE_SLOP) {
+        p.live = true;
+        this.pending.drift = true; // the hop
+      }
+      if (p.live) holding = true;
+    }
+    // one-thumb mode: the right thumb hops and fires items only; drifting is the full stick (B28)
+    return holding && !this.oneThumbOn;
+  }
+
   poll(out: RawInput): void {
     if (!this.active && this.ptrs.size === 0 && !this.pending.any) return;
     out.touch ||= this.active;
     mergeSteer(out, this.steerValue(), false);
-    const holdingDrift = [...this.ptrs.values()].some((p) => p.kind === 'drift');
-    out.drift ||= holdingDrift || this.pending.drift;
+    const hold = this.holdingDrift();
+    out.drift ||= hold || this.pending.drift;
     out.item ||= this.pending.item;
     out.itemBack ||= this.pending.itemBack;
     out.any ||= this.pending.any;
-    // during the countdown a finger down is the "gas" press for the Pounce Start
-    out.gas ||= this.ptrs.size > 0 || this.pending.gas;
+    // B23: during the countdown only a fresh right-half or top tap is the start press, never a resting thumb
+    out.gas ||= this.pending.gas;
     this.pending = { item: false, itemBack: false, any: false, drift: false, gas: false };
   }
 

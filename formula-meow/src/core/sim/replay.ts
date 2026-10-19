@@ -29,7 +29,10 @@ export interface SimRun {
   hashes: number[];
 }
 
-/** Run a full race headless from a replay (or AI-only with no replay). */
+/**
+ * Run a full race headless from a replay (or AI-only with no replay). Pass `createSimPlugins(cfg)` so the track's
+ * hazards and the mode's rules run exactly as they did live. A replay that runs out keeps the gas held straight on.
+ */
 export function simulate(cfg: RaceConfig, plugins: SimPlugins, replay?: Replay, maxTicks = 60 * 300): SimRun {
   const w = new SimWorld(cfg, plugins);
   const hashes: number[] = [];

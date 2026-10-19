@@ -22,10 +22,11 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
   followLine(ctx, me, out, wob);
   const k = st.karts[me];
   const c = curvatureAhead(ctx, k.si, 2, 14);
-  if (k.driftDir === 0 && Math.abs(c) > 0.035 && speedOf(k) > 12) {
+  const turn = c > 0 ? -1 : 1;
+  if (k.driftDir === 0 && Math.abs(c) > 0.035 && speedOf(k) > 12 && out.steer * turn >= 2) {
     out.drift = !k.pDrift;
-    out.steer = c > 0 ? -5 : 5;
-  } else if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6);
+    out.steer = turn * 5;
+  } else if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6) && out.steer * k.driftDir > -5;
   out.item = !!k.item && k.rouletteTicks === 0 && !k.pItem;
   return out;
 }

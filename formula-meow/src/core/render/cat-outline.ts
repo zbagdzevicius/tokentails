@@ -48,6 +48,7 @@ export function outlineMaterial(): ShaderMaterial {
   if (!shared) {
     shared = new ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: OUTLINE_UNIFORMS, side: BackSide });
     shared.name = 'cat-outline';
+    shared.userData.shared = true; // one for every cat: never disposed with a kart (B57)
   }
   return shared;
 }

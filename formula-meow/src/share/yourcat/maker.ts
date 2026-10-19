@@ -207,6 +207,12 @@ export function openMaker(host: HTMLElement, current: YourCat | null, base: CatS
       document.body.appendChild(input);
       input.click();
     });
+    // B53: a name is enough to race (the photo is optional: the coat comes from the swatches and the pattern)
+    const syncSave = () => {
+      saveBtn.disabled = !current && !photo && !filterName(nameIn.value);
+    };
+    nameIn.addEventListener('input', syncSave);
+    syncSave();
     saveBtn.addEventListener('click', () => {
       const name = filterName(nameIn.value) || 'My cat';
       close({ cat: { ...spec, name }, name, face });

@@ -24,6 +24,8 @@ export interface LocLike {
 
 export type Route =
   | { kind: 'dare'; ghost: string; header: GhostHeader; cat: CatSpec | null; name: string; trackCode: string | null }
+  /** B47: a `g=` that does not even have a readable header (truncated, mangled): say so instead of falling back silently */
+  | { kind: 'dare-broken' }
   | { kind: 'daily'; day: number }
   | { kind: 'home' };
 
@@ -44,6 +46,7 @@ export function parseRoute(loc: LocLike): Route {
       const c = p.get('c');
       return { kind: 'dare', ghost: g, header, cat: c ? decodeCat(c, name) : null, name, trackCode: p.get('t') };
     }
+    return { kind: 'dare-broken' };
   }
   const m = /\/d\/(\d{1,4})\/?$/.exec(loc.pathname);
   const dq = p.get('daily');

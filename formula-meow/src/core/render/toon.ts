@@ -13,6 +13,7 @@ export function toonGradient(): DataTexture {
     gradient.magFilter = NearestFilter;
     gradient.generateMipmaps = false;
     gradient.needsUpdate = true;
+    gradient.userData.shared = true; // every toon material uses it: never disposed with a race (B57)
   }
   return gradient;
 }

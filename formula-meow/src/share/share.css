@@ -6,7 +6,7 @@
 .fm-res-main .fm-btn { padding: 8px 6px; font-size: 16px; }
 .fm-res-main .fm-btn.big { grid-column: 1 / -1; font-size: 21px; min-height: 58px; }
 .fm-res-icons { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-.fm-overlay .fm-res-icons .fm-btn[data-x] { font-size: 12px; padding: 3px 7px; white-space: nowrap; min-height: 40px; border-width: 3px; box-shadow: 0 3px 0 var(--ink); }
+.fm-overlay .fm-res-icons .fm-btn[data-x] { font-size: 13px; padding: 3px 8px; white-space: nowrap; min-height: 44px; min-width: 44px; border-width: 3px; box-shadow: 0 3px 0 var(--ink); }
 .fm-table tr.ghost td { color: #6a3fd0; font-style: italic; }
 
 .fm-maker {
@@ -57,3 +57,7 @@
   transition: opacity 0.4s;
 }
 .fm-dare-banner.off { opacity: 0; }
+
+/* B44: the clip button keeps one width; making the clip fills it left to right instead of changing its text */
+.fm-overlay [data-x='0'] { min-width: 8.5em; }
+.fm-overlay [data-x='0'].fm-busy { background: linear-gradient(90deg, var(--butter) var(--p, 0%), var(--cream) var(--p, 0%)); }

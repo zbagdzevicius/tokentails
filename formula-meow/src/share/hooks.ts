@@ -2,7 +2,7 @@
  * Share lane extension points (GDD 8–9). The core shell calls these; the share lane fills them in (finish clip,
  * dare links, result card, daily cup, Pink Paw adopt line). Nothing here may move money or claim donations.
  */
-import type { CatSpec, RaceConfig, RaceEvent, RaceResult } from '../types';
+import type { CatSpec, RaceConfig, RaceEvent, RaceMode, RaceResult } from '../types';
 import type { Replay } from '../core/sim/replay';
 
 export interface ResultAction {
@@ -30,6 +30,11 @@ export interface ResultExtras {
   ghost?: { name: string; time: number | null };
   /** true when this race must not unlock classes (Daily Cup and dares run at a fixed class) */
   noUnlock?: boolean;
+  /**
+   * Filled in after the results are up (B50: the dare ghost's time is recomputed over a few frames, not on the
+   * results frame). The shell applies it only while the same results are on screen.
+   */
+  later?: Promise<{ ghost?: { name: string; time: number | null }; lines?: string[] } | null>;
 }
 
 export interface RouteSetup {
@@ -37,6 +42,10 @@ export interface RouteSetup {
   cls?: 0 | 1 | 2;
   seed?: number;
   modifiers?: number;
+  /** 'daily' or 'dare' for share routes */
+  mode?: RaceMode;
+  /** Daily Cup day number */
+  day?: number;
 }
 
 export interface ShareHooks {

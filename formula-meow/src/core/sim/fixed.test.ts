@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { atan2L, cosL, pow06, sinL, wrapAngle } from './fixed';
 
@@ -31,8 +31,9 @@ describe('fixed math (GDD 3.1)', () => {
 
   it('sim sources never call wall-clock, Math.random or engine trig (lint)', () => {
     const root = join(__dirname, '..', '..');
-    const dirs = ['core/sim', 'core/track', 'items-ai'];
-    const skip = /(\.test\.ts$|mesh\.ts$|themes\.ts$|[\\/]dressing[\\/])/;
+    // iteration 2: hazard sims (tracks lane) and battle rules (modes lane) run inside the sim too
+    const dirs = ['core/sim', 'core/track', 'items-ai', 'tracks/hazards', 'modes/battle'].filter((d) => existsSync(join(root, d)));
+    const skip = /(\.test\.ts$|mesh\.ts$|themes\.ts$|[\\/]dressing[\\/]|[\\/]hazards[\\/][^\\/]*-view\.ts$)/;
     const banned = /Math\.(sin|cos|tan|atan|atan2|asin|acos|pow|exp|log|random|hypot|cbrt)\b|Date\.|performance\.now|new Date/;
     const offenders: string[] = [];
     const walk = (dir: string) => {

@@ -7,7 +7,7 @@
  * sample 0 is the start line.
  */
 import { Modifier, type FeatureKind, type TrackDef } from '../../types';
-import { PHYS, RACE, TRACK } from '../../tuning';
+import { COINS, PHYS, RACE, TRACK } from '../../tuning';
 import { atan2L, clamp, wrapAngle } from '../sim/fixed';
 import { densePolyline, resample, type Vec3 } from './spline';
 import { computeRacingLine } from './racing-line';
@@ -44,6 +44,16 @@ export interface FeatureSpot {
   side: -1 | 0 | 1;
 }
 
+/** One fish coin (iteration 2), expanded from TrackDef.coins rows. */
+export interface CoinSpot {
+  x: number;
+  y: number;
+  z: number;
+  /** sample index and lateral offset */
+  i: number;
+  d: number;
+}
+
 export interface BuiltTrack {
   def: TrackDef;
   /** sample count, spacing (m), lap length (m) */
@@ -72,6 +82,10 @@ export interface BuiltTrack {
   ramps: RampZone[];
   boxes: BoxSpot[];
   features: FeatureSpot[];
+  /** fish coins (iteration 2), in row order */
+  coins: CoinSpot[];
+  /** 'arena': no laps, no wrong way, no distance watchdog (battle) */
+  arena: boolean;
   /** query grid: cell key → sample indices */
   cells: Map<number, number[]>;
   minRadius: number;
@@ -225,6 +239,20 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
 
   const line = computeRacingLine(curv, halfW, step);
 
+  // fish coins: rows across the road, `count` coins `COINS.spacing` apart around `d` (clamped inside the road)
+  const coins: CoinSpot[] = [];
+  for (const row of def.coins ?? []) {
+    if (row.branch != null) continue; // branch coins: tracks lane, with the branch primitive
+    const i = idx(row.s);
+    const hw = halfW[i];
+    const dc = mirror ? -row.d : row.d;
+    for (let c = 0; c < row.count; c++) {
+      const lim = hw - 0.8;
+      const d = clamp(dc + (c - (row.count - 1) / 2) * COINS.spacing, -lim, lim);
+      coins.push({ x: px[i] - tz[i] * d, y: py[i] + d * bank[i] + 0.7, z: pz[i] + tx[i] * d, i, d });
+    }
+  }
+
   const cells = new Map<number, number[]>();
   for (let i = 0; i < n; i++) {
     const key = cellKey(px[i], pz[i]);
@@ -254,6 +282,8 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
     ramps,
     boxes,
     features,
+    coins,
+    arena: def.kind === 'arena',
     cells,
     minRadius: maxK > 0 ? 1 / maxK : Infinity,
     maxClimb,

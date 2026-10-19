@@ -10,8 +10,13 @@
 }
 .fm-hud { pointer-events: none; z-index: 10; }
 .fm-touch { z-index: 5; touch-action: none; }
-.fm-overlay { z-index: 30; display: none; align-items: center; justify-content: center; box-sizing: border-box; padding: calc(64px + env(safe-area-inset-top)) 0 calc(12px + env(safe-area-inset-bottom)); background: rgba(26, 18, 56, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+/* B39: 16 px side and bottom gutters; the top keeps room for the corner stickers (☰, 🏁 Tracks) in portrait */
+.fm-overlay { z-index: 30; display: none; align-items: center; justify-content: center; box-sizing: border-box; padding: calc(64px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); background: rgba(26, 18, 56, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .fm-overlay { padding-top: calc(12px + env(safe-area-inset-top)); }
+}
 .fm-overlay.on { display: flex; }
+.fm-overlay[hidden] { display: none; }
 
 .fm-sticker {
   background: var(--cream);
@@ -56,6 +61,7 @@
 }
 .fm-item.empty { opacity: 0.6; background: transparent; border-style: dashed; box-shadow: none; color: var(--cream); font-size: 30px; }
 .fm-item.empty::after { content: '?'; text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink); }
+.fm-item { pointer-events: none; }
 .fm-item .n { position: absolute; right: -6px; bottom: -6px; font-size: 16px; background: var(--rose); color: var(--cream); border: 3px solid var(--ink); border-radius: 12px; padding: 0 6px; }
 .fm-right {
   position: absolute;
@@ -82,69 +88,74 @@
 }
 .fm-speed small { font-size: 12px; margin-left: 2px; }
 
-/* centre messages */
-.fm-count {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: max(30%, calc(290px + env(safe-area-inset-top)));
-  text-align: center;
-  font-size: 92px;
-  line-height: 1;
-}
-.fm-count.pop { animation: fm-pop 0.5s ease-out; }
-@keyframes fm-pop { 0% { transform: scale(1.8); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1); } }
-.fm-banner {
+/* centre messages: one slot (B33). Big countdown numerals, banners, callouts and hints share it by priority. */
+.fm-slot {
   position: absolute;
   left: 0;
   right: 0;
   /* below the mini-map on narrow phones, so callouts never cover it */
-  top: max(22%, calc(232px + env(safe-area-inset-top)));
-  text-align: center;
-  font-size: clamp(26px, 8.5vw, 34px);
-  white-space: nowrap;
-  opacity: 0;
-  transform: rotate(-4deg);
-}
-.fm-banner.on { animation: fm-banner 1.4s ease-out forwards; }
-@keyframes fm-banner {
-  0% { opacity: 0; transform: rotate(-4deg) scale(1.6); }
-  12% { opacity: 1; transform: rotate(-4deg) scale(1); }
-  80% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(-4deg) translateY(-20px); }
-}
-.fm-banner.blue { color: #3aa8ff; }
-.fm-banner.orange { color: #ff8a3d; }
-.fm-banner.pink { color: #ff3ea5; }
-.fm-banner.gold { color: var(--butter); }
-.fm-hint {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: max(46%, calc(396px + env(safe-area-inset-top)));
+  top: max(24%, calc(240px + env(safe-area-inset-top)));
   padding: 0 16px;
   text-align: center;
-  font-size: clamp(16px, 4.8vw, 20px);
+  font-size: clamp(26px, 8.5vw, 34px);
+  line-height: 1.05;
   opacity: 0;
-  transition: opacity 0.3s;
+  transform: rotate(-4deg);
+  pointer-events: none;
 }
-.fm-hint.on { opacity: 1; animation: fm-pulse 0.9s ease-in-out infinite alternate; }
-@keyframes fm-pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+.fm-slot small { display: block; font-size: 0.55em; margin-top: 2px; }
+.fm-slot.on { opacity: 1; }
+.fm-slot.on.pop { animation: fm-banner 0.45s ease-out; }
+.fm-slot.big { font-size: clamp(64px, 22vw, 92px); transform: none; }
+.fm-slot.hint {
+  font-size: clamp(16px, 4.8vw, 20px);
+  transform: none;
+  /* B40: small text gets the thin outline (the 3 px one fills the spaces) */
+  text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink);
+}
+@keyframes fm-banner {
+  0% { opacity: 0; transform: rotate(-4deg) scale(1.25); }
+  40% { opacity: 1; transform: rotate(-4deg) scale(1); }
+  100% { opacity: 1; transform: rotate(-4deg) scale(1); }
+}
+.fm-slot.big.pop { animation: fm-pop 0.5s ease-out; }
+@keyframes fm-pop { 0% { transform: scale(1.25); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1); } }
+.fm-slot.blue { color: #3aa8ff; }
+.fm-slot.orange { color: #ff8a3d; }
+.fm-slot.pink { color: #ff3ea5; }
+.fm-slot.gold { color: var(--butter); }
+.fm-slot.cyan { color: #7ff9f6; }
+.fm-slot.red { color: #ff8a8a; }
+.fm-slot.green { color: #9dff8a; }
+@keyframes fm-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }
+/* B41: the pre-race prompt sits in the top third on a translucent pill, clear of the kart and the thumbs */
 .fm-tap {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: max(54%, calc(440px + env(safe-area-inset-top)));
+  left: 50%;
+  top: max(18%, calc(150px + env(safe-area-inset-top)));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 10px 22px 12px;
+  border-radius: 28px;
+  background: rgba(26, 18, 56, 0.72);
+  border: 3px solid rgba(255, 243, 220, 0.35);
   text-align: center;
-  font-size: clamp(30px, 10vw, 44px);
+  font-size: clamp(26px, 8vw, 38px);
   color: var(--butter);
   display: none;
   pointer-events: none;
 }
-.fm-tap small { display: block; font-size: 16px; color: var(--cream); margin-top: 4px; }
-.fm-tap.on { display: block; animation: fm-pulse 0.6s ease-in-out infinite alternate; }
+.fm-tap small { display: block; font-size: 16px; color: var(--cream); margin-top: 4px; font-weight: 700; }
+.fm-tap.on { display: block; }
 .fm-wrong { position: absolute; left: 0; right: 0; top: 36%; text-align: center; font-size: 38px; color: var(--rose); display: none; }
 .fm-wrong.on { display: block; animation: fm-pulse 0.4s ease-in-out infinite alternate; }
+.fm-tag { font-size: 14px; display: none; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink); }
+.fm-tag.on { display: block; }
+.fm-coins { font-size: 18px; display: none; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink); }
+.fm-coins.on { display: block; }
+/* B45: on touch the top slot only shows the item; the button is the bottom-right one */
+.fm-hud.touch .fm-item.empty { display: none; }
 
 /* corner menu button (the only UI on the grid, GDD 1.1) */
 .fm-menu-btn {
@@ -242,6 +253,7 @@
   text-align: center;
 }
 .fm-panel h1 { margin: 0 0 4px; font-size: 30px; }
+.fm-panel h3 { margin: 10px 0 4px; font-size: 15px; text-align: left; opacity: 0.8; }
 .fm-panel h2 { margin: 2px 0 10px; font-size: 16px; opacity: 0.8; }
 .fm-place { font-size: 84px; line-height: 0.95; transform: rotate(-6deg); display: inline-block; margin: 4px 0 6px; color: var(--rose); }
 .fm-place small { font-size: 34px; }
@@ -252,6 +264,8 @@
 .fm-table td:last-child { text-align: right; }
 .fm-table tr.me { background: var(--butter); }
 .fm-row-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+/* B39: the action row sticks to the bottom of a tall panel, so Again / Next never scroll off a small phone */
+.fm-panel .fm-res-main, .fm-panel .fm-row-btns.sticky { position: sticky; bottom: -14px; background: var(--cream); padding: 8px 0 4px; margin-bottom: -4px; z-index: 1; }
 .fm-btn {
   font: inherit;
   font-size: 18px;
@@ -267,19 +281,23 @@
 .fm-btn.primary { background: var(--rose); color: var(--cream); }
 .fm-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 .fm-line { font-size: 14px; margin: 6px 0; font-weight: 700; }
-.fm-line a { color: #b0246f; }
-.fm-settings { display: grid; gap: 8px; text-align: left; font-size: 16px; margin: 8px 0; }
-.fm-settings label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.fm-settings select { font: inherit; font-size: 15px; border: 3px solid var(--ink); border-radius: 10px; padding: 4px 6px; background: #fff; color: var(--ink); }
-.fm-settings input[type='checkbox'] { width: 22px; height: 22px; accent-color: #ff3ea5; }
+.fm-line a { color: #b0246f; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+.fm-line .fm-btn { min-height: 44px; }
+/* B42: real controls, 44 px targets, 16 px form text */
+.fm-settings { display: grid; gap: 4px; text-align: left; font-size: 16px; margin: 8px 0; }
+.fm-settings select, .fm-settings input { font: inherit; font-size: 16px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fm-pos.bump, .fm-count.pop, .fm-hint.on, .fm-item-btn.ready, .fm-tap.on { animation: none; }
+  .fm-pos.bump, .fm-slot.pop, .fm-item-btn.ready, .fm-wrong.on { animation: none; }
 }
+:root[data-motion='reduced'] .fm-pos.bump, :root[data-motion='reduced'] .fm-slot.pop, :root[data-motion='reduced'] .fm-item-btn.ready { animation: none; }
 @media (orientation: landscape) and (max-height: 500px) {
   .fm-pos { font-size: 48px; }
-  .fm-count { font-size: 72px; top: 24%; }
-  .fm-banner { top: 14%; }
-  .fm-hint { top: 58%; }
-  .fm-tap { top: 68%; }
+  .fm-slot { top: 16%; }
+  .fm-slot.big { font-size: 72px; }
+  .fm-tap { top: 12%; }
+  /* B39: the mini-map moves left of the item button, which sits at the right edge */
+  .fm-right { top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); right: calc(140px + env(safe-area-inset-right)); flex-direction: row; align-items: flex-end; }
+  .fm-item-btn { bottom: calc(24px + env(safe-area-inset-bottom)); right: calc(24px + env(safe-area-inset-right)); }
+  .fm-drift-pad { bottom: calc(24px + env(safe-area-inset-bottom)); right: calc(132px + env(safe-area-inset-right)); }
 }

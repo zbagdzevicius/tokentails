@@ -7,6 +7,18 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import type { KartState } from '../../types';
 
+/**
+ * Camera modes (iteration 2 contract): `chase` and `lookBack` ship with Stabilise; the feel lane implements
+ * `flyover` (TrackDef.flyover keys, tap to skip), `finishOrbit`, `podium` and `attract`. Until then they fall back to
+ * the chase rig.
+ */
+export type CameraMode = 'chase' | 'lookBack' | 'flyover' | 'finishOrbit' | 'podium' | 'attract';
+
+export interface CameraModeParams {
+  /** flyover / podium / attract: anything the mode needs (keys, a target point, a duration) */
+  [k: string]: unknown;
+}
+
 export interface CameraFeel {
   reducedMotion: boolean;
   /** extra horizontal FOV in landscape (GDD 2.1: +8°) */
@@ -41,6 +53,22 @@ export class ChaseCamera {
   private portrait = 0;
   lookBack = false;
   feel: CameraFeel = { reducedMotion: false, landscapeBonus: 0 };
+  private modeNow: CameraMode = 'chase';
+  private modeParams: CameraModeParams = {};
+
+  /** Switch the camera mode (modes without an implementation yet behave like `chase`). */
+  setMode(m: CameraMode, params: CameraModeParams = {}): void {
+    this.modeNow = m;
+    this.modeParams = params;
+  }
+
+  get mode(): CameraMode {
+    return this.modeNow;
+  }
+
+  get params(): Readonly<CameraModeParams> {
+    return this.modeParams;
+  }
 
   constructor(aspect: number) {
     this.cam = new PerspectiveCamera(60, aspect, 0.1, 1400);
@@ -83,7 +111,7 @@ export class ChaseCamera {
     const travel = speed > 2 ? Math.atan2(k.vx, k.vz) : heading;
     let target = travel + (k.driftDir !== 0 ? -k.driftDir * 8 * DEG : 0);
     if (k.spinTicks > 0) target = this.yaw; // do not spin the camera with the kart
-    if (this.lookBack) target += Math.PI;
+    if (this.lookBack || this.modeNow === 'lookBack') target += Math.PI;
     if (!this.init) this.snap(x, y, z, target);
     let dy = target - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;

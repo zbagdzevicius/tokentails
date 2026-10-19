@@ -80,11 +80,15 @@ export class RaceAudio implements JuiceListener {
     this.music = new Music(ctx, music, noiseBuf, this.budget);
     this.music.setSong(this.themeOf());
     this.music.pre();
-    document.addEventListener('visibilitychange', () => {
-      if (!this.ctx) return;
-      if (document.hidden) void this.ctx.suspend();
-      else void this.ctx.resume();
-    });
+  }
+
+  /** B34: a hidden tab is silent (the shell calls this on visibilitychange). */
+  suspend(): void {
+    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend().catch(() => undefined);
+  }
+
+  resume(): void {
+    if (this.ctx && this.ctx.state === 'suspended' && !(typeof document !== 'undefined' && document.hidden)) void this.ctx.resume().catch(() => undefined);
   }
 
   setMuted(m: boolean): void {

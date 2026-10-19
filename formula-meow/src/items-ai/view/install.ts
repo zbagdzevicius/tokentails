@@ -8,6 +8,7 @@ export function installItemsAi(shell: Shell): ItemView {
     scene: shell.stage.scene,
     overlay: shell.host,
     kartAt: (i, alpha) => (shell.view && shell.view.cur[i] ? shell.view.lerpKart(i, alpha, snap) : null),
+    camera: () => shell.camera.cam.position,
     burst: (k, color, n, speed) => {
       const s = shell.world?.st.karts[k];
       if (s && shell.view) shell.view.burst(s.x, s.y + 0.4, s.z, color, n, speed);

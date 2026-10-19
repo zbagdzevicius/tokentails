@@ -12,9 +12,12 @@ import {
   Mesh,
   MeshBasicMaterial,
   type Material,
+  type Object3D,
+  type Texture,
 } from 'three';
 import type { BuiltTrack } from './build';
 import { rampHeight } from './query';
+import { PHYS } from '../../tuning';
 import type { Theme } from './themes';
 import { toonMaterial } from '../render/toon';
 
@@ -61,13 +64,23 @@ function P(t: BuiltTrack, i: number, d: number, lift = 0): V {
   return [t.px[j] - t.tz[j] * d, t.py[j] + d * t.bank[j] + lift + ramp, t.pz[j] + t.tx[j] * d];
 }
 
+/**
+ * The barrier's road-side face at sample i on side `s` (−1 left, +1 right): exactly the sim's wall line (B10: the
+ * barrier, the kerb and the collision wall used to disagree by up to 1.5 m).
+ */
+export function barrierPoint(t: BuiltTrack, i: number, s: -1 | 1): V {
+  const j = ((i % t.n) + t.n) % t.n;
+  return P(t, j, s * (s > 0 ? t.wallR[j] : t.wallL[j]), 0);
+}
+
 export function buildTrackMesh(t: BuiltTrack, theme: Theme, opt: TrackMeshOptions): Group {
   const group = new Group();
   group.name = 'track';
   const solid = new TriBuilder();
   const glow = new TriBuilder();
   const stride = 2; // samples per segment (~1 m)
-  const curbW = 1.0;
+  // the kerb band is drivable (Surface.Curb) all the way to the barrier (PHYS.curbWidth = PHYS.wallMargin)
+  const curbW = PHYS.curbWidth;
   const metres = (i: number) => i * t.step;
 
   for (let i = 0; i < t.n; i += stride) {
@@ -87,21 +100,21 @@ export function buildTrackMesh(t: BuiltTrack, theme: Theme, opt: TrackMeshOption
       solid.quad(P(t, i, a + w, 0.02), P(t, i, a - w, 0.02), P(t, j, b - w, 0.02), P(t, j, b + w, 0.02), theme.line);
     }
     const curbCol = Math.floor(metres(i) / 2) % 2 === 0 ? theme.curbA : theme.curbB;
-    for (const s of [-1, 1]) {
+    for (const s of [-1, 1] as const) {
       const wi = s > 0 ? t.wallR[i % t.n] : t.wallL[i % t.n];
       const wj = s > 0 ? t.wallR[j % t.n] : t.wallL[j % t.n];
-      // curb (slightly raised)
+      // curb (slightly raised), never past the barrier
       const c0i = s * hwi;
-      const c1i = s * (hwi + curbW);
+      const c1i = s * Math.min(wi, hwi + curbW);
       const c0j = s * hwj;
-      const c1j = s * (hwj + curbW);
+      const c1j = s * Math.min(wj, hwj + curbW);
       quadSide(solid, s, P(t, i, c0i, 0.06), P(t, i, c1i, 0.06), P(t, j, c1j, 0.06), P(t, j, c0j, 0.06), curbCol);
-      // shoulder out to the wall
-      quadSide(solid, s, P(t, i, c1i, 0.01), P(t, i, s * wi, 0.01), P(t, j, s * wj, 0.01), P(t, j, c1j, 0.01), theme.shoulder);
+      // shoulder out to the wall (off-road zones only: elsewhere the kerb reaches the barrier)
+      if (Math.abs(c1i) < wi - 0.05 || Math.abs(c1j) < wj - 0.05) quadSide(solid, s, P(t, i, c1i, 0.01), P(t, i, s * wi, 0.01), P(t, j, s * wj, 0.01), P(t, j, c1j, 0.01), theme.shoulder);
       // wall: a low cushion, 0.8 m
       const wallCol = Math.floor(metres(i) / 4) % 2 === 0 ? theme.wallA : theme.wallB;
-      const wbi = P(t, i, s * wi, 0);
-      const wbj = P(t, j, s * wj, 0);
+      const wbi = barrierPoint(t, i, s);
+      const wbj = barrierPoint(t, j, s);
       const wti: V = [wbi[0], wbi[1] + 0.8, wbi[2]];
       const wtj: V = [wbj[0], wbj[1] + 0.8, wbj[2]];
       solid.quad(wbi, wbj, wtj, wti, wallCol);
@@ -196,13 +209,30 @@ function quadSide(b: TriBuilder, side: number, a: V, bb: V, c: V, d: V, color: n
   else b.quad(bb, a, d, c, color);
 }
 
-export function disposeGroup(g: Group): void {
+/**
+ * Dispose everything under a group (B57: meshes only used to be freed, so Points, Lines, sprites and every texture
+ * leaked on each restart): geometries, materials and every texture slot of each material.
+ */
+export function disposeGroup(g: Object3D): void {
   g.traverse((o) => {
-    const m = o as Mesh;
-    if (m.isMesh) {
-      m.geometry.dispose();
-      const mats = (Array.isArray(m.material) ? m.material : [m.material]) as Material[];
-      for (const x of mats) x.dispose();
-    }
+    const m = o as Mesh & { isPoints?: boolean; isLine?: boolean; isSprite?: boolean; isInstancedMesh?: boolean };
+    if (!(m.isMesh || m.isPoints || m.isLine || m.isSprite)) return;
+    if (!m.isSprite) m.geometry?.dispose();
+    const mats = (Array.isArray(m.material) ? m.material : [m.material]) as Material[];
+    for (const x of mats) disposeMaterial(x);
+    if (m.isInstancedMesh) (m as unknown as { dispose(): void }).dispose();
   });
+}
+
+/** A material and every texture it holds; shared ones (`userData.shared`, e.g. the toon ramp, the outline) stay. */
+export function disposeMaterial(m: Material | null | undefined): void {
+  if (!m || m.userData?.shared) return;
+  const tex = (v: unknown) => {
+    const t = v as Texture | undefined;
+    if (t && typeof t === 'object' && t.isTexture && !t.userData?.shared) t.dispose();
+  };
+  for (const v of Object.values(m)) tex(v);
+  const u = (m as Material & { uniforms?: Record<string, { value: unknown }> }).uniforms;
+  if (u) for (const k of Object.keys(u)) tex(u[k]?.value);
+  m.dispose();
 }

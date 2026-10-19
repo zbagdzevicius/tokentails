@@ -20,7 +20,7 @@ const LIFT = 0.55;
 
 function newProj(ctx: SimContext, kind: Proj['kind'], owner: number): Proj {
   const s = itemsOf(ctx.st);
-  return { id: s.nextId++, kind, owner, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: 0, dist: 0, d: 0, life: 0, bounces: 0, target: -1, imm: 0 };
+  return { id: s.nextId++, kind, owner, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: 0, dist: 0, d: 0, life: 0, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0 };
 }
 
 /** Hairball: fired forward (or backward) along the kart's heading. */
@@ -71,22 +71,44 @@ export function fireYarnBall(ctx: SimContext, owner: number): void {
   itemsOf(ctx.st).proj.push(p);
 }
 
-/** Laser Dot target: the leader still racing, or the next one when the owner leads. */
-export function laserTarget(ctx: SimContext, owner: number): number {
+const MIN_ARM = ticks(L.minArm);
+
+/**
+ * Laser Dot target (B17): the leader still racing, never the owner, and only a kart ahead of `minDist` (the dot
+ * never turns back for a kart it already passed). -1 when there is none.
+ */
+export function laserTarget(ctx: SimContext, owner: number, minDist = -Infinity): number {
   for (const o of ctx.st.order) {
-    if (o === owner || ctx.st.karts[o].finished) continue;
-    return o;
+    const k = ctx.st.karts[o];
+    if (o === owner || !touchable(k)) continue;
+    return k.dist > minDist ? o : -1;
   }
   return -1;
 }
 
+/** True when the owner leads the race (the Laser Dot has nobody ahead to run to). */
+export function ownerLeads(ctx: SimContext, owner: number): boolean {
+  for (const o of ctx.st.order) {
+    if (!touchable(ctx.st.karts[o])) continue;
+    return o === owner;
+  }
+  return true;
+}
+
 export function fireLaser(ctx: SimContext, owner: number): void {
   const k = ctx.st.karts[owner];
+  // the leader fires it: nobody ahead, so it fizzles with a pop instead of spinning 2nd place on the spot (B17)
+  const target = ownerLeads(ctx, owner) ? -1 : laserTarget(ctx, owner, k.dist);
+  if (target < 0) {
+    ctx.emit({ type: 'itemFizzle', kart: owner, item: 'laser' });
+    return;
+  }
   const p = newProj(ctx, ProjKind.Laser, owner);
   p.dist = k.dist + 1;
   p.d = k.d;
-  p.target = laserTarget(ctx, owner);
+  p.target = target;
   p.life = ticks(L.life);
+  p.hitMask = 1 << owner;
   trackPoint(ctx.track, p.dist, p.d, p);
   p.y += 0.08;
   itemsOf(ctx.st).proj.push(p);
@@ -194,12 +216,20 @@ function stepYarnBall(ctx: SimContext, p: Proj): void {
   collide(ctx, p, 'yarn');
 }
 
+/**
+ * Laser Dot (B17): the target is locked at fire time; if it drops out (finished, respawning) the dot re-targets the
+ * leader only when that kart is still ahead of the dot, else it fizzles. Every kart it passes chases it once
+ * (`hitMask`). The warning is set before the hit check, and the dot never lands within `minArm` of firing, so the
+ * target always sees "LASER DOT INCOMING" first.
+ */
 function stepLaser(ctx: SimContext, p: Proj): void {
   const s = itemsOf(ctx.st);
   const ks = ctx.st.karts;
   const t = ctx.track;
-  p.target = laserTarget(ctx, p.owner);
+  p.age++;
+  if (p.target < 0 || !touchable(ks[p.target])) p.target = laserTarget(ctx, p.owner, p.dist);
   if (p.target < 0) {
+    ctx.emit({ type: 'itemFizzle', kart: p.owner, item: 'laser' });
     kill(p);
     return;
   }
@@ -207,21 +237,28 @@ function stepLaser(ctx: SimContext, p: Proj): void {
   const v = L.speedMult * Math.max(speedOf(tk), ctx.tun.topSpeed * 0.9);
   const prev = p.dist;
   p.dist += v * DT;
+  // not yet armed: hold just behind the target
+  if (p.age < MIN_ARM && p.dist > tk.dist - 0.5) p.dist = Math.max(prev, tk.dist - 0.5);
   p.d += clamp(t.line[p.si] - p.d, -6 * DT, 6 * DT);
   trackPoint(t, p.dist, p.d, p);
   p.y += 0.08;
-  // everyone it passes over chases the dot
+  // everyone it passes over chases the dot, once each
   for (let j = 0; j < ks.length; j++) {
-    if (j === p.owner || j === p.target) continue;
+    if (j === p.target || p.hitMask & (1 << j)) continue;
     const k = ks[j];
-    if (touchable(k) && prev < k.dist && k.dist <= p.dist) itemHit(ctx, j, 'chase', p.owner, 'laser');
+    if (touchable(k) && prev < k.dist && k.dist <= p.dist) {
+      p.hitMask |= 1 << j;
+      itemHit(ctx, j, 'chase', p.owner, 'laser');
+    }
   }
-  if (p.dist >= tk.dist) {
+  const eta = (tk.dist - p.dist) / v;
+  if (eta < L.warn) s.laserWarn = p.target;
+  if (p.age >= MIN_ARM && p.dist >= tk.dist) {
+    s.laserWarn = p.target;
+    p.hitMask |= 1 << p.target;
     itemHit(ctx, p.target, 'spin', p.owner, 'laser');
     kill(p);
-    return;
   }
-  if ((tk.dist - p.dist) / v < L.warn) s.laserWarn = p.target;
 }
 
 /** One tick of every projectile (after kart physics). Dead ones are removed in place. */

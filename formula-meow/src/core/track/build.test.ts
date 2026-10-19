@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Modifier, Surface } from '../../types';
-import { TRACK } from '../../tuning';
+import { PHYS, TRACK } from '../../tuning';
 import { TRACKS } from './tracks';
 import { buildTrack, gridSlot } from './build';
 import { queryTrack, type TrackHit } from './query';
+import { barrierPoint } from './mesh';
 
 const hit = (): TrackHit => ({ i: 0, s: 0, d: 0, y: 0, surface: Surface.Road });
 
@@ -59,7 +60,7 @@ describe('track build (GDD 6.2)', () => {
             ds = Math.min(ds, t.length - ds);
             expect(ds).toBeLessThan(0.3);
           }
-          const off = t.halfW[i] + 1.2;
+          const off = t.halfW[i] + PHYS.curbWidth + 0.2;
           queryTrack(t, t.px[i] - t.tz[i] * off, t.pz[i] + t.tx[i] * off, i, h);
           expect(h.surface).toBe(Surface.Offroad);
         }
@@ -84,6 +85,21 @@ describe('track build (GDD 6.2)', () => {
         }
         expect(t.features.length).toBe(def.features.length);
         expect(t.pads.length + t.ramps.length).toBeGreaterThan(0);
+      });
+
+      it('the barrier mesh sits on the collision wall, and the kerb band up to it is drivable kerb (B10)', () => {
+        const h = hit();
+        for (let i = 0; i < t.n; i += 23)
+          for (const side of [-1, 1] as const) {
+            const [x, , z] = barrierPoint(t, i, side);
+            queryTrack(t, x, z, i, h);
+            const wall = side > 0 ? t.wallR[h.i] : t.wallL[h.i];
+            expect(Math.abs(Math.abs(h.d) - wall)).toBeLessThan(0.1);
+            // just inside the kerb's outer edge: still kerb, not off-road
+            const kd = side * (t.halfW[i] + PHYS.curbWidth - 0.1);
+            queryTrack(t, t.px[i] - t.tz[i] * kd, t.pz[i] + t.tx[i] * kd, i, h);
+            expect(h.surface === Surface.Curb || h.surface === Surface.Road).toBe(true);
+          }
       });
 
       it('mirror mode flips the layout', () => {

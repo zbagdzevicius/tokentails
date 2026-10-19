@@ -19,18 +19,33 @@ import {
   SphereGeometry,
   SRGBColorSpace,
 } from 'three';
-import type { BuiltTrack } from '../build';
+import { cellKey, type BuiltTrack } from '../build';
 import { nearestSample } from '../query';
 import type { Theme } from '../themes';
 import { GeoBuilder, hash01 } from '../../render/geo';
 
-/** Clearance of (x, z) from the nearest wall (negative = inside the walls). */
+/**
+ * Clearance of (x, z) from the walls of every nearby part of the loop (negative = inside the walls). B14: the
+ * nearest sample alone missed an off-road zone's pushed-out wall a few samples further on.
+ */
 export function clearance(t: BuiltTrack, x: number, z: number): number {
+  let best = Infinity;
+  for (let cx = -3; cx <= 3; cx++)
+    for (let cz = -3; cz <= 3; cz++) {
+      const list = t.cells.get(cellKey(x + cx * 8, z + cz * 8));
+      if (!list) continue;
+      for (const i of list) {
+        const dx = x - t.px[i];
+        const dz = z - t.pz[i];
+        const c = Math.sqrt(dx * dx + dz * dz) - Math.max(t.wallL[i], t.wallR[i]) - 0.6;
+        if (c < best) best = c;
+      }
+    }
+  if (best < Infinity) return best;
   const i = nearestSample(t, x, z, -1);
   const dx = x - t.px[i];
   const dz = z - t.pz[i];
-  const d = Math.sqrt(dx * dx + dz * dz);
-  return d - Math.max(t.wallL[i], t.wallR[i]) - 0.6;
+  return Math.sqrt(dx * dx + dz * dz) - Math.max(t.wallL[i], t.wallR[i]) - 0.6;
 }
 
 /** Deterministic scatter of `count` spots with at least `margin` clearance, within radius `r` of the origin. */
@@ -89,16 +104,18 @@ export function sign(lines: string[], w: number, h: number, x: number, y: number
 /** The start gantry: two posts and a banner across the start line. */
 export function startGantry(t: BuiltTrack, g: GeoBuilder, theme: Theme, group: Group): void {
   const i = 4;
-  const hw = Math.max(t.wallL[i], t.wallR[i]) + 0.6;
+  const hw = Math.max(t.wallL[i], t.wallR[i]) + 1.0; // posts clear of the barrier (B14)
   const rx = -t.tz[i];
   const rz = t.tx[i];
   const y = t.py[i];
   const ry = Math.atan2(t.tx[i], t.tz[i]);
+  // B59: the beam sits high enough that the portrait chase camera on the grid sees under it, not into it
+  const H = 9;
   for (const s of [-1, 1]) {
-    g.cylUp(0.35, 0.35, 7, 8, theme.wallA, { x: t.px[i] + rx * hw * s, y, z: t.pz[i] + rz * hw * s });
+    g.cylUp(0.35, 0.35, H, 8, theme.wallA, { x: t.px[i] + rx * hw * s, y, z: t.pz[i] + rz * hw * s });
   }
-  g.box(hw * 2 + 0.8, 1.9, 0.5, 0x2a1a22, { x: t.px[i], y: y + 7, z: t.pz[i], ry });
-  const banner = sign(['FORMULA MEOW'], hw * 2, 1.6, t.px[i], y + 7, t.pz[i], ry + Math.PI, { bg: '#2a1a22', fg: '#fff3dc', glow: theme.night ? '#ff3ea5' : undefined });
+  g.box(hw * 2 + 0.8, 1.6, 0.5, 0x2a1a22, { x: t.px[i], y: y + H, z: t.pz[i], ry });
+  const banner = sign(['FORMULA MEOW'], hw * 2, 1.4, t.px[i], y + H, t.pz[i], ry + Math.PI, { bg: '#2a1a22', fg: '#fff3dc', glow: theme.night ? '#ff3ea5' : undefined });
   if (banner) {
     banner.position.x -= t.tx[i] * 0.3;
     banner.position.z -= t.tz[i] * 0.3;

@@ -105,6 +105,7 @@ export function installShare(shell: Shell): void {
   let lapPlaces: number[] = [];
   let clip: ClipState | null = null;
   let banner: HTMLDivElement | null = null;
+  let resultToken = 0;
 
   // ------------------------------------------------------------------ your cat
   const applyFace = (yc: YourCat | null) => {
@@ -128,10 +129,11 @@ export function installShare(shell: Shell): void {
     setTimeout(() => b.classList.add('off'), 3800);
     setTimeout(() => b.remove(), 4400);
   };
+  if (route.kind === 'dare-broken') showToast('That dare link is broken. Racing without the ghost.');
   if (route.kind === 'dare') {
     void decodeGhost(route.ghost).then((g) => {
       if (!g) {
-        showToast("That dare link is broken. Racing without the ghost.");
+        showToast('That dare link is broken. Racing the track without the ghost.');
         return;
       }
       runner.set({ ghost: g, name: route.name, cat: route.cat });
@@ -161,16 +163,20 @@ export function installShare(shell: Shell): void {
   shell.bus.add({
     onReset() {
       if (runner.live) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
+      // B36: a Daily Cup race says so on the grid
+      else if (shell.setup?.mode === 'daily' && shell.setup.day) showBanner(`🏆 Daily Cup #${shell.setup.day}`);
     },
   });
 
   // ------------------------------------------------------------------ clip
   const clipButton = (): HTMLButtonElement | null => document.querySelector<HTMLButtonElement>('.fm-overlay [data-x="0"]');
-  const setClipLabel = (text: string, busy: boolean) => {
+  /** B44: the clip button keeps a fixed width and shows its progress as a fill, never as changing text */
+  const setClipLabel = (text: string, busy: boolean, progress = 1) => {
     const b = clipButton();
     if (!b) return;
-    b.textContent = text;
+    if (b.textContent !== text) b.textContent = text;
     b.classList.toggle('fm-busy', busy);
+    b.style.setProperty('--p', `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`);
   };
 
   const cardShare = async (ctx: ResultContext, extra: string | null) => {
@@ -236,7 +242,7 @@ export function installShare(shell: Shell): void {
             },
             (p) => {
               st.progress = p;
-              if (clip === st) setClipLabel(`🎬 Clip ${Math.round(p * 100)}%`, true);
+              if (clip === st) setClipLabel('🎬 Clip', true, p);
             },
             st.cancel,
           ),
@@ -271,11 +277,11 @@ export function installShare(shell: Shell): void {
         const shared = t ? null : trackFromLocation(loc);
         const ugc = shared?.ok && trackKey(shared.track.id) === r.header.trackKey ? shared.track : null;
         if (!t && !ugc) return null;
-        return { trackId: (t ?? ugc)!.id, cls: r.header.cls, seed: r.header.seed, modifiers: r.header.modifiers };
+        return { trackId: (t ?? ugc)!.id, cls: r.header.cls, seed: r.header.seed, modifiers: r.header.modifiers, mode: 'dare' };
       }
       if (r.kind === 'daily') {
         const d = dailySetup(r.day, TRACKS);
-        return { trackId: d.track.id, cls: d.cls, seed: d.seed, modifiers: d.modifiers };
+        return { trackId: d.track.id, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day: r.day };
       }
       return null;
     },
@@ -291,29 +297,46 @@ export function installShare(shell: Shell): void {
       // ghost of this run (deflated off the main path; ready long before the tap)
       const fin = events.find((e) => e.type === 'finish' && e.kart === me);
       const inputs = fin ? replay.inputs.slice(0, fin.tick + 2) : replay.inputs;
-      const ghostP = encodeGhost({ trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me }, inputs);
+      const ghostP = encodeGhost(
+        { trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me, body: cfg.racers[me]?.kart.body ?? 0, mode: cfg.mode ?? 'race' },
+        inputs,
+      );
+      // B49: a fast Again must not let this run's link leak into the next race's caption
+      const token = ++resultToken;
       dareLink = null;
       void ghostP.then((g) => {
-        if (g) dareLink = buildDare(cfg.track, g, senderName());
+        if (g && token === resultToken) dareLink = buildDare(cfg.track, g, senderName());
       });
       let ghostRow: ResultExtras['ghost'];
+      let later: ResultExtras['later'];
 
-      // dare outcome (recomputed ghost time)
+      // dare outcome (recomputed ghost time, B50: over a few frames, never on the results frame)
       let beat: string | null = null;
-      if (runner.live && runner.current) {
+      const dareLive = runner.live && runner.matches();
+      if (dareLive && runner.current) {
         const name = runner.current.name;
-        const gt = runner.finishTime();
         const my = result.player.time;
-        ghostRow = { name: runner.current.name, time: gt };
-        const iWon = my != null && (gt == null || my < gt);
-        if (iWon) {
-          beat = name;
-          lines.push(gt != null ? `You beat ${name}'s ghost by ${(gt - my!).toFixed(2)} s!` : `You beat ${name}'s ghost!`);
-        } else lines.push(gt != null && my != null ? `${name}'s ghost won by ${(my - gt).toFixed(2)} s. Again?` : `${name}'s ghost won. Again?`);
-        const l = recordDuel(loadLedger(), name, iWon);
-        saveLedger(l);
-        const ll = ledgerLine(l, name);
-        if (ll) lines.push(ll);
+        const outcome = (gt: number | null) => {
+          const out: string[] = [];
+          const iWon = my != null && (gt == null || my < gt);
+          if (iWon) {
+            beat = name;
+            out.push(gt != null ? `You beat ${name}'s ghost by ${(gt - my!).toFixed(2)} s!` : `You beat ${name}'s ghost!`);
+          } else out.push(gt != null && my != null ? `${name}'s ghost won by ${(my - gt).toFixed(2)} s. Again?` : `${name}'s ghost won. Again?`);
+          const l = recordDuel(loadLedger(), name, iWon);
+          saveLedger(l);
+          const ll = ledgerLine(l, name);
+          if (ll) out.push(ll);
+          return out;
+        };
+        const now = runner.finishNow;
+        if (now !== undefined) {
+          ghostRow = { name, time: now };
+          lines.push(...outcome(now));
+        } else {
+          ghostRow = { name, time: null };
+          later = runner.finishTime().then((gt) => (token === resultToken ? { ghost: { name, time: gt }, lines: outcome(gt) } : null));
+        }
       }
 
       // daily cup
@@ -351,7 +374,13 @@ export function installShare(shell: Shell): void {
           tier: 'icon',
           run: () => {
             const d = dailySetup(today, TRACKS);
-            shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers });
+            // B36: the Daily Cup has its own address (and banner / HUD tag through the race mode)
+            try {
+              history.replaceState(null, '', dailyUrl(location, today));
+            } catch {
+              /* sandboxed frames */
+            }
+            shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day: today });
           },
         };
       }
@@ -414,8 +443,9 @@ export function installShare(shell: Shell): void {
       });
 
       startClip(ctx);
-      const noUnlock = route.kind === 'dare' || dayOf != null;
-      return { actions, lines, ghost: ghostRow, noUnlock };
+      // B48: only the dare's own race (and Daily Cup races) skip the class unlocks, not every race after a dare link
+      const noUnlock = dareLive || dayOf != null;
+      return { actions, lines, ghost: ghostRow, noUnlock, later };
     },
   });
 }

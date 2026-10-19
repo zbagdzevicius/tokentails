@@ -38,6 +38,19 @@ describe('input mux (GDD 2)', () => {
     expect(m.sample(4, ctx).item).toBe(false);
   });
 
+  it('B24: a swipe-down item press keeps its throw-back flag through the latch', () => {
+    const f = new Fake();
+    const m = new InputMux([f], { autoGas: false, oneThumb: true });
+    m.sample(0, ctx);
+    f.state = { touch: true, item: true, itemBack: true };
+    m.frame(1 / 60, ctx);
+    f.state = { touch: true };
+    m.frame(1 / 60, ctx);
+    const i = m.sample(2, ctx);
+    expect(i.item).toBe(true);
+    expect(i.itemBack).toBe(true);
+  });
+
   it('touch gets auto gas after GO; one-thumb mode drifts on a held full lock', () => {
     const f = new Fake();
     const m = new InputMux([f], { autoGas: false, oneThumb: true });

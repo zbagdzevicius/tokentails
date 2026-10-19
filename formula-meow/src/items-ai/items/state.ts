@@ -33,6 +33,9 @@ export interface Proj {
   target: number;
   /** ticks during which the owner cannot be hit */
   imm: number;
+  /** Laser Dot: bit k set once kart k was made to chase it (each kart is chased once, B17); ticks since fired */
+  hitMask: number;
+  age: number;
 }
 
 export interface Trap {
@@ -100,7 +103,7 @@ export function lapGap(t: BuiltTrack, a: number): number {
   return a - t.length * Math.round(a / t.length);
 }
 
-const PROJ_F: readonly (keyof Proj)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'vx', 'vz', 'si', 'dist', 'd', 'life', 'bounces', 'target', 'imm'];
+const PROJ_F: readonly (keyof Proj)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'vx', 'vz', 'si', 'dist', 'd', 'life', 'bounces', 'target', 'imm', 'hitMask', 'age'];
 const TRAP_F: readonly (keyof Trap)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'dist', 'd', 'life', 'flight', 'flightMax', 'fx', 'fy', 'fz', 'imm'];
 
 export function hashItems(st: RaceState, h: number): number {

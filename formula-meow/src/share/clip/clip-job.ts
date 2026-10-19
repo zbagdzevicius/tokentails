@@ -106,7 +106,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
   const me = cfg.humans[0] ?? 0;
   const scene = new Scene();
   const built = buildTrack(cfg.track, cfg.modifiers);
-  const world = new SimWorld(cfg, createSimPlugins(), built);
+  const world = new SimWorld(cfg, createSimPlugins(cfg), built);
   const view = new RaceView(scene, built, cfg.racers);
   if (inp.face) {
     const t = decalTexture(inp.face);

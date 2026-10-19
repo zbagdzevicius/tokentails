@@ -1,0 +1,31 @@
+/** Shell and HUD strings (English). The audio-ui lane owns this table; every visible string goes through `t()`. */
+export const CORE_EN: Record<string, string> = {
+  Pause: 'Pause',
+  Paused: 'Paused',
+  Resume: 'Resume',
+  Restart: 'Restart',
+  Settings: 'Settings',
+  'Quit to menu': 'Quit to menu',
+  Menu: 'Menu',
+  Sound: 'Sound',
+  'Reduced motion': 'Reduced motion',
+  'One-thumb drift': 'One-thumb drift',
+  'Auto-gas': 'Auto-gas',
+  'Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.':
+    'Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.',
+  'Left thumb steers. Hold the right thumb to drift. Swipe up or down for items.': 'Left thumb steers. Hold the right thumb to drift. Swipe up or down for items.',
+  'Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause':
+    'Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause',
+  'TAP TO RACE': 'TAP TO RACE',
+  'PRESS ANY KEY': 'PRESS ANY KEY',
+  'gas is automatic · left thumb steers': 'gas is automatic · left thumb steers',
+  '←→ steer · ↑ gas · Space drift': '←→ steer · ↑ gas · Space drift',
+  'Tap on MEOW! = Pounce Start': 'Tap on MEOW! = Pounce Start',
+  '↑ on MEOW! = Pounce Start': '↑ on MEOW! = Pounce Start',
+  'FULL STICK INTO THE TURN = DRIFT {a}': 'FULL STICK INTO THE TURN = DRIFT {a}',
+  'HOLD RIGHT THUMB = DRIFT {a}': 'HOLD RIGHT THUMB = DRIFT {a}',
+  'HOLD SPACE TO DRIFT {a}': 'HOLD SPACE TO DRIFT {a}',
+  'Daily Cup #{n}': 'Daily Cup #{n}',
+  'Your best here: {t}': 'Your best here: {t}',
+  'Unlocked: {c} → race it': 'Unlocked: {c} → race it',
+};

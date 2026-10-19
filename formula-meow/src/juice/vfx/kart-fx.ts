@@ -287,18 +287,27 @@ export class KartFx {
     for (const m of this.all) scene.add(m);
   }
 
-  /** Spawn a ground shockwave ring at a kart. */
+  /** the camera kart (set every update) */
+  private me = -1;
+
+  /**
+   * Spawn a ground shockwave ring at a kart. B60: the player's own rings are capped in size and drawn at half
+   * strength (additive, so half the colour), so a pounce or a mini-turbo never washes over the whole screen.
+   */
   ring(kart: number, color: number, size: number): void {
     const st = this.view.cur[kart];
     if (!st) return;
+    const own = kart === this.me;
     const i = this.ringNext;
     this.ringNext = (i + 1) % RINGS;
     this.ringPos[i * 3] = st.x;
     this.ringPos[i * 3 + 1] = st.y + 0.08;
     this.ringPos[i * 3 + 2] = st.z;
     this.ringLife[i] = 1;
-    this.ringSize[i] = size;
-    this.rings.setColorAt(i, _c.setHex(color));
+    this.ringSize[i] = own ? Math.min(size, 2.2) : size;
+    _c.setHex(color);
+    if (own) _c.multiplyScalar(0.5);
+    this.rings.setColorAt(i, _c);
   }
 
   onEvent(e: RaceEvent): void {
@@ -335,6 +344,7 @@ export class KartFx {
   }
 
   update(st: RaceState, alpha: number, dt: number, me: number): void {
+    this.me = me;
     this.time += dt;
     this.flameMat.uniforms.uTime.value = this.time;
     const view = this.view;

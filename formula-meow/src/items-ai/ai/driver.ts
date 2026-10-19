@@ -32,6 +32,8 @@ interface Memory {
   /** last trap considered for a dodge, and whether this cat dodges it */
   dodgeId: number;
   dodge: boolean;
+  /** ticks before another drift may start (after letting one go) */
+  driftCool: number;
 }
 
 const DEFAULT_P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
@@ -54,6 +56,7 @@ export function createAIDriver(): AIDriver {
           brain: newBrain(),
           dodgeId: 0,
           dodge: false,
+          driftCool: 0,
         });
       }
     },
@@ -99,8 +102,10 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const sp = speedOf(k);
   const c = curvatureAhead(ctx, k.si, 2, 14);
   const turnDir = c > 0 ? -1 : 1; // left turn → drift left (steer negative)
+  if (m.driftCool > 0) m.driftCool--;
   if (k.driftDir === 0) {
-    if (Math.abs(c) > AI.driftCurv && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0) {
+    // start only when the line itself asks to turn that way (never force a drift against the line)
+    if (Math.abs(c) > AI.driftCurv && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
       if (!m.driftWant) {
         m.driftWant = 1;
         // skilled drivers hold for orange/pink; 50cc rarely reaches pink
@@ -115,8 +120,38 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     // hold through the bend; low skill lets go early now and then (a missed tier)
     const stillBending = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > AI.driftCurv * 0.5;
     const early = k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08;
-    out.drift = stillBending && !early;
-    if (!out.drift) m.driftWant = 0;
+    // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
+    const overturning = out.steer * k.driftDir <= -5;
+    out.drift = stillBending && !early && !overturning;
+    if (!out.drift) {
+      m.driftWant = 0;
+      m.driftCool = 20;
+    }
+  }
+
+  // corner speed (B15): lift, then brake, when the bend ahead needs more turn than the kart has without a drift
+  if (k.driftDir === 0 && !k.air && !out.drift) {
+    const ahead = Math.max(10, sp * 0.9);
+    const c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
+    const vmax = Math.sqrt(AI.cornerAccel / Math.max(1e-4, c));
+    if (sp > vmax * 1.12) {
+      out.gas = false;
+      out.brake = true;
+    } else if (sp > vmax) out.gas = false;
+  }
+
+  // boost pads (B16): a skilled cat steers onto a pad on the road ahead
+  if (p.skill >= AI.padSkill && m.slipTicks === 0 && k.driftDir === 0) {
+    const t = ctx.track;
+    for (const pad of t.pads) {
+      let ahead = (pad.i - k.si) * t.step;
+      if (ahead < 0) ahead += t.length;
+      if (ahead < 4 || ahead > AI.padLook) continue;
+      const hw = t.halfW[k.si];
+      const want = clamp((pad.d - t.line[k.si]) / Math.max(1, hw - AI.edge), -1, 1);
+      followLine(ctx, i, out, want, ahead < 15 ? 0.8 : 1);
+      break;
+    }
   }
 
   // items (item-brain.ts) and the capped rubber band (rubber-band.ts)

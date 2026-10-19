@@ -42,6 +42,23 @@ describe('ghost codec (GDD 8.1)', () => {
     }
   });
 
+  it('v2 header carries the body and the mode; a v1 link (SIM_VERSION 3) still decodes so it can open as a target-time race', async () => {
+    const h = { trackKey: trackKey('rooftops'), seed: 9, cls: 1 as const, modifiers: 0, forgiving: false, slot: 5, body: 4 as const, mode: 'tt' as const };
+    const g = (await decodeGhost(encodeGhostSync(h, [0x17, 0x17])))!;
+    expect(g.body).toBe(4);
+    expect(g.mode).toBe('tt');
+    // made by v1 (b87be46e): kitchen, seed 5, Kitten, slot 5, SIM_VERSION 3
+    const v1 = 'EDPmVy8AAAAFAFADAAgFyFcQXAngBcCpQA';
+    const p = peekGhost(v1)!;
+    expect(p).not.toBeNull();
+    expect(p.simVersion).toBe(3);
+    expect(p.body).toBe(0);
+    expect(p.mode).toBe('race');
+    const d = (await decodeGhost(v1))!;
+    expect(d.inputs.length).toBe(8);
+    expect(d.simVersion).not.toBe(SIM_VERSION);
+  });
+
   it('rejects a flipped character, a wrong version and junk', async () => {
     const code = encodeGhostSync({ trackKey: 1, seed: 2, cls: 0, modifiers: 0, forgiving: false, slot: 5 }, [0x17, 0x17, 0x18]);
     const flip = code.slice(0, 10) + (code[10] === 'A' ? 'B' : 'A') + code.slice(11);

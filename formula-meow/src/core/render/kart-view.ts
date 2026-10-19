@@ -17,6 +17,7 @@ import { GeoBuilder } from './geo';
 import { toonMaterial } from './toon';
 import { buildCatRig, disposeCatRig, poseCat, setCatGhost, type CatRig } from './cat-rig';
 import { OUTLINE_NAME, outlineFor } from './cat-outline';
+import { disposeMaterial } from '../track/mesh';
 import { shadeHex } from './palette';
 
 export const WHEEL_R = 0.38;
@@ -99,6 +100,10 @@ export class KartView {
   private lean = 0;
   private spinAngle = 0;
   private time = 0;
+  /** the kart's own toon material (body + axles) */
+  private readonly mat;
+  /** current near-camera fade (B59), 1 = solid */
+  private fade = 1;
 
   constructor(readonly info: RacerInfo) {
     this.root.name = `kart-${info.name}`;
@@ -106,6 +111,7 @@ export class KartView {
     this.root.scale.setScalar(KART_SCALE);
     this.root.add(this.body);
     const mat = toonMaterial({ vertexColors: true });
+    this.mat = mat;
     const bodyMesh = new Mesh(bodyGeo(info.kart).build(), mat);
     bodyMesh.castShadow = false;
     bodyMesh.add(outlineFor(bodyMesh));
@@ -219,11 +225,44 @@ export class KartView {
     }
   }
 
+  /**
+   * Fade a kart that is close to the camera (B59: rivals 5–7 m from the lens filled a corner of the screen):
+   * 0 hides it, 1 is solid. Only the kart's own materials change (the outline is shared, so it is hidden instead).
+   */
+  setFade(f: number): void {
+    const v = f < 0.02 ? 0 : f > 0.98 ? 1 : Math.round(f * 20) / 20;
+    // the race view sets `visible` each frame (respawn): only ever hide here
+    if (v === 0) this.root.visible = false;
+    if (v === this.fade) return;
+    const was = this.fade;
+    this.fade = v;
+    if (v === 0) return;
+    const solid = v >= 1;
+    if (solid !== was >= 1 || was === 0) {
+      this.body.traverse((o) => {
+        if (o.name === OUTLINE_NAME) o.visible = solid;
+      });
+    }
+    for (const m of [this.mat, this.cat.fur, this.cat.faceMat, this.cat.detailMat] as Array<{ transparent: boolean; opacity: number; depthWrite: boolean; needsUpdate: boolean }>) {
+      if (m.transparent === solid) {
+        m.transparent = !solid;
+        m.needsUpdate = true;
+      }
+      m.opacity = v;
+      m.depthWrite = solid;
+    }
+  }
+
+  /** Free everything this kart owns (B57: materials and the flame leaked on every restart). */
   dispose(): void {
     disposeCatRig(this.cat);
+    const mats = new Set<unknown>();
     this.root.traverse((o) => {
       const m = o as Mesh;
-      if (m.isMesh) m.geometry.dispose();
+      if (!m.isMesh) return;
+      if (o.name !== OUTLINE_NAME) m.geometry.dispose();
+      if (!Array.isArray(m.material)) mats.add(m.material);
     });
+    for (const m of mats) disposeMaterial(m as Parameters<typeof disposeMaterial>[0]);
   }
 }

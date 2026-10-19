@@ -2,7 +2,7 @@
  * The default field (GDD 5.1, 13): 7 rivals who are real Pink Paw cats (licence exists; ADOPTED cats are left out).
  * The share lane shows each rival's status with its date and the adopt link; this file only builds RacerInfo.
  */
-import { DEFAULT_CAT, type CatSpec, type KartLook, type Personality, type RaceClass, type RacerInfo } from '../../types';
+import { DEFAULT_CAT, type BodyId, type CatSpec, type KartLook, type Personality, type RaceClass, type RacerInfo } from '../../types';
 import { pinkPawCatSpec, pinkPawWaiting } from '../../share/pinkpaw/pink-paw';
 import { personalityFor } from './personalities';
 
@@ -19,7 +19,7 @@ const PAINTS: [number, number, number][] = [
 ];
 
 export function kartLookFor(slot: number): KartLook {
-  return { body: slot % 3, paint: PAINTS[slot % PAINTS.length], number: (slot * 7 + 3) % 100 };
+  return { body: (slot % 3) as BodyId, paint: PAINTS[slot % PAINTS.length], number: (slot * 7 + 3) % 100 };
 }
 
 export interface FieldOptions {

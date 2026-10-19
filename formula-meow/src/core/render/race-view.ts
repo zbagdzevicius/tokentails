@@ -23,6 +23,7 @@ import type { BuiltTrack } from '../track/build';
 import { KartView } from './kart-view';
 import { buildWorldView, type WorldView } from './world-view';
 import { toonMaterial } from './toon';
+import { disposeMaterial } from '../track/mesh';
 import type { RacerInfo } from '../../types';
 
 export interface KartSnap {
@@ -176,7 +177,7 @@ export class RaceView {
         const n = tier === 3 ? 3 : tier > 0 ? 2 : 1;
         const sx = Math.sin(s.heading);
         const sz = Math.cos(s.heading);
-        for (const side of [-1, 1]) {
+        for (let side = -1; side <= 1; side += 2) {
           const wx = s.x - sx * 0.9 + -sz * 0.85 * side;
           const wz = s.z - sz * 0.9 + sx * 0.85 * side;
           for (let e = 0; e < n; e++) this.emit(wx, s.y + 0.1, wz, -sx * 2 + (Math.random() - 0.5) * 4, 1.5 + Math.random() * 3, -sz * 2 + (Math.random() - 0.5) * 4, col);
@@ -248,9 +249,13 @@ export class RaceView {
       this.scene.remove(k.root);
       k.dispose();
     }
+    // B57: materials and the instanced buffers too, not only the geometry
     for (const o of [this.boxes, this.shadows, this.sparks]) {
       this.scene.remove(o);
       o.geometry.dispose();
+      disposeMaterial(o.material as Parameters<typeof disposeMaterial>[0]);
     }
+    this.boxes.dispose();
+    this.shadows.dispose();
   }
 }

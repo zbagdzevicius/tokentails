@@ -30,6 +30,25 @@ interface Snap {
   heading: number;
 }
 
+/** Rounded pill path; `roundRect` is missing on iOS Safari < 16 (B52: it threw and aborted the race start). */
+export function pillPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  const r = h / 2;
+  g.beginPath();
+  if (typeof g.roundRect === 'function') {
+    g.roundRect(x, y, w, h, r);
+    return;
+  }
+  g.moveTo(x + r, y);
+  g.lineTo(x + w - r, y);
+  g.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+  g.lineTo(x + r, y + h);
+  g.arc(x + r, y + r, r, Math.PI / 2, (3 * Math.PI) / 2);
+  g.closePath();
+}
+
+/** Label height on screen, CSS px (B51: a fixed screen-space tag, never huge up close). */
+const TAG_PX = 26;
+
 function nameTag(text: string): Sprite {
   const c = document.createElement('canvas');
   c.width = 256;
@@ -38,8 +57,7 @@ function nameTag(text: string): Sprite {
   g.font = "900 34px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
   const w = Math.min(248, g.measureText(text).width + 36);
   g.fillStyle = 'rgba(26,18,56,0.78)';
-  g.beginPath();
-  g.roundRect((256 - w) / 2, 6, w, 52, 26);
+  pillPath(g, (256 - w) / 2, 6, w, 52);
   g.fill();
   g.fillStyle = '#2cf6f3';
   g.textAlign = 'center';
@@ -47,8 +65,8 @@ function nameTag(text: string): Sprite {
   g.fillText(text, 128, 33);
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
-  const s = new Sprite(new SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false }));
-  s.scale.set(3.2, 0.8, 1);
+  const s = new Sprite(new SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false, sizeAttenuation: false }));
+  s.scale.set(0.2, 0.05, 1);
   s.renderOrder = 10;
   return s;
 }
@@ -64,6 +82,11 @@ export class GhostRunner implements JuiceListener {
   /** true while the current race is the dare's race */
   live = false;
   private frozen = false;
+  /** the ghost's current fade (B51) */
+  private ghostAlpha = 0.42;
+  /** B50: the recomputed finish time, once the shadow race got there (undefined = still running) */
+  private result: number | null | undefined = undefined;
+  private waiting: Array<(t: number | null) => void> = [];
 
   constructor(private readonly shell: Shell) {}
 
@@ -99,6 +122,9 @@ export class GhostRunner implements JuiceListener {
     this.world = null;
     this.live = false;
     this.frozen = false;
+    this.result = undefined;
+    for (const fn of this.waiting) fn(null);
+    this.waiting = [];
   }
 
   onReset(): void {
@@ -114,13 +140,15 @@ export class GhostRunner implements JuiceListener {
       seed: g.seed,
       cls: g.cls,
       modifiers: g.modifiers,
-      racers: buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: d.name, playerCat: cat }),
+      racers: buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: d.name, playerCat: cat, playerKart: { ...kartLookFor(0), body: g.body ?? 0 } }),
       humans: [slot],
       forgiving: g.forgiving,
+      mode: g.mode ?? 'race',
     };
-    this.world = new SimWorld(cfg, createSimPlugins(), main.track);
-    this.view = new KartView({ name: d.name, cat, kart: kartLookFor(1) });
-    this.view.setGhost(0.42);
+    this.world = new SimWorld(cfg, createSimPlugins(cfg), main.track);
+    this.view = new KartView({ name: d.name, cat, kart: { ...kartLookFor(1), body: g.body ?? 0 } });
+    this.ghostAlpha = 0.42;
+    this.view.setGhost(this.ghostAlpha);
     this.shell.stage.scene.add(this.view.root);
     this.tag = nameTag(`👻 ${d.name}`);
     this.shell.stage.scene.add(this.tag);
@@ -141,20 +169,46 @@ export class GhostRunner implements JuiceListener {
     t.heading = k.heading;
   }
 
-  private stepOnce(): void {
+  /** One shadow tick. False once the ghost's recorded inputs ran out (it never finished: a ghost DNF). */
+  private stepOnce(): boolean {
     const w = this.world!;
-    const v = this.dare!.ghost.inputs[w.tick];
-    this.buf[0] = unpackInput(v === undefined ? 0x17 : v);
+    const ins = this.dare!.ghost.inputs;
+    if (w.tick >= ins.length) return false;
+    this.buf[0] = unpackInput(ins[w.tick]);
     w.step(this.buf);
     this.capture();
+    return true;
+  }
+
+  /** The shadow kart finished, ran out of inputs, or its race ended: settle the result. */
+  private settle(): void {
+    const w = this.world;
+    if (!w || this.result !== undefined) return;
+    const k = w.st.karts[w.cfg.humans[0]];
+    if (k.finished) this.result = k.finishTime / 60;
+    else if (w.done || w.tick >= this.dare!.ghost.inputs.length) this.result = null;
+    else return;
+    for (const fn of this.waiting) fn(this.result);
+    this.waiting = [];
   }
 
   onFrame(info: FrameInfo): void {
     const w = this.world;
     const v = this.view;
-    if (!w || !v || !this.tag || this.frozen) return;
+    if (!w || !v || !this.tag) return;
+    if (this.frozen) {
+      // B50: after the results the shadow race runs on in chunks of 300 ticks a frame until the ghost finishes
+      for (let n = 0; n < 300 && this.result === undefined; n++) {
+        if (!this.stepOnce()) break;
+        if (w.st.karts[w.cfg.humans[0]].finished || w.done) break;
+      }
+      this.settle();
+      return;
+    }
+    // lockstep with the race (a long hitch catches up over a few frames, never 600 steps in one)
     let guard = 0;
-    while (w.tick < info.st.tick && !w.done && guard++ < 600) this.stepOnce();
+    while (w.tick < info.st.tick && !w.done && guard++ < 60 && this.stepOnce());
+    this.settle();
     const me = w.cfg.humans[0];
     const k = w.st.karts[me];
     const a = this.prev;
@@ -174,23 +228,43 @@ export class GhostRunner implements JuiceListener {
     const pitch = -Math.atan2(t.py[j] - t.py[si], 4 * t.step) * Math.sign(fwd || 1);
     const roll = -Math.atan(t.bank[si]) * Math.sign(fwd || 1);
     const hidden = k.respawnTicks > 0;
+    // B51: the ghost fades to 15 % within 4 m of the camera (it starts in the player's slot, on top of the kart),
+    // and its tag hides within 6 m
+    const cam = this.shell.camera.cam;
+    const cd = Math.sqrt((cam.position.x - x) ** 2 + (cam.position.y - y) ** 2 + (cam.position.z - z) ** 2);
+    const alpha = cd < 4 ? 0.15 : 0.42;
+    if (alpha !== this.ghostAlpha) {
+      this.ghostAlpha = alpha;
+      v.setGhost(alpha);
+    }
     v.root.visible = !hidden;
-    this.tag.visible = !hidden;
+    this.tag.visible = !hidden && cd > 6;
     v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
     this.tag.position.set(x, y + 3.1, z);
+    // constant screen size: with sizeAttenuation off the scale is in view units (height ∝ 1 / projection[1][1])
+    const hpx = this.shell.host.clientHeight || 800;
+    const sy = (2 * TAG_PX) / (hpx * cam.projectionMatrix.elements[5]);
+    this.tag.scale.set(sy * 4, sy, 1);
   }
 
-  /** Recomputed finish time of the ghost (seconds since GO), running the shadow race forward if needed. */
-  finishTime(): number | null {
+  /** The recomputed finish time if the shadow race got there already (undefined while it still runs). */
+  get finishNow(): number | null | undefined {
+    return this.result;
+  }
+
+  /**
+   * Recomputed finish time of the ghost (seconds since GO, null = it never finished). B50: never computed in one go
+   * on the results frame; the shadow race runs on in chunks of 300 ticks a frame and this resolves when it is done.
+   */
+  finishTime(): Promise<number | null> {
     const w = this.world;
-    if (!w) return null;
-    const k = w.st.karts[w.cfg.humans[0]];
-    let guard = 0;
-    while (!k.finished && !w.done && guard++ < 60 * 400) this.stepOnce();
-    // the ghost jumped ahead of the race clock: hide it behind the results
+    if (!w) return Promise.resolve(null);
+    // the ghost runs ahead of the race clock from here: hide it behind the results
     this.frozen = true;
     if (this.view) this.view.root.visible = false;
     if (this.tag) this.tag.visible = false;
-    return k.finished ? k.finishTime / 60 : null;
+    this.settle();
+    if (this.result !== undefined) return Promise.resolve(this.result);
+    return new Promise((resolve) => this.waiting.push(resolve));
   }
 }

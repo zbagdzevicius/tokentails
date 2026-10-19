@@ -5,6 +5,7 @@
 import type { RaceEvent } from '../types';
 import { DRIFT } from '../tuning';
 import type { FrameInfo, JuiceListener } from './bus';
+import { vibrate } from './haptics';
 
 export interface FeelHooks {
   trauma(v: number): void;
@@ -12,13 +13,6 @@ export interface FeelHooks {
   reducedMotion(): boolean;
 }
 
-function vibrate(ms: number): void {
-  try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(ms);
-  } catch {
-    /* ignored: iOS Safari has no vibrate */
-  }
-}
 
 export class StarterFeel implements JuiceListener {
   constructor(private readonly hooks: FeelHooks) {}

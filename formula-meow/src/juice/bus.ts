@@ -25,8 +25,13 @@ export interface JuiceListener {
   onReset?(): void;
 }
 
+/**
+ * B56: a listener that throws never aborts the shell's start() or freezes the render; each listener's first error is
+ * logged once (console.warn, so a broken effect is visible in QA without failing the race).
+ */
 export class JuiceBus {
   private listeners: JuiceListener[] = [];
+  private failed = new WeakSet<JuiceListener>();
 
   add(l: JuiceListener): () => void {
     this.listeners.push(l);
@@ -35,15 +40,50 @@ export class JuiceBus {
     };
   }
 
+  private fail(l: JuiceListener, where: string, err: unknown): void {
+    if (this.failed.has(l)) return;
+    this.failed.add(l);
+    console.warn(`[juice] a listener failed in ${where}`, err);
+  }
+
   emit(events: readonly RaceEvent[], info: FrameInfo): void {
-    for (const e of events) for (const l of this.listeners) l.onEvent?.(e, info);
+    this.emitRange(events, 0, info);
+  }
+
+  /** Events from index `from` on (the shell's per-frame drain, without copying the log). */
+  emitRange(events: readonly RaceEvent[], from: number, info: FrameInfo): void {
+    for (let i = from; i < events.length; i++) {
+      const e = events[i];
+      for (const l of this.listeners) {
+        if (!l.onEvent) continue;
+        try {
+          l.onEvent(e, info);
+        } catch (err) {
+          this.fail(l, 'onEvent', err);
+        }
+      }
+    }
   }
 
   frame(info: FrameInfo): void {
-    for (const l of this.listeners) l.onFrame?.(info);
+    for (const l of this.listeners) {
+      if (!l.onFrame) continue;
+      try {
+        l.onFrame(info);
+      } catch (err) {
+        this.fail(l, 'onFrame', err);
+      }
+    }
   }
 
   reset(): void {
-    for (const l of this.listeners) l.onReset?.();
+    for (const l of this.listeners) {
+      if (!l.onReset) continue;
+      try {
+        l.onReset();
+      } catch (err) {
+        this.fail(l, 'onReset', err);
+      }
+    }
   }
 }

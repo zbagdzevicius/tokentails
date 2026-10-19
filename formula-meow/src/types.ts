@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 3;
+export const SIM_VERSION = 4;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -66,7 +66,55 @@ export interface TrackFeature {
   side?: -1 | 0 | 1;
 }
 
-export type ThemeId = 0 | 1 | 2 | 3; // kitchen, rooftops, laundry, yarn
+/** 0 kitchen, 1 rooftops, 2 laundry, 3 yarn, 4 café, 5 shelter, 6 arena rug, 7 reserved */
+export type ThemeId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+/**
+ * An alternative route (iteration 2, tracks lane): a second spline from main-loop lap fraction `from` to `to` (0..255,
+ * like features). Progress on a branch maps linearly onto the main loop's `s` range, so laps and places keep working.
+ */
+export interface TrackBranch {
+  from: number;
+  to: number;
+  points: TrackPoint[];
+  surface?: 'road' | 'offroad' | 'lowgrip';
+  label?: string;
+}
+
+/** Track hazards (iteration 2, tracks lane). Adding a kind is a contract change (integrator). */
+export type HazardKind = 'roomba' | 'laundry' | 'milk' | 'toaster' | 'steam' | 'drum';
+export const HAZARD_KINDS: readonly HazardKind[] = ['roomba', 'laundry', 'milk', 'toaster', 'steam', 'drum'];
+
+export interface HazardSpot {
+  kind: HazardKind;
+  /** 0..255 lap fraction */
+  s: number;
+  side?: -1 | 0 | 1;
+  /** seconds per cycle, phase 0..1 (hazard defaults when omitted) */
+  period?: number;
+  phase?: number;
+  /** index into `branches` when the hazard sits on an alternative route */
+  branch?: number;
+}
+
+/** A row of fish coins across the road (iteration 2): `s` 0..255 lap fraction, `d` lateral centre in metres. */
+export interface CoinRow {
+  s: number;
+  d: number;
+  count: 3 | 4 | 5;
+  branch?: number;
+}
+
+/** Intro flyover camera key (render only): position, look-at, time in seconds from the start of the flyover. */
+export interface FlyoverKey {
+  x: number;
+  y: number;
+  z: number;
+  lx: number;
+  ly: number;
+  lz: number;
+  t: number;
+}
 
 export interface TrackDef {
   v: 1;
@@ -80,6 +128,15 @@ export interface TrackDef {
   points: TrackPoint[];
   features: TrackFeature[];
   props?: number[];
+  // iteration 2: all optional so UGC v1 codes and ghost headers are unchanged
+  /** 'arena' = no laps, no wrong way (battle); default 'circuit' */
+  kind?: 'circuit' | 'arena';
+  branches?: TrackBranch[];
+  hazards?: HazardSpot[];
+  coins?: CoinRow[];
+  flyover?: FlyoverKey[];
+  /** song index for the audio-ui lane */
+  music?: number;
 }
 
 /** Surface under a kart (GDD 3.2). */
@@ -158,9 +215,12 @@ export const DEFAULT_CAT: CatSpec = Object.freeze({
   name: 'Tofu',
 }) as CatSpec;
 
-/** Kart look (garage lane). Bodies differ in looks only (GDD 7). */
+/** Kart bodies (content/ids.ts BODY_IDS): 0 Tuna Can, 1 Shoebox, 2 Sardine F1, 3 Laundry Basket, 4 Roomba, 5 Teacup. */
+export type BodyId = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** Kart look (garage). The body's stats (content/karts.ts KART_BODIES) apply in the sim, so ghosts carry the body. */
 export interface KartLook {
-  body: number; // 0 Tuna Can, 1 Shoebox, 2 Sardine F1
+  body: BodyId;
   paint: [number, number, number]; // 0xRRGGBB
   number: number; // 0..99
 }
@@ -173,6 +233,11 @@ export interface RacerInfo {
   ai?: Personality;
   /** Pink Paw id, when the racer is a real shelter cat (share lane shows status + adopt link) */
   pinkPawId?: string;
+  /** this AI is the player's rival for the race (progression picks it, feel lane gives it behaviour) */
+  rival?: boolean;
+  /** cosmetic ids (content/ids.ts HAT_IDS / TRAIL_IDS), 0 = none; render only */
+  hat?: number;
+  trail?: number;
 }
 
 /**
@@ -261,6 +326,23 @@ export interface KartState {
   progDist: number;
   /** the AI's current top-speed scale from the rubber band (1 for humans) */
   topScale: number;
+  // --- iteration 2 (SIM_VERSION 4) ---
+  /** highest lap number ever reached (a lap taken back and re-crossed is not a new lap) */
+  lapMax: number;
+  /** lapStartTick of the previous lap (restored when a lap is taken back) */
+  lapStartPrev: number;
+  /** fish coins held (0..COINS.max) */
+  coins: number;
+  /** battle: balloons left; out = 1 once eliminated */
+  balloons: number;
+  out: number;
+  /** buffered item press: ticks left and its throw-back flag */
+  itemBuf: number;
+  itemBufBack: number;
+  /** ticks spent going the wrong way (banner at 1.5 s, respawn facing forward at 3 s) */
+  wrongTicks: number;
+  /** alternative route the kart is on, -1 = the main loop */
+  branch: number;
 }
 
 /** One item box (GDD 4). */
@@ -300,7 +382,20 @@ export type RaceEventType =
   | 'lap' // a = lap number just started (2..laps)
   | 'finalLap'
   | 'overtake' // kart passed kart b, a = new place
-  | 'finish'; // a = place, b = finish time in ticks
+  | 'finish' // a = place, b = finish time in ticks
+  // iteration 2
+  | 'coin' // a = coins held
+  | 'coinLoss' // a = coins dropped
+  | 'hazard' // a = HazardKind index (HAZARD_KINDS), b = hazard id
+  | 'wrongWay' // the wrong-way banner is up (respawn facing forward follows if it lasts)
+  | 'checkpoint' // a = checkpoint index, b = ticks since GO
+  | 'balloonPop' // b = attacker or -1
+  | 'balloonSteal' // b = thief
+  | 'eliminated'
+  | 'grudge' // b = target
+  | 'trickLand' // a = pose
+  | 'respawnStart'
+  | 'itemFizzle'; // item id in `item`
 
 export const BoostSource = {
   MiniTurbo: 0,
@@ -333,6 +428,10 @@ export const Modifier = {
 } as const;
 export type Modifier = (typeof Modifier)[keyof typeof Modifier];
 
+/** Race modes (iteration 2): the modes lane owns gp / tt / battle; daily and dare are share-lane routes. */
+export type RaceMode = 'race' | 'gp' | 'tt' | 'battle' | 'daily' | 'dare';
+export const RACE_MODES: readonly RaceMode[] = ['race', 'gp', 'tt', 'battle', 'daily', 'dare'];
+
 export interface RaceConfig {
   track: TrackDef;
   seed: number;
@@ -346,6 +445,13 @@ export interface RaceConfig {
   forgiving: boolean;
   /** stop the race this many ticks after the first human finishes (AI-only races: after the leader) */
   tailTicks?: number;
+  /** default 'race' */
+  mode?: RaceMode;
+  /** battle: the round ends after this many ticks of racing */
+  timeLimitTicks?: number;
+  /** Grand Prix: cup id and race index 0..3 */
+  cupId?: string;
+  raceIndex?: number;
 }
 
 export type RacePhase = 'countdown' | 'race' | 'done';
@@ -365,6 +471,24 @@ export interface RaceState {
   rngHazards: number;
   /** free slot for the items lane (projectiles, traps, cooldowns). Must be plain data; hashed by the items lane. */
   items: Record<string, unknown>;
+  /** free slot for the hazard system (tracks lane), plain data, hashed by it */
+  hazards: Record<string, unknown>;
+  /** free slot for the mode rules (modes lane: battle, tt), plain data, hashed by it */
+  mode: Record<string, unknown>;
+  /** per coin of BuiltTrack.coins: 0 = available, else ticks until it respawns */
+  coins: number[];
+  /**
+   * Per ordered kart pair (index a × karts + b) timers and counters, hashed: event cooldowns (bump, overtake, blocked)
+   * and how many ticks in a row a has been ahead of b (position hysteresis). `blocked` has an extra row for by = -1.
+   */
+  pairs: PairState;
+}
+
+export interface PairState {
+  bump: number[];
+  overtake: number[];
+  blocked: number[];
+  lead: number[];
 }
 
 /** Final result of a race (results screen, share lane). Times are seconds since GO. */
@@ -376,4 +500,38 @@ export interface RaceResult {
   cls: RaceClass;
   seed: number;
   simVersion: number;
+  // iteration 2
+  mode: RaceMode;
+  /** coins the player held at the end */
+  coins: number;
+  /** per-kart numbers built from the event log (core/app/race-stats.ts) */
+  stats: RaceStats[];
+  /** battle: balloons left and eliminated flags per kart */
+  battle?: { balloons: number[]; out: number[] };
+  /** time trial: the player's checkpoint split times in seconds */
+  splits?: number[];
+}
+
+/** Numbers one kart did in one race, built from the event log (core/app/race-stats.ts). Progression reads only this. */
+export interface RaceStats {
+  kart: number;
+  hitsDealt: number;
+  hitsTaken: number;
+  /** mini-turbos by tier: [blue, orange, pink] */
+  miniTurbos: [number, number, number];
+  pounce: boolean;
+  tricks: number;
+  coinsPicked: number;
+  itemsUsed: number;
+  overtakes: number;
+  /** best gain in places from the worst place held after GO to the finish (0 when none) */
+  bestPlaceGain: number;
+  /** worst place held after the first lap began */
+  worstPlace: number;
+  wallHits: number;
+  respawns: number;
+  slipstreams: number;
+  shortcuts: number;
+  balloonPops: number;
+  balloonSteals: number;
 }
