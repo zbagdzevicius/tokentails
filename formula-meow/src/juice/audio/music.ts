@@ -1,11 +1,13 @@
 /**
- * Adaptive race music (GDD 10): 128 BPM synthwave / chiptune, one song (key, chords, patterns) per track theme.
+ * Adaptive race music (GDD 10): synthwave / chiptune, one song (key, chords, patterns) per track theme, plus the
+ * battle arena's song and the menu lounge loop (iteration 2: 8 songs, `songIndexForTrack`, `Music.menu`).
  * Layers: kick, snare, hats, saw bass, gated pad, square arpeggio (through a filter), lead, and a heartbeat kick.
  *
  * Reacts to the race (`musicMix`, pure and unit-tested):
  *   5th–8th: full band plus lead (the chase) · 2nd–4th: no lead, the arpeggio filter opens 800 Hz → 4 kHz as you climb
  *   1st: drums drop to hats plus a heartbeat kick, the lead comes back an octave up (protect the lead)
- *   final lap: 140 BPM, +2 semitones, a riser on the lap line; the closing stretch doubles the hats.
+ *   final lap: +12 BPM (128 → 140), +2 semitones, a riser on the lap line; the closing stretch doubles the hats.
+ *   menus: half-time drums, no heartbeat (`musicMix('menu')`).
  * The countdown is a pad drone with a heartbeat; the band lands on the GO downbeat. Look-ahead scheduler (100 ms).
  * Sidechain pump on the bass and pad from every kick (the synthwave "breathing").
  */
@@ -16,6 +18,8 @@ export type Scale = readonly number[];
 export const MAJOR: Scale = [0, 2, 4, 5, 7, 9, 11];
 export const MINOR: Scale = [0, 2, 3, 5, 7, 8, 10];
 export const DORIAN: Scale = [0, 2, 3, 5, 7, 9, 10];
+export const MIXOLYDIAN: Scale = [0, 2, 4, 5, 7, 9, 10];
+export const PHRYGIAN: Scale = [0, 1, 3, 5, 7, 8, 10];
 
 export interface Song {
   name: string;
@@ -91,7 +95,74 @@ export const SONGS: readonly Song[] = [
     arpWave: 'square',
     padWave: 'sawtooth',
   },
+  {
+    // theme 4: a café at night, fairy lights; a swung, walking bass under a mixolydian hook
+    name: 'Midnight Café',
+    bpm: 124,
+    root: 40, // E2
+    scale: MIXOLYDIAN,
+    prog: [0, 6, 3, 0], // I bVII IV I
+    bass: [0, R, 7, R, 12, R, 10, R, 0, R, 7, R, 12, 10, 7, 4],
+    arp: [0, 2, 4, 2, 1, 3, 5, 3, 0, 2, 4, 5, 4, 2, 1, 2],
+    lead: [4, R, 6, 7, R, 6, 4, R, 2, R, 4, R, R, R, R, R, 7, R, 9, 7, R, 6, 4, R, 6, R, 7, R, 4, R, R, R],
+    leadWave: 'triangle',
+    arpWave: 'triangle',
+    padWave: 'sine',
+  },
+  {
+    // theme 5: the shelter, cosy and hopeful (I IV V vi), a bright square lead
+    name: 'Forever Home Sprint',
+    bpm: 130,
+    root: 43, // G2
+    scale: MAJOR,
+    prog: [0, 3, 4, 5], // I IV V vi
+    bass: [0, R, 12, R, 7, R, 12, R, 0, R, 12, 7, R, 7, 12, R],
+    arp: [0, 1, 2, 4, 2, 1, 0, 2, 3, 2, 1, 2, 4, 5, 4, 2],
+    lead: [2, R, 4, R, 7, R, 6, 4, 5, R, 4, R, 2, R, R, R, 2, R, 4, R, 7, R, 9, R, 8, 7, 6, R, 7, R, R, R],
+    leadWave: 'square',
+    arpWave: 'square',
+    padWave: 'triangle',
+  },
+  {
+    // theme 6: the rug arena (battle): phrygian, driving eighth-note bass
+    name: 'Rug Rumble',
+    bpm: 136,
+    root: 35, // B1
+    scale: PHRYGIAN,
+    prog: [0, 1, 0, 6], // i bII i bVII
+    bass: [0, 0, 12, 0, 0, 0, 12, 0, 0, 0, 12, 0, 1, 1, 13, 1],
+    arp: [0, 3, 1, 3, 2, 3, 1, 3, 0, 3, 1, 3, 2, 4, 5, 4],
+    lead: [7, R, 8, R, 7, R, 5, R, 3, R, 1, R, 0, R, R, R, 7, R, 8, R, 10, R, 8, 7, 8, R, 7, R, 5, R, 3, R],
+    leadWave: 'sawtooth',
+    arpWave: 'square',
+    padWave: 'sawtooth',
+  },
+  {
+    // the menus: a slow lounge loop (I vi ii V), half-time drums
+    name: 'Purr Lounge',
+    bpm: 104,
+    root: 39, // Eb2
+    scale: MAJOR,
+    prog: [0, 5, 1, 4], // I vi ii V
+    bass: [0, R, R, 7, R, R, 12, R, 0, R, R, 7, R, 9, R, 11],
+    arp: [0, 2, 4, 2, 0, 2, 4, 5, 3, 2, 1, 2, 0, 2, 4, 2],
+    lead: [4, R, R, 2, 4, R, 7, R, 6, R, R, R, R, R, R, R, 4, R, R, 2, 4, R, 9, R, 8, R, 7, R, R, R, R, R],
+    leadWave: 'triangle',
+    arpWave: 'sine',
+    padWave: 'triangle',
+  },
 ];
+
+/** Song index per use: tracks pick theme (or `TrackDef.music`); the menus and the arena have their own. */
+export const SONG = { kitchen: 0, rooftops: 1, laundry: 2, yarn: 3, cafe: 4, shelter: 5, arena: 6, menu: 7 } as const;
+
+/** The song a track plays: its `music` field when set, else its theme (the arena kind always gets the battle song). */
+export function songIndexForTrack(t: { theme: number; music?: number; kind?: 'circuit' | 'arena' }): number {
+  if (t.music != null && Number.isInteger(t.music) && t.music >= 0 && t.music < SONGS.length) return t.music;
+  if (t.kind === 'arena') return SONG.arena;
+  // theme 7 is reserved: it falls back to the first song
+  return t.theme >= 0 && t.theme <= 6 ? t.theme : 0;
+}
 
 export function songFor(theme: number): Song {
   return SONGS[((theme % SONGS.length) + SONGS.length) % SONGS.length];
@@ -110,7 +181,7 @@ export function chordTones(song: Song, bar: number): number[] {
   return [...t, ...t.map((x) => x + 12)];
 }
 
-export type MusicMode = 'off' | 'pre' | 'race' | 'results';
+export type MusicMode = 'off' | 'pre' | 'race' | 'results' | 'menu';
 
 export interface MusicMix {
   kick: number;
@@ -134,6 +205,7 @@ export function musicMix(mode: MusicMode, place: number, finalLap: boolean, clos
   const m: MusicMix = { kick: 0, snare: 0, hats: 0, bass: 0, pad: 0, arp: 0, lead: 0, heart: 0, arpCut: 1600, leadUp: 0, hats16: false };
   if (mode === 'off') return m;
   if (mode === 'pre') return { ...m, pad: 0.7, heart: 0.8, arpCut: 900 };
+  if (mode === 'menu') return { ...m, kick: 0.7, snare: 0.45, hats: 0.55, bass: 0.85, pad: 1, arp: 0.55, lead: 0.7, arpCut: 1800 };
   if (mode === 'results') return { ...m, hats: 0.6, bass: 0.7, pad: 1, arp: 0.6, lead: won ? 0.8 : 0, kick: won ? 1 : 0, arpCut: 2400, leadUp: won ? 12 : 0 };
   if (place <= 1) {
     // protect the lead: drums drop, heartbeat, lead an octave up
@@ -205,10 +277,26 @@ export class Music {
     this.timer = setInterval(() => this.schedule(), 25);
   }
 
-  setSong(theme: number): void {
-    this.song = songFor(theme);
+  /** Pick the song by index (`songIndexForTrack`, `SONG.menu`). */
+  setSong(index: number): void {
+    this.song = songFor(index);
     this.bpm = this.song.bpm;
     this.key = 0;
+  }
+
+  get songName(): string {
+    return this.song.name;
+  }
+
+  /** The menu loop (half-time drums), from the top of the song unless it is already playing. */
+  menu(index: number = SONG.menu): void {
+    const same = this.mode === 'menu' && this.song === songFor(index);
+    if (same) return;
+    this.setSong(index);
+    this.mode = 'menu';
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.05;
+    this.apply(musicMix('menu', 8, false, false));
   }
 
   /** Countdown: drone + a 60 BPM heartbeat locked to the 1 s countdown (call again on "3" to re-sync). */
@@ -231,8 +319,9 @@ export class Music {
     this.bus.hats.gain.setTargetAtTime(1, this.ctx.currentTime, 0.01);
   }
 
+  /** Final lap: the tempo lifts 12 BPM (128 → 140) and the key rises a whole tone. */
   finalLap(): void {
-    this.bpm = 140;
+    this.bpm = this.song.bpm + 12;
     this.key = 2;
     // riser across the line: two bars of rising filtered noise and a pitch sweep
     const t = this.ctx.currentTime;
@@ -291,7 +380,7 @@ export class Music {
     const tones = chordTones(song, bar);
     const g = this.g;
     const admit = (prio: number, dur: number) => this.budget.admit(t, prio, dur);
-    const half = this.mode === 'results';
+    const half = this.mode === 'results' || this.mode === 'menu';
 
     if (m.kick > 0 && (half ? s16 === 0 || s16 === 10 : s16 % 4 === 0) && admit(2, 0.2)) {
       tone({ ...g, out: this.bus.kick }, t, { freq: 150, freqEnd: 42, glide: 0.1, peak: 0.9, decay: 0.2 });
