@@ -25,13 +25,26 @@ OG pages) is copied into this package, never imported across packages.
 
 ## What is in it
 
-- Tracks: Kitchen Counter (daylight) and Neon Rooftops (night), 3 laps.
-- Classes: Kitten 50cc, Alley Cat 100cc, Zoomies 150cc (finish a Kitten race to unlock Alley Cat, a top-3 Alley Cat finish unlocks Zoomies).
-- Drift and boost: hop, hold to drift, three charge tiers; Pounce Start on the countdown; ramps and tricks.
-- Items: hairball, yarn, cucumber, catnip, box, bell, zoomies, laser dot; item AI and a rubber band for the pack.
-- Track Doodle (UGC editor): draw a loop, shape it, add stickers, name it, race it; the track travels in the link.
-- Viral loop: Dare a friend (your ghost rides in the link hash), 12 s vertical finish clip, Daily Cup with a
-  Wordle-style share line, your own cat from a photo (stays on the device), Pink Paw link on the results.
+- Menus: a title over a live attract race, then a main menu with Grand Prix, Single race, Time Trial, Balloon
+  Battle, Daily Cup, Track Doodle, Garage, Your cat, Achievements, Stats, Pink Paw, Settings and How to play.
+  Keyboard, gamepad and touch all work. A plain first visit still starts the first race straight away.
+- Modes: Grand Prix (2 cups of 4 races, points, standings, podium, trophies, a rival, resume a cup later);
+  Single race (any track, any unlocked class); Time Trial (personal-best and dev ghosts, splits, medals); Balloon
+  Battle on the Living Room Rug arena.
+- Tracks: Kitchen Counter, Neon Rooftops, Laundry Spin, Yarn Canyon, Cat Café Chaos and Pink Paw Shelter Sprint.
+  Each has an alternative route, hazards, fish coins and ramps.
+- Classes: Kitten 50cc, Alley Cat 100cc, Zoomies 150cc and Mirror. The progression lane's rules unlock them.
+- Progression: fish (in-game only, no money), a Garage with 6 bodies, paints, hats and trails, 24 achievements,
+  three daily challenges and stats. Pink Paw cats become playable as you win trophies.
+- Driving: hop, hold to drift with three charge tiers, Pounce Start, ramp tricks, and a different feel for each body.
+- Items: hairball, yarn, cucumber, catnip, box, bell, zoomies and laser dot; the AI uses items too, and a capped
+  rubber band keeps the pack close.
+- Presentation: cel-shaded karts with hats, trails and animations, a flyover before the race, the respawn hand,
+  particles, bloom on fast devices, 8 synth songs and a cat announcer.
+- Accessibility: reduced motion, colour-blind colours, high contrast, text size and captions.
+- Track Doodle (UGC editor): draw a loop, add stickers (hazards and shortcuts included), race it, share it in a link.
+- Sharing: dare a friend (your ghost rides in the link), a 12 s vertical finish clip, the Daily Cup, racing as your
+  own cat from a photo (the photo stays on the device), and a Pink Paw link on the results.
 
 ## URLs
 
@@ -53,6 +66,9 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
 
 ## Known gaps
 
-- Only two authored tracks.
-- No server: best times, Daily streaks, saved tracks and your cat live on the device; dares and tracks travel in links.
+- No server: best times, fish, Daily streaks, saved tracks and your cat live on the device; dares and tracks travel
+  in links.
+- `SIM_VERSION` 5 (iteration 2): dares, time-trial ghosts and records from earlier versions show their time, but
+  their ghost cannot race.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.
+- The minimap draws the main loop only, not the alternative routes.

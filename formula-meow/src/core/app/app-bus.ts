@@ -10,7 +10,7 @@ export interface AppEvents {
   screen: { id: ScreenId | null; prev: ScreenId | null };
   raceStart: { mode: RaceMode; trackId: string; cls: RaceClass; cupId?: string; raceIndex?: number };
   raceEnd: { result: RaceResult; stats: RaceStats[]; mode: RaceMode };
-  cupEnd: { cupId: string; cls: RaceClass; place: number; points: number };
+  cupEnd: { cupId: string; cls: RaceClass; place: number; points: number; mirror?: boolean };
   unlock: { kind: string; id: string };
   achievement: { id: string };
   fishEarned: { amount: number; reasons: Array<{ label: string; amount: number }> };

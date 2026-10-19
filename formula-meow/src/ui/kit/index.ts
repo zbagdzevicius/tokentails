@@ -241,16 +241,14 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   // gamepad: edge-triggered, with a repeat for a held direction
   const prev: Record<string, boolean> = {};
   let held = 0;
-  const poll = () => {
-    if (!alive) return;
-    requestAnimationFrame(poll);
-    if (root.hidden || !root.isConnected || !navigator.getGamepads) return;
+  const sample = (): Record<string, boolean> | null => {
+    if (!navigator.getGamepads) return null;
     for (const p of navigator.getGamepads()) {
       if (!p || !p.connected) continue;
       const b = (i: number) => !!p.buttons[i] && p.buttons[i].pressed;
       const ax = p.axes[0] ?? 0;
       const ay = p.axes[1] ?? 0;
-      const dirs: Record<string, boolean> = {
+      return {
         up: b(12) || ay < -0.6,
         down: b(13) || ay > 0.6,
         left: b(14) || ax < -0.6,
@@ -258,6 +256,22 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
         a: b(0),
         b: b(1),
       };
+    }
+    return null;
+  };
+  // [integrator] a button still held from the previous screen is not a new press: read the pad at mount, and keep
+  // reading it while this layer is hidden under another one (one A press used to click through two screens)
+  Object.assign(prev, sample() ?? {});
+  const poll = () => {
+    if (!alive) return;
+    requestAnimationFrame(poll);
+    if (root.hidden || !root.isConnected) {
+      Object.assign(prev, sample() ?? {});
+      held = 0;
+      return;
+    }
+    const dirs = sample();
+    if (dirs) {
       let any = false;
       for (const [k, on] of Object.entries(dirs)) {
         const edge = on && !prev[k];
@@ -279,7 +293,6 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
         prev[k] = on;
       }
       held = any ? held + 1 : 0;
-      break;
     }
   };
   requestAnimationFrame(poll);

@@ -22,6 +22,7 @@ export type ScreenId =
   | 'podium'
   | 'tt'
   | 'battle'
+  | 'race'
   | 'garage'
   | 'achievements'
   | 'stats'

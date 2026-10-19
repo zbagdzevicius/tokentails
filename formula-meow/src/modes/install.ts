@@ -51,6 +51,7 @@ export function installModes(shell: Shell): ModesFlow {
   registerScreen('cup', () => import('./screens/cup'));
   registerScreen('tt', () => import('./screens/tt'));
   registerScreen('battle', () => import('./screens/battle'));
+  registerScreen('race', () => import('./screens/race')); // [integrator] single race
   registerScreen('standings', () => import('./screens/standings'));
   registerScreen('podium', () => import('./screens/podium'));
   // shared screens nobody else installed (another lane's own version wins: it installs first)

@@ -124,6 +124,8 @@ export class KartView {
     this.body.add(this.cat.root);
     this.hat = buildHat(info.hat);
     if (this.hat) this.cat.head.add(this.hat);
+    // [integrator] this view draws the hat (and race-view the trail): the progression lane's fallbacks stand down
+    this.root.userData.cosmetics = true;
 
     const flameGeo = new ConeGeometry(0.22, 1.1, 8);
     flameGeo.rotateX(-Math.PI / 2);

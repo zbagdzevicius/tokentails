@@ -262,11 +262,15 @@ describe('physics (iteration 2)', () => {
       const w = world(raceConfig(def, { seed: 4 }));
       let worst = 0;
       const prevY = w.st.karts.map((k) => k.y);
+      // [integrator] the tick the respawn hand sets a kart down is a placement, not a step (a fall into Yarn's gap or
+      // off its bridge lands it back on the deck)
+      const prevResp = w.st.karts.map((k) => k.respawnTicks);
       while (!w.done && w.tick < GO_TICK + 60 * 40) {
         w.step();
         w.st.karts.forEach((k, i) => {
-          if (!k.air && k.respawnTicks === 0 && prevY[i] !== undefined) worst = Math.max(worst, k.y - prevY[i] - PHYS.stepGrade * speedOf(k) * DT);
+          if (!k.air && k.respawnTicks === 0 && prevResp[i] === 0 && prevY[i] !== undefined) worst = Math.max(worst, k.y - prevY[i] - PHYS.stepGrade * speedOf(k) * DT);
           prevY[i] = k.y;
+          prevResp[i] = k.respawnTicks;
         });
       }
       expect(worst).toBeLessThanOrEqual(PHYS.stepUp + 0.4); // a ramp lip / landing tick, never the 0.6–0.9 m pops

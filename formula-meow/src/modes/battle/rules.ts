@@ -188,7 +188,8 @@ export function createBattleRules(): ModeRules {
       for (let i = 0; i < b.stealCd.length; i++) if (b.stealCd[i] > 0) b.stealCd[i]--;
       let alive = 0;
       for (const k of st.karts) if (!k.out) alive++;
-      const limit = ctx.cfg.timeLimitTicks ?? BATTLE_TICKS;
+      // [integrator] the round clock is 3:00 even if `timeLimitTicks` is longer (tests pass a safety margin)
+      const limit = Math.min(ctx.cfg.timeLimitTicks ?? BATTLE_TICKS, BATTLE_TICKS);
       if (alive <= 1 || st.tick + 1 - ctx.goTick >= limit || (b.endAt >= 0 && st.tick >= b.endAt)) finish(ctx);
     },
     isOver(ctx) {

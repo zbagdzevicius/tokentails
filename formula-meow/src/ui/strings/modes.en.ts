@@ -232,4 +232,10 @@ export const MODES_EN: Record<string, string> = {
   'Gold trophy!': 'Gold trophy!',
   'Silver trophy!': 'Silver trophy!',
   'Bronze trophy!': 'Bronze trophy!',
+  // [integrator] single race
+  'Single race': 'Single race',
+  'One race, any track': 'One race, any track',
+  'Any track, any class': 'Any track, any class',
+  '{n} laps': '{n} laps',
+  'Race! ▶': 'Race! ▶',
 };

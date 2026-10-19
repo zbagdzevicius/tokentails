@@ -140,7 +140,10 @@ export class GhostRunner implements JuiceListener {
       seed: g.seed,
       cls: g.cls,
       modifiers: g.modifiers,
-      racers: buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: d.name, playerCat: cat, playerKart: { ...kartLookFor(0), body: g.body ?? 0 } }),
+      // [integrator] the rival AI drives differently (feel lane): the shadow race marks the same slot
+      racers: buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: d.name, playerCat: cat, playerKart: { ...kartLookFor(0), body: g.body ?? 0 } }).map((r, i) =>
+        i === g.rival && i !== slot ? { ...r, rival: true } : r,
+      ),
       humans: [slot],
       forgiving: g.forgiving,
       mode: g.mode ?? 'race',

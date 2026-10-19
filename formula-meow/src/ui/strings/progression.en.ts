@@ -270,4 +270,5 @@ export const PROGRESSION_EN: Record<string, string> = {
   "📊 Stats": "📊 Stats",
   "🔒 Podium": "🔒 Podium",
   "🔒 Trophy {n}": "🔒 Trophy {n}",
+  "Races in this cup": "Races in this cup",
 };

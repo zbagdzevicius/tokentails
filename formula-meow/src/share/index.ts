@@ -298,7 +298,7 @@ export function installShare(shell: Shell): void {
       const fin = events.find((e) => e.type === 'finish' && e.kart === me);
       const inputs = fin ? replay.inputs.slice(0, fin.tick + 2) : replay.inputs;
       const ghostP = encodeGhost(
-        { trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me, body: cfg.racers[me]?.kart.body ?? 0, mode: cfg.mode ?? 'race' },
+        { trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me, body: cfg.racers[me]?.kart.body ?? 0, mode: cfg.mode ?? 'race', rival: cfg.racers.findIndex((r, i) => i !== me && !!r.rival) },
         inputs,
       );
       // B49: a fast Again must not let this run's link leak into the next race's caption

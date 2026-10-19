@@ -4,7 +4,8 @@
  * may be deflate-raw, and a CRC-16 covers everything. base64url.
  *
  *   byte 0      version:4 | flags:4 (bit 0 = runs are deflate-raw)
- *   header      trackKey:32  seed:32  cls:2 modifiers:6  forgiving:1 slot:3 reserved:4  simVersion:8  ticks:16
+ *   header      trackKey:32  seed:32  cls:2 modifiers:6  forgiving:1 slot:3 rival:4  simVersion:8  ticks:16
+ *               (rival: the rival AI's grid slot + 1, 0 = none; iteration 2 integration, was reserved and always 0)
  *   (v2 only)   body:3 mode:3 reserved:2      (iteration 2: the player's kart body and the race mode)
  *   runs        packed TickInput:10 (types.ts packInput), count as 3-bit groups with a continuation bit
  *   crc16
@@ -42,6 +43,8 @@ export interface GhostHeader {
   body?: BodyId;
   /** race mode (v1 links: 'race') */
   mode?: RaceMode;
+  /** grid slot of the rival AI (RacerInfo.rival; it drives differently, so the shadow race needs it), -1 / absent = none */
+  rival?: number;
 }
 
 export interface Ghost extends GhostHeader {
@@ -67,7 +70,7 @@ function packHeader(g: GhostHeader): Uint8Array {
   w.write(g.modifiers & 63, 6);
   w.write(g.forgiving ? 1 : 0, 1);
   w.write(g.slot & 7, 3);
-  w.write(0, 4);
+  w.write(g.rival != null && g.rival >= 0 && g.rival < 15 ? g.rival + 1 : 0, 4);
   w.write(g.simVersion & 0xff, 8);
   w.write(Math.min(GHOST_MAX_TICKS, g.ticks), 16);
   w.write((g.body ?? 0) & 7, 3);
@@ -86,7 +89,7 @@ function readHeader(b: Uint8Array, version: number): GhostHeader | null {
   const modifiers = r.read(6);
   const forgiving = r.read(1) === 1;
   const slot = r.read(3);
-  r.read(4);
+  const rival = r.read(4) - 1;
   const simVersion = r.read(8);
   const ticks = r.read(16);
   if (cls > 2) return null;
@@ -99,7 +102,7 @@ function readHeader(b: Uint8Array, version: number): GhostHeader | null {
     body = bv as BodyId;
     mode = RACE_MODES[mv];
   }
-  return { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks, body, mode };
+  return { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks, body, mode, rival };
 }
 
 type Run = [value: number, count: number];

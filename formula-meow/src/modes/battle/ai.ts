@@ -174,6 +174,29 @@ export function createBattleAI(): AIDriver {
         ax = t.px[a] - t.tz[a] * d;
         az = t.pz[a] + t.tx[a] * d;
       }
+      // [integrator] the arena's furniture (`track.blocks`, solid in the tracks lane's rules): steer round the first
+      // one in the way, on the side the kart is already on
+      if (t.blocks.length) {
+        const ex = ax - me.x;
+        const ez = az - me.z;
+        const el = Math.sqrt(ex * ex + ez * ez) || 1;
+        const ux = ex / el;
+        const uz = ez / el;
+        let best = Infinity;
+        for (const bl of t.blocks) {
+          const bx = bl.x - me.x;
+          const bz = bl.z - me.z;
+          const along = bx * ux + bz * uz;
+          if (along <= 0 || along > Math.min(el, 14) + bl.r || along >= best) continue;
+          const side = bx * uz - bz * ux;
+          const clearR = bl.r + 1.8;
+          if (Math.abs(side) >= clearR) continue;
+          best = along;
+          const s = side >= 0 ? -1 : 1;
+          ax = bl.x + uz * s * (bl.r + 2.6);
+          az = bl.z - ux * s * (bl.r + 2.6);
+        }
+      }
       const err = dirTo(ctx, i, ax, az);
       out.steer = Math.round(clamp(-err * GAIN, -1, 1) * 7);
       out.gas = true;
