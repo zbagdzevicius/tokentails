@@ -33,6 +33,11 @@ applies it. Lanes never edit `SIM_VERSION`.
 
 ### Lanes
 
+New modules by lane: modes `src/modes/{flow,hooks,store,boot,results}.ts`, `modes/{gp,tt,battle,hud,stage,screens}/`;
+tracks `src/core/track/branch*.ts`, `src/core/track/tracks/extras.ts`, `src/tracks/{hazards,view}/`; feel
+`src/core/render/{hats,particles,respawn-hand,kart-bodies,glyphs}.ts`, `src/core/render/actors/`, `src/juice/perf/post.ts`; progression
+`src/progression/**`; audio-ui `src/juice/audio/**`, `src/core/hud/**`, `src/ui/screens/{settings,howto}.ts`.
+
 | Lane | Owns | Install |
 |---|---|---|
 | modes | `src/modes/**`, `src/content/cups.ts`, `src/ui/strings/modes.en.ts`, `e2e/modes.spec.ts` | `src/modes/install.ts` |
@@ -74,6 +79,34 @@ applies it. Lanes never edit `SIM_VERSION`.
   Stabilise ships `chase` and `lookBack`, the rest fall back to chase until feel implements them.
 - **Hazards** (`src/tracks/hazards/registry.ts`): `registerHazard(kind, { init?, step })`, state in
   `RaceState.hazards`, sim math only (the lint in `fixed.test.ts` covers `src/tracks/hazards` and `src/modes/battle`).
+
+### Integration (iteration 2, done)
+
+The five lanes are merged on `feat/formula-meow`. `SIM_VERSION` is 5, and the golden hash is regenerated.
+`src/integration.ts` (installed last in `lanes.ts`) does the wiring the lanes could not do from their own files:
+
+- **Unlocks:** the modes lane's menus ask the progression rules (`progression/api.ts`) through `setUnlockProvider`.
+  This covers classes, Mirror, the Catnip Cup, Battle, owned bodies and hats, and the Pink Paw cats.
+- **One loadout:** `ModesFlow.look` and `setLook` (`modes/flow.ts`) read and write the progression loadout. The racer
+  select and the Garage edit the same body, paint, number, hat and cat. Paints are `PAINT_PRESETS`.
+- **Rivals:** progression keeps a rival that the modes Grand Prix field already names (`progression/loadout.ts`).
+  The ghost header's former reserved 4 bits now carry the rival slot + 1, so the shadow race of a Daily Cup dare
+  drives the same rival AI (`share/codec/ghost-codec.ts`, `share/links/ghost-runner.ts`).
+- **Single race:** a `race` screen (`modes/screens/race.ts`) and a menu tile, reached through the racer select.
+- **Time trial medals** are paid by progression (`recordMedal`). `cupEnd` carries `mirror`.
+- **HUD:** the race HUD (audio-ui) draws the battle clock, your balloons and the rival chip. The mode HUD keeps only
+  the per-cat balloon list and the balloons over the karts.
+- **Cosmetics:** `KartView` draws hats (named `fm-hat`) and `race-view` draws trails, and sets
+  `root.userData.cosmetics`. Progression's fallback hat and trail stand down.
+- **Battle:** the round ends on the 3:00 clock (`timeLimitTicks` is only the safety net), and the arena AI steers
+  round the furniture (`track.blocks`).
+- **Balance after the longer tracks:** the player bot dodges hazards and takes a faster branch the way an AI of
+  its skill would (`hazardDodge` / `takesBranch` take a `botSkill`). It also lifts off when it is far off its line.
+  The AI takes shortcuts less often (32 % skilled, 14 % others). The 50cc band is 0.83–0.96 and the 150cc floor
+  is 0.81. Measured on all six tracks with 20 seeds each: 50cc bot podium 80–90 %, spread 10–14 s; 150cc podium
+  20–50 % (mean 32 %), spread 5.5–9 s.
+- **Shell and kit fixes:** `focusNav` reads the pad at mount and while its layer is hidden, so a held button is
+  not a new press. A pause that is resumed before its layer loads takes the layer down again.
 
 ### Checks
 

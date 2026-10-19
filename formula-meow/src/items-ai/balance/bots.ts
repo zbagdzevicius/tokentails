@@ -19,8 +19,10 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
   }
   // a human wobbles a little around the line
   const wob = sinL(st.tick * 0.05 + me) * (1 - skill) * 0.5;
-  followLine(ctx, me, out, wob);
+  const err = followLine(ctx, me, out, wob, 1, skill);
   const k = st.karts[me];
+  // [integrator] way off the line at speed (a late turn-in for a branch): lift, as a player would
+  if (Math.abs(err) > 0.45 && speedOf(k) > 18 && k.driftDir === 0) out.gas = false;
   const c = curvatureAhead(ctx, k.si, 2, 14);
   const turn = c > 0 ? -1 : 1;
   if (k.driftDir === 0 && Math.abs(c) > 0.035 && speedOf(k) > 12 && out.steer * turn >= 2) {

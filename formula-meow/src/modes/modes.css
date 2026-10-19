@@ -169,22 +169,21 @@
 .fm-m-res-big { margin: 2px 0; font-size: 20px; font-weight: 900; color: #b0246f; }
 
 /* ---------------------------------------------------------------- mode HUD (in races) */
+/* [integrator] the lap slot is the battle clock in the race HUD (audio-ui), so it stays */
 .fm-hud[data-fm-mode='battle'] .fm-pos,
-.fm-hud[data-fm-mode='battle'] .fm-lap,
 .fm-hud[data-fm-mode='battle'] .fm-time,
 .fm-hud[data-fm-mode='tt'] .fm-pos { display: none; }
 .fm-mode-hud { position: fixed; inset: 0; z-index: 11; pointer-events: none; display: none; font-family: var(--fm-font); font-weight: 900; color: var(--cream); }
 .fm-mode-hud.on { display: block; }
 .fm-mode-hud > div { display: none; }
-.fm-mode-hud[data-mode='battle'] .fm-mh-clock,
-.fm-mode-hud[data-mode='battle'] .fm-mh-mine,
-.fm-mode-hud[data-mode='battle'] .fm-mh-list,
-.fm-mode-hud[data-mode='gp'] .fm-mh-rival:not(:empty) { display: block; }
+/* [integrator] the race HUD (audio-ui) draws the clock, your balloons and the rival chip from the HudModel; the mode
+   HUD keeps only what the race HUD has no slot for: every cat's balloons in battle */
+.fm-mode-hud[data-mode='battle'] .fm-mh-list { display: block; }
 .fm-mh-clock { position: absolute; left: 50%; transform: translateX(-50%); top: calc(84px + env(safe-area-inset-top)); font-size: 30px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fm-mh-clock .hot { color: #ff5a5f; }
 .fm-mh-mine { position: absolute; left: calc(12px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top)); font-size: 38px; letter-spacing: -6px; }
 .fm-mh-mine .out { font-size: 34px; letter-spacing: 0; color: #ff5a5f; }
-.fm-mh-list { position: absolute; left: calc(10px + env(safe-area-inset-left)); top: calc(62px + env(safe-area-inset-top)); width: 124px; font-size: 13px; }
+.fm-mh-list { position: absolute; left: calc(10px + env(safe-area-inset-left)); top: calc(92px + env(safe-area-inset-top)); width: 124px; font-size: 13px; }
 .fm-mh-list .r { display: grid; grid-template-columns: 12px 1fr auto; gap: 5px; align-items: center; padding: 2px 6px; margin-bottom: 2px; border-radius: 8px; background: rgba(26, 18, 56, 0.55); }
 .fm-mh-list .r.me { background: rgba(255, 62, 165, 0.8); }
 .fm-mh-list .r.out { opacity: 0.45; text-decoration: line-through; }
@@ -194,6 +193,6 @@
 .fm-mh-rival small { color: var(--rose); font-size: 11px; display: block; letter-spacing: 0.08em; }
 @media (orientation: landscape) and (max-height: 500px) {
   .fm-mh-rival { top: calc(64px + env(safe-area-inset-top)); }
-  .fm-mh-list { top: calc(54px + env(safe-area-inset-top)); }
+  .fm-mh-list { top: calc(164px + env(safe-area-inset-top)); font-size: 11px; }
   .fm-mh-clock { top: calc(76px + env(safe-area-inset-top)); }
 }

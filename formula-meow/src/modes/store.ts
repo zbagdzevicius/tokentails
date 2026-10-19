@@ -57,7 +57,7 @@ export interface ModesSave {
   v: 1;
   /** the menu has been reached once (first boot runs the FTUE race instead) */
   menuSeen: boolean;
-  last: { cls: ClassPick; cupId: CupId; ttTrack: string; ttCls: ClassPick; ghost: GhostPick; focus: string };
+  last: { cls: ClassPick; cupId: CupId; ttTrack: string; ttCls: ClassPick; ghost: GhostPick; focus: string; quickTrack: string; quickCls: ClassPick };
   /** the player's racer: 'own' (the cat maker's cat), 'tofu' (default) or a Pink Paw id */
   look: { cat: string; body: BodyId; paint: number; hat: number; number: number };
   cup: CupRun | null;
@@ -77,7 +77,7 @@ export interface ModesSave {
 export const DEFAULT_MODES: ModesSave = {
   v: 1,
   menuSeen: false,
-  last: { cls: 0, cupId: 'kibble', ttTrack: 'kitchen', ttCls: 0, ghost: 'pb', focus: 'gp' },
+  last: { cls: 0, cupId: 'kibble', ttTrack: 'kitchen', ttCls: 0, ghost: 'pb', focus: 'gp', quickTrack: 'kitchen', quickCls: 0 },
   look: { cat: 'own', body: 0, paint: 0, hat: 0, number: 7 },
   cup: null,
   trophies: {},
@@ -148,6 +148,7 @@ export function migrateModes(raw: unknown): ModesSave {
   const last = isObj(v.last) ? v.last : {};
   const look = isObj(v.look) ? v.look : {};
   const ttTrack = str(last.ttTrack, d.last.ttTrack);
+  const quickTrack = str(last.quickTrack, d.last.quickTrack);
   const devTimes: Record<string, number | null> = {};
   if (isObj(v.devTimes)) for (const [k, x] of Object.entries(v.devTimes)) if (x === null || (typeof x === 'number' && isFinite(x) && x > 0)) devTimes[k] = x as number | null;
   const battle = isObj(v.battle) ? v.battle : {};
@@ -161,6 +162,8 @@ export function migrateModes(raw: unknown): ModesSave {
       ttCls: clsPick(last.ttCls, d.last.ttCls),
       ghost: last.ghost === 'dev' || last.ghost === 'off' ? last.ghost : 'pb',
       focus: str(last.focus, d.last.focus).slice(0, 24),
+      quickTrack: (TRACK_IDS as readonly string[]).includes(quickTrack) ? quickTrack : d.last.quickTrack,
+      quickCls: clsPick(last.quickCls, d.last.quickCls),
     },
     look: {
       cat: str(look.cat, d.look.cat).slice(0, 32),

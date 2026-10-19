@@ -71,6 +71,11 @@ test('title → menu → Grand Prix, four races → standings → podium → men
   const after = await page.evaluate(() => (window as unknown as Win).__fmModes!.save);
   expect(after.cup).toBeNull();
   await page.locator('[data-screen="podium"] [data-act="menu"]').click();
+  // [integrator] the progression lane's cup rewards (fish from the four races, the trophy) open over the menu
+  await expect.poll(() => topId(page), { timeout: 10_000 }).toBe('rewards');
+  await expect(page.locator('[data-screen="rewards"] .fm-prog-reasons')).toContainText('cup');
+  await page.screenshot({ path: 'e2e/screens/modes-rewards.png' });
+  await page.locator('[data-screen="rewards"] [data-act="continue"]').click();
   await expect(page.locator('[data-screen="menu"]')).toBeVisible();
   await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fm?.shell.attract), { timeout: 20_000 }).toBe(true);
   expect(errors).toEqual([]);
@@ -139,7 +144,7 @@ test('every menu screen opens by touch and goes back', async ({ browser }) => {
   await expect(page.locator('[data-screen="title"]')).toBeVisible({ timeout: 20_000 });
   await page.touchscreen.tap(195, 420);
   await expect(page.locator('[data-screen="menu"]')).toBeVisible();
-  const expectTop: Record<string, string> = { gp: 'select', tt: 'select', battle: 'select', doodle: 'tracks', garage: 'select', pinkpaw: 'pinkpaw', settings: 'settings', howto: 'howto' };
+  const expectTop: Record<string, string> = { gp: 'select', race: 'select', tt: 'select', battle: 'select', doodle: 'tracks', garage: 'garage', pinkpaw: 'pinkpaw', settings: 'settings', howto: 'howto', achievements: 'achievements', stats: 'stats' };
   for (const [tile, screen] of Object.entries(expectTop)) {
     await page.locator(`[data-tile="${tile}"]`).tap();
     await expect.poll(() => topId(page), { timeout: 10_000 }).toBe(screen);
@@ -178,13 +183,13 @@ test('keyboard and gamepad move a visible focus through the menus', async ({ pag
   const focused = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.tile ?? null);
   await expect.poll(focused).toBe('gp');
   await page.keyboard.press('ArrowRight');
-  await expect.poll(focused).toBe('tt');
+  await expect.poll(focused).toBe('race');
   const ring = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
   expect(ring).not.toBe('none');
   await page.keyboard.press('ArrowDown');
-  await expect.poll(focused).not.toBe('tt');
+  await expect.poll(focused).not.toBe('race');
   await page.keyboard.press('ArrowUp');
-  await expect.poll(focused).toBe('tt');
+  await expect.poll(focused).toBe('race');
   await page.keyboard.press('Enter');
   await expect.poll(() => topId(page)).toBe('select');
   await page.keyboard.press('Escape');
@@ -197,11 +202,11 @@ test('keyboard and gamepad move a visible focus through the menus', async ({ pag
     await page.waitForTimeout(400);
   };
   // the menu gives the focus back to the tile that opened the screen
-  await expect.poll(focused).toBe('tt');
+  await expect.poll(focused).toBe('race');
   await page.locator('[data-tile="gp"]').focus();
   await expect.poll(focused).toBe('gp');
   await press(15); // D-pad right
-  await expect.poll(focused).toBe('tt');
+  await expect.poll(focused).toBe('race');
   await page.screenshot({ path: 'e2e/screens/modes-pad-focus.png' });
   await press(0); // A
   await expect.poll(() => topId(page)).toBe('select');

@@ -29,9 +29,9 @@ export interface ClassTuning {
 
 export const CLASSES: readonly ClassTuning[] = [
   // skill bands are 1.6× wider than v1 (feel lane): the field spreads out instead of driving as one pack
-  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.78, aiTopHi: 0.99 },
+  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.83, aiTopHi: 0.96 },
   { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.66, 0.9], bandDown: 0.03, bandUp: 0.04, aiTop: 0.82, aiTopHi: 1 },
-  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.84, 1], bandDown: 0.01, bandUp: 0.045, aiTop: 0.78, aiTopHi: 1 },
+  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.84, 1], bandDown: 0.01, bandUp: 0.045, aiTop: 0.81, aiTopHi: 1 },
 ];
 
 export function classTuning(cls: RaceClass): ClassTuning {

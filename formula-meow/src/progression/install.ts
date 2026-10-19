@@ -150,6 +150,8 @@ export function installProgression(shell: Shell): void {
       }
       const kv = v.karts[f.me];
       if (!kv) return;
+      // [integrator] the feel lane's views draw hats and trails themselves (KartView marks userData.cosmetics)
+      if (kv.root.userData.cosmetics) return;
       const k = f.st.karts[f.me];
       const sp = Math.hypot(k.vx, k.vz);
       const racing = f.st.phase !== 'countdown' && !f.paused && kv.root.visible;

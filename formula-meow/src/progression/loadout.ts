@@ -95,7 +95,10 @@ export function dressRequest(req: RaceRequest, s: ProgSave, d: DressDeps, cupRiv
     if (shelter) dedupeShelterCat(racers, slot, shelter.id);
   }
   let rival: Dressed['rival'] = null;
-  if (rivalMode(req.mode)) {
+  // [integrator] a field from another lane that already names its rival (the modes lane's Grand Prix) keeps it
+  const given = foreign ? racers.findIndex((r, i) => !humans.includes(i) && !!r.rival) : -1;
+  if (given >= 0) rival = { kart: given, name: racers[given].name };
+  else if (rivalMode(req.mode)) {
     let idx = req.mode === 'gp' && cupRival ? rivalByName(racers, humans, cupRival) : -1;
     if (idx < 0 && req.mode === 'gp' && cupRival) idx = bringRival(racers, humans, cupRival);
     if (idx < 0) idx = pickRival(racers, humans, req.mode === 'gp' ? s.lastRival : null);

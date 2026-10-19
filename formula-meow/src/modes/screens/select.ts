@@ -12,10 +12,10 @@ import { DEFAULT_CAT, rgb888, type BodyId } from '../../types';
 import { clearYourCat, saveYourCat, yourCat } from '../../share/yourcat/store';
 import { h, statBars, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
-import { flow, PAINTS } from '../flow';
+import { flow, PAINTS, type Look } from '../flow';
 import { chip, focusFirst, frame, hex, plain, primary, guardedBack } from './ui';
 
-export type SelectNext = 'gp' | 'tt' | 'battle' | 'garage';
+export type SelectNext = 'gp' | 'race' | 'tt' | 'battle' | 'garage';
 
 const HAT_ICON = ['—', '👑', '🧢', '🎀', '🎩', '🌀', '👨‍🍳', '🥳', '🏴‍☠️'];
 
@@ -36,15 +36,15 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
   });
   fr.body.append(bar, pane);
 
-  const set = (fn: (l: ReturnType<typeof flow>['save']['look']) => void) => {
-    f.update((s) => fn(s.look));
+  const set = (fn: (l: Look) => void) => {
+    f.setLook(fn);
     f.refreshShowroom();
     render();
   };
 
   function render(): void {
     pane.innerHTML = '';
-    const look = f.save.look;
+    const look = f.look;
     if (tab === 0) {
       const row = h('div', { class: 'fm-m-chips' });
       const choices = f.catChoices();
@@ -107,6 +107,7 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
 
   const ready = () => {
     if (next === 'gp') void screens.push('class');
+    else if (next === 'race') void screens.push('race');
     else if (next === 'tt') void screens.push('tt');
     else if (next === 'battle') void screens.push('battle');
     else screens.back();

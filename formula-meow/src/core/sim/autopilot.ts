@@ -36,9 +36,9 @@ export function curvatureAhead(ctx: SimContext, si: number, from: number, to: nu
  * lookMin..lookMax (B15: a fixed long look cut corners into the inside wall on doodle tracks). The target stays
  * `AI.edge` inside the road edge.
  */
-export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale = 1): number {
+export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale = 1, dodgeSkill?: number): number {
   // [tracks lane] on a branch, or heading for one this kart chose: steer along the branch (core/track/branch-ai.ts)
-  const viaBranch = branchSteer(ctx, idx, out, bias, lookScale);
+  const viaBranch = branchSteer(ctx, idx, out, bias, lookScale, dodgeSkill);
   if (viaBranch !== null) return viaBranch;
   const t = ctx.track;
   const k = ctx.st.karts[idx];

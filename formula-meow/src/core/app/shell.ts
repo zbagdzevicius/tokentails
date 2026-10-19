@@ -697,7 +697,11 @@ export class Shell {
     if (!this.world || this.resultsShown || this.attract) return;
     if (on === this.paused) return;
     this.paused = on;
-    if (on) void screens.push('pause');
+    if (on)
+      void screens.push('pause').then(() => {
+        // [integrator] resumed while the pause layer was still loading (☰ or Esc twice quickly): take it down again
+        if (!this.paused) screens.remove('pause');
+      });
     else {
       screens.remove('settings');
       screens.remove('pause');

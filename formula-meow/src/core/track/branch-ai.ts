@@ -70,14 +70,16 @@ function gapSpeed(b: BuiltBranch): number {
 }
 
 /** Will AI kart `idx` take branch `b` this lap? (made once, then remembered in the plan) */
-export function takesBranch(ctx: SimContext, idx: number, b: BuiltBranch): boolean {
+export function takesBranch(ctx: SimContext, idx: number, b: BuiltBranch, botSkill?: number): boolean {
   const k = ctx.st.karts[idx];
+  const p = ctx.cfg.racers[idx]?.ai;
+  // a human kart (the player's bot asks too, from outside the sim step) never has a plan, and never writes one.
+  // [integrator] the scripted player bot (`botSkill`) takes a faster branch like an AI of its skill would, decided
+  // from the same (seed, kart, lap, branch) hash and the track alone, so it needs no saved plan
+  if (!p) return botSkill !== undefined && botTakes(ctx, idx, b, botSkill);
   const plan = planOf(ctx);
   const key = (k.lapMax * 16 + b.id + 1) * 2;
   if (plan[idx] >> 1 === key >> 1) return (plan[idx] & 1) === 1;
-  const p = ctx.cfg.racers[idx]?.ai;
-  // a human kart (the player's bot asks too, from outside the sim step) never has a plan, and never writes one
-  if (!p) return false;
   let take = false;
   {
     const boosting = k.boostTicks > 20;
@@ -90,10 +92,22 @@ export function takesBranch(ctx: SimContext, idx: number, b: BuiltBranch): boole
       if (top * 0.97 < gapSpeed(b)) faster = false;
     }
     const u = rngFloat(seedRng(fnvInt(fnvInt(fnvInt(fnvInt(FNV_OFFSET, ctx.cfg.seed), idx), k.lapMax), b.id)));
-    take = faster ? u < (p.skill >= 0.6 ? 0.45 : 0.18) : u < 0.12 && !b.gap;
+    take = faster ? u < (p.skill >= 0.6 ? 0.32 : 0.14) : u < 0.12 && !b.gap;
   }
   plan[idx] = key | (take ? 1 : 0);
   return take;
+}
+
+function botTakes(ctx: SimContext, idx: number, b: BuiltBranch, skill: number): boolean {
+  if (b.tBranch >= b.tMain * 0.995) return false;
+  if (b.gap) {
+    const g = b.gap;
+    const padded = b.pads.some((pad) => pad.j < g.j0 && (g.j0 - pad.j) * b.step < 40);
+    if (ctx.tun.topSpeed * (padded ? 1.3 : 1) * 0.97 < gapSpeed(b)) return false;
+  }
+  const k = ctx.st.karts[idx];
+  const u = rngFloat(seedRng(fnvInt(fnvInt(fnvInt(fnvInt(FNV_OFFSET, ctx.cfg.seed), idx), k.lapMax), b.id)));
+  return u < (skill >= 0.6 ? 0.45 : 0.18);
 }
 
 /** Scratch steering target. */
@@ -105,14 +119,14 @@ const loc = { a: 0, d: 0 };
  * Steer kart `idx` along a branch it is on or has chosen, or round a hazard on its way (null = neither: use the main
  * racing line). Mirrors `followLine`: a point `look` metres ahead, the racing line plus `bias`, a chord correction.
  */
-export function branchSteer(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale: number): number | null {
+export function branchSteer(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale: number, dodgeSkill?: number): number | null {
   route.on = false;
   const t = ctx.track;
   if (!t.branches.length && !t.hazards.length) return null;
   const k = ctx.st.karts[idx];
   const sp = Math.sqrt(k.vx * k.vx + k.vz * k.vz);
   const look = clamp(sp * AI.lookTime, AI.lookMin, AI.lookMax) * lookScale;
-  if (!branchTarget(ctx, idx, look, bias) && !dodgeTarget(ctx, idx, look) && !junctionTarget(ctx, idx, look, bias)) return null;
+  if (!branchTarget(ctx, idx, look, bias, dodgeSkill) && !dodgeTarget(ctx, idx, look, dodgeSkill) && !junctionTarget(ctx, idx, look, bias)) return null;
   const want = atan2L(tgt.x - k.x, tgt.z - k.z);
   const face = k.driftDir !== 0 ? atan2L(k.vx, k.vz) : k.heading;
   const err = wrapAngle(want - face);
@@ -132,7 +146,7 @@ export function branchSteer(ctx: SimContext, idx: number, out: TickInput, bias: 
 }
 
 /** The steering target along a branch the kart is on or has chosen (sets `tgt` and `route`); false = no branch. */
-function branchTarget(ctx: SimContext, idx: number, look: number, bias: number): boolean {
+function branchTarget(ctx: SimContext, idx: number, look: number, bias: number, botSkill?: number): boolean {
   const t = ctx.track;
   if (!t.branches.length) return false;
   const k = ctx.st.karts[idx];
@@ -143,7 +157,7 @@ function branchTarget(ctx: SimContext, idx: number, look: number, bias: number):
     if (!b || !branchFoot(b, k.x, k.z, foot)) return false;
     u0 = foot.j * b.step + foot.along;
     // drifted onto the branch's mouth without choosing it (the roads still overlap there): back to the main line
-    if (u0 < b.overlap && !takesBranch(ctx, idx, b)) return false;
+    if (u0 < b.overlap && !takesBranch(ctx, idx, b, botSkill)) return false;
   } else {
     const L = t.length;
     for (const x of t.branches) {
@@ -151,7 +165,7 @@ function branchTarget(ctx: SimContext, idx: number, look: number, bias: number):
       if (ahead > L / 2) ahead -= L;
       // past the stretch where the roads overlap and still on the main road: too late, stay on it
       if (ahead > look + DECIDE_AHEAD || ahead < -Math.max(PAST_FORK, x.overlap)) continue;
-      if (!takesBranch(ctx, idx, x)) continue;
+      if (!takesBranch(ctx, idx, x, botSkill)) continue;
       b = x;
       u0 = -ahead;
       break;
@@ -189,11 +203,11 @@ function branchTarget(ctx: SimContext, idx: number, look: number, bias: number):
 }
 
 /** A hazard on the main road ahead that the kart means to steer round (sets `tgt`); false = none. */
-function dodgeTarget(ctx: SimContext, idx: number, look: number): boolean {
+function dodgeTarget(ctx: SimContext, idx: number, look: number, dodgeSkill?: number): boolean {
   const t = ctx.track;
   const k = ctx.st.karts[idx];
   if (k.branch >= 0 || !t.hazards.length) return false;
-  const d0 = hazardDodge(ctx, idx, -1, k.s, Math.sqrt(k.vx * k.vx + k.vz * k.vz));
+  const d0 = hazardDodge(ctx, idx, -1, k.s, Math.sqrt(k.vx * k.vx + k.vz * k.vz), dodgeSkill);
   if (d0 === null) return false;
   const j = (k.si + Math.max(1, Math.round(look / t.step))) % t.n;
   const lim = Math.max(0.5, t.halfW[j] - AI.edge);
@@ -243,9 +257,10 @@ const DODGE_NEAR = 1;
  * predicted for the moment it arrives, so a roomba is passed where it will be and a toaster only avoided when it is
  * about to pop.
  */
-export function hazardDodge(ctx: SimContext, idx: number, branch: number, where: number, speed: number): number | null {
-  const p = ctx.cfg.racers[idx]?.ai;
-  if (!p) return null;
+export function hazardDodge(ctx: SimContext, idx: number, branch: number, where: number, speed: number, dodgeSkill?: number): number | null {
+  // [integrator] the scripted player bot (balance harness, `?bot=1`) passes its own skill: it watches the warnings too
+  const skill = ctx.cfg.racers[idx]?.ai?.skill ?? dodgeSkill;
+  if (skill === undefined) return null;
   const t = ctx.track;
   const k = ctx.st.karts[idx];
   for (const h of t.hazards) {
@@ -262,7 +277,7 @@ export function hazardDodge(ctx: SimContext, idx: number, branch: number, where:
     }
     if (ahead < DODGE_NEAR || ahead > DODGE_FAR) continue;
     const u = rngFloat(seedRng(fnvInt(fnvInt(fnvInt(fnvInt(FNV_OFFSET, ctx.cfg.seed + 7), idx), k.lapMax), h.id)));
-    if (u >= 0.3 + 0.6 * p.skill) continue;
+    if (u >= 0.3 + 0.6 * skill) continue;
     const at = ctx.st.tick + Math.round((ahead / Math.max(5, speed)) * 60);
     // the kart's lateral offset now, in the hazard's road frame
     local(h, k.x, k.z, loc);

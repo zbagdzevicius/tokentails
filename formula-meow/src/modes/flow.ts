@@ -12,7 +12,7 @@
  * Results are booked on `raceEnd` (so closing the tab on the results loses nothing); `startRace` outcomes only
  * decide where to go next.
  */
-import { DEFAULT_CAT, SIM_VERSION, type KartLook, type RaceClass, type RaceEvent, type RaceResult, type RacerInfo } from '../types';
+import { DEFAULT_CAT, SIM_VERSION, type BodyId, type KartLook, type RaceClass, type RaceEvent, type RaceResult, type RacerInfo } from '../types';
 import type { RaceRequest, Shell } from '../core/app/shell';
 import { newSeed } from '../core/app/shell';
 import { screens, type ScreenId } from '../core/app/screens';
@@ -20,7 +20,6 @@ import { appBus } from '../core/app/app-bus';
 import { TRACKS, RUG, trackById } from '../core/track/tracks';
 import { cupById, CUPS } from '../content/cups';
 import type { CupId } from '../content/ids';
-import { kartLookFor } from '../items-ai';
 import { yourCat } from '../share/yourcat/store';
 import { PINK_PAW_CATS, pinkPawCatSpec } from '../share/pinkpaw/pink-paw';
 import { decodeGhost, encodeGhost, trackKey } from '../share/codec/ghost-codec';
@@ -33,22 +32,31 @@ import { t } from '../ui/i18n';
 import { buildCupField, cupDef, cupOutcome, newCup, raceField, raceModifiers, raceSeed, scoreRace, simClass, standings, type CupPlayer } from './gp/cup';
 import { clsKey, modesSlot, type ClassPick, type CupRun, type GhostPick, type ModesSave, type TtRecord } from './store';
 import { pickRival, unlockProvider, type LockKind } from './hooks';
+// [integrator] one loadout: the racer select and the Garage read and write the progression lane's equip
+import { loadout as progLoadout, setLoadout as setProgLoadout, recordMedal } from '../progression/api';
+import { PAINT_PRESETS } from '../content/cosmetics';
 import { devGhostJob, devRacer, medalFor, medalTimes, replayJob, runAsync, trackSig, TT_SEED, ttConfig, type GhostRun } from './tt/ghosts';
 import { BATTLE_TICKS } from './battle/rules';
 import type { TtGhostView } from './tt/ghost-view';
 
-export const PAINTS: ReadonlyArray<[number, number, number]> = [
-  ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => kartLookFor(i).paint),
-  [0xfff3dc, 0xff3ea5, 0x2a1a22],
-  [0x1a1238, 0x2cf6f3, 0xffd27a],
-];
+/** [integrator] the Garage's paint presets (progression lane), so both screens show the same swatches */
+export const PAINTS: ReadonlyArray<[number, number, number]> = PAINT_PRESETS.map((p) => p.paint);
+
+/** The player's racer look as the modes screens edit it: `cat` is 'own', 'tofu' or a Pink Paw id. */
+export interface Look {
+  cat: string;
+  body: BodyId;
+  paint: number;
+  hat: number;
+  number: number;
+}
 
 /** Screens that sit on the showroom (the player's kart on a turntable) instead of the attract race. */
-const SHOWROOM_SCREENS = new Set<ScreenId>(['select', 'class', 'cup', 'tt', 'battle']);
+const SHOWROOM_SCREENS = new Set<ScreenId>(['select', 'class', 'cup', 'tt', 'battle', 'race']);
 /** Other lanes' screens that can open from the menu (the attract race runs behind them too). */
 const MENU_OVERLAYS = new Set<ScreenId>(['settings', 'garage', 'achievements', 'stats', 'tracks', 'rewards', 'yourcat']);
 /** Screens the modes lane owns: a race started by anyone else clears them. */
-export const MODES_SCREENS: readonly ScreenId[] = ['title', 'menu', 'select', 'class', 'cup', 'tt', 'battle', 'standings', 'podium', 'howto', 'pinkpaw'];
+export const MODES_SCREENS: readonly ScreenId[] = ['title', 'menu', 'select', 'class', 'cup', 'tt', 'battle', 'race', 'standings', 'podium', 'howto', 'pinkpaw'];
 
 type Pending =
   | { kind: 'gp'; race: number; grid: number[]; scored: boolean; cupSeed: number }
@@ -139,6 +147,34 @@ export class ModesFlow {
     return modesSlot().update(fn);
   }
 
+  /**
+   * [integrator] The racer look: body, paint, number and hat live in the progression loadout (the Garage edits the
+   * same one); 'own' vs 'tofu' stays in the modes save (the loadout's `cat` is only set for a Pink Paw cat).
+   */
+  get look(): Look {
+    const m = this.save.look;
+    try {
+      const e = progLoadout();
+      const cat = e.cat ?? (m.cat === 'tofu' ? 'tofu' : 'own');
+      return { cat, body: e.body, paint: e.paint, hat: e.hat, number: e.number };
+    } catch {
+      return { ...m };
+    }
+  }
+
+  setLook(fn: (l: Look) => void): Look {
+    const l = { ...this.look };
+    fn(l);
+    const shelter = l.cat !== 'own' && l.cat !== 'tofu';
+    try {
+      setProgLoadout({ body: l.body, paint: l.paint, hat: l.hat, number: l.number, cat: shelter ? l.cat : null });
+    } catch {
+      /* progression not installed (unit tests): the modes save below still keeps the pick */
+    }
+    this.update((s) => (s.look = { ...s.look, ...l }));
+    return this.look;
+  }
+
   lock(kind: LockKind, id: string | number): string | null {
     try {
       return unlockProvider().lock(kind, String(id));
@@ -193,13 +229,13 @@ export class ModesFlow {
   }
 
   kartLook(): KartLook {
-    const l = this.save.look;
+    const l = this.look;
     const body = this.lock('body', l.body) ? 0 : l.body;
     return { body, paint: PAINTS[l.paint % PAINTS.length], number: l.number };
   }
 
   player(): CupPlayer {
-    const l = this.save.look;
+    const l = this.look;
     const choices = this.catChoices();
     const c = choices.find((x) => x.id === l.cat) ?? choices[0];
     const hat = l.hat && !this.lock('hat', l.hat) ? l.hat : 0;
@@ -295,7 +331,8 @@ export class ModesFlow {
 
   private onRaceStart(mode: string): void {
     // mode fields never leak from one race into the next (each mode sets its own right after its start)
-    this.shell.hudExtras({ gpRace: undefined, rival: undefined, balloons: undefined, timeLeft: undefined, splits: undefined });
+    // [integrator] not the rival: the progression lane sets (or clears) it on every raceStart, just before this
+    this.shell.hudExtras({ gpRace: undefined, balloons: undefined, timeLeft: undefined, splits: undefined });
     // a race the modes lane did not start (Track Doodle, a share action, the Daily Cup from the results): our
     // menu layers must not sit over it
     const mine = this.pending && ((this.pending.kind === 'gp' && mode === 'gp') || (this.pending.kind === 'tt' && mode === 'tt') || (this.pending.kind === 'battle' && mode === 'battle'));
@@ -373,6 +410,14 @@ export class ModesFlow {
     const newRecord = time != null && (prev == null || time < prev);
     this.lastTt = { time, prev, newRecord, medal, prevMedal: rec?.medal ?? 0, dev: p.dev, ghostTime: p.ghost?.time ?? null, ghostLabel: p.ghostLabel };
     if (time == null) return;
+    // [integrator] the progression lane pays the medal (its scale: 1 gold … 3 bronze; ours: 3 gold … 1 bronze)
+    if (medal > 0) {
+      try {
+        recordMedal(p.trackId, simClass(p.cls), 4 - medal);
+      } catch (err) {
+        console.warn('[modes] medal not booked', err);
+      }
+    }
     const splits = this.ttSplits.slice();
     this.update((s) => {
       const old = s.tt[key];
@@ -460,7 +505,7 @@ export class ModesFlow {
       s.cupsDone[k] = (s.cupsDone[k] ?? 0) + 1;
       s.cup = null;
     });
-    appBus.emit('cupEnd', { cupId: run.cupId, cls: simClass(run.cls), place: out.place, points: out.points });
+    appBus.emit('cupEnd', { cupId: run.cupId, cls: simClass(run.cls), place: out.place, points: out.points, mirror: run.cls === 3 });
     if (out.trophy) appBus.emit('unlock', { kind: 'trophy', id: `${run.cupId}:${run.cls}:${out.trophy}` });
     const opened = this.opened(before);
     for (const name of opened) appBus.emit('unlock', { kind: 'modes', id: name });
@@ -630,7 +675,7 @@ export class ModesFlow {
       mode: 'battle',
       racers,
       playerSlot: slot,
-      timeLimitTicks: BATTLE_TICKS + 60,
+      timeLimitTicks: BATTLE_TICKS, // [integrator] the HUD clock reads this: 3:00, not 3:01 (the battle rules end the round on it)
       waitForInput: false,
       actions: [{ label: t('Rematch ↻'), exit: 'again', primary: true }],
     });
@@ -655,6 +700,24 @@ export class ModesFlow {
     this.pending = null;
     this.clearForRace();
     this.shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day });
+  }
+
+  // ------------------------------------------------------------------------------------------------------------------
+  // Single race ([integrator]): any track, any unlocked class, the usual Again / Next / Menu results
+  // ------------------------------------------------------------------------------------------------------------------
+
+  startQuick(trackId: string, cls: ClassPick): void {
+    this.update((s) => {
+      s.last.quickTrack = trackId;
+      s.last.quickCls = cls;
+    });
+    const sim = simClass(cls);
+    this.pending = null;
+    this.ttGhost?.arm(null);
+    this.clearForRace();
+    // the results' Next keeps this class (the shell reads its settings)
+    this.shell.updateSettings({ cls: sim });
+    void this.shell.startRace({ track: trackById(trackId), cls: sim, seed: newSeed(), modifiers: cls === 3 ? 1 : 0, mode: 'race', playerKart: this.kartLook() });
   }
 
   // ------------------------------------------------------------------------------------------------------------------

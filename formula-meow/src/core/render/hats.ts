@@ -101,7 +101,8 @@ export function buildHat(id: number | undefined): Object3D | null {
   const g = new GeoBuilder();
   make(g);
   const root = new Group();
-  root.name = `hat-${key}`;
+  root.name = 'fm-hat'; // [integrator] the shared hat name (progression lane's HAT_NAME)
+  root.userData.hat = key;
   root.add(new Mesh(g.build(), hatMaterial()));
   if (key === 'propeller') {
     const b = new GeoBuilder();

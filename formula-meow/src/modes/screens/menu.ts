@@ -1,5 +1,5 @@
 /**
- * Main menu: a resume card for a Grand Prix in progress, then the tiles (Grand Prix, Time Trial, Balloon Battle,
+ * Main menu: a resume card for a Grand Prix in progress, then the tiles (Grand Prix, Single race, Time Trial, Balloon Battle,
  * Daily Cup, Track Doodle, Garage, Your cat, Pink Paw, Settings, How to play, plus tiles other lanes register).
  * Locked tiles say what unlocks them. Esc / B goes back to the title.
  */
@@ -51,6 +51,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const daily = dailySetup(day, TRACKS);
   const builtIn: MenuTile[] = [
     { id: 'gp', order: 10, icon: '🏆', label: () => t('Grand Prix'), sub: () => (trophies === 1 ? t('1 trophy · {g} gold', { g: golds }) : trophies ? t('{n} trophies · {g} gold', { n: trophies, g: golds }) : t('{n} cups of 4 races', { n: CUPS.length })), run: () => void screens.push('select', { next: 'gp' }) },
+    { id: 'race', order: 15, icon: '🏁', label: () => t('Single race'), sub: () => t('Any track, any class'), run: () => void screens.push('select', { next: 'race' }) },
     { id: 'tt', order: 20, icon: '⏱️', label: () => t('Time Trial'), sub: () => (ttGolds ? t('{n} gold medals', { n: ttGolds }) : t('Beat the ghosts')), run: () => void screens.push('select', { next: 'tt' }) },
     { id: 'battle', order: 30, icon: '🎈', label: () => t('Balloon Battle'), sub: () => (s.battle.played ? t('{w} wins of {n}', { w: s.battle.wins, n: s.battle.played }) : t('Pop or be popped')), lock: () => f.lock('mode', 'battle'), run: () => void screens.push('select', { next: 'battle' }) },
     { id: 'daily', order: 40, icon: '📅', label: () => t('Daily Cup #{n}', { n: day }), sub: () => daily.label, run: () => f.startDaily() },
@@ -68,10 +69,10 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
             if (r === undefined) return;
             if (r === null) {
               clearYourCat();
-              f.update((x) => (x.look.cat = 'tofu'));
+              f.setLook((x) => (x.cat = 'tofu'));
             } else {
               saveYourCat(r.cat, r.name, r.face);
-              f.update((x) => (x.look.cat = 'own'));
+              f.setLook((x) => (x.cat = 'own'));
             }
             void screens.replace('menu');
           }),

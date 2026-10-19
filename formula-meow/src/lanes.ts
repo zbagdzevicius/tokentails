@@ -13,6 +13,7 @@ import { installTracks } from './tracks/install';
 import { installFeel } from './core/render/install';
 import { installProgression } from './progression/install';
 import { installAudioUi } from './ui/install';
+import { installIntegration } from './integration';
 
 export function installLanes(shell: Shell): void {
   // v1 lanes
@@ -26,4 +27,5 @@ export function installLanes(shell: Shell): void {
   installTracks(shell); // hazards, coins, branches, new tracks
   installProgression(shell); // fish, unlocks, achievements, garage
   installModes(shell); // title, menu, GP, time trial, battle (last: it may put a screen in front of the race)
+  installIntegration(shell); // the integrator's wiring between the lanes (src/integration.ts)
 }
