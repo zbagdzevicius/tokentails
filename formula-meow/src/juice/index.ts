@@ -9,6 +9,10 @@
  *  - the quality auto-scaler (DPR + tier governors, AI outline LOD) in place of `Stage.govern`
  *  - `window.__fmPerf` (fps, DPR, tier, draw calls, triangles) for QA; `?perf=1` draws it on screen
  * Everything reads the race through the JuiceBus; nothing here writes the sim.
+ *
+ * Iteration 2 (audio-ui lane): every callout goes through `t()`; reduced motion turns off camera shake (from any lane:
+ * `camera.addTrauma` is gated here), screen flashes, tints, hit-stop, slow-mo and confetti; the race audio gets the
+ * track's song and the race mode.
  */
 import type { Object3D } from 'three';
 import type { Shell } from '../core/app/shell';
@@ -21,12 +25,27 @@ import { TimeWarp } from './time';
 import { KartFx, boostColor } from './vfx/kart-fx';
 import { SkyFx } from './vfx/sky-fx';
 import { Confetti } from './vfx/confetti';
-import { overtakeCallout, type PopTone } from './vfx/popups';
+import type { PopTone } from './vfx/popups';
+import { songIndexForTrack } from './audio/music';
+import { reducedMotion } from '../ui/a11y';
+import { t } from '../ui/i18n';
+import { qa } from '../ui/qa';
 import { SpeedLines } from './vfx/speed-lines';
 import { Quality, TIERS } from './perf/quality';
 
-
 const HIT_CALLS = ['BONK!', 'GOTCHA!', 'PURRFECT HIT!'];
+
+/**
+ * Overtake chain → callout (localised; chains reset after 3 s without a pass). Same escalation as the v1 popups:
+ * P1 takes the lead, then DOUBLE, TRIPLE, MEOWTASTIC for 4+ distinct karts.
+ */
+export function overtakeCall(chain: number, place: number): { text: string; tone: PopTone; sub?: string } {
+  if (place === 1) return { text: t('P1!'), tone: 'gold', sub: chain > 1 ? t('{n} in a row', { n: chain }) : t('take the lead') };
+  if (chain >= 4) return { text: t('MEOWTASTIC!'), tone: 'pink', sub: t('{n} in a row', { n: chain }) };
+  if (chain === 3) return { text: t('TRIPLE!'), tone: 'pink' };
+  if (chain === 2) return { text: t('DOUBLE!'), tone: 'cyan' };
+  return { text: t('P{n}', { n: place }), tone: 'cyan' };
+}
 
 export class JuiceDirector implements JuiceListener {
   readonly warp = new TimeWarp();
@@ -66,7 +85,16 @@ export class JuiceDirector implements JuiceListener {
     (window as unknown as { __fmPerf?: unknown }).__fmPerf = this.quality.stats;
 
     this.confetti = new Confetti(shell.camera.cam);
-    shell.audio.themeOf = () => shell.setup?.track.theme ?? 0;
+    shell.audio.songOf = () => (shell.setup ? songIndexForTrack(shell.setup.track) : 0);
+    shell.audio.modeOf = () => shell.setup?.mode ?? 'race';
+    // reduced motion (audio-ui a11y): no camera shake at all, from any lane; QA counts the shakes that got through
+    const cam = shell.camera;
+    const addTrauma = cam.addTrauma.bind(cam);
+    cam.addTrauma = (v: number) => {
+      if (reducedMotion() || v <= 0) return;
+      qa.shakes++;
+      addTrauma(v);
+    };
   }
 
   private applyTier(): void {
@@ -109,27 +137,31 @@ export class JuiceDirector implements JuiceListener {
     this.kfx?.onEvent(e);
     const me = info.me;
     const mine = e.kart === me;
-    const sl = SpeedLines.current;
+    // reduced motion: no screen flashes, tints or hit-stops (the colour change still tells the boost apart)
+    const calm = reducedMotion();
+    const raw = SpeedLines.current;
+    const sl = calm && raw ? { flash: () => undefined, tint: () => undefined, setBoostColor: (c: number) => raw.setBoostColor(c), setPulse: (on: boolean) => raw.setPulse(on && !calm) } : raw;
+    const warp = calm ? { hitStop: () => undefined, slowMo: () => undefined } : this.warp;
     const theme = this.shell.view?.world.theme;
     const a = e.a ?? 0;
     switch (e.type) {
       case 'hit':
         if (mine) {
-          this.warp.hitStop(0.1, 0.04);
+          warp.hitStop(0.1, 0.04);
           sl?.flash(0xff4d6d, 0.45, 0.35);
           vibrate([30, 40, 30]);
         } else if (e.b === me) {
-          this.warp.hitStop(0.07, 0.08);
+          warp.hitStop(0.07, 0.08);
           sl?.flash(0xffffff, 0.18, 0.15);
           this.hitChain = e.tick - this.hitTick < 300 ? this.hitChain + 1 : 1;
           this.hitTick = e.tick;
-          this.pop(HIT_CALLS[Math.min(HIT_CALLS.length - 1, this.hitChain - 1)], 'gold');
+          this.pop(t(HIT_CALLS[Math.min(HIT_CALLS.length - 1, this.hitChain - 1)]), 'gold');
           this.shell.camera.addTrauma(0.15);
           vibrate(20);
         }
         break;
       case 'wall':
-        if (mine && a === 2) this.warp.hitStop(0.05, 0.12);
+        if (mine && a === 2) warp.hitStop(0.05, 0.12);
         break;
       case 'miniTurbo':
         if (mine) {
@@ -137,14 +169,14 @@ export class JuiceDirector implements JuiceListener {
           const c = DRIFT.colors[this.myTier - 1];
           sl?.flash(c, 0.08 + 0.07 * this.myTier, 0.25);
           sl?.setBoostColor(c);
-          if (this.myTier === 3) this.warp.hitStop(0.04, 0.3);
+          if (this.myTier === 3) warp.hitStop(0.04, 0.3);
           vibrate(8 + this.myTier * 6);
         }
         break;
       case 'boost':
         if (mine && theme) {
           sl?.setBoostColor(boostColor(a, this.myTier, theme));
-          if (a === 4) this.pop('SLIPSTREAM!', 'cyan');
+          if (a === 4) this.pop(t('SLIPSTREAM!'), 'cyan');
         }
         break;
       case 'pounce':
@@ -158,10 +190,10 @@ export class JuiceDirector implements JuiceListener {
         }
         break;
       case 'blocked':
-        if (mine) this.pop('BLOCKED!', 'cyan');
+        if (mine) this.pop(t('BLOCKED!'), 'cyan');
         break;
       case 'land':
-        if (mine && a > 45) this.pop('BIG AIR!', 'gold');
+        if (mine && a > 45) this.pop(t('BIG AIR!'), 'gold');
         break;
       case 'overtake':
         if (e.b === me && e.kart !== me) {
@@ -181,7 +213,7 @@ export class JuiceDirector implements JuiceListener {
           if (this.chainKarts.has(e.b)) break;
           this.chainKarts.add(e.b);
           this.chain = this.chainKarts.size;
-          const c = overtakeCallout(this.chain, a);
+          const c = overtakeCall(this.chain, a);
           this.pop(c.text, c.tone, c.sub);
           vibrate(10);
         }
@@ -194,10 +226,10 @@ export class JuiceDirector implements JuiceListener {
         break;
       case 'finish':
         if (mine) {
-          this.warp.slowMo(1.4, 0.3);
+          warp.slowMo(1.4, 0.3);
           sl?.flash(0xffd27a, 0.5, 0.6);
           sl?.setPulse(false);
-          this.confetti.fire(a <= 3, this.quality.look.confetti);
+          if (!calm) this.confetti.fire(a <= 3, this.quality.look.confetti);
           this.shell.camera.addTrauma(0.3);
           vibrate(a === 1 ? [40, 60, 40, 60, 120] : 40);
         }
@@ -219,7 +251,7 @@ export class JuiceDirector implements JuiceListener {
     const sl = SpeedLines.current;
     if (sl) {
       sl.detail = this.quality.look.streaks;
-      sl.setPulse(this.finalLap && !k.finished && k.place > 1 && info.st.lapLength > 0 && k.s / info.st.lapLength > 0.82);
+      sl.setPulse(!reducedMotion() && this.finalLap && !k.finished && k.place > 1 && info.st.lapLength > 0 && k.s / info.st.lapLength > 0.82);
     }
     // rivals right behind you sit between the chase camera and your kart: fade any kart near the lens (B59: 0 at 4 m,
     // solid from 8 m; the player sits ~6 m out, Mario Kart style) so the screen never fills with a cat's head

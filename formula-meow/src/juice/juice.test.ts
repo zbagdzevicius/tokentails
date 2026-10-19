@@ -100,11 +100,12 @@ describe('sfx cue table', () => {
 });
 
 describe('voice budget (24 voices)', () => {
-  it('drops low-priority cues when full, never priority 3', () => {
+  // iteration 2 (audio-ui): priority 3 no longer passes the cap; it has reserved headroom instead (audio/audio.test.ts)
+  it('drops low-priority cues when full and keeps room for priority 3', () => {
     const b = new VoiceBudget(24);
-    for (let i = 0; i < 24; i++) expect(b.admit(0, 1, 1)).toBe(true);
-    expect(b.admit(0.1, 1, 1)).toBe(false);
-    expect(b.admit(0.1, 2, 1)).toBe(false);
+    let n = 0;
+    while (b.admit(0, 1, 1)) n++;
+    expect(n).toBeLessThan(24);
     expect(b.admit(0.1, 3, 1)).toBe(true);
     // voices expire
     expect(b.admit(2, 1, 1)).toBe(true);

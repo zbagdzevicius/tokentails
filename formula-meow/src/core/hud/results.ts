@@ -8,11 +8,17 @@
  *   "fish earned" or "next goal" between the standings and the buttons, sorted by `order`.
  * - the standings update live as karts finish until the race tail ends (B35), via the returned `update`.
  * - an unlock is a button that starts that class (B43); the action row is a sticky footer (B39).
+ * - presentation (audio-ui): the place lands as a stamp (with a thud), the race time and best lap count up, the
+ *   rows slide in; battle shows balloons instead of times, time trial shows the splits. Reduced motion skips all of
+ *   it. Every fixed string goes through `t()`; names and labels that come from other lanes are marked `data-raw`.
  */
 import type { RaceConfig, RaceMode, RaceResult, RacerInfo } from '../../types';
 import { fmtTime, ordinal } from './hud';
 import type { ResultAction } from '../../share/hooks';
 import { PINK_PAW_CATS, PINK_PAW_STATUS_AS_OF, pinkPawAdoptUrl } from '../../share/pinkpaw/pink-paw';
+import { t } from '../../ui/i18n';
+import { reducedMotion } from '../../ui/a11y';
+import { uiSound } from '../../ui/sound';
 
 export interface ResultsView {
   result: RaceResult;
@@ -58,7 +64,15 @@ function esc(s: string): string {
 
 function rowsHtml(r: RaceResult, ghost: ResultsView['ghost']): string {
   const me = r.player;
-  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td>${esc(p.name)}</td><td>${p.time != null ? fmtTime(p.time) : '—'}</td></tr>`);
+  const battle = r.mode === 'battle' && r.battle;
+  const cell = (kart: number, time: number | null) => {
+    if (battle) {
+      if (r.battle!.out[kart]) return `<span class="fm-out">${esc(t('OUT'))}</span>`;
+      return `${'🎈'.repeat(Math.max(0, r.battle!.balloons[kart] ?? 0))}`;
+    }
+    return time != null ? fmtTime(time) : '—';
+  };
+  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td data-raw>${esc(p.name)}</td><td>${cell(p.kart, p.time)}</td></tr>`);
   // the ghost sits at its place by time (seeing yourself one row under your friend is the hook)
   const g = ghost;
   if (g) {
@@ -67,7 +81,7 @@ function rowsHtml(r: RaceResult, ghost: ResultsView['ghost']): string {
       const i = r.places.findIndex((p) => p.time == null || p.time > g.time!);
       if (i >= 0) at = i;
     }
-    rowList.splice(at, 0, `<tr class="ghost"><td>👻</td><td>${esc(g.name)}</td><td>${g.time != null ? fmtTime(g.time) : '—'}</td></tr>`);
+    rowList.splice(at, 0, `<tr class="ghost"><td>👻</td><td data-raw>${esc(g.name)}</td><td>${g.time != null ? fmtTime(g.time) : '—'}</td></tr>`);
   }
   return rowList.join('');
 }
@@ -79,12 +93,32 @@ export interface ResultsHandle {
   addLines(lines: string[]): void;
 }
 
+/** Count a time readout up from 0 over `ms` (a tick sound every few frames). */
+function countUp(el: HTMLElement, to: number | null, ms: number, sound: boolean): void {
+  if (to == null || !isFinite(to) || reducedMotion() || typeof requestAnimationFrame === 'undefined') {
+    el.textContent = fmtTime(to);
+    return;
+  }
+  const t0 = performance.now();
+  let frame = 0;
+  const step = () => {
+    if (!el.isConnected) return;
+    const k = Math.min(1, (performance.now() - t0) / ms);
+    const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmtTime(to * e);
+    if (sound && ++frame % 3 === 0 && k < 1) uiSound('countTick', frame);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle {
   const r = v.result;
   const me = r.player;
   const g = v.ghost;
+  const battle = r.mode === 'battle' && !!r.battle;
   const ghostLost = !!g && g.time != null && (me.time == null || g.time < me.time);
-  const btn = (a: ResultAction, i: number, extra = '') => `<button class="fm-btn${a.primary ? ' primary' : ''}${extra}" data-x="${i}">${esc(a.label)}</button>`;
+  const btn = (a: ResultAction, i: number, extra = '') => `<button class="fm-btn${a.primary ? ' primary' : ''}${extra}" data-x="${i}" data-raw>${esc(a.label)}</button>`;
   // the primary action (the dare) first and full width, then the rest of the main row
   const main = v.actions
     .map((a, i) => [a, i] as const)
@@ -92,30 +126,41 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
     .sort((x, y) => Number(!!y[0].primary) - Number(!!x[0].primary));
   const icons = v.actions.map((a, i) => [a, i] as const).filter(([a]) => a.tier === 'icon');
   const mainHtml = main.map(([a, i]) => btn(a, i, a.primary && main.length > 1 ? ' big' : '')).join('');
-  // closest Pink Paw rival (by place)
+  // closest Pink Paw rival (by place): their real status, with its date, and the shelter page
   let rivalLine = '';
   const rivals = r.places.filter((p) => p.kart !== me.kart && v.racers[p.kart]?.pinkPawId);
   rivals.sort((a, b) => Math.abs(a.place - me.place) - Math.abs(b.place - me.place));
   const rival = rivals[0] ? v.racers[rivals[0].kart] : undefined;
   const cat = rival ? PINK_PAW_CATS.find((c) => c.id === rival.pinkPawId) : undefined;
   if (cat && cat.status !== 'ADOPTED') {
-    const status = cat.status === 'RECOVERING' ? 'recovering' : 'waiting';
-    rivalLine = `<p class="fm-line">Meet ${esc(cat.name)}, a real cat ${status} at Pink Paw shelter, Lithuania (as of ${PINK_PAW_STATUS_AS_OF}). <a href="${pinkPawAdoptUrl(cat)}" target="_blank" rel="noopener">See ${esc(cat.name)}</a></p>`;
+    const text =
+      cat.status === 'RECOVERING'
+        ? t('Meet {name}, a real cat recovering at Pink Paw shelter, Lithuania (as of {date}).', { name: cat.name, date: PINK_PAW_STATUS_AS_OF })
+        : t('Meet {name}, a real cat waiting at Pink Paw shelter, Lithuania (as of {date}).', { name: cat.name, date: PINK_PAW_STATUS_AS_OF });
+    rivalLine = `<p class="fm-line fm-pinkpaw">${esc(text)} <a href="${pinkPawAdoptUrl(cat)}" target="_blank" rel="noopener">${esc(t('See {name}', { name: cat.name }))}</a></p>`;
   }
+  const stats = battle
+    ? `<div><b>${'🎈'.repeat(Math.max(0, r.battle!.balloons[me.kart] ?? 0)) || esc(t('OUT'))}</b>${esc(t('balloons left'))}</div>`
+    : `<div><b class="fm-count" data-to="time">${fmtTime(me.time)}</b>${esc(t('race'))}</div><div><b class="fm-count" data-to="lap">${fmtTime(me.bestLap)}</b>${esc(t('best lap'))}</div>`;
+  const splits = r.splits?.length
+    ? `<p class="fm-line fm-splits">${esc(t('Splits'))}: ${r.splits.map((s) => `<span>${fmtTime(s)}</span>`).join(' · ')}</p>`
+    : '';
+  const again = ghostLost ? t('Rematch 👻') : t('Again ↻');
   host.innerHTML = `
-    <div class="fm-panel fm-sticker fm-results" role="dialog" aria-label="Results">
-      <h2>${esc(v.trackName)} · ${esc(v.className)}</h2>
-      <div class="fm-place">${ordinal(me.place)}</div>
-      <div class="fm-stats"><div><b>${fmtTime(me.time)}</b>race</div><div><b>${fmtTime(me.bestLap)}</b>best lap</div></div>
+    <div class="fm-panel fm-sticker fm-results" role="dialog" aria-label="${esc(t('Results'))}">
+      <h2><span data-raw>${esc(v.trackName)}</span> · <span data-raw>${esc(v.className)}</span></h2>
+      <div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>
+      <div class="fm-stats">${stats}</div>
+      ${splits}
       <table class="fm-table">${rowsHtml(r, g)}</table>
       ${v.unlock ? `<p class="fm-line"><button class="fm-btn primary" data-act="unlock">${esc(v.unlock.label)}</button></p>` : ''}
-      <div class="fm-lines">${v.lines.map((l) => `<p class="fm-line">${esc(l)}</p>`).join('')}</div>
+      <div class="fm-lines" data-raw>${v.lines.map((l) => `<p class="fm-line">${esc(l)}</p>`).join('')}</div>
       ${rivalLine}
       <div class="fm-sections"></div>
       <div class="fm-res-main">
         ${mainHtml}
-        <button class="fm-btn${ghostLost || !main.length ? ' primary' : ''}" data-act="again">${ghostLost ? 'Rematch 👻' : 'Again ↻'}</button>
-        <button class="fm-btn" data-act="next" aria-label="Next track">Next →</button>
+        <button class="fm-btn${ghostLost || !main.length ? ' primary' : ''}" data-act="again">${esc(again)}</button>
+        <button class="fm-btn" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
         ${(v.extra ?? []).map((x) => `<button class="fm-btn" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
       </div>
       ${icons.length ? `<div class="fm-res-icons">${icons.map(([a, i]) => btn(a, i)).join('')}</div>` : ''}
@@ -138,13 +183,29 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   }
   const table = host.querySelector<HTMLTableElement>('.fm-table')!;
   const linesBox = host.querySelector<HTMLElement>('.fm-lines')!;
+  // presentation: stamp, count-up, rows sliding in (all skipped under reduced motion)
+  const calm = reducedMotion();
+  const place = host.querySelector<HTMLElement>('.fm-place');
+  if (!calm && place) {
+    place.classList.add('stamp');
+    table.classList.add('rows-in');
+    table.querySelectorAll<HTMLElement>('tr').forEach((tr, i) => (tr.style.animationDelay = `${0.25 + i * 0.05}s`));
+    setTimeout(() => uiSound('stamp', me.place), 260);
+  } else uiSound('stamp', me.place);
+  const timeEl = host.querySelector<HTMLElement>('[data-to="time"]');
+  const lapEl = host.querySelector<HTMLElement>('[data-to="lap"]');
+  if (timeEl) countUp(timeEl, me.time, 750, true);
+  if (lapEl) countUp(lapEl, me.bestLap, 750, false);
   let last = '';
   let ghostNow = g;
   return {
     update(result, ghost) {
       if (ghost) ghostNow = ghost;
       const html = rowsHtml(result, ghostNow);
-      if (html !== last) table.innerHTML = last = html;
+      if (html !== last) {
+        table.classList.remove('rows-in');
+        table.innerHTML = last = html;
+      }
     },
     addLines(lines) {
       for (const l of lines) {
@@ -156,3 +217,4 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
     },
   };
 }
+
