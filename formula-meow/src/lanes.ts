@@ -5,6 +5,7 @@
 import type { Shell } from './core/app/shell';
 import { installItemsAi } from './items-ai/view/install';
 import { installJuice } from './juice';
+import { installUgc } from './ugc/hub';
 
 export function installLanes(shell: Shell): void {
   // items-ai: SimPlugins come from createSimPlugins() (src/items-ai/index.ts), created per race by the shell.
@@ -13,5 +14,5 @@ export function installLanes(shell: Shell): void {
   // share:    setShareHooks({ onResult, resolveRoute }) from src/share/hooks.ts.
   // ugc:      setTrackCodec(codec) from src/ugc/codec/track-codec.ts.
   installJuice(shell); // juice: race audio + music, VFX, sky, hit-stop, quality auto-scaler
-  void shell;
+  installUgc(shell);
 }
