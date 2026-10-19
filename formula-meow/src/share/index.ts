@@ -28,6 +28,7 @@ import { dailySetup, dayNoFor, EMPTY_DAILY, isDailyRace, recordDaily, type Daily
 import { clearYourCat, initYourCat, saveYourCat, yourCat, type YourCat } from './yourcat/store';
 import { webCodecsAvailable } from './clip/encoder-webcodecs';
 import type { EncodedClip } from './clip/encoder-types';
+import { trackCodec, trackFromLocation } from '../ugc/codec/track-codec';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -212,8 +213,11 @@ export function installShare(shell: Shell): void {
       const r = parseRoute(loc);
       if (r.kind === 'dare') {
         const t = TRACKS.find((x) => trackKey(x.id) === r.header.trackKey);
-        if (!t) return null;
-        return { trackId: t.id, cls: r.header.cls, seed: r.header.seed, modifiers: r.header.modifiers };
+        // a dare on a UGC track carries the track code too (`t=`); the shell races that track, we supply the rest
+        const shared = t ? null : trackFromLocation(loc);
+        const ugc = shared?.ok && trackKey(shared.track.id) === r.header.trackKey ? shared.track : null;
+        if (!t && !ugc) return null;
+        return { trackId: (t ?? ugc)!.id, cls: r.header.cls, seed: r.header.seed, modifiers: r.header.modifiers };
       }
       if (r.kind === 'daily') {
         const d = dailySetup(r.day, TRACKS);
@@ -306,7 +310,14 @@ export function installShare(shell: Shell): void {
         label: beat ? '⚔️ Send revenge →' : finished ? `⚔️ Beat ${fmtRaceTime(result.player.time)} →` : '⚔️ Dare a friend',
         run: () =>
           void ghostP.then((ghost) => {
-            const url = dareUrl(location, { ghost, cat: yc?.cat ?? null, name: yc?.name ?? DEFAULT_CAT.name });
+            const authored = TRACKS.some((x) => x.id === cfg.track.id);
+            let trackCode: string | null = null;
+            try {
+              trackCode = authored ? null : (trackCodec()?.encode(cfg.track) ?? null);
+            } catch {
+              trackCode = null; // an unencodable track still gets a dare link; it just won't resolve the track
+            }
+            const url = dareUrl(location, { ghost, cat: yc?.cat ?? null, name: yc?.name ?? DEFAULT_CAT.name, trackCode });
             const text = dareText({ trackName: cfg.track.name, time: result.player.time, place: result.player.place, link: url, beat });
             return shareText(`${text}\n${PINK_PAW_SHARE_LINE}`);
           }),

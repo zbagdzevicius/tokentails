@@ -52,3 +52,33 @@ test('Neon Rooftops renders at night with the touch controls on a phone', async 
   await page.screenshot({ path: 'e2e/screens/rooftops-touch.png' });
   await ctx.close();
 });
+
+test('a keyboard driver races 20 s with every lane installed and no console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/?seed=11');
+  await expect(page.locator('canvas.fm-canvas')).toBeVisible();
+  await page.mouse.click(195, 300); // a user gesture unlocks audio (an overlay may sit on the canvas)
+  await expect.poll(async () => (await probe(page))?.phase, { timeout: 30_000 }).toBe('race');
+  const start = (await probe(page))!;
+  await page.keyboard.down('ArrowUp');
+  const t0 = Date.now();
+  let i = 0;
+  while (Date.now() - t0 < 20_000) {
+    const key = i % 3 === 0 ? 'ArrowLeft' : i % 3 === 1 ? 'ArrowRight' : 'Space';
+    await page.keyboard.down(key);
+    await page.waitForTimeout(350);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(650);
+    i++;
+  }
+  await page.keyboard.up('ArrowUp');
+  const end = (await probe(page))!;
+  expect(end.tick).toBeGreaterThan(start.tick);
+  expect(end.dist).toBeGreaterThan(start.dist + 20);
+  await page.screenshot({ path: 'e2e/screens/keyboard-20s.png' });
+  expect(errors).toEqual([]);
+});

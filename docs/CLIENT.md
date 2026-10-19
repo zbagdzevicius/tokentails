@@ -1086,6 +1086,8 @@ export has no rewrites):
 | `/meow-race` | `index.html` |
 | `/meow-race/r#g=<ghost>&c=<cat>&n=<name>` | `r.html` (a dare: the ghost, cat code and name ride in the hash, so they never reach the server or its logs) |
 | `/meow-race/d/<n>` (1 to 4 digits) | `d.html` (Daily Cup day n; the game reads the day from the path) |
+| `/meow-race/make` | `index.html` (opens the Track Doodle editor) |
+| `/meow-race/t?t=<code>` | `index.html` (races a shared UGC track; `?t=` or `#t=` on any game page works too) |
 | `/meow-race/<anything else>` | `/formula-meow-game/<anything else>` (bundle, `og/`) |
 
 Every page loads the same bundle; `r.html` and `d.html` only carry their own OG tags. The game moves no money: the
