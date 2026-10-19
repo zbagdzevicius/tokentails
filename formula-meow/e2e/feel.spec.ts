@@ -114,9 +114,9 @@ test('crossing the line turns the camera into the finish orbit', async ({ page }
   expect(errors).toEqual([]);
 });
 
-test('the high tier loads the bloom chunk lazily and renders through it', async ({ page }) => {
+test('the bloom chunk loads lazily and the race renders through it (forced: swiftshader is too slow to earn it)', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/?bot=1&seed=9&quality=high');
+  await page.goto('/?bot=1&seed=9&quality=high&bloom=1');
   await expect.poll(() => page.evaluate(() => (window as unknown as { __fmFeel?: { post(): boolean } }).__fmFeel?.post() ?? false), { timeout: 20_000 }).toBe(true);
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'e2e/screens/feel-bloom.png' });
