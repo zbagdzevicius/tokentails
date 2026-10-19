@@ -108,7 +108,7 @@ test('time trial: the first run saves a personal-best ghost and Retry races it',
   expect(errors).toEqual([]);
 });
 
-test('balloon battle ends with a winner within 3 minutes of sim time', async ({ page }) => {
+test('balloon battle plays its 2:30 round and the top scorer wins', async ({ page }) => {
   test.setTimeout(600_000);
   const errors = watchErrors(page);
   await returning(page);
@@ -118,18 +118,21 @@ test('balloon battle ends with a winner within 3 minutes of sim time', async ({ 
   await page.locator('[data-act="ready"]').click();
   await page.locator('[data-screen="battle"] [data-act="start"]').click();
   await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('battle');
-  await expect(page.locator('.fm-mode-hud.on .fm-mh-list .r')).toHaveCount(8, { timeout: 20_000 });
+  // the leaders plus you (the full field of 8 rows covered a third of a phone screen)
+  await expect.poll(() => page.locator('.fm-mode-hud.on .fm-mh-list .r').count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
+  expect(await page.locator('.fm-mode-hud.on .fm-mh-list .r').count()).toBeLessThanOrEqual(4);
   await page.screenshot({ path: 'e2e/screens/modes-battle.png' });
   await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 300_000 });
   const end = await page.evaluate(() => {
-    const w = (window as unknown as Win).__fm!.shell.world!;
-    const win = w.st.karts[w.st.order[0]];
-    return { done: w.done, secs: (w.st.tick - w.ctx.goTick) / 60, winnerOut: win.out, winnerBalloons: win.balloons };
+    const w = (window as unknown as Win).__fm!.shell.world! as unknown as { done: boolean; st: { tick: number; mode: { battle: { score: number[] } } }; ctx: { goTick: number }; result(): { places: Array<{ kart: number }> } };
+    const b = w.st.mode.battle;
+    return { done: w.done, secs: (w.st.tick - w.ctx.goTick) / 60, winnerScore: b.score[w.result().places[0].kart], best: Math.max(...b.score) };
   });
+  // scored in points with respawns: the round plays its whole 2:30 clock, and the winner has the most points
   expect(end.done).toBe(true);
-  expect(end.secs).toBeLessThanOrEqual(180.05);
-  expect(end.winnerOut).toBe(0);
-  expect(end.winnerBalloons).toBeGreaterThan(0);
+  expect(end.secs).toBeGreaterThanOrEqual(149.9);
+  expect(end.secs).toBeLessThanOrEqual(150.05);
+  expect(end.winnerScore).toBe(end.best);
   await expect(page.locator('.fm-m-res')).toContainText('battle');
   expect(errors).toEqual([]);
 });
@@ -182,14 +185,17 @@ test('keyboard and gamepad move a visible focus through the menus', async ({ pag
   // keyboard: the arrows move a ring between the tiles, Enter opens, Esc comes back
   const focused = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.tile ?? null);
   await expect.poll(focused).toBe('gp');
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(focused).toBe('race');
+  // the Grand Prix hero card spans the row: Down reaches the row of race modes under it
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
+  const first = await focused();
   const ring = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
   expect(ring).not.toBe('none');
   await page.keyboard.press('ArrowDown');
-  await expect.poll(focused).not.toBe('race');
+  await expect.poll(focused).not.toBe(first);
   await page.keyboard.press('ArrowUp');
-  await expect.poll(focused).toBe('race');
+  // back up into the row of race modes (the strip below is narrower, so Up lands on the nearest mode tile)
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
   await page.keyboard.press('Enter');
   await expect.poll(() => topId(page)).toBe('select');
   await page.keyboard.press('Escape');
@@ -202,11 +208,11 @@ test('keyboard and gamepad move a visible focus through the menus', async ({ pag
     await page.waitForTimeout(400);
   };
   // the menu gives the focus back to the tile that opened the screen
-  await expect.poll(focused).toBe('race');
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
   await page.locator('[data-tile="gp"]').focus();
   await expect.poll(focused).toBe('gp');
-  await press(15); // D-pad right
-  await expect.poll(focused).toBe('race');
+  await press(13); // D-pad down: from the Grand Prix card to the row of race modes
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
   await page.screenshot({ path: 'e2e/screens/modes-pad-focus.png' });
   await press(0); // A
   await expect.poll(() => topId(page)).toBe('select');

@@ -18,7 +18,7 @@ import { toonMaterial } from '../../core/render/toon';
 import { GO_TICK } from '../../core/sim/world';
 import { ordinalText } from '../../core/hud/hud';
 import { t } from '../../ui/i18n';
-import { BATTLE, BATTLE_TICKS } from '../battle/rules';
+import { BATTLE, BATTLE_TICKS, battleOf } from '../battle/rules';
 import { flow, fmtDelta } from '../flow';
 
 const MAX_B = BATTLE.maxBalloons;
@@ -127,8 +127,8 @@ export class ModeHud implements JuiceListener {
           kv.setGhost(0.35);
           this.faded.add(e.kart);
         }
-        if (e.kart === me) hud.say(t('OUT!'), { prio: 3, tone: 'red', ms: 2200, sub: t('The round ends in a moment') });
-        else hud.say(t('{name} is out!', { name: name(e.kart) }), { prio: 1, tone: 'gold' });
+        if (e.kart === me) hud.say(t('POPPED!'), { prio: 3, tone: 'red', ms: 2200, sub: t('−1 point · back in a moment') });
+        else hud.say(t('{name} popped!', { name: name(e.kart) }), { prio: 1, tone: 'gold' });
       }
     }
     if (this.mode === 'tt' && e.type === 'checkpoint' && e.kart === me) {
@@ -169,17 +169,31 @@ export class ModeHud implements JuiceListener {
       const s = left - m * 60;
       this.set('clock', this.clock, `<span class="${left <= 10 && st.phase === 'race' ? 'hot' : ''}">⏱ ${m}:${s < 10 ? '0' : ''}${s}</span>`);
       const me = ks[info.me];
-      this.set('mine', this.mine, me.out ? `<b class="out">${t('OUT')}</b>` : `${'🎈'.repeat(Math.max(0, me.balloons))}`);
+      const bs = battleOf(st);
+      const score = (i: number) => bs?.score[i] ?? 0;
+      this.set('mine', this.mine, `<b class="pts">★ ${score(info.me)}</b> ${me.out ? `<b class="out">${t('POPPED')}</b>` : '🎈'.repeat(Math.max(0, me.balloons))}`);
       const racers = this.shell.racers;
-      const rows = ks
+      // leaders plus you: the full field of 8 rows covered a third of a phone screen
+      const sorted = ks
         .map((k, i) => ({ k, i }))
-        .sort((a, b) => a.k.out - b.k.out || b.k.balloons - a.k.balloons || a.i - b.i)
-        .map(({ k, i }) => `<div class="r${i === info.me ? ' me' : ''}${k.out ? ' out' : ''}"><i style="background:${hex(racers[i]?.kart.paint[0] ?? 0xffffff)}"></i><span>${escHtml((racers[i]?.name ?? '').slice(0, 9))}</span><b>${k.out ? '✕' : k.balloons}</b></div>`)
+        .sort((a, b) => score(b.i) - score(a.i) || (b.k.out ? 0 : b.k.balloons) - (a.k.out ? 0 : a.k.balloons) || a.i - b.i);
+      const myRank = sorted.findIndex((r) => r.i === info.me);
+      const shown = sorted.map((r, rank) => ({ ...r, rank })).filter((r) => r.rank < 3 || r.i === info.me);
+      const rows = shown
+        .map(({ k, i, rank }) => `<div class="r${i === info.me ? ' me' : ''}${k.out ? ' out' : ''}"><em>${rank + 1}</em><i style="background:${hex(racers[i]?.kart.paint[0] ?? 0xffffff)}"></i><span>${escHtml((racers[i]?.name ?? '').slice(0, 9))}</span><b>★${score(i)}</b></div>`)
         .join('');
+      void myRank;
       this.set('list', this.list, rows);
       if (this.lastLeft !== left) {
         this.lastLeft = left;
-        this.shell.hudExtras({ balloons: ks.map((k) => k.balloons), timeLeft: left });
+        this.shell.hudExtras({ balloons: ks.map((k) => k.balloons), timeLeft: left, battleScore: bs ? bs.score.slice() : undefined });
+      }
+    }
+    // a popped cat comes back: solid again
+    for (const i of this.faded) {
+      if (ks[i] && !ks[i].out) {
+        this.shell.view?.karts[i]?.setGhost(1);
+        this.faded.delete(i);
       }
     }
     // balloons over the karts

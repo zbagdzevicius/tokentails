@@ -8,6 +8,7 @@
  */
 import type { BodyId, RaceClass } from '../types';
 import type { Progress } from '../core/app/save';
+import { PAINT_PRESETS } from '../content/cosmetics';
 
 export interface LifetimeStats {
   races: number;
@@ -212,7 +213,7 @@ function sanitizeLoadout(v: unknown, owned: ProgSave['owned']): Loadout {
   const cat = typeof l.cat === 'string' && owned.cats.includes(l.cat) ? l.cat : null;
   return {
     body: owned.bodies.includes(body) ? body : 0,
-    paint: int(l.paint, 0, 0, 99),
+    paint: int(l.paint, 0, 0, PAINT_PRESETS.length - 1),
     number: int(l.number, 7, 0, 99),
     hat: owned.hats.includes(hat) ? hat : 0,
     trail: owned.trails.includes(trail) ? trail : 0,

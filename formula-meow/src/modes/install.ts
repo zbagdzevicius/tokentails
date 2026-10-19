@@ -18,6 +18,7 @@
 import type { Shell } from '../core/app/shell';
 import { hasScreen, registerScreen, screens } from '../core/app/screens';
 import { registerResultSection } from '../core/hud/results';
+import { load, save } from '../core/app/storage';
 import { setShareHooks, shareHooks } from '../share/hooks';
 import { registerStrings } from '../ui/i18n';
 import { MODES_EN } from '../ui/strings/modes.en';
@@ -32,6 +33,32 @@ import './modes.css';
 
 /** Share actions kept on the results of a Grand Prix, time trial or battle race. */
 const KEEP_ACTIONS = new Set(['clip', 'pinkpaw']);
+
+/** Route parameters that start a race or the editor (QA switches like ?bot, ?speed, ?lang stay). */
+const ROUTE_KEYS = ['track', 'cls', 'seed', 't', 'make', 'daily', 'g', 'n', 'c'];
+
+/** Drop the race route from the address bar, keeping the /meow-race base and the QA switches. */
+export function routeFreeUrl(loc: { pathname: string; search: string; hash: string }): string | null {
+  const q = new URLSearchParams(loc.search);
+  let changed = !!loc.hash && loc.hash !== '#';
+  for (const k of ROUTE_KEYS) {
+    if (q.has(k)) {
+      q.delete(k);
+      changed = true;
+    }
+  }
+  const path = loc.pathname.replace(/\/(d\/\d{1,4}|r|make)\/?$/, '') || '/';
+  if (path !== loc.pathname) changed = true;
+  if (!changed) return null;
+  const qs = q.toString();
+  return `${path}${qs ? `?${qs}` : ''}`;
+}
+
+function clearRouteUrl(): void {
+  if (typeof history === 'undefined' || typeof location === 'undefined') return;
+  const url = routeFreeUrl(location);
+  if (url) history.replaceState(null, '', url);
+}
 
 export function installModes(shell: Shell): ModesFlow {
   registerStrings('en', MODES_EN);
@@ -75,10 +102,17 @@ export function installModes(shell: Shell): ModesFlow {
   shell.quitGuard = () => (flow.inCupRace() ? flow.quitCupAsk() : Promise.resolve(true));
 
   // menu chrome: the race corner buttons (☰, 🏁 Tracks) hide while a modes screen is up
-  screens.onChange((top) => shell.host.classList.toggle('fm-in-menu', !!top && (MODES_SCREENS.includes(top) || shell.attract || !shell.world)));
+  screens.onChange((top) => {
+    shell.host.classList.toggle('fm-in-menu', !!top && (MODES_SCREENS.includes(top) || shell.attract || !shell.world));
+    // back at the menu, the route that started the last race (?daily=, ?t=, #g=, /d/<n>) is spent: a reload opens
+    // the title, not that race again
+    if (top === 'menu' || top === 'title') clearRouteUrl();
+    // a player who quit the first-visit race to the menu has seen it: the next plain visit opens on the title
+    if (top === 'menu' && !shell.attract) save('ftueSeen', true);
+  });
 
   // boot: a returning player's plain visit opens on the title over the attract race; the first visit is the FTUE race
-  if (isPlainVisit(location) && shell.progress.races > 0) {
+  if (isPlainVisit(location) && (shell.progress.races > 0 || load<boolean>('ftueSeen', false))) {
     shell.startFilter = () => flow.attractRequest();
     void screens.push('title');
   }

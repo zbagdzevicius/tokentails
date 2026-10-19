@@ -271,4 +271,5 @@ export const PROGRESSION_EN: Record<string, string> = {
   "🔒 Podium": "🔒 Podium",
   "🔒 Trophy {n}": "🔒 Trophy {n}",
   "Races in this cup": "Races in this cup",
+  "+{n} more": "+{n} more",
 };

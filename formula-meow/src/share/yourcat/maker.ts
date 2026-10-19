@@ -9,6 +9,7 @@ import { analyseCoat } from './pattern-guess';
 import { faceSkip, sampleCoat, SAMPLE_SIZE } from './photo-palette';
 import { filterName } from '../codec/text-filter';
 import type { YourCat } from './store';
+import { focusNav } from '../../ui/kit';
 
 const MAX_WORK_PX = 1200;
 const PATTERNS: readonly Pattern[] = ['solid', 'tabby', 'tuxedo', 'bicolor', 'calico', 'colorpoint', 'tortie'];
@@ -52,6 +53,7 @@ export function openMaker(host: HTMLElement, current: YourCat | null, base: CatS
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
     wrap.className = 'fm-maker';
+    wrap.setAttribute('data-ui-layer', '');
     wrap.innerHTML = `
       <div class="fm-panel fm-sticker fm-maker-panel" role="dialog" aria-label="Your cat">
         <h2>Put YOUR cat in the kart</h2>
@@ -141,10 +143,27 @@ export function openMaker(host: HTMLElement, current: YourCat | null, base: CatS
     drawSwatches();
     drawFace();
 
+    const opener = document.activeElement as HTMLElement | null;
+    let closed = false;
     const close = (v: MakerResult | null | undefined) => {
+      if (closed) return;
+      closed = true;
+      stopNav();
+      window.removeEventListener('keydown', onEsc, true);
       wrap.remove();
+      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
       resolve(v);
     };
+    // keyboard and pad: Esc / B close the maker (not the menu under it), arrows move between its controls
+    const stopNav = focusNav(wrap, { back: () => close(undefined), modal: true });
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      close(undefined);
+    };
+    window.addEventListener('keydown', onEsc, true);
+    wrap.querySelector<HTMLButtonElement>('[data-act="pick"]')?.focus({ preventScroll: true });
 
     // drag the oval
     let drag: { x: number; y: number } | null = null;

@@ -29,7 +29,7 @@ export interface ClassTuning {
 
 export const CLASSES: readonly ClassTuning[] = [
   // skill bands are 1.6× wider than v1 (feel lane): the field spreads out instead of driving as one pack
-  { name: 'Kitten', cc: '50cc', topSpeed: 22, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.83, aiTopHi: 0.96 },
+  { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.86, aiTopHi: 0.95 },
   { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.66, 0.9], bandDown: 0.03, bandUp: 0.04, aiTop: 0.82, aiTopHi: 1 },
   { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.84, 1], bandDown: 0.01, bandUp: 0.045, aiTop: 0.81, aiTopHi: 1 },
 ];
@@ -53,9 +53,12 @@ export const PHYS = {
   coastDrag: 4,
   brakeDecel: 32,
   reverseMax: 7,
-  /** yaw rate: 120°/s at ≤ 8 m/s falling linearly to 75°/s at top speed */
+  /**
+   * yaw rate: 120°/s at ≤ 8 m/s falling linearly to 66°/s at top speed (SIM_VERSION 6, was 75°/s): at 50cc top speed a
+   * bend under ~22 m radius needs a drift or a lift, so drifting is how you go fast, not an option
+   */
   yawLow: 120 * DEG,
-  yawHigh: 75 * DEG,
+  yawHigh: 66 * DEG,
   yawLowSpeed: 8,
   /** below this speed the steering authority fades to zero (no turning on the spot) */
   yawFadeSpeed: 3,
@@ -87,9 +90,10 @@ export const PHYS = {
   wallWobble: 0.3,
   /** kart footprint for walls: the body's half width (the barrier face is drawn at the wall line) */
   kartHalfWidth: 0.8,
-  /** kart-kart contact: two circles per kart at ±kartCircleOffset along the heading (B7) */
-  kartRadius: 0.75,
-  kartCircleOffset: 0.8,
+  /** kart-kart contact: two circles per kart at ±kartCircleOffset along the heading (B7); 0.85 / 0.75 covers the
+   * drawn 2.9 m × 1.6 m kart (SIM_VERSION 6: noses no longer sink into the kart ahead) */
+  kartRadius: 0.85,
+  kartCircleOffset: 0.75,
   /** ticks between two `bump` events of one kart pair (the push itself runs every tick) */
   bumpCooldownTicks: 20,
   /** how far past the road edge the wall sits, m (the kerb band fills it) */
@@ -199,8 +203,8 @@ export const COINS = {
   radius: 1.3,
   respawn: 10,
   max: 10,
-  /** top speed bonus per coin held */
-  speedPer: 0.005,
+  /** top speed bonus per coin held (SIM_VERSION 6: 0.01, ten coins = +10 %, about Mario Kart's) */
+  speedPer: 0.01,
   /** a spin or a leap drops this many */
   drop: 3,
   /** spacing of a coin row across the road, m */
@@ -271,7 +275,7 @@ export const AI = {
    */
   mistakeChance: 0.006,
   wideTime: 0.4,
-  missTurbo: 0.35,
+  missTurbo: 0.45,
   /** AI fights: how eager an AI is to use items when it is far ahead of the player (1 = as eager as near) */
   farAheadEager: 0.75,
   /** the player's rival (RacerInfo.rival): top scale bonus, its own rubber band up, item eagerness at the player */

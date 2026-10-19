@@ -122,7 +122,11 @@ export function migrateProgressV1(v: unknown): Progress {
 function sanitizeSettings(v: unknown): Settings {
   const s = { ...DEFAULT_SETTINGS, ...(isObj(v) ? v : {}) } as Settings;
   if (![0, 1, 2].includes(s.cls)) s.cls = 0;
-  for (const k of ['musicVol', 'sfxVol', 'voiceVol'] as const) s[k] = Math.max(0, Math.min(1, Number(s[k]) || 0));
+  // a damaged volume falls back to its default (it used to become 0: silently muted)
+  for (const k of ['musicVol', 'sfxVol', 'voiceVol'] as const) {
+    const n = typeof s[k] === 'number' ? s[k] : Number.NaN;
+    s[k] = Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : DEFAULT_SETTINGS[k];
+  }
   s.textScale = Math.max(0.85, Math.min(1.5, Number(s.textScale) || 1));
   if (!['off', 'deut', 'prot', 'trit'].includes(s.colourblind)) s.colourblind = 'off';
   if (typeof s.lang !== 'string') s.lang = 'en';

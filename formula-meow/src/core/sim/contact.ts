@@ -1,5 +1,5 @@
 /**
- * Kart-kart contact (GDD 3.2, B7): each kart is two circles of radius 0.75 m at ±0.8 m along its heading (the toy
+ * Kart-kart contact (GDD 3.2, B7): each kart is two circles of radius 0.85 m at ±0.75 m along its heading (the toy
  * karts are longer than wide), so karts no longer pass through each other nose to tail. The closest circle pair of
  * two karts is resolved with a positional push-out and a velocity exchange along its normal. A boosting kart pushes
  * 2× harder; Zoomies (autopilot) and the box shield push 6×; the body's weight (content/karts.ts) scales it.

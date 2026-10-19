@@ -8,6 +8,7 @@ import { GO_TICK } from '../../core/sim/world';
 import { curvatureAhead, followLine } from '../../core/sim/autopilot';
 import { speedOf } from '../../core/sim/kart';
 import { sinL } from '../../core/sim/fixed';
+import { PHYS, classTuning } from '../../tuning';
 import type { SimContext } from '../../core/sim/plugins';
 
 export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
@@ -28,7 +29,17 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
   if (k.driftDir === 0 && Math.abs(c) > 0.035 && speedOf(k) > 12 && out.steer * turn >= 2) {
     out.drift = !k.pDrift;
     out.steer = turn * 5;
-  } else if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6) && out.steer * k.driftDir > -5;
+  } else if (k.driftDir === 0 && !out.drift && !k.air) {
+    // a bend tighter than the kart turns at this speed (yaw falls with speed): lift, as a player would
+    const sp = speedOf(k);
+    const top = classTuning(ctx.cfg.cls).topSpeed;
+    const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
+    const ahead = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, 10)), Math.abs(curvatureAhead(ctx, k.si, 8, 18)));
+    if (sp * ahead > yaw * 1.3) out.gas = false;
+    // over the class top speed (a boost, coins) into a bend the kart cannot turn: brake
+    if (sp > top && sp * ahead > yaw * 1.5) out.brake = true;
+  }
+  if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6) && out.steer * k.driftDir > -5;
   out.item = !!k.item && k.rouletteTicks === 0 && !k.pItem;
   return out;
 }

@@ -106,7 +106,7 @@ test('the Garage and the racer select share one loadout; locked bodies say how t
   expect(errors).toEqual([]);
 });
 
-test('battle: the race HUD shows the round clock and your balloons; every cat is listed', async ({ page }) => {
+test('battle: the race HUD shows the round clock and your balloons; the leaders and you are listed', async ({ page }) => {
   test.setTimeout(400_000);
   const errors = watchErrors(page);
   await returning(page);
@@ -118,7 +118,8 @@ test('battle: the race HUD shows the round clock and your balloons; every cat is
   await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('battle');
   await expect(page.locator('.fm-hud .fm-lap')).toContainText('⏱', { timeout: 20_000 });
   await expect(page.locator('.fm-hud .fm-balloons.on')).toContainText('🎈');
-  await expect(page.locator('.fm-mode-hud.on .fm-mh-list .r')).toHaveCount(8);
+  await expect.poll(() => page.locator('.fm-mode-hud.on .fm-mh-list .r').count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
+  expect(await page.locator('.fm-mode-hud.on .fm-mh-list .r').count()).toBeLessThanOrEqual(4);
   // the mode HUD no longer draws a second clock or rival chip
   await expect(page.locator('.fm-mh-clock')).toBeHidden();
   await page.screenshot({ path: 'e2e/screens/integration-battle-hud.png' });

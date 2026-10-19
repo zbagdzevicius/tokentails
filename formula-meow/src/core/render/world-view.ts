@@ -29,6 +29,13 @@ export function buildWorldView(scene: Scene, t: BuiltTrack): WorldView {
   sun.position.set(60, 120, 40);
   group.add(sun);
   group.add(sun.target);
+  // night tracks: a warm fill from the other side, so karts, cats and coins never read as dark silhouettes on a dark
+  // road (one extra light, no shadows)
+  if (theme.night) {
+    const fill = new DirectionalLight(0xffe6d0, 0.95);
+    fill.position.set(-70, 60, -50);
+    group.add(fill);
+  }
 
   const groundY = t.def.theme === 1 ? ROOF_GROUND : 0;
   group.add(buildTrackMesh(t, theme, { groundY }));

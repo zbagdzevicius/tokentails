@@ -21,7 +21,8 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     ul.append(
       h('li', {}, [
         h('span', { class: 'sw', 'aria-hidden': 'true' }, [h('i', { style: `background:${hex(c.base)}` }), h('i', { style: `background:${hex(c.secondary)}` })]),
-        h('span', { class: 'nm' }, [h('b', {}, [c.name]), h('small', {}, [`${t(STATUS[c.status] ?? c.status)} (${PINK_PAW_STATUS_AS_OF}) · ${c.bio}`])]),
+        // the date is said once, in the note above (it repeated on every row)
+        h('span', { class: 'nm' }, [h('b', {}, [c.name]), h('small', {}, [[t(STATUS[c.status] ?? c.status), c.bio.replace(/\s*Waiting at Pink Paw\.\s*$/, '')].filter(Boolean).join(' · ')])]),
         h('a', { class: 'fm-m-link', href: pinkPawAdoptUrl(c), target: '_blank', rel: 'noopener' }, [t('See {name}', { name: c.name })]),
       ]),
     );

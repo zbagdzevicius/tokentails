@@ -75,7 +75,18 @@ export class JuiceDirector implements JuiceListener {
     // quality: take over the stage's DPR governor
     const stage = shell.stage;
     this.quality = new Quality(stage.renderer, stage.dpr, shell.host);
-    stage.govern = (dt: number) => this.quality.sample(dt);
+    // the showroom, garage and podium (no race running) render almost nothing: full sharpness there, min(DPR, 2);
+    // the governor only rules while a race owns the canvas
+    stage.govern = (dt: number) => {
+      const showroom = !shell.setup;
+      const want = showroom ? Math.min(2, window.devicePixelRatio || 1) : this.quality.gov.dpr;
+      if (Math.abs(stage.dpr - want) > 1e-3) {
+        stage.dpr = want;
+        stage.renderer.setPixelRatio(want);
+        window.dispatchEvent(new Event('resize'));
+      }
+      if (!showroom) this.quality.sample(dt);
+    };
     this.quality.onDpr = (dpr) => {
       stage.dpr = dpr;
       stage.renderer.setPixelRatio(dpr);
@@ -253,16 +264,32 @@ export class JuiceDirector implements JuiceListener {
       sl.detail = this.quality.look.streaks;
       sl.setPulse(!reducedMotion() && this.finalLap && !k.finished && k.place > 1 && info.st.lapLength > 0 && k.s / info.st.lapLength > 0.82);
     }
-    // rivals right behind you sit between the chase camera and your kart: fade any kart near the lens (B59: 0 at 4 m,
-    // solid from 8 m; the player sits ~6 m out, Mario Kart style) so the screen never fills with a cat's head
+    // rivals right behind you sit between the chase camera and your kart: fade a kart only when it is between the
+    // lens and your kart and covers it on screen (B59), or when it is right at the lens. Rivals beside or ahead of
+    // you stay solid.
     const view = this.shell.view;
     if (view) {
       const cp = this.shell.camera.cam.position;
+      const fx = k.x - cp.x;
+      const fy = k.y + 0.8 - cp.y;
+      const fz = k.z - cp.z;
+      const dp = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
       for (let i = 0; i < view.karts.length; i++) {
         if (i === info.me) continue;
         const o = info.st.karts[i];
-        const d = Math.sqrt((o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 + (o.z - cp.z) ** 2);
-        view.karts[i].setFade(Math.max(0, Math.min(1, (d - 4) / 4)));
+        const ox = o.x - cp.x;
+        const oy = o.y + 0.8 - cp.y;
+        const oz = o.z - cp.z;
+        const d = Math.sqrt(ox * ox + oy * oy + oz * oz);
+        const along = (ox * fx + oy * fy + oz * fz) / dp;
+        let fade = Math.max(0, Math.min(1, (d - 2) / 1.5));
+        if (along > 0 && along < dp - 1.2) {
+          const lat = Math.sqrt(Math.max(0, d * d - along * along));
+          // the cone towards your kart widens with depth: 1.6 m at the kart, less near the lens
+          const r = 1.6 * (along / dp) + 0.6;
+          fade = Math.min(fade, Math.max(0.15, Math.min(1, (lat - r) / 1.2 + 0.15)));
+        }
+        view.karts[i].setFade(fade);
       }
     }
     // outline LOD, 6 times a second

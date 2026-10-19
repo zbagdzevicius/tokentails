@@ -20,6 +20,7 @@ import { listSaved, loadDraft, removeSaved, type SavedTrack } from './store';
 import { byline, displayName, remixOf, shareTrack } from './actions';
 import type { EditorOptions } from './editor/TrackDoodle';
 import { registerScreen } from '../core/app/screens';
+import { t } from '../ui/i18n';
 import './ugc.css';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -92,6 +93,22 @@ export class UgcHub {
       })),
     );
 
+    // "🏁 Tracks" lives in the pause panel and the results footer of single races, dares and doodle races only (never
+    // inside a Grand Prix, a time trial or a battle, where it opened the hub mid-cup); a doodle race also gets
+    // "✏️ Edit track" when the track is saved on this device
+    shell.raceMenuExtras.push(() => {
+      const mode = this.shell.setup?.mode ?? 'race';
+      if (mode !== 'race' && mode !== 'dare') return null;
+      return { label: t('🏁 Tracks'), act: 'ugc-tracks', run: () => this.openSheet() };
+    });
+    shell.raceMenuExtras.push((where) => {
+      const track = this.shell.setup?.track;
+      if (where !== 'pause' || !track || !track.id.startsWith('u-')) return null;
+      const mine = this.savedFor(track);
+      if (!mine) return null;
+      return { label: t('✏️ Edit track'), act: 'ugc-edit', run: () => void this.openEditor({ def: mine.def, slot: mine.slot }) };
+    });
+
     shell.bus.add({
       onFrame: (info) => this.onFrame(info),
       onReset: () => {
@@ -99,6 +116,16 @@ export class UgcHub {
         this.bannerFor = '';
       },
     });
+  }
+
+  /** The saved (made on this device) track this doodle race runs, if any. */
+  private savedFor(track: TrackDef): { def: TrackDef; slot: string } | null {
+    if (!track.id.startsWith('u-')) return null;
+    for (const s of listSaved()) {
+      const d = decodeTrackCode(s.code, { validate: false });
+      if (d.ok && d.track.id === track.id) return { def: d.track, slot: s.slot };
+    }
+    return null;
   }
 
   /** After the first race has started: broken links and `?make`. */
@@ -118,8 +145,8 @@ export class UgcHub {
 
   private onFrame(info: FrameInfo): void {
     // B44: the sticker comes with the pause and results screens (never over the finish celebration)
-    const top = this.shell.screens.top();
-    const show = !this.editorOpen && (top === 'pause' || top === 'results');
+    // the floating sticker is gone: the pause panel and the results footer carry "🏁 Tracks" (raceMenuExtras)
+    const show = false;
     if (show !== this.shown) {
       this.shown = show;
       this.btn.classList.toggle('on', show);
@@ -129,13 +156,14 @@ export class UgcHub {
     const want = ugc && !this.bannerOff && !this.editorOpen && info.st.tick < GO_TICK + 180 && !info.paused;
     if (want && this.bannerFor !== track!.id) {
       this.bannerFor = track!.id;
-      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(byline(track!))}</span>`;
+      const mine = this.savedFor(track!);
+      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? 'by you' : byline(track!))}</span>`;
       const remix = document.createElement('button');
       remix.className = 'fm-ugc-chip';
-      remix.textContent = '🔀 Remix';
+      remix.textContent = mine ? '✏️ Edit' : '🔀 Remix';
       remix.addEventListener('click', () => {
         this.bannerOff = true;
-        void this.openEditor({ def: remixOf(track!) });
+        void this.openEditor(mine ? { def: mine.def, slot: mine.slot } : { def: remixOf(track!) });
       });
       this.banner.append(remix);
     }

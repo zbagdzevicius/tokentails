@@ -41,7 +41,8 @@ export function modesResultSection(ctx: ResultCtx): HTMLElement | null {
     else if (r.prev != null) box.append(h('p', { class: 'fm-line' }, [t('Your best: {t} ({d})', { t: fmt(r.prev), d: fmtDelta(r.time - r.prev) })]));
     if (r.ghostTime != null) {
       const d = r.time - r.ghostTime;
-      box.append(h('p', { class: 'fm-line' }, [d <= 0 ? t('You beat {g} by {s} s', { g: r.ghostLabel, s: Math.abs(d).toFixed(2) }) : t('{g} was {s} s faster', { g: r.ghostLabel, s: d.toFixed(2) })]));
+      // gold sits 2 % behind the dev time, so a gold run can still trail the dev ghost: say it as the next goal
+      box.append(h('p', { class: 'fm-line' }, [d <= 0 ? t('You beat {g} by {s} s', { g: r.ghostLabel, s: Math.abs(d).toFixed(2) }) : r.medal === 3 ? t('Next goal: {g}, {s} s ahead', { g: r.ghostLabel, s: d.toFixed(2) }) : t('{g} was {s} s faster', { g: r.ghostLabel, s: d.toFixed(2) })]));
     }
     if (r.dev != null && r.medal < 3) {
       const [gold, silver, bronze] = f.medalTimes(r.dev);
@@ -57,15 +58,14 @@ export function modesResultSection(ctx: ResultCtx): HTMLElement | null {
     if (!w || !b) return null;
     const me = ctx.result.player.kart;
     const win = ctx.result.places[0];
-    const k = w.st.karts[me];
     box.append(
       h('p', { class: 'fm-m-res-big' }, [win.kart === me ? t('You won the battle!') : t('{name} won the battle', { name: win.name })]),
       h('p', { class: 'fm-line' }, [
-        k.out ? t('You were popped out') : t('{n} balloons left', { n: k.balloons }),
+        b.pops[me] === 1 ? t('1 pop') : t('{n} pops', { n: b.pops[me] }),
         ' · ',
-        t('{n} pops', { n: b.pops[me] }),
+        b.steals[me] === 1 ? t('1 steal') : t('{n} steals', { n: b.steals[me] }),
         ' · ',
-        t('{n} steals', { n: b.steals[me] }),
+        b.outs[me] === 0 ? t('never popped') : b.outs[me] === 1 ? t('popped once') : t('popped {n} times', { n: b.outs[me] }),
       ]),
     );
     return box;

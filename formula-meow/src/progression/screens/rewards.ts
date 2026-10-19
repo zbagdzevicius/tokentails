@@ -18,8 +18,20 @@ const CUP_NAMES: Record<string, string> = { kibble: 'Kibble Cup', catnip: 'Catni
 
 export function rewardsScreen(): ScreenModule {
   return {
-    mount(root: HTMLElement, _p: unknown, api: ScreenApi) {
-      const all = takeRewards().reduce(mergeAward, emptyAward());
+    mount(root: HTMLElement, p: unknown, api: ScreenApi) {
+      // `then`: where the podium was heading (Menu, Next cup, Again); it runs after Continue, so the rewards never
+      // pop up later over the menu (known issue 1)
+      const then = (p as { then?: () => void } | undefined)?.then;
+      const list = takeRewards();
+      const close = () => {
+        api.close();
+        then?.();
+      };
+      if (!list.length && then) {
+        queueMicrotask(close);
+        return;
+      }
+      const all = list.reduce(mergeAward, emptyAward());
       const tr = all.trophy;
       const big = h('div', { class: 'big' }, ['+0']);
       const bal = h('span', { class: 'fm-prog-wallet' }, [`🐟 ${prog().fish}`]);
@@ -48,7 +60,7 @@ export function rewardsScreen(): ScreenModule {
               : null,
             h('p', {}, [bal]),
           ]),
-          actionFooter([button(t('Continue'), () => api.close(), { primary: true, act: 'continue' }), button(t('🏎️ Garage'), () => void screens.push('garage'), { act: 'garage' })]),
+          actionFooter([button(t('Continue'), close, { primary: true, act: 'continue' }), button(t('🏎️ Garage'), () => void screens.push('garage'), { act: 'garage' })]),
         ], 'fm-prog-screen'),
       );
       countUp(big, 0, all.total, 1000, (n) => `+${n} 🐟`);

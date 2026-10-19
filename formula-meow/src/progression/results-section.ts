@@ -79,7 +79,18 @@ export function fishChips(a: Award): HTMLElement[] {
 function fishBlock(a: Award, before: number): HTMLElement {
   const total = h('b', { class: 'fm-prog-plus' }, ['+0']);
   const bal = h('span', { class: 'fm-prog-bal', 'aria-label': t('Fish coins') }, [`🐟 ${before}`]);
-  const reasons = h('div', { class: 'fm-prog-reasons' }, fishChips(a));
+  // one line of chips; the rest behind a "+N more" chip (a wrapped wall of chips was clipped by the button row)
+  const chips = fishChips(a);
+  const SHOW = 3;
+  const reasons = h('div', { class: 'fm-prog-reasons' }, chips.slice(0, SHOW));
+  if (chips.length > SHOW) {
+    const more = h('button', { class: 'fm-prog-chip fm-prog-more', type: 'button' }, [t('+{n} more', { n: chips.length - SHOW })]);
+    more.addEventListener('click', () => {
+      more.remove();
+      reasons.append(...chips.slice(SHOW));
+    });
+    reasons.append(more);
+  }
   const row = h('div', { class: 'fm-prog-fish' }, [h('span', { class: 'fm-prog-icon', 'aria-hidden': 'true' }, ['🐟']), total, bal]);
   countUp(total, 0, a.total, 700, (n) => `+${n}`);
   countUp(bal, before, before + a.total, 900, (n) => `🐟 ${n}`);

@@ -30,9 +30,9 @@ export class GamepadInput implements InputSource {
       const start = b(9);
       out.pause ||= start && !prevStart[p.index];
       prevStart[p.index] = start;
-      // Select / Back restarts the race (B31)
+      // Select / Back held restarts the race (B31; the shell asks for a 0.6 s hold)
       const select = b(8);
-      out.restart ||= select && !prevSelect[p.index];
+      out.restart ||= select;
       prevSelect[p.index] = select;
       out.any ||= p.buttons.some((x) => x.pressed);
     }

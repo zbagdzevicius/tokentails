@@ -8,6 +8,7 @@
 .fm-prog-bal { margin-left: auto; font-size: 16px; background: var(--butter); border: 3px solid var(--ink); border-radius: 999px; padding: 2px 10px; font-variant-numeric: tabular-nums; }
 .fm-prog-reasons, .fm-prog-news, .fm-prog-ach { display: flex; flex-wrap: wrap; gap: 4px; }
 .fm-prog-chip { font-size: 12px; font-weight: 800; background: #f0e2cc; border: 2px solid var(--ink); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.fm-prog-more { min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800; color: var(--ink); background: var(--butter); }
 .fm-prog-chip.gold { background: var(--butter); font-size: 13px; animation: fm-prog-pop 0.4s ease-out both; }
 .fm-prog-badge { font-size: 13px; font-weight: 800; background: var(--ink); color: var(--butter); border-radius: 10px; padding: 4px 9px; animation: fm-prog-pop 0.45s ease-out both; }
 .fm-prog-dim { opacity: 0.7; }
@@ -45,6 +46,8 @@
 .fm-prog-wallet { font-size: 18px; background: var(--butter); border: 3px solid var(--ink); border-radius: 999px; padding: 4px 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fm-prog-wallet.bump { animation: fm-prog-pop 0.4s ease-out; }
 .fm-prog-sub { font-size: 13px; opacity: 0.75; margin: 0 0 8px; }
+/* the tilted ribbon title overhangs its box: keep the line under it clear */
+.fm-prog-head + .fm-prog-sub { margin-top: 10px; }
 
 /* tabs fit one row on a phone */
 .fm-prog-screen .fm-ui-tabs { gap: 4px; }

@@ -103,6 +103,8 @@ export interface HudModel {
   balloons?: number[];
   /** battle / time limit, seconds */
   timeLeft?: number;
+  /** battle: points per kart */
+  battleScore?: number[];
   /** time trial: split deltas in seconds (negative = ahead) */
   splits?: number[];
   /** Grand Prix: race n of m */
@@ -196,17 +198,16 @@ export class Hud {
         <div class="fm-pos" data-place="0"><span class="fm-pos-n fm-outline"></span><small class="fm-pos-of fm-outline"></small><i class="fm-pos-delta" aria-hidden="true"></i></div>
         <div class="fm-rival fm-chip" aria-hidden="true"></div>
         <div class="fm-balloons" aria-hidden="true"></div>
+        <div class="fm-coins"><b aria-hidden="true">🐟</b><span class="n"></span><i class="bar" aria-hidden="true"><i></i></i></div>
       </div>
       <div class="fm-item fm-sticker empty" aria-hidden="true"><span class="fm-item-i"></span></div>
       <div class="fm-item-name fm-outline" aria-hidden="true"></div>
       <div class="fm-right">
         <div class="fm-lap fm-sticker"></div>
-        <div class="fm-gp fm-chip"></div>
-        <div class="fm-time"></div>
+        <div class="fm-rrow"><div class="fm-gp fm-chip"></div><div class="fm-time"></div></div>
         <div class="fm-split fm-chip"></div>
         <div class="fm-tag fm-outline"></div>
         <canvas class="fm-map" width="${MAP}" height="${MAP}" aria-hidden="true"></canvas>
-        <div class="fm-coins"><b aria-hidden="true">🐟</b><span class="n"></span><i class="bar" aria-hidden="true"><i></i></i></div>
       </div>
       <div class="fm-bottom">
         <div class="fm-drift" aria-hidden="true"><i class="fill"></i><span class="pip"></span><span class="pip"></span><span class="pip"></span></div>
@@ -509,7 +510,8 @@ export class Hud {
     const rv = m.rival;
     if (rv && st.karts[rv.kart] && rv.kart !== me) {
       const rk = st.karts[rv.kart];
-      rHtml = rk.out ? `⚔ ${rv.name} · ${t('OUT')}` : `⚔ ${t('{name} · {p}', { name: rv.name, p: ordinalText(rk.place) })}`;
+      // ⚔️ with the emoji selector: the bare ⚔ drew as a thin "×" on some phones and read as a close button
+      rHtml = `⚔️ ${t('{name} · {p}', { name: rv.name, p: ordinalText(rk.place) })}`;
       this.rival.classList.toggle('ahead', rk.place < place);
     }
     if (rHtml !== this.lastHtml.rival) {
@@ -521,10 +523,9 @@ export class Hud {
     let bHtml = '';
     if (battle) {
       const left = Math.max(0, m.balloons?.[me] ?? k.balloons);
-      let alive = 0;
-      for (const o of st.karts) alive += o.out ? 0 : 1;
-      bHtml = k.out ? `<span class="out">${t('OUT')}</span>` : '🎈'.repeat(left) + '<span class="pop">💨</span>'.repeat(Math.max(0, 3 - left));
-      bHtml += `<small>${t('{n} cats left', { n: alive })}</small>`;
+      const pts = m.battleScore?.[me] ?? 0;
+      bHtml = k.out ? `<span class="out">${t('POPPED')}</span>` : '🎈'.repeat(left) + '<span class="pop">💨</span>'.repeat(Math.max(0, 3 - left));
+      bHtml += `<small>★ ${pts === 1 ? t('1 point') : t('{n} points', { n: pts })}</small>`;
     }
     if (bHtml !== this.lastHtml.balloons) {
       this.balloons.innerHTML = this.lastHtml.balloons = bHtml;
@@ -771,10 +772,9 @@ export class Hud {
         this.flash(t('POP!'), 'red', 2);
         break;
       case 'eliminated':
-        this.say(t('OUT!'), { prio: 3, tone: 'red', ms: 2000 });
         break;
       case 'finish':
-        if (this.model.mode === 'battle') this.say(e.a === 1 ? t('LAST CAT STANDING!') : t('TIME!'), { prio: 3, tone: 'gold', ms: 2200 });
+        if (this.model.mode === 'battle') this.say(e.a === 1 ? t('TOP CAT!') : t('TIME!'), { prio: 3, tone: 'gold', ms: 2200 });
         else this.say(e.a === 1 ? t('WINNER!') : t('FINISH! {p}', { p: ordinalText(e.a ?? 0) }), { prio: 3, tone: 'gold', ms: 2200 });
         break;
     }

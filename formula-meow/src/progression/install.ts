@@ -222,11 +222,17 @@ export function installProgression(shell: Shell): void {
     }
   });
 
+  let garagePrefetched = false;
   // dare wins land a little after the results (the ghost's time is recomputed over a few frames)
   shell.appBus.on('screen', ({ id }) => {
     checkGhosts(shell);
     // a cup's rewards that nobody showed yet (the modes lane pushes `rewards` after the podium) appear on the menu
     if (id === 'menu' && peekRewards().length) void screens.push('rewards');
+    // the garage chunk loads while the player looks at the menu (it opened on a blank loader for seconds)
+    if (id === 'menu' && !garagePrefetched) {
+      garagePrefetched = true;
+      setTimeout(() => void import('./screens/garage').catch(() => (garagePrefetched = false)), 600);
+    }
   });
 
   // ---- results section, screens ----

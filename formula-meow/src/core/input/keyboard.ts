@@ -71,7 +71,8 @@ export class KeyboardInput implements InputSource {
     out.lookBack ||= this.is('KeyQ');
     // Esc belongs to the screen stack while a menu layer is open (it goes back); P always toggles pause
     out.pause ||= this.pressed.has('Escape') || this.pressed.has('KeyP');
-    out.restart ||= this.pressed.has('KeyR');
+    // R is held, not tapped: the shell restarts after a 0.6 s hold (it sits next to E and W)
+    out.restart ||= this.is('KeyR');
     out.any ||= this.pressed.size > 0;
     this.pressed.clear();
   }

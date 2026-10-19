@@ -140,6 +140,16 @@ export class Shell {
   private armed = false;
   /** drift hint: shown this race, when it went up */
   private hintShows = 0;
+  /** seconds R / Select has been held (restart at 0.6 s), and a latch until it is let go */
+  /**
+   * Extra buttons for the pause panel and the results footer (ugc: "🏁 Tracks", "✏️ Edit track"). Each provider
+   * returns null when it has nothing for this race (a Grand Prix, a battle).
+   */
+  readonly raceMenuExtras: Array<(where: 'pause' | 'results') => { label: string; act: string; run: () => void } | null> = [];
+  private restartHold = 0;
+  /** frames drawn since the race paused (B: stop rendering a paused race) */
+  private pausedDraws = 0;
+  private restartLatch = false;
   private hintAt = -1;
   /** B32: the "Pounce Start" hint's timer (cleared on every start, so a stale one never hits the next race) */
   private pounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -207,7 +217,10 @@ export class Shell {
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
-    window.addEventListener('resize', () => this.onResize());
+    window.addEventListener('resize', () => {
+      this.pausedDraws = 0;
+      this.onResize();
+    });
     // B34: hiding the tab pauses (idempotent: a queued Escape can no longer flip it back) and silences the audio
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -258,12 +271,14 @@ export class Shell {
     // ugc lane: `?t=CODE` / `#t=CODE` races a shared track (a broken code falls back; the ugc hub says so)
     const shared = trackFromLocation(location);
     const track = shared?.ok ? shared.track : trackById(route?.trackId ?? q.get('track'));
+    // an arena (`?track=rug`) is for Balloon Battle only: a lap race there had no laps to count, so it is a battle
+    const mode = track.kind === 'arena' ? 'battle' : (route?.mode ?? 'race');
     // B6: only whole classes, and never one that is still locked (the QA bot may pick any)
     const clsQ = Number(q.get('cls'));
     const want = q.has('cls') && Number.isInteger(clsQ) && clsQ >= 0 && clsQ <= 2 ? clsQ : this.settings.cls;
     const cls = (route?.cls ?? (this.bot ? want : Math.min(want, this.progress.unlocked))) as RaceClass;
     const seed = route?.seed ?? (q.has('seed') ? Number(q.get('seed')) | 0 : newSeed());
-    return { track, cls, seed, modifiers: route?.modifiers ?? 0, mode: route?.mode ?? 'race', day: route?.day };
+    return { track, cls, seed, modifiers: route?.modifiers ?? 0, mode, day: route?.day };
   }
 
   /**
@@ -473,9 +488,21 @@ export class Shell {
     this.touch.setGrid(countdown && !attract);
     this.hud.setTouch(this.touchMode());
     if (this.mux.pause && !attract) this.pause(!this.paused);
+    // restart is a 0.6 s hold of R / Select (a stray tap next to E or W used to throw a race away), once per hold
     if (this.mux.restart && !this.paused && !this.resultsShown && !attract) {
-      this.restart();
-      return;
+      if (!this.restartLatch) {
+        if (this.restartHold === 0) this.hud.say(t('Keep holding to restart'), { prio: 1, ms: 700 });
+        this.restartHold += dt;
+        if (this.restartHold >= 0.6) {
+          this.restartHold = 0;
+          this.restartLatch = true;
+          this.restart();
+          return;
+        }
+      }
+    } else {
+      this.restartHold = 0;
+      if (!this.mux.restart) this.restartLatch = false;
     }
 
     // fixed-step sim (GDD 3.1): at most 5 steps per frame, never wall-clock inside the sim
@@ -520,7 +547,13 @@ export class Shell {
     this.touch.setItem(me.item ? (me.rouletteTicks === 0 ? ITEM_ICON[me.item] : '❔') : '', !!me.item && me.rouletteTicks === 0);
     if (!attract) this.driftHint(me);
     this.bus.frame(this.frameInfo);
-    this.stage.renderer.render(this.stage.scene, this.camera.cam);
+    // paused: a few frames to settle the blurred backdrop, then the canvas keeps its last frame (battery on phones);
+    // a resize draws again
+    if (!this.paused || this.resultsShown) this.pausedDraws = 0;
+    if (this.pausedDraws < 4) {
+      if (this.paused && !this.resultsShown) this.pausedDraws++;
+      this.stage.renderer.render(this.stage.scene, this.camera.cam);
+    }
     if (attract) return; // [modes lane] the attract race never shows results
 
     // finish → results 2.5 s later (the field keeps racing behind the panel, B35: rows fill in live)
@@ -661,12 +694,21 @@ export class Shell {
         extra: [
           ...(modeActions ?? []).map((a) => ({ label: a.label, act: `mode-${a.exit}`, run: () => exitTo(a.exit) })),
           ...(hasScreen('menu') ? [{ label: t('Menu'), act: 'menu', run: () => this.quitToMenu() }] : []),
+          ...this.raceMenuExtras.map((p) => p('results')).filter((x): x is { label: string; act: string; run: () => void } => !!x),
         ],
       });
       if (modeActions) {
         root.querySelector('[data-act="again"]')?.remove();
         root.querySelector('[data-act="next"]')?.remove();
-        for (const a of modeActions) if (a.primary) root.querySelector(`[data-act="mode-${a.exit}"]`)?.classList.add('primary');
+        for (const a of modeActions) {
+          if (!a.primary) continue;
+          const b = root.querySelector<HTMLElement>(`[data-act="mode-${a.exit}"]`);
+          // the mode's main step (Continue) leads the row, full width
+          if (b) {
+            b.classList.add('primary', 'big');
+            b.parentElement?.prepend(b);
+          }
+        }
       }
       // results that arrive late (the dare ghost's recomputed time): only for these results, still on screen
       const token = this.raceToken;
@@ -759,7 +801,7 @@ export class Shell {
       ? s.oneThumb
         ? t('Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.')
         : t('Left thumb steers. Hold the right thumb to drift. Swipe up or down for items.')
-      : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause');
+      : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · hold R restart · Esc pause');
     const btns = [
       button(t('Resume'), () => this.pause(false), { primary: true, act: 'resume' }),
       button(t('Restart'), () => this.restart(), { act: 'restart' }),
@@ -780,6 +822,10 @@ export class Shell {
           { act: 'menu' },
         ),
       );
+    for (const p of this.raceMenuExtras) {
+      const x = p('pause');
+      if (x) btns.push(button(x.label, x.run, { act: x.act }));
+    }
     const panel = h('div', { class: 'fm-panel fm-sticker', role: 'dialog', 'aria-label': t('Paused') }, [
       h('h1', {}, [t('Paused')]),
       h('div', { class: 'fm-settings' }, toggles),

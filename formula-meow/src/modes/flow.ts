@@ -486,7 +486,8 @@ export class ModesFlow {
       mode: 'gp',
       gpRace: { n: i + 1, of: cup.races.length },
       rival: rivalSlot >= 0 ? { kart: rivalSlot, name: run.field[run.rival].name } : undefined,
-      tag: t('{cup} · race {n}/{of}', { cup: t(cup.name), n: i + 1, of: cup.races.length }),
+      // the RACE n/4 chip already says where you are in the cup: no second tag line in the column
+      tag: undefined,
     });
     void promise.then((o) => {
       if (o.exit === 'continue') void screens.push('standings');

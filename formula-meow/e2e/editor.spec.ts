@@ -56,8 +56,8 @@ test('Track Doodle: draw a loop, it validates, race it, share link and remix', a
 
   // saved on the device, listed in the Tracks sheet (paused)
   await page.locator('.fm-menu-btn').click();
-  await expect(page.locator('.fm-ugc-btn.on')).toBeVisible();
-  await page.locator('.fm-ugc-btn').click();
+  await expect(page.locator('[data-screen="pause"] [data-act="ugc-tracks"]')).toBeVisible();
+  await page.locator('[data-screen="pause"] [data-act="ugc-tracks"]').click();
   await expect(page.locator('.fm-ugc-list')).toContainText('Zoomies Loop');
   await page.locator('[data-a="remix"]').click();
   await expect(page.locator('.fm-ed')).toBeVisible();

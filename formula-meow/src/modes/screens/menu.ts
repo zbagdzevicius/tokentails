@@ -88,21 +88,27 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   if (hasScreen('stats')) extra.push({ id: 'stats', order: 66, icon: '📊', label: () => t('Stats'), run: () => void screens.push('stats') });
   const all = new Map<string, MenuTile>();
   for (const x of [...builtIn, ...extra, ...menuTiles()]) all.set(x.id, x);
-  const grid = h('div', { class: 'fm-ui-grid fm-m-tiles' });
+  // three tiers (B: 13 equal tiles had no hierarchy): the Grand Prix hero card, the four other ways to race, then a
+  // compact strip for the garage, doodles, your cat, Pink Paw, settings and help
+  const MODES = new Set(['race', 'tt', 'battle', 'daily']);
+  const hero = h('div', { class: 'fm-ui-grid fm-m-tiles fm-m-hero' });
+  const modes = h('div', { class: 'fm-ui-grid fm-m-tiles fm-m-modes' });
+  const strip = h('div', { class: 'fm-ui-grid fm-m-tiles fm-m-strip' });
   for (const x of [...all.values()].sort((a, b) => a.order - b.order)) {
     const lock = x.lock?.() ?? null;
+    const into = x.id === 'gp' ? hero : MODES.has(x.id) ? modes : strip;
     const el = tile(
       x.label(),
       () => {
         f.update((v) => (v.last.focus = x.id));
         x.run();
       },
-      { icon: x.icon, sub: x.sub?.(), locked: !!lock, lockText: lock ?? undefined },
+      { icon: x.icon, sub: into === strip ? undefined : x.sub?.(), locked: !!lock, lockText: lock ?? undefined },
     );
     el.dataset.tile = x.id;
-    grid.append(el);
+    into.append(el);
   }
-  fr.body.append(grid);
+  for (const g of [hero, modes, strip]) if (g.childElementCount) fr.body.append(g);
   // trophies shelf: the best trophy per cup and class
   const shelf = CUPS.map((c) => {
     const row = [0, 1, 2, 3].map((cls) => TROPHY[s.trophies[`${c.id}:${cls}`] ?? 0] || '·').join(' ');
