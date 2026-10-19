@@ -91,8 +91,10 @@ function axe(page: Page, selector: string): Promise<string[]> {
     };
     for (const root of document.querySelectorAll(sel)) {
       for (const el of root.querySelectorAll<HTMLElement>('button, [role="switch"], [role="tab"], [role="radio"], input[type="range"], a[href]')) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0 || el.closest('[data-raw]')) continue;
+        const box = el.getBoundingClientRect();
+        if (box.width === 0 || box.height === 0 || el.closest('[data-raw]')) continue;
+        // layout size (an entrance animation may still scale the panel)
+        const r = { width: el.offsetWidth, height: el.offsetHeight };
         const name = (el.getAttribute('aria-label') ?? el.textContent ?? '').trim();
         if (!name && el.tagName !== 'INPUT') bad.push(`no name: ${el.outerHTML.slice(0, 80)}`);
         if (el.tagName === 'INPUT' && !el.getAttribute('aria-label')) bad.push(`range without a label`);

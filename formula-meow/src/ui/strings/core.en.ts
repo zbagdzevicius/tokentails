@@ -107,7 +107,7 @@ export const CORE_EN: Record<string, string> = {
   "Slipstream": "Slipstream",
   "Tuck in right behind another cat to charge a slipstream boost.": "Tuck in right behind another cat to charge a slipstream boost.",
   "Fish coins": "Fish coins",
-  "Every coin you hold adds a little top speed, up to 10. Getting hit drops 3.": "Every coin you hold adds a little top speed, up to 10. Getting hit drops 3.",
+  "Every coin you hold adds a little top speed, up to 10. Spinning out or leaping in fright drops 3.": "Every coin you hold adds a little top speed, up to 10. Spinning out or leaping in fright drops 3.",
   "Touch": "Touch",
   "Left thumb steers. Right thumb: tap to hop, swipe up for an item forward, down to throw it back. ☰ pauses.": "Left thumb steers. Right thumb: tap to hop, swipe up for an item forward, down to throw it back. ☰ pauses.",
   "Keyboard": "Keyboard",
