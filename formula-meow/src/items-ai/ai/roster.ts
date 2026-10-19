@@ -18,8 +18,9 @@ const PAINTS: [number, number, number][] = [
   [0xff3ea5, 0xfff3dc, 0x1a1238],
 ];
 
+/** Kart look per slot: the AI field shows all six bodies (content/karts.ts), slot 0 (the player's default) is the Tuna Can. */
 export function kartLookFor(slot: number): KartLook {
-  return { body: (slot % 3) as BodyId, paint: PAINTS[slot % PAINTS.length], number: (slot * 7 + 3) % 100 };
+  return { body: (slot % 6) as BodyId, paint: PAINTS[slot % PAINTS.length], number: (slot * 7 + 3) % 100 };
 }
 
 export interface FieldOptions {

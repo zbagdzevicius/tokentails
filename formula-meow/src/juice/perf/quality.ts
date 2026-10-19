@@ -7,6 +7,7 @@
  *    (high → mid → low). Tiers scale the juice: particle density, skids, AI outlines, ambient particles.
  *  - Outline LOD: AI karts beyond 40 m lose their inverted-hull outlines (GDD 12: "no outline" past 40 m); on low
  *    every AI outline is off. That is the biggest draw-call saver (one outline draw per fur / body mesh).
+ *  - Post-processing (feel lane, juice/perf/post.ts): bloom and the boost grade run on the high tier only.
  * `?quality=low|mid|high` forces a tier; `?perf=1` shows fps / DPR / tier / draw calls / triangles.
  */
 import type { WebGLRenderer } from 'three';
@@ -46,6 +47,8 @@ export function defaultTier(d: DeviceInfo, search = ''): Tier {
 }
 
 export interface TierLook {
+  /** bloom + boost grade (lazy post chunk) */
+  post: boolean;
   /** particle / skid / star density 0..1 */
   density: number;
   skids: boolean;
@@ -60,9 +63,9 @@ export interface TierLook {
 }
 
 export const TIERS: Record<Tier, TierLook> = {
-  high: { density: 1, skids: true, outlineDist: 60, ambient: 1, confetti: 1, streaks: 1 },
-  mid: { density: 0.7, skids: true, outlineDist: 40, ambient: 0.6, confetti: 0.75, streaks: 1 },
-  low: { density: 0.4, skids: false, outlineDist: 0, ambient: 0.3, confetti: 0.5, streaks: 0 },
+  high: { post: true, density: 1, skids: true, outlineDist: 60, ambient: 1, confetti: 1, streaks: 1 },
+  mid: { post: false, density: 0.7, skids: true, outlineDist: 40, ambient: 0.6, confetti: 0.75, streaks: 1 },
+  low: { post: false, density: 0.4, skids: false, outlineDist: 0, ambient: 0.3, confetti: 0.5, streaks: 0 },
 };
 
 export function lowerTier(t: Tier): Tier {
@@ -142,6 +145,8 @@ export interface PerfStats {
 }
 
 export class Quality {
+  /** the live auto-scaler (the feel lane's post-processing follows its tier) */
+  static current: Quality | null = null;
   tier: Tier;
   readonly gov: DprGovernor;
   readonly stats: PerfStats;
@@ -160,6 +165,7 @@ export class Quality {
     this.tier = defaultTier(dev, search);
     this.gov = new DprGovernor(startDpr, Math.max(1, dev.dpr));
     this.stats = { fps: 60, dpr: this.gov.dpr, tier: this.tier, calls: 0, tris: 0 };
+    Quality.current = this;
     if (host && new URLSearchParams(search).has('perf')) {
       const d = document.createElement('div');
       d.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:50;font:11px/1.3 ui-monospace,monospace;color:#2cf6f3;background:rgba(0,0,0,.55);padding:3px 6px;border-radius:6px;pointer-events:none;white-space:pre';
