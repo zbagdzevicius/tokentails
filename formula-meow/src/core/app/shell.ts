@@ -73,6 +73,16 @@ export interface RaceRequest extends RaceSetup {
   timeLimitTicks?: number;
   /** keep the countdown waiting for a first input (default true; false for chained GP races) */
   waitForInput?: boolean;
+  /**
+   * [modes lane] The attract race behind the title and menus: the scripted bot drives the player's kart, no HUD, no
+   * pause, no results, no progress and no `raceStart`; when it is over it just stops (the modes lane starts another).
+   */
+  attract?: boolean;
+  /**
+   * [modes lane] Mode results (Grand Prix, time trial, battle): these buttons replace Again / Next and the class-unlock
+   * button. Each one resolves `startRace` with its exit and starts nothing itself (the mode decides what comes next).
+   */
+  actions?: Array<{ label: string; exit: 'again' | 'next' | 'continue'; primary?: boolean }>;
 }
 
 /** How a race request ended. */
@@ -141,6 +151,13 @@ export class Shell {
   private outcome: ((o: RaceOutcome) => void) | null = null;
   private retired: Array<{ at: number; fn: () => void }> = [];
   private readonly snap = { x: 0, y: 0, z: 0, heading: 0 };
+  /**
+   * [modes lane] One-shot filter for the next `start()` (main.ts starts the race from the URL right after the lanes
+   * install): the modes lane turns a plain visit's boot race into the attract race behind its title screen.
+   */
+  startFilter: ((s: RaceSetup | RaceRequest) => RaceSetup | RaceRequest) | null = null;
+  /** [modes lane] asked before the pause screen's "Quit to menu" (a Grand Prix in progress); false keeps racing */
+  quitGuard: (() => Promise<boolean>) | null = null;
   private readonly muxCtx = { racing: false, speedFrac: 0, drifting: false, curve: 0, wall: false };
 
   constructor(readonly host: HTMLElement) {
@@ -268,6 +285,12 @@ export class Shell {
   }
 
   start(setup: RaceSetup | RaceRequest): void {
+    // [modes lane] one-shot boot filter (the title screen's attract race)
+    if (this.startFilter) {
+      const f = this.startFilter;
+      this.startFilter = null;
+      setup = f(setup);
+    }
     const req = setup as RaceRequest;
     // a race started some other way ends a pending startRace() (its caller hears 'quit')
     this.finishOutcome({ result: null, exit: 'quit' });
@@ -332,13 +355,43 @@ export class Shell {
     this.onResize();
     const hintPounce = this.progress.pounces < 2 && !this.bot;
     this.hud.setHint(hintPounce ? (this.touchMode() ? t('Tap on MEOW! = Pounce Start') : t('↑ on MEOW! = Pounce Start')) : null);
-    if (req.waitForInput === false) this.arm();
+    if (req.waitForInput === false || req.attract) this.arm();
+    if (req.attract) {
+      // [modes lane] the attract race is scenery: no HUD, hints or thumbs, and nobody hears about it
+      this.hud.setHint(null);
+      this.hud.setVisible(false);
+      this.touch.setGrid(false);
+      (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
+      return;
+    }
     if (!this.armed) this.hud.setTapPrompt(this.touchMode() ? t('TAP TO RACE') : t('PRESS ANY KEY'), this.touchMode() ? t('gas is automatic · left thumb steers') : t('←→ steer · ↑ gas · Space drift'));
     this.touch.setGrid(true);
     // a fresh focus: a button that started this race no longer swallows the race keys
     (document.activeElement as HTMLElement | null)?.blur?.();
     (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
     appBus.emit('raceStart', { mode, trackId: setup.track.id, cls: setup.cls, cupId: req.cupId, raceIndex: req.raceIndex });
+  }
+
+  /** [modes lane] the current race is the attract race behind the menus */
+  get attract(): boolean {
+    return !!this.request?.attract;
+  }
+
+  /**
+   * [modes lane] Leave the current race without opening anything (the podium and the kart showroom draw their own
+   * scene on the shared renderer while no race runs). A pending `startRace` resolves with 'quit'.
+   */
+  leaveRace(): void {
+    this.finishOutcome({ result: null, exit: 'quit' });
+    this.paused = false;
+    screens.remove('pause');
+    screens.remove('results');
+    this.teardown();
+    this.setup = null;
+    this.request = null;
+    this.hud.setVisible(false);
+    this.hud.setTapPrompt(null);
+    this.touch.setGrid(false);
   }
 
   private touchMode(): boolean {
@@ -415,11 +468,12 @@ export class Shell {
     this.mux.frame(dt, mc);
     if (!this.armed && this.mux.any) this.arm();
     const countdown = w.st.tick < GO_TICK;
+    const attract = this.attract;
     this.touch.countdown = countdown;
-    this.touch.setGrid(countdown);
+    this.touch.setGrid(countdown && !attract);
     this.hud.setTouch(this.touchMode());
-    if (this.mux.pause) this.pause(!this.paused);
-    if (this.mux.restart && !this.paused && !this.resultsShown) {
+    if (this.mux.pause && !attract) this.pause(!this.paused);
+    if (this.mux.restart && !this.paused && !this.resultsShown && !attract) {
       this.restart();
       return;
     }
@@ -431,7 +485,7 @@ export class Shell {
       const maxSteps = 5 * this.simSpeed;
       let steps = 0;
       while (this.acc >= DT && steps < maxSteps) {
-        const input = this.bot ? this.botDrive() : this.mux.sample(w.tick, mc);
+        const input = this.bot || attract ? this.botDrive() : this.mux.sample(w.tick, mc);
         this.recorder.push(input);
         w.step([input]);
         v.capture(w.st);
@@ -451,7 +505,7 @@ export class Shell {
       const e = events[i];
       this.hud.onEvent(e, this.me);
       // B32: race-wide events (kart -1, e.g. GO) reach the FTUE too
-      if (e.kart === this.me || e.kart === -1) this.ftue(e.type);
+      if ((e.kart === this.me || e.kart === -1) && !attract) this.ftue(e.type);
     }
     if (from < events.length) this.bus.emitRange(events, from, this.frameInfo);
 
@@ -464,9 +518,10 @@ export class Shell {
     this.hud.update(w.st, this.me, top, GO_TICK, this.kartColors);
     this.hud.wrongWay(me, w.track, dt, w.st.tick > GO_TICK);
     this.touch.setItem(me.item ? (me.rouletteTicks === 0 ? ITEM_ICON[me.item] : '❔') : '', !!me.item && me.rouletteTicks === 0);
-    this.driftHint(me);
+    if (!attract) this.driftHint(me);
     this.bus.frame(this.frameInfo);
     this.stage.renderer.render(this.stage.scene, this.camera.cam);
+    if (attract) return; // [modes lane] the attract race never shows results
 
     // finish → results 2.5 s later (the field keeps racing behind the panel, B35: rows fill in live)
     if (me.finished && this.finishShownAt < 0) this.finishShownAt = performance.now();
@@ -543,7 +598,11 @@ export class Shell {
     if (!this.setup) return;
     const s = this.setup;
     const keepSeed = s.mode === 'dare' || s.mode === 'daily';
+    // [modes lane] a restart (pause, R, Select) is the same race again: a pending startRace keeps waiting for it
+    const pending = this.outcome;
+    this.outcome = null;
     this.start({ ...(this.request ?? s), ...s, seed: keepSeed ? s.seed : newSeed() });
+    this.outcome = pending;
   }
 
   private showResults(): void {
@@ -574,6 +633,8 @@ export class Shell {
     appBus.emit('raceEnd', { result, stats: result.stats, mode });
     if (unlocked != null) appBus.emit('unlock', { kind: 'class', id: String(unlocked) });
     const exitTo = (exit: RaceOutcome['exit']) => this.finishOutcome({ result, exit });
+    // [modes lane] mode results: the mode's buttons instead of Again / Next / the unlock button
+    const modeActions = this.request?.actions;
     void screens.push('results').then((root) => {
       if (!root) return;
       this.results = renderResults(root, {
@@ -587,7 +648,7 @@ export class Shell {
         cfg: w.cfg,
         // B43: the unlock is a button that starts the new class
         unlock:
-          unlocked != null
+          unlocked != null && !modeActions
             ? {
                 label: t('Unlocked: {c} → race it', { c: `${CLASSES[unlocked].name} ${CLASSES[unlocked].cc}` }),
                 run: () => {
@@ -597,8 +658,16 @@ export class Shell {
                 },
               }
             : undefined,
-        extra: hasScreen('menu') ? [{ label: t('Menu'), act: 'menu', run: () => this.quitToMenu() }] : [],
+        extra: [
+          ...(modeActions ?? []).map((a) => ({ label: a.label, act: `mode-${a.exit}`, run: () => exitTo(a.exit) })),
+          ...(hasScreen('menu') ? [{ label: t('Menu'), act: 'menu', run: () => this.quitToMenu() }] : []),
+        ],
       });
+      if (modeActions) {
+        root.querySelector('[data-act="again"]')?.remove();
+        root.querySelector('[data-act="next"]')?.remove();
+        for (const a of modeActions) if (a.primary) root.querySelector(`[data-act="mode-${a.exit}"]`)?.classList.add('primary');
+      }
       // results that arrive late (the dare ghost's recomputed time): only for these results, still on screen
       const token = this.raceToken;
       void extras?.later?.then((late) => {
@@ -625,7 +694,7 @@ export class Shell {
 
   /** Pause on / off (idempotent, B34). Paused races show the pause screen. */
   pause(on: boolean): void {
-    if (!this.world || this.resultsShown) return;
+    if (!this.world || this.resultsShown || this.attract) return;
     if (on === this.paused) return;
     this.paused = on;
     if (on) void screens.push('pause');
@@ -692,7 +761,21 @@ export class Shell {
       button(t('Restart'), () => this.restart(), { act: 'restart' }),
     ];
     if (hasScreen('settings')) btns.push(button(t('Settings'), () => void screens.push('settings'), { act: 'settings' }));
-    if (hasScreen('menu')) btns.push(button(t('Quit to menu'), () => this.quitToMenu(), { act: 'menu' }));
+    if (hasScreen('menu'))
+      btns.push(
+        button(
+          t('Quit to menu'),
+          () => {
+            // [modes lane] a Grand Prix in progress asks first
+            const guard = this.quitGuard;
+            if (!guard) return this.quitToMenu();
+            void guard().then((ok) => {
+              if (ok) this.quitToMenu();
+            });
+          },
+          { act: 'menu' },
+        ),
+      );
     const panel = h('div', { class: 'fm-panel fm-sticker', role: 'dialog', 'aria-label': t('Paused') }, [
       h('h1', {}, [t('Paused')]),
       h('div', { class: 'fm-settings' }, toggles),
