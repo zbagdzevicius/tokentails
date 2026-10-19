@@ -28,6 +28,7 @@ import { StarterAudio } from '../../juice/audio/starter-audio';
 import { StarterFeel } from '../../juice/feel';
 import { SpeedLines } from '../../juice/vfx/speed-lines';
 import { shareHooks } from '../../share/hooks';
+import { trackFromLocation } from '../../ugc/codec/track-codec';
 import { buildField, createSimPlugins } from '../../items-ai';
 import { ITEM_ICON } from '../hud/hud';
 import { OUTLINE_UNIFORMS } from '../render/cat-outline';
@@ -133,7 +134,9 @@ export class Shell {
   setupFromUrl(): RaceSetup {
     const q = new URLSearchParams(location.search);
     const route = shareHooks().resolveRoute?.(location) ?? null;
-    const track = trackById(route?.trackId ?? q.get('track'));
+    // ugc lane: `?t=CODE` / `#t=CODE` races a shared track (a broken code falls back; the ugc hub says so)
+    const shared = trackFromLocation(location);
+    const track = shared?.ok ? shared.track : trackById(route?.trackId ?? q.get('track'));
     const clsQ = Number(q.get('cls'));
     const cls = (route?.cls ?? (clsQ >= 0 && clsQ <= 2 && q.has('cls') ? clsQ : Math.min(this.settings.cls, this.progress.unlocked))) as RaceClass;
     const seed = route?.seed ?? (q.has('seed') ? Number(q.get('seed')) | 0 : (Math.random() * 0x7fffffff) | 0);
@@ -336,7 +339,9 @@ export class Shell {
     const s = this.settings;
     const setup = this.setup!;
     const classOpts = CLASSES.map((c, i) => `<option value="${i}" ${i === setup.cls ? 'selected' : ''} ${i > this.progress.unlocked ? 'disabled' : ''}>${c.name} ${c.cc}${i > this.progress.unlocked ? ' 🔒' : ''}</option>`).join('');
-    const trackOpts = TRACKS.map((t) => `<option value="${t.id}" ${t.id === setup.track.id ? 'selected' : ''}>${t.name}</option>`).join('');
+    const trackOpts = TRACKS.map((t) => `<option value="${t.id}" ${t.id === setup.track.id ? 'selected' : ''}>${t.name}</option>`).join('') +
+      // ugc lane: list the shared track too (its name is filtered and limited to [A-Za-z0-9 -] by the codec)
+      (TRACKS.some((t) => t.id === setup.track.id) ? '' : `<option value="${setup.track.id}" selected>${setup.track.name || 'Shared track'}</option>`);
     this.overlay.innerHTML = `
       <div class="fm-panel fm-sticker">
         <h1>Paused</h1>
@@ -370,7 +375,9 @@ export class Shell {
       const cls = Number(get('cls').value) as RaceClass;
       s.cls = cls;
       saveSettings(s);
-      this.start({ ...setup, track: trackById(get('track').value), cls, seed: (Math.random() * 0x7fffffff) | 0 });
+      // ugc lane: a shared track is not in TRACKS; keep it when only the class changes
+      const tid = get('track').value;
+      this.start({ ...setup, track: tid === setup.track.id ? setup.track : trackById(tid), cls, seed: (Math.random() * 0x7fffffff) | 0 });
     };
     get('track').addEventListener('change', restartWith);
     get('cls').addEventListener('change', restartWith);

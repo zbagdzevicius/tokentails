@@ -70,6 +70,13 @@ Owns `src/ugc/**`.
   `TrackDef` races through `buildTrack` exactly like an authored one.
 - Editor, validator (the rules are already asserted for authored tracks in `core/track/build.test.ts`), cat maker,
   garage (`KartLook.body` 0..2 already renders three bodies in `core/render/kart-view.ts`).
+- Built (lane/fm-ugc): `codec/track-code.ts` (v1 share code, ≤ 140 chars, CRC, names filtered on encode and
+  decode, decoder runs the validator), `codec/link.ts` (`?t=` / `#t=`, `?make`, `/make`), `editor/validate.ts`,
+  `editor/doodle.ts`, `editor/TrackDoodle.ts` (lazy chunk), `store.ts` (saved tracks, draft, creator tag),
+  `hub.ts` (Tracks button while paused or finished, track banner with Remix, broken-link notice). The shell reads
+  `trackFromLocation()` from `ugc/codec/track-codec.ts`. Not yet: the maker's clean test lap before sharing
+  (codes already carry `creatorLapCs`), prop sets, hazard/shortcut stickers, bridges (crossings fail validation
+  because the mesh skirts would wall off the lower road), cat maker, garage.
 
 ### share
 Owns `src/share/**` and the integration outside the package.
