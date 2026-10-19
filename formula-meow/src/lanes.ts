@@ -5,6 +5,7 @@
 import type { Shell } from './core/app/shell';
 import { installItemsAi } from './items-ai/view/install';
 import { installJuice } from './juice';
+import { installShare } from './share';
 import { installUgc } from './ugc/hub';
 
 export function installLanes(shell: Shell): void {
@@ -15,4 +16,5 @@ export function installLanes(shell: Shell): void {
   // ugc:      setTrackCodec(codec) from src/ugc/codec/track-codec.ts.
   installJuice(shell); // juice: race audio + music, VFX, sky, hit-stop, quality auto-scaler
   installUgc(shell);
+  installShare(shell);
 }

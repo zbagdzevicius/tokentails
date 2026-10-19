@@ -65,6 +65,17 @@ const badcatFallbackRewrites = [
   { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/index.html` },
   { source: `${BADCAT}/d/:n(\\d{1,4}).html`, destination: `${BADCAT}/index.html` },
 ];
+// Formula Meow (formula-meow/, GDD docs/plans/formula-meow/GDD.md 8.3, docs/CLIENT.md "Formula Meow (/meow-race)"):
+// the static kart game in public/formula-meow-game (formula-meow: `npm run build:client`, which also writes the link
+// shells) served top level at /meow-race, no iframe. Dares carry the ghost in the URL hash, so r.html only holds
+// the OG tags; every Daily Cup day shares d.html (the game reads the day from the path). Web builds only.
+const MEOW = "/formula-meow-game";
+const meowRaceRewrites = [
+  { source: "/meow-race", destination: `${MEOW}/index.html` },
+  { source: "/meow-race/r", destination: `${MEOW}/r.html` },
+  { source: "/meow-race/d/:n(\\d{1,4})", destination: `${MEOW}/d.html` },
+  { source: "/meow-race/:path*", destination: `${MEOW}/:path*` },
+];
 // The service worker ships at /badcat-game/sw.js; this header lets it control the /badcat/* pages too.
 const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   source,
@@ -127,7 +138,7 @@ const nextConfig = {
         async rewrites() {
           return {
             beforeFiles: [],
-            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...raveRewrites],
+            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
         },

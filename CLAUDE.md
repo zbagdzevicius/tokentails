@@ -10,6 +10,7 @@ not at the root. Documentation lives in `docs/`; start with `docs/ARCHITECTURE.m
 | `cms/` Next.js 16 | `npm run dev` | `npm test`, `npx eslint .` |
 | `catnip-heist/` three.js + Vite | `npm run dev` (port 5173) | `npx tsc --noEmit`, `npx vitest run`, `npm run build:client` (commit `client/public/heist-game`) |
 | `bad-cat/` Bad Cat Daily, three.js + Vite (GDD `docs/plans/viral-game/GDD.md`) | `npm run dev` (port 5174) | `npx tsc --noEmit`, `npx vitest run`, `npm run build && npm run budget`, `npm run validate`, `npm run e2e`, `npm run build:client` (commit `client/public/badcat-game`) |
+| `formula-meow/` Formula Meow kart race, three.js + Vite (GDD `docs/plans/formula-meow/GDD.md`, lanes `formula-meow/LANES.md`) | `npm run dev` (port 5175) | `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npm run e2e`, `npm run og`, `npm run build:client` (commit `client/public/formula-meow-game`) |
 | `contracts/stellar/soroban-nft/` Rust | `cargo test` | `stellar contract build` |
 | `shelter-rail/` MIT JS SDK + donate widget, no deps (copy `src/widget.js` to `client/public/rail/`) | – | `npm test` |
 | `contracts/shelter-split/` ShelterSplit + DonateRouter + CappedSpender (Solidity, Foundry, MIT) | – | `forge build`, `forge test` |
