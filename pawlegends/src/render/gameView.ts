@@ -19,7 +19,10 @@ import { isShortLandscape, MOBA_DIST } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
-import { FREE_BISCUIT, FREE_COATS, type Look } from './cosmetics';
+import { FREE_BISCUIT, FREE_COATS, cardLook, type Look } from './cosmetics';
+import { setCharTime } from './chars/charMaterial';
+import { getSkin } from './skins/skinStore';
+import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CompanionView } from './views/companionView';
 import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
@@ -139,6 +142,7 @@ export class GameView {
     this.shock = new Shockwaves(null, { particles: this.particles, groundY: () => 0, rng: Math.random });
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
+    this.heroes.tierFx = new TierFx(this.particles);
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
     this.juice = new Juice(uiRoot);
@@ -243,8 +247,9 @@ export class GameView {
    * Round 2 ("the same faces every match"): every bot wears a coat from the free unlock pool (or the classic one),
    * picked from the match seed, and two bots of the same hero never share one.
    */
-  dressBots(seed: number, picks: readonly HeroId[]): void {
+  dressBots(seed: number, picks: readonly HeroId[], showcase: readonly string[] = []): Map<number, string> {
     const used = new Set<string>();
+    const shown = new Map<number, string>();
     picks.forEach((hero, slot) => {
       if (slot === this.mySlot) return;
       const pool: (string | null)[] = [null, ...Object.keys(FREE_COATS).filter((id) => FREE_COATS[id].hero === hero), ...(hero === 'brutus' ? [FREE_BISCUIT] : [])];
@@ -255,6 +260,30 @@ export class GameView {
       if (coat) this.heroes.looks.set(slot, { coat, chroma: null });
       else this.heroes.looks.delete(slot);
     });
+    // GDD §7.2 bot showcase (web, from session 2, never the first match; the caller gates it): a featured cat's
+    // skin on at most one bot per team and two per match, picked by a render-side hash of the seed (never the sim RNG)
+    if (showcase.length) {
+      const h = (k: number): number => Math.imul((seed >>> 0) ^ Math.imul(k + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
+      let next = h(7) % showcase.length;
+      for (const team of [0, 1] as const) {
+        if (shown.size >= Math.min(2, showcase.length)) break;
+        const bots = [0, 1, 2].map((k) => team * 3 + k).filter((slot) => slot !== this.mySlot && slot < picks.length);
+        if (!bots.length) continue;
+        const slot = bots[h(team) % bots.length];
+        const id = showcase[next % showcase.length];
+        next++;
+        const skin = getSkin(id);
+        if (!skin) continue;
+        this.heroes.looks.set(slot, cardLook(id));
+        shown.set(slot, skin.name);
+      }
+    }
+    return shown;
+  }
+
+  /** Card skin effects setting (Settings: All / Mine only / Off). */
+  setSkinFx(mode: SkinFxMode): void {
+    if (this.heroes.tierFx) this.heroes.tierFx.mode = mode;
   }
 
   /** Render-only cosmetics: the player's look (slot `mySlot`) and Companion Kittens. */
@@ -439,6 +468,10 @@ export class GameView {
       const me = frame.byId.get(this.mySlot) ?? null;
       this.lastMe = me;
       this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlines);
+      if (this.heroes.tierFx) this.heroes.tierFx.low = this.gr.settings.tier === 'low';
+      this.heroes.focus.x = this.gr.focus.x;
+      this.heroes.focus.z = this.gr.focus.z;
+      setCharTime(this.time);
       this.heroes.update(frame, dt);
       this.minions.update(frame, dt, this.time);
       this.structures.me = me && me.state !== 'dead' ? { x: toX(me.fx), z: toZ(me.fy) } : null;

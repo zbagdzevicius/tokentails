@@ -9,9 +9,12 @@
  * - free unlocks by playing (local profile): `coat.brutus.biscuit` (first win, POC.md §12)
  * - owned Token Tails cats (roster): element chromas, tier frames, breed coats on the cat heroes, Companion Kittens
  * - the shelter champions (sim v9) wear their card's coat and chromas only; owning the card adds a badge (ui/screens.ts)
+ * - card skins (GDD §7.2): every owned cat on every champion, look `{coat: 'cat.<id>', chroma: null}`, built by
+ *   render/skins/registry.ts (never the chroma path)
  */
 import type { HeroId } from '../sim/api';
 import { ELEMENT_NAME, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
+import { isCardSkinId, skinRev } from './skins/skinStore';
 
 export interface Coat {
   base: number;
@@ -28,7 +31,19 @@ export interface Look {
 
 export const DEFAULT_LOOK: Look = Object.freeze({ coat: null, chroma: null }) as Look;
 
-export const lookKey = (l: Look | null | undefined): string => (l ? `${l.coat ?? '-'}|${l.chroma ?? '-'}` : '-|-');
+/**
+ * The cache key of a look (geometry, portraits, the lobby): `coat|chroma`, and for a card skin (GDD §7.2)
+ * `cat.<id>@<rev>|chroma`, where rev is the skin's palette revision (a finished sprite probe bumps it).
+ */
+export const lookKey = (l: Look | null | undefined): string => {
+  if (!l) return '-|-';
+  const coat = l.coat ?? '-';
+  return `${isCardSkinId(l.coat) ? `${coat}@${skinRev(coat)}` : coat}|${l.chroma ?? '-'}`;
+};
+
+/** A card skin look (`cat.<id>`): never with a chroma (card skins never use the chroma path). */
+export const cardLook = (skinId: string): Look => ({ coat: skinId, chroma: null });
+export const wearsCardSkin = (l: Look | null | undefined): boolean => isCardSkinId(l?.coat);
 
 /** Element colours for chromas, gems and kitten collars. */
 export const ELEMENT_COLOR: Readonly<Record<Element, number>> = Object.freeze({
@@ -135,6 +150,8 @@ export function chromaOptions(o: Owned): { id: Element | null; name: string }[] 
  * then a free coat, then a breed coat) and the first owned chroma.
  */
 export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | null): Look {
+  // GDD §7.2: a card skin while its cat is still in the roster; a cat that left falls back to the Classic look
+  if (chosen && isCardSkinId(chosen.coat)) return (o.roster.cardSkins ?? []).includes(chosen.coat) ? cardLook(chosen.coat) : { coat: null, chroma: null };
   const coats = wardrobe(hero, o);
   const ids = coats.map((c) => c.id);
   let coat: string | null;

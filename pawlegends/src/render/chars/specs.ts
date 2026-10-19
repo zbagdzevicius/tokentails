@@ -19,8 +19,11 @@ import type { HeroId } from '../../sim/api';
 import { ELEMENT_COLOR, lookCoat, mixColor, type Coat, type Look } from '../cosmetics';
 import { TEAM } from '../palette';
 import { PAL } from '../ppk/characters/palette.js';
-import type { ChibiSpec, CoatSpec } from './chibi';
-import { bowPieces, C, mat } from './chibi';
+import type { Assembly, ChibiSpec, CoatSpec, EyeSpec } from './chibi';
+import { bowPieces, C, coatColor, mat } from './chibi';
+import { getSkin, isCardSkinId, type CatSkin } from '../skins/skinStore';
+import { clampForTeam, rungAtLeast, trimForTeam } from '../skins/registry';
+import { deltaE } from '../skins/classify';
 import { hyenaHead, pugHead, pupHead } from './beast';
 import * as G from './gear';
 import { PPK_POSES, type PoseDef } from './skeleton';
@@ -140,27 +143,101 @@ function coatOf(c: Coat | null, pattern: CoatSpec['pattern'], fallback: CoatSpec
   return c ? { pattern, base: c.base, deep: c.dark, light: c.light, cream: c.light } : fallback;
 }
 
+/** Where a hero is built: the match clamps card-skin fur away from the opposing team's hue; the lobby keeps it true. */
+export interface HeroCtx {
+  match?: boolean;
+  /** The player's own hero (match): gold and the opposing team's hue are allowed in its card-skin trim. */
+  self?: boolean;
+}
+
+/** Pink Bow Clem's bow (the retired paid skin's signature): a card skin's bow never comes within ΔE 25 of it. */
+const PINK_BOW_GUARD = 25;
+const hexNum = (v: number | string): number => (typeof v === 'number' ? v : parseInt(String(v).replace('#', '').replace(/^0x/, ''), 16));
+/** Brutus's cat ears on the helmet sides and Cacklejaw's pointed ones: at most this many triangles at detail 1. */
+export const DOG_EAR_BUDGET = 160;
+
+/** Clem's bow on a card skin: the variant's accent colour, else (or when it is near the pink bow) cream with a gold knot. */
+export function skinBow(skin: CatSkin): { main: number; shade: number; knot: number } {
+  const a = skin.accent;
+  if (a === undefined || deltaE(a, hexNum(PAL.bow)) < PINK_BOW_GUARD) return { main: 0xfff3dc, shade: 0xd8c6a2, knot: GOLD };
+  return { main: a, shade: mixColor(a, 0x000000, 0.25), knot: GOLD };
+}
+
+/**
+ * Brutus's card-skin ears: two cat-ear cones on the helmet sides (head space y ≈ 0.36, x ±0.11, ~0.6× a cat ear), the
+ * outer ear in the skin's ear colour and the inner in its ear pink. The dome and the team crest are unchanged.
+ */
+export function catEarPair(A: Assembly, coat: CoatSpec, earInner: number, at: { x: number; y: number; z?: number; k?: number; bone?: 'head' | 'ears' } = { x: 0.11, y: 0.36 }): void {
+  const k = at.k ?? 0.6;
+  const r = 0.1 * k;
+  const h = 0.17 * k;
+  const radial = A.seg(8, 5);
+  const outer = (_v: THREE.Vector3, _n: THREE.Vector3, lp: THREE.Vector3): [number, number, number] => coatColor(coat, 'ear', lp);
+  for (const s of [1, -1]) {
+    const bone = at.bone === 'ears' ? (s > 0 ? 'earL' : 'earR') : 'head';
+    const x = at.bone === 'ears' ? 0 : s * at.x;
+    const m = mat([x, at.y, at.z ?? 0], [0.05, 0, -s * 0.28]);
+    A.add(bone, new THREE.ConeGeometry(r, h, radial, 1).scale(1, 1, 0.55).translate(0, h / 2, 0), { m, color: outer });
+    A.add(bone, new THREE.ConeGeometry(r * 0.6, h * 0.72, radial, 1).scale(1, 1, 0.4).translate(0, h * 0.36, r * 0.22), { m, color: earInner });
+  }
+}
+
 /** The hero chibi spec for a team, look and mesh detail. */
-export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number): ChibiSpec {
+export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number, ctx: HeroCtx = {}): ChibiSpec {
   const t = TEAM[team];
   const coat = look.coat ?? '';
-  const founder = coat.startsWith('coat.founder.');
-  const dawn = coat === 'skin.clem.dawnblade' && hero === 'clem';
-  const pinkBow = coat === 'skin.clem.pink_bow' && hero === 'clem';
-  const chroma = look.chroma ? ELEMENT_COLOR[look.chroma] : null;
+  // GDD §7.2 card skins: an owned cat's palette on the champion's own rig and gear. Never the chroma path: the cape
+  // body stays team colour and there is no chroma ground aura; from Rare the element trims the hem, mantle, armband,
+  // gem and blade; at Common only the chest gem takes the element.
+  const skin = isCardSkinId(coat) ? getSkin(coat) : null;
+  // another player's hero in a match (a showcase bot): no gold "you" trim, no opposing-team hue, and the cape hem
+  // keeps the team's deep colour (the element shows on the gem, mantle trim and armband)
+  const guarded = !!skin && ctx.match === true && ctx.self !== true;
+  const skinEl = skin ? (guarded ? trimForTeam(ELEMENT_COLOR[skin.element], team) : ELEMENT_COLOR[skin.element]) : null;
+  const skinTrim = skin && rungAtLeast(skin.rung, 'RARE') ? skinEl : null;
+  const skinCoat: CoatSpec | null = skin ? (ctx.match ? clampForTeam(skin.coat, team) : skin.coat) : null;
+  const founder = !skin && coat.startsWith('coat.founder.');
+  const dawn = !skin && coat === 'skin.clem.dawnblade' && hero === 'clem';
+  const pinkBow = !skin && coat === 'skin.clem.pink_bow' && hero === 'clem';
+  const chroma = !skin && look.chroma ? ELEMENT_COLOR[look.chroma] : null;
   // round 2 ("Fire and Fairy chroma differ only in the bow colour"): a chroma dyes the whole cape (65% toward the
   // element), the mantle trim and the sword's blade glow, not just the hem and the bow; the player's own gold ring
   // and plate still say whose hero it is
   const capeColor = founder ? 0x5a2d6e : dawn ? 0xfff3dc : chroma !== null ? mixColor(t.main, chroma, 0.65) : t.main;
-  const trim = chroma !== null && !founder && !dawn ? chroma : null;
+  const trim = chroma !== null && !founder && !dawn ? chroma : skinTrim;
   // round 0: a chroma reads at match zoom: the cape hem, Clem's free ribbon and the armband take its colour
-  const capeHem = founder || dawn ? GOLD : chroma !== null ? chroma : t.deep;
+  const capeHem = founder || dawn ? GOLD : chroma !== null ? chroma : guarded ? t.deep : (skinTrim ?? t.deep);
+  const gem = chroma ?? skinEl;
+  const band = chroma ?? skinTrim;
   const extras = (A: Parameters<NonNullable<ChibiSpec['gear']>>[0]): void => {
-    if (chroma !== null) {
-      A.add('chest', new THREE.OctahedronGeometry(0.03, 0), { m: mat([0, 0.12, 0.17], [0, 0, 0], [0.8, 1.1, 0.6]), color: chroma });
-      G.armband(A, chroma);
-    }
+    if (gem !== null) A.add('chest', new THREE.OctahedronGeometry(0.03, 0), { m: mat([0, 0.12, 0.17], [0, 0, 0], [0.8, 1.1, 0.6]), color: gem });
+    if (band !== null) G.armband(A, band);
   };
+  const spec = heroBase(hero, team, look, detail, { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras });
+  if (!skin || !skinCoat || spec.head !== 'cat') return spec;
+  // a cat champion in a card skin: the cat's coat, eyes, inner ears and nose (the hero's own eye size)
+  const eyes: EyeSpec = { ...skin.eyes, ...(spec.eyes.size !== undefined ? { size: spec.eyes.size } : {}) };
+  return { ...spec, coat: skinCoat, eyes, earInner: skin.earInner, nose: skin.nose };
+}
+
+interface Dress {
+  t: (typeof TEAM)[0 | 1];
+  skin: CatSkin | null;
+  skinCoat: CoatSpec | null;
+  founder: boolean;
+  dawn: boolean;
+  pinkBow: boolean;
+  chroma: number | null;
+  capeColor: number;
+  trim: number | null;
+  capeHem: number;
+  extras: (A: Assembly) => void;
+}
+
+function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Dress): ChibiSpec {
+  void team;
+  const { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras } = dr;
+  const coat = look.coat ?? '';
   switch (hero) {
     case 'clem': {
       const lc = lookCoat('clem', look);
@@ -192,7 +269,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           // signature (big, plus one on the tail tip); the free Clem wears a smaller cream ribbon with a gold knot, so
           // the €0.99 skin delivers what its name says (playtest: the free Clem already wore the pink bow).
           const big = pinkBow ? 1.8 : 1.15;
-          const bow = pinkBow ? { main: PAL.bow, shade: PAL.bowShade, knot: PAL.bowKnot } : chroma !== null ? { main: chroma, shade: 0xd8c6a2, knot: GOLD } : { main: 0xfff3dc, shade: 0xd8c6a2, knot: GOLD };
+          const bow = pinkBow ? { main: PAL.bow, shade: PAL.bowShade, knot: PAL.bowKnot } : skin ? skinBow(skin) : chroma !== null ? { main: chroma, shade: 0xd8c6a2, knot: GOLD } : { main: 0xfff3dc, shade: 0xd8c6a2, knot: GOLD };
           for (const p of bowPieces(A.seg(10, 6), bow)) {
             A.add('earL', p.geo, { m: mat([0.0, 0.09, 0.03], [-0.6, -0.25, -0.32], big).multiply(p.m), color: p.color });
           }
@@ -221,7 +298,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.hood(A, t.main, 0x6fbf7f);
           G.mantle(A, t.main, 0x6fbf7f, { r: 0.21 });
           G.tunic(A, 0x5e7f3e, 0x3f5a2a);
-          G.cape(A, founder || trim !== null ? capeColor : t.deep, founder ? GOLD : chroma !== null ? chroma : 0x6fbf7f, { len: 0.3, bot: 0.2 });
+          G.cape(A, founder || chroma !== null ? capeColor : t.deep, founder ? GOLD : (chroma ?? trim ?? 0x6fbf7f), { len: 0.3, bot: 0.2 });
           G.quiver(A);
           G.shortBow(A, undefined, undefined, 'bowIdle', new THREE.Vector3(0.2, 0.31, 0.17), -0.52);
           G.pauldrons(A, t.main, 0x6fbf7f, 0.8);
@@ -231,9 +308,13 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
     }
     case 'brutus': {
       const lc = lookCoat('brutus', look);
+      // a card skin is a cat costume: the cat's fur on the arms, legs and tail, its pattern on the hip skirt, cat ears
+      // on the helmet; the pug's own head
+      const suit = skinCoat;
+      const suitFn = suit ? (_v: THREE.Vector3, _n: THREE.Vector3, lp: THREE.Vector3): [number, number, number] => coatColor(suit, 'body', lp) : null;
       return {
         rig: { width: 1.2, tier: 'hero', bodyScale: 1.12, earsLow: 0.6 },
-        coat: coatOf(lc, 'solid', { pattern: 'solid', base: 0xd9b48a, deep: 0xb89064, light: 0xf6e2c2, cream: 0xf6e2c2 }),
+        coat: suit ?? coatOf(lc, 'solid', { pattern: 'solid', base: 0xd9b48a, deep: 0xb89064, light: 0xf6e2c2, cream: 0xf6e2c2 }),
         eyes: { inner: 0xc99a6a, outer: 0x7a5a3a, ring: 0x2e2018 },
         earInner: 0x4a3b55,
         nose: 0x2e2433,
@@ -243,8 +324,9 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
         detail,
         poses: ALL_POSES,
         gear: (A) => {
-          pugHead(A, lc ? { fur: lc.base, dark: lc.dark } : {});
-          G.jacket(A, G.KIBBLE, { buttons: false, chest: false });
+          pugHead(A, lc && !suit ? { fur: lc.base, dark: lc.dark } : {});
+          G.jacket(A, suitFn ?? G.KIBBLE, { buttons: false, chest: false });
+          if (suit && skin) catEarPair(A, suit, skin.earInner);
           G.breastplate(A, { color: G.STEEL });
           // the helmet dome stays steel (the pug's tan coat dominates); team colour on the crest, mantle, shield rim, cape
           G.helmet(A, G.STEEL, G.BRASS, t.main, { y: 0.245, r: 0.165 });
@@ -262,7 +344,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
     case 'cacklejaw': {
       return {
         rig: { width: 0.95, tier: 'hero', headScale: 1.08 },
-        coat: { pattern: 'spots', base: 0xf0a92e, deep: 0x5b3a8c, light: 0xf6dcae, cream: 0xf6dcae },
+        coat: skinCoat ?? { pattern: 'spots', base: 0xf0a92e, deep: 0x5b3a8c, light: 0xf6dcae, cream: 0xf6dcae },
         eyes: { inner: 0xf6d27a, outer: 0xd9962e, ring: 0x5a3a22 },
         earInner: 0xd9a494,
         nose: 0x3a2e4a,
@@ -272,8 +354,15 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
         detail,
         poses: ALL_POSES,
         gear: (A) => {
-          hyenaHead(A);
-          G.jacket(A, G.KIBBLE);
+          const suit = skinCoat;
+          if (suit && skin) {
+            // the card skin's cat costume: pointed cat ears in place of the round ones, the cat's pattern on the jacket
+            hyenaHead(A, { earStyle: 'cat', earCoat: suit, earInner: skin.earInner });
+            G.jacket(A, (_v, _n, lp) => coatColor(suit, 'body', lp));
+          } else {
+            hyenaHead(A);
+            G.jacket(A, G.KIBBLE);
+          }
           G.securityCap(A, t.main, { y: 0.335, r: 0.13, z: -0.045, crest: GOLD });
           G.mantle(A, t.main, G.BRASS, { r: 0.2, drop: 0.24 });
           G.pauldrons(A, t.main, G.BRASS, 0.75);
@@ -351,7 +440,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
         poses: ALL_POSES,
         gear: (A) => {
           G.mantle(A, t.main, trim ?? 0xffb3c8, { r: 0.21 });
-          G.cape(A, founder || trim !== null ? capeColor : t.deep, chroma !== null ? chroma : 0xff6a3d, { len: 0.32, bot: 0.22 });
+          G.cape(A, founder || chroma !== null ? capeColor : t.deep, chroma ?? (skin ? trim : null) ?? 0xff6a3d, { len: 0.32, bot: 0.22 });
           G.pauldrons(A, t.main, 0xffb3c8, 0.75);
           G.flowerCrown(A, 0xffb3c8, 0x4f8a3a);
           G.baton(A, 0x6b4429, 0xff6a3d, 0.42);
@@ -378,7 +467,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.mantle(A, t.main, trim ?? 0xffffff, { r: 0.22 });
           G.pauldrons(A, t.main, 0xffffff, 0.7);
           if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.26 });
-          G.wings(A, 0xf8f8ff);
+          G.wings(A, skinCoat ? skinCoat.cream : 0xf8f8ff);
           G.heartFloat(A, 0xe0283a);
           extras(A);
         },
@@ -433,10 +522,10 @@ export function minionSpec(team: 0 | 1, ranged: boolean): ChibiSpec {
 }
 
 /** A Companion Kitten: kid proportions, its coat, an element collar with a gold bell. */
-export function kittenSpec(coat: Coat, collar: number, tabby: boolean): ChibiSpec {
+export function kittenSpec(coat: Coat, collar: number, tabby: boolean, full?: CoatSpec): ChibiSpec {
   return {
     rig: { width: 1, tier: 'kid' },
-    coat: { pattern: tabby ? 'tabby' : 'solid', base: coat.base, deep: coat.dark, light: coat.light, cream: coat.light },
+    coat: full ?? { pattern: tabby ? 'tabby' : 'solid', base: coat.base, deep: coat.dark, light: coat.light, cream: coat.light },
     eyes: { inner: 0xbfe8a8, outer: 0x4f9a5a, ring: 0x22402a },
     earInner: coat.accent,
     nose: coat.accent,

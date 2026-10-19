@@ -30,6 +30,20 @@ describe("rosterOf", () => {
     expect(catalogIdOf({ sourceCat: "nope" })).toBeNull();
   });
 
+  it("card skins: adds the sprite sheet (.png only, surrounding spaces trimmed: the known storefront bug)", () => {
+    const SPRITE = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/hat-samurai.png";
+    const roster = rosterOf([
+      { ...cats[0], spriteImg: `${SPRITE} ` },
+      { ...cats[2], spriteImg: "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GREY/cat-tate/JUMPING.gif" },
+      { ...cats[3], spriteImg: "https://tokentails.com/cats/pinkie/sprites/base.png" },
+    ]);
+    expect(roster.find((c) => c.id === "a1")?.sprite).toBe(SPRITE);
+    expect(roster.find((c) => c.id === "a3")?.sprite).toBeUndefined();
+    expect(roster.find((c) => c.id === "a4")?.sprite).toBeUndefined();
+    // the card art with a trailing space is kept too now
+    expect(rosterOf([{ ...cats[0], catImg: `${ART}  ` }])[0].art).toBe(ART);
+  });
+
   it("app builds keep only starter and redeemed cats", () => {
     expect(rosterOf(cats, true).map((c) => c.id)).toEqual(["a4", "a3"]);
   });
@@ -50,7 +64,15 @@ describe("pickFeatured", () => {
     const pick = pickFeatured(forSale, owned, [], 0);
     expect(pick.cats.map((c) => c.catalogId)).toEqual([id(1)]);
     expect(pick.byId.get(id(1))?.name).toBe("Cat 1");
-    expect(pick.cats[0]).toEqual({ catalogId: id(1), name: "Cat 1", type: "FIRE", art: ART });
+    expect(pick.cats[0]).toEqual({ catalogId: id(1), name: "Cat 1", type: "FIRE", art: ART, tier: "RARE" });
+  });
+
+  it("card skins: featured cats carry the sprite sheet and the tier", () => {
+    const SPRITE = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OREO/base.png";
+    const pick = pickFeatured([sale(1, "FIRE", { spriteImg: ` ${SPRITE}` } as Partial<ICat>), sale(2, "ICE", { tier: "COMMON", spriteImg: `${ART}.gif` } as Partial<ICat>)], [], [], 0);
+    expect(pick.cats.find((c) => c.catalogId === id(1))).toMatchObject({ sprite: SPRITE, tier: "RARE" });
+    expect(pick.cats.find((c) => c.catalogId === id(2))).toMatchObject({ tier: "COMMON" });
+    expect(pick.cats.find((c) => c.catalogId === id(2))?.sprite).toBeUndefined();
   });
 
   it("never features an excluded (shelter champion) card", () => {

@@ -873,3 +873,58 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
   .pl-banner-title { font-size: 26px; }
   .pl-banner-sub { font-size: 13px; }
 }
+
+/* ---------------------------------------------------------------------------------------------- card skins
+   GDD §7.2: the pick screen's Skins row (owned cats, then up to two locked featured cats), the lobby / loading
+   "Wearing" card, the results line and the auto-equip chip. Rung pips use the frame colours (no gold for Legendary:
+   yellow means "you" in the match; here it is the existing frame orange). */
+.pl-pick .wardrobe.skins { flex-wrap: wrap; }
+.pl-pick .skin-strip {
+  display: flex; gap: 8px; overflow-x: auto; flex: 1 1 100%; padding: 4px 2px 6px; scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+}
+.skin-tile {
+  flex: 0 0 auto; width: 92px; display: grid; grid-template-rows: 56px auto auto auto; justify-items: center; gap: 2px; position: relative;
+  font: 600 12px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 14px;
+  padding: 6px 4px 6px; cursor: pointer; text-align: center;
+}
+.skin-tile img, .skin-tile .noart { width: 52px; height: 52px; image-rendering: pixelated; object-fit: contain; }
+.skin-tile .noart { display: grid; place-items: center; opacity: 0.6; }
+.skin-tile .noart .pl-icon { width: 28px; height: 28px; }
+.skin-tile b { font-size: 12px; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skin-tile .el { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--el); box-shadow: 0 0 0 2px rgba(42, 26, 34, 0.8); }
+.skin-tile .pip { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 243, 220, 0.14); }
+.skin-tile .pip[data-rung='RARE'] { background: rgba(127, 200, 255, 0.28); color: #cfeaff; }
+.skin-tile .pip[data-rung='EPIC'] { background: rgba(197, 140, 255, 0.3); color: #ecdcff; }
+.skin-tile .pip[data-rung='LEGENDARY'] { background: rgba(255, 179, 71, 0.3); color: #ffe2bf; }
+.skin-tile .bond { font-size: 10px; opacity: 0.7; }
+.skin-tile.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
+.skin-tile[data-rung='RARE'] { border-color: rgba(127, 200, 255, 0.45); }
+.skin-tile[data-rung='EPIC'] { border-color: rgba(197, 140, 255, 0.5); }
+.skin-tile[data-rung='LEGENDARY'] { border-color: rgba(255, 179, 71, 0.55); }
+.skin-tile.on[data-rung] { border-color: var(--butter); }
+.skin-tile.locked { cursor: default; opacity: 0.85; }
+.skin-tile.locked img { filter: grayscale(1) brightness(0.8); }
+.skin-tile.locked b { opacity: 0.7; }
+.skin-tile.locked .chip.small { font-size: 11px; padding: 2px 9px; }
+.skin-tile.locked .chip.playing { border-color: var(--butter); }
+.skin-tile.locked .chip.spent { opacity: 0.5; pointer-events: none; }
+
+.pl-wearing { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pl-wearing .plc-card.small { width: 72px; }
+.pl-wearing .cap { font-size: 13px; opacity: 0.85; }
+.pl-loading .pl-wearing { margin-top: 14px; }
+
+.pl-results .pl-skin { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 14px; }
+.pl-results .pl-skin img { width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; }
+.pl-results .pl-skin small { display: block; font-size: 12px; opacity: 0.75; }
+
+.pl-wear-chip { gap: 6px; }
+.pl-wear-chip .chip.small { color: var(--ink); background: rgba(42, 26, 34, 0.08); border-color: rgba(42, 26, 34, 0.25); padding: 2px 10px; font-size: 13px; }
+.pl-scoreboard .cat { opacity: 0.7; font-size: 0.9em; }
+@media (max-height: 480px) {
+  .skin-tile { width: 76px; grid-template-rows: 40px auto auto auto; padding: 4px 3px; }
+  .skin-tile img, .skin-tile .noart { width: 38px; height: 38px; }
+  .skin-tile .bond { display: none; }
+  .pl-wearing .plc-card.small { width: 56px; }
+}

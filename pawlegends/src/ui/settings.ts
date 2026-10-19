@@ -13,6 +13,8 @@ export interface SettingsState {
   tipsOn: boolean;
   /** null when analytics is not configured in this build (the row hides). */
   stats: boolean | null;
+  /** Card skin effects (GDD §7.2): All, Mine only, Off. */
+  skinFx?: 'all' | 'mine' | 'off';
 }
 
 export interface SettingsOpts {
@@ -21,8 +23,11 @@ export interface SettingsOpts {
   onTier(t: QualityTier): void;
   onTips(on: boolean): void;
   onStats(on: boolean): void;
+  onSkinFx?(m: 'all' | 'mine' | 'off'): void;
   onClose(): void;
 }
+
+const SKIN_FX_NAME = { all: 'All', mine: 'Mine only', off: 'Off' } as const;
 
 const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high: 'High' };
 const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on hold' };
@@ -61,6 +66,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Cursor size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.cursor === m ? 'on' : ''}" data-cursor="${m}">${CURSOR_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
+      ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
+        .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
+        .join('')}</span></div>` : ''}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
@@ -74,7 +82,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const cast = t.closest<HTMLElement>('[data-cast]')?.dataset.cast as CastMode | undefined;
     const pad = t.closest<HTMLElement>('[data-pad]')?.dataset.pad as TrackpadPref | undefined;
     const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
-    if (cur) {
+    const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
+    if (sfx) {
+      s.skinFx = sfx;
+      o.onSkinFx?.(sfx);
+    } else if (cur) {
       ctl.cursor = cur;
       setCursorSize(cur);
     } else if (cast) {

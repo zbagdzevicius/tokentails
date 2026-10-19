@@ -42,6 +42,10 @@ export interface CardCat {
   art?: string;
   /** Small ribbon in the corner ("Guest", "New!"). */
   ribbon?: string;
+  /** The line under the name (default "<Element> chroma"). */
+  sub?: string;
+  /** A tier frame the card shows (CSS `data-frame`). */
+  frame?: string;
 }
 
 /**
@@ -72,7 +76,8 @@ export function catCard(c: CardCat, opts: { flip?: boolean; delay?: number; gues
   }
   front.appendChild(art);
   front.appendChild(h('b', 'plc-name', c.name));
-  front.appendChild(h('small', 'plc-el', `${elementName(c.type)} chroma`));
+  front.appendChild(h('small', 'plc-el', c.sub ?? `${elementName(c.type)} chroma`));
+  if (c.frame) card.dataset.frame = c.frame;
   front.appendChild(h('i', 'plc-shine'));
   if (c.ribbon) front.appendChild(h('span', 'plc-ribbon', c.ribbon));
   const back = h('div', 'plc-face back');
@@ -97,6 +102,17 @@ export function catCard(c: CardCat, opts: { flip?: boolean; delay?: number; gues
     card.style.removeProperty('--ry');
   });
   return card;
+}
+
+/**
+ * GDD §7.2: the compact "Wearing <name>" card (lobby and loading): the cat's art, name and element, and its frame
+ * when one is earned. DOM only (the art stays an <img>, never read back).
+ */
+export function wearingCard(c: { name: string; type: string; art?: string; frame?: string }): HTMLElement {
+  const wrap = h('div', 'pl-wearing');
+  wrap.appendChild(catCard({ name: c.name, type: c.type, ...(c.art ? { art: c.art } : {}), sub: elementName(c.type), ...(c.frame ? { frame: c.frame } : {}) }, { small: true }));
+  wrap.appendChild(h('small', 'cap', `Wearing ${c.name}`));
+  return wrap;
 }
 
 // ------------------------------------------------------------------------------------------------- title

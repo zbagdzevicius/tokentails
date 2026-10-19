@@ -13,7 +13,8 @@ import { buildChibi } from './chibi';
 import { charMaterial, outlineMaterial, type CharMaterial } from './charMaterial';
 import { Animator } from './motion';
 import { BONE_INDEX, Rig, type BoneName, type Layout } from './skeleton';
-import { HERO_HEIGHT, HERO_MOTION, KITTEN_POSE, POSES_PL, heroSpec, kittenSpec, minionSpec, type MotionProfile } from './specs';
+import { HERO_HEIGHT, HERO_MOTION, KITTEN_POSE, POSES_PL, heroSpec, kittenSpec, minionSpec, type HeroCtx, type MotionProfile } from './specs';
+import type { CoatSpec } from './chibi';
 import { PPK_POSES } from './skeleton';
 
 export { HERO_HEIGHT, HERO_MOTION, HERO_TOP } from './specs';
@@ -26,19 +27,51 @@ interface Built {
   lay: Layout;
 }
 
-const heroCache = new Map<string, Built>();
+interface Cached extends Built {
+  key: string;
+  refs: number;
+}
+
+/**
+ * Hero geometry by hero / team / look / detail / context, shared by live characters, the lobby and the portraits.
+ * A reference-counted LRU (card skins: up to 24 cats × 8 champions): at most HERO_CACHE_MAX entries; the least
+ * recently used entry with no live character is disposed when a new one is built. An entry in use is never evicted.
+ */
+export const HERO_CACHE_MAX = 32;
+const heroCache = new Map<string, Cached>();
+const owner = new WeakMap<THREE.BufferGeometry, Cached>();
+
+function evict(): void {
+  if (heroCache.size <= HERO_CACHE_MAX) return;
+  for (const [k, c] of heroCache) {
+    if (heroCache.size <= HERO_CACHE_MAX) break;
+    if (c.refs > 0) continue;
+    heroCache.delete(k);
+    c.geometry.dispose();
+  }
+}
+
+/** Tests: entries, and how many are in use. */
+export const heroCacheStats = (): { size: number; inUse: number } => ({ size: heroCache.size, inUse: [...heroCache.values()].filter((c) => c.refs > 0).length });
 
 /** Mesh detail per quality tier (segment scale). */
 export const DETAIL = Object.freeze({ low: 0.62, med: 1, high: 1, lobby: 1.5 });
 
 /** The cached hero geometry (indexed, skinned) for a team, look and detail. */
-export function heroBuilt(hero: HeroId, team: 0 | 1, look: Look | null = DEFAULT_LOOK, detail = 1): Built {
-  const k = `${hero}:${team}:${lookKey(look)}:${detail}`;
+export function heroBuilt(hero: HeroId, team: 0 | 1, look: Look | null = DEFAULT_LOOK, detail = 1, ctx: HeroCtx = {}): Built {
+  const k = `${hero}:${team}:${lookKey(look)}:${detail}${ctx.match ? (ctx.self ? ':ms' : ':m') : ''}`;
   let b = heroCache.get(k);
-  if (!b) {
-    b = buildChibi(heroSpec(hero, team, look ?? DEFAULT_LOOK, detail));
+  if (b) {
+    // most recently used last
+    heroCache.delete(k);
     heroCache.set(k, b);
+    return b;
   }
+  const built = buildChibi(heroSpec(hero, team, look ?? DEFAULT_LOOK, detail, ctx));
+  b = { ...built, key: k, refs: 0 };
+  owner.set(b.geometry, b);
+  heroCache.set(k, b);
+  evict();
   return b;
 }
 
@@ -56,6 +89,9 @@ export interface Character {
 
 /** A live character on shared geometry: its own bones, animator and material. */
 export function makeCharacter(built: Built, profile: MotionProfile, height: number, o: { outline?: boolean; shadows?: boolean; name?: string } = {}): Character {
+  const cached = owner.get(built.geometry);
+  if (cached) cached.refs++;
+  let released = false;
   const rig = new Rig(built.lay, POSES);
   const material = charMaterial();
   const mesh = new THREE.SkinnedMesh(built.geometry, material);
@@ -94,12 +130,17 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
       material.dispose();
       oMat?.dispose();
       rig.skeleton.dispose();
+      if (cached && !released) {
+        released = true;
+        cached.refs = Math.max(0, cached.refs - 1);
+        evict();
+      }
     },
   };
 }
 
-export function makeHero(hero: HeroId, team: 0 | 1, look: Look | null, o: { detail?: number; outline?: boolean; shadows?: boolean } = {}): Character {
-  const c = makeCharacter(heroBuilt(hero, team, look, o.detail ?? 1), HERO_MOTION[hero], HERO_HEIGHT[hero], { ...o, name: `hero-${hero}` });
+export function makeHero(hero: HeroId, team: 0 | 1, look: Look | null, o: { detail?: number; outline?: boolean; shadows?: boolean; match?: boolean; self?: boolean } = {}): Character {
+  const c = makeCharacter(heroBuilt(hero, team, look, o.detail ?? 1, { match: o.match === true, self: o.self === true }), HERO_MOTION[hero], HERO_HEIGHT[hero], { ...o, name: `hero-${hero}` });
   // settle the idle pose before the first frame (portraits, lobby)
   c.anim.update(1, { state: 'idle', speed: 0, height: c.height, yawRate: 0 });
   return c;
@@ -110,8 +151,9 @@ export function makeHero(hero: HeroId, team: 0 | 1, look: Look | null, o: { deta
 export const KITTEN_HEIGHT = 0.95;
 const KITTEN_MOTION: MotionProfile = { idle: KITTEN_POSE.idle, run: KITTEN_POSE.run, cast: 'cheer', attack: 'paw', stride: 1.4 };
 
-export function makeKitten(coat: Coat, collar: number, tabby = false): Character {
-  const built = buildChibi(kittenSpec(coat, collar, tabby));
+/** `full`: a card skin's coat (GDD §7.2: the kitten matches the champion wearing the same cat). */
+export function makeKitten(coat: Coat, collar: number, tabby = false, full?: CoatSpec): Character {
+  const built = buildChibi(kittenSpec(coat, collar, tabby, full));
   const c = makeCharacter(built, KITTEN_MOTION, KITTEN_HEIGHT, { name: 'kitten', shadows: false });
   const dispose = c.dispose;
   c.dispose = () => {

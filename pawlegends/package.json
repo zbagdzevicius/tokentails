@@ -21,7 +21,9 @@
     "determinism": "node tools/determinism.mjs",
     "vendor-sim": "node tools/vendor-sim.mjs",
     "vendor-sim:check": "node tools/vendor-sim.mjs --check",
-    "vendor-sim:check-remote": "node tools/vendor-sim.mjs --check-remote"
+    "vendor-sim:check-remote": "node tools/vendor-sim.mjs --check-remote",
+    "gen:skins": "node tools/gen-cat-skins.mjs",
+    "gen:skins:check": "node tools/gen-cat-skins.mjs --check"
   },
   "dependencies": {
     "three": "^0.186.1"

@@ -1,0 +1,41 @@
+{
+  "_note": "One-time review of the generated families.gen.ts contact sheet (GDD 7.2). Keyed by CDN family; fields use the FamilyRow keys (p pattern, b base, d deep, l light, c cream, x patch, e eyes, n nose, i inner ear). Merged over the generated row at runtime.",
+  "SIAMESE": {
+    "p": "points",
+    "d": "#56392f"
+  },
+  "TEDDY": {
+    "p": "points",
+    "b": "#c9a07a",
+    "d": "#382620"
+  },
+  "SABLE": {
+    "p": "tuxedo",
+    "b": "#45260f",
+    "d": "#2a170a",
+    "l": "#a08a7c",
+    "c": "#ffffff"
+  },
+  "RASCAL": {
+    "p": "tabby",
+    "d": "#8a6420"
+  },
+  "CHARMIE": {
+    "p": "tabby",
+    "d": "#8a6420"
+  },
+  "CHEESY": {
+    "p": "tabby",
+    "d": "#8a6420"
+  },
+  "YELLOW": {
+    "p": "tabby",
+    "d": "#8a6420"
+  },
+  "ALBERTINO": {
+    "p": "tabby"
+  },
+  "TROUFAS": {
+    "e": "#d8c23a"
+  }
+}

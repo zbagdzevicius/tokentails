@@ -1,6 +1,7 @@
 /**
  * Host roster → cosmetics (POC.md §11.1, GDD "your cats in the game"). The host sends the signed-in player's Token
- * Tails cats as `roster{cats[]}`: `{id, name, type, tier, isStarter, starterBreed?, origin?, art?, catalogId?}`.
+ * Tails cats as `roster{cats[]}`: `{id, name, type, tier, isStarter, starterBreed?, origin?, art?, catalogId?, sprite?}`
+ * (`sprite`: the sprite sheet, whose `assets/<FAMILY>/<variant>.png` path gives `family` and `variant`).
  * Render only, never in a replay or the hash. In app builds the host sends only starter and redeemed cats; the game
  * filters the same way again (`setAppBuild`), so a stray paid cat never shows there.
  *
@@ -14,9 +15,11 @@
  *   cat just adopted, then the squad the player chose on the pick screen; meta/squad.ts), then starters, then
  *   roster order. The coat comes from `starterBreed`, else a stable hash of the cat id into 8 preset coats
  *
+ * - every cat → a card skin (`cat.<id>`, render/skins/registry.ts) wearable by every champion (GDD §7.2)
+ *
  * Tier sets frames and effect intensity only; nothing here changes a number in the match.
  */
-import { cleanArt, cleanCatalogId } from '../embed/bridge';
+import { cleanArt, cleanCatalogId, cleanSprite, spriteParts } from '../embed/bridge';
 
 export const ELEMENTS = Object.freeze(['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR'] as const);
 export type Element = (typeof ELEMENTS)[number];
@@ -52,6 +55,11 @@ export interface RosterCat {
   art?: string;
   /** The catalog cat this one was adopted from (24 hex). */
   catalogId?: string;
+  /** Sprite sheet (`spriteImg`, allowlisted CDN `.png`): the card skin palette (render/skins/). */
+  sprite?: string;
+  /** Breed folder and variant from the sprite path (`assets/<FAMILY>/<variant>.png`). */
+  family?: string;
+  variant?: string;
 }
 
 /** Origins an app build may show (Apple 3.1.3(b): nothing bought on the web). */
@@ -102,6 +110,15 @@ export function parseRoster(v: unknown, opts: { isApp?: boolean } = {}): RosterC
     if (art) cat.art = art;
     const catalogId = cleanCatalogId(c.catalogId);
     if (catalogId) cat.catalogId = catalogId;
+    const sprite = cleanSprite(c.sprite);
+    if (sprite) {
+      cat.sprite = sprite;
+      const parts = spriteParts(sprite);
+      if (parts) {
+        cat.family = parts.family;
+        cat.variant = parts.variant;
+      }
+    }
     out.push(cat);
   }
   return out;
@@ -157,6 +174,8 @@ export interface RosterCosmetics {
   named: number;
   /** Catalog ids owned (the Meet card never offers one of these). */
   catalogIds: string[];
+  /** Card skin ids (`cat.<id>`, render/skins/): every owned cat, wearable by every champion (GDD §7.2). */
+  cardSkins: string[];
 }
 
 /** A named cat: adopted by name (not a starter, not from a pack). Counted once per catalog cat. */
@@ -215,7 +234,8 @@ export function rosterCosmetics(cats: readonly RosterCat[], prefer: readonly str
     count: cats.length,
     named: named.size,
     catalogIds: [...catalog],
+    cardSkins: cats.map((c) => `cat.${c.id}`),
   };
 }
 
-export const EMPTY_ROSTER: RosterCosmetics = Object.freeze({ chromas: [], frames: [], breedCoats: [], companions: [], cats: [], count: 0, named: 0, catalogIds: [] }) as RosterCosmetics;
+export const EMPTY_ROSTER: RosterCosmetics = Object.freeze({ chromas: [], frames: [], breedCoats: [], companions: [], cats: [], count: 0, named: 0, catalogIds: [], cardSkins: [] }) as RosterCosmetics;

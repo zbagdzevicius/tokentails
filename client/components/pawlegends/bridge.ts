@@ -6,7 +6,8 @@
  * Envelope: `{ ns: 'tt-pawlegends', v: 1, type, ...payload }`. Every change is additive; each side ignores unknown
  * types and unknown fields.
  * - Host to game: `hello` (until `ready`), `session {signedIn, progress}`, `roster {cats[]}` (each cat may carry
- *   `art` and `catalogId`), `featured {cats[]}` (at most 2 unowned direct-purchase cats), `offer {offer}` (one
+ *   `art`, `catalogId` and `sprite`, its sprite sheet for the game's card skins), `featured {cats[]}` (at most 2
+ *   unowned direct-purchase cats, each with optional `art`, `sprite` and `tier`), `offer {offer}` (one
  *   `meet` card or null), `save-result {matchId, status, catnipPaid, catnipTotal, fastestWin, code?}`,
  *   `entitlements {token}`, `audio {muted, music?, sfx?}`, `pause`, `resume`, `purchase-result {catalogId, ok}`,
  *   `app {isApp, store, notify}`, and (sim v9) `champions {cats[]}`: the shelter champions' cards, each
@@ -15,7 +16,9 @@
  * - Game to host: `ready {version}`, `match-result {replay, summary, matchId}`, `request-sign-in {reason}`,
  *   `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url}`,
  *   `paused {paused}`, `champion-offer {catalogId}` (sim v9: the player's 3rd finished match on a champion whose card
- *   is for sale; the host asks its offer engine with that card first), and the deprecated `purchase-intent {sku}`
+ *   is for sale; the host asks its offer engine with that card first), `skin-preview {catalogId}` (the player
+ *   previewed a featured cat's card skin on the pick screen: the same re-ask with that cat first; the server's caps
+ *   still decide), and the deprecated `purchase-intent {sku}`
  *   (answered with a legacy refusal).
  *
  * A message counts only when it comes from our iframe's window and the game's origin; every post names that
@@ -70,12 +73,17 @@ export const PAWLEGENDS_ART_HOST = "tokentails-nfts.fra1.cdn.digitaloceanspaces.
 export const PAWLEGENDS_ART_PATH_HOST = "fra1.cdn.digitaloceanspaces.com";
 export const PAWLEGENDS_ART_PATH_PREFIX = "/tokentails-nfts/";
 
-/** Cat art the game may load: an https URL on the Token Tails CDN, else null. */
+/**
+ * Cat art the game may load: an https URL on the Token Tails CDN, else null. Leading and trailing spaces are trimmed
+ * first (known bug: a few storefront `spriteImg` / `catImg` values end in a space, so their art was dropped).
+ */
 export function artUrlOf(value: unknown): string | null {
-  if (typeof value !== "string" || value.length > 512 || /[\s\\<>"'`]/.test(value)) return null;
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (text.length > 512 || /[\s\\<>"'`]/.test(text)) return null;
   let url: URL;
   try {
-    url = new URL(value);
+    url = new URL(text);
   } catch {
     return null;
   }
@@ -120,6 +128,8 @@ export interface PawlegendsRosterCat {
   art?: string;
   /** The catalog cat this one is a copy of (`sourceCat`, or the blessing's cat). */
   catalogId?: string;
+  /** Token Tails CDN sprite sheet (`spriteImg`, `.png` only): the game's card skin palette. */
+  sprite?: string;
 }
 
 export interface PawlegendsFeaturedCat {
@@ -127,7 +137,18 @@ export interface PawlegendsFeaturedCat {
   name: string;
   type: string;
   art?: string;
+  /** Token Tails CDN sprite sheet (`spriteImg`, `.png` only). */
+  sprite?: string;
+  tier?: string;
 }
+
+/** A sprite sheet the game may read: `artUrlOf` and a `.png` path, else null. */
+export function spriteUrlOf(value: unknown): string | null {
+  const url = artUrlOf(value);
+  return url && /\.png$/i.test(new URL(url).pathname) ? url : null;
+}
+
+const CARD_TIERS: readonly string[] = ["COMMON", "RARE", "EPIC", "LEGENDARY"];
 
 /** Sim v9: one shelter champion's card (the game keeps only the champion catalog ids it knows). */
 export interface PawlegendsChampionCard {
@@ -191,7 +212,8 @@ export type PawlegendsToHostMessage =
   | { type: "purchase-intent"; sku: PawlegendsSku }
   | { type: "share"; kind: string; url: string }
   | { type: "paused"; paused: boolean }
-  | { type: "champion-offer"; catalogId: string };
+  | { type: "champion-offer"; catalogId: string }
+  | { type: "skin-preview"; catalogId: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -280,6 +302,8 @@ function rosterCatOf(value: unknown): PawlegendsRosterCat | null {
   const art = artUrlOf(value.art);
   if (art) cat.art = art;
   if (isCatalogId(value.catalogId)) cat.catalogId = value.catalogId;
+  const sprite = spriteUrlOf(value.sprite);
+  if (sprite) cat.sprite = sprite;
   return cat;
 }
 
@@ -290,6 +314,9 @@ function featuredCatOf(value: unknown): PawlegendsFeaturedCat | null {
   const cat: PawlegendsFeaturedCat = { catalogId: value.catalogId, name, type: value.type };
   const art = artUrlOf(value.art);
   if (art) cat.art = art;
+  const sprite = spriteUrlOf(value.sprite);
+  if (sprite) cat.sprite = sprite;
+  if (typeof value.tier === "string" && CARD_TIERS.includes(value.tier)) cat.tier = value.tier;
   return cat;
 }
 
@@ -495,6 +522,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       return typeof data.paused === "boolean" ? { type: "paused", paused: data.paused } : null;
     case "champion-offer":
       return isCatalogId(data.catalogId) ? { type: "champion-offer", catalogId: data.catalogId } : null;
+    case "skin-preview":
+      return isCatalogId(data.catalogId) ? { type: "skin-preview", catalogId: data.catalogId } : null;
     default:
       return null;
   }
@@ -540,6 +569,8 @@ export interface PawlegendsBridgeHandlers {
   onPaused?(paused: boolean): void;
   /** Sim v9: only for a champion card the host holds as for sale, and never in an app build. */
   onChampionOffer?(catalogId: string): void;
+  /** Card skins: only for a cat of the last `featured` list, and never in an app build. */
+  onSkinPreview?(catalogId: string): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -699,6 +730,10 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       case "champion-offer":
         if (isApp || !championIds.has(message.catalogId)) break;
         handlers.onChampionOffer?.(message.catalogId);
+        break;
+      case "skin-preview":
+        if (isApp || !featuredIds.has(message.catalogId)) break;
+        handlers.onSkinPreview?.(message.catalogId);
         break;
     }
   };

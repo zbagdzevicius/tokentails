@@ -62,7 +62,21 @@ export interface Profile {
   championMatches: Partial<Record<HeroId, number>>;
   /** Sim v9: champions whose Meet card has been shown (`offer-seen`): no longer due. */
   championShown: HeroId[];
+  /** Card skins (GDD §7.2): cosmetic effects on All heroes, Mine only, or Off (settings). */
+  skinFx: SkinFx;
+  /** Featured-skin previews seen in one page session (guests 1, signed in 3). */
+  previewsSeen: { session: number; n: number };
+  /** Bond per roster cat id: finished matches wearing its skin (at most BOND_MAX entries). */
+  bond: Record<string, number>;
+  /** The newest cat whose skin was put on automatically (once per cat; the chip offers Undo). */
+  skinAuto: string | null;
 }
+
+export type SkinFx = 'all' | 'mine' | 'off';
+/** Most bond entries kept (the lowest not in the roster are dropped first). */
+export const BOND_MAX = 64;
+/** Featured-skin previews a page session allows: a guest, a signed-in player. */
+export const PREVIEW_CAP = Object.freeze({ guest: 1, signedIn: 3 });
 
 /** Sim v9: the finished match on a champion from which its card may be offered (GDD §8.4), until it is shown. */
 export const CHAMPION_OFFER_AT = 3;
@@ -77,7 +91,7 @@ const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [] };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -126,7 +140,22 @@ export function parseProfile(raw: string | null): Profile {
         if (b && typeof b === 'object') p.bests[h] = { fastest: n(b.fastest), takedowns: n(b.takedowns) };
       }
     }
-    const id = (v: unknown): string | null => (typeof v === 'string' && /^[A-Za-z0-9_.-]{1,48}$/.test(v) ? v : null);
+    p.skinFx = o.skinFx === 'mine' || o.skinFx === 'off' ? o.skinFx : 'all';
+    const ps = o.previewsSeen as Record<string, unknown> | undefined;
+    p.previewsSeen = ps && typeof ps === 'object' ? { session: n(ps.session), n: Math.min(n(ps.n), 99) } : { session: 0, n: 0 };
+    if (o.bond && typeof o.bond === 'object') {
+      const entries = Object.entries(o.bond as Record<string, unknown>)
+        .filter(([k, v]) => /^[A-Za-z0-9_-]{1,64}$/.test(k) && typeof v === 'number' && Number.isFinite(v) && v > 0)
+        .map(([k, v]) => [k, Math.min(9999, Math.floor(v as number))] as const)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, BOND_MAX);
+      for (const [k, v] of entries) p.bond[k] = v;
+    }
+    p.skinAuto = typeof o.skinAuto === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(o.skinAuto) ? o.skinAuto : null;
+    // a profile from before card skins: its newCat was bought earlier, so it is never auto-equipped as a new arrival
+    if (!('skinAuto' in o)) p.skinAuto = p.newCat;
+    // card skin ids are `cat.<roster id>` (up to 64 characters after the prefix)
+    const id = (v: unknown): string | null => (typeof v === 'string' && /^[A-Za-z0-9_.-]{1,80}$/.test(v) ? v : null);
     if (o.looks && typeof o.looks === 'object') {
       for (const h of HEROES) {
         const l = (o.looks as Record<string, unknown>)[h];
@@ -243,6 +272,43 @@ export function noteChampionShown(hero: HeroId): void {
   const p = loadProfile();
   if (p.championShown.includes(hero)) return;
   p.championShown.push(hero);
+  saveProfile(p);
+}
+
+/**
+ * Card skins: one more finished match wearing cat `catId`'s skin. Keeps at most BOND_MAX entries, dropping the lowest
+ * ones whose cat is not in `roster` first. Returns the new count.
+ */
+export function noteBond(catId: string, roster: readonly string[] = []): number {
+  const p = loadProfile();
+  const c = Math.min((p.bond[catId] ?? 0) + 1, 9999);
+  p.bond[catId] = c;
+  p.bond = capBond(p.bond, roster);
+  saveProfile(p);
+  return p.bond[catId] ?? c;
+}
+
+/** Pure: at most BOND_MAX entries; drops the lowest cats missing from `roster` first, then the lowest. */
+export function capBond(bond: Record<string, number>, roster: readonly string[]): Record<string, number> {
+  const keys = Object.keys(bond);
+  if (keys.length <= BOND_MAX) return bond;
+  const inRoster = new Set(roster);
+  const order = keys.sort((a, b) => Number(inRoster.has(a)) - Number(inRoster.has(b)) || bond[a] - bond[b]);
+  const out = { ...bond };
+  for (const k of order.slice(0, keys.length - BOND_MAX)) delete out[k];
+  return out;
+}
+
+/** May the player preview one more featured skin this page session? */
+export function previewAllowed(p: Pick<Profile, 'sessions' | 'previewsSeen'>, signedIn: boolean): boolean {
+  const seen = p.previewsSeen.session === p.sessions ? p.previewsSeen.n : 0;
+  return seen < (signedIn ? PREVIEW_CAP.signedIn : PREVIEW_CAP.guest);
+}
+
+export function notePreview(): void {
+  const p = loadProfile();
+  const seen = p.previewsSeen.session === p.sessions ? p.previewsSeen.n : 0;
+  p.previewsSeen = { session: p.sessions, n: seen + 1 };
   saveProfile(p);
 }
 

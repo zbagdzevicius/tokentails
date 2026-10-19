@@ -393,7 +393,10 @@ export const PawlegendsHost = ({
     onOfferSeen: (catalogId: string) => void;
     onNotify: (where: PawlegendsNotifyWhere) => void;
     onChampionOffer: (catalogId: string) => void;
-  }>({ onRequestSignIn: () => undefined, onOpenCat: () => undefined, onOfferSeen: () => undefined, onNotify: () => undefined, onChampionOffer: () => undefined });
+    onSkinPreview: (catalogId: string) => void;
+  }>({ onRequestSignIn: () => undefined, onOpenCat: () => undefined, onOfferSeen: () => undefined, onNotify: () => undefined, onChampionOffer: () => undefined, onSkinPreview: () => undefined });
+  /** Featured cats the player previewed as a card skin this visit (`skin-preview`): the next offer ask puts them first. */
+  const previewed = useRef<string[]>([]);
   useEffect(() => {
     handlers.current = {
       onRequestSignIn: (reason) => {
@@ -460,6 +463,25 @@ export const PawlegendsHost = ({
             if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
           });
       },
+      // Card skins: the player previewed a featured cat's skin on the pick screen. Same re-ask, with that cat right
+      // after any due champion card; the server's caps (session 1, one a session, one a day, spend) still decide.
+      onSkinPreview: (catalogId) => {
+        if (isApp || offerSeen.current || !featured.byId.has(catalogId) || previewed.current.includes(catalogId)) return;
+        previewed.current = [...previewed.current, catalogId];
+        const first = [...dueChampions.current.filter((id) => champions.byId.has(id)), catalogId];
+        void api
+          .offer({
+            deviceId: deviceId(),
+            session: sessionRef.current ?? 1,
+            screen: "results",
+            catalogIds: [...first, ...featured.cats.map((c) => c.catalogId).filter((id) => !first.includes(id))],
+            token: readToken(),
+          })
+          .then((result) => {
+            const offer = result.ok ? result.body?.offer ?? null : null;
+            if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
+          });
+      },
     };
   });
 
@@ -483,6 +505,7 @@ export const PawlegendsHost = ({
         onOfferSeen: (catalogId) => handlers.current.onOfferSeen(catalogId),
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
+        onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
         onShare: (_kind, url) => {
           const safe = shareUrlOf(url, window.location.origin);
           if (!safe) return;

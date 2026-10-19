@@ -114,6 +114,11 @@ export interface Integration {
   championMatch(hero: HeroId): boolean;
   /** Sim v9: the pick tiles' card art and (web only) the owner badge per champion. */
   championTiles(): Partial<Record<HeroId, { art?: string; owned: boolean }>>;
+  /**
+   * GDD §7.2: a featured cat's skin was previewed on the pick screen. Web only, once per cat a page load: the host
+   * puts it first in its next Meet offer ask (`skin-preview`); the server's caps decide whether a card shows.
+   */
+  notePreview(catalogId: string): boolean;
   dispose(): void;
 }
 
@@ -230,6 +235,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   let lastScreen: ScreenKind | null = null;
   /** Champion cards already sent to the host this page load (`champion-offer`). */
   const championAsked = new Set<string>();
+  /** Featured cats whose skin preview the host was told about this page load (`skin-preview`). */
+  const previewAsked = new Set<string>();
 
   const isApp = (): boolean => s.app?.isApp === true || deps.ent.snapshot().isApp;
   const embedded = (): boolean => bridge.active && deps.ent.snapshot().embedded;
@@ -610,6 +617,13 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     state: () => s,
     refresh: () => redraw(true, true),
     championMatch: (hero) => askChampion(hero),
+    notePreview: (catalogId) => {
+      if (isApp() || previewAsked.has(catalogId) || !s.featured.some((c) => c.catalogId === catalogId)) return false;
+      if (cosmetics().catalogIds.includes(catalogId)) return false;
+      if (!bridge.post('skin-preview', { catalogId })) return false;
+      previewAsked.add(catalogId);
+      return true;
+    },
     championTiles: () => {
       const owned = cosmetics().catalogIds;
       const out: Partial<Record<HeroId, { art?: string; owned: boolean }>> = {};

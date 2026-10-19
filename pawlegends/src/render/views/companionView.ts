@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import type { Companion } from '../../meta/roster';
 import { ELEMENT_COLOR, companionCoat } from '../cosmetics';
 import { makeKitten, type Character } from '../chars';
+import { getSkin, skinIdOf } from '../skins/skinStore';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 
@@ -92,7 +93,9 @@ export class CompanionView {
   constructor(companions: readonly Companion[]) {
     this.group.name = 'companions';
     companions.slice(0, 2).forEach((c, i) => {
-      const ch = makeKitten(companionCoat(c.coat, c.element), ELEMENT_COLOR[c.element], c.coat === 'SCOUT');
+      // GDD §7.2: a squad cat with a card skin walks in that skin's coat, so the champion wearing it and its kitten match
+      const skin = getSkin(skinIdOf(c.id));
+      const ch = makeKitten(companionCoat(c.coat, c.element), ELEMENT_COLOR[c.element], c.coat === 'SCOUT', skin?.coat);
       ch.object.name = `kitten-${i}`;
       ch.object.scale.multiplyScalar(KITTEN_SCALE);
       const tag = nameTag(c.name, ELEMENT_COLOR[c.element], c.tier);

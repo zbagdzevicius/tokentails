@@ -26,10 +26,11 @@ export type HostType = (typeof HOST_TYPES)[number];
  * `request-sign-in{reason}`, `open-cat{catalogId}` (the host opens its Token Tails cat checkout),
  * `offer-seen{kind, catalogId}` and `champion-offer{catalogId}` (sim v9: a non-owner just finished a 3rd match on
  * a champion whose card is for sale; the host puts that cat first when it asks `GET /pawlegends/offer`, where every
- * global cap still applies). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
+ * global cap still applies), `skin-preview{catalogId}` (GDD §7.2: the player previewed a featured cat's card skin on
+ * the pick screen; the host puts that cat first in its next offer ask, the server's caps still decide). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
  * sends it (the host still answers older builds).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {
@@ -220,6 +221,27 @@ export function cleanArt(v: unknown): string | undefined {
   }
 }
 
+/** A cat sprite sheet URL (`spriteImg`): an allowlisted CDN `.png`, or undefined. */
+export function cleanSprite(v: unknown): string | undefined {
+  const u = cleanArt(v);
+  return u && /\.png$/i.test(new URL(u).pathname) ? u : undefined;
+}
+
+/** `assets/<FAMILY>/<variant>.png` on the cleaned sprite URL (the breed folder is only known from here). */
+export const SPRITE_PATH = /\/assets\/([A-Z0-9_-]+)\/([A-Za-z0-9_-]+)\.png$/;
+export function spriteParts(url: string): { family: string; variant: string } | null {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const m = SPRITE_PATH.exec(path);
+  return m ? { family: m[1], variant: m[2] } : null;
+}
+
+const CARD_TIERS: readonly string[] = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
+
 export const cleanCatalogId = (v: unknown): string | undefined => (typeof v === 'string' && CATALOG_ID.test(v) ? v : undefined);
 
 const ELEMENT_TYPES: readonly string[] = ['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR'];
@@ -229,6 +251,10 @@ export interface FeaturedCat {
   name: string;
   type: string;
   art?: string;
+  /** Sprite sheet (card skin previews and showcase bots; GDD §7.2). */
+  sprite?: string;
+  /** The cat's tier (a showcase skin shows at most Rare). */
+  tier?: string;
 }
 
 export const FEATURED_MAX = 2;
@@ -255,6 +281,9 @@ export function parseFeatured(m: Record<string, unknown>): FeaturedCat[] | null 
     const cat: FeaturedCat = { catalogId, name, type: c.type };
     const art = cleanArt(c.art);
     if (art) cat.art = art;
+    const sprite = cleanSprite(c.sprite);
+    if (sprite) cat.sprite = sprite;
+    if (typeof c.tier === 'string' && CARD_TIERS.includes(c.tier)) cat.tier = c.tier;
     out.push(cat);
   }
   return out;

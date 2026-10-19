@@ -13,8 +13,32 @@ import { lobbyHero } from './views/heroView';
 
 const SIZE = 128;
 const HEROES: readonly HeroId[] = HERO_IDS;
+/**
+ * Data URLs by `hero|lookKey` (about 20–40 KB of text each). Card skins make up to 192 looks, so this is an LRU of
+ * PORTRAIT_MAX; the default portraits (every hero's Classic look) are never evicted.
+ */
+export const PORTRAIT_MAX = 64;
 const cache = new Map<string, string>();
 const keyOf = (hero: HeroId, look: Look | null | undefined): string => `${hero}|${lookKey(look)}`;
+const pinned = (k: string): boolean => k.endsWith('|-|-');
+function remember(k: string, url: string): void {
+  cache.delete(k);
+  cache.set(k, url);
+  for (const key of cache.keys()) {
+    if (cache.size <= PORTRAIT_MAX) break;
+    if (!pinned(key)) cache.delete(key);
+  }
+}
+function recall(k: string): string | undefined {
+  const v = cache.get(k);
+  if (v !== undefined && !pinned(k)) {
+    cache.delete(k);
+    cache.set(k, v);
+  }
+  return v;
+}
+/** Tests only. */
+export const portraitCacheSize = (): number => cache.size;
 
 /** What each store SKU's card shows (its headline look on Clem). */
 export const SKU_LOOK: Readonly<Record<'pl_starter' | 'pl_founder' | 'pl_founder_legend' | 'pl_founder_legend_upgrade', Look>> = Object.freeze({
@@ -28,7 +52,7 @@ export const SKU_LOOK: Readonly<Record<'pl_starter' | 'pl_founder' | 'pl_founder
  * The portrait of `hero` in `look` (a PNG data URL); falls back to the default look, and is null before
  * `bakePortraits` ran or where WebGL read-back failed.
  */
-export const portraitUrl = (hero: HeroId, look?: Look | null): string | null => cache.get(keyOf(hero, look)) ?? cache.get(keyOf(hero, null)) ?? null;
+export const portraitUrl = (hero: HeroId, look?: Look | null): string | null => recall(keyOf(hero, look)) ?? cache.get(keyOf(hero, null)) ?? null;
 
 /** Render one hero portrait in a look (no-op when cached). Never throws. */
 export function bakePortrait(gr: GameRenderer, hero: HeroId, look: Look | null): void {
@@ -91,7 +115,7 @@ function bake(gr: GameRenderer, jobs: readonly [HeroId, Look | null][]): void {
       // WebGL rows run bottom-up.
       for (let y = 0; y < SIZE; y++) img.data.set(pixels.subarray((SIZE - 1 - y) * SIZE * 4, (SIZE - y) * SIZE * 4), y * SIZE * 4);
       ctx.putImageData(img, 0, 0);
-      cache.set(keyOf(hero, look), canvas.toDataURL('image/png'));
+      remember(keyOf(hero, look), canvas.toDataURL('image/png'));
     }
   } catch {
     // No read-back (a lost context): the letter placeholders stay.

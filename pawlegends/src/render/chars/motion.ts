@@ -56,6 +56,10 @@ export class Animator {
   private p = BONE_NAMES.map(() => new THREE.Vector3());
   private time = Math.random() * 10;
   private phase = 0;
+  /** Gait phase (radians): a footfall every π (card skin glints, render/skins/tierFx.ts). */
+  get stridePhase(): number {
+    return this.phase;
+  }
   private walk = 0;
   private lean = 0;
   private swingT = 1;
