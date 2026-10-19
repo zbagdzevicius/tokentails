@@ -8,7 +8,9 @@
  *  - the camera: the respawn carry and the wall check (`camera.source`), the intro flyover while the grid waits for
  *    the first input (tap or key skips it; not for `?bot`, `?speed` or reduced motion), the finish orbit, the 10° kick
  *    for strong boosts, a dark dip when the big hand scoops the player up
- *  - post-processing: the lazy bloom chunk on the high quality tier (juice/perf/post.ts)
+ *  - post-processing: the lazy bloom chunk on the high quality tier, once the frame rate has shown it can afford it
+ *    (2 s at 50+ fps; off again after 2 s under 40 fps, and for good after the second time). `?bloom=1` forces it
+ *    on for QA (juice/perf/post.ts)
  *
  * Extension points for other lanes: `shell.setCameraMode('podium' | 'attract' | 'flyover', params)`,
  * `KartView.setFinish(pose)`, `flyoverKeys(track, grid)`.
@@ -27,12 +29,19 @@ import type { Camera, Scene } from 'three';
 export class FeelDirector implements JuiceListener {
   private post: PostFx | null = null;
   private postLoading = false;
+  private postWanted = false;
+  private readonly forcePost: boolean;
+  private fpsT = 0;
+  private good = 0;
+  private bad = 0;
+  private strikes = 0;
   private boostGrade = 0;
   private readonly noIntro: boolean;
 
   constructor(private readonly shell: Shell) {
     const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
     this.noIntro = q.has('bot') || Number(q.get('speed')) > 1;
+    this.forcePost = q.get('bloom') === '1';
     // tap / key skips the intro flyover (the same input also arms the grid)
     if (typeof window !== 'undefined') {
       const skip = () => shell.camera.skip();
@@ -41,7 +50,7 @@ export class FeelDirector implements JuiceListener {
     }
     this.wrapRender();
     // QA (e2e/feel.spec.ts): is the post chain live
-    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled && !!Quality.current?.look.post };
+    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled };
   }
 
   onReset(): void {
@@ -92,10 +101,44 @@ export class FeelDirector implements JuiceListener {
     if (cam.mode === 'flyover' && info.st.tick > 0) cam.skip();
     const k = info.st.karts[info.me];
     if (k) this.boostGrade += ((k.boostTicks > 0 ? 1 : 0) - this.boostGrade) * Math.min(1, info.dt * 6);
+    this.gatePost(info.dt);
     if (this.post) {
       this.post.boost = this.shell.settings.reducedMotion ? this.boostGrade * 0.4 : this.boostGrade;
-      this.post.enabled = !!Quality.current?.look.post;
-    } else if (!this.postLoading && Quality.current?.look.post) this.loadPost();
+      this.post.enabled = this.postWanted;
+    } else if (!this.postLoading && this.postWanted) this.loadPost();
+  }
+
+  /**
+   * Bloom only where it is affordable: the high tier, and a frame rate that holds 50+ fps for 2 s. It switches off
+   * after 2 s under 40 fps; after the second time it stays off for the session (no flicker between the two).
+   */
+  private gatePost(dt: number): void {
+    const q = Quality.current;
+    if (this.forcePost) {
+      this.postWanted = true;
+      return;
+    }
+    if (!q || !q.look.post || this.strikes >= 2) {
+      this.postWanted = false;
+      this.good = this.bad = 0;
+      return;
+    }
+    this.fpsT += dt;
+    if (this.fpsT < 1) return;
+    this.fpsT = 0;
+    const fps = q.stats.fps;
+    if (fps >= 50) {
+      this.good++;
+      this.bad = 0;
+    } else if (fps < 40) {
+      this.bad++;
+      this.good = 0;
+    } else this.good = this.bad = 0;
+    if (!this.postWanted && this.good >= 2) this.postWanted = true;
+    else if (this.postWanted && this.bad >= 2) {
+      this.postWanted = false;
+      this.strikes++;
+    }
   }
 
   /** Lazy-load the post chunk (bloom) the first time the high tier is on. */
