@@ -1,0 +1,28 @@
+{
+  "name": "formula-meow",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Formula Meow: an 8-cat kart race for Token Tails (GDD docs/plans/formula-meow/GDD.md)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "MEOW_BASE=/formula-meow-game/ vite build --outDir ../client/public/formula-meow-game --emptyOutDir",
+    "preview": "vite preview --port 4175",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "tracks": "vitest run src/core/track"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.183.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
