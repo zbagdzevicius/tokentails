@@ -60,7 +60,9 @@ export function pickFeatured(
   owned: ICat[] | undefined,
   roster: readonly Pick<PawlegendsRosterCat, "type">[],
   now: number = Date.now(),
-  limit: number = PAWLEGENDS_FEATURED_LIMIT
+  limit: number = PAWLEGENDS_FEATURED_LIMIT,
+  /** Catalog ids never featured: the shelter champions' cards reach the offer engine only as a champion offer. */
+  exclude: ReadonlySet<string> = new Set()
 ): FeaturedPick {
   const day = Math.floor(now / DAY_MS);
   const have = new Set(roster.map((c) => c.type));
@@ -68,6 +70,7 @@ export function pickFeatured(
     .filter(
       (cat) =>
         isCatForSale(cat) &&
+        !exclude.has(String(cat._id).toLowerCase()) &&
         !ownsCopy(owned, cat) &&
         ABILITY_TYPES.has(String(cat.type)) &&
         !!catNameOf(cat.name) &&

@@ -1,10 +1,13 @@
 /**
- * Out-of-match screens (POC.md §12): title → pick (4 heroes, Paw Trick, difficulty) → match → results, plus the
- * Esc menu and the portrait rotate prompt. DOM overlays over the lobby turntable. English only.
+ * Out-of-match screens (POC.md §12): title → pick (8 heroes: a cats row with the four sim v9 shelter champions and
+ * a dogs row; Paw Trick, difficulty) → match → results, plus the Esc menu and the portrait rotate prompt. DOM
+ * overlays over the lobby turntable. English only.
  */
+import './champions.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
-import { HERO_IDS } from '../data/heroes';
+import { HERO_IDS, HEROES } from '../data/heroes';
+import { championOf } from '../data/heroes/shelter';
 import { TRICK_IDS } from '../data/tricks';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
 import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
@@ -131,6 +134,22 @@ export interface PickOpts {
   onNumbers?(on: boolean): void;
   /** Round 1: an experienced player can unlock the chips right away ("I've played MOBAs before"). */
   onVeteran?(): void;
+  /**
+   * Sim v9 shelter champions: the card art (`catImg`, from the host's `champions` message) and, web only, whether the
+   * player owns the card (a badge; app builds pass owned: false). Every champion is free to play either way. No Meet
+   * link here (GDD §8.1 #5: no offers on hero pick).
+   */
+  champions?: Partial<Record<HeroId, { art?: string; owned: boolean }>>;
+}
+
+/** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
+function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined): string {
+  const x = HERO_TEXT[h];
+  const face = pic ? `<i class="pic" style="background-image:url(${pic})"></i>` : `<i>${esc(x.title.replace('Sir ', '').slice(0, 2))}</i>`;
+  const c = championOf(h);
+  const card = c && champ?.art ? `<img class="champ-art" src="${esc(champ.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : '';
+  const badge = c && champ?.owned ? `<span class="champ-owned" title="${esc(`From ${c.cardName}'s card`)}">Card</span>` : '';
+  return `<button class="hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}${card}${badge}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
 }
 
 export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
@@ -154,16 +173,16 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     root.innerHTML = `
       <div class="pl-pick-col">
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
-        <div class="heroes">${HERO_IDS.map((h) => {
-          const x = HERO_TEXT[h];
-          const pic = portraitUrl(h, lookOf(h));
-          const face = pic ? `<i class="pic" style="background-image:url(${pic})"></i>` : `<i>${esc(x.title.replace('Sir ', '').slice(0, 2))}</i>`;
-          return `<button class="hero-card ${h === c.hero ? 'on' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
-        }).join('')}</div>
+        ${(['cat', 'dog'] as const)
+          .map((side) => `<div class="heroes ${side}s" data-side="${side}">${HERO_IDS.filter((h) => HEROES[h].side === side)
+            .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h]))
+            .join('')}</div>`)
+          .join('')}
         ${wardrobeRow(c.hero)}
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side} ${t.role}</small>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
+          ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
           <ul class="kit">
             <li><span class="ico passive">${icon('paw')}</span><span class="t"><b>${esc(t.passive.name)}</b> ${esc(t.passive.text)}</span></li>
             ${t.abilities.map((a, i) => `<li title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}

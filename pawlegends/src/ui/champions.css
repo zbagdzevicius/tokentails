@@ -1,0 +1,21 @@
+/* Sim v9 pick screen: 8 heroes in a cats row (6: Clem, Sage and the four shelter champions) and a dogs row (2). A
+   champion tile carries its Token Tails card art and, web only, the owner badge. */
+.pl-pick .heroes.cats, .pl-pick .heroes.dogs { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pl-pick .heroes .hero-card { position: relative; padding: 8px 2px; min-width: 0; }
+.pl-pick .heroes .hero-card b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pl-pick .heroes .hero-card small { font-size: 10px; }
+.pl-pick .heroes .hero-card i.pic { width: 48px; height: 48px; }
+.hero-card .champ-art { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 6px; object-fit: cover; image-rendering: pixelated; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 243, 220, 0.4); }
+.champ-owned { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
+.hero-card .champ-owned { position: absolute; top: 4px; left: 4px; }
+.pl-pick .champ-from { margin: -4px 0 6px; font-size: 12px; opacity: 0.85; }
+.pl-pick .champ-flavour { margin: -2px 0 8px; font-size: 12px; font-style: italic; opacity: 0.7; }
+@media (max-height: 520px) {
+  /* 844x390: two hero rows must leave the Paw Trick chips above the fold (round 1). */
+  .pl-pick .heroes.cats, .pl-pick .heroes.dogs { gap: 4px; }
+  .pl-pick .heroes .hero-card { padding: 4px 2px; }
+  .pl-pick .heroes .hero-card i.pic, .pl-pick .heroes .hero-card i { width: 28px; height: 28px; }
+  .pl-pick .heroes .hero-card b { font-size: 11px; }
+  .hero-card .champ-art { width: 16px; height: 16px; }
+  .pl-pick .champ-flavour { display: none; }
+}

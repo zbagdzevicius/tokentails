@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { CAPS } from '../../data/map';
+import { ZONE_KIND } from '../../data/effects';
 import { PROJECTILE_KIND } from '../../data/towers';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
@@ -29,10 +30,20 @@ function look(kind: number, team: number): Look {
       return { size: 0.42, y: 3.6, color: team === 0 ? 0xff9fc0 : 0x8fb4ff, trail: 0.3 };
     case PROJECTILE_KIND.core:
       return { size: 0.6, y: 3.0, color: team === 0 ? 0xff6f91 : 0xffd34d, trail: 0.35 };
+    // sim v9: Lambo's tuna can and Bengas's burnt toast
+    case PROJECTILE_KIND.tuna:
+      return { size: 0.36, y: 1.0, color: 0xc8d4e0, trail: 0.16 };
+    case PROJECTILE_KIND.toast:
+      return { size: 0.34, y: 1.0, color: 0xff7a2e, trail: 0.24 };
     default:
       return { size: 0.3, y: 0.9, color: team === 0 ? 0xfff1a8 : 0xd7b8ff, trail: 0.18 };
   }
 }
+
+/** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
+const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
+/** Sim v9 burst discs by owner: Bengas's stage fire and Gabė's heart balloon. */
+const BURST_COLOR: Partial<Record<string, number>> = { bengas: 0xff6a3d, gabe: 0xff8fb8 };
 
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -72,7 +83,9 @@ export class ProjectileView {
     let n = 0;
     for (const p of frame.projectiles) {
       if (n >= CAPS.projectiles) break;
-      const L = look(p.kind, p.team);
+      const base = look(p.kind, p.team);
+      const tint = p.kind === PROJECTILE_KIND.hero ? BOLT_TINT[frame.byId.get(p.owner)?.hero ?? ''] : undefined;
+      const L = tint === undefined ? base : { ...base, color: tint };
       const x = toX(p.fx);
       const z = toZ(p.fy);
       _dir.set(p.vx, 0, -p.vy);
@@ -94,6 +107,14 @@ export class ProjectileView {
     this.zones.begin();
     for (const z of frame.zones) {
       const rel = z.team === 2 ? RELATION.neutral : z.team === this.myTeam ? RELATION.ally : RELATION.enemy;
+      if (z.kind === ZONE_KIND.burst) {
+        // Visible to both teams: the arm phase is a fast flashing telegraph in the relation colour, then the owner's fire or hearts.
+        const arming = (z.arm ?? 0) > 0;
+        const col = arming ? rel : (BURST_COLOR[frame.byId.get(z.owner)?.hero ?? ''] ?? rel);
+        const a = arming ? 0.45 + Math.abs(Math.sin(this.time * 12)) * 0.4 : 0.75 + Math.sin(this.time * 9 + z.index) * 0.2;
+        this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, col, a);
+        continue;
+      }
       const pulse = 0.55 + Math.sin(this.time * 5 + z.index) * 0.15;
       this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, rel, pulse);
     }

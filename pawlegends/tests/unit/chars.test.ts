@@ -6,11 +6,12 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
+import { HERO_IDS } from '../../src/data/heroes';
 import { DETAIL, HERO_HEIGHT, UPRIGHT_PART, heroBuilt, makeHero, uprightMinionGeometry, type CharState } from '../../src/render/chars';
 import { BONE_INDEX, BONE_NAMES } from '../../src/render/chars/skeleton';
 import { minionGeometry } from '../../src/render/views/models';
 
-const HEROES: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: HeroId[] = [...HERO_IDS];
 const tris = (g: THREE.BufferGeometry): number => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
 const STATES: CharState[] = ['idle', 'moving', 'dead', 'napping', 'stunned', 'feared', 'blocking', 'channel'];
 

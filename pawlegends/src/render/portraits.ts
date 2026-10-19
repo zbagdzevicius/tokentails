@@ -6,12 +6,13 @@
  */
 import * as THREE from 'three';
 import type { HeroId } from '../sim/api';
+import { HERO_IDS } from '../data/heroes';
 import { lookKey, type Look } from './cosmetics';
 import type { GameRenderer } from './renderer';
 import { lobbyHero } from './views/heroView';
 
 const SIZE = 128;
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: readonly HeroId[] = HERO_IDS;
 const cache = new Map<string, string>();
 const keyOf = (hero: HeroId, look: Look | null | undefined): string => `${hero}|${lookKey(look)}`;
 

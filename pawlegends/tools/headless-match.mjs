@@ -19,7 +19,8 @@
  *   idle     idle vs rookie, 200 seeds         doing nothing must not reliably win (≤ 50%), nor lose before 6:00
  *   parked   parked vs easy (or --difficulty rookie), 100 seeds: a human parked off the lanes at 0:30 is not
  *            followed (allies beside it ≤ 10% of the time) and the match runs at least 2:00 past the park
- *   balance  normal vs normal, 2,000 seeds     length, side, heroes, pace, comebacks (`--balance` is an alias)
+ *   balance  normal vs normal, 2,000 seeds     length, side, species (cats 47% to 53%, sim v9), heroes, pace, comebacks
+ *            (`--balance` is an alias)
  *   hard     normal vs hard, 200 seeds         a Normal-level player wins 20% to 40% against Hard bots (sim v6)
  *   feeder   feeder vs rookie, 200 seeds       a first-timer who dives under towers and feeds still wins ≥ 80% (sim v7)
  *   feedNormal feeder vs normal, 200 seeds    (sim v8, playtest round 2) a human who feeds is in the deficit gate too:
@@ -76,7 +77,9 @@ if (!sim.DIFFICULTIES.includes(difficulty)) {
   process.exit(2);
 }
 const HZ = sim.TICK_HZ;
-const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'];
+/** The cat heroes (HeroData.side 'cat'); every match is cats vs dogs, so the balance gate checks the species too. */
+const CAT_HEROES = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe'];
 const TRICKS = ['pounce', 'snack', 'hiss'];
 const fmt = (ticks) => {
   const s = Math.floor(ticks / HZ);
@@ -217,7 +220,7 @@ const summary = {
   deterministic: checkDet ? failures === 0 : undefined,
 };
 const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), sim.timelineFor(difficulty).suddenDeath) : null;
-const gates = gate ? funGates(gate, funAgg, perHero, difficulty) : [];
+const gates = gate ? funGates(gate, funAgg, perHero, difficulty, CAT_HEROES) : [];
 if (checkDet) gates.push(['deterministic (every seed played twice)', failures === 0, failures === 0 ? 'yes' : `${failures} differ`]);
 
 if (json) console.log(JSON.stringify({ rows, summary, perHero, fun: funAgg, gates }, null, 2));

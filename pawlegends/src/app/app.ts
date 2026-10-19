@@ -11,7 +11,8 @@ import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, parseRoster, rosterCosmetics, type RosterCat, type RosterCosmetics } from '../meta/roster';
 import { squadPrefs } from '../meta/squad';
 import { recordLadder } from '../meta/ladder';
-import { loadProfile, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { HERO_IDS } from '../data/heroes';
+import { loadProfile, noteChampionMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
@@ -51,9 +52,21 @@ function speedFromUrl(): number {
 function installFont(): void {
   try {
     if (typeof FontFace === 'undefined' || !document.fonts) return;
-    const url = `${import.meta.env.BASE_URL ?? './'}assets/fonts/Fredoka-Latin.woff2`;
-    const face = new FontFace('Fredoka', `url("${url}") format("woff2")`, { weight: '300 700', display: 'swap' });
+    const base = import.meta.env.BASE_URL ?? './';
+    const face = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Latin.woff2") format("woff2")`, { weight: '300 700', display: 'swap' });
     face
+      .load()
+      .then((f) => document.fonts.add(f))
+      .catch(() => undefined);
+    // Sim v9: the champion names Avietė and Gabė. Fredoka has no precomposed ė, but it has e and the combining dot
+    // (U+0307), so the UI writes those names decomposed (data/heroes/shelter.ts `uiName`). A cluster e + dot must come
+    // from one face, so this one (the whole font) covers Basic Latin too, not only the marks.
+    const ext = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, {
+      weight: '300 700',
+      display: 'swap',
+      unicodeRange: 'U+0000-024F, U+0300-036F, U+1E00-1EFF',
+    });
+    ext
       .load()
       .then((f) => document.fonts.add(f))
       .catch(() => undefined);
@@ -65,9 +78,9 @@ function installFont(): void {
 /** p95 of a list of frame times (ms). */
 /** Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own. */
 export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
-  const order: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+  const order: readonly HeroId[] = HERO_IDS;
   const start = order.indexOf(current);
-  const rest = [1, 2, 3].map((k) => order[(start + k) % order.length]);
+  const rest = order.map((_, k) => order[(start + k + 1) % order.length]).slice(0, order.length - 1);
   return rest.find((h) => !bests[h]) ?? rest[0];
 }
 
@@ -152,6 +165,7 @@ export class App {
         this.refreshMeta();
       },
       root,
+      lobbyHero: () => this.choice.hero,
       chromaPreview: (element) => {
         const hero = this.choice.hero;
         if (!(element in ELEMENT_COLOR)) return null;
@@ -338,6 +352,7 @@ export class App {
       pickScreen(this.root, {
         initial: this.choice,
         owned: this.owned(),
+        champions: this.integration.championTiles(),
         looks: p.looks as Record<HeroId, Partial<Look>>,
         onLook: (h, look) => {
           const q = loadProfile();
@@ -464,6 +479,8 @@ export class App {
       pl_match_len_s: seconds,
       pl_rookie: isRookie(e.replay.difficulty),
     });
+    // Sim v9: from a non-owner's 3rd finished match on a shelter champion, the host may offer that card (until shown)
+    if (noteChampionMatch(e.replay.hero) > 0) this.integration.championMatch(e.replay.hero);
     // Treat Track and daily quests (local, free, fixed order)
     const quests = progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, true);
     saveQuests(quests.state);

@@ -143,6 +143,13 @@ describe('PAWLEGENDS /live branch', () => {
         expect(verify).not.toHaveBeenCalled();
     });
 
+    it('sim v9: a shelter champion replay saves like any hero (champions are free: no entitlement check)', async () => {
+        const record = genuine({ hero: 'gabe' as any, difficulty: 'easy' });
+        const { save, games } = setup(record);
+        expect(await save(record)).toMatchObject({ outcome: 'won' });
+        expect(games.rows).toHaveLength(1);
+    });
+
     it('refuses an unknown simVersion cleanly (400 PAWLEGENDS_SIM_VERSION with the backend sim, no re-sim)', async () => {
         const { save, verify, games } = setup();
         let error: any;
@@ -316,6 +323,31 @@ describe('PAWLEGENDS /live branch', () => {
             expect(failure?.code).toMatch(/^PAWLEGENDS_/);
             expect(games.rows).toHaveLength(0);
             expect(users.updates).toHaveLength(0);
+        }, 60_000);
+
+        it('sim v9: re-sims a genuine shelter champion match in the worker; its v8 twin is refused before any re-sim', async () => {
+            // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy).
+            const record: PawlegendsReplayRecord = JSON.parse(
+                readFileSync(join(__dirname, '..', 'vendor', 'pawlegends-sim', 'champion-replay.fixture.json'), 'utf8')
+            );
+            expect(record).toMatchObject({ hero: 'gabe', difficulty: 'easy', simVersion: SIM_VERSION });
+            expect(SIM_VERSION).toBe(9);
+            const users = new FakeUsers();
+            const games = new FakeGames();
+            const userId = users.add({});
+            const deps = {
+                users,
+                games,
+                failures: new FailedReplayCache({ maxEntries: 10, ttlMs: 60_000 }),
+                queue: new ReplayQueue(PAWLEGENDS_REPLAY_QUEUE),
+            };
+            const old = await codeOf(
+                savePawlegendsMatch(deps, userId, { pawlegends: { ...record, simVersion: 8 } as any })
+            );
+            expect(old).toMatchObject({ status: 400, code: ErrorCode.PAWLEGENDS_SIM_VERSION });
+            const result = await savePawlegendsMatch(deps, userId, { pawlegends: record as any });
+            expect(result).toMatchObject({ difficulty: 'easy', outcome: record.outcome, ticks: record.ticks });
+            expect(games.rows).toHaveLength(1);
         }, 60_000);
 
         it('re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once', async () => {

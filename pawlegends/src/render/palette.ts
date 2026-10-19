@@ -38,4 +38,8 @@ export const HERO_COLOR_CSS = Object.freeze({
   sage: '#8fb7d9',
   brutus: '#d6a36a',
   cacklejaw: '#9a7ac2',
+  lambo: '#a8b0bc',
+  aviete: '#ffe24d',
+  bengas: '#ff8a5c',
+  gabe: '#8fd0ff',
 });

@@ -1,9 +1,10 @@
 /** Helpers for bot tests: a full match with the in-sim bots and a player-bot in slot 0. */
+import { HERO_IDS } from '../../src/data/heroes';
 import type { Difficulty, PlayerProfile } from '../../src/data/bots';
 import type { HeroId, MatchResult, ReplayRecord, TrickId } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, playerBotCommands, replayRecord, result, step, type MatchHandle } from '../../src/sim/index';
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 /** Slot 0's hero and trick for a seed (the same draw as `npm run match -- --hero random --trick random`). */

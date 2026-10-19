@@ -17,6 +17,10 @@ export const EFFECTS = Object.freeze({
   wallStep: 250,
   /** Skillshot projectile hit radius when the ability gives no width (mm). */
   projectileRadius: 300,
+  /** Charm (sim v9, Gabė's Under Her Spell): the charmed unit walks toward its charmer and stops this close (mm). */
+  charmStop: 1000,
+  /** A pull (Lambo's Tangled Lights) stops this far (mm) short of the puller's footprint, so nobody ends past him. */
+  pullGap: 200,
 });
 
 /** Zone kinds in ZoneSnap.kind (render picks the look). */
@@ -25,5 +29,11 @@ export const ZONE_KIND = Object.freeze({
   trap: 0,
   /** Sir Brutus's Champion's Challenge ring (tether). */
   arena: 1,
+  /**
+   * Sim v9: a burst disc (Bengas's Curtains Up!, Gabė's Heart Balloon). After `arm` ticks it pulses every `zEvery`
+   * ticks (0: once, then it vanishes): enemies in it take `zDmg` and a `zSlowBp` slow for `zVal` ticks, allied heroes
+   * heal `zHeal`. Visible to both teams.
+   */
+  burst: 2,
 });
 

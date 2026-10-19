@@ -504,6 +504,11 @@ export function createPawlegendsApi(
     /** `POST /pawlegends/offer/seen`: the card showed in this session (no other card this session). */
     offerSeen: (body: { deviceId: string; session: number; catalogId: string }) =>
       call("/offer/seen", postJson({ ...body, kind: "meet" }), (b) => okBody(b)),
+    /**
+     * `GET /pawlegends/champions` (sim v9): the shelter champions' cards, `{cats: [{hero, catalogId, forSale, cat}]}`
+     * (`championsOf` in `./championsBridge` validates the rows).
+     */
+    champions: () => call("/champions", { method: "GET" }, (b) => okBody(b)),
     /** Founder Legend seats left (`GET /pawlegends/founders`, POC.md §8.3), shown on its purchase sheet. */
     founders: () =>
       call("/founders", { method: "GET" }, (b) => {

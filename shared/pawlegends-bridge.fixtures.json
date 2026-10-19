@@ -1,5 +1,5 @@
 {
-  "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else.",
+  "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them.",
   "envelope": { "ns": "tt-pawlegends", "v": 1 },
   "hostToGame": {
     "hello": {
@@ -196,6 +196,33 @@
         }
       ]
     },
+    "champions": {
+      "valid": {
+        "ns": "tt-pawlegends", "v": 1, "type": "champions",
+        "cats": [
+          { "catalogId": "6a30473c1d6649b19b03622b", "forSale": true, "catImg": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MAINE/festive-lights-tangled.png" },
+          { "catalogId": "6992227d890a12f52a317e22", "forSale": false }
+        ]
+      },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champions", "cats": { "catalogId": "6a30473c1d6649b19b03622b" } },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends", "v": 1, "type": "champions",
+            "cats": [
+              { "catalogId": "6a30473c1d6649b19b03622b", "forSale": "yes", "catImg": "http://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png" },
+              { "catalogId": "xyz", "forSale": true },
+              { "catalogId": "6a30473c1d6649b19b03622b", "forSale": true },
+              { "catalogId": "6965203d0a2c7b325b78f7e2", "forSale": true, "name": "dropped" }
+            ]
+          },
+          "expected": {
+            "ns": "tt-pawlegends", "v": 1, "type": "champions",
+            "cats": [{ "catalogId": "6a30473c1d6649b19b03622b", "forSale": false }, { "catalogId": "6965203d0a2c7b325b78f7e2", "forSale": true }]
+          }
+        }
+      ]
+    },
     "featured": {
       "valid": {
         "ns": "tt-pawlegends",
@@ -348,6 +375,10 @@
     "paused": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
+    },
+    "champion-offer": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "6a30473c1d6649b19b03622b" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "lambo" }
     }
   }
 }

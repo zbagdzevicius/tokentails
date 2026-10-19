@@ -147,3 +147,16 @@ test('an Easy match finishes and the results screen shows', async ({ page }) => 
   await page.locator('[data-a="again"]').click();
   await page.waitForSelector('html[data-match="live"]');
 });
+
+// Brawl readability: the game's own cursor on the canvas (input/cursor.ts), with A armed showing the crosshair.
+test('the canvas wears the game cursor; A arms the attack-move crosshair, Esc drops it', async ({ page }) => {
+  await startFirstMatch(page);
+  const canvas = page.locator('#game-canvas');
+  await page.mouse.move(700, 300);
+  await expect.poll(() => canvas.getAttribute('data-cursor')).toMatch(/^(normal|enemy|ally)$/);
+  expect(await canvas.evaluate((c) => (c as HTMLElement).style.cursor)).toContain('data:image/svg+xml');
+  await page.keyboard.press('a');
+  await expect.poll(() => canvas.getAttribute('data-cursor')).toBe('attackMove');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => canvas.getAttribute('data-cursor')).not.toBe('attackMove');
+});

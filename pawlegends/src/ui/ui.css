@@ -40,7 +40,9 @@ input, select, textarea { font-size: max(16px, 1em); }
   background: var(--rose); color: #fff; cursor: pointer;
 }
 #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-#game-canvas[data-cursor='attack'] { cursor: crosshair; }
+/* The match cursor (input/cursor.ts) is an inline SVG style set by DesktopInput; these are the stock fallbacks. */
+#game-canvas[data-cursor='enemy'], #game-canvas[data-cursor='attackMove'], #game-canvas[data-cursor='aim'] { cursor: crosshair; }
+#game-canvas[data-cursor='ally'] { cursor: pointer; }
 
 .pl-icon { width: 100%; height: 100%; display: block; }
 kbd {
@@ -244,6 +246,17 @@ kbd {
 .pl-portrait .gap { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); white-space: nowrap; font: 700 11px/1 var(--font); font-style: normal;
   color: #2b1d2e; background: #e1c6ff; border-radius: 8px; padding: 2px 6px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
 .pl-portrait .gap:empty { display: none; }
+/* Sim v9, Avietė: the charge ring on the portrait (a spark ring while Charged, a grey ring and timer during the lockout). */
+.pl-portrait .charge { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; display: none; }
+.pl-portrait .charge[data-state='charged'] { display: block; box-shadow: 0 0 0 3px #ffe14d, 0 0 14px 3px rgba(255, 238, 120, 0.85); animation: pl-spark 0.5s ease-in-out infinite alternate; }
+.pl-portrait .charge[data-state='lockout'] {
+  display: block; background: conic-gradient(rgba(160, 156, 170, 0.95) calc(var(--left, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+}
+.pl-portrait .charge-t { position: absolute; left: -6px; top: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: #5d5a66; color: #fff; font: 700 12px/20px var(--font); text-align: center; }
+.pl-portrait .charge-t:empty { display: none; }
+@keyframes pl-spark { from { box-shadow: 0 0 0 3px #ffe14d, 0 0 8px 2px rgba(255, 238, 120, 0.6); } to { box-shadow: 0 0 0 3px #fff6a8, 0 0 18px 5px rgba(255, 238, 120, 0.95); } }
+@media (prefers-reduced-motion: reduce) { .pl-portrait .charge[data-state='charged'] { animation: none; } }
 .pl-bar-main { display: flex; flex-direction: column; gap: 7px; }
 .pl-slots { display: flex; gap: 7px; align-items: flex-end; }
 .pl-slot {
@@ -419,14 +432,17 @@ html[data-touch='1'] .pl-alert { bottom: auto; top: calc(120px + var(--safe-t));
 /* ---------------------------------------------------------------------------------------------- touch */
 .pl-touch { position: absolute; inset: 0; display: none; z-index: 4; }
 .pl-touch.on { display: block; }
+/* The stick reads over any VFX: a bright ring between two dark ink rings, and a cream knob with an ink rim and a gold
+   centre (the size stays 120 px, STICK.radius 60). */
 .pl-stick {
   position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; display: none;
-  background: radial-gradient(circle, rgba(255, 243, 220, 0.08) 0 55%, rgba(255, 243, 220, 0.18) 56% 100%); border: 2px solid rgba(255, 243, 220, 0.35);
+  background: radial-gradient(circle, rgba(20, 12, 22, 0.28) 0 55%, rgba(20, 12, 22, 0.42) 56% 100%); border: 3px solid rgba(255, 243, 220, 0.92);
+  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75), inset 0 0 0 2px rgba(20, 12, 22, 0.6);
 }
 .pl-stick.on { display: block; }
 .pl-knob {
-  position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 243, 220, 0.85);
-  transform: translate(-50%, -50%); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle, var(--self) 0 18%, #fff3dc 20% 100%);
+  border: 3px solid #1d1018; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 .pl-tcluster { position: absolute; right: calc(28px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); width: 96px; height: 96px; }
 .pl-tbtn {
@@ -451,8 +467,9 @@ html[data-touch='1'] .pl-alert { bottom: auto; top: calc(120px + var(--safe-t));
 .pl-tbtn.nap { right: 186px; bottom: 6px; width: 46px; height: 46px; font-size: 12px; }
 .pl-cancel {
   /* Left of the ability cluster, clear of the minimap (top right) and of R. */
-  position: absolute; right: calc(262px + var(--safe-r)); bottom: calc(150px + var(--safe-b)); width: 58px; height: 58px; border-radius: 50%;
-  display: none; place-items: center; font-size: 28px; background: rgba(20, 12, 22, 0.75); border: 3px solid rgba(255, 243, 220, 0.5); color: var(--cream);
+  position: absolute; right: calc(262px + var(--safe-r)); bottom: calc(150px + var(--safe-b)); width: 62px; height: 62px; border-radius: 50%;
+  display: none; place-items: center; font-size: 30px; background: rgba(20, 12, 22, 0.85); border: 3px solid rgba(255, 243, 220, 0.9); color: var(--cream);
+  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75);
 }
 .pl-cancel.on { display: grid; }
 .pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: scale(1.15); }

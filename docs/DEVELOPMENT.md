@@ -240,6 +240,12 @@ npm run build:client         # PAWLEGENDS_BASE=/pawlegends-game/ into ../client/
 npm run vendor-sim           # re-vendor the sim into backend/src/vendor/pawlegends-sim; vendor-sim:check
 ```
 
+Shelter champions (sim v9): the four champions' catalog ids live in three places. Change all of them together:
+the game (`pawlegends/src/data/heroes/shelter.ts`), the backend (`backend/src/pawlegends/pawlegends-champions.ts`)
+and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves are mirrored in
+`client/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`) and in the vendored facade
+(`PawlegendsHeroId`, written by `npm run vendor-sim`).
+
 The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
 `pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any
 game change and commit it. After a sim change run `npm run vendor-sim` and deploy the backend first;

@@ -222,3 +222,14 @@
   .plc-meet-where { margin-top: 0; font-size: 10px; white-space: nowrap; }
   .plc-meet .plc-x { top: 50%; right: 6px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.22); }
 }
+
+/* Sim v9: the lobby's shelter champion info (title screen only): an "About" chip, a panel with the card, where the
+   champion comes from and the player-pulled Meet link. */
+.plc-champ { pointer-events: auto; margin: 6px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.plc-champ-panel { display: flex; gap: 10px; align-items: flex-start; max-width: min(360px, calc(100vw - 32px)); padding: 8px 10px; border-radius: 14px; background: rgba(42, 26, 34, 0.86); border: 2px solid rgba(255, 243, 220, 0.25); color: var(--plc-cream, #fff3dc); }
+.plc-champ-panel[hidden] { display: none; }
+.plc-champ-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.plc-champ-line { margin: 0; font-size: 12px; line-height: 1.35; }
+.plc-champ-flavour { margin: 0; font-size: 12px; font-style: italic; opacity: 0.8; }
+.plc-champ-badge { align-self: flex-start; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
+@media (max-height: 430px) { .plc-champ-panel > .plc-card { display: none; } }

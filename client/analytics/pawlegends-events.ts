@@ -24,7 +24,7 @@ export interface PawlegendsEventProperties {
   pawlegends_save: { status: "saving" | "saved" | "queued" | "failed" | "rejected"; catnipPaid: number };
   pawlegends_signin_prompt: { reason: "save-progress" | "claim-rewards" | "purchase" };
   pawlegends_guest_claim: { count: number; choice: "add" | "decline" };
-  pawlegends_meet_open: { catalogId: string; from: "offer" | "featured" | "roster" };
+  pawlegends_meet_open: { catalogId: string; from: "offer" | "featured" | "roster" | "champion" };
   pawlegends_cat_purchase: { ok: boolean };
 }
 

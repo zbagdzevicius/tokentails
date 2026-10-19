@@ -9,6 +9,7 @@ import {
   EMBED_VERSION,
   parseApp,
   parseAudio,
+  parseChampions,
   parseEntitlements,
   parseFeatured,
   parseHostMessage,
@@ -51,6 +52,11 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
       return wrap(parseAudio(m));
     case 'entitlements':
       return wrap(parseEntitlements(m));
+    case 'champions': {
+      // The wire shape (sim v9): only the champion catalog ids the game knows, `catImg` from the NFT bucket only.
+      const cats = parseChampions(m);
+      return cats ? wrap({ cats: cats.map((c) => ({ catalogId: c.catalogId, forSale: c.forSale, ...(c.art ? { catImg: c.art } : {}) })) }) : null;
+    }
     default:
       return null;
   }

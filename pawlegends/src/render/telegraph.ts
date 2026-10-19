@@ -6,6 +6,49 @@
  */
 import * as THREE from 'three';
 import type { AimShape } from '../input/abilities';
+import { HEROES } from '../data/heroes';
+import { RADIUS } from '../data/map';
+
+/** A hero as the Striking Pose read needs it: position (mm), facing (1/4096 turn), team. */
+export interface PoseHero {
+  id: number;
+  x: number;
+  y: number;
+  team: number;
+  facing: number;
+  kind: string;
+  state: string;
+}
+
+const STEPS = 4096;
+const steps = (dy: number, dx: number): number => (Math.atan2(dy, dx) * STEPS) / (Math.PI * 2);
+/** Signed angle difference in steps, in [-2048, 2048). */
+const diff = (a: number, b: number): number => ((((b - a) % STEPS) + STEPS * 1.5) % STEPS) - STEPS / 2;
+
+/**
+ * Bengas's Striking Pose telegraph (sim v9): during the wind-up, the heroes of the other team in the pose's cone that
+ * face him (they get stunned; the rest of the cone only gets slowed). The wind-up marks them with a "!" eye glyph, so
+ * "do not look at him" can be read on a phone. A float mirror of the sim's inCone + inFront (src/sim/effects); render
+ * only, never a replay input. Writes the ids into `out` (cleared first).
+ */
+export function poseWatchers(src: PoseHero, aimX: number, aimY: number, heroes: Iterable<PoseHero>, out: Set<number>): Set<number> {
+  out.clear();
+  const w = HEROES.bengas.abilities.w;
+  const dir = steps(aimY - src.y, aimX - src.x);
+  const pr = RADIUS.hero;
+  for (const e of heroes) {
+    if (e.kind !== 'hero' || e.state === 'dead' || e.team === src.team || (e.team !== 0 && e.team !== 1)) continue;
+    const dx = e.x - src.x;
+    const dy = e.y - src.y;
+    const d2 = dx * dx + dy * dy;
+    const reach = (w.range ?? 0) + pr;
+    if (d2 > reach * reach) continue;
+    if (d2 > pr * pr && Math.abs(diff(dir, steps(dy, dx))) * 2 > (w.arc ?? 0)) continue;
+    if (d2 > 0 && Math.abs(diff(e.facing, steps(-dy, -dx))) * 2 > (w.facingArc ?? 0)) continue;
+    out.add(e.id);
+  }
+  return out;
+}
 
 const VERT = /* glsl */ `
 varying vec2 vUv;
@@ -19,9 +62,11 @@ uniform float uInner;   // radial: inner radius fraction (ring outline only)
 uniform vec3 uColor;
 uniform float uAlpha;
 uniform float uTime;
+uniform float uInk;     // 1: a dark ink band on the outer edge (the player's own indicator, drawn over the VFX)
 varying vec2 vUv;
 void main(){
   float a = 0.0;
+  float ink = 0.0;
   if (uShape < 0.5) {
     vec2 p = vUv * 2.0 - 1.0;
     float d = length(p);
@@ -35,6 +80,7 @@ void main(){
     if (uInner > 0.0) body *= smoothstep(uInner - 0.05, uInner, d) * 0.5;
     float fill = uFill >= 0.0 ? step(d, uFill) * 0.32 + smoothstep(uFill - 0.06, uFill, d) * step(d, uFill) * 0.5 : 0.0;
     a = inside * (body + fill) + max(rim, side) * 0.95;
+    ink = uInk * smoothstep(0.95, 0.972, d) * inside;
   } else {
     float along = vUv.x;
     float across = abs(vUv.y - 0.5) * 2.0;
@@ -43,9 +89,10 @@ void main(){
     float fill = uFill >= 0.0 ? step(along, uFill) * 0.32 + smoothstep(uFill - 0.04, uFill, along) * step(along, uFill) * 0.5 : 0.0;
     float chevron = 0.18 * step(0.5, fract(along * 8.0 - across * 0.6 - uTime * 2.0));
     a = body + fill + chevron * 0.5 + min(1.0, rim) * 0.95;
+    ink = uInk * max(smoothstep(0.93, 0.97, across), smoothstep(0.992, 0.998, along));
   }
-  if (a < 0.01) discard;
-  gl_FragColor = vec4(uColor, a * uAlpha);
+  if (a < 0.01 && ink < 0.01) discard;
+  gl_FragColor = vec4(mix(uColor, vec3(0.08, 0.04, 0.06), ink), max(a * uAlpha, ink * 0.9));
 }`;
 
 const radialGeo = (() => {
@@ -75,6 +122,8 @@ export interface TelegraphSpec {
   alpha?: number;
   /** Wind-up progress 0..1, or undefined for an aim indicator. */
   fill?: number;
+  /** The player's own indicator: drawn after the VFX layers (renderOrder 10) with an ink edge. */
+  top?: boolean;
 }
 
 interface Item {
@@ -102,6 +151,7 @@ export class TelegraphPool {
           uColor: { value: new THREE.Color() },
           uAlpha: { value: 1 },
           uTime: { value: 0 },
+          uInk: { value: 0 },
         },
         transparent: true,
         depthWrite: false,
@@ -142,6 +192,8 @@ export class TelegraphPool {
     (u.uColor.value as THREE.Color).setHex(s.color);
     u.uAlpha.value = s.alpha ?? 1;
     u.uTime.value = this.time;
+    u.uInk.value = s.top ? 1 : 0;
+    it.mesh.renderOrder = s.top ? 10 : 3;
     it.mesh.position.set(s.x, 0.06, s.z);
     it.mesh.rotation.set(0, s.yaw, 0);
     if (rect) it.mesh.scale.set(s.length, 1, s.width ?? 1);

@@ -16,6 +16,8 @@
  * 4. pawlegends-sim.sha256.json: sha256 of the bundle and the facade, the sim version and the tool versions.
  * 5. rookie-replay.fixture.json: one genuine Rookie match (the naive player-bot, seed ROOKIE_FIXTURE_SEED) recorded
  *    with this sim, so the backend's /live spec re-sims a real replay (`vendor-sim:check` catches a stale one).
+ * 6. champion-replay.fixture.json (sim v9): one genuine Easy match played as a shelter champion (Gabė), so the spec
+ *    shows a champion replay verifies (every champion is free: no entitlement check) and its v8 twin is refused.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -50,7 +52,7 @@ import * as bundle from './pawlegends-sim.bundle';
 
 const sim: any = bundle;
 
-export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw';
+export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw' | 'lambo' | 'aviete' | 'bengas' | 'gabe';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -123,6 +125,20 @@ export async function rookieFixture(seed = ROOKIE_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/** Seed and hero of the recorded champion fixture (sim v9). */
+export const CHAMPION_FIXTURE_SEED = 909;
+export const CHAMPION_FIXTURE_HERO = 'gabe';
+
+/** Play one Easy match as a shelter champion with the naive player-bot and return its replay record. */
+export async function championFixture(seed = CHAMPION_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, CHAMPION_FIXTURE_HERO, 'snack');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const bot = sim.createPlayerBot(m, 'naive');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
 export async function buildFiles() {
   const { code, modules } = await bundleSim('src/sim/server.ts', 'pawlegends-sim.js');
   const text = HEADER + code;
@@ -132,8 +148,15 @@ export async function buildFiles() {
   const info =
     JSON.stringify({ bundle: bundleSha, facade: sha256(face), simVersion, vite: viteVersion, modules: modules.length }, null, 2) + '\n';
   const fixture = JSON.stringify(await rookieFixture(), null, 2) + '\n';
+  const champion = JSON.stringify(await championFixture(), null, 2) + '\n';
   return {
-    files: { 'pawlegends-sim.bundle.ts': text, 'index.ts': face, 'pawlegends-sim.sha256.json': info, 'rookie-replay.fixture.json': fixture },
+    files: {
+      'pawlegends-sim.bundle.ts': text,
+      'index.ts': face,
+      'pawlegends-sim.sha256.json': info,
+      'rookie-replay.fixture.json': fixture,
+      'champion-replay.fixture.json': champion,
+    },
     bundleSha,
     modules,
     size: text.length,

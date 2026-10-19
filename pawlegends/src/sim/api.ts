@@ -161,8 +161,14 @@ export interface EntitySnap {
   xp?: number;
   /** Heroes only, the viewer's own team: talent choice per tier (levels 3, 6, 9): −1 not chosen, else 0 or 1. */
   talents?: readonly [number, number, number];
-  /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100), else 0. */
+  /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100; Avietė's charge ticks left), else 0. */
   resource?: number;
+  /** Heroes only (sim v9), both teams: Avietė is Charged (her next hit on a hero stuns); the enemy sees the glow too. */
+  charged?: boolean;
+  /** Heroes only (sim v9), the viewer's own team: Avietė's charge lockout, ticks left (0 = none). View only. */
+  lockout?: number;
+  /** Heroes only (sim v9): charmed (Gabė's Under Her Spell), not feared: the render shows hearts. */
+  charmed?: boolean;
   /** Heroes only (sim v4): takedowns since the last death; 3+ means a bounty is on the hero (a crown). */
   bountyStreak?: number;
   /** Pickups only (sim v4): which pickup. `team` 2 = anyone may take it, else only that team (Fish Snack). */
@@ -190,6 +196,8 @@ export interface ZoneSnap {
   radius: number;
   ttl: number;
   kind: number;
+  /** Sim v9: ticks until the zone is armed (a burst's telegraph), 0 = armed. */
+  arm?: number;
 }
 
 export type MatchPhase = 'gate' | 'play' | 'sunset' | 'suddenDeath' | 'ended';

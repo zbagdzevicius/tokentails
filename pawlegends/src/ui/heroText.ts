@@ -2,6 +2,7 @@
 import type { HeroId, TrickId } from '../sim/api';
 import { HEROES, type AbilitySlot } from '../data/heroes';
 import { TRICKS } from '../data/tricks';
+import { uiName } from '../data/heroes/shelter';
 
 export interface AbilityText {
   name: string;
@@ -9,13 +10,18 @@ export interface AbilityText {
   icon: IconId;
 }
 
-export type IconId = 'sword' | 'shield' | 'dash' | 'sun' | 'arrows' | 'trap' | 'moon' | 'ring' | 'charge' | 'crown' | 'slash' | 'fear' | 'stealth' | 'hunt' | 'blink' | 'heart' | 'hiss' | 'nap' | 'paw';
+export type IconId =
+  | 'sword' | 'shield' | 'dash' | 'sun' | 'arrows' | 'trap' | 'moon' | 'ring' | 'charge' | 'crown' | 'slash' | 'fear' | 'stealth' | 'hunt' | 'blink' | 'heart' | 'hiss' | 'nap' | 'paw'
+  // sim v9 shelter champions
+  | 'tuna' | 'hug' | 'flop' | 'lights' | 'spark' | 'coat' | 'wire' | 'circuit' | 'toast' | 'pose' | 'camellia' | 'curtains' | 'balloon' | 'wings' | 'wind' | 'spell';
 
 export interface HeroText {
   title: string;
   role: string;
   side: 'Cat' | 'Dog';
   blurb: string;
+  /** Sim v9 shelter champions: a line in the card's voice (its rescue story's joke, no health details). */
+  flavour?: string;
   passive: { name: string; text: string };
   abilities: [AbilityText, AbilityText, AbilityText, AbilityText];
   /** Talent descriptions by talent id. */
@@ -105,6 +111,95 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
       'wide-gloat': 'Gloat is wider.',
       'feeding-frenzy': 'Pack Hunt can reset twice.',
       ambush: 'The first hit out of stealth deals 40% more.',
+    },
+  },
+  lambo: {
+    title: 'Lambo',
+    role: 'Tank',
+    side: 'Cat',
+    blurb: 'Big, soft and seven kilos of brave when friends are near.',
+    flavour: 'Sought the stars, found tuna cans. Now he cooks for the whole galaxy.',
+    passive: { name: 'Brave With Friends', text: 'Takes 10% less damage near an allied hero.' },
+    abilities: [
+      { name: 'Tuna Toss', text: 'Throw a tuna can. The first enemy hit is slowed.', icon: 'tuna' },
+      { name: 'Big Hug', text: 'Shield yourself (7% of your max HP) and the nearest friend (4.5%).', icon: 'hug' },
+      { name: 'Belly Flop', text: 'Hop and land on enemies to stun them.', icon: 'flop' },
+      { name: 'Tangled Lights', text: 'Pull nearby enemy heroes in and tie them up.', icon: 'lights' },
+    ],
+    talents: {
+      'long-toss': 'Tuna Toss flies further.',
+      'extra-crispy-tuna': 'Tuna Toss slows more.',
+      'bigger-hug': 'Big Hug gives your friend a bigger shield.',
+      'flop-further': 'Belly Flop hops further.',
+      'fairy-light-finale': 'Tangled Lights holds longer.',
+      'wide-tangle': 'Tangled Lights reaches further.',
+    },
+  },
+  aviete: {
+    // NFD (data/heroes/shelter.ts `uiName`): Fredoka draws e + the combining dot, it has no precomposed ė
+    title: uiName('Avietė'),
+    role: 'Assassin',
+    side: 'Cat',
+    blurb: 'Hides in cozy corners, then steps out to show off that shiny coat.',
+    flavour: 'Charged with energy, she danced and short-circuited the toaster.',
+    passive: { name: 'Shy, Then Shiny', text: 'After 1 s in a bush, her next hit on a hero stuns.' },
+    abilities: [
+      { name: 'Spark Swipe', text: 'Swipe in a wide arc in front of you.', icon: 'spark' },
+      { name: 'Shiny Coat', text: 'Charge up now and run faster. While the charge is locked out: speed only.', icon: 'coat' },
+      { name: 'Live Wire', text: 'Blink. Cast again within 2 s to blink back.', icon: 'wire' },
+      { name: 'Short Circuit', text: 'Blink to an enemy hero, hit it and slow everyone near.', icon: 'circuit' },
+    ],
+    talents: {
+      'wide-swipe': 'Spark Swipe is wider.',
+      'live-spark': 'The charged stun lasts longer.',
+      'long-wire': 'Live Wire blinks further.',
+      'quick-shine': 'Shiny Coat recharges faster.',
+      encore: 'Short Circuit recharges faster.',
+      'blinding-shine': 'Short Circuit slows more.',
+    },
+  },
+  bengas: {
+    title: 'Bengas',
+    role: 'Mage',
+    side: 'Cat',
+    blurb: 'Turns heads wherever he goes. Burns whatever he toasts.',
+    flavour: 'Set the curtains ablaze. He only wanted to burn the toast.',
+    passive: { name: 'Hot Toast', text: 'Hits stunned, rooted, charmed or slowed heroes 15% harder.' },
+    abilities: [
+      { name: 'Burnt Toast', text: 'Fling toast. It hits the first enemy in the way.', icon: 'toast' },
+      { name: 'Striking Pose', text: 'Strike a pose. Heroes looking at you are stunned, the rest slowed.', icon: 'pose' },
+      { name: 'Camellia Hop', text: 'Hop away and run faster for a moment.', icon: 'camellia' },
+      { name: 'Curtains Up!', text: 'Set a stage on fire. Enemies in it burn and slow down.', icon: 'curtains' },
+    ],
+    talents: {
+      'extra-crispy': 'Burnt Toast is wider.',
+      'burnt-edges': 'Burnt Toast slows.',
+      showstopper: 'Striking Pose stuns longer.',
+      'long-hop': 'Camellia Hop goes further.',
+      'encore-performance': 'Curtains Up! burns longer.',
+      'wide-stage': 'Curtains Up! is wider.',
+    },
+  },
+  gabe: {
+    title: uiName('Gabė'),
+    role: 'Support',
+    side: 'Cat',
+    blurb: 'One look from those blue eyes and you’re under her spell.',
+    flavour: 'Chased the wind. It was only a balloon escaping.',
+    passive: { name: 'Heart Breeze', text: 'Basic hits on heroes heal the weakest nearby friend.' },
+    abilities: [
+      { name: 'Heart Balloon', text: 'Lob a balloon. It pops: enemies take damage, friends heal.', icon: 'balloon' },
+      { name: 'Wing Wrap', text: 'Shield a friend near the aim, or yourself, and speed them up.', icon: 'wings' },
+      { name: 'Chase the Wind', text: 'Dash. Friends you pass run faster.', icon: 'wind' },
+      { name: 'Under Her Spell', text: 'Enemy heroes in front of you walk to you and cannot act.', icon: 'spell' },
+    ],
+    talents: {
+      'big-balloon': 'Heart Balloon is bigger.',
+      'kind-breeze': 'Heart Breeze heals more.',
+      'feather-fort': 'Wing Wrap shields more.',
+      tailwind: 'Chase the Wind’s speed lasts longer.',
+      'long-glance': 'Under Her Spell reaches further.',
+      smitten: 'Under Her Spell lasts longer.',
     },
   },
 });

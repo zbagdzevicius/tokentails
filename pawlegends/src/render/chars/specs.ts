@@ -7,6 +7,10 @@
  * - Sage (Marksman): grey tabby in a hood, short bow in the left paw, quiver on the back.
  * - Sir Brutus (Tank): Kibble Corp pug knight, broad, helmet, tower shield on the left arm, short sword.
  * - Cacklejaw (Assassin): Kibble Corp security dog (spotted grinner), cap, jacket, claw gauntlets, low crouch.
+ * - Sim v9 shelter champions, each from its Token Tails card (data/heroes/shelter.ts): Lambo (Tank), a big grey
+ *   Maine with tangled festive lights and a pot-lid shield; Avietė (Assassin), a tuxedo cat with floating sparks
+ *   and claws; Bengas (Mage), a brown tabby with a camellia crown and a toasting fork; Gabė (Support), a Siamese
+ *   with blue eyes, small wings and a heart balloon. They wear their card's coat (never a breed coat) and chromas.
  *
  * Team colour (POC.md §6.8) sits on the big shapes the iso camera sees from above and behind: the shoulder mantle,
  * the helmet / hood / cap, the cape and the pauldrons. Dogs are uniformed rivals, never shelter dogs.
@@ -108,18 +112,28 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   sage: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
   brutus: { idle: 'shieldGuard', run: 'shieldGuard', cast: 'cheer', attack: 'bash', stride: 1.2 },
   cacklejaw: { idle: 'clawReady', run: 'clawReady', cast: 'cheer', attack: 'claw', stride: 1.25 },
+  lambo: { idle: 'shieldGuard', run: 'shieldGuard', cast: 'cheer', attack: 'bash', stride: 1.15 },
+  aviete: { idle: 'clawReady', run: 'clawReady', cast: 'cheer', attack: 'claw', stride: 1.25 },
+  bengas: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
+  gabe: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match: big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
-export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65 });
+export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5 });
 
 /** Top of each hero's bind-pose bounds (m: ear tips, Clem's bow, Sir Brutus's plume): overhead bars sit above it. */
-export const HERO_TOP: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95 });
+export const HERO_TOP: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72 });
 
 const IVORY: CoatSpec = { pattern: 'solid', base: PAL.furIvory, deep: PAL.furIvoryShade, light: PAL.furIvoryLight, cream: PAL.furIvoryLight };
 const CLEM_EYES = { inner: PAL.irisCrimsonInner, outer: PAL.irisCrimson, ring: PAL.irisCrimsonDeep, pupil: PAL.pupil, size: 1.16 } as const;
 const SAGE_COAT: CoatSpec = { pattern: 'tabby', base: 0x9fb3c8, deep: 0x5f7189, light: 0xeef3f8, cream: 0xeef3f8, stripe: 0.5 };
 const SAGE_EYES = { inner: 0xbfe8a8, outer: 0x5fa86a, ring: 0x2c4a30, size: 1.12 } as const;
+/** Sim v9 champions: the card coats (render/cosmetics.ts SHELTER_HEROES wear these plus chromas only). */
+const LAMBO_COAT: CoatSpec = { pattern: 'solid', base: 0x5a5a60, deep: 0x37373c, light: 0x8c8c94, cream: 0xb8b8c0 };
+const AVIETE_COAT: CoatSpec = { pattern: 'spots', base: 0xf5f3ee, deep: 0x1e1c22, light: 0xffffff, cream: 0xf0ebe0 };
+const BENGAS_COAT: CoatSpec = { pattern: 'tabby', base: 0x4a3226, deep: 0x241812, light: 0xd8b48c, cream: 0xe8cfae, stripe: 0.6 };
+const GABE_COAT: CoatSpec = { pattern: 'points', base: 0xefe2cc, deep: 0x4a3428, light: 0xfff6e8, cream: 0xfff6e8 };
+const POT_GREY = 0x9aa0a8;
 
 /** A look's coat palette as a PPK coat (null = the hero's default). */
 function coatOf(c: Coat | null, pattern: CoatSpec['pattern'], fallback: CoatSpec): CoatSpec {
@@ -265,6 +279,107 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number):
           G.pauldrons(A, t.main, G.BRASS, 0.75);
           if (founder) G.cape(A, capeColor, capeHem, { len: 0.3 });
           G.clawGauntlets(A, 0x22252c, 0xe3ebf4, 1.5);
+          extras(A);
+        },
+      };
+    }
+    case 'lambo': {
+      return {
+        // a big soft Maine: the widest cat, a heavy body, round cheeks
+        rig: { width: 1.25, tier: 'hero', headScale: CAT_HEAD, bodyScale: 1.15, earSplay: 0.1 },
+        coat: LAMBO_COAT,
+        eyes: { inner: 0xf2b84b, outer: 0xc9832a, ring: 0x5a3a14, size: 1.1 },
+        earInner: 0xd9a0a8,
+        nose: 0x6a5a60,
+        head: 'cat',
+        ears: { size: CAT_EARS },
+        cheeks: 0.9,
+        face: 1.4,
+        whiskers: true,
+        tail: { thick: 1.15 },
+        detail,
+        poses: ALL_POSES,
+        gear: (A) => {
+          G.mantle(A, t.main, trim ?? t.second, { r: 0.23 });
+          if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.3, top: 0.15, bot: 0.25 });
+          G.lightString(A, 0x2f5a2a, [0xe8402a, 0xfff1a8]);
+          G.towerShield(A, POT_GREY, POT_GREY, POT_GREY, 0.2, 'shieldGuard', new THREE.Vector3(0.16, 0.36, 0.27));
+          extras(A);
+        },
+      };
+    }
+    case 'aviete': {
+      return {
+        rig: { width: 0.94, tier: 'hero', headScale: CAT_HEAD * 0.97, earSplay: 0.14 },
+        coat: AVIETE_COAT,
+        eyes: { inner: 0xd8e86a, outer: 0x8fae2c, ring: 0x2c3a14, size: 1.14 },
+        earInner: 0xffb3c8,
+        nose: 0x2a2630,
+        head: 'cat',
+        ears: { size: CAT_EARS },
+        cheeks: 0.7,
+        face: 1.4,
+        whiskers: true,
+        tail: { thick: 0.85 },
+        armoured: { paws: true },
+        detail,
+        poses: ALL_POSES,
+        gear: (A) => {
+          G.mantle(A, t.main, trim ?? 0x1e1c22, { r: 0.21 });
+          G.pauldrons(A, t.main, 0xffe24d, 0.85);
+          if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.28 });
+          G.clawGauntlets(A, 0x1e1c22, 0xfff1a8, 1.2);
+          G.sparkOrbs(A, 0xffe24d);
+          extras(A);
+        },
+      };
+    }
+    case 'bengas': {
+      return {
+        rig: { width: 0.98, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.12 },
+        coat: BENGAS_COAT,
+        eyes: { inner: 0xf2c84b, outer: 0xb07a1e, ring: 0x3a2610, size: 1.12 },
+        earInner: 0xe8a08a,
+        nose: 0x8a4a3a,
+        head: 'cat',
+        ears: { size: CAT_EARS },
+        cheeks: 0.72,
+        face: 1.35,
+        whiskers: true,
+        tail: { thick: 0.95 },
+        detail,
+        poses: ALL_POSES,
+        gear: (A) => {
+          G.mantle(A, t.main, trim ?? 0xffb3c8, { r: 0.21 });
+          G.cape(A, founder || trim !== null ? capeColor : t.deep, chroma !== null ? chroma : 0xff6a3d, { len: 0.32, bot: 0.22 });
+          G.pauldrons(A, t.main, 0xffb3c8, 0.75);
+          G.flowerCrown(A, 0xffb3c8, 0x4f8a3a);
+          G.baton(A, 0x6b4429, 0xff6a3d, 0.42);
+          extras(A);
+        },
+      };
+    }
+    case 'gabe': {
+      return {
+        rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },
+        coat: GABE_COAT,
+        eyes: { inner: 0xbfe3ff, outer: 0x6fb8ff, ring: 0x1e4a7a, size: 1.18 },
+        earInner: 0xe8b0b8,
+        nose: 0x5a3a34,
+        head: 'cat',
+        ears: { size: CAT_EARS },
+        cheeks: 0.7,
+        face: 1.35,
+        whiskers: true,
+        tail: { thick: 0.85 },
+        detail,
+        poses: ALL_POSES,
+        gear: (A) => {
+          G.mantle(A, t.main, trim ?? 0xffffff, { r: 0.22 });
+          G.pauldrons(A, t.main, 0xffffff, 0.7);
+          if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.26 });
+          G.wings(A, 0xf8f8ff);
+          G.heartFloat(A, 0xe0283a);
           extras(A);
         },
       };

@@ -9,7 +9,7 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 

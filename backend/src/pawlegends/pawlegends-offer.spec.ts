@@ -62,6 +62,17 @@ describe('Pawlegends offer engine (Meet)', () => {
         expect(check).toHaveBeenCalledWith(CAT_A);
     });
 
+    it('a shelter champion card the host puts first (sim v9, after a 3rd match on it) is offered like any featured cat', async () => {
+        const LAMBO = '6a30473c1d6649b19b03622b';
+        expect((await ask({ catalogIds: `${LAMBO},${CAT_A}`, screen: 'results' })).offer).toEqual({
+            kind: 'meet',
+            catalogId: LAMBO,
+        });
+        await h.offers.seen({ deviceId: DEVICE, kind: 'meet', catalogId: LAMBO, session: 2 });
+        // Every global cap still applies: one card per session.
+        expect((await ask({ catalogIds: `${LAMBO},${CAT_A}` })).offer).toBeNull();
+    });
+
     it('none at the spend cap, and none under 16', async () => {
         await h.models.purchases.create({
             sessionId: 'cs_cap',

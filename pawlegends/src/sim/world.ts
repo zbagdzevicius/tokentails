@@ -190,6 +190,8 @@ export interface World {
   /** Where a feared unit runs from. */
   fearX: Int32Array;
   fearY: Int32Array;
+  /** Sim v9: −1 = fear (run from fearX, fearY); ≥ 0 = charm (walk toward that unit: Gabė's Under Her Spell). */
+  fearSrc: Int32Array;
   slowT: Int32Array;
   slowBp: Int32Array;
   hasteT: Int32Array;
@@ -329,8 +331,14 @@ export interface World {
   zTtl: Int32Array;
   /** Ticks until the zone is armed. */
   zArm: Int32Array;
-  /** Zone number (trap: root ticks; arena: the challenged hero). */
+  /** Zone number (trap: root ticks; arena: the challenged hero; burst: slow ticks). */
   zVal: Int32Array;
+  /** Sim v9, burst zones: damage and heal per pulse, slow strength, ticks between pulses (0: one pulse), ticks to the next pulse. */
+  zDmg: Int32Array;
+  zHeal: Int32Array;
+  zSlowBp: Int32Array;
+  zEvery: Int32Array;
+  zNext: Int32Array;
   // Pickups (units/pickup.ts): alive, PICKUP_KIND, team allowed to take it (2 = anyone), position
   pkAlive: Uint8Array;
   pkKind: Uint8Array;
@@ -421,6 +429,7 @@ export function createWorld(seed: number): World {
     fearT: new Int32Array(n),
     fearX: new Int32Array(n),
     fearY: new Int32Array(n),
+    fearSrc: new Int32Array(n).fill(-1),
     slowT: new Int32Array(n),
     slowBp: new Int32Array(n),
     hasteT: new Int32Array(n),
@@ -521,6 +530,11 @@ export function createWorld(seed: number): World {
     zTtl: new Int32Array(z),
     zArm: new Int32Array(z),
     zVal: new Int32Array(z).fill(-1),
+    zDmg: new Int32Array(z),
+    zHeal: new Int32Array(z),
+    zSlowBp: new Int32Array(z),
+    zEvery: new Int32Array(z),
+    zNext: new Int32Array(z),
     pkAlive: new Uint8Array(CAPS.pickups),
     pkKind: new Uint8Array(CAPS.pickups),
     pkTeam: new Uint8Array(CAPS.pickups),
@@ -544,7 +558,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.x, w.y, w.hp, w.maxHp, w.shield, w.armour, w.xp, w.moveCarry, w.moveX, w.moveY, w.target,
     w.attackTimer, w.timer, w.cooldowns,
     w.windup, w.order, w.streak, w.shotAt, w.forced, w.lastHitBy, w.hurtTick, w.pathX, w.pathY, w.pathLen, w.pathIdx,
-    w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
+    w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.fearSrc, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
     w.stealthT, w.untargT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
     w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak, w.assistTick,
@@ -555,6 +569,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.pAlive, w.pTeam, w.pKind, w.pOwner, w.pTarget, w.pX, w.pY, w.pVx, w.pVy, w.pTtl, w.pDmg,
     w.pSpeed, w.pFlags, w.pHitLo, w.pHitHi, w.pRadius, w.pEffect, w.pEffA, w.pEffB, w.pBp, w.pRange,
     w.zAlive, w.zTeam, w.zKind, w.zOwner, w.zX, w.zY, w.zRadius, w.zTtl, w.zArm, w.zVal,
+    w.zDmg, w.zHeal, w.zSlowBp, w.zEvery, w.zNext,
     w.pkAlive, w.pkKind, w.pkTeam, w.pkX, w.pkY,
     w.globals,
   ];

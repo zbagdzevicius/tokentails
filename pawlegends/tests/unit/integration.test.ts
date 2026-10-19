@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GAME_TYPES, HOST_TYPES, LEVEL_CATNIP, PROGRESS_LEVELS, PROGRESS_MAX, cleanArt, type HostMessage, type Progress } from '../../src/embed/bridge';
 import { chipState, installIntegration, isNewFastest, makeMatchId } from '../../src/embed/integrate';
 import { sanitizeHostMessage } from '../../src/embed/messages';
-import { freshProfile, loadProfile, mergeServerProgress, resetProfileCache, saveProfile, BISCUIT_UNLOCK } from '../../src/meta/profile';
+import { freshProfile, loadProfile, mergeServerProgress, noteChampionMatch, resetProfileCache, saveProfile, BISCUIT_UNLOCK, type Profile } from '../../src/meta/profile';
 import { parseRoster, rosterCosmetics, setAppBuild } from '../../src/meta/roster';
 import { Entitlements } from '../../src/money/entitlements';
 import { bestFrame } from '../../src/render/cosmetics';
@@ -140,10 +140,10 @@ describe('save chip rules', () => {
 
 // ------------------------------------------------------------------------------------------- mounted UI
 
-function harness(opts: { sessions?: number; matches?: number } = {}) {
+function harness(opts: { sessions?: number; matches?: number; keep?: Partial<Profile> } = {}) {
   resetProfileCache();
   setAppBuild(false);
-  const p = { ...freshProfile(), sessions: opts.sessions ?? 2, matches: opts.matches ?? 1 };
+  const p = { ...freshProfile(), ...opts.keep, sessions: opts.sessions ?? 2, matches: opts.matches ?? 1 };
   saveProfile(p);
   document.body.innerHTML = '<div id="app"></div>';
   const root = document.getElementById('app') as HTMLElement;
@@ -313,5 +313,50 @@ describe('mounted cards', () => {
       expect(sent, t).toBeTruthy();
       expect(Object.keys(sent!.payload).sort()).toEqual(keys);
     }
+  });
+});
+
+describe('champion Meet card (sim v9)', () => {
+  const LAMBO = '6a30473c1d6649b19b03622b';
+  const champions = { type: 'champions', cats: [{ catalogId: LAMBO, forSale: true, catImg: ART('lambo') }] };
+  const asks = (h: ReturnType<typeof harness>) => h.posted.filter((m) => m.type === 'champion-offer');
+
+  it('the 3rd match in session 1 makes the card due; visit 2 asks again and shows it; once shown it is no longer due', () => {
+    const v1 = harness({ sessions: 1 });
+    v1.emit(champions);
+    for (let i = 0; i < 2; i++) {
+      noteChampionMatch('lambo');
+      v1.integ.championMatch('lambo');
+    }
+    expect(asks(v1)).toEqual([]);
+    noteChampionMatch('lambo');
+    v1.integ.championMatch('lambo');
+    expect(asks(v1)).toEqual([{ type: 'champion-offer', payload: { catalogId: LAMBO } }]);
+    noteChampionMatch('lambo');
+    v1.integ.championMatch('lambo'); // once a page load
+    expect(asks(v1)).toHaveLength(1);
+    // the server held it back (session 1): the host sends no offer, nothing shows
+    expect(v1.screen('title').querySelector('.plc-meet')).toBeNull();
+
+    // visit 2: the champions message re-sends the due card; the host's offer puts it on the lobby
+    const v2 = harness({ sessions: 2, keep: { championMatches: loadProfile().championMatches } });
+    v2.emit(champions);
+    expect(asks(v2)).toEqual([{ type: 'champion-offer', payload: { catalogId: LAMBO } }]);
+    v2.emit({ type: 'offer', offer: { kind: 'meet', catalogId: LAMBO } });
+    expect(v2.screen('title').querySelector<HTMLElement>('.plc-meet')?.dataset.catalog).toBe(LAMBO);
+    expect(loadProfile().championShown).toEqual(['lambo']);
+
+    const v3 = harness({ sessions: 3, keep: { championMatches: loadProfile().championMatches, championShown: ['lambo'] } });
+    v3.emit(champions);
+    expect(asks(v3)).toEqual([]);
+  });
+
+  it('never a champion card before its 3rd match, even when the storefront features that card', () => {
+    const h = harness({ keep: { championMatches: { lambo: 2 } } });
+    h.emit(champions);
+    h.emit({ type: 'featured', cats: [{ catalogId: LAMBO, name: 'Lambo', type: 'STELLAR', art: ART('lambo') }] });
+    h.emit({ type: 'offer', offer: { kind: 'meet', catalogId: LAMBO } });
+    expect(h.screen('title').querySelector('.plc-meet')).toBeNull();
+    expect(h.posted.some((m) => m.type === 'offer-seen' || m.type === 'champion-offer')).toBe(false);
   });
 });

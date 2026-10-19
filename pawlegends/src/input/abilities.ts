@@ -29,8 +29,8 @@ export interface AimSpec {
   radius?: number;
   /** Sage's Hop Back: the dash goes away from the aim point. */
   away?: boolean;
-  /** Smart-cast targets (touch tap / bots-like auto aim). */
-  smart: 'hero' | 'any' | 'none';
+  /** Smart-cast targets (touch tap / bots-like auto aim); 'ally' (sim v9, Gabė's Wing Wrap): the most hurt allied hero. */
+  smart: 'hero' | 'any' | 'ally' | 'none';
 }
 
 const STEP_TO_RAD = (Math.PI * 2) / 4096;
@@ -66,6 +66,34 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
         { kind: 'dir', shape: 'cone', range: n(a.w.range, 3000), arc: n(a.w.arc, 796) * STEP_TO_RAD, smart: 'hero' },
         { kind: 'self', shape: 'none', range: 0, smart: 'none' },
         { kind: 'self', shape: 'ring', range: n(a.r.range, 12000), radius: n(a.r.range, 12000), smart: 'none' },
+      ];
+    case 'lambo':
+      return [
+        { kind: 'dir', shape: 'line', range: n(a.q.range, 6000), width: n(a.q.width, 900), smart: 'any' },
+        { kind: 'self', shape: 'ring', range: n(a.w.range, 4000), radius: n(a.w.range, 4000), smart: 'none' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 5000), width: n(a.e.radius, 2200), smart: 'hero' },
+        { kind: 'self', shape: 'ring', range: n(a.r.radius, 4500), radius: n(a.r.radius, 4500), smart: 'none' },
+      ];
+    case 'aviete':
+      return [
+        { kind: 'dir', shape: 'cone', range: n(a.q.range, 2200), arc: n(a.q.arc, 1138) * STEP_TO_RAD, smart: 'any' },
+        { kind: 'self', shape: 'none', range: 0, smart: 'none' },
+        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, smart: 'none' },
+        { kind: 'unit', shape: 'ring', range: n(a.r.range, 6000), radius: n(a.r.dazzleRadius, 3000), smart: 'hero' },
+      ];
+    case 'bengas':
+      return [
+        { kind: 'dir', shape: 'line', range: n(a.q.range, 7000), width: n(a.q.width, 800), smart: 'hero' },
+        { kind: 'dir', shape: 'cone', range: n(a.w.range, 4000), arc: n(a.w.arc, 796) * STEP_TO_RAD, smart: 'hero' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 3500), width: 900, smart: 'none' },
+        { kind: 'point', shape: 'circle', range: n(a.r.range, 9000), radius: n(a.r.radius, 3500), smart: 'hero' },
+      ];
+    case 'gabe':
+      return [
+        { kind: 'point', shape: 'circle', range: n(a.q.range, 7000), radius: n(a.q.radius, 2200), smart: 'hero' },
+        { kind: 'point', shape: 'circle', range: n(a.w.range, 6000), radius: n(a.w.pickRadius, 2500), smart: 'ally' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.touch, 1500) * 2, smart: 'none' },
+        { kind: 'dir', shape: 'cone', range: n(a.r.range, 6000), arc: n(a.r.arc, 1024) * STEP_TO_RAD, smart: 'hero' },
       ];
   }
 }

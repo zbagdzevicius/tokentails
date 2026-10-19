@@ -11,7 +11,7 @@ import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
 import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
-import { DecalLayer, discTexture, ringTexture } from './decals';
+import { boldRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
 import { HERO_RING } from './models';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
 
@@ -32,15 +32,25 @@ interface HeroRig {
   pos: THREE.Vector3;
 }
 
+/** The player's own ring is this much larger than a relation ring (it sits outside the hero's footprint). */
+export const SELF_RING_SCALE = 1.15;
+/** Seconds between the own ring's outward pings. */
+const SELF_PING = 1.3;
+
+/** Sim v9 status glows underfoot: Avietė's charge (her sparks) and a charm (Gabė's hearts). */
+const CHARGE_GLOW = 0xffe24d;
+const CHARM_GLOW = 0xff6fa8;
+
 /** Wrap an angle difference to -PI..PI. */
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** The animation state a hero snapshot implies. */
-export function charState(e: Pick<ViewEntity, 'state' | 'buffs' | 'speed'>): CharState {
+export function charState(e: Pick<ViewEntity, 'state' | 'buffs' | 'speed' | 'charmed'>): CharState {
   if (e.state === 'dead') return 'dead';
   if (e.state === 'napping') return 'napping';
   if (e.buffs & BuffFlag.Stunned) return 'stunned';
-  if (e.buffs & BuffFlag.Feared) return 'feared';
+  // Sim v9: a charmed hero walks to its charmer (Gabė's Under Her Spell), it does not cower.
+  if (e.buffs & BuffFlag.Feared) return e.charmed ? 'moving' : 'feared';
   if (e.buffs & BuffFlag.Blocking) return 'blocking';
   if (e.buffs & BuffFlag.Channeling) return 'channel';
   return (e.speed * 30) / 1000 > 0.35 ? 'moving' : 'idle';
@@ -53,6 +63,13 @@ export class HeroView {
   private rings = new DecalLayer(ringTexture(), 8, { additive: false, y: 0.05, name: 'hero-rings' });
   /** Round 0: a chroma reads at match zoom: a soft element-coloured glow underfoot, pulsing with the stride. */
   private auras = new DecalLayer(discTexture(), 8, { additive: true, y: 0.045, renderOrder: 1, name: 'hero-chroma' });
+  /**
+   * The player's own hero (brawl readability): a thick gold ring on an ink band, breathing, plus a ping ring that
+   * rolls outward every SELF_PING s. Both draw after every VFX layer (renderOrder 9; particles 6–7, shockwaves 4–7),
+   * so sparks and shockwaves never bury them; the depth test stays on, so the hero's body still sits in front.
+   */
+  private selfRing = new DecalLayer(boldRingTexture(), 1, { y: 0.065, renderOrder: 9, name: 'hero-self-ring' });
+  private selfPing = new DecalLayer(ringTexture(), 1, { additive: true, y: 0.06, renderOrder: 9, name: 'hero-self-ping' });
   private time = 0;
   mySlot = 0;
   myTeam: 0 | 1 = 0;
@@ -67,6 +84,7 @@ export class HeroView {
     this.group.name = 'heroes';
     this.group.add(this.rings.mesh);
     this.group.add(this.auras.mesh);
+    this.group.add(this.selfRing.mesh, this.selfPing.mesh);
   }
 
   relationOf(e: { id: number; team: number }): Relation {
@@ -150,6 +168,8 @@ export class HeroView {
     const seen = new Set<number>();
     this.rings.begin();
     this.auras.begin();
+    this.selfRing.begin();
+    this.selfPing.begin();
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       seen.add(e.id);
@@ -189,10 +209,17 @@ export class HeroView {
       }
       if (!dead) {
         const rel = this.relationOf(e);
-        const pulse = rel === 'self' ? 0.85 + Math.sin(this.time * 4) * 0.15 : 0.75;
-        this.rings.add(x, z, HERO_RING[r.hero], RELATION[rel], pulse);
+        if (rel === 'self') {
+          const size = HERO_RING[r.hero] * SELF_RING_SCALE;
+          this.selfRing.add(x, z, size * (1 + Math.sin(this.time * 5) * 0.035), RELATION.self, 0.92 + Math.sin(this.time * 5) * 0.08);
+          const ph = (this.time % SELF_PING) / SELF_PING;
+          this.selfPing.add(x, z, size * (1 + ph * 0.6), RELATION.self, (1 - ph) * 0.9);
+        } else this.rings.add(x, z, HERO_RING[r.hero], RELATION[rel], 0.75);
         const chroma = this.looks.get(e.id)?.chroma;
         if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
+        // Sim v9: Avietė's charge (a fast spark flicker both teams see: the counterplay) and a charmed hero's pink glow.
+        if (e.charged && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.7, CHARGE_GLOW, 0.75 + Math.sin(this.time * 14 + e.id) * 0.25);
+        if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
     }
     for (const [id, r] of this.rigs) {
@@ -203,12 +230,16 @@ export class HeroView {
     }
     this.rings.end();
     this.auras.end();
+    this.selfRing.end();
+    this.selfPing.end();
   }
 
   dispose(): void {
     for (const r of [...this.rigs.values()]) this.drop(r);
     this.rings.dispose();
     this.auras.dispose();
+    this.selfRing.dispose();
+    this.selfPing.dispose();
   }
 }
 

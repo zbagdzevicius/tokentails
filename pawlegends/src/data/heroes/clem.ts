@@ -7,7 +7,7 @@ export const CLEM: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'fighter',
   /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 10000, takenBp: 10000 },
+  pvp: { dmgBp: 9300, takenBp: 10200 },
   element: 'FAIRY',
   base: { hp: 620, hpPerLevel: 60, attack: 58, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 5000, armour: 25, armourPerLevel: 2 },
   /** Valor: +10 per hit on a hero (minions +4), max 100; at 100 the next ability deals +50%. */

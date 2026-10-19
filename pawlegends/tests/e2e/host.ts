@@ -25,6 +25,8 @@ export interface HostConfig {
   featured?: unknown[];
   /** `offer{offer}` sent on every ready (the server Meet answer). */
   offer?: unknown;
+  /** Sim v9: `champions{cats}` sent on every ready (the shelter champions' cards). */
+  champions?: unknown[];
   /** Answer `open-cat{catalogId}` with `purchase-result{catalogId, ok:true}` and then this roster (a test checkout). */
   catGrants?: Record<string, unknown[]>;
   /** localStorage profile written before the game loads (same origin as the game). */
@@ -62,6 +64,7 @@ function hostHtml(cfg: HostConfig): string {
       if (cfg.roster) send('roster', { cats: cfg.roster });
       if (token) send('entitlements', { token: token });
       if (cfg.featured) send('featured', { cats: cfg.featured });
+      if (cfg.champions) send('champions', { cats: cfg.champions });
       if (cfg.offer !== undefined) send('offer', { offer: cfg.offer });
     };
     addEventListener('message', function (e) {

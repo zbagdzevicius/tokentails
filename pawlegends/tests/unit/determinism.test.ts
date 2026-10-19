@@ -1,3 +1,4 @@
+import { HERO_IDS } from '../../src/data/heroes';
 import { describe, expect, it } from 'vitest';
 import { Op, type Command } from '../../src/sim/api';
 import { createMatch, fillPicks, hash, hashTrail, replayRecord, result, snapshot, step } from '../../src/sim/index';
@@ -73,7 +74,7 @@ describe('determinism (§15 item 1)', { timeout: 120000 }, () => {
  * replayable, so only used for the same-seed-twice check).
  */
 function brawl(seed: number, ticks: number, driveBots: boolean) {
-  const hero = (['clem', 'sage', 'brutus', 'cacklejaw'] as const)[seed % 4];
+  const hero = HERO_IDS[seed % HERO_IDS.length];
   const trick = (['pounce', 'snack', 'hiss'] as const)[seed % 3];
   const { picks, tricks } = fillPicks(seed, hero, trick);
   const m = createMatch({ seed, picks, tricks, difficulty: 'easy' });
@@ -144,7 +145,7 @@ describe('determinism fuzz (§15 item 1)', { timeout: 600000 }, () => {
     const rows = [];
     for (let i = 0; i < 24; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i)));
     expect(rows.filter((r) => !r.ok)).toEqual([]);
-    expect(new Set(rows.map((r) => r.hero)).size).toBe(4);
+    expect(new Set(rows.map((r) => r.hero)).size).toBe(HERO_IDS.length);
     expect(new Set(rows.map((r) => r.difficulty)).size).toBe(3);
   });
 });

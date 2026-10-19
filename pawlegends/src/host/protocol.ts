@@ -19,6 +19,7 @@ import type {
   TrickId,
   UnitStateName,
 } from '../sim/api';
+import { HERO_IDS } from '../data/heroes';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -108,16 +109,18 @@ export type HostMsgType = HostMsg['t'];
 //                i32 hp, i32 maxHp, i32 shield, u32 buffs, u8 level, u8 lane, u16 respawnIn, u16 cooldowns[5],
 //                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
 //                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
-//                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8[3] reserved
+//                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8 fx (sim v9: 1 charged,
+//                2 charmed), u8 lockout (sim v9: Avietė's charge lockout ticks, own team, 0 = none), u8 reserved
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
-// zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u32 reserved
+// zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u16 arm (sim v9), u16 reserved
 
 const PHASES: readonly MatchPhase[] = ['gate', 'play', 'sunset', 'suddenDeath', 'ended'];
 /** Append only: the index travels on the wire ('pickup' is sim v4). */
 const KINDS: readonly EntityKind[] = ['hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding', 'pickup'];
 const PICKUP_SUBS: readonly PickupKind[] = ['frenzy', 'snack'];
 const STATES: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+/** The wire index is the HERO_IDS index (append only: the sim v9 champions follow the first four). */
+const HEROES: readonly HeroId[] = HERO_IDS;
 const VARIANTS: readonly string[] = ['', 'melee', 'ranged', 'siege', 'outer', 'inner'];
 const LANES: readonly ('sunny' | 'puddle')[] = ['sunny', 'puddle'];
 const NONE = 0xff;
@@ -131,6 +134,8 @@ export const ZONE_BYTES = 24;
 const HAS_COOLDOWNS = 1;
 const HAS_RESPAWN = 2;
 const HAS_EXTRA = 4;
+const FX_CHARGED = 1;
+const FX_CHARMED = 2;
 
 /** Encode the snapshot (minus `events`, which travel in an `events` message) into a transferable buffer. */
 export function encodeSnap(s: Snapshot): ArrayBuffer {
@@ -173,11 +178,13 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setUint8(o + 46, (cd ? HAS_COOLDOWNS : 0) | (e.respawnIn !== undefined ? HAS_RESPAWN : 0) | (extra ? HAS_EXTRA : 0));
     v.setUint8(o + 47, Math.min(255, e.bountyStreak ?? 0));
     v.setUint8(o + 52, e.sub ? PICKUP_SUBS.indexOf(e.sub) + 1 : 0);
+    v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0));
     if (extra) {
       v.setUint16(o + 48, e.xp ?? 0, true);
       v.setUint8(o + 50, e.resource ?? 0);
       const t = e.talents ?? [-1, -1, -1];
       v.setUint8(o + 51, (t[0] + 1) | ((t[1] + 1) << 2) | ((t[2] + 1) << 4));
+      v.setUint8(o + 54, Math.min(255, e.lockout ?? 0));
     }
     o += ENTITY_BYTES;
   }
@@ -201,6 +208,7 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setInt32(o + 8, z.y, true);
     v.setInt32(o + 12, z.radius, true);
     v.setInt32(o + 16, z.ttl, true);
+    v.setUint16(o + 20, Math.min(0xffff, Math.max(0, z.arm ?? 0)), true);
     o += ZONE_BYTES;
   }
   return buf;
@@ -246,6 +254,9 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     }
     const sub = v.getUint8(o + 52);
     if (sub !== 0) e.sub = PICKUP_SUBS[sub - 1];
+    const fx = v.getUint8(o + 53);
+    if (fx & FX_CHARGED) e.charged = true;
+    if (fx & FX_CHARMED) e.charmed = true;
     if (lane !== NONE) e.lane = LANES[lane];
     if (flags & HAS_RESPAWN) e.respawnIn = v.getUint16(o + 34, true);
     if (flags & HAS_COOLDOWNS) {
@@ -257,6 +268,8 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
       const tb = v.getUint8(o + 51);
       e.talents = [(tb & 3) - 1, ((tb >> 2) & 3) - 1, ((tb >> 4) & 3) - 1];
       e.resource = v.getUint8(o + 50);
+      const lock = v.getUint8(o + 54);
+      if (lock > 0) e.lockout = lock;
     }
     entities.push(e);
     o += ENTITY_BYTES;
@@ -279,7 +292,9 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
   const zones: Snapshot['zones'] = [];
   for (let i = 0; i < nz; i++) {
     const owner = v.getUint8(o + 3);
+    const arm = v.getUint16(o + 20, true);
     zones.push({
+      ...(arm > 0 ? { arm } : {}),
       index: v.getUint8(o),
       team: v.getUint8(o + 1) as 0 | 1 | 2,
       kind: v.getUint8(o + 2),
