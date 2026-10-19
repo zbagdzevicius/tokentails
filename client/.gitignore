@@ -44,3 +44,6 @@ certificates
 .env.development
 tokentails-keystore
 .vitest/
+
+# blog RSS, written after the build (scripts/build-feed-rss.mjs)
+/public/feed/rss.xml

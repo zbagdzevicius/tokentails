@@ -452,6 +452,10 @@ test.describe("night GameModal migration A (G6, F3.3)", () => {
 
   test("SHARE (phones): titled sheet, axe clean, X not clipped", async ({ page, backend }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-390", "ShareModal is phones only.");
+    // The blog rebuild (2026-10-19) removed the feed's like/save/share bar, ShareModal's only entry
+    // point; articles share through ShareBar (native share sheet, copy link, X). Unit-covered in
+    // __test__/modals-a-overlays.test.tsx until ShareModal gets a new home or is deleted.
+    test.skip(true, "ShareModal has no entry point on /feed since the blog rebuild.");
     mockBackend(backend);
     backend.on("POST", /^\/feed\/search/, { body: [ARTICLE] });
     await gotoAndSettle(page, "/feed", 2500);

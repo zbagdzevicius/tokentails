@@ -38,6 +38,15 @@ export interface SeoHeadProps {
   noindex?: boolean;
   /** Open Graph type; `article` when an article is passed. */
   type?: "website" | "article";
+  /** Share title (og:title, twitter:title) when it differs from the `<title>` (blog articles). */
+  ogTitle?: string;
+  /** Open Graph article tags for pages that are not an `IArticle` (the repo blog, lib/feed). */
+  articleMeta?: {
+    publishedTime: string;
+    modifiedTime?: string;
+    section?: string;
+    tags?: string[];
+  };
 }
 
 export interface SeoTag {
@@ -85,7 +94,8 @@ export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
   const imageUrl =
     absoluteUrl(image.url, origin) ?? `${origin}/${DEFAULT_OG_IMAGE.path}`;
   const imageAlt = image.alt || title;
-  const type = article ? "article" : props.type ?? "website";
+  const type = article || props.articleMeta ? "article" : props.type ?? "website";
+  const shareTitle = props.ogTitle || title;
 
   const tags: SeoTag[] = [];
   const meta = (attr: "name" | "property", id: string, content?: string | null) => {
@@ -105,7 +115,7 @@ export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
 
   meta("property", "og:site_name", site);
   meta("property", "og:type", type);
-  meta("property", "og:title", title);
+  meta("property", "og:title", shareTitle);
   meta("property", "og:description", description);
   meta("property", "og:url", url);
   meta("property", "og:image", imageUrl);
@@ -127,6 +137,16 @@ export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
     meta("property", "article:author", site);
     meta("property", "article:section", article.category?.name);
     meta("property", "article:tag", article.keyword?.name);
+  } else if (props.articleMeta) {
+    const m = props.articleMeta;
+    meta("property", "article:published_time", m.publishedTime);
+    meta("property", "article:modified_time", m.modifiedTime || m.publishedTime);
+    meta("property", "article:author", site);
+    meta("property", "article:section", m.section);
+    // One tag per keyword; keyed apart so every one renders.
+    (m.tags || []).forEach((tag, i) => {
+      if (tag) tags.push({ key: `article:tag:${i}`, kind: "meta", attr: "property", id: "article:tag", content: tag });
+    });
   }
 
   meta("property", "fb:app_id", configured(process.env.NEXT_PUBLIC_FB_APP_ID));
@@ -137,7 +157,7 @@ export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
     meta("name", "twitter:card", "summary_large_image");
     meta("name", "twitter:site", `@${handle}`);
     meta("name", "twitter:creator", `@${handle}`);
-    meta("name", "twitter:title", title);
+    meta("name", "twitter:title", shareTitle);
     meta("name", "twitter:description", description);
     meta("name", "twitter:image", imageUrl);
     meta("name", "twitter:image:alt", imageAlt);

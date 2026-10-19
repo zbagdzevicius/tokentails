@@ -74,6 +74,7 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
+<<<<<<< HEAD
 // Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
 // hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
 // redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
@@ -84,6 +85,18 @@ const pawlegendsHeaders = [
     headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
   },
 ];
+=======
+// The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
+// redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
+// `legacySlugs`). lib/feed/engine.ts is TypeScript that Node loads by type stripping (Node >= 22.18);
+// it validates every article, so a broken file fails here, loudly, before the build starts.
+// Web builds only: the static export has no redirects (pages/feed/article.tsx forwards old app links).
+const feedRedirects = () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS config
+  const feed = require("./lib/feed/engine.ts");
+  return feed.feedRedirects(feed.loadFeed());
+};
+>>>>>>> 0c152f2ed (feat(feed): rebuild the blog on repo content with SEO and motion)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -125,6 +138,7 @@ const nextConfig = {
             // The proof page moved into /impact (plan F7.6, 2.13 row 23).
             { source: "/proof", destination: "/impact", permanent: true },
             ...heistRedirects,
+            ...feedRedirects(),
             // The Sponsor Match Desk statement is a static page in public/match-desk. Next.js does
             // not serve a directory's index.html, and it strips the trailing slash of
             // `/match-desk/` before this rule runs.
