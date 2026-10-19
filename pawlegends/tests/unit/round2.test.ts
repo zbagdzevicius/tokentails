@@ -30,8 +30,8 @@ import { coreId, quietMatch } from './sim-helpers';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
-  it('SIM_VERSION is 8', () => {
-    expect(SIM_VERSION).toBe(8);
+  it('SIM_VERSION is 9 (sim v9: the shelter champions kept the chip)', () => {
+    expect(SIM_VERSION).toBe(9);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -120,11 +120,12 @@ describe('sim v8: bots', () => {
     expect(XP.campBehindBp).toBe(15000);
   });
 
-  it('per-hero tuning replaced the species edge (dogs deal more and take less; cats none)', () => {
+  it('per-hero tuning replaced the species edge (dogs deal more and take less)', () => {
     expect(HEROES.brutus.pvp.dmgBp).toBeGreaterThan(10000);
     expect(HEROES.cacklejaw.pvp.takenBp).toBeLessThan(10000);
-    expect(HEROES.clem.pvp).toEqual({ dmgBp: 10000, takenBp: 10000 });
-    expect(pvpNumbers('clem')).toBe('');
+    // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 9300/10200, Sage 10300/9800)
+    expect(HEROES.clem.pvp).toEqual({ dmgBp: 9300, takenBp: 10200 });
+    expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 7% less · takes 2% more');
     expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 11% more · takes 7.5% less$/);
     // the bots chips no longer print a species handicap
     for (const h of Object.values(DIFFICULTY_HINT)) expect(h).not.toMatch(/species|Woof pack/);
@@ -157,7 +158,9 @@ describe('round 2 client: why the match ended', () => {
   it('Change hero teases a hero not yet won with', () => {
     expect(tryHeroFor('clem', {})).toBe('sage');
     expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('brutus');
-    expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('clem');
+    // sim v9: after Cacklejaw come the shelter champions
+    expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('lambo');
+    expect(tryHeroFor('gabe', {})).toBe('clem');
   });
 });
 

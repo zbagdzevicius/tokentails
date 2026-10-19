@@ -17,6 +17,7 @@ import { BuffFlag } from '../sim/api';
 import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
+import { HEROES } from '../data/heroes';
 
 const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
 const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0] };
@@ -66,6 +67,46 @@ export function declutter(pts: readonly { x: number; y: number }[], scale: numbe
   return out;
 }
 
+/**
+ * Edge arrow placement (pure): where the ray from the screen centre toward a point (sx, sy) px leaves the screen
+ * inset by `margin` px, kept below `safeTop` + margin (the top HUD band). Returns the spot and the arrow angle (rad,
+ * screen space, 0 = right, +y down), or null when the point is the centre itself.
+ */
+export function edgeArrow(sx: number, sy: number, w: number, h: number, margin: number, safeTop = 0): { x: number; y: number; a: number } | null {
+  const cx = w / 2;
+  const cy = h / 2;
+  const dx = sx - cx;
+  const dy = sy - cy;
+  if (dx === 0 && dy === 0) return null;
+  const k = Math.min((w / 2 - margin) / Math.max(1e-6, Math.abs(dx)), (h / 2 - margin) / Math.max(1e-6, Math.abs(dy)));
+  return { x: cx + dx * k, y: Math.max(safeTop + margin, cy + dy * k), a: Math.atan2(dy, dx) };
+}
+
+/** Is a screen point (px) outside a w × h view? (The player's own edge arrow shows then.) */
+export const offScreen = (sx: number, sy: number, w: number, h: number): boolean => sx < 0 || sx > w || sy < 0 || sy > h;
+
+/** Avietė's charge ring state (sim v9, Shy, Then Shiny): a spark ring while Charged, a grey ring during the lockout. */
+export interface ChargeRing {
+  state: 'charged' | 'lockout' | '';
+  /** Lockout left as a share of the full lockout (1 → 0), 0 otherwise. */
+  frac: number;
+  /** Lockout seconds left, rounded up (0 when not locked out). */
+  secs: number;
+}
+
+/**
+ * Pure: Avietė's ring from a snapshot entity. `charged` is sent for both teams; `lockout` only for the viewer's own
+ * team, so an enemy Avietė shows the spark ring but never a lockout timer.
+ */
+export function chargeRing(e: Pick<ViewEntity, 'hero' | 'charged' | 'lockout' | 'state'>): ChargeRing {
+  if (e.hero !== 'aviete' || e.state === 'dead') return { state: '', frac: 0, secs: 0 };
+  if (e.charged) return { state: 'charged', frac: 0, secs: 0 };
+  const t = e.lockout ?? 0;
+  if (t <= 0) return { state: '', frac: 0, secs: 0 };
+  const full = HEROES.aviete.passive.lockout ?? t;
+  return { state: 'lockout', frac: Math.min(1, t / Math.max(1, full)), secs: Math.ceil(t / 30) };
+}
+
 export class Overhead {
   readonly canvas: HTMLCanvasElement;
   private g: CanvasRenderingContext2D | null;
@@ -86,9 +127,15 @@ export class Overhead {
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
   private beams: { src: number; dst: number; t: number }[] = [];
   private lastDraw = 0;
+  /** The player's hero is off screen this frame (panned away): its projected point (px). */
+  private selfOff = false;
+  private selfSx = 0;
+  private selfSy = 0;
 
   /** First match: a chevron trail on the ground from the player toward this point (sim mm), or null. */
   guide: { x: number; y: number } | null = null;
+  /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (render/telegraph.ts poseWatchers): a "!" eye over them. */
+  watchers: ReadonlySet<number> = new Set();
 
   /** Round 1: the enemy fountain's no-entry ring (sim mm), drawn while the player is near it; null = hidden. */
   enemyFountain: { x: number; y: number; r: number } | null = null;
@@ -199,6 +246,7 @@ export class Overhead {
     for (const e of frame.entities) if (e.kind === 'hero' && e.hero && (e.team === 0 || e.team === 1)) seen[e.team].add(e.hero);
     for (const h of seen[0]) if (seen[1].has(h)) this.mirrored.add(h);
     const edge: { e: ViewEntity; sx: number; sy: number }[] = [];
+    this.selfOff = false;
     for (const e of frame.entities) {
       if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
       const lift = LIFT[e.kind] * (e.kind === 'hero' ? heroScale(e) : 1);
@@ -206,6 +254,11 @@ export class Overhead {
       if (v.z > 1 || v.z < -1) continue;
       const sx = (v.x * 0.5 + 0.5) * this.w;
       const sy = (-v.y * 0.5 + 0.5) * this.h;
+      if (e.id === this.mySlot && offScreen(sx, sy, this.w, this.h)) {
+        this.selfOff = true;
+        this.selfSx = sx;
+        this.selfSy = sy;
+      }
       if (sx < -80 || sx > this.w + 80 || sy < -40 || sy > this.h + 40) {
         if (e.kind === 'hero' && e.team !== this.myTeam && e.team !== 2) edge.push({ e, sx, sy });
         continue;
@@ -240,25 +293,138 @@ export class Overhead {
       if (fade) g.globalAlpha = 1;
     }
     this.drawEdge(g, frame, edge);
+    if (this.selfOff) this.drawSelfEdge(g);
+  }
+
+  /**
+   * The player's hero is off screen (camera panned, minimap look): a gold arrow at the edge toward it, larger than the
+   * enemy arrows and labelled "You" (Space re-centres).
+   */
+  private drawSelfEdge(g: CanvasRenderingContext2D): void {
+    const s = 14 * this.scale;
+    const p = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * this.scale, this.safeTop);
+    if (!p) return;
+    const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
+    g.save();
+    g.translate(p.x, p.y);
+    g.scale(pulse, pulse);
+    g.rotate(p.a);
+    g.beginPath();
+    g.moveTo(s * 2.1, 0);
+    g.lineTo(s * 0.85, -s * 0.95);
+    g.lineTo(s * 0.85, s * 0.95);
+    g.closePath();
+    g.lineJoin = 'round';
+    g.lineWidth = 3.5;
+    g.strokeStyle = '#1d1018';
+    g.stroke();
+    g.fillStyle = RELATION_CSS.self;
+    g.fill();
+    g.rotate(-p.a);
+    g.beginPath();
+    g.arc(0, 0, s * 1.2, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(29,16,24,0.92)';
+    g.fill();
+    g.lineWidth = 2.5;
+    g.strokeStyle = RELATION_CSS.self;
+    g.stroke();
+    g.fillStyle = RELATION_CSS.self;
+    g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('You', 0, 0.5);
+    g.restore();
+    g.textAlign = 'start';
+    g.textBaseline = 'alphabetic';
+  }
+
+  /**
+   * Avietė's charge around the level badge (sim v9): a flickering spark ring while Charged (both teams see it), a grey
+   * ring that empties during her own lockout (Shiny Coat then gives speed only).
+   */
+  private chargeRing(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, cy: number, r: number): void {
+    const c = chargeRing(e);
+    if (!c.state) return;
+    g.save();
+    g.lineCap = 'round';
+    if (c.state === 'charged') {
+      g.lineWidth = 3 * this.scale;
+      g.strokeStyle = '#ffe14d';
+      g.shadowColor = '#fff6a8';
+      g.shadowBlur = (6 + Math.sin(performance.now() / 60) * 3) * this.scale;
+      g.beginPath();
+      g.arc(cx, cy, r + 2.5 * this.scale, 0, Math.PI * 2);
+      g.stroke();
+    } else {
+      g.lineWidth = 2.5 * this.scale;
+      g.strokeStyle = 'rgba(160,156,170,0.95)';
+      g.beginPath();
+      g.arc(cx, cy, r + 2.5 * this.scale, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * c.frac);
+      g.stroke();
+    }
+    g.restore();
+  }
+
+  /**
+   * Sim v9: the Striking Pose "!" eye glyph right of a hero's name: this hero faces a Bengas winding up the pose and
+   * will be stunned (turn away and it is only a slow).
+   */
+  private eyeGlyph(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+    const s = 9 * this.scale;
+    const pop = 1 + Math.sin(performance.now() / 70) * 0.08;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(pop, pop);
+    g.beginPath();
+    g.moveTo(-s * 1.4, 0);
+    g.quadraticCurveTo(0, -s * 1.5, s * 1.4, 0);
+    g.quadraticCurveTo(0, s * 1.5, -s * 1.4, 0);
+    g.closePath();
+    g.fillStyle = '#fff3dc';
+    g.fill();
+    g.lineWidth = 2;
+    g.strokeStyle = '#2a1a22';
+    g.stroke();
+    g.beginPath();
+    g.arc(0, 0, s * 0.62, 0, Math.PI * 2);
+    g.fillStyle = '#ff6a3d';
+    g.fill();
+    g.fillStyle = '#2a1a22';
+    g.font = `800 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('!', 0, 0.5);
+    g.restore();
+  }
+
+  /** A bobbing gold chevron over the player's own plate, pointing down at the hero (found first in a pile). */
+  private selfChevron(g: CanvasRenderingContext2D, x: number, y: number): void {
+    const s = 8 * this.scale;
+    const bob = Math.sin(performance.now() / 180) * 2.5 * this.scale;
+    g.beginPath();
+    g.moveTo(x - s, y - s * 1.1 + bob);
+    g.lineTo(x + s, y - s * 1.1 + bob);
+    g.lineTo(x, y + bob);
+    g.closePath();
+    g.lineJoin = 'round';
+    g.lineWidth = 3;
+    g.strokeStyle = '#1d1018';
+    g.stroke();
+    g.fillStyle = RELATION_CSS.self;
+    g.fill();
   }
 
   /** Round 2: a red arrow at the screen edge toward each enemy hero just off screen (assassins came from nowhere). */
   private drawEdge(g: CanvasRenderingContext2D, frame: ViewFrame, edge: readonly { e: ViewEntity; sx: number; sy: number }[]): void {
     const me = frame.byId.get(this.mySlot);
     if (!me || me.state === 'dead' || !edge.length) return;
-    const cx = this.w / 2;
-    const cy = this.h / 2;
     const m = 26 * this.scale;
     for (const { e, sx, sy } of edge) {
       if (Math.hypot(e.fx - me.fx, e.fy - me.fy) > Overhead.EDGE_RANGE) continue;
-      const dx = sx - cx;
-      const dy = sy - cy;
-      if (dx === 0 && dy === 0) continue;
       // where the ray from the centre leaves the inset screen rectangle
-      const k = Math.min((this.w / 2 - m) / Math.max(1e-6, Math.abs(dx)), (this.h / 2 - m) / Math.max(1e-6, Math.abs(dy)));
-      const x = cx + dx * k;
-      const y = Math.max(this.safeTop + m, cy + dy * k);
-      const a = Math.atan2(dy, dx);
+      const p = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
+      if (!p) continue;
+      const { x, y, a } = p;
       const s = 11 * this.scale;
       g.save();
       g.translate(x, y);
@@ -507,6 +673,7 @@ export class Overhead {
     g.beginPath();
     g.arc(x - r - 2, sy, r, 0, Math.PI * 2);
     g.fill();
+    this.chargeRing(g, e, x - r - 2, sy, r);
     g.fillStyle = '#fff3dc';
     g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
     g.textAlign = 'center';
@@ -542,6 +709,8 @@ export class Overhead {
       g.fillStyle = this.color(e);
       g.fillText(name, sx, ny);
     }
+    if (this.watchers.has(e.id)) this.eyeGlyph(g, sx + tw / 2 + 14 * this.scale, ny);
+    if (e.id === this.mySlot) this.selfChevron(g, sx, ny - 11 * this.scale);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
     if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
     if (p.chip) {
@@ -554,7 +723,7 @@ export class Overhead {
       g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
       g.fillText('×2', cx, sy + 0.5);
     }
-    const status = statusWord(e.buffs);
+    const status = e.charmed ? 'Charmed' : statusWord(e.buffs);
     if (status) {
       g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
       const tw = g.measureText(status).width + 8 * this.scale;

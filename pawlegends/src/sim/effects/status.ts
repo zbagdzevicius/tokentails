@@ -37,7 +37,7 @@ export function interrupt(w: World, id: number, hard: boolean): void {
   }
 }
 
-/** Is `id` unable to act (stunned, feared, knocked back)? */
+/** Is `id` unable to act (stunned, feared or charmed, knocked back)? */
 export const disabled = (w: World, id: number): boolean =>
   w.stunT[id] > 0 || w.fearT[id] > 0 || w.fmKind[id] === FM.Knock;
 
@@ -46,6 +46,7 @@ export function clearStatus(w: World, id: number): void {
   w.stunT[id] = 0;
   w.rootT[id] = 0;
   w.fearT[id] = 0;
+  w.fearSrc[id] = -1;
   w.slowT[id] = 0;
   w.slowBp[id] = 0;
   w.hasteT[id] = 0;
@@ -78,6 +79,7 @@ export function tickStatus(w: World): void {
     dec(w.stunT, id);
     dec(w.rootT, id);
     dec(w.fearT, id);
+    if (w.fearT[id] === 0) w.fearSrc[id] = -1;
     dec(w.slowT, id);
     if (w.slowT[id] === 0) w.slowBp[id] = 0;
     dec(w.hasteT, id);

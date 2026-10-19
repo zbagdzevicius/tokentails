@@ -199,17 +199,26 @@ override.
 ## Pawlegends
 
 A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
-`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of four
-upright, Pink Paw Knight-style heroes (cats Clem and Sage, dogs Sir Brutus and Cacklejaw) and a Paw Trick
-(Pounce, Snack Break, Hiss), and plays with two bot allies of its own side against three bots of the other
-side on Purrhaven Crossing. A match ends on a core kill, at the latest at 11:00 (safety end); most end
-between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`,
-30 ticks a second, `SIM_VERSION` 8) in a Web Worker, and the backend replays it.
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of eight
+upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss), and plays with two bot
+allies of its own side against three bots of the other side on Purrhaven Crossing. Cats: Clem, Sage and the
+four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support); dogs: Sir
+Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end between 5
+and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a second,
+`SIM_VERSION` 9) in a Web Worker, and the backend replays it.
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
   at Normal, and at Hard on Hard. Rules per level (truce, Sunset and Sudden Death times, catch-up XP, the
   takedown chip) are in POC.md §7.2 and §7.3 and `src/data/bots.ts`.
+- **Desktop controls** (`src/input/`): RMB moves and attacks, A then LMB attack-moves, Q W E R cast at the
+  cursor (quick cast, the default; Settings "Aim on hold" shows the indicator until release), D Paw Trick, B Nap.
+  Trackpad mode (Settings Auto / On / Off; Auto turns on for a player who left-clicks the ground and never
+  right-clicks) moves and attacks with LMB. The game draws its own cursor (`src/input/cursor.ts`): cream arrow,
+  red arrow over an enemy, mint arrow over an ally, red crosshair with attack-move armed, gold reticle while
+  aiming (32 px, 48 px with Settings "Cursor size" Large). The hovered unit gets a bold ring (red enemy, mint ally), and
+  when a unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring. Touch keeps
+  the joystick and button cluster.
 - **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
   `client/public/pawlegends-game/` (about 1.4 MB, committed); `/pawlegends` frames
   `/pawlegends-game/index.html?embed=1` (CLIENT.md, "Pawlegends (/pawlegends)").
@@ -219,11 +228,11 @@ between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`p
   until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading" note
   after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp, store,
   notify}`, `session {signedIn, progress}`, `audio {muted, music?, sfx?}`, `roster {cats}`, `featured {cats}`,
-  `offer {offer}` and `entitlements {token}`, plus a pending `pause`; it also sends `save-result {matchId,
+  `champions {cats}`, `offer {offer}` and `entitlements {token}`, plus a pending `pause`; it also sends `save-result {matchId,
   status, catnipPaid, catnipTotal, fastestWin}`, `resume` and `purchase-result {catalogId, ok}`. The game sends
   `match-result {replay, summary, matchId}`, `request-sign-in {reason}`, `open-cat {catalogId}`, `offer-seen
-  {kind, catalogId}`, `notify {where}`, `share {kind, url}` (same-origin `/pawlegends` links only) and
-  `paused`; the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
+  {kind, catalogId}`, `champion-offer {catalogId}`, `notify {where}`, `share {kind, url}` (same-origin
+  `/pawlegends` links only) and `paused`; the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
   `'*'`, and no `accesstoken` or Firebase token crosses.
@@ -244,6 +253,21 @@ between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`p
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick
   screen, the save chip and companion card on results.
+- **Shelter champions** (sim v9, POC.md §6 addendum): four heroes inspired by real Pink Paw cats' Token Tails
+  cards (`pawlegends/src/data/heroes/shelter.ts`; licence for the names and photos, Oct 11). They are free to
+  play for everyone in every build, the app included; bots pick them too. Owning a champion's card (web only)
+  adds cosmetics: a "From <name>'s card" badge on the pick tile, the Companion Kitten and the element chroma.
+  `GET /pawlegends/champions` gives the host the cards; the host sends them as `champions {cats: [{catalogId,
+  forSale, catImg?}]}` (never for sale in an app build). The champion's info panel on the title (lobby) screen
+  is information only. The one purchase surface is the Meet card: after a non-owner's 3rd finished match on a
+  champion whose card is for sale the card is due until it has been shown (`championShown` in the local
+  profile); the game sends `champion-offer {catalogId}` then and once each later page load, and the host, unless
+  a card was already shown that visit, asks `GET /pawlegends/offer` with that card first (its normal per-visit
+  ask too). Champion cards are never featured storefront cats. Every global cap still applies (never session 1 or an
+  app build, lobby and results only, one a session, one a day, the same cat not for 3 days, age band and spend
+  cap). Its copy: "Inspired by <name>'s Token Tails card." and "See <name>'s card ›", no price word (the Token
+  Tails checkout shows it). Owned-or-trial access (a weekly free champion, earned unlocks) is a founder call and
+  is not built.
 - **Cats for sale**: the game's own `pl_*` store is retired (old entitlement tokens still dress the heroes).
   The host features at most two unowned direct-purchase cats from `GET /cat/sale` (`featuredBridge.ts`; never
   packs, never random). `GET /pawlegends/offer` may name one as the session's single "Meet <cat>" card: never
@@ -258,7 +282,8 @@ between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`p
 - **Checks** (in `pawlegends/`): `npm run typecheck`, `npm test`, `npm run lint:sim` (no floats,
   `Math.random` or wall clock in `src/sim`), `npm run lift -- --check`, `npm run build && npm run budget`
   (first-load JS 450 KB gzip), `npx playwright test --workers=2`, `npm run vendor-sim:check`, and the headless
-  gates: `npm run match -- --seeds 400 --balance --check-determinism` and `npm run determinism -- --seeds 200`
+  gates: `npm run match -- --gate balance` (2,000 seeds; at 400 seeds the 70% core-kill check sits within noise),
+  `npm run match -- --seeds 200 --check-determinism` and `npm run determinism -- --seeds 200`
   (README "Run and check" has the full list and the nightly gates).
 - **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
   `backend/src/vendor/pawlegends-sim/`), deploy the backend, then the client build. `GET /pawlegends/sim`

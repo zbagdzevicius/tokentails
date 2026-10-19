@@ -8,10 +8,11 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
+import { HERO_IDS } from '../../src/data/heroes';
 import { TEAM } from '../../src/render/palette';
 import { DETAIL, heroBuilt } from '../../src/render/chars';
 
-const HEROES: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: HeroId[] = [...HERO_IDS];
 
 /** Share of the up-facing area (face normal y > 0.35) coloured `hex`, 0..1. */
 function upShare(g: THREE.BufferGeometry, hex: number): number {

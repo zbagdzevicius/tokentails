@@ -2,7 +2,7 @@
  * Sim entry: createMatch(config) / step(match, commands) / snapshot(match, team) / hash(match) / result(match).
  * INTEGER ONLY, no DOM, no three: Node-importable and vendored to the backend.
  *
- * The whole POC match: waves, towers and cores, four hero kits with talents and Paw Tricks, XP and levels, brush
+ * The whole POC match: waves, towers and cores, eight hero kits (sim v9: four shelter champions) with talents and Paw Tricks, XP and levels, brush
  * and stealth, the rat camps, Pudding, the §7.3 timeline (Sunset, Sudden Death, the 11:00 safety end) and the
  * in-sim bots for slots 1..5, all in the §4.3 step order marked below.
  */
@@ -35,7 +35,7 @@ import {
 } from './api';
 import { resolveAttacks, stepProjectiles } from './combat/attack';
 import { ageZones, clampTethers, stepHeals, stepZones, tickStatus } from './effects';
-import { resolveCasts, stepKits, tickCooldowns } from './heroes/kit';
+import { kitOf, resolveCasts, stepKits, tickCooldowns } from './heroes/kit';
 import { refreshFlags, refreshVision, visibleTo } from './map/brush';
 import { resolveDeaths } from './combat/damage';
 import { encodeCommand, encodeStream, toBase64 } from './commands';
@@ -55,6 +55,7 @@ import { SIM_VERSION } from './version';
 import { COOLDOWN_SLOTS, G, Kind, RANGE, TALENT_TIERS, UnitState, createWorld, hashWorld, type World } from './world';
 import { ZONE_KIND } from '../data/effects';
 import { CLEM_INDEX } from './heroes/clem';
+import { AVIETE_INDEX } from './heroes/aviete';
 import { stepBots } from './bots';
 import { initCamps, spawnCamps, stepCamps } from './units/camp';
 import { initPudding, stepPudding, stepPuddingTimeline } from './units/pudding';
@@ -328,14 +329,16 @@ export function snapshot(match: Match, team: Team): Snapshot {
       if (w.team[id] === team) {
         const c = w.cooldowns;
         const b = id * COOLDOWN_SLOTS;
-        // A recast window open on Q shows it ready.
-        const q = canRecastQ(w, id) ? 0 : c[b];
-        e.cooldowns = [q, c[b + 1], c[b + 2], c[b + 3], c[b + 4]];
+        // A slot whose recast window is open shows ready (the kit's own rule, as canCast reads it).
+        e.cooldowns = [recastCd(w, id, 0, c[b]), recastCd(w, id, 1, c[b + 1]), recastCd(w, id, 2, c[b + 2]), recastCd(w, id, 3, c[b + 3]), c[b + 4]];
         e.xp = w.xp[id];
         const t = id * TALENT_TIERS;
         e.talents = [w.talents[t], w.talents[t + 1], w.talents[t + 2]];
-        e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : 0;
+        e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : w.sub[id] === AVIETE_INDEX ? w.kRT[id] : 0;
+        if (w.sub[id] === AVIETE_INDEX && w.kHuntT[id] > 0) e.lockout = w.kHuntT[id];
       }
+      if (w.sub[id] === AVIETE_INDEX && w.kRT[id] > 0 && w.alive[id] === 1) e.charged = true;
+      if (w.fearT[id] > 0 && w.fearSrc[id] >= 0) e.charmed = true;
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
       e.bountyStreak = w.killStreak[id];
     } else if (k === Kind.Minion) {
@@ -375,7 +378,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
     if (w.zAlive[i] === 0) continue;
     // Traps are hidden from the other team.
     if (w.zKind[i] === ZONE_KIND.trap && w.zTeam[i] !== team) continue;
-    zones.push({ index: i, team: w.zTeam[i] as 0 | 1 | 2, owner: w.zOwner[i], x: w.zX[i], y: w.zY[i], radius: w.zRadius[i], ttl: w.zTtl[i], kind: w.zKind[i] });
+    zones.push({ index: i, team: w.zTeam[i] as 0 | 1 | 2, owner: w.zOwner[i], x: w.zX[i], y: w.zY[i], radius: w.zRadius[i], ttl: w.zTtl[i], kind: w.zKind[i], ...(w.zArm[i] > 0 ? { arm: w.zArm[i] } : {}) });
   }
   return {
     team,
@@ -397,9 +400,9 @@ function teamEvents(w: World, all: readonly SimEvent[], team: Team): SimEvent[] 
   return out;
 }
 
-/** Q's cooldown is shown as ready while a recast window is open (Clem's Paw Combo, Cacklejaw's Jeer Slash). */
-function canRecastQ(w: World, id: number): boolean {
-  return w.kWindow[id] > 0 && w.kStage[id] > 0;
+/** A slot shows ready while its kit opens a recast on it (Clem's and Cacklejaw's Q, Avietė's E return). */
+function recastCd(w: World, id: number, slot: number, cd: number): number {
+  return cd > 0 && kitOf(w, id).recastReady?.(w, id, slot) === true ? 0 : cd;
 }
 
 function kindIndex(id: number, k: number): number {

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { WALLS } from '../../src/data/map';
 import { dealDamage } from '../../src/sim/combat/damage';
 import {
-  addShield, attackSpeed, blink, cooldownRate, dash, fear, haste, heal, inCone, inFront, inLine, inRing, knockback,
-  lowestHpEnemyHero, reveal, root, slow, stealth, stun,
+  addShield, attackSpeed, blink, charm, cooldownRate, dash, fear, haste, heal, inCone, inFront, inLine, inRing, knockback,
+  lowestHpEnemyHero, reveal, root, slow, spawnBurst, stealth, stun,
 } from '../../src/sim/effects';
+import { EFFECTS, ZONE_KIND } from '../../src/data/effects';
+import { isqrt } from '../../src/sim/fixed';
 import { canCast, step } from '../../src/sim/index';
 import { cellOf, walkable } from '../../src/sim/map/grid';
 import { attackEvery, moveSpeed } from '../../src/sim/units/kinds';
@@ -150,5 +152,75 @@ describe('effect primitives (§4.4)', () => {
     reveal(w, 3, 30);
     step(m);
     expect(lowestHpEnemyHero(w, 0, MID.x - 8000, MID.y, 8000)).toBe(3);
+  });
+
+  it('sim v9 burst zone: arms, then pulses every `every` ticks for its life (8 pulses), damage, slow and an ally heal', () => {
+    const m = match();
+    const w = m.world;
+    place(m, 3, MID.x, MID.y, 0);
+    place(m, 1, MID.x + 500, MID.y, 0);
+    w.maxHp[3] *= 10;
+    w.hp[3] = w.maxHp[3];
+    w.hp[1] = 100;
+    const z = spawnBurst(w, 0, 0, MID.x, MID.y, 3500, 18, 18 + 120, 25, 7, 15, 2500, 16);
+    expect(w.zKind[z]).toBe(ZONE_KIND.burst);
+    let pulses = 0;
+    let healed = 0;
+    for (let t = 0; t < 160; t++) {
+      const before = w.hp[1];
+      step(m);
+      if (m.events.some((e) => e.type === 'hit' && e.dst === 3 && e.src === 0)) {
+        pulses++;
+        healed += w.hp[1] - before;
+        expect(w.slowBp[3]).toBe(2500);
+      }
+      place(m, 3, MID.x, MID.y, 0);
+      place(m, 1, MID.x + 500, MID.y, 0);
+      w.hp[1] = Math.min(w.hp[1], 100);
+    }
+    expect(pulses).toBe(8);
+    expect(healed).toBeGreaterThanOrEqual(7);
+    expect(w.zAlive[z]).toBe(0);
+  });
+
+  it('sim v9 burst zone: every = 0 is a single pulse, then the zone is gone', () => {
+    const m = match();
+    const w = m.world;
+    place(m, 3, MID.x, MID.y, 0);
+    w.maxHp[3] *= 10;
+    w.hp[3] = w.maxHp[3];
+    const z = spawnBurst(w, 0, 0, MID.x, MID.y, 2200, 15, 16, 55, 0, 0, 0, 0);
+    let hits = 0;
+    for (let t = 0; t < 40; t++) {
+      step(m);
+      if (m.events.some((e) => e.type === 'hit' && e.dst === 3 && e.src === 0)) hits++;
+    }
+    expect(hits).toBe(1);
+    expect(w.zAlive[z]).toBe(0);
+  });
+
+  it('sim v9 charm: walks toward the source, stops within 1 m, cannot act, ends when the source dies', () => {
+    const m = match();
+    const w = m.world;
+    place(m, 0, MID.x, MID.y, 0);
+    place(m, 3, MID.x + 4000, MID.y, 2048);
+    charm(w, 3, 90, 0);
+    expect(canCast(w, 3, 0)).toBe(false);
+    steps(m, 10);
+    const d = (): number => isqrt((w.x[3] - w.x[0]) ** 2 + (w.y[3] - w.y[0]) ** 2);
+    expect(d()).toBeLessThan(4000);
+    steps(m, 60);
+    expect(d()).toBeGreaterThanOrEqual(EFFECTS.charmStop - 100);
+    expect(d()).toBeLessThanOrEqual(EFFECTS.charmStop + 300);
+    // A fear replaces it (runs away again).
+    fear(w, 3, 5, w.x[0], w.y[0]);
+    expect(w.fearSrc[3]).toBe(-1);
+    steps(m, 6);
+    charm(w, 3, 90, 0);
+    w.hp[0] = 1;
+    dealDamage(m, 4, 1, Kind.Hero, 0, 500, 'basic');
+    steps(m, 2);
+    expect(w.alive[0]).toBe(0);
+    expect([w.fearT[3], w.fearSrc[3]]).toEqual([0, -1]);
   });
 });

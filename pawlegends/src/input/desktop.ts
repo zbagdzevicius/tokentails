@@ -12,10 +12,11 @@ import { sfx } from '../audio/sfx';
 import type { GameView } from '../render/gameView';
 import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
-import { actionFor, castMode, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
+import { cursorCss, cursorKind, type CursorKind } from './cursor';
+import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
 import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
-import { cursorCast, pickNearest, isEnemy, type Unit } from './targeting';
+import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 
 export interface InputHost {
   canvas: HTMLElement;
@@ -39,6 +40,8 @@ const EDGE_SPEED = 28;
 const STEER_MS = 140;
 /** Quick cast: the indicator flashes this long at the cast point. */
 const FLASH_MS = 220;
+/** The hover pick (screen projection of every unit) runs at most this often; the ring follows its unit every frame. */
+const HOVER_MS = 50;
 export const TRACKPAD_TOAST = 'Trackpad mode: click to move';
 
 export class DesktopInput {
@@ -58,6 +61,12 @@ export class DesktopInput {
   private off: (() => void)[] = [];
   /** Tests: how many casts the desktop input asked for. */
   casts = 0;
+  /** What the cursor hovers (the unit a click or cast would hit), or null; GameView rings it. */
+  hover: HoverTarget | null = null;
+  /** The cursor kind on the canvas now (e2e reads `data-cursor`). */
+  cursorKindNow: CursorKind | '' = '';
+  private cursorCssNow = '';
+  private hoverAt = 0;
 
   constructor(private readonly h: InputHost) {
     const c = h.canvas;
@@ -80,6 +89,9 @@ export class DesktopInput {
     for (const f of this.off) f();
     this.off = [];
     this.h.view.aim = null;
+    this.h.view.hover = null;
+    this.h.canvas.style.cursor = '';
+    delete this.h.canvas.dataset.cursor;
   }
 
   private groundUnderCursor(): THREE.Vector3 | null {
@@ -87,9 +99,17 @@ export class DesktopInput {
     return groundAt(this.h.view.gr.camera, this.h.canvas, this.cursor.x, this.cursor.y, this.ground);
   }
 
-  private unitUnderCursor(enemiesOnly: boolean): Unit | null {
+  private unitUnderCursor(enemiesOnly: boolean, alliesOnly = false): Unit | null {
     const cam = this.h.view.gr.camera;
-    const units = this.h.units().filter((u) => u.state !== 'dead' && u.kind !== 'fountain' && u.kind !== 'pickup' && (!enemiesOnly || isEnemy(u, this.h.view.myTeam)));
+    const v = this.h.view;
+    const units = this.h.units().filter(
+      (u) =>
+        u.state !== 'dead' &&
+        u.kind !== 'fountain' &&
+        u.kind !== 'pickup' &&
+        (!enemiesOnly || isEnemy(u, v.myTeam)) &&
+        (!alliesOnly || (u.team === v.myTeam && u.id !== v.mySlot && (u.kind === 'hero' || u.kind === 'minion'))),
+    );
     const lift = (u: Unit): number => (u.kind === 'tower' ? 2.5 : u.kind === 'core' ? 2.5 : u.kind === 'pudding' ? 1.5 : 0.6);
     return pickNearest(units, (u) => project(cam, this.h.canvas, u.x / 1000, lift(u), -u.y / 1000), this.cursor.x, this.cursor.y, 44);
   }
@@ -134,7 +154,7 @@ export class DesktopInput {
       }
       if (this.attackArmed) {
         this.attackArmed = false;
-        this.h.canvas.dataset.cursor = '';
+        this.refreshCursor();
         const u = this.unitUnderCursor(true);
         if (u) {
           this.h.orders.attack(u.id);
@@ -221,7 +241,7 @@ export class DesktopInput {
       if (this.aiming || this.attackArmed) {
         this.cancelAim();
         this.attackArmed = false;
-        this.h.canvas.dataset.cursor = '';
+        this.refreshCursor();
         return;
       }
       this.h.onMenu();
@@ -248,12 +268,13 @@ export class DesktopInput {
       }
       this.aiming = { slot, code: e.code };
       this.updateAim();
+      this.refreshCursor();
       return;
     }
     switch (a) {
       case 'attackMove':
         this.attackArmed = true;
-        this.h.canvas.dataset.cursor = 'attack';
+        this.refreshCursor();
         break;
       case 'stop':
         this.h.orders.stop();
@@ -285,8 +306,10 @@ export class DesktopInput {
   }
 
   private cancelAim(): void {
+    const was = !!this.aiming;
     this.aiming = null;
     this.h.view.aim = null;
+    if (was) this.refreshCursor();
   }
 
   /** Release (or LMB) while aiming: cast at the cursor. */
@@ -295,6 +318,7 @@ export class DesktopInput {
     if (!a || a.code !== code) return;
     this.aiming = null;
     this.h.view.aim = null;
+    this.refreshCursor();
     if (!this.h.enabled()) return;
     this.castAtCursor(a.slot, false);
     void byClick;
@@ -323,6 +347,14 @@ export class DesktopInput {
     if (!this.h.orders.cast(slot, c.x, c.y, c.id)) return null;
     this.casts++;
     return c;
+  }
+
+  private static readonly CASTS: readonly CastIndex[] = [0, 1, 2, 3, 4];
+
+  /** Whether any cast slot (Q W E R or the trick) is a unit-target ability: the hover's quick-cast ring needs one. */
+  private hasUnitCast(): boolean {
+    for (const s of DesktopInput.CASTS) if (this.h.orders.aimSpec(s).kind === 'unit') return true;
+    return false;
   }
 
   private nearestEnemyHeroToGround(g: THREE.Vector3 | null): Unit | null {
@@ -354,13 +386,51 @@ export class DesktopInput {
     this.h.view.aim = { spec, x: gx, z: gz, target, valid };
   }
 
-  /** Per frame: aim preview, RMB steering, camera pan. */
+  /**
+   * The hover read (throttled to HOVER_MS, or now with `force`) and the canvas cursor (written only on change).
+   * Disabled input (menus, talent card, results): the plain cursor and no ring.
+   */
+  private refreshCursor(force = true): void {
+    const now = performance.now();
+    if (!force && now - this.hoverAt < HOVER_MS) return;
+    this.hoverAt = now;
+    let hover: HoverTarget | null = null;
+    const on = this.h.enabled();
+    if (on && this.cursor.x >= 0) {
+      const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
+      if (me && me.state !== 'dead') {
+        const aim = this.aiming ? this.h.orders.aimSpec(this.aiming.slot) : null;
+        const g = this.groundUnderCursor();
+        const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
+        const enemy = this.unitUnderCursor(true);
+        const ally = aim || enemy ? null : this.unitUnderCursor(false, true);
+        hover = hoverTarget(aim, me, cursor, enemy, ally, this.h.units(), this.h.view.myTeam, this.hasUnitCast());
+      }
+    }
+    this.hover = hover;
+    this.h.view.hover = hover;
+    const kind = on ? cursorKind({ aiming: !!this.aiming, attackArmed: this.attackArmed, hover: hover?.rel ?? null }) : 'normal';
+    const css = cursorCss(kind, cursorSize());
+    const c = this.h.canvas;
+    if (css !== this.cursorCssNow) {
+      this.cursorCssNow = css;
+      c.style.cursor = css;
+    }
+    if (kind !== this.cursorKindNow) {
+      this.cursorKindNow = kind;
+      c.dataset.cursor = kind;
+    }
+  }
+
+  /** Per frame: aim preview, hover and cursor, RMB steering, camera pan. */
   update(dt: number): void {
     if (!this.h.enabled()) {
       if (this.aiming || this.flashUntil > 0) this.cancelAim();
       this.flashUntil = 0;
+      if (this.hover || this.cursorKindNow !== 'normal') this.refreshCursor();
       return;
     }
+    this.refreshCursor(false);
     if (this.auto.on) {
       this.auto.playMs += dt * 1000;
       this.autoCheck();

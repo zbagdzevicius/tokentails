@@ -8,6 +8,7 @@
  *   `frame.founder`, `frame.legend`, `title.founder` (none in app builds)
  * - free unlocks by playing (local profile): `coat.brutus.biscuit` (first win, POC.md §12)
  * - owned Token Tails cats (roster): element chromas, tier frames, breed coats on the cat heroes, Companion Kittens
+ * - the shelter champions (sim v9) wear their card's coat and chromas only; owning the card adds a badge (ui/screens.ts)
  */
 import type { HeroId } from '../sim/api';
 import { ELEMENT_NAME, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
@@ -72,7 +73,11 @@ export const KITTEN_PRESETS: readonly Coat[] = Object.freeze([
   { base: 0x6f7480, light: 0xd8dbe2, dark: 0x3f434c, accent: 0xffb3c8 },
 ]);
 
+/** Heroes that wear breed coats (the shelter champions wear their own card's coat, never a breed coat). */
 export const CAT_HEROES: readonly HeroId[] = ['clem', 'sage'];
+
+/** Sim v9 shelter champions (data/heroes/shelter.ts): their card's coat plus element chromas only. */
+export const SHELTER_HEROES: readonly HeroId[] = ['lambo', 'aviete', 'bengas', 'gabe'];
 
 export interface CoatOption {
   id: string | null;
@@ -109,6 +114,8 @@ export const breedCoatId = (b: StarterBreed): string => `coat.breed.${b}`;
 /** The coats a hero can wear, default first. */
 export function wardrobe(hero: HeroId, o: Owned): CoatOption[] {
   const out: CoatOption[] = [{ id: null, name: 'Classic', from: 'default' }];
+  // A champion wears its card's coat: no breed, free or store coats (element chromas still apply).
+  if (SHELTER_HEROES.includes(hero)) return out;
   if (hero === 'brutus' && o.unlocks.has(FREE_BISCUIT)) out.push({ id: FREE_BISCUIT, name: 'Biscuit coat', from: 'free' });
   for (const [id, f] of Object.entries(FREE_COATS)) if (f.hero === hero && o.unlocks.has(id)) out.push({ id, name: f.name, from: 'free' });
   if (hero === 'clem' && o.items.has('skin.clem.pink_bow')) out.push({ id: 'skin.clem.pink_bow', name: 'Pink Bow Clem', from: 'store' });

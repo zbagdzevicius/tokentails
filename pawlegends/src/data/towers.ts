@@ -32,6 +32,6 @@ export const CORE_STATS = Object.freeze({ hp: 3000, armour: 50, damage: 120, ran
 /**
  * Projectile kinds in ProjectileSnap.kind (render picks the look). 0..4 are homing bolts; 5.. are skillshots that fly
  * straight (POC.md §4.4 `projectile`): Sage's Volley arrows, her Steady Paw pierce shot and Moonshot, Clem's Golden
- * Hour wave.
+ * Hour wave, and (sim v9) Lambo's Tuna Toss and Bengas's Burnt Toast.
  */
-export const PROJECTILE_KIND = Object.freeze({ ranged: 0, siege: 1, tower: 2, core: 3, hero: 4, arrow: 5, pierce: 6, moonshot: 7, wave: 8 });
+export const PROJECTILE_KIND = Object.freeze({ ranged: 0, siege: 1, tower: 2, core: 3, hero: 4, arrow: 5, pierce: 6, moonshot: 7, wave: 8, tuna: 9, toast: 10 });

@@ -32,7 +32,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		spareHuman: 500,
 		enemyRespawnBp: 17500,
 		enemyComeback: false,
-		rallyBp: 1100,
+		rallyBp: 1200,
 		rallyCap: 8,
 		scriptFrom: 450,
 		scriptUntil: 1800,
@@ -50,7 +50,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		humanCoreFloorBp: 0,
 		pushNeedsHuman: false,
 		sideEdge: false,
-		nineLivesLossBp: 2800,
+		nineLivesLossBp: 3500,
 		enemyBackdoor: true,
 		structureHpBp: 1e4,
 		coreHpBp: 1e4,
@@ -342,6 +342,13 @@ var BOT_AI = Object.freeze({
 	pickupRange: 9e3,
 	snackRange: 14e3,
 	pickupSnackHpBp: 7e3,
+	/** Sim v9 shelter champions: Gabė shields an allied hero below careHpBp, Lambo hugs one below hugHpBp, Avietė blinks
+	*  back out of a fight below blinkOutHpBp. */
+	careHpBp: 6e3,
+	hugHpBp: 5e3,
+	blinkOutHpBp: 4e3,
+	/** Gabė casts Under Her Spell on one enemy hero only with an allied hero this close to it (mm; Lambo's rule). */
+	spellAllyRange: 4e3,
 	/** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
 	*  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */
 	followRange: 7e3,
@@ -460,6 +467,208 @@ Object.freeze({
 	idleBp: 1500,
 	/** Walks at the nearest enemy structure in its lane instead of behind its wave. */
 	dive: true
+});
+//#endregion
+//#region src/data/heroes/aviete.ts
+var AVIETE = Object.freeze({
+	id: "aviete",
+	name: "Avietė",
+	side: "cat",
+	role: "assassin",
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 13e3,
+		takenBp: 8600
+	},
+	element: "ELECTRIC",
+	base: {
+		hp: 500,
+		hpPerLevel: 54,
+		attack: 58,
+		attackPerLevel: 6,
+		attackEvery: 28,
+		range: 1600,
+		speed: 5200,
+		armour: 18,
+		armourPerLevel: 2
+	},
+	/**
+	* Shy, Then Shiny: after 1 s in brush she is Charged (it holds 4 s after she leaves brush); her next damage of
+	* any kind to an enemy hero deals +60 (+10/lvl) and stuns 0.5 s, then she cannot charge again for 8 s.
+	*/
+	passive: {
+		brushTime: 30,
+		hold: 120,
+		bonus: 60,
+		bonusPerLevel: 10,
+		stun: 15,
+		lockout: 240
+	},
+	abilities: {
+		/** Spark Swipe: cone 2.2 m, 100°, 75 (+12/lvl). */
+		q: {
+			cooldown: 180,
+			range: 2200,
+			arc: 1138,
+			dmg: 75,
+			dmgPerLevel: 12
+		},
+		/** Shiny Coat: Charged at once and +20% speed for 2 s; during the lockout only the speed. */
+		w: {
+			cooldown: 420,
+			speedBp: 2e3,
+			haste: 60
+		},
+		/** Live Wire: blink up to 4.5 m; a recast within 2 s blinks her back to where she started. */
+		e: {
+			cooldown: 420,
+			blink: 4500,
+			recastWindow: 60
+		},
+		/** Short Circuit: blink beside an enemy hero within 6 m, 150 (+30/lvl), slow enemy heroes within 3 m 40% for 1.5 s. */
+		r: {
+			cooldown: 1950,
+			range: 6e3,
+			dmg: 150,
+			dmgPerLevel: 30,
+			dazzleRadius: 3e3,
+			slowBp: 4e3,
+			slow: 45
+		}
+	},
+	talents: [
+		[{
+			id: "wide-swipe",
+			name: "Wide Swipe",
+			mods: { q: { arc: 1365 } }
+		}, {
+			id: "live-spark",
+			name: "Live Spark",
+			mods: { passive: { stun: 21 } }
+		}],
+		[{
+			id: "long-wire",
+			name: "Long Wire",
+			mods: { e: { blink: 5500 } }
+		}, {
+			id: "quick-shine",
+			name: "Quick Shine",
+			mods: { w: { cooldown: 300 } }
+		}],
+		[{
+			id: "encore",
+			name: "Encore",
+			mods: { r: { cooldown: 1500 } }
+		}, {
+			id: "blinding-shine",
+			name: "Blinding Shine",
+			mods: { r: { slowBp: 5500 } }
+		}]
+	]
+});
+//#endregion
+//#region src/data/heroes/bengas.ts
+var BENGAS = Object.freeze({
+	id: "bengas",
+	name: "Bengas",
+	side: "cat",
+	role: "mage",
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11e3,
+		takenBp: 9100
+	},
+	element: "FIRE",
+	base: {
+		hp: 470,
+		hpPerLevel: 48,
+		attack: 56,
+		attackPerLevel: 5,
+		attackEvery: 30,
+		range: 5500,
+		speed: 4900,
+		armour: 14,
+		armourPerLevel: 2
+	},
+	/** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */
+	passive: { bonusBp: 11500 },
+	abilities: {
+		/** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+13/lvl). */
+		q: {
+			cooldown: 180,
+			range: 7e3,
+			width: 800,
+			speed: 18e3,
+			dmg: 70,
+			dmgPerLevel: 13
+		},
+		/**
+		* Striking Pose: 0.3 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
+		* the others in it are slowed 25% for 1 s.
+		*/
+		w: {
+			cooldown: 420,
+			windup: 9,
+			range: 4e3,
+			arc: 796,
+			facingArc: 2048,
+			stun: 23,
+			slowBp: 2500,
+			slow: 30
+		},
+		/** Camellia Hop: dash 3.5 m, then +20% speed for 1 s. */
+		e: {
+			cooldown: 390,
+			dash: 3500,
+			hasteBp: 2e3,
+			haste: 30
+		},
+		/** Curtains Up!: a 3.5 m fire disc within 9 m; 0.6 s arm, then 8 pulses every 0.5 s of 25 (+5/lvl) and a 25% slow. */
+		r: {
+			cooldown: 1950,
+			range: 9e3,
+			windup: 18,
+			radius: 3500,
+			duration: 120,
+			every: 15,
+			dmg: 25,
+			dmgPerLevel: 5,
+			slowBp: 2500,
+			slow: 16
+		}
+	},
+	talents: [
+		[{
+			id: "extra-crispy",
+			name: "Extra Crispy",
+			mods: { q: { width: 1100 } }
+		}, {
+			id: "burnt-edges",
+			name: "Burnt Edges",
+			mods: { q: {
+				slowBp: 2e3,
+				slow: 30
+			} }
+		}],
+		[{
+			id: "showstopper",
+			name: "Showstopper",
+			mods: { w: { stun: 30 } }
+		}, {
+			id: "long-hop",
+			name: "Long Hop",
+			mods: { e: { dash: 4500 } }
+		}],
+		[{
+			id: "encore-performance",
+			name: "Encore Performance",
+			mods: { r: { duration: 180 } }
+		}, {
+			id: "wide-stage",
+			name: "Wide Stage",
+			mods: { r: { radius: 4500 } }
+		}]
+	]
 });
 //#endregion
 //#region src/data/heroes/brutus.ts
@@ -666,8 +875,8 @@ var CLEM = Object.freeze({
 	role: "fighter",
 	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
 	pvp: {
-		dmgBp: 1e4,
-		takenBp: 1e4
+		dmgBp: 9300,
+		takenBp: 10200
 	},
 	element: "FAIRY",
 	base: {
@@ -757,6 +966,206 @@ var CLEM = Object.freeze({
 	]
 });
 //#endregion
+//#region src/data/heroes/gabe.ts
+var GABE = Object.freeze({
+	id: "gabe",
+	name: "Gabė",
+	side: "cat",
+	role: "support",
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 9800,
+		takenBp: 1e4
+	},
+	element: "WIND",
+	base: {
+		hp: 500,
+		hpPerLevel: 52,
+		attack: 52,
+		attackPerLevel: 5,
+		attackEvery: 28,
+		range: 5e3,
+		speed: 5e3,
+		armour: 18,
+		armourPerLevel: 2
+	},
+	/** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */
+	passive: {
+		heal: 10,
+		healPerLevel: 2,
+		range: 6e3
+	},
+	abilities: {
+		/** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+10/lvl), allied heroes healed 25 (+5/lvl). */
+		q: {
+			cooldown: 210,
+			range: 7e3,
+			radius: 2200,
+			arm: 15,
+			dmg: 55,
+			dmgPerLevel: 10,
+			heal: 25,
+			healPerLevel: 5
+		},
+		/** Wing Wrap: shield 70 (+14/lvl) for 3 s and +20% speed for 1.5 s on the allied hero nearest the aim, else herself. */
+		w: {
+			cooldown: 360,
+			range: 6e3,
+			pickRadius: 2500,
+			shield: 70,
+			shieldPerLevel: 14,
+			duration: 90,
+			hasteBp: 2e3,
+			haste: 45
+		},
+		/** Chase the Wind: dash 4 m; allied heroes within 1.5 m of her path get +25% speed for 2 s. */
+		e: {
+			cooldown: 420,
+			dash: 4e3,
+			touch: 1500,
+			hasteBp: 2500,
+			haste: 60
+		},
+		/** Under Her Spell: 0.5 s wind-up, cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
+		r: {
+			cooldown: 2100,
+			windup: 15,
+			range: 6e3,
+			arc: 1024,
+			charm: 30,
+			slowBp: 5e3
+		}
+	},
+	talents: [
+		[{
+			id: "big-balloon",
+			name: "Big Balloon",
+			mods: { q: { radius: 2800 } }
+		}, {
+			id: "kind-breeze",
+			name: "Kind Breeze",
+			mods: { passive: { heal: 15 } }
+		}],
+		[{
+			id: "feather-fort",
+			name: "Feather Fort",
+			mods: { w: { shield: 95 } }
+		}, {
+			id: "tailwind",
+			name: "Tailwind",
+			mods: { e: { haste: 90 } }
+		}],
+		[{
+			id: "long-glance",
+			name: "Long Glance",
+			mods: { r: { range: 7500 } }
+		}, {
+			id: "smitten",
+			name: "Smitten",
+			mods: { r: { charm: 38 } }
+		}]
+	]
+});
+//#endregion
+//#region src/data/heroes/lambo.ts
+var LAMBO = Object.freeze({
+	id: "lambo",
+	name: "Lambo",
+	side: "cat",
+	role: "tank",
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 10500,
+		takenBp: 9100
+	},
+	element: "STELLAR",
+	base: {
+		hp: 740,
+		hpPerLevel: 78,
+		attack: 56,
+		attackPerLevel: 5,
+		attackEvery: 30,
+		range: 1600,
+		speed: 4700,
+		armour: 38,
+		armourPerLevel: 3
+	},
+	/** Brave With Friends: takes 10% less damage while an allied hero is within 4 m. */
+	passive: {
+		reduceBp: 1e3,
+		allyRange: 4e3
+	},
+	abilities: {
+		/** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+10/lvl), slow 25% for 1.5 s. */
+		q: {
+			cooldown: 240,
+			range: 6e3,
+			width: 900,
+			speed: 16e3,
+			dmg: 60,
+			dmgPerLevel: 10,
+			slowBp: 2500,
+			slow: 45
+		},
+		/** Big Hug: shield 7% of his max HP on himself and 4.5% on the nearest allied hero within 4 m, for 2.5 s. */
+		w: {
+			cooldown: 420,
+			range: 4e3,
+			selfBp: 700,
+			allyBp: 450,
+			duration: 75
+		},
+		/** Belly Flop: hop up to 5 m; on landing a 2.2 m ring, 50 (+8/lvl), stun 0.5 s. */
+		e: {
+			cooldown: 420,
+			dash: 5e3,
+			radius: 2200,
+			dmg: 50,
+			dmgPerLevel: 8,
+			stun: 15
+		},
+		/** Tangled Lights: 0.5 s wind-up; enemy heroes within 4.5 m pulled up to 2 m toward him, 100 (+20/lvl), root 1 s. */
+		r: {
+			cooldown: 2100,
+			windup: 15,
+			radius: 4500,
+			pull: 2e3,
+			root: 30,
+			dmg: 100,
+			dmgPerLevel: 20
+		}
+	},
+	talents: [
+		[{
+			id: "long-toss",
+			name: "Long Toss",
+			mods: { q: { range: 7500 } }
+		}, {
+			id: "extra-crispy-tuna",
+			name: "Extra Crispy",
+			mods: { q: { slowBp: 4e3 } }
+		}],
+		[{
+			id: "bigger-hug",
+			name: "Bigger Hug",
+			mods: { w: { allyBp: 700 } }
+		}, {
+			id: "flop-further",
+			name: "Flop Further",
+			mods: { e: { dash: 6500 } }
+		}],
+		[{
+			id: "fairy-light-finale",
+			name: "Fairy-Light Finale",
+			mods: { r: { root: 45 } }
+		}, {
+			id: "wide-tangle",
+			name: "Wide Tangle",
+			mods: { r: { radius: 5500 } }
+		}]
+	]
+});
+//#endregion
 //#region src/data/heroes/sage.ts
 var SAGE = Object.freeze({
 	id: "sage",
@@ -765,8 +1174,8 @@ var SAGE = Object.freeze({
 	role: "marksman",
 	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
 	pvp: {
-		dmgBp: 1e4,
-		takenBp: 1e4
+		dmgBp: 10300,
+		takenBp: 9800
 	},
 	element: "WIND",
 	base: {
@@ -866,17 +1275,26 @@ var SAGE = Object.freeze({
 //#endregion
 //#region src/data/heroes/index.ts
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
+/** Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices. */
 var HERO_IDS = Object.freeze([
 	"clem",
 	"sage",
 	"brutus",
-	"cacklejaw"
+	"cacklejaw",
+	"lambo",
+	"aviete",
+	"bengas",
+	"gabe"
 ]);
 var HEROES = Object.freeze({
 	clem: CLEM,
 	sage: SAGE,
 	brutus: BRUTUS,
-	cacklejaw: CACKLEJAW
+	cacklejaw: CACKLEJAW,
+	lambo: LAMBO,
+	aviete: AVIETE,
+	bengas: BENGAS,
+	gabe: GABE
 });
 /**
 * Every hero's HP (base and per level) × this. The fun plan started at × 1.2; tuning settled on × 1.0 with
@@ -1670,7 +2088,7 @@ var CORE_STATS = Object.freeze({
 /**
 * Projectile kinds in ProjectileSnap.kind (render picks the look). 0..4 are homing bolts; 5.. are skillshots that fly
 * straight (POC.md §4.4 `projectile`): Sage's Volley arrows, her Steady Paw pierce shot and Moonshot, Clem's Golden
-* Hour wave.
+* Hour wave, and (sim v9) Lambo's Tuna Toss and Bengas's Burnt Toast.
 */
 var PROJECTILE_KIND = Object.freeze({
 	ranged: 0,
@@ -1681,7 +2099,9 @@ var PROJECTILE_KIND = Object.freeze({
 	arrow: 5,
 	pierce: 6,
 	moonshot: 7,
-	wave: 8
+	wave: 8,
+	tuna: 9,
+	toast: 10
 });
 //#endregion
 //#region src/data/xp.ts
@@ -2209,6 +2629,7 @@ function createWorld(seed) {
 		fearT: new Int32Array(n),
 		fearX: new Int32Array(n),
 		fearY: new Int32Array(n),
+		fearSrc: new Int32Array(n).fill(-1),
 		slowT: new Int32Array(n),
 		slowBp: new Int32Array(n),
 		hasteT: new Int32Array(n),
@@ -2309,6 +2730,11 @@ function createWorld(seed) {
 		zTtl: new Int32Array(z),
 		zArm: new Int32Array(z),
 		zVal: new Int32Array(z).fill(-1),
+		zDmg: new Int32Array(z),
+		zHeal: new Int32Array(z),
+		zSlowBp: new Int32Array(z),
+		zEvery: new Int32Array(z),
+		zNext: new Int32Array(z),
 		pkAlive: new Uint8Array(CAPS.pickups),
 		pkKind: new Uint8Array(CAPS.pickups),
 		pkTeam: new Uint8Array(CAPS.pickups),
@@ -2367,6 +2793,7 @@ function hashedArrays(w) {
 		w.fearT,
 		w.fearX,
 		w.fearY,
+		w.fearSrc,
 		w.slowT,
 		w.slowBp,
 		w.hasteT,
@@ -2467,6 +2894,11 @@ function hashedArrays(w) {
 		w.zTtl,
 		w.zArm,
 		w.zVal,
+		w.zDmg,
+		w.zHeal,
+		w.zSlowBp,
+		w.zEvery,
+		w.zNext,
 		w.pkAlive,
 		w.pkKind,
 		w.pkTeam,
@@ -2517,14 +2949,24 @@ var EFFECTS = Object.freeze({
 	/** A dash or knockback stops at walls; the path is sampled every this many mm. */
 	wallStep: 250,
 	/** Skillshot projectile hit radius when the ability gives no width (mm). */
-	projectileRadius: 300
+	projectileRadius: 300,
+	/** Charm (sim v9, Gabė's Under Her Spell): the charmed unit walks toward its charmer and stops this close (mm). */
+	charmStop: 1e3,
+	/** A pull (Lambo's Tangled Lights) stops this far (mm) short of the puller's footprint, so nobody ends past him. */
+	pullGap: 200
 });
 /** Zone kinds in ZoneSnap.kind (render picks the look). */
 var ZONE_KIND = Object.freeze({
 	/** Sage's Sun Snare. Hidden from the enemy team's snapshot. */
 	trap: 0,
 	/** Sir Brutus's Champion's Challenge ring (tether). */
-	arena: 1
+	arena: 1,
+	/**
+	* Sim v9: a burst disc (Bengas's Curtains Up!, Gabė's Heart Balloon). After `arm` ticks it pulses every `zEvery`
+	* ticks (0: once, then it vanishes): enemies in it take `zDmg` and a `zSlowBp` slow for `zVal` ticks, allied heroes
+	* heal `zHeal`. Visible to both teams.
+	*/
+	burst: 2
 });
 //#endregion
 //#region src/data/pickups.ts
@@ -3207,13 +3649,14 @@ function interrupt(w, id, hard) {
 		w.healLeft[id] = 0;
 	}
 }
-/** Is `id` unable to act (stunned, feared, knocked back)? */
+/** Is `id` unable to act (stunned, feared or charmed, knocked back)? */
 var disabled = (w, id) => w.stunT[id] > 0 || w.fearT[id] > 0 || w.fmKind[id] === FM.Knock;
 /** Clear every status of `id` (death, respawn). */
 function clearStatus(w, id) {
 	w.stunT[id] = 0;
 	w.rootT[id] = 0;
 	w.fearT[id] = 0;
+	w.fearSrc[id] = -1;
 	w.slowT[id] = 0;
 	w.slowBp[id] = 0;
 	w.hasteT[id] = 0;
@@ -3244,6 +3687,7 @@ function tickStatus(w) {
 		dec(w.stunT, id);
 		dec(w.rootT, id);
 		dec(w.fearT, id);
+		if (w.fearT[id] === 0) w.fearSrc[id] = -1;
 		dec(w.slowT, id);
 		if (w.slowT[id] === 0) w.slowBp[id] = 0;
 		dec(w.hasteT, id);
@@ -3259,6 +3703,38 @@ function tickStatus(w) {
 	}
 }
 //#endregion
+//#region src/sim/effects/heal.ts
+/** `heal` (POC.md §4.4): instant, or over time (Snack Break; broken by hard CC, see status.ts `interrupt`). */
+/** Heal `id` by `amount`, capped at max HP. Returns the HP restored. */
+function heal(w, id, amount) {
+	if (w.alive[id] === 0 || amount <= 0) return 0;
+	const before = w.hp[id];
+	w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + amount);
+	return w.hp[id] - before;
+}
+function healOverTime(w, id, total, ticks) {
+	if (w.alive[id] === 0 || total <= 0 || ticks <= 0) return;
+	w.healT[id] = ticks;
+	w.healLeft[id] = total;
+}
+/** One tick of every heal over time: equal shares, the remainder on the last tick, so the total is exact. */
+function stepHeals(w, from, to) {
+	for (let id = from; id < to; id++) {
+		if (w.healT[id] === 0 || w.alive[id] === 0) continue;
+		const part = idiv(w.healLeft[id], w.healT[id]);
+		heal(w, id, part);
+		w.healLeft[id] -= part;
+		w.healT[id]--;
+	}
+}
+//#endregion
+//#region src/sim/effects/ring.ts
+/** `ring` (POC.md §4.4): everything whose footprint touches a disc of radius `r` around (x, y). */
+function inRing(x, y, r, px, py, pr) {
+	const reach = r + pr;
+	return dist2(x, y, px, py) <= reach * reach;
+}
+//#endregion
 //#region src/sim/effects/root.ts
 /** `root` (POC.md §4.4): no walking and no mobility casts; attacks and other casts still work. Stops a dash. */
 function root(w, id, ticks) {
@@ -3271,10 +3747,44 @@ function root(w, id, ticks) {
 	}
 }
 //#endregion
+//#region src/sim/effects/slow.ts
+function slow(w, id, bp, ticks) {
+	if (bp <= 0 || ticks <= 0 || ccImmune(w, id)) return;
+	if (w.slowT[id] > 0 && bp < w.slowBp[id]) return;
+	if (bp > w.slowBp[id]) w.slowT[id] = ticks;
+	else w.slowT[id] = Math.max(w.slowT[id], ticks);
+	w.slowBp[id] = bp;
+}
+//#endregion
+//#region src/sim/effects/targets.ts
+/**
+* Who an ability can hit: enemy heroes, minions, camp monsters and Pudding that `team` can target and see (never
+* structures, never untargetable or hidden units). Ascending id, so every area effect resolves in a fixed order.
+*/
+/** Ids `team`'s abilities may hit, ascending. */
+function isAbilityTarget(w, e, team) {
+	if (e >= RANGE.towers && e < RANGE.camps) return false;
+	return targetable(w, e, team);
+}
+/**
+* Collect the ability targets of `team` that pass `test(e, radius)` into `out`; returns the count. `heroesOnly`
+* restricts to hero ids.
+*/
+function collect(w, team, out, test, heroesOnly = false) {
+	let n = 0;
+	const end = heroesOnly ? RANGE.minions : RANGE.end;
+	for (let e = 0; e < end; e++) {
+		if (!isAbilityTarget(w, e, team)) continue;
+		if (test(e, radiusOf(w, e))) out[n++] = e;
+	}
+	return n;
+}
+//#endregion
 //#region src/sim/effects/zone.ts
 /**
 * `zone` (POC.md §4.4, trap): a disc on the ground with a lifetime. A trap arms after `arm` ticks and roots the
 * first enemy hero (ascending id) whose footprint touches it, then disappears. Arenas are zones too (tether.ts).
+* Sim v9: a burst (ZONE_KIND.burst) pulses once armed: damage and a slow on enemies, a heal on allied heroes.
 */
 function spawnZone(w, kind, team, owner, x, y, radius, ttl, arm, val) {
 	const z = allocZone(w);
@@ -3289,7 +3799,49 @@ function spawnZone(w, kind, team, owner, x, y, radius, ttl, arm, val) {
 	w.zTtl[z] = ttl;
 	w.zArm[z] = arm;
 	w.zVal[z] = val;
+	w.zDmg[z] = 0;
+	w.zHeal[z] = 0;
+	w.zSlowBp[z] = 0;
+	w.zEvery[z] = 0;
+	w.zNext[z] = 0;
 	return z;
+}
+/**
+* A burst disc (sim v9) of `owner`'s `team`: armed after `arm` ticks, it lives `ttl` ticks and pulses every `every`
+* ticks (0: one pulse, then gone). Each pulse: enemies in it take `dmg` (an ability hit from `owner`) and a `slowBp`
+* slow for `slowTicks`; allied heroes in it heal `healAmt`. Returns the zone index or −1.
+*/
+function spawnBurst(w, team, owner, x, y, radius, arm, ttl, dmg, healAmt, every, slowBp, slowTicks) {
+	const z = spawnZone(w, ZONE_KIND.burst, team, owner, x, y, radius, ttl, arm, slowTicks);
+	if (z < 0) return -1;
+	w.zDmg[z] = dmg;
+	w.zHeal[z] = healAmt;
+	w.zSlowBp[z] = slowBp;
+	w.zEvery[z] = every;
+	w.zNext[z] = 0;
+	return z;
+}
+var burstHits = new Int32Array(ENTITY_CAP);
+/** One pulse of burst zone `z`. */
+function pulse(m, z) {
+	const w = m.world;
+	const team = w.zTeam[z];
+	const zx = w.zX[z];
+	const zy = w.zY[z];
+	const r = w.zRadius[z];
+	const owner = w.zOwner[z];
+	if (w.zDmg[z] > 0 || w.zSlowBp[z] > 0) {
+		const n = collect(w, team, burstHits, (e, er) => inRing(zx, zy, r, w.x[e], w.y[e], er));
+		for (let i = 0; i < n; i++) {
+			const e = burstHits[i];
+			if (w.zDmg[z] > 0) dealDamage(m, owner, team, Kind.Hero, e, w.zDmg[z], "ability");
+			slow(w, e, w.zSlowBp[z], w.zVal[z]);
+		}
+	}
+	if (w.zHeal[z] > 0) for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== team) continue;
+		if (inRing(zx, zy, r, w.x[a], w.y[a], radiusOf(w, a))) heal(w, a, w.zHeal[z]);
+	}
 }
 /** Zones of `kind` owned by `owner`, and the oldest one (least ttl left; ties: lowest index). */
 function oldestZone(w, owner, kind) {
@@ -3319,12 +3871,26 @@ function ageZones(w) {
 		else w.zAlive[z] = 0;
 	}
 }
-/** Step 6: armed traps root the first enemy hero (ascending id) whose footprint touches them, then vanish. */
+/**
+* Step 6: armed traps root the first enemy hero (ascending id) whose footprint touches them, then vanish. Armed
+* bursts pulse when their countdown is at 0 (sim v9).
+*/
 function stepZones(m) {
 	const w = m.world;
 	const tick = w.globals[G.Tick];
 	for (let z = 0; z < w.zAlive.length; z++) {
-		if (w.zAlive[z] === 0 || w.zKind[z] !== ZONE_KIND.trap || w.zArm[z] > 0) continue;
+		if (w.zAlive[z] === 0 || w.zArm[z] > 0) continue;
+		if (w.zKind[z] === ZONE_KIND.burst) {
+			if (w.zNext[z] > 0) {
+				w.zNext[z]--;
+				continue;
+			}
+			pulse(m, z);
+			if (w.zEvery[z] === 0) w.zAlive[z] = 0;
+			else w.zNext[z] = w.zEvery[z] - 1;
+			continue;
+		}
+		if (w.zKind[z] !== ZONE_KIND.trap) continue;
 		for (let e = RANGE.heroes; e < RANGE.minions; e++) {
 			if (w.alive[e] === 0 || w.team[e] === w.zTeam[z] || w.untargT[e] > 0) continue;
 			const reach = w.zRadius[z] + radiusOf(w, e);
@@ -3537,13 +4103,6 @@ function inCone(x, y, dir, range, arc, px, py, pr) {
 	return Math.abs(angleDiff(dir, iatan2(py - y, px - x))) * 2 <= arc;
 }
 //#endregion
-//#region src/sim/effects/ring.ts
-/** `ring` (POC.md §4.4): everything whose footprint touches a disc of radius `r` around (x, y). */
-function inRing(x, y, r, px, py, pr) {
-	const reach = r + pr;
-	return dist2(x, y, px, py) <= reach * reach;
-}
-//#endregion
 //#region src/sim/effects/projectile.ts
 /**
 * `projectile` (POC.md §4.4, pierce): skillshots fly straight from the caster at a fixed speed for a fixed range
@@ -3622,44 +4181,18 @@ function reflectSkillshot(w, p, by) {
 * expire; `inFront` is the frontal-arc test used by Clem's The Stand (damage) and Sir Brutus's Front Guard
 * (projectiles).
 */
+/** A flat shield of `amount`, for `ticks` (0 = until used up). A bigger shield replaces a smaller one. */
+function addShield(w, id, amount, ticks) {
+	if (w.alive[id] === 0 || amount <= 0) return;
+	if (amount >= w.shield[id]) {
+		w.shield[id] = amount;
+		w.shieldT[id] = ticks;
+	}
+}
 /** Is (x, y) within the `arc` (full width, angle steps) in front of `id`'s facing? */
 function inFront(w, id, x, y, arc) {
 	if (x === w.x[id] && y === w.y[id]) return true;
 	return Math.abs(angleDiff(w.facing[id], iatan2(y - w.y[id], x - w.x[id]))) * 2 <= arc;
-}
-//#endregion
-//#region src/sim/effects/heal.ts
-/** `heal` (POC.md §4.4): instant, or over time (Snack Break; broken by hard CC, see status.ts `interrupt`). */
-/** Heal `id` by `amount`, capped at max HP. Returns the HP restored. */
-function heal(w, id, amount) {
-	if (w.alive[id] === 0 || amount <= 0) return 0;
-	const before = w.hp[id];
-	w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + amount);
-	return w.hp[id] - before;
-}
-function healOverTime(w, id, total, ticks) {
-	if (w.alive[id] === 0 || total <= 0 || ticks <= 0) return;
-	w.healT[id] = ticks;
-	w.healLeft[id] = total;
-}
-/** One tick of every heal over time: equal shares, the remainder on the last tick, so the total is exact. */
-function stepHeals(w, from, to) {
-	for (let id = from; id < to; id++) {
-		if (w.healT[id] === 0 || w.alive[id] === 0) continue;
-		const part = idiv(w.healLeft[id], w.healT[id]);
-		heal(w, id, part);
-		w.healLeft[id] -= part;
-		w.healT[id]--;
-	}
-}
-//#endregion
-//#region src/sim/effects/slow.ts
-function slow(w, id, bp, ticks) {
-	if (bp <= 0 || ticks <= 0 || ccImmune(w, id)) return;
-	if (w.slowT[id] > 0 && bp < w.slowBp[id]) return;
-	if (bp > w.slowBp[id]) w.slowT[id] = ticks;
-	else w.slowT[id] = Math.max(w.slowT[id], ticks);
-	w.slowBp[id] = bp;
 }
 //#endregion
 //#region src/sim/effects/stun.ts
@@ -3691,27 +4224,56 @@ function knockback(m, id, fromX, fromY, dist, fallbackAngle) {
 }
 //#endregion
 //#region src/sim/effects/fear.ts
-/** `fear` (POC.md §4.4): the unit runs straight away from (fromX, fromY) and cannot act. */
+/**
+* `fear` (POC.md §4.4): the unit runs straight away from (fromX, fromY) and cannot act. `charm` (sim v9, Gabė's
+* Under Her Spell) is the same hard CC turned around: the unit walks toward its charmer (`fearSrc`), stops
+* EFFECTS.charmStop short of it, and the charm ends early when the charmer dies.
+*/
 function fear(w, id, ticks, fromX, fromY) {
 	if (ticks <= 0 || ccImmune(w, id)) return;
 	w.fearT[id] = Math.max(w.fearT[id], ticks);
 	w.fearX[id] = fromX;
 	w.fearY[id] = fromY;
+	w.fearSrc[id] = -1;
+	interrupt(w, id, true);
+}
+/** Charm `id` for `ticks`: it walks toward unit `src` (at its own, slowed, move speed) and cannot act. */
+function charm(w, id, ticks, src) {
+	if (ticks <= 0 || ccImmune(w, id) || src < 0) return;
+	w.fearT[id] = Math.max(w.fearT[id], ticks);
+	w.fearX[id] = w.x[src];
+	w.fearY[id] = w.y[src];
+	w.fearSrc[id] = src;
 	interrupt(w, id, true);
 }
 var out$4 = /* @__PURE__ */ new Int32Array(3);
-/** One tick of running away. Heroes stop at walls; rooted units only cower. */
+/** One tick of running away (or, charmed, walking toward the charmer). Heroes stop at walls; rooted units only cower. */
 function fleeStep(w, grid, id) {
+	const src = w.fearSrc[id];
+	if (src >= 0) {
+		if (w.alive[src] === 0) {
+			w.fearT[id] = 0;
+			w.fearSrc[id] = -1;
+			return;
+		}
+		w.fearX[id] = w.x[src];
+		w.fearY[id] = w.y[src];
+	}
 	if (w.rootT[id] > 0) return;
 	let dx = w.x[id] - w.fearX[id];
 	let dy = w.y[id] - w.fearY[id];
+	if (src >= 0) {
+		if (dist2(w.x[id], w.y[id], w.fearX[id], w.fearY[id]) <= EFFECTS.charmStop * EFFECTS.charmStop) return;
+		dx = -dx;
+		dy = -dy;
+	}
 	let d = isqrt(dx * dx + dy * dy);
 	if (d === 0) {
 		dx = w.team[id] === 0 ? -1 : 1;
 		dy = 0;
 		d = 1;
 	}
-	const far = MAP.navCell;
+	const far = src >= 0 ? Math.min(MAP.navCell, d - EFFECTS.charmStop) : MAP.navCell;
 	const tx = clamp(w.x[id] + idiv(dx * far, d), 0, MAP.width);
 	const ty = clamp(w.y[id] + idiv(dy * far, d), 0, MAP.height);
 	moveToward(w.x[id], w.y[id], tx, ty, applyBp(moveSpeed(w, id), EFFECTS.fearSpeedBp), w.moveCarry[id], 30, out$4);
@@ -3762,30 +4324,6 @@ function reveal(w, id, ticks) {
 	if (w.alive[id] === 1 && ticks > 0) w.revealT[id] = Math.max(w.revealT[id], ticks);
 }
 //#endregion
-//#region src/sim/effects/targets.ts
-/**
-* Who an ability can hit: enemy heroes, minions, camp monsters and Pudding that `team` can target and see (never
-* structures, never untargetable or hidden units). Ascending id, so every area effect resolves in a fixed order.
-*/
-/** Ids `team`'s abilities may hit, ascending. */
-function isAbilityTarget(w, e, team) {
-	if (e >= RANGE.towers && e < RANGE.camps) return false;
-	return targetable(w, e, team);
-}
-/**
-* Collect the ability targets of `team` that pass `test(e, radius)` into `out`; returns the count. `heroesOnly`
-* restricts to hero ids.
-*/
-function collect(w, team, out, test, heroesOnly = false) {
-	let n = 0;
-	const end = heroesOnly ? RANGE.minions : RANGE.end;
-	for (let e = 0; e < end; e++) {
-		if (!isAbilityTarget(w, e, team)) continue;
-		if (test(e, radiusOf(w, e))) out[n++] = e;
-	}
-	return n;
-}
-//#endregion
 //#region src/sim/heroes/clem.ts
 /**
 * Clem, Fighter (POC.md §6.3). Bespoke hooks: Valor (passive), the Paw Combo recasts, The Stand's frontal block and
@@ -3793,8 +4331,8 @@ function collect(w, team, out, test, heroesOnly = false) {
 * Wind (Tumble resets on a takedown) and Sunlit Mend (heals a share of the damage dealt during Golden Hour).
 */
 var Q$1 = 0;
-var E = 2;
-var hits$4 = new Int32Array(ENTITY_CAP);
+var E$1 = 2;
+var hits$8 = new Int32Array(ENTITY_CAP);
 /** Spend a full Valor bar: true when this cast is empowered. */
 function spendValor(w, id) {
 	const p = abil(w, id).passive;
@@ -3806,7 +4344,7 @@ function spendValor(w, id) {
 function parryOpen(w, id) {
 	return w.kind[id] === Kind.Hero && w.sub[id] === 0 && w.kWT[id] > 0 && w.kWAge[id] < abil(w, id).w.parryWindow;
 }
-function aim$3(a, slot) {
+function aim$7(a, slot) {
 	switch (slot) {
 		case 0: return {
 			aim: Aim.Dir,
@@ -3844,10 +4382,10 @@ function castQ(m, id, x, y) {
 	if (spendValor(w, id)) dmg = applyBp(dmg, a.passive.valorBonusBp);
 	const hx = w.x[id];
 	const hy = w.y[id];
-	const n = collect(w, w.team[id], hits$4, (e, r) => inCone(hx, hy, dir, q.range, q.arc, w.x[e], w.y[e], r));
+	const n = collect(w, w.team[id], hits$8, (e, r) => inCone(hx, hy, dir, q.range, q.arc, w.x[e], w.y[e], r));
 	const last = stage >= 1 + q.recasts;
 	for (let i = 0; i < n; i++) {
-		const e = hits$4[i];
+		const e = hits$8[i];
 		dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, "ability");
 		if (!last) continue;
 		if ((q.stun ?? 0) > 0) stun(w, e, q.stun);
@@ -3864,7 +4402,7 @@ function castQ(m, id, x, y) {
 	return 0;
 }
 var CLEM_KIT = {
-	aim: aim$3,
+	aim: aim$7,
 	recastReady: (w, id, slot) => slot === Q$1 && w.kStage[id] > 0 && w.kWindow[id] > 0,
 	cast(m, id, slot, x, y) {
 		const w = m.world;
@@ -3935,7 +4473,7 @@ var CLEM_KIT = {
 		if (w.kRT[id] > 0 && (a.r.lifestealBp ?? 0) > 0) heal(w, id, applyBp(dmg, a.r.lifestealBp));
 	},
 	onTakedown(m, id) {
-		if (hasTalent(m.world, id, "second-wind")) m.world.cooldowns[id * 5 + E] = 0;
+		if (hasTalent(m.world, id, "second-wind")) m.world.cooldowns[id * 5 + E$1] = 0;
 	},
 	reset(w, id) {
 		w.kStage[id] = 0;
@@ -3954,7 +4492,7 @@ var CLEM_KIT = {
 * bolt), Volley's per-target arrow cap, Sun Snare's trap limit, Hop Back's "away from the aim" direction and
 * Moonshot's windup (telegraphed through the `windup` event).
 */
-function aim$2(a, slot) {
+function aim$6(a, slot) {
 	switch (slot) {
 		case 0: return {
 			aim: Aim.Dir,
@@ -4014,7 +4552,7 @@ function snare(m, id, x, y) {
 	return spawnZone(w, ZONE_KIND.trap, w.team[id], id, x, y, s.radius, s.duration, s.arm, s.root) < 0 ? -1 : s.cooldown;
 }
 var SAGE_KIT = {
-	aim: aim$2,
+	aim: aim$6,
 	cast(m, id, slot, x, y) {
 		const w = m.world;
 		const a = abil(w, id);
@@ -4066,8 +4604,8 @@ var SAGE_KIT = {
 		w.kCount[id] = 0;
 	}
 };
-var hits$3 = new Int32Array(ENTITY_CAP);
-function aim$1(a, slot) {
+var hits$7 = new Int32Array(ENTITY_CAP);
+function aim$5(a, slot) {
 	switch (slot) {
 		case 0:
 		case 1: return {
@@ -4109,7 +4647,7 @@ function guardBlocks(w, team, x, y) {
 	return false;
 }
 var BRUTUS_KIT = {
-	aim: aim$1,
+	aim: aim$5,
 	cast(m, id, slot, x, y, target) {
 		const w = m.world;
 		const a = abil(w, id);
@@ -4118,11 +4656,11 @@ var BRUTUS_KIT = {
 				const q = a.q;
 				const hx = w.x[id];
 				const hy = w.y[id];
-				const n = collect(w, w.team[id], hits$3, (e, r) => inRing(hx, hy, q.radius, w.x[e], w.y[e], r));
+				const n = collect(w, w.team[id], hits$7, (e, r) => inRing(hx, hy, q.radius, w.x[e], w.y[e], r));
 				const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
 				for (let i = 0; i < n; i++) {
-					dealDamage(m, id, w.team[id], Kind.Hero, hits$3[i], dmg, "ability");
-					slow(w, hits$3[i], q.slowBp, q.slow);
+					dealDamage(m, id, w.team[id], Kind.Hero, hits$7[i], dmg, "ability");
+					slow(w, hits$7[i], q.slowBp, q.slow);
 				}
 				return q.cooldown;
 			}
@@ -4212,8 +4750,8 @@ var BRUTUS_KIT = {
 */
 var Q = 0;
 var R = 3;
-var hits$2 = new Int32Array(ENTITY_CAP);
-function aim(a, slot) {
+var hits$6 = new Int32Array(ENTITY_CAP);
+function aim$4(a, slot) {
 	switch (slot) {
 		case 0: return {
 			aim: Aim.Dir,
@@ -4269,7 +4807,7 @@ function endHunt(w, id) {
 	w.moveY[id] = w.y[id];
 }
 var CACKLEJAW_KIT = {
-	aim,
+	aim: aim$4,
 	recastReady: (w, id, slot) => slot === Q && w.kStage[id] === 2 && w.kWindow[id] > 0,
 	cast(m, id, slot, x, y) {
 		const w = m.world;
@@ -4288,8 +4826,8 @@ var CACKLEJAW_KIT = {
 				const hx = w.x[id];
 				const hy = w.y[id];
 				const dir = aimAngle(w, id, x, y);
-				const n = collect(w, w.team[id], hits$2, (e, r) => inCone(hx, hy, dir, g.range, g.arc, w.x[e], w.y[e], r));
-				for (let i = 0; i < n; i++) fear(w, hits$2[i], g.fear, hx, hy);
+				const n = collect(w, w.team[id], hits$6, (e, r) => inCone(hx, hy, dir, g.range, g.arc, w.x[e], w.y[e], r));
+				for (let i = 0; i < n; i++) fear(w, hits$6[i], g.fear, hx, hy);
 				return g.cooldown;
 			}
 			case 2:
@@ -4333,10 +4871,10 @@ var CACKLEJAW_KIT = {
 		if (w.fmKind[id] === FM.Hunt || w.kStage[id] !== 1 && w.kStage[id] !== 3) return;
 		const q = abil(w, id).q;
 		const half = q.width >> 1;
-		const n = collect(w, w.team[id], hits$2, (e, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
+		const n = collect(w, w.team[id], hits$6, (e, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
 		const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
 		for (let i = 0; i < n; i++) {
-			const e = hits$2[i];
+			const e = hits$6[i];
 			if (e < 32) w.fmHitLo[id] |= 1 << e;
 			else w.fmHitHi[id] |= 1 << e - 32;
 			dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, "ability");
@@ -4399,6 +4937,530 @@ var CACKLEJAW_KIT = {
 	}
 };
 //#endregion
+//#region src/sim/heroes/lambo.ts
+/**
+* Lambo, Tank (shelter champion, sim v9). Bespoke hooks: Brave With Friends (less damage taken with an allied hero
+* near), Big Hug's two shields, Belly Flop's landing ring and Tangled Lights' pull toward him.
+*
+* Kit arrays: `kStage` = 1 while a Belly Flop hop is in flight (the landing resolves in the first stepKit after the
+* dash ended, and only when Lambo is not disabled: a hop stopped by a stun lands nothing).
+*/
+var hits$5 = new Int32Array(ENTITY_CAP);
+function aim$3(a, slot) {
+	switch (slot) {
+		case 0: return {
+			aim: Aim.Dir,
+			reach: a.q.range,
+			windup: 0,
+			mobility: false
+		};
+		case 1: return {
+			aim: Aim.Self,
+			reach: 0,
+			windup: 0,
+			mobility: false
+		};
+		case 2: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: 0,
+			mobility: true
+		};
+		default: return {
+			aim: Aim.Self,
+			reach: 0,
+			windup: a.r.windup,
+			mobility: false
+		};
+	}
+}
+/** Nearest living allied hero of `id` (not itself) within `range`, or −1. */
+function nearestAlly(w, id, range) {
+	let best = -1;
+	let bestD = 0;
+	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
+		const d = dist2(w.x[id], w.y[id], w.x[a], w.y[a]);
+		if (d > range * range) continue;
+		if (best < 0 || d < bestD) {
+			best = a;
+			bestD = d;
+		}
+	}
+	return best;
+}
+/** Belly Flop lands: a ring of damage and a stun around Lambo. */
+function land(m, id) {
+	const w = m.world;
+	const e = abil(w, id).e;
+	const hx = w.x[id];
+	const hy = w.y[id];
+	const n = collect(w, w.team[id], hits$5, (t, r) => inRing(hx, hy, e.radius, w.x[t], w.y[t], r));
+	const dmg = lvl(w, id, e.dmg, e.dmgPerLevel);
+	for (let i = 0; i < n; i++) {
+		dealDamage(m, id, w.team[id], Kind.Hero, hits$5[i], dmg, "ability");
+		stun(w, hits$5[i], e.stun);
+	}
+}
+/** Tangled Lights: pull every enemy hero in the ring toward Lambo (never past him), damage and root. */
+function tangle(m, id) {
+	const w = m.world;
+	const r = abil(w, id).r;
+	const lx = w.x[id];
+	const ly = w.y[id];
+	const n = collect(w, w.team[id], hits$5, (t, tr) => inRing(lx, ly, r.radius, w.x[t], w.y[t], tr), true);
+	const dmg = lvl(w, id, r.dmg, r.dmgPerLevel);
+	for (let i = 0; i < n; i++) {
+		const e = hits$5[i];
+		const ex = w.x[e];
+		const ey = w.y[e];
+		const d = isqrt(dist2(lx, ly, ex, ey));
+		const pd = Math.min(r.pull, Math.max(0, d - radiusOf(w, id) - radiusOf(w, e) - EFFECTS.pullGap));
+		if (pd > 0) knockback(m, e, 2 * ex - lx, 2 * ey - ly, pd, w.facing[id] + HALF_TURN);
+		dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, "ability");
+		root(w, e, r.root);
+	}
+	return r.cooldown;
+}
+var LAMBO_KIT = {
+	aim: aim$3,
+	cast(m, id, slot, x, y) {
+		const w = m.world;
+		const a = abil(w, id);
+		switch (slot) {
+			case 0: {
+				const q = a.q;
+				fireSkillshot(w, id, {
+					kind: PROJECTILE_KIND.tuna,
+					angle: aimAngle(w, id, x, y),
+					speed: q.speed,
+					range: q.range,
+					radius: q.width >> 1,
+					dmg: lvl(w, id, q.dmg, q.dmgPerLevel),
+					flags: 0,
+					effect: ON_HIT.Slow,
+					effA: q.slowBp,
+					effB: q.slow
+				});
+				return q.cooldown;
+			}
+			case 1: {
+				const h = a.w;
+				addShield(w, id, applyBp(w.maxHp[id], h.selfBp), h.duration);
+				const ally = nearestAlly(w, id, h.range);
+				if (ally >= 0) addShield(w, ally, applyBp(w.maxHp[id], h.allyBp), h.duration);
+				return h.cooldown;
+			}
+			case 2: {
+				const to = x === w.x[id] && y === w.y[id] ? a.e.dash : Math.min(a.e.dash, isqrt(dist2(w.x[id], w.y[id], x, y)));
+				dash(m, id, aimAngle(w, id, x, y), Math.max(1, to));
+				w.kStage[id] = 1;
+				return a.e.cooldown;
+			}
+			default: return tangle(m, id);
+		}
+	},
+	stepKit(m, id) {
+		const w = m.world;
+		if (w.kStage[id] === 1 && w.fmKind[id] === FM.None) {
+			w.kStage[id] = 0;
+			if (!disabled(w, id)) land(m, id);
+		}
+	},
+	incoming(m, id, _src, dmg) {
+		const w = m.world;
+		const p = abil(w, id).passive;
+		return nearestAlly(w, id, p.allyRange) >= 0 ? applyBp(dmg, BP_ONE - p.reduceBp) : dmg;
+	},
+	reset(w, id) {
+		w.kStage[id] = 0;
+	}
+};
+//#endregion
+//#region src/sim/heroes/aviete.ts
+/**
+* Avietė, Assassin (shelter champion, sim v9). Bespoke hooks: Shy, Then Shiny (a charge built in brush that makes
+* her next damage of any kind to an enemy hero deal bonus damage and stun, with a lockout after), Shiny Coat (charge on demand),
+* Live Wire's blink with a recast back, and Short Circuit's blink to a hero that opens the same way back.
+*
+* Kit arrays: `kWAge` ticks in brush (0 outside); `kRT` charge ticks left (held while in brush); `kHuntT` lockout
+* ticks left; `kStage` the open return (0 none, 1 from Live Wire, 2 from Short Circuit); `kWindow` return ticks
+* left; `kChain`/`kEmpower` the return point x/y; `kCount` the tick Live Wire was cast (its cooldown counts from it).
+*/
+var E = 2;
+var hits$4 = new Int32Array(ENTITY_CAP);
+function aim$2(a, slot) {
+	switch (slot) {
+		case 0: return {
+			aim: Aim.Dir,
+			reach: a.q.range,
+			windup: 0,
+			mobility: false
+		};
+		case 1: return {
+			aim: Aim.Self,
+			reach: 0,
+			windup: 0,
+			mobility: false
+		};
+		case 2: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: 0,
+			mobility: true
+		};
+		default: return {
+			aim: Aim.Unit,
+			reach: a.r.range,
+			windup: 0,
+			mobility: true
+		};
+	}
+}
+/** Charge her now unless she is locked out. */
+function charge(w, id) {
+	if (w.kHuntT[id] === 0) w.kRT[id] = abil(w, id).passive.hold;
+}
+/** A Live Wire return window that closes unused starts its cooldown, counted from the cast. */
+function closeWireWindow(w, id) {
+	if (w.kStage[id] === 1) {
+		const since = w.globals[G.Tick] - w.kCount[id];
+		w.cooldowns[id * 5 + E] = Math.max(0, abil(w, id).e.cooldown - since);
+	}
+	w.kStage[id] = 0;
+	w.kWindow[id] = 0;
+}
+/** Live Wire: blink out (open the return), or the recast back to the stored point. */
+function liveWire(m, id, x, y) {
+	const w = m.world;
+	const a = abil(w, id);
+	if (w.kStage[id] > 0 && w.kWindow[id] > 0) {
+		const from = w.kStage[id];
+		blink(m, id, w.kChain[id], w.kEmpower[id], a.e.blink + a.r.range);
+		w.kStage[id] = 0;
+		w.kWindow[id] = 0;
+		return from === 1 ? a.e.cooldown : 0;
+	}
+	w.kChain[id] = w.x[id];
+	w.kEmpower[id] = w.y[id];
+	blink(m, id, x, y, a.e.blink);
+	w.kStage[id] = 1;
+	w.kWindow[id] = a.e.recastWindow;
+	w.kCount[id] = w.globals[G.Tick];
+	return 0;
+}
+/** Short Circuit: blink beside enemy hero `target`, hit it, slow enemy heroes around the landing. */
+function shortCircuit(m, id, target) {
+	const w = m.world;
+	const a = abil(w, id);
+	const r = a.r;
+	if (target < 0 || w.kind[target] !== Kind.Hero) return -1;
+	const reach = r.range + radiusOf(w, target);
+	const sx = w.x[id];
+	const sy = w.y[id];
+	const d2 = dist2(sx, sy, w.x[target], w.y[target]);
+	if (d2 > reach * reach) return -1;
+	if (w.kStage[id] === 1 && w.kWindow[id] > 0) closeWireWindow(w, id);
+	const gap = radiusOf(w, id) + radiusOf(w, target);
+	const d = isqrt(d2);
+	if (d > gap) blink(m, id, w.x[target] + idiv((sx - w.x[target]) * gap, d), w.y[target] + idiv((sy - w.y[target]) * gap, d), d);
+	w.facing[id] = iatan2(w.y[target] - w.y[id], w.x[target] - w.x[id]);
+	const hit = attackRange(w, id) + gap;
+	if (dist2(w.x[id], w.y[id], w.x[target], w.y[target]) <= hit * hit) dealDamage(m, id, w.team[id], Kind.Hero, target, lvl(w, id, r.dmg, r.dmgPerLevel), "ability");
+	const lx = w.x[id];
+	const ly = w.y[id];
+	const n = collect(w, w.team[id], hits$4, (e, er) => inRing(lx, ly, r.dazzleRadius, w.x[e], w.y[e], er), true);
+	for (let i = 0; i < n; i++) slow(w, hits$4[i], r.slowBp, r.slow);
+	w.kChain[id] = sx;
+	w.kEmpower[id] = sy;
+	w.kStage[id] = 2;
+	w.kWindow[id] = a.e.recastWindow;
+	return r.cooldown;
+}
+var AVIETE_KIT = {
+	aim: aim$2,
+	recastReady: (w, id, slot) => slot === E && w.kStage[id] > 0 && w.kWindow[id] > 0,
+	cast(m, id, slot, x, y, target) {
+		const w = m.world;
+		const a = abil(w, id);
+		switch (slot) {
+			case 0: {
+				const q = a.q;
+				const hx = w.x[id];
+				const hy = w.y[id];
+				const dir = aimAngle(w, id, x, y);
+				const n = collect(w, w.team[id], hits$4, (e, r) => inCone(hx, hy, dir, q.range, q.arc, w.x[e], w.y[e], r));
+				const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
+				for (let i = 0; i < n; i++) dealDamage(m, id, w.team[id], Kind.Hero, hits$4[i], dmg, "ability");
+				return q.cooldown;
+			}
+			case 1:
+				charge(w, id);
+				haste(w, id, a.w.speedBp, a.w.haste);
+				return a.w.cooldown;
+			case 2: return liveWire(m, id, x, y);
+			default: return shortCircuit(m, id, target);
+		}
+	},
+	stepKit(m, id) {
+		const w = m.world;
+		const p = abil(w, id).passive;
+		const inBrush = w.bush[id] >= 0;
+		w.kWAge[id] = inBrush ? w.kWAge[id] + 1 : 0;
+		if (w.kHuntT[id] === 0 && w.kWAge[id] >= p.brushTime) w.kRT[id] = p.hold;
+		else if (w.kRT[id] > 0 && !inBrush) w.kRT[id]--;
+		if (w.kHuntT[id] > 0) w.kHuntT[id]--;
+		if (w.kWindow[id] > 0 && --w.kWindow[id] === 0) closeWireWindow(w, id);
+	},
+	outgoing(m, id, dst, raw) {
+		const w = m.world;
+		if (w.kRT[id] === 0 || w.kind[dst] !== Kind.Hero) return raw;
+		const p = abil(w, id).passive;
+		stun(w, dst, p.stun);
+		w.kRT[id] = 0;
+		w.kHuntT[id] = p.lockout;
+		return raw + lvl(w, id, p.bonus, p.bonusPerLevel);
+	},
+	reset(w, id) {
+		w.kWAge[id] = 0;
+		w.kRT[id] = 0;
+		w.kHuntT[id] = 0;
+		w.kStage[id] = 0;
+		w.kWindow[id] = 0;
+		w.kChain[id] = 0;
+		w.kEmpower[id] = 0;
+		w.kCount[id] = 0;
+	}
+};
+//#endregion
+//#region src/sim/heroes/bengas.ts
+/**
+* Bengas, Mage (shelter champion, sim v9). Bespoke hooks: Hot Toast (+15% damage to crowd-controlled enemy heroes,
+* Curtains Up! pulses included: the burst deals its damage with Bengas as the hero source), Striking Pose's
+* facing check (a stun on heroes facing him, a slow on the rest), Camellia Hop's haste after the landing, and the
+* Curtains Up! burst disc.
+*
+* Kit arrays: `kStage` = 1 while a Camellia Hop is in flight (the haste starts when it ends).
+*/
+var hits$3 = new Int32Array(ENTITY_CAP);
+function aim$1(a, slot) {
+	switch (slot) {
+		case 0: return {
+			aim: Aim.Dir,
+			reach: a.q.range,
+			windup: 0,
+			mobility: false
+		};
+		case 1: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: a.w.windup,
+			mobility: false
+		};
+		case 2: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: 0,
+			mobility: true
+		};
+		default: return {
+			aim: Aim.Point,
+			reach: a.r.range,
+			windup: 0,
+			mobility: false
+		};
+	}
+}
+var BENGAS_KIT = {
+	aim: aim$1,
+	cast(m, id, slot, x, y) {
+		const w = m.world;
+		const a = abil(w, id);
+		switch (slot) {
+			case 0: {
+				const q = a.q;
+				const sticky = (q.slowBp ?? 0) > 0;
+				fireSkillshot(w, id, {
+					kind: PROJECTILE_KIND.toast,
+					angle: aimAngle(w, id, x, y),
+					speed: q.speed,
+					range: q.range,
+					radius: q.width >> 1,
+					dmg: lvl(w, id, q.dmg, q.dmgPerLevel),
+					flags: 0,
+					effect: sticky ? ON_HIT.Slow : ON_HIT.None,
+					effA: sticky ? q.slowBp : 0,
+					effB: sticky ? q.slow : 0
+				});
+				return q.cooldown;
+			}
+			case 1: {
+				const p = a.w;
+				const bx = w.x[id];
+				const by = w.y[id];
+				const dir = aimAngle(w, id, x, y);
+				const n = collect(w, w.team[id], hits$3, (e, r) => inCone(bx, by, dir, p.range, p.arc, w.x[e], w.y[e], r), true);
+				for (let i = 0; i < n; i++) {
+					const e = hits$3[i];
+					if (inFront(w, e, bx, by, p.facingArc)) stun(w, e, p.stun);
+					else slow(w, e, p.slowBp, p.slow);
+				}
+				return p.cooldown;
+			}
+			case 2:
+				dash(m, id, aimAngle(w, id, x, y), a.e.dash);
+				w.kStage[id] = 1;
+				return a.e.cooldown;
+			default: {
+				const r = a.r;
+				return spawnBurst(w, w.team[id], id, x, y, r.radius, r.windup, r.windup + r.duration, lvl(w, id, r.dmg, r.dmgPerLevel), 0, r.every, r.slowBp, r.slow) < 0 ? -1 : r.cooldown;
+			}
+		}
+	},
+	stepKit(m, id) {
+		const w = m.world;
+		if (w.kStage[id] === 1 && w.fmKind[id] === FM.None) {
+			w.kStage[id] = 0;
+			const e = abil(w, id).e;
+			haste(w, id, e.hasteBp, e.haste);
+		}
+	},
+	outgoing(m, id, dst, raw) {
+		const w = m.world;
+		if (w.kind[dst] !== Kind.Hero) return raw;
+		return w.stunT[dst] > 0 || w.rootT[dst] > 0 || w.fearT[dst] > 0 || w.slowT[dst] > 0 ? applyBp(raw, abil(w, id).passive.bonusBp) : raw;
+	},
+	reset(w, id) {
+		w.kStage[id] = 0;
+	}
+};
+//#endregion
+//#region src/sim/heroes/gabe.ts
+/**
+* Gabė, Support (shelter champion, sim v9). Bespoke hooks: Heart Breeze (her basic hits on heroes heal the weakest
+* allied hero near her), the Heart Balloon burst (damage and heal in one pop), Wing Wrap's ally pick, Chase the
+* Wind's haste along the path, and Under Her Spell's charm.
+*
+* Kit arrays: none (every timer lives in the shared status arrays and the burst zone).
+*/
+var hits$2 = new Int32Array(ENTITY_CAP);
+function aim(a, slot) {
+	switch (slot) {
+		case 0: return {
+			aim: Aim.Point,
+			reach: a.q.range,
+			windup: 0,
+			mobility: false
+		};
+		case 1: return {
+			aim: Aim.Point,
+			reach: 0,
+			windup: 0,
+			mobility: false
+		};
+		case 2: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: 0,
+			mobility: true
+		};
+		default: return {
+			aim: Aim.Dir,
+			reach: 0,
+			windup: a.r.windup,
+			mobility: false
+		};
+	}
+}
+var alliedHero = (w, id, a) => w.alive[a] === 1 && w.kind[a] === Kind.Hero && w.team[a] === w.team[id];
+/** The allied hero (Gabė included) with the lowest HP share within `range` of her; ties: lowest id. */
+function weakestAlly(w, id, range) {
+	let best = -1;
+	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (!alliedHero(w, id, a)) continue;
+		if (dist2(w.x[id], w.y[id], w.x[a], w.y[a]) > range * range) continue;
+		if (best < 0 || w.hp[a] * w.maxHp[best] < w.hp[best] * w.maxHp[a]) best = a;
+	}
+	return best;
+}
+/** Wing Wrap's target: the allied hero (not Gabė) nearest (px, py) within `pick` of it and `range` of her, else Gabė. */
+function wrapTarget(w, id, px, py, range, pick) {
+	let best = id;
+	let bestD = 0;
+	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (a === id || !alliedHero(w, id, a)) continue;
+		if (dist2(w.x[id], w.y[id], w.x[a], w.y[a]) > range * range) continue;
+		const d = dist2(px, py, w.x[a], w.y[a]);
+		if (d > pick * pick) continue;
+		if (best === id || d < bestD) {
+			best = a;
+			bestD = d;
+		}
+	}
+	return best;
+}
+function wingWrap(m, id, x, y) {
+	const w = m.world;
+	const p = abil(w, id).w;
+	let px = x;
+	let py = y;
+	const dx = x - w.x[id];
+	const dy = y - w.y[id];
+	const d = isqrt(dx * dx + dy * dy);
+	if (d > p.range) {
+		px = w.x[id] + idiv(dx * p.range, d);
+		py = w.y[id] + idiv(dy * p.range, d);
+	}
+	const t = wrapTarget(w, id, px, py, p.range, p.pickRadius);
+	addShield(w, t, lvl(w, id, p.shield, p.shieldPerLevel), p.duration);
+	haste(w, t, p.hasteBp, p.haste);
+	return p.cooldown;
+}
+var GABE_KIT = {
+	aim,
+	cast(m, id, slot, x, y) {
+		const w = m.world;
+		const a = abil(w, id);
+		switch (slot) {
+			case 0: {
+				const q = a.q;
+				return spawnBurst(w, w.team[id], id, x, y, q.radius, q.arm, q.arm + 1, lvl(w, id, q.dmg, q.dmgPerLevel), lvl(w, id, q.heal, q.healPerLevel), 0, 0, 0) < 0 ? -1 : q.cooldown;
+			}
+			case 1: return wingWrap(m, id, x, y);
+			case 2:
+				dash(m, id, aimAngle(w, id, x, y), a.e.dash);
+				return a.e.cooldown;
+			default: {
+				const r = a.r;
+				const gx = w.x[id];
+				const gy = w.y[id];
+				const dir = aimAngle(w, id, x, y);
+				const n = collect(w, w.team[id], hits$2, (e, er) => inCone(gx, gy, dir, r.range, r.arc, w.x[e], w.y[e], er), true);
+				for (let i = 0; i < n; i++) {
+					charm(w, hits$2[i], r.charm, id);
+					slow(w, hits$2[i], r.slowBp, r.charm);
+				}
+				return r.cooldown;
+			}
+		}
+	},
+	onDashTick(m, id) {
+		const w = m.world;
+		const e = abil(w, id).e;
+		for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+			if (a === id || !alliedHero(w, id, a)) continue;
+			if (dist2(w.x[id], w.y[id], w.x[a], w.y[a]) <= e.touch * e.touch) haste(w, a, e.hasteBp, e.haste);
+		}
+	},
+	afterDeal(m, id, dst, _dmg, kind) {
+		const w = m.world;
+		if (kind !== "basic" || w.kind[dst] !== Kind.Hero) return;
+		const p = abil(w, id).passive;
+		const t = weakestAlly(w, id, p.range);
+		if (t >= 0) heal(w, t, lvl(w, id, p.heal, p.healPerLevel));
+	}
+};
+//#endregion
 //#region src/sim/heroes/tricks.ts
 /** Paw Tricks (POC.md §6.7), slot 4: Pounce (blink), Snack Break (heal over time), Hiss (fear ring). */
 var hits$1 = new Int32Array(ENTITY_CAP);
@@ -4443,8 +5505,8 @@ function castTrick(m, id, x, y) {
 //#region src/sim/heroes/kit.ts
 /**
 * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
-* dispatch to the four bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts) for their abilities,
-* passives and damage hooks.
+* dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, and the sim v9 shelter champions
+* lambo.ts, aviete.ts, bengas.ts, gabe.ts) for their abilities, passives and damage hooks.
 *
 * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
 * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -4462,12 +5524,16 @@ var Aim = Object.freeze({
 	/** On the hero itself. */
 	Self: 3
 });
-/** HERO_IDS order: clem, sage, brutus, cacklejaw. */
+/** HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe. */
 var KITS = [
 	CLEM_KIT,
 	SAGE_KIT,
 	BRUTUS_KIT,
-	CACKLEJAW_KIT
+	CACKLEJAW_KIT,
+	LAMBO_KIT,
+	AVIETE_KIT,
+	BENGAS_KIT,
+	GABE_KIT
 ];
 var kitOf = (w, id) => KITS[w.sub[id]];
 /** Ability damage at the hero's level: base + perLevel × (level − 1). */
@@ -5453,6 +6519,8 @@ var SRC_KIND = [
 	Kind.Minion,
 	Kind.Tower,
 	Kind.Core,
+	Kind.Hero,
+	Kind.Hero,
 	Kind.Hero,
 	Kind.Hero,
 	Kind.Hero,
@@ -6667,7 +7735,7 @@ function separate(w) {
 //#endregion
 //#region src/sim/version.ts
 /** Bumped whenever a change alters any replay's outcome or hash. The backend refuses an unknown version (POC.md §11.5). */
-var SIM_VERSION = 8;
+var SIM_VERSION = 9;
 //#endregion
 //#region src/sim/units/pickup.ts
 /**
@@ -6914,6 +7982,47 @@ var cast = (slot, x, y, id) => slot === 4 ? {
 	id
 };
 var distTo = (w, a, b) => isqrt(dist2(w.x[a], w.y[a], w.x[b], w.y[b]));
+/** Enemy heroes of `id` within `r` of (x, y). */
+function foesNear(w, id, x, y, r) {
+	return collect(w, w.team[id], hits, (e, er) => inRing(x, y, r, w.x[e], w.y[e], er), true);
+}
+/** The most hurt allied hero of `id` (not itself) within `r` below `belowBp` HP, or −1 (the "care" check of the support kits). */
+function hurtAlly(w, id, r, belowBp) {
+	let best = -1;
+	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
+		if (dist2(w.x[id], w.y[id], w.x[a], w.y[a]) > r * r || hpBp(w, a) >= belowBp) continue;
+		if (best < 0 || hpBp(w, a) < hpBp(w, best)) best = a;
+	}
+	return best;
+}
+/** A point `dist` from `id` straight away from (fx, fy). */
+function awayFrom(w, id, fx, fy, dist) {
+	const a = iatan2(w.y[id] - fy, w.x[id] - fx);
+	pt[0] = w.x[id] + idiv(icos(a) * dist, TRIG_ONE);
+	pt[1] = w.y[id] + idiv(isin(a) * dist, TRIG_ONE);
+}
+/** Is an allied hero of `id` (not itself) within BOT_AI.spellAllyRange of enemy `e` (it can follow up a charm)? */
+function allyNear(w, id, e) {
+	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
+		if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
+		if (dist2(w.x[e], w.y[e], w.x[a], w.y[a]) <= BOT_AI.spellAllyRange * BOT_AI.spellAllyRange) return true;
+	}
+	return false;
+}
+/**
+* Gabė's Under Her Spell aimed at (fx, fy): worth it on 2+ enemy heroes in the cone, or on 1 with an allied hero
+* within BOT_AI.spellAllyRange of it to follow up. Never on a lone foe with nobody near.
+*/
+function spellWorth(w, id, fx, fy, range, arc) {
+	const hx = w.x[id];
+	const hy = w.y[id];
+	const dir = iatan2(fy - hy, fx - hx);
+	const n = collect(w, w.team[id], hits, (e, r) => inCone(hx, hy, dir, range, arc, w.x[e], w.y[e], r), true);
+	return n >= 2 || n === 1 && allyNear(w, id, hits[0]);
+}
+/** Avietė's Live Wire / Short Circuit return is open. */
+var returnOpen = (w, id) => w.kStage[id] > 0 && w.kWindow[id] > 0;
 /**
 * Hard (TrickUse 'offensive'): Pounce onto a foe below BOT_AI.finishHpBp just out of reach, Hiss when the foe stands
 * inside its radius and the bot is the healthier one. Null otherwise.
@@ -6965,7 +8074,7 @@ function fightCast(w, id, foe, p, rng) {
 			if (canCast(w, id, 0) && d <= a.q.radius) return cast(0, w.x[id], w.y[id], 255);
 			if (canCast(w, id, 1) && d <= BOT_AI.engageRange) return cast(1, fx, fy, 255);
 			return null;
-		default:
+		case "cacklejaw":
 			if (canCast(w, id, 3) && low && d <= a.r.range) return cast(3, w.x[id], w.y[id], 255);
 			if (canCast(w, id, 0) && d <= a.q.dash) {
 				aimed(w, id, fx, fy, err, rng, a.q.dash);
@@ -6974,6 +8083,48 @@ function fightCast(w, id, foe, p, rng) {
 			if (canCast(w, id, 1) && d <= a.w.range) return cast(1, fx, fy, 255);
 			if (canCast(w, id, 2) && d > a.w.range * 2 && d <= BOT_AI.engageRange) return cast(2, w.x[id], w.y[id], 255);
 			return null;
+		case "lambo":
+			if (canCast(w, id, 3)) {
+				const n = foesNear(w, id, w.x[id], w.y[id], a.r.radius);
+				if (n >= 2 || n === 1 && nearestAlly(w, id, a.w.range) >= 0) return cast(3, w.x[id], w.y[id], 255);
+			}
+			if (canCast(w, id, 2) && d > a.e.radius && d <= a.e.dash + a.e.radius) return cast(2, fx, fy, 255);
+			if (canCast(w, id, 1) && (hurtAlly(w, id, a.w.range, BOT_AI.hugHpBp) >= 0 || d <= a.e.radius)) return cast(1, w.x[id], w.y[id], 255);
+			if (canCast(w, id, 0) && d <= a.q.range - RANGE_PAD) {
+				aimed(w, id, fx, fy, err, rng, Math.max(d, BOT_AI.holdMelee));
+				return cast(0, pt[0], pt[1], 255);
+			}
+			return null;
+		case "aviete":
+			if (canCast(w, id, 2) && returnOpen(w, id) && (hpBp(w, id) < BOT_AI.blinkOutHpBp || w.kStage[id] === 2)) return cast(2, w.x[id], w.y[id], 255);
+			if (canCast(w, id, 3) && low && d <= a.r.range) return cast(3, fx, fy, foe);
+			if (canCast(w, id, 1) && w.kRT[id] === 0 && w.kHuntT[id] === 0 && d <= BOT_AI.engageRange) return cast(1, w.x[id], w.y[id], 255);
+			if (canCast(w, id, 2) && !returnOpen(w, id) && d > a.q.range + RANGE_PAD && d <= a.e.blink + a.q.range) return cast(2, fx, fy, 255);
+			if (canCast(w, id, 0) && d <= a.q.range + RANGE_PAD) return cast(0, fx, fy, foe);
+			return null;
+		case "bengas":
+			if (canCast(w, id, 3) && d <= a.r.range && (low || foesNear(w, id, fx, fy, a.r.radius) >= 2)) return cast(3, fx, fy, 255);
+			if (canCast(w, id, 1) && d <= a.w.range && inFront(w, foe, w.x[id], w.y[id], a.w.facingArc)) return cast(1, fx, fy, 255);
+			if (canCast(w, id, 2) && d <= BOT_AI.kiteRange) {
+				awayFrom(w, id, fx, fy, a.e.dash);
+				return cast(2, pt[0], pt[1], 255);
+			}
+			if (canCast(w, id, 0) && d <= a.q.range - RANGE_PAD) {
+				aimed(w, id, fx, fy, err, rng, Math.max(d, BOT_AI.holdRanged));
+				return cast(0, pt[0], pt[1], 255);
+			}
+			return null;
+		default: {
+			const ally = canCast(w, id, 1) ? hurtAlly(w, id, a.w.range, BOT_AI.careHpBp) : -1;
+			if (ally >= 0) return cast(1, w.x[ally], w.y[ally], 255);
+			if (canCast(w, id, 3) && d <= a.r.range && spellWorth(w, id, fx, fy, a.r.range, a.r.arc)) return cast(3, fx, fy, 255);
+			if (canCast(w, id, 0) && d <= a.q.range) {
+				aimed(w, id, fx, fy, err, rng, d);
+				return cast(0, pt[0], pt[1], 255);
+			}
+			if (canCast(w, id, 1) && hpBp(w, id) < BOT_AI.careHpBp) return cast(1, w.x[id], w.y[id], 255);
+			return null;
+		}
 	}
 }
 /** Clear casts on non-hero targets near `t` (a minion pack, a rat, Pudding). */
@@ -6997,12 +8148,27 @@ function clearCast(w, id, t) {
 		case "brutus":
 			if (!canCast(w, id, 0)) return null;
 			return collect(w, team, hits, (e, r) => inRing(hx, hy, a.q.radius, w.x[e], w.y[e], r)) >= need ? cast(0, hx, hy, 255) : null;
-		default: {
+		case "cacklejaw": {
 			if (!canCast(w, id, 0)) return null;
 			if (isqrt(dist2(hx, hy, w.x[t], w.y[t])) > a.q.dash) return null;
 			const bx = w.x[t];
 			const by = w.y[t];
 			return collect(w, team, hits, (e, r) => inLine(hx, hy, bx, by, a.q.width >> 1, w.x[e], w.y[e], r)) >= need ? cast(0, bx, by, 255) : null;
+		}
+		case "lambo":
+		case "bengas":
+			if (need !== 1 || !canCast(w, id, 0)) return null;
+			return isqrt(dist2(hx, hy, w.x[t], w.y[t])) <= a.q.range - RANGE_PAD ? cast(0, w.x[t], w.y[t], 255) : null;
+		case "aviete":
+			if (!canCast(w, id, 0)) return null;
+			return collect(w, team, hits, (e, r) => inCone(hx, hy, dir, a.q.range, a.q.arc, w.x[e], w.y[e], r)) >= need ? cast(0, w.x[t], w.y[t], 255) : null;
+		default: {
+			const ally = canCast(w, id, 1) ? hurtAlly(w, id, a.w.range, BOT_AI.careHpBp) : -1;
+			if (ally >= 0) return cast(1, w.x[ally], w.y[ally], 255);
+			if (!canCast(w, id, 0) || isqrt(dist2(hx, hy, w.x[t], w.y[t])) > a.q.range) return null;
+			const tx = w.x[t];
+			const ty = w.y[t];
+			return collect(w, team, hits, (e, r) => inRing(tx, ty, a.q.radius, w.x[e], w.y[e], r)) >= need ? cast(0, tx, ty, 255) : null;
 		}
 	}
 }
@@ -7039,9 +8205,25 @@ function escapeCast(w, id, foe, p) {
 			if (canCast(w, id, 0) && d <= abil(w, id).q.radius) return cast(0, w.x[id], w.y[id], 255);
 			if (canCast(w, id, 2)) return cast(2, hx, hy, 255);
 			break;
-		default:
+		case "cacklejaw":
 			if (canCast(w, id, 1) && d <= abil(w, id).w.range) return cast(1, w.x[foe], w.y[foe], 255);
 			if (canCast(w, id, 2)) return cast(2, w.x[id], w.y[id], 255);
+			break;
+		case "lambo":
+			if (canCast(w, id, 1)) return cast(1, w.x[id], w.y[id], 255);
+			if (canCast(w, id, 2)) return cast(2, hx, hy, 255);
+			break;
+		case "aviete":
+			if (canCast(w, id, 2)) return cast(2, returnOpen(w, id) ? w.x[id] : hx, returnOpen(w, id) ? w.y[id] : hy, 255);
+			if (canCast(w, id, 1)) return cast(1, w.x[id], w.y[id], 255);
+			break;
+		case "bengas":
+			if (canCast(w, id, 1) && d <= abil(w, id).w.range && inFront(w, foe, w.x[id], w.y[id], abil(w, id).w.facingArc)) return cast(1, w.x[foe], w.y[foe], 255);
+			if (canCast(w, id, 2)) return cast(2, hx, hy, 255);
+			break;
+		default:
+			if (canCast(w, id, 2)) return cast(2, hx, hy, 255);
+			if (canCast(w, id, 1)) return cast(1, w.x[id], w.y[id], 255);
 	}
 	if (p.trick === "never" || !canCast(w, id, 4)) return null;
 	switch (TRICK_IDS[w.trick[id]]) {
@@ -7674,7 +8856,7 @@ function stepBots(m) {
 * Sim entry: createMatch(config) / step(match, commands) / snapshot(match, team) / hash(match) / result(match).
 * INTEGER ONLY, no DOM, no three: Node-importable and vendored to the backend.
 *
-* The whole POC match: waves, towers and cores, four hero kits with talents and Paw Tricks, XP and levels, brush
+* The whole POC match: waves, towers and cores, eight hero kits (sim v9: four shelter champions) with talents and Paw Tricks, XP and levels, brush
 * and stealth, the rat camps, Pudding, the §7.3 timeline (Sunset, Sudden Death, the 11:00 safety end) and the
 * in-sim bots for slots 1..5, all in the §4.3 step order marked below.
 */
@@ -7944,7 +9126,7 @@ function checkReplayShape(r) {
 	if (!r || typeof r !== "object") return fail("PAWLEGENDS_REPLAY_INVALID", "not an object");
 	const x = r;
 	if (x.v !== 1) return fail("PAWLEGENDS_REPLAY_INVALID", "v must be 1");
-	if (x.simVersion !== 8) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 8`);
+	if (x.simVersion !== 9) return fail("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 9`);
 	if (typeof x.seed !== "number" || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 4294967295) return fail("PAWLEGENDS_REPLAY_INVALID", "seed must be a uint32");
 	if (typeof x.difficulty !== "string" || !DIFFICULTIES.includes(x.difficulty)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown difficulty");
 	if (typeof x.hero !== "string" || !HERO_IDS.includes(x.hero)) return fail("PAWLEGENDS_REPLAY_INVALID", "unknown hero");

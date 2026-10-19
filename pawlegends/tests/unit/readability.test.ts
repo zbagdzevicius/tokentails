@@ -6,13 +6,14 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
+import { HERO_IDS } from '../../src/data/heroes';
 import { MINION_BAR_CSS, RELATION, RELATION_CSS, TEAM } from '../../src/render/palette';
 import { HERO_TOP, heroBuilt, makeHero } from '../../src/render/chars';
 import { HERO_SCALE } from '../../src/render/views/models';
 import { DAMAGE_FX, DamageNumbers } from '../../src/render/fx/DamageNumbers.js';
 import { declutter, plateBox } from '../../src/ui/overhead';
 
-const HEROES: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: HeroId[] = [...HERO_IDS];
 const hue = (hex: number): number => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).h * 360;
 
 describe('team colour encoding (rings, plates, minimap, towers)', () => {

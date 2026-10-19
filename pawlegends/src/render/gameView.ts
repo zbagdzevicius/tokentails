@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { loadZoom, ZOOM_DEFAULT } from './camera/zoom';
-import type { HeroId, SimEvent, TrickId } from '../sim/api';
+import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
@@ -16,12 +16,14 @@ import { Juice } from './juice';
 import { RELATION } from './palette';
 import type { GameRenderer } from './renderer';
 import { isShortLandscape, MOBA_DIST } from './renderer';
-import { TelegraphPool, type TelegraphSpec } from './telegraph';
+import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
 import { FREE_BISCUIT, FREE_COATS, type Look } from './cosmetics';
 import { CompanionView } from './views/companionView';
+import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
+import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
 import { MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
@@ -58,6 +60,25 @@ export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ:
 export const clampFocusX = (x: number): number => Math.min(CAMERA_FRAME.maxX, Math.max(CAMERA_FRAME.minX, x));
 export const clampFocusZ = (z: number): number => Math.min(CAMERA_FRAME.maxZ, Math.max(CAMERA_FRAME.minZ, z));
 const WHO_TTL = 3;
+
+/** Hover ring size (m) by unit kind: just outside the unit's own relation ring. Heroes use HERO_RING × 1.3. */
+export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0 });
+export const hoverRingSize = (kind: EntityKind, hero: HeroId | undefined | null): number => (kind === 'hero' ? HERO_RING[hero ?? 'clem'] * 1.3 : HOVER_RING[kind]);
+/** Hover ring colours: red = a click attacks it (the enemy cursor is red too), mint = an ally. */
+export const HOVER_COLOR = Object.freeze({ enemy: RELATION.danger, ally: 0x5ff0a8 });
+
+/** Order markers: how long one lasts (s), and how many can show at once. */
+export const MARKER_LIFE = 0.55;
+const MARKERS = 4;
+/** Move orders mint, attack orders red (the attack marker also carries crosshair ticks). */
+export const MARKER_COLOR = Object.freeze({ move: 0x5ff0a8, attack: RELATION.danger });
+/** Order marker diameter (m) at age `t` (s): lands big, snaps in, then shrinks away; 0 when over. */
+export function markerSize(t: number): number {
+  if (t < 0 || t >= MARKER_LIFE) return 0;
+  const k = t / MARKER_LIFE;
+  if (k < 0.25) return 2.8 - 1.4 * (k / 0.25);
+  return 1.4 * (1 - ((k - 0.25) / 0.75) * 0.7);
+}
 const _sw = new THREE.Vector3();
 
 export class GameView {
@@ -84,8 +105,24 @@ export class GameView {
   myTeam: 0 | 1 = 0;
   tricks: TrickId[] = [];
   aim: AimPreview | null = null;
+  /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
+  hover: { id: number; rel: 'enemy' | 'ally'; castId?: number } | null = null;
   frame: ViewFrame | null = null;
+  /**
+   * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
+   * and shockwaves never hide them.
+   */
+  private hoverRing = new DecalLayer(boldRingTexture(), 1, { y: 0.07, renderOrder: 9, name: 'hover-ring' });
+  /** The hero a unit-target quick cast would hit when it is not the hovered unit: a thinner red ring. */
+  private castRing = new DecalLayer(ringTexture(), 1, { y: 0.07, renderOrder: 9, name: 'hover-cast-ring' });
+  private moveMarks = new DecalLayer(boldRingTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-move' });
+  private attackMarks = new DecalLayer(crosshairTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-attack' });
+  private marks = Array.from({ length: MARKERS }, () => ({ x: 0, z: 0, t: -1, attack: false }));
+  private markNext = 0;
   private who = new Map<number, Who & { t: number }>();
+  /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (the overhead draws a "!" eye glyph over them). */
+  readonly watchers = new Set<number>();
+  private poseHits = new Set<number>();
   private time = 0;
   private lastMe: ViewEntity | null = null;
 
@@ -103,6 +140,7 @@ export class GameView {
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
+    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
     this.juice = new Juice(uiRoot);
     const self = this;
     const numbersCtx = {
@@ -324,6 +362,54 @@ export class GameView {
     this.panHold = hold;
   }
 
+  /** A ground order marker at (x, z) m: mint for a move, red with crosshair ticks for an attack. */
+  orderMarker(x: number, z: number, attack: boolean): void {
+    const m = this.marks[this.markNext];
+    this.markNext = (this.markNext + 1) % MARKERS;
+    m.x = x;
+    m.z = z;
+    m.t = 0;
+    m.attack = attack;
+  }
+
+  /** Hover ring and order markers for this frame (no allocation). */
+  private drawMarks(frame: ViewFrame | null, dt: number): void {
+    this.hoverRing.begin();
+    // the desktop hover, else a unit aim's target (touch drag-aim and hold-aim show who the cast will hit)
+    const a = this.aim;
+    const aimId = a && a.spec.kind === 'unit' && a.valid && a.target >= 0 && a.target !== 0xff ? a.target : -1;
+    const id = this.hover ? this.hover.id : aimId;
+    const e = id >= 0 && frame ? frame.byId.get(id) : null;
+    if (e && e.state !== 'dead') {
+      const size = hoverRingSize(e.kind, e.hero);
+      if (size > 0) this.hoverRing.add(toX(e.fx), toZ(e.fy), size * (1 + Math.sin(this.time * 9) * 0.04), HOVER_COLOR[this.hover ? this.hover.rel : 'enemy'], 1);
+    }
+    this.hoverRing.end();
+    this.castRing.begin();
+    const cid = this.hover?.castId ?? -1;
+    const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
+    if (ce && ce.state !== 'dead') {
+      const size = hoverRingSize(ce.kind, ce.hero);
+      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, 0.85);
+    }
+    this.castRing.end();
+    this.moveMarks.begin();
+    this.attackMarks.begin();
+    for (const m of this.marks) {
+      if (m.t < 0) continue;
+      m.t += dt;
+      const size = markerSize(m.t);
+      if (size <= 0) {
+        m.t = -1;
+        continue;
+      }
+      if (m.attack) this.attackMarks.add(m.x, m.z, size, MARKER_COLOR.attack, 1, m.t * 2);
+      else this.moveMarks.add(m.x, m.z, size, MARKER_COLOR.move, 1);
+    }
+    this.moveMarks.end();
+    this.attackMarks.end();
+  }
+
   private remember(frame: ViewFrame): void {
     for (const e of frame.entities) {
       let w = this.who.get(e.id);
@@ -375,6 +461,7 @@ export class GameView {
       }
       this.wasDead = meDead;
     }
+    this.drawMarks(this.frame, dt);
     this.map.update(frame, dt);
     this.pickups.update(dt);
     this.particles.update(dt);
@@ -401,10 +488,15 @@ export class GameView {
   private drawWindups(frame: ViewFrame): void {
     const fx = this.effects;
     fx.pruneWindups(frame.tick);
+    this.watchers.clear();
     for (const w of fx.windups) {
       const who = this.who.get(w.src);
       const aim = fx.aimOf(who ?? null, w.slot);
       if (!who || !aim) continue;
+      if (who.hero === 'bengas' && w.slot === 1) {
+        const src = frame.byId.get(w.src);
+        if (src) for (const id of poseWatchers(src, w.x, w.y, frame.entities, this.poseHits)) this.watchers.add(id);
+      }
       const fill = Math.max(0, Math.min(1, (frame.tick - w.start) / w.ticks));
       // wind-ups are threats: enemy ones in danger red, ours in the team rose
       const color = who.team === 2 ? RELATION.neutral : who.team === this.myTeam ? RELATION.ally : RELATION.danger;
@@ -426,14 +518,20 @@ export class GameView {
     const yaw = Math.atan2(-(a.z - mz), a.x - mx);
     const r = a.spec.range / 1000;
     // max range ring for point and unit aims
-    if (a.spec.kind === 'point' || a.spec.kind === 'unit') this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: r, color: RELATION.self, alpha: 0.6 });
+    // the player's own indicator draws over the VFX with an ink edge (top), so a thumb or cursor aim reads in a brawl
+    if (a.spec.kind === 'point' || a.spec.kind === 'unit') this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: r, color: RELATION.self, alpha: 0.7, top: true });
     const spec = toSpec(a.spec, mx, mz, a.x, a.z, Number.isFinite(yaw) ? yaw : me.yaw, color);
-    if (spec) this.telegraphs.draw({ ...spec, alpha: 0.9 });
+    if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true });
   }
 
   dispose(): void {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
+    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
+    this.hoverRing.dispose();
+    this.castRing.dispose();
+    this.moveMarks.dispose();
+    this.attackMarks.dispose();
     this.pickups.dispose();
     if (this.companions) {
       this.scene.remove(this.companions.group);

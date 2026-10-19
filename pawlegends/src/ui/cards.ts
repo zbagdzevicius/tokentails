@@ -139,6 +139,8 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
 
 export interface MeetCardOpts {
   cat: FeaturedCat;
+  /** Sim v9: the cat is a shelter champion's card (its own copy: the champion stays free to play either way). */
+  champion?: { pronoun: 'he' | 'she' } | null;
   /** Round 1: the player's hero in this cat's chroma (a fair preview: no price, no timer). */
   preview?: { url: string; hero: string } | null;
   /** Waiting for the host to open its sheet. */
@@ -156,9 +158,9 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
   x.setAttribute('aria-label', 'Close');
   x.dataset.a = 'meet-close';
   const body = h('div', 'plc-meet-body');
-  body.appendChild(h('small', 'plc-kicker', 'A new squad mate?'));
+  body.appendChild(h('small', 'plc-kicker', o.champion ? 'A Pawlegends champion' : 'A new squad mate?'));
   body.appendChild(h('b', 'plc-meet-name', o.cat.name));
-  body.appendChild(h('p', 'plc-meet-line', `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma for every hero.`));
+  body.appendChild(h('p', 'plc-meet-line', o.champion ? championMeetLine(o.cat.name, o.champion.pronoun, o.cat.type) : `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma for every hero.`));
   if (o.preview) {
     const pv = h('div', 'plc-meet-preview');
     const pic = h('i', 'plc-meet-pic');
@@ -167,12 +169,14 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
     pv.append(pic, h('small', '', `Your ${o.preview.hero} in ${elementName(o.cat.type)}`));
     body.appendChild(pv);
   }
-  const btn = h('button', 'pl-btn small plc-meet-go', o.waiting ? 'Opening...' : `Meet ${o.cat.name} ›`);
+  // Sim v9: a champion's card says "See <name>'s card": "Adopt" next to a real shelter cat's name reads like
+  // adopting the cat itself.
+  const btn = h('button', 'pl-btn small plc-meet-go', o.waiting ? 'Opening...' : o.champion ? `See ${o.cat.name}'s card ›` : `Meet ${o.cat.name} ›`);
   btn.dataset.a = 'meet';
   btn.disabled = !!o.waiting;
   body.appendChild(btn);
-  // say where the tap goes: an adoption on Token Tails, not a free in-game unlock (round 0)
-  body.appendChild(h('small', 'plc-meet-where', 'Adopt on Token Tails'));
+  // say where the tap goes: Token Tails, not a free in-game unlock (round 0)
+  body.appendChild(h('small', 'plc-meet-where', o.champion ? 'Opens on Token Tails' : 'Adopt on Token Tails'));
   root.append(x, catCard({ name: o.cat.name, type: o.cat.type, art: o.cat.art }, { small: true }), body);
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
@@ -187,6 +191,56 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
     }
   });
   requestAnimationFrame(() => root.classList.add('in'));
+  return root;
+}
+
+/**
+ * The Meet line for a shelter champion's card (sim v9). Cosmetics only: the champion is free to play for everyone;
+ * no price, money or impact words (docs/CLAIMS.md R2/R3), no "adopt" next to the real cat's name; STELLAR reads "Star".
+ */
+export function championMeetLine(name: string, pronoun: 'he' | 'she', type: string): string {
+  return `Inspired by ${name}'s Token Tails card. With the card, ${pronoun} trots at your heels, cheers your takedowns and unlocks the ${elementName(type)} chroma for every hero, plus a card badge on ${name}.`;
+}
+
+export interface ChampionInfoModel {
+  name: string;
+  pronoun: 'he' | 'she';
+  type: string;
+  art?: string;
+  flavour?: string;
+  /** The player owns the card (web only): the badge shows. */
+  owned: boolean;
+}
+
+/**
+ * The lobby's champion info (sim v9): an "About <name>" chip that opens a panel with the card and where the champion
+ * comes from. Information only: no buy link (the `champion-offer` Meet card is the one purchase surface, with its
+ * caps). Never on pick, loading, in a match or on results.
+ */
+export function championInfo(m: ChampionInfoModel): HTMLElement {
+  const root = h('div', 'plc-champ');
+  root.dataset.champion = m.name;
+  const chip = h('button', 'pl-btn ghost small plc-champ-chip', `About ${m.name}`);
+  chip.dataset.a = 'champion-info';
+  chip.setAttribute('aria-expanded', 'false');
+  const panel = h('div', 'plc-champ-panel');
+  panel.hidden = true;
+  panel.appendChild(catCard({ name: m.name, type: m.type, art: m.art, ...(m.owned ? { ribbon: 'Yours' } : {}) }, { small: true }));
+  const body = h('div', 'plc-champ-body');
+  body.appendChild(h('small', 'plc-kicker', 'Pawlegends champion'));
+  body.appendChild(h('p', 'plc-champ-line', `${m.name} is inspired by ${m.pronoun === 'she' ? 'her' : 'his'} Token Tails card. Every player can pick ${m.pronoun === 'she' ? 'her' : 'him'}.`));
+  if (m.flavour) body.appendChild(h('p', 'plc-champ-flavour', m.flavour));
+  if (m.owned) body.appendChild(h('span', 'plc-champ-badge', `From ${m.name}'s card`));
+  panel.appendChild(body);
+  root.append(chip, panel);
+  root.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+    if (a === 'champion-info') {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      chip.setAttribute('aria-expanded', String(!panel.hidden));
+    }
+  });
   return root;
 }
 

@@ -4,6 +4,7 @@
  * untrusted input and validated here; the time is display only.
  */
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
+import { HERO_IDS } from '../data/heroes';
 
 export interface Dare {
   seed: number;
@@ -14,7 +15,8 @@ export interface Dare {
   seconds: number;
 }
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+/** The dare link carries the HERO_IDS index (append only: the sim v9 champions are 4..7). */
+const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function encodeDare(d: Dare): string {

@@ -6,6 +6,8 @@
  * `hello` fixes the host origin; every post goes to it, never to '*'. Nothing is posted before the first hello, so
  * the host keeps saying hello until it hears `ready`. No accesstoken or Firebase token ever crosses.
  */
+import { championByCatalogId, type ChampionId } from '../data/heroes/shelter';
+
 export const EMBED_NS = 'tt-pawlegends';
 export const EMBED_VERSION = 1;
 export const DEFAULT_EMBED_ORIGINS = 'https://tokentails.com,https://www.tokentails.com';
@@ -13,18 +15,21 @@ export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
 
 /**
  * POC.md §11.1 types, plus the additive `offer{offer}` (the server offer engine), `save-result` (the host's save
- * queue for a `match-result`) and `featured` (unowned direct-purchase cats, display only). Payload shapes:
- * docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
+ * queue for a `match-result`), `featured` (unowned direct-purchase cats, display only) and `champions` (sim v9: the
+ * shelter champions' cards: art and whether each card is for sale, from `GET /pawlegends/champions`). Payload
+ * shapes: docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
  */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured'] as const);
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
  * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
- * `request-sign-in{reason}`, `open-cat{catalogId}` (the host opens its Token Tails cat checkout) and
- * `offer-seen{kind, catalogId}`. `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it
- * never sends it (the host still answers older builds).
+ * `request-sign-in{reason}`, `open-cat{catalogId}` (the host opens its Token Tails cat checkout),
+ * `offer-seen{kind, catalogId}` and `champion-offer{catalogId}` (sim v9: a non-owner just finished a 3rd match on
+ * a champion whose card is for sale; the host puts that cat first when it asks `GET /pawlegends/offer`, where every
+ * global cap still applies). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
+ * sends it (the host still answers older builds).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {
@@ -251,6 +256,33 @@ export function parseFeatured(m: Record<string, unknown>): FeaturedCat[] | null 
     const art = cleanArt(c.art);
     if (art) cat.art = art;
     out.push(cat);
+  }
+  return out;
+}
+
+/** One shelter champion's card (sim v9), as the host sends it: only the four champion catalog ids are kept. */
+export interface ChampionCard {
+  catalogId: string;
+  hero: ChampionId;
+  /** The card can be adopted on Token Tails right now (false: sold out or the cat was adopted; the champion stays). */
+  forSale: boolean;
+  /** The card's `catImg` (the NFT bucket only). */
+  art?: string;
+}
+
+/** `champions.cats`: the known champion cards, bad or unknown entries skipped (null when `cats` is not a list). */
+export function parseChampions(m: Record<string, unknown>): ChampionCard[] | null {
+  if (!Array.isArray(m.cats)) return null;
+  const out: ChampionCard[] = [];
+  for (const raw of m.cats.slice(0, 16)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const c = raw as Record<string, unknown>;
+    const champion = championByCatalogId(cleanCatalogId(c.catalogId) ?? '');
+    if (!champion || out.some((x) => x.catalogId === champion.catalogId)) continue;
+    const card: ChampionCard = { catalogId: champion.catalogId, hero: champion.hero, forSale: c.forSale === true };
+    const art = cleanArt(c.catImg);
+    if (art) card.art = art;
+    out.push(card);
   }
   return out;
 }

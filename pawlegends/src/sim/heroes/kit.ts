@@ -1,7 +1,7 @@
 /**
  * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
- * dispatch to the four bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts) for their abilities,
- * passives and damage hooks.
+ * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, and the sim v9 shelter champions
+ * lambo.ts, aviete.ts, bengas.ts, gabe.ts) for their abilities, passives and damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
  * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -20,6 +20,10 @@ import { CLEM_KIT } from './clem';
 import { SAGE_KIT } from './sage';
 import { BRUTUS_KIT } from './brutus';
 import { CACKLEJAW_KIT } from './cacklejaw';
+import { LAMBO_KIT } from './lambo';
+import { AVIETE_KIT } from './aviete';
+import { BENGAS_KIT } from './bengas';
+import { GABE_KIT } from './gabe';
 import { castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
@@ -76,8 +80,8 @@ export interface HeroKit {
   reset?(w: World, id: number): void;
 }
 
-/** HERO_IDS order: clem, sage, brutus, cacklejaw. */
-const KITS: readonly HeroKit[] = [CLEM_KIT, SAGE_KIT, BRUTUS_KIT, CACKLEJAW_KIT];
+/** HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe. */
+const KITS: readonly HeroKit[] = [CLEM_KIT, SAGE_KIT, BRUTUS_KIT, CACKLEJAW_KIT, LAMBO_KIT, AVIETE_KIT, BENGAS_KIT, GABE_KIT];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];
 

@@ -11,6 +11,7 @@ import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
 import { HERO_TEXT, TRICK_TEXT, abilityNumbers, trickNumbers } from './heroText';
 import { icon } from './icons';
+import { chargeRing } from './overhead';
 import { XP } from '../data/xp';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
@@ -108,7 +109,7 @@ export class Hud {
       <div class="pl-feed"></div>
       <div class="pl-respawn"><div>Back in <b>0</b></div><small class="recap">Your team is still fighting!</small></div>
       <div class="pl-bar">
-        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b><i class="xpbar"><i></i></i><em class="gap"></em></div>
+        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b><i class="xpbar"><i></i></i><em class="gap"></em>${hero === 'aviete' ? '<i class="charge" title="Shy, Then Shiny"></i><b class="charge-t"></b>' : ''}</div>
         <div class="pl-bar-main">
           <div class="pl-slots">${slotHtml}</div>
           <div class="pl-hp"><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
@@ -183,6 +184,20 @@ export class Hud {
     }
   }
 
+  /**
+   * Sim v9, Avietė: the portrait ring. A spark ring while Charged (her next damage to a hero stuns), a grey ring with
+   * the seconds left during the lockout (Shiny Coat then gives speed only), nothing otherwise.
+   */
+  private chargeUpdate(me: EntitySnap): void {
+    const el = this.root.querySelector<HTMLElement>('.pl-portrait .charge');
+    if (!el) return;
+    const c = chargeRing(me);
+    if ((el.dataset.state ?? '') !== c.state) el.dataset.state = c.state;
+    el.style.setProperty('--left', c.frac.toFixed(3));
+    const t = this.root.querySelector<HTMLElement>('.pl-portrait .charge-t');
+    if (t) this.set('charge', t, c.state === 'lockout' ? String(c.secs) : '');
+  }
+
   update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number, enemyAvg = 0): void {
     this.set('clock', this.clock, fmtClock(clock.seconds));
     this.set('phase', this.phase, phaseLine(clock));
@@ -216,6 +231,7 @@ export class Hud {
     const lv = me.level ?? 1;
     this.set('lvl', this.level, String(lv));
     this.xpUpdate(me, enemyAvg);
+    this.chargeUpdate(me);
     const cds = me.cooldowns;
     for (let i = 0; i < 5; i++) {
       const s = this.slots[i];

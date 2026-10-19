@@ -242,9 +242,73 @@ export function woodenSword(A: Assembly): void {
   A.add('pawR', new THREE.BoxGeometry(0.035, 0.36, 0.014), { m: mat([0, 0.12, 0.05], [0.25, 0, 0]), color: WOOD });
   A.add('pawR', new THREE.BoxGeometry(0.11, 0.02, 0.026), { m: mat([0, -0.03, 0.02], [0.25, 0, 0]), color: 0x8a6440 });
 }
-export function baton(A: Assembly): void {
-  A.add('pawR', new THREE.CylinderGeometry(0.018, 0.022, 0.3, 5), { m: mat([0, 0.09, 0.05], [0.25, 0, 0]), color: 0x22252c });
-  A.add('pawR', new THREE.SphereGeometry(0.026, 5, 3), { m: mat([0, 0.24, 0.09]), color: BRASS });
+/** A baton in the right paw (pup guards); with `tip`, Bengas's toasting fork: a long handle with an ember tip. */
+export function baton(A: Assembly, color: Col = 0x22252c, tip: Col = BRASS, len = 0.3): void {
+  A.add('pawR', new THREE.CylinderGeometry(0.018, 0.022, len, 5), { m: mat([0, 0.09 + (len - 0.3) / 2, 0.05], [0.25, 0, 0]), color });
+  A.add('pawR', new THREE.SphereGeometry(0.026, 5, 3), { m: mat([0, 0.24 + (len - 0.3), 0.09 + (len - 0.3) * 0.25]), color: tip });
+}
+
+// Sim v9 shelter champions' gear (Lambo, Avietė, Bengas, Gabė), from their Token Tails card accessories.
+
+/** Lambo's tangled festive lights: a cord across the chest and over a shoulder, octahedron bulbs in alternating colours. */
+export function lightString(A: Assembly, cord: Col, bulbs: readonly Col[]): void {
+  const w = A.w;
+  const pts: THREE.Vector3[] = [];
+  const n = 9;
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    // a loose diagonal loop from the left shoulder, round the front of the belly, up the back to the right shoulder
+    const a = Math.PI * 0.15 + t * Math.PI * 1.7;
+    pts.push(new THREE.Vector3(Math.cos(a) * 0.17 * w, 0.17 - t * 0.2 + Math.sin(t * Math.PI) * 0.02, Math.sin(a) * 0.15 + 0.01));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  A.add('chest', new THREE.TubeGeometry(curve, A.seg(18, 10), 0.009, 3, false), { color: cord });
+  const count = 7;
+  for (let i = 0; i < count; i++) {
+    const p = curve.getPoint((i + 0.5) / count);
+    A.add('chest', new THREE.OctahedronGeometry(0.028, 0).scale(0.8, 1.15, 0.8), { m: mat([p.x * 1.08, p.y - 0.02, p.z * 1.08]), color: bulbs[i % bulbs.length] });
+  }
+}
+
+/** Avietė's sparks (her card's coins): small bright octahedra floating at the shoulders and hips. */
+export function sparkOrbs(A: Assembly, color: Col): void {
+  const at: readonly (readonly [number, number, number])[] = [[0.22, 0.2, 0.06], [-0.22, 0.16, 0.08], [0.2, -0.02, -0.1], [-0.18, 0.02, -0.12]];
+  for (const [x, y, z] of at) A.add('chest', new THREE.OctahedronGeometry(0.032, 0), { m: mat([x * A.w, y, z], [0.4, 0.6, 0]), color });
+}
+
+/** Bengas's camellia crown: a ring of flower heads with leaves round the top of the head. */
+export function flowerCrown(A: Assembly, flower: Col, leaf: Col): void {
+  const n = A.detail >= 0.7 ? 7 : 5;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const x = Math.sin(a) * 0.17;
+    const z = Math.cos(a) * 0.16 - 0.01;
+    A.add('head', new THREE.SphereGeometry(0.038, A.seg(6, 4), A.seg(4, 3)).scale(1, 0.7, 1), { m: mat([x, 0.22, z]), color: i % 2 === 0 ? flower : mix(rgbOf(flower), [1, 1, 1], 0.35) });
+    A.add('head', new THREE.SphereGeometry(0.022, 4, 3).scale(1.6, 0.4, 0.8), { m: mat([x * 1.08, 0.205, z * 1.08], [0, -a, 0]), color: leaf });
+  }
+  A.add('head', new THREE.TorusGeometry(0.168, 0.008, 3, A.seg(14, 8)), { m: mat([0, 0.212, -0.01], [Math.PI / 2, 0, 0]), color: leaf });
+}
+
+/** Gabė's wings: two soft feathered panels on her back. */
+export function wings(A: Assembly, color: Col): void {
+  for (const side of [1, -1]) {
+    const s = new THREE.Shape();
+    s.moveTo(0, 0);
+    s.quadraticCurveTo(0.2, 0.16, 0.3, 0.06);
+    s.quadraticCurveTo(0.24, 0.0, 0.27, -0.06);
+    s.quadraticCurveTo(0.16, -0.06, 0.18, -0.13);
+    s.quadraticCurveTo(0.08, -0.08, 0, 0);
+    const g = new THREE.ShapeGeometry(s, 3);
+    both(A, 'chest', g, mat([side * 0.05, 0.12, -0.16], [0.25, side > 0 ? -0.5 : Math.PI + 0.5, 0], [1, 1, 1]), color, mix(rgbOf(color), [0.8, 0.85, 1], 0.4));
+  }
+}
+
+/** Gabė's heart balloon: a heart (two lobes and a point) floating above her right shoulder on a thin string. */
+export function heartFloat(A: Assembly, color: Col): void {
+  const y = 0.62;
+  for (const side of [1, -1]) A.add('chest', new THREE.SphereGeometry(0.055, A.seg(8, 5), A.seg(6, 4)), { m: mat([-0.2 + side * 0.04, y, -0.05]), color });
+  A.add('chest', new THREE.ConeGeometry(0.075, 0.1, A.seg(8, 5)), { m: mat([-0.2, y - 0.06, -0.05], [Math.PI, 0, 0]), color });
+  A.add('chest', new THREE.CylinderGeometry(0.003, 0.003, 0.4, 3), { m: mat([-0.19, y - 0.31, -0.05], [0, 0, 0.05]), color: 0xfff6e8 });
 }
 export function yarnSling(A: Assembly, yarn: Col): void {
   A.add('pawR', new THREE.SphereGeometry(0.07, 6, 4), { m: mat([0, -0.07, 0.04]), color: yarn });

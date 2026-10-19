@@ -25,7 +25,7 @@ import { abil } from '../heroes/talents';
 import { radiusOf, targetable } from '../units/kinds';
 
 /** Source kind a bolt's damage counts as (backdoor and tower-aggro rules), by PROJECTILE_KIND. */
-const SRC_KIND: readonly number[] = [Kind.Minion, Kind.Minion, Kind.Tower, Kind.Core, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero];
+const SRC_KIND: readonly number[] = [Kind.Minion, Kind.Minion, Kind.Tower, Kind.Core, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero];
 
 const srcKindOf = (w: World, p: number): number => ((w.pFlags[p] & PFLAG.Reflected) !== 0 ? Kind.Hero : SRC_KIND[w.pKind[p]]);
 

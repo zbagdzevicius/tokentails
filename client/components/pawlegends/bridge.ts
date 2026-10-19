@@ -9,10 +9,14 @@
  *   `art` and `catalogId`), `featured {cats[]}` (at most 2 unowned direct-purchase cats), `offer {offer}` (one
  *   `meet` card or null), `save-result {matchId, status, catnipPaid, catnipTotal, fastestWin, code?}`,
  *   `entitlements {token}`, `audio {muted, music?, sfx?}`, `pause`, `resume`, `purchase-result {catalogId, ok}`,
- *   `app {isApp, store, notify}`. `app.store` means "the Token Tails cat checkout is reachable" (web only).
+ *   `app {isApp, store, notify}`, and (sim v9) `champions {cats[]}`: the shelter champions' cards, each
+ *   `{catalogId, forSale, catImg?}` (`GET /pawlegends/champions`; never for sale in an app build). `app.store` means
+ *   "the Token Tails cat checkout is reachable" (web only).
  * - Game to host: `ready {version}`, `match-result {replay, summary, matchId}`, `request-sign-in {reason}`,
  *   `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url}`,
- *   `paused {paused}`, and the deprecated `purchase-intent {sku}` (answered with a legacy refusal).
+ *   `paused {paused}`, `champion-offer {catalogId}` (sim v9: the player's 3rd finished match on a champion whose card
+ *   is for sale; the host asks its offer engine with that card first), and the deprecated `purchase-intent {sku}`
+ *   (answered with a legacy refusal).
  *
  * A message counts only when it comes from our iframe's window and the game's origin; every post names that
  * exact origin, never `'*'`. No `accesstoken` or Firebase token ever crosses: each payload is rebuilt here field by
@@ -31,6 +35,8 @@ export const PAWLEGENDS_HELLO_TIMEOUT_MS = 120_000;
 /** Most cats in `roster` and in `featured`. */
 export const PAWLEGENDS_ROSTER_LIMIT = 24;
 export const PAWLEGENDS_FEATURED_LIMIT = 2;
+/** Most cards in `champions` (four shelter champions today). */
+export const PAWLEGENDS_CHAMPIONS_LIMIT = 8;
 /** Save results held for a game that is not `ready` yet (a reload mid-save). */
 const PENDING_SAVE_RESULTS = 8;
 
@@ -41,7 +47,7 @@ export const isPawlegendsSku = (value: unknown): value is PawlegendsSku =>
   typeof value === "string" && (PAWLEGENDS_SKUS as readonly string[]).includes(value);
 
 /** Mirrors of `HeroId` and `TrickId` in `pawlegends/src/data/`. */
-export const PAWLEGENDS_HEROES = ["clem", "sage", "brutus", "cacklejaw"] as const;
+export const PAWLEGENDS_HEROES = ["clem", "sage", "brutus", "cacklejaw", "lambo", "aviete", "bengas", "gabe"] as const;
 export const PAWLEGENDS_TRICKS = ["pounce", "snack", "hiss"] as const;
 
 export const PAWLEGENDS_SIGN_IN_REASONS = ["save-progress", "claim-rewards"] as const;
@@ -123,6 +129,14 @@ export interface PawlegendsFeaturedCat {
   art?: string;
 }
 
+/** Sim v9: one shelter champion's card (the game keeps only the champion catalog ids it knows). */
+export interface PawlegendsChampionCard {
+  catalogId: string;
+  forSale: boolean;
+  /** Token Tails CDN art (`catImg`). */
+  catImg?: string;
+}
+
 /** Per difficulty, keys from `PAWLEGENDS_LEVELS`: catnip earned, matches saved, fastest win in ticks (0 = none). */
 export interface PawlegendsProgress {
   catnip: Record<string, number>;
@@ -164,6 +178,7 @@ export type HostToPawlegendsMessage = Envelope &
     | ({ type: "audio" } & PawlegendsAudio)
     | { type: "purchase-result"; catalogId: string; ok: boolean }
     | { type: "app"; isApp: boolean; store: boolean; notify: boolean }
+    | { type: "champions"; cats: PawlegendsChampionCard[] }
   );
 
 export type PawlegendsToHostMessage =
@@ -175,7 +190,8 @@ export type PawlegendsToHostMessage =
   | { type: "notify"; where: PawlegendsNotifyWhere }
   | { type: "purchase-intent"; sku: PawlegendsSku }
   | { type: "share"; kind: string; url: string }
-  | { type: "paused"; paused: boolean };
+  | { type: "paused"; paused: boolean }
+  | { type: "champion-offer"; catalogId: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -356,6 +372,21 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
     case "purchase-result":
       if (!isCatalogId(data.catalogId) || typeof data.ok !== "boolean") return null;
       return { ...base, type: "purchase-result", catalogId: data.catalogId, ok: data.ok };
+    case "champions": {
+      if (!Array.isArray(data.cats)) return null;
+      const seen = new Set<string>();
+      const cats: PawlegendsChampionCard[] = [];
+      for (const raw of data.cats) {
+        if (!isRecord(raw) || !isCatalogId(raw.catalogId) || seen.has(raw.catalogId)) continue;
+        seen.add(raw.catalogId);
+        const card: PawlegendsChampionCard = { catalogId: raw.catalogId, forSale: raw.forSale === true };
+        const art = artUrlOf(raw.catImg);
+        if (art) card.catImg = art;
+        cats.push(card);
+        if (cats.length >= PAWLEGENDS_CHAMPIONS_LIMIT) break;
+      }
+      return { ...base, type: "champions", cats };
+    }
     case "app":
       if (typeof data.isApp !== "boolean" || typeof data.store !== "boolean") return null;
       return {
@@ -379,6 +410,7 @@ export function hostMessage(
 ): HostToPawlegendsMessage;
 export function hostMessage(type: "roster", payload: { cats: PawlegendsRosterCat[] }): HostToPawlegendsMessage;
 export function hostMessage(type: "featured", payload: { cats: PawlegendsFeaturedCat[] }): HostToPawlegendsMessage;
+export function hostMessage(type: "champions", payload: { cats: PawlegendsChampionCard[] }): HostToPawlegendsMessage;
 export function hostMessage(type: "offer", payload: { offer: PawlegendsMeetOffer | null }): HostToPawlegendsMessage | null;
 export function hostMessage(type: "save-result", payload: PawlegendsSaveResult): HostToPawlegendsMessage | null;
 export function hostMessage(type: "entitlements", payload: { token: string | null }): HostToPawlegendsMessage;
@@ -404,7 +436,7 @@ export function hostMessage(
   }
   if (type === "audio") p.muted = p.muted === true;
   if (type === "entitlements" && typeof p.token !== "string") p.token = null;
-  if ((type === "roster" || type === "featured") && !Array.isArray(p.cats)) p.cats = [];
+  if ((type === "roster" || type === "featured" || type === "champions") && !Array.isArray(p.cats)) p.cats = [];
   return sanitizeHostMessage({ ...p, ns: PAWLEGENDS_NS, v: PAWLEGENDS_BRIDGE_VERSION, type });
 }
 
@@ -461,6 +493,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
     }
     case "paused":
       return typeof data.paused === "boolean" ? { type: "paused", paused: data.paused } : null;
+    case "champion-offer":
+      return isCatalogId(data.catalogId) ? { type: "champion-offer", catalogId: data.catalogId } : null;
     default:
       return null;
   }
@@ -504,6 +538,8 @@ export interface PawlegendsBridgeHandlers {
   onPurchaseIntent?(sku: PawlegendsSku): void;
   onShare?(kind: string, url: string): void;
   onPaused?(paused: boolean): void;
+  /** Sim v9: only for a champion card the host holds as for sale, and never in an app build. */
+  onChampionOffer?(catalogId: string): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -512,7 +548,9 @@ export interface PawlegendsBridge {
   setSession(signedIn: boolean, progress: PawlegendsProgress | null): void;
   setRoster(cats: PawlegendsRosterCat[]): void;
   setFeatured(cats: PawlegendsFeaturedCat[]): void;
-  /** A `meet` offer for a cat of the current `featured` list, or null. Refused (false) for any other id. */
+  /** Sim v9: the shelter champions' cards (an app build hears none for sale). */
+  setChampions(cats: PawlegendsChampionCard[]): void;
+  /** A `meet` offer for a cat of the current `featured` list or a champion card for sale, or null. Refused (false) for any other id. */
   setOffer(offer: PawlegendsMeetOffer | null): boolean;
   setEntitlements(token: string | null): void;
   setAudio(audio: PawlegendsAudio): void;
@@ -539,7 +577,7 @@ const defaultTimers: PawlegendsBridgeTimers = {
   now: () => Date.now(),
 };
 
-const STICKY = ["app", "session", "audio", "roster", "featured", "offer", "entitlements"] as const;
+const STICKY = ["app", "session", "audio", "roster", "featured", "champions", "offer", "entitlements"] as const;
 type StickyKey = (typeof STICKY)[number];
 
 export function createPawlegendsBridge(options: PawlegendsBridgeOptions): PawlegendsBridge {
@@ -554,6 +592,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
   const state: Partial<Record<StickyKey, HostToPawlegendsMessage>> = {};
   let featuredIds = new Set<string>();
   let rosterIds = new Set<string>();
+  /** Champion cards for sale (sim v9): open-cat, an offer and champion-offer may name them. */
+  let championIds = new Set<string>();
+  let championCards: PawlegendsChampionCard[] = [];
   let offerId: string | null = null;
   let isApp = false;
   const pendingSaves: HostToPawlegendsMessage[] = [];
@@ -634,7 +675,7 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         handlers.onRequestSignIn?.(message.reason);
         break;
       case "open-cat":
-        if (isApp || !(featuredIds.has(message.catalogId) || rosterIds.has(message.catalogId))) break;
+        if (isApp || !(featuredIds.has(message.catalogId) || rosterIds.has(message.catalogId) || championIds.has(message.catalogId))) break;
         handlers.onOpenCat?.(message.catalogId);
         break;
       case "offer-seen":
@@ -654,6 +695,10 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         break;
       case "paused":
         handlers.onPaused?.(message.paused);
+        break;
+      case "champion-offer":
+        if (isApp || !championIds.has(message.catalogId)) break;
+        handlers.onChampionOffer?.(message.catalogId);
         break;
     }
   };
@@ -676,13 +721,24 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       featuredIds = new Set((message as { cats?: PawlegendsFeaturedCat[] }).cats?.map((c) => c.catalogId) ?? []);
       keep("featured", message);
       // An offer for a cat that left the list is withdrawn.
-      if (offerId && !featuredIds.has(offerId)) {
+      if (offerId && !featuredIds.has(offerId) && !championIds.has(offerId)) {
+        offerId = null;
+        keep("offer", hostMessage("offer", { offer: null }));
+      }
+    },
+    setChampions(cats) {
+      championCards = cats;
+      const message = hostMessage("champions", { cats: isApp ? cats.map((c) => ({ ...c, forSale: false })) : cats });
+      const kept = (message as { cats?: PawlegendsChampionCard[] }).cats ?? [];
+      championIds = new Set(kept.filter((c) => c.forSale).map((c) => c.catalogId));
+      keep("champions", message);
+      if (offerId && !featuredIds.has(offerId) && !championIds.has(offerId)) {
         offerId = null;
         keep("offer", hostMessage("offer", { offer: null }));
       }
     },
     setOffer(offer) {
-      if (offer && (isApp || !featuredIds.has(offer.catalogId))) return false;
+      if (offer && (isApp || !(featuredIds.has(offer.catalogId) || championIds.has(offer.catalogId)))) return false;
       const message = hostMessage("offer", { offer });
       if (!message) return false;
       offerId = offer?.catalogId ?? null;
@@ -696,8 +752,10 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       keep("app", hostMessage("app", { isApp: app, store, notify }));
       if (app) {
         featuredIds = new Set();
+        championIds = new Set();
         offerId = null;
         if (state.featured) keep("featured", hostMessage("featured", { cats: [] }));
+        if (state.champions) keep("champions", hostMessage("champions", { cats: championCards.map((c) => ({ ...c, forSale: false })) }));
         if (state.offer) keep("offer", hostMessage("offer", { offer: null }));
       }
     },

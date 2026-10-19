@@ -61,11 +61,14 @@ export function keyLabel(a: Action): string {
  */
 export type CastMode = 'quick' | 'hold';
 export type TrackpadPref = 'auto' | 'on' | 'off';
+/** Desktop cursor size (Settings): Normal 32 px, Large 48 px. */
+export type CursorSize = 'normal' | 'large';
 
 const CAST_KEY = 'pawlegends.castMode';
 const PAD_KEY = 'pawlegends.trackpad';
 /** Auto mode switched trackpad mode on once (it stays on in later matches; the toast shows only that once). */
 const PAD_SEEN_KEY = 'pawlegends.trackpadSeen';
+const CURSOR_KEY = 'pawlegends.cursorSize';
 
 function read(key: string): string | null {
   try {
@@ -84,7 +87,7 @@ function write(key: string, v: string): void {
 }
 
 /** In-memory copy, so a blocked storage still keeps the choice for this page. */
-const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean } = {};
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize } = {};
 
 export function castMode(): CastMode {
   return mem.cast ?? (read(CAST_KEY) === 'hold' ? 'hold' : 'quick');
@@ -104,6 +107,15 @@ export function trackpadPref(): TrackpadPref {
 export function setTrackpadPref(p: TrackpadPref): void {
   mem.pad = p;
   write(PAD_KEY, p);
+}
+
+export function cursorSize(): CursorSize {
+  return mem.cursor ?? (read(CURSOR_KEY) === 'large' ? 'large' : 'normal');
+}
+
+export function setCursorSize(c: CursorSize): void {
+  mem.cursor = c;
+  write(CURSOR_KEY, c);
 }
 
 /** Did Auto switch trackpad mode on (now or in an earlier match)? */
@@ -127,6 +139,7 @@ export function resetControlPrefs(): void {
   delete mem.cast;
   delete mem.pad;
   delete mem.seen;
+  delete mem.cursor;
 }
 
 /** Auto trackpad: how long the opening watch lasts (ms of match play) and how many left-clicks on the ground it needs. */

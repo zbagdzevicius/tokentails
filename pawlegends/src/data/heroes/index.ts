@@ -1,19 +1,28 @@
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
+import { AVIETE } from './aviete';
+import { BENGAS } from './bengas';
 import { BRUTUS } from './brutus';
 import { CACKLEJAW } from './cacklejaw';
 import { CLEM } from './clem';
+import { GABE } from './gabe';
+import { LAMBO } from './lambo';
 import { SAGE } from './sage';
 import type { HeroData, HeroId } from './types';
 
-export type { AbilityData, AbilitySlot, HeroBase, HeroData, HeroId, HeroRole, HeroSide, TalentData } from './types';
+export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, HeroRole, HeroSide, TalentData } from './types';
 
-export const HERO_IDS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw'] as HeroId[]);
+/** Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices. */
+export const HERO_IDS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   clem: CLEM,
   sage: SAGE,
   brutus: BRUTUS,
   cacklejaw: CACKLEJAW,
+  lambo: LAMBO,
+  aviete: AVIETE,
+  bengas: BENGAS,
+  gabe: GABE,
 });
 
 /**

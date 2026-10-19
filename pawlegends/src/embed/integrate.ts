@@ -7,8 +7,10 @@
  *
  * Handles: `session{signedIn, progress}` (merged into the local profile: unlocks follow the account), `save-result`
  * (the results save chip), `featured` (guest cards), `offer{kind:'meet'}` (the session's single offer), `app.notify`,
- * `purchase-result{catalogId, ok}`, `roster` art and catalog ids, and `audio` volumes. Sends `request-sign-in`,
- * `open-cat` and `offer-seen`. App builds: no featured cats, no offer, no checkout, roster starter and redeem only.
+ * `purchase-result{catalogId, ok}`, `roster` art and catalog ids, `audio` volumes and (sim v9) `champions` (the
+ * shelter champions' card art and sale state). Sends `request-sign-in`, `open-cat`, `offer-seen` and
+ * `champion-offer`. App builds: no featured cats, no offer, no checkout, no champion badge or Meet link, roster
+ * starter and redeem only.
  *
  * `handle(m)` tells the app which messages need nothing more from it (the app's last branch:
  * `else if (!integration.handle(m)) ent.apply(m)`); processing happens in the listener, never twice.
@@ -20,10 +22,16 @@ import { pickMeet } from '../money/offer';
 import { accountState, mergeServerProgress, playSession, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
 import { parseRoster, rosterCosmetics, setAppBuild, type RosterCat } from '../meta/roster';
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
-import { meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
+import { championInfo, meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
+import { HEROES } from '../data/heroes';
+import { championByCatalogId, championOf } from '../data/heroes/shelter';
+import { championDue, championEarned, noteChampionShown } from '../meta/profile';
+import type { HeroId } from '../sim/api';
+import { HERO_TEXT } from '../ui/heroText';
 import {
   parseApp,
   parseAudio,
+  parseChampions,
   parseFeatured,
   parseOffer,
   parsePurchaseResult,
@@ -32,6 +40,7 @@ import {
   type AppInfo,
   type AudioInfo,
   type Bridge,
+  type ChampionCard,
   type FeaturedCat,
   type HostMessage,
   type MeetOffer,
@@ -41,7 +50,7 @@ import {
 } from './bridge';
 
 /** Messages the integration fully owns: the app has nothing to do with them. */
-export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured']);
+export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions']);
 /** A results chip waits this long for the host's first `save-result`, then hides (an older host sends none). */
 export const SAVE_WAIT_MS = 12000;
 
@@ -56,6 +65,8 @@ export interface IntegrationDeps {
   now?: () => number;
   /** Round 1: a portrait of the player's hero in an element's chroma, for the Meet card preview (null: none). */
   chromaPreview?: (element: string) => { url: string; hero: string } | null;
+  /** Sim v9: the hero on the lobby turntable (the title's champion info follows it). */
+  lobbyHero?: () => HeroId;
 }
 
 export interface MatchInfo {
@@ -83,6 +94,8 @@ export interface IntegrationState {
   save: SaveResult | null;
   /** A cat bought in this session (its name), celebrated on the title. */
   joined: string | null;
+  /** Sim v9: the shelter champions' cards (art, for sale); empty until the host sends them. */
+  champions: ChampionCard[];
 }
 
 export interface Integration {
@@ -92,6 +105,15 @@ export interface Integration {
   state(): Readonly<IntegrationState>;
   /** Redraw every mounted slot now. */
   refresh(): void;
+  /**
+   * Sim v9: a finished match on `hero` (already counted in the profile). From the CHAMPION_OFFER_AT-th, until the card
+   * has been shown, for a non-owner on the web while the card is for sale, the host is told (`champion-offer`, once a
+   * page load) so its offer ask puts that card first; the server's caps (session 1, one a session, one a day, the same
+   * cat, spend) still decide. The `champions` message re-sends due cards on every later visit.
+   */
+  championMatch(hero: HeroId): boolean;
+  /** Sim v9: the pick tiles' card art and (web only) the owner badge per champion. */
+  championTiles(): Partial<Record<HeroId, { art?: string; owned: boolean }>>;
   dispose(): void;
 }
 
@@ -198,6 +220,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     progressAtMatch: null,
     save: null,
     joined: null,
+    champions: [],
   };
   let cardsV = 1;
   let saveV = 1;
@@ -205,6 +228,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   let waitTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let lastScreen: ScreenKind | null = null;
+  /** Champion cards already sent to the host this page load (`champion-offer`). */
+  const championAsked = new Set<string>();
 
   const isApp = (): boolean => s.app?.isApp === true || deps.ent.snapshot().isApp;
   const embedded = (): boolean => bridge.active && deps.ent.snapshot().embedded;
@@ -223,11 +248,40 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   const bench = (): SquadMate[] => cosmetics().cats.slice(2).map(mate);
 
   /** The Meet offer for `screen`, marking it shown (and telling the host) the first time it renders. */
+  /** Sim v9: a champion card as a Meet card's cat (its card name and element; art from the host). */
+  const championCat = (catalogId: string): FeaturedCat | null => {
+    const champ = championByCatalogId(catalogId);
+    const card = s.champions.find((c) => c.catalogId === catalogId);
+    if (!champ || !card?.forSale) return null;
+    return { catalogId, name: champ.cardName, type: HEROES[champ.hero].element, ...(card.art ? { art: card.art } : {}) };
+  };
+  /** Sim v9: a champion card is a Meet card only after the player's CHAMPION_OFFER_AT-th match on that champion. */
+  const meetAllowed = (catalogId: string): boolean => {
+    const champ = championByCatalogId(catalogId);
+    return !champ || championEarned(deps.profile(), champ.hero);
+  };
+  const offerCat = (catalogId: string): FeaturedCat | null => {
+    if (!meetAllowed(catalogId)) return null;
+    // a champion's card always reads as the champion (never a storefront cat that happens to be it)
+    return championByCatalogId(catalogId) ? championCat(catalogId) : (s.featured.find((c) => c.catalogId === catalogId) ?? null);
+  };
+  /** Sim v9: tell the host a champion's card is due (earned, never shown, unowned, for sale, web), once a page load. */
+  const askChampion = (hero: HeroId): boolean => {
+    const champ = championOf(hero);
+    if (!champ || isApp() || championAsked.has(champ.catalogId)) return false;
+    if (!championDue(deps.profile(), hero)) return false;
+    if (!s.champions.some((c) => c.catalogId === champ.catalogId && c.forSale)) return false;
+    if (cosmetics().catalogIds.includes(champ.catalogId)) return false;
+    if (!bridge.post('champion-offer', { catalogId: champ.catalogId })) return false;
+    championAsked.add(champ.catalogId);
+    return true;
+  };
+
   const meetFor = (screen: 'title' | 'results'): FeaturedCat | null => {
     const live = s.liveOffer;
     if (live && live.screen === screen) {
       if (cosmetics().catalogIds.includes(live.offer.catalogId) || isApp()) return null;
-      return s.featured.find((c) => c.catalogId === live.offer.catalogId) ?? null;
+      return offerCat(live.offer.catalogId);
     }
     // fun plan F4: no offer after a Rookie match
     if (screen === 'results' && s.match?.difficulty === 'rookie') return null;
@@ -241,16 +295,23 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       store: deps.ent.snapshot(),
       shownThisSession: s.offerShown,
       hostOffer: s.hostOffer,
-      // round 1: only cats with art get a Meet card (never ask to adopt a cat the player cannot see)
-      featured: s.featured.filter((c) => !!c.art).map((c) => c.catalogId),
+      // round 1: only cats with art get a Meet card (never ask to adopt a cat the player cannot see); sim v9: a
+      // champion's card for sale counts too (the player has seen the champion itself)
+      // champion only from its CHAMPION_OFFER_AT-th match (a storefront copy of a champion card never counts)
+      featured: [
+        ...s.featured.filter((c) => !!c.art && !championByCatalogId(c.catalogId)).map((c) => c.catalogId),
+        ...s.champions.filter((c) => c.forSale && meetAllowed(c.catalogId)).map((c) => c.catalogId),
+      ],
       owned: cosmetics().catalogIds,
     });
     if (!o) return null;
-    const cat = s.featured.find((c) => c.catalogId === o.catalogId);
+    const cat = offerCat(o.catalogId);
     if (!cat) return null;
     s.offerShown = true;
     s.liveOffer = { offer: o, screen };
     bridge.post('offer-seen', { kind: 'meet', catalogId: o.catalogId });
+    const shownChamp = championByCatalogId(o.catalogId);
+    if (shownChamp) noteChampionShown(shownChamp.hero);
     deps.analytics.track('offer_shown', { kind: 'meet', catalogId: o.catalogId, screen });
     document.documentElement.dataset.offer = 'meet';
     return cat;
@@ -258,11 +319,12 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   const meetModel = (cat: FeaturedCat) => ({
     cat,
+    champion: championByCatalogId(cat.catalogId) ? { pronoun: championByCatalogId(cat.catalogId)!.pronoun } : null,
     preview: deps.chromaPreview?.(cat.type) ?? null,
     waiting: checkout.waiting() === cat.catalogId,
     onMeet: () => {
       deps.analytics.track('offer_click', { kind: 'meet', catalogId: cat.catalogId });
-      if (checkout.openCat(cat.catalogId, featuredIds())) {
+      if (checkout.openCat(cat.catalogId, [...featuredIds(), ...s.champions.map((c) => c.catalogId)])) {
         deps.analytics.track('checkout_start', { kind: 'meet', catalogId: cat.catalogId });
         cardsV++;
         render();
@@ -289,6 +351,25 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     closeMeet();
   };
 
+  /**
+   * Sim v9: the lobby (title) info panel of the champion on the turntable. Information only: the `champion-offer`
+   * Meet card stays the one purchase surface. The owner badge is web only.
+   */
+  const championPanel = (): HTMLElement | null => {
+    const hero = deps.lobbyHero?.();
+    const champ = hero ? championOf(hero) : null;
+    if (!hero || !champ) return null;
+    const card = s.champions.find((c) => c.catalogId === champ.catalogId);
+    return championInfo({
+      name: champ.cardName,
+      pronoun: champ.pronoun,
+      type: HEROES[champ.hero].element,
+      art: card?.art,
+      flavour: HERO_TEXT[champ.hero].flavour,
+      owned: !isApp() && cosmetics().catalogIds.includes(champ.catalogId),
+    });
+  };
+
   /** The inline part goes in the slot, the corner cards (Meet, squad, companion) in the screen dock. */
   const renderCards = (slot: HTMLElement, kind: ScreenKind, scr: HTMLElement): void => {
     const p = deps.profile();
@@ -306,6 +387,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         ),
       );
       dock.replaceChildren(...(cat ? [meetCard({ ...meetModel(cat), onClose: dismissMeet })] : []));
+      const info = championPanel();
+      if (info) slot.appendChild(info);
     } else if (kind === 'pick') {
       slot.replaceChildren();
       dock.replaceChildren(
@@ -492,6 +575,17 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         if (v) s.audio = v;
         return;
       }
+      case 'champions': {
+        const v = parseChampions(m);
+        if (!v) return;
+        // App builds keep the art (the champions are in every build) but never a card for sale.
+        s.champions = isApp() ? v.map((c) => ({ ...c, forSale: false })) : v;
+        deps.onRosterChange();
+        // a card earned in an earlier visit (or one the server held back, e.g. in session 1) is still due
+        for (const c of s.champions) askChampion(c.hero);
+        redraw();
+        return;
+      }
       default:
         return;
     }
@@ -515,6 +609,13 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     },
     state: () => s,
     refresh: () => redraw(true, true),
+    championMatch: (hero) => askChampion(hero),
+    championTiles: () => {
+      const owned = cosmetics().catalogIds;
+      const out: Partial<Record<HeroId, { art?: string; owned: boolean }>> = {};
+      for (const c of s.champions) out[c.hero] = { ...(c.art ? { art: c.art } : {}), owned: !isApp() && owned.includes(c.catalogId) };
+      return out;
+    },
     dispose: () => {
       disposed = true;
       observer?.disconnect();

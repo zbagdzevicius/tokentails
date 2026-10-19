@@ -39,6 +39,57 @@ export function ringTexture(): THREE.Texture {
   return ringTex;
 }
 
+let boldTex: THREE.Texture | null = null;
+let crossTex: THREE.Texture | null = null;
+
+/** Ink band under a bright band: tinted by the instance colour, the band takes the colour and the ink stays dark. */
+function boldRing(g: CanvasRenderingContext2D, s: number, r: number): void {
+  const c = s / 2;
+  g.strokeStyle = 'rgba(20,10,16,0.88)';
+  g.lineWidth = s * 0.13;
+  g.beginPath();
+  g.arc(c, c, s * r, 0, Math.PI * 2);
+  g.stroke();
+  g.strokeStyle = '#fff';
+  g.lineWidth = s * 0.065;
+  g.beginPath();
+  g.arc(c, c, s * r, 0, Math.PI * 2);
+  g.stroke();
+}
+
+/**
+ * A thick high-contrast ring (the player's own ring, the hover ring, the move marker): a bright band on a dark ink
+ * band, so it reads on sand, grass, river and under additive VFX.
+ */
+export function boldRingTexture(): THREE.Texture {
+  boldTex ??= canvasTexture(128, (g, s) => boldRing(g, s, 0.4));
+  return boldTex;
+}
+
+/** The attack order marker: the bold ring plus four inward ticks (reads as "attack" by shape, not only by red). */
+export function crosshairTexture(): THREE.Texture {
+  crossTex ??= canvasTexture(128, (g, s) => {
+    boldRing(g, s, 0.4);
+    const c = s / 2;
+    g.lineCap = 'round';
+    for (const [w, col] of [
+      [s * 0.12, 'rgba(20,10,16,0.88)'],
+      [s * 0.055, '#fff'],
+    ] as const) {
+      g.strokeStyle = col;
+      g.lineWidth = w;
+      g.beginPath();
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2 + Math.PI / 4;
+        g.moveTo(c + Math.cos(a) * s * 0.42, c + Math.sin(a) * s * 0.42);
+        g.lineTo(c + Math.cos(a) * s * 0.2, c + Math.sin(a) * s * 0.2);
+      }
+      g.stroke();
+    }
+  });
+  return crossTex;
+}
+
 /** A soft filled disc with a bright rim (zones, traps, range previews). */
 export function discTexture(): THREE.Texture {
   discTex ??= canvasTexture(128, (g, s) => {
@@ -88,12 +139,13 @@ export class DecalLayer {
   readonly mesh: THREE.InstancedMesh;
   private n = 0;
 
-  constructor(tex: THREE.Texture, capacity: number, opts: { additive?: boolean; y?: number; renderOrder?: number; name?: string } = {}) {
+  constructor(tex: THREE.Texture, capacity: number, opts: { additive?: boolean; y?: number; renderOrder?: number; name?: string; depthTest?: boolean } = {}) {
     const geo = new THREE.PlaneGeometry(1, 1);
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
       depthWrite: false,
+      depthTest: opts.depthTest ?? true,
       toneMapped: false,
       blending: opts.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       polygonOffset: true,

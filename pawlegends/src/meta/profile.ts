@@ -6,6 +6,8 @@ import { TICK_HZ } from '../data/timeline';
 import { PROGRESS_LEVELS, type Progress } from '../embed/bridge';
 import type { OfferHistory } from '../money/offer';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
+import { HERO_IDS } from '../data/heroes';
+import { CHAMPION_IDS } from '../data/heroes/shelter';
 
 export interface Profile {
   v: 1;
@@ -53,7 +55,17 @@ export interface Profile {
   firstPlaySession: number;
   /** Round 2: the Meet card the player closed last (catalog id, page session, ms): it stays away for a while. */
   meetClosed: { id: string; session: number; at: number } | null;
+  /**
+   * Sim v9: finished matches per shelter champion. From the 3rd one (CHAMPION_OFFER_AT) a non-owner's champion card
+   * is due: the host puts it first for its offer engine until the card has been shown. Local only, never in the sim.
+   */
+  championMatches: Partial<Record<HeroId, number>>;
+  /** Sim v9: champions whose Meet card has been shown (`offer-seen`): no longer due. */
+  championShown: HeroId[];
 }
+
+/** Sim v9: the finished match on a champion from which its card may be offered (GDD §8.4), until it is shown. */
+export const CHAMPION_OFFER_AT = 3;
 
 /** The free coat earned by the first win (POC.md §12). */
 export const BISCUIT_UNLOCK = 'coat.brutus.biscuit';
@@ -61,11 +73,11 @@ export const BISCUIT_UNLOCK = 'coat.brutus.biscuit';
 const KEY = 'tt.pawlegends.profile.v1';
 /** A fresh bot-ladder rating. */
 export const LADDER_START = 1000;
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw'];
+const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [] };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -96,6 +108,13 @@ export function parseProfile(raw: string | null): Profile {
     const mc = o.meetClosed as Record<string, unknown> | null | undefined;
     p.meetClosed =
       mc && typeof mc === 'object' && typeof mc.id === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(mc.id) ? { id: mc.id, session: n(mc.session), at: n(mc.at) } : null;
+    if (o.championMatches && typeof o.championMatches === 'object') {
+      for (const h of CHAMPION_IDS) {
+        const c = n((o.championMatches as Record<string, unknown>)[h]);
+        if (c > 0) p.championMatches[h] = Math.min(c, 9999);
+      }
+    }
+    p.championShown = Array.isArray(o.championShown) ? CHAMPION_IDS.filter((h) => (o.championShown as unknown[]).includes(h)) : [];
     p.tipsNext = o.tipsNext === true;
     p.knowsUlt = o.knowsUlt === true;
     p.rating = typeof o.rating === 'number' && Number.isFinite(o.rating) ? Math.max(0, Math.min(9999, Math.round(o.rating))) : LADDER_START;
@@ -197,6 +216,34 @@ export function recordMatch(won: boolean, seconds: number, difficulty: Difficult
   }
   saveProfile(p);
   return { firstWin, best, second };
+}
+
+/** Sim v9: count a finished match on `hero` when it is a shelter champion; returns the new count (0 otherwise). */
+export function noteChampionMatch(hero: HeroId): number {
+  if (!(CHAMPION_IDS as readonly HeroId[]).includes(hero)) return 0;
+  const p = loadProfile();
+  const c = Math.min((p.championMatches[hero] ?? 0) + 1, 9999);
+  p.championMatches[hero] = c;
+  saveProfile(p);
+  return c;
+}
+
+/** Sim v9: has the player finished enough matches on champion `hero` for its card to be offered? */
+export function championEarned(p: Profile, hero: HeroId): boolean {
+  return (p.championMatches[hero] ?? 0) >= CHAMPION_OFFER_AT;
+}
+
+/** Sim v9: is champion `hero`'s card due (earned and never shown)? The caller still checks ownership and sale. */
+export function championDue(p: Profile, hero: HeroId): boolean {
+  return championEarned(p, hero) && !p.championShown.includes(hero);
+}
+
+/** Sim v9: champion `hero`'s Meet card was shown; it is no longer due. */
+export function noteChampionShown(hero: HeroId): void {
+  const p = loadProfile();
+  if (p.championShown.includes(hero)) return;
+  p.championShown.push(hero);
+  saveProfile(p);
 }
 
 /** Do the tips run in the next match? */

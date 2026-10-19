@@ -313,7 +313,7 @@ const mmss = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.f
 const f1 = (x) => (Number.isFinite(x) ? x.toFixed(1) : String(x));
 
 /** Gate checks: [name, pass, shown value]. `profileDifficulty` picks the novice / idle thresholds. */
-export function funGates(gate, a, perHero, difficulty) {
+export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
   const g = [];
   const add = (name, ok, value) => g.push([name, Boolean(ok), value]);
   const between = (x, lo, hi) => x >= lo && x <= hi;
@@ -381,6 +381,19 @@ export function funGates(gate, a, perHero, difficulty) {
     for (const [hero, h] of Object.entries(perHero)) {
       const rate = (100 * h.wins) / h.slots;
       add(`${hero} win rate 42% to 58%`, between(rate, 42, 58), `${f1(rate)}%`);
+    }
+    // Sim v9: every match is cats vs dogs (teams are one species), so the map-side check misses a species edge: the
+    // cat heroes' slot-weighted win rate must sit in 47% to 53%.
+    if (catHeroes.length) {
+      let wins = 0;
+      let slots = 0;
+      for (const [hero, h] of Object.entries(perHero)) {
+        if (!catHeroes.includes(hero)) continue;
+        wins += h.wins;
+        slots += h.slots;
+      }
+      const cats = slots ? (100 * wins) / slots : 0;
+      add('cat species win rate 47% to 53%', between(cats, 47, 53), `cats ${f1(cats)}% / dogs ${f1(100 - cats)}%`);
     }
     add('takedowns a minute 2.5 to 3.5', between(a.tdPerMin, 2.5, 3.5), a.tdPerMin.toFixed(2));
     // Sim v7 (playtest round 1: "kills barely decide the match"): a lead in fights is worth more, so the 3:30

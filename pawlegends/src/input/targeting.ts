@@ -103,6 +103,15 @@ export function nearestEnemy(units: readonly Unit[], me: Unit, myTeam: number, r
 export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam: number, facing: number): { x: number; y: number; id: number } {
   const ahead = (k: number): { x: number; y: number; id: number } => ({ x: me.x + Math.cos(facing) * aim.range * k, y: me.y + Math.sin(facing) * aim.range * k, id: 0xff });
   if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
+  if (aim.smart === 'ally') {
+    // Gabė's Wing Wrap (sim v9): the most hurt allied hero in range, else herself (the sim picks the ally nearest the point).
+    let best: Unit | null = null;
+    for (const u of units) {
+      if (u.id === me.id || u.kind !== 'hero' || u.team !== myTeam || u.state === 'dead' || dist(u, me) > aim.range) continue;
+      if (!best || u.hp / u.maxHp < best.hp / best.maxHp) best = u;
+    }
+    return best && best.hp < best.maxHp ? { x: best.x, y: best.y, id: 0xff } : { x: me.x, y: me.y, id: 0xff };
+  }
   const reach = aim.kind === 'unit' ? aim.range + 3000 : aim.range * 1.3;
   let t = aim.smart !== 'none' ? nearestEnemy(units, me, myTeam, reach, true) : null;
   if (!t && aim.smart === 'any') t = nearestEnemy(units, me, myTeam, aim.range, false);
@@ -136,6 +145,8 @@ export function pickNearest<T extends { id: number; kind: string }>(cands: reado
 
 /** Quick cast: how far (mm) from the cursor a unit-target ability still finds an enemy hero. */
 export const QUICK_UNIT_SEEK = 3000;
+/** A generic unit-target aim: what a unit-target quick cast at the cursor picks (hover's secondary ring). */
+export const QUICK_UNIT_AIM: AimSpec = Object.freeze({ kind: 'unit', shape: 'none', range: 0, smart: 'hero' });
 
 /**
  * Desktop cast at the cursor (quick cast on key press, or the hold-to-aim release): the point (mm) and target id a
@@ -172,4 +183,47 @@ export function cursorCast(aim: AimSpec, me: Unit, cursor: { x: number; y: numbe
     }
   }
   return { x: p.x, y: p.y, id: 0xff };
+}
+
+/**
+ * What the cursor hovers: the unit a click hits and how it relates to the player. `castId`: with no aim open, the
+ * enemy hero a unit-target quick cast would pick instead, set only when that is a different unit (the cursor rests on
+ * a minion, tower, camp or ally next to an enemy hero); it gets a thinner secondary ring.
+ */
+export interface HoverTarget {
+  id: number;
+  rel: 'enemy' | 'ally';
+  castId?: number;
+}
+
+/**
+ * The hover read for the cursor and the world ring (pure). Aiming a unit-target ability: the enemy hero cursorCast
+ * would pick (under the cursor, else the nearest within QUICK_UNIT_SEEK). Aiming anything else: null (the reticle
+ * shows where it lands). Otherwise the enemy under the cursor (what a right-click attacks), then an ally under it
+ * (never the player's own hero). A unit-target quick cast only takes an enemy hero, so when the ringed unit is not
+ * that hero, `castId` names the one cursorCast would pick (under the cursor, else the nearest within QUICK_UNIT_SEEK);
+ * `quickUnit` false (the hero has no unit-target ability) leaves it out.
+ */
+export function hoverTarget(
+  aim: AimSpec | null,
+  me: Unit,
+  cursor: { x: number; y: number } | null,
+  underEnemy: Unit | null,
+  underAlly: Unit | null,
+  units: readonly Unit[],
+  myTeam: number,
+  quickUnit = true,
+): HoverTarget | null {
+  if (aim) {
+    if (aim.kind !== 'unit') return null;
+    const c = cursorCast(aim, me, cursor, underEnemy, units, myTeam, false);
+    return c ? { id: c.id, rel: 'enemy' } : null;
+  }
+  let h: HoverTarget | null = null;
+  if (underEnemy && isEnemy(underEnemy, myTeam)) h = { id: underEnemy.id, rel: 'enemy' };
+  else if (underAlly && underAlly.id !== me.id && underAlly.team === myTeam && underAlly.state !== 'dead') h = { id: underAlly.id, rel: 'ally' };
+  if (!h || !quickUnit) return h;
+  const q = cursorCast(QUICK_UNIT_AIM, me, cursor, underEnemy, units, myTeam, false);
+  if (q && q.id !== h.id) h.castId = q.id;
+  return h;
 }

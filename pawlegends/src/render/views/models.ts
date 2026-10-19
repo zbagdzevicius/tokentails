@@ -25,10 +25,14 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   sage: (HERO_TOP.sage + 0.15) / 1.62,
   brutus: (HERO_TOP.brutus + 0.15) / 1.62,
   cacklejaw: (HERO_TOP.cacklejaw + 0.15) / 1.62,
+  lambo: (HERO_TOP.lambo + 0.15) / 1.62,
+  aviete: (HERO_TOP.aviete + 0.15) / 1.62,
+  bengas: (HERO_TOP.bengas + 0.15) / 1.62,
+  gabe: (HERO_TOP.gabe + 0.15) / 1.62,
 });
 
 /** Relation ring size under each hero (m; the size the quadruped heroes had, so rings read the same). */
-export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.03, sage: 1.94, brutus: 2.25, cacklejaw: 2.09 });
+export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.03, sage: 1.94, brutus: 2.25, cacklejaw: 2.09, lambo: 2.2, aviete: 2.0, bengas: 2.0, gabe: 1.96 });
 
 // ------------------------------------------------------------------------------------------------ minions
 

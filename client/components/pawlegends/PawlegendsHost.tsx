@@ -36,6 +36,7 @@ import {
   type PawlegendsApi,
   type StoreStatus,
 } from "./checkout";
+import { championsOf } from "./championsBridge";
 import { pickFeatured, storefrontCats, type FeaturedPick } from "./featuredBridge";
 import { PAWLEGENDS_EXIT_PATH, PAWLEGENDS_FRAME_SRC } from "./flags";
 import { rosterOf } from "./rosterBridge";
@@ -112,8 +113,13 @@ interface PawlegendsHostProps {
  *   direct-purchase cats from `GET /cat/sale` are `featured`, and `GET /pawlegends/offer` may name one of them as
  *   the session's single "Meet" card (never in session 1). `open-cat` opens the Token Tails $5 named-cat
  *   checkout (`PawlegendsCatSheet`); the bought cat joins the roster at once. Never packs, never random.
+ * - **Champions** (sim v9). The four shelter champions are free to play for everyone; `GET /pawlegends/champions`
+ *   gives their cards (`champions`): art, and whether each is for sale. The game's lobby info panel may open a
+ *   champion's card (`open-cat`), and from a non-owner's 3rd match on a champion until its card is shown, the game
+ *   sends `champion-offer` (once a page load): unless a card was shown this visit, the host asks the offer engine
+ *   with that card first (the server's caps still decide). Champion cards are never featured cats.
  * - **App builds** (Capacitor) play the game with starter and redeemed cats only: `store: false`, no featured
- *   cats, no offer, and `open-cat` is dropped (Apple 3.1.1 and 3.1.3(b)).
+ *   cats, no offer, no champion card for sale, and `open-cat` is dropped (Apple 3.1.1 and 3.1.3(b)).
  */
 export const PawlegendsHost = ({
   api: apiProp,
@@ -344,14 +350,38 @@ export const PawlegendsHost = ({
       live = false;
     };
   }, [isApp, loadStorefront]);
+  // Sim v9: the shelter champions' cards, once per visit (art in every build, for sale on the web only).
+  const [championsBody, setChampionsBody] = useState<unknown>(null);
+  useEffect(() => {
+    // A test double may leave the champions route out.
+    if (typeof api.champions !== "function") return;
+    let live = true;
+    void api
+      .champions()
+      .then((result) => live && result.ok && setChampionsBody(result.body))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [api]);
+  const champions = useMemo(() => championsOf(championsBody, ownedCats, isApp), [championsBody, ownedCats, isApp]);
+  // The champions' cards are never featured: they reach the offer engine only as a champion offer (after a
+  // non-owner's 3rd match on that champion).
   const featured: FeaturedPick = useMemo(
-    () => (isApp || !forSale ? { cats: [], byId: new Map() } : pickFeatured(forSale, ownedCats, roster)),
-    [isApp, forSale, ownedCats, roster]
+    () =>
+      isApp || !forSale
+        ? { cats: [], byId: new Map() }
+        : pickFeatured(forSale, ownedCats, roster, undefined, undefined, new Set(champions.cards.map((c) => c.catalogId))),
+    [isApp, forSale, ownedCats, roster, champions]
   );
 
   const sessionRef = useRef<number | null>(null);
   const offerAsked = useRef(false);
   const offerRef = useRef<string | null>(null);
+  /** A Meet card was shown this visit (`offer-seen`): no other offer is asked for. */
+  const offerSeen = useRef(false);
+  /** Champion cards the game said are due this visit (`champion-offer`); every offer ask puts them first. */
+  const dueChampions = useRef<string[]>([]);
   useEffect(() => {
     if (sessionRef.current === null) sessionRef.current = nextSession();
   }, []);
@@ -362,7 +392,8 @@ export const PawlegendsHost = ({
     onOpenCat: (catalogId: string) => void;
     onOfferSeen: (catalogId: string) => void;
     onNotify: (where: PawlegendsNotifyWhere) => void;
-  }>({ onRequestSignIn: () => undefined, onOpenCat: () => undefined, onOfferSeen: () => undefined, onNotify: () => undefined });
+    onChampionOffer: (catalogId: string) => void;
+  }>({ onRequestSignIn: () => undefined, onOpenCat: () => undefined, onOfferSeen: () => undefined, onNotify: () => undefined, onChampionOffer: () => undefined });
   useEffect(() => {
     handlers.current = {
       onRequestSignIn: (reason) => {
@@ -371,13 +402,19 @@ export const PawlegendsHost = ({
       },
       onOpenCat: (catalogId) => {
         if (isApp) return;
-        const forSaleCat = featured.byId.get(catalogId);
+        const forSaleCat = featured.byId.get(catalogId) ?? champions.byId.get(catalogId);
         const ownedCat = ownedCats.find((c) => roster.some((r) => r.id === c._id && r.catalogId === catalogId));
         if (!forSaleCat && !ownedCat) return;
         track(
           buildPawlegendsEvent("pawlegends_meet_open", {
             catalogId,
-            from: ownedCat ? "roster" : offerRef.current === catalogId ? "offer" : "featured",
+            from: ownedCat
+              ? "roster"
+              : offerRef.current === catalogId
+                ? "offer"
+                : featured.byId.has(catalogId)
+                  ? "featured"
+                  : "champion",
           })
         );
         if (ownedCat) {
@@ -397,10 +434,31 @@ export const PawlegendsHost = ({
         );
       },
       onOfferSeen: (catalogId) => {
+        offerSeen.current = true;
         void api.offerSeen({ deviceId: deviceId(), session: sessionRef.current ?? 1, catalogId });
       },
       onNotify: (where) => {
         if (!isApp && status?.email) setNotifyWhere(where);
+      },
+      // Sim v9: a champion's card is due (from the 3rd match on it, until shown; the game re-sends it every visit):
+      // ask the offer engine again with that card first, unless a card was already shown this visit. An offer held
+      // but not yet shown does not block it; the server keeps one card a session and every other cap.
+      onChampionOffer: (catalogId) => {
+        if (isApp || offerSeen.current || !champions.byId.has(catalogId) || dueChampions.current.includes(catalogId)) return;
+        dueChampions.current = [...dueChampions.current, catalogId];
+        const due = dueChampions.current.filter((id) => champions.byId.has(id));
+        void api
+          .offer({
+            deviceId: deviceId(),
+            session: sessionRef.current ?? 1,
+            screen: "results",
+            catalogIds: [...due, ...featured.cats.map((c) => c.catalogId).filter((id) => !due.includes(id))],
+            token: readToken(),
+          })
+          .then((result) => {
+            const offer = result.ok ? result.body?.offer ?? null : null;
+            if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
+          });
       },
     };
   });
@@ -424,6 +482,7 @@ export const PawlegendsHost = ({
         onOpenCat: (catalogId) => handlers.current.onOpenCat(catalogId),
         onOfferSeen: (catalogId) => handlers.current.onOfferSeen(catalogId),
         onNotify: (where) => handlers.current.onNotify(where),
+        onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onShare: (_kind, url) => {
           const safe = shareUrlOf(url, window.location.origin);
           if (!safe) return;
@@ -464,6 +523,9 @@ export const PawlegendsHost = ({
     bridgeRef.current?.setFeatured(featured.cats);
   }, [featured]);
   useEffect(() => {
+    bridgeRef.current?.setChampions(champions.cards);
+  }, [champions]);
+  useEffect(() => {
     const send = (settings: AudioSettings) =>
       bridgeRef.current?.setAudio({ muted: settings.muted, music: settings.musicVolume, sfx: settings.effectsVolume });
     send(getAudioSettings());
@@ -475,18 +537,22 @@ export const PawlegendsHost = ({
     if (isApp || offerAsked.current || bridgeState !== "ready" || !featured.cats.length) return;
     if (authStatus === "unknown" || authStatus === "loading-profile") return;
     offerAsked.current = true;
+    // a champion card the game already said is due goes first (the server returns the first one it may show)
+    const due = dueChampions.current.filter((id) => champions.byId.has(id));
     void api
       .offer({
         deviceId: deviceId(),
         session: sessionRef.current ?? 1,
-        catalogIds: featured.cats.map((c) => c.catalogId),
+        catalogIds: [...due, ...featured.cats.map((c) => c.catalogId).filter((id) => !due.includes(id))],
         token: readToken(),
       })
       .then((result) => {
+        // a champion ask sent after this one (it lists the featured cats too) has the newer answer
+        if (dueChampions.current.length > due.length) return;
         const offer = result.ok ? result.body?.offer ?? null : null;
         if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
       });
-  }, [api, isApp, bridgeState, featured, authStatus]);
+  }, [api, isApp, bridgeState, featured, authStatus, champions]);
 
   useEffect(
     () =>

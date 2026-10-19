@@ -5,6 +5,8 @@ import {
     Header,
     Headers,
     HttpCode,
+    Inject,
+    Optional,
     Post,
     Query,
     RawBodyRequest,
@@ -27,7 +29,9 @@ import {
 import { PawlegendsAccountService } from './pawlegends-account.service';
 import { pawlegendsCheckoutReady, pawlegendsEmailReady } from './pawlegends-env';
 import { PAWLEGENDS_SIM_INFO } from './pawlegends-sim-info';
-import { PawlegendsOfferService } from './pawlegends-offer.service';
+import { PAWLEGENDS_CAT_SALE, PawlegendsCatSale, PawlegendsOfferService } from './pawlegends-offer.service';
+import { championCards } from './pawlegends-champions';
+import { CatRepository } from 'src/cat/cat.repository';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { accountIdOf } from './pawlegends-account-id';
 import { PawlegendsStripeService } from './pawlegends-stripe.service';
@@ -55,6 +59,7 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     offer: { limit: 60, ttl: MINUTE },
     offerSeen: { limit: 30, ttl: MINUTE },
     founders: { limit: 60, ttl: MINUTE },
+    champions: { limit: 60, ttl: MINUTE },
     notify: { limit: 3, ttl: 10 * MINUTE },
     notifyConfirm: { limit: 10, ttl: MINUTE },
 };
@@ -67,7 +72,10 @@ export class PawlegendsController {
         private readonly webhooks: PawlegendsWebhookService,
         private readonly account: PawlegendsAccountService,
         private readonly offers: PawlegendsOfferService,
-        private readonly ipThrottler: ClientIpThrottlerGuard
+        private readonly ipThrottler: ClientIpThrottlerGuard,
+        // Sim v9 champions: the catalog cats and the direct-purchase check (both already providers in AppModule).
+        @Optional() private readonly cats?: CatRepository,
+        @Optional() @Inject(PAWLEGENDS_CAT_SALE) private readonly catSale?: PawlegendsCatSale
     ) {}
 
     private async throttle(name: keyof typeof PAWLEGENDS_THROTTLES, req: any, res?: any): Promise<void> {
@@ -179,6 +187,18 @@ export class PawlegendsController {
     async offerSeen(@Body() body: Record<string, unknown>, @Req() req: any, @Res({ passthrough: true }) res: any) {
         await this.throttle('offerSeen', req, res);
         return this.offers.seen(body);
+    }
+
+    /**
+     * Sim v9: the shelter champions' Token Tails cards (storefront fields and `forSale`), cached 5 minutes. Every
+     * champion is free to play: this route only feeds the cosmetics and the Meet link (`pawlegends-champions.ts`).
+     */
+    @Header('Cache-Control', 'public, max-age=300')
+    @Get('champions')
+    async champions(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('champions', req, res);
+        if (!this.cats) return { cats: [] };
+        return championCards(this.cats as any, this.catSale);
     }
 
     /** Founder Legend seats left (a number only in the POC). */

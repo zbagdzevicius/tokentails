@@ -171,6 +171,8 @@ PPK `moba` preset (`INPUT.presets.moba` in `src/core/config.js`, read by `src/co
 | Talent pick | 1 / 2 while the talent toast shows |
 | Camera | Space centres, Y toggles lock, edge pan, wheel zoom (clamped) |
 | Scoreboard | Tab |
+| Trackpad mode | Settings Auto / On / Off (built 2026-10): LMB moves and attacks; Auto turns on for a player who left-clicks the ground and never right-clicks |
+| Cursor | The game's own cursor (built 2026-10): cream arrow, red over an enemy, mint over an ally, red crosshair with attack-move armed, gold reticle while aiming; the hovered unit gets a bold ring. Settings "Cursor size" Large (48 px) |
 | Alternative preset | "Brawler": WASD to move, LMB attacks toward the cursor (PPK `hybrid`). For players who do not play MOBAs |
 
 ### 4.2 Mobile (landscape only)
@@ -245,7 +247,9 @@ All juice lives in the renderer. The sim never pauses, so determinism holds.
 
 ### 5.4 Roster across phases (30 heroes: 15 cats, 15 dogs)
 
-P1 = POC (4), P2 = MVP (+8, 12 total: 6 cats, 6 dogs), P3 = Full (+18, 30 total).
+P1 = POC (4), P2 = MVP (+8, 12 total: 6 cats, 6 dogs), P3 = Full (+18, 30 total). Sim v9 (2026-10-19): the four
+P2 cat slots went to the shelter champions (below), built ahead of the other P2 heroes; Clover, Mochi, Earl Grey and
+Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive.
 
 **Purrhaven (cats)**
 
@@ -253,10 +257,14 @@ P1 = POC (4), P2 = MVP (+8, 12 total: 6 cats, 6 dogs), P3 = Full (+18, 30 total)
 |---|---|---|---|---|---|
 | **Clem** | Fighter | FAIRY | *Valor* meter; ult *Golden Hour* | **P1** | PPK Player, `Valor.js` |
 | **Sage** | Marksman | WIND | Every 4th shot pierces; ult *Moonshot* | **P1** | PPK `sage.volley` |
-| Clover | Support | GRASS | *Bell Chime* heals; ult *Lullaby* sleep zone | P2 | PPK `clover.mend` |
-| Mochi | Tank | SAND | *Shield Wall* taunt; ult *Tuxedo Fortress* | P2 | PPK `mochi.shieldWall` |
-| Earl Grey | Mage | ELECTRIC | Every third spell chains | P2 | PPK service kitten |
-| Pip | Assassin | DARK | Stealth in brush; ult *Midnight* execute | P2 | PPK service kitten |
+| **Lambo** (shelter champion) | Tank | STELLAR ("Star") | *Brave With Friends*; ult *Tangled Lights* pull and root | **P2 (sim v9)** | Lambo's Token Tails card |
+| **Avietė** (shelter champion) | Assassin | ELECTRIC | Charged in brush, next hit stuns; *Live Wire* blink and return | **P2 (sim v9)** | Avietė's Token Tails card |
+| **Bengas** (shelter champion) | Mage | FIRE | *Hot Toast* vs CC'd heroes; ult *Curtains Up!* fire stage | **P2 (sim v9)** | Bengas's Token Tails card |
+| **Gabė** (shelter champion) | Support | WIND | *Heart Breeze* heals; ult *Under Her Spell* charm | **P2 (sim v9)** | Gabė's Token Tails card |
+| Clover | Support | GRASS | *Bell Chime* heals; ult *Lullaby* sleep zone | P3 (was P2) | PPK `clover.mend` |
+| Mochi | Tank | SAND | *Shield Wall* taunt; ult *Tuxedo Fortress* | P3 (was P2) | PPK `mochi.shieldWall` |
+| Earl Grey | Mage | ELECTRIC | Every third spell chains | P3 (was P2) | PPK service kitten |
+| Pip | Assassin | DARK | Stealth in brush; ult *Midnight* execute | P3 (was P2) | PPK service kitten |
 | Sir Marmalade | Tank/Fighter | FIRE | Immune to knockback; ult *Nap Time* | P3 | PPK NPC |
 | Princess Snowpaw | Mage | ICE | Slowed targets take more damage | P3 | PPK |
 | Sgt. Whiskerbottom | Support (engage) | SAND | *Rally* haste; ult *Charge!* | P3 | PPK |
@@ -289,7 +297,7 @@ P1 = POC (4), P2 = MVP (+8, 12 total: 6 cats, 6 dogs), P3 = Full (+18, 30 total)
 
 Full numbers for the 4 POC heroes are in `POC.md` §6.
 
-**Real shelter cats are not heroes.** The names of real Pink Paw cats (Judas, Raudvis, Zare, Simas) appear only as **Rescue coats** with a photo card, under the existing licence for names and photos. A playable hero named after a real cat would imply an endorsement and needs specific consent. Pudding stays an objective (a playable "brave mode" Pudding is a Phase 3 event idea only).
+**Shelter champions (sim v9, founder default 2026-10-19: go ahead under the Oct 11 licence for names and photos).** Four heroes are each *inspired by* a real Pink Paw cat's Token Tails card: Lambo, Avietė, Bengas and Gabė (`pawlegends/src/data/heroes/shelter.ts`). Copy says "inspired by <name>'s Token Tails card"; it never says the cat endorses anything or that playing helps the cat (CLAIMS R2/R3), and it uses no health details from the bios (the flavour lines come from each card's one-line story). Every champion is free to play in every build; owning the card adds cosmetics only (a badge, the Companion Kitten, the element chroma). A one-line courtesy note to Pink Paw about playable-hero use is sent, but does not block. Other real Pink Paw cats (Judas, Raudvis, Zare, Simas) still appear only as **Rescue coats** with a photo card. Pudding stays an objective (a playable "brave mode" Pudding is a Phase 3 event idea only).
 
 **Release cadence after Phase 3 launch:** one hero every 3 weeks, alternating cat and dog, each with a launch bundle.
 
@@ -403,6 +411,7 @@ Founder packs promise items that arrive only at MVP launch. If the Phase 1 kill 
 | 3rd completed match | Founder vs Founder Legend side by side | Once; again after 7 days if not bought | P1 |
 | 5th match, or a player with owned cats | My Cat Hero | Once | P2 |
 | 3rd match on a trial hero | That hero, plus a bundle with its best skin | Once per hero | P2 |
+| 3rd finished match on a shelter champion, by a non-owner, while the card is for sale (sim v9) | "Meet <name>": that champion's Token Tails card first in the offer ask (`champion-offer`); the champion itself stays free | Until the card is shown once | P1.5 (sim v9) |
 | Hero mastery 3 | That hero's Epic skin | Once per hero | P2 |
 | Ranked blocked by owning fewer than 6 heroes | "3 heroes for $9.99" bundle | Once a season | P2 |
 | Season start | Pass / Pass+ | Once a season | P2 |

@@ -53,6 +53,12 @@ describe("pickFeatured", () => {
     expect(pick.cats[0]).toEqual({ catalogId: id(1), name: "Cat 1", type: "FIRE", art: ART });
   });
 
+  it("never features an excluded (shelter champion) card", () => {
+    const pick = pickFeatured([sale(1, "FIRE"), sale(2, "ICE")], [], [], 0, undefined, new Set([id(1)]));
+    expect(pick.cats.map((c) => c.catalogId)).toEqual([id(2)]);
+    expect(pick.byId.has(id(1))).toBe(false);
+  });
+
   it("prefers elements the roster lacks, and two different elements", () => {
     const forSale = [sale(1, "FIRE"), sale(2, "FIRE"), sale(3, "FIRE"), sale(4, "ICE"), sale(5, "WATER")];
     for (let day = 0; day < 5; day++) {

@@ -148,8 +148,12 @@ export interface DifficultyRules {
 }
 
 export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRules>>> = Object.freeze({
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 9500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1100, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10300, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true }),
+  // Sim v9 (shelter champions: 6 cat heroes, so 3 of 4 gate matches put the human on the cats, and the champions'
+  // `pvp` is off on Rookie and Easy): fun2 fell to 2.32 takedowns a minute and fun1 to 81.5% core kills before Sudden
+  // Death (v8 2.60 and 89.0%). Easy's Nine Lives now starts at 35% lost in a second (28% before; fun2 2.53, win 75.0%,
+  // novice 88.0%) and Rookie's rally is +12% a takedown (11% before; fun1 88.5%, length median 5:01).
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 9500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1200, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10300, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true }),
   /**
    * Sim v6 Hard: Normal's structures; Nine Lives starts later (a clean combo can finish a hero); enemy heroes are back
    * in 0.65 of the time and hit the human 10% harder. Better decisions alone barely moved the odds (a Normal-level
@@ -359,6 +363,13 @@ export const BOT_AI = Object.freeze({
   pickupRange: 9000,
   snackRange: 14000,
   pickupSnackHpBp: 7000,
+  /** Sim v9 shelter champions: Gabė shields an allied hero below careHpBp, Lambo hugs one below hugHpBp, Avietė blinks
+   *  back out of a fight below blinkOutHpBp. */
+  careHpBp: 6000,
+  hugHpBp: 5000,
+  blinkOutHpBp: 4000,
+  /** Gabė casts Under Her Spell on one enemy hero only with an allied hero this close to it (mm; Lambo's rule). */
+  spellAllyRange: 4000,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
    *  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */
   followRange: 7000,

@@ -1,10 +1,10 @@
 /**
  * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, the desktop controls (quick cast or aim on hold,
- * trackpad mode Auto / On / Off; input/presets.ts keeps them), first-match tips and anonymous play stats (the
+ * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
  * session when the choice is still open and the game runs outside the Token Tails page (the page asks on its own).
  */
-import { castMode, setCastMode, setTrackpadPref, trackpadPref, type CastMode, type TrackpadPref } from '../input/presets';
+import { castMode, cursorSize, setCastMode, setCursorSize, setTrackpadPref, trackpadPref, type CastMode, type CursorSize, type TrackpadPref } from '../input/presets';
 import type { QualityTier } from '../render/quality';
 
 export interface SettingsState {
@@ -27,6 +27,7 @@ export interface SettingsOpts {
 const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high: 'High' };
 const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on hold' };
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
+const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -41,7 +42,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -56,6 +57,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .join('')}</span></div>
       <div class="set-row"><span>Trackpad mode (click to move)</span><span class="chips">${(['auto', 'on', 'off'] as const)
         .map((m) => `<button class="chip ${ctl.pad === m ? 'on' : ''}" data-pad="${m}">${PAD_NAME[m]}</button>`)
+        .join('')}</span></div>
+      <div class="set-row"><span>Cursor size</span><span class="chips">${(['normal', 'large'] as const)
+        .map((m) => `<button class="chip ${ctl.cursor === m ? 'on' : ''}" data-cursor="${m}">${CURSOR_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
@@ -69,7 +73,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const tier = t.closest<HTMLElement>('[data-t]')?.dataset.t as QualityTier | undefined;
     const cast = t.closest<HTMLElement>('[data-cast]')?.dataset.cast as CastMode | undefined;
     const pad = t.closest<HTMLElement>('[data-pad]')?.dataset.pad as TrackpadPref | undefined;
-    if (cast) {
+    const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
+    if (cur) {
+      ctl.cursor = cur;
+      setCursorSize(cur);
+    } else if (cast) {
       ctl.cast = cast;
       setCastMode(cast);
     } else if (pad) {

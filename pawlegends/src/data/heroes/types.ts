@@ -1,8 +1,9 @@
 /** Shared shape of hero data (POC.md §6). Integer units: mm, mm/s, ticks, bp, angle steps (1/4096 turn). */
-export type HeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw';
+/** HERO_IDS order is the sim index; the four shelter champions (sim v9) are appended so 0..3 keep their values. */
+export type HeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw' | 'lambo' | 'aviete' | 'bengas' | 'gabe';
 export type HeroSide = 'cat' | 'dog';
-export type HeroRole = 'fighter' | 'marksman' | 'tank' | 'assassin';
-export type Element = 'FAIRY' | 'WIND' | 'SAND' | 'DARK';
+export type HeroRole = 'fighter' | 'marksman' | 'tank' | 'assassin' | 'mage' | 'support';
+export type Element = 'FAIRY' | 'WIND' | 'SAND' | 'DARK' | 'STELLAR' | 'ELECTRIC' | 'FIRE';
 export type AbilitySlot = 'q' | 'w' | 'e' | 'r';
 
 export interface HeroBase {

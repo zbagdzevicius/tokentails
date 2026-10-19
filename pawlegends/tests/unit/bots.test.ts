@@ -44,6 +44,27 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
     for (const s of [3, 4, 5]) expect(w.x[s]).toBeLessThan(mirrorX(FOUNTAIN.x) - 10000);
   });
 
+  it('sim v9: bots play the shelter champions and cast all four of their slots', () => {
+    const casts = new Map<string, Set<number>>();
+    for (const seed of [5, 6, 7, 8]) {
+      const m = botsOn(heroMatch(['clem', 'lambo', 'aviete', 'brutus', 'cacklejaw', 'brutus'], undefined, seed));
+      const m2 = botsOn(heroMatch(['clem', 'bengas', 'gabe', 'brutus', 'cacklejaw', 'brutus'], undefined, seed));
+      for (const match of [m, m2]) {
+        const picks = match.config.picks;
+        for (let t = 0; t < 30 * 300 && !match.ended; t++) {
+          step(match);
+          for (const e of match.events) {
+            if (e.type !== 'cast' || e.src < 1 || e.src > 2 || e.slot > 3) continue;
+            const h = picks[e.src];
+            if (!casts.has(h)) casts.set(h, new Set());
+            casts.get(h)!.add(e.slot);
+          }
+        }
+      }
+    }
+    for (const h of ['lambo', 'aviete', 'bengas', 'gabe']) expect([...(casts.get(h) ?? [])].sort(), h).toEqual([0, 1, 2, 3]);
+  });
+
   it('a badly hurt bot goes home (walks or naps)', () => {
     const m = botsOn(heroMatch(['clem', 'sage', 'brutus', 'cacklejaw', 'clem', 'sage']));
     const w = m.world;

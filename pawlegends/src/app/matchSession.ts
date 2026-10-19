@@ -705,9 +705,10 @@ export class MatchSession {
   }
 
   private marker(x: number, z: number, attack: boolean): void {
+    // the bold ring marker (GameView.orderMarker: over the VFX, red with crosshair ticks for attacks) and a few sparks
+    this.view.orderMarker(x, z, attack);
     const p = new THREE.Vector3(x, 0.08, z);
-    this.view.particles.single(p, { shape: SHAPE.RING, color: attack ? 0xff4d5e : 0x9be3c4, intensity: 1.6, size0: 1.2, size1: 0.2, life: 0.35, additive: true });
-    this.view.particles.ring(p, { n: 6, r0: 0.5, speed: [0.5, 1], up: 0.2, color: attack ? 0xff4d5e : 0x9be3c4, alpha: 0.8, additive: true, size: [0.1, 0.16], life: [0.25, 0.35], fade: FADE.LINEAR });
+    this.view.particles.ring(p, { n: 6, r0: 0.5, speed: [0.5, 1], up: 0.2, color: attack ? 0xff4d5e : 0x5ff0a8, alpha: 0.8, additive: true, size: [0.1, 0.16], life: [0.25, 0.35], fade: FADE.LINEAR });
     sfx.play('click', { vol: 0.35, rate: attack ? 0.8 : 1.2 });
   }
 
@@ -1217,6 +1218,7 @@ export class MatchSession {
     this.orders?.update();
     this.desktop?.update(dt);
     this.view.update(frame, this.paused ? 0 : dt);
+    this.overhead.watchers = this.view.watchers;
     this.overhead.draw(frame, this.gr.camera, (e) => (e.hero ? HERO_SCALE[e.hero] : 1));
     this.minimap.draw(frame);
     this.tips.update(dt);
