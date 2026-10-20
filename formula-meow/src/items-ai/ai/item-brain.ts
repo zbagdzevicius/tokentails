@@ -11,6 +11,8 @@
  *   ahead of the player (feel lane: they used to be half as eager, and the front of the field went quiet).
  * - The player's rival (`RacerInfo.rival`) aims at the player twice as often: it reacts and fires sooner and takes
  *   longer shots when the player is the target; a grudge (the player hit it in the last 20 s) doubles that again.
+ * - Set pieces (SIM_VERSION 8): a kart on a loop's rail, in a jump gap's flight or its net cannot be hit, so it is no
+ *   target (not ahead, behind or near); a cat in one of those holds its item until it is out.
  */
 import type { ItemId, Personality, TickInput } from '../../types';
 import { AI, ITEMS } from '../../tuning';
@@ -19,6 +21,7 @@ import { curvatureAhead } from '../../core/sim/autopilot';
 import { speedOf } from '../../core/sim/kart';
 import { atan2L, wrapAngle } from '../../core/sim/fixed';
 import { draw } from '../../core/sim/rng';
+import { stuntImmune } from '../../core/sim/stunt';
 import { ProjKind, itemsOf } from '../items/state';
 import { ownerLeads } from '../items/projectiles';
 import { gapToPlayer } from './rubber-band';
@@ -62,7 +65,7 @@ function look(ctx: SimContext, i: number, cone: number): Seen {
   for (let j = 0; j < ks.length; j++) {
     if (j === i) continue;
     const o = ks[j];
-    if (o.respawnTicks > 0 || o.finished) continue;
+    if (o.respawnTicks > 0 || o.finished || stuntImmune(o)) continue;
     const dx = o.x - k.x;
     const dz = o.z - k.z;
     const d2 = dx * dx + dz * dz;
@@ -120,6 +123,8 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
     m.react = Math.floor((10 + Math.floor(draw(k, 'rngAi') * (40 - 25 * p.skill))) / eager);
   }
   m.held++;
+  // on a loop's rail or over a gap: wait (a press would only be buffered until the exit)
+  if (stuntImmune(k)) return;
   // far ahead of the player (> 4 s): a little less eager
   const slow = human != null && -gapToPlayer(ctx, i) > 4 * ctx.tun.topSpeed ? 1 / AI.farAheadEager : 1;
   if (m.held < m.react * slow) return;
