@@ -18,6 +18,10 @@ import { GO_TICK, type SimWorld } from '../core/sim/world';
 import { followLine } from '../core/sim/autopilot';
 import { atan2L, clamp, wrapAngle } from '../core/sim/fixed';
 import { STUNT } from '../tuning';
+import { pieceSkin } from './skins';
+import { buildTrackMesh } from '../core/track/mesh';
+import { themeOf } from '../core/track/themes';
+import type { Mesh } from 'three';
 
 const ME = 5;
 const LOOP = 0; // SET_PIECE_KINDS index
@@ -49,11 +53,23 @@ describe('tracks-A set pieces: placement', () => {
     });
   }
 
-  it('Neon Rooftops keeps s200–s4 for the wall ride and the loop only (SETPIECES.md R1, R2), and its header promise of a roof-to-roof jump is real', () => {
+  it('Neon Rooftops keeps s200–s4 for the loop only (SETPIECES.md R1), and its header promise of a roof-to-roof jump is real', () => {
     const t = buildTrack(ROOFTOPS);
     expect(t.pieces.find((p) => p.kind === 'jump')!.gap).toBeGreaterThanOrEqual(10);
     for (const f of ROOFTOPS.features) if (f.kind !== 'start') expect(f.s < 200 && f.s > 4, `${f.kind} at s${f.s}`).toBe(true);
     for (const h of ROOFTOPS.hazards ?? []) expect(h.s < 200 && h.s > 4).toBe(true);
+  });
+
+  it('every piece has its themed skin, and the skins add at most one moving part per track (the Laundry drum)', () => {
+    for (const [def] of EXPECT) {
+      const t = buildTrack(def);
+      for (const p of t.pieces) expect(pieceSkin(def.theme, p.kind, p.skin), `${def.id} ${p.kind}`).not.toBeNull();
+      const names: string[] = [];
+      buildTrackMesh(t, themeOf(def.theme), { groundY: 0 }).traverse((o) => {
+        if ((o as Mesh).isMesh) names.push(o.name);
+      });
+      expect(names.filter((n) => n.startsWith('piece-')), def.id).toEqual(def.id === 'laundry' ? ['piece-drum'] : []);
+    }
   });
 
   it('Laundry Spin keeps at least one hazard after its loop replaced the drum', () => {
@@ -131,8 +147,6 @@ function soloLap(def: TrackDef, lane: boolean, cls: 0 | 1 | 2 = 0): { ticks: num
     w.step([o]);
     if (a < 0 && k.branch === -1 && into <= span) a = w.tick;
     if (a >= 0 && b < 0 && k.branch === -1 && (k.si - wall.i1 + t.n) % t.n >= after && (k.si - wall.i1 + t.n) % t.n < after + 40) b = w.tick;
-    if (process.env.FM_TRACE2 && cls === 0 && w.tick % 60 === 0) console.log(`${def.id} ${lane ? 'L' : 'R'} t${((w.tick - t0) / 60).toFixed(0)} si${k.si} b${k.branch} dist${k.dist.toFixed(0)} v${Math.hypot(k.vx, k.vz).toFixed(1)}`);
-    if (process.env.FM_TRACE && (lane ? 'L' : 'R') === process.env.FM_TRACE && def.id === (process.env.FM_TRACK ?? def.id) && cls === 0 && into <= span + 40 && w.tick % 6 === 0)
       console.log(`${lane ? 'L' : 'R'} si${k.si} into${into}/${span} d${k.d.toFixed(1)} hw${t.halfW[k.si].toFixed(1)} lane${(wall.side > 0 ? t.laneR[k.si] : t.laneL[k.si]).toFixed(1)} v${Math.hypot(k.vx, k.vz).toFixed(1)} steer${o.steer} boost${(k as unknown as { boostT: number }).boostT}`);
   }
   return { ticks: w.tick - t0, stretch: b - a, ev: w.st.events, w };
