@@ -3,22 +3,26 @@
  *
  *   Draw      drag one finger round a loop; it closes, snaps to the 4 m grid and smooths itself
  *   Shape     drag the points; double-tap the road to add one; long-press a point to remove it; height and width
- *   Stickers  drag 🏁 🎁 ⚡ ⤴ 💧 🌿 from the tray onto the road; tap one to flip its side; drag it off to delete it
+ *   Stickers  drag 🏁 🎁 ⚡ ⤴ 💧 🌿 from the tray onto the road; tap one to flip its side; drag it off to delete it.
+ *             Stunts (iteration 3): ➰ loop, 🛹 wall ride, 🦘 jump gap, 🚇 tunnel snap to the nearest spot the validator
+ *             accepts (pieces.ts); tap one for its gap, drop, length or side; drag it off to delete it
  *   Style     theme, name, creator tag
  *
  * Every change is validated (validate.ts): the status line says what is wrong in one sentence and the problem part
  * of the road turns red. "Race it" and "Share" unlock once the track is drivable.
  */
-import type { FeatureKind, ThemeId, TrackDef, TrackPoint } from '../../types';
+import type { FeatureKind, SetPiece, SetPieceKind, ThemeId, TrackDef, TrackPoint } from '../../types';
 import { modal } from '../../ui/kit';
 import { TRACK } from '../../tuning';
 import { densePolyline } from '../../core/track/spline';
 import { themeOf } from '../../core/track/themes';
 import { t as tr } from '../../ui/i18n';
 import type { BuiltTrack } from '../../core/track/build';
-import { firstMessage, lapsFor, LIMITS, validateTrack, type Validation } from './validate';
-import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, sToSample, starterFeatures, type P2 } from './doodle';
+import { firstMessage, lapsFor, LIMITS, needsDrive, validateTrack, type Validation } from './validate';
+import { driveCheck } from './drive-check';
+import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, sToSample, starterFeatures, straightestSample, type P2 } from './doodle';
 import { History } from './history';
+import { JUMP_M, PIECE_EDIT, PIECE_ICON, PIECE_STICKERS, TUNNEL_M, metresToUnits, newPiece, pieceAnchor, pieceLimit, placed, snapPiece, unitsToMetres } from './pieces';
 import { cleanName, CREATOR_MAX, encodeTrack, NAME_MAX } from '../codec/track-code';
 import { loadCreator, newSlot, putSaved, saveCreator, saveDraft } from '../store';
 import { shareTrack } from '../actions';
@@ -134,7 +138,13 @@ export class TrackDoodle {
   private touchUi = false;
   /** changed since the editor opened (Esc asks before leaving, B55) */
   private dirty = false;
-  private ghost: { kind: FeatureKind; x: number; y: number } | null = null;
+  private ghost: { icon: string; x: number; y: number } | null = null;
+  /** set pieces (iteration 3): the one being dragged on the map, and the one whose controls the panel shows */
+  private dragPiece = -1;
+  private selPiece = -1;
+  /** the set-piece drive check (a headless lap, the slow part of validation) runs a moment after the last edit */
+  private driveTimer = 0;
+  private driving = false;
   private lastTap = { t: 0, x: 0, y: 0 };
   private pressTimer = 0;
   private preview = false;
@@ -236,10 +246,19 @@ export class TrackDoodle {
     this.root.addEventListener('keydown', this.onKey);
     this.root.addEventListener('keyup', (e) => e.stopPropagation());
     window.addEventListener('resize', this.onResize);
+    // the panel's height changes with the tab and the picked stunt, and the map shrinks or grows with it: keep the
+    // canvas buffer and the view transform in step (a window resize alone missed it, so drops landed off target)
+    if (typeof ResizeObserver === 'function') {
+      this.resizeObs = new ResizeObserver(() => void this.syncView());
+      this.resizeObs.observe(this.canvas.parentElement ?? this.canvas);
+    }
   }
+
+  private resizeObs: ResizeObserver | null = null;
 
   mount(parent: HTMLElement = document.body): void {
     parent.appendChild(this.root);
+    (window as unknown as { __fmDoodle?: TrackDoodle }).__fmDoodle = this;
     this.onResize();
     this.setTab(this.tab);
     this.root.focus({ preventScroll: true });
@@ -258,9 +277,31 @@ export class TrackDoodle {
 
   private revalidate(): void {
     this.dirty = true;
-    this.v = validateTrack(this.def);
+    this.v = validateTrack(this.def, { drive: false });
     if (this.v.built) this.def.laps = lapsFor(this.v.length);
     saveDraft({ slot: this.slot, def: this.def });
+    this.scheduleDrive();
+    this.refresh();
+  }
+
+  /** Test-drive the stunts (validate.ts `driveCheck`) once the edits pause; Race and Share wait for it. */
+  private scheduleDrive(): void {
+    clearTimeout(this.driveTimer);
+    this.driving = needsDrive(this.def, this.v);
+    if (this.driving) this.driveTimer = window.setTimeout(() => this.finishDrive(), 180);
+  }
+
+  private finishDrive(): void {
+    clearTimeout(this.driveTimer);
+    if (!this.driving || this.closedFlag) return;
+    if (this.preview) {
+      this.driveTimer = window.setTimeout(() => this.finishDrive(), 180);
+      return;
+    }
+    this.driving = false;
+    const v = this.v;
+    const issues = driveCheck(clone(this.def), v.built!);
+    if (issues.length) this.v = { ...v, ok: false, issues };
     this.refresh();
   }
 
@@ -298,6 +339,7 @@ export class TrackDoodle {
   }
 
   private async share(): Promise<void> {
+    this.finishDrive();
     if (!this.v.ok) return this.flash(firstMessage(this.v) ?? 'Fix the track first.');
     this.save();
     const msg = await shareTrack(this.def);
@@ -305,6 +347,7 @@ export class TrackDoodle {
   }
 
   private race(): void {
+    this.finishDrive();
     if (!this.v.ok) return this.flash(firstMessage(this.v) ?? 'Fix the track first.');
     this.save();
     const def = clone(this.def);
@@ -364,8 +407,12 @@ export class TrackDoodle {
   private dispose(): void {
     if (this.closedFlag) return;
     this.closedFlag = true;
+    const w = window as unknown as { __fmDoodle?: TrackDoodle };
+    if (w.__fmDoodle === this) delete w.__fmDoodle;
     window.removeEventListener('resize', this.onResize);
+    this.resizeObs?.disconnect();
     clearTimeout(this.pressTimer);
+    clearTimeout(this.driveTimer);
     clearTimeout(this.noteTimer);
     this.root.remove();
   }
@@ -387,6 +434,7 @@ export class TrackDoodle {
   private setTab(t: Tab): void {
     this.tab = t;
     this.sel = t === 'shape' ? this.sel : -1;
+    this.selPiece = -1;
     for (const b of this.tabs.querySelectorAll<HTMLButtonElement>('.fm-ed-tab')) b.classList.toggle('on', b.dataset.tab === t);
     this.renderPanel();
     this.refresh();
@@ -428,16 +476,28 @@ export class TrackDoodle {
         row2.append(del);
         p.append(row, row2);
       }
+    } else if (this.tab === 'stickers' && this.selPiece >= 0 && this.def.setPieces?.[this.selPiece]) {
+      this.renderPiecePanel(p, this.selPiece);
     } else if (this.tab === 'stickers') {
       const tray = el('div', 'fm-ed-tray');
       for (const s of STICKERS) {
         const b = el('button', 'fm-ed-stk fm-sticker', `<span>${s.icon}</span><small>${tr(s.kind === 'hazard' ? 'editor.sticker.hazard' : s.kind === 'shortcut' ? 'editor.sticker.shortcut' : s.label)}</small>`);
         if (s.kind === 'hazard' || s.kind === 'shortcut') b.title = tr(`editor.sticker.${s.kind}Hint`);
         b.dataset.kind = s.kind;
-        b.addEventListener('pointerdown', (e) => this.startTrayDrag(e, s.kind));
+        b.addEventListener('pointerdown', (e) => this.startTrayDrag(e, s.icon, (x, y) => this.dropSticker(s.kind, x, y, -1)));
         tray.append(b);
       }
-      p.append(tray, el('p', 'fm-ed-tip', 'Drag a sticker onto the road. Tap one to flip its side, drag it off the road to remove it.'));
+      // stunts (iteration 3): their own row, so the eight road stickers keep their places
+      const stunts = el('div', 'fm-ed-tray fm-ed-stunts');
+      stunts.setAttribute('aria-label', tr('editor.stunts'));
+      for (const s of PIECE_STICKERS) {
+        const b = el('button', 'fm-ed-stk fm-ed-stunt fm-sticker', `<span>${s.icon}</span><small>${tr(`editor.sticker.${s.kind}`)}</small>`);
+        b.title = tr(`editor.sticker.${s.kind}Hint`);
+        b.dataset.piece = s.kind;
+        b.addEventListener('pointerdown', (e) => this.startTrayDrag(e, s.icon, (x, y) => this.dropPiece(s.kind, x, y, -1)));
+        stunts.append(b);
+      }
+      p.append(tray, el('p', 'fm-ed-tip', 'Drag a sticker onto the road. Tap one to flip its side, drag it off the road to remove it.'), stunts, el('p', 'fm-ed-tip', tr('editor.piece.tip')));
     } else {
       const themes = el('div', 'fm-ed-row');
       for (const t of THEMES) {
@@ -496,8 +556,8 @@ export class TrackDoodle {
     if (!this.title.querySelector('input')) this.title.textContent = this.def.name || 'Track Doodle';
     this.undoBtn.disabled = !this.history.canUndo;
     this.redoBtn.disabled = !this.history.canRedo;
-    this.raceBtn.disabled = !this.v.ok;
-    this.shareBtn.disabled = !this.v.ok;
+    this.raceBtn.disabled = !this.v.ok || this.driving;
+    this.shareBtn.disabled = !this.v.ok || this.driving;
     // polish B9: nothing drawn, nothing to save
     this.saveBtn.disabled = this.def.points.length === 0;
     const empty = this.def.points.length === 0;
@@ -517,7 +577,9 @@ export class TrackDoodle {
       s.textContent = 'Start with a doodle.';
       return;
     }
-    if (this.v.ok) {
+    if (this.v.ok && this.driving) {
+      s.textContent = tr('editor.piece.driving');
+    } else if (this.v.ok) {
       s.classList.add('ok');
       s.textContent = `✓ Drivable · ${Math.round(this.v.length)} m · ${this.def.laps} laps`;
     } else {
@@ -548,6 +610,13 @@ export class TrackDoodle {
   // view
   // ------------------------------------------------------------------------------------------
 
+  /** The canvas rect, with the view transform brought up to date first when the map changed size (B: drops off target). */
+  private syncView(): DOMRect {
+    const r = this.canvas.getBoundingClientRect();
+    if (Math.abs(r.width / 2 - this.cx) > 0.5 || Math.abs(r.height / 2 - this.cy) > 0.5) this.onResize();
+    return r;
+  }
+
   private readonly onResize = (): void => {
     const r = this.canvas.getBoundingClientRect();
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -570,7 +639,7 @@ export class TrackDoodle {
     return { x: (this.cx - px) / this.scale, z: (this.cy - py) / this.scale };
   }
   private local(e: PointerEvent): { x: number; y: number } {
-    const r = this.canvas.getBoundingClientRect();
+    const r = this.syncView();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
@@ -605,7 +674,7 @@ export class TrackDoodle {
     if (this.tab === 'shape' || this.preview) this.drawHandles();
     if (t) this.drawStickers(t);
     if (this.stroke) this.drawStroke();
-    if (this.ghost) this.drawSticker(this.ghost.x, this.ghost.y, ICON[this.ghost.kind], true);
+    if (this.ghost) this.drawSticker(this.ghost.x, this.ghost.y, this.ghost.icon, true);
   }
 
   private ribbon(t: BuiltTrack, extra: number, color: string, from = 0, to = t.n): void {
@@ -718,6 +787,7 @@ export class TrackDoodle {
         c.fill();
       }
     }
+    this.drawPieces(t);
     // problems in red
     for (const is of this.v.issues) {
       if (is.from == null || is.to == null) continue;
@@ -742,6 +812,11 @@ export class TrackDoodle {
       const i = sToSample(this.def, t, f.s);
       const p = featurePos(t, i, f.side ?? 0);
       this.drawSticker(this.sx(p.x), this.sy(p.z), ICON[f.kind], false, this.tab === 'shape');
+    });
+    (this.def.setPieces ?? []).forEach((pc, idx) => {
+      if (idx === this.dragPiece && this.dragMoved) return;
+      const p = this.piecePos(t, pc);
+      this.drawSticker(this.sx(p.x), this.sy(p.z), PIECE_ICON[pc.kind], false, this.tab === 'shape', idx === this.selPiece);
     });
   }
 
@@ -835,12 +910,12 @@ export class TrackDoodle {
     }
   }
 
-  private drawSticker(x: number, y: number, icon: string, lifted: boolean, small = false): void {
+  private drawSticker(x: number, y: number, icon: string, lifted: boolean, small = false, picked = false): void {
     const c = this.ctx;
     const r = lifted ? 19 : small ? 11 : 15;
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
-    c.fillStyle = '#fff3dc';
+    c.fillStyle = picked ? '#ff3ea5' : '#fff3dc';
     c.fill();
     c.lineWidth = 3;
     c.strokeStyle = '#2a1a22';
@@ -898,7 +973,8 @@ export class TrackDoodle {
       return;
     }
     if (this.tab === 'stickers') {
-      this.dragSticker = this.hitSticker(p.x, p.y);
+      this.dragPiece = this.hitPiece(p.x, p.y);
+      this.dragSticker = this.dragPiece >= 0 ? -1 : this.hitSticker(p.x, p.y);
       return;
     }
     if (this.tab === 'shape') {
@@ -955,7 +1031,12 @@ export class TrackDoodle {
       return;
     }
     if (this.dragSticker >= 0 && this.dragMoved) {
-      this.ghost = { kind: this.def.features[this.dragSticker].kind, x: p.x, y: p.y };
+      this.ghost = { icon: ICON[this.def.features[this.dragSticker].kind], x: p.x, y: p.y };
+      this.draw();
+    }
+    if (this.dragPiece >= 0 && this.dragMoved) {
+      const pc = this.def.setPieces?.[this.dragPiece];
+      if (pc) this.ghost = { icon: PIECE_ICON[pc.kind], x: p.x, y: p.y };
       this.draw();
     }
   };
@@ -981,6 +1062,17 @@ export class TrackDoodle {
         this.refresh();
       }
       this.renderPanel();
+    } else if (this.dragPiece >= 0) {
+      const idx = this.dragPiece;
+      this.dragPiece = -1;
+      this.ghost = null;
+      const pc = this.def.setPieces?.[idx];
+      if (pc && this.dragMoved) this.dropPiece(pc.kind, p.x, p.y, idx);
+      else if (pc) {
+        this.selPiece = this.selPiece === idx ? -1 : idx;
+        this.renderPanel();
+        this.refresh();
+      }
     } else if (this.dragSticker >= 0) {
       const idx = this.dragSticker;
       this.dragSticker = -1;
@@ -1005,6 +1097,7 @@ export class TrackDoodle {
     this.stroke = null;
     this.dragPoint = -1;
     this.dragSticker = -1;
+    this.dragPiece = -1;
     this.ghost = null;
     this.preview = false;
     this.dragFrom = null;
@@ -1056,13 +1149,13 @@ export class TrackDoodle {
     this.renderPanel();
   }
 
-  private startTrayDrag(e: PointerEvent, kind: FeatureKind): void {
+  private startTrayDrag(e: PointerEvent, icon: string, drop: (x: number, y: number) => void): void {
     e.preventDefault();
     const btn = e.currentTarget as HTMLElement;
     btn.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
       const p = this.local(ev);
-      this.ghost = { kind, x: p.x, y: p.y };
+      this.ghost = { icon, x: p.x, y: p.y };
       this.draw();
     };
     const up = (ev: PointerEvent) => {
@@ -1072,7 +1165,7 @@ export class TrackDoodle {
       const p = this.local(ev);
       this.ghost = null;
       const r = this.canvas.getBoundingClientRect();
-      if (p.y >= 0 && p.y <= r.height && p.x >= 0 && p.x <= r.width) this.dropSticker(kind, p.x, p.y, -1);
+      if (p.y >= 0 && p.y <= r.height && p.x >= 0 && p.x <= r.width) drop(p.x, p.y);
       else this.draw();
     };
     const cancel = () => {
@@ -1124,6 +1217,236 @@ export class TrackDoodle {
       if (idx >= 0) d.features[idx] = f;
       else d.features.push(f);
     });
+  }
+
+  /**
+   * QA (e2e): the page position of the road's centre `frac` of the lap past the start, or of the middle of the
+   * straightest 60 m away from the start (`frac` < 0); plus the set pieces of the draft. Read-only.
+   */
+  qa(frac: number): { x: number; y: number; frac: number; pieces: SetPiece[]; ok: boolean; driving: boolean } | null {
+    const t = this.v.built;
+    if (!t) return null;
+    const i = frac < 0 ? straightestSample(t, 60, [0], 90) : Math.round(frac * t.n) % t.n;
+    const r = this.syncView();
+    return { x: r.left + this.sx(t.px[i]), y: r.top + this.sy(t.pz[i]), frac: i / t.n, pieces: clone(this.def).setPieces ?? [], ok: this.v.ok, driving: this.driving };
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // set pieces (iteration 3)
+  // ------------------------------------------------------------------------------------------
+
+  /** Map position of a piece's sticker: its start (a loop: its boost strip), on the centre line (a wall ride: its lane's side). */
+  private piecePos(t: BuiltTrack, pc: SetPiece): P2 {
+    const bp = placed(this.def, t, pc);
+    const i = bp ? (bp.kind === 'loop' ? bp.strip : bp.i0) : pieceAnchor(this.def, t, pc);
+    return featurePos(t, i, bp?.kind === 'wall' ? bp.side * 2.2 : 0);
+  }
+
+  private hitPiece(x: number, y: number): number {
+    const t = this.v.built;
+    if (!t) return -1;
+    let best = -1;
+    let bestD = STICKER_PX;
+    (this.def.setPieces ?? []).forEach((pc, idx) => {
+      const p = this.piecePos(t, pc);
+      const d = Math.hypot(this.sx(p.x) - x, this.sy(p.z) - y);
+      if (d < bestD) {
+        bestD = d;
+        best = idx;
+      }
+    });
+    return best;
+  }
+
+  /**
+   * Drop a stunt at screen (x, y). `idx` ≥ 0 moves an existing one; off the road removes it. The piece snaps (by up to
+   * ±8 lap units) to the nearest spot the set-piece rules accept, and the panel opens on it.
+   */
+  private dropPiece(kind: SetPieceKind, x: number, y: number, idx: number): void {
+    const t = this.v.built;
+    if (!t) {
+      this.flash('Draw a track first.');
+      return this.refresh();
+    }
+    const w = this.toWorld(x, y);
+    const near = nearestOnTrack(t, w.x, w.z);
+    if (near.dist > t.halfW[near.i] + 6) {
+      if (idx < 0) return this.refresh();
+      this.removePiece(idx);
+      return;
+    }
+    if (idx < 0) {
+      const lim = pieceLimit(this.def, kind);
+      if (lim) {
+        this.flash(tr(lim.key, { n: lim.n }));
+        return this.refresh();
+      }
+    }
+    const s = sampleToS(this.def, t, near.i);
+    const prev = idx >= 0 ? this.def.setPieces![idx] : null;
+    const fresh = newPiece(this.def, t, kind, s);
+    // a moved piece keeps its settings (gap, drop, length); an automatic wall side is picked again
+    const pc: SetPiece = prev ? { ...prev, s } : fresh;
+    if (prev && pc.kind === 'wall' && prev.side !== 1 && prev.side !== -1) {
+      delete pc.side;
+      if (fresh.side === 0) pc.side = 0;
+    }
+    const list = [...(this.def.setPieces ?? [])];
+    const at = idx >= 0 ? idx : list.length;
+    list[at] = pc;
+    const snapped = snapPiece({ ...this.def, setPieces: list }, t, at);
+    this.commit((d) => {
+      d.setPieces = list;
+      d.setPieces[at] = snapped;
+    });
+    if (snapped.s !== s) this.flash(tr('editor.piece.snapped'));
+    this.selPiece = at;
+    this.renderPanel();
+    this.refresh();
+  }
+
+  private removePiece(idx: number): void {
+    this.selPiece = -1;
+    this.commit((d) => {
+      d.setPieces!.splice(idx, 1);
+      if (!d.setPieces!.length) delete d.setPieces;
+    });
+    this.renderPanel();
+  }
+
+  /** Change piece `idx` (a stepper or a chip in the panel); an undefined field is removed. */
+  private setPiece(idx: number, patch: Partial<SetPiece>): void {
+    this.commit((d) => {
+      const p: SetPiece = { ...d.setPieces![idx], ...patch };
+      for (const k of Object.keys(p) as Array<keyof SetPiece>) if (p[k] === undefined) delete p[k];
+      d.setPieces![idx] = p;
+    });
+    this.renderPanel();
+  }
+
+  private renderPiecePanel(p: HTMLDivElement, idx: number): void {
+    const pc = this.def.setPieces![idx];
+    const t = this.v.built;
+    const head = el('div', 'fm-ed-row');
+    head.append(el('span', 'fm-ed-pt', `${PIECE_ICON[pc.kind]} ${tr(`editor.sticker.${pc.kind}`)}`));
+    const stepper = (label: string, value: string, dec: () => void, inc: () => void, canDec: boolean, canInc: boolean): HTMLSpanElement => {
+      const grp = el('span', 'fm-ed-group');
+      const down = el('button', 'fm-ed-chip', '−');
+      down.setAttribute('aria-label', `${label} −`);
+      down.disabled = !canDec;
+      down.addEventListener('click', dec);
+      const up = el('button', 'fm-ed-chip', '+');
+      up.setAttribute('aria-label', `${label} +`);
+      up.disabled = !canInc;
+      up.addEventListener('click', inc);
+      const v = el('span', 'fm-ed-val', value);
+      v.setAttribute('aria-label', `${label} ${value}`);
+      grp.append(el('span', 'fm-ed-lbl', label), down, v, up);
+      return grp;
+    };
+    const row = el('div', 'fm-ed-row');
+    if (pc.kind === 'jump') {
+      const gap = pc.gap ?? PIECE_EDIT.gapDefault;
+      const drop = pc.drop ?? 0;
+      row.append(
+        stepper(tr('editor.piece.gap'), `${gap} m`, () => this.setPiece(idx, { gap: gap - PIECE_EDIT.gapStep }), () => this.setPiece(idx, { gap: gap + PIECE_EDIT.gapStep }), gap > JUMP_M.gapMin, gap < JUMP_M.gapMax),
+        stepper(tr('editor.piece.drop'), `${drop} m`, () => this.setPiece(idx, { drop: drop - PIECE_EDIT.dropStep || undefined }), () => this.setPiece(idx, { drop: drop + PIECE_EDIT.dropStep }), drop > 0, drop < JUMP_M.dropMax),
+      );
+    } else if (pc.kind === 'tunnel' && t) {
+      const m = Math.round(unitsToMetres(t, pc.len ?? metresToUnits(t, PIECE_EDIT.tunnelDefault)) / PIECE_EDIT.tunnelStep) * PIECE_EDIT.tunnelStep;
+      row.append(
+        stepper(tr('editor.piece.length'), `${m} m`, () => this.setPiece(idx, { len: metresToUnits(t, m - PIECE_EDIT.tunnelStep) }), () => this.setPiece(idx, { len: metresToUnits(t, m + PIECE_EDIT.tunnelStep) }), m > TUNNEL_M.min, m < TUNNEL_M.max),
+      );
+    } else if (pc.kind === 'wall') {
+      row.append(el('span', 'fm-ed-lbl', tr('editor.piece.side')));
+      const opts: ReadonlyArray<[string, 0 | undefined]> = [
+        [tr('editor.piece.outer'), undefined],
+        [tr('editor.piece.both'), 0],
+      ];
+      for (const [label, side] of opts) {
+        const on = side === 0 ? pc.side === 0 : pc.side !== 0;
+        const b = el('button', 'fm-ed-chip' + (on ? ' on' : ''), label);
+        b.addEventListener('click', () => this.setPiece(idx, { side }));
+        row.append(b);
+      }
+    } else row.append(el('span', 'fm-ed-tip', tr('editor.piece.loopTip')));
+    const del = el('button', 'fm-ed-chip', `🗑 ${tr('editor.piece.remove')}`);
+    del.addEventListener('click', () => this.removePiece(idx));
+    const done = el('button', 'fm-ed-chip', '✓');
+    done.setAttribute('aria-label', 'Done');
+    done.addEventListener('click', () => {
+      this.selPiece = -1;
+      this.renderPanel();
+      this.refresh();
+    });
+    head.append(del, done);
+    p.append(head, row);
+  }
+
+  /** Each placed piece's footprint on the map: loop purple (with its ring), wall lane orange, jump gap dark with a green landing, tunnel blue. */
+  private drawPieces(t: BuiltTrack): void {
+    const c = this.ctx;
+    const span = (a: number, b: number): number => a + ((b - a + t.n) % t.n);
+    for (const bp of t.pieces) {
+      if (bp.kind === 'wall') {
+        const to = span(bp.i0, bp.i1);
+        if (bp.side >= 0) this.band(t, bp.i0, to, (i) => [t.halfW[i], t.halfW[i] + t.laneR[i]], 'rgba(255,150,40,0.85)');
+        if (bp.side <= 0) this.band(t, bp.i0, to, (i) => [-t.halfW[i] - t.laneL[i], -t.halfW[i]], 'rgba(255,150,40,0.85)');
+      } else if (bp.kind === 'jump') {
+        this.band(t, bp.i0, span(bp.i0, bp.i1), (i) => [-t.halfW[i] - 0.5, t.halfW[i] + 0.5], 'rgba(30,14,30,0.9)');
+        this.band(t, bp.land0, span(bp.land0, bp.land1), (i) => [-t.halfW[i] * 0.5, t.halfW[i] * 0.5], 'rgba(59,178,115,0.6)');
+      } else if (bp.kind === 'loop') {
+        this.band(t, bp.strip, span(bp.strip, bp.i1), (i) => [-t.halfW[i], t.halfW[i]], 'rgba(160,90,255,0.55)');
+        // the loop itself, standing on the middle of its zone
+        const mid = (bp.i0 + Math.round(((bp.i1 - bp.i0 + t.n) % t.n) / 2)) % t.n;
+        c.strokeStyle = 'rgba(160,90,255,0.95)';
+        c.lineWidth = 3;
+        c.beginPath();
+        c.arc(this.sx(t.px[mid]), this.sy(t.pz[mid]), Math.max(6, 6.5 * this.scale), 0, Math.PI * 2);
+        c.stroke();
+      } else {
+        const to = span(bp.i0, bp.i1);
+        this.band(t, bp.i0, to, (i) => [-t.halfW[i] - 1.2, t.halfW[i] + 1.2], 'rgba(40,60,160,0.45)');
+        c.setLineDash([4, 4]);
+        c.strokeStyle = 'rgba(80,200,255,0.95)';
+        c.lineWidth = 2;
+        for (const sgn of [-1, 1]) {
+          c.beginPath();
+          for (let k = bp.i0; k <= to; k++) {
+            const i = k % t.n;
+            const d = sgn * (t.halfW[i] + 1.2);
+            const X = this.sx(t.px[i] - t.tz[i] * d);
+            const Y = this.sy(t.pz[i] + t.tx[i] * d);
+            if (k === bp.i0) c.moveTo(X, Y);
+            else c.lineTo(X, Y);
+          }
+          c.stroke();
+        }
+        c.setLineDash([]);
+      }
+    }
+  }
+
+  /** Fill the strip between lateral offsets `range(i)` (m, + = right of travel) over samples [from, to]. */
+  private band(t: BuiltTrack, from: number, to: number, range: (i: number) => [number, number], color: string): void {
+    const c = this.ctx;
+    c.fillStyle = color;
+    c.beginPath();
+    for (let k = from; k <= to; k++) {
+      const i = k % t.n;
+      const d = range(i)[0];
+      const X = this.sx(t.px[i] - t.tz[i] * d);
+      const Y = this.sy(t.pz[i] + t.tx[i] * d);
+      if (k === from) c.moveTo(X, Y);
+      else c.lineTo(X, Y);
+    }
+    for (let k = to; k >= from; k--) {
+      const i = k % t.n;
+      const d = range(i)[1];
+      c.lineTo(this.sx(t.px[i] - t.tz[i] * d), this.sy(t.pz[i] + t.tx[i] * d));
+    }
+    c.closePath();
+    c.fill();
   }
 
   private flipSticker(idx: number): void {

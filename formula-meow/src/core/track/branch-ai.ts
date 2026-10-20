@@ -9,6 +9,8 @@
  *   when the kart will be fast enough to clear it) is taken by 45 % of skilled cats (skill ≥ 0.6) and 18 % of the rest;
  * - a slower one by 12 % (curious cats), so every route sees traffic.
  * Humans (and the player's bot) never get a plan: they choose with the steering.
+ * Set pieces (SIM_VERSION 8, ai-ugc lane) sit on the main road only (the build keeps them out of fork and merge
+ * windows), so the main route's expected time counts the pieces between fork and merge (`mainStuntTime`).
  *
  * Sim-safe math only.
  */
@@ -28,6 +30,31 @@ const DECIDE_AHEAD = 30;
 const PAST_FORK = 12;
 
 const foot: Foot = { j: 0, along: 0, d: 0 };
+
+/**
+ * Seconds a set piece on the main route adds to it (negative: saves), against driving its shadow flat. Measured on
+ * the stunt lab (Engine step, all three classes): a loop is lap-time neutral (rail −0.02 to 0.00 s: its 1.35 rail
+ * speed, entry strip and exit boost pay for the longer ribbon); a jump gap's aimed flight is neutral and a clean
+ * landing's 1.2 boost for 0.5 s gives back about 0.05 s; a wall lane is optional (its boost balances its longer line);
+ * a tunnel has no sim rule.
+ */
+export const STUNT_ROUTE_TIME = { loop: 0, jump: -0.05, wall: 0, tunnel: 0 } as const;
+
+const stuntMemo = new WeakMap<BuiltBranch, number>();
+
+/** Seconds the set pieces on the main road between branch b's fork and merge add to the main route. */
+export function mainStuntTime(t: SimContext['track'], b: BuiltBranch): number {
+  const hit = stuntMemo.get(b);
+  if (hit !== undefined) return hit;
+  let s = 0;
+  const span = fwd(b.from, b.to, t.n);
+  for (const pc of t.pieces ?? []) {
+    if (pc.kind === 'jump' && pc.gap <= 0) continue;
+    if (fwd(b.from, pc.i0, t.n) <= span) s += STUNT_ROUTE_TIME[pc.kind];
+  }
+  stuntMemo.set(b, s);
+  return s;
+}
 
 /**
  * The route the last `branchSteer` call steered along, so `curvatureAhead` (asked by the AI's drift and corner-speed
@@ -89,7 +116,7 @@ export function takesBranch(ctx: SimContext, idx: number, b: BuiltBranch, botSki
   let take = false;
   {
     const boosting = k.boostTicks > 20;
-    let faster = b.tBranch < b.tMain * 0.995 || (b.surface === Surface.Offroad && boosting && b.length < b.span * ctx.track.step);
+    let faster = b.tBranch < (b.tMain + mainStuntTime(ctx.track, b)) * 0.995 || (b.surface === Surface.Offroad && boosting && b.length < b.span * ctx.track.step);
     if (b.gap) {
       // a pad on the run-up to the gap boosts every kart that hits it
       const g = b.gap;
@@ -105,7 +132,7 @@ export function takesBranch(ctx: SimContext, idx: number, b: BuiltBranch, botSki
 }
 
 function botTakes(ctx: SimContext, idx: number, b: BuiltBranch, skill: number): boolean {
-  if (b.tBranch >= b.tMain * 0.995) return false;
+  if (b.tBranch >= (b.tMain + mainStuntTime(ctx.track, b)) * 0.995) return false;
   if (b.gap) {
     const g = b.gap;
     const padded = b.pads.some((pad) => pad.j < g.j0 && (g.j0 - pad.j) * b.step < 40);

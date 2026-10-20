@@ -364,7 +364,7 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     const w = world(raceConfig(stuntLab(), { seed: 42 }));
     while (w.tick < GO_TICK + 1800) w.step();
     expect(w.st.events.filter((e) => e.type === 'stuntExit' && e.a === 0).length).toBeGreaterThan(4);
-    expect(w.hash()).toMatchInlineSnapshot(`2599889428`);
+    expect(w.hash()).toMatchInlineSnapshot(`1725674043`);
   });
 
   it('same seed and inputs → the same hashes, three times, also mirrored; a replay re-simulates exactly', () => {

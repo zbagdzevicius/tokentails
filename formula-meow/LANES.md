@@ -49,6 +49,23 @@ contract request instead. Lanes may update the golden hashes on their branch; th
 - ai-ugc: track code v3 (`codec/track-code.ts` drops set pieces today; its round-trip test ignores them), the full
   validator, AI on the wall lane (`lineWall`), no drift starts near a loop or lip, item-brain skipping immune karts,
   `branch-ai` counting stunt times, the editor stickers, `e2e/setpieces.spec.ts` on all six tracks.
+  **ai-ugc lane (branch `lane3/fm-ai-ugc`): built.**
+  - AI (`items-ai/ai/driver.ts` `STUNT_AI`): hands off on a loop's rail or in a net; no new drift within 20 m of a
+    loop strip or a jump lip, a held drift let go 7 m before a lip, no brake within 25 m of either; trick taps off a
+    gap lip only at skill ≥ 0.6; skill ≥ `AI.padSkill` cats ride a wall lane (`laneOf`/`laneSteer`, no separate
+    `lineWall`) when `laneCostM` ≤ 8 m (the stunt lab: yes; Kitchen's s33 lane costs 12.5 m, so nobody rides it
+    until tracks-A moves it onto its bend). The phone bot (`balance/bots.ts`) follows the same rules at its skill.
+  - Items: the item brain skips immune karts (`stuntImmune`) as targets and holds its item while immune itself; a
+    yarn ball loses its lock on a kart that enters a set piece and rolls on; the Laser Dot holds just behind an immune
+    leader; hairballs and yarn balls cross a jump gap at deck height (yarn with a small hop); traps never land on a
+    loop or in a jump's footprint (moved past it, or left before it).
+  - `core/track/branch-ai.ts` `mainStuntTime`: the main route counts its pieces (`STUNT_ROUTE_TIME`: loop 0, jump
+    −0.05 s, measured neutral otherwise).
+  - UGC: track code v3 (`ugc/codec/track-code.ts`, written only with pieces, v1/v2 byte-identical); the full validator
+    (`validateSetPieces`, codes loopBend, loopClear, wallBend, jumpLine, tunnelLen, pieceSpacing, pieceCount, drive;
+    authored tracks use `{ pieces: 'authored' }`); the drive check (`ugc/editor/drive-check.ts`, the phone bot laps
+    once at 50cc); editor stickers ➰ 🛹 🦘 🚇 (`ugc/editor/pieces.ts`: defaults, limits, a snap of ±8 lap units to a
+    valid spot); a remix (`remixOf`) keeps only the pieces the doodle rules accept.
 - juice: FOV and audio in tunnels (`tunnelMask`), callouts on the stunt events, minimap icons, the "Stunts" result row.
 - tracks-B: the Yarn branch gap still sends a kart back to the fork (`tracks/hazards/rules.ts`); kickers and half-pipes
   on the rug arena (`jump` with `gap: 0` builds a full-width aimed ramp; `wall` side 0 is built but arenas skip walls).
