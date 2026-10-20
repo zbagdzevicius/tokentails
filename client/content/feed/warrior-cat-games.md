@@ -87,7 +87,7 @@ Pink Paw Knight is a third-person 3D adventure that runs in your browser. You pl
 
 > Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.
 
-That line is the heart of it. The kittens Clem finds are based on real cats at Pink Paw (Rožinė pėdutė), a cat shelter in Kaunas, Lithuania. A clan story is about loyalty to your own; this one is about going out and bringing a lost cat home.
+That line is the heart of it. The kittens Clem finds are based on real cats at Pink Paw (Rožinė pėdutė), a cat shelter in Kaunas, Lithuania. A clan story is about loyalty to your own; this one is about going out and bringing a lost cat home. For the controls and how the rescues work, read [Pink Paw Knight: a kitten rescue game](/feed/games/kitten-rescue-game).
 
 What to expect:
 

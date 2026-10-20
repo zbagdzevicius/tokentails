@@ -143,4 +143,4 @@ Every step is checkable by anyone, without an account.
 - **Contract owners with unchecked power.** Many splitter contracts have an owner who can change the recipient list. That is normal, but the changes should be public events. ShelterSplit, for example, emits `ShelterAdded`, `ShelterUpdated`, `ShelterActiveSet`, `ShelterRemoved` and `TreasuryChanged` whenever its owner changes the list or the treasury.
 - **Sponsor money presented as public support.** Payments from a company related to the platform are fine, but they should be labelled as such, not counted as donors.
 
-For more on how the Token Tails payouts are built, read [how Token Tails works](/feed/giving/how-token-tails-works) and [the USDC payment splitter contract](/feed/build/usdc-payment-splitter-contract).
+Checking a payout is the last step; before you give to any rescue, run [the checks for a legitimate animal rescue](/feed/giving/how-to-tell-if-an-animal-rescue-is-legit). For more on how the Token Tails payouts are built, read [how Token Tails works](/feed/giving/how-token-tails-works) and [the USDC payment splitter contract](/feed/build/usdc-payment-splitter-contract).

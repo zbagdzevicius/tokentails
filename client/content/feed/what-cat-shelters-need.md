@@ -125,4 +125,4 @@ Every payout to Pink Paw through Token Tails' open-source ShelterSplit contract 
 
 <!-- payouts-live -->
 
-For more ways to help cats outside a shelter, see [how to help stray cats](/feed/cats/how-to-help-stray-cats).
+For more ways to help cats outside a shelter, see [how to help stray cats](/feed/cats/how-to-help-stray-cats). For help that costs nothing, see [free ways to help animal shelters](/feed/giving/free-ways-to-help-animal-shelters), and if you have a spare room, read [how to foster a cat](/feed/cats/how-to-foster-a-cat).
