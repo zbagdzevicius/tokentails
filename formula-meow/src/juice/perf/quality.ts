@@ -2,7 +2,7 @@
 /**
  * Mobile performance budget (GDD 12): the quality auto-scaler.
  *  - DPR governor: frames averaged over 1 s windows; 2 windows under 45 fps step down 0.25 (floor 0.75), 10 windows
- *    above 58 fps step back up (cap 2 and the device DPR).
+ *    above 58 fps step back up (cap 2, 1.5 on touch devices, and the device DPR).
  *  - Tier governor: when the DPR is already at the floor and it is still slow for 3 more windows, the tier drops
  *    (high → mid → low). Tiers scale the juice: particle density, skids, AI outlines, ambient particles.
  *  - Outline LOD: AI karts beyond 40 m lose their inverted-hull outlines (GDD 12: "no outline" past 40 m); on low
@@ -35,6 +35,9 @@ export function detectDevice(): DeviceInfo {
 }
 
 export const DPR_CAP = 2;
+/** touch devices (phones, tablets): the governor never climbs past this (iteration 3 perf pass: DPR 2 with 171k
+ * triangles on Laundry is the fill-rate risk on a mid-range phone GPU; the draw calls were fine) */
+export const DPR_CAP_TOUCH = 1.5;
 export const DPR_MIN = 0.75;
 export const DPR_STEP = 0.25;
 
@@ -163,7 +166,7 @@ export class Quality {
     const dev = detectDevice();
     const search = typeof location !== 'undefined' ? location.search : '';
     this.tier = defaultTier(dev, search);
-    this.gov = new DprGovernor(startDpr, Math.max(1, dev.dpr));
+    this.gov = new DprGovernor(startDpr, Math.max(1, dev.dpr), dev.touch ? DPR_CAP_TOUCH : DPR_CAP);
     this.stats = { fps: 60, dpr: this.gov.dpr, tier: this.tier, calls: 0, tris: 0 };
     Quality.current = this;
     if (host && new URLSearchParams(search).has('perf')) {

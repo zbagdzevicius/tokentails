@@ -72,6 +72,9 @@ export const ROOFTOPS: TrackDef = {
         { x: -44, z: -54, h: 2, w: 0 },
         { x: -84, z: -56, h: 2, w: 0 },
       ],
+      // SIM_VERSION 9 (playtest: the cut skipped the loop and won by ~2 s, so the loop was ridden 2 laps in 3): gravel
+      // behind the billboard; a boost shortcut now (≈ 1.2 s slower without one), the loop is the racing line
+      surface: 'offroad',
       label: 'billboard cut',
     },
   ],

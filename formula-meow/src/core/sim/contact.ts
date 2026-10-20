@@ -10,7 +10,7 @@ import { BoostSource, type KartState } from '../../types';
 import { BOOST, PHYS, ticks } from '../../tuning';
 import { applyBoost, settleAfterPush, speedOf } from './kart';
 import { cosL, sinL } from './fixed';
-import { railNudge, stuntImmune } from './stunt';
+import { airNudge, railNudge, stuntImmune } from './stunt';
 import { bodyStats } from '../../content/karts';
 import type { SimContext } from './plugins';
 
@@ -38,9 +38,11 @@ export function stepContacts(ctx: SimContext): void {
     for (let j = i + 1; j < n; j++) {
       const b = ks[j];
       if (b.respawnTicks > 0 || b.out) continue;
-      // SIM_VERSION 8: set pieces: railed karts only nudge each other sideways; flying or netted karts never touch
+      // SIM_VERSION 8: set pieces: railed karts only nudge each other (9: also along the ribbon); karts in one gap
+      // flight are pushed apart sideways (9); netted karts never touch
       if (stuntImmune(a) || stuntImmune(b)) {
         if (a.rail > 0 && b.rail > 0) railNudge(a, b);
+        else if (a.gapLaunch > 0 && b.gapLaunch > 0) airNudge(ctx, a, b);
         continue;
       }
       const cx = b.x - a.x;

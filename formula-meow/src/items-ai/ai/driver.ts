@@ -180,7 +180,8 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   // SIM_VERSION 8: a loop entry or a jump lip just ahead (main road only), and the wall lane this cat rides
   const onMain = k.branch < 0;
   const toStunt = onMain ? stuntEntryAhead(ctx, k.si, STUNT_AI.noBrake) : -1;
-  const lane = onMain && p.skill >= AI.padSkill && m.slipTicks === 0 && !k.air ? laneOf(ctx, i) : 0;
+  // (SIM_VERSION 9: not while heading for a branch: lanes now pay, and the lane steer took the cat off its fork)
+  const lane = onMain && branchLeft === null && p.skill >= AI.padSkill && m.slipTicks === 0 && !k.air ? laneOf(ctx, i) : 0;
 
   // drift where the track bends
   const sp = speedOf(k);
@@ -233,7 +234,8 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const adj = bandAdj(ctx, i);
   // corner speed (B15): lift, then brake, when the bend ahead needs more turn than the kart has without a drift
   // (SIM_VERSION 8: not while lining up for or riding a wall lane: its line has a much larger radius than the road's)
-  if (k.driftDir === 0 && !k.air && !out.drift && !lane) {
+  // (SIM_VERSION 9: only once on the lane; lining up for it a cat still brakes for the bend, it hit the outer wall)
+  if (k.driftDir === 0 && !k.air && !out.drift && !(lane && k.laneTicks > 0)) {
     const ahead = Math.max(10, sp * 0.9);
     let c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
     // a ramp ahead (SIM_VERSION 7): the kart barely steers in the air, so the landing bend counts from the lip
@@ -306,21 +308,39 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
  * on the outside of the bend (a longer way round), the lane's boost gives some back. Built once per track. A lane is
  * worth riding at ≤ `STUNT_AI.laneCost` m (≈ 0.3 s at 50cc); on a tight bend the outside lane is much longer than the
  * boost repays, and a racing cat stays on its line there (SETPIECES.md 3.2 wants lanes within ±0.2 s: placement and
- * `STUNT.wall.level` decide it).
+ * `STUNT.wall.level` decide it). SIM_VERSION 9: the lane's carry pays back most of the way round, so lanes win.
  */
 export function laneCostM(t: SimContext['track'], pc: BuiltPiece): number {
   let memo = laneMemo.get(t);
   if (!memo) laneMemo.set(t, (memo = []));
   const hit = memo[pc.id];
   if (hit !== undefined) return hit;
+  // SIM_VERSION 9: a lane inside a branch's fork-to-merge window is not for the AI (Shelter, Café: lane riders drifted
+  // onto the branch's merge at the outside edge and into its wall; lanes pay since the carry, so cats now ride them)
+  for (const b of t.branches ?? []) {
+    const span = (b.to - b.from + t.n) % t.n;
+    if ((pc.i0 - b.from + t.n) % t.n <= span || (pc.i1 - b.from + t.n) % t.n <= span) {
+      memo[pc.id] = Infinity;
+      return Infinity;
+    }
+  }
   let cost = 0;
+  let outside = 0;
   for (let k = pc.i0; k !== pc.i1; k = (k + 1) % t.n) {
     const side = pc.side !== 0 ? pc.side : t.curv[k] >= 0 ? 1 : -1;
     if ((side > 0 ? t.laneR[k] : t.laneL[k]) < 2) continue;
     // + = the lane is on the outside of the bend here
     const kap = t.curv[k] * side;
-    cost += t.step * ((1 + kap * (t.halfW[k] + STUNT_AI.laneIn)) / STUNT.wall.level - (1 + kap * t.line[k] * side));
+    outside += kap;
+    const fd = 1 + kap * (t.halfW[k] + STUNT_AI.laneIn);
+    const fl = 1 + kap * t.line[k] * side;
+    // SIM_VERSION 9: the lane carries the kart by the extra way round (at most carryMax of its move; core/sim/stunt.ts)
+    const eff = fl > 0.2 && fd > fl ? fd / Math.min(fd / fl, 1 + STUNT.wall.carryMax) : fd;
+    cost += t.step * (eff / STUNT.wall.level - fl);
   }
+  // SIM_VERSION 9: a lane on the inside of its bend is not lined up for (the cat skipped its corner braking for it and
+  // slid into the outside wall: Rooftops)
+  if (outside <= 0) cost = Infinity;
   memo[pc.id] = cost;
   return cost;
 }
@@ -335,6 +355,9 @@ const laneMemo = new WeakMap<object, number[]>();
 export function laneOf(ctx: SimContext, i: number): -1 | 0 | 1 {
   const t = ctx.track;
   const k = ctx.st.karts[i];
+  // SIM_VERSION 9: never from a branch (its mapped `si` can sit in a wall piece's window; with lanes now worth riding
+  // the cat steered at the main road's lane and into the branch's wall)
+  if (k.branch !== -1) return 0;
   for (const pc of t.pieces) {
     if (pc.kind !== 'wall') continue;
     let pos = ((((k.si - pc.i0) % t.n) + t.n) % t.n) * t.step;

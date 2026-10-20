@@ -4,7 +4,7 @@
  * drivable. Two ramps, eight item box clusters, and cover: the coffee table in the middle, the sofa, an armchair, a
  * cat tree and a plant pot (solid props, tracks/extras.ts `blocks`).
  *
- * Set pieces (SIM_VERSION 8, tracks-B): the second ramp (s192) is a sofa-cushion kicker (a `jump` with `gap: 0`: a
+ * Set pieces (SIM_VERSION 8, tracks-B): the second ramp (s128 since SIM_VERSION 9, across from the grid) is a sofa-cushion kicker (a `jump` with `gap: 0`: a
  * full-width aimed ramp, no void), so the arena keeps two ramps. Arenas skip wall pieces, so there is no half-pipe.
  */
 import type { TrackDef } from '../../../types';
@@ -40,8 +40,9 @@ export const RUG: TrackDef = {
     { s: 240, kind: 'items' },
     { s: 64, kind: 'ramp', side: 0 },
   ],
-  // the second ramp is the sofa-cushion kicker (an aimed launch, SIM_VERSION 8)
-  setPieces: [{ kind: 'jump', s: 192, gap: 0 }],
+  // the second ramp is the sofa-cushion kicker (an aimed launch, SIM_VERSION 8); SIM_VERSION 9: moved from s192 to
+  // s128, across the rug from the grid (playtest B5: 20 launches in the first 23 s, the first 3 s after GO, in the pack)
+  setPieces: [{ kind: 'jump', s: 128, gap: 0 }],
   flyover: [
     { x: 0, y: 46, z: -60, lx: 0, ly: 0, lz: 0, t: 0 },
     { x: 56, y: 30, z: 0, lx: 0, ly: 0, lz: 0, t: 1.6 },

@@ -5,12 +5,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Modifier, type RaceEvent, type TickInput, type TrackDef } from '../../types';
-import { STUNT } from '../../tuning';
+import { PHYS, STUNT } from '../../tuning';
 import { raceConfig, stuntLab, world } from '../../test/fixtures';
 import { createSimPlugins } from '../../items-ai';
 import { playerBot } from '../../items-ai/balance/bots';
 import { GO_TICK, type SimWorld } from './world';
-import { applyHit, placeOnTrack } from './kart';
+import { applyHit, placeOnTrack, speedOf } from './kart';
 import { followLine } from './autopilot';
 import { simulate, ReplayRecorder } from './replay';
 import type { BuiltPiece } from '../track/stunt';
@@ -215,7 +215,7 @@ describe('set pieces: loop rail', () => {
 
 describe('set pieces: jump gap', () => {
   /** Launch over the lab's jump at speed v (gas held), with the far deck `drop` lower: where it lands, metres past the far lip. */
-  function landAt(v: number, drop: number, cls: 0 | 1 | 2 = 0): { past: number; events: RaceEvent[]; pc: BuiltPiece } {
+  function landAt(v: number, drop: number, cls: 0 | 1 | 2 = 0): { past: number; events: RaceEvent[]; pc: BuiltPiece; apex: number; vLand: number } {
     const def = stuntLab({ setPieces: [{ kind: 'jump', s: 24, gap: 10, drop }] });
     const w = soloAt(def, 0, 0, 0, cls);
     const pc = w.track.pieces[0];
@@ -225,32 +225,48 @@ describe('set pieces: jump gap', () => {
     let n = 0;
     let wasAir = false;
     let past = NaN;
+    let apex = -99;
+    let vLand = 0;
     while (n++ < 300) {
       w2.step([input({ gas: true })]);
-      if (k.air) wasAir = true;
-      else if (wasAir) {
+      if (k.air) {
+        wasAir = true;
+        apex = Math.max(apex, k.y - pc.lipY);
+      } else if (wasAir) {
         past = ((k.si - pc.i1 + w2.track.n) % w2.track.n) * w2.track.step;
+        vLand = speedOf(k);
         break;
       }
     }
-    return { past, events: w2.st.events.slice(from), pc };
+    return { past, events: w2.st.events.slice(from), pc, apex, vLand };
   }
 
-  it('the aimed arc lands on the target (±1.5 m) at the floor and above, inside the landing window when fast', () => {
+  it('SIM_VERSION 9 hang time: every flight peaks STUNT.jump.apex over the lip and lands where its air speed puts it, inside the window', () => {
     for (const drop of [0, 1.5, 2.5])
       for (const v of [0, 8, 18, 24, 32, 43]) {
-        const { past, events } = landAt(v, drop, v > 32 ? 2 : 0);
+        const { past, events, apex } = landAt(v, drop, v > 32 ? 2 : 0);
         expect(count(events, 'netCatch'), `v ${v} drop ${drop}`).toBe(0);
         expect(count(events, 'stuntLand'), `v ${v} drop ${drop}`).toBe(1);
+        expect(Math.abs(apex - STUNT.jump.apex), `v ${v} drop ${drop} apex ${apex}`).toBeLessThanOrEqual(0.15);
         const top = v > 32 ? 32 : 24;
         const vh = Math.max(v, STUNT.jump.floor * top);
-        const aim = 10 + STUNT.jump.aim;
-        if (aim / vh >= STUNT.jump.tMin) expect(Math.abs(past - STUNT.jump.aim), `v ${v} drop ${drop}: ${past}`).toBeLessThanOrEqual(1.5);
-        else {
-          expect(past, `v ${v} drop ${drop}`).toBeGreaterThan(0);
-          expect(past, `v ${v} drop ${drop}`).toBeLessThan(STUNT.jump.aim + STUNT.jump.land);
-        }
+        const g = PHYS.gravity;
+        const vy0 = Math.sqrt(2 * g * STUNT.jump.apex);
+        const T = (vy0 + Math.sqrt(vy0 * vy0 + 2 * g * drop)) / g;
+        const lo = (10 + STUNT.jump.landMin) / T;
+        const hi = (10 + STUNT.jump.aim + STUNT.jump.land - STUNT.jump.landMargin) / T;
+        const vAir = Math.max(lo, Math.min(hi, vh));
+        // (the lip is detected up to a tick late and the touchdown sample rounds forward: within 4 m)
+        expect(Math.abs(past - (vAir * T - 10)), `v ${v} drop ${drop}: ${past}`).toBeLessThanOrEqual(4);
+        expect(past, `v ${v} drop ${drop}`).toBeGreaterThan(0);
+        expect(past, `v ${v} drop ${drop}`).toBeLessThan(STUNT.jump.aim + STUNT.jump.land);
       }
+  });
+
+  it('SIM_VERSION 9: a fast kart gets its run-up speed back on landing', () => {
+    const { events, vLand } = landAt(43, 0, 2);
+    expect(count(events, 'stuntLand')).toBe(1);
+    expect(vLand).toBeGreaterThan(40);
   });
 
   it('the catch net costs at most 0.8 s against a clean jump, and the kart is set down past the far lip', () => {
@@ -366,7 +382,7 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     const w = world(raceConfig(stuntLab(), { seed: 42 }));
     while (w.tick < GO_TICK + 1800) w.step();
     expect(w.st.events.filter((e) => e.type === 'stuntExit' && e.a === 0).length).toBeGreaterThan(4);
-    expect(w.hash()).toMatchInlineSnapshot(`1584734234`);
+    expect(w.hash()).toMatchInlineSnapshot(`865670641`);
   });
 
   it('same seed and inputs → the same hashes, three times, also mirrored; a replay re-simulates exactly', () => {
@@ -391,5 +407,76 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     expect(again.result.player.time).not.toBeNull();
     expect(again.result.player.time).toBe(w.result().player.time);
     expect(again.world.hash()).toBe(w.hash());
+  });
+});
+
+describe('set pieces: SIM_VERSION 9 playtest fixes', () => {
+  it('a kart in the outer part of the road with no steering is drawn onto the wall lane and exits it clean', () => {
+    const def = stuntLab();
+    const w0 = soloAt(def, 0, 0, 0);
+    const pc = w0.track.pieces.find((p) => p.kind === 'wall')!;
+    const side = pc.side || 1;
+    const w = soloAt(def, pc.i0, 12, 22);
+    const t = w.track;
+    const k = w.st.karts[0];
+    // the outer 40 % of the road on the lane's side, then hands off
+    const i = k.si;
+    const d = side * t.halfW[i] * 0.55;
+    k.x += -t.tz[i] * d;
+    k.z += t.tx[i] * d;
+    const from = w.st.events.length;
+    let onLane = 0;
+    for (let n = 0; n < 60 * 5; n++) {
+      w.step([input({ gas: true })]);
+      if (k.surface === 6) onLane++;
+    }
+    const ev = w.st.events.slice(from);
+    expect(onLane).toBeGreaterThan(30);
+    expect(ev.some((e) => e.type === 'stuntExit' && e.a === 1 && e.b === 1)).toBe(true);
+  });
+
+  it('tunnels emit stuntEnter and a clean stuntExit (a = 3), and have a boost pad', () => {
+    const def = stuntLab();
+    const w0 = soloAt(def, 0, 0, 0);
+    const pc = w0.track.pieces.find((p) => p.kind === 'tunnel')!;
+    const w = soloAt(def, pc.i0, 20, 20);
+    const from = w.st.events.length;
+    for (let n = 0; n < 60 * 4; n++) {
+      const o = input();
+      followLine(w.ctx, 0, o, 0);
+      o.gas = true;
+      w.step([o]);
+    }
+    const ev = w.st.events.slice(from);
+    expect(ev.filter((e) => e.type === 'stuntEnter' && e.a === 3).length).toBe(1);
+    expect(ev.filter((e) => e.type === 'stuntExit' && e.a === 3 && e.b === 1).length).toBe(1);
+    expect(ev.some((e) => e.type === 'pad')).toBe(true);
+  });
+
+  it('holding brake past a gap never reverses the kart into the net', () => {
+    const def = stuntLab({ setPieces: [{ kind: 'jump', s: 24, gap: 10, drop: 1.5 }] });
+    const w0 = soloAt(def, 0, 0, 0);
+    const pc = w0.track.pieces[0];
+    const w = soloAt(def, pc.i0, 30, 20);
+    const k = w.st.karts[0];
+    let landedAt = -1;
+    for (let n = 0; n < 60 * 4 && landedAt < 0; n++) {
+      w.step([input({ gas: true })]);
+      if (k.gapLaunch === 0 && !k.air && (k.si - pc.i1 + w.track.n) % w.track.n < 60) landedAt = n;
+    }
+    const from = w.st.events.length;
+    for (let n = 0; n < 60 * 15; n++) w.step([input({ brake: true })]);
+    expect(count(w.st.events.slice(from), 'netCatch')).toBe(0);
+  });
+
+  it('a pack of railed karts spreads along the ribbon when the lateral limit cannot separate them', async () => {
+    const { railNudge } = await import('./stunt');
+    const ks = [0, 0.4, 0.8].map((su) => ({ rail: 1, su: 10 + su, sd: 0 }) as unknown as Parameters<typeof railNudge>[0]);
+    for (let n = 0; n < 60; n++) for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) railNudge(ks[a], ks[b]);
+    for (let a = 0; a < 3; a++)
+      for (let b = a + 1; b < 3; b++) {
+        const apart = Math.abs(ks[a].su - ks[b].su) >= 2.39 || Math.abs(ks[a].sd - ks[b].sd) >= 1.69;
+        expect(apart, `${a}-${b}`).toBe(true);
+      }
   });
 });

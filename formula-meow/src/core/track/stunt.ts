@@ -340,6 +340,9 @@ export function placePieces(plans: Plan[], a: StuntBuildArrays, issues: string[]
       strips.push({ i: c, halfLen: (half * step), halfW: a.halfW[c] + 0.6 });
     } else if (pl.kind === 'tunnel') {
       for (let k = pl.i0; k <= pl.i1; k++) tunnelMask[wrap(k, n)] = 1;
+      // SIM_VERSION 9: a full-width boost pad at the tunnel's middle (speed under the neon rings)
+      const c = wrap(Math.round((pl.i0 + pl.i1) / 2), n);
+      strips.push({ i: c, halfLen: STUNT.tunnel.padHalfLen, halfW: a.halfW[c] + 0.6 });
     } else if (pl.kind === 'wall') {
       const W = STUNT.wall.lane;
       const tap = m(STUNT.wall.taper);

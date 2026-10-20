@@ -10,7 +10,7 @@ import { atan2L, clamp, cosL, headingOf, lerp, pow06, sinL, wrapAngle } from './
 import type { SimContext } from './plugins';
 import { queryTrack, type TrackHit } from '../track/query';
 import { respawnSampleOf } from '../track/stunt';
-import { airAssist, checkNet, pushSkipsTrigger, stripAssist, hitsLipFace, launch, landed, laneAt, lipCrossed, stepLane, stepNet, stepRail, stuntImmune, tryAttachRail } from './stunt';
+import { airAssist, checkNet, reversesIntoGap, tunnelEvents, pushSkipsTrigger, stripAssist, hitsLipFace, launch, landed, laneAt, lipCrossed, stepLane, stepNet, stepRail, stuntImmune, tryAttachRail } from './stunt';
 
 const SIN30 = 0.5;
 /** sin of the head-on angle (50°, B11) */
@@ -40,7 +40,7 @@ export function newKart(): KartState {
     surface: Surface.Road, wall: 0, pGas: 0, pDrift: 0, pItem: 0, startJudged: 0, item: null, itemCount: 0, rouletteTicks: 0,
     rngItems: 1, rngAi: 1, lap: 0, lapStartTick: 0, bestLapTicks: 0, finished: 0, finishTime: 0, place: 0, stuckTicks: 0, progDist: -1e9, topScale: 1,
     lapMax: 0, lapStartPrev: 0, coins: 0, balloons: 0, out: 0, itemBuf: 0, itemBufBack: 0, wrongTicks: 0, branch: -1,
-    rail: 0, su: 0, sd: 0, netTicks: 0, gapLaunch: 0, laneTicks: 0,
+    rail: 0, su: 0, sd: 0, netTicks: 0, gapLaunch: 0, laneTicks: 0, gapV: 0,
   };
 }
 
@@ -386,6 +386,14 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   k.z += k.vz * DT;
   queryTrack(t, k.x, k.z, k.si, hit);
   resolveWall(ctx, idx, k, true);
+  // SIM_VERSION 9: never roll backwards off a jump gap's far lip (it stops at the lip)
+  if (t.pieces.length && reversesIntoGap(t, k, prevSi, hit)) {
+    k.x = px0;
+    k.z = pz0;
+    k.vx = 0;
+    k.vz = 0;
+    queryTrack(t, k.x, k.z, prevSi, hit);
+  }
   // SIM_VERSION 8: crossing a loop's zone start attaches the kart to its rail (it is placed on it this tick)
   if (t.pieces.length && tryAttachRail(ctx, idx, k, prevSi, hit, ownTop)) return;
   // a jump gap's lip launches at any speed on an aimed arc
@@ -490,6 +498,9 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
     applyBoostQuiet(k, BOOST.pad.level, BOOST.pad.time);
   }
   k.surface = k.air ? k.surface : hit.surface;
+
+  // --- SIM_VERSION 9: tunnels are stunts too (stuntEnter / a clean stuntExit, main loop only) ---------------------------
+  if (t.pieces.length) tunnelEvents(ctx, idx, k, hit);
 
   // --- progress ----------------------------------------------------------------------------------------------------------
   k.si = hit.i;
@@ -692,6 +703,7 @@ export function startRespawn(ctx: SimContext, idx: number): void {
   k.gapLaunch = 0;
   k.netTicks = 0;
   k.laneTicks = 0;
+  k.gapV = 0;
   k.stuckTicks = 0;
   k.pinTicks = 0;
   k.wrongTicks = 0;

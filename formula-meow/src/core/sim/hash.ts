@@ -45,6 +45,8 @@ const KART_FIELDS: readonly (keyof KartState)[] = [
   'guardTicks',
   // SIM_VERSION 8: set pieces
   'rail', 'su', 'sd', 'netTicks', 'gapLaunch', 'laneTicks',
+  // SIM_VERSION 9: jump hang time
+  'gapV',
 ];
 
 /** Full race-state hash (GDD 3.1: every 60 ticks; tests assert golden values). The items lane hashes its own slot. */

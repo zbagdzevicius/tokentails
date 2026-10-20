@@ -12,6 +12,8 @@
  * - Tunnel: an arched shell (8 facets, a segment every 2 m) with portal frames, neon rings every 6 m and two streak
  *   strips along the ceiling.
  * - Approach: glow chevrons on the road 40 m before a loop's strip and a jump's lip.
+ * - Readability cues over any skin (iteration 3 playtest): a jump's kicker fins, deck stripes, entry arch and dark void;
+ *   a wall lane's run-in arrows and boost strip.
  */
 import { BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, type Group } from 'three';
 import type { BuiltPiece, BuiltTrack } from './build';
@@ -61,6 +63,9 @@ export function buildStuntMeshes(t: BuiltTrack, theme: Theme, solid: TriBuilder,
     // approach cues (mandatory pieces)
     if (pc.kind === 'loop') approach(t, pc.strip, glow);
     else if (pc.kind === 'jump') approach(t, pc.i0, glow);
+    // readability cues on top of any skin (playtest iteration 3: jumps read as a step, Café's lane as road)
+    if (pc.kind === 'jump' && pc.gap > 0) jumpCues(t, pc, solid, glow, groundY);
+    else if (pc.kind === 'wall') wallCues(t, pc, glow);
   }
   if (nets.length) {
     const g = netGeometry(nets);
@@ -295,6 +300,109 @@ function jumpMesh(t: BuiltTrack, pc: BuiltPiece, theme: Theme, solid: TriBuilder
   const cc = P(t, k1, wr1);
   const d = P(t, k1, -wl1);
   nets.push(a[0], yN + 0.8, a[2], b[0], yN + 0.8, b[2], cc[0], yN + 0.8, cc[2], d[0], yN + 0.8, d[2], yN);
+}
+
+const GOLD = 0xffe14d;
+const VOID = 0x05030a;
+
+/**
+ * Jump readability (render-only, every skin): kicker fins rising along both walls to the lip, hazard stripes on the
+ * last 6 m of deck, an entry arch over the lip, and a deep dark void under the gap so it reads as a canyon from 40 m.
+ */
+function jumpCues(t: BuiltTrack, pc: BuiltPiece, solid: TriBuilder, glow: TriBuilder, groundY: number): void {
+  const i0 = pc.i0;
+  const run = Math.max(2, Math.round(8 / t.step));
+  // kicker fins: wedges outside the road edge (never under a wheel), 0 → 1.4 m over the last 8 m
+  for (const sd of [-1, 1]) {
+    for (let k = 0; k < run; k++) {
+      const a = i0 - run + k;
+      const b = a + 1;
+      const ha = (1.4 * k) / run;
+      const hb = (1.4 * (k + 1)) / run;
+      const da = sd * (t.halfW[wrap(t, a)] + 0.15);
+      const db = sd * (t.halfW[wrap(t, b)] + 0.15);
+      const pa = P(t, a, da, 0);
+      const pb = P(t, b, db, 0);
+      solid.quad(pa, pb, [pb[0], pb[1] + hb, pb[2]], [pa[0], pa[1] + ha, pa[2]], k % 2 === 0 ? 0x1a1424 : 0x241a30);
+      glow.quad([pa[0], pa[1] + ha, pa[2]], [pb[0], pb[1] + hb, pb[2]], [pb[0], pb[1] + hb + 0.14, pb[2]], [pa[0], pa[1] + ha + 0.14, pa[2]], GOLD);
+    }
+  }
+  // hazard stripes across the deck over the last 6 m (alternating gold bands)
+  const band = Math.max(1, Math.round(1 / t.step));
+  for (let k = 0; k < 6; k += 2) {
+    const a = i0 - Math.round((6 - k) / t.step);
+    const hw = t.halfW[wrap(t, a)] - 0.3;
+    glow.quad(P(t, a, -hw, 0.05), P(t, a, hw, 0.05), P(t, a + band, hw, 0.05), P(t, a + band, -hw, 0.05), GOLD);
+  }
+  // the entry arch over the lip: two posts and a crossbar, 5.5 m clear (over the flight and the rig)
+  const ka = wrap(t, i0 - Math.max(1, Math.round(1 / t.step)));
+  const wl = t.wallL[ka] + 0.2;
+  const wr = t.wallR[ka] + 0.2;
+  const H = 5.5;
+  const w = 0.22;
+  const fx = t.tx[ka] * w;
+  const fz = t.tz[ka] * w;
+  for (const d of [-wl, wr]) {
+    const b = P(t, ka, d, 0);
+    glow.quad([b[0] - fx, b[1], b[2] - fz], [b[0] + fx, b[1], b[2] + fz], [b[0] + fx, b[1] + H, b[2] + fz], [b[0] - fx, b[1] + H, b[2] - fz], PINK);
+  }
+  const l = P(t, ka, -wl, 0);
+  const r = P(t, ka, wr, 0);
+  const y = Math.max(l[1], r[1]) + H;
+  glow.quad([l[0] - fx, y - 0.35, l[2] - fz], [r[0] - fx, y - 0.35, r[2] - fz], [r[0] - fx, y, r[2] - fz], [l[0] - fx, y, l[2] - fz], GOLD);
+  glow.quad([l[0] + fx, y - 0.35, l[2] + fz], [r[0] + fx, y - 0.35, r[2] + fz], [r[0] + fx, y, r[2] + fz], [l[0] + fx, y, l[2] + fz], GOLD);
+  // the void: a black floor 6 m under the lower deck across the gap (above the ground only)
+  const yV = Math.min(pc.lipY, pc.landY) - 6;
+  if (yV > groundY + 0.2) {
+    const gap = (pc.i1 - pc.i0 + t.n) % t.n;
+    for (let k = 0; k < gap; k += 2) {
+      const a = wrap(t, pc.i0 + k);
+      const b = wrap(t, pc.i0 + Math.min(gap, k + 2));
+      const A = P(t, a, -t.wallL[a] - 0.3);
+      const B = P(t, a, t.wallR[a] + 0.3);
+      const C = P(t, b, t.wallR[b] + 0.3);
+      const D = P(t, b, -t.wallL[b] - 0.3);
+      solid.quad([A[0], yV, A[2]], [B[0], yV, B[2]], [C[0], yV, C[2]], [D[0], yV, D[2]], VOID);
+    }
+  }
+}
+
+/**
+ * Wall-lane readability (render-only, every skin): glow arrows on the road's outer half pointing up the wall over the
+ * run-in, and a bright boost strip with chase arrows along the lane, so it never matches the road (Café).
+ */
+function wallCues(t: BuiltTrack, pc: BuiltPiece, glow: TriBuilder): void {
+  const len = (pc.i1 - pc.i0 + t.n) % t.n;
+  for (const sd of pc.side === 0 ? [-1, 1] : [pc.side]) {
+    // run-in: three arrows from the road's middle third toward the lane, 20–6 m before the piece
+    for (let c = 0; c < 3; c++) {
+      const a = pc.i0 - Math.round((20 - c * 6) / t.step);
+      const tip = a + Math.round(3 / t.step);
+      const hw = t.halfW[wrap(t, a)];
+      const L = Math.max(1, Math.round(0.7 / t.step));
+      const from = sd * hw * 0.2;
+      const to = sd * (hw - 0.4);
+      glow.quad(P(t, a, from, 0.045), P(t, tip, to, 0.045), P(t, tip + L, to, 0.045), P(t, a + L, from, 0.045), CYAN);
+      glow.quad(P(t, tip, to, 0.045), P(t, tip - Math.round(1.6 / t.step), to - sd * 0.2, 0.045), P(t, tip - Math.round(1.6 / t.step) + L, to - sd * 0.2, 0.045), P(t, tip + L, to, 0.045), CYAN);
+    }
+    // the boost strip along the lane (where it is at least 2 m wide): a band 1.2 m wide, chevrons every 4 m
+    const stride = Math.max(1, Math.round(2 / t.step));
+    for (let k = 0; k < len; k += stride) {
+      const i = pc.i0 + k;
+      const j = i + stride;
+      const li = sd > 0 ? t.laneR[wrap(t, i)] : t.laneL[wrap(t, i)];
+      const lj = sd > 0 ? t.laneR[wrap(t, j)] : t.laneL[wrap(t, j)];
+      if (li < 2 || lj < 2) continue;
+      const ci = li * 0.45;
+      const cj = lj * 0.45;
+      const a0 = curlPoint(t, i, sd, ci - 0.6, 0.06);
+      const a1 = curlPoint(t, i, sd, ci + 0.6, 0.06);
+      const b0 = curlPoint(t, j, sd, cj - 0.6, 0.06);
+      const b1 = curlPoint(t, j, sd, cj + 0.6, 0.06);
+      const m = Math.floor((k * t.step) / 4);
+      glow.quad(a0, a1, b1, b0, m % 2 === 0 ? 0xff7ad9 : GOLD);
+    }
+  }
 }
 
 /** The nets: a 6 × 6 sagging grid per gap (corners a, b, c, d at the rim height, the centre sags to `yN`). */

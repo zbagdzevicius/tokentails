@@ -602,3 +602,23 @@ Nothing else goes in s200–s4.
 - Kitchen: K3 sits close to the crumb-cut fork window.
 - Rooftops: the header says "two chimney jumps" but the track has plain ramps. R3 fixes this.
 - The brief says "integer fixed-point", but the sim is restricted float64 (`core/sim/fixed.ts`). This plan keeps that rule.
+
+## 15. Playtest fixes (SIM_VERSION 9)
+
+Two playtests of iteration 3 (fun-ease and bugs-perf, 2026-10-20) led to these changes. Old ghosts and links open as a target-time race, as with any version bump.
+
+**Sim (SIM_VERSION 9):**
+- Jump gaps have hang time. Every gap flight now peaks `STUNT.jump.apex` (2.2 m) over the lip: about 0.9 s over a flat gap, longer over a drop. The forward speed in the air keeps the landing inside the window, and the run-up speed comes back on landing (`KartState.gapV`). Kickers keep the old aimed arc.
+- Wall lanes draw karts in. A kart in the outer `drawShare` (40 %) of the road on the lane's side slides onto the lane at `drawIn` (3 m/s) unless it steers inward. On the lane the boost is 1.3, the kart is carried along the road by the extra way round the bend (at most `carryMax` of its own move), and a clean ride pays an exit boost (1.35 for 1 s). The lane now gains 0 to 0.45 s at 50cc against the racing line. The AI lane cost counts the carry. The AI skips a lane that sits inside a branch's fork-to-merge window (Shelter, Café) or on the inside of its bend, keeps braking for the bend until it is on the lane, and never steers for a lane while heading for a branch.
+- Railed karts that the lateral limit cannot separate spread along the ribbon (`alongPush`). Two karts in the same gap flight are pushed apart sideways.
+- A kart rolling backwards off a gap's far lip stops at the lip. Before this, holding brake reversed it into the net again and again.
+- Tunnels emit `stuntEnter` / `stuntExit` (a = 3) and feed the stunt combo. Each tunnel has a full-width boost pad in the middle.
+- Rug: the kicker moved from s192 to s128, across the rug from the grid. Rooftops: the billboard cut is off-road (a boost shortcut), so the loop is the racing line.
+
+**Render and camera:**
+- The loop pose takes forward from the offset path, so a kart off the centre line no longer crabs. Outside 0..LOOP_LP the ribbon continues as the shadow road, so the loop camera no longer drops to deck height for the first 7.5 m.
+- On the rail, the camera's up turns at the pitch rate (speed / R × 1.5, τ 0.06 s) and keeps that rate for 0.6 s after the exit.
+- The wall-lane rig stays within the lane at its own sample, is kept inside the walls, and sits 0.7 m higher.
+- Readability cues are drawn on top of any skin. Jumps get kicker fins, deck stripes, an entry arch and a dark void under the gap. Wall lanes get run-in arrows and a boost strip.
+- Touch devices are capped at DPR 1.5. The e2e tests run on the Metal GPU on macOS.
+- When the ±8 search finds no valid spot for an editor sticker, the snap searches the whole lap.
