@@ -6,14 +6,15 @@ import { formatShape, runShape } from './shape';
 // test stable while the tracks lane adds circuits; the integrator re-runs it on every track (FM_SHAPE_ALL=1).
 const SEEDS = Number(process.env.FM_SHAPE_SEEDS) || 30;
 
-// Plan targets (ITERATION-2.md "Race shape"), met by the 200-race run (FM_SHAPE_SEEDS=100: 77 % / 42 % podium, 10.3 s /
-// 5.9 s spread at the feel lane's commit). The 60-race default run allows its sampling error (about ±6 points of
-// podium share) around them, so an unrelated change does not fail it by luck.
-const TARGET = { podium50: [0.7, 0.9], podium150: [0.25, 0.5], spread50: [8, 15], spread150: [5, 8] } as const;
+// Targets (playtest round 2, SIM_VERSION 7: "the field strings out, so racing is lonely"): the pack now finishes
+// together (5–10 s first to last at 50cc, 3–7 s at 150cc) and the bot's wins are close (`margin` < 2 s), so the podium
+// share rises; 150cc stays clearly harder than 50cc. The 60-race default run allows its sampling error (about ±6 points
+// of podium share) around them, so an unrelated change does not fail it by luck.
+const TARGET = { podium50: [0.75, 0.95], podium150: [0.4, 0.75], spread50: [5, 10], spread150: [3, 7] } as const;
 const SLACK = SEEDS >= 100 ? 0 : 1;
 
 describe('race shape (feel lane targets)', () => {
-  it('player-bot podium 70–90 % at 50cc and 25–50 % at 150cc; finish spread 8–15 s at 50cc and 5–8 s at 150cc', { timeout: 600_000 }, () => {
+  it('player-bot podium 75–95 % at 50cc and 40–75 % at 150cc; finish spread 5–10 s at 50cc and 3–7 s at 150cc; close wins', { timeout: 600_000 }, () => {
     const rows = runShape(process.env.FM_SHAPE_ALL ? TRACKS : [KITCHEN, ROOFTOPS], [0, 1, 2], SEEDS);
     if (process.env.FM_SHAPE_PRINT) console.log(formatShape(rows));
     const [k50, , k150] = rows;
@@ -29,5 +30,7 @@ describe('race shape (feel lane targets)', () => {
     expect(k150.spread).toBeLessThanOrEqual(TARGET.spread150[1] + s);
     // the class order holds: 50cc is the friendliest, 150cc the hardest
     expect(k50.podium).toBeGreaterThan(k150.podium);
+    // nobody wins alone: 1st beats 2nd by under 2 s on average in every class
+    for (const r of rows) expect(r.margin).toBeLessThan(2);
   });
 });

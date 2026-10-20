@@ -25,6 +25,8 @@ const ARM_TICKS = ticks(DRIFT.entryWindow);
 const PIN_TICKS = ticks(PHYS.pinRespawn);
 const STEER_RATE = DT / PHYS.steerSmooth;
 const TRICK_WINDOW = ticks(BOOST.trick.window);
+const GUARD = ticks(HITS.guard);
+const GUARD_FORGIVING = ticks(HITS.guardForgiving);
 
 const hit: TrackHit = { i: 0, s: 0, d: 0, y: 0, surface: Surface.Road, wallL: 0, wallR: 0, branch: -1 };
 
@@ -32,7 +34,7 @@ export function newKart(): KartState {
   return {
     x: 0, y: 0, z: 0, heading: 0, vx: 0, vy: 0, vz: 0, steer: 0, air: 0, airTicks: 0, hopTicks: 0, armTicks: 0, pinTicks: 0, driftDir: 0, driftCharge: 0,
     driftTier: 0, boostTicks: 0, boostLevel: 1, spinTicks: 0, leapTicks: 0, wobbleTicks: 0, chaseTicks: 0, shieldTicks: 0,
-    autoTicks: 0, invTicks: 0, stallTicks: 0, respawnTicks: 0, lipTicks: -1, trick: 0, slipTicks: 0, si: 0, s: 0, d: 0, dist: 0,
+    autoTicks: 0, invTicks: 0, guardTicks: 0, stallTicks: 0, respawnTicks: 0, lipTicks: -1, trick: 0, slipTicks: 0, si: 0, s: 0, d: 0, dist: 0,
     surface: Surface.Road, wall: 0, pGas: 0, pDrift: 0, pItem: 0, startJudged: 0, item: null, itemCount: 0, rouletteTicks: 0,
     rngItems: 1, rngAi: 1, lap: 0, lapStartTick: 0, bestLapTicks: 0, finished: 0, finishTime: 0, place: 0, stuckTicks: 0, progDist: -1e9, topScale: 1,
     lapMax: 0, lapStartPrev: 0, coins: 0, balloons: 0, out: 0, itemBuf: 0, itemBufBack: 0, wrongTicks: 0, branch: -1,
@@ -88,7 +90,9 @@ const HIT_INDEX: Record<HitKind, number> = { spin: 0, leap: 1, wobble: 2, chase:
  */
 export function applyHit(ctx: SimContext, idx: number, kind: HitKind, by = -1): boolean {
   const k = ctx.st.karts[idx];
-  if (k.shieldTicks > 0 || k.autoTicks > 0 || k.invTicks > 0 || k.respawnTicks > 0 || k.finished || k.out) {
+  // SIM_VERSION 7 hit cap: a human hit by an item shrugs off further item hits for a while (hazards still count)
+  const guarded = k.guardTicks > 0 && by >= 0;
+  if (guarded || k.shieldTicks > 0 || k.autoTicks > 0 || k.invTicks > 0 || k.respawnTicks > 0 || k.finished || k.out) {
     // B18: one `blocked` per attacker → victim pair every 0.5 s (a Zoomies kart grinding a shield sent 33 in a row)
     const pairs = ctx.st.pairs;
     const n = ctx.st.karts.length;
@@ -128,6 +132,7 @@ export function applyHit(ctx: SimContext, idx: number, kind: HitKind, by = -1): 
       break;
   }
   ctx.emit({ type: 'hit', kart: idx, a: HIT_INDEX[kind], b: by });
+  if (by >= 0 && kind !== 'chase' && ctx.cfg.mode !== 'battle' && ctx.cfg.humans.includes(idx)) k.guardTicks = ctx.cfg.forgiving ? GUARD_FORGIVING : GUARD;
   // a spin or a leap drops coins (the scatter is a visual only)
   if ((kind === 'spin' || kind === 'leap') && k.coins > 0) {
     const lost = Math.min(COINS.drop, k.coins);
@@ -224,6 +229,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   if (k.shieldTicks > 0) k.shieldTicks--;
   if (k.autoTicks > 0) k.autoTicks--;
   if (k.invTicks > 0) k.invTicks--;
+  if (k.guardTicks > 0) k.guardTicks--;
   if (k.stallTicks > 0) k.stallTicks--;
   if (k.hopTicks > 0) k.hopTicks--;
   if (k.armTicks > 0) k.armTicks--;
@@ -382,6 +388,9 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
         k.vx = sinL(k.heading) * v;
         k.vz = cosL(k.heading) * v;
       }
+      // SIM_VERSION 7: a kart hit in the air (spinning, leaping) lands without the trick boost: it used to accelerate
+      // a spinning kart with no steering straight into the wall
+      if (k.trick && (k.spinTicks > 0 || k.leapTicks > 0)) k.trick = 0;
       if (k.trick) {
         k.trick = 0;
         ctx.emit({ type: 'trickLand', kart: idx, a: idx % 3 });

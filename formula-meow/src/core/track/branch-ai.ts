@@ -54,6 +54,12 @@ export function routeCurvature(ctx: SimContext, si: number, from: number, to: nu
   return c ? sum / c : 0;
 }
 
+/** Metres left on the branch the last `branchSteer` call routed kart `si` along (null: not on a branch route). */
+export function routeRemaining(ctx: SimContext, si: number): number | null {
+  if (!route.on || route.st !== ctx.st || route.si !== si || !route.b) return null;
+  return route.b.length - route.u0;
+}
+
 function planOf(ctx: SimContext): number[] {
   const h = ctx.st.hazards as { plan?: number[] };
   const n = ctx.st.karts.length;

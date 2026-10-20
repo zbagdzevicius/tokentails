@@ -161,7 +161,8 @@ describe('kart physics (GDD 3.3–3.6)', () => {
 
   it('a spin-out costs about 1.3 s and never more than 1.6 s (GDD 3.6)', () => {
     const run = (hitAt: number | null) => {
-      const w = world(raceConfig(ovalTrack(), { humans: [0], solo: true }));
+      // no coin trails: a clean run would pick up coins the spun run drops, which is not the spin's own cost
+      const w = world(raceConfig({ ...ovalTrack(), lineCoins: false }, { humans: [0], solo: true }));
       toGo(w);
       for (let i = 0; i < 600; i++) {
         if (i === hitAt) expect(applyHit(w.ctx, 0, 'spin')).toBe(true);

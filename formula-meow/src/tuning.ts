@@ -25,13 +25,16 @@ export interface ClassTuning {
    */
   aiTop: number;
   aiTopHi: number;
+  /** highest AI top-speed scale, reached only behind a player who leads (SIM_VERSION 7) */
+  maxScale: number;
 }
 
 export const CLASSES: readonly ClassTuning[] = [
-  // skill bands are 1.6× wider than v1 (feel lane): the field spreads out instead of driving as one pack
-  { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.49, 0.81], bandDown: 0.04, bandUp: 0.02, aiTop: 0.86, aiTopHi: 0.95 },
-  { name: 'Alley Cat', cc: '100cc', topSpeed: 26, zeroTo90: 1.5, aiSkill: [0.66, 0.9], bandDown: 0.03, bandUp: 0.04, aiTop: 0.82, aiTopHi: 1 },
-  { name: 'Zoomies', cc: '150cc', topSpeed: 30, zeroTo90: 1.6, aiSkill: [0.84, 1], bandDown: 0.01, bandUp: 0.045, aiTop: 0.81, aiTopHi: 1 },
+  // SIM_VERSION 7 (playtest round 2): narrower skill bands and a pull toward the pack (AI.packK) keep the field
+  // together; 100cc and 150cc are faster (24 / 28 / 33 m/s), so each class feels like a step up
+  { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.58, 0.8], bandDown: 0.08, bandUp: 0.1, aiTop: 0.93, aiTopHi: 0.98, maxScale: 1.03 },
+  { name: 'Alley Cat', cc: '100cc', topSpeed: 28, zeroTo90: 1.5, aiSkill: [0.72, 0.93], bandDown: 0.07, bandUp: 0.12, aiTop: 0.96, aiTopHi: 1, maxScale: 1.05 },
+  { name: 'Zoomies', cc: '150cc', topSpeed: 32, zeroTo90: 1.6, aiSkill: [0.85, 1], bandDown: 0.06, bandUp: 0.14, aiTop: 0.98, aiTopHi: 1, maxScale: 1.05 },
 ];
 
 export function classTuning(cls: RaceClass): ClassTuning {
@@ -167,6 +170,9 @@ export const HITS = {
   leap: { time: 0.9, keep: 0.5, height: 2 },
   wobble: { time: 0.8, noise: 0.25, speed: 0.85 },
   chase: { time: 0.5, authority: 0.8 },
+  /** SIM_VERSION 7 hit cap: after an item hit a human shrugs off item hits for this long (first race: longer) */
+  guard: 10,
+  guardForgiving: 15,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -182,7 +188,8 @@ export const RACE = {
   gridRowGap: 6.5,
   gridColGap: 4.2,
   gridFirstRow: 5,
-  boxRespawn: 0.5,
+  /** SIM_VERSION 7: 0.5 → 2 s, so the pack ahead does not empty every row onto the player */
+  boxRespawn: 2,
   roulette: 1.2,
   boxRadius: 1.7,
   stuckRespawn: 4,
@@ -205,8 +212,8 @@ export const COINS = {
   max: 10,
   /** top speed bonus per coin held (SIM_VERSION 6: 0.01, ten coins = +10 %, about Mario Kart's) */
   speedPer: 0.01,
-  /** a spin or a leap drops this many */
-  drop: 3,
+  /** a spin or a leap drops this many (SIM_VERSION 7: 3 → 2) */
+  drop: 2,
   /** spacing of a coin row across the road, m */
   spacing: 1.6,
 } as const;
@@ -216,10 +223,12 @@ export const COINS = {
 // ---------------------------------------------------------------------------------------------
 export const ITEM_WEIGHTS: readonly (readonly number[])[] = [
   // hairball, yarn, cucumber, catnip, box, bell, zoomies, laser
-  [30, 35, 25, 5, 5, 0, 0, 0],
-  [25, 20, 20, 15, 10, 10, 0, 0],
-  [20, 15, 15, 20, 10, 15, 5, 0],
-  [15, 10, 10, 25, 15, 15, 10, 0],
+  // SIM_VERSION 7: fewer hairballs and yarn in places 1–4 (too many hits in the pack): the leader drops cucumbers,
+  // 2nd–4th get more catnip and boxes
+  [24, 24, 40, 4, 8, 0, 0, 0],
+  [18, 14, 18, 22, 18, 10, 0, 0],
+  [14, 11, 13, 27, 15, 15, 5, 0],
+  [12, 10, 12, 26, 14, 16, 10, 0],
   [10, 15, 10, 25, 15, 15, 10, 0],
   [5, 15, 5, 30, 15, 10, 15, 5],
   [0, 18, 5, 25, 12, 5, 20, 15],
@@ -251,7 +260,20 @@ export const AI = {
   lookMin: 8,
   lookMax: 18,
   /** rubber band gain per metre of gap to the player */
-  bandK: 0.003,
+  bandK: 0.005,
+  /** SIM_VERSION 7: pull toward the median kart, per metre of gap (ahead of the pack slows, behind it speeds up) */
+  packK: 0.0035,
+  /** SIM_VERSION 7: the band moves the AI's corner speed by this multiple of its top-speed adjustment */
+  cornerBand: 1.5,
+  /** SIM_VERSION 7: AI corner speed rises this much per class step (150cc cats carry more speed) */
+  cornerClass: 0.06,
+  /** SIM_VERSION 7 wall guard: steer away when the wall is this many seconds away at the sideways speed (× 0.6–1.2
+   * by skill), plus this margin in metres */
+  wallLook: 0.5,
+  /** SIM_VERSION 7: AI steers onto a fish coin up to coinLook m ahead (× 0.5–1 by skill), at most coinReach m aside */
+  coinLook: 22,
+  coinReach: 3.5,
+  wallPad: 0.4,
   /** drift where the turn ahead exceeds this curvature (1/m) */
   driftCurv: 0.035,
   /** the drift curvature threshold scales by (1.25 − driftSkill × skill): skilled cats drift gentler bends */
@@ -278,8 +300,9 @@ export const AI = {
   missTurbo: 0.45,
   /** AI fights: how eager an AI is to use items when it is far ahead of the player (1 = as eager as near) */
   farAheadEager: 0.75,
-  /** the player's rival (RacerInfo.rival): top scale bonus, its own rubber band up, item eagerness at the player */
-  rival: { top: 0.04, bandUp: 0.08, eager: 2, grudge: 20 },
+  /** the player's rival (RacerInfo.rival): top scale bonus, extra rubber band up (only behind the player), item eagerness at the player */
+  /** SIM_VERSION 7: the top bonus is per class (none at 50cc), so the rival stays close instead of running away */
+  rival: { top: [0, 0.015, 0.03] as readonly number[], bandUp: 0.04, eager: 2, grudge: 20 },
 } as const;
 
 // ---------------------------------------------------------------------------------------------

@@ -8,15 +8,16 @@
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, BOOST, DRIFT, PHYS, classTuning, ticks } from '../../tuning';
+import { AI, BOOST, COINS, DRIFT, PHYS, classTuning, ticks } from '../../tuning';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
 import { curvatureAhead, followLine } from '../../core/sim/autopilot';
+import { routeRemaining } from '../../core/track/branch-ai';
 import { speedOf } from '../../core/sim/kart';
 import { draw } from '../../core/sim/rng';
 import { clamp } from '../../core/sim/fixed';
 import { itemsOf, lapGap } from '../items/state';
 import { newBrain, useItems, type BrainMemory } from './item-brain';
-import { bandScale } from './rubber-band';
+import { bandAdj, bandScale } from './rubber-band';
 
 interface Memory {
   /** tick to press for the start (−1 = no pounce attempt, presses late) */
@@ -152,6 +153,9 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     }
   }
   followLine(ctx, i, out, bias, m.slipTicks > 0 ? 1.4 : 1);
+  // SIM_VERSION 7: no new drift (and so no mini-turbo) in the last stretch of a branch: the merge can be steep
+  const branchLeft = routeRemaining(ctx, k.si);
+  const nearMerge = branchLeft !== null && branchLeft < Math.max(25, speedOf(k) * 1.2);
 
   // drift where the track bends
   const sp = speedOf(k);
@@ -162,7 +166,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const curvFor = AI.driftCurv * (1.25 - AI.driftSkill * p.skill);
   if (k.driftDir === 0) {
     // start only when the line itself asks to turn that way (never force a drift against the line)
-    if (Math.abs(c) > curvFor && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
+    if (!nearMerge && Math.abs(c) > curvFor && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
       if (!m.driftWant) {
         m.driftWant = 1;
         // skilled drivers hold for orange/pink; 50cc rarely reaches pink
@@ -182,7 +186,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     const early = (k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08) || (m.missAt >= 0 && k.driftCharge >= m.missAt);
     // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
     const overturning = out.steer * k.driftDir <= -5;
-    out.drift = stillBending && !early && !overturning;
+    out.drift = stillBending && !early && !overturning && !nearMerge;
     if (!out.drift) {
       m.driftWant = 0;
       m.driftCool = 20;
@@ -196,22 +200,37 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     if (m.trickTry) out.drift = k.pDrift === 0;
   }
 
+  // the rubber band (rubber-band.ts) also moves corner speed (SIM_VERSION 7): a cat behind the pack carries a little
+  // more through the bends, one far ahead a little less, so the field stays together where top speed does not decide
+  const adj = bandAdj(ctx, i);
   // corner speed (B15): lift, then brake, when the bend ahead needs more turn than the kart has without a drift
   if (k.driftDir === 0 && !k.air && !out.drift) {
     const ahead = Math.max(10, sp * 0.9);
-    const c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
+    let c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
+    // a ramp ahead (SIM_VERSION 7): the kart barely steers in the air, so the landing bend counts from the lip
+    for (const r of ctx.track.ramps) {
+      let toLip = (r.i - k.si) * ctx.track.step;
+      if (toLip < -ctx.track.length / 2) toLip += ctx.track.length;
+      if (toLip < 0 || toLip > ahead) continue;
+      const land = Math.abs(curvatureAhead(ctx, k.si, toLip, toLip + sp * 0.8)) * 2.2;
+      if (land > c) c = land;
+    }
     const cc = Math.max(1e-4, c);
     // the grip limit, and the steering limit: yaw rate falls with speed (SIM_VERSION 6), so a tight bend at top speed
     // needs a lift even when the tyres would hold (v · c ≤ yaw(v), with a little slack for using the road width)
     const top = classTuning(ctx.cfg.cls).topSpeed;
     const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
-    const vmax = Math.min(Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / cc), (yaw * (1.08 - 0.03 * ctx.cfg.cls + 0.12 * p.skill)) / cc);
+    const vmax = (1 + AI.cornerBand * adj + AI.cornerClass * ctx.cfg.cls) * Math.min(Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / cc), (yaw * (1.12 + 0.12 * p.skill)) / cc);
     if (sp > vmax * 1.12) {
       out.gas = false;
       out.brake = true;
     } else if (sp > vmax) out.gas = false;
   }
 
+  // boost pads (B16) and fish coins only change the steering: keep the corner lift / brake decided above
+  // (SIM_VERSION 7: a pad or coin on the way into a hairpin used to cancel the brake, and a boosted cat flew into the wall)
+  const gas = out.gas;
+  const brake = out.brake;
   // boost pads (B16): a skilled cat steers onto a pad on the road ahead
   if (p.skill >= AI.padSkill && m.slipTicks === 0 && k.driftDir === 0) {
     const t = ctx.track;
@@ -226,9 +245,29 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     }
   }
 
+  // fish coins (SIM_VERSION 7): a cat with room for more steers onto a coin just ahead on its side of the road
+  if (k.driftDir === 0 && m.slipTicks === 0 && k.coins < COINS.max && k.branch < 0) {
+    const t = ctx.track;
+    const reach = AI.coinLook * (0.5 + 0.5 * p.skill);
+    for (let c = 0; c < t.coins.length; c++) {
+      if (ctx.st.coins[c] > 0) continue;
+      const cn = t.coins[c];
+      let ahead = (cn.i - k.si) * t.step;
+      if (ahead < -t.length / 2) ahead += t.length;
+      if (ahead < 3 || ahead > reach || Math.abs(cn.d - k.d) > AI.coinReach) continue;
+      const hw = t.halfW[k.si];
+      followLine(ctx, i, out, clamp((cn.d - t.line[cn.i]) / Math.max(1, hw - AI.edge), -1, 1), 0.8);
+      break;
+    }
+  }
+
+  out.gas = gas;
+  out.brake = brake;
+  wallGuard(ctx, i, out, p);
+
   // items (item-brain.ts) and the capped rubber band (rubber-band.ts)
   useItems(ctx, i, out, m.brain, p, m.grudge > 0);
-  k.topScale = bandScale(ctx, i, p);
+  k.topScale = bandScale(ctx, i, p, adj);
 }
 
 /**
@@ -251,4 +290,34 @@ function dodgeBias(ctx: SimContext, i: number, m: Memory, p: Personality, bias: 
     return clamp((t.d + side * 3.4) / hw, -1, 1);
   }
   return bias;
+}
+
+/**
+ * Wall guard (SIM_VERSION 7, playtest round 2: 4–19 grazes per AI kart per race, nearly all on the inside of a bend
+ * after a drift or a mini-turbo). When the kart will reach the wall within `AI.wallLook` seconds at its sideways
+ * speed, it steers away (a drift goes wide; a drift that still runs into the wall is let go). Skilled cats react a
+ * little earlier. Main road only: branches have their own walls.
+ */
+function wallGuard(ctx: SimContext, i: number, out: TickInput, p: Personality): void {
+  const k = ctx.st.karts[i];
+  if (k.branch >= 0 || k.air || k.spinTicks > 0 || k.autoTicks > 0) return;
+  const t = ctx.track;
+  const side = k.d >= 0 ? 1 : -1;
+  // contact happens with the kart's side at the wall: `wallMargin` beyond the road edge, less half the kart
+  const wall = (side > 0 ? t.wallR[k.si] : t.wallL[k.si]) - PHYS.kartHalfWidth;
+  const room = wall - Math.abs(k.d);
+  const lat = (k.vx * -t.tz[k.si] + k.vz * t.tx[k.si]) * side; // sideways speed toward that wall, m/s
+  if (lat <= 0) return;
+  const need = lat * (AI.wallLook * (0.6 + 0.6 * p.skill)) + AI.wallPad;
+  if (room > need) return;
+  // steer away, harder the closer the wall (never less than the line already asks for); steer < 0 moves toward +d
+  const want = -side * Math.min(7, 2 + Math.round((5 * (need - room)) / Math.max(0.3, need)));
+  if (out.steer * -side < Math.abs(want)) out.steer = want;
+  // heading into the wall at a steep angle (a branch exit, a bounce): brake as well, a head-on costs more
+  if (lat > 0.5 * speedOf(k) && room < lat * 0.6) {
+    out.gas = false;
+    out.brake = true;
+  }
+  // never start a drift while steering off a wall: the hop would take the guard's direction, against the bend
+  if (k.driftDir === 0 || room < lat * 0.18 + 0.3) out.drift = false;
 }

@@ -15,7 +15,7 @@ import { stepContacts, stepSlipstream } from './contact';
 import { raceOver, stepCountdown, stepLaps, stepPositions } from './race';
 import { hashState } from './hash';
 import { STREAM, streamSeed } from './rng';
-import { followLine } from './autopilot';
+import { followLine, autopilotBrake } from './autopilot';
 import { stepCoins } from './coins';
 import { buildRaceStats } from '../app/race-stats';
 import type { SimContext, SimPlugins } from './plugins';
@@ -140,11 +140,13 @@ export class SimWorld {
         const item = out.item;
         const back = out.itemBack;
         followLine(ctx, i, out, 0);
+        autopilotBrake(ctx, i, out);
         out.drift = false;
         out.item = item;
         out.itemBack = back;
       }
-      if (k.topScale > 1) k.topScale = 1;
+      // SIM_VERSION 7: an AI chasing a leading player may run a little above the class top speed (ClassTuning.maxScale)
+      if (k.topScale > ctx.tun.maxScale) k.topScale = ctx.tun.maxScale;
     }
 
     // item use: a press is buffered for 150 ms (B22) and fires on the first legal tick, the roulette's last included;

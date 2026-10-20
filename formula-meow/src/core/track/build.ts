@@ -152,6 +152,10 @@ const RAMP_RUN = 7; // m
 const RAMP_HEIGHT = 0.9;
 const PAD_LEN = 7;
 const PAD_W = 6;
+/** racing-line coin trails (SIM_VERSION 7): one every LINE_COIN_GAP m, LINE_COIN_TRAIL coins LINE_COIN_STEP m apart */
+const LINE_COIN_GAP = 70;
+const LINE_COIN_TRAIL = 3;
+const LINE_COIN_STEP = 3.5;
 const ZONE_LEN = { lowgrip: 36, offroad: 46, shortcut: 46 } as const;
 
 export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
@@ -410,6 +414,25 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
       const lim = f.hw - 0.8;
       const d = clamp(dc + (c - (row.count - 1) / 2) * COINS.spacing, -lim, lim);
       coins.push({ x: f.x - f.tz * d, y: f.y + d * f.bank + 0.7, z: f.z + f.tx * d, i: f.i, d });
+    }
+  }
+  // SIM_VERSION 7: short trails of coins on the racing line every ~LINE_COIN_GAP metres, so a player who drives well
+  // collects them (the authored rows sit across the road and were rarely driven through); clear of the start, the
+  // authored rows, item rows and ramps
+  if (def.kind !== 'arena' && def.lineCoins !== false) {
+    const authored = coins.map((c) => c.i);
+    const busy = features.filter((f) => f.kind === 'items' || f.kind === 'ramp' || f.kind === 'start').map((f) => f.i);
+    const near = (list: number[], i: number, m: number): boolean => list.some((j) => Math.min(fwd(i, j, n), fwd(j, i, n)) * step < m);
+    const gap = Math.max(1, Math.round(LINE_COIN_GAP / step));
+    const along = Math.max(1, Math.round(LINE_COIN_STEP / step));
+    for (let i0 = Math.round(40 / step); i0 + gap / 2 < n; i0 += gap) {
+      if (near(authored, i0, 25) || near(busy, i0, 14)) continue;
+      for (let c = 0; c < LINE_COIN_TRAIL; c++) {
+        const f = frameOnMain(main, (i0 + c * along) % n);
+        const lim = f.hw - 0.8;
+        const d = clamp(line[f.i], -lim, lim);
+        coins.push({ x: f.x - f.tz * d, y: f.y + d * f.bank + 0.7, z: f.z + f.tx * d, i: f.i, d });
+      }
     }
   }
 

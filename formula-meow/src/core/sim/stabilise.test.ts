@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { DT, NO_INPUT, Surface, type RaceConfig, type TickInput } from '../../types';
-import { ITEMS, PHYS, RACE, ticks } from '../../tuning';
+import { COINS, ITEMS, PHYS, RACE, ticks } from '../../tuning';
 import { KITCHEN, ROOFTOPS, TRACKS } from '../track/tracks';
 import { buildTrack } from '../track/build';
 import { ovalTrack, raceConfig, world } from '../../test/fixtures';
@@ -401,7 +401,7 @@ describe('items (iteration 2)', () => {
   });
 
   it('a spin drops coins and the coin rule picks them up', () => {
-    const def = { ...ovalTrack(), coins: [{ s: 20, d: 0, count: 3 as const }] };
+    const def = { ...ovalTrack(), coins: [{ s: 20, d: 0, count: 3 as const }], lineCoins: false };
     const w = world(raceConfig(def, { humans: [0], solo: true }));
     expect(w.track.coins.length).toBe(3);
     while (w.tick < GO_TICK + 1) w.step([input()]);
@@ -410,7 +410,7 @@ describe('items (iteration 2)', () => {
     expect(w.st.karts[0].coins).toBeGreaterThan(0);
     const before = w.st.karts[0].coins;
     expect(applyHit(w.ctx, 0, 'spin')).toBe(true);
-    expect(w.st.karts[0].coins).toBe(Math.max(0, before - 3));
+    expect(w.st.karts[0].coins).toBe(Math.max(0, before - COINS.drop));
     expect(w.st.events.some((e) => e.type === 'coinLoss')).toBe(true);
     void ProjKind;
   });

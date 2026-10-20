@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 6;
+export const SIM_VERSION = 7;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -134,6 +134,8 @@ export interface TrackDef {
   branches?: TrackBranch[];
   hazards?: HazardSpot[];
   coins?: CoinRow[];
+  /** SIM_VERSION 7: false = no coin trails on the racing line (tests); arenas never get them */
+  lineCoins?: boolean;
   flyover?: FlyoverKey[];
   /** song index for the audio-ui lane */
   music?: number;
@@ -281,6 +283,8 @@ export interface KartState {
   shieldTicks: number;
   autoTicks: number;
   invTicks: number;
+  /** SIM_VERSION 7: a human just hit by an item shrugs off further item hits until this runs out (hit cap) */
+  guardTicks: number;
   /** stalled after an early start press (race 2+) */
   stallTicks: number;
   /** "big hand" respawn countdown */
