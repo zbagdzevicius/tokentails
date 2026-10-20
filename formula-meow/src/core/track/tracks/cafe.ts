@@ -1,8 +1,17 @@
 /**
  * Cat Café Chaos (GDD 6.1, track 5, theme 4): a cat café after closing, fairy lights on, the night shift of roombas
- * out. Start along the window → the table slalom (a tight chicane between the tables) → the koi pond jump → round the
+ * out. Start along the window → the table slalom (a tight chicane between the tables) → the koi pond gap → round the
  * bookshelf → the kitchen pass (a narrow short cut behind the counter with a boost pad) or the long way round the
- * counter past the roombas → the cushion corner home.
+ * counter past the roombas and up the coffee cup's side → through the cat tree → round the mug handle → the cushion
+ * corner home.
+ *
+ * Set pieces (SIM_VERSION 8, tracks-B, SETPIECES.md section 12; bright emissive skins on the dark theme):
+ * - the koi pond (lip s104, a 12 m gap, flat: the plan's 0.8 m drop would sink the landing deck under the café floor
+ *   plane at y −0.08, so the pond and landing never showed): the clean-landing boost replaces the pad that was at s112; the
+ *   launch floor covers a kart the roomba at s100 slowed down;
+ * - the coffee-cup half-pipe on the long way round the counter (s146–158, the outside of the right-hander);
+ * - the cat-tree tunnel (s198–212), the items at its mouth;
+ * - the mug-handle loop (zone s220–232 after the strip): replaces the ramp at s216; the roomba moved to s242.
  */
 import type { TrackDef } from '../../../types';
 
@@ -43,10 +52,15 @@ export const CAFE: TrackDef = {
     { s: 22, kind: 'ramp', side: 0 },
     { s: 34, kind: 'items' },
     { s: 92, kind: 'items' },
-    { s: 112, kind: 'pad', side: 0 },
     { s: 198, kind: 'items' },
-    { s: 216, kind: 'ramp', side: 0 },
-  ],  branches: [
+  ],
+  setPieces: [
+    { kind: 'jump', s: 104, gap: 12, drop: 0 }, // flat: the café road sits on the floor, so a drop would sink the landing under it
+    { kind: 'wall', s: 146, len: 12, side: 1 }, // the outside of the bend (curvature + = left: side +1),
+    { kind: 'tunnel', s: 198, len: 14 },
+    { kind: 'loop', s: 220 },
+  ],
+  branches: [
     // the kitchen pass: a narrow lane behind the counter, a boost pad in the middle
     {
       from: 121,
@@ -60,7 +74,7 @@ export const CAFE: TrackDef = {
   ],
   hazards: [
     { kind: 'roomba', s: 100, phase: 0 },
-    { kind: 'roomba', s: 236, phase: 0.5 },
+    { kind: 'roomba', s: 242, phase: 0.5 },
   ],
   coins: [
     { s: 60, d: 0, count: 4 },

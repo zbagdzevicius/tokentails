@@ -28,9 +28,18 @@ export function dressYarn(t: BuiltTrack, theme: Theme): Group {
   }
 
   // the raised road sits on mesa tops; the bridge is the exception (below)
-  raisedDeck(t, g, { minY: 1.4, color: ROCK[1], inset: 2.2, vary: 0.06 });
+  // (SIM_VERSION 8: and the strand jump on the bridge, from its run-up to its landing, so no slab fills the gap)
+  const open = Uint8Array.from(t.voidMask);
+  for (const pc of t.pieces)
+    if (pc.kind === 'jump' && pc.gap > 0) {
+      const from = (pc.i0 - Math.round(10 / t.step) + t.n) % t.n;
+      const len = (pc.land1 - from + t.n) % t.n;
+      for (let k = 0; k <= len; k++) open[(from + k) % t.n] = 1;
+    }
+  raisedDeck({ ...t, voidMask: open }, g, { minY: 1.4, color: ROCK[1], inset: 2.2, vary: 0.06 });
 
-  // the knitting-needle bridge: two long needles under the deck, piers down to the floor
+  // the knitting-needle bridge: two long needles under the deck, piers down to the floor. SIM_VERSION 8: the bridge
+  // runs on past its open stretch through the strand jump (a jump piece starting just after it), broken at the gap
   let first = -1;
   let last = -1;
   for (let i = 0; i < t.n; i++)
@@ -38,12 +47,15 @@ export function dressYarn(t: BuiltTrack, theme: Theme): Group {
       if (first < 0) first = i;
       last = i;
     }
+  const strand = first >= 0 ? t.pieces.find((p) => p.kind === 'jump' && p.gap > 0 && p.i0 >= last && p.i0 - last < 40 / t.step) : undefined;
+  if (strand) last = strand.land1;
   if (first >= 0) {
     const run = last - first;
     for (const s of [-1, 1]) {
       for (let k = 0; k < run; k += 4) {
         const i = first + k;
         const j = Math.min(last, i + 4);
+        if (t.gapMask[i] || t.gapMask[j]) continue;
         const d = s * (t.halfW[i] - 1.2);
         const ax = t.px[i] - t.tz[i] * d;
         const az = t.pz[i] + t.tx[i] * d;
@@ -66,18 +78,53 @@ export function dressYarn(t: BuiltTrack, theme: Theme): Group {
         else g.cone(0.55, 3, 8, 0xd9dde3, { x, y: t.py[i] - 1.2, z, rx: Math.PI / 2, ry: Math.atan2(t.tx[i], t.tz[i]) }, { vary: 0 });
       }
     }
+    // the broken ends of the needles at the strand gap: points sticking out over the drop
+    if (strand) {
+      for (const [i, dir] of [
+        [strand.i0, 1],
+        [strand.i1, -1],
+      ] as const) {
+        for (const s of [-1, 1]) {
+          const d = s * (t.halfW[i] - 1.2);
+          const x = t.px[i] - t.tz[i] * d + t.tx[i] * dir * 1.2;
+          const z = t.pz[i] + t.tx[i] * d + t.tz[i] * dir * 1.2;
+          g.cone(0.55, 2.4, 8, 0xd9dde3, { x, y: t.py[i] - 0.9, z, rx: (dir * Math.PI) / 2, ry: Math.atan2(t.tx[i], t.tz[i]) }, { vary: 0 });
+        }
+      }
+    }
     for (let k = 10; k < run - 6; k += Math.round(14 / t.step)) {
       const i = first + k;
+      if (t.gapMask[i] || t.gapMask[Math.min(last, i + 3)]) continue;
       g.boxUp(2.4, t.py[i] - 1.5, 2.4, ROCK[2], { x: t.px[i], y: 0, z: t.pz[i], ry: Math.atan2(t.tx[i], t.tz[i]) }, { vary: 0.05 });
     }
   }
 
-  // the yarn ball wedged in the shortcut's gap (it does not hold you up)
+  // the yarn ball wedged in the shortcut's gap (it does not hold you up), and the yarn hammock under the gap that
+  // catches a kart that comes up short (SIM_VERSION 8: set down past the far lip, src/tracks/hazards/rules.ts)
   for (const b of t.branches) {
     if (!b.gap) continue;
     const j = (b.gap.j0 + b.gap.j1) >> 1;
     g.sphere(3.2, YARN[0], { x: b.px[j], y: b.py[j] - 6.5, z: b.pz[j] }, { vary: 0.02 }, 12, 9);
     for (let k = 0; k < 4; k++) g.torus(3.25, 0.18, 0xffb3d6, { x: b.px[j], y: b.py[j] - 6.5, z: b.pz[j], rx: k * 0.8, ry: k * 0.5 }, { vary: 0 }, 4, 18);
+    const j0 = Math.max(0, b.gap.j0 - 1);
+    const j1 = Math.min(b.m - 1, b.gap.j1 + 1);
+    const yTop = Math.min(b.py[j0], b.py[j1]) - 0.4;
+    const steps = 8;
+    const at = (q: number, u: number) => {
+      const ji = Math.min(b.m - 1, Math.round(j0 + (j1 - j0) * u));
+      const w = (q / 3) * (b.halfW[ji] - 0.4);
+      return { x: b.px[ji] - b.tz[ji] * w, y: yTop - 2.2 * Math.sin(u * Math.PI) * (1 - (q * q) / 16), z: b.pz[ji] + b.tx[ji] * w };
+    };
+    for (let q = -3; q <= 3; q++) {
+      // strands along the gap, sagging into a hammock
+      for (let k = 0; k < steps; k++) {
+        const a = at(q, k / steps);
+        const c = at(q, (k + 1) / steps);
+        const flat = Math.hypot(c.x - a.x, c.z - a.z);
+        const len = Math.hypot(flat, c.y - a.y);
+        g.cyl(0.11, 0.11, len + 0.05, 4, YARN[(q + 3) % YARN.length], { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, z: (a.z + c.z) / 2, ry: Math.atan2(c.x - a.x, c.z - a.z), rx: Math.PI / 2 - Math.atan2(c.y - a.y, flat) }, { vary: 0 });
+      }
+    }
   }
 
   // mesas round the canyon, striped in rock layers, some wound with yarn

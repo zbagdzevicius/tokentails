@@ -3,6 +3,9 @@
  * living room. The track's ring is only the frame the query measures from; the whole floor out to the rug's edge is
  * drivable. Two ramps, eight item box clusters, and cover: the coffee table in the middle, the sofa, an armchair, a
  * cat tree and a plant pot (solid props, tracks/extras.ts `blocks`).
+ *
+ * Set pieces (SIM_VERSION 8, tracks-B): the second ramp (s192) is a sofa-cushion kicker (a `jump` with `gap: 0`: a
+ * full-width aimed ramp, no void), so the arena keeps two ramps. Arenas skip wall pieces, so there is no half-pipe.
  */
 import type { TrackDef } from '../../../types';
 
@@ -36,8 +39,9 @@ export const RUG: TrackDef = {
     { s: 208, kind: 'items' },
     { s: 240, kind: 'items' },
     { s: 64, kind: 'ramp', side: 0 },
-    { s: 192, kind: 'ramp', side: 0 },
   ],
+  // the second ramp is the sofa-cushion kicker (an aimed launch, SIM_VERSION 8)
+  setPieces: [{ kind: 'jump', s: 192, gap: 0 }],
   flyover: [
     { x: 0, y: 46, z: -60, lx: 0, ly: 0, lz: 0, t: 0 },
     { x: 56, y: 30, z: 0, lx: 0, ly: 0, lz: 0, t: 1.6 },
