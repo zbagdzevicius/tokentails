@@ -21,7 +21,7 @@ export function ordinalText(n: number): string {
   return `${n}${s}`;
 }
 
-export const PINK_PAW_SHARE_LINE = `The rival cats are real cats from Pink Paw shelter in Kaunas, Lithuania. Shelter payouts: ${SHELTER_PAYOUTS_URL}`;
+export const PINK_PAW_SHARE_LINE = `The rival cats are real cats from Pink Paw, a shelter in Lithuania. Shelter payouts: ${SHELTER_PAYOUTS_URL}`;
 
 export interface DareTextIn {
   trackName: string;

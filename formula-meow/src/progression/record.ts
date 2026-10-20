@@ -39,6 +39,8 @@ export interface Award {
   newBestLap?: number;
   trophy?: { cupId: string; cls: RaceClass; place: number; mirror: boolean };
   medal?: { trackId: string; cls: RaceClass; medal: number };
+  /** fish already paid on each race's results during a cup: a recap line only, never added to `total` (B2) */
+  cupRaces?: number;
 }
 
 export function emptyAward(): Award {
@@ -252,5 +254,6 @@ export function mergeAward(a: Award, b: Award): Award {
     newBestLap: a.newBestLap ?? b.newBestLap,
     trophy: a.trophy ?? b.trophy,
     medal: a.medal ?? b.medal,
+    cupRaces: a.cupRaces != null || b.cupRaces != null ? (a.cupRaces ?? 0) + (b.cupRaces ?? 0) : undefined,
   };
 }

@@ -74,7 +74,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     test: ({ s, circuits }) => circuits.length > 0 && circuits.every((t) => Object.entries(s.medals).some(([k, m]) => k.startsWith(`${t}:`) && m === 1)),
     progress: ({ s, circuits }) => [circuits.filter((t) => Object.entries(s.medals).some(([k, m]) => k.startsWith(`${t}:`) && m === 1)).length, circuits.length],
   },
-  { id: 'last-cat-standing', icon: '🎈', name: 'Last Cat Standing', desc: 'Win a balloon battle', test: ({ race, s }) => (race?.mode === 'battle' && race.place === 1) || s.stats.battleWins > 0 },
+  { id: 'last-cat-standing', icon: '🎈', name: 'Battle Champ', desc: 'Win a balloon battle on points', test: ({ race, s }) => (race?.mode === 'battle' && race.place === 1) || s.stats.battleWins > 0 },
   { id: 'pacifist', icon: '🕊️', name: 'Pacifist', desc: 'Win a race without using an item', test: ({ race }) => won(race) && race.stats.itemsUsed === 0 },
   { id: 'air-cat', icon: '🤸', name: 'Air Cat', desc: 'Land 5 tricks in one race', test: ({ race }) => (race?.stats.tricks ?? 0) >= 5 },
   { id: 'slipstreamer', icon: '💨', name: 'Slipstreamer', desc: 'Catch 4 slipstreams in one race', test: ({ race }) => (race?.stats.slipstreams ?? 0) >= 4 },

@@ -59,6 +59,8 @@ test('a race pays fish; buying a hat in the garage puts it on the cat in the nex
     p.setProg({ ...p.prog(), fish: Math.max(p.prog().fish, 75) });
   });
   const before = (await prog(page)).fish;
+  // the garage door sits in the folded "Challenges, goals and garage" part of the results
+  await section.locator('.fm-prog-moreinfo').evaluate((d) => ((d as HTMLDetailsElement).open = true));
   await section.locator('[data-act="garage"]').click();
   const garage = page.locator('[data-screen="garage"]');
   await expect(garage).toBeVisible();
@@ -139,9 +141,9 @@ test('the awards list all 24 achievements and the garage works from the keyboard
   await page.evaluate(() => (window as unknown as { __fmProg: { screens: { push(id: string): Promise<unknown> } } }).__fmProg.screens.push('garage'));
   const garage = page.locator('[data-screen="garage"]');
   await expect(garage.locator('.fm-garage-stage canvas')).toBeVisible();
-  // arrows move focus between the tiles; Enter tries a body on
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  // the garage opens with a control focused (B5); arrows move focus between the tiles; Enter tries a body on
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[data-screen="garage"]'))).toBe(true);
+  await garage.locator('[role="tab"]').first().focus();
   await page.keyboard.press('ArrowDown');
   const focused = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.item ?? (document.activeElement as HTMLElement | null)?.getAttribute('role') ?? '');
   expect(focused).not.toBe('');

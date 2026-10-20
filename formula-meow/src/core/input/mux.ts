@@ -3,7 +3,9 @@
  * latched every 2 ticks (30 Hz) for compact ghosts, with presses kept sticky so a short tap is never lost.
  * Touch gets automatic gas (after GO) and the one-thumb auto drift (GDD 2.1): holding the stick past 70 % of lock
  * for 0.2 s above 60 % of top speed starts a drift, but only into a bend that turns the same way (a nervous thumb
- * on a straight is not a drift); releasing back inside 30 %, touching a wall or the bend running out lets it go.
+ * on a straight is not a drift). Playtest round 2 (phone drifts almost never reached a mini-turbo): the drift then
+ * holds while the stick stays past 35 %, whatever the bend does; releasing the stick (or a wall, or a hop that never
+ * became a drift) lets it go, and the release fires the charged mini-turbo.
  */
 import type { TickInput } from '../../types';
 import { emptyRaw, type InputSource, type RawInput } from './raw';
@@ -68,7 +70,7 @@ export class InputMux {
       if (!this.autoDrift) {
         this.autoHold = a > 0.7 && ctx.speedFrac > 0.6 && !ctx.wall && bendAgrees(r.steer, ctx.curve, 0.025) ? this.autoHold + dt : 0;
         if (this.autoHold > 0.2) this.autoDrift = true;
-      } else if (a < 0.3 || ctx.wall || (!ctx.drifting && this.autoHold > 0.6) || (this.autoHold > 0.5 && !bendAgrees(r.steer, ctx.curve, 0.012))) {
+      } else if (a < 0.35 || ctx.wall || (!ctx.drifting && this.autoHold > 0.6)) {
         this.autoDrift = false;
         this.autoHold = 0;
       } else this.autoHold += dt;

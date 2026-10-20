@@ -145,7 +145,7 @@ export function toast(text: string, ms = 2600): void {
 }
 
 /** A blocking question. Resolves to the index of the chosen button (or -1 on Esc / B). */
-export function modal(title: string, text: string, buttons: string[]): Promise<number> {
+export function modal(title: string, text: string, buttons: string[], o: { focus?: number } = {}): Promise<number> {
   return new Promise((resolve) => {
     const wrap = h('div', { class: 'fm-ui-modal', 'data-ui-layer': '' });
     // focus moves into the modal (an Enter on the button that opened it used to open a second one) and back after
@@ -172,7 +172,8 @@ export function modal(title: string, text: string, buttons: string[]): Promise<n
       done(-1);
     };
     window.addEventListener('keydown', onKey, true);
-    btns[0]?.focus({ preventScroll: true });
+    // `focus`: the safe choice of a destructive question (B16: Enter on "Quit the cup?" used to quit)
+    (btns[o.focus ?? 0] ?? btns[0])?.focus({ preventScroll: true });
   });
 }
 
@@ -200,7 +201,11 @@ export function nextFocus(items: readonly { x: number; y: number }[], from: numb
     if (along <= 1) continue;
     const across = Math.abs(vx * dy - vy * dx);
     const score = along + across * 2;
-    if (score < bestScore) {
+    // near-ties (B7: two tiles 76 and 77 px off-centre below a wide card) break toward the left, then the top, so the
+    // same layout always picks the same control whatever its sub-pixel position
+    const tie = Math.abs(score - bestScore) < 8;
+    const better = tie ? items[i].x < items[best].x - 0.5 || (Math.abs(items[i].x - items[best].x) <= 0.5 && items[i].y < items[best].y) : score < bestScore;
+    if (better) {
       bestScore = score;
       best = i;
     }
@@ -255,6 +260,13 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
     if (root.hidden || !root.isConnected || !isTopNav(root)) return;
     const a = document.activeElement as HTMLElement | null;
     const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+    // B4/B5: Enter with nothing focused in this layer focuses its first control (as gamepad A does), instead of doing nothing
+    if (e.key === 'Enter' && !typing && !(a && root.contains(a) && a !== root)) {
+      e.preventDefault();
+      root.classList.add('fm-nav-pad');
+      move(0, 1);
+      return;
+    }
     const dir: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
     const d = dir[e.key];
     if (!d || (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) return;

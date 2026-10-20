@@ -64,7 +64,7 @@ export class RaceUi implements JuiceListener {
     if (best != null && time < best - 1e-6) {
       const hud = this.shell.hud;
       const text = hud.saying ?? (e.a === 1 ? t('WINNER!') : t('FINISH!'));
-      hud.say(text, { prio: 3, tone: 'gold', ms: 2400, sub: t('NEW RECORD! {t}', { t: fmt(best - time) }) });
+      hud.say(text, { prio: 3, tone: 'gold', ms: 2400, big: !!hud.saying, sub: t('NEW RECORD! {t}', { t: fmt(best - time) }) });
       setTimeout(() => this.shell.audio.announce('record'), 1300);
     }
   }

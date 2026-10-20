@@ -81,12 +81,14 @@ function fishBlock(a: Award, before: number): HTMLElement {
   const bal = h('span', { class: 'fm-prog-bal', 'aria-label': t('Fish coins') }, [`🐟 ${before}`]);
   // one line of chips; the rest behind a "+N more" chip (a wrapped wall of chips was clipped by the button row)
   const chips = fishChips(a);
-  const SHOW = 3;
-  const reasons = h('div', { class: 'fm-prog-reasons' }, chips.slice(0, SHOW));
+  // two chips and the "+N more" fit one line on a 390 px phone (three wrapped the "more" chip under the row, B2)
+  const SHOW = chips.length <= 3 ? 3 : 2;
+  const reasons = h('div', { class: 'fm-prog-reasons one' }, chips.slice(0, SHOW));
   if (chips.length > SHOW) {
     const more = h('button', { class: 'fm-prog-chip fm-prog-more', type: 'button' }, [t('+{n} more', { n: chips.length - SHOW })]);
     more.addEventListener('click', () => {
       more.remove();
+      reasons.classList.remove('one');
       reasons.append(...chips.slice(SHOW));
     });
     reasons.append(more);
@@ -158,11 +160,14 @@ export function renderProgressSection(ctx: ResultCtx, shell: Shell): HTMLElement
       ]),
     );
   }
-  parts.push(dailyBlock(a));
-  parts.push(goalBlock());
+  // polish 2: the daily challenges, the next goal and the garage / awards / stats doors fold under one "More"
+  // line (open when a challenge was just completed), so the results column stays short
   const s = prog();
   const fresh = s.fresh.length > 0 || nextGoal(s)?.affordable;
-  parts.push(
+  const more = h('details', { class: 'fm-prog-moreinfo' }, [
+    h('summary', {}, [t('Challenges, goals and garage')]),
+    dailyBlock(a),
+    goalBlock(),
     h('div', { class: 'fm-prog-links' }, [
       h('button', { class: `fm-btn fm-prog-link${fresh ? ' hot' : ''}`, type: 'button', 'data-act': 'garage', onclick: () => void screens.push('garage') }, [t('🏎️ Garage')]),
       h('button', { class: 'fm-btn fm-prog-link', type: 'button', 'data-act': 'awards', onclick: () => void screens.push('achievements') }, [
@@ -170,6 +175,8 @@ export function renderProgressSection(ctx: ResultCtx, shell: Shell): HTMLElement
       ]),
       h('button', { class: 'fm-btn fm-prog-link', type: 'button', 'data-act': 'stats', 'aria-label': t('Stats'), onclick: () => void screens.push('stats') }, [t('📊 Stats')]),
     ]),
-  );
+  ]);
+  if (a.challenges.length || fresh) (more as HTMLDetailsElement).open = true;
+  parts.push(more);
   return h('div', { class: 'fm-prog-res', 'data-section': 'progression' }, parts.filter((p): p is HTMLElement => !!p));
 }

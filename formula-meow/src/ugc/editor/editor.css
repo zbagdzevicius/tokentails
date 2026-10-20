@@ -107,3 +107,14 @@
   .fm-ed-panel { grid-column: 2; grid-row: 4; justify-content: flex-start; overflow: auto; }
   .fm-ed-actions { grid-column: 2; grid-row: 5; }
 }
+
+/* playtest round 2 (B13): at 390 px the title read "Track Doodl…" and the tab "Stic…": the New button drops its word,
+   the title loses its tilt (it sat low beside ✕), and a tab puts its icon above its label */
+.fm-ed-title { transform: none; }
+.fm-ed-tab { white-space: normal; line-height: 1.15; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+@media (max-width: 440px) {
+  .fm-ed-new small { display: none; }
+  .fm-ed-new { padding: 0; width: 44px; justify-content: center; }
+  .fm-ed-title { font-size: 18px; }
+  .fm-ed-top { gap: 6px; }
+}

@@ -18,7 +18,9 @@ import {
   Color,
   DynamicDrawUsage,
   InstancedMesh,
+  Mesh,
   MeshBasicMaterial,
+  RingGeometry,
   Object3D,
   Points,
   ShaderMaterial,
@@ -71,6 +73,8 @@ export class RaceView {
   readonly karts: KartView[];
   private readonly boxes: InstancedMesh;
   private readonly shadows: InstancedMesh;
+  /** a bright ring under the player's kart (polish 12: on dark tracks the phone player was a few dark pixels) */
+  private readonly meRing: Mesh<RingGeometry, MeshBasicMaterial>;
   private readonly sparks: Points;
   private readonly sparkPos: Float32Array;
   private readonly sparkCol: Float32Array;
@@ -130,6 +134,13 @@ export class RaceView {
     this.shadows.frustumCulled = false;
     this.shadows.renderOrder = 1;
     scene.add(this.shadows);
+    const rg = new RingGeometry(1.2, 1.55, 28);
+    rg.rotateX(-Math.PI / 2);
+    this.meRing = new Mesh(rg, new MeshBasicMaterial({ color: 0xff3ea5, transparent: true, opacity: 0.75, depthWrite: false }));
+    this.meRing.renderOrder = 2;
+    this.meRing.frustumCulled = false;
+    this.meRing.visible = false;
+    scene.add(this.meRing);
 
     // sparks
     this.sparkPos = new Float32Array(MAX_SPARKS * 3);
@@ -318,6 +329,13 @@ export class RaceView {
       _o.rotation.set(0, s.heading, 0);
       _o.updateMatrix();
       this.shadows.setMatrixAt(i, _o.matrix);
+      if (i === this.me) {
+        this.meRing.position.copy(_o.position);
+        this.meRing.position.y += 0.01;
+        this.meRing.scale.set(lift, 1, lift * 1.25);
+        this.meRing.rotation.copy(_o.rotation);
+        this.meRing.visible = !v.fadedOut;
+      }
       if (carried || dt <= 0) continue;
 
       // a kart faded out next to the lens (B59) leaves no puffs or trail in front of it either
@@ -513,6 +531,9 @@ export class RaceView {
     }
     this.hands.clear();
     // B57: materials and the instanced buffers too, not only the geometry
+    this.scene.remove(this.meRing);
+    this.meRing.geometry.dispose();
+    this.meRing.material.dispose();
     for (const o of [this.boxes, this.shadows, this.sparks]) {
       this.scene.remove(o);
       o.geometry.dispose();

@@ -38,13 +38,13 @@ import { SpeedLines } from '../../juice/vfx/speed-lines';
 import { shareHooks, type ResultExtras } from '../../share/hooks';
 import { trackFromLocation } from '../../ugc/codec/track-codec';
 import { buildField, createSimPlugins } from '../../items-ai';
-import { ITEM_ICON, fmtTime } from '../hud/hud';
+import { ITEM_ICON, fmtTime, rouletteIcon } from '../hud/hud';
 import { displayName } from '../../ugc/actions';
 import { OUTLINE_UNIFORMS } from '../render/cat-outline';
 import { GO_TICK } from '../sim/world';
 import { hasScreen, registerScreen, screens } from './screens';
 import { appBus } from './app-bus';
-import { setA11y } from '../../ui/a11y';
+import { driftTierColors, setA11y } from '../../ui/a11y';
 import { localeFromUrl, setLocale, t } from '../../ui/i18n';
 import { button, h, toggle } from '../../ui/kit';
 import '../hud/hud.css';
@@ -369,8 +369,11 @@ export class Shell {
     this.bus.reset();
     this.onResize();
     const hintPounce = this.progress.pounces < 2 && !this.bot;
-    this.hud.setHint(hintPounce ? (this.touchMode() ? t('Tap on MEOW! = Pounce Start') : t('↑ on MEOW! = Pounce Start')) : null);
     if (req.waitForInput === false || req.attract) this.arm();
+    // the tap prompt goes up before the hint (polish 7: the hint was drawn on top of the prompt card's subtitle); the
+    // HUD holds the hint back while the prompt shows and gives it the slot under the countdown
+    if (!this.armed && !req.attract) this.hud.setTapPrompt(this.touchMode() ? t('TAP TO RACE') : t('PRESS ANY KEY'), this.touchMode() ? t('gas is automatic · left thumb steers') : t('←→ steer · ↑ gas · Space drift'));
+    this.hud.setHint(hintPounce ? (this.touchMode() ? t('Tap on MEOW! = Pounce Start') : t('↑ on MEOW! = Pounce Start')) : null);
     if (req.attract) {
       // [modes lane] the attract race is scenery: no HUD, hints or thumbs, and nobody hears about it
       this.hud.setHint(null);
@@ -379,7 +382,6 @@ export class Shell {
       (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
       return;
     }
-    if (!this.armed) this.hud.setTapPrompt(this.touchMode() ? t('TAP TO RACE') : t('PRESS ANY KEY'), this.touchMode() ? t('gas is automatic · left thumb steers') : t('←→ steer · ↑ gas · Space drift'));
     this.touch.setGrid(true);
     // a fresh focus: a button that started this race no longer swallows the race keys
     (document.activeElement as HTMLElement | null)?.blur?.();
@@ -544,7 +546,9 @@ export class Shell {
     this.speedLines?.update(dt, speedOf(me), top, me.boostTicks > 0, this.settings.reducedMotion);
     this.hud.update(w.st, this.me, top, GO_TICK, this.kartColors);
     this.hud.wrongWay(me, w.track, dt, w.st.tick > GO_TICK);
-    this.touch.setItem(me.item ? (me.rouletteTicks === 0 ? ITEM_ICON[me.item] : '❔') : '', !!me.item && me.rouletteTicks === 0);
+    if (me.driftDir !== 0 && me.driftTier > 0) this.touch.setDrift(me.driftTier, '#' + driftTierColors()[me.driftTier - 1].toString(16).padStart(6, '0'));
+    else this.touch.setDrift(me.driftDir !== 0 ? 0 : null);
+    this.touch.setItem(me.item ? (me.rouletteTicks === 0 ? ITEM_ICON[me.item] : rouletteIcon(w.st.tick, me.rouletteTicks)) : '', !!me.item && me.rouletteTicks === 0);
     if (!attract) this.driftHint(me);
     this.bus.frame(this.frameInfo);
     // paused: a few frames to settle the blurred backdrop, then the canvas keeps its last frame (battery on phones);
@@ -709,6 +713,14 @@ export class Shell {
             b.parentElement?.prepend(b);
           }
         }
+      }
+      // B15 / B18: an arena (a battle opened from a link) and the Daily Cup have no "next track": Next used to start a
+      // normal lap race on another track from there
+      if (setup.track.kind === 'arena' || mode === 'battle' || mode === 'daily') {
+        root.querySelector('[data-act="next"]')?.remove();
+        const again = root.querySelector<HTMLElement>('[data-act="again"]');
+        if (again && mode === 'daily') again.textContent = t('Practice ↻');
+        if (again && !root.querySelector('.fm-res-main .primary')) again.classList.add('primary', 'big');
       }
       // results that arrive late (the dare ghost's recomputed time): only for these results, still on screen
       const token = this.raceToken;

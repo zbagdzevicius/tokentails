@@ -4,7 +4,7 @@ import { PHYS, TRACK } from '../../tuning';
 import { ALL_TRACKS, ARENAS, TRACKS } from './tracks';
 import { buildTrack, gridSlot, outerWall, type BuiltTrack } from './build';
 import { queryTrack, type TrackHit } from './query';
-import { barrierPoint } from './mesh';
+import { BARRIER_GAP, barrierPoint } from './mesh';
 import { branchClear, inWindow } from './branch';
 import { ovalTrack } from '../../test/fixtures';
 
@@ -95,7 +95,7 @@ describe('track build (GDD 6.2)', () => {
         expect(t.ramps.length).toBeGreaterThanOrEqual(2);
       });
 
-      it('the barrier mesh sits on the collision wall, and the kerb band up to it is drivable kerb (B10)', () => {
+      it('the barrier mesh sits just outside the collision wall (BARRIER_GAP), and the kerb band up to it is drivable kerb (B10)', () => {
         const h = hit();
         for (let i = 0; i < t.n; i += 23)
           for (const side of [-1, 1] as const) {
@@ -103,7 +103,7 @@ describe('track build (GDD 6.2)', () => {
             const [x, , z] = barrierPoint(t, i, side);
             queryTrack(t, x, z, i, h);
             const wall = side > 0 ? t.wallR[h.i] : t.wallL[h.i];
-            expect(Math.abs(Math.abs(h.d) - wall)).toBeLessThan(0.1);
+            expect(Math.abs(Math.abs(h.d) - wall - BARRIER_GAP)).toBeLessThan(0.1);
             const kd = side * (t.halfW[i] + PHYS.curbWidth - 0.1);
             queryTrack(t, t.px[i] - t.tz[i] * kd, t.pz[i] + t.tx[i] * kd, i, h);
             expect(h.surface === Surface.Curb || h.surface === Surface.Road).toBe(true);

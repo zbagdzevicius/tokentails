@@ -71,6 +71,7 @@ interface Layer {
   root: HTMLDivElement;
   handle: ScreenHandle;
   stopNav: () => void;
+  lastFocus?: HTMLElement;
 }
 
 export class ScreenStack {
@@ -175,7 +176,11 @@ export class ScreenStack {
     this.host!.appendChild(root);
     const layer: Layer = { id, root, handle: {}, stopNav: () => {} };
     this.layers.push(layer);
-    for (const l of this.layers) l.root.hidden = l !== layer;
+    for (const l of this.layers) {
+      // remember where the focus was on the layer we cover, to give it back when this one closes (B6)
+      if (l !== layer && !l.root.hidden && l.root.contains(document.activeElement)) l.lastFocus = document.activeElement as HTMLElement;
+      l.root.hidden = l !== layer;
+    }
     const api: ScreenApi = {
       id,
       close: () => {
@@ -189,6 +194,7 @@ export class ScreenStack {
     }
     layer.stopNav = focusNav(root, { back: () => this.back() });
     this.changed(prev);
+    autoFocus(root);
     return root;
   }
 
@@ -204,6 +210,11 @@ export class ScreenStack {
   private showTop(): void {
     const t = this.layers[this.layers.length - 1];
     for (const l of this.layers) l.root.hidden = l !== t;
+    if (!t) return;
+    const back = t.lastFocus;
+    t.lastFocus = undefined;
+    if (back?.isConnected && !(back as HTMLButtonElement).disabled && !keyboardless()) back.focus({ preventScroll: true });
+    else autoFocus(t.root);
   }
 
   private destroy(l: Layer): void {
@@ -229,3 +240,27 @@ export class ScreenStack {
 }
 
 export const screens = new ScreenStack();
+
+function keyboardless(): boolean {
+  return typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+}
+
+/**
+ * B5: a layer that opens with nothing focused (Garage, Awards, Stats, Settings, How to play, Tracks…) focuses its
+ * first control two frames later, unless the screen already focused one itself. Never on touch (no focus ring).
+ */
+function autoFocus(root: HTMLElement): void {
+  if (typeof requestAnimationFrame === 'undefined' || keyboardless()) return;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (!root.isConnected || root.hidden || root.contains(document.activeElement)) return;
+      const a = document.activeElement as HTMLElement | null;
+      // a dialog over the screens (kit modal, maker) owns the focus
+      if (a && a !== document.body && a.closest('[data-ui-layer]:not(.fm-screen)') && !root.contains(a)) return;
+      const els = [...root.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex="0"]')].filter(
+        (el) => el.getClientRects().length > 0 && el.dataset.act !== 'back' && el.dataset.act !== 'head-back' && el.getAttribute('aria-disabled') !== 'true',
+      );
+      (els.find((el) => el.classList.contains('primary')) ?? els[0])?.focus({ preventScroll: true });
+    }),
+  );
+}

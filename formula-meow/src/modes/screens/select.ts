@@ -14,6 +14,7 @@ import { h, statBars, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow, PAINTS, type Look } from '../flow';
 import { chip, focusFirst, frame, hex, plain, primary, guardedBack } from './ui';
+import { shelterUnlockOrder } from '../../share/pinkpaw/unlocks';
 
 export type SelectNext = 'gp' | 'race' | 'tt' | 'battle' | 'garage';
 
@@ -53,6 +54,16 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
         const sw = [hex(rgb888(c.cat.base)), hex(rgb888(c.cat.secondary)), hex(rgb888(c.cat.tertiary))];
         row.append(chip(c.id === 'tofu' ? t('Tofu (grey tabby)') : c.name, () => set((l) => (l.cat = c.id)), { selected: c.id === cur.id, swatch: sw, sub: c.note }));
       }
+      // fun 11: the Pink Paw cats still to win, as dark silhouettes with the trophy that brings each one
+      const have = new Set(choices.map((c) => c.pinkPawId).filter(Boolean));
+      shelterUnlockOrder().forEach((c, i) => {
+        if (have.has(c.id) || i >= have.size + 4) return;
+        const n = i + 1;
+        const lock = n === 1 ? t('Win a cup trophy') : t('Win {n} cup trophies', { n });
+        const el = chip(c.name, () => {}, { locked: lock, swatch: ['#2a2240', '#2a2240', '#2a2240'], act: `cat-locked-${c.id}` });
+        el.classList.add('fm-m-silhouette');
+        row.append(el);
+      });
       pane.append(row);
       const yc = yourCat();
       const maker = plain(yc ? t('📷 Edit your cat') : t('📷 Put your own cat in'), () => {

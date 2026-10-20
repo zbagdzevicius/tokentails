@@ -47,6 +47,7 @@ export function rewardsScreen(): ScreenModule {
             tr ? h('p', { class: 'fm-prog-sub' }, [`${CLASSES[tr.cls].name} ${CLASSES[tr.cls].cc}${tr.mirror ? ` · ${t('Mirror')}` : ''}`]) : null,
             big,
             h('div', { class: 'fm-prog-reasons' }, fishChips(all)),
+            all.cupRaces ? h('p', { class: 'fm-prog-sub' }, [t('Earned in this cup’s races: {n} 🐟', { n: all.cupRaces })]) : null,
             all.unlocks.length ? h('div', { class: 'fm-prog-news' }, all.unlocks.map((u) => h('span', { class: 'fm-prog-chip gold' }, [`🎉 ${unlockLabel(u)}`]))) : null,
             all.achievements.length
               ? h(

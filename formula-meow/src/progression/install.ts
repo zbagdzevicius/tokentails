@@ -29,7 +29,7 @@ import { ALL_TRACKS } from '../core/track/tracks';
 import { toast } from '../ui/kit';
 import { reducedMotion } from '../ui/a11y';
 import { prog, setProg, world, queueReward, onProg, dailyToday, peekRewards } from './store';
-import { applyCup, applyGhostWins, applyRace, applyShellClass, emptyAward, mergeAward, type Award, type RaceRecord } from './record';
+import { applyCup, applyGhostWins, applyRace, applyShellClass, mergeAward, type Award, type RaceRecord } from './record';
 import { dressRequest } from './loadout';
 import { hitRival } from './rival';
 import { achievementById } from './achievements';
@@ -206,7 +206,8 @@ export function installProgression(shell: Shell): void {
     const { save, award } = applyCup(prog(), { cupId: e.cupId, cls: e.cls as RaceClass, place: e.place, mirror }, world());
     setProg(save);
     const races = cupFish.get(e.cupId) ?? 0;
-    queueReward(races > 0 ? mergeAward({ ...emptyAward(), fish: [{ key: 'Races in this cup', amount: races }], total: races }, award) : award);
+    // B2: the race fish were paid on each results screen; the rewards count only the new fish and recap the races
+    queueReward(races > 0 ? { ...award, cupRaces: races } : award);
     announce(award, false);
   });
 
@@ -229,9 +230,10 @@ export function installProgression(shell: Shell): void {
     // a cup's rewards that nobody showed yet (the modes lane pushes `rewards` after the podium) appear on the menu
     if (id === 'menu' && peekRewards().length) void screens.push('rewards');
     // the garage chunk loads while the player looks at the menu (it opened on a blank loader for seconds)
-    if (id === 'menu' && !garagePrefetched) {
+    // B12: on the first screen of any kind (the Doodle editor's chunk used to win the race and the garage opened blank)
+    if (id && !garagePrefetched) {
       garagePrefetched = true;
-      setTimeout(() => void import('./screens/garage').catch(() => (garagePrefetched = false)), 600);
+      setTimeout(() => void import('./screens/garage').catch(() => (garagePrefetched = false)), 200);
     }
   });
 

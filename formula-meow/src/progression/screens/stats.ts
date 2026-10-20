@@ -3,6 +3,7 @@
  * nothing is estimated or sent anywhere.
  */
 import type { ScreenApi, ScreenModule } from '../../core/app/screens';
+import { screens } from '../../core/app/screens';
 import { actionFooter, button, h, panel } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { BODY_NAMES } from '../../content/ids';
@@ -68,7 +69,7 @@ export function statsScreen(): ScreenModule {
         : h('p', { class: 'fm-prog-sub' }, [t('Grand Prix and Daily Cup races name a rival. Your record against each one shows here.')]);
       root.append(
         panel(null, [
-          h('div', { class: 'fm-prog-head' }, [h('h1', {}, [t('Stats')])]),
+          h('div', { class: 'fm-prog-head' }, [h('button', { class: 'fm-m-back', type: 'button', 'aria-label': t('Back'), 'data-act': 'head-back', onclick: () => screens.back() }, ['‹']), h('h1', {}, [t('Stats')])]),
           h('p', { class: 'fm-prog-sub' }, [t('Counted on this device from the races you ran.')]),
           h('h3', {}, [t('Career')]),
           career,

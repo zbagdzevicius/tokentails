@@ -26,7 +26,7 @@ OG pages) is copied into this package, never imported across packages.
 ## What is in it
 
 - Menus: a title over a live attract race, then a main menu with Grand Prix, Single race, Time Trial, Balloon
-  Battle, Daily Cup, Track Doodle, Garage, Your cat, Achievements, Stats, Pink Paw, Settings and How to play.
+  Battle, Daily Cup, Track Doodle, Garage, Your cat, Awards, Stats, Pink Paw, Settings and Help.
   Keyboard, gamepad and touch all work. A plain first visit still starts the first race straight away.
 - Modes: Grand Prix (2 cups of 4 races, points, standings, podium, trophies, a rival, resume a cup later);
   Single race (any track, any unlocked class); Time Trial (personal-best and dev ghosts, splits, medals); Balloon

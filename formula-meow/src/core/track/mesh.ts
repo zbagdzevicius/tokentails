@@ -71,8 +71,14 @@ function P(t: BuiltTrack, i: number, d: number, lift = 0): V {
  */
 export function barrierPoint(t: BuiltTrack, i: number, s: -1 | 1): V {
   const j = ((i % t.n) + t.n) % t.n;
-  return P(t, j, s * (s > 0 ? t.wallR[j] : t.wallL[j]), 0);
+  // playtest round 2 (fun 12): the drawn kart is a little wider than its sim footprint, so a kart pinned at the wall
+  // looked as if it climbed the block: the face sits BARRIER_GAP out from the sim's wall line
+  return P(t, j, s * ((s > 0 ? t.wallR[j] : t.wallL[j]) + BARRIER_GAP), 0);
 }
+/** metres between the sim's wall line and the drawn barrier face */
+export const BARRIER_GAP = 0.25;
+/** the drawn barrier's height, m (0.8 → 0.6: a lower block reads as the edge, not as a step the kart climbs) */
+const BARRIER_H = 0.6;
 
 export function buildTrackMesh(t: BuiltTrack, theme: Theme, opt: TrackMeshOptions): Group {
   const group = new Group();
@@ -215,13 +221,15 @@ function buildMain(t: BuiltTrack, theme: Theme, solid: TriBuilder, glow: TriBuil
       const wj = s > 0 ? t.wallR[j % n] : t.wallL[j % n];
       // curb (slightly raised), never past the barrier
       const c0i = s * hwi;
-      const c1i = s * Math.min(wi, hwi + curbW);
+      const c1i = s * Math.min(wi + BARRIER_GAP, hwi + curbW);
       const c0j = s * hwj;
-      const c1j = s * Math.min(wj, hwj + curbW);
+      const c1j = s * Math.min(wj + BARRIER_GAP, hwj + curbW);
       quadSide(solid, s, P(t, i, c0i, 0.06), P(t, i, c1i, 0.06), P(t, j, c1j, 0.06), P(t, j, c0j, 0.06), curbCol);
       // shoulder out to the wall (off-road zones only: elsewhere the kerb reaches the barrier)
-      if (Math.abs(c1i) < wi - 0.05 || Math.abs(c1j) < wj - 0.05) quadSide(solid, s, P(t, i, c1i, 0.01), P(t, i, s * wi, 0.01), P(t, j, s * wj, 0.01), P(t, j, c1j, 0.01), theme.shoulder);
-      barrier(solid, glow, theme, barrierPoint(t, i, s), barrierPoint(t, j, s), P(t, i, s * (wi + 0.5), 0.8), P(t, j, s * (wj + 0.5), 0.8), P(t, i, s * (wi + 0.05), 0.82), P(t, j, s * (wj + 0.05), 0.82), P(t, i, s * (wi + 0.45), 0.82), P(t, j, s * (wj + 0.45), 0.82), s, metres(i), opt.groundY);
+      if (Math.abs(c1i) < wi - 0.05 || Math.abs(c1j) < wj - 0.05) quadSide(solid, s, P(t, i, c1i, 0.01), P(t, i, s * (wi + BARRIER_GAP), 0.01), P(t, j, s * (wj + BARRIER_GAP), 0.01), P(t, j, c1j, 0.01), theme.shoulder);
+      const g = BARRIER_GAP;
+      const hb = BARRIER_H;
+      barrier(solid, glow, theme, barrierPoint(t, i, s), barrierPoint(t, j, s), P(t, i, s * (wi + g + 0.5), hb), P(t, j, s * (wj + g + 0.5), hb), P(t, i, s * (wi + g + 0.05), hb + 0.02), P(t, j, s * (wj + g + 0.05), hb + 0.02), P(t, i, s * (wi + g + 0.45), hb + 0.02), P(t, j, s * (wj + g + 0.45), hb + 0.02), s, metres(i), opt.groundY);
     }
   }
 
@@ -241,8 +249,8 @@ function buildMain(t: BuiltTrack, theme: Theme, solid: TriBuilder, glow: TriBuil
 /** A 0.8 m cushion wall from a to b (road-side face), its top out to `oi`/`oj`, neon trim at night, a skirt below. */
 function barrier(solid: TriBuilder, glow: TriBuilder, theme: Theme, wbi: V, wbj: V, oi: V, oj: V, ni: V, nj: V, ni2: V, nj2: V, s: number, m: number, groundY: number): void {
   const wallCol = Math.floor(m / 4) % 2 === 0 ? theme.wallA : theme.wallB;
-  const wti: V = [wbi[0], wbi[1] + 0.8, wbi[2]];
-  const wtj: V = [wbj[0], wbj[1] + 0.8, wbj[2]];
+  const wti: V = [wbi[0], wbi[1] + BARRIER_H, wbi[2]];
+  const wtj: V = [wbj[0], wbj[1] + BARRIER_H, wbj[2]];
   solid.quad(wbi, wbj, wtj, wti, wallCol);
   solid.quad(wti, wtj, oj, oi, wallCol);
   if (theme.neonA) glow.quad(ni, nj, nj2, ni2, s > 0 ? theme.neonA : theme.neonB);

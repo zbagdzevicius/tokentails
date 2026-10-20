@@ -56,7 +56,7 @@ export function garageScreen(shell: Shell): ScreenModule {
       );
       const tabRow = h('div', { class: 'fm-garage-tabs' }, [tabRow0]);
       const body = panel(null, [
-        h('div', { class: 'fm-prog-head fm-garage-head' }, [h('h1', {}, [t('Garage')]), wallet]),
+        h('div', { class: 'fm-prog-head fm-garage-head' }, [h('button', { class: 'fm-m-back', type: 'button', 'aria-label': t('Back'), 'data-act': 'head-back', onclick: () => screens.back() }, ['‹']), h('h1', {}, [t('Garage')]), wallet]),
         stage,
         tabRow,
         grid,

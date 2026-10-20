@@ -140,7 +140,8 @@ export class ModeHud implements JuiceListener {
         this.splits[c] = d;
         this.shell.hudExtras({ splits: this.splits.slice() });
         const lapEnd = (c + 1) % 3 === 0;
-        hud.say(fmtDelta(d), { prio: lapEnd ? 2 : 1, tone: d <= 0 ? 'green' : 'red', ms: 1500 });
+        // the split chip shows every checkpoint; the centre callout only at a lap's end (B6: the delta showed twice)
+        if (lapEnd) hud.say(fmtDelta(d), { prio: 2, tone: d <= 0 ? 'green' : 'red', ms: 1500 });
       }
     }
   }

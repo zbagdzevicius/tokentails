@@ -50,6 +50,13 @@ test('12 restarts do not leak textures or geometries (B57)', async ({ page }) =>
   // restart once and settle, so every lazily created resource of the first race exists
   await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());
   await page.waitForTimeout(2200);
+  // and a few countdown restarts more: textures upload on first sight, and what the camera sees in the first seconds
+  // varies with its framing, so the baseline is taken once that has settled (a leak keeps growing past it)
+  for (let i = 0; i < 4; i++) {
+    await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(2500);
   const first = await mem();
   for (let i = 0; i < 12; i++) {
     await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());

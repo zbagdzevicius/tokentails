@@ -18,14 +18,23 @@ export const CLASS_BLURB: Record<ClassPick, string> = {
   3: 'Full speed, every track flipped',
 };
 
-export function classChips(onPick: (c: ClassPick) => void, selected: ClassPick | null, showTrophies: boolean): HTMLDivElement {
+/** Time Trial (B14): no rivals on that screen, so the class cards talk about speed only. */
+export const CLASS_BLURB_TT: Record<ClassPick, string> = {
+  0: 'Gentle speed, easy bends',
+  1: 'Faster: brake for hairpins',
+  2: 'Top speed, drift every bend',
+  3: 'Top speed, every track flipped',
+};
+
+export function classChips(onPick: (c: ClassPick) => void, selected: ClassPick | null, showTrophies: boolean, blurb: Record<ClassPick, string> = CLASS_BLURB): HTMLDivElement {
   const f = flow();
   const s = f.save;
   const row = h('div', { class: 'fm-m-chips fm-m-classes' });
   for (const c of [0, 1, 2, 3] as ClassPick[]) {
     const lock = c === 0 ? null : f.lock('class', c);
-    const trophies = showTrophies ? CUPS.map((cup) => TROPHY[s.trophies[`${cup.id}:${c}`] ?? 0] || '·').join(' ') : '';
-    row.append(chip(classLabel(c), () => onPick(c), { selected: selected === c, locked: lock, sub: lock ? undefined : `${t(CLASS_BLURB[c])}${trophies ? `  ${trophies}` : ''}`, act: `class-${c}` }));
+    // only the trophies won (B: "room to learn · ·" showed dots as empty placeholders)
+    const trophies = showTrophies ? CUPS.map((cup) => TROPHY[s.trophies[`${cup.id}:${c}`] ?? 0] || '').join('') : '';
+    row.append(chip(classLabel(c), () => onPick(c), { selected: selected === c, locked: lock, sub: lock ? undefined : `${t(blurb[c])}${trophies ? `  ${trophies}` : ''}`, act: `class-${c}` }));
   }
   return row;
 }
