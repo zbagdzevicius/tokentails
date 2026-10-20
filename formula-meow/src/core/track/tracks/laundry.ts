@@ -51,12 +51,19 @@ export const LAUNDRY: TrackDef = {
     { s: 136, kind: 'ramp', side: 0 },
     { s: 150, kind: 'ramp', side: 0 },
     { s: 196, kind: 'items' },
-    { s: 22, kind: 'offroad', side: 1 },
-  ],  branches: [
+    { s: 18, kind: 'offroad', side: 1 },
+  ],
+  setPieces: [
+    { kind: 'tunnel', s: 35, len: 9 },
+    { kind: 'loop', s: 66 },
+    { kind: 'jump', s: 168, gap: 12, drop: 2.3 },
+    { kind: 'wall', s: 208, len: 12 },
+  ],
+  branches: [
     // the soap slide: straight down the wall past the washers, slippery, with a dryer-vent pad, instead of the
     // detour round the sorting baskets
     {
-      from: 180,
+      from: 183,
       to: 246,
       points: [
         { x: -116, z: 0, h: 0, w: 1 },
@@ -67,7 +74,6 @@ export const LAUNDRY: TrackDef = {
     },
   ],
   hazards: [
-    { kind: 'drum', s: 68, period: 3 },
     { kind: 'laundry', s: 122, period: 3.2 },
   ],
   coins: [

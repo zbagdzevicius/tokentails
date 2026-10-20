@@ -49,13 +49,19 @@ export const ROOFTOPS: TrackDef = {
     { s: 92, kind: 'pad', side: 0 },
     { s: 120, kind: 'items' },
     { s: 176, kind: 'ramp', side: 0 },
-    { s: 196, kind: 'items' },
-    { s: 250, kind: 'pad', side: 0 },
-  ],  branches: [
+    { s: 198, kind: 'items' },
+  ],
+  setPieces: [
+    { kind: 'tunnel', s: 96, len: 14 },
+    { kind: 'wall', s: 123, len: 13 },
+    { kind: 'jump', s: 186, gap: 11, drop: 1.5 },
+    { kind: 'loop', s: 244 },
+  ],
+  branches: [
     // the billboard cut: a narrow alley behind the big neon billboard, shorter than the long way round the corner
     {
       from: 211,
-      to: 4,
+      to: 7,
       points: [
         { x: -44, z: -54, h: 2, w: 0 },
         { x: -84, z: -56, h: 2, w: 0 },

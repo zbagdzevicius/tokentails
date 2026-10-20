@@ -55,6 +55,10 @@ export function dressKitchen(t: BuiltTrack, theme: Theme): Group {
   for (let i = 0; i < t.n; i += 16) {
     // not where a branch meets the road (its deck is lower there, and the walls are the union of both roads)
     if (t.branches.some((b) => inWindow(t, b, i))) continue;
+    // not under the sink gap: the jump is open down to the sink (the set-piece skin draws the basin)
+    let overGap = false;
+    for (let k = -reach - 2; k <= reach + 2; k++) if (t.gapMask[(i + k + t.n) % t.n]) overGap = true;
+    if (overGap) continue;
     const ry = Math.atan2(t.tx[i], t.tz[i]);
     const w = (outerWall(t, i) + 1.2) * 2;
     let low = Infinity;

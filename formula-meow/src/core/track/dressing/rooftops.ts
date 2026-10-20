@@ -26,15 +26,29 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
   // buildings under the road: one block per ~22 m, alleys between them
   const block = Math.round(22 / t.step);
   const gap = Math.round(2.5 / t.step);
-  for (let i0 = 0; i0 < t.n; i0 += block + gap) {
-    const mid = (i0 + Math.floor(block / 2)) % t.n;
+  for (let i0 = 0, next = 0; i0 < t.n; i0 = next) {
+    // a jump gap is a real alley: the block ends at the near lip and the next one starts at the far lip
+    let end = i0 + block;
+    next = end + gap;
+    let cut = 0;
+    for (let k = i0; k < end; k++)
+      if (t.gapMask[k % t.n]) {
+        end = k - 1;
+        next = k;
+        while (t.gapMask[next % t.n]) next++;
+        cut = 1;
+        break;
+      }
+    if (cut && i0 >= next) continue;
+    if (end - i0 < Math.round(5 / t.step)) continue;
+    const mid = (i0 + Math.floor((end - i0) / 2)) % t.n;
     // the box is straight while the road bends: take the lowest road over a wider stretch, so no corner of the roof
     // pokes up through a lower part of the bend (B14)
     let minY = Infinity;
     for (let k = -block; k < 2 * block; k++) minY = Math.min(minY, t.py[(i0 + k + t.n) % t.n] - 1.2);
     const ry = Math.atan2(t.tx[mid], t.tz[mid]);
     const w = (Math.max(t.wallL[mid], t.wallR[mid]) + 2.4) * 2;
-    const len = block * t.step + 1.5;
+    const len = (end - i0) * t.step + (cut ? 0 : 1.5);
     const h = minY - ROOF_GROUND;
     const col = BUILDING[(i0 / block) % BUILDING.length | 0];
     g.boxUp(w, h, len, col, { x: t.px[mid], y: ROOF_GROUND, z: t.pz[mid], ry }, { vary: 0.02 });
@@ -86,6 +100,8 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
 
   // laundry-line bunting across the road every ~90 m
   for (let i = 30; i < t.n; i += Math.round(90 / t.step)) {
+    // never across a set piece (a loop rises 13 m, a tunnel has a roof, a wall lane curls up, a jump flies high)
+    if (nearPiece(t, i, Math.round(30 / t.step))) continue;
     const hw = Math.max(t.wallL[i], t.wallR[i]) + 0.8;
     const rx = -t.tz[i];
     const rz = t.tx[i];
@@ -140,6 +156,12 @@ export function dressRooftops(t: BuiltTrack, theme: Theme): Group {
   group.add(litMesh);
   group.add(stars(500, 77));
   return group;
+}
+
+/** Is a set piece's footprint within `r` samples of main sample i? */
+function nearPiece(t: BuiltTrack, i: number, r: number): boolean {
+  for (let k = -r; k <= r; k++) if (t.pieceAt[(i + k + t.n) % t.n]) return true;
+  return false;
 }
 
 /** Surface height near (x, z) (the nearest sample's centre height). */
