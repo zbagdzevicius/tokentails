@@ -117,7 +117,9 @@ describe('set pieces: a 50cc kart with auto-gas clears every piece (SIM_VERSION 
         if (w.tick >= GO_TICK) o.gas = true;
         w.step([o]);
       }
-      const ev = w.st.events.filter((e) => e.kart === 5);
+      // the race up to the finish line (a kart drives on after it, and may take the gap once more)
+      const finAt = (kk: number) => w.st.events.find((e) => e.kart === kk && e.type === 'finish')?.tick ?? Infinity;
+      const ev = w.st.events.filter((e) => e.kart === 5 && e.tick <= finAt(5));
       expect(w.st.karts[5].finished, `seed ${seed}`).toBe(1);
       expect(count(ev, 'respawn'), `seed ${seed}`).toBe(0);
       expect(count(ev, 'netCatch')).toBe(0);
@@ -127,7 +129,7 @@ describe('set pieces: a 50cc kart with auto-gas clears every piece (SIM_VERSION 
       for (let k = 0; k < 8; k++) {
         const fin = w.st.karts[k].finished;
         if (!fin) continue;
-        expect(count(w.st.events.filter((e) => e.kart === k), 'stuntExit', (e) => e.a === 0)).toBe(3);
+        expect(count(w.st.events.filter((e) => e.kart === k && e.tick <= finAt(k)), 'stuntExit', (e) => e.a === 0)).toBe(3);
       }
       expect(count(w.st.events, 'netCatch')).toBe(0);
     }
@@ -364,7 +366,7 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     const w = world(raceConfig(stuntLab(), { seed: 42 }));
     while (w.tick < GO_TICK + 1800) w.step();
     expect(w.st.events.filter((e) => e.type === 'stuntExit' && e.a === 0).length).toBeGreaterThan(4);
-    expect(w.hash()).toMatchInlineSnapshot(`1725674043`);
+    expect(w.hash()).toMatchInlineSnapshot(`1584734234`);
   });
 
   it('same seed and inputs → the same hashes, three times, also mirrored; a replay re-simulates exactly', () => {

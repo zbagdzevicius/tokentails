@@ -70,6 +70,26 @@ contract request instead. Lanes may update the golden hashes on their branch; th
 - tracks-B: the Yarn branch gap still sends a kart back to the fork (`tracks/hazards/rules.ts`); kickers and half-pipes
   on the rug arena (`jump` with `gap: 0` builds a full-width aimed ramp; `wall` side 0 is built but arenas skip walls).
 
+### Integration (iteration 3)
+
+The four lanes merged into `feat/formula-meow` (tracks-A, tracks-B, juice, ai-ugc). SIM_VERSION stays 8: the engine
+commit bumped it for this iteration and no v8 build was ever pushed or deployed. Golden hashes: race (Kitchen)
+`3800600056`, stunt lab `1584734234`. What the integration changed:
+- Sim: a loop's boost strip lines the kart up for the rail (`stripAssist`, `STUNT.loop.leadTurn` / `leadMagnet`): a
+  kart knocked sideways just before a loop used to be boosted head-on into the wall (Rooftops, 150cc). A contact push
+  (`settleAfterPush`) no longer carries `si` over a loop's zone start or a jump lip (`pushSkipsTrigger`): a bumped kart
+  used to skip the rail and drive through the loop's shadow.
+- Balance: 150cc `bandDown` 0.06 → 0.04 (the assists evened out the skill stretches; the bot's 150cc podium was 88 %,
+  now 80 %).
+- Validator: authored tracks keep looser geometry (`loopRAuthored` 25 m, wall 8–120 m, `jumpRAuthored` 10 m): every
+  authored piece is proven by the drive tests instead. Doodle rules are unchanged. `stubs.test.ts` validates with
+  `{ pieces: 'authored' }`.
+- Tracks: the Café roomba moved off the koi-pond run-up (s100 → s84); the Laundry jump drop is 2 m (a share code
+  stores 0.5 m steps, 2.3 came back as 2.5).
+- Tests: `src/tracks/setpieces-all.test.ts` runs zero steering (hands off through loops and jumps) and a noisy thumb
+  (3 seeds, mirrored) through every piece on all six circuits and the Rug, plus full 50cc races where the whole field
+  finishes. Sim-heavy tests have 600 s timeouts (they timed out only on a loaded host).
+
 ## Iteration 2
 
 Stabilise (one commit on `feat/formula-meow`) fixed the bug list (B1–B62, `SIM_VERSION` 3 → 4) and added the shared

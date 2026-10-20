@@ -62,7 +62,7 @@ export const LAUNDRY: TrackDef = {
   setPieces: [
     { kind: 'tunnel', s: 35, len: 9 },
     { kind: 'loop', s: 66 },
-    { kind: 'jump', s: 168, gap: 12, drop: 2.3 },
+    { kind: 'jump', s: 168, gap: 12, drop: 2 }, // a share code stores the drop in 0.5 m steps (2.3 came back as 2.5)
     { kind: 'wall', s: 208, len: 12 },
   ],
   branches: [

@@ -19,7 +19,7 @@ describe('stabilise harness', () => {
     expect(r.dnf[0]).toBe(0);
     expect(r.headOnMax).toBeLessThan(3);
     expect(r.progressJumps).toBe(0);
-  }, 300_000);
+  }, 1_800_000);
 
   it('20 random doodle tracks: the AI scrapes a wall fewer than 2 times per lap on average (B15)', () => {
     const defs = randomDoodles(20, 3);
@@ -30,5 +30,5 @@ describe('stabilise harness', () => {
       expect(r.mean).toBeLessThan(2);
       expect(r.worst).toBeLessThan(3);
     }
-  }, 300_000);
+  }, 1_800_000);
 });

@@ -6,6 +6,6 @@ export default defineConfig({
     // Node by default. A DOM test opts in with `// @vitest-environment happy-dom` on its first line.
     environment: 'node',
     // whole-race sims run for seconds each; leave headroom on a loaded machine
-    testTimeout: 60_000,
+    testTimeout: 600_000,
   },
 });

@@ -257,14 +257,19 @@ export const PIECE_RULES = {
   loopGrade: 0.05,
   loopClear: 12,
   loopClearUp: 18,
+  /** authored tracks (integration, iteration 3): every piece is proven by the phone-bot, zero-steer and noisy-thumb
+   * drives (src/tracks/setpieces-*.test.ts), so the geometry rules only catch a piece dropped somewhere absurd */
+  loopRAuthored: 25,
   /** wall: a bend of 10–40 m radius (side 0, a half-pipe: a straight, R ≥ 60 m); its ends this far from a junction */
   wallRmin: 10,
   wallRmax: 40,
   wallJunction: 40,
-  /** jump: R ≥ 40 m (authored 30 m) and grade ≤ 10 % over the run-up and the landing; gap 6–12 m, drop 0–2.5 m;
+  wallRminAuthored: 8,
+  wallRmaxAuthored: 120,
+  /** jump: R ≥ 40 m (authored 10 m) and grade ≤ 10 % over the run-up and the landing; gap 6–12 m, drop 0–2.5 m;
    * nothing else on them (authored: item rows and pads may sit on the run-up) */
   jumpR: 40,
-  jumpRAuthored: 30,
+  jumpRAuthored: 10,
   jumpGrade: 0.1,
   gapMin: 6,
   gapMax: 12,
@@ -378,7 +383,7 @@ export function validateSetPieces(def: TrackDef, built?: BuiltTrack, opts: { ugc
     if (bp.kind === 'loop') {
       const a = ugc ? bp.i0 - m(R.loopBefore) : bp.strip;
       const l = ugc ? m(R.loopBefore) + m(R.loopAfter) : fwdN(bp.strip, bp.i1, n);
-      if (maxCurv(t, a, l) > 1 / R.loopR || maxGrade(t, a, l) > R.loopGrade) add('loopBend', 'Loops need a long, flat straight. Move the loop onto one.', from, len);
+      if (maxCurv(t, a, l) > 1 / (ugc ? R.loopR : R.loopRAuthored) || maxGrade(t, a, l) > R.loopGrade) add('loopBend', 'Loops need a long, flat straight. Move the loop onto one.', from, len);
       else if (!loopClear(t, bp)) add('loopClear', 'The loop is too close to another part of the road. Give it more room.', from, len);
     } else if (bp.kind === 'wall') {
       // the lane's full-width part decides the bend
@@ -387,7 +392,9 @@ export function validateSetPieces(def: TrackDef, built?: BuiltTrack, opts: { ugc
       let sum = 0;
       for (let k = 0; k <= body; k++) sum += t.curv[wrapN(bp.i0 + k, n)];
       const outer = sum >= 0 ? 1 : -1;
-      if (bp.side === 0 ? c > 1 / 60 : c < 1 / R.wallRmax || c > 1 / R.wallRmin) {
+      const rMin = ugc ? R.wallRmin : R.wallRminAuthored;
+      const rMax = ugc ? R.wallRmax : R.wallRmaxAuthored;
+      if (bp.side === 0 ? c > 1 / 60 : c < 1 / rMax || c > 1 / rMin) {
         add('wallBend', bp.side === 0 ? 'A half-pipe wall ride needs a straight.' : 'Wall rides go on a corner, not too tight and not too gentle. Move it onto a bend.', from, len);
       } else if (bp.side !== 0 && bp.side !== outer) {
         add('wallBend', 'Wall rides go on the outside of the bend. Tap it to flip its side.', from, len);
