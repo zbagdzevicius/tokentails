@@ -71,10 +71,26 @@ function ribbonTable(): RibbonTable {
   return table;
 }
 
-/** The ribbon's local point (shadow frame: along, height, lateral) at `su` metres. */
+/**
+ * The ribbon's local point (shadow frame: along, height, lateral) at `su` metres. Outside 0..LOOP_LP it runs on as the
+ * flat shadow road before and after the piece (the ribbon starts at f 0 and ends at f = zone, both on the road), so a
+ * camera rig 7.5 m behind a kart just past the zone start still gets a real frame (playtest: it collapsed to deck height).
+ */
 export function ribbonLocalAt(su: number, out: { f: number; h: number; l: number }): void {
   const tb = ribbonTable();
-  const s = Math.max(0, Math.min(LOOP_LP, su));
+  if (su < 0) {
+    out.f = tb.f[0] + su;
+    out.h = 0;
+    out.l = tb.l[0];
+    return;
+  }
+  if (su > LOOP_LP) {
+    out.f = tb.f[tb.n - 1] + (su - LOOP_LP);
+    out.h = 0;
+    out.l = tb.l[tb.n - 1];
+    return;
+  }
+  const s = su;
   let lo = 0;
   let hi = tb.n - 1;
   while (hi - lo > 1) {
@@ -112,12 +128,13 @@ export function shadowToWorld(t: BuiltTrack, pc: BuiltPiece, f: number, h: numbe
 
 const pa = { x: 0, y: 0, z: 0 };
 const pb = { x: 0, y: 0, z: 0 };
+const fr0 = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, fx: 0, fy: 0, fz: 0 };
+const frA = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, fx: 0, fy: 0, fz: 0 };
+const frB = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, fx: 0, fy: 0, fz: 0 };
+type Frame = typeof fr0;
 
-/**
- * Loop ribbon pose at `su` m along and `sd` m across (+ = right), `lift` m off the deck. The deck's lateral axis is the
- * shadow's right vector made perpendicular to the travel direction; up = lateral × forward (the inside of the loop).
- */
-export function ribbonPose(t: BuiltTrack, pc: BuiltPiece, su: number, sd: number, lift: number, out: StuntPose): StuntPose {
+/** The centre line's point, forward and deck-lateral axis at `su` (the shadow's right made perpendicular to forward). */
+function centreFrame(t: BuiltTrack, pc: BuiltPiece, su: number, out: Frame): void {
   const e = 0.25;
   ribbonLocalAt(su - e, loc);
   shadowToWorld(t, pc, loc.f, loc.h, loc.l, pa);
@@ -126,17 +143,68 @@ export function ribbonPose(t: BuiltTrack, pc: BuiltPiece, su: number, sd: number
   let fx = pb.x - pa.x;
   let fy = pb.y - pa.y;
   let fz = pb.z - pa.z;
-  const fl = Math.hypot(fx, fy, fz) || 1;
-  fx /= fl;
-  fy /= fl;
-  fz /= fl;
+  const fl = Math.hypot(fx, fy, fz);
+  if (fl < 1e-9) {
+    // degenerate (never with the extrapolated ribbon, kept as a guard): the road tangent
+    const i = (((pc.i0 + Math.floor(Math.max(0, loc.f) / t.step)) % t.n) + t.n) % t.n;
+    fx = t.tx[i];
+    fy = 0;
+    fz = t.tz[i];
+  } else {
+    fx /= fl;
+    fy /= fl;
+    fz /= fl;
+  }
   ribbonLocalAt(su, loc);
   shadowToWorld(t, pc, loc.f, loc.h, loc.l, pa);
-  // shadow right at this point, from the frame: (-tz, 0, tx)
   shadowToWorld(t, pc, loc.f, loc.h, loc.l + 1, pb);
   let rx = pb.x - pa.x;
   let ry = 0;
   let rz = pb.z - pa.z;
+  const dot = rx * fx + ry * fy + rz * fz;
+  rx -= fx * dot;
+  ry -= fy * dot;
+  rz -= fz * dot;
+  const rl = Math.hypot(rx, ry, rz) || 1;
+  out.x = pa.x;
+  out.y = pa.y;
+  out.z = pa.z;
+  out.rx = rx / rl;
+  out.ry = ry / rl;
+  out.rz = rz / rl;
+  out.fx = fx;
+  out.fy = fy;
+  out.fz = fz;
+}
+
+/**
+ * Loop ribbon pose at `su` m along and `sd` m across (+ = right), `lift` m off the deck. Forward is the travel direction
+ * of the offset path itself (the points `sd` across at su ± e), so a kart off the centre line through the corkscrew's
+ * sway points where it goes (playtest: the nose was 24–28° off at the top with |sd| = 2). The deck's lateral axis is
+ * the centre frame's, made perpendicular to that forward; up = lateral × forward (the inside of the loop).
+ */
+export function ribbonPose(t: BuiltTrack, pc: BuiltPiece, su: number, sd: number, lift: number, out: StuntPose): StuntPose {
+  const e = 0.3;
+  centreFrame(t, pc, su, fr0);
+  let fx = fr0.fx;
+  let fy = fr0.fy;
+  let fz = fr0.fz;
+  if (sd !== 0) {
+    centreFrame(t, pc, su - e, frA);
+    centreFrame(t, pc, su + e, frB);
+    const dx = frB.x + frB.rx * sd - (frA.x + frA.rx * sd);
+    const dy = frB.y + frB.ry * sd - (frA.y + frA.ry * sd);
+    const dz = frB.z + frB.rz * sd - (frA.z + frA.rz * sd);
+    const dl = Math.hypot(dx, dy, dz);
+    if (dl > 1e-6) {
+      fx = dx / dl;
+      fy = dy / dl;
+      fz = dz / dl;
+    }
+  }
+  let rx = fr0.rx;
+  let ry = fr0.ry;
+  let rz = fr0.rz;
   const dot = rx * fx + ry * fy + rz * fz;
   rx -= fx * dot;
   ry -= fy * dot;
@@ -149,9 +217,9 @@ export function ribbonPose(t: BuiltTrack, pc: BuiltPiece, su: number, sd: number
   const ux = ry * fz - rz * fy;
   const uy = rz * fx - rx * fz;
   const uz = rx * fy - ry * fx;
-  out.x = pa.x + rx * sd + ux * lift;
-  out.y = pa.y + ry * sd + uy * lift;
-  out.z = pa.z + rz * sd + uz * lift;
+  out.x = fr0.x + fr0.rx * sd + ux * lift;
+  out.y = fr0.y + fr0.ry * sd + uy * lift;
+  out.z = fr0.z + fr0.rz * sd + uz * lift;
   out.ux = ux;
   out.uy = uy;
   out.uz = uz;
