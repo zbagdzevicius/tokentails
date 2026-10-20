@@ -3,6 +3,14 @@
  * welcome desk → the hallway of cat trees → up and over the big cat tree (a ramp) → the feeding corner (a spilled
  * bowl of milk) → through the play room (a short cut with a roomba on patrol) or round the scratching posts → the
  * nap-room straight home. The field is the Pink Paw roster (as of 2026-10-04).
+ *
+ * Set pieces (SIM_VERSION 8, tracks-B, SETPIECES.md section 12; the finale, cosy and generic):
+ * - the cat exercise wheel (a loop at s74, the plan's s70 + 4, so its boost strip sits past the right-hander's exit
+ *   where a bumped kart once rode the strip into the inside wall) on the climb; the cat-tree ramp moved from s88 to
+ *   s93, 22 m past the loop's exit;
+ * - the cat flap (a tunnel, s106–118) after the items, out into the pad at s128;
+ * - the carpet scratch wall round the right-hander after the play-room fork (s154–166, the outside);
+ * - the cushion hop (lip s205, an 8 m gap, flat): replaces the ramp at s212.
  */
 import type { TrackDef } from '../../../types';
 
@@ -43,12 +51,18 @@ export const SHELTER: TrackDef = {
   features: [
     { s: 8, kind: 'start' },
     { s: 18, kind: 'items' },
-    { s: 88, kind: 'ramp', side: 0 },
+    { s: 93, kind: 'ramp', side: 0 },
     { s: 104, kind: 'items' },
     { s: 128, kind: 'pad', side: 0 },
     { s: 196, kind: 'items' },
-    { s: 212, kind: 'ramp', side: 0 },
-  ],  branches: [
+  ],
+  setPieces: [
+    { kind: 'loop', s: 74 },
+    { kind: 'tunnel', s: 106, len: 12 },
+    { kind: 'wall', s: 154, len: 12, side: 1 }, // the outside of the bend (curvature + = left: side +1),
+    { kind: 'jump', s: 205, gap: 8, drop: 0 },
+  ],
+  branches: [
     // the play room: straight through, past the toys, with the roomba on patrol
     {
       from: 139,

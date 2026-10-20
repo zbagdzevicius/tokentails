@@ -3,6 +3,12 @@
  * climb onto the mesa → the knitting-needle bridge across the canyon (no walls: off the edge is a fall) → down to the
  * canyon floor → the yarn-ball gap (a straight short cut down the canyon wall; only a fast kart clears the gap) or the
  * switchbacks past the geyser → the loose-thread boost strip home.
+ *
+ * Set pieces (SIM_VERSION 8, tracks-B, SETPIECES.md section 12): the thread pads fire you into the mesa tunnel
+ * (s24–36, items moved out of it to s38), you exit onto the needle bridge with the sunset ahead and hop the broken
+ * strand (lip s56, a 10 m gap, flat, with rails over the gap and landing so the bridge's open edge is never live
+ * mid-jump), and on the switchbacks the canyon wall curls up into a ride round the right-hander after the steam (the
+ * outside, s148–160). The yarn-ball gap's net is in tracks/extras.ts.
  */
 import type { TrackDef } from '../../../types';
 
@@ -44,12 +50,18 @@ export const YARN: TrackDef = {
     { s: 14, kind: 'pad', side: 0 },
     { s: 18, kind: 'pad', side: 0 },
     { s: 22, kind: 'pad', side: 0 },
-    { s: 34, kind: 'items' },
+    { s: 38, kind: 'items' },
     { s: 98, kind: 'items' },
     { s: 194, kind: 'items' },
     { s: 206, kind: 'ramp', side: 0 },
     { s: 244, kind: 'ramp', side: 0 },
-  ],  branches: [
+  ],
+  setPieces: [
+    { kind: 'tunnel', s: 24, len: 12 },
+    { kind: 'jump', s: 56, gap: 10, drop: 0 },
+    { kind: 'wall', s: 148, len: 12, side: 1 }, // the outside of the bend (curvature + = left: side +1),
+  ],
+  branches: [
     // the yarn-ball gap: straight down the canyon wall, a pad, then a gap only a fast kart clears
     {
       from: 107,
