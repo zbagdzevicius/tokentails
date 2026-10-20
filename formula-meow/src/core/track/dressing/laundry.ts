@@ -11,7 +11,9 @@ import { GeoBuilder, hash01 } from '../../render/geo';
 import { toonMaterial } from '../../render/toon';
 import { TriBuilder } from '../mesh';
 import { t as tr } from '../../../ui/i18n';
-import { branchSigns, glowQuad, raisedDeck, scatter, sign, startGantry } from './common';
+import { branchSigns, glowQuad, scatter, sign, startGantry } from './common';
+import { outerWall } from '../build';
+import { inWindow } from '../branch';
 
 const PASTEL = [0xff8fb1, 0x9fd3ff, 0xbfe8c8, 0xffe08a, 0xc9b6ff];
 const BASKET = [0x9fd3ff, 0xff8fb1, 0xffe08a];
@@ -65,8 +67,8 @@ export function dressLaundry(t: BuiltTrack, theme: Theme): Group {
     }
   }
 
-  // the folding table under the high road, and its legs
-  raisedDeck(t, g, { minY: 1.2, color: 0xe3c79f, inset: 1.6, vary: 0.03 });
+  // the folding table under the high road; it ends at the folding-table jump (the gap is open down to the floor)
+  tableDeck(t, g, 1.2, 0xe3c79f, 1.6);
 
   // floor clutter: baskets, detergent bottles, sock mounds, folded towel stacks
   const spots = scatter(t, 41, 70, 5, 12, 150);
@@ -121,4 +123,29 @@ export function dressLaundry(t: BuiltTrack, theme: Theme): Group {
     group.add(lit);
   }
   return group;
+}
+
+/**
+ * The folding table under the high road (common.ts raisedDeck, plus the set pieces): no slab over a jump gap or its
+ * lips, and each slab's top is the lowest road within its whole footprint (the run-up of a jump is flat, so a slab on
+ * the tight bend before it would otherwise reach up through the inside of the bend).
+ */
+function tableDeck(t: BuiltTrack, g: GeoBuilder, minY: number, color: number, inset: number): void {
+  const slab = 8.6;
+  const reach = Math.ceil(slab / 2 / t.step);
+  const stride = Math.round(slab / t.step);
+  for (let i = 0; i < t.n; i += stride) {
+    if (t.branches.some((b) => inWindow(t, b, i)) || t.voidMask[i]) continue;
+    const w = (outerWall(t, i) + inset) * 2;
+    let low = Infinity;
+    let gap = false;
+    const wide = reach + Math.ceil(w / 2 / t.step);
+    for (let k = -wide; k <= wide; k++) {
+      const j = (i + k + t.n) % t.n;
+      if (Math.abs(k) <= reach + 2 && t.gapMask[j]) gap = true;
+      low = Math.min(low, t.py[j] - (w / 2) * Math.abs(t.bank[j]));
+    }
+    if (gap || low < minY) continue;
+    g.boxUp(w, low - 0.15, slab + 0.2, color, { x: t.px[i], y: 0, z: t.pz[i], ry: Math.atan2(t.tx[i], t.tz[i]) }, { vary: 0.03 });
+  }
 }
