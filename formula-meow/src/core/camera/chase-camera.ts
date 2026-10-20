@@ -56,8 +56,17 @@ export interface CameraSource {
 
 /** Set-piece camera comfort limits (SETPIECES.md section 8). */
 export const STUNT_CAM = {
-  /** the camera's up turns at most this fast, °/s, easing with a 0.15 s time constant */
+  /** the camera's up turns at most this fast, °/s, easing with a 0.15 s time constant (off a loop) */
   upRate: 240,
+  /**
+   * on a loop's rail (and `railFastTail` s after it) the cap follows the pitch rate instead: speed / radius × this
+   * margin, at least `upRate` (playtest: 240°/s lagged the loop, the camera was still upside down after the exit and
+   * the kart sat at the screen edge over the top)
+   */
+  railUpMargin: 1.5,
+  railFastTail: 0.6,
+  /** the up ease's time constant on the rail (0.15 s trails a 4 rad/s pitch by ~35°) */
+  railUpTau: 0.06,
   upTau: 0.15,
   /** loop rig: behind and above the kart in the ribbon's frame (m) */
   loopBack: 7.5,
@@ -66,7 +75,9 @@ export const STUNT_CAM = {
   wallRoll: 35,
   /** wall lane: the rig sits this far back along the road and this far toward the road from the kart (m) */
   laneBack: 6.5,
-  laneIn: 2.5,
+  laneIn: 3.2,
+  /** wall lane: the rig rides this much higher than the chase rig (looks over the lane's top barrier) */
+  laneUp: 0.7,
   /** reduced motion: the TV camera's distance beside a loop (m) */
   tvSide: 16,
   /** juice: roll about the view axis inside a loop is capped here (°): the loop itself is a pitch, the comfortable axis */
@@ -123,6 +134,9 @@ export class ChaseCamera {
   private readonly tv = new Vector3();
   /** -1 none, else the loop piece the TV camera is watching (reduced motion) */
   private tvLoop = -1;
+  /** on a loop's rail: the up vector's turn cap (rad/s) and how long it still applies after the rail */
+  private railUpRate = 0;
+  private railTail = 0;
   private yaw = 0;
   private fovKick = 0;
   private trauma = 0;
@@ -473,6 +487,11 @@ export class ChaseCamera {
       this.tvLoop = -1;
       this.snap(x, y, z, this.yaw);
     }
+    if (pc) {
+      const v = Math.hypot(k.vx, k.vz);
+      this.railUpRate = Math.max(STUNT_CAM.upRate * DEG, (v / LOOP_SHAPE.R) * STUNT_CAM.railUpMargin);
+      this.railTail = STUNT_CAM.railFastTail;
+    } else this.railTail = Math.max(0, this.railTail - dt);
     if (pc && t && bent && !rm) {
       // on the loop: on the ribbon behind the kart, lifted along the ribbon's own normal there (so it stays inside the
       // loop round its tight top), looking at a point ahead of the kart on the ribbon
@@ -491,8 +510,13 @@ export class ChaseCamera {
       // it would sit beyond the curl and look through it)
       const side = k.d > 0 ? 1 : -1;
       const j = (k.si - Math.round(STUNT_CAM.laneBack / t.step) + t.n) % t.n;
-      const dl = side * Math.max(0, Math.abs(k.d) - STUNT_CAM.laneIn);
-      this.want.set(t.px[j] - t.tz[j] * dl, Math.max(y, k.y) + this.up, t.pz[j] + t.tx[j] * dl);
+      // clamp to sample j's own road + lane (playtest B2: in the taper the lane is narrower 6.5 m back and the rig sat
+      // behind the curl or inside its skirt), then keep it inside the walls like the chase rig
+      const laneJ = side > 0 ? t.laneR[j] : t.laneL[j];
+      const maxD = Math.max(0, t.halfW[j] + Math.max(0, laneJ) - 1.5);
+      const dl = side * Math.min(maxD, Math.max(0, Math.abs(k.d) - STUNT_CAM.laneIn));
+      this.want.set(t.px[j] - t.tz[j] * dl, Math.max(y, k.y) + this.up + STUNT_CAM.laneUp, t.pz[j] + t.tx[j] * dl);
+      this.wallClamp(this.want, x, z, j);
       this.pos.lerp(this.want, Math.min(1, 1 - Math.exp(-dt / 0.08)));
       // a wall lane: roll half the curl, capped
       this.upWant.set(b.ux, b.uy, b.uz).normalize();
@@ -530,7 +554,9 @@ export class ChaseCamera {
     const dot = Math.max(-1, Math.min(1, c.dot(w)));
     const ang = Math.acos(dot);
     if (ang < 1e-5 || dt <= 0) return;
-    const step = Math.min(ang, STUNT_CAM.upRate * DEG * dt, ang * (1 - Math.exp(-dt / STUNT_CAM.upTau)) + 1e-4);
+    const rate = this.railTail > 0 ? this.railUpRate : STUNT_CAM.upRate * DEG;
+    const tau = this.railTail > 0 ? STUNT_CAM.railUpTau : STUNT_CAM.upTau;
+    const step = Math.min(ang, rate * dt, ang * (1 - Math.exp(-dt / tau)) + 1e-4);
     this.tmpC.crossVectors(c, w);
     if (this.tmpC.lengthSq() < 1e-10) this.tmpC.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     this.tmpC.normalize();

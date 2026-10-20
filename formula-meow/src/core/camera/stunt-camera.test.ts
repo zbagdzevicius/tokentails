@@ -63,7 +63,12 @@ describe('set-piece camera (SIM_VERSION 8)', () => {
     let maxRate = 0;
     let minUpY = 1;
     let railed = 0;
+    let exitTick = -1;
+    let upAfterExit = -1;
+    let minEntryLift = 99;
+    const pose: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
     for (let n = 0; n < 60 * 6; n++) {
+      const was = k.rail;
       w.step([input({ gas: true })]);
       frame();
       const up = cam.upVector;
@@ -72,9 +77,20 @@ describe('set-piece camera (SIM_VERSION 8)', () => {
       prev.copy(up);
       minUpY = Math.min(minUpY, up.y);
       if (k.rail > 0) railed++;
+      // playtest B1: just past the zone start the rig (7.5 m back on the ribbon) collapsed to deck height
+      if (k.rail > 0 && k.su > 0.5 && k.su < 7 && kartStuntPose(w.track, k, pose)) {
+        const c = cam.cam.position;
+        minEntryLift = Math.min(minEntryLift, (c.x - pose.x) * pose.ux + (c.y - pose.y) * pose.uy + (c.z - pose.z) * pose.uz);
+      }
+      if (was > 0 && k.rail === 0) exitTick = n;
+      if (exitTick >= 0 && n === exitTick + 18) upAfterExit = up.y;
     }
     expect(railed).toBeGreaterThan(60);
-    expect(maxRate).toBeLessThanOrEqual(STUNT_CAM.upRate * DEG + 1e-6);
+    // the cap follows the pitch rate on the rail (speed / radius × margin), never a snap
+    expect(maxRate).toBeLessThanOrEqual(12);
+    expect(minEntryLift).toBeGreaterThan(1);
+    // playtest B3: no longer upside down after the exit (0.3 s later the up is near the world's)
+    expect(upAfterExit).toBeGreaterThan(0.8);
     // it really went round: upside down at the top
     expect(minUpY).toBeLessThan(-0.5);
     // and back to the world's up after the exit
