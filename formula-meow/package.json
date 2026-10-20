@@ -16,6 +16,7 @@
     "og": "node tools/render-og.mjs",
     "og:pages": "node tools/og-pages.mjs",
     "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts",
+    "review:v2": "playwright test --config review/v2.config.ts",
     "budget": "node tools/budget.mjs dist"
   },
   "dependencies": {

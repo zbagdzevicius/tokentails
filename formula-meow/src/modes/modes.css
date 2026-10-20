@@ -85,7 +85,8 @@
 /* 8 small tiles: two even rows of 4 (desktop left Settings and Help alone on a second row) */
 .fm-m-strip { grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .fm-m-strip .fm-ui-tile { min-height: 66px; padding: 6px 4px; font-size: 13px; gap: 2px; min-width: 0; }
-.fm-m-strip .fm-ui-tile > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* two-word labels wrap onto two lines on a phone ("Track ..." / "Pink P..." were cut off at 390 px) */
+.fm-m-strip .fm-ui-tile > * { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; line-height: 1.1; text-wrap: balance; }
 .fm-m-strip .fm-ui-tile .i { font-size: 22px; }
 .fm-m-resume { display: flex; gap: 8px; }
 .fm-m-resume-go { flex: 1; display: flex; flex-direction: column; align-items: flex-start; text-align: left; font-family: var(--fm-font); font-weight: 900; }
@@ -229,7 +230,9 @@
 .fm-m-podium-panel .fm-m-footer .fm-btn { white-space: nowrap; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fm-m-podium-panel .fm-m-footer .fm-btn.fm-m-rw { flex: 1 0 100%; }
 @media (max-width: 420px) {
-  .fm-m-podium-panel .fm-btn:not(.big) { padding: 10px 8px; font-size: 15px; }
+  .fm-m-podium-panel .fm-btn:not(.big) { padding: 10px 4px; font-size: 15px; }
+  /* "Next cup ▶" was cut to "Next cu…" at 390 px: let a long label take a second line instead */
+  .fm-m-podium-panel .fm-m-footer .fm-btn:not(.fm-m-rw) { white-space: normal; text-overflow: clip; line-height: 1.1; }
 }
 
 /* a link styled as a button centres its words like a button (they sat at the top of the box) */

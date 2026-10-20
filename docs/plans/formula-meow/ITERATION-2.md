@@ -552,3 +552,41 @@ branches) also fail gracefully.
    daily, dare link, editor → race it. Screenshots into `review/`.
 5. `npm run build:client`, commit `client/public/formula-meow-game` and the source together, update
    `formula-meow/README.md` and `LANES.md` for the new modules. Do not push.
+
+## 5. What shipped (final verification, 2026-10-20, branch `feat/formula-meow`)
+
+Shipped on top of the integration (64e19883) and two play-test rounds (f7d0e3aa, 10f096b8, 8426e880), checked end to
+end by `npm run review:v2` (every mode and screen at 1440×900 keyboard and 390×844 touch, starting from a v1 save).
+
+- **Menus and flow:** title over a live attract race, main menu (Grand Prix hero card, four race modes, an 8-tile
+  strip), racer select (cat, kart, paint), class and cup pickers, pause, settings (sound, controls, accessibility),
+  how to play, paw-iris transitions. Keyboard, gamepad and touch on every screen. A first visit still opens straight
+  on the grid.
+- **Modes:** Grand Prix (2 cups × 4 races, points, animated standings, podium, trophies, a named rival, resume a cup),
+  Single race (any of 6 tracks, any unlocked class), Time Trial (personal-best and dev ghosts, splits, medals),
+  Balloon Battle (2:30 points round on the Living Room Rug), Daily Cup (one seeded race per UTC day, rival
+  head-to-head), Track Doodle races.
+- **Content:** 6 circuits (Kitchen Counter, Neon Rooftops, Laundry Spin, Yarn Canyon, Cat Café Chaos, Pink Paw
+  Shelter Sprint) each with an alternative route, hazards, fish coins and ramps; 1 battle arena; 4 classes
+  (50/100/150cc and Mirror); 6 kart bodies; paints, 8 hats, 5 trails; 8 items.
+- **Progression:** in-game fish only (no money), Garage, 24 achievements, daily challenges, stats, Pink Paw cats
+  unlocked by trophies, class/cup/mode unlocks, a welcome-back bonus for v1 saves.
+- **Feel and presentation:** hop, 3-tier drift and mini-turbo, Pounce Start, ramp tricks, per-body handling, AI item
+  use with a capped rubber band, flyover, respawn hand, particles, bloom on fast devices, confetti podium, 8 synth
+  songs, a cat announcer with captions.
+- **Sharing:** dare links (ghost in the hash, graceful notice for broken or old links), track codes (graceful
+  "This track link is broken" dialog), the Daily Cup link, 12 s vertical clip, your own cat from a photo (stays on
+  the device), Pink Paw adopt line dated "as of 2026-10-04".
+
+Final-pass fixes (this commit): the phone menu strip cut "Track Doodle" and "Pink Paw" to "Track …" / "Pink P…" (they
+now wrap to two lines); the podium footer cut "Next cup ▶" to "Next cu…" at 390 px (now wraps). Added
+`npm run review:v2` (`formula-meow/review/v2.review.spec.ts`, own build dir and port).
+
+Verified: `tsc` clean; vitest 406/406; build with initial JS 333 kB gzip of the 450 kB budget; draw calls at most 77
+on any circuit and 90 on the arena (1440×900 and 390×844); v1 `fm:progress`/`fm:settings` migrate into `fm:save`
+(unlocks, races, best times, class, mute) and the v1 keys stay; production routes `/meow-race`, `/make`, `/d/N`,
+`/t?t=`, `/r#g=` served through the `client/next.config.js` rewrites with no 404s or console errors; the client
+config loads and its 13 redirects are unchanged; no `funding/`, Telegram or `*_ENABLED` references in the game; copy
+claims nothing about donations.
+
+Known gaps: see `formula-meow/README.md` "Known gaps".

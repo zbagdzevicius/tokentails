@@ -17,6 +17,8 @@ npx vitest run
 npm run build
 npm run e2e            # Playwright, builds into .e2e-dist and serves on :4395 (~4 min)
 npm run review         # optional: full races at 1440x900 and 390x844, screenshots in review/*.png (~7 min)
+npm run review:v2      # optional: every mode and screen at 1440x900 and 390x844, from a v1 save, screenshots in
+                       # review/v2/*.png (~45 min, own build dir and port, gitignored)
 npm run build:client   # → ../client/public/formula-meow-game, commit that folder
 ```
 
@@ -73,3 +75,6 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
   time-trial ghosts and records from earlier versions show their time, but their ghost cannot race.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.
 - The minimap draws the main loop only, not the alternative routes.
+- Single race keeps its own class pick (50cc by default); it does not start from the class a v1 save last used.
+- Under the headless software renderer, a fresh dare link showed a blank sky-coloured frame ~2.5 s in, before the
+  flyover; by 3 s the track draws. Not yet checked on a real phone.
