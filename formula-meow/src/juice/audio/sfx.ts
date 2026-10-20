@@ -13,7 +13,7 @@
  */
 import { BoostSource, HAZARD_KINDS, type HazardKind, type ItemId, type RaceEvent } from '../../types';
 import { bell, brass, noise, prng, tone, type SynthGraph } from './synth';
-import { hiss, meow, mrrp, sadMew, scream, squeak, trill, yowl } from './voices';
+import { happyMeow, hiss, meow, mrrp, sadMew, scream, squeak, trill, yowl } from './voices';
 
 export type SfxId =
   | 'count'
@@ -63,7 +63,18 @@ export type SfxId =
   | 'splitAhead'
   | 'splitBehind'
   | 'timerTick'
-  | 'timeUp';
+  | 'timeUp'
+  // iteration 3 (set pieces, juice lane)
+  | 'loopRush'
+  | 'loopOut'
+  | 'wallOn'
+  | 'wallOff'
+  | 'gapLaunch'
+  | 'gapLand'
+  | 'net'
+  | 'tunnelIn'
+  | 'tunnelOut'
+  | 'combo';
 
 export interface Cue {
   id: SfxId;
@@ -194,6 +205,22 @@ export function cuesFor(e: RaceEvent, me: number, itemOf?: (kart: number) => Ite
       return mine ? [cue('checkpoint', 1, a)] : [];
     case 'grudge':
       return by === me ? [cue('grudge', 1, 0, e.kart)] : [];
+    // iteration 3: set pieces (a = SET_PIECE_KINDS index: 0 loop, 1 wall, 2 jump, 3 tunnel)
+    case 'stuntEnter':
+      if (!mine) return a === 0 ? [cue('loopRush', 0, 0, e.kart, { vol: 0.4, near: e.kart })] : [];
+      if (a === 0) return [cue('loopRush', 2, 0, me)];
+      if (a === 1) return [cue('wallOn', 1, 0, me)];
+      if (a === 2) return [cue('gapLaunch', 2, 0, me)];
+      return [];
+    case 'stuntExit':
+      if (!mine) return [];
+      if (a === 0) return [cue('loopOut', 2, 0, me)];
+      if (a === 1 && e.b === 1) return [cue('wallOff', 1, 0, me)];
+      return [];
+    case 'stuntLand':
+      return mine ? [cue('gapLand', 2, a, me)] : [];
+    case 'netCatch':
+      return mine ? [cue('net', 2, 0, me)] : [];
     default:
       return [];
   }
@@ -558,6 +585,58 @@ export function playCue(g0: SynthGraph, c: Cue, t0: number): void {
       brass(g, t, 349.23, 0.7, 0.35);
       brass(g, t, 440, 0.7, 0.25);
       break;
+    case 'loopRush':
+      // the loop: a long rising rush that peaks at the top of the ring, and a motor whine climbing with it
+      noise(g, t, { peak: 0.26, attack: 0.9, decay: 1.1, filter: { type: 'bandpass', freq: 300, freqEnd: 3800, q: 1.4 }, seed: 171 });
+      tone(g, t, { type: 'sawtooth', freq: 220, freqEnd: 880, glide: 1.6, peak: 0.05, attack: 0.3, hold: 0.9, decay: 0.8, filter: { type: 'lowpass', freq: 1800, freqEnd: 4200 } });
+      break;
+    case 'loopOut':
+      // out of the loop with the exit boost: a turbo whoosh, a bright sting and a happy "wheee" meow
+      whoosh(g, t, 0.6, 1.5, 0.4, 173);
+      [G5, C6, E5 * 2].forEach((hz, i) => bell(g, t + 0.03 + i * 0.05, hz, 0.06, 0.3));
+      happyMeow(g, t + 0.06, 1.1, c.pitch * 1.2);
+      break;
+    case 'wallOn':
+      // onto the wall lane: the tyres bite the curl (a low hum swell)
+      tone(g, t, { type: 'triangle', freq: 90, freqEnd: 140, peak: 0.12, attack: 0.08, hold: 0.25, decay: 0.3, vib: { hz: 22, cents: 30 } });
+      whoosh(g, t, 0.45, 0.7, 0.18, 177);
+      break;
+    case 'wallOff':
+      // a clean wall ride: a little slide-up and a chime
+      tone(g, t, { type: 'sine', freq: 520, freqEnd: 1040, glide: 0.15, peak: 0.07, decay: 0.2 });
+      bell(g, t + 0.12, C6 * 1.5, 0.05, 0.3);
+      break;
+    case 'gapLaunch':
+      // off the lip: the cat lets out a delighted chirp over the launch whoosh
+      whoosh(g, t, 0.55, 1.2, 0.28, 179);
+      trill(g, t + 0.05, 0.9);
+      break;
+    case 'gapLand':
+      // a clean landing: a soft thump and a sparkle (the landing boost)
+      tone(g, t, { freq: 140, freqEnd: 55, peak: 0.32, decay: 0.18 });
+      [C6, E5 * 2, G5 * 2].forEach((hz, i) => bell(g, t + 0.05 + i * 0.04, hz, 0.05, 0.35));
+      whoosh(g, t + 0.04, 0.4, 1.6, 0.22, 181);
+      break;
+    case 'net':
+      // the catch net: a soft cartoon "boing" into a cushion, and a relieved mrrp
+      tone(g, t, { type: 'triangle', freq: 160, freqEnd: 420, glide: 0.12, peak: 0.16, decay: 0.35, vib: { hz: 14, cents: 120 } });
+      noise(g, t, { peak: 0.14, decay: 0.2, filter: { type: 'lowpass', freq: 500 }, seed: 183 });
+      mrrp(g, t + 0.3, 0.9, c.pitch);
+      break;
+    case 'tunnelIn':
+      // into the tunnel: a dark rush closing in
+      noise(g, t, { peak: 0.24, attack: 0.05, decay: 0.45, filter: { type: 'lowpass', freq: 2400, freqEnd: 500, q: 1.5 }, seed: 187 });
+      break;
+    case 'tunnelOut':
+      // back into the open: a bright whoosh opening up
+      whoosh(g, t, 0.5, 1.4, 0.3, 191);
+      break;
+    case 'combo': {
+      // a stunt combo: a rising arpeggio, one step higher per stunt in the chain
+      const n = Math.max(2, Math.min(6, c.n));
+      for (let i = 0; i < n; i++) bell(g, t + i * 0.045, C5 * Math.pow(2, (i * 4) / 12), 0.05, 0.25);
+      break;
+    }
   }
 }
 
@@ -567,6 +646,8 @@ export function cueLength(id: SfxId): number {
     case 'roulette':
     case 'win':
       return 1.3;
+    case 'loopRush':
+      return 2;
     case 'finalLap':
     case 'podium':
     case 'go':
@@ -579,6 +660,9 @@ export function cueLength(id: SfxId): number {
     case 'turbo':
     case 'pounce':
     case 'timeUp':
+    case 'loopOut':
+    case 'net':
+    case 'gapLand':
       return 0.6;
     case 'incoming':
     case 'timerTick':
