@@ -9,10 +9,15 @@
  *   contacts (except a sideways nudge between two railed karts), slipstream, coins, item use (buffered), the safety
  *   checks and wrong way are off. At `su ≥ LOOP_LP` the kart is set at the zone end with an exit boost.
  * - Wall ride (lane): on `Surface.WallRide` a Stunt boost refreshed every tick and a soft magnet toward the lane centre
- *   (off while steering inward hard); the outer rail is soft (core/sim/kart.ts resolveWall).
- * - Jump gap: crossing the lip launches at ≥ floor × top on an aimed arc that lands `aim` m past the far lip; in the air
- *   a magnet pulls toward the racing line and the heading toward the tangent; a clean landing pays a Stunt boost.
+ *   (off while steering inward hard); the outer rail is soft (core/sim/kart.ts resolveWall). SIM_VERSION 9: a kart in
+ *   the outer `drawShare` of the road on the lane's side is drawn onto the lane (`drawIn` m/s) unless it steers inward.
+ * - Jump gap: crossing the lip launches at ≥ floor × top on an arc that peaks `apex` m over the lip (SIM_VERSION 9:
+ *   hang time, ~0.9 s over a flat gap); the in-air forward speed lands it inside the window and the run-up speed comes back
+ *   on landing. In the air a magnet pulls toward the racing line and the heading toward the tangent, and two flying
+ *   karts are pushed apart sideways; a clean landing pays a Stunt boost.
  *   A kart that drops below the far deck (or flies too long) is caught by the net and set down past the far lip.
+ *   SIM_VERSION 9: a kart rolling backwards off the far lip stops there (no reverse-net loop).
+ * - Tunnel (SIM_VERSION 9): stuntEnter / a clean stuntExit on the way through; the build puts a boost pad mid-way.
  */
 import { BoostSource, DT, Surface, type KartState, type TickInput } from '../../types';
 import { BOOST, DRIFT, PHYS, STUNT, ticks } from '../../tuning';
@@ -32,6 +37,11 @@ const LANE_ENTER = ticks(STUNT.wall.enter);
 /** a gap flight this far under the far deck's edge hits its face (the net catches it) */
 const LIP_FACE = 0.5;
 const DRIFT_BOOST = DRIFT.boost;
+/** railed karts closer than this along the ribbon and across it overlap */
+const RAIL_LEN = 2.4;
+const RAIL_WIDE = 1.7;
+/** two karts in the same gap flight closer than this (planar, m) overlap */
+const AIR_GAP = 1.8;
 
 const q: TrackHit = { i: 0, s: 0, d: 0, y: 0, surface: Surface.Road, wallL: 0, wallR: 0, branch: -1 };
 
@@ -223,17 +233,52 @@ function setOnMain(ctx: SimContext, k: KartState, j: number, d: number, v: numbe
   k.lipTicks = -1;
 }
 
-/** Two railed karts that touch only nudge each other sideways (≤ 0.3 m a tick, no speed loss, no spin). */
+/**
+ * Two railed karts that touch nudge each other sideways (≤ 0.3 m a tick, no speed loss, no spin); when the rail's
+ * lateral limit leaves them still overlapping (a pack of 3+), they also spread along the ribbon (SIM_VERSION 9:
+ * playtest, karts were drawn inside each other over the top).
+ */
 export function railNudge(a: KartState, b: KartState): void {
   if (a.rail !== b.rail) return;
   const dsu = b.su - a.su;
-  if (dsu > 2.4 || dsu < -2.4) return;
+  if (dsu > RAIL_LEN || dsu < -RAIL_LEN) return;
   const dd = b.sd - a.sd;
-  const gap = 1.7 - (dd < 0 ? -dd : dd);
+  const gap = RAIL_WIDE - (dd < 0 ? -dd : dd);
   if (gap <= 0) return;
   const push = Math.min(0.3, gap / 2) * (dd >= 0 ? 1 : -1);
   a.sd = clamp(a.sd - push, -STUNT.loop.maxSd, STUNT.loop.maxSd);
   b.sd = clamp(b.sd + push, -STUNT.loop.maxSd, STUNT.loop.maxSd);
+  const dd1 = b.sd - a.sd;
+  if (RAIL_WIDE - (dd1 < 0 ? -dd1 : dd1) <= 0.2) return;
+  const along = Math.min(STUNT.loop.alongPush, (RAIL_LEN - (dsu < 0 ? -dsu : dsu)) / 2) * (dsu >= 0 ? 1 : -1);
+  a.su = Math.max(0, a.su - along);
+  b.su = Math.max(0, b.su + along);
+}
+
+/**
+ * SIM_VERSION 9: two karts in the same gap flight that overlap are pushed apart sideways (position only, ≤ 0.12 m a
+ * tick; no speed change), so they no longer fly inside each other.
+ */
+export function airNudge(ctx: SimContext, a: KartState, b: KartState): void {
+  if (a.gapLaunch === 0 || a.gapLaunch !== b.gapLaunch) return;
+  const dy = b.y - a.y;
+  if (dy > 1.2 || dy < -1.2) return;
+  const cx = b.x - a.x;
+  const cz = b.z - a.z;
+  const d2 = cx * cx + cz * cz;
+  if (d2 >= AIR_GAP * AIR_GAP) return;
+  const t = ctx.track;
+  const i = a.si >= 0 && a.si < t.n ? a.si : 0;
+  // across the road (the flight's lateral axis)
+  const rx = -t.tz[i];
+  const rz = t.tx[i];
+  const lat = cx * rx + cz * rz;
+  const side = lat > 0 ? 1 : lat < 0 ? -1 : a.si % 2 === 0 ? 1 : -1;
+  const push = Math.min(0.12, (AIR_GAP - Math.sqrt(d2)) / 2) * side;
+  a.x -= rx * push;
+  a.z -= rz * push;
+  b.x += rx * push;
+  b.z += rz * push;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -265,23 +310,104 @@ export function stepLane(ctx: SimContext, idx: number, k: KartState, inp: TickIn
       k.z += t.tx[hit.i] * delta;
       hit.d += delta;
     }
+    // SIM_VERSION 9 (playtest: the lane cost +0.2–0.8 s at 50cc, it sits on the outside of the bend): the lane carries
+    // the kart along the road by the extra way round against the racing line, so the boost makes it the faster line
+    // (velocity and handling unchanged; it shows as the kart flying round the curl)
+    const i = hit.i;
+    const fd = 1 + t.curv[i] * hit.d;
+    const fl = 1 + t.curv[i] * t.line[i];
+    const v = k.vx * t.tx[i] + k.vz * t.tz[i];
+    if (fl > 0.2 && fd > fl && v > 0) {
+      const extra = Math.min(v * DT * (fd / fl - 1), v * DT * STUNT.wall.carryMax, 0.45);
+      if (extra > 0) {
+        k.x += t.tx[i] * extra;
+        k.z += t.tz[i] * extra;
+        queryTrack(t, k.x, k.z, i, hit);
+      }
+    }
     if (++k.laneTicks === LANE_ENTER) {
       const pc = pieceAtSample(t, hit.i);
       ctx.emit({ type: 'stuntEnter', kart: idx, a: 1, b: pc ? pc.id : -1 });
     }
-  } else if (!k.air && k.laneTicks > 0) {
+  } else if (!k.air && (hit.branch ?? -1) === -1) drawIn(t, k, inp, hit);
+  if (!on && !k.air && k.laneTicks > 0) {
     if (k.laneTicks >= LANE_ENTER) {
       const pc = pieceAtSample(t, k.si);
       const ridden = k.laneTicks * DT * speedOf(k);
-      ctx.emit({ type: 'stuntExit', kart: idx, a: 1, b: pc && ridden >= STUNT.wall.clean * (pc.lenM - 2 * STUNT.wall.taper) ? 1 : 0 });
+      const clean = !!pc && ridden >= STUNT.wall.clean * (pc.lenM - 2 * STUNT.wall.taper);
+      // SIM_VERSION 9: a clean ride slings the kart off the wall with an exit boost (the "accelerated option")
+      if (clean) applyBoost(ctx, idx, STUNT.wall.exitLevel, STUNT.wall.exitTime, BoostSource.Stunt);
+      ctx.emit({ type: 'stuntExit', kart: idx, a: 1, b: clean ? 1 : 0 });
     }
     k.laneTicks = 0;
+  }
+}
+
+/**
+ * SIM_VERSION 9 (playtest: phone players never rode a wall lane, the magnet only worked once on it): on a wall piece,
+ * before its exit taper, a grounded kart in the outer `drawShare` of the road on the lane's side slides toward the
+ * lane at `drawIn` m/s unless it steers inward at |steer| ≥ magnetOff. Keeps `hit.d` in step.
+ */
+function drawIn(t: SimContext['track'], k: KartState, inp: TickInput, hit: TrackHit): void {
+  const i = hit.i;
+  const side = t.laneR[i] > 0.5 ? 1 : t.laneL[i] > 0.5 ? -1 : 0;
+  if (side === 0) return;
+  const hw = t.halfW[i];
+  if (hit.d * side < hw * (1 - 2 * STUNT.wall.drawShare)) return;
+  if (inp.steer * side <= -STUNT.wall.magnetOff) return;
+  const pc = pieceAtSample(t, i);
+  if (!pc || pc.kind !== 'wall') return;
+  const into = ((i - pc.i0 + t.n) % t.n) * t.step;
+  if (into > pc.lenM - STUNT.wall.taper) return;
+  const lane = side > 0 ? t.laneR[i] : t.laneL[i];
+  const want = side * (hw + lane / 2);
+  const delta = clamp(want - hit.d, -STUNT.wall.drawIn * DT, STUNT.wall.drawIn * DT);
+  k.x += -t.tz[i] * delta;
+  k.z += t.tx[i] * delta;
+  hit.d += delta;
+}
+
+// ---------------------------------------------------------------------------------------------
+// tunnel
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * SIM_VERSION 9 (playtest: tunnels fed no combo or stunt count): moving from sample `k.si` to `hit.i` on the main loop,
+ * entering a tunnel emits stuntEnter (a = 3) and leaving its far end forward a clean stuntExit. Call before `k.si` moves.
+ */
+export function tunnelEvents(ctx: SimContext, idx: number, k: KartState, hit: TrackHit): void {
+  const t = ctx.track;
+  if ((hit.branch ?? -1) !== -1 || k.branch !== -1 || k.si < 0 || k.si >= t.n) return;
+  const was = t.tunnelMask[k.si] === 1;
+  const now = t.tunnelMask[hit.i] === 1;
+  if (was === now) return;
+  const fwd = (hit.i - k.si + t.n) % t.n < t.n / 2;
+  if (now && fwd) {
+    const pc = pieceAtSample(t, hit.i);
+    ctx.emit({ type: 'stuntEnter', kart: idx, a: 3, b: pc ? pc.id : -1 });
+  } else if (!now && fwd) {
+    const pc = pieceAtSample(t, k.si);
+    ctx.emit({ type: 'stuntExit', kart: idx, a: 3, b: pc && pc.kind === 'tunnel' ? 1 : 0 });
   }
 }
 
 // ---------------------------------------------------------------------------------------------
 // jump gap
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * SIM_VERSION 9 (playtest bug 8: holding brake after a gap reversed the kart back into it, the net placed it past the
+ * gap and it reversed in again, 7–9 times in 15 s): a grounded kart rolling backwards off a gap's far lip stops at the
+ * lip instead. True when it was stopped (the caller restores its old position).
+ */
+export function reversesIntoGap(t: SimContext['track'], k: KartState, prevSi: number, hit: TrackHit): boolean {
+  if (!t.pieces.length || k.air || k.gapLaunch > 0 || (hit.branch ?? -1) !== -1 || k.branch !== -1) return false;
+  if (t.gapMask[hit.i] !== 1 || t.gapMask[prevSi] === 1) return false;
+  const pc = pieceAtSample(t, hit.i);
+  if (!pc || pc.kind !== 'jump' || pc.gap <= 0) return false;
+  // it came from the far deck (just past the far lip), not from the run-up
+  return (prevSi - pc.i1 + t.n) % t.n < 8;
+}
 
 /** The jump whose lip the kart crossed this tick (main loop only), or null. */
 export function lipCrossed(ctx: SimContext, prevSi: number, hit: TrackHit): BuiltPiece | null {
@@ -303,12 +429,28 @@ export function launch(ctx: SimContext, idx: number, k: KartState, pc: BuiltPiec
   const err = clamp(wrapAngle(k.heading - tan), -LIP_ERR, LIP_ERR);
   k.heading = wrapAngle(tan + err);
   const vh = Math.max(speedOf(k), STUNT.jump.floor * top);
-  k.vx = sinL(k.heading) * vh;
-  k.vz = cosL(k.heading) * vh;
-  const aim = pc.gap + STUNT.jump.aim;
-  const T = clamp(aim / vh, STUNT.jump.tMin, STUNT.jump.tMax);
   const drop = k.y - pc.landY;
   const g = PHYS.gravity;
+  let vAir = vh;
+  let T: number;
+  if (pc.gap > 0) {
+    // SIM_VERSION 9 (playtest: "jumps have no air", 0.07–1.4 m over the lip, a fast kart flew the shortest time): a
+    // fixed hang time; the in-air forward speed is what lands the aim point in it, kept inside the landing window
+    // (never faster than the kart came in). The speed it took off is paid back on landing (`landed`).
+    // the flight that peaks `apex` m over the lip and comes down `drop` m lower: T = (vy + √(vy² + 2g·drop)) / g
+    const vy0 = Math.sqrt(2 * g * STUNT.jump.apex);
+    T = (vy0 + Math.sqrt(Math.max(0, vy0 * vy0 + 2 * g * drop))) / g;
+    const lo = (pc.gap + STUNT.jump.landMin) / T;
+    const hi = (pc.gap + STUNT.jump.aim + STUNT.jump.land - STUNT.jump.landMargin) / T;
+    vAir = clamp(vh, lo, Math.max(lo, hi));
+    if (vAir > vh) vAir = Math.max(vh, lo);
+  } else {
+    // a kicker (no void): the aimed arc as before, a fast kart flies at least tMin
+    T = clamp((pc.gap + STUNT.jump.aim) / vh, STUNT.jump.tMin, STUNT.jump.tMax);
+  }
+  k.gapV = vh;
+  k.vx = sinL(k.heading) * vAir;
+  k.vz = cosL(k.heading) * vAir;
   // + g·DT/2: the semi-implicit Euler step lands that much early otherwise
   k.vy = (g * T * T * 0.5 - drop) / T + g * DT * 0.5;
   k.air = 1;
@@ -353,7 +495,16 @@ export function landed(ctx: SimContext, idx: number, k: KartState, airTicks: num
   const t = ctx.track;
   const pc = t.pieces[k.gapLaunch - 1];
   k.gapLaunch = 0;
+  // SIM_VERSION 9: the run-up speed the hang-time flight took off comes back along the new heading
+  const back = k.gapV;
+  k.gapV = 0;
   if (!pc) return;
+  const v0 = speedOf(k);
+  if (back > v0 && v0 > 1e-6) {
+    const m = back / v0;
+    k.vx *= m;
+    k.vz *= m;
+  }
   const tan = atan2L(t.tx[hit.i], t.tz[hit.i]);
   const clean = Math.abs(wrapAngle(k.heading - tan)) <= CLEAN_ERR && k.spinTicks === 0 && k.leapTicks === 0;
   if (clean) {
@@ -403,6 +554,7 @@ function catchNet(ctx: SimContext, idx: number, k: KartState, pc: BuiltPiece): v
   k.z = t.pz[mid] + t.tx[mid] * d;
   k.netTicks = NET_HOLD;
   k.gapLaunch = 0;
+  k.gapV = 0;
   k.vx = 0;
   k.vz = 0;
   k.vy = 0;

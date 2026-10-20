@@ -339,6 +339,8 @@ export const STUNT = {
     maxSd: 2,
     /** never slower than this on the rail (nobody stalls upside down) */
     floor: 0.75,
+    /** SIM_VERSION 9: overlapping railed karts the lateral limit cannot separate spread along the ribbon (m a tick) */
+    alongPush: 0.1,
     /** a Stunt boost held for the whole ride (the ribbon is longer than its shadow) */
     railLevel: 1.35,
     /** steering: m/s at full lock, auto-centre speed when |steer| < centreSteer (of 7) */
@@ -360,12 +362,20 @@ export const STUNT = {
     taper: 16,
     /** the soft outer rail sits this far past the lane */
     rail: 0.6,
-    /** boost refreshed every tick on the lane */
-    level: 1.15,
+    /** boost refreshed every tick on the lane (SIM_VERSION 9: 1.15 → 1.3, the lane is the faster line) */
+    level: 1.3,
     time: 0.25,
     /** magnet toward the lane centre, m/s; off while steering inward at |steer| ≥ magnetOff (of 7) */
     magnet: 1,
     magnetOff: 4,
+    /** SIM_VERSION 9: a kart in this outer share of the road on the lane's side is drawn onto the lane at drawIn m/s */
+    drawShare: 0.4,
+    drawIn: 3,
+    /** SIM_VERSION 9: the lane's carry (the extra way round the bend) is at most this share of the kart's own move */
+    carryMax: 0.6,
+    /** SIM_VERSION 9: a clean ride's exit boost (the sling off the wall) */
+    exitLevel: 1.35,
+    exitTime: 1,
     /** stuntEnter after this long on the lane; a clean stuntExit needs this share of the lane ridden */
     enter: 0.3,
     clean: 0.7,
@@ -381,9 +391,16 @@ export const STUNT = {
     /** launch speed floor (fraction of top); heading error clamp at the lip (degrees) */
     floor: 0.75,
     lipAngle: 10,
-    /** aimed flight time limits (s) */
+    /** a kicker's aimed flight time limits (s) */
     tMin: 0.55,
     tMax: 1.0,
+    /**
+     * SIM_VERSION 9: a gap's flight peaks this high over the lip (m; hang time ~0.9 s over a flat gap, longer over a
+     * drop); the landing lies between `landMin` m past the far lip and `landMargin` m before the window's end
+     */
+    apex: 2.2,
+    landMin: 2,
+    landMargin: 3,
     /** air magnet: toward the racing line (m/s), heading toward the tangent (rad/s) */
     magnet: 3,
     turn: 2,
@@ -408,5 +425,7 @@ export const STUNT = {
     /** render: ceiling height over the road, neon ring spacing (m) */
     ceiling: 6.5,
     ring: 6,
+    /** SIM_VERSION 9: the full-width boost pad at a tunnel's middle (half its length, m) */
+    padHalfLen: 2.5,
   },
 } as const;

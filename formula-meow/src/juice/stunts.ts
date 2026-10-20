@@ -111,6 +111,8 @@ export class StuntTally {
           this.s.walls++;
           return this.comboCall(this.landClean(e.tick));
         }
+        // SIM_VERSION 9: a tunnel run is a clean stunt (it feeds the combo; the tally counts it in onTunnel)
+        if (a === 3) return this.comboCall(this.landClean(e.tick));
         // a jump's clean exit comes with stuntLand (counted there)
         return null;
       case 'stuntLand': {

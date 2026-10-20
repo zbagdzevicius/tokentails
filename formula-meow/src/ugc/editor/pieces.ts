@@ -28,6 +28,11 @@ export const PIECE_EDIT = {
   wallLen: 50,
   /** the snap searches this many lap units each way */
   snapReach: 8,
+  /**
+   * then, when nothing close by is valid, every `farStride` units round the lap, nearest first (the iteration 3 fuzz:
+   * 25 of 46 single drops were still invalid after the ±8 search)
+   */
+  farStride: 10,
 } as const;
 
 const wrapN = (i: number, n: number): number => ((i % n) + n) % n;
@@ -85,7 +90,7 @@ function pieceIssues(def: TrackDef): number {
 
 /**
  * Nudge piece `idx` of `def` by up to ±`snapReach` lap units to the spot with the fewest set-piece issues (none, when
- * there is one), preferring the smallest move. A wall ride's side is re-picked at every spot. Returns the piece to keep
+ * there is one), preferring the smallest move; when none of those is valid, the nearest valid spot round the lap. A wall ride's side is re-picked at every spot. Returns the piece to keep
  * (unchanged when nothing does better).
  */
 export function snapPiece(def: TrackDef, t: BuiltTrack, idx: number): SetPiece {
@@ -110,6 +115,29 @@ export function snapPiece(def: TrackDef, t: BuiltTrack, idx: number): SetPiece {
         best = p;
         bestN = k;
         if (!k) break;
+      }
+    }
+  }
+  // nothing valid close by: the nearest valid spot round the lap (coarse, nearest first; stops at the first one), then
+  // the ±2 refine around it toward the drop
+  if (bestN > 0) {
+    for (let r = PIECE_EDIT.snapReach + PIECE_EDIT.farStride; r <= 128 && bestN > 0; r += PIECE_EDIT.farStride) {
+      for (const ds of [r, -r]) {
+        const p = at(ds);
+        const k = tryAt(p);
+        if (k < bestN) {
+          best = p;
+          bestN = k;
+        }
+        if (!k) {
+          const toward = ds > 0 ? -1 : 1;
+          for (let q = 1; q <= 4; q++) {
+            const pq = at(ds + toward * q * 2);
+            if (tryAt(pq) === 0) best = pq;
+            else break;
+          }
+          break;
+        }
       }
     }
   }
