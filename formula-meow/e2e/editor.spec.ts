@@ -65,6 +65,91 @@ test('Track Doodle: draw a loop, it validates, race it, share link and remix', a
   expect(errors).toEqual([]);
 });
 
+/** Drag a stadium (two long straights joined by half circles) across the canvas: room for a loop on each straight. */
+async function stadium(page: Page): Promise<void> {
+  const box = (await page.locator('.fm-ed-canvas').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const r = box.width * 0.2;
+  const h = box.height * 0.36;
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i <= 4; i++) pts.push([cx + r, cy + h - (2 * h * i) / 4]);
+  for (let i = 1; i <= 6; i++) pts.push([cx + r * Math.cos((Math.PI * i) / 6), cy - h - r * Math.sin((Math.PI * i) / 6)]);
+  for (let i = 1; i <= 4; i++) pts.push([cx - r, cy - h + (2 * h * i) / 4]);
+  for (let i = 1; i <= 5; i++) pts.push([cx - r * Math.cos((Math.PI * i) / 6), cy + h + r * Math.sin((Math.PI * i) / 6)]);
+  await page.mouse.move(pts[0][0], pts[0][1]);
+  await page.mouse.down();
+  for (const [x, y] of pts.slice(1)) await page.mouse.move(x, y);
+  await page.mouse.up();
+}
+
+type Qa = { x: number; y: number; frac: number; pieces: Array<{ kind: string; s: number }>; ok: boolean; driving: boolean } | null;
+const qa = (page: Page, frac: number) => page.evaluate((f) => (window as unknown as { __fmDoodle?: { qa(f: number): Qa } }).__fmDoodle?.qa(f) ?? null, frac);
+
+/** Drag a stunt sticker from the tray to the road `frac` of the lap past the start (< 0: the straightest stretch). */
+async function dropStunt(page: Page, kind: string, frac: number): Promise<void> {
+  const b = (await page.locator(`.fm-ed-stunt[data-piece="${kind}"]`).boundingBox())!;
+  const to = (await qa(page, frac))!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  for (let k = 1; k <= 4; k++) await page.mouse.move(b.x + b.width / 2 + ((to.x - b.x - b.width / 2) * k) / 4, b.y + b.height / 2 + ((to.y - b.y - b.height / 2) * k) / 4);
+  await page.mouse.up();
+}
+
+test('Track Doodle stunts: loop, jump and tunnel stickers snap onto the road, validate, test-drive and race (code v3)', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?make&seed=4');
+  await stadium(page);
+  await expect(page.locator('.fm-ed-status')).toContainText('Drivable', { timeout: 30_000 });
+  await page.locator('.fm-ed-tab[data-tab="stickers"]').click();
+  await expect(page.locator('.fm-ed-stunt')).toHaveCount(4);
+  await page.screenshot({ path: 'e2e/screens/editor-stunt-tray.png' });
+
+  const loopAt = (await qa(page, -1))!.frac;
+  await dropStunt(page, 'loop', -1);
+  await expect.poll(async () => (await qa(page, 0))?.pieces.map((p) => p.kind), { timeout: 30_000 }).toEqual(['loop']);
+  // the panel shows the picked stunt; the tray comes back with ✓
+  await expect(page.locator('.fm-ed-panel')).toContainText('Loop');
+  await page.locator('.fm-ed-panel [aria-label="Done"]').click();
+  // the tunnel on the bend after the loop
+  await dropStunt(page, 'tunnel', (loopAt + 0.25) % 1);
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length, { timeout: 30_000 }).toBe(2);
+  // the tunnel's length stepper
+  await expect(page.locator('.fm-ed-panel')).toContainText('Tunnel');
+  await page.locator('.fm-ed-panel [aria-label="Done"]').click();
+  // auto-validation: the test drive runs, then the status settles
+  await expect.poll(async () => (await qa(page, 0))?.driving, { timeout: 10_000 }).toBe(false);
+  await page.screenshot({ path: 'e2e/screens/editor-stunts.png' });
+  const st = await qa(page, 0);
+  const status = await page.locator('.fm-ed-status').textContent();
+  expect(st?.ok, status ?? '').toBe(true);
+  await expect(page.locator('.fm-ed-status')).toContainText('Drivable');
+
+  // a stunt dragged off the road is removed
+  await page.locator('.fm-ed-tab[data-tab="stickers"]').click();
+  await dropStunt(page, 'jump', (loopAt + 0.75) % 1);
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length, { timeout: 30_000 }).toBe(3);
+  await expect(page.locator('.fm-ed-panel')).toContainText('Gap');
+  await page.locator('.fm-ed-panel').getByRole('button', { name: /Remove/ }).click();
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length, { timeout: 30_000 }).toBe(2);
+  await expect.poll(async () => (await qa(page, 0))?.driving, { timeout: 10_000 }).toBe(false);
+  await expect(page.locator('.fm-ed-status')).toContainText('Drivable');
+
+  await page.locator('.fm-ed-actions .primary').click();
+  await expect(page.locator('.fm-ed')).toHaveCount(0);
+  // the share code is v3 (set pieces) and the race has them
+  const code = new URL(page.url()).searchParams.get('t')!;
+  const first = Buffer.from(code.replace(/-/g, '+').replace(/_/g, '/'), 'base64')[0];
+  expect(first >> 4).toBe(3);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __fm?: { shell: { world: { track: { pieces: Array<{ kind: string }> } } | null } } }).__fm?.shell.world?.track.pieces.map((p) => p.kind).sort() ?? null), { timeout: 20_000 })
+    .toEqual(['loop', 'tunnel']);
+  await page.screenshot({ path: 'e2e/screens/editor-stunts-race.png' });
+  expect(errors).toEqual([]);
+});
+
 test('a broken track link says so and races Kitchen', async ({ page }) => {
   await page.goto('/?t=AAAAbrokenAAAA&seed=2');
   await expect(page.locator('.fm-ugc-sheet.on')).toContainText('This track link is broken');

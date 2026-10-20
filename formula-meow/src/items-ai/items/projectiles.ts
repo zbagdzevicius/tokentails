@@ -2,6 +2,12 @@
  * Projectiles (items-ai lane, GDD 4): the Hairball (straight shot that rolls along the road and bounces off walls up
  * to 3 times), the homing Yarn ball (runs along the road at the kart ahead) and the Laser Dot (runs ahead at 1.5×
  * leader speed, makes everyone it passes chase it, then spins the leader). Sim-safe math only.
+ *
+ * Set pieces (SIM_VERSION 8, ai-ugc lane): nothing hits a kart on a loop's rail, in a jump gap's flight or its net
+ * (`touchable`). A homing yarn ball loses its lock on such a kart and rolls on along the road ("the stunt shook it
+ * off": a reward, never a second hit waiting at the exit); the Laser Dot is locked on the leader, so it holds just behind
+ * it until it is out, instead of switching to the kart in second. A hairball rolling over a jump gap carries on at deck height (lip to far deck) instead of dropping into the
+ * canyon; a yarn ball hops it. Both stay on the shadow road under a loop and pass beneath the riders.
  */
 import { DT, Surface } from '../../types';
 import { ITEMS, ticks } from '../../tuning';
@@ -10,7 +16,8 @@ import { queryTrack, wrapDs, type TrackHit } from '../../core/track/query';
 import { speedOf } from '../../core/sim/kart';
 import { clamp, cosL, sinL } from '../../core/sim/fixed';
 import { ProjKind, itemsOf, trackPoint, type Proj } from './state';
-import { itemHit, touchable, yarnShield } from './hits';
+import { itemHit, racing, touchable, yarnShield } from './hits';
+import { pieceAtSample } from '../../core/track/stunt';
 
 const hit: TrackHit = { i: 0, s: 0, d: 0, y: 0, surface: Surface.Road };
 const H = ITEMS.hairball;
@@ -80,7 +87,7 @@ const MIN_ARM = ticks(L.minArm);
 export function laserTarget(ctx: SimContext, owner: number, minDist = -Infinity): number {
   for (const o of ctx.st.order) {
     const k = ctx.st.karts[o];
-    if (o === owner || !touchable(k)) continue;
+    if (o === owner || !racing(k)) continue;
     return k.dist > minDist ? o : -1;
   }
   return -1;
@@ -89,7 +96,7 @@ export function laserTarget(ctx: SimContext, owner: number, minDist = -Infinity)
 /** True when the owner leads the race (the Laser Dot has nobody ahead to run to). */
 export function ownerLeads(ctx: SimContext, owner: number): boolean {
   for (const o of ctx.st.order) {
-    if (!touchable(ctx.st.karts[o])) continue;
+    if (!racing(ctx.st.karts[o])) continue;
     return o === owner;
   }
   return true;
@@ -193,13 +200,14 @@ function stepHairball(ctx: SimContext, p: Proj): void {
   p.dist += wrapDs(t, hit.s - prevS);
   p.si = hit.i;
   p.d = hit.d;
-  p.y = hit.y + LIFT;
+  p.y = deckY(ctx, hit.i, hit.y) + LIFT;
   if (p.life > 0) collide(ctx, p, 'hairball');
 }
 
 function stepYarnBall(ctx: SimContext, p: Proj): void {
   const t = ctx.track;
   const ks = ctx.st.karts;
+  // SIM_VERSION 8: a target that rides a set piece (untouchable) shakes the ball off; it rolls on unlocked
   if (p.target >= 0 && !touchable(ks[p.target])) p.target = -1;
   p.dist += Math.max(Y.speedMin, ctx.tun.topSpeed * Y.speedTop) * DT;
   let want = t.line[p.si];
@@ -212,8 +220,33 @@ function stepYarnBall(ctx: SimContext, p: Proj): void {
   const lim = t.halfW[p.si] - 0.6;
   p.d = clamp(p.d + clamp(want - p.d, -Y.lateral * DT, Y.lateral * DT), -lim, lim);
   trackPoint(t, p.dist, p.d, p);
-  p.y += LIFT;
+  p.y = deckY(ctx, p.si, p.y) + LIFT + gapHop(ctx, p.si);
   collide(ctx, p, 'yarn');
+}
+
+/**
+ * Road height under an item at main sample i (SIM_VERSION 8): over a jump gap there is no deck (the query reports the
+ * canyon floor), so items carry on along the straight line from the lip to the far deck; elsewhere `y` as given.
+ */
+function deckY(ctx: SimContext, i: number, y: number): number {
+  const t = ctx.track;
+  if (t.gapMask[i] !== 1) return y;
+  const pc = pieceAtSample(t, i);
+  if (!pc || pc.kind !== 'jump') return y;
+  const span = ((pc.i1 - pc.i0 + t.n) % t.n) || 1;
+  const u = ((i - pc.i0 + t.n) % t.n) / span;
+  return pc.lipY + (pc.landY - pc.lipY) * u;
+}
+
+/** A small parabolic hop (m) for a rolling yarn ball over a jump gap. */
+function gapHop(ctx: SimContext, i: number): number {
+  const t = ctx.track;
+  if (t.gapMask[i] !== 1) return 0;
+  const pc = pieceAtSample(t, i);
+  if (!pc || pc.kind !== 'jump') return 0;
+  const span = ((pc.i1 - pc.i0 + t.n) % t.n) || 1;
+  const u = ((i - pc.i0 + t.n) % t.n) / span;
+  return 4 * 1.2 * u * (1 - u);
 }
 
 /**
@@ -227,7 +260,7 @@ function stepLaser(ctx: SimContext, p: Proj): void {
   const ks = ctx.st.karts;
   const t = ctx.track;
   p.age++;
-  if (p.target < 0 || !touchable(ks[p.target])) p.target = laserTarget(ctx, p.owner, p.dist);
+  if (p.target < 0 || !racing(ks[p.target])) p.target = laserTarget(ctx, p.owner, p.dist);
   if (p.target < 0) {
     ctx.emit({ type: 'itemFizzle', kart: p.owner, item: 'laser' });
     kill(p);
@@ -237,8 +270,8 @@ function stepLaser(ctx: SimContext, p: Proj): void {
   const v = L.speedMult * Math.max(speedOf(tk), ctx.tun.topSpeed * 0.9);
   const prev = p.dist;
   p.dist += v * DT;
-  // not yet armed: hold just behind the target
-  if (p.age < MIN_ARM && p.dist > tk.dist - 0.5) p.dist = Math.max(prev, tk.dist - 0.5);
+  // not yet armed, or the target is on a set piece (untouchable, SIM_VERSION 8): hold just behind it
+  if ((p.age < MIN_ARM || !touchable(tk)) && p.dist > tk.dist - 0.5) p.dist = Math.max(prev, tk.dist - 0.5);
   p.d += clamp(t.line[p.si] - p.d, -6 * DT, 6 * DT);
   trackPoint(t, p.dist, p.d, p);
   p.y += 0.08;
@@ -253,7 +286,7 @@ function stepLaser(ctx: SimContext, p: Proj): void {
   }
   const eta = (tk.dist - p.dist) / v;
   if (eta < L.warn) s.laserWarn = p.target;
-  if (p.age >= MIN_ARM && p.dist >= tk.dist) {
+  if (p.age >= MIN_ARM && p.dist >= tk.dist && touchable(tk)) {
     s.laserWarn = p.target;
     p.hitMask |= 1 << p.target;
     itemHit(ctx, p.target, 'spin', p.owner, 'laser');

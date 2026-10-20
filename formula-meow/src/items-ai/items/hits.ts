@@ -14,6 +14,14 @@ export function touchable(k: KartState): boolean {
 }
 
 /**
+ * A kart still in the race (SIM_VERSION 8): homing items keep it as their target while it is untouchable on a set
+ * piece (a loop's rail, a gap flight, the net) and wait for it to come out, instead of switching to another kart.
+ */
+export function racing(k: KartState): boolean {
+  return k.respawnTicks === 0 && k.finished === 0 && k.out === 0;
+}
+
+/**
  * A kart holding a ready Yarn trails it behind as a shield (GDD 4: "hold as a shield"): one hit coming from behind
  * (`fromDist` < the kart's distance) is eaten by the yarn instead. Returns true when it blocked.
  */

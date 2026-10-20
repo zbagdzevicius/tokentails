@@ -6,10 +6,16 @@
  * Rules: 8–32 points on the 4 m grid within ±128 m; lap 300–1200 m; no part of the road touches another part
  * (bridges are not drawn by the mesh yet, so every crossing fails); turn radius ≥ 9 m; climbs ≤ 25 %; exactly one
  * start, on a straight with room for the grid; at least one item row; ramps on a straight run; ≤ 24 stickers.
+ *
+ * Set pieces (SIM_VERSION 8, ai-ugc lane, SETPIECES.md section 10): `validateSetPieces` checks loops, wall rides, jump
+ * gaps and tunnels (one sentence each, the piece painted red), and for a doodled track a headless drive check
+ * (drive-check.ts): the phone bot at 50cc with auto-gas laps it once with no respawn, no net and no stall.
  */
-import { FEATURE_KINDS, type TrackDef } from '../../types';
-import { TRACK } from '../../tuning';
+import { FEATURE_KINDS, SET_PIECE_KINDS, type SetPiece, type SetPieceKind, type TrackDef } from '../../types';
+import { STUNT, TRACK } from '../../tuning';
 import { buildTrack, outerWall, type BuiltTrack } from '../../core/track/build';
+import type { BuiltPiece } from '../../core/track/stunt';
+import { driveCheck } from './drive-check';
 
 export type IssueCode =
   | 'points'
@@ -25,8 +31,16 @@ export type IssueCode =
   | 'rampBend'
   | 'stickers'
   | 'build'
-  // SIM_VERSION 8 set pieces: the build could not place one (validateSetPieces; the ai-ugc lane adds the detailed codes)
-  | 'pieces';
+  // SIM_VERSION 8 set pieces (validateSetPieces): the build could not place one, and the section 10 rules
+  | 'pieces'
+  | 'loopBend'
+  | 'loopClear'
+  | 'wallBend'
+  | 'jumpLine'
+  | 'tunnelLen'
+  | 'pieceSpacing'
+  | 'pieceCount'
+  | 'drive';
 
 export interface Issue {
   code: IssueCode;
@@ -107,7 +121,16 @@ function worstRun(n: number, bad: (i: number) => boolean): [number, number] | nu
   return best;
 }
 
-export function validateTrack(def: TrackDef): Validation {
+/** True when `v` (validated with `drive: false`) passed everything but still owes the set-piece drive check. */
+export function needsDrive(def: TrackDef, v: Validation): boolean {
+  return v.ok && !!v.built && !!def.setPieces?.length;
+}
+
+/**
+ * `pieces`: which set-piece rules apply. Doodled tracks and share codes use 'ugc' (the default); the authored tracks
+ * use 'authored' (the build's own spacing, free in count, no drive check: `tracks.test.ts` and the harness drive them).
+ */
+export function validateTrack(def: TrackDef, opts: { pieces?: 'ugc' | 'authored'; drive?: boolean } = {}): Validation {
   const issues: Issue[] = [];
   const np = def.points.length;
   if (np < LIMITS.minPoints) issues.push({ code: 'points', message: `A loop needs at least ${LIMITS.minPoints} points. Draw a bigger loop.` });
@@ -115,7 +138,8 @@ export function validateTrack(def: TrackDef): Validation {
   if (!pointsOnGrid(def)) issues.push({ code: 'grid', message: 'Some points are off the map. Drag them back inside.' });
   const kinds = new Set<string>(FEATURE_KINDS);
   if (def.features.some((f) => !kinds.has(f.kind) || !Number.isInteger(f.s) || f.s < 0 || f.s > 255)) issues.push({ code: 'stickers', message: 'A sticker is broken. Remove it and place it again.' });
-  if (def.features.length > LIMITS.maxStickers) issues.push({ code: 'stickers', message: `Too many stickers (${LIMITS.maxStickers} at most).` });
+  const nPieces = def.setPieces?.length ?? 0;
+  if (def.features.length + nPieces > LIMITS.maxStickers) issues.push({ code: 'stickers', message: `Too many stickers (${LIMITS.maxStickers} at most).` });
   if (issues.length || np < 3) return { ok: false, issues, built: null, length: 0 };
 
   let t: BuiltTrack;
@@ -197,6 +221,14 @@ export function validateTrack(def: TrackDef): Validation {
     }
   }
 
+  // set pieces: the section 10 rules, then (only when everything else is fine) the drive check
+  if (nPieces) {
+    const ugc = opts.pieces !== 'authored';
+    issues.push(...validateSetPieces(def, t, { ugc }));
+    // `drive: false`: the editor runs the drive check itself a moment later (it is the slow part), see `needsDrive`
+    if (ugc && !issues.length && opts.drive !== false) issues.push(...driveCheck(def, t));
+  }
+
   return { ok: issues.length === 0, issues, built: t, length: len };
 }
 
@@ -205,14 +237,271 @@ export function firstMessage(v: Validation): string | null {
   return v.issues.find((i) => i.message)?.message ?? null;
 }
 
+// ---------------------------------------------------------------------------------------------
+// set pieces (SIM_VERSION 8, SETPIECES.md section 10)
+// ---------------------------------------------------------------------------------------------
+
+/** Per-track limits for doodled tracks (the stickers tray enforces them too). */
+export const PIECE_LIMITS: Readonly<Record<SetPieceKind, number>> & { readonly total: number } = { loop: 2, wall: 3, jump: 3, tunnel: 3, total: 6 };
+
+/** Section 10 numbers (m): spacing, bends and lengths. Authored tracks keep the build's own spacing (30 m, 10 m). */
+export const PIECE_RULES = {
+  /** doodled tracks: the start line and other pieces this far away */
+  startClear: 40,
+  apart: 40,
+  /** loop: R ≥ 60 m and grade ≤ 5 % from 15 m before the zone to 55 m after its start; nothing within 12 m in plan
+   * unless 18 m above or below */
+  loopBefore: 15,
+  loopAfter: 55,
+  loopR: 60,
+  loopGrade: 0.05,
+  loopClear: 12,
+  loopClearUp: 18,
+  /** wall: a bend of 10–40 m radius (side 0, a half-pipe: a straight, R ≥ 60 m); its ends this far from a junction */
+  wallRmin: 10,
+  wallRmax: 40,
+  wallJunction: 40,
+  /** jump: R ≥ 40 m (authored 30 m) and grade ≤ 10 % over the run-up and the landing; gap 6–12 m, drop 0–2.5 m;
+   * nothing else on them (authored: item rows and pads may sit on the run-up) */
+  jumpR: 40,
+  jumpRAuthored: 30,
+  jumpGrade: 0.1,
+  gapMin: 6,
+  gapMax: 12,
+  dropMax: 2.5,
+  /** tunnel: 40–90 m long (authored 30–100), R ≥ 15 m, no ramp inside it or within 10 m of its exit */
+  tunnelMin: 40,
+  tunnelMax: 90,
+  tunnelR: 15,
+  tunnelExit: 10,
+  /** a ramp lip keeps this far before a loop's strip */
+  rampBeforeLoop: 30,
+} as const;
+
+const KIND_NAME: Record<SetPieceKind, string> = { loop: 'loop', wall: 'wall ride', jump: 'jump gap', tunnel: 'tunnel' };
+
+const wrapN = (i: number, n: number): number => ((i % n) + n) % n;
+const fwdN = (a: number, b: number, n: number): number => wrapN(b - a, n);
+
+/** Feature `s` → built sample (the build's own rounding; sample 0 is the start line). */
+export function pieceSample(def: TrackDef, n: number, s: number): number {
+  const st = def.features.find((f) => f.kind === 'start');
+  const startI = st ? Math.round((st.s / 256) * n) % n : 0;
+  return wrapN(Math.round((s / 256) * n) - startI, n);
+}
+
+/** The built piece for def piece p (same kind and start sample), or null when the build skipped it. */
+export function builtPieceOf(def: TrackDef, t: BuiltTrack, p: SetPiece): BuiltPiece | null {
+  const i0 = pieceSample(def, t.n, p.s);
+  return t.pieces.find((b) => b.kind === p.kind && b.i0 === i0) ?? null;
+}
+
+/** Footprint of a built piece: [first sample, length in samples] (a jump from its run-up, a loop from its strip). */
+export function pieceSpan(t: BuiltTrack, bp: BuiltPiece): [number, number] {
+  const from = bp.kind === 'jump' ? wrapN(bp.i0 - Math.round(STUNT.jump.runUp / t.step), t.n) : bp.strip;
+  return [from, fwdN(from, bp.end, t.n)];
+}
+
+function maxCurv(t: BuiltTrack, from: number, len: number): number {
+  let c = 0;
+  for (let k = 0; k <= len; k++) c = Math.max(c, Math.abs(t.curv[wrapN(from + k, t.n)]));
+  return c;
+}
+
+function maxGrade(t: BuiltTrack, from: number, len: number): number {
+  let g = 0;
+  for (let k = 0; k < len; k++) {
+    const i = wrapN(from + k, t.n);
+    g = Math.max(g, Math.abs(t.py[(i + 1) % t.n] - t.py[i]) / t.step);
+  }
+  return g;
+}
+
+/** Friendly sentence for a reason the build gave when it skipped a piece. */
+function buildReason(kind: SetPieceKind, reason: string): { code: IssueCode; message: string } {
+  const name = KIND_NAME[kind];
+  if (reason.includes('start line')) return { code: 'pieceSpacing', message: `Move the ${name} away from the start 🏁.` };
+  if (reason.includes('fork or merge')) return { code: 'pieceSpacing', message: `The ${name} can't go where a shortcut leaves or joins the road.` };
+  if (reason.includes('overlaps')) return { code: 'pieceSpacing', message: 'Two stunts are too close. Spread them out.' };
+  if (reason.includes('bends')) return { code: 'loopBend', message: 'Loops need a long, flat straight. Move the loop onto one.' };
+  if (reason.includes('arena')) return { code: 'pieces', message: 'An arena takes only kickers.' };
+  return { code: 'pieces', message: `The ${name} cannot go there.` };
+}
+
 /**
- * Set pieces (SIM_VERSION 8, SETPIECES.md section 10). Engine-step stub with the final signature, so the track lanes'
- * tests compile before the ai-ugc lane fills in the full rules (loopBend, loopClear, wallBend, jumpLine, tunnelLen,
- * pieceSpacing, pieceCount, the drive check). Today it reports what `buildTrack` had to skip (`BuiltTrack.pieceIssues`:
- * the start line, fork and merge windows, overlaps, a loop on a bend, an arena piece).
+ * Set-piece rules (SETPIECES.md section 10). `built` is the BuiltTrack of `def` (built again when absent). Doodled
+ * tracks (`ugc: true`, run by `validateTrack`) also get the stricter spacing (40 m from the start and from each other)
+ * and the per-kind limits; an authored track keeps the build's own spacing and is free in count. One sentence per
+ * piece (its first problem), with the piece's footprint to paint red. [] when every piece is fine. The drive check is
+ * separate (`driveCheck`, run by `validateTrack` for doodled tracks once everything else passes).
  */
-export function validateSetPieces(def: TrackDef, built?: BuiltTrack): Issue[] {
-  if (!def.setPieces?.length) return [];
+export function validateSetPieces(def: TrackDef, built?: BuiltTrack, opts: { ugc?: boolean } = {}): Issue[] {
+  const pieces = def.setPieces ?? [];
+  if (!pieces.length) return [];
   const t = built ?? buildTrack(def);
-  return t.pieceIssues.map((m) => ({ code: 'pieces' as const, message: `A set piece cannot go there (${m}).` }));
+  const R = PIECE_RULES;
+  const ugc = !!opts.ugc;
+  const issues: Issue[] = [];
+  const n = t.n;
+  const m = (metres: number): number => Math.max(1, Math.round(metres / t.step));
+  const add = (code: IssueCode, message: string, from?: number, len?: number): void => {
+    issues.push(from == null ? { code, message } : { code, message, from: wrapN(from, n), to: wrapN(from + (len ?? 0), n) });
+  };
+
+  if (ugc) {
+    const count: Partial<Record<SetPieceKind, number>> = {};
+    for (const p of pieces) count[p.kind] = (count[p.kind] ?? 0) + 1;
+    for (const k of SET_PIECE_KINDS) if ((count[k] ?? 0) > PIECE_LIMITS[k]) add('pieceCount', `${PIECE_LIMITS[k]} ${KIND_NAME[k]}${PIECE_LIMITS[k] > 1 ? 's' : ''} at most on one track.`);
+    if (pieces.length > PIECE_LIMITS.total) add('pieceCount', `${PIECE_LIMITS.total} stunts at most on one track.`);
+  }
+
+  const placed: Array<{ bp: BuiltPiece; from: number; len: number }> = [];
+  for (const p of pieces) {
+    if (SET_PIECE_KINDS.indexOf(p.kind) < 0 || !Number.isInteger(p.s) || p.s < 0 || p.s > 255) {
+      add('pieces', 'A stunt sticker is broken. Remove it and place it again.');
+      continue;
+    }
+    const at = pieceSample(def, n, p.s);
+    const bp = builtPieceOf(def, t, p);
+    if (!bp) {
+      const why = t.pieceIssues.find((x) => x.startsWith(`${p.kind}@${p.s}:`)) ?? '';
+      const r = buildReason(p.kind, why.slice(why.indexOf(':') + 1));
+      add(r.code, r.message, at - m(10), 2 * m(10));
+      continue;
+    }
+    const [from, len] = pieceSpan(t, bp);
+    placed.push({ bp, from, len });
+    const before = issues.length;
+    const name = KIND_NAME[bp.kind];
+    const body = fwdN(bp.i0, bp.i1, n);
+
+    if (bp.kind === 'loop') {
+      const a = ugc ? bp.i0 - m(R.loopBefore) : bp.strip;
+      const l = ugc ? m(R.loopBefore) + m(R.loopAfter) : fwdN(bp.strip, bp.i1, n);
+      if (maxCurv(t, a, l) > 1 / R.loopR || maxGrade(t, a, l) > R.loopGrade) add('loopBend', 'Loops need a long, flat straight. Move the loop onto one.', from, len);
+      else if (!loopClear(t, bp)) add('loopClear', 'The loop is too close to another part of the road. Give it more room.', from, len);
+    } else if (bp.kind === 'wall') {
+      // the lane's full-width part decides the bend
+      const tap = m(STUNT.wall.taper);
+      const c = maxCurv(t, bp.i0 + tap, Math.max(0, body - 2 * tap));
+      let sum = 0;
+      for (let k = 0; k <= body; k++) sum += t.curv[wrapN(bp.i0 + k, n)];
+      const outer = sum >= 0 ? 1 : -1;
+      if (bp.side === 0 ? c > 1 / 60 : c < 1 / R.wallRmax || c > 1 / R.wallRmin) {
+        add('wallBend', bp.side === 0 ? 'A half-pipe wall ride needs a straight.' : 'Wall rides go on a corner, not too tight and not too gentle. Move it onto a bend.', from, len);
+      } else if (bp.side !== 0 && bp.side !== outer) {
+        add('wallBend', 'Wall rides go on the outside of the bend. Tap it to flip its side.', from, len);
+      } else if (!laneClear(t, bp)) {
+        add('wallBend', 'The wall ride needs room beside the road. Pull the roads apart.', from, len);
+      } else if (featureOn(t, from, len, ['lowgrip', 'offroad', 'hazard', 'shortcut'], bp.side) || hazardOn(t, from, len)) {
+        add('wallBend', 'Keep puddles, rough ground and hazards off the wall ride.', from, len);
+      } else if (ugc && junctionNear(t, bp.i0, body, m(R.wallJunction))) {
+        add('wallBend', 'The wall ride is too close to a shortcut.', from, len);
+      }
+    } else if (bp.kind === 'jump') {
+      const g = p.gap ?? STUNT.jump.gap;
+      const drop = p.drop ?? 0;
+      const landLen = fwdN(bp.land0, bp.land1, n);
+      if (bp.gap > 0 && (g < R.gapMin || g > R.gapMax || drop < 0 || drop > R.dropMax)) {
+        add('jumpLine', `Jump gaps are ${R.gapMin}–${R.gapMax} m long and drop ${R.dropMax} m at most.`, from, len);
+      } else if (maxCurv(t, from, len) > 1 / (ugc ? R.jumpR : R.jumpRAuthored) || maxGrade(t, from, fwdN(from, bp.i0, n)) > R.jumpGrade || maxGrade(t, bp.land0, landLen) > R.jumpGrade) {
+        add('jumpLine', 'Jumps need a straight, flat run-up and landing. Move it onto a straight.', from, len);
+      } else if (bp.gap > 0 && fwdN(bp.i1, bp.land1, n) * t.step < 43 * STUNT.jump.tMin - bp.gap + 3) {
+        add('jumpLine', 'The landing is too short. Make the gap shorter.', from, len);
+      } else if (featureOn(t, from, len, ugc ? ['ramp', 'items', 'hazard', 'lowgrip', 'offroad', 'pad', 'shortcut'] : ['ramp', 'hazard', 'lowgrip', 'offroad'], 0) || hazardOn(t, from, len) || rampOn(t, from, len)) {
+        add('jumpLine', "Keep the jump's run-up and landing clear of other stickers.", from, len);
+      }
+    } else {
+      const lenM = body * t.step;
+      const lo = ugc ? R.tunnelMin : 30;
+      const hi = ugc ? R.tunnelMax : 100;
+      const exit = body + m(R.tunnelExit);
+      if (lenM < lo - 0.5 || lenM > hi + 0.5) add('tunnelLen', `Tunnels are ${lo}–${hi} m long.`, from, len);
+      else if (maxCurv(t, bp.i0, body) > 1 / R.tunnelR) add('tunnelLen', 'This corner is too tight for a tunnel.', from, len);
+      else if (rampOn(t, bp.i0, exit) || featureOn(t, bp.i0, exit, ['ramp'], 0)) add('tunnelLen', 'No ramps inside a tunnel or just after it.', from, len);
+    }
+
+    // a ramp keeps 30 m before a loop's strip (a flying kart reaching the loop)
+    if (issues.length === before && bp.kind === 'loop' && rampOn(t, bp.strip - m(R.rampBeforeLoop), m(R.rampBeforeLoop) + fwdN(bp.strip, bp.i1, n))) add('pieceSpacing', 'Keep ramps at least 30 m before a loop.', from, len);
+    if (issues.length === before && ugc) {
+      const toStart = Math.min(fwdN(bp.end, 0, n), fwdN(0, from, n)) * t.step;
+      if (fwdN(from, 0, n) <= len || toStart < R.startClear) add('pieceSpacing', `Move the ${name} away from the start 🏁.`, from, len);
+    }
+  }
+
+  // doodled tracks: pieces 40 m apart (authored: the build's 10 m)
+  if (ugc) {
+    for (const A of placed)
+      for (const B of placed) {
+        if (A === B) continue;
+        const ahead = fwdN(A.from, B.from, n);
+        if (ahead > n / 2) continue;
+        const gap = (ahead - A.len) * t.step;
+        if (gap < R.apart && !issues.some((x) => x.code === 'pieceSpacing' && x.from === B.from)) add('pieceSpacing', 'Two stunts are too close. Spread them out.', B.from, B.len);
+      }
+  }
+  return issues;
+}
+
+/** Nothing else within 12 m of the loop in plan (unless 18 m above or below), beyond its own stretch of road. */
+function loopClear(t: BuiltTrack, bp: BuiltPiece): boolean {
+  const n = t.n;
+  const R = PIECE_RULES;
+  const nb = Math.round(LIMITS.neighbour / t.step);
+  const len = fwdN(bp.strip, bp.i1, n);
+  for (let q = 0; q <= len; q += 2) {
+    const i = (bp.strip + q) % n;
+    for (let j = 0; j < n; j += 2) {
+      if (Math.min(fwdN(i, j, n), fwdN(j, i, n)) < nb) continue;
+      const dx = t.px[i] - t.px[j];
+      const dz = t.pz[i] - t.pz[j];
+      const reach = R.loopClear + outerWall(t, j);
+      if (dx * dx + dz * dz < reach * reach && Math.abs(t.py[i] - t.py[j]) < R.loopClearUp) return false;
+    }
+  }
+  return true;
+}
+
+/** The wall lane's outer rail keeps `minGap` from every other part of the road. */
+function laneClear(t: BuiltTrack, bp: BuiltPiece): boolean {
+  const n = t.n;
+  const nb = Math.round(LIMITS.neighbour / t.step);
+  const len = fwdN(bp.i0, bp.i1, n);
+  for (let q = 0; q <= len; q += 2) {
+    const i = (bp.i0 + q) % n;
+    for (const side of [-1, 1] as const) {
+      const lane = side > 0 ? t.laneR[i] : t.laneL[i];
+      if (lane < 0.5) continue;
+      const off = side * (t.halfW[i] + lane + STUNT.wall.rail);
+      const x = t.px[i] - t.tz[i] * off;
+      const z = t.pz[i] + t.tx[i] * off;
+      for (let j = 0; j < n; j += 2) {
+        if (Math.min(fwdN(i, j, n), fwdN(j, i, n)) < nb) continue;
+        const reach = outerWall(t, j) + LIMITS.minGap;
+        if ((t.px[j] - x) ** 2 + (t.pz[j] - z) ** 2 < reach * reach) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** A built feature of one of `kinds` on samples [from, from + len] (sided ones only on `side`; 0 = any side). */
+function featureOn(t: BuiltTrack, from: number, len: number, kinds: readonly string[], side: number): boolean {
+  return t.features.some((f) => kinds.includes(f.kind) && fwdN(wrapN(from, t.n), f.i, t.n) <= len && (side === 0 || f.side === 0 || f.side === side));
+}
+
+/** A ramp lip (not a set-piece kicker) on samples [from, from + len]. */
+function rampOn(t: BuiltTrack, from: number, len: number): boolean {
+  return t.ramps.some((r) => r.piece == null && fwdN(wrapN(from, t.n), r.i, t.n) <= len);
+}
+
+/** A hazard on the main road on samples [from, from + len]. */
+function hazardOn(t: BuiltTrack, from: number, len: number): boolean {
+  return t.hazards.some((h) => h.branch < 0 && fwdN(wrapN(from, t.n), h.i, t.n) <= len);
+}
+
+/** A branch fork or merge within `w` samples of [i0, i0 + len]. */
+function junctionNear(t: BuiltTrack, i0: number, len: number, w: number): boolean {
+  const a = wrapN(i0 - w, t.n);
+  return t.branches.some((b) => fwdN(a, b.from, t.n) <= len + 2 * w || fwdN(a, b.to, t.n) <= len + 2 * w);
 }

@@ -6,6 +6,7 @@ import type { TrackDef } from '../types';
 import { encodeTrack, trackKey } from './codec/track-code';
 import { trackLink } from './codec/link';
 import { loadCreator } from './store';
+import { ugcPieces } from './editor/pieces';
 
 export function linkFor(def: TrackDef): string {
   return trackLink(encodeTrack(def), location);
@@ -33,11 +34,17 @@ export async function shareTrack(def: TrackDef): Promise<string> {
   }
 }
 
-/** A copy of `def` ready to edit as a remix: the parent key points at the original (GDD 6.4 Remix). */
+/**
+ * A copy of `def` ready to edit as a remix: the parent key points at the original (GDD 6.4 Remix). Set pieces the
+ * doodle rules would refuse (an authored track places them closer together) are dropped, so a remix opens drivable.
+ */
 export function remixOf(def: TrackDef): TrackDef {
   const copy: TrackDef = JSON.parse(JSON.stringify(def)) as TrackDef;
   copy.parent = trackKey(def);
   copy.id = 'draft';
+  const pieces = ugcPieces(copy);
+  if (pieces) copy.setPieces = pieces;
+  else delete copy.setPieces;
   const me = loadCreator();
   if (me) copy.creator = me;
   else delete copy.creator;

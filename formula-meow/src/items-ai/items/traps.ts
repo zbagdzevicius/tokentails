@@ -2,19 +2,36 @@
  * Traps (items-ai lane, GDD 4): the Yarn tangle (dropped behind, spins out) and the Cucumber (lobbed ~18 m ahead or
  * dropped; the cat that hits it does the jump-scare leap). Traps live 30 s, at most 12 on the track (the oldest
  * goes first). A Cardboard Box or Zoomies kart clears a trap without being hit. Sim-safe math only.
+ *
+ * Set pieces (SIM_VERSION 8, ai-ugc lane): a trap never lies under a loop (riders pass above it, so it would sit there
+ * for nothing) or in a jump's lip, gap or landing window (a landing kart cannot steer round it). A lobbed cucumber
+ * that would land there lands just past the piece; a dropped trap is left just before it.
  */
 import { ITEMS, ticks } from '../../tuning';
 import type { SimContext } from '../../core/sim/plugins';
 import { speedOf } from '../../core/sim/kart';
 import { clamp } from '../../core/sim/fixed';
 import { TrapKind, itemsOf, sampleAt, trackPoint, type Trap } from './state';
+import { pieceAtSample } from '../../core/track/stunt';
 import { itemHit, touchable } from './hits';
 
 const T = ITEMS.trap;
 const pt = { x: 0, y: 0, z: 0, si: 0 };
 
+/** Move a trap spot off a loop or a jump (forward past it, or back before it). */
+function clearOfPieces(ctx: SimContext, dist: number, forward: boolean): number {
+  const t = ctx.track;
+  if (!t.pieces.length) return dist;
+  const i = sampleAt(t, dist);
+  const pc = pieceAtSample(t, i);
+  if (!pc || !(pc.kind === 'loop' || (pc.kind === 'jump' && pc.gap > 0))) return dist;
+  const pad = Math.round(2 / t.step);
+  return forward ? dist + ((((pc.end - i) % t.n) + t.n) % t.n + pad) * t.step : dist - ((((i - pc.strip) % t.n) + t.n) % t.n + pad) * t.step;
+}
+
 function place(ctx: SimContext, owner: number, kind: Trap['kind'], dist: number, d: number, flight: number): Trap {
   const s = itemsOf(ctx.st);
+  dist = clearOfPieces(ctx, dist, flight > 0);
   const k = ctx.st.karts[owner];
   // clamp to the road width where the trap lands, not where it was thrown (B21)
   const lim = ctx.track.halfW[sampleAt(ctx.track, dist)] - 1;

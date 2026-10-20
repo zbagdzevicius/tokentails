@@ -8,13 +8,14 @@
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, BOOST, COINS, DRIFT, PHYS, classTuning, ticks } from '../../tuning';
+import { AI, BOOST, COINS, DRIFT, PHYS, STUNT, classTuning, ticks } from '../../tuning';
+import type { BuiltPiece } from '../../core/track/stunt';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
-import { curvatureAhead, followLine } from '../../core/sim/autopilot';
+import { curvatureAhead, followLine, STEER_GAIN, stuntEntryAhead } from '../../core/sim/autopilot';
 import { routeRemaining } from '../../core/track/branch-ai';
 import { speedOf } from '../../core/sim/kart';
 import { draw } from '../../core/sim/rng';
-import { clamp } from '../../core/sim/fixed';
+import { atan2L, clamp, wrapAngle } from '../../core/sim/fixed';
 import { itemsOf, lapGap } from '../items/state';
 import { newBrain, useItems, type BrainMemory } from './item-brain';
 import { bandAdj, bandScale } from './rubber-band';
@@ -53,6 +54,15 @@ const TIER_T = DRIFT.tiers.map((s) => ticks(s));
 const WIDE_TICKS = ticks(AI.wideTime);
 const GRUDGE_TICKS = ticks(AI.rival.grudge);
 const TRICK_T = ticks(BOOST.trick.window);
+
+/**
+ * Set pieces (SIM_VERSION 8, ai-ugc lane, SETPIECES.md section 4). No new drift this close (m) to a loop's strip or a
+ * jump lip, and a drift still held this close to a lip is let go (the launch would end it without its mini-turbo).
+ * No brake this close to either (the loop and the lip floor the speed anyway). Wall lanes: cats with skill ≥
+ * `AI.padSkill` line up from `laneEarly` m before the lane and ride its centre until `laneLate` m before its end.
+ * Trick taps off a jump gap's lip need skill ≥ `trickSkill`.
+ */
+export const STUNT_AI = { noDrift: 20, letGo: 7, noBrake: 25, laneEarly: 25, laneLate: 10, laneIn: 1.4, laneCost: 8, trickSkill: 0.6 } as const;
 
 const DEFAULT_P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
 
@@ -122,6 +132,17 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     return;
   }
 
+  // SIM_VERSION 8: on a loop's rail or held by a jump's net: hands off, gas on (the rail auto-centres), no item press
+  // (item use is buffered until the exit), the rubber band still applies
+  if (k.rail > 0 || k.netTicks > 0) {
+    out.steer = 0;
+    out.gas = true;
+    out.brake = out.drift = out.item = out.itemBack = false;
+    m.driftWant = 0;
+    k.topScale = bandScale(ctx, i, p, bandAdj(ctx, i));
+    return;
+  }
+
   // mistakes (low skill): run wide for ~0.4 s, to the outside of the bend ahead (a late turn-in, a wide exit)
   if (m.slipTicks > 0) m.slipTicks--;
   else if (draw(k, 'rngAi') < p.mistakeRate * AI.mistakeChance) {
@@ -156,6 +177,10 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   // SIM_VERSION 7: no new drift (and so no mini-turbo) in the last stretch of a branch: the merge can be steep
   const branchLeft = routeRemaining(ctx, k.si);
   const nearMerge = branchLeft !== null && branchLeft < Math.max(25, speedOf(k) * 1.2);
+  // SIM_VERSION 8: a loop entry or a jump lip just ahead (main road only), and the wall lane this cat rides
+  const onMain = k.branch < 0;
+  const toStunt = onMain ? stuntEntryAhead(ctx, k.si, STUNT_AI.noBrake) : -1;
+  const lane = onMain && p.skill >= AI.padSkill && m.slipTicks === 0 && !k.air ? laneOf(ctx, i) : 0;
 
   // drift where the track bends
   const sp = speedOf(k);
@@ -166,7 +191,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const curvFor = AI.driftCurv * (1.25 - AI.driftSkill * p.skill);
   if (k.driftDir === 0) {
     // start only when the line itself asks to turn that way (never force a drift against the line)
-    if (!nearMerge && Math.abs(c) > curvFor && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
+    if (!nearMerge && (toStunt < 0 || toStunt > STUNT_AI.noDrift) && !lane && Math.abs(c) > curvFor && sp > DRIFT.minSpeed + 2 && !k.air && m.slipTicks === 0 && m.driftCool === 0 && out.steer * turnDir >= 2) {
       if (!m.driftWant) {
         m.driftWant = 1;
         // skilled drivers hold for orange/pink; 50cc rarely reaches pink
@@ -186,7 +211,9 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     const early = (k.driftCharge >= m.driftHold && draw(k, 'rngAi') < (1 - p.skill) * 0.08) || (m.missAt >= 0 && k.driftCharge >= m.missAt);
     // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
     const overturning = out.steer * k.driftDir <= -5;
-    out.drift = stillBending && !early && !overturning && !nearMerge;
+    // a jump lip right ahead: let go now, the launch would end the drift without its mini-turbo
+    const lip = onMain ? stuntEntryAhead(ctx, k.si, STUNT_AI.letGo, 'jump') : -1;
+    out.drift = stillBending && !early && !overturning && !nearMerge && lip < 0;
     if (!out.drift) {
       m.driftWant = 0;
       m.driftCool = 20;
@@ -196,7 +223,8 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
 
   // ramp tricks: a tap just after the lip (skilled cats nearly always, Kittens now and then)
   if (k.air && k.lipTicks >= 1 && k.lipTicks <= TRICK_T - 1 && !k.trick) {
-    if (k.lipTicks === 1) m.trickTry = draw(k, 'rngAi') < AI.trickBase + (1 - AI.trickBase) * p.skill;
+    // SIM_VERSION 8: off a jump gap's lip only the skilled cats try one
+    if (k.lipTicks === 1) m.trickTry = draw(k, 'rngAi') < AI.trickBase + (1 - AI.trickBase) * p.skill && (k.gapLaunch === 0 || p.skill >= STUNT_AI.trickSkill);
     if (m.trickTry) out.drift = k.pDrift === 0;
   }
 
@@ -204,7 +232,8 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   // more through the bends, one far ahead a little less, so the field stays together where top speed does not decide
   const adj = bandAdj(ctx, i);
   // corner speed (B15): lift, then brake, when the bend ahead needs more turn than the kart has without a drift
-  if (k.driftDir === 0 && !k.air && !out.drift) {
+  // (SIM_VERSION 8: not while lining up for or riding a wall lane: its line has a much larger radius than the road's)
+  if (k.driftDir === 0 && !k.air && !out.drift && !lane) {
     const ahead = Math.max(10, sp * 0.9);
     let c = Math.max(Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
     // a ramp ahead (SIM_VERSION 7): the kart barely steers in the air, so the landing bend counts from the lip
@@ -221,7 +250,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     const top = classTuning(ctx.cfg.cls).topSpeed;
     const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
     const vmax = (1 + AI.cornerBand * adj + AI.cornerClass * ctx.cfg.cls) * Math.min(Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / cc), (yaw * (1.12 + 0.12 * p.skill)) / cc);
-    if (sp > vmax * 1.12) {
+    if (sp > vmax * 1.12 && toStunt < 0) {
       out.gas = false;
       out.brake = true;
     } else if (sp > vmax) out.gas = false;
@@ -263,11 +292,74 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
 
   out.gas = gas;
   out.brake = brake;
+  // SIM_VERSION 8: a skilled cat rides the wall lane (its line has the larger radius, and the lane boosts)
+  if (lane) laneSteer(ctx, i, out, lane);
   wallGuard(ctx, i, out, p);
 
   // items (item-brain.ts) and the capped rubber band (rubber-band.ts)
   useItems(ctx, i, out, m.brain, p, m.grudge > 0);
   k.topScale = bandScale(ctx, i, p, adj);
+}
+
+/**
+ * Extra metres (time × top speed) riding a wall piece's lane costs against the racing line: the lane's inner part sits
+ * on the outside of the bend (a longer way round), the lane's boost gives some back. Built once per track. A lane is
+ * worth riding at ≤ `STUNT_AI.laneCost` m (≈ 0.3 s at 50cc); on a tight bend the outside lane is much longer than the
+ * boost repays, and a racing cat stays on its line there (SETPIECES.md 3.2 wants lanes within ±0.2 s: placement and
+ * `STUNT.wall.level` decide it).
+ */
+export function laneCostM(t: SimContext['track'], pc: BuiltPiece): number {
+  let memo = laneMemo.get(t);
+  if (!memo) laneMemo.set(t, (memo = []));
+  const hit = memo[pc.id];
+  if (hit !== undefined) return hit;
+  let cost = 0;
+  for (let k = pc.i0; k !== pc.i1; k = (k + 1) % t.n) {
+    const side = pc.side !== 0 ? pc.side : t.curv[k] >= 0 ? 1 : -1;
+    if ((side > 0 ? t.laneR[k] : t.laneL[k]) < 2) continue;
+    // + = the lane is on the outside of the bend here
+    const kap = t.curv[k] * side;
+    cost += t.step * ((1 + kap * (t.halfW[k] + STUNT_AI.laneIn)) / STUNT.wall.level - (1 + kap * t.line[k] * side));
+  }
+  memo[pc.id] = cost;
+  return cost;
+}
+
+const laneMemo = new WeakMap<object, number[]>();
+
+/**
+ * The wall lane a kart is lining up for or riding (SIM_VERSION 8): +1 right / -1 left, 0 = none. From `laneEarly` m
+ * before a wall piece's start until `laneLate` m before its end, when the lane is worth riding (`laneCostM`); a
+ * half-pipe (side 0) is ridden on the kart's side.
+ */
+export function laneOf(ctx: SimContext, i: number): -1 | 0 | 1 {
+  const t = ctx.track;
+  const k = ctx.st.karts[i];
+  for (const pc of t.pieces) {
+    if (pc.kind !== 'wall') continue;
+    let pos = ((((k.si - pc.i0) % t.n) + t.n) % t.n) * t.step;
+    if (pos > t.length / 2) pos -= t.length;
+    const len = ((((pc.i1 - pc.i0) % t.n) + t.n) % t.n) * t.step;
+    if (pos < -STUNT_AI.laneEarly || pos > len - STUNT_AI.laneLate || laneCostM(t, pc) > STUNT_AI.laneCost) continue;
+    return pc.side !== 0 ? pc.side : k.d >= 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+/** Steer at the wall lane's centre a look-ahead in front (the outside edge of the road before the lane opens). */
+function laneSteer(ctx: SimContext, i: number, out: TickInput, side: -1 | 1): void {
+  const t = ctx.track;
+  const k = ctx.st.karts[i];
+  const sp = speedOf(k);
+  const look = clamp(sp * AI.lookTime, AI.lookMin, AI.lookMax);
+  const j = (k.si + Math.max(1, Math.round(look / t.step))) % t.n;
+  const lane = side > 0 ? t.laneR[j] : t.laneL[j];
+  // the lane's inner part (the boost counts anywhere on it; its centre is a much longer way round the bend)
+  const d = side * (lane > 2 ? t.halfW[j] + STUNT_AI.laneIn : t.halfW[j] - AI.edge + lane * 0.5);
+  const tx = t.px[j] - t.tz[j] * d;
+  const tz = t.pz[j] + t.tx[j] * d;
+  const err = wrapAngle(atan2L(tx - k.x, tz - k.z) - k.heading);
+  out.steer = Math.round(clamp(-err * STEER_GAIN, -1, 1) * 7);
 }
 
 /**

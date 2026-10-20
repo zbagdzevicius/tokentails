@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { TRACKS } from '../core/track/tracks';
 import { decodeTrackCode, encodeTrack } from '../ugc/codec/track-code';
+import { remixOf } from '../ugc/actions';
 import { trackKey } from './codec/ghost-codec';
 import { encodeGhostSync } from './codec/ghost-codec';
 import { dareUrl, parseRoute } from './links/link';
 
 describe('dares on UGC tracks (share x ugc)', () => {
   it('a shared track re-encoded for a dare link decodes to the same track key the ghost carries', () => {
-    const first = decodeTrackCode(encodeTrack({ ...TRACKS[0], id: 'draft', name: 'Dare Loop' }));
+    const first = decodeTrackCode(encodeTrack({ ...remixOf(TRACKS[0]), name: 'Dare Loop' }));
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     const again = decodeTrackCode(encodeTrack(first.track));
@@ -17,7 +18,7 @@ describe('dares on UGC tracks (share x ugc)', () => {
   });
 
   it('the dare link carries the track code and parseRoute reads it back', () => {
-    const d = decodeTrackCode(encodeTrack({ ...TRACKS[0], id: 'draft', name: 'Dare Loop' }));
+    const d = decodeTrackCode(encodeTrack({ ...remixOf(TRACKS[0]), name: 'Dare Loop' }));
     if (!d.ok) throw new Error('decode');
     const code = encodeTrack(d.track);
     const ghost = encodeGhostSync({ trackKey: trackKey(d.track.id), seed: 7, cls: 1, modifiers: 0, forgiving: false, slot: 7 }, [0, 0, 1]);
