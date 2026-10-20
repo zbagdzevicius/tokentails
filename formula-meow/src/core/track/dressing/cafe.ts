@@ -1,9 +1,10 @@
 /**
  * Cat Café Chaos dressing (props only, a lazy chunk): a cat café after closing time. Plank floor; tables and chairs
- * (round the table slalom and everywhere off the road); fairy-light strings over the road (glowing bulbs); the koi
- * pond under the first jump; the counter with its espresso machine beside the kitchen pass; bookshelves, cat trees,
+ * (round the table slalom and everywhere off the road); fairy-light strings over the road (glowing bulbs); the
+ * counter with its espresso machine beside the kitchen pass; bookshelves, cat trees,
  * cushions and pendant lamps; a big window wall with the night city outside; the neon café sign. One merged toon mesh,
- * one glow mesh and a few canvas signs.
+ * one glow mesh and a few canvas signs. The set pieces' looks (koi pond, cat tree, coffee cup, mug) are skins in
+ * src/tracks/skins/b.ts.
  */
 import { DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three';
 import type { BuiltTrack } from '../build';
@@ -71,20 +72,6 @@ export function dressCafe(t: BuiltTrack, theme: Theme): Group {
       g.boxUp(2, 2.4, 0.3, 0xffc93c, { x: cx + Math.cos(a) * 0.9, y: 2.5, z: cz + Math.sin(a) * 0.9, ry: -a + Math.PI / 2 });
     }
   });
-
-  // the koi pond under the first ramp
-  const ramp = t.ramps[0];
-  if (ramp) {
-    const i = (ramp.i + Math.round(8 / t.step)) % t.n;
-    const side = 1;
-    const off = t.wallR[i] + 9;
-    const x = t.px[i] - t.tz[i] * off * side;
-    const z = t.pz[i] + t.tx[i] * off * side;
-    g.cylUp(7.5, 7.5, 0.7, 20, 0x8a8a9a, { x, y: 0, z });
-    g.cylUp(6.6, 6.6, 0.75, 20, 0x2a6a8a, { x, y: 0.01, z });
-    for (let k = 0; k < 5; k++) g.sphere(0.6, k % 2 ? 0xff8a3d : 0xfff3dc, { x: x + Math.cos(k * 1.4) * 3, y: 0.8, z: z + Math.sin(k * 1.4) * 3, sx: 2, sy: 0.4 }, { vary: 0 }, 6, 3);
-    for (let k = 0; k < 4; k++) g.cylUp(1.4, 1.4, 0.12, 8, 0x3f9a5a, { x: x + Math.cos(k * 2 + 1) * 4.4, y: 0.76, z: z + Math.sin(k * 2 + 1) * 4.4 });
-  }
 
   // the counter and the espresso machine beside the kitchen pass
   for (const b of t.branches) {
