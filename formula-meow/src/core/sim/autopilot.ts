@@ -4,7 +4,7 @@
  * items-ai lane's drivers. Sim-safe math only.
  */
 import type { TickInput } from '../../types';
-import { AI } from '../../tuning';
+import { AI, PHYS } from '../../tuning';
 import { atan2L, clamp, cosL, sinL, wrapAngle } from './fixed';
 import { speedOf } from './kart';
 import type { SimContext } from './plugins';
@@ -76,4 +76,21 @@ export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: n
     out.steer = -out.steer;
   }
   return err;
+}
+
+/**
+ * Speed governor for the Zoomies autopilot (SIM_VERSION 7): Zoomies runs at 1.4× top speed, which at 100cc and 150cc
+ * cannot turn into a hairpin; lift and brake when the bend ahead needs it (the autopilot used to fly into the wall).
+ */
+export function autopilotBrake(ctx: SimContext, idx: number, out: TickInput): void {
+  const k = ctx.st.karts[idx];
+  if (k.air) return;
+  const sp = speedOf(k);
+  const ahead = Math.max(12, sp);
+  const c = Math.max(1e-4, Math.abs(curvatureAhead(ctx, k.si, 2, ahead * 0.5)), Math.abs(curvatureAhead(ctx, k.si, ahead * 0.5, ahead)));
+  const vmax = Math.min(Math.sqrt((AI.cornerAccel * 1.3) / c), (PHYS.yawHigh * 1.25) / c);
+  if (sp > vmax * 1.1) {
+    out.gas = false;
+    out.brake = true;
+  } else if (sp > vmax) out.gas = false;
 }

@@ -68,8 +68,8 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
 
 - No server: best times, fish, Daily streaks, saved tracks and your cat live on the device; dares and tracks travel
   in links.
-- `SIM_VERSION` 6 (playtest round 1: yaw 66°/s at top speed, so tight bends need a drift or a lift; 50cc top speed
-  24 m/s; coins +1 % each; longer kart contact shape; Balloon Battle scored in points with respawns): dares,
+- `SIM_VERSION` 7 (playtest round 2: top speeds 24 / 28 / 32 m/s, a pull toward the pack keeps the field together,
+  a hit cap on the player, 2 s item box respawn, coin trails on the racing line, an AI wall guard): dares,
   time-trial ghosts and records from earlier versions show their time, but their ghost cannot race.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.
 - The minimap draws the main loop only, not the alternative routes.

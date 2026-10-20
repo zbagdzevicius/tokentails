@@ -7,7 +7,7 @@ import { newBrain, threatened, useItems } from './item-brain';
 import { bandScale, skillBase } from './rubber-band';
 import { personalityFor } from './personalities';
 import { itemsOf, ProjKind } from '../items/state';
-import { CLASSES } from '../../tuning';
+import { AI, CLASSES } from '../../tuning';
 import { applyHit } from '../../core/sim/kart';
 
 const P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
@@ -26,6 +26,7 @@ function hold(w: ReturnType<typeof setup>, item: ItemId, ticks: number): TickInp
   k.item = item;
   k.itemCount = 1;
   k.rouletteTicks = 0;
+  k.boostTicks = 0; // the world is not stepped while holding: a start boost would never run out
   const m = newBrain();
   const outs: TickInput[] = [];
   for (let t = 0; t < ticks; t++) {
@@ -76,7 +77,7 @@ describe('AI item brain (GDD 5.2)', () => {
 });
 
 describe('rubber band (GDD 5.3)', () => {
-  it('is capped per class and never lifts an AI above the unboosted top speed', () => {
+  it('is capped per class: above the class top speed only behind a leading player, never above maxScale', () => {
     for (const cls of [0, 1, 2] as const) {
       const w = world(raceConfig(KITCHEN, { seed: 3, cls, humans: [5] }));
       while (w.tick < GO_TICK + 10) w.step([NO_INPUT]);
@@ -86,8 +87,10 @@ describe('rubber band (GDD 5.3)', () => {
       const up = bandScale(w.ctx, 0, p);
       w.st.karts[5].dist = w.st.karts[0].dist - 500; // player far behind
       const down = bandScale(w.ctx, 0, p);
-      expect(up).toBeLessThanOrEqual(1);
+      expect(up).toBeLessThanOrEqual(CLASSES[cls].maxScale + 1e-9);
       expect(up).toBeLessThanOrEqual(base * (1 + CLASSES[cls].bandUp) + 1e-9);
+      expect(up).toBeGreaterThan(base);
+      expect(down).toBeLessThanOrEqual(1);
       expect(down).toBeCloseTo(base * (1 - CLASSES[cls].bandDown), 9);
     }
   });
@@ -120,17 +123,24 @@ describe('rubber band (GDD 5.3)', () => {
       }
   });
 
-  it('the rival rides a stronger band (+4 % base, up to +8 % behind) but still never above 1', () => {
-    const cfg = raceConfig(KITCHEN, { seed: 3, cls: 0, humans: [5] });
+  it('the rival rides a stronger band behind the player (no 50cc base bonus), capped at maxScale', () => {
+    const cfg = raceConfig(KITCHEN, { seed: 3, cls: 1, humans: [5] });
     cfg.racers[0] = { ...cfg.racers[0], rival: true };
     const w = world(cfg);
     while (w.tick < GO_TICK + 10) w.step([NO_INPUT]);
     const p = cfg.racers[0].ai!;
     w.st.karts[5].dist = w.st.karts[0].dist + 500;
     const rival = bandScale(w.ctx, 0, p);
-    expect(rival).toBeLessThanOrEqual(1);
-    expect(rival).toBeCloseTo(Math.min(1, skillBase(0, p.skill, true) * 1.08), 9);
-    expect(rival).toBeGreaterThan(Math.min(1, skillBase(0, p.skill) * (1 + CLASSES[0].bandUp)));
+    expect(rival).toBeLessThanOrEqual(CLASSES[1].maxScale + 1e-9);
+    expect(rival).toBeCloseTo(Math.min(CLASSES[1].maxScale, skillBase(1, p.skill, true) * (1 + CLASSES[1].bandUp + AI.rival.bandUp)), 9);
+    expect(skillBase(0, p.skill, true)).toBe(skillBase(0, p.skill)); // 50cc: no head start, the rival never runs away
+    // ahead of the player the rival gets no extra pull
+    w.st.karts[5].dist = w.st.karts[0].dist - 500;
+    const cfg2 = raceConfig(KITCHEN, { seed: 3, cls: 1, humans: [5] });
+    const w2 = world(cfg2);
+    while (w2.tick < GO_TICK + 10) w2.step([NO_INPUT]);
+    w2.st.karts.forEach((k, i) => (k.dist = w.st.karts[i].dist));
+    expect(bandScale(w.ctx, 0, p) / skillBase(1, p.skill, true)).toBeCloseTo(bandScale(w2.ctx, 0, p) / skillBase(1, p.skill), 9);
   });
 
   it('difficulty rises with the class: 150cc AI is more skilled than 50cc AI', () => {

@@ -41,6 +41,8 @@ const KART_FIELDS: readonly (keyof KartState)[] = [
   'finishTime', 'place', 'stuckTicks', 'progDist', 'topScale',
   // SIM_VERSION 4 (6: battle score fields are hashed by the mode rules)
   'lapMax', 'lapStartPrev', 'coins', 'balloons', 'out', 'itemBuf', 'itemBufBack', 'wrongTicks', 'branch',
+  // SIM_VERSION 7
+  'guardTicks',
 ];
 
 /** Full race-state hash (GDD 3.1: every 60 ticks; tests assert golden values). The items lane hashes its own slot. */
