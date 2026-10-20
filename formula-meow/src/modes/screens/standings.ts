@@ -32,7 +32,8 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     const moved = before.indexOf(fi) - now.indexOf(fi);
     const pts = h('b', { class: 'pts', role: 'cell' }, [String(run.points[fi] - (gained[fi] ?? 0))]);
     const row = h('div', { class: `fm-m-srow${r.player ? ' me' : ''}${fi === run.rival ? ' rival' : ''}`, role: 'row' }, [
-      h('span', { class: 'pos', role: 'cell' }, [String(now.indexOf(fi) + 1)]),
+      // B8 (polish): the row shows its old place until it slides into the new one
+      h('span', { class: 'pos', role: 'cell' }, [String(before.indexOf(fi) + 1)]),
       h('i', { class: 'dot', style: `background:${hex(r.kart.paint[0])}`, 'aria-hidden': 'true' }),
       h('span', { class: 'nm', role: 'cell' }, [r.name, fi === run.rival ? h('small', { class: 'rv' }, [` ${t('RIVAL')}`]) : null]),
       h('span', { class: `mv${moved > 0 ? ' up' : moved < 0 ? ' down' : ''}`, role: 'cell', 'aria-label': moved ? t(moved > 0 ? 'up {n}' : 'down {n}', { n: Math.abs(moved) }) : '' }, [moved > 0 ? `▲${moved}` : moved < 0 ? `▼${-moved}` : '']),
@@ -63,6 +64,8 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     for (const { fi, row } of rows) {
       row.classList.add('go');
       row.style.transform = `translateY(${now.indexOf(fi) * ROW_H}px)`;
+      const pos = row.querySelector('.pos');
+      if (pos) setTimeout(() => (pos.textContent = String(now.indexOf(fi) + 1)), reducedMotion() ? 0 : 450);
     }
     table.classList.add('moved');
   };
@@ -75,7 +78,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   }
 
   const quit = () =>
-    void modal(t('Quit the cup?'), t('Your cup is saved. Resume it from the menu at the next race.'), [t('Quit'), t('Keep racing')]).then((i) => {
+    void modal(t('Quit the cup?'), t('Your cup is saved. Resume it from the menu at the next race.'), [t('Quit'), t('Keep racing')], { focus: 1 }).then((i) => {
       if (i === 0) f.shell.quitToMenu();
     });
   fr.footer.append(plain(t('Quit cup'), quit, 'quit'), primary(done ? t('Podium 🏆') : t('Next race ▶'), () => f.runCupRace(), 'continue'));

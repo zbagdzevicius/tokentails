@@ -32,6 +32,7 @@ import { trackCodec, trackFromLocation } from '../ugc/codec/track-codec';
 import { displayName } from '../ugc/actions';
 import type { TrackDef } from '../types';
 import { focusNav } from '../ui/kit';
+import { GO_TICK } from '../core/sim/world';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -142,8 +143,20 @@ export function installShare(shell: Shell): void {
     b.textContent = text;
     shell.host.appendChild(b);
     banner = b;
-    setTimeout(() => b.classList.add('off'), 3800);
-    setTimeout(() => b.remove(), 4400);
+    // B11: the banner stays up while the grid waits for "TAP TO RACE" and fades 1.5 s after GO (it used to fade after
+    // 3.8 s, long before a player tapped); at least 3.8 s, at most a minute
+    const t0 = performance.now();
+    const w0 = shell.world;
+    const poll = setInterval(() => {
+      const w = shell.world;
+      const el = performance.now() - t0;
+      const gone = !b.isConnected || w !== w0 || el > 60_000;
+      if (gone || (el > 3800 && (!w || w.tick > GO_TICK + 90))) {
+        clearInterval(poll);
+        b.classList.add('off');
+        setTimeout(() => b.remove(), 600);
+      }
+    }, 200);
   };
   // B47: a dare that cannot be raced says so, on the grid as well as in a toast (a toast alone was gone before the
   // boot loader cleared, so the race looked like a plain Kitchen race)

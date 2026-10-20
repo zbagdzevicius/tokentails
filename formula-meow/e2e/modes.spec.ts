@@ -73,7 +73,8 @@ test('title → menu → Grand Prix, four races → standings → podium → men
   await page.locator('[data-screen="podium"] [data-act="menu"]').click();
   // [integrator] the progression lane's cup rewards (fish from the four races, the trophy) open over the menu
   await expect.poll(() => topId(page), { timeout: 10_000 }).toBe('rewards');
-  await expect(page.locator('[data-screen="rewards"] .fm-prog-reasons')).toContainText('cup');
+  // the race fish were paid on each results screen: the rewards recap them on their own line, not in the total (B2)
+  await expect(page.locator('[data-screen="rewards"] .fm-rw')).toContainText('this cup');
   await page.screenshot({ path: 'e2e/screens/modes-rewards.png' });
   await page.locator('[data-screen="rewards"] [data-act="continue"]').click();
   await expect(page.locator('[data-screen="menu"]')).toBeVisible();

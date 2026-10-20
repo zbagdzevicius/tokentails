@@ -60,15 +60,23 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
   };
   if (hasScreen('rewards')) {
     // two rows: Rewards full width, then the three small buttons
+    // B1: the rewards can be opened once; after that the button says so and does nothing (it showed "+0 🐟" again)
     const rw = primary(
       t('Rewards 🎁'),
       () => {
+        if (seen) return;
         seen = true;
         void screens.push('rewards', rewardsParams);
+        rw.disabled = true;
+        rw.textContent = t('Rewards claimed ✓');
+        rw.classList.remove('primary');
+        // the next action becomes the main one
+        const next = fr.footer.querySelector<HTMLButtonElement>('[data-act="next-cup"], [data-act="menu"]');
+        next?.classList.add('primary');
       },
       'rewards',
     );
-    rw.classList.add('big');
+    rw.classList.add('big', 'fm-m-rw');
     fr.footer.append(rw);
   }
   if (nextOpen) fr.footer.append((hasScreen('rewards') ? plain : primary)(t('Next cup ▶'), via(() => f.startCup(nextCup.id, run.cls)), 'next-cup'));

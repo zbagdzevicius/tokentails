@@ -82,8 +82,10 @@
 .fm-m-hero .fm-ui-tile small { font-size: var(--fm-fs-s, 14px); }
 .fm-m-modes { grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 560px) { .fm-m-modes { grid-template-columns: repeat(4, 1fr); } }
-.fm-m-strip { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
-.fm-m-strip .fm-ui-tile { min-height: 66px; padding: 6px 4px; font-size: 13px; gap: 2px; }
+/* 8 small tiles: two even rows of 4 (desktop left Settings and Help alone on a second row) */
+.fm-m-strip { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.fm-m-strip .fm-ui-tile { min-height: 66px; padding: 6px 4px; font-size: 13px; gap: 2px; min-width: 0; }
+.fm-m-strip .fm-ui-tile > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-m-strip .fm-ui-tile .i { font-size: 22px; }
 .fm-m-resume { display: flex; gap: 8px; }
 .fm-m-resume-go { flex: 1; display: flex; flex-direction: column; align-items: flex-start; text-align: left; font-family: var(--fm-font); font-weight: 900; }
@@ -91,7 +93,7 @@
 .fm-m-resume-drop { flex: none; width: 52px; }
 @media (orientation: landscape) and (max-height: 500px) {
   .fm-m-modes, .fm-m-strip { grid-template-columns: repeat(4, 1fr); }
-  .fm-m-strip { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+  .fm-m-strip { grid-template-columns: repeat(8, 1fr); }
   .fm-m-hero .fm-ui-tile { min-height: 72px; }
   .fm-m-tiles .fm-ui-tile { min-height: 72px; padding: 6px 8px; }
   .fm-m-tiles .fm-ui-tile .i { font-size: 22px; }
@@ -221,10 +223,13 @@
   .fm-mh-clock { top: calc(76px + env(safe-area-inset-top)); }
 }
 
-/* podium footer: Rewards on its own row, then Next cup / Again / Menu on one line without wrapping */
-.fm-m-podium-panel .fm-btn { white-space: nowrap; }
+/* podium footer: Rewards on its own full-width row, then Next cup / Again / Menu sharing one line (B10: the 🎁 spilt
+   past a cramped button at 1440 px; "Rewards" was cut to "Rewa" at 390 px) */
+.fm-m-podium-panel .fm-m-footer.fm-ui-footer { flex-wrap: wrap; }
+.fm-m-podium-panel .fm-m-footer .fm-btn { white-space: nowrap; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fm-m-podium-panel .fm-m-footer .fm-btn.fm-m-rw { flex: 1 0 100%; }
 @media (max-width: 420px) {
-  .fm-m-podium-panel .fm-btn:not(.big) { padding: 10px 10px; font-size: 16px; }
+  .fm-m-podium-panel .fm-btn:not(.big) { padding: 10px 8px; font-size: 15px; }
 }
 
 /* a link styled as a button centres its words like a button (they sat at the top of the box) */
@@ -232,3 +237,10 @@ a.fm-btn { display: inline-flex; align-items: center; justify-content: center; t
 /* cup cards on phones: one track per line, never broken mid-name ("1. Kitchen / Counter") */
 .fm-m-cup ol li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; break-inside: avoid; }
 @media (max-width: 420px) { .fm-m-cup ol { columns: 1; } }
+
+/* racer select: Pink Paw cats still to win, as silhouettes (playtest round 2) */
+.fm-m-chip.fm-m-silhouette { background: rgba(42, 34, 64, 0.12); }
+.fm-m-chip.fm-m-silhouette .lb { opacity: 0.55; }
+.fm-m-chip.fm-m-silhouette .sw i { filter: brightness(0.6); }
+/* cup cards on desktop: names wrap instead of "Kitchen Counter · m…" (polish 12) */
+@media (min-width: 560px) { .fm-m-cup ol li { white-space: normal; overflow: visible; } }

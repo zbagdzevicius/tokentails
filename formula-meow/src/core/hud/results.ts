@@ -156,15 +156,17 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   const again = ghostLost ? t('Rematch 👻') : t('Again ↻');
   host.innerHTML = `
     <div class="fm-panel fm-sticker fm-results" role="dialog" aria-label="${esc(t('Results'))}">
+      <div class="fm-res-scroll">
       <h2><span data-raw>${esc(v.trackName)}</span> · <span data-raw>${esc(v.className)}</span></h2>
       ${r.mode === 'tt' ? '' : `<div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>`}
       <div class="fm-stats">${stats}</div>
       ${splits}
       <table class="fm-table">${rowsHtml(r, g)}</table>
-      ${v.unlock ? `<p class="fm-line"><button class="fm-btn primary" data-act="unlock">${esc(v.unlock.label)}</button></p>` : ''}
+      ${v.unlock ? `<p class="fm-line"><button class="fm-res-unlock" data-act="unlock">🎉 ${esc(v.unlock.label)}</button></p>` : ''}
       <div class="fm-lines" data-raw>${v.lines.map((l) => `<p class="fm-line">${esc(l)}</p>`).join('')}</div>
       ${rivalLine}
       <div class="fm-sections"></div>
+      </div>
       <div class="fm-res-main">
         <button class="fm-btn${ghostLost ? '' : ' primary big'}" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
         <button class="fm-btn${ghostLost ? ' primary big' : ''}" data-act="again">${esc(again)}</button>
@@ -197,13 +199,27 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   if (!calm && place) {
     place.classList.add('stamp');
     table.classList.add('rows-in');
-    table.querySelectorAll<HTMLElement>('tr').forEach((tr, i) => (tr.style.animationDelay = `${0.25 + i * 0.05}s`));
+    // the whole table is in within ~0.5 s (polish 3: a 250 px hole sat there after Continue appeared)
+    table.querySelectorAll<HTMLElement>('tr').forEach((tr, i) => (tr.style.animationDelay = `${0.12 + i * 0.03}s`));
     setTimeout(() => uiSound('stamp', me.place), 260);
   } else uiSound('stamp', me.place);
   const timeEl = host.querySelector<HTMLElement>('[data-to="time"]');
   const lapEl = host.querySelector<HTMLElement>('[data-to="lap"]');
-  if (timeEl) countUp(timeEl, me.time, 750, true);
-  if (lapEl) countUp(lapEl, me.bestLap, 750, false);
+  if (timeEl) countUp(timeEl, me.time, 550, true);
+  if (lapEl) countUp(lapEl, me.bestLap, 550, false);
+  // a fade at the bottom of the scrolling part says there is more below (fun 9 / B8: sections looked cut off)
+  const scroll = host.querySelector<HTMLElement>('.fm-res-scroll');
+  if (scroll) {
+    const more = () => scroll.classList.toggle('more', scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight > 8);
+    scroll.addEventListener('scroll', more, { passive: true });
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(more);
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(more);
+      ro.observe(scroll);
+      for (const c of scroll.children) ro.observe(c);
+    }
+    setTimeout(more, 600);
+  }
   let last = '';
   let ghostNow = g;
   return {

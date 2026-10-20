@@ -46,8 +46,9 @@ const UP = 2.55;
 const AHEAD = 7;
 const LOOK_Y = 0.55;
 /** portrait (phones): further back, higher and looking further ahead, so bends ahead are on screen */
-const P_BACK = 7;
-const P_UP = 4;
+// playtest round 2: 10 % closer (the phone player was ~70 px wide, and the far camera made 50cc feel slow)
+const P_BACK = 6.3;
+const P_UP = 3.6;
 const P_AHEAD = 12;
 const P_LOOK_Y = 0;
 const P_VFOV_MAX = 90;
@@ -245,12 +246,46 @@ export class ChaseCamera {
     // twice: one pull can land past the wall of the next bend sample (the portrait rig sits 7 m back)
     this.wallClampOnce(p, kx, kz, si);
     this.wallClampOnce(p, kx, kz, si);
+    this.blockClamp(p, kx, kz);
+  }
+
+  /**
+   * Playtest round 2 (battle B3: the sofa filled the phone screen for a whole frame at 96 km/h): solid props (the
+   * arena's `BuiltTrack.blocks`) between the kart and the camera pull the camera in front of them, a little higher.
+   */
+  private blockClamp(p: Vector3, kx: number, kz: number): void {
+    const blocks = this.source?.track.blocks;
+    if (!blocks?.length) return;
+    const dx = p.x - kx;
+    const dz = p.z - kz;
+    const a = dx * dx + dz * dz;
+    if (a < 1e-6) return;
+    const len = Math.sqrt(a);
+    let tMin = 1;
+    for (const b of blocks) {
+      const R = b.r + 0.7;
+      const fx = kx - b.x;
+      const fz = kz - b.z;
+      const c = fx * fx + fz * fz - R * R;
+      if (c <= 0) continue; // the kart is (nearly) touching it: nothing sits between
+      const bb = 2 * (fx * dx + fz * dz);
+      const disc = bb * bb - 4 * a * c;
+      if (disc <= 0) continue;
+      const t1 = (-bb - Math.sqrt(disc)) / (2 * a);
+      if (t1 > 0 && t1 < tMin) tMin = t1;
+    }
+    if (tMin >= 1) return;
+    const keep = Math.max(2.5, tMin * len - 0.4) / len;
+    p.x = kx + dx * keep;
+    p.z = kz + dz * keep;
+    p.y += 1.6 * (1 - keep);
   }
 
   private wallClampOnce(p: Vector3, kx: number, kz: number, si: number): void {
     const s = this.source;
-    if (!s || s.track.arena) return;
+    if (!s) return;
     const t = s.track;
+    // an arena's inner wall is past the ring's centre: only its outer wall (the room's edge) can come between
     // the camera rides ~6 m behind the kart: the kart's sample is a good continuity hint
     queryTrack(t, p.x, p.z, si >= 0 && si < t.n ? si : 0, hit);
     const wall = (hit.d > 0 ? (hit.wallR ?? t.wallR[hit.i]) : (hit.wallL ?? t.wallL[hit.i])) - 0.6;
@@ -306,7 +341,9 @@ export class ChaseCamera {
     const kickTarget = rm || !racing ? 0 : boosting ? (this.strongBoost || k.autoTicks > 0 || k.boostLevel >= 1.34 ? FOV_KICK.strong : FOV_KICK.boost) : k.driftDir !== 0 ? FOV_KICK.drift : 0;
     const rate = kickTarget > this.fovKick ? dt / 0.12 : dt / 0.6;
     this.fovKick += (kickTarget - this.fovKick) * Math.min(1, rate * 3);
-    const speedFov = rm || !racing ? 0 : Math.max(0, speed / topSpeed - 0.5) * 6;
+    // plus an absolute term (playtest round 2: 100cc and 150cc felt no faster): about +1° at 50cc, +4° at 100cc and
+    // +6° at 150cc top speed
+    const speedFov = rm || !racing ? 0 : Math.max(0, speed / topSpeed - 0.5) * 6 + Math.max(0, Math.min(6, (speed - 23) * 0.7));
     const hfov = (75 + this.feel.landscapeBonus + this.fovKick + speedFov) * DEG;
     const vfov = 2 * Math.atan(Math.tan(hfov / 2) / this.cam.aspect);
     const cap = 100 + (P_VFOV_MAX + this.fovKick * 0.6 - 100) * this.portrait;

@@ -179,4 +179,5 @@ export const CORE_EN: Record<string, string> = {
   "🏁 Tracks": "🏁 Tracks",
   "✏️ Edit track": "✏️ Edit track",
   "+{n} laps": "+{n} laps",
+  "Practice ↻": "Practice ↻",
 };

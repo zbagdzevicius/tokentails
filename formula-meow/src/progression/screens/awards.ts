@@ -4,6 +4,7 @@
  * class, time trial medals).
  */
 import type { ScreenApi, ScreenModule } from '../../core/app/screens';
+import { screens } from '../../core/app/screens';
 import { actionFooter, button, h, panel, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { ACHIEVEMENT_IDS, CUP_IDS } from '../../content/ids';
@@ -115,7 +116,7 @@ export function awardsScreen(): ScreenModule {
       };
       root.append(
         panel(null, [
-          h('div', { class: 'fm-prog-head' }, [h('h1', {}, [t('Awards')]), h('span', { class: 'fm-prog-wallet' }, [`🏆 ${Object.keys(prog().achievements).length}/${ACHIEVEMENT_IDS.length}`])]),
+          h('div', { class: 'fm-prog-head' }, [h('button', { class: 'fm-m-back', type: 'button', 'aria-label': t('Back'), 'data-act': 'head-back', onclick: () => screens.back() }, ['‹']), h('h1', {}, [t('Awards')]), h('span', { class: 'fm-prog-wallet' }, [`🏆 ${Object.keys(prog().achievements).length}/${ACHIEVEMENT_IDS.length}`])]),
           tabs([t('Today'), t('Achievements'), t('Trophies')], show, start),
           body,
           actionFooter([button(t('Back'), () => api.close(), { primary: true, act: 'back' })]),

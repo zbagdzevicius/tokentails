@@ -68,7 +68,7 @@ export class SpeedLines {
             over(o, mix(vec3(1.0), uColor, 0.6), lane * streak * edge * uAlpha * 0.5);
           }
           // catnip: a rainbow wash, strongest at the edges
-          if (uTint > 0.0) over(o, hue(r * 1.5 - uTime * 0.8 + p.x), uTint * (0.12 + 0.3 * smoothstep(0.2, 0.7, r)));
+          if (uTint > 0.0) over(o, hue(r * 1.5 - uTime * 0.8 + p.x), uTint * (0.03 + 0.24 * smoothstep(0.35, 0.85, r))); // playtest round 2: edges only, the track stays readable
           // flash
           if (uFlash > 0.0) over(o, uFlashColor, uFlash * (0.55 + 0.45 * smoothstep(0.1, 0.7, r)));
           if (o.a < 0.004) discard;

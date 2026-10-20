@@ -261,6 +261,17 @@ export class TouchInput implements InputSource {
     this.pending = { item: false, itemBack: false, any: false, drift: false, gas: false };
   }
 
+  /** Drift charge on the stick ring (playtest round 2): tier 0 = none, 1–3 = the tier colour; null = not drifting. */
+  setDrift(tier: number | null, color = ''): void {
+    const v = tier == null ? '' : color;
+    if (this.base.style.getPropertyValue('--tier') !== v) {
+      if (v) this.base.style.setProperty('--tier', v);
+      else this.base.style.removeProperty('--tier');
+      this.base.classList.toggle('drift', tier != null);
+      this.base.dataset.tier = tier == null ? '' : String(tier);
+    }
+  }
+
   setItem(label: string, ready: boolean): void {
     const icon = this.itemBtn.querySelector('.fm-item-icon')!;
     if (icon.textContent !== label) icon.textContent = label;

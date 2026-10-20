@@ -103,6 +103,7 @@ export class TrackDoodle {
   private readonly redoBtn: HTMLButtonElement;
   private readonly raceBtn: HTMLButtonElement;
   private readonly shareBtn: HTMLButtonElement;
+  private readonly saveBtn: HTMLButtonElement;
   private readonly title: HTMLDivElement;
 
   private def: TrackDef;
@@ -201,7 +202,7 @@ export class TrackDoodle {
     this.panel = el('div', 'fm-ed-panel');
 
     const actions = el('div', 'fm-ed-actions');
-    const saveBtn = el('button', 'fm-btn', '💾 Save');
+    const saveBtn = (this.saveBtn = el('button', 'fm-btn', '💾 Save'));
     saveBtn.addEventListener('click', () => {
       this.save();
       this.flash('Saved on this device.');
@@ -497,6 +498,8 @@ export class TrackDoodle {
     this.redoBtn.disabled = !this.history.canRedo;
     this.raceBtn.disabled = !this.v.ok;
     this.shareBtn.disabled = !this.v.ok;
+    // polish B9: nothing drawn, nothing to save
+    this.saveBtn.disabled = this.def.points.length === 0;
     const empty = this.def.points.length === 0;
     this.hint.textContent = empty && this.tab === 'draw' && !this.stroke ? 'Draw a loop ✍️' : '';
     this.refreshStatus();

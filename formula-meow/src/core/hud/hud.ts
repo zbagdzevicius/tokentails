@@ -43,6 +43,10 @@ export const ITEM_NAME: Record<ItemId, string> = {
   laser: 'Laser Dot',
 };
 const ROULETTE = Object.values(ITEM_ICON);
+/** The roulette's current icon (the HUD slot and the touch item button show the same one, playtest round 2 B6). */
+export function rouletteIcon(tick: number, rouletteTicks: number): string {
+  return ROULETTE[Math.floor(tick / (2 + (72 - rouletteTicks) / 12)) % ROULETTE.length];
+}
 /** Drift tier shapes: the colour-blind shape cue next to every tier colour. */
 export const TIER_SHAPE = ['●', '◆', '★'] as const;
 
@@ -399,6 +403,8 @@ export class Hud {
     const k = st.karts[me];
     const m = this.model;
     const battle = m.mode === 'battle';
+    const pre = st.tick < goTick;
+    if (pre !== this.root.classList.contains('pre')) this.root.classList.toggle('pre', pre);
     // place badge
     const place = k.place;
     const posHtml = ordinal(place);
@@ -422,7 +428,7 @@ export class Hud {
     // item slot: the roulette spins and slows, then the item pops in with its name
     let itemHtml = '';
     const rolling = !!k.item && k.rouletteTicks > 0;
-    if (rolling) itemHtml = ROULETTE[Math.floor(st.tick / (2 + (72 - k.rouletteTicks) / 12)) % ROULETTE.length];
+    if (rolling) itemHtml = rouletteIcon(st.tick, k.rouletteTicks);
     else if (k.item) itemHtml = ITEM_ICON[k.item] + (k.itemCount > 1 ? `<span class="n">×${k.itemCount}</span>` : '');
     if (itemHtml !== this.lastHtml.item) {
       this.itemIcon.innerHTML = itemHtml;
@@ -524,7 +530,8 @@ export class Hud {
     if (battle) {
       const left = Math.max(0, m.balloons?.[me] ?? k.balloons);
       const pts = m.battleScore?.[me] ?? 0;
-      bHtml = k.out ? `<span class="out">${t('POPPED')}</span>` : '🎈'.repeat(left) + '<span class="pop">💨</span>'.repeat(Math.max(0, 3 - left));
+      // one row of balloons (B2: as flex items of the column box they stacked into a 180 px tower on phones)
+      bHtml = k.out ? `<span class="out">${t('POPPED')}</span>` : `<span class="row">${'🎈'.repeat(left)}${'<span class="pop">💨</span>'.repeat(Math.max(0, 3 - left))}</span>`;
       bHtml += `<small>★ ${pts === 1 ? t('1 point') : t('{n} points', { n: pts })}</small>`;
     }
     if (bHtml !== this.lastHtml.balloons) {
@@ -775,7 +782,8 @@ export class Hud {
         break;
       case 'finish':
         if (this.model.mode === 'battle') this.say(e.a === 1 ? t('TOP CAT!') : t('TIME!'), { prio: 3, tone: 'gold', ms: 2200 });
-        else this.say(e.a === 1 ? t('WINNER!') : t('FINISH! {p}', { p: ordinalText(e.a ?? 0) }), { prio: 3, tone: 'gold', ms: 2200 });
+        // polish 8: the place lands as a big stamp (it was the size of BIG AIR!), the word under it
+        else this.say(ordinalText(e.a ?? 0), { prio: 3, tone: 'gold', ms: 2400, big: true, sub: e.a === 1 ? t('WINNER!') : t('FINISH!') });
         break;
     }
   }

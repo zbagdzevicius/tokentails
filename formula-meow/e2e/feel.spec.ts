@@ -88,7 +88,8 @@ test('the big hand lifts the kart, carries it and sets it down facing forward', 
           const k = s.world!.st.karts[5];
           return k.respawnTicks > 0 && s.view!.karts[5].root.visible && !!hand && !!hand.parent?.visible && s.view!.shown[5].y > k.y + 0.5;
         }),
-      { timeout: 10_000 },
+      // the lift lasts ~0.6 s: poll often (the default back-off to 1 s polls could step right over it)
+      { timeout: 10_000, intervals: [50] },
     )
     .toBe(true);
   await page.screenshot({ path: 'e2e/screens/feel-hand.png' });

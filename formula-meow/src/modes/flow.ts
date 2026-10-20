@@ -516,7 +516,7 @@ export class ModesFlow {
   }
 
   async quitCupAsk(): Promise<boolean> {
-    const i = await modal(t('Quit the cup?'), t('Your cup is saved. Resume it from the menu at the next race.'), [t('Quit'), t('Keep racing')]);
+    const i = await modal(t('Quit the cup?'), t('Your cup is saved. Resume it from the menu at the next race.'), [t('Quit'), t('Keep racing')], { focus: 1 });
     return i === 0;
   }
 
@@ -648,7 +648,8 @@ export class ModesFlow {
   // ------------------------------------------------------------------------------------------------------------------
 
   battleClass(): RaceClass {
-    return this.lock('class', 1) ? 0 : 1;
+    // playtest round 2: battle at 50cc crawled (27–52 km/h); the arena is small, so it always runs at 100cc
+    return 1;
   }
 
   startBattle(): void {

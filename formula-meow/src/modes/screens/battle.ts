@@ -14,9 +14,9 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   fr.body.append(
     list([
       t('🎈 {n} balloons each, {m} minutes on the clock.', { n: BATTLE.balloons, m: BATTLE.time / 60 }),
-      t('💥 Every item hit pops one balloon.'),
-      t('⚡ Ram a cat while boosting to steal a balloon.'),
-      t('🏆 Last cat with balloons wins. At time up: most balloons.'),
+      t('💥 Pop a balloon with an item: +1 point.'),
+      t('⚡ Ram a cat while boosting to steal a balloon: +1 point.'),
+      t('🏆 Most points when the clock ends wins. Lose all your balloons: −1 point, and you are back in {s} s.', { s: BATTLE.outTime }),
     ]),
   );
   if (s.battle.played) fr.body.append(h('p', { class: 'fm-line' }, [t('Your record: {w} wins in {n} battles', { w: s.battle.wins, n: s.battle.played })]));

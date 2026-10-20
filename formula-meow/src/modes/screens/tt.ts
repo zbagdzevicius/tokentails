@@ -10,7 +10,7 @@ import { h, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow, fmt } from '../flow';
 import type { ClassPick, GhostPick } from '../store';
-import { classChips } from './class';
+import { CLASS_BLURB_TT, classChips } from './class';
 import { chip, focusFirst, frame, MEDAL, primary, guardedBack } from './ui';
 
 export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): ScreenHandle {
@@ -32,7 +32,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
       classChips((c) => {
         cls = c;
         renderAll();
-      }, cls, false),
+      }, cls, false, CLASS_BLURB_TT),
     );
   };
 

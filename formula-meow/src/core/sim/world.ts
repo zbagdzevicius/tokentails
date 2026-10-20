@@ -307,7 +307,10 @@ function projectGap(st: SimWorld['st'], kart: number, go: number): number | null
   if (!win || !(win.finishTime > 0)) return null;
   const left = st.laps * L - st.karts[kart].dist;
   if (left >= L) return -Math.floor(left / L);
-  const v = (st.laps * L) / (win.finishTime / 60);
-  const eta = (st.tick - go) / 60 + Math.max(0, left) / Math.max(1, v);
+  // the kart's own average speed so far (playtest round 2: the winner's average was ~2× off when a slow-starting
+  // player won and the AI behind were faster than the winner had been on average)
+  const el = (st.tick - go) / 60;
+  const v = el > 1 ? st.karts[kart].dist / el : (st.laps * L) / (win.finishTime / 60);
+  const eta = el + Math.max(0, left) / Math.max(1, v);
   return Math.max(0, eta - win.finishTime / 60);
 }

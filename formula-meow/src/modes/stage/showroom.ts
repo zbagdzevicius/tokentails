@@ -29,6 +29,10 @@ import {
   TorusGeometry,
   Vector2,
   BackSide,
+  AdditiveBlending,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
   type Material,
 } from 'three';
 import type { KartState, RacerInfo } from '../../types';
@@ -77,6 +81,31 @@ function trophyMesh(colour: number): Group {
   }
   g.userData.mat = mat;
   return g;
+}
+
+/** Party bunting: two sagging strings of pennants behind the stage, one merged mesh (polish 4: "a set, not a void"). */
+function bunting(): Mesh {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const cols = [0xff3ea5, 0xffd27a, 0x2cf6f3, 0xfff3dc, 0xff9f7a, 0x7dff6a].map((c) => new Color(c));
+  for (const [z, y0, span] of [
+    [-7, 5.6, 22],
+    [-9.5, 7.2, 28],
+  ] as const) {
+    const n = Math.round(span / 1.1);
+    for (let k = 0; k < n; k++) {
+      const u = (k + 0.5) / n;
+      const x = -span / 2 + u * span;
+      const y = y0 - Math.sin(u * Math.PI) * 1.4;
+      const c = cols[k % cols.length];
+      pos.push(x - 0.42, y, z, x + 0.42, y, z, x, y - 0.9, z);
+      for (let v = 0; v < 3; v++) col.push(c.r, c.g, c.b);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new Float32BufferAttribute(col, 3));
+  return new Mesh(g, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }));
 }
 
 class ShowroomImpl implements Showroom {
@@ -144,6 +173,11 @@ class ShowroomImpl implements Showroom {
       this.podiumGroup.add(plinth);
     });
     this.scene.add(this.podiumGroup);
+    this.scene.add(bunting());
+    // a soft spotlight cone over the turntable and the podium (one additive draw)
+    const cone = new Mesh(new CylinderGeometry(0.6, 4.6, 9, 24, 1, true), new MeshBasicMaterial({ color: 0xfff3dc, transparent: true, opacity: 0.07, blending: AdditiveBlending, depthWrite: false, side: DoubleSide }));
+    cone.position.set(0, 4, 0);
+    this.scene.add(cone);
     this.scene.add(this.camera);
     this.confetti = new Confetti(this.camera);
   }
@@ -151,7 +185,9 @@ class ShowroomImpl implements Showroom {
   private clearKarts(): void {
     for (const k of this.karts) {
       k.root.removeFromParent();
-      k.dispose();
+      // B3 (WebGL warnings): free the materials a little later, as the race does (RETIRE_MS): disposing a program the
+      // grid's renderer.compile() is still linking logged dozens of GL_INVALID_VALUE warnings on some GPUs
+      setTimeout(() => k.dispose(), 1500);
     }
     this.karts = [];
     this.keys = [];
@@ -201,7 +237,7 @@ class ShowroomImpl implements Showroom {
     }
     if (!t) return;
     this.trophy = trophyMesh(TROPHY_COLOURS[t] ?? TROPHY_COLOURS[1]);
-    this.trophy.scale.setScalar(1.3);
+    this.trophy.scale.setScalar(0.95);
     this.scene.add(this.trophy);
   }
 
@@ -265,13 +301,15 @@ class ShowroomImpl implements Showroom {
       for (const i of order) {
         const v = this.karts[i];
         if (!v) continue;
-        const hop = i === 0 && !calm ? Math.max(0, Math.sin(this.time * 3.2)) ** 4 * 0.18 : 0;
+        // the winner bounces, 2nd and 3rd bob along (polish 4: cats cheering)
+        const hop = calm ? 0 : Math.max(0, Math.sin(this.time * 3.2 + i * 1.3)) ** 4 * (i === 0 ? 0.18 : 0.08);
         f.steer = 0;
         v.update(f, PLINTH_X[i], PLINTH_H[i] - 0.5 + hop, 0, Math.PI * 0.08 * (i === 1 ? 1 : i === 2 ? -1 : 0), 0, 0, 0, dt, 26);
       }
       if (this.trophy) {
         const at = this.trophyAt;
-        this.trophy.position.set(PLINTH_X[at], PLINTH_H[at] + 1.6 + Math.sin(this.time * 2) * 0.1, 0);
+        // standing on the plinth beside the kart (it floated in mid-air over plinth 1)
+        this.trophy.position.set(PLINTH_X[at] + 0.85, PLINTH_H[at] - 0.5, 1.15);
         this.trophy.rotation.y = this.time * 1.4;
       }
       // the panel covers the bottom (portrait) or the right (landscape): frame the plinths in what is left
@@ -285,6 +323,8 @@ class ShowroomImpl implements Showroom {
       const cz = -Math.sin(ang) * side;
       this.camera.position.set(cx + Math.sin(ang) * dist, 3.4, cz + Math.cos(ang) * dist);
       this.camera.lookAt(cx, 2.1 - lift, cz);
+      // confetti keeps falling while the podium shows
+      if (!calm && Math.floor((this.time - dt) / 4) !== Math.floor(this.time / 4)) this.confetti.fire(true, 0.5);
       this.confetti.update(dt);
     }
     this.shell.stage.renderer.render(this.scene, this.camera);

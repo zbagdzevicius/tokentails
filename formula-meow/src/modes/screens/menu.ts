@@ -35,7 +35,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     ]);
     card.querySelector('[data-act="resume"]')!.addEventListener('click', () => f.runCupRace());
     card.querySelector('[data-act="drop"]')!.addEventListener('click', () => {
-      void modal(t('Drop this cup?'), t('The points so far are lost. Trophies you already won stay.'), [t('Drop it'), t('Keep it')]).then((i) => {
+      void modal(t('Drop this cup?'), t('The points so far are lost. Trophies you already won stay.'), [t('Drop it'), t('Keep it')], { focus: 1 }).then((i) => {
         if (i !== 0) return;
         f.dropCup();
         void screens.replace('menu');
@@ -80,11 +80,11 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     },
     { id: 'pinkpaw', order: 80, icon: '🐾', label: () => t('Pink Paw'), sub: () => t('Meet the real cats'), run: () => void screens.push('pinkpaw') },
     { id: 'settings', order: 90, icon: '⚙️', label: () => t('Settings'), run: () => void screens.push('settings') },
-    { id: 'howto', order: 100, icon: '❓', label: () => t('How to play'), run: () => void screens.push('howto') },
+    { id: 'howto', order: 100, icon: '❓', label: () => t('Help'), run: () => void screens.push('howto') },
   ];
   // other lanes' screens that exist get a tile too (unless a lane registered its own)
   const extra: MenuTile[] = [];
-  if (hasScreen('achievements')) extra.push({ id: 'achievements', order: 65, icon: '🏅', label: () => t('Achievements'), run: () => void screens.push('achievements') });
+  if (hasScreen('achievements')) extra.push({ id: 'achievements', order: 65, icon: '🏅', label: () => t('Awards'), run: () => void screens.push('achievements') });
   if (hasScreen('stats')) extra.push({ id: 'stats', order: 66, icon: '📊', label: () => t('Stats'), run: () => void screens.push('stats') });
   const all = new Map<string, MenuTile>();
   for (const x of [...builtIn, ...extra, ...menuTiles()]) all.set(x.id, x);
@@ -117,14 +117,17 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   if (trophies) fr.body.append(h('p', { class: 'fm-m-shelf' }, shelf));
   fr.footer.remove();
   const last = root.querySelector<HTMLElement>(`[data-tile="${s.last.focus}"]`);
-  if (last) focusFirst(root, `[data-tile="${s.last.focus}"]`);
+  // B17: a cup in progress takes the focus first (Enter / A resumes it)
+  if (run) focusFirst(root, '[data-act="resume"]');
+  else if (last) focusFirst(root, `[data-tile="${s.last.focus}"]`);
   else focusFirst(root);
   // back from a screen opened here: the focus returns to its tile (keyboard and pad players keep their place)
   const off = screens.onChange((topNow) => {
     if (topNow !== 'menu' || touchUi()) return;
     requestAnimationFrame(() => {
       if (root.contains(document.activeElement)) return;
-      root.querySelector<HTMLElement>(`[data-tile="${flow().save.last.focus}"]`)?.focus({ preventScroll: true });
+      // B6: fall back to the first control when the remembered tile is gone (focus used to stay on <body>)
+      (root.querySelector<HTMLElement>(`[data-tile="${flow().save.last.focus}"]`) ?? root.querySelector<HTMLElement>('button:not([disabled])'))?.focus({ preventScroll: true });
     });
   });
   return {

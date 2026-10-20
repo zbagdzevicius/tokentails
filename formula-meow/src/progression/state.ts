@@ -227,7 +227,9 @@ function sanitizeLoadout(v: unknown, owned: ProgSave['owned']): Loadout {
  */
 export function migrateProg(raw: unknown, core?: Pick<Progress, 'races' | 'unlocked'> | null): ProgSave {
   const d = defaultProg();
-  if (!isObj(raw) || raw.v !== 1) {
+  // B20: a save from a newer version (v > 1, e.g. after a rollback) is read field by field like a v1 save (every
+  // field is clamped below), so the player keeps their fish, trophies and garage instead of starting over
+  if (!isObj(raw) || !(raw.v === 1 || (typeof raw.v === 'number' && raw.v > 1 && raw.v < 1000))) {
     // first load: bring a v1 player's progress over
     if (core) {
       d.classUnlocked = Math.max(0, Math.min(2, Math.floor(core.unlocked || 0))) as RaceClass;

@@ -65,7 +65,7 @@ export function modesResultSection(ctx: ResultCtx): HTMLElement | null {
         ' · ',
         b.steals[me] === 1 ? t('1 steal') : t('{n} steals', { n: b.steals[me] }),
         ' · ',
-        b.outs[me] === 0 ? t('never popped') : b.outs[me] === 1 ? t('popped once') : t('popped {n} times', { n: b.outs[me] }),
+        b.outs[me] === 0 ? t('never lost all balloons') : b.outs[me] === 1 ? t('lost all balloons once') : t('lost all balloons {n} times', { n: b.outs[me] }),
       ]),
     );
     return box;

@@ -36,9 +36,9 @@ export function trophyCount(s: ProgSave): number {
 export function unlockState(s: ProgSave, key: UnlockKey): UnlockState {
   switch (key) {
     case 'class:1':
-      return { ok: s.classUnlocked >= 1, hint: 'Finish a 50cc cup' };
+      return { ok: s.classUnlocked >= 1, hint: 'Finish a 50cc race' };
     case 'class:2':
-      return { ok: s.classUnlocked >= 2, hint: 'Podium in a 100cc cup' };
+      return { ok: s.classUnlocked >= 2, hint: 'Podium in a 100cc race' };
     case 'mirror':
       return { ok: s.mirror, hint: 'Gold in the Kibble Cup at 150cc' };
     case 'cup:catnip':
