@@ -1,8 +1,10 @@
 node_modules/
 dist/
 .e2e-dist/
+.review-dist/
 test-results/
 playwright-report/
 .vitest/
 e2e/screens/
 review/*.png
+review/v2/
