@@ -22,6 +22,8 @@ export function wrapAngle(a: number): number {
 export function sinL(a: number): number {
   let u = (a / TAU) * N;
   u -= N * Math.floor(u / N);
+  // SIM_VERSION 8: a tiny negative angle wraps to exactly N in floating point (SIN[N + 1] does not exist → NaN)
+  if (u >= N) u -= N;
   const i = Math.floor(u);
   const f = u - i;
   return SIN[i] + (SIN[i + 1] - SIN[i]) * f;

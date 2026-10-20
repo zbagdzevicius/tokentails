@@ -16,6 +16,9 @@ import { buildField, createSimPlugins, kartLookFor } from '../../items-ai';
 import type { FrameInfo, JuiceListener } from '../../juice/bus';
 import type { Shell } from '../../core/app/shell';
 import { trackKey, type Ghost } from '../codec/ghost-codec';
+import { kartStuntPose, type StuntPose } from '../../core/render/stunt-pose';
+
+const GHOST_POSE: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
 
 export interface DareGhost {
   ghost: Ghost;
@@ -242,7 +245,10 @@ export class GhostRunner implements JuiceListener {
     }
     v.root.visible = !hidden;
     this.tag.visible = !hidden && cd > 6;
-    v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
+    // SIM_VERSION 8: a ghost on a loop's rail or a wall lane is drawn on the bent surface (at its tick pose)
+    const bent = kartStuntPose(t, k, GHOST_POSE);
+    if (bent) v.update(k, bent.x, bent.y, bent.z, heading, 0, 0, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed, bent);
+    else v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
     this.tag.position.set(x, y + 3.1, z);
     // constant screen size: with sizeAttenuation off the scale is in view units (height ∝ 1 / projection[1][1])
     const hpx = this.shell.host.clientHeight || 800;

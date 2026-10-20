@@ -48,6 +48,8 @@ export function clearance(t: BuiltTrack, x: number, z: number): number {
     const dz = z - t.pz[i];
     best = Math.sqrt(dx * dx + dz * dz) - outerWall(t, i) - 0.6;
   }
+  // SIM_VERSION 8: set pieces reach further than the road (a loop's ribbon, a wall lane's curl, a tunnel's shell)
+  if (t.pieces.length) best = Math.min(best, pieceClear(t, x, z));
   // alternative routes count as road too
   for (const b of t.branches) {
     if (x < b.minX - 60 || x > b.maxX + 60 || z < b.minZ - 60 || z > b.maxZ + 60) continue;
@@ -261,4 +263,28 @@ export function glowQuad(b: { quad(a: [number, number, number], b: [number, numb
   const s = Math.sin(ry);
   const p = (u: number, v: number): [number, number, number] => [x + u * c, y + v, z - u * s];
   b.quad(p(-w / 2, -h / 2), p(w / 2, -h / 2), p(w / 2, h / 2), p(-w / 2, h / 2), col);
+}
+
+/**
+ * Clearance of (x, z) from every set piece's footprint (SETPIECES.md section 7, dressing): a loop ± 12 m round its
+ * shadow (it rises 13 m: nothing tall goes there), a wall lane's curl and 4 m beyond, a tunnel's shell, a jump's gap and
+ * landing window ± 4 m. Negative = inside. `clearance()` already folds this in, so every prop placed with it (scatter,
+ * the track dressings) keeps clear; call it directly for props placed by hand.
+ */
+export function pieceClear(t: BuiltTrack, x: number, z: number): number {
+  let best = Infinity;
+  for (const pc of t.pieces) {
+    const from = pc.kind === 'loop' ? pc.strip : pc.kind === 'jump' ? pc.i0 - Math.round(6 / t.step) : pc.i0;
+    const to = pc.kind === 'jump' ? pc.land1 : pc.i1;
+    const len = (((to - from) % t.n) + t.n) % t.n;
+    for (let k = 0; k <= len; k += 4) {
+      const i = (from + k) % t.n;
+      const reach = pc.kind === 'loop' ? t.halfW[i] + 12 : pc.kind === 'tunnel' ? Math.max(t.wallL[i], t.wallR[i]) + 2.5 : pc.kind === 'wall' ? Math.max(t.wallL[i], t.wallR[i]) + 4 : t.halfW[i] + 4;
+      const dx = x - t.px[i];
+      const dz = z - t.pz[i];
+      const c = Math.sqrt(dx * dx + dz * dz) - reach;
+      if (c < best) best = c;
+    }
+  }
+  return best;
 }

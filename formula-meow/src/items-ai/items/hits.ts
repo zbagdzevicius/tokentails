@@ -9,7 +9,8 @@ import { itemsOf, lapGap } from './state';
 
 /** A kart that items can touch this tick (not respawning, not finished). */
 export function touchable(k: KartState): boolean {
-  return k.respawnTicks === 0 && k.finished === 0 && k.out === 0;
+  // SIM_VERSION 8: karts on a loop's rail, in a jump gap's flight or its net cannot be touched (items pass them)
+  return k.respawnTicks === 0 && k.finished === 0 && k.out === 0 && k.rail === 0 && k.gapLaunch === 0 && k.netTicks === 0;
 }
 
 /**

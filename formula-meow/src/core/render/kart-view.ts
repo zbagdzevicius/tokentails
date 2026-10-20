@@ -15,7 +15,7 @@
  *  - items: a cough before a hairball, a throw swipe for the rest, ducking into the Cardboard Box, running on the roof
  *    during Zoomies
  */
-import { AdditiveBlending, ConeGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, type Object3D } from 'three';
+import { AdditiveBlending, ConeGeometry, DoubleSide, Group, Matrix4, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import type { KartState, RaceEvent, RacerInfo } from '../../types';
 import { GeoBuilder } from './geo';
 import { toonMaterial } from './toon';
@@ -24,6 +24,12 @@ import { OUTLINE_NAME, outlineFor } from './cat-outline';
 import { disposeMaterial } from '../track/mesh';
 import { SEAT_Y, bodyGeo, bodyIdOf } from './kart-bodies';
 import { buildHat, disposeHat, spinHat } from './hats';
+
+/** scratch for the set-piece basis (SIM_VERSION 8) */
+const _bu = new Vector3();
+const _bf = new Vector3();
+const _br = new Vector3();
+const _bm = new Matrix4();
 
 export const WHEEL_R = 0.38;
 const CAT_IN_KART = 1.75;
@@ -212,7 +218,11 @@ export class KartView {
    * Pose from interpolated state. `pos`/`heading` are interpolated; `k` is the latest sim state (timers, flags).
    * `pitch`/`roll` come from the track surface. `dt` is real seconds since the last frame (render clock).
    */
-  update(k: KartState, x: number, y: number, z: number, heading: number, pitch: number, roll: number, speed: number, dt: number, topSpeed: number): void {
+  /**
+   * `basis` (SIM_VERSION 8 set pieces): when given, the kart sits on a bent surface (a loop's ribbon, a curled wall
+   * lane): its root takes that up / forward instead of the heading (pitch and roll are then 0).
+   */
+  update(k: KartState, x: number, y: number, z: number, heading: number, pitch: number, roll: number, speed: number, dt: number, topSpeed: number, basis: { ux?: number; uy?: number; uz?: number; fx?: number; fy?: number; fz?: number } | null = null): void {
     this.time += dt;
     const fast = Math.min(1, speed / topSpeed);
     // B58: no per-frame arrays
@@ -233,8 +243,19 @@ export class KartView {
     const bob = k.air ? 0 : (Math.sin(this.bobPhase) * 0.6 + Math.sin(this.bobPhase * 2.3) * 0.4) * ANIM.bob * Math.min(1, speed / 6);
     const trickU = this.trickT > 0 ? 1 - this.trickT / ANIM.trickTime : 0;
     const trickYaw = this.trickT > 0 && this.trickPose === 2 ? smooth(trickU) * TAU : 0;
-    this.root.position.set(x, y + hop + bob, z);
-    this.root.rotation.set(0, heading + this.spinAngle + trickYaw, 0);
+    if (basis && basis.ux !== undefined) {
+      _bu.set(basis.ux, basis.uy!, basis.uz!);
+      _bf.set(basis.fx!, basis.fy!, basis.fz!);
+      _br.crossVectors(_bu, _bf).normalize();
+      _bf.crossVectors(_br, _bu).normalize();
+      _bm.makeBasis(_br, _bu, _bf);
+      this.root.quaternion.setFromRotationMatrix(_bm);
+      if (this.spinAngle + trickYaw !== 0) this.root.rotateY(this.spinAngle + trickYaw);
+      this.root.position.set(x + _bu.x * (hop + bob), y + _bu.y * (hop + bob), z + _bu.z * (hop + bob));
+    } else {
+      this.root.position.set(x, y + hop + bob, z);
+      this.root.rotation.set(0, heading + this.spinAngle + trickYaw, 0);
+    }
 
     // --- body: lean, pitch, squash and stretch, barrel rolls -------------------------------------------------------
     const leanTarget = k.driftDir !== 0 ? k.driftDir * ANIM.driftLean : k.steer * ANIM.steerLean * Math.min(1, speed / 10);

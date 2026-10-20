@@ -63,7 +63,7 @@ export class FeelDirector implements JuiceListener {
     }
     const me = world.cfg.humans[0] ?? 0;
     view.me = me;
-    s.camera.source = { track: view.track, me, displayPos: (i, out) => view.displayPos(i, out) };
+    s.camera.source = { track: view.track, me, displayPos: (i, out) => view.displayPos(i, out), displayBasis: (i, out) => view.displayBasis(i, out) };
     s.camera.strongBoost = false;
     // the intro flyover plays while the grid waits for the first input
     const k = world.st.karts[me];

@@ -13,6 +13,9 @@ import type { FrameInfo, JuiceListener } from '../../juice/bus';
 import type { Shell } from '../../core/app/shell';
 import { pillPath } from '../../share/links/ghost-runner';
 import type { GhostRun } from './ghosts';
+import { kartStuntPose, type StuntPose } from '../../core/render/stunt-pose';
+
+const GHOST_POSE: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
 
 export interface ArmedGhost {
   cfg: RaceConfig;
@@ -154,7 +157,10 @@ export class TtGhostView implements JuiceListener {
     }
     v.root.visible = !gone;
     this.tag.visible = !gone && cd > 6 && !info.paused;
-    v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
+    // SIM_VERSION 8: a ghost on a loop's rail or a wall lane is drawn on the bent surface (at its tick pose)
+    const bent = kartStuntPose(t, k, GHOST_POSE);
+    if (bent) v.update(k, bent.x, bent.y, bent.z, heading, 0, 0, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed, bent);
+    else v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
     this.tag.position.set(x, y + 3.1, z);
     const hpx = this.shell.host.clientHeight || 800;
     const sy = (2 * TAG_PX) / (hpx * cam.projectionMatrix.elements[5]);
