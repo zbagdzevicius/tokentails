@@ -69,6 +69,19 @@ export const STUNT_CAM = {
   laneIn: 2.5,
   /** reduced motion: the TV camera's distance beside a loop (m) */
   tvSide: 16,
+  /** juice: roll about the view axis inside a loop is capped here (°): the loop itself is a pitch, the comfortable axis */
+  loopRoll: 10,
+  /** juice: FOV (horizontal °) on a loop's rail, in a jump gap's flight, in a tunnel (negative = tighter) */
+  loopFov: 6,
+  airFov: 4,
+  tunnelFov: -5,
+  /** jump gap flight: the rig rises this much (m) and the look point blends this share toward the landing ring */
+  airUp: 1,
+  airLook: 0.4,
+  /** tunnel: the rig closes in by this much (m back, m down), blended over `tunnelBlend` s at the portals */
+  tunnelBack: 0.5,
+  tunnelDown: 0.3,
+  tunnelBlend: 0.25,
 } as const;
 
 const DEG = Math.PI / 180;
@@ -131,6 +144,12 @@ export class ChaseCamera {
   private orbitFrom = 0;
   private flyEnd = 0;
   private flyDone = false;
+  /** juice: 0..1 blends for the tunnel rig and the jump-gap air cam, and the set-piece FOV term (smoothed, °) */
+  private tunnelK = 0;
+  private airK = 0;
+  private stuntFov = 0;
+  private readonly ring = new Vector3();
+  private readonly side = new Vector3();
 
   constructor(aspect: number) {
     this.cam = new PerspectiveCamera(60, aspect, 0.1, 1400);
@@ -212,6 +231,7 @@ export class ChaseCamera {
       z = c.z;
       heading = c.heading;
     }
+    this.blends(k, dt);
     // the chase rig is always computed (the other modes blend from or into it)
     this.chase(k, x, y, z, heading, speed, topSpeed, dt);
     if (this.modeNow === 'chase' || this.modeNow === 'lookBack') this.stunt(k, x, y, z, dt);
@@ -265,12 +285,16 @@ export class ChaseCamera {
     while (dy < -Math.PI) dy += Math.PI * 2;
     const lag = 1 - Math.exp(-dt / 0.12);
     this.yaw += dy * Math.min(1, lag * 1.4);
-    const back = BACK + (P_BACK - BACK) * this.portrait + Math.min(1.2, speed / topSpeed) * 0.6;
-    this.want.set(x - Math.sin(this.yaw) * back, y + this.up + (k.air ? 0.4 : 0), z - Math.cos(this.yaw) * back);
+    const back = BACK + (P_BACK - BACK) * this.portrait + Math.min(1.2, speed / topSpeed) * 0.6 - STUNT_CAM.tunnelBack * this.tunnelK;
+    const lift = this.up + (k.air ? 0.4 : 0) + STUNT_CAM.airUp * this.airK - STUNT_CAM.tunnelDown * this.tunnelK;
+    this.want.set(x - Math.sin(this.yaw) * back, y + lift, z - Math.cos(this.yaw) * back);
     // SIM_VERSION 8: on a loop's rail the rig is the set-piece one (stunt()): no wall or floor clamp
     const railed = k.rail > 0 && !!this.source?.displayBasis;
     if (!railed) this.wallClamp(this.want, x, z, k.si);
-    const free = (this.modeNow === 'chase' || this.modeNow === 'lookBack') && !railed;
+    const racing = this.modeNow === 'chase' || this.modeNow === 'lookBack';
+    // juice: the catch net holds the camera where it is and only turns it to watch the kart bounce
+    const netted = k.netTicks > 0 && racing;
+    const free = racing && !railed && !netted;
     if (free) {
       this.pos.lerp(this.want, Math.min(1, lag * 2.2));
       // never fall far below the kart (ramps, drops)
@@ -282,7 +306,45 @@ export class ChaseCamera {
     const rx = Math.cos(this.yaw);
     const rz = -Math.sin(this.yaw);
     this.lookAt.set(x + Math.sin(this.yaw) * this.ahead + rx * this.drift, y + this.lookY, z + Math.cos(this.yaw) * this.ahead + rz * this.drift);
+    // juice: in a jump gap's flight the look point leans toward the glowing landing ring (the "where am I landing" cam)
+    if (this.airK > 0 && this.ringTarget(k)) this.lookAt.lerp(this.ring, STUNT_CAM.airLook * this.airK);
     if (free) this.look.lerp(this.lookAt, Math.min(1, lag * 3));
+    else if (netted) {
+      this.tmpA.set(x, y + 0.6, z);
+      this.look.lerp(this.tmpA, Math.min(1, lag * 3));
+    }
+  }
+
+  /** The landing ring of the jump the kart launched from (world), into `this.ring`; false when none. */
+  private ringTarget(k: KartState): boolean {
+    const t = this.source?.track;
+    const pc = t && k.gapLaunch > 0 ? t.pieces[k.gapLaunch - 1] : null;
+    if (!pc || !t) return false;
+    const i = pc.aimI;
+    this.ring.set(t.px[i], pc.landY + 0.3, t.pz[i]);
+    return true;
+  }
+
+  /**
+   * Juice (set pieces): ease the tunnel rig (in over `tunnelBlend` s at the portals) and the jump-gap air cam, and
+   * the set-piece FOV term. Reduced motion: no FOV change (the rig moves still apply: they are gentle and slow).
+   */
+  private blends(k: KartState, dt: number): void {
+    const t = this.source?.track;
+    const racing = this.modeNow === 'chase' || this.modeNow === 'lookBack';
+    const inTunnel = !!t && racing && k.rail === 0 && k.branch === -1 && k.si >= 0 && k.si < t.n && t.tunnelMask[k.si] === 1;
+    const rate = dt / STUNT_CAM.tunnelBlend;
+    this.tunnelK = Math.max(0, Math.min(1, this.tunnelK + (inTunnel ? rate : -rate)));
+    const flying = racing && k.gapLaunch > 0;
+    this.airK += ((flying ? 1 : 0) - this.airK) * Math.min(1, dt / (flying ? 0.2 : 0.35));
+    if (this.airK < 1e-3) this.airK = 0;
+    const want = this.feel.reducedMotion || !racing ? 0 : (k.rail > 0 ? STUNT_CAM.loopFov : 0) + STUNT_CAM.airFov * this.airK + STUNT_CAM.tunnelFov * this.tunnelK;
+    this.stuntFov += (want - this.stuntFov) * Math.min(1, dt / 0.2);
+  }
+
+  /** Juice state (tests, QA): the tunnel and air blends and the set-piece FOV term (°). */
+  get stuntFeel(): { tunnel: number; air: number; fov: number } {
+    return { tunnel: this.tunnelK, air: this.airK, fov: this.stuntFov };
   }
 
   /**
@@ -421,6 +483,9 @@ export class ChaseCamera {
       this.lookAt.set(x + b.fx * 2 + b.ux * 1.1, y + b.fy * 2 + b.uy * 1.1, z + b.fz * 2 + b.uz * 1.1);
       this.look.lerp(this.lookAt, Math.min(1, 1 - Math.exp(-dt / 0.05)));
       this.upWant.set(b.ux, b.uy, b.uz);
+      // juice: the corkscrew sway would roll the view; keep that roll within STUNT_CAM.loopRoll (the loop stays a pitch)
+      this.loopSide(t, k.si);
+      capRoll(this.upWant, this.side, STUNT_CAM.loopRoll * DEG);
     } else if (bent && !rm && t) {
       // a wall lane: the rig follows the bend from the road side of the kart (straight behind on the outside of a bend
       // it would sit beyond the curl and look through it)
@@ -441,6 +506,21 @@ export class ChaseCamera {
     // a tunnel: stay under its ceiling
     if (t && !pc && t.tunnelMask[k.si] && this.pos.y > t.py[k.si] + STUNT.tunnel.ceiling - 1) this.pos.y = t.py[k.si] + STUNT.tunnel.ceiling - 1;
     this.easeUp(dt);
+    if (pc && t && bent && !rm) capRoll(this.camUp, this.side, STUNT_CAM.loopRoll * DEG);
+  }
+
+  /** The shadow's horizontal right axis at sample `si` (a loop pitches about it), into `this.side`. */
+  private loopSide(t: BuiltTrack, si: number): void {
+    const i = si >= 0 && si < t.n ? si : 0;
+    this.side.set(-t.tz[i], 0, t.tx[i]).normalize();
+  }
+
+  /** Roll inside a loop (tests): degrees between the camera's up and the loop's pitch plane. */
+  loopRollDeg(si: number): number {
+    const t = this.source?.track;
+    if (!t) return 0;
+    this.loopSide(t, si);
+    return (Math.asin(Math.max(-1, Math.min(1, this.camUp.dot(this.side)))) * 180) / Math.PI;
   }
 
   /** Turn the camera's up toward `upWant`: a 0.15 s ease, never faster than STUNT_CAM.upRate °/s. */
@@ -473,7 +553,7 @@ export class ChaseCamera {
     // plus an absolute term (playtest round 2: 100cc and 150cc felt no faster): about +1° at 50cc, +4° at 100cc and
     // +6° at 150cc top speed
     const speedFov = rm || !racing ? 0 : Math.max(0, speed / topSpeed - 0.5) * 6 + Math.max(0, Math.min(6, (speed - 23) * 0.7));
-    const hfov = (75 + this.feel.landscapeBonus + this.fovKick + speedFov) * DEG;
+    const hfov = (75 + this.feel.landscapeBonus + this.fovKick + speedFov + this.stuntFov) * DEG;
     const vfov = 2 * Math.atan(Math.tan(hfov / 2) / this.cam.aspect);
     const cap = 100 + (P_VFOV_MAX + this.fovKick * 0.6 - 100) * this.portrait;
     this.cam.fov = Math.min(cap, vfov / DEG);
@@ -488,6 +568,18 @@ export class ChaseCamera {
     this.cam.lookAt(this.look);
     this.cam.rotateZ(n(4) * 2.5 * DEG * sh);
   }
+}
+
+/** Keep `v` (unit) within `max` radians of the plane normal to `axis` (unit): the roll cap. */
+export function capRoll(v: Vector3, axis: Vector3, max: number): void {
+  const r = v.dot(axis);
+  const lim = Math.sin(max);
+  if (Math.abs(r) <= lim) return;
+  // the part in the plane, scaled so the result stays unit at exactly the cap
+  v.addScaledVector(axis, -r);
+  const len = v.length();
+  if (len < 1e-9) return;
+  v.multiplyScalar(Math.cos(max) / len).addScaledVector(axis, Math.sign(r) * lim);
 }
 
 /** Catmull-Rom through the keys' positions and look points at time t (clamped to the key range). */

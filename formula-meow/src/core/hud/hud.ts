@@ -20,6 +20,7 @@ import { speedOf } from '../sim/kart';
 import { DRIFT, PHYS, ticks } from '../../tuning';
 import { t } from '../../ui/i18n';
 import { a11y, driftTierColors } from '../../ui/a11y';
+import { drawPieceIcons } from './stunt-hud';
 
 export const ITEM_ICON: Record<ItemId, string> = {
   hairball: '🟤',
@@ -318,6 +319,8 @@ export class Hud {
       g.fillRect(sx - 8, sy - 8, 16, 16);
       g.fillStyle = accent;
       g.fillRect(sx - 5, sy - 5, 10, 10);
+      // iteration 3: set-piece icons (loop ring, wall arc, gap, tunnel)
+      drawPieceIcons(g, tr, (x, z) => this.mapXY(x, z));
     }
     this.mapBg = bg;
     this.clearSay();
