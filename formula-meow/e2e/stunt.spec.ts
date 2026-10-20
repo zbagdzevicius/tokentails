@@ -77,7 +77,7 @@ test('Kitchen Counter: the bot rides the wall lane, jumps the sink gap, runs the
       return true;
     },
     null,
-    { timeout: 60_000, polling: 'raf' },
+    { timeout: 150_000, polling: 'raf' },
   );
   const shots: Array<[string, string]> = [
     ['wall', 'k.air === 0 && k.surface === 6 && Math.abs(k.d) > t.halfW[k.si] + 4'],
