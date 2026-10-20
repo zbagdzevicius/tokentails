@@ -33,7 +33,8 @@ const codes = (def: TrackDef) => validateTrack(def).issues.map((i) => i.code);
 
 describe('track validator (GDD 6.4)', () => {
   it('passes every authored track', () => {
-    for (const def of TRACKS) expect(validateTrack(def).issues, def.id).toEqual([]);
+    // SIM_VERSION 8: an authored track's set pieces follow the authored rules (setpieces.test.ts)
+    for (const def of TRACKS) expect(validateTrack(def, { pieces: 'authored' }).issues, def.id).toEqual([]);
   });
 
   it('passes the test oval once it has an item row', () => {

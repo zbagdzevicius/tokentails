@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import type { TrackDef } from '../../types';
-import { TRACKS } from '../../core/track/tracks';
-import { cleanName, decodeTrackCode, encodeTrack, trackCodecV1, trackKey, ugcId } from './track-code';
+import type { SetPiece, TrackDef } from '../../types';
+import { TRACKS as ALL } from '../../core/track/tracks';
+import { cleanName, decodeTrackCode, encodeTrack, PIECES_MAX, trackCodecV1, trackKey, ugcId } from './track-code';
+import { stuntLab } from '../../test/fixtures';
+
+/**
+ * The authored tracks without their set pieces: the tests below are about the v1/v2 fields (set pieces travel in v3
+ * and are checked on their own; an authored track's pieces follow the authored spacing, not the doodle rules the
+ * decoder applies, so its code may be refused until a remix spreads them out).
+ */
+const TRACKS: TrackDef[] = ALL.map(({ setPieces, ...d }) => (void setPieces, d));
+
+/** A set piece as the code carries it (defaults filled in, empty fields dropped). */
+function normPiece(p: SetPiece): SetPiece {
+  const o: SetPiece = { kind: p.kind, s: p.s };
+  if (p.kind === 'wall' && p.side != null) o.side = p.side;
+  if (p.kind === 'wall' || p.kind === 'tunnel') o.len = p.len;
+  if (p.kind === 'jump') {
+    o.gap = p.gap ?? 10;
+    if (p.drop) o.drop = p.drop;
+  }
+  if (p.skin) o.skin = p.skin;
+  return o;
+}
 import { fromBase64url, toBase64url } from './base64url';
 import { extractCode, readTrackCode, trackLink, wantsEditor } from './link';
 import { setTrackCodec, trackFromLocation } from './track-codec';
@@ -11,10 +32,8 @@ import { setTrackCodec, trackFromLocation } from './track-codec';
  * authored extras: branches, hazards, coins, flyover, music; authored tracks travel by id, UGC by code).
  */
 function norm(def: TrackDef): unknown {
-  // SIM_VERSION 8: set pieces travel in track code v3, which the ai-ugc lane adds (SETPIECES.md section 10); until then
-  // v1 codes carry the track without them (authored tracks are shared by id, so this only affects remixes)
+  // SIM_VERSION 8: set pieces travel in track code v3 (defaults filled in)
   const { branches, hazards, coins, flyover, music, kind, setPieces, ...rest } = def;
-  void setPieces;
   void branches;
   void hazards;
   void coins;
@@ -25,6 +44,7 @@ function norm(def: TrackDef): unknown {
     ...rest,
     id: '',
     features: def.features.map((f) => ({ s: f.s, kind: f.kind, side: f.side ?? 0 })),
+    setPieces: setPieces?.length ? setPieces.map(normPiece) : undefined,
   };
 }
 
@@ -104,9 +124,9 @@ describe('track share code (GDD 6.3)', () => {
     expect(decodeTrackCode('')).toEqual({ ok: false, reason: 'crc' });
     expect(decodeTrackCode('not a code!')).toEqual({ ok: false, reason: 'crc' });
     expect(decodeTrackCode('AAAA').ok).toBe(false);
-    // an unknown version (3) with a valid CRC (v2 is the iteration-2 theme field)
+    // an unknown version (4) with a valid CRC (v2 is the iteration-2 theme field, v3 the set pieces)
     const v2 = bytes.slice(0, bytes.length - 2);
-    v2[0] = (v2[0] & 0x0f) | 0x30;
+    v2[0] = (v2[0] & 0x0f) | 0x40;
     const { withCrc16 } = (() => {
       let crc = 0xffff;
       for (const b of v2) {
@@ -204,3 +224,89 @@ describe('track links', () => {
     expect(wantsEditor('?t=x', '', '/meow-race')).toBe(false);
   });
 });
+
+describe('track share code v3 (iteration 3: set pieces)', () => {
+  const lab = (): TrackDef => {
+    // the stunt lab, spread out for the doodle rules: a jump and a tunnel on the first straight, a wall ride on the
+    // first bend's outside, a loop on the back straight
+    const d = stuntLab({ setPieces: [{ kind: 'jump', s: 30, gap: 10, drop: 1.5 }, { kind: 'wall', s: 92, len: 18 }, { kind: 'loop', s: 150 }] });
+    return { ...d, id: 'x', name: 'Stunt Lab' };
+  };
+
+  it('v1 and v2 codes stay byte-identical without set pieces; a track with pieces is v3 and keeps them', () => {
+    const base = bigTrack();
+    const plain = encodeTrack(base);
+    expect(encodeTrack({ ...base, setPieces: [] })).toBe(plain);
+    expect(fromBase64url(plain)![0] >> 4).toBe(1);
+    expect(fromBase64url(encodeTrack({ ...base, theme: 5 }))![0] >> 4).toBe(2);
+    const pieces: SetPiece[] = [
+      { kind: 'loop', s: 10 },
+      { kind: 'wall', s: 40, len: 18, side: -1 },
+      { kind: 'wall', s: 70, len: 9, side: 0 },
+      { kind: 'wall', s: 100, len: 20 },
+      { kind: 'jump', s: 130, gap: 12, drop: 2.5, skin: 3 },
+      { kind: 'tunnel', s: 160, len: 26, skin: 15 },
+      { kind: 'jump', s: 200, gap: 6 },
+    ];
+    for (const theme of [0, 3, 4, 6] as const) {
+      const def = { ...base, theme, setPieces: pieces };
+      const code = encodeTrack(def, { creatorLapCs: 1234 });
+      expect(fromBase64url(code)![0] >> 4).toBe(3);
+      expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
+      // 7 pieces add 21 bytes at most: the GDD size case still fits a short link
+      expect(code.length).toBeLessThanOrEqual(140 + 28);
+      const back = decodeTrackCode(code, { validate: false });
+      expect(back.ok).toBe(true);
+      if (!back.ok) continue;
+      expect(back.track.theme).toBe(theme);
+      expect(back.creatorLapCs).toBe(1234);
+      expect(back.track.setPieces).toEqual(pieces.map(normPiece));
+      expect(norm(back.track)).toEqual(norm(def));
+    }
+    expect(PIECES_MAX).toBe(7);
+  });
+
+  it('every authored track with its set pieces round-trips (decoded without the doodle rules)', () => {
+    for (const def of ALL) {
+      const back = decodeTrackCode(encodeTrack(def), { validate: false });
+      expect(back.ok, def.id).toBe(true);
+      if (!back.ok) continue;
+      expect(norm(back.track)).toEqual(norm({ ...def, name: cleanName(def.name, 16) }));
+    }
+  });
+
+  it('a doodled track with set pieces decodes through the validator; a broken piece section is refused', () => {
+    const def = lab();
+    const code = encodeTrack(def);
+    const back = decodeTrackCode(code);
+    expect(back.ok).toBe(true);
+    expect(back.ok && back.track.setPieces).toEqual(def.setPieces!.map(normPiece));
+    // a piece moved onto the bend (a loop needs a straight) is refused by the validator
+    const bent = { ...def, setPieces: [{ kind: 'loop' as const, s: 100 }] };
+    expect(decodeTrackCode(encodeTrack(bent))).toEqual({ ok: false, reason: 'invalid' });
+    // non-canonical piece fields (a side on a loop, a loop param) are refused before the validator
+    const bytes = fromBase64url(encodeTrack({ ...bigTrack(), setPieces: [{ kind: 'loop', s: 10 }] }))!;
+    const body = bytes.slice(0, bytes.length - 2);
+    // flip the last bit of the piece's param byte region: find it by re-encoding with a set bit and checking refusal
+    let refused = 0;
+    for (let bit = 0; bit < 8 * 3; bit++) {
+      const b = body.slice();
+      const at = b.length - 1 - (bit >> 3);
+      b[at] ^= 1 << (bit & 7);
+      const raw = crc(b);
+      const d = decodeTrackCode(toBase64url(raw), { validate: false });
+      if (!d.ok) refused++;
+    }
+    expect(refused).toBeGreaterThan(0);
+  });
+});
+
+/** Append the CRC-16 the codec uses (CCITT, 0xffff). */
+function crc(body: Uint8Array): Uint8Array {
+  let c = 0xffff;
+  for (const b of body) {
+    c ^= b << 8;
+    for (let k = 0; k < 8; k++) c = c & 0x8000 ? ((c << 1) ^ 0x1021) & 0xffff : (c << 1) & 0xffff;
+  }
+  return new Uint8Array([...body, c >> 8, c & 0xff]);
+}

@@ -37,6 +37,13 @@ export function curvatureAhead(ctx: SimContext, si: number, from: number, to: nu
  * `AI.edge` inside the road edge.
  */
 export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: number, lookScale = 1, dodgeSkill?: number): number {
+  // SIM_VERSION 8 (ai-ugc lane): on a loop's rail the rail steers (auto-centre); hands off, gas on
+  if (ctx.st.karts[idx].rail > 0) {
+    out.steer = 0;
+    out.gas = true;
+    out.brake = out.drift = out.item = out.itemBack = false;
+    return 0;
+  }
   // [tracks lane] on a branch, or heading for one this kart chose: steer along the branch (core/track/branch-ai.ts)
   const viaBranch = branchSteer(ctx, idx, out, bias, lookScale, dodgeSkill);
   if (viaBranch !== null) return viaBranch;
@@ -76,6 +83,23 @@ export function followLine(ctx: SimContext, idx: number, out: TickInput, bias: n
     out.steer = -out.steer;
   }
   return err;
+}
+
+/**
+ * Set pieces (SIM_VERSION 8, ai-ugc lane, SETPIECES.md section 4): metres along the main loop from sample `si` to the
+ * next loop entry (the start of its boost strip) or jump lip within `within` m, or -1 when there is none. The AI and
+ * the bots start no drift this close to one (a drift would end at the rail or the lip anyway) and never brake for it.
+ */
+export function stuntEntryAhead(ctx: SimContext, si: number, within: number, kinds: 'loop' | 'jump' | 'both' = 'both'): number {
+  const t = ctx.track;
+  let best = -1;
+  for (const pc of t.pieces) {
+    if (pc.kind === 'loop' ? kinds === 'jump' : pc.kind !== 'jump' || pc.gap <= 0 || kinds === 'loop') continue;
+    const at = pc.kind === 'loop' ? pc.strip : pc.i0;
+    const ahead = (((at - si) % t.n) + t.n) % t.n * t.step;
+    if (ahead <= within && (best < 0 || ahead < best)) best = ahead;
+  }
+  return best;
 }
 
 /**

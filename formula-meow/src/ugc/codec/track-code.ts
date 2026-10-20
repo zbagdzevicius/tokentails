@@ -17,8 +17,14 @@
  * v2 (iteration 2, tracks lane) differs only in the theme field (3 bits, for the café, shelter and living-room themes);
  * a track on themes 0–3 still encodes as v1 byte for byte, and every v1 code decodes as before. The hazard and
  * shortcut stickers always fitted the 3-bit kind field; they now build a real hazard and branch.
+ *
+ * v3 (iteration 3, ai-ugc lane, SETPIECES.md section 10) adds set pieces (loops, wall rides, jump gaps, tunnels). It is
+ * written only when the track has some, so every v1 and v2 code stays byte-identical. v3 has the 3-bit theme (0–6)
+ * and, after the lap field, a trailing section:
+ *   pieceCount:3, per piece: kind:2 (SET_PIECE_KINDS index) s:8 side:2 (0 auto, 1 left, 2 right, 3 both) param:8 skin:4
+ *   param: wall / tunnel = len (lap units); jump = (gap − 6):3 + (drop × 2):3 + 0:2; loop = 0
  */
-import { FEATURE_KINDS, type FeatureKind, type ThemeId, type TrackDef, type TrackFeature, type TrackPoint } from '../../types';
+import { FEATURE_KINDS, SET_PIECE_KINDS, type FeatureKind, type SetPiece, type ThemeId, type TrackDef, type TrackFeature, type TrackPoint } from '../../types';
 import { BitReader, BitWriter } from './bits';
 import { checkCrc16, withCrc16 } from './crc16';
 import { fromBase64url, toBase64url } from './base64url';
@@ -29,6 +35,10 @@ import type { DecodeResult, TrackCodec } from './track-codec';
 export const TRACK_CODE_VERSION = 1;
 /** v2: a 3-bit theme (4 café, 5 shelter, 6 living room); 7 is reserved and refused */
 export const TRACK_CODE_VERSION_V2 = 2;
+/** v3: set pieces (a trailing section); the theme field is 3 bits as in v2 */
+export const TRACK_CODE_VERSION_V3 = 3;
+/** set pieces a code can carry (3-bit count) */
+export const PIECES_MAX = 7;
 export const NAME_MAX = 16;
 export const CREATOR_MAX = 10;
 /** 64 symbols, 6 bits each. Accents are folded (ž → z); anything else is dropped. */
@@ -59,13 +69,62 @@ function readName(r: BitReader, lenBits: number, max: number): string | null {
 }
 
 const sideBits = (side: TrackFeature['side']): number => (side === -1 ? 1 : side === 1 ? 2 : 0);
+const pieceSideBits = (side: SetPiece['side']): number => (side === -1 ? 1 : side === 1 ? 2 : side === 0 ? 3 : 0);
+
+function writePieces(w: BitWriter, pieces: readonly SetPiece[]): void {
+  w.write(pieces.length, 3);
+  for (const p of pieces) {
+    w.write(Math.max(0, SET_PIECE_KINDS.indexOf(p.kind)), 2);
+    w.write(Math.max(0, Math.min(255, p.s | 0)), 8);
+    w.write(p.kind === 'wall' ? pieceSideBits(p.side) : 0, 2);
+    if (p.kind === 'wall' || p.kind === 'tunnel') w.write(Math.max(0, Math.min(255, Math.round(p.len ?? 0))), 8);
+    else if (p.kind === 'jump') {
+      w.write(Math.max(0, Math.min(7, Math.round(p.gap ?? 10) - 6)), 3);
+      w.write(Math.max(0, Math.min(7, Math.round((p.drop ?? 0) * 2))), 3);
+      w.write(0, 2);
+    } else w.write(0, 8);
+    w.write(Math.max(0, Math.min(15, p.skin ?? 0)), 4);
+  }
+}
+
+/** Read the v3 piece section; null when it is malformed (a non-canonical field). */
+function readPieces(r: BitReader): SetPiece[] | null {
+  const n = r.read(3);
+  if (n === 0) return null; // v3 is only written with pieces
+  const out: SetPiece[] = [];
+  for (let i = 0; i < n; i++) {
+    const kind = SET_PIECE_KINDS[r.read(2)];
+    const s = r.read(8);
+    const sb = r.read(2);
+    const param = r.read(8);
+    const skin = r.read(4);
+    const p: SetPiece = { kind, s };
+    if (kind === 'wall') {
+      if (sb) p.side = sb === 1 ? -1 : sb === 2 ? 1 : 0;
+    } else if (sb) return null;
+    if (kind === 'wall' || kind === 'tunnel') {
+      if (!param) return null;
+      p.len = param;
+    } else if (kind === 'jump') {
+      if (param & 3) return null;
+      p.gap = 6 + (param >> 5);
+      const drop = ((param >> 2) & 7) / 2;
+      if (drop) p.drop = drop;
+    } else if (param) return null;
+    if (skin) p.skin = skin;
+    out.push(p);
+  }
+  return out;
+}
 
 /** Encode without any check (the editor encodes drafts too); names are cleaned. */
 export function encodeTrackBytes(def: TrackDef, opts: { creatorLapCs?: number; noLap?: boolean } = {}): Uint8Array {
   const w = new BitWriter();
-  const v2 = def.theme > 3;
-  w.write(v2 ? TRACK_CODE_VERSION_V2 : TRACK_CODE_VERSION, 4);
-  w.write(v2 ? Math.min(6, def.theme) : def.theme & 3, v2 ? 3 : 2);
+  const pieces = (def.setPieces ?? []).slice(0, PIECES_MAX);
+  const v3 = pieces.length > 0;
+  const v2 = !v3 && def.theme > 3;
+  w.write(v3 ? TRACK_CODE_VERSION_V3 : v2 ? TRACK_CODE_VERSION_V2 : TRACK_CODE_VERSION, 4);
+  w.write(v2 || v3 ? Math.max(0, Math.min(6, def.theme)) : def.theme & 3, v2 || v3 ? 3 : 2);
   w.write(Math.max(0, Math.min(2, def.timeOfDay)), 2);
   w.write(def.laps === 5 ? 1 : 0, 1);
   const pts = def.points.slice(0, 32);
@@ -95,6 +154,7 @@ export function encodeTrackBytes(def: TrackDef, opts: { creatorLapCs?: number; n
     w.write(1, 1);
     w.write(Math.min(65535, Math.round(lap)), 16);
   } else w.write(0, 1);
+  if (v3) writePieces(w, pieces);
   return withCrc16(w.bytes());
 }
 
@@ -139,9 +199,10 @@ export function decodeTrackCode(code: string, opts: { validate?: boolean } = {})
   let lap: number | undefined;
   try {
     const version = r.read(4);
-    if (version !== TRACK_CODE_VERSION && version !== TRACK_CODE_VERSION_V2) return { ok: false, reason: 'version' };
-    const theme = r.read(version === TRACK_CODE_VERSION_V2 ? 3 : 2) as ThemeId;
+    if (version !== TRACK_CODE_VERSION && version !== TRACK_CODE_VERSION_V2 && version !== TRACK_CODE_VERSION_V3) return { ok: false, reason: 'version' };
+    const theme = r.read(version === TRACK_CODE_VERSION ? 2 : 3) as ThemeId;
     if (version === TRACK_CODE_VERSION_V2 && (theme < 4 || theme > 6)) return { ok: false, reason: 'invalid' };
+    if (theme > 6) return { ok: false, reason: 'invalid' };
     const tod = r.read(2);
     if (tod > 2) return { ok: false, reason: 'invalid' };
     const laps = r.read(1) ? 5 : 3;
@@ -176,6 +237,11 @@ export function decodeTrackCode(code: string, opts: { validate?: boolean } = {})
     if (name == null || creator == null) return { ok: false, reason: 'invalid' };
     const parent = r.read(1) ? r.read(32) : undefined;
     lap = r.read(1) ? r.read(16) : undefined;
+    let pieces: SetPiece[] | null = null;
+    if (version === TRACK_CODE_VERSION_V3) {
+      pieces = readPieces(r);
+      if (!pieces) return { ok: false, reason: 'invalid' };
+    }
     // canonical: only zero pad bits may follow
     if (r.remaining >= 8) return { ok: false, reason: 'invalid' };
     if (r.remaining > 0 && r.read(r.remaining) !== 0) return { ok: false, reason: 'invalid' };
@@ -193,6 +259,7 @@ export function decodeTrackCode(code: string, opts: { validate?: boolean } = {})
     if (c) def.creator = c;
     if (parent != null) def.parent = parent;
     if (props.length) def.props = props;
+    if (pieces) def.setPieces = pieces;
   } catch {
     return { ok: false, reason: 'invalid' };
   }
