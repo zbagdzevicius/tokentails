@@ -24,6 +24,8 @@ export interface InputHandlers {
     shot(n: number): void;
     toggleAuto(): void;
     toggleMute(): void;
+    /** T: Moon Rave ↔ Back on Track (absent in embed / og). */
+    toggleTrack?(): void;
     find(): void;
   };
   /** Keys are ignored while this returns true (a sheet with an input is open). */
@@ -135,6 +137,7 @@ export function bindInput(canvas: HTMLCanvasElement, h: InputHandlers): () => vo
     } else if (/^[1-6]$/.test(e.key)) h.key.shot(Number(e.key));
     else if (e.key === 'a' || e.key === 'A') h.key.toggleAuto();
     else if (e.key === 'm' || e.key === 'M') h.key.toggleMute();
+    else if (e.key === 't' || e.key === 'T') h.key.toggleTrack?.();
     else if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       h.key.find();

@@ -83,15 +83,24 @@ export interface BeatInfo {
   loop?: number;
 }
 
-export type BeatEvent = 'beat' | 'bar' | 'section' | 'build' | 'drop';
+/** 'track': the music switched (Moon Rave synth ↔ the Back on Track mix), on a bar line. */
+export type BeatEvent = 'beat' | 'bar' | 'section' | 'build' | 'drop' | 'track';
+
+/** 'synth' = the Moon Rave tune (synthesized), 'mix' = Back on Track by ModeGospel (streamed). */
+export type TrackId = 'synth' | 'mix';
 
 export interface BeatEventPayload {
   beat: BeatInfo;
   /** 'drop' only: why it dropped. */
   cause?: 'arrangement' | 'viewer' | 'new-cat';
+  /** 'track' only: the track now playing. */
+  track?: TrackId;
+  /** 'track' only: 'error' when the mix stopped loading and the synth took over. */
+  trackState?: 'idle' | 'loading' | 'ready' | 'error';
 }
 
 export interface BeatClock {
+  /** 136 on the synth; the mix's local tempo (beat map) on the mix. */
   readonly bpm: number;
   /**
    * Sample once per frame. Before audio is unlocked (or when muted) the clock still runs on the
@@ -265,8 +274,10 @@ export interface WorldApi extends SceneModule {
   /** Renders scene + post (bloom) with this camera. */
   render(camera: Camera): void;
   setLaserMode(mode: LaserMode): void;
-  /** Full-scene light flash (drop, new cat). */
+  /** Full-scene light flash (drop, new cat). 'green' is the theme's key colour (red on the mix). */
   flash(color: 'green' | 'pink' | 'violet' | 'white', strength?: number): void;
+  /** Cross-fade the stage key light: 'green' (Moon Rave) or 'red' (Back on Track), 0.6 s default. */
+  setTheme(id: 'green' | 'red', seconds?: number): void;
   /** A spotlight follows this point (DJ head, a found cat); null returns to the show. */
   setSpotTarget(target: Vector3 | null): void;
   /** PNG of the next rendered frame (share). */
@@ -379,4 +390,8 @@ export interface RaveParams {
   debug: boolean;
   /** Dev only: API base override (ignored on tokentails.com). */
   api: string | null;
+  /** ?track=synth|mix: the track to start on (absent for anything else). */
+  track?: TrackId;
+  /** ?mixBase=: base URL for the mix's manifest, beat map and segments (overrides both bases). */
+  mixBase?: string;
 }

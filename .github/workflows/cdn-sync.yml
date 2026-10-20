@@ -177,7 +177,7 @@ jobs:
         if: ${{ steps.secrets.outputs.ready == 'true' && !inputs.dry_run }}
         run: |
           status=0
-          for ext in html js css json webp png jpg svg woff2 woff ttf glb mp3 ogg mp4; do
+          for ext in html js css json webp png jpg svg woff2 woff ttf glb mp3 ogg mp4 m4a; do
             file=$(find public -type f -name "*.$ext" ! -name '.DS_Store' | sort | head -n 1)
             [ -n "$file" ] || continue
             key="${file#public/}"

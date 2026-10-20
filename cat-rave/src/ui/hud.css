@@ -74,13 +74,13 @@
   font-size: clamp(40px, 12vw, 64px);
   line-height: 0.95;
   color: #eafff0;
-  text-shadow: 0 0 10px rgba(93, 255, 138, 0.9), 0 0 28px rgba(70, 255, 122, 0.65), 0 2px 0 #0b5a26;
+  text-shadow: 0 0 10px rgba(var(--rave-key-rgb), 0.9), 0 0 28px rgba(var(--rave-key2-rgb), 0.65), 0 2px 0 #0b5a26;
   font-variant-numeric: tabular-nums;
 }
 .rv-amount .rv-lbl {
   font-size: clamp(18px, 5vw, 24px);
   color: var(--rave-green);
-  text-shadow: 0 0 12px rgba(93, 255, 138, 0.7);
+  text-shadow: 0 0 12px rgba(var(--rave-key-rgb), 0.7);
 }
 .rv-cats {
   margin-top: 2px;
@@ -238,16 +238,16 @@
   place-items: center;
   padding: 0;
   border-radius: 14px;
-  border: 1px solid rgba(93, 255, 138, 0.35);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.35);
   background: rgba(4, 22, 11, 0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 0 14px rgba(70, 255, 122, 0.18), inset 0 0 12px rgba(70, 255, 122, 0.08);
+  box-shadow: 0 0 14px rgba(var(--rave-key2-rgb), 0.18), inset 0 0 12px rgba(var(--rave-key2-rgb), 0.08);
   transition: transform 0.12s, border-color 0.2s, box-shadow 0.2s;
 }
 .rv-icon:hover {
   border-color: var(--rave-green);
-  box-shadow: 0 0 18px rgba(70, 255, 122, 0.45);
+  box-shadow: 0 0 18px rgba(var(--rave-key2-rgb), 0.45);
 }
 .rv-icon:active {
   transform: scale(0.92);
@@ -264,6 +264,38 @@
 .rv-icon[aria-pressed='true'] {
   border-color: var(--rave-pink);
   box-shadow: 0 0 16px rgba(255, 79, 158, 0.5);
+}
+
+/* Track switch (T): its LED reads the key colour, green on Moon Rave, red on Back on Track. */
+.rv-track-btn {
+  position: relative;
+}
+.rv-track-btn[aria-pressed='true'] {
+  border-color: var(--rave-green);
+  box-shadow: 0 0 16px rgba(var(--rave-key-rgb), 0.5);
+}
+.rv-led {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--rave-green);
+  box-shadow: 0 0 6px var(--rave-green), 0 0 12px var(--rave-green);
+  pointer-events: none;
+}
+.rv-track-btn[aria-busy='true'] .rv-led {
+  animation: rv-led-blink 0.5s steps(1, end) infinite;
+}
+@keyframes rv-led-blink {
+  50% { opacity: 0.15; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv-track-btn[aria-busy='true'] .rv-led {
+    animation: none;
+    opacity: 0.45;
+  }
 }
 
 /* ---------------------------------------------------------------- middle */
@@ -364,7 +396,7 @@
   text-shadow: 0 1px 2px rgba(120, 0, 50, 0.5);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25) inset, 0 6px 0 #9e1758, 0 0 34px rgba(255, 79, 158, 0.75);
   transition: transform 0.1s, box-shadow 0.1s;
-  animation: rv-cta-breathe 1.765s ease-in-out infinite; /* 4 beats at 136 BPM */
+  animation: rv-cta-breathe var(--rave-bar, 1.765s) ease-in-out infinite; /* 4 beats (1.765 s at 136 BPM; main sets --rave-bar per track) */
 }
 .rv-cta:active {
   transform: translateY(4px);
@@ -377,11 +409,30 @@
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(93, 255, 138, 0.5);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.5);
   background: rgba(4, 22, 11, 0.6);
   font-weight: 700;
   font-size: 13px;
-  animation: rv-pulse 1.765s ease-in-out infinite;
+  animation: rv-pulse var(--rave-bar, 1.765s) ease-in-out infinite;
+}
+
+.rv-credit {
+  max-width: min(100%, 360px);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--rave-ink-dim);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rv-credit[hidden],
+.rv-embed .rv-credit,
+.rv-og .rv-credit {
+  display: none !important;
 }
 
 /* ---------------------------------------------------------------- card */
@@ -392,8 +443,8 @@
   padding: 14px 16px 14px;
   border-radius: 18px;
   background: rgba(5, 24, 12, 0.88);
-  border: 1px solid rgba(93, 255, 138, 0.45);
-  box-shadow: 0 0 28px rgba(70, 255, 122, 0.28), 0 12px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.45);
+  box-shadow: 0 0 28px rgba(var(--rave-key2-rgb), 0.28), 0 12px 40px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   opacity: 0;
@@ -504,9 +555,9 @@
   padding: 20px calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
   border-radius: 24px 24px 0 0;
   background: linear-gradient(180deg, rgba(8, 34, 17, 0.97), rgba(3, 14, 7, 0.98));
-  border: 1px solid rgba(93, 255, 138, 0.35);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.35);
   border-bottom: 0;
-  box-shadow: 0 -10px 50px rgba(70, 255, 122, 0.22);
+  box-shadow: 0 -10px 50px rgba(var(--rave-key2-rgb), 0.22);
   transform: translate(-50%, 104%);
   transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
   visibility: hidden;
@@ -520,7 +571,7 @@
     bottom: auto;
     top: 50%;
     border-radius: 24px;
-    border-bottom: 1px solid rgba(93, 255, 138, 0.35);
+    border-bottom: 1px solid rgba(var(--rave-key-rgb), 0.35);
     transform: translate(-50%, -46%) scale(0.96);
     opacity: 0;
     transition: transform 0.22s, opacity 0.22s;
@@ -534,7 +585,7 @@
   margin: 0 40px 6px 0;
   font-size: 28px;
   color: #eafff0;
-  text-shadow: 0 0 14px rgba(93, 255, 138, 0.6);
+  text-shadow: 0 0 14px rgba(var(--rave-key-rgb), 0.6);
 }
 .rv-sheet p {
   margin: 0 0 14px;
@@ -551,14 +602,14 @@
   padding: 10px 14px;
   box-sizing: border-box;
   border-radius: 16px;
-  border: 1px solid rgba(93, 255, 138, 0.3);
-  background: rgba(70, 255, 122, 0.06);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.3);
+  background: rgba(var(--rave-key2-rgb), 0.06);
   text-align: left;
   text-decoration: none;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
 .rv-opt:hover {
-  background: rgba(70, 255, 122, 0.13);
+  background: rgba(var(--rave-key2-rgb), 0.13);
   border-color: var(--rave-green);
 }
 .rv-opt:active {
@@ -634,7 +685,7 @@
   min-height: 48px;
   padding: 0 14px;
   border-radius: 14px;
-  border: 1px solid rgba(93, 255, 138, 0.4);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.4);
   background: rgba(0, 0, 0, 0.35);
   color: var(--rave-ink);
   font: inherit;
@@ -643,7 +694,7 @@
 .rv-field input:focus {
   outline: none;
   border-color: var(--rave-green);
-  box-shadow: 0 0 0 3px rgba(93, 255, 138, 0.2);
+  box-shadow: 0 0 0 3px rgba(var(--rave-key-rgb), 0.2);
 }
 .rv-btn {
   min-height: 48px;
@@ -662,8 +713,8 @@
 .rv-shots button {
   min-height: 52px;
   border-radius: 14px;
-  border: 1px solid rgba(93, 255, 138, 0.3);
-  background: rgba(70, 255, 122, 0.06);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.3);
+  background: rgba(var(--rave-key2-rgb), 0.06);
   font-weight: 800;
 }
 .rv-shots button[aria-pressed='true'] {
@@ -897,7 +948,7 @@
   height: 26px;
   padding: 0 10px 0 7px;
   border-radius: 999px;
-  border: 1px solid rgba(93, 255, 138, 0.4);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.4);
   background: rgba(4, 22, 11, 0.6);
   color: var(--rave-ink) !important;
   font-size: 12px !important;
@@ -960,8 +1011,8 @@
   min-height: 42px;
   padding: 6px 12px 6px 8px;
   border-radius: 12px;
-  background: rgba(70, 255, 122, 0.06);
-  border: 1px solid rgba(93, 255, 138, 0.18);
+  background: rgba(var(--rave-key2-rgb), 0.06);
+  border: 1px solid rgba(var(--rave-key-rgb), 0.18);
   overflow: hidden;
 }
 .rv-board-top {
@@ -1036,8 +1087,14 @@
     gap: 8px;
   }
   .rv-arrivals,
-  .rv-sponsors-slot {
+  .rv-sponsors-slot,
+  .rv-hint,
+  .rv-credit {
     margin-right: 52px;
+  }
+  .rv-credit {
+    max-width: calc(100% - 52px);
+    box-sizing: border-box;
   }
 }
 
@@ -1080,6 +1137,10 @@
 /* Short phones (375x667 and the like): a slimmer stats block and one arrival row, so the scene (DJ,
    floor) keeps more than a sliver between the top and bottom HUD. */
 @media (max-height: 700px) and (orientation: portrait) {
+  /* Five 44 px tools (mute, track, share, find, shots): 6 px gaps keep the column off the stats block. */
+  .rv-tools {
+    gap: 6px;
+  }
   .rv-hook,
   .rv-source {
     display: none;

@@ -5,6 +5,7 @@
  */
 import { Plane, Raycaster, Vector2, Vector3, type Camera, type Object3D } from 'three';
 import { createBeatClock } from './audio';
+import { createMixLoader } from './audio/mix';
 import { createAdsApi, type AdsStatusOn, type LiveAd } from './ads/api';
 import { mountAdSheet, type MountedAdSheet } from './ads/sheet';
 import { adSlot, slotLabel } from './ads/slots';
@@ -25,15 +26,17 @@ import { createFloor } from './data/floor';
 import { createRaveOrders, type NameShoutout } from './data/rave-orders';
 import { createOwnTag } from './ui/ownTag';
 import { createDj } from './dj';
-import type { BeatEventPayload, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, RaveCat, Section, WorldApi } from './types';
+import type { BeatEventPayload, FrameContext, LaserMode, PayoutSnapshot, Quality, QualityProfile, RaveCat, Section, TrackId, WorldApi } from './types';
 import { createDirector } from './ui/director';
 import { counterText, formatUsd, shareText, shoutFor } from './ui/format';
 import { COUNT_UP_MS, createHud, type TreatMode } from './ui/hud';
 import { bindInput } from './ui/input';
-import { parseParams } from './ui/params';
+import { initialTrack, parseParams } from './ui/params';
+import { setPawsTheme } from './ui/paws';
 import { FrameGovernor, pickQuality, readDeviceHints, stepDown } from './ui/quality';
 import { composePicture, savePicture, shareLink, shareUrl } from './ui/share';
 import { createWorld } from './world';
+import { themeFor } from './world/theme';
 
 /** localStorage, or null where it throws (private windows, blocked site data). */
 function safeLocalStorage(): Storage | null {
@@ -154,7 +157,15 @@ async function boot() {
   await nextFrame();
 
   const storedMute = store.get('rave:muted') === '1';
-  const clock = createBeatClock({ muted: params.mute || storedMute || og });
+  // Two tracks (SPEC.md 8.1): the Moon Rave synth, or the Back on Track mix streamed from
+  // music/back-on-track-v1. og / embed never fetch the mix and never show the button.
+  const trackUi = !params.embed && !og;
+  const startTrack: TrackId = initialTrack({ og, embed: params.embed, param: params.track, stored: store.get('rave:track') });
+  const clock = createBeatClock({
+    muted: params.mute || storedMute || og,
+    track: startTrack,
+    mixLoader: trackUi ? createMixLoader({ base: params.mixBase ?? undefined }) : undefined,
+  });
   const crowd: CrowdWithFlags = createCrowd(world, profile);
   setBoot('waking the kittens', 0.55);
   await nextFrame();
@@ -331,6 +342,23 @@ async function boot() {
     return m;
   };
   let treatMode: TreatMode = 'link';
+  /** Button / T: Moon Rave ↔ Back on Track. The swap lands on the next bar line ('track' event). */
+  const toggleTrack = async () => {
+    if (clock.trackState === 'loading') return;
+    if (!clock.muted) void clock.unlock(); // inside the gesture, before any await (iOS)
+    // From the target, not the playing track: a second click while a swap is armed undoes it.
+    const next: TrackId = clock.targetTrack === 'mix' ? 'synth' : 'mix';
+    hud.setTrack(clock.track, 'loading');
+    const ok = await clock.setTrack(next);
+    if (ok) {
+      store.set('rave:track', next);
+      // Nothing armed (a swap undone, or already there): no 'track' event comes to clear the LED.
+      if (clock.targetTrack === clock.track) hud.setTrack(clock.track, 'ready');
+    } else {
+      hud.shout("Couldn't load Back on Track. Staying on Moon Rave.");
+      hud.setTrack('synth', 'ready');
+    }
+  };
   const hud = createHud(hudRoot, {
     embed: params.embed || og,
     og,
@@ -357,7 +385,7 @@ async function boot() {
           cats: t.cats,
           tag: 'Moon Rave · $1 = 1 dancing cat for the Pink Paw shelter',
           demo: snapshot?.demo ? `DEMO · ${snapshot.cats.toLocaleString('en-US')} cats shown, not real` : null,
-        });
+        }, themeFor(clock.track));
         const r = await savePicture(png);
         return r === 'shared' ? 'Shared!' : 'Saved moon-rave.png';
       } catch (e) {
@@ -396,7 +424,20 @@ async function boot() {
       const n = orders.namesForCat(cat);
       return n ? { name: n.name, x: n.x, xUrl: n.xUrl, country: n.country } : null;
     },
+    track: clock.track,
+    onTrack: trackUi ? () => void toggleTrack() : undefined,
   });
+  if (startTrack === 'mix') {
+    // Starts virtual (red visuals at the mix tempo); "Tap for sound" makes it audible.
+    hud.setTrack('synth', 'loading');
+    void clock.setTrack('mix').then((ok) => {
+      if (ok) return;
+      // Do not retry a failing load on every visit: the stored choice goes back to the synth.
+      store.set('rave:track', 'synth');
+      hud.setTrack('synth', 'ready');
+      hud.shout("Couldn't load Back on Track. Staying on Moon Rave.");
+    });
+  }
   const badge = createArcBadge();
   if (!params.embed && !og) hud.mountBadge(badge.el);
   const syncArc = () => {
@@ -431,6 +472,29 @@ async function boot() {
     if (!og) hud.stamp(cause === 'new-cat' ? 'NEW CAT!' : cause === 'viewer' ? 'DROP!' : stamps[stampN++ % stamps.length]);
   });
   clock.on('section', syncLasers);
+  // ------------------------------------------------------------------ track swap: Green ↔ Red lights
+  const themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const setBarCss = () => document.documentElement.style.setProperty('--rave-bar', `${(240 / clock.bpm).toFixed(3)}s`);
+  setBarCss();
+  clock.on('track', ({ track, trackState }: BeatEventPayload) => {
+    if (!track) return;
+    const light = themeFor(track);
+    world.setTheme(light, 0.6);
+    crowd.setTheme(light, 0.6);
+    dj.setTheme(light, 0.6);
+    setPawsTheme(light, 0.6);
+    adBoards.setTheme(light);
+    if (light === 'red') document.documentElement.dataset.light = 'red';
+    else delete document.documentElement.dataset.light;
+    themeMeta?.setAttribute('content', light === 'red' ? '#0a0203' : '#020a05');
+    setBarCss();
+    hud.setTrack(track, 'ready');
+    hud.setCredit(track === 'mix' ? clock.credit : null);
+    if (trackState === 'error') {
+      store.set('rave:track', 'synth');
+      hud.shout('Back on Track stopped loading. Back to Moon Rave.');
+    } else if (track === 'mix' && clock.credit) hud.shout(`Now playing: ${clock.credit}`);
+  });
   clock.on('build', () => {
     world.setLaserMode('fan');
     flash('violet', 0.5);
@@ -845,6 +909,7 @@ async function boot() {
       },
       toggleAuto: () => director.setAuto(!director.auto),
       toggleMute: () => hud.setMuted(toggleMute()),
+      toggleTrack: trackUi ? () => void toggleTrack() : undefined,
       find: () => hud.openSheet('find'),
     },
     keysBlocked: () => hud.sheetOpen,

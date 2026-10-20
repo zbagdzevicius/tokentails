@@ -19,7 +19,7 @@
   background: rgba(2, 10, 5, 0.72);
   border: 1.5px solid #5dff8a;
   box-shadow: 0 0 0 1px rgba(93, 255, 138, 0.25) inset, 0 0 16px rgba(93, 255, 138, 0.55), 0 0 36px rgba(162, 107, 255, 0.35);
-  animation: rv-arc-pulse 1.765s ease-in-out infinite; /* 4 beats at 136 BPM */
+  animation: rv-arc-pulse var(--rave-bar, 1.765s) ease-in-out infinite; /* 4 beats (main sets --rave-bar per track) */
 }
 .rv-arc-badge[hidden] {
   display: none;

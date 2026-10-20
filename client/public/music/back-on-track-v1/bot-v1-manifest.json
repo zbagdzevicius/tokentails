@@ -1,0 +1,1270 @@
+{
+  "v": 1,
+  "id": "back-on-track-v1",
+  "title": "Back on Track",
+  "artist": "ModeGospel",
+  "credit": "Back on Track (mix) by ModeGospel",
+  "bpm": 145.05,
+  "duration": 3746.214603,
+  "sampleRate": 44100,
+  "totalSamples": 165208064,
+  "codec": "aac-lc",
+  "mime": "audio/mp4",
+  "bitrate": 128000,
+  "segSec": 30,
+  "cdnBase": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/music/back-on-track-v1/",
+  "sameOriginBase": "/music/back-on-track-v1/",
+  "beatmap": "bot-v1-beatmap.json",
+  "segments": [
+    {
+      "url": "bot-v1-000.m4a",
+      "start": 0,
+      "duration": 30,
+      "startSample": 0,
+      "samples": 1323000,
+      "pre": 0,
+      "post": 4096,
+      "bytes": 478560
+    },
+    {
+      "url": "bot-v1-001.m4a",
+      "start": 30,
+      "duration": 30,
+      "startSample": 1323000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 490240
+    },
+    {
+      "url": "bot-v1-002.m4a",
+      "start": 60,
+      "duration": 30,
+      "startSample": 2646000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 491897
+    },
+    {
+      "url": "bot-v1-003.m4a",
+      "start": 90,
+      "duration": 30,
+      "startSample": 3969000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 499306
+    },
+    {
+      "url": "bot-v1-004.m4a",
+      "start": 120,
+      "duration": 30,
+      "startSample": 5292000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 495665
+    },
+    {
+      "url": "bot-v1-005.m4a",
+      "start": 150,
+      "duration": 30,
+      "startSample": 6615000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496525
+    },
+    {
+      "url": "bot-v1-006.m4a",
+      "start": 180,
+      "duration": 30,
+      "startSample": 7938000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498220
+    },
+    {
+      "url": "bot-v1-007.m4a",
+      "start": 210,
+      "duration": 30,
+      "startSample": 9261000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494198
+    },
+    {
+      "url": "bot-v1-008.m4a",
+      "start": 240,
+      "duration": 30,
+      "startSample": 10584000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492026
+    },
+    {
+      "url": "bot-v1-009.m4a",
+      "start": 270,
+      "duration": 30,
+      "startSample": 11907000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497080
+    },
+    {
+      "url": "bot-v1-010.m4a",
+      "start": 300,
+      "duration": 30,
+      "startSample": 13230000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492696
+    },
+    {
+      "url": "bot-v1-011.m4a",
+      "start": 330,
+      "duration": 30,
+      "startSample": 14553000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 490986
+    },
+    {
+      "url": "bot-v1-012.m4a",
+      "start": 360,
+      "duration": 30,
+      "startSample": 15876000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492030
+    },
+    {
+      "url": "bot-v1-013.m4a",
+      "start": 390,
+      "duration": 30,
+      "startSample": 17199000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492812
+    },
+    {
+      "url": "bot-v1-014.m4a",
+      "start": 420,
+      "duration": 30,
+      "startSample": 18522000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492888
+    },
+    {
+      "url": "bot-v1-015.m4a",
+      "start": 450,
+      "duration": 30,
+      "startSample": 19845000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 491684
+    },
+    {
+      "url": "bot-v1-016.m4a",
+      "start": 480,
+      "duration": 30,
+      "startSample": 21168000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 491772
+    },
+    {
+      "url": "bot-v1-017.m4a",
+      "start": 510,
+      "duration": 30,
+      "startSample": 22491000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493916
+    },
+    {
+      "url": "bot-v1-018.m4a",
+      "start": 540,
+      "duration": 30,
+      "startSample": 23814000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492769
+    },
+    {
+      "url": "bot-v1-019.m4a",
+      "start": 570,
+      "duration": 30,
+      "startSample": 25137000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498698
+    },
+    {
+      "url": "bot-v1-020.m4a",
+      "start": 600,
+      "duration": 30,
+      "startSample": 26460000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 514440
+    },
+    {
+      "url": "bot-v1-021.m4a",
+      "start": 630,
+      "duration": 30,
+      "startSample": 27783000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 512176
+    },
+    {
+      "url": "bot-v1-022.m4a",
+      "start": 660,
+      "duration": 30,
+      "startSample": 29106000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 504383
+    },
+    {
+      "url": "bot-v1-023.m4a",
+      "start": 690,
+      "duration": 30,
+      "startSample": 30429000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 508991
+    },
+    {
+      "url": "bot-v1-024.m4a",
+      "start": 720,
+      "duration": 30,
+      "startSample": 31752000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 507283
+    },
+    {
+      "url": "bot-v1-025.m4a",
+      "start": 750,
+      "duration": 30,
+      "startSample": 33075000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 511633
+    },
+    {
+      "url": "bot-v1-026.m4a",
+      "start": 780,
+      "duration": 30,
+      "startSample": 34398000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 508036
+    },
+    {
+      "url": "bot-v1-027.m4a",
+      "start": 810,
+      "duration": 30,
+      "startSample": 35721000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 506622
+    },
+    {
+      "url": "bot-v1-028.m4a",
+      "start": 840,
+      "duration": 30,
+      "startSample": 37044000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 503127
+    },
+    {
+      "url": "bot-v1-029.m4a",
+      "start": 870,
+      "duration": 30,
+      "startSample": 38367000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494721
+    },
+    {
+      "url": "bot-v1-030.m4a",
+      "start": 900,
+      "duration": 30,
+      "startSample": 39690000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 489940
+    },
+    {
+      "url": "bot-v1-031.m4a",
+      "start": 930,
+      "duration": 30,
+      "startSample": 41013000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494271
+    },
+    {
+      "url": "bot-v1-032.m4a",
+      "start": 960,
+      "duration": 30,
+      "startSample": 42336000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492549
+    },
+    {
+      "url": "bot-v1-033.m4a",
+      "start": 990,
+      "duration": 30,
+      "startSample": 43659000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496054
+    },
+    {
+      "url": "bot-v1-034.m4a",
+      "start": 1020,
+      "duration": 30,
+      "startSample": 44982000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 506211
+    },
+    {
+      "url": "bot-v1-035.m4a",
+      "start": 1050,
+      "duration": 30,
+      "startSample": 46305000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498413
+    },
+    {
+      "url": "bot-v1-036.m4a",
+      "start": 1080,
+      "duration": 30,
+      "startSample": 47628000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 504343
+    },
+    {
+      "url": "bot-v1-037.m4a",
+      "start": 1110,
+      "duration": 30,
+      "startSample": 48951000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 504069
+    },
+    {
+      "url": "bot-v1-038.m4a",
+      "start": 1140,
+      "duration": 30,
+      "startSample": 50274000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500161
+    },
+    {
+      "url": "bot-v1-039.m4a",
+      "start": 1170,
+      "duration": 30,
+      "startSample": 51597000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500006
+    },
+    {
+      "url": "bot-v1-040.m4a",
+      "start": 1200,
+      "duration": 30,
+      "startSample": 52920000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 502171
+    },
+    {
+      "url": "bot-v1-041.m4a",
+      "start": 1230,
+      "duration": 30,
+      "startSample": 54243000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 509703
+    },
+    {
+      "url": "bot-v1-042.m4a",
+      "start": 1260,
+      "duration": 30,
+      "startSample": 55566000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492542
+    },
+    {
+      "url": "bot-v1-043.m4a",
+      "start": 1290,
+      "duration": 30,
+      "startSample": 56889000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500180
+    },
+    {
+      "url": "bot-v1-044.m4a",
+      "start": 1320,
+      "duration": 30,
+      "startSample": 58212000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 501871
+    },
+    {
+      "url": "bot-v1-045.m4a",
+      "start": 1350,
+      "duration": 30,
+      "startSample": 59535000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497738
+    },
+    {
+      "url": "bot-v1-046.m4a",
+      "start": 1380,
+      "duration": 30,
+      "startSample": 60858000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 511160
+    },
+    {
+      "url": "bot-v1-047.m4a",
+      "start": 1410,
+      "duration": 30,
+      "startSample": 62181000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 518847
+    },
+    {
+      "url": "bot-v1-048.m4a",
+      "start": 1440,
+      "duration": 30,
+      "startSample": 63504000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 510180
+    },
+    {
+      "url": "bot-v1-049.m4a",
+      "start": 1470,
+      "duration": 30,
+      "startSample": 64827000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 509056
+    },
+    {
+      "url": "bot-v1-050.m4a",
+      "start": 1500,
+      "duration": 30,
+      "startSample": 66150000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 512088
+    },
+    {
+      "url": "bot-v1-051.m4a",
+      "start": 1530,
+      "duration": 30,
+      "startSample": 67473000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 517023
+    },
+    {
+      "url": "bot-v1-052.m4a",
+      "start": 1560,
+      "duration": 30,
+      "startSample": 68796000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498744
+    },
+    {
+      "url": "bot-v1-053.m4a",
+      "start": 1590,
+      "duration": 30,
+      "startSample": 70119000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 506857
+    },
+    {
+      "url": "bot-v1-054.m4a",
+      "start": 1620,
+      "duration": 30,
+      "startSample": 71442000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500577
+    },
+    {
+      "url": "bot-v1-055.m4a",
+      "start": 1650,
+      "duration": 30,
+      "startSample": 72765000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498438
+    },
+    {
+      "url": "bot-v1-056.m4a",
+      "start": 1680,
+      "duration": 30,
+      "startSample": 74088000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492832
+    },
+    {
+      "url": "bot-v1-057.m4a",
+      "start": 1710,
+      "duration": 30,
+      "startSample": 75411000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494412
+    },
+    {
+      "url": "bot-v1-058.m4a",
+      "start": 1740,
+      "duration": 30,
+      "startSample": 76734000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 490451
+    },
+    {
+      "url": "bot-v1-059.m4a",
+      "start": 1770,
+      "duration": 30,
+      "startSample": 78057000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498432
+    },
+    {
+      "url": "bot-v1-060.m4a",
+      "start": 1800,
+      "duration": 30,
+      "startSample": 79380000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500187
+    },
+    {
+      "url": "bot-v1-061.m4a",
+      "start": 1830,
+      "duration": 30,
+      "startSample": 80703000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 495526
+    },
+    {
+      "url": "bot-v1-062.m4a",
+      "start": 1860,
+      "duration": 30,
+      "startSample": 82026000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500416
+    },
+    {
+      "url": "bot-v1-063.m4a",
+      "start": 1890,
+      "duration": 30,
+      "startSample": 83349000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492849
+    },
+    {
+      "url": "bot-v1-064.m4a",
+      "start": 1920,
+      "duration": 30,
+      "startSample": 84672000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494478
+    },
+    {
+      "url": "bot-v1-065.m4a",
+      "start": 1950,
+      "duration": 30,
+      "startSample": 85995000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497870
+    },
+    {
+      "url": "bot-v1-066.m4a",
+      "start": 1980,
+      "duration": 30,
+      "startSample": 87318000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 490878
+    },
+    {
+      "url": "bot-v1-067.m4a",
+      "start": 2010,
+      "duration": 30,
+      "startSample": 88641000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493167
+    },
+    {
+      "url": "bot-v1-068.m4a",
+      "start": 2040,
+      "duration": 30,
+      "startSample": 89964000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493399
+    },
+    {
+      "url": "bot-v1-069.m4a",
+      "start": 2070,
+      "duration": 30,
+      "startSample": 91287000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493895
+    },
+    {
+      "url": "bot-v1-070.m4a",
+      "start": 2100,
+      "duration": 30,
+      "startSample": 92610000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 494371
+    },
+    {
+      "url": "bot-v1-071.m4a",
+      "start": 2130,
+      "duration": 30,
+      "startSample": 93933000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492273
+    },
+    {
+      "url": "bot-v1-072.m4a",
+      "start": 2160,
+      "duration": 30,
+      "startSample": 95256000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497170
+    },
+    {
+      "url": "bot-v1-073.m4a",
+      "start": 2190,
+      "duration": 30,
+      "startSample": 96579000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 491671
+    },
+    {
+      "url": "bot-v1-074.m4a",
+      "start": 2220,
+      "duration": 30,
+      "startSample": 97902000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493823
+    },
+    {
+      "url": "bot-v1-075.m4a",
+      "start": 2250,
+      "duration": 30,
+      "startSample": 99225000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496150
+    },
+    {
+      "url": "bot-v1-076.m4a",
+      "start": 2280,
+      "duration": 30,
+      "startSample": 100548000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 501792
+    },
+    {
+      "url": "bot-v1-077.m4a",
+      "start": 2310,
+      "duration": 30,
+      "startSample": 101871000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498748
+    },
+    {
+      "url": "bot-v1-078.m4a",
+      "start": 2340,
+      "duration": 30,
+      "startSample": 103194000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497450
+    },
+    {
+      "url": "bot-v1-079.m4a",
+      "start": 2370,
+      "duration": 30,
+      "startSample": 104517000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 491759
+    },
+    {
+      "url": "bot-v1-080.m4a",
+      "start": 2400,
+      "duration": 30,
+      "startSample": 105840000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 505984
+    },
+    {
+      "url": "bot-v1-081.m4a",
+      "start": 2430,
+      "duration": 30,
+      "startSample": 107163000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497723
+    },
+    {
+      "url": "bot-v1-082.m4a",
+      "start": 2460,
+      "duration": 30,
+      "startSample": 108486000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 502147
+    },
+    {
+      "url": "bot-v1-083.m4a",
+      "start": 2490,
+      "duration": 30,
+      "startSample": 109809000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 513928
+    },
+    {
+      "url": "bot-v1-084.m4a",
+      "start": 2520,
+      "duration": 30,
+      "startSample": 111132000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 513458
+    },
+    {
+      "url": "bot-v1-085.m4a",
+      "start": 2550,
+      "duration": 30,
+      "startSample": 112455000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 513992
+    },
+    {
+      "url": "bot-v1-086.m4a",
+      "start": 2580,
+      "duration": 30,
+      "startSample": 113778000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 502539
+    },
+    {
+      "url": "bot-v1-087.m4a",
+      "start": 2610,
+      "duration": 30,
+      "startSample": 115101000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500656
+    },
+    {
+      "url": "bot-v1-088.m4a",
+      "start": 2640,
+      "duration": 30,
+      "startSample": 116424000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 501003
+    },
+    {
+      "url": "bot-v1-089.m4a",
+      "start": 2670,
+      "duration": 30,
+      "startSample": 117747000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497242
+    },
+    {
+      "url": "bot-v1-090.m4a",
+      "start": 2700,
+      "duration": 30,
+      "startSample": 119070000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496879
+    },
+    {
+      "url": "bot-v1-091.m4a",
+      "start": 2730,
+      "duration": 30,
+      "startSample": 120393000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498361
+    },
+    {
+      "url": "bot-v1-092.m4a",
+      "start": 2760,
+      "duration": 30,
+      "startSample": 121716000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497064
+    },
+    {
+      "url": "bot-v1-093.m4a",
+      "start": 2790,
+      "duration": 30,
+      "startSample": 123039000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 507347
+    },
+    {
+      "url": "bot-v1-094.m4a",
+      "start": 2820,
+      "duration": 30,
+      "startSample": 124362000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 506238
+    },
+    {
+      "url": "bot-v1-095.m4a",
+      "start": 2850,
+      "duration": 30,
+      "startSample": 125685000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 505133
+    },
+    {
+      "url": "bot-v1-096.m4a",
+      "start": 2880,
+      "duration": 30,
+      "startSample": 127008000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 513967
+    },
+    {
+      "url": "bot-v1-097.m4a",
+      "start": 2910,
+      "duration": 30,
+      "startSample": 128331000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 503148
+    },
+    {
+      "url": "bot-v1-098.m4a",
+      "start": 2940,
+      "duration": 30,
+      "startSample": 129654000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 502795
+    },
+    {
+      "url": "bot-v1-099.m4a",
+      "start": 2970,
+      "duration": 30,
+      "startSample": 130977000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 502465
+    },
+    {
+      "url": "bot-v1-100.m4a",
+      "start": 3000,
+      "duration": 30,
+      "startSample": 132300000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 499396
+    },
+    {
+      "url": "bot-v1-101.m4a",
+      "start": 3030,
+      "duration": 30,
+      "startSample": 133623000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496098
+    },
+    {
+      "url": "bot-v1-102.m4a",
+      "start": 3060,
+      "duration": 30,
+      "startSample": 134946000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498264
+    },
+    {
+      "url": "bot-v1-103.m4a",
+      "start": 3090,
+      "duration": 30,
+      "startSample": 136269000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500153
+    },
+    {
+      "url": "bot-v1-104.m4a",
+      "start": 3120,
+      "duration": 30,
+      "startSample": 137592000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 503887
+    },
+    {
+      "url": "bot-v1-105.m4a",
+      "start": 3150,
+      "duration": 30,
+      "startSample": 138915000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 498897
+    },
+    {
+      "url": "bot-v1-106.m4a",
+      "start": 3180,
+      "duration": 30,
+      "startSample": 140238000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 499048
+    },
+    {
+      "url": "bot-v1-107.m4a",
+      "start": 3210,
+      "duration": 30,
+      "startSample": 141561000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500847
+    },
+    {
+      "url": "bot-v1-108.m4a",
+      "start": 3240,
+      "duration": 30,
+      "startSample": 142884000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 496356
+    },
+    {
+      "url": "bot-v1-109.m4a",
+      "start": 3270,
+      "duration": 30,
+      "startSample": 144207000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492599
+    },
+    {
+      "url": "bot-v1-110.m4a",
+      "start": 3300,
+      "duration": 30,
+      "startSample": 145530000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 532486
+    },
+    {
+      "url": "bot-v1-111.m4a",
+      "start": 3330,
+      "duration": 30,
+      "startSample": 146853000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 537369
+    },
+    {
+      "url": "bot-v1-112.m4a",
+      "start": 3360,
+      "duration": 30,
+      "startSample": 148176000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 513616
+    },
+    {
+      "url": "bot-v1-113.m4a",
+      "start": 3390,
+      "duration": 30,
+      "startSample": 149499000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 515871
+    },
+    {
+      "url": "bot-v1-114.m4a",
+      "start": 3420,
+      "duration": 30,
+      "startSample": 150822000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 500847
+    },
+    {
+      "url": "bot-v1-115.m4a",
+      "start": 3450,
+      "duration": 30,
+      "startSample": 152145000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493149
+    },
+    {
+      "url": "bot-v1-116.m4a",
+      "start": 3480,
+      "duration": 30,
+      "startSample": 153468000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 495743
+    },
+    {
+      "url": "bot-v1-117.m4a",
+      "start": 3510,
+      "duration": 30,
+      "startSample": 154791000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 499567
+    },
+    {
+      "url": "bot-v1-118.m4a",
+      "start": 3540,
+      "duration": 30,
+      "startSample": 156114000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492150
+    },
+    {
+      "url": "bot-v1-119.m4a",
+      "start": 3570,
+      "duration": 30,
+      "startSample": 157437000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493853
+    },
+    {
+      "url": "bot-v1-120.m4a",
+      "start": 3600,
+      "duration": 30,
+      "startSample": 158760000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 490555
+    },
+    {
+      "url": "bot-v1-121.m4a",
+      "start": 3630,
+      "duration": 30,
+      "startSample": 160083000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 492680
+    },
+    {
+      "url": "bot-v1-122.m4a",
+      "start": 3660,
+      "duration": 30,
+      "startSample": 161406000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 497688
+    },
+    {
+      "url": "bot-v1-123.m4a",
+      "start": 3690,
+      "duration": 30,
+      "startSample": 162729000,
+      "samples": 1323000,
+      "pre": 4096,
+      "post": 4096,
+      "bytes": 493670
+    },
+    {
+      "url": "bot-v1-124.m4a",
+      "start": 3720,
+      "duration": 26.214603,
+      "startSample": 164052000,
+      "samples": 1156064,
+      "pre": 4096,
+      "post": 0,
+      "bytes": 431550
+    }
+  ]
+}

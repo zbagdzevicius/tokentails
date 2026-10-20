@@ -41,7 +41,18 @@ export async function shareLink(url: string, text: string): Promise<'shared' | '
 }
 
 /** Burns the counter into a scene capture and returns a PNG. */
-export async function composePicture(scene: Blob, lines: { amount: string; cats: string; tag: string; demo?: string | null }): Promise<Blob> {
+/** Counter glow and ink per stage light, so the burned-in text matches the scene behind it. */
+const PICTURE_INK = {
+  green: { glow: '#46ff7a', ink: '#eafff0', small: 'rgba(234,255,240,0.75)' },
+  red: { glow: '#ff4656', ink: '#ffeef0', small: 'rgba(255,238,240,0.75)' },
+} as const;
+
+export async function composePicture(
+  scene: Blob,
+  lines: { amount: string; cats: string; tag: string; demo?: string | null },
+  light: keyof typeof PICTURE_INK = 'green',
+): Promise<Blob> {
+  const ink = PICTURE_INK[light];
   const bmp = await createImageBitmap(scene);
   const c = document.createElement('canvas');
   c.width = bmp.width;
@@ -73,9 +84,9 @@ export async function composePicture(scene: Blob, lines: { amount: string; cats:
   const base = c.height - u * 4;
   const lift = oneLine ? 0 : lineH;
   g.textBaseline = 'alphabetic';
-  g.shadowColor = '#46ff7a';
+  g.shadowColor = ink.glow;
   g.shadowBlur = u * 3;
-  g.fillStyle = '#eafff0';
+  g.fillStyle = ink.ink;
   g.font = `${Math.round(u * 11)}px ${font}, system-ui, sans-serif`;
   g.fillText(`${lines.amount} raised`, margin, c.height - u * 17 - lift);
   g.shadowColor = '#ff4f9e';
@@ -83,7 +94,7 @@ export async function composePicture(scene: Blob, lines: { amount: string; cats:
   g.font = `${Math.round(u * 6.5)}px ${font}, system-ui, sans-serif`;
   g.fillText(`= ${lines.cats}`, margin, c.height - u * 9 - lift);
   g.shadowBlur = 0;
-  g.fillStyle = 'rgba(234,255,240,0.75)';
+  g.fillStyle = ink.small;
   g.font = `600 ${small}px system-ui, sans-serif`;
   g.fillText(lines.tag, margin, base - lift);
   if (oneLine) {

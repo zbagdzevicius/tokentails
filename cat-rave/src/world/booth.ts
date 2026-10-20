@@ -19,7 +19,8 @@ export function createBooth(shared: SharedUniforms, size: { w: number; h: number
   panelGeo.translate(0, (panelH - bar) / 2 + bar / 2, 0);
   const panelMat = new ShaderMaterial({
     name: 'rave-booth-panel',
-    uniforms: { ...shared, uColor: { value: new Color(glow) } },
+    // uTint / uInk: theme colours (world/theme.ts), green by default.
+    uniforms: { ...shared, uColor: { value: new Color(glow) }, uTint: { value: new Color(0.9, 1.0, 0.9) }, uInk: { value: new Color(0.02, 0.18, 0.06) } },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       varying vec3 vWorld;
@@ -35,6 +36,8 @@ export function createBooth(shared: SharedUniforms, size: { w: number; h: number
     fragmentShader: /* glsl */ `
       ${SHARED_DECL}
       uniform vec3 uColor;
+      uniform vec3 uTint;
+      uniform vec3 uInk;
       varying vec2 vUv;
       varying vec3 vWorld;
       varying vec3 vNormal;
@@ -67,9 +70,9 @@ export function createBooth(shared: SharedUniforms, size: { w: number; h: number
           lum += strips * 0.8;
         }
         // Tinted towards white: a bright white-green light box, one of the brightest things on screen.
-        vec3 col = mix(uColor, vec3(0.9, 1.0, 0.9), 0.4) * lum * top;
+        vec3 col = mix(uColor, uTint, 0.4) * lum * top;
         // A faint paw-print logo (the reference light box is plain): pink on the kick.
-        vec3 ink = mix(vec3(0.02, 0.18, 0.06), vec3(1.0, 0.16, 0.5) * 2.2, 0.35 + 0.65 * uKick * uEnergy);
+        vec3 ink = mix(uInk, vec3(1.0, 0.16, 0.5) * 2.2, 0.35 + 0.65 * uKick * uEnergy);
         col = mix(col, ink, logo * 0.15 * top);
         col += uFlash * 0.4;
         col = applyFog(col, length(cameraPosition - vWorld));
@@ -147,6 +150,13 @@ export function createBooth(shared: SharedUniforms, size: { w: number; h: number
 
   return {
     group,
+    /** Theme colours (linear RGB): the light box and frame glow, its white tint and the logo ink. */
+    setColor(glowRgb: readonly number[], tint: readonly number[], ink: readonly number[]) {
+      panelMat.uniforms.uColor.value.setRGB(glowRgb[0], glowRgb[1], glowRgb[2]);
+      frameMat.uniforms.uGlowColor.value.setRGB(glowRgb[0], glowRgb[1], glowRgb[2]);
+      panelMat.uniforms.uTint.value.setRGB(tint[0], tint[1], tint[2]);
+      panelMat.uniforms.uInk.value.setRGB(ink[0], ink[1], ink[2]);
+    },
     dispose() {
       panelGeo.dispose();
       panelMat.dispose();

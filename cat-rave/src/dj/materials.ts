@@ -348,7 +348,8 @@ export function vinylMaterial(shared: SharedUniforms, label: number): ShaderMate
 export function ledRingMaterial(dir: 1 | -1): ShaderMaterial {
   return new ShaderMaterial({
     name: 'dj-led-ring',
-    uniforms: { uBeat: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0.5 }, uDir: { value: dir } },
+    // uGreen: the theme's VU / LED key colour (world/theme.ts vuGreen), green by default.
+    uniforms: { uBeat: { value: 0 }, uKick: { value: 0 }, uEnergy: { value: 0.5 }, uDir: { value: dir }, uGreen: { value: new Color(0.3, 1.0, 0.45) } },
     transparent: false,
     vertexShader: /* glsl */ `
       varying vec3 vPos;
@@ -362,6 +363,7 @@ export function ledRingMaterial(dir: 1 | -1): ShaderMaterial {
       uniform float uKick;
       uniform float uEnergy;
       uniform float uDir;
+      uniform vec3 uGreen;
       varying vec3 vPos;
       void main() {
         float a = atan(vPos.y, vPos.x) / 6.2831853 + 0.5;
@@ -370,7 +372,7 @@ export function ledRingMaterial(dir: 1 | -1): ShaderMaterial {
         float d = mod(seg - head + 64.0, 32.0);
         float lit = d < 10.0 ? (1.0 - d / 10.0) : 0.0;
         float gap = smoothstep(0.08, 0.2, fract(a * 32.0)) * (1.0 - smoothstep(0.8, 0.92, fract(a * 32.0)));
-        vec3 green = vec3(0.3, 1.0, 0.45);
+        vec3 green = uGreen;
         vec3 pink = vec3(1.0, 0.31, 0.62);
         vec3 col = mix(green, pink, step(0.85, uEnergy) * step(16.0, seg));
         float b = 0.12 + lit * (1.8 + 1.6 * uKick) * (0.5 + 0.5 * uEnergy);

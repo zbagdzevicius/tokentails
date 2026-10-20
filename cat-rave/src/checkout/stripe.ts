@@ -37,6 +37,22 @@ export const RAVE_APPEARANCE: Appearance = Object.freeze({
   },
 }) as Appearance;
 
+/** The same look keyed to the red light (Back on Track, SPEC.md 8.1): green accents become red. */
+export function raveAppearance(light: 'green' | 'red'): Appearance {
+  if (light === 'green') return RAVE_APPEARANCE;
+  const json = JSON.stringify(RAVE_APPEARANCE)
+    .replaceAll('#5dff8a', '#ff5d6a')
+    .replaceAll('#eafff0', '#ffeef0')
+    .replaceAll('#071d0e', '#1d070a')
+    .replaceAll('93, 255, 138', '255, 93, 106')
+    .replaceAll('70, 255, 122', '255, 70, 86')
+    .replaceAll('234, 255, 240', '255, 238, 240');
+  return JSON.parse(json) as Appearance;
+}
+
+/** The stage light now in force (main sets `data-light` on <html> on the swap bar). */
+const currentLight = (): 'green' | 'red' => (typeof document !== 'undefined' && document.documentElement.dataset.light === 'red' ? 'red' : 'green');
+
 const stripeByKey = new Map<string, Promise<Stripe | null>>();
 
 /** Loads Stripe.js once per publishable key (the pure entry injects the script on first call). */
@@ -81,7 +97,7 @@ export interface MountPaymentOptions {
 export async function mountPaymentElement(host: HTMLElement, opts: MountPaymentOptions): Promise<MountedPayment> {
   const stripe = await loadStripeLazy(opts.publishableKey).catch(() => null);
   if (!stripe) throw new Error('Card payments could not load. Check your connection or turn off a blocker for js.stripe.com.');
-  const elements: StripeElements = stripe.elements({ clientSecret: opts.clientSecret, appearance: RAVE_APPEARANCE, loader: 'auto' });
+  const elements: StripeElements = stripe.elements({ clientSecret: opts.clientSecret, appearance: raveAppearance(currentLight()), loader: 'auto' });
   const element: StripePaymentElement = elements.create('payment', {
     layout: { type: 'tabs', defaultCollapsed: false },
     wallets: { applePay: 'auto', googlePay: 'auto' },

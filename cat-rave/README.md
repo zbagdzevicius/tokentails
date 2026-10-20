@@ -8,8 +8,9 @@ raises a sword and pink bows rain down. It is ambient first (it loops forever an
 touching it) and interactive second (tap, hold, find your cat, add a cat).
 
 It is inspired by the "no sleep, just grind" kitten-rave meme, but nothing from the meme ships: no video
-frames, no song, no likeness. Every 3D asset is procedural geometry and shaders, and the music is
-synthesized live in WebAudio.
+frames, no song, no likeness. Every 3D asset is procedural geometry and shaders, and the Moon Rave tune
+is synthesized live in WebAudio. The second track, Back on Track (a mix by ModeGospel), is used under
+the founder's licence.
 
 Design spec and lane notes: `SPEC.md`, `LANE-NOTES/`.
 
@@ -82,7 +83,21 @@ npm run build          # tsc + vite build into dist/
 npm run snapshot       # refresh src/data/snapshot.json from the live index
 npm run og             # re-render public/og.jpg from the scene (?og=1; needs the dev server)
 npm run build:client   # build into ../client/public/rave for tokentails.com/rave (see Ship)
+npm run track:split -- --src <mp3>   # re-cut the Back on Track mix into ../client/public/music/back-on-track-v1
+npm run track:check -- --src <mp3>   # verify the segments, manifest and beat map
 ```
+
+### Audio
+
+Two tracks. The default is the Moon Rave tune (synthesized, 136 BPM). The track button (music note
+with an LED, top right) or `T` switches to Back on Track, a 62-minute mix by ModeGospel used under the
+founder's licence, streamed in 30 s AAC segments from `client/public/music/back-on-track-v1/` (same
+origin, CDN fallback). The audio is never stretched: the visuals follow the mix's own beat map
+(~145 BPM), and the stage light cross-fades from Green to Red. Hold, double tap and new cats give
+visual-only builds and drops there. `?track=mix` starts on the mix, `?mixBase=` points at another copy
+of the files. To regenerate the segments: `npm run track:split -- --src …`, then `npm run track:check`.
+The beat map is pinned in `scripts/track/back-on-track-v1.raw.json` (re-analyse with
+`scripts/track/beatmap.py`). SPEC.md 8.1.
 
 ## URL parameters
 
@@ -92,6 +107,8 @@ npm run build:client   # build into ../client/public/rave for tokentails.com/rav
 | `?shot=hero\|top\|pov\|dj\|orbit\|sweep` | Opening camera shot |
 | `?auto=0` | Auto-director off |
 | `?mute=1` | Start muted |
+| `?track=synth\|mix` | Start on the Moon Rave synth or the Back on Track mix |
+| `?mixBase=https://…/` | Base URL for the mix manifest, beat map and segments |
 | `?cat=12`, `?cat=%2312`, `?tx=0x…` | Fly to that cat at boot (highlight ring + follow spot) |
 | `?quality=low\|mid\|high` | Force a quality tier |
 | `?embed=1` | Minimal chrome for iframes (counter only) |
@@ -109,7 +126,7 @@ npm run build:client   # build into ../client/public/rave for tokentails.com/rav
 | Release, double tap, or Enter | Drop on the next downbeat: sword up, bow confetti, crowd jump, strobe |
 | Drag / pinch / wheel | Orbit and dolly (auto-director resumes after 12 s) |
 | Tap or hover a cat | Cat card: index, amount, chain, date, source, explorer link |
-| 1–6, A, M, F | Shots, auto-director, mute, find my cat |
+| 1–6, A, M, T, F | Shots, auto-director, mute, switch track, find my cat |
 
 ## Architecture
 
@@ -130,7 +147,8 @@ src/
   audio/           WebAudio synth at 136 BPM (kick with hardstyle tail in the drop, ducked offbeat bass,
                    hats, claps, supersaw stabs, pad, snare-roll build, riser), look-ahead scheduler,
                    arrangement intro 4 / groove 12 / build 8 / drop 16 / breakdown 8 bars, and a beat
-                   clock that keeps the visuals dancing before unlock or while muted
+                   clock that keeps the visuals dancing before unlock or while muted; plus the
+                   streamed Back on Track mix (segment player, beat map, track switch)
   data/            live payout feed (paging, dedupe, staleness, polling, diff → new cats, find by #N or
                    tx, free-treat call), bundled snapshot.json
   ui/              camera director (6 shots, auto cuts on bars), gestures + keys, HUD, CTA sheet, cat
@@ -203,3 +221,7 @@ lists them under "Sponsors".
   phone before launch.
 - `public/og.jpg` is a static render with no live number; re-run `npm run og` after visual changes.
 - `SPEC.md` quotes the earlier snapshot ($10.11 = 10 cats at 15:41 UTC); this README has the current one.
+- Back on Track: the CDN copy answers 403 until the `DO_SPACES_KEY` / `DO_SPACES_SECRET` secrets are
+  set for the CDN sync, so segments come from the same-origin fallback today. Downbeats and drops in
+  the beat map are rule-based (kick detection plus loudness), not a trained model; the beatless
+  0–30 s intro runs on an extrapolated grid with the kick and hat suppressed.

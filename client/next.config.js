@@ -74,7 +74,6 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
-<<<<<<< HEAD
 // Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
 // hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
 // redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
@@ -85,7 +84,7 @@ const pawlegendsHeaders = [
     headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
   },
 ];
-=======
+
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
 // redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
 // `legacySlugs`). lib/feed/engine.ts is TypeScript that Node loads by type stripping (Node >= 22.18);
@@ -96,7 +95,6 @@ const feedRedirects = () => {
   const feed = require("./lib/feed/engine.ts");
   return feed.feedRedirects(feed.loadFeed());
 };
->>>>>>> 0c152f2ed (feat(feed): rebuild the blog on repo content with SEO and motion)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -157,7 +155,15 @@ const nextConfig = {
           };
         },
         async headers() {
-          return [...badcatHeaders, ...pawlegendsHeaders];
+          return [
+            ...badcatHeaders,
+            // Moon Rave second track: every file name is versioned (bot-v1-*), so it never changes.
+            {
+              source: "/music/back-on-track-v1/:path*",
+              headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+            },
+            ...pawlegendsHeaders,
+          ];
         },
       }),
   images: {

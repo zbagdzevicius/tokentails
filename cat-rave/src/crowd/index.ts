@@ -51,6 +51,7 @@ import {
   NEAR_FRAGMENT,
   NEAR_VERTEX,
 } from './shaders';
+import { setRgb, ThemeFader, type Theme, type ThemeId } from '../world/theme';
 import { buildSlots, catAxis, catLook, DROP_IN_SECONDS, extentOf, type CatAxis } from './slots';
 
 /** Ghost paw prints on the next empty slots (SPEC.md "States"). */
@@ -78,6 +79,8 @@ export interface CrowdWithFlags extends CrowdApi {
   setCountries(countries: readonly (string | null | undefined)[]): void;
   /** Cats on the floor holding a flag right now. */
   readonly flagCount: number;
+  /** Floor bounce / rim green and the find beacon follow the stage key light (world/theme.ts). */
+  setTheme(id: ThemeId, seconds?: number): void;
 }
 
 export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdWithFlags {
@@ -556,7 +559,18 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdWith
   ensureAlloc(64);
   layoutNext();
 
+  // Key light (world/theme.ts): uniforms only, written while a cross-fade runs.
+  const themeFader = new ThemeFader();
+  const applyTheme = (th: Theme) => {
+    setRgb(shared.uGreen.value, th.crowdGlow);
+    setRgb(shared.uFill.value, th.crowdFill);
+    setRgb(beamMat.uniforms.uColor.value, th.crowdGlow).multiplyScalar(1.6);
+  };
+
   const api: CrowdWithFlags = {
+    setTheme(id, seconds = 0.6) {
+      themeFader.set(id, seconds);
+    },
     get capacity() {
       return capacityNow();
     },
@@ -698,6 +712,8 @@ export function createCrowd(world: WorldApi, profile: QualityProfile): CrowdWith
     },
 
     update(frame: FrameContext) {
+      const th = themeFader.step(frame.dt);
+      if (th) applyTheme(th);
       const dt = frame.dt;
       now = frame.time;
       const b = frame.beat;

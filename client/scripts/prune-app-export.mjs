@@ -27,7 +27,11 @@ export const WEB_ONLY_FILES = Object.freeze([
 ]);
 
 /** Blog images named web-* (client/public/feed/web-*) belong to web-only articles and cards (lib/feed/engine.ts WEB_ONLY_MEDIA). */
-export const WEB_ONLY_PREFIXES = Object.freeze(["feed/web-"]);
+export const WEB_ONLY_PREFIXES = Object.freeze([
+  "feed/web-",
+  // Moon Rave second track: web only (the mix segments are about 62 MB and /rave is not in the app).
+  "music/back-on-track-v1/bot-v1-",
+]);
 
 /** Every file under out/ that matches a web-only prefix. */
 export function webOnlyPrefixed(outDir) {

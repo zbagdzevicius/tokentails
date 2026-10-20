@@ -13,6 +13,7 @@ import {
   PerspectiveCamera,
   SRGBColorSpace,
   Scene,
+  ShaderMaterial,
   Vector3,
   WebGLRenderer,
   type Camera,
@@ -28,10 +29,11 @@ import { createHaze } from './haze';
 import { createPost, EXPOSURE, POST_DPR_CAP } from './post';
 import { FLASH_RGB, FlashEnvelope, LASER_RIGS, aimToDir, autoLaserMode, beamSplit, beamViolet, laserAim, spotPath, type LaserAim } from './show';
 import { createMoon, createSky } from './sky';
+import { setRgb, ThemeFader, type Rgb, type Theme } from './theme';
 import { createTokenTailsLogo, type TokenTailsLogo } from './ttLogo';
 import { createPinkPawSign } from './pinkPaw';
 
-/** Linear RGB of the drop flash (white-green). */
+/** Linear RGB of the drop flash (white-green; the theme's dropFlash). */
 const DROP_FLASH_RGB = [0.75, 1.0, 0.8] as const;
 /** Extra bloom on the drop downbeat (1 beat). */
 const DROP_PUMP = 1.5;
@@ -128,6 +130,11 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
   const pink = new Color(PALETTE.pawPink);
   const spotWhite = new Color(0.75, 1.0, 0.8);
   const followColor = new Color(1.0, 0.82, 0.9);
+  // Theme (world/theme.ts): green until setTheme; these are what the key light writes.
+  const fader = new ThemeFader();
+  let dropFlashRgb: Rgb = DROP_FLASH_RGB;
+  let flashKey: Rgb = FLASH_RGB.green;
+  let bloomGain = 1;
   const rigs = {
     left: new Vector3(...LASER_RIGS.left),
     right: new Vector3(...LASER_RIGS.right),
@@ -254,14 +261,14 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
         // Soft beams: ~6 m wide at the far end, the booth beam ~1.4 m.
         const width = side === 0 ? 1.8 : 6;
         const length = side === 0 ? 240 : 320;
-        lasers.set(i, origin, dir, width, length, tmpColor, aim.intensity * (side === 0 ? 1.15 : 1));
+        lasers.set(i, origin, dir, width, length, tmpColor, aim.intensity * (side === 0 ? 1.15 : 1) * bloomGain);
         i++;
       }
     }
     lasers.commit(i);
     // Emitter flares: the rig's brightest beam, plus a floor so the horizon points never vanish.
-    emitters.set(0, 0.25 + emitLevel[0], green);
-    emitters.set(1, 0.25 + emitLevel[1], green);
+    emitters.set(0, (0.25 + emitLevel[0]) * bloomGain, green);
+    emitters.set(1, (0.25 + emitLevel[1]) * bloomGain, green);
   }
 
   function updateSpots(beat: BeatInfo, dt: number) {
@@ -274,7 +281,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
       const c = beat.section === 'drop' && k % 2 === 1 ? pink : k % 3 === 1 ? violet : spotWhite;
       const level = (0.55 + 0.45 * beat.energy) * (0.8 + 0.4 * beat.kick);
       const radius = 2.4;
-      spots.set(n, spotRigs[k % spotRigs.length], spotPoint, radius * 1.15, c, level);
+      spots.set(n, spotRigs[k % spotRigs.length], spotPoint, radius * 1.15, c, level * bloomGain);
       floor.spots[n].set(spotFloor.x, spotFloor.z, radius, level * 0.55);
       floor.spotColors[n].copy(c);
       n++;
@@ -295,9 +302,37 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
     boothSpotViolet += (vt - boothSpotViolet) * Math.min(1, dt * 2.5);
     tmpColor.copy(green).lerp(violet, boothSpotViolet);
     const boothLevel = (beat.section === 'intro' || beat.section === 'breakdown' ? 0.9 : 1.6) * (0.85 + 0.3 * beat.kick);
-    spots.set(n, boothSpotFrom, boothSpotTo, 5.5, tmpColor, boothLevel);
+    spots.set(n, boothSpotFrom, boothSpotTo, 5.5, tmpColor, boothLevel * bloomGain);
     n++;
     spots.commit(n);
+  }
+
+  // ------------------------------------------------------------------ theme (key light)
+  const skyU = (sky.material as ShaderMaterial).uniforms;
+  const moonU = (moon.material as ShaderMaterial).uniforms;
+  const moonGlowTmp = new Color();
+  /** Uniforms only: no shader recompiles, so the boot precompile stays valid. */
+  function applyTheme(th: Theme) {
+    setRgb(scene.background as Color, th.sky);
+    // Fog: the theme's dark key lifted 7% towards the moon glow (as at boot).
+    setRgb(moonGlowTmp, th.moonGlow);
+    setRgb(fog.color, th.fog).lerp(moonGlowTmp, 0.07);
+    shared.uFogColor.value.copy(fog.color);
+    setRgb(shared.uMoonColor.value, th.moon);
+    shared.uMoonGlow.value.copy(moonGlowTmp);
+    setRgb(floor.uniforms.uFloor.value, th.floor);
+    setRgb(floor.uniforms.uGlow.value, th.floorGlow);
+    setRgb(floor.uniforms.uBooth.value, th.boothGlow);
+    setRgb(floor.uniforms.uBoothPool.value, th.boothPool);
+    booth.setColor(th.boothGlow, th.boothTint, th.boothInk);
+    setRgb(skyU.uZen.value, th.zen);
+    setRgb(skyU.uStarTint.value, th.starTint);
+    setRgb(moonU.uMoonTint.value, th.moonTint);
+    setRgb(green, th.laser);
+    setRgb(spotWhite, th.spotTint);
+    dropFlashRgb = th.dropFlash;
+    flashKey = th.flashKey;
+    bloomGain = th.bloomGain;
   }
 
   // ------------------------------------------------------------------ API
@@ -369,11 +404,14 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
     },
     flash(color, strength = 1) {
       const s = reduced ? Math.min(strength, 1) * 0.35 : strength;
-      const started = env.trigger(performance.now() / 1000, FLASH_RGB[color], s);
+      const started = env.trigger(performance.now() / 1000, color === 'green' ? flashKey : FLASH_RGB[color], s);
       if (started && strength >= 0.8) ringAge = 0;
     },
     setSpotTarget(target) {
       spotTarget = target;
+    },
+    setTheme(id, seconds = 0.6) {
+      fader.set(id, seconds);
     },
     capture() {
       return new Promise<Blob>((resolve, reject) => captures.push({ resolve, reject }));
@@ -386,6 +424,8 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
         lastFrameProfile = frame.profile;
         if (frame.profile !== current) applyQuality(frame.profile);
       }
+      const th = fader.step(dt);
+      if (th) applyTheme(th);
       shared.uTime.value = frame.time;
       shared.uBeat.value = beat.beat;
       shared.uKick.value = beat.kick;
@@ -404,7 +444,7 @@ export function createWorld(canvas: HTMLCanvasElement, profile: QualityProfile):
         if (beat.section === 'drop' && lastSection !== null) {
           // Drop downbeat: a white-green flash decaying over ~0.5 s and a 1-beat bloom pump.
           ringAge = 0;
-          env.trigger(performance.now() / 1000, DROP_FLASH_RGB, reduced ? 0.2 : 0.6);
+          env.trigger(performance.now() / 1000, dropFlashRgb, reduced ? 0.2 : 0.6);
           dropPump = reduced ? 0 : 1;
         }
         lastSection = beat.section;

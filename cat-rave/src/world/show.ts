@@ -135,8 +135,12 @@ export function laserAim(mode: LaserMode, side: -1 | 0 | 1, k: number, n: number
   return out;
 }
 
-/** On/off at 8th notes (≈4.5 Hz at 136 BPM), never faster: photosensitivity. */
+/**
+ * On/off at 8th notes (≈4.5 Hz at 136 BPM), never faster: photosensitivity. Above 140 BPM (the Back
+ * on Track mix, ~145) it strobes on quarter notes instead, so the rate never exceeds the synth's.
+ */
 export function strobeOn(beat: BeatInfo): boolean {
+  if (beat.bpm > 140) return (beat.beat % 1) < 0.5;
   return ((beat.beat * 2) % 1) < 0.5;
 }
 
@@ -192,7 +196,7 @@ export class FlashEnvelope {
   }
 }
 
-/** Linear RGB used by flash(); hot pink, moon green, laser violet, white. */
+/** Linear RGB used by flash(); hot pink, moon green, laser violet, white. 'green' follows the theme's flashKey (world/index.ts). */
 export const FLASH_RGB: Record<'green' | 'pink' | 'violet' | 'white', readonly [number, number, number]> = {
   green: [0.25, 1.0, 0.35],
   pink: [1.0, 0.25, 0.55],

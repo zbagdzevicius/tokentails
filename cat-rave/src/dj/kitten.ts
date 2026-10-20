@@ -196,6 +196,9 @@ export function buildKitten(shared: SharedUniforms): KittenRig {
   const mouthMat = keep(litMaterial(shared, { color: 0x6e1530, emissive: 0xff3f7f, emissiveStrength: 0.15, rim: 0 }));
   const phonesMat = keep(litMaterial(shared, { color: PALETTE.headphones, spec: 0.9, shininess: 60, rim: 0.5, rimColor: 0x6dff8c }));
   const cushionMat = keep(litMaterial(shared, { color: 0x2b2b33, rim: 0.2 }));
+  // Theme roles for the rim colours (dj/index.ts setTheme); the rest go by their default hex.
+  eyeMat.userData.rimKey = 'kittenRim';
+  phonesMat.userData.rimKey = 'kittenRim2';
   const phonesGlow = keep(new MeshBasicMaterial({ color: PALETTE.moonGlow }));
   phonesGlow.color.multiplyScalar(2.2);
   const padGlow = keep(new MeshBasicMaterial({ color: PALETTE.pawPink }));

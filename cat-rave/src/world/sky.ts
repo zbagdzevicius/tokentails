@@ -5,13 +5,14 @@
  * Both are drawn on the far plane (gl_Position.z = w), so they never clip whatever `camera.far`
  * the director picks, and everything else draws in front of them.
  */
-import { BackSide, CustomBlending, Mesh, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial, SphereGeometry } from 'three';
+import { BackSide, Color, CustomBlending, Mesh, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial, SphereGeometry } from 'three';
 import { NOISE, OUTPUT, SHARED_DECL, type SharedUniforms } from './glsl';
 
 export function createSky(shared: SharedUniforms, starAmount: number) {
   const material = new ShaderMaterial({
     name: 'rave-sky',
-    uniforms: { ...shared, uStars: { value: starAmount } },
+    // uZen / uStarTint: theme colours (world/theme.ts), green by default.
+    uniforms: { ...shared, uStars: { value: starAmount }, uZen: { value: new Color(0.0006, 0.003, 0.0012) }, uStarTint: { value: new Color(0.75, 1.0, 0.85) } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -24,13 +25,15 @@ export function createSky(shared: SharedUniforms, starAmount: number) {
     fragmentShader: /* glsl */ `
       ${SHARED_DECL}
       uniform float uStars;
+      uniform vec3 uZen;
+      uniform vec3 uStarTint;
       varying vec3 vDir;
       ${NOISE}
       void main() {
         vec3 d = normalize(vDir);
         float el = d.y;
         // Near-black green (#020a04) from ~30° up; the fog colour only right at the horizon.
-        vec3 zen = vec3(0.0006, 0.003, 0.0012);
+        vec3 zen = uZen;
         vec3 col = mix(uFogColor * 0.8, zen, smoothstep(-0.01, 0.3, el));
         // Thin green glow band hugging the horizon (lit haze) and a lift towards the moon.
         col += uMoonGlow * exp(-max(el, 0.0) * 22.0) * 0.045;
@@ -45,7 +48,7 @@ export function createSky(shared: SharedUniforms, starAmount: number) {
           vec3 f = fract(sp) - 0.5;
           float s = smoothstep(0.12, 0.0, length(f)) * (0.4 + 0.6 * hash13(cell + 7.0));
           float tw = 0.65 + 0.35 * sin(uTime * (1.5 + h * 4.0) + h * 40.0);
-          col += vec3(0.75, 1.0, 0.85) * s * tw * smoothstep(0.06, 0.3, el) * (1.0 - pow(m, 6.0)) * uStars;
+          col += uStarTint * s * tw * smoothstep(0.06, 0.3, el) * (1.0 - pow(m, 6.0)) * uStars;
         }
         col += uFlash * 0.08 * smoothstep(0.0, 0.3, el);
         gl_FragColor = vec4(max(col, vec3(0.0)), 1.0);
@@ -68,7 +71,7 @@ export function createMoon(shared: SharedUniforms, detail: 'low' | 'high') {
   const material = new ShaderMaterial({
     name: 'rave-moon',
     defines: { MOON_DETAIL: detail === 'high' ? 2 : 1 },
-    uniforms: { ...shared, uHalo: { value: halo } },
+    uniforms: { ...shared, uHalo: { value: halo }, uMoonTint: { value: new Color(0.86, 1.0, 0.8) } },
     vertexShader: /* glsl */ `
       uniform vec3 uMoonCenter;
       uniform float uMoonRadius;
@@ -109,7 +112,7 @@ export function createMoon(shared: SharedUniforms, detail: 'low' | 'high') {
           float detail = fbm(sp * 3.0 + 11.0);
           float lum = clamp(1.0 - 0.42 * maria - 0.34 * patches - 0.1 * detail, 0.05, 1.0);
           float limb = 0.68 + 0.32 * pow(max(n.z, 0.0), 0.45);
-          col = mix(uMoonColor, vec3(0.86, 1.0, 0.80), 0.35) * pow(lum, 1.15) * limb * 2.1 * (1.0 + 0.06 * uKick * uDrop);
+          col = mix(uMoonColor, uMoonTint, 0.35) * pow(lum, 1.15) * limb * 2.1 * (1.0 + 0.06 * uKick * uDrop);
         }
         float h = max(r - 1.0, 0.0);
         float pulse = 1.0 + 0.35 * uKick * uEnergy * (0.3 + 0.7 * uDrop);
@@ -132,7 +135,7 @@ export function createMoon(shared: SharedUniforms, detail: 'low' | 'high') {
     blendDst: OneMinusSrcAlphaFactor,
   });
   // uHalo must be declared in the fragment too (shared decl doesn't include it).
-  material.fragmentShader = 'uniform float uHalo;\n' + material.fragmentShader;
+  material.fragmentShader = 'uniform float uHalo;\nuniform vec3 uMoonTint;\n' + material.fragmentShader;
   const mesh = new Mesh(new PlaneGeometry(2, 2), material);
   mesh.name = 'moon';
   mesh.frustumCulled = false;

@@ -6,7 +6,7 @@
 import '../fonts/fonts.css';
 import './hud.css';
 import { LINKS, MICRO } from '../config';
-import type { PayoutSnapshot, RaveCat, ShotId } from '../types';
+import type { PayoutSnapshot, RaveCat, ShotId, TrackId } from '../types';
 import { isArcChain } from '../arc/arcweek';
 import { safeHttpsUrl, type TreatResult } from '../data';
 import type { CountryBoard } from '../data/countries';
@@ -81,7 +81,16 @@ export interface HudHandlers {
   onSheet?(open: boolean): void;
   /** Name + X of a Moon Rave cat (null for every other cat). */
   nameFor?(cat: RaveCat): CatNameInfo | null;
+  /** The track playing at boot ('synth' = Moon Rave, 'mix' = Back on Track). */
+  track?: TrackId;
+  /** Track button (T): without it (embed, og) the button and the credit never mount. */
+  onTrack?(): void;
 }
+
+/** Track button state: 'loading' blinks the LED and ignores clicks. */
+export type TrackButtonState = 'idle' | 'loading' | 'ready' | 'error';
+
+export const TRACK_TITLE: Record<TrackId, string> = { synth: 'Moon Rave', mix: 'Back on Track' };
 
 /** A tapped cat's pinned card closes itself after this. */
 export const CARD_AUTO_CLOSE_MS = 6_000;
@@ -122,6 +131,10 @@ export interface Hud {
   /** Max cats this device draws; above it the HUD says "+N more dancing off-screen". */
   setCapacity(n: number): void;
   setMuted(muted: boolean): void;
+  /** Track button: pressed + red LED on the mix, blinking while it loads. */
+  setTrack(id: TrackId, state: TrackButtonState): void;
+  /** "Now playing: …" credit line while the mix plays (null hides it). */
+  setCredit(text: string | null): void;
   /** "Tap for sound" pill until audio unlocks. */
   setSoundPrompt(visible: boolean): void;
   /** Optimistic micro-USD on its way (a treat sent from this page, not yet indexed). */
@@ -148,6 +161,7 @@ const ICONS = {
   share: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
   find: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>',
   camera: '<svg viewBox="0 0 24 24"><path d="M3 8h3l2-3h8l2 3h3v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  track: '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
 };
 
 const pawSvg = (fill: string, stroke: string) =>
@@ -242,7 +256,13 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   const shareBtn = iconBtn('Share', ICONS.share);
   const findBtn = iconBtn('Find my cat', ICONS.find);
   const shotBtn = iconBtn('Camera shots', ICONS.camera);
-  tools.append(muteBtn, shareBtn, findBtn, shotBtn);
+  // Track switch: a music note with its own LED (green = Moon Rave, red = Back on Track).
+  const trackBtn = h.onTrack ? iconBtn('Switch track', ICONS.track) : null;
+  if (trackBtn) {
+    trackBtn.classList.add('rv-track-btn');
+    trackBtn.append(el('span', 'rv-led'));
+  }
+  tools.append(...[muteBtn, trackBtn, shareBtn, findBtn, shotBtn].filter((b): b is HTMLButtonElement => b !== null));
   const side = el('div', 'rv-side');
   side.append(tools);
   top.append(counter, side);
@@ -284,7 +304,10 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   const arrivalsSlot = el('div', 'rv-arrivals');
   arrivalsSlot.hidden = true;
   const sponsorsSlot = el('div', 'rv-sponsors-slot');
-  bottom.append(arrivalsSlot, hintEl, soundBtn, sponsorsSlot, ctaRow);
+  const creditEl = el('div', 'rv-credit');
+  creditEl.setAttribute('aria-live', 'polite');
+  creditEl.hidden = true;
+  bottom.append(arrivalsSlot, hintEl, soundBtn, creditEl, sponsorsSlot, ctaRow);
 
   // The Arc week badge: on wide desktops (>= 1180 px) in the bottom-right corner above the hint (fixed,
   // arc/arc.css); below that a one-line 32 px pill at the end of the top-left stats block (text only,
@@ -645,6 +668,10 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
   shotBtn.addEventListener('click', () => openSheet('shots'));
   boardBtn.addEventListener('click', () => openSheet('countries'));
   muteBtn.addEventListener('click', () => setMuted(h.onMute()));
+  trackBtn?.addEventListener('click', () => {
+    if (trackBtn.getAttribute('aria-busy') === 'true') return; // still loading: ignore
+    h.onTrack?.();
+  });
   soundBtn.addEventListener('click', () => {
     if (h.muted) setMuted(h.onMute());
     soundBtn.hidden = true;
@@ -696,6 +723,20 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
     muteBtn.setAttribute('aria-pressed', String(m));
   }
   setMuted(h.muted);
+
+  function setTrack(id: TrackId, state: TrackButtonState) {
+    if (!trackBtn) return;
+    // A toggle keeps one name; pressed = the mix is on. The playing track goes in the tooltip only
+    // (the credit line announces it through aria-live).
+    trackBtn.setAttribute('aria-pressed', String(id === 'mix'));
+    trackBtn.setAttribute('aria-label', `${TRACK_TITLE.mix} mix`);
+    trackBtn.setAttribute('aria-keyshortcuts', 't');
+    trackBtn.title = `Track: ${TRACK_TITLE[id]} (T)`;
+    trackBtn.dataset.track = id;
+    if (state === 'loading') trackBtn.setAttribute('aria-busy', 'true');
+    else trackBtn.removeAttribute('aria-busy');
+  }
+  setTrack(h.track ?? 'synth', 'ready');
 
   function hideCard() {
     clearTimeout(cardTimer);
@@ -954,6 +995,12 @@ export function createHud(root: HTMLElement, h: HudHandlers): Hud {
       renderMore();
     },
     setMuted,
+    setTrack,
+    setCredit(text) {
+      if (!trackBtn) return;
+      creditEl.hidden = text === null;
+      creditEl.textContent = text ? `Now playing: ${text}` : '';
+    },
     setSoundPrompt(v) {
       soundBtn.hidden = !v || h.embed;
     },

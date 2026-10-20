@@ -43,6 +43,8 @@ export function createFloor(shared: SharedUniforms, opts: FloorOptions) {
     uFloor: { value: new Color(opts.floorColor) },
     uGlow: { value: new Color(opts.glowColor) },
     uBooth: { value: new Color(opts.boothColor) },
+    /** The booth light pool's key colour (theme; green by default). */
+    uBoothPool: { value: new Color(0.212, 1.0, 0.254) },
     uBoothHalf: { value: new Vector3(opts.boothHalf.x, 0, opts.boothHalf.z) },
     uSpots: { value: spots },
     uSpotColors: { value: spotColors },
@@ -73,6 +75,7 @@ export function createFloor(shared: SharedUniforms, opts: FloorOptions) {
       uniform vec3 uFloor;
       uniform vec3 uGlow;
       uniform vec3 uBooth;
+      uniform vec3 uBoothPool;
       uniform vec3 uBoothHalf;
       uniform vec4 uSpots[MAX_SPOTS];
       uniform vec3 uSpotColors[MAX_SPOTS];
@@ -137,7 +140,7 @@ export function createFloor(shared: SharedUniforms, opts: FloorOptions) {
         vec2 q = abs(xz) - uBoothHalf.xz;
         float box = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
         col += uBooth * exp(-max(box, 0.0) * 1.6) * 0.9;
-        col += vec3(0.212, 1.0, 0.254) * exp(-r * r / 16.0) * 0.75;
+        col += uBoothPool * exp(-r * r / 16.0) * 0.75;
         // A filled soft glow pool (no hard ring: the drop pulse below is the only ring).
         col += uGlow * exp(-r / 2.2) * 0.8 * (0.8 + 0.5 * uKick * (0.4 + 0.6 * uEnergy));
         if (uRing > 0.0) {

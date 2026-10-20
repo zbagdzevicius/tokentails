@@ -16,7 +16,8 @@ The crowd is the fundraiser. It is an environment first (ambient, watchable, loo
 interactive second (tap, hold, find your cat, add a cat).
 
 Nothing from the meme ships: no frames, no song, no likeness. Every asset is procedural geometry and
-shaders; the music is synthesized in WebAudio.
+shaders; the Moon Rave tune is synthesized in WebAudio. The second track (Back on Track, a mix by
+ModeGospel) is licensed by the founder and streamed (8.1).
 
 **The hook today is the empty floor.** The real total is about $9.97, so the floor has 9 cats, the
 next one is 97% formed, and the rest of the floor is empty. The copy says so: "9 cats are dancing.
@@ -252,7 +253,7 @@ Portrait first, 16 px side gutters plus safe areas, no horizontal scroll, large 
 
 ## 8. Audio (L-AUDIO)
 
-All synthesized with WebAudio, scheduled ahead with a look-ahead scheduler on `AudioContext.currentTime`.
+The Moon Rave tune is synthesized with WebAudio, scheduled ahead with a look-ahead scheduler on `AudioContext.currentTime`.
 136 BPM (`BPM`), 4/4. Driving rave/hardstyle-ish loop:
 
 - Kick: sine pitch-drop with a distorted click (hardstyle-ish tail via waveshaper in the drop).
@@ -267,6 +268,44 @@ All synthesized with WebAudio, scheduled ahead with a look-ahead scheduler on `A
 - `BeatClock` drives every visual: before unlock (or muted) it runs on the performance clock with the
   same arrangement, so the scene always dances. Events: `beat`, `bar`, `section`, `build`, `drop`.
 - Low-end phones: cap polyphony, no convolver reverb (short feedback delay instead).
+
+### 8.1 Second track (Back on Track)
+
+- Source: "Back on Track (mix) by ModeGospel", 62.4 min, licensed by the founder. It is the only
+  audio file in the package; the Moon Rave tune stays synthesized and is the default.
+- Files: `client/public/music/back-on-track-v1/` (`bot-v1-000.m4a` … `bot-v1-124.m4a`, 30 s AAC-LC
+  128 kbps segments cut on sample boundaries with 4096 samples of padding each side, plus
+  `bot-v1-manifest.json` and `bot-v1-beatmap.json`). Versioned names, so the CDN sync gives them
+  immutable cache headers. Manifest and beat map load same-origin first (CDN fallback); segments try
+  the CDN first (same-origin on localhost, and after the first failure). `?mixBase=` overrides both.
+  Regenerate with `npm run track:split -- --src <mp3>` and `npm run track:check -- --src <mp3>`.
+- Player (`audio/mix.ts`): each segment is an `AudioBufferSourceNode` started at an absolute time
+  (anchor + segment start, explicit offset and duration), hard seams, the next segment scheduled 8 s
+  ahead, at most 3 decoded buffers (released when the synth is back). A late segment starts part way
+  in (sync wins). Each fetch attempt times out after 8 s (then the other base); a segment still
+  missing 10 s after it was due hands back to the synth. The mix loops.
+- Tempo: the audio is never time-stretched. The visuals follow the mix's own beat map (~145 BPM,
+  drifting): `MixTempo` maps track seconds to beats, `MixPlan` gives sections (intro, breakdown,
+  build, drop, groove), kick spans and energy. The beatless 0–30 s intro shows no kick, hat or flash.
+  While the mix is audible the audio is master: the clock re-bases when they disagree by > 30 ms.
+  Above 0.5 s (an interrupted or stalled context) the virtual playhead wins and the audio re-seeks,
+  the same as after a mute, a hidden tab or an iOS interruption.
+- Switching (track button with an LED, or `T`): the swap lands on the next bar line, and the mix is
+  entered at its first downbeat (0.76 s, inside the beatless intro), so the swap bar is mix bar 0;
+  `beat` and `bar` never run backwards. The loop wrap after ~62 min is not on a bar line (the beat
+  jumps forward once). The swap back waits for a bar far enough ahead to cover output latency. A
+  second toggle while a swap is armed undoes it. Event `track`. A failed load keeps the synth (toast,
+  and a stored mix choice goes back to the synth); a segment that fails mid-play hands back to the
+  synth (toast).
+- In the mix, hold, double tap and a new cat give visual-only builds and drops (8 bars, cut short by
+  the mix's own next build or drop, which always fires on its bar); the audio plays on. Above 140 BPM the strobe runs on quarter notes, so it never flashes faster than the synth.
+- Lights: Green (Moon Rave) ↔ Red (Back on Track) cross-fades the whole stage key light (sky, fog,
+  moon, floor, booth, lasers, spots, flashes, crowd, DJ, POV paws, ad boards) and the HUD accent (with
+  the ad and checkout sheets, the Stripe form when it mounts, and "Save picture") in 0.6 s, when
+  the mix starts. Violet and pink stay. `world/theme.ts` holds both themes; uniforms only.
+- Credit: "Now playing: Back on Track (mix) by ModeGospel" while the mix plays.
+- `?track=synth|mix` picks the start track (else the viewer's stored choice, else the synth).
+  `?og=1` and `?embed=1` always play the synth, never fetch the mix and show no button.
 
 ## 9. Share and meta
 
@@ -284,6 +323,8 @@ All synthesized with WebAudio, scheduled ahead with a look-ahead scheduler on `A
 | `?cats=N` | DEMO count override (0–100000), DEMO banner always visible |
 | `?shot=hero\|top\|pov\|dj\|orbit\|sweep` | Opening shot |
 | `?mute=1` | Start muted |
+| `?track=synth\|mix` | Start track (Moon Rave synth or the Back on Track mix) |
+| `?mixBase=https://…/` | Base URL for the mix manifest, beat map and segments |
 | `?cat=12` / `?cat=%2312` / `?tx=0x…` | Find this cat at boot |
 | `?quality=low\|mid\|high` | Force a tier |
 | `?auto=0` | Auto-director off |
@@ -313,7 +354,7 @@ spec owner for a change. The stubs already export the final factory signatures.
 | L-WORLD | `src/world/**` | `createWorld(canvas, profile): WorldApi` | Renderer, scene, sky, fog, moon, reflective floor, booth table, lasers, spotlights, haze, bloom (`postprocessing`), `flash`, `setLaserMode`, `setSpotTarget`, `capture`, resize |
 | L-CROWD | `src/crowd/**` | `createCrowd(world, profile): CrowdApi` | Instanced cat model (near + impostor), dance vertex shader, slots (booth out, front first, stable), vortex, jump, paw pulse, drop-in, next-cat hologram + ghost markers, picking, highlight |
 | L-DJ | `src/dj/**` | `createDj(world, clock, profile): DjApi` | DJ kitten, headphones, decks and mixer on the booth top, beat-synced moves, sword raise (subscribes to `clock.on('drop')` itself or via main), bow confetti (instanced), `pointAt` |
-| L-AUDIO | `src/audio/**` | `createBeatClock({muted}): BeatClock` | Synth + scheduler, arrangement, build/drop control, mute/unlock, beat events, performance-clock fallback |
+| L-AUDIO | `src/audio/**` | `createBeatClock({muted, track?}): RaveClock` (`setTrack`) | Synth + scheduler, arrangement, build/drop control, mute/unlock, beat events, performance-clock fallback |
 | L-DATA | `src/data/**`, `scripts/snapshot.mjs` | `createPayoutFeed({api, demoCats}): PayoutFeed` | Live fetch with paging, normalize (`buildSnapshot` exists), staleness (`indexedThrough.time` older than 15 min), polling + backoff + visibility, diff → `newCats`, `findCat` / `catsForTx`, treat call helper `sendTreat(api)` + `treatStatus(api)`, tests |
 | L-UI | `src/main.ts`, `src/ui/**`, `index.html`, `public/**` | `createDirector`, `createHud`, `parseParams` | Camera director + controls, input (tap/hold/double tap/drag/keys), HUD, CTA sheet, cat card, find my cat, share + capture, quality pick + governor, OG image, reduced motion, wiring |
 
