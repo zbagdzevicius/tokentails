@@ -139,4 +139,4 @@ What does one cost? We read the receipt of one native treat transaction on 19 Oc
 - **Publish the index, not just the total.** A list of events with transaction links lets anyone check you.
 - **Be plain about custody.** The chain proves money reached an address, not who holds the key. Since 16 October 2026 our splits pay Pink Paw's own wallet; Token Tails created it, the staff hold the recovery phrase, and Token Tails keeps a recovery backup.
 
-The full source, tests and every deployed address are in [contracts/shelter-split](https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split) (MIT). For the contract design in depth, read [the USDC payment splitter guide](/feed/build/usdc-payment-splitter-contract).
+The full source, tests and every deployed address are in [contracts/shelter-split](https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split) (MIT). For the contract design in depth, read [the USDC payment splitter guide](/feed/build/usdc-payment-splitter-contract). How we read the payouts back across chains is in [eth_getLogs block range limits](/feed/build/eth-getlogs-block-range-limit).

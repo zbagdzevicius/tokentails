@@ -107,7 +107,7 @@ The main game is a cozy pixel cat game. Open [/game](/game), meet your cat and p
 - **Cupid Cat:** a seasonal platformer, open from 1 January to 31 March.
 - **Catnip Heist** and **Pink Paw Knight** are in the same PLAY picker.
 
-Want more cat-care games beyond ours? See [virtual pet cat games](/feed/games/virtual-pet-cat-games).
+Want more cat-care games beyond ours? See [virtual pet cat games](/feed/games/virtual-pet-cat-games). For a wider list where the cat is the hero, including games on PC and consoles, see [games where you play as a cat](/feed/games/games-where-you-play-as-a-cat).
 
 ## Which free cat game should you start with?
 

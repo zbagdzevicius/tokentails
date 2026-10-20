@@ -197,3 +197,4 @@ The Foundry suite covers the router with unit, invariant and fork tests (`test/D
 - Use the SDK or drop-in widget: [shelter-rail](https://github.com/zbagdzevicius/tokentails/tree/main/shelter-rail) (MIT).
 - See real payouts with their transactions: [/shelter-payouts](/shelter-payouts).
 - Learn the split itself: [USDC payment splitter contract](/feed/build/usdc-payment-splitter-contract), and the network we started on: [USDC payouts on Arc](/feed/build/usdc-payouts-on-arc).
+- Put a gift button on a page: [crypto donation button for any website](/feed/build/crypto-donation-button-for-website). Let an AI agent pay over HTTP: [x402 donations](/feed/build/x402-donations).

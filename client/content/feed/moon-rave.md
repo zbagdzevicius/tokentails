@@ -98,7 +98,7 @@ You can also check from the other side:
 
 Pink Paw is a local cat shelter in Kaunas, not a national charity with a fundraising department. Shelters like that run on many small gifts. Food, litter and vet bills never stop, and a steady stream of small gifts is easier to plan around than one big cheque that may never come.
 
-Small gifts also lower the bar. A dollar is easy to give on impulse, easy to share with a friend, and, on Moon Rave, easy to see arrive. The same checkout also takes larger amounts, and [our guide to donating to a cat shelter online](/feed/giving/donate-to-a-cat-shelter-online) covers other ways.
+Small gifts also lower the bar. A dollar is easy to give on impulse, easy to share with a friend, and, on Moon Rave, easy to see arrive. The same checkout also takes larger amounts, and [our guide to donating to a cat shelter online](/feed/giving/donate-to-a-cat-shelter-online) covers other ways. To give a cat on the dance floor as a present, see [a charity gift for a cat lover](/feed/giving/charity-gift-for-cat-lovers).
 
 ## Other ways to help Pink Paw
 

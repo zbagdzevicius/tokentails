@@ -80,7 +80,7 @@ The joke that makes it work is your own cat. A real face on a toy-like 3D body i
 
 Every day brings a new room: kitchens, bedrooms, a home office, party rooms and holiday rooms, with different humans and routines. You get **one ranked run a day** and **unlimited practice**, and Saturdays bring a boss room.
 
-After a run, the game makes a short vertical clip of your best crime to save and post. If you would rather not show your cat's face in clips, switch off **Show my cat's photo in clips** in Settings. Bad cats make great memes; see our pick of [the most famous cat memes](/feed/cats/cat-memes) for inspiration.
+After a run, the game makes a short vertical clip of your best crime to save and post. If you would rather not show your cat's face in clips, switch off **Show my cat's photo in clips** in Settings. Bad cats make great memes; see our pick of [the most famous cat memes](/feed/cats/cat-memes) for inspiration. How a run scores, room by room, is in [the cat knocking things off the table game guide](/feed/games/cat-knocking-things-off-table-game).
 
 <!-- cta:badcat -->
 
