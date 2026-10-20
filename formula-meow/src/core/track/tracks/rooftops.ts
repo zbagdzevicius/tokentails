@@ -1,6 +1,12 @@
 /**
  * Kaunas Neon Rooftops (GDD 6.1, track 2): night synthwave over tin roofs. Climbs between roof levels, two chimney
  * jumps, a billboard corner cut (off-road, boost only), the Pink Paw garage on the bottom straight.
+ *
+ * Set pieces (SIM_VERSION 8, SETPIECES.md section 12; skins in src/tracks/skins/a.ts): the air-duct tunnel after the
+ * pad at s92, the LED-billboard wall ride on the right-hander at s123, the roof-to-roof jump (its chimneys make the
+ * "chimney jumps" real: the ramp at s176 and this gap), and the neon-ring loop on the long way round the billboard cut
+ * (the s250 pad moved into its entry strip; the cut now merges at s7, past the loop's exit). The wall ride is not on
+ * the s222 right-hander (plan R2): the lane cost 0.75 s there and crowds the loop's strip.
  */
 import type { TrackDef } from '../../../types';
 

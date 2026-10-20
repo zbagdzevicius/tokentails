@@ -1,9 +1,15 @@
 /**
  * Laundry Spin (GDD 6.1, track 3, theme 2): a pastel laundromat at closing time. The start straight runs past the
- * dryers → into the middle aisle and through the spinning drum (its ribs push you sideways) → round the sorting
+ * dryers → into the middle aisle and round the spinning drum (a loop-the-loop) → round the sorting
  * baskets → up onto the folding table (the high road, two ramps over the folded towels, an S between the
  * baskets) → past the washing line (a swinging sheet) → round the sorting baskets (sock mounds) or down the soap slide
  * along the wall (low grip, a dryer-vent pad) → home.
+ *
+ * Set pieces (SIM_VERSION 8, SETPIECES.md section 12; skins in src/tracks/skins/a.ts): the shirt-rack tunnel on the
+ * start straight (the off-road verge moved to s18), the drum loop in the middle aisle (it replaces the drum hazard: the
+ * `drum` kind stays registered, the swinging sheet at s122 is now the track's only hazard), the folding-table jump off
+ * the end of the high road, and the dryer-row wall ride on the long way round the baskets (the soap slide now forks at
+ * s183, before the lane).
  */
 import type { TrackDef } from '../../../types';
 

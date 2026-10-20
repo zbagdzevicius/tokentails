@@ -18,7 +18,7 @@ function meshes(def: Parameters<typeof buildTrack>[0]): Mesh[] {
 }
 
 describe('set-piece meshes (SIM_VERSION 8)', () => {
-  it('every track builds finite geometry; set pieces add at most one draw call (the nets)', () => {
+  it('every track builds finite geometry; set pieces add at most the nets plus one moving skin part (skins/registry.ts)', () => {
     for (const def of [...TRACKS, stuntLab()]) {
       const ms = meshes(def);
       for (const m of ms) {
@@ -28,7 +28,9 @@ describe('set-piece meshes (SIM_VERSION 8)', () => {
         expect(bad, `${def.id} ${m.name}`).toBe(0);
       }
       const names = ms.map((m) => m.name).sort();
-      const base = names.filter((n) => n !== 'track-nets');
+      // a skin may add one Object3D of its own per track (moving parts, named piece-*)
+      expect(names.filter((n) => n.startsWith('piece-')).length, def.id).toBeLessThanOrEqual(1);
+      const base = names.filter((n) => n !== 'track-nets' && !n.startsWith('piece-'));
       expect(base.every((n) => n === 'track-solid' || n === 'track-glow'), def.id).toBe(true);
       const jumps = (def.setPieces ?? []).filter((p) => p.kind === 'jump' && (p.gap ?? 10) > 0).length;
       expect(names.filter((n) => n === 'track-nets').length, def.id).toBe(jumps > 0 ? 1 : 0);

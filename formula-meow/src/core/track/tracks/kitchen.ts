@@ -5,10 +5,12 @@
  * (low grip, a milk puddle) → the toaster on the tiles → back along the bottom. Gameplay is data only; the props live
  * in dressing/kitchen.ts.
  *
- * Set pieces (SIM_VERSION 8, the Engine step's reference examples, one of each kind; tracks-A owns the final placement,
- * docs/plans/formula-meow/SETPIECES.md section 12): the mixing-bowl wall ride round the tutorial hairpin, the sink
- * gap (replaces the board's ramp), the bread-bin tunnel on the bottom straight (the pad moved into it) and a loop on
- * the bottom straight after it (the toaster moved to the tunnel's exit).
+ * Set pieces (SIM_VERSION 8, docs/plans/formula-meow/SETPIECES.md section 12; skins in src/tracks/skins/a.ts): the sink
+ * gap off the cutting board (replaces the board's ramp; both routes feed it), the mixing-bowl wall ride on the right of
+ * the sweeping left-hander after the sink splash (the lowgrip moved to s165 so the lane is grippy), the bread-bin
+ * tunnel on the bottom straight (the pad moved into it) and the tape-measure loop after it (the toaster moved to the
+ * tunnel's exit). The wall ride is not round the tutorial hairpin (plan K3): there the lane's longer path cost 1.1 to
+ * 1.3 s against the road at 50cc; here it costs about 0.25 s.
  */
 import type { TrackDef } from '../../../types';
 
