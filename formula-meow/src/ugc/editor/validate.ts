@@ -121,11 +121,16 @@ function worstRun(n: number, bad: (i: number) => boolean): [number, number] | nu
   return best;
 }
 
+/** True when `v` (validated with `drive: false`) passed everything but still owes the set-piece drive check. */
+export function needsDrive(def: TrackDef, v: Validation): boolean {
+  return v.ok && !!v.built && !!def.setPieces?.length;
+}
+
 /**
  * `pieces`: which set-piece rules apply. Doodled tracks and share codes use 'ugc' (the default); the authored tracks
  * use 'authored' (the build's own spacing, free in count, no drive check: `tracks.test.ts` and the harness drive them).
  */
-export function validateTrack(def: TrackDef, opts: { pieces?: 'ugc' | 'authored' } = {}): Validation {
+export function validateTrack(def: TrackDef, opts: { pieces?: 'ugc' | 'authored'; drive?: boolean } = {}): Validation {
   const issues: Issue[] = [];
   const np = def.points.length;
   if (np < LIMITS.minPoints) issues.push({ code: 'points', message: `A loop needs at least ${LIMITS.minPoints} points. Draw a bigger loop.` });
@@ -220,7 +225,8 @@ export function validateTrack(def: TrackDef, opts: { pieces?: 'ugc' | 'authored'
   if (nPieces) {
     const ugc = opts.pieces !== 'authored';
     issues.push(...validateSetPieces(def, t, { ugc }));
-    if (ugc && !issues.length) issues.push(...driveCheck(def, t));
+    // `drive: false`: the editor runs the drive check itself a moment later (it is the slow part), see `needsDrive`
+    if (ugc && !issues.length && opts.drive !== false) issues.push(...driveCheck(def, t));
   }
 
   return { ok: issues.length === 0, issues, built: t, length: len };

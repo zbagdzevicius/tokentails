@@ -118,3 +118,7 @@
   .fm-ed-title { font-size: 18px; }
   .fm-ed-top { gap: 6px; }
 }
+
+/* iteration 3: the stunt stickers (loop, wall ride, jump, tunnel) get their own row and a lilac face */
+.fm-ed-stunts .fm-ed-stk { background: #efe0ff; }
+.fm-ed-stunts small { white-space: nowrap; }

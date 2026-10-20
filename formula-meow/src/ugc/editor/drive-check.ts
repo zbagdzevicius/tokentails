@@ -35,7 +35,8 @@ export function driveLap(def: TrackDef): DriveFailure | null {
   let still = 0;
   let read = 0;
   const startLap = k.lap;
-  while (w.tick < cap) {
+  // (a world whose race is over no longer ticks: stop there too)
+  while (w.tick < cap && !w.done) {
     const o = playerBot(w.ctx, 0, DRIVE_CHECK.skill);
     if (w.tick >= GO_TICK) o.gas = true;
     o.item = false;

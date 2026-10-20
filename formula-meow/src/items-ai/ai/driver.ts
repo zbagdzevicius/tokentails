@@ -179,7 +179,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
   const nearMerge = branchLeft !== null && branchLeft < Math.max(25, speedOf(k) * 1.2);
   // SIM_VERSION 8: a loop entry or a jump lip just ahead (main road only), and the wall lane this cat rides
   const onMain = k.branch < 0;
-  const toStunt = onMain && !(globalThis as {__A?: number}).__A ? stuntEntryAhead(ctx, k.si, STUNT_AI.noBrake) : -1;
+  const toStunt = onMain ? stuntEntryAhead(ctx, k.si, STUNT_AI.noBrake) : -1;
   const lane = onMain && p.skill >= AI.padSkill && m.slipTicks === 0 && !k.air ? laneOf(ctx, i) : 0;
 
   // drift where the track bends
@@ -212,7 +212,7 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     // the drift turns harder than the road (the line asks for full counter-steer): let go before the inside wall
     const overturning = out.steer * k.driftDir <= -5;
     // a jump lip right ahead: let go now, the launch would end the drift without its mini-turbo
-    const lip = onMain && !(globalThis as {__A?: number}).__A ? stuntEntryAhead(ctx, k.si, STUNT_AI.letGo, 'jump') : -1;
+    const lip = onMain ? stuntEntryAhead(ctx, k.si, STUNT_AI.letGo, 'jump') : -1;
     out.drift = stillBending && !early && !overturning && !nearMerge && lip < 0;
     if (!out.drift) {
       m.driftWant = 0;

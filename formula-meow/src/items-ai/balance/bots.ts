@@ -32,7 +32,7 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
     out.item = false;
     return out;
   }
-  const toStunt = k.branch < 0 && !(globalThis as {__B?: number}).__B ? stuntEntryAhead(ctx, k.si, 25) : -1;
+  const toStunt = k.branch < 0 ? stuntEntryAhead(ctx, k.si, 25) : -1;
   if (k.driftDir === 0 && (toStunt < 0 || toStunt > 20) && Math.abs(c) > 0.035 && speedOf(k) > 12 && out.steer * turn >= 2) {
     out.drift = !k.pDrift;
     out.steer = turn * 5;
@@ -46,7 +46,7 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
     // over the class top speed (a boost, coins) into a bend the kart cannot turn: brake
     if (sp > top && sp * ahead > yaw * 1.5) out.brake = true;
   }
-  if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6) && out.steer * k.driftDir > -5 && (k.branch >= 0 || !!(globalThis as {__B?: number}).__B || stuntEntryAhead(ctx, k.si, 7, 'jump') < 0);
+  if (k.driftDir !== 0) out.drift = Math.abs(curvatureAhead(ctx, k.si, 0, 8)) > 0.018 * (1.4 - skill * 0.6) && out.steer * k.driftDir > -5 && (k.branch >= 0 || stuntEntryAhead(ctx, k.si, 7, 'jump') < 0);
   if (toStunt >= 0) out.brake = false;
   out.item = !!k.item && k.rouletteTicks === 0 && !k.pItem;
   return out;

@@ -4,9 +4,9 @@
  * leader speed, makes everyone it passes chase it, then spins the leader). Sim-safe math only.
  *
  * Set pieces (SIM_VERSION 8, ai-ugc lane): nothing hits a kart on a loop's rail, in a jump gap's flight or its net
- * (`touchable`). A homing item keeps such a kart as its target and waits just behind it until it is out (it never
- * switches to the next kart or fizzles because its target is upside down); the Laser Dot also leaves the leader its
- * loop. A hairball rolling over a jump gap carries on at deck height (lip to far deck) instead of dropping into the
+ * (`touchable`). A homing yarn ball loses its lock on such a kart and rolls on along the road ("the stunt shook it
+ * off": a reward, never a second hit waiting at the exit); the Laser Dot is locked on the leader, so it holds just behind
+ * it until it is out, instead of switching to the kart in second. A hairball rolling over a jump gap carries on at deck height (lip to far deck) instead of dropping into the
  * canyon; a yarn ball hops it. Both stay on the shadow road under a loop and pass beneath the riders.
  */
 import { DT, Surface } from '../../types';
@@ -207,13 +207,12 @@ function stepHairball(ctx: SimContext, p: Proj): void {
 function stepYarnBall(ctx: SimContext, p: Proj): void {
   const t = ctx.track;
   const ks = ctx.st.karts;
-  if (p.target >= 0 && !racing(ks[p.target])) p.target = -1;
+  // SIM_VERSION 8: a target that rides a set piece (untouchable) shakes the ball off; it rolls on unlocked
+  if (p.target >= 0 && !touchable(ks[p.target])) p.target = -1;
   p.dist += Math.max(Y.speedMin, ctx.tun.topSpeed * Y.speedTop) * DT;
   let want = t.line[p.si];
   if (p.target >= 0) {
     const tk = ks[p.target];
-    // SIM_VERSION 8: the target is on a set piece (untouchable): wait just behind it
-    if (!touchable(tk) && p.dist > tk.dist - WAIT) p.dist = Math.max(tk.dist - WAIT, p.dist - Math.max(Y.speedMin, ctx.tun.topSpeed * Y.speedTop) * DT);
     const gap = tk.dist - p.dist;
     if (gap < -3) p.target = -1; // overshot (target was in the air): roll on
     else if (gap < Y.lockRange) want = tk.d;
@@ -224,9 +223,6 @@ function stepYarnBall(ctx: SimContext, p: Proj): void {
   p.y = deckY(ctx, p.si, p.y) + LIFT + gapHop(ctx, p.si);
   collide(ctx, p, 'yarn');
 }
-
-/** A homing item waits this far (m) behind a target that is on a set piece. */
-const WAIT = 2.5;
 
 /**
  * Road height under an item at main sample i (SIM_VERSION 8): over a jump gap there is no deck (the query reports the
