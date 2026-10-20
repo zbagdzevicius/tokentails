@@ -4,6 +4,11 @@
  * crumb-strewn shortcut, off-road, a boost pad at its end) or the long way round the fruit bowl → the sink splash
  * (low grip, a milk puddle) → the toaster on the tiles → back along the bottom. Gameplay is data only; the props live
  * in dressing/kitchen.ts.
+ *
+ * Set pieces (SIM_VERSION 8, the Engine step's reference examples, one of each kind; tracks-A owns the final placement,
+ * docs/plans/formula-meow/SETPIECES.md section 12): the mixing-bowl wall ride round the tutorial hairpin, the sink
+ * gap (replaces the board's ramp), the bread-bin tunnel on the bottom straight (the pad moved into it) and a loop on
+ * the bottom straight after it (the toaster moved to the tunnel's exit).
  */
 import type { TrackDef } from '../../../types';
 
@@ -48,11 +53,16 @@ export const KITCHEN: TrackDef = {
     { s: 14, kind: 'start' },
     { s: 26, kind: 'items' },
     { s: 113, kind: 'items' },
-    { s: 119, kind: 'ramp', side: 0 },
     { s: 158, kind: 'items' },
     { s: 172, kind: 'lowgrip' },
-    { s: 222, kind: 'pad', side: 0 },
+    { s: 205, kind: 'pad', side: 0 },
     { s: 236, kind: 'ramp', side: 0 },
+  ],
+  setPieces: [
+    { kind: 'wall', s: 33, len: 14 },
+    { kind: 'jump', s: 116, gap: 12, drop: 1.5 },
+    { kind: 'tunnel', s: 196, len: 14 },
+    { kind: 'loop', s: 217 },
   ],
   branches: [
     // the crumb cut across the S: shorter, but crumbs are off-road (pays with a boost); a pad at its end
@@ -72,7 +82,7 @@ export const KITCHEN: TrackDef = {
   ],
   hazards: [
     { kind: 'milk', s: 168, side: -1 },
-    { kind: 'toaster', s: 214, side: 1, period: 4 },
+    { kind: 'toaster', s: 212, side: 1, period: 4 },
   ],
   coins: [
     { s: 20, d: 3.5, count: 4 },

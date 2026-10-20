@@ -3,7 +3,57 @@
 GDD: `docs/plans/formula-meow/GDD.md` (section 16 has the layout). Iteration 2 plan:
 `docs/plans/formula-meow/ITERATION-2.md`.
 
-## Iteration 2 (current)
+## Iteration 3: set pieces (current)
+
+Plan: `docs/plans/formula-meow/SETPIECES.md`. The Engine step (one commit on `feat/formula-meow`, `SIM_VERSION` 7 → 8,
+golden hashes regenerated) added the set-piece contract below and one reference example of each kind on Kitchen
+Counter. Four lanes follow in parallel (tracks-A, tracks-B, juice, ai-ugc); each edits only its own files (SETPIECES.md
+section 13). No lane edits `SIM_VERSION`, `types.ts`, `hash.ts`, `core/sim/stunt.ts` or `core/track/stunt.ts`: write a
+contract request instead. Lanes may update the golden hashes on their branch; the integrator regenerates them.
+
+### Contract (Engine step)
+
+| What | Where |
+|---|---|
+| `TrackDef.setPieces?: SetPiece[]` `{ kind: 'loop' \| 'wall' \| 'jump' \| 'tunnel', s, len?, side?, gap?, drop?, skin? }`, `SET_PIECE_KINDS` (event `a` index), `Surface.WallRide = 6`, `BoostSource.Stunt = 7`, events `stuntEnter` (a kind, b piece), `stuntExit` (a kind, b 1 = clean), `stuntLand` (a air ticks, b piece), `netCatch` (b piece); `KartState.rail / su / sd / netTicks / gapLaunch / laneTicks` (hashed) | `src/types.ts`, `src/core/sim/hash.ts` |
+| All numbers: `STUNT` (loop zone 44 m + 10 m strip, radius 6.5, drift 0.45 R, sway 4.7 m, floor 0.75 × top, rail 1.35 × own top, exit 1.35 for 1.3 s; wall lane 6 m + 16 m tapers, 1.15 boost, 1 m/s magnet; jump aim 5 m, window 16 m, floor 0.75, T 0.55–1.0 s, magnet 3 m/s, clean ≤ 25° → 1.2 for 0.5 s, net 0.4 s hold, placed 4 m past the far lip at 0.7 × top) | `src/tuning.ts` |
+| Build: `planPieces` / `flattenForPieces` / `placePieces` (called by `buildTrack`); `BuiltTrack.pieces` (`BuiltPiece`: `i0`, `i1`, `strip`, `land0..land1`, `aimI`, `lipY`, `landY`, `end`, `side`...), `pieceAt`, `gapMask`, `tunnelMask`, `laneL` / `laneR`, `pieceIssues`; `LOOP_SHAPE`, `ribbonLocal`, `LOOP_LP`, `LOOP_K`; `pieceAtSample`, `respawnSampleOf`, `inTunnel` | `src/core/track/stunt.ts` |
+| Sim rules: `stuntImmune(k)` (rail, gap flight, net: no hits, no contacts, items pass), `tryAttachRail` / `stepRail` / `railNudge`, `stepLane` / `laneAt`, `lipCrossed` / `launch` / `airAssist` / `landed`, `checkNet` / `hitsLipFace` / `stepNet` | `src/core/sim/stunt.ts` (called from `kart.ts`; contacts, slipstream, coins, item use and `items-ai/items/hits.ts touchable` respect them) |
+| Query: `Surface.WallRide` past the road edge where a lane is; the canyon floor (`py − VOID_DROP`) over a gap | `src/core/track/query.ts` |
+| Render pose: `kartStuntPose(track, kart, out)` → position + up / forward on a loop's ribbon or a curled lane (null elsewhere); `ribbonPose`, `ribbonLocalAt`, `shadowToWorld`, `lanePose`, `curlAt` | `src/core/render/stunt-pose.ts` |
+| Drawing: `RaceView.capture` / `lerpKart` carry the bent pose (`KartSnap.b`, `ux..fz`), `RaceView.displayBasis(i, out)`; `KartView.update(..., basis)`; the blob shadow lies on the bent surface; ghosts (tt, dares) too | `src/core/render/{race-view,kart-view}.ts` |
+| Generic geometry for all four kinds, merged into `track-solid` / `track-glow`, plus one `track-nets` mesh per track with a gap; `segmentInGap`, `laneSide`, `curlPoint` | `src/core/track/stunt-mesh.ts` (`mesh.ts` skips the deck over gaps and the kerb / barrier beside lanes) |
+| Skins: `registerPieceSkin(theme \| '*', kind, skin, draw)`; `draw(ctx)` adds to `ctx.solid` / `ctx.glow` (or one Object3D per track to `ctx.group`), returns true to replace the generic look | `src/tracks/skins/registry.ts`; tracks-A appends to `skins/a.ts`, tracks-B to `skins/b.ts` (both pre-wired in `skins/index.ts`) |
+| Camera: on a loop the rig rides the ribbon behind the kart and the up follows the surface (0.15 s ease, ≤ 240°/s); a wall lane rolls half the curl (≤ 35°) from the road side; tunnels keep under the ceiling; reduced motion = world up and a still TV camera beside a loop. `CameraSource.displayBasis?`, `STUNT_CAM`, `ChaseCamera.upVector` | `src/core/camera/chase-camera.ts` (juice tunes the feel on top: FOV, shake, callouts) |
+| Dressing: `pieceClear(track, x, z)`; `clearance()` already folds it in, so scattered props keep off the pieces | `src/core/track/dressing/common.ts` |
+| Validator stub `validateSetPieces(def, built?)` (today: the build's `pieceIssues`, code `pieces`) | `src/ugc/editor/validate.ts` (ai-ugc fills in the rules) |
+| Fixture `stuntLab()`: the test oval with one of each piece (jump s24, tunnel s50, wall s92, loop s160) | `src/test/fixtures.ts` |
+
+### Rules the lanes can rely on (tested)
+
+- A 50cc kart with auto-gas clears every piece with zero steering (from 6, 18 and 24 m/s), with a noisy thumb (3 seeds)
+  and as the phone bot (skill 0.2, 3 laps): no respawn, no net, no head-on (`src/core/sim/stunt.test.ts`).
+- The loop is lap-time neutral (±0.3 s; measured −0.02 to 0.00 s in all classes), keeps laps exact, and never evens out the field (the rail
+  runs at the kart's own top speed × 1.35, rubber band included). The aimed arc lands within ±1.5 m of the target for
+  0–43 m/s and drops 0–2.5 m; the net costs ≤ 0.8 s. Hits pass railed and flying karts.
+- A wall lane's taper and outer rail are soft from the first centimetre: the velocity is turned along the rail at the
+  same speed (no graze loss, never a head-on), so steering hard onto the lane mouth costs nothing. Kitchen Counter's
+  reference pieces pass the phone bot at 50, 100 and 150cc on 3 seeds (3 loops, 3 clean landings, no respawn or net).
+- Camera comfort limits and reduced motion (`src/core/camera/stunt-camera.test.ts`); finite geometry and ≤ 1 extra draw
+  call per track (`src/core/track/stunt-mesh.test.ts`); placement rules and masks (`src/core/track/stunt.test.ts`).
+- Kitchen Counter carries the reference pieces (wall s33, jump s116 gap 12 drop 1.5 replacing the s119 ramp, tunnel
+  s196 with the pad moved to s205, loop s217 with the toaster moved to s212). tracks-A owns their final placement.
+
+### Known gaps for the lanes
+
+- ai-ugc: track code v3 (`codec/track-code.ts` drops set pieces today; its round-trip test ignores them), the full
+  validator, AI on the wall lane (`lineWall`), no drift starts near a loop or lip, item-brain skipping immune karts,
+  `branch-ai` counting stunt times, the editor stickers, `e2e/setpieces.spec.ts` on all six tracks.
+- juice: FOV and audio in tunnels (`tunnelMask`), callouts on the stunt events, minimap icons, the "Stunts" result row.
+- tracks-B: the Yarn branch gap still sends a kart back to the fork (`tracks/hazards/rules.ts`); kickers and half-pipes
+  on the rug arena (`jump` with `gap: 0` builds a full-width aimed ramp; `wall` side 0 is built but arenas skip walls).
+
+## Iteration 2
 
 Stabilise (one commit on `feat/formula-meow`) fixed the bug list (B1–B62, `SIM_VERSION` 3 → 4) and added the shared
 contracts below. Five lanes then branch from it (`lane/fm2-modes`, `-tracks`, `-feel`, `-progression`,

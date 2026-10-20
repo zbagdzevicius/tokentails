@@ -24,7 +24,9 @@ export type IssueCode =
   | 'items'
   | 'rampBend'
   | 'stickers'
-  | 'build';
+  | 'build'
+  // SIM_VERSION 8 set pieces: the build could not place one (validateSetPieces; the ai-ugc lane adds the detailed codes)
+  | 'pieces';
 
 export interface Issue {
   code: IssueCode;
@@ -201,4 +203,16 @@ export function validateTrack(def: TrackDef): Validation {
 /** The first issue with a sentence (the editor's status line). */
 export function firstMessage(v: Validation): string | null {
   return v.issues.find((i) => i.message)?.message ?? null;
+}
+
+/**
+ * Set pieces (SIM_VERSION 8, SETPIECES.md section 10). Engine-step stub with the final signature, so the track lanes'
+ * tests compile before the ai-ugc lane fills in the full rules (loopBend, loopClear, wallBend, jumpLine, tunnelLen,
+ * pieceSpacing, pieceCount, the drive check). Today it reports what `buildTrack` had to skip (`BuiltTrack.pieceIssues`:
+ * the start line, fork and merge windows, overlaps, a loop on a bend, an arena piece).
+ */
+export function validateSetPieces(def: TrackDef, built?: BuiltTrack): Issue[] {
+  if (!def.setPieces?.length) return [];
+  const t = built ?? buildTrack(def);
+  return t.pieceIssues.map((m) => ({ code: 'pieces' as const, message: `A set piece cannot go there (${m}).` }));
 }

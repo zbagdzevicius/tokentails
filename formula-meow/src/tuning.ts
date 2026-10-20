@@ -317,3 +317,91 @@ export const TRACK = {
   bankK: 3.5,
   cell: 8,
 } as const;
+
+// ---------------------------------------------------------------------------------------------
+// set pieces (SIM_VERSION 8, iteration 3: docs/plans/formula-meow/SETPIECES.md, core/sim/stunt.ts)
+// Spectacle with assist: thrilling, never hard. Times in s, lengths in m, speeds as fractions of the kart's top speed.
+// ---------------------------------------------------------------------------------------------
+export const STUNT = {
+  loop: {
+    /** shadow zone on the main loop (the kart's planar position while on the rail) */
+    zone: 44,
+    /** the boost strip the build puts before the zone (a full-width pad: 1.35 for 0.8 s) */
+    strip: 10,
+    /** ribbon (render shape and the rail length): loop radius, forward drift per radian (a teardrop loop), corkscrew sway */
+    radius: 6.5,
+    drift: 0.45,
+    sway: 4.7,
+    /** deck half width (render) and the rail's lateral limit (the kart's centre) */
+    deckHalfW: 3.6,
+    maxSd: 2,
+    /** never slower than this on the rail (nobody stalls upside down) */
+    floor: 0.75,
+    /** a Stunt boost held for the whole ride (the ribbon is longer than its shadow) */
+    railLevel: 1.35,
+    /** steering: m/s at full lock, auto-centre speed when |steer| < centreSteer (of 7) */
+    steerRate: 2.4,
+    centre: 1.5,
+    centreSteer: 2,
+    /** exit boost */
+    exitLevel: 1.35,
+    exitTime: 1.3,
+    /** a respawn inside a loop puts the kart this far before the strip at the floor speed */
+    respawnBack: 8,
+  },
+  wall: {
+    /** lane width beyond the road edge, and the taper at each end (wall slope ≤ 1:2.7: never a head-on) */
+    lane: 6,
+    taper: 16,
+    /** the soft outer rail sits this far past the lane */
+    rail: 0.6,
+    /** boost refreshed every tick on the lane */
+    level: 1.15,
+    time: 0.25,
+    /** magnet toward the lane centre, m/s; off while steering inward at |steer| ≥ magnetOff (of 7) */
+    magnet: 1,
+    magnetOff: 4,
+    /** stuntEnter after this long on the lane; a clean stuntExit needs this share of the lane ridden */
+    enter: 0.3,
+    clean: 0.7,
+    /** render curl: radius of the quarter pipe and its maximum angle (degrees) */
+    curlR: 3.8,
+    curlMax: 75,
+  },
+  jump: {
+    gap: 10,
+    /** the landing target is this far past the far lip; the landing window this long */
+    aim: 5,
+    land: 16,
+    /** launch speed floor (fraction of top); heading error clamp at the lip (degrees) */
+    floor: 0.75,
+    lipAngle: 10,
+    /** aimed flight time limits (s) */
+    tMin: 0.55,
+    tMax: 1.0,
+    /** air magnet: toward the racing line (m/s), heading toward the tangent (rad/s) */
+    magnet: 3,
+    turn: 2,
+    /** clean landing: within this heading error (degrees) → a Stunt boost */
+    cleanAngle: 25,
+    landLevel: 1.2,
+    landTime: 0.5,
+    /** catch net: below the far deck by this much, or this long in the air (s) */
+    netBelow: 1.5,
+    netAir: 1.5,
+    netHold: 0.4,
+    /** set down this far past the far lip at this speed (fraction of top), invincible for invTime */
+    netPlace: 4,
+    netSpeed: 0.7,
+    invTime: 0.5,
+    /** the far deck climbs back from `drop` over this many metres after the landing window */
+    climb: 24,
+    /** run-up: banking is forced to 0 over this many metres before the lip */
+    runUp: 25,
+  },
+  tunnel: {
+    /** render: ceiling height over the road, neon ring spacing (m) */
+    ceiling: 6.5,
+    ring: 6,
+  },
+} as const;

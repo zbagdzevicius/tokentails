@@ -11,7 +11,10 @@ import { setTrackCodec, trackFromLocation } from './track-codec';
  * authored extras: branches, hazards, coins, flyover, music; authored tracks travel by id, UGC by code).
  */
 function norm(def: TrackDef): unknown {
-  const { branches, hazards, coins, flyover, music, kind, ...rest } = def;
+  // SIM_VERSION 8: set pieces travel in track code v3, which the ai-ugc lane adds (SETPIECES.md section 10); until then
+  // v1 codes carry the track without them (authored tracks are shared by id, so this only affects remixes)
+  const { branches, hazards, coins, flyover, music, kind, setPieces, ...rest } = def;
+  void setPieces;
   void branches;
   void hazards;
   void coins;

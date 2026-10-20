@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 7;
+export const SIM_VERSION = 8;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -139,6 +139,32 @@ export interface TrackDef {
   flyover?: FlyoverKey[];
   /** song index for the audio-ui lane */
   music?: number;
+  /** SIM_VERSION 8 (iteration 3): loops, wall rides, jump gaps and tunnels on the main loop (core/track/stunt.ts) */
+  setPieces?: SetPiece[];
+}
+
+/**
+ * Set pieces (SIM_VERSION 8, docs/plans/formula-meow/SETPIECES.md). The sim stays 2.5D ("shadow zones"): each piece is
+ * a stretch of the main loop with special sim rules, and the render bends it into 3D. Optional, so v1/v2 track codes
+ * and authored ghost headers are unchanged.
+ */
+export type SetPieceKind = 'loop' | 'wall' | 'jump' | 'tunnel';
+/** order = the `a` of stuntEnter / stuntExit events */
+export const SET_PIECE_KINDS: readonly SetPieceKind[] = ['loop', 'wall', 'jump', 'tunnel'];
+
+export interface SetPiece {
+  kind: SetPieceKind;
+  /** main-loop lap fraction 0..255 (like features): loop = zone start (the boost strip is built before it), jump = lip, wall/tunnel = start */
+  s: number;
+  /** wall/tunnel length in lap units (wall 8..20, tunnel 10..26). Loop and jump lengths are fixed in metres (STUNT). */
+  len?: number;
+  /** wall: -1 left / +1 right, 0 both sides (a half-pipe, for straights); omitted = the outer side of the bend. Mirror flips it. */
+  side?: -1 | 0 | 1;
+  /** jump: gap length m 6..12 (default 10); the far deck is `drop` m lower (0..2.5, default 0) */
+  gap?: number;
+  drop?: number;
+  /** render skin 0..15 per theme (tracks/skins registry); 0 = the generic look */
+  skin?: number;
 }
 
 /** Surface under a kart (GDD 3.2). */
@@ -149,6 +175,8 @@ export const Surface = {
   Boost: 3,
   LowGrip: 4,
   Void: 5,
+  /** SIM_VERSION 8: the wall-ride lane of a set piece (road grip, a mild boost, a soft magnet) */
+  WallRide: 6,
 } as const;
 export type Surface = (typeof Surface)[keyof typeof Surface];
 
@@ -347,6 +375,18 @@ export interface KartState {
   wrongTicks: number;
   /** alternative route the kart is on, -1 = the main loop */
   branch: number;
+  // --- iteration 3 (SIM_VERSION 8): set pieces (core/sim/stunt.ts) ---
+  /** 0, or the set-piece index + 1 while riding a loop's rail */
+  rail: number;
+  /** metres along the loop ribbon, and the lateral offset on it (m) */
+  su: number;
+  sd: number;
+  /** catch-net freeze countdown (ticks), 0 = none */
+  netTicks: number;
+  /** index + 1 of the jump gap the kart launched from, 0 = none; cleared on landing or a net catch */
+  gapLaunch: number;
+  /** ticks in a row on a wall-ride lane (the stuntEnter / stuntExit events) */
+  laneTicks: number;
 }
 
 /** One item box (GDD 4). */
@@ -399,7 +439,12 @@ export type RaceEventType =
   | 'grudge' // b = target
   | 'trickLand' // a = pose
   | 'respawnStart'
-  | 'itemFizzle'; // item id in `item`
+  | 'itemFizzle' // item id in `item`
+  // iteration 3 (SIM_VERSION 8): set pieces; a = SET_PIECE_KINDS index, b = piece index (stuntEnter) or 1 = clean (stuntExit)
+  | 'stuntEnter'
+  | 'stuntExit'
+  | 'stuntLand' // a clean landing after a jump gap; a = air ticks, b = piece index
+  | 'netCatch'; // b = piece index
 
 export const BoostSource = {
   MiniTurbo: 0,
@@ -409,6 +454,8 @@ export const BoostSource = {
   Slipstream: 4,
   Catnip: 5,
   Zoomies: 6,
+  /** SIM_VERSION 8: set pieces (loop exit, wall lane, clean landing) */
+  Stunt: 7,
 } as const;
 export type BoostSource = (typeof BoostSource)[keyof typeof BoostSource];
 

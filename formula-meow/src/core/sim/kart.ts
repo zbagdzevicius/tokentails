@@ -9,6 +9,8 @@ import { BODY_STEP, bodyStats } from '../../content/karts';
 import { atan2L, clamp, cosL, headingOf, lerp, pow06, sinL, wrapAngle } from './fixed';
 import type { SimContext } from './plugins';
 import { queryTrack, type TrackHit } from '../track/query';
+import { respawnSampleOf } from '../track/stunt';
+import { airAssist, checkNet, hitsLipFace, launch, landed, laneAt, lipCrossed, stepLane, stepNet, stepRail, stuntImmune, tryAttachRail } from './stunt';
 
 const SIN30 = 0.5;
 /** sin of the head-on angle (50°, B11) */
@@ -38,6 +40,7 @@ export function newKart(): KartState {
     surface: Surface.Road, wall: 0, pGas: 0, pDrift: 0, pItem: 0, startJudged: 0, item: null, itemCount: 0, rouletteTicks: 0,
     rngItems: 1, rngAi: 1, lap: 0, lapStartTick: 0, bestLapTicks: 0, finished: 0, finishTime: 0, place: 0, stuckTicks: 0, progDist: -1e9, topScale: 1,
     lapMax: 0, lapStartPrev: 0, coins: 0, balloons: 0, out: 0, itemBuf: 0, itemBufBack: 0, wrongTicks: 0, branch: -1,
+    rail: 0, su: 0, sd: 0, netTicks: 0, gapLaunch: 0, laneTicks: 0,
   };
 }
 
@@ -90,6 +93,8 @@ const HIT_INDEX: Record<HitKind, number> = { spin: 0, leap: 1, wobble: 2, chase:
  */
 export function applyHit(ctx: SimContext, idx: number, kind: HitKind, by = -1): boolean {
   const k = ctx.st.karts[idx];
+  // SIM_VERSION 8: on a loop's rail, in a jump gap's flight or in its net nothing hits (projectiles pass)
+  if (stuntImmune(k)) return false;
   // SIM_VERSION 7 hit cap: a human hit by an item shrugs off further item hits for a while (hazards still count)
   const guarded = k.guardTicks > 0 && by >= 0;
   if (guarded || k.shieldTicks > 0 || k.autoTicks > 0 || k.invTicks > 0 || k.respawnTicks > 0 || k.finished || k.out) {
@@ -143,7 +148,7 @@ export function applyHit(ctx: SimContext, idx: number, kind: HitKind, by = -1): 
   return true;
 }
 
-function endDrift(k: KartState): void {
+export function endDrift(k: KartState): void {
   k.driftDir = 0;
   k.driftCharge = 0;
   k.driftTier = 0;
@@ -208,8 +213,10 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   if (k.respawnTicks > 0) {
     k.respawnTicks--;
     if (k.respawnTicks === 0) {
-      placeOnTrack(ctx, k, k.si, clamp(t.line[k.si], -2, 2));
-      const sp = tun.topSpeed * 0.35;
+      // SIM_VERSION 8: never inside a set piece (before a loop's strip, past a jump's far lip)
+      const [rsi, fast] = respawnSampleOf(t, k.si);
+      placeOnTrack(ctx, k, rsi, clamp(t.line[rsi], -2, 2));
+      const sp = fast > 0 ? kartTuning(ctx, idx, kt).top * fast : tun.topSpeed * 0.35;
       k.vx = sinL(k.heading) * sp;
       k.vz = cosL(k.heading) * sp;
       k.vy = 0;
@@ -217,6 +224,12 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
       k.invTicks = ticks(PHYS.respawnImmunity);
       endDrift(k);
     }
+    return;
+  }
+  // --- the catch net of a jump gap holds the kart, then sets it down past the far lip (SIM_VERSION 8) --------------
+  if (k.netTicks > 0) {
+    kartTuning(ctx, idx, kt);
+    stepNet(ctx, k, kt.top * clamp(k.topScale, 0.5, 1));
     return;
   }
 
@@ -257,6 +270,24 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   }
   const target = boosting ? kt.top * k.boostLevel : top;
   const a0 = kt.a0;
+  /** the kart's own top speed (no surface penalty): set pieces scale their floors by it */
+  const ownTop = kt.top * clamp(k.topScale, 0.5, 1);
+  /** speed after one tick of gas / coast / overspeed drag (GDD 3.3: a = a0·(1 − v/vmax)^0.6) */
+  const driving = gas || boosting;
+  const nextV = (v: number): number => {
+    if (k.stallTicks > 0) return v > 0 ? Math.max(0, v - 30 * DT) : v;
+    if (v > target) return Math.max(target, v - PHYS.overspeedDrag * DT);
+    if (!driving) return v > 0 ? Math.max(0, v - PHYS.coastDrag * DT) : Math.min(0, v + PHYS.coastDrag * DT);
+    if (v < 0) return v + a0 * DT;
+    const peak = boosting ? a0 * BOOST.accelMult : a0 * accelMul;
+    return Math.min(target, v + peak * pow06(1 - v / target) * DT);
+  };
+
+  // --- SIM_VERSION 8: on a loop's rail the rail does everything (core/sim/stunt.ts) ---------------------------------
+  if (k.rail > 0) {
+    stepRail(ctx, idx, k, inp, nextV, ownTop, a0, stunned);
+    return;
+  }
 
   // --- hop and drift entry ------------------------------------------------------------------------------------------
   if (driftEdge && !k.air && !stunned) {
@@ -296,16 +327,6 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
 
   // --- longitudinal ---------------------------------------------------------------------------------------------------
   let vf = k.vx * sinL(k.heading) + k.vz * cosL(k.heading);
-  /** speed after one tick of gas / coast / overspeed drag (GDD 3.3: a = a0·(1 − v/vmax)^0.6) */
-  const driving = gas || boosting;
-  const nextV = (v: number): number => {
-    if (k.stallTicks > 0) return v > 0 ? Math.max(0, v - 30 * DT) : v;
-    if (v > target) return Math.max(target, v - PHYS.overspeedDrag * DT);
-    if (!driving) return v > 0 ? Math.max(0, v - PHYS.coastDrag * DT) : Math.min(0, v + PHYS.coastDrag * DT);
-    if (v < 0) return v + a0 * DT;
-    const peak = boosting ? a0 * BOOST.accelMult : a0 * accelMul;
-    return Math.min(target, v + peak * pow06(1 - v / target) * DT);
-  };
 
   if (k.driftDir !== 0) {
     // explicit drift: the travel direction turns at the drift yaw, the body sits inside it at the slip angle
@@ -365,14 +386,22 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   k.z += k.vz * DT;
   queryTrack(t, k.x, k.z, k.si, hit);
   resolveWall(ctx, idx, k, true);
+  // SIM_VERSION 8: crossing a loop's zone start attaches the kart to its rail (it is placed on it this tick)
+  if (t.pieces.length && tryAttachRail(ctx, idx, k, prevSi, hit, ownTop)) return;
+  // a jump gap's lip launches at any speed on an aimed arc
+  const lip = t.pieces.length ? lipCrossed(ctx, prevSi, hit) : null;
+  if (lip) launch(ctx, idx, k, lip, ownTop);
 
   // --- vertical: ground follow, ramps, air ---------------------------------------------------------------------------
   let groundY = hit.y;
   if (k.air) {
     k.airTicks++;
     if (k.lipTicks >= 0) k.lipTicks++;
+    if (k.gapLaunch > 0) airAssist(ctx, k, hit);
     k.vy -= PHYS.gravity * DT;
     k.y += k.vy * DT;
+    // SIM_VERSION 8: a gap flight that reaches the far deck from below its edge goes into the net
+    if (k.gapLaunch > 0 && hitsLipFace(ctx, idx, k, hit, groundY)) return;
     if (k.y <= groundY && k.vy <= 0) {
       const airT = k.airTicks;
       k.y = groundY;
@@ -381,6 +410,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
       k.airTicks = 0;
       k.lipTicks = -1;
       ctx.emit({ type: 'land', kart: idx, a: airT });
+      if (k.gapLaunch > 0) landed(ctx, idx, k, airT, hit);
       if (k.leapTicks > 0) {
         // the cucumber leap lands facing forward
         k.heading = atan2L(t.tx[hit.i], t.tz[hit.i]);
@@ -404,6 +434,13 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
       const before = (r.i - prevSi + t.n) % t.n;
       const after = (hit.i - r.i + t.n) % t.n;
       if (before > 0 && before < 6 && after < 6 && Math.abs(hit.d - r.d) <= r.halfW) {
+        // SIM_VERSION 8: a set-piece kicker launches at any speed on an aimed arc
+        if (r.piece != null && t.pieces[r.piece]) {
+          launch(ctx, idx, k, t.pieces[r.piece], ownTop);
+          k.y = Math.max(k.y, groundY);
+          launched = true;
+          continue;
+        }
         const v = speedOf(k);
         if (v > BOOST.rampMinSpeed) {
           k.air = 1;
@@ -442,6 +479,9 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
     }
   }
 
+  // --- SIM_VERSION 8: the wall-ride lane (boost, magnet, events) -------------------------------------------------------
+  if (t.pieces.length) stepLane(ctx, idx, k, inp, hit);
+
   // --- surface: boost pads -------------------------------------------------------------------------------------------
   if (hit.surface === Surface.Boost && !k.air) {
     if (k.surface !== Surface.Boost) ctx.emit({ type: 'pad', kart: idx });
@@ -455,6 +495,15 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   k.d = hit.d;
   k.branch = hit.branch ?? -1;
   advanceDist(t.length, k, hit.s, speedOf(k) * DT + 0.5);
+
+  // --- SIM_VERSION 8: the catch net under a jump gap; no watchdog or wrong way during a gap flight --------------------
+  if (t.pieces.length && checkNet(ctx, idx, k)) return;
+  if (k.gapLaunch > 0) {
+    k.wrongTicks = 0;
+    k.stuckTicks = 0;
+    k.progDist = k.dist;
+    return;
+  }
 
   // --- safety: stuck, wrong way or fell (respawn hand, GDD 3.3) --------------------------------------------------------
   if (k.y < groundY - 8) startRespawn(ctx, idx);
@@ -529,6 +578,27 @@ function resolveWall(ctx: SimContext, idx: number, k: KartState, respond: boolea
   k.z += nz * over;
   const vn = k.vx * nx + k.vz * nz;
   const v = speedOf(k);
+  // SIM_VERSION 8: a wall-ride lane's outer rail is soft: clamp, drop the outward speed, a graze event, no speed loss.
+  // The whole taper counts (from its first centimetre), so a kart steering out early never pays a graze at the lane mouth.
+  if (laneAt(t, hit.i, hit.d) > 0 && (hit.branch ?? -1) === -1) {
+    if (vn < 0) {
+      k.vx -= nx * vn;
+      k.vz -= nz * vn;
+      // redirect along the rail at the same speed (projecting alone would cost v·(1 − cos a) at a steep approach)
+      const vt = speedOf(k);
+      if (vt > 0.01) {
+        k.vx *= v / vt;
+        k.vz *= v / vt;
+      }
+      if (respond && !k.wall && v > 0.01 && -vn / v > 0.15) ctx.emit({ type: 'wall', kart: idx, a: 1 });
+    }
+    // the rail guides: a nose pointing into it turns along it (grip would otherwise bleed the speed into the rail)
+    const away = sinL(k.heading) * nx + cosL(k.heading) * nz;
+    if (respond && away < 0.05 && !k.air && k.spinTicks === 0 && k.driftDir === 0 && speedOf(k) > 1) k.heading = headingOf(k.vx, k.vz);
+    if (respond) k.wall = 1;
+    queryTrack(t, k.x, k.z, hit.i, hit);
+    return;
+  }
   if (vn < 0 && v > 0.01) {
     const sinA = -vn / v;
     k.vx -= nx * vn;
@@ -613,6 +683,12 @@ export function startRespawn(ctx: SimContext, idx: number): void {
   const k = ctx.st.karts[idx];
   if (k.respawnTicks > 0) return;
   k.respawnTicks = ticks(PHYS.respawnDelay);
+  k.rail = 0;
+  k.su = 0;
+  k.sd = 0;
+  k.gapLaunch = 0;
+  k.netTicks = 0;
+  k.laneTicks = 0;
   k.stuckTicks = 0;
   k.pinTicks = 0;
   k.wrongTicks = 0;

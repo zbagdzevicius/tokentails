@@ -19,9 +19,10 @@ import { cellKey } from './grid';
 import { branchClear, buildBranch, joinWalls, shortcutSpec, specOf, type BuiltBranch } from './branch';
 import { HAZARD_PERIOD, hazardSpotsOf } from './hazard-spots';
 import { extrasOf } from './tracks/extras';
+import { flattenForPieces, placePieces, planPieces, type BuiltPiece, type StuntFields } from './stunt';
 
 export { cellKey };
-export type { BuiltBranch };
+export type { BuiltBranch, BuiltPiece };
 
 /** A hazard placed on the track (resolved from a HazardSpot): the sim (src/tracks/hazards) and its view read it. */
 export interface HazardPlace {
@@ -69,6 +70,8 @@ export interface PadZone {
 export interface RampZone {
   /** sample index of the lip (launch point) */
   i: number;
+  /** SIM_VERSION 8: a set-piece kicker (jump with gap 0): its piece id; the launch is aimed (core/sim/stunt.ts) */
+  piece?: number;
   d: number;
   halfW: number;
   /** run-up length in samples */
@@ -99,7 +102,7 @@ export interface CoinSpot {
   d: number;
 }
 
-export interface BuiltTrack {
+export interface BuiltTrack extends StuntFields {
   def: TrackDef;
   /** sample count, spacing (m), lap length (m) */
   n: number;
@@ -225,6 +228,13 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
   let maxK = 0;
   for (let i = 0; i < n; i++) maxK = Math.max(maxK, Math.abs(curv[i]));
 
+  // SIM_VERSION 8: set pieces (core/track/stunt.ts) keep clear of the start, the forks and merges, and each other
+  const pieceIssues: string[] = [];
+  const forks: number[] = [];
+  for (const b of def.branches ?? []) forks.push(idx(b.from), idx(b.to));
+  for (const f of def.features) if (f.kind === 'shortcut') forks.push((idx(f.s) - Math.round(26 / step) + n) % n, (idx(f.s) + Math.round(26 / step)) % n);
+  const plans = planPieces(def, { n, step, curv }, idx, mirror, forks, pieceIssues);
+
   // banking (inner side lower), smoothed
   const bank = new Float64Array(n);
   const maxSlope = TRACK.maxBank; // radians ≈ slope for small angles
@@ -261,6 +271,8 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
       for (let i = 0; i < n; i++) bank[i] *= flat[i];
     }
   }
+  // set pieces: flat over a loop's strip and zone and a jump's run-up, gap and landing
+  flattenForPieces(plans, { n, step, bank });
   // tilt the road around its low edge (not its centre line), so the inner side of a banked turn never sinks
   // below the ground it was drawn on: lift the centre by the drop at the wall
   for (let i = 0; i < n; i++) py[i] += (halfW[i] + PHYS.wallMargin) * Math.abs(bank[i]);
@@ -331,6 +343,12 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
       }
     }
   }
+
+  // set pieces: wall lanes (walls move out), jump gaps and drops, tunnels, the loops' boost strips
+  const stunt = placePieces(plans, { n, step, py, curv, bank, halfW, wallL, wallR }, pieceIssues);
+  for (const sp of stunt.strips) pads.push({ i: sp.i, d: 0, halfLen: sp.halfLen, halfW: sp.halfW });
+  for (const pc of stunt.fields.pieces)
+    if (pc.kind === 'jump' && pc.gap === 0) ramps.push({ i: pc.i0, d: 0, halfW: halfW[pc.i0] + PHYS.curbWidth, len: Math.round(RAMP_RUN / step), height: RAMP_HEIGHT, piece: pc.id });
 
   const line = computeRacingLine(curv, halfW, step);
 
@@ -425,8 +443,11 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
     const near = (list: number[], i: number, m: number): boolean => list.some((j) => Math.min(fwd(i, j, n), fwd(j, i, n)) * step < m);
     const gap = Math.max(1, Math.round(LINE_COIN_GAP / step));
     const along = Math.max(1, Math.round(LINE_COIN_STEP / step));
+    const inPiece = (i: number) => stunt.fields.pieceAt[i % n] !== 0 && stunt.fields.pieces[stunt.fields.pieceAt[i % n] - 1].kind !== 'tunnel';
     for (let i0 = Math.round(40 / step); i0 + gap / 2 < n; i0 += gap) {
       if (near(authored, i0, 25) || near(busy, i0, 14)) continue;
+      // never on a loop's strip and zone or over a jump (a railed or flying kart cannot collect them)
+      if (inPiece(i0) || inPiece(i0 + along * (LINE_COIN_TRAIL - 1))) continue;
       for (let c = 0; c < LINE_COIN_TRAIL; c++) {
         const f = frameOnMain(main, (i0 + c * along) % n);
         const lim = f.hw - 0.8;
@@ -508,6 +529,7 @@ export function buildTrack(def: TrackDef, modifiers = 0): BuiltTrack {
     minRadius: maxK > 0 ? 1 / maxK : Infinity,
     maxClimb,
     mirrored: mirror,
+    ...stunt.fields,
   };
 }
 

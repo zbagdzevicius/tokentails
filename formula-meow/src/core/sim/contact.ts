@@ -10,6 +10,7 @@ import { BoostSource, type KartState } from '../../types';
 import { BOOST, PHYS, ticks } from '../../tuning';
 import { applyBoost, settleAfterPush, speedOf } from './kart';
 import { cosL, sinL } from './fixed';
+import { railNudge, stuntImmune } from './stunt';
 import { bodyStats } from '../../content/karts';
 import type { SimContext } from './plugins';
 
@@ -37,6 +38,11 @@ export function stepContacts(ctx: SimContext): void {
     for (let j = i + 1; j < n; j++) {
       const b = ks[j];
       if (b.respawnTicks > 0 || b.out) continue;
+      // SIM_VERSION 8: set pieces: railed karts only nudge each other sideways; flying or netted karts never touch
+      if (stuntImmune(a) || stuntImmune(b)) {
+        if (a.rail > 0 && b.rail > 0) railNudge(a, b);
+        continue;
+      }
       const cx = b.x - a.x;
       const cz = b.z - a.z;
       if (cx * cx + cz * cz >= REACH2 || Math.abs(b.y - a.y) > 1.6) continue;
@@ -129,7 +135,7 @@ export function stepSlipstream(ctx: SimContext): void {
   const ks = ctx.st.karts;
   for (let i = 0; i < ks.length; i++) {
     const k = ks[i];
-    if (k.finished || k.air || k.respawnTicks > 0) {
+    if (k.finished || k.air || k.respawnTicks > 0 || k.rail > 0 || k.netTicks > 0) {
       k.slipTicks = 0;
       continue;
     }

@@ -17,6 +17,11 @@ describe('fixed math (GDD 3.1)', () => {
     expect(maxS).toBeLessThan(1e-6);
     expect(maxA).toBeLessThan(2e-5);
     expect(atan2L(0, 0)).toBe(0);
+    // SIM_VERSION 8: a tiny negative angle used to index past the table (NaN)
+    for (const a of [-1e-17, -1e-300, -Number.MIN_VALUE, 2 * Math.PI * -1e-16]) {
+      expect(sinL(a)).toBeCloseTo(0, 12);
+      expect(cosL(a)).toBeCloseTo(1, 12);
+    }
   });
 
   it('pow06 matches x^0.6 and wrapAngle stays in [-PI, PI)', () => {

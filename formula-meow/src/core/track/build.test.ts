@@ -11,7 +11,8 @@ import { ovalTrack } from '../../test/fixtures';
 const hit = (): TrackHit => ({ i: 0, s: 0, d: 0, y: 0, surface: Surface.Road });
 
 /** Main samples where the plain one-road rules do not apply: a branch's window or an open bridge. */
-const special = (t: BuiltTrack, i: number): boolean => t.voidMask[i] === 1 || t.junction[i] !== 0 || t.branches.some((b) => inWindow(t, b, i));
+// SIM_VERSION 8: set-piece footprints (a jump's gap, a wall-ride lane, a loop's strip) have their own rules (stunt.test.ts)
+const special = (t: BuiltTrack, i: number): boolean => t.voidMask[i] === 1 || t.junction[i] !== 0 || t.pieceAt[i] !== 0 || t.branches.some((b) => inWindow(t, b, i));
 
 describe('track build (GDD 6.2)', () => {
   for (const def of TRACKS) {
@@ -92,7 +93,8 @@ describe('track build (GDD 6.2)', () => {
           expect(Math.abs(h.d)).toBeLessThan(t.halfW[h.i]);
         }
         expect(t.features.length).toBe(def.features.length);
-        expect(t.ramps.length).toBeGreaterThanOrEqual(2);
+        // SIM_VERSION 8: a set-piece jump counts as a ramp (Kitchen's sink gap replaced the board's ramp)
+        expect(t.ramps.length + t.pieces.filter((p) => p.kind === 'jump').length).toBeGreaterThanOrEqual(2);
       });
 
       it('the barrier mesh sits just outside the collision wall (BARRIER_GAP), and the kerb band up to it is drivable kerb (B10)', () => {

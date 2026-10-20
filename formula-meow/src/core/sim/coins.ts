@@ -22,7 +22,7 @@ export function stepCoins(ctx: SimContext): void {
     const p = spots[c];
     for (let i = 0; i < st.karts.length; i++) {
       const k = st.karts[i];
-      if (k.respawnTicks > 0 || k.out) continue;
+      if (k.respawnTicks > 0 || k.out || k.rail > 0 || k.netTicks > 0) continue;
       const dx = k.x - p.x;
       const dz = k.z - p.z;
       const dy = k.y + 0.6 - p.y;

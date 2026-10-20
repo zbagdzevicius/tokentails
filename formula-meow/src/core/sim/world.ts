@@ -167,6 +167,8 @@ export class SimWorld {
           k.itemBufBack = out.itemBack ? 1 : 0;
         }
         if (k.itemBuf <= 0) continue;
+        // SIM_VERSION 8: on a loop's rail or in a jump's net the press waits (the buffer holds) until the kart is out
+        if (k.rail > 0 || k.netTicks > 0) continue;
         if (k.item && k.rouletteTicks === 0 && k.respawnTicks === 0 && k.spinTicks === 0) {
           const id = k.item;
           const back = k.itemBufBack === 1;

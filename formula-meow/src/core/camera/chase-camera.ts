@@ -13,11 +13,20 @@
  *  - `podium`: a slow swing round `params` {x, y, z} at `params.radius` (default 7 m)
  *  - `attract`: a slow orbit round the followed kart (title screen)
  * B59: the camera never sits outside the track's walls (where the scenery is): it is pulled in toward the kart.
+ *
+ * Set pieces (SIM_VERSION 8, SETPIECES.md section 8; the juice lane tunes the feel on top): on a loop's rail the rig
+ * rides behind and above the kart in the ribbon's frame and the camera's up follows the surface (eased over 0.15 s,
+ * never faster than `STUNT_CAM.upRate`°/s, so a loop is a comfortable pitch, not a snap); on a wall lane the camera
+ * rolls half the curl, at most `STUNT_CAM.wallRoll`°; in a tunnel it stays under the ceiling. Reduced motion: world up
+ * always, and a loop is watched from a fixed "TV" camera beside it (hard cuts in and out).
  */
 import { PerspectiveCamera, Vector3 } from 'three';
 import { Surface, type FlyoverKey, type KartState } from '../../types';
 import type { BuiltTrack } from '../track/build';
 import { queryTrack, type TrackHit } from '../track/query';
+import { LOOP_SHAPE } from '../track/stunt';
+import { STUNT } from '../../tuning';
+import { ribbonPose, shadowToWorld, type StuntPose } from '../render/stunt-pose';
 
 export type CameraMode = 'chase' | 'lookBack' | 'flyover' | 'finishOrbit' | 'podium' | 'attract';
 
@@ -38,7 +47,29 @@ export interface CameraSource {
   /** where kart `i` is drawn this frame */
   displayPos(i: number, out: { x: number; y: number; z: number; heading: number }): unknown;
   me: number;
+  /**
+   * SIM_VERSION 8: the drawn up / forward of kart `i` this frame when it is on a bent set piece (loop, wall lane);
+   * false on the normal road. Optional (older sources: world up).
+   */
+  displayBasis?(i: number, out: { ux: number; uy: number; uz: number; fx: number; fy: number; fz: number }): boolean;
 }
+
+/** Set-piece camera comfort limits (SETPIECES.md section 8). */
+export const STUNT_CAM = {
+  /** the camera's up turns at most this fast, °/s, easing with a 0.15 s time constant */
+  upRate: 240,
+  upTau: 0.15,
+  /** loop rig: behind and above the kart in the ribbon's frame (m) */
+  loopBack: 7.5,
+  loopUp: 2.6,
+  /** wall lane: roll half the curl, at most this much (°) */
+  wallRoll: 35,
+  /** wall lane: the rig sits this far back along the road and this far toward the road from the kart (m) */
+  laneBack: 6.5,
+  laneIn: 2.5,
+  /** reduced motion: the TV camera's distance beside a loop (m) */
+  tvSide: 16,
+} as const;
 
 const DEG = Math.PI / 180;
 const BACK = 5.6;
@@ -60,6 +91,7 @@ export const ORBIT = { time: 3, radius: 3, height: 1.9, start: 0.7 } as const;
 const FLY_BLEND = 0.6;
 
 const hit: TrackHit = { i: 0, s: 0, d: 0, y: 0, surface: Surface.Road, wallL: 0, wallR: 0, branch: -1 };
+const camPose: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
 
 export class ChaseCamera {
   readonly cam: PerspectiveCamera;
@@ -70,6 +102,14 @@ export class ChaseCamera {
   private readonly tmpA = new Vector3();
   private readonly tmpB = new Vector3();
   private readonly carry = { x: 0, y: 0, z: 0, heading: 0 };
+  /** SIM_VERSION 8: the set-piece basis of the followed kart, the camera's smoothed up, its target */
+  private readonly basis = { ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
+  private readonly camUp = new Vector3(0, 1, 0);
+  private readonly upWant = new Vector3(0, 1, 0);
+  private readonly tmpC = new Vector3();
+  private readonly tv = new Vector3();
+  /** -1 none, else the loop piece the TV camera is watching (reduced motion) */
+  private tvLoop = -1;
   private yaw = 0;
   private fovKick = 0;
   private trauma = 0;
@@ -174,6 +214,11 @@ export class ChaseCamera {
     }
     // the chase rig is always computed (the other modes blend from or into it)
     this.chase(k, x, y, z, heading, speed, topSpeed, dt);
+    if (this.modeNow === 'chase' || this.modeNow === 'lookBack') this.stunt(k, x, y, z, dt);
+    else {
+      this.upWant.set(0, 1, 0);
+      this.easeUp(dt);
+    }
     switch (this.modeNow) {
       case 'flyover':
         this.flyover();
@@ -222,8 +267,10 @@ export class ChaseCamera {
     this.yaw += dy * Math.min(1, lag * 1.4);
     const back = BACK + (P_BACK - BACK) * this.portrait + Math.min(1.2, speed / topSpeed) * 0.6;
     this.want.set(x - Math.sin(this.yaw) * back, y + this.up + (k.air ? 0.4 : 0), z - Math.cos(this.yaw) * back);
-    this.wallClamp(this.want, x, z, k.si);
-    const free = this.modeNow === 'chase' || this.modeNow === 'lookBack';
+    // SIM_VERSION 8: on a loop's rail the rig is the set-piece one (stunt()): no wall or floor clamp
+    const railed = k.rail > 0 && !!this.source?.displayBasis;
+    if (!railed) this.wallClamp(this.want, x, z, k.si);
+    const free = (this.modeNow === 'chase' || this.modeNow === 'lookBack') && !railed;
     if (free) {
       this.pos.lerp(this.want, Math.min(1, lag * 2.2));
       // never fall far below the kart (ramps, drops)
@@ -333,6 +380,88 @@ export class ChaseCamera {
     }
   }
 
+  /**
+   * Set pieces (SIM_VERSION 8): the loop rig and the up vector, the wall-lane roll, the tunnel ceiling. Runs after the
+   * chase rig, so it overrides it only on a piece.
+   */
+  private stunt(k: KartState, x: number, y: number, z: number, dt: number): void {
+    const src = this.source;
+    const t = src?.track;
+    const rm = this.feel.reducedMotion;
+    const bent = !!(t && t.pieces.length && src?.displayBasis?.(src.me, this.basis));
+    const b = this.basis;
+    const pc = t && k.rail > 0 ? t.pieces[k.rail - 1] : null;
+    if (pc && t && rm) {
+      // reduced motion: a fixed TV camera beside the loop, world up, cut in and out
+      if (this.tvLoop !== pc.id) {
+        this.tvLoop = pc.id;
+        const L = LOOP_SHAPE;
+        shadowToWorld(t, pc, L.lead + L.c * Math.PI, L.R, -STUNT_CAM.tvSide, this.tv);
+        this.pos.copy(this.tv);
+        this.camUp.set(0, 1, 0);
+      }
+      this.pos.copy(this.tv);
+      this.look.set(x, y + 0.6, z);
+      this.upWant.set(0, 1, 0);
+      this.camUp.set(0, 1, 0);
+      return;
+    }
+    if (this.tvLoop >= 0) {
+      // cut back behind the kart
+      this.tvLoop = -1;
+      this.snap(x, y, z, this.yaw);
+    }
+    if (pc && t && bent && !rm) {
+      // on the loop: on the ribbon behind the kart, lifted along the ribbon's own normal there (so it stays inside the
+      // loop round its tight top), looking at a point ahead of the kart on the ribbon
+      ribbonPose(t, pc, k.su - STUNT_CAM.loopBack, k.sd * 0.5, STUNT_CAM.loopUp, camPose);
+      this.want.set(camPose.x, camPose.y, camPose.z);
+      this.pos.lerp(this.want, Math.min(1, 1 - Math.exp(-dt / 0.05)));
+      // look at the kart (a little ahead and above it on its own surface): it stays centred round the tight top
+      this.lookAt.set(x + b.fx * 2 + b.ux * 1.1, y + b.fy * 2 + b.uy * 1.1, z + b.fz * 2 + b.uz * 1.1);
+      this.look.lerp(this.lookAt, Math.min(1, 1 - Math.exp(-dt / 0.05)));
+      this.upWant.set(b.ux, b.uy, b.uz);
+    } else if (bent && !rm && t) {
+      // a wall lane: the rig follows the bend from the road side of the kart (straight behind on the outside of a bend
+      // it would sit beyond the curl and look through it)
+      const side = k.d > 0 ? 1 : -1;
+      const j = (k.si - Math.round(STUNT_CAM.laneBack / t.step) + t.n) % t.n;
+      const dl = side * Math.max(0, Math.abs(k.d) - STUNT_CAM.laneIn);
+      this.want.set(t.px[j] - t.tz[j] * dl, Math.max(y, k.y) + this.up, t.pz[j] + t.tx[j] * dl);
+      this.pos.lerp(this.want, Math.min(1, 1 - Math.exp(-dt / 0.08)));
+      // a wall lane: roll half the curl, capped
+      this.upWant.set(b.ux, b.uy, b.uz).normalize();
+      const tilt = Math.acos(Math.max(-1, Math.min(1, this.upWant.y)));
+      const want = Math.min(tilt * 0.5, STUNT_CAM.wallRoll * DEG);
+      if (tilt > 1e-4) {
+        this.tmpC.set(this.upWant.x, 0, this.upWant.z).normalize();
+        this.upWant.set(this.tmpC.x * Math.sin(want), Math.cos(want), this.tmpC.z * Math.sin(want));
+      } else this.upWant.set(0, 1, 0);
+    } else this.upWant.set(0, 1, 0);
+    // a tunnel: stay under its ceiling
+    if (t && !pc && t.tunnelMask[k.si] && this.pos.y > t.py[k.si] + STUNT.tunnel.ceiling - 1) this.pos.y = t.py[k.si] + STUNT.tunnel.ceiling - 1;
+    this.easeUp(dt);
+  }
+
+  /** Turn the camera's up toward `upWant`: a 0.15 s ease, never faster than STUNT_CAM.upRate °/s. */
+  private easeUp(dt: number): void {
+    const c = this.camUp;
+    const w = this.upWant;
+    const dot = Math.max(-1, Math.min(1, c.dot(w)));
+    const ang = Math.acos(dot);
+    if (ang < 1e-5 || dt <= 0) return;
+    const step = Math.min(ang, STUNT_CAM.upRate * DEG * dt, ang * (1 - Math.exp(-dt / STUNT_CAM.upTau)) + 1e-4);
+    this.tmpC.crossVectors(c, w);
+    if (this.tmpC.lengthSq() < 1e-10) this.tmpC.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    this.tmpC.normalize();
+    c.applyAxisAngle(this.tmpC, step).normalize();
+  }
+
+  /** The camera's current up (tests: the comfort limits). */
+  get upVector(): Readonly<Vector3> {
+    return this.camUp;
+  }
+
   private apply(k: KartState, speed: number, topSpeed: number, dt: number): void {
     // FOV: horizontal spec → vertical
     const boosting = k.boostTicks > 0;
@@ -355,6 +484,7 @@ export class ChaseCamera {
     const sh = this.trauma * this.trauma * (rm ? 0.3 : 1) * (racing ? 1 : 0.3);
     const n = (o: number) => Math.sin(this.time * 47 + o) * 0.6 + Math.sin(this.time * 83 + o * 2.3) * 0.4;
     this.cam.position.set(this.pos.x + n(1) * 0.35 * sh, this.pos.y + n(2) * 0.35 * sh, this.pos.z + n(3) * 0.35 * sh);
+    this.cam.up.copy(this.camUp);
     this.cam.lookAt(this.look);
     this.cam.rotateZ(n(4) * 2.5 * DEG * sh);
   }

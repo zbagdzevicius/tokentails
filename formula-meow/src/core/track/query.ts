@@ -141,6 +141,12 @@ export function queryTrack(t: BuiltTrack, x: number, z: number, hint: number, ou
     out.y = t.py[i] - VOID_DROP;
     out.surface = Surface.Offroad;
   }
+  // SIM_VERSION 8: a jump gap's missing deck (the catch net is the sim rule, core/sim/stunt.ts)
+  if (t.gapMask[i]) {
+    out.y = t.py[i] - VOID_DROP;
+    out.surface = Surface.Offroad;
+    out.ramp = 0;
+  }
   const b = near ?? (t.branches.length ? branchNear(t, i) : null);
   if (b) onBranch(t, b, x, z, out);
   return out;
@@ -227,6 +233,11 @@ function puddleAt(t: BuiltTrack, x: number, z: number): boolean {
 export function surfaceAt(t: BuiltTrack, i: number, along: number, d: number, x = NaN, z = NaN): Surface {
   const hw = t.halfW[i];
   const ad = Math.abs(d);
+  // SIM_VERSION 8: a set piece's wall-ride lane past the road edge (core/track/stunt.ts)
+  if (ad > hw) {
+    const lane = d > 0 ? t.laneR[i] : t.laneL[i];
+    if (lane > 0.5) return Surface.WallRide;
+  }
   if (ad > hw + PHYS.curbWidth) return Surface.Offroad;
   if (ad > hw) return Surface.Curb;
   for (const p of t.pads) {

@@ -21,6 +21,7 @@ import { PHYS } from '../../tuning';
 import { Surface } from '../../types';
 import type { Theme } from './themes';
 import { toonMaterial } from '../render/toon';
+import { buildStuntMeshes, laneSide, segmentInGap } from './stunt-mesh';
 
 const _c = new Color();
 
@@ -88,6 +89,8 @@ export function buildTrackMesh(t: BuiltTrack, theme: Theme, opt: TrackMeshOption
   if (t.arena) buildArena(t, theme, solid, opt);
   else buildMain(t, theme, solid, glow, opt);
   for (const b of t.branches) buildBranchMesh(b, theme, solid, glow, opt);
+  // SIM_VERSION 8: loops, wall rides, jump gaps, tunnels (core/track/stunt-mesh.ts, skins in src/tracks/skins)
+  buildStuntMeshes(t, theme, solid, glow, group, opt.groundY);
 
   // boost pads: three glowing chevrons
   for (const p of t.pads) {
@@ -189,6 +192,8 @@ function buildMain(t: BuiltTrack, theme: Theme, solid: TriBuilder, glow: TriBuil
     const hwj = t.halfW[j % n];
     const band = Math.floor(metres(i) / 8) % 2 === 0;
     const open = t.voidMask[i % n] || t.voidMask[j % n];
+    // SIM_VERSION 8: no deck over a jump's gap (stunt-mesh.ts draws the lips, the rails and the net)
+    if (t.pieces.length && segmentInGap(t, i, j)) continue;
     // road
     solid.quad(P(t, i, hwi), P(t, i, -hwi), P(t, j, -hwj), P(t, j, hwj), band ? theme.road : theme.roadB);
     // centre dashes (3 m on, 3 m off)
@@ -202,11 +207,14 @@ function buildMain(t: BuiltTrack, theme: Theme, solid: TriBuilder, glow: TriBuil
         if (!jn(j + stride, s) && jn(j, s)) post(solid, barrierPoint(t, j + stride, s), 0.45, 1.3, theme.wallA);
         continue;
       }
+      // SIM_VERSION 8: a wall-ride lane curls up from the edge here (stunt-mesh.ts): an edge line, no kerb or barrier
+      const lane = t.pieces.length > 0 && (laneSide(t, i, s) || laneSide(t, j, s));
       // edge line
       const a = s * (hwi - 0.35);
       const b = s * (hwj - 0.35);
       const w = 0.16 * s;
       solid.quad(P(t, i, a + w, 0.02), P(t, i, a - w, 0.02), P(t, j, b - w, 0.02), P(t, j, b + w, 0.02), theme.line);
+      if (lane) continue;
       if (open) {
         // an open bridge: a thin kerb at the deck's edge, the deck's side, no barrier
         const e0 = s * (hwi + VOID_EDGE);

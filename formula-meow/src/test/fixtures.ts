@@ -40,3 +40,24 @@ export function raceConfig(track: TrackDef, opts: { seed?: number; cls?: RaceCla
 export function world(cfg: RaceConfig): SimWorld {
   return new SimWorld(cfg, createSimPlugins(cfg));
 }
+
+/**
+ * "Stunt lab" (SIM_VERSION 8, set pieces): the test oval with one of each set piece, the Engine step's deterministic
+ * reference for the lanes. Lap ≈ 620 m (≈ 2.4 m per lap unit). First straight (+z): a 10 m jump gap with a 1.5 m drop,
+ * then a tunnel; the first bend: a wall ride on its outer side (auto); the back straight: a loop.
+ */
+export function stuntLab(over: Partial<TrackDef> = {}): TrackDef {
+  return {
+    ...ovalTrack([{ s: 140, kind: 'items' }]),
+    id: 'stunt-lab',
+    name: 'Stunt Lab',
+    lineCoins: false,
+    setPieces: [
+      { kind: 'jump', s: 24, gap: 10, drop: 1.5 },
+      { kind: 'tunnel', s: 50, len: 16 },
+      { kind: 'wall', s: 92, len: 18 },
+      { kind: 'loop', s: 160 },
+    ],
+    ...over,
+  };
+}

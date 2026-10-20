@@ -22,6 +22,7 @@ import {
   MeshBasicMaterial,
   RingGeometry,
   Object3D,
+  Matrix4,
   Points,
   ShaderMaterial,
   Vector3,
@@ -39,12 +40,30 @@ import { ParticlePool, puffPool, shardPool } from './particles';
 import { Glyph, Glyphs, TRAIL_GLYPH } from './glyphs';
 import { buildHand, carryPose, type CarryPose } from './respawn-hand';
 import { ProjKind, itemsOf } from '../../items-ai/items/state';
+import { kartStuntPose, type StuntPose } from './stunt-pose';
+
+const _pose: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
+const _m4 = new Matrix4();
+const _bx = new Vector3();
+const _by = new Vector3();
+const _bz = new Vector3();
 
 export interface KartSnap {
   x: number;
   y: number;
   z: number;
   heading: number;
+  /**
+   * SIM_VERSION 8 set pieces: 1 when the kart is drawn on a loop's ribbon or a curled wall lane; x, y, z are then that
+   * 3D spot and (ux, uy, uz) / (fx, fy, fz) its up and forward (core/render/stunt-pose.ts). Optional: plain snaps work.
+   */
+  b?: number;
+  ux?: number;
+  uy?: number;
+  uz?: number;
+  fx?: number;
+  fy?: number;
+  fz?: number;
 }
 
 const MAX_SPARKS = 700;
@@ -179,10 +198,32 @@ export class RaceView {
     for (let i = 0; i < st.karts.length; i++) {
       const k = st.karts[i];
       const s = this.cur[i] ?? (this.cur[i] = { x: 0, y: 0, z: 0, heading: 0 });
-      s.x = k.x;
-      s.y = k.y;
-      s.z = k.z;
       s.heading = k.heading;
+      // SIM_VERSION 8: on a loop's rail or a wall lane the kart is drawn on the bent surface
+      const p = kartStuntPose(this.track, k, _pose);
+      if (p) {
+        s.x = p.x;
+        s.y = p.y;
+        s.z = p.z;
+        s.b = 1;
+        s.ux = p.ux;
+        s.uy = p.uy;
+        s.uz = p.uz;
+        s.fx = p.fx;
+        s.fy = p.fy;
+        s.fz = p.fz;
+      } else {
+        s.x = k.x;
+        s.y = k.y;
+        s.z = k.z;
+        s.b = 0;
+        s.ux = 0;
+        s.uy = 1;
+        s.uz = 0;
+        s.fx = Math.sin(k.heading);
+        s.fy = 0;
+        s.fz = Math.cos(k.heading);
+      }
       if (!this.prev[i]) this.prev[i] = { ...s };
     }
   }
@@ -198,6 +239,30 @@ export class RaceView {
     out.y = a.y + (b.y - a.y) * alpha;
     out.z = a.z + (b.z - a.z) * alpha;
     out.heading = a.heading + dh * alpha;
+    // SIM_VERSION 8: the set-piece basis, normalised lerp (both ends always carry one, flat or bent)
+    if (a.b || b.b) {
+      let ux = (a.ux ?? 0) + ((b.ux ?? 0) - (a.ux ?? 0)) * alpha;
+      let uy = (a.uy ?? 1) + ((b.uy ?? 1) - (a.uy ?? 1)) * alpha;
+      let uz = (a.uz ?? 0) + ((b.uz ?? 0) - (a.uz ?? 0)) * alpha;
+      const ul = Math.hypot(ux, uy, uz) || 1;
+      ux /= ul;
+      uy /= ul;
+      uz /= ul;
+      let fx = (a.fx ?? 0) + ((b.fx ?? 0) - (a.fx ?? 0)) * alpha;
+      let fy = (a.fy ?? 0) + ((b.fy ?? 0) - (a.fy ?? 0)) * alpha;
+      let fz = (a.fz ?? 1) + ((b.fz ?? 1) - (a.fz ?? 1)) * alpha;
+      const fl = Math.hypot(fx, fy, fz) || 1;
+      fx /= fl;
+      fy /= fl;
+      fz /= fl;
+      out.b = 1;
+      out.ux = ux;
+      out.uy = uy;
+      out.uz = uz;
+      out.fx = fx;
+      out.fy = fy;
+      out.fz = fz;
+    } else out.b = 0;
     return out;
   }
 
@@ -209,6 +274,19 @@ export class RaceView {
     out.z = s.z;
     out.heading = s.heading;
     return out;
+  }
+
+  /** SIM_VERSION 8: the drawn up / forward of kart i when it is on a bent set piece this frame (the camera reads it) */
+  displayBasis(i: number, out: { ux: number; uy: number; uz: number; fx: number; fy: number; fz: number }): boolean {
+    const s = this.shown[i];
+    if (!s || s.b !== 1) return false;
+    out.ux = s.ux!;
+    out.uy = s.uy!;
+    out.uz = s.uz!;
+    out.fx = s.fx!;
+    out.fy = s.fy!;
+    out.fz = s.fz!;
+    return true;
   }
 
   private snap: KartSnap = { x: 0, y: 0, z: 0, heading: 0 };
@@ -315,18 +393,37 @@ export class RaceView {
       } else if (!carried) this.hideHand(i);
       v.root.visible = true;
       v.lookAtDot(k.chaseTicks > 0 && laser ? laser.x : null, laser ? laser.z : 0);
-      v.update(k, s.x, s.y, s.z, s.heading, k.air || carried ? 0 : pitch * Math.sign(fwd || 1), k.air ? 0 : roll, carried ? 0 : speed, dt, topSpeed);
+      const bent = !carried && s.b === 1;
+      v.update(k, s.x, s.y, s.z, s.heading, k.air || carried || bent ? 0 : pitch * Math.sign(fwd || 1), k.air || bent ? 0 : roll, carried ? 0 : speed, dt, topSpeed, bent ? s : null);
       const shown = this.shown[i];
       shown.x = s.x;
       shown.y = s.y;
       shown.z = s.z;
       shown.heading = s.heading;
+      shown.b = bent ? 1 : 0;
+      if (bent) {
+        shown.ux = s.ux;
+        shown.uy = s.uy;
+        shown.uz = s.uz;
+        shown.fx = s.fx;
+        shown.fy = s.fy;
+        shown.fz = s.fz;
+      }
       // shadow on the ground under the kart
       const ground = carried ? Math.min(s.y, k.y) : k.air ? Math.min(s.y, k.y) : s.y;
       _o.position.set(s.x, ground + 0.04 - (k.air ? Math.min(3, k.airTicks * 0.05) : 0), s.z);
       const lift = carried ? Math.max(0.3, 1 - (s.y - ground) / 5) : k.air ? 0.7 : 1;
       _o.scale.set(lift, 1, lift * 1.3);
       _o.rotation.set(0, s.heading, 0);
+      if (bent) {
+        // on the loop or the curled lane: the shadow lies on that surface
+        _by.set(s.ux!, s.uy!, s.uz!);
+        _bz.set(s.fx!, s.fy!, s.fz!);
+        _bx.crossVectors(_by, _bz).normalize();
+        _m4.makeBasis(_bx, _by, _bz);
+        _o.quaternion.setFromRotationMatrix(_m4);
+        _o.position.set(s.x + s.ux! * 0.04, s.y + s.uy! * 0.04, s.z + s.uz! * 0.04);
+      } else if (this.track.gapMask[k.si] && k.netTicks > 0) _o.scale.set(0, 0, 0);
       _o.updateMatrix();
       this.shadows.setMatrixAt(i, _o.matrix);
       if (i === this.me) {
