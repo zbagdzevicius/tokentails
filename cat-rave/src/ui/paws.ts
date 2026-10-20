@@ -18,6 +18,7 @@ import {
 } from 'three';
 import { PALETTE } from '../config';
 import type { BeatInfo } from '../types';
+import { setRgb, ThemeFader, type ThemeId } from '../world/theme';
 
 const FUR_VERT = /* glsl */ `
 varying vec3 vN;
@@ -78,7 +79,17 @@ export interface ForegroundPaws {
   /** A tap: both paws punch up. */
   pump(strength?: number): void;
   update(dt: number, time: number, beat: BeatInfo, camera: PerspectiveCamera, reducedMotion: boolean): void;
+  /** The green floor bounce follows the stage key light (world/theme.ts pawsRim). */
+  setTheme(id: ThemeId, seconds?: number): void;
   dispose(): void;
+}
+
+/** Live paws (the director owns them); main re-themes them through setPawsTheme. */
+const live = new Set<ForegroundPaws>();
+
+/** Cross-fade every live pair of POV paws to a theme (world/theme.ts). */
+export function setPawsTheme(id: ThemeId, seconds = 0.6) {
+  for (const p of live) p.setTheme(id, seconds);
 }
 
 export function createForegroundPaws(): ForegroundPaws {
@@ -168,8 +179,9 @@ export function createForegroundPaws(): ForegroundPaws {
   let target = 0;
   let pumpV = 0;
   let pumpY = 0;
+  const fader = new ThemeFader();
 
-  return {
+  const api: ForegroundPaws = {
     root,
     setPresence(p) {
       target = Math.max(0, Math.min(1, p));
@@ -178,6 +190,9 @@ export function createForegroundPaws(): ForegroundPaws {
       pumpV += 2.6 * strength;
     },
     update(dt, time, beat, camera, reducedMotion) {
+      const th = fader.step(dt);
+      // Same (double) conversion as at creation, so green stays byte-identical.
+      if (th) setRgb(rim, th.pawsRim).convertSRGBToLinear().multiplyScalar(0.55);
       presence += (target - presence) * Math.min(1, dt * 4);
       root.visible = presence > 0.01;
       if (!root.visible) return;
@@ -206,10 +221,16 @@ export function createForegroundPaws(): ForegroundPaws {
         arm.scale.setScalar(sc);
       }
     },
+    setTheme(id, seconds = 0.6) {
+      fader.set(id, seconds);
+    },
     dispose() {
+      live.delete(api);
       root.removeFromParent();
       for (const g of [armGeo, pawGeo, padGeo, beanGeo]) g.dispose();
       for (const m of [armMat, pawMat, haloMat, padMat]) m.dispose();
     },
   };
+  live.add(api);
+  return api;
 }

@@ -1,0 +1,5 @@
+# Beat analysis for scripts/track/beatmap.py.
+# python3 -m venv .venv && .venv/bin/pip install -r requirements.txt; also needs ffmpeg/ffprobe on PATH
+numpy==2.5.4
+scipy==1.18.1
+librosa==1.0.0

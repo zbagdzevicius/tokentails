@@ -516,7 +516,10 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(afterFiles).toContainEqual({ source: "/badcat/:path*", destination: "/badcat-game/:path*" });
     expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
     const headers = await nextConfig.headers();
-    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js"]);
+    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/music/back-on-track-v1/:path*"]);
+    // Moon Rave's second track: every file name is versioned, so the folder is immutable.
+    const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
+    expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
   });
 });
 

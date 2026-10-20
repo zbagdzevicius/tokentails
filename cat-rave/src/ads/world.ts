@@ -34,6 +34,7 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { ThemeId } from '../world/theme';
 import type { LiveAd } from './api';
 import { AD_KINDS, AD_SLOTS, MOON_RING_R, PORTRAIT_ASPECT, blimpPosition, moonRingOffset, slotAspect, type AdKind, type AdSlot } from './slots';
 
@@ -60,6 +61,8 @@ export interface AdBoards {
    * (a paid ad never stays under the counter or the badge).
    */
   liveRects(camera: Camera, width: number, height: number): { slotId: string; x0: number; y0: number; x1: number; y1: number }[];
+  /** Stage light (SPEC.md 8.1): the cards' glow and the boards' neon follow the key colour. */
+  setTheme(light: ThemeId): void;
   dispose(): void;
 }
 
@@ -73,8 +76,20 @@ const PLACEHOLDER_PX: Record<AdKind, [number, number]> = {
 
 const FONT = "'Lilita One', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
+/** Card key colour and ink per stage light. */
+const CARD_KEY: Record<ThemeId, { key: string; ink: string }> = {
+  green: { key: '#5dff8a', ink: '#eafff0' },
+  red: { key: '#ff5d6a', ink: '#ffeef0' },
+};
+/** Neon structure and moon ring colours (HDR, they bloom) per stage light. */
+const NEON: Record<ThemeId, { neon: [number, number, number]; ring: [number, number, number] }> = {
+  green: { neon: [0.3, 1.4, 0.5], ring: [0.35, 1.5, 0.55] },
+  red: { neon: [1.4, 0.3, 0.36], ring: [1.5, 0.35, 0.4] },
+};
+
 /** "Your ad here · $100" card for a kind (shared by its slots); `sold` draws "Sold · coming soon". */
-export function drawPlaceholder(kind: AdKind, canvas: HTMLCanvasElement = document.createElement('canvas'), sold = false): HTMLCanvasElement {
+export function drawPlaceholder(kind: AdKind, canvas: HTMLCanvasElement = document.createElement('canvas'), sold = false, light: ThemeId = 'green'): HTMLCanvasElement {
+  const { key, ink } = CARD_KEY[light];
   const [w, h] = PLACEHOLDER_PX[kind];
   canvas.width = w;
   canvas.height = h;
@@ -93,28 +108,28 @@ export function drawPlaceholder(kind: AdKind, canvas: HTMLCanvasElement = docume
   ctx.setLineDash([]);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = '#5dff8a';
+  ctx.shadowColor = key;
   ctx.shadowBlur = Math.min(w, h) * 0.05;
   const lines: [string, number, string][] = sold
     ? kind === 'tower'
       ? [
-          ['SOLD', 0.24, '#eafff0'],
+          ['SOLD', 0.24, ink],
           ['soon', 0.16, '#a26bff'],
         ]
       : [
-          ['AD SPACE SOLD', kind === 'banner' ? 0.36 : 0.2, '#eafff0'],
+          ['AD SPACE SOLD', kind === 'banner' ? 0.36 : 0.2, ink],
           ['coming soon', kind === 'banner' ? 0.18 : 0.11, '#c9a8ff'],
         ]
     : kind === 'tower'
       ? [
-          ['YOUR', 0.2, '#eafff0'],
-          ['AD', 0.2, '#eafff0'],
-          ['HERE', 0.2, '#eafff0'],
-          ['$100', 0.16, '#5dff8a'],
+          ['YOUR', 0.2, ink],
+          ['AD', 0.2, ink],
+          ['HERE', 0.2, ink],
+          ['$100', 0.16, key],
         ]
       : [
-          ['YOUR AD HERE', kind === 'banner' ? 0.36 : 0.22, '#eafff0'],
-          ['$100 · tap to advertise', kind === 'banner' ? 0.18 : 0.11, '#5dff8a'],
+          ['YOUR AD HERE', kind === 'banner' ? 0.36 : 0.22, ink],
+          ['$100 · tap to advertise', kind === 'banner' ? 0.18 : 0.11, key],
         ];
   const unit = kind === 'tower' ? w : h;
   const total = lines.reduce((s, [, k]) => s + unit * k * 1.15, 0);
@@ -193,19 +208,21 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
     placeholders.set(kind, canvasTexture(drawPlaceholder(kind)));
     soldCards.set(kind, canvasTexture(drawPlaceholder(kind, undefined, true)));
   }
+  let light: ThemeId = 'green';
+  const redrawCards = () => {
+    for (const [kind, t] of placeholders) {
+      drawPlaceholder(kind, t.image as HTMLCanvasElement, false, light);
+      t.needsUpdate = true;
+    }
+    for (const [kind, t] of soldCards) {
+      drawPlaceholder(kind, t.image as HTMLCanvasElement, true, light);
+      t.needsUpdate = true;
+    }
+  };
   // Redraw once the display font is in (the first paint may use the fallback font).
   void document.fonts
     ?.load?.(`40px ${FONT}`)
-    .then(() => {
-      for (const [kind, t] of placeholders) {
-        drawPlaceholder(kind, t.image as HTMLCanvasElement);
-        t.needsUpdate = true;
-      }
-      for (const [kind, t] of soldCards) {
-        drawPlaceholder(kind, t.image as HTMLCanvasElement, true);
-        t.needsUpdate = true;
-      }
-    })
+    .then(redrawCards)
     .catch(() => undefined);
 
   // ------------------------------------------------------------------ structures
@@ -323,7 +340,8 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
 
   // Moon ring: a thin neon circle round the disc (never over it), facing the hero camera.
   const ringGeo = keep(new TorusGeometry(MOON_RING_R, 0.55, 6, 160));
-  const ring = new Mesh(ringGeo, keep(new MeshBasicMaterial({ color: new Color(0.35, 1.5, 0.55), fog: false, transparent: true, opacity: 0.85 })));
+  const ringMat = keep(new MeshBasicMaterial({ color: new Color(0.35, 1.5, 0.55), fog: false, transparent: true, opacity: 0.85 }));
+  const ring = new Mesh(ringGeo, ringMat);
   ring.name = 'ad-moon-ring';
   ring.renderOrder = 1;
   ring.userData.noMirror = true;
@@ -509,6 +527,13 @@ export function createAdBoards(scene: Scene, opts: { loader?: TextureLoader } = 
       v.root.updateMatrixWorld();
       v.faces[0].getWorldPosition(out);
       return true;
+    },
+    setTheme(next) {
+      if (next === light) return;
+      light = next;
+      redrawCards();
+      neon.color.setRGB(...NEON[light].neon);
+      ringMat.color.setRGB(...NEON[light].ring);
     },
     dispose() {
       scene.remove(group);

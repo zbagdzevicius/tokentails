@@ -144,7 +144,14 @@ const nextConfig = {
           };
         },
         async headers() {
-          return badcatHeaders;
+          return [
+            ...badcatHeaders,
+            // Moon Rave second track: every file name is versioned (bot-v1-*), so it never changes.
+            {
+              source: "/music/back-on-track-v1/:path*",
+              headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+            },
+          ];
         },
       }),
   images: {
