@@ -86,7 +86,7 @@ describe('hud formatting', () => {
 
 describe('strings', () => {
   it('every t() key in the shell and the audio-ui files is in CORE_EN', () => {
-    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts'];
+    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts'];
     const missing: string[] = [];
     for (const f of files) {
       const s = readFileSync(join(src, f), 'utf8');

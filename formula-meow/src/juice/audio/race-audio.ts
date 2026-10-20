@@ -17,7 +17,8 @@ import { EngineVoice } from './engine';
 import { Music, SONG } from './music';
 import { cueLength, cuesFor, incomingCue, incomingInterval, playCue, VoiceBudget, type Cue } from './sfx';
 import { makeNoise, type SynthGraph } from './synth';
-import { AnnouncerLogic, lineLength, playLine, type AnnounceId } from './announcer';
+import { AnnouncerLogic, LOW_LINES, lineLength, playLine, type AnnounceId } from './announcer';
+import { TunnelAudio } from './tunnel';
 import { playUi, uiSoundSpec, type UiSoundId } from './stings';
 
 export interface Mixer {
@@ -50,6 +51,9 @@ export class RaceAudio implements JuiceListener {
   private master: GainNode | null = null;
   private buses: { music: GainNode; sfx: GainNode; engine: GainNode; voice: GainNode; duck: GainNode } | null = null;
   private pauseLp: BiquadFilterNode | null = null;
+  /** iteration 3: the tunnel's low-pass, slap-back echo and engine lift */
+  private tunnel: TunnelAudio | null = null;
+  private tunnelWanted = false;
   private engine: EngineVoice | null = null;
   private music: Music | null = null;
   private graph: SynthGraph | null = null;
@@ -105,7 +109,10 @@ export class RaceAudio implements JuiceListener {
     this.pauseLp.connect(this.master);
     const duck = ctx.createGain();
     duck.gain.value = 1;
-    duck.connect(this.pauseLp);
+    // the tunnel low-pass sits between the duck and the pause low-pass; its echo returns to the master
+    this.tunnel = new TunnelAudio(ctx, this.master);
+    duck.connect(this.tunnel.lp);
+    this.tunnel.lp.connect(this.pauseLp);
     const music = ctx.createGain();
     music.gain.value = MUSIC * this.mixer.music;
     music.connect(duck);
@@ -115,6 +122,8 @@ export class RaceAudio implements JuiceListener {
     const engine = ctx.createGain();
     engine.gain.value = ENGINE * this.mixer.engine;
     engine.connect(this.master);
+    sfx.connect(this.tunnel.send);
+    engine.connect(this.tunnel.send);
     // the announcer's PA: band-limited, a presence lift and a gentle saturation (it reads as "a voice on a speaker")
     const voice = ctx.createGain();
     voice.gain.value = VOICE * this.mixer.voice;
@@ -139,6 +148,10 @@ export class RaceAudio implements JuiceListener {
     const noiseBuf = makeNoise(ctx, 2);
     this.graph = { ctx, out: sfx, noise: noiseBuf };
     this.voiceGraph = { ctx, out: pre, noise: noiseBuf };
+    if (this.tunnelWanted) {
+      this.tunnel.set(true);
+      engine.gain.value = ENGINE * this.mixer.engine * this.tunnel.engineTrim;
+    }
     this.engine = new EngineVoice(ctx, engine, noiseBuf);
     this.music = new Music(ctx, music, noiseBuf, this.budget);
     if (this.scene === 'menu') this.music.menu(SONG.menu);
@@ -177,7 +190,7 @@ export class RaceAudio implements JuiceListener {
     const t = this.ctx.currentTime;
     this.buses.music.gain.setTargetAtTime(MUSIC * this.mixer.music, t, 0.05);
     this.buses.sfx.gain.setTargetAtTime(SFX * this.mixer.sfx, t, 0.05);
-    this.buses.engine.gain.setTargetAtTime(ENGINE * this.mixer.engine, t, 0.05);
+    this.buses.engine.gain.setTargetAtTime(ENGINE * this.mixer.engine * (this.tunnel?.engineTrim ?? 1), t, 0.05);
     this.buses.voice.gain.setTargetAtTime(VOICE * this.mixer.voice, t, 0.05);
     this.setMuted(this.muted);
   }
@@ -241,6 +254,29 @@ export class RaceAudio implements JuiceListener {
     }
   }
 
+  /**
+   * Iteration 3: in or out of a tunnel (the juice install reads the tunnel mask under the player). The music closes
+   * to a low-pass, the sfx and engine get a short echo, the engine comes up 3 dB, a whoosh marks each portal, and the
+   * announcer calls the first tunnel of the race.
+   */
+  setTunnel(on: boolean, tick = 0): void {
+    this.tunnelWanted = on;
+    const tn = this.tunnel;
+    if (!tn || !tn.set(on)) return;
+    if (this.ctx && this.buses) this.buses.engine.gain.setTargetAtTime(ENGINE * this.mixer.engine * tn.engineTrim, this.ctx.currentTime, 0.08);
+    if (this.scene !== 'race') return;
+    this.cue({ id: on ? 'tunnelIn' : 'tunnelOut', prio: 1, n: 0, pitch: 1, delay: 0, vol: 1 });
+    if (on) {
+      const line = this.announcer.onTunnel(tick);
+      if (line) this.announce(line);
+    }
+  }
+
+  /** The tunnel state (QA, e2e): inside, and the music low-pass target. */
+  get tunnelState(): { inside: boolean; wanted: boolean } {
+    return { inside: !!this.tunnel?.inside, wanted: this.tunnelWanted };
+  }
+
   /** An announcer line: captions always hear it; the voice plays on its bus and ducks the music. */
   announce(id: AnnounceId): void {
     this.onLine?.(id);
@@ -248,7 +284,8 @@ export class RaceAudio implements JuiceListener {
     if (!g || !this.ctx || this.muted || !this.buses || this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     const len = lineLength(id);
-    if (!this.budget.admit(now, 3, len)) return;
+    // set-piece lines are flavour: they give way when the voices are busy
+    if (!this.budget.admit(now, LOW_LINES.has(id) ? 2 : 3, len)) return;
     // never two lines on top of each other: a new one waits for the last to end (short ones only)
     const t = Math.max(now + 0.01, this.lastLineEnd + 0.03);
     if (t - now > 0.6) return;
@@ -279,6 +316,11 @@ export class RaceAudio implements JuiceListener {
     this.incoming = null;
     this.announcer.reset();
     this.budget.clear();
+    this.tunnelWanted = false;
+    if (this.tunnel) {
+      this.tunnel.reset();
+      if (this.ctx && this.buses) this.buses.engine.gain.setTargetAtTime(ENGINE * this.mixer.engine, this.ctx.currentTime, 0.05);
+    }
     if (this.music && this.scene === 'race') {
       this.music.setSong(this.songOf());
       this.music.pre();

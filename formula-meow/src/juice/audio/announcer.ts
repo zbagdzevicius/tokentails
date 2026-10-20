@@ -28,7 +28,16 @@ export type AnnounceId =
   | 'out'
   | 'wrong'
   | 'timeUp'
-  | 'battleWin';
+  | 'battleWin'
+  // iteration 3: set pieces (low priority: never over "Final lap", never after the finish)
+  | 'loopDeMeow'
+  | 'wallRide'
+  | 'bigAir'
+  | 'niceLanding'
+  | 'tunnelRun';
+
+/** Lines that are only flavour: they take a lower voice priority and give way to everything else. */
+export const LOW_LINES: ReadonlySet<AnnounceId> = new Set<AnnounceId>(['loopDeMeow', 'wallRide', 'bigAir', 'niceLanding', 'tunnelRun']);
 
 /** Caption text per line (English keys for `t()`; registered in src/ui/strings/core.en.ts). */
 export const ANNOUNCE_TEXT: Readonly<Record<AnnounceId, string>> = {
@@ -48,6 +57,11 @@ export const ANNOUNCE_TEXT: Readonly<Record<AnnounceId, string>> = {
   wrong: 'Wrong way?',
   timeUp: 'Time!',
   battleWin: 'Last cat standing!',
+  loopDeMeow: 'LOOP-DE-MEOW!',
+  wallRide: 'WALL RIDE!',
+  bigAir: 'BIG AIR!',
+  niceLanding: 'NICE LANDING!',
+  tunnelRun: 'TUNNEL RUN!',
 };
 
 interface Syl {
@@ -137,6 +151,35 @@ const LINES: Readonly<Record<AnnounceId, readonly Syl[]>> = {
     { at: 0.08, v: 'a', dur: 0.14, p: 1.45, pe: 1.6, peak: 0.2 },
     { at: 0.26, v: 'i', to: 'a', dur: 0.44, p: 1.7, pe: 2.0, peak: 0.24, breath: 0.08 },
   ],
+  // "loo - de - MEEE-OOOW!" (the last syllable swoops up and over, like the loop)
+  loopDeMeow: [
+    { at: 0, v: 'u', dur: 0.12, p: 1.2, pe: 1.25, peak: 0.18 },
+    { at: 0.13, v: 'e', dur: 0.1, p: 1.3, pe: 1.35, peak: 0.17 },
+    { at: 0.25, v: 'i', to: 'a', dur: 0.24, p: 1.5, pe: 2.05, peak: 0.24 },
+    { at: 0.47, v: 'a', to: 'u', dur: 0.36, p: 2.05, pe: 1.4, peak: 0.22, breath: 0.08 },
+  ],
+  // "wohl RAAAID!"
+  wallRide: [
+    { at: 0, v: 'u', to: 'o', dur: 0.14, p: 1.15, pe: 1.2, peak: 0.18 },
+    { at: 0.16, v: 'a', to: 'i', dur: 0.4, p: 1.4, pe: 1.7, peak: 0.23, breath: 0.06 },
+  ],
+  // "big EEEH!"
+  bigAir: [
+    { at: 0, v: 'i', dur: 0.1, p: 1.35, pe: 1.4, peak: 0.18 },
+    { at: 0.12, v: 'e', to: 'a', dur: 0.46, p: 1.6, pe: 1.95, peak: 0.24, breath: 0.05 },
+  ],
+  // "nais LAN-ding"
+  niceLanding: [
+    { at: 0, v: 'a', to: 'i', dur: 0.16, p: 1.4, pe: 1.5, peak: 0.19 },
+    { at: 0.2, v: 'a', dur: 0.14, p: 1.55, pe: 1.55, peak: 0.21 },
+    { at: 0.36, v: 'i', dur: 0.22, p: 1.45, pe: 1.3, peak: 0.19, breath: 0.05 },
+  ],
+  // "tun-nel RUUUN!"
+  tunnelRun: [
+    { at: 0, v: 'uh', dur: 0.1, p: 1.2, pe: 1.2, peak: 0.17 },
+    { at: 0.12, v: 'o', dur: 0.1, p: 1.15, pe: 1.15, peak: 0.16 },
+    { at: 0.25, v: 'uh', to: 'a', dur: 0.4, p: 1.45, pe: 1.7, peak: 0.23, breath: 0.08 },
+  ],
 };
 
 /** Length of a line in seconds (how long the music ducks, how long the voice holds the budget). */
@@ -170,10 +213,32 @@ export class AnnouncerLogic {
   private lastWrong = -1e9;
   private lastAny = -1e9;
   private finished = false;
+  // set pieces: the loop and the tunnel are called once a race, the rest with cooldowns, and nothing near "Final lap"
+  private finalAt = -1e9;
+  private loopSaid = false;
+  private tunnelSaid = false;
+  private lastWall = -1e9;
+  private lastAir = -1e9;
+  private lastLand = -1e9;
 
   reset(): void {
     this.lastLead = this.lastOuch = this.lastWrong = this.lastAny = -1e9;
     this.finished = false;
+    this.finalAt = this.lastWall = this.lastAir = this.lastLand = -1e9;
+    this.loopSaid = this.tunnelSaid = false;
+  }
+
+  /** A flavour line may not talk over "Final lap!" (3 s), after the finish, or right on top of another line. */
+  private quiet(tick: number, gap = 45): boolean {
+    return this.finished || tick - this.finalAt < 180 || tick - this.lastAny < gap;
+  }
+
+  /** The player entered a tunnel (no sim event: the juice lane reads the tunnel mask). */
+  onTunnel(tick: number): AnnounceId | null {
+    if (this.tunnelSaid || this.quiet(tick)) return null;
+    this.tunnelSaid = true;
+    this.lastAny = tick;
+    return 'tunnelRun';
   }
 
   onEvent(e: RaceEvent, me: number, mode: string): AnnounceId | null {
@@ -190,7 +255,28 @@ export class AnnouncerLogic {
       case 'go':
         return e.kart === -1 || mine ? pick('go') : null;
       case 'finalLap':
+        if (mine) this.finalAt = e.tick;
         return mine && !this.finished ? pick('finalLap') : null;
+      case 'stuntEnter':
+        if (!mine || this.quiet(e.tick)) return null;
+        if (a === 0 && !this.loopSaid) {
+          this.loopSaid = true;
+          return pick('loopDeMeow');
+        }
+        if (a === 1 && e.tick - this.lastWall >= 900) {
+          this.lastWall = e.tick;
+          return pick('wallRide');
+        }
+        if (a === 2 && e.tick - this.lastAir >= 300) {
+          this.lastAir = e.tick;
+          return pick('bigAir');
+        }
+        return null;
+      case 'stuntLand':
+        // right after "BIG AIR!" is fine (the flight is the gap between them); still never over the final lap
+        if (!mine || this.quiet(e.tick, 0) || e.tick - this.lastLand < 300) return null;
+        this.lastLand = e.tick;
+        return pick('niceLanding');
       case 'overtake':
         // taking the lead (not in the first 2 s, at most every 6 s)
         if (!mine || a !== 1 || this.finished || e.tick < GO_TICK + 120 || e.tick - this.lastLead < 360) return null;

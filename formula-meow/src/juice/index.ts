@@ -10,6 +10,11 @@
  *  - `window.__fmPerf` (fps, DPR, tier, draw calls, triangles) for QA; `?perf=1` draws it on screen
  * Everything reads the race through the JuiceBus; nothing here writes the sim.
  *
+ * Iteration 3 (set pieces): callouts ("LOOP-DE-MEOW!", "WALL RIDE!", "BIG AIR!", "NICE LANDING!", "TUNNEL RUN!") and
+ * the stunt combo (juice/stunts.ts), wall-ride sparks, landing dust and boost bursts (vfx/stunt-fx.ts), tunnel light
+ * streaks, speed lines and vignette (vfx/tunnel-fx.ts), the tunnel's music low-pass and echo (audio/tunnel.ts), a
+ * landing shake, haptics, and the "Stunts" results row. Reduced motion: no sparks, streaks, confetti, shake or FOV.
+ *
  * Iteration 2 (audio-ui lane): every callout goes through `t()`; reduced motion turns off camera shake (from any lane:
  * `camera.addTrauma` is gated here), screen flashes, tints, hit-stop, slow-mo and confetti; the race audio gets the
  * track's song and the race mode.
@@ -32,6 +37,11 @@ import { t } from '../ui/i18n';
 import { qa } from '../ui/qa';
 import { SpeedLines } from './vfx/speed-lines';
 import { Quality, TIERS } from './perf/quality';
+import { StuntFx } from './vfx/stunt-fx';
+import { TunnelFx } from './vfx/tunnel-fx';
+import { StuntTally, type StuntCallout } from './stunts';
+import { registerResultSection } from '../core/hud/results';
+import { stuntSection } from '../core/hud/stunt-hud';
 
 const HIT_CALLS = ['BONK!', 'GOTCHA!', 'PURRFECT HIT!'];
 
@@ -66,6 +76,13 @@ export class JuiceDirector implements JuiceListener {
   private finalLap = false;
   private outlines: Object3D[][] = [];
   private outlineFrame = 0;
+  /** iteration 3: set pieces */
+  readonly stunts = new StuntTally();
+  private stuntFx: StuntFx | null = null;
+  private tfx: TunnelFx | null = null;
+  private inTunnel = false;
+  /** a gap flight is in the air (its landing is called by stuntLand, not the generic BIG AIR on 'land') */
+  private gapFlight = false;
 
   constructor(private readonly shell: Shell) {
     const q = new URLSearchParams(location.search);
@@ -111,6 +128,8 @@ export class JuiceDirector implements JuiceListener {
   private applyTier(): void {
     const look = this.quality.look;
     if (this.kfx) this.kfx.opts = { density: look.density, skids: look.skids };
+    if (this.stuntFx) this.stuntFx.density = look.density;
+    if (this.tfx) this.tfx.density = look.density;
     this.sky?.setDensity(look.ambient);
     if (SpeedLines.current) SpeedLines.current.detail = look.streaks;
   }
@@ -118,8 +137,14 @@ export class JuiceDirector implements JuiceListener {
   onReset(): void {
     this.kfx?.dispose();
     this.sky?.dispose();
+    this.tfx?.dispose();
     this.kfx = null;
     this.sky = null;
+    this.stuntFx = null;
+    this.tfx = null;
+    this.stunts.reset();
+    this.inTunnel = false;
+    this.gapFlight = false;
     this.warp.reset();
     this.confetti.clear();
     this.chain = 0;
@@ -132,6 +157,10 @@ export class JuiceDirector implements JuiceListener {
     const theme = view.world.theme;
     this.kfx = new KartFx(this.shell.stage.scene, view, theme);
     this.sky = new SkyFx(this.shell.stage.scene, view.track, theme, 1);
+    if (view.track.pieces?.length) {
+      this.stuntFx = new StuntFx(view, this.kfx);
+      if (view.track.tunnelMask.some((v) => v === 1)) this.tfx = new TunnelFx(this.shell.stage.scene, view.track, theme);
+    }
     this.applyTier();
     // outline LOD: collect every outline twin per kart once
     this.outlines = view.karts.map((kv) => {
@@ -146,6 +175,7 @@ export class JuiceDirector implements JuiceListener {
 
   onEvent(e: RaceEvent, info: FrameInfo): void {
     this.kfx?.onEvent(e);
+    this.stuntFx?.onEvent(e, info.st, info.me, reducedMotion());
     const me = info.me;
     const mine = e.kart === me;
     // reduced motion: no screen flashes, tints or hit-stops (the colour change still tells the boost apart)
@@ -204,7 +234,15 @@ export class JuiceDirector implements JuiceListener {
         if (mine) this.pop(t('BLOCKED!'), 'cyan');
         break;
       case 'land':
-        if (mine && a > 45) this.pop(t('BIG AIR!'), 'gold');
+        // a jump gap's landing has its own call (stuntLand); only plain ramps say BIG AIR here
+        if (mine && this.gapFlight) this.gapFlight = false;
+        else if (mine && a > 45) this.pop(t('BIG AIR!'), 'gold');
+        break;
+      case 'stuntEnter':
+      case 'stuntExit':
+      case 'stuntLand':
+      case 'netCatch':
+        if (mine) this.stuntEvent(e, sl);
         break;
       case 'overtake':
         if (e.b === me && e.kart !== me) {
@@ -248,6 +286,39 @@ export class JuiceDirector implements JuiceListener {
     }
   }
 
+  /** The player's set-piece events: the callout, the combo chime, flashes, the landing shake and the haptics. */
+  private stuntEvent(e: RaceEvent, sl: { flash(c: number, s: number, d?: number): void } | null): void {
+    const a = e.a ?? 0;
+    if (e.type === 'stuntEnter' && a === 2) this.gapFlight = true;
+    this.callout(this.stunts.onEvent(e, e.kart));
+    const combo = this.stunts.comboAt(e.tick);
+    switch (e.type) {
+      case 'stuntExit':
+        if (a === 0) {
+          // out of the loop on the exit boost
+          sl?.flash(0x2cf6f3, 0.18, 0.35);
+          vibrate(12);
+        }
+        if (e.b === 1 && combo >= 2) this.shell.audio.cue({ id: 'combo', prio: 2, n: combo, pitch: 1, delay: 0.25, vol: 1 });
+        break;
+      case 'stuntLand':
+        sl?.flash(0xffc93c, 0.16, 0.3);
+        this.shell.camera.addTrauma(0.15);
+        vibrate(15);
+        if (combo >= 2) this.shell.audio.cue({ id: 'combo', prio: 2, n: combo, pitch: 1, delay: 0.25, vol: 1 });
+        break;
+      case 'netCatch':
+        this.gapFlight = false;
+        vibrate([25, 30, 25]);
+        break;
+    }
+  }
+
+  private callout(c: StuntCallout | null): void {
+    if (!c) return;
+    this.pop(t(c.text, { n: c.n ?? 0 }), c.tone, c.sub ? t(c.sub, { n: c.n ?? 0 }) : undefined);
+  }
+
   /** Style callouts go through the HUD's one message slot (B33), below the race banners in priority. */
   private pop(text: string, tone: PopTone, sub?: string): void {
     this.shell.hud.say(text, { prio: 1, tone, sub, ms: 1000 });
@@ -260,6 +331,25 @@ export class JuiceDirector implements JuiceListener {
     this.confetti.update(info.dt);
     const k = info.st.karts[info.me];
     const sl = SpeedLines.current;
+    const calm = reducedMotion();
+    // iteration 3: the tunnel under the player (main loop only: tunnels are never on a branch window)
+    const track = this.shell.view?.track;
+    const tunnel = !!track && k.rail === 0 && k.branch === -1 && k.si >= 0 && k.si < track.n && track.tunnelMask[k.si] === 1 && info.st.phase !== 'done';
+    if (tunnel !== this.inTunnel) {
+      this.inTunnel = tunnel;
+      this.shell.audio.setTunnel(tunnel, info.st.tick);
+      if (tunnel) this.callout(this.stunts.onTunnel());
+    }
+    const feel = this.shell.camera.stuntFeel;
+    const speed = Math.hypot(k.vx, k.vz);
+    this.tfx?.update(info.st, info.me, feel.tunnel, speed, vdt, calm);
+    this.stuntFx?.update(info.st, info.alpha, vdt, info.me, calm);
+    if (sl) {
+      // a tunnel makes the streaks 30 % stronger and closes the vignette in; a loop keeps them on
+      sl.gain = 1 + 0.3 * feel.tunnel;
+      sl.dark = feel.tunnel;
+      sl.floor = k.rail > 0 ? 0.6 : 0;
+    }
     if (sl) {
       sl.detail = this.quality.look.streaks;
       sl.setPulse(!reducedMotion() && this.finalLap && !k.finished && k.place > 1 && info.st.lapLength > 0 && k.s / info.st.lapLength > 0.82);
@@ -308,5 +398,8 @@ export class JuiceDirector implements JuiceListener {
 export function installJuice(shell: Shell): JuiceDirector {
   const d = new JuiceDirector(shell);
   shell.bus.add(d);
+  // the "Stunts" row, between the standings (modes, 15) and the fish (progression, 50)
+  registerResultSection(40, (ctx) => (shell.view?.track.pieces?.length ? stuntSection(d.stunts.summary, ctx) : null));
+  (window as unknown as { __fmStunts?: unknown }).__fmStunts = d.stunts;
   return d;
 }

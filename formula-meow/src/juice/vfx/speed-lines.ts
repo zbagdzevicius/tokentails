@@ -27,6 +27,12 @@ export class SpeedLines {
   private pulse = 0;
   /** 0..1 from the quality tier (low = no speed streak texture work) */
   detail = 1;
+  /** iteration 3 (set pieces, set by the juice install each frame): streak strength × `gain` (tunnels: 1.3), and at
+   *  least `floor` (a loop's rail keeps the speed lines on) */
+  gain = 1;
+  floor = 0;
+  /** 0..1: a tunnel closes the vignette in a little (the walls are near) */
+  dark = 0;
 
   constructor(camera: PerspectiveCamera, accent: number) {
     this.boostColor.setHex(accent);
@@ -113,14 +119,14 @@ export class SpeedLines {
   update(dt: number, speed: number, top: number, boosting: boolean, reducedMotion: boolean): void {
     const u = this.mat.uniforms;
     const frac = Math.max(0, Math.min(1, (speed - 0.6 * top) / (0.4 * top)));
-    const target = reducedMotion ? 0 : boosting ? 0.9 : frac * 0.45;
+    const target = reducedMotion ? 0 : Math.min(1, Math.max(this.floor, boosting ? 0.9 : frac * 0.45) * this.gain);
     this.alpha += (target - this.alpha) * Math.min(1, dt * 8);
     u.uAlpha.value = this.alpha;
     u.uTime.value += dt;
     u.uDetail.value = this.detail;
     (u.uColor.value as Color).copy(this.boostColor);
     // vignette: 0.22 at rest → 0.45 at top speed → 0.6 boosting
-    const vt = 0.22 + 0.23 * Math.min(1, speed / top) + (boosting ? 0.15 : 0) + this.pulse * (0.12 + 0.12 * Math.sin(u.uTime.value * 9));
+    const vt = 0.22 + 0.23 * Math.min(1, speed / top) + (boosting ? 0.15 : 0) + this.pulse * (0.12 + 0.12 * Math.sin(u.uTime.value * 9)) + this.dark * 0.14;
     this.vig += (vt - this.vig) * Math.min(1, dt * 5);
     u.uVig.value = this.vig;
     const vc = u.uVigColor.value as Color;

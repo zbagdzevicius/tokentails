@@ -5,7 +5,7 @@
  * up per tier; speed adds wind. The 3 nearest rivals get a cheap saw each, panned left/right with a doppler bend.
  * Persistent nodes only (no per-frame allocation); `engineParams` is the pure mapping (unit-tested).
  */
-import type { KartState } from '../../types';
+import { Surface, type KartState } from '../../types';
 
 export interface EngineParams {
   /** saw pitch (Hz) */
@@ -19,17 +19,27 @@ export interface EngineParams {
   /** whine pitch (Hz), 0 = silent */
   whine: number;
   wind: number;
+  /** iteration 3: the wall-lane tyre hum (0 = silent) */
+  hum: number;
 }
 
 const WHINE = [520, 660, 880, 1320];
 
 /** Pure: kart state → engine voice parameters. `frac` = speed / class top speed. */
-export function engineParams(frac: number, k: Pick<KartState, 'driftDir' | 'driftTier' | 'boostTicks' | 'air' | 'spinTicks'>, running: boolean): EngineParams {
+export function engineParams(
+  frac: number,
+  k: Pick<KartState, 'driftDir' | 'driftTier' | 'boostTicks' | 'air' | 'spinTicks'> & Partial<Pick<KartState, 'surface' | 'rail'>>,
+  running: boolean,
+): EngineParams {
   const f = Math.max(0, Math.min(1.4, frac));
   const f1 = Math.min(1, f);
-  const drifting = k.driftDir !== 0 && !k.air;
+  // iteration 3 (set pieces): on a wall lane the tyres hum instead of squealing (the squeal is muted, a low hum takes
+  // its slot); on a loop's rail the motor revs up a little and the wind rushes (the "g-force" sound)
+  const wall = k.surface === Surface.WallRide && !k.air;
+  const railed = (k.rail ?? 0) > 0;
+  const drifting = k.driftDir !== 0 && !k.air && !wall && !railed;
   // rpm: idle 70 Hz → 240 Hz at top speed; boost revs past the top; air lets the engine scream (no load)
-  const hz = 70 + 170 * f1 + (f > 1 ? 30 * (f - 1) : 0) + (drifting ? 14 : 0) + (k.air ? 25 : 0);
+  const hz = 70 + 170 * f1 + (f > 1 ? 30 * (f - 1) : 0) + (drifting ? 14 : 0) + (k.air ? 25 : 0) + (railed ? 20 : 0);
   return {
     hz,
     cutoff: 600 + 2600 * f1 + (k.boostTicks > 0 ? 1400 : 0),
@@ -37,7 +47,8 @@ export function engineParams(frac: number, k: Pick<KartState, 'driftDir' | 'drif
     gain: running ? 0.06 + 0.08 * f1 : 0,
     squeal: running && drifting ? 0.05 + 0.05 * f1 : 0,
     whine: running && drifting ? WHINE[Math.min(3, k.driftTier)] : 0,
-    wind: running ? Math.max(0, f - 0.45) * 0.16 + (k.boostTicks > 0 ? 0.05 : 0) : 0,
+    wind: running ? Math.max(0, f - 0.45) * 0.16 + (k.boostTicks > 0 || railed ? 0.05 : 0) : 0,
+    hum: running && wall ? 0.05 + 0.04 * f1 : 0,
   };
 }
 
@@ -159,8 +170,11 @@ export class EngineVoice {
     this.lp.frequency.setTargetAtTime(p.cutoff, t, 0.05);
     this.lfo.frequency.setTargetAtTime(p.purrHz, t, 0.1);
     this.g.gain.setTargetAtTime(p.gain, t, 0.08);
-    this.squealG.gain.setTargetAtTime(p.squeal, t, 0.04);
-    this.squealF.frequency.setTargetAtTime(2100 + 500 * Math.min(1, v / top), t, 0.1);
+    // the squeal's noise band doubles as the wall lane's tyre hum (pulled down to a low, wide rumble): no extra nodes
+    const hum = p.hum > 0;
+    this.squealG.gain.setTargetAtTime(hum ? p.hum : p.squeal, t, 0.04);
+    this.squealF.frequency.setTargetAtTime(hum ? 150 + 110 * Math.min(1, v / top) : 2100 + 500 * Math.min(1, v / top), t, hum ? 0.06 : 0.1);
+    this.squealF.Q.setTargetAtTime(hum ? 1.2 : 7, t, 0.06);
     if (p.whine > 0) this.whine.frequency.setTargetAtTime(p.whine, t, 0.03);
     this.whineG.gain.setTargetAtTime(p.whine > 0 ? 0.025 : 0, t, 0.05);
     this.windG.gain.setTargetAtTime(p.wind, t, 0.15);

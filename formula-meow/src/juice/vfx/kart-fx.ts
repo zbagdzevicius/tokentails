@@ -35,6 +35,10 @@ const _m = new Matrix4();
 const _l = new Matrix4();
 const _c = new Color();
 const _v = new Vector3();
+const _bu = new Vector3();
+const _bf = new Vector3();
+const _br = new Vector3();
+const LOOP_TRAIL = [0xff3ea5, 0x2cf6f3];
 
 const FLAMES_PER_KART = 2;
 const SKIDS = 120;
@@ -58,6 +62,9 @@ export function boostColor(source: number, tier: number, theme: Theme): number {
       return 0x7dff6a;
     case BoostSource.Zoomies:
       return 0xff3ea5;
+    case BoostSource.Stunt:
+      // iteration 3: set pieces (loop exit, clean landing, wall lane) burn electric cyan
+      return 0x2cf6f3;
     default:
       return 0xffb03a;
   }
@@ -419,7 +426,9 @@ export class KartFx {
       }
 
       // ---- light trails: boosting always, tier 2+ drifts, and faint neon tail-lights at night
-      const trailOn = k.boostTicks > 0 || k.driftTier >= 2 || k.autoTicks > 0 || (night && speed > 12 && near);
+      // iteration 3: on a loop's rail the trail is always on, a pink and a cyan ribbon that follow the loop's surface
+      const looping = k.rail > 0 && s.b === 1;
+      const trailOn = looping || k.boostTicks > 0 || k.driftTier >= 2 || k.autoTicks > 0 || (night && speed > 12 && near);
       if (trailOn && near) {
         // Zoomies: a rainbow ribbon (the hue walks along the race clock)
         const col =
@@ -432,9 +441,26 @@ export class KartFx {
                 : i % 2
                   ? this.theme.neonA || 0xff3ea5
                   : this.theme.neonB || 0x2cf6f3;
-        const dim = k.boostTicks > 0 || k.driftTier >= 2 ? 1 : 0.45;
-        const len = Math.min(7, 1.5 + speed * 0.18) * (k.autoTicks > 0 ? 1.7 : k.boostTicks > 0 ? 1.2 : 0.8);
+        const dim = looping || k.boostTicks > 0 || k.driftTier >= 2 ? 1 : 0.45;
+        const len = Math.min(7, 1.5 + speed * 0.18) * (k.autoTicks > 0 ? 1.7 : k.boostTicks > 0 || looping ? 1.2 : 0.8);
         const vh = speed > 2 ? Math.atan2(k.vx, k.vz) : s.heading;
+        if (s.b === 1) {
+          // bent (a loop's ribbon or a curled wall lane): the ribbons stand on the surface, along the kart's forward
+          _bu.set(s.ux!, s.uy!, s.uz!);
+          _bf.set(s.fx!, s.fy!, s.fz!);
+          _br.crossVectors(_bu, _bf);
+          for (const side of [-1, 1]) {
+            _v.set(s.x, s.y, s.z).addScaledVector(_bf, -1).addScaledVector(_br, -0.62 * side).addScaledVector(_bu, 0.42);
+            _m.makeBasis(_br, _bu, _bf).setPosition(_v);
+            _l.makeScale(1, 1, len);
+            _m.multiply(_l);
+            _l.makeRotationZ(Math.PI / 2);
+            _m.multiply(_l);
+            this.trails.setMatrixAt(nt, _m);
+            this.trails.setColorAt(nt, _c.setHex(looping ? LOOP_TRAIL[side < 0 ? 0 : 1] : col).multiplyScalar(dim));
+            nt++;
+          }
+        } else
         for (const side of [-1, 1]) {
           _o.position.set(s.x - sx * 1.0 - sz * 0.62 * side, s.y + 0.42, s.z - sz * 1.0 + sx * 0.62 * side);
           _o.rotation.set(0, vh, 0);

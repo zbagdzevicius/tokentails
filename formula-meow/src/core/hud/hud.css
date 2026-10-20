@@ -620,3 +620,4 @@
   .fm-drift-pad { bottom: calc(24px + env(safe-area-inset-bottom)); right: calc(132px + env(safe-area-inset-right)); }
   .fm-caption { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
+.fm-stunts { color: #b0246f; }
