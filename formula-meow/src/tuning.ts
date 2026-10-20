@@ -34,7 +34,9 @@ export const CLASSES: readonly ClassTuning[] = [
   // together; 100cc and 150cc are faster (24 / 28 / 33 m/s), so each class feels like a step up
   { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.58, 0.8], bandDown: 0.08, bandUp: 0.1, aiTop: 0.93, aiTopHi: 0.98, maxScale: 1.03 },
   { name: 'Alley Cat', cc: '100cc', topSpeed: 28, zeroTo90: 1.5, aiSkill: [0.72, 0.93], bandDown: 0.07, bandUp: 0.12, aiTop: 0.96, aiTopHi: 1, maxScale: 1.05 },
-  { name: 'Zoomies', cc: '150cc', topSpeed: 32, zeroTo90: 1.6, aiSkill: [0.85, 1], bandDown: 0.06, bandUp: 0.14, aiTop: 0.98, aiTopHi: 1, maxScale: 1.05 },
+  // SIM_VERSION 8 (integration, iteration 3): the set-piece assists even out the stretches where skill told, so the 150cc
+  // bot reached the podium 88 % of the time (target ≤ 75 %): the leading cats give back less (bandDown 0.06 → 0.04)
+  { name: 'Zoomies', cc: '150cc', topSpeed: 32, zeroTo90: 1.6, aiSkill: [0.85, 1], bandDown: 0.04, bandUp: 0.14, aiTop: 0.98, aiTopHi: 1, maxScale: 1.05 },
 ];
 
 export function classTuning(cls: RaceClass): ClassTuning {
@@ -343,6 +345,9 @@ export const STUNT = {
     steerRate: 2.4,
     centre: 1.5,
     centreSteer: 2,
+    /** the boost strip's lead-in assist: heading toward the road (rad/s), slide toward the centre (m/s) */
+    leadTurn: 1.6,
+    leadMagnet: 2.5,
     /** exit boost */
     exitLevel: 1.35,
     exitTime: 1.3,

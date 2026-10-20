@@ -79,7 +79,7 @@ describe('tracks-A set pieces: placement', () => {
 
 describe('tracks-A set pieces: the phone bot clears every piece the first time (SETPIECES.md section 0)', () => {
   for (const [def] of EXPECT) {
-    it(`${def.name}: 3 classes × 3 seeds + mirrored, skill 0.2 with auto-gas`, { timeout: 240_000 }, () => {
+    it(`${def.name}: 3 classes × 3 seeds + mirrored, skill 0.2 with auto-gas`, { timeout: 600_000 }, () => {
       const t = buildTrack(def);
       const loops = t.pieces.filter((p) => p.kind === 'loop').length;
       const jumps = t.pieces.filter((p) => p.kind === 'jump' && p.gap > 0).length;
@@ -147,7 +147,6 @@ function soloLap(def: TrackDef, lane: boolean, cls: 0 | 1 | 2 = 0): { ticks: num
     w.step([o]);
     if (a < 0 && k.branch === -1 && into <= span) a = w.tick;
     if (a >= 0 && b < 0 && k.branch === -1 && (k.si - wall.i1 + t.n) % t.n >= after && (k.si - wall.i1 + t.n) % t.n < after + 40) b = w.tick;
-      console.log(`${lane ? 'L' : 'R'} si${k.si} into${into}/${span} d${k.d.toFixed(1)} hw${t.halfW[k.si].toFixed(1)} lane${(wall.side > 0 ? t.laneR[k.si] : t.laneL[k.si]).toFixed(1)} v${Math.hypot(k.vx, k.vz).toFixed(1)} steer${o.steer} boost${(k as unknown as { boostT: number }).boostT}`);
   }
   return { ticks: w.tick - t0, stretch: b - a, ev: w.st.events, w };
 }

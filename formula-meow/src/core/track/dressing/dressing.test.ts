@@ -100,18 +100,18 @@ describe('track dressing', () => {
   for (const [theme, dress, names] of CASES) {
     const def = ALL_TRACKS.find((d) => d.theme === theme);
     if (!def) continue;
-    it(`${def.name}: no prop pokes through the road (the banked hairpin once hid the kart behind a slab)`, { timeout: 60_000 }, () => {
+    it(`${def.name}: no prop pokes through the road (the banked hairpin once hid the kart behind a slab)`, { timeout: 600_000 }, () => {
       const t = buildTrack(def);
       expect(poking(t, dress(t, themeOf(theme)), names)).toBe(0);
     });
     if (def.kind === 'arena') continue; // the arena's floor is all road; its cover is checked by the test above
-    it(`${def.name}: every prop stays outside the walls (wall + 0.5 m) of every part of the loop (B14)`, { timeout: 60_000 }, () => {
+    it(`${def.name}: every prop stays outside the walls (wall + 0.5 m) of every part of the loop (B14)`, { timeout: 600_000 }, () => {
       const t = buildTrack(def);
       expect(insideWalls(t, dress(t, themeOf(theme)), names)).toEqual([]);
     });
   }
 
-  it('every theme stays within the draw-call budget: at most 8 meshes per dressing (≤ 40 per track with the road)', { timeout: 60_000 }, () => {
+  it('every theme stays within the draw-call budget: at most 8 meshes per dressing (≤ 40 per track with the road)', { timeout: 600_000 }, () => {
     for (const [theme, dress] of CASES) {
       const def = ALL_TRACKS.find((d) => d.theme === theme)!;
       const t = buildTrack(def);

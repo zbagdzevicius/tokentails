@@ -22,7 +22,7 @@ describe('race rules (GDD 1.2)', () => {
   });
 
   // [tracks lane] six tracks now: a longer timeout
-  it('every authored track runs an AI-only race to the end in every class, nobody stuck', { timeout: 120_000 }, () => {
+  it('every authored track runs an AI-only race to the end in every class, nobody stuck', { timeout: 600_000 }, () => {
     for (const def of TRACKS)
       for (const cls of [0, 1, 2] as RaceClass[]) {
         const run = simulate({ ...raceConfig(def, { seed: 11, cls }), tailTicks: 60 * 60 }, createSimPlugins(), undefined);

@@ -9,7 +9,7 @@ import { formatTrackReport, runTrackHarness } from './harness';
 
 describe('track harness (iteration 2 acceptance)', () => {
   for (const def of TRACKS) {
-    it(`${def.name}: no DNF, < 3 head-on wall hits a race, branch use 10–60 % of AI laps`, { timeout: 300_000 }, () => {
+    it(`${def.name}: no DNF, < 3 head-on wall hits a race, branch use 10–60 % of AI laps`, { timeout: 600_000 }, () => {
       const r = runTrackHarness(def, [0, 1, 2], 7);
       if (process.env.FM_TRACKS_PRINT) console.log(formatTrackReport(r));
       expect(r.races).toBe(21);

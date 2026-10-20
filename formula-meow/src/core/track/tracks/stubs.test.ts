@@ -18,8 +18,8 @@ describe('iteration 2 ids and the new tracks', () => {
   });
 
   for (const def of STUB_TRACKS) {
-    it(`${def.name} passes the UGC validator and a 50cc AI race on it finishes`, () => {
-      const v = validateTrack(def);
+    it(`${def.name} passes the validator (authored rules) and a 50cc AI race on it finishes`, () => {
+      const v = validateTrack(def, { pieces: 'authored' }); // authored set pieces keep the authored rules (doodle rules: the editor)
       expect(v.issues).toEqual([]);
       const cfg = { ...raceConfig(def, { seed: 3, cls: 0 }), tailTicks: 60 * 60 };
       const run = simulate(cfg, createSimPlugins(cfg));

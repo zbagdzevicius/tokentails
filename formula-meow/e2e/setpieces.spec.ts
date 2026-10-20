@@ -64,6 +64,7 @@ for (const id of CIRCUITS) {
     const kinds = await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.world!.track.pieces.map((p) => p.kind));
     test.skip(kinds.length === 0, `${id}: no set pieces placed yet (tracks lane)`);
 
+    let peak = 0;
     const shots: Array<[string, string]> = [];
     if (kinds.includes('loop')) shots.push(['loop', 'k.rail > 0 && k.su > 30']);
     if (kinds.includes('tunnel')) shots.push(['tunnel', 't.tunnelMask[k.si] === 1']);
@@ -72,16 +73,22 @@ for (const id of CIRCUITS) {
       if (!(await freezeWhen(page, cond, 150_000))) continue;
       await page.waitForTimeout(250);
       await page.screenshot({ path: `e2e/screens/setpieces-${id}-${name}.png` });
-      expect(await calls(page), `${id} ${name}`).toBeLessThanOrEqual(120);
+      const c = await calls(page);
+      peak = Math.max(peak, c);
+      expect(c, `${id} ${name}`).toBeLessThanOrEqual(120);
       await page.evaluate((sp) => ((window as unknown as { __fm: Fm }).__fm.shell.simSpeed = sp), SPEED);
     }
     // a wall lane, when the bot happens to ride one (it keeps to the racing line; skilled AI ride them)
     if (kinds.includes('wall') && (await freezeWhen(page, 'k.surface === 6', 20_000))) {
       await page.waitForTimeout(250);
       await page.screenshot({ path: `e2e/screens/setpieces-${id}-wall.png` });
+      const c = await calls(page);
+      peak = Math.max(peak, c);
+      expect(c, `${id} wall`).toBeLessThanOrEqual(120);
       await page.evaluate((sp) => ((window as unknown as { __fm: Fm }).__fm.shell.simSpeed = sp), SPEED);
     }
 
+    console.log(`draw calls ${id}: peak ${peak} in set pieces`);
     // to the flag
     await page.waitForFunction(
       () => {

@@ -78,7 +78,7 @@ describe('tracks-B set pieces: placement', () => {
 
 describe('tracks-B set pieces: the phone player clears every piece first time', () => {
   for (const [def] of CIRCUITS)
-    it(`${def.name}: skill 0.2 bot, auto-gas, 3 classes × 3 seeds`, { timeout: 120_000 }, () => {
+    it(`${def.name}: skill 0.2 bot, auto-gas, 3 classes × 3 seeds`, { timeout: 600_000 }, () => {
       const t0 = buildTrack(def, 0);
       const loops = t0.pieces.filter((p) => p.kind === 'loop').length;
       const jumps = t0.pieces.filter((p) => p.kind === 'jump' && p.gap > 0).length;

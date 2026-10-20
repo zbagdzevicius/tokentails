@@ -41,7 +41,7 @@ export function stuntImmune(k: KartState): boolean {
 }
 
 /** Did the kart cross main sample `at` going forward this tick (from `prevSi` to `si`)? The ramp lip test. */
-function crossed(n: number, prevSi: number, si: number, at: number): boolean {
+export function crossed(n: number, prevSi: number, si: number, at: number): boolean {
   const before = (at - prevSi + n) % n;
   const after = (si - at + n) % n;
   return before > 0 && before < 6 && after < 6;
@@ -85,6 +85,48 @@ export function tryAttachRail(ctx: SimContext, idx: number, k: KartState, prevSi
   ctx.emit({ type: 'stuntEnter', kart: idx, a: pc.k, b: pc.id });
   railPlace(ctx, k, pc, v);
   return true;
+}
+
+/**
+ * A contact push (`settleAfterPush`) that would carry `si` over a loop's zone start or a jump gap's lip: the kart keeps
+ * its old `si` for that tick, so its own move next tick crosses the trigger and the rail or the launch still happens
+ * (a bumped kart used to skip the loop and drive through its shadow, or roll off the lip into the net).
+ */
+export function pushSkipsTrigger(t: SimContext['track'], prevSi: number, hit: TrackHit): boolean {
+  if (!t.pieces.length || (hit.branch ?? -1) !== -1) return false;
+  const pc = pieceAtSample(t, hit.i);
+  if (!pc || !(pc.kind === 'loop' || (pc.kind === 'jump' && pc.gap > 0))) return false;
+  return crossed(t.n, prevSi, hit.i, pc.i0);
+}
+
+/**
+ * On a loop's boost strip (grounded, main road, before the zone): the lead-in assist. The nose turns toward the road
+ * at `leadTurn` rad/s and the kart slides toward the centre at `leadMagnet` m/s, so a kart knocked sideways just before
+ * the loop (an item hit, a bump) is lined up by the strip instead of boosted into the wall (integration, iteration 3).
+ */
+export function stripAssist(ctx: SimContext, k: KartState, hit: TrackHit): void {
+  const t = ctx.track;
+  if ((hit.branch ?? -1) !== -1) return;
+  const pc = pieceAtSample(t, hit.i);
+  if (!pc || pc.kind !== 'loop') return;
+  const into = (hit.i - pc.strip + t.n) % t.n;
+  if (into > (pc.i0 - pc.strip + t.n) % t.n) return;
+  const i = hit.i;
+  const delta = clamp(-hit.d, -STUNT.loop.leadMagnet * DT, STUNT.loop.leadMagnet * DT);
+  k.x += -t.tz[i] * delta;
+  k.z += t.tx[i] * delta;
+  hit.d += delta;
+  const tan = atan2L(t.tx[i], t.tz[i]);
+  const dh = clamp(wrapAngle(tan - k.heading), -STUNT.loop.leadTurn * DT, STUNT.loop.leadTurn * DT);
+  if (dh !== 0) {
+    k.heading = wrapAngle(k.heading + dh);
+    const c = cosL(dh);
+    const sn = sinL(dh);
+    const vx = k.vx * c + k.vz * sn;
+    const vz = -k.vx * sn + k.vz * c;
+    k.vx = vx;
+    k.vz = vz;
+  }
 }
 
 /**

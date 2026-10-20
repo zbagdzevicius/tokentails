@@ -10,7 +10,7 @@ import { atan2L, clamp, cosL, headingOf, lerp, pow06, sinL, wrapAngle } from './
 import type { SimContext } from './plugins';
 import { queryTrack, type TrackHit } from '../track/query';
 import { respawnSampleOf } from '../track/stunt';
-import { airAssist, checkNet, hitsLipFace, launch, landed, laneAt, lipCrossed, stepLane, stepNet, stepRail, stuntImmune, tryAttachRail } from './stunt';
+import { airAssist, checkNet, pushSkipsTrigger, stripAssist, hitsLipFace, launch, landed, laneAt, lipCrossed, stepLane, stepNet, stepRail, stuntImmune, tryAttachRail } from './stunt';
 
 const SIN30 = 0.5;
 /** sin of the head-on angle (50°, B11) */
@@ -391,6 +391,8 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   // a jump gap's lip launches at any speed on an aimed arc
   const lip = t.pieces.length ? lipCrossed(ctx, prevSi, hit) : null;
   if (lip) launch(ctx, idx, k, lip, ownTop);
+  // and a loop's boost strip lines the kart up for the rail (lead-in assist)
+  if (t.pieces.length && !k.air) stripAssist(ctx, k, hit);
 
   // --- vertical: ground follow, ramps, air ---------------------------------------------------------------------------
   let groundY = hit.y;
@@ -652,7 +654,8 @@ export function settleAfterPush(ctx: SimContext, idx: number): void {
   const t = ctx.track;
   queryTrack(t, k.x, k.z, k.si, hit);
   resolveWall(ctx, idx, k, false);
-  k.si = hit.i;
+  // SIM_VERSION 8: a push never carries the kart over a loop's start or a jump's lip (its own move must cross it)
+  if (!pushSkipsTrigger(t, k.si, hit)) k.si = hit.i;
   k.s = hit.s;
   k.d = hit.d;
   k.branch = hit.branch ?? -1;

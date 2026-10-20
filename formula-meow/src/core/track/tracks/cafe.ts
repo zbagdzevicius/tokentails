@@ -8,7 +8,7 @@
  * Set pieces (SIM_VERSION 8, tracks-B, SETPIECES.md section 12; bright emissive skins on the dark theme):
  * - the koi pond (lip s104, a 12 m gap, flat: the plan's 0.8 m drop would sink the landing deck under the café floor
  *   plane at y −0.08, so the pond and landing never showed): the clean-landing boost replaces the pad that was at s112; the
- *   launch floor covers a kart the roomba at s100 slowed down;
+ *   launch floor covers a slow kart; the roomba that sat on the run-up (s100) moved back to s84, before the items;
  * - the coffee-cup half-pipe on the long way round the counter (s146–158, the outside of the right-hander);
  * - the cat-tree tunnel (s198–212), the items at its mouth;
  * - the mug-handle loop (zone s220–232 after the strip): replaces the ramp at s216; the roomba moved to s242.
@@ -73,7 +73,7 @@ export const CAFE: TrackDef = {
     },
   ],
   hazards: [
-    { kind: 'roomba', s: 100, phase: 0 },
+    { kind: 'roomba', s: 84, phase: 0 }, // off the koi-pond run-up (integration: no hazard on a jump's run-up)
     { kind: 'roomba', s: 242, phase: 0.5 },
   ],
   coins: [
