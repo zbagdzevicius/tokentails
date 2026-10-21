@@ -8,3 +8,5 @@ playwright-report/
 e2e/screens/
 review/*.png
 review/v2/
+review/v3/
+.review-v3-dist/
