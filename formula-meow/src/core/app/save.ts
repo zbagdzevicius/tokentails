@@ -79,7 +79,7 @@ export function bestKey(mode: string, trackId: string, cls: number, modifiers: n
   return `${mode}:${trackId}:${cls}:${modifiers}`;
 }
 
-interface StorageLike {
+export interface StorageLike {
   getItem(k: string): string | null;
   setItem(k: string, v: string): void;
 }
@@ -146,11 +146,14 @@ export function loadBlob(s: StorageLike | null = store()): SaveBlob {
   return blob;
 }
 
-function writeBlob(b: SaveBlob, s: StorageLike | null = store()): void {
+function writeBlob(b: SaveBlob, s: StorageLike | null = store()): boolean {
   try {
-    s?.setItem(KEY, JSON.stringify(b));
+    if (!s) return false;
+    s.setItem(KEY, JSON.stringify(b));
+    return true;
   } catch {
     /* storage unavailable: this session only */
+    return false;
   }
 }
 
@@ -161,13 +164,39 @@ export interface SaveSlot<T> {
   update(fn: (v: T) => void): T;
 }
 
-class Save {
+/**
+ * The blob is cached for reads, but every write re-reads `fm:save` first and replaces only what it owns (one slot,
+ * or the settings keys it changes): a second tab writing its own lanes' slots in the meantime keeps them. A
+ * `storage` event from another tab drops the cache, and lanes that keep a slot in memory hear `onExternalChange`.
+ */
+export class Save {
   private blob: SaveBlob | null = null;
   private listeners: Array<(s: Settings) => void> = [];
+  private external: Array<() => void> = [];
+
+  constructor(private readonly storage: () => StorageLike | null = store) {}
 
   private get b(): SaveBlob {
-    if (!this.blob) this.blob = loadBlob();
+    if (!this.blob) this.blob = loadBlob(this.storage());
     return this.blob;
+  }
+
+  /**
+   * The blob as stored right now (another tab may have written since the cache was filled). Without readable
+   * storage, or after a write that did not land (quota, blocked), the cache is the session's only copy: keep it.
+   */
+  private fresh(): SaveBlob {
+    if (this.unsynced) return this.b;
+    const cur = readJson(this.storage(), KEY);
+    if (isObj(cur) && cur.v === 2) this.blob = { v: 2, settings: sanitizeSettings(cur.settings), slots: isObj(cur.slots) ? { ...cur.slots } : {} };
+    return this.b;
+  }
+
+  /** true once a write failed: storage no longer holds this session's state */
+  private unsynced = false;
+
+  private write(): void {
+    if (!writeBlob(this.b, this.storage())) this.unsynced = true;
   }
 
   settings(): Settings {
@@ -175,10 +204,11 @@ class Save {
   }
 
   setSettings(next: Partial<Settings>): Settings {
-    this.b.settings = sanitizeSettings({ ...this.b.settings, ...next });
-    writeBlob(this.b);
-    for (const fn of this.listeners) fn(this.b.settings);
-    return this.b.settings;
+    const b = this.fresh();
+    b.settings = sanitizeSettings({ ...b.settings, ...next });
+    this.write();
+    for (const fn of this.listeners) fn(b.settings);
+    return b.settings;
   }
 
   onSettings(fn: (s: Settings) => void): () => void {
@@ -186,28 +216,48 @@ class Save {
     return () => (this.listeners = this.listeners.filter((x) => x !== fn));
   }
 
+  /** Another tab wrote `fm:save`: lanes that keep a slot in memory reload it. */
+  onExternalChange(fn: () => void): () => void {
+    this.external.push(fn);
+    return () => (this.external = this.external.filter((x) => x !== fn));
+  }
+
+  /** A `storage` event (key null = the whole storage was cleared). */
+  storageChanged(key: string | null): void {
+    if (key !== null && key !== KEY) return;
+    this.blob = null;
+    for (const fn of [...this.external]) {
+      try {
+        fn();
+      } catch (err) {
+        console.warn('[save] external change listener failed', err);
+      }
+    }
+  }
+
   /**
    * A lane's slot. `migrate` turns whatever is stored (an older shape, or undefined on first use) into the current
    * shape; it runs on every load, so it must accept its own output.
    */
   slot<T>(name: string, defaults: T, migrate?: (stored: unknown) => T): SaveSlot<T> {
-    const read = (): T => {
-      const raw = this.b.slots[name];
+    const read = (b: SaveBlob): T => {
+      const raw = b.slots[name];
       if (migrate) return migrate(raw);
       if (raw === undefined) return structuredCloneSafe(defaults);
       return isObj(raw) && isObj(defaults) ? ({ ...defaults, ...raw } as T) : (raw as T);
     };
     return {
-      get: read,
+      get: () => read(this.b),
       set: (v: T) => {
-        this.b.slots[name] = v;
-        writeBlob(this.b);
+        this.fresh().slots[name] = v;
+        this.write();
       },
       update: (fn: (v: T) => void) => {
-        const v = read();
+        const b = this.fresh();
+        const v = read(b);
         fn(v);
-        this.b.slots[name] = v;
-        writeBlob(this.b);
+        b.slots[name] = v;
+        this.write();
         return v;
       },
     };
@@ -216,6 +266,7 @@ class Save {
   /** Tests: forget the cached blob. */
   reset(): void {
     this.blob = null;
+    this.unsynced = false;
   }
 }
 
@@ -228,6 +279,11 @@ function structuredCloneSafe<T>(v: T): T {
 }
 
 export const save = new Save();
+try {
+  if (typeof window !== 'undefined') window.addEventListener('storage', (e) => save.storageChanged(e.key));
+} catch {
+  /* no window (tests, workers) */
+}
 
 /** The shell's `core` slot (v1 progress lives here after migration). */
 export const coreSlot = (): SaveSlot<Progress> => save.slot<Progress>('core', DEFAULT_PROGRESS, (raw) => (raw === undefined ? migrateProgressV1(readJson(store(), V1.progress)) : migrateProgressV1(raw)));

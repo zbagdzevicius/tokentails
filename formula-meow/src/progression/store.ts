@@ -53,6 +53,20 @@ export function onProg(fn: (s: ProgSave) => void): () => void {
   return () => listeners.delete(fn);
 }
 
+// another tab wrote the save: re-read the slot (its fish and loadout win over this tab's stale copy) and tell the screens
+save.onExternalChange(() => {
+  if (!cur) return;
+  // a read only: writing here would bounce a storage event back to the other tab
+  const s = (cur = theSlot().get());
+  for (const fn of [...listeners]) {
+    try {
+      fn(s);
+    } catch (err) {
+      console.warn('[progression] listener failed', err);
+    }
+  }
+});
+
 /** Tests and QA: forget the cached state. */
 export function resetProgCache(): void {
   cur = null;

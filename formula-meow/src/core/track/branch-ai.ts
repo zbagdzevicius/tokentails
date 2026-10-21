@@ -56,6 +56,32 @@ export function mainStuntTime(t: SimContext['track'], b: BuiltBranch): number {
   return s;
 }
 
+const mouthMemo = new WeakMap<BuiltBranch, number>();
+
+/**
+ * Main samples from branch b's fork to the end of its mouth: the first sample past the fork where the main road's wall
+ * on the branch's side (`sideA`) is no longer widened toward it (`junction`), after it has been. Infinity when the
+ * wall is never widened there (nothing to go by: the old overlap window applies).
+ */
+export function mouthEnd(t: SimContext['track'], b: BuiltBranch): number {
+  const hit = mouthMemo.get(b);
+  if (hit !== undefined) return hit;
+  const bit = b.sideA > 0 ? 2 : 1;
+  const max = Math.min(b.span, Math.round((Math.max(PAST_FORK, b.overlap) + 40) / t.step));
+  let opened = false;
+  let end = Infinity;
+  for (let k = 0; k <= max; k++) {
+    const on = (t.junction[(b.from + k) % t.n] & bit) !== 0;
+    if (on) opened = true;
+    else if (opened) {
+      end = k;
+      break;
+    }
+  }
+  mouthMemo.set(b, end);
+  return end;
+}
+
 /**
  * The route the last `branchSteer` call steered along, so `curvatureAhead` (asked by the AI's drift and corner-speed
  * logic right after `followLine`, for the same kart) reads the branch's bends instead of the main loop's at the
@@ -198,6 +224,9 @@ function branchTarget(ctx: SimContext, idx: number, look: number, bias: number, 
       if (ahead > L / 2) ahead -= L;
       // past the stretch where the roads overlap and still on the main road: too late, stay on it
       if (ahead > look + DECIDE_AHEAD || ahead < -Math.max(PAST_FORK, x.overlap)) continue;
+      // SIM_VERSION 10: past the end of the branch's mouth (the main wall on its side is back to normal) the branch can
+      // no longer be reached from here: a kart that kept aiming at it crawled into the main wall (Yarn, ~6 s)
+      if (ahead < 0 && -ahead >= mouthEnd(t, x) * t.step) continue;
       if (!takesBranch(ctx, idx, x, botSkill)) continue;
       b = x;
       u0 = -ahead;

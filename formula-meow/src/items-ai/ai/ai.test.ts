@@ -8,7 +8,10 @@ import { bandScale, skillBase } from './rubber-band';
 import { personalityFor } from './personalities';
 import { itemsOf, ProjKind } from '../items/state';
 import { AI, CLASSES } from '../../tuning';
-import { applyHit } from '../../core/sim/kart';
+import { applyHit, placeOnTrack } from '../../core/sim/kart';
+import { wallGuard } from './driver';
+import { ovalTrack } from '../../test/fixtures';
+import { cosL, sinL } from '../../core/sim/fixed';
 
 const P: Personality = { skill: 0.8, aggression: 0.5, mistakeRate: 0, lineBias: 0 };
 
@@ -62,7 +65,7 @@ describe('AI item brain (GDD 5.2)', () => {
     const w = setup();
     expect(hold(w, 'box', 120).some((o) => o.item)).toBe(false);
     const k = w.st.karts[0];
-    itemsOf(w.st).proj.push({ id: 99, kind: ProjKind.Hairball, owner: 3, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: k.si, dist: k.dist - 10, d: k.d, life: 100, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0 });
+    itemsOf(w.st).proj.push({ id: 99, kind: ProjKind.Hairball, owner: 3, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: k.si, dist: k.dist - 10, d: k.d, life: 100, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0, dir: 1, branch: -1 });
     expect(threatened(w.ctx, 0)).toBe(true);
     expect(hold(w, 'box', 120).some((o) => o.item)).toBe(true);
   });
@@ -197,5 +200,36 @@ describe('rival and racecraft (feel lane)', () => {
       return mts / Math.max(1, drifts);
     };
     expect(rate(0.95)).toBeGreaterThan(rate(0.4));
+  });
+});
+
+describe('wall guard (SIM_VERSION 10)', () => {
+  // Kitchen 150cc: the guard read the reverse's sideways speed as if the kart drove forward, steered "away" and kept
+  // the kart's tail on the wall: it backed along it at 7 m/s for 4 s
+  it('leaves a kart backing up (the three-point turn) alone; steers a kart driving into the wall away', () => {
+    const w = world(raceConfig(ovalTrack(), { seed: 1 }));
+    while (w.tick < GO_TICK + 1) w.step();
+    const t = w.track;
+    const k = w.st.karts[0];
+    const si = 40;
+    placeOnTrack(w.ctx, k, si, t.wallR[si] - 1.2);
+    const rx = -t.tz[k.si];
+    const rz = t.tx[k.si];
+    const fx = sinL(k.heading);
+    const fz = cosL(k.heading);
+    const guard = (vf: number) => {
+      // 1.5 m/s toward the right wall, `vf` along the heading
+      k.vx = fx * vf + rx * 1.5;
+      k.vz = fz * vf + rz * 1.5;
+      const out: TickInput = { ...NO_INPUT, steer: 7, brake: true };
+      wallGuard(w.ctx, 0, out, P);
+      return out;
+    };
+    const back = guard(-7);
+    expect(back.steer).toBe(7);
+    expect(back.brake).toBe(true);
+    expect(back.gas).toBe(false);
+    // control: the same sideways speed driving forward is steered off the wall
+    expect(guard(7).steer).toBeLessThan(0);
   });
 });

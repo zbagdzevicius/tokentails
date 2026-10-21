@@ -176,6 +176,22 @@ export function placed(def: TrackDef, t: BuiltTrack, p: SetPiece): BuiltPiece | 
 
 /** Tunnel length limits for the stepper (metres). */
 export const TUNNEL_M = { min: PIECE_RULES.tunnelMin, max: PIECE_RULES.tunnelMax } as const;
+/** The tunnel length the stepper shows (metres, to its 10 m step) for `len` lap units. */
+export function tunnelMetres(t: BuiltTrack, len: number): number {
+  return Math.round(unitsToMetres(t, len) / PIECE_EDIT.tunnelStep) * PIECE_EDIT.tunnelStep;
+}
+
+/**
+ * The tunnel's `len` after one stepper press (`dir` −1 or +1), or null when the press cannot change it: past the
+ * metre limits, or past the build's 4–40 lap units (on a short track 40 units is under 90 m, so + stops early).
+ */
+export function tunnelLenStep(t: BuiltTrack, len: number, dir: -1 | 1): number | null {
+  const target = tunnelMetres(t, len) + dir * PIECE_EDIT.tunnelStep;
+  if (target < TUNNEL_M.min || target > TUNNEL_M.max) return null;
+  const next = metresToUnits(t, target);
+  return next !== len ? next : null;
+}
+
 /** Jump gap and drop limits for the steppers (metres). */
 export const JUMP_M = { gapMin: PIECE_RULES.gapMin, gapMax: PIECE_RULES.gapMax, dropMax: PIECE_RULES.dropMax } as const;
 /** The loop's footprint (metres), for the map. */

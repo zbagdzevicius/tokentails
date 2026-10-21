@@ -79,7 +79,7 @@ export const CAFE: TrackDef = {
   coins: [
     { s: 60, d: 0, count: 4 },
     { s: 152, d: -2, count: 5 },
-    { s: 228, d: 3, count: 4 },
+    { s: 236, d: 3, count: 4 }, // past the loop (s 220): a railed kart cannot collect a coin (it sat at s 228, inside the loop)
     { s: 0.5 * 255, d: 0, count: 3, branch: 0 },
   ],
   flyover: [

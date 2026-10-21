@@ -78,7 +78,7 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
 
 - No server: best times, fish, Daily streaks, saved tracks and your cat live on the device; dares and tracks travel
   in links.
-- `SIM_VERSION` 9 (set pieces, then their playtest fixes): dares, time-trial ghosts and records from earlier versions
+- `SIM_VERSION` 10 (set pieces, their playtest fixes, then the sim bug fixes in SETPIECES.md section 17): dares, time-trial ghosts and records from earlier versions
   open as a target-time race with a notice, but their ghost cannot race. Track codes from before the set pieces (v1,
   v2) still open, with no set pieces.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.

@@ -39,7 +39,12 @@ export async function shareTrack(def: TrackDef): Promise<string> {
  * doodle rules would refuse (an authored track places them closer together) are dropped, so a remix opens drivable.
  */
 export function remixOf(def: TrackDef): TrackDef {
-  const copy: TrackDef = JSON.parse(JSON.stringify(def)) as TrackDef;
+  // only what a track code carries: an authored track's branches, hazards, coins, flyover, music and arena kind do not
+  // survive the share / race round trip, so the editor must not show (or validate pieces against) them either
+  const src: TrackDef = JSON.parse(JSON.stringify(def)) as TrackDef;
+  const copy: TrackDef = { v: 1, id: src.id, name: src.name, theme: src.theme, timeOfDay: src.timeOfDay, laps: src.laps, points: src.points, features: src.features };
+  if (src.props) copy.props = src.props;
+  if (src.setPieces) copy.setPieces = src.setPieces;
   copy.parent = trackKey(def);
   copy.id = 'draft';
   const pieces = ugcPieces(copy);

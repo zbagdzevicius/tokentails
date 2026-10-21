@@ -87,6 +87,9 @@ describe('tracks-B set pieces: the phone player clears every piece first time', 
           const w = world(raceConfig(def, { seed, humans: [5], cls }));
           // head-on wall hits by the player inside a piece's footprint on the main road (SETPIECES.md section 11)
           let headOnInPiece = 0;
+          // SIM_VERSION 10: an item hit on a jump's run-up or in its flight spoils that landing (no stuntLand); the
+          // rubber band's catch-up is real speed now, so the field around the player (and its items) moved
+          let hitOnJump = 0;
           while (!w.done && w.tick < 60 * 240) {
             const o = playerBot(w.ctx, 5, 0.2);
             if (w.tick >= GO_TICK) o.gas = true;
@@ -96,6 +99,8 @@ describe('tracks-B set pieces: the phone player clears every piece first time', 
             for (let e = before; e < w.st.events.length; e++) {
               const ev = w.st.events[e];
               if (ev.kart === 5 && ev.type === 'wall' && ev.a === 2 && k.branch < 0 && w.track.pieceAt[k.si]) headOnInPiece++;
+              const pc = k.branch < 0 ? w.track.pieceAt[k.si] : 0;
+              if (ev.kart === 5 && ev.type === 'hit' && pc && w.track.pieces[pc - 1].kind === 'jump') hitOnJump++;
             }
           }
           const ev = w.st.events;
@@ -108,7 +113,8 @@ describe('tracks-B set pieces: the phone player clears every piece first time', 
           // anywhere else (the play-room branch's drift corner, a bump) at most one
           expect(count(me, 'wall', (e) => e.a === 2), tag).toBeLessThanOrEqual(1);
           expect(count(me, 'stuntExit', (e) => e.a === 0 && e.b === 1), tag).toBe(loops * def.laps);
-          expect(count(me, 'stuntLand'), tag).toBeGreaterThanOrEqual(jumps * def.laps);
+          expect(count(me, 'stuntExit', (e) => e.a === 2), tag).toBeGreaterThanOrEqual(jumps * def.laps);
+          expect(count(me, 'stuntLand'), tag).toBeGreaterThanOrEqual(jumps * def.laps - hitOnJump);
         }
     });
 });

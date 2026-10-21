@@ -47,14 +47,14 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const golds = Object.values(s.trophies).filter((x) => x === 1).length;
   const trophies = Object.values(s.trophies).length;
   const ttGolds = Object.values(s.tt).filter((r) => r.medal === 3).length;
-  const day = dayNoFor(new Date());
-  const daily = dailySetup(day, TRACKS);
+  // read at each paint, not once: a menu left open past UTC midnight shows the new day's cup
+  const today = () => dayNoFor(new Date());
   const builtIn: MenuTile[] = [
     { id: 'gp', order: 10, icon: '🏆', label: () => t('Grand Prix'), sub: () => (trophies === 1 ? t('1 trophy · {g} gold', { g: golds }) : trophies ? t('{n} trophies · {g} gold', { n: trophies, g: golds }) : t('{n} cups of 4 races', { n: CUPS.length })), run: () => void screens.push('select', { next: 'gp' }) },
     { id: 'race', order: 15, icon: '🏁', label: () => t('Single race'), sub: () => t('Any track, any class'), run: () => void screens.push('select', { next: 'race' }) },
     { id: 'tt', order: 20, icon: '⏱️', label: () => t('Time Trial'), sub: () => (ttGolds ? t('{n} gold medals', { n: ttGolds }) : t('Beat the ghosts')), run: () => void screens.push('select', { next: 'tt' }) },
     { id: 'battle', order: 30, icon: '🎈', label: () => t('Balloon Battle'), sub: () => (s.battle.played ? t('{w} wins of {n}', { w: s.battle.wins, n: s.battle.played }) : t('Pop or be popped')), lock: () => f.lock('mode', 'battle'), run: () => void screens.push('select', { next: 'battle' }) },
-    { id: 'daily', order: 40, icon: '📅', label: () => t('Daily Cup #{n}', { n: day }), sub: () => daily.label, run: () => f.startDaily() },
+    { id: 'daily', order: 40, icon: '📅', label: () => t('Daily Cup #{n}', { n: today() }), sub: () => dailySetup(today(), TRACKS).label, run: () => f.startDaily() },
     { id: 'doodle', order: 50, icon: '✍️', label: () => t('Track Doodle'), sub: () => t('Draw, race, share'), run: () => void screens.push('tracks') },
     { id: 'garage', order: 60, icon: '🏎️', label: () => t('Garage'), sub: () => t('Kart, paint, cat'), run: () => void (hasScreen('garage') ? screens.push('garage') : screens.push('select', { next: 'garage' })) },
     {

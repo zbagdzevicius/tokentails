@@ -41,6 +41,7 @@ import { Glyph, Glyphs, TRAIL_GLYPH } from './glyphs';
 import { buildHand, carryPose, type CarryPose } from './respawn-hand';
 import { ProjKind, itemsOf } from '../../items-ai/items/state';
 import { kartStuntPose, type StuntPose } from './stunt-pose';
+import { chooseTvSpot } from '../camera/tv-spot';
 
 const _pose: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
 const _m4 = new Matrix4();
@@ -286,6 +287,27 @@ export class RaceView {
     out.fx = s.fx!;
     out.fy = s.fy!;
     out.fz = s.fz!;
+    return true;
+  }
+
+  private readonly tvSpots = new Map<number, { x: number; y: number; z: number }>();
+
+  /**
+   * Reduced motion: the still TV camera's spot beside loop piece `pi` (the camera reads it once per loop), the clearest
+   * of a few spots against this track's own meshes (the skins dress a loop's sides). Worked out on first use, cached.
+   */
+  tvSpot(pi: number, out: { x: number; y: number; z: number }): boolean {
+    const pc = this.track.pieces[pi];
+    if (!pc || pc.kind !== 'loop') return false;
+    let s = this.tvSpots.get(pi);
+    if (!s) {
+      s = { x: 0, y: 0, z: 0 };
+      chooseTvSpot(this.track, pc, this.world.group, s);
+      this.tvSpots.set(pi, s);
+    }
+    out.x = s.x;
+    out.y = s.y;
+    out.z = s.z;
     return true;
   }
 

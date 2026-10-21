@@ -6,7 +6,7 @@
  *   /meow-race/r#g=<ghost>&c=<cat>&n=<name> a dare (also `?g=` / `#g=` on any path, e.g. local dev)
  *   /meow-race/d/<n>                        Daily Cup day n (also `?daily=<n>`)
  */
-import type { CatSpec } from '../../types';
+import type { CatSpec, RaceMode } from '../../types';
 import { decodeCat, encodeCat } from '../codec/cat-codec';
 import { filterName } from '../codec/text-filter';
 import { peekGhost, type GhostHeader } from '../codec/ghost-codec';
@@ -73,6 +73,15 @@ export interface DareParts {
   cat?: CatSpec | null;
   name?: string;
   trackCode?: string | null;
+}
+
+/**
+ * True when a run in `mode` makes a dare link a friend can race: the ghost runner rebuilds the default eight-kart
+ * field on a race track. A time trial races alone, a Grand Prix sits inside a cup, and a battle arena is no lap
+ * track, so their ghosts would not replay; their captions link home instead.
+ */
+export function dareableMode(mode: RaceMode | undefined): boolean {
+  return mode == null || mode === 'race' || mode === 'dare' || mode === 'daily';
 }
 
 export function dareUrl(loc: LocLike, d: DareParts): string {

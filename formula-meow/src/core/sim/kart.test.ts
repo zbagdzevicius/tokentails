@@ -3,7 +3,7 @@ import { BoostSource, type TickInput } from '../../types';
 import { BOOST, CLASSES, DRIFT, ticks } from '../../tuning';
 import { ovalTrack, raceConfig, world } from '../../test/fixtures';
 import { GO_TICK, type SimWorld } from './world';
-import { applyBoost, applyHit, speedOf } from './kart';
+import { applyBoost, applyHit, speedOf, startRespawn } from './kart';
 import { followLine } from './autopilot';
 
 const input = (p: Partial<TickInput> = {}): TickInput => ({ steer: 0, gas: false, brake: false, drift: false, item: false, itemBack: false, ...p });
@@ -195,5 +195,56 @@ describe('kart physics (GDD 3.3–3.6)', () => {
         expect(types).not.toContain('stall');
       }
     }
+  });
+});
+
+describe('SIM_VERSION 10 fixes', () => {
+  it('the rubber band above the class top speed is real speed: topScale up to maxScale, clamped there', () => {
+    for (const c of [0, 1, 2] as const) {
+      const vmax = (scale: number): number => {
+        const w = lot(c);
+        toGo(w);
+        for (let i = 0; i < 420; i++) {
+          w.st.karts[0].topScale = scale;
+          w.step([input({ gas: true })]);
+        }
+        return speedOf(w.st.karts[0]);
+      };
+      const top = CLASSES[c].topSpeed;
+      const max = CLASSES[c].maxScale;
+      expect(max).toBeGreaterThan(1);
+      expect(vmax(0.9)).toBeCloseTo(top * 0.9, 1);
+      expect(vmax(1)).toBeCloseTo(top, 1);
+      expect(vmax(max)).toBeCloseTo(top * max, 1);
+      expect(vmax(max)).toBeGreaterThan(top * 1.02);
+      // above maxScale the core clamps (world.ts and kart.ts)
+      expect(vmax(1.5)).toBeCloseTo(top * max, 1);
+    }
+  });
+
+  it('a trick tapped before a respawn is lost with it: no free trick boost on the next landing', () => {
+    const w = lot(1);
+    toGo(w);
+    for (let i = 0; i < 60; i++) w.step([input({ gas: true })]);
+    const k = w.st.karts[0];
+    k.air = 1;
+    k.airTicks = 12;
+    k.trick = 1;
+    k.lipTicks = 5;
+    startRespawn(w.ctx, 0);
+    expect(k.trick).toBe(0);
+    expect(k.lipTicks).toBe(-1);
+    let t = 0;
+    while ((k.respawnTicks > 0 || k.air) && t++ < 600) w.step([input()]);
+    expect(k.respawnTicks).toBe(0);
+    expect(k.airTicks).toBe(0);
+    const from = w.st.events.length;
+    // a small drop right after the hand set the kart down
+    k.air = 1;
+    k.y += 1.5;
+    for (let i = 0; i < 60; i++) w.step([input({ gas: true })]);
+    const types = w.st.events.slice(from).filter((e) => e.kart === 0).map((e) => e.type);
+    expect(types).toContain('land');
+    expect(types).not.toContain('trickLand');
   });
 });

@@ -38,7 +38,7 @@ export interface Award {
   rival?: { name: string; won: boolean; w: number; l: number };
   newBestLap?: number;
   trophy?: { cupId: string; cls: RaceClass; place: number; mirror: boolean };
-  medal?: { trackId: string; cls: RaceClass; medal: number };
+  medal?: { trackId: string; cls: RaceClass; medal: number; mirror?: boolean };
   /** fish already paid on each race's results during a cup: a recap line only, never added to `total` (B2) */
   cupRaces?: number;
 }
@@ -205,13 +205,18 @@ export function applyCup(before: ProgSave, e: { cupId: string; cls: RaceClass; p
   return { save: settle(before, s, w, award), award };
 }
 
-export function applyMedal(before: ProgSave, trackId: string, cls: RaceClass, medal: number, w: World): { save: ProgSave; award: Award } {
+/** Time trial medal key: Mirror is its own slot (`kitchen:2m`), like the Mirror cup trophies. */
+export function medalKey(trackId: string, cls: RaceClass, mirror: boolean): string {
+  return `${trackId}:${cls}${mirror ? 'm' : ''}`;
+}
+
+export function applyMedal(before: ProgSave, trackId: string, cls: RaceClass, medal: number, w: World, mirror = false): { save: ProgSave; award: Award } {
   const s = clone(before);
   const award = emptyAward();
   if (medal < 1 || medal > 3) return { save: s, award };
-  const key = `${trackId}:${cls}`;
+  const key = medalKey(trackId, cls, mirror);
   const prev = s.medals[key];
-  award.medal = { trackId, cls, medal };
+  award.medal = mirror ? { trackId, cls, medal, mirror } : { trackId, cls, medal };
   if (prev == null || medal < prev) {
     s.medals[key] = medal;
     // a better medal pays the difference, so gold after bronze is never worth less than gold first time

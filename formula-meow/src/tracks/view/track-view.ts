@@ -17,6 +17,8 @@ export interface TrackViewHost {
   race(): { group: Group; track: BuiltTrack; theme: Theme } | null;
   /** spark burst at a kart */
   burst(kart: number, color: number, n: number, speed?: number): void;
+  /** free a torn-down race's GPU resources a little later (the shell's B61 delay); missing: free them now */
+  retire?(fn: () => void): void;
 }
 
 type Dress = (t: BuiltTrack, theme: Theme) => Group;
@@ -40,7 +42,13 @@ export class TrackView implements JuiceListener {
   constructor(private readonly host: TrackViewHost) {}
 
   onReset(): void {
-    this.hazards?.dispose();
+    // the last race's hazards sit in its (hidden, retired) world group: free their materials with it, not under the
+    // new race's shader compile (B61)
+    const old = this.hazards;
+    if (old) {
+      if (this.host.retire) this.host.retire(() => old.dispose());
+      else old.dispose();
+    }
     this.coins = null;
     this.hazards = null;
     this.group = null;

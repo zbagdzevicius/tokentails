@@ -8,6 +8,13 @@
  * off": a reward, never a second hit waiting at the exit); the Laser Dot is locked on the leader, so it holds just behind
  * it until it is out, instead of switching to the kart in second. A hairball rolling over a jump gap carries on at deck height (lip to far deck) instead of dropping into the
  * canyon; a yarn ball hops it. Both stay on the shadow road under a loop and pass beneath the riders.
+ *
+ * SIM_VERSION 10:
+ * - A yarn ball rolls the way its thrower faces (`dir`); in an arena (no race order) or thrown facing back it homes on
+ *   the nearest kart in front of the thrower. It never hits its own thrower (a fast owner on the inside of a bend used
+ *   to catch its own ball up).
+ * - Branches: a yarn ball thrown on a branch rolls along that branch, and follows its target onto one at the fork
+ *   (`branch`); a hairball on a branch bounces off the branch's walls.
  */
 import { DT, Surface } from '../../types';
 import { ITEMS, ticks } from '../../tuning';
@@ -15,7 +22,7 @@ import type { SimContext } from '../../core/sim/plugins';
 import { queryTrack, wrapDs, type TrackHit } from '../../core/track/query';
 import { speedOf } from '../../core/sim/kart';
 import { clamp, cosL, sinL } from '../../core/sim/fixed';
-import { ProjKind, itemsOf, trackPoint, type Proj } from './state';
+import { ProjKind, branchOf, branchSampleAt, facing, itemsOf, routePoint, trackPoint, type Proj } from './state';
 import { itemHit, racing, touchable, yarnShield } from './hits';
 import { pieceAtSample } from '../../core/track/stunt';
 
@@ -27,7 +34,7 @@ const LIFT = 0.55;
 
 function newProj(ctx: SimContext, kind: Proj['kind'], owner: number): Proj {
   const s = itemsOf(ctx.st);
-  return { id: s.nextId++, kind, owner, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: 0, dist: 0, d: 0, life: 0, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0 };
+  return { id: s.nextId++, kind, owner, x: 0, y: 0, z: 0, vx: 0, vz: 0, si: 0, dist: 0, d: 0, life: 0, bounces: 0, target: -1, imm: 0, hitMask: 0, age: 0, dir: 1, branch: -1 };
 }
 
 /** Hairball: fired forward (or backward) along the kart's heading. */
@@ -64,16 +71,49 @@ export function kartAhead(ctx: SimContext, kart: number): number {
   return -1;
 }
 
-/** Yarn ball: thrown forward, homes on the kart ahead along the road. */
+/** Half angle (radians) and reach (m) of the cone a yarn ball picks its target in when there is no race order. */
+const CONE = 0.6;
+const CONE_R = 60;
+
+/**
+ * The nearest touchable kart inside the thrower's facing cone, or -1 (SIM_VERSION 10): the yarn ball's target in an
+ * arena, where `st.order` is a points table and not who is in front, and for a ball thrown facing back.
+ */
+export function kartInFront(ctx: SimContext, kart: number): number {
+  const ks = ctx.st.karts;
+  const me = ks[kart];
+  const fx = sinL(me.heading);
+  const fz = cosL(me.heading);
+  const cc = cosL(CONE);
+  let best = -1;
+  let bestD = CONE_R;
+  for (let j = 0; j < ks.length; j++) {
+    const o = ks[j];
+    if (j === kart || !touchable(o)) continue;
+    const dx = o.x - me.x;
+    const dz = o.z - me.z;
+    const dd = Math.sqrt(dx * dx + dz * dz);
+    if (dd >= bestD || dd < 0.5 || dx * fx + dz * fz < dd * cc) continue;
+    best = j;
+    bestD = dd;
+  }
+  return best;
+}
+
+/** Yarn ball: thrown forward (the way the kart faces), homes on the kart ahead along the road. */
 export function fireYarnBall(ctx: SimContext, owner: number): void {
+  const t = ctx.track;
   const k = ctx.st.karts[owner];
   const p = newProj(ctx, ProjKind.YarnBall, owner);
-  p.dist = k.dist + H.spawn;
+  p.dir = facing(t, k);
+  const b = branchOf(t, k.branch);
+  p.dist = k.dist + p.dir * H.spawn * (b ? b.sk : 1);
+  p.branch = b && branchSampleAt(t, b, p.dist) >= 0 ? b.id : -1;
   p.d = k.d;
-  p.target = kartAhead(ctx, owner);
+  p.target = !t.arena && p.dir > 0 ? kartAhead(ctx, owner) : kartInFront(ctx, owner);
   p.life = ticks(Y.life);
   p.imm = ticks(H.ownerImmune);
-  trackPoint(ctx.track, p.dist, p.d, p);
+  routePoint(t, p.dist, p.d, p.branch, p);
   p.y += LIFT;
   itemsOf(ctx.st).proj.push(p);
 }
@@ -132,11 +172,12 @@ function collide(ctx: SimContext, p: Proj, item: 'hairball' | 'yarn'): void {
   const r2 = (p.kind === ProjKind.Hairball ? H.radius : Y.radius) ** 2;
   for (let j = 0; j < ks.length; j++) {
     const k = ks[j];
-    if (!touchable(k) || (j === p.owner && p.imm > 0)) continue;
+    // the owner is safe from its hairball for a moment, and always from its own homing yarn ball (SIM_VERSION 10)
+    if (!touchable(k) || (j === p.owner && (p.imm > 0 || p.kind === ProjKind.YarnBall))) continue;
     const dx = k.x - p.x;
     const dz = k.z - p.z;
     if (dx * dx + dz * dz > r2 || Math.abs(k.y + 0.4 - p.y) > 1.8) continue;
-    if (!yarnShield(ctx, j, p.dist)) itemHit(ctx, j, 'spin', p.owner, item);
+    if (!yarnShield(ctx, j, p.x, p.z)) itemHit(ctx, j, 'spin', p.owner, item);
     kill(p);
     return;
   }
@@ -179,11 +220,15 @@ function stepHairball(ctx: SimContext, p: Proj): void {
   p.x += vx * DT;
   p.z += vz * DT;
   queryTrack(t, p.x, p.z, p.si, hit);
-  const lim = (hit.d > 0 ? t.wallR[hit.i] : t.wallL[hit.i]) - 0.5;
+  // the walls where the ball is: a branch's own when it rolls on one (SIM_VERSION 10; `d` is the branch's then)
+  const lim = (hit.d > 0 ? (hit.wallR ?? t.wallR[hit.i]) : (hit.wallL ?? t.wallL[hit.i])) - 0.5;
   if (Math.abs(hit.d) > lim) {
     const side = hit.d > 0 ? 1 : -1;
-    const nx = t.tz[hit.i] * side; // inward normal = -(right) × side
-    const nz = -t.tx[hit.i] * side;
+    // inward normal = -(right) × side, from the tangent of the road the ball is on
+    const bb = (hit.branch ?? -1) >= 0 ? branchOf(t, hit.branch!) : null;
+    const bj = bb ? (hit.bj ?? -1) : -1;
+    const nx = (bj >= 0 ? bb!.tz[bj] : t.tz[hit.i]) * side;
+    const nz = -(bj >= 0 ? bb!.tx[bj] : t.tx[hit.i]) * side;
     const over = Math.abs(hit.d) - lim;
     p.x += nx * over;
     p.z += nz * over;
@@ -200,27 +245,49 @@ function stepHairball(ctx: SimContext, p: Proj): void {
   p.dist += wrapDs(t, hit.s - prevS);
   p.si = hit.i;
   p.d = hit.d;
-  p.y = deckY(ctx, hit.i, hit.y) + LIFT;
+  p.y = ((hit.branch ?? -1) >= 0 ? hit.y : deckY(ctx, hit.i, hit.y)) + LIFT;
   if (p.life > 0) collide(ctx, p, 'hairball');
 }
+
+/** Metres of a branch's start (or end, rolling against the lap) inside which a yarn ball follows its target onto it. */
+const FORK_TAKE = 8;
 
 function stepYarnBall(ctx: SimContext, p: Proj): void {
   const t = ctx.track;
   const ks = ctx.st.karts;
   // SIM_VERSION 8: a target that rides a set piece (untouchable) shakes the ball off; it rolls on unlocked
   if (p.target >= 0 && !touchable(ks[p.target])) p.target = -1;
-  p.dist += Math.max(Y.speedMin, ctx.tun.topSpeed * Y.speedTop) * DT;
-  let want = t.line[p.si];
-  if (p.target >= 0) {
-    const tk = ks[p.target];
-    const gap = tk.dist - p.dist;
-    if (gap < -3) p.target = -1; // overshot (target was in the air): roll on
-    else if (gap < Y.lockRange) want = tk.d;
+  // SIM_VERSION 10: on a branch the lap distance runs `sk` times as fast as the ball (its world speed stays the same)
+  let b = branchOf(t, p.branch);
+  p.dist += p.dir * Math.max(Y.speedMin, ctx.tun.topSpeed * Y.speedTop) * DT * (b ? b.sk : 1);
+  let j = b ? branchSampleAt(t, b, p.dist) : -1;
+  if (b && j < 0) {
+    // rolled off the branch's end back onto the main loop
+    p.branch = -1;
+    b = null;
   }
-  const lim = t.halfW[p.si] - 0.6;
+  const tk = p.target >= 0 ? ks[p.target] : null;
+  // the target took a branch: follow it onto the branch at the fork (or its far end, rolling against the lap)
+  if (!b && tk && tk.branch >= 0) {
+    const tb = branchOf(t, tk.branch);
+    const jj = tb ? branchSampleAt(t, tb, p.dist) : -1;
+    if (tb && jj >= 0 && (p.dir > 0 ? jj * tb.step : tb.length - jj * tb.step) < FORK_TAKE) {
+      b = tb;
+      j = jj;
+      p.branch = tb.id;
+    }
+  }
+  let want = b ? b.line[j] : t.line[p.si];
+  if (tk) {
+    const gap = (tk.dist - p.dist) * p.dir;
+    if (gap < -3) p.target = -1; // overshot (target was in the air): roll on
+    // the target's `d` is measured on its own route: home on it only on the same one
+    else if (gap < Y.lockRange && tk.branch === p.branch) want = tk.d;
+  }
+  const lim = (b ? b.halfW[j] : t.halfW[p.si]) - 0.6;
   p.d = clamp(p.d + clamp(want - p.d, -Y.lateral * DT, Y.lateral * DT), -lim, lim);
-  trackPoint(t, p.dist, p.d, p);
-  p.y = deckY(ctx, p.si, p.y) + LIFT + gapHop(ctx, p.si);
+  routePoint(t, p.dist, p.d, p.branch, p);
+  p.y = b ? p.y + LIFT : deckY(ctx, p.si, p.y) + LIFT + gapHop(ctx, p.si);
   collide(ctx, p, 'yarn');
 }
 

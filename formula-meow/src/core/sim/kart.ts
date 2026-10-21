@@ -221,6 +221,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
       k.vz = cosL(k.heading) * sp;
       k.vy = 0;
       k.air = 0;
+      k.airTicks = 0;
       k.invTicks = ticks(PHYS.respawnImmunity);
       endDrift(k);
     }
@@ -229,7 +230,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   // --- the catch net of a jump gap holds the kart, then sets it down past the far lip (SIM_VERSION 8) --------------
   if (k.netTicks > 0) {
     kartTuning(ctx, idx, kt);
-    stepNet(ctx, k, kt.top * clamp(k.topScale, 0.5, 1));
+    stepNet(ctx, k, kt.top * clamp(k.topScale, 0.5, ctx.tun.maxScale));
     return;
   }
 
@@ -260,7 +261,8 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   const surf = k.surface;
   // body stats and coins (iteration 2): per-kart top speed, peak accel and yaw rates
   kartTuning(ctx, idx, kt);
-  let top = kt.top * clamp(k.topScale, 0.5, 1);
+  // SIM_VERSION 10: the rubber band's catch-up above the class top speed (up to ClassTuning.maxScale) is real speed
+  let top = kt.top * clamp(k.topScale, 0.5, ctx.tun.maxScale);
   let accelMul = 1;
   if (!boosting) {
     if (surf === Surface.Offroad) {
@@ -271,7 +273,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   const target = boosting ? kt.top * k.boostLevel : top;
   const a0 = kt.a0;
   /** the kart's own top speed (no surface penalty): set pieces scale their floors by it */
-  const ownTop = kt.top * clamp(k.topScale, 0.5, 1);
+  const ownTop = kt.top * clamp(k.topScale, 0.5, ctx.tun.maxScale);
   /** speed after one tick of gas / coast / overspeed drag (GDD 3.3: a = a0·(1 − v/vmax)^0.6) */
   const driving = gas || boosting;
   const nextV = (v: number): number => {
@@ -704,6 +706,9 @@ export function startRespawn(ctx: SimContext, idx: number): void {
   k.netTicks = 0;
   k.laneTicks = 0;
   k.gapV = 0;
+  // SIM_VERSION 10: a trick tapped before the hand came is lost with the jump (it used to pay on the next landing)
+  k.trick = 0;
+  k.lipTicks = -1;
   k.stuckTicks = 0;
   k.pinTicks = 0;
   k.wrongTicks = 0;

@@ -16,9 +16,10 @@ import { buildField, createSimPlugins, kartLookFor } from '../../items-ai';
 import type { FrameInfo, JuiceListener } from '../../juice/bus';
 import type { Shell } from '../../core/app/shell';
 import { trackKey, type Ghost } from '../codec/ghost-codec';
-import { kartStuntPose, type StuntPose } from '../../core/render/stunt-pose';
+import { ghostAnchor, kartStuntPose, type GhostAnchor, type StuntPose } from '../../core/render/stunt-pose';
 
 const GHOST_POSE: StuntPose = { x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 };
+const ANCHOR: GhostAnchor = { at: { x: 0, y: 0, z: 0 }, tag: { x: 0, y: 0, z: 0 } };
 
 export interface DareGhost {
   ghost: Ghost;
@@ -111,15 +112,17 @@ export class GhostRunner implements JuiceListener {
   }
 
   private clear(): void {
-    if (this.view) {
-      this.shell.stage.scene.remove(this.view.root);
-      this.view.dispose();
-    }
-    if (this.tag) {
-      this.shell.stage.scene.remove(this.tag);
-      this.tag.material.map?.dispose();
-      this.tag.material.dispose();
-    }
+    // out of the scene now; the GPU side is freed later by the shell (B61: never under a program still linking)
+    const view = this.view;
+    const tag = this.tag;
+    if (view) this.shell.stage.scene.remove(view.root);
+    if (tag) this.shell.stage.scene.remove(tag);
+    if (view || tag)
+      this.shell.retire(() => {
+        view?.dispose();
+        tag?.material.map?.dispose();
+        tag?.material.dispose();
+      });
     this.view = null;
     this.tag = null;
     this.world = null;
@@ -237,7 +240,11 @@ export class GhostRunner implements JuiceListener {
     // B51: the ghost fades to 15 % within 4 m of the camera (it starts in the player's slot, on top of the kart),
     // and its tag hides within 6 m
     const cam = this.shell.camera.cam;
-    const cd = Math.sqrt((cam.position.x - x) ** 2 + (cam.position.y - y) ** 2 + (cam.position.z - z) ** 2);
+    // SIM_VERSION 8: a ghost on a loop's rail or a wall lane is drawn on the bent surface (at its tick pose); the fade
+    // distance and the tag follow the drawn kart, not the flat shadow point under it
+    const bent = kartStuntPose(t, k, GHOST_POSE);
+    const an = ghostAnchor(x, y, z, bent, 3.1, ANCHOR);
+    const cd = Math.sqrt((cam.position.x - an.at.x) ** 2 + (cam.position.y - an.at.y) ** 2 + (cam.position.z - an.at.z) ** 2);
     const alpha = cd < 4 ? 0.15 : 0.42;
     if (alpha !== this.ghostAlpha) {
       this.ghostAlpha = alpha;
@@ -245,11 +252,9 @@ export class GhostRunner implements JuiceListener {
     }
     v.root.visible = !hidden;
     this.tag.visible = !hidden && cd > 6;
-    // SIM_VERSION 8: a ghost on a loop's rail or a wall lane is drawn on the bent surface (at its tick pose)
-    const bent = kartStuntPose(t, k, GHOST_POSE);
     if (bent) v.update(k, bent.x, bent.y, bent.z, heading, 0, 0, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed, bent);
     else v.update(k, x, y, z, heading, k.air ? 0 : pitch, k.air ? 0 : roll, Math.hypot(k.vx, k.vz), info.paused ? 0 : info.dt, classTuning(w.cfg.cls).topSpeed);
-    this.tag.position.set(x, y + 3.1, z);
+    this.tag.position.set(an.tag.x, an.tag.y, an.tag.z);
     // constant screen size: with sizeAttenuation off the scale is in view units (height ∝ 1 / projection[1][1])
     const hpx = this.shell.host.clientHeight || 800;
     const sy = (2 * TAG_PX) / (hpx * cam.projectionMatrix.elements[5]);

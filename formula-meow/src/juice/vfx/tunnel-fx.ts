@@ -137,6 +137,11 @@ export class TunnelFx {
     return i % 3 === 2 ? 0xffffff : this.row[i] < 2 ? this.theme.neonB || 0x2cf6f3 : this.theme.neonA || 0xff3ea5;
   }
 
+  /** Out of the scene now (a torn-down race); `dispose` frees the GPU side later. */
+  detach(): void {
+    this.scene.remove(this.mesh);
+  }
+
   dispose(): void {
     this.scene.remove(this.mesh);
     this.mesh.geometry.dispose();

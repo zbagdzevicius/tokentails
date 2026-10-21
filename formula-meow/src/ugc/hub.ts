@@ -39,8 +39,8 @@ export class UgcHub {
   constructor(private readonly shell: Shell) {
     this.btn = document.createElement('button');
     this.btn.className = 'fm-ugc-btn fm-sticker';
-    this.btn.textContent = '🏁 Tracks';
-    this.btn.setAttribute('aria-label', 'Tracks: make, remix and share');
+    this.btn.textContent = t('🏁 Tracks');
+    this.btn.setAttribute('aria-label', t('Tracks: make, remix and share'));
     this.btn.addEventListener('click', () => this.openSheet());
     this.banner = document.createElement('div');
     this.banner.className = 'fm-ugc-banner fm-sticker';
@@ -133,11 +133,11 @@ export class UgcHub {
     const r = trackFromLocation(location);
     if (r && !r.ok) {
       this.notice(
-        'This track link is broken.',
-        'Race Kitchen instead?',
+        t('This track link is broken.'),
+        t('Race Kitchen instead?'),
         [
-          ['Race Kitchen', () => this.closeSheet()],
-          ['✍️ Make a track', () => void this.openEditor({})],
+          [t('Race Kitchen'), () => this.closeSheet()],
+          [t('✍️ Make a track'), () => void this.openEditor({})],
         ],
       );
     } else if (wantsEditor(location.search, location.hash, location.pathname)) void this.openEditor({});
@@ -157,10 +157,10 @@ export class UgcHub {
     if (want && this.bannerFor !== track!.id) {
       this.bannerFor = track!.id;
       const mine = this.savedFor(track!);
-      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? 'by you' : byline(track!))}</span>`;
+      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? t('by you') : byline(track!))}</span>`;
       const remix = document.createElement('button');
       remix.className = 'fm-ugc-chip';
-      remix.textContent = mine ? '✏️ Edit' : '🔀 Remix';
+      remix.textContent = mine ? t('✏️ Edit') : t('🔀 Remix');
       remix.addEventListener('click', () => {
         this.bannerOff = true;
         void this.openEditor(mine ? { def: mine.def, slot: mine.slot } : { def: remixOf(track!) });
@@ -194,7 +194,7 @@ export class UgcHub {
     const root = await this.shell.screens.push('editor', { def, slot });
     if (!root) {
       this.editorOpen = false;
-      this.notice('The editor did not load.', 'Check the connection and try again.', [['OK', () => this.closeSheet()]]);
+      this.notice(t('The editor did not load.'), t('Check the connection and try again.'), [[t('OK'), () => this.closeSheet()]]);
     }
   }
 
@@ -231,34 +231,34 @@ export class UgcHub {
     const rows = saved
       .map(
         (s, i) => `<li>
-          <span class="n">${esc(s.name || 'Untitled Track')}</span>
-          <button class="fm-ugc-chip" data-i="${i}" data-a="race" aria-label="Race">▶</button>
-          <button class="fm-ugc-chip" data-i="${i}" data-a="edit" aria-label="Edit">✏️</button>
-          <button class="fm-ugc-chip" data-i="${i}" data-a="share" aria-label="Share">🔗</button>
-          <button class="fm-ugc-chip" data-i="${i}" data-a="del" aria-label="Delete">🗑</button>
+          <span class="n">${esc(s.name || t('Untitled Track'))}</span>
+          <button class="fm-ugc-chip" data-i="${i}" data-a="race" aria-label="${esc(t('Race'))}">▶</button>
+          <button class="fm-ugc-chip" data-i="${i}" data-a="edit" aria-label="${esc(t('Edit'))}">✏️</button>
+          <button class="fm-ugc-chip" data-i="${i}" data-a="share" aria-label="${esc(t('Share'))}">🔗</button>
+          <button class="fm-ugc-chip" data-i="${i}" data-a="del" aria-label="${esc(t('Delete'))}">🗑</button>
         </li>`,
       )
       .join('');
     sheet.innerHTML = `
-      <div class="fm-panel fm-sticker fm-ugc-panel" role="dialog" aria-label="Tracks">
-        <h1>Tracks</h1>
+      <div class="fm-panel fm-sticker fm-ugc-panel" role="dialog" aria-label="${esc(t('Tracks'))}">
+        <h1>${esc(t('Tracks'))}</h1>
         <div class="fm-row-btns">
-          <button class="fm-btn primary" data-a="make">✍️ Make a track</button>
-          <button class="fm-btn" data-a="remix">🔀 Remix ${esc(displayName(cur))}</button>
+          <button class="fm-btn primary" data-a="make">${esc(t('✍️ Make a track'))}</button>
+          <button class="fm-btn" data-a="remix">${esc(t('🔀 Remix {name}', { name: displayName(cur) }))}</button>
         </div>
-        ${cur.id.startsWith('u-') ? `<p class="fm-line">${esc(displayName(cur))} · ${esc(byline(cur))} <button class="fm-ugc-chip" data-a="sharecur">🔗 Share</button></p>` : ''}
-        <h2>Saved on this device</h2>
-        ${saved.length ? `<ul class="fm-ugc-list">${rows}</ul>` : '<p class="fm-line">Nothing yet. Make a track and it lands here.</p>'}
-        <h2>Got a track link?</h2>
+        ${cur.id.startsWith('u-') ? `<p class="fm-line">${esc(displayName(cur))} · ${esc(byline(cur))} <button class="fm-ugc-chip" data-a="sharecur">${esc(t('🔗 Share'))}</button></p>` : ''}
+        <h2>${esc(t('Saved on this device'))}</h2>
+        ${saved.length ? `<ul class="fm-ugc-list">${rows}</ul>` : `<p class="fm-line">${esc(t('Nothing yet. Make a track and it lands here.'))}</p>`}
+        <h2>${esc(t('Got a track link?'))}</h2>
         <div class="fm-ugc-paste">
-          <input type="text" placeholder="Paste a link or code" aria-label="Track link or code" autocomplete="off" spellcheck="false" />
-          <button class="fm-btn" data-a="paste">Race</button>
+          <input type="text" placeholder="${esc(t('Paste a link or code'))}" aria-label="${esc(t('Track link or code'))}" autocomplete="off" spellcheck="false" />
+          <button class="fm-btn" data-a="paste">${esc(t('Race'))}</button>
         </div>
         <p class="fm-line fm-ugc-msg" role="status" aria-live="polite"></p>
-        <div class="fm-row-btns"><button class="fm-btn" data-a="close">Close</button></div>
+        <div class="fm-row-btns"><button class="fm-btn" data-a="close">${esc(t('Close'))}</button></div>
       </div>`;
     const msg = sheet.querySelector<HTMLElement>('.fm-ugc-msg')!;
-    const say = (t: string) => (msg.textContent = t);
+    const say = (text: string) => (msg.textContent = text);
     const on = (a: string, fn: (b: HTMLButtonElement) => void) =>
       sheet.querySelectorAll<HTMLButtonElement>(`[data-a="${a}"]`).forEach((b) => b.addEventListener('click', () => fn(b)));
     const entry = (b: HTMLButtonElement): SavedTrack => saved[Number(b.dataset.i)];
@@ -273,19 +273,19 @@ export class UgcHub {
       else {
         const draft = decodeTrackCode(s.code, { validate: false });
         if (draft.ok) void this.openEditor({ def: draft.track, slot: s.slot });
-        else say('This saved track is damaged.');
+        else say(t('This saved track is damaged.'));
       }
     });
     on('edit', (b) => {
       const s = entry(b);
       const d = decodeTrackCode(s.code, { validate: false });
       if (d.ok) void this.openEditor({ def: d.track, slot: s.slot });
-      else say('This saved track is damaged.');
+      else say(t('This saved track is damaged.'));
     });
     on('share', (b) => {
       const d = decodeTrackCode(entry(b).code);
       if (d.ok) void shareTrack(d.track).then(say);
-      else say('Fix this track in the editor before sharing it.');
+      else say(t('Fix this track in the editor before sharing it.'));
     });
     on('del', (b) => {
       removeSaved(entry(b).slot);
@@ -294,10 +294,10 @@ export class UgcHub {
     const input = sheet.querySelector<HTMLInputElement>('.fm-ugc-paste input')!;
     const race = () => {
       const code = extractCode(input.value);
-      if (!code) return say('That does not look like a track link.');
+      if (!code) return say(t('That does not look like a track link.'));
       const d = decodeTrackCode(code);
       if (d.ok) this.play(d.track);
-      else say('This track link is broken.');
+      else say(t('This track link is broken.'));
     };
     on('paste', race);
     input.addEventListener('keydown', (e) => {

@@ -11,6 +11,7 @@ import type { ScreenApi, ScreenHandle } from '../../core/app/screens';
 import type { Colourblind, Settings } from '../../core/app/save';
 import { button, h, panel, slider, tabs, toggle, actionFooter } from '../kit';
 import { t } from '../i18n';
+import { touchHelp } from '../../core/app/race-labels';
 import { TIER_COLOURS } from '../a11y';
 import { uiShell } from '../shell-ref';
 
@@ -71,12 +72,14 @@ export function mount(root: HTMLElement, _params: unknown, api: ScreenApi): Scre
   ]);
 
   // --- Controls
-  const help = touch
-    ? t('Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.')
-    : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause');
+  // the touch help names the drift method that is on (it always described one-thumb drift)
+  const helpLine = h('p', { class: 'fm-line fm-help' }, [
+    touch ? touchHelp(s?.oneThumb ?? true) : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · R restart · Esc pause'),
+  ]);
   const controls = h('div', { class: 'fm-settings', role: 'tabpanel' }, [
     toggle(t('One-thumb drift'), s?.oneThumb ?? true, (v) => {
       set({ oneThumb: v });
+      if (touch) helpLine.textContent = touchHelp(v);
     }),
     toggle(t('Auto-gas'), s?.autoGas ?? false, (v) => {
       set({ autoGas: v });
@@ -84,7 +87,7 @@ export function mount(root: HTMLElement, _params: unknown, api: ScreenApi): Scre
     toggle(t('Vibration'), s?.haptics ?? true, (v) => {
       set({ haptics: v });
     }),
-    h('p', { class: 'fm-line fm-help' }, [help]),
+    helpLine,
     h('p', { class: 'fm-line fm-help' }, [t('Gamepad: stick steers · A gas · B brake · RB drift · X item · Y look back · Start pause · Select restart')]),
   ]);
 

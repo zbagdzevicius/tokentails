@@ -13,9 +13,18 @@ import { dirTo } from '../../core/sim/arena';
 import { speedOf } from '../../core/sim/kart';
 import { wrapDs } from '../../core/track/query';
 import { draw } from '../../core/sim/rng';
-import { battleOf } from './rules';
+import { battleOf, type BattleState } from './rules';
 
-const SLOT = 4; // target code, retarget timer, reverse timer, item hold ticks
+/**
+ * target code, retarget timer, escape timer (> 0 reverse, < 0 forward), item hold ticks, stuck ticks, and a target
+ * code the cat gave up on (it got wedged going for it: an item box behind two close pieces of furniture) with the ticks
+ * left before it may try again
+ */
+export const SLOT = 7;
+const GIVE_UP = 600;
+/** below this speed (m/s) a cat that is not spinning counts as stuck; the watchdog flips what it does every STUCK ticks */
+const STUCK_SPEED = 2;
+const STUCK = 120;
 const GAIN = 2.4;
 
 function clear(out: TickInput): void {
@@ -42,9 +51,17 @@ function lateral(ctx: SimContext, j: number, x: number, z: number): number {
 
 const alive = (k: KartState) => !k.out && k.respawnTicks === 0;
 
+/**
+ * A cat an item can pop (SIM_VERSION 10): in the round, and not balloon-immune, boxed, on Zoomies or invulnerable.
+ * The AI neither hunts nor fires at the others (the hit is blocked: a wasted item).
+ */
+const hittable = (b: BattleState, k: KartState, j: number) => alive(k) && !(b.imm[j] > 0) && k.shieldTicks === 0 && k.autoTicks === 0 && k.invTicks === 0;
+
 /** Target code: k + 1 for kart k, -(b + 1) for box b, 0 = none. */
 function pickTarget(ctx: SimContext, i: number): number {
   const st = ctx.st;
+  const bs = battleOf(st);
+  const skip = bs.ai[i * SLOT + 6] > 0 ? bs.ai[i * SLOT + 5] : 0;
   const me = st.karts[i];
   const per = ctx.cfg.racers[i]?.ai;
   const aggr = per ? per.aggression : 0.5;
@@ -56,7 +73,7 @@ function pickTarget(ctx: SimContext, i: number): number {
   if (wantItem) {
     for (let b = 0; b < st.boxes.length; b++) {
       const bx = st.boxes[b];
-      if (bx.respawn > 0) continue;
+      if (bx.respawn > 0 || skip === -(b + 1)) continue;
       const dx = bx.x - me.x;
       const dz = bx.z - me.z;
       const d = Math.sqrt(dx * dx + dz * dz);
@@ -73,7 +90,7 @@ function pickTarget(ctx: SimContext, i: number): number {
   for (let j = 0; j < st.karts.length; j++) {
     if (j === i) continue;
     const k = st.karts[j];
-    if (!alive(k)) continue;
+    if (!hittable(bs, k, j) || skip === j + 1) continue;
     const dx = k.x - me.x;
     const dz = k.z - me.z;
     const d = Math.sqrt(dx * dx + dz * dz);
@@ -125,8 +142,9 @@ export function createBattleAI(): AIDriver {
       }
 
       // pick (or re-pick) a target
+      if (ai[o + 6] > 0) ai[o + 6]--;
       let code = ai[o];
-      if (code > 0 && !alive(st.karts[code - 1])) code = 0;
+      if (code > 0 && !hittable(b, st.karts[code - 1], code - 1)) code = 0;
       if (code < 0 && (st.boxes[-code - 1]?.respawn ?? 1) > 0) code = 0;
       if (code < 0 && (me.item || me.rouletteTicks > 0)) code = 0;
       if (--ai[o + 1] <= 0 || code === 0) {
@@ -183,6 +201,7 @@ export function createBattleAI(): AIDriver {
         const ux = ex / el;
         const uz = ez / el;
         let best = Infinity;
+        let s = 0;
         for (const bl of t.blocks) {
           const bx = bl.x - me.x;
           const bz = bl.z - me.z;
@@ -192,28 +211,69 @@ export function createBattleAI(): AIDriver {
           const clearR = bl.r + 1.8;
           if (Math.abs(side) >= clearR) continue;
           best = along;
-          const s = side >= 0 ? -1 : 1;
+          s = side >= 0 ? -1 : 1;
           ax = bl.x + uz * s * (bl.r + 2.6);
           az = bl.z - ux * s * (bl.r + 2.6);
+        }
+        // SIM_VERSION 10: the way round lands next to another piece (a row of furniture with gaps too narrow for a
+        // kart): go round that one too, on the same side, so the cat drives round the whole row and never wedges itself
+        // into a gap (Rug: a cat sat between two pieces for seconds going for the boxes behind them)
+        for (let n = 0; s !== 0 && n < 4; n++) {
+          let moved = false;
+          for (const bl of t.blocks) {
+            const ox = ax - bl.x;
+            const oz = az - bl.z;
+            const clearR = bl.r + 1.8;
+            if (ox * ox + oz * oz >= clearR * clearR) continue;
+            ax = bl.x + uz * s * (bl.r + 2.6);
+            az = bl.z - ux * s * (bl.r + 2.6);
+            moved = true;
+          }
+          if (!moved) break;
         }
       }
       const err = dirTo(ctx, i, ax, az);
       out.steer = Math.round(clamp(-err * GAIN, -1, 1) * 7);
       out.gas = true;
       const vf = me.vx * sinL(me.heading) + me.vz * cosL(me.heading);
-      // pinned on a wall: back off for half a second
-      if (me.wall && sp < 3 && ai[o + 2] <= 0) ai[o + 2] = 30;
+      // SIM_VERSION 10: the escape direction comes from the nearest wall. With the tail to it (the nose points back into
+      // the arena) backing up only pushes the kart into the wall: drive out forward instead (a cat sat reversing into
+      // the Rug's outer wall for 48 s)
+      const js = me.si;
+      const side = me.d >= 0 ? 1 : -1;
+      const room = (side > 0 ? t.wallR[js] : t.wallL[js]) - Math.abs(me.d);
+      const facesIn = sinL(me.heading) * t.tz[js] * side - cosL(me.heading) * t.tx[js] * side;
+      const tailToWall = room < 4 && facesIn > 0.2;
+      // pinned on a wall: back off for half a second, or pull away from it when the tail is to the wall
+      if (me.wall && sp < 3 && ai[o + 2] === 0) ai[o + 2] = tailToWall ? -30 : 30;
       if (ai[o + 2] > 0) {
         ai[o + 2]--;
         out.gas = false;
         out.brake = true;
         out.steer = -out.steer;
-      } else if ((Math.abs(err) > 1.9 && sp < 7) || (vf < -0.3 && Math.abs(err) > 0.8)) {
+      } else if (ai[o + 2] < 0) {
+        ai[o + 2]++;
+        out.gas = true;
+        out.brake = false;
+      } else if (!tailToWall && ((Math.abs(err) > 1.9 && sp < 7) || (vf < -0.3 && Math.abs(err) > 0.8))) {
         // facing away: a three-point turn
         out.gas = false;
         out.brake = true;
         out.steer = -out.steer;
       } else if (Math.abs(err) > 1.1 && sp > 14) out.gas = false;
+      // stuck anyway (wedged on furniture, in a corner, against another cat): every 2 s the watchdog makes the cat do
+      // the opposite of what it is doing (back up if it pushes forward, pull away if it reverses) for 0.75 s
+      // the second time in a row it also gives up on its target for a while (whatever wedged it lies on the way there)
+      if (sp < STUCK_SPEED && me.spinTicks === 0) {
+        if (++ai[o + 4] % STUCK === 0) {
+          ai[o + 2] = out.brake ? -45 : 45;
+          if (ai[o + 4] >= 2 * STUCK && code !== 0) {
+            ai[o + 5] = code;
+            ai[o + 6] = GIVE_UP;
+            ai[o + 1] = 0;
+          }
+        }
+      } else ai[o + 4] = 0;
 
       // items
       if (!me.item || me.rouletteTicks > 0) {
@@ -233,7 +293,7 @@ export function createBattleAI(): AIDriver {
       for (let j = 0; j < st.karts.length; j++) {
         if (j === i) continue;
         const k = st.karts[j];
-        if (!alive(k)) continue;
+        if (!hittable(b, k, j)) continue;
         const ex = k.x - me.x;
         const ez = k.z - me.z;
         const f = ex * fx + ez * fz;

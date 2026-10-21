@@ -122,3 +122,26 @@ describe('set pieces: build (SIM_VERSION 8)', () => {
     expect(buildTrack(KITCHEN).pieces.map((p) => p.kind).sort()).toEqual(['jump', 'loop', 'tunnel', 'wall']);
   });
 });
+
+describe('authored tracks: coins a kart can reach (SIM_VERSION 10)', () => {
+  it('no coin sits inside a loop (strip to zone end) or over a jump gap: a railed or flying kart never collects it', () => {
+    for (const def of TRACKS) {
+      const t = buildTrack(def);
+      const n = t.n;
+      // the authored rows come first in t.coins, in row order (the racing-line trails after them skip pieces already)
+      let at = 0;
+      const main: number[] = [];
+      for (const row of def.coins ?? []) {
+        if (row.branch == null) for (let c = 0; c < row.count; c++) main.push(at + c);
+        at += row.count;
+      }
+      for (const c of [...main.map((j) => t.coins[j]), ...t.coins.slice(at)]) {
+        for (const p of t.pieces) {
+          const tag = `${def.id}: coin at ${c.i} in ${p.kind} ${p.i0}..${p.i1}`;
+          if (p.kind === 'loop') expect((c.i - p.strip + n) % n > (p.i1 - p.strip + n) % n, tag).toBe(true);
+          if (p.kind === 'jump' && p.gap > 0) expect((c.i - p.i0 + n) % n > (p.i1 - p.i0 + n) % n, tag).toBe(true);
+        }
+      }
+    }
+  });
+});

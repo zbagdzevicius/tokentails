@@ -533,6 +533,11 @@ export class KartFx {
     }
   }
 
+  /** Out of the scene now (a torn-down race); `dispose` frees the GPU side later. */
+  detach(): void {
+    for (const m of this.all) this.scene.remove(m);
+  }
+
   dispose(): void {
     for (const m of this.all) {
       this.scene.remove(m);

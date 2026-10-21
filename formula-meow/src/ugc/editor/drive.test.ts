@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { raceConfig, world } from '../../test/fixtures';
 import { playerBot } from '../../items-ai/balance/bots';
-import { doodleToPoints, starterFeatures, type P2 } from './doodle';
+import { doodleToPoints, redrawTrack, starterFeatures, type P2 } from './doodle';
 import { validateTrack } from './validate';
 import { decodeTrackCode, encodeTrack } from '../codec/track-code';
 
@@ -38,4 +38,19 @@ describe('a doodled track is raceable (validator = drivable)', () => {
       expect(r.places.filter((p) => p.time != null).length).toBeGreaterThanOrEqual(6);
     });
   }
+});
+
+describe('redrawing a track in the Draw tab', () => {
+  it('drops the old set pieces and authored extras, so the fresh doodle is drivable', () => {
+    const a = doodleToPoints(stroke(100, 70, 3, 0.15));
+    const b = doodleToPoints(stroke(110, 60, 2, 0.05));
+    if (!a.ok || !b.ok) throw new Error('doodle');
+    const def = { ...starterFeatures(a.points, 1), name: 'Redraw', setPieces: [{ kind: 'loop' as const, s: 166 }], branches: [], hazards: [], coins: [], music: 2 };
+    redrawTrack(def, b.points);
+    expect(def.setPieces).toBeUndefined();
+    for (const k of ['branches', 'hazards', 'coins', 'music'] as const) expect(def[k]).toBeUndefined();
+    expect(def.name).toBe('Redraw');
+    expect(def.points).toEqual(starterFeatures(b.points, 1).points);
+    expect(validateTrack(def).issues).toEqual([]);
+  });
 });

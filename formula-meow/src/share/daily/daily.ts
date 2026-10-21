@@ -100,3 +100,45 @@ export function recordDaily(rec: DailyRecord, run: RankedRun): RankedRun | null 
   while (keys.length > 60) delete rec.runs[String(keys.shift())];
   return run;
 }
+
+/**
+ * Which Daily Cup day a finished race belongs to. `setupDay` is the day the race was started as (Daily Cup mode),
+ * `startDay` the UTC day when it started, `nowDay` the UTC day at the finish: a tab left open past midnight must
+ * not judge the race by the day the page loaded. Only a race of the day that was current at its start can be the
+ * ranked run (a race started at 23:59 still ranks for that day; a restart after midnight is practice).
+ */
+export function dailyResultDay(
+  tracks: readonly TrackDef[],
+  race: { trackId: string; seed: number; cls: number; modifiers: number },
+  o: { setupDay?: number; startDay: number; nowDay: number },
+): { day: number; rankable: boolean } | null {
+  for (const d of [o.setupDay ?? -1, o.startDay, o.nowDay]) {
+    if (d > 0 && d <= o.nowDay && isDailyRace(d, tracks, race)) return { day: d, rankable: d === o.startDay };
+  }
+  return null;
+}
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+function migrateRun(v: unknown): RankedRun | null {
+  if (!v || typeof v !== 'object') return null;
+  const r = v as Partial<RankedRun>;
+  if (!isNum(r.day) || !isNum(r.place) || !(r.time === null || isNum(r.time))) return null;
+  return { day: r.day, place: r.place, time: r.time, laps: Array.isArray(r.laps) ? r.laps.filter(isNum) : [] };
+}
+
+/** A stored daily record, checked field by field; always a fresh object (never EMPTY_DAILY itself). */
+export function migrateDaily(raw: unknown): DailyRecord {
+  const out: DailyRecord = { runs: {}, streak: 0, lastDay: 0 };
+  if (!raw || typeof raw !== 'object') return out;
+  const v = raw as Partial<Record<keyof DailyRecord, unknown>>;
+  if (v.runs && typeof v.runs === 'object' && !Array.isArray(v.runs)) {
+    for (const [k, r] of Object.entries(v.runs as Record<string, unknown>)) {
+      const run = migrateRun(r);
+      if (run && String(run.day) === k) out.runs[k] = run;
+    }
+  }
+  if (isNum(v.streak) && v.streak >= 0) out.streak = Math.floor(v.streak);
+  if (isNum(v.lastDay) && v.lastDay >= 0) out.lastDay = Math.floor(v.lastDay);
+  return out;
+}

@@ -350,7 +350,8 @@ export function stepLane(ctx: SimContext, idx: number, k: KartState, inp: TickIn
  */
 function drawIn(t: SimContext['track'], k: KartState, inp: TickInput, hit: TrackHit): void {
   const i = hit.i;
-  const side = t.laneR[i] > 0.5 ? 1 : t.laneL[i] > 0.5 ? -1 : 0;
+  // SIM_VERSION 10: the lane on the kart's own side (a half-pipe, side 0, has both: the left one used to be skipped)
+  const side = hit.d >= 0 ? (t.laneR[i] > 0.5 ? 1 : 0) : t.laneL[i] > 0.5 ? -1 : 0;
   if (side === 0) return;
   const hw = t.halfW[i];
   if (hit.d * side < hw * (1 - 2 * STUNT.wall.drawShare)) return;

@@ -135,9 +135,11 @@ export class JuiceDirector implements JuiceListener {
   }
 
   onReset(): void {
-    this.kfx?.dispose();
-    this.sky?.dispose();
-    this.tfx?.dispose();
+    // B61: the last race's effects leave the scene now and are freed later by the shell (their programs may still be
+    // linking; the shell compiles the new race's after this reset)
+    const old = [this.kfx, this.sky, this.tfx];
+    for (const o of old) o?.detach();
+    if (old.some((o) => o)) this.shell.retire(() => old.forEach((o) => o?.dispose()));
     this.kfx = null;
     this.sky = null;
     this.stuntFx = null;

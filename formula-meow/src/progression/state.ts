@@ -77,7 +77,7 @@ export interface ProgSave {
   mirror: boolean;
   /** best cup place by `${cupId}:${cls}` (+ `m` for mirror), 1..3 only */
   trophies: Record<string, number>;
-  /** time trial medals by `${trackId}:${cls}`: 1 gold, 2 silver, 3 bronze */
+  /** time trial medals by `${trackId}:${cls}` (Mirror: `${trackId}:2m`): 1 gold, 2 silver, 3 bronze */
   medals: Record<string, number>;
   /** achievement id → UTC day number it was earned */
   achievements: Record<string, number>;

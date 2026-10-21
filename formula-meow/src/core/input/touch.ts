@@ -10,6 +10,7 @@
  * the screen is the start press; a resting steer thumb never is (B23). Pointer events, so dev-tools mice work too.
  */
 import { mergeSteer, type InputSource, type RawInput } from './raw';
+import { t } from '../../ui/i18n';
 
 const DEAD = 6;
 const FULL = 70;
@@ -65,7 +66,7 @@ export class TouchInput implements InputSource {
     this.root.innerHTML = `
       <div class="fm-stick-base"><div class="fm-stick-knob"></div></div>
       <div class="fm-drift-pad"><span></span></div>
-      <button class="fm-item-btn" aria-label="Use item"><span class="fm-item-icon"></span></button>
+      <button class="fm-item-btn"><span class="fm-item-icon"></span></button>
       <div class="fm-thumbs"><div><div class="stick"></div><span class="a"></span></div><div><div class="stick"></div><span class="b"></span></div></div>`;
     parent.appendChild(this.root);
     // phones see ghosted controls from boot (where the thumbs go), not only after the first touch
@@ -73,9 +74,13 @@ export class TouchInput implements InputSource {
     this.base = this.root.querySelector('.fm-stick-base')!;
     this.knob = this.root.querySelector('.fm-stick-knob')!;
     this.itemBtn = this.root.querySelector('.fm-item-btn')!;
+    this.itemBtn.setAttribute('aria-label', t('Use item'));
     this.driftPad = this.root.querySelector('.fm-drift-pad')!;
     this.thumbs = this.root.querySelector('.fm-thumbs')!;
     this.root.addEventListener('pointerdown', this.onDown, { passive: false });
+    // a touch anywhere (the menu taps that started this race) is a touch player: auto-gas from GO, before any touch on
+    // the race area (a Grand Prix starts without a tap, and the kart used to sit at 0 km/h)
+    window.addEventListener('pointerdown', this.onAnyDown, { capture: true, passive: true });
     window.addEventListener('pointermove', this.onMove, { passive: false });
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
@@ -99,8 +104,8 @@ export class TouchInput implements InputSource {
   /** The words on the thumb overlay for a drift setting (also used by hints). */
   static copy(oneThumb: boolean): TouchCopy {
     return oneThumb
-      ? { steer: 'STEER<br>full stick = drift', drift: 'TAP = HOP<br>swipe = item', pad: 'HOP' }
-      : { steer: 'STEER<br>left thumb', drift: 'HOLD = DRIFT<br>right thumb', pad: 'HOLD<br>DRIFT' };
+      ? { steer: `${t('STEER')}<br>${t('full stick = drift')}`, drift: `${t('TAP = HOP')}<br>${t('swipe = item')}`, pad: t('HOP') }
+      : { steer: `${t('STEER')}<br>${t('left thumb')}`, drift: `${t('HOLD = DRIFT')}<br>${t('right thumb')}`, pad: `${t('HOLD')}<br>${t('DRIFT')}` };
   }
 
   private readonly onItem = (e: PointerEvent) => {
@@ -110,6 +115,8 @@ export class TouchInput implements InputSource {
     this.pending.any = true;
     this.markTouch(e);
   };
+
+  private readonly onAnyDown = (e: PointerEvent) => this.markTouch(e);
 
   private markTouch(e: PointerEvent): void {
     if (e.pointerType === 'touch' || e.pointerType === 'pen') {
@@ -286,6 +293,7 @@ export class TouchInput implements InputSource {
   }
 
   dispose(): void {
+    window.removeEventListener('pointerdown', this.onAnyDown, { capture: true });
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
     window.removeEventListener('pointercancel', this.onUp);

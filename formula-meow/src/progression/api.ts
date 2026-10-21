@@ -7,7 +7,8 @@
  * - `fish()`, `loadout()`, `setLoadout(partial)`, `ownsBody(id)`, `ownsHat(id)`, `ownsTrail(id)`, `bodyPrice(id)`,
  *   `playableCats()`: the character / kart select reads and writes the same loadout as the garage.
  * - `kartLook()`: the player's KartLook (body, paint, number) for a race request.
- * - `recordMedal(trackId, cls, medal)`: the time trial's medal (1 gold, 2 silver, 3 bronze); pays 15/10/5 fish.
+ * - `recordMedal(trackId, cls, medal, mirror?)`: the time trial's medal (1 gold, 2 silver, 3 bronze); pays 15/10/5 fish.
+ *   Mirror medals are kept apart from 150cc ones.
  *   Call it from the `raceEnd` listener (before the results draw) so the results show the fish.
  * - `dailyChallenges()`: today's three, with progress, for a menu tile.
  */
@@ -51,8 +52,8 @@ export function setLoadout(p: Partial<Loadout>): Loadout {
   return e;
 }
 
-export function recordMedal(trackId: string, cls: RaceClass, medal: number): void {
-  const r = applyMedal(prog(), trackId, cls, medal, world());
+export function recordMedal(trackId: string, cls: RaceClass, medal: number, mirror = false): void {
+  const r = applyMedal(prog(), trackId, cls, medal, world(), mirror);
   setProg(r.save);
   const la = lastAward();
   if (la) setLastAward(mergeAward(la.award, r.award), la.token, la.seed, la.fishBefore);

@@ -177,6 +177,24 @@ export function modal(title: string, text: string, buttons: string[], o: { focus
   });
 }
 
+/**
+ * Rebuild part of a screen without losing the keyboard / pad focus: a chip screen that re-renders on every pick
+ * used to drop the focus to <body> (the next arrow started again from the top). The focused control is found again
+ * by its `data-act` after `rebuild()` runs.
+ */
+export function keepFocus(scope: HTMLElement, rebuild: () => void): void {
+  const a = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+  const act = a && scope.contains(a) ? a.dataset.act : undefined;
+  rebuild();
+  if (!act || (a && a.isConnected && scope.contains(a))) return;
+  for (const el of scope.querySelectorAll<HTMLElement>('[data-act]')) {
+    if (el.dataset.act === act) {
+      el.focus({ preventScroll: true });
+      return;
+    }
+  }
+}
+
 // ------------------------------------------------------------------------------------------------
 // focus navigation (B31: menus with a gamepad and the keyboard)
 // ------------------------------------------------------------------------------------------------
@@ -240,6 +258,18 @@ function isTopNav(root: HTMLElement): boolean {
   return true;
 }
 
+/** A dialog over the screens (kit modal, cat maker, dare name) is up: the race's Start / Select and ☰ wait for it. */
+export function modalOpen(): boolean {
+  return modalStack.some((r) => r.isConnected && !r.hidden);
+}
+
+/** Tab / Shift+Tab from `active` inside `els` (wrapping); a focus outside them goes to the first / last. */
+export function tabTarget(count: number, cur: number, back: boolean): number {
+  if (count <= 0) return -1;
+  if (cur < 0) return back ? count - 1 : 0;
+  return (cur + (back ? -1 : 1) + count) % count;
+}
+
 export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   if (typeof window === 'undefined') return () => {};
   let alive = true;
@@ -259,6 +289,15 @@ export function focusNav(root: HTMLElement, o: FocusNavOpts = {}): () => void {
   const onKey = (e: KeyboardEvent) => {
     if (root.hidden || !root.isConnected || !isTopNav(root)) return;
     const a = document.activeElement as HTMLElement | null;
+    // Tab stays inside the top layer or dialog: the ☰ button and the layers under a dialog are out of reach
+    if (e.key === 'Tab') {
+      const els = focusables(root);
+      const i = tabTarget(els.length, els.indexOf(a as HTMLElement), e.shiftKey);
+      if (i < 0) return;
+      e.preventDefault();
+      els[i].focus();
+      return;
+    }
     const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
     // B4/B5: Enter with nothing focused in this layer focuses its first control (as gamepad A does), instead of doing nothing
     if (e.key === 'Enter' && !typing && !(a && root.contains(a) && a !== root)) {

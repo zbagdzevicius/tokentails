@@ -38,6 +38,7 @@ import { PAINT_PRESETS } from '../content/cosmetics';
 import { devGhostJob, devRacer, medalFor, medalTimes, replayJob, runAsync, trackSig, TT_SEED, ttConfig, type GhostRun } from './tt/ghosts';
 import { BATTLE_TICKS } from './battle/rules';
 import type { TtGhostView } from './tt/ghost-view';
+import { StartGate } from './start-gate';
 
 /** [integrator] the Garage's paint presets (progression lane), so both screens show the same swatches */
 export const PAINTS: ReadonlyArray<[number, number, number]> = PAINT_PRESETS.map((p) => p.paint);
@@ -113,6 +114,8 @@ export class ModesFlow {
   private devCache = new Map<string, GhostRun | null>();
   ttGhost: TtGhostView | null = null;
   private sceneryGen = 0;
+  /** the time trial's async start: cancelled by the menu, any other start, or the screen it began on going away */
+  private readonly ttStart = new StartGate(() => screens.top());
 
   constructor(readonly shell: Shell) {
     instance = this;
@@ -318,6 +321,7 @@ export class ModesFlow {
   // ------------------------------------------------------------------------------------------------------------------
 
   goMenu(): void {
+    this.ttStart.cancel();
     this.update((s) => (s.menuSeen = true));
     screens.clear();
     void screens.push('menu');
@@ -330,6 +334,8 @@ export class ModesFlow {
   }
 
   private onRaceStart(mode: string): void {
+    // any race start (ours included, after its last await) voids a time trial still loading
+    this.ttStart.cancel();
     // mode fields never leak from one race into the next (each mode sets its own right after its start)
     // [integrator] not the rival: the progression lane sets (or clears) it on every raceStart, just before this
     this.shell.hudExtras({ gpRace: undefined, balloons: undefined, timeLeft: undefined, splits: undefined });
@@ -413,7 +419,7 @@ export class ModesFlow {
     // [integrator] the progression lane pays the medal (its scale: 1 gold … 3 bronze; ours: 3 gold … 1 bronze)
     if (medal > 0) {
       try {
-        recordMedal(p.trackId, simClass(p.cls), 4 - medal);
+        recordMedal(p.trackId, simClass(p.cls), 4 - medal, p.cls === 3);
       } catch (err) {
         console.warn('[modes] medal not booked', err);
       }
@@ -583,9 +589,11 @@ export class ModesFlow {
       s.last.ttCls = cls;
       s.last.ghost = ghostPick;
     });
+    const ticket = this.ttStart.begin();
     const track = trackById(trackId);
     const modifiers = cls === 3 ? 1 : 0;
     const dev = await this.devGhost(trackId, cls);
+    if (!this.ttStart.live(ticket)) return;
     let ghost: GhostRun | null = null;
     let ghostLabel = '';
     let ghostCfg = null as ReturnType<typeof ttConfig> | null;
@@ -593,10 +601,12 @@ export class ModesFlow {
       const rec = this.ttRecord(trackId, cls);
       if (ghostPick === 'pb' && rec?.ghost) {
         const g = await decodeGhost(rec.ghost);
+        if (!this.ttStart.live(ticket)) return;
         if (g && g.simVersion === SIM_VERSION) {
           const racer = { ...this.playerRacer(), kart: { ...this.kartLook(), body: g.body ?? 0 } };
           ghostCfg = { ...ttConfig(track, g.cls, g.modifiers, racer, g.forgiving), seed: g.seed };
           ghost = await runAsync(replayJob(ghostCfg, g.inputs));
+          if (!this.ttStart.live(ticket)) return;
           ghostLabel = t('Your best');
         }
       }

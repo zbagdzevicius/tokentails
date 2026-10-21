@@ -29,7 +29,8 @@ import { GamepadInput } from '../input/gamepad';
 import { TouchInput } from '../input/touch';
 import { InputMux } from '../input/mux';
 import { applyUnlocks, loadProgress, loadSettings, saveProgress, saveSettings, type Progress, type Settings } from './settings';
-import { bestKey } from './save';
+import { bestKey, save as saveStore } from './save';
+import { restartSeed } from './restart';
 import { JuiceBus, type FrameInfo } from '../../juice/bus';
 import { StarterAudio } from '../../juice/audio/starter-audio';
 import { StarterFeel } from '../../juice/feel';
@@ -46,7 +47,10 @@ import { hasScreen, registerScreen, screens } from './screens';
 import { appBus } from './app-bus';
 import { driftTierColors, setA11y } from '../../ui/a11y';
 import { localeFromUrl, setLocale, t } from '../../ui/i18n';
-import { button, h, toggle } from '../../ui/kit';
+import { button, h, modalOpen, toggle } from '../../ui/kit';
+import { BackGuard } from './back-guard';
+import { finishWaitStep, nextRaceModifiers, resultsDue, raceClassLabel, touchHelp } from './race-labels';
+import type { WebGLRenderTarget } from 'three';
 import '../hud/hud.css';
 
 export interface RaceSetup {
@@ -127,7 +131,8 @@ export class Shell {
   private last = 0;
   private eventIdx = 0;
   private paused = false;
-  private finishShownAt = -1;
+  /** unpaused seconds since the player finished (-1: not yet); the results come up at RESULTS_DELAY */
+  private finishWait = -1;
   private resultsShown = false;
   private results: ResultsHandle | null = null;
   private resultExtras: ResultExtras | undefined;
@@ -168,6 +173,13 @@ export class Shell {
   startFilter: ((s: RaceSetup | RaceRequest) => RaceSetup | RaceRequest) | null = null;
   /** [modes lane] asked before the pause screen's "Quit to menu" (a Grand Prix in progress); false keeps racing */
   quitGuard: (() => Promise<boolean>) | null = null;
+  /**
+   * [feel lane] the render target the race camera's frames are drawn into (the bloom chain's scene target), or null
+   * for the screen. The grid compile uses it: a program's variant depends on its target's colour space, and the
+   * screen variants alone left the post chain's programs to link mid-race.
+   */
+  warmTarget: (() => WebGLRenderTarget | null) | null = null;
+  private readonly backGuard: BackGuard;
   private readonly muxCtx = { racing: false, speedFrac: 0, drifting: false, curve: 0, wall: false };
 
   constructor(readonly host: HTMLElement) {
@@ -187,12 +199,22 @@ export class Shell {
     this.menuBtn.className = 'fm-menu-btn fm-sticker';
     this.menuBtn.setAttribute('aria-label', t('Pause'));
     this.menuBtn.textContent = '☰';
-    this.menuBtn.addEventListener('click', () => this.pause(!this.paused));
+    this.menuBtn.addEventListener('click', () => {
+      // a dialog ("Quit the cup?") owns the race state until it is answered
+      if (!modalOpen()) this.pause(!this.paused);
+    });
     host.appendChild(this.menuBtn);
     screens.attach(host);
     screens.onChange((top, prev) => appBus.emit('screen', { id: top, prev }));
+    // hardware / browser Back steps back inside the game (after the listeners that clean the address bar)
+    this.backGuard = new BackGuard(window, { wanted: () => this.backWanted(), handle: () => this.onBack() });
+    screens.onChange(() => queueMicrotask(() => this.backGuard.sync()));
     registerScreen('pause', () => ({ mount: (root) => this.mountPause(root) }));
     // the shell fills the results layer itself (showResults); lanes add to it with registerResultSection
+    // another tab wrote the save: the core slot is re-read so this tab's next write does not undo it
+    saveStore.onExternalChange(() => {
+      this.progress = loadProgress();
+    });
     registerScreen('results', () => ({ mount: () => ({ back: () => (this.quitToMenuIfAny(), true) }) }));
 
     this.audio.muted = this.settings.muted;
@@ -340,13 +362,6 @@ export class Shell {
     const k = this.world.st.karts[this.me];
     this.camera.snap(k.x, k.y, k.z, k.heading);
     this.camera.setMode('chase');
-    // compile every shader now, on the grid, so the first rendered frames of the countdown never stall (iOS links
-    // programs synchronously on first use). The sim step clamps dt, so a slow compile costs no countdown time.
-    try {
-      this.stage.renderer.compile(this.stage.scene, this.camera.cam);
-    } catch {
-      /* compiling early is an optimisation only */
-    }
     this.last = performance.now();
     this.hintShows = 0;
     this.hintAt = -1;
@@ -358,7 +373,7 @@ export class Shell {
     this.recorder = new ReplayRecorder();
     this.eventIdx = 0;
     this.acc = 0;
-    this.finishShownAt = -1;
+    this.finishWait = -1;
     this.resultsShown = false;
     this.results = null;
     this.resultExtras = undefined;
@@ -368,6 +383,7 @@ export class Shell {
     this.hud.setVisible(true);
     this.bus.reset();
     this.onResize();
+    this.warmShaders();
     const hintPounce = this.progress.pounces < 2 && !this.bot;
     if (req.waitForInput === false || req.attract) this.arm();
     // the tap prompt goes up before the hint (polish 7: the hint was drawn on top of the prompt card's subtitle); the
@@ -387,6 +403,35 @@ export class Shell {
     (document.activeElement as HTMLElement | null)?.blur?.();
     (window as unknown as { __fm?: unknown }).__fm = { shell: this, world: this.world };
     appBus.emit('raceStart', { mode, trackId: setup.track.id, cls: setup.cls, cupId: req.cupId, raceIndex: req.raceIndex });
+    this.backGuard.sync();
+  }
+
+  /** Back has something to step back from: a dialog, a menu layer under the title, or a race in progress. */
+  private backWanted(): boolean {
+    if (modalOpen()) return true;
+    const top = screens.top();
+    if (top) return top !== 'title';
+    return !!this.world && !this.attract && !this.resultsShown;
+  }
+
+  /** One hardware / browser Back: Esc for a dialog or menu layer, pause for a running race; false leaves the game. */
+  private onBack(): boolean {
+    if (modalOpen()) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      return true;
+    }
+    const top = screens.top();
+    // the title is the root: Back there leaves the game (every other layer goes back as Esc does; pause resumes)
+    if (top === 'title') return false;
+    if (top) {
+      screens.back();
+      return true;
+    }
+    if (this.world && !this.attract && !this.resultsShown) {
+      this.pause(true);
+      return true;
+    }
+    return false;
   }
 
   /** [modes lane] the current race is the attract race behind the menus */
@@ -430,15 +475,49 @@ export class Shell {
     this.world = null;
     if (view) for (const kv of view.karts) kv.root.visible = false;
     if (view) view.world.group.visible = false;
-    const now = performance.now();
-    this.retired.push({
-      at: now + RETIRE_MS,
-      fn: () => {
-        lines?.dispose();
-        view?.dispose();
-      },
+    // the speed-lines overlay hangs off the shared race camera: off it now, or it stays drawn, frozen, over the next grid
+    lines?.detach();
+    this.retire(() => {
+      lines?.dispose();
+      view?.dispose();
     });
     this.flushRetired(false);
+  }
+
+  /**
+   * Compile every shader of the new race now, on the grid, so the first rendered frames of the countdown never stall
+   * (iOS links programs synchronously on first use; the sim step clamps dt, so a slow compile costs no countdown
+   * time). Runs after the juice bus reset: the per-race effects (kart FX, sky, tunnel, ghosts) exist by then, and the
+   * last race's are already out of the scene (B61: compiling them and freeing them a moment later logged
+   * GL_INVALID_VALUE warnings). The karts' see-through variants (KartView.setFade near the camera) compile too, so the
+   * first close rival mid-race does not link a program.
+   */
+  private warmShaders(): void {
+    const r = this.stage.renderer;
+    const karts = this.view?.karts ?? [];
+    const prevTarget = r.getRenderTarget();
+    try {
+      // the bloom chain draws the scene into its own target: compile the variants the frames will use
+      r.setRenderTarget(this.warmTarget?.() ?? null);
+      r.compile(this.stage.scene, this.camera.cam);
+      for (const v of ['see', 'solid'] as const) {
+        for (const kv of karts) kv.fadeVariant(v);
+        r.compile(this.stage.scene, this.camera.cam);
+      }
+    } catch {
+      /* compiling early is an optimisation only */
+    } finally {
+      for (const kv of karts) kv.fadeVariant(null);
+      r.setRenderTarget(prevTarget);
+    }
+  }
+
+  /**
+   * Free GPU resources of a torn-down race a little later (B61): a lane's per-race objects leave the scene at once and
+   * hand their dispose here, so programs that may still be linking are never deleted under the driver.
+   */
+  retire(fn: () => void): void {
+    this.retired.push({ at: performance.now() + RETIRE_MS, fn });
   }
 
   /** Free retired races whose time has come (all of them when `all`). */
@@ -489,9 +568,11 @@ export class Shell {
     this.touch.countdown = countdown;
     this.touch.setGrid(countdown && !attract);
     this.hud.setTouch(this.touchMode());
-    if (this.mux.pause && !attract) this.pause(!this.paused);
+    // Start / Esc / P wait while a dialog is up (the race used to resume under "Quit the cup?")
+    const dialog = modalOpen();
+    if (this.mux.pause && !attract && !dialog) this.pause(!this.paused);
     // restart is a 0.6 s hold of R / Select (a stray tap next to E or W used to throw a race away), once per hold
-    if (this.mux.restart && !this.paused && !this.resultsShown && !attract) {
+    if (this.mux.restart && !this.paused && !this.resultsShown && !attract && !dialog) {
       if (!this.restartLatch) {
         if (this.restartHold === 0) this.hud.say(t('Keep holding to restart'), { prio: 1, ms: 700 });
         this.restartHold += dt;
@@ -561,8 +642,9 @@ export class Shell {
     if (attract) return; // [modes lane] the attract race never shows results
 
     // finish → results 2.5 s later (the field keeps racing behind the panel, B35: rows fill in live)
-    if (me.finished && this.finishShownAt < 0) this.finishShownAt = performance.now();
-    if (!this.resultsShown && ((this.finishShownAt > 0 && performance.now() - this.finishShownAt > 2500) || w.done)) this.showResults();
+    // the wait counts unpaused time only, and the results never come up over the pause screen (they used to lift it)
+    this.finishWait = finishWaitStep(this.finishWait, !!me.finished, this.paused, dt);
+    if (!this.resultsShown && resultsDue(this.finishWait, this.paused, w.done)) this.showResults();
     else if (this.resultsShown && this.results) {
       let n = 0;
       for (const k of w.st.karts) n += k.finished;
@@ -630,15 +712,14 @@ export class Shell {
     this.hintShows++;
   }
 
-  /** Restart: same track, class and mode; a new seed except for dares and rematches (B37). */
+  /** Restart: same track, class and mode; the seed rule is `restartSeed` (B37). */
   restart(): void {
     if (!this.setup) return;
     const s = this.setup;
-    const keepSeed = s.mode === 'dare' || s.mode === 'daily';
     // [modes lane] a restart (pause, R, Select) is the same race again: a pending startRace keeps waiting for it
     const pending = this.outcome;
     this.outcome = null;
-    this.start({ ...(this.request ?? s), ...s, seed: keepSeed ? s.seed : newSeed() });
+    this.start({ ...(this.request ?? s), ...s, seed: restartSeed(s.mode, s.seed, newSeed) });
     this.outcome = pending;
   }
 
@@ -652,7 +733,14 @@ export class Shell {
     const result = w.result();
     const me = w.st.karts[this.me];
     this.progress.races++;
-    const extras = shareHooks().onResult?.({ result, replay: this.recorder.replay(), cfg: w.cfg, events: w.st.events }) ?? undefined;
+    let extras: ResultExtras | undefined;
+    try {
+      extras = shareHooks().onResult?.({ result, replay: this.recorder.replay(), cfg: w.cfg, events: w.st.events, mode: setup.mode, day: setup.day }) ?? undefined;
+    } catch (e) {
+      // a lane's extras must never cost the results screen (e.g. a corrupted save it reads)
+      console.error('[shell] result extras failed', e);
+      extras = undefined;
+    }
     this.resultExtras = extras || undefined;
     // the Daily Cup and dares run at a fixed class: they never unlock a class
     const unlocked = extras?.noUnlock ? null : applyUnlocks(this.progress, setup.cls, result.player.place, !!me.finished);
@@ -679,7 +767,7 @@ export class Shell {
         racers: this.racers,
         ghost: extras?.ghost,
         trackName: displayName(setup.track),
-        className: `${CLASSES[setup.cls].name} ${CLASSES[setup.cls].cc}`,
+        className: raceClassLabel(setup.cls, setup.modifiers),
         actions: extras?.actions ?? [],
         lines,
         cfg: w.cfg,
@@ -740,7 +828,7 @@ export class Shell {
         exitTo('next');
         // B43: Next keeps the newest unlocked class the player picked; a normal race on the next authored track
         const i = TRACKS.findIndex((x) => x.id === setup.track.id);
-        this.start({ track: TRACKS[(i + 1) % TRACKS.length], cls: this.settings.cls <= this.progress.unlocked ? this.settings.cls : setup.cls, seed: newSeed(), modifiers: 0, mode: 'race' });
+        this.start({ track: TRACKS[(i + 1) % TRACKS.length], cls: this.settings.cls <= this.progress.unlocked ? this.settings.cls : setup.cls, seed: newSeed(), modifiers: nextRaceModifiers(setup.modifiers), mode: 'race' });
       });
     });
     this.hud.setVisible(false);
@@ -807,13 +895,16 @@ export class Shell {
       toggle(t('Sound'), !s.muted, (v) => this.updateSettings({ muted: !v })),
       toggle(t('Reduced motion'), s.reducedMotion, (v) => this.updateSettings({ reducedMotion: v })),
     ];
-    if (touch) toggles.push(toggle(t('One-thumb drift'), s.oneThumb, (v) => this.updateSettings({ oneThumb: v })));
+    const helpLine = h('p', { class: 'fm-line' }, [touch ? touchHelp(s.oneThumb) : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · hold R restart · Esc pause')]);
+    if (touch)
+      toggles.push(
+        toggle(t('One-thumb drift'), s.oneThumb, (v) => {
+          this.updateSettings({ oneThumb: v });
+          // the help line describes the drift method that is on now
+          helpLine.textContent = touchHelp(v);
+        }),
+      );
     else toggles.push(toggle(t('Auto-gas'), s.autoGas, (v) => this.updateSettings({ autoGas: v })));
-    const help = touch
-      ? s.oneThumb
-        ? t('Left thumb steers. Full stick into a bend drifts. Right thumb: tap to hop, swipe up or down for items.')
-        : t('Left thumb steers. Hold the right thumb to drift. Swipe up or down for items.')
-      : t('Keys: ←→ steer · ↑ gas · ↓ brake · Space drift · Shift item · Q look back · hold R restart · Esc pause');
     const btns = [
       button(t('Resume'), () => this.pause(false), { primary: true, act: 'resume' }),
       button(t('Restart'), () => this.restart(), { act: 'restart' }),
@@ -841,7 +932,7 @@ export class Shell {
     const panel = h('div', { class: 'fm-panel fm-sticker', role: 'dialog', 'aria-label': t('Paused') }, [
       h('h1', {}, [t('Paused')]),
       h('div', { class: 'fm-settings' }, toggles),
-      h('p', { class: 'fm-line' }, [help]),
+      helpLine,
       h('div', { class: 'fm-row-btns sticky' }, btns),
     ]);
     root.append(panel);

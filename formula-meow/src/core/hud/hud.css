@@ -529,6 +529,14 @@
 .fm-res-scroll.more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); }
 .fm-panel.fm-results > .fm-res-main { position: static; flex: none; margin: 0; padding: 8px 0 2px; }
 .fm-panel.fm-results > .fm-res-icons { flex: none; }
+/* landscape phones: two columns, place / times / table on the left and the buttons on the right (a stacked footer
+   left the standings an 81 px window on an 844 x 390 screen) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .fm-panel.fm-results { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(220px, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; width: min(calc(100vw - 32px), 860px); height: 100%; padding: 12px 14px 10px; }
+  .fm-panel.fm-results > .fm-res-scroll { grid-column: 1; grid-row: 1 / span 2; min-height: 0; }
+  .fm-panel.fm-results > .fm-res-main { grid-column: 2; grid-row: 1; align-self: start; padding-top: 4px; }
+  .fm-panel.fm-results > .fm-res-icons { grid-column: 2; grid-row: 2; align-self: start; align-content: flex-start; overflow-y: auto; min-height: 0; max-height: 100%; }
+}
 .fm-res-unlock { font: inherit; font-family: var(--fm-font, inherit); font-weight: 900; font-size: var(--fm-fs-s, 14px); min-height: 40px; padding: 6px 14px; border: 3px solid var(--ink); border-radius: 999px; background: #c8f7d4; color: #12603a; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
 .fm-row-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
 /* B39: the action row sticks to the bottom of a tall panel, so Again / Next never scroll off a small phone */

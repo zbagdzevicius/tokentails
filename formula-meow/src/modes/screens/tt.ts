@@ -6,7 +6,7 @@
 import type { ScreenApi, ScreenHandle } from '../../core/app/screens';
 import { TRACK_IDS } from '../../content/ids';
 import { trackById } from '../../core/track/tracks';
-import { h, tabs } from '../../ui/kit';
+import { h, keepFocus, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow, fmt } from '../flow';
 import type { ClassPick, GhostPick } from '../store';
@@ -86,9 +86,11 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   };
 
   function renderAll(): void {
-    renderClasses();
-    renderTracks();
-    renderDetail();
+    keepFocus(root, () => {
+      renderClasses();
+      renderTracks();
+      renderDetail();
+    });
   }
   renderAll();
 

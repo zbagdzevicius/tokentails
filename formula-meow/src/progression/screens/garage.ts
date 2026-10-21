@@ -7,7 +7,7 @@
 import type { Shell } from '../../core/app/shell';
 import type { ScreenApi, ScreenModule } from '../../core/app/screens';
 import { screens } from '../../core/app/screens';
-import { button, h, modal, panel, statBars, tabs, toast, actionFooter } from '../../ui/kit';
+import { button, h, keepFocus, modal, panel, statBars, tabs, toast, actionFooter } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { DEFAULT_CAT, type BodyId, type RacerInfo } from '../../types';
 import { BODY_IDS, BODY_NAMES, HAT_IDS, TRAIL_IDS, type HatId, type TrailId } from '../../content/ids';
@@ -313,6 +313,9 @@ export function garageScreen(shell: Shell): ScreenModule {
       }
 
       function render(): void {
+        keepFocus(root, build);
+      }
+      function build(): void {
         grid.textContent = '';
         detail.textContent = '';
         wallet.textContent = `🐟 ${prog().fish}`;

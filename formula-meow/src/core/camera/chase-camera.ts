@@ -26,7 +26,8 @@ import type { BuiltTrack } from '../track/build';
 import { queryTrack, type TrackHit } from '../track/query';
 import { LOOP_SHAPE } from '../track/stunt';
 import { STUNT } from '../../tuning';
-import { ribbonPose, shadowToWorld, type StuntPose } from '../render/stunt-pose';
+import { ribbonPose, type StuntPose } from '../render/stunt-pose';
+import { TV_CANDIDATES, tvSpotAt } from './tv-spot';
 
 export type CameraMode = 'chase' | 'lookBack' | 'flyover' | 'finishOrbit' | 'podium' | 'attract';
 
@@ -52,6 +53,11 @@ export interface CameraSource {
    * false on the normal road. Optional (older sources: world up).
    */
   displayBasis?(i: number, out: { ux: number; uy: number; uz: number; fx: number; fy: number; fz: number }): boolean;
+  /**
+   * Reduced motion: the still TV camera's spot beside loop piece `pi` (the race view picks the spot its own meshes
+   * block least); false or missing: the default spot (TV_CANDIDATES[0]).
+   */
+  tvSpot?(pi: number, out: { x: number; y: number; z: number }): boolean;
 }
 
 /** Set-piece camera comfort limits (SETPIECES.md section 8). */
@@ -78,8 +84,6 @@ export const STUNT_CAM = {
   laneIn: 3.2,
   /** wall lane: the rig rides this much higher than the chase rig (looks over the lane's top barrier) */
   laneUp: 0.7,
-  /** reduced motion: the TV camera's distance beside a loop (m) */
-  tvSide: 16,
   /** juice: roll about the view axis inside a loop is capped here (°): the loop itself is a pitch, the comfortable axis */
   loopRoll: 10,
   /** juice: FOV (horizontal °) on a loop's rail, in a jump gap's flight, in a tunnel (negative = tighter) */
@@ -111,6 +115,8 @@ const P_VFOV_MAX = 90;
 export const FOV_KICK = { boost: 6, strong: 10, drift: 3 } as const;
 /** finish orbit: 180° over this many seconds at this radius / height */
 export const ORBIT = { time: 3, radius: 3, height: 1.9, start: 0.7 } as const;
+/** an orbit pulled in off a wall comes no closer to the kart than this (m) */
+const ORBIT_MIN = 1.2;
 /** flyover: blend into the chase rig over this long at the end */
 const FLY_BLEND = 0.6;
 
@@ -260,10 +266,10 @@ export class ChaseCamera {
       case 'finishOrbit':
         // from behind and to the side (clear of anything trailing behind the kart) round to its front
         // (portrait pulls out to 5 m: at 3 m the narrow screen showed only the kart's side, a blur of colour)
-        this.orbit(x, y, z, Math.min(1, this.modeT / ORBIT.time), ORBIT.radius + 2 * this.portrait, ORBIT.height + 0.6 * this.portrait, this.orbitFrom + ORBIT.start, Math.PI);
+        this.orbit(k, x, y, z, Math.min(1, this.modeT / ORBIT.time), ORBIT.radius + 2 * this.portrait, ORBIT.height + 0.6 * this.portrait, this.orbitFrom + ORBIT.start, Math.PI);
         break;
       case 'attract':
-        this.orbit(x, y, z, this.modeT, 7.5, 3.2 + Math.sin(this.modeT * 0.4) * 0.8, this.orbitFrom, 0.22);
+        this.orbit(k, x, y, z, this.modeT, 7.5, 3.2 + Math.sin(this.modeT * 0.4) * 0.8, this.orbitFrom, 0.22);
         break;
       case 'podium': {
         const p = this.modeParams as { x?: number; y?: number; z?: number; radius?: number; yaw?: number };
@@ -365,10 +371,10 @@ export class ChaseCamera {
    * B59 (near-plane check, cheap): scenery sits outside the track walls, so the camera is kept inside them, pulled in
    * toward the kart along the rig's line. One track query per frame instead of a raycast against the scenery.
    */
-  private wallClamp(p: Vector3, kx: number, kz: number, si: number): void {
+  private wallClamp(p: Vector3, kx: number, kz: number, si: number, minLen = 2.5): void {
     // twice: one pull can land past the wall of the next bend sample (the portrait rig sits 7 m back)
-    this.wallClampOnce(p, kx, kz, si);
-    this.wallClampOnce(p, kx, kz, si);
+    this.wallClampOnce(p, kx, kz, si, minLen);
+    this.wallClampOnce(p, kx, kz, si, minLen);
     this.blockClamp(p, kx, kz);
   }
 
@@ -404,7 +410,7 @@ export class ChaseCamera {
     p.y += 1.6 * (1 - keep);
   }
 
-  private wallClampOnce(p: Vector3, kx: number, kz: number, si: number): void {
+  private wallClampOnce(p: Vector3, kx: number, kz: number, si: number, minLen: number): void {
     const s = this.source;
     if (!s) return;
     const t = s.track;
@@ -414,20 +420,24 @@ export class ChaseCamera {
     const wall = (hit.d > 0 ? (hit.wallR ?? t.wallR[hit.i]) : (hit.wallL ?? t.wallL[hit.i])) - 0.6;
     const over = Math.abs(hit.d) - wall;
     if (over <= 0) return;
-    // pull toward the kart by the overshoot (never closer than 2.5 m), and lift a little to look over the barrier
+    // pull toward the kart by the overshoot (never closer than `minLen`), and lift a little to look over the barrier
     const dx = kx - p.x;
     const dz = kz - p.z;
     const len = Math.sqrt(dx * dx + dz * dz) || 1;
-    const pull = Math.min(over * 1.4, Math.max(0, len - 2.5));
+    const pull = Math.min(over * 1.4, Math.max(0, len - minLen));
     p.x += (dx / len) * pull;
     p.z += (dz / len) * pull;
     p.y += Math.min(1.2, over * 0.4);
   }
 
-  private orbit(x: number, y: number, z: number, u: number, r: number, h: number, from: number, sweep: number): void {
+  private orbit(k: KartState, x: number, y: number, z: number, u: number, r: number, h: number, from: number, sweep: number): void {
     const e = this.modeNow === 'finishOrbit' ? u * u * (3 - 2 * u) : u;
     const a = from + Math.PI + e * sweep; // starts behind the kart
     this.tmpA.set(x + Math.sin(a) * r, y + h, z + Math.cos(a) * r);
+    // B59 for the orbits: the swing to the kart's side must not go through the barrier into the scenery. The orbit is
+    // only 3–7.5 m out, so it may come in closer than the chase rig's 2.5 m (it is lifted to look down at the kart)
+    this.wallClamp(this.tmpA, x, z, k.si, ORBIT_MIN);
+    this.wallClampOnce(this.tmpA, x, z, k.si, ORBIT_MIN);
     // the first half second eases out of the chase rig
     const blend = Math.min(1, this.modeT / 0.5);
     this.pos.lerp(this.tmpA, blend < 1 ? 0.12 + blend * 0.5 : 1);
@@ -471,8 +481,7 @@ export class ChaseCamera {
       // reduced motion: a fixed TV camera beside the loop, world up, cut in and out
       if (this.tvLoop !== pc.id) {
         this.tvLoop = pc.id;
-        const L = LOOP_SHAPE;
-        shadowToWorld(t, pc, L.lead + L.c * Math.PI, L.R, -STUNT_CAM.tvSide, this.tv);
+        if (!src?.tvSpot?.(k.rail - 1, this.tv)) tvSpotAt(t, pc, TV_CANDIDATES[0], this.tv);
         this.pos.copy(this.tv);
         this.camUp.set(0, 1, 0);
       }

@@ -140,9 +140,14 @@ export class SpeedLines {
     this.mesh.visible = true;
   }
 
-  dispose(): void {
+  /** Stop drawing now (a torn-down race: its overlay must not stay frozen over the next grid); `dispose` frees it later. */
+  detach(): void {
     if (SpeedLines.current === this) SpeedLines.current = null;
     this.mesh.removeFromParent();
+  }
+
+  dispose(): void {
+    this.detach();
     this.mesh.geometry.dispose();
     this.mat.dispose();
   }

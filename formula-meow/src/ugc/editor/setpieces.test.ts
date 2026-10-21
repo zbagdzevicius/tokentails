@@ -65,6 +65,14 @@ describe('set-piece validator (doodled tracks)', () => {
     expect(codes(oval([{ kind: 'tunnel', s: 30, len: 24 }], [{ s: 44, kind: 'ramp', side: 0 }]))).toContain('tunnelLen');
   });
 
+  it('loopClear: no item row inside the loop (a railed kart cannot reach its boxes), doodled and authored rules', () => {
+    expect(codes(oval([{ kind: 'loop', s: 150 }]))).not.toContain('loopClear');
+    expect(codes(oval([{ kind: 'loop', s: 150 }], [{ s: 158, kind: 'items' }]))).toContain('loopClear');
+    const lab = { ...oval([{ kind: 'loop', s: 160 }], [{ s: 168, kind: 'items' }]) };
+    expect(validateSetPieces(lab).map((i) => i.code)).toContain('loopClear');
+    expect(validateSetPieces(lab, undefined, { ugc: true }).map((i) => i.code)).toContain('loopClear');
+  });
+
   it('pieceSpacing: 40 m from the start and from each other; ramps 30 m before a loop', () => {
     expect(codes(oval([{ kind: 'tunnel', s: 6, len: 20 }]))).toContain('pieceSpacing');
     expect(codes(oval([{ kind: 'tunnel', s: 30, len: 20 }, { kind: 'jump', s: 62 }]))).toContain('pieceSpacing');
