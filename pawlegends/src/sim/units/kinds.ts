@@ -1,5 +1,5 @@
 /** Per-kind lookups shared by the unit modules: radius, attack numbers, invulnerability. */
-import { HERO_IDS, HEROES } from '../../data/heroes';
+import { GROWTH_FLOOR, HERO_IDS, HEROES, ROLE_GROWTH } from '../../data/heroes';
 import { RADIUS, TOWER_SPOTS } from '../../data/map';
 import { MINIONS, MINION_KINDS } from '../../data/minions';
 import { CORE_STATS, TOWERS } from '../../data/towers';
@@ -34,12 +34,29 @@ export function attackRange(w: World, id: number): number {
   }
 }
 
-/** Ticks between basic attacks; an attack-speed buff of bp divides it by (1 + bp). */
+/** Wave C (C1): hero `id`'s attack speed from levels (bp), its role's growth unless the hero overrides it. */
+export function levelAttackSpeedBp(w: World, id: number): number {
+  const h = heroData(w, id);
+  return (h.base.attackSpeedPerLevelBp ?? ROLE_GROWTH[h.role].attackSpeedPerLevelBp) * (w.level[id] - 1);
+}
+
+/** Wave C (C1): hero `id`'s move speed from levels (mm/s). */
+export function levelSpeed(w: World, id: number): number {
+  const h = heroData(w, id);
+  return (h.base.speedPerLevel ?? ROLE_GROWTH[h.role].speedPerLevel) * (w.level[id] - 1);
+}
+
+/**
+ * Ticks between basic attacks; attack speed of bp divides it by (1 + bp). Wave C (C1): a hero's level attack speed and
+ * its buff add up (floored division), never below GROWTH_FLOOR.attackEveryMin.
+ */
 export function attackEvery(w: World, id: number): number {
   switch (w.kind[id]) {
     case Kind.Hero: {
       const base = heroData(w, id).base.attackEvery;
-      return w.asT[id] > 0 ? Math.max(1, idiv(base * BP_ONE, BP_ONE + w.asBp[id])) : base;
+      const bp = levelAttackSpeedBp(w, id) + (w.asT[id] > 0 ? w.asBp[id] : 0);
+      if (bp <= 0) return base;
+      return Math.max(Math.min(base, GROWTH_FLOOR.attackEveryMin), idiv(base * BP_ONE, BP_ONE + bp));
     }
     case Kind.Minion:
       return minionData(w, id).attackEvery;
@@ -66,7 +83,8 @@ export function attackDamage(w: World, id: number): number {
 }
 
 function baseSpeed(w: World, id: number): number {
-  if (w.kind[id] === Kind.Hero) return heroData(w, id).base.speed;
+  // Wave C (C1): plus the level's move speed; slows and hastes scale the sum
+  if (w.kind[id] === Kind.Hero) return heroData(w, id).base.speed + levelSpeed(w, id);
   if (w.kind[id] === Kind.Minion) return minionData(w, id).speed;
   if (w.kind[id] === Kind.Camp) return RAT_CAMP_STATS.speed;
   return 0;

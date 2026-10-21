@@ -13,7 +13,8 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT, abilityNumbers, branchNumbers, trickNumbers } from './heroText';
+import { HERO_TEXT, TRICK_TEXT, abilityNumbers, branchNumbers, rankPips, rankUpSlots, trickNumbers } from './heroText';
+import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
 import { chargeRing } from './overhead';
@@ -29,6 +30,8 @@ interface SlotEl {
   root: HTMLElement;
   sweep: HTMLElement;
   num: HTMLElement;
+  /** Wave C (C2): the rank pips (Q W E R only). */
+  rk: HTMLElement | null;
   last: string;
 }
 
@@ -116,6 +119,10 @@ export class Hud {
   private recapEl: HTMLElement;
   private cache = new Map<string, string>();
   private strip: StripEl[] = [];
+  /** Wave C (C2): the own hero's level and talent picks (snapshot), for the rank pips, tooltips and cooldown sweeps. */
+  private lv = 1;
+  private choices: readonly number[] = [-1, -1, -1];
+  private rankToast: HTMLElement | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -135,13 +142,15 @@ export class Hud {
     const slotHtml = SLOT_ACTIONS.map((a, i) => {
       const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : { name: 'Nap', text: 'Channel for 4 s to return to your fountain. Damage breaks it.', icon: 'nap' as const };
       const big = i === 3 ? ' ult' : i >= 4 ? ' small' : '';
-      return `<button class="pl-slot${big}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b><kbd>${keyLabel(a)}</kbd></button>`;
+      const rk = i < 4 ? `<i class="rk">${rankPips(abilityRank(1, i), maxRank(i))}</i>` : '';
+      return `<button class="pl-slot${big}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b>${rk}<kbd>${keyLabel(a)}</kbd></button>`;
     }).join('');
     // Round 1 ("hovering Q shows nothing"): a hover card with the words and the numbers from src/data.
     const tipText = (i: number): string => {
       const br = this.branchOn && t.branch?.slot === i ? t.branch : null;
       const ab = br ?? (i < 4 ? t.abilities[i] : i === 4 ? tt : null);
-      const nums = br ? branchNumbers(hero) : i < 4 ? abilityNumbers(hero, i) : i === 4 ? trickNumbers(trick) : '4 s channel';
+      // Wave C (C2): the numbers right now (level, ranks and picked talents), as the sim uses them
+      const nums = br ? branchNumbers(hero, this.lv) : i < 4 ? abilityNumbers(hero, i, this.lv, this.choices) : i === 4 ? trickNumbers(trick) : '4 s channel';
       const name = ab ? ab.name : 'Nap';
       const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
       return `<b>${name}</b><span>${text}</span><small>${nums}</small>`;
@@ -170,7 +179,7 @@ export class Hud {
     tip.className = 'pl-slot-tip';
     root.appendChild(tip);
     for (const el of root.querySelectorAll<HTMLElement>('.pl-slot')) {
-      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, last: '' });
+      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '' });
       el.addEventListener('pointerenter', (e) => {
         if (e.pointerType !== 'mouse') return;
         tip.innerHTML = tipText(Number(el.dataset.i));
@@ -379,6 +388,17 @@ export class Hud {
     this.root.classList.toggle('low', me.hp < me.maxHp * 0.3);
     const lv = me.level ?? 1;
     this.set('lvl', this.level, String(lv));
+    if (me.talents) this.choices = me.talents;
+    if (lv !== this.lv) {
+      this.lv = lv;
+      for (let i = 0; i < 4; i++) {
+        const rk = this.slots[i]?.rk;
+        if (rk) {
+          rk.innerHTML = rankPips(abilityRank(lv, i), maxRank(i));
+          rk.setAttribute('aria-label', `Rank ${abilityRank(lv, i)} of ${maxRank(i)}`);
+        }
+      }
+    }
     this.xpUpdate(me, enemyAvg);
     this.chargeUpdate(me);
     const cds = me.cooldowns;
@@ -386,7 +406,7 @@ export class Hud {
       const s = this.slots[i];
       const cd = cds?.[i] ?? 0;
       const locked = i === 3 && lv < ULT_LEVEL;
-      const max = maxCooldown(this.hero, i as 0 | 1 | 2 | 3 | 4, this.trick, this.branchOn);
+      const max = maxCooldown(this.hero, i as 0 | 1 | 2 | 3 | 4, this.trick, this.branchOn, lv, me.talents);
       const f = cd > 0 ? Math.min(1, cd / Math.max(1, max)) : 0;
       const state = `${locked ? 'L' : ''}${cd > 0 ? 'C' : ''}${dead ? 'D' : ''}`;
       if (s.last !== state) {
@@ -440,6 +460,7 @@ export class Hud {
    * the R slot pulses and sparkles for 3 s.
    */
   levelUp(level: number, ultLevel = ULT_LEVEL): void {
+    this.rankUp(level);
     const bar = this.root.querySelector<HTMLElement>('.pl-bar');
     if (bar) {
       bar.classList.remove('lvlup');
@@ -460,6 +481,44 @@ export class Hud {
         /* node */
       }
     }
+  }
+
+  /**
+   * Wave C (C2): the upgrade toast over the ability bar ("Rank up! Volley rank 2: +15 dmg"), and the ranked slots
+   * flash. Nothing at a level where no ability ranks up (talent levels, the ultimate's unlock).
+   */
+  rankUp(level: number): string[] {
+    const ranked = rankUpSlots(this.hero, level, this.choices);
+    const lines = ranked.map((r) => r.line);
+    if (!lines.length) return lines;
+    for (const { slot } of ranked) {
+      const el = this.slots[slot]?.root;
+      if (!el) continue;
+      el.classList.remove('rankup');
+      void el.offsetWidth;
+      el.classList.add('rankup');
+      setTimeout(() => el.classList.remove('rankup'), 1400);
+    }
+    let t = this.rankToast;
+    if (!t) {
+      t = document.createElement('div');
+      t.className = 'pl-rankup';
+      t.setAttribute('role', 'status');
+      this.root.appendChild(t);
+      this.rankToast = t;
+    }
+    t.innerHTML = '<b>Rank up!</b>';
+    for (const line of lines) {
+      const sp = document.createElement('span');
+      sp.textContent = line;
+      t.appendChild(sp);
+    }
+    t.classList.remove('on');
+    void t.offsetWidth;
+    t.classList.add('on');
+    const shown = t;
+    setTimeout(() => shown.classList.remove('on'), 2600);
+    return lines;
   }
 
   /** Flash a slot (cast feedback). */

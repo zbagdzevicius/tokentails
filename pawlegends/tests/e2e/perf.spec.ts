@@ -28,6 +28,8 @@ interface Peak {
   /** Most heroes, minions and towers alive at once (each on its own). */
   most: [number, number, number];
   samples: number;
+  /** Wave C (C4): card-tier effect particles started in the match (every hero Legendary). */
+  cardFx: number;
 }
 
 /** Play the first match at `speed` on a forced tier; sample draws and live units until the results screen. */
@@ -43,6 +45,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
     maxDraws: 0,
     most: [0, 0, 0],
     samples: 0,
+    cardFx: 0,
   };
   let busiestUnits = -1;
   const deadline = Date.now() + 150_000;
@@ -62,6 +65,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
         peak.units = units;
       }
     }
+    peak.cardFx = Math.max(peak.cardFx, Number(await attr(page, 'cardFx')) || 0);
     await page.waitForTimeout(250);
   }
   return peak;
@@ -91,10 +95,12 @@ test('draw calls on Med ≤ 110 at the busiest frame', async ({ page }) => {
   const p = await busiest(page, 'med');
   console.log(
     `perf med: busiest frame ${p.units.join('/')} heroes/minions/towers at ${p.draws} draws; most at once ${p.most.join('/')}; ` +
-      `max ${p.maxDraws} draws over ${p.samples} samples`,
+      `max ${p.maxDraws} draws over ${p.samples} samples; ${p.cardFx} card-effect particles`,
   );
   expect(p.most[1]).toBeGreaterThanOrEqual(20);
   expect(p.maxDraws).toBeLessThanOrEqual(110);
+  // Wave C (C4): the Legendary card effects really ran inside these numbers (they use particles, not draw calls)
+  expect(p.cardFx).toBeGreaterThan(0);
 });
 
 test('?perf=1 shows the device-gate readout in a match; without it there is none', async ({ page }) => {

@@ -9,7 +9,9 @@ import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
-import { Particles, SHAPE } from './fx/Particles.js';
+import { Particles } from './fx/Particles.js';
+import { CombatVfx, elementColor, isMelee } from './fx/combatVfx';
+import { reducedMotion, shakePref, shakeScaleFor } from './fx/vfxPrefs';
 import { Shockwaves } from './fx/Shockwaves.js';
 import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
@@ -22,7 +24,9 @@ import type { Companion } from '../meta/roster';
 import { BOT_COATS, FREE_BISCUIT, FREE_COATS, cardLook, type Look } from './cosmetics';
 import { setCharTime } from './chars/charMaterial';
 import { getSkin } from './skins/skinStore';
+import { mixHex } from './skins/classify';
 import { TierFx, type SkinFxMode } from './skins/tierFx';
+import { CardVfx, tinted } from './skins/cardFx';
 import { CompanionView } from './views/companionView';
 import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
@@ -82,7 +86,7 @@ export function markerSize(t: number): number {
   if (k < 0.25) return 2.8 - 1.4 * (k / 0.25);
   return 1.4 * (1 - ((k - 0.25) / 0.75) * 0.7);
 }
-const _sw = new THREE.Vector3();
+const NO_ENTITIES: ViewEntity[] = [];
 
 export class GameView {
   readonly scene: THREE.Scene;
@@ -97,6 +101,8 @@ export class GameView {
   readonly shock: Shockwaves;
   readonly juice: Juice;
   readonly effects: Effects;
+  /** Wave C (C3): combat VFX juice (render only; budgets per quality tier). */
+  readonly vfx: CombatVfx;
   /** Companion Kittens (render only; set by `dress`). */
   companions: CompanionView | null = null;
   /** Ground point (m) the camera follows, and the player's pan offset from it. */
@@ -145,9 +151,15 @@ export class GameView {
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
     this.heroes.tierFx = new TierFx(this.particles);
+    this.vfx = new CombatVfx(this.particles, this.shock);
+    this.vfx.setTier(gr.settings.tier, reducedMotion());
+    this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
+    this.scene.add(this.vfx.auras.mesh);
     this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
     this.juice = new Juice(uiRoot);
+    // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
+    this.juice.shakeScale = shakeScaleFor(shakePref(), this.vfx.reduced);
     const self = this;
     const numbersCtx = {
       get camera() {
@@ -176,6 +188,7 @@ export class GameView {
       this.juice,
       {
         who: (id) => this.who.get(id) ?? null,
+        visible: (id) => this.frame?.byId.has(id) === true,
         get mySlot() {
           return self.mySlot;
         },
@@ -205,9 +218,14 @@ export class GameView {
         onPickupTaken: (kind, who) => {
           if (who) this.pickups.take(kind, who.x, who.z);
         },
+        card: (id) => this.heroes.cardOf(id),
       },
       numbersCtx,
     );
+    this.effects.vfx = this.vfx;
+    // Wave C (C4): card-tier effects, cosmetic only (render/skins/cardFx.ts)
+    this.effects.cards = new CardVfx(this.particles, this.shock as never);
+    this.projectiles.card = (id) => this.heroes.cardOf(id);
     const shake = this.juice.shake as unknown as { apply(cam: THREE.Camera, dt: number, scale: number, mix: object): void };
     gr.preRender = (cam) => shake.apply(cam, this.lastDt, 1, { rotMul: 0.5, rotMaxDeg: 1.2, transMul: 2, transMax: 0.35 });
     this.setShadows(gr.settings.shadows);
@@ -306,34 +324,17 @@ export class GameView {
   }
 
   /**
-   * A melee hero's basic attack: a quick bright arc of sprites sweeping in front of it (one batched particle draw),
-   * so the swing reads at ~25 px tall where the pose alone did not.
+   * A melee hero's basic attack: a slash crescent in front of it (Wave C C3: a bright edge over a soft glow, tinted
+   * with the hero's element), so the swing reads at ~25 px tall where the pose alone did not. Ranged heroes have none.
    */
   private swipe(id: number): void {
     const w = this.who.get(id);
-    if (!w || w.kind !== 'hero' || !w.hero || w.hero === 'sage') return;
-    const color = w.hero === 'clem' ? 0xfff1c4 : w.hero === 'brutus' ? 0xeef3fa : 0xe9e0ff;
-    const r = w.hero === 'brutus' ? 1.7 : 1.5;
-    const n = 7;
+    if (!w || w.kind !== 'hero' || !w.hero || !isMelee(w.hero)) return;
+    const base = w.hero === 'clem' ? 0xfff1c4 : w.hero === 'brutus' ? 0xeef3fa : 0xe9e0ff;
+    const color = tinted(mixHex(base, elementColor(w.hero), 0.45), this.heroes.cardOf(id));
+    const r = w.hero === 'brutus' || w.hero === 'lambo' ? 1.7 : 1.5;
     const side = (this.swipeSide = -this.swipeSide);
-    for (let k = 0; k < n; k++) {
-      const t = k / (n - 1);
-      const a = w.yaw + side * (t - 0.5) * 2.1;
-      const ca = Math.cos(a);
-      const sa = -Math.sin(a);
-      _sw.set(w.x + ca * r, 1.1 + t * 0.25, w.z + sa * r);
-      this.particles.single(_sw, {
-        shape: SHAPE.SOFT,
-        color,
-        intensity: 1.7,
-        size0: 0.55 - t * 0.25,
-        size1: 0.08,
-        life: 0.12 + t * 0.1,
-        vx: -sa * side * 3,
-        vz: ca * side * 3,
-        alpha: 0.9,
-      });
-    }
+    this.vfx.slash(w.x, w.z, w.yaw, r, 2.1, color, side, 1);
   }
 
   private swipeSide = 1;
@@ -449,6 +450,8 @@ export class GameView {
         w = { id: e.id, kind: e.kind, team: e.team, hero: e.hero, x: 0, z: 0, yaw: 0, t: 0 };
         this.who.set(e.id, w);
       }
+      w.level = e.level;
+      w.maxHp = e.maxHp;
       w.kind = e.kind;
       w.team = e.team;
       w.hero = e.hero;
@@ -472,6 +475,7 @@ export class GameView {
       const me = frame.byId.get(this.mySlot) ?? null;
       this.lastMe = me;
       this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlines);
+      if (this.vfx.tierName !== this.gr.settings.tier) this.vfx.setTier(this.gr.settings.tier);
       if (this.heroes.tierFx) this.heroes.tierFx.low = this.gr.settings.tier === 'low';
       this.heroes.focus.x = this.gr.focus.x;
       this.heroes.focus.z = this.gr.focus.z;
@@ -501,6 +505,7 @@ export class GameView {
     this.drawMarks(this.frame, dt);
     this.map.update(frame, dt);
     this.pickups.update(dt);
+    this.vfx.update(dt, this.frame?.entities ?? NO_ENTITIES, this.mySlot);
     this.particles.update(dt);
     this.shock.render(dt, this.time);
     this.effects.render(dt);
@@ -541,7 +546,8 @@ export class GameView {
       const tz = -w.y / 1000;
       const yaw = Math.atan2(-(tz - who.z), tx - who.x);
       const spec = toSpec(aim, who.x, who.z, tx, tz, Number.isFinite(yaw) ? yaw : who.yaw, color);
-      if (spec) this.telegraphs.draw({ ...spec, fill, alpha: 0.95 });
+      // Wave C (C3): an enemy wind-up draws after every VFX layer, so no spark, slash or debris ever hides it
+      if (spec) this.telegraphs.draw({ ...spec, fill, alpha: 0.95, over: who.team !== this.myTeam });
     }
   }
 
@@ -564,7 +570,8 @@ export class GameView {
   dispose(): void {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
-    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
+    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.vfx.auras.mesh);
+    this.vfx.dispose();
     this.hoverRing.dispose();
     this.castRing.dispose();
     this.moveMarks.dispose();

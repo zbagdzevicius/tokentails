@@ -29,6 +29,7 @@ import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
 import { toGoText } from './collection';
 import { laneHint } from './pingText';
+import { cardFxPreview } from './cardFxView';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -175,6 +176,8 @@ export interface SkinTile {
   fromPack?: boolean;
   /** The next bond threshold (null at Legendary). */
   next?: number | null;
+  /** Wave C (C4): the coat glow its card effects use. */
+  tint?: number;
 }
 
 const RUNG_NAME: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
@@ -220,9 +223,12 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const l = lookOf(h) as Look;
     const card = wearsCardSkin(l);
     const strip = owned.length || locked.length ? `<div class="skin-strip" role="list">${owned.map((k) => skinTile(k, k.id === l.coat)).join('')}${locked.map((k) => skinTile(k, false, true)).join('')}</div>` : '';
+    // Wave C (C4): what the worn card's rung adds in the match, with a small demo in the coat colour
+    const worn = card ? owned.find((k) => k.id === l.coat) : undefined;
+    const fx = worn ? cardFxPreview(worn) : '';
     return `<div class="row wardrobe skins"><span class="lbl">Skins</span>${coats
       .map((k) => `<button class="chip ${k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`)
-      .join('')}${strip}${chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
+      .join('')}${strip}${fx}${chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
   };
   let numbers = o.numbers === true;
   const render = (): void => {
@@ -391,7 +397,7 @@ export interface ResultsOpts {
   /** Round 2: a hero to tease on the Change hero button ("Try Sage: ranged healer"). */
   tryHero?: HeroId | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
-  skin?: { name: string; art?: string; bond: number; next: number | null } | null;
+  skin?: { name: string; art?: string; bond: number; next: number | null; rung?: CatTier; tint?: number } | null;
 }
 
 export interface ResultGrade {
@@ -521,7 +527,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
-      ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>` : ''}
+      ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>${o.skin.rung ? cardFxPreview({ name: o.skin.name, rung: o.skin.rung, ...(o.skin.tint !== undefined ? { tint: o.skin.tint } : {}) }, 'card-fx pl-skin-fx') : ''}` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}

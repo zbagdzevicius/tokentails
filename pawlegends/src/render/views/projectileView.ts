@@ -9,8 +9,11 @@ import { PROJECTILE_KIND } from '../../data/towers';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { FADE, SHAPE, type Particles } from '../fx/Particles.js';
+import { elementColor, type CombatVfx } from '../fx/combatVfx';
 import { RELATION, TEAM } from '../palette';
+import { TELEGRAPH_OVER } from '../telegraph';
 import { DecalLayer, discTexture } from './decals';
+import { tinted, type CardFx } from '../skins/cardFx';
 
 interface Look {
   size: number;
@@ -19,29 +22,43 @@ interface Look {
   trail: number;
 }
 
-function look(kind: number, team: number): Look {
+/** Wave C (C3): one scratch look, filled per projectile (the old object per projectile per frame is gone). */
+const _look: Look = { size: 0, y: 0, color: 0, trail: 0 };
+
+function set(size: number, y: number, color: number, trail: number): Look {
+  _look.size = size;
+  _look.y = y;
+  _look.color = color;
+  _look.trail = trail;
+  return _look;
+}
+
+export function look(kind: number, team: number): Look {
   const t = team === 1 ? TEAM[1] : TEAM[0];
   switch (kind) {
     case PROJECTILE_KIND.ranged:
-      return { size: 0.22, y: 0.7, color: team === 0 ? 0x9fd3ff : 0xffd27a, trail: 0.12 };
+      return set(0.22, 0.7, team === 0 ? 0x9fd3ff : 0xffd27a, 0.12);
     case PROJECTILE_KIND.siege:
-      return { size: 0.42, y: 1.4, color: t.main, trail: 0.2 };
+      return set(0.42, 1.4, t.main, 0.2);
     case PROJECTILE_KIND.tower:
-      return { size: 0.42, y: 3.6, color: team === 0 ? 0xff9fc0 : 0x8fb4ff, trail: 0.3 };
+      return set(0.42, 3.6, team === 0 ? 0xff9fc0 : 0x8fb4ff, 0.3);
     case PROJECTILE_KIND.core:
-      return { size: 0.6, y: 3.0, color: team === 0 ? 0xff6f91 : 0xffd34d, trail: 0.35 };
+      return set(0.6, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
     // sim v9: Lambo's tuna can and Bengas's burnt toast
     case PROJECTILE_KIND.tuna:
-      return { size: 0.36, y: 1.0, color: 0xc8d4e0, trail: 0.16 };
+      return set(0.36, 1.0, 0xc8d4e0, 0.16);
     case PROJECTILE_KIND.toast:
-      return { size: 0.34, y: 1.0, color: 0xff7a2e, trail: 0.24 };
+      return set(0.34, 1.0, 0xff7a2e, 0.24);
     // sim v10 (GAPS B6): Sage's Piercing Shot, a long bright arrow
     case PROJECTILE_KIND.lance:
-      return { size: 0.42, y: 1.0, color: 0xe8fff4, trail: 0.3 };
+      return set(0.42, 1.0, 0xe8fff4, 0.3);
     default:
-      return { size: 0.3, y: 0.9, color: team === 0 ? 0xfff1a8 : 0xd7b8ff, trail: 0.18 };
+      return set(0.3, 0.9, team === 0 ? 0xfff1a8 : 0xd7b8ff, 0.18);
   }
 }
+
+/** Projectiles a hero fires (they trail the hero's element colour; minion, tower and core shots keep theirs). */
+export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance]);
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
 const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
@@ -61,12 +78,20 @@ const _dir = new THREE.Vector3();
 export class ProjectileView {
   readonly group = new THREE.Group();
   private bolts: THREE.InstancedMesh;
-  private zones = new DecalLayer(discTexture(), CAPS.zones, { additive: true, y: 0.07, name: 'zones' });
+  // Wave C (C3): zones (an arming burst is a telegraph) draw after the particle layers, so dust never hides them
+  private zones = new DecalLayer(discTexture(), CAPS.zones, { additive: true, y: 0.07, renderOrder: TELEGRAPH_OVER, name: 'zones' });
   private trailT = 0;
   private time = 0;
   /** Sim v10 (GAPS B6): translucent half-spheres over Guard Post zones. */
   private domes: THREE.Mesh[] = [];
   myTeam: 0 | 1 = 0;
+  /** Wave C (C3): element trails and their pace per quality tier; null keeps the plain trail (tests). */
+  vfx: CombatVfx | null = null;
+  /** Wave C (C4): a hero's card effects by slot (a Rare+ card tints its shots' trails; colour only). */
+  card: ((id: number) => CardFx | null) | null = null;
+  private trailN = 0;
+  /** The old plain trail's options, reused (no object per puff). */
+  private readonly plain = { additive: true, n: 1, exact: true, shape: SHAPE.SOFT, color: 0, intensity: 1.4, size: [0, 0], sizeEnd: 0.2, life: [0.18, 0.28], speed: [0.1, 0.4], fade: FADE.LINEAR };
 
   constructor(private readonly particles: Particles) {
     this.group.name = 'projectiles';
@@ -96,13 +121,17 @@ export class ProjectileView {
     this.time += dt;
     this.trailT -= dt;
     const trail = this.trailT <= 0;
-    if (trail) this.trailT = 1 / 40;
+    if (trail) {
+      this.trailT = 1 / (this.vfx?.tier.trailHz ?? 40);
+      this.trailN++;
+    }
     let n = 0;
     for (const p of frame.projectiles) {
       if (n >= CAPS.projectiles) break;
-      const base = look(p.kind, p.team);
-      const tint = p.kind === PROJECTILE_KIND.hero ? BOLT_TINT[frame.byId.get(p.owner)?.hero ?? ''] : undefined;
-      const L = tint === undefined ? base : { ...base, color: tint };
+      const L = look(p.kind, p.team);
+      const owner = HERO_SHOTS.has(p.kind) ? frame.byId.get(p.owner)?.hero : undefined;
+      const tint = p.kind === PROJECTILE_KIND.hero && owner ? BOLT_TINT[owner] : undefined;
+      if (tint !== undefined) L.color = tint;
       const x = toX(p.fx);
       const z = toZ(p.fy);
       _dir.set(p.vx, 0, -p.vy);
@@ -115,7 +144,15 @@ export class ProjectileView {
       this.bolts.setColorAt(n, _c);
       n++;
       if (trail) {
-        this.particles.burst(_p, { additive: true, n: 1, exact: true, shape: SHAPE.SOFT, color: L.color, intensity: 1.4, size: [L.trail, L.trail * 1.4], sizeEnd: 0.2, life: [0.18, 0.28], speed: [0.1, 0.4], fade: FADE.LINEAR });
+        // Wave C (C3): a hero's shot trails its element colour, with embers on Med and High
+        if (this.vfx) this.vfx.trail(_p, owner ? tinted(elementColor(owner), this.card?.(p.owner)) : L.color, L.trail * (owner ? 1.25 : 1), owner !== undefined && (this.trailN + n) % 2 === 0);
+        else {
+          const o = this.plain;
+          o.color = L.color;
+          o.size[0] = L.trail;
+          o.size[1] = L.trail * 1.4;
+          this.particles.burst(_p, o);
+        }
       }
     }
     this.bolts.count = n;

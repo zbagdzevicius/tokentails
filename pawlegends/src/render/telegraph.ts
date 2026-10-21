@@ -124,7 +124,12 @@ export interface TelegraphSpec {
   fill?: number;
   /** The player's own indicator: drawn after the VFX layers (renderOrder 10) with an ink edge. */
   top?: boolean;
+  /** Wave C (C3): an enemy wind-up: drawn after every particle and shockwave layer (TELEGRAPH_OVER), no ink. */
+  over?: boolean;
 }
+
+/** Render order of an enemy wind-up: above particles (6, 7) and shockwaves (4, 7), under the hover rings (9). */
+export const TELEGRAPH_OVER = 8;
 
 interface Item {
   mesh: THREE.Mesh;
@@ -193,7 +198,7 @@ export class TelegraphPool {
     u.uAlpha.value = s.alpha ?? 1;
     u.uTime.value = this.time;
     u.uInk.value = s.top ? 1 : 0;
-    it.mesh.renderOrder = s.top ? 10 : 3;
+    it.mesh.renderOrder = s.top ? 10 : s.over ? TELEGRAPH_OVER : 3;
     it.mesh.position.set(s.x, 0.06, s.z);
     it.mesh.rotation.set(0, s.yaw, 0);
     if (rect) it.mesh.scale.set(s.length, 1, s.width ?? 1);

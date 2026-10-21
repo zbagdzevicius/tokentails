@@ -34,10 +34,10 @@ describe('Sage (§6.4)', () => {
     expect(SAGE.base).toEqual({ hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 });
     const a = SAGE.abilities;
     expect([a.q.cooldown, a.w.cooldown, a.e.cooldown, a.r.cooldown]).toEqual([210, 420, 360, 2100]);
-    expect([a.q.arrows, a.q.arc, a.q.range, a.q.dmg, a.q.dmgPerLevel, a.q.maxPerTarget]).toEqual([5, 569, 7000, 55, 10, 3]);
+    expect([a.q.arrows, a.q.arc, a.q.range, a.q.dmg, a.q.dmgPerLevel, a.q.maxPerTarget]).toEqual([5, 569, 7000, 55, 5, 3]);
     expect([a.w.range, a.w.arm, a.w.root, a.w.duration, a.w.maxTraps]).toEqual([6000, 15, 30, 900, 2]);
     expect(a.e.dash).toBe(3000);
-    expect([a.r.windup, a.r.range, a.r.width, a.r.dmg, a.r.dmgPerLevel, a.r.minionBp]).toEqual([30, 40000, 1200, 220, 40, 5000]);
+    expect([a.r.windup, a.r.range, a.r.width, a.r.dmg, a.r.dmgPerLevel, a.r.minionBp]).toEqual([30, 40000, 1200, 220, 20, 5000]);
     expect([SAGE.passive.everyNth, SAGE.passive.pierceRange]).toEqual([4, 7000]);
   });
 
@@ -169,7 +169,7 @@ describe('Sage (§6.4)', () => {
     const hp = w.hp[FOE];
     const hp2 = w.hp[FOE2];
     steps(m, 30);
-    const dmg = 220 + 40 * 3;
+    const dmg = 220 + 20 * 3; // Wave C: rank 1 at level 4, +20 a level
     expect(hp - w.hp[FOE]).toBe(heroHit(dmg, 40));
     expect(w.hp[FOE2]).toBe(hp2); // stopped at the first hero
     expect(w.maxHp[minion] - w.hp[minion]).toBe(afterArmour(Math.trunc(dmg / 2), 10));
@@ -202,7 +202,7 @@ describe('Sage (§6.4)', () => {
     chooseTalent(m2, SAGE_ID, 1, 1);
     chooseTalent(m2, SAGE_ID, 2, 0);
     cast(m2, SAGE_ID, 2, MID.x + 5000, MID.y);
-    expect(cd(m2, SAGE_ID, 2)).toBe(360); // sim v10: the level-6 branch replaced Quick Hop (8 s)
+    expect(cd(m2, SAGE_ID, 2)).toBe(360 - 3 * 15); // sim v10: the level-6 branch replaced Quick Hop (8 s); Wave C: Hop Back rank 4
     steps(m2, 8); // no cast while hopping
     cast(m2, SAGE_ID, 3, MID.x + 5000, MID.y);
     steps(m2, 30);

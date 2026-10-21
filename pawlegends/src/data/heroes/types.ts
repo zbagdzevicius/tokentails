@@ -17,6 +17,9 @@ export interface HeroBase {
   speed: number;
   armour: number;
   armourPerLevel: number;
+  /** Wave C (C1): overrides of the role's level growth (data/heroes/growth.ts ROLE_GROWTH). */
+  attackSpeedPerLevelBp?: number;
+  speedPerLevel?: number;
 }
 
 /** Ability numbers. Fields an ability does not use are absent; the kit code in src/sim/heroes reads them by name. */
@@ -44,6 +47,12 @@ export interface HeroData {
   base: HeroBase;
   passive: Readonly<Record<string, number>>;
   abilities: Readonly<Record<AbilitySlot, AbilityData>>;
+  /**
+   * Wave C (C2): what each rank above 1 adds to an ability's numbers (a delta, applied once per rank; negative
+   * cooldowns are cuts). Ranks come with levels (growth.ts RANK_LEVELS) and merge before the talents, so a talent that
+   * sets a number replaces the ranked one. Only numbers the ability already has may be ranked.
+   */
+  ranks: Readonly<Partial<Record<AbilitySlot, Readonly<Record<string, number>>>>>;
   /** Three tiers (levels 3, 6, 9) of two options each; bots choose by seed (sim v10, `botTalentChoice`). */
   talents: readonly (readonly TalentData[])[];
 }

@@ -32,7 +32,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect(BRUTUS.base).toEqual({ hp: 760, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 36, range: 1600, speed: 4800, armour: 40, armourPerLevel: 3 });
     const a = BRUTUS.abilities;
     expect([a.q.cooldown, a.w.cooldown, a.e.cooldown, a.r.cooldown]).toEqual([210, 420, 360, 2250]);
-    expect([a.q.radius, a.q.dmg, a.q.dmgPerLevel, a.q.slowBp, a.q.slow]).toEqual([3000, 60, 10, 3000, 45]);
+    expect([a.q.radius, a.q.dmg, a.q.dmgPerLevel, a.q.slowBp, a.q.slow]).toEqual([3000, 60, 5, 3000, 45]);
     expect([a.w.duration, a.w.arc]).toEqual([75, 1365]);
     expect([a.e.dash, a.e.knockback, a.e.stun]).toEqual([5000, 2000, 15]);
     expect([a.r.range, a.r.ringRadius, a.r.duration, a.r.reduceBp]).toEqual([5000, 6000, 90, 3000]);
@@ -76,7 +76,7 @@ describe('Sir Brutus (§6.5)', () => {
     place(m2, FOE, MID.x + 4200, MID.y, 2048);
     const hp3 = m2.world.hp[FOE];
     cast(m2, BRUTUS_ID, 0, MID.x, MID.y);
-    expect(hp3 - m2.world.hp[FOE]).toBe(heroHit(60 + 2 * 10, 25));
+    expect(hp3 - m2.world.hp[FOE]).toBe(heroHit(60 + 15 + 2 * 5, 25)); // Wave C: Shield Slam rank 2 at level 3
 
     const m3 = arena();
     setLevel(m3, BRUTUS_ID, 3);

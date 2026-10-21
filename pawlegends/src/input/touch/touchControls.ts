@@ -10,6 +10,8 @@
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  */
 import { sfx } from '../../audio/sfx';
+import { abilityRank, maxRank } from '../../sim/heroes/talents';
+import { rankPips } from '../../ui/heroText';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { slideAngle, type CastIndex } from '../orders';
@@ -84,10 +86,10 @@ export class TouchControls {
       <div class="pl-cancel" aria-label="Cancel">✕</div>
       <div class="pl-tcluster">
         <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span></button>
-        <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span></button>
-        <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span></button>
-        <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span></button>
-        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span></button>
+        <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
+        <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
+        <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
+        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn trick" data-b="trick" aria-label="Paw Trick"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn nap" data-b="nap" aria-label="Nap"><span>Nap</span></button>
         ${lastHitButton() ? '<button class="pl-tbtn lasthit" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
@@ -412,9 +414,19 @@ export class TouchControls {
     this.h.orders.attack(id);
   }
 
-  /** Per frame: joystick commands, attack repeat, cooldown overlays. */
+  /** Wave C (C2): the level the rank pips were drawn for (0 = not drawn yet). */
+  private pipLevel = 0;
+
+  /** Per frame: joystick commands, attack repeat, cooldown overlays, and (Wave C) the rank pips. */
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
     if (!this.enabled) return;
+    if (level !== this.pipLevel) {
+      this.pipLevel = level;
+      (['q', 'w', 'e', 'r'] as const).forEach((b, i) => {
+        const rk = this.buttons.get(b)?.querySelector('.rk');
+        if (rk) rk.innerHTML = rankPips(abilityRank(level, i), maxRank(i));
+      });
+    }
     void this.desktop;
     const now = performance.now();
     if (this.attackHeld !== null && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();

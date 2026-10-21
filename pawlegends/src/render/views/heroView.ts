@@ -16,6 +16,7 @@ import { HERO_RING } from './models';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
 import { getSkin, isCardSkinId } from '../skins/skinStore';
 import { TierFx, type FxHero } from '../skins/tierFx';
+import { cardFxFor, type CardFx } from '../skins/cardFx';
 import { mixColor } from '../cosmetics';
 
 export type Relation = 'self' | 'ally' | 'enemy' | 'neutral';
@@ -88,6 +89,10 @@ export class HeroView {
   focus = { x: 0, z: 0 };
   private readonly fxHero: FxHero = { id: 0, x: 0, z: 0, rung: 'COMMON', element: 'FIRE', self: false, moving: false, stealth: false, dead: false, napping: false, phase: 0 };
   private readonly fxPos: { x: number; z: number; dead: boolean }[] = Array.from({ length: 8 }, () => ({ x: 0, z: 0, dead: true }));
+  /** Wave C (C4): per slot, the last drawn frame's team and stealth, and a reused CardFx. */
+  private readonly slotTeam = new Uint8Array(16);
+  private readonly slotStealth = new Uint8Array(16);
+  private readonly cardOut: CardFx[] = Array.from({ length: 16 }, () => ({ rung: 'COMMON', name: '', tint: 0, self: false, team: 0, extras: false }));
 
   constructor() {
     this.group.name = 'heroes';
@@ -223,6 +228,10 @@ export class HeroView {
       u.uFlashK.value = dead ? 0.35 * fall : Math.min(0.42, r.flash * 0.5);
       u.uFlash.value.setHex(dead ? 0x6b6b80 : 0xffffff);
       const stealth = (e.buffs & BuffFlag.Stealth) !== 0;
+      if (e.id >= 0 && e.id < 16) {
+        this.slotTeam[e.id] = e.team === 1 ? 1 : 0;
+        this.slotStealth[e.id] = stealth ? 1 : 0;
+      }
       const want = stealth ? 0.42 : 1;
       if (u.uOpacity.value !== want) {
         u.uOpacity.value = want;
@@ -276,6 +285,23 @@ export class HeroView {
     this.auras.end();
     this.selfRing.end();
     this.selfPing.end();
+  }
+
+  /**
+   * Wave C (C4): what hero `id`'s card skin adds (render/skins/cardFx.ts), as the Skin effects setting allows: Off
+   * hides every card, Mine only hides the others'. Tints always; the extras follow tierFx's caps (another hero's only
+   * on Med / High and outside a team fight; never from a stealthed hero). Reuses one object per slot.
+   */
+  cardOf(id: number): CardFx | null {
+    if (id < 0 || id >= 16) return null;
+    const fx = this.tierFx;
+    const mode = fx?.mode ?? 'all';
+    const self = id === this.mySlot;
+    if (mode === 'off' || (mode === 'mine' && !self)) return null;
+    const coat = this.looks.get(id)?.coat;
+    const skin = isCardSkinId(coat) ? getSkin(coat) : null;
+    const extras = this.slotStealth[id] === 0 && (self || (!(fx?.low ?? false) && !(fx?.teamFight ?? false)));
+    return cardFxFor(skin, self, this.slotTeam[id] === 1 ? 1 : 0, extras, this.cardOut[id]);
   }
 
   dispose(): void {

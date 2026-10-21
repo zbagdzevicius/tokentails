@@ -101,8 +101,33 @@ test('?skins=demo on a local standalone page: the demo roster fills the Skins ro
   }
   await page.locator('.skin-tile[data-coat="cat.demo-ficus"]').click();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.look)).toBe('lambo:cat.demo-ficus@0|-');
+  // Wave C (C4): the worn card's effect line and demo under the Skins strip
+  await expect(page.locator('.pl-pick .card-fx[data-card-fx="LEGENDARY"] b')).toHaveText('Legendary card: Ficus burst');
+  await expect(page.locator('.pl-pick .card-fx .fx-demo .paw')).toHaveCount(1);
+  for (const [id, line] of [['cat.demo-pinkie', 'Epic card: Pinkie sparkle'], ['cat.demo-rascal', 'Rare card: Rascal tint'], ['cat.demo-pickles', 'Common card: Pickles look']]) {
+    await page.locator(`.skin-tile[data-coat="${id}"]`).click();
+    await expect(page.locator('.pl-pick .card-fx b')).toHaveText(line);
+  }
+  await page.locator('.skin-tile[data-coat="cat.demo-ficus"]').click();
   await page.waitForTimeout(800);
   if (process.env.SKIN_SHOTS) await page.screenshot({ path: `${process.env.SKIN_SHOTS}/skins-demo-pick.png` });
+});
+
+test('?skins=demo in a match: a Legendary demo card draws its effects, the sim untouched', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.addInitScript(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1, looks: { sage: { coat: 'cat.demo-ficus', chroma: null } } })));
+  await page.goto('/?skins=demo&e2e=1&speed=4');
+  await page.waitForSelector('html[data-ready="1"]');
+  await page.locator('[data-a="quick"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.match === 'live');
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.matchLook)).toBe('cat.demo-ficus@0|-');
+  await expect.poll(() => page.evaluate(() => Number(document.documentElement.dataset.cardFx ?? 0)), { timeout: 90_000 }).toBeGreaterThan(0);
+  const shot = await page.screenshot();
+  await info.attach('demo-legendary-match', { body: shot, contentType: 'image/png' });
+  if (process.env.SKIN_SHOTS) (await import('node:fs')).writeFileSync(`${process.env.SKIN_SHOTS}/match-demo-legendary.png`, shot);
+  expect(errors).toEqual([]);
 });
 
 test('?skins=demo is ignored without the query', async ({ page }) => {
