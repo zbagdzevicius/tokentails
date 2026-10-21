@@ -53,7 +53,7 @@ Apple Pay / Google Pay through the Stripe Payment Element plus a **USDC** tab, a
 
 1. **Add a cat 🐾** opens the sheet. The page has already fetched `GET /rave/status` at boot (2 s timeout, never
    blocks the scene). `enabled: false` or a failed fetch → today's sheet, unchanged.
-2. **Pick:** `$1 · 1 cat`, `$5 · 5 cats` (preselected), `Custom` (whole dollars, minimum $10, maximum `maxCats`).
+2. **Pick:** `$1 · 1 cat`, `$5 · 5 cats` (preselected), `Custom` (whole dollars, minimum $10, maximum `prices.max` from `GET /rave/status`: the lower of `maxCats` and what is left of today's `RAVE_DAILY_CAP_USD`, so $100 on a fresh day with the defaults).
 3. **Name them (optional):** one field per cat up to 10; above 10, the 10 fields plus one "name for the rest" field
    that becomes "Name 11", "Name 12", … Each empty field shows a cute placeholder (Mochi, Pixel, …); the server
    picks the final default. 16 characters max, inline check with the same rules as the server (section 7).

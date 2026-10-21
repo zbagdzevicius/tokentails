@@ -163,7 +163,7 @@ describe('GET /shelter/agent/cat-card (x402, onchain-receipt)', () => {
                     payTo: SPLIT,
                     resource: RESOURCE,
                     description:
-                        'One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients',
+                        'One shelter-cat card. The ShelterSplit contract splits each payment among its shelter recipients',
                     mimeType: 'application/json',
                     maxTimeoutSeconds: 600,
                     extra: { memo: `x402:${nonce}`, nonce, decimals: 18, coin: 'USDC', method: 'donate' },

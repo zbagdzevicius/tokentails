@@ -203,7 +203,7 @@ const offer = (chainId, over = {}) => ({
   asset: TOKEN,
   payTo: SPLIT,
   resource: "https://api.example/shelter/agent/cat-card",
-  description: "One adoptable-cat card",
+  description: "One shelter-cat card",
   mimeType: "application/json",
   maxTimeoutSeconds: 600,
   extra: { memo: MEMO, nonce: NONCE, decimals: 6, coin: "USDC", method: "disburse" },
