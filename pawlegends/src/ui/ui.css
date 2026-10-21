@@ -1063,3 +1063,59 @@ html[data-touch='1'] .pl-pingbtn { display: block; right: calc(152px + var(--saf
 /* GAPS B1 / A6: the lane hint under the blurb on the pick screen */
 .pl-pick .lane-hint { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
 .pl-pick .trick-hint { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }
+
+/* ------------------------------------------------------------------- Wave C (C2): ability ranks */
+/* Rank pips on each ability: filled = learned ranks (Q W E 4, R 3). Ranks come with levels, nothing to click. */
+.pl-slot .rk, .pl-tbtn .rk { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; pointer-events: none; z-index: 3; }
+.pl-slot .rk { top: 3px; }
+.pl-tbtn .rk { bottom: 7px; }
+.pl-slot .rk b, .pl-tbtn .rk b { width: 6px; height: 3px; border-radius: 2px; background: rgba(255, 243, 220, 0.28); }
+.pl-tbtn .rk b { width: 7px; height: 4px; }
+.pl-slot .rk b.on, .pl-tbtn .rk b.on { background: var(--butter); box-shadow: 0 0 4px rgba(255, 211, 77, 0.8); }
+.pl-slot.rankup { animation: pl-rankup 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) 2; border-color: var(--butter); }
+@keyframes pl-rankup { 40% { transform: scale(1.12); box-shadow: 0 0 0 4px rgba(255, 211, 77, 0.6), 0 0 18px 6px rgba(255, 211, 77, 0.5); } }
+/* The upgrade toast over the ability bar: "Rank up!" and one line per ranked ability. */
+.pl-rankup {
+  position: absolute; left: 50%; bottom: calc(132px + var(--safe-b, 0px)); transform: translate(-50%, 8px); opacity: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px; border-radius: 12px;
+  background: var(--panel, rgba(40, 26, 46, 0.92)); border: 2px solid rgba(255, 210, 122, 0.7); color: var(--cream); font: 600 12px/1.3 var(--font);
+  transition: opacity 0.25s, transform 0.25s; z-index: 6; max-width: min(92vw, 420px); text-align: center;
+}
+.pl-rankup.on { opacity: 1; transform: translate(-50%, 0); }
+.pl-rankup b { color: var(--butter); font-size: 14px; }
+/* touch: bottom centre, clear of the top banners and the button cluster on the right */
+html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0px)); font-size: 11px; padding: 4px 10px; max-width: 46vw; }
+/* The talent cards: what the pick changes in numbers at this level ("Volley arrows 5 → 7"). */
+.pl-talents button .n { grid-column: 2; font-size: 10px; color: var(--butter); opacity: 0.9; line-height: 1.2; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-slot.rankup { animation: none; }
+  .pl-rankup { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------------------------- Wave C C4
+   Card-tier effect previews (ui/cardFxView.ts): the pick screen under the Skins strip, the results line and the
+   Treat Track's Card effects list. The demo is drawn in the coat colour (--fx); still under reduce motion. */
+.card-fx { display: flex; align-items: center; gap: 10px; margin: 4px 0 0; flex: 1 1 100%; font-size: 13px; text-align: left; }
+.card-fx b { display: block; font-size: 13px; }
+.card-fx small { display: block; font-size: 12px; opacity: 0.75; }
+.fx-demo { --fx-c: var(--fx, #fff3dc); position: relative; flex: 0 0 auto; width: 44px; height: 28px; border-radius: 10px; background: rgba(42, 26, 34, 0.45); overflow: hidden; }
+.fx-demo .trail { position: absolute; left: -40%; top: 12px; width: 60%; height: 4px; border-radius: 4px; background: linear-gradient(90deg, transparent, var(--fx-c)); box-shadow: 0 0 6px var(--fx-c); animation: fx-trail 1.4s linear infinite; }
+.fx-demo[data-rung='COMMON'] .trail { --fx-c: #fff3dc; opacity: 0.6; }
+.fx-demo .tw { position: absolute; width: 5px; height: 5px; background: #fff; border-radius: 1px; transform: rotate(45deg); box-shadow: 0 0 5px var(--fx-c); animation: fx-tw 1.4s ease-in-out infinite; }
+.fx-demo .tw.a { left: 8px; top: 5px; }
+.fx-demo .tw.b { left: 22px; top: 18px; animation-delay: 0.45s; }
+.fx-demo .tw.c { left: 34px; top: 6px; animation-delay: 0.9s; }
+.fx-demo .paw { position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; color: var(--fx-c); filter: drop-shadow(0 0 4px var(--fx-c)); animation: fx-paw 1.4s ease-out infinite; }
+.fx-demo .paw .pl-icon { width: 22px; height: 22px; }
+@keyframes fx-trail { to { left: 100%; } }
+@keyframes fx-tw { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+@keyframes fx-paw { 0% { transform: scale(0.6); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .fx-demo .trail, .fx-demo .tw, .fx-demo .paw { animation: none; }
+  .fx-demo .trail { left: 20%; }
+}
+.pl-results .pl-skin-fx { margin-top: 2px; }
+.pl-collection .card-fx-list { display: grid; gap: 6px; }
+@media (max-height: 480px) {
+  .pl-pick .card-fx small { display: none; }
+}

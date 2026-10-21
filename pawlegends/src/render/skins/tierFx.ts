@@ -9,7 +9,9 @@
  * | Legendary | fur foil (`uFoil`, Med / High only) and one cream + element STAR8 ring when a Nap recall lands |
  *
  * Never: ground auras (the shared 8-slot aura layer carries Avietė's charge and the charm glow, gameplay signals),
- * trails (the Zoomies tell), cast tints, halos, gold on anyone but the player's own hero (yellow means "you").
+ * a new trail (the Zoomies tell), halos, gold on anyone but the player's own hero (yellow means "you"). Wave C (C4)
+ * card-tier ability effects (render/skins/cardFx.ts) tint the existing trails and hits (colour only) and add the cast
+ * sparkle and the Legendary paw prints; they use this file's caps (`mode`, `low`, `teamFight`).
  *
  * Who: the player's own hero always; others on Med / High only and never during a team fight (≥ 4 living heroes
  * within 12 m of the camera focus); on Low, glints for the own hero only and no foil. A stealthed hero emits nothing

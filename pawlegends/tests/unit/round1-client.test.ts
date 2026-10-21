@@ -66,7 +66,7 @@ describe('round 1: names and numbers', () => {
     expect(slotNames(['clem', 'clem', 'sage', 'brutus', 'brutus', 'cacklejaw'])).toEqual(['Clem', 'Clem 2', 'Sage', 'Sir Brutus', 'Sir Brutus 2', 'Cacklejaw']);
   });
   it('ability numbers come from src/data', () => {
-    expect(abilityNumbers('clem', 0)).toBe('6 s cooldown · 70 (+12/lvl) dmg · 2.4 m');
+    expect(abilityNumbers('clem', 0)).toBe('6 s cooldown · 70 (+6/lvl, +18 a rank) dmg · 2.4 m');
     expect(abilityNumbers('sage', 1)).toMatch(/root 1 s/);
     expect(trickNumbers('pounce')).toBe('120 s cooldown · 4 m');
     // sim v8: Hard is a mirror (Hard allies) and the hint says so; no species line on the chips any more

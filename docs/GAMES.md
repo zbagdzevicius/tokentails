@@ -301,11 +301,24 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   - **B3**: catch-up XP and the camp bonus became per-difficulty rules; the planned cuts were not applied because
     they raised comebacks (GAPS B3 status). A headless `--ablate` run switches each comeback source off.
   - **B5 Purr-ify**: the 4th Paw Trick removes stun, root, slow, fear and charm and gives 0.5 s of crowd-control
-    immunity (cooldown 100 s); it can be cast while stunned. Pick screen hint "Tank → Purr-ify".
+    immunity (cooldown 90 s since Wave C, 100 s before); it can be cast while stunned. Pick screen hint "Tank → Purr-ify".
   - **B6 level-6 branches**: talent tier 1 option 1 is a shape branch for Sage (Piercing Shot: Q is one 9 m piercing
     line) and Sir Brutus (Guard Post: W plants a 3 m dome for 2 s that shields his team inside from enemy shots; he is
     rooted and takes 25% less damage). The enemy portrait shows the branch; the other six heroes show "Branch coming
     soon". Cacklejaw and Lambo branches are a stretch, not built.
+- **Wave C** (`docs/plans/moba/GAPS.md` §3 "Wave C status"; still `SIM_VERSION` 10, unshipped, v9 frozen):
+  - **C1 level growth** (sim): every level above 1 adds the role's attack speed and move speed (`ROLE_GROWTH` in
+    `src/data/heroes/growth.ts`), never faster than one swing every 12 ticks.
+  - **C2 ability ranks** (sim): Q, W and E rank up at levels 2, 5 and 8; R unlocks at 4 and ranks up at 7 and 10.
+    Deltas live in `HeroData.ranks` and merge before talents (a talent number wins). Rank pips on the slots and touch
+    buttons, a "Rank up!" toast, tooltips with the numbers at the current level. Purr-ify cooldown 100 s → 90 s.
+  - **C3 combat VFX** (render only, `src/render/fx/combatVfx.ts`): damage-scaled hit sparks, slash crescents,
+    element trails, biome debris, ultimate waves, lightning, level-4/7/10 power spikes and auras. Particle budgets
+    Low 800 / Med 1,600 / High 2,000; reduce-motion cuts them; Settings has Screen shake Full / Low / Off.
+  - **C4 card-tier effects** (render only, `src/render/skins/cardFx.ts`): Rare tints trails, slashes and sparks with
+    the coat colour; Epic adds a cast sparkle; Legendary adds a paw-print hit burst, a takedown flourish and a
+    paw-print ultimate wave. Cosmetic only: the sim, the backend verifier and the vendored bundles never see cards
+    (`tests/unit/card-fx.test.ts` proves an identical replay with and without Legendary cards).
 - **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames (non-pack cats
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick

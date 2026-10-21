@@ -27,10 +27,10 @@ describe('Clem (§6.3)', () => {
     expect(CLEM.base).toEqual({ hp: 620, hpPerLevel: 60, attack: 58, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 5000, armour: 25, armourPerLevel: 2 });
     const a = CLEM.abilities;
     expect([a.q.cooldown, a.w.cooldown, a.e.cooldown, a.r.cooldown]).toEqual([180, 360, 330, 1800]);
-    expect([a.q.range, a.q.arc, a.q.dmg, a.q.dmgPerLevel, a.q.recasts, a.q.recastWindow, a.q.knockback]).toEqual([2400, 1024, 70, 12, 2, 90, 1500]);
+    expect([a.q.range, a.q.arc, a.q.dmg, a.q.dmgPerLevel, a.q.recasts, a.q.recastWindow, a.q.knockback]).toEqual([2400, 1024, 70, 6, 2, 90, 1500]);
     expect([a.w.duration, a.w.reduceBp, a.w.parryWindow]).toEqual([23, 8000, 9]);
     expect([a.e.dash, a.e.untargetable]).toEqual([4000, 6]);
-    expect([a.r.duration, a.r.attackSpeedBp, a.r.everyNth, a.r.waveRange, a.r.waveDmg, a.r.waveDmgPerLevel]).toEqual([180, 4000, 3, 5000, 80, 15]);
+    expect([a.r.duration, a.r.attackSpeedBp, a.r.everyNth, a.r.waveRange, a.r.waveDmg, a.r.waveDmgPerLevel]).toEqual([180, 4000, 3, 5000, 80, 8]);
     expect(CLEM.passive).toEqual({ valorPerHeroHit: 10, valorPerMinionHit: 4, valorMax: 100, valorBonusBp: 15000 });
   });
 
@@ -144,7 +144,8 @@ describe('Clem (§6.3)', () => {
     cast(m, CLEM_ID, 3, MID.x + 1500, MID.y);
     expect(cd(m, CLEM_ID, 3)).toBe(1800);
     expect(w.kRT[CLEM_ID]).toBe(180);
-    expect(attackEvery(w, CLEM_ID)).toBe(21);
+    // Wave C (C1): +40% from Golden Hour plus the fighter's 3 levels × 2.5%: 30 × 10000 / 14750
+    expect(attackEvery(w, CLEM_ID)).toBe(20);
     w.attackTimer[CLEM_ID] = 0;
     w.hp[FOE] = w.maxHp[FOE] = 100000;
     let waves = 0;
@@ -207,7 +208,7 @@ describe('Clem (§6.3)', () => {
     setLevel(m, CLEM_ID, 6);
     chooseTalent(m, CLEM_ID, 1, 0);
     cast(m, CLEM_ID, 2, MID.x, MID.y + 10000);
-    expect(cd(m, CLEM_ID, 2)).toBe(330);
+    expect(cd(m, CLEM_ID, 2)).toBe(330 - 2 * 15); // Wave C: Tumble rank 3 at level 6
     steps(m, 8);
     place(m, FOE, w.x[CLEM_ID] + 1000, w.y[CLEM_ID], 2048);
     w.hp[FOE] = 1;

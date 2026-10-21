@@ -8,7 +8,8 @@ import { HumanFilter } from '../analytics/human';
 import { createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
 import type { Bridge, HostMessage } from '../embed/bridge';
-import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type RosterCat, type RosterCosmetics } from '../meta/roster';
+import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
+import { coatGlow } from '../render/skins/cardFx';
 import { nextBond, onSkinsChanged, ownedSkins, setFeaturedSkins, setRosterSkins, showcaseGate, wantProbe } from '../render/skins/registry';
 import { FEATURED_SKIN_PREFIX, getSkin, isCardSkinId, skinIdOf, type CatSkin } from '../render/skins/skinStore';
 import type { SkinTile } from '../ui/screens';
@@ -282,7 +283,7 @@ export class App {
   }
 
   private skinTile(sk: CatSkin): SkinTile {
-    return { id: sk.id, name: sk.name, element: sk.element, rung: sk.rung, bond: sk.bond, next: nextBond(sk.bond), ...(sk.art ? { art: sk.art } : {}), ...(sk.fromPack ? { fromPack: true } : {}) };
+    return { id: sk.id, name: sk.name, element: sk.element, rung: sk.rung, bond: sk.bond, next: nextBond(sk.bond), tint: coatGlow(sk), ...(sk.art ? { art: sk.art } : {}), ...(sk.fromPack ? { fromPack: true } : {}) };
   }
 
   /** The card the lobby shows for a worn skin ("Wearing <name>"), or null. */
@@ -639,11 +640,13 @@ export class App {
     const rec = recordMatch(won, seconds, e.replay.difficulty);
     // GDD §7.2 Bond: one more finished match wearing this cat's skin (earned by play only)
     const worn = isCardSkinId(setup?.look?.coat) ? getSkin(setup?.look?.coat) : null;
-    let skinLine: { name: string; art?: string; bond: number; next: number | null } | null = null;
+    let skinLine: { name: string; art?: string; bond: number; next: number | null; rung: CatTier; tint: number } | null = null;
     if (worn && !worn.featured) {
       const bond = noteBond(worn.catId, this.rosterCats.map((c) => c.id));
       this.syncSkins();
-      skinLine = { name: worn.name, ...(worn.art ? { art: worn.art } : {}), bond, next: nextBond(bond) };
+      // Wave C (C4): the card effects after this match's Bond (a new rung shows its new effect)
+      const now = getSkin(worn.id) ?? worn;
+      skinLine = { name: worn.name, ...(worn.art ? { art: worn.art } : {}), bond, next: nextBond(bond), rung: now.rung, tint: coatGlow(now) };
     }
     this.matchesThisSession++;
     this.human.match(seconds);
@@ -908,6 +911,7 @@ export class App {
       portrait: (h) => portraitUrl(h, null),
       wornTitle: p.wornTitle,
       wornFrame: p.wornFrame,
+      cards: ownedSkins().map((sk) => ({ name: sk.name, rung: sk.rung, tint: coatGlow(sk) })),
       onTarget: (h) => {
         const t = loadTreats();
         t.target = h;

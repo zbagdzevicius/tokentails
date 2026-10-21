@@ -1,5 +1,5 @@
 /**
- * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, the desktop controls (quick cast or aim on hold,
+ * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, screen shake (Wave C C3: Full / Low / Off), the desktop controls (quick cast or aim on hold,
  * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), the touch controls (GAPS
  * A5: Target first Heroes / Lowest HP % / Closest, the optional last-hit and tower buttons), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
@@ -24,6 +24,7 @@ import {
   type TrackpadPref,
 } from '../input/presets';
 import type { QualityTier } from '../render/quality';
+import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -52,6 +53,7 @@ const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
 const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
+const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -66,7 +68,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -75,6 +77,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Sound', 'sound', !s.muted)}
       <div class="set-row"><span>Graphics</span><span class="chips">${(['low', 'med', 'high'] as const)
         .map((t) => `<button class="chip ${s.tier === t ? 'on' : ''}" data-t="${t}">${TIER_NAME[t]}</button>`)
+        .join('')}</span></div>
+      <div class="set-row"><span>Screen shake</span><span class="chips">${(['full', 'low', 'off'] as const)
+        .map((m) => `<button class="chip ${ctl.shake === m ? 'on' : ''}" data-shake="${m}">${SHAKE_NAME[m]}</button>`)
         .join('')}</span></div>
       ${showControls ? `<div class="set-row"><span>Ability keys</span><span class="chips">${(['quick', 'hold'] as const)
         .map((m) => `<button class="chip ${ctl.cast === m ? 'on' : ''}" data-cast="${m}">${CAST_NAME[m]}</button>`)
@@ -107,7 +112,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
     const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
     const tgt = t.closest<HTMLElement>('[data-target]')?.dataset.target as TargetFirst | undefined;
-    if (tgt) {
+    const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
+    if (shake) {
+      ctl.shake = shake;
+      setShakePref(shake);
+    } else if (tgt) {
       ctl.target = tgt;
       setTargetFirst(tgt);
     } else if (a === 'lasthit') {

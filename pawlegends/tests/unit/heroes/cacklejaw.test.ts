@@ -36,10 +36,10 @@ describe('Cacklejaw (§6.6)', () => {
     expect(CACKLEJAW.base).toEqual({ hp: 520, hpPerLevel: 55, attack: 60, attackPerLevel: 6, attackEvery: 29, range: 1600, speed: 5200, armour: 20, armourPerLevel: 2 });
     const a = CACKLEJAW.abilities;
     expect([a.q.cooldown, a.w.cooldown, a.e.cooldown, a.r.cooldown]).toEqual([240, 390, 480, 1800]);
-    expect([a.q.dash, a.q.dmg, a.q.dmgPerLevel, a.q.recasts, a.q.recastWindow]).toEqual([4000, 75, 12, 1, 90]);
+    expect([a.q.dash, a.q.dmg, a.q.dmgPerLevel, a.q.recasts, a.q.recastWindow]).toEqual([4000, 75, 6, 1, 90]);
     expect([a.w.range, a.w.arc, a.w.fear]).toEqual([3000, 796, 24]);
     expect([a.e.duration, a.e.speedBp, a.e.brushLinger]).toEqual([90, 2000, 45]);
-    expect([a.r.range, a.r.dmg, a.r.dmgPerLevel, a.r.missingHpBp, a.r.resetWindow, a.r.resets]).toEqual([12000, 150, 30, 1000, 90, 1]);
+    expect([a.r.range, a.r.dmg, a.r.dmgPerLevel, a.r.missingHpBp, a.r.resetWindow, a.r.resets]).toEqual([12000, 150, 15, 1000, 90, 1]);
     expect(CACKLEJAW.passive).toEqual({ bonusBp: 12000, behindArc: 1365, allyRange: 4000 });
   });
 
@@ -168,7 +168,7 @@ describe('Cacklejaw (§6.6)', () => {
     expect(w.revealT[FOE]).toBeGreaterThan(0);
     const missing = w.maxHp[FOE] - 3000;
     const lost = hpLoss(m, FOE, () => steps(m, 20));
-    expect(lost).toBe(heroHit(150 + 30 * 3 + Math.trunc((missing * 1000) / 10000), 15));
+    expect(lost).toBe(heroHit(150 + 15 * 3 + Math.trunc((missing * 1000) / 10000), 15));
     expect(w.hp[FOE2]).toBe(w.maxHp[FOE2]);
     // Nobody in 12 m: nothing happens, no cooldown.
     const m2 = hunt();

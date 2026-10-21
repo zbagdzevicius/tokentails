@@ -11,7 +11,7 @@
  */
 import { BRANCH_TALENT, HEROES } from '../data/heroes';
 import type { HeroId, TalentTier } from '../sim/api';
-import { HERO_TEXT, TALENT_SHORT } from './heroText';
+import { HERO_TEXT, TALENT_SHORT, talentNumbers } from './heroText';
 
 const LEVEL_OF_TIER = [3, 6, 9];
 /** Seconds (unpaused) an offer stays open before option 1 is picked for the player. */
@@ -29,6 +29,8 @@ export class TalentPicker {
     parent: HTMLElement,
     private readonly hero: HeroId,
     private readonly choose: (tier: TalentTier, choice: 0 | 1) => void,
+    /** Wave C (C2): the own hero's level and picks, so each card shows what it changes in numbers right now. */
+    private readonly state: () => { level: number; talents: readonly number[] } = () => ({ level: LEVEL_OF_TIER[0], talents: [] }),
   ) {
     this.root = document.createElement('div');
     this.root.className = 'pl-talents';
@@ -122,8 +124,10 @@ export class TalentPicker {
     const branch = tier === 1 ? BRANCH_TALENT[this.hero] : null;
     const soon = tier === 1 && !branch ? '<span class="soon">Branch coming soon</span>' : '';
     this.left = TALENT_AUTO_S;
+    const st = this.state();
+    const nums = opts.map((_, i) => talentNumbers(this.hero, tier, i, Math.max(st.level, LEVEL_OF_TIER[tier]), st.talents));
     this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent: pick one${soon}</div><i class="time"></i>${opts
-      .map((o, i) => `<button data-c="${i}"${o.id === branch ? ' class="branch"' : ''}><kbd>${i + 1}</kbd><b>${o.name}${o.id === branch ? '<em class="tag">New shape</em>' : ''}</b><span class="d">${words[o.id] ?? ''}</span><span class="s">${TALENT_SHORT[o.id] ?? words[o.id] ?? ''}</span></button>`)
+      .map((o, i) => `<button data-c="${i}"${o.id === branch ? ' class="branch"' : ''}><kbd>${i + 1}</kbd><b>${o.name}${o.id === branch ? '<em class="tag">New shape</em>' : ''}</b><span class="d">${words[o.id] ?? ''}</span><span class="s">${TALENT_SHORT[o.id] ?? words[o.id] ?? ''}</span>${nums[i] ? `<small class="n">${nums[i]}</small>` : ''}</button>`)
       .join('')}`;
     this.root.classList.add('on');
   }

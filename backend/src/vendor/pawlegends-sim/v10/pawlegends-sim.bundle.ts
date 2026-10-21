@@ -532,9 +532,9 @@ var AVIETE = Object.freeze({
 	name: "Avietė",
 	side: "cat",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). */
 	pvp: {
-		dmgBp: 13e3,
+		dmgBp: 12700,
 		takenBp: 8600
 	},
 	element: "ELECTRIC",
@@ -562,13 +562,13 @@ var AVIETE = Object.freeze({
 		lockout: 240
 	},
 	abilities: {
-		/** Spark Swipe: cone 2.2 m, 100°, 75 (+12/lvl). */
+		/** Spark Swipe: cone 2.2 m, 100°, 75 (+6/lvl, +18 a rank). */
 		q: {
 			cooldown: 180,
 			range: 2200,
 			arc: 1138,
 			dmg: 75,
-			dmgPerLevel: 12
+			dmgPerLevel: 6
 		},
 		/** Shiny Coat: Charged at once and +20% speed for 2 s; during the lockout only the speed. */
 		w: {
@@ -582,15 +582,25 @@ var AVIETE = Object.freeze({
 			blink: 4500,
 			recastWindow: 60
 		},
-		/** Short Circuit: blink beside an enemy hero within 6 m, 150 (+30/lvl), slow enemy heroes within 3 m 40% for 1.5 s. */
+		/** Short Circuit: blink beside an enemy hero within 6 m, 150 (+15/lvl, +68 a rank), slow enemy heroes within 3 m 40% for 1.5 s. */
 		r: {
 			cooldown: 1950,
 			range: 6e3,
 			dmg: 150,
-			dmgPerLevel: 30,
+			dmgPerLevel: 15,
 			dazzleRadius: 3e3,
 			slowBp: 4e3,
 			slow: 45
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 18 },
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: {
+			dmg: 68,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -650,14 +660,14 @@ var BENGAS = Object.freeze({
 	/** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */
 	passive: { bonusBp: 11500 },
 	abilities: {
-		/** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+13/lvl). */
+		/** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). */
 		q: {
 			cooldown: 180,
 			range: 7e3,
 			width: 800,
 			speed: 18e3,
 			dmg: 70,
-			dmgPerLevel: 13
+			dmgPerLevel: 7
 		},
 		/**
 		* Striking Pose: 0.3 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
@@ -680,7 +690,7 @@ var BENGAS = Object.freeze({
 			hasteBp: 2e3,
 			haste: 30
 		},
-		/** Curtains Up!: a 3.5 m fire disc within 9 m; 0.6 s arm, then 8 pulses every 0.5 s of 25 (+5/lvl) and a 25% slow. */
+		/** Curtains Up!: a 3.5 m fire disc within 9 m; 0.6 s arm, then 8 pulses every 0.5 s of 25 (+3/lvl, +9 a rank) and a 25% slow. */
 		r: {
 			cooldown: 1950,
 			range: 9e3,
@@ -689,9 +699,19 @@ var BENGAS = Object.freeze({
 			duration: 120,
 			every: 15,
 			dmg: 25,
-			dmgPerLevel: 5,
+			dmgPerLevel: 3,
 			slowBp: 2500,
 			slow: 16
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 18 },
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: {
+			dmg: 9,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -758,12 +778,12 @@ var BRUTUS = Object.freeze({
 		decayAfter: 90
 	},
 	abilities: {
-		/** Shield Slam: ring 3 m, 60 (+10/lvl), slow 30% for 1.5 s. */
+		/** Shield Slam: ring 3 m, 60 (+5/lvl, +15 a rank), slow 30% for 1.5 s. */
 		q: {
 			cooldown: 210,
 			radius: 3e3,
 			dmg: 60,
-			dmgPerLevel: 10,
+			dmgPerLevel: 5,
 			slowBp: 3e3,
 			slow: 45
 		},
@@ -789,6 +809,13 @@ var BRUTUS = Object.freeze({
 			duration: 90,
 			reduceBp: 3e3
 		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 15 },
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: { cooldown: -100 }
 	},
 	talents: [
 		[{
@@ -863,13 +890,13 @@ var CACKLEJAW = Object.freeze({
 		allyRange: 4e3
 	},
 	abilities: {
-		/** Jeer Slash: dash 4 m through a line, 75 (+12/lvl); on a hero hit, recast once within 3 s. */
+		/** Jeer Slash: dash 4 m through a line, 75 (+6/lvl, +18 a rank); on a hero hit, recast once within 3 s. */
 		q: {
 			cooldown: 240,
 			dash: 4e3,
 			width: 1e3,
 			dmg: 75,
-			dmgPerLevel: 12,
+			dmgPerLevel: 6,
 			recasts: 1,
 			recastWindow: 90
 		},
@@ -887,16 +914,26 @@ var CACKLEJAW = Object.freeze({
 			speedBp: 2e3,
 			brushLinger: 45
 		},
-		/** Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+30/lvl) + 10% missing HP. */
+		/** Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP. */
 		r: {
 			cooldown: 1800,
 			range: 12e3,
 			dmg: 150,
-			dmgPerLevel: 30,
+			dmgPerLevel: 15,
 			missingHpBp: 1e3,
 			resetWindow: 90,
 			resets: 1,
 			speed: 24e3
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 18 },
+		w: { cooldown: -15 },
+		e: { cooldown: -20 },
+		r: {
+			dmg: 68,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -969,13 +1006,13 @@ var CLEM = Object.freeze({
 		valorBonusBp: 15e3
 	},
 	abilities: {
-		/** Paw Combo: cone 2.4 m, 90°, 70 (+12/lvl); recast twice within 3 s; 3rd hit knocks back 1.5 m. 6 s after the last cast. */
+		/** Paw Combo: cone 2.4 m, 90°, 70 (+6/lvl, +18 a rank); recast twice within 3 s; 3rd hit knocks back 1.5 m. 6 s after the last cast. */
 		q: {
 			cooldown: 180,
 			range: 2400,
 			arc: 1024,
 			dmg: 70,
-			dmgPerLevel: 12,
+			dmgPerLevel: 6,
 			recasts: 2,
 			recastWindow: 90,
 			knockback: 1500
@@ -994,7 +1031,7 @@ var CLEM = Object.freeze({
 			dash: 4e3,
 			untargetable: 6
 		},
-		/** Golden Hour: 6 s, +40% attack speed; every 3rd basic sends a 5 m line wave, 80 (+15/lvl). Wave speed/width: tuning. */
+		/** Golden Hour: 6 s, +40% attack speed; every 3rd basic sends a 5 m line wave, 80 (+8/lvl, +32 a rank). Wave speed/width: tuning. */
 		r: {
 			cooldown: 1800,
 			duration: 180,
@@ -1002,9 +1039,19 @@ var CLEM = Object.freeze({
 			everyNth: 3,
 			waveRange: 5e3,
 			waveDmg: 80,
-			waveDmgPerLevel: 15,
+			waveDmgPerLevel: 8,
 			waveSpeed: 25e3,
 			waveWidth: 1200
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 18 },
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: {
+			waveDmg: 32,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -1067,16 +1114,16 @@ var GABE = Object.freeze({
 		range: 6e3
 	},
 	abilities: {
-		/** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+10/lvl), allied heroes healed 25 (+5/lvl). */
+		/** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+5/lvl, +15 a rank), allied heroes healed 25 (+3/lvl, +6 a rank). */
 		q: {
 			cooldown: 210,
 			range: 7e3,
 			radius: 2200,
 			arm: 15,
 			dmg: 55,
-			dmgPerLevel: 10,
+			dmgPerLevel: 5,
 			heal: 25,
-			healPerLevel: 5
+			healPerLevel: 3
 		},
 		/** Wing Wrap: shield 70 (+14/lvl) for 3 s and +20% speed for 1.5 s on the allied hero nearest the aim, else herself. */
 		w: {
@@ -1106,6 +1153,16 @@ var GABE = Object.freeze({
 			charm: 30,
 			slowBp: 5e3
 		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: {
+			dmg: 15,
+			heal: 6
+		},
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: { cooldown: -100 }
 	},
 	talents: [
 		[{
@@ -1167,14 +1224,14 @@ var LAMBO = Object.freeze({
 		allyRange: 4e3
 	},
 	abilities: {
-		/** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+10/lvl), slow 25% for 1.5 s. */
+		/** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+5/lvl, +15 a rank), slow 25% for 1.5 s. */
 		q: {
 			cooldown: 240,
 			range: 6e3,
 			width: 900,
 			speed: 16e3,
 			dmg: 60,
-			dmgPerLevel: 10,
+			dmgPerLevel: 5,
 			slowBp: 2500,
 			slow: 45
 		},
@@ -1186,16 +1243,16 @@ var LAMBO = Object.freeze({
 			allyBp: 450,
 			duration: 75
 		},
-		/** Belly Flop: hop up to 5 m; on landing a 2.2 m ring, 50 (+8/lvl), stun 0.5 s. */
+		/** Belly Flop: hop up to 5 m; on landing a 2.2 m ring, 50 (+4/lvl, +12 a rank), stun 0.5 s. */
 		e: {
 			cooldown: 420,
 			dash: 5e3,
 			radius: 2200,
 			dmg: 50,
-			dmgPerLevel: 8,
+			dmgPerLevel: 4,
 			stun: 15
 		},
-		/** Tangled Lights: 0.5 s wind-up; enemy heroes within 4.5 m pulled up to 2 m toward him, 100 (+20/lvl), root 1 s. */
+		/** Tangled Lights: 0.5 s wind-up; enemy heroes within 4.5 m pulled up to 2 m toward him, 100 (+10/lvl, +45 a rank), root 1 s. */
 		r: {
 			cooldown: 2100,
 			windup: 15,
@@ -1203,7 +1260,17 @@ var LAMBO = Object.freeze({
 			pull: 2e3,
 			root: 30,
 			dmg: 100,
-			dmgPerLevel: 20
+			dmgPerLevel: 10
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 15 },
+		w: { cooldown: -15 },
+		e: { dmg: 12 },
+		r: {
+			dmg: 45,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -1245,10 +1312,11 @@ var SAGE = Object.freeze({
 	role: "marksman",
 	/**
 	* Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
-	* (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%).
+	* (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
+	* 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks).
 	*/
 	pvp: {
-		dmgBp: 10700,
+		dmgBp: 10900,
 		takenBp: 9800
 	},
 	element: "WIND",
@@ -1271,14 +1339,14 @@ var SAGE = Object.freeze({
 		pierceWidth: 600
 	},
 	abilities: {
-		/** Volley: 5 arrows in a 50° cone, 7 m, 55 (+10/lvl) each; one target takes at most 3. */
+		/** Volley: 5 arrows in a 50° cone, 7 m, 55 (+5/lvl, +15 a rank) each; one target takes at most 3. */
 		q: {
 			cooldown: 210,
 			arrows: 5,
 			arc: 569,
 			range: 7e3,
 			dmg: 55,
-			dmgPerLevel: 10,
+			dmgPerLevel: 5,
 			maxPerTarget: 3,
 			speed: 2e4,
 			width: 300
@@ -1298,16 +1366,26 @@ var SAGE = Object.freeze({
 			cooldown: 360,
 			dash: 3e3
 		},
-		/** Moonshot: 1.0 s wind-up, 40 m line 1.2 m wide; 220 (+40/lvl) to the first hero, 50% to minions passed. */
+		/** Moonshot: 1.0 s wind-up, 40 m line 1.2 m wide; 220 (+20/lvl, +90 a rank) to the first hero, 50% to minions passed. */
 		r: {
 			cooldown: 2100,
 			windup: 30,
 			range: 4e4,
 			width: 1200,
 			dmg: 220,
-			dmgPerLevel: 40,
+			dmgPerLevel: 20,
 			minionBp: 5e3,
 			speed: 6e4
+		}
+	},
+	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+	ranks: {
+		q: { dmg: 15 },
+		w: { cooldown: -15 },
+		e: { cooldown: -15 },
+		r: {
+			dmg: 90,
+			cooldown: -100
 		}
 	},
 	talents: [
@@ -1358,6 +1436,62 @@ var SAGE = Object.freeze({
 		}]
 	]
 });
+//#endregion
+//#region src/data/heroes/growth.ts
+var ROLE_GROWTH = Object.freeze({
+	fighter: Object.freeze({
+		attackSpeedPerLevelBp: 250,
+		speedPerLevel: 30
+	}),
+	marksman: Object.freeze({
+		attackSpeedPerLevelBp: 300,
+		speedPerLevel: 25
+	}),
+	tank: Object.freeze({
+		attackSpeedPerLevelBp: 150,
+		speedPerLevel: 25
+	}),
+	assassin: Object.freeze({
+		attackSpeedPerLevelBp: 250,
+		speedPerLevel: 40
+	}),
+	mage: Object.freeze({
+		attackSpeedPerLevelBp: 150,
+		speedPerLevel: 25
+	}),
+	support: Object.freeze({
+		attackSpeedPerLevelBp: 150,
+		speedPerLevel: 30
+	})
+});
+/** Floors: a hero never swings faster than once every `attackEveryMin` ticks, whatever its level and buffs. */
+var GROWTH_FLOOR = Object.freeze({ attackEveryMin: 12 });
+/**
+* Wave C (C2): ability ranks come with levels, the same for the human and the bots (no choice, no command). Q, W and
+* E have rank 1 at level 1 and rank up at levels 2, 5 and 8; R unlocks at level 4 (rank 1) and ranks up at 7 and 10.
+* The levels sit between the talent levels (3, 6, 9), so every level-up brings exactly one new thing.
+*/
+var RANK_LEVELS = Object.freeze({
+	basic: Object.freeze([
+		1,
+		2,
+		5,
+		8
+	]),
+	ultimate: Object.freeze([
+		4,
+		7,
+		10
+	])
+});
+/** The numbers a rank may change (fixed order: the sim adds them in this order, never by object key iteration). */
+var RANK_KEYS = Object.freeze([
+	"cooldown",
+	"dmg",
+	"heal",
+	"shield",
+	"waveDmg"
+]);
 //#endregion
 //#region src/data/heroes/index.ts
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
@@ -1522,9 +1656,12 @@ var TRICKS = Object.freeze({
 		fear: 30,
 		radius: 3e3
 	}),
-	/** Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while crowd-controlled. */
+	/**
+	* Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
+	* crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels).
+	*/
 	purrify: Object.freeze({
-		cooldown: 3e3,
+		cooldown: 2700,
 		immune: 15
 	})
 });
@@ -3345,12 +3482,27 @@ function attackRange(w, id) {
 		default: return 0;
 	}
 }
-/** Ticks between basic attacks; an attack-speed buff of bp divides it by (1 + bp). */
+/** Wave C (C1): hero `id`'s attack speed from levels (bp), its role's growth unless the hero overrides it. */
+function levelAttackSpeedBp(w, id) {
+	const h = heroData(w, id);
+	return (h.base.attackSpeedPerLevelBp ?? ROLE_GROWTH[h.role].attackSpeedPerLevelBp) * (w.level[id] - 1);
+}
+/** Wave C (C1): hero `id`'s move speed from levels (mm/s). */
+function levelSpeed(w, id) {
+	const h = heroData(w, id);
+	return (h.base.speedPerLevel ?? ROLE_GROWTH[h.role].speedPerLevel) * (w.level[id] - 1);
+}
+/**
+* Ticks between basic attacks; attack speed of bp divides it by (1 + bp). Wave C (C1): a hero's level attack speed and
+* its buff add up (floored division), never below GROWTH_FLOOR.attackEveryMin.
+*/
 function attackEvery(w, id) {
 	switch (w.kind[id]) {
 		case Kind.Hero: {
 			const base = heroData(w, id).base.attackEvery;
-			return w.asT[id] > 0 ? Math.max(1, idiv(base * BP_ONE, BP_ONE + w.asBp[id])) : base;
+			const bp = levelAttackSpeedBp(w, id) + (w.asT[id] > 0 ? w.asBp[id] : 0);
+			if (bp <= 0) return base;
+			return Math.max(Math.min(base, GROWTH_FLOOR.attackEveryMin), idiv(base * BP_ONE, BP_ONE + bp));
 		}
 		case Kind.Minion: return minionData(w, id).attackEvery;
 		case Kind.Tower: return TOWERS[w.sub[id] === 0 ? "outer" : "inner"].attackEvery;
@@ -3370,7 +3522,7 @@ function attackDamage(w, id) {
 	return 0;
 }
 function baseSpeed(w, id) {
-	if (w.kind[id] === Kind.Hero) return heroData(w, id).base.speed;
+	if (w.kind[id] === Kind.Hero) return heroData(w, id).base.speed + levelSpeed(w, id);
 	if (w.kind[id] === Kind.Minion) return minionData(w, id).speed;
 	if (w.kind[id] === Kind.Camp) return RAT_CAMP_STATS.speed;
 	return 0;
@@ -3582,6 +3734,10 @@ function snapCell(g, c) {
 * own seeded stream (`botTalentChoice`), so both options are played; before v10 they took the first. A chosen talent changes
 * ability numbers through its `mods` (merged here once, at module load, for every hero and every combination of
 * choices) or switches on a bespoke hook in the hero's kit (`hasTalent`).
+*
+* Wave C (C2): ability ranks come with levels (data/heroes RANK_LEVELS), the same for every hero and every bot. Each
+* rank above 1 adds the hero's `ranks` deltas to the base numbers; the talents' `mods` merge after them, so a talent
+* that sets a number wins over the ranked one. The table is per hero, per level and per talent combination.
 */
 /** Each tier is unchosen, choice 0 or choice 1: combo = Σ (choice + 1) × STATES^tier. */
 var STATES = 3;
@@ -3592,49 +3748,78 @@ function digit(combo, tier) {
 	for (let t = 0; t < tier; t++) c = idiv(c, STATES);
 	return imod(c, STATES) - 1;
 }
+var SLOTS = [
+	"q",
+	"w",
+	"e",
+	"r"
+];
+var LEVELS = XP.maxLevel;
+/** Rank (1 up) of ability `slot` at `level`; 0 = not learned yet (R before level 4). Pure: the HUD reads it too. */
+function abilityRank(level, slot) {
+	const steps = slot === 3 ? RANK_LEVELS.ultimate : RANK_LEVELS.basic;
+	let n = 0;
+	while (n < steps.length && level >= steps[n]) n++;
+	return n;
+}
+/** `nums` with `delta` added (rank − 1) times; only RANK_KEYS numbers the ability has. */
+function ranked(nums, delta, rank) {
+	if (!delta || rank <= 1) return nums;
+	const out = { ...nums };
+	for (let i = 0; i < RANK_KEYS.length; i++) {
+		const k = RANK_KEYS[i];
+		const d = delta[k];
+		if (d !== void 0 && out[k] !== void 0) out[k] = out[k] + d * (rank - 1);
+	}
+	return out;
+}
 function build$1() {
 	const table = [];
 	for (let h = 0; h < HERO_IDS.length; h++) {
 		const hero = HEROES[HERO_IDS[h]];
-		for (let combo = 0; combo < COMBOS; combo++) {
-			let q = { ...hero.abilities.q };
-			let w = { ...hero.abilities.w };
-			let e = { ...hero.abilities.e };
-			let r = { ...hero.abilities.r };
-			let passive = { ...hero.passive };
-			for (let t = 0; t < 3; t++) {
-				const c = digit(combo, t);
-				if (c < 0) continue;
-				const mods = hero.talents[t][c].mods;
-				if (!mods) continue;
-				q = {
-					...q,
-					...mods.q
-				};
-				w = {
-					...w,
-					...mods.w
-				};
-				e = {
-					...e,
-					...mods.e
-				};
-				r = {
-					...r,
-					...mods.r
-				};
-				passive = {
-					...passive,
-					...mods.passive
-				};
+		for (let level = 1; level <= LEVELS; level++) {
+			const at = [];
+			for (let s = 0; s < SLOTS.length; s++) at.push(ranked(hero.abilities[SLOTS[s]], hero.ranks[SLOTS[s]], Math.max(1, abilityRank(level, s))));
+			for (let combo = 0; combo < COMBOS; combo++) {
+				let q = { ...at[0] };
+				let w = { ...at[1] };
+				let e = { ...at[2] };
+				let r = { ...at[3] };
+				let passive = { ...hero.passive };
+				for (let t = 0; t < 3; t++) {
+					const c = digit(combo, t);
+					if (c < 0) continue;
+					const mods = hero.talents[t][c].mods;
+					if (!mods) continue;
+					q = {
+						...q,
+						...mods.q
+					};
+					w = {
+						...w,
+						...mods.w
+					};
+					e = {
+						...e,
+						...mods.e
+					};
+					r = {
+						...r,
+						...mods.r
+					};
+					passive = {
+						...passive,
+						...mods.passive
+					};
+				}
+				table.push(Object.freeze({
+					q,
+					w,
+					e,
+					r,
+					passive
+				}));
 			}
-			table.push(Object.freeze({
-				q,
-				w,
-				e,
-				r,
-				passive
-			}));
 		}
 	}
 	return table;
@@ -3649,7 +3834,8 @@ function abil(w, id) {
 		combo += (w.talents[base + t] + 1) * scale;
 		scale *= STATES;
 	}
-	return TABLE[w.sub[id] * COMBOS + combo];
+	const level = Math.min(LEVELS, Math.max(1, w.level[id]));
+	return TABLE[(w.sub[id] * LEVELS + level - 1) * COMBOS + combo];
 }
 /** Does hero `id` have talent `talentId` (a bespoke hook)? */
 function hasTalent(w, id, talentId) {

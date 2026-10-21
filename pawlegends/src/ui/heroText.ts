@@ -1,6 +1,7 @@
 /** Player-facing hero copy (POC.md §6). English only in the POC. Numbers live in src/data; this is words. */
 import type { HeroId, TrickId } from '../sim/api';
-import { BRANCH_TALENT, HEROES, type AbilitySlot } from '../data/heroes';
+import { BRANCH_TALENT, HERO_IDS, HEROES, type AbilitySlot } from '../data/heroes';
+import { abilityRank, kitNumbers, maxRank } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
 import { uiName } from '../data/heroes/shelter';
 
@@ -241,36 +242,175 @@ export const DIFFICULTY_HINT: Readonly<Partial<Record<string, string>>> = Object
 const sec = (ticks: number): string => `${Math.round(ticks / 3) / 10} s`;
 const metres = (mm: number): string => `${Math.round(mm / 100) / 10} m`;
 
-/** "6 s · 70 dmg (+12/lvl) · 2.4 m" from src/data (playtest round 1: "no numbers anywhere"). */
-export function abilityNumbers(hero: HeroId, slot: number): string {
-  const a = HEROES[hero].abilities[('qwer'[slot] ?? 'q') as AbilitySlot];
-  const parts = [`${sec(a.cooldown)} cooldown`];
-  const dmg = a.dmg ?? a.waveDmg ?? a.boltDmg ?? a.arrowDmg;
-  const per = a.dmgPerLevel ?? a.waveDmgPerLevel ?? a.boltDmgPerLevel ?? a.arrowDmgPerLevel;
-  if (dmg !== undefined) parts.push(`${dmg}${per ? ` (+${per}/lvl)` : ''} dmg`);
+type Nums = Readonly<Record<string, number | undefined>>;
+
+const dmgOf = (a: Nums): number | undefined => a.dmg ?? a.waveDmg ?? a.boltDmg ?? a.arrowDmg;
+const perOf = (a: Nums): number | undefined => a.dmgPerLevel ?? a.waveDmgPerLevel ?? a.boltDmgPerLevel ?? a.arrowDmgPerLevel;
+const rankDmgOf = (r: Nums | undefined): number | undefined => (r ? (r.dmg ?? r.waveDmg) : undefined);
+
+/** Level at which the ultimate unlocks (data/xp.ts XP.ultimateLevel). */
+const ULT_UNLOCK = 4;
+
+/** Reach and the main timer of an ability, shared by both forms below. */
+function reachAndTimer(a: Nums, parts: string[]): void {
   const reach = a.range ?? a.dash ?? a.blink ?? a.radius ?? a.leap;
   if (reach !== undefined) parts.push(metres(reach));
   const dur = a.stun ?? a.root ?? a.fear ?? a.duration;
   if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : 'lasts'} ${sec(dur)}`);
+}
+
+/**
+ * Without `level` (the pick screen): the data numbers with their growth, "6 s cooldown · 70 (+6/lvl, +18 a rank) dmg ·
+ * 2.4 m" (playtest round 1: "no numbers anywhere"). Wave C (C2): with `level` (the HUD tooltip), the numbers the sim
+ * uses right now at that level, rank and talent `choices` (per tier −1, 0 or 1): "5.5 s cooldown · 106 dmg · 2.4 m ·
+ * rank 2/4".
+ */
+export function abilityNumbers(hero: HeroId, slot: number, level?: number, choices?: readonly number[]): string {
+  const key = ('qwer'[slot] ?? 'q') as AbilitySlot;
+  if (level === undefined) {
+    const a = HEROES[hero].abilities[key] as Nums;
+    const parts = [`${sec(a.cooldown ?? 0)} cooldown`];
+    const dmg = dmgOf(a);
+    const per = perOf(a);
+    const rk = rankDmgOf(HEROES[hero].ranks[key]);
+    const grow = [per ? `+${per}/lvl` : '', rk ? `+${rk} a rank` : ''].filter(Boolean).join(', ');
+    if (dmg !== undefined) parts.push(`${dmg}${grow ? ` (${grow})` : ''} dmg`);
+    reachAndTimer(a, parts);
+    return parts.join(' · ');
+  }
+  const a = kitNumbers(HERO_IDS.indexOf(hero), level, choices)[key] as Nums;
+  const parts = [`${sec(a.cooldown ?? 0)} cooldown`];
+  const dmg = dmgOf(a);
+  if (dmg !== undefined) parts.push(`${dmg + (perOf(a) ?? 0) * (Math.max(1, level) - 1)} dmg`);
+  reachAndTimer(a, parts);
+  const rank = abilityRank(level, slot);
+  parts.push(rank > 0 ? `rank ${rank}/${maxRank(slot)}` : `unlocks at level ${ULT_UNLOCK}`);
   return parts.join(' · ');
 }
 
-/** Sim v10 (GAPS B6): the numbers of the level-6 shape branch's ability ("6 s cooldown · 95 (+15/lvl) dmg · 9 m"), or ''. */
-export function branchNumbers(hero: HeroId): string {
+/**
+ * Sim v10 (GAPS B6): the numbers of the level-6 shape branch's ability ("7 s cooldown · 95 (+14/lvl) dmg · 9 m"), or ''.
+ * Wave C: with `level`, the numbers at that level ("7 s cooldown · 137 dmg · 9 m").
+ */
+export function branchNumbers(hero: HeroId, level?: number): string {
   const b = HERO_TEXT[hero].branch;
   const id = BRANCH_TALENT[hero];
-  const mods = id ? HEROES[hero].talents[1].find((t) => t.id === id)?.mods : undefined;
-  if (!b || !mods) return '';
+  const tIndex = id ? HEROES[hero].talents[1].findIndex((t) => t.id === id) : -1;
+  if (!b || tIndex < 0) return '';
   const key = ('qwer'[b.slot] ?? 'q') as AbilitySlot;
-  const a = { ...HEROES[hero].abilities[key], ...mods[key] } as Readonly<Record<string, number | undefined>>;
+  const a = kitNumbers(HERO_IDS.indexOf(hero), level ?? 1, [-1, tIndex, -1])[key] as Nums;
   const parts = [`${sec(a.cooldown ?? 0)} cooldown`];
   if (a.post) {
     parts.push(`${metres(a.postRadius ?? 0)} dome`, `lasts ${sec(a.postDuration ?? 0)}`);
     if (a.postReduceBp) parts.push(`${a.postReduceBp / 100}% less damage`);
     return parts.join(' · ');
   }
-  if (a.dmg !== undefined) parts.push(`${a.dmg}${a.dmgPerLevel ? ` (+${a.dmgPerLevel}/lvl)` : ''} dmg`);
+  if (a.dmg !== undefined) {
+    parts.push(level === undefined ? `${a.dmg}${a.dmgPerLevel ? ` (+${a.dmgPerLevel}/lvl)` : ''} dmg` : `${a.dmg + (a.dmgPerLevel ?? 0) * (level - 1)} dmg`);
+  }
   if (a.range !== undefined) parts.push(metres(a.range));
+  return parts.join(' · ');
+}
+
+/** One rank delta in words: "+18 dmg", "−0.5 s cooldown". */
+function rankDelta(key: string, d: number): string {
+  if (key === 'cooldown') return `${d < 0 ? '−' : '+'}${sec(Math.abs(d))} cooldown`;
+  const word = key === 'waveDmg' ? 'wave dmg' : key;
+  return `${d < 0 ? '−' : '+'}${Math.abs(d)} ${word}`;
+}
+
+/** Order the rank deltas are listed in (fixed, so the toast reads the same every time). */
+const RANK_TEXT_ORDER = ['dmg', 'waveDmg', 'heal', 'shield', 'cooldown'];
+
+/**
+ * Wave C (C2): the abilities that rank up at `level` (rank 2 and above; the ultimate's unlock has its own pulse), with
+ * their line for the level-up toast: "Volley rank 2: +15 dmg". The deltas are the sim's own numbers (`kitNumbers` at
+ * `level` minus `level − 1` with the talent `choices`), so a talent that sets a number outright (Piercing Shot's
+ * damage, Full Moon's cooldown) leaves out the rank gain it overrides, and a rank that changes nothing gives no line.
+ */
+export function rankUpSlots(hero: HeroId, level: number, choices: readonly number[] = []): { slot: number; line: string }[] {
+  const out: { slot: number; line: string }[] = [];
+  const idx = HERO_IDS.indexOf(hero);
+  if (level < 2) return out;
+  const now = kitNumbers(idx, level, choices) as unknown as Record<string, Nums>;
+  const was = kitNumbers(idx, level - 1, choices) as unknown as Record<string, Nums>;
+  for (let slot = 0; slot < 4; slot++) {
+    const rank = abilityRank(level, slot);
+    if (rank < 2 || rank === abilityRank(level - 1, slot)) continue;
+    const key = 'qwer'[slot] ?? 'q';
+    const bits: string[] = [];
+    for (const k of RANK_TEXT_ORDER) {
+      const a = was[key][k];
+      const b = now[key][k];
+      if (a === undefined || b === undefined || a === b) continue;
+      bits.push(rankDelta(k, b - a));
+    }
+    if (bits.length) out.push({ slot, line: `${HERO_TEXT[hero].abilities[slot].name} rank ${rank}: ${bits.join(', ')}` });
+  }
+  return out;
+}
+
+/** The toast lines of `rankUpSlots`. Empty when nothing ranks up at that level, or no rank changes a number. */
+export function rankUpLines(hero: HeroId, level: number, choices: readonly number[] = []): string[] {
+  return rankUpSlots(hero, level, choices).map((r) => r.line);
+}
+
+/** Wave C (C2): rank pips markup for the HUD and touch buttons, `rank` of `max` filled. */
+export function rankPips(rank: number, max: number): string {
+  let h = '';
+  for (let r = 1; r <= max; r++) h += `<b${r <= rank ? ' class="on"' : ''}></b>`;
+  return h;
+}
+
+/** A number of `key` in words for the talent card ("3.5 s", "4 m", "20%"). */
+function numberText(key: string, v: number): string {
+  if (/Bp$/.test(key)) return `${v / 100}%`;
+  if (/^(cooldown|duration|stun|root|fear|charm|slow|haste|arm|windup|recastWindow|hold|lockout|postDuration|immune|reveal|untargetable|brushLinger)$/.test(key)) return sec(v);
+  if (/^(range|dash|blink|radius|width|leap|postRadius|pierceRange|knockback|pull)$/.test(key)) return metres(v);
+  if (key === 'speed') return `${Math.round(v / 100) / 10} m/s`;
+  return String(v);
+}
+
+/** Words for a talent-changed number ("cooldown", "slow"). */
+function keyText(key: string): string {
+  return key
+    .replace(/Bp$/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .toLowerCase();
+}
+
+/**
+ * Wave C (C2): what talent `choice` of `tier` changes at `level`, from the sim's own numbers with the talents already
+ * `chosen`: "Volley arrows 5 → 7". Bespoke talents (no number change) give ''.
+ */
+export function talentNumbers(hero: HeroId, tier: number, choice: number, level: number, chosen: readonly number[] = []): string {
+  const t = HEROES[hero].talents[tier]?.[choice];
+  if (!t?.mods) return '';
+  const idx = HERO_IDS.indexOf(hero);
+  const before = [chosen[0] ?? -1, chosen[1] ?? -1, chosen[2] ?? -1];
+  before[tier] = -1;
+  const after = before.slice();
+  after[tier] = choice;
+  const k0 = kitNumbers(idx, level, before) as unknown as Record<string, Nums>;
+  const k1 = kitNumbers(idx, level, after) as unknown as Record<string, Nums>;
+  const parts: string[] = [];
+  for (const slot of ['q', 'w', 'e', 'r', 'passive'] as const) {
+    const m = t.mods[slot];
+    if (!m) continue;
+    const name = slot === 'passive' ? HERO_TEXT[hero].passive.name : HERO_TEXT[hero].abilities['qwer'.indexOf(slot)].name;
+    for (const key of Object.keys(m)) {
+      // switches (the shape branches' `lance`, `post`) and per-level growth are not numbers a player compares
+      if (key === 'lance' || key === 'post' || /PerLevel$/.test(key)) continue;
+      // damage, heal and shield read at this level (base + per level), as the sim deals them
+      const grow = (k: Record<string, Nums>): number => (/^(dmg|waveDmg|heal|shield)$/.test(key) ? (k[slot][`${key}PerLevel`] ?? 0) * (Math.max(1, level) - 1) : 0);
+      const was0 = k0[slot][key];
+      const now0 = k1[slot][key];
+      const was = was0 === undefined ? undefined : was0 + grow(k0);
+      const now = now0 === undefined ? undefined : now0 + grow(k1);
+      if (now === undefined || was === now) continue;
+      parts.push(`${name} ${keyText(key)} ${was === undefined ? '' : `${numberText(key, was)} → `}${numberText(key, now)}`);
+    }
+  }
   return parts.join(' · ');
 }
 

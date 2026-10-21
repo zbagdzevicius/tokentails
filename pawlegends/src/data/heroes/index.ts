@@ -9,6 +9,7 @@ import { LAMBO } from './lambo';
 import { SAGE } from './sage';
 import type { HeroData, HeroId } from './types';
 
+export { GROWTH_FLOOR, RANK_KEYS, RANK_LEVELS, ROLE_GROWTH, type Growth } from './growth';
 export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, HeroRole, HeroSide, TalentData } from './types';
 
 /** Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices. */

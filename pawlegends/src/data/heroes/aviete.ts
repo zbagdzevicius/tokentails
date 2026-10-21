@@ -6,8 +6,8 @@ export const AVIETE: HeroData = Object.freeze<HeroData>({
   name: 'Avietė',
   side: 'cat',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 13000, takenBp: 8600 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). */
+  pvp: { dmgBp: 12700, takenBp: 8600 },
   element: 'ELECTRIC',
   base: { hp: 500, hpPerLevel: 54, attack: 58, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5200, armour: 18, armourPerLevel: 2 },
   /**
@@ -16,15 +16,17 @@ export const AVIETE: HeroData = Object.freeze<HeroData>({
    */
   passive: { brushTime: 30, hold: 120, bonus: 60, bonusPerLevel: 10, stun: 15, lockout: 240 },
   abilities: {
-    /** Spark Swipe: cone 2.2 m, 100°, 75 (+12/lvl). */
-    q: { cooldown: 180, range: 2200, arc: 1138, dmg: 75, dmgPerLevel: 12 },
+    /** Spark Swipe: cone 2.2 m, 100°, 75 (+6/lvl, +18 a rank). */
+    q: { cooldown: 180, range: 2200, arc: 1138, dmg: 75, dmgPerLevel: 6 },
     /** Shiny Coat: Charged at once and +20% speed for 2 s; during the lockout only the speed. */
     w: { cooldown: 420, speedBp: 2000, haste: 60 },
     /** Live Wire: blink up to 4.5 m; a recast within 2 s blinks her back to where she started. */
     e: { cooldown: 420, blink: 4500, recastWindow: 60 },
-    /** Short Circuit: blink beside an enemy hero within 6 m, 150 (+30/lvl), slow enemy heroes within 3 m 40% for 1.5 s. */
-    r: { cooldown: 1950, range: 6000, dmg: 150, dmgPerLevel: 30, dazzleRadius: 3000, slowBp: 4000, slow: 45 },
+    /** Short Circuit: blink beside an enemy hero within 6 m, 150 (+15/lvl, +68 a rank), slow enemy heroes within 3 m 40% for 1.5 s. */
+    r: { cooldown: 1950, range: 6000, dmg: 150, dmgPerLevel: 15, dazzleRadius: 3000, slowBp: 4000, slow: 45 },
   },
+  /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+  ranks: { q: { dmg: 18 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { dmg: 68, cooldown: -100 } },
   talents: [
     [
       { id: 'wide-swipe', name: 'Wide Swipe', mods: { q: { arc: 1365 } } },

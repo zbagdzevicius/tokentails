@@ -11,6 +11,7 @@ import { FRAME_NAME, isTrackFrame } from '../render/cosmetics';
 import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TRACK_TITLES, heroTrack, matchesToGo, nextReward, type TreatState } from '../meta/treats';
 import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
+import { cardFxPreview, type CardFxTile } from './cardFxView';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -24,6 +25,8 @@ export interface CollectionOpts {
   portrait(hero: HeroId): string | null;
   wornTitle: string | null;
   wornFrame: string | null;
+  /** Wave C (C4): owned card skins, best rung first; each shows its line ("Legendary card: Ficus burst"). */
+  cards?: readonly CardFxTile[];
   onTarget(hero: HeroId | null): void;
   onWear(kind: 'title' | 'frame', id: string | null): void;
   onClose(): void;
@@ -76,6 +79,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       <div class="targets"><span class="lbl">Pick your next target</span><span class="chips"><button class="chip target ${s.target === null ? 'on' : ''}" data-target="" aria-pressed="${s.target === null}"><b>Track order</b><small>Any hero</small></button>${heroes.map(chip).join('')}</span></div>
       <h3>Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
+      ${o.cards && o.cards.length ? `<h3>Card effects</h3><div class="card-fx-list">${o.cards.map((k) => cardFxPreview(k)).join('')}</div>` : ''}
       ${titles.length || frames.length ? `<h3>Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? id, s.title)}${wearRow('frame', frames, (id) => (isTrackFrame(id) ? FRAME_NAME[id] : id), s.frame)}` : ''}
       <p class="fine">Free, earned by playing. Rewards come in a fixed order.</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;

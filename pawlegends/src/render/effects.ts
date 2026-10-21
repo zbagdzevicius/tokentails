@@ -18,6 +18,10 @@ import type { Juice } from './juice';
 import { RELATION, TEAM } from './palette';
 import { HERO_TOP } from './chars/specs';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
+import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
+import { mixHex } from './skins/classify';
+import { isGoldFamily } from './skins/registry';
+import { hasSparkle, tinted, type CardFx, type CardVfx } from './skins/cardFx';
 
 /** "Press R" on a keyboard; touch buttons carry icons, not letters, so name the button there. */
 export function ultHint(): string {
@@ -39,6 +43,10 @@ export interface Who {
   yaw: number;
   /** Sim v10 (GAPS B6): took the level-6 shape branch (aims and telegraphs change). */
   branch?: boolean;
+  /** Heroes: level 1..10 (Wave C C3: casts grow with the ability's rank). */
+  level?: number;
+  /** Max HP (Wave C C3: the big-hit pop is a share of it). */
+  maxHp?: number;
 }
 
 export interface ActiveWindup {
@@ -56,6 +64,8 @@ const MAP_MID_Y = MAP.height / 2;
 export interface EffectsHooks {
   /** Entity lookup by id (last drawn place, also for units that just vanished). */
   who(id: number): Who | null;
+  /** In the current snapshot (seen now, not only remembered): big reads such as the level spike need it. Absent = yes. */
+  visible?(id: number): boolean;
   mySlot: number;
   myTeam: number;
   /** Paw Trick per slot (welcome). */
@@ -76,6 +86,11 @@ export interface EffectsHooks {
   onPickupTaken?(kind: PickupKind, who: Who | null): void;
   /** A core fell (the match is ending): the session pushes the camera in. */
   onCoreDown?(who: Who): void;
+  /**
+   * Wave C (C4): what a hero's card skin adds (render/skins/cardFx.ts), or null (Common, no card, or the Skin effects
+   * setting hides it). Cosmetic only: colours and accents, never a size, a stat or anything the sim reads.
+   */
+  card?(id: number): CardFx | null;
 }
 
 const _p = new THREE.Vector3();
@@ -88,6 +103,10 @@ export class Effects {
   /** Render clock (s) and the last CLANK per target. */
   private time = 0;
   private readonly clankAt = new Map<number, number>();
+  /** Wave C (C3) combat juice; null keeps the older looks (tests, the lobby). */
+  vfx: CombatVfx | null = null;
+  /** Wave C (C4) card-tier extras (paw bursts, sparkles, flourishes); null = none (tests, the lobby). */
+  cards: CardVfx | null = null;
 
   constructor(
     private readonly particles: Particles,
@@ -212,8 +231,10 @@ export class Effects {
     this.hooks.onHit(e.dst, dst.kind, heavy);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
     const color = src ? (src.team === 0 ? 0xffd27a : 0xc9a8ff) : 0xffffff;
-    // sparks + a flash
-    this.particles.burst(pos, {
+    // Wave C (C3): sparks and flash sized by the damage, element-tinted from a hero; a big hit on a hero pops
+    const big = !!src && src.kind === 'hero' && (e.kind === 'basic' || e.kind === 'ability') && isBigHit(e.amount, dst.maxHp ?? 0, heroDst);
+    if (this.vfx) this.vfxHit(e, src, dst, pos, color, big);
+    else this.particles.burst(pos, {
       additive: true,
       n: heavy ? 12 : 6,
       shape: SHAPE.SPARK,
@@ -226,7 +247,7 @@ export class Effects {
       drag: 4,
       gravity: 6,
     });
-    this.particles.single(pos, { shape: SHAPE.STAR4, color: 0xfff6da, intensity: 2, size0: heavy ? 0.9 : 0.55, size1: 0.1, life: 0.14, rot: Math.random() * 3 });
+    if (!this.vfx) this.particles.single(pos, { shape: SHAPE.STAR4, color: 0xfff6da, intensity: 2, size0: heavy ? 0.9 : 0.55, size1: 0.1, life: 0.14, rot: Math.random() * 3 });
     // at most one CLANK per target per 0.5 s (a shielded tank in a teamfight stacked ten of them)
     if (e.shielded > 0 && this.time - (this.clankAt.get(e.dst) ?? -9) >= 0.5) {
       this.clankAt.set(e.dst, this.time);
@@ -236,10 +257,10 @@ export class Effects {
     // (on the body they hid the model in teamfights); repeat hits merge into one counter per target (DamageNumbers).
     const npos = heroDst && dst.hero ? _np.set(dst.x + (Math.random() - 0.5) * 0.7, HERO_TOP[dst.hero] + 1.0, dst.z + (Math.random() - 0.5) * 0.7) : pos;
     if (e.src === me) {
-      this.numbers.show(npos, String(e.amount), heavy ? 'heavy' : 'normal', e.dst, e.amount);
+      this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
       if (heroDst) {
-        this.juice.hitstop(e.kind === 'ability' ? 55 : 28);
-        this.juice.kick(e.kind === 'ability' ? 0.16 : 0.08);
+        this.juice.hitstop(big ? 70 : e.kind === 'ability' ? 55 : 28);
+        this.juice.kick(big ? 0.2 : e.kind === 'ability' ? 0.16 : 0.08);
       }
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
     } else if (e.dst === me) {
@@ -252,6 +273,32 @@ export class Effects {
     }
   }
 
+  private coneSide = 1;
+
+  /**
+   * Wave C (C3) hit juice: damage-scaled sparks, a flash, an element ring on ability hits, the big-hit pop, ground
+   * debris under heavy hits on the ground, and the Electric hero's ability hits arc as lightning from the caster.
+   */
+  private vfxHit(e: Extract<SimEvent, { type: 'hit' }>, src: Who | null, dst: Who, pos: THREE.Vector3, teamColor: number, big: boolean): void {
+    const vfx = this.vfx as CombatVfx;
+    const el = src?.kind === 'hero' && src.hero ? auraColor(src.hero, src.id === this.hooks.mySlot) : 0;
+    // Wave C (C4): a Rare+ card tints the sparks (colour only: the same counts and sizes)
+    const card = el ? this.cardOf(src) : null;
+    const color = tinted(el ? (e.kind === 'ability' ? el : mixHex(teamColor, el, 0.35)) : teamColor, card);
+    vfx.impact(pos, e.amount, color, e.kind === 'ability', big);
+    if (card && src) this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
+    const ground = dst.kind === 'hero' || dst.kind === 'minion' || dst.kind === 'camp' || dst.kind === 'pudding';
+    if (ground && (e.kind === 'ability' || big)) vfx.debris(dst.x, dst.z, big ? 1 : 0.5);
+    if (e.kind === 'ability' && src?.hero && HEROES[src.hero].element === 'ELECTRIC' && Math.hypot(dst.x - src.x, dst.z - src.z) < 9) {
+      vfx.lightning(src.x, 1.2, src.z, dst.x, pos.y, dst.z, el);
+    }
+  }
+
+  /** Wave C (C4): a hero's card effects (null for anything else, or with no card hook). */
+  private cardOf(w: Who | null): CardFx | null {
+    return w && w.kind === 'hero' ? (this.hooks.card?.(w.id) ?? null) : null;
+  }
+
   private cast(e: Extract<SimEvent, { type: 'cast' }>): void {
     const src = this.hooks.who(e.src);
     if (!src) return;
@@ -262,8 +309,8 @@ export class Effects {
     let yaw = Math.atan2(-(tz - src.z), tx - src.x);
     if (!Number.isFinite(yaw) || (Math.abs(tx - src.x) < 0.01 && Math.abs(tz - src.z) < 0.01)) yaw = src.yaw;
     const team = src.team === 1 ? TEAM[1] : TEAM[0];
-    const accent = src.hero ? heroAccent(src.hero) : team.main;
     const mine = e.src === this.hooks.mySlot;
+    const accent = src.hero ? heroAccent(src.hero, mine) : team.main;
     const ult = e.slot === 3;
     // First-match dodge tip (POC.md §12): an enemy hero's ability aimed at the player (at them, or landing within
     // 4 m). Only Moonshot has a wind-up in the POC kits, so instant casts count too, or the tip would almost never come.
@@ -271,8 +318,20 @@ export class Effects {
       const me = this.hooks.who(this.hooks.mySlot);
       if (me && (e.target === this.hooks.mySlot || Math.hypot(me.x - tx, me.z - tz) < 4)) this.hooks.onWindupAtMe?.();
     }
+    // Wave C (C3): casts grow with the ability's rank; a maxed ability adds a sparkle ring
+    const rk = e.slot <= 3 && src.kind === 'hero' ? rankScale(src.level ?? 1, e.slot) : 1;
+    const vfx = this.vfx;
+    if (vfx && src.kind === 'hero' && e.slot <= 3 && maxedRank(src.level ?? 1, e.slot)) vfx.rankFlourish(src.x, src.z, accent);
+    // Wave C (C4): an Epic+ card sparkles on every ability cast; a Legendary one signs the ultimate with paw prints
+    const card = e.slot <= 3 ? this.cardOf(src) : null;
+    if (vfx && hasSparkle(card)) this.cards?.castSparkle(src.x, src.z, card);
     if (ult) {
-      this.particles.ring(this.at(src, 0.1), { n: 22, r0: 0.5, speed: [4, 6], up: 1.2, color: accent, alpha: 0.9, additive: true, size: [0.3, 0.45], shape: SHAPE.STAR4, intensity: 1.6 });
+      if (vfx) {
+        const rel = mine ? RELATION.self : src.team === this.hooks.myTeam ? RELATION.ally : RELATION.danger;
+        const r = ((aim?.radius ?? aim?.range ?? 4000) / 1000) * (aim?.shape === 'ring' ? 1 : 0.6);
+        vfx.ultimate(src.x, src.z, accent, rel, r, rk);
+        this.cards?.signature(src.x, src.z, ultWaveRadius(r, rk), card);
+      } else this.particles.ring(this.at(src, 0.1), { n: 22, r0: 0.5, speed: [4, 6], up: 1.2, color: accent, alpha: 0.9, additive: true, size: [0.3, 0.45], shape: SHAPE.STAR4, intensity: 1.6 });
       if (mine) {
         this.juice.kick(0.2);
         this.juice.callout(src.hero ? ultName(src.hero) : 'Ultimate!', 'gold');
@@ -285,6 +344,7 @@ export class Effects {
     switch (shape) {
       case 'cone': {
         const arc = aim?.arc ?? 1.2;
+        if (vfx) vfx.slash(src.x, src.z, yaw, Math.min(3.2, range * 0.55), Math.max(1.4, arc * 1.4), accent, (this.coneSide = -this.coneSide), 1.25 * rk, 1.0);
         for (let i = 0; i < 14; i++) {
           const a = yaw - arc / 2 + (arc * i) / 13;
           _d.set(Math.cos(a), 0.15, -Math.sin(a));
@@ -294,13 +354,15 @@ export class Effects {
         break;
       }
       case 'ring':
-        this.shock.start(this.at(src, 0), { r1: Math.min(8, (aim?.radius ?? 3000) / 1000), dur: 0.3, color: '#' + accent.toString(16).padStart(6, '0'), height: 0.4 });
-        this.shock.thud(this.at(src, 0), 1);
+        this.shock.start(this.at(src, 0), { r1: Math.min(8, ((aim?.radius ?? 3000) / 1000) * (0.9 + 0.1 * rk)), dur: 0.3, color: '#' + accent.toString(16).padStart(6, '0'), height: 0.4 * rk });
+        this.shock.thud(this.at(src, 0), rk);
+        vfx?.debris(src.x, src.z, 1.2 * rk);
         sfx.play('slam', { at: src });
         if (mine || src.kind === 'hero') this.juice.kick(mine ? 0.2 : 0.08);
         break;
       case 'dash': {
         const away = aim?.away ? -1 : 1;
+        vfx?.dash(src.x, src.z, src.x + Math.cos(yaw) * range * away, src.z - Math.sin(yaw) * range * away, tinted(src.hero ? auraColor(src.hero, mine) : accent, card), rk);
         for (let i = 0; i < 10; i++) {
           const t = i / 9;
           _p.set(src.x + Math.cos(yaw) * range * t * away, 0.3, src.z - Math.sin(yaw) * range * t * away);
@@ -314,7 +376,7 @@ export class Effects {
         for (let i = 0; i < 40; i++) {
           const t = i / 39;
           _p.set(src.x + Math.cos(yaw) * len * t, 1.0, src.z - Math.sin(yaw) * len * t);
-          this.particles.single(_p, { shape: SHAPE.SOFT, color: accent, intensity: 2.2, size0: 1.3, size1: 0.2, life: 0.35 + t * 0.15 });
+          this.particles.single(_p, { shape: SHAPE.SOFT, color: accent, intensity: 2.2, size0: 1.3 * rk, size1: 0.2, life: 0.35 + t * 0.15 });
         }
         sfx.play('ult', { at: src });
         this.juice.kick(mine ? 0.25 : 0.12);
@@ -322,7 +384,12 @@ export class Effects {
       }
       case 'circle': {
         _p.set(tx, 0.2, tz);
-        this.particles.burst(_p, { additive: true, n: 10, shape: SHAPE.STAR4, color: accent, intensity: 1.5, size: [0.15, 0.3], life: [0.3, 0.5], speed: [1, 2.5], up: 1 });
+        this.particles.burst(_p, { additive: true, n: Math.round(10 * rk), shape: SHAPE.STAR4, color: accent, intensity: 1.5, size: [0.15 * rk, 0.3 * rk], life: [0.3, 0.5], speed: [1, 2.5], up: 1 });
+        if (vfx) {
+          vfx.debris(tx, tz, 0.8 * rk);
+          // the Electric hero's area lands as a bolt from the sky
+          if (src.hero && HEROES[src.hero].element === 'ELECTRIC') vfx.lightning(tx + 0.6, 7, tz - 0.4, tx, 0.2, tz, accent);
+        }
         sfx.play('magic', { at: { x: tx, z: tz } });
         break;
       }
@@ -417,6 +484,9 @@ export class Effects {
       this.particles.burst(pos, { n: 26, shape: SHAPE.PUFF, color: 0xfff4e0, alpha: 0.9, size: [0.45, 0.8], sizeEnd: 1.8, life: [0.5, 0.8], speed: [2, 4.5], up: 1, drag: 2.5 });
       this.particles.burst(pos, { additive: true, n: 18, shape: SHAPE.STAR5, color: this.rel(v.team, v.id), intensity: 1.8, size: [0.2, 0.36], life: [0.5, 0.9], speed: [3, 6], up: 3, gravity: 7 });
       this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: '#FFE0C8', height: 0.3 });
+      this.vfx?.debris(v.x, v.z, 1.3);
+      // Wave C (C4): a Legendary card's takedown flourish over the fallen hero (only for a hero seen now)
+      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, this.cardOf(k));
       sfx.play('death', { at: v });
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {
@@ -435,6 +505,11 @@ export class Effects {
 
   private levelup(e: Extract<SimEvent, { type: 'levelup' }>): void {
     const v = this.hooks.who(e.id);
+    // Wave C (C3): a power spike at 4, 7 and 10 that every player sees (the level aura underfoot steps up with it)
+    // Only for a hero seen now: the levelup event is not vision filtered, and `who` keeps a last-seen place for 3 s,
+    // so a hero that just stepped into brush would show a pillar where it hides. Yellow means you: another player's
+    // gold-family element is mixed toward white.
+    if (v && v.kind === 'hero' && v.hero && this.hooks.visible?.(e.id) !== false) this.vfx?.levelSpike(v.x, v.z, e.level, auraColor(v.hero, e.id === this.hooks.mySlot));
     if (v) {
       this.particles.ring(this.at(v, 0.1), { n: 18, r0: 0.6, speed: [1.5, 2.5], up: 2.4, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
       this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.6, size0: 0.5, size1: 3.5, life: 0.45, grow: GROW.OUT });
@@ -504,6 +579,7 @@ export class Effects {
 
   render(dt: number): void {
     this.time += dt;
+    this.cards?.tick(dt);
     this.numbers.render(dt);
   }
 
@@ -512,7 +588,19 @@ export class Effects {
   }
 }
 
-function heroAccent(h: HeroId): number {
+/** A hero's cast accent. Yellow means you: another player's gold-family accent is mixed toward white (as auraColor). */
+export function heroAccent(h: HeroId, mine: boolean): number {
+  const c = heroAccentRaw(h);
+  return !mine && isGoldFamily(c) ? mixHex(c, 0xffffff, 0.7) : c;
+}
+
+/** The size0 of CombatVfx.impact's flash for a hit of `amount` (the C4 paw burst stays inside it). */
+export const impactFlash = (amount: number): number => 0.45 + 0.35 * impactScale(amount);
+
+/** CombatVfx.ultimate's ground wave radius (the C4 paw-print wave stays inside it). */
+export const ultWaveRadius = (r: number, k: number): number => Math.min(9, Math.max(3.5, r)) * (0.85 + 0.15 * k);
+
+function heroAccentRaw(h: HeroId): number {
   switch (h) {
     case 'clem':
       return 0xffd34d;
@@ -520,8 +608,11 @@ function heroAccent(h: HeroId): number {
       return 0x9be3c4;
     case 'brutus':
       return 0xff9f5a;
-    default:
+    case 'cacklejaw':
       return 0xb07cff;
+    // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
+    default:
+      return elementColor(h);
   }
 }
 

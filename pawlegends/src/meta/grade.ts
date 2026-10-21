@@ -49,15 +49,19 @@ export const FRONTLINE_ROLES: readonly HeroRole[] = Object.freeze(['tank', 'supp
  * weights (GAPS B0); held out on 3001..3400 they land within 2.5 points of every target (tank 11.6/29.3/34.8/24.4,
  * support 14.5/30.8/32.8/22.0; losses graded A/S 31.9% and 36.7%). On that held-out block fighter (one hero) is 5.5
  * points off on B; at 400 seeds the sampling error alone is about 3 points. Re-run it after any balance or SlotStats
- * change.
+ * change. Wave C (level growth and ranks) drifted fighter, assassin and mage past the gate on 1001..1400 (B 41.8%,
+ * A 23.8%, B 41.8%), so every role was refit on the same 1,400 seeds a hero. Held out on 3001..3400 and 4001..4400,
+ * the two-hero roles (tank, assassin) stay within 3.4 points of every target; one single-hero role per block lands 5.5
+ * to 6.5 points off one share (support A 23.5% on 3001..; marksman B 40.8% on 4001..), a different one each time, which
+ * is the 400-seed sampling error, not drift. Losses graded A or S: 34.6% and 35.9%.
  */
 export const GRADE_THRESHOLDS: Readonly<Record<HeroRole, Readonly<{ S: number; A: number; B: number }>>> = Object.freeze({
-  fighter: Object.freeze({ S: 0.615, A: 0.524, B: 0.433 }),
-  marksman: Object.freeze({ S: 0.616, A: 0.527, B: 0.441 }),
-  assassin: Object.freeze({ S: 0.609, A: 0.528, B: 0.443 }),
-  mage: Object.freeze({ S: 0.613, A: 0.521, B: 0.43 }),
-  tank: Object.freeze({ S: 0.59, A: 0.516, B: 0.444 }),
-  support: Object.freeze({ S: 0.726, A: 0.65, B: 0.573 }),
+  fighter: Object.freeze({ S: 0.604, A: 0.516, B: 0.433 }),
+  marksman: Object.freeze({ S: 0.633, A: 0.548, B: 0.453 }),
+  assassin: Object.freeze({ S: 0.611, A: 0.528, B: 0.439 }),
+  mage: Object.freeze({ S: 0.6, A: 0.511, B: 0.432 }),
+  tank: Object.freeze({ S: 0.585, A: 0.511, B: 0.437 }),
+  support: Object.freeze({ S: 0.726, A: 0.65, B: 0.572 }),
 });
 
 /** Treat XP for the grade (GAPS A2). Never catnip. */

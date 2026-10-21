@@ -318,6 +318,84 @@ the cut order would not move it. **Deploy order: the backend (v9 + v10 verifiers
 
 **Stretch, render only:** N1 replay viewer, if Wave B freezes early.
 
+### Wave C (level growth, ability ranks, combat VFX, card-tier effects; still SIM_VERSION 10, unshipped)
+
+C1 and C2 change sim data inside the one v10 bump (the v10 vendor copy was refreshed; v9 stays frozen). C3 and C4 are
+render only. Card effects are cosmetic: no card reaches a stat, cooldown, hitbox or sim input.
+
+| Item | Status |
+|---|---|
+| C1 level growth | done (attack speed and move speed per level by role) |
+| C2 ability ranks | done (Q/W/E at 2, 5, 8; R at 4, 7, 10; pips, toast, tooltips); open: talents that set an absolute cooldown or damage lose value as ranks stack (Avietė Quick Shine 120 ticks better than base at level 6, 75 at level 8), a design call, not changed |
+| C3 combat VFX | done; outlines on minions and towers not added (draw-call caps); known bug: unfiltered `levelup` ring (below) |
+| C4 card-tier effects | done (Rare tint, Epic cast sparkle, Legendary hit burst, takedown flourish, ultimate paw wave) |
+
+Final verification (2026-10-21, all of Wave C together): `tsc` clean; vitest 86 files passed, 1 skipped, 789 tests
+passed, 4 skipped; `lint:sim` ok (100 files); `lift --check` ok; determinism 100 seeds, 264,666 commands, two runs
+identical; build ok, first-load JS 394.8 KB gzip (budget 450 KB), output 1.69 MB; `vendor-sim:check` current (v9
+frozen, v10); `sync-contracts --check` up to date; backend lint and build ok, backend tests 158 suites and 2,493 tests
+passed (2 suites fail to load without `OPENAI_API_KEY` in the shell and pass with a dummy key; not a Wave C change).
+Playwright: 74 passed, 48 skipped (per-project skips), 1 failed on the first run (`first-match` "all five tips", the
+attack tip's text not caught at speed 4) and passed twice on re-run; Med perf with card effects at 59 draws (≤ 110). Balance at 2,000 seeds passes every line:
+heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, Purrhaven 46.9% (inside the gate's 45–55%, under the plan's
+47%), median 7:01, p95 7:52, 0 safety ends, core kill before Sudden Death 80.7%, 3.44 takedowns a minute, trailing at
+3:30 won 26.8%; tricks 48.8% to 50.9%; branches Sage 52.5%, Sir Brutus 47.2%. fun1 (99.0%, 5:01), fun2 (80.0%, 6:40),
+novice (90.5%) and parked (1.5%) pass.
+
+**Wave C C1 + C2 status (2026-10-21, on `feat/pawlegends`, still SIM_VERSION 10, unshipped):** built. **C1 level
+growth:** every level above 1 adds the role's attack speed and move speed (`ROLE_GROWTH` in
+`src/data/heroes/growth.ts`; a hero may override it in `HeroBase`): fighter +2.5% / +30 mm/s, marksman +3% / +25,
+tank +1.5% / +25, assassin +2.5% / +40, mage +1.5% / +25, support +1.5% / +30. Attack speed adds to buffs in one floored
+division, never faster than one swing every 12 ticks (`GROWTH_FLOOR`); slows and hastes scale the levelled speed.
+**C2 ranks:** Q, W and E rank up at levels 2, 5 and 8 (4 ranks), R unlocks at 4 and ranks up at 7 and 10 (3 ranks);
+no rank level is a talent level, so each level-up brings one thing. Per-ability deltas live in `HeroData.ranks` and
+merge before the talents (a talent number wins); the sim table is per hero, level and talent combination, the same for
+bots. Half of each `dmgPerLevel` moved into the ranks, so level-1 and level-10 damage are unchanged; W and E get −0.5 s
+a rank, R −3.3 s a rank. Client: rank pips on the desktop slots and touch buttons, a "Rank up!" toast at the level-ups
+that rank something, tooltips and talent cards with the numbers at the current level and picks, and cooldown sweeps
+from the same table. Tuning: Avietė `pvp.dmgBp` 13000 → 12700, Sage 10700 → 10900, Purr-ify cooldown 3000 → 2700.
+Balance at 2,000 seeds: heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, Purrhaven 46.9%, median 7:01, p95 7:52,
+0 safety ends, core kill before Sudden Death 80.7%; tricks 48.8% to 50.9%; branches Sage 52.5%, Sir Brutus 47.2%.
+fun1, fun2, novice, parked, idle, hard, feeder and feedNormal pass. A2 grades drifted (fighter, assassin, mage over
+5 points on the held-out block) and were refit on the same 1,400 seeds a hero.
+
+**Wave C C3 status (2026-10-21, render only, no sim change):** built in `src/render/fx/combatVfx.ts`. Hit sparks and
+the impact flash scale with the damage (an element ring on ability hits), a big-hit pop on a hero hit for 16% of its max
+HP (the sim has no crits), slash crescents on melee basics and cone casts, element-coloured projectile trails with
+embers and dash streaks, ground debris by biome (grass, lane dirt, river water, bridge wood, plaza stone), ultimates
+with a relation-coloured wave (an enemy one reads red), a pillar and cracks, lightning on Avietė's ability hits and
+areas, a power spike at levels 4, 7 and 10 with a level aura underfoot (no gold under another hero, none while
+stealthed), and casts that grow 18% a C2 rank with a sparkle at the top rank. Colours come from the hero's element,
+never from a card. Budgets: Low 800 particles (counts ×0.6, no embers, motes or cracks), Med 1,600, High 2,000; the
+OS reduce-motion switch cuts counts ×0.6, stops sweeps, flickers and motes, and caps shake; Settings has Screen shake
+Full / Low / Off. Enemy wind-up telegraphs and zones now draw after every particle layer. Outlines: heroes already have
+the ink hull on Med and High; minions and towers were not given one (more draw calls against the perf caps).
+First-load JS 392.3 KB gzip (387.0 KB before, budget 450 KB).
+Review fixes: the aura layer holds two rings for all six heroes (it had 6 slots, so team 0 filled them and the other
+team showed no level-7 or level-10 aura); the level spike, cast accents, dash streaks and hit sparks of another player's
+hero never take the gold "you" family (Avietė, Sir Brutus and Lambo read gold; Clem's gold cast accent is mixed toward
+white under another player too); the level spike draws only for a hero in the current snapshot.
+**Known bug (predates C3, not fixed):** the `levelup` event is not vision filtered, and the render keeps a hero's
+last-seen place for 3 s (`WHO_TTL`), so the small gold level-up ring still pops where an enemy that just stepped into
+brush or fog is hiding.
+
+**Wave C C4 status (2026-10-21, render only, no sim change):** built in `src/render/skins/cardFx.ts`. Card-tier
+ability effects from the worn card skin's rung: Common is the default; Rare tints the hero's projectile trails, dash
+streaks, melee slashes and hit sparks with the coat's glow colour (the most colourful coat colour, lifted; colour
+only, the same counts, sizes and timings); Epic adds a sparkle at every ability cast (the footfall glint stays in
+`tierFx.ts`); Legendary adds a paw-print hit burst inside the default impact flash (basic hits at most every 0.25 s a
+hero), a takedown flourish over the fallen hero and a paw-print wave on the ultimate at 80% of its own wave radius (the
+red enemy wave stays). Everyone sees them under Skin effects All; tints are always on, the extras follow tierFx's caps
+(another hero's only on Med / High and outside a team fight, none while stealthed, skipped over 80% pool use, at most
+60 live particles). Another hero's tint is never in the gold family nor within 25° of the opposing team's hue.
+Previews: the pick screen under the Skins strip, the results line and a Card effects list on the Treat Track
+("Legendary card: Ficus burst"), each with a small CSS demo in the coat colour; works with `?skins=demo`. Cosmetic
+proof: `tests/unit/card-fx.test.ts` plays a match with every hero in a Legendary card and without, through the same
+event director, and the replay (inputs, hash trail, final hash) is identical and verifies; the sim, the backend
+verifier and the vendored bundles never mention cards. Balance at 2,000 seeds is unchanged from C1 + C2 (no sim
+change): heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, median 7:01, 0 safety ends; fun1, fun2, novice and
+parked pass. Perf (Med, every hero Legendary): 61 draws at most (≤ 110), 2,451 card-effect particles in the match.
+
 ## 4. Next: MVP (Nov 13 – early January)
 
 - **N0. Weekly Twist mutators (v11, Nov 19).** M (2 days).

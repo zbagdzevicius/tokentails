@@ -13,8 +13,8 @@ export const GABE: HeroData = Object.freeze<HeroData>({
   /** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */
   passive: { heal: 10, healPerLevel: 2, range: 6000 },
   abilities: {
-    /** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+10/lvl), allied heroes healed 25 (+5/lvl). */
-    q: { cooldown: 210, range: 7000, radius: 2200, arm: 15, dmg: 55, dmgPerLevel: 10, heal: 25, healPerLevel: 5 },
+    /** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+5/lvl, +15 a rank), allied heroes healed 25 (+3/lvl, +6 a rank). */
+    q: { cooldown: 210, range: 7000, radius: 2200, arm: 15, dmg: 55, dmgPerLevel: 5, heal: 25, healPerLevel: 3 },
     /** Wing Wrap: shield 70 (+14/lvl) for 3 s and +20% speed for 1.5 s on the allied hero nearest the aim, else herself. */
     w: { cooldown: 360, range: 6000, pickRadius: 2500, shield: 70, shieldPerLevel: 14, duration: 90, hasteBp: 2000, haste: 45 },
     /** Chase the Wind: dash 4 m; allied heroes within 1.5 m of her path get +25% speed for 2 s. */
@@ -22,6 +22,8 @@ export const GABE: HeroData = Object.freeze<HeroData>({
     /** Under Her Spell: 0.5 s wind-up, cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
     r: { cooldown: 2100, windup: 15, range: 6000, arc: 1024, charm: 30, slowBp: 5000 },
   },
+  /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+  ranks: { q: { dmg: 15, heal: 6 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { cooldown: -100 } },
   talents: [
     [
       { id: 'big-balloon', name: 'Big Balloon', mods: { q: { radius: 2800 } } },

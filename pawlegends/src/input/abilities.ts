@@ -9,7 +9,8 @@
  * - point: a ground point within `range`; further away the hero walks in, then casts.
  * - unit: an enemy hero within `range`; further away the hero walks in, then casts.
  */
-import { BRANCH_TALENT, HEROES } from '../data/heroes';
+import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
+import { kitNumbers } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
 import type { CastSlot, HeroId, TrickId } from '../sim/api';
 
@@ -145,14 +146,24 @@ export function trickAim(trick: TrickId): AimSpec {
   }
 }
 
-/** Max cooldown (ticks) for the HUD sweep: data cooldowns (talent mods may shorten them). */
-export function maxCooldown(hero: HeroId, slot: CastSlot | 4, trick: TrickId, branch = false): number {
+/**
+ * Talent choices per tier (−1 none) for a hero who took only its level-6 shape branch, or none: what the HUD assumes
+ * when it does not know the picks.
+ */
+export function branchChoices(hero: HeroId, branch: boolean): number[] {
+  const id = branch ? BRANCH_TALENT[hero] : null;
+  const c = id ? HEROES[hero].talents[1].findIndex((t) => t.id === id) : -1;
+  return [-1, c, -1];
+}
+
+/**
+ * Max cooldown (ticks) for the HUD sweep: the sim's own numbers at `level` (Wave C ranks) with the talent `choices`
+ * (snapshot `talents`; without them, only the level-6 shape branch when `branch`, which may set its own cooldown).
+ */
+export function maxCooldown(hero: HeroId, slot: CastSlot | 4, trick: TrickId, branch = false, level = 1, choices?: readonly number[]): number {
   if (slot === 4) return TRICKS[trick].cooldown;
   const key = (['q', 'w', 'e', 'r'] as const)[slot];
-  // Sim v10 (GAPS B6): a level-6 shape branch may set its own cooldown (Guard Post)
-  const id = branch ? BRANCH_TALENT[hero] : null;
-  const mod = id ? HEROES[hero].talents[1].find((t) => t.id === id)?.mods?.[key]?.cooldown : undefined;
-  return mod ?? HEROES[hero].abilities[key].cooldown;
+  return kitNumbers(HERO_IDS.indexOf(hero), level, choices ?? branchChoices(hero, branch))[key].cooldown;
 }
 
 /** Level at which the ultimate unlocks (§6.1). */

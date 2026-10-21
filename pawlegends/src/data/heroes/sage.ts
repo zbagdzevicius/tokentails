@@ -8,23 +8,26 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
   role: 'marksman',
   /**
    * Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
-   * (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%).
+   * (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
+   * 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks).
    */
-  pvp: { dmgBp: 10700, takenBp: 9800 },
+  pvp: { dmgBp: 10900, takenBp: 9800 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */
   passive: { everyNth: 4, pierceRange: 7000, pierceSpeed: 20000, pierceWidth: 600 },
   abilities: {
-    /** Volley: 5 arrows in a 50° cone, 7 m, 55 (+10/lvl) each; one target takes at most 3. */
-    q: { cooldown: 210, arrows: 5, arc: 569, range: 7000, dmg: 55, dmgPerLevel: 10, maxPerTarget: 3, speed: 20000, width: 300 },
+    /** Volley: 5 arrows in a 50° cone, 7 m, 55 (+5/lvl, +15 a rank) each; one target takes at most 3. */
+    q: { cooldown: 210, arrows: 5, arc: 569, range: 7000, dmg: 55, dmgPerLevel: 5, maxPerTarget: 3, speed: 20000, width: 300 },
     /** Sun Snare: trap at up to 6 m; arms after 0.5 s; roots 1.0 s; lasts 30 s; max 2. */
     w: { cooldown: 420, range: 6000, arm: 15, root: 30, duration: 900, maxTraps: 2, radius: 1000 },
     /** Hop Back: dash 3 m away from the cursor or joystick direction. */
     e: { cooldown: 360, dash: 3000 },
-    /** Moonshot: 1.0 s wind-up, 40 m line 1.2 m wide; 220 (+40/lvl) to the first hero, 50% to minions passed. */
-    r: { cooldown: 2100, windup: 30, range: 40000, width: 1200, dmg: 220, dmgPerLevel: 40, minionBp: 5000, speed: 60000 },
+    /** Moonshot: 1.0 s wind-up, 40 m line 1.2 m wide; 220 (+20/lvl, +90 a rank) to the first hero, 50% to minions passed. */
+    r: { cooldown: 2100, windup: 30, range: 40000, width: 1200, dmg: 220, dmgPerLevel: 20, minionBp: 5000, speed: 60000 },
   },
+  /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+  ranks: { q: { dmg: 15 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { dmg: 90, cooldown: -100 } },
   talents: [
     [
       { id: 'wide-volley', name: 'Wide Volley', mods: { q: { arrows: 7 } } },

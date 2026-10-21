@@ -13,8 +13,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
   /** Honour: damage from heroes builds a shield up to 12% max HP over 4 s; decays after 3 s out of combat. */
   passive: { shieldCapBp: 1200, buildWindow: 120, decayAfter: 90 },
   abilities: {
-    /** Shield Slam: ring 3 m, 60 (+10/lvl), slow 30% for 1.5 s. */
-    q: { cooldown: 210, radius: 3000, dmg: 60, dmgPerLevel: 10, slowBp: 3000, slow: 45 },
+    /** Shield Slam: ring 3 m, 60 (+5/lvl, +15 a rank), slow 30% for 1.5 s. */
+    q: { cooldown: 210, radius: 3000, dmg: 60, dmgPerLevel: 5, slowBp: 3000, slow: 45 },
     /** Front Guard: 2.5 s frontal shield (120°) blocking projectiles for Brutus and allies behind him; `radius`: shield reach (tuning). */
     w: { cooldown: 420, duration: 75, arc: 1365, radius: 1800 },
     /** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. */
@@ -22,6 +22,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
     /** Champion's Challenge: tether a hero within 5 m; 6 m ring for 3 s; Brutus takes 30% less from that hero. */
     r: { cooldown: 2250, range: 5000, ringRadius: 6000, duration: 90, reduceBp: 3000 },
   },
+  /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
+  ranks: { q: { dmg: 15 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { cooldown: -100 } },
   talents: [
     [
       { id: 'heavy-slam', name: 'Heavy Slam', mods: { q: { slowBp: 4500 } } },

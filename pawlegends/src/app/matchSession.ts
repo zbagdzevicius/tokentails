@@ -245,6 +245,8 @@ export class MatchSession {
   private scoreOn = false;
   private muted: boolean;
   private lastLevel = 1;
+  /** Wave C (C2): the own hero's talent picks from the latest snapshot (the talent card shows numbers with them). */
+  private lastTalents: readonly number[] = [-1, -1, -1];
   private disposed = false;
   private deathsBy: Record<string, number> = {};
   /** Display names by slot ("Clem 2" for a team's second Clem). */
@@ -480,7 +482,7 @@ export class MatchSession {
       this.orders?.talent(tier, choice);
       this.hooks.onTalent?.(tier, choice);
       sfx.play('click');
-    });
+    }, () => ({ level: this.lastLevel, talents: this.lastTalents }));
     // a talent that comes mid-fight waits behind the glowing portrait: a tap opens it (round 0)
     const pic = this.ui.querySelector<HTMLElement>('.pl-portrait');
     this.talents.onWait = (on) => pic?.classList.toggle('talent-ready', on);
@@ -1441,11 +1443,14 @@ export class MatchSession {
     // the centre band: the death recap holds it while dead, an open talent card while it is up
     const nowMs = performance.now();
     const meNow = frame && this.welcome ? frame.byId.get(this.welcome.slot) : undefined;
+    if (meNow?.talents) this.lastTalents = meNow.talents;
     this.stage.hold('recap', meNow?.state === 'dead', nowMs);
     this.stage.hold('talent', this.talents?.open ?? false, nowMs);
     if (this.e2e) {
       this.telemetry(frame);
       document.documentElement.dataset.stage = this.stage.top(nowMs) ?? '';
+      // Wave C (C4): card-tier effect particles started so far (perf and skins specs)
+      document.documentElement.dataset.cardFx = String(this.view.effects.cards?.emitted ?? 0);
     }
     if (frame && this.hud && this.welcome) {
       const me = frame.byId.get(this.welcome.slot) ?? null;
@@ -1464,7 +1469,8 @@ export class MatchSession {
       this.behindCall(frame.latest.score, this.welcome.team);
       const hero = this.welcome.picks[this.welcome.slot];
       const trick = this.welcome.tricks[this.welcome.slot];
-      this.touch?.update(me?.cooldowns ?? null, [0, 1, 2, 3, 4].map((i) => maxCooldown(hero, i as 0, trick)), me?.level ?? 1);
+      // Wave C (C2): the sweeps use the cooldowns at this level (ranks) with the picked talents
+      this.touch?.update(me?.cooldowns ?? null, [0, 1, 2, 3, 4].map((i) => maxCooldown(hero, i as 0, trick, me?.branch === true, me?.level ?? 1, me?.talents)), me?.level ?? 1);
       if (this.scoreOn) this.scoreboard?.show(true, frame);
     }
   }
