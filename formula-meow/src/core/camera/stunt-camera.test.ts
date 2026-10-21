@@ -129,6 +129,32 @@ describe('set-piece camera (SIM_VERSION 8)', () => {
     for (const p of tv) expect(p.distanceTo(tv[0])).toBeLessThan(1e-6);
   });
 
+  it('reduced motion: the TV camera stands where the race view says for that loop (its clearest spot)', () => {
+    const w = soloBefore('loop', 10);
+    const { cam, frame } = rig(w, true);
+    const k = w.st.karts[0];
+    const asked: number[] = [];
+    cam.source!.tvSpot = (pi, out) => {
+      asked.push(pi);
+      const pc = w.track.pieces[pi];
+      Object.assign(out, { x: w.track.px[pc.i0] + 3, y: 30, z: w.track.pz[pc.i0] - 4 });
+      return true;
+    };
+    let railed = 0;
+    for (let n = 0; n < 60 * 6; n++) {
+      w.step([input({ gas: true })]);
+      frame();
+      if (k.rail > 0) {
+        railed++;
+        const pc = w.track.pieces[k.rail - 1];
+        expect(cam.cam.position.distanceTo(new Vector3(w.track.px[pc.i0] + 3, 30, w.track.pz[pc.i0] - 4))).toBeLessThan(1e-6);
+      }
+    }
+    expect(railed).toBeGreaterThan(60);
+    expect(new Set(asked).size).toBe(1);
+    expect(w.track.pieces[asked[0]].kind).toBe('loop');
+  });
+
   it('juice: inside a loop the view rolls at most STUNT_CAM.loopRoll degrees, and the FOV opens by loopFov', () => {
     const w = soloBefore('loop', 10);
     const { cam, frame } = rig(w, false);

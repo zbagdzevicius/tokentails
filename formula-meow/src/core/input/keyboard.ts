@@ -14,6 +14,17 @@ export function uiFocused(): boolean {
   return (tag === 'BUTTON' || tag === 'A' || a.tabIndex >= 0) && !!a.closest(UI_LAYERS);
 }
 
+/** A text field has the focus (a P typed into a track name is a letter, not a pause). */
+function typing(): boolean {
+  const a = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
+}
+
+/** The pause screen is the top layer (its Resume button has the focus, so the race keys are off, but P still resumes). */
+function pauseOnTop(): boolean {
+  return typeof document !== 'undefined' && !!document.querySelector('[data-screen="pause"]:not([hidden])');
+}
+
 function layerOpen(): boolean {
   return typeof document !== 'undefined' && !!document.querySelector('[data-ui-layer]:not([hidden])');
 }
@@ -50,6 +61,8 @@ export class KeyboardInput implements InputSource {
   poll(out: RawInput, dt: number): void {
     // a focused menu control owns the keys (Space presses it, arrows move focus): the race sees nothing
     if (uiFocused()) {
+      // P always toggles pause: the pause screen focuses Resume, which used to swallow the key that should unpause
+      if (this.pressed.has('KeyP') && pauseOnTop() && !typing()) out.pause = true;
       this.pressed.clear();
       return;
     }

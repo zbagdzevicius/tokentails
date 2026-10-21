@@ -15,7 +15,7 @@ import { curvatureAhead, followLine, STEER_GAIN, stuntEntryAhead } from '../../c
 import { routeRemaining } from '../../core/track/branch-ai';
 import { speedOf } from '../../core/sim/kart';
 import { draw } from '../../core/sim/rng';
-import { atan2L, clamp, wrapAngle } from '../../core/sim/fixed';
+import { atan2L, clamp, cosL, sinL, wrapAngle } from '../../core/sim/fixed';
 import { itemsOf, lapGap } from '../items/state';
 import { newBrain, useItems, type BrainMemory } from './item-brain';
 import { bandAdj, bandScale } from './rubber-band';
@@ -252,7 +252,9 @@ function drive(ctx: SimContext, i: number, out: TickInput, m: Memory, p: Persona
     const top = classTuning(ctx.cfg.cls).topSpeed;
     const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
     const vmax = (1 + AI.cornerBand * adj + AI.cornerClass * ctx.cfg.cls) * Math.min(Math.sqrt((AI.cornerAccel * (1 + AI.cornerSkill * (p.skill - 0.7))) / cc), (yaw * (1.12 + 0.12 * p.skill)) / cc);
-    if (sp > vmax * 1.12 && toStunt < 0) {
+    // SIM_VERSION 10: a boosted kart keeps its boost speed when it lifts (the boost drives it), so only the brake
+    // slows it: it brakes at vmax itself (a wall ride's exit boost into Rooftops' next bend hit the wall head-on)
+    if (sp > vmax * (k.boostTicks > 0 ? 1 : 1.12) && toStunt < 0) {
       out.gas = false;
       out.brake = true;
     } else if (sp > vmax) out.gas = false;
@@ -412,10 +414,14 @@ function dodgeBias(ctx: SimContext, i: number, m: Memory, p: Personality, bias: 
  * after a drift or a mini-turbo). When the kart will reach the wall within `AI.wallLook` seconds at its sideways
  * speed, it steers away (a drift goes wide; a drift that still runs into the wall is let go). Skilled cats react a
  * little earlier. Main road only: branches have their own walls.
+ * SIM_VERSION 10: forward travel only. Backing up (the line follower's three-point turn) the sideways speed comes from
+ * the reverse and steering works the other way round, so the guard's "away" steer held the kart's tail on the wall and
+ * it backed along it for seconds (Kitchen 150cc); the three-point turn is left alone.
  */
-function wallGuard(ctx: SimContext, i: number, out: TickInput, p: Personality): void {
+export function wallGuard(ctx: SimContext, i: number, out: TickInput, p: Personality): void {
   const k = ctx.st.karts[i];
   if (k.branch >= 0 || k.air || k.spinTicks > 0 || k.autoTicks > 0) return;
+  if (k.vx * sinL(k.heading) + k.vz * cosL(k.heading) < 0) return;
   const t = ctx.track;
   const side = k.d >= 0 ? 1 : -1;
   // contact happens with the kart's side at the wall: `wallMargin` beyond the road edge, less half the kart

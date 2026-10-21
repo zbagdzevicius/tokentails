@@ -63,7 +63,7 @@ export class FeelDirector implements JuiceListener {
     }
     const me = world.cfg.humans[0] ?? 0;
     view.me = me;
-    s.camera.source = { track: view.track, me, displayPos: (i, out) => view.displayPos(i, out), displayBasis: (i, out) => view.displayBasis(i, out) };
+    s.camera.source = { track: view.track, me, displayPos: (i, out) => view.displayPos(i, out), displayBasis: (i, out) => view.displayBasis(i, out), tvSpot: (pi, out) => view.tvSpot(pi, out) };
     s.camera.strongBoost = false;
     // the intro flyover plays while the grid waits for the first input
     const k = world.st.karts[me];
@@ -147,6 +147,7 @@ export class FeelDirector implements JuiceListener {
     import('../../juice/perf/post')
       .then(({ PostFx }) => {
         this.post = new PostFx(this.shell.stage.renderer);
+        this.shell.warmTarget = () => (this.post?.enabled ? this.post.sceneTarget : null);
       })
       .catch((err) => console.warn('[feel] post-processing unavailable', err));
   }

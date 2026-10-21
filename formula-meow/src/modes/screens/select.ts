@@ -10,7 +10,7 @@ import { BODY_IDS, BODY_NAMES, HAT_IDS } from '../../content/ids';
 import { KART_BODIES } from '../../content/karts';
 import { DEFAULT_CAT, rgb888, type BodyId } from '../../types';
 import { clearYourCat, saveYourCat, yourCat } from '../../share/yourcat/store';
-import { h, statBars, tabs } from '../../ui/kit';
+import { h, keepFocus, statBars, tabs } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow, PAINTS, type Look } from '../flow';
 import { chip, focusFirst, frame, hex, plain, primary, guardedBack } from './ui';
@@ -44,6 +44,9 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
   };
 
   function render(): void {
+    keepFocus(root, build);
+  }
+  function build(): void {
     pane.innerHTML = '';
     const look = f.look;
     if (tab === 0) {

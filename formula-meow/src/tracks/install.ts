@@ -22,6 +22,7 @@ export function installTracks(shell: Shell): TrackView {
       const s = shell.world?.st.karts[k];
       if (s && shell.view) shell.view.burst(s.x, s.y + 0.5, s.z, color, n, speed);
     },
+    retire: (fn) => shell.retire(fn),
   });
   shell.bus.add(view);
   (window as unknown as { __fmTracks?: TrackView }).__fmTracks = view;

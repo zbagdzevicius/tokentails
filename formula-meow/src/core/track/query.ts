@@ -33,6 +33,8 @@ export interface TrackHit {
   wallR?: number;
   /** alternative route the point is on, -1 = the main loop */
   branch?: number;
+  /** that branch's sample at the point (only meaningful while `branch` >= 0) */
+  bj?: number;
   /** height of a ramp run-up under the point (0 off ramps) */
   ramp?: number;
 }
@@ -193,6 +195,7 @@ function onBranch(t: BuiltTrack, b: BuiltBranch, x: number, z: number, out: Trac
   out.wallL = b.wallL[j];
   out.wallR = b.wallR[j];
   out.branch = b.id;
+  out.bj = j;
 }
 
 /** Ramp height at sample i (and lateral d) within a ramp's run-up, 0 elsewhere. */

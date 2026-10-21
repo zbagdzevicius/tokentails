@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Modifier, DEFAULT_CAT, type RaceEvent } from '../types';
 import { TRACKS } from '../core/track/tracks';
-import { dailySetup, dateOfDay, dayNoFor, EMPTY_DAILY, isDailyRace, recordDaily, type DailyRecord } from './daily/daily';
-import { dareUrl, dailyUrl, parseRoute, PUBLIC_BASE } from './links/link';
+import { dailyResultDay, dailySetup, dateOfDay, dayNoFor, EMPTY_DAILY, isDailyRace, migrateDaily, recordDaily, type DailyRecord } from './daily/daily';
+import { dareableMode, dareUrl, dailyUrl, parseRoute, PUBLIC_BASE } from './links/link';
 import { encodeGhostSync, trackKey } from './codec/ghost-codec';
 import { encodeCat } from './codec/cat-codec';
-import { BANNED_CLAIMS, clipCaption, dailyCardText, dareText, fmtRaceTime, PINK_PAW_SHARE_LINE } from './cards/card-text';
+import { BANNED_CLAIMS, clipCaption, rivalsLine, dailyCardText, dareText, fmtRaceTime, PINK_PAW_SHARE_LINE } from './cards/card-text';
 import { bestWindow, eventScore, planClip } from './clip/highlight';
 import { ledgerLine, recordDuel } from './links/rivalry';
 
@@ -69,6 +69,11 @@ describe('routes and links (GDD 8.3)', () => {
     if (q.kind === 'dare') expect(q.name).not.toContain('http');
   });
 
+  it('only field races make a dare link (a solo time trial, a cup or a battle arena ghost cannot be replayed)', () => {
+    for (const m of [undefined, 'race', 'dare', 'daily'] as const) expect(dareableMode(m)).toBe(true);
+    for (const m of ['tt', 'gp', 'battle'] as const) expect(dareableMode(m)).toBe(false);
+  });
+
   it('parses the daily path and query, ignores junk', () => {
     expect(parseRoute({ ...prod, pathname: '/meow-race/d/12' })).toEqual({ kind: 'daily', day: 12 });
     expect(parseRoute({ ...dev, search: '?daily=4' })).toEqual({ kind: 'daily', day: 4 });
@@ -78,6 +83,12 @@ describe('routes and links (GDD 8.3)', () => {
 });
 
 describe('share texts are honest (GDD 13)', () => {
+  it('the clip intro counts the rivals the run really had (none in a solo time trial)', () => {
+    expect(rivalsLine(8)).toBe('vs 7 real Pink Paw shelter cats');
+    expect(rivalsLine(2)).toBe('vs 1 real Pink Paw shelter cat');
+    expect(rivalsLine(1)).toBeNull();
+  });
+
   it('never claim money, counts or global ranks', () => {
     const texts = [
       dareText({ trackName: 'Kitchen Counter GP', time: 84.31, place: 2, link: 'https://tokentails.com/meow-race/r#g=x' }),
@@ -147,5 +158,42 @@ describe('rivalry ledger (GDD 8.2)', () => {
     recordDuel(l, 'Mochi', false);
     expect(ledgerLine(l, 'Mochi')).toBe('Rivalry: You 2 · Mochi 1');
     expect(ledgerLine(l, 'Luna')).toBeNull();
+  });
+});
+
+describe('daily cup across UTC midnight', () => {
+  const race = (day: number) => {
+    const d = dailySetup(day, TRACKS);
+    return { trackId: d.track.id, seed: d.seed, cls: d.cls, modifiers: d.modifiers };
+  };
+
+  it('judges the race by the day it started, not the day the page loaded', () => {
+    // page loaded on day 10, the tab stayed open: day 12's cup started and finished on day 12
+    expect(dailyResultDay(TRACKS, race(12), { setupDay: 12, startDay: 12, nowDay: 12 })).toEqual({ day: 12, rankable: true });
+    // started at 23:59 on day 12, finished on day 13: still day 12's ranked run
+    expect(dailyResultDay(TRACKS, race(12), { setupDay: 12, startDay: 12, nowDay: 13 })).toEqual({ day: 12, rankable: true });
+    // restarted after midnight: yesterday's cup is practice
+    expect(dailyResultDay(TRACKS, race(12), { setupDay: 12, startDay: 13, nowDay: 13 })).toEqual({ day: 12, rankable: false });
+    // an old daily link is practice
+    expect(dailyResultDay(TRACKS, race(5), { setupDay: 5, startDay: 13, nowDay: 13 })).toEqual({ day: 5, rankable: false });
+    // a dare on today's daily seed (no setup day) is the same race
+    expect(dailyResultDay(TRACKS, race(13), { startDay: 13, nowDay: 13 })).toEqual({ day: 13, rankable: true });
+    // not a daily race at all
+    expect(dailyResultDay(TRACKS, { ...race(13), seed: race(13).seed + 1 }, { startDay: 13, nowDay: 13 })).toBeNull();
+    // a future day is not out yet
+    expect(dailyResultDay(TRACKS, race(14), { setupDay: 14, startDay: 13, nowDay: 13 })).toBeNull();
+  });
+
+  it('a malformed fm:daily record is repaired, never thrown on', () => {
+    for (const raw of [null, 5, 'x', [], { runs: 5 }, { runs: [1, 2] }, { runs: null, streak: 'a', lastDay: -3 }]) {
+      const rec = migrateDaily(raw);
+      expect(rec).toEqual({ runs: {}, streak: 0, lastDay: 0 });
+      expect(() => recordDaily(rec, { day: 3, place: 1, time: 80, laps: [1] })).not.toThrow();
+    }
+    const good = migrateDaily({ runs: { '3': { day: 3, place: 2, time: 81.5, laps: [2, 2, 'x'] }, '4': { day: 9 }, '5': 7 }, streak: 2, lastDay: 3 });
+    expect(good).toEqual({ runs: { '3': { day: 3, place: 2, time: 81.5, laps: [2, 2] } }, streak: 2, lastDay: 3 });
+    // a fresh object every time: recording never mutates the shared EMPTY_DAILY
+    recordDaily(migrateDaily(undefined), { day: 3, place: 1, time: 80, laps: [1] });
+    expect(EMPTY_DAILY.runs).toEqual({});
   });
 });

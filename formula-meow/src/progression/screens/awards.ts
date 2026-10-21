@@ -84,8 +84,10 @@ function trophiesTab(): HTMLElement {
     ),
   ]);
   const medals = h('table', { class: 'fm-st-table' }, [
-    h('tr', {}, [h('th', {}, [t('Time trial')]), ...[0, 1, 2].map((c) => h('th', {}, [CLASSES[c as 0 | 1 | 2].cc]))]),
-    ...TRACKS.map((tr) => h('tr', {}, [h('td', {}, [tr.name]), ...[0, 1, 2].map((c) => h('td', {}, [MEDAL[s.medals[`${tr.id}:${c}`] ?? 0] || '·']))])),
+    h('tr', {}, [h('th', {}, [t('Time trial')]), ...[0, 1, 2].map((c) => h('th', {}, [CLASSES[c as 0 | 1 | 2].cc])), h('th', {}, [t('Mirror')])]),
+    ...TRACKS.map((tr) =>
+      h('tr', {}, [h('td', {}, [tr.name]), ...[0, 1, 2].map((c) => h('td', {}, [MEDAL[s.medals[`${tr.id}:${c}`] ?? 0] || '·'])), h('td', {}, [MEDAL[s.medals[`${tr.id}:2m`] ?? 0] || '·'])]),
+    ),
   ]);
   const keys: Array<[UnlockKey, string]> = [
     ['class:1', `${CLASSES[1].name} ${CLASSES[1].cc}`],

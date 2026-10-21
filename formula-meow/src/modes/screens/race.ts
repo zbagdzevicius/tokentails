@@ -5,7 +5,7 @@
 import type { ScreenApi, ScreenHandle } from '../../core/app/screens';
 import { TRACK_IDS } from '../../content/ids';
 import { trackById } from '../../core/track/tracks';
-import { h } from '../../ui/kit';
+import { h, keepFocus } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow } from '../flow';
 import type { ClassPick } from '../store';
@@ -23,6 +23,9 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   fr.body.append(classes, tracks);
 
   function render(): void {
+    keepFocus(root, build);
+  }
+  function build(): void {
     classes.innerHTML = '';
     classes.append(
       classChips((c) => {

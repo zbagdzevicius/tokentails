@@ -6,6 +6,8 @@
  */
 import type { RaceState } from '../../types';
 import type { BuiltTrack } from '../../core/track/build';
+import type { BuiltBranch } from '../../core/track/branch';
+import { cosL, sinL } from '../../core/sim/fixed';
 import { fnvFloat, fnvInt } from '../../core/sim/hash';
 
 export const ProjKind = { Hairball: 0, YarnBall: 1, Laser: 2 } as const;
@@ -36,6 +38,10 @@ export interface Proj {
   /** Laser Dot: bit k set once kart k was made to chase it (each kart is chased once, B17); ticks since fired */
   hitMask: number;
   age: number;
+  /** SIM_VERSION 10, yarn ball: +1 rolls along the lap (+s), -1 against it (thrown by a kart facing back, an arena) */
+  dir: number;
+  /** SIM_VERSION 10, yarn ball: the alternative route it rolls on (`dist`/`d` are measured on it), -1 = the main loop */
+  branch: number;
 }
 
 export interface Trap {
@@ -98,12 +104,60 @@ export function trackPoint(t: BuiltTrack, dist: number, d: number, out: { x: num
   out.y = t.py[i] + d * t.bank[i];
 }
 
+/** The built branch with id `id`, or null (-1 = the main loop). */
+export function branchOf(t: BuiltTrack, id: number): BuiltBranch | null {
+  if (id < 0) return null;
+  const b = t.branches[id];
+  return b && b.id === id ? b : (t.branches.find((x) => x.id === id) ?? null);
+}
+
+/**
+ * Branch sample for a lap distance on branch `b` (SIM_VERSION 10): `dist` maps linearly onto the branch from its fork
+ * to its merge (core/track/branch.ts `s0`, `sk`). -1 when `dist` is outside that range (before the fork, past the merge).
+ */
+export function branchSampleAt(t: BuiltTrack, b: BuiltBranch, dist: number): number {
+  const L = t.length;
+  let ds = dist - b.s0;
+  ds -= L * Math.floor(ds / L);
+  const u = ds / b.sk;
+  if (u > b.length) return -1;
+  return Math.min(b.m - 1, Math.floor(u / b.step));
+}
+
+/**
+ * World position of (dist, d) on route `branch` (SIM_VERSION 10): on a branch (`d` from its centre line) when `dist`
+ * lies on it, else on the main loop (`trackPoint`). `out.si` is the main sample the query would report (the branch's
+ * direction-matched `mapI`). Returns the branch sample, or -1 when the point is on the main loop.
+ */
+export function routePoint(t: BuiltTrack, dist: number, d: number, branch: number, out: { x: number; y: number; z: number; si: number }): number {
+  const b = branchOf(t, branch);
+  const j = b ? branchSampleAt(t, b, dist) : -1;
+  if (!b || j < 0) {
+    trackPoint(t, dist, d, out);
+    return -1;
+  }
+  out.si = b.mapI[j];
+  out.x = b.px[j] - b.tz[j] * d;
+  out.z = b.pz[j] + b.tx[j] * d;
+  out.y = b.py[j] + d * b.bank[j];
+  return j;
+}
+
+/**
+ * +1 when kart k faces along the lap (+s) at its sample, -1 when it faces against it (SIM_VERSION 10): which way along
+ * the road "forward" and "back" are for its items. In a race that is nearly always +1; in an arena, where cats roam
+ * both ways round the ring, it is half the time -1.
+ */
+export function facing(t: BuiltTrack, k: { heading: number; si: number }): number {
+  return sinL(k.heading) * t.tx[k.si] + cosL(k.heading) * t.tz[k.si] >= 0 ? 1 : -1;
+}
+
 /** Signed along-track gap folded into one lap (−L/2..L/2), for items that meet karts a lap apart. */
 export function lapGap(t: BuiltTrack, a: number): number {
   return a - t.length * Math.round(a / t.length);
 }
 
-const PROJ_F: readonly (keyof Proj)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'vx', 'vz', 'si', 'dist', 'd', 'life', 'bounces', 'target', 'imm', 'hitMask', 'age'];
+const PROJ_F: readonly (keyof Proj)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'vx', 'vz', 'si', 'dist', 'd', 'life', 'bounces', 'target', 'imm', 'hitMask', 'age', 'dir', 'branch'];
 const TRAP_F: readonly (keyof Trap)[] = ['id', 'kind', 'owner', 'x', 'y', 'z', 'dist', 'd', 'life', 'flight', 'flightMax', 'fx', 'fy', 'fz', 'imm'];
 
 export function hashItems(st: RaceState, h: number): number {

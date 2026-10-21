@@ -46,6 +46,14 @@ const VOICE = 1.1;
 /** music level while the announcer speaks */
 const DUCK = 0.38;
 
+/**
+ * A context that should be resumed: anything but running or closed. WebKit on iOS reports the non-standard
+ * 'interrupted' after an audio-session interruption (a call, Siri, another app's audio); it must resume like 'suspended'.
+ */
+export function audioResumable(state: string): boolean {
+  return state !== 'running' && state !== 'closed';
+}
+
 export class RaceAudio implements JuiceListener {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -82,7 +90,7 @@ export class RaceAudio implements JuiceListener {
   /** Call from a user gesture (GDD 10: audio unlocks on the first touch). Safe to call many times. */
   unlock(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended' && !(typeof document !== 'undefined' && document.hidden)) void this.ctx.resume();
+      if (audioResumable(this.ctx.state) && !(typeof document !== 'undefined' && document.hidden)) void this.ctx.resume().catch(() => undefined);
       return;
     }
     const AC = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext | undefined;
@@ -167,11 +175,12 @@ export class RaceAudio implements JuiceListener {
 
   /** B34: a hidden tab is silent (the shell calls this on visibilitychange). */
   suspend(): void {
-    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend().catch(() => undefined);
+    // an interrupted (WebKit) context is suspended too, so it does not start playing in a hidden tab when the interruption ends
+    if (this.ctx && (this.ctx.state as string) !== 'suspended' && this.ctx.state !== 'closed') void this.ctx.suspend().catch(() => undefined);
   }
 
   resume(): void {
-    if (this.ctx && this.ctx.state === 'suspended' && !(typeof document !== 'undefined' && document.hidden)) void this.ctx.resume().catch(() => undefined);
+    if (this.ctx && audioResumable(this.ctx.state) && !(typeof document !== 'undefined' && document.hidden)) void this.ctx.resume().catch(() => undefined);
   }
 
   /** true once the audio context exists and runs (QA). */

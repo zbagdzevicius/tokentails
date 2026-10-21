@@ -80,6 +80,11 @@ export class PostFx {
   boost = 0;
   enabled = true;
 
+  /** the target the scene itself is drawn into (the shell's grid compile builds the programs for it) */
+  get sceneTarget(): WebGLRenderTarget {
+    return this.main;
+  }
+
   constructor(private readonly renderer: WebGLRenderer) {
     const opts = { minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: false, type: HalfFloatType };
     this.main = new WebGLRenderTarget(4, 4, { minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: true, samples: 4, type: HalfFloatType });

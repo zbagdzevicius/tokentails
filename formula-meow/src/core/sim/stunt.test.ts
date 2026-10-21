@@ -382,7 +382,7 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     const w = world(raceConfig(stuntLab(), { seed: 42 }));
     while (w.tick < GO_TICK + 1800) w.step();
     expect(w.st.events.filter((e) => e.type === 'stuntExit' && e.a === 0).length).toBeGreaterThan(4);
-    expect(w.hash()).toMatchInlineSnapshot(`865670641`);
+    expect(w.hash()).toMatchInlineSnapshot(`2071901594`);
   });
 
   it('same seed and inputs → the same hashes, three times, also mirrored; a replay re-simulates exactly', () => {
@@ -433,6 +433,59 @@ describe('set pieces: SIM_VERSION 9 playtest fixes', () => {
     const ev = w.st.events.slice(from);
     expect(onLane).toBeGreaterThan(30);
     expect(ev.some((e) => e.type === 'stuntExit' && e.a === 1 && e.b === 1)).toBe(true);
+  });
+
+  it('SIM_VERSION 10: a half-pipe (side 0) draws a hands-off kart onto the lane on its own side, left and right', () => {
+    const def = stuntLab({ setPieces: [{ kind: 'wall', s: 20, len: 24, side: 0 }] });
+    const w0 = soloAt(def, 0, 0, 0);
+    expect(w0.track.pieceIssues).toEqual([]);
+    const pc = w0.track.pieces.find((p) => p.kind === 'wall')!;
+    expect(pc.side).toBe(0);
+    for (const side of [-1, 1]) {
+      const w = soloAt(def, pc.i0, 6, 14);
+      const t = w.track;
+      const k = w.st.karts[0];
+      const i = k.si;
+      const d = side * t.halfW[i] * 0.7;
+      k.x += -t.tz[i] * d;
+      k.z += t.tx[i] * d;
+      let onLane = 0;
+      let wrongSide = 0;
+      for (let n = 0; n < 60 * 3; n++) {
+        w.step([input({ gas: true })]);
+        if (k.surface === 6) {
+          onLane++;
+          if (k.d * side < 0) wrongSide++;
+        }
+      }
+      expect(onLane, `side ${side}`).toBeGreaterThan(30);
+      expect(wrongSide, `side ${side}`).toBe(0);
+    }
+  });
+
+  it('SIM_VERSION 10: a kart on a loop rail never picks up a box placed on the loop\'s shadow', () => {
+    // an item row inside the loop zone (the validator now refuses it; an old track code can still carry one)
+    const def = stuntLab({ features: [{ s: 0, kind: 'start' }, { s: 140, kind: 'items' }, { s: 168, kind: 'items' }] });
+    let railed = 0;
+    let total = 0;
+    for (const seed of [1, 2, 3]) {
+      const w = world(raceConfig(def, { seed }));
+      const t = w.track;
+      const loop = t.pieces.find((p) => p.kind === 'loop')!;
+      expect(t.features.some((f) => f.kind === 'items' && (f.i - loop.i0 + t.n) % t.n <= (loop.i1 - loop.i0 + t.n) % t.n)).toBe(true);
+      let seen = 0;
+      while (!w.done && w.tick < 60 * 90) {
+        w.step();
+        for (; seen < w.st.events.length; seen++) {
+          const e = w.st.events[seen];
+          if (e.type !== 'itemPickup') continue;
+          total++;
+          if (w.st.karts[e.kart!].rail > 0) railed++;
+        }
+      }
+    }
+    expect(total).toBeGreaterThan(10);
+    expect(railed).toBe(0);
   });
 
   it('tunnels emit stuntEnter and a clean stuntExit (a = 3), and have a boost pad', () => {

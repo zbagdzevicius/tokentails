@@ -18,11 +18,11 @@ import { densePolyline } from '../../core/track/spline';
 import { themeOf } from '../../core/track/themes';
 import { t as tr } from '../../ui/i18n';
 import type { BuiltTrack } from '../../core/track/build';
-import { firstMessage, lapsFor, LIMITS, needsDrive, validateTrack, type Validation } from './validate';
+import { firstMessage, lapsFor, LIMITS, needsDrive, snapToMap, validateTrack, type Validation } from './validate';
 import { driveCheck } from './drive-check';
-import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, sToSample, starterFeatures, straightestSample, type P2 } from './doodle';
+import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, redrawTrack, sToSample, straightestSample, type P2 } from './doodle';
 import { History } from './history';
-import { JUMP_M, PIECE_EDIT, PIECE_ICON, PIECE_STICKERS, TUNNEL_M, metresToUnits, newPiece, pieceAnchor, pieceLimit, placed, snapPiece, unitsToMetres } from './pieces';
+import { JUMP_M, PIECE_EDIT, PIECE_ICON, PIECE_STICKERS, metresToUnits, newPiece, pieceAnchor, pieceLimit, placed, snapPiece, tunnelLenStep, tunnelMetres } from './pieces';
 import { cleanName, CREATOR_MAX, encodeTrack, NAME_MAX } from '../codec/track-code';
 import { loadCreator, newSlot, putSaved, saveCreator, saveDraft } from '../store';
 import { shareTrack } from '../actions';
@@ -849,8 +849,9 @@ export class TrackDoodle {
   private drawHandles(): void {
     const c = this.ctx;
     const n = this.def.points.length;
+    const flagged = new Set(this.v.issues.flatMap((is) => (is.point != null ? [is.point] : [])));
     const near = (i: number, x: number, y: number): boolean => {
-      if (i === this.sel || this.dragPoint === i) return true;
+      if (i === this.sel || this.dragPoint === i || flagged.has(i)) return true;
       if (this.touchUi) {
         if (this.sel < 0) return false;
         const d = Math.min((i - this.sel + n) % n, (this.sel - i + n) % n);
@@ -867,6 +868,12 @@ export class TrackDoodle {
         c.fillStyle = 'rgba(255,243,220,0.85)';
         c.fill();
         return;
+      }
+      if (flagged.has(i)) {
+        c.beginPath();
+        c.arc(x, y, 15, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(255,40,70,0.85)';
+        c.fill();
       }
       c.beginPath();
       c.arc(x, y, i === this.sel ? 12 : 8, 0, Math.PI * 2);
@@ -1014,11 +1021,15 @@ export class TrackDoodle {
     if (this.dragPoint >= 0 && this.dragMoved) {
       clearTimeout(this.pressTimer);
       const w = this.toWorld(p.x, p.y);
-      const g = TRACK.grid;
-      const x = Math.max(LIMITS.coordMin, Math.min(LIMITS.coordMax, Math.round(w.x / g) * g)) || 0;
-      const z = Math.max(LIMITS.coordMin, Math.min(LIMITS.coordMax, Math.round(w.z / g) * g)) || 0;
-      const pt = this.def.points[this.dragPoint];
-      if (pt.x !== x || pt.z !== z) {
+      const { x, z } = snapToMap(w.x, w.z);
+      const pts = this.def.points;
+      const pt = pts[this.dragPoint];
+      const n = pts.length;
+      const prev = pts[(this.dragPoint - 1 + n) % n];
+      const next = pts[(this.dragPoint + 1) % n];
+      // a point dropped on its neighbour's cell would make a zero-length segment: it stays where it was
+      const onNeighbour = (prev.x === x && prev.z === z) || (next.x === x && next.z === z);
+      if (!onNeighbour && (pt.x !== x || pt.z !== z)) {
         if (this.dragSnapshot) {
           this.history.commit(this.dragSnapshot);
           this.dragSnapshot = null;
@@ -1111,12 +1122,9 @@ export class TrackDoodle {
       this.refresh();
       return;
     }
-    const theme = this.def.theme;
-    this.commit((d) => {
-      const fresh = starterFeatures(r.points, theme);
-      d.points = fresh.points;
-      d.features = fresh.features;
-    });
+    this.sel = -1;
+    this.selPiece = -1;
+    this.commit((d) => redrawTrack(d, r.points));
     this.flash(this.v.ok ? 'Nice track! Add stickers or race it.' : (firstMessage(this.v) ?? ''));
     this.setTab('shape');
   }
@@ -1124,8 +1132,7 @@ export class TrackDoodle {
   private insertPoint(w: P2): void {
     const pts = this.def.points;
     if (pts.length >= LIMITS.maxPoints) return this.flash(`${LIMITS.maxPoints} points at most.`);
-    const g = TRACK.grid;
-    const q = { x: Math.round(w.x / g) * g || 0, z: Math.round(w.z / g) * g || 0 };
+    const q = snapToMap(w.x, w.z);
     let best = 0;
     let bestCost = Infinity;
     for (let i = 0; i < pts.length; i++) {
@@ -1316,9 +1323,12 @@ export class TrackDoodle {
 
   /** Change piece `idx` (a stepper or a chip in the panel); an undefined field is removed. */
   private setPiece(idx: number, patch: Partial<SetPiece>): void {
+    const cur = this.def.setPieces![idx];
+    const p: SetPiece = { ...cur, ...patch };
+    for (const k of Object.keys(p) as Array<keyof SetPiece>) if (p[k] === undefined) delete p[k];
+    // a press that changes nothing pushes no undo step
+    if (JSON.stringify(p) === JSON.stringify(cur)) return;
     this.commit((d) => {
-      const p: SetPiece = { ...d.setPieces![idx], ...patch };
-      for (const k of Object.keys(p) as Array<keyof SetPiece>) if (p[k] === undefined) delete p[k];
       d.setPieces![idx] = p;
     });
     this.renderPanel();
@@ -1353,9 +1363,11 @@ export class TrackDoodle {
         stepper(tr('editor.piece.drop'), `${drop} m`, () => this.setPiece(idx, { drop: drop - PIECE_EDIT.dropStep || undefined }), () => this.setPiece(idx, { drop: drop + PIECE_EDIT.dropStep }), drop > 0, drop < JUMP_M.dropMax),
       );
     } else if (pc.kind === 'tunnel' && t) {
-      const m = Math.round(unitsToMetres(t, pc.len ?? metresToUnits(t, PIECE_EDIT.tunnelDefault)) / PIECE_EDIT.tunnelStep) * PIECE_EDIT.tunnelStep;
+      const len = pc.len ?? metresToUnits(t, PIECE_EDIT.tunnelDefault);
+      const shorter = tunnelLenStep(t, len, -1);
+      const longer = tunnelLenStep(t, len, 1);
       row.append(
-        stepper(tr('editor.piece.length'), `${m} m`, () => this.setPiece(idx, { len: metresToUnits(t, m - PIECE_EDIT.tunnelStep) }), () => this.setPiece(idx, { len: metresToUnits(t, m + PIECE_EDIT.tunnelStep) }), m > TUNNEL_M.min, m < TUNNEL_M.max),
+        stepper(tr('editor.piece.length'), `${tunnelMetres(t, len)} m`, () => shorter != null && this.setPiece(idx, { len: shorter }), () => longer != null && this.setPiece(idx, { len: longer }), shorter != null, longer != null),
       );
     } else if (pc.kind === 'wall') {
       row.append(el('span', 'fm-ed-lbl', tr('editor.piece.side')));

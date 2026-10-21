@@ -674,3 +674,61 @@ fraction 0..255) as built; the lanes moved some pieces from the §12 plan to pas
   to read on the 2D map. The track still validates and races.
 - Set pieces have not been checked on a real mid-range phone; the 60 fps target is measured on desktop Metal and in
   the headless phone viewport only.
+
+## 17. Sim bug fixes (SIM_VERSION 10)
+
+One bump for these fixes. Dares, ghosts and records stamped 9 or earlier open as a target-time race with the
+"another version of the game" notice, as before; goldens regenerated in `core/sim/race.test.ts` and
+`core/sim/stunt.test.ts`.
+
+- **Rubber band above class top speed.** An AI chasing a leading player now really runs up to `ClassTuning.maxScale`
+  (1.03 / 1.05): `core/sim/kart.ts` clamped `topScale` to 1 in all three places.
+- **Boosted AI into a bend.** A lift does not slow a boosted kart (the boost drives it), so a boosted AI brakes at the
+  corner speed itself, not at 1.12 × (`items-ai/ai/driver.ts`). The faster band pushed Rooftops' wall-ride exit into
+  its next bend over the harness's head-on limit.
+- **Closed branch mouth.** An AI that chose a branch but is still on the main road past the end of the branch's mouth
+  (the main wall on that side is back to normal, `junction`) returns to the main line (`branch-ai.ts` `mouthEnd`).
+  On Yarn it used to crawl into the main wall for about 6 s.
+- **Boxes on a loop.** A kart on a loop rail or in a jump net picks up no item box, as with coins (`world.ts`); the
+  validator refuses an item row inside a loop (`loopClear`). Cat Café's coin row at s228 sat inside its loop and moved
+  to s236; a test checks that no authored coin sits in a loop or over a jump gap.
+- **Half-pipe draw-in.** On a two-sided wall ride (side 0) the SIM_VERSION 9 draw-in now pulls a kart onto the lane on
+  its own side; it used to work only on the right.
+- **Trick across a respawn.** The big hand clears a tapped trick, so it no longer pays a trick boost on the next
+  landing.
+
+
+### 17.1 AI and item fixes (same SIM_VERSION 10)
+
+The goldens did not move (no item is used in their first 10 s). Tests: `items-ai/items/items-v10.test.ts`, the wall
+guard case in `items-ai/ai/ai.test.ts`, and two battle cases in `modes/battle/battle.test.ts`.
+
+- **Reverse along a wall.** The race AI's wall guard acts only while the kart drives forward. Backing up (the line
+  follower's three-point turn), it used to read the reverse as sideways speed and keep the kart's tail on the wall.
+- **Battle pins.** The battle AI takes its escape from the nearest wall: a cat with its tail to the wall pulls away
+  forward instead of reversing into it (it once sat there for 48 s). A watchdog makes a stuck cat do the opposite every
+  2 s and, the second time, drop its target for 10 s. The detour round a piece of furniture also goes round the next
+  piece when the gap between them is too narrow. In 18 Rug rounds the longest stall went from 48 s to 2.8 s.
+- **Battle immunity.** Losing a balloon (or coming back) gives 3 s of `invTicks`, so a hit is blocked instead of
+  spinning the cat for no balloon. The battle AI does not hunt or fire at immune, boxed or Zoomies cats.
+- **Facing.** Yarn, Cucumber and the yarn ball go the way the thrower faces (`facing`), not along +s. The yarn ball
+  carries `dir`. In an arena (or thrown while facing back) it homes on the nearest kart in the thrower's cone, not on
+  `st.order`. The held-yarn shield counts hits from behind the kart's tail.
+- **Own yarn ball.** A homing yarn ball never hits its thrower.
+- **Branches.** Traps and yarn balls from a kart on a branch are placed on the branch (`routePoint`, branch width). A
+  yarn ball rolls along the branch (`branch`) and follows its target onto one at the fork. It homes on the target's
+  `d` only when both are on the same route. A hairball on a branch bounces off the branch's walls (`TrackHit.bj`).
+- **Finished karts** break no item box, and a finished kart's held Laser Dot no longer blocks it for everyone.
+- **Race item brain.** It does not aim at boxed, Zoomies or invulnerable karts. The held-yarn shield still counts
+  them as chasers.
+
+### 17.2 Final verification (render and review fixes)
+
+- **Grid shader compile in the bloom target.** With bloom on, the race camera's frames are drawn into the post
+  chain's scene target, whose programs use the linear colour space. The grid compile only built the screen variants,
+  so about 5 programs still linked mid-race after a restart. `Shell.warmShaders` now compiles with
+  `shell.warmTarget()` set (the feel lane points it at `PostFx.sceneTarget` while bloom is on). The e2e B61 test now
+  sees 0–1 programs link in the 12 s after GO.
+- **Old dares review.** SIM_VERSION 9 dares now open as a target-time race like 7 and 8. `review/v3-legacy-codes.ts`
+  has a `dare10` (the same run restamped SIM_VERSION 10), which `review:v3` and the trailer's S25 shot use for the
+  ghost race.

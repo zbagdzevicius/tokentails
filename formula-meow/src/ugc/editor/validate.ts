@@ -20,6 +20,7 @@ import { driveCheck } from './drive-check';
 export type IssueCode =
   | 'points'
   | 'grid'
+  | 'stacked'
   | 'short'
   | 'long'
   | 'overlap'
@@ -48,6 +49,8 @@ export interface Issue {
   /** built-track sample range to highlight (inclusive, may wrap past n) */
   from?: number;
   to?: number;
+  /** a point to ring in red (an issue found before the track can be built, e.g. two points on one spot) */
+  point?: number;
 }
 
 export interface Validation {
@@ -78,6 +81,13 @@ export const LIMITS = {
   coordMax: 124,
 } as const;
 
+/** A world position snapped to the 4 m grid and clamped inside the map (a dragged or a double-tap inserted point). */
+export function snapToMap(x: number, z: number): { x: number; z: number } {
+  const g = TRACK.grid;
+  const snap = (v: number) => Math.max(LIMITS.coordMin, Math.min(LIMITS.coordMax, Math.round(v / g) * g)) || 0;
+  return { x: snap(x), z: snap(z) };
+}
+
 /** Laps rule for UGC tracks (GDD 6.2): 5 if the loop is under 450 m. */
 export function lapsFor(length: number): 3 | 5 {
   return length < 450 ? 5 : 3;
@@ -90,12 +100,17 @@ function pointsOnGrid(def: TrackDef): boolean {
     if (!Number.isInteger(p.h) || p.h < 0 || p.h > 7) return false;
     if (!(p.w === 0 || p.w === 1 || p.w === 2 || p.w === 3)) return false;
   }
-  for (let i = 0; i < def.points.length; i++) {
-    const a = def.points[i];
-    const b = def.points[(i + 1) % def.points.length];
-    if (a.x === b.x && a.z === b.z) return false; // a zero-length segment breaks the spline knots
-  }
   return true;
+}
+
+/** Index of the first point that sits on the same spot as the next one (a zero-length segment breaks the spline knots), or -1. */
+export function stackedPoint(points: TrackDef['points']): number {
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    if (a.x === b.x && a.z === b.z) return i;
+  }
+  return -1;
 }
 
 /** Longest run of samples (wrapping) where `bad(i)` holds, as [from, to]. */
@@ -136,6 +151,10 @@ export function validateTrack(def: TrackDef, opts: { pieces?: 'ugc' | 'authored'
   if (np < LIMITS.minPoints) issues.push({ code: 'points', message: `A loop needs at least ${LIMITS.minPoints} points. Draw a bigger loop.` });
   if (np > LIMITS.maxPoints) issues.push({ code: 'points', message: `Too many points (${LIMITS.maxPoints} at most). Long-press a point to remove it.` });
   if (!pointsOnGrid(def)) issues.push({ code: 'grid', message: 'Some points are off the map. Drag them back inside.' });
+  else if (np > 1) {
+    const st = stackedPoint(def.points);
+    if (st >= 0) issues.push({ code: 'stacked', message: 'Two points sit on top of each other. Drag one away.', point: (st + 1) % np });
+  }
   const kinds = new Set<string>(FEATURE_KINDS);
   if (def.features.some((f) => !kinds.has(f.kind) || !Number.isInteger(f.s) || f.s < 0 || f.s > 255)) issues.push({ code: 'stickers', message: 'A sticker is broken. Remove it and place it again.' });
   const nPieces = def.setPieces?.length ?? 0;
@@ -385,6 +404,8 @@ export function validateSetPieces(def: TrackDef, built?: BuiltTrack, opts: { ugc
       const l = ugc ? m(R.loopBefore) + m(R.loopAfter) : fwdN(bp.strip, bp.i1, n);
       if (maxCurv(t, a, l) > 1 / (ugc ? R.loopR : R.loopRAuthored) || maxGrade(t, a, l) > R.loopGrade) add('loopBend', 'Loops need a long, flat straight. Move the loop onto one.', from, len);
       else if (!loopClear(t, bp)) add('loopClear', 'The loop is too close to another part of the road. Give it more room.', from, len);
+      // a kart on the loop's rail rides above its shadow and cannot reach a box there (core/sim/world.ts stepBoxes)
+      else if (featureOn(t, from, len, ['items'], 0)) add('loopClear', 'Keep item boxes off the loop. Move the item row before or after it.', from, len);
     } else if (bp.kind === 'wall') {
       // the lane's full-width part decides the bend
       const tap = m(STUNT.wall.taper);

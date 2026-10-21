@@ -313,6 +313,11 @@ export class SkyFx {
     if (this.sun) this.sun.material.rotation = this.track.def.theme === 0 ? this.time * 0.03 : 0;
   }
 
+  /** Out of the scene now (a torn-down race); `dispose` frees the GPU side later. */
+  detach(): void {
+    for (const o of [this.sun, this.pts, this.lights]) if (o) this.scene.remove(o);
+  }
+
   dispose(): void {
     for (const o of [this.sun, this.pts, this.lights]) {
       if (!o) continue;

@@ -109,6 +109,19 @@ describe('cups, medals, ghosts', () => {
     expect(c.award.achievements).toContain('medal-hunter');
   });
 
+  it('a Mirror time trial medal has its own slot and pays even after 150cc gold', () => {
+    const gold150 = applyMedal(defaultProg(), 'kitchen', 2, 1, world());
+    const mirror = applyMedal(gold150.save, 'kitchen', 2, 1, world(), true);
+    expect(mirror.award.fish[0].amount).toBe(15);
+    expect(mirror.award.medal).toEqual({ trackId: 'kitchen', cls: 2, medal: 1, mirror: true });
+    expect(mirror.save.medals['kitchen:2']).toBe(1);
+    expect(mirror.save.medals['kitchen:2m']).toBe(1);
+    // and a Mirror bronze never fills (or lowers) the 150cc slot
+    const bronze = applyMedal(defaultProg(), 'kitchen', 2, 3, world(), true);
+    expect(bronze.save.medals['kitchen:2']).toBeUndefined();
+    expect(bronze.save.medals['kitchen:2m']).toBe(3);
+  });
+
   it('dare wins from the share ledger earn Ghostbuster once', () => {
     let s = applyGhostWins(defaultProg(), 0, world()).save;
     expect(s.ghostWins).toBe(0);

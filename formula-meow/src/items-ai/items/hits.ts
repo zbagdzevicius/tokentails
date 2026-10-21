@@ -5,7 +5,8 @@
 import { ITEM_IDS, type HitKind, type ItemId, type KartState } from '../../types';
 import type { SimContext } from '../../core/sim/plugins';
 import { applyHit } from '../../core/sim/kart';
-import { itemsOf, lapGap } from './state';
+import { itemsOf } from './state';
+import { cosL, sinL } from '../../core/sim/fixed';
 
 /** A kart that items can touch this tick (not respawning, not finished). */
 export function touchable(k: KartState): boolean {
@@ -23,11 +24,13 @@ export function racing(k: KartState): boolean {
 
 /**
  * A kart holding a ready Yarn trails it behind as a shield (GDD 4: "hold as a shield"): one hit coming from behind
- * (`fromDist` < the kart's distance) is eaten by the yarn instead. Returns true when it blocked.
+ * is eaten by the yarn instead. Returns true when it blocked. SIM_VERSION 10: "behind" is behind the kart's tail
+ * (the item at world point fromX, fromZ is on the far side of the kart from where it faces), not lower on the lap: a
+ * kart driving against the lap (an arena) trails its yarn behind it too.
  */
-export function yarnShield(ctx: SimContext, victim: number, fromDist: number): boolean {
+export function yarnShield(ctx: SimContext, victim: number, fromX: number, fromZ: number): boolean {
   const k = ctx.st.karts[victim];
-  if (k.item !== 'yarn' || k.rouletteTicks > 0 || lapGap(ctx.track, fromDist - k.dist) >= 0) return false;
+  if (k.item !== 'yarn' || k.rouletteTicks > 0 || (fromX - k.x) * sinL(k.heading) + (fromZ - k.z) * cosL(k.heading) >= 0) return false;
   k.item = null;
   k.itemCount = 0;
   ctx.emit({ type: 'blocked', kart: victim, item: 'yarn' });

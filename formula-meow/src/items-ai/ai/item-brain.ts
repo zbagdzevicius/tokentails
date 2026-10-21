@@ -48,6 +48,8 @@ interface Seen {
   /** nearest rival behind by track distance, and whether it is roughly in our lane */
   behind: number;
   behindLane: boolean;
+  /** nearest rival behind by track distance, protected or not (it can still throw at us: the held-yarn shield) */
+  chaser: number;
   /** rivals within the bell radius */
   near: number;
   /** the player: track gap (> 0 ahead), straight-line distance, inside the aim cone */
@@ -59,18 +61,21 @@ interface Seen {
 function look(ctx: SimContext, i: number, cone: number): Seen {
   const ks = ctx.st.karts;
   const k = ks[i];
-  const s: Seen = { aheadCone: Infinity, ahead: Infinity, behind: Infinity, behindLane: false, near: 0, player: 0, playerDist: Infinity, playerCone: false };
+  const s: Seen = { aheadCone: Infinity, ahead: Infinity, behind: Infinity, behindLane: false, chaser: Infinity, near: 0, player: 0, playerDist: Infinity, playerCone: false };
   const human = ctx.cfg.humans[0] ?? -1;
   const r2 = ITEMS.bell.radius * ITEMS.bell.radius;
   for (let j = 0; j < ks.length; j++) {
     if (j === i) continue;
     const o = ks[j];
     if (o.respawnTicks > 0 || o.finished || stuntImmune(o)) continue;
+    const g = o.dist - k.dist;
+    if (g <= 0 && -g < s.chaser) s.chaser = -g;
+    // SIM_VERSION 10: a boxed, Zoomies or invulnerable kart is no aim target (applyHit blocks the hit: a wasted item)
+    if (o.shieldTicks > 0 || o.autoTicks > 0 || o.invTicks > 0) continue;
     const dx = o.x - k.x;
     const dz = o.z - k.z;
     const d2 = dx * dx + dz * dz;
     if (d2 <= r2) s.near++;
-    const g = o.dist - k.dist;
     if (j === human) {
       s.player = g;
       s.playerDist = Math.sqrt(d2);
@@ -98,7 +103,8 @@ export function threatened(ctx: SimContext, i: number): boolean {
     if (p.kind === ProjKind.Laser) {
       if (p.target === i && gap < 45) return true;
     } else if (p.kind === ProjKind.YarnBall) {
-      if (p.target === i && gap > -2 && gap < 25) return true;
+      // (it rolls the way its thrower faced: against the lap, it closes in from the higher distance, SIM_VERSION 10)
+      if (p.target === i && gap * p.dir > -2 && gap * p.dir < 25) return true;
     } else if (gap > -2 && gap < 18 && Math.abs(p.d - k.d) < 3.5) return true;
   }
   return false;
@@ -147,7 +153,7 @@ export function useItems(ctx: SimContext, i: number, out: TickInput, m: BrainMem
       else fire = late;
       break;
     case 'yarn':
-      if (s.behind < 15 && m.held < maxHold * 2 && !atPlayer) fire = false; // trailing shield
+      if (s.chaser < 15 && m.held < maxHold * 2 && !atPlayer) fire = false; // trailing shield
       else if (s.ahead < 50 || (rival && s.player > 0 && s.player < 50 * Math.min(2, eager))) fire = true;
       else if (late) {
         fire = true;

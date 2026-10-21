@@ -45,8 +45,11 @@ export function wantsEditor(search: string, hash: string, pathname: string): boo
   return new URLSearchParams(search).has('make') || hashParams(hash).has('make') || /\/make\/?$/.test(pathname);
 }
 
-/** Page link that plays `code`: same origin and game path, `/make` or `/t` stripped, only `?t=`. */
+/**
+ * Page link that plays `code`: same origin and game path, only `?t=`. The route suffix is stripped (`/make`, `/t`, and
+ * the dare `/r` and Daily Cup `/d/<n>` pages, whose link shells would show a ghost or Daily Cup preview).
+ */
 export function trackLink(code: string, loc: { origin: string; pathname: string }): string {
-  const path = loc.pathname.replace(/\/index\.html$/, '/').replace(/\/(make|t)(\.html)?\/?$/, '') || '/';
+  const path = loc.pathname.replace(/\/index\.html$/, '/').replace(/\/(make|t|r|d\/\d{1,4})(\.html)?\/?$/, '') || '/';
   return `${loc.origin}${path}?${TRACK_PARAM}=${code}`;
 }

@@ -216,7 +216,9 @@ export class SimWorld {
       }
       for (let i = 0; i < st.karts.length; i++) {
         const k = st.karts[i];
-        if (k.respawnTicks > 0 || k.out) continue;
+        // SIM_VERSION 10: a kart on a loop's rail or in a jump's net rides above the road: it cannot reach a box (as coins)
+        // and a finished kart (on autopilot) can never use an item: it drives through boxes without breaking them
+        if (k.respawnTicks > 0 || k.out || k.finished || k.rail > 0 || k.netTicks > 0) continue;
         const dx = k.x - b.x;
         const dz = k.z - b.z;
         const dy = k.y + 0.6 - b.y;

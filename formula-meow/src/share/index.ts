@@ -18,13 +18,13 @@ import { themeOf } from '../core/track/themes';
 import { load, save } from '../core/app/storage';
 import { setShareHooks, type ResultAction, type ResultContext, type ResultExtras, type RouteSetup } from './hooks';
 import { decodeGhost, encodeGhost, trackKey } from './codec/ghost-codec';
-import { dailyUrl, dareUrl, homeUrl, parseRoute, SHELTER_PAYOUTS_URL, type Route } from './links/link';
+import { dailyUrl, dareableMode, dareUrl, homeUrl, parseRoute, SHELTER_PAYOUTS_URL, type Route } from './links/link';
 import { GhostRunner } from './links/ghost-runner';
 import { ledgerLine, loadLedger, recordDuel, saveLedger } from './links/rivalry';
 import { shareClip, shareImage, showToast } from './links/share-sheet';
 import { clipCaption, dailyCardText, dareText, fmtRaceTime, ordinalText, PINK_PAW_SHARE_LINE } from './cards/card-text';
 import { canvasPng, drawResultCard } from './cards/result-card';
-import { dailySetup, dayNoFor, EMPTY_DAILY, isDailyRace, recordDaily, type DailyRecord } from './daily/daily';
+import { dailyResultDay, dailySetup, dayNoFor, migrateDaily, recordDaily } from './daily/daily';
 import { clearYourCat, initYourCat, saveYourCat, yourCat, type YourCat } from './yourcat/store';
 import { webCodecsAvailable } from './clip/encoder-webcodecs';
 import type { EncodedClip } from './clip/encoder-types';
@@ -118,7 +118,12 @@ function linkLabel(): string {
 export function installShare(shell: Shell): void {
   const route: Route = parseRoute(location);
   const runner = new GhostRunner(shell);
-  const today = dayNoFor(new Date());
+  // the UTC day is read when it is needed, never cached: a tab can stay open past midnight
+  const todayNow = () => dayNoFor(new Date());
+  let startDay = todayNow();
+  shell.appBus.on('raceStart', () => {
+    startDay = todayNow();
+  });
   let lapPlaces: number[] = [];
   let clip: ClipState | null = null;
   let banner: HTMLDivElement | null = null;
@@ -324,7 +329,7 @@ export function installShare(shell: Shell): void {
       }
       if (r.kind === 'daily') {
         // a future day is not out yet (it would spend that day's ranked run early): race today's instead
-        const day = Math.min(r.day, today);
+        const day = Math.min(r.day, todayNow());
         const d = dailySetup(day, TRACKS);
         return { trackId: d.track.id, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day };
       }
@@ -349,8 +354,10 @@ export function installShare(shell: Shell): void {
       // B49: a fast Again must not let this run's link leak into the next race's caption
       const token = ++resultToken;
       dareLink = null;
+      // only a field race makes a dare a friend can replay (a solo time trial's ghost never finishes in a full field)
+      const dareable = dareableMode(ctx.mode ?? cfg.mode);
       void ghostP.then((g) => {
-        if (g && token === resultToken) dareLink = buildDare(cfg.track, g, senderName());
+        if (g && dareable && token === resultToken) dareLink = buildDare(cfg.track, g, senderName());
       });
       let ghostRow: ResultExtras['ghost'];
       let later: ResultExtras['later'];
@@ -385,14 +392,18 @@ export function installShare(shell: Shell): void {
       }
 
       // daily cup
-      const dayOf = [route.kind === 'daily' ? Math.min(route.day, today) : -1, today].find(
-        (d) => d > 0 && isDailyRace(d, TRACKS, { trackId: cfg.track.id, seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers }),
-      );
+      const today = todayNow();
+      const daily = dailyResultDay(TRACKS, { trackId: cfg.track.id, seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers }, {
+        setupDay: ctx.mode === 'daily' ? ctx.day : undefined,
+        startDay,
+        nowDay: today,
+      });
+      const dayOf = daily?.day;
       let dailyAction: ResultAction;
-      if (dayOf != null) {
-        const rec = load<DailyRecord>('daily', EMPTY_DAILY);
+      if (daily && dayOf != null) {
+        const rec = migrateDaily(load<unknown>('daily', null));
         const laps = lapPlaces.length ? lapPlaces.slice() : [result.player.place];
-        let ranked = dayOf === today && finished ? recordDaily(rec, { day: dayOf, place: result.player.place, time: result.player.time, laps }) : null;
+        let ranked = daily.rankable && finished ? recordDaily(rec, { day: dayOf, place: result.player.place, time: result.player.time, laps }) : null;
         const thisRun = ranked != null;
         if (ranked) {
           save('daily', rec);
@@ -418,14 +429,16 @@ export function installShare(shell: Shell): void {
           label: `🏆 Daily #${today}`,
           tier: 'icon',
           run: () => {
-            const d = dailySetup(today, TRACKS);
+            // the day at the tap: results left up past midnight start the new day's cup
+            const day = todayNow();
+            const d = dailySetup(day, TRACKS);
             // B36: the Daily Cup has its own address (and banner / HUD tag through the race mode)
             try {
-              history.replaceState(null, '', dailyUrl(location, today));
+              history.replaceState(null, '', dailyUrl(location, day));
             } catch {
               /* sandboxed frames */
             }
-            shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day: today });
+            shell.start({ track: d.track, cls: d.cls, seed: d.seed, modifiers: d.modifiers, mode: 'daily', day });
           },
         };
       }

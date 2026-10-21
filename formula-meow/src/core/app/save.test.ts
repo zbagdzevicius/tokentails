@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bestKey, loadBlob, migrateProgressV1 } from './save';
+import { bestKey, loadBlob, migrateProgressV1, Save } from './save';
+import { restartSeed } from './restart';
 
 class Mem {
   m = new Map<string, string>();
@@ -39,5 +40,68 @@ describe('save v2 (iteration 2)', () => {
     const p = migrateProgressV1({ unlocked: 7, bestTimes: { 'a:0': 'x' } });
     expect(p.unlocked).toBe(2);
     expect(Object.keys(p.bestTimes)).toEqual([]);
+  });
+
+  it('two tabs: a write from one keeps the slots the other wrote since it loaded', () => {
+    const mem = new Mem();
+    const a = new Save(() => mem);
+    const b = new Save(() => mem);
+    // both tabs load (and cache) the blob
+    expect(a.slot('modes', { n: 0 }).get().n).toBe(0);
+    expect(b.slot('progression', { fish: 0 }).get().fish).toBe(0);
+    a.slot('modes', { n: 0 }).update((v) => (v.n = 5));
+    b.slot('progression', { fish: 0 }).set({ fish: 40 });
+    b.setSettings({ muted: true });
+    a.setSettings({ autoGas: true });
+    const stored = loadBlob(mem);
+    expect(stored.slots.modes).toEqual({ n: 5 });
+    expect(stored.slots.progression).toEqual({ fish: 40 });
+    expect(stored.settings.muted).toBe(true);
+    expect(stored.settings.autoGas).toBe(true);
+    // update() starts from the stored slot, not a stale cached one
+    b.slot('modes', { n: 0 }).update((v) => (v.n += 1));
+    expect(loadBlob(mem).slots.modes).toEqual({ n: 6 });
+  });
+
+  it('a storage event for fm:save drops the cache and tells the lanes', () => {
+    const mem = new Mem();
+    const a = new Save(() => mem);
+    const b = new Save(() => mem);
+    const slot = a.slot('modes', { n: 0 });
+    expect(slot.get().n).toBe(0);
+    b.slot('modes', { n: 0 }).set({ n: 9 });
+    let heard = 0;
+    a.onExternalChange(() => heard++);
+    a.storageChanged('fm:other');
+    expect(heard).toBe(0);
+    a.storageChanged('fm:save');
+    expect(heard).toBe(1);
+    expect(slot.get().n).toBe(9);
+  });
+});
+
+describe('save without storage', () => {
+  it('keeps the session state in memory when storage is missing or a write fails', () => {
+    const none = new Save(() => null);
+    none.slot('modes', { n: 0 }).set({ n: 3 });
+    none.setSettings({ muted: true });
+    expect(none.slot('modes', { n: 0 }).get().n).toBe(3);
+    expect(none.settings().muted).toBe(true);
+    const full = new Mem();
+    full.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+    const q = new Save(() => full);
+    q.slot('modes', { n: 0 }).update((v) => (v.n = 4));
+    q.slot('progression', { fish: 0 }).set({ fish: 1 });
+    expect(q.slot('modes', { n: 0 }).get().n).toBe(4);
+  });
+});
+
+describe('restart seed (B37)', () => {
+  it('keeps the seed for dares, the Daily Cup, time trials and Grand Prix races; rerolls the rest', () => {
+    const fresh = () => 99;
+    for (const m of ['dare', 'daily', 'tt', 'gp'] as const) expect(restartSeed(m, 7, fresh)).toBe(7);
+    for (const m of ['race', 'battle', undefined] as const) expect(restartSeed(m, 7, fresh)).toBe(99);
   });
 });

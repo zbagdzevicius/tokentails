@@ -26,7 +26,7 @@ import { decalTexture, setFaceDecal } from '../../core/render/face-decal-materia
 import { createSimPlugins } from '../../items-ai';
 import { CLIP_FPS, CLIP_S, FINISH_S, FINISH_SIM_S, HIGHLIGHT_S, INTRO_S, planClip } from './highlight';
 import { renderClipAudio } from './clip-audio';
-import { fmtRaceTime, ordinalText } from '../cards/card-text';
+import { fmtRaceTime, ordinalText, rivalsLine } from '../cards/card-text';
 import type { EncodedClip } from './encoder-types';
 
 export const CLIP_W = 720;
@@ -104,6 +104,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
 
   const cfg = inp.cfg;
   const me = cfg.humans[0] ?? 0;
+  const rivals = rivalsLine(cfg.racers.length);
   const scene = new Scene();
   const built = buildTrack(cfg.track, cfg.modifiers);
   const world = new SimWorld(cfg, createSimPlugins(cfg), built);
@@ -217,7 +218,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
         renderAt(plan.introTick + f * 2, dt, 'orbit', local);
         pill(g, 'FORMULA MEOW', 36, 60, 34, accent, '#1a1238');
         if (local > 0.2) bigText(g, inp.catName.toUpperCase(), CLIP_W / 2, CLIP_H - 300, 104, '#fff3dc');
-        if (local > 0.6) pill(g, `vs 7 real Pink Paw shelter cats`, CLIP_W / 2, CLIP_H - 250, 30, '#fff3dc', '#1a1238', 'center');
+        if (local > 0.6 && rivals) pill(g, rivals, CLIP_W / 2, CLIP_H - 250, 30, '#fff3dc', '#1a1238', 'center');
       } else if (f < fHl) {
         const local = (f - fIntro) / CLIP_FPS;
         if (f === fIntro) {

@@ -357,13 +357,14 @@ async function doodleRaceShot(id, aspect) {
 }
 
 // ------------------------------------------------------------------------------------------------ dare (S25)
-const DARE9 = (() => {
+// the current SIM_VERSION's dare (an older stamp opens as a target-time race without Mia's ghost)
+const DARE = (() => {
   const src = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'v3-legacy-codes.ts'), 'utf8');
-  return /"dare9":\s*"([^"]+)"/.exec(src)[1];
+  return /"dare10":\s*"([^"]+)"/.exec(src)[1];
 })();
 
 async function dareShot(id, aspect) {
-  const url = `/?bot=1${Q}#g=${DARE9}&n=Mia`;
+  const url = `/?bot=1${Q}#g=${DARE}&n=Mia`;
   const o = await openPage(aspect, url);
   // the banner and Mia's ghost appear while loading (live clock); freeze the moment both are there
   await o.page.waitForFunction(() => !!document.querySelector('.fm-dare-banner') && !!window.__fm?.shell.stage.scene.getObjectByName('kart-Mia'), null, { timeout: 30_000, polling: 16 });
@@ -378,7 +379,7 @@ async function dareShot(id, aspect) {
   const m = await record(o, file, 300);
   const go = m.findIndex((f) => (f.ev ?? []).some((e) => e[0] === 'go'));
   const banner = await o.page.evaluate(() => !!document.querySelector('.fm-dare-banner'));
-  writeAnchor(id, { url: '/?bot=1+Q#g=<LEGACY.dare9>&n=Mia', takeStartTick: t0, goTakeFrame: go, cutStartTakeFrame: Math.max(0, go - 40), bannerStillUpAtEnd: banner, note: 'banner is up from take f0; default cut = GO at cut f40' });
+  writeAnchor(id, { url: '/?bot=1+Q#g=<LEGACY.dare10>&n=Mia', takeStartTick: t0, goTakeFrame: go, cutStartTakeFrame: Math.max(0, go - 40), bannerStillUpAtEnd: banner, note: 'banner is up from take f0; default cut = GO at cut f40' });
   await o.close();
   return { file, frames: m.length, errors: o.errors, check: `go at take f${go}, ${checkSteps(m)}` };
 }

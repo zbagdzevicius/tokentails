@@ -7,6 +7,7 @@ import { cuesFor, incomingCue, incomingInterval, PRIO_CAP, VoiceBudget, cueLengt
 import { ANNOUNCE_IDS, ANNOUNCE_TEXT, AnnouncerLogic, lineLength } from './announcer';
 import { UI_SOUND_IDS, uiSoundSpec } from './stings';
 import { prng } from './synth';
+import { audioResumable, RaceAudio } from './race-audio';
 
 const ev = (type: RaceEvent['type'], kart: number, a?: number, b?: number, tick = GO_TICK + 600, item?: RaceEvent['item']): RaceEvent => ({ tick, type, kart, a, b, item });
 
@@ -191,5 +192,38 @@ describe('ui sounds', () => {
     }
     for (const id of ['unlock', 'achievement', 'podium', 'cupWin'] as const) expect(uiSoundSpec(id).prio).toBe(3);
     expect(uiSoundSpec('hover').prio).toBe(0);
+  });
+});
+
+describe('audio context resume (WebKit interrupted state)', () => {
+  const fakeCtx = (state: string) => {
+    const c = { state, resumes: 0, suspends: 0, resume: () => (c.resumes++, Promise.resolve()), suspend: () => (c.suspends++, Promise.resolve()) };
+    return c;
+  };
+  it('treats every state but running and closed as resumable', () => {
+    expect(audioResumable('suspended')).toBe(true);
+    expect(audioResumable('interrupted')).toBe(true);
+    expect(audioResumable('running')).toBe(false);
+    expect(audioResumable('closed')).toBe(false);
+  });
+  it('unlock() and resume() resume an interrupted context; suspend() suspends it', () => {
+    for (const call of ['unlock', 'resume'] as const) {
+      const a = new RaceAudio();
+      const c = fakeCtx('interrupted');
+      (a as unknown as { ctx: unknown }).ctx = c;
+      a[call]();
+      expect(c.resumes).toBe(1);
+    }
+    const a = new RaceAudio();
+    const c = fakeCtx('interrupted');
+    (a as unknown as { ctx: unknown }).ctx = c;
+    a.suspend();
+    expect(c.suspends).toBe(1);
+    const closed = fakeCtx('closed');
+    (a as unknown as { ctx: unknown }).ctx = closed;
+    a.unlock();
+    a.resume();
+    a.suspend();
+    expect(closed.resumes + closed.suspends).toBe(0);
   });
 });

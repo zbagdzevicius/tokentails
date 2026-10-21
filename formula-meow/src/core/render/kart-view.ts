@@ -426,6 +426,42 @@ export class KartView {
     if (this.hat) this.hat.visible = solid || v > 0.6;
   }
 
+  /** The materials setFade turns see-through (the kart's own; the outline is shared and only hidden). */
+  private fadeMats(): Array<{ transparent: boolean; needsUpdate: boolean }> {
+    return [this.mat, this.cat.fur, this.cat.faceMat, this.cat.detailMat];
+  }
+
+  /** the fadeable materials' `transparent` before a shader warm-up switched them (fadeVariant) */
+  private warmWas: boolean[] | null = null;
+
+  /**
+   * Shader warm-up (the shell compiles the grid): 'see' switches the fadeable materials to the see-through variant a
+   * fade near the camera uses, 'solid' to the opaque one it goes back to (setFade flips `transparent`, which is a
+   * different program in three; the face decal starts see-through), null puts back exactly what they were. Opacity
+   * and depth are untouched, so nothing drawn changes.
+   */
+  fadeVariant(v: 'see' | 'solid' | null): void {
+    const mats = this.fadeMats();
+    if (v) {
+      if (!this.warmWas) this.warmWas = mats.map((m) => m.transparent);
+      const want = v === 'see';
+      for (const m of mats) {
+        if (m.transparent === want) continue;
+        m.transparent = want;
+        m.needsUpdate = true;
+      }
+      return;
+    }
+    const was = this.warmWas;
+    if (!was) return;
+    this.warmWas = null;
+    mats.forEach((m, i) => {
+      if (m.transparent === was[i]) return;
+      m.transparent = was[i];
+      m.needsUpdate = true;
+    });
+  }
+
   /** Free everything this kart owns (B57: materials and the flame leaked on every restart). */
   dispose(): void {
     disposeHat(this.hat);

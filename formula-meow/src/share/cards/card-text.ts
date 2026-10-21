@@ -23,6 +23,13 @@ export function ordinalText(n: number): string {
 
 export const PINK_PAW_SHARE_LINE = `The rival cats are real cats from Pink Paw, a shelter in Lithuania. Shelter payouts: ${SHELTER_PAYOUTS_URL}`;
 
+/** The clip intro's rivals line, from the field the run had; null when the player raced alone (a time trial). */
+export function rivalsLine(racers: number): string | null {
+  const n = racers - 1;
+  if (n < 1) return null;
+  return `vs ${n} real Pink Paw shelter cat${n === 1 ? '' : 's'}`;
+}
+
 export interface DareTextIn {
   trackName: string;
   time: number | null;

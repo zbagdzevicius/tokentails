@@ -92,7 +92,8 @@ export const laser: ItemDef = {
     const s = itemsOf(ctx.st);
     if (s.laserCd > 0) return true;
     for (const p of s.proj) if (p.kind === 2) return true;
-    for (const k of ctx.st.karts) if (k.item === 'laser') return true;
+    // (a finished kart's held item can never be used: it does not block the Laser Dot for the karts still racing)
+    for (const k of ctx.st.karts) if (k.item === 'laser' && !k.finished) return true;
     return false;
   },
   use: (ctx, k) => fireLaser(ctx, k),

@@ -7,13 +7,28 @@ import type { SetPiece, TrackDef } from '../../types';
 import { ovalTrack } from '../../test/fixtures';
 import { buildTrack } from '../../core/track/build';
 import { PIECE_LIMITS, validateSetPieces, validateTrack } from './validate';
-import { metresToUnits, newPiece, pieceLimit, snapPiece, ugcPieces, unitsToMetres, wallSide } from './pieces';
+import { metresToUnits, newPiece, pieceLimit, snapPiece, tunnelLenStep, tunnelMetres, ugcPieces, unitsToMetres, wallSide } from './pieces';
 import { ALL_TRACKS } from '../../core/track/tracks';
 
 const oval = (setPieces?: SetPiece[]): TrackDef => ({ ...ovalTrack([{ s: 140, kind: 'items' }]), ...(setPieces ? { setPieces } : {}) });
 
 describe('stunt stickers', () => {
   const t = buildTrack(oval());
+
+  it('tunnel length stepper: + and − only when the press changes the tunnel (40 lap units cap it on short tracks)', () => {
+    const len = metresToUnits(t, 60);
+    expect(tunnelMetres(t, len)).toBe(60);
+    expect(tunnelLenStep(t, len, 1)).toBe(metresToUnits(t, 70));
+    expect(tunnelLenStep(t, len, -1)).toBe(metresToUnits(t, 50));
+    // a 400 m lap: 40 units is 62.5 m (shown as 60 m), and 70 m would clamp back to 40 units
+    const short = { ...t, length: 400 };
+    expect(tunnelMetres(short, 40)).toBe(60);
+    expect(tunnelLenStep(short, 40, 1)).toBeNull();
+    expect(tunnelLenStep(short, 40, -1)).toBe(32);
+    // the metre limits
+    expect(tunnelLenStep(t, metresToUnits(t, 90), 1)).toBeNull();
+    expect(tunnelLenStep(t, metresToUnits(t, 40), -1)).toBeNull();
+  });
 
   it('defaults: a jump 10 m, a tunnel ≈ 60 m, a wall ride 50 m (outer side on a bend, both sides on a straight)', () => {
     expect(newPiece(oval(), t, 'jump', 30)).toEqual({ kind: 'jump', s: 30, gap: 10 });

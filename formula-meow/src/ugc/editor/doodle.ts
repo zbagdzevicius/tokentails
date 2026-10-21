@@ -226,3 +226,15 @@ export function starterFeatures(points: TrackPoint[], theme: TrackDef['theme']):
   def.laps = lapsFor(t.length);
   return def;
 }
+
+/**
+ * A fresh doodle over `def` (Draw tab): new points and starter stickers. The old set pieces sat at lap fractions of
+ * the old shape, and a remix's authored extras belong to that shape too, so they all go (as on a new track); the
+ * name, creator, parent, theme, time of day and props stay.
+ */
+export function redrawTrack(def: TrackDef, points: TrackPoint[]): void {
+  const fresh = starterFeatures(points, def.theme);
+  def.points = fresh.points;
+  def.features = fresh.features;
+  for (const k of ['setPieces', 'kind', 'branches', 'hazards', 'coins', 'lineCoins', 'flyover', 'music'] as const) delete def[k];
+}

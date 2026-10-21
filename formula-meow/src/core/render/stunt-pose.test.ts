@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { buildTrack } from '../track/build';
 import { trackById } from '../track/tracks';
 import { LOOP_LP } from '../track/stunt';
-import { ribbonPose, type StuntPose } from './stunt-pose';
+import { ghostAnchor, ribbonPose, type StuntPose } from './stunt-pose';
 
 const pose = (): StuntPose => ({ x: 0, y: 0, z: 0, ux: 0, uy: 1, uz: 0, fx: 0, fy: 0, fz: 1 });
 
@@ -49,5 +49,30 @@ describe('loop ribbon pose', () => {
       expect(Math.hypot(a.fx, a.fy, a.fz)).toBeCloseTo(1, 6);
       expect(a.y - t.py[pc.i0]).toBeGreaterThan(1.5);
     }
+  });
+});
+
+describe('ghostAnchor (ghost tag and fade on a bent surface)', () => {
+  it('uses the flat position with a vertical lift off the stunt surface', () => {
+    const a = ghostAnchor(1, 2, 3, null, 3.1, { at: { x: 0, y: 0, z: 0 }, tag: { x: 0, y: 0, z: 0 } });
+    expect(a.at).toEqual({ x: 1, y: 2, z: 3 });
+    expect(a.tag.x).toBe(1);
+    expect(a.tag.y).toBeCloseTo(5.1);
+    expect(a.tag.z).toBe(3);
+  });
+  it('follows the bent pose and its up vector on a loop (over the top the tag hangs below the road point)', () => {
+    const bent: StuntPose = { x: 10, y: 14, z: -2, ux: 0, uy: -1, uz: 0, fx: 1, fy: 0, fz: 0 };
+    const a = ghostAnchor(10, 0.5, -2, bent, 3.1, { at: { x: 0, y: 0, z: 0 }, tag: { x: 0, y: 0, z: 0 } });
+    expect(a.at).toEqual({ x: 10, y: 14, z: -2 });
+    expect(a.tag.y).toBeCloseTo(14 - 3.1);
+  });
+  it('over the top of a real loop the tag sits at the drawn kart, metres above the flat shadow point', () => {
+    const t = buildTrack(trackById('kitchen'), 0);
+    const pc = t.pieces.find((p) => p.kind === 'loop')!;
+    const top = ribbonPose(t, pc, LOOP_LP / 2, 0, 0.03, pose());
+    const flatY = t.py[pc.i0];
+    const a = ghostAnchor(top.x, flatY, top.z, top, 3.1, { at: { x: 0, y: 0, z: 0 }, tag: { x: 0, y: 0, z: 0 } });
+    expect(a.at.y - flatY).toBeGreaterThan(5);
+    expect(a.tag.y - flatY).toBeGreaterThan(2);
   });
 });

@@ -17,7 +17,7 @@ import { fnvInt } from '../../core/sim/hash';
 import { atan2L, PI } from '../../core/sim/fixed';
 import { queryTrack, type TrackHit } from '../../core/track/query';
 import { Surface } from '../../types';
-import { createBattleAI } from './ai';
+import { SLOT, createBattleAI } from './ai';
 
 export const BATTLE = {
   balloons: 3,
@@ -113,6 +113,7 @@ export function createBattleRules(): ModeRules {
     k.balloons = BATTLE.balloons;
     b.outAt[i] = 0;
     b.imm[i] = IMMUNE;
+    k.invTicks = Math.max(k.invTicks, IMMUNE);
   };
 
   const lose = (ctx: SimContext, victim: number) => {
@@ -121,6 +122,9 @@ export function createBattleRules(): ModeRules {
     const k = st.karts[victim];
     k.balloons--;
     b.imm[victim] = IMMUNE;
+    // SIM_VERSION 10: balloon immunity is invulnerability (applyHit blocks the hit): an item that cannot pop a balloon
+    // no longer spins the cat again and costs it its speed for nothing (about a quarter of all battle hits did)
+    k.invTicks = Math.max(k.invTicks, IMMUNE);
     if (k.balloons <= 0) eliminate(ctx, victim);
   };
 
@@ -148,7 +152,7 @@ export function createBattleRules(): ModeRules {
       const st = ctx.st;
       const n = st.karts.length;
       const z = () => new Array<number>(n).fill(0);
-      (st.mode as { battle?: BattleState }).battle = { imm: z(), outAt: z(), hitsTaken: z(), pops: z(), steals: z(), score: z(), outs: z(), stealCd: new Array<number>(n * n).fill(0), over: 0, rank: [], ai: new Array<number>(n * 4).fill(0) };
+      (st.mode as { battle?: BattleState }).battle = { imm: z(), outAt: z(), hitsTaken: z(), pops: z(), steals: z(), score: z(), outs: z(), stealCd: new Array<number>(n * n).fill(0), over: 0, rank: [], ai: new Array<number>(n * SLOT).fill(0) };
       for (const k of st.karts) {
         k.balloons = BATTLE.balloons;
         k.out = 0;

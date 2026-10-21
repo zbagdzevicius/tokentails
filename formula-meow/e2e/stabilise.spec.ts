@@ -70,6 +70,50 @@ test('12 restarts do not leak textures or geometries (B57)', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test('a restart frees no program under the new grid, leaves no frozen overlay and links few programs after GO (B61)', async ({ page }) => {
+  // every deleteProgram, timed (the shell frees a torn-down race's GPU side RETIRE_MS = 1.5 s later)
+  await page.addInitScript(() => {
+    const w = window as unknown as { __fmDel: number[] };
+    w.__fmDel = [];
+    for (const C of [WebGL2RenderingContext, WebGLRenderingContext]) {
+      const del = C.prototype.deleteProgram;
+      C.prototype.deleteProgram = function (this: WebGLRenderingContext, p: WebGLProgram | null) {
+        w.__fmDel.push(performance.now());
+        return del.call(this, p);
+      };
+    }
+  });
+  const glWarnings: string[] = [];
+  page.on('console', (m) => {
+    if (/glGetProgramiv|GL_INVALID_VALUE/.test(m.text())) glWarnings.push(m.text());
+  });
+  await page.goto('/?bot=1&seed=7');
+  // past GO with the bot boosting: the old race has speed lines up and its effects built
+  await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(400);
+  type Gl = { shell: { restart(): void; camera: { cam: { children: Array<{ renderOrder: number; visible: boolean }> } }; stage: { renderer: { info: { programs: Array<{ id: number }> | null } } } } };
+  const t0 = await page.evaluate(() => {
+    (window as unknown as { __fm: Gl }).__fm.shell.restart();
+    return performance.now();
+  });
+  await page.waitForTimeout(400);
+  // the old race's speed-lines overlay left the camera with the race (it stayed drawn, frozen, for 1.5 s)
+  const overlays = await page.evaluate(() => (window as unknown as { __fm: Gl }).__fm.shell.camera.cam.children.filter((c) => c.renderOrder === 999).length);
+  expect(overlays).toBe(1);
+  await page.waitForTimeout(600);
+  // nothing compiled for the new grid was freed straight away (the old effects are retired, not disposed at reset)
+  const early = await page.evaluate((from) => (window as unknown as { __fmDel: number[] }).__fmDel.filter((t) => t >= from && t < from + 1000).length, t0);
+  expect(early).toBe(0);
+  // the grid compile covered the race, in the colour space of the target the frames are drawn into (with bloom on, the
+  // scene target: 5 linked late with screen variants only): few programs link after GO (it was ~14, some 20 s in)
+  const ids = () => page.evaluate(() => ((window as unknown as { __fm: Gl }).__fm.shell.stage.renderer.info.programs ?? []).map((p) => p.id));
+  await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(200);
+  const atGo = new Set(await ids());
+  await expect.poll(() => tick(page), { timeout: 60_000 }).toBeGreaterThan(200 + 60 * 12);
+  const fresh = (await ids()).filter((id) => !atGo.has(id));
+  expect(fresh.length).toBeLessThanOrEqual(3);
+  expect(glWarnings).toEqual([]);
+});
+
 test('Esc pauses and resumes; the pause screen has Resume and Restart, and a hidden tab pauses only once (B34, B38)', async ({ page }) => {
   await page.goto('/?seed=11');
   await page.mouse.click(195, 300);

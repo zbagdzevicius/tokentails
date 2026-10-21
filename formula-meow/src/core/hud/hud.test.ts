@@ -86,7 +86,7 @@ describe('hud formatting', () => {
 
 describe('strings', () => {
   it('every t() key in the shell and the audio-ui files is in CORE_EN', () => {
-    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts'];
+    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts', 'core/app/race-labels.ts', 'core/input/touch.ts', 'ugc/hub.ts'];
     const missing: string[] = [];
     for (const f of files) {
       const s = readFileSync(join(src, f), 'utf8');
@@ -96,6 +96,18 @@ describe('strings', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it('the touch overlay and the Tracks sheet have no raw English labels (they bypassed t())', () => {
+    const raw: string[] = [];
+    for (const f of ['core/input/touch.ts', 'ugc/hub.ts']) {
+      const s = readFileSync(join(src, f), 'utf8');
+      // aria-label / placeholder literals, and literal text between tags in template HTML
+      for (const m of s.matchAll(/(?:aria-label|placeholder)="([A-Za-z][^"$]*)"/g)) raw.push(`${f}: ${m[1]}`);
+      for (const m of s.matchAll(/>([A-Za-z][A-Za-z ,.?']+)</g)) raw.push(`${f}: ${m[1]}`);
+      for (const m of s.matchAll(/(?:textContent|innerHTML) = '([^']*[A-Za-z]{2}[^']*)'/g)) raw.push(`${f}: ${m[1]}`);
+    }
+    expect(raw).toEqual([]);
   });
 });
 
@@ -164,5 +176,17 @@ describe('screen flow look', () => {
     expect(wantsWipe('pause', null)).toBe(false);
     expect(wantsWipe('results', null)).toBe(false);
     expect(wantsWipe('menu', 'menu')).toBe(false);
+  });
+});
+
+describe('results layout', () => {
+  it('landscape phones lay the results out in two columns (the standings had an 81 px window at 844 x 390)', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    const blocks = [...css.matchAll(/@media \(orientation: landscape\) and \(max-height: 500px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
+    const res = blocks.find((b) => b.includes('.fm-panel.fm-results {'));
+    expect(res).toBeDefined();
+    expect(res).toMatch(/\.fm-panel\.fm-results \{[^}]*display: grid/);
+    expect(res).toMatch(/\.fm-res-scroll \{[^}]*grid-row: 1 \/ span 2/);
+    expect(res).toMatch(/\.fm-res-main \{[^}]*grid-column: 2/);
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TrackDef, TrackPoint } from '../../types';
 import { TRACKS } from '../../core/track/tracks';
 import { ovalTrack } from '../../test/fixtures';
-import { validateTrack, lapsFor } from './validate';
+import { validateTrack, lapsFor, LIMITS, snapToMap } from './validate';
 import { doodleToPoints, sampleToS, sToSample, starterFeatures, type P2 } from './doodle';
 import { decodeTrackCode, encodeTrack } from '../codec/track-code';
 
@@ -118,8 +118,20 @@ describe('track validator (GDD 6.4)', () => {
     const def = withItems(ovalTrack());
     expect(codes({ ...def, points: def.points.map((p, i) => (i === 0 ? { ...p, x: -41 } : p)) })).toContain('grid');
     expect(codes({ ...def, points: def.points.map((p, i) => (i === 0 ? { ...p, x: 200 } : p)) })).toContain('grid');
-    expect(codes({ ...def, points: [def.points[0], ...def.points] })).toContain('grid');
+    // two points on one spot get their own sentence and ring the point, not the off-the-map one
+    const stacked = validateTrack({ ...def, points: [def.points[0], ...def.points] });
+    expect(stacked.issues.map((i) => i.code)).toEqual(['stacked']);
+    expect(stacked.issues[0].point).toBe(1);
+    expect(stacked.issues[0].message).not.toMatch(/off the map/);
+    // the wrap-around pair (last on top of first) too
+    expect(codes({ ...def, points: [...def.points, def.points[0]] })).toEqual(['stacked']);
     expect(codes({ ...def, points: def.points.slice(0, 6) })).toContain('points');
+  });
+
+  it('snaps a dragged or inserted point to the grid inside the map', () => {
+    expect(snapToMap(131, -133)).toEqual({ x: LIMITS.coordMax, z: LIMITS.coordMin });
+    expect(snapToMap(9.9, -1.9)).toEqual({ x: 8, z: 0 });
+    expect(Object.is(snapToMap(-1, 1).x, -0)).toBe(false);
   });
 
   it('uses 5 laps under 450 m', () => {

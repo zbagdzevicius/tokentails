@@ -19,6 +19,9 @@ export interface ResultContext {
   replay: Replay;
   cfg: RaceConfig;
   events: readonly RaceEvent[];
+  /** the race's mode and Daily Cup day as the shell started it */
+  mode?: RaceMode;
+  day?: number;
 }
 
 export interface ResultExtras {

@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { NO_INPUT, type RaceConfig, type TickInput, type TrackDef } from '../../types';
 import { raceConfig, stuntLab, world } from '../../test/fixtures';
-import { KITCHEN } from '../../core/track/tracks';
+import { KITCHEN, YARN } from '../../core/track/tracks';
 import { GO_TICK, SimWorld } from '../../core/sim/world';
 import { speedOf, placeOnTrack } from '../../core/sim/kart';
 import { followLine } from '../../core/sim/autopilot';
@@ -20,7 +20,7 @@ import { buildField, createSimPlugins } from '..';
 import { AI } from '../../tuning';
 import { ProjKind, itemsOf } from '../items/state';
 import { STUNT_AI } from './driver';
-import { STUNT_ROUTE_TIME, mainStuntTime } from '../../core/track/branch-ai';
+import { STUNT_ROUTE_TIME, branchSteer, mainStuntTime, mouthEnd, routeRemaining } from '../../core/track/branch-ai';
 import { fwd } from '../../core/track/branch';
 import { ALL_TRACKS } from '../../core/track/tracks';
 
@@ -257,5 +257,51 @@ describe('items through set pieces', () => {
     expect(overGap).toBeGreaterThan(0);
     expect(low).toBe(0);
     expect(hitsOn(w, 1).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('route choice: a closed branch mouth (SIM_VERSION 10)', () => {
+  it('a kart that chose the branch but is still on the main road past the mouth goes back to the main line', () => {
+    const w = world(raceConfig(YARN, { seed: 3049, cls: 1 }));
+    while (w.tick < GO_TICK + 1) w.step();
+    const t = w.track;
+    const b = t.branches[0];
+    const end = mouthEnd(t, b);
+    expect(Number.isFinite(end)).toBe(true);
+    expect(end * t.step).toBeLessThanOrEqual(b.overlap + 12);
+    // the main wall on the branch's side is widened just before the mouth's end and back to normal at it
+    const bit = b.sideA > 0 ? 2 : 1;
+    expect(t.junction[(b.from + end - 1) % t.n] & bit).toBe(bit);
+    expect(t.junction[(b.from + end) % t.n] & bit).toBe(0);
+    const idx = 7;
+    const k = w.st.karts[idx];
+    const h = w.st.hazards as { plan?: number[] };
+    h.plan ??= new Array<number>(w.st.karts.length).fill(0);
+    const plan = h.plan;
+    const aimsAtBranch = (si: number): boolean => {
+      placeOnTrack(w.ctx, k, si % t.n, -b.sideA * 3);
+      plan[idx] = (k.lapMax * 16 + b.id + 1) * 2 + 1; // this lap: take the branch
+      branchSteer(w.ctx, idx, { ...NO_INPUT }, 0, 1);
+      return routeRemaining(w.ctx, k.si) !== null;
+    };
+    expect(aimsAtBranch(b.from - 10)).toBe(true);
+    expect(aimsAtBranch(b.from + end - 8)).toBe(true);
+    expect(aimsAtBranch(b.from + end + 1)).toBe(false);
+    expect(aimsAtBranch(b.from + end + 8)).toBe(false);
+  });
+
+  it('Yarn, seed 3049, 100cc: kart 7 no longer crawls into the main wall past the yarn-ball gap mouth', () => {
+    const w = world(raceConfig(YARN, { seed: 3049, cls: 1 }));
+    const k = w.st.karts[7];
+    const hist: number[] = [];
+    let stalls = 0;
+    while (w.tick < 1800) {
+      w.step();
+      if (w.tick < GO_TICK) continue;
+      hist.push(k.dist);
+      // a 4 s window with under 10 m of progress (it sat at dist ≈ 368 for about 6 s)
+      if (hist.length > 240 && hist[hist.length - 1] - hist[hist.length - 241] < 10) stalls++;
+    }
+    expect(stalls).toBe(0);
   });
 });

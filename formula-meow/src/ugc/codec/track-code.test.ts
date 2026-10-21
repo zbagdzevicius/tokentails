@@ -209,6 +209,10 @@ describe('track links', () => {
     expect(trackLink('ABC', { origin: 'https://tokentails.com', pathname: '/meow-race/make' })).toBe('https://tokentails.com/meow-race?t=ABC');
     expect(trackLink('ABC', { origin: 'http://127.0.0.1:5175', pathname: '/' })).toBe('http://127.0.0.1:5175/?t=ABC');
     expect(trackLink('ABC', { origin: 'http://x', pathname: '/formula-meow-game/index.html' })).toBe('http://x/formula-meow-game/?t=ABC');
+    // a track shared from a dare or a Daily Cup page must not carry that page's OG card
+    expect(trackLink('ABC', { origin: 'https://tokentails.com', pathname: '/meow-race/r' })).toBe('https://tokentails.com/meow-race?t=ABC');
+    expect(trackLink('ABC', { origin: 'https://tokentails.com', pathname: '/meow-race/d/42' })).toBe('https://tokentails.com/meow-race?t=ABC');
+    expect(trackLink('ABC', { origin: 'https://tokentails.com', pathname: '/meow-race/d/42/' })).toBe('https://tokentails.com/meow-race?t=ABC');
   });
 
   it('reads codes from links, params and bare codes', () => {

@@ -305,3 +305,32 @@ export function kartStuntPose(t: BuiltTrack, k: KartState, out: StuntPose): Stun
   if (i < 0 || i >= t.n) return null;
   return lanePose(t, i, k.d, 0, out);
 }
+
+/** Where a ghost is drawn (`at`) and where its name tag sits (`tag`, `lift` m along the kart's up). */
+export interface GhostAnchor {
+  at: { x: number; y: number; z: number };
+  tag: { x: number; y: number; z: number };
+}
+
+/**
+ * The ghost's drawn point and tag point: the bent surface pose on a loop's rail or a wall lane, else the flat sim
+ * position. The tag and the camera-distance fade use this, never the flat shadow point under a bent ghost.
+ */
+export function ghostAnchor(x: number, y: number, z: number, bent: StuntPose | null, lift: number, out: GhostAnchor): GhostAnchor {
+  if (bent) {
+    out.at.x = bent.x;
+    out.at.y = bent.y;
+    out.at.z = bent.z;
+    out.tag.x = bent.x + bent.ux * lift;
+    out.tag.y = bent.y + bent.uy * lift;
+    out.tag.z = bent.z + bent.uz * lift;
+  } else {
+    out.at.x = x;
+    out.at.y = y;
+    out.at.z = z;
+    out.tag.x = x;
+    out.tag.y = y + lift;
+    out.tag.z = z;
+  }
+  return out;
+}
