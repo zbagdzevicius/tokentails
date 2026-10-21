@@ -127,25 +127,21 @@ Automated (`tests/e2e/perf.spec.ts`, `perf-load.spec.ts`; Chromium headless, Swi
 
 ## Stripe test mode
 
-Not run against Stripe yet: the backend specs use a fake Stripe client (no network), and `store.spec.ts` uses a mock
-host. A real test-mode run needs the `PAWLEGENDS_STRIPE_*` keys in the local backend env and the Stripe CLI forwarding
-`POST /pawlegends/stripe/webhook`; one checkout per SKU in USD and EUR, then record the session ids here. Exact
-commands, the two-profile order (the starter and the upgrade are once per email and device; the upgrade needs a
-Founder) and the test cards: [`LAUNCH.md`](../docs/plans/moba/LAUNCH.md) §a.3. "Item seen" = the item shows on the hero in
-the lobby and in the next match.
+Not run against Stripe yet (G-Pay, [`LAUNCH-READY.md`](../docs/plans/moba/LAUNCH-READY.md)). The game sells one thing: a Token Tails cat for $5 from the
+"Meet <cat>" card, paid in the host's cat sheet through the shared Token Tails checkout (Stripe PaymentIntents,
+`STRIPE_SECRET_KEY` test key on the backend, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` test key on the client). The retired
+`pl_*` packs need no run: production never sold one. Exact steps and test cards:
+[`LAUNCH.md`](../docs/plans/moba/LAUNCH.md) §a.3. "Seen in match" = the Companion Kitten walks in the wave and the hero
+wears the element chroma in the next match.
 
-| Run | Profile | SKU | Currency | Session id (`cs_test_…`) | Granted (`/entitlements`) | Item seen | Date |
-|---|---|---|---|---|---|---|---|
-| 1 | A | `pl_starter` | USD | | | | |
-| 2 | A | `pl_founder` | USD | | | | |
-| 3 | A | `pl_founder_legend_upgrade` | USD | | | | |
-| 4 | B | `pl_founder_legend` | USD | | | | |
-| 5 | C | `pl_starter` | EUR | | | | |
-| 6 | C | `pl_founder` | EUR | | | | |
-| 7 | C | `pl_founder_legend_upgrade` | EUR | | | | |
-| 8 | D | `pl_founder_legend` | EUR | | | | |
+| Run | What | Profile | PaymentIntent (`pi_…`) | Cat in squad | Seen in match | Date |
+|---|---|---|---|---|---|---|
+| 1 | $5 cat from the Meet card, card `4242 4242 4242 4242` | A, signed in | | | | |
+| 1b | Optional: second cat, 3-D Secure card `4000 0027 6000 3184` | A | | | | |
+| 2 | Restore: same account, new browser profile | B, signed in | – | | | |
 
-Once-only checks (any profile): second starter refused ( ), under-16 blocked ( ), refund removes the item ( ).
+Once-only checks: under 16 blocked, no payment form ( ); declined card `4000 0000 0000 0002` grants nothing ( );
+16-17 cap covered by `npx jest src/pawlegends` in `backend/` ( ).
 
 ## Launch
 
