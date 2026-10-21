@@ -13,6 +13,11 @@ import { act, render, renderHook, screen, within } from "@testing-library/react"
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 jest.mock("@capacitor/browser", () => ({ Browser: { open: jest.fn() } }));
 jest.mock("next/dynamic", () => () => () => null);
+// The snapshot is from AS_OF: read the clock an hour later, so the LIVE chips never age into STALE.
+jest.mock("@/components/claims/useNow", () => ({
+  ...jest.requireActual("@/components/claims/useNow"),
+  useNow: () => new Date("2026-10-18T12:05:00.000Z"),
+}));
 
 import type { PublicImpact } from "@/api/impact-api";
 import { ImpactStrip } from "@/components/impact/ImpactStrip";
