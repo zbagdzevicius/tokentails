@@ -59,3 +59,36 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
   expect(targets.every((t) => t === SITE)).toBe(true);
   expect(JSON.stringify(await received(page))).not.toMatch(/accesstoken|firebase|idtoken/i);
 });
+
+test('a crash inside the frame shows the overlay and reaches the host as client-error (launch finding R1)', async ({ context, page, baseURL }) => {
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true } });
+  const game = await openHost(page);
+  await expect.poll(async () => (await received(page)).some((m) => m.type === 'ready')).toBe(true);
+  await game.evaluate(() => {
+    setTimeout(() => {
+      throw new Error('E2E boom: <b>https://x.example/?uid=7</b>');
+    });
+    void Promise.reject(new Error('E2E nope'));
+  });
+  await expect(game.locator('#crash')).toBeVisible();
+  await expect.poll(async () => (await received(page)).filter((m) => m.type === 'client-error').length).toBe(2);
+  const errs = (await received(page)).filter((m) => m.type === 'client-error');
+  expect(errs).toContainEqual(expect.objectContaining({ source: 'window', msg: 'e2e boom b https x example uid 7 b', screen: 'title', sim: 10 }));
+  expect(errs).toContainEqual(expect.objectContaining({ source: 'rejection', msg: 'e2e nope', screen: 'title' }));
+  for (const e of errs) expect(String(e.msg)).toMatch(/^[a-z0-9_ ]{1,80}$/);
+});
+
+test('game events go to the host as analytics messages, with no stats prompt in the frame (launch finding PUB-02)', async ({ context, page, baseURL }) => {
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true } });
+  const game = await openHost(page);
+  await expect.poll(async () => (await received(page)).some((m) => m.type === 'ready')).toBe(true);
+  // quality_tier and title_view were tracked before the first hello: held, then sent once the host could take them
+  await expect.poll(async () => (await received(page)).filter((m) => m.type === 'analytics').map((m) => m.event)).toEqual(expect.arrayContaining(['quality_tier', 'title_view']));
+  const events = (await received(page)).filter((m) => m.type === 'analytics');
+  for (const e of events) {
+    expect(e.props).toMatchObject({ embed: true });
+    expect(JSON.stringify(e.props)).not.toMatch(/https?:|@|accesstoken|firebase/i);
+  }
+  expect(events.some((e) => e.event === 'app_error')).toBe(false);
+  await expect(game.locator('.pl-consent')).toHaveCount(0);
+});

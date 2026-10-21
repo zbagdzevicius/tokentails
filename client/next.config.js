@@ -74,6 +74,17 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
+// Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
+// hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
+// redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
+// index.html and build-releases.json keep the default revalidation.
+const pawlegendsHeaders = [
+  {
+    source: "/pawlegends-game/build/:path*",
+    headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+  },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // NEXT_DIST_DIR lets a second build (the bundle guards, task 7b) write next to a running dev
@@ -132,7 +143,7 @@ const nextConfig = {
           };
         },
         async headers() {
-          return badcatHeaders;
+          return [...badcatHeaders, ...pawlegendsHeaders];
         },
       }),
   images: {

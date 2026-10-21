@@ -51,7 +51,8 @@ export function beatText(id: BeatId, touch: boolean, n: BeatNames = { q: 'Q', r:
     case 'ult':
       return { title: 'ULTIMATE READY', sub: touch ? `Tap ${n.r} near the enemy` : 'Press R near the enemy', icon: 'crown' };
     case 'pudding':
-      return { title: 'Calm Pudding!', sub: 'Stand next to him in the river', icon: 'heart' };
+      // damage fills his calm meter and the last hit calms him (sim/units/pudding.ts): standing near him does nothing
+      return { title: 'Calm Pudding!', sub: touch ? 'Tap ATK on him in the river' : 'Hit him in the river: the last hit calms him', icon: 'heart' };
     case 'push':
       return { title: 'Push with your minions', sub: 'Walk in behind them: the tower hits them first', icon: 'shield' };
     case 'sunset':

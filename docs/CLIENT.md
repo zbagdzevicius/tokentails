@@ -462,7 +462,11 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
 `NEXT_PUBLIC_PAWLEGENDS` and `NEXT_PUBLIC_PAWLEGENDS_PICKER` are kill switches only (`flags.ts`).
 
 - The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
-  `npm run build:client` in `pawlegends/` and commit `client/public/pawlegends-game/`.
+  `npm run build:client` in `pawlegends/` and commit `client/public/pawlegends-game/`. The build keeps the two
+  previous releases' hashed `build/` files (listed in `build-releases.json`) and prunes older ones, so a tab opened
+  before a deploy still loads its chunks and sim Worker; `next.config.js` serves `/pawlegends-game/build/*` as
+  `immutable`. If the sim Worker still fails to load before the match starts, the game retries it once and then runs
+  the sim on the main thread (`pawlegends/src/host/local-host.ts`).
 - `bridge.ts` speaks bridge v1 (GAMES.md). It accepts messages only from the iframe's window and the game's
   origin, posts only to that origin, builds every payload field by field (no `accesstoken`), and checks a
   replay against the same bounds as the backend DTO before it is queued.
@@ -476,7 +480,10 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
 - `saves.ts` (`PawlegendsSaver`, the Heist saves pattern) posts every finished match to
   `POST /user/catbassadors/live` and answers the game with `save-result`. Without a Firebase user it queues the
   match on the device (`tt.pawlegends.queue.v1`); after sign-in the "ADD YOUR MATCHES?" prompt adds or declines
-  them (`claim(uid)`, `decline()`). A guest's matches go back to the prompt when another uid signs in.
+  them (the host takes them with `take(uid)`, closes the prompt and drains in the background; `decline()`). A
+  guest's matches go back to the prompt when another uid signs in. Each POST is aborted after 20 s
+  (`PAWLEGENDS_SAVE_TIMEOUT_MS`), so a stalled connection reads as offline and backs off instead of holding
+  the chip on "saving" and blocking later retries.
 - `checkout.ts` has the offer API (`GET /pawlegends/offer` once per visit, after `ready` and the featured list;
   `POST /pawlegends/offer/seen` on `offer-seen`), the device id, the age band and the session counter (every
   storage access in try/catch). It also keeps the retired `pl_*` store client (`status`, `checkout`,
@@ -486,7 +493,16 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
   backend runs `PawlegendsCheckoutGuard`). Purchase answers `purchase-result {catalogId, ok}` and refreshes the
   storefront. App builds drop `open-cat` and send no featured cats, offer or entitlement token.
 - Host analytics (`analytics/pawlegends-events.ts`): `pawlegends_open`, `pawlegends_save`,
-  `pawlegends_guest_claim`, `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`.
+  `pawlegends_guest_claim`, `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`,
+  `pawlegends_bridge_timeout {waitedMs, reloads}` (the frame never answered `hello`). Game crashes: the iframe's
+  errors never reach the host window's listeners, so the game posts `client-error {source, msg, screen, tier, sim}`
+  and the host reports it through `reportAppError` as `app_error` with code `pawlegends_<source>` (scrubbed, 5 a
+  session, one per code; launch finding R1). The game's own events arrive as `analytics {event, props}` and are sent
+  with the host's `analytics.track` (launch finding PUB-02): names from `PAWLEGENDS_GAME_EVENTS` only (no
+  `app_error`), flat number, boolean or token-string props (no `/`, `@`, `?`), at most 24 props and 1,000 events a page.
+  `pawlegends_save` carries `status`, `catnipPaid`, the backend's error `code` (UPPER_SNAKE only, anything else is
+  `OTHER`, null without one) and `httpStatus` (0 without an answer), so a rejected-save alert can tell sim drift
+  from other failures (LAUNCH.md a.8 step 4).
 - Any GameModal pauses the game. The exit button ("Back to games") does a full load of `/game`.
 - Hand-kept mirrors: the SKU ids, consent version and age bands come from
   `backend/src/pawlegends/pawlegends.contracts.ts`; hero and trick ids from `pawlegends/src/data/`; difficulty

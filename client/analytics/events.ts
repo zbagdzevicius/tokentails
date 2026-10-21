@@ -110,7 +110,9 @@ export type AppErrorSource =
   | "window"
   | "rejection"
   | "watchdog"
-  | "manual";
+  | "manual"
+  /** The Pawlegends game's sim worker (`/pawlegends` host, launch finding R1). */
+  | "worker";
 
 /** The boundary level, from the outermost in. */
 export type AppErrorLevel = "root" | "page" | "scene" | "modal" | "section" | "none";

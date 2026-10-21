@@ -7,7 +7,9 @@
  * `PAWLEGENDS_LEVEL_CAPS`).
  *
  * The queue (`tt.pawlegends.queue.v1`) is keyed by the game's `matchId`, which every `save-result` repeats.
- * - **A Firebase user exists** (an account, or an anonymous guest from `/game`): the match is posted at once. A
+ * - **A Firebase user exists** (an account, or an anonymous guest from `/game`): the match is posted at once. It
+ *   is written to the queue first (`nextAt` 60 s on), so a tab closed or an app killed mid-POST still sends it on
+ *   the next load (a second post of the same replay is a 409, which counts as saved; launch finding R3). A
  *   428 creates the guest session once (the API wrapper). A guest's match is marked `anon`: when a different uid
  *   signs in on the device, it goes back to the device matches (`releaseGuestRuns`), so the claim prompt asks.
  * - **No Firebase user**: the match is queued as a device match (owner `null`). Device matches are never sent
@@ -15,6 +17,9 @@
  * - **Outcomes** (`classifyPawlegendsSave`): 2xx saved; 409 (`PAWLEGENDS_DUPLICATE`) is done too; 400
  *   `PAWLEGENDS_SIM_VERSION` purges every queued match of that sim version; any other 4xx drops the match; 401,
  *   403 and 428 keep it; 429 (with `Retry-After`), 5xx and network failures back off (5 s, 15 s, 45 s ... 10 min).
+ * - **Timeout** (launch finding R4): each POST is aborted after `PAWLEGENDS_SAVE_TIMEOUT_MS`. A stalled mobile
+ *   connection then reads as a network failure (status 0, back off, `queued`) instead of leaving the chip on
+ *   `saving` and blocking every later drain behind one request that never settles.
  * - **Statuses** (`save-result.status`): `saving` before the post, then `saved`, `queued` (signed out, offline or
  *   waiting for an account: kept on the device), `failed` (the server failed, retried later) or `rejected`.
  *
@@ -29,6 +34,10 @@ import { liveAnswerOf, type PawlegendsLiveAnswer } from "./session";
 export const PAWLEGENDS_QUEUE_KEY = "tt.pawlegends.queue.v1";
 /** Most matches kept on the device (each replay is up to 40 KB); the oldest go first. */
 export const PAWLEGENDS_QUEUE_MAX = 12;
+/** How long a match written before its POST waits before a later page load may send it (launch finding R3). */
+export const PAWLEGENDS_INFLIGHT_HOLD_MS = 60_000;
+/** How long one `/live` POST may take before it is aborted and counted as a network failure (launch finding R4). */
+export const PAWLEGENDS_SAVE_TIMEOUT_MS = 20_000;
 
 export type PawlegendsSaveOutcome = "saved" | "stale" | "dropped" | "keep" | "backoff";
 
@@ -103,7 +112,10 @@ export function parsePawlegendsQueue(raw: string | null): QueuedMatch[] {
 }
 
 export interface PawlegendsSaverOptions {
-  save: (replay: PawlegendsReplay) => Promise<MatchSaveResult>;
+  /** The POST. `signal` aborts it when the save timeout runs out; a transport that ignores it is still cut off. */
+  save: (replay: PawlegendsReplay, signal?: AbortSignal) => Promise<MatchSaveResult>;
+  /** Per-POST timeout in ms (default `PAWLEGENDS_SAVE_TIMEOUT_MS`; 0 turns it off). */
+  timeoutMs?: number;
   /** The current Firebase uid, anonymous included; null with no Firebase user. */
   currentUid: () => string | null;
   /** True while the current uid is an anonymous guest. */
@@ -123,6 +135,12 @@ export class PawlegendsSaver {
   private draining: Promise<void> | null = null;
   private cancelTimer: (() => void) | null = null;
   private disposed = false;
+  /** Matches this page is posting right now: a drain skips them. */
+  private inFlight = new Set<string>();
+  /** Matches `hold` wrote that this page will still `submit`: not offered to the claim prompt meanwhile. */
+  private held = new Set<string>();
+  /** Aborts every POST still running (the page is going away). */
+  private aborts = new Set<() => void>();
 
   constructor(private readonly opts: PawlegendsSaverOptions) {}
 
@@ -165,7 +183,7 @@ export class PawlegendsSaver {
 
   /** Device matches no account has taken yet (the claim prompt's count). */
   unclaimed(): QueuedMatch[] {
-    return this.read().filter((m) => m.owner === null);
+    return this.read().filter((m) => m.owner === null && !this.held.has(m.id));
   }
 
   ownedBy(uid: string): QueuedMatch[] {
@@ -205,11 +223,42 @@ export class PawlegendsSaver {
     return purged;
   }
 
+  /**
+   * One POST, never longer than the timeout: the signal aborts the fetch (an abort is status 0 in
+   * `saveMatchDetailed`), and the race answers status 0 even when the transport ignores the signal. An
+   * `AbortController` with a timer rather than `AbortSignal.timeout`, which Safari before 16 lacks.
+   */
   private async attempt(replay: PawlegendsReplay): Promise<MatchSaveResult> {
+    const offline: MatchSaveResult = { ok: false, status: 0, code: null };
+    const timeoutMs = this.opts.timeoutMs ?? PAWLEGENDS_SAVE_TIMEOUT_MS;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut =
+      timeoutMs > 0
+        ? new Promise<MatchSaveResult>((resolve) => {
+            timer = setTimeout(() => {
+              controller?.abort();
+              resolve(offline);
+            }, timeoutMs);
+          })
+        : null;
+    const abort = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      controller?.abort();
+    };
+    this.aborts.add(abort);
+    const post = (async () => {
+      try {
+        return await this.opts.save(replay, controller?.signal);
+      } catch {
+        return offline;
+      }
+    })();
     try {
-      return await this.opts.save(replay);
-    } catch {
-      return { ok: false, status: 0, code: null };
+      return await (timedOut ? Promise.race([post, timedOut]) : post);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+      this.aborts.delete(abort);
     }
   }
 
@@ -221,33 +270,72 @@ export class PawlegendsSaver {
     return status;
   }
 
+  /**
+   * Writes a finished match to the queue before anything else happens to it (before the host waits for Firebase,
+   * before the POST), so closing the page in between cannot lose it (launch finding R3). With a uid it waits
+   * `PAWLEGENDS_INFLIGHT_HOLD_MS` before a later page load sends it; with no uid yet it is a device match, which
+   * the claim prompt offers on the next load. A match already queued under this id is left as it is.
+   */
+  hold(matchId: string, replay: PawlegendsReplay): void {
+    if (this.disposed || !isMatchId(matchId)) return;
+    if (this.read().some((m) => m.id === matchId)) return;
+    this.purgeOlderThan(replay.simVersion);
+    this.held.add(matchId);
+    this.enqueue(this.entryOf(matchId, replay, this.opts.currentUid(), this.now() + PAWLEGENDS_INFLIGHT_HOLD_MS));
+  }
+
+  private entryOf(matchId: string, replay: PawlegendsReplay, owner: string | null, nextAt: number, attempts = 0): QueuedMatch {
+    const createdAt = this.read().find((m) => m.id === matchId)?.createdAt ?? this.now();
+    return {
+      id: matchId,
+      owner,
+      ...(owner && this.opts.currentIsAnonymous?.() ? { anon: true } : {}),
+      replay,
+      createdAt,
+      attempts,
+      nextAt,
+    };
+  }
+
   /** One finished match from the game, under the game's `matchId`. */
   async submit(matchId: string, replay: PawlegendsReplay): Promise<PawlegendsSaveResultStatus | null> {
+    this.held.delete(matchId);
     if (this.disposed || !isMatchId(matchId)) return null;
     this.purgeOlderThan(replay.simVersion);
     const now = this.now();
     const uid = this.opts.currentUid();
     if (!uid) {
-      this.enqueue({ id: matchId, owner: null, replay, createdAt: now, attempts: 0, nextAt: now });
+      this.enqueue(this.entryOf(matchId, replay, null, now));
       this.opts.onStatus?.(matchId, "queued", { outcome: "device", httpStatus: 0, code: null, answer: null });
       return "queued";
     }
+    // Queued before the POST (launch finding R3): removed once the server has answered for good.
+    this.enqueue(this.entryOf(matchId, replay, uid, now + PAWLEGENDS_INFLIGHT_HOLD_MS));
     this.opts.onStatus?.(matchId, "saving", { outcome: "pending", httpStatus: 0, code: null, answer: null });
-    const result = await this.attempt(replay);
+    this.inFlight.add(matchId);
+    let result: MatchSaveResult;
+    try {
+      result = await this.attempt(replay);
+    } finally {
+      this.inFlight.delete(matchId);
+    }
     const outcome = classifyPawlegendsSave(result);
-    if (outcome === "stale") {
-      const purged = 1 + this.purgeVersion(replay.simVersion);
+    if (outcome === "saved" || outcome === "dropped") {
+      this.remove(matchId);
+    } else if (outcome === "stale") {
+      const purged = Math.max(1, this.purgeVersion(replay.simVersion));
       this.opts.onStalePurged?.(purged);
-    } else if (outcome === "keep" || outcome === "backoff") {
-      this.enqueue({
-        id: matchId,
-        owner: uid,
-        ...(this.opts.currentIsAnonymous?.() ? { anon: true } : {}),
-        replay,
-        createdAt: now,
-        attempts: 1,
-        nextAt: outcome === "backoff" ? now + backoffMs(0, this.opts.random, result.retryAfter) : now,
-      });
+    } else {
+      const after = this.now();
+      this.enqueue(
+        this.entryOf(
+          matchId,
+          replay,
+          uid,
+          outcome === "backoff" ? after + backoffMs(0, this.opts.random, result.retryAfter) : after,
+          1
+        )
+      );
       if (outcome === "backoff") this.scheduleDrain();
     }
     return this.report(matchId, outcome, result);
@@ -255,24 +343,33 @@ export class PawlegendsSaver {
 
   /** "Add them": the device matches become `uid`'s and are sent. Returns how many were taken. */
   async claim(uid: string): Promise<number> {
+    const claimed = this.take(uid);
+    await this.drain();
+    return claimed;
+  }
+
+  /**
+   * The ownership half of `claim`: the device matches become `uid`'s, due now, without sending them. The host
+   * calls it, closes the prompt and starts `drain()` without waiting (up to 12 POSTs one by one; launch finding R4).
+   */
+  take(uid: string): number {
     const matches = this.read();
     let claimed = 0;
     const next = matches.map((m) => {
-      if (m.owner !== null) return m;
+      if (m.owner !== null || this.held.has(m.id)) return m;
       claimed += 1;
       const { anon: _anon, ...rest } = m;
       void _anon;
       return { ...rest, owner: uid, nextAt: this.now() };
     });
     if (claimed) this.write(next);
-    await this.drain();
     return claimed;
   }
 
   /** "Not mine": forgets every device match. */
   decline(): number {
     const matches = this.read();
-    const keep = matches.filter((m) => m.owner !== null);
+    const keep = matches.filter((m) => m.owner !== null || this.held.has(m.id));
     const dropped = matches.length - keep.length;
     if (dropped) this.write(keep);
     return dropped;
@@ -316,9 +413,15 @@ export class PawlegendsSaver {
     for (const match of due) {
       if (this.disposed || this.opts.currentUid() !== uid) break;
       const current = this.read().find((m) => m.id === match.id);
-      if (!current || current.owner !== uid) continue;
+      if (!current || current.owner !== uid || this.inFlight.has(current.id)) continue;
       this.opts.onStatus?.(current.id, "saving", { outcome: "pending", httpStatus: 0, code: null, answer: null });
-      const result = await this.attempt(current.replay);
+      this.inFlight.add(current.id);
+      let result: MatchSaveResult;
+      try {
+        result = await this.attempt(current.replay);
+      } finally {
+        this.inFlight.delete(current.id);
+      }
       const outcome = classifyPawlegendsSave(result);
       if (outcome === "saved" || outcome === "dropped") {
         this.remove(current.id);
@@ -363,6 +466,8 @@ export class PawlegendsSaver {
 
   dispose(): void {
     this.disposed = true;
+    this.aborts.forEach((abort) => abort());
+    this.aborts.clear();
     this.cancelTimer?.();
     this.cancelTimer = null;
   }

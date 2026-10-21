@@ -1,9 +1,15 @@
 /**
  * Analytics (POC.md §13), consent-gated (pattern: bad-cat/src/platform/posthog.ts and analytics.ts). `track`
  * queues events in memory; events leave the device only when ALL of these hold: a project key is set
- * (VITE_PAWLEGENDS_POSTHOG_KEY) AND the player granted consent (the shared `tt-analytics-consent` key, the same one
- * tokentails.com writes, so a choice made on the site counts in the embed). A denial drops the queue. One fetch POST
- * of a batch to PostHog EU `/capture/`, no SDK, no cookies, `keepalive`.
+ * (VITE_PAWLEGENDS_POSTHOG_KEY) AND the player granted consent (the `tt-analytics-consent` key; the game asks from the
+ * second session, `askConsent`). Events queued before the answer go out when the player says yes. A denial drops the
+ * queue. One fetch POST of a batch to PostHog EU `/capture/`, no SDK, no cookies, `keepalive`.
+ *
+ * Embedded on tokentails.com (launch finding PUB-02) the game has no PostHog of its own: every event is relayed over the
+ * bridge (`analytics{event, props}`) and the host sends it with its own `analytics.track`, so it follows the site's
+ * policy (analytics for everyone since the consent card was removed 2026-10-16) and the host's anonymous id. The game
+ * shows no prompt there; the Settings stats row still turns it off (a stored 'denied' stops the relay). Events before
+ * the host's first `hello` wait in the queue.
  *
  * No personal data: events carry hero, difficulty, counts and lengths only, and an anonymous random id made after
  * consent. Every event carries `human` (analytics/human.ts) so gate metrics can filter bot and headless sessions.
@@ -26,7 +32,13 @@ export type AnalyticsEvent =
   | 'item_seen_in_match'
   | 'notify_signup'
   | 'quality_tier'
-  | 'perf_sample';
+  | 'perf_sample'
+  /**
+   * A crash (launch finding R1, app/crash.ts): `source` (window, rejection, worker, boot), `msg` (`crashCode`: lower-case
+   * `[a-z0-9_ ]`, at most 80 characters), `screen`, `tier`, `sim`. Same name as the host's scrubbed `app_error`, so one
+   * PostHog filter sees both; sent from here only when the game is not embedded (embedded, the host reports it).
+   */
+  | 'app_error';
 
 export type AnalyticsProps = Record<string, string | number | boolean>;
 
@@ -71,6 +83,24 @@ export function readConsent(kv: KV | null = store()): ConsentState {
   }
 }
 
+/**
+ * Should the game show its own consent prompt now? Standalone only, with a key, no answer yet and from the second
+ * session. Never embedded: there the events go to the host, which follows the site's policy (PUB-02). Pure.
+ */
+export function askConsent(o: { configured: boolean; consent: ConsentState; embedded: boolean; sessionNo: number }): boolean {
+  return o.configured && o.consent === 'unset' && !o.embedded && o.sessionNo >= 2;
+}
+
+/**
+ * Hands one event to the host (embedded, PUB-02): false while it cannot be posted yet (no `hello`), so it stays queued.
+ * `app_error` is never relayed (crashes go as `client-error`, app/crash.ts).
+ */
+export type AnalyticsRelay = (event: AnalyticsEvent, props: AnalyticsProps) => boolean;
+
+/** Longest string prop; `msg` (a crash code, app/crash.ts CRASH_CODE_MAX) may be 80. */
+export const PROP_TEXT_MAX = 64;
+const MSG_TEXT_MAX = 80;
+
 /** Only these props pass (numbers, booleans, short strings); anything else is dropped. */
 export function cleanProps(p: Record<string, unknown> | undefined): AnalyticsProps {
   const out: AnalyticsProps = {};
@@ -78,7 +108,7 @@ export function cleanProps(p: Record<string, unknown> | undefined): AnalyticsPro
   for (const k of Object.keys(p)) {
     if (k.length > 40 || !/^[a-z0-9_]+$/.test(k)) continue;
     const v = p[k];
-    if (typeof v === 'string') out[k] = v.slice(0, 64);
+    if (typeof v === 'string') out[k] = v.slice(0, k === 'msg' ? MSG_TEXT_MAX : PROP_TEXT_MAX);
     else if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
     else if (typeof v === 'boolean') out[k] = v;
   }
@@ -118,6 +148,8 @@ export interface AnalyticsOptions {
   /** Common props added to every event (`human`, `embed`, `session`). */
   common?: () => AnalyticsProps;
   setTimer?: (fn: () => void, ms: number) => unknown;
+  /** Embedded: send through the host instead of PostHog (PUB-02). */
+  relay?: AnalyticsRelay | null;
 }
 
 export class Analytics {
@@ -130,6 +162,7 @@ export class Analytics {
   private readonly fetcher: Fetch | null;
   private readonly common: () => AnalyticsProps;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
+  private readonly relay: AnalyticsRelay | null;
   /** Bodies posted (tests). */
   sent = 0;
 
@@ -140,6 +173,7 @@ export class Analytics {
     this.fetcher = o.fetch === undefined ? ((globalThis as { fetch?: Fetch }).fetch?.bind(globalThis) ?? null) : o.fetch;
     this.common = o.common ?? (() => ({}));
     this.setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+    this.relay = o.relay ?? null;
     this.consent = readConsent(this.kv);
   }
 
@@ -147,17 +181,26 @@ export class Analytics {
     return this.consent;
   }
 
-  /** A project key and a fetch exist (the settings row and consent prompt show only then). */
+  /** A project key and a fetch exist, or the host relays (the settings row and consent prompt show only then). */
   get configured(): boolean {
-    return !!this.key && !!this.fetcher;
+    return !!this.relay || (!!this.key && !!this.fetcher);
   }
 
-  /** Is anything ever sent from this page? (a key and consent). */
+  /** Embedded: events go to the host (PUB-02). */
+  get relayed(): boolean {
+    return !!this.relay;
+  }
+
+  /**
+   * Is anything sent? Standalone: a key and consent. Embedded: unless the player turned stats off in Settings (the
+   * host's own policy and key decide the rest).
+   */
   get live(): boolean {
+    if (this.relay) return this.consent !== 'denied';
     return this.consent === 'granted' && !!this.key && !!this.fetcher;
   }
 
-  /** Store the choice (shared with tokentails.com) and apply it. Denying drops the queue. */
+  /** Store the choice and apply it (embedded, 'denied' stops the relay). Denying drops the queue. */
   setConsent(granted: boolean): void {
     this.consent = granted ? 'granted' : 'denied';
     try {
@@ -197,6 +240,8 @@ export class Analytics {
 
   private schedule(): void {
     if (!this.live) return;
+    // a postMessage is cheap and a closed page loses the queue: relayed events go at once
+    if (this.relay) return this.flush();
     if (this.queue.length >= FLUSH_AT) return this.flush();
     if (this.timer !== null) return;
     this.timer = this.setTimer(() => {
@@ -206,6 +251,7 @@ export class Analytics {
   }
 
   flush(): void {
+    if (this.relay) return this.flushRelay(this.relay);
     if (!this.live || !this.key || !this.fetcher || this.queue.length === 0) return;
     const batch = this.queue;
     this.queue = [];
@@ -217,6 +263,23 @@ export class Analytics {
     } catch {
       /* dropped */
     }
+  }
+
+  /** Embedded: post each queued event to the host; stop at the first one it cannot take yet (kept for the next flush). */
+  private flushRelay(relay: AnalyticsRelay): void {
+    if (!this.live) return;
+    let i = 0;
+    try {
+      for (; i < this.queue.length; i++) {
+        const e = this.queue[i]!;
+        if (e.event === 'app_error') continue;
+        if (!relay(e.event, e.props)) break;
+        this.sent++;
+      }
+    } catch {
+      /* a throwing relay drops nothing further */
+    }
+    this.queue = this.queue.slice(i);
   }
 
   private anon: string | null = null;
@@ -248,8 +311,8 @@ export class Analytics {
   }
 }
 
-/** The page's analytics (the key comes from the build env). */
-export function createAnalytics(common: () => AnalyticsProps): Analytics {
+/** The page's analytics (the key comes from the build env; embedded, `relay` sends through the host instead). */
+export function createAnalytics(common: () => AnalyticsProps, relay?: AnalyticsRelay | null): Analytics {
   const key = (import.meta.env.VITE_PAWLEGENDS_POSTHOG_KEY as string | undefined) ?? null;
-  return new Analytics({ key, common });
+  return new Analytics({ key, common, relay: relay ?? null });
 }

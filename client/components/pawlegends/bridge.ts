@@ -14,11 +14,14 @@
  *   `{catalogId, forSale, catImg?}` (`GET /pawlegends/champions`; never for sale in an app build). `app.store` means
  *   "the Token Tails cat checkout is reachable" (web only).
  * - Game to host: `ready {version}`, `match-result {replay, summary, matchId}`, `request-sign-in {reason}`,
- *   `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url}`,
+ *   `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url, text?}`,
  *   `paused {paused}`, `champion-offer {catalogId}` (sim v9: the player's 3rd finished match on a champion whose card
  *   is for sale; the host asks its offer engine with that card first), `skin-preview {catalogId}` (the player
  *   previewed a featured cat's card skin on the pick screen: the same re-ask with that cat first; the server's caps
- *   still decide), and the deprecated `purchase-intent {sku}`
+ *   still decide), `client-error {source, msg, screen, tier, sim}` (launch finding R1: a game or worker crash; the
+ *   host reports it as a scrubbed `app_error`), `analytics {event, props}` (launch finding PUB-02: one of the game's
+ *   own events; the host sends it with `analytics.track`, at most `PAWLEGENDS_GAME_EVENT_BUDGET` a page), and the
+ *   deprecated `purchase-intent {sku}`
  *   (answered with a legacy refusal).
  *
  * A message counts only when it comes from our iframe's window and the game's origin; every post names that
@@ -27,6 +30,7 @@
  *
  * No React, no DOM globals: the window and timers are passed in, so the handshake is unit-tested.
  */
+import { PAWLEGENDS_GAME_EVENTS, type PawlegendsGameEventName, type PawlegendsGameProps } from "@/analytics/pawlegends-events";
 import { PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_INPUT_CHARS, PAWLEGENDS_MAX_TICKS } from "@/shared-contracts/caps";
 
 export const PAWLEGENDS_NS = "tt-pawlegends";
@@ -210,10 +214,55 @@ export type PawlegendsToHostMessage =
   | { type: "offer-seen"; kind: "meet"; catalogId: string }
   | { type: "notify"; where: PawlegendsNotifyWhere }
   | { type: "purchase-intent"; sku: PawlegendsSku }
-  | { type: "share"; kind: string; url: string }
+  | { type: "share"; kind: string; url: string; text: string | null }
   | { type: "paused"; paused: boolean }
   | { type: "champion-offer"; catalogId: string }
-  | { type: "skin-preview"; catalogId: string };
+  | { type: "skin-preview"; catalogId: string }
+  | ({ type: "client-error" } & PawlegendsClientError)
+  | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps };
+
+/** Relayed game events a page sends at most (PUB-02): a runaway loop must not flood PostHog. About 15 per match. */
+export const PAWLEGENDS_GAME_EVENT_BUDGET = 1000;
+const GAME_PROP_KEY = /^[a-z0-9_]{1,40}$/;
+/** Token strings only (hero, difficulty, tier, sku, catalog id): no slash, `@`, `?` or `=`, so no URL or email. */
+const GAME_PROP_TEXT = /^[A-Za-z0-9_ .:-]{0,80}$/;
+const GAME_PROPS_MAX = 24;
+
+/** The game's flat props, cleaned: a bad key or value drops that prop only; more than 24 props drops the event. */
+function gamePropsOf(value: unknown): PawlegendsGameProps | null {
+  if (value === undefined) return {};
+  if (!isRecord(value)) return null;
+  const keys = Object.keys(value);
+  if (keys.length > GAME_PROPS_MAX) return null;
+  const out: PawlegendsGameProps = {};
+  for (const k of keys) {
+    if (!GAME_PROP_KEY.test(k)) continue;
+    const v = value[k];
+    if (typeof v === "boolean") out[k] = v;
+    else if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === "string" && GAME_PROP_TEXT.test(v)) out[k] = v;
+  }
+  return out;
+}
+
+/** Where a game crash came from (`pawlegends/src/app/crash.ts` CrashSource). */
+export const PAWLEGENDS_CRASH_SOURCES = ["window", "rejection", "worker", "boot"] as const;
+export type PawlegendsCrashSource = (typeof PAWLEGENDS_CRASH_SOURCES)[number];
+
+/**
+ * A game crash (R1). `msg` is the game's `crashCode`: lower-case letters, digits, `_` and spaces, at most 80
+ * characters; anything else drops the whole message. No stack, no URL.
+ */
+export interface PawlegendsClientError {
+  source: PawlegendsCrashSource;
+  msg: string;
+  screen: string;
+  tier: string;
+  sim: number;
+}
+
+const CRASH_MSG = /^[a-z0-9_ ]{1,80}$/;
+const CRASH_WORD = /^[a-z0-9_-]{1,16}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -483,6 +532,21 @@ export function shareUrlOf(value: unknown, origin: string): string | null {
   }
 }
 
+/** The longest share line the host passes on ("Beat my 7:12 vs Normal bots in Pawlegends!" is 44). */
+export const PAWLEGENDS_SHARE_TEXT_MAX = 120;
+
+/**
+ * The dare line the game sends with a share (PUB-06), for the system share sheet's `text`: one plain line of
+ * printable characters, at most PAWLEGENDS_SHARE_TEXT_MAX long, with no link markup. Anything else is null.
+ */
+export function shareTextOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text || text.length > PAWLEGENDS_SHARE_TEXT_MAX) return null;
+  if (/[\u0000-\u001f\u007f<>]|:\/\//.test(text)) return null;
+  return text;
+}
+
 /** Validates a message from the game. A clean copy (known fields only), or null. */
 export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage | null {
   if (!isRecord(data) || data.ns !== PAWLEGENDS_NS || data.v !== PAWLEGENDS_BRIDGE_VERSION) return null;
@@ -515,8 +579,10 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       return isPawlegendsSku(data.sku) ? { type: "purchase-intent", sku: data.sku } : null;
     case "share": {
       const kind = shortId(data.kind, 24);
-      // The url is checked against the page origin by the host (`shareUrlOf`).
-      return kind && typeof data.url === "string" && data.url.length <= 512 ? { type: "share", kind, url: data.url } : null;
+      // The url is checked against the page origin by the host (`shareUrlOf`); the text is optional (older builds).
+      return kind && typeof data.url === "string" && data.url.length <= 512
+        ? { type: "share", kind, url: data.url, text: shareTextOf(data.text) }
+        : null;
     }
     case "paused":
       return typeof data.paused === "boolean" ? { type: "paused", paused: data.paused } : null;
@@ -524,6 +590,22 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       return isCatalogId(data.catalogId) ? { type: "champion-offer", catalogId: data.catalogId } : null;
     case "skin-preview":
       return isCatalogId(data.catalogId) ? { type: "skin-preview", catalogId: data.catalogId } : null;
+    case "client-error":
+      return oneOf(PAWLEGENDS_CRASH_SOURCES, data.source) &&
+        typeof data.msg === "string" &&
+        CRASH_MSG.test(data.msg) &&
+        typeof data.screen === "string" &&
+        CRASH_WORD.test(data.screen) &&
+        typeof data.tier === "string" &&
+        CRASH_WORD.test(data.tier) &&
+        intIn(data.sim, 1, 999)
+        ? { type: "client-error", source: data.source, msg: data.msg, screen: data.screen, tier: data.tier, sim: data.sim }
+        : null;
+    case "analytics": {
+      if (!oneOf(PAWLEGENDS_GAME_EVENTS, data.event)) return null;
+      const props = gamePropsOf(data.props);
+      return props ? { type: "analytics", event: data.event, props } : null;
+    }
     default:
       return null;
   }
@@ -565,12 +647,17 @@ export interface PawlegendsBridgeHandlers {
   onNotify?(where: PawlegendsNotifyWhere): void;
   /** Deprecated: the bridge already answered the legacy refusal. */
   onPurchaseIntent?(sku: PawlegendsSku): void;
-  onShare?(kind: string, url: string): void;
+  /** `text`: the game's dare line (`shareTextOf`), or null. */
+  onShare?(kind: string, url: string, text: string | null): void;
   onPaused?(paused: boolean): void;
   /** Sim v9: only for a champion card the host holds as for sale, and never in an app build. */
   onChampionOffer?(catalogId: string): void;
   /** Card skins: only for a cat of the last `featured` list, and never in an app build. */
   onSkinPreview?(catalogId: string): void;
+  /** A game crash (R1), already validated; the host reports it as `app_error`. */
+  onClientError?(error: PawlegendsClientError): void;
+  /** One of the game's analytics events (PUB-02), cleaned; at most `PAWLEGENDS_GAME_EVENT_BUDGET` a page. */
+  onGameEvent?(event: PawlegendsGameEventName, props: PawlegendsGameProps): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -657,6 +744,7 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
   let slowSent = false;
   let timeoutSent = false;
   let helloTimer: unknown = null;
+  let gameEvents = 0;
   const stopHello = () => {
     if (helloTimer !== null) timers.clearTimeout(helloTimer);
     helloTimer = null;
@@ -722,7 +810,7 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         handlers.onPurchaseIntent?.(message.sku);
         break;
       case "share":
-        handlers.onShare?.(message.kind, message.url);
+        handlers.onShare?.(message.kind, message.url, message.text);
         break;
       case "paused":
         handlers.onPaused?.(message.paused);
@@ -734,6 +822,20 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       case "skin-preview":
         if (isApp || !featuredIds.has(message.catalogId)) break;
         handlers.onSkinPreview?.(message.catalogId);
+        break;
+      case "client-error":
+        handlers.onClientError?.({
+          source: message.source,
+          msg: message.msg,
+          screen: message.screen,
+          tier: message.tier,
+          sim: message.sim,
+        });
+        break;
+      case "analytics":
+        if (gameEvents >= PAWLEGENDS_GAME_EVENT_BUDGET) break;
+        gameEvents += 1;
+        handlers.onGameEvent?.(message.event, message.props);
         break;
     }
   };

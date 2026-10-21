@@ -131,6 +131,14 @@ describe('copy (final spec)', () => {
     expect(el.textContent).not.toMatch(/adopt|\$|€|price|donat|fund|shelter|help/i);
   });
 
+  it('the Meet card names what a cat grants (rosterCosmetics): companion, chroma and card skin; never a Rescue coat', () => {
+    const el = meetCard({ cat: { catalogId: 'c1', name: 'Pumpkin', type: 'FIRE' }, onMeet() {}, onClose() {} });
+    const line = el.querySelector('.plc-meet-line')?.textContent ?? '';
+    expect(line).toMatch(/chroma and its card skin for every hero/);
+    expect(championMeetLine('Lambo', 'he', 'STELLAR')).toMatch(/chroma and the card skin for every hero/);
+    expect(`${line} ${championMeetLine('Lambo', 'he', 'STELLAR')}`).not.toMatch(/rescue|trail/i);
+  });
+
   it('the lobby champion panel is information only (no buy link)', () => {
     const el = championInfo({ name: 'Lambo', pronoun: 'he', type: 'STELLAR', owned: false });
     expect(el.querySelector('[data-a="champion-meet"], .plc-meet-go')).toBeNull();

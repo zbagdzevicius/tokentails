@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --port 5176",
     "build": "tsc --noEmit && vite build",
-    "build:client": "tsc --noEmit && PAWLEGENDS_BASE=/pawlegends-game/ vite build --outDir ../client/public/pawlegends-game --emptyOutDir",
+    "build:client": "tsc --noEmit && PAWLEGENDS_BASE=/pawlegends-game/ PAWLEGENDS_KEEP_RELEASES=3 vite build --outDir ../client/public/pawlegends-game",
     "preview": "vite preview --port 4176",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

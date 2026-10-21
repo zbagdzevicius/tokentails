@@ -30,8 +30,16 @@ export const AGE_LABELS: Record<PawlegendsAgeBand, string> = {
   "18+": "18 or older",
 };
 
-/** What a new squad member brings in Pawlegends (display only; the game decides the effect). */
-export const MEET_PERKS = ["Joins your squad as a companion", "Its element trail on your hero", "The Rescue coat"] as const;
+/**
+ * What a new squad member brings in Pawlegends (display only; the game decides the effect). Cosmetic only, and it
+ * must match what the game grants (`rosterCosmetics` in pawlegends/src/meta/roster.ts) and the game's Meet card line
+ * (`meetCard` in pawlegends/src/ui/cards.ts): a Companion Kitten, the element chroma and the card skin for every hero.
+ */
+export const MEET_PERKS = [
+  "Trots at your heels as a Companion Kitten",
+  "Its element chroma for every hero",
+  "Its card skin for every hero",
+] as const;
 
 interface PawlegendsCatSheetProps {
   cat: ICat;

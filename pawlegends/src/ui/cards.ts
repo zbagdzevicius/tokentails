@@ -140,6 +140,8 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
   const row = h('div', 'plc-levels');
   for (const b of badges) {
     const won = b.fastest !== null || (b.catnip ?? 0) > 0;
+    // Rookie is match 1 only and never pickable later, so an unwon Rookie chip would be a goal nobody can reach (ftue-6)
+    if (!won && b.level === 'rookie') continue;
     const chip = h('div', `plc-level${won ? ' won' : ''}`);
     chip.dataset.level = b.level;
     chip.appendChild(h('b', '', LEVEL_NAME[b.level]));
@@ -176,7 +178,7 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
   const body = h('div', 'plc-meet-body');
   body.appendChild(h('small', 'plc-kicker', o.champion ? 'A Pawlegends champion' : 'A new squad mate?'));
   body.appendChild(h('b', 'plc-meet-name', o.cat.name));
-  body.appendChild(h('p', 'plc-meet-line', o.champion ? championMeetLine(o.cat.name, o.champion.pronoun, o.cat.type) : `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma for every hero.`));
+  body.appendChild(h('p', 'plc-meet-line', o.champion ? championMeetLine(o.cat.name, o.champion.pronoun, o.cat.type) : `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma and its card skin for every hero.`));
   if (o.preview) {
     const pv = h('div', 'plc-meet-preview');
     const pic = h('i', 'plc-meet-pic');
@@ -215,7 +217,7 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
  * no price, money or impact words (docs/CLAIMS.md R2/R3), no "adopt" next to the real cat's name; STELLAR reads "Star".
  */
 export function championMeetLine(name: string, pronoun: 'he' | 'she', type: string): string {
-  return `Inspired by ${name}'s Token Tails card. With the card, ${pronoun} trots at your heels, cheers your takedowns and unlocks the ${elementName(type)} chroma for every hero, plus a card badge on ${name}.`;
+  return `Inspired by ${name}'s Token Tails card. With the card, ${pronoun} trots at your heels, cheers your takedowns and unlocks the ${elementName(type)} chroma and the card skin for every hero, plus a card badge on ${name}.`;
 }
 
 export interface ChampionInfoModel {

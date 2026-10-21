@@ -1,5 +1,5 @@
-import { analytics } from "@/analytics";
-import { buildPawlegendsEvent } from "@/analytics/pawlegends-events";
+import { analytics, reportAppError } from "@/analytics";
+import { buildPawlegendsEvent, pawlegendsSaveCode } from "@/analytics/pawlegends-events";
 import { CAT_API } from "@/api/cat-api";
 import { USER_API } from "@/api/user-api";
 import { getAudioSettings, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
@@ -18,6 +18,7 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createPawlegendsBridge,
+  PAWLEGENDS_HELLO_TIMEOUT_MS,
   shareUrlOf,
   type PawlegendsBridge,
   type PawlegendsNotifyWhere,
@@ -38,7 +39,14 @@ import {
 } from "./checkout";
 import { championsOf } from "./championsBridge";
 import { pickFeatured, storefrontCats, type FeaturedPick } from "./featuredBridge";
-import { PAWLEGENDS_EXIT_PATH, PAWLEGENDS_FRAME_SRC } from "./flags";
+import {
+  PAWLEGENDS_CONTACT,
+  PAWLEGENDS_EXIT_PATH,
+  PAWLEGENDS_FRAME_SRC,
+  PAWLEGENDS_PRIVACY_URL,
+  PAWLEGENDS_TERMS_PATH,
+  pawlegendsFrameSrc,
+} from "./flags";
 import { rosterOf } from "./rosterBridge";
 import { PawlegendsSaver } from "./saves";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
@@ -138,6 +146,10 @@ export const PawlegendsHost = ({
   const bridgeRef = useRef<PawlegendsBridge | null>(null);
   const [bridgeState, setBridgeState] = useState<"connecting" | "slow" | "timeout" | "ready">("connecting");
   const [frameKey, setFrameKey] = useState(0);
+  // The server render has no URL, so the first render uses the plain src and a dare is forwarded after mount.
+  const [frameSrc, setFrameSrc] = useState(PAWLEGENDS_FRAME_SRC);
+  /** Reload presses on this page (the `pawlegends_bridge_timeout` event carries it). */
+  const reloads = useRef(0);
   const [suspended, setSuspended] = useState(false);
   const [status, setStatus] = useState<StoreStatus | null>(null);
   // The stored token is never rendered, so reading it on the first client render cannot break hydration.
@@ -145,7 +157,6 @@ export const PawlegendsHost = ({
   const [note, setNote] = useState<string | null>(null);
   const [unclaimed, setUnclaimed] = useState(0);
   const [claimDismissed, setClaimDismissed] = useState(false);
-  const [claiming, setClaiming] = useState(false);
   const [forSale, setForSale] = useState<ICat[] | null>(null);
   const [sheet, setSheet] = useState<{ cat: ICat; owned: boolean } | null>(null);
   const [notifyWhere, setNotifyWhere] = useState<PawlegendsNotifyWhere | null>(null);
@@ -191,7 +202,7 @@ export const PawlegendsHost = ({
   const saver = useMemo(
     () =>
       new PawlegendsSaver({
-        save: (replay) => saveRef.current({ type: GameType.PAWLEGENDS, pawlegends: replay }),
+        save: (replay, signal) => saveRef.current({ type: GameType.PAWLEGENDS, pawlegends: replay }, { signal }),
         currentUid: () => latest.current.uid,
         currentIsAnonymous: () => latest.current.anonymous,
         onStatus: (matchId, saveStatus, detail) => {
@@ -205,7 +216,14 @@ export const PawlegendsHost = ({
             ...(detail.code ? { code: detail.code } : {}),
           });
           if (saveStatus !== "saving") {
-            track(buildPawlegendsEvent("pawlegends_save", { status: saveStatus, catnipPaid: answer?.catnipPaid ?? 0 }));
+            track(
+              buildPawlegendsEvent("pawlegends_save", {
+                status: saveStatus,
+                catnipPaid: answer?.catnipPaid ?? 0,
+                code: pawlegendsSaveCode(detail.code),
+                httpStatus: detail.httpStatus,
+              })
+            );
           }
           if (saveStatus === "saved" && answer) {
             // The next `session` carries the new progress at once; a paid first win also refreshes the profile
@@ -235,16 +253,13 @@ export const PawlegendsHost = ({
   }, [uid, authStatus, saver]);
 
   const claimOpen = !!uid && (authStatus === "ready" || authStatus === "guest") && unclaimed > 0 && !claimDismissed;
-  const claim = async () => {
+  // The prompt closes once the matches are the account's; they are sent in the background (launch finding R4).
+  const claim = () => {
     if (!uid) return;
-    setClaiming(true);
     const count = saver.unclaimed().length;
-    try {
-      await saver.claim(uid);
-    } finally {
-      setClaiming(false);
-      setClaimDismissed(true);
-    }
+    saver.take(uid);
+    setClaimDismissed(true);
+    void saver.drain();
     track(buildPawlegendsEvent("pawlegends_guest_claim", { count, choice: "add" }));
   };
   const decline = () => {
@@ -494,9 +509,32 @@ export const PawlegendsHost = ({
       handlers: {
         onReady: () => setBridgeState("ready"),
         onSlow: () => setBridgeState((s) => (s === "connecting" ? "slow" : s)),
-        onTimeout: () => setBridgeState((s) => (s === "ready" ? s : "timeout")),
+        onTimeout: () => {
+          // The frame never answered: nothing inside it can report, so the host does (launch finding R1).
+          track(
+            buildPawlegendsEvent("pawlegends_bridge_timeout", {
+              waitedMs: PAWLEGENDS_HELLO_TIMEOUT_MS,
+              reloads: reloads.current,
+            })
+          );
+          setBridgeState((s) => (s === "ready" ? s : "timeout"));
+        },
+        // A game or worker crash inside the iframe (its errors never reach this window's listeners): reported as
+        // a scrubbed `app_error` with the host's per-session budget (launch finding R1).
+        onClientError: (e) =>
+          void reportAppError(`pawlegends_${e.source}`, e.msg, {
+            source: e.source === "rejection" ? "rejection" : e.source === "worker" ? "worker" : "window",
+            game: "pawlegends",
+            screen: e.screen,
+            tier: e.tier,
+            sim: e.sim,
+          }),
+        // The game's own events (PUB-02): sent like the host's, so they follow the site's policy and share its id.
+        onGameEvent: (name, properties) => track({ name, properties }),
         onMatchResult: (replay, _summary, matchId) =>
           void (async () => {
+            // On the device before the Firebase wait and the POST: a page closed in between keeps it (R3).
+            saver.hold(matchId, replay);
             await authKnown();
             await saver.submit(matchId, replay);
           })(),
@@ -506,11 +544,13 @@ export const PawlegendsHost = ({
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
-        onShare: (_kind, url) => {
+        onShare: (_kind, url, text) => {
           const safe = shareUrlOf(url, window.location.origin);
           if (!safe) return;
           const nav = window.navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
-          if (typeof nav.share === "function") void nav.share({ url: safe, title: PAWLEGENDS_TITLE }).catch(() => undefined);
+          // PUB-06: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!") goes with the link when the game sent one.
+          const data: ShareData = text ? { url: safe, title: PAWLEGENDS_TITLE, text } : { url: safe, title: PAWLEGENDS_TITLE };
+          if (typeof nav.share === "function") void nav.share(data).catch(() => undefined);
           else void nav.clipboard?.writeText(safe).then(() => setNote("Link copied"), () => undefined);
         },
       },
@@ -602,10 +642,20 @@ export const PawlegendsHost = ({
     if (bridgeRef.current?.ready) bridgeRef.current.reconnect();
   }, []);
   const reload = () => {
+    reloads.current += 1;
     setBridgeState("connecting");
     setFrameKey((k) => k + 1);
     bridgeRef.current?.reconnect();
   };
+  // A dare link (`/pawlegends?dare=…`, launch finding PUB-03): the game reads the dare from its own URL, so the
+  // frame is started again with the dare in its src (a fresh iframe, as the reload button does).
+  useEffect(() => {
+    const src = pawlegendsFrameSrc(window.location.search);
+    if (src === PAWLEGENDS_FRAME_SRC) return;
+    setFrameSrc(src);
+    setFrameKey((k) => k + 1);
+    bridgeRef.current?.reconnect();
+  }, []);
 
   const onBought = (cat: ICat, got: ICat) => {
     const catalogId = String(cat._id).toLowerCase();
@@ -637,7 +687,7 @@ export const PawlegendsHost = ({
       <iframe
         key={frameKey}
         ref={frameRef}
-        src={PAWLEGENDS_FRAME_SRC}
+        src={frameSrc}
         title={PAWLEGENDS_TITLE}
         data-testid={PAWLEGENDS_FRAME_TESTID}
         className="absolute border-0 bg-tt-night-900"
@@ -702,7 +752,7 @@ export const PawlegendsHost = ({
         description={claimQuestion(unclaimed, signedIn)}
         size="sm"
         name="pawlegends-claim"
-        canClose={!claiming}
+        canClose
       >
         <div className="flex flex-col gap-4" data-testid="pawlegends-claim">
           <p className="flex items-start gap-2 font-sans text-p5 font-semibold leading-snug text-tt-cream">
@@ -712,10 +762,10 @@ export const PawlegendsHost = ({
             Only add them if you played them. Someone else on this device? Tap Not mine and they are deleted.
           </p>
           <ActionRow align="center">
-            <ModalButton variant="primary" icon="check" onClick={() => void claim()} busy={claiming}>
+            <ModalButton variant="primary" icon="check" onClick={claim}>
               ADD THEM
             </ModalButton>
-            <ModalButton variant="secondary" icon="close" onClick={decline} disabled={claiming}>
+            <ModalButton variant="secondary" icon="close" onClick={decline}>
               NOT MINE
             </ModalButton>
           </ActionRow>
@@ -793,6 +843,20 @@ const NotifySheet = ({
             data-testid="pawlegends-notify-email"
           />
         </label>
+        <p className="text-p6 leading-snug opacity-80" data-testid="pawlegends-notify-privacy">
+          Token Tails keeps this email only to send {PAWLEGENDS_TITLE} season news. To stop, write to{" "}
+          <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="font-bold text-tt-gold-400 underline underline-offset-2">
+            {PAWLEGENDS_CONTACT}
+          </a>
+          .{" "}
+          <a href={PAWLEGENDS_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-gold-400 underline underline-offset-2">
+            Privacy Policy
+          </a>
+          {" · "}
+          <a href={PAWLEGENDS_TERMS_PATH} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-gold-400 underline underline-offset-2">
+            Terms
+          </a>
+        </p>
         {line && <p role="status">{line}</p>}
         <ActionRow>
           <ModalButton variant="primary" icon="check" onClick={() => void send()} busy={busy} data-testid="pawlegends-notify-send">

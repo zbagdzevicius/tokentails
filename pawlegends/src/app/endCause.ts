@@ -73,7 +73,10 @@ export function endCause(i: EndCauseInput): string {
     }
     line += '.';
     if (src === 'takedowns') line += ' After Sunset every knockout hurts its team’s core.';
-    else if (src === 'decay') line += ' In Sudden Death the team with fewer takedowns burns faster.';
+    else if (src === 'decay') {
+      // ftue-5: only blame takedowns when we were behind on them; otherwise the core had less HP going in
+      line += ahead < 0 ? ' In Sudden Death the team with fewer takedowns burns faster.' : ' Our core had less left when Sudden Death began: towers and core damage matter most.';
+    }
     else if (ahead > 0) line += ' Takedowns help, but towers and the core win.';
     else if (src === 'minions') line += ' Clear the waves near your base before you push.';
     return line;

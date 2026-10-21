@@ -27,10 +27,14 @@ export type HostType = (typeof HOST_TYPES)[number];
  * `offer-seen{kind, catalogId}` and `champion-offer{catalogId}` (sim v9: a non-owner just finished a 3rd match on
  * a champion whose card is for sale; the host puts that cat first when it asks `GET /pawlegends/offer`, where every
  * global cap still applies), `skin-preview{catalogId}` (GDD §7.2: the player previewed a featured cat's card skin on
- * the pick screen; the host puts that cat first in its next offer ask, the server's caps still decide). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
+ * the pick screen; the host puts that cat first in its next offer ask, the server's caps still decide),
+ * `client-error{source, msg, screen, tier, sim}` (launch finding R1: a game or worker crash, `msg` already cut to
+ * `crashCode` in app/crash.ts; the host reports it as its scrubbed `app_error`), `analytics{event, props}` (launch
+ * finding PUB-02: a game analytics event, flat props of numbers, booleans and short strings; the host sends it with its
+ * own `analytics.track`, so it follows the site's policy). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
  * sends it (the host still answers older builds).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {

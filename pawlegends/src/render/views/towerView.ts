@@ -219,6 +219,11 @@ export class StructureView {
   }
 
   dispose(): void {
+    // each addRubble() builds its own geometry, shared by its 7 meshes
+    const rubbleGeos = new Set(this.rubble.map((m) => m.geometry));
+    for (const g of rubbleGeos) g.dispose();
+    for (const m of this.rubble) this.group.remove(m);
+    this.rubble.length = 0;
     for (const s of this.items.values()) s.material.dispose();
     for (const g of this.geoCache.values()) g.dispose();
     this.bubbleGeo.dispose();

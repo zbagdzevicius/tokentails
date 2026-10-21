@@ -16,7 +16,7 @@ Install and run inside this package (`npm install` here; it has its own `node_mo
 | Bundle budget | `npm run build && npm run budget` |
 | Browser tests | `npm run e2e` (Playwright; builds into `.e2e-dist/`, desktop 1280×720 and landscape 844×390 in Chromium, plus `webkit` for determinism-browser.spec.ts; `npx playwright install webkit` once) |
 | Lift from PPK | `npm run lift` (`-- --check` verifies the provenance headers, `-- --force` overwrites hand edits) |
-| Embed build | `npm run build:client` → `../client/public/pawlegends-game/` (commit it) |
+| Embed build | `npm run build:client` → `../client/public/pawlegends-game/` (commit it; keeps the previous 2 releases' `build/` files for open tabs, `build-releases.json`) |
 | Headless matches | `npm run match -- --seeds 40 [--profile idle\|novice\|easy\|normal] [--difficulty easy\|normal] [--hero random] [--trick random] [--check-determinism] [--balance]` (`--balance` checks median, p95 ≤ 10:30, core kills, side and hero gates) |
 | Determinism fuzz | `npm run determinism -- --seeds 1000` (record → replay, hash trails every 30 ticks, parallel processes) |
 | Grade calibration (GAPS A2) | `node tools/grade-calibrate.mjs [--seeds 400] [--from 1] [--check]` (per-role S/A/B/C shares for a Normal human vs Normal bots; thresholds live in `src/meta/grade.ts`) |

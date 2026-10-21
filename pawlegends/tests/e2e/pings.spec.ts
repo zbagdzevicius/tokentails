@@ -92,4 +92,43 @@ test('match 2 shows the ping tip once', async ({ page }) => {
   test.setTimeout(120_000);
   await start(page, { v: 1, sessions: 1, matches: 1, wins: 1, firstWinDone: true, hero: 'clem' }, '&speed=8');
   await expect.poll(() => attr(page, 'pingTip'), { timeout: 60_000 }).toBe('1');
+  // ftue-2: the flag is set only once the banner is on screen, and it holds long enough to read (5.5 s, not 2.1 s)
+  expect(await attr(page, 'banner')).toBe('Tell your team what to do');
+  await page.waitForTimeout(3_000);
+  expect(await attr(page, 'banner')).toBe('Tell your team what to do');
 });
+
+// ftue-1: the Wave emote (Treat Track unlock after the first win) must never cover the paw or the minimap on phones.
+for (const [width, height] of [
+  [740, 360],
+  [844, 390],
+] as const) {
+  test(`touch ${width}x${height} with the Wave emote: the paw stays on top and opens the wheel`, async ({ page }, info) => {
+    test.skip(info.project.name !== 'landscape', 'touch controls');
+    await page.setViewportSize({ width, height });
+    await start(page, { ...VETERAN, unlocks: ['emote.wave'] });
+    const paw = page.locator('.pl-pingbtn');
+    const emote = page.locator('.pl-emote');
+    await expect(paw).toBeVisible();
+    await expect(emote).toBeVisible();
+    const layout = await page.evaluate(() => {
+      const box = (s: string): DOMRect => document.querySelector(s)!.getBoundingClientRect();
+      const hit = (a: DOMRect, b: DOMRect): boolean =>
+        Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+      const p = box('.pl-pingbtn');
+      const e = box('.pl-emote');
+      const top = [0.25, 0.5, 0.75].map((f) => !!document.elementFromPoint(p.x + p.width * f, p.y + p.height / 2)?.closest('.pl-pingbtn'));
+      return { top, paw: hit(e, p), minimap: hit(e, box('.pl-minimap')), onScreen: e.left >= 0 && e.bottom <= innerHeight };
+    });
+    expect(layout).toEqual({ top: [true, true, true], paw: false, minimap: false, onScreen: true });
+    // the emote still answers its own tap
+    const eb = (await emote.boundingBox())!;
+    await page.touchscreen.tap(eb.x + eb.width / 2, eb.y + eb.height / 2);
+    await expect.poll(() => attr(page, 'emotes')).toBe('1');
+    // and the paw opens the ping wheel, not the emote
+    const pb = (await paw.boundingBox())!;
+    await page.touchscreen.tap(pb.x + pb.width / 2, pb.y + pb.height / 2);
+    await expect(page.locator('.pl-pingwheel.on')).toBeVisible();
+    expect(await attr(page, 'emotes')).toBe('1');
+  });
+}

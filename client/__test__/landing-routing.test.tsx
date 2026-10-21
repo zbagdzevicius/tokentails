@@ -483,7 +483,19 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(afterFiles).toContainEqual({ source: "/badcat/:path*", destination: "/badcat-game/:path*" });
     expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
     const headers = await nextConfig.headers();
-    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js"]);
+    expect(headers.map((h: { source: string }) => h.source)).toEqual([
+      "/badcat-game/sw.js",
+      "/badcat/sw.js",
+      "/pawlegends-game/build/:path*",
+    ]);
+  });
+
+  it("serves the Pawlegends hashed build files as immutable (launch finding R2)", async () => {
+    const headers = await nextConfig.headers();
+    const build = headers.find((h: { source: string }) => h.source === "/pawlegends-game/build/:path*");
+    expect(build.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
+    // index.html must keep revalidating, or a deploy would never reach an open tab's next load
+    expect(headers.some((h: { source: string }) => h.source.startsWith("/pawlegends-game/index"))).toBe(false);
   });
 });
 

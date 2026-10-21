@@ -4,6 +4,7 @@ import { loadProfile, parseProfile, recordMatch, resetProfileCache } from '../..
 import { decodeDare, dareText, dareUrl, encodeDare } from '../../src/share/dare';
 import { SnapBuffer, lerpAngle } from '../../src/render/interp';
 import { Tips } from '../../src/onboarding/tips';
+import { levelBadges, progressStrip } from '../../src/ui/cards';
 import type { EntitySnap, Snapshot } from '../../src/sim/api';
 
 describe('dare links', () => {
@@ -40,6 +41,26 @@ describe('profile', () => {
     resetProfileCache();
     expect(loadProfile()).toMatchObject({ matches: 4, wins: 3, firstWinDone: true });
     expect(loadProfile().unlocks).toContain('coat.brutus.biscuit');
+  });
+  it('keeps the match 1 Rookie win across a reload (ftue-6)', () => {
+    recordMatch(true, 355, 'rookie');
+    resetProfileCache();
+    expect(loadProfile().fastest).toEqual({ rookie: 355 });
+    const badges = levelBadges(null, loadProfile().fastest);
+    expect(badges.find((b) => b.level === 'rookie')?.fastest).toBe(355);
+    const strip = progressStrip(badges);
+    const rookie = strip.querySelector('.plc-level[data-level="rookie"]');
+    expect(rookie?.classList.contains('won')).toBe(true);
+    expect(rookie?.textContent).toContain('best 5:55');
+    expect(strip.textContent).not.toContain('+10 catnip');
+  });
+  it('never shows an unwon Rookie chip as a goal (ftue-6)', () => {
+    // a guest whose Rookie time was dropped by an older loader: Easy won, Rookie unknown
+    const strip = progressStrip(levelBadges(null, { easy: 426 }));
+    expect(strip.querySelector('.plc-level[data-level="rookie"]')).toBeNull();
+    expect(strip.querySelector('.plc-level[data-level="easy"]')?.textContent).toContain('best 7:06');
+    expect(strip.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('First win: +40 catnip');
+    expect(strip.querySelector('.plc-level[data-level="hard"]')?.textContent).toContain('First win: badge');
   });
 });
 

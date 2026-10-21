@@ -1,12 +1,12 @@
 import { PAWLEGENDS_CONSENT_VERSION, PAWLEGENDS_MVP_TARGET, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
-import { pawlegendsEnabled } from "@/components/pawlegends/flags";
+import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL, pawlegendsEnabled } from "@/components/pawlegends/flags";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date after which a Founder buyer may ask for a full refund (GDD §8.3). */
 export const PAWLEGENDS_REFUND_DATE = "2027-06-30";
 export const PAWLEGENDS_REFUND_DAYS = 60;
-export const PAWLEGENDS_CONTACT = "info@tokentails.com";
+export { PAWLEGENDS_CONTACT };
 
 export const PAWLEGENDS_TERMS_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} presale terms - Token Tails`,
@@ -97,6 +97,10 @@ export default function PawlegendsTermsPage() {
               Questions, refunds or a higher limit:{" "}
               <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="text-tt-gold-400 underline underline-offset-4">
                 {PAWLEGENDS_CONTACT}
+              </a>
+              . How we handle your email and data:{" "}
+              <a href={PAWLEGENDS_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-tt-gold-400 underline underline-offset-4">
+                Privacy Policy
               </a>
               .
             </p>

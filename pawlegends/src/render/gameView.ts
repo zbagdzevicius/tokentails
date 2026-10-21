@@ -582,8 +582,6 @@ export class GameView {
       this.companions.dispose();
       this.companions = null;
     }
-    this.particles.clear();
-    this.shock.clear();
     this.map.dispose();
     this.heroes.dispose();
     this.minions.dispose();
@@ -592,6 +590,9 @@ export class GameView {
     this.telegraphs.dispose();
     this.effects.dispose();
     this.juice.dispose();
+    // GameView owns both: dispose (not clear) so their pools, rings and cracks leave the shared scene and free their GL buffers
+    this.particles.dispose();
+    this.shock.dispose();
   }
 }
 

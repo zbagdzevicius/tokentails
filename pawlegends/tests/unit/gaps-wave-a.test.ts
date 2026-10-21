@@ -214,7 +214,7 @@ describe('A1: quests for all 8 heroes', () => {
     expect(followsHero(3)).toBe(false);
   });
 
-  it('"Play a shelter champion" and "Calm Pudding twice" count, and a quest gives Treat XP only', () => {
+  it('"Play a champion card hero" and "Calm Pudding twice" count, and a quest gives Treat XP only', () => {
     const d = Array.from({ length: 200 }, (_, i) => new Date(Date.UTC(2026, 9, 1) + i * 86400000).toISOString().slice(0, 10)).find((x) => dailyQuests(x).some((q) => q.id === 'champion'))!;
     const r = progressQuests(freshQuests(d), { won: false, hero: 'gabe', takedowns: 0, pudding: false, towers: 0, combos: 0 });
     expect(r.views.find((v) => v.quest.id === 'champion')?.done).toBe(true);

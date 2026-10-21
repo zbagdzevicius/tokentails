@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -6,7 +6,7 @@ import { GamePlatform, GameType } from 'src/game/game.schema';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { FailedReplayCache, FAILED_HEIST_REPLAYS } from 'src/user/heist/failed-replay-cache';
-import { ReplayQueue } from 'src/user/heist/replay-queue';
+import { ReplayQueue, ReplayQueueFullException } from 'src/user/heist/replay-queue';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
 import { Worker } from 'worker_threads';
@@ -33,6 +33,11 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
  *    `$inc pawlegendsMatches.<difficulty>` and `lastPlayedAt`. A match with a mutator other than 'none' (none exist
  *    in v10; GAPS §8 item 1) counts as a match only: no fastest win and no catnip. Sim v10 (GAPS B2): a forfeited
  *    match is a loss (outcome 'lost' in the re-sim): no catnip, no fastest win, the row's outcome is 'quit'.
+ *
+ * Every save that does not write (a rejected replay, a duplicate, a full queue, a stopped worker) logs one line through
+ * `Logger` ('PawlegendsLive'): the kind, the error code, simVersion and difficulty, never a user id or the record. A
+ * run of `rejected ... PAWLEGENDS_OUTCOME_MISMATCH` or `PAWLEGENDS_SIM_VERSION` lines means the game and backend sims
+ * drifted apart (LAUNCH.md a.8 step 4).
  */
 
 /** Pawlegends replays: one at a time in the worker, up to 8 waiting (about 12 s of worst-case matches). */
@@ -228,6 +233,29 @@ export interface IPawlegendsLiveDeps {
     /** Runs the re-sim (default: the worker thread). */
     verify?: (record: PawlegendsReplayRecord) => Promise<PawlegendsVerifyResult>;
     now?: () => Date;
+    /** Where saves that do not write are logged (default: Nest's Logger, context 'PawlegendsLive'). */
+    logger?: Pick<Logger, 'warn' | 'log'>;
+}
+
+const pawlegendsLiveLogger = new Logger('PawlegendsLive');
+
+/** What a save that does not write was: `duplicate` is routine (a retried save), the others are warnings. */
+export type PawlegendsSaveProblem = 'rejected' | 'duplicate' | 'queue-full' | 'unavailable';
+
+/** The one log line of a save that did not write. No user id, no record: only what tells sim drift apart. */
+export function pawlegendsSaveLogLine(
+    kind: PawlegendsSaveProblem,
+    code: string,
+    replay: { simVersion?: unknown; difficulty?: unknown } | undefined,
+    cached = false
+): string {
+    const simVersion = Number.isInteger(replay?.simVersion) ? String(replay?.simVersion) : 'unknown';
+    const difficulty = PAWLEGENDS_LEVELS.includes(replay?.difficulty as string)
+        ? String(replay?.difficulty)
+        : 'unknown';
+    return `pawlegends save ${kind}: code=${code} simVersion=${simVersion} difficulty=${difficulty}${
+        cached ? ' cached' : ''
+    }`;
 }
 
 export interface IPawlegendsLiveResult {
@@ -255,39 +283,58 @@ export async function savePawlegendsMatch(
     body: { pawlegends?: PawlegendsReplayDto; replay?: unknown; badcat?: unknown; platform?: GamePlatform }
 ): Promise<IPawlegendsLiveResult> {
     const replay = body.pawlegends;
-    if (!replay) throw pawlegendsError(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'pawlegends is required for PAWLEGENDS');
+    const logger = deps.logger || pawlegendsLiveLogger;
+    const reject = (code: string, message: string, cached = false) => {
+        logger.warn(pawlegendsSaveLogLine('rejected', code, replay, cached));
+        return pawlegendsError(code, message);
+    };
+    const duplicate = () => {
+        logger.log(pawlegendsSaveLogLine('duplicate', ErrorCode.PAWLEGENDS_DUPLICATE, replay));
+        return pawlegendsDuplicate();
+    };
+    if (!replay) throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'pawlegends is required for PAWLEGENDS');
     if (body.replay !== undefined || body.badcat !== undefined) {
-        throw pawlegendsError(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'replay and badcat are for other games');
+        throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'replay and badcat are for other games');
     }
     if (!SIM_VERSIONS.includes(replay.simVersion)) {
-        throw pawlegendsError(
+        throw reject(
             ErrorCode.PAWLEGENDS_SIM_VERSION,
             `simVersion ${replay.simVersion} is not one of this backend's ${SIM_VERSIONS.join(', ')}`
         );
     }
     const index = PAWLEGENDS_LEVELS.indexOf(replay.difficulty);
-    if (index < 0) throw pawlegendsError(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'unknown difficulty');
+    if (index < 0) throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'unknown difficulty');
 
     const record = canonicalRecord(replay);
     const digest = pawlegendsDigest(record);
     const failures = deps.failures || failedPawlegendsReplays;
     const failed = failures.get(digest);
     // The sim is deterministic: the same record fails the same way. No re-sim, no queue slot.
-    if (failed) throw pawlegendsError(failed.code, failed.reason);
+    if (failed) throw reject(failed.code, failed.reason, true);
     const saved = await deps.games.findOne({ searchObject: { replayDigest: digest }, projection: '_id user' });
-    if (saved) throw pawlegendsDuplicate();
+    if (saved) throw duplicate();
 
     // Throws the 429 synchronously when the queue is full: nothing has been simulated.
     const verify = deps.verify || workerVerify;
-    const result = await (deps.queue || pawlegendsReplayQueue).runAsync(() => verify(record));
+    let result: PawlegendsVerifyResult;
+    try {
+        result = await (deps.queue || pawlegendsReplayQueue).runAsync(() => verify(record));
+    } catch (error) {
+        if (error instanceof ReplayQueueFullException) {
+            logger.warn(pawlegendsSaveLogLine('queue-full', 'HTTP_429', replay));
+        } else if (error instanceof ServiceUnavailableException) {
+            logger.warn(pawlegendsSaveLogLine('unavailable', 'HTTP_503', replay));
+        }
+        throw error;
+    }
     if (!result.ok) {
         failures.set(digest, { code: result.code, reason: result.message });
-        throw pawlegendsError(result.code, result.message);
+        throw reject(result.code, result.message);
     }
     if (result.outcome !== replay.outcome || result.finalHash !== replay.finalHash || result.ticks !== replay.ticks) {
         // verifyReplay already compares them; this guards a sim that would not.
         failures.set(digest, { code: ErrorCode.PAWLEGENDS_OUTCOME_MISMATCH, reason: 'result differs from the record' });
-        throw pawlegendsError(ErrorCode.PAWLEGENDS_OUTCOME_MISMATCH, 'result differs from the record');
+        throw reject(ErrorCode.PAWLEGENDS_OUTCOME_MISMATCH, 'result differs from the record');
     }
 
     const user = await deps.users.findOne({
@@ -335,7 +382,7 @@ export async function savePawlegendsMatch(
     } catch (error) {
         // The same replay raced in: it was not saved by this request, so neither is its catnip.
         if (claimedFrom !== null) await deps.users.update(userId, { $set: { [catnipPath]: claimedFrom } });
-        if (isDuplicateKey(error)) throw pawlegendsDuplicate();
+        if (isDuplicateKey(error)) throw duplicate();
         throw error;
     }
 

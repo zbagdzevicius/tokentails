@@ -234,8 +234,11 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   status, catnipPaid, catnipTotal, fastestWin}`, `resume` and `purchase-result {catalogId, ok}`. The game sends
   `match-result {replay, summary, matchId}`, `request-sign-in {reason}`, `open-cat {catalogId}`, `offer-seen
   {kind, catalogId}`, `champion-offer {catalogId}`, `skin-preview {catalogId}` (a featured cat's card skin was
-  previewed on the pick screen; the host puts that cat first in its next offer ask), `notify {where}`, `share {kind, url}` (same-origin
-  `/pawlegends` links only) and `paused`; the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
+  previewed on the pick screen; the host puts that cat first in its next offer ask), `notify {where}`, `share {kind, url, text}` (same-origin
+  `/pawlegends` links only; `text` is the optional dare line, one plain line of at most 120 characters, which the
+  host passes to the system share sheet, PUB-06), `paused` and `client-error {source, msg, screen, tier, sim}` (a game or worker crash,
+  `msg` cut to lower-case `[a-z0-9_ ]` and 80 characters; the host reports it as `app_error`), `analytics {event,
+  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
   `'*'`, and no `accesstoken` or Firebase token crosses.
@@ -244,7 +247,7 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   Firebase user it waits in `tt.pawlegends.queue.v1` (12 at most) as a device match; after sign-in the host
   asks "ADD YOUR MATCHES?" (the Heist claim prompt). 2xx and 409 are done; `PAWLEGENDS_SIM_VERSION` purges
   matches of that version; other 4xx drop the match; 401, 403 and 428 keep it; 429, 5xx and network errors
-  back off and honour `Retry-After`. The results save chip says "Saved to your account", "Kept on this
+  back off and honour `Retry-After`; a POST with no answer after 20 s is aborted and counts as a network error. The results save chip says "Saved to your account", "Kept on this
   device" (with a "Save your wins" button) or "Not saved yet. Trying again soon."
 - **Rewards**: the first replay-verified win per difficulty pays catnip once (`PAWLEGENDS_LEVEL_CAPS`: Easy
   20, Normal 40, Rookie 10, Hard 0; 70 in all), stored in `pawlegendsCatnip.<difficulty>` and counted in
@@ -366,10 +369,17 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   host's own sheet (`PawlegendsCatSheet.tsx`) with the $5 Token Tails cat checkout, the age question, the
   under-16 block and the spend caps (`PawlegendsCheckoutGuard`, BACKEND.md). App builds get no featured cats,
   no offer, no checkout and no purchased cosmetics.
-- **Analytics**: consent-gated PostHog in the game (`VITE_PAWLEGENDS_POSTHOG_KEY` in the build; the shared
-  `tt-analytics-consent` key; every event carries a `human` flag) and host events from
+- **Analytics**: embedded on `/pawlegends` the game's events (`title_view`, `match_start`, `match_end` and the rest)
+  go over the bridge as `analytics {event, props}` and the host sends them with its own `analytics.track`, so they
+  follow the site's policy and share its anonymous id; no prompt there, Settings → Stats still turns them off
+  (launch finding PUB-02). Standalone, consent-gated PostHog in the game (`VITE_PAWLEGENDS_POSTHOG_KEY`, inlined by
+  `npm run build:client`, LAUNCH.md a.6; without it nothing is sent; the `tt-analytics-consent` key, which only the
+  game reads and writes; the "anonymous play stats?" prompt on the title screen from session 2). Every event carries a
+  `human` flag. Host events from
   `client/analytics/pawlegends-events.ts` (`pawlegends_open`, `pawlegends_save`, `pawlegends_guest_claim`,
-  `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`).
+  `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`, `pawlegends_bridge_timeout`).
+  Crashes (`pawlegends/src/app/crash.ts`, at most 5 a page, none after stats were turned off): embedded they go
+  to the host as `client-error` (reported as `app_error`), standalone as the game's own `app_error` event.
 - **Checks** (in `pawlegends/`): `npm run typecheck`, `npm test`, `npm run lint:sim` (no floats,
   `Math.random` or wall clock in `src/sim`), `npm run lift -- --check`, `npm run build && npm run budget`
   (first-load JS 450 KB gzip), `npx playwright test --workers=2`, `npm run vendor-sim:check`, and the headless

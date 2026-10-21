@@ -44,7 +44,14 @@ export interface SettingsOpts {
   onStats(on: boolean): void;
   onSkinFx?(m: 'all' | 'mine' | 'off'): void;
   onClose(): void;
+  /** The host's terms page (null outside the Token Tails page: the link hides). */
+  termsUrl?: string | null;
 }
+
+/** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
+export const PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
+
+const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c] ?? c);
 
 const SKIN_FX_NAME = { all: 'All', mine: 'Mine only', off: 'Off' } as const;
 
@@ -100,6 +107,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
+      <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;
   };
   render();

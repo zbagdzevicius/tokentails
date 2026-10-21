@@ -38,7 +38,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'win_aviete', text: `Win with ${uiName('Avietė')}`, goal: 1, metric: 'win', hero: 'aviete' },
   { id: 'win_bengas', text: 'Win with Bengas', goal: 1, metric: 'win', hero: 'bengas' },
   { id: 'win_gabe', text: `Win with ${uiName('Gabė')}`, goal: 1, metric: 'win', hero: 'gabe' },
-  { id: 'champion', text: 'Play a shelter champion', goal: 1, metric: 'champion' },
+  { id: 'champion', text: 'Play a champion card hero', goal: 1, metric: 'champion' },
   { id: 'pudding2', text: 'Calm Pudding twice', goal: 2, metric: 'pudding' },
 ] as Quest[]);
 

@@ -18,6 +18,8 @@ export interface Banner {
   urgent?: boolean;
   /** When it was queued (ms; set by `banner`). */
   at?: number;
+  /** Seconds on screen (render time) for a long text such as the match-2 ping tip; default 2.1 (1.4 with a queue). */
+  hold?: number;
 }
 
 export class Juice {
@@ -43,6 +45,7 @@ export class Juice {
   speed = 1;
   /** The stage kind the banner on screen holds. */
   private bannerKind: 'urgent' | 'banner' = 'banner';
+  private bannerTitle = '';
 
   constructor(root: HTMLElement | null) {
     if (root && typeof document !== 'undefined') {
@@ -92,7 +95,7 @@ export class Juice {
     return this.stopScale;
   }
 
-  /** Queue a banner (one at a time, ≤ 2.5 s each). `urgent` ones (core, towers, the result) go to the front, and a
+  /** Queue a banner (one at a time, ≤ 2.5 s each unless it sets `hold`). `urgent` ones (core, towers, the result) go to the front, and a
    *  full queue drops its oldest ordinary banner first. */
   banner(b: Banner): void {
     this.remember(b.title);
@@ -104,6 +107,16 @@ export class Juice {
     const q = { ...b, at: nowMs() };
     if (b.urgent) this.queue.unshift(q);
     else this.queue.push(q);
+  }
+
+  /** The title of the banner on screen now ('' when none). */
+  get showing(): string {
+    return this.bannerT > 0 ? this.bannerTitle : '';
+  }
+
+  /** Is a banner with this title waiting in the queue? (The queue drops stale and overflow banners.) */
+  queued(title: string): boolean {
+    return this.queue.some((q) => q.title === title);
   }
 
   /** A short word over the middle of the screen ("Purrfect!", "Takedown!"). */
@@ -211,7 +224,8 @@ export class Juice {
     }
     void el.offsetWidth;
     el.classList.add('on');
-    this.bannerT = this.queue.length > 1 ? 1.4 : 2.1;
+    this.bannerT = b.hold ?? (this.queue.length > 1 ? 1.4 : 2.1);
+    this.bannerTitle = b.title;
     // round 2: the banner shows for bannerT seconds of render time (update's dt is not sped up), so it holds the centre
     // band exactly that long; dividing by the match speed let a callout show beside it (the e2e one-at-a-time check)
     this.bannerKind = b.urgent ? 'urgent' : 'banner';

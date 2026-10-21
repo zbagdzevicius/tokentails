@@ -85,8 +85,14 @@ export interface MatchSetup {
   forfeitFrom?: number;
 }
 
-/** GAPS B1: the ping tip of match 2 shows once the gates are open this long (ticks: 0:45). */
-const PING_TIP_TICK = 1350;
+/**
+ * GAPS B1: the ping tip of match 2 shows once the gates are open this long (ticks: 0:55). Not 1350 (0:45): that is
+ * the first Frenzy Catnip, and its banner (with the rat camp's "Pack power!") pushed the tip out of the queue.
+ */
+const PING_TIP_TICK = 1650;
+const PING_TIP_TITLE = 'Tell your team what to do';
+/** Seconds the ping tip stays up: its text runs ~19 words, an ordinary banner's 2.1 s is too short to read it. */
+const PING_TIP_HOLD = 5.5;
 
 /** `?e2e=1&skins=legendary` (perf.spec.ts): every hero in a synthetic Legendary card skin. Never outside e2e. */
 function e2eLegendary(): boolean {
@@ -362,6 +368,8 @@ export class MatchSession {
 
   private onWelcome(w: WelcomeMsg): void {
     this.welcome = w;
+    // perf-2: which loop runs this match and how many Worker starts failed first (e2e reads it)
+    if (this.e2e) document.documentElement.dataset.simHost = `${this.host.kind}:${this.host.restarts}`;
     this.view.setTeam(w.slot, w.team, w.tricks);
     this.objClock = new ObjectiveClock(w.team);
     this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
@@ -679,7 +687,7 @@ export class MatchSession {
   private emoteAt = -1e9;
   private emoteOff: (() => void) | null = null;
 
-  /** The "Starter" emote (owned): a chip by the score bar and the T key. Render only; nothing is sent to the sim. */
+  /** The "Starter" emote (owned): a chip by the score bar (touch: under the ping paw, ui.css) and the T key. Render only; nothing is sent to the sim. */
   private mountEmote(): void {
     const b = document.createElement('button');
     b.className = 'pl-emote';
@@ -1425,15 +1433,21 @@ export class MatchSession {
     this.goals.update(this.paused ? 0 : dt);
     this.pingBtn?.classList.toggle('cool', !(this.orders?.pingReady() ?? false));
     if (this.setup.pingTip && !this.pingTipShown && frame && frame.tick >= PING_TIP_TICK && !this.ended) {
-      // GAPS B1: one tip in match 2 (no tip system queue: it is a single banner)
-      this.pingTipShown = true;
-      const touch = document.documentElement.dataset.touch === '1';
-      this.view.juice.banner({
-        title: 'Tell your team what to do',
-        sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
-        tone: 'info',
-      });
-      if (this.e2e) document.documentElement.dataset.pingTip = '1';
+      // GAPS B1: one tip in match 2. It is the only ping lesson and match 2 is its only chance, so it counts as shown
+      // only once it is on screen; a stale or overflow drop from the banner queue queues it again.
+      const juice = this.view.juice;
+      if (juice.showing === PING_TIP_TITLE) {
+        this.pingTipShown = true;
+        if (this.e2e) document.documentElement.dataset.pingTip = '1';
+      } else if (!juice.queued(PING_TIP_TITLE)) {
+        const touch = document.documentElement.dataset.touch === '1';
+        juice.banner({
+          title: PING_TIP_TITLE,
+          sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
+          tone: 'info',
+          hold: PING_TIP_HOLD,
+        });
+      }
     }
     if (this.talents?.waiting) {
       this.calmFor = this.inFight() ? 0 : this.calmFor + dt * this.buffer.speed;

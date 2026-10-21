@@ -23,6 +23,15 @@ const opts = {
 describe('results reveal', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('the dare button shares the link with the dare line shown on the screen (PUB-06)', () => {
+    const onShare = vi.fn();
+    const root = resultsScreen(document.body, { ...opts, seconds: 312, onShare });
+    root.querySelector<HTMLElement>('[data-a="share"]')!.click();
+    expect(onShare).toHaveBeenCalledWith(opts.dareLink, 'Beat my 5:12 vs Easy bots in Pawlegends!');
+    expect(root.querySelector('.dare b')!.textContent).toBe('Beat my 5:12 vs Easy bots in Pawlegends!');
+    root.remove();
+  });
+
   it('shows the dare at End + 5 s and Play again at End + 10 s (the screen opens at End + 2.2 s)', () => {
     vi.useFakeTimers();
     const root = resultsScreen(document.body, opts);

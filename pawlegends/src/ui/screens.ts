@@ -368,7 +368,8 @@ export interface ResultsOpts {
   speed?: number;
   onAgain(): void;
   onChange(): void;
-  onShare(url: string): void;
+  /** `text`: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!"), sent with the link to the share sheet (PUB-06). */
+  onShare(url: string, text: string): void;
   onStore?(): void;
   onNotify?(): void;
   /** The player's damage to enemy heroes (0 = never joined a fight). */
@@ -515,6 +516,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
   const s = String(o.seconds % 60).padStart(2, '0');
   const tip = resultTip(o);
   const sd = suddenDeathS(o.difficulty);
+  const dareLine = dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 });
   root.innerHTML = `
     <div class="pl-results-col">
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>
@@ -538,7 +540,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">
-        <p>Dare a friend: <b>${o.dareLink ? esc(dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 })) : ''}</b></p>
+        <p>Dare a friend: <b>${o.dareLink ? esc(dareLine) : ''}</b></p>
         <button class="pl-btn ghost" data-a="share">Copy dare link</button>
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
@@ -551,7 +553,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     else if (a === 'store') o.onStore?.();
     else if (a === 'notify') o.onNotify?.();
     else if (a === 'share' && o.dareLink) {
-      o.onShare(o.dareLink);
+      o.onShare(o.dareLink, dareLine);
       const b = root.querySelector('[data-a="share"]') as HTMLElement;
       b.textContent = 'Link copied!';
     }
