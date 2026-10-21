@@ -60,6 +60,8 @@ export const Buff = Object.freeze({
   Frenzy: 1 << 15,
   NineLives: 1 << 16,
   Pack: 1 << 17, // lint-sim: allow (a bit index)
+  /** Sim v10: Purr-ify's crowd-control immunity. */
+  Purrified: 1 << 18, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -85,7 +87,7 @@ export const G = Object.freeze({
   TowerDamage0: 6,
   TowerDamage1: 7,
   Wave: 8,
-  EndReason: 9, // 0 running, 1 core kill, 2 safety end
+  EndReason: 9, // 0 running, 1 core kill, 2 safety end, 3 forfeit (sim v10)
   InputHash: 10, // FNV-1a of every applied (tick, command): the final hash commits to the whole input stream
   SiegeWaves: 11, // waves spawned since TIMELINE.siegeFrom (every 3rd one, counting from the first, adds a siege)
   /** 1 = the in-sim bots (slots 1..5) do not think. Tests only; a real match never sets it. */
@@ -134,7 +136,11 @@ export const G = Object.freeze({
   HumanCoreOpenAt: 40, // lint-sim: allow
   /** Sim v5: 1 = the per-hero tuning (HeroData.pvp, sim v8; SIDE_EDGE before) applies to hero-vs-hero damage (DifficultyRules.sideEdge). */
   SideEdge: 41, // lint-sim: allow
-  Count: 42, // lint-sim: allow
+  /** Sim v10 (GAPS B1) lane swap: 1 = the human plays Puddle Lane and ally slot 1 took Sunny; ticks in a row the
+   *  human has stood in the other lane (data/pings.ts LANE_SWAP). */
+  LaneSwap: 42, // lint-sim: allow
+  LaneSwapT: 43, // lint-sim: allow
+  Count: 44, // lint-sim: allow
 } as const);
 export type G = (typeof G)[keyof typeof G];
 
@@ -204,6 +210,8 @@ export interface World {
   cdrBp: Int32Array;
   stealthT: Int32Array;
   untargT: Int32Array;
+  /** Sim v10 (GAPS B5): crowd-control immunity after Purr-ify; stun, root, slow, fear, charm and knockback miss. */
+  ccImmT: Int32Array;
   /** Revealed (mark): visible to the enemy team through brush and stealth. */
   revealT: Int32Array;
   /** Flat shield (w.shield) expiry; 0 = no expiry. */
@@ -293,6 +301,12 @@ export interface World {
   botId: Int32Array;
   /** Current mistake: (last tick of it) × 4 + kind (SLIP), or −1. */
   botSlip: Int32Array;
+  /** Sim v10 (GAPS B1): the ping order (PING_KIND + 1, 0 none), its last tick, point and target (allied bots only). */
+  botOrd: Uint8Array;
+  botOrdT: Int32Array;
+  botOrdX: Int32Array;
+  botOrdY: Int32Array;
+  botOrdId: Int32Array;
   // Projectiles
   pAlive: Uint8Array;
   pTeam: Uint8Array;
@@ -440,6 +454,7 @@ export function createWorld(seed: number): World {
     cdrBp: new Int32Array(n),
     stealthT: new Int32Array(n),
     untargT: new Int32Array(n),
+    ccImmT: new Int32Array(n),
     revealT: new Int32Array(n),
     shieldT: new Int32Array(n),
     healT: new Int32Array(n),
@@ -499,6 +514,11 @@ export function createWorld(seed: number): World {
     botY: new Int32Array(h),
     botId: new Int32Array(h).fill(-1),
     botSlip: new Int32Array(h).fill(-1),
+    botOrd: new Uint8Array(h),
+    botOrdT: new Int32Array(h),
+    botOrdX: new Int32Array(h),
+    botOrdY: new Int32Array(h),
+    botOrdId: new Int32Array(h).fill(-1),
     pAlive: new Uint8Array(p),
     pTeam: new Uint8Array(p),
     pKind: new Uint8Array(p),
@@ -559,13 +579,14 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.attackTimer, w.timer, w.cooldowns,
     w.windup, w.order, w.streak, w.shotAt, w.forced, w.lastHitBy, w.hurtTick, w.pathX, w.pathY, w.pathLen, w.pathIdx,
     w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.fearSrc, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
-    w.stealthT, w.untargT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
+    w.stealthT, w.untargT, w.ccImmT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
     w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak, w.assistTick,
     w.zoomT, w.frenzyT, w.nineT, w.packT, w.nineReady, w.dmgRing, w.lockId, w.lockT,
     w.kValor, w.kStage, w.kWindow, w.kRT, w.kWT, w.kWAge, w.kCount, w.kHonour, w.kHuntT, w.kHuntVictim, w.kChain,
     w.kFoe, w.kEmpower, w.kHurt, w.volleyHits, w.wave,
     w.botMode, w.botLane, w.botFoe, w.botPud, w.botSeen, w.botOp, w.botX, w.botY, w.botId, w.botSlip,
+    w.botOrd, w.botOrdT, w.botOrdX, w.botOrdY, w.botOrdId,
     w.pAlive, w.pTeam, w.pKind, w.pOwner, w.pTarget, w.pX, w.pY, w.pVx, w.pVy, w.pTtl, w.pDmg,
     w.pSpeed, w.pFlags, w.pHitLo, w.pHitHi, w.pRadius, w.pEffect, w.pEffA, w.pEffB, w.pBp, w.pRange,
     w.zAlive, w.zTeam, w.zKind, w.zOwner, w.zX, w.zY, w.zRadius, w.zTtl, w.zArm, w.zVal,

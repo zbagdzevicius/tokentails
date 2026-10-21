@@ -1,7 +1,8 @@
 /**
  * Minimap (POC.md §3, §9): lanes, river, structures, units and the camera's view on a small 2D canvas. Desktop:
  * left-click looks there, right-click moves there. Touch: tap to peek for a moment. GAPS A4: countdown rings on
- * Pudding's spot and the rat camps (onboarding/objectives.ts ObjectiveClock.timers).
+ * Pudding's spot and the rat camps (onboarding/objectives.ts ObjectiveClock.timers). GAPS B1: a long press (touch)
+ * or an Alt-click (desktop) pings "Go here" at that spot.
  */
 import { NX, NY, createGrid } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
@@ -15,7 +16,12 @@ export interface MinimapHost {
   viewQuad(): { x: number; z: number }[] | null;
   mySlot(): number;
   myTeam(): number;
+  /** GAPS B1: ping "Go here" at (x, y) mm. */
+  goHere?(xMm: number, yMm: number): void;
 }
+
+/** GAPS B1: a touch held this long on the minimap pings "Go here". */
+export const MINIMAP_HOLD_MS = 450;
 
 export class Minimap {
   readonly root: HTMLElement;
@@ -39,7 +45,16 @@ export class Minimap {
     this.g = this.canvas.getContext('2d');
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('pointerdown', (e) => this.click(e));
+    const clear = (): void => {
+      if (this.hold) clearTimeout(this.hold);
+      this.hold = null;
+    };
+    this.canvas.addEventListener('pointerup', clear);
+    this.canvas.addEventListener('pointercancel', clear);
+    this.canvas.addEventListener('pointerleave', clear);
   }
+
+  private hold: ReturnType<typeof setTimeout> | null = null;
 
   private toMap(e: PointerEvent): { xMm: number; yMm: number } {
     const r = this.canvas.getBoundingClientRect();
@@ -52,8 +67,19 @@ export class Minimap {
     e.preventDefault();
     e.stopPropagation();
     const p = this.toMap(e);
+    if (e.altKey && this.host.goHere) {
+      this.host.goHere(p.xMm, p.yMm);
+      return;
+    }
     if (e.button === 2) this.host.moveTo(p.xMm, p.yMm);
     else this.host.lookAt(p.xMm / 1000, -p.yMm / 1000);
+    if (e.pointerType === 'touch' && this.host.goHere) {
+      if (this.hold) clearTimeout(this.hold);
+      this.hold = setTimeout(() => {
+        this.hold = null;
+        this.host.goHere?.(p.xMm, p.yMm);
+      }, MINIMAP_HOLD_MS);
+    }
   }
 
   private size(): void {

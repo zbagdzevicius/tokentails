@@ -4,7 +4,8 @@
  * overlay. DOM, updated from the latest snapshot; writes only when a value changes.
  *
  * GAPS A4: a portrait strip (allies left of the score bar, enemies right of it) with each hero's death timer from
- * `respawnIn`. GAPS A5: a tap on an enemy portrait locks that hero on touch (`HudHost.onPortrait`).
+ * `respawnIn`. GAPS A5: a tap on an enemy portrait locks that hero on touch (`HudHost.onPortrait`). GAPS B1: held for
+ * PORTRAIT_HOLD_MS it also pings "Focus hero" (`HudHost.onPortraitHold`).
  */
 import type { EntitySnap, HeroId, MatchClock, MatchScore, TrickId } from '../sim/api';
 import { maxCooldown, ULT_LEVEL } from '../input/abilities';
@@ -12,10 +13,12 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT, abilityNumbers, trickNumbers } from './heroText';
+import { HERO_TEXT, TRICK_TEXT, abilityNumbers, branchNumbers, trickNumbers } from './heroText';
+import { icon as iconSvg } from './icons';
 import { icon } from './icons';
 import { chargeRing } from './overhead';
 import { XP } from '../data/xp';
+import { DIFFICULTY_RULES, type Difficulty } from '../data/bots';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
@@ -29,11 +32,16 @@ interface SlotEl {
   last: string;
 }
 
+/** GAPS B1: an enemy portrait held this long (touch) pings Focus hero. */
+export const PORTRAIT_HOLD_MS = 450;
+
 export interface HudHost {
   /** A slot button was clicked or tapped (desktop users may click the bar). */
   onSlot(index: number): void;
   /** GAPS A5: an enemy portrait in the strip was tapped (touch only: the strip takes no mouse input). */
   onPortrait?(slot: number): void;
+  /** GAPS B1: an enemy portrait was held PORTRAIT_HOLD_MS (touch): ping "Focus hero" on it. */
+  onPortraitHold?(slot: number): void;
 }
 
 /**
@@ -59,6 +67,10 @@ interface StripEl {
   t: HTMLElement;
   until: number;
   state: string;
+  /** Sim v10 (GAPS B6): the level-6 shape branch is shown on the portrait. */
+  branch: boolean;
+  hero: HeroId;
+  label: string;
 }
 
 function fmtClock(s: number): string {
@@ -89,6 +101,8 @@ export interface FeedName {
 export class Hud {
   readonly root: HTMLElement;
   private slots: SlotEl[] = [];
+  /** Sim v10 (GAPS B6): the own hero took its level-6 shape branch; its slot shows the new ability. */
+  private branchOn = false;
   private hpFill: HTMLElement;
   private hpShield: HTMLElement;
   private hpText: HTMLElement;
@@ -109,6 +123,8 @@ export class Hud {
     private readonly trick: TrickId,
     private readonly host: HudHost,
     look: Look | null = null,
+    /** The match's difficulty (the catch-up tag's numbers, sim v10 GAPS B3). */
+    private readonly difficulty: Difficulty = 'easy',
   ) {
     const t = HERO_TEXT[hero];
     // the portrait shows the equipped look (a bought skin shows in the HUD too)
@@ -123,8 +139,9 @@ export class Hud {
     }).join('');
     // Round 1 ("hovering Q shows nothing"): a hover card with the words and the numbers from src/data.
     const tipText = (i: number): string => {
-      const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : null;
-      const nums = i < 4 ? abilityNumbers(hero, i) : i === 4 ? trickNumbers(trick) : '4 s channel';
+      const br = this.branchOn && t.branch?.slot === i ? t.branch : null;
+      const ab = br ?? (i < 4 ? t.abilities[i] : i === 4 ? tt : null);
+      const nums = br ? branchNumbers(hero) : i < 4 ? abilityNumbers(hero, i) : i === 4 ? trickNumbers(trick) : '4 s channel';
       const name = ab ? ab.name : 'Nap';
       const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
       return `<b>${name}</b><span>${text}</span><small>${nums}</small>`;
@@ -209,16 +226,34 @@ export class Hud {
       const label = names[slot] ?? HERO_TEXT[hero].title;
       el.setAttribute('aria-label', enemy ? `Lock ${label}` : label);
       el.title = label;
-      el.innerHTML = `<i class="pic${pic ? '' : ' none'}"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : HERO_TEXT[hero].title.replace('Sir ', '').slice(0, 2)}</i><b class="t"></b>`;
+      // GAPS B6: a small badge (hidden until the hero takes its level-6 shape branch) so the other side can read it
+      const br = HERO_TEXT[hero].branch;
+      el.innerHTML = `<i class="pic${pic ? '' : ' none'}"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : HERO_TEXT[hero].title.replace('Sir ', '').slice(0, 2)}</i><b class="t"></b>${br ? `<i class="br">${iconSvg(br.icon)}</i>` : ''}`;
       if (enemy) {
+        let holdTimer: ReturnType<typeof setTimeout> | null = null;
         el.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           e.preventDefault();
-          if (e.pointerType === 'touch' || document.documentElement.dataset.touch === '1') this.host.onPortrait?.(slot);
+          if (e.pointerType === 'touch' || document.documentElement.dataset.touch === '1') {
+            this.host.onPortrait?.(slot);
+            // GAPS B1: held, the tap's lock also becomes a Focus ping
+            if (holdTimer) clearTimeout(holdTimer);
+            holdTimer = setTimeout(() => {
+              holdTimer = null;
+              this.host.onPortraitHold?.(slot);
+            }, PORTRAIT_HOLD_MS);
+          }
         });
+        const release = (): void => {
+          if (holdTimer) clearTimeout(holdTimer);
+          holdTimer = null;
+        };
+        el.addEventListener('pointerup', release);
+        el.addEventListener('pointercancel', release);
+        el.addEventListener('pointerleave', release);
       }
       (enemy ? enemies : allies).appendChild(el);
-      this.strip.push({ slot, el, t: el.querySelector('.t') as HTMLElement, until: -1, state: '' });
+      this.strip.push({ slot, el, t: el.querySelector('.t') as HTMLElement, until: -1, state: '', branch: false, hero, label });
     });
     this.root.appendChild(allies);
     this.root.querySelector('.pl-top')?.appendChild(enemies);
@@ -238,7 +273,27 @@ export class Hud {
       }
       const txt = r.secs !== null ? String(r.secs) : '';
       if (s.t.textContent !== txt) s.t.textContent = txt;
+      // GAPS B6: once a hero takes its level-6 shape branch, its portrait says so (badge and name)
+      const br = byId.get(s.slot)?.branch === true;
+      if (br && !s.branch) {
+        s.branch = true;
+        const b = HERO_TEXT[s.hero].branch;
+        s.el.classList.add('branch');
+        if (b) s.el.title = `${s.label} · ${b.name}`;
+      }
     }
+  }
+
+  /** GAPS B6: swap the branched slot's icon and label to the level-6 shape branch's ability. */
+  private showBranch(): void {
+    this.branchOn = true;
+    const b = HERO_TEXT[this.hero].branch;
+    const el = b ? this.slots[b.slot]?.root : undefined;
+    if (!b || !el) return;
+    el.setAttribute('aria-label', `${b.name}: ${b.text}`);
+    el.classList.add('branch');
+    el.querySelector('svg.pl-icon')?.remove();
+    el.insertAdjacentHTML('afterbegin', iconSvg(b.icon));
   }
 
   /** The death recap under "Back in N" ("Knocked out by Cacklejaw + a tower: wait for your minions"). */
@@ -254,8 +309,9 @@ export class Hud {
 
   /**
    * Round 2 ("once behind, the human falls 2 to 4 levels below the lobby and nothing shows it"): an XP bar on the
-   * portrait, and when the enemy team's average level is 2+ above, a "−2 lv · +35% XP" tag (the sim's catch-up,
-   * data/xp.ts XP.catchUp*). `enemyAvg` is the enemy heroes' average level (0 = unknown).
+   * portrait, and when the enemy team's average level is 2+ above, a "−2 lv · +35% XP" tag (the sim's catch-up:
+   * data/xp.ts XP.catchUpFreeLevels and, since sim v10, DifficultyRules.catchUp*). `enemyAvg` is the enemy heroes'
+   * average level (0 = unknown).
    */
   private xpUpdate(me: EntitySnap, enemyAvg: number): void {
     const lv = me.level ?? 1;
@@ -266,7 +322,8 @@ export class Hud {
     const bar = this.level.parentElement?.querySelector<HTMLElement>('.xpbar > i');
     if (bar) bar.style.width = `${Math.round(f * 100)}%`;
     const behind = enemyAvg > 0 ? enemyAvg - lv : 0;
-    const bonus = Math.min(XP.catchUpMaxBp, Math.max(0, Math.round((behind - XP.catchUpFreeLevels) * XP.catchUpPerLevelBp))) / 100;
+    const rules = DIFFICULTY_RULES[this.difficulty];
+    const bonus = Math.min(rules.catchUpMaxBp, Math.max(0, Math.round((behind - XP.catchUpFreeLevels) * rules.catchUpPerLevelBp))) / 100;
     const tag = behind >= 2 ? `−${Math.floor(behind)} lv${bonus > 0 ? ` · +${Math.round(bonus)}% XP` : ''}` : '';
     const gap = this.level.parentElement?.querySelector<HTMLElement>('.gap');
     if (gap && gap.textContent !== tag) {
@@ -300,6 +357,7 @@ export class Hud {
     this.set('t0', this.towers[0], String(score.towers[a]));
     this.set('t1', this.towers[1], String(score.towers[1 - a]));
     if (!me) return;
+    if (me.branch && !this.branchOn) this.showBranch();
     const dead = me.state === 'dead';
     this.root.classList.toggle('dead', dead);
     const back = Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30));
@@ -328,7 +386,7 @@ export class Hud {
       const s = this.slots[i];
       const cd = cds?.[i] ?? 0;
       const locked = i === 3 && lv < ULT_LEVEL;
-      const max = maxCooldown(this.hero, i as 0 | 1 | 2 | 3 | 4, this.trick);
+      const max = maxCooldown(this.hero, i as 0 | 1 | 2 | 3 | 4, this.trick, this.branchOn);
       const f = cd > 0 ? Math.min(1, cd / Math.max(1, max)) : 0;
       const state = `${locked ? 'L' : ''}${cd > 0 ? 'C' : ''}${dead ? 'D' : ''}`;
       if (s.last !== state) {

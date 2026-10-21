@@ -3,7 +3,7 @@
  * with a lighter guide; from match 4 the player picks the difficulty. Pure: the app passes the profile's match
  * count. `rookie` exists only once the SIM lane ships it (data/bots.ts DIFFICULTIES); until then match 1 is Easy.
  */
-import { BOTS, DIFFICULTIES } from '../data/bots';
+import { BOTS, DIFFICULTIES, DIFFICULTY_RULES } from '../data/bots';
 import type { Difficulty } from '../sim/api';
 
 /** Matches before the difficulty chips unlock. */
@@ -46,4 +46,17 @@ export function guideMode(matches: number): GuideMode {
   if (matches <= 0) return 'rookie';
   if (matches < PICK_DIFFICULTY_FROM) return 'lite';
   return 'off';
+}
+
+/** GAPS B2 (Your call 5): matches played before the pause menu offers Forfeit (matches 1–3 never do). */
+export const FORFEIT_FROM_MATCH = 3;
+
+/**
+ * The tick from which the pause menu offers Forfeit in the next match, or 0 (no Forfeit button): never in matches
+ * 1–3 (the client's rule, also for a veteran), else the sim's DifficultyRules.forfeitFrom (Easy 3:00, Normal and Hard
+ * 4:00, Rookie never).
+ */
+export function forfeitTick(matches: number, difficulty: Difficulty): number {
+  if (matches < FORFEIT_FROM_MATCH) return 0;
+  return DIFFICULTY_RULES[difficulty]?.forfeitFrom ?? 0;
 }

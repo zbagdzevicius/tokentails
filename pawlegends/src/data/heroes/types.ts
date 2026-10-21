@@ -44,6 +44,6 @@ export interface HeroData {
   base: HeroBase;
   passive: Readonly<Record<string, number>>;
   abilities: Readonly<Record<AbilitySlot, AbilityData>>;
-  /** Three tiers (levels 3, 6, 9) of two options each; bots take the first. */
+  /** Three tiers (levels 3, 6, 9) of two options each; bots choose by seed (sim v10, `botTalentChoice`). */
   talents: readonly (readonly TalentData[])[];
 }

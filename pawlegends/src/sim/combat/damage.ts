@@ -121,7 +121,11 @@ export function dealDamage(
     const s = m.stats[src];
     if (w.kind[dst] === Kind.Hero) s.heroDamage += dmg;
     else if (structure) s.towerDamage += dmg;
+    // Sim v10: the rat camp and Pudding (stats only, outside the world hash).
+    else if (w.kind[dst] === Kind.Camp || w.kind[dst] === Kind.Pudding) s.objective += dmg;
   }
+  // Sim v10: what a hero soaked, shields included (the tank grade, src/meta/grade.ts).
+  if (heroDst && dst < RANGE.minions) m.stats[dst].damageTaken += dmg + shielded;
   m.events.push({ type: 'hit', tick, src, dst, amount: dmg, shielded, kind });
   if (heroSrc) {
     // Attacking breaks stealth (Bush Slink); the kit's outgoing hook already applied Ambush.

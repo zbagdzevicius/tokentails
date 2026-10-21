@@ -15,19 +15,15 @@ export const XP = Object.freeze({
   shareRange: 10000,
   /** Assists count if they hit the victim in the last 10 s (v4; 6 s before). */
   assistWindow: 300,
-  /** Catch-up per hero (v4): +25% XP from every source per level below the enemy average, at most +75%. Sim v8
-   *  (playtest round 2: "once behind, the human falls 2 to 4 levels below the lobby and the gap never closes"): +35%. */
-  catchUpPerLevelBp: 3500,
-  catchUpMaxBp: 7500,
-  /** The first level behind earns no catch-up (a small team lead stays a lead). */
+  /** Catch-up per hero (v4): bonus XP from every source per level below the enemy average. Sim v8 (playtest round 2:
+   *  "once behind, the human falls 2 to 4 levels below the lobby and the gap never closes"): +35% a level, at most
+   *  +75%. Sim v10 (GAPS B3): the rate and cap are DifficultyRules.catchUpPerLevelBp / catchUpMaxBp.
+   *  The first level behind earns no catch-up (a small team lead stays a lead). */
   catchUpFreeLevels: 1,
   /** A victim more than one level above its killer gives +50% kill XP. */
   upsetBp: 15000,
   /** Sim v7 rubber band (DifficultyRules.enemyAheadXpBp): enemy heroes this many levels above the human. */
   aheadLevels: 2,
-  /** Sim v8 (playtest round 2: "once behind, the gap never closes"): a team whose summed level is below the other
-   *  team's gets this share of the rat camp's XP (on top of the catch-up), so the trailing team has a reason to farm it. */
-  campBehindBp: 15000,
   /** Sim v5: the hero who last-hits a lane minion gets this share of its XP on top of its split share. */
   lastHitBp: 5000,
   /** XP trickle: per living hero per second, from the first wave on. */

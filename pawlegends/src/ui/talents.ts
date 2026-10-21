@@ -9,7 +9,7 @@
  * open on a tap on it, or on their own once the player is out of the fight (`reveal`). Small screens show a 2-5
  * word subtitle (heroText TALENT_SHORT) instead of the full line, which was cut off.
  */
-import { HEROES } from '../data/heroes';
+import { BRANCH_TALENT, HEROES } from '../data/heroes';
 import type { HeroId, TalentTier } from '../sim/api';
 import { HERO_TEXT, TALENT_SHORT } from './heroText';
 
@@ -118,9 +118,12 @@ export class TalentPicker {
     }
     const opts = HEROES[this.hero].talents[tier];
     const words = HERO_TEXT[this.hero].talents;
+    // GAPS B6: level 6 is where the shape branches are listed. A hero with one tags it; the rest say it is coming.
+    const branch = tier === 1 ? BRANCH_TALENT[this.hero] : null;
+    const soon = tier === 1 && !branch ? '<span class="soon">Branch coming soon</span>' : '';
     this.left = TALENT_AUTO_S;
-    this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent: pick one</div><i class="time"></i>${opts
-      .map((o, i) => `<button data-c="${i}"><kbd>${i + 1}</kbd><b>${o.name}</b><span class="d">${words[o.id] ?? ''}</span><span class="s">${TALENT_SHORT[o.id] ?? words[o.id] ?? ''}</span></button>`)
+    this.root.innerHTML = `<div class="head">Level ${LEVEL_OF_TIER[tier]} talent: pick one${soon}</div><i class="time"></i>${opts
+      .map((o, i) => `<button data-c="${i}"${o.id === branch ? ' class="branch"' : ''}><kbd>${i + 1}</kbd><b>${o.name}${o.id === branch ? '<em class="tag">New shape</em>' : ''}</b><span class="d">${words[o.id] ?? ''}</span><span class="s">${TALENT_SHORT[o.id] ?? words[o.id] ?? ''}</span></button>`)
       .join('')}`;
     this.root.classList.add('on');
   }

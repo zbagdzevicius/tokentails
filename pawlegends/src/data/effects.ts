@@ -35,5 +35,10 @@ export const ZONE_KIND = Object.freeze({
    * heal `zHeal`. Visible to both teams.
    */
   burst: 2,
+  /**
+   * Sim v10 (GAPS B6): Sir Brutus's Guard Post, a planted dome. Enemy projectiles that reach it are blocked while it
+   * lasts; it ends with its owner. Visible to both teams.
+   */
+  dome: 3,
 });
 

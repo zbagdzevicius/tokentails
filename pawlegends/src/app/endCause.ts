@@ -35,7 +35,8 @@ export class CoreLog {
 
 export interface EndCauseInput {
   won: boolean;
-  reason: 'core' | 'safetyEnd';
+  /** GAPS B2: 'forfeit' = the player forfeited. */
+  reason: 'core' | 'safetyEnd' | 'forfeit';
   /** The phase the match ended in. */
   phase: 'play' | 'sunset' | 'suddenDeath' | string;
   /** What hit the losing core most in its last 20 s. */
@@ -59,6 +60,7 @@ const WHO: Record<CoreSource, [string, string]> = {
 
 /** One sentence: what decided the match, from the player's side. */
 export function endCause(i: EndCauseInput): string {
+  if (i.reason === 'forfeit') return 'You forfeited the match.';
   if (i.reason === 'safetyEnd') return i.won ? 'Time ran out with our core healthier.' : 'Time ran out with their core healthier.';
   const src: CoreSource = i.top ?? (i.phase === 'suddenDeath' ? 'decay' : 'heroes');
   let line = WHO[src][i.won ? 1 : 0];

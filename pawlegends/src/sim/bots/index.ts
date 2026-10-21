@@ -14,14 +14,17 @@ import { quantize } from '../commands';
 import { Rng } from '../rng';
 import type { MatchHandle } from '../state';
 import { G, RANGE, TALENT_TIERS } from '../world';
-import { unlockedTiers } from '../heroes/talents';
+import { botTalentChoice, botTalentMode, unlockedTiers } from '../heroes/talents';
 import { applyOrder } from '../units/hero';
 import { think } from './brain';
 import { createMem, worldMem, type BotMem } from './mem';
 import { noviceThink } from './novice';
+import { stepLaneSwap } from './orders';
+import { createPingerMem, pingerPing, type PingerMem } from './pinger';
 import { naiveThink } from './naive';
 
 export { pushLane } from './brain';
+export { applyPing, laneRole, orderOf } from './orders';
 
 /**
  * The human's allies: BOT_TEAMS.allies, except that they group when the enemy team does (the enemy difficulty's
@@ -47,6 +50,8 @@ const thinksNow = (tick: number, slot: number): boolean => (tick + slot) % TIMEL
 /** Step 2: the in-sim bots think and act. */
 export function stepBots(m: MatchHandle): void {
   const w = m.world;
+  // Sim v10 (GAPS B1): the lane swap follows the human every tick.
+  stepLaneSwap(w);
   if (w.globals[G.BotsOff] !== 0) return;
   const tick = w.globals[G.Tick];
   let mem: BotMem | null = null;
@@ -64,10 +69,12 @@ export interface PlayerBot {
   readonly slot: number;
   readonly mem: BotMem;
   readonly rng: Rng;
+  /** Sim v10: the `pinger` profile's ping memory. */
+  readonly pings: PingerMem;
 }
 
 export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerBot {
-  return { profile, slot: HUMAN_SLOT, mem: createMem(), rng: new Rng(m.config.seed >>> 0).fork(`player-bot:${profile}`) };
+  return { profile, slot: HUMAN_SLOT, mem: createMem(), rng: new Rng(m.config.seed >>> 0).fork(`player-bot:${profile === "pinger" ? "normal" : profile}`), pings: createPingerMem() };
 }
 
 /**
@@ -77,10 +84,12 @@ export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerB
 export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
   const w = m.world;
   if (bot.profile === 'idle' || m.ended || !thinksNow(w.globals[G.Tick], bot.slot)) return [];
-  // Slot 0 gets no automatic talent: take the first option, like the in-sim bots.
+  // Slot 0 gets no automatic talent: choose like the in-sim bots (sim v10: the seeded rule, or the headless mode).
   if (w.alive[bot.slot] === 1) {
     for (let t = 0; t < unlockedTiers(w, bot.slot); t++) {
-      if (w.talents[bot.slot * TALENT_TIERS + t] < 0) return [{ op: Op.Talent, tier: t as 0 | 1 | 2, choice: 0 }];
+      if (w.talents[bot.slot * TALENT_TIERS + t] < 0) {
+        return [{ op: Op.Talent, tier: t as 0 | 1 | 2, choice: botTalentChoice(m.config.seed, bot.slot, t, botTalentMode(m)) }];
+      }
     }
   }
   if (bot.profile === 'parked') {
@@ -93,6 +102,11 @@ export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
       ? noviceThink(m, bot.slot, bot.mem, bot.rng)
       : bot.profile === 'naive' || bot.profile === 'feeder'
         ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === 'feeder' ? FEEDER : undefined)
-        : think(m, bot.slot, BOTS[bot.profile], bot.mem, bot.rng);
-  return cmd ? [cmd] : [];
+        : think(m, bot.slot, BOTS[bot.profile === 'pinger' ? 'normal' : bot.profile], bot.mem, bot.rng, bot.profile === 'pinger' ? bot.pings.mine : null);
+  // The pinger plays like `normal` and may ping in the same tick (a ping shares its tick with one other command).
+  const ping = bot.profile === 'pinger' ? pingerPing(m, bot.pings) : null;
+  const out: Command[] = [];
+  if (ping) out.push(ping);
+  if (cmd) out.push(cmd);
+  return out;
 }

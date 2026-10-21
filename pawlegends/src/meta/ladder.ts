@@ -34,15 +34,17 @@ export const PLACEMENT = 3;
 
 /**
  * Record a finished match. Rookie: no rating change (match 1 is guided), personal bests still count. GAPS A2: the
- * grade sets the share (an S or A loss costs half, a C win pays 60%); placement losses still cost nothing.
+ * grade sets the share (an S or A loss costs half, a C win pays 60%); placement losses still cost nothing. GAPS B2: a
+ * forfeit is a full loss (the whole step, no grade share, no placement shield).
  */
-export function recordLadder(o: { won: boolean; difficulty: Difficulty; hero: HeroId; heroName: string; seconds: number; takedowns: number; grade: Grade }): LadderResult | null {
+export function recordLadder(o: { won: boolean; difficulty: Difficulty; hero: HeroId; heroName: string; seconds: number; takedowns: number; grade: Grade; forfeit?: boolean }): LadderResult | null {
   const p = loadProfile();
   const step = LADDER_STEP[o.difficulty];
   const before = Number.isFinite(p.rating) ? p.rating : LADDER_START;
   const share = GRADE_LADDER[o.grade] ?? GRADE_LADDER.C;
-  const impact = o.won ? share.win : share.loss;
-  const placing = step ? p.ladderGames < PLACEMENT : false;
+  const forfeit = !!o.forfeit && !o.won;
+  const impact = o.won ? share.win : forfeit ? 1 : share.loss;
+  const placing = step && !forfeit ? p.ladderGames < PLACEMENT : false;
   const delta = step ? (o.won ? Math.max(1, Math.round(step.win * impact)) : placing ? 0 : Math.max(Math.round(step.loss * impact), -before)) : 0;
   if (step) p.ladderGames++;
   p.rating = before + delta;

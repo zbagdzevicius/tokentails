@@ -142,9 +142,25 @@ export interface DifficultyRules {
   truceUntil: number;
   /** Sim v7 rubber band: enemy heroes XP.aheadLevels or more above the human earn this share of their XP (10000 = off). */
   enemyAheadXpBp: number;
+  /**
+   * Catch-up XP (sim/progression/levels.ts catchUpBp): +catchUpPerLevelBp from every source per level below the enemy
+   * average beyond XP.catchUpFreeLevels, at most catchUpMaxBp. Sim v10 (GAPS B3, "kills should decide on Normal and
+   * Hard"): a difficulty field (XP.catchUp* before). Every difficulty keeps +35% a level and 75%: the B3 cut on
+   * Normal and Hard raised the comebacks it was meant to lower (see DIFFICULTY_RULES.hard).
+   */
+  catchUpPerLevelBp: number;
+  catchUpMaxBp: number;
+  /** The rat camp's XP × this for the team whose summed level is lower (sim v8; a difficulty field since v10, GAPS B3:
+   *  1.5× on every difficulty, see DIFFICULTY_RULES.hard). */
+  campBehindBp: number;
   /** Sim v7: the human's own deaths deal the Sunset / Sudden Death takedown core damage (off on Rookie: a
    *  first-timer who feeds late does not lose match 1 for its team). */
   humanDeathCore: boolean;
+  /**
+   * Sim v10 (GAPS B2, Your call 5): the human may forfeit (Op.Forfeit) from this tick; 0 = never. Easy 3:00, Normal
+   * and Hard 4:00, Rookie never (the client also blocks matches 1–3). Bots never forfeit, so the gates do not move.
+   */
+  forfeitFrom: number;
 }
 
 export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRules>>> = Object.freeze({
@@ -152,16 +168,37 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // `pvp` is off on Rookie and Easy): fun2 fell to 2.32 takedowns a minute and fun1 to 81.5% core kills before Sudden
   // Death (v8 2.60 and 89.0%). Easy's Nine Lives now starts at 35% lost in a second (28% before; fun2 2.53, win 75.0%,
   // novice 88.0%) and Rookie's rally is +12% a takedown (11% before; fun1 88.5%, length median 5:01).
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 9500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1200, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10300, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true }),
+  // Sim v10 (GAPS B0: bots choose talents by seed): the naive player won fun2 82.5% (70–80%) and fun1 ended at a
+  // 4:59 median with a 6.1 s 90%-to-dead median (5–6 s). Easy's human damage edge is gone (103% before: fun2 77.0%,
+  // novice 89.0%) and Rookie's human takes full damage (95% before: fun1 96.0%, median 5:04, 90%-to-dead 5.9 s; at
+  // 97% and 98% the burst stayed 6.0 s, at 99% core kills before Sudden Death fell to 84.0%).
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: true, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 10000, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1200, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0 }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400 }),
   /**
+   * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
+   * 69.5% of the 2,000-seed balance gate ended in a core kill before Sudden Death (70% floor); 125% gave 70.5%,
+   * 120% gives 71.6% (median 7:11, heroes 48.1% to 52.6%).
+   *
+   * Sim v10 (GAPS B3, less rubber-banding): catch-up +25% a level beyond the first, at most 50% (Easy +35%, 75%), and
+   * 1.25× camp XP for the team behind (1.5×). The ablation (balance gate, 2,000 seeds, `--ablate`) found no single
+   * source carrying the comebacks: a team down 10+ takedowns at the end won 1.0% (all on), 2.1% without catch-up,
+   * 3.2% without the camp bonus, 1.4% without underdog waves, 2.3% without Nine Lives (5–9 behind: 11.9% to 13.1%).
+   * Nine Lives is a balance pillar, not a rubber band: without it dogs win 76.4%. Underdog waves already start only
+   * from 3 towers behind here (COMEBACK.structuresBehind; leadPressure skips the takedown trigger). The cuts made it
+   * worse, at each gate's own sample: balance 10+ behind 1.0% of 201 → 3.4% of 208, novice vs Normal (400 seeds)
+   * 2.4% of 41 → 7.1% of 42 (fails < 5%); the camp bonus alone back at 1.5× gave 3.6% of 194 and 5.0% of 40. So
+   * Normal and Hard keep the v9 +35% a level, 75% cap and 1.5× camp XP: both targets (10+ ≤ 8%, 5–9 ≤ 25%) already
+   * hold with them (1.0%, 12.8% of 695). Removing either source raising the trailing team's wins means catch-up and
+   * the camp bonus help the takedown leader more than the trailer; it is not the leader being behind on levels (the
+   * leader had the higher summed level at the end in 180 of the 201 matches 10+ apart, the lower in 1).
+   *
    * Sim v6 Hard: Normal's structures; Nine Lives starts later (a clean combo can finish a hero); enemy heroes are back
    * in 0.65 of the time and hit the human 10% harder. Better decisions alone barely moved the odds (a Normal-level
    * player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
    * two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
    */
-  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 13000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true }),
-  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 13000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 10000, humanDeathCore: true }),
+  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200 }),
+  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200 }),
 });
 
 export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({
@@ -340,6 +377,11 @@ export const BOT_AI = Object.freeze({
   kiteRange: 3000,
   /** Snack Break fires below this HP share with no enemy hero within trickThreat. */
   snackHpBp: 5000,
+  /**
+   * Sim v10 (GAPS B5): Purr-ify fires when a stun, fear or charm has at least this many ticks left, or a root or slow
+   * does with an enemy hero within trickThreat.
+   */
+  purrifyMinTicks: 15,
   /** Ultimates on a foe below this HP share (Moonshot, Pack Hunt). */
   executeHpBp: 5500,
   /** Dive: a healthy bot (HP share ≥ diveHpBp) hits a core, or a tower at or below diveTowerHp, with no minion tank. */
@@ -407,8 +449,29 @@ export const BOT_AI = Object.freeze({
 export const BOT_MODE = Object.freeze({ Lane: 0, Retreat: 1, Fight: 2, Camp: 3, Pudding: 4, Push: 5 });
 
 /** Scripted player profiles for slot 0 in headless runs (`npm run match -- --profile ...`, tests). */
-export type PlayerProfile = 'idle' | 'novice' | 'easy' | 'normal' | 'naive' | 'parked' | 'feeder';
-export const PLAYER_PROFILES: readonly PlayerProfile[] = Object.freeze(['idle', 'novice', 'easy', 'normal', 'naive', 'parked', 'feeder'] as PlayerProfile[]);
+/** Sim v10 (GAPS B1): `pinger` plays like `normal` and also pings its allied bots (sim/bots/pinger.ts). */
+export type PlayerProfile = 'idle' | 'novice' | 'easy' | 'normal' | 'naive' | 'parked' | 'feeder' | 'pinger';
+export const PLAYER_PROFILES: readonly PlayerProfile[] = Object.freeze(['idle', 'novice', 'easy', 'normal', 'naive', 'parked', 'feeder', 'pinger'] as PlayerProfile[]);
+
+/** The `pinger` player-bot (sim v10, GAPS B1 measure). */
+export const PINGER = Object.freeze({
+  /** Defend base when an enemy hero is this close to the own core or an inner tower. */
+  baseRange: 12000,
+  /** Take Pudding and Group on me only with slot 0 (and, for Pudding, both allies) at or above this HP share. */
+  groupHpBp: 5000,
+  /** Group on me when an ally is further than this from slot 0 (and Defend base with no ally this close to the base,
+   *  Take Pudding with at most one enemy hero this close to it). */
+  farRange: 12000,
+  /** Focus hero on slot 0's target below this HP share with an ally within focusRange of it. */
+  focusHpBp: 6000,
+  focusRange: 10000,
+  /** Fall back when more enemy heroes than allied heroes are this close to slot 0, with an ally among them. */
+  fightRange: 10000,
+  /** Push the lane slot 0 stands in when this many enemy heroes are down. */
+  pushDown: 2,
+  /** The ping kinds it uses, a bit per PING_KIND (tuning experiments switch kinds off here). */
+  kinds: 0x9c,
+});
 
 /** The `parked` player-bot (sim v5 carry-leash gate): walks to an off-lane jungle spot at `at` and stands there. */
 export const PARKED = Object.freeze({ at: 900, x: 40000, y: 40000 });

@@ -4,6 +4,8 @@
  * point and unit aims. The sim stays the judge: it quantises, checks cooldowns and ranges, and may ignore a command.
  */
 import { MAP } from '../data/map';
+import { PING } from '../data/pings';
+import { TICK_HZ } from '../data/timeline';
 import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type TalentTier, type TrickId } from '../sim/api';
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
@@ -79,6 +81,8 @@ export interface OrderEnv {
   cooldowns(): readonly number[] | null;
   level(): number;
   nowMs(): number;
+  /** Sim v10 (GAPS B6): the hero took its level-6 shape branch, so a slot may aim differently. */
+  branch?(): boolean;
 }
 
 export type CastIndex = CastSlot | 4;
@@ -96,6 +100,8 @@ const clampX = (x: number): number => Math.max(0, Math.min(MAP.width, Math.round
 const clampY = (y: number): number => Math.max(0, Math.min(MAP.height, Math.round(y)));
 const WALK_IN_TIMEOUT_MS = 6000;
 const REMOVE_MS = 220;
+/** GAPS B1: the client's ping debounce, the sim's PING.minGap in wall-clock ms (the sim would drop a faster one). */
+export const PING_DEBOUNCE_MS = Math.ceil((PING.minGap * 1000) / TICK_HZ);
 
 export class Orders {
   private pending: Pending | null = null;
@@ -125,7 +131,7 @@ export class Orders {
   }
 
   aimSpec(slot: CastIndex): AimSpec {
-    return slot === 4 ? trickAim(this.env.trick) : aimFor(this.env.hero, slot);
+    return slot === 4 ? trickAim(this.env.trick) : aimFor(this.env.hero, slot, this.env.branch?.() ?? false);
   }
 
   /** Ready = off cooldown, unlocked (R from level 4), hero alive. */
@@ -170,6 +176,29 @@ export class Orders {
 
   talent(tier: TalentTier, choice: 0 | 1): void {
     this.emit({ op: Op.Talent, tier, choice });
+  }
+
+  /** Pings sent this match, and when the last one went (ms). */
+  pings = 0;
+  private lastPingMs = -1e9;
+  /** Wall-clock ms per sim tick ratio: the match speed (e2e runs faster), so the debounce tracks the sim's gap. */
+  speed = 1;
+
+  /** May a ping go now (debounce and the per-match cap)? The paw button greys out while not. */
+  pingReady(): boolean {
+    return this.pings < PING.maxPerMatch && this.env.nowMs() - this.lastPingMs >= PING_DEBOUNCE_MS / Math.max(1, this.speed);
+  }
+
+  /**
+   * GAPS B1: a command ping to the allied bots. Debounced on the client before it is sent (and so logged), so the
+   * sim's own gate (one per PING.minGap ticks, PING.maxPerMatch a match) rarely drops one. Returns false when held.
+   */
+  ping(kind: number, x: number, y: number, id: number = NO_TARGET): boolean {
+    if (!this.pingReady()) return false;
+    this.lastPingMs = this.env.nowMs();
+    this.pings++;
+    this.emit({ op: Op.Ping, kind, x: clampX(x), y: clampY(y), id });
+    return true;
   }
 
   /** Is a walk-in cast in progress? */

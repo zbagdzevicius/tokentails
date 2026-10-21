@@ -5,11 +5,28 @@
  */
 import { FM, Kind, RANGE, UnitState, type World } from '../world';
 
-/** Structures, fountains, Pudding and dead units ignore CC and displacement. */
+/**
+ * Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
+ * Purr-ify's immunity (`ccImmT`).
+ */
 export function ccImmune(w: World, id: number): boolean {
-  if (w.alive[id] === 0) return true;
+  if (w.alive[id] === 0 || w.ccImmT[id] > 0) return true;
   const k = w.kind[id];
   return k !== Kind.Hero && k !== Kind.Minion && k !== Kind.Camp;
+}
+
+/**
+ * Sim v10 (GAPS B5) `cleanse`: remove stun, root, slow, fear and charm from `id`, then `immuneTicks` of CC immunity.
+ * A knockback in flight finishes (it is displacement, not a status).
+ */
+export function cleanse(w: World, id: number, immuneTicks: number): void {
+  w.stunT[id] = 0;
+  w.rootT[id] = 0;
+  w.fearT[id] = 0;
+  w.fearSrc[id] = -1;
+  w.slowT[id] = 0;
+  w.slowBp[id] = 0;
+  w.ccImmT[id] = Math.max(w.ccImmT[id], immuneTicks);
 }
 
 /**
@@ -57,6 +74,7 @@ export function clearStatus(w: World, id: number): void {
   w.cdrBp[id] = 0;
   w.stealthT[id] = 0;
   w.untargT[id] = 0;
+  w.ccImmT[id] = 0;
   w.revealT[id] = 0;
   w.shield[id] = 0;
   w.shieldT[id] = 0;
@@ -90,6 +108,7 @@ export function tickStatus(w: World): void {
     if (w.cdrT[id] === 0) w.cdrBp[id] = 0;
     dec(w.stealthT, id);
     dec(w.untargT, id);
+    dec(w.ccImmT, id);
     dec(w.revealT, id);
     if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
   }

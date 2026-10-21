@@ -26,6 +26,24 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
 });
 
 /**
+ * Sim v10 (GAPS B6): the level-6 shape branch per hero (talent tier 1, option 1), or null where it still is a number
+ * talent ("Branch coming soon"). The snapshot marks a hero that took it (`EntitySnap.branch`), so the other side can read it.
+ */
+export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.freeze({
+  clem: null,
+  sage: 'piercing-shot',
+  brutus: 'guard-post',
+  cacklejaw: null,
+  lambo: null,
+  aviete: null,
+  bengas: null,
+  gabe: null,
+});
+
+/** Heroes with a level-6 shape branch, HERO_IDS order. */
+export const BRANCH_HEROES: readonly HeroId[] = Object.freeze(HERO_IDS.filter((h) => BRANCH_TALENT[h] !== null));
+
+/**
  * Every hero's HP (base and per level) × this. The fun plan started at × 1.2; tuning settled on × 1.0 with
  * HERO_VS_HERO_BP and Nine Lives instead (fun1: "90% to dead" median 5.5 s, p10 3.9 s). The kit numbers in ./*.ts
  * stay as POC.md §6 states them.

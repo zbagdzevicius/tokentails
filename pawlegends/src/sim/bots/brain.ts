@@ -13,8 +13,17 @@
  * newly arrived enemy), retreat threshold, Paw Trick use, and how often Pudding is contested.
  *
  * Bots read the enemy only through sense.ts (`visibleTo`, the snapshot's own test).
+ *
+ * Sim v10 (GAPS B1): an allied bot with a ping order (bots/orders.ts) follows it below retreat, the fights (it fights
+ * back on the way) and the back-off from a bad fight or tower fire, and above Pudding, the camp and the lane. Orders
+ * that shift power, not only goals: Fall back is the retreat itself while an enemy hero is close; Defend base comes
+ * before any fight elsewhere (like the core defence) and ends once the base is safe; Focus halves the focused hero's
+ * foe key and, with the human on that hero, chases it without the power check; on Group or Push a bot beside the
+ * human holds through a bad fight (not through untanked tower fire). Take Pudding ends once Pudding is no longer wild.
+ * Lane roles follow the lane swap (`laneRole`).
  */
 import { BOT_AI, BOT_MODE, type BotParams } from '../../data/bots';
+import { PING, PING_KIND } from '../../data/pings';
 import { RAT_CAMP_STATS } from '../../data/camps';
 import { PUD_STATE } from '../../data/pudding';
 import { TIMELINE } from '../../data/timeline';
@@ -31,7 +40,8 @@ import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
 import { firstRat } from '../units/camp';
 import type { BotMem } from './mem';
-import { clearCast, escapeCast, fightCast, nearestFoe, snackCast } from './casts';
+import { clearCast, escapeCast, fightCast, nearestFoe, purrifyCast, snackCast } from './casts';
+import { laneRole, orderOf } from './orders';
 import {
   fountainX,
   fountainY,
@@ -136,7 +146,19 @@ function leaveToHuman(w: World, e: number): boolean {
 }
 
 /** The enemy hero to fight now, or −1. Sets `bad` to an aware enemy that is too strong to fight here. */
-function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, slip: boolean, out: Int32Array, carry: boolean, brave: boolean, spare: number): number {
+function pickFoe(
+  w: World,
+  id: number,
+  mem: BotMem,
+  p: BotParams,
+  tick: number,
+  slip: boolean,
+  out: Int32Array,
+  carry: boolean,
+  brave: boolean,
+  spare: number,
+  focus = -1,
+): number {
   out[0] = -1;
   const team = w.team[id];
   // Sim v8: before DifficultyRules.truceUntil an enemy bot never picks the human (the Rookie scripted fight excepted).
@@ -146,15 +168,18 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
     if (!seenEnemy(w, team, e) || !aware(mem, id, e, tick, p) || !targetable(w, e, team)) continue;
     if (truce && e === HUMAN_SLOT) continue;
+    const focused = e === focus;
+    // Sim v10 Focus ping: with the human on the focused hero, the bot chases it like its own foe and skips the power check.
+    const committed = focused && w.alive[HUMAN_SLOT] === 1 && dist2(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
     const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
     // Carry allies peel: an enemy hero on the human is fought first, from further away, whatever the odds.
     const peel = carry && w.target[e] === HUMAN_SLOT && w.alive[HUMAN_SLOT] === 1;
-    const reach = BOT_AI.engageRange + (e === mem.foe[id] || peel || brave ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
+    const reach = BOT_AI.engageRange + (e === mem.foe[id] || peel || brave || committed ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
     if (d > reach) continue;
     if (carry && leaveToHuman(w, e)) continue;
     // Never chase into an untanked enemy tower, unless the foe is nearly dead or this is a mistake.
     if (!slip && !brave && hpBp(w, e) > BOT_AI.finishHpBp && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
-    if (!peel && !brave && !goodFight(w, id, e, p)) {
+    if (!peel && !brave && !committed && !goodFight(w, id, e, p)) {
       if (out[0] < 0) out[0] = e;
       continue;
     }
@@ -162,6 +187,8 @@ function pickFoe(w: World, id: number, mem: BotMem, p: BotParams, tick: number, 
     let key = Math.max(0, w.hp[e]) + idiv(d, BOT_AI.distWeight) - (peel || (brave && e === HUMAN_SLOT) ? BOT_AI.peelKey : 0);
     if (e === HUMAN_SLOT && !brave) key += spare;
     if (p.hunts && huntable(w, team, e)) key -= BOT_AI.huntKey;
+    // Sim v10 Focus ping: twice the preference (a lower key wins).
+    if (focused) key = idiv(key, PING.focusKeyDiv);
     if (best < 0 || key < bestKey) {
       best = e;
       bestKey = key;
@@ -260,14 +287,16 @@ function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: 
   const team = w.team[id];
   if (carry || hunt) return humanLane(w);
   if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
-  const role = roleOf(id);
+  const role = laneRole(w, id);
   if (role !== ROAM) return role;
   // The roamer helps the lane with fewer own towers; tie: the one whose laner is hurt more.
   const a = laneTowers(w, team, 0);
   const b = laneTowers(w, team, 1);
   if (a !== b) return a < b ? 0 : 1;
   const base = team * 3;
-  return hpBp(w, base + 1) < hpBp(w, base) ? 1 : 0;
+  const secondHurt = hpBp(w, base + 1) < hpBp(w, base);
+  // Sim v10 lane swap: then slot 0 plays Puddle and slot 1 Sunny.
+  return secondHurt !== (laneRole(w, base) === 1) ? 1 : 0;
 }
 
 /** May bot `id` hit enemy structure `s` (vulnerable) with no minion tanking it? Only bots that dive. */
@@ -524,15 +553,129 @@ function threatened(w: World, id: number, mem: BotMem, p: BotParams, tick: numbe
   return false;
 }
 
-/** Allied heroes of bot `id` (self included) alive and above BOT_AI.objectiveHpBp. */
+/** Is the human alive within PING.groupRange of bot `id` (slot 0 itself: never)? */
+function beside(w: World, id: number): boolean {
+  const h = HUMAN_SLOT;
+  return id !== h && w.alive[h] === 1 && dist2(w.x[id], w.y[id], w.x[h], w.y[h]) <= PING.groupRange * PING.groupRange;
+}
+
+/** Allied heroes of bot `id` (mine included) alive and above BOT_AI.objectiveHpBp. */
 function healthyAllies(w: World, id: number): number {
   let n = 0;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.team[h] === w.team[id] && w.alive[h] === 1 && hpBp(w, h) >= BOT_AI.objectiveHpBp) n++;
   return n;
 }
 
-/** One think for bot `id`. Returns a command or null. */
-export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng: Rng): Command | null {
+/** Where ping order `ord` sends bot `id` (writes [x, y] into `goal`), and how close counts as there. */
+function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
+  switch (ord) {
+    case PING_KIND.Group:
+      goal[0] = w.x[HUMAN_SLOT];
+      goal[1] = w.y[HUMAN_SLOT];
+      return PING.groupRange;
+    case PING_KIND.Pudding: {
+      const pud = RANGE.pudding;
+      const up = w.alive[pud] === 1;
+      goal[0] = up ? w.x[pud] : PUDDING_SPOT.x;
+      goal[1] = up ? w.y[pud] : PUDDING_SPOT.y;
+      return PING.arriveRange;
+    }
+    case PING_KIND.PushSunny:
+    case PING_KIND.PushPuddle:
+      laneGoal(w, id, ord === PING_KIND.PushSunny ? 0 : 1, p, goal);
+      return PING.arriveRange;
+    default:
+      goal[0] = orderPt[0];
+      goal[1] = orderPt[1];
+      return PING.arriveRange;
+  }
+}
+
+/** Is order `ord` fulfilled before its TTL: Pudding no longer wild, or the base safe (no threat left)? */
+function orderDone(w: World, id: number, ord: number): boolean {
+  if (ord === PING_KIND.Pudding) return w.globals[G.PudState] !== PUD_STATE.Wild || w.alive[RANGE.pudding] === 0;
+  if (ord === PING_KIND.Defend) return baseThreat(w, w.team[id]) < 0;
+  return false;
+}
+
+/** The nearest enemy minion `team` can see within BOT_AI.engageRange of (x, y), or −1. */
+function minionNear(w: World, team: number, x: number, y: number): number {
+  const r2 = BOT_AI.engageRange * BOT_AI.engageRange;
+  let best = -1;
+  let bestD = 0;
+  for (let e = RANGE.minions; e < RANGE.towers; e++) {
+    if (!seenEnemy(w, team, e)) continue;
+    const d = dist2(w.x[e], w.y[e], x, y);
+    if (d <= r2 && (best < 0 || d < bestD)) {
+      best = e;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** Go to (x, y) within `r`; once there, hit an enemy minion close by or stand on the point. */
+function holdAt(w: World, id: number, mem: BotMem, x: number, y: number, r: number, p: BotParams): Command | null {
+  if (dist2(w.x[id], w.y[id], x, y) <= r * r) {
+    const e = minionNear(w, w.team[id], x, y);
+    if (e >= 0 && untankedThreat(w, w.team[id], w.x[e], w.y[e], 0) < 0) return (p.waveClear ? clearCast(w, id, e) : null) ?? attack(w, id, mem, e);
+  }
+  return moveTo(w, id, mem, x, y);
+}
+
+/** Work on ping order `ord` (Group, Take Pudding, Push, Go here; the fights came first). */
+function orderAct(m: MatchHandle, id: number, mem: BotMem, ord: number, p: BotParams, slipLastHit: boolean): Command | null {
+  const w = m.world;
+  const team = w.team[id];
+  const r = orderGoal(w, id, ord, p);
+  mem.mode[id] = BOT_MODE.Push;
+  switch (ord) {
+    case PING_KIND.Group: {
+      // Hit what the human hits, once beside it.
+      const t = w.target[HUMAN_SLOT];
+      const near = dist2(w.x[id], w.y[id], goal[0], goal[1]) <= r * r;
+      if (near && t >= 0 && w.alive[t] === 1 && w.team[t] !== team && targetable(w, t, team) && untankedThreat(w, team, w.x[t], w.y[t], 0) < 0) return attack(w, id, mem, t);
+      return holdAt(w, id, mem, goal[0], goal[1], r, p);
+    }
+    case PING_KIND.Pudding: {
+      const pud = RANGE.pudding;
+      mem.mode[id] = BOT_MODE.Pudding;
+      if (w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1 && targetable(w, pud, team)) {
+        return (p.waveClear ? clearCast(w, id, pud) : null) ?? attack(w, id, mem, pud);
+      }
+      return holdAt(w, id, mem, goal[0], goal[1], r, p);
+    }
+    case PING_KIND.PushSunny:
+    case PING_KIND.PushPuddle: {
+      const lane = ord === PING_KIND.PushSunny ? 0 : 1;
+      mem.lane[id] = lane;
+      // A push order is a grouped push: a diving bot hits an untanked tower while its team has more heroes up.
+      thinkingGrouped = true;
+      return laneAct(w, id, mem, lane, slipLastHit, p);
+    }
+    default:
+      mem.mode[id] = BOT_MODE.Lane;
+      return holdAt(w, id, mem, goal[0], goal[1], r, p);
+  }
+}
+
+/** The point and target of the order being worked on (set by `think`; the brain is single-threaded). */
+const orderPt = new Int32Array(3);
+
+/**
+ * An order an outside player-bot gives itself (the `pinger` profile follows its own pings, as a human would). Never
+ * world state: it reaches the sim only through the commands it leads to.
+ */
+export interface SelfOrder {
+  kind: number;
+  until: number;
+  x: number;
+  y: number;
+  target: number;
+}
+
+/** One think for bot `id`. Returns a command or null. `mine`: slot 0's own order (outside player-bots only). */
+export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng: Rng, mine: SelfOrder | null = null): Command | null {
   const w = m.world;
   const tick = w.globals[G.Tick];
   thinkingCarry = false;
@@ -546,6 +689,9 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const slip = slipOf(mem, id, tick, p, rng);
   updateAwareness(w, id, mem, tick, slip === SLIP.Gank);
   if (w.castPhase[id] !== 0) return null;
+  // Sim v10 (GAPS B5): a crowd-controlled bot shrugs it off first.
+  const purr = purrifyCast(w, id, p);
+  if (purr) return purr;
   const hp = hpBp(w, id);
   if (mem.mode[id] === BOT_MODE.Retreat) {
     if (hp < BOT_AI.retreatExitBp) return retreat(w, id, mem, p);
@@ -556,25 +702,59 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const low = hp < p.retreatHpBp && !scripted;
   if (low && (hp < applyBp(p.retreatHpBp, BOT_AI.retreatAlwaysBp) || threatened(w, id, mem, p, tick))) return retreat(w, id, mem, p);
   if (w.napT[id] > 0) return null;
+  // Sim v10 ping orders (allied bots only): Fall back is a retreat; the others are worked on below the fights.
+  let ord = -1;
+  if (id === HUMAN_SLOT) {
+    if (mine && tick <= mine.until) {
+      ord = mine.kind;
+      orderPt[0] = mine.x;
+      orderPt[1] = mine.y;
+      orderPt[2] = mine.target;
+    }
+  } else {
+    ord = orderOf(w, id);
+    orderPt[0] = w.botOrdX[id];
+    orderPt[1] = w.botOrdY[id];
+    orderPt[2] = w.botOrdId[id];
+  }
+  if (ord >= 0 && orderDone(w, id, ord)) {
+    if (id === HUMAN_SLOT && mine) mine.until = -1;
+    else w.botOrd[id] = 0;
+    ord = -1;
+  }
+  // Fall back is the pre-v10 retreat (escape casts, then home) while an enemy hero is close; once safe it ends.
+  if (ord === PING_KIND.FallBack) {
+    if (nearestFoe(w, id, BOT_AI.napSafeRange) >= 0) return retreat(w, id, mem, p);
+    if (id === HUMAN_SLOT && mine) mine.until = -1;
+    else w.botOrd[id] = 0;
+    ord = -1;
+  }
+  // Defend base comes before any fight elsewhere, like the pre-v10 core defence (orderDone ends it once safe).
+  if (ord === PING_KIND.Defend) return defend(w, id, mem, baseThreat(w, w.team[id]), p, rng);
   const snack = snackCast(w, id, p);
   if (snack) return snack;
+  const ordered = ord >= 0 && ord !== PING_KIND.Focus;
+  const focus = ord === PING_KIND.Focus ? orderPt[2] : -1;
 
   const rules = rulesOf(m);
   // The roamer (team slot 2) carries first, then the Puddle laner (DifficultyRules.carryAllies).
   // Sim v5: only while the human plays (humanEngaged): a human parked off the lanes, or idle, is not followed.
-  const carry = id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roleOf(id) === ROAM ? 1 : 2) && humanEngaged(w);
+  // Sim v10: an ordered bot follows its order instead.
+  const carry = !ordered && id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roleOf(id) === ROAM ? 1 : 2) && humanEngaged(w);
   thinkingCarry = carry;
   // Rookie: slot 3 walks into Sunny Lane early and picks the first fight (DifficultyRules.scriptFrom).
   const script = id === 3 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
   // Sim v7: enemy heroes at the own core come before any fight elsewhere (a base race is not a lead).
-  if (p.defendBase && !low && !carry && !script) {
+  if (p.defendBase && !low && !carry && !script && !ordered) {
     const s = baseThreat(w, w.team[id]);
     if (s === RANGE.cores + w.team[id] && heroThreat && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.coreThreatRange * BOT_AI.coreThreatRange) {
       return defend(w, id, mem, s, p, rng);
     }
   }
   truceUntil = rules.truceUntil;
-  const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman);
+  const foe = low
+    ? -1
+    : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman, focus);
   if (low) scratch[0] = -1;
   if (foe >= 0) {
     mem.mode[id] = BOT_MODE.Fight;
@@ -611,7 +791,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v7: a base threat comes before pickups, objectives and lane work (BotParams.defendBase).
   // Enemy heroes at the base pull every bot back; minions alone pull only bots within baseThreatPull, and a team
   // well ahead (BOT_AI.leadGroup) keeps its siege unless they are at its core.
-  if (p.defendBase && !carry && hp >= BOT_AI.objectiveHpBp) {
+  if (p.defendBase && !carry && !ordered && hp >= BOT_AI.objectiveHpBp) {
     const s = baseThreat(w, team);
     const near = s >= 0 && dist2(w.x[id], w.y[id], w.x[s], w.y[s]) <= BOT_AI.baseThreatPull * BOT_AI.baseThreatPull;
     const pull = s >= 0 && (heroThreat || (near && (s === RANGE.cores + team || -scoreBehind(w, team) < BOT_AI.leadGroup)));
@@ -627,11 +807,15 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.target[s] === id && w.team[s] !== team) shotBy = s;
   const shot = shotBy >= 0 && !tanked(w, shotBy, team) && !(targetable(w, shotBy, team) && mayDive(w, id, shotBy, p));
   const exposed = p.hunts && !grouped && overextended(w, id, lane);
-  if ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || shot || exposed) {
+  // Sim v10: a bot on a Group or Push order beside the human holds through a bad fight (tower fire still counts).
+  const backed = ordered && (ord === PING_KIND.Group || ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle) && beside(w, id);
+  if ((!backed && ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || exposed)) || shot) {
     const own = laneStructure(w, team, lane, true);
     mem.mode[id] = BOT_MODE.Lane;
     return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);
   }
+  // Sim v10: a ping order comes after the fights and the back-off, before Pudding, the camp and the lane.
+  if (ordered) return orderAct(m, id, mem, ord, p, slip === SLIP.LastHit);
 
   // Pudding: decided once per spawn.
   const pud = RANGE.pudding;

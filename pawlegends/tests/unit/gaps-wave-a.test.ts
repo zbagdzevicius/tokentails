@@ -7,6 +7,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
+import { laneHint } from '../../src/ui/pingText';
 import { HERO_IDS } from '../../src/data/heroes';
 import { CHAMPION_IDS } from '../../src/data/heroes/shelter';
 import {
@@ -267,10 +268,11 @@ describe('A6: loading line, pick role, ally barks', () => {
     expect(f.querySelector('.bond')).toBeNull();
   });
 
-  it('the pick screen shows the role label, never a lane hint', () => {
+  it('the pick screen shows the role label and (GAPS B1, since the lane swap) one lane hint', () => {
     const root = pickScreen(document.body, { initial: { hero: 'lambo', trick: 'pounce', difficulty: 'easy' }, onHero: () => undefined, onStart: () => undefined, onBack: () => undefined });
     expect(root.querySelector('.role-label')?.textContent).toBe('Tank');
-    expect(root.textContent ?? '').not.toMatch(/\b(lane|Sunny|Puddle)\b/i);
+    expect(root.querySelectorAll('.lane-hint')).toHaveLength(1);
+    expect(root.querySelector('.lane-hint')?.textContent).toBe(laneHint('Tank'));
   });
 
   it('allied bots cheer the player’s takedowns and assists, in turn, at most once per 8 s; never an enemy takedown', () => {

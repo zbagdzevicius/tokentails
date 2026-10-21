@@ -8,7 +8,7 @@ import { ErrorCode } from 'src/shared-contracts/errors';
 import { FailedReplayCache, FAILED_HEIST_REPLAYS } from 'src/user/heist/failed-replay-cache';
 import { ReplayQueue } from 'src/user/heist/replay-queue';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
-import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSION } from 'src/vendor/pawlegends-sim';
+import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
 import { Worker } from 'worker_threads';
 import { PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
@@ -19,9 +19,9 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
  * The replay-verified PAWLEGENDS branch of `POST /user/catbassadors/live` (POC.md §11.5). There is no other
  * Pawlegends score route: this is still the one score writer.
  *
- * 1. The DTO checked the record's shape and work bounds. An unknown `simVersion` is a 400 PAWLEGENDS_SIM_VERSION
- *    naming the backend's sim, before anything is queued, so the game keeps the replay queued until the backend runs
- *    its sim.
+ * 1. The DTO checked the record's shape and work bounds. A `simVersion` outside SIM_VERSIONS (sim v10, GAPS B0: the
+ *    live v10 and the frozen v9, each re-simmed by its own vendored sim) is a 400 PAWLEGENDS_SIM_VERSION naming the
+ *    backend's sim, before anything is queued, so the game keeps the replay queued until the backend runs its sim.
  * 2. The digest of the canonical record is looked up first: a record that already failed is the same 400 again, and
  *    one that already saved (from any account) is 409 PAWLEGENDS_DUPLICATE, both without a re-sim.
  * 3. The vendored sim re-simulates it in a `worker_threads` worker (a match takes up to 1.5 s) through its own
@@ -30,7 +30,9 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
  * 4. The `Game` row takes the server's outcome and time and carries the globally unique `replayDigest`. The user
  *    gets `$min pawlegendsFastestWin.<difficulty>` (wins only), `$max pawlegendsCatnip.<difficulty>` to the
  *    difficulty's PAWLEGENDS_LEVEL_CAPS entry (the first win pays it once; later wins add nothing),
- *    `$inc pawlegendsMatches.<difficulty>` and `lastPlayedAt`.
+ *    `$inc pawlegendsMatches.<difficulty>` and `lastPlayedAt`. A match with a mutator other than 'none' (none exist
+ *    in v10; GAPS §8 item 1) counts as a match only: no fastest win and no catnip. Sim v10 (GAPS B2): a forfeited
+ *    match is a loss (outcome 'lost' in the re-sim): no catnip, no fastest win, the row's outcome is 'quit'.
  */
 
 /** Pawlegends replays: one at a time in the worker, up to 8 waiting (about 12 s of worst-case matches). */
@@ -73,11 +75,29 @@ const RECORD_KEYS: (keyof PawlegendsReplayRecord)[] = [
     'inputs',
     'outcome',
     'finalHash',
+    'mutator',
 ];
 
-/** The record with its fields in a fixed order and nothing else: what the worker gets and the digest covers. */
-export const canonicalRecord = (replay: PawlegendsReplayDto | PawlegendsReplayRecord): PawlegendsReplayRecord =>
-    Object.fromEntries(RECORD_KEYS.map(key => [key, (replay as any)[key]])) as unknown as PawlegendsReplayRecord;
+/** The first sim version whose records carry `mutator` (GAPS B0). */
+export const PAWLEGENDS_MUTATOR_SINCE = 10;
+
+/**
+ * The record with its fields in a fixed order and nothing else: what the worker gets and the digest covers. From
+ * v10 `mutator` is always present (a missing one is 'none', so the same match cannot be saved twice by dropping the
+ * field); a v9 record never carries it, so its digest is the one v9 stored.
+ */
+export const canonicalRecord = (replay: PawlegendsReplayDto | PawlegendsReplayRecord): PawlegendsReplayRecord => {
+    const source = replay as any;
+    const entries: [string, unknown][] = [];
+    for (const key of RECORD_KEYS) {
+        if (key !== 'mutator') entries.push([key, source[key]]);
+        else if (source.simVersion >= PAWLEGENDS_MUTATOR_SINCE) entries.push([key, source.mutator ?? 'none']);
+    }
+    return Object.fromEntries(entries) as unknown as PawlegendsReplayRecord;
+};
+
+/** GAPS §8 item 1: only a match without a mutator counts toward the fastest win and catnip. */
+export const pawlegendsRanked = (record: PawlegendsReplayRecord): boolean => (record.mutator ?? 'none') === 'none';
 
 /** sha256 of the canonical record: what `Game.replayDigest` stores for a PAWLEGENDS row. */
 export const pawlegendsDigest = (replay: PawlegendsReplayDto | PawlegendsReplayRecord): string =>
@@ -221,6 +241,8 @@ export interface IPawlegendsLiveResult {
     catnipCount: number;
     /** Fastest win held for the difficulty after this save, in ticks (null without a win). */
     fastestWin: number | null;
+    /** Sim v10 (GAPS B2): how the re-simmed match ended ('forfeit': the player forfeited); absent for v9 replays. */
+    reason?: 'core' | 'safetyEnd' | 'forfeit';
 }
 
 const isDuplicateKey = (error: unknown) => (error as { code?: unknown } | undefined)?.code === 11000;
@@ -237,10 +259,10 @@ export async function savePawlegendsMatch(
     if (body.replay !== undefined || body.badcat !== undefined) {
         throw pawlegendsError(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'replay and badcat are for other games');
     }
-    if (replay.simVersion !== SIM_VERSION) {
+    if (!SIM_VERSIONS.includes(replay.simVersion)) {
         throw pawlegendsError(
             ErrorCode.PAWLEGENDS_SIM_VERSION,
-            `simVersion ${replay.simVersion} is not this backend's ${SIM_VERSION}`
+            `simVersion ${replay.simVersion} is not one of this backend's ${SIM_VERSIONS.join(', ')}`
         );
     }
     const index = PAWLEGENDS_LEVELS.indexOf(replay.difficulty);
@@ -276,6 +298,8 @@ export async function savePawlegendsMatch(
 
     const difficulty = PAWLEGENDS_LEVELS[index];
     const won = result.outcome === 'won';
+    // A mutator match (none exist in v10) is a match, not a record: no fastest win, no catnip (GAPS §8 item 1).
+    const ranked = pawlegendsRanked(record);
     const cap = PAWLEGENDS_LEVEL_CAPS[index] ?? 0;
     const heldFastest = num(user[PAWLEGENDS_FASTEST_FIELD]?.[difficulty]);
 
@@ -290,7 +314,7 @@ export async function savePawlegendsMatch(
     const catnipPath = `${PAWLEGENDS_CATNIP_FIELD}.${difficulty}`;
     const heldCatnip = num(user[PAWLEGENDS_CATNIP_FIELD]?.[difficulty]) ?? 0;
     let claimedFrom: number | null = null;
-    if (won && heldCatnip < cap) claimedFrom = await deps.users.claimBelowCap(userId, catnipPath, cap);
+    if (won && ranked && heldCatnip < cap) claimedFrom = await deps.users.claimBelowCap(userId, catnipPath, cap);
     const catnipPaid = claimedFrom === null ? 0 : cap - claimedFrom;
 
     const row: ILiveGameRow = {
@@ -300,8 +324,10 @@ export async function savePawlegendsMatch(
         score: result.ticks,
         time: Math.round((result.ticks / PAWLEGENDS_TICK_HZ) * 100) / 100,
         platform: body.platform ?? GamePlatform.WEB,
-        // LIVE_GAME_OUTCOMES has no 'lost'; a lost match is stored as 'died' (as Bad Cat stores a caught run).
-        outcome: won ? 'won' : 'died',
+        // LIVE_GAME_OUTCOMES has no 'lost'; a lost match is stored as 'died' (as Bad Cat stores a caught run). Sim v10
+        // (GAPS B2): a forfeit (the re-sim's own reason, never the client's word) is stored as 'quit', the forfeit-rate
+        // measure; it is a loss like any other and pays nothing.
+        outcome: won ? 'won' : result.reason === 'forfeit' ? 'quit' : 'died',
         replayDigest: digest,
     };
     try {
@@ -314,7 +340,7 @@ export async function savePawlegendsMatch(
     }
 
     await deps.users.update(userId, {
-        ...(won ? { $min: { [`${PAWLEGENDS_FASTEST_FIELD}.${difficulty}`]: result.ticks } } : {}),
+        ...(won && ranked ? { $min: { [`${PAWLEGENDS_FASTEST_FIELD}.${difficulty}`]: result.ticks } } : {}),
         $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
         $set: { lastPlayedAt: (deps.now || (() => new Date()))() },
     });
@@ -328,6 +354,7 @@ export async function savePawlegendsMatch(
         finalHash: result.finalHash,
         catnipPaid,
         catnipCount,
-        fastestWin: won ? Math.min(result.ticks, heldFastest ?? result.ticks) : heldFastest,
+        fastestWin: won && ranked ? Math.min(result.ticks, heldFastest ?? result.ticks) : heldFastest,
+        ...(result.reason ? { reason: result.reason } : {}),
     };
 }

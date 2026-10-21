@@ -1,11 +1,12 @@
 /**
  * Desktop bindings (POC.md §9): PPK's `moba` preset (INPUT.presets.moba, lifted as data) remapped to MOBA defaults.
  * PPK gives right-click move, A attack-move and S stop; Pawlegends adds Q/W/E/R casts, D Paw Trick, B Nap, 1/2
- * talents, Space centre, Tab scoreboard and Esc menu. No binding uses Ctrl, Alt, Meta or an F-key.
+ * talents, Space centre, Tab scoreboard, Esc menu and (GAPS B1) G the ping wheel. No binding uses Ctrl, Alt, Meta or an
+ * F-key (Alt-click is a ping gesture, not a binding).
  */
 import { PPK_INPUT_PRESETS } from './ppkInput.data.js';
 
-export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu';
+export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu' | 'ping';
 
 type Keys = Record<string, readonly string[]>;
 const ppk = ((PPK_INPUT_PRESETS as Record<string, { keys?: Keys }>).moba?.keys ?? {}) as Keys;
@@ -32,6 +33,8 @@ export const MOBA_BINDINGS: Readonly<Record<Action, readonly string[]>> = Object
   centre: ['Space'],
   scoreboard: ['Tab'],
   menu: ['Escape'],
+  // GAPS B1: hold G for the ping wheel (Alt-click pings Focus on an enemy hero, Go here on the ground).
+  ping: ['KeyG'],
 });
 
 const BY_CODE = new Map<string, Action>();

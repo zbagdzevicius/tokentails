@@ -168,8 +168,14 @@ export const PAWLEGENDS_TICK_HZ = 30;
 /** Longest match the backend replays: the 11:00 safety end (`MAX_TICKS` in `pawlegends/src/data/limits.ts`). */
 export const PAWLEGENDS_MAX_TICKS = PAWLEGENDS_TICK_HZ * 660;
 
-/** Longest base64 command stream in a replay, so the whole `/live` body fits its 64 KB limit. */
-export const PAWLEGENDS_MAX_INPUT_CHARS = 40000;
+/**
+ * Longest base64 command stream in a replay, so the whole `/live` body fits its 64 KB limit. Sim v10 (GAPS B1):
+ * 40,800 (40,000 before) for command pings; `MAX_INPUT_CHARS` in `pawlegends/src/data/limits.ts` is equal.
+ */
+export const PAWLEGENDS_MAX_INPUT_CHARS = 40800;
+
+/** The binary stream behind `PAWLEGENDS_MAX_INPUT_CHARS` (`MAX_INPUT_BYTES`; 30,000 before sim v10). */
+export const PAWLEGENDS_MAX_INPUT_BYTES = 30600;
 
 // ---------------------------------------------------------------------------------------------
 // Tails (rescue points)

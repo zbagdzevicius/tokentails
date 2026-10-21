@@ -1,12 +1,14 @@
 /**
- * Talents (POC.md §6.1): tiers at levels 3, 6 and 9, two options each; bots take the first. A chosen talent changes
+ * Talents (POC.md §6.1): tiers at levels 3, 6 and 9, two options each. Sim v10 (GAPS B0): bots pick 0 or 1 from their
+ * own seeded stream (`botTalentChoice`), so both options are played; before v10 they took the first. A chosen talent changes
  * ability numbers through its `mods` (merged here once, at module load, for every hero and every combination of
  * choices) or switches on a bespoke hook in the hero's kit (`hasTalent`).
  */
 import { HERO_IDS, HEROES } from '../../data/heroes';
 import { XP } from '../../data/xp';
-import { HUMAN_SLOT } from '../api';
+import { HUMAN_SLOT, type BotTalentMode } from '../api';
 import { idiv, imod } from '../fixed';
+import { Rng } from '../rng';
 import type { MatchHandle } from '../state';
 import { G, TALENT_TIERS, type World } from '../world';
 
@@ -102,9 +104,27 @@ export function chooseTalent(m: MatchHandle, id: number, tier: number, choice: n
   return true;
 }
 
-/** A talent tier just unlocked at `id`'s new level: offer it; bots take the first option at once. */
+/**
+ * Sim v10 (GAPS B0): a bot's choice in `tier`. 'seeded' (every real match and replay): draw number `tier` of the slot's
+ * own stream `fork('talent:' + slot)`, which depends on the seed alone, so no other draw moves. 'first' is the
+ * pre-v10 rule (option 0); 'branch' takes option 1 at tier 1 (level 6, where GAPS B6 puts the shape branches) and the
+ * seeded choice elsewhere. The two test modes exist for headless runs only (`MatchConfig.botTalents`).
+ */
+export function botTalentChoice(seed: number, slot: number, tier: number, mode: BotTalentMode = 'seeded'): 0 | 1 {
+  if (mode === 'first') return 0;
+  if (mode === 'branch' && tier === 1) return 1;
+  const rng = new Rng(seed >>> 0).fork('talent:' + slot);
+  let choice = 0;
+  for (let t = 0; t <= tier; t++) choice = rng.int(2);
+  return choice === 0 ? 0 : 1;
+}
+
+/** The talent mode of this match's bots (the in-sim bots and the headless player-bot). */
+export const botTalentMode = (m: MatchHandle): BotTalentMode => m.config.botTalents ?? 'seeded';
+
+/** A talent tier just unlocked at `id`'s new level: offer it; bots choose at once (`botTalentChoice`). */
 export function offerTalent(m: MatchHandle, id: number, tier: number): void {
   const w = m.world;
   m.events.push({ type: 'talentOffer', tick: w.globals[G.Tick], slot: id, tier: tier as 0 | 1 | 2 });
-  if (id !== HUMAN_SLOT) chooseTalent(m, id, tier, 0);
+  if (id !== HUMAN_SLOT) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
 }

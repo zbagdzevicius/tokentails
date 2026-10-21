@@ -2,10 +2,12 @@
  * GAPS A2: the match grade (S/A/B/C), the MVP and "Best on your team" on a loss. Pure: it reads only
  * `MatchResult.stats` and `winner`, so it never touches the sim, a replay or its hash.
  *
- * Score in 0..1, weighted by role, because `SlotStats` has no damage taken, heal or shield (those come with v10):
+ * Score in 0..1, weighted by role. Sim v10 (GAPS B0) adds damage taken, heal and shield to `SlotStats`, so the
+ * frontline roles grade on what they do (a v9 result has neither: those shares are 0):
  *   KP = (K + A) / max(1, team kills), D = 1 − deaths / (deaths + 3), shares are of the slot's own team.
  *   Carry (fighter, marksman, assassin, mage): 0.35·KP + 0.25·heroDmgShare + 0.20·towerDmgShare + 0.20·D
- *   Frontline (tank, support):                0.50·KP + 0.10·heroDmgShare + 0.10·towerDmgShare + 0.30·D
+ *   Tank:    0.35·KP + 0.25·takenShare      + 0.05·heroDmgShare + 0.10·towerDmgShare + 0.25·D
+ *   Support: 0.35·KP + 0.25·healShieldShare + 0.05·heroDmgShare + 0.10·towerDmgShare + 0.25·D
  * Thresholds are per role, calibrated with `node tools/grade-calibrate.mjs` (headless Normal-profile human vs Normal
  * bots, 1,400 seeds a hero) toward 12% S, 30% A, 35% B and 23% C, with at least 25% of losses graded A or S.
  *
@@ -23,32 +25,39 @@ export interface GradeWeights {
   heroDmg: number;
   towerDmg: number;
   alive: number;
+  /** Sim v10: share of the team's damage taken (tank). */
+  taken: number;
+  /** Sim v10: share of the team's heal and shield given (support). */
+  healShield: number;
 }
 
-/** The two weight sets (GAPS A2). Frontline: until v10 adds `damageTaken` and `healShield` to `SlotStats`. */
-export const GRADE_WEIGHTS: Readonly<{ carry: GradeWeights; frontline: GradeWeights }> = Object.freeze({
-  carry: Object.freeze({ kp: 0.35, heroDmg: 0.25, towerDmg: 0.2, alive: 0.2 }),
-  frontline: Object.freeze({ kp: 0.5, heroDmg: 0.1, towerDmg: 0.1, alive: 0.3 }),
+/** The weight sets (GAPS A2; tank and support use the v10 stats, GAPS B0). Each sums to 1. */
+export const GRADE_WEIGHTS: Readonly<{ carry: GradeWeights; tank: GradeWeights; support: GradeWeights }> = Object.freeze({
+  carry: Object.freeze({ kp: 0.35, heroDmg: 0.25, towerDmg: 0.2, alive: 0.2, taken: 0, healShield: 0 }),
+  tank: Object.freeze({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0.25, healShield: 0 }),
+  support: Object.freeze({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0, healShield: 0.25 }),
 });
 
-/** Roles that grade on the frontline weights (Sir Brutus, Lambo, Gabė). */
+/** Roles that grade on their own frontline weights (tank: Sir Brutus, Lambo; support: Gabė). */
 export const FRONTLINE_ROLES: readonly HeroRole[] = Object.freeze(['tank', 'support'] as HeroRole[]);
 
 /**
- * Lowest score for S, A and B, per role (below B is C). Calibrated 2026-10-20 on sim v9 (tools/grade-calibrate.mjs:
- * Normal human vs Normal bots, random trick), fit on 1,400 seeds a hero (1..600, 1001..1400, 2001..2400); GAPS
- * starting values were S 0.72 / A 0.55 / B 0.40, which gave under 6% S on every role. The GAPS §7 gate (±5 points per
- * role) is NOT met on fresh seeds yet: fitting on three of the four seed blocks and checking the fourth, mage (one
- * hero) lands 6.2–6.3 points off and support 6.0 on two of the four. Re-run it after any balance or SlotStats change
- * (v10 adds frontline stats).
+ * Lowest score for S, A and B, per role (below B is C). Calibrated 2026-10-20 (tools/grade-calibrate.mjs: Normal human
+ * vs Normal bots, random trick), fit on 1,400 seeds a hero (1..600, 1001..1400, 2001..2400); GAPS starting values were
+ * S 0.72 / A 0.55 / B 0.40, which gave under 6% S on every role. Carry roles were fit on sim v9 and still pass the
+ * GAPS §7 gate (±5 points per role) on the v10 fit set. Tank and support were refit on sim v10 for their frontline
+ * weights (GAPS B0); held out on 3001..3400 they land within 2.5 points of every target (tank 11.6/29.3/34.8/24.4,
+ * support 14.5/30.8/32.8/22.0; losses graded A/S 31.9% and 36.7%). On that held-out block fighter (one hero) is 5.5
+ * points off on B; at 400 seeds the sampling error alone is about 3 points. Re-run it after any balance or SlotStats
+ * change.
  */
 export const GRADE_THRESHOLDS: Readonly<Record<HeroRole, Readonly<{ S: number; A: number; B: number }>>> = Object.freeze({
   fighter: Object.freeze({ S: 0.615, A: 0.524, B: 0.433 }),
   marksman: Object.freeze({ S: 0.616, A: 0.527, B: 0.441 }),
   assassin: Object.freeze({ S: 0.609, A: 0.528, B: 0.443 }),
   mage: Object.freeze({ S: 0.613, A: 0.521, B: 0.43 }),
-  tank: Object.freeze({ S: 0.663, A: 0.563, B: 0.463 }),
-  support: Object.freeze({ S: 0.675, A: 0.582, B: 0.484 }),
+  tank: Object.freeze({ S: 0.59, A: 0.516, B: 0.444 }),
+  support: Object.freeze({ S: 0.726, A: 0.65, B: 0.573 }),
 });
 
 /** Treat XP for the grade (GAPS A2). Never catnip. */
@@ -68,7 +77,7 @@ export const GRADE_LADDER: Readonly<Record<Grade, Readonly<{ win: number; loss: 
 });
 
 export const roleOf = (hero: HeroId): HeroRole => HEROES[hero].role;
-export const weightsFor = (role: HeroRole): GradeWeights => (FRONTLINE_ROLES.includes(role) ? GRADE_WEIGHTS.frontline : GRADE_WEIGHTS.carry);
+export const weightsFor = (role: HeroRole): GradeWeights => (role === 'tank' ? GRADE_WEIGHTS.tank : role === 'support' ? GRADE_WEIGHTS.support : GRADE_WEIGHTS.carry);
 const teamOf = (slot: number): 0 | 1 => (slot < 3 ? 0 : 1);
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -77,19 +86,27 @@ export interface GradeParts {
   heroDmgShare: number;
   towerDmgShare: number;
   alive: number;
+  takenShare: number;
+  healShieldShare: number;
 }
 
-/** The four inputs for one slot, from the whole match's stats (shares are of its own team). Pure. */
+/** A stat, 0 when missing (a v9 result has no `damageTaken` or `healShield`) or negative. */
+const stat = (s: SlotStats, k: 'kills' | 'heroDamage' | 'towerDamage' | 'damageTaken' | 'healShield'): number => Math.max(0, s[k] ?? 0);
+
+/** The inputs for one slot, from the whole match's stats (shares are of its own team). Pure. */
 export function gradeParts(stats: readonly SlotStats[], slot: number): GradeParts {
   const me = stats.find((s) => s.slot === slot);
-  if (!me) return { kp: 0, heroDmgShare: 0, towerDmgShare: 0, alive: 0 };
+  if (!me) return { kp: 0, heroDmgShare: 0, towerDmgShare: 0, alive: 0, takenShare: 0, healShieldShare: 0 };
   const mates = stats.filter((s) => teamOf(s.slot) === teamOf(slot));
-  const sum = (k: 'kills' | 'heroDamage' | 'towerDamage'): number => mates.reduce((t, s) => t + Math.max(0, s[k]), 0);
+  const sum = (k: 'kills' | 'heroDamage' | 'towerDamage' | 'damageTaken' | 'healShield'): number => mates.reduce((t, s) => t + stat(s, k), 0);
+  const share = (k: 'heroDamage' | 'towerDamage' | 'damageTaken' | 'healShield'): number => clamp01(stat(me, k) / Math.max(1, sum(k)));
   return {
     kp: clamp01((me.kills + me.assists) / Math.max(1, sum('kills'))),
-    heroDmgShare: clamp01(Math.max(0, me.heroDamage) / Math.max(1, sum('heroDamage'))),
-    towerDmgShare: clamp01(Math.max(0, me.towerDamage) / Math.max(1, sum('towerDamage'))),
+    heroDmgShare: share('heroDamage'),
+    towerDmgShare: share('towerDamage'),
     alive: 1 - Math.max(0, me.deaths) / (Math.max(0, me.deaths) + 3),
+    takenShare: share('damageTaken'),
+    healShieldShare: share('healShield'),
   };
 }
 
@@ -99,7 +116,7 @@ export function gradeScore(stats: readonly SlotStats[], slot: number): number {
   if (!me) return 0;
   const w = weightsFor(roleOf(me.hero));
   const p = gradeParts(stats, slot);
-  return w.kp * p.kp + w.heroDmg * p.heroDmgShare + w.towerDmg * p.towerDmgShare + w.alive * p.alive;
+  return w.kp * p.kp + w.heroDmg * p.heroDmgShare + w.towerDmg * p.towerDmgShare + w.alive * p.alive + w.taken * p.takenShare + w.healShield * p.healShieldShare;
 }
 
 /** The letter for a score on this role's thresholds. Pure. */

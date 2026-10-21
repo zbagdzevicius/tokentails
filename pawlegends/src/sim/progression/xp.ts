@@ -140,7 +140,7 @@ export function campKilled(m: MatchHandle, id: number): number {
   }
   if (n === 0) return team;
   let each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
-  // Sim v8: the team behind on levels gets XP.campBehindBp of the camp's XP.
+  // Sim v8: the team behind on levels gets DifficultyRules.campBehindBp of the camp's XP (per difficulty since v10).
   let ours = 0;
   let theirs = 0;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {
@@ -148,7 +148,7 @@ export function campKilled(m: MatchHandle, id: number): number {
     if (w.team[h] === team) ours += w.level[h];
     else theirs += w.level[h];
   }
-  if (ours < theirs) each = applyBp(each, XP.campBehindBp);
+  if (ours < theirs) each = applyBp(each, rulesOf(m).campBehindBp);
   for (let i = 0; i < n; i++) grantXp(m, share[i], each, 'camp');
   return team;
 }

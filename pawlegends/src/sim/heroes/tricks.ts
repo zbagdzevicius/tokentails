@@ -1,9 +1,12 @@
-/** Paw Tricks (POC.md §6.7), slot 4: Pounce (blink), Snack Break (heal over time), Hiss (fear ring). */
+/**
+ * Paw Tricks (POC.md §6.7), slot 4: Pounce (blink), Snack Break (heal over time), Hiss (fear ring) and, sim v10 (GAPS
+ * B5), Purr-ify (cleanse, then a short crowd-control immunity).
+ */
 import { TRICKS } from '../../data/tricks';
 import { applyBp } from '../fixed';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, type World } from '../world';
-import { blink, collect, fear, healOverTime, inRing } from '../effects';
+import { blink, cleanse, collect, fear, healOverTime, inRing } from '../effects';
 import { Aim, type SlotAim } from './kit';
 import { TRICK_IDS } from '../../data/tricks';
 
@@ -19,6 +22,9 @@ export function trickAim(w: World, id: number): SlotAim {
   }
 }
 
+/** Sim v10: Purr-ify is the one cast a stunned, feared or charmed hero can start and finish. */
+export const castsThroughCc = (w: World, id: number): boolean => TRICK_IDS[w.trick[id]] === 'purrify';
+
 /** Resolve hero `id`'s trick toward (x, y). Returns the cooldown. */
 export function castTrick(m: MatchHandle, id: number, x: number, y: number): number {
   const w = m.world;
@@ -29,6 +35,9 @@ export function castTrick(m: MatchHandle, id: number, x: number, y: number): num
     case 'snack':
       healOverTime(w, id, applyBp(w.maxHp[id], TRICKS.snack.healBp), TRICKS.snack.duration);
       return TRICKS.snack.cooldown;
+    case 'purrify':
+      cleanse(w, id, TRICKS.purrify.immune);
+      return TRICKS.purrify.cooldown;
     default: {
       const h = TRICKS.hiss;
       const hx = w.x[id];

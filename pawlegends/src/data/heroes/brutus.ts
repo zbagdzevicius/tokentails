@@ -29,7 +29,12 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
     ],
     [
       { id: 'bulwark', name: 'Bulwark', mods: { w: { duration: 105 } } },
-      { id: 'long-charge', name: 'Long Charge', mods: { e: { dash: 6500 } } },
+      /**
+       * Sim v10 (GAPS B6), the level-6 shape branch (it replaced Long Charge, `e.dash` 6500): Front Guard becomes a
+       * planted 3 m dome for 60 ticks that blocks enemy projectiles for everyone inside; Sir Brutus cannot walk or dash
+       * while it stands (`post` switches the shape).
+       */
+      { id: 'guard-post', name: 'Guard Post', mods: { w: { post: 1, postRadius: 3000, postDuration: 60, postReduceBp: 2500, cooldown: 300 } } },
     ],
     [
       { id: 'arena-of-honour', name: 'Arena of Honour', mods: { r: { duration: 120 } } },

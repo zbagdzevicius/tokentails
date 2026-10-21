@@ -35,6 +35,9 @@ function look(kind: number, team: number): Look {
       return { size: 0.36, y: 1.0, color: 0xc8d4e0, trail: 0.16 };
     case PROJECTILE_KIND.toast:
       return { size: 0.34, y: 1.0, color: 0xff7a2e, trail: 0.24 };
+    // sim v10 (GAPS B6): Sage's Piercing Shot, a long bright arrow
+    case PROJECTILE_KIND.lance:
+      return { size: 0.42, y: 1.0, color: 0xe8fff4, trail: 0.3 };
     default:
       return { size: 0.3, y: 0.9, color: team === 0 ? 0xfff1a8 : 0xd7b8ff, trail: 0.18 };
   }
@@ -42,6 +45,8 @@ function look(kind: number, team: number): Look {
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
 const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
+/** Sim v10 (GAPS B6): Guard Post domes drawn at once (more than the heroes on a team never stand). */
+const DOMES = 4;
 /** Sim v9 burst discs by owner: Bengas's stage fire and Gabė's heart balloon. */
 const BURST_COLOR: Partial<Record<string, number>> = { bengas: 0xff6a3d, gabe: 0xff8fb8 };
 
@@ -59,6 +64,8 @@ export class ProjectileView {
   private zones = new DecalLayer(discTexture(), CAPS.zones, { additive: true, y: 0.07, name: 'zones' });
   private trailT = 0;
   private time = 0;
+  /** Sim v10 (GAPS B6): translucent half-spheres over Guard Post zones. */
+  private domes: THREE.Mesh[] = [];
   myTeam: 0 | 1 = 0;
 
   constructor(private readonly particles: Particles) {
@@ -73,6 +80,16 @@ export class ProjectileView {
     this.bolts.count = 0;
     this.bolts.frustumCulled = false;
     this.group.add(this.bolts, this.zones.mesh);
+    const domeGeo = new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+    for (let i = 0; i < DOMES; i++) {
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+      const dome = new THREE.Mesh(domeGeo, mat);
+      dome.name = 'guard-post';
+      dome.visible = false;
+      dome.renderOrder = 2;
+      this.domes.push(dome);
+      this.group.add(dome);
+    }
   }
 
   update(frame: ViewFrame, dt: number): void {
@@ -105,8 +122,22 @@ export class ProjectileView {
     this.bolts.instanceMatrix.needsUpdate = true;
     if (this.bolts.instanceColor) this.bolts.instanceColor.needsUpdate = true;
     this.zones.begin();
+    let domes = 0;
     for (const z of frame.zones) {
       const rel = z.team === 2 ? RELATION.neutral : z.team === this.myTeam ? RELATION.ally : RELATION.enemy;
+      if (z.kind === ZONE_KIND.dome) {
+        // Sim v10 (GAPS B6): Guard Post, a gold floor ring in the relation colour under a shimmering half-sphere
+        const r = z.radius / 1000;
+        this.zones.add(toX(z.x), toZ(z.y), r * 2, rel, 0.55 + Math.sin(this.time * 6 + z.index) * 0.15);
+        const d = this.domes[domes++];
+        if (d) {
+          d.visible = true;
+          d.position.set(toX(z.x), 0.05, toZ(z.y));
+          d.scale.set(r, r * 0.8, r);
+          (d.material as THREE.MeshBasicMaterial).opacity = 0.16 + Math.sin(this.time * 4 + z.index) * 0.05;
+        }
+        continue;
+      }
       if (z.kind === ZONE_KIND.burst) {
         // Visible to both teams: the arm phase is a fast flashing telegraph in the relation colour, then the owner's fire or hearts.
         const arming = (z.arm ?? 0) > 0;
@@ -119,11 +150,14 @@ export class ProjectileView {
       this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, rel, pulse);
     }
     this.zones.end();
+    for (let i = domes; i < this.domes.length; i++) this.domes[i].visible = false;
   }
 
   dispose(): void {
     this.bolts.geometry.dispose();
     (this.bolts.material as THREE.Material).dispose();
     this.zones.dispose();
+    this.domes[0]?.geometry.dispose();
+    for (const d of this.domes) (d.material as THREE.Material).dispose();
   }
 }

@@ -3,9 +3,10 @@
  * npm run match: N seeded headless matches in Node (POC.md §3 tools, §7.2, §14 M3, §15 items 11 and 12, the fun
  * gates of the fun plan).
  *
- *   npm run match -- [--seeds 20] [--from 1] [--difficulty rookie|easy|normal|hard] [--hero clem|random] [--trick pounce|random]
+ *   npm run match -- [--seeds 20] [--from 1] [--difficulty rookie|easy|normal|hard] [--hero clem|random] [--trick pounce|snack|hiss|purrify|random]
  *                    [--profile idle|novice|naive|easy|normal|parked|feeder] [--json] [--quiet] [--fun] [--procs N]
  *                    [--check-determinism] [--stats] [--gate fun1|fun2|novice|idle|parked|balance|hard|feeder|feedNormal] [--balance]
+ *                    [--bot-talents seeded|first|branch] [--ablate catchup,camp,waves,nine]
  *
  * Slot 0 is played by the profile: `idle` never acts, `novice` follows the first-match tips, `naive` is the
  * scripted first-timer of the fun gates, `easy` / `normal` run the bot brain from outside the sim (through
@@ -25,6 +26,12 @@
  *   feeder   feeder vs rookie, 200 seeds       a first-timer who dives under towers and feeds still wins ≥ 80% (sim v7)
  *   feedNormal feeder vs normal, 200 seeds    (sim v8, playtest round 2) a human who feeds is in the deficit gate too:
  *            its team, down 10+ takedowns at the end, wins < 5% (the novice gate checks it on Normal and Hard)
+ * `--bot-talents` (sim v10, GAPS B0) sets how every bot chooses talents, the player-bot in slot 0 included: `seeded`
+ * (default, the real rule: 0 or 1 from the slot's own seeded stream), `first` (option 0, the pre-v10 rule) or `branch`
+ * (option 1 at level 6, the B6 shape branches; seeded elsewhere). Only `seeded` matches record replays that verify.
+ * `--ablate` (GAPS B3) switches comeback sources off in this run's bundle only (a source patch, never the shipped sim):
+ * `catchup` catch-up XP, `camp` the trailing team's rat-camp XP bonus, `waves` underdog waves (COMEBACK), `nine` Nine
+ * Lives. Comma-separated; the rows' hashes are not real replays.
  * `--fun` prints the fun metrics (tools/lib/funstats.mjs). `--check-determinism` plays every seed twice and fails
  * unless both runs give the same hash trail and final hash. Batches of 40+ seeds run in `--procs` processes
  * (default: cores − 2); every match is still one deterministic run.
@@ -48,6 +55,20 @@ const GATES = {
   feeder: { profile: 'feeder', difficulty: 'rookie', seeds: 200 },
   feedNormal: { profile: 'feeder', difficulty: 'normal', seeds: 200 },
 };
+/** --ablate: comeback sources and the source patch that switches each off (tools/lib/sim-bundle.mjs patches). */
+const ABLATIONS = {
+  catchup: { file: 'src/sim/progression/levels.ts', from: 'if (behind <= 0) return 0;', to: 'return 0;' },
+  camp: { file: 'src/sim/progression/xp.ts', from: 'if (ours < theirs) each =', to: 'if (false) each =' },
+  waves: { file: 'src/sim/units/minion.ts', from: /if \(towersBehind [^\n]*\) continue;/, to: 'continue;' },
+  nine: { file: 'src/sim/effects/bonus.ts', from: 'if (sum + dmg > limit) {', to: 'if (false) {' },
+};
+const ablate = (argValue('--ablate') ?? '').split(',').filter(Boolean);
+for (const a of ablate) {
+  if (!ABLATIONS[a]) {
+    console.error(`headless-match: unknown --ablate "${a}" (${Object.keys(ABLATIONS).join(', ')})`);
+    process.exit(2);
+  }
+}
 const gate = argValue('--gate') ?? (hasFlag('--balance') ? 'balance' : null);
 if (gate && !GATES[gate]) {
   console.error(`headless-match: unknown gate "${gate}" (${Object.keys(GATES).join(', ')})`);
@@ -60,6 +81,7 @@ const difficulty = argValue('--difficulty') ?? def.difficulty;
 const heroArg = argValue('--hero') ?? (gate ? 'random' : 'clem');
 const trickArg = argValue('--trick') ?? (gate ? 'random' : 'pounce');
 const profile = argValue('--profile') ?? def.profile;
+const botTalents = argValue('--bot-talents') ?? 'seeded';
 const json = hasFlag('--json');
 const quiet = hasFlag('--quiet') || (gate !== null && !hasFlag('--rows'));
 const checkDet = hasFlag('--check-determinism');
@@ -69,9 +91,13 @@ const worker = hasFlag('--worker');
 const withStats = hasFlag('--stats');
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? (seeds >= 40 && !worker ? Math.max(1, cpus().length - 2) : 1)), seeds));
 
-const sim = await importSim('src/sim/index.ts');
+const sim = await importSim('src/sim/index.ts', ablate.map((a) => ({ ...ABLATIONS[a], name: a })));
 if (!sim.PLAYER_PROFILES.includes(profile)) {
   console.error(`headless-match: unknown profile "${profile}" (${sim.PLAYER_PROFILES.join(', ')})`);
+  process.exit(2);
+}
+if (!sim.BOT_TALENT_MODES.includes(botTalents)) {
+  console.error(`headless-match: unknown --bot-talents "${botTalents}" (${sim.BOT_TALENT_MODES.join(', ')})`);
   process.exit(2);
 }
 if (!sim.DIFFICULTIES.includes(difficulty)) {
@@ -82,7 +108,7 @@ const HZ = sim.TICK_HZ;
 const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'];
 /** The cat heroes (HeroData.side 'cat'); every match is cats vs dogs, so the balance gate checks the species too. */
 const CAT_HEROES = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe'];
-const TRICKS = ['pounce', 'snack', 'hiss'];
+const TRICKS = ['pounce', 'snack', 'hiss', 'purrify'];
 const fmt = (ticks) => {
   const s = Math.floor(ticks / HZ);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -94,7 +120,7 @@ function play(seed, track) {
   const hero = heroArg === 'random' ? pickFor(seed, HEROES, 0x51) : heroArg;
   const trick = trickArg === 'random' ? pickFor(seed, TRICKS, 0x7a) : trickArg;
   const { picks, tricks } = sim.fillPicks(seed, hero, trick);
-  const m = sim.createMatch({ seed, picks, tricks, difficulty });
+  const m = sim.createMatch({ seed, picks, tricks, difficulty, botTalents });
   const bot = sim.createPlayerBot(m, profile);
   const tracker = track ? createFunTracker(sim, m) : null;
   const t0 = performance.now();
@@ -105,13 +131,17 @@ function play(seed, track) {
   const ms = performance.now() - t0;
   const snap = sim.snapshot(m, 0);
   const res = sim.result(m);
-  return { res, trail: sim.hashTrail(m).slice(), ms, score: snap.score, replay: sim.replayRecord(m), fun: tracker?.finish(res) };
+  // GAPS B6: each slot's level-6 choice (talent tier 1: −1 never reached, 0 the number option, 1 the shape branch).
+  const tier1 = picks.map((_, s) => m.world.talents[s * 3 + 1]);
+  return { res, tricks, tier1, trail: sim.hashTrail(m).slice(), ms, score: snap.score, replay: sim.replayRecord(m), fun: tracker?.finish(res) };
 }
 
 /** Play seeds [f, f + n) in this process: rows, per-hero totals, determinism failures. */
 function runRange(f, n) {
   const rows = [];
   const perHero = {};
+  const perTrick = {};
+  const perTalent = {};
   let failures = 0;
   for (let seed = f; seed < f + n; seed++) {
     const a = play(seed, fun);
@@ -145,16 +175,28 @@ function runRange(f, n) {
       h.assists += st.assists;
       h.levels += st.level;
       h.heroDamage += st.heroDamage;
+      // Sim v10 (GAPS B5): every slot's Paw Trick, for the per-trick win rates.
+      const t = (perTrick[a.tricks[st.slot]] ??= { slots: 0, wins: 0 });
+      t.slots++;
+      if ((st.slot < 3 ? 0 : 1) === a.res.winner) t.wins++;
+      // GAPS B6: win rate by level-6 choice, per hero ('sage:1' = Sage with the shape branch).
+      const c = a.tier1[st.slot];
+      if (c >= 0) {
+        const k = (perTalent[`${st.hero}:${c}`] ??= { slots: 0, wins: 0 });
+        k.slots++;
+        if ((st.slot < 3 ? 0 : 1) === a.res.winner) k.wins++;
+      }
     }
   }
-  return { rows, perHero, failures };
+  return { rows, perHero, perTrick, perTalent, failures };
 }
 
 /** Fan the seed range out to child processes (each runs this file with --worker). */
 async function runParallel() {
   const per = Math.ceil(seeds / procs);
   const self = fileURLToPath(import.meta.url);
-  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile];
+  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile, '--bot-talents', botTalents];
+  if (ablate.length) passOn.push('--ablate', ablate.join(','));
   if (checkDet) passOn.push('--check-determinism');
   if (fun) passOn.push('--fun');
   if (withStats) passOn.push('--stats');
@@ -184,6 +226,8 @@ async function runParallel() {
   const parts = await Promise.all(jobs);
   const rows = parts.flatMap((p) => p.rows).sort((a, b) => a.seed - b.seed);
   const perHero = {};
+  const perTrick = {};
+  const perTalent = {};
   let failures = 0;
   for (const p of parts) {
     failures += p.failures;
@@ -191,8 +235,18 @@ async function runParallel() {
       const t = (perHero[hero] ??= { slots: 0, wins: 0, kills: 0, deaths: 0, assists: 0, levels: 0, heroDamage: 0 });
       for (const k of Object.keys(t)) t[k] += h[k];
     }
+    for (const [trick, h] of Object.entries(p.perTrick)) {
+      const t = (perTrick[trick] ??= { slots: 0, wins: 0 });
+      t.slots += h.slots;
+      t.wins += h.wins;
+    }
+    for (const [k, h] of Object.entries(p.perTalent)) {
+      const t = (perTalent[k] ??= { slots: 0, wins: 0 });
+      t.slots += h.slots;
+      t.wins += h.wins;
+    }
   }
-  return { rows, perHero, failures };
+  return { rows, perHero, perTrick, perTalent, failures };
 }
 
 if (worker) {
@@ -202,7 +256,7 @@ if (worker) {
 } else {
 
 const t0 = performance.now();
-const { rows, perHero, failures } = procs > 1 ? await runParallel() : runRange(from, seeds);
+const { rows, perHero, perTrick, perTalent, failures } = procs > 1 ? await runParallel() : runRange(from, seeds);
 const wall = ((performance.now() - t0) / 1000).toFixed(1);
 
 const sorted = rows.map((r) => r.ticks).sort((x, y) => x - y);
@@ -225,9 +279,25 @@ const summary = {
 };
 const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), sim.timelineFor(difficulty).suddenDeath) : null;
 const gates = gate ? funGates(gate, funAgg, perHero, difficulty, CAT_HEROES) : [];
+// Sim v10 (GAPS B5): with --trick random (the gate default) every Paw Trick, over all six slots, wins 47% to 53%.
+if (gate === 'balance' && trickArg === 'random') {
+  for (const t of TRICKS) {
+    const h = perTrick[t];
+    const rate = h?.slots ? (100 * h.wins) / h.slots : 0;
+    gates.push([`trick ${t} win rate 47% to 53%`, rate >= 47 && rate <= 53, `${rate.toFixed(1)}% of ${h?.slots ?? 0} slots`]);
+  }
+}
+// GAPS B6: with seeded talents (both options played), a hero's level-6 shape branch wins 45% to 55% of its slots.
+if (gate === 'balance' && botTalents === 'seeded') {
+  for (const hero of sim.BRANCH_HEROES ?? []) {
+    const b = perTalent[`${hero}:1`];
+    const rate = b?.slots ? (100 * b.wins) / b.slots : 0;
+    gates.push([`${hero} level-6 branch win rate 45% to 55%`, rate >= 45 && rate <= 55, `${rate.toFixed(1)}% of ${b?.slots ?? 0} slots`]);
+  }
+}
 if (checkDet) gates.push(['deterministic (every seed played twice)', failures === 0, failures === 0 ? 'yes' : `${failures} differ`]);
 
-if (json) console.log(JSON.stringify({ rows, summary, perHero, fun: funAgg, gates }, null, 2));
+if (json) console.log(JSON.stringify({ rows, summary, perHero, perTrick, perTalent, fun: funAgg, gates }, null, 2));
 else {
   if (!quiet) {
     for (const r of rows) {
@@ -238,7 +308,7 @@ else {
     }
   }
   console.log(
-    `\n${summary.matches} matches (${profile} + bots, ${difficulty}${gate ? `, gate ${gate}` : ''}): median ${summary.medianLength}, p95 ${summary.p95Length}, ` +
+    `\n${summary.matches} matches (${profile} + bots, ${difficulty}${gate ? `, gate ${gate}` : ''}${botTalents !== 'seeded' ? `, bot talents ${botTalents}` : ''}${ablate.length ? `, ablated ${ablate.join('+')}` : ''}): median ${summary.medianLength}, p95 ${summary.p95Length}, ` +
       `core kills ${summary.coreKills}, safety ends ${summary.safetyEnds}, Purrhaven ${summary.purrhavenWins} / Woof ${summary.woofWins}, ` +
       `takedowns ${summary.avgTakedowns} a match, ${summary.msPerMatch} ms a match (max ${summary.maxMs}), inputs ≤ ${summary.maxInputChars} chars, ${wall} s wall` +
       (checkDet ? `, deterministic: ${failures === 0 ? 'yes' : `NO (${failures})`}` : ''),
@@ -250,6 +320,8 @@ else {
         `K/D/A ${avg(h.kills)}/${avg(h.deaths)}/${avg(h.assists)}  level ${avg(h.levels)}  hero dmg ${avg(h.heroDamage)}`,
     );
   }
+  for (const [k, h] of Object.entries(perTalent).sort()) console.log(`  level 6 ${k.padEnd(12)} ${String(h.slots).padStart(5)} slots  win ${((100 * h.wins) / h.slots).toFixed(1)}%`);
+  for (const [trick, h] of Object.entries(perTrick)) console.log(`  trick ${trick.padEnd(8)} ${String(h.slots).padStart(5)} slots  win ${((100 * h.wins) / h.slots).toFixed(1)}%`);
   if (funAgg) console.log(formatFun(funAgg));
   for (const [name, ok, value] of gates) console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}: ${value}`);
 }

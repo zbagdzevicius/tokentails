@@ -9,7 +9,7 @@
  * ("Pudding in 0:42", "Calm Pudding!", "Escort: 1,840 HP", "Your rats 0:18", "Sunset in 1:10", "Sudden Death in
  * 0:45"), from `ObjectiveClock`: snapshots and events only, no sim change. The enemy camp's timer shows only once a
  * clear of it was seen (a `buff` 'pack' event on a hero we can see, as in WR and MLBB). The chip is tappable; the
- * tap names the objective (`onTap`) so B1 can send its ping later. It sends nothing now.
+ * tap names the objective (`onTap`) and the session sends its ping (GAPS B1, ui/pingText.ts chipPing).
  */
 import { icon } from '../ui/icons';
 import { savedPadMode, type PadMode } from './tips';
@@ -80,7 +80,7 @@ export class Objectives {
   /** Round 1 standing goal: shown whenever no beat is up ("between them the HUD goal was often blank"). */
   private standingText: StandingText | null = null;
   private standingKey = '';
-  /** GAPS A4: a tap on the standing chip, with its objective key (B1 sends the matching ping; nothing yet). */
+  /** GAPS A4: a tap on the standing chip, with its objective key (GAPS B1: the session sends the matching ping). */
   onTap: ((key: string) => void) | null = null;
 
   constructor(

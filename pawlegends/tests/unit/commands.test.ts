@@ -13,7 +13,7 @@ import {
   toBase64,
 } from '../../src/sim/commands';
 import { Rng } from '../../src/sim/rng';
-import { MAX_INPUT_BYTES, MAX_INPUT_CHARS, MOVE_MIN_GAP } from '../../src/data/limits';
+import { FORFEIT_RESERVE_BYTES, MAX_INPUT_BYTES, MAX_INPUT_CHARS, MOVE_MIN_GAP } from '../../src/data/limits';
 import { createGate, gateCommand } from '../../src/sim/input';
 import { createMatch, fillPicks, replayRecord, result, step } from '../../src/sim/index';
 import { verifyReplay } from '../../src/sim/server';
@@ -103,7 +103,8 @@ describe('input gate (§11.3)', { timeout: 120000 }, () => {
     let applied = 0;
     for (let t = 0; t < 100000; t++) if (gateCommand(g, t, [{ op: Op.Cast, slot: 0, x: t % 1000, y: 0, id: 255 }])) applied++;
     expect(g.bytes).toBeLessThanOrEqual(MAX_INPUT_BYTES);
-    expect(applied).toBe(Math.floor(MAX_INPUT_BYTES / 8));
+    // sim v10 (GAPS B2): the last FORFEIT_RESERVE_BYTES stay free for a forfeit
+    expect(applied).toBe(Math.floor((MAX_INPUT_BYTES - FORFEIT_RESERVE_BYTES) / 8));
   });
   it('a dense touch-spam match stays under the 40,000-character input gate and verifies', () => {
     // Joystick: a move 2 m ahead every tick with the direction turning, plus attack and cast spam, far denser than a

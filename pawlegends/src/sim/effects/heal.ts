@@ -1,6 +1,12 @@
 /** `heal` (POC.md §4.4): instant, or over time (Snack Break; broken by hard CC, see status.ts `interrupt`). */
 import { idiv } from '../fixed';
-import type { World } from '../world';
+import type { MatchHandle } from '../state';
+import { RANGE, type World } from '../world';
+
+/** Sim v10: credit hero `src` with `amount` healed or shielded (`SlotStats.healShield`; stats only, not hashed). */
+export function creditHealShield(m: MatchHandle, src: number, amount: number): void {
+  if (src >= RANGE.heroes && src < RANGE.minions && amount > 0) m.stats[src].healShield += amount;
+}
 
 /** Heal `id` by `amount`, capped at max HP. Returns the HP restored. */
 export function heal(w: World, id: number, amount: number): number {

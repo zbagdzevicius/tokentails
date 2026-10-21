@@ -14,7 +14,7 @@ import type { Rng } from '../rng';
 import type { MatchHandle } from '../state';
 import { G, Order, RANGE, TALENT_TIERS } from '../world';
 import { canCast } from '../heroes/kit';
-import { unlockedTiers } from '../heroes/talents';
+import { botTalentChoice, botTalentMode, unlockedTiers } from '../heroes/talents';
 import type { BotMem } from './mem';
 import { fountainX, fountainY, hpBp, laneFront, laneStructure, seenEnemy, sign, tanked, untankedThreat } from './sense';
 
@@ -52,7 +52,7 @@ export function noviceThink(m: MatchHandle, id: number, mem: BotMem, rng: Rng): 
     return null;
   }
   for (let t = 0; t < unlockedTiers(w, id); t++) {
-    if (w.talents[id * TALENT_TIERS + t] < 0) return { op: Op.Talent, tier: t as 0 | 1 | 2, choice: 0 };
+    if (w.talents[id * TALENT_TIERS + t] < 0) return { op: Op.Talent, tier: t as 0 | 1 | 2, choice: botTalentChoice(m.config.seed, id, t, botTalentMode(m)) };
   }
   if (w.castPhase[id] !== 0) return null;
   const team = w.team[id];

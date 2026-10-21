@@ -6,8 +6,8 @@ export const CLEM: HeroData = Object.freeze<HeroData>({
   name: 'Clem',
   side: 'cat',
   role: 'fighter',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 9300, takenBp: 10200 },
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). */
+  pvp: { dmgBp: 8800, takenBp: 10200 },
   element: 'FAIRY',
   base: { hp: 620, hpPerLevel: 60, attack: 58, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 5000, armour: 25, armourPerLevel: 2 },
   /** Valor: +10 per hit on a hero (minions +4), max 100; at 100 the next ability deals +50%. */

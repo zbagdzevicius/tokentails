@@ -6,13 +6,17 @@
 import { angleDiff, iatan2 } from '../fixed';
 import type { World } from '../world';
 
-/** A flat shield of `amount`, for `ticks` (0 = until used up). A bigger shield replaces a smaller one. */
-export function addShield(w: World, id: number, amount: number, ticks: number): void {
-  if (w.alive[id] === 0 || amount <= 0) return;
-  if (amount >= w.shield[id]) {
-    w.shield[id] = amount;
-    w.shieldT[id] = ticks;
-  }
+/**
+ * A flat shield of `amount`, for `ticks` (0 = until used up). A bigger shield replaces a smaller one. Returns the
+ * shield gained (sim v10, for `SlotStats.healShield`): the new amount minus the one it replaced, 0 when refused.
+ */
+export function addShield(w: World, id: number, amount: number, ticks: number): number {
+  if (w.alive[id] === 0 || amount <= 0) return 0;
+  if (amount < w.shield[id]) return 0;
+  const gained = amount - w.shield[id];
+  w.shield[id] = amount;
+  w.shieldT[id] = ticks;
+  return gained;
 }
 
 /** Is (x, y) within the `arc` (full width, angle steps) in front of `id`'s facing? */

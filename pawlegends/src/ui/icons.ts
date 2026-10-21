@@ -19,6 +19,7 @@ const P: Record<IconId, string> = {
   blink: '<circle cx="14" cy="30" r="6" fill="currentColor" opacity=".5"/><circle cx="34" cy="18" r="8" fill="currentColor"/><path d="M18 26 L28 20" stroke="currentColor" stroke-width="3" stroke-dasharray="3 3"/>',
   heart: '<path d="M24 41 C10 31 5 23 5 16 C5 10 10 6 15 6 C19 6 22 8 24 12 C26 8 29 6 33 6 C38 6 43 10 43 16 C43 23 38 31 24 41 Z" fill="currentColor"/>',
   hiss: '<path d="M8 24 Q16 12 24 24 T40 24" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M8 34 Q16 22 24 34 T40 34" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>',
+  purr: '<path d="M10 40 C6 30 8 20 14 12 L18 20 C21 18 27 18 30 20 L34 12 C40 20 42 30 38 40 Z" fill="currentColor"/><path d="M4 22 Q8 18 4 14 M44 22 Q40 18 44 14 M24 4 V9" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M18 30 Q24 34 30 30" stroke="#0006" stroke-width="2.5" fill="none" stroke-linecap="round"/>',
   nap: '<path d="M30 8 H40 L30 20 H40" stroke="currentColor" stroke-width="3.5" fill="none" stroke-linejoin="round"/><path d="M12 22 H20 L12 32 H20" stroke="currentColor" stroke-width="3" fill="none"/><path d="M6 40 Q24 30 42 40" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/>',
   // sim v9 shelter champions
   tuna: '<ellipse cx="24" cy="26" rx="16" ry="9" fill="currentColor"/><ellipse cx="24" cy="22" rx="16" ry="7" fill="none" stroke="#0005" stroke-width="2"/><path d="M14 26 H34" stroke="#0005" stroke-width="2"/>',
@@ -37,6 +38,9 @@ const P: Record<IconId, string> = {
   wings: '<path d="M24 30 C16 12 6 10 4 14 C8 18 6 22 10 24 C8 28 12 30 16 30 Z M24 30 C32 12 42 10 44 14 C40 18 42 22 38 24 C40 28 36 30 32 30 Z" fill="currentColor"/>',
   wind: '<path d="M6 18 H30 C36 18 36 10 30 10 M6 26 H38 C44 26 44 34 38 34 M6 34 H24" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/>',
   spell: '<ellipse cx="24" cy="24" rx="18" ry="11" fill="none" stroke="currentColor" stroke-width="3.5"/><circle cx="24" cy="24" r="6" fill="currentColor"/><path d="M38 8 L40 12 L44 13 L40 15 L39 19 L37 15 L33 14 L37 12 Z" fill="currentColor"/>',
+  // sim v10 level-6 shape branches (GAPS B6)
+  lance: '<path d="M4 30 L40 12" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M40 12 L32 10 L36 18 Z" fill="currentColor"/><g fill="currentColor" opacity=".55"><circle cx="16" cy="24" r="4"/><circle cx="28" cy="18" r="4"/></g>',
+  dome: '<path d="M6 36 C6 18 42 18 42 36 Z" fill="currentColor" opacity=".45"/><path d="M6 36 C6 18 42 18 42 36" stroke="currentColor" stroke-width="4" fill="none"/><path d="M4 38 H44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M24 36 V24" stroke="#0005" stroke-width="3"/>',
   paw: '<ellipse cx="24" cy="31" rx="10" ry="8" fill="currentColor"/><circle cx="12" cy="20" r="4.5" fill="currentColor"/><circle cx="20" cy="13" r="4.5" fill="currentColor"/><circle cx="28" cy="13" r="4.5" fill="currentColor"/><circle cx="36" cy="20" r="4.5" fill="currentColor"/>',
 };
 

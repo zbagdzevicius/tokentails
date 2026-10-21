@@ -6,8 +6,11 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
   name: 'Sage',
   side: 'cat',
   role: 'marksman',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 10300, takenBp: 9800 },
+  /**
+   * Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
+   * (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%).
+   */
+  pvp: { dmgBp: 10700, takenBp: 9800 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */
@@ -29,7 +32,11 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
     ],
     [
       { id: 'twin-snares', name: 'Twin Snares', mods: { w: { maxTraps: 3, root: 38 } } },
-      { id: 'quick-hop', name: 'Quick Hop', mods: { e: { cooldown: 240 } } },
+      /**
+       * Sim v10 (GAPS B6), the level-6 shape branch (it replaced Quick Hop, `e.cooldown` 240): Volley becomes one 9 m
+       * line, 600 mm wide, that pierces everything it passes (`lance` switches the shape; Sticky Arrows still slows).
+       */
+      { id: 'piercing-shot', name: 'Piercing Shot', mods: { q: { lance: 1, range: 9000, width: 600, dmg: 95, dmgPerLevel: 14, speed: 24000 } } },
     ],
     [
       { id: 'full-moon', name: 'Full Moon', mods: { r: { cooldown: 1500 } } },

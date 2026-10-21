@@ -9,6 +9,7 @@ import { dist2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, Kind, RANGE, type World } from '../world';
 import { addShield, charm, collect, dash, haste, heal, inCone, slow, spawnBurst } from '../effects';
+import { creditHealShield } from '../effects/heal';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
@@ -72,7 +73,7 @@ function wingWrap(m: MatchHandle, id: number, x: number, y: number): number {
     py = w.y[id] + idiv(dy * p.range, d);
   }
   const t = wrapTarget(w, id, px, py, p.range, p.pickRadius);
-  addShield(w, t, lvl(w, id, p.shield, p.shieldPerLevel), p.duration);
+  creditHealShield(m, id, addShield(w, t, lvl(w, id, p.shield, p.shieldPerLevel), p.duration));
   haste(w, t, p.hasteBp, p.haste);
   return p.cooldown;
 }
@@ -120,6 +121,6 @@ export const GABE_KIT: HeroKit = {
     if (kind !== 'basic' || w.kind[dst] !== Kind.Hero) return;
     const p = abil(w, id).passive;
     const t = weakestAlly(w, id, p.range);
-    if (t >= 0) heal(w, t, lvl(w, id, p.heal, p.healPerLevel));
+    if (t >= 0) creditHealShield(m, id, heal(w, t, lvl(w, id, p.heal, p.healPerLevel)));
   },
 };

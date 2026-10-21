@@ -3,7 +3,7 @@ import { art, mockHost, openHost, received } from './host';
 
 // GAPS A1 / A6: an old 9-chest Treat Track moves to the 30-chest track with its empty chests paid once; the title's
 // Treat Track button opens the chest screen ("pick your next target", N matches to go, postcards, titles); the pick
-// screen shows the role label and no lane hint. Nothing here opens an offer.
+// screen shows the role label and (GAPS B1) one lane hint. Nothing here opens an offer.
 
 const V1 = ['emote.wave', 'coat.clem.marmalade', 'coat.sage.midnight', 'coat.brutus.biscuit', 'coat.cacklejaw.spotted', 'coat.clem.snowpaw', 'coat.sage.sunrise', 'coat.brutus.ember', 'coat.cacklejaw.dusk'];
 
@@ -67,7 +67,7 @@ test('closing the Treat Track panel on an offer-eligible profile never shows a n
   expect((await received(page)).some((m) => m.type === 'open-cat' || m.type === 'purchase-intent')).toBe(false);
 });
 
-test('the pick screen labels the role and gives no lane hint', async ({ page }) => {
+test('the pick screen labels the role and (GAPS B1) gives one lane hint', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 1, matches: 4, wins: 1, firstWinDone: true, hero: 'lambo' }));
   });
@@ -76,5 +76,5 @@ test('the pick screen labels the role and gives no lane hint', async ({ page }) 
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
   await expect(page.locator('.pl-pick .role-label')).toHaveText('Tank');
-  await expect(page.locator('.pl-pick .detail')).not.toContainText(/lane/i);
+  await expect(page.locator('.pl-pick .detail .lane-hint')).toHaveText('Lane: Puddle (bottom) or Sunny. Your bots swap to cover the other.');
 });

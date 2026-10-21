@@ -200,12 +200,13 @@ override.
 
 A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
 `docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of eight
-upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss), and plays with two bot
+upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
 allies of its own side against three bots of the other side on Purrhaven Crossing. Cats: Clem, Sage and the
 four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support); dogs: Sir
 Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end between 5
 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a second,
-`SIM_VERSION` 9) in a Web Worker, and the backend replays it.
+`SIM_VERSION` 10) in a Web Worker, and the backend replays it (v9 and v10 replays both verify, by `simVersion`, for
+30 days after the v10 deploy).
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
@@ -273,15 +274,38 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
     cat" (pick screen, difficulty kept). A rematch stays in the same page session, so no second offer card.
   - **Timers**: a top-centre next-objective chip ("Pudding in 0:42", "Calm Pudding!", escort HP, camp respawns,
     "Sunset in …", "Sudden Death in …"), minimap countdown rings and a portrait strip with death timers from
-    `respawnIn`, all from snapshots and events. Enemy camps show once a clear was seen. A chip tap sends no ping yet
-    (Wave B, B1).
+    `respawnIn`, all from snapshots and events. Enemy camps show once a clear was seen. A chip tap sends its ping (Wave B,
+    B1).
   - **Touch target lock**: tap an enemy hero or its strip portrait to lock it for 5 s (until it dies or is past
     9 m); Attack and smart casts then take it. Settings "Target first": Heroes (default) / Lowest HP % / Closest,
     plus optional last-hit and tower buttons (off by default).
   - **Small items**: first win of the local day +150 Treat XP (no streak, no catnip); the loading screen shows the
-    match count on this hero and, in a card skin, its Bond; the pick screen shows the role label (no lane hint until
-    bots swap lanes in B1); allied bots cheer the player's takedowns and assists (fixed lines in turn, at most one
+    match count on this hero and, in a card skin, its Bond; the pick screen shows the role label (and, since B1, a
+    lane hint); allied bots cheer the player's takedowns and assists (fixed lines in turn, at most one
     every 8 s).
+- **Wave B** (`docs/plans/moba/GAPS.md` §3, the one bump to `SIM_VERSION` 10):
+  - **B0**: bots choose talents from a seeded stream per slot; replays carry `mutator` ('none' only in v10; the
+    backend digest includes it from v10, and a mutator match would pay no catnip and set no fastest win);
+    `SlotStats` adds `damageTaken`, `healShield` and `objective`; the backend keeps a frozen v9 verifier beside v10
+    (`backend/src/vendor/pawlegends-sim/v9`, `/v10`).
+  - **B1 pings**: `Op.Ping` (8 kinds: Go here, Group on me, Take Pudding, Push Sunny, Push Puddle, Defend base, Fall
+    back, Focus hero), one per 1.5 s and 60 a match; allied bots take an order for a few seconds (`src/sim/bots/orders.ts`)
+    or bark "Healing first!" under 35% HP; enemy bots never see them. Desktop: hold G for the wheel, Alt-click to
+    Focus; touch: the paw button by the minimap, long-press the minimap (Go here) or a portrait (Focus), tap a timer
+    chip. Ally slot 1 takes Sunny when the human stays in Puddle from 0:40 (lane swap). The input cap is 30,600 bytes
+    (40,800 characters) in `src/data/limits.ts`, `shared/caps.ts` and `backend/src/shared-contracts/caps.ts`.
+    Pings give control, not a win-rate edge (GAPS Your call 19).
+  - **B2 forfeit**: `Op.Forfeit` from 4:00 on Normal and Hard and 3:00 on Easy; never on Rookie or in matches 1–3. The
+    pause menu shows "Forfeit from M:SS", then a confirm step. A forfeit is a loss: 20 Treat XP, no quest progress, a
+    full ladder loss, no catnip; the backend stores it as outcome `quit`.
+  - **B3**: catch-up XP and the camp bonus became per-difficulty rules; the planned cuts were not applied because
+    they raised comebacks (GAPS B3 status). A headless `--ablate` run switches each comeback source off.
+  - **B5 Purr-ify**: the 4th Paw Trick removes stun, root, slow, fear and charm and gives 0.5 s of crowd-control
+    immunity (cooldown 100 s); it can be cast while stunned. Pick screen hint "Tank → Purr-ify".
+  - **B6 level-6 branches**: talent tier 1 option 1 is a shape branch for Sage (Piercing Shot: Q is one 9 m piercing
+    line) and Sir Brutus (Guard Post: W plants a 3 m dome for 2 s that shields his team inside from enemy shots; he is
+    rooted and takes 25% less damage). The enemy portrait shows the branch; the other six heroes show "Branch coming
+    soon". Cacklejaw and Lambo branches are a stretch, not built.
 - **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames (non-pack cats
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick
@@ -337,10 +361,12 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   `Math.random` or wall clock in `src/sim`), `npm run lift -- --check`, `npm run build && npm run budget`
   (first-load JS 450 KB gzip), `npx playwright test --workers=2`, `npm run vendor-sim:check`, and the headless
   gates: `npm run match -- --gate balance` (2,000 seeds; at 400 seeds the 70% core-kill check sits within noise),
-  `npm run match -- --seeds 200 --check-determinism` and `npm run determinism -- --seeds 200`
+  `npm run match -- --seeds 200 --check-determinism` and `npm run determinism -- --seeds 200` (also `fun1`, `fun2`,
+  `novice` and `parked`)
   (README "Run and check" has the full list and the nightly gates).
 - **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
-  `backend/src/vendor/pawlegends-sim/`), deploy the backend, then the client build. `GET /pawlegends/sim`
+  `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days), deploy the
+  backend, then the client build. The backend must be live first, or every replay of the new version is refused. `GET /pawlegends/sim`
   serves the bundle hash (`npm run vendor-sim:check-remote -- <backend url>`). The backend refuses replays of
   any other version, and the host purges queued matches of an old version.
 

@@ -28,8 +28,10 @@ test('Choose hero → Sir Brutus → Play starts the match (Play is never covere
   await page.locator('[data-h="brutus"]').click();
   await expect(page.locator('.pl-pick-foot [data-a="start"]')).toBeVisible();
   expect(await topmost(page, '.pl-pick-foot [data-a="start"]')).toBe(true);
-  // the Paw Trick chips fit above the fold at 844×390 (they were cut off at y = 376 to 383)
-  const trick = await page.locator('[data-t="hiss"]').boundingBox();
+  // the Paw Trick chips fit above the fold at 844×390 (they were cut off at y = 376 to 383); sim v10 (GAPS B5): the
+  // 4th chip, Purr-ify, too, and the Tank hint shows for Sir Brutus
+  await expect(page.locator('.pl-pick .trick-hint')).toContainText('Purr-ify');
+  const trick = await page.locator('[data-t="purrify"]').boundingBox();
   expect(trick && trick.y + trick.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 720) + 1);
   if (info.project.name === 'landscape') await page.locator('.pl-pick-foot [data-a="start"]').tap();
   else await page.locator('.pl-pick-foot [data-a="start"]').click();

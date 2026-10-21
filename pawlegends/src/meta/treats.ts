@@ -120,7 +120,8 @@ const ALL: readonly TreatReward[] = Object.freeze([...TREAT_REWARDS, ...LOOP_REW
 const BY_ID: ReadonlyMap<string, TreatReward> = new Map(ALL.map((r) => [r.id, r]));
 export const treatReward = (id: string): TreatReward | null => BY_ID.get(id) ?? null;
 
-export const TREAT_XP = Object.freeze({ win: 100, loss: 60, takedown: 10, takedownMax: 15, pudding: 20, firstWinOfDay: 150 });
+/** GAPS B2: `forfeit` is all a forfeited match pays (no takedown, Pudding, grade, quest or first-win XP). */
+export const TREAT_XP = Object.freeze({ win: 100, loss: 60, takedown: 10, takedownMax: 15, pudding: 20, firstWinOfDay: 150, forfeit: 20 });
 
 export interface TreatState {
   v: 2;
@@ -212,7 +213,8 @@ export function saveTreats(s: TreatState): void {
 }
 
 /** Treat XP for one match (quest XP and the first-win-of-the-day bonus are added by `addTreatXp`'s caller). Pure. */
-export function treatXpFor(m: { won: boolean; takedowns: number; pudding: boolean }): number {
+export function treatXpFor(m: { won: boolean; takedowns: number; pudding: boolean; forfeit?: boolean }): number {
+  if (m.forfeit) return TREAT_XP.forfeit;
   return (m.won ? TREAT_XP.win : TREAT_XP.loss) + Math.min(TREAT_XP.takedownMax, Math.max(0, m.takedowns)) * TREAT_XP.takedown + (m.pudding ? TREAT_XP.pudding : 0);
 }
 

@@ -95,7 +95,7 @@ const KEY = 'tt.pawlegends.profile.v1';
 /** A fresh bot-ladder rating. */
 export const LADDER_START = 1000;
 const HEROES: readonly HeroId[] = HERO_IDS;
-const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
+const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 
 export function freshProfile(): Profile {
   return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null };

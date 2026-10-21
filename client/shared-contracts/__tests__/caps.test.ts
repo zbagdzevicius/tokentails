@@ -72,7 +72,7 @@ describe('shared caps', () => {
         expect(PAWLEGENDS_LEVEL_CAPS).toHaveLength(PAWLEGENDS_LEVELS.length);
         expect(PAWLEGENDS_TICK_HZ).toBe(30);
         expect(PAWLEGENDS_MAX_TICKS).toBe(19800);
-        expect(PAWLEGENDS_MAX_INPUT_CHARS).toBe(40000);
+        expect(PAWLEGENDS_MAX_INPUT_CHARS).toBe(40800);
     });
 
     it('freezes every shared table so no consumer can change the enforced caps', () => {

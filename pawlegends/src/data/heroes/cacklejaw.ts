@@ -29,7 +29,11 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
     ],
     [
       { id: 'smug', name: 'Smug', mods: { w: { cooldown: 270 } } },
-      { id: 'wide-gloat', name: 'Wide Gloat', mods: { w: { range: 4000, arc: 1024 } } },
+      /**
+       * Sim v10: 105° at the same 3 m (4 m and 90° before). Once bots took it by seed (GAPS B0), its 4 m fear opener
+       * pushed foes out of reach and cut core kills before Sudden Death (balance gate 67.6%, 70% floor).
+       */
+      { id: 'wide-gloat', name: 'Wide Gloat', mods: { w: { arc: 1200 } } },
     ],
     [
       { id: 'feeding-frenzy', name: 'Feeding Frenzy', mods: { r: { resets: 2 } } },

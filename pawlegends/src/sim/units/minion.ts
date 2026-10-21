@@ -88,7 +88,8 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
 }
 
 /**
- * Step 3, before a wave spawns: a team 2+ structures or 6+ takedowns behind starts its underdog waves (COMEBACK),
+ * Step 3, before a wave spawns: a team COMEBACK.structuresBehind (3)+ structures behind, or takedownsBehind (8)+
+ * takedowns behind where lead pressure is off (Rookie, Easy), starts its underdog waves (COMEBACK),
  * unless it did within COMEBACK.cooldown. Then a wave's spawn spends one of each boosted team's waves.
  */
 export function checkComeback(m: MatchHandle): void {

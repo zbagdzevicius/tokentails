@@ -175,7 +175,7 @@ describe('Sage (§6.4)', () => {
     expect(w.maxHp[minion] - w.hp[minion]).toBe(afterArmour(Math.trunc(dmg / 2), 10));
   });
 
-  it('talents: Twin Snares (3 traps, root 1.25 s), Quick Hop 8 s, Full Moon 50 s, Moon Mark reveals 4 s', () => {
+  it('talents: Twin Snares (3 traps, root 1.25 s), Full Moon 50 s, Moon Mark reveals 4 s; Piercing Shot leaves Hop Back at 12 s', () => {
     const m = range();
     const w = m.world;
     setLevel(m, SAGE_ID, 9);
@@ -202,12 +202,49 @@ describe('Sage (§6.4)', () => {
     chooseTalent(m2, SAGE_ID, 1, 1);
     chooseTalent(m2, SAGE_ID, 2, 0);
     cast(m2, SAGE_ID, 2, MID.x + 5000, MID.y);
-    expect(cd(m2, SAGE_ID, 2)).toBe(240);
+    expect(cd(m2, SAGE_ID, 2)).toBe(360); // sim v10: the level-6 branch replaced Quick Hop (8 s)
     steps(m2, 8); // no cast while hopping
     cast(m2, SAGE_ID, 3, MID.x + 5000, MID.y);
     steps(m2, 30);
     expect(cd(m2, SAGE_ID, 3)).toBeGreaterThan(1450);
     expect(cd(m2, SAGE_ID, 3)).toBeLessThanOrEqual(1500);
+  });
+});
+
+describe('Sage: Piercing Shot (sim v10, GAPS B6 level-6 branch)', () => {
+  it('Volley becomes one 9 m line, 600 mm wide, that pierces every enemy in it', () => {
+    const m = range();
+    const w = m.world;
+    setLevel(m, SAGE_ID, 6);
+    expect(chooseTalent(m, SAGE_ID, 1, 1)).toBe(true);
+    place(m, FOE2, MID.x + 8000, MID.y, 2048);
+    const minion = putMinion(m, 1, MID.x + 4000, MID.y);
+    const hp = w.hp[FOE];
+    const hp2 = w.hp[FOE2];
+    cast(m, SAGE_ID, 0, MID.x + 1500, MID.y);
+    expect(alive(m, PROJECTILE_KIND.lance)).toBe(1);
+    expect(alive(m, PROJECTILE_KIND.arrow)).toBe(0);
+    expect(cd(m, SAGE_ID, 0)).toBe(210);
+    steps(m, 15);
+    const dmg = 95 + 14 * 5;
+    expect(hp - w.hp[FOE]).toBe(heroHit(dmg, 40));
+    expect(hp2 - w.hp[FOE2]).toBe(heroHit(dmg, 25)); // through the first hero and the minion
+    expect(w.maxHp[minion] - w.hp[minion]).toBeGreaterThan(0);
+    expect(alive(m, PROJECTILE_KIND.lance)).toBe(0);
+  });
+
+  it('a hero beside the line is missed (one line, not a cone); the snapshot marks the branch for both teams', () => {
+    const m = range();
+    const w = m.world;
+    setLevel(m, SAGE_ID, 6);
+    chooseTalent(m, SAGE_ID, 1, 1);
+    place(m, FOE2, MID.x + 3000, MID.y + 1400, 2048);
+    const hp2 = w.hp[FOE2];
+    cast(m, SAGE_ID, 0, MID.x + 1500, MID.y);
+    steps(m, 15);
+    expect(w.hp[FOE2]).toBe(hp2);
+    for (const team of [0, 1] as const) expect(snapshot(m, team).entities.find((e) => e.id === SAGE_ID)?.branch).toBe(true);
+    expect(snapshot(m, 1).entities.find((e) => e.id === FOE)?.branch).toBeUndefined();
   });
 });
 

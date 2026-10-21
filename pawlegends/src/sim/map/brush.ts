@@ -73,6 +73,7 @@ export function refreshFlags(w: World): void {
     if (w.alive[id] === 1) {
       if (w.stealthT[id] > 0) b |= Buff.Stealth;
       if (w.untargT[id] > 0) b |= Buff.Untargetable;
+      if (w.ccImmT[id] > 0) b |= Buff.Purrified;
       if (w.stunT[id] > 0) b |= Buff.Stunned;
       if (w.rootT[id] > 0) b |= Buff.Rooted;
       if (w.fearT[id] > 0) b |= Buff.Feared;

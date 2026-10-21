@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, ops } from './helpers';
 
-// GAPS A4 + A5: the next-objective chip (every match, tappable, sends nothing yet), the minimap countdown rings and the
+// GAPS A4 + A5: the next-objective chip (every match; GAPS B1: a tap sends its ping), the minimap countdown rings and the
 // portrait strip; on touch, a tap on an enemy hero (field or portrait) locks it and Attack then sends Attack{id} on it.
 // At 844x390 none of it covers the touch controls.
 
@@ -28,7 +28,7 @@ const overlaps = (a: Box, b: Box): boolean => a.x < b.x + b.width && a.x + a.wid
 /** Round controls: their discs touch (bounding boxes of neighbours on an arc overlap at the corners by design). */
 const discsTouch = (a: Box, b: Box): boolean => Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) < (a.width + b.width) / 2;
 
-test('every match: the objective chip names the next timer, a tap names it (no order, no offer); strip and rings show', async ({ page }, info) => {
+test('every match: the objective chip names the next timer, a tap sends its ping (no other order, no offer); strip and rings show', async ({ page }, info) => {
   await startVeteran(page);
   const chip = page.locator('.pl-goal.standing[data-ping]');
   await expect(chip).toBeVisible({ timeout: 10_000 });
@@ -41,14 +41,15 @@ test('every match: the objective chip names the next timer, a tap names it (no o
   // after the gates (0:03) the own camp (0:30) is the next timer for a while: a stable chip to tap
   await expect(chip).toHaveAttribute('data-ping', 'rats', { timeout: 15_000 });
   await expect(chip).toContainText(/Your rats 0:\d\d/);
-  const before = (await ops(page)).length;
   const offers = await page.locator('.pl-offer, [data-offer]').count();
   const key = await chip.getAttribute('data-ping');
   const b = (await chip.boundingBox())!;
   if (info.project.name === 'landscape') await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   else await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await expect.poll(() => attr(page, 'chipTap')).toBe(key);
-  expect((await ops(page)).length).toBe(before);
+  // GAPS B1: "Your rats" → one Go here ping (Op.Ping = 9) and nothing else
+  await expect.poll(() => attr(page, 'pingsSent')).toBe('1');
+  await expect.poll(async () => (await ops(page)).at(-1)).toBe(9);
   expect(await page.locator('.pl-offer, [data-offer]').count()).toBe(offers);
   if (info.project.name !== 'landscape') {
     // desktop: the strip is display only (clicks pass to the field; no lock with a mouse)
@@ -75,7 +76,8 @@ test('844x390: chip, strip and the optional last-hit and tower buttons stay clea
   };
   const buttons = await boxes('.pl-tbtn');
   const extra = await boxes('.pl-tbtn.lasthit, .pl-tbtn.tower');
-  const fixed = [...(await boxes('.pl-pause')), ...(await boxes('.pl-minimap')), ...(await boxes('.pl-bar'))];
+  const fixed = [...(await boxes('.pl-pause')), ...(await boxes('.pl-minimap')), ...(await boxes('.pl-bar')), ...(await boxes('.pl-pingbtn'))];
+  expect((await boxes('.pl-pingbtn')).length, 'GAPS B1 paw button on touch').toBe(1);
   const score = await boxes('.pl-score');
   const strip = await boxes('.pl-strip .pp');
   // the chip tucks under the score bar's rounded foot by design (it predates A4), so only the strip is held off it

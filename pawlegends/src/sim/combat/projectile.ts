@@ -1,8 +1,8 @@
 /**
  * Step 6 for projectiles (POC.md §4.3): homing bolts (minions, towers, cores, ranged basics) and skillshots
- * (effects/projectile.ts). Before a projectile lands, an enemy Front Guard in its way blocks it (Sir Brutus) and an
- * open parry window reflects it (Clem's The Stand). A reflected bolt flies back at its shooter; a reflected
- * skillshot flies back the way it came, both owned by the reflector.
+ * (effects/projectile.ts). Before a projectile lands, an enemy Front Guard or Guard Post dome (sim v10) in its way
+ * blocks it (Sir Brutus) and an open parry window reflects it (Clem's The Stand). A reflected bolt flies back at its
+ * shooter; a reflected skillshot flies back the way it came, both owned by the reflector.
  */
 import { MAP } from '../../data/map';
 import { PROJECTILE_KIND, TOWERS } from '../../data/towers';
@@ -19,13 +19,13 @@ import { alongLine } from '../effects/line';
 import { isAbilityTarget } from '../effects/targets';
 import { reveal } from '../effects/mark';
 import { slow } from '../effects/slow';
-import { guardBlocks } from '../heroes/brutus';
+import { domeShields, guardBlocks } from '../heroes/brutus';
 import { parryOpen } from '../heroes/clem';
 import { abil } from '../heroes/talents';
 import { radiusOf, targetable } from '../units/kinds';
 
 /** Source kind a bolt's damage counts as (backdoor and tower-aggro rules), by PROJECTILE_KIND. */
-const SRC_KIND: readonly number[] = [Kind.Minion, Kind.Minion, Kind.Tower, Kind.Core, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero];
+const SRC_KIND: readonly number[] = [Kind.Minion, Kind.Minion, Kind.Tower, Kind.Core, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero, Kind.Hero];
 
 const srcKindOf = (w: World, p: number): number => ((w.pFlags[p] & PFLAG.Reflected) !== 0 ? Kind.Hero : SRC_KIND[w.pKind[p]]);
 
@@ -69,7 +69,7 @@ function stepBolt(m: MatchHandle, p: number): void {
     w.pAlive[p] = 0;
     return;
   }
-  if (guardBlocks(w, w.pTeam[p], w.pX[p], w.pY[p])) {
+  if (guardBlocks(w, w.pTeam[p], w.pX[p], w.pY[p], dst)) {
     w.pAlive[p] = 0;
     return;
   }
@@ -85,7 +85,7 @@ function stepBolt(m: MatchHandle, p: number): void {
   w.pVy[p] = idiv(dy * step, d);
   w.pX[p] += w.pVx[p];
   w.pY[p] += w.pVy[p];
-  if (guardBlocks(w, w.pTeam[p], w.pX[p], w.pY[p])) w.pAlive[p] = 0;
+  if (guardBlocks(w, w.pTeam[p], w.pX[p], w.pY[p], dst)) w.pAlive[p] = 0;
 }
 
 const cand = new Int32Array(ENTITY_CAP);
@@ -109,14 +109,14 @@ function stepSkillshot(m: MatchHandle, p: number): void {
   w.pX[p] = bx;
   w.pY[p] = by;
   w.pTtl[p] -= move;
-  if (guardBlocks(w, w.pTeam[p], bx, by)) {
+  if (guardBlocks(w, w.pTeam[p], bx, by, -1, ax, ay)) {
     w.pAlive[p] = 0;
     return;
   }
   // Candidates the swept segment touches this tick, nearest first (ties: lowest id).
   let n = 0;
   for (let e = 0; e < RANGE.end; e++) {
-    if (maskHas(w.pHitLo[p], w.pHitHi[p], e) || !isAbilityTarget(w, e, w.pTeam[p])) continue;
+    if (maskHas(w.pHitLo[p], w.pHitHi[p], e) || !isAbilityTarget(w, e, w.pTeam[p]) || domeShields(w, w.pTeam[p], e)) continue;
     const along = alongLine(ax, ay, bx, by, w.pRadius[p], w.x[e], w.y[e], radiusOf(w, e));
     if (along < 0) continue;
     let i = n++;
