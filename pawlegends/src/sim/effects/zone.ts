@@ -9,7 +9,7 @@ import type { MatchHandle } from '../state';
 import { ENTITY_CAP, G, Kind, RANGE, allocZone, type World } from '../world';
 import { radiusOf } from '../units/kinds';
 import { dealDamage } from '../combat/damage';
-import { heal } from './heal';
+import { creditHealShield, heal } from './heal';
 import { inRing } from './ring';
 import { root } from './root';
 import { slow } from './slow';
@@ -100,7 +100,7 @@ function pulse(m: MatchHandle, z: number): void {
   if (w.zHeal[z] > 0) {
     for (let a = RANGE.heroes; a < RANGE.minions; a++) {
       if (w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== team) continue;
-      if (inRing(zx, zy, r, w.x[a], w.y[a], radiusOf(w, a))) heal(w, a, w.zHeal[z]);
+      if (inRing(zx, zy, r, w.x[a], w.y[a], radiusOf(w, a))) creditHealShield(m, owner, heal(w, a, w.zHeal[z]));
     }
   }
 }
@@ -125,7 +125,8 @@ export function ageZones(w: World): void {
   for (let z = 0; z < w.zAlive.length; z++) {
     if (w.zAlive[z] === 0) continue;
     if (w.zArm[z] > 0) w.zArm[z]--;
-    const ownerGone = w.zKind[z] === ZONE_KIND.arena && w.alive[w.zOwner[z]] === 0;
+    // An arena and a Guard Post dome (sim v10) end with their owner.
+    const ownerGone = (w.zKind[z] === ZONE_KIND.arena || w.zKind[z] === ZONE_KIND.dome) && w.alive[w.zOwner[z]] === 0;
     if (--w.zTtl[z] > 0 && !ownerGone) continue;
     if (w.zKind[z] === ZONE_KIND.arena) endArena(w, z);
     else w.zAlive[z] = 0;

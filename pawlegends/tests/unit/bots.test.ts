@@ -33,7 +33,7 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
 
   it('bots walk out to their lanes: Sunny, Puddle and the roamer', () => {
     // Normal: on Rookie and Easy the human's allies carry (follow the human, DifficultyRules.carryAllies).
-    const m = quietMatch(11, true, 'normal');
+    const m = quietMatch(12, true, 'normal'); // seed 11 before sim v10 B5 moved the bots' tricks to their own stream
     while (m.world.globals[G.Tick] < TIMELINE.firstWave + 600) step(m);
     const w = m.world;
     // Slot 1 and 4 play Puddle (bottom), slot 3 Sunny (top); every bot left its fountain.

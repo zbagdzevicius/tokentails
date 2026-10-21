@@ -37,6 +37,8 @@ export interface Who {
   z: number;
   /** Facing (rad, sim convention). */
   yaw: number;
+  /** Sim v10 (GAPS B6): took the level-6 shape branch (aims and telegraphs change). */
+  branch?: boolean;
 }
 
 export interface ActiveWindup {
@@ -116,7 +118,7 @@ export class Effects {
     if (!who) return null;
     if (who.kind === 'pudding') return { kind: 'self', shape: 'ring', range: PUDDING.hopRadius, radius: PUDDING.hopRadius, smart: 'none' };
     if (who.kind !== 'hero' || !who.hero) return null;
-    return slot === 4 ? trickAim(this.hooks.trickOf(who.id)) : aimFor(who.hero, slot);
+    return slot === 4 ? trickAim(this.hooks.trickOf(who.id)) : aimFor(who.hero, slot, who.branch === true);
   }
 
   handle(ev: AnyEvent): void {
@@ -277,6 +279,7 @@ export class Effects {
       }
     }
     if (e.slot === 4) return this.trick(src, e.x, e.y, mine);
+    if (src.branch && this.branchCast(src, e.slot, yaw, aim, mine)) return;
     const shape = aim?.shape ?? 'none';
     const range = (aim?.range ?? 2000) / 1000;
     switch (shape) {
@@ -329,6 +332,33 @@ export class Effects {
     }
   }
 
+  /**
+   * Sim v10 (GAPS B6): the level-6 shape branches' cast looks. Piercing Shot: a bright streak down its 9 m line.
+   * Guard Post: a gold dome rising around Sir Brutus. Returns false for a slot the branch did not change.
+   */
+  private branchCast(src: Who, slot: CastSlot, yaw: number, aim: AimSpec | null, mine: boolean): boolean {
+    if (src.hero === 'sage' && slot === 0) {
+      const len = (aim?.range ?? 9000) / 1000;
+      for (let i = 0; i < 24; i++) {
+        const t = i / 23;
+        _p.set(src.x + Math.cos(yaw) * len * t, 0.95, src.z - Math.sin(yaw) * len * t);
+        this.particles.single(_p, { shape: SHAPE.SPARK, color: 0xe8fff4, intensity: 2, size0: 0.5, size1: 0.1, life: 0.18 + t * 0.14 });
+      }
+      sfx.play('arrow', { at: src, rate: 0.85 });
+      if (mine) this.juice.kick(0.08);
+      return true;
+    }
+    if (src.hero === 'brutus' && slot === 1) {
+      const r = (aim?.radius ?? 3000) / 1000;
+      this.shock.start(this.at(src, 0), { r1: r, dur: 0.35, color: '#ffd34d', height: 1.2 });
+      this.particles.ring(this.at(src, 0.2), { n: 18, r0: r * 0.9, speed: [0.2, 0.5], up: 2.2, color: 0xffd34d, alpha: 0.8, additive: true, size: [0.2, 0.32], shape: SHAPE.STAR4, intensity: 1.4 });
+      sfx.play('shieldUp', { at: src, rate: 0.85 });
+      if (mine) this.juice.callout('Guard Post!', 'gold');
+      return true;
+    }
+    return false;
+  }
+
   private trick(src: Who, x: number, y: number, mine: boolean): void {
     const trick = this.hooks.trickOf(src.id);
     if (trick === 'pounce') {
@@ -339,6 +369,12 @@ export class Effects {
     } else if (trick === 'snack') {
       this.particles.burst(this.at(src, 1.2), { n: 10, shape: SHAPE.HEART, color: 0xff8fb1, size: [0.25, 0.35], life: [0.7, 1], speed: [0.5, 1.4], up: 1.8, gravity: -0.5 });
       sfx.play('coin', { at: src, rate: 0.8 });
+    } else if (trick === 'purrify') {
+      // Sim v10 (GAPS B5): a soft gold ring and rising stars, the CC shaken off
+      this.shock.start(this.at(src, 0), { r1: 1.4, dur: 0.3, color: '#FFE066', height: 0.6 });
+      this.particles.ring(this.at(src, 0.6), { n: 14, r0: 0.5, speed: [1, 2], up: 2.2, color: 0xffe066, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.6, drag: 1.5 });
+      this.numbers.show(this.at(src, 2.2), 'Purr-ified!', 'word');
+      sfx.play('shieldUp', { at: src, rate: 1.2 });
     } else {
       this.shock.start(this.at(src, 0), { r1: 3, dur: 0.25, color: '#B07CFF', height: 0.5 });
       sfx.play('hyenaLaugh', { at: src, rate: 0.7 });

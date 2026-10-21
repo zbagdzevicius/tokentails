@@ -17,7 +17,7 @@ export interface Dare {
 
 /** The dare link carries the HERO_IDS index (append only: the sim v9 champions are 4..7). */
 const HEROES: readonly HeroId[] = HERO_IDS;
-const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss'];
+const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 
 export function encodeDare(d: Dare): string {
   return [(d.seed >>> 0).toString(36), HEROES.indexOf(d.hero), TRICKS.indexOf(d.trick), d.difficulty === 'hard' ? 2 : d.difficulty === 'normal' ? 1 : 0, Math.max(0, Math.min(3600, Math.floor(d.seconds))).toString(36)].join('.');

@@ -82,7 +82,7 @@ describe('Cacklejaw (§6.6)', () => {
     expect(cd(m3, CJ, 0)).toBeGreaterThan(230);
   });
 
-  it('Gloat: cone 3 m, 70°, fear 0.8 s (Smug: 9 s; Wide Gloat: 4 m, 90°)', () => {
+  it('Gloat: cone 3 m, 70°, fear 0.8 s (Smug: 9 s; sim v10 Wide Gloat: 105°, same 3 m)', () => {
     const m = hunt();
     const w = m.world;
     cast(m, CJ, 1, MID.x + 1500, MID.y);
@@ -93,10 +93,22 @@ describe('Cacklejaw (§6.6)', () => {
     expect(w.x[FOE]).toBeGreaterThan(x0); // runs away
     const m2 = hunt();
     setLevel(m2, CJ, 6);
+    // 45° off the aim, 2 m out: outside the 70° cone, inside Wide Gloat's 105°.
+    place(m2, FOE, MID.x + 1414, MID.y + 1414, 0);
+    const base = hunt();
+    place(base, FOE, MID.x + 1414, MID.y + 1414, 0);
+    cast(base, CJ, 1, MID.x + 2000, MID.y);
+    expect(base.world.fearT[FOE]).toBe(0);
     chooseTalent(m2, CJ, 1, 1);
-    place(m2, FOE, MID.x + 3800, MID.y, 0);
-    cast(m2, CJ, 1, MID.x + 3800, MID.y);
+    cast(m2, CJ, 1, MID.x + 2000, MID.y);
     expect(m2.world.fearT[FOE]).toBe(24);
+    // Sim v10: no longer 4 m (a 4 m fear opener pushed foes out of reach: fewer cores fell before Sudden Death).
+    const far = hunt();
+    setLevel(far, CJ, 6);
+    chooseTalent(far, CJ, 1, 1);
+    place(far, FOE, MID.x + 3800, MID.y, 0);
+    cast(far, CJ, 1, MID.x + 3800, MID.y);
+    expect(far.world.fearT[FOE]).toBe(0);
     const m3 = hunt();
     setLevel(m3, CJ, 6);
     chooseTalent(m3, CJ, 1, 0);

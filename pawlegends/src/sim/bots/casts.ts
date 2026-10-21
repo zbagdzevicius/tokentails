@@ -139,6 +139,9 @@ export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: 
         return cast(2, pt[0], pt[1], NO_TARGET);
       }
       if (canCast(w, id, 0) && d <= a.q.radius) return cast(0, w.x[id], w.y[id], NO_TARGET);
+      // Sim v10 (GAPS B6) Guard Post plants him: only with the foe already in Slam reach (he would stand there anyway),
+      // and never on Rookie and Easy (trick 'never', like Purr-ify): a planted shot-proof tank stalled first-match pushes.
+      if (canCast(w, id, 1) && (a.w.post ?? 0) > 0) return d <= a.q.radius && p.trick !== 'never' ? cast(1, fx, fy, NO_TARGET) : null;
       if (canCast(w, id, 1) && d <= BOT_AI.engageRange) return cast(1, fx, fy, NO_TARGET);
       return null;
     case 'cacklejaw':
@@ -214,6 +217,13 @@ export function clearCast(w: World, id: number, t: number): Command | null {
     }
     case 'sage': {
       if (!canCast(w, id, 0)) return null;
+      if ((a.q.lance ?? 0) > 0) {
+        // Sim v10 (GAPS B6) Piercing Shot: the line through `t`, as far as it flies.
+        const lx = hx + idiv(icos(dir) * a.q.range, TRIG_ONE);
+        const ly = hy + idiv(isin(dir) * a.q.range, TRIG_ONE);
+        const k = collect(w, team, hits, (e, r) => inLine(hx, hy, lx, ly, a.q.width >> 1, w.x[e], w.y[e], r));
+        return k >= need ? cast(0, w.x[t], w.y[t], NO_TARGET) : null;
+      }
       const n = collect(w, team, hits, (e, r) => inCone(hx, hy, dir, a.q.range, a.q.arc, w.x[e], w.y[e], r));
       return n >= need + 1 || (need === 1 && n >= 1) ? cast(0, w.x[t], w.y[t], NO_TARGET) : null;
     }
@@ -320,6 +330,19 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
     default:
       return null;
   }
+}
+
+/**
+ * Sim v10 (GAPS B5): Purr-ify when crowd-controlled with BOT_AI.purrifyMinTicks or more left: always for a stun, fear
+ * or charm, and for a root or slow only with an enemy hero within BOT_AI.trickThreat. Not on Rookie and Easy (trick
+ * 'never'), like the other tricks.
+ */
+export function purrifyCast(w: World, id: number, p: BotParams): Command | null {
+  if (p.trick === 'never' || TRICK_IDS[w.trick[id]] !== 'purrify' || !canCast(w, id, TRICK_SLOT)) return null;
+  const min = BOT_AI.purrifyMinTicks;
+  const hard = w.stunT[id] >= min || w.fearT[id] >= min;
+  if (!hard && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0)) return null;
+  return cast(TRICK_SLOT, w.x[id], w.y[id], NO_TARGET);
 }
 
 /** Snack Break when hurt and nobody is near (defensive only). */

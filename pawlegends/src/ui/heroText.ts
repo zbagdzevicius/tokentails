@@ -1,6 +1,6 @@
 /** Player-facing hero copy (POC.md §6). English only in the POC. Numbers live in src/data; this is words. */
 import type { HeroId, TrickId } from '../sim/api';
-import { HEROES, type AbilitySlot } from '../data/heroes';
+import { BRANCH_TALENT, HEROES, type AbilitySlot } from '../data/heroes';
 import { TRICKS } from '../data/tricks';
 import { uiName } from '../data/heroes/shelter';
 
@@ -11,9 +11,11 @@ export interface AbilityText {
 }
 
 export type IconId =
-  | 'sword' | 'shield' | 'dash' | 'sun' | 'arrows' | 'trap' | 'moon' | 'ring' | 'charge' | 'crown' | 'slash' | 'fear' | 'stealth' | 'hunt' | 'blink' | 'heart' | 'hiss' | 'nap' | 'paw'
+  | 'sword' | 'shield' | 'dash' | 'sun' | 'arrows' | 'trap' | 'moon' | 'ring' | 'charge' | 'crown' | 'slash' | 'fear' | 'stealth' | 'hunt' | 'blink' | 'heart' | 'hiss' | 'purr' | 'nap' | 'paw'
   // sim v9 shelter champions
-  | 'tuna' | 'hug' | 'flop' | 'lights' | 'spark' | 'coat' | 'wire' | 'circuit' | 'toast' | 'pose' | 'camellia' | 'curtains' | 'balloon' | 'wings' | 'wind' | 'spell';
+  | 'tuna' | 'hug' | 'flop' | 'lights' | 'spark' | 'coat' | 'wire' | 'circuit' | 'toast' | 'pose' | 'camellia' | 'curtains' | 'balloon' | 'wings' | 'wind' | 'spell'
+  // sim v10 level-6 shape branches (GAPS B6)
+  | 'lance' | 'dome';
 
 export interface HeroText {
   title: string;
@@ -26,6 +28,11 @@ export interface HeroText {
   abilities: [AbilityText, AbilityText, AbilityText, AbilityText];
   /** Talent descriptions by talent id. */
   talents: Record<string, string>;
+  /**
+   * Sim v10 (GAPS B6): the ability the level-6 shape branch (data/heroes BRANCH_TALENT) turns slot `slot` into. The
+   * ability bar swaps to it once the branch is taken.
+   */
+  branch?: AbilityText & { slot: 0 | 1 | 2 | 3 };
 }
 
 export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
@@ -66,10 +73,11 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
       'wide-volley': 'Volley fires 7 arrows.',
       'sticky-arrows': 'Volley slows.',
       'twin-snares': 'Keep 3 traps; roots last longer.',
-      'quick-hop': 'Hop Back recharges faster.',
+      'piercing-shot': 'Volley becomes one long arrow that flies through everything in its line.',
       'full-moon': 'Moonshot recharges faster.',
       'moon-mark': 'Moonshot outlines its target for 4 s.',
     },
+    branch: { slot: 0, name: 'Piercing Shot', text: 'One long arrow that flies through every enemy in its line.', icon: 'lance' },
   },
   brutus: {
     title: 'Sir Brutus',
@@ -87,10 +95,11 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
       'heavy-slam': 'Shield Slam slows more.',
       'wide-slam': 'Shield Slam is wider.',
       bulwark: 'Front Guard lasts longer.',
-      'long-charge': 'Pug Charge goes further.',
+      'guard-post': 'Front Guard becomes a dome around you that blocks enemy shots for every friend inside. You stand still while it lasts and take less damage.',
       'arena-of-honour': 'The challenge ring lasts 4 s.',
       'rally-howl': 'Friends in the ring run faster.',
     },
+    branch: { slot: 1, name: 'Guard Post', text: 'Plant a dome that blocks enemy shots for friends inside. You stand still and take less damage while it lasts.', icon: 'dome' },
   },
   cacklejaw: {
     title: 'Cacklejaw',
@@ -208,7 +217,13 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
   pounce: { name: 'Pounce', text: 'Blink 4 m.', icon: 'blink' },
   snack: { name: 'Snack Break', text: 'Heal a quarter of your health over 2 s.', icon: 'heart' },
   hiss: { name: 'Hiss', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
+  purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
 });
+
+/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none). */
+export function trickHint(role: string): string {
+  return role === 'Tank' ? 'Tank → Purr-ify: you take the stuns, so shake them off.' : '';
+}
 
 export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots', hard: 'Hard bots' });
 
@@ -240,6 +255,25 @@ export function abilityNumbers(hero: HeroId, slot: number): string {
   return parts.join(' · ');
 }
 
+/** Sim v10 (GAPS B6): the numbers of the level-6 shape branch's ability ("6 s cooldown · 95 (+15/lvl) dmg · 9 m"), or ''. */
+export function branchNumbers(hero: HeroId): string {
+  const b = HERO_TEXT[hero].branch;
+  const id = BRANCH_TALENT[hero];
+  const mods = id ? HEROES[hero].talents[1].find((t) => t.id === id)?.mods : undefined;
+  if (!b || !mods) return '';
+  const key = ('qwer'[b.slot] ?? 'q') as AbilitySlot;
+  const a = { ...HEROES[hero].abilities[key], ...mods[key] } as Readonly<Record<string, number | undefined>>;
+  const parts = [`${sec(a.cooldown ?? 0)} cooldown`];
+  if (a.post) {
+    parts.push(`${metres(a.postRadius ?? 0)} dome`, `lasts ${sec(a.postDuration ?? 0)}`);
+    if (a.postReduceBp) parts.push(`${a.postReduceBp / 100}% less damage`);
+    return parts.join(' · ');
+  }
+  if (a.dmg !== undefined) parts.push(`${a.dmg}${a.dmgPerLevel ? ` (+${a.dmgPerLevel}/lvl)` : ''} dmg`);
+  if (a.range !== undefined) parts.push(metres(a.range));
+  return parts.join(' · ');
+}
+
 /** Sim v8 per-hero tuning (HeroData.pvp) in words, or '' when the hero has none: "Hero fights (Normal, Hard): deals 13% more · takes 8.5% less". */
 export function pvpNumbers(hero: HeroId): string {
   const { dmgBp, takenBp } = HEROES[hero].pvp;
@@ -257,6 +291,7 @@ export function trickNumbers(t: TrickId): string {
   if (d.blink) parts.push(metres(d.blink));
   if (d.radius) parts.push(metres(d.radius));
   if (d.healBp) parts.push(`heals ${d.healBp / 100}%`);
+  if (d.immune) parts.push(`immune ${sec(d.immune)}`);
   return parts.join(' · ');
 }
 
@@ -271,13 +306,13 @@ export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
   'wide-volley': '7 arrows',
   'sticky-arrows': 'Volley slows',
   'twin-snares': '3 traps, longer roots',
-  'quick-hop': 'Faster Hop Back',
+  'piercing-shot': 'One piercing arrow',
   'full-moon': 'Faster Moonshot',
   'moon-mark': 'Moonshot outlines target',
   'heavy-slam': 'Slam slows more',
   'wide-slam': 'Wider Slam',
   bulwark: 'Longer Front Guard',
-  'long-charge': 'Longer Pug Charge',
+  'guard-post': 'Shot-blocking dome',
   'arena-of-honour': 'Ring lasts 4 s',
   'rally-howl': 'Friends run faster',
   'long-jeer': 'Longer Jeer dash',

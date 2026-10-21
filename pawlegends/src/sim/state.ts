@@ -16,6 +16,13 @@ export interface InputGate {
   lastLogTick: number;
   /** Encoded size of `log` so far, bytes. */
   bytes: number;
+  /** Sim v10 (GAPS B1): the ping `gateCommand` let through this tick (applied before the other command), or null. */
+  ping: Command | null;
+  /** Tick of the last applied ping, and pings applied so far (PING.minGap, PING.maxPerMatch). */
+  lastPingTick: number;
+  pings: number;
+  /** Sim v10 (GAPS B2): a forfeit applied (logged); the match ends at this tick's win check (match.ts). */
+  forfeit: boolean;
 }
 
 export interface MatchHandle {
@@ -23,7 +30,7 @@ export interface MatchHandle {
   readonly world: World;
   /** Derived from the world (walls + standing structures); not hashed. */
   readonly grid: NavGrid;
-  /** Every applied human command, quantised, at most one per tick. */
+  /** Every applied human command, quantised: at most one per tick, plus (sim v10) at most one ping logged before it. */
   readonly log: TimedCommand[];
   readonly gate: InputGate;
   /** hash() every TIMELINE.hashEvery ticks (§4.3 step 9). */

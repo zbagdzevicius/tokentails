@@ -36,7 +36,7 @@ import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
-import { canPickDifficulty, difficultyFor, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
+import { canPickDifficulty, difficultyFor, forfeitTick, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
 import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
 import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, saveTreats, treatXpFor } from '../meta/treats';
 import { collectionPanel } from '../ui/collection';
@@ -589,6 +589,10 @@ export class App {
       companions: this.roster.companions,
       guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
       knowsUlt: p.knowsUlt && p.matches > 0,
+      // GAPS B1: the ping tip in the player's second match
+      pingTip: p.matches === 1 && !p.tipsOff,
+      // GAPS B2: Forfeit in the pause menu from this tick (never in matches 1–3 or on Rookie)
+      forfeitFrom: forfeitTick(p.matches, c.difficulty),
       skinFx: p.skinFx,
       // GDD §7.2 bot showcase: web, from session 2, never the first match
       showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
@@ -653,6 +657,8 @@ export class App {
     // pl_* (fun plan F5): real-player numbers to check against the fun1 gate
     this.analytics.track('match_end', {
       result: e.result.outcome,
+      // GAPS B2 measure: forfeit rate by difficulty (the backend's verified rows store a forfeit as 'quit')
+      reason: e.result.reason,
       length: seconds,
       hero: e.replay.hero,
       difficulty: e.replay.difficulty,
@@ -667,22 +673,26 @@ export class App {
     // Sim v9: from a non-owner's 3rd finished match on a shelter champion, the host may offer that card (until shown)
     if (noteChampionMatch(e.replay.hero) > 0) this.integration.championMatch(e.replay.hero);
     noteHeroMatch(e.replay.hero);
-    // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already
-    const quests = progressQuests(
-      loadQuests(),
-      { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos },
-      followsHero(loadProfile().matches - 1),
-    );
-    saveQuests(quests.state);
+    // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already.
+    // GAPS B2: a forfeit pays TREAT_XP.forfeit only: no quest progress, no grade or first-win XP, a full ladder loss.
+    const forfeit = e.result.reason === 'forfeit';
+    const follow = followsHero(loadProfile().matches - 1);
+    const quests = forfeit
+      ? (() => {
+          const state = loadQuests();
+          return { state, views: questViews(state, follow ? e.replay.hero : undefined), xp: 0 };
+        })()
+      : progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, follow);
+    if (!forfeit) saveQuests(quests.state);
     const prof = loadProfile();
     const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);
     // GAPS A2: the grade (pure, from the sim's own stats) adds Treat XP (S +40, A +25, B +10; never catnip)
     const mySlot = e.welcome.slot;
     const grades = gradeMatch(e.result);
     const myGrade = grades.slots.find((g) => g.slot === mySlot)?.grade ?? 'C';
-    const gradeXp = GRADE_TREAT_XP[myGrade];
+    const gradeXp = forfeit ? 0 : GRADE_TREAT_XP[myGrade];
     // GAPS A6: the first win of the local day adds its bonus (once a day, no streak, no catnip)
-    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding }) + quests.xp + gradeXp, ownedIds, { won, day: dayKey() });
+    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit }) + quests.xp + gradeXp, ownedIds, { won, day: dayKey() });
     saveTreats(treats.state);
     if (treats.rewards.length) {
       for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
@@ -713,7 +723,7 @@ export class App {
       saveProfile(lp);
     }
     // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
-    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade });
+    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;

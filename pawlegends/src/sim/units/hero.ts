@@ -16,6 +16,7 @@ import { clearStatus, disabled, interrupt } from '../effects/status';
 import { fleeStep } from '../effects/fear';
 import { stepForced } from '../effects/dash';
 import { aimHunt, kitOf, orderCast, walkInDone, walkInX, walkInY, TRICK_SLOT } from '../heroes/kit';
+import { planted } from '../heroes/brutus';
 import { chooseTalent } from '../heroes/talents';
 import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
 
@@ -172,10 +173,11 @@ function inEnemyFountain(w: World, id: number, x: number, y: number): boolean {
   return dist2(x, y, fx, FOUNTAIN.y) <= r * r;
 }
 
-/** One tick along the hero's path toward (moveX, moveY). Returns true on arrival at the goal. Rooted: stays. */
+/** One tick along the hero's path toward (moveX, moveY). Returns true on arrival at the goal. Rooted or planted: stays. */
 function walk(m: MatchHandle, id: number): boolean {
   const w = m.world;
-  if (w.rootT[id] > 0) {
+  // Sim v10 (GAPS B6): Sir Brutus in his Guard Post holds still like a root.
+  if (w.rootT[id] > 0 || planted(w, id)) {
     w.state[id] = UnitState.Idle;
     return false;
   }

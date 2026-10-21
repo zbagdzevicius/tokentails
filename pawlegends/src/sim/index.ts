@@ -7,13 +7,14 @@
  * in-sim bots for slots 1..5, all in the §4.3 step order marked below.
  */
 import { BOTS } from '../data/bots';
-import { HERO_IDS, HEROES } from '../data/heroes';
+import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
 import { CAPS, CORE, FOUNTAIN, LANES, TOWER_SPOTS, mirrorX } from '../data/map';
 import { CORE_STATS, TOWERS } from '../data/towers';
 import { TIMELINE, TIMELINE_BY } from '../data/timeline';
 import { TRICK_IDS } from '../data/tricks';
 import {
   HUMAN_SLOT,
+  Op,
   SLOTS_PER_TEAM,
   SLOT_COUNT,
   teamOfSlot,
@@ -40,11 +41,12 @@ import { refreshFlags, refreshVision, visibleTo } from './map/brush';
 import { resolveDeaths } from './combat/damage';
 import { encodeCommand, encodeStream, toBase64 } from './commands';
 import { fnvBytes, fnvInt } from './hash';
-import { createGate, gateCommand } from './input';
+import { createGate, gateCommand, gateForfeit } from './input';
 import { createGrid } from './map/grid';
 import { heroHp } from './progression/levels';
 import { checkWin } from './match';
 import { Rng } from './rng';
+import { rulesOf } from './rules';
 import type { MatchHandle } from './state';
 import { clockAt, waveAt } from './timeline';
 import { stepSeconds } from './units/core';
@@ -56,7 +58,7 @@ import { COOLDOWN_SLOTS, G, Kind, RANGE, TALENT_TIERS, UnitState, createWorld, h
 import { ZONE_KIND } from '../data/effects';
 import { CLEM_INDEX } from './heroes/clem';
 import { AVIETE_INDEX } from './heroes/aviete';
-import { stepBots } from './bots';
+import { applyPing, stepBots } from './bots';
 import { initCamps, spawnCamps, stepCamps } from './units/camp';
 import { initPudding, stepPudding, stepPuddingTimeline } from './units/pudding';
 import { collectPickups, initPickups, spawnPickups } from './units/pickup';
@@ -64,7 +66,7 @@ import { beginTick, stepBonuses } from './effects/bonus';
 import { applyBp } from './fixed';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { PICKUP_KINDS } from '../data/pickups';
-import { PICKUP_ID_BASE } from './api';
+import { BOT_TALENT_MODES, PICKUP_ID_BASE } from './api';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -78,6 +80,7 @@ export { canCast } from './heroes/kit';
 export { createPlayerBot, playerBotCommands, type PlayerBot } from './bots';
 export { PLAYER_PROFILES, DIFFICULTIES, type PlayerProfile } from '../data/bots';
 export { TIMELINE_BY } from '../data/timeline';
+export { BRANCH_HEROES, BRANCH_TALENT } from '../data/heroes';
 /** Sunset and Sudden Death ticks of a difficulty. */
 export const timelineFor = (d: Difficulty) => TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
 
@@ -87,11 +90,13 @@ const MINION_VARIANT: readonly string[] = ['melee', 'ranged', 'siege'];
 const TOWER_VARIANT: readonly string[] = ['outer', 'inner'];
 
 /**
- * Bot picks and tricks from the seed (`rng.fork('picks')`, §6.8): the human takes slot 0, no duplicate hero within
- * a team, duplicates across teams allowed.
+ * Bot picks and tricks from the seed (§6.8): the human takes slot 0, no duplicate hero within a team, duplicates
+ * across teams allowed. Sim v10 (GAPS B5): heroes come from `rng.fork('picks')` and tricks from their own
+ * `rng.fork('tricks')`, so adding a Paw Trick no longer reshuffles the bots' heroes.
  */
 export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: HeroId[]; tricks: TrickId[] } {
   const rng = new Rng(seed).fork('picks');
+  const trickRng = new Rng(seed).fork('tricks');
   const picks: HeroId[] = [];
   const tricks: TrickId[] = [];
   for (let slot = 0; slot < SLOT_COUNT; slot++) {
@@ -109,7 +114,7 @@ export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: 
     const fresh = kin.filter((h) => !taken.includes(h));
     const pool = fresh.length > 0 ? fresh : kin;
     picks.push(pool[rng.int(pool.length)]);
-    tricks.push(TRICK_IDS[rng.int(TRICK_IDS.length)]);
+    tricks.push(TRICK_IDS[trickRng.int(TRICK_IDS.length)]);
   }
   return { picks, tricks };
 }
@@ -120,6 +125,7 @@ function validate(config: MatchConfig): void {
   for (const h of config.picks) if (!HERO_IDS.includes(h)) throw new RangeError(`unknown hero ${h}`);
   for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
   if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
+  if (config.botTalents !== undefined && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
   // Sim v5: a team may field a hero twice (species teams: 2 heroes a side for 3 slots).
 }
 
@@ -144,7 +150,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.maxHp[slot] = heroHp(hero.base.hp);
     w.armour[slot] = hero.base.armour;
     placeAtFountain(w, slot);
-    stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1 });
+    stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1, damageTaken: 0, healShield: 0, objective: 0 });
   }
   const perTeam = TOWER_SPOTS.length;
   const rules = DIFFICULTY_RULES[config.difficulty];
@@ -212,13 +218,26 @@ export function step(match: Match, commands?: readonly Command[]): void {
   //    damage ring forgets this tick's slot.
   tickCooldowns(w);
   beginTick(w);
-  // 1. Human command.
+  // 1. Human command. Sim v10: the tick's ping (if the gate let one through) is logged and applied first.
   const cmd = gateCommand(m.gate, tick, commands);
+  const ping = m.gate.ping;
+  if (ping && ping.op === Op.Ping) {
+    m.log.push({ tick, cmd: ping });
+    w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ping)) | 0;
+    applyPing(m, ping);
+    w.globals[G.HumanActAt] = tick;
+  }
   if (cmd) {
     m.log.push({ tick, cmd });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(cmd)) | 0;
     applyOrder(m, HUMAN_SLOT, cmd);
     w.globals[G.HumanActAt] = tick;
+  }
+  // Sim v10 (GAPS B2): a forfeit is logged last; the tick still runs and the win check (step 9) ends the match.
+  if (gateForfeit(m.gate, tick, commands, rulesOf(m).forfeitFrom)) {
+    const ff: Command = { op: Op.Forfeit };
+    m.log.push({ tick, cmd: ff });
+    w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
   }
   // 2. Bots think (every 6 ticks, staggered by slot).
   stepBots(m);
@@ -292,6 +311,10 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
       return teamOfSlot(e.id) === team ? e : null;
     case 'buff':
       return visibleTo(w, e.id, team) ? e : null;
+    // Sim v10: pings and barks are the human's team's own (enemy bots and their snapshot never see them).
+    case 'ping':
+    case 'bark':
+      return team === teamOfSlot(HUMAN_SLOT) ? e : null;
     default:
       return e;
   }
@@ -337,6 +360,8 @@ export function snapshot(match: Match, team: Team): Snapshot {
         e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : w.sub[id] === AVIETE_INDEX ? w.kRT[id] : 0;
         if (w.sub[id] === AVIETE_INDEX && w.kHuntT[id] > 0) e.lockout = w.kHuntT[id];
       }
+      // Sim v10 (GAPS B6): both teams see who took the level-6 shape branch (the enemy portrait shows it).
+      if (BRANCH_TALENT[e.hero] !== null && w.talents[id * TALENT_TIERS + 1] === 1) e.branch = true;
       if (w.sub[id] === AVIETE_INDEX && w.kRT[id] > 0 && w.alive[id] === 1) e.charged = true;
       if (w.fearT[id] > 0 && w.fearSrc[id] >= 0) e.charmed = true;
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
@@ -455,5 +480,6 @@ export function replayRecord(match: Match): ReplayRecord | null {
     inputs: toBase64(encodeStream(m.log)),
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
+    mutator: 'none',
   };
 }

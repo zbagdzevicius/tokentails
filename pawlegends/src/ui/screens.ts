@@ -17,7 +17,7 @@ const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
 import type { Dare } from '../share/dare';
 import { dareText } from '../share/dare';
-import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickNumbers } from './heroText';
+import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickHint, trickNumbers } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
 import { wearingCard } from './cards';
@@ -25,9 +25,10 @@ import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
 import type { QuestView } from '../meta/quests';
-import type { TreatGain } from '../meta/treats';
+import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
 import { toGoText } from './collection';
+import { laneHint } from './pingText';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -238,6 +239,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
+          <p class="lane-hint">${esc(laneHint(t.role))}</p>
           ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
           <ul class="kit">
             <li><span class="ico passive">${icon('paw')}</span><span class="t"><b>${esc(t.passive.name)}</b> ${esc(t.passive.text)}</span></li>
@@ -245,7 +247,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           </ul>
           ${numbers && pvpNumbers(c.hero) ? `<p class="num pvp">${esc(pvpNumbers(c.hero))}</p>` : ''}
         </div>
-        <div class="row"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
+        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
+        ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
       </div>
       <div class="pl-pick-foot">
         ${o.difficultyNote ? `<div class="row bots"><span class="lbl">Bots</span><span class="note">${esc(o.difficultyNote)}</span>${o.onVeteran ? `<button class="chip veteran" data-a="veteran">Played MOBAs before? Unlock</button>` : ''}</div>` : `<div class="row bots"><span class="lbl">Bots</span>${(o.difficulties ?? DIFFICULTIES).map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc((DIFFICULTY_TEXT as Record<string, string>)[d] ?? d)}</button>`).join('')}</div>`}
@@ -575,22 +578,49 @@ export interface MenuOpts {
   onResume(): void;
   onMute(m: boolean): void;
   onLeave(): void;
+  /**
+   * GAPS B2: Forfeit, offered from match tick `from` (the menu opened at `tick`; before `from` the button is disabled
+   * and names the time). Absent: no Forfeit button (matches 1–3, Rookie).
+   */
+  forfeit?: { from: number; tick: number };
+  onForfeit?(): void;
 }
+
+const clockText = (ticks: number): string => {
+  const sec = Math.ceil(ticks / 30);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+};
 
 export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   const root = el('pl-screen pl-menu');
-  root.innerHTML = `<div class="card"><h2>Paused</h2>
+  let muted = o.muted;
+  const ff = o.forfeit && o.onForfeit ? o.forfeit : null;
+  const ffReady = !!ff && ff.tick >= ff.from;
+  const main = (): void => {
+    root.innerHTML = `<div class="card"><h2>Paused</h2>
     <button class="pl-btn big" data-a="resume">Resume</button>
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
-    <button class="pl-btn ghost" data-a="mute">${o.muted ? 'Sound: off' : 'Sound: on'}</button>
+    <button class="pl-btn ghost" data-a="mute">${muted ? 'Sound: off' : 'Sound: on'}</button>
+    ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
     ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
-  let muted = o.muted;
+  };
+  // GAPS B2: the confirm step names what a forfeit costs before anything is sent
+  const confirm = (): void => {
+    root.innerHTML = `<div class="card pl-forfeit"><h2>Forfeit this match?</h2>
+    <p class="sub">It counts as a loss. You get ${TREAT_XP.forfeit} Treat XP, no quest progress, and the full ladder loss.</p>
+    <button class="pl-btn big" data-a="forfeit-no">Keep playing</button>
+    <button class="pl-btn ghost danger" data-a="forfeit-yes">Forfeit</button></div>`;
+  };
+  main();
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'resume') o.onResume();
     else if (a === 'scores') o.onScores?.();
     else if (a === 'leave') o.onLeave();
+    else if (a === 'forfeit' && ffReady) confirm();
+    else if (a === 'forfeit-no') main();
+    else if (a === 'forfeit-yes') o.onForfeit?.();
     else if (a === 'mute') {
       muted = !muted;
       (root.querySelector('[data-a="mute"]') as HTMLElement).textContent = muted ? 'Sound: off' : 'Sound: on';

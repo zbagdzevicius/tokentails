@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Op, type ReplayRecord } from '../../src/sim/api';
+import { MAX_INPUT_CHARS, Op, type ReplayRecord } from '../../src/sim/api';
 import { decodeStream, encodeStream, fromBase64, toBase64 } from '../../src/sim/commands';
 import { createMatch, fillPicks, replayRecord, result, step } from '../../src/sim/index';
 import { verifyReplay } from '../../src/sim/server';
@@ -45,7 +45,7 @@ describe('verifyReplay (§15 item 4)', { timeout: 120000 }, () => {
   it('refuses a wrong length, trailing input, bad shapes and over-long inputs before simulating', () => {
     expect(verifyReplay({ ...rec, ticks: rec.ticks - 1 })).toMatchObject({ ok: false });
     expect(verifyReplay({ ...rec, ticks: 19801 })).toMatchObject({ ok: false, code: 'PAWLEGENDS_TOO_LONG' });
-    expect(verifyReplay({ ...rec, inputs: 'A'.repeat(40004) })).toMatchObject({ ok: false, code: 'PAWLEGENDS_TOO_LONG' });
+    expect(verifyReplay({ ...rec, inputs: 'A'.repeat(MAX_INPUT_CHARS + 4) })).toMatchObject({ ok: false, code: 'PAWLEGENDS_TOO_LONG' });
     expect(verifyReplay({ ...rec, inputs: '!!!!' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
     expect(verifyReplay({ ...rec, hero: 'garfield' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
     expect(verifyReplay({ ...rec, finalHash: 'XYZ' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });

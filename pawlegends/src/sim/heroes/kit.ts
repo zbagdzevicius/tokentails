@@ -18,13 +18,13 @@ import { radiusOf, targetable } from '../units/kinds';
 import { abil, type KitNumbers } from './talents';
 import { CLEM_KIT } from './clem';
 import { SAGE_KIT } from './sage';
-import { BRUTUS_KIT } from './brutus';
+import { BRUTUS_KIT, planted } from './brutus';
 import { CACKLEJAW_KIT } from './cacklejaw';
 import { LAMBO_KIT } from './lambo';
 import { AVIETE_KIT } from './aviete';
 import { BENGAS_KIT } from './bengas';
 import { GABE_KIT } from './gabe';
-import { castTrick, trickAim } from './tricks';
+import { castsThroughCc, castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
 export const Aim = Object.freeze({
@@ -104,13 +104,14 @@ function slotAim(w: World, id: number, slot: number): SlotAim {
 
 /** Can hero `id` start `slot` now? */
 export function canCast(w: World, id: number, slot: number): boolean {
-  if (w.kind[id] !== Kind.Hero || w.alive[id] === 0 || disabled(w, id)) return false;
+  if (w.kind[id] !== Kind.Hero || w.alive[id] === 0) return false;
+  if (disabled(w, id) && !(slot === TRICK_SLOT && castsThroughCc(w, id))) return false;
   if (w.fmKind[id] !== FM.None) return false;
   if (w.castPhase[id] === 2) return false;
   if (slot === 3 && w.level[id] < XP.ultimateLevel) return false;
   const ready = w.cooldowns[cdIndex(id, slot)] === 0 || (slot < TRICK_SLOT && kitOf(w, id).recastReady?.(w, id, slot) === true);
   if (!ready) return false;
-  if (w.rootT[id] > 0 && slotAim(w, id, slot).mobility) return false;
+  if ((w.rootT[id] > 0 || planted(w, id)) && slotAim(w, id, slot).mobility) return false;
   return true;
 }
 
@@ -204,7 +205,7 @@ export function resolveCasts(m: MatchHandle): void {
   const tick = w.globals[G.Tick];
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     if (w.castPhase[id] !== 2) continue;
-    if (w.alive[id] === 0 || disabled(w, id)) {
+    if (w.alive[id] === 0 || (disabled(w, id) && !(w.castSlot[id] === TRICK_SLOT && castsThroughCc(w, id)))) {
       w.castPhase[id] = 0;
       continue;
     }

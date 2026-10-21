@@ -100,7 +100,7 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 
 ### Wave A (no sim change; `npm run determinism` hash trails stay identical)
 
-**Status (2026-10-20, uncommitted on `feat/pawlegends`; `git diff HEAD -- pawlegends/src/sim` is empty, SIM_VERSION 9):**
+**Status (2026-10-20, committed in eb4ebf7a with no `pawlegends/src/sim` change, SIM_VERSION 9):**
 
 | Item | Status | Note |
 |---|---|---|
@@ -162,7 +162,8 @@ Bump steps:
 1. `src/sim/version.ts` → 10, then `npm run lint:sim`, `npm run test`, `npm run determinism`.
 2. `npm run match -- --gate balance`: each hero 46–54%, cat side 47–53%, median length 6:30–8:30, no safety ends. Then the `fun1`, `fun2`, `novice` and `parked` gates.
 3. `npm run vendor-sim` and `vendor-sim:check`, with v9 kept frozen beside v10.
-4. Backend deploy, then the `client/public/pawlegends-game/` build (`npm run build:client`), in that order.
+4. Backend deploy, then the `client/public/pawlegends-game/` build (`npm run build:client`), in that order. The backend
+   must be live first: an older backend refuses every v10 replay as an unknown `simVersion`.
 5. Scripted round 3.
 
 The sim files (`world.ts`, `brain.ts`, `casts.ts`) are shared, so Wave B lanes must merge in sequence (B0 → B3 → B1 → B2 → B5 → B6), and balance runs go one after another.
@@ -174,6 +175,16 @@ The sim files (`world.ts`, `brain.ts`, `casts.ts`) are shared, so Wave B lanes m
 - **Funstats** (`tools/lib/funstats.mjs`): win rate when 5–9 or 10+ takedowns behind at the end, the human's level gap at 6:00, and the share of pings obeyed.
 - **Dual verifier** (backend lane): `vendor-sim` writes `vendor/pawlegends-sim/v9` and `/v10`; `pawlegends-live.ts` and the worker choose by `simVersion` for 30 days. This makes the deploy order safe, and it matters most for app builds and cached tabs that keep posting v9.
 
+**B0 status (2026-10-21, on `feat/pawlegends`, SIM_VERSION 10): done.** `SIM_VERSION` 10; seeded bot
+talents (`rng.fork('talent:'+slot)`, headless `--bot-talents first|seeded|branch`); `ReplayRecord.mutator` ('none'
+only, refused otherwise by the sim's server check and the backend DTO; in `RECORD_KEYS` and the digest from v10, never in
+a v9 digest; a mutator match pays no catnip and sets no fastest win); `SlotStats.damageTaken`, `healShield`,
+`objective`; funstats behind-at-the-end bands, the human's level gap at 3:00/5:00/6:00 and pings obeyed; dual verifier
+(`backend/src/vendor/pawlegends-sim/v9` frozen beside `v10`, chosen by `simVersion`). Cores start at 120% on Normal and
+Hard (130% before) to keep core kills before Sudden Death over 70% with seeded talents. **Deploy order: the backend
+(with the v9 + v10 verifiers) must be live before the v10 client build (`client/public/pawlegends-game/`) ships**;
+otherwise every v10 replay is refused as an unknown `simVersion`.
+
 **B1. Command pings that bots obey, plus a lane swap.** M (4 days). The top fun lever.
 - Sim: `Op.Ping = 9` (`kind u8, qx u16, qy u16, id u8`, 7 B). Only slot 0 can send it.
   - Kinds: Go here, Group on me, Take Pudding, Push Sunny, Push Puddle, Defend base, Fall back, Focus hero.
@@ -183,11 +194,44 @@ The sim files (`world.ts`, `brain.ts`, `casts.ts`) are shared, so Wave B lanes m
 - UI: desktop, hold G for a radial and Alt-click to Focus. Touch: one paw button by the minimap opens a 6-slice wheel; long-press the minimap for "Go here"; long-press a portrait to Focus; tap an A4 chip for its ping. Tip in match 2.
 - Measure: a headless `pinger` profile on Normal should win 5–10 points more than `normal` (over 15 means pings are mandatory, so tone them down). Balance gates run without pings. Also: pings per match, share obeyed, and the round-3 veteran depth score.
 
+**B1 status (2026-10-20, on `feat/pawlegends`, SIM_VERSION 10):** built. `Op.Ping = 9` (7 B), the sim's own ping gate
+(one per 45 ticks, 60 a match, logged before the tick's other command; a ping never drops a waiting move), orders and
+barks in `src/sim/bots/orders.ts`, lane swap, `MAX_INPUT_BYTES` 30,600 / `MAX_INPUT_CHARS` 40,800 in all three copies,
+desktop G wheel and Alt-click, touch paw wheel and long presses, chip pings, the match-2 tip and the pick-screen lane hint.
+Order priority as built: retreat, then the fight branch (fighting back on the way), then the back-off from a bad fight or
+tower fire, then the order, then Pudding, camp and lane. A strict "fight back only while walking" cost 4 to 12 win points
+in every headless test, so it was dropped. Fall back walks to the own outer structure instead of napping home.
+**Measure not met:** at 2,000 seeds `pinger` won 48.2% against `normal` at 50.9% on the same seeds (−2.7). It sends 20.5
+pings a match, 97.0% obeyed. At 800 seeds each kind alone was flat or negative: Focus −0.2, Take Pudding −2.0, Push +0.7,
+Defend −4.3, Group −2.0, Fall back −7.0. The bots' own macro is already balanced, so an order mostly trades it away.
+
+**B1 review fixes (2026-10-20):** the lane swap ignores a human within 9 m of either core (the fountain, the spawns and
+the shared start of both lanes read as a lane, so a nap or a respawn flipped the swap). Stronger obey rules, orders that
+shift power and not only goals: Fall back is the pre-B1 retreat (escape casts, then home) while an enemy hero is close
+and ends once safe; Defend base comes before any fight elsewhere, like the core defence, and ends once the base is safe;
+Focus with the human on the focused hero chases it without the power check; on Group or Push a bot beside the human
+holds through a bad fight (never through untanked tower fire). At 800 seeds against `normal` 50.9%: Focus −0.6, Take
+Pudding −0.5, Push +1.0, Defend −1.6, Group +1.0, Fall back −3.8, all kinds −2.6, the default mask (Focus + Take Pudding
++ Push) **+0.7** at 21.2 pings a match, 97.0% obeyed. Fall back and Defend are no longer clearly negative, but no mix
+reaches +5: every figure is inside the noise (about ±1.8 points). See Your call 19.
+The backend's v10 sim copy was rebuilt after these changes (`npm run vendor-sim`; `vendor-sim:check` had flagged it as stale).
+
 **B2. Forfeit.** S (half a day).
 - `Op.Forfeit = 10`. The sim accepts it from tick 7,200 on Normal and Hard and from 5,400 on Easy, never on Rookie; matches 1–3 are blocked on the client.
 - `MatchResult.reason += 'forfeit'`; `outcome` stays `'lost'`.
 - 20 Treat XP, no quest progress, full ladder loss. Catnip is paid on wins only, so nothing changes there.
 - Measure: forfeit rate by difficulty. Over 15% on Normal means matches feel lost too early.
+
+**B2 status (2026-10-20, on `feat/pawlegends`, SIM_VERSION 10):** built. `Op.Forfeit = 10` (1 B) applies from
+`DifficultyRules.forfeitFrom` (Easy 5,400, Normal and Hard 7,200, Rookie 0 = never), is logged after the tick's other
+command, and ends the match at that tick's win check (`reason` 'forfeit', `outcome` 'lost', `G.EndReason` 3; a core that
+falls on the same tick wins over it). Earlier forfeits are dropped unlogged and never touch a waiting move. The other
+commands leave `FORFEIT_RESERVE_BYTES` (4) of the input budget free, so a player at the cap can still forfeit and the
+replay still fits. `VerifyResult` carries `reason`; the backend stores a forfeited row as outcome `'quit'` (the forfeit-rate
+measure) and pays nothing extra. Client: `forfeitTick` (no button in matches 1–3), a disabled "Forfeit from M:SS" button,
+then a confirm step in the pause menu; 20 Treat XP only (no grade, quest or first-win XP, no quest progress), and a full
+ladder loss (no grade share and no placement shield). The determinism fuzz now forfeits in a quarter of its seeds (its own
+RNG stream). `vendor-sim` adds `v10/forfeit-replay.fixture.json`. Bots never forfeit, so the balance gates do not move.
 
 **B3. Less rubber-banding on Normal and Hard.** S–M (1 day plus gate runs). Rookie and Easy are unchanged.
 - **First, an ablation run:** switch off each comeback source in headless runs (catch-up XP, `campBehindBp`, `enemyComeback` waves, Nine Lives) and measure P(win | 10+ behind) each time. Cut the biggest source first.
@@ -195,7 +239,26 @@ The sim files (`world.ts`, `brain.ts`, `casts.ts`) are shared, so Wave B lanes m
 - **Do not narrow the Sudden Death gap decay.** It already favours the leader. If the targets miss, widen it to 1–8%.
 - Pass on Normal: P(win | 10+ behind) ≤ 8% (round 1: 18–21%), P(win | 5–9 behind) ≤ 25%, median length 6:30–8:30, per-hero and side gates held.
 
+**B3 status (2026-10-21, on `feat/pawlegends`, SIM_VERSION 10): partial (by design).** Built: the
+`DifficultyRules` fields `catchUpPerLevelBp`, `catchUpMaxBp`, `campBehindBp` (from `XP` constants) and the headless
+`--ablate catchup,camp,waves,nine` run. Underdog waves already start only from 3 towers behind. Not applied: the
+starting cuts (+25%/+50% catch-up, 1.25× camp). The ablation found no single source carrying comebacks, and the cuts
+*raised* P(win | 10+ behind) (balance 1.0% → 3.4%; novice vs Normal 2.4% → 7.1%), so every difficulty keeps the v9
+values. Both Normal targets hold without them (final run, 2,000 seeds: 10+ behind won 2.6% of 195, 5–9 behind 11.5% of
+680). Rookie and Easy are unchanged.
+
 **B5. Purr-ify (Paw Tricks 3 → 4).** M− (1.5 days). Purr-ify removes stun, root, slow, fear and charm, then gives 15 ticks of crowd-control immunity; cooldown 3,000 ticks. It needs `cleanse` and `ccImmune` in `src/sim/effects/status.ts`. Bots cast it when crowd-controlled with 15 or more ticks left. The bot trick draw changes (`fillPicks`), so it is covered by the balance re-run. Pick screen: "Tank → Purr-ify" as a hint. Measure: with `--trick random`, every trick wins 47–53%.
+
+**B5 status (2026-10-20, on `feat/pawlegends`, SIM_VERSION 10):** built. `purrify` is the 4th entry of
+`TRICK_IDS` (old indices unchanged), `TRICKS.purrify` = cooldown 3,000, immune 15. `cleanse` and the `ccImmT` world
+array (hashed) are in `src/sim/effects/status.ts`: `ccImmune` also holds while `ccImmT` > 0, so stun, root, slow, fear,
+charm and knockback miss. Purr-ify is the one cast a stunned, feared or charmed hero can start and finish
+(`castsThroughCc`; a knockback in flight still blocks it). Bots (`purrifyCast`, first in `think`) cast it with 15+ ticks
+of stun, fear or charm left, or of root or slow with an enemy hero within 5 m; never on Rookie and Easy (trick `never`).
+Snapshot bit `Purrified` (1 << 18), overhead word "Purr-ified", a gold ring, stars and a "Purr-ified!" word, a new
+`purr` icon, and the pick-screen line "Tank → Purr-ify" under the trick chips (Sir Brutus, Lambo). `npm run match`
+prints per-trick win rates and the balance gate checks them. Balance at 2,000 seeds: pounce 52.0%, snack 49.7%, hiss
+50.5%, purrify 47.8%; heroes 46.2% (Sage) to 54.1% (Clem); Purrhaven 51.1%, cats 50.1%, median 7:08, no safety end.
 
 **B6. Level-6 branches: 2 heroes at launch, 2 as a stretch.** M (about 1.5 days a hero: kit code, bot casts, aim shape in `src/input/abilityAim.js`, VFX, text). Option 1 of talent tier 1 (level 6) becomes the shape branch.
 
@@ -212,6 +275,44 @@ The sim files (`world.ts`, `brain.ts`, `casts.ts`) are shared, so Wave B lanes m
 - Show the branch on the enemy portrait so the other side can read it.
 - Cut rule: a hero that fails on Nov 2 keeps its number talent.
 - Measure: the gates, the veteran depth score, and branch pick rate (under 25% means it reads as a trap).
+
+**B6 status (2026-10-21, on `feat/pawlegends`, SIM_VERSION 10):** Sage and Sir Brutus built; Cacklejaw and
+Lambo skipped (stretch). Talent tier 1 option 1 is the branch (`BRANCH_TALENT` in `src/data/heroes`); the other six
+heroes show "Branch coming soon" on their level-6 card. **Piercing Shot** (replaces Quick Hop): `q.lance`, one 9 m line,
+600 mm wide, 95 (+14/lvl), piercing everything (`PROJECTILE_KIND.lance`; Sticky Arrows still slows). **Guard Post**
+(replaces Long Charge): `w.post`, a 3 m dome (`ZONE_KIND.dome`) for 60 ticks that shields his team inside it: an enemy
+bolt is stopped only when its target is one of them (bolts at towers, the core, camps, Pudding or anyone outside pass), a
+skillshot only as it enters from outside, and a shot fired from inside flies on without touching the units the dome
+shields (`domeShields`). Enemies inside can still shoot out. Sir Brutus cannot walk or dash while it stands (`planted`)
+and takes 25% less damage; cooldown 300 (Front Guard 420); the dome ends with him. Without the damage cut the root
+cost him about 4 points (35.8% with the first numbers, 49.1% at 25%). Bots: Piercing Shot through the existing Volley
+rules (fight, and a line count for wave clear); Guard Post only with the foe in Slam reach and never on Rookie and Easy
+(it cut fun1's core kills before Sudden Death from 89.4% to 87.5% at 800 seeds). Client: line and dome aim shapes
+(`aimFor(hero, slot, branch)` in `src/input/abilities.ts`), the swapped slot on the own bar, a badge on the enemy portrait
+(`EntitySnap.branch`, both teams), a lance bolt, a gold half-sphere and cast effects. Clem `pvp.dmgBp` 9200 → 9100 (54.4%
+after the branches), then 8800 once the dome stopped disarming enemies inside it (Clem 54.2% at 9100, 54.9% at 9000).
+Balance at 2,000 seeds, seeded: Sage 49.2% (branch 49.4%), Sir Brutus 50.0% (branch 50.1%), heroes 47.8% (Cacklejaw)
+to 53.4% (Clem), Purrhaven 48.4%, cats 51.1%, median 7:10, p95 7:56, no safety end. With `--bot-talents branch`: Sage
+48.1%, Sir Brutus 49.8%, heroes 48.1% to 52.0%, cats 50.5%, median 7:14. `npm run match` prints per-hero level-6
+win rates and the balance gate checks each branch at 45% to 55%. The backend's v10 copy was rebuilt (`npm run vendor-sim`).
+
+**Wave B status (final check 2026-10-21, SIM_VERSION 10, all on `feat/pawlegends`):**
+
+| Item | Status |
+|---|---|
+| B0 prerequisites | done |
+| B1 pings + lane swap | done; measure not met: `pinger` +0.5 points vs `normal` at 2,000 seeds (48.9% vs 48.4%, 20.9 pings a match, 97.0% obeyed), so Your call 19's default applies |
+| B2 forfeit | done (sim window, backend `quit` row, pause-menu UI, unit and e2e tests) |
+| B3 less rubber-banding | partial: rules and ablation built, cuts not applied (they raised comebacks; targets already hold) |
+| B5 Purr-ify | done |
+| B6 branches | Sage and Sir Brutus done; Cacklejaw and Lambo (stretch) not built |
+
+Nothing was cut: every gate in the bump steps passes. Balance at 2,000 seeds: heroes 47.8% (Cacklejaw) to 53.4% (Clem),
+cats 51.1%, Purrhaven 48.4%, median 7:10, p95 7:56, 0 safety ends, core kill before Sudden Death 72.8%, 10+ behind won
+2.6% of 195, 5–9 behind 11.5% of 680; tricks 47.9% to 52.1%; branches Sage 49.4%, Sir Brutus 50.1%. fun1, fun2,
+novice (vs Easy), parked, idle, hard, feeder and feedNormal pass. Open: `--gate novice --difficulty normal` fails at
+30.5% (≥ 40%), but the committed v9 build fails it too (31.5% on the same seeds), so it is not a Wave B regression and
+the cut order would not move it. **Deploy order: the backend (v9 + v10 verifiers) first, then the v10 client build.**
 
 **Cut order if gates fail on Nov 5:** B6 stretch heroes, then B6 Brutus, then B5, then B6 Sage. Keep B0, B1, B2 and B3. If those fail too, ship v9 with Wave A, and v10 becomes the first patch.
 
@@ -312,6 +413,11 @@ PostHog only sees players who consented. Use it for direction, not for the gates
 16. **Shelter champion Track rewards.** Default: titles, frames and "Meet the real cat" postcards (photo licence of Oct 11), never recolours of the real cats.
 17. **Input budget.** Default: 60 pings a match and `MAX_INPUT_BYTES` +600 in all three copies.
 18. **Mutators date.** Default: v11 on Nov 19, the week-2 reason to return.
+19. **Pings give control, not win rate (B1 measure).** The `pinger` wins +0.7 points on Normal (+0.5 at 2,000 seeds in
+    the final Wave B check), not the 5–10 in §3, even
+    with the stronger obey rules. Default: accept pings as control and depth with no edge, keep the rules as built, and
+    let round 3 (pings per match, share obeyed, veteran depth score) judge them. Alternative: bigger power shifts on an
+    order (Focus damage bonus, Group skips the power check), which risks making pings mandatory (over +15).
 
 ## 9. Backend lane (`backend/` in this worktree)
 

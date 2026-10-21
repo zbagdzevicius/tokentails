@@ -6,8 +6,8 @@ export const BENGAS: HeroData = Object.freeze<HeroData>({
   name: 'Bengas',
   side: 'cat',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 11000, takenBp: 9100 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). */
+  pvp: { dmgBp: 11200, takenBp: 9100 },
   element: 'FIRE',
   base: { hp: 470, hpPerLevel: 48, attack: 56, attackPerLevel: 5, attackEvery: 30, range: 5500, speed: 4900, armour: 14, armourPerLevel: 2 },
   /** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */

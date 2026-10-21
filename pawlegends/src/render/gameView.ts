@@ -452,6 +452,7 @@ export class GameView {
       w.kind = e.kind;
       w.team = e.team;
       w.hero = e.hero;
+      w.branch = e.branch === true;
       w.x = toX(e.fx);
       w.z = toZ(e.fy);
       w.yaw = e.yaw;
@@ -610,6 +611,6 @@ export function toSpec(aim: AimSpec, x: number, z: number, ax: number, az: numbe
 }
 
 /** Convenience for HUD and input: the aim spec of slot 0..3 or the trick (4). */
-export function aimOfSlot(hero: HeroId, trick: TrickId, slot: 0 | 1 | 2 | 3 | 4): AimSpec {
-  return slot === 4 ? trickAim(trick) : aimFor(hero, slot);
+export function aimOfSlot(hero: HeroId, trick: TrickId, slot: 0 | 1 | 2 | 3 | 4, branch = false): AimSpec {
+  return slot === 4 ? trickAim(trick) : aimFor(hero, slot, branch);
 }

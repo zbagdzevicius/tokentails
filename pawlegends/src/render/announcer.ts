@@ -8,7 +8,8 @@
  * Works with or without the fun-plan sim events: First Blood, streaks, shutdowns and the bounty crown are also
  * inferred from `death` events, and a sim `firstBlood` / `shutdown` / `bounty` for the same kill is not announced twice.
  */
-import type { SimEvent } from '../sim/api';
+import type { PingKind, SimEvent } from '../sim/api';
+import { HEAL_BARK, PING_TEXT } from '../ui/pingText';
 import { isCampBuff, isFun, isNineLives, tickOf, type AnyEvent, type FunEvent } from './feelEvents';
 
 export type MomentTone = 'good' | 'bad' | 'gold' | 'info';
@@ -26,6 +27,8 @@ export interface Moment {
   size: 'banner' | 'callout' | 'pop' | 'ping' | 'bark';
   /** bark: the allied bot slot that says it (the session tries the other ally when this one is down or off screen). */
   slot?: number;
+  /** GAPS B1 ping: where it points (mm), for the minimap and ground markers, and its marker colour. */
+  at?: { x: number; y: number; color: string };
   slowmo?: { ms: number; scale: number };
   shake?: number;
   crowd?: CrowdSfx;
@@ -83,6 +86,11 @@ export class Announcer {
   private nineSeen = 0;
   private barkAt = -1e9;
   private barks = 0;
+  /** GAPS B1: the kind of the last ping (the `bark` that answers it follows in the same tick). */
+  private pingKind: PingKind = 'goHere';
+  /** Pings sent and allied answers that took one (results, analytics). */
+  pings = 0;
+  pingsTaken = 0;
 
   /** First takedown (kill or assist) by the player, in ticks, or -1. */
   firstTakedownTick = -1;
@@ -139,6 +147,18 @@ export class Announcer {
           this.note({ key: 'pudding', title: 'Pudding calmed', tone: 'good', size: 'banner', rank: 12 });
         }
         return [];
+      // GAPS B1: the player's ping (a minimap and ground marker), and the allies' answers (text chosen here)
+      case 'ping': {
+        this.pingKind = ev.kind;
+        this.pings++;
+        const t = PING_TEXT[ev.kind];
+        return [{ key: 'ping', title: t.label, tone: 'info', size: 'ping', at: { x: ev.x, y: ev.y, color: t.color }, slot: ev.target }];
+      }
+      case 'bark': {
+        const heal = ev.what === 'heal';
+        if (!heal) this.pingsTaken++;
+        return [{ key: heal ? 'barkHeal' : 'barkPing', title: heal ? HEAL_BARK : PING_TEXT[this.pingKind].ack, tone: heal ? 'bad' : 'good', size: 'bark', slot: ev.id }];
+      }
       default:
         return [];
     }

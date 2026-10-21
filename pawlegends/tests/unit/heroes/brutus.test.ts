@@ -120,7 +120,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect(w.x[BRUTUS_ID]).toBeLessThan(MID.x + 3000); // stopped at the hero
     expect(w.x[FOE]).toBeGreaterThanOrEqual(MID.x + 3000 + 2000 - 1);
 
-    // Without a hero in the way: the full 5 m (Long Charge: 6.5 m).
+    // Without a hero in the way: the full 5 m (sim v10: the level-6 branch Guard Post replaced Long Charge, 6.5 m).
     const m2 = arena();
     place(m2, FOE, MID.x, MID.y + 20000, 0);
     cast(m2, BRUTUS_ID, 2, MID.x + 9000, MID.y);
@@ -132,7 +132,78 @@ describe('Sir Brutus (§6.5)', () => {
     place(m3, FOE, MID.x, MID.y + 20000, 0);
     cast(m3, BRUTUS_ID, 2, MID.x + 9000, MID.y);
     steps(m3, 12);
-    expect(m3.world.x[BRUTUS_ID]).toBe(MID.x + 6500);
+    expect(m3.world.x[BRUTUS_ID]).toBe(MID.x + 5000);
+  });
+
+  it('Guard Post (sim v10, GAPS B6 level-6 branch): a planted 3 m dome for 2 s blocks enemy projectiles from every side; Brutus holds still', () => {
+    const m = arena();
+    const w = m.world;
+    setLevel(m, BRUTUS_ID, 6);
+    expect(chooseTalent(m, BRUTUS_ID, 1, 1)).toBe(true);
+    place(m, FOE, MID.x + 6000, MID.y, 2048);
+    place(m, ALLY, MID.x - 1500, MID.y, 0);
+    cast(m, BRUTUS_ID, 1, MID.x + 6000, MID.y);
+    expect(cd(m, BRUTUS_ID, 1)).toBe(300);
+    let domes = 0;
+    for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zKind[z] === ZONE_KIND.dome) domes++;
+    expect(domes).toBe(1);
+    const ally = w.hp[ALLY];
+    fireBolt(w, FOE, ALLY, 80, 18000, PROJECTILE_KIND.hero);
+    steps(m, 20);
+    expect(w.hp[ALLY]).toBe(ally);
+    // From behind too: a dome, not a front arc.
+    place(m, FOE, MID.x - 6000, MID.y, 0);
+    fireBolt(w, FOE, ALLY, 80, 18000, PROJECTILE_KIND.hero);
+    steps(m, 20);
+    expect(w.hp[ALLY]).toBe(ally);
+    // Planted: a move order and Pug Charge do nothing while the dome stands.
+    applyOrder(m, BRUTUS_ID, { op: Op.Move, x: MID.x + 8000, y: MID.y });
+    steps(m, 5);
+    expect(w.x[BRUTUS_ID]).toBe(MID.x);
+    cast(m, BRUTUS_ID, 2, MID.x + 9000, MID.y);
+    expect(cd(m, BRUTUS_ID, 2)).toBe(0);
+    // After 60 ticks it falls: shots land again and he walks.
+    steps(m, 20);
+    expect(w.kWT[BRUTUS_ID]).toBe(0);
+    domes = 0;
+    for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zKind[z] === ZONE_KIND.dome) domes++;
+    expect(domes).toBe(0);
+    fireBolt(w, FOE, ALLY, 80, 18000, PROJECTILE_KIND.hero);
+    steps(m, 20);
+    expect(w.hp[ALLY]).toBeLessThan(ally);
+    applyOrder(m, BRUTUS_ID, { op: Op.Move, x: MID.x + 8000, y: MID.y });
+    steps(m, 10);
+    expect(w.x[BRUTUS_ID]).toBeGreaterThan(MID.x);
+  });
+
+  it('Guard Post: planted, Sir Brutus takes 25% less damage; the dome ends with him', () => {
+    const hit = (branch: boolean): number => {
+      const m = arena();
+      const w = m.world;
+      setLevel(m, BRUTUS_ID, 6);
+      chooseTalent(m, BRUTUS_ID, 1, branch ? 1 : 0);
+      cast(m, BRUTUS_ID, 1, MID.x + 6000, MID.y);
+      w.kHonour[BRUTUS_ID] = 0;
+      const hp = w.hp[BRUTUS_ID];
+      dealDamage(m, -1, 1, Kind.Tower, BRUTUS_ID, 400, 'tower');
+      return hp - w.hp[BRUTUS_ID];
+    };
+    const plain = hit(false);
+    expect(plain).toBeGreaterThan(0);
+    expect(hit(true)).toBe(Math.trunc((plain * 7500) / 10000));
+
+    const m = arena();
+    const w = m.world;
+    setLevel(m, BRUTUS_ID, 6);
+    chooseTalent(m, BRUTUS_ID, 1, 1);
+    cast(m, BRUTUS_ID, 1, MID.x, MID.y);
+    w.hp[BRUTUS_ID] = 1;
+    w.kHonour[BRUTUS_ID] = 0;
+    dealDamage(m, FOE, 1, Kind.Hero, BRUTUS_ID, 5000, 'ability');
+    steps(m, 2);
+    let domes = 0;
+    for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zKind[z] === ZONE_KIND.dome) domes++;
+    expect(domes).toBe(0);
   });
 
   it("Champion's Challenge: tether a hero within 5 m in a 6 m ring for 3 s; 30% less damage from that hero", () => {

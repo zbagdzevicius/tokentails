@@ -20,24 +20,38 @@ import { loadProfile, resetProfileCache, saveProfile } from '../../src/meta/prof
 import { HERO_IDS } from '../../src/data/heroes';
 import { resultsScreen } from '../../src/ui/screens';
 
-const row = (slot: number, hero: HeroId, k: number, d: number, a: number, heroDamage: number, towerDamage: number): SlotStats => ({ slot, hero, kills: k, deaths: d, assists: a, heroDamage, towerDamage, level: 10 });
+const row = (slot: number, hero: HeroId, k: number, d: number, a: number, heroDamage: number, towerDamage: number, damageTaken = 0, healShield = 0): SlotStats => ({
+  slot,
+  hero,
+  kills: k,
+  deaths: d,
+  assists: a,
+  heroDamage,
+  towerDamage,
+  level: 10,
+  damageTaken,
+  healShield,
+  objective: 0,
+});
 
 const MATCH: SlotStats[] = [
-  row(0, 'clem', 6, 2, 4, 9000, 3000),
-  row(1, 'brutus', 1, 3, 8, 3000, 500),
-  row(2, 'sage', 3, 4, 2, 6000, 1500),
+  row(0, 'clem', 6, 2, 4, 9000, 3000, 7000, 500),
+  row(1, 'brutus', 1, 3, 8, 3000, 500, 12000, 0),
+  row(2, 'sage', 3, 4, 2, 6000, 1500, 5000, 0),
   row(3, 'cacklejaw', 5, 3, 2, 8000, 1000),
   row(4, 'brutus', 2, 4, 5, 4000, 0),
   row(5, 'cacklejaw', 1, 5, 3, 3000, 0),
 ];
 
 describe('GAPS A2: grade.ts', () => {
-  it('weights by role: carry 0.35/0.25/0.20/0.20, tank and support 0.50/0.10/0.10/0.30, each summing to 1', () => {
-    expect(GRADE_WEIGHTS.carry).toEqual({ kp: 0.35, heroDmg: 0.25, towerDmg: 0.2, alive: 0.2 });
-    expect(GRADE_WEIGHTS.frontline).toEqual({ kp: 0.5, heroDmg: 0.1, towerDmg: 0.1, alive: 0.3 });
-    for (const w of Object.values(GRADE_WEIGHTS)) expect(w.kp + w.heroDmg + w.towerDmg + w.alive).toBeCloseTo(1, 9);
+  it('weights by role: carry 0.35/0.25/0.20/0.20; sim v10 tank and support on damage taken and heal/shield; each sums to 1', () => {
+    expect(GRADE_WEIGHTS.carry).toEqual({ kp: 0.35, heroDmg: 0.25, towerDmg: 0.2, alive: 0.2, taken: 0, healShield: 0 });
+    expect(GRADE_WEIGHTS.tank).toEqual({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0.25, healShield: 0 });
+    expect(GRADE_WEIGHTS.support).toEqual({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0, healShield: 0.25 });
+    for (const w of Object.values(GRADE_WEIGHTS)) expect(w.kp + w.heroDmg + w.towerDmg + w.alive + w.taken + w.healShield).toBeCloseTo(1, 9);
     expect([...FRONTLINE_ROLES].sort()).toEqual(['support', 'tank']);
-    for (const h of ['brutus', 'lambo', 'gabe'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.frontline);
+    for (const h of ['brutus', 'lambo'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.tank);
+    expect(weightsFor(roleOf('gabe'))).toBe(GRADE_WEIGHTS.support);
     for (const h of ['clem', 'sage', 'cacklejaw', 'aviete', 'bengas'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.carry);
   });
 
@@ -61,15 +75,20 @@ describe('GAPS A2: grade.ts', () => {
     expect(gradeScore(MATCH, 0)).toBeCloseTo(0.35 * 1 + 0.25 * 0.5 + 0.2 * 0.6 + 0.2 * 0.6, 9);
     // the enemy shares are of the enemy team
     expect(gradeParts(MATCH, 3).kp).toBeCloseTo(7 / 8, 9);
-    // the frontline formula for Sir Brutus
+    // the tank formula for Sir Brutus (sim v10: his share of the team's damage taken)
     const b = gradeParts(MATCH, 1);
-    expect(gradeScore(MATCH, 1)).toBeCloseTo(0.5 * b.kp + 0.1 * b.heroDmgShare + 0.1 * b.towerDmgShare + 0.3 * b.alive, 9);
+    expect(b.takenShare).toBeCloseTo(12000 / 24000, 9);
+    expect(gradeScore(MATCH, 1)).toBeCloseTo(0.35 * b.kp + 0.05 * b.heroDmgShare + 0.1 * b.towerDmgShare + 0.25 * b.alive + 0.25 * b.takenShare, 9);
+    // a v9 result has no damageTaken or healShield: those shares are 0, never NaN
+    const v9 = MATCH.map(({ damageTaken: _t, healShield: _h, objective: _o, ...rest }) => rest as SlotStats);
+    expect(gradeParts(v9, 1).takenShare).toBe(0);
+    expect(Number.isFinite(gradeScore(v9, 1))).toBe(true);
   });
 
   it('never divides by zero: a team with no kills, damage or tower damage grades on D alone', () => {
     const idle = [row(0, 'sage', 0, 0, 0, 0, 0), row(1, 'clem', 0, 0, 0, 0, 0), row(2, 'gabe', 0, 0, 0, 0, 0), row(3, 'brutus', 3, 0, 0, 100, 100)];
     expect(gradeScore(idle, 0)).toBeCloseTo(0.2, 9);
-    expect(gradeScore(idle, 2)).toBeCloseTo(0.3, 9);
+    expect(gradeScore(idle, 2)).toBeCloseTo(0.25, 9);
     expect(gradeScore([], 0)).toBe(0);
     expect(Number.isFinite(gradeScore(idle, 9))).toBe(true);
   });

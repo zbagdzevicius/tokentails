@@ -182,6 +182,9 @@ kbd {
 }
 .pl-menu h2 { margin: 0 0 6px; }
 .pl-menu .keys { font-size: 12px; opacity: 0.75; line-height: 2; margin: 6px 0 0; }
+/* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
+.pl-menu .pl-btn[disabled] { opacity: 0.45; cursor: default; }
+.pl-menu .pl-forfeit .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
 
 .pl-loading {
   position: absolute; inset: 0; z-index: 60; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--bg);
@@ -379,6 +382,12 @@ kbd {
 .pl-talents button kbd { grid-row: span 2; }
 .pl-talents button b { font-size: 13px; color: var(--butter); }
 .pl-talents button span { font-size: 11px; opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* GAPS B6: level 6 lists the shape branch ("New shape" tag) or says one is coming for this hero */
+.pl-talents button.branch { border-color: var(--butter); }
+.pl-talents button .tag { font-style: normal; font-size: 10px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--butter); color: #3a2a10; vertical-align: 1px; }
+.pl-talents .head .soon { margin-left: 8px; font-size: 11px; opacity: 0.75; color: var(--cream); }
+/* the own ability bar after the branch: a gold rim on the changed slot */
+.pl-slot.branch { box-shadow: 0 0 0 2px var(--butter) inset; }
 
 .pl-tip {
   position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%) translateY(14px); opacity: 0; z-index: 5;
@@ -504,6 +513,14 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-pick .row.bots { flex-wrap: nowrap; gap: 6px; }
   .pl-pick .row.bots .lbl { width: auto; }
   .pl-pick .row.bots .chip { font-size: 13px; padding: 5px 11px; }
+  /* sim v10 (GAPS B5): four Paw Trick chips on one line at 844×390 */
+  .pl-pick .row.tricks { gap: 5px; }
+  .pl-pick .row.tricks .lbl { width: auto; }
+  .pl-pick .row.tricks .chip { font-size: 12px; padding: 5px 9px 5px 7px; gap: 4px; }
+  .pl-pick .row.tricks .chip .pl-icon { width: 15px; height: 15px; }
+  .pl-pick .blurb { margin: 2px 0 6px; }
+  .pl-pick .detail .lane-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.2; }
+  .pl-pick-col { gap: 6px; }
   .hero-card i { width: 34px; height: 34px; font-size: 16px; }
   .hero-card i.pic { width: 40px; height: 40px; }
   .pl-results h1 { font-size: 40px; }
@@ -977,7 +994,7 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 }
 
 /* ---------------------------------------------------------------------------------------------- GAPS A4 / A5
-   The objective chip is tappable (B1 turns the tap into a ping); the portrait strip flanks the score bar (allies
+   The objective chip is tappable (B1: the tap sends its ping); the portrait strip flanks the score bar (allies
    left, enemies right; on touch the allies sit under the hero box) with death timers; a tap on an enemy portrait
    locks it on touch. */
 .pl-goal.standing[data-ping] { pointer-events: auto; cursor: pointer; }
@@ -992,6 +1009,10 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 .pl-strip .pp .pic { position: absolute; inset: 0; border-radius: 50%; background-size: cover; background-position: center; display: grid; place-items: center; font-style: normal; }
 .pl-strip .pp .t { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cream); font-size: 15px; text-shadow: 0 1px 0 #000, 0 0 4px #000; }
 .pl-strip .pp.dead .pic { filter: grayscale(1) brightness(0.45); }
+/* GAPS B6: the level-6 shape branch badge (hidden until the hero takes it) */
+.pl-strip .pp .br { display: none; position: absolute; right: -5px; bottom: -5px; width: 16px; height: 16px; border-radius: 50%; background: #ffd34d; color: #3a2a10; border: 1.5px solid #3a2a10; place-items: center; }
+.pl-strip .pp .br .pl-icon { width: 11px; height: 11px; }
+.pl-strip .pp.branch .br { display: grid; }
 .pl-strip .pp.unseen { opacity: 0.55; }
 .pl-strip .pp.locked { border-color: #ff4d5e; box-shadow: 0 0 0 3px rgba(255, 77, 94, 0.65), 0 3px 8px rgba(0, 0, 0, 0.35); }
 html[data-touch='1'] .pl-strip.ally { right: auto; left: calc(80px + var(--safe-l)); top: calc(70px + var(--safe-t)); }
@@ -1012,3 +1033,33 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
 .pl-tbtn.lasthit span, .pl-tbtn.tower span { font-size: 11px; }
 .pl-tbtn.lasthit { right: 42px; bottom: 182px; }
 .pl-tbtn.tower { right: -18px; bottom: 176px; }
+
+/* ---------------------------------------------------------------------------------------------- GAPS B1
+   Command pings: the six-slice wheel (desktop: hold G at the cursor; touch: the paw button by the minimap), the paw
+   button, and the ping marker on the minimap (drawn in the canvas). */
+.pl-pingwheel { position: fixed; inset: 0; z-index: 30; display: none; pointer-events: auto; touch-action: none; }
+.pl-pingwheel.on { display: block; }
+.pl-pingwheel::before {
+  content: ''; position: absolute; left: var(--x); top: var(--y); width: 196px; height: 196px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, rgba(43, 29, 46, 0.25) 0 22%, rgba(43, 29, 46, 0.72) 23% 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); pointer-events: none;
+}
+.pl-pingwheel .slice {
+  position: absolute; left: var(--x); top: var(--y); width: 76px; min-height: 44px; margin: 0; padding: 4px 2px;
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(-70px) rotate(calc(-1 * var(--a)));
+  display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--c); border-radius: 14px;
+  background: var(--panel); color: var(--cream); font: 700 11px/1.1 var(--font); text-align: center; cursor: pointer;
+}
+.pl-pingwheel .slice svg { width: 18px; height: 18px; color: var(--c); }
+.pl-pingwheel .slice.hot, .pl-pingwheel .slice:active { background: var(--c); color: var(--ink); }
+.pl-pingwheel .slice.hot svg, .pl-pingwheel .slice:active svg { color: var(--ink); }
+.pl-pingbtn {
+  position: absolute; display: none; width: 44px; height: 44px; padding: 0; border-radius: 50%; z-index: 5;
+  border: 2px solid rgba(255, 243, 220, 0.55); background: var(--panel); color: var(--cream); pointer-events: auto; touch-action: none;
+}
+.pl-pingbtn svg { width: 24px; height: 24px; }
+.pl-pingbtn.cool { opacity: 0.45; }
+html[data-touch='1'] .pl-pingbtn { display: block; right: calc(152px + var(--safe-r)); top: calc(52px + var(--safe-t)); }
+/* GAPS B1 / A6: the lane hint under the blurb on the pick screen */
+.pl-pick .lane-hint { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+.pl-pick .trick-hint { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }

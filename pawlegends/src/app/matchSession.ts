@@ -32,15 +32,18 @@ import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
 import { HERO_SCALE } from '../render/views/models';
-import { FOUNTAIN, MAP } from '../data/map';
+import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
+import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
+import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
 import { HERO_TEXT, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
 import { Minimap } from '../ui/minimap';
+import { PingWheel } from '../ui/pingWheel';
+import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
 import { Scoreboard } from '../ui/scoreboard';
 import { Stage } from '../ui/stage';
@@ -73,7 +76,17 @@ export interface MatchSetup {
   skinFx?: SkinFxMode;
   /** Featured skin ids a showcase bot may wear (empty unless web, session 2+, not the first match). */
   showcase?: readonly string[];
+  /** GAPS B1: the player's second match: one tip shows how to tell the team what to do (pings). */
+  pingTip?: boolean;
+  /**
+   * GAPS B2: the pause menu offers Forfeit from this match tick (app/firstSession.ts forfeitTick: the sim's
+   * DifficultyRules.forfeitFrom, 0 in matches 1–3 and on Rookie); 0 or absent = no Forfeit button.
+   */
+  forfeitFrom?: number;
 }
+
+/** GAPS B1: the ping tip of match 2 shows once the gates are open this long (ticks: 0:45). */
+const PING_TIP_TICK = 1350;
 
 /** `?e2e=1&skins=legendary` (perf.spec.ts): every hero in a synthetic Legendary card skin. Never outside e2e. */
 function e2eLegendary(): boolean {
@@ -200,6 +213,10 @@ export class MatchSession {
   private orders: Orders | null = null;
   private desktop: DesktopInput | null = null;
   private touch: TouchControls | null = null;
+  /** GAPS B1: the ping wheel (desktop G, touch paw button), the paw button, and whether the match-2 tip showed. */
+  private pingWheel: PingWheel | null = null;
+  private pingBtn: HTMLButtonElement | null = null;
+  private pingTipShown = false;
   private hud: Hud | null = null;
   private overhead: Overhead;
   private minimap: Minimap;
@@ -306,14 +323,20 @@ export class MatchSession {
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
       myTeam: () => this.view.myTeam,
+      goHere: (x, y) => this.sendPing(PING_KIND.GoHere, x, y),
     });
     this.tips = new Tips(this.ui, setup.firstMatch);
     this.goals = new Objectives(this.ui, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
     this.minimap.timers = () => this.objClock?.timers() ?? [];
-    // GAPS A4: a tap on the objective chip names it; B1 turns it into a ping (no ping is sent yet)
+    // GAPS A4 / B1: a tap on the objective chip sends its ping (Take Pudding, Group on me, Go here at a camp)
     this.goals.onTap = (key) => {
       if (this.e2e) document.documentElement.dataset.chipTap = key;
+      const kind = chipPing(key);
+      if (kind === null) return;
+      const chip = this.objClock?.chip();
+      const me = this.units.find((u) => u.id === this.view.mySlot);
+      this.sendPing(kind, chip?.x ?? me?.x ?? MAP.width / 2, chip?.y ?? me?.y ?? MAP.height / 2);
     };
     this.host = new LocalHost();
     this.buffer.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
@@ -328,6 +351,7 @@ export class MatchSession {
     // Hold the sim until the scene has drawn and the countdown ran (the clock read 0:25 on a slow first load).
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
+    delete document.documentElement.dataset.endReason;
   }
 
   get matchId(): string | null {
@@ -367,9 +391,13 @@ export class MatchSession {
       trick,
       cooldowns: () => this.frameNow?.byId.get(w.slot)?.cooldowns ?? null,
       level: () => this.frameNow?.byId.get(w.slot)?.level ?? 1,
+      branch: () => this.frameNow?.byId.get(w.slot)?.branch === true,
       nowMs: () => performance.now(),
     };
     this.orders = new Orders(env);
+    this.orders.speed = this.buffer.speed;
+    this.pingWheel = new PingWheel(this.ui);
+    this.pingWheel.onPick = (kind) => this.wheelPing(kind);
     const inputHost: InputHost = {
       canvas: this.gr.renderer.domElement,
       view: this.view,
@@ -386,6 +414,8 @@ export class MatchSession {
         this.activity++;
       },
       marker: (x, z, attack) => this.marker(x, z, attack),
+      pingWheel: this.pingWheel,
+      ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
@@ -418,7 +448,12 @@ export class MatchSession {
       onPortrait: (slot) => {
         this.touch?.lockOn(slot);
       },
-    }, this.setup.look ?? null);
+      // GAPS B1: a held enemy portrait pings Focus hero on it
+      onPortraitHold: (slot) => {
+        const u = this.units.find((x) => x.id === slot);
+        if (u && u.state !== 'dead') this.sendPing(PING_KIND.Focus, u.x, u.y, slot);
+      },
+    }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
@@ -548,7 +583,60 @@ export class MatchSession {
    * Touch has no Esc or Tab: a pause button at the top (menu with Scores, Sound, Leave), a tap on the score bar
    * shows the scoreboard, and turning the phone to portrait pauses the bot match (the rotate prompt covers it).
    */
+  /**
+   * GAPS B1: send a command ping (the client debounce in Orders holds one sent too soon; the paw button greys out
+   * meanwhile). The sim's `ping` and `bark` events come back and the announcer shows them.
+   */
+  private sendPing(kind: number, x: number, y: number, id?: number): boolean {
+    if (!this.orders || this.ended || this.paused) return false;
+    const ok = this.orders.ping(kind, x, y, id);
+    if (!ok) sfx.play('deny', { vol: 0.5 });
+    if (this.e2e) document.documentElement.dataset.pingsSent = String(this.orders.pings);
+    return ok;
+  }
+
+  /** A wheel slice: where its ping points (the marker only; the bots read the kind). */
+  private wheelPing(kind: number): void {
+    const team = this.view.myTeam;
+    const me = this.units.find((u) => u.id === this.view.mySlot);
+    const side = (x: number): number => (team === 0 ? x : mirrorX(x));
+    const enemy = (x: number): number => (team === 0 ? mirrorX(x) : x);
+    let x = me?.x ?? MAP.width / 2;
+    let y = me?.y ?? MAP.height / 2;
+    if (kind === PING_KIND.Pudding) {
+      const pud = this.units.find((u) => u.kind === 'pudding');
+      x = pud?.x ?? PUDDING_SPOT.x;
+      y = pud?.y ?? PUDDING_SPOT.y;
+    } else if (kind === PING_KIND.PushSunny || kind === PING_KIND.PushPuddle) {
+      const t = TOWER_SPOTS.find((s) => s.tier === 'outer' && s.lane === (kind === PING_KIND.PushSunny ? 'sunny' : 'puddle'))!;
+      x = enemy(t.x);
+      y = t.y;
+    } else if (kind === PING_KIND.Defend) {
+      x = side(CORE.x);
+      y = CORE.y;
+    }
+    this.sendPing(kind, x, y);
+  }
+
+  /** GAPS B1 touch: the paw button by the minimap opens the ping wheel in the middle of the screen. */
+  private mountPingButton(): void {
+    const b = document.createElement('button');
+    b.className = 'pl-pingbtn';
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Tell your team');
+    b.innerHTML = icon('paw');
+    b.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (this.pingWheel?.open) this.pingWheel.close();
+      else this.pingWheel?.openAt(window.innerWidth / 2, window.innerHeight / 2);
+    });
+    this.ui.appendChild(b);
+    this.pingBtn = b;
+  }
+
   private mountTouchChrome(): void {
+    this.mountPingButton();
     const b = document.createElement('button');
     b.className = 'pl-pause';
     b.type = 'button';
@@ -853,7 +941,16 @@ export class MatchSession {
         this.resume();
         this.hooks.onLeave();
       },
+      // GAPS B2: Forfeit (a confirm step in the menu); the sim ends the match on its next tick
+      ...(this.setup.forfeitFrom ? { forfeit: { from: this.setup.forfeitFrom, tick: this.buffer.latest?.clock.tick ?? 0 }, onForfeit: () => this.forfeit() } : {}),
     });
+  }
+
+  /** GAPS B2: send Op.Forfeit and unpause; the end arrives as a normal (lost, reason 'forfeit') match end. */
+  private forfeit(): void {
+    if (this.ended) return;
+    this.host.send({ op: Op.Forfeit });
+    this.resume();
   }
 
   /** Scoreboard by tap (pause menu or the score bar on touch); a tap on it closes it. */
@@ -883,6 +980,8 @@ export class MatchSession {
   private onEnd(result: MatchResult, replay: ReplayRecord): void {
     if (this.ended || !this.welcome) return;
     this.ended = true;
+    // GAPS B2 (forfeit.spec.ts): how the match ended
+    document.documentElement.dataset.endReason = result.reason;
     const me = this.welcome.slot;
     const won = result.outcome === 'won';
     this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad' });
@@ -1000,12 +1099,12 @@ export class MatchSession {
   }
 
   /** A living allied bot on screen to say a bark: `slot` first, then the other ally (px), or null. */
-  private barkScreen(slot: number): { x: number; y: number } | null {
+  private barkScreen(slot: number, only = false): { x: number; y: number } | null {
     const w = this.welcome;
     const frame = this.view.frame;
     if (!w || !frame) return null;
     const team = w.slot < 3 ? 0 : 1;
-    const order = [slot, ...[0, 1, 2].map((k) => team * 3 + k).filter((s) => s !== slot)];
+    const order = only ? [slot] : [slot, ...[0, 1, 2].map((k) => team * 3 + k).filter((s) => s !== slot)];
     const c = this.gr.renderer.domElement;
     for (const s of order) {
       if (s === w.slot || s < team * 3 || s >= team * 3 + 3) continue;
@@ -1027,11 +1126,31 @@ export class MatchSession {
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
+        // GAPS B1: the player's ping: a minimap ring and a ground marker where it points, and its name over the hero
+        if (m.key === 'ping' && m.at) {
+          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
+          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          const at = this.heroScreen();
+          if (at) j.pop(m.title, at.x, at.y - 34, 'info');
+          sfx.play('click', { vol: 0.6 });
+        }
         continue;
       }
       if (m.size === 'bark') {
         // GAPS A6: the ally's line over that ally (the other ally when it is down or off screen; else nothing)
         const at = this.barkScreen(m.slot ?? -1);
+        // GAPS B1: an answer to a ping is said by that ally (over it, or in the feed when it is off screen)
+        const answer = m.key === 'barkPing' || m.key === 'barkHeal';
+        if (answer) {
+          const on = this.barkScreen(m.slot ?? -1, true);
+          if (on) j.pop(m.title, on.x, on.y - 10, m.tone === 'bad' ? 'bad' : 'good');
+          else this.hud?.note(`${this.names[m.slot ?? -1] ?? 'Ally'}: ${m.title}`);
+          if (this.e2e) {
+            const d = document.documentElement.dataset;
+            d.barks = `${d.barks ? `${d.barks},` : ''}${m.slot}:${m.key === 'barkHeal' ? 'heal' : 'ok'}`;
+          }
+          continue;
+        }
         if (at) j.pop(m.title, at.x, at.y - 10, 'good');
         continue;
       }
@@ -1302,6 +1421,18 @@ export class MatchSession {
     this.minimap.draw(frame);
     this.tips.update(dt);
     this.goals.update(this.paused ? 0 : dt);
+    this.pingBtn?.classList.toggle('cool', !(this.orders?.pingReady() ?? false));
+    if (this.setup.pingTip && !this.pingTipShown && frame && frame.tick >= PING_TIP_TICK && !this.ended) {
+      // GAPS B1: one tip in match 2 (no tip system queue: it is a single banner)
+      this.pingTipShown = true;
+      const touch = document.documentElement.dataset.touch === '1';
+      this.view.juice.banner({
+        title: 'Tell your team what to do',
+        sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
+        tone: 'info',
+      });
+      if (this.e2e) document.documentElement.dataset.pingTip = '1';
+    }
     if (this.talents?.waiting) {
       this.calmFor = this.inFight() ? 0 : this.calmFor + dt * this.buffer.speed;
       if (this.calmFor >= 2.5) this.talents.reveal();
@@ -1365,6 +1496,8 @@ export class MatchSession {
         else if (e.kind === 'tower') towers++;
       }
       d.units = `${heroes},${minions},${towers}`;
+      // GAPS B2 (forfeit.spec.ts): the match tick, so a test can wait for the Forfeit time
+      d.tick = String(frame.latest.clock.tick);
       // First-match tips (first-match.spec.ts): the tip on screen, those shown and done, and where on screen the
       // nearest enemy minion and hero are (so a test can right-click one).
       d.tip = this.tips.current ?? '';

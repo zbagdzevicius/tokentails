@@ -817,6 +817,7 @@ function statusWord(b: number): string {
   if (b & BuffFlag.Channeling) return 'Napping';
   if (b & BuffFlag.Tethered) return 'Challenged';
   if (b & BuffFlag.Slowed) return 'Slowed';
+  if (b & BuffFlag.Purrified) return 'Purr-ified';
   return '';
 }
 

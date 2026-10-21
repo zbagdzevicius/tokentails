@@ -11,8 +11,10 @@
 import type { HeroId } from '../data/heroes/types';
 import type { Difficulty } from '../data/bots';
 import type { TrickId } from '../data/tricks';
+import type { BarkKind, PingKind } from '../data/pings';
 
-export type { HeroId, Difficulty, TrickId };
+export type { HeroId, Difficulty, TrickId, PingKind, BarkKind };
+export { PING_KINDS, BARK_KINDS } from '../data/pings';
 
 /** 0 = Purrhaven (left, the human's team), 1 = Woof (right). */
 export type Team = 0 | 1;
@@ -41,6 +43,17 @@ export interface CosmeticsConfig {
   frame?: string | null;
 }
 
+/**
+ * Sim v10 (GAPS B0): how bots choose talents. 'seeded' is the only mode of a real match and of every replay; 'first'
+ * (the pre-v10 rule) and 'branch' (option 1 at level 6) are for headless runs (`npm run match -- --bot-talents`).
+ */
+export type BotTalentMode = 'first' | 'seeded' | 'branch';
+export const BOT_TALENT_MODES: readonly BotTalentMode[] = Object.freeze(['first', 'seeded', 'branch'] as BotTalentMode[]);
+
+/** Sim v10 (GAPS B0): the match mutator. Only 'none' exists in v10 (mutators come later, GAPS §8 item 18). */
+export type Mutator = 'none';
+export const MUTATORS: readonly Mutator[] = Object.freeze(['none'] as Mutator[]);
+
 export interface MatchConfig {
   /** uint32. A dare link carries it; otherwise the host draws one. */
   seed: number;
@@ -50,6 +63,11 @@ export interface MatchConfig {
   tricks: readonly TrickId[];
   difficulty: Difficulty;
   cosmetics?: CosmeticsConfig;
+  /**
+   * Headless tools only (sim v10): the bots' talent rule, default 'seeded'. Not part of the replay: a replay always
+   * re-sims with 'seeded', so a match played with another mode does not verify.
+   */
+  botTalents?: BotTalentMode;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -64,6 +82,13 @@ export const Op = Object.freeze({
   Stop: 6,
   Nap: 7,
   Talent: 8,
+  /** Sim v10 (GAPS B1): a command ping to the allied bots; slot 0 only. */
+  Ping: 9,
+  /**
+   * Sim v10 (GAPS B2): the human forfeits; its team loses at the end of the tick (`reason` 'forfeit'). Applies only
+   * from DifficultyRules.forfeitFrom (never on Rookie); earlier it is dropped, unlogged.
+   */
+  Forfeit: 10,
 } as const);
 export type Op = (typeof Op)[keyof typeof Op];
 
@@ -81,7 +106,14 @@ export type Command =
   | { op: typeof Op.Trick; x: number; y: number }
   | { op: typeof Op.Stop }
   | { op: typeof Op.Nap }
-  | { op: typeof Op.Talent; tier: TalentTier; choice: 0 | 1 };
+  | { op: typeof Op.Talent; tier: TalentTier; choice: 0 | 1 }
+  /**
+   * Sim v10 (GAPS B1): `kind` = PING_KINDS index; (x, y) the point (Go here); `id` the enemy hero (Focus), else
+   * NO_TARGET. At most one every PING.minGap ticks and PING.maxPerMatch a match (data/pings.ts). A ping may share its
+   * tick with one other command: the latest ping and the latest other command of a tick both apply.
+   */
+  | { op: typeof Op.Ping; kind: number; x: number; y: number; id: number }
+  | { op: typeof Op.Forfeit };
 
 export const NO_TARGET = 0xff;
 
@@ -128,6 +160,8 @@ export const BuffFlag = Object.freeze({
   Frenzy: 1 << 15,
   NineLives: 1 << 16,
   Pack: 1 << 17, // lint-sim: allow (a bit index)
+  /** Sim v10 (GAPS B5): Purr-ify's crowd-control immunity. */
+  Purrified: 1 << 18, // lint-sim: allow (a bit index)
 } as const);
 
 export interface EntitySnap {
@@ -163,6 +197,8 @@ export interface EntitySnap {
   talents?: readonly [number, number, number];
   /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100; Avietė's charge ticks left), else 0. */
   resource?: number;
+  /** Heroes only (sim v10, GAPS B6), both teams: the hero took its level-6 shape branch (BRANCH_TALENT). View only. */
+  branch?: boolean;
   /** Heroes only (sim v9), both teams: Avietė is Charged (her next hit on a hero stuns); the enemy sees the glow too. */
   charged?: boolean;
   /** Heroes only (sim v9), the viewer's own team: Avietė's charge lockout, ticks left (0 = none). View only. */
@@ -246,7 +282,12 @@ export type SimEvent =
   /** The match's first takedown. */
   | { type: 'firstBlood'; tick: number; killer: number; victim: number }
   /** A bonus on hero `id` started (for `ticks`): Nine Lives saved it, a pickup, the rat camp's Pack buff, Zoomies. */
-  | { type: 'buff'; tick: number; id: number; kind: BuffKind; ticks: number };
+  | { type: 'buff'; tick: number; id: number; kind: BuffKind; ticks: number }
+  // Sim v10 (GAPS B1), the human's team only:
+  /** Slot 0 pinged: `target` the focused hero or −1; `took` = allied bots that took it as an order. */
+  | { type: 'ping'; tick: number; kind: PingKind; x: number; y: number; target: number; took: number }
+  /** Ally bot `id` answers a ping: 'ok' (on it) or 'heal' (refused: "Healing first!"). The render picks the text. */
+  | { type: 'bark'; tick: number; id: number; what: BarkKind };
 
 export type SimEventType = SimEvent['type'];
 
@@ -277,13 +318,20 @@ export interface SlotStats {
   heroDamage: number;
   towerDamage: number;
   level: number;
+  /** Sim v10: damage this hero soaked from any source (HP lost plus shield used up, after armour). */
+  damageTaken: number;
+  /** Sim v10: HP this hero's kit restored plus shield it granted, to itself or allies (not the fountain or Fish Snack). */
+  healShield: number;
+  /** Sim v10: damage this hero dealt to neutral objectives (the rat camp and Pudding). */
+  objective: number;
 }
 
 export interface MatchResult {
   /** From the human's (slot 0, Purrhaven) point of view. */
   outcome: Outcome;
   winner: Team;
-  reason: 'core' | 'safetyEnd';
+  /** Sim v10 (GAPS B2): 'forfeit' = the human forfeited (outcome 'lost'). */
+  reason: 'core' | 'safetyEnd' | 'forfeit';
   ticks: number;
   /** 8-digit hex FNV-1a of the final state. */
   finalHash: string;
@@ -307,6 +355,11 @@ export interface ReplayRecord {
   outcome: Outcome;
   /** hex FNV-1a */
   finalHash: string;
+  /**
+   * Sim v10: the match mutator; v10 records always carry 'none' and the server accepts only 'none' (or no field).
+   * The backend leaves a mutator other than 'none' out of the fastest-win record and catnip (GAPS §8 item 1).
+   */
+  mutator?: Mutator;
 }
 
 /** Alias with the spec's name. */
@@ -323,7 +376,8 @@ export type VerifyCode =
   | 'PAWLEGENDS_NOT_ENDED';
 
 export type VerifyResult =
-  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[] }
+  /** Sim v10 (GAPS B2): `reason` says how the match ended ('forfeit': the human forfeited; the backend stores 'quit'). */
+  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[]; reason: MatchResult['reason'] }
   | { ok: false; code: VerifyCode; message: string };
 
 // ---------------------------------------------------------------------------------------------------------------

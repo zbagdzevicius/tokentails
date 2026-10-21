@@ -11,6 +11,7 @@ import { dealDamage } from '../combat/damage';
 import { attackSpeed, collect, dash, fireSkillshot, heal, inCone, inFront, knockback, stun, PFLAG } from '../effects';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, hasTalent, type KitNumbers } from './talents';
+import { creditHealShield } from '../effects/heal';
 
 const Q = 0;
 const E = 2;
@@ -147,7 +148,7 @@ export const CLEM_KIT: HeroKit = {
       const gain = k === Kind.Hero ? a.passive.valorPerHeroHit : k === Kind.Minion ? a.passive.valorPerMinionHit : 0;
       w.kValor[id] = Math.min(a.passive.valorMax, w.kValor[id] + gain);
     }
-    if (w.kRT[id] > 0 && (a.r.lifestealBp ?? 0) > 0) heal(w, id, applyBp(dmg, a.r.lifestealBp));
+    if (w.kRT[id] > 0 && (a.r.lifestealBp ?? 0) > 0) creditHealShield(m, id, heal(w, id, applyBp(dmg, a.r.lifestealBp)));
   },
   onTakedown(m, id) {
     if (hasTalent(m.world, id, 'second-wind')) m.world.cooldowns[id * COOLDOWN_SLOTS + E] = 0;

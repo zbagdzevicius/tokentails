@@ -12,6 +12,7 @@ import type { MatchHandle } from '../state';
 import { ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
 import { dealDamage } from '../combat/damage';
 import { addShield, collect, dash, fireSkillshot, inRing, knockback, root, stun, ON_HIT } from '../effects';
+import { creditHealShield } from '../effects/heal';
 import { disabled } from '../effects/status';
 import { radiusOf } from '../units/kinds';
 import { Aim, HALF_TURN, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
@@ -110,9 +111,9 @@ export const LAMBO_KIT: HeroKit = {
       case 1: {
         const h = a.w;
         // Both shields are shares of Lambo's own max HP (the hug comes from the tank).
-        addShield(w, id, applyBp(w.maxHp[id], h.selfBp), h.duration);
+        creditHealShield(m, id, addShield(w, id, applyBp(w.maxHp[id], h.selfBp), h.duration));
         const ally = nearestAlly(w, id, h.range);
-        if (ally >= 0) addShield(w, ally, applyBp(w.maxHp[id], h.allyBp), h.duration);
+        if (ally >= 0) creditHealShield(m, id, addShield(w, ally, applyBp(w.maxHp[id], h.allyBp), h.duration));
         return h.cooldown;
       }
       case 2: {

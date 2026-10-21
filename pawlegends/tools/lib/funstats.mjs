@@ -19,6 +19,10 @@
  * - big moment: a takedown, a tower or core falling, Pudding calmed, slot 0 taking a pickup, a bounty or shutdown, a
  *   comeback wave, slot 0 reaching level 4 or 6. Gaps run from 0:00 to the end.
  * - trailing at 3:30: takedown difference + 3 per tower ≥ 3; the comeback rate is how often the trailing team won.
+ * - behind at the end (sim v10, GAPS B0/B3): how often the team 5–9 or 10+ takedowns behind at the end still won.
+ * - level gap at 6:00 (GAPS B0): the enemy heroes' average level minus the human's (as at 3:00 and 5:00).
+ * - pings obeyed (GAPS B1): the share of slot 0's pings at least one ally bot took as an order (`ping` event `took`);
+ *   null in a match without pings, and the aggregate shows "n/a" (and pings a match) when no match pinged.
  */
 
 const HERO = 1;
@@ -55,7 +59,10 @@ export function createFunTracker(sim, m) {
     ringN: 0,
     gap3: null,
     gap5: null,
+    gap6: null,
     score330: null,
+    pings: 0,
+    pingsObeyed: 0,
     pickups: 0,
     bounties: 0,
     shutdowns: 0,
@@ -129,6 +136,10 @@ export function createFunTracker(sim, m) {
           st.comebacks[e.team]++;
           st.moments.push(t);
           break;
+        case 'ping':
+          st.pings++;
+          if (e.took > 0) st.pingsObeyed++;
+          break;
         case 'buff':
           if (e.id === 0 && e.kind === 'nineLives') st.nineLives++;
           break;
@@ -176,6 +187,7 @@ export function createFunTracker(sim, m) {
     }
     if (t === 180 * HZ) st.gap3 = levelGap();
     if (t === 300 * HZ) st.gap5 = levelGap();
+    if (t === 360 * HZ) st.gap6 = levelGap();
     if (t === 210 * HZ) st.score330 = st.takedowns[0] - st.takedowns[1] + 3 * (w.globals[4] - w.globals[5]);
   }
 
@@ -217,7 +229,11 @@ export function createFunTracker(sim, m) {
       backIn: st.backIn,
       gap3: st.gap3,
       gap5: st.gap5,
+      gap6: st.gap6,
       score330: st.score330,
+      /** GAPS B1: pings slot 0 sent, and the share of them an ally took (null without pings). */
+      pings: st.pings,
+      pingsObeyedShare: st.pings ? st.pingsObeyed / st.pings : null,
       gapMedian: median(gaps),
       gapMax: Math.max(...gaps),
       /** When the longest quiet stretch started (s). */
@@ -247,6 +263,18 @@ export function pct(a, p) {
 
 /** Takedown gap at the end that counts as "losing every fight" (playtest round 1 gate: such a team wins < 5%). */
 export const DEFICIT = 10;
+/** GAPS B0/B3: the smaller "behind at the end" band, 5 to DEFICIT − 1 takedowns. */
+export const BEHIND = 5;
+
+/** How often the team `lo`..`hi` takedowns behind at the end won (null hi: no upper bound). */
+export function behindWon(funRows, lo, hi = null) {
+  const rows = funRows.filter((x) => {
+    const gap = Math.abs(x.teamTakedowns[0] - x.teamTakedowns[1]);
+    return gap >= lo && (hi === null || gap <= hi);
+  });
+  const won = rows.filter((x) => (x.teamTakedowns[0] < x.teamTakedowns[1] ? x.winner === 0 : x.winner === 1)).length;
+  return { matches: rows.length, wonRate: rows.length ? (100 * won) / rows.length : 0 };
+}
 
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 /** null (never happened) counts as +Infinity for medians of "time to". */
@@ -297,6 +325,16 @@ export function aggregateFun(funRows, sdTick) {
     trailingWonRate: trailing.length ? (100 * trailingWon) / trailing.length : NaN,
     deficitMatches: deficit.length,
     deficitWonRate: deficit.length ? (100 * deficitWon) / deficit.length : 0,
+    /** Sim v10 (GAPS B0): win rate of the team 5–9 and 10+ takedowns behind at the end. */
+    behind5to9: behindWon(r, BEHIND, DEFICIT - 1),
+    behind10plus: behindWon(r, DEFICIT),
+    gap6Median: median(r.map((x) => x.gap6)),
+    /** GAPS B1: pings a match, and the mean share obeyed over matches with pings (null when none pinged). */
+    pingsMean: mean(r.map((x) => x.pings ?? 0)),
+    pingsObeyed: (() => {
+      const shares = r.map((x) => x.pingsObeyedShare).filter((x) => x !== null && x !== undefined);
+      return shares.length ? 100 * mean(shares) : null;
+    })(),
     pickupsMean: mean(r.map((x) => x.pickups)),
     bountiesMean: mean(r.map((x) => x.bounties)),
     shutdownsMean: mean(r.map((x) => x.shutdowns)),
@@ -380,7 +418,7 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     add('side win rate 45% to 55%', between(a.winRate, 45, 55), `Purrhaven ${f1(a.winRate)}% / Woof ${f1(side)}%`);
     for (const [hero, h] of Object.entries(perHero)) {
       const rate = (100 * h.wins) / h.slots;
-      add(`${hero} win rate 42% to 58%`, between(rate, 42, 58), `${f1(rate)}%`);
+      add(`${hero} win rate 46% to 54%`, between(rate, 46, 54), `${f1(rate)}%`);
     }
     // Sim v9: every match is cats vs dogs (teams are one species), so the map-side check misses a species edge: the
     // cat heroes' slot-weighted win rate must sit in 47% to 53%.
@@ -416,5 +454,8 @@ export function formatFun(a) {
     `  burst: 90%-to-dead median ${f1(a.ttkMedian)} s (p10 ${f1(a.ttkP10)} s), worst 1 s loss median ${f1(a.worst1sMedian)}% (p99 ${f1(a.worst1sP99)}%), back in the fight ${f1(a.backInMedian)} s`,
     `  moments: pickups ${f1(a.pickupsMean)}, bounties ${f1(a.bountiesMean)}, shutdowns ${f1(a.shutdownsMean)}, comebacks ${f1(a.comebacksMean)}, Nine Lives ${f1(a.nineLivesMean)} a match; ` +
       `trailing at 3:30 won ${f1(a.trailingWonRate)}% of ${a.trailingAt330}; down ${DEFICIT}+ takedowns at the end won ${f1(a.deficitWonRate)}% of ${a.deficitMatches}`,
+    `  behind at the end: ${BEHIND}–${DEFICIT - 1} takedowns won ${f1(a.behind5to9.wonRate)}% of ${a.behind5to9.matches}, ` +
+      `${DEFICIT}+ won ${f1(a.behind10plus.wonRate)}% of ${a.behind10plus.matches}; human level gap at 6:00 ${f1(a.gap6Median)}; ` +
+      `pings ${f1(a.pingsMean)} a match, obeyed ${a.pingsObeyed === null ? 'n/a (no pings)' : `${f1(a.pingsObeyed)}%`}`,
   ].join('\n');
 }

@@ -7,6 +7,7 @@ import { dealDamage, resolveDeaths } from '../../src/sim/combat/damage';
 import { stun } from '../../src/sim/effects';
 import { step } from '../../src/sim/index';
 import { levelForXp } from '../../src/sim/progression/levels';
+import { botTalentChoice } from '../../src/sim/heroes/talents';
 import { applyOrder } from '../../src/sim/units/hero';
 import { G, Kind, RANGE, TALENT_TIERS } from '../../src/sim/world';
 import { TOWERS } from '../../src/data/towers';
@@ -33,7 +34,7 @@ describe('levels and XP (§6.1)', () => {
     expect([0, 59, 60, 199, 200, 2579, 2580, 99999].map(levelForXp)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
   });
 
-  it('a level adds per-level HP and armour; talents are offered at 3, 6 and 9; bots take the first', () => {
+  it('a level adds per-level HP and armour; talents are offered at 3, 6 and 9; bots take the seeded choice (sim v10)', () => {
     const m = match();
     const w = m.world;
     setLevel(m, 0, 3);
@@ -42,7 +43,7 @@ describe('levels and XP (§6.1)', () => {
     expect(w.armour[0]).toBe(25 + 2 * 2);
     expect(w.talents[0 * TALENT_TIERS]).toBe(-1); // the human picks
     setLevel(m, 4, 9);
-    expect([w.talents[4 * TALENT_TIERS], w.talents[4 * TALENT_TIERS + 1], w.talents[4 * TALENT_TIERS + 2]]).toEqual([0, 0, 0]);
+    expect([w.talents[4 * TALENT_TIERS], w.talents[4 * TALENT_TIERS + 1], w.talents[4 * TALENT_TIERS + 2]]).toEqual([0, 1, 2].map((t) => botTalentChoice(m.config.seed, 4, t)));
     // The human's pick goes through the Talent command; a locked tier is refused.
     step(m, [{ op: Op.Talent, tier: 1, choice: 1 }]);
     expect(w.talents[1]).toBe(-1);
@@ -142,7 +143,7 @@ describe('levels and XP (§6.1)', () => {
     expect(m.stats[0].kills).toBe(1);
   });
 
-  it('minion XP is shared by enemy heroes within 10 m; catch-up +35% a level behind the enemy average beyond the first (sim v8), max +75%', () => {
+  it('minion XP is shared by enemy heroes within 10 m; catch-up +35% a level behind the enemy average beyond the first (sim v8), max +75% (Normal too: the sim v10 B3 cut was reverted)', () => {
     const m = match();
     const w = m.world;
     const minion = putMinion(m, 1, MID.x, MID.y);
@@ -161,7 +162,7 @@ describe('levels and XP (§6.1)', () => {
     };
     expect(minionXp(2)).toBe(30); // one level behind: free
     expect(minionXp(3)).toBe(Math.trunc((30 * 13500) / 10000)); // two behind: +35%
-    expect(minionXp(4)).toBe(Math.trunc((30 * 17000) / 10000));
+    expect(minionXp(4)).toBe(Math.trunc((30 * 17000) / 10000)); // three behind: +70%
     expect(minionXp(8)).toBe(Math.trunc((30 * 17500) / 10000)); // capped at +75%
   });
 

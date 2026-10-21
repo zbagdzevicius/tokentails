@@ -10,7 +10,7 @@ import { XP } from '../../data/xp';
 import type { SimEvent } from '../api';
 import { BP_ONE, applyBp, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { G, Kind, RANGE, type World } from '../world';
+import { G, Kind, RANGE } from '../world';
 import { offerTalent } from '../heroes/talents';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { rulesOf } from '../rules';
@@ -24,8 +24,10 @@ export function levelForXp(xp: number): number {
   return level;
 }
 
-/** Catch-up bonus (bp) for hero `id`: XP.catchUpPerLevelBp per level below the enemy average beyond the first, capped. */
-export function catchUpBp(w: World, id: number): number {
+/** Catch-up bonus (bp) for hero `id`: the rules' catchUpPerLevelBp per level below the enemy average beyond the first,
+ *  capped at catchUpMaxBp (sim v10, GAPS B3: per difficulty). */
+export function catchUpBp(m: MatchHandle, id: number): number {
+  const w = m.world;
   let sum = 0;
   let n = 0;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {
@@ -38,14 +40,15 @@ export function catchUpBp(w: World, id: number): number {
   // while a hero far behind (a new player) still catches up.
   const behind = sum - n * (w.level[id] + XP.catchUpFreeLevels);
   if (behind <= 0) return 0;
-  return Math.min(XP.catchUpMaxBp, idiv(XP.catchUpPerLevelBp * behind, n));
+  const rules = rulesOf(m);
+  return Math.min(rules.catchUpMaxBp, idiv(rules.catchUpPerLevelBp * behind, n));
 }
 
 /** Give `amount` XP (before catch-up; `exact`: no catch-up) to hero `id`; levels up as often as it reaches. */
 export function grantXp(m: MatchHandle, id: number, amount: number, reason: XpReason = 'minion', exact = false): void {
   const w = m.world;
   if (amount <= 0 || w.alive[id] === 0 || w.hp[id] <= 0) return;
-  const bonus = exact ? 0 : catchUpBp(w, id);
+  const bonus = exact ? 0 : catchUpBp(m, id);
   let total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
   // Sim v7 rubber band (DifficultyRules.enemyAheadXpBp, Rookie): an enemy hero XP.aheadLevels or more above the human
   // earns less XP, so a first-timer who feeds is not facing level 10s at 5:00 with level 7 allies.

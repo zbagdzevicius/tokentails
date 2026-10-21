@@ -1,9 +1,12 @@
-import { Equals, IsIn, IsInt, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Equals, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_INPUT_CHARS, PAWLEGENDS_MAX_TICKS } from 'src/shared-contracts/caps';
+
+/** The mutators a replay may carry (sim v10: only 'none'; GAPS §8 item 1). */
+export const PAWLEGENDS_MUTATORS = ['none'] as const;
 
 /**
  * The Pawlegends replay posted with a `PAWLEGENDS` save in the `pawlegends` field (POC.md §11.3): the
- * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it.
+ * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v9 or v10).
  *
  * Shape and work bounds only (ticks ≤ PAWLEGENDS_MAX_TICKS, inputs ≤ PAWLEGENDS_MAX_INPUT_CHARS base64 characters),
  * checked before anything is queued. The sim version is compared in `pawlegends-live.ts` (so the 400 can name the
@@ -51,4 +54,9 @@ export class PawlegendsReplayDto {
     @IsString()
     @Matches(/^[0-9a-f]{8}$/)
     finalHash: string;
+
+    /** Sim v10 (GAPS B0): the match mutator. Only 'none' exists; v9 records have no field. */
+    @IsOptional()
+    @IsIn(PAWLEGENDS_MUTATORS)
+    mutator?: 'none';
 }

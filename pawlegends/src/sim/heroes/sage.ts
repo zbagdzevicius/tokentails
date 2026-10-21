@@ -1,7 +1,8 @@
 /**
  * Sage, Marksman (POC.md §6.4). Bespoke hooks: Steady Paw (every Nth basic is a piercing line shot instead of a
  * bolt), Volley's per-target arrow cap, Sun Snare's trap limit, Hop Back's "away from the aim" direction and
- * Moonshot's windup (telegraphed through the `windup` event).
+ * Moonshot's windup (telegraphed through the `windup` event). Sim v10 (GAPS B6): with Piercing Shot (`q.lance`) Volley
+ * is one piercing line instead of the fan.
  */
 import { ZONE_KIND } from '../../data/effects';
 import { PROJECTILE_KIND } from '../../data/towers';
@@ -26,9 +27,30 @@ function aim(a: KitNumbers, slot: number): SlotAim {
   }
 }
 
+/** Sim v10 (GAPS B6) Piercing Shot: one line that pierces everything it passes (Sticky Arrows' slow included). */
+function piercingShot(m: MatchHandle, id: number, x: number, y: number): number {
+  const w = m.world;
+  const q = abil(w, id).q;
+  const sticky = (q.slowBp ?? 0) > 0;
+  fireSkillshot(w, id, {
+    kind: PROJECTILE_KIND.lance,
+    angle: aimAngle(w, id, x, y),
+    speed: q.speed,
+    range: q.range,
+    radius: q.width >> 1,
+    dmg: lvl(w, id, q.dmg, q.dmgPerLevel),
+    flags: PFLAG.Pierce,
+    effect: sticky ? ON_HIT.Slow : ON_HIT.None,
+    effA: sticky ? q.slowBp : 0,
+    effB: sticky ? q.slow : 0,
+  });
+  return q.cooldown;
+}
+
 function volley(m: MatchHandle, id: number, x: number, y: number): number {
   const w = m.world;
   const q = abil(w, id).q;
+  if ((q.lance ?? 0) > 0) return piercingShot(m, id, x, y);
   w.volleyHits.fill(0, id * ENTITY_CAP, (id + 1) * ENTITY_CAP);
   const dir = aimAngle(w, id, x, y);
   const n = q.arrows;

@@ -5,11 +5,13 @@
  * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
  * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
- * moves and attacks too.
+ * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
+ * Alt-click pings Focus on an enemy hero, or Go here on the ground.
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import type { GameView } from '../render/gameView';
+import { PING_KIND } from '../data/pings';
 import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
@@ -32,6 +34,9 @@ export interface InputHost {
   onActivity(kind: 'pointer' | 'key' | 'touch'): void;
   /** Ground order marker (m). */
   marker(x: number, z: number, attack: boolean): void;
+  /** GAPS B1: the ping wheel (desktop: hold G), and a ping to send (PING_KIND, point in mm, target id or 255). */
+  pingWheel?: { openAt(x: number, y: number): void; aim(x: number, y: number): void; commit(): void; close(): void; readonly open: boolean };
+  ping?(kind: number, x: number, y: number, id: number): void;
 }
 
 const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -121,6 +126,10 @@ export class DesktopInput {
     if (!this.h.enabled()) return;
     this.cursor.x = e.clientX;
     this.cursor.y = e.clientY;
+    if (e.altKey && (e.button === 0 || e.button === 2) && this.h.ping) {
+      this.altPing();
+      return;
+    }
     if (e.button === 2) {
       if (this.auto.on) {
         this.auto.rightPressed = true;
@@ -184,6 +193,17 @@ export class DesktopInput {
     this.lastSteer = performance.now();
   }
 
+  /** GAPS B1 Alt-click: Focus on the enemy hero under the cursor, else Go here on the ground. */
+  private altPing(): void {
+    const u = this.unitUnderCursor(true);
+    if (u && u.kind === 'hero') {
+      this.h.ping?.(PING_KIND.Focus, u.x, u.y, u.id);
+      return;
+    }
+    const g = this.groundUnderCursor();
+    if (g) this.h.ping?.(PING_KIND.GoHere, toSimX(g.x), toSimY(g.z), NO_TARGET);
+  }
+
   private up(e: PointerEvent): void {
     if (e.button === this.steerButton) this.steerButton = -1;
   }
@@ -215,9 +235,11 @@ export class DesktopInput {
     this.cursor.x = e.clientX;
     this.cursor.y = e.clientY;
     this.cursor.inside = true;
+    if (this.h.pingWheel?.open) this.h.pingWheel.aim(e.clientX, e.clientY);
   }
 
   private blur(): void {
+    this.h.pingWheel?.close();
     this.keys.clear();
     this.steerButton = -1;
     this.cancelAim();
@@ -256,6 +278,13 @@ export class DesktopInput {
       return;
     }
     if (!this.h.enabled()) return;
+    if (a === 'ping') {
+      const wheel = this.h.pingWheel;
+      if (!wheel) return;
+      const inside = this.cursor.inside && this.cursor.x >= 0;
+      wheel.openAt(inside ? this.cursor.x : window.innerWidth / 2, inside ? this.cursor.y : window.innerHeight / 2);
+      return;
+    }
     const slot = CAST_ACTIONS[a];
     if (slot !== undefined) {
       if (!this.h.orders.ready(slot)) {
@@ -295,6 +324,7 @@ export class DesktopInput {
     this.keys.delete(e.code);
     const a = actionFor(e.code);
     if (a === 'scoreboard') this.h.onScoreboard(false);
+    if (a === 'ping' && this.h.pingWheel?.open) this.h.pingWheel.commit();
     if (this.aiming && this.aiming.code === e.code) this.release(e.code, false);
   }
 

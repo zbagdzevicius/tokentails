@@ -9,7 +9,7 @@
  * - point: a ground point within `range`; further away the hero walks in, then casts.
  * - unit: an enemy hero within `range`; further away the hero walks in, then casts.
  */
-import { HEROES } from '../data/heroes';
+import { BRANCH_TALENT, HEROES } from '../data/heroes';
 import { TRICKS } from '../data/tricks';
 import type { CastSlot, HeroId, TrickId } from '../sim/api';
 
@@ -98,9 +98,33 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
   }
 }
 
-const CACHE = new Map<HeroId, readonly [AimSpec, AimSpec, AimSpec, AimSpec]>();
+/**
+ * Sim v10 (GAPS B6): the aim of a slot whose shape the level-6 branch changed (BRANCH_TALENT), or null. Numbers come
+ * from the talent's own mods: Sage's Piercing Shot is a 9 m line, Sir Brutus's Guard Post a 3 m dome around him.
+ */
+function branchAim(hero: HeroId, slot: CastSlot): AimSpec | null {
+  const id = BRANCH_TALENT[hero];
+  const mods = id ? HEROES[hero].talents[1].find((t) => t.id === id)?.mods : undefined;
+  if (!mods) return null;
+  if (hero === 'sage' && slot === 0 && mods.q) return { kind: 'dir', shape: 'line', range: n(mods.q.range, 9000), width: n(mods.q.width, 600), smart: 'hero' };
+  if (hero === 'brutus' && slot === 1 && mods.w) return { kind: 'self', shape: 'ring', range: n(mods.w.postRadius, 3000), radius: n(mods.w.postRadius, 3000), smart: 'none' };
+  return null;
+}
 
-export function aimFor(hero: HeroId, slot: CastSlot): AimSpec {
+const CACHE = new Map<HeroId, readonly [AimSpec, AimSpec, AimSpec, AimSpec]>();
+const BRANCH_CACHE = new Map<string, AimSpec | null>();
+
+/** `branch` (sim v10, GAPS B6): the hero took its level-6 shape branch (`EntitySnap.branch`). */
+export function aimFor(hero: HeroId, slot: CastSlot, branch = false): AimSpec {
+  if (branch) {
+    const key = `${hero}:${slot}`;
+    let b = BRANCH_CACHE.get(key);
+    if (b === undefined) {
+      b = branchAim(hero, slot);
+      BRANCH_CACHE.set(key, b);
+    }
+    if (b) return b;
+  }
   let v = CACHE.get(hero);
   if (!v) {
     v = heroAims(hero);
@@ -115,16 +139,20 @@ export function trickAim(trick: TrickId): AimSpec {
       return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, smart: 'none' };
     case 'hiss':
       return { kind: 'self', shape: 'ring', range: TRICKS.hiss.radius, radius: TRICKS.hiss.radius, smart: 'none' };
+    // Snack Break and Purr-ify: self casts, no aim
     default:
       return { kind: 'self', shape: 'none', range: 0, smart: 'none' };
   }
 }
 
 /** Max cooldown (ticks) for the HUD sweep: data cooldowns (talent mods may shorten them). */
-export function maxCooldown(hero: HeroId, slot: CastSlot | 4, trick: TrickId): number {
+export function maxCooldown(hero: HeroId, slot: CastSlot | 4, trick: TrickId, branch = false): number {
   if (slot === 4) return TRICKS[trick].cooldown;
   const key = (['q', 'w', 'e', 'r'] as const)[slot];
-  return HEROES[hero].abilities[key].cooldown;
+  // Sim v10 (GAPS B6): a level-6 shape branch may set its own cooldown (Guard Post)
+  const id = branch ? BRANCH_TALENT[hero] : null;
+  const mod = id ? HEROES[hero].talents[1].find((t) => t.id === id)?.mods?.[key]?.cooldown : undefined;
+  return mod ?? HEROES[hero].abilities[key].cooldown;
 }
 
 /** Level at which the ultimate unlocks (§6.1). */
