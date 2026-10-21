@@ -22,6 +22,7 @@ import {
   PARIS_VIDEO,
   ProofSection,
   railDeployed,
+  PET_REEL,
   REELS,
 } from "@/components/landing/ProofSection";
 import { FACTS } from "@/lib/facts.generated";
@@ -284,19 +285,19 @@ describe("Paris event video", () => {
 });
 
 describe("reel marquee", () => {
-  it("renders 15 unique reels exactly twice with the duplicate hidden from AT", () => {
+  it("renders 13 unique reels exactly twice with the duplicate hidden from AT", () => {
     const { container } = render(<ProofSection />);
-    expect(REELS).toHaveLength(15);
-    expect(new Set(REELS.map((r) => r.src)).size).toBe(15);
+    expect(REELS).toHaveLength(13);
+    expect(new Set(REELS.map((r) => r.src)).size).toBe(13);
 
     const counts = new Map<string, number>();
     container.querySelectorAll(".reel-item video").forEach((video) => {
       const src = video.getAttribute("src") ?? "";
       counts.set(src, (counts.get(src) ?? 0) + 1);
     });
-    expect(counts.size).toBe(15);
+    expect(counts.size).toBe(13);
     const perSrc = Array.from(counts.values());
-    expect(perSrc).toHaveLength(15);
+    expect(perSrc).toHaveLength(13);
     expect(perSrc.every((n) => n === 2)).toBe(true);
 
     const groups = container.querySelectorAll(".reel-track > .reel-group");
@@ -310,7 +311,7 @@ describe("reel marquee", () => {
     const videos = container.querySelectorAll<HTMLVideoElement>(
       ".reel-item video",
     );
-    expect(videos.length).toBe(30);
+    expect(videos.length).toBe(26);
     videos.forEach((video) => {
       expect(video.hasAttribute("autoplay")).toBe(false);
       expect(video.muted).toBe(true);
@@ -318,8 +319,8 @@ describe("reel marquee", () => {
       expect(video.hasAttribute("playsinline")).toBe(true);
       expect(video.getAttribute("preload")).toBe("none");
       const poster = video.getAttribute("poster");
-      if (poster) expect(poster).toMatch(/\.jpg$/);
-      expect(video.getAttribute("aria-label")).toMatch(/^Creator reel \d+ of 15$/);
+      if (poster) expect(poster).toMatch(/\.(jpg|webp)$/);
+      expect(video.getAttribute("aria-label")).toMatch(/^Creator reel \d+ of 13$/);
       expect(video.hasAttribute("tabindex")).toBe(false);
     });
   });
@@ -342,7 +343,7 @@ describe("playback controller", () => {
     expect(observe).toHaveBeenCalledWith(section);
 
     const videos = allVideos(container);
-    expect(videos).toHaveLength(31);
+    expect(videos).toHaveLength(27);
     videos.forEach((video) => {
       expect(video.hasAttribute("autoplay")).toBe(false);
       expect(video.getAttribute("preload")).toBe("none");
@@ -387,7 +388,7 @@ describe("playback controller", () => {
     allVideos(container).forEach((video) => {
       expect(video.paused).toBe(true);
       const poster = video.getAttribute("poster");
-      if (poster) expect(poster).toMatch(/\.jpg$/);
+      if (poster) expect(poster).toMatch(/\.(jpg|webp)$/);
     });
   });
 
@@ -408,14 +409,17 @@ describe("deck media", () => {
       const poster = v.getAttribute("poster");
       if (poster) urls.add(poster);
     });
-    expect(urls.size).toBe(1 + 15 + 12); // event clip, 15 reels, 12 posters
+    expect(urls.size).toBe(1 + 13 + 13); // event clip, 13 reels, 13 posters
     urls.forEach((u) => {
-      expect(u.startsWith(`${DECK_MEDIA_BASE}/`)).toBe(true);
-      expect(u).toMatch(/\.(mp4|webm|jpg)$/);
+      const own = u === PET_REEL.src || u === PET_REEL.poster;
+      if (!own) expect(u.startsWith(`${DECK_MEDIA_BASE}/`)).toBe(true);
+      expect(u).toMatch(/\.(mp4|webm|jpg|webp)$/);
       expect(BANNED_PARTNER.test(u)).toBe(false);
     });
-    expect(REELS.filter((r) => r.src.endsWith(".webm"))).toHaveLength(3);
-    expect(REELS.filter((r) => r.poster)).toHaveLength(12);
+    // The AI-made UGC clips are gone; the real pet clip leads the strip.
+    expect(REELS.some((r) => /ugc-/.test(r.src))).toBe(false);
+    expect(REELS[0]).toEqual(PET_REEL);
+    expect(REELS.filter((r) => r.poster)).toHaveLength(13);
   });
 });
 

@@ -289,6 +289,9 @@ describe("ProfileModal account menu", () => {
     expect(screen.queryByRole("button", { name: "DELETE ACCOUNT" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "SAVE PROGRESS" }));
     expect(mockAuth.requireAccount).toHaveBeenCalledWith("save-progress");
+    // A guest who had an account before signs back in to it from here (returning players).
+    fireEvent.click(screen.getByRole("button", { name: "SIGN IN TO MY ACCOUNT" }));
+    expect(mockAuth.requireAccount).toHaveBeenCalledWith("returning");
 
     fireEvent.click(screen.getByRole("button", { name: "ERASE GUEST PROGRESS" }));
     expect(screen.getByTestId("confirm-erase-guest")).toBeTruthy();
@@ -417,5 +420,13 @@ describe("requestAccountDeletion", () => {
     await expect(requestAccountDeletion(d)).resolves.toEqual({ status: "deleted" });
     expect(d.deleteMe).toHaveBeenCalledWith(undefined);
     expect(d.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets this device's last sign-in method once the account is gone, not before", async () => {
+    localStorage.setItem("tt.lastSignIn", JSON.stringify({ provider: "google", emailHint: "z•••@motored.lt" }));
+    await requestAccountDeletion(deps({ deleteMe: jest.fn(async () => Promise.reject(new ApiError(500, null))) }));
+    expect(localStorage.getItem("tt.lastSignIn")).not.toBeNull();
+    await expect(requestAccountDeletion(deps())).resolves.toEqual({ status: "deleted" });
+    expect(localStorage.getItem("tt.lastSignIn")).toBeNull();
   });
 });

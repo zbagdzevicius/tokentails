@@ -1,0 +1,86 @@
+{
+  "categories": [
+    {
+      "slug": "games",
+      "name": "Games",
+      "headline": "Free cat games in your browser",
+      "seoTitle": "Free Cat Games in Your Browser | Token Tails",
+      "description": "Free cat games in your browser: Catnip Heist, Pink Paw Knight, Moon Rave, Bad Cat Daily and the main Token Tails game, with guides and tips.",
+      "intro": "Free cat games you can play in the browser, no download and no sign-up needed to start. Guides for Catnip Heist, Pink Paw Knight, Bad Cat Daily and the main Token Tails game, and how each one connects to Pink Paw, a real cat shelter in Kaunas, Lithuania.",
+      "cta": "heist",
+      "legacy": [
+        "cats-nft"
+      ],
+      "webOnly": false
+    },
+    {
+      "slug": "giving",
+      "name": "Giving",
+      "headline": "How giving reaches Pink Paw",
+      "seoTitle": "How Giving Reaches Pink Paw | Token Tails",
+      "description": "How money reaches Pink Paw, a cat shelter in Kaunas: free treats from Token Tails, $1 Moon Rave cats, $5 shelter cats, and how to check every payout.",
+      "intro": "How money reaches Pink Paw (Rožinė pėdutė), a cat shelter in Kaunas, Lithuania: the free treats Token Tails sends after a win, $1 Moon Rave cats, $5 shelter cats, and how anyone can check every payout on the public payout ledger.",
+      "cta": "rave",
+      "legacy": [],
+      "webOnly": true
+    },
+    {
+      "slug": "cats",
+      "name": "Cats",
+      "headline": "Cats, strays and the shelters that help them",
+      "seoTitle": "Cats, Strays and Shelters | Token Tails",
+      "description": "Plain guides for cat lovers: how to help stray cats, what cat shelters need, famous cats and cat memes, written with care and without made-up numbers.",
+      "intro": "Plain, careful guides for cat lovers: how to help stray cats, what cat shelters really need, and the cats that shaped history and the internet. No made-up statistics, and Pink Paw's own experience where it helps.",
+      "cta": "heist",
+      "legacy": [
+        "all-about-cats"
+      ],
+      "webOnly": false
+    },
+    {
+      "slug": "build",
+      "name": "Build",
+      "headline": "Open-source shelter payouts for developers",
+      "seoTitle": "Open-Source Shelter Payouts for Developers | Token Tails",
+      "description": "For developers: the MIT ShelterSplit and DonateRouter contracts, EIP-3009 gifts, USDC payouts on Arc and other networks, and the Shelter Rail SDK.",
+      "intro": "For developers: the open-source (MIT) ShelterSplit and DonateRouter contracts behind every Token Tails shelter payout, EIP-3009 gifts, USDC payouts on Arc and other networks, and the Shelter Rail SDK you can drop into your own app.",
+      "cta": "payouts",
+      "legacy": [],
+      "webOnly": true
+    },
+    {
+      "slug": "news",
+      "name": "News",
+      "headline": "Token Tails news and milestones",
+      "seoTitle": "Token Tails News and Milestones",
+      "description": "A short, dated record of Token Tails milestones: grants, accelerators, awards and the story of the cat-rescue games behind Pink Paw's payouts.",
+      "intro": "A short, dated record of Token Tails milestones: grants, accelerators and awards, and the story of how a cat game studio from Lithuania came to pay a real shelter in public.",
+      "cta": "game",
+      "legacy": [
+        "announcements"
+      ],
+      "webOnly": false
+    }
+  ],
+  "ctas": [
+    "heist",
+    "swordcat",
+    "rave",
+    "game",
+    "give",
+    "payouts",
+    "packs",
+    "impact",
+    "badcat"
+  ],
+  "intents": [
+    "play",
+    "give",
+    "learn",
+    "build",
+    "news"
+  ],
+  "authors": [
+    "Token Tails team"
+  ]
+}

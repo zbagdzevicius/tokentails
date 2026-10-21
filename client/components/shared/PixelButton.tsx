@@ -117,7 +117,7 @@ export const PixelButton = (props: IProps) => {
         src={cdnFile("landing/button-bg.webp")}
         draggable={false}
         alt=""
-        className="absolute inset-0 h-full w-full object-cover mix-blend-darken brightness-125 rounded-xl animate-pulseWeak"
+        className="absolute inset-0 h-full w-full object-cover mix-blend-darken brightness-125 rounded-xl motion-safe:animate-pulseWeak"
       />
       <span className="block h-8 w-1 bg-yellow-900"></span>
       <span className="h-10 w-1 flex flex-col bg-tt-cream border-y-4 border-yellow-900">

@@ -28,7 +28,7 @@ What is in the box:
 |---|---|---|
 | Widget | `src/widget.js` | One `<script>` tag: a donate button (native, token or gasless) and a live "shelters received" total, on seven chains. No framework. |
 | SDK | `src/sdk.mjs` | `CHAINS`, `encodeDonate`, `readTotals`, `donateWithInjected`, `donateTokenWithInjected` (approve + disburse), gasless `signAndRelay`, and the x402 client `payAndFetch` (`exact` and multi-chain `onchain-receipt`). |
-| Agent example | `examples/agent-pay.mjs` | An AI agent paying for one adoptable-cat card on any offered testnet; the money goes to shelters. |
+| Agent example | `examples/agent-pay.mjs` | An AI agent paying for one shelter-cat card on any offered testnet; the money goes to shelters. |
 | Demo page | `client/public/rail/demo.html` | The widget against the seven testnet splits (a chain picker), served at `tokentails.com/rail/demo.html`. |
 
 ## Custody statement
@@ -77,7 +77,7 @@ takes a native `donate()` gift; everywhere else a gift is the chain's USD coin (
 
 USDC, USDC.e, USDG, pathUSD, mUSDC and EURC are different coins: `readTotals` keeps them apart
 (`byCoin`). Monad's public RPC answers `eth_getLogs` over at most 100 blocks, so log scans use a
-separate keyless log RPC (`logRpc`: `rpc1.monad.xyz` on mainnet, 100,000-block windows; OnFinality on
+separate keyless log RPC (`logRpc`: `rpc2.monad.xyz` on mainnet, 10,000-block windows; OnFinality on
 testnet, 10,000-block windows). Not in the table (no address recorded in this repo yet): EURC on Arbitrum, Tempo, Robinhood and
 Monad.
 
@@ -85,8 +85,8 @@ Contract addresses are **not hard-coded**. They are published in
 [`client/public/shelter-payouts/deployments.json`](../client/public/shelter-payouts/deployments.json)
 and served at `https://tokentails.com/shelter-payouts/deployments.json`. Each entry has at least
 `chainId` and `address` (optional: `fromBlock`, `tx` (the deploy transaction; its block is the scan
-start when `fromBlock` is absent), `rpc`, `symbol`/`token`, `decimals`). The mainnet list is empty until the
-mainnet wave; the widget shows "Donations open soon" until then. The testnet splits on all seven chains
+start when `fromBlock` is absent), `rpc`, `symbol`/`token`, `decimals`). The mainnet list holds the
+splits deployed on 2026-10-07, all paying Pink Paw's wallet since 2026-10-16. The testnet splits on all seven chains
 are in `testnet-deployments.json` next to it, and the DonateRouters in `routers.json`.
 
 Contract interface used here:
@@ -249,7 +249,7 @@ On mainnet the server offers `exact` only with `SHELTER_X402_EXACT_ENABLED=true`
 
 ### 4. AI agents: x402-compatible "onchain-receipt" flow, on several chains
 
-The Token Tails API sells one adoptable-cat card at `GET /shelter/agent/cat-card`, and the whole price
+The Token Tails API sells one shelter-cat card at `GET /shelter/agent/cat-card`, and the whole price
 goes to shelters. This is an **x402-compatible flow with its own `onchain-receipt` scheme and no
 facilitator**: standard x402 facilitators may not support these chains, so the server checks the
 transaction receipt on the chain itself.

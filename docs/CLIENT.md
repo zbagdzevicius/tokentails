@@ -115,13 +115,13 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/codex/` | PROGRESS (the CODEX modal): IMPACT tab (`impact/`), rewards, missions, tiers, badges, the web-only Vault, the Tails explainer, and the in-game portrait purchase flow. |
 | `components/web3/` | Stellar transfer, Stripe payment, payment chooser, rates hook, the EVM crypto checkout (`crypto/`). |
 | `components/shelter-payouts/` | `/shelter-payouts`, give, receipt and onboarding pages: payout reads, treat and wallet giving, chains (see its `README.md` and "Wallet giving" below). Payout lists read the backend's payout index first (`payoutIndex.ts`, `GET /shelter/payouts` at `NEXT_PUBLIC_BE_URL`), then only the blocks after its `indexedThrough` from the chain (`rpc.ts fetchDisbursements`); a contract the index has not read within 15 minutes, or an unreachable backend, is read from the chain alone as before. Receipts still read their one transaction from the chain. |
-| `components/blog/` | Feed, article, comments, likes. |
+| `components/blog/` | The blog UI (see "Blog" below): `BlogFrame`, `FeedHub`, `CategoryView`, `ArticleView`, cards, TOC, CTA cards, the live payouts widget, `feed.module.scss`. Content and build logic live in `lib/feed/`. |
 | `components/marketplace/` | Cat store listing and detail. |
 | `components/shared/` | Modals (quests, packs, invite, support, wheel), leaderboards, music, joystick, `PixelButton`, `PixelIcon`, `CloseButton`, `CatnipIcon`, `Toast`, the AuthSheet (`auth/`). |
 | `components/ui/` | `GameModal`, `PixelFrame`, `lowfx.ts`; `modal/` holds the modal body primitives (see "Modal system"). |
 | `components/errors/` | Root, page, scene, modal and section boundaries, `CrashPanel`, crash probes (RESILIENCE.md). |
 | `components/claims/` | `Claim`, `ProofDrawer`, evidence chips, the web and app label sets, money formatting, fact helpers (plan G11, CLAIMS.md). |
-| `components/impact/` | Lobby RESCUE tile, impact strip, `PawProgress`, MY IMPACT summary, end-of-run paw line. |
+| `components/impact/` | Lobby RESCUE tile, impact board (`ImpactStrip`), `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
 | `components/pawlegends/` | The `/pawlegends` host: flags, title, the v1 bridge, roster and featured-cat bridges, session, offer and retired store client (`checkout.ts`), cat sheet, saves queue, `PawlegendsHost`. |
@@ -138,15 +138,15 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `shared-contracts/` | Generated copies of `shared/` (never edit). |
 | `art/` | Art sources and masters: the catnip matrices, the palette, `art/src/` (Aseprite and Tiled sources). |
 | `e2e/` | Playwright specs and fixtures, `e2e/capture/` for the reel. |
-| `components/seo/` | `SeoHead`, `site.ts` URL helpers, article JSON-LD. |
-| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
+| `components/seo/` | `SeoHead` (with `ogTitle` and `articleMeta` for blog articles) and `site.ts` URL helpers. Blog JSON-LD is in `lib/feed/jsonld.ts`. |
+| `components/landing/` | Homepage sections: `Sponsors.tsx` logo slider, `ProofSection.tsx` Paris event video and creator-reel marquee with an IntersectionObserver playback controller (styles in `styles/globals.scss` under `.reel-*`), `RaveSection.tsx` Moon Rave, the headline feature (the first game section, web only; see "Landing Moon Rave" below), `HeistSection.tsx` the Catnip Heist section (on by default, `NEXT_PUBLIC_HEIST_LANDING_SECTION`), `BadcatSection.tsx` the Bad Cat Daily section (web only, no flag; see "Bad Cat Daily (/badcat)"), `shelterNames.ts` the globe's shelter list (Pink Paw once). |
 | `features/portrait/` | Self-contained slice for the AI pet portrait product. |
 | `analytics/` | Scrubbed PostHog EU events for every visitor. `events.ts` is the typed F9 event catalog (names and areas come from `shared/analytics-core.ts`, which the Heist reads too), `client.ts` the lazy PostHog client, `errors.ts` the scrubbed `app_error` reporter, `scrub.ts` the scrubber, `gtm.ts` the Google Tag Manager loader, `game-run.ts` the GameContext hook, `platform.ts` `web`/`ios`/`android`. |
 | `context/` | Providers: query client, toast, profile, cat, game, Firebase auth, web3, entity metadata. |
 | `constants/` | Utilities, catnip accounting (with its only real test), rewards, static props helper. |
 | `models/` | Domain types and enums. |
 | `web3/` | Stellar recipient and asset addresses, Wallets Kit and Horizon setup. |
-| `layouts/` | Main, blog, and airdrop layouts, header, footer, sidebar. |
+| `layouts/` | Main and airdrop layouts, header, footer. (The blog has its own frame, `components/blog/BlogFrame.tsx`.) |
 | `styles/` | Global SCSS including the portrait-page theme and ambient effects. |
 | `public/` | Around 1300 assets: Tiled level JSON for both platformers, tilesets, cards, cats, mascots, portrait samples, audio. |
 | `scripts/` | Android release wrapper, token/palette/font builders, and `scripts/art/` (the G7 art build `build.mjs`, the Tiled tool `tile-legend.mjs`, the catnip exporter). |
@@ -171,7 +171,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/pawlegends-game/` | `public/pawlegends-game/` | The static Pawlegends build (`npm run build:client` in `pawlegends/`, committed) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
-| `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (`requireAccount('give-treat')`, a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
+| `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (open to guests, no account needed; a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
 | `/shelter-payouts/onboard` | `pages/shelter-payouts/onboard.tsx` | Shelter wallet claim (`noindex`, web only, wallet code loaded with `ssr: false`): why a shelter wallet, and how a signed claim records which wallet is the shelter's. Connect a wallet, sign the claim message (`POST /shelter/claim`), then the status from `GET /shelter/claim`. App builds show the proof notice. |
 | `/airdrop`, `/airdrop/*` | none | Redirect to `/shelter-payouts` (task 5e). |
 | `/catbassadors` | none | Legacy URL of the retired game shell. Permanent redirect to `/game` via `next.config.js`; redirects do not apply to the static export, so the Capacitor bundle has no page there. |
@@ -179,8 +179,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/packs` | `pages/packs.tsx` | Card pack store. |
 | `/cats`, `/cats/:cat` | `pages/cats/*` | Marketplace listing and cat detail (ISR, revalidate hourly; web builds only emit the detail on demand). |
 | `/cats/view?id=` | `pages/cats/view.tsx` | Client-rendered cat detail used by app builds instead of `/cats/:cat`. `noindex`, excluded from the sitemap. |
-| `/feed`, `/feed/:category`, `/feed/:category/:article` | `pages/feed/*` | Blog feed, category, and article (ISR). |
-| `/feed/article?category=&slug=` | `pages/feed/article.tsx` | Client-rendered article used by app builds instead of `/feed/:category/:article`. `noindex`, excluded from the sitemap. |
+| `/feed`, `/feed/:category`, `/feed/:category/:article` | `pages/feed/*` | Blog hub, section and article, statically generated from `client/content/feed/*.md` in both builds (no API). See "Blog". |
+| `/feed/article?category=&slug=` | `pages/feed/article.tsx` | Forwards old app links (current or legacy slug) to the article's own path, else `/feed`. `noindex`, excluded from the sitemap. |
 | `/portrait` | `pages/portrait.tsx` | Current AI pet portrait funnel. |
 | `/portraits` | `pages/portraits.tsx` | Older duplicate of the portrait funnel. |
 | `/payment-success` | `pages/payment-success.tsx` | Stripe redirect handler, confirms the intent, returns to `/game`. |
@@ -208,13 +208,20 @@ Firebase is the only login (plan F5.7, G1, G9). The token lives in one storage s
 
 - **Auth modes** (`context/FirebaseAuthContext.tsx`): `authMode="guest"` on `/game` signs in anonymously and silently (one single-flight promise, `context/auth/sessions.ts`) and shows the transient template profile until the backend answers; nothing walls the lobby. `authMode="optional"` (the default: `/heist`, feed, cats, payouts, the landing reader) reuses any session, creates none and never opens the sheet by itself. Logging out on `/game` starts a fresh lazy guest.
 - **Status** (`context/auth/authStatus.ts`): `unknown`, `guest`, `signed-out`, `needs-verification` (403 `EMAIL_UNVERIFIED`), `loading-profile`, `ready`, `profile-error`, plus `authReady` and `authSettled` for the intro curtain.
-- **`requireAccount(reason)`** (`context/auth/accountGate.ts`) is the only way the sign-in sheet opens for an action. It resolves `signed-in` only for a fresh profile with `isGuest !== true`, or `dismissed` when the player closes the sheet; concurrent callers share one sheet. Lobby actions use `hooks/useAccountAction.ts` (`runWithAccount(reason, action)`). Reasons pick the sheet title (decision #64): "SAVE YOUR CAT" (`save-progress`), "CLAIM YOUR REWARDS" (`claim-rewards`), "WELCOME TO TOKEN TAILS" (everything else).
+- **`requireAccount(reason)`** (`context/auth/accountGate.ts`) is the only way the sign-in sheet opens for an action. It resolves `signed-in` only for a fresh profile with `isGuest !== true`, or `dismissed` when the player closes the sheet; concurrent callers share one sheet. Lobby actions use `hooks/useAccountAction.ts` (`runWithAccount(reason, action)`). Reasons pick the sheet title (decision #64): "SAVE YOUR CAT" (`save-progress`), "CLAIM YOUR REWARDS" (`claim-rewards`), "WELCOME BACK" (`returning`), "WELCOME TO TOKEN TAILS" (everything else).
 - **AuthSheet** (`components/shared/auth/AuthSheet.tsx`): a GameModal sheet on the auth layer with one static hero cat (decision #65) and night brand buttons for Google and Apple (`BrandSignInButton.tsx`, Roboto 500 for Google). Views: choose, email (separate sign-in and Create account tabs, labelled inputs, show-password, inline validation), verify-email (resend with a 60 s cooldown, poll every 5 s), reset (neutral copy, a toast only after the request resolves), link-account, linking, busy, profile-error, conflict (a selectable reference for support), merged, fallback (when the anonymous sign-in fails; it links the Heist) and an in-app-browser notice. It is closable in every view except needs-verification and profile-error. Sign-in never creates an account; only the Create account tab does.
 - **Linking** (`context/auth/link.ts`): web `linkWithPopup` on the anonymous user, opened synchronously in the tap; native `linkWithCredential`; email through `EmailAuthProvider.credential` and `sendEmailVerification`. `credential-already-in-use` signs in to the existing account and merges the guest (`POST /user/guest/merge` with `x-guest-token`); a retryable merge failure is kept in `sessionStorage["tt.pendingMerge"]` for up to an hour, bound to the target uid.
-- **Guest pill** (`components/shared/auth/GuestPill.tsx`): "Guest · Save your cat" in the lobby, or "Not signed in · Sign in" after a failed anonymous sign-in. Save nudges (`context/auth/saveNudge.ts`, decision #10) appear once a session as a bubble on the pill: at the first clear, the first PROGRESS visit and after 10 minutes.
+- **Returning players** (2026-10-17): a player who had an account (Google, Apple or email) but lands on `/game` as a fresh guest (new device or browser, cleared data, expired session) gets back in with at most two taps from wherever they land:
+  - Entry points, all `requireAccount("returning")`: "Sign in" on the landing hero (top left on phones, top right next to the socials from `sm`; `/game?signin=1&from=landing_signin`; `/game` opens the sheet once the curtain lifts and holds the Meet your cat ceremony until the sheet answers; hidden once the browser has an account, and held while a browser with a session is still being read, so it never flashes for a signed-in player), "Already have an account? Sign in" on the first-run "Your cat awaits" screen (signed in, the ceremony closes and is decided again for that account), the guest pill (a separate "Sign in" from md up; on phones the pill itself reads "Sign in" on a device that signed in before, else "Save or sign in"), "SIGN IN TO MY ACCOUNT" in ABOUT ME for guests, and "Already have an account? Sign in" in the save sheet (`switchToSignIn`, which keeps the waiting caller).
+  - The returning sheet: title "WELCOME BACK"; Google, Apple and email all sign in to the existing account (Google and Apple from a guest already did: `credential-already-in-use` signs in and merges); the email form opens on Sign in with no tabs, "Forgot password?" (`sendPasswordResetEmail`, neutral copy) and "New here? Create an account". The save sheet keeps Create account as its email default.
+  - Last method on this device (`context/auth/lastMethod.ts`, `localStorage["tt.lastSignIn"]`): only the provider and a masked hint (`z•••@motored.lt`), written after every successful sign-in and for an account already signed in on `/game` (never by the passive landing reader); kept across sign-outs, removed when the account is deleted. The sheet shows "Last time on this device you used Google", puts that button first with a ring and a "Last used" tag. A failed email sign-in on a device that last used Google or Apple says so (`withLastMethodHint`; never after a failed Google or Apple attempt). No `fetchSignInMethodsForEmail` (email enumeration protection).
+  - Merge after signing in from a guest: the 30-day limit (429 whose message names "30 days"; a 429 from the general rate limiter is retried like a 5xx) and 409 (the guest is being saved elsewhere) keep the player signed in to their account with a note on the `merged` view; only a retryable failure promises a retry (`mergeFailureNote`).
+  - An old account with an unverified email (403 `EMAIL_UNVERIFIED`) gets "Welcome back. This is your account from before" with the account's email in full (the player's own address, so a typo shows), Resend and "Use a different sign-in" (signs out and shows the returning sheet).
+  - In-app browsers (`context/auth/platform.ts`): social apps plus the MetaMask, Trust, Phantom, Coinbase Wallet, OKX and Binance browsers get the notice instead of Google and Apple: "Copy link" copies the page with `signin=1` (so the pasted link opens WELCOME BACK again), and on Android "Open in Chrome" is an `intent://` link that leaves the wallet's web view (iOS has no such link). When this device last used Google or Apple, the hint says it is blocked here and COPY LINK becomes the main button.
+- **Guest pill** (`components/shared/auth/GuestPill.tsx`): "Guest · Save your cat" in the lobby (phones stack "Guest" over the action), with a separate "Sign in" from md up; or "Not signed in · Sign in" after a failed anonymous sign-in. Save nudges (`context/auth/saveNudge.ts`, decision #10) appear once a session as a bubble on the pill: at the first clear, the first PROGRESS visit and after 10 minutes.
 - **Referral**: `?ref=<24-hex id>` is stored once in `localStorage["tt.pendingRef"]` on any page and sent to `POST /user/catbassadors/referral` only when a profile arrives with `promotedNow: true`.
 - **App Check**: `x-firebase-appcheck` is sent with the guest session only when `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is set.
-- **Account**: guests get SAVE PROGRESS and ERASE GUEST PROGRESS in ABOUT ME; accounts get Logout and DELETE ACCOUNT (a confirm step, a fresh Sign in with Apple authorization code on iOS, then `DELETE /user/me`), and RENAME for the committed starter.
+- **Account**: guests get SAVE PROGRESS, SIGN IN TO MY ACCOUNT and ERASE GUEST PROGRESS in ABOUT ME; accounts get Logout and DELETE ACCOUNT (a confirm step, a fresh Sign in with Apple authorization code on iOS, then `DELETE /user/me`), and RENAME for the committed starter.
 - **E2E hook** (`context/auth/adapter.ts`): `window.__TT_E2E_AUTH__` swaps the Firebase client for a fake, only in development or a `NEXT_PUBLIC_E2E=1` build. Backend calls stay real requests; there is no server bypass.
 - **Stellar wallet**: not a login. Used only to sign payment transactions.
 
@@ -225,10 +232,9 @@ exists, with no timeout; new code paths never use it (known issue).
 The Firebase console must have the Anonymous provider enabled for guest play; without it a new
 visitor sees the dismissible fallback over a playable lobby and nothing saves.
 
-- Open (QA, Oct 3): production has the Anonymous provider off. Every new visitor who taps PLAY GAME on
-  tokentails.com gets "We couldn't start a guest game" (Firebase answers `ADMIN_ONLY_OPERATION`), so the
-  judge path stops before the lobby. Fix in the Firebase console (manual step 1 of alignment log 3a),
-  then re-run guest → Meet your cat → lobby. Local dev shows the same error with the same project.
+Production has the Anonymous provider on (since bef8faec, 2026-10-03, `/game` runs `authMode="guest"`):
+every visitor without a session plays as a guest at once. That includes returning players on a new
+device or browser, which is why the returning-player entry points above exist.
 
 ## Product features
 
@@ -255,12 +261,81 @@ is for registered players. Bet #3 `/yourcat` (a photo becomes the player's pixel
 upsell): see `docs/YOURCAT.md`. Portrait pages switch the page theme through
 `data-portrait-page` attributes on the document.
 
-### Feed
+### Blog (`/feed`)
 
-Backend-driven blog under `/feed` with infinite scroll, likes, comments, sharing, and three
-hardcoded categories: `cats-nft`, `announcements`, `all-about-cats`. Non-app builds inject an ad
-placeholder every ten items. Article HTML from the backend has `[img-<id>]` placeholders rewritten
-into figures pointing at an external image resizer inherited from a predecessor project.
+The blog is repo content: one Markdown file per article in `client/content/feed/<slug>.md`, read at
+build time by `lib/feed/engine.ts` (markdown-it + yaml, server side only) and rendered by
+`components/blog/`. Nothing on an article page calls the API, except the optional live payouts
+widget, which reads in the browser and says so when it cannot load. Likes, saves and comments were
+removed with the old CMS feed (they needed a signed-in Firebase token; 15 legacy comments were not
+migrated).
+
+**Add an article**
+
+1. Create `client/content/feed/<slug>.md` (kebab-case, the slug is the file name). Files starting
+   with `_` are ignored (drafts).
+2. Fill the frontmatter below, write the body in GitHub-flavoured Markdown (headings from `##`, never
+   `#`: the title is the page's only h1), and add directives where they help.
+3. Check it: `npx jest __test__/feed-` and `npm run build` (or `npm run dev` and open
+   `/feed/<category>/<slug>`). A bad file fails `next.config.js`, the build and the sitemap with a
+   list of every problem; style notes (title length, description 140-158 characters, word counts)
+   are printed as warnings only. Run the copy lint (`tools/copy-lint`) on new copy: it does not read
+   `.md` files, so check the words against `docs/CLAIMS.md` by hand.
+4. Commit the file. It appears on `/feed`, its section page, the sitemap, `/feed/rss.xml` and the
+   related lists on the next deploy.
+
+**Frontmatter** (unknown fields are errors):
+
+| Field | Required | Rule |
+|---|---|---|
+| `title` | yes | The h1, ideally at most 60 characters (hard limit 100). |
+| `seoTitle` | no | The `<title>`, at most 60 ideally (70 hard). Without it the title gets " \| Token Tails" when that fits in 60. |
+| `description` | yes | Meta description, 140-158 characters ideally (70-200 hard). Also the hero's lede. |
+| `excerpt` | yes | 1-2 sentences for cards. |
+| `slug` | yes | Kebab-case, equal to the file name. |
+| `category` | yes | `games`, `giving`, `cats`, `build` or `news` (`lib/feed/taxonomy.json`). |
+| `publishedAt`, `updatedAt` | yes | ISO dates (`2026-10-19` or a full timestamp); updated not before published. Legacy articles keep their original date. |
+| `author` | yes | `Token Tails team`. |
+| `heroImage` | yes | `{ src, alt, width, height }`: a path under `client/public` (blog images live in `client/public/feed/`, WebP, about 150 KB; name an image used only by web-only articles or cards `web-*` so the app export drops it) or an https URL, an alt that describes what the picture really shows, the real pixel size. Never AI-made photos of real cats. The build notes a remote PNG and any hero used by more than 2 articles. |
+| `keywords` | yes | Primary keyword first, then 2-5 more. |
+| `intent` | yes | `play`, `give`, `learn`, `build` or `news`. |
+| `cta` | yes | The closing conversion card: `heist`, `swordcat`, `rave`, `game`, `give`, `payouts`, `packs`, `impact` or `badcat`. |
+| `faq` | no | `[{ q, a }]`, rendered as an accordion and FAQPage JSON-LD. |
+| `sources` | no | `[{ label, url }]` for "Check it yourself" (live pages, explorers, repo paths). |
+| `related` | no | Slugs shown first under "Keep reading" (unknown slugs are skipped); the rest are picked by section and keywords. |
+| `legacySlugs` | no | Old slugs (or `/feed/<old-category>/<slug>` paths) that should 301 here. |
+| `claims` | no | Registry ids the article relies on (`C-004`, `F-026`). |
+
+**Directives** (an HTML comment alone on its line; any other comment is an editor note and is dropped):
+
+- `<!-- cta:heist -->` (any `cta` value): an inline conversion card. At most 2 per article, never in the first two paragraphs. When the body already shows the article's `cta` card, the closing card switches to the next card in `components/blog/ctaCopy.ts` `END_FALLBACK`, so a reader never sees the same card twice.
+- `<!-- payouts-live -->`: the live payout figures for Pink Paw (per coin, never summed, Motored sponsor money disclosed), read from `GET /shelter/payouts` in the browser. At most one.
+- `<!-- key-takeaways -->` followed by a bullet list: the summary box.
+
+**Builds.** Web builds generate every article. App builds (Capacitor export) generate only the
+sections that are not web only (`games`, `cats`, `news`) and only articles whose text names no coin,
+chain, wallet or explorer (copy-lint R10 words, `engine.APP_WORDS`), link no page the export lacks (`/badcat`,
+`/rave`) and use no pruned image (`engine.WEB_ONLY_MEDIA`). Links to blog pages an app build does not
+ship become plain text (`engine.unlinkMissing`), and `check:app-export` fails on any that remain. Web-only CTA cards
+(`rave`, `give`, `payouts`, `packs`, `badcat`) and the payouts widget render nothing there.
+
+**Redirects.** `lib/feed/legacy-redirects.json` maps all 61 legacy CMS article URLs to their new
+articles; with each article's `legacySlugs` and the old sections (`cats-nft` to `games`,
+`all-about-cats` to `cats`, `announcements` to `news`, any other old article to its new section)
+they are served from `next.config.js` `redirects()` on the web. A redirect whose article is not
+written yet goes to its section as a temporary redirect until it exists. App builds have no
+redirects: `pages/feed/article.tsx` and `appPath()` forward old links instead.
+
+**SEO.** Each page has its own title, description and canonical; articles send Open Graph article
+tags and the hero image, JSON-LD BlogPosting, BreadcrumbList and FAQPage (when there is an FAQ; no
+VideoGame, which Google only accepts with ratings or reviews), the hub a Blog with the Organization (Token Tails MB). The sitemap rows
+come from the same content with real `lastmod` and hero images, without priority, changefreq or a
+Google News block. `/feed/rss.xml` is written after the web build by
+`scripts/build-feed-rss.mjs` (gitignored, pruned from the app export).
+
+**Node.** `next.config.js`, `next-sitemap.config.js` and the RSS script load `lib/feed/engine.ts`
+through Node's built-in type stripping (Node 22.18 or later; Node prints a one-line
+`MODULE_TYPELESS_PACKAGE_JSON` notice). Keep that file to erasable TypeScript and free of `@/` imports.
 
 ### Marketplace
 
@@ -284,7 +359,7 @@ through the web3 module, paid or free.
 - **Leaderboards**: earned Tails, catnip ("TOP CATNIP COLLECTORS", no payout promise), rescuers (Tails given, `GET /user/leaderboard/rescuers`), and per-level Paw Match with exact self rank. Guests see "you would be #N".
 - **Referrals**: web links carry `?ref=<profileId>`. Both sides earn 100 Tails once the referred player's account exists.
 - **Meet your cat** (`components/onboarding/`, plan G3): after the night intro curtain, a pending player (guests included) meets their cat on the landing's altar: the painted tabby crossfades to pixel Scout, then choose one of five starters (decision #19), name it (shared `normalizeCatName`, "Surprise me", featured real-cat names reserved), the reveal ("Meet {name}!"), and three featured rescue cats to follow. SKIP commits the default at any step. The commit is `POST /user/starter` (409 means done); an offline commit is kept as `localStorage["tt.starterDraft"]` (per uid, 30 days) and retried silently. The lobby hero slot shows the cat at an integer scale. `RenameSheet` renames later (one free rename per 30 days).
-- **Impact in the game** (plan G4, G5): the lobby RESCUE tile (badge: lifetime paws, or NEW), MEET SHELTER CATS, the md+ impact strip (today's paw, treats, payouts as claims), MY IMPACT in ABOUT ME, and the end-of-run paw line ("Paw earned: tonight Token Tails pays a treat to Pink Paw." only when the paw is earned and paw sends are on).
+- **Impact in the game** (plan G4, G5): the lobby RESCUE tile (badge: lifetime paws, or NEW), MEET SHELTER CATS, the md+ impact board (`ImpactStrip`: a gold-framed scoreboard of slots: today's paw as run stamps with a countdown, treats sent, paid to shelters with one numeral per coin and never a sum, and the company-reported direct donations; each money slot is a `<Claim variant="tile">` with its as-of date and compact tier/status chips, full label in the tooltip and the full sentence as its accessible name; MY IMPACT, PROOF and a small pause toggle, `aria-pressed`, that stops all looping lobby motion through `components/game/lobbyMotion.ts`: `html[data-motion-paused]` holds every CSS animation inside the layers marked `data-lobby-motion` (the lobby scene, the corner HUD, the petals; dialogs and their scrims are portalled outside them and keep animating) and the cat GIFs show a still frame, WCAG 2.2.2; reduced motion never starts those loops; one row of slots from ~71rem board width, two rows from ~46rem, three below, from `lobbyLayout` `strip.stacked`/`strip.narrow`; a snapshot that fails to load shows "could not load", never the "no payouts yet" empty state), MY IMPACT in ABOUT ME, and the end-of-run paw line ("Paw earned: tonight Token Tails pays a treat to Pink Paw." only when the paw is earned and paw sends are on).
 
 ### Payments
 
@@ -559,7 +634,7 @@ do not exist in the current backend controllers. Those calls fail silently.
 Provider tree from `layouts/MainLayout`: query client, Google Tag Manager (which also starts
 PostHog), toast, profile and cat. There is no analytics consent banner (removed 2026-10-16).
 Pages add Firebase auth, the game provider, web3 (always dynamically imported with
-`ssr: false`), and entity metadata inside blog layouts.
+`ssr: false`), and entity metadata where a page still needs it.
 
 | Context | Role |
 |---|---|
@@ -666,12 +741,11 @@ PostHog key.
 
 `components/seo/SeoHead.tsx` is the single meta source (plan F12): `siteOrigin()` and `new URL()`
 joins in `components/seo/site.ts` (no more `https:/host` or `@undefined`), keyed tags, an absolute
-`og:image` with its size, Twitter and Facebook tags only when configured, and a `noindex` prop. Feed pages add `WebPageJsonLd` and `ArticleJsonLd`. The sitemap
-is generated after build by `next-sitemap`, which fetches `GET /feed/slugs` for article URLs
-(`/feed/<category>/<slug>`, matching `pages/feed/[category]/[article].tsx`; entries missing a
-category or slug are skipped) and
-returns nothing when the backend is unreachable or in app builds. Generated `robots.txt` and
-sitemap files are gitignored but currently present in `public/`.
+`og:image` with its size, Twitter and Facebook tags only when configured, and a `noindex` prop. Blog
+pages add JSON-LD from `lib/feed/jsonld.ts` (see "Blog"). The sitemap is generated after the web
+build by `next-sitemap`: plain URLs for the app pages and the blog rows from the repo content
+(`lib/feed/engine.ts sitemapEntries`). Generated `robots.txt`, sitemap files and
+`public/feed/rss.xml` are gitignored.
 
 ## Testing
 
@@ -703,7 +777,7 @@ collected only from `components/CatnipChaos/**`, so the reported figure is misle
 Build and SSR:
 
 - The Stellar Wallets Kit and Stellar SDK are not SSR safe. `Web3Providers` must stay behind `next/dynamic` with `ssr: false` on `/box` and `/cats/[cat]`. This replaced an earlier AppKit prerender crash that blocked builds for weeks.
-- `/feed` renders nothing until mount, losing server-rendered HTML.
+- Fixed (blog rebuild, 2026-10-19): `/feed` rendered nothing until mount; article pages rendered `<title>avatar</title>`; category pages had Lithuanian descriptions and a wrong JSON-LD id; the sitemap marked every article as Lithuanian Google News; the byline named someone not on the team; every inline legacy image pointed at a dead resizer host.
 
 Privacy:
 
@@ -917,6 +991,15 @@ G7 art pipeline (fixed in task 6d, plan G7):
 - Fixed: art sources shipped publicly (`public/base/*.aseprite`, `base.tmx`, `base.tiled-session`). They moved to `client/art/src/`; nothing loaded them. Still public and owned elsewhere: `public/story/spiked-wall.aseprite`, `public/catbassadors/catbassadors.tmx` and the Tiled project/session files under `public/pixel-rescue/levels/` and `public/purrquest/levels/` (listed in `__test__/art-pipeline.test.ts`).
 - Known: four authored sheets (`public/base/{summer,camp,sei,cat-winter}-original.png`) are stale against the runtime sheets the game loads; the night skins are built from the runtime sheets for that reason.
 
+Landing Moon Rave (`components/landing/RaveSection.tsx`, `RaveLiveLine.tsx`, `raveLive.ts`, Oct 17 2026):
+
+- Moon Rave (`/rave`, built from `cat-rave/`) is the landing's headline feature. `RaveSection` sits straight under the hero, above the proof section, Catnip Heist and Swordcat (`/rave?from=landing_rave`, plus "See every payout" to `/shelter-payouts`). The night footer lists MOON RAVE first. All of it is web only (`raveLandingEnabled` in `RaveSection.tsx` = not `isAppBuild()`); no flag. The hero pill with its live line ("New · Moon Rave / Join the rave →", `/rave?from=landing_hero`) was removed on Oct 17 at the founder's request (it looked bad), so the hero is PLAY GAME, the Heist pill and the /yourcat link again, as before 727c6c5a.
+- The live line ("$X paid out for Pink Paw on-chain · N cats dancing", no payer named because the total mixes Token Tails' and givers' payouts; the section's rule names both) reads the rave's own source after mount: `GET /shelter/payouts?network=mainnet` through `loadPayoutIndex` (shared with `/shelter-payouts`), counted with the rave's rule (`cat-rave/README.md` "The $1 = 1 cat rule": dollar coins 1:1, EURC at 1.00, the 7 mainnets, deduped, cats = floor of the total). It shows a skeleton while reading and no number at all when the index is unread, unreachable or cut short (an event `loadPayoutIndex` rejects counts as cut short). The line and its skeleton sit in a fixed-height slot, so nothing shifts when the number arrives or stays hidden; the add line takes no space until `/rave/status` answers (the section starts at or below the fold). The read waits for an idle moment (at most 1.5 s) so the full payout index never competes with the hero's first paint. The count rule is a hand-kept copy of `cat-rave/src/config.ts`, pinned by `landing-rave-parity.test.ts` (docs/DEVELOPMENT.md). It counts on-chain payouts only; the rave also counts paid rave orders whose payout is not indexed yet, so the landing can trail the rave by those cats for a few minutes, never lead it. "for Pink Paw", not "to": before 16 Oct 2026 the splits paid a wallet Token Tails held for the shelter.
+- The "add a cat for $1, by card or in USDC on Arc" line follows `GET /rave/status` (`enabled` and `livemode` true, then `card`, `usdc.chains` includes Arc 5042) and is hidden when checkout is off, not live (a Stripe test key) or unread. By card Token Tails pays the $1 out; in USDC the buyer's own wallet pays the split, so the copy names the payer per way. Ad slots are not cat orders and their money goes to the treasury, so the copy never says "all proceeds".
+- The promo reel (`public/landing/rave/rave-promo-v3-{16x9,9x16}.mp4`, 28 s: the 30 s promo without its closing "$21.93 … 21 cats dancing" card, plus a "Filmed 17 Oct 2026, on-screen totals are not live" label over the whole filmed laptop shot (about 0:14 to 0:23), where the rave's total as filmed is readable; the live line is the only current total on the page; H.264 CRF 24, faststart, no audio track; posters `rave-promo-v3-poster-{16x9,9x16}.jpg`, the number-free "Live on Arc" frame) follows `useReelPlayback`: no source until it is on screen, plays only in view, a pause toggle, never by itself under reduced motion. The rave reel arms with no margin and only once a quarter of it shows (`RAVE_REEL_ARM`), because the section starts right at the fold and the shared 200 px margin would fetch 5 MB for visitors who never scroll. Portrait below `md`, landscape from `md`; neither the poster nor the source is set until the orientation is known, and the poster waits until the section is within 1200 px, so a phone fetches only portrait files. On phones the badge and title come first, then the reel (capped at 70svh), then JOIN THE RAVE, then the rule; from `md` the text column sits left and the reel is centred on the right. The rule ends "Paid out on [Arc] and 6 more chains", so Arc is named as one of the 7 chains the count covers, not as where every cat comes from. The reel's "$1 · card or USDC on Arc" caption plays even while checkout is off (it shows the rave as filmed); the gated add line is the current statement. `scripts/prune-app-export.mjs` drops all four files from the app export.
+- The PLAY picker ("Choose your adventure", `GameSelectModal.tsx`) leads with a MOON RAVE card (Oct 18 2026; key `RAVE`, test id `game-card-rave`, badge NEW, the first card, before Cupid Cat in season): a full page load to `/rave?from=picker`, the same `/rave` rewrite the landing links (the rave ignores `from`, as with `from=landing_rave`). Its line is "Every $1 you give Pink Paw here adds a dancing cat" (the rave rule with the giver as the subject; "here" because only gifts through Token Tails count, a direct donation adds no cat; Token Tails' payouts count too, the landing rule names both). The art, `public/game-select/rave-preview@2x.webp` (624x436 for the 312x218 card box), is the live rave scene at 1440x900 (the DJ cat at the booth's blank front, the moon, the lasers, the Pink Paw sign, the crowd), cropped below the HUD and the Token Tails logo, with a little more contrast and saturation; no sponsor logo, no wallet addresses. `components/rave/entry.ts` holds the path, `raveHref(from)`, the line, the art and `raveEntryEnabled` (= not `isAppBuild()`): web only, no flag, and `scripts/prune-app-export.mjs` drops the art from the app export. With it web builds show six cards outside the Cupid season (3 + 3 from `md`, also on short landscape screens, where the list scrolls: one row of six cut the lines off) and seven in it (4 + 3 from `md`, also on short landscape screens, where the list scrolls). Tests: `__test__/game-select-modal.test.tsx` ("Moon Rave card").
+- Known: the live total has no `facts.json` id yet (the registry is private); the copy carries `claim:` comments naming its source. Add `L-rave` (landing surface) to the registry and cite it. The hero headline is still "YOUR CAT AWAITS" and, since the pill was removed, nothing above the fold points to the rave; whether the hero should lead with it some other way is a founder call.
+
 Landing Catnip Heist section (`components/landing/HeistSection.tsx`, Oct 2026):
 
 - On by default (founder override of decision #15 for this section, 2026-10-04); `NEXT_PUBLIC_HEIST_LANDING_SECTION=0` (or `false`, `off`) is the kill switch. The override accepts that a public showreel with "Free in your browser" and an on-chain end card works against the Poki carve-out; the hero pill and the picker card stay off.
@@ -1046,6 +1129,31 @@ Bad Cat Daily is a separate Vite + three.js package (`bad-cat/`, design in `docs
 client only hosts its static build. It is served top level at `/badcat`, with no iframe (GDD 6.6: an iframe
 breaks safe areas, zoom, edge swipes and `navigator.share`). The Catnip Heist host (`pages/heist.tsx`) is not
 involved.
+
+**Entry points (web only, no flag).** Until Oct 17 2026 nothing in the client linked to `/badcat`: the rewrites
+served it, but the "Choose your adventure" picker had no card, the landing had no section and no page linked
+it, so the game could only be reached by typing the URL. Now `components/badcat/entry.ts` (`BADCAT_PATH`,
+`badcatHref(from)`, `BADCAT_LINE`, the art paths and `badcatEntryEnabled` = not `isAppBuild()`) feeds:
+
+- the PLAY picker (`GameSelectModal.tsx`): a BAD CAT DAILY card (key `BADCAT`, test id `game-card-badcat`,
+  badge NEW) after the Swordcat card, a full page load to `/badcat?from=picker&utm_source=tt_picker`. From `md` the picker puts
+  four cards on one row, five or six three to a row (3 + 2 centred, or 3 + 3) and seven four to a row (4 + 3);
+  short landscape screens (`md` and at most 520 px tall) put five or six cards on one row so none hides below
+  the list's fold (seven keep 4 + 3 and scroll); phones keep two per row. The Moon Rave card leads the list
+  (see the landing Moon Rave notes).
+- the landing (`components/landing/BadcatSection.tsx`, after the Swordcat section): a poster, the game's own
+  line (its `<meta name="description">`), a hook and PLAY BAD CAT to
+  `/badcat?from=landing_badcat&utm_source=tt_landing`. No money,
+  treat or shelter claim: the game's treat link only shows when its build sets `VITE_BADCAT_TREAT_URL`.
+
+Both are web only because the Capacitor export has no rewrites (`/badcat` does not resolve there) and the
+game sells the Chaos Club and cameos through Stripe. The game ignores `from`; its analytics reads
+`utm_source` (`linkAttribution` in `bad-cat/src/platform/analytics.ts`), hence `tt_picker` and `tt_landing`.
+The 25 MB game folder `public/badcat-game/` still ships inside the app export (pre-existing; not pruned yet). The art is a frame of the
+first heist (the Kitchen) captured from the built game on Oct 17: `public/game-select/badcat-preview@2x.webp`
+(624x436 for the 312x218 card box) and `public/landing/badcat/badcat-poster-v1.webp` (1280x800);
+`scripts/prune-app-export.mjs` drops both from the app export. Tests: `__test__/landing-badcat-section.test.tsx`,
+`__test__/game-select-modal.test.tsx` ("Bad Cat Daily card").
 
 **Hosting.** `bad-cat` builds into `client/public/badcat-game/` with the base `/badcat-game/`.
 `next.config.js` maps the public URLs to those files with rewrites. The rewrites are always on in web builds

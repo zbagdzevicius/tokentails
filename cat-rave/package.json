@@ -12,7 +12,9 @@
     "test": "vitest run",
     "snapshot": "node scripts/snapshot.mjs",
     "og": "node scripts/og.mjs",
-    "build:client": "tsc --noEmit && RAVE_BASE=/rave/ RAVE_API_URL=https://api.tokentails.com vite build --outDir ../client/public/rave --emptyOutDir"
+    "build:client": "tsc --noEmit && RAVE_BASE=/rave/ RAVE_API_URL=https://api.tokentails.com vite build --outDir ../client/public/rave --emptyOutDir",
+    "track:split": "node scripts/track-split.mjs",
+    "track:check": "node scripts/track-check.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.11.0",

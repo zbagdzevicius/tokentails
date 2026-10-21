@@ -48,6 +48,7 @@ const Snowfall: React.FC<{ size?: "sm" | "md" }> = ({ size = "md" }) => {
   return (
     <div
       aria-hidden="true"
+      data-lobby-motion
       className="absolute inset-0 w-screen h-screen overflow-hidden z-0 pointer-events-none"
     >
       {Array.from({ length: 50 }).map((_, i) => (
