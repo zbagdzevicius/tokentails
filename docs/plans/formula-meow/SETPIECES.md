@@ -622,3 +622,55 @@ Two playtests of iteration 3 (fun-ease and bugs-perf, 2026-10-20) led to these c
 - Readability cues are drawn on top of any skin. Jumps get kicker fins, deck stripes, an entry arch and a dark void under the gap. Wall lanes get run-in arrows and a boost strip.
 - Touch devices are capped at DPR 1.5. The e2e tests run on the Metal GPU on macOS.
 - When the ±8 search finds no valid spot for an editor sticker, the snap searches the whole lap.
+
+## 16. What shipped (iteration 3, SIM_VERSION 9)
+
+All four piece kinds are in the game on `feat/formula-meow`, with the §15 playtest fixes. Positions are `s` (lap
+fraction 0..255) as built; the lanes moved some pieces from the §12 plan to pass the validator.
+
+| Track | Loop | Wall ride | Jump gap | Tunnel |
+|---|---|---|---|---|
+| Kitchen Counter | s217 | s177, 16 units | s116, gap 12 m, drop 1.5 m | s196, 14 units (bread bin) |
+| Neon Rooftops | s244 (the racing line; the billboard cut is off-road) | s123, 13 units | s186, gap 11 m, drop 1.5 m | s96, 14 units (air duct) |
+| Laundry Spin | s66 (the drum, race 2: the first loop) | s208, 12 units | s168, gap 12 m, drop 2 m (a share code stores 0.5 m steps) | s35, 9 units (shirt rack) |
+| Yarn Canyon | none | s148, 12 units, side +1 | s56, gap 10 m, flat | s24, 12 units (mesa) |
+| Cat Café Chaos | s220 (mug handle) | s146, 12 units, side +1 | s104, gap 12 m, flat (koi pond) | s198, 14 units (cat tree) |
+| Pink Paw Shelter Sprint | s74 (exercise wheel) | s154, 12 units, side +1 (main route; the AI takes it only off the play-room branch) | s205, gap 8 m, flat (cushion hop) | s106, 12 units (cat flap) |
+| Living Room Rug (battle) | – | – | kicker at s128 (`gap: 0`) | – |
+
+- **Assist.** Loops and wall lanes hold the kart to the surface (the sim stays flat: shadow zones, §1). Jump gaps have
+  2.2 m of hang time, an air magnet toward the racing line, a clean-landing boost and a catch net that sets the kart
+  down 4 m past the far lip at 70 % of top speed. Each tunnel has a full-width boost pad, light streaks, a tighter rig,
+  a FOV kick and a low-pass echo on the music. No new controls.
+- **Editor.** Track Doodle has Loop, Wall ride, Jump and Tunnel stickers. Track code v3 carries them; v1 and v2 codes
+  still open, with no set pieces.
+- **Versions.** Dares, ghosts and records stamped SIM_VERSION 7 or 8 open as a target-time race with the "another
+  version of the game" notice; SIM_VERSION 9 dares race the ghost.
+- **Checks.** `npx tsc --noEmit`, `npx vitest run`, `npm run build` (budget), `npm run e2e` (the phone bot clears every
+  piece for 3 laps without a net on all 6 tracks), and `npm run review:v3`: every piece frozen mid-piece on all 6 tracks
+  at 1440x900 and 390x844 (`formula-meow/review/v3/<size>-<track>-<piece>.png`, gitignored), old dares and track codes,
+  and editor stickers through a share link into a fresh browser context. Peak draw calls during the pieces: 48–70
+  (budget 120).
+
+**Final review (2026-10-21) findings:**
+- No game defect found in the 46 set-piece screenshots or the probes behind them. The failures were in the review
+  harness, which teleports the bot onto each wall lane, and are fixed there: Shelter's wall shot came in lap 3, where
+  the bot takes the play-room branch (shots now go in track order); a fixed +5.2 m offset sat past Shelter's narrow
+  lane and the bot's own heading flew it off (now 60 % into the lane, velocity along the road); the teleport left the
+  camera to chase 17 m through the Yarn canyon rock (now a camera cut); Laundry's kart was set below the lane's curl,
+  a step it cannot climb, and lost 80 % of its speed (now dropped from 3 m); and the desktop stadium stroke ended more
+  than `CLOSE_DIST` (40 m) from its start, so the editor rightly asked to close the loop.
+- A sweep in the sim (every track, 50/100/150cc, steering 0 to 7 toward the lane from the centre and from half-way out)
+  found no wall hit and no speed loss on any wall lane. Steering hard toward the outside 20 m before a lane drives onto
+  the verge first and loses speed there, as on any corner.
+- The bot leaves a wall lane after about 0.7 s because it steers back to its racing line. A player with no steering is
+  drawn onto the lane (§15).
+
+**Known gaps:**
+- Yarn Canyon has no loop (the plan had none).
+- The AI never rides Shelter's or Café's wall lane (they sit inside a branch's fork-to-merge window, §15), so only the
+  player rides them there.
+- In the editor, a stunt sticker can sit on top of a starter feature's icon (a boost next to the loop), which is hard
+  to read on the 2D map. The track still validates and races.
+- Set pieces have not been checked on a real mid-range phone; the 60 fps target is measured on desktop Metal and in
+  the headless phone viewport only.

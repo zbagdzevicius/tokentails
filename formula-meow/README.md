@@ -19,6 +19,9 @@ npm run e2e            # Playwright, builds into .e2e-dist and serves on :4395 (
 npm run review         # optional: full races at 1440x900 and 390x844, screenshots in review/*.png (~7 min)
 npm run review:v2      # optional: every mode and screen at 1440x900 and 390x844, from a v1 save, screenshots in
                        # review/v2/*.png (~45 min, own build dir and port, gitignored)
+npm run review:v3      # optional: every set piece on all 6 tracks frozen mid-piece at 1440x900 and 390x844, old
+                       # dares and track codes, editor stickers in a fresh page; screenshots in
+                       # review/v3/<size>-<track>-<piece>.png (~5 min, port 6131 or MEOW_REVIEW_PORT, gitignored)
 npm run build:client   # → ../client/public/formula-meow-game, commit that folder
 ```
 
@@ -35,6 +38,11 @@ OG pages) is copied into this package, never imported across packages.
   Battle on the Living Room Rug arena.
 - Tracks: Kitchen Counter, Neon Rooftops, Laundry Spin, Yarn Canyon, Cat Café Chaos and Pink Paw Shelter Sprint.
   Each has an alternative route, hazards, fish coins and ramps.
+- Set pieces (`docs/plans/formula-meow/SETPIECES.md`): loop-the-loops, wall rides, jump gaps and tunnels on every
+  track (Yarn has no loop), plus a kicker on the Rug arena. They are spectacle with assist: a loop or a wall lane holds
+  the kart to its surface and keeps its speed, a jump gap has hang time, a landing magnet, a clean-landing boost and a
+  catch net, and a tunnel has a boost pad, light streaks and a muffled echo. No new controls. Track Doodle has Loop,
+  Wall ride, Jump and Tunnel stickers that travel in the share link.
 - Classes: Kitten 50cc, Alley Cat 100cc, Zoomies 150cc and Mirror. The progression lane's rules unlock them.
 - Progression: fish (in-game only, no money), a Garage with 6 bodies, paints, hats and trails, 24 achievements,
   three daily challenges and stats. Pink Paw cats become playable as you win trophies.
@@ -70,9 +78,9 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
 
 - No server: best times, fish, Daily streaks, saved tracks and your cat live on the device; dares and tracks travel
   in links.
-- `SIM_VERSION` 7 (playtest round 2: top speeds 24 / 28 / 32 m/s, a pull toward the pack keeps the field together,
-  a hit cap on the player, 2 s item box respawn, coin trails on the racing line, an AI wall guard): dares,
-  time-trial ghosts and records from earlier versions show their time, but their ghost cannot race.
+- `SIM_VERSION` 9 (set pieces, then their playtest fixes): dares, time-trial ghosts and records from earlier versions
+  open as a target-time race with a notice, but their ghost cannot race. Track codes from before the set pieces (v1,
+  v2) still open, with no set pieces.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.
 - The minimap draws the main loop only, not the alternative routes.
 - Single race keeps its own class pick (50cc by default); it does not start from the class a v1 save last used.
