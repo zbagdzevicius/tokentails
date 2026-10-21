@@ -10,3 +10,5 @@ review/*.png
 review/v2/
 review/v3/
 .review-v3-dist/
+review/trailer/build/
+review/trailer/out/
