@@ -427,6 +427,11 @@ describe('zero config: every wallet.config.ts chain of the main chain class', ()
             url: 'https://monad-testnet.api.onfinality.io/public',
             maxRange: 10000,
         });
+        // Avalanche's public RPC caps eth_getLogs at 100 blocks (2026-10-21); publicnode takes 10,000.
+        expect(logRpcFor({ chainId: 43114, rpcUrl: 'https://api.avax.network/ext/bc/C/rpc' })).toEqual({
+            url: 'https://avalanche-c-chain-rpc.publicnode.com',
+            maxRange: 10000,
+        });
         expect(logRpcFor({ chainId: 10143, rpcUrl: 'https://paid.example/rpc' })).toEqual({
             url: 'https://paid.example/rpc',
             maxRange: null,

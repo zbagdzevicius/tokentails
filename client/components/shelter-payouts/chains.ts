@@ -85,6 +85,8 @@ export const chainDisplayName = (chain: Pick<ChainInfo, "name" | "testnet">): st
 // Blockdaemon endpoint listed by Arc takes 100,000-block windows (checked 2026-10-04).
 // Base Sepolia: sepolia.base.org caps eth_getLogs at 1,000 blocks, so the page reads the keyless
 // publicnode endpoint, which serves the whole range since the deploy in one call (checked 2026-10-04).
+// Avalanche: api.avax.network refuses eth_getLogs over 100 blocks (since ~2026-10-15); publicnode serves
+// the whole range in 10,000-block windows, keyless (checked 2026-10-21).
 // Arc mainnet: rpc.mainnet.arc.io refuses eth_getLogs over 10,000 blocks ("requested range too large")
 // and answers about two calls a second sustained (back to back, 9 of 40 got through; 350 ms apart, 29 then
 // a run of 429s; 500 ms apart, 60 of 60; checked 2026-10-08). No keyless endpoint takes wider ranges (arc-mainnet.drpc.org: ~100 blocks;
@@ -96,7 +98,7 @@ export const SHELTER_CHAINS: Record<number, ChainInfo> = {
   84532: { name: "Base Sepolia", testnet: true, rpc: "https://base-sepolia-rpc.publicnode.com", explorer: "https://sepolia.basescan.org", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   42161: { name: "Arbitrum One", rpc: "https://arb1.arbitrum.io/rpc", explorer: "https://arbiscan.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
   421614: { name: "Arbitrum Sepolia", testnet: true, rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "ETH" },
-  43114: { name: "Avalanche C-Chain", rpc: "https://api.avax.network/ext/bc/C/rpc", explorer: "https://subnets.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
+  43114: { name: "Avalanche C-Chain", rpc: "https://api.avax.network/ext/bc/C/rpc", logRpc: "https://avalanche-c-chain-rpc.publicnode.com", maxLogRange: 10_000, explorer: "https://subnets.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
   43113: { name: "Avalanche Fuji", testnet: true, rpc: "https://api.avax-test.network/ext/bc/C/rpc", explorer: "https://subnets-test.avax.network/c-chain", decimals: 6, symbol: "USDC", nativeDecimals: 18, nativeSymbol: "AVAX" },
   // Tempo: eth_getLogs answers spans below 100,000 blocks ("query exceeds max block range 100000"; checked 2026-10-05).
   4217: { name: "Tempo", rpc: "https://rpc.tempo.xyz", maxLogRange: 99_999, explorer: "https://explore.tempo.xyz", decimals: 6, symbol: "USDC.e", balanceToken: "0x20C000000000000000000000b9537d11c60E8b50" },

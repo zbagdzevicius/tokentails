@@ -23,7 +23,7 @@ import { CHAINS } from './wallet.config';
  *                                   the impact jobs run (IMPACT_JOBS_ENABLED, impact.config.ts).
  * - SHELTER_PAYOUTS_INDEX_NETWORKS  'mainnet', 'testnet' or both (default), comma separated.
  * - SHELTER_PAYOUTS_INDEX_CHUNK     widest eth_getLogs window in blocks (default 10000). A chain's known
- *                                   cap (logRpcFor: Base 500, Monad's public RPC 100, Avalanche 2048)
+ *                                   cap (logRpcFor: Base 500, Monad's public RPC 100, api.avax.network 100)
  *                                   always applies, and a window the RPC refuses shrinks to the cap the
  *                                   RPC names (or halves).
  *
@@ -264,7 +264,8 @@ const errorText = (error: any) =>
 /** True for an eth_getLogs refusal about the block range (as opposed to a rate limit or an outage). */
 export const isRangeError = (error: unknown) =>
     /range|too many blocks|block count|exceed|query returned more than|10,?000 results|limit/i.test(errorText(error)) &&
-    !/rate|429|too many requests/i.test(errorText(error));
+    // mainnet.base.org says "request limit reached" (-32011) for a refused eth_getLogs at any range.
+    !/rate|429|too many requests|request limit reached/i.test(errorText(error));
 
 const errorClass = (error: unknown) =>
     String((error as { code?: string })?.code || (error as Error)?.name || 'Error').slice(0, 64);
