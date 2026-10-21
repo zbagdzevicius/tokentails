@@ -314,7 +314,7 @@ first; all offers of one 402 share one nonce, and the first valid payment on any
        "asset": "native",
        "payTo": "<ShelterSplit address>",
        "resource": "https://<host>/shelter/agent/cat-card",
-       "description": "One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients",
+       "description": "One shelter-cat card. The ShelterSplit contract splits each payment among its shelter recipients",
        "mimeType": "application/json",
        "maxTimeoutSeconds": 600,
        "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>", "decimals": 18, "coin": "USDC", "method": "donate" }

@@ -1,4 +1,4 @@
-// AI-agent example: buy one adoptable-cat card from the Token Tails API with an on-chain
+// AI-agent example: buy one shelter-cat card from the Token Tails API with an on-chain
 // payment that goes to shelters. Two x402 schemes:
 //   exact            (standard x402) one signed USDC transferWithAuthorization straight to the
 //                    shelter's own wallet; the server's facilitator settles it and pays the gas.

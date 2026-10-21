@@ -51,7 +51,7 @@ export const X402_SCHEME = 'onchain-receipt';
 /** Matches `maxTimeoutSeconds` in the 402 body. */
 export const X402_NONCE_TTL_SECONDS = 600;
 export const X402_DISABLED = "Agent cat cards are off. Public payments open while the split pays the shelter's wallet.";
-export const X402_NO_CARDS = 'No adoptable cat cards are available right now.';
+export const X402_NO_CARDS = 'No shelter cat cards are available right now.';
 export const X402_UNPRICED =
     'Agent payments are unavailable right now (the payment token could not be read); retry shortly.';
 
@@ -670,8 +670,8 @@ export class ShelterX402Service implements OnModuleInit {
                     resource,
                     description:
                         price.method === 'donate'
-                            ? 'One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients'
-                            : `One adoptable-cat card, paid in ${price.coin}: approve the ShelterSplit contract, then call ${price.method} with the memo. It splits each payment among its shelter recipients`,
+                            ? 'One shelter-cat card. The ShelterSplit contract splits each payment among its shelter recipients'
+                            : `One shelter-cat card, paid in ${price.coin}: approve the ShelterSplit contract, then call ${price.method} with the memo. It splits each payment among its shelter recipients`,
                     mimeType: 'application/json',
                     maxTimeoutSeconds: X402_NONCE_TTL_SECONDS,
                     extra: {

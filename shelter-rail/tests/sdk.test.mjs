@@ -156,7 +156,7 @@ const offerBody = (overrides = {}) => ({
       asset: "native",
       payTo: SPLIT,
       resource: "https://api.example/shelter/agent/cat-card",
-      description: "One adoptable-cat card; payment goes to shelters via ShelterSplit",
+      description: "One shelter-cat card; payment goes to shelters via ShelterSplit",
       mimeType: "application/json",
       maxTimeoutSeconds: 600,
       extra: { memo: "x402:n1", nonce: "n1" },
