@@ -187,7 +187,8 @@ export function parseProfile(raw: string | null): Profile {
     }
     p.lastMatchAt = n(o.lastMatchAt);
     if (o.fastest && typeof o.fastest === 'object') {
-      for (const d of ['easy', 'normal', 'hard'] as const) {
+      // rookie too: match 1 is a Rookie match, and its win shows as a won badge on the title strip (ftue-6)
+      for (const d of ['rookie', 'easy', 'normal', 'hard'] as const) {
         const v = (o.fastest as Record<string, unknown>)[d];
         if (typeof v === 'number' && v > 0) p.fastest[d] = Math.floor(v);
       }

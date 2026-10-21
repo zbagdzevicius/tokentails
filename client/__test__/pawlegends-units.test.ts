@@ -19,6 +19,7 @@ import {
 import {
   PAWLEGENDS_FRAME_SRC,
   pawlegendsEnabled,
+  pawlegendsFrameSrc,
   pawlegendsPickerEnabled,
 } from "@/components/pawlegends/flags";
 import {
@@ -74,6 +75,16 @@ describe("pawlegends flags (kill switches only)", () => {
 
   it("frames the same-origin build with embed=1", () => {
     expect(PAWLEGENDS_FRAME_SRC).toBe("/pawlegends-game/index.html?embed=1");
+  });
+
+  it("forwards a well-formed dare to the frame and nothing else (PUB-03)", () => {
+    expect(pawlegendsFrameSrc("")).toBe(PAWLEGENDS_FRAME_SRC);
+    expect(pawlegendsFrameSrc("?from=picker")).toBe(PAWLEGENDS_FRAME_SRC);
+    expect(pawlegendsFrameSrc("?dare=9ix.0.0.1.c0")).toBe("/pawlegends-game/index.html?embed=1&dare=9ix.0.0.1.c0");
+    expect(pawlegendsFrameSrc("?from=x&dare=1.7.3.2.0&utm_source=x")).toBe("/pawlegends-game/index.html?embed=1&dare=1.7.3.2.0");
+    for (const bad of ["?dare=", "?dare=abc", "?dare=9ix.0.0.3.c0", "?dare=9IX.0.0.1.c0", "?dare=9ix.0.0.1.c0%26embed%3D0", "?dare=<script>", `?dare=${"1".repeat(8)}.0.0.1.0`]) {
+      expect(pawlegendsFrameSrc(bad)).toBe(PAWLEGENDS_FRAME_SRC);
+    }
   });
 });
 

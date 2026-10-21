@@ -1,0 +1,23 @@
+{
+  "keep": 3,
+  "releases": [
+    [
+      "index-B_3gh_X6.js",
+      "index-DUshF1MR.css",
+      "local-host.worker-CjRd2GPu.js",
+      "three-DXzjt7_B.js"
+    ],
+    [
+      "index-CXAPChUd.js",
+      "index-DUshF1MR.css",
+      "local-host.worker-CjRd2GPu.js",
+      "three-DXzjt7_B.js"
+    ],
+    [
+      "index-2o5FSkVy.js",
+      "index-DUshF1MR.css",
+      "local-host.worker-CjRd2GPu.js",
+      "three-DXzjt7_B.js"
+    ]
+  ]
+}

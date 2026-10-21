@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { Analytics, cleanProps, posthogBodies } from '../../src/analytics/posthog';
+import { Analytics, askConsent, cleanProps, posthogBodies } from '../../src/analytics/posthog';
 import { HumanFilter, isHeadlessAgent } from '../../src/analytics/human';
 import { parseRoster, rosterCosmetics, stableIndex } from '../../src/meta/roster';
 import { CheckoutBridge } from '../../src/money/checkoutBridge';
@@ -237,6 +237,66 @@ describe('analytics (POC.md §13)', () => {
     a.setConsent(false);
     a.track('title_view');
     expect(a.pending()).toHaveLength(0);
+  });
+  it('asks for consent standalone from the second session, never embedded (PUB-02: the host decides there)', () => {
+    const o = { configured: true, consent: 'unset' as const, embedded: false, sessionNo: 2 };
+    expect(askConsent(o)).toBe(true);
+    expect(askConsent({ ...o, sessionNo: 1 })).toBe(false);
+    expect(askConsent({ ...o, embedded: true })).toBe(false);
+    expect(askConsent({ ...o, embedded: true, sessionNo: 5 })).toBe(false);
+    expect(askConsent({ ...o, configured: false })).toBe(false);
+    expect(askConsent({ ...o, consent: 'granted' })).toBe(false);
+    expect(askConsent({ ...o, consent: 'denied' })).toBe(false);
+  });
+  it('embedded, relays every event to the host without a key or a yes, holds them until the host can take them (PUB-02)', () => {
+    const relayed: [string, Record<string, unknown>][] = [];
+    const fetched: string[] = [];
+    let hostReady = false;
+    const a = new Analytics({
+      key: null,
+      fetch: async (_u, init) => void fetched.push(String(init.body)),
+      kv: kv(),
+      setTimer: () => 0,
+      common: () => ({ human: true, embed: true }),
+      relay: (event, props) => (hostReady ? (relayed.push([event, props]), true) : false),
+    });
+    expect(a.configured).toBe(true);
+    expect(a.relayed).toBe(true);
+    expect(a.live).toBe(true);
+    a.track('quality_tier', { tier: 'high' });
+    a.track('app_error', { msg: 'x' });
+    a.track('title_view', { first_time: true, email: { a: 1 } as unknown as string });
+    expect(relayed).toHaveLength(0);
+    expect(a.pending()).toHaveLength(3);
+    hostReady = true;
+    a.flush();
+    expect(relayed).toEqual([
+      ['quality_tier', { human: true, embed: true, tier: 'high' }],
+      ['title_view', { human: true, embed: true, first_time: true }],
+    ]);
+    expect(a.pending()).toHaveLength(0);
+    a.track('match_start', { hero: 'clem' });
+    expect(relayed).toHaveLength(3);
+    expect(fetched).toHaveLength(0);
+    // the Settings stats row turned off: nothing more goes to the host
+    a.setConsent(false);
+    expect(a.live).toBe(false);
+    a.track('match_end', { hero: 'clem' });
+    a.flush();
+    expect(relayed).toHaveLength(3);
+    a.setConsent(true);
+    a.track('match_end', { hero: 'clem' });
+    expect(relayed).toHaveLength(4);
+  });
+  it('sends events queued before a late yes (the prompt can come after title_view)', () => {
+    const calls: string[] = [];
+    const a = new Analytics({ key: 'phc_test', fetch: async (_u, init) => void calls.push(String(init.body)), kv: kv(), setTimer: () => 0 });
+    a.track('title_view');
+    a.track('match_start', { hero: 'clem' });
+    expect(calls).toHaveLength(0);
+    a.setConsent(true);
+    expect(calls.join('')).toContain('"title_view"');
+    expect(calls.join('')).toContain('"match_start"');
   });
   it('is inert without a key', () => {
     const a = new Analytics({ key: '', fetch: async () => undefined, kv: kv() });

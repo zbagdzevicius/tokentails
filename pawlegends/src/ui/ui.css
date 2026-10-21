@@ -597,6 +597,8 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 .pl-sku .pl-sku-art.pic { width: 64px; height: 64px; padding: 0; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.12); }
 .pl-sku p.gloss { font-size: 11px; opacity: 0.65; }
 .pl-store .fine.safe a { color: var(--butter); }
+.pl-settings .fine.links { opacity: 0.8; }
+.pl-settings .fine.links a { color: var(--butter); }
 .pl-new {
   position: absolute; right: calc(24px + var(--safe-r)); top: calc(70px + var(--safe-t)); z-index: 40; display: flex; gap: 10px; align-items: center;
   background: var(--cream); color: var(--ink); border-radius: 16px; padding: 10px 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -769,7 +771,8 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-results .sub { margin: 2px 0 10px; font-size: 16px; }
   .pl-quests.mini { display: none; }
   .pl-goal .txt b { font-size: 14px; }
-  .pl-goal .txt small { display: none; }
+  /* one short line, never hidden: a phone player still reads what to do (launch finding ftue-4) */
+  .pl-goal .txt small { font-size: 11px; line-height: 1.2; max-width: min(48vw, 320px); overflow: hidden; text-overflow: ellipsis; }
   .pl-pop { font-size: 16px; }
   .pl-pop.big { font-size: 22px; }
 }
@@ -929,7 +932,7 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 .pl-goal.standing .ico .pl-icon { width: 15px; height: 15px; }
 .pl-goal.standing .txt b { font-size: 14px; }
 .pl-goal.standing .txt small { font-size: 11px; }
-@media (max-height: 480px) { .pl-goal.standing .txt small { display: none; } }
+@media (max-height: 480px) { .pl-goal.standing .txt small { font-size: 10.5px; max-width: min(44vw, 300px); overflow: hidden; text-overflow: ellipsis; } }
 /* Round 1: on short screens the tower alert sits in the top band under the goal chip, never over the hero. */
 @media (max-height: 480px) {
   .pl-alert { bottom: auto; top: calc(96px + var(--safe-t)); }
@@ -1060,6 +1063,11 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
 .pl-pingbtn svg { width: 24px; height: 24px; }
 .pl-pingbtn.cool { opacity: 0.45; }
 html[data-touch='1'] .pl-pingbtn { display: block; right: calc(152px + var(--safe-r)); top: calc(52px + var(--safe-t)); }
+/* Touch: the owned emote chip sits under the paw, right edges aligned (x stays left of the minimap, y below the paw),
+   so it can never cover the paw or the minimap at any phone width. 40 px tall: a full tap target. */
+html[data-touch='1'] .pl-emote { left: auto; right: calc(152px + var(--safe-r)); top: calc(104px + var(--safe-t)); min-height: 40px; }
+/* ...and while it is there, kill-feed lines wrap inside the column right of it (a long note would run under the chip). */
+html[data-touch='1']:has(.pl-emote) .pl-feed-row { max-width: 132px; }
 /* GAPS B1 / A6: the lane hint under the blurb on the pick screen */
 .pl-pick .lane-hint { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
 .pl-pick .trick-hint { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }

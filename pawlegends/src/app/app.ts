@@ -5,8 +5,10 @@
  * analytics. `html[data-screen]` names the current screen (tests read it; there is no debug global).
  */
 import { HumanFilter } from '../analytics/human';
-import { createAnalytics, type Analytics } from '../analytics/posthog';
+import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
+import { crashSender, reportCrash, setCrashHook } from './crash';
+import { SIM_VERSION } from '../sim/version';
 import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
 import { coatGlow } from '../render/skins/cardFx';
@@ -171,7 +173,21 @@ export class App {
     sfx.setMuted(p.muted);
     this.choice = { hero: p.hero, trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
-    this.analytics = createAnalytics(() => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier }));
+    // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
+    this.analytics = createAnalytics(
+      () => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier }),
+      bridge.active ? (event, props) => bridge.post('analytics', { event, props: { ...props } }) : null,
+    );
+    // Launch finding R1: crashes go to the host (embedded) or this page's consent-gated analytics (app/crash.ts).
+    setCrashHook(
+      crashSender({
+        consent: () => this.analytics.consentState,
+        post: (props) => bridge.post('client-error', { ...props }),
+        track: (props) => this.analytics.track('app_error', { ...props }),
+        flush: () => this.analytics.flush(),
+        context: () => ({ screen: this.screen, tier: this.tier, sim: SIM_VERSION }),
+      }),
+    );
     this.checkout = new CheckoutBridge(bridge, this.ent);
     this.checkout.onResult((sku, ok) => {
       notePurchase(ok);
@@ -239,6 +255,8 @@ export class App {
   // ------------------------------------------------------------------------------------------- host + meta
 
   private onHost(m: HostMessage): void {
+    // PUB-02: events tracked before the first hello were held; the host can take them now
+    if (m.type === 'hello') this.analytics.flush();
     if (m.type === 'pause' || m.type === 'resume') {
       this.session?.setPaused(m.type === 'pause');
       this.bridge.post('paused', { paused: m.type === 'pause' });
@@ -437,6 +455,9 @@ export class App {
       this.offerEl = null;
       this.overlay?.close();
       this.overlay = null;
+      // an unanswered stats prompt must not cover the pick or match controls; the next title view asks again
+      this.consentEl?.remove();
+      this.consentEl = null;
     }
   }
 
@@ -624,7 +645,10 @@ export class App {
       },
       onMute: (m) => this.setMuted(m),
       onError: (msg) => {
-        throw new Error(`sim: ${msg}`);
+        // Reported as a worker crash; the window listener then only shows the overlay for it.
+        const err = new Error(`sim: ${msg}`);
+        reportCrash('worker', err);
+        throw err;
       },
       onPaused: (paused) => this.bridge.post('paused', { paused }),
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
@@ -800,13 +824,14 @@ export class App {
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
           this.showPick();
         },
-        onShare: (url) => {
+        onShare: (url, text) => {
           try {
             void navigator.clipboard?.writeText(url).catch(() => undefined);
           } catch {
             /* no clipboard */
           }
-          this.bridge.post('share', { kind: 'dare', url });
+          // PUB-06: the dare line rides along, so the host's share sheet says "Beat my 7:12 vs Easy bots".
+          this.bridge.post('share', { kind: 'dare', url, text });
         },
         onStore: () => this.openStore('results'),
         onNotify: () => this.notify('results'),
@@ -936,7 +961,7 @@ export class App {
     if (this.overlay) return;
     const p = loadProfile();
     const el = settingsPanel(this.root, {
-      state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.consentState === 'granted' : null, skinFx: p.skinFx },
+      state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.live : null, skinFx: p.skinFx },
       onSkinFx: (m) => {
         const q = loadProfile();
         q.skinFx = m;
@@ -951,6 +976,7 @@ export class App {
         saveProfile(q);
       },
       onStats: (on) => this.analytics.setConsent(on),
+      termsUrl: this.termsUrl(),
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
@@ -961,8 +987,9 @@ export class App {
 
   private consentEl: HTMLElement | null = null;
   private maybeConsent(): void {
-    // The Token Tails page asks on its own (the key is shared); standalone, ask from the second session.
-    if (this.consentEl || this.bridge.active || !this.analytics.configured || this.analytics.consentState !== 'unset' || this.sessionNo < 2) return;
+    // Standalone only, from the second session, on the title screen (setScreen hides it). Embedded, the events go to
+    // the host and follow the site's policy (PUB-02), so the game never asks there.
+    if (this.consentEl || !askConsent({ configured: this.analytics.configured, consent: this.analytics.consentState, embedded: this.bridge.active, sessionNo: this.sessionNo })) return;
     this.consentEl = consentPrompt(this.root, (granted) => {
       this.analytics.setConsent(granted);
       this.consentEl = null;

@@ -30,6 +30,29 @@ export function pawlegendsPickerEnabled(
 export const PAWLEGENDS_GAME_URL = "/pawlegends-game/index.html";
 /** The iframe's src (POC.md §11.4). */
 export const PAWLEGENDS_FRAME_SRC = `${PAWLEGENDS_GAME_URL}?embed=1`;
+/**
+ * The shape of a dare code (`pawlegends/src/share/dare.ts` `encodeDare`: seed.hero.trick.difficulty.seconds, base 36
+ * where it says so). The game decodes and validates it fully; the host only refuses anything that is not that shape.
+ */
+const DARE_CODE = /^[0-9a-z]{1,7}\.[0-9]{1,2}\.[0-9]\.[0-2]\.[0-9a-z]{1,3}$/;
+/**
+ * The iframe's src for this page URL (launch finding PUB-03). A shared dare link points at the host page
+ * (`/pawlegends?dare=…`), but the game reads the dare from its own URL, so the host forwards a well-formed `dare`
+ * and nothing else. Without one it is `PAWLEGENDS_FRAME_SRC`.
+ */
+export function pawlegendsFrameSrc(search: string): string {
+  let dare: string | null = null;
+  try {
+    dare = new URLSearchParams(search).get("dare");
+  } catch {
+    return PAWLEGENDS_FRAME_SRC;
+  }
+  return dare && DARE_CODE.test(dare) ? `${PAWLEGENDS_FRAME_SRC}&dare=${dare}` : PAWLEGENDS_FRAME_SRC;
+}
 /** Where the exit button and the kill switch go. */
 export const PAWLEGENDS_EXIT_PATH = "/game";
 export const PAWLEGENDS_TERMS_PATH = "/pawlegends/terms";
+/** Token Tails privacy policy (same page as the site footer and `PRIVACY_URL` in the sign-in sheet). */
+export const PAWLEGENDS_PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
+/** Where players write for refunds, limits or to stop season news. */
+export const PAWLEGENDS_CONTACT = "info@tokentails.com";

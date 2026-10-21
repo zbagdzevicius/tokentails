@@ -7,12 +7,15 @@ import {
   createPawlegendsBridge,
   hostMessage,
   parsePawlegendsMessage,
+  PAWLEGENDS_GAME_EVENT_BUDGET,
   PAWLEGENDS_HELLO_RETRY_MS,
   PAWLEGENDS_HELLO_SLOW_MS,
   PAWLEGENDS_HELLO_TIMEOUT_MS,
   PAWLEGENDS_NS,
   replayOf,
+  shareTextOf,
   shareUrlOf,
+  PAWLEGENDS_SHARE_TEXT_MAX,
   type PawlegendsBridgeHandlers,
   type PawlegendsBridgeTimers,
 } from "@/components/pawlegends/bridge";
@@ -285,10 +288,78 @@ describe("pawlegends host messages", () => {
     expect(parsePawlegendsMessage(env("paused", { paused: "yes" }))).toBeNull();
   });
 
+  it("shareTextOf keeps one plain dare line and drops links, markup, control characters and long text (PUB-06)", () => {
+    expect(shareTextOf("Beat my 7:12 vs Easy bots in Pawlegends!")).toBe("Beat my 7:12 vs Easy bots in Pawlegends!");
+    expect(shareTextOf("  Win my match vs Hard bots in Pawlegends!  ")).toBe("Win my match vs Hard bots in Pawlegends!");
+    expect(shareTextOf("Play at https://evil.example")).toBeNull();
+    expect(shareTextOf("<b>hi</b>")).toBeNull();
+    expect(shareTextOf("two\nlines")).toBeNull();
+    expect(shareTextOf("x".repeat(PAWLEGENDS_SHARE_TEXT_MAX + 1))).toBeNull();
+    expect(shareTextOf("")).toBeNull();
+    expect(shareTextOf(42)).toBeNull();
+    expect(parsePawlegendsMessage({ ns: PAWLEGENDS_NS, v: 1, type: "share", kind: "dare", url: "/pawlegends", text: 5 })).toEqual({
+      type: "share",
+      kind: "dare",
+      url: "/pawlegends",
+      text: null,
+    });
+  });
+
   it("shareUrlOf keeps same-origin /pawlegends links only", () => {
     expect(shareUrlOf("/pawlegends?dare=abc", ORIGIN)).toBe(`${ORIGIN}/pawlegends?dare=abc`);
     expect(shareUrlOf("https://evil.example/pawlegends", ORIGIN)).toBeNull();
     expect(shareUrlOf("/game", ORIGIN)).toBeNull();
     expect(shareUrlOf("javascript:alert(1)", ORIGIN)).toBeNull();
+  });
+
+  it("client-error (R1): passes a clean crash code to onClientError and refuses anything with text a scrubber would need", () => {
+    const onClientError = jest.fn();
+    const h = harness({ onClientError });
+    const ok = { source: "worker", msg: "sim worker failed", screen: "match", tier: "high", sim: 10 };
+    h.fromGame(env("client-error", { ...ok, stack: "at https://x.example/a.js:1", token: "fbabc" }));
+    expect(onClientError).toHaveBeenCalledWith(ok);
+    for (const bad of [
+      { msg: "Cannot read 'x' of https://x.example/?uid=7" },
+      { msg: "a".repeat(81) },
+      { msg: "" },
+      { source: "network" },
+      { screen: "<b>" },
+      { tier: "x".repeat(17) },
+      { sim: 0 },
+      { sim: 1.5 },
+    ]) {
+      expect(parsePawlegendsMessage(env("client-error", { ...ok, ...bad }))).toBeNull();
+    }
+    expect(onClientError).toHaveBeenCalledTimes(1);
+  });
+
+  it("analytics (PUB-02): passes a known game event with clean flat props and refuses the rest", () => {
+    const onGameEvent = jest.fn();
+    const h = harness({ onGameEvent });
+    h.fromGame(
+      env("analytics", {
+        event: "match_end",
+        props: { hero: "brutus", length: 452, pl_rookie: false, url: "https://x.example/?uid=7", Bad: 1, email: "a@b.c", nan: NaN, deep: { a: 1 } },
+      })
+    );
+    expect(onGameEvent).toHaveBeenCalledWith("match_end", { hero: "brutus", length: 452, pl_rookie: false });
+    h.fromGame(env("analytics", { event: "quality_tier" }));
+    expect(onGameEvent).toHaveBeenLastCalledWith("quality_tier", {});
+    for (const bad of [
+      { event: "app_error", props: {} },
+      { event: "pawlegends_save", props: {} },
+      { event: "match_end", props: [] },
+      { event: "match_end", props: Object.fromEntries(Array.from({ length: 25 }, (_, i) => [`k${i}`, i])) },
+    ]) {
+      expect(parsePawlegendsMessage(env("analytics", bad))).toBeNull();
+    }
+    expect(onGameEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it("analytics (PUB-02): at most PAWLEGENDS_GAME_EVENT_BUDGET events a page", () => {
+    const onGameEvent = jest.fn();
+    const h = harness({ onGameEvent });
+    for (let i = 0; i < PAWLEGENDS_GAME_EVENT_BUDGET + 5; i++) h.fromGame(env("analytics", { event: "tip_done", props: { id: "move" } }));
+    expect(onGameEvent).toHaveBeenCalledTimes(PAWLEGENDS_GAME_EVENT_BUDGET);
   });
 });

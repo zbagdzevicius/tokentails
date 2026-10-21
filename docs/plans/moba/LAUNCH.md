@@ -164,7 +164,7 @@ calls ≤ 90 (the §6.9 fallback limit), heap ≤ 150 MB. Iris Xe laptop at 1280
    - Phones: `https://tokentails.com/pawlegends-game/index.html?quality=low&perf=1`
    - Iris Xe: `https://tokentails.com/pawlegends-game/index.html?quality=med&perf=1`, window at 1280×720
    - Before the deploy, use a Vercel preview URL with the same path.
-3. Play Normal. At the first big fight (usually the 5:00 Pudding fight, or a tower dive after 3:00 with siege on
+3. Play Normal. At the first big fight (usually the 2:30 Pudding fight, or a tower dive after 3:00 with siege on
    screen), hold the camera on it for 20 s. Read p95, draw calls and heap off the overlay. Do it twice; record the
    worse run.
 4. Record in `pawlegends/README.md`, "Device performance results": device, OS and browser version, tier, p95 frame,
@@ -178,7 +178,8 @@ overlay is not in the build, measure this way instead:
 - Pixel: `chrome://inspect` on the laptop → Inspect → Performance (record 20 s, frames) and Memory (heap).
 - Draw calls per tier do not depend on the device; take them from `npm run e2e -- tests/e2e/perf.spec.ts`
   (README "Automated" table) and say so in the row.
-- The game also sends `perf_sample {p95, tier}` to PostHog at the end of every match after consent; use those
+- The game also sends `perf_sample {p95, tier}` to PostHog at the end of every match (embedded through the host;
+  standalone after consent); use those
   numbers for the field view after launch, not for the gate.
 
 ### a.5 10-person playtest (Tue Nov 10)
@@ -243,42 +244,101 @@ client jobs.
 cd pawlegends && npx tsc --noEmit && npx vitest run && npm run lint:sim && npm run lift -- --check \
   && npm run build && npm run budget && npx playwright test --workers=2 && npm run vendor-sim:check \
   && npm run match -- --seeds 400 --balance --check-determinism && npm run determinism -- --seeds 200 \
-  && npm run build:client                         # writes client/public/pawlegends-game (commit it)
+  && VITE_PAWLEGENDS_POSTHOG_KEY=phc_… npm run build:client   # writes client/public/pawlegends-game (commit it)
 cd ../backend && npm run lint && npm run build && npm test
 cd ../client && npx tsc --noEmit && npx eslint . && npm test
 cd ../tools/copy-lint && node bin/copy-lint.mjs --target pawlegends,client,backend
 cd ../.. && node scripts/sync-contracts.mjs --check
 git status --short                                # only our paths; client/public/pawlegends-game included
+grep -l 'phc_' client/public/pawlegends-game/build/index-*.js   # prints the bundle when the standalone key is in
 ```
 
-Then push the branch and open the PR:
+**Two keys, two routes.** On `/pawlegends` (embedded, where the traffic lands) the game has no PostHog of its own:
+it relays every event over the bridge and the host sends it with `NEXT_PUBLIC_POSTHOG_KEY` (Vercel), so those rows need
+only the site key (launch finding PUB-02). The game key matters only for the standalone build:
+`VITE_PAWLEGENDS_POSTHOG_KEY` is inlined when `build:client` runs on your machine, and Vercel serves the committed
+`client/public/pawlegends-game/` as is, so a Vercel env var does nothing for it. Use the same public project key (a
+`phc_…` project key is public, it only writes events). Without it only standalone events are missing; the committed
+build has no key (on purpose: no dev or e2e traffic reaches the project).
+
+**Merge `main` into the branch first.** `main` moved on (Moon Rave and Bad Cat Daily cards, the blog rebuild), so
+the PR would conflict in the game picker, its tests, the sitemap and `next.config.js`. With everything committed:
+
+```bash
+git fetch origin && tools/merge-main/merge-main.sh   # merges origin/main, puts the checked resolutions in place, stops before the commit
+(cd client && npm install && npx tsc --noEmit && npx eslint . && npm test)
+git commit --no-edit
+```
+
+The script uses its saved resolutions only while both sides of a file are still the versions it was resolved
+from (origin/main bd21a299). Anything else it leaves conflicted and names. The picker then shows Moon Rave, Cupid Cat
+(in season), Purrsuit, Paw Match, Catnip Heist, Swordcat, Bad Cat Daily, Pawlegends. The sitemap keeps main's `/feed`
+rows and still leaves out `/pawlegends` and `/pawlegends/terms`. The script removes `tools/merge-main/` in the
+merge commit.
+
+Then push the branch and open the PR. Do not merge yet:
 
 ```bash
 git push -u origin feat/pawlegends
 gh pr create --base main --head feat/pawlegends --title "feat(pawlegends): Phase 1 POC" --body-file <notes.md>
 gh pr checks --watch                              # contracts, backend, client, copy-lint, bundle-guards green
-gh pr merge --merge                               # or fast-forward main, as for the Oct releases
 ```
+
+**Deploy order: backend first, then the page.** One push to `main` redeploys Vercel and the backend at the same
+time, and the PLAY picker card is on by default. Today's production backend has no `PAWLEGENDS` GameType and no
+`/pawlegends/*` routes. If Vercel finishes first, players see the card, `/pawlegends/status` and checkout return 404,
+and every save gets a plain 400 that the game marks `dropped` (never retried, so that match is lost). So the page
+stays closed until the backend is live:
+
+1. **Before the merge, close the page on Vercel.** Project → Settings → Environment Variables → Production:
+   `NEXT_PUBLIC_PAWLEGENDS=0` (or `cd client && vercel env add NEXT_PUBLIC_PAWLEGENDS production`, value `0`). The
+   build that the merge starts inlines it, so `/pawlegends` sends players to `/game` and the picker card is hidden
+   (the card is off whenever the page is off, `client/components/pawlegends/flags.ts`).
+2. **Merge:** `gh pr merge --merge` (or fast-forward `main`, as for the Oct releases).
+3. **Wait for the backend deploy to finish**, then check it serves the v10 sim:
+
+```bash
+curl -s https://api.tokentails.com/pawlegends/sim | jq '{simVersion, simVersions, placeholder}'
+#   expect {"simVersion": 10, "simVersions": [9, 10], "placeholder": false}
+cd pawlegends && npm run vendor-sim:check-remote -- https://api.tokentails.com   # backend sim = game sim
+curl -s https://api.tokentails.com/pawlegends/status | jq '{store, email, termsVersion}'   # 200, not 404
+```
+
+   If any of these fails, the page stays closed: fix forward (below) and repeat step 3. Do not reopen the page.
+4. **Open the page:** delete `NEXT_PUBLIC_PAWLEGENDS` from the Production env (`vercel env rm NEXT_PUBLIC_PAWLEGENDS
+   production`; unset means on), then redeploy the latest production deployment (Deployments → ⋯ → Redeploy, or
+   `cd client && vercel --prod`). `NEXT_PUBLIC_*` values are inlined at build, so it takes the redeploy.
 
 What deploys on the push to `main`:
 
 - **Client:** Vercel builds `client/` and serves `/pawlegends`, `/pawlegends/terms` and the committed
   `client/public/pawlegends-game/`. `NEXT_PUBLIC_*` values are inlined at build, so an env change needs a redeploy.
-- **Backend:** redeploys itself from `main`. Deploy order matters for the vendored sim (BACKEND.md: "Deploy the
-  backend before a client build with a new sim"). After both are live, check:
+  The static build under `/pawlegends-game/` is served even while the page is closed; nothing links to it then.
+- **Backend:** redeploys itself from `main`. It must be live before the page opens (BACKEND.md: "Deploy the backend
+  before a client build with a new sim"; GAPS.md §3 Wave B step 4). Steps 1 to 4 above enforce that order.
 
-```bash
-curl -s https://api.tokentails.com/pawlegends/status | jq '{store, email, termsVersion}'
-cd pawlegends && npm run vendor-sim:check-remote -- https://api.tokentails.com   # backend sim = game sim
-```
+After step 4, play one match on `https://tokentails.com/pawlegends` signed in and confirm the save (the results save
+chip says "Saved to your account"; saves go only through `POST /user/catbassadors/live`).
 
-Then play one match on `https://tokentails.com/pawlegends` signed in and confirm the save (the results save chip
-says "Saved to your account"; saves go only through `POST /user/catbassadors/live`).
+Then check that game events arrive (before Nov 12; LAUNCH b.1 reads them). In a private window open
+`https://tokentails.com/pawlegends` and finish one match (embedded there is no stats prompt). Within a minute PostHog →
+Activity shows `title_view`, `match_start` and `match_end` from that session with `embed = true` (filter `human =
+true`), next to the host's `pawlegends_open` under the same anonymous id. No game events but a `pawlegends_open` means
+the frame's `analytics` messages are not arriving (browser console: the game must be the committed build of this
+change); no events at all means `NEXT_PUBLIC_POSTHOG_KEY` is unset on Vercel or the capture call is blocked
+(`eu.i.posthog.com`).
 
 **Rollback = fix forward.** Never revert. If production breaks: fix on a branch, run the checks above, push to `main`.
+Fix-forward triggers (any one): the page or checkout errors; `vendor-sim:check-remote` fails; the PostHog alert
+"Pawlegends rejected or failed saves" fires (a.8 step 4: over 5% of `pawlegends_save` in an hour are `rejected` or
+`failed`); or the backend logs a run of `pawlegends save rejected` lines with `code=PAWLEGENDS_OUTCOME_MISMATCH`, a
+hash mismatch or `code=PAWLEGENDS_SIM_VERSION` (sim drift: every save of that build is lost until the fix is live).
 While the fix is on its way: `NEXT_PUBLIC_PAWLEGENDS=0` on Vercel plus a redeploy closes the page (the one kill
-switch, it sends players to `/game`); removing `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` on the backend stops new checkouts
-(503, the store button hides, the game still plays). Put both back once the fix is live.
+switch, it sends players to `/game` and hides the picker card); removing `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` on the
+backend stops new checkouts (503, the store button hides, the game still plays). If the fix touches the backend or
+the sim, the same order applies as on launch day: keep the page closed until the backend fix is live and step 3
+passes, then put the flag back to unset and redeploy Vercel (step 4). Put the webhook secret back once the fix is
+live.
 
 ### a.7 Stripe live mode switch (Wed Nov 11, after a.2 and a.3)
 
@@ -302,11 +362,46 @@ production with the GDD §8.3 text; trademark search passed (a.1).
 
 ### a.8 Launch day (Thu Nov 12)
 
-1. Remove `noindex` from `client/pages/pawlegends/index.tsx` (`<SeoHead … noindex />`) once a.1 passed; push to `main`.
+1. Once a.1 passed, in one commit (launch finding PUB-08): remove `noindex` from `client/pages/pawlegends/index.tsx`
+   (`<SeoHead … noindex />`) and remove `'/pawlegends'` from the `exclude` list in `client/next-sitemap.config.js`, so
+   the page is in the sitemap the moment it can be indexed. `'/pawlegends/terms'` stays excluded (its page stays
+   `noindex`). Then flip the two guards in `client/__test__/pawlegends-host.test.tsx` (`noindex: true` and the sitemap
+   check), run `npm test` in `client/`, and push to `main`. Ready diff:
+
+   ```diff
+   --- a/client/pages/pawlegends/index.tsx
+   -      <SeoHead {...PAWLEGENDS_SEO} noindex />
+   +      <SeoHead {...PAWLEGENDS_SEO} />
+   --- a/client/next-sitemap.config.js
+   -    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/pawlegends', '/pawlegends/terms'],
+   +    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/pawlegends/terms'],
+   ```
 2. 16:00 UTC (18:00 Vilnius, 11:00 New York): X thread, Reddit posts, email to the opted-in Token Tails list
    (copy in §c).
 3. Start tranche 1 (§b.2).
-4. Check the PostHog dashboard at 20:00 UTC and on Fri morning: `match_end` from human sessions, errors, `perf_sample`.
+4. Check the PostHog dashboard at 20:00 UTC and on Fri morning: `match_end` from human sessions, errors, `perf_sample`,
+   and the **`pawlegends_save` rejected/failed ratio** (rejected + failed over all `pawlegends_save` events; `saving`
+   is never sent). Break it down by `code`: `PAWLEGENDS_OUTCOME_MISMATCH`, `PAWLEGENDS_HASH_MISMATCH` or
+   `PAWLEGENDS_SIM_VERSION` mean the game and backend sims drifted apart (fix forward, a.6); `httpStatus` 429 or 503
+   is load on the replay worker. The backend side is the `PawlegendsLive` log (`pawlegends save rejected: code=…
+   simVersion=… difficulty=…`, docs/BACKEND.md) in the DigitalOcean runtime logs.
+
+   Set up the alert once, before step 2: PostHog → new Trends insight "Pawlegends rejected or failed saves", series
+   A = `pawlegends_save` where `status` is `rejected` or `failed`, series B = `pawlegends_save` (all), formula
+   `A / B * 100`, interval hour; save it, then Alerts → New alert: value above 5, check hourly, notify your email.
+   Host events wait for no prompt, so the ratio covers every signed-in save. With fewer than
+   ~20 saves an hour one bad save trips it: read the count before acting.
+
+   **Errors** (launch finding R1) are one event, `app_error`, on the same dashboard: PostHog → new Trends insight
+   "Pawlegends crashes", series `app_error` where `code` starts with `pawlegends_` (a game crash the iframe sent to the
+   host: `pawlegends_window`, `pawlegends_rejection`, `pawlegends_worker`; context `screen`, `tier`, `sim`) plus
+   `app_error` where `$lib` = `pawlegends` (the game opened on its own, not embedded), broken down by `code` and
+   `message`; plus a second series `pawlegends_bridge_timeout` (the frame never answered in 120 s, the "taking too long
+   to load" panel; `reloads` = Reload presses before it). Host-page crashes are `app_error` with other codes
+   (`window_error`, `unhandled_rejection`). Messages are cut to lower-case `[a-z0-9_ ]`, at most 80 characters, no
+   stack or URL; the host sends at most 5 a session and one per code, the game at most 5 a page, none after the
+   player turned stats off in the game's Settings. Pin the insight; a run of `pawlegends_worker` after a deploy is a fix-forward
+   trigger (a.6), like the save alert. This is the "crashes" check of the week-1 row in §b.2.
 
 ---
 
@@ -316,6 +411,17 @@ production with the GDD §8.3 text; trademark search passed (a.1).
 
 All metrics count **human sessions only**: at least 20 real pointer, touch or key events, a match of at least 60 s
 and a non-headless user agent (`analytics/human.ts`).
+
+**Consent (launch finding PUB-02, Oct 21: the game follows the site's policy; legal and product call stays yours).**
+tokentails.com removed its consent card on Oct 16 and now sends analytics for everyone. Embedded on /pawlegends the
+game shows no prompt: it relays its events over the bridge (`analytics {event, props}`) and the host sends them with
+its own `analytics.track`, under the site's key and anonymous id, so game rows and host rows (`pawlegends_open`,
+`pawlegends_save`) join on one id. Relayed rows carry `embed = true`; the host drops any unknown event or a prop that is
+not a number, boolean or short token string, and sends at most 1,000 a page. The game's Settings row "Share anonymous
+play stats" still turns it off for that player. Standalone (the bare game URL) keeps the old rule: its own PostHog
+call, after a yes to the prompt from the second session. So the rows below cover every embedded human player; the
+other options were (a) the game's own prompt embedded too (a small, self-selected sample) or (c) gate metrics from
+host events and the backend only.
 
 | Metric | Target | PostHog source |
 |---|---|---|
@@ -361,7 +467,7 @@ Australia; interests cats, dogs, mobile games, MOBA. Landing URL with UTM per ch
 | Week | Dates | Spend | Work | Decision at the end |
 |---|---|---|---|---|
 | 0 | Nov 9 to 11 | €0 | Cut 6 clips of 15 to 25 s from real matches (teamfight, parry, Pudding race, bush ambush, tether arena, dare result); write to 20 creators with the §c.4 brief; email draft ready; PostHog dashboard with every b.1 metric | – |
-| 1 | Thu Nov 12 to Wed Nov 18 | **€500**: paid €350 (≈ €115 each on TikTok, Reels, Shorts, 2 clips each), creators €150 (first 6) | Launch posts, email, Reddit, itch page; check comments and crashes daily | Cost per finisher = paid and creator spend ÷ human finishers in the week (email and organic finishers counted apart). **< €4: release tranche 2.** ≥ €4: no more paid spend; email and organic only; swap clips once and retest with the €0 left |
+| 1 | Thu Nov 12 to Wed Nov 18 | **€500**: paid €350 (≈ €115 each on TikTok, Reels, Shorts, 2 clips each), creators €150 (first 6) | Launch posts, email, Reddit, itch page; check comments and crashes daily (the "Pawlegends crashes" insight, a.8 step 4) | Cost per finisher = paid and creator spend ÷ human finishers in the week (email and organic finishers counted apart). **< €4: release tranche 2.** ≥ €4: no more paid spend; email and organic only; swap clips once and retest with the €0 left |
 | 2 | Nov 19 to 25 | tranche 2 part 1: paid €350 on the best 1 or 2 channels, creators €175 (7) | First tuning pass from week-1 data (length, bots, controls) | Cost per finisher still < €4? Keep going. Else stop paid spend |
 | 3 | Nov 26 to Dec 2 | tranche 2 part 2: paid €300, creators €175 (7) | Second tuning pass if fun or length gates miss | – |
 | 4 | Dec 3 to 10 | €0 new spend | Measure only; Dec 10 read every b.1 gate | Phase 2 go, pause or stop (b.1) |
@@ -407,15 +513,17 @@ shelter, impact or money words), the store block as a store file (prices allowed
 
 <!-- copy:game -->
 ```text
-Pawlegends is out. Cats vs dogs, 3v3, right in your browser. Seven-minute matches, four heroes, no download, no account. Pick Clem, Sage, Sir Brutus or Cacklejaw and pop the Bone Throne. tokentails.com/pawlegends
+Pawlegends is out. Cats vs dogs, 3v3, right in your browser. Seven-minute matches, eight heroes, no download, no account. Pick a hero and pop the Bone Throne. tokentails.com/pawlegends
 
-On a laptop: right-click to move, QWER to cast. On a phone: joystick and drag-to-aim, in landscape. You play with two bot allies against three bots, at Easy or Normal.
+Eight heroes, all free to play: Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Avietė, Bengas and Gabė. Fighter, marksman, tanks, assassins, a mage and a support.
+
+On a laptop: right-click to move, QWER to cast. On a phone: joystick and drag-to-aim, in landscape. You play with two bot allies against three bots: Rookie bots in your first match, then Easy, Normal or Hard.
 
 Every finished match makes a dare link: same map seed, same picks, same bots. "Beat my [time] vs Easy bots." Your move.
 
 Own Token Tails cats? Sign in and they join your matches as element colours, tier frames and up to two Companion Kittens marching in your wave. Looks only, no stats.
 
-Founder packs are open in the store: a Founder coat for all four heroes now, more heroes and the Season 1 Legends Pass when Season 1 launches. Founder Legend is capped at 500 seats.
+Founder packs are open in the store: a Founder coat for Clem, Sage, Sir Brutus and Cacklejaw now, more heroes and the Season 1 Legends Pass when Season 1 launches. Founder Legend is capped at 500 seats.
 ```
 
 Single posts for the following days (one a day, each with a clip):
@@ -424,13 +532,13 @@ Single posts for the following days (one a day, each with a clip):
 ```text
 Clem holds The Stand and the shot flies straight back. Purrfect. [clip] Cats vs dogs in your browser: tokentails.com/pawlegends
 
-5:00 on the clock. Pudding, a giant dragon scared of everything, wakes up in the river. Calm him first and he escorts your next wave. [clip]
+2:30 on the clock. Pudding, a giant dragon scared of everything, wakes up in the river. Calm him first and he escorts your next wave. [clip]
 
 Cacklejaw slinks into the catnip bush. Nobody sees him. Then Pack Hunt. [clip] tokentails.com/pawlegends
 
 Sir Brutus throws down Champion's Challenge: a ring, two heroes, no way out for three seconds. [clip]
 
-Team Cat or Team Dog? Any of the four heroes fits on your team. Eight minutes, no download. tokentails.com/pawlegends
+Team Cat or Team Dog? Eight heroes to pick from. Seven-minute matches, no download. tokentails.com/pawlegends
 ```
 
 ### c.2 Reddit
@@ -441,11 +549,11 @@ r/WebGames (read the sidebar first; post once, answer every comment for the firs
 ```text
 Pawlegends: a cats vs dogs 3v3 MOBA that runs in a browser tab (seven-minute matches vs bots, laptop and phone)
 
-Hi r/WebGames. We made a small MOBA where cats and dogs settle their disputes on a neutral crossing: two lanes, towers, a rat camp and Pudding, a giant dragon who is scared of everything. You pick one of four heroes and play with two bot allies against three bots. No download, no account.
+Hi r/WebGames. We made a small MOBA where cats and dogs settle their disputes on a neutral crossing: two lanes, towers, a rat camp and Pudding, a giant dragon who is scared of everything. You pick one of eight heroes and play with two bot allies against three bots. No download, no account.
 
 Laptop: right-click to move, QWER to cast. Phone: landscape, joystick and drag-to-aim.
 
-Two things we would love feedback on: does the first match make sense without a tutorial, and is eight minutes the right length? There is a cosmetic store; nothing in it changes stats.
+Two things we would love feedback on: does the first match make sense without a tutorial, and is seven minutes the right length? There is a cosmetic store; nothing in it changes stats.
 
 tokentails.com/pawlegends
 ```
@@ -456,9 +564,9 @@ r/MobaGames (only if its rules allow self-posts about your own game; otherwise s
 ```text
 We built a 3v3 MOBA for the browser with talents instead of items. Looking for design feedback.
 
-Pawlegends is cats vs dogs on a two-lane map. No gold and no items: you pick a talent at levels 3, 6 and 9. Matches are built to end in about eight minutes: at 8:00 Sunset makes towers and cores take 40% more damage, at 10:00 Sudden Death drains both cores, and 11:00 is a hard end. Towers take half damage from heroes when none of your minions is near (backdoor protection).
+Pawlegends is cats vs dogs on a two-lane map. No gold and no items: you pick a talent at levels 3, 6 and 9. Matches are built to end in about seven minutes: on Normal and Hard, Sunset at 6:00 makes towers and cores take double damage and lets each takedown chip the victim's core, Sudden Death at 7:45 drains both cores, and 11:00 is a hard end (Easy runs a little faster: Sunset 5:00, Sudden Death 7:00). Towers take half damage from heroes when none of your minions is near (backdoor protection).
 
-Four heroes in this first build: Clem (fighter, a parry that sends shots back), Sage (marksman, a map-long Moonshot), Sir Brutus (tank, a tether ring) and Cacklejaw (assassin, stealth in the bushes). Bots only for now, at Easy and Normal.
+Eight heroes in this first build: Clem (fighter, a parry that sends shots back), Sage (marksman, a map-long Moonshot), Sir Brutus (tank, a tether ring), Cacklejaw (assassin, stealth in the bushes), Lambo (tank, a pull that ties enemy heroes up), Avietė (assassin, a blink you can recast to blink back), Bengas (mage, a burning stage that slows) and Gabė (support, a charm that walks enemies to her). Bots only for now: Rookie in the first match, then Easy, Normal or Hard.
 
 What would you change first? tokentails.com/pawlegends
 ```
@@ -472,11 +580,11 @@ that the standalone build (no host page) shows no store button.
 ```text
 Pawlegends
 
-Cats vs dogs 3v3 battles. Seven-minute matches, four heroes, play with bots in your browser.
+Cats vs dogs 3v3 battles. Seven-minute matches, eight heroes, play with bots in your browser.
 
 The Truce Games have begun. Cats and dogs no longer fight over the best sunbeam: they settle it on the Crossing, three heroes a side. Push your lane, take the rat camp, calm Pudding before the other team does, and knock over the Bone Throne.
 
-Features: four heroes with their own abilities and talents (Clem, Sage, Sir Brutus, Cacklejaw). Two lanes, towers, a jungle camp and a giant neutral dragon. Matches end by 11:00 at the latest. Paw Tricks: Pounce, Snack Break or Hiss. Easy and Normal bots. Dare links to send a friend the exact same match. Plays on laptops and on phones in landscape.
+Features: eight heroes with their own abilities and talents (Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Avietė, Bengas, Gabė), all free to play. Two lanes, towers, a jungle camp and a giant neutral dragon. Matches end by 11:00 at the latest. Paw Tricks: Pounce, Snack Break, Hiss or Purr-ify. Rookie bots for your first match, then Easy, Normal or Hard. Dare links to send a friend the exact same match. Plays on laptops and on phones in landscape.
 
 Controls (laptop): right-click to move and attack, A then left-click to attack-move, Q W E R abilities, D Paw Trick, B nap back to base, Space centres the camera, Tab scoreboard.
 
@@ -493,7 +601,7 @@ Clip A, teamfight. On screen 0 to 2 s: "cats vs dogs, but it's a MOBA". 2 to 13 
 
 Clip B, parry. On screen: "he sent it back". Clem's Stand sends the shot back, "Purrfect!" pops. Caption: Timing is everything. #moba #gaming #cats
 
-Clip C, Pudding race. On screen: "5:00. The dragon wakes up." Both teams race to calm Pudding. Caption: Calm the dragon, win the lane. #moba #indiegame
+Clip C, Pudding race. On screen: "2:30. The dragon wakes up." Both teams race to calm Pudding. Caption: Calm the dragon, win the lane. #moba #indiegame
 
 Clip D, bush ambush. On screen: "where did he go". Cacklejaw stealth, then Pack Hunt. Caption: Never trust a quiet bush. #moba #dogs
 
@@ -506,7 +614,7 @@ Email to the opted-in Token Tails list (Thu Nov 12):
 ```text
 Subject: Your cats just joined a cats vs dogs battle
 
-Pawlegends is live on Token Tails: three heroes a side, cats vs dogs, about eight minutes a match, right in your browser.
+Pawlegends is live on Token Tails: three heroes a side, cats vs dogs, about seven minutes a match, right in your browser.
 
 Sign in and your own cats come along: their element colours on your hero, their tier frames, and up to two of them marching in your wave as Companion Kittens. Looks only, no stats.
 
@@ -539,13 +647,15 @@ Ask a parent or guardian to buy this on their own device.
 
 ### c.6 Copy-lint result
 
-Run 2026-10-17 on this file's `copy:game` and `copy:store` blocks (each paragraph one string, linted with
+Run 2026-10-21 (after launch finding PUB-07 rewrote c.1 to c.4 against the v10 data: 8 heroes, Rookie/Easy/Normal/Hard
+bots, Pudding at 2:30, Sunset 6:00 and Sudden Death 7:45 on Normal and Hard (5:00 and 7:00 on Easy), and one length
+phrase, "seven minutes", from the 2,000-seed balance gate median of 7:01) on this file's `copy:game` and `copy:store` blocks (each paragraph one string, linted with
 `lintSource` from `tools/copy-lint/lib/lint.mjs`, target `pawlegends`; game blocks as `pawlegends/src/launch-copy.ts`,
 store block as `pawlegends/src/money/launch-copy.ts`). A negative control in the same harness (a game string with a
 price, "shelter", "tokens" and "wallet") came back with R13, R2, R9 and R10, so the harness does flag bad copy.
 
 ```
-game: 35 strings, 0 finding(s)
+game: 36 strings, 0 finding(s)
 store: 8 strings, 0 finding(s)
 copy-lint (pawlegends target, lintSource): 0 finding(s)
 ```

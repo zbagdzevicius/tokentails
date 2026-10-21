@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, HttpException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, ServiceUnavailableException } from '@nestjs/common';
 import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -371,6 +371,73 @@ describe('PAWLEGENDS /live branch', () => {
             savePawlegendsMatch({ users: controller.repository, games: controller.gameRepository }, 'u', {})
         ).rejects.toBeInstanceOf(BadRequestException);
         expect(controller.gameRepository.rows).toHaveLength(0);
+    });
+
+    it('logs every save that does not write: code, simVersion and difficulty, never the user (LAUNCH a.8)', async () => {
+        const record = genuine();
+        const { deps, userId, save } = setup(record);
+        const logger = { warn: jest.fn(), log: jest.fn() };
+        (deps as any).logger = logger;
+        const lines = () => [...logger.warn.mock.calls, ...logger.log.mock.calls].map(([line]) => String(line));
+
+        await save(record);
+        expect(lines()).toEqual([]);
+
+        expect((await codeOf(save(record)))?.status).toBe(409);
+        expect(logger.log).toHaveBeenLastCalledWith(
+            `pawlegends save duplicate: code=PAWLEGENDS_DUPLICATE simVersion=${SIM_VERSION} difficulty=easy`
+        );
+
+        const forged = genuine({ finalHash: 'deadbeef' });
+        expect((await codeOf(save(forged)))?.code).toBe('PAWLEGENDS_HASH_MISMATCH');
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            `pawlegends save rejected: code=PAWLEGENDS_HASH_MISMATCH simVersion=${SIM_VERSION} difficulty=easy`
+        );
+        // The same record again: refused from the failure cache, still logged (marked cached).
+        await codeOf(save(forged));
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            expect.stringMatching(/rejected: code=PAWLEGENDS_HASH_MISMATCH .* cached$/)
+        );
+
+        // A sim that answers ok with a different result: OUTCOME_MISMATCH, the sim-drift signal.
+        (deps as any).verify = async () => ({ ok: true, outcome: 'lost', finalHash: 'x', ticks: 1, stats: [] });
+        expect((await codeOf(save(genuine({ seed: 7, difficulty: 'hard' }))))?.code).toBe(
+            ErrorCode.PAWLEGENDS_OUTCOME_MISMATCH
+        );
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            `pawlegends save rejected: code=PAWLEGENDS_OUTCOME_MISMATCH simVersion=${SIM_VERSION} difficulty=hard`
+        );
+
+        expect((await codeOf(save(genuine({ simVersion: 99 }))))?.code).toBe(ErrorCode.PAWLEGENDS_SIM_VERSION);
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            'pawlegends save rejected: code=PAWLEGENDS_SIM_VERSION simVersion=99 difficulty=easy'
+        );
+        // A difficulty outside the levels is never echoed into the log.
+        await codeOf(save(genuine({ difficulty: 'x'.repeat(40) as any })));
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            `pawlegends save rejected: code=PAWLEGENDS_REPLAY_INVALID simVersion=${SIM_VERSION} difficulty=unknown`
+        );
+
+        // A full queue (429) and a stopped worker (503) are warnings too, and still thrown.
+        (deps as any).queue = {
+            runAsync: () => {
+                throw new ReplayQueueFullException(3);
+            },
+        };
+        expect((await codeOf(save(genuine({ seed: 8 }))))?.status).toBe(429);
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            `pawlegends save queue-full: code=HTTP_429 simVersion=${SIM_VERSION} difficulty=easy`
+        );
+        (deps as any).queue = new ReplayQueue(PAWLEGENDS_REPLAY_QUEUE);
+        (deps as any).verify = async () => {
+            throw new ServiceUnavailableException('Replay check timed out');
+        };
+        expect((await codeOf(save(genuine({ seed: 9 }))))?.status).toBe(503);
+        expect(logger.warn).toHaveBeenLastCalledWith(
+            `pawlegends save unavailable: code=HTTP_503 simVersion=${SIM_VERSION} difficulty=easy`
+        );
+
+        expect(lines().some(line => line.includes(userId))).toBe(false);
     });
 
     it('a parallel duplicate loses on the replayDigest index with 409', async () => {

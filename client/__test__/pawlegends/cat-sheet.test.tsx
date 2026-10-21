@@ -84,7 +84,13 @@ describe("PawlegendsCatSheet", () => {
     expect(screen.getByRole("dialog", { name: "Meet Pumpkin" })).toBeTruthy();
     // The copy the checkout grants is the Common tier, whatever the catalog cat's tier.
     expect(screen.getByTestId("mini-card").textContent).toBe("Pumpkin COMMON");
-    expect(screen.getByTestId("pawlegends-cat-perks").textContent).toMatch(/squad/);
+    // The perks match what the game grants (rosterCosmetics): Companion Kitten, element chroma, card skin. No item
+    // the game does not deliver (the old "Rescue coat" line).
+    const perks = screen.getByTestId("pawlegends-cat-perks").textContent;
+    expect(perks).toMatch(/Companion Kitten/);
+    expect(perks).toMatch(/chroma for every hero/);
+    expect(perks).toMatch(/card skin for every hero/);
+    expect(perks).not.toMatch(/rescue|coat|trail/i);
     expect(document.body.textContent).not.toMatch(/pack|legendary|rare|epic|random|odds/i);
     expect(document.querySelector("a[href*='pack'], a[href*='/cats/']")).toBeNull();
   });

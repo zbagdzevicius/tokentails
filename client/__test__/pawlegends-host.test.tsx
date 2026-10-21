@@ -9,12 +9,18 @@
  * fresh roster), notify-me, audio volumes, app builds (no checkout, no featured, starter and redeemed cats only),
  * and the legacy `pl_*` token and returns.
  */
+import { readFileSync } from "fs";
+import { join } from "path";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 const mockTrack = jest.fn();
-jest.mock("@/analytics", () => ({ analytics: { track: (e: unknown) => mockTrack(e) } }));
+const mockReportAppError = jest.fn((...args: unknown[]) => args.length > 0);
+jest.mock("@/analytics", () => ({
+  analytics: { track: (e: unknown) => mockTrack(e) },
+  reportAppError: (...args: unknown[]) => mockReportAppError(...args),
+}));
 const mockAuth = jest.fn((): unknown => undefined);
 jest.mock("@/context/FirebaseAuthContext", () => ({
   useOptionalFirebaseAuth: () => mockAuth(),
@@ -93,9 +99,9 @@ jest.mock("@/components/ui/modal", () => ({
 }));
 
 import { PawlegendsHost, PAWLEGENDS_FRAME_TESTID, PAWLEGENDS_PENDING_KEY } from "@/components/pawlegends/PawlegendsHost";
-import PawlegendsPage from "@/pages/pawlegends";
+import PawlegendsPage, { PAWLEGENDS_SEO } from "@/pages/pawlegends";
 import PawlegendsTermsPage from "@/pages/pawlegends/terms";
-import { PAWLEGENDS_NS } from "@/components/pawlegends/bridge";
+import { PAWLEGENDS_HELLO_TIMEOUT_MS, PAWLEGENDS_NS } from "@/components/pawlegends/bridge";
 import {
   PAWLEGENDS_SESSIONS_KEY,
   PAWLEGENDS_TOKEN_KEY,
@@ -239,6 +245,51 @@ describe("/pawlegends page", () => {
     expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/pawlegends", noindex: true }));
   });
 
+  it("keeps noindex and the sitemap exclusion in step, and one length phrase in both metas (PUB-08)", () => {
+    // LAUNCH.md a.8 step 1 lifts both together: flip `noindex: true` above and this exclusion in the same commit.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const sitemap = require("../next-sitemap.config.js");
+    expect(sitemap.exclude).toEqual(expect.arrayContaining(["/pawlegends", "/pawlegends/terms"]));
+    expect(PAWLEGENDS_SEO.description).toContain("Seven-minute matches");
+    for (const file of ["../public/pawlegends-game/index.html", "../../pawlegends/index.html"]) {
+      const html = readFileSync(join(__dirname, file), "utf8");
+      expect(html).toContain("Seven-minute matches.");
+    }
+  });
+
+  it("passes the 1200 x 630 Pawlegends share card, not the generic Token Tails one (PUB-06)", () => {
+    render(<PawlegendsPage />);
+    expect(seoProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: expect.objectContaining({ url: "/pawlegends/og.jpg", width: 1200, height: 630, alt: expect.any(String) }),
+      })
+    );
+    const jpg = readFileSync(join(__dirname, "../public/pawlegends/og.jpg"));
+    expect([jpg[0], jpg[1]]).toEqual([0xff, 0xd8]);
+  });
+
+  it("forwards a dare link to the game frame, so the friend lands on the dared match (PUB-03)", async () => {
+    window.history.replaceState(null, "", "/pawlegends?dare=9ix.0.0.1.c0&from=x");
+    try {
+      render(<PawlegendsPage />);
+      await settle();
+      expect(screen.getByTestId(PAWLEGENDS_FRAME_TESTID).getAttribute("src")).toBe("/pawlegends-game/index.html?embed=1&dare=9ix.0.0.1.c0");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("drops a malformed dare and keeps the plain frame (PUB-03)", async () => {
+    window.history.replaceState(null, "", "/pawlegends?dare=%22%3E%3Cscript%3E");
+    try {
+      render(<PawlegendsPage />);
+      await settle();
+      expect(screen.getByTestId(PAWLEGENDS_FRAME_TESTID).getAttribute("src")).toBe("/pawlegends-game/index.html?embed=1");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("the kill switch sends players to /game", () => {
     process.env.NEXT_PUBLIC_PAWLEGENDS = "0";
     const { container } = render(<PawlegendsPage />);
@@ -280,6 +331,66 @@ describe("PawlegendsHost: shell", () => {
   it("sends the shell's mute and both volumes", async () => {
     const h = await mount();
     expect(h.last("audio")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "audio", muted: false, music: 0.4, sfx: 0.6 });
+  });
+
+  it("tracks pawlegends_bridge_timeout when the game never answers hello, then shows the timeout panel (R1)", () => {
+    jest.useFakeTimers();
+    try {
+      mockTrack.mockClear();
+      render(<PawlegendsHost api={fakeApi()} navigate={jest.fn()} isApp={false} loadStorefront={jest.fn(async () => null)} pollMs={0} />);
+      act(() => {
+        jest.advanceTimersByTime(PAWLEGENDS_HELLO_TIMEOUT_MS + 3_000);
+      });
+      const timeouts = mockTrack.mock.calls.filter(([e]) => (e as { name: string }).name === "pawlegends_bridge_timeout");
+      expect(timeouts).toEqual([[{ name: "pawlegends_bridge_timeout", properties: { waitedMs: PAWLEGENDS_HELLO_TIMEOUT_MS, reloads: 0 } }]]);
+      expect(screen.getByTestId("pawlegends-timeout")).toBeTruthy();
+    } finally {
+      cleanup();
+      jest.useRealTimers();
+    }
+  });
+
+  it("hands the dare line to the share sheet with the link (PUB-06); an older build's share sends no text", async () => {
+    const share = jest.fn(async () => undefined);
+    Object.defineProperty(window.navigator, "share", { value: share, configurable: true });
+    try {
+      const h = await mount();
+      h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix", text: "Beat my 7:12 vs Easy bots in Pawlegends!" });
+      expect(share).toHaveBeenLastCalledWith({
+        url: `${window.location.origin}/pawlegends?dare=9ix`,
+        title: PAWLEGENDS_TITLE,
+        text: "Beat my 7:12 vs Easy bots in Pawlegends!",
+      });
+      h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix" });
+      expect(share).toHaveBeenLastCalledWith({ url: `${window.location.origin}/pawlegends?dare=9ix`, title: PAWLEGENDS_TITLE });
+      h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix", text: "Win at https://evil.example" });
+      expect(share).toHaveBeenLastCalledWith({ url: `${window.location.origin}/pawlegends?dare=9ix`, title: PAWLEGENDS_TITLE });
+    } finally {
+      delete (window.navigator as { share?: unknown }).share;
+    }
+  });
+
+  it("reports a game crash as a scrubbed app_error through the host reporter (R1)", async () => {
+    mockReportAppError.mockClear();
+    const h = await mount();
+    h.fromGame({ type: "client-error", source: "worker", msg: "sim worker failed", screen: "match", tier: "low", sim: 10 });
+    h.fromGame({ type: "client-error", source: "window", msg: "Has https://x.example", screen: "match", tier: "low", sim: 10 });
+    expect(mockReportAppError).toHaveBeenCalledTimes(1);
+    expect(mockReportAppError).toHaveBeenCalledWith("pawlegends_worker", "sim worker failed", {
+      source: "worker",
+      game: "pawlegends",
+      screen: "match",
+      tier: "low",
+      sim: 10,
+    });
+  });
+
+  it("sends the game's relayed events with the host's analytics (PUB-02)", async () => {
+    const h = await mount();
+    mockTrack.mockClear();
+    h.fromGame({ type: "analytics", event: "match_end", props: { hero: "brutus", length: 452, embed: true, link: "https://x.example" } });
+    h.fromGame({ type: "analytics", event: "app_error", props: { msg: "x" } });
+    expect(mockTrack.mock.calls).toEqual([[{ name: "match_end", properties: { hero: "brutus", length: 452, embed: true } }]]);
   });
 
   it("answers a deprecated purchase-intent with the legacy refusal and opens nothing", async () => {
@@ -334,7 +445,10 @@ describe("PawlegendsHost: account and saves", () => {
     h.fromGame({ type: "match-result", replay: REPLAY, summary: { takedowns: 3 }, matchId: "m7k2x9" });
     await settle();
     expect(h.saveMatch).toHaveBeenCalledTimes(1);
-    expect(h.saveMatch).toHaveBeenCalledWith({ type: GameType.PAWLEGENDS, pawlegends: REPLAY });
+    expect(h.saveMatch).toHaveBeenCalledWith(
+      { type: GameType.PAWLEGENDS, pawlegends: REPLAY },
+      { signal: expect.any(AbortSignal) }
+    );
     expect(h.all("save-result").map((m) => m.status)).toEqual(["saving", "saved"]);
     expect(h.last("save-result")).toEqual({
       ns: PAWLEGENDS_NS,
@@ -357,6 +471,30 @@ describe("PawlegendsHost: account and saves", () => {
     expect(auth.refreshProfile).toHaveBeenCalled();
   });
 
+  it("pawlegends_save carries the backend's error code and HTTP status (the sim-drift alert, LAUNCH a.8)", async () => {
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: [] } });
+    const saves = () =>
+      mockTrack.mock.calls
+        .map((c) => c[0] as { name: string; properties: Record<string, unknown> })
+        .filter((e) => e.name === "pawlegends_save")
+        .map((e) => e.properties);
+    const rejected = jest.fn(async () => ({ ok: false, status: 400, code: "PAWLEGENDS_OUTCOME_MISMATCH", body: null }));
+    const h = await mount({ saveMatch: rejected as never });
+    h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m9" });
+    await settle();
+    expect(h.last("save-result")).toMatchObject({ matchId: "m9", status: "rejected", code: "PAWLEGENDS_OUTCOME_MISMATCH" });
+    expect(saves()).toEqual([{ status: "rejected", catnipPaid: 0, code: "PAWLEGENDS_OUTCOME_MISMATCH", httpStatus: 400 }]);
+    // A code outside the backend's UPPER_SNAKE form never reaches PostHog as written.
+    cleanup();
+    mockTrack.mockClear();
+    const odd = jest.fn(async () => ({ ok: false, status: 502, code: "<html>bad gateway</html>", body: null }));
+    const h2 = await mount({ saveMatch: odd as never });
+    h2.fromGame({ type: "match-result", replay: REPLAY, matchId: "m10" });
+    await settle();
+    expect(saves()).toEqual([{ status: "failed", catnipPaid: 0, code: "OTHER", httpStatus: 502 }]);
+  });
+
   it("without a user the match is kept on the device (queued); after sign-in ADD YOUR MATCHES? sends it", async () => {
     const h = await mount();
     h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m1" });
@@ -377,6 +515,23 @@ describe("PawlegendsHost: account and saves", () => {
     await settle();
     expect(h2.saveMatch).toHaveBeenCalledTimes(1);
     expect(eventNames()).toContain("pawlegends_guest_claim");
+  });
+
+  it("ADD THEM closes the prompt at once; the claimed matches are sent in the background (launch finding R4)", async () => {
+    const h = await mount();
+    h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m1" });
+    await settle();
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: [] } });
+    cleanup();
+    // A POST that never settles (a stalled connection).
+    const stalled = jest.fn(() => new Promise<never>(() => undefined));
+    await mount({ saveMatch: stalled as never });
+    await act(async () => {
+      fireEvent.click(screen.getByText("ADD THEM"));
+    });
+    expect(screen.queryByRole("dialog", { name: "ADD YOUR MATCHES?" })).toBeNull();
+    expect(stalled).toHaveBeenCalledTimes(1);
   });
 
   it("NOT MINE forgets the device matches", async () => {
@@ -503,6 +658,13 @@ describe("PawlegendsHost: cards and the Meet checkout", () => {
     h.fromGame({ type: "notify", where: "results" });
     await settle();
     expect((screen.getByTestId("pawlegends-notify-email") as HTMLInputElement).value).toBe("cat@example.com");
+    const privacy = screen.getByTestId("pawlegends-notify-privacy");
+    const hrefs = Array.from(privacy.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual([
+      "mailto:info@tokentails.com",
+      "https://docs.tokentails.com/community-and-social-impact/privacy-policy",
+      "/pawlegends/terms",
+    ]);
     await act(async () => {
       fireEvent.click(screen.getByTestId("pawlegends-notify-send"));
     });

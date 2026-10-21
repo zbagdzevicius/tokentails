@@ -271,7 +271,12 @@ catnip counts in `catnipCount` (`recomputeCatnipCount`; `catnip-accounting.ts` s
 `pawlegendsCatnip`) and in `TOTAL_CATNIP_CAP` (`PAWLEGENDS_TOTAL_CAP`, 70). A guest merge carries the three maps
 into the account (`src/pawlegends/pawlegends-merge.ts`: `$max` of the catnip clamped to each cap, `$min` of the
 fastest win, `$inc` of the match counts on the merge's exactly-once step), so first-win catnip is still paid once.
-Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket.
+Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket. Every save that writes nothing logs one
+line (Nest `Logger`, context `PawlegendsLive`; no user id, no record): `pawlegends save <kind>: code=<code>
+simVersion=<n> difficulty=<d>`, where kind is `rejected` (warn; `cached` when the failure cache answered),
+`queue-full` (warn, `HTTP_429`), `unavailable` (warn, `HTTP_503`, worker crash or timeout) or `duplicate` (log,
+409). A run of `rejected` lines with `PAWLEGENDS_OUTCOME_MISMATCH`, a hash mismatch or `PAWLEGENDS_SIM_VERSION`
+means the game and backend sims drifted apart (docs/plans/moba/LAUNCH.md a.8 step 4).
 
 The route is limited to 30 saves per minute per player (`LiveGameUserThrottleGuard`, after auth; it
 fails closed with 401 when the user id is missing) and 120 per minute per IP, loose enough for

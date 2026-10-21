@@ -375,7 +375,7 @@
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-intent", "sku": "pl_gold" }
     },
     "share": {
-      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "share", "kind": "dare", "url": "/pawlegends?dare=1" },
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "share", "kind": "dare", "url": "/pawlegends?dare=1", "text": "Beat my 7:12 vs Easy bots in Pawlegends!" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "share", "kind": "dare" }
     },
     "paused": {
@@ -389,6 +389,14 @@
     "skin-preview": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "Pumpkin" }
+    },
+    "client-error": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "client-error", "source": "worker", "msg": "sim worker failed to start", "screen": "match", "tier": "high", "sim": 10 },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "client-error", "source": "worker", "msg": "Token eyJhbGciOi at https://x.example/?uid=7", "screen": "match", "tier": "high", "sim": 10 }
+    },
+    "analytics": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "analytics", "event": "match_end", "props": { "result": "win", "reason": "core", "length": 452, "hero": "brutus", "difficulty": "normal", "pl_rookie": false, "human": true, "embed": true } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "analytics", "event": "app_error", "props": { "msg": "sim worker failed to start" } }
     }
   }
 }
