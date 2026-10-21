@@ -1,0 +1,240 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Formula Meow trailer cards</title>
+<!--
+  Transparent overlay layer for the trailer: text cards, flashes, the end card and the poster lockup.
+  Deterministic: window.drawFrame(f) draws frame f (60 fps) of the 1800-frame timeline for the aspect in
+  ?aspect=16x9|9x16. window.hasContent(f) says whether that frame draws anything. ?poster=1 draws only the
+  title lockup on a 1080x1080 canvas. Rendered by edit/render-cards.mjs, composited by edit.sh.
+  Copy rules (STORYBOARD.md section 3): every string here is a shipped feature; edit.sh scans this file for banned words.
+-->
+<style>
+  @font-face { font-family: 'Passion One'; font-weight: 900; src: url('../fonts/passion-one-latin-900-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Nunito'; font-weight: 200 1000; src: url('../fonts/nunito-latin-wght-normal.woff2') format('woff2'); }
+  :root {
+    --ink: #2a1a22; --night: #1a1238; --cream: #fff3dc; --butter: #ffd27a; --peach: #ff9f7a;
+    --rose: #ff3ea5; --sky: #2cf6f3; --pink: #ff7cc4; --cyan: #7ff9f6; --gold: #ffd27a;
+  }
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  .abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; white-space: nowrap; }
+  .slam {
+    font-family: 'Passion One'; font-weight: 900; line-height: 0.9; text-align: center; letter-spacing: 0.01em;
+    paint-order: stroke fill; -webkit-text-stroke: 9px var(--ink);
+  }
+  .pill {
+    font-family: 'Passion One'; font-weight: 900; line-height: 1; color: var(--cream); background: var(--rose);
+    border: 6px solid var(--ink); border-radius: 999px; padding: 0.06em 0.42em 0.12em;
+    box-shadow: 0 9px 0 var(--ink);
+    paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink);
+  }
+  .name {
+    font-family: 'Nunito'; font-weight: 900; line-height: 1; color: var(--night); background: var(--cyan);
+    border: 5px solid var(--ink); border-radius: 18px; padding: 0.18em 0.6em 0.22em; box-shadow: 0 6px 0 var(--ink);
+  }
+  .logo { display: flex; flex-direction: column; align-items: center; line-height: 0.8; }
+  .logo span, .logo b {
+    font-family: 'Passion One'; font-weight: 900; letter-spacing: 0.02em; display: block;
+    paint-order: stroke fill;
+  }
+  .logo span { color: var(--butter); }
+  .logo b { color: var(--rose); }
+  .by { font-family: 'Nunito'; font-weight: 900; color: var(--cream); display: flex; align-items: center; gap: 0.35em; }
+  .by img { image-rendering: pixelated; }
+  .soon {
+    font-family: 'Nunito'; font-weight: 900; color: var(--ink); background: var(--butter); border: 5px solid var(--ink);
+    border-radius: 999px; padding: 0.16em 0.8em 0.22em; box-shadow: 0 7px 0 var(--ink);
+  }
+  .fill { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const Q = new URLSearchParams(location.search);
+const ASPECT = Q.get('aspect') === '9x16' ? '9x16' : '16x9';
+const POSTER = Q.get('poster') === '1';
+const W = POSTER ? 1080 : (ASPECT === '16x9' ? 1920 : 1080);
+const H = POSTER ? 1080 : (ASPECT === '16x9' ? 1080 : 1920);
+const V = ASPECT === '9x16';
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+
+// ---------------------------------------------------------------- timeline (frames at 60 fps, 25 frames a beat)
+// pos = [x, y] as fractions of the frame (the card's centre). 9:16 keeps x in 0.1..0.9 and y in 0.1..0.8 (social UI).
+// set-piece slams sit in the upper part of the frame, above the player's kart (chase camera: kart at ~55-70 % height)
+const SLAM16 = [0.5, 0.2], SLAM9 = [0.5, 0.25];
+const TOP16 = [0.5, 0.17], TOP9 = [0.5, 0.21];
+const CARDS = [
+  // hook: full size from frame 0 (f0 -4 = already through the pop-in), gone before the GO hit
+  { f0: -4, f1: 62, kind: 'slam', tone: 'gold', text: 'CATS. KARTS. LOOPS!', text9: 'CATS. KARTS.\nLOOPS!', rot: -3, pos16: [0.5, 0.17], pos9: [0.5, 0.17] },
+  { f0: 200, f1: 250, kind: 'slam', tone: 'pink', text: 'WALL RIDE!', rot: -4 },
+  { f0: 250, f1: 300, kind: 'slam', tone: 'pink', text: 'BIG AIR!', rot: 3 },
+  { f0: 300, f1: 350, kind: 'slam', tone: 'pink', text: 'TUNNEL RUN!', rot: -4 },
+  { f0: 350, f1: 400, kind: 'slam', tone: 'pink', text: 'LOOP-DE-MEOW!', rot: 3 },
+  { f0: 400, f1: 550, kind: 'slam', tone: 'cyan', text: '8-CAT RACES · 6 TRACKS', text9: '8-CAT RACES\n6 TRACKS', rot: -4, pos16: [0.5, 0.6], pos9: [0.5, 0.40] },
+  { f0: 400, f1: 425, kind: 'name', text: 'Kitchen Counter', rot: -2 },
+  { f0: 425, f1: 450, kind: 'name', text: 'Neon Rooftops', rot: 2 },
+  { f0: 450, f1: 475, kind: 'name', text: 'Laundry Spin', rot: -2 },
+  { f0: 475, f1: 500, kind: 'name', text: 'Yarn Canyon', rot: 2 },
+  { f0: 500, f1: 525, kind: 'name', text: 'Cat Café Chaos', rot: -2 },
+  { f0: 525, f1: 550, kind: 'name', text: 'Pink Paw Shelter Sprint', rot: 2 },
+  { f0: 550, f1: 600, kind: 'slam', tone: 'gold', text: 'DRIFT', rot: -4 },
+  { f0: 600, f1: 650, kind: 'slam', tone: 'gold', text: 'BOOST', rot: 3 },
+  { f0: 650, f1: 750, kind: 'slam', tone: 'gold', text: '8 ITEMS', rot: -4 },
+  { f0: 800, f1: 850, kind: 'pill', text: 'GRAND PRIX', rot: -3, pos16: TOP16, pos9: TOP9 },
+  { f0: 850, f1: 900, kind: 'pill', text: 'TIME TRIAL', rot: 3, pos16: TOP16, pos9: TOP9 },
+  { f0: 900, f1: 1000, kind: 'pill', text: 'BALLOON BATTLE', rot: -3, pos16: TOP16, pos9: TOP9 },
+  { f0: 1000, f1: 1075, kind: 'slam', tone: 'cyan', text: 'DRAW\nA TRACK', text9: 'DRAW A TRACK', rot: -4, pos16: [0.185, 0.5], pos9: [0.5, 0.1], maxW16: 0.3 },
+  { f0: 1075, f1: 1150, kind: 'slam', tone: 'cyan', text: 'SHARE THE LINK', rot: 3, pos16: [0.72, 0.15], pos9: [0.5, 0.75], maxW16: 0.45 },
+  { f0: 1150, f1: 1200, kind: 'slam', tone: 'cyan', text: 'DARE A FRIEND', text9: 'DARE\nA FRIEND', rot: -4, pos16: [0.5, 0.24], pos9: [0.5, 0.36] },
+];
+// 2-frame cream flashes (GO, final lap, landing, title) and lighter whip flashes; values are opacity.
+const FLASH = { 100: 0.6, 101: 0.3, 1200: 0.6, 1201: 0.3, 1500: 0.6, 1501: 0.3, 1600: 0.75, 1601: 0.4, 1602: 0.15 };
+const WHIPS = [400, 425, 450, 475, 500, 525, 700, 725, 750, 1225, 1250, 1275, 1325, 1350, 1375, 1400];
+for (const w of WHIPS) FLASH[w] = Math.max(FLASH[w] || 0, 0.22);
+const END0 = 1600, FADE0 = 1766, BLACK0 = 1790, LAST = 1800;
+
+window.TRAILER_COPY = CARDS.map(c => c.text9 ? c.text + ' | ' + c.text9 : c.text)
+  .concat(['FORMULA', 'MEOW', 'by Token Tails', 'Coming soon']);
+
+// ---------------------------------------------------------------- easing
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function bezier(x1, y1, x2, y2) { // CSS cubic-bezier, solved for x
+  return t => {
+    let u = t;
+    for (let i = 0; i < 12; i++) {
+      const x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u - t;
+      const dx = 3 * (1 - u) * (1 - u) * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2);
+      if (Math.abs(dx) < 1e-6) break; u = clamp(u - x / dx, 0, 1);
+    }
+    return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+  };
+}
+const POP = bezier(0.2, 1.6, 0.4, 1);
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+// pop-in over n frames (0.2 -> ~1.08 -> 1), a slow 3 % push during the hold, a 4-frame scale-out before f1
+function cardScale(f, f0, f1, n = 6) {
+  const a = f - f0;
+  let s = a < n ? 0.2 + 0.8 * POP((a + 1) / n) : 1;
+  s *= 1 + 0.03 * (a / Math.max(1, f1 - f0));
+  const left = f1 - f; // frames left including this one
+  let o = 1;
+  if (left <= 4) { const k = (5 - left) / 4; s *= 1 - 0.35 * k; o = 1 - k; }
+  return { s, o };
+}
+
+// ---------------------------------------------------------------- drawing helpers
+function el(cls, html) { const d = document.createElement('div'); d.className = 'abs ' + cls; d.innerHTML = html; stage.appendChild(d); return d; }
+function place(d, x, y, rot, s, o) {
+  const w = d.offsetWidth, h = d.offsetHeight;
+  d.style.transform = `translate(${x * W - w / 2}px, ${y * H - h / 2}px) rotate(${rot}deg) scale(${s})`;
+  d.style.opacity = o;
+}
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const lines = s => s.split('\n').map(esc).join('<br>');
+const TONE = { pink: 'var(--pink)', cyan: 'var(--cyan)', gold: 'var(--gold)' };
+// fit a card into maxW: the font size shrinks until the unrotated box fits
+function fit(d, base, maxW) {
+  let fs = base; d.style.fontSize = fs + 'px';
+  while (d.offsetWidth > maxW && fs > 20) { fs -= 4; d.style.fontSize = fs + 'px'; }
+  return fs;
+}
+
+function drawCard(c, f) {
+  const { s, o } = cardScale(f, c.f0, c.f1, c.kind === 'name' ? 5 : 6);
+  const text = V && c.text9 ? c.text9 : c.text;
+  const pos = (V ? c.pos9 : c.pos16) || (c.kind === 'name' ? (V ? [0.5, 0.64] : [0.5, 0.80]) : (V ? SLAM9 : SLAM16));
+  let [x, y] = pos;
+  const maxW = (V ? 0.8 : (c.maxW16 || 0.82)) * W - 40;
+  let d;
+  if (c.kind === 'slam') {
+    d = el('slam', lines(text)); d.style.color = TONE[c.tone];
+    d.style.textShadow = `0 ${V ? 8 : 9}px 0 var(--ink), 0 14px 30px rgba(26,18,56,0.45)`;
+    fit(d, V ? 170 : 176, maxW);
+  } else if (c.kind === 'pill') {
+    d = el('pill', esc(text)); fit(d, V ? 112 : 120, maxW);
+  } else {
+    d = el('name', esc(text)); fit(d, V ? 54 : 62, maxW);
+    // first 5 frames slide in from the side the rotation leans to
+    const a = f - c.f0; if (a < 5) x += (c.rot < 0 ? -1 : 1) * 0.05 * (1 - easeOut((a + 1) / 5));
+  }
+  place(d, x, y, c.rot, s, o);
+}
+
+function logo(sizeMeow, wrapClass = '') {
+  const d = el('logo ' + wrapClass, `<span>FORMULA</span><b>MEOW</b>`);
+  const sp = d.querySelector('span'), b = d.querySelector('b');
+  sp.style.fontSize = Math.round(sizeMeow * 0.56) + 'px';
+  b.style.fontSize = sizeMeow + 'px';
+  const st = Math.round(sizeMeow * 0.05);
+  for (const e of [sp, b]) {
+    e.style.webkitTextStroke = `${st}px var(--ink)`;
+    e.style.textShadow = `0 ${Math.round(sizeMeow * 0.04)}px 0 var(--ink), 0 ${Math.round(sizeMeow * 0.07)}px ${Math.round(sizeMeow * 0.12)}px rgba(0,0,0,0.45)`;
+  }
+  // checkered flag (SVG, no emoji font): sits on the top-right of MEOW like the game's title
+  const flag = document.createElement('div');
+  const fs = Math.round(sizeMeow * 0.36);
+  flag.style.cssText = `position:absolute; right:${-fs * 0.55}px; top:${-fs * 0.2}px; width:${fs}px; height:${fs}px; transform: rotate(18deg);`;
+  let cells = '';
+  for (let r = 0; r < 4; r++) for (let q = 0; q < 5; q++) if ((r + q) % 2 === 0) cells += `<rect x="${12 + q * 15}" y="${10 + r * 13}" width="15" height="13" fill="#2a1a22"/>`;
+  flag.innerHTML = `<svg viewBox="0 0 100 100" width="${fs}" height="${fs}"><rect x="5" y="6" width="7" height="90" rx="3" fill="#2a1a22"/><path d="M12 10 h75 v52 h-75 z" fill="#fff3dc" stroke="#2a1a22" stroke-width="6" stroke-linejoin="round"/>${cells}<path d="M12 10 h75 v52 h-75 z" fill="none" stroke="#2a1a22" stroke-width="6" stroke-linejoin="round"/></svg>`;
+  d.style.position = 'absolute';
+  d.appendChild(flag);
+  return d;
+}
+
+function drawEnd(f) {
+  const a = f - END0;
+  // rose-to-night radial vignette over the blurred background (drawn by edit.sh)
+  const g = el('fill', '');
+  g.style.width = W + 'px'; g.style.height = H + 'px';
+  g.style.background = `radial-gradient(ellipse ${V ? '90% 55%' : '70% 80%'} at 50% ${V ? '44%' : '46%'}, rgba(255,62,165,0.28) 0%, rgba(255,62,165,0.10) 40%, rgba(26,18,56,0.78) 100%)`;
+  g.style.opacity = clamp((a + 1) / 4, 0, 1);
+  // title slams in on f1600 (the final hit): 2.4x -> 1 with the overshoot over 8 frames, then a slow push
+  const meow = V ? 250 : 270;
+  const L = logo(meow);
+  let s = a < 8 ? 2.4 - 1.4 * POP((a + 1) / 8) : 1;
+  s *= 1 + 0.04 * (a / 200);
+  place(L, 0.5, V ? 0.38 : 0.36, -5, s, clamp((a + 1) / 3, 0, 1));
+  // "by Token Tails" on beat 1 of the end card (f1625), the pixel cat beside it
+  if (f >= END0 + 25) {
+    const b = f - END0 - 25;
+    const by = el('by', `<img src="tokentails-cat.webp" width="${V ? 87 : 93}" height="${V ? 102 : 108}" alt="">by Token Tails`);
+    by.style.fontSize = (V ? 84 : 87) + 'px';
+    by.style.textShadow = '0 4px 0 #2a1a22';
+    const k = easeOut(clamp((b + 1) / 8, 0, 1));
+    place(by, 0.5, (V ? 0.565 : 0.6) + 0.03 * (1 - k), 0, 1, k);
+  }
+  // "Coming soon" pops on beat 2 (f1650, the end-card meow)
+  if (f >= END0 + 50) {
+    const { s: ss } = cardScale(f, END0 + 50, 99999, 6);
+    const so = el('soon', 'Coming soon'); so.style.fontSize = (V ? 81 : 78) + 'px';
+    place(so, 0.5, V ? 0.665 : 0.745, -2, ss, 1);
+  }
+}
+
+window.hasContent = f => {
+  if (POSTER) return true;
+  if (f >= END0) return true;
+  if (FLASH[f]) return true;
+  return CARDS.some(c => f >= c.f0 && f < c.f1);
+};
+
+window.drawFrame = f => {
+  stage.innerHTML = '';
+  if (POSTER) { const L = logo(V ? 170 : 170); place(L, 0.5, 0.2, -5, 1, 1); return; }
+  for (const c of CARDS) if (f >= c.f0 && f < c.f1) drawCard(c, f);
+  if (f >= END0) drawEnd(f);
+  if (FLASH[f]) { const fl = el('fill', ''); fl.style.width = W + 'px'; fl.style.height = H + 'px'; fl.style.background = 'var(--cream)'; fl.style.opacity = FLASH[f]; }
+  if (f >= FADE0) {
+    const k = f >= BLACK0 ? 1 : (f - FADE0 + 1) / (BLACK0 - FADE0);
+    const bl = el('fill', ''); bl.style.width = W + 'px'; bl.style.height = H + 'px'; bl.style.background = '#000'; bl.style.opacity = k;
+  }
+};
+window.TIMELINE = { W, H, LAST, ASPECT, POSTER };
+</script>
+</body>
+</html>
