@@ -47,6 +47,8 @@ const KART_FIELDS: readonly (keyof KartState)[] = [
   'rail', 'su', 'sd', 'netTicks', 'gapLaunch', 'laneTicks',
   // SIM_VERSION 9: jump hang time
   'gapV',
+  // SIM_VERSION 11: the trick tap buffered before a lip
+  'trickBuf',
 ];
 
 /** Full race-state hash (GDD 3.1: every 60 ticks; tests assert golden values). The items lane hashes its own slot. */

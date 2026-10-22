@@ -6,7 +6,7 @@
  * Catnip, Zoomies) at a closing speed above 6 m/s steals one and scores a point (the thief can hold up to 5). At 0
  * balloons a cat is popped out: it loses one point, greys and cannot be hit for `outTime` s, then comes back with 3
  * balloons and immunity. Nobody is out for good, so every cat plays the whole round. The round ends when the time is
- * up. Ranking: points, then balloons held, then fewer hits taken, then the lower slot. On the last tick the ranking
+ * up. SIM_VERSION 11: from `FRENZY_TICK` (the last 30 s, a `frenzy` event) pops and steals score 2. Ranking: points, then balloons held, then fewer hits taken, then the lower slot. On the last tick the ranking
  * becomes `RaceState.order` (and each kart's place), so the results show it; nobody gets a finish time.
  *
  * The free-roam AI (battle/ai.ts) replaces the racing-line driver for the round. State: `RaceState.mode.battle`.
@@ -32,9 +32,14 @@ export const BATTLE = {
   outTime: 2.5,
   /** points lost when popped out */
   outCost: 1,
+  /** SIM_VERSION 11 (iteration 4, F14): the last this-many seconds are a frenzy: pops and steals score `frenzyPoints` */
+  frenzy: 30,
+  frenzyPoints: 2,
 } as const;
 
 export const BATTLE_TICKS = BATTLE.time * TICK_HZ;
+/** SIM_VERSION 11: ticks after GO from which pops and steals score double (the `frenzy` event fires on this tick) */
+export const FRENZY_TICK = BATTLE_TICKS - BATTLE.frenzy * TICK_HZ;
 const IMMUNE = Math.round(BATTLE.immune * TICK_HZ);
 const OUT_TICKS = Math.round(BATTLE.outTime * TICK_HZ);
 /** hairball, yarn, cucumber, catnip, box, bell, zoomies, laser (no Laser Dot in battle) */
@@ -128,6 +133,9 @@ export function createBattleRules(): ModeRules {
     if (k.balloons <= 0) eliminate(ctx, victim);
   };
 
+  /** Points a pop or a steal scores now (double in the frenzy: the last 30 s of the round). */
+  const pts = (ctx: SimContext): number => (ctx.st.tick - ctx.goTick >= FRENZY_TICK ? BATTLE.frenzyPoints : 1);
+
   /** Rank and end the round (`isOver` writes the ranking into the race order after positions ran). */
   const finish = (ctx: SimContext) => {
     const st = ctx.st;
@@ -174,7 +182,7 @@ export function createBattleRules(): ModeRules {
       b.hitsTaken[victim]++;
       if (by >= 0 && by !== victim) {
         b.pops[by]++;
-        b.score[by]++;
+        b.score[by] += pts(ctx);
       }
       ctx.emit({ type: 'balloonPop', kart: victim, b: by });
       lose(ctx, victim);
@@ -197,7 +205,7 @@ export function createBattleRules(): ModeRules {
       if (kt.out || kv.out || kv.respawnTicks > 0 || kv.shieldTicks > 0 || kv.invTicks > 0 || b.imm[victim] > 0 || b.stealCd[p] > 0) return;
       b.stealCd[p] = IMMUNE * 2;
       b.steals[thief]++;
-      b.score[thief]++;
+      b.score[thief] += pts(ctx);
       b.hitsTaken[victim]++;
       if (kt.balloons < BATTLE.maxBalloons) kt.balloons++;
       ctx.emit({ type: 'balloonSteal', kart: victim, b: thief });
@@ -212,6 +220,7 @@ export function createBattleRules(): ModeRules {
       for (let i = 0; i < st.karts.length; i++) if (st.karts[i].out && st.tick - b.outAt[i] >= OUT_TICKS) revive(ctx, i);
       // the round clock is 2:30 even if `timeLimitTicks` is longer (tests pass a safety margin)
       const limit = Math.min(ctx.cfg.timeLimitTicks ?? BATTLE_TICKS, BATTLE_TICKS);
+      if (st.tick - ctx.goTick === FRENZY_TICK) ctx.emit({ type: 'frenzy', kart: -1 });
       if (st.tick + 1 - ctx.goTick >= limit) finish(ctx);
     },
     isOver(ctx) {

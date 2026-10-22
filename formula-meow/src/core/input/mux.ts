@@ -14,6 +14,11 @@ export interface MuxSettings {
   /** desktop auto-gas (touch is always auto) */
   autoGas: boolean;
   oneThumb: boolean;
+  /**
+   * Iteration 4 (F2): Smart Steer, the touch steering assist (feel lane). It acts on touch steering only (never keys
+   * or a gamepad); the setting is on by default. Omitted = off.
+   */
+  smartSteer?: boolean;
 }
 
 export interface MuxContext {
@@ -27,6 +32,22 @@ export interface MuxContext {
   curve?: number;
   /** player is touching a wall */
   wall?: boolean;
+  // iteration 4 (F2, filled by core/app/shell.ts every frame)
+  /**
+   * Where the kart will be in 0.5 s at its current speed and turn rate (its path projected on an arc): the distance
+   * in metres from that point to the left / right road edge (the tarmac's edge, kerb not included), positive while
+   * the point is on the road, negative past that edge. On a branch, the branch's road. Omitted before GO.
+   */
+  edgeL?: number;
+  edgeR?: number;
+  /** the projected point's road heading minus the kart's travel heading, radians (+ = the road turns left) */
+  edgeHeading?: number;
+  /** the kart rides a loop's rail (no steering there) */
+  onRail?: boolean;
+  /** the kart is in the air (a ramp, a jump gap) */
+  air?: boolean;
+  /** drift direction: −1 left, +1 right, 0 none (steer + = right) */
+  driftDir?: number;
 }
 
 /** One-thumb drift: the bend ahead turns the way the stick points (steer + = right, curve + = left). */

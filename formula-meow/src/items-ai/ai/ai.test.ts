@@ -130,7 +130,8 @@ describe('rubber band (GDD 5.3)', () => {
     const cfg = raceConfig(KITCHEN, { seed: 3, cls: 1, humans: [5] });
     cfg.racers[0] = { ...cfg.racers[0], rival: true };
     const w = world(cfg);
-    while (w.tick < GO_TICK + 10) w.step([NO_INPUT]);
+    // SIM_VERSION 11: past the band's ramp-in after GO (AI.bandRampTicks)
+    while (w.tick < GO_TICK + AI.bandRampTicks + 10) w.step([NO_INPUT]);
     const p = cfg.racers[0].ai!;
     w.st.karts[5].dist = w.st.karts[0].dist + 500;
     const rival = bandScale(w.ctx, 0, p);
@@ -141,7 +142,7 @@ describe('rubber band (GDD 5.3)', () => {
     w.st.karts[5].dist = w.st.karts[0].dist - 500;
     const cfg2 = raceConfig(KITCHEN, { seed: 3, cls: 1, humans: [5] });
     const w2 = world(cfg2);
-    while (w2.tick < GO_TICK + 10) w2.step([NO_INPUT]);
+    while (w2.tick < GO_TICK + AI.bandRampTicks + 10) w2.step([NO_INPUT]);
     w2.st.karts.forEach((k, i) => (k.dist = w.st.karts[i].dist));
     expect(bandScale(w.ctx, 0, p) / skillBase(1, p.skill, true)).toBeCloseTo(bandScale(w2.ctx, 0, p) / skillBase(1, p.skill), 9);
   });

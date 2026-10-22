@@ -29,6 +29,12 @@ export interface Settings {
   haptics: boolean;
   /** 'en' (shipped) or 'xx' (pseudo-locale for QA) */
   lang: string;
+  /**
+   * Iteration 4 (F2): Smart Steer, the touch steering assist. On by default; it only ever acts on touch steering
+   * (keys and gamepads are never assisted), so "on for touch" needs no device check here. Saves from before
+   * iteration 4 have no key and get the default (`sanitizeSettings`).
+   */
+  smartSteer: boolean;
 }
 
 /** The shell's own progress (FTUE counters, class unlocks, best times): the `core` slot. */
@@ -70,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
   captions: false,
   haptics: true,
   lang: 'en',
+  smartSteer: true,
 }) as Settings;
 
 export const DEFAULT_PROGRESS: Progress = Object.freeze({ races: 0, unlocked: 0, pounces: 0, drifts: 0, bestTimes: {} }) as Progress;
@@ -130,6 +137,8 @@ function sanitizeSettings(v: unknown): Settings {
   s.textScale = Math.max(0.85, Math.min(1.5, Number(s.textScale) || 1));
   if (!['off', 'deut', 'prot', 'trit'].includes(s.colourblind)) s.colourblind = 'off';
   if (typeof s.lang !== 'string') s.lang = 'en';
+  // iteration 4: a save without the key (or a damaged value) gets the default
+  if (typeof s.smartSteer !== 'boolean') s.smartSteer = DEFAULT_SETTINGS.smartSteer;
   return s;
 }
 

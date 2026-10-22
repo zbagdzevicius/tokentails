@@ -88,6 +88,7 @@ export function tryAttachRail(ctx: SimContext, idx: number, k: KartState, prevSi
   k.airTicks = 0;
   k.lipTicks = -1;
   k.trick = 0;
+  k.trickBuf = 0;
   k.vy = 0;
   k.wall = 0;
   k.laneTicks = 0;
@@ -563,6 +564,7 @@ function catchNet(ctx: SimContext, idx: number, k: KartState, pc: BuiltPiece): v
   k.airTicks = 0;
   k.lipTicks = -1;
   k.trick = 0;
+  k.trickBuf = 0;
   k.y = Math.min(pc.lipY, pc.landY) - 2.4;
   if (k.driftDir !== 0) {
     ctx.emit({ type: 'driftEnd', kart: idx });

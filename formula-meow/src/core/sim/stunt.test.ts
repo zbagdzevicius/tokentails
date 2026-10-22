@@ -382,7 +382,7 @@ describe('set pieces: determinism (GDD 3.1)', () => {
     const w = world(raceConfig(stuntLab(), { seed: 42 }));
     while (w.tick < GO_TICK + 1800) w.step();
     expect(w.st.events.filter((e) => e.type === 'stuntExit' && e.a === 0).length).toBeGreaterThan(4);
-    expect(w.hash()).toMatchInlineSnapshot(`2071901594`);
+    expect(w.hash()).toMatchInlineSnapshot(`4013595172`);
   });
 
   it('same seed and inputs → the same hashes, three times, also mirrored; a replay re-simulates exactly', () => {
@@ -531,5 +531,87 @@ describe('set pieces: SIM_VERSION 9 playtest fixes', () => {
         const apart = Math.abs(ks[a].su - ks[b].su) >= 2.39 || Math.abs(ks[a].sd - ks[b].sd) >= 1.69;
         expect(apart, `${a}-${b}`).toBe(true);
       }
+  });
+});
+
+describe('tricks you can actually do (SIM_VERSION 11, ITERATION-4.md F3)', () => {
+  /** One run toward a lip from 30 m back at v0; a single tap at `tapAt` ticks relative to the launch tick (null = no
+   * tap; the launch tick comes from a no-tap run of the same start, which is deterministic). */
+  function lipRun(def: TrackDef, at: number, v0: number, tapAt: number | null, launchTick: number | null) {
+    const w = soloAt(def, at, 30, v0);
+    const k = w.st.karts[0];
+    const from = w.st.events.length;
+    let launch = -1;
+    let land: { x: number; z: number } | null = null;
+    let airAtTap = false;
+    for (let n = 0; n < 60 * 4 && !land; n++) {
+      const tap = tapAt != null && launchTick != null && n === launchTick + tapAt;
+      if (tap) airAtTap = !!k.air;
+      const before = w.st.events.length;
+      w.step([input({ gas: true, drift: tap })]);
+      for (let e = before; e < w.st.events.length; e++) {
+        const ev = w.st.events[e];
+        if (ev.kart !== 0) continue;
+        if (ev.type === 'ramp' && launch < 0) launch = n;
+        if (ev.type === 'land' && launch >= 0) land = { x: k.x, z: k.z };
+      }
+    }
+    const ev = w.st.events.slice(from).filter((e) => e.kart === 0);
+    return { launch, land, airAtTap, tricks: count(ev, 'trick'), trickLands: count(ev, 'trickLand'), hops: count(ev, 'hop') };
+  }
+
+  const lips = (): Array<[string, TrackDef, number]> => {
+    const lab = stuntLab();
+    const tl = world(raceConfig(lab, { solo: true })).track;
+    const tk = world(raceConfig(KITCHEN, { solo: true })).track;
+    const ramp = tk.ramps.find((r) => r.piece == null && r.d === 0)!;
+    return [
+      ['stunt lab jump gap', lab, tl.pieces.find((p) => p.kind === 'jump')!.i0],
+      ['Kitchen ramp', KITCHEN, ramp.i],
+    ];
+  };
+
+  it('a single tap anywhere from 0.1 s before the lip to 0.4 s after it is a trick (≥ 90 %), and pays on landing', () => {
+    let tries = 0;
+    let tricks = 0;
+    for (const [name, def, at] of lips())
+      for (const v0 of [16, 22]) {
+        const base = lipRun(def, at, v0, null, null);
+        expect(base.launch, `${name} v0 ${v0}`).toBeGreaterThan(0);
+        expect(base.tricks).toBe(0);
+        for (let o = -6; o <= 24; o += 2) {
+          const r = lipRun(def, at, v0, o, base.launch);
+          if (o > 0 && !r.airAtTap) continue; // a short ramp hop may land before 0.4 s
+          tries++;
+          if (r.tricks === 1 && r.trickLands === 1) tricks++;
+        }
+      }
+    expect(tries).toBeGreaterThan(40);
+    expect(tricks / tries).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('a tap just before the lip is buffered and swallows its hop: the kart lands where it lands with no tap (±0.5 m)', () => {
+    for (const [name, def, at] of lips())
+      for (const v0 of [16, 22]) {
+        const base = lipRun(def, at, v0, null, null);
+        for (const o of [-6, -4, -2, 0]) {
+          const r = lipRun(def, at, v0, o, base.launch);
+          const tag = `${name} v0 ${v0} tap ${o}`;
+          expect(r.launch, tag).toBe(base.launch);
+          expect(r.tricks, tag).toBe(1);
+          expect(r.hops, tag).toBe(0);
+          expect(Math.hypot(r.land!.x - base.land!.x, r.land!.z - base.land!.z), tag).toBeLessThanOrEqual(0.5);
+        }
+      }
+  });
+
+  it('the window closes 0.45 s after the lip; a tap well before the lip is only a hop', () => {
+    const [, def, at] = lips()[0];
+    const base = lipRun(def, at, 22, null, null);
+    const late = lipRun(def, at, 22, 31, base.launch);
+    if (late.airAtTap) expect(late.tricks).toBe(0);
+    const early = lipRun(def, at, 22, -30, base.launch);
+    expect(early.tricks).toBe(0);
+    expect(early.hops).toBe(1);
   });
 });

@@ -32,6 +32,20 @@ describe('save v2 (iteration 2)', () => {
     expect((loadBlob(s).slots.core as { races: number }).races).toBe(7);
   });
 
+  it('iteration 4: a save from before Smart Steer gets it on; a damaged value falls back to on; off is kept', () => {
+    const s = new Mem();
+    s.setItem('fm:save', JSON.stringify({ v: 2, settings: { autoGas: true, oneThumb: true, cls: 1 }, slots: {} }));
+    expect(loadBlob(s).settings.smartSteer).toBe(true);
+    s.setItem('fm:save', JSON.stringify({ v: 2, settings: { smartSteer: 'yes' }, slots: {} }));
+    expect(loadBlob(s).settings.smartSteer).toBe(true);
+    s.setItem('fm:save', JSON.stringify({ v: 2, settings: { smartSteer: false }, slots: {} }));
+    expect(loadBlob(s).settings.smartSteer).toBe(false);
+    // v1 keys migrate with the default too
+    const v1 = new Mem();
+    v1.setItem('fm:settings', JSON.stringify({ autoGas: false, oneThumb: true }));
+    expect(loadBlob(v1).settings.smartSteer).toBe(true);
+  });
+
   it('survives junk and missing storage', () => {
     const s = new Mem();
     s.setItem('fm:save', '{not json');

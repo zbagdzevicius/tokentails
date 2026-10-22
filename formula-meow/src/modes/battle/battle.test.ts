@@ -4,7 +4,7 @@ import { SimWorld } from '../../core/sim/world';
 import { RUG } from '../../core/track/tracks';
 import type { RaceClass, RaceConfig } from '../../types';
 import { registerModesRules } from '../sim-rules';
-import { BATTLE_TICKS, battleOf } from './rules';
+import { BATTLE, BATTLE_TICKS, FRENZY_TICK, battleOf } from './rules';
 import { applyHit, speedOf } from '../../core/sim/kart';
 
 registerModesRules();
@@ -43,6 +43,31 @@ describe('balloon battle', () => {
     }
     if (process.env.FM_BATTLE_PRINT) process.stderr.write(report.join('\n') + '\n');
     expect(pops).toBeGreaterThan(6 * 6);
+  }, 60_000);
+
+  it('the last 30 s are a frenzy: one frenzy event on its tick, and pops and steals score 2 from then on', () => {
+    expect(FRENZY_TICK).toBe(BATTLE_TICKS - 1800);
+    const w = run(battleCfg(2));
+    const b = battleOf(w.st);
+    const go = w.ctx.goTick;
+    const fr = w.st.events.filter((e) => e.type === 'frenzy');
+    expect(fr.length).toBe(1);
+    expect(fr[0].tick - go).toBe(FRENZY_TICK);
+    // every point comes from the pop / steal log: 1 each before the frenzy, 2 in it, minus one per pop-out (floor 0)
+    const late = w.st.events.filter((e) => (e.type === 'balloonPop' || e.type === 'balloonSteal') && e.tick - go >= FRENZY_TICK && (e.b ?? -1) >= 0 && e.b !== e.kart);
+    expect(late.length).toBeGreaterThan(0);
+    const n = w.st.karts.length;
+    const want = new Array<number>(n).fill(0);
+    for (const e of w.st.events) {
+      if ((e.type === 'balloonPop' || e.type === 'balloonSteal') && (e.b ?? -1) >= 0 && e.b !== e.kart) want[e.b!] += e.tick - go >= FRENZY_TICK ? BATTLE.frenzyPoints : 1;
+      if (e.type === 'eliminated') want[e.kart] = Math.max(0, want[e.kart] - BATTLE.outCost);
+    }
+    expect(b.score).toEqual(want);
+  }, 60_000);
+
+  it('golden hash: Rug, seed 4, 8 AI, the full round with the frenzy (bump SIM_VERSION when this changes on purpose)', () => {
+    const w = run(battleCfg(4));
+    expect(w.hash()).toMatchInlineSnapshot(`3144453215`);
   }, 60_000);
 
   it('replays exactly (same seed, same hashes)', () => {

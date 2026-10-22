@@ -142,9 +142,9 @@ for (const size of SIZES) {
   }
 }
 
-test('old dares: SIM_VERSION 7, 8 and 9 open as a target-time race with the notice; 10 races the ghost', async ({ browser }) => {
+test('old dares: SIM_VERSION 7, 8, 9 and 10 open as a target-time race with the notice; 11 races the ghost', async ({ browser }) => {
   test.setTimeout(240_000);
-  for (const v of [7, 8, 9] as const) {
+  for (const v of [7, 8, 9, 10] as const) {
     const c = await open(browser, SIZES[1].opts);
     await c.page.goto(`/?bot=1#g=${LEGACY[`dare${v}`]}&n=Mia`);
     await expect(c.page.locator('body')).toContainText('another version of the game', { timeout: 20_000 });
@@ -155,7 +155,7 @@ test('old dares: SIM_VERSION 7, 8 and 9 open as a target-time race with the noti
     await c.close();
   }
   const c = await open(browser, SIZES[1].opts);
-  await c.page.goto(`/?bot=1#g=${LEGACY.dare10}&n=Mia`);
+  await c.page.goto(`/?bot=1#g=${LEGACY.dare11}&n=Mia`);
   await expect(c.page.locator('.fm-dare-banner')).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => c.page.evaluate(() => !!(window as any).__fm?.shell.stage.scene.getObjectByName('kart-Mia')), { timeout: 20_000 }).toBe(true);
   expect(c.errors).toEqual([]);

@@ -27,7 +27,8 @@ import { renderResults, type ResultsHandle } from '../hud/results';
 import { KeyboardInput } from '../input/keyboard';
 import { GamepadInput } from '../input/gamepad';
 import { TouchInput } from '../input/touch';
-import { InputMux } from '../input/mux';
+import { InputMux, type MuxContext } from '../input/mux';
+import { edgeLook, type EdgeLook } from './edge-look';
 import { applyUnlocks, loadProgress, loadSettings, saveProgress, saveSettings, type Progress, type Settings } from './settings';
 import { bestKey, save as saveStore } from './save';
 import { restartSeed } from './restart';
@@ -180,7 +181,10 @@ export class Shell {
    */
   warmTarget: (() => WebGLRenderTarget | null) | null = null;
   private readonly backGuard: BackGuard;
-  private readonly muxCtx = { racing: false, speedFrac: 0, drifting: false, curve: 0, wall: false };
+  private readonly muxCtx: Required<MuxContext> = { racing: false, speedFrac: 0, drifting: false, curve: 0, wall: false, edgeL: 99, edgeR: 99, edgeHeading: 0, onRail: false, air: false, driftDir: 0 };
+  /** iteration 4 (F2): the player's travel heading at the last sim tick seen, for the edge look-ahead's turn rate */
+  private readonly yawTrack = { tick: -1, th: 0, rate: 0 };
+  private readonly edge: EdgeLook = { edgeL: 99, edgeR: 99, edgeHeading: 0 };
 
   constructor(readonly host: HTMLElement) {
     const q = new URLSearchParams(location.search);
@@ -190,7 +194,7 @@ export class Shell {
     this.stage.scene.add(this.camera.cam);
     this.hud = new Hud(host);
     this.touch = new TouchInput(host);
-    this.mux = new InputMux([new KeyboardInput(), new GamepadInput(), this.touch], { autoGas: this.settings.autoGas, oneThumb: this.settings.oneThumb });
+    this.mux = new InputMux([new KeyboardInput(), new GamepadInput(), this.touch], { autoGas: this.settings.autoGas, oneThumb: this.settings.oneThumb, smartSteer: this.settings.smartSteer });
     this.touch.oneThumb = this.settings.oneThumb;
     this.bot = q.has('bot');
     this.simSpeed = Math.max(1, Math.min(8, Number(q.get('speed')) || 1));
@@ -252,12 +256,44 @@ export class Shell {
     });
   }
 
+  /**
+   * Iteration 4 (F2): the Smart Steer inputs. The turn rate is the travel heading's change between sim ticks (smoothed);
+   * the projection is `edge-look.ts`. Before GO, on a rail or in the air the edges read as far away.
+   */
+  private fillEdgeLook(w: SimWorld, me: SimWorld['st']['karts'][number], mc: Required<MuxContext>): void {
+    mc.onRail = me.rail > 0;
+    mc.air = !!me.air;
+    mc.driftDir = me.driftDir;
+    const y = this.yawTrack;
+    const th = Math.atan2(me.vx, me.vz);
+    if (w.st.tick !== y.tick) {
+      if (y.tick >= 0 && w.st.tick > y.tick && Math.hypot(me.vx, me.vz) > 1) {
+        let d = th - y.th;
+        if (d > Math.PI) d -= 2 * Math.PI;
+        if (d < -Math.PI) d += 2 * Math.PI;
+        const rate = d / ((w.st.tick - y.tick) * DT);
+        y.rate += (Math.max(-3, Math.min(3, rate)) - y.rate) * 0.5;
+      } else y.rate = 0;
+      y.tick = w.st.tick;
+      y.th = th;
+    }
+    if (!mc.racing || mc.onRail || w.track.arena) {
+      mc.edgeL = mc.edgeR = 99;
+      mc.edgeHeading = 0;
+      return;
+    }
+    const e = edgeLook(w.track, me, y.rate, 0.5, this.edge);
+    mc.edgeL = e.edgeL;
+    mc.edgeR = e.edgeR;
+    mc.edgeHeading = e.edgeHeading;
+  }
+
   /** Push settings into every system that reads them (audio, input, camera, a11y). */
   applySettings(): void {
     const s = this.settings;
     this.audio.setMuted(s.muted);
     this.audio.setMixer({ music: s.musicVol, sfx: s.sfxVol, engine: s.sfxVol });
-    this.mux.settings = { autoGas: s.autoGas, oneThumb: s.oneThumb };
+    this.mux.settings = { autoGas: s.autoGas, oneThumb: s.oneThumb, smartSteer: s.smartSteer };
     this.touch.oneThumb = s.oneThumb;
     this.camera.feel.reducedMotion = s.reducedMotion;
     setA11y({ reducedMotion: s.reducedMotion, colourblind: s.colourblind, highContrast: s.highContrast, textScale: s.textScale, captions: s.captions, haptics: s.haptics });
@@ -561,6 +597,7 @@ export class Shell {
     mc.drifting = me.driftDir !== 0;
     mc.curve = curvatureAhead(w.ctx, me.si, 4, 24);
     mc.wall = !!me.wall;
+    this.fillEdgeLook(w, me, mc);
     this.mux.frame(dt, mc);
     if (!this.armed && this.mux.any) this.arm();
     const countdown = w.st.tick < GO_TICK;

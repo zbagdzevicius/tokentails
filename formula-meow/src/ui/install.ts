@@ -19,6 +19,7 @@ import { registerScreen, type ScreenId } from '../core/app/screens';
 import { appBus } from '../core/app/app-bus';
 import { registerStrings } from './i18n';
 import { CORE_EN } from './strings/core.en';
+import { SHARE_EN } from './strings/share.en';
 import { setUiShell } from './shell-ref';
 import { setUiSoundPlayer, uiSound } from './sound';
 import { RaceUi } from './race-ui';
@@ -43,6 +44,8 @@ export function sceneFor(top: ScreenId | null, raceUnder: boolean, current: Audi
 
 export function installAudioUi(shell: Shell): void {
   registerStrings('en', CORE_EN);
+  // iteration 4: the share-ugc lane's table (src/ui/strings/share.en.ts)
+  registerStrings('en', SHARE_EN);
   setUiShell(shell);
   registerScreen('settings', () => import('./screens/settings'));
   registerScreen('howto', () => import('./screens/howto'));
