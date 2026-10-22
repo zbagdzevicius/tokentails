@@ -250,8 +250,11 @@ export class ModeHud implements JuiceListener {
         this.root.classList.toggle('calm', reducedMotion());
       }
       this.set('frenzy', this.frenzy, fr ? `<b>×2</b> ${t('DOUBLE POINTS')}` : '');
-      if (this.lastLeft !== left) {
+      // the shell's points badge follows the score at once (once a second it lagged a pop behind the list)
+      const scoreKey = bs ? bs.score.join(',') : '';
+      if (this.lastLeft !== left || this.lastScoreKey !== scoreKey) {
         this.lastLeft = left;
+        this.lastScoreKey = scoreKey;
         this.shell.hudExtras({ balloons: ks.map((k) => k.balloons), timeLeft: left, battleScore: bs ? bs.score.slice() : undefined });
       }
     }
@@ -308,6 +311,7 @@ export class ModeHud implements JuiceListener {
   }
 
   private lastLeft = -1;
+  private lastScoreKey = '';
 
   /** Place the leader marker over kart `i` (or at the edge pointing to it); -1 hides it. */
   private frameLead(info: FrameInfo, i: number, pts: number): void {
@@ -327,12 +331,24 @@ export class ModeHud implements JuiceListener {
     const m = leadMark(_v.x, _v.y, behind, w, h);
     this.lead.hidden = false;
     this.lead.classList.toggle('edge', m.angle != null);
+    // at the bottom edge the name chip sits above the arrow (below it was cut off by the screen edge)
+    this.lead.classList.toggle('low', m.angle != null && m.y > h - 90);
     this.lead.style.transform = `translate(${m.x.toFixed(0)}px, ${m.y.toFixed(0)}px)`;
     const ar = this.lead.firstElementChild as HTMLElement;
     ar.style.transform = m.angle != null ? `rotate(${m.angle.toFixed(2)}rad)` : '';
     const name = this.shell.racers[i]?.name ?? '';
-    this.set('lead', this.lead.lastElementChild as HTMLElement, `👑 ${escHtml(name.slice(0, 9))} <b>★${pts}</b>`);
+    const label = this.lead.lastElementChild as HTMLElement;
+    const html = `👑 ${escHtml(name.slice(0, 9))} <b>★${pts}</b>`;
+    if (this.lastHtml.lead !== html) {
+      this.set('lead', label, html);
+      this.leadHalf = label.offsetWidth / 2 + 6; // measured only when the text changes (no layout read a frame)
+    }
+    // the name chip slides inside the screen (a leader near the side cut its score off on a phone)
+    const lx = Math.min(Math.max(m.x, this.leadHalf), w - this.leadHalf) - m.x;
+    const shift = `${lx.toFixed(0)}px`;
+    if (label.style.getPropertyValue('--lx') !== shift) label.style.setProperty('--lx', shift);
   }
+  private leadHalf = 60;
 
   private frameGp(info: FrameInfo, on: boolean): void {
     if (!on) return;

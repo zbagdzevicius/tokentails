@@ -33,7 +33,7 @@ import { applyComeback, buildCupField, cupDef, cupOutcome, newCup, raceField, ra
 import { clsKey, modesSlot, type ClassPick, type CupRun, type GhostPick, type MemoMode, type ModesSave, type TtRecord } from './store';
 import { mutatorById, wildModifiers, type WildPick } from './mutators';
 import { Modifier } from '../types';
-import { classLabel } from './screens/ui';
+import { shortClass } from './screens/ui';
 import { pickRival, unlockProvider, type LockKind } from './hooks';
 // [integrator] one loadout: the racer select and the Garage read and write the progression lane's equip
 import { loadout as progLoadout, setLoadout as setProgLoadout, recordMedal } from '../progression/api';
@@ -772,7 +772,7 @@ export class ModesFlow {
     return c !== 0 && this.lock('class', c) ? 0 : c;
   }
 
-  /** The setup a mode's tile starts, as it reads on the tile ("Kibble Cup · 50cc Kitten"). */
+  /** The setup a mode's tile starts, as it reads on the tile ("Kibble Cup · 50cc"): short, so a phone tile fits it. */
   tileSetup(mode: MemoMode): { line: string; cat: string | null } {
     const s = this.save;
     const cat = this.modeCat(mode);
@@ -780,15 +780,15 @@ export class ModesFlow {
     if (mode === 'gp') {
       const cupId = this.lock('cup', s.last.cupId) ? 'kibble' : s.last.cupId;
       const cup = cupById(cupId);
-      return { line: `${t(cup?.name ?? '')} · ${classLabel(this.openClass(s.last.cls))}`, cat: catName };
+      return { line: `${t(cup?.name ?? '')} · ${shortClass(this.openClass(s.last.cls))}`, cat: catName };
     }
     if (mode === 'race') {
       const cls = this.openClass(s.last.quickCls);
       const wild = s.last.quickWild;
       const m = wild === 'surprise' ? '🎲' : wild !== 'none' ? (mutatorById(wild)?.icon ?? '') : '';
-      return { line: `${trackById(s.last.quickTrack).name} · ${classLabel(cls)}${m ? ` · ${m}` : ''}`, cat: catName };
+      return { line: `${trackById(s.last.quickTrack).name} · ${shortClass(cls)}${m ? ` ${m}` : ''}`, cat: catName };
     }
-    if (mode === 'tt') return { line: `${trackById(s.last.ttTrack).name} · ${classLabel(this.openClass(s.last.ttCls))}`, cat: catName };
+    if (mode === 'tt') return { line: `${trackById(s.last.ttTrack).name} · ${shortClass(this.openClass(s.last.ttCls))}`, cat: catName };
     return { line: t('Rug arena · 2:30'), cat: catName };
   }
 

@@ -222,7 +222,7 @@
 .fm-mode-hud[data-mode='battle'] .fm-mh-lead:not([hidden]) { display: flex; }
 .fm-mh-lead { position: absolute; left: 0; top: 0; flex-direction: column; align-items: center; gap: 2px; width: 0; will-change: transform; }
 .fm-mh-lead span {
-  transform: translate(0, -100%); white-space: nowrap; font-size: 13px; padding: 2px 8px; border-radius: 999px;
+  transform: translate(var(--lx, 0px), -100%); white-space: nowrap; font-size: 13px; padding: 2px 8px; border-radius: 999px;
   background: rgba(26, 18, 56, 0.72); border: 2px solid #ffd84a; color: var(--cream);
 }
 .fm-mh-lead span b { color: #ffd84a; }
@@ -231,7 +231,8 @@
   display: block; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
   background: #ffd84a; clip-path: polygon(100% 50%, 15% 8%, 32% 50%, 15% 92%); filter: drop-shadow(0 0 2px #1a1238);
 }
-.fm-mh-lead.edge span { transform: translate(0, 16px); }
+.fm-mh-lead.edge span { transform: translate(var(--lx, 0px), 16px); }
+.fm-mh-lead.edge.low span { transform: translate(var(--lx, 0px), calc(-100% - 16px)); }
 /* F14: DOUBLE POINTS for the last 30 s of a battle */
 .fm-mode-hud.frenzy[data-mode='battle'] .fm-mh-frenzy { display: block; }
 .fm-mh-frenzy {
@@ -240,6 +241,11 @@
   animation: fm-mh-frenzy 0.9s ease-in-out infinite alternate;
 }
 .fm-mh-frenzy b { color: #e0287d; font-size: 20px; }
+/* a phone: the chip fits between the leaders list and the minimap (×2 over a small DOUBLE POINTS) */
+@media (max-width: 520px) {
+  .fm-mh-frenzy { top: calc(104px + env(safe-area-inset-top)); padding: 2px 8px 3px; font-size: 11px; line-height: 1.05; text-align: center; }
+  .fm-mh-frenzy b { display: block; font-size: 22px; line-height: 1; }
+}
 @keyframes fm-mh-frenzy { from { transform: translateX(-50%) rotate(-2deg) scale(1); } to { transform: translateX(-50%) rotate(2deg) scale(1.08); } }
 .fm-mode-hud.calm .fm-mh-frenzy { animation: none; }
 :root[data-motion='reduced'] .fm-mh-frenzy { animation: none; }
@@ -293,7 +299,12 @@ a.fm-btn { display: inline-flex; align-items: center; justify-content: center; t
 /* ---------------------------------------------------------------- F11 Wild Card row */
 .fm-m-wild-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 12px 0 6px; font-size: var(--fm-fs-m, 18px); }
 .fm-m-wild-h small { font-size: var(--fm-fs-s, 14px); opacity: 0.7; font-weight: 700; }
-.fm-m-wild .fm-m-chip { min-height: 56px; }
+.fm-m-wild { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.fm-m-wild .fm-m-chip .lb { min-width: 0; max-width: 100%; }
+.fm-m-wild .fm-m-chip { align-items: center; text-align: center; gap: 2px; min-height: 56px; padding: 6px 4px; font-size: var(--fm-fs-s, 14px); line-height: 1.1; }
+.fm-m-wild .fm-m-chip .ic { font-size: 20px; line-height: 1; }
+.fm-m-wild-note { margin: 6px 2px 0; min-height: 1.3em; font-weight: 800; font-size: var(--fm-fs-s, 14px); opacity: 0.85; }
+@media (min-width: 700px) { .fm-m-wild { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .fm-m-wild .fm-m-chip.sel:not([data-act='wild-none']) { background: linear-gradient(120deg, #d9c6ff, #ffe2a0); }
 .fm-m-surprise { border-style: dashed !important; }
 
