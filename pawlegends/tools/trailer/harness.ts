@@ -131,6 +131,14 @@ export interface ShotSpec {
   xray?: boolean;
   /** Hit flashes on heroes last at most this many output frames (realFlash on; default 2): no ghost-white bodies. */
   flashCap?: number;
+  /** Peak hit-flash strength on heroes during the cap (0-1; default 0.2): a tint, never a bleached white body. */
+  flashMax?: number;
+  /**
+   * Minions nearer the lens than the look point (less this margin, m) are not drawn (a wall of creeps in front of the
+   * subject); `minionsOff` hides every minion (a hero-only beat).
+   */
+  cullMinions?: number | null;
+  minionsOff?: boolean;
 }
 
 const D0 = MOBA_DIST * ZOOM_DEFAULT;
@@ -168,7 +176,8 @@ let camNow: CamState | null = null;
 function layersCss(keep: readonly string[]): string {
   if (keep.includes('hud')) return '';
   const allow = ['#game-canvas'];
-  if (keep.includes('pops')) allow.push('.pl-pops', '.pl-callouts', '.pl-flash', '.fx-dmg-layer');
+  // the game's full-screen flash (.pl-flash) is left out: the edit lays its own capped blooms
+  if (keep.includes('pops')) allow.push('.pl-pops', '.pl-callouts', '.fx-dmg-layer');
   if (keep.includes('banner')) allow.push('.pl-banner');
   if (keep.includes('wheel')) allow.push('.pl-pingwheel');
   if (keep.includes('plates')) allow.push('.pl-overhead');
@@ -367,7 +376,7 @@ function cleanUp(g: GameRenderer): void {
       fs.last = r.flash;
       flashState.set(r, fs);
       const u = r.ch.material.userData.u.uFlashK;
-      if (!r.wasDead) u.value = curF - fs.start >= cap ? 0 : Math.min(u.value, Math.min(0.42, r.flash * 0.5));
+      if (!r.wasDead) u.value = curF - fs.start >= cap ? 0 : Math.min(u.value, Math.min(s.flashMax ?? 0.2, r.flash * 0.5));
     }
     for (const st of view.structures.items.values()) {
       st.flash = Math.max(0, st.flash - curDtReal * 5);
@@ -404,6 +413,7 @@ function cleanUp(g: GameRenderer): void {
     }
   }
   const keep = subjects(s.cam?.target);
+  if ((s.minionsOff || s.cullMinions != null) && camPos && camLook) cullMinions(view as unknown as { minions: MinionsLike }, s);
   if (s.cullHeroes && camPos) {
     for (const [id, r] of view.heroes.rigs) {
       const o = r.ch.object;
@@ -421,11 +431,15 @@ function cleanUp(g: GameRenderer): void {
       if (d < dLook - s.cullFront) o.visible = false;
     }
   }
-  if (s.dmgRadius && camLook) {
+  if ((s.dmgRadius || s.popText) && camLook) {
+    // far numbers hidden (dmgRadius); a damage-layer WORD (CLANK!, Snip!) shows only when popText lists it
+    const words = s.popText ? new Set(s.popText) : null;
     for (const n of view.effects.numbers.pool) {
       if (!n.el) continue;
-      const far = n.active && Math.hypot(n.pos.x - camLook.x, n.pos.z - camLook.z) > s.dmgRadius;
-      n.el.style.visibility = far ? 'hidden' : '';
+      const far = !!s.dmgRadius && n.active && Math.hypot(n.pos.x - camLook.x, n.pos.z - camLook.z) > s.dmgRadius;
+      const t = (n.el.textContent ?? '').trim();
+      const word = !!words && t !== '' && !/^[+\-]?[\d.,]+$/.test(t) && !words.has(t);
+      n.el.style.visibility = far || word ? 'hidden' : '';
     }
   }
   if (s.popText) {
@@ -438,6 +452,35 @@ function cleanUp(g: GameRenderer): void {
       cam.near = s.near;
       cam.updateProjectionMatrix();
     }
+  }
+}
+
+interface MinionsLike { group: THREE.Object3D; meshes: THREE.InstancedMesh[] }
+const _mm = new THREE.Matrix4();
+const _mp = new THREE.Vector3();
+const _zero = new THREE.Matrix4().makeScale(0, 0, 0);
+
+/** Minion clean-up (ShotSpec.cullMinions / minionsOff): instances in front of the subject collapse to zero scale. */
+function cullMinions(view: { minions: MinionsLike }, s: ShotSpec): void {
+  const m = view.minions;
+  if (s.minionsOff) {
+    m.group.visible = false;
+    return;
+  }
+  if (!camPos || !camLook) return;
+  const dLook = Math.hypot(camLook.x - camPos.x, camLook.z - camPos.z);
+  const lim = dLook - (s.cullMinions ?? 0);
+  for (const mesh of m.meshes) {
+    let dirty = false;
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getMatrixAt(i, _mm);
+      _mp.setFromMatrixPosition(_mm);
+      if (Math.hypot(_mp.x - camPos.x, _mp.z - camPos.z) < lim) {
+        mesh.setMatrixAt(i, _zero);
+        dirty = true;
+      }
+    }
+    if (dirty) mesh.instanceMatrix.needsUpdate = true;
   }
 }
 

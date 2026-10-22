@@ -13,8 +13,8 @@ export const BEAT_FRAMES = (60 * 60) / BPM;
 /**
  * The 15 s cut as segments of the 30 s master (storyboard §7): [cutFrom, cutTo, offset], so master = cut + offset.
  * The hook as is; the roll call as eight eighth-note cuts round each hero's contact; 3V3; four ults (Moonshot, the
- * charm, Aviete with BIG PLAYS., Golden Hour); Pack Hunt; the tower dive; the final teamfight; TAKE THEIR CORE into the
- * core impact (cut f775); the end card (a plate: no footage).
+ * charm, Aviete with BIG PLAYS., Golden Hour); Pack Hunt; the tower falling (2 beats); the final teamfight; TAKE THEIR
+ * CORE (1 beat) into the core impact (cut f700); the end card (a plate: no footage) from f750, 2.5 s.
  */
 export const CUT15_SEGMENTS = [
   [0, 99, 0],
@@ -22,10 +22,11 @@ export const CUT15_SEGMENTS = [
   [200, 299, 200],
   [300, 324, 216], [325, 349, 292], [350, 374, 350], [375, 399, 377],
   [400, 499, 400],
-  [500, 599, 500],
-  [600, 699, 700],
-  [700, 799, 750],
-  [800, 899, 800],
+  [500, 549, 500],
+  [550, 649, 750],
+  [650, 674, 812],
+  [675, 749, 825],
+  [750, 899, 900],
 ];
 
 /** Cut frame -> 30 s master frame (the footage's frame numbers). */
@@ -66,26 +67,36 @@ export function timeline(cut, aspect, copy) {
   const els = [];
   const out = (at) => ({ at, wipe: true });
   const t3v3 = (f) => {
-    els.push({ id: 'L2a', kind: 'line', anim: 'slam', land: true, size: v ? 300 : 230, x: cx, y: v ? 520 : 200, maxW: v ? vw : 1400, lines: [c.L2a], in: f, out: out(f + 90), scrim: true, color: 'gold' });
-    els.push({ id: 'L2b', kind: 'words', anim: 'pop', rows: v, size: v ? 170 : 110, x: cx, y: v ? 760 : 345, maxW: v ? vw : 1500, words: v ? [{ t: c.L2b1, in: f + 25 }, { t: c.L2b2, in: f + 28 }] : [{ t: c.L2b, in: f + 25 }], out: out(f + 90), scrim: true });
+    els.push({ id: 'L2a', kind: 'line', anim: 'slam', land: true, size: v ? 260 : 190, x: cx, y: v ? 440 : 150, maxW: v ? vw : 1400, lines: [c.L2a], in: f, out: out(f + 90), scrim: true, color: 'gold' });
+    els.push({ id: 'L2b', kind: 'words', anim: 'pop', rows: v, size: v ? 140 : 96, x: cx, y: v ? 640 : 275, maxW: v ? vw : 1500, words: v ? [{ t: c.L2b1, in: f + 25 }, { t: c.L2b2, in: f + 28 }] : [{ t: c.L2b, in: f + 25 }], out: out(f + 90), scrim: true });
   };
-  const big = (id, text, f, o) => els.push({ id, kind: 'line', anim: 'slam', land: true, size: v ? 230 : 170, x: cx, y: v ? 520 : 190, maxW: v ? vw : 1500, lines: [text], in: f, out: out(o), scrim: true, ...(id === 'L4' ? { color: 'gold' } : {}) });
+  const big = (id, text, f, o) => els.push({ id, kind: 'line', anim: 'slam', land: true, size: v ? 230 : 170, x: cx, y: v ? 470 : 170, maxW: v ? vw : 1500, lines: [text], in: f, out: out(o), scrim: true, ...(id === 'L4' ? { color: 'gold' } : {}) });
+  /** A game word (the barks, the announcer's COMEBACK!, the result Victory!) repeated large, as v1 did: never with the in-game copy on screen. */
+  const caption = (id, text, f, o, opt = {}) => els.push({
+    id, kind: 'words', anim: opt.anim ?? 'slam', land: true, size: v ? (opt.vsize ?? 230) : (opt.size ?? 170), x: cx, y: v ? (opt.vy ?? 470) : (opt.y ?? 190), maxW: v ? vw : 1500,
+    words: [{ t: text, in: f, color: opt.color }], out: out(o), scrim: true,
+  });
+  // the line over the core sits in the top third (sky and trees); the core and the fight stay in the lower half
+  const L5 = (f) => els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 190 : 160, x: cx, y: v ? 470 : 170, maxW: v ? vw : 1500, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: f, out: out(f + 34), scrim: true, scrimA: 0.4 });
   if (String(cut) === '30') {
-    // CATS (rose, left) / VS (centre) / DOGS (blue, right); 9:16 stacked top to bottom
+    // CATS (rose, left) / VS (centre) / DOGS (blue, right) on the sky band above the clash; 9:16 stacked in the upper half
     els.push({
-      id: 'L1', kind: 'words', anim: 'slam', land: true, rows: v, size: v ? 250 : 210, x: cx, y: v ? 760 : 540, maxW: v ? vw : 1700, gap: v ? 0 : 60,
+      id: 'L1', kind: 'words', anim: 'slam', land: true, rows: v, size: v ? 200 : 190, x: cx, y: v ? 600 : 200, maxW: v ? vw : 1700, gap: v ? 0 : 60,
       words: [{ t: c.L1a, in: 100, color: 'rose' }, { t: c.L1b, in: 125, anim: 'pop', color: 'gold' }, { t: c.L1c, in: 150, color: 'blue' }], out: out(190), scrim: true,
     });
     t3v3(400);
     big('L3', c.L3, 500, 519);
     big('L4', c.L4, 700, 722);
-    els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 200 : 180, x: cx, y: v ? 800 : 540, maxW: v ? vw : 1700, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: 1450, out: out(1484), scrim: true, scrimA: 0.4 });
-    els.push({ id: 'end', kind: 'endcard', logo: 1600, cta: 1650, pulse: [1650, 1788], sub: 1675, url: [1700, 1715], credit: 1700, bump: 1750, fade: [1800, 1800], end: 1800 });
+    caption('CAP1', c.CAP1, 912, 921, { anim: 'pop', size: 120, vsize: 150, color: 'cream' });
+    caption('CB', c.CB, 1056, 1092, { color: 'gold', size: 190, vsize: 230 });
+    L5(1450);
+    caption('WIN', c.WIN, 1580, 1642, { color: 'gold', size: 220, vsize: 250 });
+    els.push({ id: 'end', kind: 'endcard', logo: 1650, cta: 1662, pulse: [1662, 1788], sub: 1672, url: [1680, 1692], credit: 1680, bump: 1750, fade: [1800, 1800], end: 1800 });
   } else {
     t3v3(200);
     big('L4', c.L4, 350, 372);
-    els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 200 : 180, x: cx, y: v ? 800 : 540, maxW: v ? vw : 1700, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: 700, out: out(734), scrim: true, scrimA: 0.4 });
-    els.push({ id: 'end', kind: 'endcard', logo: 800, cta: 825, pulse: [825, 888], sub: 838, url: [850, 865], credit: 850, bump: 875, fade: [900, 900], end: 900 });
+    L5(650);
+    els.push({ id: 'end', kind: 'endcard', logo: 750, cta: 762, pulse: [762, 888], sub: 772, url: [780, 792], credit: 780, bump: 850, fade: [900, 900], end: 900 });
   }
   return els;
 }
@@ -100,28 +111,30 @@ const sh = (f, tier) => ({ f, px: T[tier][0], decay: T[tier][1] });
 
 export function post(cut) {
   if (String(cut) === '30') {
+    // flashes are capped (≤ 0.45) so no hit bleaches a body white; the core impact alone is a big bloom held 3 frames
     return {
       flash: [
-        { f: 25, a: 0.6 }, { f: 52, a: 0.45 }, { f: 78, a: 0.5 }, { f: 262, a: 0.4 }, { f: 303, a: 0.45 }, { f: 541, a: 0.6 }, { f: 575, a: 0.4 },
-        { f: 622, a: 0.4 }, { f: 752, a: 0.4 }, { f: 764, a: 0.5 }, { f: 825, a: 0.4 }, { f: 850, a: 0.4 }, { f: 875, a: 0.45 }, { f: 1050, a: 0.4 },
-        { f: 1125, a: 0.5 }, { f: 1406, a: 0.5 }, { f: 1525, a: 0.75 }, { f: 1600, a: 0.55 },
+        { f: 25, a: 0.45 }, { f: 52, a: 0.35 }, { f: 78, a: 0.4 }, { f: 262, a: 0.3 }, { f: 303, a: 0.35 }, { f: 541, a: 0.4 }, { f: 575, a: 0.3 },
+        { f: 622, a: 0.3 }, { f: 752, a: 0.3 }, { f: 764, a: 0.35 }, { f: 825, a: 0.3 }, { f: 850, a: 0.3 }, { f: 875, a: 0.35 }, { f: 940, a: 0.3 },
+        { f: 991, a: 0.35 }, { f: 1006, a: 0.45 }, { f: 1125, a: 0.35 }, { f: 1203, a: 0.3 }, { f: 1275, a: 0.3 }, { f: 1406, a: 0.35 }, { f: 1428, a: 0.4 },
+        { f: 1525, a: 0.75 }, { f: 1650, a: 0.5 },
       ],
       shake: [
         sh(25, 3), sh(52, 2), sh(78, 2), sh(262, 2), sh(303, 2), sh(392, 2), sh(400, 1), sh(541, 3), sh(655, 2), sh(764, 3), sh(825, 2), sh(850, 2), sh(875, 3),
-        sh(962, 2), sh(1050, 2), sh(1125, 3), sh(1150, 1), sh(1300, 1), sh(1406, 2), sh(1442, 3), sh(1525, 4), sh(1600, 2),
+        sh(940, 2), sh(991, 2), sh(1006, 3), sh(1056, 1), sh(1125, 3), sh(1203, 2), sh(1275, 2), sh(1300, 1), sh(1406, 2), sh(1428, 3), sh(1525, 4), sh(1650, 2),
       ],
-      rgb: [{ f: 25, frames: 2 }, { f: 78, frames: 2 }, { f: 541, frames: 2 }, { f: 875, frames: 2 }, { f: 1525, frames: 2 }],
-      bump: [{ f: 25 }, { f: 541 }, { f: 1525 }],
+      rgb: [{ f: 25, frames: 2 }, { f: 78, frames: 2 }, { f: 541, frames: 2 }, { f: 875, frames: 2 }, { f: 1006, frames: 2 }, { f: 1525, frames: 3 }],
+      bump: [{ f: 25 }, { f: 541 }, { f: 1006 }, { f: 1525 }],
       push: [],
     };
   }
   // the 15 s cut: the 30 s accents whose frames it keeps, at its own frames, plus its own end card
   const map = (list, key = 'f') => list.flatMap((x) => CUT15_SEGMENTS.filter(([a, b, d]) => x[key] >= a + d && x[key] <= b + d).map(([, , d]) => ({ ...x, [key]: x[key] - d })));
   const p = post('30');
-  const keep = (l) => map(l).filter((x) => x.f < 800);
+  const keep = (l) => map(l).filter((x) => x.f < 750);
   return {
-    flash: [...keep(p.flash), { f: 800, a: 0.55 }],
-    shake: [...keep(p.shake), sh(800, 2)],
+    flash: [...keep(p.flash), { f: 750, a: 0.5 }],
+    shake: [...keep(p.shake), sh(750, 2)],
     rgb: keep(p.rgb),
     bump: keep(p.bump),
     push: [],
@@ -143,9 +156,10 @@ export function overlayRanges(cut, aspect, copy) {
 
 /** Frames where the compositor writes an opaque plate (the end-card background), and the footage frame it blurs. */
 export function plateRanges(cut) {
-  return String(cut) === '30' ? { endbg: [1600, 1799] } : { endbg: [800, 899] };
+  return String(cut) === '30' ? { endbg: [1650, 1799] } : { endbg: [750, 899] };
 }
-export const END_PLATE_SOURCE = 1599;
+/** v2 redo: the end card is a clean branded plate (no blurred footage under it). */
+export const END_PLATE_SOURCE = null;
 
 export function mergeRanges(r) {
   const s = [...r].sort((a, b) => a[0] - b[0]);

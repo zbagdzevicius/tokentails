@@ -287,7 +287,9 @@ function mixAudio(cut) {
     pre.L[i] = music.L[i] * duck[i] + sfx.L[i] + game.L[i];
     pre.R[i] = music.R[i] * duck[i] + sfx.R[i] + game.R[i];
   }
-  // the energy curve: the montage sits under the open, the climax and the end card
+  // glue first (it evens the band's crest), then the energy curve, so the limiter only shaves peaks and the section
+  // levels survive the master: the quiet beats stay quiet and the big impacts stand over them (redo: LRA, contrast)
+  compress(pre, a.glue);
   for (const [f0, f1, db] of a.sections?.[cut] ?? []) {
     const r = 8 * (SR / FPS);
     const s0 = f0 * (SR / FPS);
@@ -295,7 +297,6 @@ function mixAudio(cut) {
     const g = dbToGain(db);
     pre.gainCurve((i) => (i < s0 + r ? 1 + (g - 1) * ((i - s0) / r) : i > s1 - r ? g + (1 - g) * ((i - (s1 - r)) / r) : g), s0, s1);
   }
-  compress(pre, a.glue);
   const fadeFrom = (CUTS[cut] - a.fadeFrames) * (SR / FPS);
   const silenceFrom = (CUTS[cut] - a.silenceFrames) * (SR / FPS);
   const tmp = join(WORK, `mix-${cut}.wav`);

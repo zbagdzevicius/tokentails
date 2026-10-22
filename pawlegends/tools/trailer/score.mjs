@@ -272,13 +272,13 @@ const DESIGN = [
     S.at(f, 'sfx', I.crackle(0.25, 120), { gain: 0.35 });
   }],
   [56, 'Debris patter', (S, f) => S.at(f, 'sfx', I.crackle(0.3, 121), { gain: 0.18, pan: 0.3 })],
-  [78, 'Clem Q3: clang + blade ring', (S, f) => {
-    S.mv(f, 'clang', { boost: 2 });
+  [78, 'Point-blank Moonshot: arrow snap + hit + shut down', (S, f) => {
+    S.g(f, 'arrow', { rate: 0.9, gain: 0.9 });
+    S.g(f, 'hit', { gain: 0.9 });
     S.g(f, 'heroHit', { gain: 0.7 });
+    S.at(f, 'sfx', I.impact(93, { sub: 48, len: 0.6 }), { gain: 0.7 });
     S.at(f, 'sfx', I.snap(93), { gain: 0.6, rev: 0.2 });
-    S.at(f, 'hits', I.musicBox(96, 0.5), { gain: 0.15, rev: 0.3 });
   }],
-  [82, 'flip whoosh', (S, f) => S.mv(f, 'flip')],
   [95, 'Whip whoosh into the title', (S, f) => S.at(f, 'sfx', I.whoosh(0.18, 84, 2.2), { gain: 0.9 })],
   [100, 'CATS stab', (S, f) => stab(S, f, CH.C, 1.2)],
   [125, 'VS stab', (S, f) => stab(S, f, CH.C, 1.2, 4)],
@@ -392,35 +392,62 @@ const DESIGN = [
     S.at(f, 'hits', I.musicBox(84, 0.6), { gain: 0.25, rev: 0.3 });
     S.g(f + 8, 'click', { rate: 1.3, gain: 0.4 });
   }],
-  [962, 'Pudding: sub boing + squash + tuba', (S, f) => {
-    S.at(f, 'sfx', I.boing(), { gain: 0.8 });
-    S.g(f, 'slam', { rate: 0.7, gain: 0.8 });
-    [[0, 36, 12], [12.5, 43, 12], [25, 36, 6], [31.25, 40, 6], [37.5, 43, 12]].forEach(([df, m, len]) => S.at(f + 12 + df, 'synth', I.tuba(m, (len / FPS) * 0.9), { gain: 0.45, rev: 0.12 }));
-  }],
-  ...[1004, 1016, 1028, 1040].map((at) => [at, 'tower shot', (S, f) => S.g(f, 'towerShot', { gain: 0.55, pan: 0.2 })]),
-  [1050, 'Tower dive KO sting + bell', (S, f) => {
+  ...[926, 932].map((at) => [at, 'tower shot', (S, f) => S.g(f, 'towerShot', { gain: 0.6, pan: 0.2 })]),
+  [940, 'Tower dive KO sting + bell', (S, f) => {
     S.g(f, 'heroHit', { gain: 0.9 });
     S.g(f, 'death', { gain: 0.6 });
     S.at(f, 'hits', I.musicBox(81, 1.0), { gain: 0.3, rev: 0.4 });
-    S.at(f, 'sfx', I.impact(102, { sub: 46, len: 0.6 }), { gain: 0.6 });
+    S.at(f, 'sfx', I.impact(102, { sub: 46, len: 0.6 }), { gain: 0.7 });
   }],
-  [1075, 'Escape whoosh', (S, f) => S.mv(f, 'whooshL', { boost: 1.8 })],
-  [1125, 'TOWER CRASH: boom + sub + debris', (S, f) => {
+  [956, 'Escape whoosh', (S, f) => S.mv(f, 'whooshL', { boost: 1.8 })],
+  [978, 'Ambush leap: whoosh + cackle', (S, f) => {
+    S.mv(f, 'whooshM', { boost: 2 });
+    S.g(f, 'hyenaLaugh', { rate: 1.2, gain: 0.45 });
+  }],
+  [991, 'Pounce: maul', (S, f) => {
+    S.g(f, 'heroHit', { gain: 1.0 });
+    S.g(f, 'swipe', { gain: 0.8 });
+    S.at(f, 'sfx', I.impact(107, { sub: 46, len: 0.6 }), { gain: 0.8 });
+  }],
+  [1006, 'TOWER CRASH: boom + sub + debris', (S, f) => {
     S.g(f, 'boom', { gain: 1.2 });
     S.at(f, 'sfx', I.impact(103, { sub: 40, len: 1.6 }), { gain: 1.1, rev: 0.25 });
     S.at(f, 'sfx', I.subDrop(52, 30, 0.8, 0.5), { gain: 0.8 });
     S.at(f + 6, 'sfx', I.crackle(0.5, 113), { gain: 0.3 });
   }],
-  [1150, 'COMEBACK: crowd roar + sting', (S, f) => {
+  [1056, 'COMEBACK: crowd roar + sting + level-10 chime', (S, f) => {
     S.g(f, 'roar', { gain: 0.8 });
     S.g(f, 'cheer', { gain: 0.6 });
     S.g(f, 'sting', { gain: 0.6, rev: 0.2 });
+    S.g(f, 'levelup', { gain: 0.6, rev: 0.25 });
   }],
-  ...[1200, 1206, 1212, 1218].map((at, i) => [at, `Shimmer stab ${i + 1} (card look)`, (S, f) => {
+  [1112, 'Combo: Bengas Q + Aviete E on three dogs', (S, f) => {
+    S.mv(f, 'zap', { boost: 1.8 });
+    S.g(f, 'heroHit', { gain: 0.8 });
+    S.at(f, 'sfx', I.snap(108), { gain: 0.5 });
+  }],
+  [1125, 'Belly Flop lands on all three', (S, f) => {
+    S.g(f, 'slam', { gain: 1.0 });
+    S.at(f, 'sfx', I.impact(109, { sub: 45, len: 0.8 }), { gain: 0.85 });
+    [88, 91, 95].forEach((m, i) => S.at(f + 3 + i * 3, 'hits', I.musicBox(m, 0.6), { gain: 0.2, rev: 0.4, pan: i - 1 }));
+  }],
+  ...[1150, 1156, 1162, 1168].map((at, i) => [at, `Shimmer stab ${i + 1} (card look)`, (S, f) => {
     S.at(f, 'hits', I.shimmer([74, 76, 78, 81][i], 60 + i), { gain: 1.0, rev: 0.45, delay: 0.2 });
     S.g(f, 'pickup', { rate: 1 + i * 0.12, gain: 0.35 });
   }]),
-  [1212, 'axe-kick contact (under the third look)', (S, f) => S.mv(f, 'zap', { boost: 1.4 })],
+  [1162, 'axe-kick contact (under the third look)', (S, f) => S.mv(f, 'zap', { boost: 1.4 })],
+  [1182, 'HUD: the cast whoosh (game ambience)', (S, f) => S.mv(f, 'whooshM', { boost: 1.4 })],
+  ...[1203, 1228].map((at, i) => [at, `Clem Q on three dogs ${i + 1}`, (S, f) => {
+    S.mv(f, 'clang', { boost: 2 });
+    S.g(f, 'heroHit', { gain: 0.8 });
+    S.at(f, 'sfx', I.snap(110 + i), { gain: 0.5 });
+  }]),
+  [1275, 'Bengas takedown + shut down sting', (S, f) => {
+    S.g(f, 'heroHit', { gain: 0.9 });
+    S.g(f, 'death', { gain: 0.6 });
+    S.g(f + 2, 'sting', { gain: 0.5, rev: 0.2 });
+    S.at(f, 'sfx', I.impact(112, { sub: 46, len: 0.6 }), { gain: 0.7 });
+  }],
   ...[
     [1302, 'Belly Flop', (S, f) => { S.g(f, 'slam', { gain: 0.9 }); S.at(f, 'sfx', I.impact(140, { sub: 45, len: 0.5 }), { gain: 0.6 }); }],
     [1315, 'Curtains Up!', (S, f) => { S.mv(f, 'fwoomp', { boost: 2 }); S.at(f, 'sfx', I.fire(0.3, 141), { gain: 0.4 }); }],
@@ -440,7 +467,7 @@ const DESIGN = [
     S.g(f, 'levelup', { gain: 0.9, rev: 0.25 });
     S.at(f, 'sfx', I.impact(104, { sub: 46, len: 0.6 }), { gain: 0.6 });
   }],
-  [1442, 'Cat tower crash', (S, f) => {
+  [1428, 'Cat tower crash', (S, f) => {
     S.g(f, 'boom', { gain: 1.1 });
     S.at(f, 'sfx', I.impact(105, { sub: 40, len: 1.2 }), { gain: 0.9, rev: 0.25 });
   }],
@@ -454,15 +481,17 @@ const DESIGN_AFTER = [
     S.mv(f, 'whooshL', { boost: 2.2 });
     S.at(f, 'sfx', I.reverseWhoosh(0.4, 109), { gain: 0.5 });
   }],
-  [1513, 'Reverse cymbal sucking into the core impact', (S, f) => S.at(f, 'drums', I.reverseCymbal(0.2, 108), { gain: 0.6 })],
-  [1525, 'CORE IMPACT: sub + crash + the game boom/roar, 2 s tail', (S, f) => {
-    S.g(f, 'boom', { gain: 1.2 });
-    S.g(f, 'roar', { gain: 0.9 });
-    S.at(f, 'sfx', I.impact(106, { sub: 36, len: 2.2 }), { gain: 1.0, rev: 0.45 });
-    S.at(f, 'sfx', I.subDrop(48, 26, 1.0, 0.6), { gain: 0.65 });
-    S.at(f, 'drums', I.crash(9, 3.0), { gain: 0.6, rev: 0.45 });
+  [1513, 'Reverse cymbal sucking into the core impact (on the sfx bus: the band is silent here)', (S, f) => S.at(f, 'sfx', I.reverseCymbal(0.2, 108), { gain: 0.7 })],
+  [1525, 'CORE IMPACT: sub + crash + the game boom/roar, 2 s tail (the loudest hit of the mix)', (S, f) => {
+    S.g(f, 'boom', { gain: 1.5 });
+    S.g(f, 'roar', { gain: 1.0 });
+    S.at(f, 'sfx', I.impact(106, { sub: 36, len: 2.2 }), { gain: 1.35, rev: 0.45 });
+    S.at(f, 'sfx', I.subDrop(48, 26, 1.0, 0.6), { gain: 0.9 });
+    S.at(f, 'drums', I.crash(9, 3.0), { gain: 0.7, rev: 0.45 });
+    S.kick(f, 1.3);
   }],
-  [1550, 'Victory sting (game, re-voiced in D) + crowd', (S, f) => {
+  [1575, 'Cut to the winners: debris settle', (S, f) => S.at(f, 'sfx', I.crackle(0.5, 114), { gain: 0.3 })],
+  [1580, 'Victory sting (game, re-voiced in D) + crowd', (S, f) => {
     S.g(f, 'victory', { rate: 1.498, gain: 0.85, rev: 0.4 });
     S.g(f, 'cheer', { gain: 0.6 });
   }],
@@ -557,25 +586,6 @@ function packHunt(S, f0) {
   S.lowpass.push([smp(f0 + 2), smp(f0 + BEAT * 3 + 2), 1200]);
 }
 
-/** BREAKDOWN (ping + Pudding): plucks and claps, the motif on the music box. */
-function breakdown(S, f0) {
-  S.cue(f0, 'BREAKDOWN: plucks + claps, the motif on the music box');
-  drums(S, f0, f0 + BAR, 'sparse');
-  leadMotif(S, f0, CH.F, { box: true, steps: 16, level: 0.9 });
-  bassLine(S, f0, f0 + BAR / 2, CH.F, 'beats', 0.7);
-  bassLine(S, f0 + BAR / 2, f0 + BAR, CH.G, 'beats', 0.7);
-  padChord(S, f0, f0 + BAR, CH.F, { level: 0.5, cutoff: 1500, attack: 0.1 });
-}
-
-/** TOWER DIVE: the tension pulse in Am, sub on the eighths. */
-function tension(S, f0) {
-  S.cue(f0, 'TOWER DIVE: tension pulse (sub on the eighths), Am');
-  drums(S, f0, f0 + BAR, 'pulse');
-  bassLine(S, f0, f0 + BAR, CH.Am, 'eighths', 0.8);
-  padChord(S, f0, f0 + BAR, CH.Am, { level: 0.6, cutoff: 1100, attack: 0.2, low: true });
-  S.at(f0 + BEAT * 2, 'sfx', I.riser((BEAT * 2) / FPS, 72), { gain: 0.7 });
-}
-
 /** TOWER FALLS + COMEBACK: the crash bar in G (half), then the key lift to D at its third beat. */
 function towerComeback(S, f0) {
   S.cue(f0, 'TOWER FALLS: G, half-time; key lift to D on the third beat (COMEBACK)');
@@ -591,16 +601,6 @@ function towerComeback(S, f0) {
   leadMotif(S, b, CH.D, { brass: true, steps: 8 });
   padChord(S, b, b + BEAT * 2, CH.D, { level: 0.65, cutoff: 2400, attack: 0.02 });
   S.pumpWindows.push([smp(b), smp(b + BEAT * 2)]);
-}
-
-/** SKINS + HUD: one beat of shimmer over a held pad, then the trap groove in D. */
-function skinsHud(S, f0) {
-  S.cue(f0, 'SKINS: held D pad, hats; then the trap groove under the real HUD');
-  S.at(f0, 'synth', I.pad([62, 66, 69, 76], BAR / FPS, { cutoff: 2200, attack: 0.03 }), { gain: 0.3, rev: 0.4 });
-  drums(S, f0, f0 + BEAT, 'hats');
-  drums(S, f0 + BEAT, f0 + BAR, 'trap', 0.9);
-  bassLine(S, f0 + BEAT, f0 + BAR, CH.D, '808', 0.9);
-  leadMotif(S, f0 + BEAT, CH.D, { level: 0.6, steps: 12 });
 }
 
 /** FINAL TEAMFIGHT: double-time drums, Bm G D A at two beats each... one bar, 16th bass. */
@@ -626,11 +626,23 @@ function climax(S, f0, tapeAt) {
 
 /** CORE FALLS + Victory (pass 2): a held pad, the core impact with drums out, the victory resolve. */
 function coreBar(S, f0) {
-  S.cue(f0, 'CORE: the hit back in, a held D pad; drums out after the impact');
-  S.at(f0, 'synth', I.pad([50, 57, 62, 66], (BEAT * 2) / FPS, { cutoff: 1400, attack: 0.02 }), { gain: 0.32, rev: 0.4 });
-  S.at(f0, 'synth', I.bass(38, (BEAT * 1.8) / FPS, { cutoff: 600 }), { gain: 0.5 });
-  drums(S, f0, f0 + BEAT, 'four', 0.8);
-  S.at(f0 + BEAT * 2, 'synth', I.pad([55, 62, 67, 71], (BEAT * 2) / FPS, { cutoff: 900, attack: 0.3 }), { gain: 0.3, rev: 0.6 });
+  S.cue(f0, 'CORE: the hit back in, then a real silence (the band out) before the impact; drums out after it');
+  S.at(f0, 'synth', I.bass(38, 0.1, { cutoff: 600 }), { gain: 0.5 });
+  S.kick(f0, 1.0);
+  // the band is silent from +6 to the impact: only the flop whoosh and the reverse cymbal (sfx) lead into it
+  S.dips = [...(S.dips ?? []), [smp(f0 + 6), smp(f0 + BEAT), 0]];
+  S.at(f0 + BEAT, 'synth', I.pad([50, 57, 62, 66], (BEAT * 2) / FPS, { cutoff: 1400, attack: 0.02 }), { gain: 0.32, rev: 0.4 });
+  S.at(f0 + BEAT * 2, 'synth', I.pad([55, 62, 67, 71], (BEAT * 1) / FPS, { cutoff: 900, attack: 0.3 }), { gain: 0.3, rev: 0.6 });
+}
+
+/** Victory (after the cut to the winners): the D resolve on light drums under the sting, into the logo slam. */
+function victoryBars(S, f0, f1) {
+  S.cue(f0, 'VICTORY: D resolve, light drums, into the logo');
+  drums(S, f0, f1, 'beats', 0.7);
+  bassLine(S, f0, f1, CH.D, 'beats', 0.7);
+  padChord(S, f0, f1, CH.D, { level: 0.55, cutoff: 2000, attack: 0.05 });
+  leadMotif(S, f0, CH.D, { level: 0.5, steps: 12 });
+  S.at(f1 - BEAT, 'sfx', I.riser(BEAT / FPS, 73), { gain: 0.8 });
 }
 
 /** End card: logo slam resolving on D, stabs, typing ticks, the final stab, ring-out and the silent tail. */
@@ -676,17 +688,20 @@ function cut30(S) {
   dropBuild(S, 400);
   chorus(S, 500, [CH.C, CH.G, CH.Am]);
   packHunt(S, 800);
-  breakdown(S, 900);
-  tension(S, 1000);
-  towerComeback(S, 1100);
-  skinsHud(S, 1200);
+  // redo: the middle keeps the band's energy (no sparse breakdown): ping / dive / pounce on the groove, the tower crash
+  // and the COMEBACK key lift, then two band bars under the combo, the card looks, the HUD and two more fights
+  bandBar(S, 900, CH.F, { style: 'four', lead: 'pluck', level: 0.9 });
+  towerComeback(S, 1000);
+  bandBar(S, 1100, CH.D, { style: 'four', lead: 'brass', level: 0.95 });
+  bandBar(S, 1200, CH.G2, { style: 'trap', lead: 'brass', bass: '808', level: 0.95 });
   teamfight(S, 1300);
   climax(S, 1400, 1487);
   placeDesign(S, '30', DESIGN);
   return (P) => {
     coreBar(P, 1500);
     placeDesign(P, '30', DESIGN_AFTER);
-    endCard(P, 1600, 1800, { stabs: [[1650, 'PLAY FREE'], [1675, 'No download'], [1700, 'URL']], typeAt: 1700, finalAt: 1750 });
+    victoryBars(P, 1575, 1650);
+    endCard(P, 1650, 1800, { stabs: [[1662, 'PLAY FREE'], [1675, 'No download'], [1700, 'URL']], typeAt: 1680, finalAt: 1750 });
   };
 }
 
@@ -703,14 +718,22 @@ function cut15(S) {
   dropBuild(S, 200);
   chorus(S, 300, [CH.C]);
   packHunt(S, 400);
-  tension(S, 500);
-  teamfight(S, 600);
-  climax(S, 700, 737);
+  // tower falls (2 beats), the teamfight, TAKE THEIR CORE (1 beat) with a riser and a tape-stop into the core
+  S.cue(500, 'TOWER FALLS: half-time crash in G');
+  drums(S, 500, 550, 'half');
+  bassLine(S, 500, 550, CH.G, 'whole');
+  padChord(S, 500, 550, CH.G, { level: 0.6, cutoff: 1600, attack: 0.05 });
+  teamfight(S, 550);
+  S.cue(650, 'TAKE THEIR CORE: riser, tape-stop');
+  drums(S, 650, 675, 'four', 0.9);
+  bassLine(S, 650, 675, CH.G2, 'eighths');
+  S.at(650, 'sfx', I.riser(25 / FPS), { gain: 1.4 });
+  S.tape = [smp(662), smp(675), smp(675)];
   placeDesign(S, '15', DESIGN);
   return (P) => {
-    coreBar(P, 750);
+    coreBar(P, 675);
     placeDesign(P, '15', DESIGN_AFTER);
-    endCard(P, 800, 900, { stabs: [[825, 'PLAY FREE'], [838, 'No download'], [850, 'URL']], typeAt: 850, finalAt: 875 });
+    endCard(P, 750, 900, { stabs: [[762, 'PLAY FREE'], [775, 'No download'], [800, 'URL']], typeAt: 780, finalAt: 850 });
   };
 }
 

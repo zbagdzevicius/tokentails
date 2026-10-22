@@ -12,17 +12,18 @@ describe('trailer v2 edit plan', () => {
     expect(sourceFrame('15', 100)).toBe(200); // Clem's Tumble
     expect(sourceFrame('15', 200)).toBe(400); // 3V3
     expect(sourceFrame('15', 400)).toBe(800); // Pack Hunt
-    expect(sourceFrame('15', 775)).toBe(1525); // the core impact
+    expect(sourceFrame('15', 700)).toBe(1525); // the core impact
+    expect(sourceFrame('15', 500)).toBe(1000); // the tower falls
     expect(edl.bpm).toBe(144);
   });
 
   it('every output frame has exactly one base picture; the 9:16 HUD shot is a band', () => {
     const plan = framePlan('30', '9x16', edl, {
-      hasPlate: (f) => f >= 1600,
-      footageSize: (src) => (src >= 1225 && src <= 1299 ? [1864, 860] : [1080, 1920]),
+      hasPlate: (f) => f >= 1650,
+      footageSize: (src) => (src >= 1175 && src <= 1199 ? [1864, 860] : [1080, 1920]),
     });
     expect(plan).toHaveLength(1800);
-    expect(plan.filter((p) => p.kind === 'band').map((p) => p.f)).toEqual(Array.from({ length: 75 }, (_, i) => 1225 + i));
+    expect(plan.filter((p) => p.kind === 'band').map((p) => p.f)).toEqual(Array.from({ length: 25 }, (_, i) => 1175 + i));
     expect(plan.find((p) => p.f === 1700).kind).toBe('plate');
     expect(edl.band['9x16'].segs).toHaveLength(1);
   });
@@ -49,7 +50,7 @@ describe('trailer v2 edit plan', () => {
   it('every frame is graded; the impacts get the chromatic split', () => {
     const g = gradeWindows('30', edl);
     expect(g.graded).toEqual([[0, 1799]]);
-    expect(g.strong).toContainEqual([1525, 1526]);
+    expect(g.strong).toContainEqual([1525, 1527]);
     expect(rangesExpr([])).toBe('0');
     expect(gradeWindows('15', edl).graded).toEqual([[0, 899]]);
   });

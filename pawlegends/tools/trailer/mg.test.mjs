@@ -23,18 +23,20 @@ describe('trailer v2 motion graphics', () => {
     // the shots tile the master from f0 to the end card without a gap
     const covered = new Set();
     for (const s of SHOTS) for (let f = s.f0; f <= s.f1; f++) covered.add(f);
-    for (let f = 0; f < 1600; f++) expect(covered.has(f)).toBe(true);
+    for (let f = 0; f < 1650; f++) expect(covered.has(f)).toBe(true);
   });
 
-  it('five kinetic lines on the storyboard frames; the end card from f1600', () => {
+  it('five kinetic lines on the storyboard frames; the end card from f1650 (2.5 s)', () => {
     const t = timeline('30', '16x9', copy);
     expect(t.find((e) => e.id === 'L1').words.map((w) => w.in)).toEqual([100, 125, 150]);
     expect(t.find((e) => e.id === 'L2a').in).toBe(400);
     expect(t.find((e) => e.id === 'L3').in).toBe(500);
     expect(t.find((e) => e.id === 'L4').in).toBe(700);
     expect(t.find((e) => e.id === 'L5').in).toBe(1450);
-    expect(t.find((e) => e.kind === 'endcard').logo).toBe(1600);
-    expect(timeline('15', '9x16', copy).find((e) => e.kind === 'endcard').logo).toBe(800);
+    expect(t.find((e) => e.kind === 'endcard').logo).toBe(1650);
+    expect(timeline('15', '9x16', copy).find((e) => e.kind === 'endcard').logo).toBe(750);
+    // kinetic type sits in the top third, clear of the fights (and their telegraphs) in the lower half
+    for (const id of ['L1', 'L2a', 'L2b', 'L3', 'L4', 'L5']) expect(t.find((e) => e.id === id).y).toBeLessThanOrEqual(300);
     for (const cut of ['30', '15']) for (const aspect of ['16x9', '9x16']) for (const [a, b] of overlayRanges(cut, aspect, copy)) expect(a >= 0 && b < CUTS[cut]).toBe(true);
     // 9:16 type stays inside x 80-940 (the right-side rail)
     expect(timeline('30', '9x16', copy).every((e) => !('x' in e) || e.x === 510)).toBe(true);
@@ -48,14 +50,15 @@ describe('trailer v2 motion graphics', () => {
       next = b + 1;
     }
     expect(next).toBe(900);
-    // the core impact lands on cut f775 (master f1525)
-    expect(CUT15_SEGMENTS.find(([a, b]) => a <= 775 && b >= 775)[2]).toBe(750);
+    // the core impact lands on cut f700 (master f1525)
+    expect(CUT15_SEGMENTS.find(([a, b]) => a <= 700 && b >= 700)[2]).toBe(825);
   });
 
-  it('flashes are additive blooms: never on frame 0, never two within 4 frames, 40-75 %', () => {
+  it('flashes are capped additive blooms: never on frame 0, never two within 4 frames, 25-75 %, only the core and the logo over 45 %', () => {
     for (const cut of ['30', '15']) {
       const fl = post(cut).flash;
-      expect(fl.every((x) => x.f >= 1 && x.a >= 0.4 && x.a <= 0.75)).toBe(true);
+      expect(fl.every((x) => x.f >= 1 && x.a >= 0.25 && x.a <= 0.75)).toBe(true);
+      expect(fl.filter((x) => x.a > 0.45).length).toBeLessThanOrEqual(2);
       for (let i = 1; i < fl.length; i++) expect(fl[i].f - fl[i - 1].f).toBeGreaterThanOrEqual(4);
     }
   });

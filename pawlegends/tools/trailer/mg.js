@@ -593,32 +593,88 @@ export class Compositor {
   renderEndPlate(ctx, img, f = 0) {
     const { W, H } = this;
     const e = this.els.find((x) => x.kind === 'endcard');
-    const u = e ? clamp01((f - e.logo) / Math.max(1, e.end - 1 - e.logo)) : 0;
-    ctx.fillStyle = C.cocoa;
+    const t = e ? f - e.logo : 0;
+    // v2 redo: a clean branded plate (no footage): a plum-to-deep-purple gradient, a pink glow under the lockup, slow
+    // light rays turning behind the logo, drifting bokeh and paw prints, so the card is never a still
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#3a1747');
+    bg.addColorStop(0.55, '#5b2466');
+    bg.addColorStop(1, '#7a2f6a');
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
-    if (img) {
-      // the last gameplay frame (Victory!), blurred (σ 14), darkened 35 %, with a slow 102 % push
-      const sc = 1.06 + 0.02 * ease.inOut(u);
-      ctx.save();
-      ctx.filter = `blur(${Math.round(14 * this.k)}px) brightness(0.65) saturate(1.1)`;
-      ctx.translate(W / 2, H / 2);
-      ctx.scale(sc, sc);
-      ctx.drawImage(img, -W / 2, -H / 2, W, H);
-      ctx.restore();
-      ctx.filter = 'none';
-    }
     const L = this.endLayout();
-    const rg = ctx.createRadialGradient(this.endCx(), L.logoY, 0, this.endCx(), L.logoY, Math.max(W, H) * 0.5);
-    rg.addColorStop(0, 'rgba(90, 40, 64, 0.35)');
-    rg.addColorStop(1, 'rgba(40, 20, 30, 0)');
+    const cx = this.endCx();
+    // rays: 14 soft wedges turning 0.15°/frame round the logo
+    ctx.save();
+    ctx.translate(cx, L.logoY);
+    ctx.rotate(((t * 0.15) * Math.PI) / 180);
+    ctx.globalCompositeOperation = 'lighter';
+    const R = Math.max(W, H) * 1.1;
+    for (let i = 0; i < 14; i++) {
+      const a0 = (i / 14) * Math.PI * 2;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+      g.addColorStop(0, 'rgba(255, 190, 220, 0.10)');
+      g.addColorStop(1, 'rgba(255, 190, 220, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, R, a0, a0 + Math.PI / 22);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    const rg = ctx.createRadialGradient(cx, L.logoY, 0, cx, L.logoY, Math.max(W, H) * 0.55);
+    rg.addColorStop(0, 'rgba(242, 120, 170, 0.42)');
+    rg.addColorStop(0.5, 'rgba(160, 60, 140, 0.15)');
+    rg.addColorStop(1, 'rgba(40, 10, 50, 0)');
     ctx.fillStyle = rg;
     ctx.fillRect(0, 0, W, H);
-    const g = ctx.createLinearGradient(0, H * 0.75, 0, H);
-    g.addColorStop(0, 'rgba(242, 162, 184, 0)');
-    g.addColorStop(1, 'rgba(242, 162, 184, 0.3)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, H * 0.75, W, H * 0.25);
+    // bokeh and paw prints (deterministic), drifting up
+    ctx.save();
+    for (let i = 0; i < 26; i++) {
+      const r1 = ((i * 7919) % 1000) / 1000;
+      const r2 = ((i * 104729) % 1000) / 1000;
+      const r3 = ((i * 1299709) % 1000) / 1000;
+      const x = r1 * W;
+      const y = (((r2 * H - t * (0.6 + r3 * 1.2)) % H) + H) % H;
+      const rad = (10 + r3 * 34) * this.k;
+      ctx.globalAlpha = 0.08 + 0.12 * r2;
+      if (i % 3 === 0) {
+        this.drawPawFlat(ctx, x, y, rad * 1.6, i % 2 ? C.pink : C.cream);
+      } else {
+        ctx.fillStyle = i % 2 ? C.gold : C.pink;
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    // vignette
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(20, 5, 25, 0.55)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+    void img;
     this.dither(ctx, f);
+  }
+
+  /** A flat paw print (the plate's drifting prints). */
+  drawPawFlat(ctx, x, y, s, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.3);
+    ctx.scale(s / 48, s / 48);
+    ctx.translate(-24, -24);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(24, 31, 10, 8, 0, 0, Math.PI * 2);
+    for (const [px, py] of [[12, 20], [20, 13], [28, 13], [36, 20]]) {
+      ctx.moveTo(px + 4.5, py);
+      ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.restore();
   }
 
   /** The end card's centre line (9:16: the type column x 80-940, clear of the platforms' right-side rail). */
@@ -629,13 +685,13 @@ export class Compositor {
   /** End-card layout: 16:9 per the storyboard (logo y 420, pill y 640, sub 740, URL 820); 9:16 lockup ~80 % wide. */
   endLayout() {
     return this.v
-      ? { logoY: 650, logoW: 840, ctaY: 850, pw: 680, ph: 150, subY: 978, sub: 58, urlY: 1060, url: 64, creditX: null, creditY: 1132, credit: 32 }
-      : { logoY: 420, logoW: 1180, ctaY: 640, pw: 600, ph: 136, subY: 740, sub: 52, urlY: 820, url: 60, creditX: 1860, creditY: 1040, credit: 28 };
+      ? { logoY: 640, logoW: 900, ctaY: 860, pw: 720, ph: 160, subY: 1000, sub: 66, urlY: 1090, url: 70, creditX: null, creditY: 1170, credit: 32 }
+      : { logoY: 380, logoW: 1140, ctaY: 640, pw: 700, ph: 156, subY: 760, sub: 62, urlY: 850, url: 72, creditX: 1860, creditY: 1040, credit: 28 };
   }
 
   logoLayout() {
     if (this.logoL) return this.logoL;
-    const capPx = this.v ? 170 : 170;
+    const capPx = this.v ? 210 : 260;
     let size = capPx / CAP;
     const a = this.copy?.LOGOa ?? 'Paw';
     const b = this.copy?.LOGOb ?? 'legends';

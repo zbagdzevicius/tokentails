@@ -25,7 +25,7 @@
   }
  ],
  "grade": {
-  "_comment": "Storyboard v2 \u00a73: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur \u03c3 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade.",
+  "_comment": "Storyboard v2 \u00a73: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur \u03c3 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade. Redo: the bloom keys only the brightest highlights (>= 0.88) at 0.12, so pale plazas never wash out.",
   "sharpen": "cas=strength=0.35",
   "eq": "eq=contrast=1.10:saturation=1.10:gamma=0.98",
   "curves": "curves=master='0/0 0.25/0.22 0.75/0.78 1/1'",
@@ -57,9 +57,9 @@
   },
   "grainAll": true,
   "bloom": {
-   "threshold": 0.82,
-   "sigma": 18,
-   "opacity": 0.22
+   "threshold": 0.88,
+   "sigma": 16,
+   "opacity": 0.12
   }
  },
  "chroma": {
@@ -81,8 +81,8 @@
      1301
     ],
     [
-     1600,
-     1601
+     1650,
+     1651
     ]
    ],
    "15": [
@@ -91,8 +91,8 @@
      99
     ],
     [
-     800,
-     801
+     750,
+     751
     ]
    ]
   }
@@ -127,8 +127,8 @@
    "darken": 0.5,
    "segs": [
     {
-     "f0": 1225,
-     "f1": 1299,
+     "f0": 1175,
+     "f1": 1199,
      "crop": [
       0,
       0,
@@ -140,8 +140,8 @@
   }
  },
  "poster": {
-  "_comment": "Thumbnails: the Belly Flop hold (S01 f26) with the logo and end-card lines from the 30 s overlay.",
-  "frame": 26,
+  "_comment": "Thumbnails: Lambo mid-air in the Belly Flop (S01 f4) with the logo and end-card lines from the 30 s overlay.",
+  "frame": 4,
   "overlayFrame": 1740,
   "files": {
    "16x9": "pawlegends-trailer-poster.png",
@@ -151,18 +151,18 @@
  "audio": {
   "_comment": "Mix from score.mjs stems: the music ducks under the sfx + game sounds (impacts), then glue, gain to -14 LUFS, a latency-free true-peak limiter, the end fade and digital silence.",
   "duck": {
-   "thresholdDb": -24,
-   "ratio": 3,
-   "maxDb": 6,
+   "thresholdDb": -26,
+   "ratio": 4,
+   "maxDb": 9,
    "attackMs": 2,
-   "releaseMs": 160,
+   "releaseMs": 120,
    "lookaheadMs": 5
   },
   "glue": {
-   "threshDb": -12,
-   "ratio": 1.25,
-   "attack": 0.012,
-   "release": 0.2
+   "threshDb": -16,
+   "ratio": 2.5,
+   "attack": 0.006,
+   "release": 0.16
   },
   "targetLufs": -14,
   "ceilingDb": -2.6,
@@ -172,40 +172,135 @@
   "fadeFrames": 30,
   "silenceFrames": 12,
   "aacBitrate": "320k",
-  "_sections": "Energy curve: [from, to, dB] with an 8-frame ramp at each end, before the glue. The gameplay body plays at full level; bar 9 steps down, the COMEBACK key lift steps up, the tower and the core impact are the loudest moments, and the end card holds the body's level (about -15 LUFS-S) with a stab on every line.",
+  "_sections": "Energy curve (redo: LRA, contrast): [from, to, dB] with an 8-frame ramp at each end, before the glue. Routine beats sit 2-5 dB under the ceiling so only the hook impact, the final teamfight, the core impact and the logo slam reach it: title -3, roll call -2.5, 3V3 drop -4, ults -2, Pack Hunt -5 (half-time), ping/dive -3, tower and COMEBACK -1, fights and card looks -2.5, teamfight 0, TAKE THEIR CORE -2 into the gap, core +1.5, end card -3.",
   "sections": {
    "30": [
     [
+     50,
+     99,
+     -2.0
+    ],
+    [
+     100,
+     199,
+     -6.0
+    ],
+    [
+     200,
+     399,
+     -4.5
+    ],
+    [
+     400,
+     499,
+     -8.0
+    ],
+    [
+     500,
+     799,
+     -3.0
+    ],
+    [
      800,
      899,
-     -1.0
+     -10.0
     ],
     [
      900,
      999,
-     -2.0
+     -7.0
+    ],
+    [
+     1000,
+     1099,
+     -3.0
+    ],
+    [
+     1100,
+     1299,
+     -8.5
     ],
     [
      1300,
      1399,
-     1.0
+     -1.0
     ],
     [
-     1600,
+     1400,
+     1449,
+     -2.0
+    ],
+    [
+     1450,
+     1499,
+     -6.0
+    ],
+    [
+     1525,
+     1574,
+     3.0
+    ],
+    [
+     1575,
+     1649,
+     -6.0
+    ],
+    [
+     1650,
      1799,
-     -0.5
+     -6.0
     ]
    ],
    "15": [
     [
+     50,
+     99,
+     -2.0
+    ],
+    [
+     100,
+     199,
+     -4.0
+    ],
+    [
+     200,
+     299,
+     -8.0
+    ],
+    [
+     300,
+     399,
+     -3.0
+    ],
+    [
      400,
      499,
+     -10.0
+    ],
+    [
+     500,
+     549,
+     -3.0
+    ],
+    [
+     550,
+     649,
      -1.0
     ],
     [
-     600,
-     699,
-     1.0
+     650,
+     674,
+     -6.0
+    ],
+    [
+     700,
+     749,
+     3.0
+    ],
+    [
+     750,
+     899,
+     -6.0
     ]
    ]
   }
