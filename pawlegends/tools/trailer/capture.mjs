@@ -35,6 +35,8 @@ const ONLY = (argValue('--only') ?? '').split(',').filter(Boolean);
 const ASPECT = argValue('--aspect') ?? 'both';
 const EVERY = Number(argValue('--every') ?? 1);
 const PROBE_ONLY = hasFlag('--probe');
+/** `--pick f,x,y`: debug, list what the lens sees at screen fraction (x, y) after frame f. */
+const PICK = argValue('--pick') ? argValue('--pick').split(',').map(Number) : null;
 // `--shots-file`: another shot list module (look-dev variants); same exports as shots.mjs
 const { SHOTS, portraitKeys } = argValue('--shots-file') ? await import(resolve(argValue('--shots-file'))) : SHOT_LIST;
 const TAKES = JSON.parse(readFileSync(join(HERE, 'takes.json'), 'utf8')).takes;
@@ -76,7 +78,8 @@ function specFor(shot, aspect) {
     // `lead`: frames rendered (on the shot's ramp, through the real frame path) before f0 and not saved, so an event
     // just before the first saved frame (a cast whose clip must already be playing on frame 0) is drawn live
     f0: shot.f0 - (shot.lead ?? 0),
-    f1: shot.f1,
+    // `portrait.f1`: the 9:16 take runs on (a beat the vertical leaves out, such as the landscape HUD)
+    f1: p.f1 ?? shot.f1,
     preroll: shot.preroll ?? 90,
     take: take ? { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, script: take.script ?? [], look: shot.look ?? null, check: take.check } : null,
     cam: shot.cam ? { target: mapTarget(p.target ?? shot.cam.target, take), keys: portrait ? portraitKeys(shot) : shot.cam.keys, smooth: shot.cam.smooth, ...((p.align ?? shot.cam.align) ? { align: { a: ref((p.align ?? shot.cam.align).a, take), b: ref((p.align ?? shot.cam.align).b, take) } } : {}) } : null,
@@ -93,11 +96,21 @@ function specFor(shot, aspect) {
     cullFront: p.cullFront ?? shot.cullFront ?? null,
     near: p.near ?? shot.near ?? null,
     wheelScale: p.wheelScale ?? shot.wheelScale ?? null,
-    xray: !!(p.xray ?? shot.xray),
+    // v3: every director shot hides a structure in front of its subject unless the shot says `xray: false`
+    xray: (p.xray ?? shot.xray) !== false && !!shot.cam,
     flashCap: shot.flashCap ?? 2,
-    flashMax: shot.flashMax ?? 0.2,
+    flashMax: shot.flashMax ?? 0.06,
     cullMinions: p.cullMinions ?? shot.cullMinions ?? null,
     minionsOff: !!(p.minionsOff ?? shot.minionsOff),
+    cullLens: p.cullLens ?? shot.cullLens ?? null,
+    cullLos: p.cullLos ?? shot.cullLos ?? null,
+    banners: !!(p.banners ?? shot.banners),
+    xrayMode: p.xrayMode ?? shot.xrayMode ?? 'hide',
+    hidePudding: !!(p.hidePudding ?? shot.hidePudding),
+    ghosts: !!(p.ghosts ?? shot.ghosts),
+    shockI: p.shockI ?? shot.shockI ?? 0.5,
+    hideGroups: shot.hideGroups ?? [],
+    bolts: !!(p.bolts ?? shot.bolts),
     lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}) } : undefined,
   };
 }
@@ -285,7 +298,7 @@ async function capture(shot, aspect) {
   return {
     id: shot.id,
     aspect,
-    parts: shot.parts ?? [{ id: shot.id, f0: shot.f0, f1: shot.f1 }],
+    parts: shot.parts ?? [{ id: shot.id, f0: shot.f0, f1: spec.f1 }],
     frames: spec.f1 - shot.f0 + 1,
     saved,
     size: [spec.width * (spec.dpr ?? 1), spec.height * (spec.dpr ?? 1)],
@@ -314,6 +327,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       dirs.add(dir);
     }
     const file = join(dir, `f${String(f).padStart(4, '0')}.png`);
+    if (PICK && f === PICK[0] + 1) console.log(`[pick ${shot.id} f${PICK[0]}]`, JSON.stringify(await page.evaluate(([x, y]) => window.__trailer.pick(x, y), [PICK[1], PICK[2]])));
     const save = (f >= pass.a && f <= pass.b) && ((f - shot.f0) % EVERY === 0 || f === spec.f1);
     if (blurs.some(([a, b]) => f >= a && f <= b)) {
       // the 3D picture: SUBS sub-frames, the first half (a 180° shutter) averaged; the screen-space layer (numbers,
@@ -359,6 +373,8 @@ const list = SHOTS.filter((s) => !ONLY.length || ONLY.includes(s.id) || (s.parts
 try {
   for (const shot of list) {
     for (const aspect of aspects) {
+      // `aspects`: a shot only one master uses (v3: the landscape HUD beat is 16:9 only)
+      if (shot.aspects && !shot.aspects.includes(aspect)) continue;
       const r = await capture(shot, aspect);
       if (!PROBE_ONLY) {
         manifest.shots[`${shot.id}/${aspect}`] = r;

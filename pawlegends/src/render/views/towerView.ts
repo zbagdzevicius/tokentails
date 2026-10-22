@@ -5,8 +5,11 @@
  *
  * Weight: a shooting tower or core charges before each shot (a glow and a crouch over the last 40% of its 1 s period,
  * or over a lock-on windup), and fires with a recoil (a stretch that rings out) and a muzzle burst on the frame its
- * bolt appears; a falling tower or core flashes, swells, tilts and sinks into the ground (0.7 s; the core 1.1 s, its
- * slow motion runs over it) before the rubble is left. Nothing allocates per frame.
+ * bolt appears. A falling tower cracks (a flash, a swell and a shudder), topples over its base edge like a felled tree
+ * (gravity, a bounce on the ground), throws chunks of its walls and roof and breaks up into rubble along the line it
+ * fell on (1.1 s). A falling core bursts on the killing blow (a ring of chunks), caves in on itself and settles (1.3 s; its slow
+ * motion runs over it). Chunks are a pooled instanced mesh (fewer on lower quality tiers, none with reduce motion).
+ * Nothing allocates per frame.
  */
 import * as THREE from 'three';
 import { CORE_STATS, TOWERS } from '../../data/towers';
@@ -40,12 +43,23 @@ interface Structure {
   /** Tilt direction for the fall (rad about the vertical), the structure height (m). */
   fallDir: number;
   height: number;
+  /** The fall's ground impact (tower) or burst (core) has thrown its chunks. */
+  impacted: boolean;
   team: number;
   stamp: number;
 }
 
 /** Shot rhythm (s) and the charge / recoil / fall shapes. */
-export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30, corePeriod: CORE_STATS.attackEvery / 30, chargeFrom: 0.6, crouch: 0.05, glow: 0.4, recoil: 0.08, fallTower: 0.7, fallCore: 1.1 });
+export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30, corePeriod: CORE_STATS.attackEvery / 30, chargeFrom: 0.6, crouch: 0.05, glow: 0.4, recoil: 0.08, fallTower: 1.1, fallCore: 1.3 });
+
+/**
+ * The fall's shape (fractions of the fall). Tower: crack until `crack`, topple (gravity) until `hit`, a bounce until
+ * `settle`, then the break-up. Core: swell until `burst`, cave in until `caved`, then settle into the ground.
+ */
+export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
+
+/** Chunks thrown by a fall: pool size, per tower / core at full quality, gravity (m/s²), life (s). */
+const DEBRIS = Object.freeze({ pool: 48, tower: 16, core: 26, gravity: 22, life: 1.5 });
 
 const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
 /**
@@ -53,6 +67,18 @@ const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
  * from the south, so a tall structure covers the ground just north of it.
  */
 const COVER = Object.freeze({ halfWidth: 1.9, north: 5.5, south: 0.6, opacity: 0.32 });
+
+/** Chunk colours per side (walls, trim, roof) and scratch objects (no per-frame allocation). */
+const DEBRIS_CAT = [0xf3ead8, 0xe6d6b8, 0xff6f91, 0xc94a72, 0xffd27a];
+const DEBRIS_DOG = [0x6f84b5, 0x3d5a9e, 0x26396b, 0xd9a441, 0x52679a];
+const _col = new THREE.Color();
+const _m4 = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const _v = new THREE.Vector3();
+const _sv = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 
 /** Kinds this view draws (heroes, minions and pickups have their own views; an unknown kind is skipped). */
 const STRUCTURE_KINDS: ReadonlySet<string> = new Set(['tower', 'core', 'fountain', 'camp', 'pudding']);
@@ -77,6 +103,25 @@ export class StructureView {
   onShot: ((x: number, y: number, z: number, team: number) => void) | null = null;
   /** A fall finished at (x, z) (gameView: the dust settling). */
   onFallen: ((x: number, z: number, core: boolean) => void) | null = null;
+  /**
+   * A falling tower hit the ground (along the line from (x, z) toward (dx, dz) over `len` m), or a core burst at
+   * (x, z) (len 0) (gameView: dust along the line, a shockwave, a kick).
+   */
+  onImpact: ((x: number, z: number, dx: number, dz: number, len: number, core: boolean) => void) | null = null;
+  /** Share of the chunks a fall throws (quality tier: 1 high, 0.6 med, 0.35 low); 0 = none. */
+  debris = 1;
+  private debrisMesh: THREE.InstancedMesh;
+  private debrisLive = 0;
+  /** Per chunk: position, velocity, rotation, spin (xyz each), size, age, life. */
+  private readonly dP = new Float32Array(DEBRIS.pool * 3);
+  private readonly dV = new Float32Array(DEBRIS.pool * 3);
+  private readonly dR = new Float32Array(DEBRIS.pool * 3);
+  private readonly dW = new Float32Array(DEBRIS.pool * 3);
+  private readonly dS = new Float32Array(DEBRIS.pool);
+  private readonly dAge = new Float32Array(DEBRIS.pool);
+  private readonly dLife = new Float32Array(DEBRIS.pool);
+  private dNext = 0;
+  private rng = 0x2f6b1d;
   myTeam: 0 | 1 = 0;
   /** Round 2: team 0 is the dogs (the human picked a dog): each base wears the other team's style. */
   styleSwap = false;
@@ -88,6 +133,94 @@ export class StructureView {
   constructor() {
     this.group.name = 'structures';
     this.group.add(this.ranges.mesh);
+    this.debrisMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), DEBRIS.pool);
+    this.debrisMesh.name = 'structure-debris';
+    this.debrisMesh.count = 0;
+    this.debrisMesh.frustumCulled = false;
+    this.debrisMesh.castShadow = true;
+    for (let i = 0; i < DEBRIS.pool; i++) this.debrisMesh.setColorAt(i, _col.setHex(0xffffff));
+    this.group.add(this.debrisMesh);
+  }
+
+  /** A deterministic 0..1 (render only: the chunks' spread). */
+  private rand(): number {
+    this.rng = (Math.imul(this.rng, 1664525) + 1013904223) >>> 0;
+    return this.rng / 4294967296;
+  }
+
+  /** Throw `n` chunks from points along (x, z) -> (x + dx·len, z + dz·len) at height y0..y1, in `colors`. */
+  private throwChunks(n: number, x: number, z: number, dx: number, dz: number, len: number, y0: number, y1: number, colors: readonly number[], speed: number, size: number): void {
+    const k = Math.round(n * Math.max(0, Math.min(1, this.debris)));
+    for (let j = 0; j < k; j++) {
+      const i = this.dNext;
+      this.dNext = (this.dNext + 1) % DEBRIS.pool;
+      const t = len > 0 ? this.rand() : 0;
+      const a = this.rand() * Math.PI * 2;
+      const o = i * 3;
+      this.dP[o] = x + dx * len * t + Math.cos(a) * 0.4;
+      this.dP[o + 1] = y0 + (y1 - y0) * this.rand();
+      this.dP[o + 2] = z + dz * len * t + Math.sin(a) * 0.4;
+      const sp = speed * (0.55 + this.rand() * 0.6);
+      this.dV[o] = Math.cos(a) * sp + dx * sp * 0.3;
+      this.dV[o + 1] = speed * (0.7 + this.rand() * 0.8);
+      this.dV[o + 2] = Math.sin(a) * sp + dz * sp * 0.3;
+      for (let c = 0; c < 3; c++) {
+        this.dR[o + c] = this.rand() * 6.28;
+        this.dW[o + c] = (this.rand() - 0.5) * 18;
+      }
+      this.dS[i] = size * (0.55 + this.rand() * 0.9);
+      this.dAge[i] = 0;
+      this.dLife[i] = DEBRIS.life * (0.75 + this.rand() * 0.5);
+      this.debrisMesh.setColorAt(i, _col.setHex(colors[j % colors.length]));
+    }
+    if (k > 0) {
+      this.debrisLive = DEBRIS.pool;
+      if (this.debrisMesh.instanceColor) this.debrisMesh.instanceColor.needsUpdate = true;
+    }
+  }
+
+  /** Chunks fly, tumble, bounce on the ground and shrink away at the end of their life. */
+  private updateDebris(dt: number): void {
+    if (this.debrisLive <= 0) return;
+    let live = 0;
+    for (let i = 0; i < DEBRIS.pool; i++) {
+      const o = i * 3;
+      if (this.dAge[i] >= this.dLife[i]) {
+        _m4.makeScale(0, 0, 0);
+        this.debrisMesh.setMatrixAt(i, _m4);
+        continue;
+      }
+      live++;
+      this.dAge[i] += dt;
+      this.dV[o + 1] -= DEBRIS.gravity * dt;
+      for (let c = 0; c < 3; c++) {
+        this.dP[o + c] += this.dV[o + c] * dt;
+        this.dR[o + c] += this.dW[o + c] * dt;
+      }
+      const s = this.dS[i];
+      if (this.dP[o + 1] < s * 0.5) {
+        // the ground: a damped bounce, friction, the tumble slows
+        this.dP[o + 1] = s * 0.5;
+        if (this.dV[o + 1] < 0) this.dV[o + 1] *= -0.32;
+        this.dV[o] *= 0.6;
+        this.dV[o + 2] *= 0.6;
+        for (let c = 0; c < 3; c++) this.dW[o + c] *= 0.6;
+      }
+      const left = this.dLife[i] - this.dAge[i];
+      const k = s * (left < 0.3 ? Math.max(0, left / 0.3) : 1);
+      _e.set(this.dR[o], this.dR[o + 1], this.dR[o + 2]);
+      _q.setFromEuler(_e);
+      _v.set(this.dP[o], this.dP[o + 1], this.dP[o + 2]);
+      _sv.set(k, k * 0.8, k);
+      _m4.compose(_v, _q, _sv);
+      this.debrisMesh.setMatrixAt(i, _m4);
+    }
+    this.debrisMesh.count = DEBRIS.pool;
+    this.debrisMesh.instanceMatrix.needsUpdate = true;
+    if (live === 0) {
+      this.debrisLive = 0;
+      this.debrisMesh.count = 0;
+    }
   }
 
   private geo(e: ViewEntity): THREE.BufferGeometry {
@@ -138,7 +271,7 @@ export class StructureView {
       }
       mesh.geometry.computeBoundingBox();
       const height = mesh.geometry.boundingBox ? mesh.geometry.boundingBox.max.y : 4;
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: (e.id * 2.39996) % (Math.PI * 2), height, team: e.team, stamp: 0 };
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: (e.id * 2.39996) % (Math.PI * 2), height, team: e.team, stamp: 0, impacted: false };
       this.items.set(e.id, s);
     }
     return s;
@@ -151,6 +284,7 @@ export class StructureView {
     s.alive = false;
     s.dieT = 0;
     s.flash = 1;
+    s.impacted = false;
     if (s.bubble) s.bubble.visible = false;
   }
 
@@ -281,6 +415,7 @@ export class StructureView {
         // the fall plays out before the rubble is left
         s.dieT = 0;
         s.flash = 1;
+        s.impacted = false;
         if (s.bubble) s.bubble.visible = false;
         continue;
       }
@@ -292,39 +427,90 @@ export class StructureView {
       }
     }
     this.ranges.end();
+    this.updateDebris(dt);
   }
 
-  /** A tower or core falling: a flash and swell, then it tilts and sinks into the ground; the rubble at the end. */
+  /** A tower or core falling (see the header); the rubble at the end. */
   private fall(s: Structure, dt: number): void {
-    const L = s.kind === 'core' ? STRUCT_ANIM.fallCore : STRUCT_ANIM.fallTower;
+    const core = s.kind === 'core';
+    const L = core ? STRUCT_ANIM.fallCore : STRUCT_ANIM.fallTower;
     s.dieT += dt;
     const u = Math.min(1, s.dieT / L);
+    const dx = Math.cos(s.fallDir);
+    const dz = Math.sin(s.fallDir);
+    const yaw = s.team === 1 ? Math.PI : 0;
     if (u >= 1) {
       s.dieT = -1;
       s.mesh.visible = false;
-      s.mesh.rotation.x = 0;
-      s.mesh.rotation.z = 0;
+      s.mesh.rotation.set(0, yaw, 0);
+      s.mesh.scale.setScalar(1);
       s.rig.uOpacity.value = 1;
-      this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4);
-      this.onFallen?.(s.x, s.z, s.kind === 'core');
+      if (core || this.reduced) this.addRubble(s.x, s.z, core ? 2.4 : 1.4);
+      else this.addRubble(s.x + dx * s.height * 0.45, s.z + dz * s.height * 0.45, 1.6, dx, dz, s.height * 0.5);
+      this.onFallen?.(s.x, s.z, core);
       return;
     }
-    s.flash = Math.max(0, 1 - u * 3);
-    s.rig.uFlashK.value = s.flash * 0.8;
     s.rig.uTime.value = this.time;
     if (this.reduced) {
+      s.flash = Math.max(0, 1 - u * 3);
+      s.rig.uFlashK.value = s.flash * 0.8;
       s.mesh.scale.setScalar(1 - u * 0.5);
       return;
     }
-    // swell (0–20%), then tilt and sink with a shudder
-    const swell = u < 0.2 ? Math.sin((u / 0.2) * Math.PI) * 0.08 : 0;
-    const sink = u < 0.2 ? 0 : ((u - 0.2) / 0.8) ** 2;
-    const shud = Math.sin(this.time * 60) * 0.06 * (1 - u);
-    s.mesh.position.set(s.x + shud, -s.height * 0.75 * sink, s.z);
-    const tilt = 0.4 * sink;
-    s.mesh.rotation.x = Math.cos(s.fallDir) * tilt;
-    s.mesh.rotation.z = Math.sin(s.fallDir) * tilt;
-    s.mesh.scale.set(1 + swell, (1 + swell) * (1 - 0.35 * sink), 1 + swell);
+    const F = FALL_SHAPE;
+    const colors = ((s.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) === 1 ? DEBRIS_DOG : DEBRIS_CAT;
+    if (core) {
+      // swell and shudder, BURST (a ring of chunks), cave in (the roof drops, the walls bulge), settle into the ground
+      const shud = u < F.burst ? Math.sin(this.time * 70) * 0.09 * (u / F.burst) : 0;
+      const swell = u < F.burst ? 0.1 * (u / F.burst) ** 2 : 0;
+      const c = u < F.burst ? 0 : Math.min(1, (u - F.burst) / (F.caved - F.burst));
+      const cave = c * c;
+      const settle = u < F.caved ? 0 : (u - F.caved) / (1 - F.caved);
+      s.flash = u < F.burst ? 0.4 + 0.6 * (u / F.burst) : Math.max(0, 1 - (u - F.burst) * 4);
+      s.rig.uFlashK.value = s.flash * 0.75;
+      if (!s.impacted && u >= F.burst) {
+        s.impacted = true;
+        this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.8, colors, 9, 0.75);
+        this.onImpact?.(s.x, s.z, 0, 0, 0, true);
+      }
+      const sy = (1 + swell) * (1 - 0.62 * cave) * (1 - 0.25 * settle);
+      const sxz = (1 + swell) * (1 + 0.16 * cave) * (1 - 0.15 * settle);
+      s.mesh.scale.set(sxz, sy, sxz);
+      const tilt = 0.22 * cave;
+      _q.setFromAxisAngle(_v.set(dz, 0, -dx), tilt);
+      _q2.setFromAxisAngle(_up, yaw);
+      s.mesh.quaternion.copy(_q).multiply(_q2);
+      s.mesh.position.set(s.x + shud, -s.height * 0.35 * settle * settle, s.z);
+      return;
+    }
+    // tower: crack (flash, swell, shudder) -> topple about the base edge (gravity) -> a bounce -> break up and sink
+    const R = 1.4;
+    let th = 0;
+    if (u < F.crack) th = -0.05 * Math.sin((u / F.crack) * Math.PI);
+    else if (u < F.hit) th = F.topple * ((u - F.crack) / (F.hit - F.crack)) ** 2;
+    else if (u < F.settle) th = F.topple - F.bounce * Math.sin(((u - F.hit) / (F.settle - F.hit)) * Math.PI);
+    else th = F.topple;
+    const swell = u < F.crack ? Math.sin((u / F.crack) * Math.PI) * 0.07 : 0;
+    const shud = u < F.crack ? Math.sin(this.time * 75) * 0.08 : 0;
+    const brk = u < F.settle ? 0 : (u - F.settle) / (1 - F.settle);
+    s.flash = u < F.crack ? 1 : Math.max(0, 0.6 - (u - F.crack) * 2.5) + (u >= F.hit && u < F.hit + 0.05 ? 0.5 : 0);
+    s.rig.uFlashK.value = s.flash * 0.8;
+    if (!s.impacted && u >= F.hit) {
+      s.impacted = true;
+      const len = s.height * 0.95;
+      this.throwChunks(DEBRIS.tower, s.x, s.z, dx, dz, len, 0.4, 1.4, colors, 7.5, 0.6);
+      this.onImpact?.(s.x, s.z, dx, dz, len, false);
+    }
+    // the pivot is the base edge on the fall side: the base lifts as it rolls over it
+    _q.setFromAxisAngle(_v.set(dz, 0, -dx), th);
+    _q2.setFromAxisAngle(_up, yaw);
+    s.mesh.quaternion.copy(_q).multiply(_q2);
+    const lift = R * Math.sin(Math.max(0, th));
+    const slide = R * (1 - Math.cos(th));
+    const sink = brk * brk * 1.1;
+    s.mesh.position.set(s.x + dx * slide + shud, lift - sink, s.z + dz * slide);
+    const sxz = (1 + swell) * (1 - 0.3 * brk);
+    s.mesh.scale.set(sxz, (1 + swell) * (1 - 0.55 * brk), sxz);
   }
 
   /** Last drawn ground position of a structure. */
@@ -333,13 +519,15 @@ export class StructureView {
     return s ? { x: s.x, z: s.z } : null;
   }
 
-  private addRubble(x: number, z: number, r: number): void {
+  /** Rubble round (x, z), or (a fallen tower) strewn along the line (dx, dz) over ±len. */
+  private addRubble(x: number, z: number, r: number, dx = 0, dz = 0, len = 0): void {
     const g = new THREE.DodecahedronGeometry(1, 0);
     for (let i = 0; i < 7; i++) {
       const m = new THREE.Mesh(g, this.rubbleMat);
       const a = (i / 7) * Math.PI * 2 + 0.3;
       const d = r * (0.3 + ((i * 37) % 10) / 14);
-      m.position.set(x + Math.cos(a) * d, 0.15, z + Math.sin(a) * d);
+      const t = len ? (i / 6 - 0.5) * 2 * len : 0;
+      m.position.set(x + Math.cos(a) * d * (len ? 0.5 : 1) + dx * t, 0.15, z + Math.sin(a) * d * (len ? 0.5 : 1) + dz * t);
       m.scale.setScalar(0.25 + ((i * 13) % 7) / 12);
       m.rotation.set(i, i * 2, i * 3);
       m.receiveShadow = true;
@@ -358,6 +546,10 @@ export class StructureView {
     for (const g of this.geoCache.values()) g.dispose();
     this.bubbleGeo.dispose();
     this.bubbleMat.dispose();
+    this.group.remove(this.debrisMesh);
+    this.debrisMesh.geometry.dispose();
+    (this.debrisMesh.material as THREE.Material).dispose();
+    this.debrisMesh.dispose();
     this.rubbleMat.dispose();
     this.ranges.dispose();
   }

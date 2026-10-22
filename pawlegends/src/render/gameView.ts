@@ -342,6 +342,25 @@ export class GameView {
       this.shock.start(sv, { r1: core ? 7 : 4.5, dur: 0.45, color: '#FFE0C8', height: 0.4 });
       this.juice.kick(core ? 0.35 : 0.22);
     };
+    // a toppled tower hits the ground (dust along its length, a ring, a kick); a core bursts (a big ring and a puff)
+    this.structures.onImpact = (x, z, dx, dz, len, core) => {
+      if (core) {
+        sv.set(x, 1.2, z);
+        this.particles.burst(sv, { n: 30, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [1, 1.8], sizeEnd: 3, life: [0.8, 1.3], speed: [3, 7], up: 1.2, drag: 1.4 });
+        sv.set(x, 0.2, z);
+        this.shock.start(sv, { r1: 9, dur: 0.5, color: '#FFF1D6', height: 0.7 });
+        this.juice.kick(0.5);
+        return;
+      }
+      for (let i = 0; i < 4; i++) {
+        const t = (i + 0.5) / 4;
+        sv.set(x + dx * len * t, 0.3, z + dz * len * t);
+        this.particles.burst(sv, { n: 8, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [0.7, 1.3], sizeEnd: 2.2, life: [0.6, 1.1], speed: [1.5, 4], up: 0.8, drag: 1.8 });
+      }
+      sv.set(x + dx * len * 0.7, 0.1, z + dz * len * 0.7);
+      this.shock.start(sv, { r1: 5.5, dur: 0.4, color: '#FFE0C8', height: 0.45 });
+      this.juice.kick(0.4);
+    };
     // compile the FX programs now, never mid-fight (§7)
     try {
       this.meshFx.pools.ground.mesh.visible = this.meshFx.pools.vertical.mesh.visible = this.meshFx.pools.dome.mesh.visible = true;
@@ -400,6 +419,7 @@ export class GameView {
     this.ultMoment.reduced = red;
     this.minions.reduced = red;
     this.structures.reduced = red;
+    this.structures.debris = red ? 0 : t === 'low' ? 0.35 : t === 'med' ? 0.6 : 1;
   }
 
   /** Per frame after the heroes: FX kit, readability, fight camera (ANIM-SPEC §7–§9). */

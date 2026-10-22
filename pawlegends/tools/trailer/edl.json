@@ -1,5 +1,5 @@
 {
- "_comment": "Edit decisions for edit.mjs, trailer v2 (\"Big Plays\", 144 BPM: 25 frames per beat). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
+ "_comment": "Edit decisions for edit.mjs, trailer v3 (\"Big Plays\", 144 BPM: 25 frames per beat). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
  "fps": 60,
  "bpm": 144,
  "outputs": [
@@ -25,10 +25,10 @@
   }
  ],
  "grade": {
-  "_comment": "Storyboard v2 \u00a73: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur \u03c3 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade. Redo: the bloom keys only the brightest highlights (>= 0.88) at 0.12, so pale plazas never wash out.",
+  "_comment": "Storyboard v2 §3: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur σ 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade. Redo: the bloom keys only the brightest highlights (>= 0.88) at 0.12, so pale plazas never wash out. v3: a highlight soft-clip in the S-curve (0.92 -> 0.88, 1 -> 0.94) and the bloom keys only >= 0.9 at 0.1, so white plazas, shockwave bands and hit flashes never blow out (<= 10 % of a frame at Y >= 235).",
   "sharpen": "cas=strength=0.35",
   "eq": "eq=contrast=1.10:saturation=1.10:gamma=0.98",
-  "curves": "curves=master='0/0 0.25/0.22 0.75/0.78 1/1'",
+  "curves": "curves=master='0/0 0.25/0.22 0.75/0.76 0.92/0.88 1/0.94'",
   "colorbalance": "colorbalance=rh=0.03:bh=-0.02",
   "vignette": {
    "angle": 0.6283185307,
@@ -36,30 +36,30 @@
   },
   "grain": "noise=alls=3:allf=t",
   "noGrade": {
-   "30": [],
-   "15": []
+   "15": [],
+   "30": []
   },
   "desaturate": {
-   "30": [
-    [
-     804,
-     824,
-     0.85
-    ]
-   ],
    "15": [
     [
      404,
-     424,
-     0.85
+     421,
+     0.88
+    ]
+   ],
+   "30": [
+    [
+     804,
+     821,
+     0.88
     ]
    ]
   },
   "grainAll": true,
   "bloom": {
-   "threshold": 0.88,
+   "threshold": 0.9,
    "sigma": 16,
-   "opacity": 0.12
+   "opacity": 0.1
   }
  },
  "chroma": {
@@ -67,24 +67,6 @@
   "strong": 4,
   "light": 2,
   "lightFrames": {
-   "30": [
-    [
-     96,
-     99
-    ],
-    [
-     194,
-     199
-    ],
-    [
-     1300,
-     1301
-    ],
-    [
-     1650,
-     1651
-    ]
-   ],
    "15": [
     [
      96,
@@ -94,17 +76,35 @@
      750,
      751
     ]
+   ],
+   "30": [
+    [
+     96,
+     99
+    ],
+    [
+     193,
+     199
+    ],
+    [
+     1300,
+     1301
+    ],
+    [
+     1600,
+     1601
+    ]
    ]
   }
  },
  "shakeMargin": 16,
  "push": {
-  "_comment": "Digital push-ins: none. S19 is the gameplay camera 1:1 with its full HUD; S13's wheel and S14's bark are framed natively.",
+  "15": [],
   "30": [],
-  "15": []
+  "_comment": "Digital push-ins: none. S19 is the gameplay camera 1:1 with its full HUD; S13's wheel and S14's bark are framed natively."
  },
  "bump": {
-  "_comment": "Zoom-punch (\u00a73): 104 % scale-in over 3 frames, then out over 8 (the impact frames in post().bump).",
+  "_comment": "Zoom-punch (§3): 104 % scale-in over 3 frames, then out over 8 (the impact frames in post().bump).",
   "curve": [
    1.013,
    1.027,
@@ -116,28 +116,11 @@
    1.015,
    1.01,
    1.005,
-   1.0
+   1
   ]
  },
  "band": {
-  "_comment": "\u00a77: S27 in 9:16 is a phone in landscape (932x430 CSS px at DPR 2 = 1864x860), shown whole as a band over a blurred, darkened copy of itself.",
-  "9x16": {
-   "shot": "S27",
-   "blur": 36,
-   "darken": 0.5,
-   "segs": [
-    {
-     "f0": 1175,
-     "f1": 1199,
-     "crop": [
-      0,
-      0,
-      1864,
-      860
-     ]
-    }
-   ]
-  }
+  "_comment": "v3: none (the landscape HUD beat is 16:9 only; the 9:16 card-look shot runs on over it)."
  },
  "poster": {
   "_comment": "Thumbnails: Lambo mid-air in the Belly Flop (S01 f4) with the logo and end-card lines from the 30 s overlay.",
@@ -159,150 +142,163 @@
    "lookaheadMs": 5
   },
   "glue": {
-   "threshDb": -16,
-   "ratio": 2.5,
-   "attack": 0.006,
+   "threshDb": -14,
+   "ratio": 1.6,
+   "attack": 0.01,
    "release": 0.16
   },
   "targetLufs": -14,
   "ceilingDb": -2.6,
   "_tp": "the WAV must measure <= maxTruePeakWavDb so the AAC encode stays <= maxTruePeakDb",
   "maxTruePeakWavDb": -2.1,
-  "maxTruePeakDb": -1.0,
+  "maxTruePeakDb": -1,
   "fadeFrames": 30,
   "silenceFrames": 12,
   "aacBitrate": "320k",
-  "_sections": "Energy curve (redo: LRA, contrast): [from, to, dB] with an 8-frame ramp at each end, before the glue. Routine beats sit 2-5 dB under the ceiling so only the hook impact, the final teamfight, the core impact and the logo slam reach it: title -3, roll call -2.5, 3V3 drop -4, ults -2, Pack Hunt -5 (half-time), ping/dive -3, tower and COMEBACK -1, fights and card looks -2.5, teamfight 0, TAKE THEIR CORE -2 into the gap, core +1.5, end card -3.",
+  "_sections": "Energy curve v3 [from, to, dB] (8-frame ramps), before the glue: no trough in the middle (title, 3V3 and the mid bars stay within 3 dB of the chorus), Pack Hunt a little under, TAKE THEIR CORE into the tape stop, the core burst +3 over the chorus (the loudest moment), Victory and the end card under it.",
   "sections": {
-   "30": [
-    [
-     50,
-     99,
-     -2.0
-    ],
-    [
-     100,
-     199,
-     -6.0
-    ],
-    [
-     200,
-     399,
-     -4.5
-    ],
-    [
-     400,
-     499,
-     -8.0
-    ],
-    [
-     500,
-     799,
-     -3.0
-    ],
-    [
-     800,
-     899,
-     -10.0
-    ],
-    [
-     900,
-     999,
-     -7.0
-    ],
-    [
-     1000,
-     1099,
-     -3.0
-    ],
-    [
-     1100,
-     1299,
-     -8.5
-    ],
-    [
-     1300,
-     1399,
-     -1.0
-    ],
-    [
-     1400,
-     1449,
-     -2.0
-    ],
-    [
-     1450,
-     1499,
-     -6.0
-    ],
-    [
-     1525,
-     1574,
-     3.0
-    ],
-    [
-     1575,
-     1649,
-     -6.0
-    ],
-    [
-     1650,
-     1799,
-     -6.0
-    ]
-   ],
    "15": [
     [
      50,
      99,
-     -2.0
+     -1.5
     ],
     [
      100,
      199,
-     -4.0
+     -2.5
     ],
     [
      200,
      299,
-     -8.0
+     -3.5
     ],
     [
      300,
      399,
-     -3.0
+     -2.5
     ],
     [
      400,
      499,
-     -10.0
+     -4
     ],
     [
      500,
      549,
-     -3.0
+     -2.5
     ],
     [
      550,
      649,
-     -1.0
+     -1
     ],
     [
      650,
      674,
-     -6.0
+     -4
     ],
     [
-     700,
-     749,
-     3.0
+     703,
+     745,
+     4
     ],
     [
      750,
      899,
-     -6.0
+     -3.5
+    ]
+   ],
+   "30": [
+    [
+     50,
+     99,
+     -1.5
+    ],
+    [
+     100,
+     199,
+     -2.5
+    ],
+    [
+     200,
+     399,
+     -3
+    ],
+    [
+     400,
+     499,
+     -3.5
+    ],
+    [
+     500,
+     799,
+     -2.5
+    ],
+    [
+     800,
+     899,
+     -4
+    ],
+    [
+     900,
+     1099,
+     -2.5
+    ],
+    [
+     1100,
+     1274,
+     -2.5
+    ],
+    [
+     1275,
+     1299,
+     -1.5
+    ],
+    [
+     1300,
+     1399,
+     -1
+    ],
+    [
+     1400,
+     1449,
+     -2
+    ],
+    [
+     1450,
+     1499,
+     -4
+    ],
+    [
+     1528,
+     1574,
+     4
+    ],
+    [
+     1576,
+     1599,
+     -4
+    ],
+    [
+     1600,
+     1799,
+     -3.5
     ]
    ]
+  },
+  "impactDip": {
+   "db": -9,
+   "pre": 2,
+   "hold": 5,
+   "release": 8
+  },
+  "bedCrestDb": 4,
+  "_bed": "v3: the music stem is limited at its own RMS + bedCrestDb before the mix, so the master ceiling is reached by the designed impacts only (crest over 14 dB at -14 LUFS).",
+  "fxCrestDb": 4,
+  "suckOut": {
+   "db": -10,
+   "frames": 3
   }
  },
  "video": {

@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { argValue, hasFlag } from '../lib/args.mjs';
 import { lintTrailerCopy } from './lint-copy.mjs';
-import { ASPECTS, CUTS, END_PLATE_SOURCE, overlayRanges, plateRanges, post, sourceFrame } from './mg-timeline.mjs';
+import { ASPECTS, CUTS, END_PLATE_SOURCE, lineupFrame, overlayRanges, plateRanges, post, sourceFrame } from './mg-timeline.mjs';
 
 export { sourceFrame };
 
@@ -142,7 +142,8 @@ try {
           // on one frame through the whip-zoom, then running on under Gabė's champion (S05, keyed) to the drop
           // v2: the end card's background is the last gameplay frame (Victory!), blurred by the compositor
           const src = foot.get(END_PLATE_SOURCE);
-          const fg = null;
+          // v3: the eight-hero line-up (S40 on the key colour) laid over the plate's lower part
+          const fg = foot.get(lineupFrame(cut, f)) ?? null;
           const data = await page.evaluate(([x, u, g]) => window.mgPlate(x, u, g), [f, src ? `${base}${src}` : null, fg ? `${base}${fg}` : null]);
           if (data) {
             writeData(join(dir, 'plate', pad(f)), data);
@@ -160,7 +161,8 @@ try {
           const sf = sourceFrame(cut, f);
           const src = foot.get(sf);
           const endSrc = foot.get(END_PLATE_SOURCE);
-          const data = await page.evaluate(([x, fu, eu, s]) => window.mgPreview(x, fu, eu, s), [f, src ? `${base}${src}` : null, endSrc ? `${base}${endSrc}` : null, scale]);
+          const lf = foot.get(lineupFrame(cut, f));
+          const data = await page.evaluate(([x, fu, eu, s, lu]) => window.mgPreview(x, fu, eu, s, lu), [f, src ? `${base}${src}` : null, endSrc ? `${base}${endSrc}` : null, scale, lf ? `${base}${lf}` : null]);
           writeData(join(pdir, `f${String(f).padStart(4, '0')}.jpg`), data);
         }
         const mp4 = join(OUT, 'preview', `${cut}-${aspect}.mp4`);
