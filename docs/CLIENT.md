@@ -37,6 +37,7 @@ npm run build          # next build --webpack, then postbuild sitemap
 npm run build:prod     # build with .env.production
 npm run build:app      # build with .env.app: static export to out/ (Capacitor bundle)
 npm run check:app-export  # fail if out/index.html or key app routes are missing
+node scripts/sync-home.mjs ../landing-poc/v16c1  # rebuild public/home (the web home page) from the landing
 npm run start          # next start
 npm test               # jest
 npm run test:e2e       # Playwright (DEVELOPMENT.md, "Client")
@@ -155,7 +156,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 
 | Route | File | Purpose |
 |---|---|---|
-| `/` | `pages/index.tsx` | Gaming landing: hero with store buttons and PLAY, proof section (Paris cat café video, SEI track record and "Now: Stellar NFTs" claims, an Arc rail note, a published-outcomes chip hidden while zero, reach cards as claims; videos load and play only while on screen and never under reduced motion), impact globe lighting the active partner countries from the impact snapshot, Rescue Mission Hub, team. Every number is a `components/claims/Claim` with a registry id. One `getStaticProps` (revalidate 300 on web) reads the impact snapshot (CDN, API, bundled baseline). Each section sits in a `SectionBoundary`. Canonical is `NEXT_PUBLIC_DOMAIN/`. |
+| `/` | web: `public/home/index.html`; app: `pages/index.tsx` | Web: the static Play-to-Save landing, see "Home page (/)" below. App builds (and only they) render the gaming landing: hero with store buttons and PLAY, proof section (Paris cat café video, SEI track record and "Now: Stellar NFTs" claims, an Arc rail note, a published-outcomes chip hidden while zero, reach cards as claims; videos load and play only while on screen and never under reduced motion), impact globe lighting the active partner countries from the impact snapshot, Rescue Mission Hub, team. Every number is a `components/claims/Claim` with a registry id. One `getStaticProps` (revalidate 300 on web) reads the impact snapshot (CDN, API, bundled baseline). Each section sits in a `SectionBoundary`. Canonical is `NEXT_PUBLIC_DOMAIN/`. |
+| `/home`, `/home/index.html` | none | Permanent redirect to `/` on the web, so the static home page has one URL. |
 | `/impact` | `pages/impact.tsx` | Public proof page (plan F7.6): money per currency and evidence tier, custody, treat rail, outcome timeline, pledged vs paid, paw settlements, rescue cats, reach, method, and every public claim with value, date, status and source (an `id` anchor per claim). Web: ISR every 600 s; app export: the committed `public/impact/snapshot.json`, app labels. |
 | `/proof` | none | Legacy URL. Permanent redirect to `/impact` on the web (`next.config.js`). |
 | `/old-landing` | (retired) | Redirects permanently to `/` on the web (decision #43); the page, `FeedbackSlider` and `Preview` were deleted. |
@@ -524,6 +526,55 @@ needed: the page, the picker card and the landing section (web only, never in th
   `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
   node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
 
+### Home page (/)
+
+On the web, `/` is a static page: the Play-to-Save landing (founder pick "C1", Oct 22 2026), one
+self-contained HTML file with inline CSS and JS, built in the landing lab (`landing-poc/v16c1/`, not
+committed) and copied to `public/home/`. It has its own give flow (Stripe card sheet and wallet
+buttons against `POST /rave/checkout`), the play hub, the shelter cats, the Tails Club card (`/club/*`,
+docs/BACKEND.md "Tails Club"; "Coming soon" while `GET /club/status` is not enabled or answers 404), the
+numbers, the community carousel, the FAQ and the team.
+
+- **Serving.** `next.config.js` has a web-only `beforeFiles` rewrite `/` → `/home/index.html`, so it wins
+  over `pages/index.tsx`. `/home` and `/home/index.html` redirect permanently to `/`. The page sets its
+  own canonical (`https://tokentails.com/`), Open Graph and Twitter tags and the shared icon family, so
+  `scripts/check-meta.mjs` passes on `/`. Every other route is unchanged.
+- **Client navigation.** Next's router would render `pages/index.tsx` after a `<Link href="/">` or
+  `router.push("/")`. `pages/_app.tsx` asks `components/home/staticHome.ts`: on the web, route `/` renders
+  nothing and reloads the same URL, so the server answers with the static page. The reload is one-shot: it
+  stamps `sessionStorage` (`tt_static_home_reload`), and if `/` renders in Next again within 60 s (the
+  rewrite is not serving `/`), `_app.tsx` renders `pages/index.tsx` instead of reloading forever. Any other
+  Next page clears the stamp. Without `sessionStorage` it never reloads.
+- **App builds** keep `pages/index.tsx` as the start page (the export has no rewrites).
+  `scripts/prune-app-export.mjs` removes `home/` from `out/` (`WEB_ONLY_DIRS`), and
+  `check-app-export.mjs` fails if it ships.
+- **Data.** The page reads `GET /shelter/goal/C-001`, `/shelter/rozine-pedute/gallery`, `/rave/status` and
+  `/club/status` from `https://api.tokentails.com` in the browser (CORS allows `https://tokentails.com`; the
+  API throttles per visitor). Each read has a fallback: "shelter list, 21 Oct 2026" date line, 104 waiting
+  cats for both the hero and the cat deck (`WAIT_FALLBACK`), card-only give, "Coming soon" club (its copy
+  switches to the future tense through the `club-open` / `club-soon` spans). A cat the live list marks
+  adopted leaves the deck, so "Every cat here lives at Pink Paw today" stays true. Origins the API does not allow, such as Vercel previews, show those fallbacks.
+- **No beacon, no analytics.** The landing lab's click beacon (`POST /api/evt`) has no counterpart here
+  and is switched off. The page does not load PostHog or Google Tag Manager (see Known issues).
+- **Media.** About 105 MB in `public/home/media/`: the page's own files at the top, the landing lab's
+  `v12/`, `v14/` and `v15/` media in folders of those names, and the community reel posters and clips
+  in `reels/`. Fonts, logo, cursor and icons come from the existing `public/` files. Cat photos, the team
+  photos and the portrait clip stay on the DigitalOcean CDN. `next.config.js` sends
+  `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` for `/home/media/*`; names are not
+  content-hashed, so give a changed file a new name.
+- **Sign in.** The header has a "Sign in" pill (top left) to `/game?signin=1&from=home_signin`, the old
+  landing's entry for returning players. Unlike the old one it shows for signed-in visitors too.
+
+**Updating it.** Edit the landing in `landing-poc/v16c1/index.html`, then run
+`node scripts/sync-home.mjs <path to landing-poc/v16c1>` from `client/`. The script empties
+`public/home`, copies only the media the page references, downloads the reel clips from the pitch deck
+site, rewrites media paths to `/home/media/...`, makes `tokentails.com` links same-origin (the canonical
+and social tags stay absolute), swaps in the shared icon links, points the `/api/*.json` reads at the API,
+stops on the wallet button layout Stripe rejects (`overflow: 'never'` needs `maxRows: 0`), strips HTML
+comments and the block comments in `<style>` and `<script>` (dev notes name internal files and plans), and
+turns the beacon off. It stops when a referenced file is missing or an expected pattern is gone. Then run
+`npx jest __test__/home-static.test.ts` and commit `public/home` with the change.
+
 ### Other
 
 Support tickets, share modal (native clipboard on Capacitor), stats page, pixel globe of partner
@@ -711,6 +762,12 @@ devDependency because `ts-jest` 29 cannot resolve it under Jest 30 otherwise. Co
 collected only from `components/CatnipChaos/**`, so the reported figure is misleading.
 
 ## Known issues
+
+Home page (`public/home`, "Home page (/)"):
+
+- The web home page loads no analytics: no PostHog, no Google Tag Manager, no page_view, and the landing lab's click beacon is off. Home visits, give taps and club sign-ups are not counted anywhere except Stripe and the API's own records.
+- It is about 2,800 lines of hand-written HTML, CSS and JS outside the TypeScript, ESLint and copy-lint checks, and its numbers are not `components/claims/Claim` registry entries. `__test__/home-static.test.ts` checks only routing, meta, paths and the beacon.
+- `scripts/sync-home.mjs` downloads the community reel clips from the pitch deck site (`token-tails-pitch.vercel.app`) at sync time; the page then serves its own copies.
 
 Build and SSR:
 

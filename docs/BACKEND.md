@@ -995,6 +995,117 @@ Limits of this build:
   copy would replay. Known gap; the board shows replayed scores only.
 - The OG card uses the server's fonts; a host without fonts draws the shapes and no text.
 
+### Tails Club (`/club`)
+
+A monthly ($9.99) or yearly ($79) membership, prices including VAT, paid in place in the club card of the
+web home page (`client/public/home`, docs/CLIENT.md "Home page (/)"; built in `landing-poc/v16c1`): plan toggle, email, Stripe Payment Element, pay. Half of every payment goes to Pink Paw
+through the shelter-share keeper. Code: `src/club/` (rave layout), controller and providers in `AppModule`.
+
+**Landing lab origins and wallets.** CORS (`src/shared/cors-origins.ts`, used by `main.ts`) allows the landing
+lab's production alias `https://tokentails-landing-lab.vercel.app` and its deployment URLs matching
+`^https://tokentails-landing-[a-z0-9]+-zbagdzevicius-projects\.vercel\.app$` (anchored, https only; no other
+`vercel.app` origin), so the club card's in-page checkout works on previews. `credentials` is unchanged.
+Apple Pay and Google Pay in the Payment Element show only on domains registered in Stripe (Settings, Payment
+method domains); per-deployment preview hosts cannot be registered, so previews show card and Link only.
+Register `tokentails.com`, `www.tokentails.com` and `tokentails-landing-lab.vercel.app` to get the wallets there.
+
+| File | Role |
+|---|---|
+| `club.config.ts` | Reads env, `clubMissing()` / `clubReady()`, `CLUB_THROTTLES`, `CLUB_SHELTER_BPS` (5000, not an env) |
+| `club.controller.ts` | Routes; `@SkipThrottle()` plus a per-IP `ClientIpThrottlerGuard.consume` per route |
+| `club.service.ts` | Customer and Subscription create, clientKey idempotency, buyer poll, portal, `GET /club/me` |
+| `club-webhook.service.ts` | Signature check, dispatch, event dedupe, Pink Paw share rows, refunds and disputes |
+| `club-token.ts` | HMAC tokens: `manage` (30 days, buyer only) and `open` (15 minutes, emailed link) |
+| `club-email.ts` | The emailed "manage or cancel" link (SendGrid) |
+| `club.schema.ts` | `clubmembers`, `clubwebhookevents` (30-day TTL) |
+| `club.errors.ts` | `{statusCode, code, key, message}`; `key` feeds the landing's `ERR` map |
+
+**Stripe pattern.** Subscriptions API with the Payment Element, not Checkout. `POST /club/checkout` calls
+`subscriptions.create` with `payment_behavior: 'default_incomplete'`,
+`payment_settings.save_default_payment_method: 'on_subscription'` and
+`expand: ['latest_invoice.confirmation_secret']` (API `2025-12-15.clover`: `Invoice` has no `payment_intent`), and
+returns `latest_invoice.confirmation_secret.client_secret` for `stripe.confirmPayment`. Idempotency: one
+`clubmembers` row per `clientKey` (unique), sha256 of the normalised body (`keyReused` on a mismatch), Stripe
+idempotency keys `club:cus:<clientKey>` and `club:sub:<clientKey>`. An inbox (canonical email) with an
+`active`, `trialing` or `past_due` membership gets 409 `alreadyMember` (an accepted membership oracle, behind the
+6 per 10 minutes per-IP limit). Every checkout gets a new Customer: typing an address does not prove you own it,
+and an earlier Customer would hand its old invoices and saved cards to the payer's manage link.
+More than `CLUB_INCOMPLETE_PER_15MIN` (default 30) incomplete subscriptions created in the last 15 minutes answer
+503 `busy` (card-testing brake). An optional `accesstoken` of a signed-in, non-guest player adds `userId` to the
+subscription metadata and the row; a bad or guest token is ignored.
+
+**Status and poll.** `GET /club/status` reads both prices (`prices.retrieve`, cached 10 minutes; a failed read is
+retried after 1 minute and reports `enabled: false, reason: 'price'`). A price must be an active USD recurring
+price of the plan's interval; a price that is not `tax_behavior: inclusive` only logs a warning.
+`GET /club/subscriptions/:id?k=<clientKey>` answers 404 unless `sha256(k)` matches; while `incomplete` it reads
+the subscription from Stripe at most every 5 seconds (rave `pollStripe` pattern), and once active it adds a
+30-day `manageToken`.
+
+**Webhook.** `POST /club/stripe/webhook` (raw body, `RAW_BODY_PATHS`): 503 without `CLUB_STRIPE_WEBHOOK_SECRET`,
+400 on a bad signature; production ignores test-mode events; event ids are recorded only after a successful
+dispatch. Every handler skips objects that are not the club's (`metadata.club === '1'` on the subscription, or
+on the invoice's `parent.subscription_details`, else a known member row).
+
+- `customer.subscription.created|updated|deleted`: re-reads the subscription (expanded customer) and writes
+  `subStatus`, `cancelAtPeriodEnd`, `periodEnd` (item-level `current_period_end`). A club subscription with no
+  row (a crash between Stripe's create and our write) is matched by its metadata `clientKey`, else rebuilt from
+  the customer's email.
+- `invoice.paid` (any `billing_reason`, `amount_paid > 0`): syncs the subscription, then inserts one
+  `cryptocheckouts` keeper row like rave `queuePayout`: `orderId = club_<first 16 hex of sha256(invoiceId)>`
+  (deterministic: a replay hits the unique index), `cardIntent` from `invoicePayments.list({invoice})`,
+  `user` = the member's `userId` or `RAVE_SYSTEM_USER`, `rail: 'card'`, `network: 'card'` (live) or `'testnet'`,
+  `sku: {kind: 'CLUB', plan, subscriptionId, invoiceId}`, `status: 'COMPLETE'`, and `shelterShare` = the
+  `treasuryShelterShare` rule at 5000 bps of `amount_paid`, VAT included, with memo `tt:club:<16 hex>`
+  (500 cents a month, 3950 a year). Tax lines are not deducted, because the home page promises "$5 of your
+  $9.99" on VAT-inclusive prices; any VAT comes out of Token Tails' half. A payment whose mode does not match the
+  keeper's chain (`mode-skipped`) or an invoice not in USD (`currency-skipped`) queues nothing and logs an error.
+  Then the keeper is kicked.
+- `invoice.payment_failed`: logged only (the status arrives through `subscription.updated`).
+- `charge.refunded`, `charge.dispute.created`: the share row is found by `cardIntent`. A dispute or full refund
+  marks it reversed (`rave-share.ts`: a `due` row becomes `void`, a sent one is flagged and never re-sent) and
+  cancels the subscription at once (no renewal left to refund or dispute). A partial refund shrinks a waiting
+  share to half of what was kept. A dispute Token Tails later wins does not restore the share (manual).
+
+**Portal.** `POST /club/portal` with `{manageToken}` returns a `billingPortal.sessions.create` URL
+(`return_url: https://tokentails.com/#club`). With `{email}` it always answers 202 `{sent: true}`; if that inbox
+has a non-incomplete membership and has asked at most 3 times today, it emails a 15-minute link to
+`GET /club/portal/open?t=…` (sent without waiting, so a member and a stranger get the 202 in the same time),
+which redirects 303 to a fresh portal session (an expired link redirects to
+`https://tokentails.com/?club_portal=expired#club`). The email branch answers 503 `CLUB_PORTAL_OFF` without
+`SENDGRID_API_KEY`; the token branch and everything else keep working.
+
+**Account.** `GET /club/me` (`AppAuthGuard`, guests denied) returns `{club: {plan, until} | null}`, matched by
+`userId`, or by canonical email only when the account has `emailVerifiedAt`; a match by email writes `userId`
+onto the row. No game reads it yet, so the landing promises no in-game perk.
+
+**VAT.** Prices are tax-inclusive gross amounts (`tax_behavior: inclusive`); `automatic_tax` is not used.
+Turning Stripe Tax on later only means adding `automatic_tax: {enabled: true}` to `subscriptions.create`; the
+share base stays the gross `amount_paid`, so the shelter still gets $5 of $9.99 and Token Tails' half carries
+the VAT. Whether Token Tails MB must register for VAT or OSS is an open
+question for the accountant.
+
+**Before the env is set.** The module ships closed and needs none of its variables to boot. With any required
+value missing, `GET /club/status` answers `{enabled:false, reason:'config', shelterBps:5000}` (the home page then
+shows "Coming soon"), `POST /club/checkout` is 503 `CLUB_OFF` before the per-IP limit or any Stripe call, the
+webhook is 503 `CLUB_WEBHOOK_UNAVAILABLE`, `POST /club/portal` is 503 and an emailed link goes back to the card.
+`src/club/club.boot.spec.ts` boots the controller and both services in Nest over HTTP with every club variable
+unset and asserts this. The club opens on its own once the variables are set and both prices read from Stripe.
+
+**Founder setup (Stripe Dashboard, not code).**
+
+1. Product "Tails Club" with two prices, both `tax_behavior: inclusive`: $9.99 USD recurring monthly
+   (`STRIPE_CLUB_PRICE_MONTH`) and $79.00 USD recurring yearly (`STRIPE_CLUB_PRICE_YEAR`).
+2. Webhook endpoint `https://api.tokentails.com/club/stripe/webhook` (`CLUB_STRIPE_WEBHOOK_SECRET`) with
+   `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.paid`, `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created`.
+3. Customer portal (Billing → Customer portal): cancel at period end and payment method updates on, plan
+   switching off.
+4. Payment method domains: `tokentails.com`, plus the embed host if it is another domain (also add it to
+   `FRONT_END_URLS` for CORS), so Apple Pay and Google Pay work.
+5. Email receipts on, with the portal link in emails.
+6. Top up the Arc keeper hot wallet before launch, or every share waits as `due`.
+7. Confirm the Pink Paw agreement covers the Club's 50% share before launch.
+
 ## Scheduled jobs
 
 All jobs use `@Cron`, declared inside controllers and services. Every job except the traction
@@ -1054,6 +1165,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Crypto checkout | No on/off flag: checkout is on wherever a chain resolves with a treasury or a live split route (on a mainnet, only while the on-chain giving check passes for that split), and the shelter-share keeper runs whenever the shelter config is ready and its chain is on the checkout network (rollback: revert and redeploy). `CRYPTO_PAY_NETWORK` (`mainnet` or `testnet`; default `mainnet` under `NODE_ENV=production`), `CRYPTO_PAY_TREASURY` (one public treasury address for every chain) and `CRYPTO_PAY_TREASURY_<chainId>` (per chain); both are optional overrides of the checked-in `src/payments/crypto/treasury.public.ts`, needed only on testnets and the local chain, `CRYPTO_PAY_RPC_<chainId>` (optional override; else the funding variable such as `RPC_BASE_MAINNET`; else the checked-in official RPC of the chain), `CRYPTO_PAY_ALLOW_TESTNET_IN_PROD` (needed for `CRYPTO_PAY_NETWORK=testnet` under production), `CRYPTO_PAY_ORDER_TTL_MIN` (5 to 1440, default 30), `CRYPTO_PAY_EURC_PER_USD` (EURC per USD of price; unset: a fixed euro price, 1 EURC per USD) and `CRYPTO_PAY_EURC_FX_DATE` (required with a set rate; EURC stops after 30 days), `CRYPTO_PAY_CAT_SHELTER_BPS` (shelter share of a shelter cat on the treasury route; unset: 5000; malformed: undecided, nothing sent), `CRYPTO_PAY_SPLIT_SHELTER_IDS` (default Pink Paw), `CRYPTO_PAY_CAT_SPLITS` (`chainId:TOKEN:0xsplit,...`; default the main split for USDC), local E2E only: `CRYPTO_PAY_LOCAL_USDC`, `CRYPTO_PAY_LOCAL_EURC` (chain 31337, testnet mode). `STELLAR_PACKS_ENABLED` (`true` reopens Stellar packs; rollback only), `STELLAR_PACKS_SUNSET_AT` (ISO time; Stellar pack payments before it are still granted, later ones recorded for a refund; fixed at `2026-10-09T18:00:00Z`, the env can only move it earlier) |
 | Moon Rave checkout (`cat-rave/CHECKOUT-SPEC.md`) | Always on, no on/off flag, no new env: with `STRIPE_SECRET_KEY` (live) under `NODE_ENV=production` and the shelter keeper ready, card payments are on. Two tabs, each open on its own; `GET /rave/status` says `enabled:false` with a `reason` only while both are closed, and `POST /rave/checkout` answers 503 for a closed tab. Card: `STRIPE_SECRET_KEY` plus a publishable key of the same mode, `STRIPE_PUBLISHABLE_KEY` when set, else `RAVE_PUBLIC_STRIPE_PK_LIVE` (`src/rave/rave.config.ts`, the live key the tokentails.com client already ships) for a live secret key in production only; a test secret key without `STRIPE_PUBLISHABLE_KEY` keeps card closed (`stripe`); their modes must match the payout chain's network or status says `mode`. Card closes (`stripe`) while the publishable key is clearly of another account than the secret key (checked with `GET /v1/account` at most hourly; an unreadable account never closes it), and for 5 minutes after `paymentIntents.create` fails with an authentication or permission error (`src/rave/rave-stripe-health.ts`). Webhook optional: `RAVE_STRIPE_WEBHOOK_SECRET`, else `STRIPE_WEBHOOK_SECRET`, signs `POST /rave/stripe/webhook`; with or without it the `rave-stripe-events` cron (every minute, `jobruns` lease of 5 min, only with `NODE_ENV=production`) reads `payment_intent.*`, `charge.refunded` and `charge.dispute.created` from Stripe's Events API with the secret key and runs them through the same handler (deduped by event id; cursor in memory, 72 h back on boot, 2 min overlap, at most 5 pages of 100 per run, same-second events in Stripe's order). A pulled payment never rebuilds a missing order (only the pushed webhook and the buyer's GET may): the account's events are shared by every deployment holding the key. Pulled events that are not the rave's are not stored. A restricted `rk_` key without Events read access logs one warning: payments still confirm through `GET /rave/orders/:id`, but refunds and disputes then need the webhook. Crypto (USDC): Arc only (5042 mainnet, 5042002 testnet, `RAVE_USDC_CHAIN_IDS`), where the split's public giving check passes; needs neither Stripe nor the keeper; a testnet shelter chain in production is refused (`mode`). Other: `RAVE_FEE_PERCENT_BPS` (290), `RAVE_FEE_FIXED_CENTS` (30), `RAVE_MAX_CATS` (500), `RAVE_DAILY_CAP_USD` (100; paid orders count in full, unpaid ones of the last 15 min hold at most 10% of it together), `RAVE_CREATED_PER_HOUR` (200, card-testing brake). A paid card order adds one row to the shelter-share keeper for the full donation (less any refund recorded before the row exists), memo `tt:rave:<16 hex>`, idempotent on the PaymentIntent id; the row's `network` is `card` for a live payment (paid only by a mainnet keeper) and `testnet` for a test one (paid only by a testnet keeper), and a payment whose mode does not match the keeper's chain queues nothing. Status says `keeper` while the keeper cannot run (no RPC, split or hot wallet key, or its `network-mismatch` check fails); the keeper has no flag. Buyer country (the flag the cats hold): read from Cloudflare's `cf-ipcountry` at checkout (needs IP geolocation on in Cloudflare; `XX`/`T1` count as unknown), else the buyer's pick (`XK` Kosovo accepted); `country: "none"` ("Show my flag" off in the sheet, which also tells the buyer the flag is public) stores nothing. Stored as `country` + `countrySource` on the order, the IP never. Moderation (`hidden`) also hides the country in public rows and the leaderboard. Like `cf-connecting-ip`, a caller reaching the origin directly can forge the header; worst case is a wrong flag on its own cats. Existing orders have no country (no migration) and count as unknown in `GET /rave/countries`. Code: `src/rave/` (`rave-country.ts`) |
 | Moon Rave ad space (`/rave/ads`) | Always on, no on/off flag; two tabs like the rave checkout. Card: the same Stripe key resolution (no webhook secret needed; the rave Events API pull confirms ad payments and refunds). Crypto: USDC on Arc only, a `transfer` of an exact tagged amount ($100 + 10,000 + 1–9,999 base units, above any $100 crypto pack amount; unique index `usdcAmountKey`, freed a day after an unpaid hold ended) to the Token Tails treasury from `treasury.public.ts` on the checkout network (`CRYPTO_PAY_NETWORK`; testnet needs `CRYPTO_PAY_TREASURY_5042002`), verified read-only through `POST /rave/ads/:adId/usdc-tx` (`usdcTxHash` unique; a tx that already backs a crypto checkout `payment.txHash` is refused). No automatic USDC refunds: reject or a lost slot sets `refund.state: manual` with the payer wallet, and an error log line. `GET /rave/ads/status` says `enabled:false` with a `reason` only while both tabs are closed (approved ads still list). `RAVE_AD_HOLD_MINUTES` (default 15, 5–60), `RAVE_AD_DAYS` (default 30), `RAVE_AD_SHELTER_BPS` (default 0 = Token Tails revenue; > 0 queues that share of an approved ad for Pink Paw through the shelter-share keeper, memo `tt:ravead:<16 hex>`, row `network` `card` (live) or `testnet` (test), and then needs the keeper config and a matching `CRYPTO_PAY_NETWORK`). Shares `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, the optional webhook secret, `RAVE_FEE_PERCENT_BPS` and `RAVE_FEE_FIXED_CENTS` with the rave checkout; images go to the public bucket (`DO_SPACES_*`, `DO_SPACES_CDN`; WebGL needs CORS `GET` from tokentails.com on the CDN) |
+| Tails Club (`/club`, docs "Tails Club") | No on/off flag: open when all of these are set and both prices read from Stripe. Required: `STRIPE_SECRET_KEY` (shared; live only with `NODE_ENV=production`, test only elsewhere), `STRIPE_PUBLISHABLE_KEY` (same mode; production falls back to the rave live publishable key), `STRIPE_CLUB_PRICE_MONTH`, `STRIPE_CLUB_PRICE_YEAR` (recurring USD price ids, tax-inclusive), `CLUB_STRIPE_WEBHOOK_SECRET` (signing secret of `/club/stripe/webhook`), `CLUB_TOKEN_SECRET` (else an HMAC of `INVALIDATE_CACHE_SECRET`). Optional: `SENDGRID_API_KEY` (only the emailed portal link; without it `POST /club/portal {email}` is 503), `CLUB_INCOMPLETE_PER_15MIN` (card-testing brake, default 30), `CLUB_API_PUBLIC_URL` (origin of the emailed link, default `https://api.tokentails.com`) |
 | Shelter gifts (all chains) | Required in production: only `SHELTER_DONATE_PRIVATE_KEY` (a dev box needs nothing: the key comes from the local `donatehot` Foundry keystore, `SHELTER_DEV_KEYSTORE` names another); everything else in this row and the next three is an optional override. `SHELTER_CHAIN_ID` (default `5042` Arc mainnet under `NODE_ENV=production`, else `5042002` Arc Testnet), `SHELTER_NETWORK` (`mainnet` or `testnet`; overrides that default), `SHELTER_ARC_RPC_URL` (defaults to `https://rpc.mainnet.arc.io` or `https://rpc.testnet.arc.io` by chain), `SHELTER_SPLIT_ADDRESS` (optional override; default the main chain's split in `wallet.config.ts`), `SHELTER_DONATE_PRIVATE_KEY` (server hot wallet; keep only a small float of USDC on it), `SHELTER_DONATE_AMOUNT_WEI` (default 0.01 USDC), `SHELTER_DONATE_DAILY_BUDGET_WEI` (default 1 USDC), `SHELTER_X402_PRICE_WEI` (default 0.01 USDC) |
 | Wallet gifts (F2) | `SHELTER_ROUTER_ADDRESS` (DonateRouter, empty until deployed), `SHELTER_ROUTER_FROM_BLOCK` (first block of the RouterDonation scan; unset: 5000 blocks behind the head on the first run), `SHELTER_RELAY_ENABLED` (default off), `SHELTER_RELAY_DAILY_TX` (default 50), `SHELTER_RELAY_MIN_USDC` (default 0.01), `SHELTER_RELAY_MAX_USDC` (default 100), `SHELTER_MATCH_ENABLED` (default off), `SHELTER_MATCH_PER_GIFT` (default 1 USDC, `DEFAULT_MATCH_PER_GIFT`), `SHELTER_MATCH_MIN_GIFT` (default 0.10), `SHELTER_MATCH_DAILY` (default 2 USDC), `SHELTER_MATCH_POOL` (default 10 USDC in total), `SHELTER_TREASURY_ADDRESS` (optional; refused as a claimed shelter wallet, never matched), `SHELTER_CLAIM_ALLOWED_WALLETS` (comma-separated; the only wallets `POST /shelter/claim` accepts; empty refuses all), `SHELTER_MATCH_EXCLUDE` (comma-separated team wallets: never matched, never counted as public wallet gifts), `SHELTER_RELAY_IP_PEPPER` (secret HMAC key for the stored relay IP hash; unset stores none), `SHELTER_HELD_WALLETS` (comma-separated wallets Token Tails holds for a shelter, added to the built-in `TOKEN_TAILS_HELD_WALLETS` (`0xE299…0f37`, a Token Tails wallet): never accepted as a shelter claim, a public-giving recipient or an x402 `payTo`). USDC amounts are decimal strings; a malformed value falls back to the default |
 | Try-it testnet (F3) | `SHELTER_TRY_CHAIN_ID` (a testnet id other than `SHELTER_CHAIN_ID`, e.g. `5042002`; unset: off), `SHELTER_TRY_RPC_URL`, `SHELTER_TRY_ROUTER_ADDRESS`, `SHELTER_TRY_ROUTER_FROM_BLOCK`, `SHELTER_TRY_SPLIT_ADDRESS`, `SHELTER_TRY_TREASURY_ADDRESS`, `SHELTER_TRY_PRIVATE_KEY` (a separate testnet-only hot wallet; never falls back to the main key), `SHELTER_TRY_RELAY_ENABLED`, `SHELTER_TRY_MATCH_ENABLED` (both default off). A second relay and match next to the main chain (`readTryShelterConfig`), so the payouts page's testnet block is gasless and matched while treats, claims and the campaign stay on `SHELTER_CHAIN_ID`. No treats, no x402, no claims there; caps and counters are per chain. |
@@ -1518,6 +1630,28 @@ Operational:
 - Admin one-off methods on `UserController` (give cats, give tails, give loot boxes) are triggered by uncommenting constructor lines.
 - Codex reset deploy timing (deploy-order rule, plan F8). The old cron (`0 0 1 * * `) fires at 00:00 server time on 2026-10-01. If the backend with the new job deploys after that, the new job pays guards and wipes the counters again at 2026-10-08T23:00Z (a double payout of sum(codex) times 300 $TAILS, and the Oct 1-8 counters lost). Deploy before 2026-10-01 00:00 server time. Otherwise run `scripts/skip-codex-cycle.js --period 2026-10` (dry run by default, `--apply` to write) before 2026-10-08T23:00Z so the new job skips that cycle.
 - Feeding now requires `Cat.owner` to be the caller. Current creation paths set `owner`, but older cats may not, and their owners would get 403 and lose feed rewards. `scripts/audit-cat-owners.js` (read-only) counts users whose `cat` or `cats` point to a cat with a missing or different owner; if it is not zero, backfill `owner` with a reviewed script. The client's optimistic +1 $TAILS is not rolled back on 403 or 409.
+
+- Open (Tails Club, 2026-10-21): Pink Paw's half of each card payment is paid from the Arc keeper hot wallet
+  float (~$1–3), like rave card orders; club shares stay `due` until it is topped up.
+- Open (shelter-share keeper): a row stuck in `sent` is never re-sent automatically (rave and club alike); check
+  it by hand.
+- Open (Moon Rave payments): `/image/webhook` does not forward PaymentIntent or charge events, so rave and club
+  refunds depend on their own webhooks (or the rave Events API pull).
+- Open (Tails Club): a dispute cancels the subscription at once (default chosen 2026-10-21; founder may revert to
+  "only a full refund cancels"). A dispute Token Tails wins (`charge.dispute.closed`, not subscribed) leaves the
+  share void; pay Pink Paw by hand.
+- Open (Tails Club): the card-testing brake is global (`CLUB_INCOMPLETE_PER_15MIN` incomplete subscriptions in 15
+  minutes), so someone on five IPs can make checkout answer `busy` for everyone for up to 15 minutes. Raise the
+  env value if it happens; Stripe Radar still screens each card.
+- Open (Tails Club): Pink Paw's share exists only through the webhook. If `invoice.paid` never arrives (wrong
+  endpoint or secret), the buyer's poll still activates the membership but no share row is written; check the
+  webhook's delivery log in the Dashboard after launch.
+- Open (Tails Club, 2026-10-22): one email can end up with two active subscriptions. The home page makes a new
+  `clientKey` when the plan, email or cat changes, and checkout refuses only an email that already has an active
+  membership. Two tabs, or a plan switch before the first payment confirms, can each create and pay a
+  subscription; nothing dedupes after payment. A fix needs a product call (cancel the older incomplete one at
+  the next checkout, or cancel and refund the second at activation). Until then, look for an `emailCanonical`
+  with more than one active member row and cancel and refund the duplicate in the Dashboard.
 
 Dead code: `PipelineGuard`, the `Roles` and `JWT_USER` decorators, `EncryptionService.decrypt`,
 Freepik scraping helpers, `src/api/api.ts`, `src/user/users.ts` (a 1000-line hardcoded winner

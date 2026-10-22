@@ -1,5 +1,6 @@
 import { setErrorRoute } from "@/analytics/errors";
 import { AppRouteRestore } from "@/components/AppRouteRestore";
+import { clearStaticHomeStamp, loadStaticHome, servesStaticHome } from "@/components/home/staticHome";
 import { RootBoundary } from "@/components/errors/RootBoundary";
 import { applySkyScope, viewportForPath } from "@/components/shared/skyScope";
 import { MainLayout } from "@/layouts/MainLayout";
@@ -7,7 +8,7 @@ import type { AppProps } from "next/app";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "../styles/globals.scss";
 
 // Status bar style and colour on iOS and Android; renders nothing on the web.
@@ -27,6 +28,27 @@ function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
     applySkyScope(document.documentElement, route);
   }, [route]);
+
+  // Web "/" is the static home page (components/home/staticHome.ts): a client-side navigation to it
+  // reloads instead of rendering pages/index.tsx. If that reload comes straight back here (the rewrite is
+  // not serving "/"), the guard falls back to rendering pages/index.tsx rather than reloading forever.
+  const staticHome = servesStaticHome(router?.pathname ?? "");
+  const [homeFallback, setHomeFallback] = useState(false);
+  useEffect(() => {
+    if (!staticHome) {
+      clearStaticHomeStamp();
+      return;
+    }
+    if (loadStaticHome()) return;
+    let live = true;
+    queueMicrotask(() => {
+      if (live) setHomeFallback(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [staticHome]);
+  if (staticHome && !homeFallback) return null;
 
   // RootBoundary sits outside every provider, so a provider crash still
   // shows a way out instead of a blank page (F9).
