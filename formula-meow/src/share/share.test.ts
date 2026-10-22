@@ -215,6 +215,8 @@ describe('results headline (iteration 4, F7)', () => {
     expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: 79.69 } })).toMatchObject({ tone: 'lose', text: "Lost to Zyg's ghost by 0.31 s" });
     expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: null } })?.text).toBe("You beat Zyg's ghost");
     expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: null }, ghostPending: true })?.kind).toBe('pending');
+    // the same run replayed (or a real tie to the hundredth): a dead heat, not a loss by 0.00 s
+    expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: 80.001 } })).toMatchObject({ tone: 'photo', text: "Dead heat with Zyg's ghost!" });
   });
 
   it('then a photo finish, the rival margin, a new best', () => {

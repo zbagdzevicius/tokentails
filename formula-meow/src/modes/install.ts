@@ -94,7 +94,8 @@ export function installModes(shell: Shell): ModesFlow {
       const extras = prev?.(ctx) ?? undefined;
       const mode = ctx.cfg.mode ?? 'race';
       if (!extras || (mode !== 'gp' && mode !== 'tt' && mode !== 'battle')) return extras;
-      return { ...extras, actions: (extras.actions ?? []).filter((a) => KEEP_ACTIONS.has(a.id)) };
+      // [share-ugc, iteration 4 F9] a time trial keeps its dare: a TT ghost races as a 1v1 duel
+      return { ...extras, actions: (extras.actions ?? []).filter((a) => KEEP_ACTIONS.has(a.id) || (mode === 'tt' && a.id === 'dare')) };
     },
   });
 

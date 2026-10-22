@@ -10,6 +10,7 @@ export const SHARE_EN: Record<string, string> = {
   "You beat {name}'s ghost": "You beat {name}'s ghost",
   "Lost to {name}'s ghost by {s} s": "Lost to {name}'s ghost by {s} s",
   "{name}'s ghost won": "{name}'s ghost won",
+  "Dead heat with {name}'s ghost!": "Dead heat with {name}'s ghost!",
   'PHOTO FINISH by {s} s': 'PHOTO FINISH by {s} s',
   'WON BY {s} s': 'WON BY {s} s',
   '{name} beat you by {s} s': '{name} beat you by {s} s',
@@ -39,5 +40,4 @@ export const SHARE_EN: Record<string, string> = {
   "⏱ You beat the sender's lap by {s} s!": "⏱ You beat the sender's lap by {s} s!",
   "⏱ You matched the sender's lap: {t}": "⏱ You matched the sender's lap: {t}",
   "⏱ The sender's lap is {s} s faster. Again?": "⏱ The sender's lap is {s} s faster. Again?",
-  Lap: 'Lap',
 };

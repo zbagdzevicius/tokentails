@@ -1142,11 +1142,14 @@ export class TrackDoodle {
     this.sel = -1;
     this.selPiece = -1;
     // F10: a fresh doodle starts spectacular: a loop on the longest straight, a jump gap, a tunnel when there is room
+    // (two history steps: one Undo takes the stunts off and keeps the drawing)
     let kinds: string[] = [];
-    this.commit((d) => {
-      redrawTrack(d, r.points);
-      if (validateTrack(d, { drive: false }).ok) kinds = autoStunts(d, seedOf(d));
-    });
+    this.commit((d) => redrawTrack(d, r.points));
+    if (this.v.ok) {
+      const d = clone(this.def);
+      kinds = autoStunts(d, seedOf(d));
+      if (kinds.length) this.commit((x) => Object.assign(x, d));
+    }
     this.flash(!this.v.ok ? (firstMessage(this.v) ?? '') : kinds.length ? tr('editor.auto.added') : 'Nice track! Add stickers or race it.');
     this.setTab(kinds.length ? 'stickers' : 'shape');
   }

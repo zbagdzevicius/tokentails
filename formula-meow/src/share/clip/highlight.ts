@@ -151,8 +151,8 @@ export interface ClipSticker {
 }
 
 /**
- * The highlight shot's sticker: the best stunt moment inside the window (a combo beats a loop beats a wall ride beats
- * a landing), else a burst of overtakes. Null when the window has nothing worth a sticker. English and upper case on
+ * The highlight shot's sticker: the best stunt moment inside the window (a ×3+ combo beats a loop beats a ×2 combo
+ * beats a wall ride beats a landing), else a burst of overtakes. Null when the window has nothing worth a sticker. English and upper case on
  * purpose: it is part of the video, like "FINISH!".
  */
 export function highlightSticker(events: readonly RaceEvent[], me: number, from: number, to: number): ClipSticker | null {
@@ -164,16 +164,22 @@ export function highlightSticker(events: readonly RaceEvent[], me: number, from:
   let last = -1e9;
   let passes = 0;
   let firstPass = -1;
+  let loopIn = -1;
   for (const e of events) {
     if (e.kart !== me) continue;
+    if (e.type === 'stuntEnter' && e.a === LOOP) loopIn = e.tick;
     const clean = cleanStunt(e);
     if (clean) {
       combo = e.tick - last <= STUNT_BONUS.comboTicks ? combo + 1 : 1;
       last = e.tick;
     }
     if (e.tick < from || e.tick >= to) continue;
-    if (clean && combo >= 2) take(4 + combo, { text: `STUNT COMBO ×${combo}`, tick: e.tick, tone: 'pink' });
-    else if (e.type === 'stuntExit' && e.b === 1 && e.a === LOOP) take(4, { text: 'LOOP-DE-MEOW', tick: e.tick, tone: 'pink' });
+    // a loop's sticker lands while the kart is upside down (half a second in), not after it
+    const loopTick = loopIn >= 0 && e.tick - loopIn < 240 ? Math.max(from, loopIn + 30) : e.tick;
+    // ×3 and up beat a loop; a ×2 (a loop and its landing) reads better as the loop itself
+    if (clean && combo >= 3) take(4 + combo, { text: `STUNT COMBO ×${combo}`, tick: e.tick, tone: 'pink' });
+    else if (e.type === 'stuntExit' && e.b === 1 && e.a === LOOP) take(5, { text: 'LOOP-DE-MEOW', tick: loopTick, tone: 'pink' });
+    else if (clean && combo === 2) take(4, { text: 'STUNT COMBO ×2', tick: e.tick, tone: 'pink' });
     else if (e.type === 'stuntExit' && e.b === 1 && e.a === WALL) take(3, { text: 'WALL RIDE', tick: e.tick, tone: 'cyan' });
     else if (e.type === 'stuntLand') take(2, { text: 'NICE LANDING', tick: e.tick, tone: 'green' });
     else if (e.type === 'overtake') {

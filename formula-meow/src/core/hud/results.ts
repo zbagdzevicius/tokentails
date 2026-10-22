@@ -16,7 +16,7 @@ import type { RaceConfig, RaceMode, RaceResult, RacerInfo } from '../../types';
 import { fmtTime, ordinal } from './hud';
 import type { ResultAction } from '../../share/hooks';
 import { PINK_PAW_CATS, PINK_PAW_STATUS_AS_OF, pinkPawAdoptUrl } from '../../share/pinkpaw/pink-paw';
-import { headlineFor } from '../../share/cards/headline';
+import { headlineFor, moreLabel } from '../../share/cards/headline';
 import { t } from '../../ui/i18n';
 import { reducedMotion } from '../../ui/a11y';
 import { uiSound } from '../../ui/sound';
@@ -128,7 +128,7 @@ function headlineHtml(r: RaceResult, g: ResultsView['ghost']): string {
 /** Lost to the dare ghost (its time known): the rematch is the big button. */
 function lostToGhost(r: RaceResult, g: ResultsView['ghost']): boolean {
   const me = r.player;
-  return !!g && g.time != null && (me.time == null || g.time < me.time);
+  return !!g && g.time != null && (me.time == null || g.time < me.time - 0.005);
 }
 
 export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle {
@@ -198,7 +198,7 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
         <button class="fm-btn${ghostLost ? ' primary big' : ''}" data-act="again">${esc(again)}</button>
         ${extra.map((x) => `<button class="fm-btn${keep(x.act) ? '' : ' fm-tray-only'}" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
         ${mainHtml}
-        ${trayItems ? `<button class="fm-btn fm-res-more" data-act="more" aria-expanded="false" aria-label="${esc(t('More'))}">•••</button>` : ''}
+        ${trayItems ? `<button class="fm-btn fm-res-more" data-act="more" aria-expanded="false" aria-label="${esc(moreLabel())}">•••</button>` : ''}
       </div>
       ${v.unlock ? `<p class="fm-line fm-res-unlock-row"><button class="fm-res-unlock" data-act="unlock">🎉 ${esc(v.unlock.label)}</button></p>` : ''}
       ${icons.length ? `<div class="fm-res-icons">${icons.map(([a, i]) => btn(a, i)).join('')}</div>` : ''}

@@ -42,6 +42,8 @@ export function pickHeadline(h: HeadlineIn): Headline | null {
   const g = h.ghost;
   if (g) {
     if (h.ghostPending) return { kind: 'pending', tone: 'plain', text: t("Checking {name}'s ghost…", { name: g.name }) };
+    // a dead heat to the hundredth (a replayed run, or a real tie): nobody lost
+    if (my != null && g.time != null && Math.abs(my - g.time) < 0.005) return { kind: 'ghost', tone: 'photo', text: t("Dead heat with {name}'s ghost!", { name: g.name }) };
     const won = my != null && (g.time == null || my < g.time);
     if (won) {
       return g.time != null
@@ -98,4 +100,9 @@ export function resultNote(result: RaceResult): ResultNote | null {
 export function headlineFor(result: RaceResult, ghost?: { name: string; time: number | null } | null): Headline | null {
   const n = resultNote(result);
   return pickHeadline({ result, ghost, ghostPending: !!n?.ghostPending, prevBest: n?.prevBest });
+}
+
+/** The "•••" tray button's accessible name (the share lane's string table). */
+export function moreLabel(): string {
+  return t('More');
 }

@@ -101,7 +101,11 @@ export function showDareCard(host: HTMLElement, d: DareCardIn): Promise<DareCard
     // stray taps on the card never steer or arm the race behind it
     for (const ev of ['pointerdown', 'touchstart'] as const) wrap.addEventListener(ev, (e) => e.stopPropagation());
     setTimeout(() => wrap.querySelector<HTMLElement>('[data-act="dare-go"]')?.focus({ preventScroll: true }), 60);
-    if (d.auto) setTimeout(go, d.auto);
+    // QA: tap by itself unless someone touched the card first (an e2e flips "Race the pack", then taps)
+    let touched = false;
+    wrap.addEventListener('pointerdown', () => (touched = true), true);
+    box?.addEventListener('change', () => (touched = true));
+    if (d.auto) setTimeout(() => !touched && go(), d.auto);
   });
 }
 

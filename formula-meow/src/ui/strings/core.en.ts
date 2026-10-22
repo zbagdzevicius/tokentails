@@ -234,6 +234,7 @@ export const CORE_EN: Record<string, string> = {
   "That does not look like a track link.": "That does not look like a track link.",
   "Mirror": "Mirror",
 <<<<<<< HEAD
+<<<<<<< HEAD
   // iteration 4 (juice lane): tricks, the photo finish, the duel, chains
   "TAP!": "TAP!",
   "Barrel roll": "Barrel roll",
@@ -266,4 +267,6 @@ export const CORE_EN: Record<string, string> = {
   "Lap": "Lap",
   "⏱ Sender's lap {t} · beat it": "⏱ Sender's lap {t} · beat it",
 >>>>>>> 3ac5394a6 (wip(formula-meow): iteration 4 lane partial work (interrupted by usage limit, round 3))
+=======
+>>>>>>> 1e1c057df (feat(formula-meow): iteration 4 share-ugc lane (F7 results card, F8 clips, F9 ghost duels, F10 spectacular doodles))
 };
