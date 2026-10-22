@@ -221,6 +221,9 @@ const director = (visible: (id: number) => boolean, mySlot = 0) => {
     onHit: () => {},
   };
   const fx = new Effects(particles, sh as never, juice as never, hooks, null);
+  const rings: number[] = [];
+  const ring = particles.ring.bind(particles);
+  particles.ring = (...a: Parameters<typeof ring>) => (rings.push(1), ring(...a));
   const vfx = new CombatVfx(particles, sh as never);
   vfx.setTier('high');
   const spikes: number[] = [];
@@ -228,7 +231,7 @@ const director = (visible: (id: number) => boolean, mySlot = 0) => {
   vfx.levelSpike = (x, z, level, color) => (spikes.push(color), real(x, z, level, color));
   fx.vfx = vfx;
   const put = (id: number, hero: Who['hero'], team: number) => whos.set(id, { id, kind: 'hero', team, hero, x: 10, z: -30, yaw: 0, level: 7, maxHp: 900 } as Who);
-  return { fx, spikes, colors, put };
+  return { fx, spikes, colors, put, rings };
 };
 
 describe('C3 readability: yellow means you, and no spike from the fog', () => {
@@ -241,6 +244,18 @@ describe('C3 readability: yellow means you, and no spike from the fog', () => {
     seen = false;
     d.fx.handle({ type: 'levelup', tick: 2, id: 4, level: 10 });
     expect(d.spikes.length).toBe(1);
+  });
+
+  it('a hidden enemy levelling up or taking a pickup draws no ring at its last-seen place', () => {
+    const d = director(() => false);
+    d.put(4, 'aviete', 1);
+    d.fx.handle({ type: 'levelup', tick: 1, id: 4, level: 5 });
+    d.fx.handle({ type: 'pickup', tick: 2, id: 4, kind: 'snack' } as never);
+    expect(d.rings.length).toBe(0);
+    const seen = director(() => true);
+    seen.put(4, 'aviete', 1);
+    seen.fx.handle({ type: 'levelup', tick: 1, id: 4, level: 5 });
+    expect(seen.rings.length).toBeGreaterThan(0);
   });
 
   it("another player's Avietė, Sir Brutus or Lambo never levels up or casts in the gold 'you' family", () => {
