@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Pawlegends trailer harness</title>
+    <style>
+      /* the game page's own tokens and body (pawlegends/index.html) */
+      :root {
+        --bg: #2b1d2e; --cream: #fff3dc; --butter: #ffd27a; --peach: #ff9f7a; --rose: #ff6f91;
+        --sage: #a8d5a2; --sky: #9fd3ff; --ink: #2a1a22; --danger: #e5484d;
+      }
+      html, body {
+        margin: 0; height: 100%; background: var(--bg); color: var(--cream); overflow: hidden;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        -webkit-user-select: none; user-select: none;
+      }
+      #app { position: fixed; inset: 0; }
+    </style>
+    <!-- dev only (npm run dev → /tools/trailer/harness.html): never part of build or build:client -->
+    <script src="./vclock.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>

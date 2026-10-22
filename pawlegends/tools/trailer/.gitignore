@@ -1,0 +1,7 @@
+# capture outputs (PNG sequences, blends, masters) never go into git
+out/
+*.png
+*.jpg
+*.mp4
+*.mov
+*.wav
