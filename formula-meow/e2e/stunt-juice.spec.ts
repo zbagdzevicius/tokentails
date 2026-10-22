@@ -142,14 +142,13 @@ test('Kitchen Counter: tunnel streaks and low-pass, the air cam, the loop cam an
   await page.screenshot({ path: 'e2e/screens/juice-wall.png' });
   await resume(page, 8);
 
-  // the results: the Stunts row
-  await expect(page.locator('.fm-stunts')).toBeVisible({ timeout: 600_000 });
-  const row = await page.locator('.fm-stunts').textContent();
-  expect(row).toMatch(/Stunts: \d+/);
-  expect(Number(await page.locator('.fm-stunts').getAttribute('data-stunts'))).toBeGreaterThanOrEqual(3);
+  // the results: the stunt counts sit in the Style row (iteration 4 merge: the Stunts row only adds net catches)
+  const style = page.locator('[data-section="style"]');
+  await expect(style).toBeVisible({ timeout: 600_000 });
+  expect(await style.textContent()).toMatch(/loops|landings|wall rides|tricks|combo/);
   // the results panel scrolls: bring the row into view once the stamp and count-up are done
   await page.waitForTimeout(1500);
-  await page.locator('.fm-stunts').scrollIntoViewIfNeeded();
+  await style.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'e2e/screens/juice-results.png' });
   expect(errors).toEqual([]);

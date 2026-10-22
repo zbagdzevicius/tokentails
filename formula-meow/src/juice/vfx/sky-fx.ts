@@ -29,7 +29,7 @@ import {
   type Scene,
 } from 'three';
 import type { BuiltTrack } from '../../core/track/build';
-import type { Theme } from '../../core/track/themes';
+import { themeOf, type Theme } from '../../core/track/themes';
 
 const _o = new Object3D();
 
@@ -166,6 +166,8 @@ export class SkyFx {
   private readonly lights: InstancedMesh | null = null;
   private time = 0;
   private readonly look: AmbientLook;
+  /** the theme id whose celestial is drawn (a day theme made night draws the moon) */
+  private readonly cel: number;
 
   constructor(
     private readonly scene: Scene,
@@ -174,14 +176,17 @@ export class SkyFx {
     density: number,
   ) {
     const id = track.def.theme;
+    // a day theme made night (the Night Wild Card, `nightTheme`) hangs the Rooftops moon instead of its sun
+    this.cel = theme.night && !themeOf(id).night ? 1 : id;
     // celestial billboard, placed far along the start straight so the grid sees it
-    const tex = drawCelestial(id, theme);
+    const tex = drawCelestial(this.cel, theme);
     if (tex) {
       const s = new Sprite(new SpriteMaterial({ map: tex, fog: false, depthWrite: false, transparent: true, toneMapped: false }));
       const dx = track.tx[0];
       const dz = track.tz[0];
-      const size = id === 1 ? 300 : id === 3 ? 340 : 200;
-      s.position.set(track.px[0] + dx * 720, (id === 3 ? 70 : 170) + (id === 1 ? 40 : 0), track.pz[0] + dz * 720);
+      const cel = this.cel;
+      const size = cel === 1 ? 300 : cel === 3 ? 340 : 200;
+      s.position.set(track.px[0] + dx * 720, (cel === 3 ? 70 : 170) + (cel === 1 ? 40 : 0), track.pz[0] + dz * 720);
       s.scale.set(size, size, 1);
       s.renderOrder = -0.5;
       s.frustumCulled = false;
@@ -310,7 +315,7 @@ export class SkyFx {
       }
       this.lights.instanceMatrix.needsUpdate = true;
     }
-    if (this.sun) this.sun.material.rotation = this.track.def.theme === 0 ? this.time * 0.03 : 0;
+    if (this.sun) this.sun.material.rotation = this.cel === 0 ? this.time * 0.03 : 0;
   }
 
   /** Out of the scene now (a torn-down race); `dispose` frees the GPU side later. */

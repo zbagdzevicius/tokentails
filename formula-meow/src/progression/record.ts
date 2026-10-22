@@ -106,7 +106,8 @@ export function applyRace(before: ProgSave, r: RaceRecord, w: World): { save: Pr
   const mode: RaceMode = res.mode ?? 'race';
   const me = res.player;
   const finished = me.time != null;
-  const racing = mode !== 'tt' && mode !== 'battle';
+  // a lone kart (iteration 4 ghost duel, 1v1) is not a placed race: no wins, podiums or podium tracks from it
+  const racing = mode !== 'tt' && mode !== 'battle' && res.places.length > 1;
   const st = s.stats;
   const x = r.stats;
 

@@ -109,6 +109,9 @@ describe('clip hype and the stunt brag (F7, F8)', () => {
     expect(hypeReason(stats({ bestCombo: 4 }), false)).toEqual({ key: 'That ×{n} combo deserves a clip', n: 4 });
     expect(hypeReason(stats({ loops: 3 }), false)).toEqual({ key: '{n} loops deserve a clip', n: 3 });
     expect(hypeReason(undefined, false)).toBeNull();
+    expect(hypeReason(stats({}), false, 3)).toBeNull();
+    expect(hypeReason(stats({ loops: 3 }), false, 4)).toEqual({ key: 'That ×{n} chain deserves a clip', n: 4 });
+    expect(hypeReason(stats({ bestCombo: 3 }), false, 5)?.key).toBe('That ×{n} combo deserves a clip');
   });
 
   it('the brag counts this race only, and is honest everywhere it goes', () => {

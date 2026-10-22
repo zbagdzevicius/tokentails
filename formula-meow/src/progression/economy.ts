@@ -35,6 +35,8 @@ export interface RaceFishInput {
   /** battle */
   battleWin?: boolean;
   balloonsTaken?: number;
+  /** a lone kart (a 1v1 ghost duel): no one to place against, so no place bonus */
+  solo?: boolean;
 }
 
 export function placeBonus(place: number, cls: RaceClass): number {
@@ -53,7 +55,7 @@ export function fishForRace(r: RaceFishInput): FishLine[] {
   }
   const held = Math.max(0, Math.min(MAX_COINS_HELD, Math.floor(r.coinsHeld)));
   const picked = Math.max(0, Math.floor(r.coinsPicked));
-  if (r.finished) {
+  if (r.finished && !r.solo) {
     const b = placeBonus(r.place, r.cls);
     if (b > 0) out.push({ key: 'Place {p}', vars: { p: r.place }, amount: b });
   }
@@ -75,6 +77,7 @@ export function raceFishInput(result: RaceResult, stats: RaceStats | undefined):
     coinsPicked: stats?.coinsPicked ?? 0,
     battleWin,
     balloonsTaken: (stats?.balloonPops ?? 0) + (stats?.balloonSteals ?? 0),
+    solo: result.places.length <= 1,
   };
 }
 

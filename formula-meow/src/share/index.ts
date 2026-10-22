@@ -40,6 +40,7 @@ import { finishMargin, isPhotoFinish } from '../core/app/finish';
 import { t } from '../ui/i18n';
 import { noteResult, updateNote } from './cards/headline';
 import { hypeReason, stuntBrag } from './clip/highlight';
+import { boostChainTally } from '../juice/boost-chain';
 import { DareFlow } from './links/dare-flow';
 import { duelable } from './links/duel';
 import './share.css';
@@ -487,7 +488,7 @@ export function installShare(shell: Shell): void {
 
       // 0: clip (index 0 is relied on by setClipLabel); F7: it pulses with the reason after a strong highlight
       const margin = finishMargin(result, me);
-      const hype = hypeReason(result.stats?.[me], isPhotoFinish(margin));
+      const hype = hypeReason(result.stats?.[me], isPhotoFinish(margin), boostChainTally(ctx.events, me).best);
       actions.push({
         id: 'clip',
         label: webCodecsAvailable() ? '🎬 Clip…' : '🖼️ Share card',

@@ -119,6 +119,15 @@ export function stuntSection(s: Readonly<StuntSummary> | null, ctx: ResultCtx): 
   const el = document.createElement('div');
   el.className = 'fm-line fm-stunts';
   el.dataset.stunts = String(s.clean);
+  // iteration 4 merge: the progression lane's "✨ Style" row already lists loops, landings, wall rides and the combo
+  // from the same race, so this row then keeps only what Style does not say (the net catches), or hides
+  const st = ctx.result.stats?.[ctx.result.player.kart];
+  const styled = !!st && (st.loops > 0 || st.cleanLandings > 0 || st.walls > 0 || st.tricks > 0 || st.miniTurbos[2] > 0 || st.bestCombo >= 2);
+  if (styled) {
+    if (!s.nets) return null;
+    el.textContent = `🕸️ ${t('caught by the net: {n}', { n: s.nets })}`;
+    return el;
+  }
   const parts = [t('Stunts: {n}', { n: s.clean })];
   const bits: string[] = [];
   if (s.loops) bits.push(`🌀×${s.loops}`);
