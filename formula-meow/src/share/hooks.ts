@@ -11,6 +11,11 @@ export interface ResultAction {
   primary?: boolean;
   /** 'icon' actions sit in the small row under the main buttons */
   tier?: 'main' | 'icon';
+  /**
+   * Iteration 4 (F7): why this button deserves a tap now (the clip after a strong highlight: "That ×4 combo deserves a
+   * clip"). The results screen pulses the button and shows the reason over the footer. Quiet races leave it unset.
+   */
+  hype?: string;
   run(): void;
 }
 

@@ -8,11 +8,12 @@
  * returns the recomputed time (a ghost never carries a time of its own).
  */
 import { CanvasTexture, Sprite, SpriteMaterial, SRGBColorSpace } from 'three';
-import { DEFAULT_CAT, SIM_VERSION, unpackInput, type CatSpec, type RaceConfig, type TickInput } from '../../types';
+import { DEFAULT_CAT, SIM_VERSION, unpackInput, type CatSpec, type TickInput } from '../../types';
 import { classTuning } from '../../tuning';
 import { SimWorld } from '../../core/sim/world';
 import { KartView } from '../../core/render/kart-view';
-import { buildField, createSimPlugins, kartLookFor } from '../../items-ai';
+import { createSimPlugins, kartLookFor } from '../../items-ai';
+import { shadowConfig } from './duel';
 import type { FrameInfo, JuiceListener } from '../../juice/bus';
 import type { Shell } from '../../core/app/shell';
 import { trackKey, type Ghost } from '../codec/ghost-codec';
@@ -139,21 +140,10 @@ export class GhostRunner implements JuiceListener {
     const d = this.dare!;
     const g = d.ghost;
     const main = this.shell.world;
-    const slot = g.slot;
     const cat = d.cat ?? DEFAULT_CAT;
-    const cfg: RaceConfig = {
-      track: main.cfg.track,
-      seed: g.seed,
-      cls: g.cls,
-      modifiers: g.modifiers,
-      // [integrator] the rival AI drives differently (feel lane): the shadow race marks the same slot
-      racers: buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: d.name, playerCat: cat, playerKart: { ...kartLookFor(0), body: g.body ?? 0 } }).map((r, i) =>
-        i === g.rival && i !== slot ? { ...r, rival: true } : r,
-      ),
-      humans: [slot],
-      forgiving: g.forgiving,
-      mode: g.mode ?? 'race',
-    };
+    // [integrator] the rival AI drives differently (feel lane): the shadow race marks the same slot; a time-trial ghost
+    // races alone (duel.ts shadowConfig)
+    const cfg = shadowConfig(g, main.cfg.track, d.name, cat);
     this.world = new SimWorld(cfg, createSimPlugins(cfg), main.track);
     this.view = new KartView({ name: d.name, cat, kart: { ...kartLookFor(1), body: g.body ?? 0 } });
     this.ghostAlpha = 0.42;
