@@ -102,6 +102,10 @@ test('Track Doodle stunts: loop, jump and tunnel stickers snap onto the road, va
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?make&seed=4');
   await stadium(page);
+  // F10: a fresh doodle starts with stunts (a loop on the long straight); one Undo takes them off, the drawing stays
+  await expect.poll(async () => (await qa(page, 0))?.pieces.map((p) => p.kind) ?? [], { timeout: 30_000 }).toContain('loop');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length, { timeout: 10_000 }).toBe(0);
   await expect(page.locator('.fm-ed-status')).toContainText('Drivable', { timeout: 30_000 });
   await page.locator('.fm-ed-tab[data-tab="stickers"]').click();
   await expect(page.locator('.fm-ed-stunt')).toHaveCount(4);
@@ -156,4 +160,72 @@ test('a broken track link says so and races Kitchen', async ({ page }) => {
   await expect.poll(() => trackId(page)).toBe('kitchen');
   await page.getByRole('button', { name: 'Race Kitchen' }).click();
   await expect(page.locator('.fm-ugc-sheet.on')).toHaveCount(0);
+});
+
+/** Captures navigator.share (url or text) instead of opening a sheet. */
+async function stubShare(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    if (location.protocol !== 'http:') return;
+    const w = window as unknown as { __shared: string[] };
+    w.__shared = [];
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (d: { url?: string; text?: string }) => void w.__shared.push(d.url ?? d.text ?? '') });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+  });
+}
+
+const sharedList = (page: Page) => page.evaluate(() => (window as unknown as { __shared: string[] }).__shared);
+
+test('doodles start spectacular: auto-stunts, Spice it up, Surprise track, and Beat the maker on the shared link', async ({ browser }) => {
+  test.setTimeout(420_000);
+  const errors: string[] = [];
+  const maker = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+  maker.on('pageerror', (e) => errors.push(e.message));
+  await stubShare(maker);
+  await maker.goto('/?make&seed=4&bot=1&speed=8');
+  await doodle(maker);
+  // a loop, a jump gap and (room permitting) a tunnel, placed by the editor's own snap; the hint says so
+  await expect.poll(async () => (await qa(maker, 0))?.pieces.length ?? 0, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  await expect(maker.locator('.fm-ed-status')).toContainText('Stunts added');
+  const before = JSON.stringify((await qa(maker, 0))!.pieces);
+  await maker.locator('[data-act="spice"]').click();
+  await expect.poll(async () => JSON.stringify((await qa(maker, 0))?.pieces), { timeout: 30_000 }).not.toBe(before);
+  await expect.poll(async () => (await qa(maker, 0))?.driving, { timeout: 30_000 }).toBe(false);
+  expect((await qa(maker, 0))?.ok).toBe(true);
+  await maker.screenshot({ path: 'e2e/screens/editor-spice.png' });
+
+  // Surprise track: a random valid doodle in a random theme with stunts, ready to race
+  await maker.locator('.fm-ed-tab[data-tab="draw"]').click();
+  await maker.locator('[data-act="surprise"]').click();
+  await expect(maker.locator('.fm-ed-status')).toContainText('Surprise');
+  await expect.poll(async () => (await qa(maker, 0))?.driving, { timeout: 30_000 }).toBe(false);
+  expect((await qa(maker, 0))?.ok).toBe(true);
+  await maker.screenshot({ path: 'e2e/screens/editor-surprise.png' });
+
+  // the test drive: its best completed lap is kept on this device, and the share link carries it
+  await maker.locator('.fm-ed-actions .primary').click();
+  await expect(maker.locator('.fm-overlay.on .fm-res-head')).toBeVisible({ timeout: 200_000 });
+  const code = new URL(maker.url()).searchParams.get('t')!;
+  await maker.goto('about:blank');
+  await maker.goto(`/?make&t=${code}`);
+  await expect(maker.locator('.fm-ed')).toBeVisible();
+  await maker.locator('.fm-ed-actions button', { hasText: 'Share' }).click();
+  await expect.poll(async () => (await sharedList(maker)).length, { timeout: 10_000 }).toBe(1);
+  const link = new URL((await sharedList(maker))[0]);
+  // the same track, now with the lap in the code
+  expect(link.searchParams.get('t')).not.toBe(code);
+
+  // a friend opens it: "Sender's lap 0:xx.xx · beat it", a live lap delta, and how it went on the results
+  const friend = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+  friend.on('pageerror', (e) => errors.push(e.message));
+  await friend.goto(`/?bot=1&speed=4&t=${link.searchParams.get('t')}`);
+  await expect(friend.locator('.fm-ugc-banner.on')).toContainText(/Sender's lap \d:\d\d\.\d\d · beat it/, { timeout: 20_000 });
+  await expect(friend.locator('.fm-lap-pill.on b')).toHaveText(/^[+−]\d+\.\d\d$/, { timeout: 60_000 });
+  await friend.screenshot({ path: 'e2e/screens/ugc-maker-lap.png' });
+  await expect(friend.locator('.fm-overlay.on .fm-lines')).toContainText("sender's lap", { timeout: 200_000 });
+  // the track without a lap in its code has no target
+  await friend.goto('about:blank');
+  await friend.goto(`/?bot=1&t=${code}`);
+  await expect(friend.locator('.fm-ugc-banner.on')).toBeVisible({ timeout: 20_000 });
+  await expect(friend.locator('.fm-ugc-banner.on')).not.toContainText("Sender's lap");
+  expect(errors).toEqual([]);
 });

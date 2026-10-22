@@ -22,6 +22,7 @@ import { firstMessage, lapsFor, LIMITS, needsDrive, snapToMap, validateTrack, ty
 import { driveCheck } from './drive-check';
 import { doodleToPoints, featurePos, nearestOnTrack, sampleToS, redrawTrack, sToSample, straightestSample, type P2 } from './doodle';
 import { History } from './history';
+import { autoStunts, seedOf, spiceUp, surpriseTrack } from './surprise';
 import { JUMP_M, PIECE_EDIT, PIECE_ICON, PIECE_STICKERS, metresToUnits, newPiece, pieceAnchor, pieceLimit, placed, snapPiece, tunnelLenStep, tunnelMetres } from './pieces';
 import { cleanName, CREATOR_MAX, encodeTrack, NAME_MAX } from '../codec/track-code';
 import { loadCreator, newSlot, putSaved, saveCreator, saveDraft } from '../store';
@@ -445,6 +446,13 @@ export class TrackDoodle {
     p.innerHTML = '';
     if (this.tab === 'draw') {
       p.append(el('p', 'fm-ed-tip', 'Drag one finger round a loop and let go near where you started. It snaps into a race track.'));
+      // F10: a ready-to-race random doodle with stunts
+      const row = el('div', 'fm-ed-row fm-ed-roll');
+      const sur = el('button', 'fm-btn fm-ed-surprise', tr('editor.surprise'));
+      sur.dataset.act = 'surprise';
+      sur.addEventListener('click', () => this.surprise());
+      row.append(el('span', 'fm-ed-lbl', tr('editor.or')), sur);
+      p.append(row);
     } else if (this.tab === 'shape') {
       if (this.sel < 0 || this.sel >= this.def.points.length) {
         p.append(el('p', 'fm-ed-tip', 'Drag a point to bend the road. Double-tap the road to add a point, long-press a point to remove it. Tap a point for height and width.'));
@@ -479,6 +487,15 @@ export class TrackDoodle {
     } else if (this.tab === 'stickers' && this.selPiece >= 0 && this.def.setPieces?.[this.selPiece]) {
       this.renderPiecePanel(p, this.selPiece);
     } else if (this.tab === 'stickers') {
+      // F10: re-roll the stunts and the item spots, first in the panel (above the fold on a phone)
+      const roll = el('div', 'fm-ed-row fm-ed-roll');
+      const spice = el('button', 'fm-btn fm-ed-spice', tr('editor.spice'));
+      spice.dataset.act = 'spice';
+      spice.title = tr('editor.spice.hint');
+      spice.disabled = this.def.points.length < LIMITS.minPoints;
+      spice.addEventListener('click', () => this.spice());
+      roll.append(spice);
+      p.append(roll);
       const tray = el('div', 'fm-ed-tray');
       for (const s of STICKERS) {
         const b = el('button', 'fm-ed-stk fm-sticker', `<span>${s.icon}</span><small>${tr(s.kind === 'hazard' ? 'editor.sticker.hazard' : s.kind === 'shortcut' ? 'editor.sticker.shortcut' : s.label)}</small>`);
@@ -1124,9 +1141,53 @@ export class TrackDoodle {
     }
     this.sel = -1;
     this.selPiece = -1;
+    // F10: a fresh doodle starts spectacular: a loop on the longest straight, a jump gap, a tunnel when there is room
+    // (two history steps: one Undo takes the stunts off and keeps the drawing)
+    let kinds: string[] = [];
     this.commit((d) => redrawTrack(d, r.points));
-    this.flash(this.v.ok ? 'Nice track! Add stickers or race it.' : (firstMessage(this.v) ?? ''));
-    this.setTab('shape');
+    if (this.v.ok) {
+      const d = clone(this.def);
+      kinds = autoStunts(d, seedOf(d));
+      if (kinds.length) this.commit((x) => Object.assign(x, d));
+    }
+    this.flash(!this.v.ok ? (firstMessage(this.v) ?? '') : kinds.length ? tr('editor.auto.added') : 'Nice track! Add stickers or race it.');
+    this.setTab(kinds.length ? 'stickers' : 'shape');
+  }
+
+  /** "Spice it up 🎲": new stunts and item spots, a new seed every press. */
+  private spice(): void {
+    if (this.def.points.length < LIMITS.minPoints) return;
+    let kinds: string[] = [];
+    this.selPiece = -1;
+    this.rolls++;
+    const seed = (seedOf(this.def) + this.rolls * 0x9e3779b1) >>> 0;
+    this.commit((d) => {
+      kinds = spiceUp(d, seed);
+    });
+    this.flash(kinds.length ? tr('editor.auto.added') : tr('editor.spice.none'));
+    this.renderPanel();
+  }
+
+  private rolls = 0;
+
+  /** "Surprise track": a random valid doodle in a random theme, with stunts, ready to race. */
+  private surprise(): void {
+    const seed = (Math.random() * 0x7fffffff) | 0;
+    const s = surpriseTrack(seed);
+    if (!s) return this.flash(tr('editor.surprise.fail'));
+    this.sel = -1;
+    this.selPiece = -1;
+    this.commit((d) => {
+      redrawTrack(d, s.points);
+      d.features = s.features;
+      d.laps = s.laps;
+      d.theme = s.theme;
+      d.timeOfDay = s.timeOfDay;
+      if (!d.name) d.name = s.name;
+      if (s.setPieces) d.setPieces = s.setPieces;
+    });
+    this.flash(tr('editor.surprise.done'));
+    this.setTab('stickers');
   }
 
   private insertPoint(w: P2): void {

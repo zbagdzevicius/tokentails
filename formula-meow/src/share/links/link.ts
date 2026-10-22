@@ -77,11 +77,12 @@ export interface DareParts {
 
 /**
  * True when a run in `mode` makes a dare link a friend can race: the ghost runner rebuilds the default eight-kart
- * field on a race track. A time trial races alone, a Grand Prix sits inside a cup, and a battle arena is no lap
- * track, so their ghosts would not replay; their captions link home instead.
+ * field on a race track, or the lone kart of a time trial (iteration 4, F9: a time trial dare is a ghost duel). A
+ * Grand Prix sits inside a cup and a battle arena is no lap track, so their ghosts would not replay; their captions
+ * link home instead.
  */
 export function dareableMode(mode: RaceMode | undefined): boolean {
-  return mode == null || mode === 'race' || mode === 'dare' || mode === 'daily';
+  return mode == null || mode === 'race' || mode === 'dare' || mode === 'daily' || mode === 'tt';
 }
 
 export function dareUrl(loc: LocLike, d: DareParts): string {

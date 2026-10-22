@@ -9,6 +9,57 @@
 .fm-overlay .fm-res-icons .fm-btn[data-x] { font-size: 13px; padding: 3px 8px; white-space: nowrap; min-height: 44px; min-width: 44px; border-width: 3px; box-shadow: 0 3px 0 var(--ink); }
 .fm-table tr.ghost td { color: #6a3fd0; font-style: italic; }
 
+/* iteration 4 (F7): the results headline card, the dare button, the clip hype, the "•••" tray on a phone */
+.fm-res-head { text-align: center; }
+.fm-res-head .fm-stats { margin-bottom: 4px; }
+.fm-headline-slot { min-height: 8px; }
+.fm-headline {
+  display: inline-block;
+  margin: 2px auto 10px;
+  padding: 6px 16px;
+  max-width: 100%;
+  border: 3px solid var(--ink, #2a1a22);
+  border-radius: 999px;
+  box-shadow: 0 3px 0 var(--ink, #2a1a22);
+  background: var(--cream, #fff3dc);
+  color: var(--ink, #2a1a22);
+  font-weight: 900;
+  font-size: calc(18px * var(--fm-text-scale, 1));
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.fm-headline[data-tone='win'] { background: #c8f7d4; color: #0d4d2e; }
+.fm-headline[data-tone='lose'] { background: #ffd9e6; color: #8c0f43; }
+.fm-headline[data-tone='photo'] { background: #1a1238; color: #ffd27a; letter-spacing: 0.02em; transform: rotate(-2deg); }
+.fm-headline[data-tone='best'] { background: #ffe58a; color: #5a3a00; }
+.fm-headline.pop { animation: fm-head-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes fm-head-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.fm-res-main .fm-btn.fm-dare { background: #1a1238; color: #2cf6f3; border-color: #1a1238; box-shadow: 0 4px 0 #6a3fd0; }
+.fm-hype-line { flex-basis: 100%; margin: 0; text-align: center; font-weight: 900; font-size: calc(14px * var(--fm-text-scale, 1)); color: #c4126a; }
+.fm-btn.fm-hype { animation: fm-hype 1.2s ease-in-out infinite; border-color: #ff3ea5; }
+/* a glow ring that breathes (no transform: the button never moves under a finger or a test's click) */
+@keyframes fm-hype { 0%, 100% { box-shadow: 0 4px 0 var(--ink, #2a1a22), 0 0 0 0 rgba(255, 62, 165, 0.55); } 50% { box-shadow: 0 4px 0 var(--ink, #2a1a22), 0 0 0 9px rgba(255, 62, 165, 0); } 51% { box-shadow: 0 4px 0 var(--ink, #2a1a22), 0 0 0 0 rgba(255, 62, 165, 0.55); } }
+:root[data-motion='reduced'] .fm-btn.fm-hype, :root[data-motion='reduced'] .fm-headline.pop { animation: none; }
+@media (prefers-reduced-motion: reduce) { .fm-btn.fm-hype, .fm-headline.pop { animation: none; } }
+.fm-res-more { display: none; }
+.fm-res-unlock-row { text-align: center; margin: 6px 0 0; }
+/* a phone held upright: Next (or Rematch) full width, then the dare and Again, then Clip, Menu and "•••"; the icon
+   actions and 🏁 Tracks wait in the tray */
+@media (max-width: 600px) and (min-height: 501px) {
+  .fm-res-more { display: inline-block; }
+  .fm-panel.fm-results:not(.tray-open) > .fm-res-icons { display: none; }
+  .fm-panel.fm-results.tray-open > .fm-res-icons { animation: fm-row 0.2s ease-out both; }
+  .fm-panel .fm-res-main { gap: 8px; }
+  .fm-res-main > .fm-btn { flex: 1 1 26%; min-width: 0; padding: 8px 6px; font-size: 15px; min-height: 46px; }
+  .fm-res-main > .fm-btn.big { flex-basis: 100%; order: -3; font-size: 21px; min-height: 56px; }
+  .fm-res-main > .fm-hype-line { order: -4; }
+  .fm-res-main > .fm-btn.fm-dare { order: -2; flex: 1 1 52%; font-size: 16px; }
+  .fm-res-main > [data-act='again']:not(.big) { order: -2; flex: 1 1 34%; }
+  .fm-res-main > .fm-res-more { order: 9; flex: 0 0 58px; font-size: 18px; letter-spacing: 1px; }
+  .fm-place { font-size: calc(72px * var(--fm-text-scale, 1)); margin: 0 0 2px; }
+  .fm-results h2 { margin-bottom: 2px; }
+}
+
 .fm-maker {
   position: fixed;
   inset: 0;
@@ -57,6 +108,80 @@
   transition: opacity 0.4s;
 }
 .fm-dare-banner.off { opacity: 0; }
+
+/* iteration 4 (F9): the dare card over the grid, and the live gap pill in a duel */
+.fm-dare-card {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: radial-gradient(120% 80% at 50% 30%, rgba(106, 63, 208, 0.55), rgba(16, 10, 34, 0.88));
+  touch-action: manipulation;
+  transition: opacity 0.25s;
+}
+.fm-dare-card.off { opacity: 0; pointer-events: none; }
+.fm-dare-card-in {
+  box-sizing: border-box;
+  width: min(100%, 380px);
+  text-align: center;
+  background: var(--cream, #fff3dc);
+  color: var(--ink, #2a1a22);
+  border: 4px solid var(--ink, #2a1a22);
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--ink, #2a1a22);
+  padding: 18px 18px 16px;
+  animation: fm-head-pop 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.fm-dare-kicker { margin: 0; font-weight: 900; font-size: 14px; letter-spacing: 0.12em; color: #6a3fd0; text-transform: uppercase; }
+.fm-dare-card h2 { margin: 2px 0 4px; font-size: calc(30px * var(--fm-text-scale, 1)); line-height: 1.05; overflow-wrap: anywhere; }
+.fm-dare-track { margin: 0 0 6px; font-weight: 800; opacity: 0.85; }
+.fm-dare-time { margin: 2px 0 10px; font-size: calc(22px * var(--fm-text-scale, 1)); font-weight: 900; color: #1a1238; }
+.fm-dare-time b { font-variant-numeric: tabular-nums; font-size: 1.5em; }
+.fm-dare-notice { font-weight: 800; color: #8c0f43; }
+.fm-dare-mode { margin: 4px 0 12px; font-size: 14px; font-weight: 800; opacity: 0.8; }
+.fm-dare-pack { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; min-height: 44px; padding: 0 12px; border: 3px solid var(--ink, #2a1a22); border-radius: 999px; background: #fff; cursor: pointer; }
+.fm-dare-pack input { width: 22px; height: 22px; accent-color: #ff3ea5; }
+.fm-dare-go { width: 100%; font-size: 24px; min-height: 60px; animation: fm-hype 1.4s ease-in-out infinite; }
+.fm-dare-cat { position: relative; width: 84px; height: 72px; margin: 0 auto 6px; }
+.fm-dare-cat i { position: absolute; inset: 14px 6px 0; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 50% 70%, var(--c2) 0 28%, var(--c1) 29%); border: 4px solid var(--ink, #2a1a22); }
+.fm-dare-cat i::before, .fm-dare-cat i::after { content: ''; position: absolute; top: 34%; width: 12px; height: 12px; border-radius: 50%; background: var(--c3); border: 3px solid var(--ink, #2a1a22); }
+.fm-dare-cat i::before { left: 22%; }
+.fm-dare-cat i::after { right: 22%; }
+.fm-dare-cat b { position: absolute; top: 0; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 26px solid var(--ink, #2a1a22); }
+.fm-dare-cat b:first-of-type { left: 8px; transform: rotate(-14deg); }
+.fm-dare-cat b:last-of-type { right: 8px; transform: rotate(14deg); }
+:root[data-motion='reduced'] .fm-dare-card-in, :root[data-motion='reduced'] .fm-dare-go { animation: none; }
+.fm-gap-pill {
+  position: absolute;
+  left: 50%;
+  top: calc(64px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  border: 3px solid #2cf6f3;
+  background: rgba(26, 18, 56, 0.86);
+  color: #2cf6f3;
+  font-weight: 900;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.fm-gap-pill .n { max-width: 9em; overflow: hidden; text-overflow: ellipsis; }
+.fm-gap-pill b { font-variant-numeric: tabular-nums; font-size: 20px; min-width: 4.2em; text-align: center; padding: 2px 10px; border-radius: 999px; background: #fff3dc; color: #1a1238; }
+.fm-gap-pill.behind b { background: #ff4f7a; color: #fff; }
+.fm-gap-pill.ahead b { background: #3bd17f; color: #0b3a21; }
+/* a phone held upright: compact, between the place and the LAP badge (never over the lap timer) */
+@media (max-width: 600px) {
+  .fm-gap-pill { top: calc(60px + env(safe-area-inset-top)); left: calc(50% + 4px); gap: 5px; padding: 2px 3px 2px 8px; font-size: 12px; border-width: 2px; }
+  .fm-gap-pill .n { max-width: 5em; }
+  .fm-gap-pill b { font-size: 16px; min-width: 3.6em; padding: 1px 6px; }
+}
 
 /* B44: the clip button keeps one width; making the clip fills it left to right instead of changing its text */
 .fm-overlay [data-x='0'] { min-width: 8.5em; }

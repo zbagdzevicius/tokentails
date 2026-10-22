@@ -3,13 +3,15 @@
  * remix a track, label a track. Copy is plain and honest: no counts, no claims.
  */
 import type { TrackDef } from '../types';
-import { encodeTrack, trackKey } from './codec/track-code';
+import { encodeTrack, trackKey, ugcId } from './codec/track-code';
+import { shareLapCs } from './maker-lap';
 import { trackLink } from './codec/link';
 import { loadCreator } from './store';
 import { ugcPieces } from './editor/pieces';
 
+/** The track's link; it carries this device's best lap on it (or the lap the link came with), F10 "Beat the maker". */
 export function linkFor(def: TrackDef): string {
-  return trackLink(encodeTrack(def), location);
+  return trackLink(encodeTrack(def, { creatorLapCs: shareLapCs(ugcId(def)) }), location);
 }
 
 /** Native share sheet when there is one, else the clipboard. Resolves to a short status line for the UI. */
