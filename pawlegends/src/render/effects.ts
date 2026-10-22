@@ -500,6 +500,9 @@ export class Effects {
         this.particles.burst(this.at(v, 1), { additive: true, n: 6, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 2, size: [0.15, 0.25], life: [0.4, 0.6], speed: [1, 2], up: 2.5, gravity: 3 });
         sfx.play('coin', { at: v, vol: 0.6 });
       } else sfx.play('poof', { at: v, vol: 0.5 });
+      // The sim announces a fallen tower with a 'tower' event but a core only with its 'death' (the match ends on that
+      // tick), so the core's fall gets the same burst here; the result banner ("Victory!" / "Defeat") is its words.
+      if (v.kind === 'core') this.structureFell(v, 'core');
     }
   }
 
@@ -538,12 +541,22 @@ export class Effects {
     const lane = v ? (-v.z * 1000 > MAP_MID_Y ? 'Sunny Lane' : 'Puddle Lane') : undefined;
     const what = v?.kind === 'core' ? 'core' : 'tower';
     this.juice.banner({ title: good ? `Enemy ${what} down!` : `We lost a ${what}`, sub: what === 'core' ? undefined : lane, tone: good ? 'good' : 'bad' });
-    sfx.play('boom');
     sfx.play('roar', { vol: good ? 1 : 0.6 });
+    if (v) this.structureFell(v, what);
+    else {
+      sfx.play('boom');
+      this.juice.kick(0.45);
+    }
+  }
+
+  /** A tower or core falls: the shake, the core's slow motion and camera push, shockwave rings, shards, stars, dust. */
+  private structureFell(v: Who, what: 'tower' | 'core'): void {
+    sfx.play('boom');
     this.juice.kick(what === 'core' ? 0.7 : 0.45);
-    if (what === 'core') this.juice.slowmo(1200, 0.25);
-    if (!v) return;
-    if (what === 'core') this.hooks.onCoreDown?.(v);
+    if (what === 'core') {
+      this.juice.slowmo(1200, 0.25);
+      this.hooks.onCoreDown?.(v);
+    }
     for (let i = 0; i < 3; i++) this.shock.start(this.at(v, 0), { r1: 4 + i * 2.5, dur: 0.4 + i * 0.15, color: i === 0 ? '#FFD34D' : '#FFE0C8', height: 0.6 });
     this.particles.burst(this.at(v, 2.5), { n: 40, shape: SHAPE.SHARD, color: 0xc9b8a8, tint: 0.2, size: [0.15, 0.35], life: [0.8, 1.3], speed: [4, 9], up: 5, gravity: 14, spin: 10, floor: true, fade: FADE.HOLD });
     this.particles.burst(this.at(v, 2.5), { additive: true, n: 30, shape: SHAPE.STAR5, color: TEAM[v.team === 1 ? 1 : 0].main, intensity: 2, size: [0.25, 0.45], life: [0.6, 1], speed: [3, 7], up: 4, gravity: 6 });
@@ -624,6 +637,14 @@ function ultName(h: HeroId): string {
       return 'Moonshot!';
     case 'brutus':
       return 'Champion’s Challenge!';
+    case 'lambo':
+      return 'Tangled Lights!';
+    case 'aviete':
+      return 'Short Circuit!';
+    case 'bengas':
+      return 'Curtains Up!';
+    case 'gabe':
+      return 'Under Her Spell!';
     default:
       return 'Pack Hunt!';
   }
