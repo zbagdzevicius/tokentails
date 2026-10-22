@@ -684,8 +684,31 @@ function seal(id, f) {
   return { id, ...spec, picks: f.picks, keys: f.keys, roles: f.roles, points: f.points ?? {}, strict: f.strict, miss: f.strict ? [] : f.miss, score: Math.round(f.score * 100) / 100, check: { tick: run.tick, eventHash: run.eventHash, stateHash: run.stateHash }, simVersion: d.SIM_VERSION, length: f.length };
 }
 
+/**
+ * `--fixed`: seal the v2 takes of fixed-takes.mjs (seeds and key ticks from the moment scan) into takes.json, each
+ * played to its last key + 300 ticks or the match end, with the hashes the browser capture must match.
+ */
+async function sealFixed() {
+  const { FIXED } = await import('./fixed-takes.mjs');
+  const ids = ONLY.length ? ONLY : Object.keys(FIXED);
+  const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : { takes: {} };
+  const takes = { ...prev.takes };
+  for (const id of ids) {
+    const c = FIXED[id];
+    if (!c) throw new Error(`no fixed take ${id}`);
+    const spec = { seed: c.seed, hero: c.hero, trick: 'pounce', difficulty: 'normal', script: [] };
+    const run = new d.TakeRun(spec);
+    run.runTo(Math.max(...Object.values(c.keys)) + 300);
+    takes[id] = { id, ...spec, picks: run.picks, keys: c.keys, roles: c.roles, points: c.points ?? {}, strict: true, miss: [], fixed: true, check: { tick: run.tick, eventHash: run.eventHash, stateHash: run.stateHash }, simVersion: d.SIM_VERSION, length: run.ended?.ticks ?? null };
+    console.error(`  ${id}: seed ${c.seed} ${c.hero} picks ${run.picks.join(' ')} check ${run.tick} ${run.eventHash}`);
+  }
+  writeFileSync(OUT, `${JSON.stringify({ simVersion: d.SIM_VERSION, generated: 'tools/trailer/seed-search.mjs', takes }, null, 1)}\n`);
+  console.error(`wrote ${OUT}`);
+}
+
 const ids = ONLY.length ? ONLY : Object.keys(TAKES);
-if (hasFlag('--worker')) {
+if (hasFlag('--fixed')) await sealFixed();
+else if (hasFlag('--worker')) {
   const hero = argValue('--hero');
   const found = searchHero(hero, ids, FROM, SEEDS);
   process.stdout.write(JSON.stringify(found));

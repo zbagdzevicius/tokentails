@@ -1,17 +1,32 @@
 /**
- * Motion-graphics timeline (storyboard §2 kinetic type, §3 shot list, §4 text, §6 9:16, §7 15 s cut) as data.
- * Pure module: the browser compositor (mg.js) renders it, Node (type.mjs, the edit) reads its frame ranges and the
- * post list (flashes, shakes, rgbashift) without a browser. Frame numbers are each cut's own (60 fps).
+ * Motion-graphics timeline, trailer v2 ("Big Plays", storyboard §3 kinetic type, §4 post moves, §5 text, §7 9:16 and
+ * 15 s cut) as data. Pure module: the browser compositor (mg.js) renders it; Node (type.mjs, score.mjs, the edit)
+ * reads its frame ranges, the 15 s segment map and the post list without a browser. Frame numbers are each cut's own
+ * (60 fps, 144 BPM: 25 frames per beat). The v1 timeline is mg-timeline-v1.mjs.
  */
 
 export const ASPECTS = { '16x9': { W: 1920, H: 1080 }, '9x16': { W: 1080, H: 1920 } };
 export const CUTS = { 30: 1800, 15: 900 };
+export const BPM = 144;
+export const BEAT_FRAMES = (60 * 60) / BPM;
 
 /**
  * The 15 s cut as segments of the 30 s master (storyboard §7): [cutFrom, cutTo, offset], so master = cut + offset.
- * Bar 1 as is, S06 with L3, S07-S10, S17 (tower at cut f420), then S23 + the S24 hang, S25-S26 and the end card.
+ * The hook as is; the roll call as eight eighth-note cuts round each hero's contact; 3V3; four ults (Moonshot, the
+ * charm, Aviete with BIG PLAYS., Golden Hour); Pack Hunt; the tower dive; the final teamfight; TAKE THEIR CORE into the
+ * core impact (cut f775); the end card (a plate: no footage).
  */
-export const CUT15_SEGMENTS = [[0, 119, 0], [120, 359, 120], [360, 479, 480], [480, 899, 840]];
+export const CUT15_SEGMENTS = [
+  [0, 99, 0],
+  [100, 112, 100], [113, 124, 112], [125, 137, 129], [138, 149, 137], [150, 162, 150], [163, 174, 170], [175, 187, 175], [188, 199, 200],
+  [200, 299, 200],
+  [300, 324, 216], [325, 349, 292], [350, 374, 350], [375, 399, 377],
+  [400, 499, 400],
+  [500, 599, 500],
+  [600, 699, 700],
+  [700, 799, 750],
+  [800, 899, 800],
+];
 
 /** Cut frame -> 30 s master frame (the footage's frame numbers). */
 export function sourceFrame(cut, f) {
@@ -20,7 +35,7 @@ export function sourceFrame(cut, f) {
   return f;
 }
 
-/** UI colour tokens (src/ui/ppk-ui.css). */
+/** UI colour tokens (src/ui/ppk-ui.css), plus the team colours of the title. */
 export const COLORS = {
   cream: '#FFF8EE',
   cocoa: '#5A3B2E',
@@ -29,115 +44,86 @@ export const COLORS = {
   pinkDark: '#B8557A',
   gold: '#FFD86B',
   sky: '#8FD3FF',
+  rose: '#FF7FA8',
+  blue: '#7FC4FF',
 };
 
-/**
- * Gabė's eyes: in the photo (336x448 px) and on screen in the first S05 turntable frame (the whip lands the
- * card's eyes there, then the cut). Midpoint between the eyes, measured on gabe-photo.webp and the captured S05 f0186.
- */
-export const GABE = {
-  photo: { w: 336, h: 448, eyes: { x: 117, y: 307 }, spacing: 90 },
-  // pupils measured on the S05 capture's f186 (16:9 853/1135 x 606/602; 9:16 423/736 x 1207/1200)
-  screenEyes: { '16x9': { x: 994, y: 604 }, '9x16': { x: 580, y: 1204 } },
-  /** The model's pupil spacing on screen (px): the whip-zoom ends with the photo's eyes at the same spacing. */
-  screenSpacing: { '16x9': 282, '9x16': 313 },
-};
+/** Kept for mg.js (the v1 photo card; v2 draws no photo). */
+export const GABE = { photo: { w: 336, h: 448, eyes: { x: 117, y: 307 }, spacing: 90 }, screenEyes: { '16x9': { x: 994, y: 604 }, '9x16': { x: 580, y: 1204 } }, screenSpacing: { '16x9': 282, '9x16': 313 } };
 
 /**
- * Elements. kind: 'line' (one or more lines that animate together), 'words' (each word has its own in-frame; `flow`
- * re-centres the words shown so far, so a building line always sits centred), 'photo' (S04/S05 card), 'endcard'.
- * anim: 'slam' | 'pop'. out: { at, hard } (hard = cut with the shot, otherwise the 4-frame OUT). `size` is the font
- * size before fitting; `maxW` the widest a line may be (9:16 type fills 80-90 % of the width, cap height ≤ 160 px);
- * `scrim` lays a soft dark band behind busy footage. CAP* lines repeat the game's own words (barks, announcer
- * banners) word for word, so they read on a phone.
+ * Elements. kind: 'line' (lines that animate together), 'words' (each word its own in-frame; `rows` stacks them),
+ * 'endcard'. anim: 'slam' | 'pop'. out: { at, wipe } (wipe = the 4-frame mask wipe on a 12° diagonal; hard = cut).
+ * `land`: the slam's shake-on-land (2 px at +5). `size` before fitting; `maxW` the widest a line may be. 9:16 type
+ * stays in x 80-940 and out of the top 14 % and bottom 20 % (platform UI).
  */
 export function timeline(cut, aspect, copy) {
   const v = aspect === '9x16';
   const { W } = ASPECTS[aspect];
-  // 9:16: every line inside x 80-940 (clear of the right-side action rail of TikTok, Reels and Shorts), max 860 px
   const cx = v ? 510 : W / 2;
   const c = copy;
-  /** 9:16: cap height 160 px (Fredoka 700 cap ≈ 0.7 em), fitted to the 860 px column. */
-  const V = 228;
   const vw = 860;
   const els = [];
-  const caption = (id, text, f, out, o = {}) => ({
-    id, kind: 'words', anim: o.anim ?? 'pop', size: v ? (o.vsize ?? V) : (o.size ?? 120), x: cx, y: v ? (o.vy ?? 700) : (o.y ?? 300), maxW: v ? vw : 1500,
-    words: [{ t: text, in: f, color: o.color }], out: { at: out, hard: !!o.hard }, scrim: true,
-  });
+  const out = (at) => ({ at, wipe: true });
+  const t3v3 = (f) => {
+    els.push({ id: 'L2a', kind: 'line', anim: 'slam', land: true, size: v ? 300 : 230, x: cx, y: v ? 520 : 200, maxW: v ? vw : 1400, lines: [c.L2a], in: f, out: out(f + 90), scrim: true, color: 'gold' });
+    els.push({ id: 'L2b', kind: 'words', anim: 'pop', rows: v, size: v ? 170 : 110, x: cx, y: v ? 760 : 345, maxW: v ? vw : 1500, words: v ? [{ t: c.L2b1, in: f + 25 }, { t: c.L2b2, in: f + 28 }] : [{ t: c.L2b, in: f + 25 }], out: out(f + 90), scrim: true });
+  };
+  const big = (id, text, f, o) => els.push({ id, kind: 'line', anim: 'slam', land: true, size: v ? 230 : 170, x: cx, y: v ? 520 : 190, maxW: v ? vw : 1500, lines: [text], in: f, out: out(o), scrim: true, ...(id === 'L4' ? { color: 'gold' } : {}) });
   if (String(cut) === '30') {
-    // frame 0 is already the landed CLANK! (thumbnails and autoplay show the contact, never a blank card)
-    els.push({ id: 'CLK', kind: 'words', anim: 'slam', size: v ? 260 : 200, x: cx, y: v ? 640 : 230, maxW: v ? vw : 1500, words: [{ t: c.CLK, in: -12, color: 'gold' }], out: { at: 26 } });
-    els.push({ id: 'photo', kind: 'photo', in: 120, zoomAt: 180, out: 240 });
+    // CATS (rose, left) / VS (centre) / DOGS (blue, right); 9:16 stacked top to bottom
     els.push({
-      id: 'L1', kind: 'words', anim: 'pop', size: v ? V : 137, y: v ? 560 : 540, x: v ? cx : 430, maxW: v ? vw : 720, rows: v,
-      words: [{ t: c.L1a, in: 126 }, { t: c.L1b, in: 141 }], out: { at: 180, hard: true },
+      id: 'L1', kind: 'words', anim: 'slam', land: true, rows: v, size: v ? 250 : 210, x: cx, y: v ? 760 : 540, maxW: v ? vw : 1700, gap: v ? 0 : 60,
+      words: [{ t: c.L1a, in: 100, color: 'rose' }, { t: c.L1b, in: 125, anim: 'pop', color: 'gold' }, { t: c.L1c, in: 150, color: 'blue' }], out: out(190), scrim: true,
     });
-    els.push({ id: 'L2', kind: 'line', anim: 'slam', size: v ? V : 157, x: cx, y: v ? 540 : 930, maxW: v ? vw : 1700, lines: v ? [c.L2v1, c.L2v2] : [c.L2], in: 192, out: { at: 232 }, scrim: true });
-    els.push({
-      id: 'L3', kind: 'words', anim: 'pop', flow: true, rows: v, size: v ? V : 150, x: cx, y: v ? 760 : 170, maxW: v ? vw : 1600,
-      words: [{ t: c.L3a, in: 240 }, { t: c.L3b, in: 270, color: 'gold' }, { t: c.L3c, in: 300 }], out: { at: 350 }, scrim: true,
-    });
-    // the main value line holds over S11 and S12 (f486-593, storyboard), on a stronger backing plate over the busy grass
-    els.push({ id: 'L4', kind: 'line', anim: 'slam', size: v ? 175 : 112, x: cx, y: v ? 820 : 170, maxW: v ? vw : 1700, lines: v ? [c.L4v1, c.L4v2a, c.L4v2b] : [c.L4], in: 486, out: { at: 590 }, scrim: true, scrimA: 0.5 });
-    // up the moment both allies are in frame (the cut after the wheel), 0.8 s, over the ally who answers
-    els.push(caption('CAP1', c.CAP1, 612, 659, { hard: true, y: 250, vy: 440 }));
-    els.push(caption('CAP', c.CAP, 668, 716, { y: 260, vy: 440 }));
-    els.push({ id: 'CB', kind: 'line', anim: 'slam', size: v ? V : 170, x: cx, y: v ? 660 : 250, maxW: v ? vw : 1600, lines: [c.CB], in: 1081, out: { at: 1136 }, scrim: true, color: 'gold' });
-    els.push({ id: 'CBs', kind: 'words', anim: 'pop', size: v ? 96 : 64, x: cx, y: v ? 820 : 370, maxW: v ? vw : 1500, words: [{ t: c.CBs, in: 1090 }], out: { at: 1136 } });
-    els.push(caption('SD', c.SD, 1150, 1199, { anim: 'slam', hard: true, color: 'gold', size: 150, y: 250 }));
-    els.push({ id: 'L5', kind: 'line', anim: 'slam', size: v ? 180 : 100, x: cx, y: v ? 420 : 930, maxW: v ? vw : 1700, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: 1206, out: { at: 1310 }, scrim: true });
-    els.push({ id: 'L6', kind: 'words', anim: 'slam', size: v ? 190 : 110, x: cx, y: v ? 700 : 170, rows: v, maxW: v ? vw : 1700, words: [{ t: c.L6a, in: 1326 }, { t: c.L6b, in: 1356 }], out: { at: 1410, hard: true }, scrim: true });
-    // 9:16: in the y 700-1100 band, clear of the bottom 420 px the platforms' captions cover
-    els.push(caption('WIN', c.WIN, 1500, 1559, { anim: 'slam', hard: true, color: 'gold', size: 230, y: 860, vsize: 270, vy: 1000 }));
-    els.push({ id: 'end', kind: 'endcard', logo: 1560, cta: 1590, pulse: [1620, 1770], sub: 1620, url: [1650, 1665], credit: 1650, bump: 1740, fade: [1764, 1787], end: 1800 });
+    t3v3(400);
+    big('L3', c.L3, 500, 519);
+    big('L4', c.L4, 700, 722);
+    els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 200 : 180, x: cx, y: v ? 800 : 540, maxW: v ? vw : 1700, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: 1450, out: out(1484), scrim: true, scrimA: 0.4 });
+    els.push({ id: 'end', kind: 'endcard', logo: 1600, cta: 1650, pulse: [1650, 1788], sub: 1675, url: [1700, 1715], credit: 1700, bump: 1750, fade: [1800, 1800], end: 1800 });
   } else {
-    els.push({ id: 'CLK', kind: 'words', anim: 'slam', size: v ? 260 : 200, x: cx, y: v ? 640 : 230, maxW: v ? vw : 1500, words: [{ t: c.CLK, in: -12, color: 'gold' }], out: { at: 26 } });
-    els.push({
-      id: 'L3', kind: 'words', anim: 'pop', flow: true, rows: v, size: v ? V : 150, x: cx, y: v ? 760 : 170, maxW: v ? vw : 1600,
-      words: [{ t: c.L3a, in: 120 }, { t: c.L3b, in: 150, color: 'gold' }, { t: c.L3c, in: 180 }], out: { at: 230 }, scrim: true,
-    });
-    els.push({ id: 'L4', kind: 'line', anim: 'slam', size: v ? 175 : 112, x: cx, y: v ? 820 : 170, maxW: v ? vw : 1700, lines: v ? [c.L4v1, c.L4v2a, c.L4v2b] : [c.L4], in: 246, out: { at: 350 }, scrim: true });
-    els.push({ id: 'L6', kind: 'words', anim: 'slam', size: v ? 190 : 110, x: cx, y: v ? 700 : 170, rows: v, maxW: v ? vw : 1700, words: [{ t: c.L6a, in: 486 }, { t: c.L6b, in: 516 }], out: { at: 570, hard: true }, scrim: true });
-    els.push(caption('WIN', c.WIN, 660, 719, { anim: 'slam', hard: true, color: 'gold', size: 230, y: 860, vsize: 270, vy: 1000 }));
-    // the URL is up from f762 and holds to the fade at f884 (2 s readable)
-    els.push({ id: 'end', kind: 'endcard', logo: 720, cta: 735, pulse: [750, 880], sub: 748, url: [758, 773], credit: 758, bump: 840, fade: [880, 895], end: 900 });
+    t3v3(200);
+    big('L4', c.L4, 350, 372);
+    els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 200 : 180, x: cx, y: v ? 800 : 540, maxW: v ? vw : 1700, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: 700, out: out(734), scrim: true, scrimA: 0.4 });
+    els.push({ id: 'end', kind: 'endcard', logo: 800, cta: 825, pulse: [825, 888], sub: 838, url: [850, 865], credit: 850, bump: 875, fade: [900, 900], end: 900 });
   }
   return els;
 }
 
 /**
- * Post accents for the edit (storyboard §2 Flashes, per-shot Post lines). Flashes are additive blooms the edit lays
- * over the picture (never a solid fill, never on frame 0, never two within 4 frames): { f, a } = a bloom of strength
- * a (0.4-0.6) on f and half of it on f + 1. Shakes, rgbashift and digital pushes move the footage underneath.
- *   flash: { f, a }   shake: { f, px, decay }  rgb: { f, frames }  push: { f0, f1, from, to, ease, area }
+ * Post moves for the edit (storyboard §3, §4 per-shot Post lines). Flashes are additive blooms (never a solid fill,
+ * never on frame 0, at most one per beat, never on a telegraph's first frame): { f, a } = strength a on f, a/2 on f+1.
+ * Shake tiers: T1 2 px, T2 5 px, T3 8 px, T4 12 px. rgb = rgbashift for `frames`. bump = the zoom-punch (104 %).
  */
+const T = { 1: [2, 4], 2: [5, 7], 3: [8, 10], 4: [12, 18] };
+const sh = (f, tier) => ({ f, px: T[tier][0], decay: T[tier][1] });
+
 export function post(cut) {
   if (String(cut) === '30') {
     return {
       flash: [
-        { f: 1, a: 0.5 }, { f: 90, a: 0.55 }, { f: 186, a: 0.6 }, { f: 240, a: 0.5 }, { f: 372, a: 0.45 }, { f: 594, a: 0.4 }, { f: 720, a: 0.5 }, { f: 900, a: 0.65 },
-        { f: 1080, a: 0.45 }, { f: 1150, a: 0.4 }, { f: 1230, a: 0.4 }, { f: 1260, a: 0.4 }, { f: 1290, a: 0.4 },
-        { f: 1440, a: 0.7 }, { f: 1500, a: 0.45 }, { f: 1560, a: 0.55 },
+        { f: 25, a: 0.6 }, { f: 52, a: 0.45 }, { f: 78, a: 0.5 }, { f: 262, a: 0.4 }, { f: 303, a: 0.45 }, { f: 541, a: 0.6 }, { f: 575, a: 0.4 },
+        { f: 622, a: 0.4 }, { f: 752, a: 0.4 }, { f: 764, a: 0.5 }, { f: 825, a: 0.4 }, { f: 850, a: 0.4 }, { f: 875, a: 0.45 }, { f: 1050, a: 0.4 },
+        { f: 1125, a: 0.5 }, { f: 1406, a: 0.5 }, { f: 1525, a: 0.75 }, { f: 1600, a: 0.55 },
       ],
       shake: [
-        { f: 0, px: 6, decay: 10 }, { f: 90, px: 6, decay: 9 }, { f: 197, px: 2, decay: 3 }, { f: 240, px: 4, decay: 8 }, { f: 491, px: 2, decay: 3 }, { f: 720, px: 8, decay: 12 },
-        { f: 900, px: 10, decay: 14 }, { f: 1086, px: 3, decay: 5 }, { f: 1155, px: 2, decay: 3 }, { f: 1211, px: 2, decay: 3 }, { f: 1331, px: 2, decay: 3 }, { f: 1361, px: 2, decay: 3 },
-        { f: 1440, px: 10, decay: 18 }, { f: 1505, px: 3, decay: 5 }, { f: 1565, px: 6, decay: 10 },
+        sh(25, 3), sh(52, 2), sh(78, 2), sh(262, 2), sh(303, 2), sh(392, 2), sh(400, 1), sh(541, 3), sh(655, 2), sh(764, 3), sh(825, 2), sh(850, 2), sh(875, 3),
+        sh(962, 2), sh(1050, 2), sh(1125, 3), sh(1150, 1), sh(1300, 1), sh(1406, 2), sh(1442, 3), sh(1525, 4), sh(1600, 2),
       ],
-      rgb: [{ f: 0, frames: 2 }, { f: 90, frames: 2 }, { f: 900, frames: 2 }, { f: 1440, frames: 2 }],
-      bump: [{ f: 1230, frames: 4 }, { f: 1260, frames: 4 }, { f: 1290, frames: 4 }],
+      rgb: [{ f: 25, frames: 2 }, { f: 78, frames: 2 }, { f: 541, frames: 2 }, { f: 875, frames: 2 }, { f: 1525, frames: 2 }],
+      bump: [{ f: 25 }, { f: 541 }, { f: 1525 }],
       push: [],
     };
   }
+  // the 15 s cut: the 30 s accents whose frames it keeps, at its own frames, plus its own end card
+  const map = (list, key = 'f') => list.flatMap((x) => CUT15_SEGMENTS.filter(([a, b, d]) => x[key] >= a + d && x[key] <= b + d).map(([, , d]) => ({ ...x, [key]: x[key] - d })));
+  const p = post('30');
+  const keep = (l) => map(l).filter((x) => x.f < 800);
   return {
-    flash: [{ f: 1, a: 0.5 }, { f: 90, a: 0.55 }, { f: 120, a: 0.5 }, { f: 252, a: 0.45 }, { f: 420, a: 0.65 }, { f: 600, a: 0.7 }, { f: 660, a: 0.45 }, { f: 720, a: 0.55 }],
-    shake: [
-      { f: 0, px: 6, decay: 10 }, { f: 90, px: 6, decay: 9 }, { f: 120, px: 4, decay: 8 }, { f: 251, px: 2, decay: 3 }, { f: 420, px: 10, decay: 14 }, { f: 491, px: 2, decay: 3 },
-      { f: 521, px: 2, decay: 3 }, { f: 600, px: 10, decay: 18 }, { f: 665, px: 3, decay: 5 }, { f: 725, px: 6, decay: 10 },
-    ],
-    rgb: [{ f: 0, frames: 2 }, { f: 90, frames: 2 }, { f: 420, frames: 2 }, { f: 600, frames: 2 }],
-    bump: [],
+    flash: [...keep(p.flash), { f: 800, a: 0.55 }],
+    shake: [...keep(p.shake), sh(800, 2)],
+    rgb: keep(p.rgb),
+    bump: keep(p.bump),
     push: [],
   };
 }
@@ -146,23 +132,20 @@ export function post(cut) {
 export function overlayRanges(cut, aspect, copy) {
   const r = [];
   for (const e of timeline(cut, aspect, copy)) {
-    if (e.kind === 'photo') continue;
-    else if (e.kind === 'black') for (const f of e.at) r.push([f, f]);
-    else if (e.kind === 'endcard') r.push([e.logo, e.end - 1]);
+    if (e.kind === 'endcard') r.push([e.logo, e.end - 1]);
     else {
       const first = Math.max(0, e.kind === 'words' ? Math.min(...e.words.map((w) => w.in)) : e.in);
       r.push([first, e.out.hard ? e.out.at - 1 : e.out.at + 3]);
     }
   }
-  // the skin flips' sparkle bursts
-  if (String(cut) === '30') for (const f of [1230, 1260, 1290]) r.push([f, f + 14]);
   return mergeRanges(r);
 }
 
-/** Frames where the compositor writes an opaque plate (the S04 photo card; the end-card background). */
+/** Frames where the compositor writes an opaque plate (the end-card background), and the footage frame it blurs. */
 export function plateRanges(cut) {
-  return String(cut) === '30' ? { photo: [120, 239], endbg: [1560, 1799] } : { endbg: [720, 899] };
+  return String(cut) === '30' ? { endbg: [1600, 1799] } : { endbg: [800, 899] };
 }
+export const END_PLATE_SOURCE = 1599;
 
 export function mergeRanges(r) {
   const s = [...r].sort((a, b) => a[0] - b[0]);

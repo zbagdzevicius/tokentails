@@ -1,5 +1,36 @@
 # Trailer capture rig (dev only)
 
+**v2 ("Big Plays", 30 s at 144 BPM, gameplay first)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`,
+`copy.json`, `score.mjs`, `edl.json`. The v1 trailer ("Meet Gabė", 120 BPM) keeps its data as `shots-v1.mjs`,
+`mg-timeline-v1.mjs`, `copy-v1.json` and `score-v1.mjs` (the edit and type tools now read the v2 files).
+
+What v2 adds to the rig:
+
+| Change | Where |
+|---|---|
+| Fixed takes from the moment scan (X1-X14): `seed-search.mjs --fixed [--only X1]` seals them into `takes.json` | `fixed-takes.mjs`, `seed-search.mjs` |
+| Tempo as a setting: 144 BPM = 25 frames per beat, 100 per bar (`score.mjs --bpm`, `BEAT_FRAMES`, `edl.bpm`) | `score.mjs`, `mg-timeline.mjs`, `mg.js` |
+| Several pinned keys per shot: `fits: [{ key, frame, seg, offset? }]`, solved in order (Pack Hunt pins three takedowns to three beats) | `capture.mjs` |
+| `xray: true` per shot: a tower or core between the lens and the look point fades (line of sight, not the top-down rule) | `harness.ts` |
+| Hit-flash cap: hero flashes last at most `flashCap` (default 2) output frames; structures under steady fire keep a light tint | `harness.ts` |
+| Motion blur on acrobatics: `blur: [[a, b], ...]` (32 sub-frames, 180° shutter), not only whips | `capture.mjs` |
+| Card looks in one entry: `looks: [[fromFrame, 'demo-ficus'], ...]` | `capture.mjs` |
+| Look-dev variants: `--shots-file <module>` (same exports as `shots.mjs`) | `capture.mjs` |
+| Highlight bloom in the grade (`edl.grade.bloom`), zoom-punch bumps on the impacts | `edit.mjs`, `edl.json` |
+| Type: mask-wipe exit on a 12° diagonal, shake-on-land; the end card over the last gameplay frame, blurred | `mg.js`, `type.mjs` |
+| The 15 s cut as segments of the master; the score places every designed hit of the 30 s cue sheet at the 15 s frame too | `mg-timeline.mjs` `CUT15_SEGMENTS`, `score.mjs` `DESIGN` |
+
+```sh
+node tools/trailer/seed-search.mjs --fixed                        # the v2 takes (X1-X14) into takes.json
+node tools/trailer/capture.mjs --aspect 16x9 --out <dir>/shots    # and --aspect 9x16 (the two can run side by side)
+node tools/trailer/score.mjs --out <dir>/audio --report           # 144 BPM, -14 LUFS, <= -1 dBTP
+node tools/trailer/type.mjs --shots <dir>/shots --out <dir>/mg
+node tools/trailer/edit.mjs --dir <dir>
+```
+
+## v1 notes
+
+
 Captures the Pawlegends launch trailer ("Meet Gabė", 30 s at 60 fps) from real in-engine gameplay of this build
 (SIM_VERSION 10). Nothing here is part of `build` or `build:client`: Vite builds only `index.html`, and the harness
 page lives here. Outputs are gitignored.

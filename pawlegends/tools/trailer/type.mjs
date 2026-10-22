@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { argValue, hasFlag } from '../lib/args.mjs';
 import { lintTrailerCopy } from './lint-copy.mjs';
-import { ASPECTS, CUTS, overlayRanges, plateRanges, post, sourceFrame } from './mg-timeline.mjs';
+import { ASPECTS, CUTS, END_PLATE_SOURCE, overlayRanges, plateRanges, post, sourceFrame } from './mg-timeline.mjs';
 
 export { sourceFrame };
 
@@ -61,7 +61,8 @@ const photoFor = {
   '16x9': { w: 405, h: 540, vf: 'scale=405:540:flags=lanczos,unsharp=5:5:0.4,colorchannelmixer=rr=1.03:bb=0.97' },
   '9x16': { w: 540, h: 720, vf: 'scale=540:720:flags=lanczos,unsharp=5:5:0.4,colorchannelmixer=rr=1.03:bb=0.97,noise=alls=8:allf=0' },
 };
-for (const a of aspects) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', PHOTO, '-vf', photoFor[a].vf, '-frames:v', '1', join(WORK, `gabe-${a}.png`)]);
+// v2 draws no photo card (the v1 trailer's Gabe photo); kept for mg-timeline-v1 only
+if (existsSync(PHOTO) && hasFlag('--v1')) for (const a of aspects) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', PHOTO, '-vf', photoFor[a].vf, '-frames:v', '1', join(WORK, `gabe-${a}.png`)]);
 
 // ---------------------------------------------------------------- footage index (capture.mjs layout: <shot>/<aspect>/fNNNN.png)
 
@@ -121,8 +122,8 @@ try {
       page.on('pageerror', (e) => console.error(`[type] page error: ${e.message}`));
       await page.goto(`${base}/mg/type.html`);
       const foot = footageIndex(aspect);
-      const bg05 = foot.get(180) ? `${base}${foot.get(180)}` : null;
-      const info = await page.evaluate((o) => window.mgInit(o), { cut, aspect, copy, photoUrl: `${base}/work/gabe-${aspect}.png`, bg05Url: bg05 });
+      const bg05 = null;
+      const info = await page.evaluate((o) => window.mgInit(o), { cut, aspect, copy, photoUrl: null, bg05Url: bg05 });
       if (!info.fonts) throw new Error('Fredoka did not load');
       const dir = join(OUT, cut, aspect);
       mkdirSync(join(dir, 'overlay'), { recursive: true });
@@ -139,10 +140,9 @@ try {
         for (const f of frames([range])) {
           // the photo's background is the game world: the bridge of the drop (S06, f240+) running under the card, held
           // on one frame through the whip-zoom, then running on under Gabė's champion (S05, keyed) to the drop
-          const sf = sourceFrame(cut, f);
-          const bgF = sf < 180 ? 240 + sf - 120 : sf <= 185 ? 299 : 300 + (sf - 186);
-          const src = kind === 'photo' ? foot.get(bgF) : foot.get(sf);
-          const fg = kind === 'photo' && sf >= 180 ? foot.get(sf) : null;
+          // v2: the end card's background is the last gameplay frame (Victory!), blurred by the compositor
+          const src = foot.get(END_PLATE_SOURCE);
+          const fg = null;
           const data = await page.evaluate(([x, u, g]) => window.mgPlate(x, u, g), [f, src ? `${base}${src}` : null, fg ? `${base}${fg}` : null]);
           if (data) {
             writeData(join(dir, 'plate', pad(f)), data);
@@ -159,7 +159,8 @@ try {
         for (let f = 0; f < CUTS[cut]; f++) {
           const sf = sourceFrame(cut, f);
           const src = foot.get(sf);
-          const data = await page.evaluate(([x, fu, eu, s]) => window.mgPreview(x, fu, eu, s), [f, src ? `${base}${src}` : null, src ? `${base}${src}` : null, scale]);
+          const endSrc = foot.get(END_PLATE_SOURCE);
+          const data = await page.evaluate(([x, fu, eu, s]) => window.mgPreview(x, fu, eu, s), [f, src ? `${base}${src}` : null, endSrc ? `${base}${endSrc}` : null, scale]);
           writeData(join(pdir, `f${String(f).padStart(4, '0')}.jpg`), data);
         }
         const mp4 = join(OUT, 'preview', `${cut}-${aspect}.mp4`);

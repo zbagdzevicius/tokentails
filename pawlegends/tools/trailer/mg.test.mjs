@@ -1,43 +1,62 @@
-// The motion-graphics timeline and the copy gate (no browser).
+// The v2 motion-graphics timeline, the shot grid and the copy gate (no browser).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { lintTrailerCopy } from './lint-copy.mjs';
-import { CUTS, overlayRanges, post, timeline } from './mg-timeline.mjs';
+import { BEAT_FRAMES, CUTS, CUT15_SEGMENTS, overlayRanges, post, timeline } from './mg-timeline.mjs';
+import { SHOTS } from './shots.mjs';
 
 const copy = JSON.parse(readFileSync(new URL('./copy.json', import.meta.url), 'utf8'));
 
-describe('trailer motion graphics', () => {
-it('trailer copy passes the copy gate; banned copy fails it', () => {
-  expect(lintTrailerCopy(copy).findings.length).toBe(0);
-  const bad = lintTrailerCopy({ A: 'Save a shelter cat', B: 'The #1 game', C: 'Only $5', D: 'EIGHT HEROES in 7 minutes' });
-  expect([...new Set(bad.findings.map((f) => f.id))].sort()).toEqual(['A', 'B', 'C', 'D']);
-});
+describe('trailer v2 motion graphics', () => {
+  it('trailer copy passes the copy gate; banned copy fails it', () => {
+    expect(lintTrailerCopy(copy).findings.length).toBe(0);
+    const bad = lintTrailerCopy({ A: 'Save a shelter cat', B: 'The #1 game', C: 'Only $5', D: 'EIGHT HEROES in 7 minutes' });
+    expect([...new Set(bad.findings.map((f) => f.id))].sort()).toEqual(['A', 'B', 'C', 'D']);
+  });
 
-it('every element sits inside its cut, on the storyboard frames', () => {
-  for (const cut of ['30', '15']) {
-    for (const aspect of ['16x9', '9x16']) {
-      for (const [a, b] of overlayRanges(cut, aspect, copy)) expect(a >= 0 && b < CUTS[cut]).toBe(true);
+  it('144 BPM: 25 frames per beat; every shot starts on a beat (an eighth in the final teamfight, a sixth of a beat for the card looks)', () => {
+    expect(BEAT_FRAMES).toBe(25);
+    for (const s of SHOTS) {
+      if (s.id.startsWith('S28')) expect([0, 12, 13]).toContain(s.f0 % 25);
+      else expect(s.f0 % 25).toBe(0);
     }
-  }
-  const t = timeline('30', '16x9', copy);
-  expect(t.find((e) => e.id === 'L3').words.map((w) => w.in)).toEqual([240, 270, 300]);
-  expect(t.find((e) => e.id === 'L6').out.at).toBe(1410);
-  expect(t.find((e) => e.kind === 'endcard').logo).toBe(1560);
-  expect(timeline('15', '9x16', copy).find((e) => e.kind === 'endcard').logo).toBe(720);
-  // frame 0 is the landed CLANK! (no flash on it), and the match cut lands on f186
-  expect(post('30').flash.some((f) => f.f === 0)).toBe(false);
-  expect(t.find((e) => e.id === 'CLK').words[0].in).toBeLessThan(-11);
-  expect(t.find((e) => e.id === 'L2').in).toBe(192);
-  expect(t.find((e) => e.id === 'L2').out.at - t.find((e) => e.id === 'L2').in).toBeGreaterThanOrEqual(40);
-  // the end fades to black, the last frame black (never a 1-frame snap)
-  expect(t.find((e) => e.kind === 'endcard').fade).toEqual([1764, 1787]);
-  // no black frame between the hang and the core (S25 opens on the core, whole); L4 holds through S12 (f486-593)
-  expect(t.find((e) => e.kind === 'black')).toBeUndefined();
-  expect(t.find((e) => e.id === 'L4').out.at).toBe(590);
-  // 9:16 type stays inside x 80-940 (the right-side rail)
-  expect(timeline('30', '9x16', copy).every((e) => !('x' in e) || e.x === 510)).toBe(true);
-  // 15 s: the URL is up for at least 2 s before the fade
-  const e15 = timeline('15', '16x9', copy).find((e) => e.kind === 'endcard');
-  expect(e15.fade[0] - e15.url[0]).toBeGreaterThanOrEqual(120);
-});
+    // the shots tile the master from f0 to the end card without a gap
+    const covered = new Set();
+    for (const s of SHOTS) for (let f = s.f0; f <= s.f1; f++) covered.add(f);
+    for (let f = 0; f < 1600; f++) expect(covered.has(f)).toBe(true);
+  });
+
+  it('five kinetic lines on the storyboard frames; the end card from f1600', () => {
+    const t = timeline('30', '16x9', copy);
+    expect(t.find((e) => e.id === 'L1').words.map((w) => w.in)).toEqual([100, 125, 150]);
+    expect(t.find((e) => e.id === 'L2a').in).toBe(400);
+    expect(t.find((e) => e.id === 'L3').in).toBe(500);
+    expect(t.find((e) => e.id === 'L4').in).toBe(700);
+    expect(t.find((e) => e.id === 'L5').in).toBe(1450);
+    expect(t.find((e) => e.kind === 'endcard').logo).toBe(1600);
+    expect(timeline('15', '9x16', copy).find((e) => e.kind === 'endcard').logo).toBe(800);
+    for (const cut of ['30', '15']) for (const aspect of ['16x9', '9x16']) for (const [a, b] of overlayRanges(cut, aspect, copy)) expect(a >= 0 && b < CUTS[cut]).toBe(true);
+    // 9:16 type stays inside x 80-940 (the right-side rail)
+    expect(timeline('30', '9x16', copy).every((e) => !('x' in e) || e.x === 510)).toBe(true);
+  });
+
+  it('the 15 s cut is 900 frames of whole segments of the master', () => {
+    let next = 0;
+    for (const [a, b, d] of CUT15_SEGMENTS) {
+      expect(a).toBe(next);
+      expect(b + d).toBeLessThan(1800);
+      next = b + 1;
+    }
+    expect(next).toBe(900);
+    // the core impact lands on cut f775 (master f1525)
+    expect(CUT15_SEGMENTS.find(([a, b]) => a <= 775 && b >= 775)[2]).toBe(750);
+  });
+
+  it('flashes are additive blooms: never on frame 0, never two within 4 frames, 40-75 %', () => {
+    for (const cut of ['30', '15']) {
+      const fl = post(cut).flash;
+      expect(fl.every((x) => x.f >= 1 && x.a >= 0.4 && x.a <= 0.75)).toBe(true);
+      for (let i = 1; i < fl.length; i++) expect(fl[i].f - fl[i - 1].f).toBeGreaterThanOrEqual(4);
+    }
+  });
 });

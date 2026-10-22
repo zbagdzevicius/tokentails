@@ -1,7 +1,7 @@
 {
- "_comment": "Edit decisions for edit.mjs (storyboard \u00a72 post, \u00a73 per-shot Post lines, \u00a75 mix, \u00a76 9:16, \u00a78 step 7). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/pushes/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
+ "_comment": "Edit decisions for edit.mjs, trailer v2 (\"Big Plays\", 144 BPM: 25 frames per beat). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
  "fps": 60,
- "bpm": 120,
+ "bpm": 144,
  "outputs": [
   {
    "cut": "30",
@@ -25,36 +25,42 @@
   }
  ],
  "grade": {
-  "_comment": "Storyboard \u00a72 Colour grade, the same chain on every gameplay frame. Not on the S04 photo and the S05 champion over the same blurred world (f120-239, one look across the match cut); the end-card type is composited after the grade. The grain is laid on in RGB before the 4:2:0 conversion (it dithers the conversion).",
+  "_comment": "Storyboard v2 \u00a73: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur \u03c3 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade.",
   "sharpen": "cas=strength=0.35",
-  "eq": "eq=contrast=1.08:saturation=1.06:gamma=0.98",
+  "eq": "eq=contrast=1.10:saturation=1.10:gamma=0.98",
   "curves": "curves=master='0/0 0.25/0.22 0.75/0.78 1/1'",
   "colorbalance": "colorbalance=rh=0.03:bh=-0.02",
   "vignette": {
    "angle": 0.6283185307,
-   "strength": 0.18
+   "strength": 0.16
   },
   "grain": "noise=alls=3:allf=t",
   "noGrade": {
-   "30": [
-    [
-     120,
-     239
-    ]
-   ],
+   "30": [],
    "15": []
   },
   "desaturate": {
    "30": [
     [
-     960,
-     1079,
+     804,
+     824,
      0.85
     ]
    ],
-   "15": []
+   "15": [
+    [
+     404,
+     424,
+     0.85
+    ]
+   ]
   },
-  "grainAll": true
+  "grainAll": true,
+  "bloom": {
+   "threshold": 0.82,
+   "sigma": 18,
+   "opacity": 0.22
+  }
  },
  "chroma": {
   "_comment": "rgbashift. strong (4 px) = post().rgb impact frames; light (2 px) = transition accents on the whip, the match cut and the big impacts.",
@@ -63,38 +69,30 @@
   "lightFrames": {
    "30": [
     [
-     74,
-     76
+     96,
+     99
     ],
     [
-     186,
-     188
+     194,
+     199
     ],
     [
-     720,
-     721
+     1300,
+     1301
     ],
     [
-     1150,
-     1151
-    ],
-    [
-     1500,
-     1501
+     1600,
+     1601
     ]
    ],
    "15": [
     [
-     74,
-     76
+     96,
+     99
     ],
     [
-     120,
-     121
-    ],
-    [
-     660,
-     661
+     800,
+     801
     ]
    ]
   }
@@ -106,24 +104,31 @@
   "15": []
  },
  "bump": {
-  "_comment": "Skin-flip scale bumps (S22): 1.04 on the beat, back to 1.00 by frame 4.",
+  "_comment": "Zoom-punch (\u00a73): 104 % scale-in over 3 frames, then out over 8 (the impact frames in post().bump).",
   "curve": [
+   1.013,
+   1.027,
    1.04,
+   1.035,
    1.03,
+   1.025,
+   1.02,
    1.015,
+   1.01,
+   1.005,
    1.0
   ]
  },
  "band": {
-  "_comment": "\u00a76 S19 in 9:16 is now captured natively (a phone held upright, 360x640 CSS px at DPR 3 = 1080x1920, the touch HUD), so no band is built; the band stays for a landscape capture (any frame whose size is not 1080x1920).",
+  "_comment": "\u00a77: S27 in 9:16 is a phone in landscape (932x430 CSS px at DPR 2 = 1864x860), shown whole as a band over a blurred, darkened copy of itself.",
   "9x16": {
-   "shot": "S19",
+   "shot": "S27",
    "blur": 36,
    "darken": 0.5,
    "segs": [
     {
-     "f0": 990,
-     "f1": 1079,
+     "f0": 1225,
+     "f1": 1299,
      "crop": [
       0,
       0,
@@ -135,9 +140,9 @@
   }
  },
  "poster": {
-  "_comment": "\u00a78 thumbnails: S08 frame f398 (Aviet\u0117's Short Circuit on Sir Brutus, Ficus card) with the game's logo and end-card lines from the 30 s overlay.",
-  "frame": 398,
-  "overlayFrame": 1700,
+  "_comment": "Thumbnails: the Belly Flop hold (S01 f26) with the logo and end-card lines from the 30 s overlay.",
+  "frame": 26,
+  "overlayFrame": 1740,
   "files": {
    "16x9": "pawlegends-trailer-poster.png",
    "9x16": "pawlegends-trailer-poster-vertical.png"
@@ -164,63 +169,43 @@
   "_tp": "the WAV must measure <= maxTruePeakWavDb so the AAC encode stays <= maxTruePeakDb",
   "maxTruePeakWavDb": -2.1,
   "maxTruePeakDb": -1.0,
-  "fadeFrames": 24,
+  "fadeFrames": 30,
   "silenceFrames": 12,
   "aacBitrate": "320k",
   "_sections": "Energy curve: [from, to, dB] with an 8-frame ramp at each end, before the glue. The gameplay body plays at full level; bar 9 steps down, the COMEBACK key lift steps up, the tower and the core impact are the loudest moments, and the end card holds the body's level (about -15 LUFS-S) with a stab on every line.",
   "sections": {
    "30": [
     [
-     960,
-     989,
-     -2.5
+     800,
+     899,
+     -1.0
     ],
     [
-     990,
-     1079,
+     900,
+     999,
      -2.0
     ],
     [
-     1080,
-     1199,
-     0.0
+     1300,
+     1399,
+     1.0
     ],
     [
-     1200,
-     1319,
-     -1.5
-    ],
-    [
-     1320,
-     1409,
-     2.5
-    ],
-    [
-     1440,
-     1499,
-     2.0
-    ],
-    [
-     1568,
+     1600,
      1799,
      -0.5
     ]
    ],
    "15": [
     [
-     480,
-     569,
-     2.5
+     400,
+     499,
+     -1.0
     ],
     [
      600,
-     659,
-     2.0
-    ],
-    [
-     728,
-     899,
-     -0.5
+     699,
+     1.0
     ]
    ]
   }

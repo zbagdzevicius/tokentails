@@ -21,7 +21,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argValue, hasFlag } from '../lib/args.mjs';
-import { SHOTS, portraitKeys } from './shots.mjs';
+import * as SHOT_LIST from './shots.mjs';
 // Node strips the types (the same maths the harness runs)
 import { rampAt, rampTicks, scaleRamp } from './director.ts';
 
@@ -35,6 +35,8 @@ const ONLY = (argValue('--only') ?? '').split(',').filter(Boolean);
 const ASPECT = argValue('--aspect') ?? 'both';
 const EVERY = Number(argValue('--every') ?? 1);
 const PROBE_ONLY = hasFlag('--probe');
+// `--shots-file`: another shot list module (look-dev variants); same exports as shots.mjs
+const { SHOTS, portraitKeys } = argValue('--shots-file') ? await import(resolve(argValue('--shots-file'))) : SHOT_LIST;
 const TAKES = JSON.parse(readFileSync(join(HERE, 'takes.json'), 'utf8')).takes;
 const SIZES = { '16x9': [1920, 1080], '9x16': [1080, 1920] };
 
@@ -89,6 +91,8 @@ function specFor(shot, aspect) {
     cullFront: p.cullFront ?? shot.cullFront ?? null,
     near: p.near ?? shot.near ?? null,
     wheelScale: p.wheelScale ?? shot.wheelScale ?? null,
+    xray: !!(p.xray ?? shot.xray),
+    flashCap: shot.flashCap ?? 2,
     lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}) } : undefined,
   };
 }
@@ -138,7 +142,14 @@ async function probe(spec, last) {
   return ticks;
 }
 
-/** Solve the start tick (anchor) and the ramp stretch (fit) for a match shot. */
+/** The shot's fits: `fits: [{ key, frame, seg }]` (v2, solved in order) or the single `fit`. */
+const fitsOf = (shot, take) => (shot.fits ?? (shot.fit ? [shot.fit] : [])).filter((x) => Number.isFinite(take.keys[x.key]));
+
+/**
+ * Solve the start tick (anchor) and the ramp stretch per fit. Fits are solved one after another (each segment lies
+ * after the one before, so a later stretch never moves an earlier key): fit i scales its own segment of the ramp that
+ * already holds the stretches of fits 0..i-1.
+ */
 async function solveTiming(shot, spec) {
   const take = TAKES[shot.take];
   const a = shot.anchor;
@@ -146,34 +157,49 @@ async function solveTiming(shot, spec) {
   if (!Number.isFinite(K)) throw new Error(`${shot.id}: take ${shot.take} has no key ${a.key}`);
   if (a.frame < spec.f0 || a.frame > spec.f1) throw new Error(`${shot.id}: anchor frame ${a.frame} outside ${spec.f0}-${spec.f1}`);
   spec.startTick = K - rampTicks(spec.ramp, spec.f0 + 1, a.frame + 1);
-  const fit = shot.fit && Number.isFinite(take.keys[shot.fit.key]) ? shot.fit : null;
-  const last = Math.max(a.frame, fit ? fit.frame : a.frame);
+  const fits = fitsOf(shot, take);
   const log = [];
-  // the fit: the key must be crossed ON its frame (the frame before ends short of it). A game hit-stop that the key
-  // itself starts freezes the clock right after the crossing, so the search measures the crossing frame, not the tick
-  // at the frame: proportional steps while the crossing is late, bisection once it has been early
-  const baseRamp = spec.ramp;
-  let k = 1;
-  let lo = 0;
-  let hi = Infinity;
-  for (let i = 0; i < 14; i++) {
-    if (fit) spec.ramp = scaleRamp(baseRamp, fit.seg[0], fit.seg[1], k);
-    const t = await probe(spec, last);
-    const errA = K - t[a.frame];
-    let errF = 0;
-    let done = Math.abs(errA) <= 0.05;
-    if (fit) {
-      const K2 = take.keys[fit.key];
+  if (!fits.length) {
+    for (let i = 0; i < 8; i++) {
+      const t = await probe(spec, a.frame);
+      const errA = K - t[a.frame];
+      log.push({ errA: +errA.toFixed(3) });
+      if (Math.abs(errA) <= 0.05) break;
+      spec.startTick += errA;
+    }
+  }
+  for (const fit of fits) {
+    // the key must be crossed ON its frame (the frame before ends short of it). A game hit-stop that the key itself
+    // starts freezes the clock right after the crossing, so the search measures the crossing frame: proportional steps
+    // while the crossing is late, bisection once it has been early
+    const baseRamp = spec.ramp;
+    const last = Math.max(a.frame, fit.frame);
+    const K2 = take.keys[fit.key] + (fit.offset ?? 0);
+    let k = 1;
+    let lo = 0;
+    let hi = Infinity;
+    let ok = false;
+    for (let i = 0; i < 16; i++) {
+      spec.ramp = scaleRamp(baseRamp, fit.seg[0], fit.seg[1], k);
+      const t = await probe(spec, last);
+      const errA = K - t[a.frame];
       let c = -1;
       for (let f = fit.seg[0]; f <= last; f++) if (t[f] >= K2 - 1e-3) {
         c = f;
         break;
       }
-      errF = c < 0 ? last + 1 - fit.frame : c - fit.frame;
+      const errF = c < 0 ? last + 1 - fit.frame : c - fit.frame;
       const base = t[fit.seg[0] - 1] ?? spec.startTick;
-      if (c === fit.frame) {
-        // crossed on the frame: done
-      } else if (c < 0 || c > fit.frame) {
+      log.push({ fit: fit.key, errA: +errA.toFixed(3), errF, k: +k.toFixed(4) });
+      if (Math.abs(errA) <= 0.05 && c === fit.frame) {
+        ok = true;
+        break;
+      }
+      if (Math.abs(errA) > 0.05) {
+        spec.startTick += errA;
+        continue;
+      }
+      if (c < 0 || c > fit.frame) {
         lo = Math.max(lo, k);
         const covered = t[fit.frame - 1] - base;
         const want = K2 - (rampAt(spec.ramp, fit.frame) * 0.5) / 2 - base;
@@ -184,11 +210,8 @@ async function solveTiming(shot, spec) {
         hi = Math.min(hi, k);
         k = lo > 0 ? (lo + hi) / 2 : k * 0.7;
       }
-      done = done && c === fit.frame;
     }
-    log.push({ errA: +errA.toFixed(3), errF, k: +k.toFixed(4) });
-    if (done) break;
-    spec.startTick += errA;
+    if (!ok) console.error(`  ${shot.id}: fit ${fit.key} -> f${fit.frame} not exact (${JSON.stringify(log.at(-1))})`);
   }
   // `banner`: the announcer's banner may wait behind another one; move the take so it is up on the anchor frame
   if (a.banner) {
@@ -224,27 +247,70 @@ function partOf(shot, f) {
   return shot.parts.find((p) => f >= p.f0 && f <= p.f1)?.id ?? shot.id;
 }
 
+/** Motion-blurred frames: the whip and, in v2, `blur: [[a, b], ...]` (acrobatic peaks). */
+function blurRanges(shot) {
+  const r = [];
+  if (shot.whip) r.push(shot.whip);
+  for (const b of shot.blur ?? []) r.push(b);
+  return r;
+}
+
 async function capture(shot, aspect) {
   const spec = specFor(shot, aspect);
   const t0 = Date.now();
   let timing = null;
   if (spec.mode === 'match') timing = await solveTiming(shot, spec);
   if (PROBE_ONLY) return { id: shot.id, aspect, timing, startTick: spec.startTick, ramp: spec.ramp };
-  const { page, ctx } = await openPage(spec);
-  const whip = shot.whip ?? null;
+  // `looks`: the same frames once per card look ([[fromFrame, card], ...]); each pass keeps its own window
+  const passes = shot.looks ? shot.looks.map(([from, card], i) => ({ card, a: from, b: i + 1 < shot.looks.length ? shot.looks[i + 1][0] - 1 : spec.f1 })) : [{ card: undefined, a: spec.f0, b: spec.f1 }];
   const dirs = new Set();
   const keyTicks = {};
   let saved = 0;
+  let info = null;
+  let hash = null;
+  for (const pass of passes) {
+    if (pass.card !== undefined) spec.take = { ...spec.take, look: pass.card };
+    const r = await capturePass(shot, spec, aspect, pass, dirs, keyTicks);
+    saved += r.saved;
+    info = r.info;
+    hash = r.hash;
+  }
+  const secs = ((Date.now() - t0) / 1000).toFixed(0);
+  console.error(`  ${shot.id} ${aspect}: ${saved} frames${timing ? `, start tick ${spec.startTick.toFixed(2)}, anchor ${timing.anchorTick} (${JSON.stringify(timing.log.at(-1))})` : ''}${hash ? `, hash ${hash.ok ? 'ok' : `MISMATCH ${hash.browser} vs ${hash.node}`}` : ''} (${secs} s)`);
+  return {
+    id: shot.id,
+    aspect,
+    parts: shot.parts ?? [{ id: shot.id, f0: shot.f0, f1: shot.f1 }],
+    frames: spec.f1 - spec.f0 + 1,
+    saved,
+    size: [spec.width * (spec.dpr ?? 1), spec.height * (spec.dpr ?? 1)],
+    take: shot.take ?? null,
+    startTick: spec.startTick ?? null,
+    ramp: spec.ramp,
+    timing,
+    hash,
+    said: info?.said ?? null,
+    firstTick: keyTicks[spec.f0] ?? null,
+    lastTick: keyTicks[spec.f1] ?? null,
+    /** The render tick after each (non-blurred) frame: where every frame sits in the take. */
+    ticks: Object.fromEntries(Object.entries(keyTicks).map(([f, t]) => [f, +t.toFixed(3)])),
+  };
+}
+
+async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
+  const { page, ctx } = await openPage(spec);
+  const blurs = blurRanges(shot);
+  let saved = 0;
   for (let f = spec.f0; f <= spec.f1; f++) {
     const dir = join(OUT, partOf(shot, f), aspect);
-    if (!dirs.has(dir)) {
+    if (!dirs.has(dir) && f >= pass.a) {
       rmSync(dir, { recursive: true, force: true });
       mkdirSync(dir, { recursive: true });
       dirs.add(dir);
     }
     const file = join(dir, `f${String(f).padStart(4, '0')}.png`);
-    const save = (f - spec.f0) % EVERY === 0 || f === spec.f1;
-    if (whip && f >= whip[0] && f <= whip[1]) {
+    const save = (f >= pass.a && f <= pass.b) && ((f - spec.f0) % EVERY === 0 || f === spec.f1);
+    if (blurs.some(([a, b]) => f >= a && f <= b)) {
       // the 3D picture: SUBS sub-frames, the first half (a 180° shutter) averaged; the screen-space layer (numbers,
       // callouts, barks) is shot once at the end of the frame and laid on top, so it never smears
       const subs = [];
@@ -275,26 +341,7 @@ async function capture(shot, aspect) {
   const info = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.info()) : null;
   const hash = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.verify()) : null;
   await ctx.close();
-  const secs = ((Date.now() - t0) / 1000).toFixed(0);
-  console.error(`  ${shot.id} ${aspect}: ${saved} frames${timing ? `, start tick ${spec.startTick.toFixed(2)}, anchor ${timing.anchorTick} (${JSON.stringify(timing.log.at(-1))})` : ''}${hash ? `, hash ${hash.ok ? 'ok' : `MISMATCH ${hash.browser} vs ${hash.node}`}` : ''} (${secs} s)`);
-  return {
-    id: shot.id,
-    aspect,
-    parts: shot.parts ?? [{ id: shot.id, f0: shot.f0, f1: shot.f1 }],
-    frames: spec.f1 - spec.f0 + 1,
-    saved,
-    size: [spec.width * (spec.dpr ?? 1), spec.height * (spec.dpr ?? 1)],
-    take: shot.take ?? null,
-    startTick: spec.startTick ?? null,
-    ramp: spec.ramp,
-    timing,
-    hash,
-    said: info?.said ?? null,
-    firstTick: keyTicks[spec.f0] ?? null,
-    lastTick: keyTicks[spec.f1] ?? null,
-    /** The render tick after each (non-whip) frame: where every frame sits in the take. */
-    ticks: Object.fromEntries(Object.entries(keyTicks).map(([f, t]) => [f, +t.toFixed(3)])),
-  };
+  return { saved, info, hash };
 }
 
 mkdirSync(OUT, { recursive: true });

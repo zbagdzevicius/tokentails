@@ -20,9 +20,8 @@ export function trailerLines(copy) {
   const lines = Object.entries(c).filter(([k]) => !k.startsWith('_'));
   // the composed lines as viewers read them
   lines.push(
-    ['L1', `${c.L1a} ${c.L1b}`],
-    ['L3', `${c.L3a} ${c.L3b} ${c.L3c}`],
-    ['L6', `${c.L6a} ${c.L6b}`],
+    ['L1', `${c.L1a} ${c.L1b} ${c.L1c}`],
+    ['L2', `${c.L2a} ${c.L2b}`],
     ['END', `${c.LOGOa}${c.LOGOb} · ${c.CTA} · ${c.SUB} · ${c.URL} · ${c.CREDIT}`],
   );
   return lines;

@@ -7,7 +7,7 @@
  * Layers: overlay (alpha: type, the zooming photo card, end-card graphics, flashes) and plate (opaque: the S04 photo
  * card over the blurred turntable, the end-card background built from the captured lobby frames).
  */
-import { ASPECTS, COLORS as C, GABE, post, timeline } from './mg-timeline.mjs';
+import { ASPECTS, BEAT_FRAMES, COLORS as C, GABE, post, timeline } from './mg-timeline.mjs';
 
 // ---------------------------------------------------------------- easing
 
@@ -47,13 +47,22 @@ export function popState(t) {
 
 /** OUT (4 frames): scale 1 -> 1.06, opacity 1 -> 0 (in). Returns a multiplier pair or null once gone. */
 export function outState(out, f) {
-  if (!out) return { s: 1, a: 1 };
-  if (out.hard) return f >= out.at ? null : { s: 1, a: 1 };
+  if (!out) return { s: 1, a: 1, wipe: 0 };
+  if (out.hard) return f >= out.at ? null : { s: 1, a: 1, wipe: 0 };
   const t = f - out.at;
-  if (t < 0) return { s: 1, a: 1 };
+  if (t < 0) return { s: 1, a: 1, wipe: 0 };
   if (t >= 4) return null;
+  // v2 mask wipe: the type is cut away along a 12° diagonal, left to right, at full opacity (a sharp exit)
+  if (out.wipe) return { s: 1 + 0.02 * ease.in((t + 1) / 4), a: 1, wipe: ease.inOut((t + 1) / 4) };
   const e = ease.in((t + 1) / 4);
-  return { s: 1 + 0.06 * e, a: 1 - e };
+  return { s: 1 + 0.06 * e, a: 1 - e, wipe: 0 };
+}
+
+/** The slam's shake-on-land (v2): a 2 px kick on +5 that rings out by +9. */
+export function landOffset(t, k = 1) {
+  if (t < 5 || t > 9) return { x: 0, y: 0 };
+  const e = 2 * k * (1 - (t - 5) / 4);
+  return { x: e * Math.sin((t - 5) * 2.4 + 0.6), y: e * Math.cos((t - 5) * 2.9) };
 }
 
 // ---------------------------------------------------------------- type
@@ -225,7 +234,7 @@ export class Compositor {
     for (let guard = 0; guard < 60; guard++) {
       const ws = e.words.map((w) => textWidth(this.ctx, w.t, size));
       // a word space plus both outer strokes, so stroked words never touch
-      const space = textWidth(this.ctx, ' ', size) + 20 * this.k;
+      const space = textWidth(this.ctx, ' ', size) + 20 * this.k + (e.gap ?? 0);
       if (e.rows) {
         const lh = size * 1.06;
         const top = e.y - ((e.words.length - 1) * lh) / 2;
@@ -259,11 +268,41 @@ export class Compositor {
 
   // ------------------------------------------------ kinetic type
 
+  /** Clip to what the mask wipe has not cut yet (x right of a 12° line through the block) and the landing kick. */
+  enter(ctx, e, o, t, box) {
+    ctx.save();
+    if (e.land) {
+      const d = landOffset(t, this.k);
+      ctx.translate(d.x, d.y);
+    }
+    if (o.wipe > 0) {
+      const k = Math.tan((12 * Math.PI) / 180);
+      const x0 = lerp(box.x0 - 160, box.x1 + 160, o.wipe);
+      const top = -this.H;
+      const bot = 2 * this.H;
+      ctx.beginPath();
+      ctx.moveTo(x0 + (top - box.cy) * k, top);
+      ctx.lineTo(this.W * 3, top);
+      ctx.lineTo(this.W * 3, bot);
+      ctx.lineTo(x0 + (bot - box.cy) * k, bot);
+      ctx.closePath();
+      ctx.clip();
+    }
+  }
+
   drawLine(ctx, e, f) {
     const o = outState(e.out, f);
     if (!o) return;
     const t = f - e.in;
     if (t < 0) return;
+    const LL = this.layoutLines(e);
+    const wMax = Math.max(...LL.widths);
+    this.enter(ctx, e, o, t, { x0: e.x - wMax / 2, x1: e.x + wMax / 2, cy: e.y });
+    this.drawLineInner(ctx, e, f, o, t);
+    ctx.restore();
+  }
+
+  drawLineInner(ctx, e, f, o, t) {
     const L = this.layoutLines(e);
     const top = e.y - ((e.lines.length - 1) * L.lh) / 2;
     const from = this.slamFrom(Math.max(...L.widths));
@@ -285,6 +324,19 @@ export class Compositor {
   drawWords(ctx, e, f) {
     const o = outState(e.out, f);
     if (!o) return;
+    const first = Math.min(...e.words.map((w) => w.in));
+    if (f < first) return;
+    const LW = this.layoutWords(e);
+    const x0 = Math.min(...LW.boxes.map((b) => b.x));
+    const x1 = Math.max(...LW.boxes.map((b) => b.x + b.w));
+    // the landing kick follows the last word that slammed
+    const lastIn = Math.max(...e.words.filter((w) => w.in <= f).map((w) => w.in));
+    this.enter(ctx, e, o, f - lastIn, { x0, x1, cy: e.y });
+    this.drawWordsInner(ctx, e, f, o);
+    ctx.restore();
+  }
+
+  drawWordsInner(ctx, e, f, o) {
     const L = this.layoutWords(e);
     // `flow`: the words shown so far sit centred; each new word slides the line over 6 frames
     let shift = 0;
@@ -313,12 +365,13 @@ export class Compositor {
       const box = { ...L.boxes[i], x: L.boxes[i].x + shift };
       const fill = w.color ? C[w.color] : C.cream;
       const from = this.slamFrom(box.w);
+      const anim = w.anim ?? e.anim;
       const draw = (c, sub) => {
-        const st = e.anim === 'slam' ? slamState(t + sub, from) : popState(t + sub);
+        const st = anim === 'slam' ? slamState(t + sub, from) : popState(t + sub);
         if (!st) return;
         this.drawTransformed(c, w.t, box, L.size, { s: st.s * o.s, a: st.a * o.a, rot: st.rot }, { fill });
       };
-      this.blurred(ctx, e.anim === 'slam' && t <= 2 ? 8 : 1, draw);
+      this.blurred(ctx, anim === 'slam' && t <= 2 ? 8 : 1, draw);
     });
   }
 
@@ -539,42 +592,32 @@ export class Compositor {
    */
   renderEndPlate(ctx, img, f = 0) {
     const { W, H } = this;
-    const g0 = ctx.createLinearGradient(0, 0, 0, H);
-    g0.addColorStop(0, '#3B2233');
-    g0.addColorStop(0.55, '#4A2840');
-    g0.addColorStop(1, '#5E2F4A');
-    ctx.fillStyle = g0;
+    const e = this.els.find((x) => x.kind === 'endcard');
+    const u = e ? clamp01((f - e.logo) / Math.max(1, e.end - 1 - e.logo)) : 0;
+    ctx.fillStyle = C.cocoa;
     ctx.fillRect(0, 0, W, H);
-    const L = this.endLayout();
-    const rg = ctx.createRadialGradient(this.endCx(), L.logoY, 0, this.endCx(), L.logoY, Math.max(W, H) * 0.55);
-    rg.addColorStop(0, 'rgba(242, 162, 184, 0.22)');
-    rg.addColorStop(1, 'rgba(242, 162, 184, 0)');
-    ctx.fillStyle = rg;
-    ctx.fillRect(0, 0, W, H);
-    // bokeh: soft discs rising slowly (deterministic per frame)
-    const t = f / 60;
-    for (let i = 0; i < 22; i++) {
-      const bx = ((i * 0.618 + 0.13) % 1) * W;
-      const sp = 18 + ((i * 37) % 11) * 4;
-      const by = H - (((i * 0.387 + 0.21) % 1) * (H + 200) + t * sp) % (H + 200) + 100;
-      const r = (14 + ((i * 53) % 7) * 6) * (this.v ? 1.2 : 1);
-      ctx.fillStyle = i % 3 === 0 ? 'rgba(255, 216, 107, 0.07)' : 'rgba(242, 162, 184, 0.08)';
-      ctx.beginPath();
-      ctx.arc(bx + Math.sin(t * 0.7 + i) * 12, by, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
     if (img) {
+      // the last gameplay frame (Victory!), blurred (σ 14), darkened 35 %, with a slow 102 % push
+      const sc = 1.06 + 0.02 * ease.inOut(u);
       ctx.save();
-      ctx.filter = 'blur(6px) brightness(0.75)';
-      ctx.drawImage(this.keyed(img), 0, 0);
+      ctx.filter = `blur(${Math.round(14 * this.k)}px) brightness(0.65) saturate(1.1)`;
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(sc, sc);
+      ctx.drawImage(img, -W / 2, -H / 2, W, H);
       ctx.restore();
       ctx.filter = 'none';
     }
-    const g = ctx.createLinearGradient(0, H * 0.7, 0, H);
+    const L = this.endLayout();
+    const rg = ctx.createRadialGradient(this.endCx(), L.logoY, 0, this.endCx(), L.logoY, Math.max(W, H) * 0.5);
+    rg.addColorStop(0, 'rgba(90, 40, 64, 0.35)');
+    rg.addColorStop(1, 'rgba(40, 20, 30, 0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, H * 0.75, 0, H);
     g.addColorStop(0, 'rgba(242, 162, 184, 0)');
-    g.addColorStop(1, 'rgba(242, 162, 184, 0.45)');
+    g.addColorStop(1, 'rgba(242, 162, 184, 0.3)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, H * 0.7, W, H * 0.3);
+    ctx.fillRect(0, H * 0.75, W, H * 0.25);
     this.dither(ctx, f);
   }
 
@@ -711,7 +754,7 @@ export class Compositor {
     // a beat pulse on every beat to the fade (1.00 -> 1.06 -> 1.00 every 30 frames)
     let pulse = 1;
     if (f >= e.pulse[0] && f < e.pulse[1]) {
-      const u = ((f - e.pulse[0]) % 30) / 30;
+      const u = ((f - e.pulse[0]) % BEAT_FRAMES) / BEAT_FRAMES;
       pulse = 1 + 0.06 * (u < 0.15 ? ease.out(u / 0.15) : 1 - ease.inOut((u - 0.15) / 0.85));
     }
     const s = st.s * pulse;
@@ -731,7 +774,7 @@ export class Compositor {
     ctx.strokeStyle = C.cocoa;
     ctx.stroke();
     // a light sweep across the pill every two beats
-    const ts = f >= e.pulse[0] ? (f - e.pulse[0]) % 60 : -1;
+    const ts = f >= e.pulse[0] ? (f - e.pulse[0]) % (BEAT_FRAMES * 2) : -1;
     if (ts >= 0 && ts < 18) {
       ctx.save();
       roundRect(ctx, -pw / 2, -ph / 2, pw, ph, ph / 2);
@@ -803,7 +846,7 @@ export class Compositor {
 
   /** The skin flips (S22): a burst of gold and cream sparkles around the hero on the beat (the bloom is the edit's). */
   drawSparkles(ctx, f) {
-    if (this.cut !== '30') return;
+    if (!this.post.sparkles) return;
     for (const at of [1230, 1260, 1290]) {
       const t = f - at;
       if (t < 0 || t > 14) continue;
