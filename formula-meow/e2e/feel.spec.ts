@@ -282,27 +282,55 @@ test('Night: stars, warm fill and kart headlights; readable in colour-blind and 
   expect(errors).toEqual([]);
 });
 
-/** Iteration 4 (F14): on the Rug, furniture between the camera and the kart fades; the arena stays within 80 draw calls. */
+/**
+ * Iteration 4 (F14): on the Rug, furniture between the camera and the kart fades to 30 % (screen-door) and the arena
+ * stays within 80 draw calls. The bot circles the open floor, so the near miss is staged: the kart is pinned skimming
+ * the sofa's front with the chase camera snapped behind it (the rig then sits inside the sofa's box, playtest P14).
+ */
 test('Rug: furniture in the way fades to 30 % and the arena stays within 80 draw calls', async ({ page }) => {
   test.setTimeout(180_000);
   const errors = watchErrors(page);
+  const calls = () => page.evaluate(() => (window as unknown as { __fmPerf: { calls: number } }).__fmPerf.calls);
   await page.goto('/?bot=1&seed=3&track=rug');
-  await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(10);
-  let faded = 0;
+  await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(240);
   let maxCalls = 0;
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 16; i++) {
     await page.waitForTimeout(500);
-    const r = await page.evaluate(() => {
-      const f = (window as unknown as { __fmFeel?: { occluders?(): { faded: number; attached: boolean } | null } }).__fmFeel;
-      const o = f?.occluders?.() ?? null;
-      return { faded: o?.faded ?? 0, attached: o?.attached ?? false, calls: (window as unknown as { __fmPerf: { calls: number } }).__fmPerf.calls };
-    });
-    maxCalls = Math.max(maxCalls, r.calls);
-    if (r.faded > 0 && !faded) await page.screenshot({ path: 'e2e/screens/feel-rug-fade.png' });
-    faded = Math.max(faded, r.faded);
-    if (faded && i > 20) break;
+    maxCalls = Math.max(maxCalls, await calls());
   }
-  expect(faded).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    type K = { x: number; y: number; z: number; vx: number; vz: number; heading: number };
+    type S = { me: number; world: { st: { karts: K[] }; track: { blocks: Array<{ x: number; z: number; r: number }> } }; camera: { snap(x: number, y: number, z: number, h: number): void } };
+    const w = window as unknown as { __fm: { shell: S }; __pin?: boolean };
+    const s = w.__fm.shell;
+    const bl = s.world.track.blocks[2]; // the sofa's middle block
+    const toC = Math.atan2(-bl.x, -bl.z);
+    const h = toC + Math.PI / 2;
+    const x = bl.x + Math.sin(toC) * (bl.r + 1) + Math.sin(h) * 3.3;
+    const z = bl.z + Math.cos(toC) * (bl.r + 1) + Math.cos(h) * 3.3;
+    const pin = () => Object.assign(s.world.st.karts[s.me], { x, z, vx: Math.sin(h) * 0.01, vz: Math.cos(h) * 0.01, heading: h });
+    pin();
+    const k = s.world.st.karts[s.me];
+    s.camera.snap(k.x, k.y, k.z, h);
+    w.__pin = true;
+    const loop = () => {
+      if (!w.__pin) return;
+      pin();
+      requestAnimationFrame(loop);
+    };
+    loop();
+  });
+  const alpha = () =>
+    page.evaluate(() => {
+      const o = (window as unknown as { __fmFeel?: { occluders?(): { attached: boolean; alpha: Float32Array } | null } }).__fmFeel?.occluders?.();
+      return o && o.attached ? Array.from(o.alpha).map((a) => Math.round(a * 100) / 100) : null;
+    });
+  // the whole sofa (blocks 1–3) fades to 30 %; the table, chair, cat tree and pot stay solid
+  await expect.poll(alpha, { timeout: 5_000 }).toEqual([1, 0.3, 0.3, 0.3, 1, 1, 1]);
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: 'e2e/screens/feel-rug-fade.png' });
+  maxCalls = Math.max(maxCalls, await calls());
+  await page.evaluate(() => ((window as unknown as { __pin?: boolean }).__pin = false));
   expect(maxCalls).toBeLessThanOrEqual(80);
   expect(errors).toEqual([]);
 });

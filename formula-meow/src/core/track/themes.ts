@@ -324,10 +324,10 @@ export function nightTheme(base: Theme): Theme {
     neonB: 0x2cf6f3,
     skirt: dim(base.skirt, 0.5),
     sun: 0xb4c0ff,
-    sunIntensity: 1.25,
+    sunIntensity: 0.95,
     hemiSky: 0x8a84d6,
     hemiGround: dim(base.hemiGround, 0.5),
-    hemiIntensity: 1.45,
+    hemiIntensity: 1.2,
     night: true,
   };
 }
