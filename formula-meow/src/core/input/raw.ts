@@ -4,6 +4,8 @@ export interface RawInput {
   steer: number;
   /** the source steers digitally (keys): the mux keeps its 0.10 s ramp */
   digital: boolean;
+  /** the steer came from a touch stick (iteration 4: Smart Steer helps touch steering only) */
+  steerTouch: boolean;
   gas: boolean;
   brake: boolean;
   drift: boolean;
@@ -19,7 +21,7 @@ export interface RawInput {
 }
 
 export function emptyRaw(): RawInput {
-  return { steer: 0, digital: false, gas: false, brake: false, drift: false, item: false, itemBack: false, lookBack: false, pause: false, restart: false, any: false, touch: false };
+  return { steer: 0, digital: false, steerTouch: false, gas: false, brake: false, drift: false, item: false, itemBack: false, lookBack: false, pause: false, restart: false, any: false, touch: false };
 }
 
 export interface InputSource {
@@ -28,9 +30,10 @@ export interface InputSource {
   dispose(): void;
 }
 
-export function mergeSteer(out: RawInput, steer: number, digital: boolean): void {
+export function mergeSteer(out: RawInput, steer: number, digital: boolean, touch = false): void {
   if (Math.abs(steer) > Math.abs(out.steer)) {
     out.steer = steer;
     out.digital = digital;
+    out.steerTouch = touch;
   }
 }
