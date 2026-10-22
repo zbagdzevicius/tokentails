@@ -133,3 +133,11 @@
   .fm-garage-foot { grid-area: foot; }
   .fm-gitem { min-height: 64px; }
 }
+
+/* F12: the Style score row on the results */
+.fm-prog-style { display: grid; gap: 2px; margin-top: 4px; }
+.fm-prog-style-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 18px; }
+.fm-prog-style-l { font-weight: 900; color: #7a3ccf; }
+.fm-prog-style-n { font-size: 22px; font-variant-numeric: tabular-nums; }
+.fm-prog-style-best { font-size: 13px; font-weight: 800; opacity: 0.75; }
+.fm-prog-style-parts { font-size: 12px; font-weight: 700; opacity: 0.8; line-height: 1.25; }

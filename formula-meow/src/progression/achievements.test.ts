@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, coverage, newAchievements, type CheckCtx, type RaceCheck } from './achievements';
+import { ACHIEVEMENT_IDS } from '../content/ids';
 import { defaultProg, type ProgSave } from './state';
 import { stats } from './fixtures.test-util';
 import type { RaceStats } from '../types';
@@ -15,9 +16,11 @@ const ctx = (r?: RaceCheck, edit: (s: ProgSave) => void = () => {}): CheckCtx =>
 const earned = (c: CheckCtx) => new Set(newAchievements(c));
 
 describe('achievements', () => {
-  it('covers the 24 frozen ids exactly once', () => {
+  it('covers the 26 frozen ids exactly once (append-only: the first 24 keep their order)', () => {
     expect(coverage()).toEqual({ missing: [], extra: [] });
-    expect(ACHIEVEMENTS).toHaveLength(24);
+    expect(ACHIEVEMENTS).toHaveLength(26);
+    expect(ACHIEVEMENT_IDS.slice(0, 24)).toContain('track-maker');
+    expect(ACHIEVEMENT_IDS.slice(24)).toEqual(['loop-de-meow', 'combo-king']);
   });
 
   it('a plain mid-pack race earns nothing', () => {
@@ -49,6 +52,8 @@ describe('achievements', () => {
     ['clean-lap', ctx(race({}, { wallHits: 0 })), ctx(race({}, { wallHits: 0, respawns: 1 }))],
     ['globetrotter', ctx(undefined, (s) => (s.racedTracks = ['kitchen', 'rooftops', 'laundry', 'yarn', 'cafe', 'shelter'])), ctx(undefined, (s) => (s.racedTracks = ['kitchen', 'rooftops', 'laundry', 'yarn', 'cafe']))],
     ['track-maker', ctx(race({ ugc: true })), ctx(race({ ugc: false }))],
+    ['loop-de-meow', ctx(undefined, (s) => (s.stats.loops = 20)), ctx(undefined, (s) => (s.stats.loops = 19))],
+    ['combo-king', ctx(race({}, { bestCombo: 3 })), ctx(race({}, { bestCombo: 2 }))],
   ];
 
   for (const [id, yes, no] of cases) {

@@ -10,9 +10,10 @@ import { t } from '../../ui/i18n';
 import { ACHIEVEMENT_IDS, CUP_IDS } from '../../content/ids';
 import { CLASSES } from '../../tuning';
 import { dateOfDay } from '../../share/daily/daily';
-import { trackById, TRACKS } from '../../core/track/tracks';
+import { TRACKS } from '../../core/track/tracks';
 import { ACHIEVEMENTS, type CheckCtx } from '../achievements';
-import { challengeById, currentStreak } from '../challenges';
+import { currentStreak } from '../challenges';
+import { namedChallenge } from '../names';
 import { dailyToday, prog, today, world } from '../store';
 import { unlockState, type UnlockKey } from '../unlocks';
 
@@ -23,7 +24,7 @@ function dailyTab(): HTMLElement {
   const d = dailyToday();
   const day = today();
   const rows = d.ids.map((id, i) => {
-    const c = challengeById(id, (tid) => trackById(tid).name);
+    const c = namedChallenge(id);
     if (!c) return null;
     const p = Math.min(c.target, d.progress[i] ?? 0);
     return h('div', { class: `fm-prog-ch${d.done[i] ? ' done' : ''}` }, [

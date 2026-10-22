@@ -1,5 +1,5 @@
 /**
- * The 24 achievements (ids frozen in content/ids.ts). Each is a pure test over the race just run (its `RaceStats`
+ * The 26 achievements (ids frozen in content/ids.ts). Each is a pure test over the race just run (its `RaceStats`
  * and a few facts read from the event log) and the progression save after that race was recorded, so every rule is
  * unit tested (achievements.test.ts). Earned once, kept forever, each pays ACHIEVEMENT_FISH.
  */
@@ -107,6 +107,16 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     progress: ({ s }) => [TRACK_IDS.filter((t) => s.racedTracks.includes(t)).length, TRACK_IDS.length],
   },
   { id: 'track-maker', icon: '✏️', name: 'Track Maker', desc: 'Race a Track Doodle', test: ({ race }) => !!race?.ugc },
+  // iteration 4 (F12): set pieces
+  {
+    id: 'loop-de-meow',
+    icon: '➰',
+    name: 'Loop-de-Meow',
+    desc: 'Ride 20 loops',
+    test: ({ s }) => s.stats.loops >= 20,
+    progress: ({ s }) => [Math.min(20, s.stats.loops), 20],
+  },
+  { id: 'combo-king', icon: '👑', name: 'Combo King', desc: 'Hit a STUNT COMBO ×3 in one race', test: ({ race }) => (race?.stats.bestCombo ?? 0) >= 3 },
 ];
 
 export function achievementById(id: string): AchievementDef | undefined {

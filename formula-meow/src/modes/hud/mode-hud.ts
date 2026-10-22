@@ -6,11 +6,14 @@
  * - Time trial: the split against the ghost at every checkpoint (green ahead, red behind) through `hud.say`.
  * - Grand Prix: the rival chip with the rival's live place.
  *
+ * - Battle (F14): an arrow at the screen edge points to the points leader (a crown over them when they are in view),
+ *   and from the `frenzy` event (the last 30 s) a DOUBLE POINTS chip stays up with a callout as it starts.
+ *
  * It also fills the HudModel fields (`balloons`, `timeLeft`, `splits`, `rival`) through `shell.hudExtras`, so the
  * audio-ui lane's HUD can take these over. The race HUD's place and lap counters are hidden in battle (and the place
  * in a time trial) with a `data-fm-mode` attribute on the HUD root.
  */
-import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, InstancedMesh, LineBasicMaterial, LineSegments, Object3D, SphereGeometry } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, InstancedMesh, LineBasicMaterial, LineSegments, Object3D, SphereGeometry, Vector3 } from 'three';
 import type { RaceEvent } from '../../types';
 import type { Shell } from '../../core/app/shell';
 import type { FrameInfo, JuiceListener } from '../../juice/bus';
@@ -18,12 +21,51 @@ import { toonMaterial } from '../../core/render/toon';
 import { GO_TICK } from '../../core/sim/world';
 import { ordinalText } from '../../core/hud/hud';
 import { t } from '../../ui/i18n';
-import { BATTLE, BATTLE_TICKS, battleOf } from '../battle/rules';
+import { BATTLE, BATTLE_TICKS, FRENZY_TICK, battleOf } from '../battle/rules';
+import { reducedMotion } from '../../ui/a11y';
 import { flow, fmtDelta } from '../flow';
 
 const MAX_B = BATTLE.maxBalloons;
 const _o = new Object3D();
 const _c = new Color();
+const _v = new Vector3();
+const _w = new Vector3();
+
+/** Where the leader marker sits: on screen (a crown over the kart) or clamped to the edge with an arrow angle. */
+export interface LeadMark {
+  x: number;
+  y: number;
+  /** radians, 0 = pointing right, π/2 = down (screen); null when the leader is in view */
+  angle: number | null;
+}
+
+/**
+ * Pure: a point in normalised device coordinates (x, y in −1..1 when on screen; `behind` when it is behind the
+ * camera) → the marker's screen position. Off screen (or behind) it is clamped to an inset frame and points out.
+ */
+export function leadMark(nx: number, ny: number, behind: boolean, w: number, h: number, inset = 44): LeadMark {
+  let x = nx;
+  let y = ny;
+  if (behind) {
+    x = -x;
+    y = -y;
+    // behind the camera: push it past the bottom edge, so the arrow points back and to the side it is on
+    if (Math.abs(y) < 1) y = -1.5;
+  }
+  const on = !behind && Math.abs(x) <= 0.92 && Math.abs(y) <= 0.92;
+  const sx = ((x + 1) / 2) * w;
+  const sy = ((1 - y) / 2) * h;
+  if (on) return { x: sx, y: sy, angle: null };
+  const cx = w / 2;
+  const cy = h / 2;
+  const dx = sx - cx;
+  const dy = sy - cy;
+  const angle = Math.atan2(dy, dx);
+  const hx = cx - inset;
+  const hy = cy - inset;
+  const k = Math.min(hx / Math.max(1e-6, Math.abs(dx)), hy / Math.max(1e-6, Math.abs(dy)));
+  return { x: cx + dx * k, y: cy + dy * k, angle };
+}
 
 function hex(c: number): string {
   return '#' + c.toString(16).padStart(6, '0');
@@ -35,8 +77,11 @@ export class ModeHud implements JuiceListener {
   private readonly mine: HTMLDivElement;
   private readonly list: HTMLDivElement;
   private readonly rival: HTMLDivElement;
+  private readonly lead: HTMLDivElement;
+  private readonly frenzy: HTMLDivElement;
+  private frenzyOn = false;
   private mode: string | null = null;
-  private lastHtml = { clock: '', mine: '', list: '', rival: '' };
+  private lastHtml = { clock: '', mine: '', list: '', rival: '', lead: '', frenzy: '' };
   private balloons: InstancedMesh | null = null;
   private strings: LineSegments | null = null;
   private snap = { x: 0, y: 0, z: 0, heading: 0 };
@@ -48,7 +93,7 @@ export class ModeHud implements JuiceListener {
     this.root = document.createElement('div');
     this.root.className = 'fm-mode-hud';
     this.root.setAttribute('aria-hidden', 'true');
-    this.root.innerHTML = '<div class="fm-mh-clock fm-outline"></div><div class="fm-mh-mine fm-outline"></div><div class="fm-mh-list"></div><div class="fm-mh-rival fm-sticker"></div>';
+    this.root.innerHTML = '<div class="fm-mh-clock fm-outline"></div><div class="fm-mh-mine fm-outline"></div><div class="fm-mh-list"></div><div class="fm-mh-rival fm-sticker"></div><div class="fm-mh-lead"><i class="ar"></i><span></span></div><div class="fm-mh-frenzy fm-sticker"></div>';
     shell.host.appendChild(this.root);
     // menus, results and the podium (where no race frame runs to hide it) cover the mode HUD
     shell.screens.onChange((top) => {
@@ -59,13 +104,18 @@ export class ModeHud implements JuiceListener {
     this.mine = q('.fm-mh-mine');
     this.list = q('.fm-mh-list');
     this.rival = q('.fm-mh-rival');
+    this.lead = q('.fm-mh-lead');
+    this.frenzy = q('.fm-mh-frenzy');
   }
 
   onReset(): void {
     this.disposeBalloons();
     this.faded.clear();
     this.splits = [];
-    this.lastHtml = { clock: '', mine: '', list: '', rival: '' };
+    this.lastHtml = { clock: '', mine: '', list: '', rival: '', lead: '', frenzy: '' };
+    this.frenzyOn = false;
+    this.root.classList.remove('frenzy');
+    this.lead.hidden = true;
     const w = this.shell.world;
     const mode = w && !this.shell.attract ? (w.cfg.mode ?? 'race') : null;
     this.mode = mode === 'battle' || mode === 'tt' || mode === 'gp' ? mode : null;
@@ -113,6 +163,8 @@ export class ModeHud implements JuiceListener {
     const name = (i: number) => racers[i]?.name ?? '';
     const hud = this.shell.hud;
     if (this.mode === 'battle') {
+      // F14: the last 30 s (rules.ts FRENZY_TICK): pops and steals score 2
+      if (e.type === 'frenzy') hud.say(t('DOUBLE POINTS!'), { prio: 3, tone: 'gold', ms: 2400, sub: t('Pops and steals score 2') });
       if (e.type === 'balloonPop' || e.type === 'balloonSteal') {
         const k = st.karts[e.kart];
         const view = this.shell.view;
@@ -185,6 +237,19 @@ export class ModeHud implements JuiceListener {
         .join('');
       void myRank;
       this.set('list', this.list, rows);
+      // F14: the points leader, found at the screen edge (nobody leads at 0 points or when it is you)
+      const top = sorted[0];
+      const second = sorted[1];
+      const leads = top && score(top.i) > 0 && top.i !== info.me && (!second || score(second.i) < score(top.i));
+      this.frameLead(info, leads ? top.i : -1, leads ? score(top.i) : 0);
+      // F14: DOUBLE POINTS stays up for the frenzy (also after a restart into it)
+      const fr = st.phase === 'race' && st.tick - GO_TICK >= FRENZY_TICK;
+      if (fr !== this.frenzyOn) {
+        this.frenzyOn = fr;
+        this.root.classList.toggle('frenzy', fr);
+        this.root.classList.toggle('calm', reducedMotion());
+      }
+      this.set('frenzy', this.frenzy, fr ? `<b>×2</b> ${t('DOUBLE POINTS')}` : '');
       if (this.lastLeft !== left) {
         this.lastLeft = left;
         this.shell.hudExtras({ balloons: ks.map((k) => k.balloons), timeLeft: left, battleScore: bs ? bs.score.slice() : undefined });
@@ -243,6 +308,31 @@ export class ModeHud implements JuiceListener {
   }
 
   private lastLeft = -1;
+
+  /** Place the leader marker over kart `i` (or at the edge pointing to it); -1 hides it. */
+  private frameLead(info: FrameInfo, i: number, pts: number): void {
+    const view = this.shell.view;
+    if (i < 0 || !view) {
+      this.lead.hidden = true;
+      return;
+    }
+    const s = view.lerpKart(i, info.alpha, this.snap);
+    const cam = this.shell.camera.cam;
+    _v.set(s.x, s.y + 3.2, s.z);
+    // behind the camera: project() mirrors the point, so test the camera-space depth first
+    const behind = _w.copy(_v).applyMatrix4(cam.matrixWorldInverse).z > 0;
+    _v.project(cam);
+    const w = typeof window !== 'undefined' ? window.innerWidth : 390;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 844;
+    const m = leadMark(_v.x, _v.y, behind, w, h);
+    this.lead.hidden = false;
+    this.lead.classList.toggle('edge', m.angle != null);
+    this.lead.style.transform = `translate(${m.x.toFixed(0)}px, ${m.y.toFixed(0)}px)`;
+    const ar = this.lead.firstElementChild as HTMLElement;
+    ar.style.transform = m.angle != null ? `rotate(${m.angle.toFixed(2)}rad)` : '';
+    const name = this.shell.racers[i]?.name ?? '';
+    this.set('lead', this.lead.lastElementChild as HTMLElement, `👑 ${escHtml(name.slice(0, 9))} <b>★${pts}</b>`);
+  }
 
   private frameGp(info: FrameInfo, on: boolean): void {
     if (!on) return;

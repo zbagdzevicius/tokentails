@@ -13,7 +13,11 @@ export type WildPick = 'none' | 'surprise' | MutatorDef['id'];
 
 export const WILD_PICKS: readonly WildPick[] = ['none', ...MUTATORS.map((m) => m.id), 'surprise'];
 
-/** Offered at this sim class (Cucumbers Only waits for 100cc: at 50cc it buried the average player, see the harness). */
+/**
+ * Offered at this sim class. Every mutator is open from 50cc: the 72-race harness (mutators.test.ts, SIM_VERSION 11)
+ * put the average-player bot on the podium in 79-89 % of 50cc races with each item mutator (none: 83 %; Cucumbers
+ * Only 86 %), so none needs holding back. `minCls` stays for a mutator that ever does.
+ */
 export function mutatorAllowed(bit: number, cls: RaceClass): boolean {
   const m = MUTATORS.find((x) => x.bit === bit);
   return !!m && cls >= m.minCls;

@@ -9,17 +9,17 @@ import { h } from '../ui/kit';
 import { t } from '../ui/i18n';
 import { reducedMotion } from '../ui/a11y';
 import { screens } from '../core/app/screens';
-import { trackById } from '../core/track/tracks';
 import { CLASSES } from '../tuning';
 import { ACHIEVEMENT_IDS } from '../content/ids';
 import { TRAIL_INFO } from '../content/cosmetics';
 import { PINK_PAW_CATS } from '../share/pinkpaw/pink-paw';
 import { achievementById } from './achievements';
-import { challengeById } from './challenges';
+import { namedChallenge } from './names';
 import { nextGoal } from './economy';
 import { lastAward } from './last';
 import { prog } from './store';
 import type { Award } from './record';
+import type { RaceStats } from '../types';
 import type { UnlockNews } from './unlocks';
 
 export function unlockLabel(u: UnlockNews): string {
@@ -99,11 +99,40 @@ function fishBlock(a: Award, before: number): HTMLElement {
   return h('div', {}, [row, a.fish.length ? reasons : h('p', { class: 'fm-line fm-prog-dim' }, [t('Finish in the top 8 and pick up fish coins to earn fish.')])]);
 }
 
+/**
+ * F12: the race's Style score (loops, clean landings, wall rides, tricks, pink mini-turbos, the best combo) with the
+ * track's Style best. Counts up like the fish; a new best gets a gold chip.
+ */
+export function styleBlock(a: Award, stats: RaceStats | undefined): HTMLElement | null {
+  const st = a.style;
+  if (!st) return null;
+  const score = h('b', { class: 'fm-prog-style-n' }, ['0']);
+  countUp(score, 0, st.score, 800);
+  const parts: string[] = [];
+  if (stats) {
+    if (stats.loops) parts.push(t('➰ {n} loops', { n: stats.loops }));
+    if (stats.cleanLandings) parts.push(t('🛬 {n} landings', { n: stats.cleanLandings }));
+    if (stats.walls) parts.push(t('🧱 {n} wall rides', { n: stats.walls }));
+    if (stats.tricks) parts.push(t('🤸 {n} tricks', { n: stats.tricks }));
+    if (stats.miniTurbos[2]) parts.push(t('💗 {n} pink turbos', { n: stats.miniTurbos[2] }));
+    if (stats.bestCombo >= 2) parts.push(t('combo ×{n}', { n: stats.bestCombo }));
+  }
+  const best = st.newBest
+    ? h('span', { class: 'fm-prog-chip gold', 'data-style-best': 'new' }, [st.prev != null ? t('New Style best! (was {n})', { n: st.prev }) : t('First Style best!')])
+    : st.prev != null
+      ? h('span', { class: 'fm-prog-style-best' }, [t('Best {n}', { n: st.prev })])
+      : null;
+  return h('div', { class: 'fm-prog-style', 'data-section': 'style', role: 'group', 'aria-label': t('Style score') }, [
+    h('div', { class: 'fm-prog-style-row' }, [h('span', { class: 'fm-prog-style-l' }, [t('✨ Style')]), score, best]),
+    parts.length ? h('div', { class: 'fm-prog-style-parts' }, [parts.join(' · ')]) : null,
+  ]);
+}
+
 function dailyBlock(a: Award): HTMLElement | null {
   const d = prog().daily;
   if (d.ids.length !== 3) return null;
   const rows = d.ids.map((id, i) => {
-    const c = challengeById(id, (tid) => trackById(tid).name);
+    const c = namedChallenge(id);
     if (!c) return null;
     const p = Math.min(c.target, d.progress[i] ?? 0);
     const done = !!d.done[i];
@@ -134,7 +163,7 @@ export function renderProgressSection(ctx: ResultCtx, shell: Shell): HTMLElement
   if (!la || la.token !== shell.raceToken) return null;
   const a = la.award;
   if (ctx.result.seed !== la.seed) return null;
-  const parts: Array<HTMLElement | null> = [fishBlock(a, la.fishBefore)];
+  const parts: Array<HTMLElement | null> = [fishBlock(a, la.fishBefore), styleBlock(a, ctx.result.stats?.[ctx.result.player.kart])];
   // a new class already has the shell's own "race it" button above
   const news = a.unlocks.filter((u) => u.kind !== 'class').map(unlockLabel);
   if (a.newBestLap != null) news.unshift(t('New best lap!'));

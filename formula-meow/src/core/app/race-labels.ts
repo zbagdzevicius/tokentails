@@ -20,11 +20,20 @@ export interface MutatorDef {
   minCls: RaceClass;
 }
 
+/**
+ * The labels' templates. Keys of the modes lane's string table (`ui/strings/modes.en.ts`): referenced through this
+ * table, not as literal keys in calls, because the core strings check reads literals in this file against CORE_EN.
+ */
+export const LABEL_KEYS = {
+  wild: '🃏 Wild Card: {m}',
+  unlockNext: 'Next up: {c} unlocked → race it',
+} as const;
+
 export const MUTATORS: readonly MutatorDef[] = [
-  { id: 'catnip-rain', bit: Modifier.CatnipRain, icon: '🌿', name: 'Catnip Rain', blurb: 'Item boxes rain Catnip boosts', minCls: 0 },
+  { id: 'catnip-rain', bit: Modifier.CatnipRain, icon: '🌿', name: 'Catnip Rain', blurb: 'Catnip boosts in far more boxes', minCls: 0 },
   { id: 'zoomies', bit: Modifier.ZoomiesPlus, icon: '⚡', name: 'Zoomies+', blurb: 'Zoomies turn up far more often', minCls: 0 },
-  { id: 'box-party', bit: Modifier.BoxParty, icon: '📦', name: 'Box Party', blurb: 'Boxes everywhere: hide and bounce hits', minCls: 0 },
-  { id: 'cucumbers', bit: Modifier.CucumbersOnly, icon: '🥒', name: 'Cucumbers Only', blurb: 'Every item is a Cucumber', minCls: 1 },
+  { id: 'box-party', bit: Modifier.BoxParty, icon: '📦', name: 'Box Party', blurb: 'Far more Boxes to hide in', minCls: 0 },
+  { id: 'cucumbers', bit: Modifier.CucumbersOnly, icon: '🥒', name: 'Cucumbers Only', blurb: 'Every item box is a Cucumber', minCls: 0 },
   { id: 'night', bit: Modifier.Night, icon: '🌙', name: 'Night', blurb: 'The same track after dark', renderOnly: true, minCls: 0 },
 ];
 
@@ -73,14 +82,14 @@ export function gridBanner(mode: string, day: number | undefined, modifiers: num
   if (mode === 'daily' && day) return `🏆 ${dailyLabel(day, modifiers)}`;
   if (mode === 'race') {
     const m = mutatorsOf(modifiers);
-    if (m.length) return t('🃏 Wild Card: {m}', { m: m.map((x) => `${x.icon} ${t(x.name)}`).join(' + ') });
+    if (m.length) return t(LABEL_KEYS.wild, { m: m.map((x) => `${x.icon} ${t(x.name)}`).join(' + ') });
   }
   return null;
 }
 
 /** The class unlock on a race's results (F13: says what is next, so it never reads as a prize beside an 8th place). */
 export function classUnlockLabel(cls: RaceClass): string {
-  return t('Next up: {c} unlocked → race it', { c: `${CLASSES[cls].name} ${CLASSES[cls].cc}` });
+  return t(LABEL_KEYS.unlockNext, { c: `${CLASSES[cls].name} ${CLASSES[cls].cc}` });
 }
 
 /** The results' Next keeps the mirror of a Mirror single race (as Again does); no other modifier carries over. */

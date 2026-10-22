@@ -58,5 +58,8 @@ export const ACHIEVEMENT_IDS = [
   'clean-lap',
   'globetrotter',
   'track-maker',
+  // iteration 4 (F12), append-only
+  'loop-de-meow',
+  'combo-king',
 ] as const;
 export type AchievementId = (typeof ACHIEVEMENT_IDS)[number];

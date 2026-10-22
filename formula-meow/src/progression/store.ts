@@ -7,7 +7,8 @@ import { coreSlot, save, type SaveSlot } from '../core/app/save';
 import { hasScreen } from '../core/app/screens';
 import { ALL_TRACKS, TRACKS } from '../core/track/tracks';
 import { dayNoFor } from '../share/daily/daily';
-import { ensureDay } from './challenges';
+import { ensureDay, type ChallengeEnv } from './challenges';
+import type { TrackDef } from '../types';
 import type { Award, World } from './record';
 import { defaultProg, migrateProg, type ProgSave } from './state';
 
@@ -77,6 +78,17 @@ export function today(now: Date = new Date()): number {
   return Math.max(1, dayNoFor(now));
 }
 
+/** F12: what the stunt and named-shortcut challenges may ask for on these circuits (pure; tests use it). */
+export function pieceEnv(tracks: readonly TrackDef[]): Pick<ChallengeEnv, 'loopTracks' | 'hasJumps' | 'hasPieces' | 'cutTracks'> {
+  const has = (t: TrackDef, kind: string) => (t.setPieces ?? []).some((p) => p.kind === kind);
+  return {
+    loopTracks: tracks.filter((t) => has(t, 'loop')).map((t) => t.id),
+    hasJumps: tracks.some((t) => has(t, 'jump')),
+    hasPieces: tracks.some((t) => (t.setPieces?.length ?? 0) > 0),
+    cutTracks: tracks.filter((t) => !!t.branches?.[0]?.label).map((t) => t.id),
+  };
+}
+
 export function world(): World {
   const circuits = ALL_TRACKS.filter((t) => t.kind !== 'arena');
   return {
@@ -87,6 +99,7 @@ export function world(): World {
       hasBranches: circuits.some((t) => (t.branches?.length ?? 0) > 0),
       hasBattle: hasScreen('battle'),
       hasTimeTrial: hasScreen('tt'),
+      ...pieceEnv(TRACKS),
     },
     branchTracks: circuits.filter((t) => (t.branches?.length ?? 0) > 0).map((t) => t.id),
     circuits: TRACKS.map((t) => t.id),

@@ -4,11 +4,15 @@
  * plain races, and the podium rate says whether a mutator is too punishing for a class (Cucumbers Only at 50cc).
  *
  * The full run (5 × 72 races per class) takes minutes: `FM_MUTATORS=full npx vitest run src/modes/mutators.test.ts`
- * (prints the report). The default suite runs a 2-track × 3-seed smoke of the same checks.
+ * (prints the report). The default suite runs a 2-track × 2-seed smoke of the same checks.
+ *
+ * Measured (SIM_VERSION 11, bot podium / player walls a race): 50cc none 83 % / 8.4, Catnip Rain 79 % / 8.9,
+ * Zoomies+ 85 % / 8.6, Box Party 89 % / 8.5, Cucumbers Only 86 % / 8.4; 100cc none 71 % / 7.9, Catnip Rain 75 %,
+ * Zoomies+ 69 %, Box Party 81 %, Cucumbers Only 78 %. No DNF. So every mutator is offered from 50cc.
  */
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
-import { Modifier, type RaceClass } from '../types';
+import type { RaceClass } from '../types';
 import { TRACKS } from '../core/track/tracks';
 import { raceConfig, world } from '../test/fixtures';
 import { playerBot } from '../items-ai/balance/bots';
@@ -73,7 +77,8 @@ describe('Wild Card mutators: the 72-race harness', () => {
       // wall hits stay in the same range as a plain race (items shove karts, they never pin them)
       expect(r.wallHits / r.races).toBeLessThanOrEqual(Math.max(4, (base.wallHits / base.races) * 2));
       // Cucumbers Only is held back from a class only when the bot's podium rate there falls under half
-      if (FULL && bit === Modifier.CucumbersOnly && !mutatorAllowed(bit, cls)) expect(r.podium / r.races).toBeLessThan(0.5);
+      // a mutator is held back from a class only when the bot's podium rate there falls under half, and offered when not
+      if (FULL) expect(mutatorAllowed(bit, cls)).toBe(r.podium / r.races >= 0.5);
     }
   });
 });
