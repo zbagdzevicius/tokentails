@@ -396,7 +396,9 @@ export class JuiceDirector implements JuiceListener {
 
   private callout(c: StuntCallout | null): void {
     if (!c) return;
-    this.pop(t(c.text, { n: c.n ?? 0 }), c.tone, c.sub ? t(c.sub, { n: c.n ?? 0 }) : undefined);
+    // stunt calls (LOOP-DE-MEOW!, WALL RIDE!, BIG AIR!, combos) are the big moments: they carry an id, so the HUD's
+    // small-callout gap (CALLOUT_GAP_MS) never drops them, and a new stunt call replaces the one showing
+    this.pop(t(c.text, { n: c.n ?? 0 }), c.tone, c.sub ? t(c.sub, { n: c.n ?? 0 }) : undefined, 'stunt');
   }
 
   /** F6: a boost chain link: the climbing zap from ×2, the callout from ×3, ON FIRE from ×4. */
@@ -437,8 +439,8 @@ export class JuiceDirector implements JuiceListener {
   }
 
   /** Style callouts go through the HUD's one message slot (B33), below the race banners in priority. */
-  private pop(text: string, tone: PopTone, sub?: string): void {
-    this.shell.hud.say(text, { prio: 1, tone, sub, ms: 1000 });
+  private pop(text: string, tone: PopTone, sub?: string, id?: string): void {
+    this.shell.hud.say(text, { prio: 1, tone, sub, ms: 1000, ...(id ? { id } : {}) });
   }
 
   /** Iteration 4, every frame: the paw rings, the photo finish, dodges, the duel, slipstream, ON FIRE, zips. */

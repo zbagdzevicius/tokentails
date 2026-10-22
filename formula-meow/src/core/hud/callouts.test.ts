@@ -11,4 +11,11 @@ describe('callout pacing (playtest, iteration 4)', () => {
     hud.say('FINAL LAP', { prio: 3 });
     expect(hud.saying).toBe('FINAL LAP');
   });
+
+  it('a stunt call (with an id) is never dropped by the gap', () => {
+    const hud = new Hud(document.body);
+    hud.say('TUNNEL RUN!', { prio: 1 });
+    hud.say('LOOP-DE-MEOW!', { prio: 1, id: 'stunt' });
+    expect(hud.saying).toBe('LOOP-DE-MEOW!');
+  });
 });

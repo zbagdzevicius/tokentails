@@ -219,8 +219,16 @@ test('doodles start spectacular: auto-stunts, Spice it up, Surprise track, and B
   // a friend opens it: "Sender's lap 0:xx.xx · beat it", a live lap delta, and how it went on the results
   const friend = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
   friend.on('pageerror', (e) => errors.push(e.message));
-  // a race at another class shows no target (playtest: a 100cc lap to beat at 50cc)
-  await friend.goto(`/?bot=1&t=${link.searchParams.get('t')}&cls=${(Number(lapCls) + 1) % 3}`);
+  // a race at another class shows no target (playtest: a 100cc lap to beat at 50cc). `?cls=` is both the race class
+  // and the lap's class, so here the lap's class rides in the hash and the friend's saved class is another one.
+  const otherCls = (Number(lapCls) + 1) % 3;
+  await friend.addInitScript((cls) => {
+    if (location.protocol !== 'http:') return;
+    if (!localStorage.getItem('fm:save'))
+      localStorage.setItem('fm:save', JSON.stringify({ v: 2, settings: { cls }, slots: { core: { races: 4, unlocked: 2, pounces: 2, drifts: 2, bestTimes: {} } } }));
+  }, otherCls);
+  await friend.goto(`/?bot=1&t=${link.searchParams.get('t')}#cls=${lapCls}`);
+  await expect.poll(() => friend.evaluate(() => (window as unknown as { __fm?: { shell: { setup?: { cls: number } } } }).__fm?.shell.setup?.cls), { timeout: 20_000 }).toBe(otherCls);
   await expect(friend.locator('.fm-ugc-banner.on')).toBeVisible({ timeout: 20_000 });
   await expect(friend.locator('.fm-ugc-banner.on')).not.toContainText("Sender's lap");
   await friend.goto('about:blank');
