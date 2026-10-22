@@ -16,6 +16,7 @@ import type { RaceConfig, RaceMode, RaceResult, RacerInfo } from '../../types';
 import { fmtTime, ordinal } from './hud';
 import type { ResultAction } from '../../share/hooks';
 import { PINK_PAW_CATS, PINK_PAW_STATUS_AS_OF, pinkPawAdoptUrl } from '../../share/pinkpaw/pink-paw';
+import { headlineFor } from '../../share/cards/headline';
 import { t } from '../../ui/i18n';
 import { reducedMotion } from '../../ui/a11y';
 import { uiSound } from '../../ui/sound';
@@ -118,22 +119,42 @@ function countUp(el: HTMLElement, to: number | null, ms: number, sound: boolean)
   requestAnimationFrame(step);
 }
 
+/** The headline line's markup (F7): one outcome line under the place and the time, or nothing. */
+function headlineHtml(r: RaceResult, g: ResultsView['ghost']): string {
+  const h = headlineFor(r, g ?? null);
+  return h ? `<p class="fm-headline" data-tone="${h.tone}" data-kind="${h.kind}" data-raw>${esc(h.text)}</p>` : '';
+}
+
+/** Lost to the dare ghost (its time known): the rematch is the big button. */
+function lostToGhost(r: RaceResult, g: ResultsView['ghost']): boolean {
+  const me = r.player;
+  return !!g && g.time != null && (me.time == null || g.time < me.time);
+}
+
 export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle {
   const r = v.result;
   const me = r.player;
   const g = v.ghost;
   const battle = r.mode === 'battle' && !!r.battle;
-  const ghostLost = !!g && g.time != null && (me.time == null || g.time < me.time);
-  const btn = (a: ResultAction, i: number, extra = '') => `<button class="fm-btn${a.primary ? ' primary' : ''}${extra}" data-x="${i}" data-raw>${esc(a.label)}</button>`;
-  // the primary action (the dare) first and full width, then the rest of the main row
+  const ghostLost = lostToGhost(r, g);
+  // a ghost duel (one kart on the track and the ghost): a place out of one says nothing
+  const duel = !!g && r.places.length === 1;
+  const hype = (a: ResultAction) => (a.hype ? ' fm-hype' : '');
+  const btn = (a: ResultAction, i: number, extra = '') => `<button class="fm-btn${a.primary ? ' primary' : ''}${extra}${hype(a)}" data-x="${i}" data-id="${esc(a.id)}" data-raw>${esc(a.label)}</button>`;
+  // the primary share action (the dare) first, then the rest of the main row
   const main = v.actions
     .map((a, i) => [a, i] as const)
     .filter(([a]) => a.tier !== 'icon')
     .sort((x, y) => Number(!!y[0].primary) - Number(!!x[0].primary));
   const icons = v.actions.map((a, i) => [a, i] as const).filter(([a]) => a.tier === 'icon');
-  // the game loop leads: Next (or the mode's Continue) is the big button; sharing sits beside the rest, never over it
-  const plain = (a: ResultAction, i: number) => `<button class="fm-btn" data-x="${i}" data-raw>${esc(a.label)}</button>`;
-  const mainHtml = main.map(([a, i]) => (ghostLost && a.primary ? btn(a, i) : plain(a, i))).join('');
+  // the game loop leads: Next (or the mode's Continue, or Rematch after a lost duel) is the big button; the dare is its
+  // own pink button beside Again; the rest sits in the "•••" tray on a phone (F7)
+  const plain = (a: ResultAction, i: number) => `<button class="fm-btn${a.primary ? ' fm-dare' : ''}${hype(a)}" data-x="${i}" data-id="${esc(a.id)}" data-raw>${esc(a.label)}</button>`;
+  const mainHtml = main.map(([a, i]) => plain(a, i)).join('');
+  const hyped = v.actions.find((a) => a.hype);
+  // extras the footer keeps on a phone (Menu, the mode's own steps); the others (🏁 Tracks) go in the tray
+  const keep = (act: string) => act === 'menu' || act.startsWith('mode-');
+  const extra = v.extra ?? [];
   // closest Pink Paw rival (by place): their real status, with its date, and the shelter page
   let rivalLine = '';
   const rivals = r.places.filter((p) => p.kart !== me.kart && v.racers[p.kart]?.pinkPawId);
@@ -154,29 +175,54 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
     ? `<p class="fm-line fm-splits">${esc(t('Splits'))}: ${r.splits.map((s) => `<span>${fmtTime(s)}</span>`).join(' · ')}</p>`
     : '';
   const again = ghostLost ? t('Rematch 👻') : t('Again ↻');
+  const trayExtras = extra.filter((x) => !keep(x.act));
+  const trayItems = icons.length + trayExtras.length;
   host.innerHTML = `
-    <div class="fm-panel fm-sticker fm-results" role="dialog" aria-label="${esc(t('Results'))}">
+    <div class="fm-panel fm-sticker fm-results${duel ? ' fm-res-duel' : ''}" role="dialog" aria-label="${esc(t('Results'))}">
       <div class="fm-res-scroll">
       <h2><span data-raw>${esc(v.trackName)}</span> · <span data-raw>${esc(v.className)}</span></h2>
-      ${r.mode === 'tt' ? '' : `<div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>`}
+      <div class="fm-res-head">
+      ${r.mode === 'tt' || duel ? '' : `<div class="fm-place" data-place="${Math.min(4, me.place)}">${ordinal(me.place)}</div>`}
       <div class="fm-stats">${stats}</div>
+      <div class="fm-headline-slot">${headlineHtml(r, g)}</div>
+      </div>
       ${splits}
       <table class="fm-table">${rowsHtml(r, g)}</table>
-      ${v.unlock ? `<p class="fm-line"><button class="fm-res-unlock" data-act="unlock">🎉 ${esc(v.unlock.label)}</button></p>` : ''}
       <div class="fm-lines" data-raw>${v.lines.map((l) => `<p class="fm-line">${esc(l)}</p>`).join('')}</div>
       ${rivalLine}
       <div class="fm-sections"></div>
       </div>
       <div class="fm-res-main">
+        ${hyped ? `<p class="fm-hype-line" data-raw>🎬 ${esc(hyped.hype!)}</p>` : ''}
         <button class="fm-btn${ghostLost ? '' : ' primary big'}" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
         <button class="fm-btn${ghostLost ? ' primary big' : ''}" data-act="again">${esc(again)}</button>
-        ${(v.extra ?? []).map((x) => `<button class="fm-btn" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
+        ${extra.map((x) => `<button class="fm-btn${keep(x.act) ? '' : ' fm-tray-only'}" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
         ${mainHtml}
+        ${trayItems ? `<button class="fm-btn fm-res-more" data-act="more" aria-expanded="false" aria-label="${esc(t('More'))}">•••</button>` : ''}
       </div>
+      ${v.unlock ? `<p class="fm-line fm-res-unlock-row"><button class="fm-res-unlock" data-act="unlock">🎉 ${esc(v.unlock.label)}</button></p>` : ''}
       ${icons.length ? `<div class="fm-res-icons">${icons.map(([a, i]) => btn(a, i)).join('')}</div>` : ''}
     </div>`;
   host.querySelectorAll<HTMLButtonElement>('[data-x]').forEach((b) => {
     b.addEventListener('click', () => v.actions[Number(b.dataset.x)]?.run());
+  });
+  // the "•••" tray (phones): the icon actions and the extras the footer does not keep move into it; the buttons in
+  // the footer stay where they are (every data-act and label is still on the screen, B: e2e selectors)
+  const panel = host.querySelector<HTMLElement>('.fm-results')!;
+  const iconsRow = host.querySelector<HTMLElement>('.fm-res-icons');
+  const more = host.querySelector<HTMLButtonElement>('[data-act="more"]');
+  if (iconsRow) for (const b of host.querySelectorAll<HTMLElement>('.fm-res-main .fm-tray-only')) iconsRow.appendChild(b);
+  else if (trayExtras.length) {
+    const row = document.createElement('div');
+    row.className = 'fm-res-icons';
+    for (const b of host.querySelectorAll<HTMLElement>('.fm-res-main .fm-tray-only')) row.appendChild(b);
+    panel.appendChild(row);
+  }
+  more?.addEventListener('click', () => {
+    const open = !panel.classList.contains('tray-open');
+    panel.classList.toggle('tray-open', open);
+    more.setAttribute('aria-expanded', String(open));
+    if (open) host.querySelector<HTMLElement>('.fm-res-icons .fm-btn')?.focus({ preventScroll: true });
   });
   if (v.unlock) host.querySelector('[data-act="unlock"]')?.addEventListener('click', () => v.unlock!.run());
   for (const x of v.extra ?? []) host.querySelector(`[data-act="${x.act}"]`)?.addEventListener('click', () => x.run());
@@ -222,6 +268,9 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   }
   let last = '';
   let ghostNow = g;
+  const headSlot = host.querySelector<HTMLElement>('.fm-headline-slot');
+  let lastHead = headSlot?.innerHTML ?? '';
+  let lostNow = ghostLost;
   return {
     update(result, ghost) {
       if (ghost) ghostNow = ghost;
@@ -229,6 +278,25 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
       if (html !== last) {
         table.classList.remove('rows-in');
         table.innerHTML = last = html;
+      }
+      // the headline follows (the dare ghost's recomputed time, a cat finishing close behind)
+      const head = headlineHtml(result, ghostNow);
+      if (headSlot && head !== lastHead) {
+        headSlot.innerHTML = lastHead = head;
+        if (!calm) headSlot.querySelector('.fm-headline')?.classList.add('pop');
+      }
+      // lost the duel after all: Rematch becomes the big button (same ghost, same race)
+      const lost = lostToGhost(result, ghostNow);
+      if (lost && !lostNow) {
+        lostNow = true;
+        const nx = host.querySelector<HTMLElement>('[data-act="next"]');
+        const ag = host.querySelector<HTMLElement>('[data-act="again"]');
+        nx?.classList.remove('primary', 'big');
+        if (ag) {
+          ag.classList.add('primary', 'big');
+          ag.textContent = t('Rematch 👻');
+          ag.parentElement?.insertBefore(ag, ag.parentElement.querySelector('.fm-btn'));
+        }
       }
     },
     addLines(lines) {

@@ -37,26 +37,41 @@ export interface DareTextIn {
   link: string;
   /** set when the sender just beat someone's ghost */
   beat?: string | null;
+  /** racers in the field (1: a time trial or a ghost duel, so no place out of 8) */
+  field?: number;
+  /** the stunt brag (clip/highlight.ts stuntBrag), e.g. "3 loops, STUNT COMBO ×4 🌀" */
+  brag?: string | null;
+}
+
+/** "2nd/8 · 1:31.20", or just the time when the player raced alone. */
+function placeTime(place: number, time: number | null, field = 8): string {
+  return field > 1 ? `${ordinalText(place)}/${field} · ${fmtRaceTime(time)}` : fmtRaceTime(time);
 }
 
 /** "Beat 1:24.31 →" share text (GDD 8.2). */
 export function dareText(d: DareTextIn): string {
+  const field = d.field ?? 8;
   const head = d.beat
     ? `I just beat ${d.beat}'s ghost on ${d.trackName} in ${fmtRaceTime(d.time)}. Your turn.`
     : d.time != null
-      ? `My cat ran ${d.trackName} in ${fmtRaceTime(d.time)} (${ordinalText(d.place)}/8). Beat my ghost.`
+      ? field > 1
+        ? `My cat ran ${d.trackName} in ${fmtRaceTime(d.time)} (${ordinalText(d.place)}/${field}). Beat my ghost.`
+        : `My cat ran ${d.trackName} in ${fmtRaceTime(d.time)}. Beat my ghost.`
       : `My cat raced ${d.trackName}. Beat my ghost.`;
-  return `${head}\n${d.link}\n${HASHTAG}`;
+  const brag = d.brag ? `\n${d.brag}` : '';
+  return `${head}${brag}\n${d.link}\n${HASHTAG}`;
 }
 
-/** Caption that goes with the finish clip or result card. */
-export function clipCaption(d: { trackName: string; time: number | null; place: number; link: string }): string {
-  return `${ordinalText(d.place)}/8 on ${d.trackName} in Formula Meow (${fmtRaceTime(d.time)}). Beat my cat: ${d.link} ${HASHTAG}`;
+/** Caption that goes with the finish clip or result card ("2nd/8 · 1:31.20 · 3 loops, STUNT COMBO ×4 🌀 on …"). */
+export function clipCaption(d: { trackName: string; time: number | null; place: number; link: string; field?: number; brag?: string | null }): string {
+  const brag = d.brag ? ` · ${d.brag}` : '';
+  return `${placeTime(d.place, d.time, d.field)}${brag} on ${d.trackName} in Formula Meow. Beat my cat: ${d.link} ${HASHTAG}`;
 }
 
 /** Wordle-style daily card (GDD 9.2). */
-export function dailyCardText(d: { day: number; place: number; time: number | null; laps: readonly number[]; link: string; streak?: number; ghost?: boolean }): string {
-  const squares = d.laps.map(bandEmoji).join('');
+export function dailyCardText(d: { day: number; place: number; time: number | null; laps: readonly number[]; link: string; streak?: number; ghost?: boolean; stunts?: boolean }): string {
+  // a ranked run with stunts (a loop, a wall ride or a clean landing) gets the stunt emoji after the lap squares (F8)
+  const squares = d.laps.map(bandEmoji).join('') + (d.stunts ? ' 🌀' : '');
   const streak = d.streak && d.streak > 1 ? ` · ${d.streak}-day streak` : '';
   // with a ghost in the link, the receiver races this exact run: say so in the chat preview
   const beat = d.ghost && d.time != null ? `\nBeat my ${fmtRaceTime(d.time)} 👻` : '';
