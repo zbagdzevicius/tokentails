@@ -55,7 +55,7 @@ export class FeelDirector implements JuiceListener {
     }
     this.wrapRender();
     // QA (e2e/feel.spec.ts): is the post chain live
-    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled };
+    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled, occluders: () => this.occluders };
   }
 
   onReset(): void {
