@@ -102,6 +102,9 @@ export interface SayOpts {
 }
 
 /** Fields the HUD shows beyond v1 (iteration 2). */
+/** a small callout within this many ms of another one still showing is dropped (playtest, iteration 4) */
+export const CALLOUT_GAP_MS = 900;
+
 export interface HudModel {
   mode: RaceMode;
   /** fish coins held (shown when the track has coins) */
@@ -659,6 +662,9 @@ export class Hud {
     const ms = o.ms ?? (prio === 0 ? 3000 : 1400);
     const m: Msg = { text, o: { ...o, prio }, until: n + ms, at: n };
     if (o.id) this.queue = this.queue.filter((q) => q.o.id !== o.id);
+    // playtest: within 10 s of Laundry eight callouts fired back to back. A small callout (prio 1: ZOOM!, TRICK!,
+    // SLIPSTREAM!) that lands within 0.9 s of another callout still on screen is dropped, so the big moments stand out
+    if (prio === 1 && !o.id && this.cur && this.cur.until > n && (this.cur.o.prio ?? 1) >= 1 && n - this.cur.at < CALLOUT_GAP_MS) return;
     if (!this.cur || this.cur.until <= n || prio >= (this.cur.o.prio ?? 1) || (o.id && this.cur.o.id === o.id)) {
       this.show(m);
       return;
@@ -819,7 +825,8 @@ export class Hud {
         this.flash(t('LAP {n}', { n: e.a ?? 0 }), '', 2);
         break;
       case 'itemFizzle':
-        this.flash(t('NO ONE AHEAD'), 'cyan', 1);
+        // only a leader truly has no one ahead; behind cats that already finished it read as a brag (playtest, 8th/8)
+        if (this.lastPlace <= 1) this.flash(t('NO ONE AHEAD'), 'cyan', 1);
         break;
       case 'balloonPop':
         this.flash(t('POP!'), 'red', 2);

@@ -67,6 +67,11 @@ describe('achievements', () => {
     expect(new Set(cases.map((c) => c[0]))).toEqual(new Set(ACHIEVEMENTS.map((a) => a.id)));
   });
 
+  it('a 1v1 ghost duel gives neither Untouchable nor Pacifist for free (playtest)', () => {
+    expect(earned(ctx(race({ karts: 1 }, { hitsTaken: 0 }))).has('untouchable')).toBe(false);
+    expect(earned(ctx(race({ karts: 1, place: 1 }, { itemsUsed: 0 }))).has('pacifist')).toBe(false);
+  });
+
   it('is never earned twice', () => {
     const c = ctx(race({}, { pounce: true }), (s) => (s.achievements['first-pounce'] = 3));
     expect(earned(c).has('first-pounce')).toBe(false);

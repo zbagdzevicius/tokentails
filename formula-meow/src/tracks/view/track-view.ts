@@ -36,6 +36,10 @@ export class TrackView implements JuiceListener {
   private coins: CoinView | null = null;
   private hazards: HazardView | null = null;
   private group: Group | null = null;
+  /** the laundry sheets' opacity (QA, e2e) */
+  get sheetAlpha(): number[] {
+    return this.hazards?.sheetAlpha ?? [];
+  }
   /** the dressing that last loaded (tests and QA: `window.__fmTracks`) */
   dressed = '';
 
@@ -77,7 +81,8 @@ export class TrackView implements JuiceListener {
     if (!this.group) return;
     this.coins?.update(info.st, info.paused ? 0 : info.dt);
     // the sim stepped its hazards at tick st.tick - 1; interpolate like the karts
-    this.hazards?.update(info.st.tick - 2 + info.alpha, info.paused ? 0 : info.dt);
+    const k = info.st.karts[info.me];
+    this.hazards?.update(info.st.tick - 2 + info.alpha, info.paused ? 0 : info.dt, k ? { x: k.x, y: k.y, z: k.z } : null);
   }
 
   onEvent(e: RaceEvent): void {

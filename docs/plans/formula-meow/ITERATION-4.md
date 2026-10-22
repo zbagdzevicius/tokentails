@@ -324,3 +324,65 @@ boost-chain tally exports, which the juice lane must keep stable).
 | Ghost-only dare diverges | Shadow world unchanged; only the visible field changes; ±1 tick finish test |
 | Night readability, colour-blind mode | Screenshot review in both a11y modes |
 | Draw calls from faded furniture or ribbons | Instancing, reuse of speed-lines pass, Rug ≤ 80 gate |
+
+## 9. What shipped (final pass, 2026-10-22)
+
+Branch `feat/formula-meow`: the Engine commit (`9404a616`, SIM_VERSION 10 → 11), the four lanes merged in the planned
+order (feel → juice → modes → share-ugc, `9e4dbdea`…`c85003f9`), the integration fixes (`7f469b84`) and this final
+pass (playtest must-fixes and tuning). Nothing pushed.
+
+### Features
+
+| # | What the player sees | Status | Tests |
+|---|---|---|---|
+| F1 | From pole you lead into turn 1: the field's catch-up ramps in over 6 s after GO | shipped | `rubber-band` ramp cases, goldens, `balance.test.ts` |
+| F2 | Smart Steer on touch (Settings toggle), softer stick curve, readable tunnels on phones | shipped | `mux.test.ts`, `smart-steer.test.ts` (solo novice wall gate), `e2e/feel.spec.ts` |
+| F3 | A pulsing paw TAP! decal on every ramp and jump lip, laid flat on the run-up; tap around the lip for a trick | shipped; the decal was upright in the playtest and covered the kart | `stunt.test.ts`, `juice.test.ts` (`lipMatrix`), `e2e/stunt-juice.spec.ts` |
+| F4 | Overtake punch "+1 ▲", PHOTO FINISH / WON BY with the real margin | shipped | `juice.test.ts`, `audio.test.ts`, e2e photo stamp |
+| F5 | Slipstream ribbons and ring, DODGED!, final-lap gap chips with edge glow ("SIDE BY SIDE!" under 0.05 s), comeback / steal calls, FASTEST LAP, pass-by zips | shipped | `juice.test.ts`, `hud.test.ts` |
+| F6 | BOOST CHAIN ×n, ON FIRE (badge now under the place, away from the left thumb), "Best chain" on the results | shipped | `juice.test.ts` |
+| F7 | One results card on a phone: headline, Next / Rematch, Dare, "•••" tray; the clip button pulses only for a photo finish, a combo ×3+ or a chain ×4+ (loops alone no longer count) | shipped | `share.test.ts`, `highlight.test.ts`, `e2e/share.spec.ts` |
+| F8 | 12 s clips that pick the loop, landing, combo or photo finish, with a caption sticker; stunt brag in the share text | shipped | `highlight.test.ts`, `e2e/clip.spec.ts` |
+| F9 | Full-screen dare card (fits a landscape phone, the grid's PRESS ANY KEY waits behind it), 1v1 ghost duel with a live gap pill ("ghost stopped" when an old run never finishes), Rematch / Send it back, TT dares | shipped | `duel.test.ts`, `ugc-dare.test.ts`, `e2e/share.spec.ts` |
+| F10 | Doodles start with stunts, Spice it up, Surprise track, the sender's lap to beat, now carried with its class (`&cls=`) and shown only at that class | shipped | `surprise.test.ts`, `track-code.test.ts`, `e2e/editor.spec.ts` |
+| F11 | Wild Card mutators ("optional: shake up the race") and the Daily mutator; Night draws a moon (a crescent on Café) | shipped | `daily.test.ts`, `mutators.test.ts`, `e2e/modes.spec.ts` |
+| F12 | Style score (now weighted toward tricks, pink turbos and combos), stunt challenges, Loop-de-Meow and Combo King | shipped | `race-stats.test.ts`, `style.test.ts`, `achievements.test.ts` |
+| F13 | One-tap menu tiles, a Pounce strip under the countdown digit, a gentler GP (eased cats); no standings arrows after race 1 | shipped | `modes.test.ts`, `e2e/modes.spec.ts` |
+| F14 | Battle: furniture fades, a leader arrow, DOUBLE POINTS (now under the held item's name) and faster music in the last 30 s | shipped | `battle.test.ts`, `e2e/feel.spec.ts`, `e2e/modes.spec.ts` |
+
+### Playtest must-fixes (final pass)
+
+| Must-fix | Fix | Test |
+|---|---|---|
+| Landscape duel countdown: "Race Zyg's ghost" banner on the Pounce hint | no banner in a duel (the gap pill names the ghost); the banner sits bottom centre in landscape | `e2e/share.spec.ts` landscape test |
+| Landscape dare card cut at the bottom | compact landscape card | same test (card and TAP TO RACE inside 390 px) |
+| Laundry sheet hid the kart ~0.3 s a lap | camera-ray screen-door fade (`alphaHash`) on the sheet | `hazard-view.test.ts`, `e2e/feel.spec.ts` Laundry test |
+| 50cc too hard without drifting | cats ahead of the player ease off more at 50cc (`bandKAhead` 0.04, `bandDownAhead` 0.3); novice bot mean place 7.4 → 4.2, podium 0 → 40 % (60 races) | `balance.test.ts` novice gate |
+| Clip prompt after every loop track | loops alone never prompt | `highlight.test.ts` |
+| Achievement toast over the results buttons | toasts drop in at the top while results are up | `e2e/share.spec.ts` (portrait and landscape) |
+| Maker's lap ignored class | links carry `&cls=`; the target shows only at that class | `track-code.test.ts`, `e2e/editor.spec.ts` |
+| DOUBLE POINTS over the item name | chip placed under the name (phone, landscape, desktop) | `e2e/modes.spec.ts` battle test |
+| Dare card over PRESS ANY KEY | the prompt and banner hide while the card is up | `e2e/share.spec.ts` |
+| TAP! ring covered the kart | laid flat on the run-up, ending at the lip | `juice.test.ts` |
+| Desktop 8th place row under the fade | the list scrolls the player's row into view (or drops the fade) | `e2e/share.spec.ts` |
+| Grid label pill on the kart (1440x900) | bottom edge on desktop | `e2e/share.spec.ts` projection test |
+| GP arrows after race 1 | no arrows, rows open in their real places | `e2e/modes.spec.ts` |
+
+Tuning also applied: "Next up: … unlocked" only after a top-5 finish; no Rewards button when nothing waits; singular
+stunt counts; seconds never wrap away from their number; NO ONE AHEAD only for a leader; no free Untouchable /
+Pacifist in a 1v1 duel; "SIDE BY SIDE!"; duel results rank you out of two and put Rematch above Next; the first TT
+record is said once; small callouts within 0.9 s of another are dropped; other cats right at the lens are hidden;
+"by you" on your own track in the Tracks sheet; the `dare11` fixture is now a real SIM_VERSION 11 run.
+
+### Versions
+
+One SIM_VERSION bump in the iteration (10 → 11). The final pass changed 50cc races that have a human player (the band
+for the cats ahead of the player) without a second bump: no SIM_VERSION 11 build has shipped, so no v11 link exists
+outside dev builds. AI-only races are unchanged and the three golden hashes pass as they were. The trailer pipeline
+(`formula-meow/review/trailer`) was probed on SIM_VERSION 10 and needs a re-probe before a re-render.
+
+### Not done (next iteration)
+
+Softer 150cc band after the opening laps (sim), item boxes as boosts in a duel (sim), a target time for SIM_VERSION ≤ 10
+dares (the link has no trustworthy finish time), translucent battle balloons near the camera, a loop from auto-stunts
+on every hand-drawn doodle and stickers that never stack, "Name it" on the first share.

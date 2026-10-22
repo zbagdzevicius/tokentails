@@ -809,8 +809,10 @@ export class Shell {
         lines,
         cfg: w.cfg,
         // B43: the unlock is a button that starts the new class
+        // the "Next up" button only after a top-5 finish (playtest: pushing a harder class on a player who just came
+        // last read badly); the class is unlocked either way and waits in the class picker
         unlock:
-          unlocked != null && !modeActions
+          unlocked != null && !modeActions && result.player.place <= 5
             ? {
                 label: classUnlockLabel(unlocked), // [modes lane] F13
                 run: () => {

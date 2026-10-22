@@ -147,6 +147,15 @@ export class GapPill {
     this.shown++;
   }
 
+  /** The ghost's run ended without a finish: the pill says so instead of freezing on its last gap (playtest). */
+  stopped(): void {
+    const el = this.el;
+    if (!el || el.classList.contains('stopped')) return;
+    el.classList.remove('ahead', 'behind');
+    el.classList.add('stopped');
+    el.querySelector('b')!.textContent = t('ghost stopped');
+  }
+
   hide(): void {
     this.el?.remove();
     this.el = null;

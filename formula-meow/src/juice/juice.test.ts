@@ -5,7 +5,8 @@ import { PhotoFinishJudge, PHOTO_WAIT_TICKS, fmtMargin } from './photo-finish';
 import { DODGE, DodgeWatcher, projSamples } from './dodge';
 import { DUEL, DramaCalls, FastestLap, GapSmoother, PassZips, duelGlow, duelTension, fmtGap, raceGaps, type Zip } from './duel';
 import { BoostChain, CHAIN, boostChainTally } from './boost-chain';
-import { aheadOf, lipPulse, lipsOf } from './vfx/paw-rings';
+import { aheadOf, lipMatrix, lipPulse, lipsOf } from './vfx/paw-rings';
+import { Matrix4, Vector3 } from 'three';
 import { buildTrack } from '../core/track/build';
 import { KITCHEN } from '../core/track/tracks/kitchen';
 import { stuntLab } from '../test/fixtures';
@@ -524,6 +525,26 @@ describe('paw TAP! rings (F3 view)', () => {
       }
     }
     expect(lipsOf(buildTrack(KITCHEN)).length).toBeGreaterThan(0);
+  });
+  it('lies flat on the run-up and ends at the lip, never standing over the kart (playtest)', () => {
+    for (const def of [KITCHEN, stuntLab()]) {
+      const t = buildTrack(def);
+      for (const l of lipsOf(t)) {
+        const m = lipMatrix(l, t.tx[l.i], t.tz[l.i], new Matrix4());
+        const e = m.elements;
+        // the plane's normal (its z axis) points up: a decal, not a hoop
+        const n = new Vector3(e[8], e[9], e[10]).normalize();
+        expect(n.y).toBeGreaterThan(0.8);
+        // its far edge (local y = +0.5) sits at the lip, its near edge back down the run-up
+        const far = new Vector3(0, 0.5, 0).applyMatrix4(m);
+        const near = new Vector3(0, -0.5, 0).applyMatrix4(m);
+        expect(Math.hypot(far.x - l.x, far.z - l.z)).toBeLessThan(0.3);
+        expect(far.y - l.y).toBeLessThan(0.2);
+        expect(near.y).toBeLessThanOrEqual(far.y + 0.01);
+        // the whole decal is under 0.3 m above the lip: it can never hang over the kart
+        expect(Math.max(far.y, near.y) - l.y).toBeLessThan(0.3);
+      }
+    }
   });
   it('asleep far away, waking from 60 m, hot through the trick window, dim once past', () => {
     const v = 25;

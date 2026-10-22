@@ -51,3 +51,33 @@ export function playerBot(ctx: SimContext, me: number, skill = 0.6): TickInput {
   out.item = !!k.item && k.rouletteTicks === 0 && !k.pItem;
   return out;
 }
+
+/**
+ * A phone novice (playtest, iteration 4): auto-gas, steers by eye around the line (wobbling more than the average bot),
+ * never drifts, lifts late into the bends it cannot turn, no Pounce Start, items at once. The 50cc gate is that this
+ * player can race the pack, not just watch it leave (`balance.test.ts`).
+ */
+export function noviceBot(ctx: SimContext, me: number, skill = 0.35): TickInput {
+  const out: TickInput = { steer: 0, gas: false, brake: false, drift: false, item: false, itemBack: false };
+  const st = ctx.st;
+  if (st.tick < GO_TICK + 20) {
+    out.gas = st.tick >= GO_TICK + 12; // a late thumb, no Pounce Start
+    return out;
+  }
+  const wob = sinL(st.tick * 0.037 + me * 1.7) * (1 - skill) * 0.7;
+  followLine(ctx, me, out, wob, 0.85, skill);
+  out.gas = true;
+  out.drift = false;
+  const k = st.karts[me];
+  if (k.rail > 0 || k.netTicks > 0) return out;
+  if (!k.air) {
+    const sp = speedOf(k);
+    const top = classTuning(ctx.cfg.cls).topSpeed;
+    const yaw = sp <= PHYS.yawLowSpeed ? PHYS.yawLow : PHYS.yawLow + (PHYS.yawHigh - PHYS.yawLow) * Math.min(1, (sp - PHYS.yawLowSpeed) / (top - PHYS.yawLowSpeed));
+    const ahead = Math.max(Math.abs(curvatureAhead(ctx, k.si, 0, 6)), Math.abs(curvatureAhead(ctx, k.si, 4, 12)));
+    // lifts only once the bend is on it (a novice reacts late)
+    if (sp * ahead > yaw * 1.45) out.gas = false;
+  }
+  out.item = !!k.item && k.rouletteTicks === 0 && !k.pItem;
+  return out;
+}

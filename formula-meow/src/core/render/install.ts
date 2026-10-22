@@ -108,6 +108,7 @@ export class FeelDirector implements JuiceListener {
     if (cam.mode === 'flyover' && info.st.tick > 0) cam.skip();
     const k = info.st.karts[info.me];
     const view = this.shell.view;
+    if (view) view.eye = cam.cam.position;
     if (this.occluders && view) {
       const p = view.shown[info.me];
       const c = cam.cam.position;

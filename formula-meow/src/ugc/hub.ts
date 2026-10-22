@@ -13,7 +13,7 @@ import type { FrameInfo } from '../juice/bus';
 import { GO_TICK } from '../core/sim/world';
 import { TRACKS } from '../core/track/tracks';
 import { decodeTrackCode, encodeTrack } from './codec/track-code';
-import { extractCode, readTrackCode, trackLink, wantsEditor } from './codec/link';
+import { extractCode, extractLapClass, readLapClass, readTrackCode, trackLink, wantsEditor } from './codec/link';
 import { fmtLap, liveLapDelta, makerTargetLine, recordLap, setTarget, targetCs } from './maker-lap';
 import { setTrackCodec, trackFromLocation } from './codec/track-codec';
 import { trackCodecV1 } from './codec/track-code';
@@ -127,7 +127,7 @@ export class UgcHub {
     this.noteLinkLap(location.search, location.hash);
     shell.appBus.on('raceEnd', ({ result }) => {
       const id = this.shell.setup?.track.id;
-      if (id && id === result.trackId) recordLap(id, result.player.bestLap);
+      if (id && id === result.trackId) recordLap(id, result.player.bestLap, this.shell.setup?.cls ?? 0);
     });
   }
 
@@ -140,7 +140,7 @@ export class UgcHub {
     const code = readTrackCode(search, hash);
     if (!code) return;
     const d = decodeTrackCode(code);
-    if (d.ok) setTarget(d.track.id, d.creatorLapCs);
+    if (d.ok) setTarget(d.track.id, d.creatorLapCs, readLapClass(search, hash));
   }
 
   /** The live lap delta pill: this lap so far against the target lap, scaled to how far round the lap the kart is. */
@@ -204,7 +204,8 @@ export class UgcHub {
     }
     const track = this.shell.setup?.track;
     const ugc = !!track && track.id.startsWith('u-');
-    const target = ugc ? targetCs(track!.id) : null;
+    // only a lap driven at this race's class is a target (a 100cc lap is out of reach at 50cc)
+    const target = ugc ? targetCs(track!.id, this.shell.setup?.cls ?? 0) : null;
     this.lapDelta(info, target);
     const want = ugc && !this.bannerOff && !this.editorOpen && info.st.tick < GO_TICK + 180 && !info.paused;
     if (want && this.bannerFor !== track!.id) {
@@ -299,7 +300,7 @@ export class UgcHub {
           <button class="fm-btn primary" data-a="make">${esc(t('✍️ Make a track'))}</button>
           <button class="fm-btn" data-a="remix">${esc(t('🔀 Remix {name}', { name: displayName(cur) }))}</button>
         </div>
-        ${cur.id.startsWith('u-') ? `<p class="fm-line">${esc(displayName(cur))} · ${esc(byline(cur))} <button class="fm-ugc-chip" data-a="sharecur">${esc(t('🔗 Share'))}</button></p>` : ''}
+        ${cur.id.startsWith('u-') ? `<p class="fm-line">${esc(displayName(cur))} · ${esc(this.savedFor(cur) ? t('by you') : byline(cur))} <button class="fm-ugc-chip" data-a="sharecur">${esc(t('🔗 Share'))}</button></p>` : ''}
         <h2>${esc(t('Saved on this device'))}</h2>
         ${saved.length ? `<ul class="fm-ugc-list">${rows}</ul>` : `<p class="fm-line">${esc(t('Nothing yet. Make a track and it lands here.'))}</p>`}
         <h2>${esc(t('Got a track link?'))}</h2>
@@ -350,7 +351,7 @@ export class UgcHub {
       if (!code) return say(t('That does not look like a track link.'));
       const d = decodeTrackCode(code);
       if (d.ok) {
-        setTarget(d.track.id, d.creatorLapCs);
+        setTarget(d.track.id, d.creatorLapCs, extractLapClass(input.value));
         this.play(d.track);
       } else say(t('This track link is broken.'));
     };

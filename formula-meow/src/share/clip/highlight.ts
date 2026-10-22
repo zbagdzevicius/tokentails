@@ -200,7 +200,9 @@ export function finishSticker(photoMargin: number | null, finishTick: number | n
 
 /**
  * Why this race deserves a clip (the clip button pulses with it), or null for a quiet race: a photo finish, a
- * STUNT COMBO ×3 or more, or two or more loops. Measured in this race only. `key` is a `t()` key.
+ * STUNT COMBO ×3 or more, or a boost chain of ×4 or more. Loops alone never count: on Kitchen, Laundry, Café and
+ * Rooftops every lap has to ride one, so they made every quiet race nag (playtest, iteration 4). This race only;
+ * `key` is a `t()` key.
  */
 export function hypeReason(
   stats: Pick<RaceStats, 'bestCombo' | 'loops'> | undefined,
@@ -211,7 +213,6 @@ export function hypeReason(
   if (photo) return { key: 'That photo finish deserves a clip' };
   if (stats && stats.bestCombo >= 3) return { key: 'That ×{n} combo deserves a clip', n: stats.bestCombo };
   if (bestChain >= 4) return { key: 'That ×{n} chain deserves a clip', n: bestChain };
-  if (stats && stats.loops >= 2) return { key: '{n} loops deserve a clip', n: stats.loops };
   return null;
 }
 

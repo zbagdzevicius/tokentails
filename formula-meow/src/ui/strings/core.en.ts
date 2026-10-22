@@ -241,6 +241,7 @@ export const CORE_EN: Record<string, string> = {
   "POUNCE!": "POUNCE!",
   "CATCH!": "CATCH!",
   "DEFEND!": "DEFEND!",
+  "SIDE BY SIDE!": "SIDE BY SIDE!",
   "FASTEST LAP": "FASTEST LAP",
   "PHOTO FINISH": "PHOTO FINISH",
   "by {s} s": "by {s} s",

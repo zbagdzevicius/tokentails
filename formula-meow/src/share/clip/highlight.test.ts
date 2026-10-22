@@ -107,7 +107,9 @@ describe('clip hype and the stunt brag (F7, F8)', () => {
     expect(hypeReason(stats({ loops: 1, bestCombo: 2 }), false)).toBeNull();
     expect(hypeReason(stats({}), true)?.key).toBe('That photo finish deserves a clip');
     expect(hypeReason(stats({ bestCombo: 4 }), false)).toEqual({ key: 'That ×{n} combo deserves a clip', n: 4 });
-    expect(hypeReason(stats({ loops: 3 }), false)).toEqual({ key: '{n} loops deserve a clip', n: 3 });
+    // loops every lap must ride are not a highlight (playtest: '3 loops deserve a clip' after every 8th place)
+    expect(hypeReason(stats({ loops: 3 }), false)).toBeNull();
+    expect(hypeReason(stats({ loops: 9, walls: 3 }), false)).toBeNull();
     expect(hypeReason(undefined, false)).toBeNull();
     expect(hypeReason(stats({}), false, 3)).toBeNull();
     expect(hypeReason(stats({ loops: 3 }), false, 4)).toEqual({ key: 'That ×{n} chain deserves a clip', n: 4 });

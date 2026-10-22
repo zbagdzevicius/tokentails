@@ -22,6 +22,8 @@ npm run review:v2      # optional: every mode and screen at 1440x900 and 390x844
 npm run review:v3      # optional: every set piece on all 6 tracks frozen mid-piece at 1440x900 and 390x844, old
                        # dares and track codes, editor stickers in a fresh page; screenshots in
                        # review/v3/<size>-<track>-<piece>.png (~5 min, port 6131 or MEOW_REVIEW_PORT, gitignored)
+npm run review:v4      # optional: the iteration 4 playtest fixes and features at 1440x900, 390x844 and 844x390;
+                       # screenshots in review/v4/<size>-<feature>.png (port MEOW_REVIEW_PORT, gitignored)
 npm run build:client   # → ../client/public/formula-meow-game, commit that folder
 ```
 
@@ -51,6 +53,14 @@ OG pages) is copied into this package, never imported across packages.
   rubber band keeps the pack close.
 - Presentation: cel-shaded karts with hats, trails and animations, a flyover before the race, the respawn hand,
   particles, bloom on fast devices, 8 synth songs and a cat announcer.
+- Iteration 4 ("more fun", `docs/plans/formula-meow/ITERATION-4.md`): a pole you can defend, Smart Steer on touch,
+  TAP! paw rings on every ramp lip (laid on the run-up) and a wider trick window, overtake punch and photo finishes
+  with the real margin, slipstream ribbons, DODGED!, final-lap gap chips, boost chains and ON FIRE, a one-card phone
+  results screen, clips that pick the best stunt, 1v1 ghost duels from dare links and Time Trial, doodles that start
+  with stunts and carry the sender's lap (with its class), Wild Card mutators and a Daily mutator, a Style score with
+  stunt challenges, one-tap menu tiles, a gentler Grand Prix climb, and a readable Balloon Battle (furniture fades,
+  a leader arrow, double points in the last 30 s). Kitten 50cc gives a player who never drifts room to learn: the cats
+  just ahead of the player ease off more.
 - Accessibility: reduced motion, colour-blind colours, high contrast, text size and captions.
 - Track Doodle (UGC editor): draw a loop, add stickers (hazards and shortcuts included), race it, share it in a link.
 - Sharing: dare a friend (your ghost rides in the link), a 12 s vertical finish clip, the Daily Cup, racing as your
@@ -80,8 +90,15 @@ Esc pause. Gamepad: standard mapping (left stick, RT/A, LT/B, RB drift, X/LB ite
   in links.
 - `SIM_VERSION` 11 (iteration 4: the rubber band ramps in over 6 s after GO, a wider trick window with a tap buffered
   just before the lip, battle double points in the last 30 s): dares, time-trial ghosts and records from earlier versions
-  open as a target-time race with a notice, but their ghost cannot race. Track codes from before the set pieces (v1,
-  v2) still open, with no set pieces.
+  open as a target-time race with a notice, but their ghost cannot race (the card and HUD show no target time for
+  them yet). Track codes from before the set pieces (v1, v2) still open, with no set pieces. The final pass changed
+  50cc races with a human (the cats ahead of the player ease off more) without a bump: no SIM_VERSION 11 link had left
+  a dev build; AI-only races and the golden hashes are unchanged.
+- 150cc packs finish very close (all 8 within 1.7 s on Kitchen in the playtest): it can read as chance. A softer
+  150cc band after the opening laps is a sim change for a later iteration.
+- Not yet done from the iteration 4 playtest: translucent battle balloons when the camera sits low against the sofa,
+  item boxes that turn into boosts in a 1v1 duel (a sim change), a loop from auto-stunts on every hand-drawn doodle,
+  "Name it" on the first share of an untitled doodle.
 - Headless (SwiftShader) runs drop the render scale, so CI screenshots look softer than a real phone.
 - The minimap draws the main loop only, not the alternative routes.
 - Single race keeps its own class pick (50cc by default); it does not start from the class a v1 save last used.

@@ -275,7 +275,7 @@ export const MODES_EN: Record<string, string> = {
   '🃏 Wild Card: {m}': '🃏 Wild Card: {m}',
   'Next up: {c} unlocked → race it': 'Next up: {c} unlocked → race it',
   'Wild Card': 'Wild Card',
-  'optional: shake up the items': 'optional: shake up the items',
+  'optional: shake up the race': 'optional: shake up the race',
   'Off': 'Off',
   'Normal items': 'Normal items',
   'From {c}': 'From {c}',

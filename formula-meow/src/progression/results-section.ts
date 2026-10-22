@@ -110,11 +110,13 @@ export function styleBlock(a: Award, stats: RaceStats | undefined): HTMLElement 
   countUp(score, 0, st.score, 800);
   const parts: string[] = [];
   if (stats) {
-    if (stats.loops) parts.push(t('➰ {n} loops', { n: stats.loops }));
-    if (stats.cleanLandings) parts.push(t('🛬 {n} landings', { n: stats.cleanLandings }));
-    if (stats.walls) parts.push(t('🧱 {n} wall rides', { n: stats.walls }));
-    if (stats.tricks) parts.push(t('🤸 {n} tricks', { n: stats.tricks }));
-    if (stats.miniTurbos[2]) parts.push(t('💗 {n} pink turbos', { n: stats.miniTurbos[2] }));
+    // one of each reads in the singular (playtest: "➰ 1 loops")
+    const n1 = (n: number, one: string, many: string) => t(n === 1 ? one : many, { n });
+    if (stats.loops) parts.push(n1(stats.loops, '➰ 1 loop', '➰ {n} loops'));
+    if (stats.cleanLandings) parts.push(n1(stats.cleanLandings, '🛬 1 landing', '🛬 {n} landings'));
+    if (stats.walls) parts.push(n1(stats.walls, '🧱 1 wall ride', '🧱 {n} wall rides'));
+    if (stats.tricks) parts.push(n1(stats.tricks, '🤸 1 trick', '🤸 {n} tricks'));
+    if (stats.miniTurbos[2]) parts.push(n1(stats.miniTurbos[2], '💗 1 pink turbo', '💗 {n} pink turbos'));
     if (stats.bestCombo >= 2) parts.push(t('combo ×{n}', { n: stats.bestCombo }));
   }
   const best = st.newBest

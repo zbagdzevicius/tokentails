@@ -25,7 +25,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   let wild: WildPick = f.save.last.quickWild;
   const classes = h('div');
   const tracks = h('div', { class: 'fm-m-chips fm-m-tracks' });
-  const wildHead = h('h3', { class: 'fm-m-wild-h' }, [t('Wild Card'), h('small', {}, [t('optional: shake up the items')])]);
+  const wildHead = h('h3', { class: 'fm-m-wild-h' }, [t('Wild Card'), h('small', {}, [t('optional: shake up the race')])]);
   const wildRow = h('div', { class: 'fm-m-chips fm-m-wild', role: 'group', 'aria-label': t('Wild Card') });
   // compact chips (icon + name, three a row on a phone); the picked card's rule reads on one line under them
   const wildNote = h('p', { class: 'fm-m-wild-note', 'aria-live': 'polite' });

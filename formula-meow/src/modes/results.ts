@@ -37,7 +37,8 @@ export function modesResultSection(ctx: ResultCtx): HTMLElement | null {
       return box;
     }
     if (r.medal) box.append(h('p', { class: 'fm-m-res-big' }, [`${MEDAL_ICON[r.medal]} ${t(MEDAL_NAME[r.medal])}${r.medal > r.prevMedal && r.prevMedal ? ` · ${t('upgraded!')}` : ''}`]));
-    if (r.newRecord) box.append(h('p', { class: 'fm-m-res-big' }, [r.prev != null ? t('New record! {d}', { d: fmtDelta(r.time - r.prev) }) : t('First record set!')]));
+    // a first record is the results headline already ("First record set!"), so it is not said twice
+    if (r.newRecord && r.prev != null) box.append(h('p', { class: 'fm-m-res-big' }, [t('New record! {d}', { d: fmtDelta(r.time - r.prev) })]));
     else if (r.prev != null) box.append(h('p', { class: 'fm-line' }, [t('Your best: {t} ({d})', { t: fmt(r.prev), d: fmtDelta(r.time - r.prev) })]));
     if (r.ghostTime != null) {
       const d = r.time - r.ghostTime;

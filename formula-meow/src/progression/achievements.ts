@@ -51,7 +51,8 @@ const trophy = (s: ProgSave, cup: string) => Object.entries(s.trophies).some(([k
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { id: 'first-pounce', icon: '🐾', name: 'First Pounce', desc: 'Get a Pounce Start: press gas on MEOW!', test: ({ race }) => !!race?.stats.pounce },
   { id: 'pink-turbo', icon: '💗', name: 'Pink Turbo', desc: 'Hold a drift long enough for a pink mini-turbo', test: ({ race }) => (race?.stats.miniTurbos[2] ?? 0) > 0 },
-  { id: 'untouchable', icon: '🛡️', name: 'Untouchable', desc: 'Finish a race without being hit', test: ({ race }) => racing(race) && race.finished && race.stats.hitsTaken === 0 },
+  // a 1v1 ghost duel has nobody to hit you or to hold back from (playtest: both came free there)
+  { id: 'untouchable', icon: '🛡️', name: 'Untouchable', desc: 'Finish a race without being hit', test: ({ race }) => racing(race) && race.karts > 1 && race.finished && race.stats.hitsTaken === 0 },
   { id: 'comeback', icon: '🚀', name: 'Comeback Cat', desc: 'Win a race after falling to last place', test: ({ race }) => won(race) && race.karts > 1 && race.stats.worstPlace >= race.karts },
   { id: 'revenge', icon: '😼', name: 'Revenge', desc: 'Hit your rival with an item', test: ({ race }) => !!race?.hitRival },
   { id: 'collector', icon: '🐟', name: 'Collector', desc: 'Hold 10 fish coins at once', test: ({ race }) => (race?.maxCoinsHeld ?? 0) >= 10 },
@@ -75,7 +76,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     progress: ({ s, circuits }) => [circuits.filter((t) => Object.entries(s.medals).some(([k, m]) => k.startsWith(`${t}:`) && m === 1)).length, circuits.length],
   },
   { id: 'last-cat-standing', icon: '🎈', name: 'Battle Champ', desc: 'Win a balloon battle on points', test: ({ race, s }) => (race?.mode === 'battle' && race.place === 1) || s.stats.battleWins > 0 },
-  { id: 'pacifist', icon: '🕊️', name: 'Pacifist', desc: 'Win a race without using an item', test: ({ race }) => won(race) && race.stats.itemsUsed === 0 },
+  { id: 'pacifist', icon: '🕊️', name: 'Pacifist', desc: 'Win a race without using an item', test: ({ race }) => won(race) && race.karts > 1 && race.stats.itemsUsed === 0 },
   { id: 'air-cat', icon: '🤸', name: 'Air Cat', desc: 'Land 5 tricks in one race', test: ({ race }) => (race?.stats.tricks ?? 0) >= 5 },
   { id: 'slipstreamer', icon: '💨', name: 'Slipstreamer', desc: 'Catch 4 slipstreams in one race', test: ({ race }) => (race?.stats.slipstreams ?? 0) >= 4 },
   {

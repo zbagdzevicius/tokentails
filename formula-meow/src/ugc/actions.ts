@@ -4,14 +4,15 @@
  */
 import type { TrackDef } from '../types';
 import { encodeTrack, trackKey, ugcId } from './codec/track-code';
-import { shareLapCs } from './maker-lap';
+import { shareLap } from './maker-lap';
 import { trackLink } from './codec/link';
 import { loadCreator } from './store';
 import { ugcPieces } from './editor/pieces';
 
 /** The track's link; it carries this device's best lap on it (or the lap the link came with), F10 "Beat the maker". */
 export function linkFor(def: TrackDef): string {
-  return trackLink(encodeTrack(def, { creatorLapCs: shareLapCs(ugcId(def)) }), location);
+  const lap = shareLap(ugcId(def));
+  return trackLink(encodeTrack(def, { creatorLapCs: lap?.cs }), location, lap?.cls ?? undefined);
 }
 
 /** Native share sheet when there is one, else the clipboard. Resolves to a short status line for the UI. */

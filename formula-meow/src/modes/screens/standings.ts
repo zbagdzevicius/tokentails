@@ -24,7 +24,9 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const done = run.race >= cup.races.length;
   const fr = frame(root, { title: t('Standings'), sub: t('{cup} · after race {n} of {of}', { cup: t(cup.name), n: run.race, of: cup.races.length }), cls: 'fm-m-standings', noBack: true });
   const now = standings(run);
-  const before = f.lastOrder.length === now.length ? f.lastOrder : now;
+  // after race 1 there is no earlier standing to move from (everyone had 0 points; the old order was the racer list),
+  // so no ▲/▼ arrows and no slide: the rows open in their real places (playtest: "You ▼3" after a 4th from 6th)
+  const before = run.race > 1 && f.lastOrder.length === now.length ? f.lastOrder : now;
   const gained = f.lastGained.length === now.length ? f.lastGained : now.map(() => 0);
   const table = h('div', { class: 'fm-m-stand', role: 'table', style: `height:${now.length * ROW_H}px` });
   const rows = now.map((fi) => {

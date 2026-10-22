@@ -342,3 +342,45 @@ test('Rug: furniture in the way fades to 30 % within 80 draw calls; the open flo
   expect(maxCalls).toBeLessThanOrEqual(88);
   expect(errors).toEqual([]);
 });
+
+/**
+ * Playtest (iteration 4): Laundry Spin's hanging sheet passed between the chase camera and the kart, filling the screen
+ * for ~0.3 s a lap. Staged like the Rug test: the kart pinned just past a sheet's washing line with the chase camera
+ * snapped behind it; the sheet fades (screen-door) and comes back once the line is clear.
+ */
+test('Laundry: the hanging sheet fades while it is between the camera and the kart', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
+  await page.goto('/?bot=1&seed=3&track=laundry');
+  await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(240);
+  const alpha = () => page.evaluate(() => (window as unknown as { __fmTracks: { sheetAlpha: number[] } }).__fmTracks.sheetAlpha);
+  expect((await alpha()).length).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    type K = { x: number; y: number; z: number; vx: number; vz: number; heading: number };
+    type H = { kind: string; x: number; y: number; z: number; tx: number; tz: number; halfW: number };
+    type S = { me: number; world: { st: { karts: K[] }; track: { hazards: H[] } }; camera: { snap(x: number, y: number, z: number, h: number): void } };
+    const w = window as unknown as { __fm: { shell: S }; __pin?: boolean };
+    const s = w.__fm.shell;
+    const hz = s.world.track.hazards.find((p) => p.kind === 'laundry')!;
+    const h = Math.atan2(hz.tx, hz.tz);
+    const x = hz.x + hz.tx * 2.5;
+    const z = hz.z + hz.tz * 2.5;
+    const pin = () => Object.assign(s.world.st.karts[s.me], { x, y: hz.y, z, vx: hz.tx * 0.01, vz: hz.tz * 0.01, heading: h });
+    pin();
+    s.camera.snap(x, hz.y, z, h);
+    w.__pin = true;
+    const loop = () => {
+      if (!w.__pin) return;
+      pin();
+      requestAnimationFrame(loop);
+    };
+    loop();
+  });
+  await expect.poll(async () => Math.min(...(await alpha())), { timeout: 5_000 }).toBeLessThan(0.3);
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: 'e2e/screens/feel-laundry-sheet-fade.png' });
+  await page.evaluate(() => ((window as unknown as { __pin?: boolean }).__pin = false));
+  // racing on, the line clears and every sheet comes back solid
+  await expect.poll(async () => Math.min(...(await alpha())), { timeout: 15_000 }).toBe(1);
+  expect(errors).toEqual([]);
+});

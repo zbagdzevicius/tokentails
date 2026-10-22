@@ -106,6 +106,19 @@ function drawCelestial(themeId: number, theme: Theme): CanvasTexture | null {
       g.fillRect(0, y, S, S * (0.006 + i * 0.004));
     }
     g.globalCompositeOperation = 'source-over';
+  } else if (theme.night) {
+    // a night sky with no moon of its own (Café after dark): a plain crescent, no rays (playtest: the rayed white
+    // disc still read as a sun on Café Night)
+    glow(S * 0.42, '#b4c0ff', 0.45);
+    g.fillStyle = '#f4f1ff';
+    g.beginPath();
+    g.arc(cx, cx, S * 0.2, 0, Math.PI * 2);
+    g.fill();
+    g.globalCompositeOperation = 'destination-out';
+    g.beginPath();
+    g.arc(cx + S * 0.09, cx - S * 0.06, S * 0.17, 0, Math.PI * 2);
+    g.fill();
+    g.globalCompositeOperation = 'source-over';
   } else {
     // day sun (kitchen window / laundry): bright core, soft rays
     glow(S * 0.36, themeId === 0 ? '#ffd98a' : '#ffffff', 0.5); // a smaller, warmer halo: no blown-out portrait sky

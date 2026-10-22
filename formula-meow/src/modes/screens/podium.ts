@@ -10,6 +10,7 @@ import type { RacerInfo } from '../../types';
 import { h } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow } from '../flow';
+import { hasRewards } from '../../progression/api';
 import { standings, simClass } from '../gp/cup';
 import type { CupRun } from '../store';
 import { classLabel, focusFirst, frame, plain, primary, TROPHY, heldBack } from './ui';
@@ -51,14 +52,16 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
   const nextCup = CUPS[i + 1];
   const nextOpen = nextCup && !f.lock('cup', nextCup.id);
   // the rewards show once, before the podium is left whichever way (they used to pop up over the menu later)
-  let seen = !hasScreen('rewards');
+  // playtest: an 8th place overall opened a big pink "Rewards 🎁" onto "+0 🐟": with nothing waiting there is no button
+  const rewardsUp = hasScreen('rewards') && hasRewards();
+  let seen = !rewardsUp;
   const rewardsParams = { cupId: run.cupId, cls: simClass(run.cls), place: outcome.place, points: outcome.points };
   const via = (go: () => void) => () => {
     if (seen) return go();
     seen = true;
     void screens.push('rewards', { ...rewardsParams, then: go });
   };
-  if (hasScreen('rewards')) {
+  if (rewardsUp) {
     // two rows: Rewards full width, then the three small buttons
     // B1: the rewards can be opened once; after that the button says so and does nothing (it showed "+0 🐟" again)
     const rw = primary(
@@ -79,7 +82,7 @@ export function mount(root: HTMLElement, params: unknown, _api: ScreenApi): Scre
     rw.classList.add('big', 'fm-m-rw');
     fr.footer.append(rw);
   }
-  if (nextOpen) fr.footer.append((hasScreen('rewards') ? plain : primary)(t('Next cup ▶'), via(() => f.startCup(nextCup.id, run.cls)), 'next-cup'));
+  if (nextOpen) fr.footer.append((rewardsUp ? plain : primary)(t('Next cup ▶'), via(() => f.startCup(nextCup.id, run.cls)), 'next-cup'));
   fr.footer.append(plain(t('Again ↻'), via(() => f.startCup(run.cupId, run.cls)), 'again'));
   fr.footer.append(plain(t('Menu'), via(() => f.goMenu()), 'menu'));
   focusFirst(root);
