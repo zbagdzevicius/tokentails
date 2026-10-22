@@ -381,6 +381,18 @@ for the cats ahead of the player) without a second bump: no SIM_VERSION 11 build
 outside dev builds. AI-only races are unchanged and the three golden hashes pass as they were. The trailer pipeline
 (`formula-meow/review/trailer`) was probed on SIM_VERSION 10 and needs a re-probe before a re-render.
 
+### Release fixes (2026-10-22, before the merge to `main`)
+
+The full e2e run after the final pass found seven failures, fixed forward: stunt calls (LOOP-DE-MEOW!, WALL RIDE!,
+BIG AIR!, combos) carry an id so the 0.9 s small-callout gap never drops them; on a landscape phone a toast over the
+results keeps to the left half (it covered Next); the clip test races seed 1 (seed 5 is no photo finish since the
+50cc easing); the TT dare headline is "First record set!"; the maker-lap class check rides the lap class in the hash;
+the Laundry fade staging pins the kart's road sample too; the desktop 8th-row check follows the implemented rule
+(scroll into view, else no fade); the in-browser Smart Steer gate is "engages, finishes faster, keeps up" (Kitchen
+seed 21: wall ticks 28 without and 34 with it in the pack; the quarter-as-often wall gate runs solo in
+`smart-steer.test.ts`). Then 75/75 e2e. Formula Meow is in the PLAY picker, the home games hub, the sitemap and the
+blog's Games line (docs/CLIENT.md "Formula Meow (/meow-race)").
+
 ### Not done (next iteration)
 
 Softer 150cc band after the opening laps (sim), item boxes as boosts in a duel (sim), a target time for SIM_VERSION ≤ 10

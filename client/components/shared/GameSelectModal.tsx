@@ -1,5 +1,13 @@
 import { PixelButton } from "./PixelButton";
 import { BADCAT_PATH, BADCAT_PREVIEW, BADCAT_TITLE, badcatEntryEnabled, badcatHref } from "@/components/badcat/entry";
+import {
+  FORMULA_MEOW_PATH,
+  FORMULA_MEOW_PICKER_DESCRIPTION,
+  FORMULA_MEOW_PREVIEW,
+  FORMULA_MEOW_TITLE,
+  formulaMeowEntryEnabled,
+  formulaMeowHref,
+} from "@/components/formula-meow/entry";
 import { RAVE_PATH, RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, RAVE_TITLE, raveEntryEnabled, raveHref } from "@/components/rave/entry";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
@@ -89,6 +97,9 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Moon Rave card's key: a free string, not a GameType (the rave is a page, not a Phaser mode). */
 export const RAVE_CARD_KEY = "RAVE";
 
+/** The Formula Meow card's key: a free string, not a GameType (the kart game saves no scores). */
+export const FORMULA_MEOW_CARD_KEY = "FORMULA_MEOW";
+
 /** The Bad Cat Daily card's key: a free string, not a GameType (its runs save as `BAD_CAT` from the game). */
 export const BADCAT_CARD_KEY = "BADCAT";
 /** The Bad Cat card's line: the game's own pitch, short enough for the phone column. */
@@ -129,6 +140,7 @@ export interface GameCard {
   previewBg?: string;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "PAWLEGENDS";
 }
 
@@ -143,6 +155,9 @@ export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
 =======
   previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE";
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW";
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
 }
 
 /**
@@ -154,6 +169,7 @@ export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
   if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
   if (card.key === RAVE_CARD_KEY) return raveHref("picker");
+  if (card.key === FORMULA_MEOW_CARD_KEY) return formulaMeowHref("picker");
   return card.href;
 };
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
@@ -197,13 +213,18 @@ const cardTestId = (card: GameCard) =>
 =======
  * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, five or six
 <<<<<<< HEAD
+<<<<<<< HEAD
  * sit three to a row (3 + 2 centred, or 3 + 3), and seven sit four to a row (4 + 3 centred). The Moon
+=======
+ * sit three to a row (3 + 2 centred, or 3 + 3), and seven or eight sit four to a row (4 + 3 centred, or 4 + 4). The Moon
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
  * Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave`
  * is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is seasonal
  * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
  * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes
  * last, when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app
+<<<<<<< HEAD
  * build). Web builds show six cards outside the Cupid season and seven in it.
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
 =======
@@ -218,6 +239,11 @@ const cardTestId = (card: GameCard) =>
  * when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app build). Web
  * builds show seven cards outside the Cupid season and eight in it.
 >>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
+=======
+ * build). Formula Meow (`/meow-race`) follows Bad Cat, when `includeFormulaMeow` is set
+ * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Web builds show seven
+ * cards outside the Cupid season and eight in it.
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
  */
 export function gameCards(
   includeHeist: boolean,
@@ -231,8 +257,13 @@ export function gameCards(
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 =======
   includeBadcat = false,
+<<<<<<< HEAD
   includeRave = false
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+  includeRave = false,
+  includeFormulaMeow = false
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
 ): GameCard[] {
   const cards: GameCard[] = [];
   if (includeRave) {
@@ -352,6 +383,17 @@ export function gameCards(
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 =======
 >>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
+    });
+  }
+  if (includeFormulaMeow) {
+    cards.push({
+      key: FORMULA_MEOW_CARD_KEY,
+      href: FORMULA_MEOW_PATH,
+      title: FORMULA_MEOW_TITLE.toUpperCase(),
+      description: FORMULA_MEOW_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: FORMULA_MEOW_PREVIEW.src,
+      previewVariant: "FORMULA_MEOW",
     });
   }
   return cards;
@@ -591,11 +633,31 @@ const RavePreview = () => (
   </span>
 );
 
+/** A frame of a real race on Kitchen's loop (`FORMULA_MEOW_PREVIEW`). */
+const FormulaMeowPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={FORMULA_MEOW_PREVIEW.src}
+      width={FORMULA_MEOW_PREVIEW.width}
+      height={FORMULA_MEOW_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-formula_meow-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "RAVE") return <RavePreview />;
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
   if (card.previewVariant === "BADCAT") return <BadcatPreview />;
+<<<<<<< HEAD
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
+=======
+  if (card.previewVariant === "FORMULA_MEOW") return <FormulaMeowPreview />;
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -674,7 +736,12 @@ interface GameSelectModalProps {
 =======
   /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
   showRave?: boolean;
+<<<<<<< HEAD
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+  /** Override `formulaMeowEntryEnabled()` (every web build; never the app build) (tests). */
+  showFormulaMeow?: boolean;
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -682,6 +749,7 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -699,6 +767,10 @@ interface GameSelectModalProps {
 =======
  * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat and Bad Cat Daily).
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+ * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily and
+ * Formula Meow).
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
@@ -713,7 +785,11 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 =======
   showRave,
+<<<<<<< HEAD
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+  showFormulaMeow,
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
   navigate,
 }) => {
   const now = new Date();
@@ -729,8 +805,13 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
 >>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 =======
     showBadcat ?? badcatEntryEnabled(),
+<<<<<<< HEAD
     showRave ?? raveEntryEnabled()
 >>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
+=======
+    showRave ?? raveEntryEnabled(),
+    showFormulaMeow ?? formulaMeowEntryEnabled()
+>>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
   );
   const cupidOpen = isCupidSeason(now);
 
@@ -807,8 +888,8 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
-    // Seven (the Cupid season): four to a row, 4 + 3 centred.
-    cards.length === 4 || cards.length === 7 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
+    // Seven or eight: four to a row, 4 + 3 centred or 4 + 4.
+    cards.length === 4 || cards.length >= 7 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
     // Short landscape phones: five cards share one row there (a second row would sit below the fold of
     // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
     // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.

@@ -97,6 +97,11 @@
    top instead, narrow enough to clear the corner stickers (playtest: "Achievement: Ghostbuster +25" hid the buttons) */
 body:has(.fm-overlay.on) .fm-ui-toasts { bottom: auto; top: calc(10px + env(safe-area-inset-top)); }
 body:has(.fm-overlay.on) .fm-ui-toast { max-width: min(62vw, 420px); padding: 6px 12px; font-size: var(--fm-fs-s, 14px); }
+/* a landscape phone puts Next at the top of the right column: the toast keeps to the left half (over the title) */
+@media (orientation: landscape) and (max-height: 520px) {
+  body:has(.fm-overlay.on) .fm-ui-toasts { right: 50%; }
+  body:has(.fm-overlay.on) .fm-ui-toast { max-width: 46vw; }
+}
 @keyframes fm-toast { from { transform: translateY(16px) scale(0.9); opacity: 0; } to { transform: none; opacity: 1; } }
 .fm-ui-modal { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(26, 18, 56, 0.6); font-family: var(--fm-font); font-weight: 800; }
 [data-ui-layer] :focus-visible, .fm-ui-modal :focus-visible { outline: 4px solid var(--fm-focus); outline-offset: 2px; box-shadow: 0 0 0 8px rgba(44, 246, 243, 0.3); }

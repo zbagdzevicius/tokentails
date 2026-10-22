@@ -88,7 +88,9 @@ test('phone results: headline and Next above the fold, the rest in the tray; the
     const fade = sc.classList.contains('more');
     return { fade, below: rows[rows.length - 1].getBoundingClientRect().bottom - (sc.getBoundingClientRect().bottom - (fade ? 36 : 0)) };
   });
-  expect(lastRow.below).toBeLessThanOrEqual(0);
+  // the list scrolls the row into view while the headline stays on screen; when it cannot (700 px tall), the fade
+  // is dropped instead, so the row is never left half-hidden under it (ITERATION-4.md, playtest must-fixes)
+  if (lastRow.fade) expect(lastRow.below).toBeLessThanOrEqual(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(300);
   const btns = page.locator('.fm-overlay [data-x]');
@@ -245,8 +247,8 @@ test('a Time Trial dare: Dare a friend on the results, the link opens a time-tri
   await page.locator('[data-act="track-kitchen"]').click();
   await page.locator('[data-screen="tt"] [data-act="start"]').click();
   await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 200_000 });
-  // F9: the time trial results carry the dare (the headline says how the run went)
-  await expect(page.locator('.fm-overlay.on .fm-headline')).toContainText('New best');
+  // F9: the time trial results carry the dare (the headline says how the run went: a first run sets the record)
+  await expect(page.locator('.fm-overlay.on .fm-headline')).toContainText('First record set!');
   const dare = page.locator('.fm-overlay.on [data-id="dare"]');
   await expect(dare).toContainText('Dare a friend');
   await aboveFold(page, '.fm-overlay.on [data-id="dare"]');

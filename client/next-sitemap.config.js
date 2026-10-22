@@ -40,11 +40,13 @@ module.exports = {
             return [];
         }
         const base = origin();
-        return feed.sitemapEntries(feed.loadFeed(), base).map((row) => ({
+        // Static games served by next.config.js rewrites (not pages, so next-sitemap cannot see them).
+        const games = [{ loc: '/meow-race' }];
+        return games.concat(feed.sitemapEntries(feed.loadFeed(), base).map((row) => ({
             // next-sitemap prefixes siteUrl itself: pass the path.
             loc: row.loc.slice(base.length) || '/',
             lastmod: row.lastmod,
             ...(row.images ? { images: row.images.map((img) => ({ loc: new URL(img.loc) })) } : {}),
-        }));
+        })));
     },
 };

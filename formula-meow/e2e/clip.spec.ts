@@ -21,10 +21,11 @@ test('the finish clip encodes a 12 s vertical MP4 and goes to the share sheet', 
       },
     });
   });
-  await page.goto('/?bot=1&seed=5&speed=8');
+  await page.goto('/?bot=1&seed=1&speed=8');
   await expect(page.locator('.fm-overlay.on .fm-place')).toBeVisible({ timeout: 110_000 });
   const clipBtn = page.locator('.fm-overlay [data-x="0"]');
-  // F7: seed 5 ends in a photo finish with three loops: the clip button pulses and says why, above the fold
+  // F7: seed 1 ends in a photo finish (since the 50cc easing; seed 5 no longer does): the clip button pulses and says
+  // why, above the fold
   await expect(clipBtn).toHaveClass(/fm-hype/);
   await expect(page.locator('.fm-overlay .fm-hype-line')).toHaveText(/deserves? a clip/);
   const hb = (await page.locator('.fm-overlay .fm-hype-line').boundingBox())!;
