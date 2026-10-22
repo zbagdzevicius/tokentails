@@ -12,6 +12,7 @@ import type { ScreenApi, ScreenHandle } from '../../core/app/screens';
 import type { Colourblind, Settings } from '../../core/app/save';
 import { button, h, panel, slider, tabs, toggle, actionFooter } from '../kit';
 import { t } from '../i18n';
+import { FEEL_KEYS } from '../strings/feel.en';
 import { touchHelp } from '../../core/app/race-labels';
 import { TIER_COLOURS } from '../a11y';
 import { uiShell } from '../shell-ref';
@@ -82,10 +83,10 @@ export function mount(root: HTMLElement, _params: unknown, api: ScreenApi): Scre
       set({ oneThumb: v });
       if (touch) helpLine.textContent = touchHelp(v);
     }),
-    toggle(t('Smart Steer'), s?.smartSteer ?? true, (v) => {
+    toggle(t(FEEL_KEYS.smartSteer), s?.smartSteer ?? true, (v) => {
       set({ smartSteer: v });
     }),
-    h('p', { class: 'fm-line fm-help' }, [t('Smart Steer nudges your touch steering away from the walls. Keys and gamepads are never changed.')]),
+    h('p', { class: 'fm-line fm-help' }, [t(FEEL_KEYS.smartSteerHelp)]),
     toggle(t('Auto-gas'), s?.autoGas ?? false, (v) => {
       set({ autoGas: v });
     }),
