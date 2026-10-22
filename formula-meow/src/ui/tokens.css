@@ -93,6 +93,10 @@
 .fm-ui-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--fm-primary-bg), #ff7cc4); }
 .fm-ui-toasts { position: fixed; left: 0; right: 0; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; font-family: var(--fm-font); font-weight: 800; }
 .fm-ui-toast { background: var(--fm-panel-bg); color: var(--fm-panel-fg); border: 3px solid var(--ink); border-radius: 12px; padding: 8px 14px; font-size: var(--fm-fs-m); box-shadow: var(--fm-shadow); max-width: min(92vw, 420px); text-align: center; animation: fm-toast 0.35s cubic-bezier(0.2, 1.5, 0.4, 1); }
+/* over the results the bottom is the button row (Menu / Share clip / •••, Tracks in landscape): toasts drop in at the
+   top instead, narrow enough to clear the corner stickers (playtest: "Achievement: Ghostbuster +25" hid the buttons) */
+body:has(.fm-overlay.on) .fm-ui-toasts { bottom: auto; top: calc(10px + env(safe-area-inset-top)); }
+body:has(.fm-overlay.on) .fm-ui-toast { max-width: min(62vw, 420px); padding: 6px 12px; font-size: var(--fm-fs-s, 14px); }
 @keyframes fm-toast { from { transform: translateY(16px) scale(0.9); opacity: 0; } to { transform: none; opacity: 1; } }
 .fm-ui-modal { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(26, 18, 56, 0.6); font-family: var(--fm-font); font-weight: 800; }
 [data-ui-layer] :focus-visible, .fm-ui-modal :focus-visible { outline: 4px solid var(--fm-focus); outline-offset: 2px; box-shadow: 0 0 0 8px rgba(44, 246, 243, 0.3); }

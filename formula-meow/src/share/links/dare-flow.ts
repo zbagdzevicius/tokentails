@@ -114,7 +114,15 @@ export class DareFlow implements JuiceListener {
       this.pill.hide();
       return;
     }
-    this.pill.update(duelGap(tr, info.st.tick, k.dist), info.dt);
+    const gap = duelGap(tr, info.st.tick, k.dist);
+    // a ghost that never finished (an old run replayed on this build) has no gap once its log ends
+    if (gap == null && tr.finish == null && info.st.tick > tr.ticks) this.pill.stopped();
+    else this.pill.update(gap, info.dt);
+  }
+
+  /** The live gap pill is up (it names the ghost, so the grid needs no "Race Zyg's ghost" banner as well). */
+  get pillUp(): boolean {
+    return this.pill.visible;
   }
 
   /** The results came up: the pill goes. */

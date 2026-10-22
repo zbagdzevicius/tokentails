@@ -235,7 +235,8 @@ describe('results headline (iteration 4, F7)', () => {
   });
 
   it('a time trial: new best, or how far off it; a battle and a DNF have none', () => {
-    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: null })?.text).toBe('New best');
+    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: null })?.text).toBe('First record set!');
+    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'race'), prevBest: null })?.text).toBe('New best');
     expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: 61.5 })?.text).toBe('New best by 1.50 s');
     expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: 59.25 })).toMatchObject({ tone: 'plain', text: '0.75 s off your best' });
     expect(pickHeadline({ result: res([row(5, 1, 60)], 5, 'battle') })).toBeNull();
@@ -293,5 +294,14 @@ describe('ghost duels (iteration 4, F9)', () => {
     const h = { trackKey: 1, seed: 2, cls: 1 as const, modifiers: 0, forgiving: false, slot: 0, mode: 'dare' as const };
     expect(peekGhost(encodeGhostSync({ ...h, solo: true }, [0x17]))?.solo).toBe(true);
     expect(peekGhost(encodeGhostSync(h, [0x17]))?.solo).toBeUndefined();
+  });
+});
+
+describe('headline copy at 390 px (playtest, iteration 4)', () => {
+  it('a time never wraps away from its "s": the seconds in the headline lines are joined by a no-break space', async () => {
+    const { SHARE_EN } = await import('../ui/strings/share.en');
+    for (const k of ["You beat {name}'s ghost by {s} s", "Lost to {name}'s ghost by {s} s", '{name} beat you by {s} s', 'You held off {name} by {s} s']) {
+      expect(SHARE_EN[k]).toContain('{s} s');
+    }
   });
 });

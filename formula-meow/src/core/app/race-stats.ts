@@ -14,13 +14,15 @@ import { StuntTally } from '../../juice/stunts';
 
 /** Style score weights (F12): points per stunt, trick and pink mini-turbo, plus a bonus per step of the best combo. */
 export const STYLE = {
-  loop: 100,
-  wall: 60,
-  landing: 80,
-  trick: 40,
-  pinkTurbo: 30,
+  // playtest (iteration 4): Kitchen, Laundry and Rooftops all scored 590 from simply driving the route, so loops and
+  // wall lanes every lap must ride weigh little; the optional skill (tricks, pink turbos, combos) carries the score
+  loop: 25,
+  wall: 15,
+  landing: 50,
+  trick: 70,
+  pinkTurbo: 60,
   /** per combo step from ×2 on (a ×3 combo adds 2 × combo) */
-  combo: 50,
+  combo: 80,
 } as const;
 
 /** Style score of one kart's stats (pure; never negative). */

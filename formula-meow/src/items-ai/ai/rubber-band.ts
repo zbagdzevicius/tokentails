@@ -70,7 +70,10 @@ export function bandAdj(ctx: SimContext, i: number): number {
   const up = (rival ? band.bandUp + AI.rival.bandUp : band.bandUp) * ramp;
   const gp = gapToPlayer(ctx, i);
   // chasing a player who leads, the pack never holds a cat back (it would hold back the only cats who could fight)
-  return clamp(AI.bandK * gp + (gp > 0 ? Math.max(0, pack) : pack), -band.bandDown, up);
+  // iteration 4 (50cc): the cats ahead of the player give back more, sooner (`bandKAhead`, `bandDownAhead`)
+  const k = gp < 0 ? (band.bandKAhead ?? AI.bandK) : AI.bandK;
+  const down = gp < 0 ? (band.bandDownAhead ?? band.bandDown) : band.bandDown;
+  return clamp(k * gp + (gp > 0 ? Math.max(0, pack) : pack), -down, up);
 }
 
 export function bandScale(ctx: SimContext, i: number, p: Personality, adj = bandAdj(ctx, i)): number {

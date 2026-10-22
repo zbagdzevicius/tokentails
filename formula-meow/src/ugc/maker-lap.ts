@@ -12,50 +12,87 @@ import { load, save } from '../core/app/storage';
 import { t } from '../ui/i18n';
 
 const KEY = 'ugc-laps';
-/** a best lap is kept for this many tracks (newest first) */
+/** a best lap is kept for this many track × class pairs (newest first) */
 const MAX = 60;
 
+/**
+ * Laps are kept per track and class (`u-abc@1`): a lap at Alley Cat 100cc is no target for a Kitten 50cc race (the
+ * playtest: a friend at 50cc got a 100cc lap to beat, "2.14 s faster", out of reach). `last` is the class this device
+ * last raced each track at, so a share carries the lap that goes with it.
+ */
 type Laps = Record<string, number>;
+type Blob = { laps: Laps; last?: Record<string, number> };
 
-function loadLaps(): Laps {
-  const v = load<{ laps: Laps }>(KEY, { laps: {} });
-  return v && typeof v.laps === 'object' && v.laps ? v.laps : {};
+/** The link's lap: hundredths and the class it was driven at (null: a link from before the class rode along). */
+export interface LapTarget {
+  cs: number;
+  cls: number | null;
 }
 
-/** This device's best completed lap on track `id` (hundredths), or null. */
-export function myLapCs(id: string): number | null {
-  const v = loadLaps()[id];
+function loadBlob(): { laps: Laps; last: Record<string, number> } {
+  const v = load<Blob>(KEY, { laps: {} });
+  const laps = v && typeof v.laps === 'object' && v.laps ? v.laps : {};
+  const last = v && typeof v.last === 'object' && v.last ? v.last : {};
+  return { laps, last };
+}
+
+const key = (id: string, cls: number) => `${id}@${cls | 0}`;
+
+/** This device's best completed lap on track `id` at class `cls` (hundredths), or null. */
+export function myLapCs(id: string, cls = 0): number | null {
+  const v = loadBlob().laps[key(id, cls)];
   return typeof v === 'number' && v > 0 && Number.isFinite(v) ? v : null;
 }
 
-/** Keep `lapS` (seconds, a completed lap) as this device's best on `id` when it is better. True when it was. */
-export function recordLap(id: string, lapS: number | null): boolean {
+/** Keep `lapS` (seconds, a completed lap at class `cls`) as this device's best on `id` when it is better. True when it was. */
+export function recordLap(id: string, lapS: number | null, cls = 0): boolean {
   if (!id.startsWith('u-') || lapS == null || !(lapS > 0) || !Number.isFinite(lapS)) return false;
   const cs = Math.round(lapS * 100);
   if (cs > 65535) return false;
-  const laps = loadLaps();
-  const old = laps[id];
-  if (typeof old === 'number' && old > 0 && old <= cs) return false;
-  const next: Laps = { [id]: cs };
-  for (const [k, v] of Object.entries(laps)) if (k !== id && Object.keys(next).length < MAX) next[k] = v;
-  save(KEY, { laps: next });
-  return true;
+  const { laps, last } = loadBlob();
+  const k = key(id, cls);
+  const old = laps[k];
+  const better = !(typeof old === 'number' && old > 0 && old <= cs);
+  const next: Laps = { [k]: better ? cs : old };
+  for (const [kk, v] of Object.entries(laps)) if (kk !== k && Object.keys(next).length < MAX) next[kk] = v;
+  const lastNext: Record<string, number> = { [id]: cls | 0 };
+  for (const [kk, v] of Object.entries(last)) if (kk !== id && Object.keys(lastNext).length < MAX) lastNext[kk] = v;
+  save(KEY, { laps: next, last: lastNext });
+  return better;
 }
 
 /** The lap a track link carried (set when the link is opened), per track id, for this page only. */
-const targets = new Map<string, number>();
+const targets = new Map<string, LapTarget>();
 
-export function setTarget(id: string, cs: number | undefined | null): void {
-  if (cs != null && cs > 0) targets.set(id, cs);
+export function setTarget(id: string, cs: number | undefined | null, cls: number | null = null): void {
+  if (cs != null && cs > 0) targets.set(id, { cs, cls: cls != null && Number.isInteger(cls) && cls >= 0 ? cls : null });
 }
 
-export function targetCs(id: string): number | null {
-  return targets.get(id) ?? null;
+/** The link's lap for a race on `id` at class `cls`: only when it was driven at that class, else null. */
+export function targetCs(id: string, cls = 0): number | null {
+  const tg = targets.get(id);
+  return tg && tg.cls === cls ? tg.cs : null;
 }
 
-/** The lap a share of track `id` carries: this device's own best, else the lap the link came with. */
+/** The class a link's lap was driven at (null: none, or unknown). */
+export function targetClass(id: string): number | null {
+  return targets.get(id)?.cls ?? null;
+}
+
+/** The lap a share of track `id` carries: this device's own best at the class it last raced, else the link's lap. */
+export function shareLap(id: string): LapTarget | undefined {
+  const cls = loadBlob().last[id];
+  if (typeof cls === 'number') {
+    const mine = myLapCs(id, cls);
+    if (mine != null) return { cs: mine, cls };
+  }
+  const tg = targets.get(id);
+  return tg && tg.cls != null ? tg : undefined;
+}
+
+/** Hundredths only (the track code's field). */
 export function shareLapCs(id: string): number | undefined {
-  return myLapCs(id) ?? targetCs(id) ?? undefined;
+  return shareLap(id)?.cs;
 }
 
 /** "0:24.31" from hundredths. */

@@ -66,7 +66,8 @@ export function pickHeadline(h: HeadlineIn): Headline | null {
     return { kind: 'rival', tone: 'win', text: t('You held off {name} by {s} s', { name: other, s: s2(m.margin) }) };
   }
   if (best != null && newBest) return { kind: 'best', tone: 'best', text: t('New best by {s} s', { s: s2(best - my) }) };
-  if (best == null) return { kind: 'best', tone: 'best', text: t('New best') };
+  // a time trial's first run: the record line is the headline (the TT section used to repeat it under "New best")
+  if (best == null) return { kind: 'best', tone: 'best', text: r.mode === 'tt' ? t('First record set!') : t('New best') };
   if (r.mode === 'tt') return { kind: 'best', tone: 'plain', text: t('{s} s off your best', { s: s2(my - best) }) };
   return null;
 }

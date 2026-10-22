@@ -235,15 +235,17 @@
 .fm-mh-lead.edge.low span { transform: translate(var(--lx, 0px), calc(-100% - 16px)); }
 /* F14: DOUBLE POINTS for the last 30 s of a battle */
 .fm-mode-hud.frenzy[data-mode='battle'] .fm-mh-frenzy { display: block; }
+/* the chip sits below the held item's name (84 px on a phone, 104 px on desktop, 80 px in landscape; it grows with the
+   text size), never over it (playtest: "×2 DOUBLE POINTS" half hid "Cucumber") */
 .fm-mh-frenzy {
-  position: absolute; left: 50%; top: calc(124px + env(safe-area-inset-top)); transform: translateX(-50%) rotate(-2deg);
+  position: absolute; left: 50%; top: calc(118px + 30px * var(--fm-text-scale, 1) + env(safe-area-inset-top)); transform: translateX(-50%) rotate(-2deg);
   padding: 3px 12px; font-size: 16px; color: var(--ink); background: #ffd84a; border-width: 3px; white-space: nowrap;
   animation: fm-mh-frenzy 0.9s ease-in-out infinite alternate;
 }
 .fm-mh-frenzy b { color: #e0287d; font-size: 20px; }
 /* a phone: the chip fits between the leaders list and the minimap (×2 over a small DOUBLE POINTS) */
 @media (max-width: 520px) {
-  .fm-mh-frenzy { top: calc(104px + env(safe-area-inset-top)); padding: 2px 8px 3px; font-size: 11px; line-height: 1.05; text-align: center; }
+  .fm-mh-frenzy { top: calc(92px + 24px * var(--fm-text-scale, 1) + env(safe-area-inset-top)); padding: 2px 8px 3px; font-size: 11px; line-height: 1.05; text-align: center; }
   .fm-mh-frenzy b { display: block; font-size: 22px; line-height: 1; }
 }
 @keyframes fm-mh-frenzy { from { transform: translateX(-50%) rotate(-2deg) scale(1); } to { transform: translateX(-50%) rotate(2deg) scale(1.08); } }
@@ -251,7 +253,7 @@
 :root[data-motion='reduced'] .fm-mh-frenzy { animation: none; }
 @media (prefers-reduced-motion: reduce) { .fm-mh-frenzy { animation: none; } }
 @media (orientation: landscape) and (max-height: 500px) {
-  .fm-mh-frenzy { top: calc(100px + env(safe-area-inset-top)); }
+  .fm-mh-frenzy { top: calc(86px + 24px * var(--fm-text-scale, 1) + env(safe-area-inset-top)); }
   .fm-mh-rival { top: calc(64px + env(safe-area-inset-top)); }
   .fm-mh-list { top: calc(164px + env(safe-area-inset-top)); font-size: 11px; }
   .fm-mh-clock { top: calc(76px + env(safe-area-inset-top)); }

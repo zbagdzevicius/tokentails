@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRACKS, KITCHEN } from '../../core/track/tracks';
 import { raceConfig, world } from '../../test/fixtures';
-import { playerBot } from './bots';
+import { noviceBot, playerBot } from './bots';
 
 describe('balance (GDD 5.3)', () => {
   // SIM_VERSION 11 (ITERATION-4.md F1): the 72-race gate (6 tracks × 12 seeds) replaces the Kitchen-only 20 seeds,
@@ -19,10 +19,24 @@ describe('balance (GDD 5.3)', () => {
     return podium / n;
   };
 
-  it('Kitten: the average-player bot from 6th on the grid reaches the podium in 70–90 % of 72 races (6 tracks × 12 seeds)', { timeout: 900_000 }, () => {
-    const r = podiumRate(0);
-    expect(r).toBeGreaterThanOrEqual(0.7);
-    expect(r).toBeLessThanOrEqual(0.9);
+  // iteration 4 playtest: 50cc is for learning. The average-player bot (it drifts, chains mini-turbos) reaches the
+  // podium nearly always (the old ≤ 90 % cap is dropped); the gate that matters is the phone novice below
+  it('Kitten: the average-player bot from 6th on the grid reaches the podium in at least 70 % of 72 races (6 tracks × 12 seeds)', { timeout: 900_000 }, () => {
+    expect(podiumRate(0)).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it('Kitten: a phone novice who never drifts races the pack (mean place ≤ 5.8, podium ≥ 10 %, last in ≤ 25 % of 72 races)', { timeout: 900_000 }, () => {
+    const places: number[] = [];
+    for (const def of TRACKS)
+      for (let seed = 1; seed <= 12; seed++) {
+        const w = world(raceConfig(def, { seed, cls: 0, humans: [5] }));
+        while (!w.done) w.step([noviceBot(w.ctx, 5)]);
+        places.push(w.result().player.place);
+      }
+    const mean = places.reduce((a, b) => a + b, 0) / places.length;
+    expect(mean).toBeLessThanOrEqual(5.8);
+    expect(places.filter((p) => p <= 3).length / places.length).toBeGreaterThanOrEqual(0.1);
+    expect(places.filter((p) => p === 8).length / places.length).toBeLessThanOrEqual(0.25);
   });
 
   it('Zoomies: the same bot reaches the podium in at most 80 % of 72 races', { timeout: 900_000 }, () => {

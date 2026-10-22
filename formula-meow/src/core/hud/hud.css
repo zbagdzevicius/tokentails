@@ -699,7 +699,7 @@
 .fm-fastest.on { animation: fm-fastest 1.8s ease-out forwards; }
 @keyframes fm-fastest { 0% { opacity: 0; transform: translateX(30px) rotate(4deg) scale(1.3); } 12% { opacity: 1; transform: rotate(4deg) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 /* the countdown strip: the hint sits under the digit, a good start flashes it green */
-.fm-slot .fm-strip { display: inline-block; margin-top: 10px; padding: 5px 14px 6px; border-radius: 999px; background: rgba(26, 18, 56, 0.72); border: 3px solid rgba(255, 243, 220, 0.35); color: var(--cream); font-size: calc(16px * var(--ts)); line-height: 1.1; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink); }
+.fm-slot .fm-strip { display: block; width: fit-content; margin: 10px auto 0; padding: 5px 14px 6px; border-radius: 999px; background: rgba(26, 18, 56, 0.72); border: 3px solid rgba(255, 243, 220, 0.35); color: var(--cream); font-size: calc(16px * var(--ts)); line-height: 1.1; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink); }
 .fm-slot .fm-strip.pounce { background: #2fd36b; border-color: var(--ink); color: var(--cream); font-size: calc(24px * var(--ts)); animation: fm-chip-in 0.3s cubic-bezier(0.2, 1.6, 0.4, 1); }
 :root[data-contrast='high'] .fm-gap, :root[data-contrast='high'] .fm-slot .fm-strip { background: #000; color: #fff; border-color: #fff; }
 @media (prefers-reduced-motion: reduce) {

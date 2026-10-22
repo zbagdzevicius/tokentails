@@ -79,7 +79,9 @@ function rowsHtml(r: RaceResult, ghost: ResultsView['ghost']): string {
     if (gap != null) return `<span class="fm-gap">+${gap.toFixed(1)} s</span>`;
     return '—';
   };
-  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${p.place}</td><td data-raw>${esc(p.name)}</td><td>${cell(p.kart, p.time, p.gap)}</td></tr>`);
+  // a 1v1 ghost duel: the place is out of two, you and the ghost (playtest: "1 You" right under the ghost that won)
+  const duelPlace = ghost && r.places.length === 1 ? (ghost.time != null && (me.time == null || ghost.time < me.time - 0.005) ? 2 : 1) : null;
+  const rowList = r.places.map((p) => `<tr class="${p.kart === me.kart ? 'me' : ''}"><td>${duelPlace ?? p.place}</td><td data-raw>${esc(p.name)}</td><td>${cell(p.kart, p.time, p.gap)}</td></tr>`);
   // the ghost sits at its place by time (seeing yourself one row under your friend is the hook)
   const g = ghost;
   if (g) {
@@ -194,8 +196,14 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
       </div>
       <div class="fm-res-main">
         ${hyped ? `<p class="fm-hype-line" data-raw>🎬 ${esc(hyped.hype!)}</p>` : ''}
-        <button class="fm-btn${ghostLost ? '' : ' primary big'}" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
-        <button class="fm-btn${ghostLost ? ' primary big' : ''}" data-act="again">${esc(again)}</button>
+        ${
+          // lost the duel: the big Rematch comes first, the small Next after it (Next sat above the primary button)
+          ghostLost
+            ? `<button class="fm-btn primary big" data-act="again">${esc(again)}</button>
+        <button class="fm-btn" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>`
+            : `<button class="fm-btn primary big" data-act="next" aria-label="${esc(t('Next track'))}">${esc(t('Next →'))}</button>
+        <button class="fm-btn" data-act="again">${esc(again)}</button>`
+        }
         ${extra.map((x) => `<button class="fm-btn${keep(x.act) ? '' : ' fm-tray-only'}" data-act="${esc(x.act)}">${esc(x.label)}</button>`).join('')}
         ${mainHtml}
         ${trayItems ? `<button class="fm-btn fm-res-more" data-act="more" aria-expanded="false" aria-label="${esc(moreLabel())}">•••</button>` : ''}
@@ -256,7 +264,28 @@ export function renderResults(host: HTMLElement, v: ResultsView): ResultsHandle 
   // a fade at the bottom of the scrolling part says there is more below (fun 9 / B8: sections looked cut off)
   const scroll = host.querySelector<HTMLElement>('.fm-res-scroll');
   if (scroll) {
-    const more = () => scroll.classList.toggle('more', scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight > 8);
+    // the player's own row is never left under the fade (playtest: "8 You 1:14.77" was barely readable on desktop):
+    // scroll it into view as long as the headline stays on screen, else drop the fade while the row sits in it
+    let touched = false;
+    for (const ev of ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const) scroll.addEventListener(ev, () => (touched = true), { passive: true });
+    const meLow = (): number => {
+      const row = table.querySelector<HTMLElement>('tr.me');
+      if (!row) return 0;
+      return row.getBoundingClientRect().bottom - (scroll.getBoundingClientRect().bottom - 40);
+    };
+    const more = () => {
+      if (!touched) {
+        const need = meLow();
+        if (need > 0) {
+          const head = host.querySelector<HTMLElement>('.fm-headline-slot');
+          const room = head ? head.getBoundingClientRect().top - scroll.getBoundingClientRect().top : need;
+          const by = Math.max(0, Math.min(need, room));
+          if (by > 0) scroll.scrollTop += by;
+        }
+      }
+      const below = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight > 8;
+      scroll.classList.toggle('more', below && meLow() <= 0);
+    };
     scroll.addEventListener('scroll', more, { passive: true });
     if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(more);
     if (typeof ResizeObserver !== 'undefined') {

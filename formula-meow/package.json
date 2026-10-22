@@ -18,6 +18,7 @@
     "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts",
     "review:v2": "playwright test --config review/v2.config.ts",
     "review:v3": "playwright test --config review/v3.config.ts",
+    "review:v4": "playwright test --config review/v4.config.ts",
     "budget": "node tools/budget.mjs dist"
   },
   "dependencies": {

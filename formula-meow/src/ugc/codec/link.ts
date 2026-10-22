@@ -49,7 +49,34 @@ export function wantsEditor(search: string, hash: string, pathname: string): boo
  * Page link that plays `code`: same origin and game path, only `?t=`. The route suffix is stripped (`/make`, `/t`, and
  * the dare `/r` and Daily Cup `/d/<n>` pages, whose link shells would show a ghost or Daily Cup preview).
  */
-export function trackLink(code: string, loc: { origin: string; pathname: string }): string {
+export function trackLink(code: string, loc: { origin: string; pathname: string }, cls?: number): string {
   const path = loc.pathname.replace(/\/index\.html$/, '/').replace(/\/(make|t|r|d\/\d{1,4})(\.html)?\/?$/, '') || '/';
-  return `${loc.origin}${path}?${TRACK_PARAM}=${code}`;
+  // the class the code's lap was driven at: the friend races that class (when unlocked), so the lap is a fair target
+  const c = cls != null && Number.isInteger(cls) && cls >= 0 && cls <= 2 ? `&${CLASS_PARAM}=${cls}` : '';
+  return `${loc.origin}${path}?${TRACK_PARAM}=${code}${c}`;
+}
+
+/** The query key for the class a link's lap was driven at (the shell's own `?cls=`, so the race starts there). */
+export const CLASS_PARAM = 'cls';
+
+/** The lap class a URL carries (`?cls=` or `#cls=`, 0–2), or null. */
+export function readLapClass(search: string, hash: string): number | null {
+  const raw = new URLSearchParams(search).get(CLASS_PARAM) ?? hashParams(hash).get(CLASS_PARAM);
+  const n = raw == null ? NaN : Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 2 ? n : null;
+}
+
+/** The lap class in whatever the player pasted (a full link), or null. */
+export function extractLapClass(pasted: string): number | null {
+  const s = pasted.trim();
+  try {
+    if (/^https?:\/\//i.test(s)) {
+      const u = new URL(s);
+      return readLapClass(u.search, u.hash);
+    }
+  } catch {
+    /* not a URL */
+  }
+  const m = /(?:^|[?#&])cls=(\d)/.exec(s);
+  return m ? readLapClass(`?cls=${m[1]}`, '') : null;
 }

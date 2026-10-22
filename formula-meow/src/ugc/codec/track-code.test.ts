@@ -24,9 +24,9 @@ function normPiece(p: SetPiece): SetPiece {
   return o;
 }
 import { fromBase64url, toBase64url } from './base64url';
-import { extractCode, readTrackCode, trackLink, wantsEditor } from './link';
+import { extractCode, extractLapClass, readLapClass, readTrackCode, trackLink, wantsEditor } from './link';
 import { setTrackCodec, trackFromLocation } from './track-codec';
-import { fmtLap, liveLapDelta, makerLine, myLapCs, recordLap, setTarget, shareLapCs, targetCs } from '../maker-lap';
+import { fmtLap, liveLapDelta, makerLine, myLapCs, recordLap, setTarget, shareLap, shareLapCs, targetClass, targetCs } from '../maker-lap';
 
 /**
  * Drop the fields the code does not carry the same way (id, sides the decoder fills in) or at all (the iteration-2
@@ -346,11 +346,41 @@ describe('Beat the maker (iteration 4, F10)', () => {
   it("a friend's link sets the target; re-sharing carries your own lap once you have one", () => {
     const def = { ...bigTrack(), name: 'Friend Loop' };
     const id = ugcId(def);
-    setTarget(id, 2431);
+    setTarget(id, 2431, 0);
     expect(targetCs(id)).toBe(2431);
     expect(shareLapCs(id)).toBe(2431);
     recordLap(id, 23.9);
     expect(shareLapCs(id)).toBe(2390);
+  });
+
+  it("the maker's lap carries its class: a 100cc lap is never the target of a 50cc race (playtest)", () => {
+    const def = { ...bigTrack(), name: 'Class Loop' };
+    const id = ugcId(def);
+    // the maker test-drives at Alley Cat 100cc
+    recordLap(id, 21.75, 1);
+    expect(myLapCs(id, 1)).toBe(2175);
+    expect(myLapCs(id, 0)).toBeNull();
+    expect(shareLap(id)).toEqual({ cs: 2175, cls: 1 });
+    const link = trackLink(encodeTrack(def, { creatorLapCs: shareLap(id)!.cs }), { origin: 'https://x.test', pathname: '/meow-race/make' }, shareLap(id)!.cls!);
+    const u = new URL(link);
+    expect(u.searchParams.get('cls')).toBe('1');
+    expect(readLapClass(u.search, '')).toBe(1);
+    expect(extractLapClass(link)).toBe(1);
+    // the friend: a target at 100cc only
+    const other = { ...bigTrack(), name: 'Class Loop 2' };
+    const oid = ugcId(other);
+    setTarget(oid, 2175, 1);
+    expect(targetCs(oid, 1)).toBe(2175);
+    expect(targetCs(oid, 0)).toBeNull();
+    expect(targetClass(oid)).toBe(1);
+    // a lap with no class (a bare pasted code) is no target at any class
+    const bare = { ...bigTrack(), name: 'Bare Loop' };
+    setTarget(ugcId(bare), 2000, null);
+    expect(targetCs(ugcId(bare), 0)).toBeNull();
+    expect(shareLap(ugcId(bare))).toBeUndefined();
+    // a bad class in a link is ignored
+    expect(readLapClass('?cls=7', '')).toBeNull();
+    expect(readLapClass('', '#cls=2')).toBe(2);
   });
 
   it('the banner time, the result line and the live delta use only measured laps', () => {

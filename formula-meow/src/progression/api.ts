@@ -20,7 +20,7 @@ import { applyMedal, mergeAward } from './record';
 import { namedChallenge } from './names';
 import { kartFromLoadout } from './loadout';
 import { isUnlocked, unlockState, type UnlockKey } from './unlocks';
-import { prog, setProg, world, dailyToday } from './store';
+import { prog, setProg, world, dailyToday, peekRewards } from './store';
 import { lastAward, setLastAward } from './last';
 import type { Loadout } from './state';
 
@@ -36,6 +36,8 @@ export const ownsHat = (id: number): boolean => prog().owned.hats.includes(id);
 export const ownsTrail = (id: number): boolean => prog().owned.trails.includes(id);
 export const bodyPrice = (id: BodyId): number => BODY_PRICES[id] ?? 0;
 export const playableCats = (): PinkPawCat[] => playableShelterCats(prog().owned.cats);
+/** Something is waiting on the rewards screen (fish, a trophy, an unlock, an achievement); the podium hides its Rewards button otherwise. */
+export const hasRewards = (): boolean => peekRewards().length > 0;
 
 /** Change the loadout; ids the player does not own are ignored. */
 export function setLoadout(p: Partial<Loadout>): Loadout {

@@ -26,6 +26,12 @@ export interface NoviceOpts {
   dead: number;
   curve: number;
   seed?: number;
+  /**
+   * race alone (no AI field): the wall count then measures the novice's own steering only. Since the 50cc easing
+   * (iteration 4 playtest) the novice races in the pack, where bumps and slipstream speed add wall ticks no steering
+   * assist can prevent, so the F2 wall gate uses solo runs and the pack runs keep the gap-to-the-AI gate.
+   */
+  solo?: boolean;
 }
 
 export interface NoviceRun {
@@ -98,7 +104,9 @@ const tracks = new Map<string, BuiltTrack>();
 
 export function runNovice(def: TrackDef, o: NoviceOpts): NoviceRun {
   const seed = o.seed ?? 1;
-  const cfg = raceConfig(def, { seed, cls: 0, humans: [5] });
+  const full = raceConfig(def, { seed, cls: 0, humans: [5] });
+  const cfg = o.solo ? { ...full, racers: [full.racers[5]], humans: [0] } : full;
+  const ME = o.solo ? 0 : 5;
   let built = tracks.get(def.id);
   if (!built) tracks.set(def.id, (built = buildTrack(def, 0)));
   const w = world(cfg);
@@ -117,7 +125,7 @@ export function runNovice(def: TrackDef, o: NoviceOpts): NoviceRun {
   let lastAir = -999;
   const limit = 60 * 60 * 6;
   while (!w.done && w.st.tick < limit) {
-    const me = w.st.karts[5];
+    const me = w.st.karts[ME];
     // the shell's MuxContext (core/app/shell.ts frame + fillEdgeLook)
     mc.racing = w.st.tick >= GO_TICK;
     mc.speedFrac = speedOf(me) / top;
@@ -153,14 +161,14 @@ export function runNovice(def: TrackDef, o: NoviceOpts): NoviceRun {
     const input = mux.sample(w.st.tick, mc);
     if (mux.assist !== 0) assistTicks++;
     w.step([input]);
-    if (w.st.karts[5].air) lastAir = w.st.tick;
-    if (w.st.tick >= GO_TICK && !w.st.karts[5].finished && w.st.karts[5].wall) {
+    if (w.st.karts[ME].air) lastAir = w.st.tick;
+    if (w.st.tick >= GO_TICK && !w.st.karts[ME].finished && w.st.karts[ME].wall) {
       wallTicks++;
       if (w.st.tick - lastAir < 42) airWall++;
     }
   }
   const res = w.result();
-  const ai = res.places.filter((p) => p.kart !== 5 && p.time != null).map((p) => p.time as number);
+  const ai = res.places.filter((p) => p.kart !== ME && p.time != null).map((p) => p.time as number);
   return { wallTicks, time: res.player.time, aiMean: ai.reduce((a, b) => a + b, 0) / Math.max(1, ai.length), place: res.player.place, assistTicks, airWall };
 }
 

@@ -94,7 +94,7 @@ describe('rubber band (GDD 5.3)', () => {
       expect(up).toBeLessThanOrEqual(base * (1 + CLASSES[cls].bandUp) + 1e-9);
       expect(up).toBeGreaterThan(base);
       expect(down).toBeLessThanOrEqual(1);
-      expect(down).toBeCloseTo(base * (1 - CLASSES[cls].bandDown), 9);
+      expect(down).toBeCloseTo(base * (1 - (CLASSES[cls].bandDownAhead ?? CLASSES[cls].bandDown)), 9);
     }
   });
 

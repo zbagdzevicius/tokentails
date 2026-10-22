@@ -1,8 +1,10 @@
 /**
  * Paw TAP! rings (iteration 4, F3 view; juice lane). Every ramp lip, set-piece kicker and jump-gap lip gets a ring
- * hoop standing on its edge: a paw on top, "TAP!" in the middle. It wakes up as the player's kart comes within 60 m
- * (brighter, a slow pulse), flashes and throbs inside the trick window (from just before the lip until the kart is
- * past it), then dims. The kart jumps through it.
+ * decal laid flat on the run-up, ending at the lip: a paw at the far end, "TAP!" in the middle, stretched along the
+ * road so the chase camera's low angle reads it round. It wakes up as the player's kart comes within 60 m (brighter,
+ * a slow pulse), flashes and throbs inside the trick window (from just before the lip until the kart is past it),
+ * then dims. The kart drives over it. (It first stood upright across the lip; the playtest found the hoop covering
+ * the kart and the road ahead at every launch, so it lies on the ramp now.)
  *
  * One InstancedMesh for the whole track (1 draw call), a canvas texture made once per race, static instance
  * matrices; only a per-instance `aPulse` changes per frame. The low tier keeps the rings but drops the pulse;
@@ -36,23 +38,31 @@ export interface Lip {
   halfW: number;
   /** ring diameter (m) */
   size: number;
+  /** the run-up's rise per metre just before the lip (the decal lies on it) and how many metres of it there are */
+  slope: number;
+  run: number;
 }
 
 /** Every lip on the main loop: ramps (`t.ramps`, plain ramps and kickers) and jump gaps (`kind 'jump'`, gap > 0). */
 export function lipsOf(t: BuiltTrack): Lip[] {
   const out: Lip[] = [];
-  const at = (i: number, d: number, y: number, halfW: number) => {
-    const j = ((i % t.n) + t.n) % t.n;
-    out.push({ i: j, x: t.px[j] - t.tz[j] * d, y, z: t.pz[j] + t.tx[j] * d, d, halfW, size: Math.max(2.2, Math.min(3.4, halfW * 1.1)) });
+  const wrap = (i: number) => ((i % t.n) + t.n) % t.n;
+  const at = (i: number, d: number, y: number, halfW: number, slope: number, run: number) => {
+    const j = wrap(i);
+    const sl = Number.isFinite(slope) ? Math.max(0, Math.min(0.7, slope)) : 0;
+    out.push({ i: j, x: t.px[j] - t.tz[j] * d, y, z: t.pz[j] + t.tx[j] * d, d, halfW, size: Math.max(2.2, Math.min(3.4, halfW * 1.1)), slope: sl, run: Math.max(1.5, run) });
   };
   for (const r of t.ramps) {
-    const j = ((r.i % t.n) + t.n) % t.n;
-    at(j, r.d, t.py[j] + r.d * (t.bank?.[j] ?? 0) + r.height, r.halfW);
+    const j = wrap(r.i);
+    const run = Math.max(1, r.len) * t.step;
+    at(j, r.d, t.py[j] + r.d * (t.bank?.[j] ?? 0) + r.height, r.halfW, r.height / run + (t.py[j] - t.py[wrap(j - r.len)]) / run, run);
   }
   for (const pc of t.pieces ?? []) {
     if (pc.kind !== 'jump' || pc.gap <= 0) continue;
-    const j = ((pc.i0 % t.n) + t.n) % t.n;
-    at(j, 0, Number.isFinite(pc.lipY) ? pc.lipY : t.py[j], t.halfW[j]);
+    const j = wrap(pc.i0);
+    const y = Number.isFinite(pc.lipY) ? pc.lipY : t.py[j];
+    const back = Math.max(1, Math.round(4 / t.step));
+    at(j, 0, y, t.halfW[j], (y - t.py[wrap(j - back)]) / (back * t.step), 6);
   }
   return out;
 }
@@ -153,7 +163,27 @@ const _up = new Vector3(0, 1, 0);
 const _r = new Vector3();
 const _u = new Vector3();
 const _basis = new Matrix4();
-const _tilt = new Matrix4();
+
+/**
+ * The decal's pose for a lip (pure): flat on the run-up (its normal is the ramp's), its far edge at the lip, about
+ * 1.7 ring diameters long (never longer than the run-up) and one diameter wide. Writes `out` and returns it.
+ */
+export function lipMatrix(l: Lip, fx: number, fz: number, out: Matrix4): Matrix4 {
+  _f.set(fx, 0, fz).normalize();
+  _r.crossVectors(_f, _up).normalize();
+  // forward along the slope, the normal = right × forward (up-ish)
+  _f.y = l.slope;
+  _f.normalize();
+  _u.crossVectors(_r, _f).normalize();
+  _basis.makeBasis(_r, _f, _u);
+  _q.setFromRotationMatrix(_basis);
+  const len = Math.min(l.size * 1.7, l.run * 0.95);
+  const wid = Math.min(l.size, Math.max(1.6, l.halfW * 1.8));
+  // centre half a length back down the slope from the lip, lifted off the surface
+  _p.set(l.x, l.y, l.z).addScaledVector(_f, -len / 2).addScaledVector(_u, 0.06);
+  _s.set(wid, len, 1);
+  return out.compose(_p, _q, _s);
+}
 
 export class PawRings {
   readonly lips: Lip[];
@@ -204,6 +234,10 @@ export class PawRings {
       depthWrite: false,
       side: DoubleSide,
       toneMapped: false,
+      // a decal on the ramp: drawn just in front of the surface it lies on
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
     });
     const geo = new PlaneGeometry(1, 1);
     this.attr = new InstancedBufferAttribute(this.pulse, 1).setUsage(DynamicDrawUsage) as InstancedBufferAttribute;
@@ -213,18 +247,7 @@ export class PawRings {
     mesh.frustumCulled = false;
     mesh.renderOrder = 15;
     this.lips.forEach((l, n) => {
-      const j = l.i;
-      // the hoop stands across the road at the lip, facing back at the oncoming kart, leaning back 18°
-      _f.set(track.tx[j], 0, track.tz[j]).normalize();
-      _r.crossVectors(_f, _up).normalize();
-      _u.copy(_up);
-      _basis.makeBasis(_r, _u, _f.clone().negate());
-      _tilt.makeRotationX(-0.32);
-      _basis.multiply(_tilt);
-      _q.setFromRotationMatrix(_basis);
-      _p.set(l.x, l.y + l.size * 0.5 + 0.05, l.z);
-      _s.set(l.size, l.size, 1);
-      _m.compose(_p, _q, _s);
+      lipMatrix(l, track.tx[l.i], track.tz[l.i], _m);
       mesh.setMatrixAt(n, _m);
       this.pulse[n] = 0.2;
     });

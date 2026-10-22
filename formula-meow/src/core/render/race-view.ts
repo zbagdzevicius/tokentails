@@ -74,6 +74,8 @@ const _c = new Color();
 const _v = new Vector3();
 const BOX_PAL = [0xff3ea5, 0xffc93c, 0x3aa8ff, 0x3bb273, 0xff8a3d, 0xb07fd8];
 const RAINBOW = [0xff3b5c, 0xff9f1c, 0xffe14d, 0x3bd16f, 0x3aa8ff, 0x9b5de5];
+/** another kart closer than this to the camera is hidden (it would clip the near plane), m */
+export const NEAR_EYE_M = 2.2;
 /** particles only within this distance of the camera kart (m) */
 const NEAR = 45;
 
@@ -110,6 +112,8 @@ export class RaceView {
   private readonly carry: CarryPose = { x: 0, y: 0, z: 0, heading: 0, hx: 0, hy: 0, hz: 0, hVisible: false };
   private sparkNext = 0;
   private time = 0;
+  /** the camera's position (set by the render lane each frame; null: no fade of karts at the lens) */
+  eye: { x: number; y: number; z: number } | null = null;
   /** the camera kart (particles are spent near it) */
   me = 0;
   /** previous and current tick transforms, for interpolation */
@@ -421,7 +425,10 @@ export class RaceView {
           h.visible = em.handUp > 0;
         }
       } else if (!carried) this.hideHand(i);
-      v.root.visible = true;
+      // another cat right at the lens (one tucked in behind at the start) is not drawn: it filled the bottom third
+      // of a phone screen with a dark blob over the steer and hop zones (playtest, Laundry portrait)
+      const eye = this.eye;
+      v.root.visible = i === this.me || !eye || (s.x - eye.x) ** 2 + (s.y + 0.5 - eye.y) ** 2 + (s.z - eye.z) ** 2 > NEAR_EYE_M * NEAR_EYE_M;
       v.lookAtDot(k.chaseTicks > 0 && laser ? laser.x : null, laser ? laser.z : 0);
       const bent = !carried && s.b === 1;
       v.update(k, s.x, s.y, s.z, s.heading, k.air || carried || bent ? 0 : pitch * Math.sign(fwd || 1), k.air || bent ? 0 : roll, carried ? 0 : speed, dt, topSpeed, bent ? s : null);

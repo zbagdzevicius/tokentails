@@ -17,6 +17,8 @@ export type EdgeGlow = 'defend' | 'catch' | null;
 
 /** One gap chip's text: "▲ +0.4 s" (ahead) / "▼ −0.3 s" (behind); within the glow range the call word leads. */
 export function gapChipText(sec: number, ahead: boolean, hot: boolean): string {
+  // wheel to wheel: "CATCH! +0.0 s" said nothing (playtest), the chip says what it is
+  if (Math.abs(sec) < 0.05) return t('SIDE BY SIDE!');
   const v = `${ahead ? '+' : '−'}${Math.abs(sec).toFixed(1)} s`;
   if (hot) return `${ahead ? t('CATCH!') : t('DEFEND!')} ${v}`;
   return `${ahead ? '▲' : '▼'} ${v}`;
@@ -86,7 +88,7 @@ export class JuiceHud {
     this.gapA = gaps.querySelector('.ahead') as HTMLSpanElement;
     this.gapB = gaps.querySelector('.behind') as HTMLSpanElement;
 
-    // the slipstream ring and the ON FIRE badge sit above the drift meter
+    // the slipstream ring sits above the drift meter, the ON FIRE badge under the place
     this.fireEl = document.createElement('div');
     this.fireEl.className = 'fm-fire fm-outline';
     this.fireEl.setAttribute('aria-hidden', 'true');
@@ -96,7 +98,9 @@ export class JuiceHud {
     this.ring.innerHTML = `<svg viewBox="0 0 48 48"><circle class="bg" cx="24" cy="24" r="19"/><circle class="arc" cx="24" cy="24" r="19" stroke-dasharray="${RING_C.toFixed(1)}" stroke-dashoffset="${RING_C.toFixed(1)}"/></svg><span>💨</span>`;
     this.ringArc = this.ring.querySelector('.arc') as SVGCircleElement;
     bottom.prepend(this.ring);
-    bottom.prepend(this.fireEl);
+    // ON FIRE sits with the place and the gap chips (playtest: above the drift meter it was under the left thumb on a
+    // phone held upright)
+    gapsParent.appendChild(this.fireEl);
   }
 
   /** A new race: everything off. */

@@ -228,7 +228,10 @@ export function installShare(shell: Shell): void {
       if (notice) {
         showBanner(notice);
         notice = null;
-      } else if (runner.live) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
+      } else if (runner.live) {
+        // a duel's gap pill already names the ghost (the banner sat on the Pounce hint in landscape)
+        if (!flow.pillUp) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
+      }
       // B36: a Daily Cup race says so on the grid; [modes lane] F11: with its mutator, and a Wild Card race says its own
       else {
         const s = shell.setup;
@@ -430,7 +433,7 @@ export function installShare(shell: Shell): void {
       }
 
       // F10 Beat the maker: the lap a track link carried, against this race's best completed lap
-      const lapTarget = cfg.track.id.startsWith('u-') ? targetCs(cfg.track.id) : null;
+      const lapTarget = cfg.track.id.startsWith('u-') ? targetCs(cfg.track.id, cfg.cls) : null;
       const makerL = lapTarget != null ? makerLine(lapTarget, result.player.bestLap) : null;
       if (makerL) lines.unshift(makerL);
 

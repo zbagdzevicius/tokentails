@@ -211,13 +211,20 @@ test('doodles start spectacular: auto-stunts, Spice it up, Surprise track, and B
   await maker.locator('.fm-ed-actions button', { hasText: 'Share' }).click();
   await expect.poll(async () => (await sharedList(maker)).length, { timeout: 10_000 }).toBe(1);
   const link = new URL((await sharedList(maker))[0]);
-  // the same track, now with the lap in the code
+  // the same track, now with the lap in the code, and the class the lap was driven at
   expect(link.searchParams.get('t')).not.toBe(code);
+  const lapCls = link.searchParams.get('cls');
+  expect(lapCls).toMatch(/^[012]$/);
 
   // a friend opens it: "Sender's lap 0:xx.xx · beat it", a live lap delta, and how it went on the results
   const friend = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
   friend.on('pageerror', (e) => errors.push(e.message));
-  await friend.goto(`/?bot=1&speed=4&t=${link.searchParams.get('t')}`);
+  // a race at another class shows no target (playtest: a 100cc lap to beat at 50cc)
+  await friend.goto(`/?bot=1&t=${link.searchParams.get('t')}&cls=${(Number(lapCls) + 1) % 3}`);
+  await expect(friend.locator('.fm-ugc-banner.on')).toBeVisible({ timeout: 20_000 });
+  await expect(friend.locator('.fm-ugc-banner.on')).not.toContainText("Sender's lap");
+  await friend.goto('about:blank');
+  await friend.goto(`/?bot=1&speed=4&t=${link.searchParams.get('t')}&cls=${lapCls}`);
   await expect(friend.locator('.fm-ugc-banner.on')).toContainText(/Sender's lap \d:\d\d\.\d\d · beat it/, { timeout: 20_000 });
   await expect(friend.locator('.fm-lap-pill.on b')).toHaveText(/^[+−]\d+\.\d\d$/, { timeout: 60_000 });
   await friend.screenshot({ path: 'e2e/screens/ugc-maker-lap.png' });

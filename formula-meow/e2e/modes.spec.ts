@@ -66,7 +66,12 @@ test('title → menu → Grand Prix, four races → standings → podium → men
     await page.locator('[data-act="mode-continue"]').click();
     await expect(page.locator('[data-screen="standings"]')).toBeVisible();
     await expect(page.locator('.fm-m-srow')).toHaveCount(8);
-    if (race === 1) await page.screenshot({ path: 'e2e/screens/modes-standings.png' });
+    if (race === 1) {
+      // after race 1 there is no earlier standing: no ▲/▼ arrows, and the rows already show their real places
+      expect((await page.locator('.fm-m-srow .mv').allTextContents()).join('')).toBe('');
+      expect(await page.locator('.fm-m-srow .pos').allTextContents()).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
+      await page.screenshot({ path: 'e2e/screens/modes-standings.png' });
+    }
     await page.locator('[data-screen="standings"] [data-act="continue"]').click();
   }
   await expect(page.locator('[data-screen="podium"]')).toBeVisible({ timeout: 20_000 });
@@ -104,7 +109,10 @@ test('time trial: the first run saves a personal-best ghost and Retry races it',
   const field = await page.evaluate(() => (window as unknown as Win).__fm!.shell.world!.st.karts.length);
   expect(field).toBe(1);
   await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 200_000 });
-  await expect(page.locator('.fm-m-res')).toContainText('record');
+  // the first run's record is the headline, said once (it used to stack "New best" and "First record set!")
+  await expect(page.locator('.fm-overlay.on .fm-headline')).toContainText('First record set!');
+  await expect(page.locator('.fm-overlay.on .fm-headline')).not.toContainText('New best');
+  await expect(page.locator('.fm-overlay.on .fm-m-res')).not.toContainText('First record set!');
   await page.screenshot({ path: 'e2e/screens/modes-tt-results.png' });
   await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fmModes!.save.tt['kitchen:0']?.ghost), { timeout: 10_000 }).toBe(true);
   await page.locator('[data-act="mode-again"]').click();
@@ -130,6 +138,21 @@ test('balloon battle plays its 2:30 round and the top scorer wins', async ({ pag
   // F14: the last 30 s are a frenzy (the chip stays up) and the points leader gets a marker
   await expect(page.locator('.fm-mode-hud.frenzy .fm-mh-frenzy')).toContainText('DOUBLE POINTS', { timeout: 300_000 });
   await page.screenshot({ path: 'e2e/screens/modes-battle-frenzy.png' });
+  // the chip never covers the held item's name (playtest: "×2 DOUBLE POINTS" half hid "Cucumber"), on a phone, in
+  // landscape and on desktop
+  for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(vp);
+    const gap = await page.evaluate(() => {
+      const name = document.querySelector('.fm-item-name') as HTMLElement;
+      name.textContent = 'Cucumber';
+      name.classList.add('on');
+      const a = name.getBoundingClientRect();
+      const b = document.querySelector('.fm-mode-hud .fm-mh-frenzy')!.getBoundingClientRect();
+      return b.top - a.bottom;
+    });
+    expect(gap, `${vp.width}x${vp.height}`).toBeGreaterThan(0);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 300_000 });
   const end = await page.evaluate(() => {
     const w = (window as unknown as Win).__fm!.shell.world! as unknown as { done: boolean; st: { tick: number; mode: { battle: { score: number[] } } }; ctx: { goTick: number }; result(): { places: Array<{ kart: number }> } };

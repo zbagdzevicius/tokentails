@@ -228,7 +228,7 @@ test('iteration 4: the paw TAP! ring lights up on a lip; final-lap gap chips; a 
 
   // the final lap: the gap chips show the cats ahead and behind
   await expect(page.locator('.fm-gap.on').first()).toBeVisible({ timeout: 300_000 });
-  await expect(page.locator('.fm-gap.on').first()).toHaveText(/[+−]\d+\.\d s$/);
+  await expect(page.locator('.fm-gap.on').first()).toHaveText(/([+−]\d+\.\d s|SIDE BY SIDE!)$/);
 
   // the finish: seed 7 is a close win; the stamp carries the margin finishMargin gives
   await expect(page.locator('.fm-stamp.on')).toBeVisible({ timeout: 300_000 });

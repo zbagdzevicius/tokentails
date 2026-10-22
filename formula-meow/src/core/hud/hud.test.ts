@@ -200,6 +200,8 @@ describe('final-lap gap chip (iteration 4, F5)', () => {
     expect(gapChipText(0.26, false, false)).toBe('▼ −0.3 s');
     expect(gapChipText(0.31, true, true)).toBe('CATCH! +0.3 s');
     expect(gapChipText(0.2, false, true)).toBe('DEFEND! −0.2 s');
+    expect(gapChipText(0.03, true, true)).toBe('SIDE BY SIDE!');
+    expect(gapChipText(-0.01, false, true)).toBe('SIDE BY SIDE!');
   });
   it('portrait stacks the chips under the place badge; landscape phones put them in the place row', () => {
     const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');

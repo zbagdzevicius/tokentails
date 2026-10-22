@@ -27,12 +27,23 @@ export interface ClassTuning {
   aiTopHi: number;
   /** highest AI top-speed scale, reached only behind a player who leads (SIM_VERSION 7) */
   maxScale: number;
+  /**
+   * rubber band gain per metre for an AI ahead of the player (default `AI.bandK`): a higher gain slows the cats just
+   * ahead of a struggling player, not only the ones far up the road (iteration 4 playtest, 50cc)
+   */
+  bandKAhead?: number;
+  /** the slowest an AI ahead of the player may go, as a fraction off (default `bandDown`, which AI-only races keep) */
+  bandDownAhead?: number;
 }
 
 export const CLASSES: readonly ClassTuning[] = [
   // SIM_VERSION 7 (playtest round 2): narrower skill bands and a pull toward the pack (AI.packK) keep the field
   // together; 100cc and 150cc are faster (24 / 28 / 33 m/s), so each class feels like a step up
-  { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.58, 0.8], bandDown: 0.08, bandUp: 0.1, aiTop: 0.93, aiTopHi: 0.98, maxScale: 1.03 },
+  // iteration 4 playtest ("Gentle rivals, room to learn" was too hard): a phone player who never drifts finished 8th in
+  // 9 of 10 races, 6–24 s back. The cats ahead of a player give back more, sooner (bandKAhead 0.005 → 0.04 per m,
+  // bandDownAhead 0.08 → 0.3): the novice bot's mean place went 7.4 → 4.2 and its podium 0 → 40 % over 60 races; the
+  // average-player bot still wins most (balance.test.ts). AI-only races (and their golden hashes) are unchanged
+  { name: 'Kitten', cc: '50cc', topSpeed: 24, zeroTo90: 1.4, aiSkill: [0.58, 0.8], bandDown: 0.08, bandUp: 0.1, aiTop: 0.93, aiTopHi: 0.98, maxScale: 1.03, bandKAhead: 0.04, bandDownAhead: 0.3 },
   { name: 'Alley Cat', cc: '100cc', topSpeed: 28, zeroTo90: 1.5, aiSkill: [0.72, 0.93], bandDown: 0.07, bandUp: 0.12, aiTop: 0.96, aiTopHi: 1, maxScale: 1.05 },
   // SIM_VERSION 8 (integration, iteration 3): the set-piece assists even out the stretches where skill told, so the 150cc
   // bot reached the podium 88 % of the time (target ≤ 75 %): the leading cats give back less (bandDown 0.06 → 0.04)

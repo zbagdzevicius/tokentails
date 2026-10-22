@@ -14,7 +14,36 @@ import { MILK_R } from '../../core/track/build';
 
 interface Piece {
   place: HazardPlace;
-  update(tick: number, dt: number): void;
+  update(tick: number, dt: number, kart: Eye | null): void;
+}
+
+/** A point on the floor plane with a height (the player's shown kart, the camera). */
+export interface Eye {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** The hanging sheet's opacity while it is between the camera and the player's kart (screen-door, `alphaHash`). */
+export const SHEET_FADE = { alpha: 0.25, fadeS: 0.12, margin: 0.6 } as const;
+
+/**
+ * True when the sight line camera → kart (floor plane) crosses the sheet: the segment through the sheet's centre
+ * (sx, sz) along the washing line (lx, lz unit), `half` metres each way. Pure (unit tested). The playtest found the
+ * sheet filling the whole screen for ~0.3 s a lap on Laundry Spin, the kart unseen (it needs the same camera-ray fade
+ * Battle furniture got).
+ */
+export function sheetBlocksSight(cx: number, cz: number, kx: number, kz: number, sx: number, sz: number, lx: number, lz: number, half: number): boolean {
+  const dx = kx - cx;
+  const dz = kz - cz;
+  const den = dx * lz - dz * lx;
+  if (Math.abs(den) < 1e-6) return false;
+  // cam + u·d = s + v·l
+  const ex = sx - cx;
+  const ez = sz - cz;
+  const u = (ex * lz - ez * lx) / den;
+  const v = (ex * dz - ez * dx) / den;
+  return u > 0 && u < 1 && Math.abs(v) <= half;
 }
 
 const pose: Pose = { x: 0, z: 0, fx: 0, fz: 1 };
@@ -36,9 +65,17 @@ export class HazardView {
     }
   }
 
-  update(tick: number, dt: number): void {
-    for (const p of this.pieces) p.update(tick, dt);
+  /** `kart`: the player's shown kart (the laundry sheet fades while it hides it from the camera) */
+  update(tick: number, dt: number, kart: Eye | null = null): void {
+    for (const p of this.pieces) p.update(tick, dt, kart);
   }
+
+  /** The sheets' current opacity (QA, e2e). */
+  get sheetAlpha(): number[] {
+    return this.sheets.map((m) => m.opacity);
+  }
+
+  private readonly sheets: Material[] = [];
 
   private mesh(g: GeoBuilder, mat: Material, name: string): Mesh {
     const m = new Mesh(g.build(), mat);
@@ -128,23 +165,42 @@ export class HazardView {
       sg.box(sw, h, 0.06, k % 2 ? 0xfff3dc : p.id % 2 ? 0xff8fb1 : 0x9fd3ff, { y: -h * (k + 0.5) }, { vary: 0.01 });
     }
     sg.box(sw + 0.1, 0.12, 0.1, 0xffffff, { y: -0.02 }, { vary: 0 });
-    const sheet = new Mesh(sg.build(), this.toon({ side: DoubleSide }));
+    // alphaHash: a screen-door fade (opaque pass, no sorting) when it hides the player's kart
+    const sheetMat = this.toon({ side: DoubleSide, alphaHash: true });
+    this.sheets.push(sheetMat);
+    const sheet = new Mesh(sg.build(), sheetMat);
     sheet.name = 'hz-laundry-sheet';
     const pivot = new Group();
     pivot.position.set(p.x, p.y + top, p.z);
     pivot.rotation.y = ry + Math.PI / 2;
     pivot.add(sheet);
     this.group.add(pivot);
+    // the camera that last drew the sheet (its position, for the sight-line test)
+    const cam = new Vector3();
+    let seen = false;
+    sheet.onBeforeRender = (_r, _s, c) => {
+      cam.setFromMatrixPosition(c.matrixWorld);
+      seen = true;
+    };
+    const centre = new Vector3();
     let prev = 0;
     return {
       place: p,
-      update(tick) {
+      update(tick, dt, kart) {
         const ds = sheetOffset(p, tick);
         // the sheet slides along the line (local x = lateral) and flaps with its speed
         sheet.position.x = -ds;
         const v = ds - prev;
         prev = ds;
         sheet.rotation.x = Math.max(-0.5, Math.min(0.5, v * 6));
+        let want = 1;
+        if (kart && seen) {
+          sheet.getWorldPosition(centre);
+          if (sheetBlocksSight(cam.x, cam.z, kart.x, kart.z, centre.x, centre.z, rx, rz, sw / 2 + SHEET_FADE.margin)) want = SHEET_FADE.alpha;
+        }
+        const step = dt > 0 ? Math.min(1, dt / SHEET_FADE.fadeS) : 1;
+        const a = sheetMat.opacity;
+        sheetMat.opacity = a + Math.sign(want - a) * Math.min(Math.abs(want - a), step * (1 - SHEET_FADE.alpha));
       },
     };
   }

@@ -52,6 +52,45 @@ test('phone results: headline and Next above the fold, the rest in the tray; the
   await aboveFold(page, '.fm-overlay.on .fm-headline');
   await aboveFold(page, '.fm-overlay.on [data-act="next"]');
   await aboveFold(page, '.fm-overlay.on [data-id="dare"]');
+  // a toast over the results (an achievement) never lies on a button (portrait here, landscape below)
+  const toastOverButtons = () =>
+    page.evaluate(() => {
+      const host = document.createElement('div');
+      host.className = 'fm-ui-toasts';
+      host.innerHTML = '<div class="fm-ui-toast">👻 Achievement: Ghostbuster +25 🐟</div>';
+      document.body.append(host);
+      const a = host.firstElementChild!.getBoundingClientRect();
+      const hits = [...document.querySelectorAll<HTMLElement>('.fm-overlay.on button, .fm-overlay.on a.fm-btn')]
+        .filter((b) => b.offsetParent && b.getBoundingClientRect().height > 0)
+        .filter((b) => {
+          const r = b.getBoundingClientRect();
+          return r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top;
+        })
+        .map((b) => b.textContent);
+      host.remove();
+      return hits;
+    });
+  expect(await toastOverButtons()).toEqual([]);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(300);
+  expect(await toastOverButtons()).toEqual([]);
+  // desktop: an 8th place's own row is never left under the list's bottom fade (playtest, Café Night 150cc)
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.waitForTimeout(300);
+  const lastRow = await page.evaluate(async () => {
+    const rows = [...document.querySelectorAll<HTMLElement>('.fm-overlay.on .fm-table tr')];
+    for (const r of rows) r.classList.remove('me');
+    rows[rows.length - 1].classList.add('me');
+    const sc = document.querySelector<HTMLElement>('.fm-overlay.on .fm-res-scroll')!;
+    sc.scrollTop = 0;
+    sc.dispatchEvent(new Event('scroll'));
+    await new Promise((r) => setTimeout(r, 100));
+    const fade = sc.classList.contains('more');
+    return { fade, below: rows[rows.length - 1].getBoundingClientRect().bottom - (sc.getBoundingClientRect().bottom - (fade ? 36 : 0)) };
+  });
+  expect(lastRow.below).toBeLessThanOrEqual(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
   const btns = page.locator('.fm-overlay [data-x]');
   await expect(btns).toHaveCount(5);
   const x = (i: number) => page.locator(`.fm-overlay [data-x="${i}"]`);
@@ -112,6 +151,8 @@ test('the dare card: "Race the pack" races the ghost in the full field; an older
   await expect(page.locator('.fm-dare-card')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.fm-dare-mode')).toHaveText('1v1: you and the ghost');
   expect(await fm(page, 'f.shell.world?.tick ?? 0')).toBe(0);
+  // the card is the only call to action: the grid's PRESS ANY KEY pill waits behind it
+  await expect(page.locator('.fm-tap')).toBeHidden();
   await page.locator('.fm-dare-card [data-act="pack"]').check();
   await expect(page.locator('.fm-dare-mode')).toHaveText('You, the ghost and 7 cats');
   await page.locator('.fm-dare-card [data-act="dare-go"]').click();
@@ -128,6 +169,63 @@ test('the dare card: "Race the pack" races the ghost in the full field; an older
   expect(await field(page)).toBe(8);
   expect(await ghostIn(page, 'Mia')).toBe(false);
   expect(errors).toEqual([]);
+});
+
+test('landscape phone: the dare card fits the 390 px height and the duel grid has no banner over the Pounce hint', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`/#g=${LEGACY.dare11}&n=Zyg`);
+  await expect(page.locator('.fm-dare-card')).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(500);
+  for (const sel of ['.fm-dare-card-in', '.fm-dare-go']) {
+    const b = (await page.locator(sel).boundingBox())!;
+    expect(b.y, sel).toBeGreaterThanOrEqual(0);
+    expect(b.y + b.height, sel).toBeLessThanOrEqual(390);
+  }
+  await expect(page.locator('.fm-tap')).toBeHidden();
+  await page.screenshot({ path: 'e2e/screens/dare-card-landscape.png' });
+  await page.locator('.fm-dare-card [data-act="dare-go"]').tap();
+  await expect(page.locator('.fm-dare-card')).toHaveCount(0);
+  await expect(page.locator('.fm-gap-pill:not(.fm-lap-pill)')).toBeVisible({ timeout: 10_000 });
+  // the gap pill names the ghost; a second "Race Zyg's ghost" banner sat on the countdown's Pounce hint
+  await page.waitForTimeout(800);
+  await expect(page.locator('.fm-dare-banner:not(.off)')).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await ctx.close();
+});
+
+test('desktop: the grid label pill (Daily Cup) never sits on the player\'s kart from the countdown through GO', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?bot=1&daily=1');
+  await expect(page.locator('.fm-dare-banner')).toContainText('Daily Cup', { timeout: 20_000 });
+  const hits: string[] = [];
+  let samples = 0;
+  for (let i = 0; i < 40 && samples < 12; i++) {
+    const r = await page.evaluate(() => {
+      type M = { elements: number[] };
+      const f = (window as unknown as { __fm: { shell: { me: number; world: { st: { tick: number; karts: Array<{ x: number; y: number; z: number }> } } | null; camera: { mode: string; cam: { matrixWorldInverse: M; projectionMatrix: M } } } } }).__fm.shell;
+      const b = document.querySelector<HTMLElement>('.fm-dare-banner:not(.off)');
+      if (!f.world || !b || f.camera.mode !== 'chase') return null;
+      const k = f.world.st.karts[f.me];
+      const mul = (m: number[], v: number[]) => [0, 1, 2, 3].map((r) => m[r] * v[0] + m[4 + r] * v[1] + m[8 + r] * v[2] + m[12 + r] * v[3]);
+      const pts = [0, 0.6, 1.2].map((dy) => {
+        const c = mul(f.camera.cam.projectionMatrix.elements, mul(f.camera.cam.matrixWorldInverse.elements, [k.x, k.y + dy, k.z, 1]));
+        return { x: ((c[0] / c[3]) * 0.5 + 0.5) * innerWidth, y: (0.5 - (c[1] / c[3]) * 0.5) * innerHeight };
+      });
+      const rb = b.getBoundingClientRect();
+      const hit = pts.some((p) => p.x > rb.left && p.x < rb.right && p.y > rb.top - 12 && p.y < rb.bottom + 12);
+      return { tick: f.world.st.tick, hit, kart: pts.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(' '), banner: `${Math.round(rb.top)}-${Math.round(rb.bottom)}` };
+    });
+    if (r) {
+      samples++;
+      if (r.hit) hits.push(JSON.stringify(r));
+    }
+    await page.waitForTimeout(250);
+  }
+  expect(samples).toBeGreaterThan(3);
+  expect(hits).toEqual([]);
 });
 
 test('a Time Trial dare: Dare a friend on the results, the link opens a time-trial duel with the ghost', async ({ page }) => {

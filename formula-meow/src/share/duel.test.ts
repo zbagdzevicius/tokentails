@@ -67,4 +67,12 @@ describe('ghost duels replay (F9)', () => {
       expect(dareRace({ ...now, mode: 'tt' }, false)).toEqual({ mode: 'tt', solo: true });
     }
   });
+
+  it('the dare11 fixture is a real run of this build: its ghost finishes (it used to be a v10 run restamped, a DNF)', async () => {
+    const g = (await decodeGhost(LEGACY.dare11))!;
+    expect(g.simVersion).toBe(SIM_VERSION);
+    const { KITCHEN } = await import('../core/track/tracks/kitchen');
+    const tr = await traceGhost(g, KITCHEN);
+    expect(tr?.finish).not.toBeNull();
+  });
 });
