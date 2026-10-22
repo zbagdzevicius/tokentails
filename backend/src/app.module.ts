@@ -188,6 +188,10 @@ import { MotoredStripeController } from './shelter/motored/motored-stripe.contro
 import { MotoredStripeService } from './shelter/motored/motored-stripe.service';
 import { MotoredGiftService } from './shelter/motored/motored-gift.service';
 import { MotoredGift, MotoredGiftSchema, MotoredWallet, MotoredWalletSchema } from './shelter/motored/motored.schema';
+import { ClubController } from './club/club.controller';
+import { ClubMember, ClubMemberSchema, ClubWebhookEvent, ClubWebhookEventSchema } from './club/club.schema';
+import { ClubService } from './club/club.service';
+import { ClubWebhookService } from './club/club-webhook.service';
 
 const JwtModules = [
     PassportModule,
@@ -278,6 +282,9 @@ const config = {
             // Motored × Stripe (one gift per real paid order): open once its secrets are set.
             { name: MotoredWallet.name, schema: MotoredWalletSchema },
             { name: MotoredGift.name, schema: MotoredGiftSchema },
+            // Tails Club (monthly or yearly membership, half to Pink Paw): open once its Stripe env is set.
+            { name: ClubMember.name, schema: ClubMemberSchema },
+            { name: ClubWebhookEvent.name, schema: ClubWebhookEventSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -320,6 +327,8 @@ const config = {
         RaveAdsController,
         // Motored × Stripe: one gift to Pink Paw per real paid Motored order.
         MotoredStripeController,
+        // Tails Club: subscriptions paid in the landing's club card (Payment Element).
+        ClubController,
     ],
     providers: [
         UserRepository,
@@ -409,6 +418,9 @@ const config = {
         // Motored × Stripe.
         MotoredStripeService,
         MotoredGiftService,
+        // Tails Club.
+        ClubService,
+        ClubWebhookService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

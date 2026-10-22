@@ -542,6 +542,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
     const headers = await nextConfig.headers();
 <<<<<<< HEAD
+<<<<<<< HEAD
     expect(headers.map((h: { source: string }) => h.source)).toEqual([
       "/badcat-game/sw.js",
       "/badcat/sw.js",
@@ -557,6 +558,9 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(headers.some((h: { source: string }) => h.source.startsWith("/pawlegends-game/index"))).toBe(false);
 =======
     expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/music/back-on-track-v1/:path*"]);
+=======
+    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/home/media/:path*", "/music/back-on-track-v1/:path*"]);
+>>>>>>> 1c6432d57 (feat(home): Play-to-Save landing as the tokentails.com home page, Tails Club backend)
     // Moon Rave's second track: every file name is versioned, so the folder is immutable.
     const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
     expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);

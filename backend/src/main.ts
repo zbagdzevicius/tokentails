@@ -3,6 +3,7 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 import { AppModule } from './app.module';
+import { corsOrigins } from './shared/cors-origins';
 import { loadDevShelterKey } from './shelter/onchain/shelter-dev-key';
 import { applyTrustProxy } from './shared/trust-proxy';
 import { AppValidationPipe } from './user/dto/live-game.dto';
@@ -11,18 +12,7 @@ dotenv.config();
 
 function initializeCors(app: INestApplication): void {
     const corsOptions: CorsOptions = {
-        origin: [
-            'http://localhost',
-            'capacitor://localhost',
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'https://cats.tokentails.com',
-            'https://test.tokentails.com',
-            'https://tokentails.com',
-            // the Bad Cat embed on www defaults its API to api.tokentails.com too
-            'https://www.tokentails.com',
-            ...(process.env.FRONT_END_URLS?.split(',') || ['*']),
-        ],
+        origin: corsOrigins(),
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         exposedHeaders: [

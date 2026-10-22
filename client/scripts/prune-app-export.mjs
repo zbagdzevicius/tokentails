@@ -33,6 +33,13 @@ export const WEB_ONLY_PREFIXES = Object.freeze([
   "music/back-on-track-v1/bot-v1-",
 ]);
 
+/** Whole folders under out/ that app builds never use. */
+export const WEB_ONLY_DIRS = Object.freeze([
+  // The web home page (about 105 MB with its videos): the app starts at pages/index.tsx, and the
+  // export has no rewrite that could serve it (docs/CLIENT.md "Home page (/)").
+  "home",
+]);
+
 /** Every file under out/ that matches a web-only prefix. */
 export function webOnlyPrefixed(outDir) {
   const found = [];
@@ -48,6 +55,13 @@ export function webOnlyPrefixed(outDir) {
 
 export function pruneAppExport(outDir) {
   const removed = [];
+  for (const dir of WEB_ONLY_DIRS) {
+    const full = join(outDir, dir);
+    if (existsSync(full)) {
+      rmSync(full, { recursive: true, force: true });
+      removed.push(`${dir}/`);
+    }
+  }
   for (const file of webOnlyPrefixed(outDir)) {
     rmSync(join(outDir, file));
     removed.push(file);
