@@ -17,12 +17,11 @@ import { BODY_PRICES } from '../content/cosmetics';
 import { playableShelterCats } from '../share/pinkpaw/unlocks';
 import type { PinkPawCat } from '../share/pinkpaw/pink-paw';
 import { applyMedal, mergeAward } from './record';
-import { challengeById } from './challenges';
+import { namedChallenge } from './names';
 import { kartFromLoadout } from './loadout';
 import { isUnlocked, unlockState, type UnlockKey } from './unlocks';
 import { prog, setProg, world, dailyToday } from './store';
 import { lastAward, setLastAward } from './last';
-import { trackById } from '../core/track/tracks';
 import type { Loadout } from './state';
 
 export type { UnlockKey };
@@ -62,7 +61,7 @@ export function recordMedal(trackId: string, cls: RaceClass, medal: number, mirr
 export function dailyChallenges(): Array<{ text: string; vars: Record<string, string | number>; progress: number; target: number; done: boolean; fish: number }> {
   const d = dailyToday();
   return d.ids.flatMap((id, i) => {
-    const c = challengeById(id, (t) => trackById(t).name);
+    const c = namedChallenge(id);
     return c ? [{ text: c.text, vars: c.vars, progress: d.progress[i] ?? 0, target: c.target, done: !!d.done[i], fish: c.fish }] : [];
   });
 }

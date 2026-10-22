@@ -29,6 +29,10 @@ export interface LifetimeStats {
   shortcuts: number;
   respawns: number;
   battleWins: number;
+  /** F12 set pieces: loops ridden, wall lanes ridden clean, clean landings (all races) */
+  loops: number;
+  walls: number;
+  cleanLandings: number;
   /** races per body id (favourite body) */
   bodyRaces: number[];
   /** races per mode */
@@ -84,6 +88,8 @@ export interface ProgSave {
   stats: LifetimeStats;
   /** best lap in seconds by `${trackId}:${cls}:${modifiers}` */
   bestLaps: Record<string, number>;
+  /** F12: the best Style score per authored track (any class, mode or mutator; not battle) */
+  styleBest: Record<string, number>;
   /** track ids with a podium (trails), raced (Globetrotter), with a shortcut taken (Shortcut Scout) */
   podiumTracks: string[];
   racedTracks: string[];
@@ -119,6 +125,9 @@ export function emptyStats(): LifetimeStats {
     shortcuts: 0,
     respawns: 0,
     battleWins: 0,
+    loops: 0,
+    walls: 0,
+    cleanLandings: 0,
     bodyRaces: [0, 0, 0, 0, 0, 0],
     modeRaces: {},
   };
@@ -144,6 +153,7 @@ export function defaultProg(): ProgSave {
     achievements: {},
     stats: emptyStats(),
     bestLaps: {},
+    styleBest: {},
     podiumTracks: [],
     racedTracks: [],
     shortcutTracks: [],
@@ -265,6 +275,7 @@ export function migrateProg(raw: unknown, core?: Pick<Progress, 'races' | 'unloc
     achievements: numRecord(r.achievements, 0, 1e6),
     stats: sanitizeStats(r.stats),
     bestLaps: numRecord(r.bestLaps, 0.01, 1e5),
+    styleBest: numRecord(r.styleBest, 1, 1e7),
     podiumTracks: strs(r.podiumTracks),
     racedTracks: strs(r.racedTracks),
     shortcutTracks: strs(r.shortcutTracks),

@@ -14,6 +14,9 @@ import { h, modal, tile } from '../../ui/kit';
 import { t } from '../../ui/i18n';
 import { flow } from '../flow';
 import { menuTiles, type MenuTile } from '../hooks';
+import { MEMO_MODES, type MemoMode } from '../store';
+
+const isMemoMode = (id: string): id is MemoMode => (MEMO_MODES as readonly string[]).includes(id);
 import { classLabel, frame, focusFirst, touchUi, TROPHY, heldBack } from './ui';
 
 export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): ScreenHandle {
@@ -97,16 +100,31 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   for (const x of [...all.values()].sort((a, b) => a.order - b.order)) {
     const lock = x.lock?.() ?? null;
     const into = x.id === 'gp' ? hero : MODES.has(x.id) ? modes : strip;
+    // F13: a mode raced before starts in one tap with what it remembers ("Grand Prix ▶ / Kibble Cup · 100cc"); its
+    // "change" link opens the pickers. A first visit to a mode still goes through them.
+    const memo = !lock && isMemoMode(x.id) && f.save.memo[x.id].set ? x.id : null;
+    const setup = memo ? f.tileSetup(memo) : null;
     const el = tile(
-      x.label(),
+      memo ? `${x.label()} ▶` : x.label(),
       () => {
         f.update((v) => (v.last.focus = x.id));
+        if (memo && f.oneTap(memo)) return;
         x.run();
       },
-      { icon: x.icon, sub: into === strip ? undefined : x.sub?.(), locked: !!lock, lockText: lock ?? undefined },
+      { icon: x.icon, sub: into === strip ? undefined : setup ? (setup.cat ? `${setup.line} · ${setup.cat}` : setup.line) : x.sub?.(), locked: !!lock, lockText: lock ?? undefined },
     );
     el.dataset.tile = x.id;
-    into.append(el);
+    if (!memo) {
+      into.append(el);
+      continue;
+    }
+    el.classList.add('fm-m-onetap');
+    const change = h('button', { class: 'fm-m-change', type: 'button', 'data-act': `change-${memo}`, 'aria-label': t('Change the {mode} setup', { mode: x.label() }) }, [t('change')]);
+    change.addEventListener('click', () => {
+      f.update((v) => (v.last.focus = x.id));
+      void screens.push('select', { next: memo });
+    });
+    into.append(h('div', { class: 'fm-m-tilewrap', 'data-wrap': x.id }, [el, change]));
   }
   for (const g of [hero, modes, strip]) if (g.childElementCount) fr.body.append(g);
   // trophies shelf: the best trophy per cup and class
