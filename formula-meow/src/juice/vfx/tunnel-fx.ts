@@ -5,6 +5,11 @@
  * a short tunnel (Kitchen's is 14 m) is as busy as a long one. One InstancedMesh (one draw call, and only while the player is
  * inside a tunnel); streaks never leave the tunnel's footprint. Reduced motion: hidden (the engine's static strips and
  * rings stay). Render-only: reads the race, never writes the sim.
+ *
+ * Iteration 4 (F2, feel lane; playtest: on a phone the streaks covered about two thirds of the Shelter cat-flap
+ * tunnel): on a screen narrower than `TUNNEL_FX.narrowPx` the streaks run at half opacity on the walls only (not the
+ * arch's crown, `facetsNarrow`), and everywhere a streak fades out within `nearFade` m of the camera (in the shader, per
+ * pixel, so a streak racing past the lens never fills the screen). The road stays the brightest thing on screen.
  */
 import { AdditiveBlending, BoxGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, MeshBasicMaterial, Object3D, type Scene } from 'three';
 import type { RaceState } from '../../types';
@@ -24,7 +29,20 @@ export const TUNNEL_FX = {
   /** length = base + speed × stretch (m) */
   base: 0.8,
   stretch: 0.28,
+  /** iteration 4: below this CSS width (px) the phone look applies */
+  narrowPx: 600,
+  /** phone look: opacity scale and the wall-only arch positions (low on both walls, nothing on the crown) */
+  narrowOpacity: 0.5,
+  facetsNarrow: [0.9, 1.7, 6.3, 7.1] as readonly number[],
+  /** a streak fades to nothing this close to the camera (m), on a phone; `nearFadeWide` on a wide screen */
+  nearFade: 4,
+  nearFadeWide: 2,
 } as const;
+
+/** True when the page is narrower than `TUNNEL_FX.narrowPx` (the phone look). */
+export function narrowScreen(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth < TUNNEL_FX.narrowPx;
+}
 
 const _o = new Object3D();
 const _c = new Color();
@@ -36,6 +54,10 @@ export class TunnelFx {
   private fade = 0;
   /** 0.4 … 1 from the quality tier: fewer streaks on the low tier */
   density = 1;
+  /** the phone look (half opacity, walls only, 4 m near fade); null = from the window width every frame */
+  narrow: boolean | null = null;
+  /** the near fade distance the shader uses (m) */
+  private readonly near = { value: TUNNEL_FX.nearFadeWide as number };
 
   constructor(
     private readonly scene: Scene,
@@ -46,6 +68,18 @@ export class TunnelFx {
     const g = new BoxGeometry(0.32, 0.32, 1);
     g.translate(0, 0, -0.5); // the streak trails behind its head (toward the player)
     const mat = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    // fade each pixel by its distance from the camera (view depth): nothing within ~0.5 m, full from `near`
+    const near = this.near;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uFmNear = near;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vFmDepth;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvFmDepth = -mvPosition.z;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uFmNear;\nvarying float vFmDepth;')
+        .replace('#include <opaque_fragment>', 'diffuseColor.a *= smoothstep(0.5, uFmNear, vFmDepth);\n#include <opaque_fragment>');
+    };
+    mat.customProgramCacheKey = () => 'fm-tunnel-near';
     this.mesh = new InstancedMesh(g, mat, n);
     this.mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     this.mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(DynamicDrawUsage) as InstancedBufferAttribute;
@@ -94,6 +128,9 @@ export class TunnelFx {
     // never longer than half the tunnel (a short tunnel keeps its streaks between the portals)
     const len = Math.min(TUNNEL_FX.base + speed * TUNNEL_FX.stretch, Math.max(TUNNEL_FX.base, span * t.step * 0.5));
     const H = STUNT.tunnel.ceiling;
+    const narrow = this.narrow ?? narrowScreen();
+    const facets = narrow ? TUNNEL_FX.facetsNarrow : TUNNEL_FX.facets;
+    this.near.value = narrow ? TUNNEL_FX.nearFade : TUNNEL_FX.nearFadeWide;
     let drawn = 0;
     for (let i = 0; i < n; i++) {
       let o = this.off[i] - flow;
@@ -101,7 +138,7 @@ export class TunnelFx {
       this.off[i] = o;
       const j = (pc.i0 + Math.round(o * span)) % t.n;
       if (!t.tunnelMask[j]) continue;
-      const f = TUNNEL_FX.facets[this.row[i]];
+      const f = facets[this.row[i]];
       const W = Math.max(t.wallL[j], t.wallR[j]) + 0.9 - TUNNEL_FX.inset;
       const th = Math.PI * (f / 8);
       const lat = -Math.cos(th) * W;
@@ -117,7 +154,7 @@ export class TunnelFx {
     }
     this.mesh.count = drawn;
     this.mesh.visible = drawn > 0;
-    (this.mesh.material as MeshBasicMaterial).opacity = Math.min(1, this.fade);
+    (this.mesh.material as MeshBasicMaterial).opacity = Math.min(1, this.fade) * (narrow ? TUNNEL_FX.narrowOpacity : 1);
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }

@@ -1,6 +1,6 @@
 /**
  * Touch (GDD 2.1, portrait first). The control area is the bottom 60 % of the screen in portrait, 85 % in landscape:
- * - left half: floating steer stick from wherever the thumb lands (dead zone 6 px, full lock 70 px, curve x^1.4,
+ * - left half: floating steer stick from wherever the thumb lands (dead zone 4 px, full lock 70 px, curve x^1.15,
  *   the base follows when the thumb drifts more than 110 px, and never sits so close to an edge that full lock is
  *   out of reach). Several fingers on the left: the newest steers; lifting it hands back to the one before.
  * - right half: press = hop (after 80 ms, so a swipe never hops); in two-thumb mode (one-thumb off) hold = drift.
@@ -11,9 +11,9 @@
  */
 import { mergeSteer, type InputSource, type RawInput } from './raw';
 import { t } from '../../ui/i18n';
+import { STICK, stickSteer } from './smart-steer';
 
-const DEAD = 6;
-const FULL = 70;
+const FULL = STICK.full;
 const FOLLOW = 110;
 /** a right-half press hops once it is this old without having moved like a swipe (B25) */
 const HOP_DELAY = 80;
@@ -59,6 +59,9 @@ export class TouchInput implements InputSource {
   /** set by the shell before GO: only fresh taps on the right half / top of the screen are the Pounce Start press */
   countdown = false;
   private oneThumbOn = true;
+  /** the stick's dead zone (px) and response curve; iteration 4 softened them (x^1.4 → x^1.15, 6 → 4 px) */
+  dead = STICK.dead;
+  curve = STICK.curve;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -223,15 +226,11 @@ export class TouchInput implements InputSource {
     return best;
   }
 
-  /** Analog steer from the stick, −1..1 with the x^1.4 response curve. */
+  /** Analog steer from the stick, −1..1 with the x^1.15 response curve. */
   steerValue(): number {
     const p = this.activeSteer();
     if (!p) return 0;
-    const dx = p.x - p.x0;
-    const a = Math.abs(dx);
-    if (a < DEAD) return 0;
-    const u = Math.min(1, (a - DEAD) / (FULL - DEAD));
-    return Math.sign(dx) * Math.pow(u, 1.4);
+    return stickSteer(p.x - p.x0, this.dead, this.curve);
   }
 
   get touching(): boolean {
@@ -257,7 +256,7 @@ export class TouchInput implements InputSource {
   poll(out: RawInput): void {
     if (!this.active && this.ptrs.size === 0 && !this.pending.any) return;
     out.touch ||= this.active;
-    mergeSteer(out, this.steerValue(), false);
+    mergeSteer(out, this.steerValue(), false, true);
     const hold = this.holdingDrift();
     out.drift ||= hold || this.pending.drift;
     out.item ||= this.pending.item;

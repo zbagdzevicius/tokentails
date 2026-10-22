@@ -6,9 +6,12 @@
  * on a straight is not a drift). Playtest round 2 (phone drifts almost never reached a mini-turbo): the drift then
  * holds while the stick stays past 35 %, whatever the bend does; releasing the stick (or a wall, or a hop that never
  * became a drift) lets it go, and the release fires the charged mini-turbo.
+ * Iteration 4 (F2): Smart Steer (`smart-steer.ts`) edits a touch player's steer at the latch, so the recorded input
+ * is the assisted one. Keys and a gamepad are never touched (their TickInputs stay bit-identical).
  */
 import type { TickInput } from '../../types';
 import { emptyRaw, type InputSource, type RawInput } from './raw';
+import { EdgeTrend, smartSteer } from './smart-steer';
 
 export interface MuxSettings {
   /** desktop auto-gas (touch is always auto) */
@@ -69,6 +72,10 @@ export class InputMux {
   lookBack = false;
   any = false;
   touch = false;
+  /** the last latch's Smart Steer correction (assisted − raw steer, −0.35..0.35; 0 = no help) */
+  assist = 0;
+  private readonly trend = new EdgeTrend();
+  private readonly lead: MuxContext = { racing: false, speedFrac: 0, drifting: false };
 
   constructor(
     private readonly sources: InputSource[],
@@ -109,8 +116,14 @@ export class InputMux {
     if (tick % 2 === 0) {
       const r = this.raw;
       const autoGas = ctx.racing && (r.touch || this.settings.autoGas);
+      // Smart Steer: a touch player's stick (or no stick at all), never keys or a gamepad
+      const assisted = this.settings.smartSteer && r.touch && !r.digital && (r.steerTouch || r.steer === 0);
+      this.trend.update(tick, ctx);
+      const sc = assisted ? this.trend.apply(ctx, this.lead) : ctx;
+      const steer = assisted ? smartSteer(r.steer, sc) : r.steer;
+      this.assist = steer - r.steer;
       this.latched = {
-        steer: Math.max(-7, Math.min(7, Math.round(r.steer * 7))),
+        steer: Math.max(-7, Math.min(7, Math.round(steer * 7))),
         // touch has no gas pedal to lift: a full-lock stick at speed without a drift lifts for it (B7: the yaw
         // rate falls with speed, so a tight bend at top speed needs a lift or a drift, SIM_VERSION 6)
         gas: autoGas ? !r.brake && !(r.touch && Math.abs(r.steer) > 0.95 && !ctx.drifting && !this.autoDrift && ctx.speedFrac > 0.9) : r.gas || this.sticky.gas,

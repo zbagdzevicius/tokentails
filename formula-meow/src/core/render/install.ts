@@ -12,6 +12,8 @@
  *    (2 s at 50+ fps; off again after 2 s under 40 fps, and for good after the second time). `?bloom=1` forces it
  *    on for QA (juice/perf/post.ts)
  *
+ * Iteration 4: on the Rug, furniture between the camera and the player fades to 30 % (`occluder-fade.ts`, F14).
+ *
  * Extension points for other lanes: `shell.setCameraMode('podium' | 'attract' | 'flyover', params)`,
  * `KartView.setFinish(pose)`, `flyoverKeys(track, grid)`.
  */
@@ -25,6 +27,7 @@ import { Quality } from '../../juice/perf/quality';
 import { flyoverKeys } from '../camera/flyover';
 import type { PostFx } from '../../juice/perf/post';
 import type { Camera, Scene } from 'three';
+import { OccluderFade } from './occluder-fade';
 
 export class FeelDirector implements JuiceListener {
   private post: PostFx | null = null;
@@ -37,6 +40,8 @@ export class FeelDirector implements JuiceListener {
   private strikes = 0;
   private boostGrade = 0;
   private readonly noIntro: boolean;
+  /** iteration 4 (F14): furniture between the camera and the player fades on the Rug */
+  occluders: OccluderFade | null = null;
 
   constructor(private readonly shell: Shell) {
     const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -50,13 +55,15 @@ export class FeelDirector implements JuiceListener {
     }
     this.wrapRender();
     // QA (e2e/feel.spec.ts): is the post chain live
-    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled };
+    if (typeof window !== 'undefined') (window as unknown as { __fmFeel?: unknown }).__fmFeel = { post: () => !!this.post?.enabled, occluders: () => this.occluders };
   }
 
   onReset(): void {
     const s = this.shell;
     const view = s.view;
     const world = s.world;
+    this.occluders?.dispose();
+    this.occluders = view && world && world.track.arena && world.track.blocks.length ? new OccluderFade(view.world.group, world.track) : null;
     if (!view || !world) {
       s.camera.source = null;
       return;
@@ -100,6 +107,12 @@ export class FeelDirector implements JuiceListener {
     // the countdown started (tap, key, or a chained race): the flyover hands over to the chase rig
     if (cam.mode === 'flyover' && info.st.tick > 0) cam.skip();
     const k = info.st.karts[info.me];
+    const view = this.shell.view;
+    if (this.occluders && view) {
+      const p = view.shown[info.me];
+      const c = cam.cam.position;
+      if (p) this.occluders.update(c, { x: p.x, y: p.y, z: p.z }, info.dt, this.shell.settings.reducedMotion);
+    }
     if (k) this.boostGrade += ((k.boostTicks > 0 ? 1 : 0) - this.boostGrade) * Math.min(1, info.dt * 6);
     this.gatePost(info.dt);
     if (this.post) {
