@@ -786,6 +786,529 @@
    },
    "simVersion": 10,
    "length": 9807
+  },
+  "X2": {
+   "id": "X2",
+   "seed": 139,
+   "hero": "cacklejaw",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "cacklejaw",
+    "brutus",
+    "brutus",
+    "lambo",
+    "gabe",
+    "clem"
+   ],
+   "keys": {
+    "r": 9804,
+    "ko1": 9805,
+    "ko2": 9812,
+    "ko3": 9818
+   },
+   "roles": {
+    "star": 0,
+    "v1": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10118,
+    "eventHash": "1caa51bb",
+    "stateHash": "a0429ad5"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X1": {
+   "id": "X1",
+   "seed": 143,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "r": 9803,
+    "e": 9809,
+    "q": 9815,
+    "ko2": 9853
+   },
+   "roles": {
+    "star": 1,
+    "v1": 5,
+    "v2": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10153,
+    "eventHash": "cfb074ed",
+    "stateHash": "94639082"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X3": {
+   "id": "X3",
+   "seed": 3,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "cacklejaw",
+    "aviete",
+    "bengas",
+    "sage"
+   ],
+   "keys": {
+    "windup": 12553,
+    "cast": 12582,
+    "hit": 12583
+   },
+   "roles": {
+    "star": 5,
+    "v1": 2
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 12829,
+    "eventHash": "7ef2cd38",
+    "stateHash": "44e1a6a7"
+   },
+   "simVersion": 10,
+   "length": 12829
+  },
+  "X4": {
+   "id": "X4",
+   "seed": 47,
+   "hero": "lambo",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "lambo",
+    "bengas",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "e": 7462,
+    "q1": 7474,
+    "w": 7504,
+    "q2": 7510,
+    "q3": 7516,
+    "bengasW": 9841,
+    "cackR": 9867,
+    "cast": 9894,
+    "land": 9898,
+    "ko2": 9946
+   },
+   "roles": {
+    "lambo": 0,
+    "bengas": 1,
+    "clem": 2,
+    "v1": 3,
+    "star": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10246,
+    "eventHash": "bb83f45d",
+    "stateHash": "ecc52a9b"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X5": {
+   "id": "X5",
+   "seed": 52,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "brutus",
+    "gabe",
+    "clem",
+    "aviete"
+   ],
+   "keys": {
+    "cast": 12730
+   },
+   "roles": {
+    "star": 2,
+    "v1": 5
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 13030,
+    "eventHash": "dacaa25f",
+    "stateHash": "c496e55a"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X6": {
+   "id": "X6",
+   "seed": 57,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "brutus",
+    "bengas",
+    "lambo",
+    "sage"
+   ],
+   "keys": {
+    "windup": 4676,
+    "cast": 4690
+   },
+   "roles": {
+    "star": 4,
+    "v1": 1
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 4990,
+    "eventHash": "3b715177",
+    "stateHash": "3918df35"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X7": {
+   "id": "X7",
+   "seed": 64,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "cacklejaw",
+    "bengas",
+    "gabe",
+    "clem"
+   ],
+   "keys": {
+    "windup": 11379,
+    "cast": 11387,
+    "hit": 11394,
+    "ko1": 11409
+   },
+   "roles": {
+    "star": 3,
+    "v1": 2
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 11709,
+    "eventHash": "92c405f3",
+    "stateHash": "0bf4f70f"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X8": {
+   "id": "X8",
+   "seed": 41,
+   "hero": "lambo",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "lambo",
+    "sage",
+    "gabe",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "windup": 12898,
+    "cast": 12912,
+    "hit": 12931
+   },
+   "roles": {
+    "star": 2,
+    "v1": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 13231,
+    "eventHash": "5b60da72",
+    "stateHash": "80b90d3d"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X9": {
+   "id": "X9",
+   "seed": 103,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "clem",
+    "gabe",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "r": 9179,
+    "q": 9185
+   },
+   "roles": {
+    "star": 1,
+    "v1": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 9485,
+    "eventHash": "fd58d0c3",
+    "stateHash": "9f028a13"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X10": {
+   "id": "X10",
+   "seed": 12,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "cacklejaw",
+    "lambo",
+    "bengas",
+    "clem"
+   ],
+   "keys": {
+    "cast": 7780,
+    "ko": 7784
+   },
+   "roles": {
+    "star": 2,
+    "v1": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 8084,
+    "eventHash": "15c6b2b6",
+    "stateHash": "664991a6"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X11": {
+   "id": "X11",
+   "seed": 68,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "lambo",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "cast": 9066
+   },
+   "roles": {
+    "star": 0,
+    "v1": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 9366,
+    "eventHash": "4b8b1a6b",
+    "stateHash": "db712df5"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X12": {
+   "id": "X12",
+   "seed": 150,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "gabe",
+    "bengas",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "cast": 10469
+   },
+   "roles": {
+    "star": 1,
+    "v1": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10769,
+    "eventHash": "a9de9018",
+    "stateHash": "4f4ed250"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X13": {
+   "id": "X13",
+   "seed": 84,
+   "hero": "brutus",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "brutus",
+    "cacklejaw",
+    "brutus",
+    "gabe",
+    "lambo",
+    "aviete"
+   ],
+   "keys": {
+    "ko": 1786
+   },
+   "roles": {
+    "star": 0,
+    "v1": 3,
+    "tower": 50
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 2086,
+    "eventHash": "e6cc903a",
+    "stateHash": "287da3d9"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "X14": {
+   "id": "X14",
+   "seed": 36,
+   "hero": "cacklejaw",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "cacklejaw",
+    "brutus",
+    "cacklejaw",
+    "bengas",
+    "clem",
+    "lambo"
+   ],
+   "keys": {
+    "cackE": 11022,
+    "lamboE": 11023,
+    "bengasR": 11031,
+    "lamboRw": 11035,
+    "clemR": 11036,
+    "bengasWw": 11043,
+    "lamboR": 11049,
+    "brutusR": 11051,
+    "bengasW": 11051,
+    "clemQ": 11084,
+    "cackR": 11094,
+    "ko": 11119,
+    "tower": 11137
+   },
+   "roles": {
+    "cacklejaw": 0,
+    "brutus": 1,
+    "cack2": 2,
+    "bengas": 3,
+    "clem": 4,
+    "lambo": 5,
+    "tower": 46
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 11400,
+    "eventHash": "73a5f962",
+    "stateHash": "c62e67ca"
+   },
+   "simVersion": 10,
+   "length": 11400
   }
  }
 }

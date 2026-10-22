@@ -223,11 +223,17 @@ function videoGraph(cut, aspect) {
   v.push(`${edl.grade.eq}:enable='${G}'`);
   for (const [a, b, s] of g.desat) v.push(`eq=saturation=${s}:enable='between(n,${a},${b})'`);
   v.push(`${edl.grade.curves}:enable='${G}'`);
-  v.push(`${edl.grade.colorbalance}:enable='${G}'`);
-  v.push(`rgbashift=rh=${edl.chroma.strong}:bh=-${edl.chroma.strong}:enable='${rangesExpr(g.strong)}'`);
-  v.push(`rgbashift=rh=${edl.chroma.light}:bh=-${edl.chroma.light}:enable='${rangesExpr(g.light)}'[g]`);
+  v.push(`${edl.grade.colorbalance}:enable='${G}'[g0]`);
+  // v2 highlight bloom (§3): the brightest parts (skill FX, flashes, the sky) keyed off, blurred and added back
+  const bl = edl.grade.bloom;
+  const bloom = bl
+    ? [`[g0]format=gbrp,split=2[ga][gb]`, `[gb]curves=master='0/0 ${bl.threshold}/0 1/1',gblur=sigma=${bl.sigma}[gbl]`, `[ga][gbl]blend=all_mode=addition:all_opacity=${bl.opacity},format=rgb24[g1]`]
+    : ['[g0]null[g1]'];
+  const chroma = `[g1]rgbashift=rh=${edl.chroma.strong}:bh=-${edl.chroma.strong}:enable='${rangesExpr(g.strong)}',rgbashift=rh=${edl.chroma.light}:bh=-${edl.chroma.light}:enable='${rangesExpr(g.light)}'[g]`;
   const graph = [
     v.join(','),
+    ...bloom,
+    chroma,
     `[2:v]format=rgba[vig]`,
     `[g][vig]overlay=0:0:format=rgb:enable='${G}'[gv]`,
     `[1:v]format=rgba[ov]`,

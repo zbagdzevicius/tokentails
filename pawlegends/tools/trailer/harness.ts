@@ -123,6 +123,14 @@ export interface ShotSpec {
   cullFront?: number | null;
   near?: number | null;
   wheelScale?: number | null;
+  /**
+   * `xray` (v2): a tower or core standing between the lens and the look point fades to 28 % (the game's own x-ray
+   * uniform; under a director camera the game's top-down rule is replaced by this line-of-sight one), so base fights
+   * are never blocked by the yarn core or the doghouse.
+   */
+  xray?: boolean;
+  /** Hit flashes on heroes last at most this many output frames (realFlash on; default 2): no ghost-white bodies. */
+  flashCap?: number;
 }
 
 const D0 = MOBA_DIST * ZOOM_DEFAULT;
@@ -324,7 +332,14 @@ function installPlace(g: GameRenderer): void {
 let curDtReal = 1 / 60;
 
 interface RigLike { ch: { object: THREE.Object3D; material: { userData: { u: { uFlashK: { value: number } } } } }; flash: number; wasDead: boolean; visible: boolean }
-interface StructLike { flash: number; rig: { uFlashK: { value: number } } }
+interface StructLike { flash: number; kind: string; x: number; z: number; alive: boolean; dieT: number; height: number; material: { transparent: boolean; depthWrite: boolean; needsUpdate: boolean }; rig: { uFlashK: { value: number }; uOpacity: { value: number } } }
+
+/** The output frame being drawn (sub-frames share it): the flash cap counts output frames. */
+let curF = 0;
+/** Per hero rig: the flash level after the last clean-up and the output frame its current flash began. */
+const flashState = new Map<object, { last: number; start: number }>();
+/** Director x-ray opacity per structure (smoothed in output time). */
+const xrayOp = new Map<object, number>();
 
 /** The hero slots the camera is framing (never culled). */
 function subjects(t: Target | undefined, out: Set<number> = new Set()): Set<number> {
@@ -343,13 +358,49 @@ function cleanUp(g: GameRenderer): void {
   if (!s || !ses || s.mode !== 'match') return;
   const view = ses.view as unknown as { heroes: { rigs: Map<number, RigLike> }; structures: { items: Map<number, StructLike> }; effects: { numbers: { pool: { el: HTMLElement | null; pos: THREE.Vector3; active: boolean }[] } } };
   if (s.realFlash) {
+    const cap = s.flashCap ?? 2;
     for (const r of view.heroes.rigs.values()) {
+      const fs = flashState.get(r) ?? { last: 0, start: -1e9 };
+      // a new hit raised the flash since the last clean-up: it starts counting on this output frame
+      if (r.flash > fs.last + 1e-3) fs.start = curF;
       r.flash = Math.max(0, r.flash - curDtReal * 5);
-      if (!r.wasDead) r.ch.material.userData.u.uFlashK.value = Math.min(r.ch.material.userData.u.uFlashK.value, Math.min(0.42, r.flash * 0.5));
+      fs.last = r.flash;
+      flashState.set(r, fs);
+      const u = r.ch.material.userData.u.uFlashK;
+      if (!r.wasDead) u.value = curF - fs.start >= cap ? 0 : Math.min(u.value, Math.min(0.42, r.flash * 0.5));
     }
     for (const st of view.structures.items.values()) {
       st.flash = Math.max(0, st.flash - curDtReal * 5);
-      st.rig.uFlashK.value = Math.min(st.rig.uFlashK.value, st.flash * 0.7);
+      // a structure under steady fire would hold a pale, washed-out flash: capped at a light tint
+      st.rig.uFlashK.value = Math.min(st.rig.uFlashK.value, st.flash * 0.7, 0.12);
+    }
+  }
+  if (s.xray && camPos && camLook) {
+    // line of sight: a structure whose footprint (radius r) the lens-to-look segment passes through, nearer than the look point
+    const dx = camLook.x - camPos.x;
+    const dz = camLook.z - camPos.z;
+    const L2 = dx * dx + dz * dz || 1;
+    for (const st of view.structures.items.values()) {
+      if (st.kind !== 'tower' && st.kind !== 'core') continue;
+      const r = st.kind === 'core' ? 3.4 : 2.2;
+      const u = ((st.x - camPos.x) * dx + (st.z - camPos.z) * dz) / L2;
+      const px = camPos.x + dx * u - st.x;
+      const pz = camPos.z + dz * u - st.z;
+      const along = u * Math.sqrt(L2);
+      // between the lens and the look point, or beside the look point on the lens side (a doghouse next to the brawl)
+      const blocks = st.alive && st.dieT < 0 && u > 0 && along < Math.sqrt(L2) + 1.5 && Math.hypot(px, pz) < r + 2.2;
+      const want = blocks ? 0.28 : 1;
+      const prev = xrayOp.get(st) ?? want;
+      const k = Math.min(1, curDtReal * 14);
+      const op = Math.abs(want - prev) < 0.01 ? want : prev + (want - prev) * k;
+      xrayOp.set(st, op);
+      st.rig.uOpacity.value = op;
+      const transparent = op < 0.999;
+      if (st.material.transparent !== transparent) {
+        st.material.transparent = transparent;
+        st.material.depthWrite = !transparent;
+        st.material.needsUpdate = true;
+      }
     }
   }
   const keep = subjects(s.cam?.target);
@@ -431,6 +482,9 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   projLock = -1;
   lastFrame = -1e9;
   eventLog.length = 0;
+  flashState.clear();
+  xrayOp.clear();
+  curF = s.f0;
   if (s.mode === 'lobby') {
     const lb = new Lobby(g);
     lobby = lb;
@@ -633,6 +687,7 @@ function matchStep(f: number, dtReal: number, ramp: number): void {
 function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number } {
   const s = spec;
   if (!s) throw new Error('no shot loaded');
+  curF = f;
   const ramp = rampAt(s.ramp ?? [], f + sub / subs);
   const dtReal = 1 / 60 / subs;
   if (s.mode === 'lobby') lobbyStep(sub === 0 ? f : -1, dtReal, ramp);

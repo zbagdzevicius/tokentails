@@ -1,515 +1,570 @@
 /**
- * The storyboard's shot list as data ("Meet Gabė", 30.000 s, 120 BPM, 60 fps: STORYBOARD.md §3, §6). capture.mjs turns
- * each entry plus its take (takes.json) into a harness ShotSpec per aspect. Frames are the master's output frames.
+ * Trailer v2 ("Big Plays") shot list as data: 30.000 s, 144 BPM (25 frames per beat, 100 per bar), 60 fps. The v1
+ * list ("Meet Gabe", 120 BPM) is shots-v1.mjs. capture.mjs turns each entry plus its take (takes.json) into a harness
+ * ShotSpec per aspect. Frames are the master's output frames; cuts land on beats, contacts on the beat or beat + 3.
  *
- *   take      takes.json id; `anchor` puts the take's key tick on a frame, `fit` stretches the ramp on `seg` so a
- *             second key lands on its frame too (the timing probe measures both, game hit-stops and slow-mo included)
- *   cam       director camera: target (roles from the take: '@brutus' = its slot) and keys (director.ts)
- *   layers    'pops' (CLANK!, numbers, callouts, barks), 'banner' (announcer), 'wheel', 'hud' (the full HUD)
- *   whip      frames rendered as 8 sub-frames with a 180° shutter (motion blur)
- *   parts     one continuous take split into the storyboard's shots
- *   portrait  9:16 overrides (§6): wide shots ×1.35 distance, close-ups re-targeted
+ *   take      takes.json id; `anchor` puts a key tick (+ offset) on a frame; `fits: [{ key, frame, seg, offset? }]`
+ *             stretch the ramp on each segment so that key is crossed ON its frame (solved in order). A hit-stop that
+ *             follows a fitted key starts one frame after it (a frame at ramp 0 cannot cross anything).
+ *   cam       director camera: target (roles from the take: '@clem' = its slot) and keys (director.ts); `align`
+ *             turns the line a -> b to run down the screen (b nearest the lens) and the keys' yaw is added on top
+ *   blur      [[a, b], ...]: frames rendered as 32 sub-frames with a 180° shutter (acrobatic peaks, whips)
+ *   xray      a tower or core between the lens and the look point fades (base fights)
+ *   looks     [[fromFrame, card], ...]: the same frames once per card look (cosmetic only)
+ *   wide      9:16 frames it 1.35x further and 6° steeper; close-ups get 1.3x and a turned side-on yaw (portraitKeys)
  */
 
-/** Wide shots get 1.35× the distance in 9:16 (§6). */
-const wide = (keys) => keys.map((k) => (k.dist !== undefined ? { ...k, dist: Math.round(k.dist * 135) / 100 } : k));
+/** A 4-frame lens punch on frame f: distance -0.05 on f+1, back by f+4. */
+const punch = (f, dist) => [{ f, dist }, { f: f + 1, dist: dist - 0.05, ease: 'out' }, { f: f + 4, dist, ease: 'out' }];
+const ULTS = ['Golden Hour!', 'Moonshot!', 'Champion’s Challenge!', "Champion's Challenge!", 'Short Circuit!', 'Pack Hunt!', 'Curtains Up!', 'Under Her Spell!', 'Tangled Lights!'];
 
 export const SHOTS = [
+  // ---------------------------------------------------------------- bar 1, HOOK (f0-99)
   {
     id: 'S01',
     f0: 0,
-    f1: 29,
-    take: 'A',
-    // one tick after the contact: frame 0 already holds the slash, the spark and CLANK! (thumbnails, autoplay)
-    anchor: { key: 'clank', frame: 0, offset: 0.5 },
-    // tight on the contact (the two heroes fill about half the frame height), then a push through the recoil
-    cam: { target: { mid: ['@hero', '@brutus'], lift: 1.0 }, keys: [{ f: 0, dist: 0.36, pitch: 22, yaw: -35, fov: 34 }, { f: 4, dist: 0.36 }, { f: 29, dist: 0.29, yaw: -28, ease: 'out' }] },
-    ramp: [[0, 0], [3, 0], [4, 0.2], [29, 1, 'out']],
-    layers: ['pops'],
+    f1: 49,
+    take: 'X4',
+    // Lambo already airborne on frame 0 (thumbnail), the Belly Flop lands on the first beat + 0 (f25), held 3 frames
+    anchor: { key: 'cast', frame: 0, offset: 1.6 },
+    fits: [{ key: 'land', frame: 25, seg: [0, 24] }],
+    ramp: [[0, 0.12], [22, 0.12], [24, 0.5, 'in'], [25, 0.5], [26, 0], [28, 0], [29, 1, 'out'], [49, 1]],
+    cam: {
+      // the doghouse (the dog fountain) stays behind the brawl at this yaw; the lens pushes in through the dive
+      target: { mid: ['@lambo', '@v1'], lift: 1.1 },
+      align: { a: '@lambo', b: '@v1' },
+      keys: [{ f: 0, dist: 0.52, pitch: 18, yaw: 40, fov: 34 }, { f: 24, dist: 0.44, ease: 'in' }, { f: 25, dist: 0.4, ease: 'out' }, { f: 28, dist: 0.4 }, { f: 49, dist: 0.6, pitch: 28, yaw: 30, ease: 'out' }],
+      smooth: 0.08,
+    },
+    blur: [[0, 24]],
+    popText: ['Takedown!'],
     dmgRadius: 6,
-    popText: [],
-    portrait: { keys: [{ f: 0, dist: 0.52, pitch: 22, yaw: -35, fov: 34 }, { f: 4, dist: 0.52 }, { f: 29, dist: 0.44, yaw: -28, ease: 'out' }] },
+    cullHeroes: 2.5,
+    cullFront: 0.6,
   },
   {
     id: 'S02',
-    f0: 30,
-    f1: 119,
-    parts: [
-      { id: 'S02', f0: 30, f1: 74 },
-      { id: 'S03', f0: 75, f1: 119 },
-    ],
-    take: 'B',
-    anchor: { key: 'release', frame: 52 },
-    fit: { key: 'hit', frame: 89, seg: [52, 88] },
-    cam: {
-      target: {
-        cut: [
-          [30, { unit: '@hero', lift: 1.4 }],
-          // rides the shot: the look point travels from Sage to the target
-          [52, { blend: [{ unit: '@hero', lift: 1.4 }, { unit: '@target', lift: 1.2 }], f0: 52, f1: 74 }],
-          // the Bullseye, three-quarter front: Cacklejaw walks toward Sage (screen left), the Moonshot flies in from the left
-          [75, { unit: '@target', lift: 1.2 }],
-        ],
-      },
-      keys: [
-        // the draw: a fast push onto Sage and her aim line, orbiting round to her bow side
-        { f: 30, dist: 0.36, pitch: 10, yaw: 70, fov: 40 },
-        { f: 51, dist: 0.22, yaw: 96, ease: 'out' },
-        { f: 52, dist: 0.6, pitch: 18, yaw: 60, ease: 'hold' },
-        { f: 60, yaw: 10, pitch: 24, ease: 'in' },
-        { f: 74, dist: 0.6, yaw: 10, pitch: 24 },
-        { f: 75, dist: 0.28, pitch: 12, yaw: -45, ease: 'hold' },
-        { f: 89, dist: 0.25 },
-        { f: 119, dist: 0.3, ease: 'out' },
-      ],
-      smooth: 0.08,
-    },
-    // the arrow's last metres at 0.35x; the sim hit crosses on f89, so its flash and spark are drawn on the beat (f90),
-    // then a 3-frame hit-stop holds them
-    ramp: [[30, 1.2], [51, 1.2], [52, 2.0], [74, 2.0], [75, 1.0], [82, 1.0], [84, 0.35], [90, 0.35], [91, 0], [93, 0], [94, 0.3], [102, 0.3], [107, 1.0]],
-    whip: [52, 77],
-    layers: ['pops'],
-    // an ally standing between the lens and Sage is not drawn; far numbers and screen pops are hidden
-    cullHeroes: 7,
-    dmgRadius: 7,
-    popText: [],
-    portrait: {
-      keys: [
-        { f: 30, dist: 0.42, pitch: 10, yaw: 70, fov: 40 },
-        { f: 51, dist: 0.28, yaw: 96, ease: 'out' },
-        { f: 52, dist: 0.6, pitch: 30, yaw: 150, ease: 'hold' },
-        { f: 60, yaw: 100, ease: 'in' },
-        { f: 74, dist: 0.6, yaw: 100 },
-        { f: 75, dist: 0.38, pitch: 12, yaw: -45, ease: 'hold' },
-        { f: 89, dist: 0.35 },
-        { f: 119, dist: 0.4, ease: 'out' },
-      ],
-    },
+    f0: 50,
+    f1: 74,
+    take: 'X5',
+    anchor: { key: 'cast', frame: 52 },
+    ramp: [[50, 1], [52, 1], [53, 0], [55, 0], [56, 0.6], [68, 0.6], [69, 1]],
+    cam: { target: { mid: ['@star', '@v1'], lift: 1.1 }, align: { a: '@star', b: '@v1' }, keys: [{ f: 50, dist: 0.46, pitch: 20, yaw: 70, fov: 40 }, ...punch(52, 0.46)], smooth: 0.1 },
+    popText: ['Takedown!'],
+    dmgRadius: 6,
+    cullHeroes: 3,
+    cullFront: 0.8,
   },
   {
+    id: 'S03',
+    f0: 75,
+    f1: 99,
+    take: 'X4',
+    // Clem's Q3 launcher on the bridge (the W1 look: tight and low), then a whip-out
+    anchor: { key: 'q3', frame: 78 },
+    ramp: [[75, 1], [78, 1], [79, 0], [81, 0], [82, 0.45], [95, 0.45], [96, 1.6, 'in'], [99, 1.6]],
+    cam: {
+      target: { unit: '@clem', lift: 1.1 },
+      align: { a: '@clem', b: '@v1' },
+      keys: [{ f: 75, dist: 0.38, pitch: 16, yaw: -90, fov: 34 }, { f: 95, dist: 0.38, yaw: -90 }, { f: 99, dist: 0.5, yaw: -50, ease: 'in' }],
+      smooth: 0.1,
+    },
+    blur: [[82, 99]],
+    popText: ['Takedown!', 'CLANK!'],
+    dmgRadius: 6,
+    cullHeroes: 2.5,
+    cullFront: 0.8,
+  },
+  // ---------------------------------------------------------------- bar 2, TITLE (f100-199)
+  {
+    id: 'S04',
+    f0: 100,
+    f1: 199,
+    take: 'C',
+    anchor: { key: 'clash', frame: 150 },
+    cam: {
+      target: { point: '@clash', lift: 1 },
+      keys: [{ f: 100, dist: 1.7, pitch: 70, yaw: 0, fov: 40 }, { f: 175, dist: 0.7, pitch: 38, ease: 'out' }, { f: 193, yaw: 12, ease: 'ease' }, { f: 199, yaw: 57, ease: 'in' }],
+      smooth: 0.4,
+    },
+    blur: [[194, 199]],
+    popText: [],
+    dmgRadius: 8,
+    wide: true,
+  },
+  // ---------------------------------------------------------------- bars 3-4, ROLL CALL (f200-399)
+  {
     id: 'S05',
-    f0: 180,
-    f1: 239,
-    // Gabė's champion on a flat key colour (the backdrop disc and pedestal hidden): the edit lays her over the same
-    // blurred world as the photo card, so the match cut keeps the background and only the cat changes. Her eyes on
-    // f186 land where the photo's eyes end (GABE.screenEyes); a slow push and orbit, her stand turning, through f239
-    lobby: { key: '#00ff00', stands: [{ hero: 'gabe', spin: 0.22, spinFrom: 180 }] },
-    cam: { target: { p3: [0, 1.95, 0] }, keys: [{ f: 180, dist: 0.165, pitch: 4, yaw: -8, fov: 40 }, { f: 239, dist: 0.13, yaw: 8, ease: 'linear' }] },
-    portrait: { target: { p3: [0, 2.3, 0] }, keys: [{ f: 180, dist: 0.25, pitch: 4, yaw: -8, fov: 40 }, { f: 239, dist: 0.2, yaw: 8, ease: 'linear' }] },
+    f0: 200,
+    f1: 224,
+    take: 'X4',
+    // Clem's Tumble: a forward roll over 4 m
+    anchor: { key: 'e', frame: 203 },
+    cam: { target: { unit: '@clem', lift: 1 }, align: { a: '@clem', b: '@v1' }, keys: [{ f: 200, dist: 0.42, pitch: 18, yaw: 90, fov: 40 }, { f: 224, dist: 0.4 }], smooth: 0.12 },
+    blur: [[203, 215]],
+    popText: [],
+    dmgRadius: 6,
+    cullHeroes: 2.5,
+    cullFront: 0.8,
+    near: 3,
   },
   {
     id: 'S06',
-    f0: 240,
-    f1: 359,
-    take: 'C',
-    anchor: { key: 'clash', frame: 240 },
-    cam: {
-      target: { point: '@clash', lift: 1 },
-      // the clash fills the centre third on the drop, then the crane settles in
-      // a crane down onto the clash on the drop: high and wide on f240, settling low by f299 (dist 1.6 -> 0.6)
-      keys: [{ f: 240, dist: 1.6, pitch: 68, yaw: 0, fov: 40 }, { f: 299, dist: 0.6, pitch: 36, ease: 'out' }, { f: 300, yaw: 0 }, { f: 359, yaw: 12, ease: 'ease' }],
-      smooth: 0.4,
-    },
-    layers: ['pops'],
-    portrait: { keys: [{ f: 240, dist: 2.0, pitch: 68, yaw: 0, fov: 40 }, { f: 299, dist: 0.78, pitch: 36, ease: 'out' }, { f: 300, yaw: 0 }, { f: 359, yaw: 12, ease: 'ease' }] },
+    f0: 225,
+    f1: 249,
+    take: 'X11',
+    // Sage's Hop Back: a backflip, seen low so the shadow separates
+    anchor: { key: 'cast', frame: 228 },
+    ramp: [[225, 1], [230, 1], [231, 0.5], [240, 0.5], [241, 1]],
+    cam: { target: { unit: '@star', lift: 1.3 }, align: { a: '@star', b: '@v1' }, keys: [{ f: 225, dist: 0.36, pitch: 10, yaw: -90, fov: 40 }, { f: 249, dist: 0.34 }], smooth: 0.12 },
+    blur: [[230, 240]],
+    popText: [],
+    dmgRadius: 6,
+    cullHeroes: 2.5,
+    cullFront: 0.8,
   },
   {
     id: 'S07',
-    f0: 360,
-    f1: 389,
+    f0: 250,
+    f1: 274,
     take: 'D',
-    anchor: { key: 'hit', frame: 372 },
-    // side-on to the charge (Sir Brutus runs across the screen at the cat he knocks back), tracking him; heroes that
-    // would stand between the lens and the pair are not drawn, and no other hero's callout is up
-    cam: { target: { mid: ['@hero', '@victim'], lift: 1.1 }, align: { a: '@hero', b: '@victim' }, keys: [{ f: 360, dist: 0.46, pitch: 22, yaw: -90, fov: 40 }, { f: 389, dist: 0.42 }], smooth: 0.1 },
-    ramp: [[360, 1], [372, 1], [373, 0], [375, 0], [376, 1]],
-    layers: ['pops'],
+    // Sir Brutus's Pug Charge, side-on
+    anchor: { key: 'hit', frame: 262 },
+    ramp: [[250, 1], [262, 1], [263, 0], [265, 0], [266, 1]],
+    cam: { target: { mid: ['@hero', '@victim'], lift: 1.1 }, align: { a: '@hero', b: '@victim' }, keys: [{ f: 250, dist: 0.46, pitch: 22, yaw: -90, fov: 40 }, { f: 274, dist: 0.42 }], smooth: 0.1 },
     popText: [],
     dmgRadius: 6,
     cullHeroes: 3.5,
     cullFront: 0.8,
-    portrait: { keys: [{ f: 360, dist: 0.62, pitch: 22, yaw: -90, fov: 40 }, { f: 389, dist: 0.56 }] },
     near: 2,
+    xray: true,
   },
   {
     id: 'S08',
-    f0: 390,
-    f1: 419,
+    f0: 275,
+    f1: 299,
+    take: 'X10',
+    // Cacklejaw's Jeer Slash: the corkscrew sprint through three cats, from behind the dash
+    anchor: { key: 'cast', frame: 278 },
+    ramp: [[275, 1], [286, 1], [287, 0], [288, 0], [289, 1]],
+    cam: { target: { unit: '@star', lift: 1 }, align: { a: '@v1', b: '@star' }, keys: [{ f: 275, dist: 0.5, pitch: 22, yaw: 90, fov: 40 }, { f: 299, dist: 0.46 }], smooth: 0.12 },
+    blur: [[278, 286]],
+    popText: ['Takedown!'],
+    dmgRadius: 6,
+    cullHeroes: 2.5,
+  },
+  {
+    id: 'S09',
+    f0: 300,
+    f1: 324,
     take: 'E',
-    look: 'demo-ficus',
-    anchor: { key: 'hit', frame: 398 },
-    // Avietė's Short Circuit on Sir Brutus (Ficus card): only her own ultimate callout
-    cam: { target: { mid: ['@hero', '@target'], lift: 1.1 }, keys: [{ f: 390, dist: 0.5, pitch: 30, yaw: 0, fov: 40 }, { f: 419, dist: 0.44 }], smooth: 0.12 },
-    ramp: [[390, 1], [398, 1], [399, 0], [400, 0], [401, 1]],
-    layers: ['pops'],
+    // Aviete's Short Circuit: the axe-kick heel-down and the rebound backflip
+    anchor: { key: 'cast', frame: 303 },
+    ramp: [[300, 1], [303, 1], [304, 0], [305, 0], [306, 0.6], [318, 0.6], [319, 1]],
+    cam: { target: { mid: ['@hero', '@target'], lift: 1.1 }, keys: [{ f: 300, dist: 0.44, pitch: 18, yaw: 0, fov: 40 }, { f: 324, dist: 0.42 }], smooth: 0.12 },
+    blur: [[306, 318]],
     popText: ['Short Circuit!'],
     dmgRadius: 6,
     cullHeroes: 3.5,
     cullFront: 0.8,
   },
   {
-    id: 'S09',
-    f0: 420,
-    f1: 449,
-    take: 'F',
-    // the cut lands three ticks after the cast, once she has stepped clear of the cats' yarn core: the stage is lit
-    anchor: { key: 'cast', frame: 420, offset: 3 },
-    // Bengas centred on her burning stage
-    cam: { target: { unit: '@hero', lift: 1 }, keys: [{ f: 420, dist: 0.46, pitch: 46, yaw: 120, fov: 40 }, { f: 449, dist: 0.41, yaw: 134 }], smooth: 0.12 },
-    layers: ['pops'],
-    popText: ['Curtains Up!'],
-    dmgRadius: 7,
-    cullHeroes: 3.5,
-    cullFront: 0.8,
-  },
-  {
     id: 'S10',
-    f0: 450,
-    f1: 479,
-    take: 'G',
-    anchor: { key: 'leap', frame: 462 },
-    cam: { target: { unit: '@hero', lift: 1 }, keys: [{ f: 450, dist: 0.5, pitch: 16, yaw: 150, fov: 40 }], smooth: 0.12 },
-    ramp: [[450, 1], [462, 1], [466, 0.3], [474, 0.3], [476, 1.5], [479, 1.5]],
-    layers: ['pops'],
-    popText: ['Pack Hunt!'],
+    f0: 325,
+    f1: 349,
+    take: 'X7',
+    // Bengas's Striking Pose: spin-in, frozen vogue facing the lens, the camera-flash wedge (cast on f342)
+    anchor: { key: 'windup', frame: 326 },
+    ramp: [[325, 1], [342, 1], [343, 0.15], [346, 0.15], [347, 1]],
+    cam: { target: { unit: '@star', lift: 1.1 }, align: { a: '@star', b: '@v1' }, keys: [{ f: 325, dist: 0.4, pitch: 14, yaw: 0, fov: 40 }, { f: 349, dist: 0.44 }], smooth: 0.12 },
+    popText: ['Striking Pose!'],
     dmgRadius: 6,
-    cullHeroes: 3.5,
+    cullHeroes: 2.5,
     cullFront: 0.6,
   },
   {
     id: 'S11',
-    f0: 480,
-    f1: 539,
-    take: 'H',
-    anchor: { key: 'pull', frame: 480 },
-    fit: { key: 'land', frame: 512, seg: [480, 511] },
-    cam: { target: { unit: '@hero', lift: 1 }, keys: [{ f: 480, dist: 0.7, pitch: 40, yaw: -20, fov: 40 }, { f: 539, dist: 0.6 }], smooth: 0.15 },
-    ramp: [[480, 1], [510, 1], [512, 0.6], [530, 0.6], [531, 1]],
-    layers: ['pops'],
-  },
-  {
-    id: 'S12',
-    f0: 540,
-    f1: 593,
-    take: 'I',
-    anchor: { key: 'spell', frame: 540 },
-    fit: { key: 'pop', frame: 580, seg: [540, 579] },
-    // a side-on two-shot: Gabė and Sir Brutus on one horizontal line (the align yaw + 90°), Brutus walking across to her
-    cam: { target: { mid: ['@hero', '@target'], lift: 1 }, align: { a: '@target', b: '@hero' }, keys: [{ f: 540, dist: 0.5, pitch: 34, yaw: 90, fov: 40 }, { f: 593, dist: 0.445 }], smooth: 0.25 },
-    layers: ['pops'],
-    // only the shot's own words: other heroes' ability names and far numbers stay out
+    f0: 350,
+    f1: 374,
+    take: 'X12',
+    // Gabe's Chase the Wind: a gliding barrel roll, side-on
+    anchor: { key: 'cast', frame: 353 },
+    ramp: [[350, 1], [355, 0.7], [365, 0.7], [366, 1]],
+    cam: { target: { unit: '@star', lift: 1.1 }, align: { a: '@star', b: '@v1' }, keys: [{ f: 350, dist: 0.45, pitch: 18, yaw: 90, fov: 40 }, { f: 374, dist: 0.42 }], smooth: 0.12 },
+    blur: [[355, 365]],
     popText: [],
     dmgRadius: 6,
     cullHeroes: 2.5,
-    // 9:16: a vertical two-shot, Gabė low in frame and Sir Brutus walking down-screen toward her, under L4
-    portrait: { align: { a: '@target', b: '@hero' }, target: { mid: ['@hero', '@target'], lift: 2.2 }, keys: [{ f: 540, dist: 0.62, pitch: 40, yaw: 0, fov: 40 }, { f: 593, dist: 0.565 }] },
+    cullFront: 0.6,
   },
+  {
+    id: 'S12',
+    f0: 375,
+    f1: 399,
+    take: 'X6',
+    // Lambo's Tangled Lights: two accelerating spins, then the haul lands on f392
+    anchor: { key: 'windup', frame: 375 },
+    fits: [{ key: 'cast', frame: 392, seg: [375, 391] }],
+    ramp: [[375, 1], [392, 1], [393, 0.5], [399, 0.5]],
+    cam: { target: { unit: '@star', lift: 1 }, keys: [{ f: 375, dist: 0.7, pitch: 40, yaw: 200, fov: 40 }, { f: 399, dist: 0.56, ease: 'in' }], smooth: 0.15 },
+    popText: ['Tangled Lights!'],
+    dmgRadius: 7,
+    cullHeroes: 2.5,
+  },
+  // ---------------------------------------------------------------- bar 5, 3V3 IN YOUR BROWSER (f400-499)
   {
     id: 'S13',
-    f0: 594,
-    f1: 659,
-    take: 'J',
-    // the real ping wheel over Clem for 0.3 s (drawn 4x: a punch-in on that one layer, about 40 % of the frame height),
-    // Group on me sent on f611; then a cut to the two allies far down the lane, seen from Clem's side: they answer
-    // ("Coming to you!", the trailer caption by the ally; the game's own small bark stack is hidden) and run at the
-    // lens, toward her. The same cat refuses in S14.
-    anchor: { key: 'ping1', frame: 611 },
-    wheel: { open: 594, close: 611, at: [0.5, 0.5] },
-    wheelScale: 4,
-    cam: {
-      target: { cut: [[594, { unit: '@hero', lift: 1 }], [612, { mid: [1, '@healer'], lift: 1.1 }]] },
-      align: { a: '@healer', b: '@hero' },
-      keys: [{ f: 594, dist: 0.44, pitch: 36, yaw: 0, fov: 40 }, { f: 611, dist: 0.38, ease: 'out' }, { f: 612, dist: 0.36, pitch: 20, yaw: 0, ease: 'hold' }, { f: 659, dist: 0.29 }],
-      smooth: 0.1,
-    },
-    layers: ['pops', 'wheel'],
-    popText: [],
-    dmgRadius: 6,
-    cullHeroes: 3,
-    portrait: { keys: [{ f: 594, dist: 0.52, pitch: 36, yaw: 0, fov: 40 }, { f: 611, dist: 0.46, ease: 'out' }, { f: 612, dist: 0.5, pitch: 22, yaw: 0, ease: 'hold' }, { f: 659, dist: 0.42 }] },
+    f0: 400,
+    f1: 499,
+    take: 'X4',
+    anchor: { key: 'bengasW', frame: 425 },
+    cam: { target: { mid: ['@lambo', '@v1'], lift: 1 }, keys: [{ f: 400, dist: 0.8, pitch: 40, yaw: 20, fov: 40 }, { f: 499, dist: 0.72, yaw: 60, ease: 'linear' }], smooth: 0.4 },
+    xray: true,
+    popText: ['Takedown!', 'Pack Hunt!', 'Striking Pose!'],
+    dmgRadius: 10,
+    wide: true,
   },
+  // ---------------------------------------------------------------- bars 6-8, ULTS (f500-799)
   {
     id: 'S14',
-    f0: 660,
-    f1: 719,
-    take: 'J',
-    anchor: { key: 'bark2', frame: 664 },
-    // she turns and walks: a touch faster than real time so the walk reads in one second
-    ramp: [[660, 1], [672, 1], [680, 1.4]],
-    // the same ally turns for home (west): the camera waits ahead of her, so she walks toward it, out of the fight
-    cam: { target: { unit: '@healer', lift: 1.0 }, keys: [{ f: 660, dist: 0.32, pitch: 14, yaw: -90, fov: 40 }, { f: 719, dist: 0.3 }], smooth: 0.15 },
-    portrait: { keys: [{ f: 660, dist: 0.42, pitch: 16, yaw: -90, fov: 40 }, { f: 719, dist: 0.4 }] },
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 6,
-    cullHeroes: 3,
-  },
-  {
-    id: 'S15',
-    f0: 720,
-    f1: 779,
-    take: 'K',
-    // the hop lands on the slam (f720): four heroes in his ring are shoved 1.2-1.5 m outward over 6 ticks (the game's
-    // knockback); the shove plays at 0.45x over the half second after the slam, seen close and low so it reads
-    anchor: { key: 'bounce', frame: 720 },
-    cam: { target: { unit: '@pudding', lift: 1.3 }, keys: [{ f: 720, dist: 0.5, pitch: 20, yaw: 90, fov: 40 }, { f: 779, dist: 0.46 }], smooth: 0.3 },
-    cullFront: 0.5,
-    ramp: [[720, 1], [722, 0.45], [752, 0.45], [762, 1]],
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 9,
-    cullHeroes: 3,
-    portrait: { keys: [{ f: 720, dist: 0.66, pitch: 24, yaw: 90, fov: 40 }, { f: 779, dist: 0.6 }] },
-  },
-  // S16: calmed, Pudding walks with the cats' next wave (units/pudding.ts) to a dog tower: low and close behind him,
-  // the cats and the tower beyond (take T, half a second before S17's angle on the same push)
-  {
-    id: 'S16',
-    f0: 780,
-    f1: 839,
-    take: 'T',
-    anchor: { key: 'tower', frame: 839, offset: -30 },
-    cam: { target: { unit: '@pudding', lift: 1.6 }, keys: [{ f: 780, dist: 0.36, pitch: 12, yaw: -100, fov: 40 }, { f: 839, dist: 0.31, yaw: -84 }], smooth: 0.2 },
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 9,
-    cullHeroes: 3,
-    cullFront: 0.5,
-    near: 1.5,
-    portrait: { keys: [{ f: 780, dist: 0.48, pitch: 12, yaw: -100, fov: 40 }, { f: 839, dist: 0.42, yaw: -84 }] },
-  },
-  {
-    id: 'S17',
-    f0: 840,
-    f1: 959,
-    parts: [
-      { id: 'S17', f0: 840, f1: 914 },
-      { id: 'S17b', f0: 915, f1: 959 },
-    ],
-    take: 'T',
-    // seen from the south: the cats, Pudding and their wave on the left, the dog tower on the right, nobody between it
-    // and the lens; the push rides the riser. The tower is whole on f899 (its hit flash) and gone on the beat (f900):
-    // the game's structure burst (rings, shards, stars, dust, rubble), a 3-frame hit-stop, then the burst at 0.6x
-    // easing to 0.35x; f915 cuts low and close to the rubble and the dust with the cats behind it
-    anchor: { key: 'tower', frame: 899 },
-    cam: {
-      target: { cut: [[840, { point: [77500, 11500], lift: 2.0 }], [915, { point: '@tower', lift: 1.4 }]] },
-      keys: [
-        { f: 840, dist: 0.66, pitch: 34, yaw: 0, fov: 40 },
-        { f: 899, dist: 0.5, ease: 'in' },
-        { f: 914, dist: 0.56, ease: 'out' },
-        { f: 915, dist: 0.34, pitch: 14, yaw: 60, ease: 'hold' },
-        { f: 959, dist: 0.3, yaw: 70 },
-      ],
-      smooth: 0.15,
-    },
-    ramp: [[840, 1], [900, 1], [901, 0], [903, 0], [904, 0.6], [914, 0.35], [959, 0.35]],
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 12,
-    cullHeroes: 3,
-    // the lane-side bushes nearer than 4 m stay out of the low close-up
-    near: 4,
-    portrait: {
-      keys: [
-        { f: 840, dist: 0.9, pitch: 36, yaw: 0, fov: 40 },
-        { f: 899, dist: 0.7, ease: 'in' },
-        { f: 914, dist: 0.76, ease: 'out' },
-        // 9:16: from further round, so the tree beside the lane stays out of the narrow frame
-        { f: 915, dist: 0.46, pitch: 16, yaw: 20, ease: 'hold' },
-        { f: 959, dist: 0.42, yaw: 30 },
-      ],
-    },
-  },
-  {
-    id: 'S18',
-    f0: 960,
-    f1: 989,
-    take: 'L',
-    // half a second, close: the cats' tower is whole, falls on f964 (hit-stop), its dust in slow motion
-    anchor: { key: 'towerLost', frame: 964 },
-    cam: { target: { point: '@tower', lift: 2.2 }, keys: [{ f: 960, dist: 0.44, pitch: 24, yaw: 30, fov: 40 }, { f: 989, dist: 0.5, ease: 'out' }] },
-    ramp: [[960, 1], [964, 1], [965, 0], [967, 0], [968, 0.5], [989, 0.4]],
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 8,
-    cullHeroes: 3,
-    portrait: { keys: [{ f: 960, dist: 0.6, pitch: 24, yaw: 30, fov: 40 }, { f: 989, dist: 0.66, ease: 'out' }] },
-  },
-  {
-    id: 'S19',
-    f0: 990,
-    f1: 1079,
-    take: 'L',
-    // the real player view, full HUD: Purr-ify lands in the second half
-    anchor: { key: 'purrify', frame: 1052 },
-    cam: null,
-    layers: ['hud'],
-    // the "We lost a tower" banner (still up from S18) would sit over the name plates: hidden, the rest of the HUD as is
-    hide: ['.pl-banner'],
-    // 9:16: a phone held upright (360x640 CSS px at DPR 3) with the touch HUD: the buttons, joystick and ATK read
-    portrait: { width: 360, height: 640, dpr: 3, touch: true },
-  },
-  {
-    id: 'S20',
-    f0: 1080,
-    f1: 1139,
-    take: 'L',
-    // the COMEBACK! banner's first frame on f1080 (it can queue behind another banner)
-    anchor: { key: 'comeback', frame: 1080, banner: 'COMEBACK!' },
-    // the queue ahead of it plays out at full rate before f1080 (a seek would rush it)
-    preroll: 480,
-    // the cats' next wave marching out at the lens (the camera dollies back with it), Pudding behind them
-    cam: { target: { wave: 0, near: '@hero', r: 16, lift: 0.6 }, keys: [{ f: 1080, dist: 0.28, pitch: 9, yaw: 180, fov: 40 }, { f: 1139, dist: 0.25, yaw: 188 }], smooth: 0.3 },
-    // the trailer type repeats the banner's words large; the game's own small banner is hidden (never both)
-    layers: ['pops'],
-    dmgRadius: 10,
-    popText: [],
-    near: 2.5,
-    portrait: { keys: [{ f: 1080, dist: 0.42, pitch: 13, yaw: 180, fov: 40 }, { f: 1139, dist: 0.38, yaw: 188 }] },
-  },
-  {
-    id: 'S21',
-    f0: 1140,
-    f1: 1199,
-    take: 'M',
-    // the "Shut down!" banner up on f1150 (it can queue behind the first knockout's); the caption repeats it
-    anchor: { key: 'ko2', frame: 1150, banner: 'Shut down!' },
-    preroll: 300,
-    cam: { target: { mid: ['@hero', '@victim'], lift: 1 }, keys: [{ f: 1140, dist: 0.62, pitch: 30, yaw: -15, fov: 40 }, { f: 1199, dist: 0.5, yaw: 15, ease: 'ease' }], smooth: 0.2 },
-    ramp: [[1140, 1], [1148, 1], [1150, 0.5], [1166, 0.5], [1170, 1]],
-    layers: ['pops'],
-    dmgRadius: 10,
-    popText: [],
-    portraitWide: true,
-  },
-  // S22: one pass per card (a lobby re-spawn would pop the hero in from small): hard cuts on the beat, the camera and
-  // the turntable continuous across them
-  ...[
-    ['S22a', 1200, 1229, 'demo-pickles'],
-    ['S22b', 1230, 1259, 'demo-rascal'],
-    ['S22c', 1260, 1289, 'demo-pinkie'],
-    ['S22d', 1290, 1319, 'demo-ficus'],
-  ].map(([id, f0, f1, card]) => ({
-    id,
-    f0,
-    f1,
-    lobby: { stands: [{ hero: 'lambo', card, face: -20, spin: 0.35, spinFrom: 1200 }] },
-    preroll: 150,
-    cam: { target: { p3: [0, 1.2, 2.9] }, keys: [{ f: 1200, dist: 0.3, pitch: 10, yaw: 0, fov: 40 }, { f: 1319, dist: 0.26 }] },
-    // 9:16: the hero in the lower part of the frame, L5 above her head
-    portrait: { target: { p3: [0, 2.1, 0] }, keys: [{ f: 1200, dist: 0.36, pitch: 10, yaw: 0, fov: 40 }, { f: 1319, dist: 0.32 }] },
-  })),
-  // S23: ultimates on the eighths, one take per hero (U1..U6), each cut lands its cast 3 frames in. Every cut is tight
-  // on the caster (the effect at the centre of the frame) with only that hero's own ultimate callout; the screen
-  // direction alternates left/right per cut
-  ...[
-    ['S23a', 'U1', 1320, 30, 60],
-    ['S23b', 'U2', 1335, 26, 30],
-    ['S23c', 'U3', 1350, 30, -30],
-    ['S23d', 'U4', 1365, 26, 30],
-    ['S23e', 'U5', 1380, 30, 150],
-    ['S23f', 'U6', 1395, 26, -150],
-  ].map(([id, take, f0, pitch, yaw]) => ({
-    id,
-    f0,
-    f1: f0 + 14,
-    take,
-    anchor: { key: 'cast', frame: f0 + 3 },
-    cam: { target: { unit: '@caster', lift: 1.1 }, keys: [{ f: f0, dist: 0.46, pitch, yaw, fov: 40 }, { f: f0 + 14, dist: 0.41 }], smooth: 0.08 },
-    layers: ['pops'],
-    popText: ['Golden Hour!', 'Moonshot!', 'Champion’s Challenge!', 'Short Circuit!', 'Pack Hunt!', 'Curtains Up!'],
-    dmgRadius: 5,
-    cullHeroes: 3,
-    cullFront: 0.6,
-    near: 3,
-    portrait: { keys: [{ f: f0, dist: 0.58, pitch, yaw, fov: 40 }, { f: f0 + 14, dist: 0.52 }] },
-  })),
-  {
-    id: 'S24',
-    f0: 1410,
-    f1: 1436,
-    take: 'N',
-    // the hang: Lambo launches his Belly Flop at the dog core (in the game the flop is a fast ground hop, no vertical
-    // arc, so nothing is faked into the air): a low lens with the sky behind him, time all but stopped at 0.06x while
-    // the camera keeps orbiting and pushing in (a held breath, not a stalled frame)
-    anchor: { key: 'flop', frame: 1414, offset: 0.5 },
-    cam: { target: { unit: '@hero', lift: 1.7 }, keys: [{ f: 1410, dist: 0.22, pitch: 9, yaw: 75, fov: 42 }, { f: 1416, dist: 0.22, yaw: 75 }, { f: 1436, dist: 0.176, yaw: 97, ease: 'out' }], smooth: 0.08 },
-    ramp: [[1410, 1], [1414, 1], [1418, 0.06], [1436, 0.06]],
-    layers: ['pops'],
-    popText: [],
-    dmgRadius: 4,
-    cullHeroes: 4,
-    cullFront: 0.6,
-    near: 1.2,
-    portrait: { keys: [{ f: 1410, dist: 0.3, pitch: 9, yaw: 75, fov: 42 }, { f: 1416, dist: 0.3, yaw: 75 }, { f: 1436, dist: 0.24, yaw: 97, ease: 'out' }] },
-  },
-  {
-    id: 'S25',
-    f0: 1437,
-    f1: 1559,
-    parts: [
-      { id: 'S25', f0: 1437, f1: 1499 },
-      { id: 'S26', f0: 1500, f1: 1559 },
-    ],
-    take: 'N',
-    // The dog core, whole, as Lambo lands on it (f1437), its white hit flash on f1439, and on the beat (f1440) the
-    // first frame without it: the game's structure burst (shockwave rings, shards, stars, dust, rubble). A 3-frame
-    // hit-stop holds the break, then the burst plays out at 0.7x easing to 0.25x while the game's own
-    // slowmo(1200, 0.25) holds the sim. The lens is on the dog side (south of the core, looking back at the cats), so
-    // no hero stands between it and the core. Victory! (f1500): the cats from the front, over the settling dust.
-    anchor: { key: 'core', frame: 1439 },
+    f0: 500,
+    f1: 549,
+    take: 'B',
+    // Sage's Moonshot: the full draw, then the camera rides the arrow to the bullseye on f541
+    anchor: { key: 'release', frame: 525 },
+    fits: [{ key: 'hit', frame: 541, seg: [526, 540] }],
+    ramp: [[500, 1], [524, 1], [525, 2.0], [541, 2.0], [542, 0], [544, 0], [545, 0.4], [549, 0.4]],
     cam: {
       target: {
         cut: [
-          [1437, { point: '@core', lift: 2.4 }],
-          [1500, { mid: ['@hero', 1], lift: 1.5 }],
+          [500, { unit: '@hero', lift: 1.4 }],
+          [525, { blend: [{ unit: '@hero', lift: 1.4 }, { unit: '@target', lift: 1.2 }], f0: 525, f1: 538 }],
+          [539, { unit: '@target', lift: 1.2 }],
         ],
       },
       keys: [
-        { f: 1437, dist: 0.48, pitch: 28, yaw: 15, fov: 40 },
-        { f: 1440, dist: 0.48 },
-        { f: 1499, dist: 0.67, ease: 'out' },
-        { f: 1500, dist: 0.36, pitch: 24, yaw: 10, ease: 'hold' },
-        { f: 1559, dist: 0.32, yaw: 16 },
+        { f: 500, dist: 0.3, pitch: 10, yaw: 70, fov: 40 },
+        { f: 524, dist: 0.24, ease: 'out' },
+        { f: 525, dist: 0.6, pitch: 20, yaw: 10, ease: 'hold' },
+        { f: 538, dist: 0.6 },
+        { f: 539, dist: 0.3, pitch: 12, yaw: -45, ease: 'hold' },
+        { f: 549, dist: 0.34 },
       ],
-      smooth: 0.15,
+      smooth: 0.08,
     },
-    ramp: [[1437, 1], [1440, 1], [1441, 0], [1443, 0], [1444, 0.7], [1456, 0.4], [1470, 0.25], [1499, 0.25], [1500, 1]],
-    layers: ['pops'],
-    popText: [],
+    blur: [[525, 540]],
+    popText: ['Moonshot!'],
+    dmgRadius: 7,
+    cullHeroes: 7,
+  },
+  {
+    id: 'S15',
+    f0: 550,
+    f1: 599,
+    take: 'F',
+    // Bengas's Curtains Up!: the bow, then a crane up as the stage arms (cast + 18 ticks on f575)
+    anchor: { key: 'cast', frame: 553 },
+    fits: [{ key: 'cast', offset: 18, frame: 575, seg: [553, 574] }],
+    ramp: [[550, 1], [575, 1], [576, 1.3], [599, 1.3]],
+    cam: {
+      target: { blend: [{ unit: '@hero', lift: 1 }, { point: '@stage', lift: 1 }], f0: 553, f1: 575 },
+      keys: [{ f: 550, dist: 0.5, pitch: 22, yaw: 120, fov: 40 }, { f: 553, dist: 0.5, pitch: 22 }, { f: 575, dist: 0.95, pitch: 52, yaw: 130, ease: 'ease' }, { f: 599, yaw: 140 }],
+      smooth: 0.12,
+    },
+    xray: true,
+    popText: ['Curtains Up!'],
+    dmgRadius: 9,
+    cullHeroes: 3,
+    cullFront: 0.6,
+  },
+  {
+    id: 'S16',
+    f0: 600,
+    f1: 649,
+    take: 'X8',
+    // Gabe's Under Her Spell: the twirl, then the heart wavefront charms three dogs (f622)
+    anchor: { key: 'windup', frame: 600 },
+    fits: [{ key: 'cast', frame: 622, seg: [600, 621] }],
+    ramp: [[600, 1], [622, 1], [623, 0], [625, 0], [626, 1]],
+    cam: { target: { unit: '@star', lift: 1.1 }, keys: [{ f: 600, dist: 0.38, pitch: 14, yaw: 30, fov: 40 }, { f: 621, dist: 0.38 }, { f: 622, dist: 0.8, pitch: 40, ease: 'out' }, { f: 649, dist: 0.76, yaw: 40 }], smooth: 0.12 },
+    xray: true,
+    popText: ['Under Her Spell!'],
+    dmgRadius: 8,
+    cullHeroes: 2.5,
+  },
+  {
+    id: 'S17',
+    f0: 650,
+    f1: 699,
+    take: 'U3',
+    // Sir Brutus's Champion's Challenge: sand obelisks erupt, seen from low under them
+    anchor: { key: 'cast', frame: 655 },
+    ramp: [[650, 1], [655, 1], [656, 0.6], [673, 0.6], [674, 1]],
+    cam: { target: { unit: '@caster', lift: 1.5 }, keys: [{ f: 650, dist: 0.55, pitch: 14, yaw: -60, fov: 40 }, { f: 699, yaw: -20, ease: 'out' }], smooth: 0.1 },
+    popText: ['Champion’s Challenge!', "Champion's Challenge!"],
+    dmgRadius: 7,
+    cullHeroes: 3,
+    cullFront: 0.6,
+    near: 4,
+  },
+  {
+    id: 'S18',
+    f0: 700,
+    f1: 749,
+    take: 'X1',
+    // Aviete's chain: Short Circuit (f703) -> Live Wire blink -> Spark Swipe (f729), two takedowns
+    anchor: { key: 'r', frame: 703 },
+    fits: [{ key: 'q', frame: 729, seg: [706, 728] }],
+    ramp: [[700, 1], [703, 1], [704, 0], [705, 0], [706, 1], [729, 1], [730, 0], [732, 0], [733, 0.5], [749, 0.5]],
+    cam: { target: { unit: '@star', lift: 1 }, keys: [{ f: 700, dist: 0.55, pitch: 34, yaw: 0, fov: 40 }, { f: 749, dist: 0.5, yaw: 15 }], smooth: 0.1 },
+    xray: true,
+    popText: ['Short Circuit!', 'Takedown!'],
     dmgRadius: 8,
     cullHeroes: 3,
-    portrait: {
-      keys: [
-        { f: 1437, dist: 0.62, pitch: 28, yaw: 15, fov: 40 },
-        { f: 1440, dist: 0.62 },
-        { f: 1499, dist: 0.85, ease: 'out' },
-        { f: 1500, dist: 0.46, pitch: 24, yaw: 10, ease: 'hold' },
-        { f: 1559, dist: 0.42, yaw: 16 },
-      ],
+  },
+  {
+    id: 'S19',
+    f0: 750,
+    f1: 799,
+    take: 'X9',
+    // Clem's Golden Hour (the 6 m gold pillar, looking up), then one Q: a double takedown on f764
+    anchor: { key: 'r', frame: 752 },
+    fits: [{ key: 'q', frame: 764, seg: [753, 763] }],
+    ramp: [[750, 1], [764, 1], [765, 0], [767, 0], [768, 0.5], [799, 0.5]],
+    cam: {
+      target: { unit: '@star', lift: 1 },
+      keys: [{ f: 750, dist: 0.4, pitch: 8, yaw: -30, fov: 40, lift: 2.0 }, { f: 763, dist: 0.4, pitch: 8, lift: 2.0 }, { f: 764, dist: 0.6, pitch: 30, lift: 1.1, ease: 'out' }, { f: 799, yaw: -10, ease: 'linear' }],
+      smooth: 0.1,
     },
+    popText: ['Golden Hour!', 'Takedown!'],
+    dmgRadius: 8,
+    cullHeroes: 3,
+    xray: true,
+  },
+  // ---------------------------------------------------------------- bar 9, PACK HUNT (f800-899): three takedowns on three beats
+  {
+    id: 'S20',
+    f0: 800,
+    f1: 899,
+    take: 'X2',
+    anchor: { key: 'r', frame: 803 },
+    fits: [{ key: 'ko1', frame: 825, seg: [804, 824] }, { key: 'ko2', frame: 850, seg: [828, 849] }, { key: 'ko3', frame: 875, seg: [853, 874] }],
+    ramp: [[800, 1], [803, 1], [804, 0.12], [825, 0.12], [826, 0], [827, 0], [828, 0.55], [850, 0.55], [851, 0], [852, 0], [853, 0.48], [875, 0.48], [876, 0], [877, 0], [878, 1], [899, 1]],
+    cam: { target: { unit: '@star', lift: 1 }, keys: [{ f: 800, dist: 0.44, pitch: 28, yaw: 20, fov: 40 }, ...punch(825, 0.44), ...punch(850, 0.44), ...punch(875, 0.44), { f: 899, dist: 0.46, yaw: 35 }], smooth: 0.25 },
+    blur: [[804, 824]],
+    xray: true,
+    popText: ['Pack Hunt!', 'Takedown!', 'Combo x2', 'Combo x3'],
+    dmgRadius: 8,
+    cullHeroes: 2.5,
+  },
+  // ---------------------------------------------------------------- bar 10, PING + PUDDING (f900-999)
+  {
+    id: 'S21',
+    f0: 900,
+    f1: 949,
+    take: 'J',
+    anchor: { key: 'ping1', frame: 912 },
+    wheel: { open: 900, close: 912 },
+    wheelScale: 2.2,
+    cam: { target: { unit: '@hero', lift: 1 }, keys: [{ f: 900, dist: 0.9, pitch: 50, yaw: 0, fov: 40 }, { f: 949, dist: 0.82 }], smooth: 0.2 },
+    layers: ['pops', 'wheel'],
+    popText: ['Coming to you!'],
+    dmgRadius: 8,
+    wide: true,
+  },
+  {
+    id: 'S22',
+    f0: 950,
+    f1: 999,
+    take: 'K',
+    anchor: { key: 'bounce', frame: 962 },
+    ramp: [[950, 1], [962, 1], [964, 0.5], [990, 0.5], [999, 1]],
+    cam: { target: { unit: '@pudding', lift: 0.8 }, keys: [{ f: 950, dist: 0.6, pitch: 24, yaw: 60, fov: 40 }, ...punch(962, 0.6), { f: 999, dist: 0.55 }], smooth: 0.3 },
+    popText: [],
+    dmgRadius: 9,
+    cullHeroes: 3,
+    cullFront: 0.5,
+  },
+  // ---------------------------------------------------------------- bar 11, TOWER DIVE (f1000-1099)
+  {
+    id: 'S23',
+    f0: 1000,
+    f1: 1099,
+    take: 'X13',
+    anchor: { key: 'ko', frame: 1050 },
+    ramp: [[1000, 1], [1050, 1], [1051, 0], [1053, 0], [1054, 0.5], [1074, 0.5], [1075, 1.3], [1099, 1.3]],
+    cam: {
+      target: { mid: ['@star', '@tower'], lift: 1.5 },
+      align: { a: '@tower', b: '@star' },
+      keys: [{ f: 1000, dist: 0.6, pitch: 28, yaw: 0, fov: 40 }, { f: 1049, dist: 0.55 }, { f: 1050, dist: 0.45, ease: 'out' }, { f: 1099, dist: 0.5, yaw: 15 }],
+      smooth: 0.2,
+    },
+    layers: ['pops'],
+    popText: ['Takedown!'],
+    dmgRadius: 9,
+    cullHeroes: 3,
+  },
+  // ---------------------------------------------------------------- bar 12, TOWER FALLS + COMEBACK (f1100-1199)
+  {
+    id: 'S24',
+    f0: 1100,
+    f1: 1149,
+    take: 'T',
+    anchor: { key: 'tower', frame: 1125 },
+    ramp: [[1100, 1], [1125, 1], [1126, 0.4], [1149, 0.4]],
+    cam: { target: { point: '@tower', lift: 2.2 }, keys: [{ f: 1100, dist: 0.7, pitch: 18, yaw: 130, fov: 40 }, { f: 1149, dist: 0.74, yaw: 140, ease: 'out' }], smooth: 0.15 },
+    popText: [],
+    dmgRadius: 12,
+    cullHeroes: 3,
+    near: 5,
+  },
+  {
+    id: 'S25',
+    f0: 1150,
+    f1: 1199,
+    take: 'L',
+    anchor: { key: 'comeback', frame: 1150, banner: 'COMEBACK!' },
+    preroll: 480,
+    cam: { target: { wave: 0, near: '@hero', r: 16, lift: 1 }, keys: [{ f: 1150, dist: 0.32, pitch: 10, yaw: 180, fov: 40 }, { f: 1199, dist: 0.28, yaw: 188 }], smooth: 0.3 },
+    layers: ['pops', 'banner'],
+    popText: [],
+    dmgRadius: 10,
+    near: 2.5,
+  },
+  // ---------------------------------------------------------------- bar 13, SKINS (1 beat) + REAL HUD (f1200-1299)
+  {
+    id: 'S26',
+    f0: 1200,
+    f1: 1224,
+    take: 'E',
+    anchor: { key: 'cast', frame: 1212 },
+    looks: [[1200, 'demo-ficus'], [1206, 'demo-pinkie'], [1212, 'demo-rascal'], [1218, 'demo-grey']],
+    cam: { target: { mid: ['@hero', '@target'], lift: 1.1 }, keys: [{ f: 1200, dist: 0.36, pitch: 16, yaw: -20, fov: 40 }, { f: 1224, yaw: 20, ease: 'linear' }], smooth: 0.1 },
+    popText: [],
+    dmgRadius: 6,
+    cullHeroes: 3.5,
+    cullFront: 0.8,
   },
   {
     id: 'S27',
-    f0: 1560,
-    f1: 1799,
-    // Clem and Sir Brutus on their stands, on a key colour (the lobby's glow disc gone): the end card lays them,
-    // blurred and darkened, over its own background. Their idle animations run and the camera drifts (push + orbit)
-    // so the card stays alive; both stands sit inside the 5 % action-safe margin
-    lobby: { key: '#00ff00', keepStage: true, stands: [{ hero: 'clem', x: -3.3, z: 1.2, face: 35 }, { hero: 'brutus', team: 1, x: 3.3, z: 1.2, face: -35 }] },
-    cam: { target: { p3: [0, 3.1, 0] }, keys: [{ f: 1560, dist: 0.47, pitch: 8, yaw: -5, fov: 40 }, { f: 1799, dist: 0.42, yaw: 5, ease: 'linear' }] },
-    portrait: {
-      // Clem's stand at the back (top of the frame, above the logo), Sir Brutus's in front, low in the frame
-      stands: [{ hero: 'clem', x: 0, z: -9, face: 20 }, { hero: 'brutus', team: 1, x: 0, z: 9, face: -20 }],
-      keys: [{ f: 1560, dist: 9, pitch: 30, yaw: -3, fov: 4.0 }, { f: 1799, dist: 8.7, yaw: 3, ease: 'linear' }],
-      target: { p3: [0, 2.4, 2.4] },
+    f0: 1225,
+    f1: 1299,
+    take: 'X14',
+    // the real game: full HUD, the game's own follow camera on slot 0
+    anchor: { key: 'cackE', frame: 1290 },
+    cam: null,
+    layers: ['hud'],
+    // 9:16: a phone in landscape (932x430 CSS px at DPR 2), shown whole as a band
+    portrait: { width: 932, height: 430, dpr: 2, touch: true },
+  },
+  // ---------------------------------------------------------------- bar 14, FINAL TEAMFIGHT (f1300-1399): eighth-note cuts on X14
+  ...[
+    ['S28a', 1300, 1312, 'lamboE', '@lambo', { dist: 0.55, pitch: 20, yaw: -60 }, [[1300, 1.6]]],
+    ['S28b', 1313, 1324, 'bengasR', '@bengas', { dist: 0.85, pitch: 55, yaw: 30 }],
+    ['S28c', 1325, 1337, 'clemR', '@clem', { dist: 0.4, pitch: 8, yaw: -40, lift: 2 }],
+    ['S28d', 1338, 1349, 'lamboR', '@lambo', { dist: 0.7, pitch: 45, yaw: 60 }],
+    ['S28e', 1350, 1362, 'brutusR', '@brutus', { dist: 0.55, pitch: 12, yaw: -70 }],
+    ['S28f', 1363, 1374, 'bengasW', '@bengas', { dist: 0.4, pitch: 14, yaw: 160 }],
+    ['S28g', 1375, 1387, 'clemQ', '@clem', { dist: 0.42, pitch: 18, yaw: -90 }],
+    ['S28h', 1388, 1399, 'cackR', '@cacklejaw', { dist: 0.5, pitch: 24, yaw: 200 }, null, [[1390, 1399]]],
+  ].map(([id, f0, f1, key, unit, k, ramp, blur]) => ({
+    id,
+    f0,
+    f1,
+    take: 'X14',
+    anchor: { key, frame: f0 + 2 },
+    ...(ramp ? { ramp } : {}),
+    ...(blur ? { blur } : {}),
+    cam: { target: { unit, lift: 1.1 }, keys: [{ f: f0, fov: 40, ...k }, { f: f1, dist: k.dist * 0.92 }], smooth: 0.08 },
+    xray: true,
+    popText: [...ULTS, 'Takedown!'],
+    dmgRadius: 6,
+    cullHeroes: 2.5,
+    cullFront: 0.6,
+    near: 3,
+  })),
+  // ---------------------------------------------------------------- bar 15, KILL + LEVEL 10, TOWER, TAKE THEIR CORE (f1400-1499)
+  {
+    id: 'S29',
+    f0: 1400,
+    f1: 1449,
+    take: 'X14',
+    // a takedown and Clem's level 10 on the same tick (f1406), then cat tower 46 falls (f1442)
+    anchor: { key: 'ko', frame: 1406 },
+    fits: [{ key: 'tower', frame: 1442, seg: [1407, 1441] }],
+    ramp: [[1400, 1], [1449, 1]],
+    cam: {
+      // a hard cut on the beat (f1425) to cat tower 46 up the lane (34, 51 m), whole until it falls on f1442
+      target: { cut: [[1400, { mid: ['@clem', '@cacklejaw'], lift: 1 }], [1425, { point: [34000, 51000], lift: 2.4 }]] },
+      keys: [{ f: 1400, dist: 1.1, pitch: 50, yaw: 0, fov: 40 }, ...punch(1406, 1.1), { f: 1424, dist: 1.05 }, { f: 1425, dist: 0.62, pitch: 20, yaw: -30, ease: 'hold' }, { f: 1449, dist: 0.7, yaw: -22, ease: 'out' }],
+      smooth: 0.25,
     },
+    popText: ['Takedown!', 'Level 10'],
+    dmgRadius: 10,
+    wide: true,
+  },
+  {
+    id: 'S30',
+    f0: 1450,
+    f1: 1499,
+    take: 'N',
+    // the cats march on the dog core, the doghouse ahead of the lens; a tape-stop into the next bar
+    anchor: { key: 'brawl', frame: 1450, offset: 15 },
+    ramp: [[1450, 1], [1487, 1], [1499, 0.02]],
+    cam: { target: { point: '@brawl', lift: 2 }, keys: [{ f: 1450, dist: 0.9, pitch: 30, yaw: -100, fov: 40 }, { f: 1499, dist: 0.6, ease: 'in' }], smooth: 0.2 },
+    popText: [],
+    dmgRadius: 10,
+    cullHeroes: 2,
+    wide: true,
+  },
+  // ---------------------------------------------------------------- bar 16, THE CORE FALLS (f1500-1599)
+  {
+    id: 'S31',
+    f0: 1500,
+    f1: 1549,
+    take: 'N',
+    // Lambo belly-flops the core (f1500), the core bursts on the beat + 0 (f1525)
+    anchor: { key: 'flop', frame: 1500 },
+    fits: [{ key: 'core', frame: 1525, seg: [1500, 1524] }],
+    // after the hold the ramp runs fast: the game's own core slow motion (0.25x for 1.2 s) runs on top of it
+    ramp: [[1500, 0.32], [1525, 0.32], [1526, 0], [1528, 0], [1529, 3.2], [1549, 2.4]],
+    cam: { target: { point: '@core', lift: 2 }, keys: [{ f: 1500, dist: 0.6, pitch: 14, yaw: -100, fov: 40 }, ...punch(1525, 0.6), { f: 1549, dist: 0.7, ease: 'out' }], smooth: 0.15 },
+    blur: [[1500, 1524]],
+    popText: [],
+    dmgRadius: 8,
+    cullHeroes: 2,
+    cullFront: 0.5,
+  },
+  {
+    id: 'S32',
+    f0: 1550,
+    f1: 1599,
+    take: 'N',
+    anchor: { key: 'core', frame: 1556, banner: 'Victory!' },
+    preroll: 300,
+    ramp: [[1550, 2], [1599, 1.6]],
+    cam: { target: { unit: '@hero', lift: 1.2 }, keys: [{ f: 1550, dist: 0.55, pitch: 20, yaw: -120, fov: 40 }, { f: 1599, yaw: -90, ease: 'linear' }], smooth: 0.3 },
+    layers: ['pops', 'banner'],
+    popText: [],
+    dmgRadius: 8,
+    cullHeroes: 2,
+    cullFront: 0.5,
   },
 ];
 
-/** The 9:16 version of a shot's camera keys. */
+/**
+ * The 9:16 version of a shot's camera keys (storyboard §7): `portrait.keys` when given; wide shots 1.35x further and
+ * 6° steeper; close-ups 1.3x further, and a side-on two-shot (|yaw| near 90 on an `align`) turned to a 40° diagonal
+ * so both heroes stay in the narrow frame.
+ */
 export function portraitKeys(shot) {
   if (shot.portrait?.keys) return shot.portrait.keys;
-  return shot.portraitWide ? wide(shot.cam?.keys ?? []) : (shot.cam?.keys ?? []);
+  const keys = shot.cam?.keys ?? [];
+  return keys.map((k) => {
+    const o = { ...k };
+    if (o.dist !== undefined) o.dist = Math.round(o.dist * (shot.wide ? 135 : 130)) / 100;
+    if (shot.wide && o.pitch !== undefined) o.pitch = Math.min(80, o.pitch + 6);
+    if (!shot.wide && shot.cam?.align && o.yaw !== undefined && Math.abs(Math.abs(o.yaw) - 90) < 45) o.yaw = Math.sign(o.yaw) * 40;
+    return o;
+  });
 }
