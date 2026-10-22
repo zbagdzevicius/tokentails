@@ -2,7 +2,7 @@
 import { Color, DirectionalLight, Fog, Group, HemisphereLight, Mesh, PlaneGeometry, type Scene } from 'three';
 import type { BuiltTrack } from '../track/build';
 import { buildTrackMesh, disposeGroup } from '../track/mesh';
-import { themeOf, type Theme } from '../track/themes';
+import { nightTheme, themeOf, type Theme } from '../track/themes';
 import { skyDome, stars } from '../track/dressing/common';
 import { dressKitchen } from '../track/dressing/kitchen';
 import { dressRooftops, ROOF_GROUND } from '../track/dressing/rooftops';
@@ -15,8 +15,13 @@ export interface WorldView {
   dispose(): void;
 }
 
-export function buildWorldView(scene: Scene, t: BuiltTrack): WorldView {
-  const theme = themeOf(t.def.theme);
+/**
+ * `night` (iteration 4, F11: the Night Wild Card, `Modifier.Night`) turns a day theme after dark (`nightTheme`): the
+ * night sky, the warm fill light, stars over every theme (Kitchen and Rooftops included) and neon wall tops.
+ */
+export function buildWorldView(scene: Scene, t: BuiltTrack, night = false): WorldView {
+  const base = themeOf(t.def.theme);
+  const theme = night ? nightTheme(base) : base;
   const group = new Group();
   group.name = 'world';
   scene.background = new Color(theme.skyHorizon);
@@ -39,6 +44,8 @@ export function buildWorldView(scene: Scene, t: BuiltTrack): WorldView {
 
   const groundY = t.def.theme === 1 ? ROOF_GROUND : 0;
   group.add(buildTrackMesh(t, theme, { groundY }));
+  // a day theme made night: stars, whatever the dressing (night themes keep their own sky as before)
+  if (theme.night && !base.night) group.add(stars(400, 5));
   if (t.def.theme === 0) group.add(dressKitchen(t, theme));
   else if (t.def.theme === 1) group.add(dressRooftops(t, theme));
   else {
@@ -46,7 +53,7 @@ export function buildWorldView(scene: Scene, t: BuiltTrack): WorldView {
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.08;
     group.add(ground);
-    if (theme.night) group.add(stars(400, 5));
+    if (base.night) group.add(stars(400, 5));
   }
   if (t.def.theme === 1) {
     const street = new Mesh(new PlaneGeometry(900, 900), toonMaterial({ color: 0x120c28 }));

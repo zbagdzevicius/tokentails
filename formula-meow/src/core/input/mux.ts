@@ -11,7 +11,7 @@
  */
 import type { TickInput } from '../../types';
 import { emptyRaw, type InputSource, type RawInput } from './raw';
-import { smartSteer } from './smart-steer';
+import { EdgeTrend, smartSteer } from './smart-steer';
 
 export interface MuxSettings {
   /** desktop auto-gas (touch is always auto) */
@@ -74,6 +74,8 @@ export class InputMux {
   touch = false;
   /** the last latch's Smart Steer correction (assisted − raw steer, −0.35..0.35; 0 = no help) */
   assist = 0;
+  private readonly trend = new EdgeTrend();
+  private readonly lead: MuxContext = { racing: false, speedFrac: 0, drifting: false };
 
   constructor(
     private readonly sources: InputSource[],
@@ -116,7 +118,9 @@ export class InputMux {
       const autoGas = ctx.racing && (r.touch || this.settings.autoGas);
       // Smart Steer: a touch player's stick (or no stick at all), never keys or a gamepad
       const assisted = this.settings.smartSteer && r.touch && !r.digital && (r.steerTouch || r.steer === 0);
-      const steer = assisted ? smartSteer(r.steer, ctx) : r.steer;
+      this.trend.update(tick, ctx);
+      const sc = assisted ? this.trend.apply(ctx, this.lead) : ctx;
+      const steer = assisted ? smartSteer(r.steer, sc) : r.steer;
       this.assist = steer - r.steer;
       this.latched = {
         steer: Math.max(-7, Math.min(7, Math.round(steer * 7))),

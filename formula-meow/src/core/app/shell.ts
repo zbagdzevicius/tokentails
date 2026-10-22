@@ -392,7 +392,7 @@ export class Shell {
     };
     const built = buildTrack(setup.track, setup.modifiers);
     this.world = new SimWorld(cfg, createSimPlugins(cfg), built);
-    this.view = new RaceView(this.stage.scene, built, this.racers);
+    this.view = new RaceView(this.stage.scene, built, this.racers, setup.modifiers);
     this.view.capture(this.world.st);
     this.view.capture(this.world.st);
     const k = this.world.st.karts[this.me];

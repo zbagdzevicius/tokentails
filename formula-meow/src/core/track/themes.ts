@@ -283,3 +283,51 @@ export const THEMES: Record<ThemeId, Theme> = {
 export function themeOf(id: number): Theme {
   return THEMES[(id & 7) as ThemeId] ?? THEMES[0];
 }
+
+/** Mix two sRGB colours (`f` = share of `b`). */
+function mixHex(a: number, b: number, f: number): number {
+  const ch = (s: number) => Math.round(((a >> s) & 255) * (1 - f) + ((b >> s) & 255) * f) & 255;
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/** The night tint every after-dark colour leans toward (a deep blue-violet). */
+const NIGHT_TINT = 0x1a1640;
+
+/**
+ * Iteration 4 (F11, Wild Card "Night", render only): the after-dark version of a day theme. A night theme comes back
+ * unchanged. The sky turns deep blue with the theme's accent low on the horizon; the floor, walls and road lean
+ * toward the night tint (the road stays darker than the floor beside it, and the line, curbs and pads stay bright so
+ * the racing surface still reads first); the sun becomes a cool moon; and `night: true` brings the warm fill light,
+ * the stars and the kart headlights (`core/render/world-view.ts`, `core/render/night.ts`). Wall tops get neon trim in
+ * the theme's accent and cyan, as the night tracks have.
+ */
+export function nightTheme(base: Theme): Theme {
+  if (base.night) return base;
+  const dim = (c: number, f: number) => mixHex(c, NIGHT_TINT, f);
+  return {
+    ...base,
+    skyTop: 0x0a0a26,
+    skyHorizon: mixHex(0x2b2156, base.accent, 0.22),
+    fog: 0x1d1840,
+    fogNear: base.fogNear * 0.8,
+    fogFar: base.fogFar * 0.9,
+    ground: dim(base.ground, 0.45),
+    groundB: dim(base.groundB, 0.45),
+    road: dim(base.road, 0.5),
+    roadB: dim(base.roadB, 0.5),
+    curbA: dim(base.curbA, 0.15),
+    curbB: dim(base.curbB, 0.15),
+    shoulder: dim(base.shoulder, 0.45),
+    wallA: dim(base.wallA, 0.35),
+    wallB: dim(base.wallB, 0.35),
+    neonA: base.accent,
+    neonB: 0x2cf6f3,
+    skirt: dim(base.skirt, 0.5),
+    sun: 0xb4c0ff,
+    sunIntensity: 1.25,
+    hemiSky: 0x8a84d6,
+    hemiGround: dim(base.hemiGround, 0.5),
+    hemiIntensity: 1.45,
+    night: true,
+  };
+}

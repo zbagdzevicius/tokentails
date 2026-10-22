@@ -2,7 +2,8 @@
  * Settings screen (audio-ui lane, lazy chunk; `registerScreen('settings')`). Reached from pause, and from the menu
  * once the modes lane adds its tile. Three tabs:
  *  - Sound: on/off, music, effects and announcer volumes (each slider previews its own bus)
- *  - Controls: one-thumb drift, auto-gas, haptics, and the controls for the input in use
+ *  - Controls: one-thumb drift, Smart Steer (iteration 4: the touch steering assist), auto-gas, haptics, and the
+ *    controls for the input in use
  *  - Accessibility: reduced motion, captions, high-contrast HUD, text size, colour-blind drift colours (with a preview
  *    of the three tier colours and their shapes)
  * Every change saves at once through `shell.updateSettings` (the save blob) and applies live.
@@ -81,6 +82,10 @@ export function mount(root: HTMLElement, _params: unknown, api: ScreenApi): Scre
       set({ oneThumb: v });
       if (touch) helpLine.textContent = touchHelp(v);
     }),
+    toggle(t('Smart Steer'), s?.smartSteer ?? true, (v) => {
+      set({ smartSteer: v });
+    }),
+    h('p', { class: 'fm-line fm-help' }, [t('Smart Steer nudges your touch steering away from the walls. Keys and gamepads are never changed.')]),
     toggle(t('Auto-gas'), s?.autoGas ?? false, (v) => {
       set({ autoGas: v });
     }),

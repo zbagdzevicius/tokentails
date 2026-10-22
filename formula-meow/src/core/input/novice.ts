@@ -5,8 +5,8 @@
  * touch stick curve and the real `InputMux` (one-thumb drift, auto-gas, Smart Steer when on) into the sim, with the
  * `MuxContext` filled the way `core/app/shell.ts` fills it (edge look-ahead included).
  *
- * Test support only (not imported by the game). `smart-steer.test.ts` runs it; `e2e/feel.spec.ts` drives the same
- * novice through real pointer events in the browser.
+ * Test support only (not imported by the game). `smart-steer.test.ts` runs it; `e2e/feel.spec.ts` drives a browser
+ * version of the same novice through real pointer events.
  */
 import { DT, type TrackDef } from '../../types';
 import { GO_TICK } from '../sim/world';
@@ -38,6 +38,8 @@ export interface NoviceRun {
   place: number;
   /** ticks the assist moved the stick */
   assistTicks: number;
+  /** wall ticks within 0.7 s of a landing */
+  airWall: number;
 }
 
 class Thumb implements InputSource {
@@ -111,6 +113,8 @@ export function runNovice(def: TrackDef, o: NoviceOpts): NoviceRun {
   const rand = () => ((rng = (rng * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
   let wallTicks = 0;
   let assistTicks = 0;
+  let airWall = 0;
+  let lastAir = -999;
   const limit = 60 * 60 * 6;
   while (!w.done && w.st.tick < limit) {
     const me = w.st.karts[5];
@@ -149,15 +153,14 @@ export function runNovice(def: TrackDef, o: NoviceOpts): NoviceRun {
     const input = mux.sample(w.st.tick, mc);
     if (mux.assist !== 0) assistTicks++;
     w.step([input]);
-    if (process.env.FM_T0 && w.st.tick >= Number(process.env.FM_T0) && w.st.tick <= Number(process.env.FM_T1))
-      process.stderr.write(`T t${w.st.tick} si${me.si} d${me.d.toFixed(1)} hw${built.halfW[me.si].toFixed(1)} eL${mc.edgeL.toFixed(1)} eR${mc.edgeR.toFixed(1)} eh${mc.edgeHeading.toFixed(2)} yr${yaw.rate.toFixed(2)} raw${mux.raw.steer.toFixed(2)} as${mux.assist.toFixed(2)} st${input.steer} v${speedOf(me).toFixed(1)} wall${me.wall} air${me.air} dd${me.driftDir} rail${me.rail} rac${mc.racing}\n`);
+    if (w.st.karts[5].air) lastAir = w.st.tick;
     if (w.st.tick >= GO_TICK && !w.st.karts[5].finished && w.st.karts[5].wall) {
       wallTicks++;
-      if (process.env.FM_TRACE) process.stderr.write(`W t${w.st.tick} si${me.si} d${me.d.toFixed(1)} eL${mc.edgeL.toFixed(1)} eR${mc.edgeR.toFixed(1)} eh${mc.edgeHeading.toFixed(2)} raw${mux.raw.steer.toFixed(2)} as${mux.assist.toFixed(2)} dd${me.driftDir} v${speedOf(me).toFixed(1)} surf${me.surface} br${me.branch}\n`);
+      if (w.st.tick - lastAir < 42) airWall++;
     }
   }
   const res = w.result();
   const ai = res.places.filter((p) => p.kart !== 5 && p.time != null).map((p) => p.time as number);
-  return { wallTicks, time: res.player.time, aiMean: ai.reduce((a, b) => a + b, 0) / Math.max(1, ai.length), place: res.player.place, assistTicks };
+  return { wallTicks, time: res.player.time, aiMean: ai.reduce((a, b) => a + b, 0) / Math.max(1, ai.length), place: res.player.place, assistTicks, airWall };
 }
 
