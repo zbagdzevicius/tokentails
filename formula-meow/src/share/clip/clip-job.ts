@@ -5,7 +5,8 @@
  * reads.
  *
  *   0–1.5 s     your cat in the kart on the grid, a close orbit
- *   1.5–8.5 s   the best 7 s of the race (highlight.ts), chase cam with a low side-cam cut
+ *   1.5–8.5 s   the best 7 s of the race (highlight.ts), chase cam with a low side-cam cut; a loop is filmed from its
+ *               TV spot beside the loop (iteration 4, F8) and the best moment gets a caption sticker
  *   8.5–10.5 s  the finish at 0.4× from a camera ahead of the kart
  *   10.5–12 s   end card: place, time, track, link, "Beat my cat"
  *
@@ -24,7 +25,8 @@ import { ChaseCamera } from '../../core/camera/chase-camera';
 import { OUTLINE_UNIFORMS } from '../../core/render/cat-outline';
 import { decalTexture, setFaceDecal } from '../../core/render/face-decal-material';
 import { createSimPlugins } from '../../items-ai';
-import { CLIP_FPS, CLIP_S, FINISH_S, FINISH_SIM_S, HIGHLIGHT_S, INTRO_S, planClip } from './highlight';
+import { CLIP_FPS, CLIP_S, FINISH_S, FINISH_SIM_S, HIGHLIGHT_S, INTRO_S, finishSticker, highlightSticker, planClip, type ClipSticker } from './highlight';
+import { finishMargin, isPhotoFinish } from '../../core/app/finish';
 import { renderClipAudio } from './clip-audio';
 import { fmtRaceTime, ordinalText, rivalsLine } from '../cards/card-text';
 import type { EncodedClip } from './encoder-types';
@@ -69,6 +71,41 @@ function pill(g: CanvasRenderingContext2D, text: string, x: number, y: number, s
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText(text, x0 + w / 2, y + h / 2 + size * 0.04);
+}
+
+const STICKER_TONES: Record<ClipSticker['tone'], [string, string]> = {
+  pink: ['#ff3ea5', '#fff3dc'],
+  cyan: ['#2cf6f3', '#1a1238'],
+  gold: ['#ffd27a', '#1a1238'],
+  green: ['#7be495', '#0b3a21'],
+};
+
+/** A caption sticker (F8): a tilted pill with an ink edge that pops in over 0.25 s. */
+function sticker(g: CanvasRenderingContext2D, s: ClipSticker, age: number, y: number): void {
+  const [bg, fg] = STICKER_TONES[s.tone];
+  const size = 46;
+  const pop = Math.min(1, age / 0.25);
+  const k = pop < 1 ? 0.6 + 0.55 * pop - 0.15 * pop * pop : 1;
+  g.save();
+  g.translate(CLIP_W / 2, y);
+  g.rotate(-0.06);
+  g.scale(k, k);
+  g.font = `900 ${size}px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
+  const w = Math.min(CLIP_W - 60, g.measureText(s.text).width + size * 1.1);
+  const h = size * 1.6;
+  g.fillStyle = '#1a1238';
+  g.beginPath();
+  g.roundRect(-w / 2 - 6, -h / 2 - 6 + 8, w + 12, h + 12, (h + 12) / 2);
+  g.fill();
+  g.fillStyle = bg;
+  g.beginPath();
+  g.roundRect(-w / 2, -h / 2, w, h, h / 2);
+  g.fill();
+  g.fillStyle = fg;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(s.text, 0, size * 0.05, w - size * 0.6);
+  g.restore();
 }
 
 function bigText(g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string, align: CanvasTextAlign = 'center'): void {
@@ -131,7 +168,14 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
   };
 
   const endTick = inp.replay.inputs.length;
-  const plan = planClip(inp.events, me, GO_TICK, endTick);
+  // F8: a photo finish (the same margin the results headline shows) leans the window into the duel for the line
+  const margin = finishMargin(inp.result, me);
+  const photo = isPhotoFinish(margin) ? margin!.margin : null;
+  const plan = planClip(inp.events, me, GO_TICK, endTick, { photo: photo != null });
+  const hlSticker = highlightSticker(inp.events, me, plan.hlStart, plan.hlStart + plan.hlLen);
+  const finSticker = finishSticker(photo, plan.finishTick);
+  const tv = { x: 0, y: 0, z: 0 };
+  const shown = { x: 0, y: 0, z: 0, heading: 0 };
   const total = Math.round(CLIP_S * CLIP_FPS);
   const fIntro = Math.round(INTRO_S * CLIP_FPS);
   const fHl = fIntro + Math.round(HIGHLIGHT_S * CLIP_FPS);
@@ -143,13 +187,16 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
   const savedRes = OUTLINE_UNIFORMS.uRes.value.clone();
 
   let wasRespawning = false;
-  const renderAt = (simT: number, dt: number, cam: 'chase' | 'side' | 'orbit' | 'front', localS: number) => {
+  const renderAt = (simT: number, dt: number, camWanted: 'chase' | 'side' | 'orbit' | 'front', localS: number) => {
     const target = Math.ceil(simT);
     stepTo(target);
     const alpha = Math.max(0, Math.min(1, 1 - (target - simT)));
     view.update(world.st, alpha, dt, top);
     const k = world.st.karts[me];
     const s = view.lerpKart(me, alpha, snap);
+    // F8: on a loop's rail the highlight is filmed from the loop's TV spot (the whole loop in frame)
+    const onLoop = (camWanted === 'chase' || camWanted === 'side') && k.rail > 0 && view.tvSpot(k.rail - 1, tv);
+    const cam = onLoop ? 'tv' : camWanted;
     // the respawn hand teleports the kart: cut the chase rig with it instead of flying across the map
     if (k.respawnTicks > 0) wasRespawning = true;
     else if (wasRespawning) {
@@ -165,9 +212,15 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
     const fx = Math.sin(s.heading);
     const fz = Math.cos(s.heading);
     // the chase rig keeps following through the side shot, so the cut back lands behind the kart
-    if (cam === 'chase' || cam === 'side') chase.update(k, s.x, s.y, s.z, s.heading, speedOf(k), top, dt);
+    if (cam === 'chase' || cam === 'side' || cam === 'tv') chase.update(k, s.x, s.y, s.z, s.heading, speedOf(k), top, dt);
     if (cam === 'chase') {
       camera = chase.cam;
+    } else if (cam === 'tv') {
+      // the drawn kart (on the ribbon), not the flat sim point under it
+      const d = view.displayPos(me, shown);
+      free.position.set(tv.x, tv.y, tv.z);
+      lookAt.set(d.x, d.y + 0.6, d.z);
+      free.lookAt(lookAt);
     } else if (cam === 'orbit') {
       // close orbit around the driver's face: from front-left to front-right
       const a = s.heading + (-0.9 + (localS / INTRO_S) * 1.8);
@@ -231,6 +284,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
         const side = local >= 2.6 && local < 4.4;
         renderAt(simT, dt * rate, side ? 'side' : 'chase', side ? local - 2.6 : local);
         bigText(g, ordinalText(placeAt()), 40, 150, 120, '#ffd27a', 'left');
+        if (hlSticker && simT >= hlSticker.tick) sticker(g, hlSticker, (simT - hlSticker.tick) / 60 / rate, CLIP_H - 260);
         pill(g, `LAP ${Math.min(world.st.laps, Math.max(1, world.st.karts[me].lap))}/${world.st.laps}`, CLIP_W - 36, 60, 32, '#1a1238', '#fff3dc', 'right');
       } else if (f < fFin && plan.finishStart != null) {
         const local = (f - fHl) / CLIP_FPS;
@@ -241,6 +295,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
         if (crossed) {
           bigText(g, 'FINISH!', CLIP_W / 2, 260, 130, '#ff3ea5');
           bigText(g, fmtRaceTime(inp.result.player.time), CLIP_W / 2, 360, 72, '#fff3dc');
+          if (finSticker) sticker(g, finSticker, (simT - finSticker.tick) / 60 / (FINISH_SIM_S / FINISH_S), CLIP_H - 260);
         } else bigText(g, ordinalText(placeAt()), 40, 150, 120, '#ffd27a', 'left');
         pill(g, '0.4×', CLIP_W - 36, 60, 30, '#ff3ea5', '#fff3dc', 'right');
       } else if (f < fFin) {

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { Modifier, DEFAULT_CAT, type RaceEvent } from '../types';
+import { Modifier, DEFAULT_CAT, SIM_VERSION, type RaceEvent, type RaceMode } from '../types';
 import { TRACKS } from '../core/track/tracks';
 import { dailyResultDay, dailySetup, dateOfDay, dayNoFor, EMPTY_DAILY, isDailyRace, migrateDaily, recordDaily, type DailyRecord } from './daily/daily';
 import { dareableMode, dareUrl, dailyUrl, parseRoute, PUBLIC_BASE } from './links/link';
-import { encodeGhostSync, trackKey } from './codec/ghost-codec';
+import { encodeGhostSync, peekGhost, trackKey } from './codec/ghost-codec';
+import { pickHeadline } from './cards/headline';
+import { duelable, duelGap, gapText, shadowConfig } from './links/duel';
+import { dareRace } from './links/dare-flow';
 import { encodeCat } from './codec/cat-codec';
 import { BANNED_CLAIMS, clipCaption, rivalsLine, dailyCardText, dareText, fmtRaceTime, PINK_PAW_SHARE_LINE } from './cards/card-text';
 import { bestWindow, eventScore, planClip } from './clip/highlight';
@@ -70,8 +73,8 @@ describe('routes and links (GDD 8.3)', () => {
   });
 
   it('only field races make a dare link (a solo time trial, a cup or a battle arena ghost cannot be replayed)', () => {
-    for (const m of [undefined, 'race', 'dare', 'daily'] as const) expect(dareableMode(m)).toBe(true);
-    for (const m of ['tt', 'gp', 'battle'] as const) expect(dareableMode(m)).toBe(false);
+    for (const m of [undefined, 'race', 'dare', 'daily', 'tt'] as const) expect(dareableMode(m)).toBe(true);
+    for (const m of ['gp', 'battle'] as const) expect(dareableMode(m)).toBe(false);
   });
 
   it('parses the daily path and query, ignores junk', () => {
@@ -195,5 +198,98 @@ describe('daily cup across UTC midnight', () => {
     // a fresh object every time: recording never mutates the shared EMPTY_DAILY
     recordDaily(migrateDaily(undefined), { day: 3, place: 1, time: 80, laps: [1] });
     expect(EMPTY_DAILY.runs).toEqual({});
+  });
+});
+
+describe('results headline (iteration 4, F7)', () => {
+  type Row = { kart: number; name: string; place: number; time: number | null; bestLap: number | null; gap?: number | null };
+  const res = (rows: Row[], me: number, mode: RaceMode = 'race') => {
+    const p = rows.find((r) => r.kart === me)!;
+    return { places: rows, player: { kart: me, place: p.place, time: p.time, bestLap: null }, mode };
+  };
+  const row = (kart: number, place: number, time: number | null, name = `Cat ${kart}`, gap?: number): Row => ({ kart, name, place, time, bestLap: null, ...(gap != null ? { gap } : {}) });
+
+  it('a dare ghost first: won by, lost by, still checking', () => {
+    const r = res([row(5, 1, 80)], 5);
+    expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: 81.2 } })).toMatchObject({ kind: 'ghost', tone: 'win', text: "You beat Zyg's ghost by 1.20 s" });
+    expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: 79.69 } })).toMatchObject({ tone: 'lose', text: "Lost to Zyg's ghost by 0.31 s" });
+    expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: null } })?.text).toBe("You beat Zyg's ghost");
+    expect(pickHeadline({ result: r, ghost: { name: 'Zyg', time: null }, ghostPending: true })?.kind).toBe('pending');
+  });
+
+  it('then a photo finish, the rival margin, a new best', () => {
+    // 2nd, 0.07 s behind the winner: a photo finish
+    expect(pickHeadline({ result: res([row(1, 1, 80, 'Medutis'), row(5, 2, 80.07), row(2, 3, 84)], 5) })?.text).toBe('PHOTO FINISH by 0.07 s');
+    // 2nd, 0.4 s behind: who beat you
+    expect(pickHeadline({ result: res([row(1, 1, 80, 'Medutis'), row(5, 2, 80.4), row(2, 3, 84)], 5) })?.text).toBe('Medutis beat you by 0.40 s');
+    // a clear win
+    expect(pickHeadline({ result: res([row(5, 1, 80), row(1, 2, 81.8, 'Medutis')], 5) })).toMatchObject({ tone: 'win', text: 'WON BY 1.80 s' });
+    // 3rd, the 4th cat 0.9 s back and nothing else: a new best beats "held off"
+    const third = res([row(1, 1, 78), row(2, 2, 79), row(5, 3, 80), row(3, 4, 80.9, 'Luna')], 5);
+    expect(pickHeadline({ result: third, prevBest: 81 })?.text).toBe('New best by 1.00 s');
+    expect(pickHeadline({ result: third, prevBest: 79 })?.text).toBe('You held off Luna by 0.90 s');
+    // a cat still racing (projected) is never a photo finish
+    expect(pickHeadline({ result: res([row(5, 1, 80), row(1, 2, null, 'Medutis', 0.1)], 5), prevBest: 70 })?.kind).not.toBe('photo');
+  });
+
+  it('a time trial: new best, or how far off it; a battle and a DNF have none', () => {
+    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: null })?.text).toBe('New best');
+    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: 61.5 })?.text).toBe('New best by 1.50 s');
+    expect(pickHeadline({ result: res([row(0, 1, 60)], 0, 'tt'), prevBest: 59.25 })).toMatchObject({ tone: 'plain', text: '0.75 s off your best' });
+    expect(pickHeadline({ result: res([row(5, 1, 60)], 5, 'battle') })).toBeNull();
+    expect(pickHeadline({ result: res([row(1, 1, 80), row(5, 2, null)], 5), prevBest: 70 })).toBeNull();
+  });
+});
+
+describe('ghost duels (iteration 4, F9)', () => {
+  it('the live gap: when the ghost was where I am now, with the sub-tick crossing', () => {
+    // the ghost moves 1 m a tick from GO (tick 10)
+    const dist = new Float32Array(200);
+    for (let i = 0; i < 200; i++) dist[i] = Math.max(0, i - 10);
+    const tr = { dist, ticks: 199, go: 10 };
+    expect(duelGap(tr, 5, 0)).toBeNull();
+    // at tick 100 I am at 80 m; the ghost was there at tick 90: 10 ticks behind
+    expect(duelGap(tr, 100, 80)).toBeCloseTo(10 / 60, 5);
+    // ahead: at tick 100 I am at 95 m, the ghost gets there at tick 105
+    expect(duelGap(tr, 100, 95)).toBeCloseTo(-5 / 60, 5);
+    expect(duelGap(tr, 100, 80.5)).toBeCloseTo(9.5 / 60, 5);
+    // past the ghost's last point: ahead by at least the time to its end, then no reading
+    expect(duelGap(tr, 150, 500)).toBeCloseTo(-49 / 60, 5);
+    expect(duelGap(tr, 250, 500)).toBeNull();
+    expect(gapText(0.4234)).toEqual({ text: '+0.42', ahead: false });
+    expect(gapText(-0.18)).toEqual({ text: '−0.18', ahead: true });
+  });
+
+  it('the shadow race: eight karts for a race ghost, the lone kart for a time trial or a duel run', () => {
+    const track = TRACKS[0];
+    const base = { trackKey: trackKey(track.id), seed: 5, cls: 1 as const, modifiers: 0, forgiving: false, slot: 5, simVersion: SIM_VERSION, ticks: 10, rival: 2 };
+    const race = shadowConfig(base, track, 'Mia', null);
+    expect(race.racers).toHaveLength(8);
+    expect(race.humans).toEqual([5]);
+    expect(race.racers[2].rival).toBe(true);
+    const tt = shadowConfig({ ...base, slot: 0, mode: 'tt' }, track, 'Mia', null);
+    expect(tt.racers).toHaveLength(1);
+    expect(tt.humans).toEqual([0]);
+    expect(tt.mode).toBe('tt');
+    const solo = shadowConfig({ ...base, slot: 0, mode: 'dare', solo: true }, track, 'Mia', null);
+    expect(solo.racers).toHaveLength(1);
+    expect(solo.mode).toBe('dare');
+  });
+
+  it('a dare of this build is a duel (1v1, or the pack); a time trial dare is a time trial; older ones are target-time races', () => {
+    const g = { simVersion: SIM_VERSION, mode: 'race' as const, slot: 5 };
+    expect(dareRace(g, false)).toEqual({ mode: 'dare', solo: true });
+    expect(dareRace(g, true)).toEqual({ mode: 'dare', solo: false });
+    expect(dareRace({ ...g, mode: 'tt', slot: 0 }, true)).toEqual({ mode: 'tt', solo: true });
+    expect(dareRace({ ...g, simVersion: SIM_VERSION - 1 }, false)).toEqual({ mode: 'dare', solo: false });
+    expect(duelable({ ...g, simVersion: SIM_VERSION - 1 })).toBe(false);
+    expect(duelable({ ...g, mode: 'gp' })).toBe(false);
+    expect(duelable({ ...g, mode: 'battle' })).toBe(false);
+  });
+
+  it('the ghost header carries the duel bit in the old reserved bit (older links read false)', () => {
+    const h = { trackKey: 1, seed: 2, cls: 1 as const, modifiers: 0, forgiving: false, slot: 0, mode: 'dare' as const };
+    expect(peekGhost(encodeGhostSync({ ...h, solo: true }, [0x17]))?.solo).toBe(true);
+    expect(peekGhost(encodeGhostSync(h, [0x17]))?.solo).toBeUndefined();
   });
 });

@@ -26,6 +26,8 @@ export interface DareCardIn {
   notice?: string | null;
   /** start with "Race the pack" on */
   pack?: boolean;
+  /** QA (`?bot=1`): tap TAP TO RACE by itself after this many ms (0 = wait for the player) */
+  auto?: number;
 }
 
 export interface DareCardOut {
@@ -60,7 +62,7 @@ export function showDareCard(host: HTMLElement, d: DareCardIn): Promise<DareCard
           d.tt || d.notice
             ? `<p class="fm-dare-mode">${esc(d.tt ? t('Time trial: you and the ghost') : t('Race the same track'))}</p>`
             : `<label class="fm-dare-pack"><input type="checkbox" data-act="pack"${pack ? ' checked' : ''}> <span>${esc(t('Race the pack'))}</span></label>
-               <p class="fm-dare-mode" data-mode>${esc(pack ? t('You, the ghost and 7 shelter cats') : t('1v1: you and the ghost'))}</p>`
+               <p class="fm-dare-mode" data-mode>${esc(pack ? t('You, the ghost and 7 cats') : t('1v1: you and the ghost'))}</p>`
         }
         <button class="fm-btn primary big fm-dare-go" data-act="dare-go">${esc(t('TAP TO RACE'))}</button>
       </div>`;
@@ -72,7 +74,7 @@ export function showDareCard(host: HTMLElement, d: DareCardIn): Promise<DareCard
     const box = wrap.querySelector<HTMLInputElement>('[data-act="pack"]');
     const modeLine = wrap.querySelector<HTMLElement>('[data-mode]');
     box?.addEventListener('change', () => {
-      if (modeLine) modeLine.textContent = box.checked ? t('You, the ghost and 7 shelter cats') : t('1v1: you and the ghost');
+      if (modeLine) modeLine.textContent = box.checked ? t('You, the ghost and 7 cats') : t('1v1: you and the ghost');
     });
     let done = false;
     const go = () => {
@@ -99,6 +101,7 @@ export function showDareCard(host: HTMLElement, d: DareCardIn): Promise<DareCard
     // stray taps on the card never steer or arm the race behind it
     for (const ev of ['pointerdown', 'touchstart'] as const) wrap.addEventListener(ev, (e) => e.stopPropagation());
     setTimeout(() => wrap.querySelector<HTMLElement>('[data-act="dare-go"]')?.focus({ preventScroll: true }), 60);
+    if (d.auto) setTimeout(go, d.auto);
   });
 }
 

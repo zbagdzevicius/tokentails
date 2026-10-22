@@ -7,8 +7,9 @@ import type { SetPiece, TrackDef } from '../../types';
 import { ovalTrack } from '../../test/fixtures';
 import { buildTrack } from '../../core/track/build';
 import { PIECE_LIMITS, validateSetPieces, validateTrack } from './validate';
-import { metresToUnits, newPiece, pieceLimit, snapPiece, tunnelLenStep, tunnelMetres, ugcPieces, unitsToMetres, wallSide } from './pieces';
+import { metresToUnits, newPiece, pieceIssueCount, pieceLimit, snapPiece, tunnelLenStep, tunnelMetres, ugcPieces, unitsToMetres, wallSide } from './pieces';
 import { ALL_TRACKS } from '../../core/track/tracks';
+import { autoStunts } from './surprise';
 
 const oval = (setPieces?: SetPiece[]): TrackDef => ({ ...ovalTrack([{ s: 140, kind: 'items' }]), ...(setPieces ? { setPieces } : {}) });
 
@@ -86,5 +87,15 @@ describe('stunt stickers', () => {
       d = { ...d, setPieces: d.setPieces!.map((q, j) => (j === i ? s : q)) };
     }
     expect(validateTrack(d).issues).toEqual([]);
+  });
+
+  it('auto-stunts (iteration 4, F10) go through the same snap: a loop on the straight of the test oval, all rules pass', () => {
+    const def = oval();
+    const kinds = autoStunts(def, 42);
+    expect(kinds).toContain('loop');
+    expect(pieceIssueCount(def)).toBe(0);
+    // every placed piece is where the snap would leave it
+    for (let i = 0; i < def.setPieces!.length; i++) expect(snapPiece(def, buildTrack(def), i)).toEqual(def.setPieces![i]);
+    expect(validateTrack(def).issues).toEqual([]);
   });
 });

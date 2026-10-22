@@ -26,6 +26,7 @@ function normPiece(p: SetPiece): SetPiece {
 import { fromBase64url, toBase64url } from './base64url';
 import { extractCode, readTrackCode, trackLink, wantsEditor } from './link';
 import { setTrackCodec, trackFromLocation } from './track-codec';
+import { fmtLap, liveLapDelta, makerLine, myLapCs, recordLap, setTarget, shareLapCs, targetCs } from '../maker-lap';
 
 /**
  * Drop the fields the code does not carry the same way (id, sides the decoder fills in) or at all (the iteration-2
@@ -314,3 +315,52 @@ function crc(body: Uint8Array): Uint8Array {
   }
   return new Uint8Array([...body, c >> 8, c & 0xff]);
 }
+
+describe('Beat the maker (iteration 4, F10)', () => {
+  const mem = new Map<string, string>();
+  (globalThis as unknown as { localStorage: Pick<Storage, 'getItem' | 'setItem'> }).localStorage = {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, v),
+  };
+
+  it('a completed lap is kept per track (only a better one replaces it); a code carries it and a code without one has no target', () => {
+    const def = { ...bigTrack(), props: [3, 15] };
+    const id = ugcId(def);
+    expect(myLapCs(id)).toBeNull();
+    expect(recordLap(id, null)).toBe(false);
+    expect(recordLap('kitchen', 30)).toBe(false);
+    expect(recordLap(id, 25.314)).toBe(true);
+    expect(myLapCs(id)).toBe(2531);
+    expect(recordLap(id, 26)).toBe(false);
+    expect(recordLap(id, 24.5)).toBe(true);
+    expect(shareLapCs(id)).toBe(2450);
+    const back = decodeTrackCode(encodeTrack(def, { creatorLapCs: shareLapCs(id) }), { validate: false });
+    expect(back.ok && back.creatorLapCs).toBe(2450);
+    // the lap never changes the track's identity
+    expect(back.ok && back.track.id).toBe(id);
+    const none = decodeTrackCode(encodeTrack(def), { validate: false });
+    expect(none.ok && none.creatorLapCs).toBeUndefined();
+    expect(targetCs(id)).toBeNull();
+  });
+
+  it("a friend's link sets the target; re-sharing carries your own lap once you have one", () => {
+    const def = { ...bigTrack(), name: 'Friend Loop' };
+    const id = ugcId(def);
+    setTarget(id, 2431);
+    expect(targetCs(id)).toBe(2431);
+    expect(shareLapCs(id)).toBe(2431);
+    recordLap(id, 23.9);
+    expect(shareLapCs(id)).toBe(2390);
+  });
+
+  it('the banner time, the result line and the live delta use only measured laps', () => {
+    expect(fmtLap(2431)).toBe('0:24.31');
+    expect(fmtLap(6512)).toBe('1:05.12');
+    expect(makerLine(2431, 23.71)).toBe("⏱ You beat the sender's lap by 0.60 s!");
+    expect(makerLine(2431, 24.71)).toBe("⏱ The sender's lap is 0.40 s faster. Again?");
+    expect(makerLine(2431, null)).toBeNull();
+    // halfway round a 24.31 s lap after 12.0 s: 0.155 s ahead
+    expect(liveLapDelta(2431, 12, 0.5)).toBeCloseTo(-0.155, 3);
+    expect(liveLapDelta(2431, 0.5, 0.02)).toBeNull();
+  });
+});

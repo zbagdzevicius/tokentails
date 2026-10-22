@@ -13,7 +13,8 @@ import type { FrameInfo } from '../juice/bus';
 import { GO_TICK } from '../core/sim/world';
 import { TRACKS } from '../core/track/tracks';
 import { decodeTrackCode, encodeTrack } from './codec/track-code';
-import { extractCode, trackLink, wantsEditor } from './codec/link';
+import { extractCode, readTrackCode, trackLink, wantsEditor } from './codec/link';
+import { fmtLap, liveLapDelta, recordLap, setTarget, targetCs } from './maker-lap';
 import { setTrackCodec, trackFromLocation } from './codec/track-codec';
 import { trackCodecV1 } from './codec/track-code';
 import { listSaved, loadDraft, removeSaved, type SavedTrack } from './store';
@@ -114,8 +115,58 @@ export class UgcHub {
       onReset: () => {
         this.bannerOff = false;
         this.bannerFor = '';
+        this.lapPill.classList.remove('on');
       },
     });
+    // F10 Beat the maker: a link's lap is the target for its track; every race on a doodle keeps this device's best
+    // completed lap, which the next share of the track carries
+    this.lapPill = document.createElement('div');
+    this.lapPill.className = 'fm-gap-pill fm-lap-pill';
+    this.lapPill.setAttribute('aria-hidden', 'true');
+    shell.host.append(this.lapPill);
+    this.noteLinkLap(location.search, location.hash);
+    shell.appBus.on('raceEnd', ({ result }) => {
+      const id = this.shell.setup?.track.id;
+      if (id && id === result.trackId) recordLap(id, result.player.bestLap);
+    });
+  }
+
+  private readonly lapPill: HTMLDivElement;
+  private lapShown = '';
+  private lapAcc = 0;
+
+  /** The lap a track link carries becomes the target for that track (this page only). */
+  private noteLinkLap(search: string, hash: string): void {
+    const code = readTrackCode(search, hash);
+    if (!code) return;
+    const d = decodeTrackCode(code);
+    if (d.ok) setTarget(d.track.id, d.creatorLapCs);
+  }
+
+  /** The live lap delta pill: this lap so far against the target lap, scaled to how far round the lap the kart is. */
+  private lapDelta(info: FrameInfo, target: number | null): void {
+    const k = info.st.karts[info.me];
+    const L = this.shell.world?.track.length ?? 0;
+    const on = target != null && !!k && !k.finished && info.st.tick > GO_TICK && k.lap >= 1 && L > 0 && !info.paused;
+    if (!on) {
+      if (this.lapPill.classList.contains('on')) this.lapPill.classList.remove('on');
+      return;
+    }
+    this.lapAcc += info.dt;
+    if (this.lapAcc < 0.1) return;
+    this.lapAcc = 0;
+    const frac = (k.dist - (k.lap - 1) * L) / L;
+    const d = liveLapDelta(target!, (info.st.tick - k.lapStartTick) / 60, frac);
+    if (d == null) return;
+    const ahead = d < 0;
+    const text = `${ahead ? '−' : '+'}${Math.abs(d).toFixed(2)}`;
+    if (text !== this.lapShown) {
+      this.lapShown = text;
+      this.lapPill.innerHTML = `<span class="n">⏱ ${esc(t('Lap'))} ${esc(fmtLap(target!))}</span><b>${esc(text)}</b>`;
+    }
+    this.lapPill.classList.toggle('ahead', ahead);
+    this.lapPill.classList.toggle('behind', !ahead);
+    this.lapPill.classList.add('on');
   }
 
   /** The saved (made on this device) track this doodle race runs, if any. */
@@ -153,11 +204,13 @@ export class UgcHub {
     }
     const track = this.shell.setup?.track;
     const ugc = !!track && track.id.startsWith('u-');
+    const target = ugc ? targetCs(track!.id) : null;
+    this.lapDelta(info, target);
     const want = ugc && !this.bannerOff && !this.editorOpen && info.st.tick < GO_TICK + 180 && !info.paused;
     if (want && this.bannerFor !== track!.id) {
       this.bannerFor = track!.id;
       const mine = this.savedFor(track!);
-      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? t('by you') : byline(track!))}</span>`;
+      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? t('by you') : byline(track!))}</span>${target != null ? `<span class="lap">${esc(t("⏱ Sender's lap {t} · beat it", { t: fmtLap(target) }))}</span>` : ''}`;
       const remix = document.createElement('button');
       remix.className = 'fm-ugc-chip';
       remix.textContent = mine ? t('✏️ Edit') : t('🔀 Remix');
@@ -296,8 +349,10 @@ export class UgcHub {
       const code = extractCode(input.value);
       if (!code) return say(t('That does not look like a track link.'));
       const d = decodeTrackCode(code);
-      if (d.ok) this.play(d.track);
-      else say(t('This track link is broken.'));
+      if (d.ok) {
+        setTarget(d.track.id, d.creatorLapCs);
+        this.play(d.track);
+      } else say(t('This track link is broken.'));
     };
     on('paste', race);
     input.addEventListener('keydown', (e) => {
