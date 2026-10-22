@@ -26,7 +26,7 @@ describe('daily cup (GDD 14)', () => {
     expect(d1.track.id).toBe(TRACKS[0].id);
     expect(d1.modifiers).toBe(0);
     expect(dailySetup(1 + n, TRACKS).modifiers).toBe(Modifier.Mirror);
-    expect(dailySetup(1 + 2 * n, TRACKS).modifiers).toBe(0);
+    expect(dailySetup(1 + 2 * n, TRACKS).modifiers & Modifier.Mirror).toBe(0); // F11: from day 9 a mutator rides along
     expect(dailySetup(5, TRACKS).seed).toBe(dailySetup(5, TRACKS).seed);
     expect(dailySetup(5, TRACKS).seed).not.toBe(dailySetup(6, TRACKS).seed);
     const d = dailySetup(3, TRACKS);

@@ -1,11 +1,14 @@
 /**
  * Daily Cup (GDD 14). Day numbers follow the UTC date, so everyone races the same cup on the same day: one track a
  * day rotating through the authored tracks (mirrored on every other lap of the rotation), Alley Cat 100cc, and the
- * same seed worldwide (`seed = hash("daily", dayNo)`). The first finished race of the day is the ranked run;
+ * same seed worldwide (`seed = hash("daily", dayNo)`); from day 9 one Wild Card mutator a day (ITERATION-4.md F11).
+ * The first finished race of the day is the ranked run;
  * practice after it is unlimited. No server: ranked runs and the streak live on this device only.
  * Pure helpers on top; the small storage wrapper at the bottom is guarded like the core's.
  */
 import { Modifier, type RaceClass, type TrackDef } from '../../types';
+import { MUTATORS, type MutatorDef } from '../../core/app/race-labels';
+import { t } from '../../ui/i18n';
 
 /** Day #1 (UTC). */
 export const DAY1_UTC = Date.UTC(2026, 9, 19);
@@ -41,8 +44,37 @@ export interface DailySetup {
   cls: RaceClass;
   seed: number;
   modifiers: number;
-  /** "Kitchen Counter GP" or "Kitchen Counter GP (mirror)" */
+  /** "Kitchen Counter", "Kitchen Counter (mirror)", from the cutoff day "Kitchen Counter · Box Party" */
   label: string;
+  /** the day's Wild Card mutator (from `DAILY_MUTATOR_DAY`), absent before */
+  mutator?: MutatorDef;
+}
+
+/**
+ * ITERATION-4.md F11: from this day (#9, 2026-10-27 UTC) the Daily Cup also deals one Wild Card mutator. Days before
+ * it keep their setup (and so their `isDailyRace` keys: ranked runs, daily links and dares on those days stay valid).
+ */
+export const DAILY_MUTATOR_DAY = 9;
+
+/**
+ * The mutator of day `day` (null before the cutoff). Each run of five days deals every mutator offered at the daily
+ * class once, in an order shuffled from the block's hash, so the same one never comes up two days running inside a
+ * block and every mutator shows up each week.
+ */
+export function dailyMutator(day: number): MutatorDef | null {
+  if (day < DAILY_MUTATOR_DAY) return null;
+  const pool = MUTATORS.filter((m) => DAILY_CLASS >= m.minCls);
+  if (!pool.length) return null;
+  const k = day - DAILY_MUTATOR_DAY;
+  const block = Math.floor(k / pool.length);
+  const order = pool.slice();
+  let h = hash32(`daily-mutator:${block}`);
+  for (let i = order.length - 1; i > 0; i--) {
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+    const j = h % (i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order[k % pool.length];
 }
 
 export function dailySetup(day: number, tracks: readonly TrackDef[]): DailySetup {
@@ -50,14 +82,18 @@ export function dailySetup(day: number, tracks: readonly TrackDef[]): DailySetup
   const i = (((day - 1) % n) + n) % n;
   const mirror = Math.floor((day - 1) / n) % 2 === 1;
   const track = tracks[i];
-  return {
+  const base = mirror ? `${track.name} (mirror)` : track.name;
+  const mut = dailyMutator(day);
+  const out: DailySetup = {
     day,
     track,
     cls: DAILY_CLASS,
     seed: hash32(`daily:${day}`),
-    modifiers: mirror ? Modifier.Mirror : 0,
-    label: mirror ? `${track.name} (mirror)` : track.name,
+    modifiers: (mirror ? Modifier.Mirror : 0) | (mut?.bit ?? 0),
+    label: mut ? `${base} · ${t(mut.name)}` : base,
   };
+  if (mut) out.mutator = mut;
+  return out;
 }
 
 /** Is this race setup the Daily Cup of `day`? */

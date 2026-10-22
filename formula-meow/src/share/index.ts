@@ -33,6 +33,7 @@ import { displayName } from '../ugc/actions';
 import type { TrackDef } from '../types';
 import { focusNav } from '../ui/kit';
 import { GO_TICK } from '../core/sim/world';
+import { gridBanner } from '../core/app/race-labels';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -211,8 +212,12 @@ export function installShare(shell: Shell): void {
         showBanner(notice);
         notice = null;
       } else if (runner.live) showBanner(`👻 Race ${runner.current?.name ?? 'the'}'s ghost`);
-      // B36: a Daily Cup race says so on the grid
-      else if (shell.setup?.mode === 'daily' && shell.setup.day) showBanner(`🏆 Daily Cup #${shell.setup.day}`);
+      // B36: a Daily Cup race says so on the grid; [modes lane] F11: with its mutator, and a Wild Card race says its own
+      else {
+        const s = shell.setup;
+        const banner = s ? gridBanner(s.mode ?? 'race', s.day, s.modifiers) : null;
+        if (banner) showBanner(banner);
+      }
     },
   });
 
