@@ -22,18 +22,18 @@ import {
 
 export const HEADLIGHTS = {
   /** the light pool on the road: length and width (m), starting this far ahead of the kart's centre */
-  length: 9,
-  width: 4.2,
+  length: 13,
+  width: 5.2,
   ahead: 1.1,
   /** lamp dots: lateral offset, height, forward offset (m), size */
   lampX: 0.42,
   lampY: 0.52,
   lampZ: 1.05,
-  lampSize: 0.2,
+  lampSize: 0.26,
   /** warm white */
   color: 0xffe2a8,
   /** pool brightness (additive) */
-  poolOpacity: 0.32,
+  poolOpacity: 0.5,
 } as const;
 
 /** A teardrop beam: bright and narrow at the lamp (v = 0), wide and fading at the far end (v = 1). Built in code. */

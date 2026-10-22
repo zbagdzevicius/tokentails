@@ -14,7 +14,7 @@ import { STUNT } from '../../tuning';
 import { RaceView } from './race-view';
 import { buildWorldView } from './world-view';
 import { HEADLIGHTS } from './night';
-import { OCCLUDER, OccluderFade, RUG_PROPS, blocksSight } from './occluder-fade';
+import { OCCLUDER, OccluderFade, RUG_PROPS, blocksSight, furnitureGroups } from './occluder-fade';
 
 const lum = (c: number) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
 
@@ -117,11 +117,24 @@ describe('Night Wild Card render (F11)', () => {
 });
 
 describe('Rug furniture fade (F14)', () => {
-  it('a block counts only when it sits on the camera → kart line, between them', () => {
+  it('a block counts when it sits on the camera → kart line or right under the lens, never beside or past the kart', () => {
     expect(blocksSight(0, 0, 0, 10, 0.5, 5, 1)).toBe(true);
     expect(blocksSight(0, 0, 0, 10, 3, 5, 1)).toBe(false);
-    expect(blocksSight(0, 0, 0, 10, 0, -2, 1)).toBe(false); // behind the camera
+    expect(blocksSight(0, 0, 0, 10, 0, -2, 1)).toBe(false); // well behind the camera
+    expect(blocksSight(0, 0, 0, 10, 0, -0.6, 1)).toBe(true); // the rig stopped just in front of it: under the lens
     expect(blocksSight(0, 0, 0, 10, 0, 12, 1)).toBe(false); // behind the kart
+    expect(blocksSight(0, 0, 0, 10, 1.5, 9.8, 2)).toBe(false); // the kart rubs its side: beside it, not in the way
+  });
+
+  it('the sofa (three blocks in a row) is one piece of furniture; the table, chair, tree and pot stand alone', () => {
+    const t = buildTrack(RUG);
+    expect(Array.from(furnitureGroups(t.blocks))).toEqual([0, 1, 1, 1, 4, 5, 6]);
+    const fade = new OccluderFade(new Group(), t);
+    const s = t.blocks[2];
+    // a sight line past the sofa's middle block fades all three
+    for (let n = 0; n < 30; n++) fade.update({ x: s.x - 12, y: 6, z: s.z - s.r - 1 }, { x: s.x + 1, y: 0, z: s.z - s.r - 1 }, 1 / 60);
+    expect(Array.from(fade.alpha.slice(1, 4)).every((a) => Math.abs(a - OCCLUDER.alpha) < 1e-5)).toBe(true);
+    expect(fade.alpha[0]).toBe(1);
   });
 
   it('fades the block in the way to 30 % (others stay solid) and patches the lazily loaded prop mesh once', () => {
@@ -141,17 +154,17 @@ describe('Rug furniture fade (F14)', () => {
     group.add(props);
     for (let n = 0; n < 30; n++) fade.update(cam, kart, 1 / 60);
     expect(fade.attached).toBe(true);
-    expect(mat.transparent).toBe(true);
+    expect(mat.transparent).toBe(false); // a screen-door fade: the furniture stays in the opaque pass
     expect(fade.alpha[0]).toBeCloseTo(OCCLUDER.alpha, 5);
     for (let i = 1; i < t.blocks.length; i++) {
-      const o = t.blocks[i];
-      if (!blocksSight(cam.x, cam.z, kart.x, kart.z, o.x, o.z, o.r + OCCLUDER.pad * 0.5)) expect(fade.alpha[i]).toBe(1);
+      if (fade.group[i] !== fade.group[0]) expect(fade.alpha[i]).toBe(1);
     }
     // the shader patch compiles into the toon program's source
     const sh = { uniforms: {} as Record<string, unknown>, vertexShader: '#include <common>\n#include <project_vertex>', fragmentShader: '#include <common>\n#include <opaque_fragment>' };
     mat.onBeforeCompile(sh as never, null as never);
     expect(sh.fragmentShader).toContain('uFmBlocks');
     expect(sh.vertexShader).toContain('vFmW');
+    expect(sh.fragmentShader).toContain('discard');
     // the line clears: back to solid; reduced motion snaps
     fade.update(cam, { x: b.x - 6, y: 0, z: b.z }, 1 / 60, true);
     expect(fade.alpha[0]).toBe(1);
