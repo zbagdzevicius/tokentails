@@ -30,12 +30,18 @@ export interface HarnessReport {
   finishMismatches: number;
   /** karts that did not finish, by class */
   dnf: [number, number, number];
-  /** head-on wall hits per race, worst race and mean */
+  /**
+   * head-on wall hits per race by a kart in control, worst race and mean. SIM_VERSION 11: a head-on within 1.5 s of
+   * an item hit on that kart (spun or wobbling out of the hit) is counted in `headOnAfterHit` instead: the gate is
+   * about wall traps in the track or the driving (ITERATION-2.md B13), and post-hit bounces swung it race to race
+   */
   headOnMax: number;
   headOnMean: number;
   /** worst race's track / class / seed for head-ons, and where they happened */
   headOnWorst: string;
   headOnWhere: string[];
+  /** head-ons within 1.5 s of an item hit on the same kart, all races */
+  headOnAfterHit: number;
   progressJumps: number;
   /** largest dist change beyond speed × DT in one tick, m */
   worstJump: number;
@@ -43,6 +49,8 @@ export interface HarnessReport {
 }
 
 const PLAYER = 5;
+/** ticks after an item hit during which a head-on counts as the hit's, not the driving's (1.5 s) */
+const HIT_RECOVERY = 90;
 
 export function runHarness(tracks: readonly TrackDef[], classes: readonly RaceClass[], seeds: number, opts: { bot?: boolean } = {}): HarnessReport {
   const r: HarnessReport = {
@@ -56,6 +64,7 @@ export function runHarness(tracks: readonly TrackDef[], classes: readonly RaceCl
     headOnMean: 0,
     headOnWorst: '',
     headOnWhere: [],
+    headOnAfterHit: 0,
     progressJumps: 0,
     worstJump: 0,
     respawnsMean: 0,
@@ -77,6 +86,7 @@ export function runHarness(tracks: readonly TrackDef[], classes: readonly RaceCl
         const prevDist = new Float64Array(n);
         const prevSpeed = new Float64Array(n);
         const respawnedAt = new Int32Array(n).fill(-999);
+        const hitAt = new Int32Array(n).fill(-999);
         let headOn = 0;
         const where: string[] = [];
         while (!w.done) {
@@ -89,6 +99,7 @@ export function runHarness(tracks: readonly TrackDef[], classes: readonly RaceCl
           const laser = itemsOf(w.st).proj.find((p) => p.kind === ProjKind.Laser);
           for (let e = before; e < w.st.events.length; e++) {
             const ev = w.st.events[e];
+            if (ev.type === 'hit') hitAt[ev.kart] = ev.tick;
             if (ev.type === 'bump') {
               const key = ev.kart * n + (ev.b ?? 0);
               const last = lastBump.get(key);
@@ -107,6 +118,10 @@ export function runHarness(tracks: readonly TrackDef[], classes: readonly RaceCl
               set.add(ev.kart);
               laserVictims.set(id, set);
             } else if (ev.type === 'wall' && ev.a === 2) {
+              if (ev.tick - hitAt[ev.kart] <= HIT_RECOVERY) {
+                r.headOnAfterHit++;
+                continue;
+              }
               headOn++;
               const k = w.st.karts[ev.kart];
               if (where.length < 40) where.push(`${ev.kart}@si${k.si}(${k.x.toFixed(0)},${k.z.toFixed(0)}) d${k.d.toFixed(1)}`);
@@ -148,7 +163,7 @@ export function formatHarness(r: HarnessReport): string {
     `races ${r.races}`,
     `laser multi-hits ${r.laserMultiHits}, bump spam ${r.bumpSpam}, overtake spam ${r.overtakeSpam}, finish mismatches ${r.finishMismatches}`,
     `DNF by class ${r.dnf.join(' / ')}`,
-    `head-on wall hits per race: max ${r.headOnMax} (${r.headOnWorst}), mean ${r.headOnMean.toFixed(2)}`,
+    `head-on wall hits per race: max ${r.headOnMax} (${r.headOnWorst}), mean ${r.headOnMean.toFixed(2)}; ${r.headOnAfterHit} more within 1.5 s of an item hit`,
     `progress jumps ${r.progressJumps} (worst ${r.worstJump.toFixed(2)} m), respawns per race ${r.respawnsMean.toFixed(2)}`,
   ].join('\n');
 }

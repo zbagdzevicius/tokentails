@@ -27,6 +27,7 @@ const ARM_TICKS = ticks(DRIFT.entryWindow);
 const PIN_TICKS = ticks(PHYS.pinRespawn);
 const STEER_RATE = DT / PHYS.steerSmooth;
 const TRICK_WINDOW = ticks(BOOST.trick.window);
+const TRICK_PRE = ticks(BOOST.trick.pre);
 const GUARD = ticks(HITS.guard);
 const GUARD_FORGIVING = ticks(HITS.guardForgiving);
 
@@ -36,7 +37,7 @@ export function newKart(): KartState {
   return {
     x: 0, y: 0, z: 0, heading: 0, vx: 0, vy: 0, vz: 0, steer: 0, air: 0, airTicks: 0, hopTicks: 0, armTicks: 0, pinTicks: 0, driftDir: 0, driftCharge: 0,
     driftTier: 0, boostTicks: 0, boostLevel: 1, spinTicks: 0, leapTicks: 0, wobbleTicks: 0, chaseTicks: 0, shieldTicks: 0,
-    autoTicks: 0, invTicks: 0, guardTicks: 0, stallTicks: 0, respawnTicks: 0, lipTicks: -1, trick: 0, slipTicks: 0, si: 0, s: 0, d: 0, dist: 0,
+    autoTicks: 0, invTicks: 0, guardTicks: 0, stallTicks: 0, respawnTicks: 0, lipTicks: -1, trick: 0, trickBuf: 0, slipTicks: 0, si: 0, s: 0, d: 0, dist: 0,
     surface: Surface.Road, wall: 0, pGas: 0, pDrift: 0, pItem: 0, startJudged: 0, item: null, itemCount: 0, rouletteTicks: 0,
     rngItems: 1, rngAi: 1, lap: 0, lapStartTick: 0, bestLapTicks: 0, finished: 0, finishTime: 0, place: 0, stuckTicks: 0, progDist: -1e9, topScale: 1,
     lapMax: 0, lapStartPrev: 0, coins: 0, balloons: 0, out: 0, itemBuf: 0, itemBufBack: 0, wrongTicks: 0, branch: -1,
@@ -247,6 +248,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   if (k.stallTicks > 0) k.stallTicks--;
   if (k.hopTicks > 0) k.hopTicks--;
   if (k.armTicks > 0) k.armTicks--;
+  if (k.trickBuf > 0) k.trickBuf--;
 
   const stunned = k.spinTicks > 0 || k.stallTicks > 0 || k.leapTicks > 0;
   let steerIn = stunned ? 0 : inp.steer / 7;
@@ -293,9 +295,14 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
 
   // --- hop and drift entry ------------------------------------------------------------------------------------------
   if (driftEdge && !k.air && !stunned) {
-    k.hopTicks = HOP_TICKS;
     k.armTicks = ARM_TICKS;
-    ctx.emit({ type: 'hop', kart: idx });
+    // SIM_VERSION 11 (F3): a tap within `BOOST.trick.pre` s of a ramp or jump lip is buffered as the trick and its hop
+    // is swallowed, so the launch is the one with no tap (a drift held with the stick still starts, as before)
+    if (lipWithin(t, k, speedOf(k) * DT * TRICK_PRE + t.step * 0.5)) k.trickBuf = TRICK_PRE + 1;
+    else {
+      k.hopTicks = HOP_TICKS;
+      ctx.emit({ type: 'hop', kart: idx });
+    }
   }
   let sp = speedOf(k);
   if (k.driftDir === 0 && inp.drift && k.armTicks > 0 && !k.air && Math.abs(steerIn) > DRIFT.minSteer && sp > DRIFT.minSpeed && !stunned) {
@@ -306,7 +313,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
     ctx.emit({ type: 'driftStart', kart: idx, a: k.driftDir });
   }
 
-  // trick: a tap within 0.2 s of leaving a ramp lip
+  // trick: a tap within 0.45 s of leaving a ramp lip (SIM_VERSION 11; was 0.2 s), or one buffered before it
   if (k.air && driftEdge && k.lipTicks >= 0 && k.lipTicks <= TRICK_WINDOW && !k.trick) {
     k.trick = 1;
     ctx.emit({ type: 'trick', kart: idx });
@@ -400,7 +407,10 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
   if (t.pieces.length && tryAttachRail(ctx, idx, k, prevSi, hit, ownTop)) return;
   // a jump gap's lip launches at any speed on an aimed arc
   const lip = t.pieces.length ? lipCrossed(ctx, prevSi, hit) : null;
-  if (lip) launch(ctx, idx, k, lip, ownTop);
+  if (lip) {
+    launch(ctx, idx, k, lip, ownTop);
+    bufferedTrick(ctx, idx, k);
+  }
   // and a loop's boost strip lines the kart up for the rail (lead-in assist)
   if (t.pieces.length && !k.air) stripAssist(ctx, k, hit);
 
@@ -449,6 +459,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
         // SIM_VERSION 8: a set-piece kicker launches at any speed on an aimed arc
         if (r.piece != null && t.pieces[r.piece]) {
           launch(ctx, idx, k, t.pieces[r.piece], ownTop);
+          bufferedTrick(ctx, idx, k);
           k.y = Math.max(k.y, groundY);
           launched = true;
           continue;
@@ -463,6 +474,7 @@ export function stepKart(ctx: SimContext, idx: number, inp: TickInput): void {
           k.y = Math.max(k.y, groundY);
           launched = true;
           ctx.emit({ type: 'ramp', kart: idx });
+          bufferedTrick(ctx, idx, k);
         }
       }
     }
@@ -694,6 +706,38 @@ function applyBoostQuiet(k: KartState, level: number, seconds: number): void {
   k.boostLevel = Math.max(k.boostLevel, Math.min(level, BOOST.cap));
 }
 
+/**
+ * SIM_VERSION 11 (F3): is a lip the kart would launch from (a ramp under its lateral offset, a set-piece kicker, a
+ * jump gap's lip) less than `reach` m ahead along the lap?
+ */
+export function lipWithin(t: SimContext['track'], k: KartState, reach: number): boolean {
+  const ahead = (i: number): number => {
+    let d = i * t.step - k.s;
+    if (d < -t.step) d += t.length;
+    return d;
+  };
+  for (const r of t.ramps) {
+    if (r.piece == null && speedOf(k) <= BOOST.rampMinSpeed) continue;
+    const d = ahead(r.i);
+    if (d >= -t.step * 0.5 && d <= reach && (r.piece != null || Math.abs(k.d - r.d) <= r.halfW)) return true;
+  }
+  if (k.branch >= 0) return false;
+  for (const pc of t.pieces) {
+    if (pc.kind !== 'jump' || pc.gap <= 0) continue;
+    const d = ahead(pc.i0);
+    if (d >= -t.step * 0.5 && d <= reach) return true;
+  }
+  return false;
+}
+
+/** SIM_VERSION 11 (F3): a tap buffered just before the lip becomes the trick as the kart launches. */
+function bufferedTrick(ctx: SimContext, idx: number, k: KartState): void {
+  if (k.trickBuf <= 0 || !k.air) return;
+  k.trickBuf = 0;
+  k.trick = 1;
+  ctx.emit({ type: 'trick', kart: idx });
+}
+
 /** The "big hand" (GDD 3.3): `respawn` and `respawnStart` both fire as the hand comes; the kart is set down facing forward. */
 export function startRespawn(ctx: SimContext, idx: number): void {
   const k = ctx.st.karts[idx];
@@ -708,6 +752,7 @@ export function startRespawn(ctx: SimContext, idx: number): void {
   k.gapV = 0;
   // SIM_VERSION 10: a trick tapped before the hand came is lost with the jump (it used to pay on the next landing)
   k.trick = 0;
+  k.trickBuf = 0;
   k.lipTicks = -1;
   k.stuckTicks = 0;
   k.pinTicks = 0;

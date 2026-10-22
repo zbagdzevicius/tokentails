@@ -6,7 +6,7 @@
  */
 
 /** Bumped whenever a tuning number or a sim rule changes (GDD 3.1). Ghosts of another version open as a target-time race. */
-export const SIM_VERSION = 10;
+export const SIM_VERSION = 11;
 /** Fixed sim rate. The sim never reads wall-clock time. */
 export const TICK_HZ = 60;
 export const DT = 1 / TICK_HZ;
@@ -321,6 +321,8 @@ export interface KartState {
   lipTicks: number;
   /** 1 when a trick was performed during this jump */
   trick: number;
+  /** SIM_VERSION 11: ticks a trick tap made just before a lip stays buffered (0 = none) */
+  trickBuf: number;
   /** slipstream charge in ticks */
   slipTicks: number;
   /** track sample index (local search hint), arc length on the lap, lateral offset */
@@ -446,7 +448,9 @@ export type RaceEventType =
   | 'stuntEnter'
   | 'stuntExit'
   | 'stuntLand' // a clean landing after a jump gap; a = air ticks, b = piece index
-  | 'netCatch'; // b = piece index
+  | 'netCatch' // b = piece index
+  // iteration 4 (SIM_VERSION 11)
+  | 'frenzy'; // battle: the last 30 s began, pops and steals score double (kart = -1)
 
 export const BoostSource = {
   MiniTurbo: 0,
@@ -588,4 +592,15 @@ export interface RaceStats {
   shortcuts: number;
   balloonPops: number;
   balloonSteals: number;
+  // iteration 4 (F12): set pieces, counted with the juice stunt tally rules (juice/stunts.ts StuntTally)
+  /** loops ridden (clean exits) */
+  loops: number;
+  /** wall lanes ridden clean */
+  walls: number;
+  /** clean landings after a jump gap */
+  cleanLandings: number;
+  /** longest stunt combo (clean stunts within 8 s of each other; 0 = no stunt) */
+  bestCombo: number;
+  /** Style score (core/app/race-stats.ts STYLE): loops, clean landings, wall rides, tricks, pink mini-turbos, combos */
+  style: number;
 }

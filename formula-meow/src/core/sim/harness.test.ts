@@ -8,7 +8,7 @@ import { formatHarness, runHarness } from './harness';
 import { doodleWalls, randomDoodles } from '../../test/doodles';
 
 describe('stabilise harness', () => {
-  it('72 races: no laser multi-hits, bump or overtake spam, finish mismatches or 50cc DNFs; < 3 head-on wall hits a race; no progress jumps', () => {
+  it('216 races: no laser multi-hits, bump or overtake spam, finish mismatches or 50cc DNFs; < 3 in-control head-on wall hits a race; no progress jumps', () => {
     const r = runHarness(TRACKS, [0, 1, 2], 12);
     if (process.env.FM_HARNESS_PRINT) console.log(formatHarness(r));
     expect(r.races).toBe(TRACKS.length * 36); // [tracks lane] 2 tracks × 3 classes × 12 seeds became 6 tracks
@@ -17,7 +17,10 @@ describe('stabilise harness', () => {
     expect(r.overtakeSpam).toBe(0);
     expect(r.finishMismatches).toBe(0);
     expect(r.dnf[0]).toBe(0);
+    // in-control head-ons (wall traps); SIM_VERSION 11: post-hit bounces are counted apart, and all of them together
+    // stay under one every two races (v10: 0.25 a race, 80 % of them within 1.5 s of an item hit)
     expect(r.headOnMax).toBeLessThan(3);
+    expect(r.headOnMean + r.headOnAfterHit / r.races).toBeLessThan(0.5);
     expect(r.progressJumps).toBe(0);
   }, 1_800_000);
 

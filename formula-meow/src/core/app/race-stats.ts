@@ -4,8 +4,36 @@
  *
  * `worstPlace` / `bestPlaceGain` need the place history, which the event log only has for humans; SimWorld passes
  * the worst place each kart held after the first lap began (`worst`, optional).
+ *
+ * Iteration 4 (F12): set pieces go through the juice lane's `StuntTally` (one per kart), so `loops`, `walls`,
+ * `cleanLandings` and `bestCombo` follow exactly the rules the HUD calls out (a loop or wall lane counts on a clean
+ * exit, a jump on its clean landing, a tunnel run feeds the combo). `style` is the Style score (`STYLE` weights).
  */
 import { BoostSource, type RaceEvent, type RaceStats } from '../../types';
+import { StuntTally } from '../../juice/stunts';
+
+/** Style score weights (F12): points per stunt, trick and pink mini-turbo, plus a bonus per step of the best combo. */
+export const STYLE = {
+  loop: 100,
+  wall: 60,
+  landing: 80,
+  trick: 40,
+  pinkTurbo: 30,
+  /** per combo step from ×2 on (a ×3 combo adds 2 × combo) */
+  combo: 50,
+} as const;
+
+/** Style score of one kart's stats (pure; never negative). */
+export function styleScore(s: Pick<RaceStats, 'loops' | 'walls' | 'cleanLandings' | 'tricks' | 'miniTurbos' | 'bestCombo'>): number {
+  return (
+    s.loops * STYLE.loop +
+    s.walls * STYLE.wall +
+    s.cleanLandings * STYLE.landing +
+    s.tricks * STYLE.trick +
+    s.miniTurbos[2] * STYLE.pinkTurbo +
+    Math.max(0, s.bestCombo - 1) * STYLE.combo
+  );
+}
 
 export function emptyStats(kart: number): RaceStats {
   return {
@@ -26,6 +54,11 @@ export function emptyStats(kart: number): RaceStats {
     shortcuts: 0,
     balloonPops: 0,
     balloonSteals: 0,
+    loops: 0,
+    walls: 0,
+    cleanLandings: 0,
+    bestCombo: 0,
+    style: 0,
   };
 }
 
@@ -33,8 +66,11 @@ export function buildRaceStats(events: readonly RaceEvent[], karts: number, goTi
   const out: RaceStats[] = [];
   for (let k = 0; k < karts; k++) out.push(emptyStats(k));
   const at = (k: number | undefined): RaceStats | null => (k != null && k >= 0 && k < karts ? out[k] : null);
+  const tallies: StuntTally[] = [];
+  for (let k = 0; k < karts; k++) tallies.push(new StuntTally());
   for (const e of events) {
     const s = at(e.kart);
+    if (s && (e.type === 'stuntEnter' || e.type === 'stuntExit' || e.type === 'stuntLand' || e.type === 'netCatch')) tallies[e.kart].onEvent(e, e.kart);
     switch (e.type) {
       case 'hit': {
         if (s) s.hitsTaken++;
@@ -82,6 +118,15 @@ export function buildRaceStats(events: readonly RaceEvent[], karts: number, goTi
       default:
         break;
     }
+  }
+  for (let k = 0; k < karts; k++) {
+    const t = tallies[k].summary;
+    const s = out[k];
+    s.loops = t.loops;
+    s.walls = t.walls;
+    s.cleanLandings = t.landings;
+    s.bestCombo = t.bestCombo;
+    s.style = styleScore(s);
   }
   if (worst && finalPlace) {
     for (let k = 0; k < karts; k++) {

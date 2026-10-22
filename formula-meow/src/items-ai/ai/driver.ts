@@ -8,7 +8,7 @@
  * from each kart's `rngAi` stream.
  */
 import type { Personality, TickInput } from '../../types';
-import { AI, BOOST, COINS, DRIFT, PHYS, STUNT, classTuning, ticks } from '../../tuning';
+import { AI, COINS, DRIFT, PHYS, STUNT, classTuning, ticks } from '../../tuning';
 import type { BuiltPiece } from '../../core/track/stunt';
 import type { AIDriver, SimContext } from '../../core/sim/plugins';
 import { curvatureAhead, followLine, STEER_GAIN, stuntEntryAhead } from '../../core/sim/autopilot';
@@ -53,7 +53,7 @@ interface Shared {
 const TIER_T = DRIFT.tiers.map((s) => ticks(s));
 const WIDE_TICKS = ticks(AI.wideTime);
 const GRUDGE_TICKS = ticks(AI.rival.grudge);
-const TRICK_T = ticks(BOOST.trick.window);
+const TRICK_T = ticks(AI.trickWindow);
 
 /**
  * Set pieces (SIM_VERSION 8, ai-ugc lane, SETPIECES.md section 4). No new drift this close (m) to a loop's strip or a

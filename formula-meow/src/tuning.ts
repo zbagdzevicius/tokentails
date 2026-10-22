@@ -156,7 +156,11 @@ export const BOOST = {
   accelMult: 3,
   pad: { level: 1.35, time: 0.8 },
   pounce: { level: 1.3, time: 1.0, window: 0.25, stall: 0.8 },
-  trick: { level: 1.25, time: 0.6, window: 0.2 },
+  /**
+   * SIM_VERSION 11 (iteration 4, F3): a tap from `pre` s before a ramp or jump lip (buffered, `KartState.trickBuf`)
+   * to `window` s after it is a trick. A buffered tap is no hop, so it does not change the launch. Was 0.2 s after only.
+   */
+  trick: { level: 1.25, time: 0.6, window: 0.45, pre: 0.12 },
   slip: { level: 1.25, time: 1.0, charge: 1.2, range: 8, cone: 15 * DEG },
   catnip: { level: 1.35, time: 1.0 },
   /** ramp launch vertical speed, m/s (~0.65 s of air at g = 22) */
@@ -263,6 +267,11 @@ export const AI = {
   lookMax: 18,
   /** rubber band gain per metre of gap to the player */
   bandK: 0.005,
+  /**
+   * SIM_VERSION 11 (iteration 4, F1 "pole is a prize"): after GO the band's `+bandUp` side and the pack pull ramp
+   * linearly from 0 to full over this many ticks (6 s); `bandDown` is not ramped. A pole sitter used to be swarmed.
+   */
+  bandRampTicks: 360,
   /** SIM_VERSION 7: pull toward the median kart, per metre of gap (ahead of the pack slows, behind it speeds up) */
   packK: 0.0035,
   /** SIM_VERSION 7: the band moves the AI's corner speed by this multiple of its top-speed adjustment */
@@ -293,6 +302,8 @@ export const AI = {
   padLook: 40,
   /** chance of a ramp trick = trickBase + (1 − trickBase) × skill */
   trickBase: 0.2,
+  /** SIM_VERSION 11: the AI still taps inside the old 0.2 s after the lip (its trick rate per skill is unchanged) */
+  trickWindow: 0.2,
   /**
    * Mistakes (low skill): per tick chance `mistakeRate × mistakeChance` of running wide for `wideTime` s, and per
    * drift a `(1 − skill) × missTurbo` chance of letting go before the first tier (no mini-turbo).

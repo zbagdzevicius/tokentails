@@ -26,6 +26,53 @@ its servers when done.
 | Strings: empty `share.en.ts` registered | `src/ui/strings/share.en.ts`, `src/ui/install.ts` |
 | Goldens and fixtures: race, stunt, battle; `dare10` stays a target-time fixture | `src/core/sim/race.test.ts`, `src/core/sim/stunt.test.ts`, `src/modes/battle/battle.test.ts`, `review/v3-legacy-codes.ts` |
 
+### Engine step: built (the API the lanes use)
+
+`SIM_VERSION` 11. Golden hashes: race (Kitchen, seed 42, 10 s) `2997354144`, stunt lab (seed 42, 30 s) `4013595172`,
+battle (Rug, seed 4, full round) `3144453215`.
+
+- **F1 band ramp** (`items-ai/ai/rubber-band.ts`): `bandRamp(ctx)` = 0 at GO → 1 at GO + `AI.bandRampTicks` (360).
+  It scales the `+bandUp` cap (rival bonus included) and the pack pull's catch-up side only; `bandDown` and the pack
+  pull that holds a cat ahead of the pack back are on from GO (ramping those too let the front of the grid run away:
+  the Kitten podium on Kitchen fell to 60 %).
+- **F3 tricks** (`core/sim/kart.ts`): `BOOST.trick.window` 0.45 s after the lip, `BOOST.trick.pre` 0.12 s before it.
+  A grounded tap with a lip less than `pre` s ahead (`lipWithin(track, kart, reach)`: ramps under the kart's lateral
+  offset, set-piece kickers, jump-gap lips; exported) sets `KartState.trickBuf` (hashed) and emits no `hop` (drift
+  arming is kept, so a held drift with the stick still starts); the launch then emits `trick` on the launch tick and
+  `trickLand` pays as before. A tap from 0.1 s before to 0.4 s after a lip tricks on ≥ 90 % of launches (unit test on
+  a jump gap and a Kitchen ramp; a whole-race tap bot measured 95.5 %); a pre-lip tap lands within 0.5 m of no tap.
+  The AI still taps inside `AI.trickWindow` (0.2 s), so its trick rate is unchanged (50cc 72 % vs 71 % on v10).
+  View lane (juice): show the paw ring from `t.ramps` (`piece == null`) and jump pieces (`kind 'jump'`, `gap > 0`, lip
+  at `i0`); there is no sim event for "lip ahead", use `lipWithin` with a longer reach for the pulse.
+- **F14 battle** (`modes/battle/rules.ts`): `BATTLE.frenzy` (30 s), `BATTLE.frenzyPoints` (2), `FRENZY_TICK`
+  (`BATTLE_TICKS − 1800`, ticks after GO). One `frenzy` event (`kart: -1`) on that tick; from it pops and steals
+  score 2 (`battleOf(st).score`); a pop-out still costs 1.
+- **F12 stats** (`core/app/race-stats.ts`, `RaceStats`): `loops`, `walls`, `cleanLandings`, `bestCombo` (from one
+  `juice/stunts.ts` `StuntTally` per kart, so they match the HUD callouts; a tunnel run feeds the combo but has no
+  count) and `style` = `styleScore(stats)` with `STYLE` weights (loop 100, wall 60, landing 80, trick 40, pink
+  mini-turbo 30, + 50 per combo step from ×2). `emptyStats` has them at 0; saved records without them are the modes
+  / progression lanes' migration.
+- **F4 margin** (`core/app/finish.ts`): `finishMargin(result, me)` → `{ margin, other, won, projected? } | null`
+  (seconds, from the sub-tick `places[].time`; the nearest finished cat ahead or behind; a cat still racing counts
+  only by its lead-lap projection `gap ≥ 0` and is flagged `projected`; lapped cats never). `PHOTO_FINISH_S` (0.3)
+  and `isPhotoFinish(m)` (false for a projection). Null in a battle, a DNF or alone. Juice decides the stamp after
+  waiting up to 18 ticks past the player's finish; share-ugc's headline, caption and clip read the same call.
+- **F2 inputs** (`core/input/mux.ts` `MuxContext`, filled every frame by `core/app/shell.ts` via
+  `core/app/edge-look.ts`): `edgeL` / `edgeR` (metres from the point the kart reaches in 0.5 s, projected on an arc
+  at its current speed and measured turn rate, to the left / right tarmac edge; + on the road, − past it; 99 before
+  GO, on a rail and on arenas), `edgeHeading` (road heading there minus travel heading, + = road turns left),
+  `onRail`, `air`, `driftDir` (−1 / 0 / +1; steer + = right). `MuxSettings.smartSteer` comes from
+  `Settings.smartSteer` (default true; the mux must apply it to touch steering only; a save without the key migrates
+  to true in `save.ts sanitizeSettings`). The feel lane's settings screen adds the toggle.
+- **Strings**: `src/ui/strings/share.en.ts` exports `SHARE_EN` (empty), registered in `ui/install.ts`.
+- **Fixtures**: `review/v3-legacy-codes.ts` `dare10` is now a target-time legacy dare (the review spec checks 7–10 for
+  the "another version" notice); `dare11` is the current build's dare (the header says how to restamp the next one).
+- **Gates changed**: `balance.test.ts` now runs the plan's 72-race gate (6 tracks × 12 seeds: 50cc podium 70–90 %,
+  measured 83 %; 150cc ≤ 80 %, measured 60 %) instead of 20 Kitchen seeds (v10 85 % on seeds 1–20 but 74 % on 1–80);
+  `core/sim/harness.ts` counts a head-on within 1.5 s of an item hit on that kart apart (`headOnAfterHit`): the
+  in-control gate stays < 3 a race (measured max 1), and all head-ons together must stay < 0.5 a race (0.28; v10
+  0.25, 80 % of them post-hit). Pole at 100cc (bot=1 driver, 3 seeds × 6 tracks): top 3 at GO + 5 s in 18 of 18.
+
 ### Lanes
 
 | Lane | Features | Owns | Does not touch |

@@ -9,6 +9,7 @@
  *   off and a straggler catches up, and the skill bands are narrower. At 100cc and 150cc an AI behind a leading
  *   player may go a little faster than the class top speed (`maxScale` 1.03 / 1.05): the player's coins and
  *   mini-turbos are worth more than that, and a good player otherwise won alone. 50cc never exceeds 1.
+ * - SIM_VERSION 11: the `+bandUp` side and the pack pull's catch-up ramp in over the first 6 s after GO (`bandRamp`).
  * - The player's rival (`RacerInfo.rival`) gets a class-scaled bonus on its base (`AI.rival.top`, none at 50cc) and
  *   a stronger band only while it is behind the player: it stays close, it never runs away.
  */
@@ -47,13 +48,26 @@ export function skillBase(cls: number, skill: number, rival = false): number {
   return Math.min(1, c.aiTop + (c.aiTopHi - c.aiTop) * Math.sqrt(u) + (rival ? AI.rival.top[cls] ?? 0 : 0));
 }
 
+/**
+ * SIM_VERSION 11 (iteration 4, F1 "pole is a prize"): how much of the band's `+bandUp` side and of the pack pull's
+ * catch-up side is on, 0 at GO rising linearly to 1 after `AI.bandRampTicks` (6 s). The grid used to swarm a pole
+ * sitter from GO. The slowing side (`bandDown`, a cat ahead of the pack held back) is on from GO as before: ramping
+ * it too let the front of the grid run away from a player starting 6th (the Kitten podium fell from 85 % to 75 %).
+ */
+export function bandRamp(ctx: SimContext): number {
+  return clamp((ctx.st.tick - ctx.goTick) / AI.bandRampTicks, 0, 1);
+}
+
 /** The band adjustment alone (a fraction, −bandDown..+bandUp); the driver also scales its corner speed by it. */
 export function bandAdj(ctx: SimContext, i: number): number {
   const band = classTuning(ctx.cfg.cls);
-  const pack = AI.packK * gapToPack(ctx, i);
-  if (ctx.cfg.humans.length === 0) return clamp(pack, -band.bandDown, band.bandUp);
+  const ramp = bandRamp(ctx);
+  // only the catch-up side of the pack pull ramps in; a cat ahead of the pack is held back from GO, like `bandDown`
+  const raw = AI.packK * gapToPack(ctx, i);
+  const pack = raw > 0 ? raw * ramp : raw;
+  if (ctx.cfg.humans.length === 0) return clamp(pack, -band.bandDown, band.bandUp * ramp);
   const rival = !!ctx.cfg.racers[i]?.rival;
-  const up = rival ? band.bandUp + AI.rival.bandUp : band.bandUp;
+  const up = (rival ? band.bandUp + AI.rival.bandUp : band.bandUp) * ramp;
   const gp = gapToPlayer(ctx, i);
   // chasing a player who leads, the pack never holds a cat back (it would hold back the only cats who could fight)
   return clamp(AI.bandK * gp + (gp > 0 ? Math.max(0, pack) : pack), -band.bandDown, up);
