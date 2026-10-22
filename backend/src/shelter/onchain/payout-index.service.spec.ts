@@ -156,6 +156,14 @@ describe('payout index targets', () => {
         expect(isRangeError(new Error('query exceeds max block range 100000'))).toBe(true);
         expect(isRangeError(new Error('rate limit exceeded'))).toBe(false);
         expect(isRangeError(new Error('timeout'))).toBe(false);
+        // mainnet.base.org's refusal at any range (2026-10-21) is a rate limit, not a range to shrink.
+        expect(isRangeError({ error: { code: -32011, message: 'request limit reached' } })).toBe(false);
+        expect(
+            isRangeError(
+                new Error('block range too large: total block range in this request exceeds the maximum of 100 blocks')
+            )
+        ).toBe(true);
+        expect(rangeLimitFrom('total block range in this request exceeds the maximum of 100 blocks')).toBe(100);
     });
 });
 

@@ -34,6 +34,7 @@ import {
 import { GameMusicToggle } from "./GameMusicToggler";
 import { MyImpactSummary } from "@/components/impact/MyImpactSummary";
 import { openProgress } from "@/components/impact/progressTab";
+import { clearLastMethod } from "@/context/auth/lastMethod";
 
 // RenameSheet belongs to the onboarding flow (task 4a, G3 "Names", decision #22). Loaded on
 // demand: the profile opens far more often than anyone renames a cat.
@@ -382,6 +383,8 @@ export async function requestAccountDeletion(deps: AccountDeletionDeps): Promise
         : DELETE_ACCOUNT_ERROR;
     return { status: "error", message };
   }
+  // The account is gone: "Last time on this device you used Google" would point at nothing.
+  clearLastMethod();
   try {
     await deps.signOut();
   } catch {
@@ -404,12 +407,20 @@ const GuestSaveCard = () => {
       tone="highlight"
       title="Save your progress"
       icon="bookmark"
-      helper="You are playing as a guest. Save to keep your cat and Tails, and to play on other devices."
+      helper="You are playing as a guest. Save to keep your cat and Tails, and to play on other devices. Had an account before? Sign in to it."
       data-testid="guest-save"
     >
       <ActionRow>
         <ModalButton variant="primary" icon="bookmark" onClick={() => void auth.requireAccount("save-progress")}>
           SAVE PROGRESS
+        </ModalButton>
+        <ModalButton
+          variant="secondary"
+          icon="user"
+          onClick={() => void auth.requireAccount("returning")}
+          data-testid="guest-sign-in"
+        >
+          SIGN IN TO MY ACCOUNT
         </ModalButton>
       </ActionRow>
     </ModalSection>

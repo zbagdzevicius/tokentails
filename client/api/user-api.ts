@@ -6,7 +6,7 @@ import {
 } from "@/models/airdrop";
 import { getPlatform } from "@/analytics/platform";
 import { GameType } from "@/models/game";
-import type { ErrorCode } from "@/shared-contracts/errors";
+import { errorCodeOf, type ErrorCode } from "@/shared-contracts/errors";
 import type { HeistRunLog } from "@/shared-contracts/heist-bridge";
 import {
   ApiError,
@@ -86,7 +86,16 @@ const guestMerge = async (guestIdToken: string): Promise<IGuestMergeResult> => {
   return rawApiFetch(`${apiUrl}/user/guest/merge`, {
     method: "POST",
     headers: { ...(authHeaders() as Record<string, string>), "x-guest-token": token },
-  }).then((response) => jsonOrThrow<IGuestMergeResult>(response));
+  }).then(async (response) => {
+    if (!response.ok) {
+      // The body's message is kept: a 429 is either the 30-day limit or the general rate limiter,
+      // and only the message tells them apart (pendingMerge `isMergeCooldown`).
+      const body = await (typeof response.clone === "function" ? response.clone() : response).json().catch(() => null);
+      const message = body && typeof body.message === "string" ? body.message : undefined;
+      throw new ApiError(response.status, errorCodeOf(body), message);
+    }
+    return response.json() as Promise<IGuestMergeResult>;
+  });
 };
 
 /** `DELETE /user/guest`: "Erase guest progress" (the guest doc, starter, runs and anonymous user). */

@@ -12,7 +12,7 @@
     "build": "next build --webpack",
     "ngrok": "ngrok http --domain=game-doe-poorly.ngrok-free.app http://192.168.68.104:3000",
     "start": "next start",
-    "postbuild": "next-sitemap",
+    "postbuild": "next-sitemap && node scripts/build-feed-rss.mjs",
     "extrude:food": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/food-original.png --output ./public/base/food.png",
     "extrude:blocks": "tile-extruder --tileWidth 32 --tileHeight 32 --margin 0 --spacing 0 --input ./public/base/blocks-original.png --output ./public/base/blocks.png",
     "extrude:enemies": "tile-extruder --tileWidth 33 --tileHeight 33 --margin 0 --spacing 0 --input ./public/enemies/white-owlet.png --output ./public/enemies/white-owlet.png",
@@ -88,6 +88,7 @@
     "firebase": "^11.0.0",
     "framer-motion": "^12.30.0",
     "lucide-react": "^0.563.0",
+    "markdown-it": "^14.3.3",
     "next": "16.1.1",
     "next-seo": "^6.5.0",
     "next-share": "^0.27.0",
@@ -109,7 +110,8 @@
     "topojson-client": "^3.1.0",
     "use-debounce": "^10.0.0",
     "uuid": "^13.0.0",
-    "vaul": "^1.1.2"
+    "vaul": "^1.1.2",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -125,6 +127,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^20",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

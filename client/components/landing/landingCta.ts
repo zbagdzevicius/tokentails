@@ -21,13 +21,16 @@ export function playerStateFrom(
   if (!signedIn) return { signedIn: false };
   // A missing onboarding field means done (legacy accounts, plan G3), like the game's gate.
   const onboardingState = profile?.onboarding?.state ?? "done";
-  return { signedIn: true, onboardingState, catName: profile?.cat?.name ?? null };
+  const state: CrewCtaState = { signedIn: true, onboardingState, catName: profile?.cat?.name ?? null };
+  // A real account (not a guest) needs no "Sign in" on the landing.
+  if (status === "ready" && !profile?.isGuest) state.account = true;
+  return state;
 }
 
 /** Where on the landing a CTA was tapped (`landing_cta {from}`). */
-export type LandingCtaFrom = "hero" | "hero_fallback" | "sample_card" | "crew";
+export type LandingCtaFrom = "hero" | "hero_fallback" | "sample_card" | "crew" | "signin";
 
-const LANDING_CTA_FROMS: readonly LandingCtaFrom[] = ["hero", "hero_fallback", "sample_card", "crew"];
+const LANDING_CTA_FROMS: readonly LandingCtaFrom[] = ["hero", "hero_fallback", "sample_card", "crew", "signin"];
 
 /** The `?from=` prefix on `/game` that marks a landing CTA (`/game?from=landing_hero`). */
 const FROM_PREFIX = "landing_";
@@ -60,3 +63,9 @@ export function trackLandingArrival(search: string): LandingCtaFrom | null {
   }
   return from;
 }
+
+/**
+ * The landing's "Sign in" (returning players, 2026-10-17): `/game` opens the returning sheet
+ * ("WELCOME BACK") straight away, before the first-run ceremony.
+ */
+export const SIGN_IN_HREF = `/game?signin=1&from=${FROM_PREFIX}signin`;

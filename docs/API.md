@@ -314,7 +314,7 @@ first; all offers of one 402 share one nonce, and the first valid payment on any
        "asset": "native",
        "payTo": "<ShelterSplit address>",
        "resource": "https://<host>/shelter/agent/cat-card",
-       "description": "One adoptable-cat card. The ShelterSplit contract splits each payment among its shelter recipients",
+       "description": "One shelter-cat card. The ShelterSplit contract splits each payment among its shelter recipients",
        "mimeType": "application/json",
        "maxTimeoutSeconds": 600,
        "extra": { "memo": "x402:<nonce>", "nonce": "<nonce>", "decimals": 18, "coin": "USDC", "method": "donate" }
@@ -946,6 +946,23 @@ paying wallet (`refund.state: manual`).
 | `GET /rave/ads/admin/list?status=review` | Ads by status, `PermissionGuard(5)` |
 | `POST /rave/ads/:adId/approve` | `review → live` for `RAVE_AD_DAYS`; queues the `RAVE_AD_SHELTER_BPS` share for Pink Paw when set, `PermissionGuard(5)` |
 | `POST /rave/ads/:adId/reject` | `{reason?}`: frees the slot and refunds the full payment through Stripe (a USDC ad: `refund: 'manual'`, `refund.payer` is the wallet to send it back to by hand) (idempotency key `ravead-refund:<adId>`); repeat to retry a failed refund, also the refund of a late payment whose slot was lost (`refunded`, reason `slot-lost`), `PermissionGuard(5)` |
+
+### Tails Club (`/club`)
+
+Monthly or yearly membership paid in the landing's club card (Stripe Payment Element, no redirect). No login;
+public routes count a per-IP limit. Errors are `{statusCode, code, key, message}`; `key` is one of `off`, `busy`,
+`invalid`, `keyReused`, `alreadyMember`, `stripe`, `notFound`, `badToken`, `portalOff`. Details in
+`docs/BACKEND.md` "Tails Club".
+
+| Route | Notes |
+|---|---|
+| `GET /club/status` | 60/min per IP. `{enabled, publishableKey, prices:{month:{amount:999,currency:'usd'}, year:{amount:7900,currency:'usd'}}, shelterBps:5000}`, or `{enabled:false, reason, shelterBps}` (`reason` is `config` or `price`). Prices cached 10 min. The landing rewrites `/api/club-status.json` to it |
+| `POST /club/checkout` | 6 per 10 min per IP; 503 `CLUB_OFF` first while closed. Body `{plan, email, catId?, clientKey}` (`plan` is `month` or `year`) (`clientKey` a UUID, `[A-Za-z0-9-]{8,64}`); optional `accesstoken` links the player. Returns `{clientSecret, subscriptionId, status}`; confirm with `stripe.confirmPayment({elements, clientSecret, redirect:'if_required'})`. Same key and body: the same result; other body: 409 `keyReused`; active inbox: 409 `alreadyMember`; card-testing brake: 503 `busy`; Stripe error: 502 `stripe` |
+| `GET /club/subscriptions/:id?k=<clientKey>` | 30/min per IP. 404 unless `k` started it. `{status, plan, periodEnd, cancelAtPeriodEnd, manageToken?}`; `manageToken` (30 days) only once `active`. Reads Stripe at most every 5 s while incomplete |
+| `POST /club/portal` | 3/hour per IP. `{manageToken}` → 200 `{url}` (Stripe customer portal). `{email}` → always 202 `{sent:true}`; a member inbox (at most 3 a day) gets a 15-minute link. 503 `portalOff` for the email branch without SendGrid |
+| `GET /club/portal/open?t=` | 10/hour per IP. The emailed link: 303 to a fresh portal session, or to `https://tokentails.com/?club_portal=expired#club` |
+| `GET /club/me` | `AppAuthGuard` (guests 403). `{club:{plan, until}}` or `{club:null}`, by user id or by verified email (then linked) |
+| `POST /club/stripe/webhook` | Stripe signature with `CLUB_STRIPE_WEBHOOK_SECRET` (503 without it, 400 bad signature); raw body path. Subscription events, `invoice.paid` (Pink Paw share row), `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created` |
 
 ## Content
 

@@ -177,6 +177,10 @@ import { RaveWebhookService } from './rave/rave-webhook.service';
 import { RaveAdsController } from './rave/ads/rave-ads.controller';
 import { RaveAd, RaveAdSchema } from './rave/ads/rave-ads.schema';
 import { RaveAdsService } from './rave/ads/rave-ads.service';
+import { ClubController } from './club/club.controller';
+import { ClubMember, ClubMemberSchema, ClubWebhookEvent, ClubWebhookEventSchema } from './club/club.schema';
+import { ClubService } from './club/club.service';
+import { ClubWebhookService } from './club/club-webhook.service';
 
 const JwtModules = [
     PassportModule,
@@ -262,6 +266,9 @@ const config = {
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
             // Moon Rave ad slots (cat-rave/src/ads): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveAd.name, schema: RaveAdSchema },
+            // Tails Club (monthly or yearly membership, half to Pink Paw): open once its Stripe env is set.
+            { name: ClubMember.name, schema: ClubMemberSchema },
+            { name: ClubWebhookEvent.name, schema: ClubWebhookEventSchema },
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -300,6 +307,8 @@ const config = {
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
         RaveAdsController,
+        // Tails Club: subscriptions paid in the landing's club card (Payment Element).
+        ClubController,
     ],
     providers: [
         UserRepository,
@@ -377,6 +386,9 @@ const config = {
         RaveService,
         RaveWebhookService,
         RaveAdsService,
+        // Tails Club.
+        ClubService,
+        ClubWebhookService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
     ],
 })

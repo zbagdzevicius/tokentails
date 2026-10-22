@@ -76,17 +76,17 @@ describe("static props", () => {
 });
 
 describe("routing helpers", () => {
-  it("links to client routes in app builds", () => {
+  it("links to client routes in app builds (cats) and real article paths", () => {
     const { catPath, articlePath, webPath } = loadWithAppFlag("true", () =>
       require("@/api/routing"),
     );
     expect(catPath("abc")).toBe("/cats/view?id=abc");
-    expect(articlePath("cats-nft", "my post")).toBe(
-      "/feed/article?category=cats-nft&slug=my%20post",
-    );
+    // Blog articles are prerendered in the export too (repo content): real paths.
+    expect(articlePath("games", "my post")).toBe("/feed/games/my%20post");
     expect(webPath(catPath("abc"))).toBe("/cats/abc");
-    expect(webPath(articlePath("cats-nft", "hello"))).toBe(
-      "/feed/cats-nft/hello",
+    // Old app links of the forwarder still share as the website path.
+    expect(webPath("/feed/article?category=games&slug=hello")).toBe(
+      "/feed/games/hello",
     );
   });
 
@@ -95,8 +95,8 @@ describe("routing helpers", () => {
       require("@/api/routing"),
     );
     expect(catPath("abc")).toBe("/cats/abc");
-    expect(articlePath("cats-nft", "hello")).toBe("/feed/cats-nft/hello");
-    expect(webPath("/feed/cats-nft/hello")).toBe("/feed/cats-nft/hello");
+    expect(articlePath("games", "hello")).toBe("/feed/games/hello");
+    expect(webPath("/feed/games/hello")).toBe("/feed/games/hello");
   });
 });
 

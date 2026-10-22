@@ -25,11 +25,15 @@ const LOG_RPC: Record<number, string> = {
     // rpc1.monad.xyz (the generated logRpc) took 100,000-block spans until Oct 5 and now caps at 100 like
     // rpc.monad.xyz; rpc2.monad.xyz takes 10,000 (re-checked 2026-10-08). Drop once wallet.config.ts says so.
     143: 'https://rpc2.monad.xyz',
+    // Avalanche: publicnode serves old C-Chain logs keyless in 10,000-block windows (checked 2026-10-21).
+    43114: 'https://avalanche-c-chain-rpc.publicnode.com',
 };
 
 /** The widest eth_getLogs range (blocks) a chain's default public RPC or its LOG_RPC accepts, when small. */
 const LOG_RANGE: Record<string, number> = {
-    // mainnet.base.org answers -32614 "eth_getLogs is limited to a 500 range" (re-checked 2026-10-08).
+    // mainnet.base.org answered -32614 "eth_getLogs is limited to a 500 range" (2026-10-08); since then it
+    // refuses eth_getLogs with -32011 "request limit reached" at any range (re-checked 2026-10-21), and no
+    // keyless Base RPC serves old logs, so Base needs SHELTER_CHAIN_8453_LOG_RPC_URL (a keyed RPC).
     'https://mainnet.base.org': 500,
     'https://sepolia.base.org': 1000,
     'https://rpc.monad.xyz': 100,
@@ -38,8 +42,10 @@ const LOG_RANGE: Record<string, number> = {
     'https://testnet-rpc.monad.xyz': 100,
     'https://rpc.testnet.arc.io': 10000,
     'https://monad-testnet.api.onfinality.io/public': 10000,
-    // Avalanche's public C-Chain RPCs refuse eth_getLogs over 2,048 blocks.
-    'https://api.avax.network/ext/bc/C/rpc': 2048,
+    // api.avax.network took 2,048 blocks until ~Oct 15; it now refuses over 100 ("exceeds the maximum of
+    // 100 blocks", re-checked 2026-10-21). The indexer reads publicnode instead (LOG_RPC), which takes 10,000.
+    'https://api.avax.network/ext/bc/C/rpc': 100,
+    'https://avalanche-c-chain-rpc.publicnode.com': 10000,
     'https://api.avax-test.network/ext/bc/C/rpc': 2048,
 };
 

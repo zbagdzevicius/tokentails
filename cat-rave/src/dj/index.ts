@@ -8,7 +8,7 @@
  * 'drop' itself (types.ts: "Auto on every 'drop' event"); repeated calls within 300 ms are merged,
  * so both paths together still give exactly one sword and one burst.
  */
-import { Group, Vector2, Vector3 } from 'three';
+import { Color, Group, ShaderMaterial, Vector2, Vector3, type Mesh } from 'three';
 import { LAYOUT } from '../config';
 import type { BeatClock, DjApi, FrameContext, QualityProfile, WorldApi } from '../types';
 import { buildBows } from './bows';
@@ -18,6 +18,7 @@ import { buildKitten, placePaw, placeSegment, type ArmRig } from './kitten';
 import { createShared } from './materials';
 import { RIG, clamp01, computePose, createPose, solveTwoBone, type PoseInput } from './motion';
 import { buildSword } from './sword';
+import { setRgb, ThemeFader, type Theme, type ThemeId } from '../world/theme';
 
 /** Minimum screen gap between the speech bubble and the raised sword's tip. */
 const BUBBLE_SWORD_GAP_PX = 40;
@@ -28,6 +29,8 @@ export interface DjExtApi extends DjApi {
   shout(text: string, seconds?: number): void;
   /** True while the sword is up (2 bars after each drop). */
   readonly swordUp: boolean;
+  /** Rim light, headphone glow, pads, VU and LED rings follow the stage key light (world/theme.ts). */
+  setTheme(id: ThemeId, seconds?: number): void;
 }
 
 /** Fur shell layers per tier (0 = no shells on low). */
@@ -96,6 +99,30 @@ export function createDj(world: WorldApi, clock: BeatClock, profile: QualityProf
   let disposed = false;
 
   const barSeconds = () => (4 * 60) / (clock.bpm || 136);
+
+  // ---- key light (world/theme.ts) ----
+  type RimKey = 'djRim' | 'djRimLit' | 'kittenRim' | 'kittenRim2';
+  /** Default rim hex → theme key (fur and lit materials); kitten.ts tags the eye and headphones. */
+  const RIM_BY_HEX: Record<number, RimKey> = { 0x3dff6a: 'djRim', 0x7dff9a: 'djRimLit', 0x6dff8c: 'kittenRim2' };
+  const rims: { mat: ShaderMaterial; key: RimKey }[] = [];
+  const seen = new Set<ShaderMaterial>();
+  root.traverse((o) => {
+    const mats = (o as Mesh).material;
+    for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+      const u = (m as ShaderMaterial).uniforms?.uRimColor;
+      if (!u || seen.has(m as ShaderMaterial)) continue;
+      seen.add(m as ShaderMaterial);
+      const key = (m.userData.rimKey as RimKey | undefined) ?? RIM_BY_HEX[(u.value as Color).getHex()];
+      if (key) rims.push({ mat: m as ShaderMaterial, key });
+    }
+  });
+  const phonesBase = new Color(0.24, 1, 0.43);
+  const themeFader = new ThemeFader();
+  const applyTheme = (th: Theme) => {
+    for (const r of rims) setRgb(r.mat.uniforms.uRimColor.value, th[r.key]);
+    setRgb(phonesBase, th.phonesGlow);
+    decks.setTheme(th.deckGreen, th.vuGreen);
+  };
   const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   const api: DjExtApi = {
@@ -130,9 +157,14 @@ export function createDj(world: WorldApi, clock: BeatClock, profile: QualityProf
     shout(text: string, seconds = 3.2) {
       bubble.say(text, seconds, 3, time);
     },
+    setTheme(id, seconds = 0.6) {
+      themeFader.set(id, seconds);
+    },
     update(frame: FrameContext) {
       if (disposed) return;
       const { dt, beat } = frame;
+      const th = themeFader.step(dt);
+      if (th) applyTheme(th);
       time = frame.time;
       shared.uTime.value = time;
       shared.uKick.value = beat.kick;
@@ -221,7 +253,7 @@ export function createDj(world: WorldApi, clock: BeatClock, profile: QualityProf
       for (const m of kitten.mouthClosed) m.visible = !open;
 
       // ---- glow ----
-      kitten.phonesGlow.color.setRGB(0.24, 1, 0.43).multiplyScalar(1.3 + 2.4 * beat.kick * (0.4 + beat.energy));
+      kitten.phonesGlow.color.copy(phonesBase).multiplyScalar(1.3 + 2.4 * beat.kick * (0.4 + beat.energy));
       if (beat.section === 'drop' && Math.floor(beat.beat) % 2 === 1) kitten.phonesGlow.color.setRGB(1, 0.31, 0.62).multiplyScalar(1.4 + 2 * beat.kick);
       kitten.padGlow.color.setRGB(1, 0.31, 0.62).multiplyScalar(1.2 + 1.3 * beat.kick);
 

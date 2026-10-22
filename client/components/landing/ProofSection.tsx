@@ -42,7 +42,11 @@ export const SECTION_BACKGROUND = "landing/card-bg.webp";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const OBSERVER_ROOT_MARGIN = "200px 0px";
 
-const UGC_REELS = ["ugc-1", "ugc-2", "ugc-7"];
+/** A real cat with its Token Tails portrait, first in the strip. */
+export const PET_REEL: Reel = {
+  src: "https://tokentails.fra1.cdn.digitaloceanspaces.com/pet.mp4",
+  poster: "/landing/pet-reel-poster.webp",
+};
 
 const CREATOR_REELS = [
   "reel-DUlqgzIgOC_",
@@ -60,8 +64,7 @@ const CREATOR_REELS = [
 ];
 
 export const REELS: Reel[] = [
-  // The three UGC clips are WebM originals without posters, as in the deck.
-  ...UGC_REELS.map((name) => ({ src: `${DECK_MEDIA_BASE}/${name}.webm` })),
+  PET_REEL,
   ...CREATOR_REELS.map((name) => ({
     src: `${DECK_MEDIA_BASE}/${name}.mp4`,
     poster: `${DECK_MEDIA_BASE}/${name}.jpg`,

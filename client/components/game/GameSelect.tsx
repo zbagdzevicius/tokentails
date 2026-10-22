@@ -27,6 +27,7 @@ import {
   ShelterTile,
 } from "@/components/impact/RescueTile";
 import { useLobbyImpact } from "@/components/impact/useLobbyImpact";
+import { setLobbyMotionPaused, useLobbyMotionPaused, useLobbyMotionScope, useStillFrame } from "./lobbyMotion";
 import { GameEvents } from "../Phaser/events";
 import { isYardHome, useHomeYardMode } from "@/components/home/homeYardMode";
 import { YardHomeHud } from "@/components/home/YardHomeHud";
@@ -275,8 +276,10 @@ const LobbyScene = ({
 }) => {
   const lobbyImpact = useLobbyImpact();
   const { setOpenedModal } = useGame();
-  // One pause for the lobby's motion: the strip's control also stops the RESCUE heart (WCAG 2.2.2).
-  const [motionPaused, setMotionPaused] = useState(false);
+  // One pause for the lobby's looping motion (WCAG 2.2.2): the board's control stops the CSS loops
+  // on screen and freezes the cat GIFs (lobbyMotion.ts).
+  useLobbyMotionScope();
+  const motionPaused = useLobbyMotionPaused();
   // MEET SHELTER CATS (plan G4): the Shelter scene in one tap from the lobby, through the same
   // crash-proof storefront path Home's SHELTER button uses.
   const onShelter = () => setGameType(GameType.SHELTER);
@@ -285,7 +288,7 @@ const LobbyScene = ({
   const reducedMotion = useReducedMotion();
   const view = useLobbyViewport();
   const pill = useGuestPillShown();
-  const pillWidth = useElementWidth('[data-testid="guest-pill"] > button', pill);
+  const pillWidth = useElementWidth('[data-testid="guest-pill"] > [data-pill-row]', pill);
   const [stripHeight, setStripHeight] = useState(0);
   // The plate row's natural width (the full name, not its truncation, plus MY PETS).
   const nameRef = useRef<HTMLSpanElement | null>(null);
@@ -307,6 +310,7 @@ const LobbyScene = ({
   const name = heroCat?.name || profileCat?.name || "";
   const image = heroCat?.image || starter?.idle || profileCat?.catImg || "";
   const still = heroCat?.still || starter?.still;
+  const frozenFrame = useStillFrame(image, motionPaused, still);
   const sprite = useSpriteBox(image);
   const layout = useMemo(
     () => lobbyLayout({ ...(view ?? { width: 1280, height: 800 }), pill, pillWidth, plateWidth, stripHeight, sprite }),
@@ -338,7 +342,15 @@ const LobbyScene = ({
   const width = view?.width ?? 1280;
   const phone = width < MD;
   const hasCat = !!(profileCat || heroCat);
-  const appear = !justFinished && !reducedMotion;
+  // The entrance plays once per lobby visit; a paused lobby skips it (a held one-shot animation
+  // would hide the cat), and resuming never replays it.
+  const [entered, setEntered] = useState(false);
+  // A pause (or a lobby entered already paused) counts as the entrance: resuming never plays it late.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (motionPaused) setEntered(true);
+  }, [motionPaused]);
+  const appear = !justFinished && !reducedMotion && !motionPaused && !entered;
   const wingClass = (wing: typeof leftWing) =>
     classNames(
       "pointer-events-none absolute flex [&>*]:pointer-events-auto",
@@ -363,6 +375,7 @@ const LobbyScene = ({
     <div
       className="pointer-events-none fixed inset-0 z-hud overflow-hidden"
       data-testid="lobby-scene"
+      data-lobby-motion
       data-mode={mode}
       data-circle={`${Math.round(stage.cx)} ${Math.round(stage.cy)} ${Math.round(stage.rx)} ${Math.round(stage.ry)}`}
       // Placed from the measured viewport: hidden for the one frame before it is known.
@@ -377,11 +390,13 @@ const LobbyScene = ({
           <ImpactStrip
             impact={lobbyImpact.impact}
             paw={lobbyImpact.paw}
+            loading={lobbyImpact.loading}
             onOpenImpact={onRescue}
             paused={motionPaused}
-            onPausedChange={setMotionPaused}
+            onPausedChange={setLobbyMotionPaused}
             fill
             stacked={strip.stacked}
+            narrow={strip.narrow}
             className="hidden md:flex [@media(max-height:640px)]:hidden"
           />
         </div>
@@ -411,6 +426,9 @@ const LobbyScene = ({
           data-sprite-rows={`${sprite.head} ${sprite.feet}`}
           data-sprite-cols={`${sprite.left} ${sprite.right}`}
           className={classNames("absolute", appear && "animate-appear")}
+          onAnimationEnd={(event) => {
+            if (event.target === event.currentTarget) setEntered(true);
+          }}
           style={{ left: cat.left, top: cat.top, width: cat.size, height: cat.size }}
         >
           {/* The name (a caption, not a button) and MY PETS float a clear gap over the cat's head,
@@ -455,8 +473,8 @@ const LobbyScene = ({
           />
           <PixelCat
             src={image}
-            still={still}
-            reducedMotion={reducedMotion}
+            still={frozenFrame ?? still}
+            reducedMotion={reducedMotion || !!frozenFrame}
             scale={layout.scale}
             alt={name ? `${name}, your cat` : "Your cat"}
             testId="lobby-hero-cat"

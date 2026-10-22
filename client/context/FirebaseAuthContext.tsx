@@ -25,7 +25,7 @@ import {
   snapshotOf,
 } from "./auth/adapter";
 import { getAppCheckToken } from "./auth/appCheck";
-import { AUTH_COPY, authErrorCode, mapAuthError, mapNativeAuthError } from "./auth/authErrors";
+import { AUTH_COPY, authErrorCode, mapAuthError, mapNativeAuthError, withLastMethodHint } from "./auth/authErrors";
 import { deriveAuthStatus, isAuthReady, isAuthSettled, isRegisteredProfile } from "./auth/authStatus";
 import { guestTemplateProfile, withProfileDefaults } from "./auth/guestProfile";
 import {
@@ -42,10 +42,17 @@ import {
 import {
   clearPendingMerge,
   isRetryableMergeError,
+  mergeFailureNote,
   readPendingMerge,
   savePendingMerge,
 } from "./auth/pendingMerge";
 import { capturePendingRef, sendPendingRefOnPromotion } from "./auth/pendingRef";
+import {
+  type LastMethod,
+  methodFromProviders,
+  readLastMethod,
+  rememberLastMethod,
+} from "./auth/lastMethod";
 import { setSessionHint } from "./auth/sessionHint";
 import { shareLink } from "./auth/shareLink";
 import { currentEnv, isAppleFirst, isInAppBrowser } from "./auth/platform";
@@ -158,6 +165,10 @@ export interface AuthSheetController {
   retryGuest: () => void;
   signOut: () => Promise<void>;
   clearMessage: () => void;
+  /** The sign-in method last used on this device ("Last time you used Google"), read when the sheet opens. */
+  lastMethod?: LastMethod | null;
+  /** "Already have an account? Sign in": the sheet turns into the returning player's sheet. */
+  switchToSignIn?: () => void;
 }
 
 type ContextState = {
@@ -265,6 +276,8 @@ const FirebaseAuthProvider = ({
   const latestProfileRef = React.useRef<{ profile: SessionProfile; seq: number } | null>(null);
   const mergeRunningRef = React.useRef(false);
   const mergeAttemptsRef = React.useRef(new Set<string>());
+  /** The sign-in the player tried last from the sheet, so an error names only other methods. */
+  const attemptRef = React.useRef<OAuthProviderName | "email" | null>(null);
 
   const user = fb.phase === "user" ? fb.user : null;
   const authStatus = deriveAuthStatus(mode, fb, profileState);
@@ -312,8 +325,13 @@ const FirebaseAuthProvider = ({
     gate.dismiss();
   }, [gate]);
 
-  const showError = useCallback((error: unknown, native = false) => {
-    const copy = native ? mapNativeAuthError(error) : mapAuthError(error);
+  /**
+   * `lastMethodHint`: only after an email sign-in failed, so a failed Google popup never says
+   * "try Continue with Google".
+   */
+  const showError = useCallback((error: unknown, native = false, lastMethodHint = false) => {
+    const mapped = native ? mapNativeAuthError(error) : mapAuthError(error);
+    const copy = lastMethodHint ? withLastMethodHint(mapped, error, readLastMethod()) : mapped;
     if (!copy) return false;
     setMessage({ text: copy.message, field: copy.field });
     track(buildEvent("auth_error", { code: authErrorCode(error) || "unknown" }));
@@ -682,7 +700,9 @@ const FirebaseAuthProvider = ({
       } catch (error) {
         const status = error instanceof ApiError ? error.status : 0;
         const code = error instanceof ApiError ? error.code : null;
-        if (isRetryableMergeError(status, code)) savePendingMerge(guestToken, account?.uid);
+        const detail = error instanceof ApiError ? error.message : null;
+        const retryable = isRetryableMergeError(status, code, detail);
+        if (retryable) savePendingMerge(guestToken, account?.uid);
         else clearPendingMerge();
         if (status === 403 && code === ErrorCode.EMAIL_UNVERIFIED) {
           // Signed in to an account whose email is not confirmed yet: the merge runs again once
@@ -693,10 +713,7 @@ const FirebaseAuthProvider = ({
             name: "merged",
             gamesMoved: 0,
             tailsCredited: 0,
-            note:
-              status === 409
-                ? "You're signed in. This account already took in guest progress this month, so this guest's runs stay separate."
-                : "You're signed in, but we couldn't move your guest progress just now. We'll try again while this tab stays open, for up to an hour.",
+            note: mergeFailureNote(status, retryable, detail),
           });
         }
       } finally {
@@ -709,6 +726,11 @@ const FirebaseAuthProvider = ({
 
   const runOutcome = useCallback(
     async (outcome: AuthOutcome) => {
+      if (outcome.kind === "done" || outcome.kind === "merge") {
+        rememberLastMethod(outcome.provider, adapter.current()?.email ?? null);
+      } else if (outcome.kind === "verify") {
+        rememberLastMethod("email", outcome.email);
+      }
       switch (outcome.kind) {
         case "done": {
           track(buildEvent("auth_linked", { provider: outcome.linked ? "link" : outcome.provider }));
@@ -755,11 +777,11 @@ const FirebaseAuthProvider = ({
           return;
         case "error":
           backToForm();
-          showError(outcome.error, outcome.native);
+          showError(outcome.error, outcome.native, attemptRef.current === "email");
           return;
       }
     },
-    [backToForm, loadProfile, runMerge, setView, showError, syncToken]
+    [adapter, backToForm, loadProfile, runMerge, setView, showError, syncToken]
   );
 
   /** Ends a sign-in flow started from the sheet, then settles `requireAccount` with the result. */
@@ -800,13 +822,24 @@ const FirebaseAuthProvider = ({
         (error) => {
           const status = error instanceof ApiError ? error.status : 0;
           const code = error instanceof ApiError ? error.code : null;
-          if (!isRetryableMergeError(status, code)) clearPendingMerge();
+          if (!isRetryableMergeError(status, code, error instanceof ApiError ? error.message : null)) clearPendingMerge();
         }
       )
       .finally(() => {
         mergeRunningRef.current = false;
       });
   }, [adapter, passive, readyAccount, readySeq, runMerge, loadProfile, toast]);
+
+  // A player already signed in on this device (before the hint existed, or in another tab): keep
+  // the hint current, so it is there when the session ends and they come back.
+  const accountProviders = readyAccount && user ? user.providers.join(",") : "";
+  const accountEmail = readyAccount && user ? user.email : null;
+  // Not on the landing (`passive`): it reads the session and writes nothing, not even this.
+  React.useEffect(() => {
+    if (passive || !accountProviders) return;
+    const method = methodFromProviders(accountProviders.split(","), readLastMethod());
+    if (method) rememberLastMethod(method, accountEmail);
+  }, [passive, accountProviders, accountEmail]);
 
   const handleOutcome = useCallback(
     async (outcome: AuthOutcome) => {
@@ -830,6 +863,7 @@ const FirebaseAuthProvider = ({
     (provider: OAuthProviderName) => {
       // Synchronous until the popup opened: beginFlow only sets a ref.
       const pending = startOAuth(auth, provider, isNative());
+      attemptRef.current = provider;
       beginFlow();
       setMessage(null);
       setView({ name: "busy", label: provider === "google" ? "Waiting for Google…" : "Waiting for Apple…" });
@@ -842,6 +876,7 @@ const FirebaseAuthProvider = ({
     (tab: "sign-in" | "create", email: string, password: string) => {
       setMessage(null);
       setView({ name: "busy", label: tab === "create" ? "Creating your account…" : "Signing you in…" });
+      attemptRef.current = "email";
       beginFlow();
       const run = tab === "create" ? createEmailAccount(auth, email, password) : signInWithEmail(auth, email, password);
       void run.then(handleOutcome, (error) => handleOutcome({ kind: "error", error }));
@@ -931,11 +966,20 @@ const FirebaseAuthProvider = ({
     setMessage(null);
     setSheet((current) => ({
       open: true,
-      reason: gate.pending ? current.reason : "sign-in",
+      reason: gate.pending ? current.reason : "returning",
       view: { name: "choose" },
       back: { name: "choose" },
     }));
   }, [gate, signOutAll]);
+
+  /** "Already have an account? Sign in": same sheet and waiting caller, the returning player's copy. */
+  const switchToSignIn = useCallback(() => {
+    setMessage(null);
+    setSheet((current) => ({ ...current, reason: "returning", view: { name: "choose" }, back: { name: "choose" } }));
+  }, []);
+
+  // Read once per opening: the hint never changes while the sheet is open.
+  const lastMethod = React.useMemo(() => (sheet.open ? readLastMethod() : null), [sheet.open]);
 
   const dismissible = !(
     sheet.view.name === "profile-error" ||
@@ -967,6 +1011,8 @@ const FirebaseAuthProvider = ({
     retryGuest,
     signOut: signOutFromSheet,
     clearMessage: () => setMessage(null),
+    lastMethod,
+    switchToSignIn,
   };
 
   // Playwright: open any sheet state for the axe and layout checks (E2E builds only).

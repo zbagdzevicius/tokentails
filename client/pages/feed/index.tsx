@@ -1,41 +1,30 @@
-import { FeedLanding } from "@/components/blog/feed/FeedLanding";
+import { BlogFrame } from "@/components/blog/BlogFrame";
+import { FeedHub } from "@/components/blog/FeedHub";
+import { FeedJsonLd } from "@/components/blog/FeedJsonLd";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
-import BlogLayout from "@/layouts/BlogLayout";
-import { WebPageJsonLd } from "next-seo";
-import { useEffect, useState } from "react";
+import { blogJsonLd, breadcrumbJsonLd } from "@/lib/feed/jsonld";
+import { hubProps, type HubProps } from "@/lib/feed/props";
+import { isApp } from "@/models/app";
+import type { GetStaticProps } from "next";
 
-function BlogLanding() {
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => {
-    // Client-only page: flip after mount to keep SSR output hydration-safe.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsClient(true);
-  }, []);
+export const FEED_SEO = Object.freeze({
+  title: "Token Tails Blog: Cat Games, Giving and Proof",
+  description:
+    "Guides to free cat games in your browser, how giving reaches Pink Paw in Kaunas, Lithuania, and the open-source code that lets anyone check every payout.",
+  path: "/feed",
+});
 
-  if (!isClient) {
-    return <></>;
-  }
-
+/** /feed: the blog hub, built from client/content/feed (no API). */
+export default function FeedPage({ articles, categories, featuredSlug }: HubProps) {
   return (
-    <div className="relative">
-      <SeoHead
-        name={"Tokentails.com - Play to save"}
-        description={"Token Tails news"}
-        page={""}
-      />
-      <WebPageJsonLd
-        description="tokentails.com"
-        id={process.env.NEXT_PUBLIC_DOMAIN!}
-      />
-
-      <FirebaseAuthProvider authMode="optional">
-        <BlogLayout>
-          <FeedLanding />
-        </BlogLayout>
-      </FirebaseAuthProvider>
-    </div>
+    <>
+      <SeoHead {...FEED_SEO} />
+      <FeedJsonLd items={[blogJsonLd(articles), breadcrumbJsonLd([{ name: "Blog", path: "/feed" }])]} />
+      <BlogFrame liveCategories={categories.map((c) => c.slug)}>
+        <FeedHub articles={articles} categories={categories} featuredSlug={featuredSlug} />
+      </BlogFrame>
+    </>
   );
 }
 
-export default BlogLanding;
+export const getStaticProps: GetStaticProps<HubProps> = async () => ({ props: hubProps(isApp) });

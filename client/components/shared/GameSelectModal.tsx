@@ -1,4 +1,6 @@
 import { PixelButton } from "./PixelButton";
+import { BADCAT_PATH, BADCAT_PREVIEW, BADCAT_TITLE, badcatEntryEnabled, badcatHref } from "@/components/badcat/entry";
+import { RAVE_PATH, RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, RAVE_TITLE, raveEntryEnabled, raveHref } from "@/components/rave/entry";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
@@ -39,6 +41,14 @@ export const SWORDCAT_PREVIEW = Object.freeze({
   height: 218,
 });
 
+/** The Moon Rave card's key: a free string, not a GameType (the rave is a page, not a Phaser mode). */
+export const RAVE_CARD_KEY = "RAVE";
+
+/** The Bad Cat Daily card's key: a free string, not a GameType (its runs save as `BAD_CAT` from the game). */
+export const BADCAT_CARD_KEY = "BADCAT";
+/** The Bad Cat card's line: the game's own pitch, short enough for the phone column. */
+export const BADCAT_PICKER_DESCRIPTION = "Be the cat: wreck the room, don't get caught";
+
 /**
  * The Heist card in the picker: on by default in every build (founder, 2026-10-05, overriding
  * decision #15's Poki hold). `NEXT_PUBLIC_HEIST_PICKER=0`/`false`/`off` hides it.
@@ -72,25 +82,55 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT";
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE";
 }
 
-/** A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`); others go as they are. */
-export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
-  card.href ? (card.key === GameType.CATNIP_HEIST ? heistHref(card.href) : card.href) : undefined;
+/**
+ * A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`), Bad Cat's too (`badcatHref`),
+ * and the Moon Rave's (`raveHref`, as the landing's `from=landing_rave`); others go as they are.
+ */
+export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
+  if (!card.href) return undefined;
+  if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
+  if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
+  if (card.key === RAVE_CARD_KEY) return raveHref("picker");
+  return card.href;
+};
 
 /** The link's test id: the Heist keeps `game-card-heist`, others are `game-card-<key>`. */
 const cardTestId = (card: GameCard) =>
   card.key === GameType.CATNIP_HEIST ? "game-card-heist" : `game-card-${card.key.toLowerCase()}`;
 
 /**
- * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
- * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
- * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
+ * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, five or six
+ * sit three to a row (3 + 2 centred, or 3 + 3), and seven sit four to a row (4 + 3 centred). The Moon
+ * Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave`
+ * is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is seasonal
+ * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
+ * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
+ * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes
+ * last, when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app
+ * build). Web builds show six cards outside the Cupid season and seven in it.
  */
-export function gameCards(includeHeist: boolean, now: Date = new Date(), includeSwordcat = false): GameCard[] {
+export function gameCards(
+  includeHeist: boolean,
+  now: Date = new Date(),
+  includeSwordcat = false,
+  includeBadcat = false,
+  includeRave = false
+): GameCard[] {
   const cards: GameCard[] = [];
+  if (includeRave) {
+    cards.push({
+      key: RAVE_CARD_KEY,
+      href: RAVE_PATH,
+      title: RAVE_TITLE.toUpperCase(),
+      description: RAVE_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: RAVE_PREVIEW.src,
+      previewVariant: "RAVE",
+    });
+  }
   if (isCupidSeason(now)) {
     cards.push({
       key: GameType.PIXEL_RESCUE,
@@ -143,6 +183,17 @@ export function gameCards(includeHeist: boolean, now: Date = new Date(), include
       badge: "NEW",
       image: SWORDCAT_PREVIEW.src,
       previewVariant: "SWORDCAT",
+    });
+  }
+  if (includeBadcat) {
+    cards.push({
+      key: BADCAT_CARD_KEY,
+      href: BADCAT_PATH,
+      title: BADCAT_TITLE.toUpperCase(),
+      description: BADCAT_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: BADCAT_PREVIEW.src,
+      previewVariant: "BADCAT",
     });
   }
   return cards;
@@ -209,8 +260,42 @@ const SwordcatPreview = () => (
   </span>
 );
 
+/** A frame of the first heist, captured from the built game (`BADCAT_PREVIEW`). */
+const BadcatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={BADCAT_PREVIEW.src}
+      width={BADCAT_PREVIEW.width}
+      height={BADCAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-badcat-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
+/** The live Moon Rave scene: the DJ cat at the booth under the green moon, the crowd dancing (`RAVE_PREVIEW`). */
+const RavePreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={RAVE_PREVIEW.src}
+      width={RAVE_PREVIEW.width}
+      height={RAVE_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-rave-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
+  if (card.previewVariant === "RAVE") return <RavePreview />;
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
+  if (card.previewVariant === "BADCAT") return <BadcatPreview />;
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -270,6 +355,10 @@ interface GameSelectModalProps {
   showHeist?: boolean;
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
   showSwordcat?: boolean;
+  /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */
+  showBadcat?: boolean;
+  /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
+  showRave?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -277,17 +366,25 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
- * Every card is one tap target (a button, or a link for the Heist and Swordcat).
+ * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat and Bad Cat Daily).
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
   setGameType,
   showHeist,
   showSwordcat,
+  showBadcat,
+  showRave,
   navigate,
 }) => {
   const now = new Date();
-  const cards = gameCards(showHeist ?? heistPickerEnabled(), now, showSwordcat ?? swordcatPickerEnabled());
+  const cards = gameCards(
+    showHeist ?? heistPickerEnabled(),
+    now,
+    showSwordcat ?? swordcatPickerEnabled(),
+    showBadcat ?? badcatEntryEnabled(),
+    showRave ?? raveEntryEnabled()
+  );
   const cupidOpen = isCupidSeason(now);
 
   const pick = (card: GameCard) => (event: MouseEvent<HTMLElement>) => {
@@ -295,8 +392,9 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       // Ctrl/Cmd/Shift/Alt or a middle click: let the browser open the link its own way (a new tab
       // or window), with the same `?from=picker` href.
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-      // A full load, like the landing's PLAY GAME: the Heist page is its own app shell. `from`
-      // feeds `heist_open {from}` there and is stripped from the address bar on arrival.
+      // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat) is
+      // its own app shell. On the Heist, `from` feeds `heist_open {from}` and is stripped from the
+      // address bar on arrival; the rave ignores it and keeps it in the URL.
       event.preventDefault();
       const go = navigate ?? ((url: string) => window.location.assign(url));
       go(cardHref(card) ?? card.href);
@@ -353,7 +451,13 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
 
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
-    cards.length > 3 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]"
+    // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
+    // Seven (the Cupid season): four to a row, 4 + 3 centred.
+    cards.length === 4 || cards.length === 7 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
+    // Short landscape phones: five cards share one row there (a second row would sit below the fold of
+    // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
+    // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.
+    cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]"
   );
   const targetClass =
     "group flex h-full w-full flex-col items-center rounded-lg pb-1 outline-none transition-[filter] duration-200 hover:brightness-110 focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900";

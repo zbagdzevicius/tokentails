@@ -30,6 +30,17 @@
     <!-- Lilita One is self-hosted (src/fonts/fonts.css, imported by src/ui/hud.ts); no Google Fonts (decision #83). -->
 
     <style>
+      /* The key colour cross-fades (0.6 s) when the track switches: Green = Moon Rave, Red = Back on Track. */
+      @property --rave-green {
+        syntax: '<color>';
+        inherits: true;
+        initial-value: #5dff8a;
+      }
+      @property --rave-green-dim {
+        syntax: '<color>';
+        inherits: true;
+        initial-value: #1f7a3c;
+      }
       :root {
         --rave-display: 'Lilita One';
         --rave-bg: #020a05;
@@ -39,10 +50,22 @@
         --rave-violet: #a26bff;
         --rave-ink: #eafff0;
         --rave-ink-dim: rgba(234, 255, 240, 0.72);
+        /* The key colour as an "r, g, b" triplet for rgba() in hud.css (flips at once, no fade). */
+        --rave-key-rgb: 93, 255, 138;
+        --rave-key2-rgb: 70, 255, 122;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
         --safe-left: env(safe-area-inset-left, 0px);
         --safe-right: env(safe-area-inset-right, 0px);
+        transition: --rave-green 0.6s, --rave-green-dim 0.6s;
+      }
+      :root[data-light='red'] {
+        --rave-green: #ff5d6a;
+        --rave-green-dim: #7a1f28;
+        --rave-ink: #ffeef0;
+        --rave-bg: #0a0203;
+        --rave-key-rgb: 255, 93, 106;
+        --rave-key2-rgb: 255, 70, 86;
       }
       html,
       body {

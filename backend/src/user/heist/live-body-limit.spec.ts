@@ -47,6 +47,14 @@ class EchoController {
             text: Buffer.isBuffer(req.rawBody) ? req.rawBody.toString() : null,
         };
     }
+
+    @Post('club/stripe/webhook')
+    clubWebhook(@Req() req: any) {
+        return {
+            raw: Buffer.isBuffer(req.rawBody),
+            text: Buffer.isBuffer(req.rawBody) ? req.rawBody.toString() : null,
+        };
+    }
 }
 
 @Module({ controllers: [EchoController] })
@@ -149,7 +157,12 @@ describe('body limits (main.ts applyBodyParsers)', () => {
     });
 
     it('keeps the raw body for both Stripe webhooks, byte for byte', async () => {
-        expect(RAW_BODY_PATHS).toEqual(['/image/webhook', '/badcat/stripe/webhook', '/rave/stripe/webhook']);
+        expect(RAW_BODY_PATHS).toEqual([
+            '/image/webhook',
+            '/badcat/stripe/webhook',
+            '/rave/stripe/webhook',
+            '/club/stripe/webhook',
+        ]);
         const payload = '{"id":"evt_1",  "type":"checkout.session.completed"}';
         for (const path of RAW_BODY_PATHS) {
             const res = await post(app, path, payload);

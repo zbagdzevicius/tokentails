@@ -28,6 +28,7 @@ import { DECK } from './motion';
 
 export interface Decks {
   group: Group;
+  setTheme(deckGreen: readonly number[], vuGreen: readonly number[]): void;
   update(beat: BeatInfo, dt: number, s: { scratch: number; xfader: number; faderR: number; faderL: number; drop: number }): void;
   dispose(): void;
 }
@@ -164,6 +165,7 @@ export function buildDecks(shared: SharedUniforms, riser: { bottomY: number; top
     o.frustumCulled = false;
   });
 
+  /** Pad / VU / trim key colour: the theme's deckGreen (setTheme). */
   const GREEN = new Color(PALETTE.laserGreen);
   const PINK = new Color(PALETTE.pawPink);
   const VIOLET = new Color(PALETTE.laserViolet);
@@ -173,6 +175,11 @@ export function buildDecks(shared: SharedUniforms, riser: { bottomY: number; top
 
   return {
     group,
+    /** Theme (linear RGB): pads, VU and trim key colour, and the platter LED rings. */
+    setTheme(deckGreen: readonly number[], vuGreen: readonly number[]) {
+      GREEN.setRGB(deckGreen[0], deckGreen[1], deckGreen[2]);
+      for (const mat of ledMats) mat.uniforms.uGreen.value.setRGB(vuGreen[0], vuGreen[1], vuGreen[2]);
+    },
     update(beat, dt, s) {
       // Platters: steady 33⅓ spin; the right deck follows the scratching paw.
       const scratchDelta = s.scratch - scratchPrev;

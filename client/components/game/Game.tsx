@@ -5,7 +5,7 @@ import { GuestPill } from "@/components/shared/auth/GuestPill";
 import { analytics, buildEvent } from "@/analytics";
 import { saveNudge, type SaveNudgeTrigger } from "@/context/auth/saveNudge";
 import { useFirebaseAuth, useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
-import type { SessionProfile } from "@/context/auth/types";
+import type { AccountResult, SessionProfile } from "@/context/auth/types";
 import { AltarHold } from "@/components/onboarding/AltarHold";
 import { commitStarterChoice, wasKept } from "@/components/onboarding/commit";
 import { clearDraft, readDraft } from "@/components/onboarding/draft";
@@ -80,6 +80,19 @@ export const Game = () => {
   /** The last commit answer of this ceremony (null while none has come back). */
   const lastOutcome = useRef<MeetCommitOutcome["status"] | null>(null);
   const { start: startHandoff, cancel: cancelHandoff } = useOnboardingHandoff();
+  /**
+   * A returning player's sign-in is open (`/game?signin=1` from the landing, or "Already have an
+   * account?" on the altar). While it is, the ceremony is not decided: the account they sign in to
+   * may already have its cat. Dismissed, the guest gets the ceremony as usual.
+   */
+  const [signinOpen, setSigninOpen] = useState(false);
+  const signinParam = router.isReady && router.query.signin === "1";
+  const signinAsked = useRef(false);
+  // Set before `setSigninOpen(true)` renders: the decide effect can run in the same commit as the
+  // effect that opens the sheet and would still see `signinOpen === false`.
+  const signinBusy = useRef(false);
+  /** Bumped to decide the ceremony again after signing in to an existing account from the altar. */
+  const [meetEpoch, setMeetEpoch] = useState(0);
   // ProfileContext hands out new functions each render; the commit callbacks read the latest.
   const latest = useRef({ profile, setProfileUpdate, refreshProfile });
   useEffect(() => {
@@ -184,10 +197,48 @@ export const Game = () => {
     });
   }, [applyCommit]);
 
+  /** Opens the sheet for a player who had an account before; the ceremony waits for its answer. */
+  const signInReturning = useCallback(async (): Promise<AccountResult> => {
+    setNudge(null);
+    signinBusy.current = true;
+    setSigninOpen(true);
+    try {
+      return await requireAccount("returning");
+    } catch {
+      return "dismissed";
+    } finally {
+      signinBusy.current = false;
+      setSigninOpen(false);
+    }
+  }, [requireAccount]);
+
+  // `/game?signin=1` (the landing's "Sign in"): the returning sheet once the curtain has lifted,
+  // and the param leaves the address bar so a reload does not open it again.
+  useEffect(() => {
+    if (!signinParam || signinAsked.current || !curtainLifted) return;
+    signinAsked.current = true;
+    const { signin: _signin, ...rest } = router.query;
+    void _signin;
+    void router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true, scroll: false });
+    void signInReturning();
+  }, [signinParam, curtainLifted, router, signInReturning]);
+
+  /** "Already have an account? Sign in" on the altar: signed in, the ceremony is decided again for that account. */
+  const meetSignIn = useCallback(async () => {
+    const result = await signInReturning();
+    if (result !== "signed-in") return;
+    setMeetOpen(false);
+    meetDecided.current = false;
+    meetIsReplay.current = false;
+    setDecided(false);
+    setMeetEpoch((epoch) => epoch + 1);
+  }, [signInReturning]);
+
   // Decide once, after the curtain lifts: the ceremony, a silent retry of an offline draft, or
-  // nothing (the lobby). Never while a mode is open.
+  // nothing (the lobby). Never while a mode is open, nor while a returning player signs in.
   useEffect(() => {
     if (!curtainLifted || meetDecided.current || gameType || isStarted) return;
+    if (signinOpen || signinBusy.current || (signinParam && !signinAsked.current)) return;
     if (replay) {
       meetDecided.current = true;
       meetIsReplay.current = true;
@@ -212,7 +263,7 @@ export const Game = () => {
       decide(uid, current?.cat?._id ?? null);
     }, PROFILE_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [curtainLifted, replay, pending, profileFromBackend, user, gameType, isStarted, decide]);
+  }, [curtainLifted, replay, pending, profileFromBackend, user, gameType, isStarted, decide, signinOpen, signinParam, meetEpoch]);
 
 
   // The curtain has lifted but the backend profile is not back yet (a slow sign-in), and the
@@ -222,6 +273,7 @@ export const Game = () => {
   const holdAltar =
     curtainLifted &&
     !decided &&
+    !signinOpen &&
     !meetOpen &&
     !gameType &&
     !isStarted &&
@@ -260,7 +312,7 @@ export const Game = () => {
   const saveYourCat = () => {
     setNudge(null);
     // No guest to save after a failed anonymous sign-in: the sheet offers a plain sign-in.
-    void requireAccount(signedOut ? "sign-in" : "save-progress");
+    void requireAccount(signedOut ? "returning" : "save-progress");
   };
 
   return (
@@ -280,6 +332,7 @@ export const Game = () => {
           uid={user?.uid}
           onCommitted={applyCommit}
           onDone={finishMeet}
+          onSignIn={guestLike ? () => void meetSignIn() : undefined}
         />
       )}
       {/* No snow over the Cat Yard's golden-hour garden. */}
@@ -289,6 +342,7 @@ export const Game = () => {
       {(guestLike || signedOut) && !isStarted && !gameType && !meetOpen && (
         <GuestPill
           onSave={saveYourCat}
+          onSignIn={() => void signInReturning()}
           catName={profile?.cat?.name}
           catImg={profile?.cat?.catImg}
           signedOut={signedOut}

@@ -71,7 +71,8 @@ export interface LobbyLayout {
   /** The name plate row: its bottom edge, its maximum width and its height. */
   plate: { bottom: number; maxWidth: number; height: number };
   logo: { top: number; left: number; width: number; height: number };
-  strip: { visible: boolean; top: number; width: number; stacked: boolean };
+  /** `stacked`: the board's tiles take two rows; `narrow`: three (the md edge, under ~46rem). */
+  strip: { visible: boolean; top: number; width: number; stacked: boolean; narrow: boolean };
   /** Side length of the four tiles (`--lobby-tile`), px. */
   tile: number;
   /** The tiles stand on the slab: their bottom edge. */
@@ -175,8 +176,10 @@ export function lobbyLayout({
   const stripVisible = !short && W >= MD && H >= STRIP_MIN_HEIGHT;
   const stripTop = pill ? hudTop + pillH + 12 : hudTop;
   const stripWidth = Math.min(W - 2 * (Math.max(leftInner, rightInner) + 16), 72 * r);
-  const stripStacked = stripWidth < 60 * r;
-  const stripBottom = stripTop + Math.max(stripHeight, stripStacked ? 100 : 64);
+  // The board (ImpactStrip) fits on one row from ~71rem, on two rows from ~46rem, else on three.
+  const stripStacked = stripWidth < 71 * r;
+  const stripNarrow = stripWidth < 46 * r;
+  const stripBottom = stripTop + Math.max(stripHeight, stripNarrow ? 150 : stripStacked ? 100 : 64);
 
   // The top of the sky the logo sits in. On short landscape the logo moves to the top left, beside
   // the stats panel, and the plate may rise to just under the pill.
@@ -383,7 +386,7 @@ export function lobbyLayout({
     shadow: { cx, cy: feetY - 1, width: shadowW, height: Math.max(6, Math.round(shadowW * 0.22)) },
     plate: { bottom: plateBottom, maxWidth: Math.round(plateMaxWidth), height: plateH },
     logo: { top: logoTop, left: logoLeft, width: logoW, height: logoH },
-    strip: { visible: stripVisible, top: stripTop, width: stripWidth, stacked: stripStacked },
+    strip: { visible: stripVisible, top: stripTop, width: stripWidth, stacked: stripStacked, narrow: stripNarrow },
     tile,
     standY,
     leftWing,

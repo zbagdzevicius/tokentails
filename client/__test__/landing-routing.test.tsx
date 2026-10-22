@@ -189,6 +189,39 @@ describe("root visit", () => {
     }
   });
 
+  it("headlines Moon Rave with the section straight under the hero; no hero pill (web)", () => {
+    const { container } = render(<HomePage />);
+    expectGamingLanding(container);
+    // Founder, Oct 17: the hero pill and its live line looked bad and were removed.
+    expect(container.querySelector('[data-testid="rave-pill"]')).toBeNull();
+    expect(container.querySelector('[data-testid="hero-cta"]')).not.toBeNull();
+    const rave = container.querySelector('[data-testid="rave-section"]');
+    const proof = container.querySelector('[data-testid="proof-section"]');
+    const heist = container.querySelector('[data-testid="heist-section"]');
+    const sword = container.querySelector('[data-testid="swordcat-section"]');
+    expect(rave).not.toBeNull();
+    expect(rave!.compareDocumentPosition(proof!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rave!.compareDocumentPosition(heist!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rave!.compareDocumentPosition(sword!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-testid="rave-section-cta"]')?.getAttribute("href")).toBe(
+      "/rave?from=landing_rave"
+    );
+  });
+
+  it("shows Bad Cat Daily after the Moon Rave and Swordcat sections, with no env set (web)", () => {
+    expect(Object.keys(process.env).filter((k) => /BADCAT/i.test(k))).toEqual([]);
+    const { container } = render(<HomePage />);
+    const badcat = container.querySelector('[data-testid="badcat-section"]');
+    expect(badcat).not.toBeNull();
+    const rave = container.querySelector('[data-testid="rave-section"]');
+    const sword = container.querySelector('[data-testid="swordcat-section"]');
+    expect(rave!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sword!.compareDocumentPosition(badcat!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-testid="badcat-section-cta"]')?.getAttribute("href")).toBe(
+      "/badcat?from=landing_badcat&utm_source=tt_landing"
+    );
+  });
+
   it("shows the Catnip Heist section by default and hides it with the flag off (decision #15 overridden)", () => {
     const { container, unmount } = render(<HomePage />);
     expect(container.querySelector('[data-testid="heist-section"]')).not.toBeNull();
@@ -483,7 +516,10 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(afterFiles).toContainEqual({ source: "/badcat/:path*", destination: "/badcat-game/:path*" });
     expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
     const headers = await nextConfig.headers();
-    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js"]);
+    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/home/media/:path*", "/music/back-on-track-v1/:path*"]);
+    // Moon Rave's second track: every file name is versioned, so the folder is immutable.
+    const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
+    expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
   });
 });
 
@@ -643,5 +679,17 @@ describe("playerStateFrom (the landing's optional, non-creating profile read)", 
     });
     const legacy = playerStateFrom("ready", { cat });
     expect(legacy.onboardingState).toBe("done");
+  });
+
+  it("marks a real account, so the landing hides its Sign in; a guest still sees it", () => {
+    expect(playerStateFrom("ready", { cat, isGuest: false }).account).toBe(true);
+    expect(playerStateFrom("guest", { cat, isGuest: true }).account).toBeUndefined();
+  });
+
+  it("the landing Sign in opens the returning sheet on /game and is tracked as a landing CTA", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SIGN_IN_HREF, landingCtaFromSearch } = require("@/components/landing/landingCta");
+    expect(SIGN_IN_HREF).toBe("/game?signin=1&from=landing_signin");
+    expect(landingCtaFromSearch(SIGN_IN_HREF.slice("/game".length))).toBe("signin");
   });
 });
