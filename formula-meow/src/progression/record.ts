@@ -37,6 +37,8 @@ export interface Award {
   challenges: number[];
   rival?: { name: string; won: boolean; w: number; l: number };
   newBestLap?: number;
+  /** F12: the race's Style score, the track's best before it, and whether it is a new best */
+  style?: { score: number; prev: number | null; newBest: boolean };
   trophy?: { cupId: string; cls: RaceClass; place: number; mirror: boolean };
   medal?: { trackId: string; cls: RaceClass; medal: number; mirror?: boolean };
   /** fish already paid on each race's results during a cup: a recap line only, never added to `total` (B2) */
@@ -126,6 +128,9 @@ export function applyRace(before: ProgSave, r: RaceRecord, w: World): { save: Pr
   st.slipstreams += x.slipstreams;
   st.shortcuts += x.shortcuts;
   st.respawns += x.respawns;
+  st.loops += x.loops ?? 0;
+  st.walls += x.walls ?? 0;
+  st.cleanLandings += x.cleanLandings ?? 0;
   const b = Math.max(0, Math.min(5, Math.floor(r.body)));
   st.bodyRaces[b] = (st.bodyRaces[b] ?? 0) + 1;
   st.modeRaces[mode] = (st.modeRaces[mode] ?? 0) + 1;
@@ -143,6 +148,15 @@ export function applyRace(before: ProgSave, r: RaceRecord, w: World): { save: Pr
         if (prev != null) award.newBestLap = me.bestLap;
       }
     }
+  }
+
+  // F12: the Style score and the best per track (authored tracks; a battle has no set pieces)
+  const style = Math.max(0, Math.round(x.style ?? 0));
+  if (mode !== 'battle' && style > 0) {
+    const prev = r.ugc ? null : (s.styleBest[r.trackId] ?? null);
+    const newBest = !r.ugc && (prev == null || style > prev);
+    if (newBest) s.styleBest[r.trackId] = style;
+    award.style = { score: style, prev, newBest };
   }
 
   // fish from the race itself
@@ -257,6 +271,7 @@ export function mergeAward(a: Award, b: Award): Award {
     challenges: [...new Set([...a.challenges, ...b.challenges])],
     rival: a.rival ?? b.rival,
     newBestLap: a.newBestLap ?? b.newBestLap,
+    style: a.style ?? b.style,
     trophy: a.trophy ?? b.trophy,
     medal: a.medal ?? b.medal,
     cupRaces: a.cupRaces != null || b.cupRaces != null ? (a.cupRaces ?? 0) + (b.cupRaces ?? 0) : undefined,

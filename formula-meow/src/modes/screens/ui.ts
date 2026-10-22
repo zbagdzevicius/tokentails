@@ -134,6 +134,11 @@ export function heldBack(): boolean {
 export const guardedBack = (): boolean | void => (heldBack() ? true : undefined);
 
 /** "50cc Kitten", …, "Mirror" for a class pick. */
+/** A class as a menu tile reads it: "100cc", or "Mirror". */
+export function shortClass(c: number): string {
+  return c === 3 ? t('Mirror') : (CLASSES[c] ?? CLASSES[0]).cc;
+}
+
 export function classLabel(c: number): string {
   if (c === 3) return t('Mirror');
   const k = CLASSES[c] ?? CLASSES[0];

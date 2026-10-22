@@ -218,7 +218,40 @@
 .fm-mh-list .r span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .fm-mh-rival { position: absolute; left: calc(12px + env(safe-area-inset-left)); top: calc(86px + env(safe-area-inset-top)); padding: 4px 10px; font-size: 14px; border-width: 3px; transform: rotate(-3deg); }
 .fm-mh-rival small { color: var(--rose); font-size: 11px; display: block; letter-spacing: 0.08em; }
+/* F14: the points leader (a crown over them in view, an arrow at the screen edge otherwise) */
+.fm-mode-hud[data-mode='battle'] .fm-mh-lead:not([hidden]) { display: flex; }
+.fm-mh-lead { position: absolute; left: 0; top: 0; flex-direction: column; align-items: center; gap: 2px; width: 0; will-change: transform; }
+.fm-mh-lead span {
+  transform: translate(var(--lx, 0px), -100%); white-space: nowrap; font-size: 13px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(26, 18, 56, 0.72); border: 2px solid #ffd84a; color: var(--cream);
+}
+.fm-mh-lead span b { color: #ffd84a; }
+.fm-mh-lead .ar { display: none; }
+.fm-mh-lead.edge .ar {
+  display: block; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
+  background: #ffd84a; clip-path: polygon(100% 50%, 15% 8%, 32% 50%, 15% 92%); filter: drop-shadow(0 0 2px #1a1238);
+}
+.fm-mh-lead.edge span { transform: translate(var(--lx, 0px), 16px); }
+.fm-mh-lead.edge.low span { transform: translate(var(--lx, 0px), calc(-100% - 16px)); }
+/* F14: DOUBLE POINTS for the last 30 s of a battle */
+.fm-mode-hud.frenzy[data-mode='battle'] .fm-mh-frenzy { display: block; }
+.fm-mh-frenzy {
+  position: absolute; left: 50%; top: calc(124px + env(safe-area-inset-top)); transform: translateX(-50%) rotate(-2deg);
+  padding: 3px 12px; font-size: 16px; color: var(--ink); background: #ffd84a; border-width: 3px; white-space: nowrap;
+  animation: fm-mh-frenzy 0.9s ease-in-out infinite alternate;
+}
+.fm-mh-frenzy b { color: #e0287d; font-size: 20px; }
+/* a phone: the chip fits between the leaders list and the minimap (×2 over a small DOUBLE POINTS) */
+@media (max-width: 520px) {
+  .fm-mh-frenzy { top: calc(104px + env(safe-area-inset-top)); padding: 2px 8px 3px; font-size: 11px; line-height: 1.05; text-align: center; }
+  .fm-mh-frenzy b { display: block; font-size: 22px; line-height: 1; }
+}
+@keyframes fm-mh-frenzy { from { transform: translateX(-50%) rotate(-2deg) scale(1); } to { transform: translateX(-50%) rotate(2deg) scale(1.08); } }
+.fm-mode-hud.calm .fm-mh-frenzy { animation: none; }
+:root[data-motion='reduced'] .fm-mh-frenzy { animation: none; }
+@media (prefers-reduced-motion: reduce) { .fm-mh-frenzy { animation: none; } }
 @media (orientation: landscape) and (max-height: 500px) {
+  .fm-mh-frenzy { top: calc(100px + env(safe-area-inset-top)); }
   .fm-mh-rival { top: calc(64px + env(safe-area-inset-top)); }
   .fm-mh-list { top: calc(164px + env(safe-area-inset-top)); font-size: 11px; }
   .fm-mh-clock { top: calc(76px + env(safe-area-inset-top)); }
@@ -247,3 +280,34 @@ a.fm-btn { display: inline-flex; align-items: center; justify-content: center; t
 .fm-m-chip.fm-m-silhouette .sw i { filter: brightness(0.6); }
 /* cup cards on desktop: names wrap instead of "Kitchen Counter · m…" (polish 12) */
 @media (min-width: 560px) { .fm-m-cup ol li { white-space: normal; overflow: visible; } }
+
+/* ---------------------------------------------------------------- F13 one-tap tiles */
+.fm-m-tilewrap { position: relative; display: grid; min-width: 0; }
+.fm-m-tilewrap > .fm-ui-tile { width: 100%; }
+/* the setup line on a tile that starts a race at once (the ▶ in the label says so) */
+.fm-m-onetap small { font-weight: 800; opacity: 0.9; overflow-wrap: anywhere; }
+.fm-m-change {
+  position: absolute; top: 6px; right: 6px; z-index: 1; min-height: 30px; padding: 2px 10px;
+  font: inherit; font-family: var(--fm-font); font-size: 13px; font-weight: 800; color: var(--ink);
+  background: rgba(255, 255, 255, 0.85); border: 2px solid var(--ink); border-radius: 999px; cursor: pointer;
+}
+/* a bigger hit area around the small pill */
+.fm-m-change::before { content: ''; position: absolute; inset: -7px -4px; }
+.fm-m-change:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
+.fm-m-modes .fm-m-onetap { padding-top: 30px; }
+
+/* ---------------------------------------------------------------- F11 Wild Card row */
+.fm-m-wild-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 12px 0 6px; font-size: var(--fm-fs-m, 18px); }
+.fm-m-wild-h small { font-size: var(--fm-fs-s, 14px); opacity: 0.7; font-weight: 700; }
+.fm-m-wild { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.fm-m-wild .fm-m-chip .lb { min-width: 0; max-width: 100%; }
+.fm-m-wild .fm-m-chip { align-items: center; text-align: center; gap: 2px; min-height: 56px; padding: 6px 4px; font-size: var(--fm-fs-s, 14px); line-height: 1.1; }
+.fm-m-wild .fm-m-chip .ic { font-size: 20px; line-height: 1; }
+.fm-m-wild-note { margin: 6px 2px 0; min-height: 1.3em; font-weight: 800; font-size: var(--fm-fs-s, 14px); opacity: 0.85; }
+@media (min-width: 700px) { .fm-m-wild { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.fm-m-wild .fm-m-chip.sel:not([data-act='wild-none']) { background: linear-gradient(120deg, #d9c6ff, #ffe2a0); }
+.fm-m-surprise { border-style: dashed !important; }
+
+/* ---------------------------------------------------------------- F13 GP comeback note */
+.fm-m-ease { margin: 6px 0 0; padding: 6px 10px; border: 2px solid var(--ink); border-radius: 12px; background: #c9f2d6; color: var(--ink); font-weight: 800; }
+.fm-m-ease.restored { background: #ffe2a0; }

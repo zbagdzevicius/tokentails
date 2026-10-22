@@ -14,7 +14,7 @@ describe('iteration 2 ids and the new tracks', () => {
     expect(HAT_IDS.length).toBe(9);
     expect(TRAIL_IDS.length).toBe(6);
     expect(CUP_IDS).toEqual(['kibble', 'catnip']);
-    expect(new Set(ACHIEVEMENT_IDS).size).toBe(24);
+    expect(new Set(ACHIEVEMENT_IDS).size).toBe(26); // iteration 4 appends loop-de-meow, combo-king
   });
 
   for (const def of STUB_TRACKS) {

@@ -3,14 +3,14 @@
  * better place in the last race), the grid of each race (reverse standings: the leader starts at the back) and the
  * seed of each race. The flow (gp/gp-flow.ts) turns these into shell race requests.
  */
-import { DEFAULT_CAT, Modifier, type CatSpec, type KartLook, type RaceClass, type RacerInfo } from '../../types';
+import { DEFAULT_CAT, Modifier, type CatSpec, type KartLook, type Personality, type RaceClass, type RacerInfo } from '../../types';
 import { CUP_POINTS, cupById, type CupDef } from '../../content/cups';
 import type { CupId } from '../../content/ids';
 import { buildField } from '../../items-ai';
 import { personalityFor } from '../../items-ai/ai/personalities';
 import { kartLookFor } from '../../items-ai';
 import { pinkPawCatSpec, pinkPawWaiting } from '../../share/pinkpaw/pink-paw';
-import type { ClassPick, CupRacer, CupRun } from '../store';
+import { EASE_MAX, type ClassPick, type CupRacer, type CupRun } from '../store';
 
 export const CUP_RACES = 4;
 /** the player's grid slot in race 1 (6th, as in a quick race: overtakes come early) */
@@ -76,6 +76,8 @@ export function newCup(cupId: CupId, cls: ClassPick, seed: number, player: CupPl
     lastPlaces: new Array<number>(8).fill(0),
     history: [],
     rival: -1,
+    ease: 0,
+    easeNews: '',
   };
 }
 
@@ -109,13 +111,58 @@ export function raceField(run: CupRun): { racers: RacerInfo[]; slot: number; gri
   const racers = grid.map((fi) => {
     const r = run.field[fi];
     const info: RacerInfo = { name: r.name, cat: r.cat, kart: r.kart };
-    if (r.ai) info.ai = r.ai;
+    if (r.ai) info.ai = easedSkill(r.ai, run.ease ?? 0);
     if (r.pinkPawId) info.pinkPawId = r.pinkPawId;
     if (r.hat) info.hat = r.hat;
     if (fi === run.rival) info.rival = true;
     return info;
   });
   return { racers, slot: grid.indexOf(playerIndex(run)), grid };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// F13 comeback (ITERATION-4.md): a player stuck at the back of a cup gets a fairer next race; a win takes it away
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** One notch of AI skill (about a quarter of a class's skill band). */
+export const EASE_NOTCH = 0.06;
+/** A 6th–8th place counts as stuck only this far (seconds) behind the winner (or with no finish time). */
+export const EASE_GAP_S = 8;
+/** Skill never eases below this (the AI still drives a sane line). */
+const EASE_FLOOR = 0.3;
+
+/** A cup racer's personality with `notches` of ease (a copy; the field keeps its own skill). */
+export function easedSkill(ai: Personality, notches: number): Personality {
+  if (notches <= 0) return ai;
+  const skill = Math.max(EASE_FLOOR, ai.skill - notches * EASE_NOTCH);
+  // the mistake rate follows the skill as personalityFor ties them ((1 − skill) × the class factor)
+  const mistakeRate = ai.skill < 1 ? (ai.mistakeRate * (1 - skill)) / (1 - ai.skill) : ai.mistakeRate;
+  return { ...ai, skill, mistakeRate };
+}
+
+/**
+ * After a scored race: `place` is the player's, `behind` their seconds behind the winner (null = no finish time).
+ * 6th–8th and more than `EASE_GAP_S` back eases the next race by one notch (at most `EASE_MAX`); a win restores the
+ * full field. Sets `run.easeNews` for the standings line. Grand Prix only (the Daily Cup and dares never call it).
+ */
+export function applyComeback(run: CupRun, place: number, behind: number | null): CupRun['easeNews'] {
+  const prev = run.ease ?? 0;
+  let news: CupRun['easeNews'] = '';
+  if (place === 1 && prev > 0) {
+    run.ease = 0;
+    news = 'restored';
+  } else if (place >= 6 && (behind == null || behind > EASE_GAP_S) && prev < EASE_MAX) {
+    run.ease = prev + 1;
+    news = 'eased';
+  }
+  run.easeNews = news;
+  return news;
+}
+
+/** Mean AI skill of the next race's field (tests, QA). */
+export function meanAiSkill(run: CupRun): number {
+  const ai = raceField(run).racers.filter((r) => r.ai);
+  return ai.reduce((s, r) => s + r.ai!.skill, 0) / Math.max(1, ai.length);
 }
 
 /** Points for a place (1-based). */

@@ -35,7 +35,7 @@ describe('progression strings', () => {
       ...Object.values(TRAIL_INFO).map((h) => h.name),
       ...PAINT_PRESETS.map((p) => p.name),
     ];
-    for (let d = 1; d < 60; d++) for (const id of challengesFor(d, { tracks: ['kitchen'], hasCoins: true, hasBranches: true, hasBattle: true, hasTimeTrial: true })) keys.push(challengeById(id)!.text);
+    for (let d = 1; d < 200; d++) for (const id of challengesFor(d, { tracks: ['kitchen'], hasCoins: true, hasBranches: true, hasBattle: true, hasTimeTrial: true, loopTracks: ['kitchen'], hasJumps: true, hasPieces: true, cutTracks: ['kitchen'] })) keys.push(challengeById(id)!.text);
     expect(keys.filter((k) => !(k in PROGRESSION_EN))).toEqual([]);
   });
 

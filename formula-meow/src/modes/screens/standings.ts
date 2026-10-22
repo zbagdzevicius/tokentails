@@ -49,6 +49,9 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const myPos = now.indexOf(me) + 1;
   const g = f.lastGp;
   if (g) fr.body.append(h('p', { class: 'fm-line' }, [t('You: {p} in the race, +{n} points, {s} overall', { p: ordinal(g.place), n: g.gained, s: ordinal(myPos) })]));
+  // F13 comeback: what the last race did to the field's pace (only while a race is still to come)
+  if (!done && run.easeNews === 'eased') fr.body.append(h('p', { class: 'fm-m-ease', 'data-ease': 'eased', role: 'status' }, [t('😼 The cats eased off: catch them!')]));
+  else if (!done && run.easeNews === 'restored') fr.body.append(h('p', { class: 'fm-m-ease restored', 'data-ease': 'restored', role: 'status' }, [t('🏆 A win! The cats are back at full speed.')]));
   // count the points up, then slide the rows into their new places (Mario Kart's tension beat between races)
   const countUp = () => {
     const t0 = performance.now();
