@@ -323,6 +323,8 @@ export class MatchSession {
     });
     this.view.juice.stage = this.stage;
     this.view.juice.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
+    // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
+    this.view.peek = (h, out) => this.buffer.peekEvents(h, out);
     this.overhead = new Overhead(this.ui);
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
     this.minimap = new Minimap(this.ui, {
@@ -371,6 +373,8 @@ export class MatchSession {
     // perf-2: which loop runs this match and how many Worker starts failed first (e2e reads it)
     if (this.e2e) document.documentElement.dataset.simHost = `${this.host.kind}:${this.host.restarts}`;
     this.view.setTeam(w.slot, w.team, w.tricks);
+    // ANIM-SPEC §13: the heroes' move sets and skill FX load with the match (their own lazy chunks)
+    void this.view.loadAnim(w.picks);
     this.objClock = new ObjectiveClock(w.team);
     this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
     const shown = this.view.dressBots(w.seed, w.picks, this.setup.showcase ?? []);
@@ -995,8 +999,10 @@ export class MatchSession {
     const me = this.welcome.slot;
     const won = result.outcome === 'won';
     this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad' });
+    // the winners' own victory loops (render only)
+    if (result.outcome === 'won' || result.outcome === 'lost') this.view.director.victory(won ? this.welcome.team : 1 - this.welcome.team);
     // slow-mo on the final blow (fun plan F2 item 1), the crowd, and the music bows out
-    this.view.juice.slowmo(1200, 0.25);
+    this.view.juice.slowmo(1200, 0.25, true);
     if (won) {
       sfx.play('roar');
       sfx.play('cheer', { vol: 0.8 });
@@ -1516,6 +1522,13 @@ export class MatchSession {
         else if (e.kind === 'tower') towers++;
       }
       d.units = `${heroes},${minions},${towers}`;
+      // the fight camera's team-fight flag and the living heroes within 12 m of the player (anim captures)
+      d.fight = this.view.fightCam.fight ? '1' : '';
+      d.team = String(this.view.myTeam);
+      let near = 0;
+      if (me)
+        for (const e of frame.entities) if (e.kind === 'hero' && e.state !== 'dead' && Math.hypot(e.x - me.x, e.y - me.y) < 12000) near++;
+      d.near = String(near);
       // GAPS B2 (forfeit.spec.ts): the match tick, so a test can wait for the Forfeit time
       d.tick = String(frame.latest.clock.tick);
       // First-match tips (first-match.spec.ts): the tip on screen, those shown and done, and where on screen the

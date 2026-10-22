@@ -183,10 +183,11 @@ uniform float uTime;
 mat3 plRz(float a){ float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
 mat3 plRy(float a){ float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
 mat3 plRx(float a){ float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
-// aAnim: x walk phase, y walk weight, z attack swing (1 at the start, decaying), w hit (1 decaying)
+// aAnim: x walk phase, y walk weight, z weapon arm (minionInstances.ts minionArm: < 0 cocked back, 1 the strike on the
+// contact, > 1 the overshoot, back to 0 on the follow-through), w hit (1 decaying)
 mat3 plUpright(float p){
   float s = sin(aAnim.x) * aAnim.y;
-  float sw = sin(clamp(aAnim.z, 0.0, 1.0) * 3.14159);
+  float sw = aAnim.z;
   float idle = sin(uTime * 2.1 + aAnim.x * 0.3);
   if (p < 0.5) return mat3(1.0);
   if (p < 1.5) return plRz(idle * 0.04 - sw * 0.2 - aAnim.w * 0.35 + aAnim.y * sin(aAnim.x * 2.0) * 0.05);

@@ -70,9 +70,11 @@ export interface EffectsHooks {
   myTeam: number;
   /** Paw Trick per slot (welcome). */
   trickOf(slot: number): TrickId;
-  onSwing(id: number): void;
+  /** A basic hit landed from `id` (`tick`: the hit's tick, for the animation director's BasicClock). */
+  onSwing(id: number, tick?: number): void;
   onCast(id: number): void;
-  onHit(id: number, kind: string, heavy: boolean): void;
+  /** `src`: who hit (directional reactions). */
+  onHit(id: number, kind: string, heavy: boolean, src?: number): void;
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
   /** Returns true when the session shows its own ultimate prompt (goal chip or tip): no ULTIMATE READY banner then. */
   onLevel?(level: number): boolean | void;
@@ -86,6 +88,10 @@ export interface EffectsHooks {
   onPickupTaken?(kind: PickupKind, who: Who | null): void;
   /** A core fell (the match is ending): the session pushes the camera in. */
   onCoreDown?(who: Who): void;
+  /** A tower or core winds up a shot (any lock-on windup, `seconds` long): the structure's charge. */
+  onStructureWindup?(id: number, seconds: number): void;
+  /** A tower or core fell: its fall animation (render only). */
+  onStructureFell?(id: number): void;
   /**
    * Wave C (C4): what a hero's card skin adds (render/skins/cardFx.ts), or null (Common, no card, or the Skin effects
    * setting hides it). Cosmetic only: colours and accents, never a size, a stat or anything the sim reads.
@@ -97,6 +103,23 @@ const _p = new THREE.Vector3();
 const _np = new THREE.Vector3();
 const _d = new THREE.Vector3();
 
+/**
+ * The animation director's side of the effects (render/anim/director.ts, ANIM-SPEC §2): per-hero skill FX, local
+ * hit-stop, reactions, ult moments. Null keeps the older looks (tests, the lobby).
+ */
+export interface AnimFxHooks {
+  /** A cast fired: true when the hero's SkillFxSet drew this slot (the generic shape switch is skipped). */
+  castFired(e: Extract<SimEvent, { type: 'cast' }>): boolean;
+  windupFired(e: Extract<SimEvent, { type: 'windup' }>): void;
+  /** A hit fired: reactions, local freezes (§6). True when a SkillFxSet drew its hit. */
+  hitFired(e: Extract<SimEvent, { type: 'hit' }>, srcIsHero: boolean, dstIsHero: boolean, big: boolean): boolean;
+  deathFired(e: Extract<SimEvent, { type: 'death' }>): void;
+  /** A hero levelled up (seen now): its own level-up flourish. Optional. */
+  levelFired?(id: number): void;
+  /** The own / enemy / ally ult moment (§8). True when it showed (the callout is skipped). */
+  ult(src: Who, mine: boolean, name: string, color: number, aimedAtMe: boolean): boolean;
+}
+
 export class Effects {
   readonly numbers: DamageNumbers;
   readonly windups: ActiveWindup[] = [];
@@ -107,6 +130,8 @@ export class Effects {
   vfx: CombatVfx | null = null;
   /** Wave C (C4) card-tier extras (paw bursts, sparkles, flourishes); null = none (tests, the lobby). */
   cards: CardVfx | null = null;
+  /** ANIM-SPEC: authored animation and skill FX (render/anim/); null = the older looks (tests, the lobby). */
+  anim: AnimFxHooks | null = null;
 
   constructor(
     private readonly particles: Particles,
@@ -225,15 +250,18 @@ export class Effects {
     const dst = this.hooks.who(e.dst);
     const src = this.hooks.who(e.src);
     const me = this.hooks.mySlot;
-    if (src && e.kind === 'basic') this.hooks.onSwing(e.src);
+    if (src && e.kind === 'basic') this.hooks.onSwing(e.src, e.tick);
     if (!dst) return;
     const heroDst = dst.kind === 'hero';
     const heavy = e.kind === 'ability' || e.amount >= 120;
-    this.hooks.onHit(e.dst, dst.kind, heavy);
+    this.hooks.onHit(e.dst, dst.kind, heavy, e.src);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
     const color = src ? (src.team === 0 ? 0xffd27a : 0xc9a8ff) : 0xffffff;
     // Wave C (C3): sparks and flash sized by the damage, element-tinted from a hero; a big hit on a hero pops
     const big = !!src && src.kind === 'hero' && (e.kind === 'basic' || e.kind === 'ability') && isBigHit(e.amount, dst.maxHp ?? 0, heroDst);
+    // local hit-stop and reactions (ANIM-SPEC §6) replace most of the global hitstop
+    const anim = this.anim;
+    if (anim) anim.hitFired(e, src?.kind === 'hero', heroDst, big);
     if (this.vfx) this.vfxHit(e, src, dst, pos, color, big);
     else this.particles.burst(pos, {
       additive: true,
@@ -260,7 +288,9 @@ export class Effects {
     if (e.src === me) {
       this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
       if (heroDst) {
-        this.juice.hitstop(big ? 70 : e.kind === 'ability' ? 55 : 28);
+        // with the director: local freezes only, the global one for a heavy finisher (≤ 55 ms, §6)
+        if (!anim) this.juice.hitstop(big ? 70 : e.kind === 'ability' ? 55 : 28);
+        else if (big) this.juice.hitstop(55);
         this.juice.kick(big ? 0.2 : e.kind === 'ability' ? 0.16 : 0.08);
       }
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
@@ -290,6 +320,12 @@ export class Effects {
     if (card && src) this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
     const ground = dst.kind === 'hero' || dst.kind === 'minion' || dst.kind === 'camp' || dst.kind === 'pudding';
     if (ground && (e.kind === 'ability' || big)) vfx.debris(dst.x, dst.z, big ? 1 : 0.5);
+    // a tower / core shot lands with weight: a ground ring in the shooter's relation colour and a little debris
+    if (e.kind === 'tower' && ground) {
+      const c = src && src.team === this.hooks.myTeam ? '#FFD34D' : '#FF5A4D';
+      this.shock.start(this.at(dst, 0.05), { r1: dst.kind === 'hero' ? 2.2 : 1.5, dur: 0.24, color: c, height: 0.35 });
+      vfx.debris(dst.x, dst.z, dst.kind === 'hero' ? 0.7 : 0.4);
+    }
     if (e.kind === 'ability' && src?.hero && HEROES[src.hero].element === 'ELECTRIC' && Math.hypot(dst.x - src.x, dst.z - src.z) < 9) {
       vfx.lightning(src.x, 1.2, src.z, dst.x, pos.y, dst.z, el);
     }
@@ -304,6 +340,8 @@ export class Effects {
     const src = this.hooks.who(e.src);
     if (!src) return;
     this.hooks.onCast(e.src);
+    // the hero's own skill FX (render/skillfx/<hero>.ts) when it owns this slot; else the generic shape below
+    const owned = this.anim !== null && src.kind === 'hero' && this.anim.castFired(e);
     const aim = this.aimOf(src, e.slot);
     const tx = e.x / 1000;
     const tz = -e.y / 1000;
@@ -330,15 +368,22 @@ export class Effects {
       if (vfx) {
         const rel = mine ? RELATION.self : src.team === this.hooks.myTeam ? RELATION.ally : RELATION.danger;
         const r = ((aim?.radius ?? aim?.range ?? 4000) / 1000) * (aim?.shape === 'ring' ? 1 : 0.6);
-        vfx.ultimate(src.x, src.z, accent, rel, r, rk);
+        // a hero whose own skill FX draws the ult keeps only the relation mark (no generic pillar or cracks over it)
+        if (owned) vfx.ultimateMark(src.x, src.z, accent, rel);
+        else vfx.ultimate(src.x, src.z, accent, rel, r, rk);
         this.cards?.signature(src.x, src.z, ultWaveRadius(r, rk), card);
       } else this.particles.ring(this.at(src, 0.1), { n: 22, r0: 0.5, speed: [4, 6], up: 1.2, color: accent, alpha: 0.9, additive: true, size: [0.3, 0.45], shape: SHAPE.STAR4, intensity: 1.6 });
+      const name = src.hero ? ultName(src.hero) : 'Ultimate!';
+      const me = this.hooks.who(this.hooks.mySlot);
+      const atMe = !mine && src.team !== this.hooks.myTeam && !!me && (e.target === this.hooks.mySlot || Math.hypot(me.x - tx, me.z - tz) < 5);
+      const shown = this.anim?.ult(src, mine, name, accent, atMe) === true;
       if (mine) {
         this.juice.kick(0.2);
-        this.juice.callout(src.hero ? ultName(src.hero) : 'Ultimate!', 'gold');
+        if (!shown) this.juice.callout(name, 'gold');
       }
     }
     if (e.slot === 4) return this.trick(src, e.x, e.y, mine);
+    if (owned) return;
     if (src.branch && this.branchCast(src, e.slot, yaw, aim, mine)) return;
     const shape = aim?.shape ?? 'none';
     const range = (aim?.range ?? 2000) / 1000;
@@ -453,8 +498,10 @@ export class Effects {
   private windup(e: Extract<SimEvent, { type: 'windup' }>): void {
     if (e.ticks <= 0) return;
     this.windups.push({ src: e.src, slot: e.slot, x: e.x, y: e.y, start: e.tick, ticks: e.ticks });
+    this.anim?.windupFired(e);
     const src = this.hooks.who(e.src);
     if (!src) return;
+    if (src.kind === 'tower' || src.kind === 'core') this.hooks.onStructureWindup?.(e.src, e.ticks / 30);
     if ((src.kind === 'tower' || src.kind === 'core') && src.team !== this.hooks.myTeam) {
       // tower lock-on (fun plan S5): the red line and ring are drawn by the session's overlay
       const me = this.hooks.who(this.hooks.mySlot);
@@ -479,6 +526,7 @@ export class Effects {
     const v = this.hooks.who(e.id);
     const k = this.hooks.who(e.killer);
     this.hooks.onKill?.(e, v, k);
+    if (v?.kind === 'hero') this.anim?.deathFired(e);
     if (!v) return;
     const pos = this.at(v, 0.6);
     if (v.kind === 'hero') {
@@ -491,7 +539,8 @@ export class Effects {
       sfx.play('death', { at: v });
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {
-        this.juice.hitstop(120, 0.08);
+        // the killing blow: the killer freezes locally (140 ms); the global hitstop stays short (≤ 70 ms, §6)
+        this.juice.hitstop(this.anim ? 70 : 120, 0.08);
         this.juice.kick(0.3);
       }
       if (e.id === this.hooks.mySlot) this.juice.kick(0.35);
@@ -515,6 +564,7 @@ export class Effects {
     // gold-family element is mixed toward white.
     const seen = this.hooks.visible?.(e.id) !== false;
     if (v && v.kind === 'hero' && v.hero && seen) this.vfx?.levelSpike(v.x, v.z, e.level, auraColor(v.hero, e.id === this.hooks.mySlot));
+    if (v && seen && v.kind === 'hero') this.anim?.levelFired?.(e.id);
     if (v && seen) {
       this.particles.ring(this.at(v, 0.1), { n: 18, r0: 0.6, speed: [1.5, 2.5], up: 2.4, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
       this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.6, size0: 0.5, size1: 3.5, life: 0.45, grow: GROW.OUT });
@@ -553,10 +603,11 @@ export class Effects {
 
   /** A tower or core falls: the shake, the core's slow motion and camera push, shockwave rings, shards, stars, dust. */
   private structureFell(v: Who, what: 'tower' | 'core'): void {
+    this.hooks.onStructureFell?.(v.id);
     sfx.play('boom');
     this.juice.kick(what === 'core' ? 0.7 : 0.45);
     if (what === 'core') {
-      this.juice.slowmo(1200, 0.25);
+      this.juice.slowmo(1200, 0.25, true);
       this.hooks.onCoreDown?.(v);
     }
     for (let i = 0; i < 3; i++) this.shock.start(this.at(v, 0), { r1: 4 + i * 2.5, dur: 0.4 + i * 0.15, color: i === 0 ? '#FFD34D' : '#FFE0C8', height: 0.6 });

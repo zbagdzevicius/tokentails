@@ -85,6 +85,22 @@ export class SnapBuffer {
   }
 
   /**
+   * Events not fired yet whose tick is within `horizonTicks` of the render clock, in order (read-only: nothing is
+   * removed; `out` is cleared and reused). The animation director binds clips to them a few frames ahead
+   * (ANIM-SPEC §4.1: ≈ INTERP_LAG ticks of lookahead).
+   */
+  peekEvents(horizonTicks: number, out: SimEvent[]): SimEvent[] {
+    out.length = 0;
+    const t = this.renderTick + horizonTicks;
+    for (let k = 0; k < this.pendingEvents.length; k++) {
+      const e = this.pendingEvents[k];
+      if (e.tick > t + 0.001) break;
+      out.push(e);
+    }
+    return out;
+  }
+
+  /**
    * Advance the render clock by `dt` seconds (scaled by `scale`: 0 freezes, for hitstop) and keep it near
    * newest − INTERP_LAG. Returns the interpolated frame, or null before the first snapshot.
    */

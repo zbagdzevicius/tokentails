@@ -636,6 +636,31 @@ export class CombatVfx {
    * An ultimate: a ground wave in the relation colour (an enemy ultimate reads red as a threat, ours rose, yours
    * gold), a pillar in the element colour, a ring of sparks, and ground cracks on Med and High. `k` grows with the rank.
    */
+  /**
+   * The ult's "who" mark only (a hero whose own skill FX draws the ult): one relation-coloured ring at the caster and a
+   * star burst, no pillar, cracks or debris that would compete with (or misplace) the hero's own shape.
+   */
+  ultimateMark(x: number, z: number, color: number, relation: number): void {
+    _a.set(x, 0, z);
+    this.shock.start(_a, { r1: 3.2, dur: 0.38, color: css(relation), height: 0.8, intensity: 1.4 });
+    _a.set(x, 0.15, z);
+    const o = this.o.reset();
+    o.additive = true;
+    o.n = 14;
+    o.shape = SHAPE.STAR4;
+    o.color = color;
+    o.intensity = 1.6;
+    o.sizes(0.25, 0.4);
+    o.sizeEnd = 1;
+    o.lives(0.35, 0.55);
+    o.speeds(3, 5);
+    o.up = 1.2;
+    o.drag = 3;
+    o.r0 = 0.5;
+    o.alpha = 0.9;
+    this.particles.ring(_a, o);
+  }
+
   ultimate(x: number, z: number, color: number, relation: number, radius: number, k = 1): void {
     _a.set(x, 0, z);
     const r1 = Math.min(9, Math.max(3.5, radius)) * (0.85 + 0.15 * k);

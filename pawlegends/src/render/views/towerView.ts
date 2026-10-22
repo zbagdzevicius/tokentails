@@ -2,9 +2,14 @@
  * Structures and objectives: towers, cores, fountains, rat camp monsters and Pudding. Towers flash and shudder when
  * hit, show a shimmer while invulnerable and a dashed range ring when the player's hero walks near an enemy tower;
  * a destroyed structure leaves rubble. Render only.
+ *
+ * Weight: a shooting tower or core charges before each shot (a glow and a crouch over the last 40% of its 1 s period,
+ * or over a lock-on windup), and fires with a recoil (a stretch that rings out) and a muzzle burst on the frame its
+ * bolt appears; a falling tower or core flashes, swells, tilts and sinks into the ground (0.7 s; the core 1.1 s, its
+ * slow motion runs over it) before the rubble is left. Nothing allocates per frame.
  */
 import * as THREE from 'three';
-import { TOWERS } from '../../data/towers';
+import { CORE_STATS, TOWERS } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
@@ -27,7 +32,20 @@ interface Structure {
   x: number;
   z: number;
   alive: boolean;
+  /** Last shot (render s), a lock-on windup (start, length s), the fall clock (s, −1 = standing). */
+  shotAt: number;
+  lockAt: number;
+  lockLen: number;
+  dieT: number;
+  /** Tilt direction for the fall (rad about the vertical), the structure height (m). */
+  fallDir: number;
+  height: number;
+  team: number;
+  stamp: number;
 }
+
+/** Shot rhythm (s) and the charge / recoil / fall shapes. */
+export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30, corePeriod: CORE_STATS.attackEvery / 30, chargeFrom: 0.6, crouch: 0.05, glow: 0.4, recoil: 0.08, fallTower: 0.7, fallCore: 1.1 });
 
 const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
 /**
@@ -49,6 +67,16 @@ export class StructureView {
   private ranges = new DecalLayer(dashRingTexture(), 8, { additive: true, y: 0.06, name: 'tower-ranges' });
   private geoCache = new Map<string, THREE.BufferGeometry>();
   private time = 0;
+  private stamp = 0;
+  /** Projectile owner / last-seen stamp per pool index (a new bolt from a tower or core is its shot). */
+  private readonly projOwner = new Int32Array(512);
+  private readonly projStamp = new Int32Array(512);
+  /** Reduce motion: no tilt or sink, a short fade of the fall; no crouch / recoil. */
+  reduced = false;
+  /** A tower / core shot left at (x, y, z) m (gameView: the muzzle burst). */
+  onShot: ((x: number, y: number, z: number, team: number) => void) | null = null;
+  /** A fall finished at (x, z) (gameView: the dust settling). */
+  onFallen: ((x: number, z: number, core: boolean) => void) | null = null;
   myTeam: 0 | 1 = 0;
   /** Round 2: team 0 is the dogs (the human picked a dog): each base wears the other team's style. */
   styleSwap = false;
@@ -108,10 +136,41 @@ export class StructureView {
         bubble.visible = false;
         mesh.add(bubble);
       }
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true };
+      mesh.geometry.computeBoundingBox();
+      const height = mesh.geometry.boundingBox ? mesh.geometry.boundingBox.max.y : 4;
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: (e.id * 2.39996) % (Math.PI * 2), height, team: e.team, stamp: 0 };
       this.items.set(e.id, s);
     }
     return s;
+  }
+
+  /** Tower / core `id` fell (the sim's tower event, the core's death): its fall starts now, once. */
+  fell(id: number): void {
+    const s = this.items.get(id);
+    if (!s || !s.alive || (s.kind !== 'tower' && s.kind !== 'core')) return;
+    s.alive = false;
+    s.dieT = 0;
+    s.flash = 1;
+    if (s.bubble) s.bubble.visible = false;
+  }
+
+  /** A lock-on windup on tower / core `id` for `seconds` (the charge builds over it). */
+  windup(id: number, seconds: number): void {
+    const s = this.items.get(id);
+    if (!s || (s.kind !== 'tower' && s.kind !== 'core')) return;
+    s.lockAt = this.time;
+    s.lockLen = Math.max(0.05, seconds);
+  }
+
+  /** Charge 0..1 before the next shot (the lock-on windup, else the shot rhythm while it keeps shooting). */
+  private charge(s: Structure): number {
+    const lt = this.time - s.lockAt;
+    if (lt >= 0 && lt < s.lockLen) return lt / s.lockLen;
+    const P = s.kind === 'core' ? STRUCT_ANIM.corePeriod : STRUCT_ANIM.period;
+    const f = (this.time - s.shotAt) / P;
+    if (f < 0 || f > 1.6) return 0;
+    const c = (f - STRUCT_ANIM.chargeFrom) / (1 - STRUCT_ANIM.chargeFrom);
+    return c <= 0 ? 0 : c >= 1 ? 1 : c * c;
   }
 
   hit(id: number): void {
@@ -127,13 +186,31 @@ export class StructureView {
 
   update(frame: ViewFrame, dt: number): void {
     this.time += dt;
-    const seen = new Set<number>();
+    const stamp = ++this.stamp;
     this.ranges.begin();
+    // a new bolt owned by a tower or core is its shot (the recoil and muzzle burst on that frame)
+    const ps = frame.projectiles;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      if (p.index < 0 || p.index >= this.projOwner.length) continue;
+      if (this.projStamp[p.index] !== stamp - 1 || this.projOwner[p.index] !== p.owner + 1) {
+        const s = this.items.get(p.owner);
+        if (s && s.alive && (s.kind === 'tower' || s.kind === 'core')) {
+          s.shotAt = this.time;
+          s.lockAt = -99;
+          s.flash = Math.max(s.flash, 0.55);
+          this.onShot?.(s.x, s.height * 0.85, s.z, s.team);
+        }
+      }
+      this.projOwner[p.index] = p.owner + 1;
+      this.projStamp[p.index] = stamp;
+    }
     for (const e of frame.entities) {
       // pickups have their own view (views/pickupView.ts)
       if (!STRUCTURE_KINDS.has(e.kind)) continue;
-      seen.add(e.id);
       const s = this.ensure(e);
+      s.stamp = stamp;
+      if (s.dieT >= 0) continue;
       s.alive = true;
       s.mesh.visible = true;
       s.x = toX(e.fx);
@@ -154,6 +231,16 @@ export class StructureView {
         s.mesh.scale.set(1 + w * 0.04 + s.shake * 0.1, 1 - w * 0.05 - s.shake * 0.12, 1 + w * 0.04 + s.shake * 0.1);
       } else {
         s.mesh.position.set(s.x + jx, 0, s.z);
+        if (e.kind === 'tower' || e.kind === 'core') {
+          // charge (a crouch and a glow) and the recoil that rings out after a shot
+          const c = this.charge(s);
+          const ts = this.time - s.shotAt;
+          const rec = this.reduced || ts > 0.6 ? 0 : Math.exp(-ts * 9) * Math.cos(ts * 28) * STRUCT_ANIM.recoil;
+          const sy = 1 - (this.reduced ? 0 : c * STRUCT_ANIM.crouch) + rec;
+          const sx = 1 / Math.sqrt(sy);
+          s.mesh.scale.set(sx, sy, sx);
+          s.flash = Math.max(s.flash, c * STRUCT_ANIM.glow);
+        }
       }
       if (e.kind === 'tower' || e.kind === 'core') {
         const scale = e.kind === 'core' ? 1.6 : 1;
@@ -184,10 +271,20 @@ export class StructureView {
       }
     }
     for (const [id, s] of this.items) {
-      if (seen.has(id) || !s.alive) continue;
+      if (s.dieT >= 0) {
+        this.fall(s, dt);
+        continue;
+      }
+      if (s.stamp === stamp || !s.alive) continue;
       s.alive = false;
+      if (s.kind === 'tower' || s.kind === 'core') {
+        // the fall plays out before the rubble is left
+        s.dieT = 0;
+        s.flash = 1;
+        if (s.bubble) s.bubble.visible = false;
+        continue;
+      }
       s.mesh.visible = false;
-      if (s.kind === 'tower' || s.kind === 'core') this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4);
       if (s.kind === 'camp' || s.kind === 'pudding') {
         this.items.delete(id);
         s.material.dispose();
@@ -195,6 +292,39 @@ export class StructureView {
       }
     }
     this.ranges.end();
+  }
+
+  /** A tower or core falling: a flash and swell, then it tilts and sinks into the ground; the rubble at the end. */
+  private fall(s: Structure, dt: number): void {
+    const L = s.kind === 'core' ? STRUCT_ANIM.fallCore : STRUCT_ANIM.fallTower;
+    s.dieT += dt;
+    const u = Math.min(1, s.dieT / L);
+    if (u >= 1) {
+      s.dieT = -1;
+      s.mesh.visible = false;
+      s.mesh.rotation.x = 0;
+      s.mesh.rotation.z = 0;
+      s.rig.uOpacity.value = 1;
+      this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4);
+      this.onFallen?.(s.x, s.z, s.kind === 'core');
+      return;
+    }
+    s.flash = Math.max(0, 1 - u * 3);
+    s.rig.uFlashK.value = s.flash * 0.8;
+    s.rig.uTime.value = this.time;
+    if (this.reduced) {
+      s.mesh.scale.setScalar(1 - u * 0.5);
+      return;
+    }
+    // swell (0–20%), then tilt and sink with a shudder
+    const swell = u < 0.2 ? Math.sin((u / 0.2) * Math.PI) * 0.08 : 0;
+    const sink = u < 0.2 ? 0 : ((u - 0.2) / 0.8) ** 2;
+    const shud = Math.sin(this.time * 60) * 0.06 * (1 - u);
+    s.mesh.position.set(s.x + shud, -s.height * 0.75 * sink, s.z);
+    const tilt = 0.4 * sink;
+    s.mesh.rotation.x = Math.cos(s.fallDir) * tilt;
+    s.mesh.rotation.z = Math.sin(s.fallDir) * tilt;
+    s.mesh.scale.set(1 + swell, (1 + swell) * (1 - 0.35 * sink), 1 + swell);
   }
 
   /** Last drawn ground position of a structure. */
