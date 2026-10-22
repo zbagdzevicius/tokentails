@@ -134,7 +134,10 @@ const EASE_FLOOR = 0.3;
 /** A cup racer's personality with `notches` of ease (a copy; the field keeps its own skill). */
 export function easedSkill(ai: Personality, notches: number): Personality {
   if (notches <= 0) return ai;
-  return { ...ai, skill: Math.max(EASE_FLOOR, ai.skill - notches * EASE_NOTCH) };
+  const skill = Math.max(EASE_FLOOR, ai.skill - notches * EASE_NOTCH);
+  // the mistake rate follows the skill as personalityFor ties them ((1 − skill) × the class factor)
+  const mistakeRate = ai.skill < 1 ? (ai.mistakeRate * (1 - skill)) / (1 - ai.skill) : ai.mistakeRate;
+  return { ...ai, skill, mistakeRate };
 }
 
 /**
