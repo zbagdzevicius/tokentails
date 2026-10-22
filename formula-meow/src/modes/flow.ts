@@ -29,8 +29,11 @@ import type { Replay } from '../core/sim/replay';
 import type { HudModel } from '../core/hud/hud';
 import { modal, toast } from '../ui/kit';
 import { t } from '../ui/i18n';
-import { buildCupField, cupDef, cupOutcome, newCup, raceField, raceModifiers, raceSeed, scoreRace, simClass, standings, type CupPlayer } from './gp/cup';
-import { clsKey, modesSlot, type ClassPick, type CupRun, type GhostPick, type ModesSave, type TtRecord } from './store';
+import { applyComeback, buildCupField, cupDef, cupOutcome, newCup, raceField, raceModifiers, raceSeed, scoreRace, simClass, standings, type CupPlayer } from './gp/cup';
+import { clsKey, modesSlot, type ClassPick, type CupRun, type GhostPick, type MemoMode, type ModesSave, type TtRecord } from './store';
+import { mutatorById, wildModifiers, type WildPick } from './mutators';
+import { Modifier } from '../types';
+import { classLabel } from './screens/ui';
 import { pickRival, unlockProvider, type LockKind } from './hooks';
 // [integrator] one loadout: the racer select and the Garage read and write the progression lane's equip
 import { loadout as progLoadout, setLoadout as setProgLoadout, recordMedal } from '../progression/api';
@@ -402,6 +405,10 @@ export class ModesFlow {
     for (const row of result.places) placeBySlot[row.kart] = row.place;
     const gained = scoreRace(run, p.grid, placeBySlot);
     this.lastGained = gained;
+    // F13 comeback: stuck at the back and far behind eases the next race; a win restores the field
+    const winner = result.places[0]?.time;
+    const mine = result.player.time;
+    applyComeback(run, result.player.place, mine != null && winner != null ? mine - winner : null);
     const me = run.field.findIndex((r) => r.player);
     this.lastGp = { cupId: run.cupId, race: p.race, gained: gained[me], place: result.player.place, standing: standings(run).indexOf(me) + 1 };
     this.update((x) => (x.cup = run));
@@ -461,6 +468,7 @@ export class ModesFlow {
       s.last.cls = cls;
       if (run.rival >= 0) s.lastRival = run.field[run.rival].name;
     });
+    this.remember('gp');
     this.runCupRace();
   }
 
@@ -589,6 +597,7 @@ export class ModesFlow {
       s.last.ttCls = cls;
       s.last.ghost = ghostPick;
     });
+    this.remember('tt');
     const ticket = this.ttStart.begin();
     const track = trackById(trackId);
     const modifiers = cls === 3 ? 1 : 0;
@@ -663,6 +672,7 @@ export class ModesFlow {
   }
 
   startBattle(): void {
+    this.remember('battle');
     const seed = newSeed();
     const cls = this.battleClass();
     const field = buildCupField(seed, cls as ClassPick, this.player());
@@ -718,18 +728,99 @@ export class ModesFlow {
   // Single race ([integrator]): any track, any unlocked class, the usual Again / Next / Menu results
   // ------------------------------------------------------------------------------------------------------------------
 
-  startQuick(trackId: string, cls: ClassPick): void {
+  /**
+   * One race. `wild`: the Wild Card (F11): none, a mutator, or "Surprise me" (one mutator the class allows, dealt
+   * now; the grid banner reveals it). The mutator rides in the race's modifiers, so Again replays it and a dare from
+   * the results carries it in the ghost header.
+   */
+  startQuick(trackId: string, cls: ClassPick, wild: WildPick = this.save.last.quickWild): void {
     this.update((s) => {
       s.last.quickTrack = trackId;
       s.last.quickCls = cls;
+      s.last.quickWild = wild;
     });
+    this.remember('race');
     const sim = simClass(cls);
     this.pending = null;
     this.ttGhost?.arm(null);
     this.clearForRace();
     // the results' Next keeps this class (the shell reads its settings)
     this.shell.updateSettings({ cls: sim });
-    void this.shell.startRace({ track: trackById(trackId), cls: sim, seed: newSeed(), modifiers: cls === 3 ? 1 : 0, mode: 'race', playerKart: this.kartLook() });
+    const modifiers = (cls === 3 ? Modifier.Mirror : 0) | wildModifiers(wild, sim);
+    void this.shell.startRace({ track: trackById(trackId), cls: sim, seed: newSeed(), modifiers, mode: 'race', playerKart: this.kartLook() });
+  }
+
+  // ------------------------------------------------------------------------------------------------------------------
+  // F13: one-tap menu tiles ("Grand Prix ▶ Kibble · 100cc"), the setup remembered per mode
+  // ------------------------------------------------------------------------------------------------------------------
+
+  /** Keep the racer this mode was started with (and mark its picks as made). */
+  private remember(mode: MemoMode): void {
+    const cat = this.look.cat;
+    this.update((s) => (s.memo[mode] = { cat, set: true }));
+  }
+
+  /** The cat a mode starts with: the one remembered for it if the player still has it, else the current look's. */
+  modeCat(mode: MemoMode): string {
+    const m = this.save.memo[mode];
+    const choices = this.catChoices();
+    return m.cat && choices.some((c) => c.id === m.cat) ? m.cat : this.look.cat;
+  }
+
+  /** A class pick that is still open (a remembered class can lock again after a reset; 50cc is always open). */
+  private openClass(c: ClassPick): ClassPick {
+    return c !== 0 && this.lock('class', c) ? 0 : c;
+  }
+
+  /** The setup a mode's tile starts, as it reads on the tile ("Kibble Cup · 50cc Kitten"). */
+  tileSetup(mode: MemoMode): { line: string; cat: string | null } {
+    const s = this.save;
+    const cat = this.modeCat(mode);
+    const catName = cat !== this.look.cat ? (this.catChoices().find((c) => c.id === cat)?.name ?? null) : null;
+    if (mode === 'gp') {
+      const cupId = this.lock('cup', s.last.cupId) ? 'kibble' : s.last.cupId;
+      const cup = cupById(cupId);
+      return { line: `${t(cup?.name ?? '')} · ${classLabel(this.openClass(s.last.cls))}`, cat: catName };
+    }
+    if (mode === 'race') {
+      const cls = this.openClass(s.last.quickCls);
+      const wild = s.last.quickWild;
+      const m = wild === 'surprise' ? '🎲' : wild !== 'none' ? (mutatorById(wild)?.icon ?? '') : '';
+      return { line: `${trackById(s.last.quickTrack).name} · ${classLabel(cls)}${m ? ` · ${m}` : ''}`, cat: catName };
+    }
+    if (mode === 'tt') return { line: `${trackById(s.last.ttTrack).name} · ${classLabel(this.openClass(s.last.ttCls))}`, cat: catName };
+    return { line: t('Rug arena · 2:30'), cat: catName };
+  }
+
+  /**
+   * Start a mode in one tap with what it remembers. Returns false when the mode has no picks yet (the tile opens the
+   * pickers instead, so a first Grand Prix still shows the class and cup). A Grand Prix over a cup in progress asks.
+   */
+  oneTap(mode: MemoMode): boolean {
+    if (!this.save.memo[mode].set) return false;
+    const cat = this.modeCat(mode);
+    if (cat !== this.look.cat) this.setLook((l) => (l.cat = cat));
+    const s = this.save;
+    if (mode === 'gp') {
+      const cupId = this.lock('cup', s.last.cupId) ? 'kibble' : s.last.cupId;
+      const cls = this.openClass(s.last.cls);
+      if (!this.cupInProgress()) this.startCup(cupId, cls);
+      else
+        void modal(t('Start a new cup?'), t('The cup in progress will be dropped.'), [t('Start new'), t('Cancel')]).then((i) => {
+          if (i === 0) this.startCup(cupId, cls);
+        });
+      return true;
+    }
+    if (mode === 'race') {
+      this.startQuick(s.last.quickTrack, this.openClass(s.last.quickCls), s.last.quickWild);
+      return true;
+    }
+    if (mode === 'tt') {
+      void this.startTt(s.last.ttTrack, this.openClass(s.last.ttCls), s.last.ghost).catch(() => this.toast(t('That did not load. Try again.')));
+      return true;
+    }
+    this.startBattle();
+    return true;
   }
 
   // ------------------------------------------------------------------------------------------------------------------

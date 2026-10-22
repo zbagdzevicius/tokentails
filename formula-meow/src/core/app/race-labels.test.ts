@@ -7,7 +7,10 @@ describe('results class label and Next (Mirror single race)', () => {
   it('a mirrored 150cc race says Mirror, not 150cc Zoomies', () => {
     expect(raceClassLabel(2, 0)).toBe('Zoomies 150cc');
     expect(raceClassLabel(2, Modifier.Mirror)).toBe('Mirror');
-    expect(raceClassLabel(0, Modifier.Mirror | Modifier.Night)).toBe('Kitten 50cc · Mirror');
+    expect(raceClassLabel(0, Modifier.Mirror)).toBe('Kitten 50cc · Mirror');
+    // F11: a Wild Card mutator follows the class
+    expect(raceClassLabel(0, Modifier.Mirror | Modifier.Night)).toBe('Kitten 50cc · Mirror · Night');
+    expect(raceClassLabel(1, Modifier.BoxParty)).toBe('Alley Cat 100cc · Box Party');
   });
 
   it('Next keeps the mirror (as Again does) and drops the other modifiers', () => {

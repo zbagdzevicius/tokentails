@@ -11,7 +11,7 @@
  * `hudExtras(model)`.
  */
 import { DT, type RaceClass, type RaceConfig, type RaceMode, type RaceResult, type RacerInfo, type TickInput, type TrackDef, type KartLook } from '../../types';
-import { CLASSES, classTuning } from '../../tuning';
+import { classTuning } from '../../tuning';
 import { SimWorld } from '../sim/world';
 import { ReplayRecorder } from '../sim/replay';
 import { curvatureAhead } from '../sim/autopilot';
@@ -50,7 +50,7 @@ import { driftTierColors, setA11y } from '../../ui/a11y';
 import { localeFromUrl, setLocale, t } from '../../ui/i18n';
 import { button, h, modalOpen, toggle } from '../../ui/kit';
 import { BackGuard } from './back-guard';
-import { finishWaitStep, nextRaceModifiers, resultsDue, raceClassLabel, touchHelp } from './race-labels';
+import { classUnlockLabel, finishWaitStep, nextRaceModifiers, raceTag, resultsDue, raceClassLabel, touchHelp } from './race-labels';
 import type { WebGLRenderTarget } from 'three';
 import '../hud/hud.css';
 
@@ -403,7 +403,7 @@ export class Shell {
     this.hintAt = -1;
     this.hud.setTrack(built, hex(this.view.world.theme.accent));
     this.hud.setTouch(this.touchMode());
-    this.hud.setModel({ mode, tag: mode === 'daily' && setup.day ? t('Daily Cup #{n}', { n: setup.day }) : undefined });
+    this.hud.setModel({ mode, tag: raceTag(mode, setup.day, setup.modifiers) }); // [modes lane] F11: the Daily Cup or Wild Card mutator
     this.kartColors = this.racers.map((r) => hex(r.kart.paint[0]));
     this.speedLines = new SpeedLines(this.camera.cam, this.view.world.theme.accent);
     this.recorder = new ReplayRecorder();
@@ -812,7 +812,7 @@ export class Shell {
         unlock:
           unlocked != null && !modeActions
             ? {
-                label: t('Unlocked: {c} → race it', { c: `${CLASSES[unlocked].name} ${CLASSES[unlocked].cc}` }),
+                label: classUnlockLabel(unlocked), // [modes lane] F13
                 run: () => {
                   exitTo('next');
                   this.updateSettings({ cls: unlocked });
