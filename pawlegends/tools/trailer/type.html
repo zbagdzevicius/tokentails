@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Trailer type</title>
+<!-- Dev-only page for tools/trailer/type.mjs (never in the game build): the motion-graphics compositor (mg.js). -->
+<style>
+  @font-face { font-family: 'Fredoka'; src: url('/repo/pawlegends/public/assets/fonts/Fredoka-Ext.woff2') format('woff2'); font-weight: 300 700; }
+  html, body { margin: 0; background: transparent; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="p"></canvas>
+<script type="module">
+  import { Compositor } from './mg.js';
+
+  const canvas = document.getElementById('c');
+  const prev = document.getElementById('p');
+  const img = (url) => new Promise((ok) => {
+    if (!url) return ok(null);
+    const i = new Image();
+    i.onload = () => ok(i);
+    i.onerror = () => ok(null);
+    i.src = url;
+  });
+
+  window.mgInit = async ({ cut, aspect, copy, photoUrl, bg05Url }) => {
+    await document.fonts.load('700 100px Fredoka', 'Gabė Paw');
+    await document.fonts.load('600 48px Fredoka', 'tokentails');
+    await document.fonts.load('500 24px Fredoka', '©');
+    const [photo, bg05] = await Promise.all([img(photoUrl), img(bg05Url)]);
+    window.comp = new Compositor(canvas, { cut, aspect, copy, assets: { photo, bg05 } });
+    return { fonts: document.fonts.check('700 100px Fredoka'), photo: !!photo, bg05: !!bg05 };
+  };
+
+  window.mgOverlay = (f) => {
+    window.comp.renderOverlay(f);
+    return canvas.toDataURL('image/png');
+  };
+
+  window.mgPlate = async (f, endUrl, fgUrl = null) => {
+    const ok = window.comp.renderPlate(f, await img(endUrl), await img(fgUrl));
+    return ok ? canvas.toDataURL('image/png') : null;
+  };
+
+  /** Preview: footage, then plate, then overlay, at `scale`, as JPEG. */
+  window.mgPreview = async (f, footUrl, endUrl, scale) => {
+    const c = window.comp;
+    prev.width = Math.round(c.W * scale);
+    prev.height = Math.round(c.H * scale);
+    const p = prev.getContext('2d');
+    p.fillStyle = '#000';
+    p.fillRect(0, 0, prev.width, prev.height);
+    const foot = await img(footUrl);
+    if (foot) p.drawImage(foot, 0, 0, prev.width, prev.height);
+    if (c.renderPlate(f, await img(endUrl))) p.drawImage(canvas, 0, 0, prev.width, prev.height);
+    c.renderOverlay(f);
+    p.drawImage(canvas, 0, 0, prev.width, prev.height);
+    return prev.toDataURL('image/jpeg', 0.88);
+  };
+</script>
+</body>
+</html>

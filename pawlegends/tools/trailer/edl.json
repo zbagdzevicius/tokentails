@@ -1,0 +1,264 @@
+{
+ "_comment": "Edit decisions for edit.mjs (storyboard \u00a72 post, \u00a73 per-shot Post lines, \u00a75 mix, \u00a76 9:16, \u00a78 step 7). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/pushes/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
+ "fps": 60,
+ "bpm": 120,
+ "outputs": [
+  {
+   "cut": "30",
+   "aspect": "16x9",
+   "file": "pawlegends-trailer-30s-1080p.mp4"
+  },
+  {
+   "cut": "30",
+   "aspect": "9x16",
+   "file": "pawlegends-trailer-30s-vertical.mp4"
+  },
+  {
+   "cut": "15",
+   "aspect": "9x16",
+   "file": "pawlegends-trailer-15s-vertical.mp4"
+  },
+  {
+   "cut": "15",
+   "aspect": "16x9",
+   "file": "pawlegends-trailer-15s-1080p.mp4"
+  }
+ ],
+ "grade": {
+  "_comment": "Storyboard \u00a72 Colour grade, the same chain on every gameplay frame. Not on the S04 photo and the S05 champion over the same blurred world (f120-239, one look across the match cut); the end-card type is composited after the grade. The grain is laid on in RGB before the 4:2:0 conversion (it dithers the conversion).",
+  "sharpen": "cas=strength=0.35",
+  "eq": "eq=contrast=1.08:saturation=1.06:gamma=0.98",
+  "curves": "curves=master='0/0 0.25/0.22 0.75/0.78 1/1'",
+  "colorbalance": "colorbalance=rh=0.03:bh=-0.02",
+  "vignette": {
+   "angle": 0.6283185307,
+   "strength": 0.18
+  },
+  "grain": "noise=alls=3:allf=t",
+  "noGrade": {
+   "30": [
+    [
+     120,
+     239
+    ]
+   ],
+   "15": []
+  },
+  "desaturate": {
+   "30": [
+    [
+     960,
+     1079,
+     0.85
+    ]
+   ],
+   "15": []
+  },
+  "grainAll": true
+ },
+ "chroma": {
+  "_comment": "rgbashift. strong (4 px) = post().rgb impact frames; light (2 px) = transition accents on the whip, the match cut and the big impacts.",
+  "strong": 4,
+  "light": 2,
+  "lightFrames": {
+   "30": [
+    [
+     74,
+     76
+    ],
+    [
+     186,
+     188
+    ],
+    [
+     720,
+     721
+    ],
+    [
+     1150,
+     1151
+    ],
+    [
+     1500,
+     1501
+    ]
+   ],
+   "15": [
+    [
+     74,
+     76
+    ],
+    [
+     120,
+     121
+    ],
+    [
+     660,
+     661
+    ]
+   ]
+  }
+ },
+ "shakeMargin": 16,
+ "push": {
+  "_comment": "Digital push-ins: none. S19 is the gameplay camera 1:1 with its full HUD; S13's wheel and S14's bark are framed natively.",
+  "30": [],
+  "15": []
+ },
+ "bump": {
+  "_comment": "Skin-flip scale bumps (S22): 1.04 on the beat, back to 1.00 by frame 4.",
+  "curve": [
+   1.04,
+   1.03,
+   1.015,
+   1.0
+  ]
+ },
+ "band": {
+  "_comment": "\u00a76 S19 in 9:16 is now captured natively (a phone held upright, 360x640 CSS px at DPR 3 = 1080x1920, the touch HUD), so no band is built; the band stays for a landscape capture (any frame whose size is not 1080x1920).",
+  "9x16": {
+   "shot": "S19",
+   "blur": 36,
+   "darken": 0.5,
+   "segs": [
+    {
+     "f0": 990,
+     "f1": 1079,
+     "crop": [
+      0,
+      0,
+      1864,
+      860
+     ]
+    }
+   ]
+  }
+ },
+ "poster": {
+  "_comment": "\u00a78 thumbnails: S08 frame f398 (Aviet\u0117's Short Circuit on Sir Brutus, Ficus card) with the game's logo and end-card lines from the 30 s overlay.",
+  "frame": 398,
+  "overlayFrame": 1700,
+  "files": {
+   "16x9": "pawlegends-trailer-poster.png",
+   "9x16": "pawlegends-trailer-poster-vertical.png"
+  }
+ },
+ "audio": {
+  "_comment": "Mix from score.mjs stems: the music ducks under the sfx + game sounds (impacts), then glue, gain to -14 LUFS, a latency-free true-peak limiter, the end fade and digital silence.",
+  "duck": {
+   "thresholdDb": -24,
+   "ratio": 3,
+   "maxDb": 6,
+   "attackMs": 2,
+   "releaseMs": 160,
+   "lookaheadMs": 5
+  },
+  "glue": {
+   "threshDb": -12,
+   "ratio": 1.25,
+   "attack": 0.012,
+   "release": 0.2
+  },
+  "targetLufs": -14,
+  "ceilingDb": -2.6,
+  "_tp": "the WAV must measure <= maxTruePeakWavDb so the AAC encode stays <= maxTruePeakDb",
+  "maxTruePeakWavDb": -2.1,
+  "maxTruePeakDb": -1.0,
+  "fadeFrames": 24,
+  "silenceFrames": 12,
+  "aacBitrate": "320k",
+  "_sections": "Energy curve: [from, to, dB] with an 8-frame ramp at each end, before the glue. The gameplay body plays at full level; bar 9 steps down, the COMEBACK key lift steps up, the tower and the core impact are the loudest moments, and the end card holds the body's level (about -15 LUFS-S) with a stab on every line.",
+  "sections": {
+   "30": [
+    [
+     960,
+     989,
+     -2.5
+    ],
+    [
+     990,
+     1079,
+     -2.0
+    ],
+    [
+     1080,
+     1199,
+     0.0
+    ],
+    [
+     1200,
+     1319,
+     -1.5
+    ],
+    [
+     1320,
+     1409,
+     2.5
+    ],
+    [
+     1440,
+     1499,
+     2.0
+    ],
+    [
+     1568,
+     1799,
+     -0.5
+    ]
+   ],
+   "15": [
+    [
+     480,
+     569,
+     2.5
+    ],
+    [
+     600,
+     659,
+     2.0
+    ],
+    [
+     728,
+     899,
+     -0.5
+    ]
+   ]
+  }
+ },
+ "video": {
+  "codec": [
+   "-c:v",
+   "libx264",
+   "-preset",
+   "slow",
+   "-profile:v",
+   "high",
+   "-level:v",
+   "4.2",
+   "-crf",
+   "16",
+   "-pix_fmt",
+   "yuv420p",
+   "-g",
+   "120",
+   "-colorspace",
+   "bt709",
+   "-color_primaries",
+   "bt709",
+   "-color_trc",
+   "bt709",
+   "-color_range",
+   "tv"
+  ],
+  "prores": [
+   "-c:v",
+   "prores_ks",
+   "-profile:v",
+   "3",
+   "-pix_fmt",
+   "yuv422p10le",
+   "-vendor",
+   "apl0"
+  ]
+ }
+}
