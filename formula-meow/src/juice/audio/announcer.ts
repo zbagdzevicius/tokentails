@@ -34,10 +34,19 @@ export type AnnounceId =
   | 'wallRide'
   | 'bigAir'
   | 'niceLanding'
-  | 'tunnelRun';
+  | 'tunnelRun'
+  // iteration 4 (F4, F5): the photo finish and the final-lap duel
+  | 'whisker'
+  | 'soClose'
+  | 'stolen'
+  | 'comeback'
+  | 'holdOn';
 
 /** Lines that are only flavour: they take a lower voice priority and give way to everything else. */
-export const LOW_LINES: ReadonlySet<AnnounceId> = new Set<AnnounceId>(['loopDeMeow', 'wallRide', 'bigAir', 'niceLanding', 'tunnelRun']);
+export const LOW_LINES: ReadonlySet<AnnounceId> = new Set<AnnounceId>(['loopDeMeow', 'wallRide', 'bigAir', 'niceLanding', 'tunnelRun', 'holdOn']);
+
+/** Lines said after the player's own finish (the finish line may still be playing: they may wait longer for it). */
+export const FINISH_LINES: ReadonlySet<AnnounceId> = new Set<AnnounceId>(['whisker', 'soClose', 'stolen']);
 
 /** Caption text per line (English keys for `t()`; registered in src/ui/strings/core.en.ts). */
 export const ANNOUNCE_TEXT: Readonly<Record<AnnounceId, string>> = {
@@ -62,6 +71,11 @@ export const ANNOUNCE_TEXT: Readonly<Record<AnnounceId, string>> = {
   bigAir: 'BIG AIR!',
   niceLanding: 'NICE LANDING!',
   tunnelRun: 'TUNNEL RUN!',
+  whisker: 'By a whisker!',
+  soClose: 'So close!',
+  stolen: 'Stolen at the line!',
+  comeback: 'What a comeback!',
+  holdOn: 'Hold on!',
 };
 
 interface Syl {
@@ -180,6 +194,37 @@ const LINES: Readonly<Record<AnnounceId, readonly Syl[]>> = {
     { at: 0.12, v: 'o', dur: 0.1, p: 1.15, pe: 1.15, peak: 0.16 },
     { at: 0.25, v: 'uh', to: 'a', dur: 0.4, p: 1.45, pe: 1.7, peak: 0.23, breath: 0.08 },
   ],
+  // "by a WHIS-kerrr!" (a quick pickup, then the word leaps up and purrs out)
+  whisker: [
+    { at: 0, v: 'a', to: 'i', dur: 0.1, p: 1.25, pe: 1.3, peak: 0.16 },
+    { at: 0.11, v: 'uh', dur: 0.07, p: 1.3, pe: 1.3, peak: 0.15 },
+    { at: 0.2, v: 'i', dur: 0.16, p: 1.75, pe: 1.9, peak: 0.24, breath: 0.12 },
+    { at: 0.38, v: 'uh', to: 'u', dur: 0.32, p: 1.6, pe: 1.35, peak: 0.19, breath: 0.06 },
+  ],
+  // "so CLOOOSE…" (a long fall: the near miss)
+  soClose: [
+    { at: 0, v: 'o', dur: 0.14, p: 1.3, pe: 1.35, peak: 0.18 },
+    { at: 0.17, v: 'o', to: 'u', dur: 0.5, p: 1.45, pe: 1.05, peak: 0.21, breath: 0.12 },
+  ],
+  // "STO-len at the LIIINE!"
+  stolen: [
+    { at: 0, v: 'o', dur: 0.12, p: 1.4, pe: 1.45, peak: 0.2, breath: 0.1 },
+    { at: 0.13, v: 'e', dur: 0.08, p: 1.35, pe: 1.3, peak: 0.16 },
+    { at: 0.23, v: 'a', dur: 0.07, p: 1.3, pe: 1.3, peak: 0.14 },
+    { at: 0.32, v: 'a', to: 'i', dur: 0.46, p: 1.7, pe: 2.0, peak: 0.25, breath: 0.06 },
+  ],
+  // "what a COME-BAAACK!" (climbing all the way)
+  comeback: [
+    { at: 0, v: 'o', dur: 0.08, p: 1.15, pe: 1.2, peak: 0.15 },
+    { at: 0.1, v: 'uh', dur: 0.06, p: 1.2, pe: 1.2, peak: 0.13 },
+    { at: 0.18, v: 'uh', dur: 0.12, p: 1.4, pe: 1.5, peak: 0.2 },
+    { at: 0.32, v: 'a', to: 'e', dur: 0.44, p: 1.65, pe: 2.05, peak: 0.25, breath: 0.06 },
+  ],
+  // "HOLD ON!" two tense beats
+  holdOn: [
+    { at: 0, v: 'o', to: 'u', dur: 0.18, p: 1.35, pe: 1.4, peak: 0.2 },
+    { at: 0.24, v: 'o', dur: 0.24, p: 1.5, pe: 1.6, peak: 0.22, breath: 0.08 },
+  ],
 };
 
 /** Length of a line in seconds (how long the music ducks, how long the voice holds the budget). */
@@ -220,12 +265,18 @@ export class AnnouncerLogic {
   private lastWall = -1e9;
   private lastAir = -1e9;
   private lastLand = -1e9;
+  // iteration 4: the duel lines (comeback once, "Hold on!" every 6 s) and one finish-drama line
+  private comebackSaid = false;
+  private lastHold = -1e9;
+  private finishDrama = false;
 
   reset(): void {
     this.lastLead = this.lastOuch = this.lastWrong = this.lastAny = -1e9;
     this.finished = false;
     this.finalAt = this.lastWall = this.lastAir = this.lastLand = -1e9;
     this.loopSaid = this.tunnelSaid = false;
+    this.comebackSaid = this.finishDrama = false;
+    this.lastHold = -1e9;
   }
 
   /** A flavour line may not talk over "Final lap!" (3 s), after the finish, or right on top of another line. */
@@ -239,6 +290,34 @@ export class AnnouncerLogic {
     this.tunnelSaid = true;
     this.lastAny = tick;
     return 'tunnelRun';
+  }
+
+  /**
+   * A final-lap duel line (iteration 4, F5; the juice lane decides when): "What a comeback!" once a race, "Hold on!"
+   * at most every 6 s. Never over "Final lap!", never after the finish, never on top of another line.
+   */
+  onDuel(id: 'comeback' | 'holdOn', tick: number): AnnounceId | null {
+    if (this.quiet(tick, 60)) return null;
+    if (id === 'comeback') {
+      if (this.comebackSaid) return null;
+      this.comebackSaid = true;
+    } else {
+      if (tick - this.lastHold < 360) return null;
+      this.lastHold = tick;
+    }
+    this.lastAny = tick;
+    return id;
+  }
+
+  /**
+   * One line about how the race was decided, after the player's own finish (F4): "By a whisker!" / "So close!" on a
+   * photo finish, "Stolen at the line!" for a place taken in the last second. Once a race, only after the finish.
+   */
+  onFinishDrama(id: 'whisker' | 'soClose' | 'stolen', tick: number): AnnounceId | null {
+    if (!this.finished || this.finishDrama) return null;
+    this.finishDrama = true;
+    this.lastAny = tick;
+    return id;
   }
 
   onEvent(e: RaceEvent, me: number, mode: string): AnnounceId | null {
