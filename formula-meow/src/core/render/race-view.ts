@@ -7,7 +7,7 @@
  * Interpolates kart transforms between the last two sim ticks. Never writes the sim.
  *
  * Draw calls: karts (body, axles, fur, face, outlines, hat), plus 1 each for boxes, shadows, sparks, puffs, shards and
- * glyphs, plus a respawn hand while one is on screen.
+ * glyphs, plus a respawn hand while one is on screen, plus 2 for the headlights on a Night race (iteration 4, F11).
  */
 import {
   AdditiveBlending,
@@ -28,10 +28,11 @@ import {
   Vector3,
   type Scene,
 } from 'three';
-import { Surface, type KartState, type RaceEvent, type RaceState } from '../../types';
+import { Modifier, Surface, type KartState, type RaceEvent, type RaceState } from '../../types';
 import type { BuiltTrack } from '../track/build';
 import { KartView } from './kart-view';
 import { buildWorldView, type WorldView } from './world-view';
+import { Headlights } from './night';
 import { toonMaterial } from './toon';
 import { disposeMaterial } from '../track/mesh';
 import type { RacerInfo } from '../../types';
@@ -117,12 +118,19 @@ export class RaceView {
   /** what was drawn this frame per kart (the camera follows it during the respawn carry) */
   readonly shown: KartSnap[];
 
+  /** iteration 4 (F11): the Night Wild Card's kart headlights (null on a normal race) */
+  readonly headlights: Headlights | null;
+
   constructor(
     readonly scene: Scene,
     readonly track: BuiltTrack,
     readonly racers: RacerInfo[],
+    /** the race's `Modifier` bits; render reads only `Modifier.Night` (iteration 4, F11) */
+    modifiers = 0,
   ) {
-    this.world = buildWorldView(scene, track);
+    const night = (modifiers & Modifier.Night) !== 0;
+    this.world = buildWorldView(scene, track, night);
+    this.headlights = night ? new Headlights(scene, racers.length) : null;
     this.karts = racers.map((r) => {
       const v = new KartView(r);
       scene.add(v.root);
@@ -417,6 +425,7 @@ export class RaceView {
       v.lookAtDot(k.chaseTicks > 0 && laser ? laser.x : null, laser ? laser.z : 0);
       const bent = !carried && s.b === 1;
       v.update(k, s.x, s.y, s.z, s.heading, k.air || carried || bent ? 0 : pitch * Math.sign(fwd || 1), k.air || bent ? 0 : roll, carried ? 0 : speed, dt, topSpeed, bent ? s : null);
+      this.headlights?.place(i, v.root, !v.fadedOut, !carried && !k.air && k.respawnTicks <= 0);
       const shown = this.shown[i];
       shown.x = s.x;
       shown.y = s.y;
@@ -640,6 +649,7 @@ export class RaceView {
 
   dispose(): void {
     this.world.dispose();
+    this.headlights?.dispose();
     for (const k of this.karts) {
       this.scene.remove(k.root);
       k.dispose();
