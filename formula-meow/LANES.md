@@ -3,7 +3,43 @@
 GDD: `docs/plans/formula-meow/GDD.md` (section 16 has the layout). Iteration 2 plan:
 `docs/plans/formula-meow/ITERATION-2.md`.
 
-## Iteration 3: set pieces (current)
+## Iteration 4: more fun (current)
+
+Plan: `docs/plans/formula-meow/ITERATION-4.md` (the founder's freeze rule is overridden for this iteration by the
+founder's explicit request). One Engine commit on `feat/formula-meow` does every shared change first (`SIM_VERSION`
+10 → 11, golden hashes regenerated), then four lanes run in parallel with the disjoint files below. No lane edits
+`SIM_VERSION`, `src/types.ts`, `src/core/sim/**`, `src/core/app/**`, `src/items-ai/**`, `src/tuning.ts`,
+`src/modes/battle/rules.ts` or another lane's string table: write a contract request instead. Lanes may update golden
+hashes on their branch; the integrator regenerates them. Ports: never 5175; each lane uses its assigned port and kills
+its servers when done.
+
+### Engine step (one agent, may touch frozen files)
+
+| What | Where |
+|---|---|
+| F1 band ramp after GO: `AI.bandRampTicks` (360), `+bandUp` side and pack pull ramp 0 → 1 | `src/tuning.ts`, `src/items-ai/ai/rubber-band.ts` |
+| F3 trick window: `BOOST.trick.window` 0.45, `BOOST.trick.pre` 0.12, `KartState.trickBuf` (hashed), hop swallowed while armed; AI trick rate per skill unchanged | `src/types.ts`, `src/core/sim/{hash,kart}.ts`, `src/items-ai/ai/driver.ts` |
+| F14 battle double points in the last 30 s and a `frenzy` event | `src/modes/battle/rules.ts`, `src/types.ts` |
+| F12 `RaceStats.loops / walls / cleanLandings / bestCombo / style`, counted from events | `src/types.ts`, `src/core/app/race-stats.ts` |
+| F4 `finishMargin(result, me)` → `{ margin, other, won } \| null` (sub-tick times, never a lapped kart) | new `src/core/app/finish.ts` |
+| F2 `MuxContext.edgeL / edgeR` (look-ahead metres to each road edge at 0.5 s) and `onRail`, filled by the shell; `smartSteer` setting (default on for touch) + save migration | `src/core/input/mux.ts` (interface only), `src/core/app/{shell,settings,save}.ts` |
+| Strings: empty `share.en.ts` registered | `src/ui/strings/share.en.ts`, `src/ui/install.ts` |
+| Goldens and fixtures: race, stunt, battle; `dare10` stays a target-time fixture | `src/core/sim/race.test.ts`, `src/core/sim/stunt.test.ts`, `src/modes/battle/battle.test.ts`, `review/v3-legacy-codes.ts` |
+
+### Lanes
+
+| Lane | Features | Owns | Does not touch |
+|---|---|---|---|
+| juice (`lane4/fm-juice`) | F3 lip paw ring and poses, F4 photo finish + overtake punch + margin banner, F5 slipstream charge, dodge, final-lap duel chip and edge glow, comeback/steal/hold-on calls, music drop, fastest lap, pass-by zips, F6 boost chains and ON FIRE, F13 countdown hint strip, F14 frenzy music | `src/juice/**` except `vfx/tunnel-fx.ts`; `src/core/hud/**` except `results.ts`; `src/ui/strings/core.en.ts`; `e2e/stunt-juice.spec.ts`, `e2e/a11y.spec.ts` | exports `boostChainTally()` and the stunt tally API stay stable for share-ugc |
+| feel (`lane4/fm-feel`) | F2 Smart Steer, stick curve, tunnel readability, F11 Night render (`theme.night` override when `Modifier.Night`), F14 furniture fade | `src/core/input/**` (implementation), `src/core/render/**`, `src/core/camera/**`, `src/core/track/themes.ts`, `src/juice/vfx/tunnel-fx.ts`, `src/ui/screens/settings.ts`, `src/ui/strings/feel.en.ts`, `e2e/feel.spec.ts` | the `MuxContext` shape (Engine) |
+| modes (`lane4/fm-modes`) | F11 Wild Card row, Surprise me, Daily mutator from a cutoff day, labels, F12 Style score row, Style best, stunt challenges, named shortcut challenge, achievements, F13 one-tap tiles, remembered setup, GP comeback (eased `Personality.skill`), first-race unlock copy, F14 leader arrow and DOUBLE POINTS HUD, Help text for tricks | `src/modes/**` except `battle/rules.ts`; `src/progression/**`; `src/content/{cups,cosmetics}.ts`; `src/share/daily/**`; `src/core/app/race-labels.ts`; `src/ui/strings/{modes,progression}.en.ts`; `e2e/{modes,progression}.spec.ts` | `ACHIEVEMENT_IDS` and `src/content/ids.ts` are append-only |
+| share-ugc (`lane4/fm-share`) | F7 phone headline card, tray, hype clip prompt, F8 highlight scoring, stunt camera, caption sticker, stunt brag line, F9 TT dare, dare card, ghost-only duel + Race the pack, live gap pill, Rematch / Send it back, F10 auto-stunts, Spice it up, Surprise track, Beat the maker | `src/share/**` except `daily/`; `src/ugc/**`; `src/test/doodles.ts`; `src/core/hud/results.ts`; `src/ui/strings/{share,tracks}.en.ts`; `e2e/{share,clip,editor}.spec.ts` | keeps every `data-act` attribute and label on the results screen |
+
+Merge order: feel → juice → modes → share-ugc. Final checks: `npx tsc --noEmit`, `npx vitest run`, `npm run build`,
+`npm run e2e`, `npm run review:v3`, the playtest probes (pole hold, touch wall frames, trick rate, close-finish
+share), then `npm run build:client` and commit `client/public/formula-meow-game`.
+
+## Iteration 3: set pieces
 
 Plan: `docs/plans/formula-meow/SETPIECES.md`. The Engine step (one commit on `feat/formula-meow`, `SIM_VERSION` 7 → 8,
 golden hashes regenerated) added the set-piece contract below and one reference example of each kind on Kitchen
