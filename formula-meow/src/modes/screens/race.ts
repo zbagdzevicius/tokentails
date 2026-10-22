@@ -27,7 +27,9 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
   const tracks = h('div', { class: 'fm-m-chips fm-m-tracks' });
   const wildHead = h('h3', { class: 'fm-m-wild-h' }, [t('Wild Card'), h('small', {}, [t('optional: shake up the items')])]);
   const wildRow = h('div', { class: 'fm-m-chips fm-m-wild', role: 'group', 'aria-label': t('Wild Card') });
-  fr.body.append(classes, tracks, wildHead, wildRow);
+  // compact chips (icon + name, three a row on a phone); the picked card's rule reads on one line under them
+  const wildNote = h('p', { class: 'fm-m-wild-note', 'aria-live': 'polite' });
+  fr.body.append(classes, tracks, wildHead, wildRow, wildNote);
 
   function render(): void {
     keepFocus(root, build);
@@ -47,14 +49,18 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     }
     wildRow.innerHTML = '';
     const sim = simClass(cls);
-    wildRow.append(chip(t('Off'), () => ((wild = 'none'), render()), { selected: wild === 'none', sub: t('Normal items'), icon: '🏁', act: 'wild-none' }));
+    let note = t('Normal items');
+    wildRow.append(chip(t('Off'), () => ((wild = 'none'), render()), { selected: wild === 'none', icon: '🏁', act: 'wild-none', aria: `${t('Off')}: ${t('Normal items')}` }));
     for (const m of MUTATORS) {
       const locked = sim < m.minCls ? t('From {c}', { c: `${CLASSES[m.minCls].cc}` }) : null;
-      wildRow.append(chip(t(m.name), () => ((wild = m.id), render()), { selected: wild === m.id && !locked, locked, sub: t(m.blurb), icon: m.icon, act: `wild-${m.id}` }));
+      if (wild === m.id) note = locked ? `🔒 ${locked}` : `${m.icon} ${t(m.blurb)}`;
+      wildRow.append(chip(t(m.name), () => ((wild = m.id), render()), { selected: wild === m.id && !locked, locked, icon: m.icon, act: `wild-${m.id}`, aria: `${t(m.name)}: ${t(m.blurb)}` }));
     }
-    const s = chip(t('Surprise me'), () => ((wild = 'surprise'), render()), { selected: wild === 'surprise', sub: t('A Wild Card dealt on the grid'), icon: '🎲', act: 'wild-surprise' });
+    if (wild === 'surprise') note = `🎲 ${t('A Wild Card dealt on the grid')}`;
+    const s = chip(t('Surprise me'), () => ((wild = 'surprise'), render()), { selected: wild === 'surprise', icon: '🎲', act: 'wild-surprise', aria: `${t('Surprise me')}: ${t('A Wild Card dealt on the grid')}` });
     s.classList.add('fm-m-surprise');
     wildRow.append(s);
+    wildNote.textContent = note;
   }
   render();
 

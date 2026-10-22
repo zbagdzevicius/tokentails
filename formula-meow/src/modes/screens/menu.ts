@@ -105,7 +105,7 @@ export function mount(root: HTMLElement, _params: unknown, _api: ScreenApi): Scr
     const memo = !lock && isMemoMode(x.id) && f.save.memo[x.id].set ? x.id : null;
     const setup = memo ? f.tileSetup(memo) : null;
     const el = tile(
-      memo ? `${x.label()} ▶` : x.label(),
+      memo ? `${x.label()}\u00a0▶` : x.label(), // a no-break space: the ▶ never wraps onto its own line
       () => {
         f.update((v) => (v.last.focus = x.id));
         if (memo && f.oneTap(memo)) return;

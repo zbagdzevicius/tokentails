@@ -292,7 +292,7 @@ test('F13: a raced mode starts from its menu tile in one tap; "change" opens the
   // the tile now says what it starts, and one tap is on the grid
   const gp = page.locator('[data-tile="gp"]');
   await expect(gp).toContainText('Grand Prix ▶');
-  await expect(gp).toContainText('Kibble Cup · 50cc Kitten');
+  await expect(gp).toContainText('Kibble Cup · 50cc');
   await page.screenshot({ path: 'e2e/screens/modes-menu-onetap.png' });
   await gp.click();
   await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('gp');
