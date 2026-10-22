@@ -63,12 +63,14 @@ export interface TierLook {
   confetti: number;
   /** speed-line streaks */
   streaks: number;
+  /** iteration 4: slipstream ribbons, the ON FIRE trail and the paw rings' pulse (the low tier drops them) */
+  fx4: boolean;
 }
 
 export const TIERS: Record<Tier, TierLook> = {
-  high: { post: true, density: 1, skids: true, outlineDist: 60, ambient: 1, confetti: 1, streaks: 1 },
-  mid: { post: false, density: 0.7, skids: true, outlineDist: 40, ambient: 0.6, confetti: 0.75, streaks: 1 },
-  low: { post: false, density: 0.4, skids: false, outlineDist: 0, ambient: 0.3, confetti: 0.5, streaks: 0 },
+  high: { post: true, density: 1, skids: true, outlineDist: 60, ambient: 1, confetti: 1, streaks: 1, fx4: true },
+  mid: { post: false, density: 0.7, skids: true, outlineDist: 40, ambient: 0.6, confetti: 0.75, streaks: 1, fx4: true },
+  low: { post: false, density: 0.4, skids: false, outlineDist: 0, ambient: 0.3, confetti: 0.5, streaks: 0, fx4: false },
 };
 
 export function lowerTier(t: Tier): Tier {

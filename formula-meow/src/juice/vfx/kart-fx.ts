@@ -34,6 +34,7 @@ const _o = new Object3D();
 const _m = new Matrix4();
 const _l = new Matrix4();
 const _c = new Color();
+const _c2 = new Color();
 const _v = new Vector3();
 const _bu = new Vector3();
 const _bf = new Vector3();
@@ -156,6 +157,11 @@ export class KartFx {
   private readonly skidSide: number[];
   private readonly snap: KartSnap = { x: 0, y: 0, z: 0, heading: 0 };
   opts: KartFxOptions = { density: 1, skids: true };
+  /** iteration 4 (juice lane), the player's kart only: ON FIRE 0..1 (flames and a fire trail even off boost; the
+   *  low tier sets `fireTrail` false) and the boost chain's heat 0..1 (the flame runs toward white-pink per link) */
+  fire = 0;
+  heat = 0;
+  fireTrail = true;
 
   constructor(
     private readonly scene: Scene,
@@ -373,10 +379,13 @@ export class KartFx {
       const near = Math.hypot(k.x - meK.x, k.z - meK.z) < 60;
 
       // ---- boost flames from the two exhaust pipes, following the body (lean, pitch, squash)
-      if (k.boostTicks > 0) {
+      const burning = i === me && this.fire > 0;
+      if (k.boostTicks > 0 || burning) {
         kv.body.updateWorldMatrix(true, false);
-        const col = boostColor(this.boostSrc[i], this.boostTier[i], this.theme);
-        const len = 1.1 + (k.boostLevel > 1.32 ? 0.7 : 0.3) + Math.min(0.6, k.boostTicks / 60);
+        let col = boostColor(this.boostSrc[i], this.boostTier[i], this.theme);
+        if (i === me && this.heat > 0) col = _c.setHex(col).lerp(_c2.setHex(0xffd6f0), this.heat).getHex();
+        if (burning && k.boostTicks <= 0) col = Math.sin(this.time * 31) > 0 ? 0xff5a1a : 0xffb020;
+        const len = k.boostTicks > 0 ? 1.1 + (k.boostLevel > 1.32 ? 0.7 : 0.3) + Math.min(0.6, k.boostTicks / 60) + (burning ? 0.5 : 0) : 0.8 + 0.5 * this.fire;
         for (const side of [-1, 1]) {
           _l.makeScale(1, 1, len).setPosition(side * 0.35, 0.45, -1.32);
           _m.multiplyMatrices(kv.body.matrixWorld, _l);
@@ -428,11 +437,13 @@ export class KartFx {
       // ---- light trails: boosting always, tier 2+ drifts, and faint neon tail-lights at night
       // iteration 3: on a loop's rail the trail is always on, a pink and a cyan ribbon that follow the loop's surface
       const looping = k.rail > 0 && s.b === 1;
-      const trailOn = looping || k.boostTicks > 0 || k.driftTier >= 2 || k.autoTicks > 0 || (night && speed > 12 && near);
+      const fireTrail = i === me && this.fire > 0 && this.fireTrail;
+      const trailOn = looping || fireTrail || k.boostTicks > 0 || k.driftTier >= 2 || k.autoTicks > 0 || (night && speed > 12 && near);
       if (trailOn && near) {
         // Zoomies: a rainbow ribbon (the hue walks along the race clock)
-        const col =
-          k.autoTicks > 0
+        const col = fireTrail
+          ? _c.setHSL(0.02 + 0.07 * (0.5 + 0.5 * Math.sin(this.time * 9)), 1, 0.55).getHex()
+          : k.autoTicks > 0
             ? _c.setHSL((this.time * 1.5 + i * 0.13) % 1, 1, 0.6).getHex()
             : k.boostTicks > 0
               ? boostColor(this.boostSrc[i], this.boostTier[i], this.theme)
@@ -441,7 +452,7 @@ export class KartFx {
                 : i % 2
                   ? this.theme.neonA || 0xff3ea5
                   : this.theme.neonB || 0x2cf6f3;
-        const dim = looping || k.boostTicks > 0 || k.driftTier >= 2 ? 1 : 0.45;
+        const dim = fireTrail ? 0.55 + 0.45 * this.fire : looping || k.boostTicks > 0 || k.driftTier >= 2 ? 1 : 0.45;
         const len = Math.min(7, 1.5 + speed * 0.18) * (k.autoTicks > 0 ? 1.7 : k.boostTicks > 0 || looping ? 1.2 : 0.8);
         const vh = speed > 2 ? Math.atan2(k.vx, k.vz) : s.heading;
         if (s.b === 1) {

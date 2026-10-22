@@ -6,6 +6,8 @@
  *  - vignette: deepens with speed, tinted by the boost colour while boosting, red pulse on the final lap closing
  *  - flash: hit (white-red), mini-turbo (tier colour), finish (gold)
  *  - catnip tint: a rainbow wash for 0.6 s
+ *  - iteration 4: slipstream ribbons (six wavy wind ribbons streaming past the edges while a draft charges; same
+ *    pass, no extra draw call; off on the low tier and with reduced motion)
  * Keeps the core's constructor / update / dispose API; `SpeedLines.current` lets the juice lane reach the live pass.
  */
 import { Color, Mesh, PlaneGeometry, ShaderMaterial, type PerspectiveCamera } from 'three';
@@ -33,6 +35,11 @@ export class SpeedLines {
   floor = 0;
   /** 0..1: a tunnel closes the vignette in a little (the walls are near) */
   dark = 0;
+  /** iteration 4: the slipstream charge 0..1 (the ribbons), set by the juice install each frame */
+  slip = 0;
+  /** iteration 4: ON FIRE 0..1 (a warm ember edge) */
+  fire = 0;
+  private slipA = 0;
 
   constructor(camera: PerspectiveCamera, accent: number) {
     this.boostColor.setHex(accent);
@@ -47,11 +54,13 @@ export class SpeedLines {
         uVigColor: { value: new Color(0x1a1238) },
         uTint: { value: 0 },
         uDetail: { value: 1 },
+        uSlip: { value: 0 },
+        uFire: { value: 0 },
       },
       vertexShader: /* glsl */ `varying vec2 vS; void main(){ gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); vS = gl_Position.xy / gl_Position.w; }`,
       fragmentShader: /* glsl */ `
         uniform float uAlpha; uniform float uTime; uniform vec3 uColor; uniform float uFlash; uniform vec3 uFlashColor;
-        uniform float uVig; uniform vec3 uVigColor; uniform float uTint; uniform float uDetail; varying vec2 vS;
+        uniform float uVig; uniform vec3 uVigColor; uniform float uTint; uniform float uDetail; uniform float uSlip; uniform float uFire; varying vec2 vS;
         float h(float n){ return fract(sin(n * 91.345) * 47453.5453); }
         vec3 hue(float x){ return clamp(abs(mod(x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
         void over(inout vec4 dst, vec3 c, float a){ dst.rgb = mix(dst.rgb, c, a); dst.a = dst.a + a * (1.0 - dst.a); }
@@ -72,6 +81,28 @@ export class SpeedLines {
             float streak = smoothstep(0.0, 0.15, run) * smoothstep(0.55, 0.2, run);
             float edge = smoothstep(0.18, 0.5, r);
             over(o, mix(vec3(1.0), uColor, 0.6), lane * streak * edge * uAlpha * 0.5);
+          }
+          // slipstream: six wavy wind ribbons streaming outward past the edges (the road in the middle stays clear)
+          if (uSlip > 0.01 && uDetail > 0.0) {
+            float a = atan(p.y, p.x);
+            float rib = 0.0;
+            for (int i = 0; i < 6; i++) {
+              float fi = float(i);
+              float base = -2.75 + fi * 1.1;
+              float wob = 0.16 * sin(r * 11.0 - uTime * 7.0 + fi * 1.9);
+              float da = abs(mod(a - base - wob + 3.14159, 6.28318) - 3.14159) * r;
+              float line = smoothstep(0.016 + 0.02 * r, 0.004, da);
+              float flow = fract(r * 2.2 - uTime * (2.6 + fi * 0.21) + fi * 0.37);
+              float dash = smoothstep(0.0, 0.18, flow) * smoothstep(0.95, 0.45, flow);
+              rib = max(rib, line * dash);
+            }
+            float edge = smoothstep(0.2, 0.5, r);
+            over(o, mix(vec3(0.75, 0.95, 1.0), vec3(1.0), rib), rib * edge * uSlip * 0.7);
+          }
+          // ON FIRE: a flickering ember glow along the bottom edge
+          if (uFire > 0.01) {
+            float f = smoothstep(-0.05, -0.5, p.y) * (0.6 + 0.4 * sin(p.x * 23.0 + uTime * 13.0) * sin(p.x * 9.0 - uTime * 7.0));
+            over(o, mix(vec3(1.0, 0.35, 0.08), vec3(1.0, 0.75, 0.3), f), clamp(f, 0.0, 1.0) * uFire * 0.4);
           }
           // catnip: a rainbow wash, strongest at the edges
           if (uTint > 0.0) over(o, hue(r * 1.5 - uTime * 0.8 + p.x), uTint * (0.03 + 0.24 * smoothstep(0.35, 0.85, r))); // playtest round 2: edges only, the track stays readable
@@ -135,6 +166,11 @@ export class SpeedLines {
     if (this.pulse) vc.lerp(PULSE, 0.5);
     this.flashA = Math.max(0, this.flashA - this.flashDecay * dt);
     u.uFlash.value = reducedMotion ? this.flashA * 0.4 : this.flashA;
+    // iteration 4: the slipstream ribbons ease in and out; reduced motion and the low tier draw none
+    const slipT = reducedMotion || this.detail <= 0 ? 0 : this.slip;
+    this.slipA += (slipT - this.slipA) * Math.min(1, dt * 10);
+    u.uSlip.value = this.slipA;
+    u.uFire.value = reducedMotion ? 0 : this.fire;
     this.tintT = Math.max(0, this.tintT - dt);
     u.uTint.value = Math.min(1, this.tintT / 0.2) * (reducedMotion ? 0.4 : 1);
     this.mesh.visible = true;
