@@ -30,9 +30,17 @@ import { webCodecsAvailable } from './clip/encoder-webcodecs';
 import type { EncodedClip } from './clip/encoder-types';
 import { trackCodec, trackFromLocation } from '../ugc/codec/track-codec';
 import { displayName } from '../ugc/actions';
+import { makerLine, targetCs } from '../ugc/maker-lap';
 import type { TrackDef } from '../types';
 import { focusNav } from '../ui/kit';
 import { GO_TICK } from '../core/sim/world';
+import { bestKey } from '../core/app/save';
+import { finishMargin, isPhotoFinish } from '../core/app/finish';
+import { t } from '../ui/i18n';
+import { noteResult, updateNote } from './cards/headline';
+import { hypeReason, stuntBrag } from './clip/highlight';
+import { DareFlow } from './links/dare-flow';
+import { duelable } from './links/duel';
 import './share.css';
 
 type ClipState = { cancel: { cancelled: boolean }; progress: number; out: EncodedClip | null | 'failed'; wantShare: boolean };
@@ -118,6 +126,7 @@ function linkLabel(): string {
 export function installShare(shell: Shell): void {
   const route: Route = parseRoute(location);
   const runner = new GhostRunner(shell);
+  const flow = new DareFlow(shell, () => runner.live && runner.matches(), () => runner.current?.name ?? '');
   // the UTC day is read when it is needed, never cached: a tab can stay open past midnight
   const todayNow = () => dayNoFor(new Date());
   let startDay = todayNow();
@@ -181,11 +190,18 @@ export function installShare(shell: Shell): void {
         tell('That dare link is broken or from an older version. Racing without the ghost.');
         return;
       }
-      runner.set({ ghost: g, name: route.name, cat: route.cat });
-      if (!runner.live && runner.matches()) {
-        runner.onReset();
-        if (runner.live) showBanner(`👻 Race ${route.name}'s ghost`);
-      } else if (g.simVersion !== SIM_VERSION) tell('That ghost is from another version of the game. Racing the same track without it.');
+      const d = { ghost: g, name: route.name, cat: route.cat };
+      runner.set(d);
+      // F9: the challenge card over the grid; a ghost of this build races as a duel (or with the pack), an older one
+      // races the same track without it (the card and the banner say so)
+      const old = g.simVersion !== SIM_VERSION || !duelable(g);
+      const msg = 'That ghost is from another version of the game. Racing the same track without it.';
+      if (old) {
+        // the banner comes with the race the card starts (B47: on the grid as well as in a toast)
+        notice = msg;
+        showToast(msg, 6000);
+      } else if (!runner.matches()) return;
+      void flow.open(d, old ? msg : null);
     });
   }
 
@@ -205,6 +221,7 @@ export function installShare(shell: Shell): void {
     },
   });
   shell.bus.add(runner);
+  shell.bus.add(flow);
   shell.bus.add({
     onReset() {
       if (notice) {
@@ -260,8 +277,10 @@ export function installShare(shell: Shell): void {
   };
 
   // the clip and the card are what spreads: their caption links to "race this exact run", not a cold start
+  const meOf = (ctx: ResultContext) => ctx.cfg.humans[0] ?? 0;
+  const bragOf = (ctx: ResultContext) => stuntBrag(ctx.result.stats?.[meOf(ctx)]);
   const captionFor = (ctx: ResultContext) =>
-    `${clipCaption({ trackName: displayName(ctx.cfg.track), time: ctx.result.player.time, place: ctx.result.player.place, link: dareLink ?? homeUrl(location) })}\n${PINK_PAW_SHARE_LINE}`;
+    `${clipCaption({ trackName: displayName(ctx.cfg.track), time: ctx.result.player.time, place: ctx.result.player.place, field: ctx.cfg.racers.length, brag: bragOf(ctx), link: dareLink ?? homeUrl(location) })}\n${PINK_PAW_SHARE_LINE}`;
 
   const startClip = (ctx: ResultContext) => {
     if (!webCodecsAvailable()) {
@@ -348,7 +367,7 @@ export function installShare(shell: Shell): void {
       const fin = events.find((e) => e.type === 'finish' && e.kart === me);
       const inputs = fin ? replay.inputs.slice(0, fin.tick + 2) : replay.inputs;
       const ghostP = encodeGhost(
-        { trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me, body: cfg.racers[me]?.kart.body ?? 0, mode: cfg.mode ?? 'race', rival: cfg.racers.findIndex((r, i) => i !== me && !!r.rival) },
+        { trackKey: trackKey(cfg.track.id), seed: cfg.seed, cls: cfg.cls, modifiers: cfg.modifiers, forgiving: cfg.forgiving, slot: me, body: cfg.racers[me]?.kart.body ?? 0, mode: cfg.mode ?? 'race', rival: cfg.racers.findIndex((r, i) => i !== me && !!r.rival), solo: cfg.racers.length === 1 },
         inputs,
       );
       // B49: a fast Again must not let this run's link leak into the next race's caption
@@ -361,6 +380,11 @@ export function installShare(shell: Shell): void {
       });
       let ghostRow: ResultExtras['ghost'];
       let later: ResultExtras['later'];
+      // F7: what the results headline needs and cannot see by itself: the best on this device before this run (the
+      // shell books this run right after us), whether the dare ghost's time is still being recomputed
+      const prevBest = shell.progress.bestTimes[bestKey(ctx.mode ?? cfg.mode ?? 'race', cfg.track.id, cfg.cls, cfg.modifiers)] ?? null;
+      noteResult(result, { prevBest, duel: cfg.racers.length === 1 && cfg.mode !== 'tt' });
+      flow.hidePill();
 
       // dare outcome (recomputed ghost time, B50: over a few frames, never on the results frame)
       let beat: string | null = null;
@@ -387,9 +411,23 @@ export function installShare(shell: Shell): void {
           lines.push(...outcome(now));
         } else {
           ghostRow = { name, time: null };
-          later = runner.finishTime().then((gt) => (token === resultToken ? { ghost: { name, time: gt }, lines: outcome(gt) } : null));
+          updateNote(result, { ghostPending: true });
+          later = runner.finishTime().then((gt) => {
+            updateNote(result, { ghostPending: false });
+            if (token !== resultToken) return null;
+            const lines = outcome(gt);
+            // won after all: the dare button sends it back
+            const dareBtn = beat ? document.querySelector<HTMLElement>('.fm-overlay [data-id="dare"]') : null;
+            if (dareBtn) dareBtn.textContent = t('⚔️ Send it back');
+            return { ghost: { name, time: gt }, lines };
+          });
         }
       }
+
+      // F10 Beat the maker: the lap a track link carried, against this race's best completed lap
+      const lapTarget = cfg.track.id.startsWith('u-') ? targetCs(cfg.track.id) : null;
+      const makerL = lapTarget != null ? makerLine(lapTarget, result.player.bestLap) : null;
+      if (makerL) lines.unshift(makerL);
 
       // daily cup
       const today = todayNow();
@@ -420,7 +458,7 @@ export function installShare(shell: Shell): void {
           // the ranked run's ghost rides along (a dare link on the daily seed is the same race), so friends can race it
           run: () =>
             void shareText(
-              dailyCardText({ day: dayOf, place: run.place, time: run.time, laps: run.laps, link: (thisRun && dareLink) || dailyUrl(location, dayOf), streak: rec.streak, ghost: !!(thisRun && dareLink) }),
+              dailyCardText({ day: dayOf, place: run.place, time: run.time, laps: run.laps, link: (thisRun && dareLink) || dailyUrl(location, dayOf), streak: rec.streak, ghost: !!(thisRun && dareLink), stunts: thisRun && !!stuntBrag(result.stats?.[me]) }),
             ),
         };
       } else {
@@ -443,10 +481,13 @@ export function installShare(shell: Shell): void {
         };
       }
 
-      // 0: clip (index 0 is relied on by setClipLabel)
+      // 0: clip (index 0 is relied on by setClipLabel); F7: it pulses with the reason after a strong highlight
+      const margin = finishMargin(result, me);
+      const hype = hypeReason(result.stats?.[me], isPhotoFinish(margin));
       actions.push({
         id: 'clip',
         label: webCodecsAvailable() ? '🎬 Clip…' : '🖼️ Share card',
+        hype: hype ? t(hype.key, { n: hype.n ?? 0 }) : undefined,
         run: () => {
           const c = clip;
           if (!c || c.out === 'failed') void cardShare(ctx, beat ? `Beat ${beat}'s ghost` : null);
@@ -460,14 +501,14 @@ export function installShare(shell: Shell): void {
       // 1: dare
       actions.push({
         id: 'dare',
-        label: beat ? '⚔️ Send revenge →' : '⚔️ Dare a friend',
+        label: beat ? t('⚔️ Send it back') : t('⚔️ Dare a friend'),
         primary: true,
         run: () => {
           const send = (name: string | null) =>
             ghostP.then((ghost) => {
               const url = buildDare(cfg.track, ghost, name);
               dareLink = url;
-              const text = dareText({ trackName: displayName(cfg.track), time: result.player.time, place: result.player.place, link: url, beat });
+              const text = dareText({ trackName: displayName(cfg.track), time: result.player.time, place: result.player.place, link: url, beat, field: cfg.racers.length, brag: stuntBrag(result.stats?.[me]) });
               return shareText(`${text}\n${PINK_PAW_SHARE_LINE}`);
             });
           const name = senderName();

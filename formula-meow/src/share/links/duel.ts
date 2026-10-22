@@ -21,15 +21,16 @@ export function shadowConfig(g: GhostHeader, track: TrackDef, name: string, cat:
   const slot = g.slot;
   const look = { ...kartLookFor(0), body: g.body ?? 0 };
   const field = buildField({ seed: g.seed, cls: g.cls, playerSlot: slot, playerName: name, playerCat: cat ?? DEFAULT_CAT, playerKart: look });
-  // a time trial races alone (modes/tt: the player at slot 0, no AI, no boxes)
-  const racers = g.mode === 'tt' ? [field[slot] ?? field[0]] : field.map((r, i) => (i === g.rival && i !== slot ? { ...r, rival: true } : r));
+  // a time trial races alone (modes/tt: the player at slot 0, no AI, no boxes), and so does a duel run (`solo`)
+  const alone = g.mode === 'tt' || !!g.solo;
+  const racers = alone ? [field[slot] ?? field[0]] : field.map((r, i) => (i === g.rival && i !== slot ? { ...r, rival: true } : r));
   return {
     track,
     seed: g.seed,
     cls: g.cls,
     modifiers: g.modifiers,
     racers,
-    humans: [g.mode === 'tt' ? 0 : slot],
+    humans: [alone ? 0 : slot],
     forgiving: g.forgiving,
     mode: g.mode ?? 'race',
   };

@@ -6,7 +6,8 @@
  *   byte 0      version:4 | flags:4 (bit 0 = runs are deflate-raw)
  *   header      trackKey:32  seed:32  cls:2 modifiers:6  forgiving:1 slot:3 rival:4  simVersion:8  ticks:16
  *               (rival: the rival AI's grid slot + 1, 0 = none; iteration 2 integration, was reserved and always 0)
- *   (v2 only)   body:3 mode:3 reserved:2      (iteration 2: the player's kart body and the race mode)
+ *   (v2 only)   body:3 mode:3 solo:1 reserved:1  (iteration 2: the player's kart body and the race mode; iteration 4:
+ *               solo = the recorded kart raced alone, a ghost duel, so its shadow race has no field either)
  *   runs        packed TickInput:10 (types.ts packInput), count as 3-bit groups with a continuation bit
  *   crc16
  *
@@ -45,6 +46,8 @@ export interface GhostHeader {
   mode?: RaceMode;
   /** grid slot of the rival AI (RacerInfo.rival; it drives differently, so the shadow race needs it), -1 / absent = none */
   rival?: number;
+  /** iteration 4 (F9): the recorded kart raced alone (a ghost duel); was a reserved bit, so older links read false */
+  solo?: boolean;
 }
 
 export interface Ghost extends GhostHeader {
@@ -75,7 +78,8 @@ function packHeader(g: GhostHeader): Uint8Array {
   w.write(Math.min(GHOST_MAX_TICKS, g.ticks), 16);
   w.write((g.body ?? 0) & 7, 3);
   w.write(Math.max(0, RACE_MODES.indexOf(g.mode ?? 'race')) & 7, 3);
-  w.write(0, 2);
+  w.write(g.solo ? 1 : 0, 1);
+  w.write(0, 1);
   return w.bytes();
 }
 
@@ -95,14 +99,18 @@ function readHeader(b: Uint8Array, version: number): GhostHeader | null {
   if (cls > 2) return null;
   let body: BodyId = 0;
   let mode: RaceMode = 'race';
+  let solo = false;
   if (version >= 2) {
     const bv = r.read(3);
     const mv = r.read(3);
     if (bv > 5 || mv >= RACE_MODES.length) return null;
     body = bv as BodyId;
     mode = RACE_MODES[mv];
+    solo = r.read(1) === 1;
   }
-  return { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks, body, mode, rival };
+  const h: GhostHeader = { trackKey: trackKeyV, seed: seedU | 0, cls: cls as RaceClass, modifiers, forgiving, slot, simVersion, ticks, body, mode, rival };
+  if (solo) h.solo = true;
+  return h;
 }
 
 type Run = [value: number, count: number];

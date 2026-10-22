@@ -80,7 +80,7 @@ export function wallSide(def: TrackDef, t: BuiltTrack, s: number, len: number): 
 }
 
 /** Issues the set-piece rules raise for `def` (no drive check: that runs once, in validateTrack). */
-function pieceIssues(def: TrackDef): number {
+export function pieceIssueCount(def: TrackDef): number {
   try {
     return validateSetPieces(def, buildTrack(def), { ugc: true }).length;
   } catch {
@@ -103,7 +103,7 @@ export function snapPiece(def: TrackDef, t: BuiltTrack, idx: number): SetPiece {
     void _old;
     return { ...rest, s, ...wallSide(def, t, s, p0.len ?? metresToUnits(t, PIECE_EDIT.wallLen)) };
   };
-  const tryAt = (p: SetPiece): number => pieceIssues({ ...def, setPieces: pcs.map((q, j) => (j === idx ? p : q)) });
+  const tryAt = (p: SetPiece): number => pieceIssueCount({ ...def, setPieces: pcs.map((q, j) => (j === idx ? p : q)) });
   let best = p0;
   let bestN = tryAt(p0);
   // one unit at a time close by, then every other unit (each try is a track build: keep it under ~10 on a phone)
@@ -164,7 +164,7 @@ export function ugcPieces(def: TrackDef): SetPiece[] | undefined {
     if (keep.length >= PIECE_LIMITS.total || keep.filter((q) => q.kind === p.kind).length >= PIECE_LIMITS[p.kind]) continue;
     const trial: TrackDef = { ...base, setPieces: [...keep, p] };
     const snapped = snapPiece(trial, t, keep.length);
-    if (pieceIssues({ ...base, setPieces: [...keep, snapped] }) === 0) keep.push(snapped);
+    if (pieceIssueCount({ ...base, setPieces: [...keep, snapped] }) === 0) keep.push(snapped);
   }
   return keep.length ? keep : undefined;
 }

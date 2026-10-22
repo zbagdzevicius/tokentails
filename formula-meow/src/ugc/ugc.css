@@ -79,3 +79,9 @@
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* iteration 4 (F10): Beat the maker. The link's lap in the banner, and the live lap delta pill (share.css draws the
+   pill; this one sits under the duel's gap pill and only shows while a target lap is set) */
+.fm-ugc-banner .lap { font-size: 14px; font-weight: 900; color: #6a3fd0; margin-bottom: 4px; }
+.fm-lap-pill { display: none; top: calc(104px + env(safe-area-inset-top)); }
+.fm-lap-pill.on { display: flex; }

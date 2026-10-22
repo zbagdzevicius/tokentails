@@ -122,3 +122,9 @@
 /* iteration 3: the stunt stickers (loop, wall ride, jump, tunnel) get their own row and a lilac face */
 .fm-ed-stunts .fm-ed-stk { background: #efe0ff; }
 .fm-ed-stunts small { white-space: nowrap; }
+
+/* iteration 4 (F10): Spice it up and Surprise track */
+.fm-ed-roll { justify-content: center; }
+.fm-ed-roll .fm-btn { min-height: 44px; padding: 6px 16px; font-size: 16px; }
+.fm-ed-spice { background: #1a1238; color: #2cf6f3; border-color: #1a1238; box-shadow: 0 3px 0 #6a3fd0; }
+.fm-ed-surprise { background: #ff3ea5; color: #fff3dc; }
