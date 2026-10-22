@@ -180,3 +180,68 @@ test.describe('reduced motion', () => {
     expect(errors).toEqual([]);
   });
 });
+
+/**
+ * Iteration 4 (juice lane, F3/F4/F5): the paw TAP! ring stands on Kitchen's lips and lights up as the bot reaches one
+ * (one instanced draw call), the final-lap gap chips show, and the bot's close win on seed 7 is stamped
+ * "PHOTO FINISH" with the same margin `finishMargin` gives. Screens: e2e/screens/juice4-*.png.
+ */
+type Fm4 = {
+  shell: {
+    simSpeed: number;
+    world: { tick: number; st: { tick: number; karts: Array<{ lap: number; finished: number }> }; cfg: { humans: number[]; laps?: number }; result(): { places: Array<{ kart: number; time: number | null }> } } | null;
+    stage: { renderer: { info: { render: { calls: number } } }; scene: { getObjectByName(n: string): { count: number; visible: boolean; geometry: { getAttribute(n: string): { array: Float32Array } } } | undefined } };
+    hud: { fx: { stamped: string; glow: string } };
+  };
+};
+
+test('iteration 4: the paw TAP! ring lights up on a lip; final-lap gap chips; a photo finish stamp', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors = watchErrors(page);
+  await start(page, 3);
+  // the ring: one instanced mesh with a ring per lip; freeze the first frame one is hot (the trick window)
+  await page.waitForFunction(
+    () => {
+      const sh = (window as unknown as { __fm: Fm4 }).__fm.shell;
+      const m = sh.stage.scene.getObjectByName('paw-rings');
+      if (!m || !m.visible) return false;
+      const a = m.geometry.getAttribute('aPulse').array;
+      for (let i = 0; i < m.count; i++)
+        if (a[i] >= 0.99) {
+          sh.simSpeed = 0;
+          return true;
+        }
+      return false;
+    },
+    null,
+    { timeout: 300_000, polling: 'raf' },
+  );
+  await page.waitForTimeout(250);
+  const ring = await page.evaluate(() => {
+    const sh = (window as unknown as { __fm: Fm4 }).__fm.shell;
+    const m = sh.stage.scene.getObjectByName('paw-rings')!;
+    return { count: m.count, calls: sh.stage.renderer.info.render.calls };
+  });
+  expect(ring.count).toBeGreaterThanOrEqual(1);
+  expect(ring.calls).toBeLessThanOrEqual(120);
+  await page.screenshot({ path: 'e2e/screens/juice4-ring.png' });
+  await resume(page, 3);
+
+  // the final lap: the gap chips show the cats ahead and behind
+  await expect(page.locator('.fm-gap.on').first()).toBeVisible({ timeout: 300_000 });
+  await expect(page.locator('.fm-gap.on').first()).toHaveText(/[+−]\d+\.\d s$/);
+
+  // the finish: seed 7 is a close win; the stamp carries the margin finishMargin gives
+  await expect(page.locator('.fm-stamp.on')).toBeVisible({ timeout: 300_000 });
+  const fin = await page.evaluate(() => {
+    const sh = (window as unknown as { __fm: Fm4 }).__fm.shell;
+    const j = (window as unknown as { __fmJuice: { finishCall: { kind: string; margin?: { margin: number } } | null } }).__fmJuice;
+    return { stamp: sh.hud.fx.stamped, call: j.finishCall };
+  });
+  expect(fin.call?.kind).toBe('photo');
+  expect(fin.stamp).toContain('PHOTO FINISH');
+  expect(fin.stamp).toContain(`by ${fin.call!.margin!.margin.toFixed(2)} s`);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'e2e/screens/juice4-photo.png' });
+  expect(errors).toEqual([]);
+});

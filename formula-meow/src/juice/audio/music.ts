@@ -198,11 +198,17 @@ export interface MusicMix {
   leadUp: number;
   /** 16th hats (closing stretch) */
   hats16: boolean;
+  /** iteration 4: the heartbeat at double time (a cat right on you in the final lap) */
+  heartFast: boolean;
 }
 
-/** Pure: race situation → layer mix (GDD 10 "reacts to race position"). */
-export function musicMix(mode: MusicMode, place: number, finalLap: boolean, closing: boolean, won = false): MusicMix {
-  const m: MusicMix = { kick: 0, snare: 0, hats: 0, bass: 0, pad: 0, arp: 0, lead: 0, heart: 0, arpCut: 1600, leadUp: 0, hats16: false };
+/**
+ * Pure: race situation → layer mix (GDD 10 "reacts to race position").
+ * Iteration 4: `tension` (0..1, the final-lap gap to the nearest cat, juice/duel.ts) raises the heartbeat and doubles
+ * it from 0.6; `fire` (ON FIRE, juice/boost-chain.ts) brings the lead in an octave up whatever the place.
+ */
+export function musicMix(mode: MusicMode, place: number, finalLap: boolean, closing: boolean, won = false, tension = 0, fire = false): MusicMix {
+  const m: MusicMix = { kick: 0, snare: 0, hats: 0, bass: 0, pad: 0, arp: 0, lead: 0, heart: 0, arpCut: 1600, leadUp: 0, hats16: false, heartFast: false };
   if (mode === 'off') return m;
   if (mode === 'pre') return { ...m, pad: 0.7, heart: 0.8, arpCut: 900 };
   if (mode === 'menu') return { ...m, kick: 0.7, snare: 0.45, hats: 0.55, bass: 0.85, pad: 1, arp: 0.55, lead: 0.7, arpCut: 1800 };
@@ -221,6 +227,15 @@ export function musicMix(mode: MusicMode, place: number, finalLap: boolean, clos
     m.hats = Math.max(m.hats, 1);
     m.pad = Math.min(1, m.pad + 0.2);
     m.hats16 = closing;
+    if (tension > 0) {
+      m.heart = Math.max(m.heart, Math.min(1, 0.35 + 0.65 * tension));
+      m.heartFast = tension >= 0.6;
+    }
+  }
+  if (fire) {
+    m.lead = 1;
+    m.leadUp = 12;
+    m.arpCut = Math.max(m.arpCut, 3200);
   }
   return m;
 }
@@ -242,6 +257,11 @@ export class Music {
   private bpm = 128;
   private key = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
+  /** iteration 4: the one-beat drop (no notes before this context time; the band slams back on it) */
+  private dropEnd = 0;
+  private dropHit = true;
+  /** the battle frenzy's tempo lift (BPM) */
+  private lift = 0;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -312,6 +332,7 @@ export class Music {
   /** GO: the band lands on this downbeat with a crash. */
   go(): void {
     this.mode = 'race';
+    this.lift = 0;
     this.bpm = this.song.bpm;
     this.step = 0;
     this.next = this.ctx.currentTime + 0.02;
@@ -321,13 +342,45 @@ export class Music {
 
   /** Final lap: the tempo lifts 12 BPM (128 → 140) and the key rises a whole tone. */
   finalLap(): void {
-    this.bpm = this.song.bpm + 12;
+    this.bpm = this.song.bpm + 12 + this.lift;
     this.key = 2;
     // riser across the line: two bars of rising filtered noise and a pitch sweep
     const t = this.ctx.currentTime;
     const bar = (60 / this.bpm) * 4;
     noise({ ...this.g, out: this.bus.hats }, t, { peak: 0.35, attack: bar * 1.6, decay: 0.2, filter: { type: 'bandpass', freq: 300, freqEnd: 7000, q: 2 }, seed: 73 });
     tone({ ...this.g, out: this.bus.lead }, t, { type: 'sawtooth', freq: 110, freqEnd: 880, attack: bar * 1.6, decay: 0.15, peak: 0.08, filter: { type: 'lowpass', freq: 3000 } });
+  }
+
+  /**
+   * Iteration 4 (F5): taking P1 on the final lap cuts the band for one beat, then slams it back with a crash and a sub
+   * hit on the next downbeat.
+   */
+  drop(): void {
+    if (this.mode !== 'race') return;
+    const beat = 60 / this.bpm;
+    this.dropEnd = this.ctx.currentTime + beat;
+    this.dropHit = false;
+    for (const l of LAYERS) {
+      const g = this.bus[l].gain;
+      g.cancelScheduledValues(this.ctx.currentTime);
+      g.setTargetAtTime(0, this.ctx.currentTime, 0.015);
+      g.setTargetAtTime(this.mix[l] * LEVEL[l], this.dropEnd - 0.01, 0.01);
+    }
+  }
+
+  /** Iteration 4 (F14): the battle frenzy (the last 30 s): +16 BPM and a riser. */
+  frenzy(): void {
+    if (this.mode !== 'race' || this.lift > 0) return;
+    this.lift = 16;
+    this.bpm = this.song.bpm + this.lift;
+    const t = this.ctx.currentTime;
+    const bar = (60 / this.bpm) * 4;
+    noise({ ...this.g, out: this.bus.hats }, t, { peak: 0.35, attack: bar, decay: 0.2, filter: { type: 'bandpass', freq: 400, freqEnd: 8000, q: 2 }, seed: 79 });
+  }
+
+  /** The tempo now (QA, e2e). */
+  get tempo(): number {
+    return this.bpm;
   }
 
   results(won: boolean): void {
@@ -342,10 +395,10 @@ export class Music {
     this.apply(musicMix('off', 8, false, false));
   }
 
-  /** Called every frame while racing. */
-  setRace(place: number, finalLap: boolean, closing: boolean): void {
+  /** Called every frame while racing (`tension`, `fire`: iteration 4, see `musicMix`). */
+  setRace(place: number, finalLap: boolean, closing: boolean, tension = 0, fire = false): void {
     if (this.mode !== 'race') return;
-    this.apply(musicMix('race', place, finalLap, closing));
+    this.apply(musicMix('race', place, finalLap, closing, false, tension, fire));
   }
 
   get currentMode(): MusicMode {
@@ -354,7 +407,8 @@ export class Music {
 
   private apply(m: MusicMix): void {
     const t = this.ctx.currentTime;
-    for (const l of LAYERS) if (Math.abs(this.mix[l] - m[l]) > 0.001) this.bus[l].gain.setTargetAtTime(m[l] * LEVEL[l], t, 0.25);
+    const dropping = t < this.dropEnd;
+    for (const l of LAYERS) if (Math.abs(this.mix[l] - m[l]) > 0.001) this.bus[l].gain.setTargetAtTime(m[l] * LEVEL[l], dropping ? this.dropEnd : t, 0.25);
     if (this.mix.arpCut !== m.arpCut) this.arpF.frequency.setTargetAtTime(m.arpCut, t, 0.4);
     this.mix = m;
   }
@@ -371,6 +425,15 @@ export class Music {
   }
 
   private play(step: number, t: number): void {
+    // the one-beat drop: nothing sounds until it ends, then a crash and a sub hit land with the band
+    if (t < this.dropEnd - 0.005) return;
+    if (!this.dropHit) {
+      this.dropHit = true;
+      if (this.budget.admit(t, 2, 1)) {
+        noise({ ...this.g, out: this.bus.hats }, t, { peak: 0.55, decay: 1.2, filter: { type: 'highpass', freq: 4500 }, seed: 103 });
+        tone({ ...this.g, out: this.bus.kick }, t, { freq: 130, freqEnd: 36, glide: 0.2, peak: 1, decay: 0.4 });
+      }
+    }
     const s16 = step % 16;
     const bar = Math.floor(step / 16);
     const song = this.song;
@@ -390,8 +453,9 @@ export class Music {
       this.pump.gain.linearRampToValueAtTime(1, t + spb * 2.6);
     }
     const pre = this.mode === 'pre';
-    const lub = pre ? s16 % 4 === 0 : s16 % 8 === 0;
-    const dub = pre ? s16 % 4 === 1 : s16 % 8 === 3;
+    const fast = pre || m.heartFast;
+    const lub = fast ? s16 % 4 === 0 : s16 % 8 === 0;
+    const dub = fast ? s16 % 4 === 1 : s16 % 8 === 3;
     if (m.heart > 0 && (lub || dub) && admit(1, 0.2)) {
       tone({ ...g, out: this.bus.heart }, t, { freq: 90, freqEnd: 45, glide: 0.08, peak: lub ? 0.8 : 0.55, decay: 0.16, filter: { type: 'lowpass', freq: 300 } });
     }

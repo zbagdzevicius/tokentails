@@ -17,7 +17,7 @@ import { EngineVoice } from './engine';
 import { Music, SONG } from './music';
 import { cueLength, cuesFor, incomingCue, incomingInterval, playCue, VoiceBudget, type Cue } from './sfx';
 import { makeNoise, type SynthGraph } from './synth';
-import { AnnouncerLogic, LOW_LINES, lineLength, playLine, type AnnounceId } from './announcer';
+import { AnnouncerLogic, FINISH_LINES, LOW_LINES, lineLength, playLine, type AnnounceId } from './announcer';
 import { TunnelAudio } from './tunnel';
 import { playUi, uiSoundSpec, type UiSoundId } from './stings';
 
@@ -78,6 +78,12 @@ export class RaceAudio implements JuiceListener {
   private incoming: IncomingSound | null = null;
   private nextBeep = 0;
   private lastLineEnd = 0;
+  /** iteration 4 (juice lane): the final-lap duel tension and ON FIRE (music), the slipstream whoosh voice */
+  private tension = 0;
+  private fire = false;
+  private slip: { src: AudioBufferSourceNode; bp: BiquadFilterNode; gain: GainNode } | null = null;
+  private slipLevel = 0;
+  private slipHeld = 0;
   muted = false;
   mixer: Mixer = { master: 1, music: 1, sfx: 1, engine: 1, voice: 1 };
   /** the song for the current race (set by the juice install: the track's music or theme) */
@@ -161,6 +167,23 @@ export class RaceAudio implements JuiceListener {
       engine.gain.value = ENGINE * this.mixer.engine * this.tunnel.engineTrim;
     }
     this.engine = new EngineVoice(ctx, engine, noiseBuf);
+    // iteration 4: the slipstream's rising whoosh, one looping noise voice that only sounds while a draft charges
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      src.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 1.4;
+      bp.frequency.value = 500;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(bp).connect(gain).connect(sfx);
+      src.start();
+      this.slip = { src, bp, gain };
+    } catch {
+      this.slip = null;
+    }
     this.music = new Music(ctx, music, noiseBuf, this.budget);
     if (this.scene === 'menu') this.music.menu(SONG.menu);
     else if (this.scene === 'podium') {
@@ -286,6 +309,58 @@ export class RaceAudio implements JuiceListener {
     return { inside: !!this.tunnel?.inside, wanted: this.tunnelWanted };
   }
 
+  /**
+   * Iteration 4 (juice lane, F5): the slipstream charge 0..1 (0 = none). The whoosh rises in pitch and level as the
+   * draft fills; it holds one voice of the budget while it sounds and gives way when the voices are busy.
+   */
+  setSlip(frac: number): void {
+    const s = this.slip;
+    if (!s || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    let want = this.scene === 'race' && !this.muted ? Math.max(0, Math.min(1, frac)) : 0;
+    if (want > 0.02 && now >= this.slipHeld) {
+      if (this.budget.admit(now, 1, 0.25)) this.slipHeld = now + 0.2;
+      else want = 0;
+    }
+    if (Math.abs(want - this.slipLevel) < 0.01) return;
+    this.slipLevel = want;
+    s.gain.gain.setTargetAtTime(want * want * 0.22, now, 0.06);
+    s.bp.frequency.setTargetAtTime(500 + 2600 * want, now, 0.08);
+  }
+
+  /** Iteration 4: the final-lap duel tension 0..1 (heartbeat) and ON FIRE (the lead layer). */
+  setDuel(tension: number, fire: boolean): void {
+    this.tension = tension;
+    this.fire = fire;
+  }
+
+  /** Iteration 4: taking P1 on the final lap: the band drops out for one beat and slams back. */
+  musicDrop(): void {
+    if (this.scene === 'race') this.music?.drop();
+  }
+
+  /** The music tempo (QA, e2e). */
+  get tempo(): number {
+    return this.music?.tempo ?? 0;
+  }
+
+  /** Iteration 4: a panned race cue (a cat zipping past on the left or right). */
+  cuePanned(c: Cue, pan: number): void {
+    const g = this.graph;
+    if (!g || !this.ctx || this.muted || this.scene !== 'race' || this.ctx.state !== 'running') return;
+    const now = this.ctx.currentTime;
+    if (!this.budget.admit(now, c.prio, cueLength(c.id))) return;
+    try {
+      const p = this.ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      p.connect(g.out);
+      playCue({ ...g, out: p }, c, now + 0.005);
+      setTimeout(() => p.disconnect(), 1000);
+    } catch {
+      /* ignored */
+    }
+  }
+
   /** An announcer line: captions always hear it; the voice plays on its bus and ducks the music. */
   announce(id: AnnounceId): void {
     this.onLine?.(id);
@@ -295,9 +370,10 @@ export class RaceAudio implements JuiceListener {
     const len = lineLength(id);
     // set-piece lines are flavour: they give way when the voices are busy
     if (!this.budget.admit(now, LOW_LINES.has(id) ? 2 : 3, len)) return;
-    // never two lines on top of each other: a new one waits for the last to end (short ones only)
+    // never two lines on top of each other: a new one waits for the last to end (short ones only); a line about the
+    // finish (photo finish, stolen at the line) waits for the finish line itself
     const t = Math.max(now + 0.01, this.lastLineEnd + 0.03);
-    if (t - now > 0.6) return;
+    if (t - now > (FINISH_LINES.has(id) ? 1.3 : 0.6)) return;
     try {
       const end = playLine(g, id, t, 1);
       this.lastLineEnd = end;
@@ -318,6 +394,9 @@ export class RaceAudio implements JuiceListener {
   }
 
   onReset(): void {
+    this.tension = 0;
+    this.fire = false;
+    this.setSlip(0);
     this.finalLap = false;
     this.finished = false;
     this.raceLive = false;
@@ -344,6 +423,8 @@ export class RaceAudio implements JuiceListener {
       if (this.scene === 'race') this.music?.go();
     }
     if (e.type === 'countdown' && e.a === 3 && this.scene === 'race') this.music?.pre();
+    // iteration 4 (F14): the battle frenzy speeds the band up
+    if (e.type === 'frenzy' && this.scene === 'race') this.music?.frenzy();
     if (e.type === 'finalLap' && e.kart === me) {
       this.finalLap = true;
       if (this.scene === 'race') this.music?.finalLap();
@@ -383,13 +464,14 @@ export class RaceAudio implements JuiceListener {
     const k = st.karts[info.me];
     const running = this.scene === 'race' && !info.paused && st.phase !== 'done' && !k.finished;
     this.engine.update(st.karts, info.me, info.topSpeed, running);
+    if (!running && this.slipLevel > 0) this.setSlip(0);
     if (info.paused !== this.pausedNow && this.pauseLp) {
       this.pausedNow = info.paused;
       this.pauseLp.frequency.setTargetAtTime(info.paused ? 500 : Math.min(20000, this.ctx.sampleRate / 2), this.ctx.currentTime, 0.08);
     }
     if (this.music && !this.finished && this.scene === 'race') {
       const closing = this.finalLap && st.lapLength > 0 && k.s / st.lapLength > 0.82;
-      this.music.setRace(k.place || 8, this.finalLap, closing);
+      this.music.setRace(k.place || 8, this.finalLap, closing, this.tension, this.fire);
     }
     // the incoming-item beeper: faster as it closes
     const inc = this.incoming;
@@ -410,6 +492,11 @@ export class RaceAudio implements JuiceListener {
   }
 
   dispose(): void {
+    try {
+      this.slip?.src.stop();
+    } catch {
+      /* never started */
+    }
     this.music?.dispose();
     this.engine?.dispose();
     void this.ctx?.close();

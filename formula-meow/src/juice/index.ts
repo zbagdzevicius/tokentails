@@ -15,6 +15,13 @@
  * streaks, speed lines and vignette (vfx/tunnel-fx.ts), the tunnel's music low-pass and echo (audio/tunnel.ts), a
  * landing shake, haptics, and the "Stunts" results row. Reduced motion: no sparks, streaks, confetti, shake or FOV.
  *
+ * Iteration 4 (more fun): paw TAP! rings on every ramp and jump lip (vfx/paw-rings.ts); the overtake punch and its
+ * whoosh; the photo finish (photo-finish.ts: a 0.4 s render-only freeze, the shutter, the stamp, "By a whisker!" /
+ * "So close!", "WON BY x s", all from `finishMargin`); slipstream ribbons, whoosh and charge ring; DODGED!
+ * (dodge.ts); the final-lap duel (duel.ts: gap chips, edge glow, heartbeat, COMEBACK!, Hold on!, STOLEN AT THE LINE!,
+ * the one-beat music drop on taking P1, FASTEST LAP, pass-by zips); boost chains and ON FIRE (boost-chain.ts) with
+ * the "Best chain" results row. Reduced motion: no freeze, shutter flash, edge glow or ribbons; text still shows.
+ *
  * Iteration 2 (audio-ui lane): every callout goes through `t()`; reduced motion turns off camera shake (from any lane:
  * `camera.addTrauma` is gated here), screen flashes, tints, hit-stop, slow-mo and confetti; the race audio gets the
  * track's song and the race mode.
@@ -42,6 +49,20 @@ import { TunnelFx } from './vfx/tunnel-fx';
 import { StuntTally, type StuntCallout } from './stunts';
 import { registerResultSection } from '../core/hud/results';
 import { stuntSection } from '../core/hud/stunt-hud';
+import { chainSection } from '../core/hud/juice-hud';
+import { BOOST } from '../tuning';
+import { BoostChain, type ChainLink } from './boost-chain';
+import { PhotoFinishJudge, fmtMargin, type FinishCall } from './photo-finish';
+import { finishMargin } from '../core/app/finish';
+import { DodgeWatcher, projSamples, type ProjSample } from './dodge';
+import { DramaCalls, FastestLap, GapSmoother, PassZips, duelGlow, duelTension, raceGaps, type Gaps, type Zip } from './duel';
+import { PawRings } from './vfx/paw-rings';
+
+const SLIP_FULL = Math.round(BOOST.slip.charge * 60);
+/** gap chips show from this gap down (s) */
+const DUEL_SHOW = 5;
+/** a TRIPLE overtake lights ON FIRE only from this many ticks after GO (10 s) */
+const FIRE_AFTER_GO = 600;
 
 const HIT_CALLS = ['BONK!', 'GOTCHA!', 'PURRFECT HIT!'];
 
@@ -83,6 +104,26 @@ export class JuiceDirector implements JuiceListener {
   private inTunnel = false;
   /** a gap flight is in the air (its landing is called by stuntLand, not the generic BIG AIR on 'land') */
   private gapFlight = false;
+  /** iteration 4 */
+  readonly boosts = new BoostChain();
+  readonly judge = new PhotoFinishJudge();
+  private readonly dodge = new DodgeWatcher();
+  private readonly samples: ProjSample[] = [];
+  private readonly gaps: Gaps = { ahead: null, behind: null, aheadKart: -1, behindKart: -1 };
+  private readonly gapA = new GapSmoother();
+  private readonly gapB = new GapSmoother();
+  readonly drama = new DramaCalls();
+  private readonly fastLap = new FastestLap();
+  private readonly zips = new PassZips();
+  private readonly zipOut: Zip[] = [];
+  private rings: PawRings | null = null;
+  /** the finish decision (QA, e2e) */
+  finishCall: FinishCall | null = null;
+  /** QA counters (e2e): DODGED! calls, music drops, fastest-lap flashes */
+  readonly counts = { dodged: 0, drops: 0, fastest: 0, comebacks: 0, fires: 0 };
+  private stolen = false;
+  private decidedAt = 0;
+  private lastPassDown = -1e9;
 
   constructor(private readonly shell: Shell) {
     const q = new URLSearchParams(location.search);
@@ -132,19 +173,34 @@ export class JuiceDirector implements JuiceListener {
     if (this.tfx) this.tfx.density = look.density;
     this.sky?.setDensity(look.ambient);
     if (SpeedLines.current) SpeedLines.current.detail = look.streaks;
+    if (this.kfx) this.kfx.fireTrail = look.fx4;
+    if (this.rings) this.rings.animate = look.fx4;
   }
 
   onReset(): void {
     // B61: the last race's effects leave the scene now and are freed later by the shell (their programs may still be
     // linking; the shell compiles the new race's after this reset)
-    const old = [this.kfx, this.sky, this.tfx];
+    const old = [this.kfx, this.sky, this.tfx, this.rings];
     for (const o of old) o?.detach();
     if (old.some((o) => o)) this.shell.retire(() => old.forEach((o) => o?.dispose()));
     this.kfx = null;
     this.sky = null;
     this.stuntFx = null;
     this.tfx = null;
+    this.rings = null;
     this.stunts.reset();
+    this.boosts.reset();
+    this.judge.reset();
+    this.dodge.reset();
+    this.gapA.reset();
+    this.gapB.reset();
+    this.drama.reset();
+    this.fastLap.reset();
+    this.zips.reset();
+    this.finishCall = null;
+    for (const c of Object.keys(this.counts)) this.counts[c as keyof typeof this.counts] = 0;
+    this.stolen = false;
+    this.lastPassDown = -1e9;
     this.inTunnel = false;
     this.gapFlight = false;
     this.warp.reset();
@@ -163,6 +219,9 @@ export class JuiceDirector implements JuiceListener {
       this.stuntFx = new StuntFx(view, this.kfx);
       if (view.track.tunnelMask.some((v) => v === 1)) this.tfx = new TunnelFx(this.shell.stage.scene, view.track, theme);
     }
+    // F3: a paw TAP! ring on every ramp and jump lip (one instanced draw call; none on a track without lips)
+    this.rings = new PawRings(this.shell.stage.scene, view.track, t('TAP!'));
+    if (!this.rings.mesh) this.rings = null;
     this.applyTier();
     // outline LOD: collect every outline twin per kart once
     this.outlines = view.karts.map((kv) => {
@@ -187,8 +246,11 @@ export class JuiceDirector implements JuiceListener {
     const warp = calm ? { hitStop: () => undefined, slowMo: () => undefined } : this.warp;
     const theme = this.shell.view?.world.theme;
     const a = e.a ?? 0;
+    // F6: boost chains (the player's earned boosts)
+    if (mine) this.chainLink(this.boosts.onEvent(e, me));
     switch (e.type) {
       case 'hit':
+        if (mine) this.dodge.onHit(e.tick);
         if (mine) {
           warp.hitStop(0.1, 0.04);
           sl?.flash(0xff4d6d, 0.45, 0.35);
@@ -233,7 +295,10 @@ export class JuiceDirector implements JuiceListener {
         }
         break;
       case 'blocked':
-        if (mine) this.pop(t('BLOCKED!'), 'cyan');
+        if (mine) {
+          this.dodge.onHit(e.tick);
+          this.pop(t('BLOCKED!'), 'cyan');
+        }
         break;
       case 'land':
         // a jump gap's landing has its own call (stuntLand); only plain ramps say BIG AIR here
@@ -249,6 +314,11 @@ export class JuiceDirector implements JuiceListener {
       case 'overtake':
         if (e.b === me && e.kart !== me) {
           this.passedBy.set(e.kart, e.tick);
+          // F4: a place lost: a falling bwomp (the HUD shakes the place red)
+          if (e.tick > GO_TICK && e.tick - this.lastPassDown > 30) {
+            this.lastPassDown = e.tick;
+            this.shell.audio.cue({ id: 'passDown', prio: 1, n: a, pitch: 1, delay: 0, vol: 1 });
+          }
           break;
         }
         if (mine && e.tick > GO_TICK && e.b != null) {
@@ -266,17 +336,25 @@ export class JuiceDirector implements JuiceListener {
           this.chain = this.chainKarts.size;
           const c = overtakeCall(this.chain, a);
           this.pop(c.text, c.tone, c.sub);
+          // F4: the overtake punch's whoosh (the HUD pops "+1 ▲")
+          this.shell.audio.cue({ id: 'passUp', prio: 2, n: a, pitch: 1, delay: 0, vol: 1 });
+          // F6: a TRIPLE lights ON FIRE (not in the start scramble: passing three cats off the grid is every race)
+          if (this.chain === 3 && e.tick - GO_TICK > FIRE_AFTER_GO && this.boosts.ignite(e.tick)) this.onFire();
           vibrate(10);
         }
         break;
       case 'finalLap':
         if (mine) {
           this.finalLap = true;
+          this.drama.onFinalLap(e.tick, info.st.karts[me].place);
           sl?.flash(theme?.accent ?? 0xff3ea5, 0.25, 0.5);
         }
         break;
       case 'finish':
         if (mine) {
+          // F4: the photo-finish judge waits for the nearest finisher; F5: was the place taken in the last second?
+          this.judge.begin(e.tick);
+          this.stolen = this.drama.onFinish(e.tick, a) === 'stolen';
           warp.slowMo(1.4, 0.3);
           sl?.flash(0xffd27a, 0.5, 0.6);
           sl?.setPulse(false);
@@ -321,13 +399,158 @@ export class JuiceDirector implements JuiceListener {
     this.pop(t(c.text, { n: c.n ?? 0 }), c.tone, c.sub ? t(c.sub, { n: c.n ?? 0 }) : undefined);
   }
 
+  /** F6: a boost chain link: the climbing zap from ×2, the callout from ×3, ON FIRE from ×4. */
+  private chainLink(l: ChainLink | null): void {
+    if (!l) return;
+    if (l.chain >= 2) this.shell.audio.cue({ id: 'chain', prio: 1, n: l.chain, pitch: 1, delay: 0.05, vol: 1 });
+    if (l.newFire) this.onFire();
+    else if (l.callout) this.pop(t('BOOST CHAIN ×{n}', { n: l.chain }), 'pink');
+  }
+
+  /** ON FIRE lit from cold: the roar, the callout and a warm flash. */
+  private onFire(): void {
+    this.counts.fires++;
+    this.shell.audio.cue({ id: 'onFire', prio: 2, n: 0, pitch: 1, delay: 0, vol: 1 });
+    this.shell.hud.say(t('ON FIRE!'), { prio: 1, tone: 'orange', ms: 1200 });
+    if (!reducedMotion()) SpeedLines.current?.flash(0xff7a1a, 0.25, 0.4);
+    vibrate([15, 30, 15]);
+  }
+
+  /** F4: the photo-finish judge's decision: the stamp or the banner, and one announcer line. */
+  private decide(call: FinishCall, tick: number): void {
+    this.finishCall = call;
+    this.decidedAt = tick;
+    const fx = this.shell.hud.fx;
+    const by = (m: { margin: number; projected?: boolean }) => (m.projected ? t('WON BY ≈{s} s', { s: fmtMargin(m.margin) }) : t('WON BY {s} s', { s: fmtMargin(m.margin) }));
+    let line: 'whisker' | 'soClose' | 'stolen' | null = null;
+    if (call.kind === 'photo') {
+      fx.stamp('photo', t('PHOTO FINISH'), t('by {s} s', { s: fmtMargin(call.margin.margin) }));
+      line = call.margin.won ? 'whisker' : 'soClose';
+    } else if (this.stolen) {
+      fx.stamp('won', t('STOLEN AT THE LINE!'), call.kind === 'won' ? by(call.margin) : '');
+      line = 'stolen';
+    } else if (call.kind === 'won') fx.stamp('won', by(call.margin), '');
+    if (line) {
+      const id = this.shell.audio.announcer.onFinishDrama(line, tick);
+      if (id) this.shell.audio.announce(id);
+    }
+  }
+
   /** Style callouts go through the HUD's one message slot (B33), below the race banners in priority. */
   private pop(text: string, tone: PopTone, sub?: string): void {
     this.shell.hud.say(text, { prio: 1, tone, sub, ms: 1000 });
   }
 
+  /** Iteration 4, every frame: the paw rings, the photo finish, dodges, the duel, slipstream, ON FIRE, zips. */
+  private frame4(info: FrameInfo, vdt: number): void {
+    const st = info.st;
+    const me = info.me;
+    const k = st.karts[me];
+    const tick = st.tick;
+    const calm = reducedMotion();
+    const hud = this.shell.hud;
+    const audio = this.shell.audio;
+    const look = this.quality.look;
+    const battle = hud.hudModel.mode === 'battle';
+    const racing = !info.paused && tick > GO_TICK && !k.finished && st.phase !== 'done';
+    this.rings?.update(k, vdt, calm);
+
+    // F4: the photo finish (decided once, up to 18 ticks after the player's own finish)
+    const w = this.shell.world;
+    if (this.judge.active && w && !info.paused) {
+      const r = this.judge.step(tick, w.result(), me, k.place);
+      if (r.certain) {
+        audio.cue({ id: 'shutter', prio: 3, n: 0, pitch: 1, delay: 0, vol: 1 });
+        if (!calm) {
+          // a 0.4 s render-only freeze (the sim still steps whole ticks, only later), the shutter flash
+          this.warp.hitStop(0.4, 0.02);
+          hud.fx.shutter();
+        }
+      }
+      if (r.decided) this.decide(r.decided, tick);
+    }
+    // a "WON BY ≈x s" from the projection becomes the exact margin when the runner-up crosses (while it is up, 3 s)
+    const fc = this.finishCall;
+    if (fc && fc.kind === 'won' && fc.margin.projected && w && tick - this.decidedAt < 180) {
+      const m = finishMargin(w.result(), me);
+      if (m && !m.projected && m.won) {
+        this.finishCall = { kind: 'won', margin: m };
+        hud.fx.retitle(this.stolen ? t('STOLEN AT THE LINE!') : t('WON BY {s} s', { s: fmtMargin(m.margin) }), this.stolen ? t('WON BY {s} s', { s: fmtMargin(m.margin) }) : '');
+      }
+    }
+
+    // F5: DODGED! (a locked shot that missed)
+    if (racing) {
+      projSamples(st, me, this.samples);
+      if (this.dodge.step(tick, this.samples)) {
+        this.counts.dodged++;
+        this.pop(t('DODGED!'), 'cyan');
+        audio.cue({ id: 'dodge', prio: 2, n: 0, pitch: 1, delay: 0, vol: 1 });
+        vibrate(12);
+      }
+    }
+
+    // F5: the final-lap duel: gap chips, edge glow, the heartbeat, the calls
+    let tension = 0;
+    if (racing && !battle && this.drama.finalLap) {
+      raceGaps(st, me, this.gaps);
+      const ga = this.gapA.step(this.gaps.ahead, this.gaps.aheadKart, info.dt);
+      const gb = this.gapB.step(this.gaps.behind, this.gaps.behindKart, info.dt);
+      const sa = ga != null && ga <= DUEL_SHOW ? ga : null;
+      const sb = gb != null && gb <= DUEL_SHOW ? gb : null;
+      hud.fx.gaps(sa, sb, duelGlow(sa, sb));
+      tension = duelTension(sa, sb);
+      for (const c of this.drama.step(tick, k.place, sb)) {
+        if (c === 'drop') {
+          this.counts.drops++;
+          audio.musicDrop();
+        } else if (c === 'comeback') {
+          this.counts.comebacks++;
+          hud.say(t('COMEBACK!'), { prio: 2, tone: 'green' });
+          const id = audio.announcer.onDuel('comeback', tick);
+          if (id) audio.announce(id);
+        } else if (c === 'holdOn') {
+          const id = audio.announcer.onDuel('holdOn', tick);
+          if (id) audio.announce(id);
+        }
+      }
+    } else {
+      hud.fx.gaps(null, null, null);
+      if (racing) this.drama.step(tick, k.place, null);
+    }
+
+    // F5: the slipstream: ribbons in the speed-lines pass, the rising whoosh, the charge ring
+    const slip = racing && k.slipTicks > 0 ? Math.min(1, k.slipTicks / SLIP_FULL) : 0;
+    const sl = SpeedLines.current;
+    if (sl) sl.slip = look.fx4 ? slip : 0;
+    audio.setSlip(slip);
+    hud.fx.slip(slip);
+
+    // F6: ON FIRE (flames, trail, ember edge, the lead layer); the chain's heat runs the flame toward white-pink
+    const fire = racing && this.boosts.onFire(tick);
+    const left = fire ? this.boosts.fireLeft(tick) : 0;
+    if (this.kfx) {
+      this.kfx.fire = left;
+      this.kfx.heat = racing ? Math.min(1, Math.max(0, this.boosts.chainAt(tick) - 1) / 4) : 0;
+    }
+    if (sl) sl.fire = fire && look.fx4 ? left : 0;
+    hud.fx.fire(fire ? `🔥 ${t('ON FIRE')}` : null, this.boosts.fireFrac(tick));
+    audio.setDuel(tension, fire);
+
+    // F5: FASTEST LAP (the race's fastest so far, against cats that have run a lap too)
+    if (!battle && this.fastLap.step(st.karts, me)) {
+      this.counts.fastest++;
+      hud.fx.fastest();
+      audio.cue({ id: 'fastestLap', prio: 1, n: 0, pitch: 1, delay: 0, vol: 1 });
+    }
+
+    // F5: pass-by zips (silent until GO + 3 s)
+    if (racing) for (const z of this.zips.step(tick, GO_TICK, st.karts, me, this.zipOut)) audio.cuePanned({ id: 'zip', prio: 0, n: 0, pitch: 1, delay: 0, vol: z.vol }, z.pan);
+  }
+
   onFrame(info: FrameInfo): void {
     const vdt = info.paused ? 0 : info.dt * this.scaleNow;
+    this.frame4(info, vdt);
     this.kfx?.update(info.st, info.alpha, vdt, info.me);
     this.sky?.update(info.paused ? 0 : info.dt, this.shell.camera.cam);
     this.confetti.update(info.dt);
@@ -402,6 +625,9 @@ export function installJuice(shell: Shell): JuiceDirector {
   shell.bus.add(d);
   // the "Stunts" row, between the standings (modes, 15) and the fish (progression, 50)
   registerResultSection(40, (ctx) => (shell.view?.track.pieces?.length ? stuntSection(d.stunts.summary, ctx) : null));
+  // iteration 4 (F6): "Best chain ×4 · ON FIRE ×1", under the stunts
+  registerResultSection(41, (ctx) => chainSection(d.boosts.summary, ctx));
   (window as unknown as { __fmStunts?: unknown }).__fmStunts = d.stunts;
+  (window as unknown as { __fmJuice?: unknown }).__fmJuice = d;
   return d;
 }

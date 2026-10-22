@@ -66,6 +66,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  /* iteration 4: the "+1 ▲" / "−1 ▼" punch reads over the item slot when a long place ("2nd/8") reaches it */
+  z-index: 2;
 }
 .fm-pos {
   position: relative;
@@ -629,3 +631,96 @@
   .fm-caption { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 .fm-stunts { color: #b0246f; }
+
+/* ---------------------------------------------------------------- iteration 4 (juice lane): F4, F5, F6, F13 */
+/* the overtake punch: a gold pop on a gain, a red shake on a loss ("+1 ▲" / "−1 ▼" in the delta chip) */
+.fm-pos-delta { white-space: nowrap; }
+.fm-pos.gained .fm-pos-n { animation: fm-flip 0.42s cubic-bezier(0.3, 1.5, 0.5, 1), fm-gain 0.6s ease-out; }
+.fm-pos.lost .fm-pos-n { animation: fm-lose 0.45s linear; color: #ff6b81; }
+@keyframes fm-gain { 0% { filter: drop-shadow(0 0 0 rgba(255, 210, 63, 0)); } 30% { filter: drop-shadow(0 0 16px rgba(255, 210, 63, 0.95)); } 100% { filter: drop-shadow(0 0 0 rgba(255, 210, 63, 0)); } }
+@keyframes fm-lose {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px) rotate(-3deg); }
+  35% { transform: translateX(6px) rotate(2deg); }
+  55% { transform: translateX(-4px); }
+  75% { transform: translateX(3px); }
+}
+/* final-lap gap chips under the place badge (gold to the cat ahead, red to the cat behind; hot within 0.5 s) */
+.fm-gaps { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: -4px; }
+.fm-gap { display: none; font-size: calc(15px * var(--ts)); line-height: 1; padding: 4px 9px 5px; border-radius: 999px; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+.fm-gap.on { display: block; }
+.fm-gap.ahead { background: #ffe58a; }
+.fm-gap.behind { background: #ffc2cc; }
+.fm-gap.ahead.hot { background: var(--butter); animation: fm-gap-hot 0.5s ease-in-out infinite alternate; }
+.fm-gap.behind.hot { background: #ff4d6d; color: var(--cream); animation: fm-gap-hot 0.5s ease-in-out infinite alternate; }
+@keyframes fm-gap-hot { from { transform: scale(1); } to { transform: scale(1.08); } }
+/* the duel edge glow: gold along the top (CATCH!), red along the bottom (DEFEND!) */
+.fm-jx { position: absolute; inset: 0; pointer-events: none; }
+.fm-edge { position: absolute; left: 0; right: 0; height: 22vh; opacity: 0; transition: opacity 0.25s; }
+.fm-edge.top { top: 0; background: linear-gradient(to bottom, rgba(255, 200, 40, 0.6), rgba(255, 200, 40, 0)); box-shadow: inset 0 5px 0 rgba(255, 200, 40, 0.9); }
+.fm-edge.bot { bottom: 0; background: linear-gradient(to top, rgba(255, 50, 80, 0.7), rgba(255, 50, 80, 0)); box-shadow: inset 0 -5px 0 rgba(255, 50, 80, 0.9); }
+.fm-edge.on { opacity: 1; animation: fm-edge 0.55s ease-in-out infinite alternate; }
+@keyframes fm-edge { from { opacity: 0.65; } to { opacity: 1; } }
+/* the photo-finish shutter flash */
+.fm-shutter { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.fm-shutter.on { animation: fm-shutter 0.5s ease-out; }
+@keyframes fm-shutter { 0% { opacity: 0.95; } 12% { opacity: 0.85; } 100% { opacity: 0; } }
+/* the finish stamp: a tilted rubber stamp ("PHOTO FINISH / by 0.07 s") or the gold "WON BY" banner */
+.fm-stamp { position: absolute; left: 50%; top: 56%; transform: translate(-50%, 0) rotate(-7deg); display: none; text-align: center; padding: 8px 18px 10px; border-radius: 14px; border: 5px solid var(--ink); box-shadow: 0 5px 0 var(--ink); white-space: nowrap; }
+.fm-stamp.on { display: block; animation: fm-stamp-in 0.42s cubic-bezier(0.3, 1.7, 0.5, 1) both; }
+.fm-stamp b { display: block; font-size: calc(clamp(26px, 8vw, 40px) * var(--ts)); line-height: 1; letter-spacing: 0.02em; }
+.fm-stamp small { display: block; font-size: calc(17px * var(--ts)); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.fm-stamp small:empty { display: none; }
+.fm-stamp.photo { background: #fff3dc; color: #c3124a; border-color: #c3124a; box-shadow: 0 5px 0 var(--ink), inset 0 0 0 3px #fff3dc, inset 0 0 0 6px #c3124a; }
+.fm-stamp.won { background: var(--butter); color: var(--ink); transform: translate(-50%, 0) rotate(-3deg); }
+@keyframes fm-stamp-in { 0% { opacity: 0; transform: translate(-50%, 0) rotate(-20deg) scale(2.4); } 60% { opacity: 1; transform: translate(-50%, 0) rotate(-5deg) scale(0.94); } 100% { transform: translate(-50%, 0) rotate(-7deg) scale(1); } }
+/* the slipstream charge ring and the ON FIRE badge (above the drift meter) */
+.fm-slipring { position: relative; width: 48px; height: 48px; display: none; }
+.fm-slipring.on { display: block; }
+.fm-slipring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.fm-slipring circle { fill: none; stroke-width: 6; }
+.fm-slipring .bg { stroke: rgba(26, 18, 56, 0.55); }
+.fm-slipring .arc { stroke: #7ff9f6; stroke-linecap: round; transition: stroke-dashoffset 0.08s linear; }
+.fm-slipring span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.fm-slipring.full .arc { stroke: #fff; }
+.fm-slipring.full { animation: fm-ring-full 0.25s ease-in-out infinite alternate; filter: drop-shadow(0 0 8px #7ff9f6); }
+@keyframes fm-ring-full { from { transform: scale(1); } to { transform: scale(1.12); } }
+.fm-fire { display: none; font-size: calc(19px * var(--ts)); color: #ffb020; white-space: nowrap; position: relative; padding-bottom: 5px; }
+.fm-fire.on { display: block; animation: fm-chip-in 0.3s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.fm-fire::after { content: ''; position: absolute; left: 0; bottom: 0; height: 4px; width: calc(100% * var(--left, 1)); border-radius: 2px; background: linear-gradient(90deg, #ff5a1a, #ffd23f); }
+/* the purple FASTEST LAP flash (right side, under the lap column) */
+.fm-fastest { position: absolute; right: calc(12px + env(safe-area-inset-right)); top: calc(282px + env(safe-area-inset-top)); font-size: calc(22px * var(--ts)); color: #c48bff; opacity: 0; transform: rotate(4deg); }
+.fm-fastest.on { animation: fm-fastest 1.8s ease-out forwards; }
+@keyframes fm-fastest { 0% { opacity: 0; transform: translateX(30px) rotate(4deg) scale(1.3); } 12% { opacity: 1; transform: rotate(4deg) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* the countdown strip: the hint sits under the digit, a good start flashes it green */
+.fm-slot .fm-strip { display: inline-block; margin-top: 10px; padding: 5px 14px 6px; border-radius: 999px; background: rgba(26, 18, 56, 0.72); border: 3px solid rgba(255, 243, 220, 0.35); color: var(--cream); font-size: calc(16px * var(--ts)); line-height: 1.1; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink); }
+.fm-slot .fm-strip.pounce { background: #2fd36b; border-color: var(--ink); color: var(--cream); font-size: calc(24px * var(--ts)); animation: fm-chip-in 0.3s cubic-bezier(0.2, 1.6, 0.4, 1); }
+:root[data-contrast='high'] .fm-gap, :root[data-contrast='high'] .fm-slot .fm-strip { background: #000; color: #fff; border-color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-pos.gained .fm-pos-n, .fm-pos.lost .fm-pos-n, .fm-gap.hot, .fm-stamp.on, .fm-slipring.full, .fm-fire.on, .fm-slot .fm-strip.pounce { animation: none; }
+  .fm-edge, .fm-shutter { display: none; }
+  .fm-fastest.on { animation: none; opacity: 1; }
+}
+:root[data-motion='reduced'] .fm-pos.gained .fm-pos-n,
+:root[data-motion='reduced'] .fm-pos.lost .fm-pos-n,
+:root[data-motion='reduced'] .fm-gap.hot,
+:root[data-motion='reduced'] .fm-stamp.on,
+:root[data-motion='reduced'] .fm-slipring.full,
+:root[data-motion='reduced'] .fm-fire.on,
+:root[data-motion='reduced'] .fm-slot .fm-strip.pounce { animation: none; }
+:root[data-motion='reduced'] .fm-edge, :root[data-motion='reduced'] .fm-shutter { display: none; }
+:root[data-motion='reduced'] .fm-fastest.on { animation: none; opacity: 1; }
+/* landscape phones: the gap chips sit in the place row beside the badge; the stamp a little higher */
+@media (orientation: landscape) and (max-height: 500px) {
+  .fm-gaps { margin-top: 0; margin-left: 4px; }
+  .fm-gap { font-size: calc(13px * var(--ts)); padding: 3px 8px 4px; }
+  .fm-stamp { top: 53%; }
+  .fm-edge { height: 26vh; }
+  /* the kart fills the lower middle here: the slipstream ring rides beside the speed, not over the kart */
+  .fm-slipring { position: absolute; left: calc(100% + 12px); bottom: 0; width: 42px; height: 42px; }
+  .fm-fastest { top: calc(64px + env(safe-area-inset-top)); right: calc(72px + env(safe-area-inset-right)); }
+}
+.fm-chain { color: #c2410c; }
+@media (min-width: 900px) and (min-height: 640px) {
+  .fm-hud .fm-fastest { top: calc(330px + env(safe-area-inset-top)); }
+}

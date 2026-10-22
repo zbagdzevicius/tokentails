@@ -227,3 +227,67 @@ describe('audio context resume (WebKit interrupted state)', () => {
     expect(closed.resumes + closed.suspends).toBe(0);
   });
 });
+
+describe('iteration 4: duel and finish lines, music drama (juice lane)', () => {
+  const me = 5;
+  const T = GO_TICK + 5000;
+  it('"What a comeback!" once a race, "Hold on!" every 6 s at most', () => {
+    const a = new AnnouncerLogic();
+    expect(a.onDuel('comeback', T)).toBe('comeback');
+    expect(a.onDuel('comeback', T + 600)).toBeNull();
+    expect(a.onDuel('holdOn', T + 700)).toBe('holdOn');
+    expect(a.onDuel('holdOn', T + 900)).toBeNull();
+    expect(a.onDuel('holdOn', T + 1100)).toBe('holdOn');
+  });
+  it('never talks over "Final lap!", another line or after the finish', () => {
+    const a = new AnnouncerLogic();
+    expect(a.onEvent(ev('finalLap', me, undefined, undefined, T), me, 'race')).toBe('finalLap');
+    // "Final lap!" holds the next 3 s
+    expect(a.onDuel('comeback', T + 60)).toBeNull();
+    expect(a.onDuel('holdOn', T + 179)).toBeNull();
+    expect(a.onDuel('comeback', T + 181)).toBe('comeback');
+    // right on top of another line: no
+    expect(a.onDuel('holdOn', T + 200)).toBeNull();
+    a.onEvent(ev('finish', me, 2, undefined, T + 400), me, 'race');
+    expect(a.onDuel('holdOn', T + 1000)).toBeNull();
+  });
+  it('one finish-drama line, only after the player’s own finish', () => {
+    const a = new AnnouncerLogic();
+    expect(a.onFinishDrama('whisker', T)).toBeNull();
+    a.onEvent(ev('finish', me, 1, undefined, T), me, 'race');
+    expect(a.onFinishDrama('whisker', T + 10)).toBe('whisker');
+    expect(a.onFinishDrama('stolen', T + 20)).toBeNull();
+    a.reset();
+    a.onEvent(ev('finish', me, 2, undefined, T), me, 'race');
+    expect(a.onFinishDrama('soClose', T + 10)).toBe('soClose');
+  });
+  it('the new lines are short, captioned and flavour where they should be', () => {
+    for (const id of ['whisker', 'soClose', 'stolen', 'comeback', 'holdOn'] as const) {
+      expect(ANNOUNCE_IDS).toContain(id);
+      expect(lineLength(id)).toBeLessThan(1);
+    }
+    expect(ANNOUNCE_TEXT.whisker).toBe('By a whisker!');
+  });
+  it('the heartbeat follows the final-lap gap; ON FIRE brings the lead in an octave up', () => {
+    const calm = musicMix('race', 4, true, false);
+    const tight = musicMix('race', 4, true, false, false, 0.9);
+    const mid = musicMix('race', 4, true, false, false, 0.3);
+    expect(tight.heart).toBeGreaterThan(mid.heart);
+    expect(mid.heart).toBeGreaterThanOrEqual(calm.heart);
+    expect(tight.heartFast).toBe(true);
+    expect(mid.heartFast).toBe(false);
+    // the tension only counts on the final lap
+    expect(musicMix('race', 4, false, false, false, 1).heartFast).toBe(false);
+    const fire = musicMix('race', 6, false, false, false, 0, true);
+    expect(fire.lead).toBe(1);
+    expect(fire.leadUp).toBe(12);
+  });
+  it('the new cues have a length that holds a voice and the storm still never passes 24', () => {
+    const ids: SfxId[] = ['passUp', 'passDown', 'shutter', 'dodge', 'chain', 'onFire', 'zip', 'fastestLap', 'dropHit'];
+    for (const id of ids) expect(cueLength(id)).toBeGreaterThan(0);
+    const b = new VoiceBudget();
+    const r = prng(11);
+    for (let i = 0; i < 4000; i++) b.admit(i * 0.01, Math.floor(r() * 4), cueLength(ids[i % ids.length]) + r());
+    expect(b.peak).toBeLessThanOrEqual(24);
+  });
+});

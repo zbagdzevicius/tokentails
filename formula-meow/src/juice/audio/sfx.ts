@@ -74,7 +74,17 @@ export type SfxId =
   | 'net'
   | 'tunnelIn'
   | 'tunnelOut'
-  | 'combo';
+  | 'combo'
+  // iteration 4 (juice lane): the overtake punch, the photo finish, dodges, chains, ON FIRE, zips, the fastest lap
+  | 'passUp'
+  | 'passDown'
+  | 'shutter'
+  | 'dodge'
+  | 'chain'
+  | 'onFire'
+  | 'zip'
+  | 'fastestLap'
+  | 'dropHit';
 
 export interface Cue {
   id: SfxId;
@@ -90,6 +100,8 @@ export interface Cue {
   vol: number;
   /** a rival's sound: the race audio plays it only when that kart is near the player */
   near?: number;
+  /** iteration 4: stereo position −1 (left) … +1 (right); the race audio pans the cue */
+  pan?: number;
 }
 
 /** Each racer gets its own voice pitch (render-only, stable per slot). */
@@ -637,6 +649,58 @@ export function playCue(g0: SynthGraph, c: Cue, t0: number): void {
       for (let i = 0; i < n; i++) bell(g, t + i * 0.045, C5 * Math.pow(2, (i * 4) / 12), 0.05, 0.25);
       break;
     }
+    // ---- iteration 4 -------------------------------------------------------------------------------------------
+    case 'passUp': {
+      // the overtake punch: a bright upward whoosh and a two-note "ding-DING", higher the better the new place
+      const lift = Math.pow(2, Math.max(0, 8 - Math.max(1, Math.min(8, c.n))) / 24);
+      whoosh(g, t, 0.32, 1.3 * lift, 0.26, 91);
+      tone(g, t + 0.02, { type: 'square', freq: 660 * lift, freqEnd: 990 * lift, glide: 0.06, peak: 0.05, decay: 0.12, filter: { type: 'lowpass', freq: 5000 } });
+      bell(g, t + 0.08, 1318.5 * lift, 0.05, 0.3);
+      break;
+    }
+    case 'passDown':
+      // a place lost: a short falling "bwomp" with a low thud
+      tone(g, t, { type: 'sawtooth', freq: 300, freqEnd: 120, glide: 0.18, peak: 0.08, decay: 0.2, filter: { type: 'lowpass', freq: 900 } });
+      tone(g, t, { freq: 90, freqEnd: 50, peak: 0.25, decay: 0.16 });
+      break;
+    case 'shutter':
+      // the photo-finish camera: a mechanical click-clack and the flash whine
+      noise(g, t, { peak: 0.55, decay: 0.018, filter: { type: 'highpass', freq: 2500 }, seed: 93 });
+      noise(g, t + 0.065, { peak: 0.4, decay: 0.025, filter: { type: 'bandpass', freq: 1800, q: 1.5 }, seed: 94 });
+      tone(g, t + 0.03, { freq: 2400, freqEnd: 5200, glide: 0.35, peak: 0.025, decay: 0.4 });
+      break;
+    case 'dodge':
+      // a near miss: a fast whoosh past the ear and a cheeky "mrrp"
+      whoosh(g, t, 0.28, 2.2, 0.3, 97);
+      mrrp(g, t + 0.12, 0.9, c.pitch * 1.2);
+      break;
+    case 'chain': {
+      // a boost chain link: a zap that climbs a fourth per link (×2 … ×6)
+      const n = Math.max(2, Math.min(6, c.n));
+      const f = 440 * Math.pow(2, ((n - 2) * 5) / 12);
+      tone(g, t, { type: 'sawtooth', freq: f, freqEnd: f * 2, glide: 0.09, peak: 0.06, decay: 0.14, filter: { type: 'lowpass', freq: 4200 } });
+      bell(g, t + 0.05, f * 2, 0.04, 0.22);
+      break;
+    }
+    case 'onFire':
+      // ON FIRE: a roaring ignition, a rising burn and a power chord stab
+      noise(g, t, { peak: 0.5, attack: 0.02, decay: 0.7, filter: { type: 'lowpass', freq: 400, freqEnd: 3800, q: 0.8 }, seed: 99 });
+      for (const [i, hz] of [110, 165, 220].entries()) tone(g, t + 0.04, { type: 'sawtooth', freq: hz, peak: 0.06, decay: 0.5, filter: { type: 'lowpass', freq: 1600 }, detune: (i - 1) * 9 });
+      break;
+    case 'zip':
+      // a cat zipping past: a very short doppler-ish swoop
+      tone(g, t, { type: 'sawtooth', freq: 520, freqEnd: 260, glide: 0.16, peak: 0.05, decay: 0.16, filter: { type: 'bandpass', freq: 1400, q: 1.2 } });
+      noise(g, t, { peak: 0.22, attack: 0.03, decay: 0.13, filter: { type: 'bandpass', freq: 2600, freqEnd: 900, q: 1.4 }, seed: 101 });
+      break;
+    case 'fastestLap':
+      // a purple sparkle: three quick bells up a minor seventh
+      [C6, 1244.5, 1568, 1864.7].forEach((hz, i) => bell(g, t + i * 0.06, hz, 0.045, 0.35));
+      break;
+    case 'dropHit':
+      // the band slams back after the one-beat drop: a crash and a sub hit
+      noise(g, t, { peak: 0.45, decay: 1.1, filter: { type: 'highpass', freq: 4500 }, seed: 103 });
+      tone(g, t, { freq: 120, freqEnd: 38, glide: 0.2, peak: 0.6, decay: 0.35 });
+      break;
   }
 }
 
@@ -664,10 +728,16 @@ export function cueLength(id: SfxId): number {
     case 'net':
     case 'gapLand':
       return 0.6;
+    case 'onFire':
+    case 'dropHit':
+      return 0.8;
     case 'incoming':
     case 'timerTick':
     case 'checkpoint':
+    case 'shutter':
       return 0.1;
+    case 'zip':
+      return 0.2;
     default:
       return 0.3;
   }

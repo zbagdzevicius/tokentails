@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { KartState, RaceState } from '../../types';
 import { arrowAngle, incomingItems, type Incoming } from './incoming';
-import { fmtClock, fmtDelta, ordinalSuffix, ordinalText } from './hud';
+import { fmtClock, fmtDelta, ordinalSuffix, ordinalText, TRICK_POSES } from './hud';
+import { gapChipText } from './juice-hud';
 import { CORE_EN } from '../../ui/strings/core.en';
 import { registerStrings, setLocale } from '../../ui/i18n';
 import { TIER_COLOURS } from '../../ui/a11y';
@@ -86,7 +87,7 @@ describe('hud formatting', () => {
 
 describe('strings', () => {
   it('every t() key in the shell and the audio-ui files is in CORE_EN', () => {
-    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts', 'core/app/race-labels.ts', 'core/input/touch.ts', 'ugc/hub.ts'];
+    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts', 'core/hud/juice-hud.ts', 'core/app/race-labels.ts', 'core/input/touch.ts', 'ugc/hub.ts'];
     const missing: string[] = [];
     for (const f of files) {
       const s = readFileSync(join(src, f), 'utf8');
@@ -188,5 +189,39 @@ describe('results layout', () => {
     expect(res).toMatch(/\.fm-panel\.fm-results \{[^}]*display: grid/);
     expect(res).toMatch(/\.fm-res-scroll \{[^}]*grid-row: 1 \/ span 2/);
     expect(res).toMatch(/\.fm-res-main \{[^}]*grid-column: 2/);
+  });
+});
+
+describe('final-lap gap chip (iteration 4, F5)', () => {
+  it('reads "▲ +0.4 s" / "▼ −0.3 s", and leads with the call within the glow range', () => {
+    registerStrings('en', CORE_EN);
+    setLocale('en');
+    expect(gapChipText(0.42, true, false)).toBe('▲ +0.4 s');
+    expect(gapChipText(0.26, false, false)).toBe('▼ −0.3 s');
+    expect(gapChipText(0.31, true, true)).toBe('CATCH! +0.3 s');
+    expect(gapChipText(0.2, false, true)).toBe('DEFEND! −0.2 s');
+  });
+  it('portrait stacks the chips under the place badge; landscape phones put them in the place row', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    expect(css).toMatch(/\n\.fm-gaps \{[^}]*flex-direction: column/);
+    const blocks = [...css.matchAll(/@media \(orientation: landscape\) and \(max-height: 500px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
+    const land = blocks.find((b) => b.includes('.fm-gaps {'));
+    expect(land).toBeDefined();
+    // .fm-tl is a row in landscape (the chips sit beside the badge, clear of the mini-map below it)
+    expect(blocks.some((b) => /\.fm-tl \{[^}]*flex-direction: row/.test(b))).toBe(true);
+    expect(land).toMatch(/\.fm-gaps \{[^}]*margin-left/);
+    expect(land).toMatch(/\.fm-gap \{[^}]*font-size/);
+    // the hud builds the chips inside the place column
+    const hud = readFileSync(join(src, 'core/hud/hud.ts'), 'utf8');
+    expect(hud).toMatch(/new JuiceHud\(this\.root, q\('\.fm-tl'\), q\('\.fm-bottom'\)\)/);
+  });
+  it('reduced motion drops the edge glow and the shutter flash, keeps the stamp and the chips', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    expect(css).toMatch(/:root\[data-motion='reduced'\] \.fm-edge, :root\[data-motion='reduced'\] \.fm-shutter \{ display: none; \}/);
+    expect(css).not.toMatch(/data-motion='reduced'\][^{]*\.fm-stamp \{ display: none/);
+  });
+  it('trick poses follow the kart view’s order and are translated', () => {
+    expect(TRICK_POSES).toEqual(['Barrel roll', 'Superman', 'Spin']);
+    for (const p of TRICK_POSES) expect(p in CORE_EN).toBe(true);
   });
 });

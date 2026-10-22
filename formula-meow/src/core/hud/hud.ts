@@ -21,6 +21,7 @@ import { DRIFT, PHYS, ticks } from '../../tuning';
 import { t } from '../../ui/i18n';
 import { a11y, driftTierColors } from '../../ui/a11y';
 import { drawPieceIcons } from './stunt-hud';
+import { JuiceHud } from './juice-hud';
 
 export const ITEM_ICON: Record<ItemId, string> = {
   hairball: '🟤',
@@ -96,6 +97,8 @@ export interface SayOpts {
   big?: boolean;
   /** an id so the caller can take its own message down (`unsay`) */
   id?: string;
+  /** iteration 4 (F13): a strip under a big numeral (the countdown's Pounce hint), so the digit stands alone */
+  strip?: string;
 }
 
 /** Fields the HUD shows beyond v1 (iteration 2). */
@@ -139,6 +142,8 @@ interface Msg {
 }
 
 const WRONG_BANNER = ticks(PHYS.wrongWay);
+/** The kart view's three trick poses, in the order it strikes them (core/render/kart-view.ts). */
+export const TRICK_POSES = ['Barrel roll', 'Superman', 'Spin'] as const;
 const TIER_TONES: readonly SayTone[] = ['blue', 'orange', 'pink'];
 const MAP = 192;
 const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
@@ -194,6 +199,10 @@ export class Hud {
   private splitUntil = 0;
   private incomingXZ: Array<{ x: number; z: number }> = [];
   private tierCols: string[] = [];
+  /** iteration 4 (juice lane): gap chips, edge glow, photo stamp, slipstream ring, ON FIRE, fastest lap */
+  readonly fx: JuiceHud;
+  /** the player's tricks this race (the kart view poses them in turn: barrel roll, superman, spin) */
+  private tricks = 0;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -253,6 +262,7 @@ export class Hud {
     this.arrowsBox = q('.fm-arrows');
     this.map = q('.fm-map');
     this.wrong.textContent = `⟲ ${t('WRONG WAY')}`;
+    this.fx = new JuiceHud(this.root, q('.fm-tl'), q('.fm-bottom'));
     this.applyTierColours();
   }
 
@@ -332,7 +342,9 @@ export class Hud {
     this.splitCount = 0;
     this.splitUntil = 0;
     this.split.classList.remove('on');
-    this.pos.classList.remove('flip');
+    this.pos.classList.remove('flip', 'lost', 'gained');
+    this.tricks = 0;
+    this.fx.reset();
     for (const k of Object.keys(this.lastHtml)) (this.lastHtml as Record<string, string>)[k] = '\u0000';
   }
 
@@ -416,12 +428,14 @@ export class Hud {
       this.lastHtml.pos = posHtml;
       this.pos.dataset.place = String(Math.min(4, place));
       if (this.lastPlace && place !== this.lastPlace) {
+        // iteration 4 (F4): the overtake punch, "+1 ▲" and a gold pop on a gain, "−1 ▼" and a red shake on a loss
         const up = place < this.lastPlace;
-        this.posDelta.textContent = up ? '▲' : '▼';
+        const n = Math.abs(place - this.lastPlace);
+        this.posDelta.textContent = up ? `+${n} ▲` : `−${n} ▼`;
         this.posDelta.className = `fm-pos-delta ${up ? 'up' : 'down'}`;
-        this.pos.classList.remove('flip');
+        this.pos.classList.remove('flip', 'lost', 'gained');
         void this.pos.offsetWidth;
-        this.pos.classList.add('flip');
+        this.pos.classList.add('flip', up ? 'gained' : 'lost');
       }
       this.lastPlace = place;
     }
@@ -671,6 +685,12 @@ export class Hud {
       s.textContent = o.sub;
       this.slot.append(s);
     }
+    if (o.strip) {
+      const s = document.createElement('div');
+      s.className = 'fm-strip';
+      s.textContent = o.strip;
+      this.slot.append(s);
+    }
     this.slot.className = `fm-slot fm-outline on${o.big ? ' big' : ''}${o.prio === 0 ? ' hint' : ''}${o.tone ? ` ${o.tone}` : ''}`;
     // drift tier tones follow the colour-blind setting
     const ti = o.tone ? TIER_TONES.indexOf(o.tone) : -1;
@@ -708,10 +728,27 @@ export class Hud {
     this.next();
   }
 
-  /** The countdown numerals; a pending hint (Pounce Start) rides under them as the sub line. */
+  /** The countdown numerals; a pending hint (Pounce Start) sits in a strip below the digit (F13). */
   countdown(text: string): void {
-    if (text) this.say(text, { prio: 3, ms: text === t('MEOW!') ? 700 : 950, big: true, id: 'count', sub: this.hintWanted ?? undefined, tone: text === t('MEOW!') ? 'pink' : '' });
+    if (text) this.say(text, { prio: 3, ms: text === t('MEOW!') ? 700 : 950, big: true, id: 'count', strip: this.hintWanted ?? undefined, tone: text === t('MEOW!') ? 'pink' : '' });
     else this.unsay('count');
+  }
+
+  /** A good start: the strip under the countdown flashes green "POUNCE!" (F13). */
+  private pounceStrip(): void {
+    const c = this.cur;
+    if (!c || c.o.id !== 'count') return;
+    let s = this.slot.querySelector('.fm-strip');
+    if (!s) {
+      s = document.createElement('div');
+      this.slot.append(s);
+    }
+    s.className = 'fm-strip pounce';
+    s.textContent = t('POUNCE!');
+    // keep MEOW! up a little longer so the flash is seen
+    c.until = Math.max(c.until, now() + 650);
+    if (this.slotTimer) clearTimeout(this.slotTimer);
+    this.slotTimer = setTimeout(() => this.next(), Math.max(50, c.until - now()));
   }
 
   flash(text: string, tone: SayTone = '', prio: 0 | 1 | 2 | 3 = 2): void {
@@ -758,6 +795,7 @@ export class Hud {
         this.countdown(t('MEOW!'));
         break;
       case 'pounce':
+        this.pounceStrip();
         this.flash(t('PURRFECT START!'), 'pink', 2);
         break;
       case 'stall':
@@ -767,7 +805,8 @@ export class Hud {
         this.flash(t(['', 'ZOOM!', 'ZOOOM!', 'MEOWTURBO!'][e.a ?? 1]), TIER_TONES[Math.max(0, Math.min(2, (e.a ?? 1) - 1))], 1);
         break;
       case 'trick':
-        this.flash(t('TRICK!'), 'gold', 1);
+        // the pose the kart view strikes for this trick (it poses them in turn, kart-view.ts)
+        this.say(t('TRICK!'), { prio: 1, tone: 'gold', sub: t(TRICK_POSES[this.tricks++ % 3]) });
         break;
       case 'finalLap':
         this.flash(t('FINAL LAP'), 'gold', 3);
