@@ -28,6 +28,22 @@ node tools/trailer/type.mjs --shots <dir>/shots --out <dir>/mg
 node tools/trailer/edit.mjs --dir <dir>
 ```
 
+
+**v2 redo (review fixes).** Frame 0 is Lambo mid-air in X14's 5 m Belly Flop; Pudding's static beat is replaced by
+Cacklejaw's ambush pounce (take G); the tower and the core fall whole at hero height; COMEBACK! lands on Avietė's level-10
+spike; bars 12-13 are three more fights (U4 combo, U5 Clem Q, M shut down); the core fall and Victory! are one
+continuous take (no second collapse); game words (Coming to you!, COMEBACK!, Victory!) are captioned large; kinetic type
+sits in the top third; the end card is a branded plate from f1650 (2.5 s). New rig options:
+
+| Option | Where | What |
+|---|---|---|
+| `lead: N` | `capture.mjs` | N unsaved frames rendered through the real frame path before f0: a clip whose cast falls just before the first saved frame (a flop already in the air on frame 0) is drawn live. Events played only in the pre-roll do not start move clips. |
+| `shutter` | `capture.mjs` | Blur shutter per shot (0.5 = 180°, 0.25-0.3 for rides and dives, so the pose stays sharp) |
+| `flashMax` (default 0.2) | `harness.ts` | Hero hit-flash peak during the cap: a tint, never a white body. The game's full-screen `.pl-flash` layer is dropped; the edit lays capped blooms. |
+| `cullMinions` / `minionsOff` | `harness.ts` | Creeps between the lens and the subject (or all) are not drawn |
+| `popText` on damage words | `harness.ts` | Damage-layer words (CLANK!, Snip!) show only when whitelisted |
+| glue before sections | `edit.mjs` | The glue compressor runs before the energy curve, so section levels survive the limiter (more contrast; the core impact is the loudest moment) |
+
 ## v1 notes
 
 

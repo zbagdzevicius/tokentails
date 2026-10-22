@@ -416,7 +416,10 @@
     "purrify": 12936
    },
    "roles": {
-    "tower": 49
+    "tower": 49,
+    "aviete": 1,
+    "cack": 3,
+    "clem": 0
    },
    "points": {
     "tower": [
@@ -457,7 +460,10 @@
    },
    "roles": {
     "victim": 5,
-    "victim1": 4
+    "victim1": 4,
+    "bengas": 1,
+    "clem": 0,
+    "brutus": 3
    },
    "points": {},
    "strict": true,
@@ -630,10 +636,19 @@
     "cacklejaw"
    ],
    "keys": {
-    "cast": 11610
+    "cast": 11610,
+    "lamboE": 11608,
+    "bengasQ": 11609,
+    "aviHit": 11616,
+    "lamboLand": 11618
    },
    "roles": {
-    "caster": 0
+    "caster": 0,
+    "aviete": 0,
+    "bengas": 1,
+    "lambo": 2,
+    "brutus": 3,
+    "cack": 4
    },
    "points": {},
    "strict": true,
@@ -663,10 +678,18 @@
     "lambo"
    ],
    "keys": {
-    "cast": 10906
+    "cast": 10906,
+    "lamboE": 10849,
+    "lamboLand": 10857,
+    "clemQ1": 10862,
+    "clemQ2": 10868
    },
    "roles": {
-    "caster": 2
+    "caster": 2,
+    "clem": 4,
+    "lambo": 5,
+    "brutus": 1,
+    "aviete": 3
    },
    "points": {},
    "strict": true,
@@ -1287,7 +1310,8 @@
     "clemQ": 11084,
     "cackR": 11094,
     "ko": 11119,
-    "tower": 11137
+    "tower": 11137,
+    "lamboLand": 11031
    },
    "roles": {
     "cacklejaw": 0,

@@ -73,7 +73,9 @@ function specFor(shot, aspect) {
     mode: shot.lobby ? 'lobby' : 'match',
     width: w,
     height: h,
-    f0: shot.f0,
+    // `lead`: frames rendered (on the shot's ramp, through the real frame path) before f0 and not saved, so an event
+    // just before the first saved frame (a cast whose clip must already be playing on frame 0) is drawn live
+    f0: shot.f0 - (shot.lead ?? 0),
     f1: shot.f1,
     preroll: shot.preroll ?? 90,
     take: take ? { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, script: take.script ?? [], look: shot.look ?? null, check: take.check } : null,
@@ -93,6 +95,9 @@ function specFor(shot, aspect) {
     wheelScale: p.wheelScale ?? shot.wheelScale ?? null,
     xray: !!(p.xray ?? shot.xray),
     flashCap: shot.flashCap ?? 2,
+    flashMax: shot.flashMax ?? 0.2,
+    cullMinions: p.cullMinions ?? shot.cullMinions ?? null,
+    minionsOff: !!(p.minionsOff ?? shot.minionsOff),
     lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}) } : undefined,
   };
 }
@@ -262,7 +267,7 @@ async function capture(shot, aspect) {
   if (spec.mode === 'match') timing = await solveTiming(shot, spec);
   if (PROBE_ONLY) return { id: shot.id, aspect, timing, startTick: spec.startTick, ramp: spec.ramp };
   // `looks`: the same frames once per card look ([[fromFrame, card], ...]); each pass keeps its own window
-  const passes = shot.looks ? shot.looks.map(([from, card], i) => ({ card, a: from, b: i + 1 < shot.looks.length ? shot.looks[i + 1][0] - 1 : spec.f1 })) : [{ card: undefined, a: spec.f0, b: spec.f1 }];
+  const passes = shot.looks ? shot.looks.map(([from, card], i) => ({ card, a: from, b: i + 1 < shot.looks.length ? shot.looks[i + 1][0] - 1 : spec.f1 })) : [{ card: undefined, a: shot.f0, b: spec.f1 }];
   const dirs = new Set();
   const keyTicks = {};
   let saved = 0;
@@ -281,7 +286,7 @@ async function capture(shot, aspect) {
     id: shot.id,
     aspect,
     parts: shot.parts ?? [{ id: shot.id, f0: shot.f0, f1: shot.f1 }],
-    frames: spec.f1 - spec.f0 + 1,
+    frames: spec.f1 - shot.f0 + 1,
     saved,
     size: [spec.width * (spec.dpr ?? 1), spec.height * (spec.dpr ?? 1)],
     take: shot.take ?? null,
@@ -290,7 +295,7 @@ async function capture(shot, aspect) {
     timing,
     hash,
     said: info?.said ?? null,
-    firstTick: keyTicks[spec.f0] ?? null,
+    firstTick: keyTicks[shot.f0] ?? null,
     lastTick: keyTicks[spec.f1] ?? null,
     /** The render tick after each (non-blurred) frame: where every frame sits in the take. */
     ticks: Object.fromEntries(Object.entries(keyTicks).map(([f, t]) => [f, +t.toFixed(3)])),
@@ -309,15 +314,17 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       dirs.add(dir);
     }
     const file = join(dir, `f${String(f).padStart(4, '0')}.png`);
-    const save = (f >= pass.a && f <= pass.b) && ((f - spec.f0) % EVERY === 0 || f === spec.f1);
+    const save = (f >= pass.a && f <= pass.b) && ((f - shot.f0) % EVERY === 0 || f === spec.f1);
     if (blurs.some(([a, b]) => f >= a && f <= b)) {
       // the 3D picture: SUBS sub-frames, the first half (a 180° shutter) averaged; the screen-space layer (numbers,
       // callouts, barks) is shot once at the end of the frame and laid on top, so it never smears
       const subs = [];
+      // `shutter`: the share of the frame the 3D picture integrates (0.5 = 180°, 0.25 = 90°: a ride stays readable)
+      const open = Math.max(1, Math.round(SUBS * (shot.shutter ?? 0.5)));
       if (save) await page.evaluate(() => window.__trailer.layerMode('canvas'));
       for (let k = 0; k < SUBS; k++) {
         await page.evaluate(({ f, k, n }) => window.__trailer.frame(f, k, n), { f, k, n: SUBS });
-        if (k < SUBS / 2 && save) {
+        if (k < open && save) {
           const sf = join(dir, `.sub-${f}-${k}.png`);
           await page.screenshot({ path: sf, type: 'png' });
           subs.push(sf);
@@ -334,7 +341,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     } else {
       const r = await page.evaluate((f) => window.__trailer.frame(f), f);
       if (save) await page.screenshot({ path: file, type: 'png' });
-      keyTicks[f] = r.tick;
+      if (f >= shot.f0) keyTicks[f] = r.tick;
     }
     if (save) saved++;
   }

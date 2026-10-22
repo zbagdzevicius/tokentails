@@ -42,7 +42,7 @@ export const FIXED = {
   X14: {
     seed: 36,
     hero: 'cacklejaw',
-    keys: { cackE: 11022, lamboE: 11023, bengasR: 11031, lamboRw: 11035, clemR: 11036, bengasWw: 11043, lamboR: 11049, brutusR: 11051, bengasW: 11051, clemQ: 11084, cackR: 11094, ko: 11119, tower: 11137 },
+    keys: { cackE: 11022, lamboE: 11023, lamboLand: 11031, bengasR: 11031, lamboRw: 11035, clemR: 11036, bengasWw: 11043, lamboR: 11049, brutusR: 11051, bengasW: 11051, clemQ: 11084, cackR: 11094, ko: 11119, tower: 11137 },
     roles: { cacklejaw: 0, brutus: 1, cack2: 2, bengas: 3, clem: 4, lambo: 5, tower: 46 },
   },
 };
