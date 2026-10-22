@@ -202,9 +202,15 @@ export function finishSticker(photoMargin: number | null, finishTick: number | n
  * Why this race deserves a clip (the clip button pulses with it), or null for a quiet race: a photo finish, a
  * STUNT COMBO ×3 or more, or two or more loops. Measured in this race only. `key` is a `t()` key.
  */
-export function hypeReason(stats: Pick<RaceStats, 'bestCombo' | 'loops'> | undefined, photo: boolean): { key: string; n?: number } | null {
+export function hypeReason(
+  stats: Pick<RaceStats, 'bestCombo' | 'loops'> | undefined,
+  photo: boolean,
+  /** the best boost chain (juice/boost-chain.ts `boostChainTally(...).best`); from ×4 it earns the pulse */
+  bestChain = 0,
+): { key: string; n?: number } | null {
   if (photo) return { key: 'That photo finish deserves a clip' };
   if (stats && stats.bestCombo >= 3) return { key: 'That ×{n} combo deserves a clip', n: stats.bestCombo };
+  if (bestChain >= 4) return { key: 'That ×{n} chain deserves a clip', n: bestChain };
   if (stats && stats.loops >= 2) return { key: '{n} loops deserve a clip', n: stats.loops };
   return null;
 }

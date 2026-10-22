@@ -22,6 +22,7 @@ export const SHARE_EN: Record<string, string> = {
   // F7 clip hype (share/clip/highlight.ts hypeReason)
   'That photo finish deserves a clip': 'That photo finish deserves a clip',
   'That ×{n} combo deserves a clip': 'That ×{n} combo deserves a clip',
+  'That ×{n} chain deserves a clip': 'That ×{n} chain deserves a clip',
   '{n} loops deserve a clip': '{n} loops deserve a clip',
   // F9 dares and duels (share/links/dare-card.ts, dare-flow.ts)
   '⚔️ Dare a friend': '⚔️ Dare a friend',

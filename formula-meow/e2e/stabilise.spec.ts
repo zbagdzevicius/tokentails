@@ -46,7 +46,31 @@ test('12 restarts do not leak textures or geometries (B57)', async ({ page }) =>
   const errors = watchErrors(page);
   await page.goto('/?bot=1&seed=3');
   await expect.poll(() => tick(page), { timeout: 30_000 }).toBeGreaterThan(120);
-  const mem = () => page.evaluate(() => ({ ...(window as unknown as { __fm: Fm }).__fm.shell.stage.renderer.info.memory }));
+  // upload every texture the live scene holds first (textures upload on first sight, so the count follows the countdown
+  // camera's framing). Pooled effects that leave the scene when idle still swing it by up to 3 (iteration 4 merge:
+  // 30, 33, 31, 31, 33 over five batches of 12 restarts, no growth), so the baseline is the larger of two batches.
+  const mem = () =>
+    page.evaluate(() => {
+      type R = { info: { memory: { textures: number; geometries: number } }; initTexture(t: unknown): void };
+      type O = { material?: unknown; traverse(f: (o: O) => void): void };
+      const sh = (window as unknown as { __fm: { shell: { stage: { renderer: R; scene: O } } } }).__fm.shell;
+      const r = sh.stage.renderer;
+      const seen = new Set<unknown>();
+      const tex = (v: unknown) => {
+        if (v && (v as { isTexture?: boolean }).isTexture && !seen.has(v)) {
+          seen.add(v);
+          r.initTexture(v);
+        }
+      };
+      sh.stage.scene.traverse((o) => {
+        for (const m of ([] as unknown[]).concat(o.material ?? [])) {
+          const mm = m as Record<string, unknown> & { uniforms?: Record<string, { value: unknown }> };
+          for (const k of Object.keys(mm)) tex(mm[k]);
+          for (const u of Object.values(mm.uniforms ?? {})) tex(u.value);
+        }
+      });
+      return { ...r.info.memory };
+    });
   // restart once and settle, so every lazily created resource of the first race exists
   await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());
   await page.waitForTimeout(2200);
@@ -57,7 +81,19 @@ test('12 restarts do not leak textures or geometries (B57)', async ({ page }) =>
     await page.waitForTimeout(120);
   }
   await page.waitForTimeout(2500);
-  const first = await mem();
+  const warm = await mem();
+  const batch = async () => {
+    for (let i = 0; i < 12; i++) {
+      await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());
+      // B61: restart during the countdown, while the programs may still be linking
+      await page.waitForTimeout(120);
+    }
+    await page.waitForTimeout(2500);
+    return mem();
+  };
+  const b1 = await batch();
+  const first = { textures: Math.max(warm.textures, b1.textures), geometries: Math.max(warm.geometries, b1.geometries) };
+  // a leak grows with every restart: 12 more must stay within the baseline's swing
   for (let i = 0; i < 12; i++) {
     await page.evaluate(() => (window as unknown as { __fm: Fm }).__fm.shell.restart());
     // B61: restart during the countdown, while the programs may still be linking

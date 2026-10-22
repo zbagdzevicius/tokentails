@@ -440,7 +440,11 @@ export class Hud {
       this.lastPlace = place;
     }
     const ofHtml = `/${st.karts.length}`;
-    if (ofHtml !== this.lastHtml.of) this.posOf.textContent = this.lastHtml.of = ofHtml;
+    if (ofHtml !== this.lastHtml.of) {
+      this.posOf.textContent = this.lastHtml.of = ofHtml;
+      // a lone kart (Time Trial, a 1v1 ghost duel) has no place to show: "1st/1" reads as noise
+      this.pos.style.display = st.karts.length <= 1 ? 'none' : '';
+    }
 
     // item slot: the roulette spins and slows, then the item pops in with its name
     let itemHtml = '';

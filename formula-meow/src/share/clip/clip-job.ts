@@ -151,7 +151,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
   const scene = new Scene();
   const built = buildTrack(cfg.track, cfg.modifiers);
   const world = new SimWorld(cfg, createSimPlugins(cfg), built);
-  const view = new RaceView(scene, built, cfg.racers);
+  const view = new RaceView(scene, built, cfg.racers, cfg.modifiers);
   if (inp.face) {
     const t = decalTexture(inp.face);
     if (t) setFaceDecal(view.karts[me].cat.faceMat, t);

@@ -156,7 +156,10 @@ test('old dares: SIM_VERSION 7, 8, 9 and 10 open as a target-time race with the 
   }
   const c = await open(browser, SIZES[1].opts);
   await c.page.goto(`/?bot=1#g=${LEGACY.dare11}&n=Mia`);
-  await expect(c.page.locator('.fm-dare-banner')).toBeVisible({ timeout: 20_000 });
+  // iteration 4 (F9): a current dare opens the full-screen dare card first; the race and its banner follow it
+  await expect(c.page.locator('.fm-dare-card')).toBeVisible({ timeout: 20_000 });
+  await expect(c.page.locator('.fm-dare-card h2')).toHaveText('Mia dares you');
+  await expect(c.page.locator('.fm-dare-banner')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => c.page.evaluate(() => !!(window as any).__fm?.shell.stage.scene.getObjectByName('kart-Mia')), { timeout: 20_000 }).toBe(true);
   expect(c.errors).toEqual([]);
   await c.close();
@@ -212,6 +215,10 @@ test('editor stickers (loop, tunnel, jump) survive the share link in a fresh bro
   const { page } = a;
   await page.goto('/?make&seed=4');
   await stadium(page);
+  // iteration 4 (F10): a fresh doodle starts with auto-stunts; one Undo takes them off and keeps the drawing
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await qa(page, 0))?.pieces.length, { timeout: 10_000 }).toBe(0);
   await expect(page.locator('.fm-ed-status')).toContainText('Drivable', { timeout: 30_000 });
   await page.locator('.fm-ed-tab[data-tab="stickers"]').click();
   const loopAt = (await qa(page, -1))!.frac;

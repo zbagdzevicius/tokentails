@@ -20,6 +20,10 @@ describe('fish economy', () => {
     expect(typical).toBeLessThanOrEqual(30);
   });
 
+  it('a lone-kart ghost duel pays no place bonus', () => {
+    expect(sumFish(fishForRace({ mode: 'race', cls: 0, place: 1, finished: true, coinsHeld: 0, coinsPicked: 3, solo: true }))).toBe(3);
+  });
+
   it('a DNF keeps only the coins it picked up', () => {
     expect(sumFish(fishForRace({ mode: 'race', cls: 2, place: 8, finished: false, coinsHeld: 5, coinsPicked: 4 }))).toBe(4);
   });

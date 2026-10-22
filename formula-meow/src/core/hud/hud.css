@@ -611,7 +611,13 @@
 :root[data-motion='reduced'] .fm-panel,
 :root[data-motion='reduced'] .fm-place.stamp,
 :root[data-motion='reduced'] .fm-table.rows-in tr { animation: none; }
-:root[data-motion='reduced'] .fm-pos-delta { animation: none; opacity: 0; }
+/* reduced motion keeps the "+1 ▲" text (iteration 4 plan): no movement, it just shows and fades */
+:root[data-motion='reduced'] .fm-pos-delta { animation: none; opacity: 0; transform: none; }
+:root[data-motion='reduced'] .fm-pos.flip .fm-pos-delta { animation: fm-delta-still 1.1s linear forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-pos.flip .fm-pos-delta { animation: fm-delta-still 1.1s linear forwards; transform: none; }
+}
+@keyframes fm-delta-still { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ---------------------------------------------------------------- landscape phones */
 @media (orientation: landscape) and (max-height: 500px) {
