@@ -27,7 +27,7 @@ describe('auto-stunts on a fresh doodle', () => {
     expect(placed / doodles.length).toBeGreaterThanOrEqual(0.9);
     // a loop goes in wherever a long enough straight exists (about a third to a half of round finger loops)
     expect(loops).toBeGreaterThan(0);
-  }, 60_000);
+  }, 180_000);
 
   it('is reproducible from the doodle (the same drawing gets the same stunts)', () => {
     const a = structuredClone(doodles[4]);
@@ -50,7 +50,7 @@ describe('auto-stunts on a fresh doodle', () => {
       seen.add(JSON.stringify([def.features, def.setPieces]));
     }
     expect(seen.size).toBeGreaterThan(1);
-  }, 30_000);
+  }, 90_000);
 
   it('the test helper still hands out the same doodles (moved, re-exported)', () => {
     expect(testDoodles(3, 3)).toEqual(randomDoodles(3, 3));

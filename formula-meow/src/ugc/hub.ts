@@ -14,7 +14,7 @@ import { GO_TICK } from '../core/sim/world';
 import { TRACKS } from '../core/track/tracks';
 import { decodeTrackCode, encodeTrack } from './codec/track-code';
 import { extractCode, readTrackCode, trackLink, wantsEditor } from './codec/link';
-import { fmtLap, liveLapDelta, recordLap, setTarget, targetCs } from './maker-lap';
+import { fmtLap, liveLapDelta, makerTargetLine, recordLap, setTarget, targetCs } from './maker-lap';
 import { setTrackCodec, trackFromLocation } from './codec/track-codec';
 import { trackCodecV1 } from './codec/track-code';
 import { listSaved, loadDraft, removeSaved, type SavedTrack } from './store';
@@ -162,7 +162,7 @@ export class UgcHub {
     const text = `${ahead ? '−' : '+'}${Math.abs(d).toFixed(2)}`;
     if (text !== this.lapShown) {
       this.lapShown = text;
-      this.lapPill.innerHTML = `<span class="n">⏱ ${esc(t('Lap'))} ${esc(fmtLap(target!))}</span><b>${esc(text)}</b>`;
+      this.lapPill.innerHTML = `<span class="n">⏱ ${esc(fmtLap(target!))}</span><b>${esc(text)}</b>`;
     }
     this.lapPill.classList.toggle('ahead', ahead);
     this.lapPill.classList.toggle('behind', !ahead);
@@ -210,7 +210,7 @@ export class UgcHub {
     if (want && this.bannerFor !== track!.id) {
       this.bannerFor = track!.id;
       const mine = this.savedFor(track!);
-      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? t('by you') : byline(track!))}</span>${target != null ? `<span class="lap">${esc(t("⏱ Sender's lap {t} · beat it", { t: fmtLap(target) }))}</span>` : ''}`;
+      this.banner.innerHTML = `<span class="t">🏁 ${esc(displayName(track!))}</span><span class="b">${esc(mine ? t('by you') : byline(track!))}</span>${target != null ? `<span class="lap">${esc(makerTargetLine(target))}</span>` : ''}`;
       const remix = document.createElement('button');
       remix.className = 'fm-ugc-chip';
       remix.textContent = mine ? t('✏️ Edit') : t('🔀 Remix');

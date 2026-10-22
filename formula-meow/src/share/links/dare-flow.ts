@@ -81,7 +81,7 @@ export class DareFlow implements JuiceListener {
       cat: d.cat,
       time,
       notice,
-      auto: isBot() ? 900 : 0,
+      auto: isBot() ? 1600 : 0,
     });
     const pick = await card;
     clearTimeout(settle);

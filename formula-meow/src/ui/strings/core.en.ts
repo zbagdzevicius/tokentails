@@ -233,8 +233,4 @@ export const CORE_EN: Record<string, string> = {
   "Fix this track in the editor before sharing it.": "Fix this track in the editor before sharing it.",
   "That does not look like a track link.": "That does not look like a track link.",
   "Mirror": "Mirror",
-  // share-ugc lane, iteration 4 (F7 results tray, F10 Beat the maker)
-  "More": "More",
-  "Lap": "Lap",
-  "⏱ Sender's lap {t} · beat it": "⏱ Sender's lap {t} · beat it",
 };

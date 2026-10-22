@@ -81,11 +81,15 @@ describe('set-piece scores (F8)', () => {
     expect(PHOTO_SCORE).toBe(6);
   });
 
-  it('stickers: a combo beats a loop beats a wall ride beats a landing; a burst of passes; the photo finish margin', () => {
+  it('stickers: a ×3 combo beats a loop beats a ×2 combo, a wall ride, a landing; a burst of passes; the photo finish margin', () => {
     const events = [ev(1000, 'stuntExit', ME, WALL, 1), ev(1100, 'stuntExit', ME, LOOP, 1), ev(1300, 'stuntLand', ME, 40, 2), ev(2000, 'overtake', ME), ev(2050, 'overtake', ME)];
     expect(highlightSticker(events, ME, 900, 1320)?.text).toBe('STUNT COMBO ×3');
-    expect(highlightSticker(events, ME, 1050, 1200)?.text).toBe('STUNT COMBO ×2');
+    // the loop (a ×2 with the wall ride before it) shows as the loop
+    expect(highlightSticker(events, ME, 1050, 1200)?.text).toBe('LOOP-DE-MEOW');
+    expect(highlightSticker([ev(1000, 'stuntExit', ME, WALL, 1), ev(1100, 'stuntLand', ME, 40, 1)], ME, 1050, 1200)?.text).toBe('STUNT COMBO ×2');
     expect(highlightSticker([ev(1100, 'stuntExit', ME, LOOP, 1)], ME, 900, 1320)).toMatchObject({ text: 'LOOP-DE-MEOW', tick: 1100 });
+    // with its entry logged, the loop's sticker shows half a second into the loop
+    expect(highlightSticker([ev(1010, 'stuntEnter', ME, LOOP), ev(1100, 'stuntExit', ME, LOOP, 1)], ME, 900, 1320)).toMatchObject({ text: 'LOOP-DE-MEOW', tick: 1040 });
     expect(highlightSticker([ev(1100, 'stuntExit', ME, WALL, 1)], ME, 900, 1320)?.text).toBe('WALL RIDE');
     expect(highlightSticker([ev(1100, 'stuntLand', ME, 40, 1)], ME, 900, 1320)?.text).toBe('NICE LANDING');
     expect(highlightSticker(events, ME, 1900, 2300)?.text).toBe('+2 PLACES');

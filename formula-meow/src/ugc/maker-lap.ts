@@ -79,3 +79,8 @@ export function liveLapDelta(targetCsV: number, lapElapsedS: number, lapFrac: nu
   if (!(lapFrac > 0.08) || lapFrac > 1.02 || !(lapElapsedS > 0)) return null;
   return lapElapsedS - (targetCsV / 100) * lapFrac;
 }
+
+/** The banner line for a link's lap ("⏱ Sender's lap 0:24.31 · beat it"). */
+export function makerTargetLine(cs: number): string {
+  return t("⏱ Sender's lap {t} · beat it", { t: fmtLap(cs) });
+}

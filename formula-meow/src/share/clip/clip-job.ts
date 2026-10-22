@@ -80,13 +80,19 @@ const STICKER_TONES: Record<ClipSticker['tone'], [string, string]> = {
   green: ['#7be495', '#0b3a21'],
 };
 
-/** A caption sticker (F8): a tilted pill with an ink edge that pops in over 0.25 s. */
-function sticker(g: CanvasRenderingContext2D, s: ClipSticker, age: number, y: number): void {
+/** How long a highlight sticker stays (s, clip time) before it fades: it labels the moment, not the whole shot. */
+const STICKER_HOLD = 2.6;
+
+/** A caption sticker (F8): a tilted pill with an ink edge that pops in over 0.25 s (and fades after `hold` s). */
+function sticker(g: CanvasRenderingContext2D, s: ClipSticker, age: number, y: number, hold = Infinity): void {
   const [bg, fg] = STICKER_TONES[s.tone];
   const size = 46;
   const pop = Math.min(1, age / 0.25);
   const k = pop < 1 ? 0.6 + 0.55 * pop - 0.15 * pop * pop : 1;
+  const fade = age > hold ? Math.max(0, 1 - (age - hold) / 0.3) : 1;
+  if (fade <= 0) return;
   g.save();
+  g.globalAlpha = fade;
   g.translate(CLIP_W / 2, y);
   g.rotate(-0.06);
   g.scale(k, k);
@@ -284,7 +290,7 @@ export async function makeClip(inp: ClipJobInput, onProgress: (f: number) => voi
         const side = local >= 2.6 && local < 4.4;
         renderAt(simT, dt * rate, side ? 'side' : 'chase', side ? local - 2.6 : local);
         bigText(g, ordinalText(placeAt()), 40, 150, 120, '#ffd27a', 'left');
-        if (hlSticker && simT >= hlSticker.tick) sticker(g, hlSticker, (simT - hlSticker.tick) / 60 / rate, CLIP_H - 260);
+        if (hlSticker && simT >= hlSticker.tick) sticker(g, hlSticker, (simT - hlSticker.tick) / 60 / rate, CLIP_H - 260, STICKER_HOLD);
         pill(g, `LAP ${Math.min(world.st.laps, Math.max(1, world.st.karts[me].lap))}/${world.st.laps}`, CLIP_W - 36, 60, 32, '#1a1238', '#fff3dc', 'right');
       } else if (f < fFin && plan.finishStart != null) {
         const local = (f - fHl) / CLIP_FPS;

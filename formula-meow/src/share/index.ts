@@ -197,9 +197,8 @@ export function installShare(shell: Shell): void {
       const old = g.simVersion !== SIM_VERSION || !duelable(g);
       const msg = 'That ghost is from another version of the game. Racing the same track without it.';
       if (old) {
-        // the banner comes with the race the card starts (B47: on the grid as well as in a toast)
+        // the card says it, and the banner comes with the race the card starts (B47: on the grid, not only in a toast)
         notice = msg;
-        showToast(msg, 6000);
       } else if (!runner.matches()) return;
       void flow.open(d, old ? msg : null);
     });
@@ -395,10 +394,10 @@ export function installShare(shell: Shell): void {
         const outcome = (gt: number | null) => {
           const out: string[] = [];
           const iWon = my != null && (gt == null || my < gt);
-          if (iWon) {
-            beat = name;
-            out.push(gt != null ? `You beat ${name}'s ghost by ${(gt - my!).toFixed(2)} s!` : `You beat ${name}'s ghost!`);
-          } else out.push(gt != null && my != null ? `${name}'s ghost won by ${(my - gt).toFixed(2)} s. Again?` : `${name}'s ghost won. Again?`);
+          // the outcome itself is the results headline (F7, share/cards/headline.ts); the lines keep the tally
+          if (iWon) beat = name;
+          // a dead heat (to the hundredth) is nobody's point
+          if (my != null && gt != null && Math.abs(my - gt) < 0.005) return out;
           const l = recordDuel(loadLedger(), name, iWon);
           saveLedger(l);
           const ll = ledgerLine(l, name);
