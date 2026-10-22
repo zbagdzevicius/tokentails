@@ -34,6 +34,13 @@ interface HeroRig {
   flash: number;
   /** Last drawn position (m) for FX anchoring. */
   pos: THREE.Vector3;
+  /** Frame stamp of the last frame that had this hero (replaces a per-frame Set, ANIM-SPEC D6). */
+  seen: number;
+  /** Smoothed planar velocity / acceleration (world m/s, m/s²) for springs and the dash stretch. */
+  vx: number;
+  vz: number;
+  ax: number;
+  az: number;
 }
 
 /** The player's own ring is this much larger than a relation ring (it sits outside the hero's footprint). */
@@ -75,6 +82,11 @@ export class HeroView {
   private selfRing = new DecalLayer(boldRingTexture(), 1, { y: 0.065, renderOrder: 9, name: 'hero-self-ring' });
   private selfPing = new DecalLayer(ringTexture(), 1, { additive: true, y: 0.06, renderOrder: 9, name: 'hero-self-ping' });
   private time = 0;
+  private frameNo = 0;
+  /** Render tick of the last frame (clips run on the render clock, so hitstop holds them: D5). */
+  private lastTick = NaN;
+  /** The animation director (render/anim/director.ts); null keeps the legacy animator (lobby, tests). */
+  director: { respawned(id: number): void; emote?(id: number): boolean } | null = null;
   mySlot = 0;
   myTeam: 0 | 1 = 0;
   shadows = true;
@@ -136,7 +148,7 @@ export class HeroView {
       if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
       this.group.add(ch.object);
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)) };
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -161,6 +173,8 @@ export class HeroView {
   emote(id: number, pose: string, seconds = 1.4): boolean {
     const r = this.rigs.get(id);
     if (!r || !r.visible) return false;
+    // a filled hero plays its own authored emote; stubs keep the legacy pose
+    if (this.director?.emote?.(id)) return true;
     r.ch.anim.emote(pose, seconds);
     return true;
   }
@@ -178,9 +192,18 @@ export class HeroView {
     return r && r.visible ? r.pos : null;
   }
 
+  /** The drawn hero `id` (character, hero, team, place) for the animation director, or null. */
+  rigOf(id: number): HeroRig | null {
+    return this.rigs.get(id) ?? null;
+  }
+
   update(frame: ViewFrame, dt: number): void {
     this.time += dt;
-    const seen = new Set<number>();
+    const stamp = ++this.frameNo;
+    // the render clock's step (0 while a hitstop holds it): animation time, so impact poses hold (D5)
+    const dtR = this.lastTick === this.lastTick ? Math.max(0, Math.min(0.1, (frame.tick - this.lastTick) / 30)) : dt;
+    this.lastTick = frame.tick;
+    const now = frame.tick / 30;
     this.rings.begin();
     this.auras.begin();
     this.selfRing.begin();
@@ -200,22 +223,54 @@ export class HeroView {
     }
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
-      seen.add(e.id);
       const r = this.ensure(e);
+      r.seen = stamp;
       const ch = r.ch;
       const dead = e.state === 'dead';
       const x = toX(e.fx);
       const z = toZ(e.fy);
+      // planar velocity and acceleration (smoothed), for the springs and the dash stretch
+      if (dtR > 1e-4) {
+        const vx = (x - r.pos.x) / dtR;
+        const vz = (z - r.pos.z) / dtR;
+        const teleport = vx * vx + vz * vz > 900;
+        const nvx = teleport ? 0 : vx;
+        const nvz = teleport ? 0 : vz;
+        const k = Math.min(1, dtR * 18);
+        const ax = (nvx - r.vx) / dtR;
+        const az = (nvz - r.vz) / dtR;
+        r.ax += (Math.max(-80, Math.min(80, ax)) - r.ax) * k;
+        r.az += (Math.max(-80, Math.min(80, az)) - r.az) * k;
+        r.vx += (nvx - r.vx) * Math.min(1, dtR * 30);
+        r.vz += (nvz - r.vz) * Math.min(1, dtR * 30);
+      }
       r.pos.set(x, 0, z);
       if (dead && !r.wasDead) r.deadT = 0;
-      if (!dead && r.wasDead) ch.anim.respawn();
+      if (!dead && r.wasDead) {
+        ch.anim.respawn();
+        this.director?.respawned(e.id);
+      }
       r.wasDead = dead;
       if (dead) r.deadT += dt;
       // facing: the interpolated yaw, with the yaw rate for the turn lean
       const dyaw = dead ? 0 : wrap(e.yaw - r.yaw);
       const yawRate = dt > 0 ? dyaw / dt : 0;
       r.yaw = dead ? r.yaw : e.yaw;
-      ch.anim.update(dt, { state: charState(e), speed: (e.speed * 30) / 1000, height: ch.height, yawRate });
+      // object space (facing +X): the velocity and acceleration the root and springs read
+      const cy = Math.cos(r.yaw);
+      const sy = Math.sin(r.yaw);
+      ch.anim.stack.yaw = r.yaw;
+      ch.anim.update(this.director ? dtR : dt, {
+        state: charState(e),
+        speed: (e.speed * 30) / 1000,
+        height: ch.height,
+        yawRate,
+        now: this.director ? now : undefined,
+        vx: r.vx * cy - r.vz * sy,
+        vz: r.vx * sy + r.vz * cy,
+        ax: r.ax * cy - r.az * sy,
+        az: r.ax * sy + r.az * cy,
+      });
       const sink = dead ? Math.max(0, (r.deadT - 1.2) * 0.8) : 0;
       r.visible = !(dead && r.deadT > 2.6);
       ch.object.visible = r.visible;
@@ -274,8 +329,8 @@ export class HeroView {
         if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
     }
-    for (const [id, r] of this.rigs) {
-      if (!seen.has(id)) {
+    for (const r of this.rigs.values()) {
+      if (r.seen !== stamp) {
         r.ch.object.visible = false;
         r.visible = false;
       }

@@ -4,12 +4,12 @@
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
 import * as THREE from 'three';
-import { loadZoom, ZOOM_DEFAULT } from './camera/zoom';
+import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
 import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
-import { Particles } from './fx/Particles.js';
+import { Particles, SHAPE } from './fx/Particles.js';
 import { CombatVfx, elementColor, isMelee } from './fx/combatVfx';
 import { reducedMotion, shakePref, shakeScaleFor } from './fx/vfxPrefs';
 import { Shockwaves } from './fx/Shockwaves.js';
@@ -36,6 +36,17 @@ import { MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
+import { AnimDirector } from './anim/director';
+import { CueSfx, FxRuntime, type HeroLookup } from './anim/fxctx';
+import { MeshFx } from './anim/fxkit/meshFx';
+import { Linger } from './anim/fxkit/linger';
+import { coverageFade, packTele } from './anim/fxkit/readability';
+import { Ribbons } from './anim/trails';
+import { Ghosts } from './anim/ghosts';
+import { FightCam, type FightHero } from './anim/cam';
+import { UltMoment } from './anim/ultMoment';
+import { talentIdsOf } from './anim/timing';
+import { HERO_NAME } from './effects';
 
 export interface AimPreview {
   spec: AimSpec;
@@ -136,6 +147,19 @@ export class GameView {
   private poseHits = new Set<number>();
   private time = 0;
   private lastMe: ViewEntity | null = null;
+  /** ANIM-SPEC: authored animation, skill FX kit, fight camera and ult moments (render/anim/). */
+  readonly director: AnimDirector;
+  readonly meshFx = new MeshFx();
+  readonly linger: Linger;
+  readonly ribbons = new Ribbons();
+  readonly ghosts = new Ghosts();
+  readonly fightCam: FightCam;
+  readonly ultMoment: UltMoment;
+  /** Pending events ahead of the render clock (matchSession sets it to SnapBuffer.peekEvents). */
+  peek: ((horizonTicks: number, out: SimEvent[]) => SimEvent[]) | null = null;
+  private readonly fightHeroes: FightHero[] = Array.from({ length: 12 }, () => ({ x: 0, z: 0, team: 0, dead: true }));
+  private readonly talentKey = new Map<number, { key: string; ids: string[] }>();
+  private coverK = 1;
 
   constructor(
     readonly gr: GameRenderer,
@@ -196,16 +220,23 @@ export class GameView {
           return self.myTeam;
         },
         trickOf: (slot) => this.tricks[slot] ?? 'pounce',
-        onSwing: (id) => {
-          this.heroes.swing(id);
+        onSwing: (id, tick) => {
+          // a hero's swing starts on its sim swing (the director's BasicClock), not on the hit (ANIM-SPEC D1)
+          if (this.director) this.director.basicFired(id, tick ?? Math.round(this.frame?.tick ?? 0));
+          else this.heroes.swing(id);
           this.minions.swing(id);
           this.swipe(id);
         },
-        onCast: (id) => this.heroes.cast(id),
-        onHit: (id, kind, heavy) => {
+        // the director plays the stub heroes' legacy cast and the filled heroes' clips
+        onCast: (id) => {
+          if (!this.director) this.heroes.cast(id);
+        },
+        onHit: (id, kind, heavy, src) => {
           if (kind === 'hero') this.heroes.hit(id, heavy);
-          else if (kind === 'minion') this.minions.hit(id);
-          else this.structures.hit(id);
+          else if (kind === 'minion') {
+            const w = src !== undefined ? this.who.get(src) : undefined;
+            this.minions.hit(id, w ? w.x : NaN, w ? w.z : NaN);
+          } else this.structures.hit(id);
         },
         onKill: hooks.onKill,
         onLevel: hooks.onLevel,
@@ -214,6 +245,8 @@ export class GameView {
         onTowerDown: hooks.onTowerDown,
         onTowerAim: hooks.onTowerAim,
         onCoreDown: hooks.onCoreDown,
+        onStructureWindup: (id, sec) => this.structures.windup(id, sec),
+        onStructureFell: (id) => this.structures.fell(id),
         onPickupSpawn: (index, kind, x, y) => this.pickups.spawn(index, kind, x, y),
         onPickupTaken: (kind, who) => {
           if (who) this.pickups.take(kind, who.x, who.z);
@@ -223,6 +256,102 @@ export class GameView {
       numbersCtx,
     );
     this.effects.vfx = this.vfx;
+    // ANIM-SPEC §2: the director, the skill FX kit (one material, compiled at load), ribbons, ghosts, fight camera
+    this.linger = new Linger(this.meshFx.uniforms);
+    this.fightCam = new FightCam(this.juice);
+    this.ultMoment = new UltMoment(uiRoot, this.juice, this.fightCam);
+    this.scene.add(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
+    const lookup: HeroLookup = {
+      get mySlot() {
+        return self.mySlot;
+      },
+      get myTeam() {
+        return self.myTeam;
+      },
+      teamOf: (id) => this.who.get(id)?.team ?? 2,
+      heroOf: (id) => this.who.get(id)?.hero ?? null,
+      posOf: (id, out) => {
+        const w = this.who.get(id);
+        if (!w) return false;
+        out.x = w.x;
+        out.y = 0;
+        out.z = w.z;
+        return true;
+      },
+      bone: (id, b) => this.heroes.rigOf(id)?.ch.rig.bone(b) ?? null,
+      talentsOf: (id) => this.talentsOf(id),
+      branchOf: (id) => this.who.get(id)?.branch === true,
+      yawOf: (id) => {
+        const r = this.heroes.rigOf(id);
+        return r && r.visible ? r.yaw : NaN;
+      },
+    };
+    const cueSfx = new CueSfx();
+    const runtime = new FxRuntime(this.meshFx, this.ribbons, this.linger, this.vfx, this.shock as never, this.fightCam, this.juice, cueSfx, lookup);
+    this.director = new AnimDirector({
+      rig: (id) => this.heroes.rigOf(id),
+      get mySlot() {
+        return self.mySlot;
+      },
+      get myTeam() {
+        return self.myTeam;
+      },
+      get peek() {
+        return self.peek;
+      },
+      particles: this.particles,
+      ribbons: this.ribbons,
+      ghosts: this.ghosts,
+      cam: this.fightCam,
+      fx: runtime,
+      sfx: cueSfx,
+      shakeScale: () => (this.vfx.reduced ? 0 : this.juice.shakeScale),
+      reduced: () => this.vfx.reduced,
+      tier: () => this.gr.settings.tier,
+      teamFight: () => this.fightCam.fight || this.heroes.tierFx?.teamFight === true,
+    });
+    this.heroes.director = this.director;
+    this.effects.anim = {
+      castFired: (e) => this.director.castFired(e),
+      windupFired: (e) => this.director.windupFired(e),
+      hitFired: (e, sh, dh, big) => this.director.hitFired(e, sh, dh, big),
+      deathFired: (e) => this.director.deathFired(e),
+      levelFired: (id) => this.director.levelFired(id),
+      ult: (src, mine, name, color, atMe) => {
+        if (src.kind !== 'hero' || !src.hero) return false;
+        if (mine) this.ultMoment.own(HERO_NAME(src.hero), name, color);
+        else if (src.team !== this.myTeam) {
+          if (!atMe) return false;
+          this.ultMoment.enemy(name);
+        } else this.ultMoment.ally(src);
+        return mine;
+      },
+    };
+    this.applyAnimTier();
+    // structures: a muzzle burst on each tower / core shot, dust when a fall ends
+    const sv = new THREE.Vector3();
+    this.structures.onShot = (x, y, z, team) => {
+      sv.set(x, y, z);
+      const c = team === this.myTeam ? RELATION.ally : RELATION.danger;
+      this.particles.burst(sv, { additive: true, n: 10, shape: SHAPE.SPARK, color: c, intensity: 2, size: [0.12, 0.22], life: [0.18, 0.3], speed: [3, 6], stretch: 2.2, drag: 4, up: 1 });
+      this.particles.single(sv, { shape: SHAPE.STAR4, color: 0xfff6da, intensity: 2.2, size0: 1.3, size1: 0.2, life: 0.14, rot: 0 });
+    };
+    this.structures.onFallen = (x, z, core) => {
+      sv.set(x, 0.4, z);
+      this.particles.burst(sv, { n: core ? 34 : 22, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [0.9, 1.6], sizeEnd: 2.6, life: [0.9, 1.5], speed: [1.5, 4.5], up: 0.6, drag: 1.6 });
+      this.shock.start(sv, { r1: core ? 7 : 4.5, dur: 0.45, color: '#FFE0C8', height: 0.4 });
+      this.juice.kick(core ? 0.35 : 0.22);
+    };
+    // compile the FX programs now, never mid-fight (§7)
+    try {
+      this.meshFx.pools.ground.mesh.visible = this.meshFx.pools.vertical.mesh.visible = this.meshFx.pools.dome.mesh.visible = true;
+      this.linger.mesh.visible = this.ribbons.mesh.visible = true;
+      gr.renderer.compile(this.scene, gr.camera);
+    } catch {
+      /* a headless or lost context: they compile on first use */
+    }
+    this.meshFx.pools.ground.mesh.visible = this.meshFx.pools.vertical.mesh.visible = this.meshFx.pools.dome.mesh.visible = false;
+    this.linger.mesh.visible = this.ribbons.mesh.visible = false;
     // Wave C (C4): card-tier effects, cosmetic only (render/skins/cardFx.ts)
     this.effects.cards = new CardVfx(this.particles, this.shock as never);
     this.projectiles.card = (id) => this.heroes.cardOf(id);
@@ -234,6 +363,74 @@ export class GameView {
 
   private lastDt = 0;
   private wasDead = false;
+
+  /** Load the move sets and skill FX of the heroes in this match (their own chunks; stubs until then). */
+  loadAnim(picks: readonly HeroId[]): Promise<void> {
+    return this.director.preload(picks);
+  }
+
+  /** Talent ids of hero `id` (own team only; enemies' are unknown → base numbers), cached per talent triple. */
+  private talentsOf(id: number): readonly string[] | null {
+    const e = this.frame?.byId.get(id);
+    if (!e?.hero || !e.talents) return null;
+    const key = `${e.hero}:${e.talents.join(',')}`;
+    const c = this.talentKey.get(id);
+    if (c && c.key === key) return c.ids;
+    const ids = talentIdsOf(e.hero, e.talents);
+    this.talentKey.set(id, { key, ids });
+    return ids;
+  }
+
+  private animTier = '';
+  /** Quality tier / reduce motion → the FX kit pools, ribbons, ghosts (§10). */
+  private applyAnimTier(): void {
+    const t = this.gr.settings.tier;
+    const red = this.vfx.reduced;
+    const k = `${t}:${red}`;
+    if (k === this.animTier) return;
+    this.animTier = k;
+    this.meshFx.tier = t;
+    this.meshFx.reduced = red;
+    this.linger.tier = t;
+    this.ribbons.setTier(t, red);
+    this.ghosts.setTier(t, red);
+    this.director.runtime.tier = t;
+    this.director.runtime.reduced = red;
+    this.fightCam.reduced = red;
+    this.ultMoment.reduced = red;
+    this.minions.reduced = red;
+    this.structures.reduced = red;
+  }
+
+  /** Per frame after the heroes: FX kit, readability, fight camera (ANIM-SPEC §7–§9). */
+  private animPost(frame: ViewFrame | null, dt: number): void {
+    this.applyAnimTier();
+    this.ribbons.update(dt);
+    this.ghosts.update(dt);
+    this.meshFx.update(dt, this.time);
+    this.linger.update(dt);
+    // readability: enemy windups dim any mesh FX over them; own / ally FX fade past the coverage budget
+    packTele(this.effects.windups, (id) => this.who.get(id) ?? null, this.myTeam, this.meshFx.uniforms.uTele.value);
+    const d = MOBA_DIST * this.gr.zoom;
+    const want = coverageFade(this.meshFx.area(false), d * d * 0.9, this.gr.settings.tier);
+    this.coverK += (want - this.coverK) * Math.min(1, dt * 6);
+    this.meshFx.uniforms.uFadeOwn.value = this.coverK;
+    // the fight meter
+    let n = 0;
+    if (frame)
+      for (const e of frame.entities) {
+        if (e.kind !== 'hero' || n >= this.fightHeroes.length) continue;
+        const h = this.fightHeroes[n++];
+        h.x = toX(e.fx);
+        h.z = toZ(e.fy);
+        h.team = e.team;
+        h.dead = e.state === 'dead';
+      }
+    const me = this.lastMe;
+    const c = this.gr.renderer.domElement;
+    this.fightCam.portrait = c.clientHeight > c.clientWidth;
+    this.fightCam.update(dt, this.fightHeroes, n, me ? toX(me.fx) : 0, me ? toZ(me.fy) : 0, !!me && me.state !== 'dead');
+  }
 
   setShadows(on: boolean): void {
     this.heroes.setShadows(on);
@@ -480,6 +677,7 @@ export class GameView {
       this.heroes.focus.x = this.gr.focus.x;
       this.heroes.focus.z = this.gr.focus.z;
       setCharTime(this.time);
+      this.director.update(frame, dt);
       this.heroes.update(frame, dt);
       this.minions.update(frame, dt, this.time);
       this.structures.me = me && me.state !== 'dead' ? { x: toX(me.fx), z: toZ(me.fy) } : null;
@@ -502,6 +700,7 @@ export class GameView {
       }
       this.wasDead = meDead;
     }
+    this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
     this.map.update(frame, dt);
     this.pickups.update(dt);
@@ -515,10 +714,12 @@ export class GameView {
       this.pan.multiplyScalar(Math.max(0, 1 - dt * 3));
       if (this.pan.lengthSq() < 0.01) this.recentre();
     }
-    // ease the zoom toward the wheel's target
-    this.gr.zoom += (this.zoomTarget - this.gr.zoom) * Math.min(1, dt * 10);
-    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead()));
-    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below());
+    // ease the zoom toward the wheel's target, plus the fight camera's pull-back and the own ult punch (§8)
+    const cw = this.gr.renderer.domElement.clientWidth;
+    const fight = this.fightCam.extra > 0 ? Math.min(zoomMax(cw || 1000), this.zoomTarget * (1 + this.fightCam.extra / MOBA_DIST)) : this.zoomTarget;
+    this.gr.zoom += (fight * this.fightCam.punchScale() - this.gr.zoom) * Math.min(1, dt * 10);
+    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead() + this.fightCam.leanX));
+    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below() + (this.panned ? 0 : this.fightCam.leanZ));
     const k = Math.min(1, dt * (this.panned ? 12 : 7));
     this.gr.focus.x += (tx - this.gr.focus.x) * k;
     this.gr.focus.z += (tz - this.gr.focus.z) * k;
@@ -572,6 +773,13 @@ export class GameView {
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.vfx.auras.mesh);
     this.vfx.dispose();
+    this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
+    this.meshFx.dispose();
+    this.linger.dispose();
+    this.ribbons.dispose();
+    this.ghosts.dispose();
+    this.ultMoment.dispose();
+    this.director.dispose();
     this.hoverRing.dispose();
     this.castRing.dispose();
     this.moveMarks.dispose();

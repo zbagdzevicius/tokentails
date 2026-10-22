@@ -9,6 +9,8 @@ import type { Stage } from '../ui/stage';
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 /** Round 1: a queued ordinary banner older than this is dropped (a "First Blood!" after five knockouts is stale). */
 export const BANNER_STALE_MS = 3000;
+/** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
+export const SLOWMO_CAP_MS = 110;
 
 export interface Banner {
   title: string;
@@ -73,9 +75,18 @@ export class Juice {
     }
   }
 
-  /** Slow motion: the render clock runs at `scale` (0..1) for `ms` (First Blood, a triple, the core falling). */
-  slowmo(ms: number, scale: number): void {
-    this.hitstop(ms, Math.max(0.05, Math.min(1, scale)));
+  /**
+   * Slow motion: the render clock runs at `scale` (0..1) for `ms`. Capped at SLOWMO_CAP_MS (ANIM-SPEC D5, §6: a long
+   * global slow-mo left the snapshot clock behind and the catch-up rushed every hero); `long` is for the match end
+   * only (the core falling), where nothing plays on after it.
+   */
+  slowmo(ms: number, scale: number, long = false): void {
+    this.hitstop(long ? ms : Math.min(ms, SLOWMO_CAP_MS), Math.max(0.05, Math.min(1, scale)));
+  }
+
+  /** Record a text as said (a moment shown by another layer, e.g. the ult banner; e2e reads data-said). */
+  note(text: string): void {
+    this.remember(text);
   }
 
   /** Is slow motion (or a hitstop) running? */

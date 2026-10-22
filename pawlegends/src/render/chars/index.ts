@@ -3,8 +3,9 @@
  * their own skeleton and animator, baked minion geometry for the instanced part shader, Companion Kittens.
  *
  * An instance is `object` (place it, set `rotation.y` to the snapshot yaw: models face +X like every other view) →
- * `inner` (turns PPK's +Z-forward character to +X and scales H to metres) → the rig root (bones) + one skinned mesh
- * (+ an optional outline hull sharing the skeleton).
+ * `mover` (root motion: height, flips, spins, rolls, squash along an axis; pivots at the centre of mass, ANIM-SPEC
+ * §4.5) → `inner` (turns PPK's +Z-forward character to +X and scales H to metres) → the rig root (bones) + one skinned
+ * mesh (+ an optional outline hull sharing the skeleton).
  */
 import * as THREE from 'three';
 import type { HeroId } from '../../sim/api';
@@ -77,6 +78,8 @@ export function heroBuilt(hero: HeroId, team: 0 | 1, look: Look | null = DEFAULT
 
 export interface Character {
   object: THREE.Group;
+  /** Root motion group between `object` and `inner` (the Animator writes it; identity when no clip moves the root). */
+  mover: THREE.Group;
   inner: THREE.Group;
   mesh: THREE.SkinnedMesh;
   outline: THREE.SkinnedMesh | null;
@@ -114,11 +117,16 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
   inner.rotation.y = Math.PI / 2;
   inner.scale.setScalar(height);
   inner.add(rig.root);
+  const mover = new THREE.Group();
+  mover.name = 'mover';
+  mover.add(inner);
   const object = new THREE.Group();
-  object.add(inner);
+  object.add(mover);
   const anim = new Animator(rig, profile);
+  anim.attachMover(mover, inner, height);
   return {
     object,
+    mover,
     inner,
     mesh,
     outline,

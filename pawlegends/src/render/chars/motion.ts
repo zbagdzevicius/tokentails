@@ -8,8 +8,13 @@
  * Render only: every input comes from interpolated snapshots and render events.
  */
 import * as THREE from 'three';
-import { BONE_INDEX as I, BONE_NAMES, type BoneName, type Rig, type Snapshot } from './skeleton';
+import { BONE_INDEX as I, BONE_NAMES, type Rig, type Snapshot } from './skeleton';
 import type { MotionProfile } from './specs';
+import { LayerStack } from '../anim/layers';
+import { TAIL_INDEX } from '../anim/masks';
+import { Feet, pinFeet } from '../anim/feet';
+import { DEFAULT_GAIT } from '../anim/common';
+import type { GaitProfile } from '../anim/types';
 
 export type CharState = 'idle' | 'moving' | 'dead' | 'napping' | 'stunned' | 'feared' | 'blocking' | 'channel';
 
@@ -21,6 +26,13 @@ export interface MotionInput {
   height: number;
   /** Signed yaw rate (rad/s), for the turn lean. */
   yawRate: number;
+  /** Render clock (s, the sim tick clock incl. hitstop): clips bind to it. Absent (lobby) = the animator's own clock. */
+  now?: number;
+  /** Planar velocity and acceleration in object space (m/s, m/s²: x forward, z the hero's right), for springs and stretch. */
+  vx?: number;
+  vz?: number;
+  ax?: number;
+  az?: number;
 }
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -47,7 +59,9 @@ class Squash {
 }
 
 export class Animator {
-  private from: Snapshot;
+  /** Blend start (copied into preallocated buffers: no clones per pose change, ANIM-SPEC D6). */
+  private readonly fromQ = BONE_NAMES.map(() => new THREE.Quaternion());
+  private readonly fromP = BONE_NAMES.map(() => new THREE.Vector3());
   private to: Snapshot;
   private blendT = 1;
   private blendDur = 0.2;
@@ -78,17 +92,45 @@ export class Animator {
   mood: string | null = null;
   private moodT = 0;
 
+  /** Authored clips, reactions, root motion and springs (render/anim/, ANIM-SPEC §4.4). */
+  readonly stack: LayerStack;
+  /** Gait profile (MoveSet.gait) with the variant the stack asks for. */
+  gaitProfile: GaitProfile = DEFAULT_GAIT;
+  private readonly feet = new Feet();
+  private mover: THREE.Object3D | null = null;
+  private inner: THREE.Object3D | null = null;
+  private heightM = 1;
+  /** The legacy flinch (lobby, a director-less view); the director's reaction slot replaces it in a match. */
+  legacyFlinch = true;
+
   constructor(
     readonly rig: Rig,
     readonly profile: MotionProfile,
   ) {
-    this.from = this.to = rig.snapshot(profile.idle);
+    this.to = rig.snapshot(profile.idle);
+    for (let i = 0; i < this.fromQ.length; i++) {
+      this.fromQ[i].copy(this.to.q[i]);
+      this.fromP[i].copy(this.to.p[i]);
+    }
     this.target = profile.idle;
+    this.stack = new LayerStack(rig, profile.idle);
   }
 
-  /** Attack swing (render event). */
-  swing(): void {
-    this.swingT = 0;
+  /** Root motion target (render/chars/index.ts `mover`, between `object` and `inner`). */
+  attachMover(mover: THREE.Object3D, inner: THREE.Object3D, height: number): void {
+    this.mover = mover;
+    this.inner = inner;
+    this.heightM = height;
+  }
+
+  /**
+   * Attack swing. `contactIn` (s): how long until the sim's contact / release, so the legacy strike (64% of the swing)
+   * lands on it (ANIM-SPEC D1: the BasicClock starts it at the swing start; 0 = impact-led, the follow-through only).
+   */
+  swing(contactIn = this.profile.attack === 'shoot' ? 0.3 : 0.27): void {
+    const dur = this.profile.attack === 'shoot' ? 0.5 : 0.42;
+    const strike = (this.profile.attack === 'shoot' ? 0.6 : 0.64) * dur;
+    this.swingT = Math.max(0, Math.min(0.9, (strike - Math.max(0, contactIn)) / dur));
     this.swingN = (this.swingN + 1) % 3;
     if (this.profile.attack === 'shoot' && this.profile.aim) this.hold = { name: this.profile.aim, t: 0.38 };
   }
@@ -98,8 +140,10 @@ export class Animator {
     this.squash.kick(2.2);
   }
   hit(heavy = false): void {
-    this.hitT = 0;
-    this.hitK = heavy ? 1 : 0.7;
+    if (this.legacyFlinch) {
+      this.hitT = 0;
+      this.hitK = heavy ? 1 : 0.7;
+    }
     this.squash.kick(heavy ? -3.2 : -2.2);
   }
   /** An emote (render only, e.g. the "Starter" wave): hold `name` for `t` seconds, with a small hop. */
@@ -116,10 +160,12 @@ export class Animator {
 
   private setTarget(name: string, dur: number): void {
     if (name === this.target) return;
-    // blend from wherever the base pose is now
-    const cur: Snapshot = { name: 'blend', q: this.q.map((q) => q.clone()), p: this.p.map((p) => p.clone()), weapon: this.to.weapon };
-    this.composeBase(cur.q, cur.p);
-    this.from = cur;
+    // blend from wherever the base pose is now (into the preallocated buffers, D6)
+    this.composeBase(this.q, this.p);
+    for (let i = 0; i < this.fromQ.length; i++) {
+      this.fromQ[i].copy(this.q[i]);
+      this.fromP[i].copy(this.p[i]);
+    }
     this.to = this.rig.snapshot(name);
     this.target = name;
     this.blendT = 0;
@@ -129,13 +175,17 @@ export class Animator {
   private composeBase(q: THREE.Quaternion[], p: THREE.Vector3[]): void {
     const k = smooth(this.blendT);
     for (let i = 0; i < q.length; i++) {
-      q[i].copy(this.from.q[i]).slerp(this.to.q[i], k);
-      p[i].copy(this.from.p[i]).lerp(this.to.p[i], k);
+      q[i].copy(this.fromQ[i]).slerp(this.to.q[i], k);
+      p[i].copy(this.fromP[i]).lerp(this.to.p[i], k);
     }
   }
 
-  update(dt: number, inp: MotionInput): void {
-    this.time += dt;
+  update(dtIn: number, inp: MotionInput): void {
+    this.time += dtIn;
+    const stack = this.stack;
+    stack.update(inp.now ?? this.time, dtIn);
+    // a local freeze (hit-stop, ANIM-SPEC §6) holds the legacy layers' timers too
+    const dt = stack.freezeLeft > 0 ? 0 : dtIn;
     const st = inp.state;
     const dead = st === 'dead';
     // ---- base pose
@@ -173,7 +223,15 @@ export class Animator {
     // ---- gait (PPK _layerGait): phase by distance over stride, so the feet keep pace with the ground
     const moving = !dead && st !== 'napping' && inp.speed > 0.35;
     this.walk += ((moving ? 1 : 0) - this.walk) * Math.min(1, dt * 10);
-    const stride = this.profile.stride * inp.height * 0.5;
+    // the hero's gait profile and the variant the stack asks for (sneak, trudge, gallop, charm, cower, haste)
+    const G = this.gaitProfile;
+    const V = stack.gait === 'run' ? null : G.variants[stack.gait];
+    const gStride = G.stride * (V?.stride ?? 1);
+    const gBounce = G.bounce * (V?.bounce ?? 1);
+    const gLean = G.lean * (V?.lean ?? 1);
+    const gSway = G.hipSway * (V?.hipSway ?? 1);
+    const gBob = G.headBob * (V?.headBob ?? 1);
+    const stride = this.profile.stride * gStride * inp.height * 0.5;
     this.phase += moving ? (inp.speed * dt * Math.PI) / Math.max(0.2, stride) : 0;
     const w = this.walk;
     if (w > 0.01) {
@@ -185,36 +243,44 @@ export class Animator {
       add(q[I.kneeR], Math.max(0, -c) * 0.9 * w);
       add(q[I.footL], s * 0.3 * w);
       add(q[I.footR], -s * 0.3 * w);
-      p[I.hips].y += Math.abs(c) * 0.025 * w - 0.012 * w;
-      add(q[I.hips], 0, s * 0.12 * w);
-      add(q[I.chest], 0.08 * w, -s * 0.16 * w);
-      add(q[I.body], 0.1 * w);
+      p[I.hips].y += (Math.abs(c) * 0.025 * w - 0.012 * w) * gBounce;
+      add(q[I.hips], 0, s * 0.12 * w * gSway);
+      add(q[I.chest], 0.08 * w * gLean, -s * 0.16 * w);
+      add(q[I.body], 0.1 * w * gLean);
       // free arms counter-swing (an arm holding a two-paw grip only bobs)
       add(q[I.shoulderL], s * 0.45 * w);
       add(q[I.shoulderR], -s * 0.35 * w);
-      add(q[I.head], -0.08 * w, s * 0.06 * w);
-      for (let i = 0; i < 6; i++) add(q[I[`tail${i}` as BoneName]], 0, Math.sin(this.phase * 0.5 - i * 0.5) * 0.1 * w);
+      add(q[I.head], -0.08 * w * gBob, s * 0.06 * w);
+      for (let i = 0; i < 6; i++) add(q[TAIL_INDEX[i]], 0, Math.sin(this.phase * 0.5 - i * 0.5) * 0.1 * w);
     }
     // ---- turn lean (yaw rate)
     const leanT = dead ? 0 : Math.max(-0.25, Math.min(0.25, -inp.yawRate * 0.04));
     this.lean += (leanT - this.lean) * Math.min(1, dt * 8);
     add(q[I.body], 0, 0, this.lean * (0.4 + w));
+    if (stack.springsOn && this.mover && stack.tier !== 'low') this.feet.apply(q, inp.yawRate * dt, inp.speed, dt);
+
+    // ---- authored clips (override slot): the legacy swing / cast layers stay off under a clip
+    stack.sumRoot();
+    const W = stack.applyOverride(q, p);
+    const legacy = W < 0.5;
 
     // ---- attack arc (melee: a longer swing with a held anticipation beat, so it reads at gameplay zoom)
     if (!dead && this.swingT < 1) {
       const dur = this.profile.attack === 'shoot' ? 0.5 : 0.42;
       this.swingT = Math.min(1, this.swingT + dt / dur);
-      this.attackLayer(this.swingT);
+      if (legacy) this.attackLayer(this.swingT);
     }
     // ---- cast: arms up and a hop of the chest
-    if (!dead && this.castT < 1) {
+    if (!dead && this.castT < 1 && legacy) {
       this.castT = Math.min(1, this.castT + dt / 0.5);
       const k = Math.sin(this.castT * Math.PI);
       add(q[I.chest], -0.2 * k);
       add(q[I.head], -0.25 * k);
       p[I.body].y += 0.04 * k;
     }
-    // ---- hit flinch
+    // ---- additive clips and the directional reaction slot
+    stack.applyAdditive(q, p, dt);
+    // ---- hit flinch (legacy)
     if (this.hitT < 1) {
       this.hitT = Math.min(1, this.hitT + dt / 0.28);
       const k = Math.sin(this.hitT * Math.PI) * this.hitK;
@@ -233,7 +299,8 @@ export class Animator {
       const br = Math.sin(this.time * 2.1);
       add(q[I.chest], br * 0.025);
       add(q[I.head], Math.sin(this.time * 0.7) * 0.04, Math.sin(this.time * 0.45) * 0.08 * (1 - w));
-      for (let i = 0; i < 6; i++) add(q[I[`tail${i}` as BoneName]], Math.sin(this.time * 1.6 - i * 0.6) * 0.05, Math.sin(this.time * 1.1 - i * 0.7) * 0.12);
+      const tk = stack.springsOn ? 0.45 : 1;
+      for (let i = 0; i < 6; i++) add(q[TAIL_INDEX[i]], Math.sin(this.time * 1.6 - i * 0.6) * 0.05 * tk, Math.sin(this.time * 1.1 - i * 0.7) * 0.12 * tk);
       this.earT -= dt;
       if (this.earT < 0) {
         this.earT = 2.5 + Math.random() * 5;
@@ -255,6 +322,8 @@ export class Animator {
         this.castT = 0;
       }
     } else this.moodT = 0;
+    // ---- secondary motion: tail and ear springs (ANIM-SPEC §5)
+    stack.applySprings(q, dtIn, inp.ax ?? 0, inp.az ?? 0, inp.yawRate);
     // ---- respawn pop + squash spring
     this.popT = Math.min(1, this.popT + dt * 3);
     const sq = this.squash.step(dt) * 0.08;
@@ -270,6 +339,19 @@ export class Animator {
     b[I.body].scale.set(sx, sy, sx);
     b[I.eyeL].scale.set(1, lid, 1);
     b[I.eyeR].scale.set(1, lid, 1);
+    // ---- root motion onto the mover (flips, spins, hops, squash along an axis)
+    if (this.mover && this.inner) {
+      const r = stack.root;
+      r.dead = dead;
+      r.velX = inp.vx ?? 0;
+      r.velZ = inp.vz ?? 0;
+      r.apply(this.mover, this.inner, this.heightM, dtIn);
+      // planted stances (lockFeet): the feet stay put while the body lunges
+      if (!dead && stack.tier !== 'low') {
+        const lk = stack.lockWeight();
+        if (lk > 0.01) pinFeet(b, this.mover, this.mover.position.x, this.mover.position.z, r.up, lk);
+      }
+    }
   }
 
   /** Per-hero attack arc on top of the held pose, t 0..1 (wind-up, strike, settle). */

@@ -322,6 +322,39 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
     the coat colour; Epic adds a cast sparkle; Legendary adds a paw-print hit burst, a takedown flourish and a
     paw-print ultimate wave. Cosmetic only: the sim, the backend verifier and the vendored bundles never see cards
     (`tests/unit/card-fx.test.ts` proves an identical replay with and without Legendary cards).
+- **Character animation and fight spectacle** (render only, `pawlegends/docs/ANIM-SPEC.md`; nothing under `src/sim`
+  changes, so replays, the hash and `npm run determinism` are untouched):
+  - **Per-skill clips for all 8 heroes**: each hero has an authored move set (`src/render/moves/<hero>.ts`: a basic
+    combo, Q W E R with recasts, level-6 branch clips, holds and ends, idle, fidgets, victory, emote, level-up, death,
+    respawn) and its own skill effects (`src/render/skillfx/<hero>.ts`), both lazy chunks loaded at match load. Clips
+    play on the 27-bone rig through a layer stack (`src/render/anim/layers.ts`: override, additive, reactions, root
+    motion for flips, spins, leaps and slams, tail and ear springs).
+  - **Synced to the sim**: the director (`src/render/anim/director.ts`) pins each clip's markers to sim anchors
+    (windup, cast, contact, bolt release, dash end, zone arm, state end) by time-warping the clip, so what you see is
+    what hits. The basic clock starts swings on the sim swing and picks the combo step at swing start (A, B, C, A; A
+    again after 1.5 s). Every dash but Lambo's hop flies its full length (`SlotTiming.aimClamped`); a wall-cut dash
+    snaps to its landing. A state can end on a buff's falling edge (`SlotMoves.endOnBuff`: Cacklejaw's stealth), and
+    a level-6 branch can have its own hold and end (`branchHold`, `branchEnd`: Brutus's Guard Post kneel).
+  - **Life between moves**: idle loops after 0.25 s standing still, a weighted fidget every 6–10 s, the hero's own
+    level-up and emote clips, and the winners' victory loop at match end. Finished flips and spins fade from their
+    nearest whole turn (no unwinding through upside down); `lockFeet` clips pin the feet against the body's lunge.
+  - **Skill effects kit** (`src/render/anim/fxkit/`): one instanced shader for crescents, rings, domes, walls, beams,
+    pillars and ground glyphs; glow with partial cover so colours stay saturated on sand; own and ally shapes take a
+    soft relation rim, enemy shapes keep the strong danger rim; anything over an enemy windup is dimmed to 35%, and
+    own and ally effects fade past a screen-coverage budget. FX helpers: facing, projectile position (bolt trails),
+    HP share and status edges (`FxCtx.facing`, `projPos`, `status`, `SkillFxSet.onStatus`).
+  - **Minions, towers and the core**: minions cock back over the sim windup, strike on the contact (ranged and siege
+    on their bolt's spawn), overshoot and lunge; a hit leans them away and shoves them; a dying minion pops up,
+    tumbles away from the blow and shrinks into its poof. Towers and cores crouch and glow before each shot, recoil
+    with a muzzle burst on it, land shots with a ground ring, and fall (flash, swell, tilt, sink; the core over its
+    slow motion) before the rubble is left.
+  - **Fights**: local hit-stop per hit (shorter between other heroes in a team fight), a fight camera that pulls back
+    and leans toward the fight's centre at 4+ engaged heroes, a T2 shake on takedowns in a team fight, ult moments
+    (own banner, punch and short slow motion; enemy vignette; a hero with its own ult effect keeps only the generic
+    relation mark). Quality tiers, reduce motion and the shake setting scale or remove all of it.
+  - **Tools**: the gallery (`gallery.html?hero=<id>`, dev only) plays every scenario and every hero clip
+    (`clip:<id>`, `branch=1`, `buffs=`, `shield=`); `node tools/anim/capture.mjs --hero <id|all>` films contact sheets
+    and clips through its own Vite server (own dependency cache, no reload mid-capture, retries).
 - **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames (non-pack cats
   only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
   are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick

@@ -115,10 +115,11 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   sage: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
   brutus: { idle: 'shieldGuard', run: 'shieldGuard', cast: 'cheer', attack: 'bash', stride: 1.2 },
   cacklejaw: { idle: 'clawReady', run: 'clawReady', cast: 'cheer', attack: 'claw', stride: 1.25 },
-  lambo: { idle: 'shieldGuard', run: 'shieldGuard', cast: 'cheer', attack: 'bash', stride: 1.15 },
-  aviete: { idle: 'clawReady', run: 'clawReady', cast: 'cheer', attack: 'claw', stride: 1.25 },
-  bengas: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
-  gabe: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'shoot', aim: 'aim', stride: 1.1 },
+  // ANIM-SPEC D3: the shelter champions have their own profiles (they borrowed Sir Brutus's, Cacklejaw's and Sage's bow).
+  lambo: { idle: 'shieldGuard', run: 'shieldGuard', cast: 'hug', attack: 'bash', stride: 1.05 },
+  aviete: { idle: 'clawReady', run: 'clawReady', cast: 'twirl', attack: 'claw', stride: 1.32 },
+  bengas: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'paw', stride: 1.15 },
+  gabe: { idle: 'bowIdle', run: 'bowIdle', cast: 'cheer', attack: 'paw', stride: 1.05 },
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match: big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
