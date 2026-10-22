@@ -190,7 +190,8 @@ export class Effects {
       case 'pickup': {
         const who = this.hooks.who(e.id);
         this.hooks.onPickupTaken?.(e.kind, who);
-        if (!who) return;
+        // like levelup: a hero in brush keeps a last-seen place, so its ring would show where it hides
+        if (!who || this.hooks.visible?.(e.id) === false) return;
         const c = e.kind === 'frenzy' ? 0x7dff8a : 0xffa64d;
         this.particles.ring(this.at(who, 0.2), { n: 16, r0: 0.4, speed: [2, 3.5], up: 2, color: c, alpha: 0.95, additive: true, size: [0.2, 0.32], shape: SHAPE.STAR4, intensity: 1.8 });
         if (e.kind === 'snack') this.particles.burst(this.at(who, 1.2), { n: 8, shape: SHAPE.HEART, color: 0xff8fb1, size: [0.22, 0.32], life: [0.6, 0.9], speed: [0.5, 1.2], up: 1.6, gravity: -0.5 });
@@ -512,8 +513,9 @@ export class Effects {
     // Only for a hero seen now: the levelup event is not vision filtered, and `who` keeps a last-seen place for 3 s,
     // so a hero that just stepped into brush would show a pillar where it hides. Yellow means you: another player's
     // gold-family element is mixed toward white.
-    if (v && v.kind === 'hero' && v.hero && this.hooks.visible?.(e.id) !== false) this.vfx?.levelSpike(v.x, v.z, e.level, auraColor(v.hero, e.id === this.hooks.mySlot));
-    if (v) {
+    const seen = this.hooks.visible?.(e.id) !== false;
+    if (v && v.kind === 'hero' && v.hero && seen) this.vfx?.levelSpike(v.x, v.z, e.level, auraColor(v.hero, e.id === this.hooks.mySlot));
+    if (v && seen) {
       this.particles.ring(this.at(v, 0.1), { n: 18, r0: 0.6, speed: [1.5, 2.5], up: 2.4, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
       this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.6, size0: 0.5, size1: 3.5, life: 0.45, grow: GROW.OUT });
     }
