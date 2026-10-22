@@ -30,7 +30,7 @@ import { argValue, hasFlag } from '../lib/args.mjs';
 import { Bus, SR, compress, dbToGain, limit, readWav, writeWav } from './dsp.mjs';
 import { framePlan, gradeWindows, pad4, rangesExpr, shakeExpr, vignetteAlphaExpr, zoomGeometry } from './edit-plan.mjs';
 import { lintTrailerCopy } from './lint-copy.mjs';
-import { ASPECTS, CUTS, post } from './mg-timeline.mjs';
+import { ASPECTS, CUTS, impacts, post } from './mg-timeline.mjs';
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -280,6 +280,83 @@ function mixAudio(cut) {
   const key = new Float32Array(n);
   for (let i = 0; i < n; i++) key[i] = Math.max(Math.abs(sfx.L[i] + game.L[i]), Math.abs(sfx.R[i] + game.R[i]));
   const duck = duckGain(key, n, a.duck);
+  // v3: a hard music dip under every designed impact (suck-out 2 frames before the contact, -9 dB held 5 frames,
+  // released over 8): the impact transients punch through the band instead of sitting on a wall of sound
+  const spf = SR / FPS;
+  const dip = a.impactDip ?? { db: -9, pre: 2, hold: 5, release: 8 };
+  const gDip = dbToGain(dip.db);
+  for (const F of impacts(cut)) {
+    const s0 = Math.round((F - dip.pre) * spf);
+    const s1 = Math.round(F * spf);
+    const s2 = Math.round((F + dip.hold) * spf);
+    const s3 = Math.round((F + dip.hold + dip.release) * spf);
+    for (let i = Math.max(0, s0); i < Math.min(n, s3); i++) {
+      const g = i < s1 ? 1 + (gDip - 1) * ((i - s0) / Math.max(1, s1 - s0)) : i < s2 ? gDip : gDip + (1 - gDip) * ((i - s2) / Math.max(1, s3 - s2));
+      duck[i] = Math.min(duck[i], g);
+    }
+  }
+  // v3: the band is levelled on its own bus first (a limiter at its RMS + bedCrestDb), so the drums no longer reach
+  // the master ceiling and only the designed impacts do: the mix keeps its crest instead of a wall of sound
+  if (a.bedCrestDb) {
+    const bed = new Bus(n);
+    let ss = 0;
+    let cnt = 0;
+    for (let i = 0; i < n; i++) {
+      bed.L[i] = music.L[i];
+      bed.R[i] = music.R[i];
+      const v = (music.L[i] * music.L[i] + music.R[i] * music.R[i]) / 2;
+      if (v > 1e-8) {
+        ss += v;
+        cnt++;
+      }
+    }
+    const rmsDb = 10 * Math.log10(ss / Math.max(1, cnt) + 1e-12);
+    limit(bed, rmsDb + a.bedCrestDb, 0.003, 0.12);
+    music.L = bed.L;
+    music.R = bed.R;
+    // the sound effects between the impacts (whooshes, risers, the game's own hits) are held to the same bed ceiling;
+    // inside each impact window (1 frame before to 12 after) they pass untouched, so the designed hits keep their peaks
+    if (a.fxCrestDb) {
+      const C = dbToGain(rmsDb + a.fxCrestDb);
+      const win = new Float32Array(n);
+      for (const F of impacts(cut)) {
+        const w0 = Math.round((F - 1) * spf);
+        const w1 = Math.round((F + 12) * spf);
+        const r = Math.round(2 * spf);
+        for (let i = Math.max(0, w0 - r); i < Math.min(n, w1 + r); i++) win[i] = Math.max(win[i], i < w0 ? (i - (w0 - r)) / r : i > w1 ? 1 - (i - w1) / r : 1);
+      }
+      const at = Math.exp(-1 / (0.001 * SR));
+      const rt = Math.exp(-1 / (0.08 * SR));
+      let env = 0;
+      for (let i = 0; i < n; i++) {
+        const x = Math.max(Math.abs(sfx.L[i] + game.L[i]), Math.abs(sfx.R[i] + game.R[i]));
+        env = x > env ? at * env + (1 - at) * x : rt * env + (1 - rt) * x;
+        const g0 = env > C ? C / env : 1;
+        const g = g0 + (1 - g0) * win[i];
+        sfx.L[i] *= g;
+        sfx.R[i] *= g;
+        game.L[i] *= g;
+        game.R[i] *= g;
+      }
+    }
+  }
+  // the suck-out: every bus drops before each impact (sfx and game sounds too: a whoosh into a hit masked its transient)
+  if (a.suckOut) {
+    const g = dbToGain(a.suckOut.db);
+    for (const F of impacts(cut)) {
+      const s0 = Math.round((F - a.suckOut.frames - 1) * spf);
+      const s1 = Math.round((F - a.suckOut.frames) * spf);
+      const s2 = Math.round(F * spf);
+      for (let i = Math.max(0, s0); i < Math.min(n, s2); i++) {
+        const k = i < s1 ? 1 + (g - 1) * ((i - s0) / Math.max(1, s1 - s0)) : g;
+        sfx.L[i] *= k;
+        sfx.R[i] *= k;
+        game.L[i] *= k;
+        game.R[i] *= k;
+        duck[i] = Math.min(duck[i], k);
+      }
+    }
+  }
   let maxDuck = 1;
   const pre = new Bus(n);
   for (let i = 0; i < n; i++) {

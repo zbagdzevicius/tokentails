@@ -131,7 +131,7 @@ export interface ShotSpec {
   xray?: boolean;
   /** Hit flashes on heroes last at most this many output frames (realFlash on; default 2): no ghost-white bodies. */
   flashCap?: number;
-  /** Peak hit-flash strength on heroes during the cap (0-1; default 0.2): a tint, never a bleached white body. */
+  /** Peak hit-flash strength on heroes during the cap (0-1; default 0.06 since v3: 0.2 still greyed a whole body on a hold). */
   flashMax?: number;
   /**
    * Minions nearer the lens than the look point (less this margin, m) are not drawn (a wall of creeps in front of the
@@ -139,6 +139,30 @@ export interface ShotSpec {
    */
   cullMinions?: number | null;
   minionsOff?: boolean;
+  /**
+   * v3 scenery clean-up (render only, director shots): `cullLens` (m) trees whose trunk stands this near the lens, and
+   * bushes, rocks and props this near it, are not drawn; `cullLos` (m) trees whose trunk is within this of the
+   * lens-to-subject line (in front of the subject) are not drawn, and low scenery above 0.3 m on that line neither.
+   * `banners` false (default for director shots) drops the eight base banner poles from the map.
+   */
+  cullLens?: number | null;
+  cullLos?: number | null;
+  banners?: boolean;
+  /** `xrayMode` 'hide' (default): a tower or core in front of the subject is not drawn; 'fade' keeps the 28 % ghost. */
+  xrayMode?: 'hide' | 'fade';
+  /** Pudding is not drawn (a framing aid when he would fill the foreground). */
+  hidePudding?: boolean;
+  /** Afterimages (anim/ghosts.ts) kept; off by default in trailer shots (close-ups stacked them into a blur). */
+  ghosts?: boolean;
+  /**
+   * Shockwave walls drawn at this share of their intensity (default 0.5): at hero height a wall's additive band turned
+   * the whole lower frame white. Its radius and timing are untouched.
+   */
+  shockI?: number;
+  /** Projectile bolts drawn (director shots leave them out by default; the trails and hit FX stay). */
+  bolts?: boolean;
+  /** Debug: scene groups not drawn (by name). */
+  hideGroups?: string[];
 }
 
 const D0 = MOBA_DIST * ZOOM_DEFAULT;
@@ -390,14 +414,27 @@ function cleanUp(g: GameRenderer): void {
     const dz = camLook.z - camPos.z;
     const L2 = dx * dx + dz * dz || 1;
     for (const st of view.structures.items.values()) {
-      if (st.kind !== 'tower' && st.kind !== 'core') continue;
-      const r = st.kind === 'core' ? 3.4 : 2.2;
+      if (st.kind !== 'tower' && st.kind !== 'core' && st.kind !== 'fountain') continue;
+      const r = st.kind === 'core' ? 3.4 : st.kind === 'fountain' ? 4 : 2.2;
       const u = ((st.x - camPos.x) * dx + (st.z - camPos.z) * dz) / L2;
       const px = camPos.x + dx * u - st.x;
       const pz = camPos.z + dz * u - st.z;
       const along = u * Math.sqrt(L2);
       // between the lens and the look point, or beside the look point on the lens side (a doghouse next to the brawl)
-      const blocks = st.alive && st.dieT < 0 && u > 0 && along < Math.sqrt(L2) + 1.5 && Math.hypot(px, pz) < r + 2.2;
+      const hide = (s.xrayMode ?? 'hide') === 'hide';
+      // hide mode: only a structure wholly in front of the subject (never the subject structure itself)
+      // hide mode: a structure in the frame's width whose centre is not behind the subject's plane (a backdrop stays)
+      const sd = Math.hypot(st.x - camPos.x, st.z - camPos.z);
+      const ang = Math.acos(Math.max(-1, Math.min(1, ((st.x - camPos.x) * dx + (st.z - camPos.z) * dz) / (Math.max(sd, 1e-3) * Math.sqrt(L2)))));
+      const halfH = Math.atan(Math.tan(((camNow?.fov ?? 40) * Math.PI) / 360) * (window.innerWidth / Math.max(1, window.innerHeight)));
+      const blocks = hide
+        ? st.alive && st.dieT < 0 && (sd * Math.cos(ang) < Math.sqrt(L2) + r * 0.5 || sd - r < 0.7 * Math.sqrt(L2)) && (ang < halfH + Math.atan(r / Math.max(sd, 0.5)) + 0.05 || sd < r + 2.5)
+        : st.alive && st.dieT < 0 && u > 0 && along < Math.sqrt(L2) + 1.5 && Math.hypot(px, pz) < r + 2.2;
+      if (hide) {
+        // a fallen structure keeps the view's own visibility (hidden, or mid-fall); only standing ones are culled
+        if (st.alive && st.dieT < 0) (st as unknown as { mesh: THREE.Object3D }).mesh.visible = !blocks;
+        continue;
+      }
       const want = blocks ? 0.28 : 1;
       const prev = xrayOp.get(st) ?? want;
       const k = Math.min(1, curDtReal * 14);
@@ -411,6 +448,30 @@ function cleanUp(g: GameRenderer): void {
         st.material.needsUpdate = true;
       }
     }
+  }
+  for (const name of s.hideGroups ?? []) {
+    const o = g.scene.getObjectByName(name);
+    if (o) o.visible = false;
+  }
+  if (s.hidePudding) {
+    for (const st of view.structures.items.values()) if (st.kind === 'pudding') (st as unknown as { mesh: THREE.Object3D }).mesh.visible = false;
+  }
+  if (camPos && camLook && scenery.length) {
+    for (const u of scenery) {
+      u.uTrCam.value.set(camPos.x, camPos.y, camPos.z);
+      u.uTrLook.value.set(camLook.x, camLook.y, camLook.z);
+      u.uTrLens.value = s.cullLens ?? 3.5;
+      u.uTrLos.value = s.cullLos ?? 2.2;
+      u.uTrOn.value = s.cam ? 1 : 0;
+      u.uTrHalf.value = Math.atan(Math.tan(((camNow?.fov ?? 40) * Math.PI) / 360) * (window.innerWidth / Math.max(1, window.innerHeight)));
+    }
+  }
+  if (s.cam && camPos && camLook) {
+    // the bolts are unlit ellipsoids: a tower shot crossing a hero-height frame read as a flat pink blob, so director
+    // shots leave them out unless the shot is about them (`bolts`: the tower dive, the Moonshot ride), near-lens culled
+    const bolts = (view as unknown as { projectiles: { bolts: THREE.InstancedMesh } }).projectiles.bolts;
+    bolts.visible = !!s.bolts;
+    if (s.bolts) cullBolts(bolts);
   }
   const keep = subjects(s.cam?.target);
   if ((s.minionsOff || s.cullMinions != null) && camPos && camLook) cullMinions(view as unknown as { minions: MinionsLike }, s);
@@ -455,6 +516,26 @@ function cleanUp(g: GameRenderer): void {
   }
 }
 
+/**
+ * Bolts (tower and hero shots: unlit ellipsoids) nearer the lens than the subject by more than 2 m are not drawn: one
+ * passing by the lens filled a corner of the frame with a flat pink blob. A bolt at the subject (the Moonshot ride)
+ * stays.
+ */
+function cullBolts(m: THREE.InstancedMesh): void {
+  if (!camPos || !camLook || !m) return;
+  const lim = Math.hypot(camLook.x - camPos.x, camLook.y - camPos.y, camLook.z - camPos.z) - 2;
+  let dirty = false;
+  for (let i = 0; i < m.count; i++) {
+    m.getMatrixAt(i, _mm);
+    _mp.setFromMatrixPosition(_mm);
+    if (Math.hypot(_mp.x - camPos.x, _mp.y - camPos.y, _mp.z - camPos.z) < lim) {
+      m.setMatrixAt(i, _zero);
+      dirty = true;
+    }
+  }
+  if (dirty) m.instanceMatrix.needsUpdate = true;
+}
+
 interface MinionsLike { group: THREE.Object3D; meshes: THREE.InstancedMesh[] }
 const _mm = new THREE.Matrix4();
 const _mp = new THREE.Vector3();
@@ -482,6 +563,127 @@ function cullMinions(view: { minions: MinionsLike }, s: ShotSpec): void {
     }
     if (dirty) mesh.instanceMatrix.needsUpdate = true;
   }
+}
+
+interface SceneryU { uTrCam: { value: THREE.Vector3 }; uTrLook: { value: THREE.Vector3 }; uTrLens: { value: number }; uTrLos: { value: number }; uTrOn: { value: number }; uTrHalf: { value: number } }
+/** The scenery cull uniforms of this match's map (one set per patched material). */
+const scenery: SceneryU[] = [];
+
+/** Vertices per forest tree (mapView: a 6-sided trunk cylinder and two icosahedra, non-indexed, merged in order). */
+function treeVerts(): number {
+  return new THREE.CylinderGeometry(1, 1, 1, 6).toNonIndexed().attributes.position.count + 2 * new THREE.IcosahedronGeometry(1, 0).attributes.position.count;
+}
+
+/**
+ * Render-only scenery clean-up for director shots (ShotSpec.cullLens / cullLos / banners): the forest gets a per-vertex
+ * tree root so a whole tree drops out (never half a tree); the props, hedge and bushes are cut per fragment.
+ */
+function patchScenery(g: GameRenderer, s: ShotSpec): void {
+  scenery.length = 0;
+  if (!s.cam) return;
+  const tv = treeVerts();
+  for (const name of ['forest', 'props', 'hedge', 'bushes']) {
+    const m = g.scene.getObjectByName(name) as THREE.Mesh | undefined;
+    if (!m || !m.isMesh) continue;
+    const geo = m.geometry;
+    const pos = geo.attributes.position;
+    if (name === 'props' && s.banners !== true && !geo.userData.trailerBanners) {
+      // the base banners are the only props above 1 m: their poles (to the ground) and flags drop out
+      const poles: [number, number][] = [];
+      for (let i = 0; i < pos.count; i++) if (pos.getY(i) > 4.15) poles.push([pos.getX(i), pos.getZ(i)]);
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        if (pos.getY(i) > 1.0 || poles.some(([px, pz]) => Math.hypot(px - x, pz - z) < 0.3)) pos.setXYZ(i, x, -40, z);
+      }
+      pos.needsUpdate = true;
+      geo.userData.trailerBanners = true;
+      geo.computeBoundingSphere();
+    }
+    const tree = name === 'forest' && pos.count % tv === 0;
+    if (tree && !geo.attributes.aTrRoot) {
+      const root = new Float32Array(pos.count * 2);
+      // the trunk is the first cylinder of each tree: its mean x/z is the tree's root
+      const trunk = new THREE.CylinderGeometry(1, 1, 1, 6).toNonIndexed().attributes.position.count;
+      for (let t = 0; t < pos.count; t += tv) {
+        let x = 0;
+        let z = 0;
+        for (let i = t; i < t + trunk; i++) {
+          x += pos.getX(i);
+          z += pos.getZ(i);
+        }
+        x /= trunk;
+        z /= trunk;
+        for (let i = t; i < t + tv; i++) {
+          root[i * 2] = x;
+          root[i * 2 + 1] = z;
+        }
+      }
+      geo.setAttribute('aTrRoot', new THREE.BufferAttribute(root, 2));
+    }
+    const base = m.material as THREE.MeshLambertMaterial;
+    const mat = (m.userData.trailerMat as THREE.MeshLambertMaterial | undefined) ?? base.clone();
+    m.userData.trailerMat = mat;
+    const u: SceneryU = { uTrCam: { value: new THREE.Vector3() }, uTrLook: { value: new THREE.Vector3() }, uTrLens: { value: 3.5 }, uTrLos: { value: 2.2 }, uTrOn: { value: 1 }, uTrHalf: { value: 0.6 } };
+    scenery.push(u);
+    const cull = /* glsl */ `
+      // a tree (root p) in the frame and nearer the lens than the subject by more than 3 m
+      float trFront(vec2 p, float m) {
+        if (uTrOn < 0.5) return 0.0;
+        vec2 a = uTrCam.xz;
+        vec2 v = uTrLook.xz - a;
+        vec2 w = p - a;
+        float L = max(length(v), 1e-3);
+        float d = length(w);
+        // nearer the lens than the subject by more than 3 m and in front of the lens (what is drawn is in frame)
+        return d < L - m && dot(w, v) > 0.0 ? 1.0 : 0.0;
+      }
+      float trCull(vec2 p, float y, float lens, float los) {
+        if (uTrOn < 0.5) return 0.0;
+        vec2 a = uTrCam.xz;
+        vec2 b = uTrLook.xz;
+        vec2 ab = b - a;
+        float L = max(length(ab), 1e-3);
+        float t = dot(p - a, ab) / (L * L);
+        float d = length(p - (a + ab * clamp(t, 0.0, 1.0)));
+        if (length(p - a) < lens) return 1.0;
+        if (t > 0.0 && t * L < L - 2.0 && d < los && y > 0.3) return 1.0;
+        return 0.0;
+      }`;
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      const head = `uniform vec3 uTrCam;\nuniform vec3 uTrLook;\nuniform float uTrLens;\nuniform float uTrLos;\nuniform float uTrOn;\nuniform float uTrHalf;\n${cull}\n`;
+      if (tree) {
+        sh.vertexShader = `attribute vec2 aTrRoot;\n${head}${sh.vertexShader}`.replace(
+          '#include <project_vertex>',
+          '#include <project_vertex>\n  if (trCull(aTrRoot, 1.0, uTrLens, uTrLos) > 0.5 || trFront(aTrRoot, 3.0) > 0.5) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);',
+        );
+      } else {
+        sh.vertexShader = `varying vec3 vTrW;\n${sh.vertexShader}`.replace('#include <project_vertex>', '#include <project_vertex>\n  vTrW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = `varying vec3 vTrW;\n${head}${sh.fragmentShader}`.replace(
+          '#include <clipping_planes_fragment>',
+          '#include <clipping_planes_fragment>\n  if (trCull(vTrW.xz, vTrW.y, uTrLens * 0.8, uTrLos) > 0.5 || (vTrW.y > 0.06 && trFront(vTrW.xz, 1.5) > 0.5)) discard;',
+        );
+      }
+    };
+    mat.customProgramCacheKey = () => `trailer-${name}-${tree ? 't' : 'f'}`;
+    mat.needsUpdate = true;
+    m.material = mat;
+  }
+}
+
+/** Shockwave walls at `k` of their intensity (ShotSpec.shockI): the view's pool, patched per session. */
+function dimShock(k: number): void {
+  const sh = (session as unknown as { view: { shock: { start(p: unknown, o?: Record<string, unknown>): unknown } } } | null)?.view.shock;
+  if (!sh || k === 1) return;
+  const start = sh.start.bind(sh);
+  sh.start = (p, o = {}) => start(p, { ...o, intensity: ((o.intensity as number | undefined) ?? 1.6) * k });
+}
+
+/** Afterimages off (ShotSpec.ghosts), by the ghosts' own tier switch. */
+function setGhosts(on: boolean): void {
+  const gh = (session as unknown as { view: { ghosts: { setTier(t: string, r: boolean): void } } } | null)?.view.ghosts;
+  gh?.setTier(on ? 'high' : 'low', !on);
 }
 
 function wrapRender(g: GameRenderer): void {
@@ -636,6 +838,9 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   };
   installPlace(g);
   wrapRender(g);
+  patchScenery(g, s);
+  setGhosts(!!s.ghosts);
+  dimShock(s.cam ? (s.shockI ?? 0.5) : 1);
   // run the countdown frames (two rAFs, then "3, 2, 1, Go!"), then fast-forward to just before the shot
   clockTick = 0;
   const start = Math.max(0, (s.startTick ?? 0) - Math.round((s.preroll ?? 90) / 2));
@@ -788,5 +993,24 @@ function touch(on: boolean): void {
   document.documentElement.dataset.touch = on ? '1' : '0';
 }
 
-window.__trailer = { load, frame, info, verify, touch, layerMode, ready: true };
+/** Debug: what the lens sees at screen fraction (x, y) (names, kinds, distances). */
+function pick(x: number, y: number): unknown {
+  const g = gr;
+  if (!g) return [];
+  if (x < 0) return g.scene.children.map((c) => `${c.name || c.type}:${c.type}:${c.visible}:${c.children.length}`);
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(x * 2 - 1, 1 - y * 2), g.camera as THREE.PerspectiveCamera);
+  const shown = (o: THREE.Object3D | null): boolean => {
+    for (; o; o = o.parent) if (!o.visible) return false;
+    return true;
+  };
+  return rc.intersectObjects(g.scene.children, true).filter((h) => shown(h.object)).slice(0, 4).map((h) => {
+    const names: string[] = [];
+    for (let o: THREE.Object3D | null = h.object; o; o = o.parent) names.push(`${o.name || o.type}`);
+    const mm = (h.object as THREE.Mesh).material as THREE.Material | undefined;
+    return { pt: [+h.point.x.toFixed(2), +h.point.y.toFixed(2), +h.point.z.toFixed(2)], prog: mm ? (mm as unknown as { customProgramCacheKey(): string }).customProgramCacheKey() : '', trailer: !!(mm && h.object.userData.trailerMat === mm), progs: (g.renderer.info.programs ?? []).filter((p) => /trailer/.test((p as unknown as { cacheKey: string }).cacheKey)).length, d: +h.distance.toFixed(2), path: names.slice(0, 5).join(' < '), mat: (h.object as THREE.Mesh).material ? ((h.object as THREE.Mesh).material as THREE.Material).type : '', vis: h.object.visible };
+  });
+}
+
+window.__trailer = { load, frame, info, verify, touch, layerMode, pick, ready: true };
 document.documentElement.dataset.trailer = 'ready';

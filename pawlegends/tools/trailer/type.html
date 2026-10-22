@@ -46,7 +46,7 @@
   };
 
   /** Preview: footage, then plate, then overlay, at `scale`, as JPEG. */
-  window.mgPreview = async (f, footUrl, endUrl, scale) => {
+  window.mgPreview = async (f, footUrl, endUrl, scale, lineUrl = null) => {
     const c = window.comp;
     prev.width = Math.round(c.W * scale);
     prev.height = Math.round(c.H * scale);
@@ -55,7 +55,7 @@
     p.fillRect(0, 0, prev.width, prev.height);
     const foot = await img(footUrl);
     if (foot) p.drawImage(foot, 0, 0, prev.width, prev.height);
-    if (c.renderPlate(f, await img(endUrl))) p.drawImage(canvas, 0, 0, prev.width, prev.height);
+    if (c.renderPlate(f, await img(endUrl), await img(lineUrl))) p.drawImage(canvas, 0, 0, prev.width, prev.height);
     c.renderOverlay(f);
     p.drawImage(canvas, 0, 0, prev.width, prev.height);
     return prev.toDataURL('image/jpeg', 0.88);

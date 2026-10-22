@@ -1,6 +1,6 @@
 # Trailer capture rig (dev only)
 
-**v2 ("Big Plays", 30 s at 144 BPM, gameplay first)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`,
+**v3 ("Big Plays", 30 s at 144 BPM, gameplay first; the v2 data with the v3 review fixes below)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`,
 `copy.json`, `score.mjs`, `edl.json`. The v1 trailer ("Meet Gabė", 120 BPM) keeps its data as `shots-v1.mjs`,
 `mg-timeline-v1.mjs`, `copy-v1.json` and `score-v1.mjs` (the edit and type tools now read the v2 files).
 
@@ -28,6 +28,25 @@ node tools/trailer/type.mjs --shots <dir>/shots --out <dir>/mg
 node tools/trailer/edit.mjs --dir <dir>
 ```
 
+
+**v3 (review of the v2 redo).** Gameplay first at hero height, every subject clear of the lens. The title is three
+hits (CATS on Clem's Q3, VS on the river clash, DOGS on Cacklejaw's pounce); 3V3 is two close cuts (behind each team);
+Pack Hunt runs at 0.35 and drops to 0.1 only round each takedown; the middle is a half-beat ping, Pudding bouncing, a
+full-bar tower dive (range ring and shots in frame) and the dog tower toppling with the new render fall; COMEBACK opens
+bar 12 at the base; the card looks are one locked beat (three looks, white wipe) and the real HUD a riser beat (16:9
+only); bar 15 is Clem's level-10 takedown then the march; the core bursts under Lambo's flop on f1527 (`CORE_HIT`); the
+end card lands on the f1600 downbeat over the last gameplay frame (blurred) with the eight-hero line-up (S40).
+
+| Change | Where | What |
+|---|---|---|
+| Tower and core falls | `src/render/views/towerView.ts` (render only, game-wide) | A tower cracks, topples over its base edge (gravity, a bounce), throws chunks and breaks up into rubble along its fall line; a core bursts on its killing blow, caves in and settles. Pooled instanced chunks (High 1, Med 0.6, Low 0.35 of them, none with reduce motion). |
+| `cullLens` / `cullLos` / `banners` | `harness.ts` | Trees whose trunk stands near the lens, on the lens-to-subject line or in front of the subject are not drawn (whole trees); bushes, rocks and props in front of the subject are cut per fragment; the eight base banners are dropped from the map. |
+| `xray` (default on, `xrayMode: 'hide'`) | `harness.ts`, `capture.mjs` | A tower, core or fountain in the frame and not behind the subject's plane is not drawn (no 28 % ghost). `xray: false` where the structure is the subject (S23, S24, S30-S32). |
+| `hidePudding`, `ghosts`, `shockI` | `harness.ts` | Pudding not drawn (a framing aid); afterimages off in close-ups; shockwave walls at half intensity (a hero-height lens saw them as a white band). |
+| `aspects`, `portrait.f1` | `capture.mjs` | A shot for one master only (the landscape HUD), a take that runs on in 9:16. |
+| `--pick f,x,y` | `capture.mjs` | Debug: what the lens sees at a screen point after frame f. |
+| Impact dips | `mg-timeline.mjs` `impacts()`, `edit.mjs` | The music dips 9 dB under every designed impact (2-frame suck-out, held 5, released over 8); lighter glue (1.6:1). |
+| End card | `mg.js`, `type.mjs` | The last gameplay frame blurred and darkened, the S40 line-up keyed over it, the logo at about half the frame width, cream type on dark pills. |
 
 **v2 redo (review fixes).** Frame 0 is Lambo mid-air in X14's 5 m Belly Flop; Pudding's static beat is replaced by
 Cacklejaw's ambush pounce (take G); the tower and the core fall whole at hero height; COMEBACK! lands on Avietė's level-10

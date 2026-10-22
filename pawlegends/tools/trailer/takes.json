@@ -1333,6 +1333,41 @@
    },
    "simVersion": 10,
    "length": 11400
+  },
+  "E2": {
+   "id": "E2",
+   "seed": 5,
+   "hero": "aviete",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "aviete",
+    "lambo",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "comeback": 13440
+   },
+   "roles": {
+    "lambo": 1,
+    "brutus2": 5
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "score": 12.81,
+   "check": {
+    "tick": 13740,
+    "eventHash": "0eb6c27a",
+    "stateHash": "d247ef58"
+   },
+   "simVersion": 10,
+   "length": 13951,
+   "note": "E (seed 5) late: the underdog waves start (comeback 13440) at the cat base; check at 13740"
   }
  }
 }

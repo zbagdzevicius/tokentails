@@ -12,20 +12,19 @@ export const BEAT_FRAMES = (60 * 60) / BPM;
 
 /**
  * The 15 s cut as segments of the 30 s master (storyboard §7): [cutFrom, cutTo, offset], so master = cut + offset.
- * The hook as is; the roll call as eight eighth-note cuts round each hero's contact; 3V3; four ults (Moonshot, the
- * charm, Aviete with BIG PLAYS., Golden Hour); Pack Hunt; the tower falling (2 beats); the final teamfight; TAKE THEIR
- * CORE (1 beat) into the core impact (cut f700); the end card (a plate: no footage) from f750, 2.5 s.
+ * v3: the hook as is; the roll call as eight eighth-note cuts round each hero's contact; 3V3; four ults (Moonshot, the
+ * charm, Aviete with BIG PLAYS., Golden Hour); Pack Hunt; the tower toppling (2 beats); the final teamfight; TAKE
+ * THEIR CORE (1 beat) into the core burst (cut f700 = master f1525); the end card from f750 (2.5 s).
  */
 export const CUT15_SEGMENTS = [
   [0, 99, 0],
-  [100, 112, 100], [113, 124, 112], [125, 137, 129], [138, 149, 137], [150, 162, 150], [163, 174, 170], [175, 187, 175], [188, 199, 200],
+  [100, 112, 100], [113, 124, 112], [125, 137, 131], [138, 149, 138], [150, 162, 150], [163, 174, 174], [175, 187, 176], [188, 199, 200],
   [200, 299, 200],
   [300, 324, 216], [325, 349, 292], [350, 374, 350], [375, 399, 377],
   [400, 499, 400],
-  [500, 549, 500],
+  [500, 549, 550],
   [550, 649, 750],
-  [650, 674, 812],
-  [675, 749, 825],
+  [650, 749, 825],
   [750, 899, 900],
 ];
 
@@ -79,24 +78,24 @@ export function timeline(cut, aspect, copy) {
   // the line over the core sits in the top third (sky and trees); the core and the fight stay in the lower half
   const L5 = (f) => els.push({ id: 'L5', kind: 'line', anim: 'slam', land: true, size: v ? 190 : 160, x: cx, y: v ? 470 : 170, maxW: v ? vw : 1500, lines: v ? [c.L5v1, c.L5v2] : [c.L5], in: f, out: out(f + 34), scrim: true, scrimA: 0.4 });
   if (String(cut) === '30') {
-    // CATS (rose, left) / VS (centre) / DOGS (blue, right) on the sky band above the clash; 9:16 stacked in the upper half
+    // v3: CATS (rose, left) on Clem's hit, VS (centre) on the clash, DOGS (blue, right) on Cacklejaw's pounce, one cut
+    // each; 9:16 stacked in the upper half
     els.push({
       id: 'L1', kind: 'words', anim: 'slam', land: true, rows: v, size: v ? 200 : 190, x: cx, y: v ? 600 : 200, maxW: v ? vw : 1700, gap: v ? 0 : 60,
-      words: [{ t: c.L1a, in: 100, color: 'rose' }, { t: c.L1b, in: 125, anim: 'pop', color: 'gold' }, { t: c.L1c, in: 150, color: 'blue' }], out: out(190), scrim: true,
+      words: [{ t: c.L1a, in: 103, color: 'rose' }, { t: c.L1b, in: 128, anim: 'pop', color: 'gold' }, { t: c.L1c, in: 153, color: 'blue' }], out: out(190), scrim: true,
     });
     t3v3(400);
     big('L3', c.L3, 500, 519);
     big('L4', c.L4, 700, 722);
-    caption('CAP1', c.CAP1, 912, 921, { anim: 'pop', size: 120, vsize: 150, color: 'cream' });
-    caption('CB', c.CB, 1056, 1092, { color: 'gold', size: 190, vsize: 230 });
+    caption('CB', c.CB, 1100, 1120, { color: 'gold', size: 190, vsize: 230 });
     L5(1450);
-    caption('WIN', c.WIN, 1580, 1642, { color: 'gold', size: 220, vsize: 250 });
-    els.push({ id: 'end', kind: 'endcard', logo: 1650, cta: 1662, pulse: [1662, 1788], sub: 1672, url: [1680, 1692], credit: 1680, bump: 1750, fade: [1800, 1800], end: 1800 });
+    caption('WIN', c.WIN, 1576, 1596, { color: 'gold', size: 220, vsize: 250 });
+    els.push({ id: 'end', kind: 'endcard', logo: 1600, cta: 1625, pulse: [1625, 1788], sub: 1650, url: [1662, 1674], credit: 1675, bump: 1750, fade: [1800, 1800], end: 1800 });
   } else {
     t3v3(200);
     big('L4', c.L4, 350, 372);
     L5(650);
-    els.push({ id: 'end', kind: 'endcard', logo: 750, cta: 762, pulse: [762, 888], sub: 772, url: [780, 792], credit: 780, bump: 850, fade: [900, 900], end: 900 });
+    els.push({ id: 'end', kind: 'endcard', logo: 750, cta: 775, pulse: [775, 888], sub: 800, url: [812, 824], credit: 825, bump: 850, fade: [900, 900], end: 900 });
   }
   return els;
 }
@@ -107,24 +106,28 @@ export function timeline(cut, aspect, copy) {
  * Shake tiers: T1 2 px, T2 5 px, T3 8 px, T4 12 px. rgb = rgbashift for `frames`. bump = the zoom-punch (104 %).
  */
 const T = { 1: [2, 4], 2: [5, 7], 3: [8, 10], 4: [12, 18] };
+/** The master frame the core bursts on (S31: held 3 frames after it). */
+export const CORE_HIT = 1528;
 const sh = (f, tier) => ({ f, px: T[tier][0], decay: T[tier][1] });
 
 export function post(cut) {
   if (String(cut) === '30') {
-    // flashes are capped (≤ 0.45) so no hit bleaches a body white; the core impact alone is a big bloom held 3 frames
+    // flashes are capped (<= 0.45) so no hit bleaches a body white; the core burst and the logo slam alone are big
     return {
       flash: [
-        { f: 25, a: 0.45 }, { f: 52, a: 0.35 }, { f: 78, a: 0.4 }, { f: 262, a: 0.3 }, { f: 303, a: 0.35 }, { f: 541, a: 0.4 }, { f: 575, a: 0.3 },
-        { f: 622, a: 0.3 }, { f: 752, a: 0.3 }, { f: 764, a: 0.35 }, { f: 825, a: 0.3 }, { f: 850, a: 0.3 }, { f: 875, a: 0.35 }, { f: 940, a: 0.3 },
-        { f: 991, a: 0.35 }, { f: 1006, a: 0.45 }, { f: 1125, a: 0.35 }, { f: 1203, a: 0.3 }, { f: 1275, a: 0.3 }, { f: 1406, a: 0.35 }, { f: 1428, a: 0.4 },
-        { f: 1525, a: 0.75 }, { f: 1650, a: 0.5 },
+        { f: 25, a: 0.4 }, { f: 52, a: 0.3 }, { f: 78, a: 0.35 }, { f: 103, a: 0.35 }, { f: 128, a: 0.3 }, { f: 153, a: 0.35 }, { f: 262, a: 0.3 },
+        { f: 303, a: 0.3 }, { f: 541, a: 0.35 }, { f: 575, a: 0.3 }, { f: 622, a: 0.3 }, { f: 655, a: 0.3 }, { f: 703, a: 0.3 }, { f: 752, a: 0.3 },
+        { f: 764, a: 0.3 }, { f: 825, a: 0.3 }, { f: 850, a: 0.3 }, { f: 875, a: 0.35 }, { f: 925, a: 0.3 }, { f: 1003, a: 0.3 }, { f: 1078, a: 0.4 },
+        { f: 1100, a: 0.3 }, { f: 1150, a: 0.35 }, { f: 1178, a: 0.3 }, { f: 1203, a: 0.3 }, { f: 1228, a: 0.3 }, { f: 1258, a: 0.3 }, { f: 1266, a: 0.3 }, { f: 1403, a: 0.35 },
+        { f: CORE_HIT, a: 0.75 }, { f: 1600, a: 0.6 },
       ],
       shake: [
-        sh(25, 3), sh(52, 2), sh(78, 2), sh(262, 2), sh(303, 2), sh(392, 2), sh(400, 1), sh(541, 3), sh(655, 2), sh(764, 3), sh(825, 2), sh(850, 2), sh(875, 3),
-        sh(940, 2), sh(991, 2), sh(1006, 3), sh(1056, 1), sh(1125, 3), sh(1203, 2), sh(1275, 2), sh(1300, 1), sh(1406, 2), sh(1428, 3), sh(1525, 4), sh(1650, 2),
+        sh(25, 3), sh(52, 2), sh(78, 2), sh(103, 2), sh(128, 1), sh(153, 2), sh(262, 2), sh(303, 2), sh(392, 2), sh(400, 1), sh(541, 3), sh(655, 2),
+        sh(764, 3), sh(825, 2), sh(850, 2), sh(875, 3), sh(925, 1), sh(1003, 2), sh(1078, 3), sh(1100, 1), sh(1150, 3), sh(1178, 2), sh(1203, 2),
+        sh(1228, 2), sh(1300, 1), sh(1403, 2), sh(CORE_HIT, 4), sh(1600, 2),
       ],
-      rgb: [{ f: 25, frames: 2 }, { f: 78, frames: 2 }, { f: 541, frames: 2 }, { f: 875, frames: 2 }, { f: 1006, frames: 2 }, { f: 1525, frames: 3 }],
-      bump: [{ f: 25 }, { f: 541 }, { f: 1006 }, { f: 1525 }],
+      rgb: [{ f: 875, frames: 2 }, { f: 1078, frames: 2 }, { f: CORE_HIT, frames: 3 }],
+      bump: [{ f: 25 }, { f: 153 }, { f: 541 }, { f: 875 }, { f: 1078 }, { f: 1150 }, { f: CORE_HIT }, { f: 1600 }],
       push: [],
     };
   }
@@ -139,6 +142,18 @@ export function post(cut) {
     bump: keep(p.bump),
     push: [],
   };
+}
+
+/**
+ * v3 mix: the designed impacts of the 30 s master. The edit dips the music 9 dB under each (a 2-frame suck-out before
+ * the contact, held 5 frames, released over 8) so every hit's transient stands clear of the band; the 15 s cut keeps
+ * those whose frames it uses, at its own frames.
+ */
+const IMPACTS30 = [25, 52, 78, 103, 153, 262, 303, 342, 392, 425, 541, 575, 622, 655, 703, 729, 764, 825, 850, 875, 925, 1003, 1078, 1100, 1150, 1178, 1203, 1228, 1302, 1315, 1327, 1340, 1352, 1365, 1377, 1390, 1403, CORE_HIT];
+export function impacts(cut) {
+  if (String(cut) === '30') return IMPACTS30;
+  const out = IMPACTS30.flatMap((f) => CUT15_SEGMENTS.filter(([a, b, d]) => f >= a + d && f <= b + d).map(([, , d]) => f - d));
+  return out.filter((f) => f < 750);
 }
 
 /** Frames (inclusive ranges) where the overlay has anything to draw, for a cut. */
@@ -156,10 +171,15 @@ export function overlayRanges(cut, aspect, copy) {
 
 /** Frames where the compositor writes an opaque plate (the end-card background), and the footage frame it blurs. */
 export function plateRanges(cut) {
-  return String(cut) === '30' ? { endbg: [1650, 1799] } : { endbg: [750, 899] };
+  return String(cut) === '30' ? { endbg: [1600, 1799] } : { endbg: [750, 899] };
 }
-/** v2 redo: the end card is a clean branded plate (no blurred footage under it). */
-export const END_PLATE_SOURCE = null;
+/**
+ * v3: the end card's plate is the last gameplay frame (the winners over the rubble), blurred and darkened, with the
+ * eight-hero line-up (S40, captured on a key colour, the cut's own frame) laid over its lower part.
+ */
+export const END_PLATE_SOURCE = 1599;
+/** The line-up shot's master frame for an end-card frame of a cut (the 15 s card runs the same loop from its start). */
+export const lineupFrame = (cut, f) => (String(cut) === '30' ? f : 1600 + (f - 750));
 
 export function mergeRanges(r) {
   const s = [...r].sort((a, b) => a[0] - b[0]);

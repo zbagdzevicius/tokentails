@@ -590,72 +590,52 @@ export class Compositor {
    * bokeh so the card is never a still) with the two lobby stands keyed over it, blurred 6 px and darkened 25 %, so
    * they live behind the type without competing with it.
    */
-  renderEndPlate(ctx, img, f = 0) {
+  renderEndPlate(ctx, img, f = 0, fg = null) {
     const { W, H } = this;
     const e = this.els.find((x) => x.kind === 'endcard');
     const t = e ? f - e.logo : 0;
-    // v2 redo: a clean branded plate (no footage): a plum-to-deep-purple gradient, a pink glow under the lockup, slow
-    // light rays turning behind the logo, drifting bokeh and paw prints, so the card is never a still
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#3a1747');
-    bg.addColorStop(0.55, '#5b2466');
-    bg.addColorStop(1, '#7a2f6a');
-    ctx.fillStyle = bg;
+    // v3: the last gameplay frame (the winners over the rubble), blurred and darkened, pushing in slowly; a warm dark
+    // wash at the top for the logo; the eight-hero line-up (S40, keyed) over the lower part, rising in on the slam
+    ctx.fillStyle = '#2a1430';
     ctx.fillRect(0, 0, W, H);
-    const L = this.endLayout();
-    const cx = this.endCx();
-    // rays: 14 soft wedges turning 0.15°/frame round the logo
-    ctx.save();
-    ctx.translate(cx, L.logoY);
-    ctx.rotate(((t * 0.15) * Math.PI) / 180);
-    ctx.globalCompositeOperation = 'lighter';
-    const R = Math.max(W, H) * 1.1;
-    for (let i = 0; i < 14; i++) {
-      const a0 = (i / 14) * Math.PI * 2;
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
-      g.addColorStop(0, 'rgba(255, 190, 220, 0.10)');
-      g.addColorStop(1, 'rgba(255, 190, 220, 0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, R, a0, a0 + Math.PI / 22);
-      ctx.closePath();
-      ctx.fill();
+    if (img) {
+      const z = 1.06 + 0.03 * clamp01(t / 200);
+      ctx.save();
+      ctx.filter = `blur(${Math.round(14 * this.k)}px) saturate(1.15)`;
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(z, z);
+      ctx.drawImage(img, -W / 2, -H / 2, W, H);
+      ctx.restore();
+      ctx.filter = 'none';
+      ctx.fillStyle = 'rgba(30, 10, 36, 0.5)';
+      ctx.fillRect(0, 0, W, H);
     }
-    ctx.restore();
-    const rg = ctx.createRadialGradient(cx, L.logoY, 0, cx, L.logoY, Math.max(W, H) * 0.55);
-    rg.addColorStop(0, 'rgba(242, 120, 170, 0.42)');
-    rg.addColorStop(0.5, 'rgba(160, 60, 140, 0.15)');
+    const L = this.endLayout();
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(40, 12, 46, 0.55)');
+    g.addColorStop(this.v ? 0.6 : 0.62, 'rgba(40, 12, 46, 0.25)');
+    g.addColorStop(1, 'rgba(40, 12, 46, 0.05)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const cx = this.endCx();
+    const rg = ctx.createRadialGradient(cx, L.logoY, 0, cx, L.logoY, Math.max(W, H) * 0.5);
+    rg.addColorStop(0, 'rgba(242, 120, 170, 0.32)');
     rg.addColorStop(1, 'rgba(40, 10, 50, 0)');
     ctx.fillStyle = rg;
     ctx.fillRect(0, 0, W, H);
-    // bokeh and paw prints (deterministic), drifting up
-    ctx.save();
-    for (let i = 0; i < 26; i++) {
-      const r1 = ((i * 7919) % 1000) / 1000;
-      const r2 = ((i * 104729) % 1000) / 1000;
-      const r3 = ((i * 1299709) % 1000) / 1000;
-      const x = r1 * W;
-      const y = (((r2 * H - t * (0.6 + r3 * 1.2)) % H) + H) % H;
-      const rad = (10 + r3 * 34) * this.k;
-      ctx.globalAlpha = 0.08 + 0.12 * r2;
-      if (i % 3 === 0) {
-        this.drawPawFlat(ctx, x, y, rad * 1.6, i % 2 ? C.pink : C.cream);
-      } else {
-        ctx.fillStyle = i % 2 ? C.gold : C.pink;
-        ctx.beginPath();
-        ctx.arc(x, y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    if (fg) {
+      // the line-up rises 6 % of the height into place over 10 frames after the slam (ease out), then idles
+      const u = ease.out(clamp01((t - 2) / 10));
+      ctx.save();
+      ctx.globalAlpha = u;
+      ctx.drawImage(this.keyed(fg), 0, (1 - u) * 0.06 * H);
+      ctx.restore();
     }
-    ctx.restore();
-    // vignette
-    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.78);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(20, 5, 25, 0.55)');
+    vg.addColorStop(1, 'rgba(20, 5, 25, 0.5)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
-    void img;
     this.dither(ctx, f);
   }
 
@@ -685,13 +665,14 @@ export class Compositor {
   /** End-card layout: 16:9 per the storyboard (logo y 420, pill y 640, sub 740, URL 820); 9:16 lockup ~80 % wide. */
   endLayout() {
     return this.v
-      ? { logoY: 640, logoW: 900, ctaY: 860, pw: 720, ph: 160, subY: 1000, sub: 66, urlY: 1090, url: 70, creditX: null, creditY: 1170, credit: 32 }
-      : { logoY: 380, logoW: 1140, ctaY: 640, pw: 700, ph: 156, subY: 760, sub: 62, urlY: 850, url: 72, creditX: 1860, creditY: 1040, credit: 28 };
+      ? { logoY: 500, logoW: 800, ctaY: 730, pw: 680, ph: 156, subY: 872, sub: 72, urlY: 985, url: 64, creditX: null, creditY: 1760, credit: 38 }
+      : { logoY: 230, logoW: 980, ctaY: 432, pw: 620, ph: 138, subY: 552, sub: 60, urlY: 648, url: 62, creditX: 1880, creditY: 1052, credit: 30 };
   }
 
   logoLayout() {
     if (this.logoL) return this.logoL;
-    const capPx = this.v ? 210 : 260;
+    // v3: the lockup fills logoW (about half the 16:9 frame, three quarters of the 9:16 one)
+    const capPx = this.v ? 300 : 340;
     let size = capPx / CAP;
     const a = this.copy?.LOGOa ?? 'Paw';
     const b = this.copy?.LOGOb ?? 'legends';
@@ -770,7 +751,8 @@ export class Compositor {
       drawRun(c, this.copy?.LOGOb ?? 'legends', x + L.wa, 0, L.size, { fill: C.pinkDeep, sw, sy });
       c.restore();
     };
-    this.blurred(ctx, t <= 2 ? 8 : 1, draw);
+    // a hard slam: one smeared frame, then sharp
+    this.blurred(ctx, t <= 0 ? 6 : 1, draw);
     // the landing: a shockwave ring and gold sparkles (frames +5..+24)
     if (t >= 5 && t <= 24) {
       const p = (t - 5) / 19;
@@ -852,25 +834,46 @@ export class Compositor {
     ctx.restore();
   }
 
+  /** A dark rounded pill behind an end-card line (cream type on cocoa: legible over any plate). */
+  pill(ctx, cx, cy, w, h, a = 1) {
+    ctx.save();
+    ctx.globalAlpha = 0.86 * a;
+    ctx.fillStyle = '#2b1622';
+    roundRect(ctx, cx - w / 2, cy - h / 2, w, h, h / 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9 * a;
+    ctx.lineWidth = 3 * this.k;
+    ctx.strokeStyle = C.pinkDeep;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   drawEndText(ctx, e, f) {
     const cx = this.endCx();
     const EL = this.endLayout();
-    // "No download"
+    // "No download": cream on a dark pill, popped in
     const ps = popState(f - e.sub);
     if (ps) {
       const text = this.copy?.SUB ?? 'No download';
-      const w = textWidth(ctx, text, EL.sub, 600);
-      this.drawTransformed(ctx, text, { x: cx - w / 2, y: EL.subY, w }, EL.sub, ps, { weight: 600, sw: 8, sy: 5 });
+      const w = textWidth(ctx, text, EL.sub, 700);
+      ctx.save();
+      ctx.translate(cx, EL.subY);
+      ctx.scale(ps.s, ps.s);
+      this.pill(ctx, 0, 0, w + EL.sub * 1.2, EL.sub * 1.45, ps.a);
+      ctx.restore();
+      this.drawTransformed(ctx, text, { x: cx - w / 2, y: EL.subY, w }, EL.sub, ps, { weight: 700, sw: 6, sy: 0, fill: C.cream });
     }
-    // URL, typed on, with the toon stroke
+    // URL: cream on a dark pill, typed on
     if (f >= e.url[0]) {
       const full = this.copy?.URL ?? 'tokentails.com/pawlegends';
       const n = Math.min(full.length, Math.ceil(((f - e.url[0] + 1) / (e.url[1] - e.url[0] + 1)) * full.length));
       const size = EL.url;
       const w = textWidth(ctx, full, size, 700);
       const x = cx - w / 2;
+      const a = clamp01((f - e.url[0] + 1) / 4);
+      this.pill(ctx, cx, EL.urlY, w + size * 1.3, size * 1.55, a);
       const shown = full.slice(0, n);
-      drawRun(ctx, shown, x, EL.urlY, size, { weight: 700, sw: 9, sy: 6, fill: C.gold });
+      drawRun(ctx, shown, x, EL.urlY, size, { weight: 700, sw: 6, sy: 0, fill: C.cream, shadow: null });
       if (f <= e.url[1] + 6) {
         const cw = textWidth(ctx, shown, size, 700);
         ctx.fillStyle = C.pinkDeep;
@@ -879,7 +882,7 @@ export class Compositor {
     }
     // credit
     if (f >= e.credit) {
-      const a = 0.85 * clamp01((f - e.credit + 1) / 6);
+      const a = 0.9 * clamp01((f - e.credit + 1) / 6);
       const size = EL.credit;
       const text = this.copy?.CREDIT ?? '© Token Tails';
       const w = textWidth(ctx, text, size, 600);
@@ -956,7 +959,7 @@ export class Compositor {
     }
     const end = this.els.find((e) => e.kind === 'endcard');
     if (end && f >= end.logo && f < end.end) {
-      this.renderEndPlate(ctx, endImg, f);
+      this.renderEndPlate(ctx, endImg, f, fgImg);
       return true;
     }
     return false;
