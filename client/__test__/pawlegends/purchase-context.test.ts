@@ -3,13 +3,13 @@
  */
 /**
  * `purchaseContext` reaches both Token Tails checkouts (card: `POST /web3/create-payment`, crypto:
- * `POST /payments/crypto/orders`) as three named fields, and nothing is added for other callers.
+ * `POST /payments/crypto/orders`) as four named fields, and nothing is added for other callers.
  */
 import { STRIPE_API, purchaseContextFields } from "@/api/stripe-api";
 import { CRYPTO_PAY_API } from "@/components/web3/crypto/api";
 import { EntityType } from "@/models/save";
 
-const CONTEXT = { context: "pawlegends", ageBand: "18+", deviceId: "d0123456789abcdef" } as const;
+const CONTEXT = { context: "pawlegends", ageBand: "18+", deviceId: "d0123456789abcdef", consentVersion: "2026-10-23" } as const;
 
 const okFetch = (body: unknown) =>
   jest.fn(async () => ({ ok: true, status: 201, json: async () => body }) as unknown as Response);

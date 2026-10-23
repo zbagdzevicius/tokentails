@@ -38,6 +38,7 @@ import { StripePaymentService } from '../stripe-payment.service';
 import { CryptoChainReader } from './crypto-chain-reader';
 import {
     CheckoutOption,
+    CheckoutConsent,
     CheckoutPayment,
     CheckoutGrant,
     CheckoutShelterShare,
@@ -152,6 +153,8 @@ export interface CreateOrderBody {
     context?: unknown;
     ageBand?: unknown;
     deviceId?: unknown;
+    /** With `pawlegends`: the `/pawlegends/terms` version the buyer's consent tick stands for. */
+    consentVersion?: unknown;
 }
 
 export interface ConfirmBody {
@@ -293,16 +296,18 @@ export class CryptoCheckoutService {
         }
         await this.assertReservationIndex(now);
         const { sku, priceUsdCents, discount, discountPercentage } = await this.priceSku(userId, body, now);
+        let consent: CheckoutConsent | undefined;
         if (isPawlegendsContext(body)) {
             // The game only sells named cats, and never without its guardrails.
             if (sku.kind !== 'CAT' || !this.pawlegendsGuard) throw payError('BAD_SKU', HttpStatus.BAD_REQUEST);
-            await this.pawlegendsGuard.assert({
+            ({ consent } = await this.pawlegendsGuard.assert({
                 userId,
                 cents: priceUsdCents,
                 context: body.context,
                 ageBand: body.ageBand,
                 deviceId: body.deviceId,
-            });
+                consentVersion: body.consentVersion,
+            }));
         }
         const user = new Types.ObjectId(userId);
 
@@ -376,6 +381,7 @@ export class CryptoCheckoutService {
                     status: 'OPEN',
                     expiresAt: new Date(now.getTime() + cfg.orderTtlMs),
                     shelterShare,
+                    ...(consent ? { consent } : {}),
                     createdAt: now,
                 } as any);
                 const doc = (created as any).toObject ? (created as any).toObject() : created;

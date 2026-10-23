@@ -87,6 +87,12 @@ export interface CheckoutGrant {
     refund?: string;
 }
 
+/** The Pawlegends consent recorded with an order: deliver now, lose the 14-day withdrawal right on delivery. */
+export interface CheckoutConsent {
+    version: string;
+    at: string;
+}
+
 export interface CheckoutShelterShare {
     shelterId: string;
     route: ShelterShareRoute;
@@ -205,6 +211,10 @@ export class CryptoCheckout {
 
     @Prop({ required: false, type: Object, _id: false })
     shelterShare?: CheckoutShelterShare | null;
+
+    /** Pawlegends orders: the terms version the buyer consented to and when (launch item U5). */
+    @Prop({ required: false, type: Object, _id: false })
+    consent?: CheckoutConsent;
 
     createdAt?: Date;
     updatedAt?: Date;

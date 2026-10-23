@@ -135,8 +135,9 @@ describe('Stripe: a shelter cat', () => {
         expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
     });
 
-    it("create-payment from Pawlegends runs the game's age band and spend cap first, and tags the intent", async () => {
-        const assert = jest.fn().mockResolvedValue({ band: '18+', capLeftCents: 0 });
+    it("create-payment from Pawlegends runs the game's consent, age band and spend cap first, and tags the intent", async () => {
+        const consent = { version: '2026-10-23', at: '2026-10-23T10:00:00.000Z' };
+        const assert = jest.fn().mockResolvedValue({ band: '18+', capLeftCents: 0, consent });
         const { ctrl } = setup({ pawlegendsGuard: { assert } });
         stripe.paymentIntents.create.mockResolvedValue({ client_secret: 's' });
         const body = {
@@ -145,6 +146,7 @@ describe('Stripe: a shelter cat', () => {
             context: 'pawlegends',
             ageBand: '18+',
             deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
         };
         await ctrl.createPayment(body as any, USER);
         expect(assert).toHaveBeenCalledWith({
@@ -153,9 +155,16 @@ describe('Stripe: a shelter cat', () => {
             context: 'pawlegends',
             ageBand: '18+',
             deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
         });
+        // The accepted consent is recorded with the payment (launch item U5).
         expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).toEqual(
-            expect.objectContaining({ context: 'pawlegends', catId: CAT })
+            expect.objectContaining({
+                context: 'pawlegends',
+                catId: CAT,
+                consent_version: '2026-10-23',
+                consent_at: '2026-10-23T10:00:00.000Z',
+            })
         );
         // A refusal (under 16, over the cap) stops before any intent exists.
         const { HttpException } = jest.requireActual('@nestjs/common');
@@ -174,6 +183,7 @@ describe('Stripe: a shelter cat', () => {
         await ctrl.createPayment({ id: CAT, entityType: EntityType.CAT } as any, USER);
         expect(assert).not.toHaveBeenCalled();
         expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).not.toHaveProperty('context');
+        expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).not.toHaveProperty('consent_version');
     });
 
     it('confirm-payment grants one basic-tier copy with origin adopt, once', async () => {

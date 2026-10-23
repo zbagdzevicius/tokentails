@@ -126,9 +126,15 @@ export const stricterBand = (a: AgeBand | undefined, b: AgeBand | undefined): Ag
 
 export const UNDER_16_MESSAGE = 'Ask a parent or guardian to buy this on their own device.';
 
-/** Versions the host shows; Stripe metadata stores them (POC.md §8.6). */
-export const PAWLEGENDS_TERMS_VERSION = '2026-10-17';
-export const PAWLEGENDS_CONSENT_VERSIONS = ['2026-10-17'] as const;
+/**
+ * Terms versions (POC.md §8.6). `PAWLEGENDS_TERMS_VERSION` is the current `/pawlegends/terms` (2026-10-23: the $5
+ * cat terms, launch item U5): `GET /pawlegends/status` reports it and the cat checkout accepts only that consent.
+ * The legacy `pl_*` checkout keeps the presale terms it was written for: it accepts only
+ * `PAWLEGENDS_CONSENT_VERSIONS` and its Stripe metadata stores `PAWLEGENDS_LEGACY_TERMS_VERSION`.
+ */
+export const PAWLEGENDS_TERMS_VERSION = '2026-10-23';
+export const PAWLEGENDS_LEGACY_TERMS_VERSION = '2026-10-17';
+export const PAWLEGENDS_CONSENT_VERSIONS = [PAWLEGENDS_LEGACY_TERMS_VERSION] as const;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Requests and answers

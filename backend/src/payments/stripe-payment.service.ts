@@ -40,6 +40,8 @@ export interface PaymentIntentQuoteInput {
      * `PawlegendsCheckoutGuard.assert` (age band and spend cap) before asking for the intent.
      */
     context?: 'pawlegends';
+    /** With `pawlegends`: the consent the guard accepted, stored in the intent metadata (launch item U5). */
+    consent?: { version: string; at: string };
 }
 
 export interface PaymentIntentQuote {
@@ -143,6 +145,9 @@ export class StripePaymentService {
                     discountPercentage: '0',
                     expectedAmount: String(amountCents),
                     ...(input.context === 'pawlegends' ? { context: 'pawlegends' } : {}),
+                    ...(input.context === 'pawlegends' && input.consent
+                        ? { consent_version: input.consent.version, consent_at: input.consent.at }
+                        : {}),
                 },
             };
         }

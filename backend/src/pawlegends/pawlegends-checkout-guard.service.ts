@@ -6,6 +6,7 @@ import { OrderStatus } from 'src/shared-contracts/enums';
 import {
     AgeBand,
     isAgeBand,
+    PAWLEGENDS_TERMS_VERSION,
     SPEND_CAP_CENTS,
     SPEND_WINDOW_MS,
     stricterBand,
@@ -20,6 +21,9 @@ import { isDeviceId, PawlegendsIdentity, PawlegendsStripeService } from './pawle
  * id; `POST /web3/create-payment` and `POST /payments/crypto/orders` then call `assert` before any PaymentIntent or
  * order exists. Other callers send no context and are unchanged.
  *
+ * - The consent is required (launch item U5): `consentVersion` must be the current `/pawlegends/terms` version, the
+ *   one the cat sheet's consent tick (terms, privacy, deliver now and lose the 14-day withdrawal right) stands for.
+ *   The checkouts record the returned version and time with the payment (Stripe intent metadata, crypto order).
  * - The age band is required, kept with the device and the account (the stricter answer wins, so a later "18+"
  *   never unlocks an earlier "Under 16").
  * - Under 16 cannot buy (403 `PAWLEGENDS_UNDER_16`, the guardian line).
@@ -34,6 +38,13 @@ export interface PawlegendsPurchaseContext {
     context?: unknown;
     ageBand?: unknown;
     deviceId?: unknown;
+    consentVersion?: unknown;
+}
+
+/** What the buyer agreed to and when, as the checkouts record it. */
+export interface PawlegendsConsent {
+    version: string;
+    at: string;
 }
 
 /** True when a checkout body asks for the Pawlegends checks. */
@@ -67,12 +78,15 @@ export class PawlegendsCheckoutGuard {
     }
 
     /**
-     * Throws 400 without an age band, 403 under 16 or over the cap. Returns the band used (the strictest stored
-     * one) and the cap left after this purchase.
+     * Throws 400 without the current consent or an age band, 403 under 16 or over the cap. Returns the band used (the
+     * strictest stored one), the cap left after this purchase and the consent to record.
      */
     async assert(
         input: { userId: string; cents: number } & PawlegendsPurchaseContext
-    ): Promise<{ band: AgeBand; capLeftCents: number }> {
+    ): Promise<{ band: AgeBand; capLeftCents: number; consent: PawlegendsConsent }> {
+        if (input.consentVersion !== PAWLEGENDS_TERMS_VERSION) {
+            throw PAWLEGENDS_ERRORS.invalid('consentVersion is not current');
+        }
         if (!isAgeBand(input.ageBand)) throw PAWLEGENDS_ERRORS.invalid('ageBand is required');
         const identity: PawlegendsIdentity = {
             accountId: String(input.userId),
@@ -84,6 +98,10 @@ export class PawlegendsCheckoutGuard {
         const spent = (await this.stripe.spentCents(identity)) + (await this.orderSpentCents(String(input.userId)));
         const capLeft = SPEND_CAP_CENTS[band] - spent;
         if (input.cents > capLeft) throw PAWLEGENDS_ERRORS.spendCap();
-        return { band, capLeftCents: capLeft - input.cents };
+        return {
+            band,
+            capLeftCents: capLeft - input.cents,
+            consent: { version: PAWLEGENDS_TERMS_VERSION, at: this.now().toISOString() },
+        };
     }
 }

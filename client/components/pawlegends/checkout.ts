@@ -38,7 +38,7 @@ export const PAWLEGENDS_AGE_KEY = "tt.pawlegends.age.v1";
 /** How many times this browser opened `/pawlegends` (the offer engine's `session`: never an offer in session 1). */
 export const PAWLEGENDS_SESSIONS_KEY = "tt.pawlegends.sessions.v1";
 /** Mirror of `PAWLEGENDS_CONSENT_VERSIONS` / `PAWLEGENDS_TERMS_VERSION` in the backend contracts. */
-export const PAWLEGENDS_CONSENT_VERSION = "2026-10-17";
+export const PAWLEGENDS_CONSENT_VERSION = "2026-10-23";
 /** Mirror of `PAWLEGENDS_MVP_TARGET`. */
 export const PAWLEGENDS_MVP_TARGET = "2027-04-30";
 
@@ -50,6 +50,17 @@ export const isAgeBand = (value: unknown): value is PawlegendsAgeBand =>
 /** Mirror of the backend's `UNDER_16_MESSAGE`. */
 export const UNDER_16_MESSAGE =
   "Ask a parent or guardian to buy this on their own device.";
+
+/**
+ * What a new squad member brings in Pawlegends (display only; the game decides the effect). Cosmetic only, and it
+ * must match what the game grants (`rosterCosmetics` in pawlegends/src/meta/roster.ts) and the game's Meet card line
+ * (`meetCard` in pawlegends/src/ui/cards.ts): a Companion Kitten, the element chroma and the card skin for every hero.
+ */
+export const MEET_PERKS = [
+  "Trots at your heels as a Companion Kitten",
+  "Its element chroma for every hero",
+  "Its card skin for every hero",
+] as const;
 
 export type PawlegendsCurrency = "usd" | "eur";
 

@@ -16,8 +16,8 @@ deployed. The steps are in [`LAUNCH.md`](LAUNCH.md) and the plan in [`GAPS.md`](
 - the trademark search and the VAT answer.
 
 None of these is code that can be finished here without your decision or your devices. Free channels (email, X,
-Reddit, dare links) can go live once G-Pay, G-Dev and the trademark search pass. Paid EU traffic also waits for U4 and
-U5.
+Reddit, dare links) can go live once G-Pay, G-Dev and the trademark search pass. Paid EU traffic also waits for U4 (U5
+is done with default wording; your legal OK on it is pending).
 
 ## Go/no-go table
 
@@ -47,7 +47,7 @@ U5.
 | 21 | Docs | GO | LAUNCH.md §a.3, §a.5, §a.7, §b and §c rewritten for the game as it is: no store, one $5 cat from the Meet card, pings, level-6 branches. README "Stripe test mode" table now lists the cat run |
 | 22 | **G-Pay**: Stripe test checkout through `open-cat` | **NO-GO** (yours) | Never run against Stripe. Steps: LAUNCH.md §a.3 (one $5 cat from the Meet card, one restore on a second profile). Results go in the README table |
 | 23 | **G-Dev**: iPhone 11, Pixel 6a, Iris Xe | **NO-GO** (yours, due Tue Nov 10) | Not run. Every number so far came from the M3 Pro GPU with only the CPU throttled. Steps: LAUNCH.md §a.4 (`?quality=low&perf=1`). The README "Device performance results" table is empty |
-| 24 | Legal: privacy and terms for the cat sale | **NO-GO** (yours) | U4 and U5 below |
+| 24 | Legal: privacy and terms for the cat sale | **NO-GO** (yours) | U4 below. U5 is done with default wording (your legal OK pending) |
 | 25 | Trademark search (a.1) | **NO-GO** (yours, by Nov 9) | Table in LAUNCH.md §a.1 is empty. The page stays `noindex` until it passes |
 | 26 | VAT answer (a.2) | **NO-GO** (yours, by Nov 9) | "VAT answer: (pending)" |
 | 27 | 10-person playtest (a.5) | Open (Nov 10) | New script and survey in LAUNCH.md §a.5 |
@@ -64,7 +64,7 @@ merged into one.
 | U2 | **HUD on a 667×375 landscape phone** (iPhone SE/8 class). The self panel overlaps the pause button and your team's score. The Wave emote covers the minimap. The enemy portraits are pushed under the minimap, so only one of three shows. At 740×360 two of three show. A full four-line kill feed on touch overlaps the right-hand ability buttons | Open. Not fixed in this pass: it needs a layout decision for the smallest phones | Decide: either a compact top HUD below 700 px width (smaller self panel, portraits under the score), or name 740×360 as the smallest supported size. Then it is a `pawlegends/src/ui/ui.css` change plus a Playwright screenshot at 667×375. Check it on the real phone during G-Dev |
 | U3 | **Device gate (G-Dev)**: iPhone 11, Pixel 6a, Iris Xe. LAUNCH.md section a, row 4, due Tue Nov 10 | Open | LAUNCH.md §a.4. Pass: phones p95 ≤ 33 ms, draw calls ≤ 90, heap ≤ 150 MB; Iris Xe p95 ≤ 16.7 ms. Fill the README table |
 | U4 | **Privacy policy.** The only policy (docs.tokentails.com, last updated 2025-01-01) says Token Tails does not knowingly collect data from anyone under 18. It does not mention PostHog, Stripe, match data or restore emails. Pawlegends asks every buyer's age band and stores it on the server with a device id and the account (under 16 included, to lock the device), and sells to 16 and 17 year olds (€30 cap) | Partly fixed: the in-game Settings panel and `/pawlegends/terms` now link the policy. The policy text is still wrong, and the `/pawlegends` page and the cat sheet link nothing | Legal call (yours): update the policy (minors 16 and 17, the age band and device id, PostHog, Stripe, match saves, restore and notify emails), or stop sales to 16 and 17 year olds. Then link it from the cat sheet next to the payment form, and from the `/pawlegends` page |
-| U5 | **Terms and EU withdrawal on the $5 cat.** The cat sheet ("Meet <cat>") shows no terms, privacy or refund link, no 14-day withdrawal notice and no "deliver now, I lose my withdrawal right" consent. `/pawlegends/terms` still describes the retired packs (Starter, Founder Legend "500 seats", "Every pack shows two lines") and says nothing about the $5 cat | Open | Legal call (yours): decide the wording. Then rewrite `/pawlegends/terms` for the cat (`client/pages/pawlegends/terms.tsx`; the retired-pack text can go). In `PawlegendsCatSheet.tsx`, add the terms and privacy links, the withdrawal notice and a required consent checkbox before `<Payment>`, plus a host test in `client/__test__/pawlegends/cat-sheet.test.tsx`. About an hour of work once the text is decided. **Blocks paid EU traffic** (LAUNCH.md b.2, b.5 #5) |
+| U5 | **Terms and EU withdrawal on the $5 cat.** The cat sheet ("Meet <cat>") now shows links to `/pawlegends/terms` and the privacy policy, the EU withdrawal notice (digital content, delivered right away, the 14-day right ends on delivery) and a required consent box; the checkout (`<Payment>`) mounts only while it is ticked. The tick sends `consentVersion` `2026-10-23`; both checkouts refuse any other version from the game (`PawlegendsCheckoutGuard`, 400 `PAWLEGENDS_INVALID`) and record the accepted version and time (Stripe intent metadata `consent_version`, `consent_at`; crypto order `consent`). `/pawlegends/terms` is rewritten for the cat (no retired packs); the legacy `pl_*` checkout keeps its 2026-10-17 terms version | **Done, default wording, founder legal OK pending** | Read the wording on the cat sheet and `/pawlegends/terms` (`client/pages/pawlegends/terms.tsx`). A change to the text needs a new version in `client/components/pawlegends/checkout.ts` and `backend/src/pawlegends/pawlegends.contracts.ts`. Host tests: `client/__test__/pawlegends/cat-sheet.test.tsx`, `pawlegends-host.test.tsx`. Paid EU traffic still waits for U4 |
 | U6 | **Stripe test mode (G-Pay)** and the README table. Nothing has run against real Stripe test mode. The README listed the 8 retired `pl_*` runs | README table rewritten for the new run. The run itself is open | LAUNCH.md §a.3: one $5 cat from the Meet card with `4242…`, one restore on a second profile, the under-16 block. Record the `pi_…` ids in the README |
 | U7 | **VAT answer** (LAUNCH.md §a.2: "(pending)") and steps 2 and 3 of the founder checklist (by Nov 9) | Open | Ask the accountant; write the answer and date into §a.2. If the answer is Stripe Tax, that is a code change on the shared checkout, not an env var |
 | U8 | **Trademark search** (a.1) | Open | Fill the §a.1 table by Nov 9. Only then remove `noindex` (a.8 step 1) |
@@ -170,8 +170,8 @@ Never revert. When production breaks, fix it on a branch, run the LAUNCH.md a.6 
 ## Not done here, on purpose
 
 - Nothing was pushed, deployed or changed on Vercel, DigitalOcean or Stripe.
-- U2 (small-phone HUD) and U5 (cat sheet legal lines) were not coded. Both need your decision first: the smallest
-  supported size, and the legal wording.
+- U2 (small-phone HUD) was not coded: it needs your decision on the smallest supported size. U5 (cat sheet legal
+  lines) was coded on 2026-10-23 with default wording; your legal OK on the wording is pending.
 - main's 2 copy-lint findings were left for main.
 - The client `node_modules` in this worktree is now its own install (`npm ci`) instead of a link to the main
   checkout's, because main added packages the main checkout does not have yet.
