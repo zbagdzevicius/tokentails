@@ -443,7 +443,7 @@ const UltraCatPreview = () => (
       src={ULTRA_CAT_PREVIEW.src}
       width={ULTRA_CAT_PREVIEW.width}
       height={ULTRA_CAT_PREVIEW.height}
-      alt=""
+      alt={ULTRA_CAT_PREVIEW.alt}
       draggable={false}
       decoding="async"
       data-testid="game-card-ultra_cat-preview"
