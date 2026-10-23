@@ -1127,3 +1127,74 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
 @media (max-height: 480px) {
   .pl-pick .card-fx small { display: none; }
 }
+
+/* ---------------------------------------------------------------------------------------- U2 (G22) compact HUD
+   Small phones in landscape: below 700 px wide, or a short screen (≤ 380 px) under 844 px wide (667×375, 640×360,
+   740×360). At 667×375 the self panel ran into the pause button and the team score, and two of the three enemy
+   portraits hid under the minimap. Here the self panel is smaller, the pause sits left of a narrower score bar, the
+   enemy portraits sit under the score, and the chips and banners of the top band start under them. 844×390 and up,
+   and every desktop layout (touch only), keep the rules above. Tap targets stay at least 44 px. */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-bar { left: calc(8px + var(--safe-l)); top: calc(6px + var(--safe-t)); align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border-radius: 14px; }
+  html[data-touch='1'] .pl-portrait { width: 34px; height: 34px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px var(--self); }
+  html[data-touch='1'] .pl-portrait span { font-size: 15px; }
+  html[data-touch='1'] .pl-portrait .lvl { width: 18px; height: 18px; right: -6px; bottom: -6px; font-size: 11px; }
+  html[data-touch='1'] .pl-portrait .xpbar { left: 3px; right: 3px; bottom: -7px; height: 4px; }
+  /* the level-gap tag drops under the portrait (above it would leave the screen) */
+  html[data-touch='1'] .pl-portrait .gap { top: calc(100% + 10px); font-size: 10px; padding: 2px 5px; }
+  html[data-touch='1'] .pl-hp { width: 92px; height: 14px; border-radius: 7px; }
+  html[data-touch='1'] .pl-hp .txt { font-size: 10px; }
+
+  html[data-touch='1'] .pl-top { top: calc(6px + var(--safe-t)); }
+  html[data-touch='1'] .pl-score { gap: 6px; padding: 3px 10px 4px; border-radius: 0 0 14px 14px; }
+  html[data-touch='1'] .pl-score .team { gap: 5px; font-size: 20px; min-width: 48px; }
+  html[data-touch='1'] .pl-score .team i { font-size: 10px; padding: 1px 4px; }
+  html[data-touch='1'] .pl-score .mid { min-width: 74px; }
+  html[data-touch='1'] .pl-score .clock { font-size: 17px; }
+  html[data-touch='1'] .pl-score .phase { font-size: 9.5px; }
+  /* a full 44 px tap target, left of the narrower score bar (≈ 204 px wide) */
+  html[data-touch='1'] .pl-pause { top: calc(6px + var(--safe-t)); left: calc(50% - 156px); width: 44px; height: 44px; }
+
+  /* the enemy portraits under the score; each disc's tap area is 44 × 44 and the areas do not overlap */
+  html[data-touch='1'] .pl-top .pl-strip.enemy { left: 50%; top: calc(100% + 6px); transform: translateX(-50%); gap: 14px; }
+  html[data-touch='1'] .pl-strip .pp { width: 32px; height: 32px; }
+  /* the ::after box starts inside the 2 px border: -8 px makes the 32 px disc a 44 px area */
+  html[data-touch='1'] .pl-strip.enemy .pp::after { inset: -8px; }
+  html[data-touch='1'] .pl-strip .pp .t { font-size: 13px; }
+  html[data-touch='1'] .pl-strip.ally { left: calc(56px + var(--safe-l)); top: calc(58px + var(--safe-t)); gap: 4px; }
+  html[data-touch='1'] .pl-strip.ally .pp { width: 28px; height: 28px; }
+
+  /* the top band's messages start under the enemy portraits */
+  html[data-touch='1'] .pl-goal, html[data-touch='1'] .pl-respawn, html[data-touch='1'] .pl-tip { top: calc(92px + var(--safe-t)); }
+  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-tip { top: calc(136px + var(--safe-t)); }
+  html[data-touch='1'] .pl-banner,
+  html[data-touch='1'] .pl-match:has(.pl-hud.dead) .pl-banner { top: calc(132px + var(--safe-t)); }
+  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-banner,
+  html[data-touch='1'] .pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(140px + var(--safe-t)); }
+  html[data-touch='1'] .pl-callouts { top: calc(132px + var(--safe-t)); }
+  html[data-touch='1'] .pl-alert { top: calc(140px + var(--safe-t)); }
+  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-alert { top: calc(176px + var(--safe-t)); }
+  html[data-touch='1'] .pl-goal { gap: 8px; padding: 5px 14px 5px 6px; }
+  html[data-touch='1'] .pl-goal .ico { width: 28px; height: 28px; }
+  html[data-touch='1'] .pl-goal .ico .pl-icon { width: 17px; height: 17px; }
+  html[data-touch='1'] .pl-goal .ring { -webkit-mask: radial-gradient(circle, transparent 15px, #000 16px); mask: radial-gradient(circle, transparent 15px, #000 16px); }
+  html[data-touch='1'] .pl-goal.standing { padding: 3px 12px 3px 4px; }
+  html[data-touch='1'] .pl-goal.standing .ico { width: 24px; height: 24px; }
+  html[data-touch='1'] .pl-goal .txt b { font-size: 13.5px; }
+  html[data-touch='1'] .pl-goal .txt small { font-size: 10.5px; max-width: min(40vw, 260px); }
+  /* the owned Wave emote under the paw: a full 44 px tap target */
+  html[data-touch='1'] .pl-emote { min-height: 44px; }
+
+  /* the kill feed: two short lines under the minimap, clear of E and the trick button */
+  html[data-touch='1'] .pl-feed { top: calc(100px + var(--safe-t)); right: calc(10px + var(--safe-r)); gap: 4px; }
+  html[data-touch='1'] .pl-feed-row { padding: 3px 8px; font-size: 11.5px; gap: 4px; border-radius: 8px; max-width: 170px; }
+  html[data-touch='1'] .pl-feed-row { white-space: nowrap; overflow: hidden; }
+  html[data-touch='1'] .pl-feed-row b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  html[data-touch='1'] .pl-feed-row span { width: 13px; height: 13px; flex: none; }
+  html[data-touch='1'] .pl-feed-row:nth-child(n + 3) { display: none; }
+  html[data-touch='1']:has(.pl-emote) .pl-feed-row { max-width: 128px; }
+
+  /* the talent card: narrower and left of R and Nap */
+  html[data-touch='1'] .pl-talents { left: calc(50% - 80px); }
+  html[data-touch='1'] .pl-talents button { width: 124px; padding: 5px 8px; }
+}
