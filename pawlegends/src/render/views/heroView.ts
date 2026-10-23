@@ -41,7 +41,172 @@ interface HeroRig {
   vz: number;
   ax: number;
   az: number;
+  /** Sim position (m) last frame (the velocity) and the smoothed visual push-apart offset (m). */
+  simX: number;
+  simZ: number;
+  sepX: number;
+  sepZ: number;
 }
+
+/**
+ * Visual push-apart (render only; the sim lets units overlap): heroes closer than `min` m are drawn pushed apart along
+ * the line between them, each by at most `cap` m, so two bodies never fuse into one blob or stand inside each other.
+ */
+export const SEPARATION = Object.freeze({ min: 1.5, cap: 1.2, rate: 20, iters: 4, zK: 2.2, warm: 0.85 });
+
+/**
+ * Structures and big units a hero body is drawn clear of (render only): a hero is pushed out of a tower's, core's or
+ * Pudding's footprint to `r` + BODY_R m, at most `cap` m (trailer review: Lambo stood half inside the tower base).
+ */
+export const OBSTACLE_CLEAR = Object.freeze({ bodyR: 0.5, cap: 3.2 });
+
+/**
+ * Drawn offsets (m) for bodies at `pts` (pure): pairwise push-apart and push-out of the `obs` footprints, relaxed over
+ * a few passes so a hero squeezed between a tower and an ally is not pushed back into either. Each offset is capped
+ * (`cap` for the push-apart share, OBSTACLE_CLEAR.cap overall).
+ */
+export function layoutBodies(
+  pts: readonly { x: number; z: number }[],
+  obs: readonly { x: number; z: number; r: number }[] = [],
+  warm: readonly { x: number; z: number }[] | null = null,
+  min = SEPARATION.min,
+  cap = SEPARATION.cap,
+): { x: number; z: number }[] {
+  // warm start from last frame's offsets (decaying): a body deep inside a moving footprint keeps pushing out the same
+  // way instead of flipping sides frame to frame (trailer review: Clem stood in Pudding while he walked through her)
+  const out = pts.map((_, i) => ({ x: (warm?.[i]?.x ?? 0) * SEPARATION.warm, z: (warm?.[i]?.z ?? 0) * SEPARATION.warm }));
+  const cur = pts.map((p, i) => ({ x: p.x + out[i].x, z: p.z + out[i].z }));
+  // the gameplay camera looks north from above: two bodies one behind the other (along z) overlap on screen sooner
+  // than two side by side, so depth counts zK times less and the push goes mostly sideways (screen x)
+  const k = SEPARATION.zK;
+  const sq = cur.map((p) => ({ x: p.x, z: p.z / k }));
+  for (let it = 0; it < SEPARATION.iters; it++) {
+    for (let i = 0; i < cur.length; i++) {
+      sq[i].x = cur[i].x;
+      sq[i].z = cur[i].z / k;
+    }
+    const sep = spreadSideways(sq, min, cap);
+    for (let i = 0; i < pts.length; i++) {
+      out[i].x += sep[i].x * 0.5;
+      out[i].z += sep[i].z * 0.5;
+      if (obs.length) {
+        const c = clearOfObstacles(pts[i].x + out[i].x, pts[i].z + out[i].z, obs);
+        out[i].x += c.x;
+        out[i].z += c.z;
+      }
+      const l = Math.hypot(out[i].x, out[i].z);
+      const lim = OBSTACLE_CLEAR.cap;
+      if (l > lim) {
+        out[i].x *= lim / l;
+        out[i].z *= lim / l;
+      }
+      cur[i].x = pts[i].x + out[i].x;
+      cur[i].z = pts[i].z + out[i].z;
+    }
+  }
+  return out;
+}
+
+/**
+ * Pairwise push-apart in the depth-scaled space (z / zK: depth counts less), biased sideways: two bodies one behind the other are moved
+ * apart across the screen (x), not further along the line of sight, where they would still overlap (pure).
+ */
+function spreadSideways(pts: readonly { x: number; z: number }[], min: number, cap: number): { x: number; z: number }[] {
+  const out = pts.map(() => ({ x: 0, z: 0 }));
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const dx = pts[j].x - pts[i].x;
+      const dz = pts[j].z - pts[i].z;
+      const d = Math.hypot(dx, dz);
+      if (d >= min) continue;
+      const push = (min - d) / 2;
+      const side = Math.abs(dx) > 1e-3 ? Math.sign(dx) : j % 2 === 0 ? 1 : -1;
+      let ux = d > 1e-4 ? dx / d : side;
+      let uz = d > 1e-4 ? dz / d : 0;
+      if (Math.abs(ux) < 0.8) ux = side * 0.8;
+      uz *= 0.6;
+      const l = Math.hypot(ux, uz) || 1;
+      ux /= l;
+      uz /= l;
+      out[i].x -= ux * push;
+      out[i].z -= uz * push;
+      out[j].x += ux * push;
+      out[j].z += uz * push;
+    }
+  }
+  for (const o of out) {
+    const l = Math.hypot(o.x, o.z);
+    if (l > cap) {
+      o.x *= cap / l;
+      o.z *= cap / l;
+    }
+  }
+  return out;
+}
+
+/** The offset (m) that moves a body at (x, z) out of every footprint circle (pure; 0 when clear). */
+export function clearOfObstacles(x: number, z: number, obs: readonly { x: number; z: number; r: number }[], bodyR = OBSTACLE_CLEAR.bodyR, cap = OBSTACLE_CLEAR.cap): { x: number; z: number } {
+  let ox = 0;
+  let oz = 0;
+  for (const o of obs) {
+    const dx = x + ox - o.x;
+    const dz = z + oz - o.z;
+    const d = Math.hypot(dx, dz);
+    const min = o.r + bodyR;
+    if (d >= min) continue;
+    const ux = d > 1e-4 ? dx / d : 0;
+    const uz = d > 1e-4 ? dz / d : 1;
+    ox += ux * (min - d);
+    oz += uz * (min - d);
+  }
+  const l = Math.hypot(ox, oz);
+  if (l > cap) {
+    ox *= cap / l;
+    oz *= cap / l;
+  }
+  return { x: ox, z: oz };
+}
+
+/** Pairwise push-apart offsets (pure): for points (x, z) m, the offset (m) each is drawn at. Coincident points fan out. */
+export function separate(pts: readonly { x: number; z: number }[], min = SEPARATION.min, cap = SEPARATION.cap): { x: number; z: number }[] {
+  const out = pts.map(() => ({ x: 0, z: 0 }));
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      // a tiny fixed spread per index (golden angle), so heroes on one spot fan out round it instead of lining up
+      let dx = pts[j].x + Math.cos(j * 2.39996) * 0.01 - pts[i].x - Math.cos(i * 2.39996) * 0.01;
+      let dz = pts[j].z + Math.sin(j * 2.39996) * 0.01 - pts[i].z - Math.sin(i * 2.39996) * 0.01;
+      let d = Math.hypot(dx, dz);
+      if (d >= min) continue;
+      if (d < 1e-4) {
+        // coincident: a fixed direction per pair (golden angle), so three stacked heroes fan out instead of lining up
+        dx = Math.cos(j * 2.39996) - Math.cos(i * 2.39996);
+        dz = Math.sin(j * 2.39996) - Math.sin(i * 2.39996);
+        const l = Math.hypot(dx, dz) || 1;
+        dx /= l;
+        dz /= l;
+        d = 1e-4;
+      }
+      const push = (min - d) / 2;
+      const ux = d > 1e-4 ? dx / d : dx;
+      const uz = d > 1e-4 ? dz / d : dz;
+      out[i].x -= ux * push;
+      out[i].z -= uz * push;
+      out[j].x += ux * push;
+      out[j].z += uz * push;
+    }
+  }
+  for (const o of out) {
+    const l = Math.hypot(o.x, o.z);
+    if (l > cap) {
+      o.x *= cap / l;
+      o.z *= cap / l;
+    }
+  }
+  return out;
+}
+
+/** Peak hit-flash mix on a hero (trailer review: 0.42 turned a hit or tower-locked hero into a white body). */
+export const HIT_FLASH_MAX = 0.22;
 
 /** The player's own ring is this much larger than a relation ring (it sits outside the hero's footprint). */
 export const SELF_RING_SCALE = 1.15;
@@ -89,6 +254,15 @@ export class HeroView {
   director: { respawned(id: number): void; emote?(id: number): boolean } | null = null;
   mySlot = 0;
   myTeam: 0 | 1 = 0;
+  /** Round 2: team 0 is the dogs (the human picked a dog); each team's cloth follows its species. */
+  styleSwap = false;
+  /** No visual push-apart (tests that read exact positions). */
+  reducedSep = false;
+  /** Footprints (m) of standing structures and Pudding this frame (gameView): bodies are drawn outside them. */
+  obstacles: readonly { x: number; z: number; r: number }[] = [];
+  private readonly sepPts: { x: number; z: number }[] = [];
+  private readonly sepIds: number[] = [];
+  private readonly sepWarm: { x: number; z: number }[] = [];
   shadows = true;
   /** Mesh detail and the outline hull (quality tier: Low is lighter and has no hull, POC.md §10). */
   detail: number = DETAIL.med;
@@ -136,19 +310,21 @@ export class HeroView {
     const look = this.looks.get(e.id) ?? null;
     const hero = e.hero ?? 'clem';
     const team = (e.team === 1 ? 1 : 0) as 0 | 1;
+    // round 2: the cloth follows the species (a dog-picking human's team wears the Woof blue)
+    const dress = (this.styleSwap ? 1 - team : team) as 0 | 1;
     const self = e.id === this.mySlot;
-    const key = `${hero}:${team}:${lookKey(look)}:${this.detail}:${this.outlines ? 1 : 0}:${self ? 1 : 0}`;
+    const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${this.outlines ? 1 : 0}:${self ? 1 : 0}`;
     if (r && r.key !== key) {
       this.drop(r);
       r = undefined;
     }
     if (!r) {
-      const ch = makeHero(hero, team, look, { detail: this.detail, outline: this.outlines, shadows: this.shadows, match: true, self });
+      const ch = makeHero(hero, dress, look, { detail: this.detail, outline: this.outlines, shadows: this.shadows, match: true, self });
       // no outline hull (Low): a darker ink rim keeps the silhouette off the sand (ivory Clem faded into the lane)
       if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
       this.group.add(ch.object);
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0 };
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -221,18 +397,38 @@ export class HeroView {
       for (let i = n; i < this.fxPos.length; i++) this.fxPos[i].dead = true;
       fx.begin(dt, this.focus.x, this.focus.z, this.fxPos);
     }
+    // the visual push-apart targets for this frame (render only)
+    this.sepPts.length = 0;
+    this.sepIds.length = 0;
+    this.sepWarm.length = 0;
+    for (const e of frame.entities) {
+      if (e.kind !== 'hero') continue;
+      this.sepPts.push({ x: toX(e.fx), z: toZ(e.fy) });
+      this.sepIds.push(e.id);
+      const was = this.rigs.get(e.id);
+      this.sepWarm.push({ x: was?.sepX ?? 0, z: was?.sepZ ?? 0 });
+    }
+    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.obstacles, this.sepWarm);
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       const r = this.ensure(e);
       r.seen = stamp;
       const ch = r.ch;
       const dead = e.state === 'dead';
-      const x = toX(e.fx);
-      const z = toZ(e.fy);
+      const simX = toX(e.fx);
+      const simZ = toZ(e.fy);
+      const si = sep ? this.sepIds.indexOf(e.id) : -1;
+      const k = Math.min(1, dt * SEPARATION.rate);
+      const tx = si >= 0 ? sep![si].x : 0;
+      const tz = si >= 0 ? sep![si].z : 0;
+      r.sepX += (tx - r.sepX) * k;
+      r.sepZ += (tz - r.sepZ) * k;
+      const x = simX + r.sepX;
+      const z = simZ + r.sepZ;
       // planar velocity and acceleration (smoothed), for the springs and the dash stretch
       if (dtR > 1e-4) {
-        const vx = (x - r.pos.x) / dtR;
-        const vz = (z - r.pos.z) / dtR;
+        const vx = (simX - r.simX) / dtR;
+        const vz = (simZ - r.simZ) / dtR;
         const teleport = vx * vx + vz * vz > 900;
         const nvx = teleport ? 0 : vx;
         const nvz = teleport ? 0 : vz;
@@ -245,6 +441,8 @@ export class HeroView {
         r.vz += (nvz - r.vz) * Math.min(1, dtR * 30);
       }
       r.pos.set(x, 0, z);
+      r.simX = simX;
+      r.simZ = simZ;
       if (dead && !r.wasDead) r.deadT = 0;
       if (!dead && r.wasDead) {
         ch.anim.respawn();
@@ -280,7 +478,7 @@ export class HeroView {
       const u = ch.material.userData.u;
       const fall = dead ? Math.min(1, r.deadT / 0.35) : 0;
       // the hit flash is capped so it never washes out the coat (a flashing pug read as a pale-pink blob)
-      u.uFlashK.value = dead ? 0.35 * fall : Math.min(0.42, r.flash * 0.5);
+      u.uFlashK.value = dead ? 0.35 * fall : Math.min(HIT_FLASH_MAX, r.flash * 0.3);
       u.uFlash.value.setHex(dead ? 0x6b6b80 : 0xffffff);
       const stealth = (e.buffs & BuffFlag.Stealth) !== 0;
       if (e.id >= 0 && e.id < 16) {

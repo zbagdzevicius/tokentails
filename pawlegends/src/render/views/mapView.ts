@@ -49,7 +49,8 @@ function distToPolyline(x: number, y: number, pl: readonly Pt[]): number {
   return best;
 }
 
-function paintGround(): THREE.Texture {
+/** `swap`: team 0 is the dogs (round 2): each plaza's stone and paw print take its species' colours. */
+function paintGround(swap = false): THREE.Texture {
   const PX = 20;
   const c = document.createElement('canvas');
   c.width = W * PX;
@@ -135,8 +136,9 @@ function paintGround(): THREE.Texture {
   for (const team of [0, 1] as const) {
     const bx = team === 0 ? cx : W - cx;
     const fx = team === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
-    const stone = team === 0 ? '#efe2c9' : '#c9d0e2';
-    const edge = team === 0 ? '#d9c3a0' : '#a5b0cc';
+    const style = swap ? 1 - team : team;
+    const stone = style === 0 ? '#efe2c9' : '#c9d0e2';
+    const edge = style === 0 ? '#d9c3a0' : '#a5b0cc';
     disc(bx, cy, 10.5, edge);
     disc(bx, cy, 9.7, stone);
     g.strokeStyle = edge;
@@ -156,7 +158,7 @@ function paintGround(): THREE.Texture {
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.6, edge);
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.0, stone);
     // team-coloured paw print in the plaza
-    g.fillStyle = team === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(61,90,158,0.35)';
+    g.fillStyle = style === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(61,90,158,0.35)';
     const px = bx + (team === 0 ? 5.5 : -5.5);
     disc(px, cy - 5.5, 1.2, g.fillStyle as string);
     for (let k = 0; k < 4; k++) disc(px - 1.2 + k * 0.8, cy - 5.5 + 1.5 + (k === 0 || k === 3 ? -0.3 : 0), 0.45, g.fillStyle as string);
@@ -215,10 +217,42 @@ void main(){
   gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge));
 }`;
 
+/** True when a rock of radius r at (x, y) m stands only on ground nobody can walk (render only). */
+export function rockClear(x: number, y: number, r: number): boolean {
+  for (const [dx, dy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]] as const) if (onPlayfield(Math.round((x + dx) * 1000), Math.round((y + dy) * 1000))) return false;
+  return true;
+}
+
+/** Canopy cut (render only): hero slots, the lowest height cut (m), the full / no-cut radius round the sight line (m). */
+export const CANOPY_CUT = Object.freeze({ slots: 6, minY: 1.2, inner: 1.8, outer: 2.8, strength: 0.92 });
+
+/** Bush cut round a hero inside it (render only): full / no-cut radius (m), the share dithered away. */
+export const BUSH_CUT = Object.freeze({ inner: 0.7, outer: 1.5, strength: 0.6 });
+
+/** The walkable spans (m, along y) of the line x = `x` m: where the gate barrier is drawn. */
+export function gateSpans(x: number): [number, number][] {
+  const out: [number, number][] = [];
+  const step = 0.25;
+  let start = -1;
+  for (let y = 0; y <= H + 1e-6; y += step) {
+    const on = onPlayfield(Math.round(x * 1000), Math.round(y * 1000));
+    if (on && start < 0) start = y;
+    if (!on && start >= 0) {
+      out.push([start, y - step]);
+      start = -1;
+    }
+  }
+  if (start >= 0) out.push([start, H]);
+  return out.filter(([a, b]) => b - a > 0.5);
+}
+
 export interface MapView {
   group: THREE.Group;
-  update(frame: ViewFrame | null, dt: number): void;
+  /** `lens`: the camera position (m), for the canopy cut over heroes near the tree line. */
+  update(frame: ViewFrame | null, dt: number, lens?: THREE.Vector3): void;
   setShadows(on: boolean): void;
+  /** Round 2: team 0 is the dogs: the plazas and base banners wear each side's species colours. */
+  setStyleSwap(on: boolean): void;
   dispose(): void;
 }
 
@@ -242,10 +276,12 @@ export function createMapView(): MapView {
   group.add(outer);
 
   // playfield
-  const tex = typeof document !== 'undefined' ? keep(paintGround()) : null;
+  let tex = typeof document !== 'undefined' ? paintGround() : null;
+  let texSwap = false;
   const groundGeo = keep(new THREE.PlaneGeometry(W, H));
   groundGeo.rotateX(-Math.PI / 2);
-  const ground = new THREE.Mesh(groundGeo, keep(new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex })));
+  const groundMat = keep(new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex }));
+  const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.position.set(W / 2, 0, -H / 2);
   ground.receiveShadow = true;
   ground.name = 'ground';
@@ -267,9 +303,9 @@ export function createMapView(): MapView {
 
   // scenery built into a few merged meshes (vertex colours, toon lit)
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
-  const addMerged = (b: ModelBuilder, name: string, cast = true): void => {
+  const addMerged = (b: ModelBuilder, name: string, cast = true, mat: THREE.Material = sceneryMat): void => {
     const g = keep(b.build());
-    const m = new THREE.Mesh(g, sceneryMat);
+    const m = new THREE.Mesh(g, mat);
     m.name = name;
     m.castShadow = cast;
     m.receiveShadow = true;
@@ -294,9 +330,13 @@ export function createMapView(): MapView {
       for (let i = 0; i < 6; i++) props.cyl(0.13, 0.13, 0.9, 0x8a5a3a, { at: [r0 - 1.2 + i * ((r1 - r0 + 2.4) / 5), 0.45, -(by + s * 3.5)] }, 6);
     }
   }
-  // base banners
+  addMerged(props, 'props');
+
+  // base banners: one mesh per style (round 2 swaps them when team 0 is the dogs)
+  const bannerMesh = (swap: boolean): THREE.Mesh => {
+  const props = new ModelBuilder();
   for (const team of [0, 1] as const) {
-    const t = TEAM[team];
+    const t = TEAM[(swap ? 1 - team : team) as 0 | 1];
     const bx = team === 0 ? CORE.x / 1000 : W - CORE.x / 1000;
     for (const [dx, dy] of [
       [-3, 9.5],
@@ -312,8 +352,14 @@ export function createMapView(): MapView {
       props.sphere(0.16, t.second, { at: [x, 4.3, z] }, 8);
     }
   }
-  addMerged(props, 'props');
+  addMerged(props, swap ? 'banners-swapped' : 'banners');
+  return group.children[group.children.length - 1] as THREE.Mesh;
+  };
+  const banners = bannerMesh(false);
+  const bannersSwapped = bannerMesh(true);
+  bannersSwapped.visible = false;
 
+  const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
   // Catnip Bushes
   const bush = new ModelBuilder();
   for (const b of BUSHES) {
@@ -322,20 +368,48 @@ export function createMapView(): MapView {
       const cym = b.y / 1000;
       const hw = b.w / 2000;
       const hh = b.h / 2000;
+      const leaves: [number, number, number, number][] = [];
       for (let i = 0; i < 16; i++) {
         const x = cxm + (rnd() * 2 - 1) * hw * 0.85;
         const y = cym + (rnd() * 2 - 1) * hh * 0.88;
         const r = 0.7 + rnd() * 0.45;
-        bush.sphere(r, i % 3 ? 0x4f9a5a : 0x5fb06a, { at: [x, 0.45 + rnd() * 0.25, -y], scale: [1, 0.85, 1] }, 9);
+        const h = 0.45 + rnd() * 0.25;
+        leaves.push([x, h, y, r]);
+        bush.sphere(r, i % 3 ? 0x4f9a5a : 0x5fb06a, { at: [x, h, -y], scale: [1, 0.85, 1] }, 9);
       }
+      // berries sit on the leaves (trailer review: placed anywhere in the box, some hovered in the air)
       for (let i = 0; i < 12; i++) {
-        const x = cxm + (rnd() * 2 - 1) * hw;
-        const y = cym + (rnd() * 2 - 1) * hh;
-        bush.sphere(0.12, 0xb98cff, { at: [x, 1.15 + rnd() * 0.2, -y] }, 6);
+        const [lx, lh, ly, lr] = leaves[(rnd() * leaves.length) | 0];
+        const a = rnd() * Math.PI * 2;
+        const el = 0.5 + rnd() * 0.6;
+        const k = lr * 0.98;
+        bush.sphere(0.12, 0xb98cff, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)] }, 6);
       }
     }
   }
-  addMerged(bush, 'bushes', false);
+  // a hero in a bush: the leaves round it are dithered half away (they poked through the body, trailer review)
+  const bushMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  bushMat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, forestU);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
+      .replace(
+        '#include <clipping_planes_fragment>',
+        `#include <clipping_planes_fragment>
+  float cut = 0.0;
+  for (int i = 0; i < ${CANOPY_CUT.slots}; i++) {
+    if (uSee[i].w < 0.5) continue;
+    cut = max(cut, 1.0 - smoothstep(${BUSH_CUT.inner.toFixed(2)}, ${BUSH_CUT.outer.toFixed(2)}, length(vFW.xz - uSee[i].xz)));
+  }
+  float th = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (cut * ${BUSH_CUT.strength.toFixed(2)} > th) discard;`,
+      );
+  };
+  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v1';
+  addMerged(bush, 'bushes', false, bushMat);
 
   // forest ring outside the playfield, plus a hedge on the edge
   const trees = new ModelBuilder();
@@ -378,7 +452,35 @@ export function createMapView(): MapView {
       tree(x, -y, 0.75 + rnd() * 0.6);
     }
   }
-  addMerged(trees, 'forest');
+  // trailer review: canopies between the lens and a hero (any hero, not only the player) are cut away with a dither,
+  // so a fight by the tree line is never hidden under the leaves (trunks below 1.2 m stay)
+  const forestMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  forestMat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, forestU);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec3 uLens;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
+      .replace(
+        '#include <clipping_planes_fragment>',
+        `#include <clipping_planes_fragment>
+  if (vFW.y > ${CANOPY_CUT.minY.toFixed(2)}) {
+    float cut = 0.0;
+    for (int i = 0; i < ${CANOPY_CUT.slots}; i++) {
+      if (uSee[i].w < 0.5) continue;
+      vec3 ab = uSee[i].xyz - uLens;
+      float t = clamp(dot(vFW - uLens, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
+      float d = length(vFW - (uLens + ab * t));
+      if (t < 0.98) cut = max(cut, 1.0 - smoothstep(${CANOPY_CUT.inner.toFixed(2)}, ${CANOPY_CUT.outer.toFixed(2)}, d));
+    }
+    float th = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    if (cut * ${CANOPY_CUT.strength.toFixed(2)} > th) discard;
+  }`,
+      );
+  };
+  forestMat.customProgramCacheKey = () => 'pl-forest-cut-v1';
+  addMerged(trees, 'forest', true, forestMat);
 
   const hedge = new ModelBuilder();
   const edgeBush = (x: number, y: number): void => {
@@ -394,44 +496,77 @@ export function createMapView(): MapView {
     edgeBush(W + 0.8, y);
   }
   // rocks dotted around the rat camps and the river banks
-  for (let i = 0; i < 26; i++) {
-    const flip = i % 2 === 0;
+  // trailer review: only where nobody can walk (units stood inside rocks on the camp paths: the sim has no decor collision)
+  for (let i = 0, placed = 0; i < 400 && placed < 26; i++) {
+    const flip = placed % 2 === 0;
     const a = rnd() * Math.PI * 2;
-    const d = 5.5 + rnd() * 1.5;
+    const d = 5.5 + rnd() * 2.5;
     const x0 = RAT_CAMP.x / 1000 + Math.cos(a) * d;
     const y0 = RAT_CAMP.y / 1000 + Math.sin(a) * d;
-    hedge.add(new THREE.DodecahedronGeometry(0.4 + rnd() * 0.4, 0), 0xb9b2a6, { at: [flip ? W - x0 : x0, 0.15, -y0], rot: [rnd(), rnd(), rnd()] });
+    const size = 0.4 + rnd() * 0.4;
+    const rot: [number, number, number] = [rnd(), rnd(), rnd()];
+    const x = flip ? W - x0 : x0;
+    if (!rockClear(x, y0, size + 0.6)) continue;
+    hedge.add(new THREE.DodecahedronGeometry(size, 0), 0xb9b2a6, { at: [x, 0.15, -y0], rot });
+    placed++;
   }
   addMerged(hedge, 'hedge', false);
 
-  // gate barriers (up for the first 10 s)
-  const gateMat = keep(
-    new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
-  );
-  const gateGeo = keep(new THREE.PlaneGeometry(H, 2.4));
+  // gate barriers (up until the gates open): a glowing line on the ground across the walkable part of each base
+  // exit. Trailer review: a full-height vertical plane spanning the whole map read as a thin yellow light stripe
+  // running top to bottom through the plaza (the gameplay camera sees it edge-on).
+  const gateMat = keep(new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false }));
   const gates: THREE.Mesh[] = [];
   for (const x of [MAP.barrierX / 1000, W - MAP.barrierX / 1000]) {
-    const m = new THREE.Mesh(gateGeo, gateMat);
-    m.rotation.y = Math.PI / 2;
-    m.position.set(x, 1.2, -H / 2);
-    gates.push(m);
-    group.add(m);
+    for (const [y0, y1] of gateSpans(x)) {
+      const geo = keep(new THREE.PlaneGeometry(0.7, y1 - y0));
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, gateMat);
+      m.name = 'gate-barrier';
+      m.position.set(x, 0.05, -(y0 + y1) / 2);
+      m.renderOrder = 2;
+      gates.push(m);
+      group.add(m);
+    }
   }
 
   let time = 0;
   return {
     group,
-    update(frame, dt) {
+    update(frame, dt, lens) {
       time += dt;
+      // the canopy cut: every live hero (up to CANOPY_CUT.slots) seen from the lens
+      const see = forestU.uSee.value;
+      let n = 0;
+      if (frame && lens) {
+        forestU.uLens.value.copy(lens);
+        for (const e of frame.entities) {
+          if (n >= see.length) break;
+          if (e.kind !== 'hero' || e.state === 'dead') continue;
+          see[n++].set(toX(e.fx), 1.0, toZ(e.fy), 1);
+        }
+      }
+      for (let i = n; i < see.length; i++) see[i].w = 0;
       riverU.uTime.value = time;
       const up = !frame || frame.latest.clock.phase === 'gate';
-      gateMat.opacity = up ? 0.28 + Math.sin(time * 4) * 0.08 : Math.max(0, gateMat.opacity - dt);
+      gateMat.opacity = up ? 0.5 + Math.sin(time * 4) * 0.12 : Math.max(0, gateMat.opacity - dt * 2);
       for (const g of gates) g.visible = gateMat.opacity > 0.01;
     },
     setShadows(on) {
       for (const m of shadowCasters) m.castShadow = on;
     },
+    setStyleSwap(on) {
+      banners.visible = !on;
+      bannersSwapped.visible = on;
+      if (on === texSwap || !tex) return;
+      texSwap = on;
+      tex.dispose();
+      tex = paintGround(on);
+      groundMat.map = tex;
+      groundMat.needsUpdate = true;
+    },
     dispose() {
+      tex?.dispose();
       for (const d of disposables) d.dispose();
     },
   };

@@ -45,4 +45,18 @@ export const FIXED = {
     keys: { cackE: 11022, lamboE: 11023, lamboLand: 11031, bengasR: 11031, lamboRw: 11035, clemR: 11036, bengasWw: 11043, lamboR: 11049, brutusR: 11051, bengasW: 11051, clemQ: 11084, cackR: 11094, ko: 11119, tower: 11137 },
     roles: { cacklejaw: 0, brutus: 1, cack2: 2, bengas: 3, clem: 4, lambo: 5, tower: 46 },
   },
+  // trailer v3: Sir Brutus's Champion's Challenge on three cats at the river (Clem's take, seed 5)
+  Y1: { seed: 5, hero: 'clem', keys: { clemE: 11689, bengasQ: 11711, cackE: 11715, brutusR: 11728 }, roles: { clem: 0, brutus: 3, cack: 4 } },
+  // trailer v3, from the clean-moment scan (heroes >= 0.8 m apart in frame, nobody behind a tower or core, both teams
+  // in frame, the cast hits): the rivalry pairs, the four champions, the 3v3 and the teamfight
+  Z1: { seed: 113, hero: 'lambo', keys: { cackR: 4954 }, roles: { cack: 3 } },
+  Z2: { seed: 91, hero: 'clem', keys: { clemR: 11197 }, roles: { clem: 0 } },
+  Z3: { seed: 121, hero: 'sage', keys: { sageR: 2862 }, roles: { sage: 0 } },
+  Z4: { seed: 237, hero: 'bengas', keys: { brutusR: 7221 }, roles: { brutus: 4 } },
+  Z5: { seed: 221, hero: 'lambo', keys: { avieteR: 4812 }, roles: { aviete: 1 } },
+  Z6: { seed: 90, hero: 'bengas', keys: { bengasR: 9019 }, roles: { bengas: 0 } },
+  Z7: { seed: 46, hero: 'lambo', keys: { gabeR: 4730 }, roles: { gabe: 1 } },
+  Z8: { seed: 234, hero: 'clem', keys: { lamboR: 8899 }, roles: { lambo: 2 } },
+  Z9: { seed: 46, hero: 'sage', keys: { brutusW: 10707, gabeQ: 10716, cackE: 10726 }, roles: { sage: 0 } },
+  Z10: { seed: 77, hero: 'clem', keys: { clemE: 13045, gabeR: 13051 }, roles: { clem: 0 } },
 };

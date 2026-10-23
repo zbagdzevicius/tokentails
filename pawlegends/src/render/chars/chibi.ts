@@ -33,6 +33,8 @@ export const shade = (c: number | string, k: number): RGB => mix(C(c), [0, 0, 0]
  * patches, never on the muzzle or bib).
  */
 export interface CoatSpec {
+  /** Spots only: a lower noise frequency for big, crisp spots (SPOT_FREQ); the default 9x read as smears. */
+  spotFreq?: number;
   pattern: 'solid' | 'tabby' | 'points' | 'spots' | 'tuxedo' | 'calico';
   base: number | string;
   deep: number | string;
@@ -102,6 +104,12 @@ export type Region = 'head' | 'cheek' | 'muzzle' | 'bib' | 'body' | 'leg' | 'paw
 
 const _d3 = (p: THREE.Vector3, a: readonly number[]): number => Math.hypot(p.x - a[0], p.y - a[1], p.z - a[2]);
 
+/**
+ * Spot noise frequency (per region-space metre). The coat is vertex coloured: the fine 9x noise with a hard edge,
+ * sampled at sparse vertices, read as smeared, blurry black blotches (trailer review, Avietė).
+ */
+export const SPOT_FREQ = 5;
+
 /** PPK `Fur.coatColor` subset (linear rgb). `p` is in the region's space (head space for head parts). */
 export function coatColor(coat: CoatSpec, region: Region, p: THREE.Vector3, o: { t?: number; under?: number } = {}): RGB {
   const base = C(coat.base);
@@ -121,7 +129,12 @@ export function coatColor(coat: CoatSpec, region: Region, p: THREE.Vector3, o: {
     else if (region === 'body' || region === 'leg') c = mix(c, deep, stripe(p.y * 60 + n * 3) * 0.9);
     else if (region === 'ear') c = mix(c, deep, 0.15);
   } else if (coat.pattern === 'spots') {
-    if (region !== 'muzzle' && region !== 'bib' && n > 0.53) c = mix(c, deep, smooth(0.535, 0.55, n) * 0.95);
+    if (coat.spotFreq) {
+      // big spots at a low frequency (Avietė): resolved by the vertices instead of smeared between them
+      const f = coat.spotFreq;
+      const ns = fbm3(p.x * f + 3.1, p.y * f + 1.7, p.z * f + 5.3, 2) as number;
+      if (region !== 'muzzle' && region !== 'bib' && ns > 0.55) c = mix(c, deep, smooth(0.55, 0.6, ns) * 0.95);
+    } else if (region !== 'muzzle' && region !== 'bib' && n > 0.53) c = mix(c, deep, smooth(0.535, 0.55, n) * 0.95);
   } else if (coat.pattern === 'points') {
     if (region === 'ear' || region === 'paw') c = mix(c, deep, 0.85);
     else if (region === 'tail') c = mix(c, deep, smooth(0.15, 0.6, o.t ?? 0) * 0.9);

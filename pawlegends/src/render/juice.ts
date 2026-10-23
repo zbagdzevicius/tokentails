@@ -9,6 +9,9 @@ import type { Stage } from '../ui/stage';
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 /** Round 1: a queued ordinary banner older than this is dropped (a "First Blood!" after five knockouts is stale). */
 export const BANNER_STALE_MS = 3000;
+/** XP pops this close together (ms) merge into one sum. */
+export const XP_MERGE_MS = 900;
+
 /** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
 export const SLOWMO_CAP_MS = 110;
 
@@ -39,6 +42,8 @@ export class Juice {
   private popLayer: HTMLElement | null = null;
   private flashEl: HTMLElement | null = null;
   private popTimes: number[] = [];
+  /** The last pop per replace group (combo, xp) and, for XP, its running sum. */
+  private readonly groups = new Map<string, { el: HTMLElement; at: number; n: number }>();
   /** Callouts and pops shown (e2e telemetry and tests). */
   readonly said: string[] = [];
   /** The centre-screen arbiter (ui/stage.ts); null in tests and the lobby. */
@@ -166,6 +171,39 @@ export class Juice {
     el.style.top = `${Math.round(y - k * 26)}px`;
     layer.appendChild(el);
     setTimeout(() => el.remove(), 1200);
+  }
+
+  /**
+   * A pop that replaces the last one of its `group` still on screen (trailer review: "Combo x3" drew over "Combo x4").
+   * Returns the element (null without a layer).
+   */
+  popReplace(group: string, text: string, x: number, y: number, tone: Banner['tone'] = 'gold', big = false): HTMLElement | null {
+    const prev = this.groups.get(group);
+    if (prev?.el.isConnected) {
+      prev.el.remove();
+      // its slot in the stacking window goes with it
+      const i = this.popTimes.indexOf(prev.at);
+      if (i >= 0) this.popTimes.splice(i, 1);
+    }
+    this.pop(text, x, y, tone, big);
+    const el = (this.popLayer?.lastElementChild as HTMLElement | null) ?? null;
+    if (el) this.groups.set(group, { el, at: this.popTimes[this.popTimes.length - 1] ?? 0, n: 0 });
+    return el;
+  }
+
+  /** "+n XP": XP gained within XP_MERGE_MS of the last XP pop adds to it ("+81 XP", not three stacked pops). */
+  popXp(n: number, x: number, y: number): void {
+    const prev = this.groups.get('xp');
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (prev?.el.isConnected && now - prev.at < XP_MERGE_MS) {
+      prev.n += n;
+      prev.el.textContent = `+${prev.n} XP`;
+      this.remember(prev.el.textContent);
+      return;
+    }
+    const el = this.popReplace('xp', `+${n} XP`, x, y, 'gold');
+    const g = this.groups.get('xp');
+    if (el && g) g.n = n;
   }
 
   /** A full-screen rim flash: white (Nine Lives), gold (level up, a multikill), red (low health). */

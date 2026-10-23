@@ -35,6 +35,8 @@ const ONLY = (argValue('--only') ?? '').split(',').filter(Boolean);
 const ASPECT = argValue('--aspect') ?? 'both';
 const EVERY = Number(argValue('--every') ?? 1);
 const PROBE_ONLY = hasFlag('--probe');
+/** `--debug`: print the harness debug() state after every frame (structures' render state). */
+const DEBUG = hasFlag('--debug');
 /** `--pick f,x,y`: debug, list what the lens sees at screen fraction (x, y) after frame f. */
 const PICK = argValue('--pick') ? argValue('--pick').split(',').map(Number) : null;
 // `--shots-file`: another shot list module (look-dev variants); same exports as shots.mjs
@@ -69,7 +71,10 @@ function specFor(shot, aspect) {
   const take = shot.take ? TAKES[shot.take] : null;
   if (shot.take && !take) throw new Error(`${shot.id}: take ${shot.take} missing from takes.json (run seed-search.mjs)`);
   const p = portrait ? (shot.portrait ?? {}) : {};
-  const [w, h] = [p.width ?? SIZES[aspect][0], p.height ?? SIZES[aspect][1]];
+  // v3: a landscape shot may set its CSS size and DPR (`size: [1280, 720], dpr: 1.5`: the HUD as big as a player sees it)
+  const [w, h] = portrait ? [p.width ?? SIZES[aspect][0], p.height ?? SIZES[aspect][1]] : (shot.size ?? SIZES[aspect]);
+  // v3: `portrait.cam` replaces the whole camera in 9:16 (the game is not played in portrait: a director preset there)
+  const cs = portrait && p.cam !== undefined ? p.cam : shot.cam;
   return {
     id: shot.id,
     mode: shot.lobby ? 'lobby' : 'match',
@@ -82,13 +87,21 @@ function specFor(shot, aspect) {
     f1: p.f1 ?? shot.f1,
     preroll: shot.preroll ?? 90,
     take: take ? { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, script: take.script ?? [], look: shot.look ?? null, check: take.check } : null,
-    cam: shot.cam ? { target: mapTarget(p.target ?? shot.cam.target, take), keys: portrait ? portraitKeys(shot) : shot.cam.keys, smooth: shot.cam.smooth, ...((p.align ?? shot.cam.align) ? { align: { a: ref((p.align ?? shot.cam.align).a, take), b: ref((p.align ?? shot.cam.align).b, take) } } : {}) } : null,
+    cam: cs ? { target: mapTarget(p.target ?? cs.target, take), keys: portrait && p.cam === undefined ? portraitKeys(shot) : cs.keys, smooth: cs.smooth, ...(cs.base ? { base: cs.base } : {}), ...(cs.off ? { off: cs.off } : {}), ...((p.align ?? cs.align) ? { align: { a: ref((p.align ?? cs.align).a, take), b: ref((p.align ?? cs.align).b, take) } } : {}) } : null,
     ramp: shot.ramp ?? [],
     layers: shot.layers ?? ['pops'],
     hide: shot.hide ?? [],
     wheel: shot.wheel ?? null,
     touch: !!p.touch,
-    dpr: p.dpr ?? 1,
+    dpr: portrait ? (p.dpr ?? 1) : (shot.dpr ?? 1),
+    gameLook: !!(p.gameLook ?? shot.gameLook),
+    // v3.1: screen text in output time, hero names on plates, the off-screen "You" arrow only when the camera is the
+    // player's own, the banner only inside `bannerOn` windows
+    uiOut: !!(p.uiOut ?? shot.uiOut ?? (p.gameLook ?? shot.gameLook)),
+    heroNames: !!(p.heroNames ?? shot.heroNames ?? (p.gameLook ?? shot.gameLook)),
+    selfEdge: p.selfEdge ?? shot.selfEdge ?? (!portrait && cs?.base === 'game'),
+    bannerOn: p.bannerOn ?? shot.bannerOn ?? null,
+    uiFade: p.uiFade ?? shot.uiFade ?? null,
     popText: p.popText ?? shot.popText ?? null,
     dmgRadius: p.dmgRadius ?? shot.dmgRadius ?? null,
     realFlash: shot.realFlash ?? true,
@@ -97,7 +110,7 @@ function specFor(shot, aspect) {
     near: p.near ?? shot.near ?? null,
     wheelScale: p.wheelScale ?? shot.wheelScale ?? null,
     // v3: every director shot hides a structure in front of its subject unless the shot says `xray: false`
-    xray: (p.xray ?? shot.xray) !== false && !!shot.cam,
+    xray: (p.xray ?? shot.xray) !== false && !!cs,
     flashCap: shot.flashCap ?? 2,
     flashMax: shot.flashMax ?? 0.06,
     cullMinions: p.cullMinions ?? shot.cullMinions ?? null,
@@ -251,6 +264,9 @@ async function solveTiming(shot, spec) {
   return { anchorTick: K, log };
 }
 
+/** Overlap QC: hero bodies may overlap on screen for at most this many frames in a row. */
+const OVERLAP_FRAMES = 2;
+
 /** Sub-frames per WHIP frame (half of them, a 180° shutter, are averaged: a continuous smear, not ghost copies). */
 const SUBS = 32;
 
@@ -289,12 +305,18 @@ async function capture(shot, aspect) {
   let saved = 0;
   let info = null;
   let hash = null;
+  const overlaps = [];
+  const inStruct = [];
+  const edgeText = [];
   for (const pass of passes) {
     if (pass.card !== undefined) spec.take = { ...spec.take, look: pass.card };
     const r = await capturePass(shot, spec, aspect, pass, dirs, keyTicks);
     saved += r.saved;
     info = r.info;
     hash = r.hash;
+    overlaps.push(...r.overlaps);
+    inStruct.push(...r.inStruct);
+    edgeText.push(...r.edgeText);
   }
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   console.error(`  ${shot.id} ${aspect}: ${saved} frames${timing ? `, start tick ${spec.startTick.toFixed(2)}, anchor ${timing.anchorTick} (${JSON.stringify(timing.log.at(-1))})` : ''}${hash ? `, hash ${hash.ok ? 'ok' : `MISMATCH ${hash.browser} vs ${hash.node}`}` : ''} (${secs} s)`);
@@ -311,6 +333,10 @@ async function capture(shot, aspect) {
     timing,
     hash,
     said: info?.said ?? null,
+    /** Overlap QC: frame runs where hero bodies overlapped on screen (empty = pass). */
+    overlaps,
+    inStruct,
+    edgeText,
     firstTick: keyTicks[shot.f0] ?? null,
     lastTick: keyTicks[spec.f1] ?? null,
     /** The render tick after each (non-blurred) frame: where every frame sits in the take. */
@@ -322,6 +348,11 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   const { page, ctx } = await openPage(spec);
   const blurs = blurRanges(shot);
   let saved = 0;
+  /** Runs [from, to] of frames with overlapping hero bodies (longer than OVERLAP_FRAMES). */
+  const overlaps = [];
+  let overlapRun = null;
+  /** v3.1 per-frame QC (harness FrameQc), written next to the frames as qc.json. */
+  const qcFrames = {};
   for (let f = spec.f0; f <= spec.f1; f++) {
     const dir = join(OUT, partOf(shot, f), aspect);
     if (!dirs.has(dir) && f >= pass.a) {
@@ -345,6 +376,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       let snapAt = 0;
       for (let k = 0; k < SUBS; k++) {
         const r = await page.evaluate(({ f, k, n }) => window.__trailer.frame(f, k, n), { f, k, n: SUBS });
+        if (k === 0 && r.qc && f >= shot.f0) qcFrames[f] = { ...r.qc, move: +r.move.toFixed(3) };
         if (k > 0 && k < open && r.move > 0.25) snapAt = k;
         if (k < open && save) {
           const sf = join(dir, `.sub-${f}-${k}.png`);
@@ -362,15 +394,44 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       }
     } else {
       const r = await page.evaluate((f) => window.__trailer.frame(f), f);
+      if (DEBUG) console.log(`[debug ${shot.id} f${f} t${r.tick.toFixed(1)}]`, JSON.stringify(await page.evaluate(() => window.__trailer.debug())));
       if (save) await page.screenshot({ path: file, type: 'png' });
       if (f >= shot.f0) keyTicks[f] = r.tick;
+      if (r.qc && f >= shot.f0) qcFrames[f] = { ...r.qc, move: +r.move.toFixed(3) };
+      // overlap QC: hero bodies overlapping on screen for more than OVERLAP_FRAMES frames in a row fail the take
+      if (f >= shot.f0 && r.overlap > 0) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
+      else if (overlapRun) {
+        if (overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
+        overlapRun = null;
+      }
     }
     if (save) saved++;
   }
+  if (overlapRun && overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
+  if (overlaps.length) console.error(`  ${shot.id} ${aspect}: OVERLAP QC FAIL, hero bodies overlap on f${overlaps.map(([a, b]) => `${a}-${b}`).join(', f')}`);
+  // v3.1 gates on the per-frame QC: a hero inside a structure, game text at the frame edge (more than 2 frames running)
+  const runsOf = (pred) => {
+    const out = [];
+    let run = null;
+    for (let f = shot.f0; f <= spec.f1 + 1; f++) {
+      const q = qcFrames[f];
+      if (q && pred(q)) run = run ? [run[0], f] : [f, f];
+      else if (run) {
+        if (run[1] - run[0] + 1 > OVERLAP_FRAMES) out.push(run);
+        run = null;
+      }
+    }
+    return out;
+  };
+  const inStruct = runsOf((q) => q.inStruct > 0);
+  const edgeText = runsOf((q) => q.edgeText > 0);
+  if (inStruct.length) console.error(`  ${shot.id} ${aspect}: STRUCTURE QC FAIL, a hero inside a structure on f${inStruct.map(([a, b]) => `${a}-${b}`).join(', f')}`);
+  if (edgeText.length) console.error(`  ${shot.id} ${aspect}: EDGE TEXT QC FAIL, game text at the frame edge on f${edgeText.map(([a, b]) => `${a}-${b}`).join(', f')}`);
+  if (Object.keys(qcFrames).length) writeFileSync(join(OUT, shot.id, aspect, 'qc.json'), `${JSON.stringify(qcFrames)}\n`);
   const info = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.info()) : null;
   const hash = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.verify()) : null;
   await ctx.close();
-  return { saved, info, hash };
+  return { saved, info, hash, overlaps, inStruct, edgeText };
 }
 
 mkdirSync(OUT, { recursive: true });

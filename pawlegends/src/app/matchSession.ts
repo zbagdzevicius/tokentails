@@ -326,6 +326,8 @@ export class MatchSession {
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
     this.view.peek = (h, out) => this.buffer.peekEvents(h, out);
     this.overhead = new Overhead(this.ui);
+    // plates over the drawn bodies (the view pushes overlapping heroes apart, render only)
+    this.overhead.heroAt = (id) => this.view.heroes.rigOf(id)?.ch.object.position ?? null;
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),
@@ -914,7 +916,9 @@ export class MatchSession {
     el.className = 'pl-count';
     el.setAttribute('aria-live', 'polite');
     this.ui.appendChild(el);
-    const steps = ['3', '2', '1', 'Go!'];
+    // the sim starts on the last step, but the gates hold every hero for 3 s more: "Go!" waits for the barrier
+    // (frame(): the gate -> play change), so it never says go under "Gates open in 0:03"
+    const steps = ['3', '2', '1', 'Ready!'];
     let i = 0;
     const next = (): void => {
       if (this.disposed) return;
@@ -934,6 +938,18 @@ export class MatchSession {
       setTimeout(next, (i === steps.length ? 600 : 700) / speed);
     };
     requestAnimationFrame(() => requestAnimationFrame(() => next()));
+  }
+
+  /** "Go!" as the gate barrier drops (the countdown's own style). */
+  private goFlash(): void {
+    if (this.disposed) return;
+    const el = document.createElement('div');
+    el.className = 'pl-count on';
+    el.setAttribute('aria-live', 'polite');
+    el.textContent = 'Go!';
+    this.ui.appendChild(el);
+    this.view.juice.note('Go!');
+    setTimeout(() => el.remove(), 700);
   }
 
   private openMenu(): void {
@@ -1174,7 +1190,9 @@ export class MatchSession {
       else if (m.size === 'callout') j.callout(m.title, m.tone);
       else {
         const at = this.heroScreen();
-        if (at) j.pop(m.title, at.x, at.y - 10, m.tone, m.key.startsWith('combo') || m.key.startsWith('pickup'));
+        // a new combo step replaces the last one on screen (never "Combo x3" over "Combo x4")
+        if (at && m.key.startsWith('combo')) j.popReplace('combo', m.title, at.x, at.y - 10, m.tone, true);
+        else if (at) j.pop(m.title, at.x, at.y - 10, m.tone, m.key.startsWith('pickup'));
       }
       if (m.slowmo) j.slowmo(m.slowmo.ms, m.slowmo.scale);
       if (m.shake) j.kick(m.shake);
@@ -1352,6 +1370,7 @@ export class MatchSession {
     const scale = this.view.juice.timeScale(dt);
     const frame = this.paused ? this.buffer.sample(this.buffer.renderTick) : this.buffer.advance(dt, scale);
     this.frameNow = frame;
+    if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play') this.goFlash();
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.units.length = 0;
@@ -1424,7 +1443,7 @@ export class MatchSession {
       this.overhead.guide = this.laneArrow ?? (this.goals.enabled ? this.goalTarget(frame) : this.guideTarget(frame));
       for (const n of this.xpPops.flush(frame.tick)) {
         const at = this.heroScreen();
-        if (at) this.view.juice.pop(`+${n} XP`, at.x + (Math.random() - 0.5) * 40, at.y - 24, 'gold');
+        if (at) this.view.juice.popXp(n, at.x + (Math.random() - 0.5) * 40, at.y - 24);
       }
       if (!this.ended && !this.paused) this.musicTick(frame);
       this.bodyTick(frame, dt);
@@ -1482,7 +1501,7 @@ export class MatchSession {
           lvN++;
         }
       }
-      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0);
+      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle);
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock);
       this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;

@@ -24,6 +24,11 @@ export function trailerLines(copy) {
     ['L2', `${c.L2a} ${c.L2b}`],
     ['END', `${c.LOGOa}${c.LOGOb} · ${c.CTA} · ${c.SUB} · ${c.URL} · ${c.CREDIT}`],
   );
+  // v3: the split call to pick a side, read as one line
+  if (c.M5a) lines.push(['M5', `${c.M5a} ${c.M5b} ${c.M5c}`]);
+  // v3.1: TAKE THEIR / CORE. on two lines in 9:16, and the three mission beats read in order
+  if (c.M3v1) lines.push(['M3v', `${c.M3v1} ${c.M3v2}`]);
+  if (c.M1 && c.M2 && c.M3) lines.push(['MISSION', `${c.M1} ${c.M2} ${c.M3}`]);
   return lines;
 }
 

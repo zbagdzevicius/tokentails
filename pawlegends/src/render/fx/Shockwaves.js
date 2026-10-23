@@ -29,6 +29,9 @@ export function shockAlpha(t, dur, tail = 0.18) {
   return Math.max(0, 1 - (t - dur) / Math.max(0.01, tail));
 }
 
+/** Peak additive intensity of a shockwave wall (pawlegends: 1.6 and up washed bright ground to white). */
+export const SHOCK_MAX_INTENSITY = 0.85;
+
 /** Normalise shockwave options (pure). Speed (m/s) wins over dur when both are given. */
 export function normalizeShock(o = {}) {
   const r1 = Math.max(0.3, +o.r1 || +o.r || 2.5);
@@ -36,7 +39,9 @@ export function normalizeShock(o = {}) {
   let dur = Number.isFinite(+o.dur) && o.dur > 0 ? +o.dur : 0.4;
   if (Number.isFinite(+o.speed) && o.speed > 0) dur = (r1 - r0) / o.speed;
   const height = Math.max(0.05, Number.isFinite(+o.height) && o.height > 0 ? +o.height : 0.3);
-  return { r0, r1, dur, height, color: o.color ?? '#FF5A36', intensity: o.intensity ?? 1.6, dust: o.dust !== false, tail: o.tail ?? 0.18 };
+  // pawlegends (trailer review): capped, so an additive wall never blows the pale plaza or the river out to white
+  const intensity = Math.min(SHOCK_MAX_INTENSITY, Number.isFinite(+o.intensity) ? +o.intensity : 1.6);
+  return { r0, r1, dur, height, color: o.color ?? '#FF5A36', intensity, dust: o.dust !== false, tail: o.tail ?? 0.18 };
 }
 
 const SEG = 72;

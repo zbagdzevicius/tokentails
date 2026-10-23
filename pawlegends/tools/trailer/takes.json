@@ -1368,6 +1368,377 @@
    "simVersion": 10,
    "length": 13951,
    "note": "E (seed 5) late: the underdog waves start (comeback 13440) at the cat base; check at 13740"
+  },
+  "Y1": {
+   "id": "Y1",
+   "seed": 5,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "clemE": 11689,
+    "bengasQ": 11711,
+    "cackE": 11715,
+    "brutusR": 11728
+   },
+   "roles": {
+    "clem": 0,
+    "brutus": 3,
+    "cack": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 12028,
+    "eventHash": "49a942df",
+    "stateHash": "39a772d0"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z1": {
+   "id": "Z1",
+   "seed": 113,
+   "hero": "lambo",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "lambo",
+    "bengas",
+    "aviete",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "cackR": 4954
+   },
+   "roles": {
+    "cack": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 5254,
+    "eventHash": "e65db1c8",
+    "stateHash": "3046254d"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z2": {
+   "id": "Z2",
+   "seed": 91,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "bengas",
+    "lambo",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "clemR": 11197
+   },
+   "roles": {
+    "clem": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 11497,
+    "eventHash": "e4f4ff11",
+    "stateHash": "a5b071c0"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z3": {
+   "id": "Z3",
+   "seed": 121,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "aviete",
+    "gabe",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "sageR": 2862
+   },
+   "roles": {
+    "sage": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 3162,
+    "eventHash": "3f3fa398",
+    "stateHash": "a72142ee"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z4": {
+   "id": "Z4",
+   "seed": 237,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "lambo",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "brutusR": 7221
+   },
+   "roles": {
+    "brutus": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 7521,
+    "eventHash": "8714f54c",
+    "stateHash": "51b46549"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z5": {
+   "id": "Z5",
+   "seed": 221,
+   "hero": "lambo",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "lambo",
+    "aviete",
+    "sage",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "avieteR": 4812
+   },
+   "roles": {
+    "aviete": 1
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 5112,
+    "eventHash": "36d65914",
+    "stateHash": "999cbc6d"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z6": {
+   "id": "Z6",
+   "seed": 90,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "gabe",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "bengasR": 9019
+   },
+   "roles": {
+    "bengas": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 9319,
+    "eventHash": "b8012714",
+    "stateHash": "39bee912"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z7": {
+   "id": "Z7",
+   "seed": 46,
+   "hero": "lambo",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "lambo",
+    "gabe",
+    "sage",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "gabeR": 4730
+   },
+   "roles": {
+    "gabe": 1
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 5030,
+    "eventHash": "6d26faaa",
+    "stateHash": "0f07d062"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z8": {
+   "id": "Z8",
+   "seed": 234,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "bengas",
+    "lambo",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "lamboR": 8899
+   },
+   "roles": {
+    "lambo": 2
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 8973,
+    "eventHash": "dc4adc47",
+    "stateHash": "adffb978"
+   },
+   "simVersion": 10,
+   "length": 8973
+  },
+  "Z9": {
+   "id": "Z9",
+   "seed": 46,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "gabe",
+    "lambo",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "brutusW": 10707,
+    "gabeQ": 10716,
+    "cackE": 10726
+   },
+   "roles": {
+    "sage": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 11026,
+    "eventHash": "643ef7a7",
+    "stateHash": "6a8ee910"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "Z10": {
+   "id": "Z10",
+   "seed": 77,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "sage",
+    "gabe",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "clemE": 13045,
+    "gabeR": 13051
+   },
+   "roles": {
+    "clem": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 13351,
+    "eventHash": "0fbcb0b9",
+    "stateHash": "041c467e"
+   },
+   "simVersion": 10,
+   "length": null
   }
  }
 }

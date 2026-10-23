@@ -95,6 +95,16 @@ export function phaseLine(clock: Pick<MatchClock, 'phase' | 'nextPhaseIn'>): str
   return `${next} in ${fmtClock(Math.ceil(clock.nextPhaseIn / 30))}`;
 }
 
+/**
+ * The timer's phase line unless the objective chip already counts down to the same phase (trailer review: "Gates open
+ * in 0:03" printed twice, once under the timer over the score box). Pure.
+ */
+export function phaseLineShown(line: string, chipTitle: string | null | undefined): string {
+  if (!line || !chipTitle) return line;
+  const what = (t: string): string => t.split(' in ')[0].trim().toLowerCase();
+  return what(line) === what(chipTitle) ? '' : line;
+}
+
 /** A kill-feed name and whose side it is on. */
 export interface FeedName {
   name: string;
@@ -355,9 +365,9 @@ export class Hud {
     if (t) this.set('charge', t, c.state === 'lockout' ? String(c.secs) : '');
   }
 
-  update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number, enemyAvg = 0): void {
+  update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number, enemyAvg = 0, chipTitle: string | null = null): void {
     this.set('clock', this.clock, fmtClock(clock.seconds));
-    this.set('phase', this.phase, phaseLine(clock));
+    this.set('phase', this.phase, phaseLineShown(phaseLine(clock), chipTitle));
     this.root.dataset.phase = clock.phase;
     // own team on the left
     const a = myTeam === 0 ? 0 : 1;

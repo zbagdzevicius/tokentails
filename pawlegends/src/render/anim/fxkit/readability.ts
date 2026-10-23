@@ -25,7 +25,14 @@ export interface TeleWho {
  * Rim colours: own gold, ally the team rose, enemy danger red. (The spec's "blue" ally rim would read as the enemy:
  * this game's one relation encoding has the enemy in blue, render/palette.ts RELATION.)
  */
-export const RIM: Readonly<Record<Relation3, number>> = Object.freeze({ own: RELATION.self, ally: RELATION.ally, enemy: RELATION.danger });
+export const RIM: Readonly<Record<Relation3, number>> = Object.freeze({
+  own: RELATION.self,
+  // read live: the ally hue follows the side swap (palette.ts setSideSwap)
+  get ally(): number {
+    return RELATION.ally;
+  },
+  enemy: RELATION.danger,
+});
 
 /**
  * Pack up to TELE_SLOTS enemy windups as dim circles (x, z, radius, on). A windup's circle covers the caster and its

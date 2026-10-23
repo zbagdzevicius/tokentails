@@ -126,6 +126,13 @@ export class Overhead {
   catName: string | null = null;
   /** A Legendary card skin: an element gem beside the own name (CSS colour, null = none). */
   plateGem: string | null = null;
+  /**
+   * Where a hero is drawn (m), when the view moves bodies apart (render only): plates sit over the drawn body, not the
+   * sim point (trailer review: bodies pushed apart still had their plates stacked on one spot). Null = the sim point.
+   */
+  heroAt: ((id: number) => { x: number; z: number } | null) | null = null;
+  /** Draw the player's off-screen edge arrow (the trailer harness turns it off on shots that do not follow the player). */
+  selfEdge = true;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
@@ -257,7 +264,9 @@ export class Overhead {
     for (const e of frame.entities) {
       if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
       const lift = LIFT[e.kind] * (e.kind === 'hero' ? heroScale(e) : 1);
-      v.set(e.fx / 1000, lift, -e.fy / 1000).project(camera);
+      const drawn = e.kind === 'hero' && this.heroAt ? this.heroAt(e.id) : null;
+      if (drawn) v.set(drawn.x, lift, drawn.z).project(camera);
+      else v.set(e.fx / 1000, lift, -e.fy / 1000).project(camera);
       if (v.z > 1 || v.z < -1) continue;
       const sx = (v.x * 0.5 + 0.5) * this.w;
       const sy = (-v.y * 0.5 + 0.5) * this.h;
@@ -300,7 +309,7 @@ export class Overhead {
       if (fade) g.globalAlpha = 1;
     }
     this.drawEdge(g, frame, edge);
-    if (this.selfOff) this.drawSelfEdge(g);
+    if (this.selfOff && this.selfEdge) this.drawSelfEdge(g);
   }
 
   /**
@@ -525,9 +534,12 @@ export class Overhead {
         continue;
       }
       const p0 = this.v.set(s.fx / 1000, s.kind === 'core' ? 4.5 : 5.6, -s.fy / 1000).project(camera);
+      const z0 = p0.z;
       const x0 = (p0.x * 0.5 + 0.5) * this.w;
       const y0 = (-p0.y * 0.5 + 0.5) * this.h;
       const p1 = this.v.set(d.fx / 1000, 0.9 * (d.hero ? heroScale(d) : 1), -d.fy / 1000).project(camera);
+      // a point behind the lens projects mirrored: the beam crossed the whole screen (trailer review)
+      if (z0 > 1 || z0 < -1 || p1.z > 1 || p1.z < -1) continue;
       const x1 = (p1.x * 0.5 + 0.5) * this.w;
       const y1 = (-p1.y * 0.5 + 0.5) * this.h;
       const k = 1 - Math.max(0, l.t) / l.total;

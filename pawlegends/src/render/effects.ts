@@ -15,7 +15,7 @@ import { DamageNumbers } from './fx/DamageNumbers.js';
 import { FADE, GROW, SHAPE, type Particles } from './fx/Particles.js';
 import type { Shockwaves } from './fx/Shockwaves.js';
 import type { Juice } from './juice';
-import { RELATION, TEAM } from './palette';
+import { RELATION, TEAM, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
@@ -92,6 +92,11 @@ export interface EffectsHooks {
   onStructureWindup?(id: number, seconds: number): void;
   /** A tower or core fell: its fall animation (render only). */
   onStructureFell?(id: number): void;
+  /**
+   * Is a minion at (x, z) m not drawn (inside a bursting or fallen core's clear zone)? Its damage numbers are not
+   * shown either (trailer review: numbers floated over the empty burst).
+   */
+  hiddenMinionAt?(x: number, z: number): boolean;
   /**
    * Wave C (C4): what a hero's card skin adds (render/skins/cardFx.ts), or null (Common, no card, or the Skin effects
    * setting hides it). Cosmetic only: colours and accents, never a size, a stat or anything the sim reads.
@@ -284,6 +289,7 @@ export class Effects {
     }
     // numbers: what I deal and what I take. On a hero they spawn ABOVE the nameplate with a little sideways jitter
     // (on the body they hid the model in teamfights); repeat hits merge into one counter per target (DamageNumbers).
+    if (dst.kind === 'minion' && this.hooks.hiddenMinionAt?.(dst.x, dst.z)) return;
     const npos = heroDst && dst.hero ? _np.set(dst.x + (Math.random() - 0.5) * 0.7, HERO_TOP[dst.hero] + 1.0, dst.z + (Math.random() - 0.5) * 0.7) : pos;
     if (e.src === me) {
       this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
@@ -347,7 +353,7 @@ export class Effects {
     const tz = -e.y / 1000;
     let yaw = Math.atan2(-(tz - src.z), tx - src.x);
     if (!Number.isFinite(yaw) || (Math.abs(tx - src.x) < 0.01 && Math.abs(tz - src.z) < 0.01)) yaw = src.yaw;
-    const team = src.team === 1 ? TEAM[1] : TEAM[0];
+    const team = TEAM[dressTeam(src.team)];
     const mine = e.src === this.hooks.mySlot;
     const accent = src.hero ? heroAccent(src.hero, mine) : team.main;
     const ult = e.slot === 3;
@@ -604,15 +610,20 @@ export class Effects {
   /** A tower or core falls: the shake, the core's slow motion and camera push, shockwave rings, shards, stars, dust. */
   private structureFell(v: Who, what: 'tower' | 'core'): void {
     this.hooks.onStructureFell?.(v.id);
+    // its damage numbers fade now (they hung frozen over the falling core, trailer review)
+    this.numbers.dropKey(v.id);
+    if (what === 'core') this.numbers.dropNear(v.x, v.z, 3.5);
     sfx.play('boom');
     this.juice.kick(what === 'core' ? 0.7 : 0.45);
     if (what === 'core') {
       this.juice.slowmo(1200, 0.25, true);
       this.hooks.onCoreDown?.(v);
     }
-    for (let i = 0; i < 3; i++) this.shock.start(this.at(v, 0), { r1: 4 + i * 2.5, dur: 0.4 + i * 0.15, color: i === 0 ? '#FFD34D' : '#FFE0C8', height: 0.6 });
+    // one ring at the crack; the fall's own impact (towerView onImpact) adds the big one (trailer review: three rings
+    // here plus the burst's made four thick white rings over the pale plaza)
+    this.shock.start(this.at(v, 0), { r1: 4, dur: 0.4, color: '#FFD34D', height: 0.6 });
     this.particles.burst(this.at(v, 2.5), { n: 40, shape: SHAPE.SHARD, color: 0xc9b8a8, tint: 0.2, size: [0.15, 0.35], life: [0.8, 1.3], speed: [4, 9], up: 5, gravity: 14, spin: 10, floor: true, fade: FADE.HOLD });
-    this.particles.burst(this.at(v, 2.5), { additive: true, n: 30, shape: SHAPE.STAR5, color: TEAM[v.team === 1 ? 1 : 0].main, intensity: 2, size: [0.25, 0.45], life: [0.6, 1], speed: [3, 7], up: 4, gravity: 6 });
+    this.particles.burst(this.at(v, 2.5), { additive: true, n: 30, shape: SHAPE.STAR5, color: TEAM[dressTeam(v.team)].main, intensity: 2, size: [0.25, 0.45], life: [0.6, 1], speed: [3, 7], up: 4, gravity: 6 });
     this.particles.burst(this.at(v, 1.5), { n: 30, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [0.8, 1.4], sizeEnd: 2.2, life: [0.9, 1.4], speed: [1.5, 4], up: 1, drag: 1.5 });
   }
 
