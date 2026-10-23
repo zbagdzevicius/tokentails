@@ -1,0 +1,37 @@
+{
+  "name": "formula-meow",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Formula Meow: an 8-cat kart race for Token Tails (GDD docs/plans/formula-meow/GDD.md)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node tools/budget.mjs dist",
+    "build:client": "MEOW_BASE=/formula-meow-game/ vite build --outDir ../client/public/formula-meow-game --emptyOutDir && node tools/og-pages.mjs ../client/public/formula-meow-game",
+    "preview": "vite preview --port 4175",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "tracks": "vitest run src/core/track",
+    "og": "node tools/render-og.mjs",
+    "og:pages": "node tools/og-pages.mjs",
+    "review": "MEOW_E2E_PORT=4396 playwright test --config review/review.config.ts",
+    "review:v2": "playwright test --config review/v2.config.ts",
+    "review:v3": "playwright test --config review/v3.config.ts",
+    "review:v4": "playwright test --config review/v4.config.ts",
+    "budget": "node tools/budget.mjs dist"
+  },
+  "dependencies": {
+    "mediabunny": "^1.61.6",
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.183.1",
+    "happy-dom": "^20.14.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

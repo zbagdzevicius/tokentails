@@ -519,6 +519,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(headers.map((h: { source: string }) => h.source)).toEqual([
       "/badcat-game/sw.js",
       "/badcat/sw.js",
+      "/home/media/:path*",
       "/music/back-on-track-v1/:path*",
       "/pawlegends-game/build/:path*",
     ]);

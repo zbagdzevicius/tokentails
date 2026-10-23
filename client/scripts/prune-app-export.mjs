@@ -22,6 +22,8 @@ export const WEB_ONLY_FILES = Object.freeze([
   "game-select/badcat-preview@2x.webp",
   // The Moon Rave picker art: the picker card never renders in app builds (raveEntryEnabled).
   "game-select/rave-preview@2x.webp",
+  // The Formula Meow picker art: the picker card never renders in app builds (formulaMeowEntryEnabled).
+  "game-select/formula-meow-preview@2x.webp",
   // The blog RSS (scripts/build-feed-rss.mjs) is written by web builds and covers web-only articles.
   "feed/rss.xml",
 ]);
@@ -31,6 +33,13 @@ export const WEB_ONLY_PREFIXES = Object.freeze([
   "feed/web-",
   // Moon Rave second track: web only (the mix segments are about 62 MB and /rave is not in the app).
   "music/back-on-track-v1/bot-v1-",
+]);
+
+/** Whole folders under out/ that app builds never use. */
+export const WEB_ONLY_DIRS = Object.freeze([
+  // The web home page (about 105 MB with its videos): the app starts at pages/index.tsx, and the
+  // export has no rewrite that could serve it (docs/CLIENT.md "Home page (/)").
+  "home",
 ]);
 
 /** Every file under out/ that matches a web-only prefix. */
@@ -48,6 +57,13 @@ export function webOnlyPrefixed(outDir) {
 
 export function pruneAppExport(outDir) {
   const removed = [];
+  for (const dir of WEB_ONLY_DIRS) {
+    const full = join(outDir, dir);
+    if (existsSync(full)) {
+      rmSync(full, { recursive: true, force: true });
+      removed.push(`${dir}/`);
+    }
+  }
   for (const file of webOnlyPrefixed(outDir)) {
     rmSync(join(outDir, file));
     removed.push(file);

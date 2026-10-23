@@ -1,0 +1,370 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Lane "modes" (iteration 2): title → menu → Grand Prix (4 races) → podium → menu; time trial saves a ghost and the
+ * next run races it; balloon battle ends with a winner within 3 minutes of sim time; every menu screen opens by
+ * touch, keyboard and a (simulated) gamepad with a visible focus; the first visit is the FTUE race; deep links skip
+ * the title; quitting a Grand Prix race asks first and the cup can be resumed.
+ *
+ * Iteration 4 (F11, F13, F14): a raced mode's menu tile starts it in one tap (and "change" opens the pickers); a
+ * Wild Card single race carries its mutator from the grid banner to the results; a battle's last 30 s say DOUBLE
+ * POINTS.
+ */
+
+type Win = {
+  __fm?: { shell: { world: { done: boolean; st: { tick: number; phase: string; karts: Array<{ out: number; balloons: number; finished: number }>; order: number[] }; ctx: { goTick: number }; cfg: { mode?: string } } | null; attract: boolean; setup: unknown } };
+  __fmModes?: { ttGhost: { live: boolean; label: string | null }; save: { tt: Record<string, { best: number; ghost?: string }>; cup: { race: number } | null; trophies: Record<string, number> } };
+  __pad?: { buttons: Array<{ pressed: boolean; value: number }>; axes: number[]; connected: boolean; index: number; id: string; mapping: string };
+};
+
+/** A returning player (so a plain visit opens on the title): 4 races done, 100cc open. */
+async function returning(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('fm:save')) localStorage.setItem('fm:save', JSON.stringify({ v: 2, settings: {}, slots: { core: { races: 4, unlocked: 1, pounces: 2, drifts: 2, bestTimes: {} } } }));
+  });
+}
+
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  return errors;
+}
+
+const top = (page: Page) => page.locator('.fm-screen:not([hidden])').last();
+const topId = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.fm-screen:not([hidden])')].pop()?.dataset.screen ?? null);
+
+async function toMenu(page: Page): Promise<void> {
+  await expect(page.locator('[data-screen="title"]')).toBeVisible({ timeout: 20_000 });
+  await page.locator('[data-act="start"]').click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+}
+
+test('title → menu → Grand Prix, four races → standings → podium → menu, with no console errors', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1&speed=8');
+  // the title sits over the attract race (the bot drives it, no HUD)
+  await expect(page.locator('[data-screen="title"]')).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fm?.shell.attract), { timeout: 20_000 }).toBe(true);
+  await page.screenshot({ path: 'e2e/screens/modes-title.png' });
+  await toMenu(page);
+  await page.screenshot({ path: 'e2e/screens/modes-menu.png' });
+  await page.locator('[data-tile="gp"]').click();
+  await expect(page.locator('[data-screen="select"]')).toBeVisible();
+  await page.locator('[data-act="ready"]').click();
+  await page.locator('[data-act="class-0"]').click();
+  await page.locator('[data-act="cup-kibble"]').click();
+  for (let race = 1; race <= 4; race++) {
+    await expect(page.locator('[data-act="mode-continue"]')).toBeVisible({ timeout: 200_000 });
+    // a cup race shows Continue, never Again / Next
+    await expect(page.locator('[data-act="again"]')).toHaveCount(0);
+    await expect(page.locator('.fm-m-res')).toContainText('point');
+    await page.locator('[data-act="mode-continue"]').click();
+    await expect(page.locator('[data-screen="standings"]')).toBeVisible();
+    await expect(page.locator('.fm-m-srow')).toHaveCount(8);
+    if (race === 1) {
+      // after race 1 there is no earlier standing: no ▲/▼ arrows, and the rows already show their real places
+      expect((await page.locator('.fm-m-srow .mv').allTextContents()).join('')).toBe('');
+      expect(await page.locator('.fm-m-srow .pos').allTextContents()).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
+      await page.screenshot({ path: 'e2e/screens/modes-standings.png' });
+    }
+    await page.locator('[data-screen="standings"] [data-act="continue"]').click();
+  }
+  await expect(page.locator('[data-screen="podium"]')).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'e2e/screens/modes-podium.png' });
+  const after = await page.evaluate(() => (window as unknown as Win).__fmModes!.save);
+  expect(after.cup).toBeNull();
+  await page.locator('[data-screen="podium"] [data-act="menu"]').click();
+  // [integrator] the progression lane's cup rewards (fish from the four races, the trophy) open over the menu
+  await expect.poll(() => topId(page), { timeout: 10_000 }).toBe('rewards');
+  // the race fish were paid on each results screen: the rewards recap them on their own line, not in the total (B2)
+  await expect(page.locator('[data-screen="rewards"] .fm-rw')).toContainText('this cup');
+  await page.screenshot({ path: 'e2e/screens/modes-rewards.png' });
+  await page.locator('[data-screen="rewards"] [data-act="continue"]').click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fm?.shell.attract), { timeout: 20_000 }).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('time trial: the first run saves a personal-best ghost and Retry races it', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1&speed=8');
+  await toMenu(page);
+  await page.locator('[data-tile="tt"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await expect(page.locator('[data-screen="tt"]')).toBeVisible();
+  await expect(page.locator('.fm-m-medals')).toContainText('🥇', { timeout: 20_000 });
+  await page.locator('[data-act="track-kitchen"]').click();
+  await page.locator('[data-screen="tt"] [data-act="start"]').click();
+  // no PB yet: the dev ghost runs
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fmModes!.ttGhost.label), { timeout: 20_000 }).toBe('Dev ghost');
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fmModes!.ttGhost.live)).toBe(true);
+  const field = await page.evaluate(() => (window as unknown as Win).__fm!.shell.world!.st.karts.length);
+  expect(field).toBe(1);
+  await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 200_000 });
+  // the first run's record is the headline, said once (it used to stack "New best" and "First record set!")
+  await expect(page.locator('.fm-overlay.on .fm-headline')).toContainText('First record set!');
+  await expect(page.locator('.fm-overlay.on .fm-headline')).not.toContainText('New best');
+  await expect(page.locator('.fm-overlay.on .fm-m-res')).not.toContainText('First record set!');
+  await page.screenshot({ path: 'e2e/screens/modes-tt-results.png' });
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fmModes!.save.tt['kitchen:0']?.ghost), { timeout: 10_000 }).toBe(true);
+  await page.locator('[data-act="mode-again"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fmModes!.ttGhost.label), { timeout: 20_000 }).toBe('Your best');
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fmModes!.ttGhost.live)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('balloon battle plays its 2:30 round and the top scorer wins', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1&speed=8');
+  await toMenu(page);
+  await page.locator('[data-tile="battle"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await page.locator('[data-screen="battle"] [data-act="start"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('battle');
+  // the leaders plus you (the full field of 8 rows covered a third of a phone screen)
+  await expect.poll(() => page.locator('.fm-mode-hud.on .fm-mh-list .r').count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
+  expect(await page.locator('.fm-mode-hud.on .fm-mh-list .r').count()).toBeLessThanOrEqual(4);
+  await page.screenshot({ path: 'e2e/screens/modes-battle.png' });
+  // F14: the last 30 s are a frenzy (the chip stays up) and the points leader gets a marker
+  await expect(page.locator('.fm-mode-hud.frenzy .fm-mh-frenzy')).toContainText('DOUBLE POINTS', { timeout: 300_000 });
+  await page.screenshot({ path: 'e2e/screens/modes-battle-frenzy.png' });
+  // the chip never covers the held item's name (playtest: "×2 DOUBLE POINTS" half hid "Cucumber"), on a phone, in
+  // landscape and on desktop
+  for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(vp);
+    const gap = await page.evaluate(() => {
+      const name = document.querySelector('.fm-item-name') as HTMLElement;
+      name.textContent = 'Cucumber';
+      name.classList.add('on');
+      const a = name.getBoundingClientRect();
+      const b = document.querySelector('.fm-mode-hud .fm-mh-frenzy')!.getBoundingClientRect();
+      return b.top - a.bottom;
+    });
+    expect(gap, `${vp.width}x${vp.height}`).toBeGreaterThan(0);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('[data-act="mode-again"]')).toBeVisible({ timeout: 300_000 });
+  const end = await page.evaluate(() => {
+    const w = (window as unknown as Win).__fm!.shell.world! as unknown as { done: boolean; st: { tick: number; mode: { battle: { score: number[] } } }; ctx: { goTick: number }; result(): { places: Array<{ kart: number }> } };
+    const b = w.st.mode.battle;
+    return { done: w.done, secs: (w.st.tick - w.ctx.goTick) / 60, winnerScore: b.score[w.result().places[0].kart], best: Math.max(...b.score) };
+  });
+  // scored in points with respawns: the round plays its whole 2:30 clock, and the winner has the most points
+  expect(end.done).toBe(true);
+  expect(end.secs).toBeGreaterThanOrEqual(149.9);
+  expect(end.secs).toBeLessThanOrEqual(150.05);
+  expect(end.winnerScore).toBe(end.best);
+  await expect(page.locator('.fm-m-res')).toContainText('battle');
+  expect(errors).toEqual([]);
+});
+
+test('every menu screen opens by touch and goes back', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1');
+  await expect(page.locator('[data-screen="title"]')).toBeVisible({ timeout: 20_000 });
+  await page.touchscreen.tap(195, 420);
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  const expectTop: Record<string, string> = { gp: 'select', race: 'select', tt: 'select', battle: 'select', doodle: 'tracks', garage: 'garage', pinkpaw: 'pinkpaw', settings: 'settings', howto: 'howto', achievements: 'achievements', stats: 'stats' };
+  for (const [tile, screen] of Object.entries(expectTop)) {
+    await page.locator(`[data-tile="${tile}"]`).tap();
+    await expect.poll(() => topId(page), { timeout: 10_000 }).toBe(screen);
+    if (tile === 'pinkpaw') await expect(top(page)).toContainText('2026-10-04');
+    await page.keyboard.press('Escape');
+    await expect.poll(() => topId(page), { timeout: 10_000 }).toBe('menu');
+  }
+  // the racer → class → cup chain, by touch, and back out with the back buttons
+  await page.locator('[data-tile="gp"]').tap();
+  await page.locator('[data-act="ready"]').tap();
+  await expect.poll(() => topId(page)).toBe('class');
+  await page.locator('[data-act="class-0"]').tap();
+  await expect.poll(() => topId(page)).toBe('cup');
+  await page.screenshot({ path: 'e2e/screens/modes-cup-phone.png' });
+  for (const id of ['class', 'select', 'menu']) {
+    await top(page).locator('[data-act="back"]').tap();
+    await expect.poll(() => topId(page)).toBe(id);
+  }
+  expect(errors).toEqual([]);
+  await ctx.close();
+});
+
+test('keyboard and gamepad move a visible focus through the menus', async ({ page }) => {
+  test.setTimeout(240_000);
+  await returning(page);
+  await page.addInitScript(() => {
+    const pad = { id: 'fake pad', index: 0, connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0, touched: false })) };
+    (window as unknown as Win).__pad = pad;
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [pad, null, null, null], configurable: true });
+  });
+  await page.goto('/?bot=1');
+  await expect(page.locator('[data-screen="title"]')).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  // keyboard: the arrows move a ring between the tiles, Enter opens, Esc comes back
+  const focused = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.tile ?? null);
+  await expect.poll(focused).toBe('gp');
+  // the Grand Prix hero card spans the row: Down reaches the row of race modes under it
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
+  const first = await focused();
+  const ring = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
+  expect(ring).not.toBe('none');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(focused).not.toBe(first);
+  await page.keyboard.press('ArrowUp');
+  // back up into the row of race modes (the strip below is narrower, so Up lands on the nearest mode tile)
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => topId(page)).toBe('select');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => topId(page)).toBe('menu');
+  // gamepad: D-pad moves, A opens, B backs
+  const press = async (b: number) => {
+    await page.evaluate((i) => ((window as unknown as Win).__pad!.buttons[i] = { pressed: true, value: 1 }), b);
+    await page.waitForTimeout(400);
+    await page.evaluate((i) => ((window as unknown as Win).__pad!.buttons[i] = { pressed: false, value: 0 }), b);
+    await page.waitForTimeout(400);
+  };
+  // the menu gives the focus back to the tile that opened the screen
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
+  await page.locator('[data-tile="gp"]').focus();
+  await expect.poll(focused).toBe('gp');
+  await press(13); // D-pad down: from the Grand Prix card to the row of race modes
+  await expect.poll(async () => (await focused()) ?? '').toMatch(/^(race|tt)$/);
+  await page.screenshot({ path: 'e2e/screens/modes-pad-focus.png' });
+  await press(0); // A
+  await expect.poll(() => topId(page)).toBe('select');
+  await press(1); // B
+  await expect.poll(() => topId(page)).toBe('menu');
+});
+
+test('the first visit races at once (FTUE) and its results lead to the menu; deep links skip the title', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors = watchErrors(page);
+  await page.goto('/?bot=1&speed=8');
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.st.phase ?? null), { timeout: 20_000 }).toBe('race');
+  await expect(page.locator('[data-screen="title"]')).toHaveCount(0);
+  await expect(page.locator('[data-act="menu"]')).toBeVisible({ timeout: 200_000 });
+  await page.locator('.fm-overlay [data-act="menu"]').click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  // a deep link with a save still goes straight to the grid
+  await page.goto('/?seed=3');
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as Win).__fm?.shell.world && !(window as unknown as Win).__fm?.shell.attract), { timeout: 20_000 }).toBe(true);
+  await expect(page.locator('[data-screen="title"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('quitting a Grand Prix race asks first, and the cup resumes from the menu', async ({ page }) => {
+  test.setTimeout(300_000);
+  await returning(page);
+  await page.goto('/?bot=1&speed=2');
+  await toMenu(page);
+  await page.locator('[data-tile="gp"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await page.locator('[data-act="class-0"]').click();
+  await page.locator('[data-act="cup-kibble"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.st.phase ?? null), { timeout: 20_000 }).toBe('race');
+  await page.locator('.fm-menu-btn').click();
+  await expect(page.locator('[data-screen="pause"]')).toBeVisible();
+  await page.locator('[data-screen="pause"] [data-act="menu"]').click();
+  await expect(page.locator('.fm-ui-modal')).toContainText('Quit the cup?');
+  await page.locator('.fm-ui-modal button').nth(1).click(); // keep racing
+  await expect(page.locator('.fm-ui-modal')).toHaveCount(0);
+  await page.locator('[data-screen="pause"] [data-act="menu"]').click();
+  await page.locator('.fm-ui-modal button').first().click(); // quit
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  await expect(page.locator('[data-act="resume"]')).toContainText('Kibble Cup');
+  await page.locator('[data-act="resume"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('gp');
+});
+
+test('F13: a raced mode starts from its menu tile in one tap; "change" opens the pickers', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1&speed=2');
+  await toMenu(page);
+  // first visit to the Grand Prix: the pickers, as before
+  await expect(page.locator('[data-tile="gp"]')).not.toContainText('▶');
+  await page.locator('[data-tile="gp"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await page.locator('[data-act="class-0"]').click();
+  await page.locator('[data-act="cup-kibble"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('gp');
+  // quit and drop the cup
+  await page.locator('.fm-menu-btn').click();
+  await page.locator('[data-screen="pause"] [data-act="menu"]').click();
+  await page.locator('.fm-ui-modal button').first().click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  await page.locator('[data-act="drop"]').click();
+  await page.locator('.fm-ui-modal button').first().click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  // the tile now says what it starts, and one tap is on the grid
+  const gp = page.locator('[data-tile="gp"]');
+  await expect(gp).toContainText('Grand Prix ▶');
+  await expect(gp).toContainText('Kibble Cup · 50cc');
+  await page.screenshot({ path: 'e2e/screens/modes-menu-onetap.png' });
+  await gp.click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Win).__fm?.shell.world?.cfg.mode ?? null), { timeout: 20_000 }).toBe('gp');
+  await expect(page.locator('[data-screen="select"]')).toHaveCount(0);
+  await page.locator('.fm-menu-btn').click();
+  await page.locator('[data-screen="pause"] [data-act="menu"]').click();
+  await page.locator('.fm-ui-modal button').first().click();
+  await expect(page.locator('[data-screen="menu"]')).toBeVisible();
+  // "change" goes through the racer screen to the class and cup pickers
+  await page.locator('[data-act="change-gp"]').click();
+  await expect.poll(() => topId(page)).toBe('select');
+  await page.locator('[data-act="ready"]').click();
+  await expect.poll(() => topId(page)).toBe('class');
+  expect(errors).toEqual([]);
+});
+
+test('F11: a Wild Card single race shows its mutator on the grid and the results, and Surprise me deals one', async ({ page }) => {
+  test.setTimeout(400_000);
+  const errors = watchErrors(page);
+  await returning(page);
+  await page.goto('/?bot=1&speed=8');
+  await toMenu(page);
+  await page.locator('[data-tile="race"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await expect(page.locator('[data-screen="race"] .fm-m-wild')).toBeVisible();
+  await page.locator('[data-act="wild-box-party"]').click();
+  await expect(page.locator('[data-act="wild-box-party"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: 'e2e/screens/modes-wildcard.png' });
+  await page.locator('[data-screen="race"] [data-act="start"]').click();
+  await expect.poll(() => page.evaluate(() => ((window as unknown as Win).__fm?.shell.world?.cfg as unknown as { modifiers?: number } | undefined)?.modifiers ?? -1), { timeout: 20_000 }).toBe(32);
+  await expect(page.locator('body')).toContainText('Box Party', { timeout: 10_000 });
+  await expect(page.locator('[data-act="again"]')).toBeVisible({ timeout: 200_000 });
+  await expect(page.locator('[data-screen="results"]')).toContainText('Box Party');
+  await page.screenshot({ path: 'e2e/screens/modes-wildcard-results.png' });
+  // the menu tile remembers the Wild Card; "change" → Surprise me deals exactly one mutator
+  await page.locator('.fm-overlay [data-act="menu"]').click();
+  await expect(page.locator('[data-tile="race"]')).toContainText('📦');
+  await page.locator('[data-act="change-race"]').click();
+  await page.locator('[data-act="ready"]').click();
+  await page.locator('[data-act="wild-surprise"]').click();
+  await page.locator('[data-screen="race"] [data-act="start"]').click();
+  const m = await page.evaluate(async () => {
+    for (let i = 0; i < 100; i++) {
+      const w = (window as unknown as Win).__fm?.shell.world as unknown as { cfg: { modifiers: number; mode?: string } } | null;
+      if (w && !(window as unknown as Win).__fm?.shell.attract && w.cfg.mode === 'race') return w.cfg.modifiers;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return -1;
+  });
+  expect([2, 4, 8, 16, 32]).toContain(m);
+  expect(errors).toEqual([]);
+});

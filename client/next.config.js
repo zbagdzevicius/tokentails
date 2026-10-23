@@ -19,6 +19,18 @@ const heistRedirects = [
 // slash of /rave/ first); assets load from /rave/build/. Web builds only (the export has no rewrites).
 const raveRewrites = [{ source: "/rave", destination: "/rave/index.html" }];
 
+// The web home page (docs/CLIENT.md "Home page (/)") is the static Play-to-Save landing in public/home
+// (scripts/sync-home.mjs). A beforeFiles rewrite serves it at "/" ahead of pages/index.tsx, which stays
+// the start page of the Capacitor export (no rewrites there); a client-side navigation to "/" reloads
+// (components/home/staticHome.ts). The page reads its live numbers from api.tokentails.com directly.
+// /home itself is not a second URL for the page: both forms redirect to "/" (the "/" rewrite is
+// internal, so it never hits these redirects).
+const homeRewrites = [{ source: "/", destination: "/home/index.html" }];
+const homeRedirects = [
+  { source: "/home", destination: "/", permanent: true },
+  { source: "/home/index.html", destination: "/", permanent: true },
+];
+
 // Firebase auth helper paths, proxied so sign-in can use tokentails.com as its authDomain
 // (decision #6: behind a flag, preview first). Off unless NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROXY is
 // set; FIREBASE_AUTH_ORIGIN overrides the Firebase project's own auth host.
@@ -64,6 +76,20 @@ const badcatRewrites = [
 const badcatFallbackRewrites = [
   { source: "/badcat/d/:n(\\d{1,4})", destination: `${BADCAT}/index.html` },
   { source: `${BADCAT}/d/:n(\\d{1,4}).html`, destination: `${BADCAT}/index.html` },
+];
+// Formula Meow (formula-meow/, GDD docs/plans/formula-meow/GDD.md 8.3, docs/CLIENT.md "Formula Meow (/meow-race)"):
+// the static kart game in public/formula-meow-game (formula-meow: `npm run build:client`, which also writes the link
+// shells) served top level at /meow-race, no iframe. Dares carry the ghost in the URL hash, so r.html only holds
+// the OG tags; every Daily Cup day shares d.html (the game reads the day from the path). Web builds only.
+const MEOW = "/formula-meow-game";
+const meowRaceRewrites = [
+  { source: "/meow-race", destination: `${MEOW}/index.html` },
+  { source: "/meow-race/r", destination: `${MEOW}/r.html` },
+  { source: "/meow-race/d/:n(\\d{1,4})", destination: `${MEOW}/d.html` },
+  // UGC tracks: /meow-race/make opens the Track Doodle editor, /meow-race/t?t=CODE races a shared track
+  { source: "/meow-race/make", destination: `${MEOW}/index.html` },
+  { source: "/meow-race/t", destination: `${MEOW}/index.html` },
+  { source: "/meow-race/:path*", destination: `${MEOW}/:path*` },
 ];
 // The service worker ships at /badcat-game/sw.js; this header lets it control the /badcat/* pages too.
 const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
@@ -135,6 +161,7 @@ const nextConfig = {
             { source: "/box", destination: "/game", permanent: true },
             // The proof page moved into /impact (plan F7.6, 2.13 row 23).
             { source: "/proof", destination: "/impact", permanent: true },
+            ...homeRedirects,
             ...heistRedirects,
             ...feedRedirects(),
             // The Sponsor Match Desk statement is a static page in public/match-desk. Next.js does
@@ -149,14 +176,21 @@ const nextConfig = {
         },
         async rewrites() {
           return {
-            beforeFiles: [],
-            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...raveRewrites],
+            beforeFiles: homeRewrites,
+            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
         },
         async headers() {
           return [
             ...badcatHeaders,
+            // Home page media (public/home/media, about 105 MB of video and images): cached for a day and served
+            // stale for a week while revalidating, so repeat visits stop refetching it. Names are not
+            // content-hashed, so a replaced file can be up to a day old; give a changed file a new name.
+            {
+              source: "/home/media/:path*",
+              headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+            },
             // Moon Rave second track: every file name is versioned (bot-v1-*), so it never changes.
             {
               source: "/music/back-on-track-v1/:path*",

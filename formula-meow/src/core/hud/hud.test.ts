@@ -1,0 +1,229 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import type { KartState, RaceState } from '../../types';
+import { arrowAngle, incomingItems, type Incoming } from './incoming';
+import { fmtClock, fmtDelta, ordinalSuffix, ordinalText, TRICK_POSES } from './hud';
+import { gapChipText } from './juice-hud';
+import { CORE_EN } from '../../ui/strings/core.en';
+import { registerStrings, setLocale } from '../../ui/i18n';
+import { TIER_COLOURS } from '../../ui/a11y';
+import type { Colourblind } from '../app/save';
+import { sceneFor } from '../../ui/install';
+import { wantsWipe } from '../../ui/transitions';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const src = join(here, '..', '..');
+
+function kart(p: Partial<KartState>): KartState {
+  return { x: 0, z: 0, vx: 0, vz: 0, finished: 0 } as KartState & typeof p;
+}
+
+function state(karts: Array<Partial<KartState>>, proj: unknown[]): RaceState {
+  return { karts: karts.map((k) => ({ ...kart(k), ...k })), items: { s: { proj, traps: [] } } } as unknown as RaceState;
+}
+
+describe('incoming items', () => {
+  const out: Incoming[] = [];
+  it('a homing yarn ball locked on the player is incoming, nearest first', () => {
+    // player at z=20 driving +z at 20 m/s; a yarn ball 30 m behind homing at 32 m/s; another kart's laser far away
+    const st = state(
+      [{ x: 0, z: 20, vz: 20 }, { x: 0, z: -10 }],
+      [
+        { kind: 1, owner: 1, x: 0, z: -10, vx: 0, vz: 32, target: 0 },
+        { kind: 2, owner: 1, x: 0, z: -60, vx: 0, vz: 40, target: 0 },
+      ],
+    );
+    const list = incomingItems(st, 0, out);
+    expect(list).toHaveLength(1);
+    expect(list[0].item).toBe('yarn');
+    expect(list[0].eta).toBeCloseTo(30 / 12, 1);
+  });
+  it('a hairball counts only when it points at the player and closes in', () => {
+    const at = state([{ x: 0, z: 10, vz: 5 }, {}], [{ kind: 0, owner: 1, x: 0, z: 0, vx: 0, vz: 30, target: -1 }]);
+    expect(incomingItems(at, 0, out)).toHaveLength(1);
+    const away = state([{ x: 0, z: 10, vz: 5 }, {}], [{ kind: 0, owner: 1, x: 0, z: 0, vx: 0, vz: -30, target: -1 }]);
+    expect(incomingItems(away, 0, out)).toHaveLength(0);
+    const wide = state([{ x: 0, z: 10, vz: 5 }, {}], [{ kind: 0, owner: 1, x: 0, z: 0, vx: 30, vz: 10, target: -1 }]);
+    expect(incomingItems(wide, 0, out)).toHaveLength(0);
+    // the player's own shot never warns them
+    const own = state([{ x: 0, z: 10, vz: 5 }], [{ kind: 0, owner: 0, x: 0, z: 0, vx: 0, vz: 30, target: -1 }]);
+    expect(incomingItems(own, 0, out)).toHaveLength(0);
+  });
+  it('no items slot, a finished player or nothing in range means nothing incoming', () => {
+    expect(incomingItems({ karts: [kart({})], items: {} } as unknown as RaceState, 0, out)).toHaveLength(0);
+    const done = state([{ x: 0, z: 10, finished: 1 }, {}], [{ kind: 1, owner: 1, x: 0, z: 0, vx: 0, vz: 30, target: 0 }]);
+    expect(incomingItems(done, 0, out)).toHaveLength(0);
+  });
+  it('edge arrows: ahead is up, behind is down, right is right', () => {
+    // camera at the origin looking along +z (heading 0)
+    expect(arrowAngle(0, 0, 0, 1, 0, 10)).toBeCloseTo(0);
+    expect(Math.abs(arrowAngle(0, 0, 0, 1, 0, -10))).toBeCloseTo(Math.PI);
+    // a kart facing +z has its right at −x (engine.ts: right = (−cos h, sin h))
+    expect(arrowAngle(0, 0, 0, 1, -10, 0)).toBeCloseTo(Math.PI / 2);
+    expect(arrowAngle(0, 0, 0, 1, 10, 0)).toBeCloseTo(-Math.PI / 2);
+  });
+});
+
+describe('hud formatting', () => {
+  it('split deltas and the battle clock', () => {
+    expect(fmtDelta(-0.4211)).toBe('−0.42');
+    expect(fmtDelta(1.3)).toBe('+1.30');
+    expect(fmtClock(180)).toBe('3:00');
+    expect(fmtClock(9.2)).toBe('0:10');
+    expect(fmtClock(-1)).toBe('0:00');
+  });
+  it('ordinals go through t()', () => {
+    registerStrings('en', CORE_EN);
+    setLocale('en');
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinalSuffix)).toEqual(['st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'st', 'nd', 'st']);
+    expect(ordinalText(2)).toBe('2nd');
+    setLocale('xx');
+    expect(ordinalText(2)).toMatch(/^2⟦/);
+    setLocale('en');
+  });
+});
+
+describe('strings', () => {
+  it('every t() key in the shell and the audio-ui files is in CORE_EN', () => {
+    const files = ['core/app/shell.ts', 'core/hud/hud.ts', 'core/hud/results.ts', 'juice/index.ts', 'ui/race-ui.ts', 'ui/screens/settings.ts', 'ui/screens/howto.ts', 'core/hud/stunt-hud.ts', 'core/hud/juice-hud.ts', 'core/app/race-labels.ts', 'core/input/touch.ts', 'ugc/hub.ts'];
+    const missing: string[] = [];
+    for (const f of files) {
+      const s = readFileSync(join(src, f), 'utf8');
+      for (const m of s.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)) {
+        const k = m[2].replace(/\\'/g, "'");
+        if (!(k in CORE_EN)) missing.push(`${f}: ${k}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('the touch overlay and the Tracks sheet have no raw English labels (they bypassed t())', () => {
+    const raw: string[] = [];
+    for (const f of ['core/input/touch.ts', 'ugc/hub.ts']) {
+      const s = readFileSync(join(src, f), 'utf8');
+      // aria-label / placeholder literals, and literal text between tags in template HTML
+      for (const m of s.matchAll(/(?:aria-label|placeholder)="([A-Za-z][^"$]*)"/g)) raw.push(`${f}: ${m[1]}`);
+      for (const m of s.matchAll(/>([A-Za-z][A-Za-z ,.?']+)</g)) raw.push(`${f}: ${m[1]}`);
+      for (const m of s.matchAll(/(?:textContent|innerHTML) = '([^']*[A-Za-z]{2}[^']*)'/g)) raw.push(`${f}: ${m[1]}`);
+    }
+    expect(raw).toEqual([]);
+  });
+});
+
+// ---- colour-blind safety of the drift tier colours (Machado et al. 2009, severity 1.0, linear RGB) ----
+const SIM: Record<Exclude<Colourblind, 'off'>, number[][]> = {
+  prot: [
+    [0.152286, 1.052583, -0.204868],
+    [0.114503, 0.786281, 0.099216],
+    [-0.003882, -0.048116, 1.051998],
+  ],
+  deut: [
+    [0.367322, 0.860646, -0.227968],
+    [0.280085, 0.672501, 0.047413],
+    [-0.01182, 0.04294, 0.968881],
+  ],
+  trit: [
+    [1.255528, -0.076749, -0.178779],
+    [-0.078411, 0.930809, 0.147602],
+    [0.004733, 0.691367, 0.3039],
+  ],
+};
+const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+function lab(rgbLin: number[]): number[] {
+  const [r, g, b] = rgbLin.map((v) => Math.max(0, Math.min(1, v)));
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+function seen(hex: number, mode: Colourblind): number[] {
+  const rgb = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => lin(v / 255));
+  if (mode === 'off') return lab(rgb);
+  const m = SIM[mode];
+  return lab(m.map((row) => row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]));
+}
+const dE = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+describe('colour-blind drift tier colours', () => {
+  it('each set keeps its three tiers clearly apart for the eyes it is made for', () => {
+    for (const mode of ['off', 'deut', 'prot', 'trit'] as const) {
+      const cols = TIER_COLOURS[mode];
+      const viewers: Colourblind[] = mode === 'off' ? ['off'] : [mode];
+      for (const v of viewers)
+        for (let i = 0; i < 3; i++)
+          for (let j = i + 1; j < 3; j++) expect(dE(seen(cols[i], v), seen(cols[j], v)), `${mode} tiers ${i}/${j} for ${v}`).toBeGreaterThan(25);
+    }
+  });
+});
+
+describe('screen flow look', () => {
+  it('menus play the lounge loop, the podium its fanfare, races their song', () => {
+    expect(sceneFor('menu', false, 'race')).toBe('menu');
+    expect(sceneFor('title', true, 'race')).toBe('menu');
+    expect(sceneFor('podium', false, 'menu')).toBe('podium');
+    expect(sceneFor(null, true, 'menu')).toBe('race');
+    expect(sceneFor('pause', true, 'race')).toBe('race');
+    // settings from pause keeps the race; from the menu it keeps the menu loop
+    expect(sceneFor('settings', true, 'race')).toBe('race');
+    expect(sceneFor('settings', false, 'race')).toBe('menu');
+    expect(sceneFor('standings', true, 'race')).toBe('race');
+  });
+  it('the paw iris plays on menu screens, never on pause or results', () => {
+    expect(wantsWipe('menu', 'title')).toBe(true);
+    expect(wantsWipe('settings', 'pause')).toBe(true);
+    expect(wantsWipe('pause', null)).toBe(false);
+    expect(wantsWipe('results', null)).toBe(false);
+    expect(wantsWipe('menu', 'menu')).toBe(false);
+  });
+});
+
+describe('results layout', () => {
+  it('landscape phones lay the results out in two columns (the standings had an 81 px window at 844 x 390)', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    const blocks = [...css.matchAll(/@media \(orientation: landscape\) and \(max-height: 500px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
+    const res = blocks.find((b) => b.includes('.fm-panel.fm-results {'));
+    expect(res).toBeDefined();
+    expect(res).toMatch(/\.fm-panel\.fm-results \{[^}]*display: grid/);
+    expect(res).toMatch(/\.fm-res-scroll \{[^}]*grid-row: 1 \/ span 2/);
+    expect(res).toMatch(/\.fm-res-main \{[^}]*grid-column: 2/);
+  });
+});
+
+describe('final-lap gap chip (iteration 4, F5)', () => {
+  it('reads "▲ +0.4 s" / "▼ −0.3 s", and leads with the call within the glow range', () => {
+    registerStrings('en', CORE_EN);
+    setLocale('en');
+    expect(gapChipText(0.42, true, false)).toBe('▲ +0.4 s');
+    expect(gapChipText(0.26, false, false)).toBe('▼ −0.3 s');
+    expect(gapChipText(0.31, true, true)).toBe('CATCH! +0.3 s');
+    expect(gapChipText(0.2, false, true)).toBe('DEFEND! −0.2 s');
+    expect(gapChipText(0.03, true, true)).toBe('SIDE BY SIDE!');
+    expect(gapChipText(-0.01, false, true)).toBe('SIDE BY SIDE!');
+  });
+  it('portrait stacks the chips under the place badge; landscape phones put them in the place row', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    expect(css).toMatch(/\n\.fm-gaps \{[^}]*flex-direction: column/);
+    const blocks = [...css.matchAll(/@media \(orientation: landscape\) and \(max-height: 500px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
+    const land = blocks.find((b) => b.includes('.fm-gaps {'));
+    expect(land).toBeDefined();
+    // .fm-tl is a row in landscape (the chips sit beside the badge, clear of the mini-map below it)
+    expect(blocks.some((b) => /\.fm-tl \{[^}]*flex-direction: row/.test(b))).toBe(true);
+    expect(land).toMatch(/\.fm-gaps \{[^}]*margin-left/);
+    expect(land).toMatch(/\.fm-gap \{[^}]*font-size/);
+    // the hud builds the chips inside the place column
+    const hud = readFileSync(join(src, 'core/hud/hud.ts'), 'utf8');
+    expect(hud).toMatch(/new JuiceHud\(this\.root, q\('\.fm-tl'\), q\('\.fm-bottom'\)\)/);
+  });
+  it('reduced motion drops the edge glow and the shutter flash, keeps the stamp and the chips', () => {
+    const css = readFileSync(join(src, 'core/hud/hud.css'), 'utf8');
+    expect(css).toMatch(/:root\[data-motion='reduced'\] \.fm-edge, :root\[data-motion='reduced'\] \.fm-shutter \{ display: none; \}/);
+    expect(css).not.toMatch(/data-motion='reduced'\][^{]*\.fm-stamp \{ display: none/);
+  });
+  it('trick poses follow the kart view’s order and are translated', () => {
+    expect(TRICK_POSES).toEqual(['Barrel roll', 'Superman', 'Spin']);
+    for (const p of TRICK_POSES) expect(p in CORE_EN).toBe(true);
+  });
+});

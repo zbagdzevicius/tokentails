@@ -2,7 +2,7 @@
 // Run after `npm run build:app`; Capacitor copies out/ into the native apps.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { WEB_ONLY_FILES, webOnlyPrefixed } from "./prune-app-export.mjs";
+import { WEB_ONLY_DIRS, WEB_ONLY_FILES, webOnlyPrefixed } from "./prune-app-export.mjs";
 
 const outDir = resolve(process.argv[2] || "out");
 
@@ -45,7 +45,11 @@ if (missing.length) {
 }
 
 // Web-only media (the landing showreel) must be pruned: the app never plays it.
-const shipped = [...WEB_ONLY_FILES.filter((file) => existsSync(join(outDir, file))), ...webOnlyPrefixed(outDir)];
+const shipped = [
+  ...WEB_ONLY_DIRS.filter((dir) => existsSync(join(outDir, dir))).map((dir) => `${dir}/`),
+  ...WEB_ONLY_FILES.filter((file) => existsSync(join(outDir, file))),
+  ...webOnlyPrefixed(outDir),
+];
 if (shipped.length) {
   console.error(`App export check failed: web-only files ship in ${outDir} (run scripts/prune-app-export.mjs):`);
   shipped.forEach((file) => console.error(`  - ${file}`));

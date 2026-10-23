@@ -1,0 +1,70 @@
+/* audio-ui lane: the paw iris, the settings and how-to screens. Tokens come from tokens.css. */
+
+/* ---------------------------------------------------------------- paw iris (transitions.ts) */
+.fm-wipe { position: fixed; inset: 0; z-index: 80; pointer-events: none; display: none; }
+.fm-wipe.on { display: block; }
+.fm-wipe svg { width: 100%; height: 100%; display: block; }
+.fm-wipe .fm-wipe-paw { transform-box: view-box; transform-origin: 50px 58px; transform: scale(0); }
+.fm-wipe.iris .fm-wipe-paw { animation: fm-iris 0.36s cubic-bezier(0.55, 0, 0.3, 1) forwards; }
+@keyframes fm-iris { 0% { transform: scale(0) rotate(-12deg); } 30% { transform: scale(0.9) rotate(-6deg); } 100% { transform: scale(11) rotate(0deg); } }
+.fm-wipe.fade svg { animation: fm-wipe-fade 0.22s ease-out forwards; }
+.fm-wipe.fade .fm-wipe-paw { transform: scale(0); }
+@keyframes fm-wipe-fade { from { opacity: 0.85; } to { opacity: 0; } }
+
+/* ---------------------------------------------------------------- settings */
+.fm-settings-panel .fm-settings { gap: 6px; }
+.fm-settings-panel .fm-help { text-align: left; opacity: 0.8; font-weight: 700; }
+.fm-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fm-seg-b {
+  font: inherit;
+  font-family: var(--fm-font);
+  font-weight: 800;
+  font-size: var(--fm-fs-s);
+  min-height: var(--fm-target);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--fm-panel-bg);
+  color: var(--fm-panel-fg);
+  box-shadow: 0 3px 0 var(--ink);
+  cursor: pointer;
+}
+.fm-seg-b[aria-checked='true'] { background: var(--butter); box-shadow: 0 3px 0 var(--ink), inset 0 0 0 3px var(--rose); }
+.fm-cb-preview { display: inline-flex; gap: 6px; }
+.fm-cb-preview i {
+  font-style: normal;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--c);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- how to play */
+.fm-howto { display: grid; gap: 8px; text-align: left; margin: 4px 0; }
+.fm-howto-card {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(42, 26, 34, 0.06);
+  border: 2px solid rgba(42, 26, 34, 0.15);
+}
+.fm-howto-card .i { font-size: 30px; text-align: center; line-height: 1; }
+.fm-howto-card .i .fm-cb-preview { flex-direction: column; gap: 2px; }
+.fm-howto-card .i .fm-cb-preview i { width: 20px; height: 20px; font-size: 11px; }
+.fm-howto-card b { display: block; font-size: var(--fm-fs-m); }
+.fm-howto-card p { margin: 2px 0 0; font-size: var(--fm-fs-s); font-weight: 700; line-height: 1.3; opacity: 0.85; }
+:root[data-contrast='high'] .fm-howto-card { background: #fff; border-color: #000; }
+:root[data-contrast='high'] .fm-howto-card p { opacity: 1; }

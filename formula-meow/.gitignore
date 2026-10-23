@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.e2e-dist/
+.review-dist/
+test-results/
+playwright-report/
+.vitest/
+e2e/screens/
+review/*.png
+review/v2/
+review/v3/
+.review-v3-dist/
+review/v4/
+.review-v4-dist/
+review/trailer/build/
+review/trailer/out/
