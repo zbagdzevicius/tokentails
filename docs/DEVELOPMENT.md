@@ -25,6 +25,7 @@ client/         Next.js web app, Capacitor shells, Phaser games
 cms/            Next.js admin console
 catnip-heist/   Catnip Heist: standalone three.js game (Vite), built into client/public/heist-game
 bad-cat/        Bad Cat Daily: standalone three.js game (Vite), built into client/public/badcat-game
+pawlegends/     Pawlegends: 3v3 MOBA POC (three.js, Vite), built into client/public/pawlegends-game
 cat-rave/       Cat Rave: three.js page (Vite), built into client/public/rave (committed, served at /rave)
 shared/         Framework-free TypeScript contracts copied into every package (plan F2)
 scripts/        Repo-level scripts: sync-contracts.mjs and its tests
@@ -223,6 +224,39 @@ game has an API URL); the client's account bridge is `client/pages/badcat-accoun
 is `cms/pages/badcat.tsx`. `GameType.BAD_CAT` lives in `shared/enums.ts`: run `node scripts/sync-contracts.mjs`
 after editing it (it writes every copy, including `catnip-heist/src/shared-contracts/`).
 
+## Pawlegends
+
+```bash
+cd pawlegends
+npm install
+npm run dev                  # Vite on :5176
+npm run typecheck
+npm test                     # vitest (nightly gates run with PAWLEGENDS_NIGHTLY=1)
+npm run lint:sim             # determinism rules over src/sim and integer-only src/data
+npm run build && npm run budget
+npm run e2e                  # Playwright, desktop and landscape touch, mock host
+npm run match -- --seeds 40 --check-determinism   # headless matches in Node
+npm run build:client         # PAWLEGENDS_BASE=/pawlegends-game/ into ../client/public/pawlegends-game
+npm run vendor-sim           # re-vendor the sim into backend/src/vendor/pawlegends-sim; vendor-sim:check
+```
+
+Shelter champions (sim v9): the four champions' catalog ids live in three places. Change all of them together:
+the game (`pawlegends/src/data/heroes/shelter.ts`), the backend (`backend/src/pawlegends/pawlegends-champions.ts`)
+and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves are mirrored in
+`client/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`) and in the vendored facade
+(`PawlegendsHeroId`, written by `npm run vendor-sim`).
+
+The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
+`pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any
+game change and commit it. After a sim change run `npm run vendor-sim` and deploy the backend first;
+`npm run vendor-sim:check-remote -- <backend url>` (or `PAWLEGENDS_BACKEND_URL`) compares the deployed
+`GET /pawlegends/sim` hash. Build env: `VITE_EMBED_ORIGINS` (comma-separated host origins; default
+tokentails.com and www.tokentails.com; the game's own origin is always allowed when the parent is
+same-origin), `VITE_PAWLEGENDS_POSTHOG_KEY` (analytics, consent-gated), `VITE_PAWLEGENDS_BUILD` (the
+version in `ready`), `PAWLEGENDS_BASE` (base path). `?speed=1..64` speeds up the local host for tests and
+never changes the replay. `npm run lift` (`PPK_DIR`, default `../../swordcat`) copies the Pink Paw Knight
+files the game reuses; `node tools/lift-ppk.mjs --check` checks their provenance headers.
+
 ## CMS
 
 ```bash
@@ -301,7 +335,7 @@ node --test 'scripts/__tests__/*.test.mjs' # the script's own tests (a bare dire
 
 | Shared source | Holds | Copied to |
 |---|---|---|
-| `shared/enums.ts` | `GameType` (incl. `CATNIP_HEIST`), `GamePlatform`, `LIVE_GAME_OUTCOMES`, `StarterBreed`, `CAT_ORIGINS`, `OrderStatus` (incl. `LOCKED`, `FAILED_GRANT`), `RescueGoalStatus`, `DONATE_SOURCES`, `ShelterDonationStatus`, `SHELTER_ROLES`, `PARTNER_STATUSES`, `HANDOVER_STATUSES`, `CatAbilityType`, `Tier`, `BlessingStatus` | backend, client, cms, heist |
+| `shared/enums.ts` | `GameType` (incl. `CATNIP_HEIST`, `BAD_CAT`, `PAWLEGENDS`), `GamePlatform`, `LIVE_GAME_OUTCOMES`, `StarterBreed`, `CAT_ORIGINS`, `OrderStatus` (incl. `LOCKED`, `FAILED_GRANT`), `RescueGoalStatus`, `DONATE_SOURCES`, `ShelterDonationStatus`, `SHELTER_ROLES`, `PARTNER_STATUSES`, `HANDOVER_STATUSES`, `CatAbilityType`, `Tier`, `BlessingStatus` | backend, client, cms, heist |
 | `shared/errors.ts` | The F5.6 error codes, `errorCodeOf(body)` | backend, client, cms, heist |
 | `shared/caps.ts` | Purrsuit, Cupid Cat and Paw Match levels and caps (endless and season caps 500), totals, `REWARDS`, `GUEST_TAILS_LIFETIME_CAP` (2,000), `PLEDGE_DAILY_CAP` (5,000), `HEIST_LEVELS`, `HEIST_LEVEL_CAPS` (must match the vendored sim), `HEIST_STAR_MASK`, `HEIST_TICK_HZ`, `HEIST_MAX_TICKS`, `HEIST_MAX_RUNS`, `HEIST_MAX_ID_LENGTH`. Tables are frozen | backend, client, cms, heist |
 | `shared/storefront.ts` | `/cat/sale` types, `STOREFRONT_REQUIRED_KEYS`, `parseStorefront` (never throws) | backend, client, cms |

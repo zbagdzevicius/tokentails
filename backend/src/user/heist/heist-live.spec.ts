@@ -545,6 +545,9 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             it('treats any replay field as a replay request', () => {
                 expect(wantsReplay({ type: 'MATCH_3', replay: {} })).toBe(true);
                 expect(wantsReplay({ type: 'CATNIP_HEIST' })).toBe(true);
+                // Pawlegends matches re-sim too (POC.md §11.5): the same per-IP bucket.
+                expect(wantsReplay({ type: 'PAWLEGENDS' })).toBe(true);
+                expect(wantsReplay({ type: 'MATCH_3', pawlegends: {} })).toBe(true);
                 expect(wantsReplay({ type: 'MATCH_3' })).toBe(false);
                 expect(wantsReplay(undefined)).toBe(false);
             });

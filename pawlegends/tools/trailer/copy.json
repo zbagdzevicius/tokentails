@@ -1,0 +1,23 @@
+{
+ "_comment": "Every on-screen trailer v4 string (storyboard §5): five kinetic-type lines and the end card. lint-copy.mjs runs each one (and the composed lines) through the copy lint (pawlegends target, R8/R9/R10/R13) plus the trailer rules (T1 no #1, T2 no numbers except 3V3, T3 no adopt/rescue/token/buy words) and fails the render on any finding. Game words seen in the footage (ult callouts, Takedown!, COMEBACK!, Victory!) are the game's own pops, not trailer type. The v1 copy is copy-v1.json.",
+ "L1a": "CATS",
+ "L1b": "VS",
+ "L1c": "DOGS",
+ "L2a": "3V3",
+ "L2b": "IN YOUR BROWSER",
+ "L2b1": "IN YOUR",
+ "L2b2": "BROWSER",
+ "L3": "HUGE ULTS.",
+ "L4": "TRIPLE TAKEDOWN.",
+ "L5": "TAKE THEIR CORE.",
+ "L5v1": "TAKE THEIR",
+ "L5v2": "CORE.",
+ "LOGOa": "Paw",
+ "LOGOb": "legends",
+ "CTA": "PLAY FREE",
+ "SUB": "No download",
+ "URL": "tokentails.com/pawlegends",
+ "CREDIT": "© Token Tails",
+ "CB": "COMEBACK!",
+ "WIN": "Victory!"
+}

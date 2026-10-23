@@ -184,6 +184,26 @@ run per player and day. The same per-IP replay bucket, replay queue and 503 rule
 | 409 | `BADCAT_DUPLICATE` | This exact log is already saved (any account) |
 | 409 | `BADCAT_ALREADY_RANKED` | The caller already has a ranked run of that day |
 
+Pawlegends saves (POC.md §11.5; always on): `{ type: 'PAWLEGENDS', platform?, pawlegends: { v: 1, simVersion,
+seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash } }`. `difficulty` is `easy`, `normal`, `rookie` or `hard` (`PAWLEGENDS_LEVELS`), `simVersion` 8,
+`ticks` at most 19,800 (11:00), `inputs` base64 of at most 40,000 characters, `outcome` `won` or `lost`,
+`finalHash` 8 hex digits. `points`, `score`, `time` and `level` are ignored; `replay` and `badcat` are
+refused, and `pawlegends` on any other type is a 400. Lost matches are saved too. The record's digest is
+checked first (409 for one already saved by any account; a failed record is cached and refused without a
+re-sim), then the vendored sim replays it in a worker thread through its own queue (concurrency 1, 8 waiting).
+The `Game` row gets `level: <difficulty>`, `score: ticks`, `time: ticks / 30`, `points` = the catnip paid
+and `outcome` `won` or `died` (a lost match; `LiveGameOutcome` has no `lost`). The user gets
+`$min pawlegendsFastestWin.<d>` and `$max pawlegendsCatnip.<d>` on a win, `$inc pawlegendsMatches.<d>` and
+`lastPlayedAt`, and `catnipCount` is recomputed. The same per-IP replay bucket as the Heist applies.
+
+| Status | Body `code` | Meaning |
+|---|---|---|
+| 201 | none | `{difficulty, outcome, ticks, finalHash, catnipPaid, catnipCount, fastestWin}`; `catnipPaid` is the difficulty's cap (Easy 20, Normal 40, Rookie 10, Hard 0) on the first win, else 0; `catnipCount` is the account's new total |
+| 400 | `PAWLEGENDS_REPLAY_INVALID`, `PAWLEGENDS_TOO_LONG`, `PAWLEGENDS_NOT_ENDED`, `PAWLEGENDS_OUTCOME_MISMATCH`, `PAWLEGENDS_HASH_MISMATCH` | The record does not replay to what it claims; drop it |
+| 400 | `PAWLEGENDS_SIM_VERSION` | Another sim version; the body carries `sim: {simVersion, bundleSha256}`. Keep the match until the backend runs that version |
+| 409 | `PAWLEGENDS_DUPLICATE` | Already saved (any account) |
+| 429 | none, `Retry-After` header | Per-IP replay bucket, per-player limit, or a full replay queue |
+
 ## Cats
 
 | Method | Path | Purpose | Auth |
@@ -646,12 +666,48 @@ are saved by `POST /user/catbassadors/live` (see "Scores"), never by a `/badcat`
 | GET | `/badcat/admin/rooms?status=` | `{ items }`: rooms by status (`pending` default, `approved`, `rejected`, `hidden`) with reports and plays | – | Perm(5) |
 | POST | `/badcat/admin/rooms/:id/approve\|reject\|hide` | Review a room | – | Perm(5) |
 
+## Pawlegends (pawlegends)
+
+Store, entitlements and offers for the `pawlegends/` game (POC.md §8). Behaviour is in docs/BACKEND.md
+("Pawlegends"); shapes and prices in `backend/src/pawlegends/pawlegends.contracts.ts`. The game no longer sells
+the `pl_*` SKUs (it sends no `purchase-intent`; the host keeps the routes so earlier purchases restore). Cats
+bought from the game go through `POST /web3/create-payment` or `POST /payments/crypto/orders` with `context:
+'pawlegends'` (see "Web3 and payments").
+
+- **Always on, no flags.** A route that needs a secret answers 503 while it is missing, and `GET
+  /pawlegends/status` reports `store: false`. Checkout is ready only with a Stripe key of the right mode, the
+  webhook secret and an entitlement key, so no money is taken that the webhook cannot confirm.
+- **Accounts optional.** `POST /pawlegends/checkout` ignores `accesstoken`; a buyer is matched by email, device id
+  and entitlement token. `POST /pawlegends/checkout/account` (AppAuthGuard, registered accounts only) adds the
+  account id as a spend-cap and once-only key. The token goes in the `x-pawlegends-token` header.
+- **Throttling.** Every route skips the global throttler and checks its own per-client-IP limit first.
+- **No route writes a score.** Matches are saved by `POST /user/catbassadors/live` (see "Scores").
+
+| Method | Path | Purpose | Needs | Auth, limit |
+|---|---|---|---|---|
+| GET | `/pawlegends/status` | `{store, email, termsVersion, skus: [{sku, label, cents: {usd, eur}, deliveredNow, deliveredAtMvp}]}`. `Cache-Control: public, max-age=30` | – | Public, 60/min |
+| GET | `/pawlegends/sim` | `{simVersion, bundleSha256, placeholder, levels}`: the vendored sim `/live` replays with | – | Public (cached 60 s) |
+| POST | `/pawlegends/checkout` | `{sku, currency, email?, ageBand, consentVersion, deviceId, token?}` (`currency` `usd` or `eur`; `token` proves Founder for the upgrade) → `{url, sessionId}`, a Stripe Checkout Session with inline `price_data` (tax inclusive; a client price is ignored). Refuses under 16, a second Starter, the rolling 30-day spend cap (€30 for 16-17, €200 for 18+; the strictest of email and device), a sold-out Founder Legend and an upgrade without Founder. 503 without the Stripe key, webhook secret or entitlement key | Stripe key + webhook secret + entitlement key | Public, 5/min |
+| POST | `/pawlegends/checkout/account` | The same body and answer as `/pawlegends/checkout`, with the caller's account id as one more spend-cap and once-only key. Guests are refused | Stripe key + webhook secret + entitlement key | Auth (registered), 5/min |
+| POST | `/pawlegends/stripe/webhook` | Stripe events (raw body). Idempotent per event and per session; grants each paid session once, handles expiry and refunds. 400 on a bad signature; 503 without `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` | webhook secret | Stripe |
+| GET | `/pawlegends/entitlements?sessionId=` | After Checkout: pending until the webhook landed, then the signed entitlement token and items. With `x-pawlegends-token` instead: a refreshed token | entitlement key | Public, 30/min |
+| POST | `/pawlegends/restore` | `{email}` → the same answer for any valid email; emails a single-use 30-minute restore link (SendGrid) | entitlement key; SendGrid | Public, 3 per 10 min |
+| POST | `/pawlegends/restore/verify` | `{t}` → entitlements. Single use | entitlement key | Public, 10/min |
+| GET | `/pawlegends/offer` | `?deviceId&session&screen&catalogIds=<id>,<id>` (the host's featured cats; sim v9: a shelter champion's card goes first after the player's 3rd match on that champion) → `{offer: {kind: 'meet', catalogId} \| null}`: one "Meet <cat>" card for the first featured cat `ShelterCatSaleService` sells. Never in session 1, in the app, outside the lobby or results, under 16 or with less than $5 of spend cap left; at most one card a session and one a day, the same cat not again for 3 days. The `pl_*` starter and Founder cards are retired | – | Public, 60/min |
+| GET | `/pawlegends/champions` | Sim v9: `{cats: [{hero, catalogId, forSale, cat}]}` for the four shelter champions, in a fixed order: `cat` is the card with the `GET /cat/sale` whitelist fields (or null when the catalog cat is gone), `forSale` comes from `ShelterCatSaleService.check`. Cached 5 minutes (`Cache-Control: public, max-age=300`). It exists because `/cat/sale` caps each shelter at 200 cats. Champions are free to play: nothing here gates a hero | – | Public, 60/min |
+| POST | `/pawlegends/offer/seen` | `{deviceId, kind: 'meet', catalogId, session}`: records that the Meet card was shown | – | Public, 30/min |
+| GET | `/pawlegends/founders` | `{left, cap: 500}`: Founder Legend seats left. `Cache-Control: public, max-age=15` | – | Public, 60/min |
+| POST | `/pawlegends/notify` | `{email, source?}`: Legends Pass notify-me, double opt-in by email | SendGrid | Public, 3 per 10 min |
+| POST | `/pawlegends/notify/confirm` | `{t}`: confirms a notify-me sign-up | – | Public, 10/min |
+
+Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
+
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | POST | `/web3/confirm` | Verify a Stellar transaction hash via Horizon (successful, pays the treasury, in the order's XLM or USDC, at least the server catalogue price less a verified discount; the body `price` is ignored), complete the order, grant a cat, credit the affiliate. `entityType` must be `IMAGE` or `LOOT_BOX` (with no `id`), else 400 before any order exists. **`PACK` is deprecated (2026-10-04): the client no longer offers it; packs are bought through the crypto checkout below or Stripe.** Because the client pays before it confirms, a pack payment that still arrives (a cached old tab, a payment in flight at deploy) is verified and recorded first: one whose Stellar ledger closed before `STELLAR_PACKS_SUNSET_AT` (ISO time; closed `2026-10-09T18:00:00Z`, the env can only move it earlier) is granted as before; a later one is `FAILED_GRANT` (`STELLAR_DEPRECATED`) with `refund: 'due'` and answers 410 `{code: 'STELLAR_PACKS_DEPRECATED', refund: 'due'}`, so no payment is lost. `STELLAR_PACKS_ENABLED=true` turns the old path back on (rollback switch only). Loot boxes are still sold on Stellar (`MysteryBoxCat` uses `Web3Transfer`); whether to move them to the crypto checkout is an open decision. Existing Stellar pack orders, their history, the audit scripts and `refund: 'due'` handling are unchanged. The hash is lowercased and must be the payment's outer hash (for a fee-bump, the fee-bump hash; the inner hash is refused). `spent`, `monthSpent`, `spentUsd` and the affiliate credit use the verified amount. A loot box whose grant fails is `FAILED_GRANT` and answers `{success: false, refund: 'due'}`: the treasury refunds Stellar orders by hand. A digital portrait paid at least the retired $6 (less a verified discount) but less than today's price (an old tab) is `FAILED_GRANT` (`PRICE_CHANGED`) with `refund: 'due'`, grants nothing, counts no spend and answers 409 `{code: 'PORTRAIT_PRICE_CHANGED', refund: 'due'}`; the hash stays on the order. 400 when verification fails (the hash is released for a retry), 409 when the hash, or another hash of the same payment, already backs an order, 503 when Horizon or the XLM rate is unavailable | Auth |
-| POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price; a sent `amount` is ignored. Packs (`entityType: 'PACK'`, `id` = pack type) and portraits: table price less a verified `discount` code. **Shelter cats** (`entityType: 'CAT'`, `id` = the catalogue cat id from `GET /cat/sale`): a fixed $5 (no env override), never discounted; 400 `Cat is not for sale` for anything that is not an unowned shelter cat, 409 `User already owns this NFT cat` when the caller already has a copy. Returns `clientSecret` | Auth |
+| POST | `/web3/create-payment` | Create a Stripe PaymentIntent at the server price; a sent `amount` is ignored. Packs (`entityType: 'PACK'`, `id` = pack type) and portraits: table price less a verified `discount` code. **Shelter cats** (`entityType: 'CAT'`, `id` = the catalogue cat id from `GET /cat/sale`): a fixed $5 (no env override), never discounted; 400 `Cat is not for sale` for anything that is not an unowned shelter cat, 409 `User already owns this NFT cat` when the caller already has a copy. With `context: 'pawlegends'` (opened from the game; also accepted by `POST /payments/crypto/orders`, CAT only) the body carries `ageBand`, `deviceId` and `consentVersion` (the current `/pawlegends/terms` version, `2026-10-23`, sent when the buyer ticks the cat sheet's consent box) and `PawlegendsCheckoutGuard` runs first: 400 `PAWLEGENDS_INVALID` without the current consent version or a band, 403 `PAWLEGENDS_UNDER_16`, 403 `PAWLEGENDS_SPEND_CAP` over the band's 30-day cap (completed orders' `priceUsd` plus `pl_*` purchases). The accepted consent is recorded with the payment (intent metadata `consent_version`, `consent_at`; the crypto order's `consent`). Returns `clientSecret` | Auth |
 | POST | `/web3/confirm-payment` | Verify the PaymentIntent belongs to the caller, succeeded, is in USD and covers the server price, then grant once: a replayed confirm returns `{ success: false }` and grants nothing. The discount comes from the intent, not the body. A pack rolls a tier; a shelter cat is granted at the basic tier (`COMMON`, origin `adopt`) through the same adoption path packs use, and its shelter share is recorded exactly like a crypto purchase paid to the treasury (a `card` row in `cryptocheckouts` for the keeper; see "Shelter cats" in BACKEND.md). A failed grant is refunded through Stripe (`{success: false, refund: 'refunded'}`). Stripe and database errors return a fixed message | Auth |
 | POST | `/web3/validate-discount` | Validate a discount code; returns the percentage | Public |
 | GET | `/web3/pack/:packType/:id` | Grant a `STARTER`, `INFLUENCER`, or `LEGENDARY` pack cat without payment | Perm(5) |
@@ -1016,7 +1072,7 @@ The enums marked "shared" live in `shared/enums.ts` and are generated into every
 
 | Enum | Values |
 |---|---|
-| `GameType` (shared) | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST` |
+| `GameType` (shared) | `SHELTER`, `HOME`, `PURRQUEST`, `CATBASSADORS`, `CATNIP_CHAOS`, `PIXEL_RESCUE`, `MATCH_3`, `CATNIP_HEIST`, `PAWLEGENDS` |
 | `GamePlatform` (shared) | `web`, `ios`, `android` |
 | `LiveGameOutcome` (shared) | `won`, `died`, `timeout`, `quit` |
 | `StarterBreed` (shared) | `SCOUT`, `PINKIE`, `SHADOW`, `MISTY`, `SUNNY` |

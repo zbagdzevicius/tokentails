@@ -20,13 +20,16 @@ import { RAVE_PATH, RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, RAVE_TITLE, raveEntry
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
+import { isAppBuild } from "@/components/claims/build";
+import { pawlegendsPickerEnabled } from "@/components/pawlegends/flags";
+import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
 import clsx from "clsx";
-import type { MouseEvent, ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 
 /** The Paw Match preview tile that shows the catnip sprig (CatnipIcon, plan G8). */
 const CATNIP_TILE = "catnip";
@@ -43,6 +46,27 @@ export const SWORDCAT_PICKER_HREF = "/swordcat";
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
+
+/** Where the Pawlegends card goes: its host page, by a full page load (POC.md §11.4; web builds only). */
+export const PAWLEGENDS_PICKER_HREF = "/pawlegends";
+/** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
+export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
+/** The Pawlegends card's line: what the game is (both sides are playable, the other five heroes are bots). */
+export const PAWLEGENDS_PICKER_DESCRIPTION = "Cats vs dogs: 3v3 hero battles against bots";
+/**
+ * The Pawlegends card art: a teamfight from a real seeded match (take X14 of the launch trailer, master frame f1232),
+ * rendered in-engine by the game's own renderer after the per-skill animation upgrade: the trailer's wide brawl (shot
+ * S28, the ults Curtains Up, Tangled Lights and Champion's Challenge), a red skill ring and a light pillar over the
+ * heroes, the dog minions' cart on the left. Cropped to the card's 312x218 box as one 2x file (624x436, about
+ * 31 KB), like the Swordcat, Bad Cat and Moon Rave cards (a 1x/2x `srcSet` kept the 1x file on 2x screens in
+ * testing). Served from client/public. The "3v3 cats vs dogs" tile stays as the fallback if the file cannot load.
+ */
+export const PAWLEGENDS_PREVIEW = Object.freeze({
+  src: "/game-select/pawlegends-preview@2x.webp",
+  width: 312,
+  height: 218,
+  alt: "Cat and dog heroes clash in a teamfight inside a glowing red skill ring under a pillar of light",
+});
 
 /**
  * The Swordcat card art: Clem, the game's knight (ivory fur, crimson eyes, pink bow, sword, armour and red cape), a
@@ -104,16 +128,18 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW" | "ULTRA_CAT";
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "PAWLEGENDS" | "FORMULA_MEOW" | "ULTRA_CAT";
 }
 
 /**
  * A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`), Bad Cat's too (`badcatHref`),
- * and the Moon Rave's (`raveHref`, as the landing's `from=landing_rave`); others go as they are.
+ * the Moon Rave's (`raveHref`, as the landing's `from=landing_rave`) and Pawlegends' (it feeds
+ * `pawlegends_open {from}`); others go as they are.
  */
 export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (!card.href) return undefined;
   if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
+  if (card.key === PAWLEGENDS_CARD_KEY) return heistHref(card.href);
   if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
   if (card.key === RAVE_CARD_KEY) return raveHref("picker");
   if (card.key === FORMULA_MEOW_CARD_KEY) return formulaMeowHref("picker");
@@ -127,18 +153,21 @@ const cardTestId = (card: GameCard) =>
 
 /**
  * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, five or six
- * sit three to a row (3 + 2 centred, or 3 + 3), seven or eight sit four to a row (4 + 3 centred, or 4 + 4), and
- * nine sit three to a row (3 + 3 + 3; a 5 + 4 split made the descriptions too narrow to read). The Moon
- * Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave`
- * is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is seasonal
+ * sit three to a row (3 + 2 centred, or 3 + 3), seven or eight sit four to a row (4 + 3 centred, or 4 + 4),
+ * nine sit three to a row (3 + 3 + 3; a 5 + 4 split made the descriptions too narrow to read), and ten sit four
+ * to a row (4 + 4 + 2 centred; 5 + 5 is too narrow, 3 + 3 + 3 + 1 leaves one card alone). The Moon Rave comes
+ * first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave` is set
+ * (`raveEntryEnabled()`: every web build, no flag; never the app build). Pawlegends, the new flagship, comes
+ * right after the Moon Rave with the same NEW badge, only when `includePawlegends` is set
+ * (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches). Cupid Cat is seasonal
  * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
- * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes
- * last, when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app
- * build). Formula Meow (`/meow-race`) follows Bad Cat, when `includeFormulaMeow` is set
- * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Ultra Cat (`/ultra-cat`)
- * comes last, when `includeUltraCat` is set (`ultraCatEntryEnabled()`: every web build, no flag; never the
- * app build). Web builds show eight cards outside the Cupid season and nine in it.
+ * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set (`swordcatPickerEnabled()`: on
+ * by default, the env flags are kill switches). Bad Cat Daily comes next, when `includeBadcat` is set
+ * (`badcatEntryEnabled()`: every web build, no flag; never the app build). Formula Meow (`/meow-race`) follows
+ * Bad Cat, when `includeFormulaMeow` is set (`formulaMeowEntryEnabled()`: every web build, no flag; never the
+ * app build). Ultra Cat (`/ultra-cat`) comes last, when `includeUltraCat` is set (`ultraCatEntryEnabled()`:
+ * every web build, no flag; never the app build). Web builds show nine cards outside the Cupid season and ten
+ * in it.
  */
 export function gameCards(
   includeHeist: boolean,
@@ -146,6 +175,7 @@ export function gameCards(
   includeSwordcat = false,
   includeBadcat = false,
   includeRave = false,
+  includePawlegends = false,
   includeFormulaMeow = false,
   includeUltraCat = false
 ): GameCard[] {
@@ -159,6 +189,18 @@ export function gameCards(
       badge: "NEW",
       image: RAVE_PREVIEW.src,
       previewVariant: "RAVE",
+    });
+  }
+  // The new flagship sits right after the Moon Rave (founder, Oct 18: the rave stays first), ahead of the classics.
+  if (includePawlegends) {
+    cards.push({
+      key: PAWLEGENDS_CARD_KEY,
+      href: PAWLEGENDS_PICKER_HREF,
+      title: PAWLEGENDS_TITLE.toUpperCase(),
+      description: PAWLEGENDS_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: PAWLEGENDS_PREVIEW.src,
+      previewVariant: "PAWLEGENDS",
     });
   }
   if (isCupidSeason(now)) {
@@ -344,6 +386,40 @@ const RavePreview = () => (
   </span>
 );
 
+/** A real match frame; the "3v3 cats vs dogs" tile if the image cannot load. */
+const PawlegendsPreview = () => {
+  const [failed, setFailed] = useState(false);
+  const frame =
+    "relative flex aspect-[312/218] h-full flex-col items-center justify-center overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-gradient-to-br from-tt-night-700 to-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]";
+  if (!failed) {
+    return (
+      <span className={frame}>
+        <img
+          src={PAWLEGENDS_PREVIEW.src}
+          width={PAWLEGENDS_PREVIEW.width}
+          height={PAWLEGENDS_PREVIEW.height}
+          alt={PAWLEGENDS_PREVIEW.alt}
+          draggable={false}
+          decoding="async"
+          data-testid="game-card-pawlegends-preview"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      </span>
+    );
+  }
+  return (
+    <span data-testid="game-card-pawlegends-preview" className={frame}>
+      <span aria-hidden="true" className="font-primary text-[1.4rem] leading-none text-tt-gold-400 md:text-[2rem]">
+        3v3
+      </span>
+      <span aria-hidden="true" className="mt-1 font-secondary text-[7px] uppercase tracking-[0.12em] text-tt-cream md:text-[10px]">
+        cats vs dogs
+      </span>
+    </span>
+  );
+};
+
 /** A frame of a real race on Kitchen's loop (`FORMULA_MEOW_PREVIEW`). */
 const FormulaMeowPreview = () => (
   <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
@@ -379,6 +455,7 @@ const UltraCatPreview = () => (
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "RAVE") return <RavePreview />;
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
+  if (card.previewVariant === "PAWLEGENDS") return <PawlegendsPreview />;
   if (card.previewVariant === "BADCAT") return <BadcatPreview />;
   if (card.previewVariant === "FORMULA_MEOW") return <FormulaMeowPreview />;
   if (card.previewVariant === "ULTRA_CAT") return <UltraCatPreview />;
@@ -445,6 +522,8 @@ interface GameSelectModalProps {
   showBadcat?: boolean;
   /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
   showRave?: boolean;
+  /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` hides it) (tests). */
+  showPawlegends?: boolean;
   /** Override `formulaMeowEntryEnabled()` (every web build; never the app build) (tests). */
   showFormulaMeow?: boolean;
   /** Override `ultraCatEntryEnabled()` (every web build; never the app build) (tests). */
@@ -456,8 +535,8 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
- * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily,
- * Formula Meow and Ultra Cat).
+ * Every card is one tap target (a button, or a link for the Moon Rave, Pawlegends, the Heist, Swordcat, Bad Cat
+ * Daily, Formula Meow and Ultra Cat).
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
@@ -466,6 +545,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   showSwordcat,
   showBadcat,
   showRave,
+  showPawlegends,
   showFormulaMeow,
   showUltraCat,
   navigate,
@@ -477,6 +557,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     showSwordcat ?? swordcatPickerEnabled(),
     showBadcat ?? badcatEntryEnabled(),
     showRave ?? raveEntryEnabled(),
+    showPawlegends ?? pawlegendsPickerEnabled(isAppBuild()),
     showFormulaMeow ?? formulaMeowEntryEnabled(),
     showUltraCat ?? ultraCatEntryEnabled()
   );
@@ -487,7 +568,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       // Ctrl/Cmd/Shift/Alt or a middle click: let the browser open the link its own way (a new tab
       // or window), with the same `?from=picker` href.
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-      // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat) is
+      // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat, Pawlegends) is
       // its own app shell. On the Heist, `from` feeds `heist_open {from}` and is stripped from the
       // address bar on arrival; the rave ignores it and keeps it in the URL.
       event.preventDefault();
@@ -547,13 +628,14 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
-    // Seven or eight: four to a row, 4 + 3 centred or 4 + 4. Nine (the Cupid season): 3 + 3 + 3.
-    cards.length === 4 || cards.length === 7 || cards.length === 8
+    // Seven, eight or ten: four to a row, 4 + 3 centred, 4 + 4, or 4 + 4 + 2 centred (ten is every web card
+    // in the Cupid season). Nine (every web card outside it): three to a row, 3 + 3 + 3.
+    cards.length === 4 || cards.length === 7 || cards.length === 8 || cards.length === 10
       ? "md:w-[calc(25%-0.75rem)]"
       : "md:w-[calc(33.333%-0.75rem)]",
     // Short landscape phones: five cards share one row there (a second row would sit below the fold of
-    // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
-    // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.
+    // the scrolling list). Six or more would be too narrow to read in one row (the descriptions were
+    // cut off mid-word): they keep their md rows (3 + 3 up to 4 + 4 + 2) and the list scrolls.
     cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]"
   );
   const targetClass =

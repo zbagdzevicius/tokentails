@@ -1,0 +1,402 @@
+{
+  "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them.",
+  "envelope": { "ns": "tt-pawlegends", "v": 1 },
+  "hostToGame": {
+    "hello": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "hello" },
+      "invalid": { "ns": "tt-heist", "v": 1, "type": "hello" }
+    },
+    "pause": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "pause" },
+      "invalid": { "ns": "tt-pawlegends", "v": 2, "type": "pause" }
+    },
+    "resume": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "resume" },
+      "invalid": { "ns": "tt-pawlegends", "type": "resume" }
+    },
+    "session": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "session",
+        "signedIn": true,
+        "progress": {
+          "catnip": { "easy": 20, "normal": 0, "rookie": 0, "hard": 0 },
+          "matches": { "easy": 3, "normal": 1, "rookie": 0, "hard": 0 },
+          "fastestWin": { "easy": 8123, "normal": 0, "rookie": 0, "hard": 0 }
+        }
+      },
+      "invalid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "session",
+        "signedIn": "yes",
+        "progress": { "catnip": { "hard": 5 }, "matches": {}, "fastestWin": {} }
+      },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null }
+        },
+        {
+          "input": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "session",
+            "signedIn": true,
+            "progress": {
+              "catnip": { "easy": 20, "nightmare": 99 },
+              "matches": { "easy": 2.5, "normal": 4 },
+              "fastestWin": { "easy": -1 }
+            }
+          },
+          "expected": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "session",
+            "signedIn": true,
+            "progress": {
+              "catnip": { "easy": 20, "normal": 0, "rookie": 0, "hard": 0 },
+              "matches": { "easy": 0, "normal": 4, "rookie": 0, "hard": 0 },
+              "fastestWin": { "easy": 0, "normal": 0, "rookie": 0, "hard": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "save-result": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "save-result",
+        "matchId": "m7k2x9",
+        "status": "saved",
+        "catnipPaid": 20,
+        "catnipTotal": 140,
+        "fastestWin": 8123
+      },
+      "invalid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "save-result",
+        "matchId": "BAD-ID!",
+        "status": "done",
+        "catnipPaid": -1,
+        "catnipTotal": null,
+        "fastestWin": null
+      },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "save-result",
+            "matchId": "m7k2x9",
+            "status": "rejected",
+            "catnipPaid": 0,
+            "catnipTotal": null,
+            "fastestWin": null,
+            "code": "PAWLEGENDS_SIM_VERSION",
+            "extra": "dropped"
+          },
+          "expected": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "save-result",
+            "matchId": "m7k2x9",
+            "status": "rejected",
+            "catnipPaid": 0,
+            "catnipTotal": null,
+            "fastestWin": null,
+            "code": "PAWLEGENDS_SIM_VERSION"
+          }
+        }
+      ]
+    },
+    "roster": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "roster",
+        "cats": [
+          {
+            "id": "64f0a1b2c3d4e5f6a7b8c9d0",
+            "name": "Mochi",
+            "type": "FIRE",
+            "tier": "COMMON",
+            "isStarter": false,
+            "origin": "adopt",
+            "art": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/mochi.png",
+            "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1",
+            "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/PICKLES/hat-samurai.png"
+          },
+          {
+            "id": "starter-1",
+            "name": "Scout",
+            "type": "WATER",
+            "tier": "COMMON",
+            "isStarter": true,
+            "starterBreed": "SCOUT",
+            "origin": "starter"
+          }
+        ]
+      },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "roster", "cats": "Mochi" },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "roster",
+            "cats": [
+              {
+                "id": "64f0a1b2c3d4e5f6a7b8c9d0",
+                "name": "Mochi",
+                "type": "FIRE",
+                "tier": "COMMON",
+                "isStarter": false,
+                "origin": "adopt",
+                "art": "https://evil.example.com/tokentails-nfts/mochi.png",
+                "catalogId": "not-a-catalog-id",
+                "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/GREY/cat-tate/JUMPING.gif"
+              },
+              {
+                "id": "64f0a1b2c3d4e5f6a7b8c9d1",
+                "name": "Pip",
+                "type": "ICE",
+                "tier": "RARE",
+                "isStarter": false,
+                "origin": "redeem",
+                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png",
+                "sprite": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/GREY/base.png"
+              }
+            ]
+          },
+          "expected": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "roster",
+            "cats": [
+              {
+                "id": "64f0a1b2c3d4e5f6a7b8c9d0",
+                "name": "Mochi",
+                "type": "FIRE",
+                "tier": "COMMON",
+                "isStarter": false,
+                "origin": "adopt"
+              },
+              {
+                "id": "64f0a1b2c3d4e5f6a7b8c9d1",
+                "name": "Pip",
+                "type": "ICE",
+                "tier": "RARE",
+                "isStarter": false,
+                "origin": "redeem",
+                "art": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/cats/pip.png",
+                "sprite": "https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/assets/GREY/base.png"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "champions": {
+      "valid": {
+        "ns": "tt-pawlegends", "v": 1, "type": "champions",
+        "cats": [
+          { "catalogId": "6a30473c1d6649b19b03622b", "forSale": true, "catImg": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/MAINE/festive-lights-tangled.png" },
+          { "catalogId": "6992227d890a12f52a317e22", "forSale": false }
+        ]
+      },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champions", "cats": { "catalogId": "6a30473c1d6649b19b03622b" } },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends", "v": 1, "type": "champions",
+            "cats": [
+              { "catalogId": "6a30473c1d6649b19b03622b", "forSale": "yes", "catImg": "http://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png" },
+              { "catalogId": "xyz", "forSale": true },
+              { "catalogId": "6a30473c1d6649b19b03622b", "forSale": true },
+              { "catalogId": "6965203d0a2c7b325b78f7e2", "forSale": true, "name": "dropped" }
+            ]
+          },
+          "expected": {
+            "ns": "tt-pawlegends", "v": 1, "type": "champions",
+            "cats": [{ "catalogId": "6a30473c1d6649b19b03622b", "forSale": false }, { "catalogId": "6965203d0a2c7b325b78f7e2", "forSale": true }]
+          }
+        }
+      ]
+    },
+    "featured": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "featured",
+        "cats": [
+          {
+            "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1",
+            "name": "Pumpkin",
+            "type": "GRASS",
+            "art": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/pumpkin.png",
+            "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/OREO/base.png",
+            "tier": "RARE"
+          },
+          { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR" }
+        ]
+      },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "featured", "cats": { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" } },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "featured",
+            "cats": [
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "name": "Pumpkin", "type": "GRASS", "art": "http://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png", "tier": "GOLDEN" },
+              { "catalogId": "xyz", "name": "Bad", "type": "FIRE" },
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR", "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base.png", "tier": "EPIC" },
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e3", "name": "Third", "type": "ICE" }
+            ]
+          },
+          "expected": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "featured",
+            "cats": [
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "name": "Pumpkin", "type": "GRASS" },
+              { "catalogId": "65a1b2c3d4e5f6a7b8c9d0e2", "name": "Nova", "type": "STELLAR", "sprite": "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/FICUS/base.png", "tier": "EPIC" }
+            ]
+          }
+        }
+      ]
+    },
+    "offer": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "offer",
+        "offer": { "kind": "meet", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" }
+      },
+      "invalid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "offer",
+        "offer": { "kind": "founder", "skus": ["pl_founder"], "endsAt": null }
+      },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "offer", "offer": null },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "offer", "offer": null }
+        }
+      ]
+    },
+    "app": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "app", "isApp": false, "store": true, "notify": true },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "app", "isApp": "no", "store": true, "notify": true },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "app", "isApp": true, "store": true, "notify": true },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "app", "isApp": true, "store": false, "notify": true }
+        }
+      ]
+    },
+    "purchase-result": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-result", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1", "ok": true },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-result", "sku": "pl_founder", "ok": true }
+    },
+    "audio": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "audio", "muted": false, "music": 0.6, "sfx": 1 },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "audio", "muted": "no" },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "audio", "muted": true, "music": 2, "sfx": 0.25 },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "audio", "muted": true, "sfx": 0.25 }
+        }
+      ]
+    },
+    "entitlements": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "entitlements", "token": null },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "entitlements", "token": 42 }
+    }
+  },
+  "gameToHost": {
+    "ready": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "ready", "version": "0.3.0" },
+      "invalid": { "ns": "tt-pawlegends", "v": 2, "type": "ready", "version": "0.3.0" }
+    },
+    "match-result": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "match-result",
+        "matchId": "k9x2m4",
+        "replay": {
+          "v": 1,
+          "simVersion": 3,
+          "seed": 7,
+          "difficulty": "easy",
+          "hero": "clem",
+          "trick": "pounce",
+          "ticks": 9000,
+          "inputs": "AA==",
+          "outcome": "won",
+          "finalHash": "0000abcd"
+        },
+        "summary": { "won": true, "ticks": 9000, "hero": "clem", "difficulty": "easy", "takedowns": 4 }
+      },
+      "invalid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "match-result",
+        "matchId": "k9x2m4",
+        "replay": { "v": 1, "simVersion": 3, "seed": 7, "difficulty": "easy", "outcome": "draw" },
+        "summary": {}
+      }
+    },
+    "request-sign-in": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "save-progress" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "admin" }
+    },
+    "open-cat": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "open-cat", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "open-cat", "catalogId": "../packs" }
+    },
+    "offer-seen": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "offer-seen", "kind": "meet", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "offer-seen", "kind": "starter" }
+    },
+    "notify": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "notify", "where": "results" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "notify", "where": "checkout" }
+    },
+    "purchase-intent": {
+      "$comment": "Deprecated: the game no longer sends it. The host still parses it and answers purchase-result ok:false.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-intent", "sku": "pl_founder" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-intent", "sku": "pl_gold" }
+    },
+    "share": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "share", "kind": "dare", "url": "/pawlegends?dare=1", "text": "Beat my 7:12 vs Easy bots in Pawlegends!" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "share", "kind": "dare" }
+    },
+    "paused": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
+    },
+    "champion-offer": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "6a30473c1d6649b19b03622b" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "lambo" }
+    },
+    "skin-preview": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "skin-preview", "catalogId": "Pumpkin" }
+    },
+    "client-error": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "client-error", "source": "worker", "msg": "sim worker failed to start", "screen": "match", "tier": "high", "sim": 10 },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "client-error", "source": "worker", "msg": "Token eyJhbGciOi at https://x.example/?uid=7", "screen": "match", "tier": "high", "sim": 10 }
+    },
+    "analytics": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "analytics", "event": "match_end", "props": { "result": "win", "reason": "core", "length": 452, "hero": "brutus", "difficulty": "normal", "pl_rookie": false, "human": true, "embed": true } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "analytics", "event": "app_error", "props": { "msg": "sim worker failed to start" } }
+    }
+  }
+}

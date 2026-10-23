@@ -84,6 +84,9 @@ const eslintConfig = [
       // linted there.
       "public/badcat-game/**",
       "public/rave/**",
+      // Pawlegends' Vite bundle, written by `npm run build:client` in
+      // pawlegends/. Its source is checked there.
+      "public/pawlegends-game/**",
       // Formula Meow's Vite bundle (`npm run build:client` in formula-meow/,
       // its source is checked there).
       "public/formula-meow-game/**",

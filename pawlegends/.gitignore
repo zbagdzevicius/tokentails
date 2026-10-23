@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.e2e-dist/
+test-results/
+playwright-report/
+.vitest/
+media/trailer/
+media/trailer-v2/

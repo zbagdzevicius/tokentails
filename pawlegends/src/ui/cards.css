@@ -1,0 +1,235 @@
+/* Token Tails cat cards in the game (ui/cards.ts). Uses the game tokens from ui.css (--font, --panel, --self). */
+.plc { --plc-cream: #fff3dc; --plc-ink: #2b1d2e; display: flex; flex-direction: column; gap: 10px; margin-top: 12px; pointer-events: auto; }
+.plc-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.plc-head b { display: block; color: var(--plc-cream); font-size: 15px; letter-spacing: 0.02em; }
+.plc-head small { color: rgba(255, 243, 220, 0.72); font-size: 12px; }
+
+/* ---------------------------------------------------------------- the card */
+.plc-card {
+  --el: #ffd34d; --rx: 0deg; --ry: 0deg;
+  width: 112px; height: 148px; perspective: 700px; flex: none; position: relative;
+}
+.plc-card.small { width: 92px; height: 122px; }
+.plc-card-in {
+  position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.55s cubic-bezier(0.2, 1.4, 0.4, 1);
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+}
+.plc-card.flip .plc-card-in { transform: rotateY(180deg); }
+.plc-card.flip.in .plc-card-in { transform: rotateX(var(--rx)) rotateY(var(--ry)); }
+.plc-face {
+  position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden; overflow: hidden;
+  box-shadow: 0 0 0 3px var(--el), 0 8px 22px rgba(0, 0, 0, 0.38), 0 0 18px color-mix(in srgb, var(--el) 45%, transparent);
+}
+.plc-face.front {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 6px 6px 8px;
+  background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--el) 55%, #fff) 0%, color-mix(in srgb, var(--el) 40%, #2b1d2e) 70%);
+}
+.plc-face.back {
+  transform: rotateY(180deg); display: grid; place-items: center; color: rgba(255, 255, 255, 0.85);
+  background: repeating-linear-gradient(45deg, #ff7a9a 0 10px, #ff6f91 10px 20px);
+}
+.plc-face.back .pl-icon { width: 46%; height: auto; }
+.plc-art { position: absolute; inset: 0 0 34px; display: grid; place-items: center; }
+.plc-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s; }
+.plc-art.has-img img { opacity: 1; }
+.plc-art.has-img .plc-paw { opacity: 0; }
+.plc-paw { width: 52%; color: color-mix(in srgb, var(--el) 30%, #fff); filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2)); animation: plc-bob 2.4s ease-in-out infinite; }
+.plc-name {
+  position: relative; z-index: 1; font: 700 14px/1.1 var(--font); color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.plc-card.small .plc-name { font-size: 12px; }
+.plc-el { position: relative; z-index: 1; font: 600 10px/1.2 var(--font); color: rgba(255, 255, 255, 0.86); }
+.plc-shine {
+  position: absolute; inset: -40%; pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%);
+  transform: translateX(-60%); animation: plc-shine 3.6s ease-in-out infinite 1s;
+}
+.plc-ribbon {
+  position: absolute; top: 8px; right: -26px; transform: rotate(35deg); z-index: 2; padding: 2px 28px;
+  background: var(--plc-cream); color: var(--plc-ink); font: 700 10px/1.4 var(--font); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.plc-card.guest .plc-face.front { filter: saturate(0.85); }
+@media (hover: hover) { .plc-card:hover .plc-card-in { transition-duration: 0.12s; } }
+
+/* ---------------------------------------------------------------- title */
+.plc-levels { display: flex; gap: 8px; flex-wrap: wrap; }
+.plc-level {
+  display: flex; flex-direction: column; gap: 1px; padding: 6px 12px; border-radius: 12px;
+  background: var(--panel-2, rgba(43, 29, 46, 0.66)); border: 1px solid var(--line, rgba(255, 243, 220, 0.16));
+  color: var(--plc-cream); font: 600 12px/1.2 var(--font);
+}
+.plc-level b { font-size: 13px; }
+.plc-level.won { border-color: color-mix(in srgb, var(--self, #ffd34d) 60%, transparent); }
+.plc-level.won b::before { content: '★ '; color: var(--self, #ffd34d); }
+.plc-level small.goal { color: var(--self, #ffd34d); }
+.plc-save-wins { align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; }
+.plc-save-wins .pl-icon { width: 16px; height: 16px; }
+.plc-joined {
+  display: flex; flex-direction: column; padding: 8px 12px; border-radius: 12px; background: rgba(255, 211, 77, 0.18);
+  border: 1px solid rgba(255, 211, 77, 0.6); color: var(--plc-cream); animation: plc-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.plc-joined b { color: var(--self, #ffd34d); }
+.plc-joined span { font-size: 12px; }
+
+/* ---------------------------------------------------------------- the Meet card */
+.plc-meet {
+  position: relative; display: flex; gap: 12px; align-items: center; padding: 10px 14px 10px 10px; max-width: 360px;
+  background: linear-gradient(135deg, rgba(255, 122, 154, 0.95), rgba(111, 143, 224, 0.92)); border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); color: #fff; transform: translateY(12px) scale(0.96); opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.2, 1.5, 0.4, 1), opacity 0.3s;
+}
+.plc-meet.in { transform: none; opacity: 1; }
+.plc-meet.out { transform: translateY(8px) scale(0.94); opacity: 0; }
+.plc-meet-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.plc-kicker { font: 700 10px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.plc-meet-name { font: 700 18px/1.1 var(--font); }
+.plc-meet-line { margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.92; }
+.plc-meet-go { align-self: flex-start; margin-top: 4px; font-size: 14px; padding: 8px 16px; }
+.plc-meet-go:disabled { opacity: 0.7; cursor: default; }
+.plc-x {
+  position: absolute; top: 6px; right: 8px; z-index: 2; border: 0; background: transparent; color: #fff; opacity: 0.8; cursor: pointer;
+  font: 700 13px/1 var(--font); padding: 4px;
+}
+.plc-results .plc-meet { transition-delay: 1.4s; }
+
+/* ---------------------------------------------------------------- pick */
+.plc-pick { margin-top: 10px; }
+.plc-trails { display: flex; gap: 6px; align-items: center; color: rgba(255, 243, 220, 0.75); font-size: 11px; }
+.plc-swatch {
+  --el: #ffd34d; width: 18px; height: 18px; border-radius: 50%; background: var(--el);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 10px var(--el); animation: plc-glow 2s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------- results */
+.plc-save { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0 2px; }
+.plc-chip {
+  display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 999px;
+  background: var(--panel-2, rgba(43, 29, 46, 0.66)); color: var(--plc-cream); font: 600 13px/1.2 var(--font);
+}
+.plc-dot { width: 9px; height: 9px; border-radius: 50%; background: #ffd34d; }
+.state-waiting .plc-dot, .state-saving .plc-dot { animation: plc-blink 0.9s ease-in-out infinite; }
+.state-saved .plc-dot { background: #6fd36f; box-shadow: 0 0 8px #6fd36f; }
+.state-queued .plc-dot, .state-local .plc-dot { background: #9fe8ff; }
+.state-failed .plc-dot { background: #ffb36b; }
+.state-rejected .plc-dot { background: #ff4d5e; }
+.plc-catnip {
+  display: inline-flex; gap: 6px; align-items: baseline; color: #b6f0c8; animation: plc-pop 0.6s cubic-bezier(0.2, 1.8, 0.4, 1);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.plc-catnip-n { font: 700 26px/1 var(--font); }
+.plc-catnip-n.done { animation: plc-thump 0.35s ease-out; }
+.plc-catnip span { font: 700 15px/1 var(--font); }
+.plc-catnip small { color: rgba(255, 243, 220, 0.7); font-size: 11px; }
+.plc-stamp {
+  font: 700 15px/1 var(--font); color: var(--plc-ink); background: var(--self, #ffd34d); padding: 6px 12px; border-radius: 8px;
+  transform: rotate(-6deg); box-shadow: 0 4px 0 #c99a1d; animation: plc-stamp 0.7s cubic-bezier(0.2, 1.8, 0.4, 1) 0.4s both;
+}
+.plc-with { display: flex; flex-direction: column; align-items: center; gap: 6px; color: rgba(255, 243, 220, 0.85); font-size: 12px; }
+.plc-notify { align-self: flex-start; }
+
+@keyframes plc-bob { 50% { transform: translateY(-4px); } }
+@keyframes plc-shine { 0%, 60% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+@keyframes plc-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes plc-thump { 50% { transform: scale(1.25); } }
+@keyframes plc-blink { 50% { opacity: 0.25; } }
+@keyframes plc-glow { 50% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 16px var(--el); } }
+@keyframes plc-stamp { from { transform: rotate(-20deg) scale(2.2); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+
+/* collection frames on the title badge (render/cosmetics.ts FRAME_NAME) */
+.pl-badge[data-frame='frame.buddy'] .ring { box-shadow: 0 0 0 3px #ffb3c8; }
+.pl-badge[data-frame='frame.crew'] .ring { box-shadow: 0 0 0 3px #ff7a9a, 0 0 12px #ff7a9a; }
+.pl-badge[data-frame='frame.clowder'] .ring { box-shadow: 0 0 0 3px #ffd34d, 0 0 0 6px #ff7a9a, 0 0 18px #ffd34d; }
+
+@media (max-height: 520px) {
+  .plc { gap: 6px; margin-top: 6px; }
+  .plc-card { width: 86px; height: 114px; }
+  .plc-card.small { width: 72px; height: 96px; }
+  .plc-meet { padding: 6px 10px 6px 6px; }
+  .plc-meet-line { display: none; }
+  .plc-head small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plc-shine, .plc-paw, .plc-swatch { animation: none; }
+  .plc-card-in, .plc-meet { transition: none; }
+}
+
+/* ---------------------------------------------------------------- docking: screen corners, so the columns never overflow */
+.plc-dock {
+  position: absolute; z-index: 30; right: calc(16px + var(--safe-r, 0px)); bottom: calc(16px + var(--safe-b, 0px));
+  width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none;
+}
+.plc-dock > * { pointer-events: auto; }
+.plc-dock:empty { display: none; }
+.plc-dock .plc { margin: 0; align-items: flex-end; }
+.plc-dock .plc-row { justify-content: flex-end; }
+.plc-dock .plc-meet { max-width: 100%; }
+.plc-dock.dock-pick { top: calc(16px + var(--safe-t, 0px)); bottom: auto; width: min(250px, calc(100vw - 32px)); }
+/* Results (playtest round 1): the cat card sat on top of the pinned Play again; it docks above the action row now. */
+.plc-dock.dock-results { bottom: calc(92px + var(--safe-b, 0px)); }
+.plc-pick {
+  align-items: stretch !important; padding: 10px 12px; border-radius: 16px; width: 100%; box-sizing: border-box;
+  background: var(--panel-2, rgba(43, 29, 46, 0.66)); border: 1px solid var(--line, rgba(255, 243, 220, 0.16));
+}
+.plc-pick .plc-row { justify-content: flex-start; }
+@media (max-height: 520px) {
+  .plc-dock { right: calc(10px + var(--safe-r, 0px)); bottom: calc(10px + var(--safe-b, 0px)); width: min(320px, 42vw); }
+  /* short screens put Bots and Play bottom right: the squad goes top right, compact */
+  .plc-dock.dock-pick { top: calc(8px + var(--safe-t, 0px)); bottom: auto; width: auto; }
+  .plc-pick { padding: 6px 8px; flex-direction: row; align-items: center !important; gap: 6px; width: auto; }
+  .plc-pick .plc-head small, .plc-pick .plc-trails { display: none; }
+  .plc-pick .plc-head b { font-size: 11px; writing-mode: vertical-rl; transform: rotate(180deg); }
+  .plc-pick .plc-card.small { width: 54px; height: 72px; }
+  .plc-pick .plc-card.small .plc-name { font-size: 10px; }
+  .plc-pick .plc-card.small .plc-el { display: none; }
+  .plc-pick .plc-save-wins { font-size: 11px; padding: 6px 10px; }
+  .plc-dock.dock-results .plc-card { width: 72px; height: 96px; }
+  .plc-dock.dock-results { bottom: calc(66px + var(--safe-b, 0px)); }
+}
+
+/* Round 0: the pick screen's swap row, the title's read-only squad strip, the Meet card's "where it goes" cue. */
+.plc-bench { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; color: rgba(255, 243, 220, 0.72); font-size: 12px; pointer-events: auto; }
+.plc-bench-cat, .plc-squad-cat {
+  font: 600 12px var(--font, system-ui); color: var(--plc-cream, #fff3dc); background: rgba(42, 26, 34, 0.72); border: 2px solid var(--el, #fff3dc);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer;
+}
+.plc-bench-cat:active { transform: scale(0.95); }
+.plc-bench-cat[data-tier]::after, .plc-squad-cat[data-tier]::after { content: ' ✦'; color: #ffd34d; }
+.plc-bench-cat[data-tier='legendary']::after, .plc-squad-cat[data-tier='legendary']::after { content: ' ✦✦'; }
+.plc-squad { display: flex; gap: 6px; align-items: center; margin: 6px 0; color: rgba(255, 243, 220, 0.72); font-size: 12px; }
+.plc-squad-cat { cursor: default; }
+.plc-meet-where { display: block; margin-top: 4px; font-size: 11px; opacity: 0.75; }
+
+/* Round 2: every squad chip names its tier and element positively ("Legendary · Fire"); "no frame" is gone (decision
+   #19 still holds: the hover text says where frames come from). */
+.plc-tier { margin-left: 5px; font-size: 10px; font-weight: 600; color: var(--el, #ffd34d); opacity: 0.95; }
+.plc-bench-cat[data-tier='legendary'] .plc-tier, .plc-squad-cat[data-tier='legendary'] .plc-tier { color: #ffd34d; }
+
+/* Round 1: the Meet card previews the player's hero in the cat's chroma. */
+.plc-meet-preview { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.plc-meet-pic { width: 34px; height: 34px; border-radius: 50%; background-color: var(--el); background-size: 118%; background-position: 50% 30%; border: 2px solid var(--el); flex: none; }
+.plc-meet-preview small { font-size: 11px; opacity: 0.85; }
+@media (max-height: 520px) { .plc-meet-preview small { display: none; } }
+
+/* Round 2 (phones, 844x390: the Meet card covered a quarter of the hero, its ✕ sat on the kicker and "Adopt on Token
+   Tails" hit the bottom edge): at heights ≤ 430 px it is a compact one-line chip, the ✕ with its own padding. */
+@media (max-height: 430px) {
+  .plc-meet { gap: 8px; padding: 6px 34px 6px 10px; border-radius: 999px; max-width: min(340px, calc(100vw - 32px)); }
+  .plc-meet > .plc-card, .plc-meet .plc-meet-preview, .plc-meet .plc-meet-line, .plc-meet .plc-kicker { display: none; }
+  .plc-meet-body { flex-direction: row; align-items: center; gap: 8px; flex-wrap: nowrap; }
+  .plc-meet-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+  .plc-meet-go { margin-top: 0; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+  .plc-meet-where { margin-top: 0; font-size: 10px; white-space: nowrap; }
+  .plc-meet .plc-x { top: 50%; right: 6px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.22); }
+}
+
+/* Sim v9: the lobby's shelter champion info (title screen only): an "About" chip, a panel with the card, where the
+   champion comes from and the player-pulled Meet link. */
+.plc-champ { pointer-events: auto; margin: 6px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.plc-champ-panel { display: flex; gap: 10px; align-items: flex-start; max-width: min(360px, calc(100vw - 32px)); padding: 8px 10px; border-radius: 14px; background: rgba(42, 26, 34, 0.86); border: 2px solid rgba(255, 243, 220, 0.25); color: var(--plc-cream, #fff3dc); }
+.plc-champ-panel[hidden] { display: none; }
+.plc-champ-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.plc-champ-line { margin: 0; font-size: 12px; line-height: 1.35; }
+.plc-champ-flavour { margin: 0; font-size: 12px; font-style: italic; opacity: 0.8; }
+.plc-champ-badge { align-self: flex-start; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
+@media (max-height: 430px) { .plc-champ-panel > .plc-card { display: none; } }

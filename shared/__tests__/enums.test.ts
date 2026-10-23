@@ -16,7 +16,7 @@ import {
 } from '../enums';
 
 describe('shared enums', () => {
-    it('keeps every GameType value stored in old rows and adds CATNIP_HEIST and BAD_CAT', () => {
+    it('keeps every GameType value stored in old rows and adds CATNIP_HEIST, BAD_CAT and PAWLEGENDS', () => {
         expect(Object.values(GameType)).toEqual([
             'SHELTER',
             'HOME',
@@ -27,6 +27,7 @@ describe('shared enums', () => {
             'MATCH_3',
             'CATNIP_HEIST',
             'BAD_CAT',
+            'PAWLEGENDS',
         ]);
     });
 

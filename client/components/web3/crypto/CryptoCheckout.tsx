@@ -9,6 +9,7 @@ import { CryptoPayConfig, CryptoPayConfirmResult, CryptoPayOption, CryptoPayOrde
 import clsx from "clsx";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CRYPTO_PAY_API, CryptoPayApiError } from "./api";
+import type { PurchaseContext } from "@/api/stripe-api";
 import {
   ConfirmProgress,
   PendingPayment,
@@ -69,6 +70,8 @@ export interface CryptoCheckoutProps {
   onProcessingChange?: (processing: boolean) => void;
   /** Tests inject a provider; the page reads window.ethereum. */
   provider?: Eip1193 | null;
+  /** Sent with the order (the Pawlegends age band and spend cap check). */
+  purchaseContext?: PurchaseContext | null;
 }
 
 const BOX =
@@ -192,7 +195,15 @@ export function walletBrowserLinks(href: string): { name: string; url: string }[
   ];
 }
 
-export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessingChange, provider }: CryptoCheckoutProps) => {
+export const CryptoCheckout = ({
+  sku,
+  priceUsd,
+  discount,
+  onSuccess,
+  onProcessingChange,
+  provider,
+  purchaseContext,
+}: CryptoCheckoutProps) => {
   const key = skuKey(sku);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [config, setConfig] = useState<CryptoPayConfig | null>(null);
@@ -312,7 +323,12 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
     setError(null);
     setPhase({ kind: "creating" });
     try {
-      const created = await CRYPTO_PAY_API.createOrder(sku, sku.kind === "PACK" ? discount : undefined);
+      const created = await CRYPTO_PAY_API.createOrder(
+        sku,
+        sku.kind === "PACK" ? discount : undefined,
+        undefined,
+        purchaseContext
+      );
       if (!alive.current) return;
       if (!created.accepted?.length) {
         setPhase({
@@ -334,7 +350,7 @@ export const CryptoCheckout = ({ sku, priceUsd, discount, onSuccess, onProcessin
       setError(errorMessage(err));
       setPhase({ kind: "pick" });
     }
-  }, [sku, discount, chainId, token]);
+  }, [sku, discount, chainId, token, purchaseContext]);
 
   const settle = useCallback(
     async (orderId: string, payChainId: number, txHash: string) => {

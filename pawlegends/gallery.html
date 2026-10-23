@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Pawlegends animation gallery</title>
+    <style>
+      :root { --bg: #2b1d2e; --cream: #fff3dc; }
+      html, body { margin: 0; background: var(--bg); color: var(--cream); font-family: system-ui, sans-serif; }
+      #wrap { position: relative; }
+      #app { position: relative; overflow: hidden; }
+    </style>
+    <!-- dev only (npm run dev → /gallery.html?hero=clem): never part of build or build:client (ANIM-SPEC §11) -->
+  </head>
+  <body>
+    <div id="wrap"><div id="app"></div></div>
+    <script type="module" src="./src/gallery/main.ts"></script>
+  </body>
+</html>

@@ -108,6 +108,17 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
+// Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
+// hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
+// redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
+// index.html and build-releases.json keep the default revalidation.
+const pawlegendsHeaders = [
+  {
+    source: "/pawlegends-game/build/:path*",
+    headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+  },
+];
+
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
 // redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
 // `legacySlugs`). lib/feed/engine.ts is TypeScript that Node loads by type stripping (Node >= 22.18);
@@ -193,6 +204,7 @@ const nextConfig = {
               source: "/music/back-on-track-v1/:path*",
               headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
             },
+            ...pawlegendsHeaders,
           ];
         },
       }),

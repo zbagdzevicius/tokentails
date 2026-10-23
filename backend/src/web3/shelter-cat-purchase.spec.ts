@@ -53,6 +53,7 @@ function setup({
     adopt = { success: true, cat: { _id: 'copy1' } } as any,
     check = { ok: true, cat: { catId: CAT } } as any,
     cryptoCheckout = undefined as any,
+    pawlegendsGuard = undefined as any,
 } = {}) {
     const orderId = new Types.ObjectId();
     const orderRepository = {
@@ -82,7 +83,9 @@ function setup({
         svc,
         undefined,
         catSale,
-        cryptoCheckout
+        cryptoCheckout,
+        undefined,
+        pawlegendsGuard
     ) as Web3Controller;
     return { ctrl, orderId, orderRepository, userRepository, catService, catSale };
 }
@@ -130,6 +133,57 @@ describe('Stripe: a shelter cat', () => {
             )
         ).rejects.toBeInstanceOf(ConflictException);
         expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+    });
+
+    it("create-payment from Pawlegends runs the game's consent, age band and spend cap first, and tags the intent", async () => {
+        const consent = { version: '2026-10-23', at: '2026-10-23T10:00:00.000Z' };
+        const assert = jest.fn().mockResolvedValue({ band: '18+', capLeftCents: 0, consent });
+        const { ctrl } = setup({ pawlegendsGuard: { assert } });
+        stripe.paymentIntents.create.mockResolvedValue({ client_secret: 's' });
+        const body = {
+            id: CAT,
+            entityType: EntityType.CAT,
+            context: 'pawlegends',
+            ageBand: '18+',
+            deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
+        };
+        await ctrl.createPayment(body as any, USER);
+        expect(assert).toHaveBeenCalledWith({
+            userId: USER,
+            cents: 500,
+            context: 'pawlegends',
+            ageBand: '18+',
+            deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
+        });
+        // The accepted consent is recorded with the payment (launch item U5).
+        expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).toEqual(
+            expect.objectContaining({
+                context: 'pawlegends',
+                catId: CAT,
+                consent_version: '2026-10-23',
+                consent_at: '2026-10-23T10:00:00.000Z',
+            })
+        );
+        // A refusal (under 16, over the cap) stops before any intent exists.
+        const { HttpException } = jest.requireActual('@nestjs/common');
+        assert.mockRejectedValueOnce(new HttpException({ code: 'PAWLEGENDS_SPEND_CAP' }, 403));
+        stripe.paymentIntents.create.mockClear();
+        await expect(ctrl.createPayment(body as any, USER)).rejects.toMatchObject({ status: 403 });
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+        // Without the guard wired, a game purchase is refused, never sold unchecked.
+        await expect(setup().ctrl.createPayment(body as any, USER)).rejects.toThrow('Checkout is not available here');
+    });
+
+    it('create-payment without a context is unchanged (no guard, no context metadata)', async () => {
+        const assert = jest.fn();
+        const { ctrl } = setup({ pawlegendsGuard: { assert } });
+        stripe.paymentIntents.create.mockResolvedValue({ client_secret: 's' });
+        await ctrl.createPayment({ id: CAT, entityType: EntityType.CAT } as any, USER);
+        expect(assert).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).not.toHaveProperty('context');
+        expect(stripe.paymentIntents.create.mock.calls[0][0].metadata).not.toHaveProperty('consent_version');
     });
 
     it('confirm-payment grants one basic-tier copy with origin adopt, once', async () => {

@@ -8,6 +8,26 @@ const jsonAuthHeaders = (): HeadersInit => ({
   accesstoken: sessionStorage.getItem("accesstoken") || "",
 });
 
+/**
+ * Where a purchase starts, when that changes the server's checks. `pawlegends`: the Token Tails cat checkout opened
+ * from the Pawlegends game, so the backend applies the Pawlegends age band and 30-day spend cap first
+ * (`PawlegendsCheckoutGuard`). `consentVersion` is the `/pawlegends/terms` version the buyer ticked the consent box
+ * for (terms, privacy and the EU withdrawal waiver); the server refuses any other and records it with the payment.
+ * Other callers send nothing and are unchanged.
+ */
+export interface PurchaseContext {
+  context: "pawlegends";
+  ageBand: "under16" | "16-17" | "18+";
+  deviceId: string;
+  consentVersion: string;
+}
+
+/** The context fields a request body carries, copied by name. */
+export const purchaseContextFields = (context?: PurchaseContext | null) =>
+  context
+    ? { context: context.context, ageBand: context.ageBand, deviceId: context.deviceId, consentVersion: context.consentVersion }
+    : {};
+
 export const STRIPE_API = {
   createPaymentIntent: async (
     amount: number,
@@ -17,6 +37,7 @@ export const STRIPE_API = {
       entityType?: EntityType;
       productType?: "digital" | "print" | "canvas";
       imageId?: string;
+      purchaseContext?: PurchaseContext | null;
     },
   ) => {
     const response = await fetch(`${apiUrl}/web3/create-payment`, {
@@ -29,6 +50,7 @@ export const STRIPE_API = {
         entityType: options?.entityType,
         productType: options?.productType,
         imageId: options?.imageId,
+        ...purchaseContextFields(options?.purchaseContext),
       }),
     });
 

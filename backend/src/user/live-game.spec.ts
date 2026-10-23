@@ -2,8 +2,19 @@ import { BadRequestException } from '@nestjs/common';
 import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { ThrottlerException, ThrottlerStorageService } from '@nestjs/throttler';
 import { Types } from 'mongoose';
-import { GameType, scoredGameTypes, seasonEventLevelPointCaps, totalCatnipCap } from 'src/game/game.schema';
-import { CATNIP_CHAOS_ENDLESS_CAP, HEIST_LEVELS, MATCH3_TOTAL_CAP } from 'src/shared-contracts/caps';
+import {
+    GameType,
+    liveGameTypes,
+    scoredGameTypes,
+    seasonEventLevelPointCaps,
+    totalCatnipCap,
+} from 'src/game/game.schema';
+import {
+    CATNIP_CHAOS_ENDLESS_CAP,
+    HEIST_LEVELS,
+    MATCH3_TOTAL_CAP,
+    PAWLEGENDS_TOTAL_CAP,
+} from 'src/shared-contracts/caps';
 import { AppValidationPipe, LIVE_GAME_USER_THROTTLE } from './dto/live-game.dto';
 import { LiveGameUserThrottleGuard } from './live-game-throttle.guard';
 import { UserController } from './user.controller';
@@ -140,6 +151,34 @@ describe('POST /user/catbassadors/live', () => {
         });
     });
 
+    describe('PAWLEGENDS', () => {
+        it('is a live type but never a plain scored type (POC.md §15 item 17)', () => {
+            expect(GameType.PAWLEGENDS).toBe('PAWLEGENDS');
+            expect(liveGameTypes as readonly string[]).toContain(GameType.PAWLEGENDS);
+            expect(scoredGameTypes as readonly string[]).not.toContain(GameType.PAWLEGENDS);
+        });
+
+        it.each([{ level: 'easy', points: 20, time: 400 }, { level: '1', points: 1, time: 0 }, { points: 0 }])(
+            'rejects a plain Pawlegends save %j with 400 and writes nothing',
+            async fields => {
+                const controller = createController();
+                await expect(post(controller, { type: GameType.PAWLEGENDS, ...fields })).rejects.toBeInstanceOf(
+                    BadRequestException
+                );
+                expect(controller.gameRepository.create).not.toHaveBeenCalled();
+                expect(controller.repository.update).not.toHaveBeenCalled();
+            }
+        );
+
+        it('rejects a pawlegends replay on a plain type with 400', async () => {
+            const controller = createController();
+            await expect(
+                post(controller, { type: 'MATCH_3', level: '1', points: 1, time: 1, pawlegends: { v: 1 } })
+            ).rejects.toBeInstanceOf(BadRequestException);
+            expect(controller.gameRepository.create).not.toHaveBeenCalled();
+        });
+    });
+
     it.each([
         [{ tails: 1000000 }],
         [{ user: OTHER_ID }],
@@ -215,8 +254,9 @@ describe('POST /user/catbassadors/live', () => {
         it('uses the 500 endless and Cupid Cat caps of decision #57', () => {
             expect(CATNIP_CHAOS_ENDLESS_CAP).toBe(500);
             expect(seasonEventLevelPointCaps.every(cap => cap === 500)).toBe(true);
-            // MAX_LEGIT_CATNIP_SCORE (the leaderboard ceiling) is totalCatnipCap: 80 higher than with 420.
-            expect(totalCatnipCap).toBe(500 + 96 * 10 + MATCH3_TOTAL_CAP);
+            // MAX_LEGIT_CATNIP_SCORE (the leaderboard ceiling) is totalCatnipCap: 80 higher than with 420, plus the
+            // Pawlegends first-win catnip (POC.md §11.5).
+            expect(totalCatnipCap).toBe(500 + 96 * 10 + MATCH3_TOTAL_CAP + PAWLEGENDS_TOTAL_CAP);
         });
 
         it.each([

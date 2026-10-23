@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
+    "types": ["vite/client", "node"],
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src", "tests", "tools/**/*.ts", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+}

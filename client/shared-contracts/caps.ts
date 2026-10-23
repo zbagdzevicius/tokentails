@@ -77,9 +77,6 @@ const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
 export const CATNIP_CHAOS_TOTAL_CAP = sum(CATNIP_CHAOS_LEVEL_CAPS);
 export const MATCH3_TOTAL_CAP = sum(MATCH3_LEVEL_CATNIP_CAPS);
 
-/** Most catnip a legitimate account can hold. Leaderboards ignore anything above it. */
-export const TOTAL_CATNIP_CAP = CATNIP_CHAOS_TOTAL_CAP + MATCH3_TOTAL_CAP;
-
 // ---------------------------------------------------------------------------------------------
 // Cupid Cat (season event)
 // ---------------------------------------------------------------------------------------------
@@ -139,6 +136,48 @@ export const HEIST_MAX_RUNS = HEIST_MAX_TICKS;
 
 /** Longest `runId`, `levelId` or cat id a Heist message may carry. */
 export const HEIST_MAX_ID_LENGTH = 64;
+
+// ---------------------------------------------------------------------------------------------
+// Pawlegends (POC.md §11.5)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Pawlegends bot difficulties that save a result, in slot order: index `i` is the slot of
+ * `pawlegendsFastestWin` and `pawlegendsFirstWin` on a user. Must match `DIFFICULTIES` of the vendored sim
+ * (`backend/src/vendor/pawlegends-sim`). 'rookie' (sim v4, match 1 only) and 'hard' (sim v6) are appended so
+ * the earlier levels keep their slot.
+ */
+export const PAWLEGENDS_LEVELS: string[] = frozen(['easy', 'normal', 'rookie', 'hard']);
+
+/**
+ * Catnip paid once, for the first replay-verified win per difficulty, in `PAWLEGENDS_LEVELS` order. Hard pays
+ * nothing (sim v6): a new catnip reward is a founder decision, so a Hard win saves its time and match count only.
+ */
+export const PAWLEGENDS_LEVEL_CAPS: number[] = frozen([20, 40, 10, 0]);
+
+/** Pawlegends first-win catnip over every difficulty (part of `catnipCount`). */
+export const PAWLEGENDS_TOTAL_CAP = sum(PAWLEGENDS_LEVEL_CAPS);
+
+/**
+ * Most catnip a legitimate account can hold: Catnip Chaos, Paw Match and the Pawlegends first wins (`catnipCount`
+ * is their sum, `backend/src/user/utils/catnip-accounting.ts`). Leaderboards ignore anything above it.
+ */
+export const TOTAL_CATNIP_CAP = CATNIP_CHAOS_TOTAL_CAP + MATCH3_TOTAL_CAP + PAWLEGENDS_TOTAL_CAP;
+
+/** Ticks per second of the Pawlegends sim. */
+export const PAWLEGENDS_TICK_HZ = 30;
+
+/** Longest match the backend replays: the 11:00 safety end (`MAX_TICKS` in `pawlegends/src/data/limits.ts`). */
+export const PAWLEGENDS_MAX_TICKS = PAWLEGENDS_TICK_HZ * 660;
+
+/**
+ * Longest base64 command stream in a replay, so the whole `/live` body fits its 64 KB limit. Sim v10 (GAPS B1):
+ * 40,800 (40,000 before) for command pings; `MAX_INPUT_CHARS` in `pawlegends/src/data/limits.ts` is equal.
+ */
+export const PAWLEGENDS_MAX_INPUT_CHARS = 40800;
+
+/** The binary stream behind `PAWLEGENDS_MAX_INPUT_CHARS` (`MAX_INPUT_BYTES`; 30,000 before sim v10). */
+export const PAWLEGENDS_MAX_INPUT_BYTES = 30600;
 
 // ---------------------------------------------------------------------------------------------
 // Tails (rescue points)

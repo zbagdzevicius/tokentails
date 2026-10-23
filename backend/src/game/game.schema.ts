@@ -32,9 +32,16 @@ export type ScoredGameType = typeof scoredGameTypes[number];
 /**
  * Every `type` the `/live` body may name: the scored types plus CATNIP_HEIST, which the DTO accepts
  * only together with a `replay` and which takes the replay-verified branch (`src/user/heist`), and BAD_CAT
- * (Bad Cat Daily ranked runs, GDD 10 Phase 2), only with a `badcat` log, replayed by `src/badcat/badcat-live.ts`.
+ * (Bad Cat Daily ranked runs, GDD 10 Phase 2), only with a `badcat` log, replayed by `src/badcat/badcat-live.ts`, and
+ * PAWLEGENDS (docs/plans/moba/POC.md §11.5), only with a `pawlegends` replay, re-simulated in a worker thread by
+ * `src/pawlegends/pawlegends-live.ts`.
  */
-export const liveGameTypes = [...scoredGameTypes, GameType.CATNIP_HEIST, GameType.BAD_CAT] as const;
+export const liveGameTypes = [
+    ...scoredGameTypes,
+    GameType.CATNIP_HEIST,
+    GameType.BAD_CAT,
+    GameType.PAWLEGENDS,
+] as const;
 export type LiveGameType = typeof liveGameTypes[number];
 
 export const seasonEventLevels = SEASON_EVENT_LEVELS;

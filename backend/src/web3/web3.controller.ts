@@ -26,6 +26,12 @@ import { CurrencyType } from 'src/shared/interfaces/currency.interface';
 import { getPackCardTier } from 'src/shared/utils/content.utils';
 import { CryptoCheckoutService } from 'src/payments/crypto/crypto-checkout.service';
 import { getPortraitPriceCents, getShelterCatPriceCents, isPackType, isProductType } from 'src/payments/price-table';
+import {
+    isPawlegendsContext,
+    PAWLEGENDS_PURCHASE_CONTEXT,
+    PawlegendsCheckoutGuard,
+    PawlegendsConsent,
+} from 'src/pawlegends/pawlegends-checkout-guard.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
 import { UserRepository } from 'src/user/user.repository';
@@ -90,7 +96,8 @@ export class Web3Controller {
         @Optional() grants?: PurchaseGrantService,
         @Optional() private catSale?: ShelterCatSaleService,
         @Optional() private cryptoCheckout?: CryptoCheckoutService,
-        @Optional() private budget?: AiBudgetService
+        @Optional() private budget?: AiBudgetService,
+        @Optional() private pawlegendsGuard?: PawlegendsCheckoutGuard
     ) {
         // The specs build the controller by hand with seven arguments; the grant logic is the same.
         this.grants = grants || new PurchaseGrantService(orderRepository, catService, userRepository, stripePayments);
@@ -300,6 +307,10 @@ export class Web3Controller {
             productType,
             imageId,
             discount,
+            context,
+            ageBand,
+            deviceId,
+            consentVersion,
         }: {
             // Never charged: the price comes from the server price table. For a portrait it is the price the
             // tab shows, in dollars; a lower one means the tab is older than the price (409, reload).
@@ -309,6 +320,12 @@ export class Web3Controller {
             entityType?: EntityType;
             productType?: ProductType;
             imageId?: string;
+            /** `pawlegends`: opened from the game, so its age band and spend cap apply first. */
+            context?: string;
+            ageBand?: string;
+            deviceId?: string;
+            /** The `/pawlegends/terms` version the buyer's consent tick stands for (required with `pawlegends`). */
+            consentVersion?: string;
         },
         @USER_ID() userId: string
     ) {
@@ -322,10 +339,25 @@ export class Web3Controller {
                     }
                     throw new BadRequestException('Cat is not for sale');
                 }
+                const fromGame = isPawlegendsContext({ context });
+                let consent: PawlegendsConsent | undefined;
+                if (fromGame) {
+                    // Never sell from the game without its guardrails: no guard wired means no sale.
+                    if (!this.pawlegendsGuard) throw new BadRequestException('Checkout is not available here');
+                    ({ consent } = await this.pawlegendsGuard.assert({
+                        userId: userId.toString(),
+                        cents: getShelterCatPriceCents(),
+                        context,
+                        ageBand,
+                        deviceId,
+                        consentVersion,
+                    }));
+                }
                 return await this.stripePayments.createPaymentIntent({
                     entityType: EntityType.CAT,
                     catId: check.cat.catId,
                     userId: userId.toString(),
+                    ...(fromGame ? { context: PAWLEGENDS_PURCHASE_CONTEXT, consent } : {}),
                 });
             }
             const targetEntityType = entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;

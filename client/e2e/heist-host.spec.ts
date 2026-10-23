@@ -169,7 +169,7 @@ const queueOf = (page: Page) => page.evaluate(() => localStorage.getItem("tt.hei
 test.describe("game picker (G2 layer 1, G14)", () => {
   test.use({ allowUnmocked: true });
 
-  test("shows eight cards (Moon Rave first, Ultra Cat last) with the X on the frame post, clear of ABOUT ME, and passes axe", async ({ page, backend }) => {
+  test("shows nine cards (Moon Rave first, Pawlegends second, Ultra Cat last) with the X on the frame post, clear of ABOUT ME, and passes axe", async ({ page, backend }) => {
     mockBackend(backend);
     await fakeFirebase(page, { uid: GUEST_UID, isAnonymous: true });
     const phone = page.viewportSize()!.width < 768;
@@ -193,8 +193,11 @@ test.describe("game picker (G2 layer 1, G14)", () => {
     await page.getByText("PLAY", { exact: true }).first().click();
     const dialog = page.getByRole("dialog", { name: "Choose your adventure" });
     await expect(dialog).toBeVisible();
-    // Moon Rave, Purrsuit, Paw Match, Heist, Swordcat, Bad Cat Daily, Formula Meow, Ultra Cat (outside the Cupid season).
-    await expect(dialog.getByRole("listitem")).toHaveCount(8);
+    // Moon Rave, Pawlegends, Purrsuit, Paw Match, Heist, Swordcat, Bad Cat Daily, Formula Meow, Ultra Cat (outside
+    // the Cupid season; three to a row from md).
+    await expect(dialog.getByRole("listitem")).toHaveCount(9);
+    await expect(dialog.getByRole("listitem").nth(1)).toHaveAttribute("data-card", "PAWLEGENDS");
+    await expect(dialog.getByTestId("game-card-pawlegends")).toHaveAttribute("href", "/pawlegends?from=picker");
     await expect(dialog.getByRole("listitem").last()).toHaveAttribute("data-card", "ULTRA_CAT");
     await expect(dialog.getByTestId("game-card-ultra_cat")).toHaveAttribute("href", "/ultra-cat?from=picker");
     await expect(dialog.getByRole("listitem").first()).toHaveAttribute("data-card", "RAVE");

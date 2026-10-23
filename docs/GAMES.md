@@ -1,8 +1,9 @@
 # Game Modes
 
 The Phaser games run in the browser with Phaser 4 rc.5 (WebGL, pixel art, arcade physics) inside the
-Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`. The
-backend stores results, re-simulates Heist runs and serves leaderboards. See
+Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`, and
+Pawlegends one in `pawlegends/` hosted on `/pawlegends`. The backend stores results, re-simulates Heist
+runs and Pawlegends matches and serves leaderboards. See
 [BACKEND.md](BACKEND.md#games) for the server side and [CLIENT.md](CLIENT.md) for the app around
 the games.
 
@@ -16,6 +17,7 @@ the games.
 | `PIXEL_RESCUE` | Cupid Cat | `client/components/PixelRescue/` | Yes, hearts per level, cleared state, date-gated levels. |
 | `MATCH_3` | Paw Match | `client/components/Match3/` | Yes, catnip and raw score per level, cleared state. |
 | `CATNIP_HEIST` | Catnip Heist | `catnip-heist/`, host in `client/components/heist/` | Yes, a replay the server re-simulates. |
+| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `client/components/pawlegends/` | Yes, a replay the server re-simulates (won and lost matches). |
 
 `PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. Old `Game`
 rows use them and the score endpoint path is still `/user/catbassadors/live`, but the endpoint
@@ -29,7 +31,7 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
-Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("Cats vs dogs: 3v3 hero battles against bots", badge "NEW", an in-engine teamfight frame `client/public/game-select/pawlegends-preview@2x.webp` with a "3v3" tile as the fallback, a full-page link to `/pawlegends?from=picker`) comes second, right after the Moon Rave, on the web only (never in the app build); `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -193,6 +195,241 @@ override.
   (DEVELOPMENT.md), and save only through `POST /user/catbassadors/live` from the host. No second
   write path. The game has no deterministic replay, so a posted result could be forged; caps must
   reflect that.
+
+## Pawlegends
+
+A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of eight
+upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
+allies of its own side against three bots of the other side on Purrhaven Crossing. Cats: Clem, Sage and the
+four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support); dogs: Sir
+Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end between 5
+and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a second,
+`SIM_VERSION` 10) in a Web Worker, and the backend replays it (v9 and v10 replays both verify, by `simVersion`, for
+30 days after the v10 deploy).
+
+- **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
+  the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
+  at Normal, and at Hard on Hard. Rules per level (truce, Sunset and Sudden Death times, catch-up XP, the
+  takedown chip) are in POC.md §7.2 and §7.3 and `src/data/bots.ts`.
+- **Desktop controls** (`src/input/`): RMB moves and attacks, A then LMB attack-moves, Q W E R cast at the
+  cursor (quick cast, the default; Settings "Aim on hold" shows the indicator until release), D Paw Trick, B Nap.
+  Trackpad mode (Settings Auto / On / Off; Auto turns on for a player who left-clicks the ground and never
+  right-clicks) moves and attacks with LMB. The game draws its own cursor (`src/input/cursor.ts`): cream arrow,
+  red arrow over an enemy, mint arrow over an ally, red crosshair with attack-move armed, gold reticle while
+  aiming (32 px, 48 px with Settings "Cursor size" Large). The hovered unit gets a bold ring (red enemy, mint ally), and
+  when a unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring. Touch keeps
+  the joystick and button cluster.
+- **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
+  `client/public/pawlegends-game/` (about 1.4 MB, committed); `/pawlegends` frames
+  `/pawlegends-game/index.html?embed=1` (CLIENT.md, "Pawlegends (/pawlegends)").
+- **Bridge v1**: envelope `{ns: 'tt-pawlegends', v: 1, type}`, host side
+  `client/components/pawlegends/bridge.ts`, game side `pawlegends/src/embed/bridge.ts` and
+  `src/embed/integrate.ts`; both test against `shared/pawlegends-bridge.fixtures.json`. The host says `hello`
+  until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading" note
+  after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp, store,
+  notify}`, `session {signedIn, progress}`, `audio {muted, music?, sfx?}`, `roster {cats}` (each cat may carry
+  `sprite`, its sprite sheet, for the game's card skins), `featured {cats}` (optional `sprite` and `tier`),
+  `champions {cats}`, `offer {offer}` and `entitlements {token}`, plus a pending `pause`; it also sends `save-result {matchId,
+  status, catnipPaid, catnipTotal, fastestWin}`, `resume` and `purchase-result {catalogId, ok}`. The game sends
+  `match-result {replay, summary, matchId}`, `request-sign-in {reason}`, `open-cat {catalogId}`, `offer-seen
+  {kind, catalogId}`, `champion-offer {catalogId}`, `skin-preview {catalogId}` (a featured cat's card skin was
+  previewed on the pick screen; the host puts that cat first in its next offer ask), `notify {where}`, `share {kind, url, text}` (same-origin
+  `/pawlegends` links only; `text` is the optional dare line, one plain line of at most 120 characters, which the
+  host passes to the system share sheet, PUB-06), `paused` and `client-error {source, msg, screen, tier, sim}` (a game or worker crash,
+  `msg` cut to lower-case `[a-z0-9_ ]` and 80 characters; the host reports it as `app_error`), `analytics {event,
+  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
+  `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
+  server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
+  `'*'`, and no `accesstoken` or Firebase token crosses.
+- **Saves** (`components/pawlegends/saves.ts`): every finished match, won or lost, is posted as `{type:
+  'PAWLEGENDS', pawlegends: <replay>}` to `POST /user/catbassadors/live`, the only write path. Without a
+  Firebase user it waits in `tt.pawlegends.queue.v1` (12 at most) as a device match; after sign-in the host
+  asks "ADD YOUR MATCHES?" (the Heist claim prompt). 2xx and 409 are done; `PAWLEGENDS_SIM_VERSION` purges
+  matches of that version; other 4xx drop the match; 401, 403 and 428 keep it; 429, 5xx and network errors
+  back off and honour `Retry-After`; a POST with no answer after 20 s is aborted and counts as a network error. The results save chip says "Saved to your account", "Kept on this
+  device" (with a "Save your wins" button) or "Not saved yet. Trying again soon."
+- **Rewards**: the first replay-verified win per difficulty pays catnip once (`PAWLEGENDS_LEVEL_CAPS`: Easy
+  20, Normal 40, Rookie 10, Hard 0; 70 in all), stored in `pawlegendsCatnip.<difficulty>` and counted in
+  `catnipCount` and `TOTAL_CATNIP_CAP`. The backend also keeps `pawlegendsFastestWin` and `pawlegendsMatches`
+  per difficulty; a guest merge carries all three maps (`backend/src/pawlegends/pawlegends-merge.ts`).
+- **Local progress** (browser storage, never in the sim or on the server): daily quests, the Treat Track
+  (fixed-order cosmetic chests, nothing random or for sale), the bot ladder and personal bests.
+- **Wave A** (`docs/plans/moba/GAPS.md` §3; render, UI and local meta only: no `SIM_VERSION` change, replays and
+  hash trails unchanged):
+  - **Treat Track** (`src/meta/treats.ts`, state v2; a v1 record migrates once): 30 fixed-order chests for all 8
+    heroes, then a fixed loop of palette coats (8 palettes × the 4 originals), so it never runs dry. Clem, Sage,
+    Sir Brutus and Cacklejaw get coats and palette variants; the shelter champions get a "<name>'s Pal" title, a
+    frame and a "Meet the real cat" postcard (card art and a short story, `src/ui/collection.ts`), never a recolour,
+    since they wear their real card's coat. Nothing a $5 card gives (element chroma, Companion Kitten, card badge,
+    card skin) is on the track. The chest screen ("Pick your next target") sets the hero whose next reward the next
+    chest holds, with "about N matches to go". The second emote is a palette coat (one emote slot in a match).
+  - **Cacklejaw coats**: his Track coats now recolour his fur and head (`src/render/chars/specs.ts`, `lookCoat`).
+  - **Quests** (`src/meta/quests.ts`, 17): adds `win_lambo`, `win_aviete`, `win_bengas`, `win_gabe`, "Play a
+    shelter champion" and "Calm Pudding twice". Slot 1 is the day's "Win with <hero>", round-robin by date (each
+    hero every 8 days; the first 3 matches name the hero being played). Rewards are Treat XP only; no quest opens
+    or triggers an offer (`src/money/offer.ts` unchanged).
+  - **Grade** (`src/meta/grade.ts`, pure on `MatchResult.stats`): S/A/B/C by role (carry vs tank/support weights),
+    MVP, and "Best on your team" on a loss. Treat XP S +40, A +25, B +10, never catnip. On the ladder the grade
+    replaces the old KDA impact (an S or A loss costs half; not stacked). Thresholds per role from
+    `node tools/grade-calibrate.mjs`; on fresh seeds mage and support sit about 6 points off the ±5 target.
+  - **Results**: "Run it back" (same hero, trick and difficulty, a new seed; PostHog `rematch_click`) and "Switch
+    cat" (pick screen, difficulty kept). A rematch stays in the same page session, so no second offer card.
+  - **Timers**: a top-centre next-objective chip ("Pudding in 0:42", "Calm Pudding!", escort HP, camp respawns,
+    "Sunset in …", "Sudden Death in …"), minimap countdown rings and a portrait strip with death timers from
+    `respawnIn`, all from snapshots and events. Enemy camps show once a clear was seen. A chip tap sends its ping (Wave B,
+    B1).
+  - **Touch target lock**: tap an enemy hero or its strip portrait to lock it for 5 s (until it dies or is past
+    9 m); Attack and smart casts then take it. Settings "Target first": Heroes (default) / Lowest HP % / Closest,
+    plus optional last-hit and tower buttons (off by default).
+  - **Small items**: first win of the local day +150 Treat XP (no streak, no catnip); the loading screen shows the
+    match count on this hero and, in a card skin, its Bond; the pick screen shows the role label (and, since B1, a
+    lane hint); allied bots cheer the player's takedowns and assists (fixed lines in turn, at most one
+    every 8 s).
+- **Wave B** (`docs/plans/moba/GAPS.md` §3, the one bump to `SIM_VERSION` 10):
+  - **B0**: bots choose talents from a seeded stream per slot; replays carry `mutator` ('none' only in v10; the
+    backend digest includes it from v10, and a mutator match would pay no catnip and set no fastest win);
+    `SlotStats` adds `damageTaken`, `healShield` and `objective`; the backend keeps a frozen v9 verifier beside v10
+    (`backend/src/vendor/pawlegends-sim/v9`, `/v10`).
+  - **B1 pings**: `Op.Ping` (8 kinds: Go here, Group on me, Take Pudding, Push Sunny, Push Puddle, Defend base, Fall
+    back, Focus hero), one per 1.5 s and 60 a match; allied bots take an order for a few seconds (`src/sim/bots/orders.ts`)
+    or bark "Healing first!" under 35% HP; enemy bots never see them. Desktop: hold G for the wheel, Alt-click to
+    Focus; touch: the paw button by the minimap, long-press the minimap (Go here) or a portrait (Focus), tap a timer
+    chip. Ally slot 1 takes Sunny when the human stays in Puddle from 0:40 (lane swap). The input cap is 30,600 bytes
+    (40,800 characters) in `src/data/limits.ts`, `shared/caps.ts` and `backend/src/shared-contracts/caps.ts`.
+    Pings give control, not a win-rate edge (GAPS Your call 19).
+  - **B2 forfeit**: `Op.Forfeit` from 4:00 on Normal and Hard and 3:00 on Easy; never on Rookie or in matches 1–3. The
+    pause menu shows "Forfeit from M:SS", then a confirm step. A forfeit is a loss: 20 Treat XP, no quest progress, a
+    full ladder loss, no catnip; the backend stores it as outcome `quit`.
+  - **B3**: catch-up XP and the camp bonus became per-difficulty rules; the planned cuts were not applied because
+    they raised comebacks (GAPS B3 status). A headless `--ablate` run switches each comeback source off.
+  - **B5 Purr-ify**: the 4th Paw Trick removes stun, root, slow, fear and charm and gives 0.5 s of crowd-control
+    immunity (cooldown 90 s since Wave C, 100 s before); it can be cast while stunned. Pick screen hint "Tank → Purr-ify".
+  - **B6 level-6 branches**: talent tier 1 option 1 is a shape branch for Sage (Piercing Shot: Q is one 9 m piercing
+    line) and Sir Brutus (Guard Post: W plants a 3 m dome for 2 s that shields his team inside from enemy shots; he is
+    rooted and takes 25% less damage). The enemy portrait shows the branch; the other six heroes show "Branch coming
+    soon". Cacklejaw and Lambo branches are a stretch, not built.
+- **Wave C** (`docs/plans/moba/GAPS.md` §3 "Wave C status"; still `SIM_VERSION` 10, unshipped, v9 frozen):
+  - **C1 level growth** (sim): every level above 1 adds the role's attack speed and move speed (`ROLE_GROWTH` in
+    `src/data/heroes/growth.ts`), never faster than one swing every 12 ticks.
+  - **C2 ability ranks** (sim): Q, W and E rank up at levels 2, 5 and 8; R unlocks at 4 and ranks up at 7 and 10.
+    Deltas live in `HeroData.ranks` and merge before talents (a talent number wins). Rank pips on the slots and touch
+    buttons, a "Rank up!" toast, tooltips with the numbers at the current level. Purr-ify cooldown 100 s → 90 s.
+  - **C3 combat VFX** (render only, `src/render/fx/combatVfx.ts`): damage-scaled hit sparks, slash crescents,
+    element trails, biome debris, ultimate waves, lightning, level-4/7/10 power spikes and auras. Particle budgets
+    Low 800 / Med 1,600 / High 2,000; reduce-motion cuts them; Settings has Screen shake Full / Low / Off.
+  - **C4 card-tier effects** (render only, `src/render/skins/cardFx.ts`): Rare tints trails, slashes and sparks with
+    the coat colour; Epic adds a cast sparkle; Legendary adds a paw-print hit burst, a takedown flourish and a
+    paw-print ultimate wave. Cosmetic only: the sim, the backend verifier and the vendored bundles never see cards
+    (`tests/unit/card-fx.test.ts` proves an identical replay with and without Legendary cards).
+- **Character animation and fight spectacle** (render only, `pawlegends/docs/ANIM-SPEC.md`; nothing under `src/sim`
+  changes, so replays, the hash and `npm run determinism` are untouched):
+  - **Per-skill clips for all 8 heroes**: each hero has an authored move set (`src/render/moves/<hero>.ts`: a basic
+    combo, Q W E R with recasts, level-6 branch clips, holds and ends, idle, fidgets, victory, emote, level-up, death,
+    respawn) and its own skill effects (`src/render/skillfx/<hero>.ts`), both lazy chunks loaded at match load. Clips
+    play on the 27-bone rig through a layer stack (`src/render/anim/layers.ts`: override, additive, reactions, root
+    motion for flips, spins, leaps and slams, tail and ear springs).
+  - **Synced to the sim**: the director (`src/render/anim/director.ts`) pins each clip's markers to sim anchors
+    (windup, cast, contact, bolt release, dash end, zone arm, state end) by time-warping the clip, so what you see is
+    what hits. The basic clock starts swings on the sim swing and picks the combo step at swing start (A, B, C, A; A
+    again after 1.5 s). Every dash but Lambo's hop flies its full length (`SlotTiming.aimClamped`); a wall-cut dash
+    snaps to its landing. A state can end on a buff's falling edge (`SlotMoves.endOnBuff`: Cacklejaw's stealth), and
+    a level-6 branch can have its own hold and end (`branchHold`, `branchEnd`: Brutus's Guard Post kneel).
+  - **Life between moves**: idle loops after 0.25 s standing still, a weighted fidget every 6–10 s, the hero's own
+    level-up and emote clips, and the winners' victory loop at match end. Finished flips and spins fade from their
+    nearest whole turn (no unwinding through upside down); `lockFeet` clips pin the feet against the body's lunge.
+  - **Skill effects kit** (`src/render/anim/fxkit/`): one instanced shader for crescents, rings, domes, walls, beams,
+    pillars and ground glyphs; glow with partial cover so colours stay saturated on sand; own and ally shapes take a
+    soft relation rim, enemy shapes keep the strong danger rim; anything over an enemy windup is dimmed to 35%, and
+    own and ally effects fade past a screen-coverage budget. FX helpers: facing, projectile position (bolt trails),
+    HP share and status edges (`FxCtx.facing`, `projPos`, `status`, `SkillFxSet.onStatus`).
+  - **Minions, towers and the core**: minions cock back over the sim windup, strike on the contact (ranged and siege
+    on their bolt's spawn), overshoot and lunge; a hit leans them away and shoves them; a dying minion pops up,
+    tumbles away from the blow and shrinks into its poof. Towers and cores crouch and glow before each shot, recoil
+    with a muzzle burst on it, land shots with a ground ring, and fall (flash, swell, tilt, sink; the core over its
+    slow motion) before the rubble is left.
+  - **Fights**: local hit-stop per hit (shorter between other heroes in a team fight), a fight camera that pulls back
+    and leans toward the fight's centre at 4+ engaged heroes, a T2 shake on takedowns in a team fight, ult moments
+    (own banner, punch and short slow motion; enemy vignette; a hero with its own ult effect keeps only the generic
+    relation mark). Quality tiers, reduce motion and the shake setting scale or remove all of it.
+  - **Tools**: the gallery (`gallery.html?hero=<id>`, dev only) plays every scenario and every hero clip
+    (`clip:<id>`, `branch=1`, `buffs=`, `shield=`); `node tools/anim/capture.mjs --hero <id|all>` films contact sheets
+    and clips through its own Vite server (own dependency cache, no reload mid-capture, retries).
+- **Roster**: the signed-in player's cats (24 at most) become element chromas, tier frames (non-pack cats
+  only), collection frames, breed coats and up to two Companion Kittens that follow the player's wave. They
+  are cosmetic and never enter the sim. Cat cards (`src/ui/cards.ts`): a "Your squad" strip on the pick
+  screen, the save chip and companion card on results.
+- **Card skins** (GDD §7.2, `src/render/skins/`, render only: never sim input, no `SIM_VERSION` change, replays
+  unchanged): every owned cat is a skin any of the 8 champions can wear. The roster's `sprite` URL names the breed
+  folder (`assets/<FAMILY>/<variant>.png`), which picks a palette row from `families.gen.ts` (58 families,
+  `npm run gen:skins`, overrides in `overrides.json`); unknown families and accessory colours come from a sprite
+  probe outside matches, then the starter breed coat, then an element preset. The cat's coat, eyes, ears and nose go
+  on the champion's own rig; team-colour parts never change and the chroma path is off while a card skin is worn;
+  the dogs wear a cat costume (fur, pattern and ears, their own heads). **Rarity ladder**, one addition per rung:
+  Common (recolour and an element chest gem), Rare (element trim), Epic (footfall glints), Legendary (fur foil on
+  Med / High and a ring when a Nap recall lands). Rung = max(tier rung, Bond rung): the tier counts only for
+  origins adopt, redeem, portrait and starter (a pack cat or a cat with no origin is Common); **Bond** is finished
+  matches wearing the skin (3 Rare, 10 Epic, 30 Legendary), kept in the local profile. The pick screen's Skins row
+  holds Classic, coats and owned cats (by rung, Bond, newest); Settings has Skin effects All / Mine only / Off. On
+  the web from play session 2, up to two locked featured cats get a Preview (8 s spin, no price, no link; the game
+  sends `skin-preview`), and showcase bots may wear one (capped at Rare). App builds: owned skins only.
+  **Local preview without a host**: open the standalone build with `?skins=demo` (for example
+  `http://127.0.0.1:5176/?skins=demo` under `npm run dev`, or a local static server on the `client/public/pawlegends-game`
+  copy), then Choose hero (the title shows it after the first match; the first match always wears the default looks). It loads a fixed five-cat demo roster (`src/app/skinDemo.ts`: Legendary, Epic and Rare
+  adopted or redeemed cats, a Common adopted cat and an Epic pack cat that shows as Common) through the normal roster
+  path. It runs only on localhost, 127.0.0.1, ::1 or `file://`, never in a host frame or an app build, grants
+  nothing, sends nothing, and seeds no featured cats or offers. Sprite probes need network to the CDN; offline the
+  table palettes still apply.
+- **Shelter champions** (sim v9, POC.md §6 addendum): four heroes inspired by real Pink Paw cats' Token Tails
+  cards (`pawlegends/src/data/heroes/shelter.ts`; licence for the names and photos, Oct 11). They are free to
+  play for everyone in every build, the app included; bots pick them too. Owning a champion's card (web only)
+  adds cosmetics: a "From <name>'s card" badge on the pick tile, the Companion Kitten and the element chroma.
+  `GET /pawlegends/champions` gives the host the cards; the host sends them as `champions {cats: [{catalogId,
+  forSale, catImg?}]}` (never for sale in an app build). The champion's info panel on the title (lobby) screen
+  is information only. The one purchase surface is the Meet card: after a non-owner's 3rd finished match on a
+  champion whose card is for sale the card is due until it has been shown (`championShown` in the local
+  profile); the game sends `champion-offer {catalogId}` then and once each later page load, and the host, unless
+  a card was already shown that visit, asks `GET /pawlegends/offer` with that card first (its normal per-visit
+  ask too). Champion cards are never featured storefront cats. Every global cap still applies (never session 1 or an
+  app build, lobby and results only, one a session, one a day, the same cat not for 3 days, age band and spend
+  cap). Its copy: "Inspired by <name>'s Token Tails card." and "See <name>'s card ›", no price word (the Token
+  Tails checkout shows it). Owned-or-trial access (a weekly free champion, earned unlocks) is a founder call and
+  is not built.
+- **Cats for sale**: the game's own `pl_*` store is retired (old entitlement tokens still dress the heroes).
+  The host features at most two unowned direct-purchase cats from `GET /cat/sale` (`featuredBridge.ts`; never
+  packs, never random). `GET /pawlegends/offer` may name one as the session's single "Meet <cat>" card: never
+  in session 1, at most one a session and one a day, only in the lobby or on results. `open-cat` opens the
+  host's own sheet (`PawlegendsCatSheet.tsx`) with the $5 Token Tails cat checkout, the age question, the
+  under-16 block and the spend caps (`PawlegendsCheckoutGuard`, BACKEND.md). App builds get no featured cats,
+  no offer, no checkout and no purchased cosmetics.
+- **Analytics**: embedded on `/pawlegends` the game's events (`title_view`, `match_start`, `match_end` and the rest)
+  go over the bridge as `analytics {event, props}` and the host sends them with its own `analytics.track`, so they
+  follow the site's policy and share its anonymous id; no prompt there, Settings → Stats still turns them off
+  (launch finding PUB-02). Standalone, consent-gated PostHog in the game (`VITE_PAWLEGENDS_POSTHOG_KEY`, inlined by
+  `npm run build:client`, LAUNCH.md a.6; without it nothing is sent; the `tt-analytics-consent` key, which only the
+  game reads and writes; the "anonymous play stats?" prompt on the title screen from session 2). Every event carries a
+  `human` flag. Host events from
+  `client/analytics/pawlegends-events.ts` (`pawlegends_open`, `pawlegends_save`, `pawlegends_guest_claim`,
+  `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`, `pawlegends_bridge_timeout`).
+  Crashes (`pawlegends/src/app/crash.ts`, at most 5 a page, none after stats were turned off): embedded they go
+  to the host as `client-error` (reported as `app_error`), standalone as the game's own `app_error` event.
+- **Checks** (in `pawlegends/`): `npm run typecheck`, `npm test`, `npm run lint:sim` (no floats,
+  `Math.random` or wall clock in `src/sim`), `npm run lift -- --check`, `npm run build && npm run budget`
+  (first-load JS 450 KB gzip), `npx playwright test --workers=2`, `npm run vendor-sim:check`, and the headless
+  gates: `npm run match -- --gate balance` (2,000 seeds; at 400 seeds the 70% core-kill check sits within noise),
+  `npm run match -- --seeds 200 --check-determinism` and `npm run determinism -- --seeds 200` (also `fun1`, `fun2`,
+  `novice` and `parked`)
+  (README "Run and check" has the full list and the nightly gates).
+- **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
+  `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days), deploy the
+  backend, then the client build. The backend must be live first, or every replay of the new version is refused. `GET /pawlegends/sim`
+  serves the bundle hash (`npm run vendor-sim:check-remote -- <backend url>`). The backend refuses replays of
+  any other version, and the host purges queued matches of an old version.
+
+Known gaps (POC): heroes are procedural runtime models (the §6.9 fallback, no baked GLBs; `bake:heroes` and
+`bake:map` are not written); chromas tint the hero only; the device gate (iPhone 11, Pixel 6a, Iris Xe) is not
+measured; the Stripe runs use a fake client, never Stripe test mode; the playtest average fun score is 5.2/10
+against a goal of 8 (POC.md §7.2, round 2); mixed-species teams, items and match modifiers are left for the MVP.
 
 ## Base (Home)
 

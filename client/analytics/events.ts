@@ -20,6 +20,7 @@
 
 import type { GamePlatformValue } from "@/models/game";
 import type { GrowthEvent } from "./growth-events";
+import type { PawlegendsEvent } from "./pawlegends-events";
 import {
   ANALYTICS_EVENTS,
   type AnalyticsEventName,
@@ -109,7 +110,9 @@ export type AppErrorSource =
   | "window"
   | "rejection"
   | "watchdog"
-  | "manual";
+  | "manual"
+  /** The Pawlegends game's sim worker (`/pawlegends` host, launch finding R1). */
+  | "worker";
 
 /** The boundary level, from the outermost in. */
 export type AppErrorLevel = "root" | "page" | "scene" | "modal" | "section" | "none";
@@ -191,10 +194,11 @@ export type CoreAnalyticsEvent = {
 }[AnalyticsEventName];
 
 /**
- * Anything `analytics.track` accepts: the core catalog plus the client-only growth events of bet #3
- * (`./growth-events`, kept out of `shared/` so `catnip-heist/` needs no sync).
+ * Anything `analytics.track` accepts: the core catalog plus two client-only extensions, kept out of `shared/`
+ * so `catnip-heist/` needs no sync: the growth events of bet #3 (`./growth-events`) and the `/pawlegends` host
+ * events (`./pawlegends-events`).
  */
-export type AnalyticsEvent = CoreAnalyticsEvent | GrowthEvent;
+export type AnalyticsEvent = CoreAnalyticsEvent | GrowthEvent | PawlegendsEvent;
 
 export type AnalyticsEventOf<K extends AnalyticsEventName> = Extract<
   CoreAnalyticsEvent,

@@ -1,0 +1,361 @@
+{
+ "_comment": "Edit decisions for edit.mjs, trailer v4 (\"Big Plays\", 144 BPM: 25 frames per beat). Frame numbers are each cut's own (60 fps). The shot list is shots.mjs, the 15 s mapping is CUT15_SEGMENTS in mg-timeline.mjs, flashes/shakes/rgbashift/bumps come from post() there. Speed ramps are baked in at capture (real in-engine time scaling), so the edit never retimes footage.",
+ "fps": 60,
+ "bpm": 144,
+ "outputs": [
+  {
+   "cut": "30",
+   "aspect": "16x9",
+   "file": "pawlegends-trailer-30s-1080p.mp4"
+  },
+  {
+   "cut": "30",
+   "aspect": "9x16",
+   "file": "pawlegends-trailer-30s-vertical.mp4"
+  },
+  {
+   "cut": "15",
+   "aspect": "9x16",
+   "file": "pawlegends-trailer-15s-vertical.mp4"
+  },
+  {
+   "cut": "15",
+   "aspect": "16x9",
+   "file": "pawlegends-trailer-15s-1080p.mp4"
+  }
+ ],
+ "grade": {
+  "_comment": "Storyboard v2 §3: CAS 0.35; eq contrast 1.10, saturation 1.10; gentle S-curve; warm highlights; 16 % vignette; a highlight bloom (luma >= 0.82 keyed, gblur σ 18, added at 0.22) so skill FX glow on the sunny palette; grain 3. Type is composited after the grade. Redo: the bloom keys only the brightest highlights (>= 0.88) at 0.12, so pale plazas never wash out. v3: a highlight soft-clip in the S-curve (0.92 -> 0.88, 1 -> 0.94) and the bloom keys only >= 0.9 at 0.1, so white plazas, shockwave bands and hit flashes never blow out (<= 10 % of a frame at Y >= 235). v4: midtones down and a real toe (curves), near-white low-saturation areas pulled down (selectivecolor whites), the bloom keyed at >= 0.92 at 0.06, and the luma check (qc) fails a shot with more than 15 % of its picture at Y >= 225.",
+  "sharpen": "cas=strength=0.35",
+  "eq": "eq=contrast=1.12:saturation=1.14:gamma=0.94",
+  "curves": "curves=master='0/0 0.06/0.025 0.25/0.19 0.5/0.45 0.75/0.72 0.9/0.84 1/0.92'",
+  "colorbalance": "colorbalance=rh=0.03:bh=-0.02",
+  "vignette": {
+   "angle": 0.6283185307,
+   "strength": 0.16
+  },
+  "grain": "noise=alls=3:allf=t",
+  "noGrade": {
+   "15": [],
+   "30": []
+  },
+  "desaturate": {
+   "15": [
+    [
+     404,
+     421,
+     0.88
+    ]
+   ],
+   "30": [
+    [
+     804,
+     821,
+     0.88
+    ]
+   ]
+  },
+  "grainAll": true,
+  "bloom": {
+   "threshold": 0.92,
+   "sigma": 16,
+   "opacity": 0.06
+  },
+  "selective": "selectivecolor=whites='0 0 0 0.22':neutrals='0 0 0 0.05':correction_method=relative"
+ },
+ "chroma": {
+  "_comment": "rgbashift. strong (4 px) = post().rgb impact frames; light (2 px) = transition accents on the whip, the match cut and the big impacts.",
+  "strong": 4,
+  "light": 2,
+  "lightFrames": {
+   "15": [
+    [
+     96,
+     99
+    ],
+    [
+     750,
+     751
+    ]
+   ],
+   "30": [
+    [
+     96,
+     99
+    ],
+    [
+     193,
+     199
+    ],
+    [
+     1200,
+     1201
+    ],
+    [
+     1625,
+     1626
+    ]
+   ]
+  }
+ },
+ "shakeMargin": 16,
+ "push": {
+  "15": [],
+  "30": [],
+  "_comment": "Digital push-ins: none. S19 is the gameplay camera 1:1 with its full HUD; S13's wheel and S14's bark are framed natively."
+ },
+ "bump": {
+  "_comment": "Zoom-punch (§3): 104 % scale-in over 3 frames, then out over 8 (the impact frames in post().bump).",
+  "curve": [
+   1.013,
+   1.027,
+   1.04,
+   1.035,
+   1.03,
+   1.025,
+   1.02,
+   1.015,
+   1.01,
+   1.005,
+   1
+  ]
+ },
+ "band": {
+  "_comment": "v3: none (the landscape HUD beat is 16:9 only; the 9:16 card-look shot runs on over it)."
+ },
+ "poster": {
+  "_comment": "Thumbnails: Lambo at the top of the Belly Flop (S01 f2, side-on against the trees) with the logo and end-card lines from the 30 s overlay.",
+  "frame": 2,
+  "overlayFrame": 1740,
+  "files": {
+   "16x9": "pawlegends-trailer-poster.png",
+   "9x16": "pawlegends-trailer-poster-vertical.png"
+  }
+ },
+ "audio": {
+  "_comment": "Mix from score.mjs stems: the music ducks under the sfx + game sounds (impacts), then glue, gain to -14 LUFS, a latency-free true-peak limiter, the end fade and digital silence.",
+  "duck": {
+   "thresholdDb": -26,
+   "ratio": 4,
+   "maxDb": 9,
+   "attackMs": 2,
+   "releaseMs": 120,
+   "lookaheadMs": 5
+  },
+  "glue": {
+   "threshDb": -12,
+   "ratio": 1.4,
+   "attack": 0.015,
+   "release": 0.2
+  },
+  "targetLufs": -14,
+  "ceilingDb": -2.2,
+  "_tp": "the WAV must measure <= maxTruePeakWavDb so the AAC encode stays <= maxTruePeakDb",
+  "maxTruePeakWavDb": -2.1,
+  "maxTruePeakDb": -1,
+  "fadeFrames": 30,
+  "silenceFrames": 12,
+  "aacBitrate": "320k",
+  "_sections": "Energy curve v4 [from, to, dB] (8-frame ramps), before the limiter: a real arc. The hook and the ults chorus full, the roll call and 3V3 building under them, Pack Hunt held back (half-time), the groove back in from the ping, the two teamfight bars the loudest band, the tape-stop into near silence, the core burst the loudest hit, Victory and the end card under the teamfight.",
+  "sections": {
+   "30": [
+    [
+     100,
+     199,
+     -2.5
+    ],
+    [
+     200,
+     399,
+     -7.5
+    ],
+    [
+     400,
+     499,
+     -8.5
+    ],
+    [
+     500,
+     799,
+     1
+    ],
+    [
+     800,
+     899,
+     -12
+    ],
+    [
+     900,
+     1049,
+     -3.5
+    ],
+    [
+     1050,
+     1199,
+     -2.5
+    ],
+    [
+     1200,
+     1299,
+     1
+    ],
+    [
+     1300,
+     1399,
+     1.5
+    ],
+    [
+     1450,
+     1486,
+     -3
+    ],
+    [
+     1487,
+     1520,
+     -18
+    ],
+    [
+     1521,
+     1527,
+     -6
+    ],
+    [
+     1528,
+     1574,
+     3
+    ],
+    [
+     1575,
+     1624,
+     -7
+    ],
+    [
+     1625,
+     1799,
+     -10
+    ]
+   ],
+   "15": [
+    [
+     100,
+     199,
+     -6
+    ],
+    [
+     200,
+     299,
+     -10
+    ],
+    [
+     300,
+     399,
+     1
+    ],
+    [
+     400,
+     499,
+     -12
+    ],
+    [
+     500,
+     549,
+     -4
+    ],
+    [
+     550,
+     649,
+     2
+    ],
+    [
+     650,
+     661,
+     -3
+    ],
+    [
+     662,
+     695,
+     -18
+    ],
+    [
+     696,
+     702,
+     -6
+    ],
+    [
+     703,
+     745,
+     3
+    ],
+    [
+     750,
+     899,
+     -10
+    ]
+   ]
+  },
+  "impactDip": {
+   "db": -9,
+   "pre": 2,
+   "hold": 5,
+   "release": 8
+  },
+  "bedCrestDb": 9,
+  "_bed": "v4: the music stem is limited at its own RMS + bedCrestDb (9 dB: drums keep their transients) before the mix; the sound effects between impacts at RMS + fxCrestDb.",
+  "fxCrestDb": 8,
+  "suckOut": {
+   "db": -10,
+   "frames": 3
+  },
+  "headroom": {
+   "_comment": "v4: the body is limited bodyDb under ceilingDb; the hook contact reaches ceilingDb + hookDb, the core burst ceilingDb + coreDb (the loudest transient; the AAC encode adds about 1.4 dB of true peak on it)",
+   "bodyDb": -2.2,
+   "hookDb": -1.4,
+   "coreDb": -0.9
+  },
+  "preHit": {
+   "db": -16,
+   "frames": 6
+  }
+ },
+ "video": {
+  "codec": [
+   "-c:v",
+   "libx264",
+   "-preset",
+   "slow",
+   "-profile:v",
+   "high",
+   "-level:v",
+   "4.2",
+   "-crf",
+   "16",
+   "-pix_fmt",
+   "yuv420p",
+   "-g",
+   "120",
+   "-colorspace",
+   "bt709",
+   "-color_primaries",
+   "bt709",
+   "-color_trc",
+   "bt709",
+   "-color_range",
+   "tv"
+  ],
+  "prores": [
+   "-c:v",
+   "prores_ks",
+   "-profile:v",
+   "3",
+   "-pix_fmt",
+   "yuv422p10le",
+   "-vendor",
+   "apl0"
+  ]
+ },
+ "qc": {
+  "_comment": "v4: per shot, the mean share of the picture at Y >= lumaY (8-bit, tv range) must stay at or under maxShare",
+  "lumaY": 225,
+  "maxShare": 0.15
+ }
+}
