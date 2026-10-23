@@ -1,5 +1,5 @@
 {
- "_comment": "Every on-screen trailer v3.3 string. The game's mission as three beats over the footage that proves each one: PUSH YOUR LANE. (S11, the waves meeting), TOPPLE THEIR TOWERS. (S13, the dog tower falling), TAKE THEIR CORE. (S15), then VICTORY! (the game's own word) after the core bursts. The Token Tails link is INSPIRED BY REAL CATS. over the game's pick screen (its own line: \"Inspired by <name>'s Token Tails card.\"). Shelter, rescue and money words stay off screen (game copy rules R13/T3; the shelter mission is a founder call, see the README). lint-copy.mjs gates every string and every composed line.",
+ "_comment": "Every on-screen trailer v3.4 string. The game's mission as three beats over the footage that proves each one: PUSH YOUR LANE. (S11, the waves meeting), TOPPLE THEIR TOWERS. (S13, the dog tower falling), TAKE THEIR CORE. (S15), then VICTORY! (the game's own word) after the core bursts. The Token Tails link is INSPIRED BY REAL CATS. over the game's pick screen (its own line: \"Inspired by <name>'s Token Tails card.\"). Shelter, rescue and money words stay off screen (game copy rules R13/T3; the shelter mission is a founder call, see the README). lint-copy.mjs gates every string and every composed line. v3.4: a name tag on every rivalry and champion shot (the heroes as the game names them) and CALM PUDDING. (the approved mission line, LAUNCH.md §c.3) over Pudding calmed.",
  "L1a": "CATS",
  "L1b": "VS",
  "L1c": "DOGS",
@@ -22,5 +22,13 @@
  "CTA": "PLAY FREE",
  "SUB": "No download",
  "URL": "tokentails.com/pawlegends",
- "CREDIT": "© Token Tails"
+ "CREDIT": "© Token Tails",
+ "M7": "CALM PUDDING.",
+ "N_CLEM": "CLEM",
+ "N_CACK": "CACKLEJAW",
+ "N_BRUTUS": "SIR BRUTUS",
+ "N_AVIETE": "AVIETĖ",
+ "N_BENGAS": "BENGAS",
+ "N_GABE": "GABĖ",
+ "N_LAMBO": "LAMBO"
 }

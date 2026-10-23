@@ -142,6 +142,8 @@ export interface ShotSpec {
     ped?: { scale: number; trim?: [string, string] };
     /** v3.2: every stand's hero scaled to this standing height (m), so cats and dogs read the same size side by side. */
     fitH?: number;
+    /** v3.4: a flourish on a frame (stand index; 'swing' the lobby's attack flourish, 'cheer' a short cheer). */
+    acts?: { f: number; stand: number; act: 'swing' | 'cheer' }[];
     /**
      * v3.2: the game's real pick screen ("Choose your legend") over the lobby, as a player sees it: `hero` selected
      * first, `swaps` tap another tile on a frame (the detail panel then reads that hero, e.g. "Inspired by Lambo's
@@ -254,6 +256,14 @@ export interface ShotSpec {
   popMaxLife?: number;
   /** v3.3: damage numbers on towers and cores drawn (default off with popCull). */
   structNums?: boolean;
+  /** v3.4: [frame, alpha] keys (linear) for the real HUD layer (a crane to the whole map fades the score bar out). */
+  hudFade?: [number, number][];
+  /**
+   * v3.4 `twinNames`: a hero that appears twice on one team (the dogs field three heroes from two) keeps the game's own
+   * persona plate ("Rex the Cacklejaw"), so the two read as two players, not a cloned model; every other plate shows
+   * the hero's name (heroNames).
+   */
+  twinNames?: boolean;
 }
 
 /** v3.1 per-frame QC (capture.mjs): what the frame shows, for the overlap, structure, edge-pop and type gates. */
@@ -334,9 +344,13 @@ function layersCss(keep: readonly string[]): string {
   if (keep.includes('banner')) allow.push('.pl-banner');
   if (keep.includes('wheel')) allow.push('.pl-pingwheel');
   if (keep.includes('plates')) allow.push('.pl-overhead');
+  // v3.4 'hudlite': the real HUD's top score bar (kills, towers, clock) and the minimap, as a player sees them; the
+  // ability bar, portrait strips, feed and tips are left out
+  if (keep.includes('hudlite')) allow.push('.pl-hud', '.pl-minimap');
   const not = allow.map((s) => `:not(${s})`).join('');
   return `.pl-match > *${not}, body > *${not}:not(#app):not(script):not(style), #app > *${not}:not(.pl-match) { display: none !important; }
-  ${keep.includes('pops') ? '' : '.fx-dmg-layer { display: none !important; }'}`;
+  ${keep.includes('pops') ? '' : '.fx-dmg-layer { display: none !important; }'}
+  ${keep.includes('hudlite') ? '.pl-hud > :not(.pl-top) { display: none !important; }' : ''}`;
 }
 
 function setLayers(keep: readonly string[], hide: readonly string[] = []): void {
@@ -587,6 +601,9 @@ function uiAlpha(keys: readonly [number, number][] | undefined, f: number): numb
   return keys[keys.length - 1][1];
 }
 let uiStyle: HTMLStyleElement | null = null;
+let hudStyle: HTMLStyleElement | null = null;
+/** v3.4 twinNames: the plate names were set for this match. */
+let twinDone = false;
 
 /** Render-side clean-up just before the frame is drawn (see ShotSpec.popText ... near). */
 function cleanUp(g: GameRenderer): void {
@@ -605,7 +622,28 @@ function cleanUp(g: GameRenderer): void {
   const view = ses.view as unknown as { heroes: { rigs: Map<number, RigLike> }; structures: { items: Map<number, StructLike> }; effects: { numbers: { pool: { el: HTMLElement | null; pos: THREE.Vector3; active: boolean }[] } } };
   const oh = (ses as unknown as { overhead: { selfEdge: boolean; names: readonly string[]; selfName: boolean; edgeArrows: boolean; statusChips: boolean; minionBars: boolean; boxes: unknown[] | null } }).overhead;
   oh.selfEdge = s.selfEdge !== false;
-  if (s.heroNames && oh.names.length) oh.names = [];
+  if (s.heroNames && oh.names.length && !twinDone) {
+    // v3.4 twinNames: the persona plate only on a hero picked twice by one team
+    const keep: string[] = [];
+    const picks = (ses as unknown as { setup?: unknown; view: { frame: ViewFrame | null } }).view.frame;
+    if (s.twinNames && picks) {
+      const heroes = picks.entities.filter((e) => e.kind === 'hero' && e.id < 6 && e.hero);
+      if (heroes.length >= 6) {
+        for (const e of heroes) if (heroes.some((o) => o.id !== e.id && o.hero === e.hero && o.team === e.team)) keep[e.id] = oh.names[e.id];
+        twinDone = true;
+      }
+    } else twinDone = true;
+    if (twinDone) oh.names = keep;
+  }
+  if (s.hudFade?.length) {
+    if (!hudStyle) {
+      hudStyle = document.createElement('style');
+      hudStyle.id = 'trailer-hudfade';
+      document.head.appendChild(hudStyle);
+    }
+    const a = Math.max(0, Math.min(1, uiAlpha(s.hudFade, curF)));
+    hudStyle.textContent = a >= 0.999 ? '' : `.pl-hud, .pl-minimap { opacity: ${a.toFixed(3)} !important; }`;
+  } else if (hudStyle) hudStyle.textContent = '';
   if (s.bannerOn !== undefined && s.bannerOn !== null) {
     const on = s.bannerOn.some(([a, b]) => curF >= a && curF <= b);
     const ban = document.querySelector<HTMLElement>('.pl-banner');
@@ -757,7 +795,8 @@ function cleanUp(g: GameRenderer): void {
       const sy = -_pp.y * 0.5 + 0.5;
       let bad = _pp.z > 1 || _pp.z < -1 || sx < 0.03 || sx > 0.97 || sy < 0.03 || sy > 0.97 || n.t > life;
       // v3.3: a node shown longer than its game lifetime in output frames (merges keep resetting n.t), or one that has
-      // not moved on screen for 12 frames (a pinned number), is dropped
+      // not moved on screen for 12 frames (a pinned number), is dropped (v3.4: 8 frames; a number held still through a
+      // shot's lead-in showed on its first saved frame only, then dropped: a one-frame stray "79")
       const born = (n as unknown as { born?: number }).born;
       let tr = popTrack.get(n.el);
       if (!tr || tr.born !== born) {
@@ -768,7 +807,7 @@ function cleanUp(g: GameRenderer): void {
         tr.y = sy;
         tr.stillFrom = curF;
       }
-      if (curF - tr.first > Math.round(60 * (s.popMaxLife ?? 0.95)) || curF - tr.stillFrom > 12) bad = true;
+      if (curF - tr.first > Math.round(60 * (s.popMaxLife ?? 0.95)) || curF - tr.stillFrom > 8) bad = true;
       if (!bad && fr) {
         // the unit it belongs to (key = entity id) must still be drawn within 3 m; a word without a key needs any unit
         const e = typeof n.key === 'number' ? fr.byId.get(n.key) : null;
@@ -776,10 +815,14 @@ function cleanUp(g: GameRenderer): void {
         // v3.3: numbers on a tower or core under steady fire spawn one after another on the same spot (the same value
         // each hit, a 0.6 m rise that barely shows at the gameplay distance): read as one number stuck on the doghouse
         // (trailer v3.2 review), so they are left out unless the shot sets `structNums`
-        if (!bad && e && (e.kind === 'tower' || e.kind === 'core') && !s.structNums) bad = true;
+        // v3.4: Pudding's too (a number on him as he is calmed showed for one frame, then he left the map)
+        if (!bad && e && (e.kind === 'tower' || e.kind === 'core' || e.kind === 'pudding') && !s.structNums) bad = true;
         else bad = !fr.entities.some((u) => u.state !== 'dead' && (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'tower' || u.kind === 'core' || u.kind === 'pudding') && Math.hypot(u.fx / 1000 - n.pos.x, -u.fy / 1000 - n.pos.z) < 3);
       }
-      const v = bad ? '1' : '';
+      // v3.4: a cull is final for that number (a number culled, then back for one frame when its unit stepped
+      // within 3 m again, read as a stray one-frame pop)
+      if (bad) tr.dead = true;
+      const v = bad || tr.dead ? '1' : '';
       if (n.el.dataset.cull !== v) n.el.dataset.cull = v;
     }
   }
@@ -1023,6 +1066,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   eventLog.length = 0;
   flashState.clear();
   xrayOp.clear();
+  twinDone = false;
   lastPos.clear();
   curF = s.f0;
   if (s.mode === 'lobby') {
@@ -1273,6 +1317,13 @@ function lobbyStep(f: number, dtReal: number, ramp: number): void {
       if (h) h.object.scale.setScalar(((stands[i]?.fitK ?? 1) * (s.lobby?.fitH ?? 1)) / Math.max(0.1, (h.ch as unknown as { height: number }).height || fitBase(h.object)));
     });
   }
+  for (const a of s.lobby?.acts ?? []) {
+    if (a.f !== f || dtReal <= 0) continue;
+    const h = a.stand === 0 ? own : extra[a.stand - 1];
+    const anim = h?.ch.anim as unknown as { swing(): void; emote(n: string, t?: number): void } | undefined;
+    if (a.act === 'swing') anim?.swing();
+    else anim?.emote('cheer', 0.9);
+  }
   extra.forEach((h, i) => {
     const st = stands[i + 1];
     h.object.rotation.y = -Math.PI / 2 + (faceOf(st) * Math.PI) / 180;
@@ -1340,7 +1391,7 @@ function heroMove(): number {
 }
 
 /** v3.3 per damage-number node: its game birth, first output frame, last screen point and the frame it last moved. */
-const popTrack = new WeakMap<object, { born: number | undefined; first: number; x: number; y: number; stillFrom: number }>();
+const popTrack = new WeakMap<object, { born: number | undefined; first: number; x: number; y: number; stillFrom: number; dead?: boolean }>();
 /** v3.1 screen-space gate: two drawn bodies whose boxes share more than this of the smaller box overlap (v3.3: 0.5; the ground-contact gate catches bodies in each other, a 0.45-0.5 share was two fighters side by side). */
 const OVERLAP_SHARE = 0.5;
 /** One output frame (or sub-frame `sub` of `subs`, for motion blur): frame time 1/60 s split evenly. */
@@ -1500,6 +1551,9 @@ function frameQc(): FrameQc {
       const a = big[i].box;
       const b = big[j].box;
       if (big[i].hero !== big[j].hero) continue;
+      // v3.4 twinNames: the two wear different coats and carry the game's own persona plates ("Duke the Brutus",
+      // "Bolt the Brutus"): two players on one hero, not a cloned model
+      if (spec?.twinNames) continue;
       const gx = Math.max(0, Math.max(a[0], b[0]) - Math.min(a[2], b[2]));
       const gy = Math.max(0, Math.max(a[1], b[1]) - Math.min(a[3], b[3]));
       if (gx < 0.14 && gy < 0.14) out.dupes.push(big[i].hero);

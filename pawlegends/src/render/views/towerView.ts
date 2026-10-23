@@ -98,9 +98,11 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
 /** Peak hit-flash tint during a fall (render only): the core's swell and burst stay a glow on its own colour. */
 /**
  * The core's fall glow: a warm tint at `core` of the mix (the mix runs in linear light, so 0.2 of white lifted the dark
- * navy doghouse to a pale grey see-through-looking box on its last frames; trailer v3.2 review), in `color`.
+ * navy doghouse to a pale grey see-through-looking box on its last frames; trailer v3.2 review), in `color`. v3.3
+ * review: the tower's crack flash (0.8 of white) turned the navy dog tower pale and see-through-looking on one frame
+ * two frames before it toppled; a tower now cracks with the same warm tint at `tower`.
  */
-export const FALL_FLASH = Object.freeze({ core: 0.05, color: 0xffc85a });
+export const FALL_FLASH = Object.freeze({ core: 0.05, tower: 0.08, color: 0xffc85a });
 export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
 
 /**
@@ -619,7 +621,9 @@ export class StructureView {
     const shud = u < F.crack ? Math.sin(this.time * 75) * 0.08 : 0;
     const brk = u < F.settle ? 0 : (u - F.settle) / (1 - F.settle);
     s.flash = u < F.crack ? 1 : Math.max(0, 0.6 - (u - F.crack) * 2.5) + (u >= F.hit && u < F.hit + 0.05 ? 0.5 : 0);
-    s.rig.uFlashK.value = s.flash * 0.8;
+    // a warm, faint crack glow (FALL_FLASH): white at 0.8 read as the tower turning see-through on one frame
+    s.rig.uFlash.value.setHex(FALL_FLASH.color);
+    s.rig.uFlashK.value = Math.min(1, s.flash) * FALL_FLASH.tower;
     if (!s.impacted && u >= F.hit) {
       s.impacted = true;
       const len = s.height * 0.95;

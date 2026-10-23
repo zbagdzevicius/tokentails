@@ -93,6 +93,13 @@ export const FIXED = {
   W6: { seed: 61, hero: 'aviete', keys: { avieteQ: 6037, avieteR: 6073 }, roles: { aviete: 0 } },
   W7: { seed: 26, hero: 'sage', keys: { clemR: 10056, clemQ: 10110 }, roles: { sage: 0 } },
   W8: { seed: 15, hero: 'bengas', keys: { clemQ: 11429 }, roles: { bengas: 0 } },
-  W9: { seed: 209, hero: 'bengas', keys: { sageW: 12030, bengasQ: 12157 }, roles: { bengas: 0 } },
+  W9: { seed: 209, hero: 'bengas', keys: { sageW: 12030, six: 12041, bengasQ: 12157 }, roles: { bengas: 0 } },
   W10: { seed: 204, hero: 'gabe', keys: { lamboE: 10470, lamboR: 10496 }, roles: { gabe: 0 } },
+  // trailer v3.4, from the v3.4 moment scan (tools: a screen-space body test on the gameplay camera)
+  // the hook: Sir Brutus charges Clem in the river by Pudding's pad (the dog swing) and Clem answers (the cat hit)
+  H1: { seed: 138, hero: 'clem', keys: { charge: 10275, clemW: 10279, clemQ: 10291 }, roles: { clem: 0, brutus: 4, gabe: 1 } },
+  // the tower: Clem takes down Cacklejaw on the Sunny bridge, then the dog's outer tower falls east along the open lane
+  T1: { seed: 33, hero: 'clem', keys: { ko: 6109, tower: 6158 }, roles: { clem: 0, cack: 3 } },
+  // the teamfight at the dog base: Bengas takes Cacklejaw down beside Sage and the cats' cart, Sir Brutus walks in
+  F1: { seed: 129, hero: 'sage', keys: { ko: 10543, brutusQ: 10588 }, roles: { sage: 0, bengas: 2 } },
 };

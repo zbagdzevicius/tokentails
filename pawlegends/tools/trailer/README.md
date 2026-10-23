@@ -263,3 +263,24 @@ marketing (R13), and is a founder call:
 node tools/trailer/v3/type.mjs --copy tools/trailer/v3/copy-landing.json --lint-target client --out <dir>/mg-landing
 node tools/trailer/v3/edit.mjs --dir <dir> --mg <dir>/mg-landing --out-dir <dir>/out-landing --copy tools/trailer/v3/copy-landing.json --lint-target client --cut 30
 ```
+
+**v3.4 (review of v3.3: 38 defects).** Render fixes in the game (render only; `src/sim` untouched, determinism
+identical, tests in `tests/unit/trailer-v34-render.test.ts`): a short stealth eases (`STEALTH_LOOK`, `stealthAlpha`:
+a 3-tick stealth snapped a dog hero to a pale see-through copy without its outline, then popped back); the bodies keep
+idling on real time once the ended match's clock stands still (`END_IDLE`, `animStep`: every hero froze after
+VICTORY!); the tower's crack glow is the warm faint tint the core uses (`FALL_FLASH.tower`: 0.8 of white read as the
+tower turning see-through on one frame).
+
+Rig: `hudlite` layer (the real score bar and minimap on the gameplay-camera shots), `hudFade`, `twinNames` (the
+dogs' twin hero keeps the game's persona plates, "Duke the Brutus" / "Bolt the Brutus"), lobby `acts` (a flourish
+per stand on a frame); the pop cull is final per number and drops pinned numbers after 8 frames and numbers on
+Pudding; capture gates FLASH POP (a number on screen for one frame) and skips crane-wide frames where every hero is a
+speck. Takes H1 (the hook: Sir Brutus charges Clem, Clem answers), T1 (a dog tower falling along an open lane), F1
+(the dog-base teamfight) from a Node scan with a screen-space body test (`fixed-takes.mjs`).
+
+Cut: the hook cranes to the whole Crossing (CATS left over the cat side, DOGS right, on the beats); 3V3 is take W9
+(all six round Pudding's pad, the cats ahead); every rivalry and champion shot carries a name tag in its team colour;
+the mission is four beats (PUSH YOUR LANE., TOPPLE THEIR TOWERS., CALM PUDDING., TAKE THEIR CORE.) then VICTORY! on
+the burst; the 15 s cut holds TEAM CAT OR TEAM DOG? 75 frames; 9:16 type stays in y 0.12-0.78; the score's stabs sit
+on the type's slams. The shelter / Pink Paw mission stays off the game cut (R13/T3); the landing-only variant
+(`copy-landing.json`) is rendered for the founder's call.

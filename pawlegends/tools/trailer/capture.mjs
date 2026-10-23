@@ -113,6 +113,9 @@ function specFor(shot, aspect) {
     popLife: p.popLife ?? shot.popLife ?? null,
     popMaxLife: p.popMaxLife ?? shot.popMaxLife ?? null,
     structNums: !!(p.structNums ?? shot.structNums),
+    // v3.4: the real HUD faded by keys; twin heroes keep the game's persona plates
+    hudFade: p.hudFade ?? shot.hudFade ?? null,
+    twinNames: !!(p.twinNames ?? shot.twinNames),
     autoFit: (portrait ? p.autoFit : shot.autoFit) ?? null,
     uiFade: p.uiFade ?? shot.uiFade ?? null,
     popText: p.popText ?? shot.popText ?? null,
@@ -321,7 +324,7 @@ async function capture(shot, aspect) {
   const overlaps = [];
   const inStruct = [];
   const edgeText = [];
-  const extra = { contacts: [], minionIns: [], dupes: [], stalePops: [] };
+  const extra = { contacts: [], minionIns: [], dupes: [], stalePops: [], flashPops: [] };
   for (const pass of passes) {
     if (pass.card !== undefined) spec.take = { ...spec.take, look: pass.card };
     const r = await capturePass(shot, spec, aspect, pass, dirs, keyTicks);
@@ -416,7 +419,10 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       if (r.qc && f >= shot.f0) qcFrames[f] = { ...r.qc, move: +r.move.toFixed(3) };
       // overlap QC: hero bodies overlapping on screen for more than OVERLAP_FRAMES frames in a row fail the take
       // v3.2: a pair sharing > 45 % of the smaller body box, or any body more than half hidden by a nearer one
-      if (f >= shot.f0 && (r.overlap > 0 || (r.qc?.hidden ?? 0) > 0.5)) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
+      // v3.4: on a crane's whole-map view every hero is a speck (under 4 % of the frame tall): no body can read as
+      // clipping there, so those frames are not counted
+      const specks = (r.qc?.heroes ?? []).every((h) => h.box[3] - h.box[1] < 0.04);
+      if (f >= shot.f0 && !specks && (r.overlap > 0 || (r.qc?.hidden ?? 0) > 0.5)) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
       else if (overlapRun) {
         if (overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
         overlapRun = null;
@@ -432,7 +438,8 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     let run = null;
     for (let f = shot.f0; f <= spec.f1 + 1; f++) {
       const q = qcFrames[f];
-      if (q && pred(q)) run = run ? [run[0], f] : [f, f];
+      const specks = q && (q.heroes ?? []).every((h) => h.box[3] - h.box[1] < 0.04);
+      if (q && !specks && pred(q)) run = run ? [run[0], f] : [f, f];
       else if (run) {
         if (run[1] - run[0] + 1 > OVERLAP_FRAMES) out.push(run);
         run = null;
@@ -447,6 +454,20 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   const minionIns = runsOf((q) => (q.minionIn ?? 0) > 0);
   const dupes = runsOf((q) => (q.dupes ?? []).length > 0);
   const stalePops = runsOf((q) => (q.pops ?? []).some((p) => (p.age ?? 0) > 60 || (p.still ?? 0) > 14));
+  // v3.4: a number or word on screen for one frame only (none like it near it on the frames before and after) is a
+  // stray pop (the trailer v3.3 review: an orange 79 on a shot's first frame, gone on the next)
+  const flashPops = [];
+  // a merged damage counter changes its number every hit: two numbers in one place are the same pop
+  const num = (t) => /^[+\-]?[\d.,]+$/.test(t);
+  const near = (a, b) => (a.text === b.text || (num(a.text) && num(b.text))) && Math.abs((a.box[0] + a.box[2]) / 2 - (b.box[0] + b.box[2]) / 2) < 0.06 && Math.abs((a.box[1] + a.box[3]) / 2 - (b.box[1] + b.box[3]) / 2) < 0.08;
+  for (let f = shot.f0; f <= spec.f1; f++) {
+    for (const p of qcFrames[f]?.pops ?? []) {
+      const prev = (qcFrames[f - 1]?.pops ?? []).some((x) => near(x, p));
+      const next = (qcFrames[f + 1]?.pops ?? []).some((x) => near(x, p));
+      if (!next && (!prev || f === shot.f0) && f < spec.f1) flashPops.push([f, f, p.text]);
+    }
+  }
+  if (flashPops.length) console.error(`  ${shot.id} ${aspect}: FLASH POP QC FAIL on ${flashPops.map(([f, , t]) => `f${f} "${t}"`).join(', ')}`);
   for (const [name, r] of [['CONTACT', contacts], ['MINION-IN-HERO', minionIns], ['DUPLICATE HERO', dupes], ['STALE POP', stalePops]]) {
     if (r.length) console.error(`  ${shot.id} ${aspect}: ${name} QC FAIL on f${r.map(([a, b]) => `${a}-${b}`).join(', f')}`);
   }
@@ -457,7 +478,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   const info = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.info()) : null;
   const hash = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.verify()) : null;
   await ctx.close();
-  return { saved, info, hash, overlaps, inStruct, edgeText, contacts, minionIns, dupes, stalePops };
+  return { saved, info, hash, overlaps, inStruct, edgeText, contacts, minionIns, dupes, stalePops, flashPops };
 }
 
 mkdirSync(OUT, { recursive: true });

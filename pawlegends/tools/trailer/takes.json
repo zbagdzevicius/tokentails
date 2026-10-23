@@ -2639,6 +2639,7 @@
    ],
    "keys": {
     "sageW": 12030,
+    "six": 12041,
     "bengasQ": 12157
    },
    "roles": {
@@ -2686,6 +2687,113 @@
     "tick": 10796,
     "eventHash": "8af184e6",
     "stateHash": "3522c81a"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "H1": {
+   "id": "H1",
+   "seed": 138,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "gabe",
+    "lambo",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "charge": 10275,
+    "clemW": 10279,
+    "clemQ": 10291
+   },
+   "roles": {
+    "clem": 0,
+    "brutus": 4,
+    "gabe": 1
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10591,
+    "eventHash": "f8d9f4cf",
+    "stateHash": "23faf006"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "T1": {
+   "id": "T1",
+   "seed": 33,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "bengas",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "ko": 6109,
+    "tower": 6158
+   },
+   "roles": {
+    "clem": 0,
+    "cack": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 6458,
+    "eventHash": "00c90794",
+    "stateHash": "5c30e14b"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "F1": {
+   "id": "F1",
+   "seed": 129,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "lambo",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "ko": 10543,
+    "brutusQ": 10588
+   },
+   "roles": {
+    "sage": 0,
+    "bengas": 2
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10888,
+    "eventHash": "c04ca630",
+    "stateHash": "92ea0a05"
    },
    "simVersion": 10,
    "length": null
