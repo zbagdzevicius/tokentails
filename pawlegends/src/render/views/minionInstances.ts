@@ -124,6 +124,8 @@ export class MinionInstances {
   myTeam: 0 | 1 = 0;
   /** Round 2: team 0 is the dogs (the human picked a dog): each team wears the other style. */
   styleSwap = false;
+  /** Where each minion was drawn this frame (m, by entity id); a minion missing here is not drawn (no bar for it). */
+  readonly drawnAt = new Map<number, { x: number; z: number }>();
   /** Ground circles (m) where minions are not drawn this frame (a falling core: no cart clipping its burst). */
   clearZones: { x: number; z: number; r: number }[] = [];
   /** Live hero positions (m) this frame: a minion is drawn pushed out of a hero's body (render only). */
@@ -199,6 +201,8 @@ export class MinionInstances {
     const counts = this.counts;
     counts.fill(0);
     this.rings.begin();
+    const drawnAt = this.drawnAt;
+    for (const p of drawnAt.values()) p.x = NaN;
     // new minion bolts this frame: a ranged / siege minion's release (its strike)
     const ps = frame.projectiles;
     for (let i = 0; i < ps.length; i++) {
@@ -296,8 +300,14 @@ export class MinionInstances {
       }
       _m.compose(_p.set(px, hop, pz), _q, _s.set(s * (1 + a.hit * 0.15), s * sq, s * (1 + a.hit * 0.15)));
       mesh.setMatrixAt(i, _m);
+      const at = drawnAt.get(e.id);
+      if (at) {
+        at.x = px;
+        at.z = pz;
+      } else drawnAt.set(e.id, { x: px, z: pz });
       this.rings.add(a.x + px - px0, a.z + pz - pz0, 0.95 * s, team === this.myTeam ? RELATION.ally : RELATION.enemy, 0.7);
     }
+    for (const [id, p] of drawnAt) if (Number.isNaN(p.x)) drawnAt.delete(id);
     // gone this frame: the death tumble starts where it stood
     for (const [id, a] of this.anim) {
       if (a.stamp === stamp) continue;

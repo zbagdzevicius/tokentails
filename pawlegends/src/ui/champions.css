@@ -8,7 +8,7 @@
 .hero-card .champ-art { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 6px; object-fit: cover; image-rendering: pixelated; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 243, 220, 0.4); }
 .champ-owned { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
 .hero-card .champ-owned { position: absolute; top: 4px; left: 4px; }
-.pl-pick .champ-from { margin: -4px 0 6px; font-size: 12px; opacity: 0.85; }
+.pl-pick .champ-from { margin: 6px 0 6px; font-size: 12px; line-height: 1.3; opacity: 0.85; }
 .pl-pick .champ-flavour { margin: -2px 0 8px; font-size: 12px; font-style: italic; opacity: 0.7; }
 @media (max-height: 520px) {
   /* 844x390: two hero rows must leave the Paw Trick chips above the fold (round 1). */

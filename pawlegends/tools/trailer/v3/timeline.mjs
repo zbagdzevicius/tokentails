@@ -11,20 +11,22 @@ export const ASPECTS = { '16x9': { W: 1920, H: 1080 }, '9x16': { W: 1080, H: 192
 export const CUTS = { 30: 1800, 15: 900 };
 export const BEAT_FRAMES = 25;
 
-/** The 15 s cut as segments of the 30 s master: [cutFrom, cutTo, offset] (master = cut + offset; offsets on the beat). */
+/**
+ * The 15 s cut as segments of the 30 s master: [cutFrom, cutTo, offset] (master = cut + offset). v3.2: every offset is
+ * a multiple of 25 frames (one beat at 144 BPM), so the spliced score never jumps off the beat grid.
+ */
 export const CUT15 = [
   [0, 149, 0], // the hook and CATS VS DOGS
-  [150, 199, 25], // 3V3 IN YOUR BROWSER (S02 f175-224)
-  [200, 249, 50], // CLANK (S03)
-  [250, 299, 100], // Moonshot (S05)
-  [300, 349, 150], // Avietė (S07)
-  [350, 399, 200], // Gabė (S09)
-  [400, 449, 200], // Lambo (S10)
-  [450, 549, 300], // the tower falls (S13)
-  [550, 649, 550], // TAKE THEIR CORE. (S15)
-  [650, 749, 630], // the core bursts on f670 (S16 master f1300), then the cave-in and VICTORY!
-  [750, 824, 715], // TEAM CAT OR TEAM DOG? (S17; TEAM DOG? up from f775)
-  [825, 899, 800], // the end card (S18)
+  [150, 199, 25], // 3V3 IN YOUR BROWSER (S02 master 175-224, the real HUD)
+  [200, 249, 50], // Clem at Sir Brutus (S03)
+  [250, 299, 100], // Sage's Moonshot (S05)
+  [300, 349, 150], // Avietė's Short Circuit (S07)
+  [350, 399, 200], // Gabė's Under Her Spell (S09)
+  [400, 499, 350], // the dog tower falls (S13)
+  [500, 599, 600], // TAKE THEIR CORE. (S15 master 1100-1199)
+  [600, 774, 650], // the core falls and VICTORY! (S16 master 1250-1355), INSPIRED BY REAL CATS. (S18, the pick screen)
+  [775, 824, 725], // TEAM CAT OR TEAM DOG? (S17 master 1500-1549)
+  [825, 899, 800], // the end card (S17 master 1625-1699)
 ];
 
 /** Cut frame -> 30 s master frame. */
@@ -66,48 +68,58 @@ export function typeEls(cut, aspect, c) {
   // does not show whole is left out)
   const L = [];
   const add = (...a) => L.push(a);
-  // S01: CATS over the cat meadow, VS on the river, DOGS over the dog meadow (the crane's whole-map view)
+  // S01: CATS over the cat meadow, VS on the river, DOGS over the dog meadow (the crane's whole-map view); v3.2: the
+  // whole line holds 42 frames (f90-132) and is gone 10 frames before the cut
   if (v) {
-    add('L1a', c.L1a, 75, 118, 0.27, 0.42, 170, 'cat');
-    add('L1b', c.L1b, 88, 118, 0.5, 0.5, 110, 'plain');
-    add('L1c', c.L1c, 100, 118, 0.73, 0.58, 170, 'dog');
+    add('L1a', c.L1a, 70, 132, 0.27, 0.42, 170, 'cat');
+    add('L1b', c.L1b, 80, 132, 0.5, 0.5, 110, 'plain');
+    add('L1c', c.L1c, 90, 132, 0.73, 0.58, 170, 'dog');
   } else {
-    add('L1a', c.L1a, 75, 118, 0.32, 0.5, 150, 'cat');
-    add('L1b', c.L1b, 88, 118, 0.5, 0.5, 100, 'plain');
-    add('L1c', c.L1c, 100, 118, 0.68, 0.5, 150, 'dog');
+    add('L1a', c.L1a, 70, 132, 0.335, 0.5, 140, 'cat');
+    add('L1b', c.L1b, 80, 132, 0.5, 0.5, 100, 'plain');
+    add('L1c', c.L1c, 90, 132, 0.655, 0.5, 136, 'dog');
   }
-  // S02: 3V3 IN YOUR BROWSER (the top band, over open ground; six heroes and their plates below it)
-  add('L2a', c.L2a, 155, 232, 0.5, v ? 0.1 : 0.13, v ? 170 : 150, 'gold');
-  add('L2b', c.L2b, 175, 232, 0.5, v ? 0.17 : 0.25, v ? 80 : 84, 'plain');
-  // S07-S10: INSPIRED BY REAL CATS. (the top band, held across the four champions)
+  // S02: 3V3 IN YOUR BROWSER over the open river right of the six heroes (16:9: placed by the free-space search over
+  // every frame's hero, plate and pop boxes; 9:16: the band's dark top margin)
   if (v) {
-    add('M4a', c.M4v1, 460, 640, 0.5, 0.09, 84, 'plain');
-    add('M4b', c.M4v2, 468, 640, 0.5, 0.15, 110, 'cat');
+    add('L2a', c.L2a, 155, 236, 0.5, 0.17, 170, 'gold');
+    add('L2b', c.L2b, 175, 236, 0.5, 0.245, 80, 'plain');
   } else {
-    // 16:9: INSPIRED BY under Avietė (S07: a fight above her fills the top band), REAL CATS. over Bengas, Gabė, Lambo
-    add('M4a', c.M4v1, 460, 494, 0.5, 0.88, 92, 'plain');
-    add('M4b', c.M4v2, 505, 640, 0.5, 0.11, 110, 'cat');
+    add('L2a', c.L2a, 155, 236, 0.75, 0.41, 120, 'gold');
+    add('L2b', c.L2b, 175, 236, 0.75, 0.52, 60, 'plain');
   }
-  // S11-S12: the mission, beat by beat
-  add('M1', c.M1, 655, 692, 0.5, v ? 0.11 : 0.12, v ? 104 : 110, 'gold');
-  // (16:9: the calming cats stand above Pudding, so the line sits in the bottom band)
-  add('M2', c.M2, 708, 742, 0.5, v ? 0.11 : 0.86, v ? 104 : 110, 'gold');
-  // S15: TAKE THEIR CORE. (two lines in 9:16, inside 80 % of the width)
+  // S11-S12: the mission, beat by beat (CALM PUDDING. in the top band, clear of Pudding and the game's banner)
+  add('M1', c.M1, 655, 688, 0.5, v ? 0.575 : 0.625, v ? 96 : 104, 'gold');
+  add('M2', c.M2, 704, 741, v ? 0.5 : 0.8, v ? 0.43 : 0.42, v ? 84 : 62, 'gold');
+  // S15: TAKE THEIR CORE. (two lines in 9:16)
   if (v) {
-    add('M3a', c.M3v1, 1105, 1190, 0.5, 0.1, 110, 'gold');
-    add('M3b', c.M3v2, 1112, 1190, 0.5, 0.17, 140, 'gold');
-  } else add('M3', c.M3, 1105, 1190, 0.5, 0.12, 120, 'gold');
-  // S16: VICTORY! once the core has burst
-  add('M6', c.M6, 1345, 1442, 0.5, v ? 0.11 : 0.13, v ? 150 : 150, 'gold');
+    add('M3a', c.M3v1, 1105, 1190, 0.5, 0.11, 110, 'gold');
+    add('M3b', c.M3v2, 1112, 1190, 0.5, 0.18, 140, 'gold');
+  } else {
+    // 16:9: two lines in the open plaza left of the doghouse (clear of the core, its bar and the cats)
+    add('M3a', c.M3v1, 1105, 1190, 0.165, 0.8, 66, 'gold');
+    add('M3b', c.M3v2, 1112, 1190, 0.165, 0.885, 96, 'gold');
+  }
+  // S16: VICTORY! from the killing blow to the cut (a full second, in the 15 s cut too), below the burst
+  add('M6', c.M6, 1296, 1347, 0.5, 0.8, 150, 'gold');
+  // S18: INSPIRED BY REAL CATS. as one lockup over the game's pick screen (its footer row hidden), never over gameplay
+  if (v) {
+    add('M4a', c.M4v1, 1362, 1441, 0.5, 0.79, 84, 'plain');
+    add('M4b', c.M4v2, 1368, 1441, 0.5, 0.85, 110, 'cat');
+  } else {
+    // 16:9: one two-line lockup in the pick screen's own column, under the detail panel (its footer row is hidden)
+    add('M4a', c.M4v1, 1362, 1441, 0.235, 0.84, 72, 'plain');
+    add('M4b', c.M4v2, 1368, 1441, 0.235, 0.92, 96, 'cat');
+  }
   // S17: TEAM CAT (over the cats) OR TEAM DOG? (over the dogs)
   if (v) {
     add('M5a', c.M5a, 1455, 1610, 0.5, 0.1, 140, 'cat');
-    add('M5b', c.M5b, 1475, 1610, 0.5, 0.425, 70, 'plain');
-    add('M5c', c.M5c, 1490, 1610, 0.5, 0.478, 110, 'dog');
+    add('M5b', c.M5b, 1475, 1610, 0.5, 0.455, 64, 'plain');
+    add('M5c', c.M5c, 1490, 1610, 0.5, 0.5, 100, 'dog');
   } else {
-    add('M5a', c.M5a, 1455, 1610, 0.27, 0.15, 110, 'cat');
-    add('M5b', c.M5b, 1475, 1610, 0.515, 0.15, 64, 'plain');
-    add('M5c', c.M5c, 1490, 1610, 0.76, 0.15, 100, 'dog');
+    add('M5a', c.M5a, 1455, 1610, 0.27, 0.22, 110, 'cat');
+    add('M5b', c.M5b, 1475, 1610, 0.48, 0.22, 64, 'plain');
+    add('M5c', c.M5c, 1490, 1610, 0.69, 0.22, 100, 'dog');
   }
   if (String(cut) === '30') {
     for (const a of L) w(...a);
@@ -120,21 +132,22 @@ export function typeEls(cut, aspect, c) {
     let r1 = -1;
     for (let k = 0; k < CUTS[15]; k++) {
       const m = sourceFrame(15, k);
-      const on = m >= f && m <= out + 3;
+      const on = m >= f && m <= out + 8;
       if (on && r0 < 0) r0 = k;
       if (on && r0 >= 0) r1 = k;
       if (!on && r0 >= 0) break;
     }
     if (r0 < 0 || r1 - r0 < 20) continue;
-    const natural = sourceFrame(15, r1) >= out + 3;
-    w(id, text, r0, natural ? r1 - 3 : r1 - 6, x, y, size, style);
+    // v3.2: the 8-frame exit ends with the run (a line cut by the splice leaves on its own, never half-drawn)
+    const natural = sourceFrame(15, r1) >= out + 8;
+    w(id, text, r0, natural ? r1 - 8 : r1 - 9, x, y, size, style);
   }
   return els;
 }
 
 /** The end card: logo slam, CTA, URL, credit (cut frames); held sharp to the last frame. */
 export function endCard(cut) {
-  return String(cut) === '30' ? { logo: 1625, cta: 1650, url: 1675, credit: 1700, end: 1800 } : { logo: 825, cta: 840, url: 846, credit: 852, end: 900 };
+  return String(cut) === '30' ? { logo: 1625, cta: 1650, url: 1675, credit: 1700, end: 1800 } : { logo: 825, cta: 850, url: 862, credit: 875, end: 900 };
 }
 
 /**
@@ -142,11 +155,11 @@ export function endCard(cut) {
  * <= +15 % for one frame in place of any white flash; `shake`: { f, px, n } a decaying shake of n frames, <= 10 px.
  */
 const POST30 = {
-  // (no exposure punch on the core burst: the burst's own flash is the hit; a lift on top put 31 % of the frame at white)
+  // (no exposure punch on the core burst: the burst's own flash is the hit)
   punch: [{ f: 25, k: 0.05 }],
   shake: [
-    { f: 25, px: 8, n: 5 }, { f: 262, px: 5, n: 3 }, { f: 790, px: 4, n: 4 }, { f: 830, px: 7, n: 6 },
-    { f: 866, px: 4, n: 3 }, { f: 992, px: 6, n: 4 }, { f: 1133, px: 7, n: 5 }, { f: 1300, px: 8, n: 6 }, { f: 1336, px: 6, n: 8 },
+    { f: 25, px: 8, n: 5 }, { f: 274, px: 4, n: 3 }, { f: 790, px: 4, n: 4 }, { f: 830, px: 7, n: 6 },
+    { f: 882, px: 4, n: 3 }, { f: 974, px: 5, n: 4 }, { f: 1300, px: 8, n: 6 },
   ],
 };
 export function post(cut) {
@@ -157,7 +170,7 @@ export function post(cut) {
 
 /** Designed impacts (the music dips under each). */
 export const IMPACTS = {
-  30: [25, 262, 790, 830, 866, 992, 1133, 1300, 1336],
+  30: [25, 274, 324, 374, 420, 790, 824, 882, 974, 1300],
 };
 IMPACTS[15] = IMPACTS[30].flatMap((f) => mapTo15(f));
 

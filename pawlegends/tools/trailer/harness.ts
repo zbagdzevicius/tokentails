@@ -17,6 +17,7 @@ import { isoPitch } from '../../src/render/camera/IsoRig.js';
 import { ZOOM_DEFAULT } from '../../src/render/camera/zoom';
 import { bakePortraits } from '../../src/render/portraits';
 import { Lobby } from '../../src/render/lobby';
+import { pickScreen } from '../../src/ui/screens';
 import { MatchSession, type MatchSetup } from '../../src/app/matchSession';
 import { sfx } from '../../src/audio/sfx';
 import { parseRoster } from '../../src/meta/roster';
@@ -75,6 +76,8 @@ export interface LobbyStand {
   spinFrom?: number;
   /** v3.1: the hero (and its pedestal) drawn this much larger (the two dogs fill their half of a line-up). */
   scale?: number;
+  /** v3.2 line-up: a share on top of the shot's `fitH` (a stand farther from the lens drawn as tall on screen). */
+  fitK?: number;
 }
 
 export interface ShotSpec {
@@ -137,6 +140,14 @@ export interface ShotSpec {
     keepStage?: boolean;
     /** v3 line-up: every pedestal scaled to this share of its width, its trim in its stand's team colour. */
     ped?: { scale: number; trim?: [string, string] };
+    /** v3.2: every stand's hero scaled to this standing height (m), so cats and dogs read the same size side by side. */
+    fitH?: number;
+    /**
+     * v3.2: the game's real pick screen ("Choose your legend") over the lobby, as a player sees it: `hero` selected
+     * first, `swaps` tap another tile on a frame (the detail panel then reads that hero, e.g. "Inspired by Lambo's
+     * Token Tails card."); `zoom` a push on the page ([scale, originX, originY] from frame `from` to `to`, eased).
+     */
+    pick?: { hero: HeroId; side?: number; swaps?: { f: number; hero: HeroId }[]; zoom?: { from: number; to: number; s0: number; s1: number; ox: number; oy: number } };
   };
   /**
    * Render-side clean-up for a director shot (never an input; the game's own layers stay, filtered):
@@ -217,6 +228,28 @@ export interface ShotSpec {
   heroNames?: boolean;
   /** v3.1: frame windows [from, to] where the announcer banner may show (none outside them); null = always. */
   bannerOn?: [number, number][] | null;
+  /**
+   * v3.2 plate options (Overhead, render only): `selfName` the player's plate reads the hero's name (not "You"),
+   * `edgeArrows` false drops the off-screen enemy discs at the frame edge, `tags` false drops the status chips,
+   * `minionBars` false drops the minion bars (a crowded base fight reads as heroes and structures).
+   */
+  /**
+   * v3.2 `autoFit` (director shots, 9:16 mostly): the camera pulls back (up to `maxK` times its keyed distance, eased)
+   * while a hero's plate or body near the subject would leave the frame's `margin` (share of the frame), and comes
+   * back slowly once they all fit. Render only: it reads the plates the game drew on the previous frame.
+   */
+  autoFit?: { maxK: number; margin?: number } | null;
+  selfName?: boolean;
+  edgeArrows?: boolean;
+  tags?: boolean;
+  minionBars?: boolean;
+  /**
+   * v3.2 `popCull` (default on with gameLook): a damage number or word is dropped when its anchor is outside the
+   * frame's 3 % margin or behind the lens, when its unit is gone or more than 3 m from it, or when it has lived
+   * longer than `popLife` s of output time (default 0.7): no stray, clipped or hanging numbers.
+   */
+  popCull?: boolean;
+  popLife?: number;
 }
 
 /** v3.1 per-frame QC (capture.mjs): what the frame shows, for the overlap, structure, edge-pop and type gates. */
@@ -231,6 +264,18 @@ export interface FrameQc {
   edgeText: number;
   /** The banner's text when it is visible this frame ('' when not). */
   banner: string;
+  /** v3.2: the overhead plates drawn this frame (viewport fractions) with their label ('' for bars). */
+  plates?: { kind: string; id: number; name: string; box: [number, number, number, number]; dy: number }[];
+  /** v3.2: visible damage numbers, words, pops and callouts (viewport fractions) with their text. */
+  pops?: { text: string; box: [number, number, number, number] }[];
+  /** v3.2: drawn towers, cores and Pudding (their screen boxes, viewport fractions) with their kind. */
+  structs?: { kind: string; box: [number, number, number, number] }[];
+  /** v3.2: hero plates the declutter pass had to lift off another plate (a pile). */
+  stacked?: number;
+  /** v3.2: the largest share of any drawn hero's body box covered by a nearer hero's body box. */
+  hidden?: number;
+  /** v3.2: drawn heroes whose body box crosses a standing tower's or core's drawn box low down (in its base). */
+  inBase?: number;
   /** Debug: which pairs overlap ("id-id") and which hero stands in which footprint ("id@x,z"). */
   why?: string[];
 }
@@ -263,6 +308,8 @@ let alignYaw: number | null = null;
 let lobbyF = 0;
 const eventLog: { tick: number; type: string; src?: number; dst?: number; id?: number }[] = [];
 let style: HTMLStyleElement | null = null;
+/** v3.2 the pick screen mounted for a `lobby.pick` shot. */
+let pickEl: HTMLElement | null = null;
 
 /** The render camera's state this frame (exposed for the probe). */
 let camNow: CamState | null = null;
@@ -288,7 +335,7 @@ function setLayers(keep: readonly string[], hide: readonly string[] = []): void 
   }
   const ps = (spec?.popScale && spec.popScale !== 1 ? `.pl-pops > *, .pl-callouts > * { scale: ${spec.popScale}; }` : '')
     + (spec?.wheelScale && spec.wheelScale !== 1 ? `\n.pl-pingwheel { scale: ${spec.wheelScale} !important; transform-origin: var(--x, 50%) var(--y, 50%) !important; }` : '');
-  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n${ps}\n* { cursor: none !important; }`;
+  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n${ps}\n* { cursor: none !important; }\n.fx-dmg[data-cull="1"] { visibility: hidden !important; }`;
 }
 
 function ensureRenderer(): GameRenderer {
@@ -402,6 +449,25 @@ function direct(f: number, dtReal: number): boolean {
   const appeared = !!found && !hadGoal;
   hadGoal = !!found;
   const c = { ...camAt(s.cam.keys, f) };
+  if (s.autoFit && session && dtReal > 0) {
+    // the plates the game drew last frame (CSS px): how far the farthest one sits from the centre
+    const ob = (session as unknown as { overhead: { boxes: { kind: string; x0: number; y0: number; x1: number; y1: number }[] | null } }).overhead.boxes ?? [];
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const m = s.autoFit.margin ?? 0.04;
+    let need = 1;
+    for (const b of ob) {
+      if (b.kind !== 'hero') continue;
+      const ex = Math.max(0.5 - b.x0 / W, b.x1 / W - 0.5);
+      const ey = Math.max(0.5 - b.y0 / H, b.y1 / H - 0.5);
+      // a plate far outside (a hero walking in from off screen) does not pull the camera across the map
+      if (ex > 0.9 || ey > 0.9) continue;
+      need = Math.max(need, ex / (0.5 - m), ey / (0.5 - m));
+    }
+    const want = Math.min(s.autoFit.maxK, Math.max(1, fitK * need));
+    fitK += (want - fitK) * (want > fitK ? 0.2 : 0.02);
+  }
+  c.dist *= fitK;
   if (s.cam.align && alignYaw === null && frame) {
     const a = entityPos(frame, s.cam.align.a, 0);
     const b = entityPos(frame, s.cam.align.b, 0);
@@ -421,6 +487,8 @@ function direct(f: number, dtReal: number): boolean {
   return true;
 }
 
+/** v3.2 autoFit: the current pull-back factor. */
+let fitK = 1;
 /** v3 game-relative camera: this frame's keys (deltas on the game's camera) and the blend target. */
 let gameRel: CamState | null = null;
 let gameGoal: Vec3 | null = null;
@@ -523,7 +591,7 @@ function cleanUp(g: GameRenderer): void {
     uiStyle.textContent = a >= 0.999 ? '' : `.pl-overhead, .fx-dmg-layer, .pl-pops, .pl-callouts { opacity: ${a.toFixed(3)} !important; }${a <= 0.001 ? ' .pl-overhead, .fx-dmg-layer, .pl-pops, .pl-callouts { visibility: hidden !important; }' : ''}`;
   } else if (uiStyle) uiStyle.textContent = '';
   const view = ses.view as unknown as { heroes: { rigs: Map<number, RigLike> }; structures: { items: Map<number, StructLike> }; effects: { numbers: { pool: { el: HTMLElement | null; pos: THREE.Vector3; active: boolean }[] } } };
-  const oh = (ses as unknown as { overhead: { selfEdge: boolean; names: readonly string[] } }).overhead;
+  const oh = (ses as unknown as { overhead: { selfEdge: boolean; names: readonly string[]; selfName: boolean; edgeArrows: boolean; statusChips: boolean; minionBars: boolean; boxes: unknown[] | null } }).overhead;
   oh.selfEdge = s.selfEdge !== false;
   if (s.heroNames && oh.names.length) oh.names = [];
   if (s.bannerOn !== undefined && s.bannerOn !== null) {
@@ -549,11 +617,18 @@ function cleanUp(g: GameRenderer): void {
       st.rig.uFlashK.value = Math.min(st.rig.uFlashK.value, st.flash * 0.7, 0.12);
     }
   }
+  oh.selfName = !!s.selfName;
+  oh.edgeArrows = s.edgeArrows !== false;
+  oh.statusChips = s.tags !== false;
+  oh.minionBars = s.minionBars !== false;
+  if (!oh.boxes) oh.boxes = [];
   if (s.gameLook) {
     // v3: a standing tower or core is always drawn solid (no see-through ghost under a hero or a flop); a falling one
-    // keeps the view's own fade
+    // keeps the view's own fade. v3.2: no hit tint on them either (the realFlash cap snapped it between 0 and 0.12, and
+    // on the navy doghouse that read as a grey ghost box flickering on and off)
     for (const st of view.structures.items.values()) {
       if ((st.kind !== 'tower' && st.kind !== 'core') || !st.alive || st.dieT >= 0) continue;
+      st.rig.uFlashK.value = 0;
       st.rig.uOpacity.value = 1;
       if (st.material.transparent) {
         st.material.transparent = false;
@@ -656,6 +731,27 @@ function cleanUp(g: GameRenderer): void {
       const t = (n.el.textContent ?? '').trim();
       const word = !!words && t !== '' && !/^[+\-]?[\d.,]+$/.test(t) && !words.has(t);
       n.el.style.visibility = far || word ? 'hidden' : '';
+    }
+  }
+  if ((s.popCull ?? s.gameLook) && gr) {
+    const cam = gr.camera;
+    const fr = ses.view.frame;
+    const life = s.popLife ?? 0.7;
+    const pool = view.effects.numbers.pool as unknown as { el: HTMLElement | null; pos: THREE.Vector3; active: boolean; t: number; key: unknown }[];
+    for (const n of pool) {
+      if (!n.el || !n.active) continue;
+      _pp.copy(n.pos).project(cam);
+      const sx = _pp.x * 0.5 + 0.5;
+      const sy = -_pp.y * 0.5 + 0.5;
+      let bad = _pp.z > 1 || _pp.z < -1 || sx < 0.03 || sx > 0.97 || sy < 0.03 || sy > 0.97 || n.t > life;
+      if (!bad && fr) {
+        // the unit it belongs to (key = entity id) must still be drawn within 3 m; a word without a key needs any unit
+        const e = typeof n.key === 'number' ? fr.byId.get(n.key) : null;
+        if (typeof n.key === 'number') bad = !e || e.state === 'dead' || Math.hypot(e.fx / 1000 - n.pos.x, -e.fy / 1000 - n.pos.z) > 3;
+        else bad = !fr.entities.some((u) => u.state !== 'dead' && (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'tower' || u.kind === 'core' || u.kind === 'pudding') && Math.hypot(u.fx / 1000 - n.pos.x, -u.fy / 1000 - n.pos.z) < 3);
+      }
+      const v = bad ? '1' : '';
+      if (n.el.dataset.cull !== v) n.el.dataset.cull = v;
     }
   }
   if (s.popText) {
@@ -891,6 +987,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   gameGoal = null;
   focusSaved = false;
   alignYaw = null;
+  fitK = 1;
   lobbyF = s.f0;
   projLock = -1;
   lastFrame = -1e9;
@@ -954,7 +1051,22 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
         else if (!s.lobby.keepStage && (m.geometry instanceof THREE.CylinderGeometry || m.geometry instanceof THREE.TorusGeometry)) m.visible = false;
       }
     }
-    installPlace(g);
+    if (s.lobby?.pick) {
+      const pk = s.lobby.pick;
+      lb.side = pk.side ?? 0.5;
+      lb.setHero(pk.hero, 0, null);
+      const champs = Object.fromEntries((['lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]).map((h) => [h, { owned: false }]));
+      pickEl = pickScreen(root, {
+        initial: { hero: pk.hero, trick: 'pounce' as TrickId, difficulty: 'normal' as Difficulty },
+        champions: champs,
+        onHero: (h) => lb.setHero(h, 0, null),
+        onStart: () => undefined,
+        onBack: () => undefined,
+        difficultyNote: 'Easy bots. More bots after 3 matches.',
+      });
+    }
+    // the pick screen keeps the lobby's own camera (the hero framed right of the UI column, as in the game)
+    if (!s.lobby?.pick) installPlace(g);
     wrapRender(g);
     // let shaders compile and the hero pop settle before the shot
     for (let i = 0; i < (s.preroll ?? 90); i++) lobbyStep(-1 - i, 1 / 60, 1);
@@ -1065,11 +1177,38 @@ function stylePed(o: THREE.Object3D, ped: { scale: number; trim?: [string, strin
   }
 }
 
+/** v3.2 line-up: the scale that makes a hero model `h` m tall (its height measured once at scale 1). */
+const baseH = new WeakMap<THREE.Object3D, number>();
+function fitBase(o: THREE.Object3D): number {
+  let b = baseH.get(o);
+  if (b === undefined) {
+    const sc = o.scale.x;
+    o.scale.setScalar(1);
+    o.updateMatrixWorld(true);
+    b = Math.max(0.1, new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y);
+    o.scale.setScalar(sc);
+    baseH.set(o, b);
+  }
+  return b;
+}
+
 function lobbyStep(f: number, dtReal: number, ramp: number): void {
   const g = gr;
   const s = spec;
   if (!g || !lobby || !s) return;
   const dt = Math.max(0, ramp) * dtReal;
+  const pk = s.lobby?.pick;
+  if (pk && pickEl && dtReal > 0) {
+    for (const sw of pk.swaps ?? []) if (sw.f === f) pickEl.querySelector<HTMLElement>(`[data-h="${sw.hero}"]`)?.click();
+    const z = pk.zoom;
+    if (z && f >= 0) {
+      const u = Math.max(0, Math.min(1, (f - z.from) / Math.max(1, z.to - z.from)));
+      const k = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const sc = z.s0 + (z.s1 - z.s0) * k;
+      root.style.transformOrigin = `${z.ox * 100}% ${z.oy * 100}%`;
+      root.style.transform = `scale(${sc.toFixed(4)})`;
+    }
+  }
   for (const sw of s.lobby?.swaps ?? []) {
     if (sw.f === f && dtReal > 0) {
       const first = s.lobby?.stands[0];
@@ -1086,6 +1225,11 @@ function lobbyStep(f: number, dtReal: number, ramp: number): void {
   if (own && (stands[0]?.face !== undefined || stands[0]?.spin)) own.object.rotation.y = -Math.PI / 2 + (faceOf(stands[0]) * Math.PI) / 180;
   if (own && (stands[0]?.x || stands[0]?.z)) own.object.position.set(stands[0].x ?? 0, own.object.position.y, stands[0].z ?? 0);
   if (own && stands[0]?.scale) own.object.scale.setScalar(stands[0].scale);
+  if (s.lobby?.fitH) {
+    [own, ...extra].forEach((h, i) => {
+      if (h) h.object.scale.setScalar(((stands[i]?.fitK ?? 1) * (s.lobby?.fitH ?? 1)) / Math.max(0.1, (h.ch as unknown as { height: number }).height || fitBase(h.object)));
+    });
+  }
   extra.forEach((h, i) => {
     const st = stands[i + 1];
     h.object.rotation.y = -Math.PI / 2 + (faceOf(st) * Math.PI) / 180;
@@ -1168,12 +1312,15 @@ function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number; move
 }
 
 const _qa = new THREE.Vector3();
+const _pp = new THREE.Vector3();
+const _bb = new THREE.Box3();
 const _qr = new THREE.Vector3();
 /** v3.1 per-frame QC (see FrameQc). */
 function frameQc(): FrameQc {
   const out: FrameQc = { heroes: [], overlap: 0, inStruct: 0, edgeText: 0, banner: '', why: [] };
   const bodyIds: number[] = [];
   const bodies: [number, number, number, number][] = [];
+  const depth: number[] = [];
   const view = session?.view as unknown as { heroes: { rigs: Map<number, RigLike & { hero: string; team: number }> }; frame: ViewFrame | null; structures: { footprints(o: { x: number; z: number; r: number }[]): { x: number; z: number; r: number }[] } } | undefined;
   const cam = gr?.camera;
   if (!view || !cam) return out;
@@ -1204,31 +1351,36 @@ function frameQc(): FrameQc {
     }
     if (behind || x1 < 0 || x0 > 1 || y1 < 0 || y0 > 1) continue;
     out.heroes.push({ id, team: e.team, hero: e.hero ?? '', box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)] });
-    // the body alone (no plate): for the screen-space overlap gate
+    // v3.2 the body alone (no plate): the drawn model's world box, projected (a big Sir Brutus gets a big box)
+    _bb.setFromObject(o);
     let bx0 = 1e9;
     let by0 = 1e9;
     let bx1 = -1e9;
     let by1 = -1e9;
-    for (const [side, up] of [[-0.45, 0.1], [0.45, 0.1], [-0.45, 1.5], [0.45, 1.5]] as const) {
-      _qa.copy(o.position).addScaledVector(_qr, side);
-      _qa.y = up;
-      _qa.project(cam);
+    for (let c = 0; c < 8; c++) {
+      _qa.set(c & 1 ? _bb.max.x : _bb.min.x, c & 2 ? _bb.max.y : _bb.min.y, c & 4 ? _bb.max.z : _bb.min.z).project(cam);
       bx0 = Math.min(bx0, _qa.x * 0.5 + 0.5);
       bx1 = Math.max(bx1, _qa.x * 0.5 + 0.5);
       by0 = Math.min(by0, -_qa.y * 0.5 + 0.5);
       by1 = Math.max(by1, -_qa.y * 0.5 + 0.5);
     }
-    bodies.push([bx0, by0, bx1, by1]);
+    // the box of a skinned, posed model is generous: keep its middle 80 % across (weapons and capes stick out)
+    const shrink = (bx1 - bx0) * 0.1;
+    bodies.push([bx0 + shrink, by0, bx1 - shrink, by1]);
+    depth.push(_qa.copy(o.position).project(cam).z);
     bodyIds.push(id);
+    const hr = Math.min(0.9, Math.max(0.35, Math.max(_bb.max.x - _bb.min.x, _bb.max.z - _bb.min.z) * 0.35));
     for (const c of fps) {
       const d = Math.hypot(o.position.x - c.x, o.position.z - c.z);
-      if (d < c.r + 0.1) {
+      if (d < c.r + hr) {
         out.inStruct++;
         out.why!.push(`${id}@${c.x.toFixed(1)},${c.z.toFixed(1)} d${d.toFixed(2)} r${c.r.toFixed(2)}`);
       }
     }
   }
-  // bodies interpenetrating on screen: two body boxes sharing more than 40 % of the smaller one
+  // bodies interpenetrating on screen: two body boxes sharing more than OVERLAP_SHARE of the smaller one; v3.2 also the
+  // largest share of a farther body covered by a nearer one (`hidden`)
+  out.hidden = 0;
   for (let i = 0; i < bodies.length; i++) {
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i];
@@ -1236,12 +1388,43 @@ function frameQc(): FrameQc {
       const iw = Math.min(a[2], b[2]) - Math.max(a[0], b[0]);
       const ih = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
       if (iw <= 0 || ih <= 0) continue;
-      const small = Math.min((a[2] - a[0]) * (a[3] - a[1]), (b[2] - b[0]) * (b[3] - b[1]));
+      const areaA = (a[2] - a[0]) * (a[3] - a[1]);
+      const areaB = (b[2] - b[0]) * (b[3] - b[1]);
+      const small = Math.min(areaA, areaB);
+      const far = depth[i] > depth[j] ? areaA : areaB;
+      out.hidden = Math.max(out.hidden, (iw * ih) / far);
       if ((iw * ih) / small > OVERLAP_SHARE) {
         out.overlap++;
         out.why!.push(`${bodyIds[i]}-${bodyIds[j]} ${((iw * ih) / small).toFixed(2)}`);
       }
     }
+  }
+  out.hidden = +out.hidden.toFixed(3);
+  // v3.2 plates (Overhead boxes, CSS px -> fractions) and the pile count
+  const ob = (session as unknown as { overhead: { boxes: { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number }[] | null } }).overhead.boxes ?? [];
+  // plates faded out by the shot (uiFade 0: the crane's whole-map view) are not on screen
+  const shown = uiAlpha(spec?.uiFade ?? undefined, curF) > 0.05;
+  out.plates = (shown ? ob : []).map((p) => ({ kind: p.kind, id: p.id, name: p.name, box: [+(p.x0 / W).toFixed(4), +(p.y0 / H).toFixed(4), +(p.x1 / W).toFixed(4), +(p.y1 / H).toFixed(4)] as [number, number, number, number], dy: Math.round(p.dy) }));
+  out.stacked = shown ? ob.filter((p) => p.kind === 'hero' && p.dy < -0.5).length : 0;
+  out.pops = [];
+  out.structs = [];
+  for (const st of (session?.view as unknown as { structures: { items: Map<number, { kind: string; mesh: THREE.Object3D }> } }).structures.items.values()) {
+    if ((st.kind !== 'tower' && st.kind !== 'core' && st.kind !== 'pudding') || !st.mesh.visible) continue;
+    _bb.setFromObject(st.mesh);
+    if (_bb.isEmpty()) continue;
+    let x0 = 1e9;
+    let y0 = 1e9;
+    let x1 = -1e9;
+    let y1 = -1e9;
+    for (let c = 0; c < 8; c++) {
+      _qa.set(c & 1 ? _bb.max.x : _bb.min.x, c & 2 ? _bb.max.y : _bb.min.y, c & 4 ? _bb.max.z : _bb.min.z).project(cam);
+      x0 = Math.min(x0, _qa.x * 0.5 + 0.5);
+      x1 = Math.max(x1, _qa.x * 0.5 + 0.5);
+      y0 = Math.min(y0, -_qa.y * 0.5 + 0.5);
+      y1 = Math.max(y1, -_qa.y * 0.5 + 0.5);
+    }
+    if (x1 < 0 || x0 > 1 || y1 < 0 || y0 > 1 || x0 < -1 || y0 < -1 || x1 > 2 || y1 > 2) continue;
+    out.structs.push({ kind: st.kind, box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)] });
   }
   const m = 0.015;
   for (const el of Array.from(document.querySelectorAll<HTMLElement>('.pl-pops > *, .pl-callouts > *, .fx-dmg'))) {
@@ -1256,13 +1439,19 @@ function frameQc(): FrameQc {
     if (a < 0.05) continue;
     const b = el.getBoundingClientRect();
     if (b.width < 1) continue;
+    out.pops!.push({ text: (el.textContent ?? '').trim(), box: [+(b.left / W).toFixed(4), +(b.top / H).toFixed(4), +(b.right / W).toFixed(4), +(b.bottom / H).toFixed(4)] });
     if (b.left < W * m || b.right > W * (1 - m) || b.top < H * m || b.bottom > H * (1 - m)) {
       out.edgeText++;
       out.why!.push(`edge:${(el.textContent ?? '').trim()}@${Math.round(b.left)},${Math.round(b.top)}`);
     }
   }
   const ban = document.querySelector<HTMLElement>('.pl-banner');
-  if (ban && ban.classList.contains('on') && getComputedStyle(ban).display !== 'none' && getComputedStyle(ban).visibility !== 'hidden') out.banner = (ban.querySelector('.pl-banner-title')?.textContent ?? '').trim();
+  if (ban && ban.classList.contains('on') && getComputedStyle(ban).display !== 'none' && getComputedStyle(ban).visibility !== 'hidden') {
+    out.banner = (ban.querySelector('.pl-banner-title')?.textContent ?? '').trim();
+    // v3.2: the banner's box joins the pops, so the trailer type is kept off the game's own announcement
+    const b = ban.getBoundingClientRect();
+    if (b.width > 1) out.pops!.push({ text: `banner ${out.banner}`, box: [+(b.left / W).toFixed(4), +(b.top / H).toFixed(4), +(b.right / W).toFixed(4), +(b.bottom / H).toFixed(4)] });
+  }
   return out;
 }
 
@@ -1343,7 +1532,10 @@ function debug(): unknown {
   const h0 = (session?.view as unknown as { heroes: { rigs: Map<number, RigLike> } }).heroes.rigs.get(0)?.ch.object.position;
   const hv = (session?.view as unknown as { heroes: { obstacles: { x: number; z: number; r: number }[]; rigs: Map<number, { sepX: number; sepZ: number; simX: number; simZ: number }> } }).heroes;
   const sepInfo = { obs: hv.obstacles.map((o) => `${o.x.toFixed(1)},${o.z.toFixed(1)},${o.r.toFixed(2)}`), rigs: [...hv.rigs.entries()].map(([id, r]) => `${id}:${r.simX.toFixed(1)},${r.simZ.toFixed(1)}+${r.sepX.toFixed(2)},${r.sepZ.toFixed(2)}`) };
-  return { sepInfo, look: camLook ? [+camLook.x.toFixed(1), +camLook.z.toFixed(1)] : null, h0: h0 ? [+h0.x.toFixed(1), +h0.z.toFixed(1)] : null, nums, st: [...view.structures.items.values()].filter((st) => st.kind === 'core').map((st) => ({ k: st.kind, x: +st.x.toFixed(1), z: +st.z.toFixed(1), alive: st.alive, dieT: +st.dieT.toFixed(2) })) };
+  const cp = gr?.camera.position;
+  const cf = (gr?.camera as THREE.PerspectiveCamera | undefined)?.fov;
+  const fo = gr?.focus;
+  return { camP: cp ? [+cp.x.toFixed(2), +cp.y.toFixed(2), +cp.z.toFixed(2)] : null, fov: cf, focus: fo ? [+fo.x.toFixed(2), +fo.z.toFixed(2)] : null, zoom: gr?.zoom, sepInfo, look: camLook ? [+camLook.x.toFixed(1), +camLook.z.toFixed(1)] : null, h0: h0 ? [+h0.x.toFixed(1), +h0.z.toFixed(1)] : null, nums, st: [...view.structures.items.values()].filter((st) => st.kind === 'core' || st.kind === 'tower').map((st) => ({ k: st.kind, x: +st.x.toFixed(1), z: +st.z.toFixed(1), alive: st.alive, dieT: +st.dieT.toFixed(2), op: +st.rig.uOpacity.value.toFixed(2), tr: st.material.transparent, fk: +st.rig.uFlashK.value.toFixed(2), vis: (st as unknown as { mesh: THREE.Object3D }).mesh.visible })) };
 }
 
 window.__trailer = { load, frame, info, verify, touch, layerMode, pick, debug, ready: true };

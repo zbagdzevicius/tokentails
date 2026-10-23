@@ -1739,6 +1739,617 @@
    },
    "simVersion": 10,
    "length": null
+  },
+  "V1": {
+   "id": "V1",
+   "seed": 224,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "r": 2917,
+    "q1": 2923,
+    "ko": 2929
+   },
+   "roles": {
+    "clem": 0,
+    "brutus": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 3229,
+    "eventHash": "9a400f39",
+    "stateHash": "fd45574a"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V2": {
+   "id": "V2",
+   "seed": 189,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "gabe",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "e": 3487,
+    "q": 3517
+   },
+   "roles": {
+    "clem": 0,
+    "brutus": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 3817,
+    "eventHash": "5d2574ea",
+    "stateHash": "cc43c9c0"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V3": {
+   "id": "V3",
+   "seed": 292,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "clem",
+    "bengas",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "cackR": 6212
+   },
+   "roles": {
+    "cack": 5,
+    "gabe": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 6512,
+    "eventHash": "e293c2c6",
+    "stateHash": "78a5c908"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V4": {
+   "id": "V4",
+   "seed": 178,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "gabe",
+    "lambo",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "sageR": 6798,
+    "hit": 6808
+   },
+   "roles": {
+    "sage": 0,
+    "brutus": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 7108,
+    "eventHash": "9e228d4a",
+    "stateHash": "02e65be0"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V5": {
+   "id": "V5",
+   "seed": 197,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "aviete",
+    "sage",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "brutusR": 7185
+   },
+   "roles": {
+    "brutus": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 7485,
+    "eventHash": "63b60102",
+    "stateHash": "b5738d03"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V6": {
+   "id": "V6",
+   "seed": 132,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "aviete",
+    "lambo",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "avieteR": 2442
+   },
+   "roles": {
+    "aviete": 1,
+    "cack": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 2742,
+    "eventHash": "6cd9a8ef",
+    "stateHash": "6da5cb10"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V7": {
+   "id": "V7",
+   "seed": 3,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "aviete",
+    "sage",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "bengasR": 2017
+   },
+   "roles": {
+    "bengas": 0,
+    "cack": 3
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 2317,
+    "eventHash": "66bb3a78",
+    "stateHash": "e14b9e09"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V8": {
+   "id": "V8",
+   "seed": 140,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "bengas",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "gabeR": 7179
+   },
+   "roles": {
+    "gabe": 0,
+    "brutus": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 7479,
+    "eventHash": "238e6bc3",
+    "stateHash": "f04d8712"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V9": {
+   "id": "V9",
+   "seed": 198,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "lambo",
+    "sage",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "lamboR": 4310
+   },
+   "roles": {
+    "lambo": 1,
+    "brutus": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 4610,
+    "eventHash": "73da2d68",
+    "stateHash": "7f83dee7"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V10": {
+   "id": "V10",
+   "seed": 50,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "bengas",
+    "aviete",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "six": 8097
+   },
+   "roles": {
+    "sage": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 8397,
+    "eventHash": "e975b74f",
+    "stateHash": "68ca72a1"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V11": {
+   "id": "V11",
+   "seed": 42,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "gabe",
+    "aviete",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "calm": 12762
+   },
+   "roles": {
+    "clem": 0,
+    "gabe": 1
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 13062,
+    "eventHash": "bb5898ef",
+    "stateHash": "3e58888b"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V12": {
+   "id": "V12",
+   "seed": 36,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "gabe",
+    "sage",
+    "brutus",
+    "cacklejaw",
+    "cacklejaw"
+   ],
+   "keys": {
+    "ko": 8992,
+    "core": 9075
+   },
+   "roles": {
+    "bengas": 0,
+    "gabe": 1,
+    "sage": 2,
+    "cack": 4
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 9075,
+    "eventHash": "0917e69b",
+    "stateHash": "c1ba1c03"
+   },
+   "simVersion": 10,
+   "length": 9075
+  },
+  "V13": {
+   "id": "V13",
+   "seed": 39,
+   "hero": "sage",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "sage",
+    "clem",
+    "bengas",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "tower": 9784
+   },
+   "roles": {
+    "sage": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10084,
+    "eventHash": "43d10e5e",
+    "stateHash": "3d173f2a"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V14": {
+   "id": "V14",
+   "seed": 140,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "bengas",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "cacklejaw"
+   ],
+   "keys": {
+    "q": 10573
+   },
+   "roles": {
+    "gabe": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 10873,
+    "eventHash": "d55ce33b",
+    "stateHash": "10433ab0"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V15": {
+   "id": "V15",
+   "seed": 158,
+   "hero": "clem",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "clem",
+    "sage",
+    "gabe",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "r": 2119
+   },
+   "roles": {
+    "clem": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 2419,
+    "eventHash": "d0af5566",
+    "stateHash": "81ced5cb"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V16": {
+   "id": "V16",
+   "seed": 134,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "aviete",
+    "sage",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "r": 2605
+   },
+   "roles": {
+    "bengas": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 2905,
+    "eventHash": "b45171ff",
+    "stateHash": "6df0325d"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V17": {
+   "id": "V17",
+   "seed": 281,
+   "hero": "bengas",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "bengas",
+    "sage",
+    "clem",
+    "cacklejaw",
+    "brutus",
+    "brutus"
+   ],
+   "keys": {
+    "r": 6445
+   },
+   "roles": {
+    "bengas": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 6745,
+    "eventHash": "3fb7a454",
+    "stateHash": "5ad52b33"
+   },
+   "simVersion": 10,
+   "length": null
+  },
+  "V18": {
+   "id": "V18",
+   "seed": 142,
+   "hero": "gabe",
+   "trick": "pounce",
+   "difficulty": "normal",
+   "script": [],
+   "picks": [
+    "gabe",
+    "clem",
+    "sage",
+    "brutus",
+    "cacklejaw",
+    "brutus"
+   ],
+   "keys": {
+    "w": 10771
+   },
+   "roles": {
+    "gabe": 0
+   },
+   "points": {},
+   "strict": true,
+   "miss": [],
+   "fixed": true,
+   "check": {
+    "tick": 11071,
+    "eventHash": "483e73e6",
+    "stateHash": "16aa4ea5"
+   },
+   "simVersion": 10,
+   "length": null
   }
  }
 }

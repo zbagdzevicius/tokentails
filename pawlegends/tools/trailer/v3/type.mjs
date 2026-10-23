@@ -62,7 +62,7 @@ try {
       mkdirSync(dir, { recursive: true });
       const els = typeEls(cut, aspect, copy);
       const live = new Set();
-      for (const e of els) for (let f = e.in; f < e.out + 4; f++) live.add(f);
+      for (const e of els) for (let f = e.in; f < e.out + 8; f++) live.add(f);
       for (let f = endCard(cut).logo; f < CUTS[cut]; f++) live.add(f);
       const frames = [...live].sort((a, b) => a - b);
       const boxes = {};

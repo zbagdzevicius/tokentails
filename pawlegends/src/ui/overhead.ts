@@ -133,6 +133,22 @@ export class Overhead {
   heroAt: ((id: number) => { x: number; z: number } | null) | null = null;
   /** Draw the player's off-screen edge arrow (the trailer harness turns it off on shots that do not follow the player). */
   selfEdge = true;
+  /**
+   * Where a minion is drawn (m), or null when the minion view does not draw it this frame (inside a falling core's
+   * clear zone): its bar follows the drawn body and is dropped with it (trailer review: bars floated over the core
+   * rubble with no unit under them). Null hook = the sim point.
+   */
+  minionAt: ((id: number) => { x: number; z: number } | null) | null = null;
+  /** The enemy heroes' off-screen edge arrows (the trailer's director shots turn them off: no HUD frames them). */
+  edgeArrows = true;
+  /** The status chips right of a hero bar (Stunned, Slowed...). */
+  statusChips = true;
+  /** The minion bars (the trailer thins a crowded base fight to the heroes and structures). */
+  minionBars = true;
+  /** The player's plate reads the hero's own name instead of "You" (trailer: the champion's name is the proof). */
+  selfName = false;
+  /** When set, every drawn plate's screen box (CSS px) and label is written here each frame (trailer QC). */
+  boxes: { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number }[] | null = null;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
@@ -262,9 +278,15 @@ export class Overhead {
     const edge: { e: ViewEntity; sx: number; sy: number }[] = [];
     this.selfOff = false;
     for (const e of frame.entities) {
-      if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
+      if (e.kind === 'fountain' || e.state === 'dead' || e.maxHp <= 0 || e.hp <= 0 || !SIZE[e.kind] || SIZE[e.kind][0] === 0) continue;
+      if (e.kind === 'minion' && !this.minionBars) continue;
       const lift = LIFT[e.kind] * (e.kind === 'hero' ? heroScale(e) : 1);
-      const drawn = e.kind === 'hero' && this.heroAt ? this.heroAt(e.id) : null;
+      let drawn = e.kind === 'hero' && this.heroAt ? this.heroAt(e.id) : null;
+      if (e.kind === 'minion' && this.minionAt) {
+        drawn = this.minionAt(e.id);
+        // not drawn by the minion view this frame: no bar floating over empty ground
+        if (!drawn) continue;
+      }
       if (drawn) v.set(drawn.x, lift, drawn.z).project(camera);
       else v.set(e.fx / 1000, lift, -e.fy / 1000).project(camera);
       if (v.z > 1 || v.z < -1) continue;
@@ -308,7 +330,11 @@ export class Overhead {
       this.plate(g, p);
       if (fade) g.globalAlpha = 1;
     }
-    this.drawEdge(g, frame, edge);
+    if (this.boxes) {
+      this.boxes.length = 0;
+      for (const p of plates) this.boxes.push(this.boxOf(g, p));
+    }
+    if (this.edgeArrows) this.drawEdge(g, frame, edge);
     if (this.selfOff && this.selfEdge) this.drawSelfEdge(g);
   }
 
@@ -663,6 +689,29 @@ export class Overhead {
     this.beams = this.beams.filter((b) => b.t > 0);
   }
 
+  /** The screen box (CSS px) a plate covers: bar, level badge, name and status chip. */
+  private boxOf(g: CanvasRenderingContext2D, p: Plate): { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number } {
+    const e = p.e;
+    const [bw0, bh0] = SIZE[e.kind];
+    const bw = bw0 * this.scale;
+    const bh = bh0 * this.scale;
+    const sy = p.sy + p.dy;
+    if (e.kind !== 'hero') return { kind: e.kind, id: e.id, name: '', x0: p.sx - bw / 2 - 2, y0: sy - bh / 2 - 2, x1: p.sx + bw / 2 + 2, y1: sy + bh / 2 + 2, dy: p.dy };
+    const name = this.nameOf(e);
+    g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    const tw = g.measureText(name).width;
+    const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
+    g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    const sw = status ? g.measureText(status).width + 12 * this.scale : 0;
+    const b = plateBox(this.scale);
+    return { kind: 'hero', id: e.id, name, x0: Math.min(p.sx + b.left, p.sx - tw / 2 - 5 * this.scale), y0: sy - bh / 2 - 17 * this.scale, x1: Math.max(p.sx + bw / 2 + 2 + sw, p.sx + tw / 2 + 5 * this.scale), y1: sy + Math.max(bh / 2 + 3, 9 * this.scale), dy: p.dy };
+  }
+
+  private nameOf(e: ViewEntity): string {
+    if (this.selfName && e.id === this.mySlot && e.hero) return this.names[e.id] ?? HERO_TEXT[e.hero].title;
+    return plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
+  }
+
   private plate(g: CanvasRenderingContext2D, p: Plate): void {
     const e = p.e;
     const sx = p.sx;
@@ -725,7 +774,7 @@ export class Overhead {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(lv, x - r - 2, sy + 0.5);
-    const name = plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
+    const name = this.nameOf(e);
     g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
     const ny = y - 10 * this.scale;
     const tw = g.measureText(name).width;
@@ -797,7 +846,7 @@ export class Overhead {
       g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
       g.fillText('×2', cx, sy + 0.5);
     }
-    const status = e.charmed ? 'Charmed' : statusWord(e.buffs);
+    const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
     if (status) {
       g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
       const tw = g.measureText(status).width + 8 * this.scale;

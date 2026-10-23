@@ -35,13 +35,16 @@ const ONLY = (argValue('--only') ?? '').split(',').filter(Boolean);
 const ASPECT = argValue('--aspect') ?? 'both';
 const EVERY = Number(argValue('--every') ?? 1);
 const PROBE_ONLY = hasFlag('--probe');
+/** v3.2 `--qc`: every frame run and QC'd (qc.json written), nothing saved: a fast check of a shot's window. */
+const QC_ONLY = hasFlag('--qc');
 /** `--debug`: print the harness debug() state after every frame (structures' render state). */
 const DEBUG = hasFlag('--debug');
 /** `--pick f,x,y`: debug, list what the lens sees at screen fraction (x, y) after frame f. */
 const PICK = argValue('--pick') ? argValue('--pick').split(',').map(Number) : null;
 // `--shots-file`: another shot list module (look-dev variants); same exports as shots.mjs
 const { SHOTS, portraitKeys } = argValue('--shots-file') ? await import(resolve(argValue('--shots-file'))) : SHOT_LIST;
-const TAKES = JSON.parse(readFileSync(join(HERE, 'takes.json'), 'utf8')).takes;
+// v3.2 `--takes-file`: extra takes (a moment scan's candidates) merged over takes.json
+const TAKES = { ...JSON.parse(readFileSync(join(HERE, 'takes.json'), 'utf8')).takes, ...(argValue('--takes-file') ? JSON.parse(readFileSync(resolve(argValue('--takes-file')), 'utf8')).takes : {}) };
 const SIZES = { '16x9': [1920, 1080], '9x16': [1080, 1920] };
 
 /** '@hero' → slot 0; '@name' → the take's role (an entity id), or for a `point` its point ([x, y] mm). */
@@ -101,6 +104,14 @@ function specFor(shot, aspect) {
     heroNames: !!(p.heroNames ?? shot.heroNames ?? (p.gameLook ?? shot.gameLook)),
     selfEdge: p.selfEdge ?? shot.selfEdge ?? (!portrait && cs?.base === 'game'),
     bannerOn: p.bannerOn ?? shot.bannerOn ?? null,
+    // v3.2 plate options and the stray-number cull (harness ShotSpec)
+    selfName: !!(p.selfName ?? shot.selfName),
+    edgeArrows: p.edgeArrows ?? shot.edgeArrows ?? true,
+    tags: p.tags ?? shot.tags ?? true,
+    minionBars: p.minionBars ?? shot.minionBars ?? true,
+    popCull: p.popCull ?? shot.popCull ?? null,
+    popLife: p.popLife ?? shot.popLife ?? null,
+    autoFit: (portrait ? p.autoFit : shot.autoFit) ?? null,
     uiFade: p.uiFade ?? shot.uiFade ?? null,
     popText: p.popText ?? shot.popText ?? null,
     dmgRadius: p.dmgRadius ?? shot.dmgRadius ?? null,
@@ -135,7 +146,7 @@ async function startServer() {
   const url = argValue('--url');
   if (url) return { url, close: async () => undefined };
   const { createServer } = await import('vite');
-  const server = await createServer({ root: PKG, configFile: join(PKG, 'vite.config.ts'), logLevel: 'error', server: { port: 5197, strictPort: false, host: '127.0.0.1' } });
+  const server = await createServer({ root: PKG, configFile: join(PKG, 'vite.config.ts'), logLevel: 'error', server: { port: 5197, strictPort: false, host: '127.0.0.1', hmr: false, watch: null } });
   await server.listen();
   const addr = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5197/';
   return { url: addr.replace(/\/$/, ''), close: () => server.close() };
@@ -362,10 +373,10 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     }
     const file = join(dir, `f${String(f).padStart(4, '0')}.png`);
     if (PICK && f === PICK[0] + 1) console.log(`[pick ${shot.id} f${PICK[0]}]`, JSON.stringify(await page.evaluate(([x, y]) => window.__trailer.pick(x, y), [PICK[1], PICK[2]])));
-    const save = (f >= pass.a && f <= pass.b) && ((f - shot.f0) % EVERY === 0 || f === spec.f1);
+    const save = !QC_ONLY && (f >= pass.a && f <= pass.b) && ((f - shot.f0) % EVERY === 0 || f === spec.f1);
     // v4: no accumulation on a held frame (speed 0 across the whole frame: the sub-frames are the same picture)
     const held = rampAt(spec.ramp, f) <= 1e-4 && rampAt(spec.ramp, f + 1) <= 1e-4;
-    if (!held && blurs.some(([a, b]) => f >= a && f <= b)) {
+    if (!held && !QC_ONLY && blurs.some(([a, b]) => f >= a && f <= b)) {
       // the 3D picture: SUBS sub-frames, the first `open` (the shutter) averaged; the screen-space layer (numbers,
       // callouts, barks) is shot once at the end of the frame and laid on top, so it never smears. v4: a hero that
       // jumps (a knockback snap, a blink) inside the shutter would leave a discrete double image, so the frame then
@@ -399,7 +410,8 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       if (f >= shot.f0) keyTicks[f] = r.tick;
       if (r.qc && f >= shot.f0) qcFrames[f] = { ...r.qc, move: +r.move.toFixed(3) };
       // overlap QC: hero bodies overlapping on screen for more than OVERLAP_FRAMES frames in a row fail the take
-      if (f >= shot.f0 && r.overlap > 0) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
+      // v3.2: a pair sharing > 45 % of the smaller body box, or any body more than half hidden by a nearer one
+      if (f >= shot.f0 && (r.overlap > 0 || (r.qc?.hidden ?? 0) > 0.5)) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
       else if (overlapRun) {
         if (overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
         overlapRun = null;

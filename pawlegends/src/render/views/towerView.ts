@@ -95,6 +95,8 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
  * The fall's shape (fractions of the fall). Tower: crack until `crack`, topple (gravity) until `hit`, a bounce until
  * `settle`, then the break-up. Core: swell until `burst`, cave in until `caved`, then settle into the ground.
  */
+/** Peak hit-flash tint during a fall (render only): the core's swell and burst stay a glow on its own colour. */
+export const FALL_FLASH = Object.freeze({ core: 0.2 });
 export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
 
 /**
@@ -499,6 +501,14 @@ export class StructureView {
         s.flash = 1;
         s.impacted = false;
         if (s.bubble) s.bubble.visible = false;
+        // the fall is always drawn solid: an x-ray fade under way when the killing blow landed (a hero standing in
+        // the patch it hides) used to carry into the fall as a see-through grey box (trailer review)
+        s.rig.uOpacity.value = 1;
+        if (s.material.transparent) {
+          s.material.transparent = false;
+          s.material.depthWrite = true;
+          s.material.needsUpdate = true;
+        }
         continue;
       }
       if (s.kind === 'pudding') {
@@ -572,7 +582,8 @@ export class StructureView {
       const cave = c * c;
       const settle = u < F.caved ? 0 : (u - F.caved) / (1 - F.caved);
       s.flash = u < F.burst ? 0.4 + 0.6 * (u / F.burst) : Math.max(0, 1 - (u - F.burst) * 4);
-      s.rig.uFlashK.value = s.flash * 0.75;
+      // a warm glow, not a white-out: at 0.75 the navy doghouse turned pale grey and read as a ghost box
+      s.rig.uFlashK.value = s.flash * FALL_FLASH.core;
       if (!s.impacted && u >= F.burst) {
         s.impacted = true;
         this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.6, colors, DEBRIS.coreSpeed, DEBRIS.coreSize);
