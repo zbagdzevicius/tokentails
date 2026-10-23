@@ -92,7 +92,7 @@ function specFor(shot, aspect) {
     take: take ? { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, script: take.script ?? [], look: shot.look ?? null, check: take.check } : null,
     cam: cs ? { target: mapTarget(p.target ?? cs.target, take), keys: portrait && p.cam === undefined ? portraitKeys(shot) : cs.keys, smooth: cs.smooth, ...(cs.base ? { base: cs.base } : {}), ...(cs.off ? { off: cs.off } : {}), ...((p.align ?? cs.align) ? { align: { a: ref((p.align ?? cs.align).a, take), b: ref((p.align ?? cs.align).b, take) } } : {}) } : null,
     ramp: shot.ramp ?? [],
-    layers: shot.layers ?? ['pops'],
+    layers: p.layers ?? shot.layers ?? ["pops"],
     hide: shot.hide ?? [],
     wheel: shot.wheel ?? null,
     touch: !!p.touch,
@@ -111,6 +111,8 @@ function specFor(shot, aspect) {
     minionBars: p.minionBars ?? shot.minionBars ?? true,
     popCull: p.popCull ?? shot.popCull ?? null,
     popLife: p.popLife ?? shot.popLife ?? null,
+    popMaxLife: p.popMaxLife ?? shot.popMaxLife ?? null,
+    structNums: !!(p.structNums ?? shot.structNums),
     autoFit: (portrait ? p.autoFit : shot.autoFit) ?? null,
     uiFade: p.uiFade ?? shot.uiFade ?? null,
     popText: p.popText ?? shot.popText ?? null,
@@ -319,6 +321,7 @@ async function capture(shot, aspect) {
   const overlaps = [];
   const inStruct = [];
   const edgeText = [];
+  const extra = { contacts: [], minionIns: [], dupes: [], stalePops: [] };
   for (const pass of passes) {
     if (pass.card !== undefined) spec.take = { ...spec.take, look: pass.card };
     const r = await capturePass(shot, spec, aspect, pass, dirs, keyTicks);
@@ -328,6 +331,7 @@ async function capture(shot, aspect) {
     overlaps.push(...r.overlaps);
     inStruct.push(...r.inStruct);
     edgeText.push(...r.edgeText);
+    for (const k of Object.keys(extra)) extra[k].push(...(r[k] ?? []));
   }
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   console.error(`  ${shot.id} ${aspect}: ${saved} frames${timing ? `, start tick ${spec.startTick.toFixed(2)}, anchor ${timing.anchorTick} (${JSON.stringify(timing.log.at(-1))})` : ''}${hash ? `, hash ${hash.ok ? 'ok' : `MISMATCH ${hash.browser} vs ${hash.node}`}` : ''} (${secs} s)`);
@@ -348,6 +352,7 @@ async function capture(shot, aspect) {
     overlaps,
     inStruct,
     edgeText,
+    ...extra,
     firstTick: keyTicks[shot.f0] ?? null,
     lastTick: keyTicks[spec.f1] ?? null,
     /** The render tick after each (non-blurred) frame: where every frame sits in the take. */
@@ -436,6 +441,15 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     return out;
   };
   const inStruct = runsOf((q) => q.inStruct > 0);
+  // v3.3 gates: bodies in contact on the ground, a minion inside a hero, one hero name drawn twice, a number older
+  // than its game life or pinned in place (the pop cull should have dropped it)
+  const contacts = runsOf((q) => (q.contact ?? 0) > 0);
+  const minionIns = runsOf((q) => (q.minionIn ?? 0) > 0);
+  const dupes = runsOf((q) => (q.dupes ?? []).length > 0);
+  const stalePops = runsOf((q) => (q.pops ?? []).some((p) => (p.age ?? 0) > 60 || (p.still ?? 0) > 14));
+  for (const [name, r] of [['CONTACT', contacts], ['MINION-IN-HERO', minionIns], ['DUPLICATE HERO', dupes], ['STALE POP', stalePops]]) {
+    if (r.length) console.error(`  ${shot.id} ${aspect}: ${name} QC FAIL on f${r.map(([a, b]) => `${a}-${b}`).join(', f')}`);
+  }
   const edgeText = runsOf((q) => q.edgeText > 0);
   if (inStruct.length) console.error(`  ${shot.id} ${aspect}: STRUCTURE QC FAIL, a hero inside a structure on f${inStruct.map(([a, b]) => `${a}-${b}`).join(', f')}`);
   if (edgeText.length) console.error(`  ${shot.id} ${aspect}: EDGE TEXT QC FAIL, game text at the frame edge on f${edgeText.map(([a, b]) => `${a}-${b}`).join(', f')}`);
@@ -443,7 +457,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   const info = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.info()) : null;
   const hash = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.verify()) : null;
   await ctx.close();
-  return { saved, info, hash, overlaps, inStruct, edgeText };
+  return { saved, info, hash, overlaps, inStruct, edgeText, contacts, minionIns, dupes, stalePops };
 }
 
 mkdirSync(OUT, { recursive: true });

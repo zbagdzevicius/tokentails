@@ -44,13 +44,18 @@ export function trailerRules(id, text) {
   return out;
 }
 
-export function lintTrailerCopy(copy) {
-  const target = TARGETS.find((t) => t.name === 'pawlegends');
+/**
+ * `targetName` 'pawlegends' (default: the trailer is game marketing, R13 applies) or 'client' (v3.3 landing-only
+ * variant: the cut embedded on tokentails.com, linted as client copy, where a shelter line may run with its claim).
+ */
+export function lintTrailerCopy(copy, targetName = 'pawlegends') {
+  const target = TARGETS.find((t) => t.name === targetName);
   const facts = loadFacts(ROOT);
   const lines = trailerLines(copy);
   // one virtual source file in the pawlegends tree: each string is a `text` property, so even one-word lines are copy
   const src = `export const TRAILER = [\n${lines.map(([id, t]) => `  { id: ${JSON.stringify(id)}, text: ${JSON.stringify(t)} },`).join('\n')}\n];\n`;
-  const found = lintSource('pawlegends/src/ui/trailerCopy.ts', src, { facts, target, toneExempt: false }).map((f) => ({ id: lines[f.line - 2]?.[0], rule: f.rule, message: f.message, text: f.text }));
+  const file = targetName === 'client' ? 'client/components/landing/trailerCopy.ts' : 'pawlegends/src/ui/trailerCopy.ts';
+  const found = lintSource(file, src, { facts, target, toneExempt: false }).map((f) => ({ id: lines[f.line - 2]?.[0], rule: f.rule, message: f.message, text: f.text }));
   for (const [id, t] of lines) found.push(...trailerRules(id, t));
   return { lines: lines.length, findings: found };
 }

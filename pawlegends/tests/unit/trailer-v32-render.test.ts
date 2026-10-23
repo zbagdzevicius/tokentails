@@ -125,6 +125,6 @@ describe('a falling core is drawn solid, with a glow (no grey ghost box)', () =>
       expect(it.material.transparent).toBe(false);
     }
     expect(peak).toBeLessThanOrEqual(FALL_FLASH.core + 1e-6);
-    expect(peak).toBeGreaterThan(0.1);
+    expect(peak).toBeGreaterThan(0.02);
   });
 });

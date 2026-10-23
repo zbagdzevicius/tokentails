@@ -1,19 +1,21 @@
 /**
- * Trailer v3 ("Settle It on the Crossing") shot list: 30 s at 60 fps, 144 BPM (25 frames per beat). Every gameplay
- * shot is the game's own camera: either the real follow camera with the director's deltas on top (`cam.base: 'game'`,
- * harness.ts placeGameRel) or, when the subject is not the take's human, the same numbers as a director preset
- * (GAMECAM: 23.76 m, pitch 48.8, FOV 38, yaw 0, the ground 4 m ahead of the hero toward the enemy core). The moves on
- * top are push-ins, one crane (S01), small orbits on the tower and core falls, speed ramps; each settles back on the
- * gameplay view by the cut. `gameLook`: no render clean-up hack at all (no culled trees, banners, towers or bolts).
+ * Trailer v3.3 ("Settle It on the Crossing", review of v3.2: "full of bugs, from above like real gameplay, sell cats
+ * vs dogs and the mission") shot list: 30 s at 60 fps, 144 BPM (25 frames per beat). Every gameplay shot is the
+ * game's own camera at its own distance: the real follow camera on the take's human (`cam.base: 'game'`, harness.ts
+ * placeGameRel: its lead toward the enemy core and its fight pull-back) with the director's deltas on top, or, when
+ * the subject is not the human, the same numbers as a preset (GAMECAM: pitch 48.8, FOV 38, the game's 4 m lead and
+ * 0.8 m south). v3.3: every shot starts and ends at the gameplay distance (1.0); a push (to 0.9 at most) or the hook's
+ * crane (to 1.3 at most) happens only round its beat. `gameLook`: no render clean-up hack.
  *
- *   node tools/trailer/capture.mjs --shots-file tools/trailer/v3/shots.mjs --out <dir>/shots
+ *   node tools/trailer/capture.mjs --shots-file tools/trailer/v3/shots.mjs --aspect 16x9 --out <dir>/shots-l
  *
- * Landscape is captured at 1280x720 CSS px, DPR 1.5 (1920x1080 pixels): a laptop window, so the HUD, name plates and
- * pops are as big as a player sees them. Portrait (1080x1920, DPR 1) is GAMECAM-P: the same pitch, FOV 50 (the iso
- * rig's portrait FOV), 1.2x the distance, the look point centred on the subject (the game is not played in portrait).
+ * Landscape: 1280x720 CSS px at DPR 1.5 (1920x1080). Portrait: 540x960 CSS px at DPR 2 (1080x1920) with GAMECAM-P
+ * (pitch 48.8, FOV 50, 1.2x the distance) on the subject: every 9:16 shot is captured natively (no landscape band).
+ * Windows come from a QC scan of each take (capture.mjs --qc): no frame with bodies overlapping or in contact, a minion
+ * inside a hero, a hero in a structure, a twin hero side by side, text at the edge or a stale number.
  */
 
-/** v3 render settings: the frame as the game draws it (storyboard §3). */
+/** v3 render settings: the frame as the game draws it. */
 const V3 = {
   gameLook: true,
   xray: false,
@@ -26,244 +28,175 @@ const V3 = {
   size: [1280, 720],
   dpr: 1.5,
   layers: ['pops', 'banner', 'plates'],
-  // v3.1: the game's own words only where they tell the beat (the player's combo and XP pops piled up at the frame
-  // edges and over the type): the takedown callout (CLANK! only where it is the beat: two at once drew over each other)
   popText: ['Takedown!'],
-  // v3.2: the plates name every hero (the player's own too: the champion's name, not "You"), no off-screen enemy
-  // discs at the frame edge (no HUD frames them), stray numbers culled (harness popCull, on with gameLook)
   selfName: true,
   edgeArrows: false,
   bannerOn: [],
+  // v3.3: 10 frames through the real frame path before f0 (no units holding still on the cut)
+  lead: 10,
 };
-/** v3.2 portrait capture: 540 x 960 CSS px at DPR 2 (1080 x 1920): the game's plates and banner at phone size. */
 const P = { width: 540, height: 960, dpr: 2 };
 
-/** The game's camera with deltas (dist multiple, pitch / yaw degrees added, blend toward `target`). */
+/** The game's camera with deltas (dist multiple, pitch / yaw degrees added). */
 const game = (keys, target = null) => ({ base: 'game', target, keys });
-
 /** GAMECAM as a director preset on `target`, with the game's 4 m lead toward the dog core and 0.8 m south. */
 const preset = (target, keys, off = [4, 0.8]) => ({ target, keys: keys.map((k) => ({ fov: 38, pitch: 48.8, yaw: 0, lift: 0, ...k })), smooth: 0.12, off });
-
-/** GAMECAM-P (9:16): pitch 48.8, FOV 50, 1.2x the distance, no lead. `d` maps a landscape push (0.82 -> 1.14). */
-const pd = (d) => Math.round(1200 * (d >= 1 ? d : 1 - (1 - d) * 0.35)) / 1000;
+/** GAMECAM-P (9:16): pitch 48.8, FOV 50, 1.2x the distance, the subject centred. */
 const portrait = (target, keys, o = {}) => ({
   ...P,
-  cam: { target, keys: keys.map((k) => ({ fov: 50, pitch: 48.8, yaw: 0, lift: 0, ...k, ...(k.dist !== undefined && !k.abs ? { dist: pd(k.dist) * (o.wide ?? 1) } : {}) })), smooth: 0.12, off: o.off ?? [0, 0] },
+  cam: { target, keys: keys.map((k) => ({ fov: 50, pitch: 48.8, yaw: 0, lift: 0, ...k, dist: Math.round(1200 * (k.dist ?? 1) * (o.wide ?? 1)) / 1000 })), smooth: 0.12, off: o.off ?? [0, 0] },
+  ...(o.extra ?? {}),
 });
-/** Landscape game-relative keys as portrait preset keys on the hero (pitch / yaw deltas made absolute). */
-const asPortrait = (keys, target = { unit: '@hero' }, o = {}) => portrait(target, keys.map((k) => ({ ...k, ...(k.pitch !== undefined ? { pitch: 48.8 + k.pitch } : {}) })), o);
+/** A push round the beat: gameplay distance before and after, `d` on the beat (frames a, beat, b). */
+const push = (a, beat, b, d = 0.9) => [{ f: a, dist: 1 }, { f: beat, dist: d, ease: 'ease' }, { f: b, dist: 1, ease: 'ease' }];
 
 export const SHOTS = [
-  // ---------------------------------------------------------------- S01 HOOK + PREMISE (take V1: Clem's Golden Hour takes Sir Brutus)
+  // ---------------------------------------------------------------- S01 HOOK + CATS VS DOGS (take V1, Clem is the player)
   {
-    // v3.2: the gameplay camera on Clem; Golden Hour, two swipes and the takedown on f25 (a 3-frame 0.35 hold), then
-    // the crane up to the whole Crossing (the plates fade out as it leaves the gameplay height and stay off) and a
-    // hold on the wide map to the hard cut on f150 (no descent back onto a pile)
-    id: 'S01', ...V3, take: 'V1', f0: 0, f1: 149, lead: 8,
-    anchor: { key: 'ko', frame: 25 },
-    uiFade: [[29, 1], [38, 0]],
-    ramp: [[0, 1], [24, 1], [25, 0.35], [28, 0.35], [34, 1, 'out']],
+    // Clem's Golden Hour on Sir Brutus at the river (Bengas with her, Cacklejaw on the bridge): f0 is the cast with
+    // Brutus standing, the slow motion only round the hit, the takedown and his fall at full speed, then a crane to
+    // 1.3x the gameplay height for CATS VS DOGS and back down to the gameplay view by the cut
+    id: 'S01', ...V3, take: 'V1', f0: 0, f1: 149,
+    anchor: { key: 'r', offset: 1, frame: 0 },
+    ramp: [[0, 1], [8, 1], [12, 0.4, 'out'], [26, 0.4], [34, 1, 'ease']],
     cam: game([
-      { f: 0, dist: 0.9, pitch: 0, blend: 0 },
-      { f: 25, dist: 0.84, ease: 'out' },
-      { f: 28, dist: 0.84, pitch: 0, blend: 0 },
-      { f: 70, dist: 3.75, pitch: 11.2, blend: 1, ease: 'ease' },
-      { f: 149, dist: 3.66, pitch: 11.2, blend: 1, ease: 'linear' },
-    ], { point: [50000, 30000] }),
-    portrait: {
-      ...P,
-      // the crane is keyed whole (no pull-back on the hook)
-      autoFit: null,
-      cam: {
-        target: { blend: [{ unit: 0 }, { point: [50000, 30000] }], f0: 28, f1: 70 },
-        keys: [
-          { f: 0, dist: 1.12, pitch: 48.8, fov: 50, yaw: 0, lift: 0 },
-          { f: 25, dist: 1.06, ease: 'out' },
-          { f: 28, dist: 1.06, pitch: 48.8, yaw: 0 },
-          { f: 70, dist: 2.9, pitch: 62, yaw: 0, ease: 'ease' },
-          { f: 149, dist: 2.84, pitch: 62, yaw: 0, ease: 'linear' },
-        ],
-        smooth: 0.12,
-        off: [0, 0],
-      },
-    },
+      { f: 0, dist: 1, blend: 0 },
+      { f: 12, dist: 0.9, ease: 'out' },
+      { f: 40, dist: 0.92, ease: 'ease' },
+      { f: 62, dist: 1, blend: 0, ease: 'ease' },
+      { f: 92, dist: 1.3, pitch: 5, blend: 0, ease: 'ease' },
+      { f: 118, dist: 1.3, pitch: 5, blend: 0, ease: 'linear' },
+      { f: 149, dist: 1, pitch: 0, blend: 0, ease: 'ease' },
+    ]),
+    portrait: portrait({ unit: 0 }, [{ f: 0, dist: 1.05 }, { f: 12, dist: 1.02, ease: 'out' }, { f: 62, dist: 1.05, ease: 'ease' }, { f: 92, dist: 1.3, pitch: 53.8, ease: 'ease' }, { f: 118, dist: 1.3, pitch: 53.8 }, { f: 149, dist: 1, ease: 'ease' }]),
   },
-  // ---------------------------------------------------------------- S02 3V3: the real HUD on the gameplay camera (take V10)
+  // ---------------------------------------------------------------- S02 3V3: the real HUD on the gameplay camera (take W5, Lambo)
   {
-    // v3.2: the game exactly as the player sees it (every HUD layer, the real camera): the top bar's portraits, the
-    // ability bar, the minimap and all six heroes with their plates (the dogs field two Sir Brutus: three dog slots,
-    // two dog heroes). 9:16 shows the landscape frame as a band (the game is played in landscape)
-    id: 'S02', ...V3, take: 'V10', f0: 150, f1: 249, cam: null, layers: ['hud'], selfName: false, edgeArrows: true,
-    aspects: ['16x9'],
-    // 0.86 speed: the clean stretch (all six on screen, no plate at the frame edge) is 88 frames long
-    anchor: { key: 'six', offset: 6.5, frame: 150 },
-    ramp: [[150, 0.86]],
+    // all six heroes in the player's own frame: Sir Brutus's Champion's Challenge on the cats, Sage's Moonshot back
+    // (f210); 9:16 the same window on GAMECAM-P (no HUD: the game is played in landscape)
+    id: 'S02', ...V3, take: 'W5', f0: 150, f1: 299, layers: ['hud'], selfName: false, edgeArrows: true,
+    anchor: { key: 'sageR', frame: 232 },
+    cam: game([{ f: 150, dist: 1 }, { f: 299, dist: 1 }]),
+    portrait: portrait({ unit: 0 }, [{ f: 150, dist: 1.3 }, { f: 299, dist: 1.3 }], { extra: { layers: ['pops', 'banner', 'plates'] } }),
   },
-  // ---------------------------------------------------------------- S03-S06 THE RIVALRY (cats against dogs, one move each)
+  // ---------------------------------------------------------------- S03-S06 THE RIVALRY (cat, dog, dog; v3.3: Sage's Moonshot dropped, its beam read as a white bar)
   {
-    // Clem's Tumble at Sir Brutus by the dog tower (take V2)
-    id: 'S03', ...V3, take: 'V2', f0: 250, f1: 299,
-    anchor: { key: 'e', frame: 274 },
-    cam: preset({ mid: ['@clem', '@brutus'] }, [{ f: 250, dist: 0.86 }, { f: 274, dist: 0.76, ease: 'in' }, { f: 299, dist: 0.8, ease: 'out' }], [0, 0]),
-    portrait: portrait({ mid: ['@clem', '@brutus'] }, [{ f: 250, dist: 0.86 }, { f: 274, dist: 0.76, ease: 'in' }, { f: 299, dist: 0.8, ease: 'out' }], { wide: 1.1 }),
+    // Clem's Tumble at Sir Brutus by the dog tower (take V2, Clem is the player)
+    id: 'S03', ...V3, take: 'V2', f0: 300, f1: 349,
+    anchor: { key: 'e', frame: 324 },
+    cam: game(push(300, 324, 349)),
+    portrait: portrait({ mid: ['@clem', '@brutus'] }, push(300, 324, 349), { wide: 1.1 }),
   },
   {
-    // the dogs answer: Cacklejaw's Pack Hunt on Gabė at the river (take V3)
-    id: 'S04', ...V3, take: 'V3', f0: 300, f1: 349,
-    anchor: { key: 'cackR', frame: 324 },
-    cam: preset({ mid: ['@cack', '@gabe'] }, [{ f: 300, dist: 0.86 }, { f: 324, dist: 0.76, ease: 'in' }, { f: 349, dist: 0.8, ease: 'out' }], [0, 0]),
-    portrait: portrait({ mid: ['@cack', '@gabe'] }, [{ f: 300, dist: 0.86 }, { f: 324, dist: 0.76, ease: 'in' }, { f: 349, dist: 0.8, ease: 'out' }]),
+    // the dogs answer: Cacklejaw's Pack Hunt bounds out of the brawl at Pudding onto Avietė (take Z1): it lands at
+    // range (v3.2's landed inside Gabė)
+    id: 'S04', ...V3, take: 'Z1', f0: 350, f1: 399,
+    anchor: { key: 'cackR', frame: 366 },
+    cam: preset({ unit: '@cack' }, push(350, 366, 399, 0.92), [-4, 0.8]),
+    portrait: portrait({ unit: '@cack' }, push(350, 366, 399, 0.92), { wide: 1.1 }),
   },
   {
-    // Sage's Moonshot down the river at Sir Brutus (take V4)
-    id: 'S05', ...V3, take: 'V4', f0: 350, f1: 399,
-    anchor: { key: 'sageR', frame: 374 },
-    cam: preset({ mid: ['@sage', '@brutus'] }, [{ f: 350, dist: 0.92 }, { f: 374, dist: 0.84, ease: 'ease' }, { f: 399, dist: 0.88, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ mid: ['@sage', '@brutus'] }, [{ f: 350, dist: 0.92 }, { f: 374, dist: 0.84, ease: 'ease' }, { f: 399, dist: 0.88, ease: 'ease' }]),
-  },
-  {
-    // Sir Brutus's Champion's Challenge (take V5)
+    // Sir Brutus's Champion's Challenge (take V5): no push (its ring is large and pale)
     id: 'S06', ...V3, take: 'V5', f0: 400, f1: 449,
     anchor: { key: 'brutusR', frame: 420 },
-    cam: preset({ unit: '@brutus' }, [{ f: 400, dist: 0.96 }, { f: 420, dist: 0.86, ease: 'in' }, { f: 449, dist: 0.92, ease: 'out' }], [0, 0.8]),
-    portrait: portrait({ unit: '@brutus' }, [{ f: 400, dist: 0.96 }, { f: 420, dist: 0.86, ease: 'in' }, { f: 449, dist: 0.92, ease: 'out' }], { wide: 0.85, off: [0, -1.5] }),
+    cam: preset({ unit: '@brutus' }, [{ f: 400, dist: 1 }, { f: 449, dist: 1 }], [-4, 0.8]),
+    portrait: portrait({ unit: '@brutus' }, [{ f: 400, dist: 1.05 }, { f: 449, dist: 1.05 }]),
   },
-  // ---------------------------------------------------------------- S07-S10 THE FOUR CHAMPIONS (each one's ultimate; plates name them)
+  // ---------------------------------------------------------------- S07-S10 THE FOUR CHAMPIONS (each one's ultimate)
   {
-    // Avietė's Short Circuit takes Cacklejaw (take V6)
-    id: 'S07', ...V3, take: 'V6', f0: 450, f1: 499, shockI: 0.6,
-    anchor: { key: 'avieteR', frame: 474 },
-    cam: preset({ point: [46500, 11200] }, [{ f: 450, dist: 0.86 }, { f: 499, dist: 0.78, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ point: [46500, 11200] }, [{ f: 450, dist: 0.86 }, { f: 499, dist: 0.78, ease: 'ease' }], { wide: 1.14 }),
+    // Avietė's Short Circuit (take V6): from the cast (before it she lay on a cadet pile), 0.88 speed
+    id: 'S07', ...V3, take: 'V6', f0: 450, f1: 499,
+    anchor: { key: 'avieteR', frame: 451 },
+    ramp: [[450, 0.88]],
+    cam: preset({ unit: '@aviete' }, push(450, 470, 499, 0.92)),
+    portrait: portrait({ unit: '@aviete' }, push(450, 470, 499, 0.92), { wide: 1.1 }),
   },
   {
     // Bengas's Striking Pose on the bridge (take V7, Bengas is the player)
     id: 'S08', ...V3, take: 'V7', f0: 500, f1: 549,
     anchor: { key: 'bengasR', frame: 524 },
-    cam: preset({ mid: ['@bengas', '@cack'] }, [{ f: 500, dist: 0.86 }, { f: 524, dist: 0.78, ease: 'out' }, { f: 549, dist: 0.82, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ mid: ['@bengas', '@cack'] }, [{ f: 500, dist: 0.86 }, { f: 524, dist: 0.78, ease: 'out' }, { f: 549, dist: 0.82, ease: 'ease' }]),
+    cam: game(push(500, 524, 549)),
+    portrait: portrait({ mid: ['@bengas', '@cack'] }, push(500, 524, 549)),
   },
   {
-    // Gabė's Under Her Spell from her side: the pink cone is her cast (take V8, Gabė is the player)
+    // Gabė's Under Her Spell (take V8, Gabė is the player)
     id: 'S09', ...V3, take: 'V8', f0: 550, f1: 599,
-    anchor: { key: 'gabeR', frame: 574 },
-    cam: preset({ mid: ['@gabe', '@brutus'] }, [{ f: 550, dist: 0.88 }, { f: 599, dist: 0.8, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ mid: ['@gabe', '@brutus'] }, [{ f: 550, dist: 0.88 }, { f: 599, dist: 0.8, ease: 'ease' }]),
+    anchor: { key: 'gabeR', frame: 577 },
+    // the pair framed whole (the follow camera on Gabė left Sir Brutus and Bengas on the frame's bottom-left edge)
+    cam: preset({ mid: ['@gabe', '@brutus'] }, push(550, 577, 599), [0, 0.8]),
+    portrait: portrait({ mid: ['@gabe', '@brutus'] }, push(550, 577, 599)),
   },
   {
-    // Lambo's ultimate (take V9)
+    // Lambo's Tangled Lights (take V9): the shot ends as the lights land (before the haul pulls the bodies together)
     id: 'S10', ...V3, take: 'V9', f0: 600, f1: 649,
-    anchor: { key: 'lamboR', frame: 628 },
-    cam: preset({ mid: ['@lambo', '@brutus'] }, [{ f: 600, dist: 0.86 }, { f: 628, dist: 0.76, ease: 'in' }, { f: 649, dist: 0.8, ease: 'out' }], [0, 0]),
-    portrait: portrait({ mid: ['@lambo', '@brutus'] }, [{ f: 600, dist: 0.86 }, { f: 628, dist: 0.76, ease: 'in' }, { f: 649, dist: 0.8, ease: 'out' }], { wide: 1.44, off: [-2.5, -6] }),
+    anchor: { key: 'lamboR', frame: 645 },
+    cam: preset({ unit: '@lambo' }, [{ f: 600, dist: 1 }, { f: 645, dist: 0.94, ease: 'ease' }, { f: 649, dist: 0.95 }]),
+    portrait: portrait({ unit: '@lambo' }, [{ f: 600, dist: 1 }, { f: 645, dist: 0.9, ease: 'ease' }, { f: 649, dist: 0.9 }], { wide: 1.2 }),
   },
-  // ---------------------------------------------------------------- S11 THE MISSION 1: push your lane (take N)
+  // ---------------------------------------------------------------- S11 THE MISSION 1: PUSH YOUR LANE. (take N)
   {
-    id: 'S11', ...V3, take: 'N', f0: 650, f1: 699,
-    anchor: { key: 'core', offset: 720 - 11086, frame: 650 },
-    cam: preset({ point: [50000, 8000] }, [{ f: 650, dist: 1.05 }, { f: 699, dist: 0.97, ease: 'linear' }], [0, 0]),
-    portrait: { ...P, ...portrait({ point: [50000, 8000] }, [{ f: 650, dist: 1.05 }, { f: 699, dist: 0.97, ease: 'linear' }]) },
+    // the first two waves march at each other over the Puddle Lane bridge, Clem leading the cats and Sir Brutus the
+    // dogs, and meet at the end of the shot; PUSH YOUR LANE. over the open meadow below
+    id: 'S11', ...V3, take: 'N', f0: 650, f1: 799,
+    anchor: { key: 'core', offset: 566 - 11086, frame: 650 },
+    cam: preset({ point: [50000, 8000] }, [{ f: 650, dist: 1 }, { f: 799, dist: 0.95, ease: 'linear' }], [0, 0]),
+    // 9:16: a slow push from wider in (the waves are small in a vertical frame; the push keeps the picture moving)
+    portrait: portrait({ point: [50000, 8000] }, [{ f: 650, dist: 1.3 }, { f: 799, dist: 0.95, ease: 'linear' }]),
   },
-  // ---------------------------------------------------------------- S12 THE MISSION 2: calm Pudding (take V11)
+  // ---------------------------------------------------------------- S13 THE MISSION 2: TOPPLE THEIR TOWERS. (take V13)
   {
-    // v3.2: Clem and Gabė hit Pudding (a dog closing in), Pudding is calmed on f724 and the game's own banner says so
-    // ("We calmed Pudding!"); framed on a fixed point between Pudding and the cats (Pudding leaves: no camera jump)
-    id: 'S12', ...V3, take: 'V11', f0: 700, f1: 749,
-    anchor: { key: 'calm', frame: 724 },
-    bannerOn: [[722, 749]],
-    cam: preset({ point: [51600, 32300] }, [{ f: 700, dist: 0.84 }, { f: 749, dist: 0.8, ease: 'ease' }], [0, 0]),
-    portrait: { bannerOn: [[722, 749]], ...portrait({ point: [48800, 32300] }, [{ f: 700, dist: 0.84 }, { f: 749, dist: 0.8, ease: 'ease' }], { wide: 1.29, off: [0, -6] }) },
+    // Sage and Clem at the dog tower; it cracks on f862 and topples across the screen; the game's banner stays off
+    // (it came up before the tower moved; the trailer line carries the beat)
+    id: 'S13', ...V3, take: 'V13', f0: 800, f1: 949,
+    anchor: { key: 'tower', frame: 862 },
+    // a slow push while the cats work the tower down, the crack, then back out to the gameplay distance as it falls
+    cam: preset({ point: [78500, 12600] }, [{ f: 800, dist: 1 }, { f: 862, dist: 0.92, ease: 'ease' }, { f: 892, dist: 0.95, ease: 'ease' }, { f: 935, dist: 1, ease: 'ease' }, { f: 949, dist: 1 }], [0, 0]),
+    portrait: portrait({ point: [78500, 12600] }, [{ f: 800, dist: 1.25 }, { f: 862, dist: 1.16, ease: 'ease' }, { f: 935, dist: 1.25, ease: 'ease' }, { f: 949, dist: 1.25 }]),
   },
-  // ---------------------------------------------------------------- S13 THE DOG TOWER FALLS (take V13)
+  // ---------------------------------------------------------------- S14 TEAMFIGHT: one continuous take (W1, Gabė is the player)
   {
-    // v3.2: Sage and Clem at the dog tower; it cracks on f790 at full speed, topples across the screen toward its own
-    // base and hits the ground about f830; framed on a fixed point between the cats and the tower's fall line, a small
-    // push on the fall that eases back by the cut. The game's own "Enemy tower down!" banner in 16:9 only (in 9:16
-    // it is a smudge at the top edge: the trailer has no type here either)
-    id: 'S13', ...V3, take: 'V13', f0: 750, f1: 849,
-    // 9:16: the landscape frame as a band (a vertical frame cannot hold the cats, the tower and its whole fall line
-    // at a gameplay distance: the tower left the frame or other heroes were cut at its edges)
-    aspects: ['16x9'],
-    anchor: { key: 'tower', frame: 790 },
-    bannerOn: [[790, 849]],
-    cam: preset({ point: [78500, 12600] }, [{ f: 750, dist: 0.98 }, { f: 790, dist: 0.98 }, { f: 822, dist: 0.9, ease: 'ease' }, { f: 849, dist: 0.95, ease: 'ease' }], [0, 0]),
-    portrait: { ...portrait({ point: [78500, 12600] }, [{ f: 750, dist: 0.98 }, { f: 790, dist: 0.98 }, { f: 822, dist: 0.9, ease: 'ease' }, { f: 849, dist: 0.95, ease: 'ease' }]), bannerOn: [] },
+    // Cacklejaw's Pack Hunt into the cats, then Gabė's Under Her Spell back (slowed round the cast), on the player's
+    // own camera from start to end
+    id: 'S14', ...V3, take: 'W1', f0: 950, f1: 1149,
+    // the clean stretch of the brawl (Cacklejaw's Pack Hunt into the cats and the cats' answer) is 58 ticks long: the
+    // whole shot runs at 0.58 speed (a slowed teamfight, not one frozen beat)
+    anchor: { key: 'cackR', frame: 1015 },
+    ramp: [[950, 0.58]],
+    // framed on Gabė and Sir Brutus together (the follow camera left Gabė and Lambo on the bottom edge while the brawl
+    // ran at the top), at the game's pitch, a touch wider than its distance (1.1)
+    cam: preset({ mid: [0, 4] }, [{ f: 950, dist: 1.1 }, { f: 1015, dist: 1.02, ease: 'ease' }, { f: 1149, dist: 1.1, ease: 'ease' }], [0, 0]),
+    portrait: portrait({ mid: [0, 4] }, [{ f: 950, dist: 1.2 }, { f: 1149, dist: 1.2 }]),
   },
-  // ---------------------------------------------------------------- S14 TEAMFIGHT: five clean cats-vs-dogs beats, one per half bar
+  // ---------------------------------------------------------------- S15 THE MISSION 3: TAKE THEIR CORE. (take V12, Bengas)
   {
-    id: 'S14', ...V3, take: 'V14', f0: 850, f1: 899,
-    // 9:16: the landscape frame as a band (the six spread wider than a vertical frame at any gameplay distance)
-    aspects: ['16x9'],
-    anchor: { key: 'q', frame: 882 },
-    cam: preset({ point: [56600, 33600] }, [{ f: 850, dist: 0.96 }, { f: 899, dist: 0.92, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ point: [56600, 33600] }, [{ f: 850, dist: 0.96 }, { f: 899, dist: 0.92, ease: 'ease' }], { wide: 1.3 }),
-  },
-  {
-    id: 'S14b', ...V3, take: 'V15', f0: 900, f1: 949,
-    anchor: { key: 'r', frame: 924 },
-    cam: game([{ f: 900, dist: 0.96 }, { f: 924, dist: 0.88, ease: 'out' }, { f: 949, dist: 0.92, ease: 'ease' }]),
-    portrait: asPortrait([{ f: 900, dist: 0.96 }, { f: 924, dist: 0.88, ease: 'out' }, { f: 949, dist: 0.92, ease: 'ease' }]),
-  },
-  {
-    id: 'S14c', ...V3, take: 'V16', f0: 950, f1: 999,
-    anchor: { key: 'r', frame: 974 },
-    cam: game([{ f: 950, dist: 0.96 }, { f: 974, dist: 0.88, ease: 'out' }, { f: 999, dist: 0.92, ease: 'ease' }]),
-    portrait: asPortrait([{ f: 950, dist: 0.96 }, { f: 974, dist: 0.88, ease: 'out' }, { f: 999, dist: 0.92, ease: 'ease' }], { unit: '@hero' }, { wide: 1.1, off: [3, 0] }),
-  },
-  {
-    id: 'S14d', ...V3, take: 'V17', f0: 1000, f1: 1049,
-    anchor: { key: 'r', frame: 1019 },
-    cam: preset({ point: [52500, 11100] }, [{ f: 1000, dist: 0.96 }, { f: 1049, dist: 0.92, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ point: [52500, 11100] }, [{ f: 1000, dist: 0.96 }, { f: 1049, dist: 0.92, ease: 'ease' }], { wide: 1.5, off: [0, 1.5] }),
-  },
-  {
-    id: 'S14e', ...V3, take: 'V18', f0: 1050, f1: 1099,
-    anchor: { key: 'w', frame: 1056 },
-    cam: preset({ point: [57100, 18900] }, [{ f: 1050, dist: 0.96 }, { f: 1099, dist: 0.92, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ point: [57100, 18900] }, [{ f: 1050, dist: 0.96 }, { f: 1099, dist: 0.92, ease: 'ease' }], { wide: 1.1 }),
-  },
-  // ---------------------------------------------------------------- S15 TAKE THEIR CORE: the cats win the dog base (take V12)
-  {
-    // v3.2: Bengas, Gabė and Sage have won the dog base (every dog down) and walk onto the doghouse; a fixed
-    // gameplay-angle frame with a slow push
-    id: 'S15', ...V3, take: 'V12', f0: 1100, f1: 1249,
-    // v3.2: from just after Cacklejaw's takedown (the gank piled four bodies on him): the cats walk onto the core and
-    // start on it, at 0.8 speed (60 ticks, ending where S16 picks up)
-    anchor: { key: 'ko', offset: 2, frame: 1100 },
-    ramp: [[1100, 0.8]],
-    popText: ['Takedown!'],
-    cam: preset({ point: [89500, 34200] }, [{ f: 1100, dist: 0.9 }, { f: 1249, dist: 0.84, ease: 'ease' }], [0, 0]),
-    portrait: portrait({ point: [89500, 34200] }, [{ f: 1100, dist: 0.9 }, { f: 1249, dist: 0.84, ease: 'ease' }]),
-  },
-  // ---------------------------------------------------------------- S16 THE CORE FALLS (take V12)
-  {
-    // v3.2: the last hits on the doghouse, the killing blow on f1292 (the game's own victory slow motion follows),
-    // the burst and the cave-in; a fixed gameplay-angle frame between the cats and the core (the game's own camera
-    // swings onto the core at match end, which put the plates on the frame edge) with one push on the burst. The
-    // shot ends on f1355, 57 frames after the last sim tick under the game's 0.25 slow motion (about 14 game frames):
-    // no units held past the match
-    id: 'S16', ...V3, take: 'V12', f0: 1250, f1: 1355,
+    // one continuous shot on the player's own camera: the cats win the dog base, walk onto the doghouse and knock it
+    // over (the killing blow on f1326), the game's victory slow motion to the cut (no frame more than 8 ticks past the
+    // match end); a small push on the burst that eases back
+    id: 'S15', ...V3, take: 'V12', f0: 1150, f1: 1389,
     shockI: 0.45,
-    popText: [],
-    // the killing blow on f1298: the first chunks fly on f1299 and the shockwave ring opens on f1302, on the score's hit
-    anchor: { key: 'core', frame: 1298 },
-    cam: preset({ point: [90000, 32400] }, [{ f: 1250, dist: 0.96 }, { f: 1296, dist: 0.96 }, { f: 1310, dist: 0.86, ease: 'out' }, { f: 1355, dist: 0.84, ease: 'linear' }], [0, 0]),
-    portrait: { ...P, ...portrait({ point: [90000, 32400] }, [{ f: 1250, dist: 0.96 }, { f: 1296, dist: 0.96 }, { f: 1310, dist: 0.86, ease: 'out' }, { f: 1355, dist: 0.84, ease: 'linear' }]) },
+    popText: ['Takedown!'],
+    anchor: { key: 'core', frame: 1327 },
+    // the gameplay framing as a preset on Bengas (the game's own camera swings onto the core at match end: a jump)
+    // (the lead toward the doghouse, south-west of the cats, so the pile and the core share the middle of the frame)
+    // a slow push while the cats pound the doghouse (it carries the two seconds they stand at it), a kick on the burst
+    cam: preset({ unit: 0 }, [{ f: 1150, dist: 1 }, { f: 1205, dist: 1 }, { f: 1320, dist: 0.88, ease: 'ease' }, { f: 1338, dist: 0.84, ease: 'out' }, { f: 1389, dist: 0.97, ease: 'ease' }], [-1.5, 2.4]),
+    portrait: portrait({ unit: 0 }, [{ f: 1150, dist: 1.1 }, { f: 1205, dist: 1.1 }, { f: 1320, dist: 1.0, ease: 'ease' }, { f: 1338, dist: 0.96, ease: 'out' }, { f: 1389, dist: 1.02, ease: 'ease' }], { off: [-1.5, 2.4] }),
   },
   // ---------------------------------------------------------------- S18 THE REAL CATS: the game's own pick screen (lobby)
   {
-    // v3.2: "Choose your legend" as the player sees it: Lambo, then Avietė, Bengas and Gabė tapped on the beat; the
-    // detail panel reads "Inspired by <name>'s Token Tails card." for each (real UI, no trailer copy inside it)
-    id: 'S18', f0: 1356, f1: 1449, size: [1280, 720], dpr: 1.5, layers: ['hud'], hide: ['.pl-pick-foot', '.row.tricks', '.trick-hint'],
-    lobby: { stands: [{ hero: 'lambo' }], pick: { hero: 'lambo', side: 0.5, swaps: [{ f: 1375, hero: 'aviete' }, { f: 1400, hero: 'bengas' }, { f: 1425, hero: 'gabe' }] } },
-    // 9:16: the landscape pick screen as a band (the phone-portrait layout hides the hero behind the panel)
+    // "Choose your legend" as the player sees it: Lambo, Avietė, Bengas, Gabė tapped on the beats; each stands at full
+    // size on its cut (no grow-in); the detail panel ends after the "Inspired by <name>'s Token Tails card." line and
+    // the flavour line (the ability list and the footer are not drawn: the panel shrinks to its content)
+    id: 'S18', f0: 1390, f1: 1499, size: [1280, 720], dpr: 2, layers: ['hud'],
+    hide: ['.pl-pick-foot', '.row.tricks', '.trick-hint', '.pl-pick .kit', '.pl-pick .lane-hint', '.pl-pick .wardrobe', '.pl-pick .pvp'],
+    lobby: { stands: [{ hero: 'lambo' }], pick: { hero: 'lambo', side: 0.5, swaps: [{ f: 1415, hero: 'aviete' }, { f: 1440, hero: 'bengas' }, { f: 1465, hero: 'gabe' }] } },
+    // 9:16: composed by the edit from this capture (the pedestal above, the panel's lines below)
     aspects: ['16x9'],
   },
-  // ---------------------------------------------------------------- S17 LINE-UP, CALL, END CARD (lobby, static)
+  // ---------------------------------------------------------------- S17 LINE-UP (lobby): TEAM CAT OR TEAM DOG?
   {
-    // v3.2: two champions against the two dog heroes, every hero the same height on screen (fitH), each pair centred
-    // under its title, the same pedestal for all
-    id: 'S17', f0: 1450, f1: 1799, size: [1280, 720], dpr: 1.5,
+    // two champions against the two dog heroes at one height, framed low and tight, idling; then the end card
+    id: 'S17', f0: 1500, f1: 1799, size: [1280, 720], dpr: 1.5,
     lobby: {
       ped: { scale: 0.6, trim: ['#ff6f91', '#3e6ad8'] },
       fitH: 2.3,
@@ -274,15 +207,15 @@ export const SHOTS = [
         { hero: 'cacklejaw', team: 1, x: 5.6, z: 0.6, face: -20 },
       ],
     },
-    cam: { target: { p3: [0.4, 1.1, 0.6] }, keys: [{ f: 1450, dist: 0.66, pitch: 7, yaw: 0, fov: 38 }, { f: 1799, dist: 0.64, ease: 'linear' }] },
+    cam: { target: { p3: [0.4, 0.62, 0.6] }, keys: [{ f: 1500, dist: 0.5, pitch: 7, yaw: 0, fov: 38 }, { f: 1799, dist: 0.485, ease: 'linear' }] },
     portrait: {
       stands: [
-        { hero: 'lambo', x: -1.9, z: -4.5, face: 14, fitK: 1.25 },
-        { hero: 'gabe', x: 1.9, z: -4.5, face: -14, fitK: 1.25 },
+        { hero: 'lambo', x: -1.9, z: -3.4, face: 14, fitK: 1.2 },
+        { hero: 'gabe', x: 1.9, z: -3.4, face: -14, fitK: 1.2 },
         { hero: 'brutus', team: 1, x: -1.9, z: 3.0, face: 10 },
         { hero: 'cacklejaw', team: 1, x: 1.9, z: 3.0, face: -10 },
       ],
-      cam: { target: { p3: [0, 0.6, -0.8] }, keys: [{ f: 1450, dist: 1.0, pitch: 30, yaw: 0, fov: 32 }, { f: 1799, dist: 0.98, ease: 'linear' }] },
+      cam: { target: { p3: [0, 1.0, -0.2] }, keys: [{ f: 1500, dist: 0.92, pitch: 30, yaw: 0, fov: 32 }, { f: 1799, dist: 0.9, ease: 'linear' }] },
     },
   },
 ];

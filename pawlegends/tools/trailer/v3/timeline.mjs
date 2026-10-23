@@ -17,16 +17,16 @@ export const BEAT_FRAMES = 25;
  */
 export const CUT15 = [
   [0, 149, 0], // the hook and CATS VS DOGS
-  [150, 199, 25], // 3V3 IN YOUR BROWSER (S02 master 175-224, the real HUD)
-  [200, 249, 50], // Clem at Sir Brutus (S03)
-  [250, 299, 100], // Sage's Moonshot (S05)
-  [300, 349, 150], // Avietė's Short Circuit (S07)
-  [350, 399, 200], // Gabė's Under Her Spell (S09)
-  [400, 499, 350], // the dog tower falls (S13)
-  [500, 599, 600], // TAKE THEIR CORE. (S15 master 1100-1199)
-  [600, 774, 650], // the core falls and VICTORY! (S16 master 1250-1355), INSPIRED BY REAL CATS. (S18, the pick screen)
-  [775, 824, 725], // TEAM CAT OR TEAM DOG? (S17 master 1500-1549)
-  [825, 899, 800], // the end card (S17 master 1625-1699)
+  [150, 224, 25], // 3V3 IN YOUR BROWSER (S02 master 175-249, the real HUD)
+  [225, 274, 75], // Clem's Tumble at Sir Brutus (S03)
+  [275, 324, 75], // Cacklejaw's Pack Hunt (S04)
+  [325, 374, 125], // Avietė's Short Circuit (S07)
+  [375, 424, 175], // Gabė's Under Her Spell (S09)
+  [425, 524, 375], // the dog tower falls, TOPPLE THEIR TOWERS. (S13 master 800-899)
+  [525, 664, 725], // TAKE THEIR CORE., the core falls, VICTORY! (S15 master 1250-1389)
+  [665, 739, 725], // INSPIRED BY REAL CATS. (S18 master 1390-1464, the pick screen)
+  [740, 774, 775], // TEAM CAT OR TEAM DOG? (S17 master 1515-1549)
+  [775, 899, 825], // the end card (its own timing: endCard(15)), over the line-up (master 1600-1724)
 ];
 
 /** Cut frame -> 30 s master frame. */
@@ -53,7 +53,10 @@ export const COLORS = {
 };
 
 /** The end card's first frame (the logo slam on the downbeat) per cut. */
-export const END_AT = { 30: 1625, 15: 825 };
+export const END_AT = { 30: 1600, 15: 775 };
+
+/** v3.3: the core's killing blow and burst (master frame; the score's boom and the zoom land here). */
+export const CORE_HIT = 1331;
 
 /**
  * Type elements. `x`, `y` are fractions of the frame (the word's centre); `size` px (cap-height based on 1080 p);
@@ -68,58 +71,56 @@ export function typeEls(cut, aspect, c) {
   // does not show whole is left out)
   const L = [];
   const add = (...a) => L.push(a);
-  // S01: CATS over the cat meadow, VS on the river, DOGS over the dog meadow (the crane's whole-map view); v3.2: the
-  // whole line holds 42 frames (f90-132) and is gone 10 frames before the cut
+  // S01 (v3.3): CATS VS DOGS in the open meadow right of the takedown at 1.3x the gameplay height (placed by a
+  // free-space search over every frame's hero, plate and pop boxes); the whole line holds 42 frames and is gone 10 frames before the cut
   if (v) {
-    add('L1a', c.L1a, 70, 132, 0.27, 0.42, 170, 'cat');
-    add('L1b', c.L1b, 80, 132, 0.5, 0.5, 110, 'plain');
-    add('L1c', c.L1c, 90, 132, 0.73, 0.58, 170, 'dog');
+    add('L1a', c.L1a, 70, 132, 0.66, 0.62, 150, 'cat');
+    add('L1b', c.L1b, 80, 132, 0.66, 0.71, 100, 'plain');
+    add('L1c', c.L1c, 90, 132, 0.66, 0.8, 150, 'dog');
   } else {
-    add('L1a', c.L1a, 70, 132, 0.335, 0.5, 140, 'cat');
-    add('L1b', c.L1b, 80, 132, 0.5, 0.5, 100, 'plain');
-    add('L1c', c.L1c, 90, 132, 0.655, 0.5, 136, 'dog');
+    add('L1a', c.L1a, 70, 132, 0.52, 0.74, 130, 'cat');
+    add('L1b', c.L1b, 80, 132, 0.655, 0.74, 96, 'plain');
+    add('L1c', c.L1c, 90, 132, 0.8, 0.74, 130, 'dog');
   }
-  // S02: 3V3 IN YOUR BROWSER over the open river right of the six heroes (16:9: placed by the free-space search over
-  // every frame's hero, plate and pop boxes; 9:16: the band's dark top margin)
+  // S02: 3V3 IN YOUR BROWSER over the open meadow right of the fight (the HUD's top bar and ability bar clear)
   if (v) {
-    add('L2a', c.L2a, 155, 236, 0.5, 0.17, 170, 'gold');
-    add('L2b', c.L2b, 175, 236, 0.5, 0.245, 80, 'plain');
+    add('L2a', c.L2a, 155, 285, 0.5, 0.2, 170, 'gold');
+    add('L2b', c.L2b, 175, 285, 0.5, 0.28, 80, 'plain');
   } else {
-    add('L2a', c.L2a, 155, 236, 0.75, 0.41, 120, 'gold');
-    add('L2b', c.L2b, 175, 236, 0.75, 0.52, 60, 'plain');
+    add('L2a', c.L2a, 155, 285, 0.75, 0.2, 120, 'gold');
+    add('L2b', c.L2b, 175, 285, 0.74, 0.3, 56, 'plain');
   }
-  // S11-S12: the mission, beat by beat (CALM PUDDING. in the top band, clear of Pudding and the game's banner)
-  add('M1', c.M1, 655, 688, 0.5, v ? 0.575 : 0.625, v ? 96 : 104, 'gold');
-  add('M2', c.M2, 704, 741, v ? 0.5 : 0.8, v ? 0.43 : 0.42, v ? 84 : 62, 'gold');
-  // S15: TAKE THEIR CORE. (two lines in 9:16)
+  // the mission, one line per beat, each held over a second (S11 push, S13 tower, S15 core)
+  add('M1', c.M1, 665, 785, 0.5, v ? 0.8 : 0.82, v ? 96 : 100, 'gold');
+  add('M2', c.M2, 822, 935, 0.5, v ? 0.84 : 0.86, v ? 80 : 84, 'gold');
   if (v) {
-    add('M3a', c.M3v1, 1105, 1190, 0.5, 0.11, 110, 'gold');
-    add('M3b', c.M3v2, 1112, 1190, 0.5, 0.18, 140, 'gold');
+    add('M3a', c.M3v1, 1165, 1300, 0.5, 0.11, 110, 'gold');
+    add('M3b', c.M3v2, 1172, 1300, 0.5, 0.18, 140, 'gold');
   } else {
-    // 16:9: two lines in the open plaza left of the doghouse (clear of the core, its bar and the cats)
-    add('M3a', c.M3v1, 1105, 1190, 0.165, 0.8, 66, 'gold');
-    add('M3b', c.M3v2, 1112, 1190, 0.165, 0.885, 96, 'gold');
+    add('M3a', c.M3v1, 1165, 1300, 0.84, 0.16, 66, 'gold');
+    add('M3b', c.M3v2, 1172, 1300, 0.84, 0.245, 96, 'gold');
   }
-  // S16: VICTORY! from the killing blow to the cut (a full second, in the 15 s cut too), below the burst
-  add('M6', c.M6, 1296, 1347, 0.5, 0.8, 150, 'gold');
-  // S18: INSPIRED BY REAL CATS. as one lockup over the game's pick screen (its footer row hidden), never over gameplay
+  // S15: VICTORY! after the doghouse breaks (the burst on CORE_HIT), below it
+  add('M6', c.M6, CORE_HIT + 1, 1382, 0.5, v ? 0.86 : 0.84, v ? 140 : 150, 'gold');
+  // S18: INSPIRED BY REAL CATS. over the game's pick screen, under the detail panel (16:9) / under the panel (9:16)
   if (v) {
-    add('M4a', c.M4v1, 1362, 1441, 0.5, 0.79, 84, 'plain');
-    add('M4b', c.M4v2, 1368, 1441, 0.5, 0.85, 110, 'cat');
+    add('M4a', c.M4v1, 1395, 1490, 0.5, 0.86, 84, 'plain');
+    add('M4b', c.M4v2, 1401, 1490, 0.5, 0.92, 110, 'cat');
   } else {
-    // 16:9: one two-line lockup in the pick screen's own column, under the detail panel (its footer row is hidden)
-    add('M4a', c.M4v1, 1362, 1441, 0.235, 0.84, 72, 'plain');
-    add('M4b', c.M4v2, 1368, 1441, 0.235, 0.92, 96, 'cat');
+    add('M4a', c.M4v1, 1395, 1490, 0.235, 0.84, 72, 'plain');
+    // (the landing variant's longer line, REAL SHELTER CATS., smaller so it stays left of the pedestal)
+    add('M4b', c.M4v2, 1401, 1490, 0.235, 0.92, c.M4v2.length > 12 ? 70 : 96, 'cat');
   }
-  // S17: TEAM CAT (over the cats) OR TEAM DOG? (over the dogs)
+  // S17: TEAM CAT under the cats, OR between, TEAM DOG? under the dogs (16:9); 9:16 TEAM CAT above the cat row,
+  // OR between the rows, TEAM DOG? below the dog row
   if (v) {
-    add('M5a', c.M5a, 1455, 1610, 0.5, 0.1, 140, 'cat');
-    add('M5b', c.M5b, 1475, 1610, 0.5, 0.455, 64, 'plain');
-    add('M5c', c.M5c, 1490, 1610, 0.5, 0.5, 100, 'dog');
+    add('M5a', c.M5a, 1505, 1590, 0.5, 0.08, 130, 'cat');
+    add('M5b', c.M5b, 1512, 1590, 0.5, 0.5, 64, 'plain');
+    add('M5c', c.M5c, 1518, 1590, 0.5, 0.94, 110, 'dog');
   } else {
-    add('M5a', c.M5a, 1455, 1610, 0.27, 0.22, 110, 'cat');
-    add('M5b', c.M5b, 1475, 1610, 0.48, 0.22, 64, 'plain');
-    add('M5c', c.M5c, 1490, 1610, 0.69, 0.22, 100, 'dog');
+    add('M5a', c.M5a, 1505, 1590, 0.2, 0.83, 110, 'cat');
+    add('M5b', c.M5b, 1512, 1590, 0.5, 0.83, 64, 'plain');
+    add('M5c', c.M5c, 1518, 1590, 0.8, 0.83, 100, 'dog');
   }
   if (String(cut) === '30') {
     for (const a of L) w(...a);
@@ -147,7 +148,8 @@ export function typeEls(cut, aspect, c) {
 
 /** The end card: logo slam, CTA, URL, credit (cut frames); held sharp to the last frame. */
 export function endCard(cut) {
-  return String(cut) === '30' ? { logo: 1625, cta: 1650, url: 1675, credit: 1700, end: 1800 } : { logo: 825, cta: 850, url: 862, credit: 875, end: 900 };
+  // v3.3: the 15 s end card is its own 125-frame timeline (the URL up from 805: 1.6 s on screen)
+  return String(cut) === '30' ? { logo: 1600, cta: 1625, url: 1650, credit: 1675, end: 1800 } : { logo: 775, cta: 790, url: 805, credit: 820, end: 900 };
 }
 
 /**
@@ -155,11 +157,10 @@ export function endCard(cut) {
  * <= +15 % for one frame in place of any white flash; `shake`: { f, px, n } a decaying shake of n frames, <= 10 px.
  */
 const POST30 = {
-  // (no exposure punch on the core burst: the burst's own flash is the hit)
-  punch: [{ f: 25, k: 0.05 }],
+  punch: [],
   shake: [
-    { f: 25, px: 8, n: 5 }, { f: 274, px: 4, n: 3 }, { f: 790, px: 4, n: 4 }, { f: 830, px: 7, n: 6 },
-    { f: 882, px: 4, n: 3 }, { f: 974, px: 5, n: 4 }, { f: 1300, px: 8, n: 6 },
+    { f: 11, px: 6, n: 4 }, { f: 324, px: 4, n: 3 }, { f: 862, px: 4, n: 4 }, { f: 897, px: 7, n: 6 },
+    { f: 1015, px: 4, n: 3 }, { f: CORE_HIT, px: 8, n: 6 },
   ],
 };
 export function post(cut) {
@@ -170,7 +171,7 @@ export function post(cut) {
 
 /** Designed impacts (the music dips under each). */
 export const IMPACTS = {
-  30: [25, 274, 324, 374, 420, 790, 824, 882, 974, 1300],
+  30: [11, 232, 324, 366, 420, 451, 524, 577, 645, 862, 897, 1015, CORE_HIT],
 };
 IMPACTS[15] = IMPACTS[30].flatMap((f) => mapTo15(f));
 
