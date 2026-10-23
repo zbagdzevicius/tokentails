@@ -41,7 +41,7 @@ module.exports = {
         }
         const base = origin();
         // Static games served by next.config.js rewrites (not pages, so next-sitemap cannot see them).
-        const games = [{ loc: '/meow-race' }, { loc: '/ultra-cat' }];
+        const games = [{ loc: '/meow-race' }, { loc: '/ultra-cat' }, { loc: '/meow-run' }];
         return games.concat(feed.sitemapEntries(feed.loadFeed(), base).map((row) => ({
             // next-sitemap prefixes siteUrl itself: pass the path.
             loc: row.loc.slice(base.length) || '/',

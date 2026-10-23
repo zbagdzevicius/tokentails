@@ -172,8 +172,9 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, the game is on by default", () => {
     const dialog = openPicker();
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${TEST_TITLE.toUpperCase()} · NEW`);
-    // The Moon Rave, Purrsuit, Paw Match, the Heist, Swordcat, Bad Cat Daily, Formula Meow and Ultra Cat (on by default, no flag).
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(8);
+    // The Moon Rave, Purrsuit, Paw Match, the Heist, Swordcat, Bad Cat Daily, Formula Meow, Ultra Cat and Meow Run (on by
+    // default, no flag).
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(9);
   });
 });
 
@@ -199,7 +200,7 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, nothing changes", () => {
     const dialog = openPicker();
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(dialog).queryByText(TEST_TITLE.toUpperCase())).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(7);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(8);
   });
 
 <<<<<<< HEAD
@@ -225,7 +226,7 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, nothing changes", () => {
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
     const dialog = openPicker();
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(7);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(8);
   });
 <<<<<<< HEAD
 =======
