@@ -1,6 +1,31 @@
 # Trailer capture rig (dev only)
 
-**v3 ("Big Plays", 30 s at 144 BPM, gameplay first; the v2 data with the v3 review fixes below)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`,
+> **Not releasable yet.** The end card sends viewers to `tokentails.com/pawlegends`, which returns HTTP 404 (checked
+> 2026-10-23, also `/pawlegends-game/index.html`): the Pawlegends client route exists only on `feat/pawlegends` and is
+> not deployed. Deploy it and confirm a 200 before anyone posts a master.
+
+**v4 (review of v3)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`, `copy.json` (HUGE ULTS. / TRIPLE
+TAKEDOWN.), `score.mjs`, `edl.json`. Hook: one clean side-on Belly Flop (take H) against the tree line, contact held 5
+frames under a white flash. Roll call: each hero's apex mid-shot with a slow-motion hold. 3V3: one orbit over all six.
+Ults framed on their vertical parts (the moon draw, the flame curtains, Brutus's shield wall and CLANK!, the pillars).
+Pack Hunt from the front three-quarter with the game's pops large; the tower dive cut to two beats; COMEBACK! on a
+triple hit, then the comeback wave; card looks frozen on one pose with white wipes; two teamfight bars (a wide brawl,
+then six triplet cuts of moves not shown before); the core bursts on f1528 with the pile clear of it; Victory two
+beats; the end card from f1625 with a larger logo, the line-up hopping hero by hero, a final stab and black from f1782.
+The ping and Pudding beats are cut: the ping wheel and its answer cannot be read at trailer speed, and Pudding's hop
+has no rendered jump (he is seen in the tower fall instead).
+
+| Change | Where | What |
+|---|---|---|
+| Hold frames unblurred, snap-safe blur | `capture.mjs`, `harness.ts` (`frame()` reports the largest hero move) | A frame at speed 0 is one render (no accumulation); a hero jump over 0.25 m inside the shutter keeps only the sub-frames after it (no knockback double image). |
+| `hideIds`, `popScale`, `groundK` | `harness.ts`, `capture.mjs` | Heroes not in the beat not drawn; the game's pops and callouts drawn larger; the playfield ground at 0.8 brightness in director shots (render only, telegraphs and FX untouched). |
+| Per-letter kinetic type | `mg.js` `letterState`, `drawLetters`, `plate` | Letters slam in one after another (2.1x, a drop, overshoot, settle) with an analytic blur, never stacked copies; a dark skewed plate wipes in under every run; a scale punch on each beat; 1.5-2x the v3 sizes. The logo slam has no stacked copies either. |
+| White flashes and wipes | `mg-timeline.mjs` `post().white/wipe`, `mg.js` `drawWhites` | The hook contact, the core burst and the logo get a 2-3 frame white flash; card looks swap under a white diagonal wipe. |
+| End card | `mg.js` `lineupStrips`, `renderEndPlate` | Logo about 60 % of the width; the S40 line-up cut into one strip per hero, each hopping on its eighth note, all on the final stab. |
+| Grade and luma check | `edl.json` `grade`, `qc`; `edit.mjs` `lumaQc` | Midtones down, a toe, near-white low-saturation areas pulled down (`selectivecolor`), lighter bloom; every master is measured per shot and fails if more than 15 % of a shot sits at Y >= 225. |
+| Mix with an arc | `edl.json` `audio`; `edit.mjs`; `dsp.mjs` `limit(..., ceilAt)` | Wider section levels before the limiter, the bed limited at RMS + 9 dB, a 6-frame near-silent hole before the hook and the core, the body 2 dB under the ceiling so only the hook and the core burst reach it (the core is the loudest transient). |
+
+**v3 ("Big Plays", 30 s at 144 BPM, gameplay first; the v2 data with the v3 review fixes below)** came before v4 (its data is in git history): `shots.mjs`, `mg-timeline.mjs`,
 `copy.json`, `score.mjs`, `edl.json`. The v1 trailer ("Meet Gabė", 120 BPM) keeps its data as `shots-v1.mjs`,
 `mg-timeline-v1.mjs`, `copy-v1.json` and `score-v1.mjs` (the edit and type tools now read the v2 files).
 

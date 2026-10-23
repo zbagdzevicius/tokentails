@@ -110,6 +110,9 @@ function specFor(shot, aspect) {
     ghosts: !!(p.ghosts ?? shot.ghosts),
     shockI: p.shockI ?? shot.shockI ?? 0.5,
     hideGroups: shot.hideGroups ?? [],
+    hideIds: (p.hideIds ?? shot.hideIds ?? []).map((x) => ref(x, take)),
+    popScale: p.popScale ?? shot.popScale ?? null,
+    groundK: p.groundK ?? shot.groundK ?? null,
     bolts: !!(p.bolts ?? shot.bolts),
     lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}) } : undefined,
   };
@@ -329,15 +332,20 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     const file = join(dir, `f${String(f).padStart(4, '0')}.png`);
     if (PICK && f === PICK[0] + 1) console.log(`[pick ${shot.id} f${PICK[0]}]`, JSON.stringify(await page.evaluate(([x, y]) => window.__trailer.pick(x, y), [PICK[1], PICK[2]])));
     const save = (f >= pass.a && f <= pass.b) && ((f - shot.f0) % EVERY === 0 || f === spec.f1);
-    if (blurs.some(([a, b]) => f >= a && f <= b)) {
-      // the 3D picture: SUBS sub-frames, the first half (a 180° shutter) averaged; the screen-space layer (numbers,
-      // callouts, barks) is shot once at the end of the frame and laid on top, so it never smears
+    // v4: no accumulation on a held frame (speed 0 across the whole frame: the sub-frames are the same picture)
+    const held = rampAt(spec.ramp, f) <= 1e-4 && rampAt(spec.ramp, f + 1) <= 1e-4;
+    if (!held && blurs.some(([a, b]) => f >= a && f <= b)) {
+      // the 3D picture: SUBS sub-frames, the first `open` (the shutter) averaged; the screen-space layer (numbers,
+      // callouts, barks) is shot once at the end of the frame and laid on top, so it never smears. v4: a hero that
+      // jumps (a knockback snap, a blink) inside the shutter would leave a discrete double image, so the frame then
+      // keeps only the sub-frames after the last snap
       const subs = [];
-      // `shutter`: the share of the frame the 3D picture integrates (0.5 = 180°, 0.25 = 90°: a ride stays readable)
       const open = Math.max(1, Math.round(SUBS * (shot.shutter ?? 0.5)));
       if (save) await page.evaluate(() => window.__trailer.layerMode('canvas'));
+      let snapAt = 0;
       for (let k = 0; k < SUBS; k++) {
-        await page.evaluate(({ f, k, n }) => window.__trailer.frame(f, k, n), { f, k, n: SUBS });
+        const r = await page.evaluate(({ f, k, n }) => window.__trailer.frame(f, k, n), { f, k, n: SUBS });
+        if (k > 0 && k < open && r.move > 0.25) snapAt = k;
         if (k < open && save) {
           const sf = join(dir, `.sub-${f}-${k}.png`);
           await page.screenshot({ path: sf, type: 'png' });
@@ -349,7 +357,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
         await page.evaluate(() => window.__trailer.layerMode('dom'));
         await page.screenshot({ path: dom, type: 'png', omitBackground: true });
         await page.evaluate(() => window.__trailer.layerMode('all'));
-        blend(subs, file, dom);
+        blend(subs.slice(snapAt), file, dom);
         for (const s of [...subs, dom]) rmSync(s, { force: true });
       }
     } else {

@@ -163,6 +163,15 @@ export interface ShotSpec {
   bolts?: boolean;
   /** Debug: scene groups not drawn (by name). */
   hideGroups?: string[];
+  /**
+   * v4: the playfield ground drawn at this brightness (0-1; default 0.8 in director shots): the pale plaza and paths no
+   * longer read as a white field under additive skill FX at hero height. Render only; telegraphs and FX untouched.
+   */
+  groundK?: number | null;
+  /** v4: hero entity ids never drawn (heroes not involved in the beat: a clean silhouette on the hook). */
+  hideIds?: number[];
+  /** v4: the game's screen pops and callouts drawn this many times larger (legible at trailer speed). */
+  popScale?: number | null;
 }
 
 const D0 = MOBA_DIST * ZOOM_DEFAULT;
@@ -216,7 +225,9 @@ function setLayers(keep: readonly string[], hide: readonly string[] = []): void 
     style.id = 'trailer-layers';
     document.head.appendChild(style);
   }
-  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n* { cursor: none !important; }`;
+  const ps = (spec?.popScale && spec.popScale !== 1 ? `.pl-pops > *, .pl-callouts > * { scale: ${spec.popScale}; }` : '')
+    + (spec?.wheelScale && spec.wheelScale !== 1 ? `\n.pl-pingwheel { scale: ${spec.wheelScale} !important; transform-origin: var(--x, 50%) var(--y, 50%) !important; }` : '');
+  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n${ps}\n* { cursor: none !important; }`;
 }
 
 function ensureRenderer(): GameRenderer {
@@ -449,6 +460,7 @@ function cleanUp(g: GameRenderer): void {
       }
     }
   }
+  if (s.hideIds?.length) for (const [id, r] of view.heroes.rigs) if (s.hideIds.includes(id)) r.ch.object.visible = false;
   for (const name of s.hideGroups ?? []) {
     const o = g.scene.getObjectByName(name);
     if (o) o.visible = false;
@@ -581,6 +593,9 @@ function treeVerts(): number {
 function patchScenery(g: GameRenderer, s: ShotSpec): void {
   scenery.length = 0;
   if (!s.cam) return;
+  const gk = s.groundK ?? 0.8;
+  const ground = g.scene.getObjectByName('ground') as THREE.Mesh | undefined;
+  if (ground?.isMesh) (ground.material as THREE.MeshLambertMaterial).color.setScalar(gk);
   const tv = treeVerts();
   for (const name of ['forest', 'props', 'hedge', 'bushes']) {
     const m = g.scene.getObjectByName(name) as THREE.Mesh | undefined;
@@ -729,6 +744,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   eventLog.length = 0;
   flashState.clear();
   xrayOp.clear();
+  lastPos.clear();
   curF = s.f0;
   if (s.mode === 'lobby') {
     const lb = new Lobby(g);
@@ -931,8 +947,24 @@ function matchStep(f: number, dtReal: number, ramp: number): void {
   vclock().sync();
 }
 
+/** Hero render positions after the last frame() call: a jump between two calls is a snap (knockback, blink). */
+const lastPos = new Map<number, [number, number, number]>();
+/** The largest hero move (m) since the previous frame() call, among drawn heroes. */
+function heroMove(): number {
+  const view = session?.view as unknown as { heroes: { rigs: Map<number, RigLike> } } | undefined;
+  if (!view) return 0;
+  let m = 0;
+  for (const [id, r] of view.heroes.rigs) {
+    const p = r.ch.object.position;
+    const q = lastPos.get(id);
+    if (q && r.ch.object.visible) m = Math.max(m, Math.hypot(p.x - q[0], p.y - q[1], p.z - q[2]));
+    lastPos.set(id, [p.x, p.y, p.z]);
+  }
+  return m;
+}
+
 /** One output frame (or sub-frame `sub` of `subs`, for motion blur): frame time 1/60 s split evenly. */
-function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number } {
+function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number; move: number } {
   const s = spec;
   if (!s) throw new Error('no shot loaded');
   curF = f;
@@ -940,7 +972,7 @@ function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number } {
   const dtReal = 1 / 60 / subs;
   if (s.mode === 'lobby') lobbyStep(sub === 0 ? f : -1, dtReal, ramp);
   else matchStep(f, dtReal, ramp);
-  return { tick: clockTick, ramp };
+  return { tick: clockTick, ramp, move: s.mode === 'match' ? heroMove() : 0 };
 }
 
 function info(): unknown {
