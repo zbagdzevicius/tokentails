@@ -169,7 +169,7 @@ const queueOf = (page: Page) => page.evaluate(() => localStorage.getItem("tt.hei
 test.describe("game picker (G2 layer 1, G14)", () => {
   test.use({ allowUnmocked: true });
 
-  test("shows six cards (Moon Rave first, Bad Cat last) with the X on the frame post, clear of ABOUT ME, and passes axe", async ({ page, backend }) => {
+  test("shows eight cards (Moon Rave first, Ultra Cat last) with the X on the frame post, clear of ABOUT ME, and passes axe", async ({ page, backend }) => {
     mockBackend(backend);
     await fakeFirebase(page, { uid: GUEST_UID, isAnonymous: true });
     const phone = page.viewportSize()!.width < 768;
@@ -193,16 +193,22 @@ test.describe("game picker (G2 layer 1, G14)", () => {
     await page.getByText("PLAY", { exact: true }).first().click();
     const dialog = page.getByRole("dialog", { name: "Choose your adventure" });
     await expect(dialog).toBeVisible();
-    // Moon Rave, Purrsuit, Paw Match, Heist, Swordcat, Bad Cat Daily (outside the Cupid season).
-    await expect(dialog.getByRole("listitem")).toHaveCount(6);
+    // Moon Rave, Purrsuit, Paw Match, Heist, Swordcat, Bad Cat Daily, Formula Meow, Ultra Cat (outside the Cupid season).
+    await expect(dialog.getByRole("listitem")).toHaveCount(8);
+    await expect(dialog.getByRole("listitem").last()).toHaveAttribute("data-card", "ULTRA_CAT");
+    await expect(dialog.getByTestId("game-card-ultra_cat")).toHaveAttribute("href", "/ultra-cat?from=picker");
     await expect(dialog.getByRole("listitem").first()).toHaveAttribute("data-card", "RAVE");
     await expect(dialog.getByTestId("game-card-rave")).toHaveAttribute("href", "/rave?from=picker");
     await expect(dialog.getByRole("link", { name: "MOON RAVE · NEW" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: "CATNIP HEIST · NO SIGN-UP" })).toHaveAttribute("href", "/heist?from=picker");
     const badcat = dialog.getByTestId("game-card-badcat");
     await expect(badcat).toHaveAttribute("href", /^\/badcat\?from=picker&utm_source=tt_picker$/);
-    // Every card is on screen without scrolling the list (short landscape phones: one row).
-    for (const item of await dialog.getByRole("listitem").all()) await expect(item).toBeInViewport();
+    // Every card can be reached: since Formula Meow (seven cards and up) the list scrolls on phones, two per
+    // row, so each card is scrolled into the list's view first.
+    for (const item of await dialog.getByRole("listitem").all()) {
+      await item.scrollIntoViewIfNeeded();
+      await expect(item).toBeInViewport();
+    }
     await expect(dialog.getByText("CLASSIC", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/no new levels/i)).toHaveCount(0);
 
