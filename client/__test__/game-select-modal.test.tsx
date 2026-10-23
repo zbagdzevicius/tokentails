@@ -21,7 +21,9 @@ import {
   heistPickerEnabled,
   HEIST_PICKER_HREF,
   PAWLEGENDS_CARD_KEY,
+  PAWLEGENDS_PICKER_DESCRIPTION,
   PAWLEGENDS_PICKER_HREF,
+  PAWLEGENDS_PREVIEW,
   RAVE_CARD_KEY,
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
@@ -36,6 +38,7 @@ import { RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, raveEntryEnabled } from "@/compo
 import { RAVE_SECTION_HREF } from "@/components/landing/RaveSection";
 import { GameType } from "@/models/game";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { pawlegendsPickerEnabled } from "@/components/pawlegends/flags";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
 jest.mock("@/components/game/seasons", () => ({
@@ -269,25 +272,27 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
 });
 
 describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => {
-  it("comes last and opens /pawlegends?from=picker with a full page load, showing a real match frame", () => {
+  it("sits right after the Moon Rave and opens /pawlegends?from=picker with a full page load, showing a teamfight frame", () => {
     const { navigate, setGameType, dialog } = open({ showSwordcat: true, showPawlegends: true });
     const items = within(dialog).getAllByRole("listitem");
-    // Every web card in the Cupid season (mocked on): the Moon Rave first, Bad Cat Daily, then Pawlegends last.
+    // Every web card in the Cupid season (mocked on): the Moon Rave first, then Pawlegends (the new flagship).
     expect(items.map((item) => item.getAttribute("data-card"))).toEqual([
       RAVE_CARD_KEY,
+      PAWLEGENDS_CARD_KEY,
       "PIXEL_RESCUE",
       "CATNIP_CHAOS",
       "MATCH_3",
       "CATNIP_HEIST",
       SWORDCAT_CARD_KEY,
       BADCAT_CARD_KEY,
-      PAWLEGENDS_CARD_KEY,
     ]);
     const card = within(dialog).getByTestId("game-card-pawlegends");
     expect(card.getAttribute("href")).toBe(`${PAWLEGENDS_PICKER_HREF}?from=picker`);
     expect(card.getAttribute("aria-label")).toBe(`${PAWLEGENDS_TITLE.toUpperCase()} · NEW`);
     const preview = within(dialog).getByTestId("game-card-pawlegends-preview");
-    expect(preview.getAttribute("src")).toBe("/game-select/pawlegends.webp");
+    expect(preview.getAttribute("src")).toBe("/game-select/pawlegends-preview@2x.webp");
+    expect(preview.getAttribute("alt")).toBe(PAWLEGENDS_PREVIEW.alt);
+    expect(within(card).getByText(PAWLEGENDS_PICKER_DESCRIPTION)).toBeTruthy();
     // A missing file falls back to the text tile.
     fireEvent.error(preview);
     expect(within(dialog).getByTestId("game-card-pawlegends-preview").tagName).toBe("SPAN");
@@ -304,14 +309,16 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
     // isCupidSeason is mocked on for this file, so Cupid Cat is in whatever the date.
     expect(gameCards(true, new Date("2026-05-01"), true, true, true, true).map((c) => c.key)).toEqual([
       RAVE_CARD_KEY,
+      PAWLEGENDS_CARD_KEY,
       "PIXEL_RESCUE",
       "CATNIP_CHAOS",
       "MATCH_3",
       "CATNIP_HEIST",
       SWORDCAT_CARD_KEY,
       BADCAT_CARD_KEY,
-      PAWLEGENDS_CARD_KEY,
     ]);
+    // Without the Moon Rave it leads the list.
+    expect(gameCards(true, new Date("2026-05-01"), true, true, false, true)[0].key).toBe(PAWLEGENDS_CARD_KEY);
     expect(cardHref({ key: PAWLEGENDS_CARD_KEY, href: PAWLEGENDS_PICKER_HREF })).toBe("/pawlegends?from=picker");
   });
 
@@ -321,6 +328,47 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
     expect(items).toHaveLength(8);
     expect(items[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(items[0].className).not.toContain("max-height:520px");
+  });
+});
+
+describe("Pawlegends card: web builds only (pawlegendsPickerEnabled) and its art", () => {
+  const envBefore = { ...process.env };
+  afterEach(() => {
+    process.env = { ...envBefore };
+  });
+
+  it("is on in web builds with no env, hidden in app builds, and the kill switches hide it", () => {
+    expect(pawlegendsPickerEnabled(false, undefined, undefined)).toBe(true);
+    expect(pawlegendsPickerEnabled(true, undefined, undefined)).toBe(false);
+    expect(pawlegendsPickerEnabled(false, "0", undefined)).toBe(false);
+    expect(pawlegendsPickerEnabled(false, "off", undefined)).toBe(false);
+    expect(pawlegendsPickerEnabled(false, undefined, "false")).toBe(false);
+    expect(pawlegendsPickerEnabled(false, "1", "1")).toBe(true);
+  });
+
+  it("shows by default in a web build (no showPawlegends override) and never in an app build", () => {
+    const web = render(<GameSelectModal onClose={jest.fn()} setGameType={jest.fn()} navigate={jest.fn()} />);
+    const card = within(screen.getByRole("dialog")).getByTestId("game-card-pawlegends");
+    expect(card.getAttribute("href")).toBe("/pawlegends?from=picker");
+    web.unmount();
+    cleanup();
+    // The app build (NEXT_PUBLIC_IS_APP, read at call time): no Pawlegends card, the other app cards stay.
+    process.env.NEXT_PUBLIC_IS_APP = "1";
+    render(<GameSelectModal onClose={jest.fn()} setGameType={jest.fn()} navigate={jest.fn()} />);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByTestId("game-card-pawlegends")).toBeNull();
+    expect(within(dialog).getAllByRole("listitem").length).toBeGreaterThan(0);
+  });
+
+  it("ships a 2x in-engine WebP for the card's 312x218 box", () => {
+    const pub = path.resolve(__dirname, "../public");
+    expect(PAWLEGENDS_PREVIEW).toMatchObject({ width: 312, height: 218 });
+    expect(PAWLEGENDS_PREVIEW.src).toMatch(/@2x\.webp$/);
+    const buf = fs.readFileSync(path.join(pub, PAWLEGENDS_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+    expect(buf.length).toBeLessThan(40 * 1024);
+    expect(fs.existsSync(path.join(pub, "game-select/pawlegends.webp"))).toBe(false);
   });
 });
 

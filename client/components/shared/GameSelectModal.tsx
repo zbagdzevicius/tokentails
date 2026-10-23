@@ -35,16 +35,21 @@ export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Pa
 export const PAWLEGENDS_PICKER_HREF = "/pawlegends";
 /** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
 export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
-export const PAWLEGENDS_PICKER_DESCRIPTION = "3v3 hero battles with your cats vs dog bots";
+/** The Pawlegends card's line: what the game is (both sides are playable, the other five heroes are bots). */
+export const PAWLEGENDS_PICKER_DESCRIPTION = "Cats vs dogs: 3v3 hero battles against bots";
 /**
- * The Pawlegends card art: a frame of a real match (Clem at the fountain, the pink yarn base, cat minions marching),
- * captured from the built game and cropped to the card's box. One 2x file (624x436, about 20 KB), served from
- * client/public. The "3v3 cats vs dogs" tile stays as the fallback if the file cannot load.
+ * The Pawlegends card art: a teamfight from a real seeded match (take X14 of the launch trailer, master frame f1232),
+ * rendered in-engine by the game's own renderer after the per-skill animation upgrade: the trailer's wide brawl (shot
+ * S28, the ults Curtains Up, Tangled Lights and Champion's Challenge), a red skill ring and a light pillar over the
+ * heroes, the dog minions' cart on the left. Cropped to the card's 312x218 box as one 2x file (624x436, about
+ * 31 KB), like the Swordcat, Bad Cat and Moon Rave cards (a 1x/2x `srcSet` kept the 1x file on 2x screens in
+ * testing). Served from client/public. The "3v3 cats vs dogs" tile stays as the fallback if the file cannot load.
  */
 export const PAWLEGENDS_PREVIEW = Object.freeze({
-  src: "/game-select/pawlegends.webp",
+  src: "/game-select/pawlegends-preview@2x.webp",
   width: 312,
   height: 218,
+  alt: "Cat and dog heroes clash in a teamfight inside a glowing red skill ring under a pillar of light",
 });
 
 /**
@@ -127,12 +132,13 @@ const cardTestId = (card: GameCard) =>
  * sit three to a row (3 + 2 centred, or 3 + 3), and seven or eight sit four to a row (4 + 3 centred, or
  * 4 + 4). The Moon Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when
  * `includeRave` is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is
- * seasonal (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat
+ * seasonal (January to March, `components/game/seasons`): outside the season it is left out. Pawlegends, the
+ * new flagship, comes right after the Moon Rave with the same NEW badge, only when `includePawlegends` is set
+ * (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches). The Swordcat
  * card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes next,
- * when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app build). The
- * Pawlegends card comes last, only when `includePawlegends` is set (`pawlegendsPickerEnabled()`: web builds
- * only, the env flags are kill switches). Web builds show seven cards outside the Cupid season and eight in it.
+ * when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app build). Web
+ * builds show seven cards outside the Cupid season and eight in it.
  */
 export function gameCards(
   includeHeist: boolean,
@@ -152,6 +158,18 @@ export function gameCards(
       badge: "NEW",
       image: RAVE_PREVIEW.src,
       previewVariant: "RAVE",
+    });
+  }
+  // The new flagship sits right after the Moon Rave (founder, Oct 18: the rave stays first), ahead of the classics.
+  if (includePawlegends) {
+    cards.push({
+      key: PAWLEGENDS_CARD_KEY,
+      href: PAWLEGENDS_PICKER_HREF,
+      title: PAWLEGENDS_TITLE.toUpperCase(),
+      description: PAWLEGENDS_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: PAWLEGENDS_PREVIEW.src,
+      previewVariant: "PAWLEGENDS",
     });
   }
   if (isCupidSeason(now)) {
@@ -217,17 +235,6 @@ export function gameCards(
       badge: "NEW",
       image: BADCAT_PREVIEW.src,
       previewVariant: "BADCAT",
-    });
-  }
-  if (includePawlegends) {
-    cards.push({
-      key: PAWLEGENDS_CARD_KEY,
-      href: PAWLEGENDS_PICKER_HREF,
-      title: PAWLEGENDS_TITLE.toUpperCase(),
-      description: PAWLEGENDS_PICKER_DESCRIPTION,
-      badge: "NEW",
-      image: PAWLEGENDS_PREVIEW.src,
-      previewVariant: "PAWLEGENDS",
     });
   }
   return cards;
@@ -338,7 +345,7 @@ const PawlegendsPreview = () => {
           src={PAWLEGENDS_PREVIEW.src}
           width={PAWLEGENDS_PREVIEW.width}
           height={PAWLEGENDS_PREVIEW.height}
-          alt=""
+          alt={PAWLEGENDS_PREVIEW.alt}
           draggable={false}
           decoding="async"
           data-testid="game-card-pawlegends-preview"
