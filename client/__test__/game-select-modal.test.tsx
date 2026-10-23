@@ -538,9 +538,9 @@ describe("Ultra Cat card (no flag, web only)", () => {
     expect(within(dialog).getByText(ULTRA_CAT_PICKER_DESCRIPTION)).toBeTruthy();
     const art = within(dialog).getByTestId("game-card-ultra_cat-preview");
     expect(art.getAttribute("src")).toBe(ULTRA_CAT_PREVIEW.src);
+    expect(art.getAttribute("alt")).toBe(ULTRA_CAT_PREVIEW.alt);
     expect(art.getAttribute("width")).toBe("312");
     expect(art.getAttribute("height")).toBe("218");
-    expect(art.getAttribute("alt")).toBe("");
   });
 
   it("opens /ultra-cat with a full page load and never picks a Phaser mode", () => {
