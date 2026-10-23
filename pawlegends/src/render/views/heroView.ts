@@ -46,6 +46,8 @@ interface HeroRig {
   simZ: number;
   sepX: number;
   sepZ: number;
+  /** Drawn body alpha (eased toward the stealth look; trailer v3.3 review). */
+  alpha: number;
 }
 
 /**
@@ -208,6 +210,32 @@ export function separate(pts: readonly { x: number; z: number }[], min = SEPARAT
 /** Peak hit-flash mix on a hero (trailer review: 0.42 turned a hit or tower-locked hero into a white body). */
 export const HIT_FLASH_MAX = 0.22;
 
+/**
+ * The stealth look (render only): the body eases toward `alpha` at `rate` per s and back, and its outline hull stays
+ * on until the body is below `outlineBelow`. Trailer v3.3 review: a dog hero whose stealth lasted 3 ticks snapped to a
+ * pale, see-through grey copy without its outline and popped back (read as a broken material or a model popping in).
+ */
+export const STEALTH_LOOK = Object.freeze({ alpha: 0.42, rate: 8, outlineBelow: 0.6 });
+
+/** The drawn body alpha this frame (pure): eased from `prev` toward the stealth look or full. */
+export function stealthAlpha(prev: number, stealth: boolean, dt: number): number {
+  const want = stealth ? STEALTH_LOOK.alpha : 1;
+  const v = prev + (want - prev) * Math.min(1, Math.max(0, dt) * STEALTH_LOOK.rate);
+  return Math.abs(v - want) < 0.01 ? want : v;
+}
+
+/**
+ * After the match ends the render clock stops, so every body froze in its last pose (trailer v3.3 review: the heroes
+ * held one pose after VICTORY!). Once the clock has stood still for `after` s past the end, the bodies idle on real
+ * time (render only; hit-stops during play still hold their pose).
+ */
+export const END_IDLE = Object.freeze({ after: 0.25 });
+
+/** The animation step this frame (pure): the render clock's step, or real time once the ended clock stands still. */
+export function animStep(dtR: number, dt: number, ended: boolean, stillT: number): number {
+  return ended && dtR <= 1e-4 && stillT >= END_IDLE.after ? dt : dtR;
+}
+
 /** The player's own ring is this much larger than a relation ring (it sits outside the hero's footprint). */
 export const SELF_RING_SCALE = 1.15;
 /** Seconds between the own ring's outward pings. */
@@ -247,6 +275,9 @@ export class HeroView {
   private selfRing = new DecalLayer(boldRingTexture(), 1, { y: 0.065, renderOrder: 9, name: 'hero-self-ring' });
   private selfPing = new DecalLayer(ringTexture(), 1, { additive: true, y: 0.06, renderOrder: 9, name: 'hero-self-ping' });
   private time = 0;
+  /** Seconds the render clock has stood still, and the real time idled since the match ended (END_IDLE). */
+  private stillT = 0;
+  private endIdle = 0;
   private frameNo = 0;
   /** Render tick of the last frame (clips run on the render clock, so hitstop holds them: D5). */
   private lastTick = NaN;
@@ -324,7 +355,7 @@ export class HeroView {
       if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
       this.group.add(ch.object);
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0 };
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, alpha: 1 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -379,7 +410,14 @@ export class HeroView {
     // the render clock's step (0 while a hitstop holds it): animation time, so impact poses hold (D5)
     const dtR = this.lastTick === this.lastTick ? Math.max(0, Math.min(0.1, (frame.tick - this.lastTick) / 30)) : dt;
     this.lastTick = frame.tick;
-    const now = frame.tick / 30;
+    // the ended match: the clock stands still, the bodies keep idling on real time (END_IDLE)
+    const ended = frame.latest?.clock?.phase === 'ended';
+    this.stillT = dtR > 1e-4 ? 0 : this.stillT + dt;
+    const aStep = animStep(dtR, dt, ended, this.stillT);
+    const idleEnd = ended && aStep !== dtR;
+    if (idleEnd) this.endIdle += dt;
+    else if (!ended) this.endIdle = 0;
+    const now = frame.tick / 30 + this.endIdle;
     this.rings.begin();
     this.auras.begin();
     this.selfRing.begin();
@@ -458,9 +496,9 @@ export class HeroView {
       const cy = Math.cos(r.yaw);
       const sy = Math.sin(r.yaw);
       ch.anim.stack.yaw = r.yaw;
-      ch.anim.update(this.director ? dtR : dt, {
-        state: charState(e),
-        speed: (e.speed * 30) / 1000,
+      ch.anim.update(this.director ? aStep : dt, {
+        state: idleEnd && !dead ? 'idle' : charState(e),
+        speed: idleEnd ? 0 : (e.speed * 30) / 1000,
         height: ch.height,
         yawRate,
         now: this.director ? now : undefined,
@@ -485,12 +523,17 @@ export class HeroView {
         this.slotTeam[e.id] = e.team === 1 ? 1 : 0;
         this.slotStealth[e.id] = stealth ? 1 : 0;
       }
-      const want = stealth ? 0.42 : 1;
-      if (u.uOpacity.value !== want) {
-        u.uOpacity.value = want;
-        ch.material.transparent = want < 1;
-        ch.material.needsUpdate = true;
-        if (ch.outline) ch.outline.visible = want === 1;
+      // eased (STEALTH_LOOK): a stealth of a few ticks is a shimmer, never a grey copy popping in and out
+      r.alpha = stealthAlpha(r.alpha, stealth, dt);
+      if (u.uOpacity.value !== r.alpha) {
+        const was = u.uOpacity.value < 1;
+        u.uOpacity.value = r.alpha;
+        const tr = r.alpha < 1;
+        if (tr !== was || ch.material.transparent !== tr) {
+          ch.material.transparent = tr;
+          ch.material.needsUpdate = true;
+        }
+        if (ch.outline) ch.outline.visible = r.alpha >= STEALTH_LOOK.outlineBelow;
       }
       // card skins (GDD §7.2): Epic glints, Legendary foil and recall flourish; never an aura
       const lookCoat = this.looks.get(e.id)?.coat;

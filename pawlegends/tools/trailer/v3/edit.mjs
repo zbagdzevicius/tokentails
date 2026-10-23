@@ -59,6 +59,8 @@ if (!process.argv.includes('--no-gates')) {
   gate('minionIns', 'minion-in-hero');
   gate('dupes', 'twin hero');
   gate('stalePops', 'stale number');
+  // v3.4: a number or word drawn on one frame only
+  gate('flashPops', 'one-frame pop');
 }
 log(`takes: ${Object.keys(manifest.shots).length} shot captures, hashes ok, overlap / structure / edge-text QC clean`);
 
@@ -139,12 +141,14 @@ const late = [];
 for (const [k, m] of Object.entries(manifest.shots)) {
   const take = TAKES_ALL[m.take];
   if (!take?.length) continue;
-  for (const [f, t] of Object.entries(m.ticks ?? {})) if (t > take.length + 8) late.push(`${k} f${f} tick ${t} > end ${take.length}`);
+  // v3.4: the bodies keep idling after the match ends (heroView END_IDLE), so the core shot may run 16 ticks past it;
+  // the low-motion gate below still fails any held picture
+  for (const [f, t] of Object.entries(m.ticks ?? {})) if (t > take.length + 16) late.push(`${k} f${f} tick ${t} > end ${take.length}`);
 }
 if (late.length) {
   log(`match-end gate: ${late.length} frames past the match: ${late.slice(0, 4).join(' | ')}`);
   if (!process.argv.includes('--no-gates')) throw new Error('match-end gate failed (units held after the match ended)');
-} else log('match-end gate: no gameplay frame more than 8 ticks past its match end');
+} else log('match-end gate: no gameplay frame more than 16 ticks past its match end (bodies idle after it)');
 if (process.argv.includes('--qc-only')) process.exit(typeQc.length ? 1 : 0);
 
 /** The shot (by id) that owns master frame f. */
@@ -154,7 +158,8 @@ const shotOf = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
  * panel): the landscape capture recomposed as the pedestal and hero above, the panel's name and "Inspired by ..."
  * lines below (both crops of the same real frame, no blur fill). Crops are fractions of the landscape frame.
  */
-const PICK_916 = { hero: [0.44, 0.18, 0.44, 0.8], panel: [0.022, 0.425, 0.345, 0.19], heroH: 1180, panelY: 1190 };
+// v3.4: the hero crop starts higher (0.03, was 0.18: Lambo's ears were cut by the top edge) at the band's own aspect (no scale-and-crop) so every champion keeps headroom
+const PICK_916 = { hero: [0.44, 0.03, 0.44, 0.73], panel: [0.022, 0.425, 0.345, 0.19], heroH: 1000, panelY: 1010 };
 /** Footage path of master frame f in an aspect (null when missing). */
 function footage(f, aspect) {
   const s = shotOf(f);
