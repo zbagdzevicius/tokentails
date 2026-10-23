@@ -149,4 +149,5 @@ node tools/trailer/edit.mjs --dir <dir> --mix-only                         # the
 `edit.mjs` refuses to render on a copy-gate finding, a take hash mismatch or a missing frame, and fails if a master is
 not exactly 1800 (900) frames at 60 fps, the right size, or above -1 dBTP.
 
-Finished masters are copied to `pawlegends/media/trailer/` (gitignored, like every output here).
+Finished masters are copied to `pawlegends/media/trailer-v2/` (the gameplay-first trailer, v4 data) and the v1 "Meet Gabė"
+masters stay in `pawlegends/media/trailer/` (both gitignored, like every output here).
