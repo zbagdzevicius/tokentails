@@ -297,11 +297,14 @@ describe("/pawlegends page", () => {
     expect(replace).toHaveBeenCalledWith("/game");
   });
 
-  it("the terms page states the refund date, withdrawal, age limits and a contact", () => {
+  it("the terms page describes the $5 cat, the withdrawal notice, age limits and a contact; no retired packs", () => {
     render(<PawlegendsTermsPage />);
     const text = screen.getByTestId("pawlegends-terms").textContent ?? "";
-    expect(text).toMatch(/2027-06-30/);
-    expect(text).toMatch(/14-day withdrawal/);
+    expect(text).toMatch(/for \$5\./);
+    expect(text).toMatch(/Companion Kitten/);
+    expect(text).toMatch(/14-day withdrawal right/);
+    expect(text).toMatch(/lose this 14-day withdrawal right once the cat is\s+delivered/);
+    expect(text).not.toMatch(/Starter|Founder|500|pack|MVP|2027-06-30/i);
     expect(text).toMatch(/€30/);
     expect(text).toMatch(/€200/);
     expect(text).toContain(UNDER_16_MESSAGE);

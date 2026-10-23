@@ -242,13 +242,15 @@ describe('POST /payments/crypto/orders', () => {
     });
 
     it("a cat order from Pawlegends runs the game's age band and spend cap before any order exists", async () => {
-        const assert = jest.fn(async () => ({ band: '18+', capLeftCents: 0 }));
+        const consent = { version: '2026-10-23', at: T0.toISOString() };
+        const assert = jest.fn(async () => ({ band: '18+', capLeftCents: 0, consent }));
         const { service, checkoutModel } = setup({ pawlegendsGuard: { assert } });
         const body = {
             sku: { kind: 'CAT', catId: CAT_ID },
             context: 'pawlegends',
             ageBand: '16-17',
             deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
         };
         await service.createOrder(USER, body, T0, config());
         expect(assert).toHaveBeenCalledWith({
@@ -257,8 +259,11 @@ describe('POST /payments/crypto/orders', () => {
             context: 'pawlegends',
             ageBand: '16-17',
             deviceId: 'device-aaaaaaaa',
+            consentVersion: '2026-10-23',
         });
         expect(checkoutModel.rows).toHaveLength(1);
+        // The accepted consent is recorded on the order (launch item U5).
+        expect((checkoutModel.rows[0] as any).consent).toEqual(consent);
         // Refused (under 16, over the cap): nothing is created.
         const refused = setup({
             pawlegendsGuard: {

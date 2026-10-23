@@ -11,17 +11,22 @@ const jsonAuthHeaders = (): HeadersInit => ({
 /**
  * Where a purchase starts, when that changes the server's checks. `pawlegends`: the Token Tails cat checkout opened
  * from the Pawlegends game, so the backend applies the Pawlegends age band and 30-day spend cap first
- * (`PawlegendsCheckoutGuard`). Other callers send nothing and are unchanged.
+ * (`PawlegendsCheckoutGuard`). `consentVersion` is the `/pawlegends/terms` version the buyer ticked the consent box
+ * for (terms, privacy and the EU withdrawal waiver); the server refuses any other and records it with the payment.
+ * Other callers send nothing and are unchanged.
  */
 export interface PurchaseContext {
   context: "pawlegends";
   ageBand: "under16" | "16-17" | "18+";
   deviceId: string;
+  consentVersion: string;
 }
 
 /** The context fields a request body carries, copied by name. */
 export const purchaseContextFields = (context?: PurchaseContext | null) =>
-  context ? { context: context.context, ageBand: context.ageBand, deviceId: context.deviceId } : {};
+  context
+    ? { context: context.context, ageBand: context.ageBand, deviceId: context.deviceId, consentVersion: context.consentVersion }
+    : {};
 
 export const STRIPE_API = {
   createPaymentIntent: async (

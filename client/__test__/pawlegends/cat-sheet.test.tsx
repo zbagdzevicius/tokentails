@@ -65,7 +65,8 @@ jest.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({}) }));
 jest.mock("@/hooks/useStorefront", () => ({ invalidateStorefront: jest.fn(async () => undefined) }));
 
 import { PawlegendsCatSheet } from "@/components/pawlegends/PawlegendsCatSheet";
-import { PAWLEGENDS_AGE_KEY, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
+import { PAWLEGENDS_AGE_KEY, PAWLEGENDS_CONSENT_VERSION, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
+import { PAWLEGENDS_PRIVACY_URL } from "@/components/pawlegends/flags";
 import { EntityType } from "@/models/save";
 import type { ICat } from "@/models/cats";
 
@@ -105,6 +106,31 @@ describe("PawlegendsCatSheet", () => {
     expect(screen.queryByText("stub-pay")).toBeNull();
     expect((screen.getByLabelText("18 or older") as HTMLInputElement).disabled).toBe(true);
     expect(window.localStorage.getItem(PAWLEGENDS_AGE_KEY)).toBe("under16");
+    // No consent box and no legal block for a player who cannot buy.
+    expect(screen.queryByTestId("pawlegends-consent")).toBeNull();
+  });
+
+  it("shows the terms, privacy and withdrawal lines; no checkout until the consent box is ticked (U5)", async () => {
+    window.localStorage.setItem(PAWLEGENDS_AGE_KEY, "18+");
+    render(<PawlegendsCatSheet cat={CAT} onClose={jest.fn()} />);
+    await settle();
+    const legal = screen.getByTestId("pawlegends-cat-legal");
+    expect(legal.querySelector("a[href='/pawlegends/terms']")?.textContent).toBe("Terms");
+    expect(legal.querySelector(`a[href='${PAWLEGENDS_PRIVACY_URL}']`)?.textContent).toBe("Privacy Policy");
+    expect(screen.getByTestId("pawlegends-withdrawal").textContent).toMatch(/14 days/);
+    const box = screen.getByTestId("pawlegends-consent") as HTMLInputElement;
+    expect(box.required).toBe(true);
+    expect(box.checked).toBe(false);
+    expect(screen.getByLabelText(/lose my 14-day right of withdrawal once it is delivered/)).toBe(box);
+    expect(screen.queryByTestId("pawlegends-cat-payment")).toBeNull();
+    expect(screen.queryByText("stub-pay")).toBeNull();
+    fireEvent.click(box);
+    await settle();
+    expect(screen.getByText("stub-pay")).toBeTruthy();
+    // Unticking takes the checkout away again.
+    fireEvent.click(box);
+    await settle();
+    expect(screen.queryByTestId("pawlegends-cat-payment")).toBeNull();
   });
 
   it("18+ opens the Token Tails cat checkout with the pawlegends context; a success adds the cat and tells the host", async () => {
@@ -114,12 +140,19 @@ describe("PawlegendsCatSheet", () => {
     await settle();
     fireEvent.click(screen.getByLabelText("18 or older"));
     await settle();
+    fireEvent.click(screen.getByTestId("pawlegends-consent"));
+    await settle();
     const props = mockPaymentProps.mock.calls[mockPaymentProps.mock.calls.length - 1][0];
     expect(props).toMatchObject({
       price: 5,
       entityType: EntityType.CAT,
       id: CAT._id,
-      purchaseContext: { context: "pawlegends", ageBand: "18+", deviceId: expect.stringMatching(/^d[0-9a-f]{32}$/) },
+      purchaseContext: {
+        context: "pawlegends",
+        ageBand: "18+",
+        deviceId: expect.stringMatching(/^d[0-9a-f]{32}$/),
+        consentVersion: PAWLEGENDS_CONSENT_VERSION,
+      },
     });
     fireEvent.click(screen.getByText("stub-pay"));
     await settle();
@@ -135,6 +168,8 @@ describe("PawlegendsCatSheet", () => {
     render(<PawlegendsCatSheet cat={CAT} onClose={jest.fn()} />);
     await settle();
     expect(screen.queryByTestId("pawlegends-age")).toBeNull();
+    fireEvent.click(screen.getByTestId("pawlegends-consent"));
+    await settle();
     expect(mockPaymentProps.mock.calls[mockPaymentProps.mock.calls.length - 1][0].purchaseContext).toMatchObject({ ageBand: "16-17" });
   });
 });

@@ -1,16 +1,14 @@
-import { PAWLEGENDS_CONSENT_VERSION, PAWLEGENDS_MVP_TARGET, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
+import { MEET_PERKS, PAWLEGENDS_CONSENT_VERSION, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
 import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL, pawlegendsEnabled } from "@/components/pawlegends/flags";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
+import { Prices } from "@/models/cats";
 
-/** The date after which a Founder buyer may ask for a full refund (GDD §8.3). */
-export const PAWLEGENDS_REFUND_DATE = "2027-06-30";
-export const PAWLEGENDS_REFUND_DAYS = 60;
 export { PAWLEGENDS_CONTACT };
 
 export const PAWLEGENDS_TERMS_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} presale terms - Token Tails`,
-  description: `What ${PAWLEGENDS_TITLE} packs deliver now and at launch, refunds, withdrawal, age limits and contact.`,
+  title: `${PAWLEGENDS_TITLE} terms - Token Tails`,
+  description: `What a named cat bought from ${PAWLEGENDS_TITLE} delivers, the EU withdrawal notice, age limits and contact.`,
   path: "/pawlegends/terms",
 });
 
@@ -23,11 +21,12 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 /**
- * `/pawlegends/terms` (POC.md §8.6, GDD §8.3): the presale terms and refund policy. Live before Stripe live
- * mode. The version shown here is the one the purchase sheet sends as `consentVersion` and Stripe stores as
- * `terms_version`; a change to the text needs a new version in `components/pawlegends/checkout.ts` and in
- * `backend/src/pawlegends/pawlegends.contracts.ts`. Readable even while the game's kill switch is on, so buyers
- * can always find it.
+ * `/pawlegends/terms` (launch item U5): the terms for the one thing the game sells, the $5 named cat
+ * (`Prices.shelterCat`) opened from its "Meet <cat>" card (`PawlegendsCatSheet`). Default wording; the founder's
+ * legal OK is pending. The version shown here is the one the cat sheet sends as `consentVersion` when the buyer ticks the consent box, and
+ * the backend records it with the payment; a change to the text needs a new version in
+ * `components/pawlegends/checkout.ts` and in `backend/src/pawlegends/pawlegends.contracts.ts`. Readable even while
+ * the game's kill switch is on, so buyers can always find it.
  */
 export default function PawlegendsTermsPage() {
   const open = pawlegendsEnabled();
@@ -40,40 +39,52 @@ export default function PawlegendsTermsPage() {
       >
         <article className="mx-auto flex max-w-[44rem] flex-col gap-6">
           <header className="flex flex-col gap-1">
-            <h1 className="font-primary text-h5">{PAWLEGENDS_TITLE}: presale terms and refunds</h1>
+            <h1 className="font-primary text-h5">{PAWLEGENDS_TITLE}: terms</h1>
             <p className="text-p6">Version {PAWLEGENDS_CONSENT_VERSION}</p>
           </header>
 
-          <Section title="What you buy">
+          <Section title="The game">
             <p>
-              {PAWLEGENDS_TITLE} is an early version of the game. Every pack shows two lines before you pay: what is
-              delivered now, and what is delivered at MVP launch (target {PAWLEGENDS_MVP_TARGET}). Items delivered now
-              appear in the game as soon as the payment is confirmed. Prices include VAT.
-            </p>
-            <p>
-              The Starter pack holds only items delivered now. Its 3-day club trial is a bonus, not the paid item.
-              Founder Legend seats are limited to the first 500 sold, gifts included.
+              {PAWLEGENDS_TITLE} is free to play in the browser: you never have to pay to play it. It is made by Token
+              Tails and is still in development, so it changes over time.
             </p>
           </Section>
 
-          <Section title="Refunds">
+          <Section title="What you can buy">
+            <p>
+              The only thing for sale is a named cat, from its &quot;Meet&quot; card in the game, for $
+              {Prices.shelterCat}. You see the cat, its name and its element before checkout, and nothing is random. The
+              Token Tails checkout takes cards and supported stablecoins. The cat is added to your
+              Token Tails account as a Common card. In {PAWLEGENDS_TITLE} it brings:
+            </p>
+            <ul className="list-disc pl-5">
+              {MEET_PERKS.map((perk) => (
+                <li key={perk}>{perk}</li>
+              ))}
+            </ul>
+            <p>
+              These are cosmetic. They do not make any hero stronger, and they do not change how a match is played or
+              scored.
+            </p>
+          </Section>
+
+          <Section title="Delivery and your 14-day withdrawal right (EU)">
+            <p>
+              The cat is digital content and is delivered right away, as soon as the payment is confirmed. Under EU law
+              you can normally withdraw from an online purchase within 14 days. Before checkout, you tick a box to ask
+              for delivery right away and to confirm that you lose this 14-day withdrawal right once the cat is
+              delivered. Without that tick the checkout does not start.
+            </p>
+          </Section>
+
+          <Section title="If something goes wrong">
             <ul className="list-disc pl-5">
               <li>
-                If the MVP is not live by {PAWLEGENDS_REFUND_DATE}, any Founder buyer can ask for a full refund for{" "}
-                {PAWLEGENDS_REFUND_DAYS} days after that date, by email, no questions asked. Items delivered now stay
-                with you.
+                If the payment goes through but the cat does not reach your account, or you are charged twice, write to
+                us and we put it right or refund that payment.
               </li>
-              <li>If we stop the game earlier, we email every Founder buyer within 7 days with the same refund offer.</li>
-              <li>A refund under these terms returns the whole pack price, including the part for items delivered now.</li>
+              <li>Your legal rights for digital content that is faulty or not as described are not affected.</li>
             </ul>
-          </Section>
-
-          <Section title="Your 14-day withdrawal right (EU)">
-            <p>
-              At checkout you agree to receive the items delivered now at once, and you accept that you lose the 14-day
-              withdrawal right for those items only. Items delivered at MVP launch keep the withdrawal right until they
-              are delivered.
-            </p>
           </Section>
 
           <Section title="Age limits">
@@ -82,19 +93,19 @@ export default function PawlegendsTermsPage() {
               <li>16 or 17: at most €30 in any 30 days.</li>
               <li>18 or older: at most €200 in any 30 days. Write to us to raise it.</li>
             </ul>
-            <p>Limits count every purchase made with the same email or device. US dollar prices count one to one.</p>
+            <p>Limits count every purchase made with the same account or device. US dollar prices count one to one.</p>
           </Section>
 
-          <Section title="Restoring items">
+          <Section title="Earlier purchases">
             <p>
-              Items are kept with your email and this browser. In the store, ask for a restore link to get them back in
-              any browser. The game app does not show items bought on the web.
+              A purchase made under an earlier version of these terms keeps the terms of that version. Write to us for
+              a copy.
             </p>
           </Section>
 
           <Section title="Contact">
             <p>
-              Questions, refunds or a higher limit:{" "}
+              Questions, a problem with a purchase or a higher limit:{" "}
               <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="text-tt-gold-400 underline underline-offset-4">
                 {PAWLEGENDS_CONTACT}
               </a>

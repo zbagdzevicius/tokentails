@@ -30,6 +30,7 @@ import {
     isPawlegendsContext,
     PAWLEGENDS_PURCHASE_CONTEXT,
     PawlegendsCheckoutGuard,
+    PawlegendsConsent,
 } from 'src/pawlegends/pawlegends-checkout-guard.service';
 import { StripePaymentService } from 'src/payments/stripe-payment.service';
 import { PERMISSION_LEVEL } from 'src/user/models/user.model';
@@ -309,6 +310,7 @@ export class Web3Controller {
             context,
             ageBand,
             deviceId,
+            consentVersion,
         }: {
             // Never charged: the price comes from the server price table. For a portrait it is the price the
             // tab shows, in dollars; a lower one means the tab is older than the price (409, reload).
@@ -322,6 +324,8 @@ export class Web3Controller {
             context?: string;
             ageBand?: string;
             deviceId?: string;
+            /** The `/pawlegends/terms` version the buyer's consent tick stands for (required with `pawlegends`). */
+            consentVersion?: string;
         },
         @USER_ID() userId: string
     ) {
@@ -336,22 +340,24 @@ export class Web3Controller {
                     throw new BadRequestException('Cat is not for sale');
                 }
                 const fromGame = isPawlegendsContext({ context });
+                let consent: PawlegendsConsent | undefined;
                 if (fromGame) {
                     // Never sell from the game without its guardrails: no guard wired means no sale.
                     if (!this.pawlegendsGuard) throw new BadRequestException('Checkout is not available here');
-                    await this.pawlegendsGuard.assert({
+                    ({ consent } = await this.pawlegendsGuard.assert({
                         userId: userId.toString(),
                         cents: getShelterCatPriceCents(),
                         context,
                         ageBand,
                         deviceId,
-                    });
+                        consentVersion,
+                    }));
                 }
                 return await this.stripePayments.createPaymentIntent({
                     entityType: EntityType.CAT,
                     catId: check.cat.catId,
                     userId: userId.toString(),
-                    ...(fromGame ? { context: PAWLEGENDS_PURCHASE_CONTEXT } : {}),
+                    ...(fromGame ? { context: PAWLEGENDS_PURCHASE_CONTEXT, consent } : {}),
                 });
             }
             const targetEntityType = entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;

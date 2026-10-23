@@ -12,12 +12,15 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import {
   deviceId,
+  MEET_PERKS,
   PAWLEGENDS_AGE_BANDS,
+  PAWLEGENDS_CONSENT_VERSION,
   readAgeBand,
   UNDER_16_MESSAGE,
   writeAgeBand,
   type PawlegendsAgeBand,
 } from "./checkout";
+import { PAWLEGENDS_PRIVACY_URL, PAWLEGENDS_TERMS_PATH } from "./flags";
 
 const Payment = dynamic(() => import("@/components/web3/Payment").then((module) => module.Payment), {
   ssr: false,
@@ -30,16 +33,8 @@ export const AGE_LABELS: Record<PawlegendsAgeBand, string> = {
   "18+": "18 or older",
 };
 
-/**
- * What a new squad member brings in Pawlegends (display only; the game decides the effect). Cosmetic only, and it
- * must match what the game grants (`rosterCosmetics` in pawlegends/src/meta/roster.ts) and the game's Meet card line
- * (`meetCard` in pawlegends/src/ui/cards.ts): a Companion Kitten, the element chroma and the card skin for every hero.
- */
-export const MEET_PERKS = [
-  "Trots at your heels as a Companion Kitten",
-  "Its element chroma for every hero",
-  "Its card skin for every hero",
-] as const;
+/** Re-exported for older imports; the list lives in `checkout.ts` so the terms page can show it too. */
+export { MEET_PERKS };
 
 interface PawlegendsCatSheetProps {
   cat: ICat;
@@ -55,6 +50,11 @@ interface PawlegendsCatSheetProps {
  * `Header`. The age band is asked once per device (Under 16 stops here, with the guardian line); the server checks
  * it again with the 30-day spend cap (`context: 'pawlegends'` on both checkouts).
  *
+ * Before the checkout mounts, the sheet shows the terms and privacy links and the EU withdrawal notice, and asks for
+ * a required consent tick (deliver now, lose the 14-day withdrawal right on delivery; launch item U5). The tick
+ * sends `consentVersion` (the `/pawlegends/terms` version) with the context; the server refuses any other version
+ * and records the accepted one with the payment. Unticking removes the checkout again.
+ *
  * Web only: the host never opens it in an app build.
  */
 export const PawlegendsCatSheet = ({ cat, onBought, onClose }: PawlegendsCatSheetProps) => {
@@ -62,6 +62,7 @@ export const PawlegendsCatSheet = ({ cat, onBought, onClose }: PawlegendsCatShee
   const [band, setBand] = useState<PawlegendsAgeBand | null>(storedBand);
   const [processing, setProcessing] = useState(false);
   const [bought, setBought] = useState<ICat | null>(null);
+  const [consented, setConsented] = useState(false);
   const { profile, setProfileUpdate } = useProfile();
   const queryClient = useQueryClient();
   const card = useMemo(() => ({ ...cat, tier: Tier.COMMON }) as ICat, [cat]);
@@ -73,9 +74,13 @@ export const PawlegendsCatSheet = ({ cat, onBought, onClose }: PawlegendsCatShee
     writeAgeBand(value);
   };
 
+  const canBuy = !!band && band !== "under16";
   const context: PurchaseContext | null = useMemo(
-    () => (band && band !== "under16" ? { context: "pawlegends", ageBand: band, deviceId: deviceId() } : null),
-    [band]
+    () =>
+      band && band !== "under16" && consented
+        ? { context: "pawlegends", ageBand: band, deviceId: deviceId(), consentVersion: PAWLEGENDS_CONSENT_VERSION }
+        : null,
+    [band, consented]
   );
 
   const onSuccess = (response: IMessage) => {
@@ -153,6 +158,42 @@ export const PawlegendsCatSheet = ({ cat, onBought, onClose }: PawlegendsCatShee
               <p role="alert" data-testid="pawlegends-under16">
                 {UNDER_16_MESSAGE}
               </p>
+            )}
+            {canBuy && (
+              <div className="flex flex-col gap-2 text-p6 leading-snug" data-testid="pawlegends-cat-legal">
+                <p data-testid="pawlegends-withdrawal">
+                  {cat.name} is digital content, delivered to your account as soon as the payment goes through. In
+                  the EU you can normally cancel an online purchase within 14 days. For digital content that right
+                  ends once it is delivered.
+                </p>
+                <p>
+                  Read the{" "}
+                  <a href={PAWLEGENDS_TERMS_PATH} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-gold-400 underline underline-offset-4">
+                    Terms
+                  </a>{" "}
+                  and the{" "}
+                  <a href={PAWLEGENDS_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-gold-400 underline underline-offset-4">
+                    Privacy Policy
+                  </a>{" "}
+                  before you buy.
+                </p>
+                <label className="flex min-h-[44px] items-start gap-2 font-semibold">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-5 w-5 shrink-0"
+                    checked={consented}
+                    disabled={processing}
+                    required
+                    aria-required="true"
+                    data-testid="pawlegends-consent"
+                    onChange={(event) => setConsented(event.target.checked)}
+                  />
+                  <span>
+                    I accept the Terms. I want {cat.name} delivered right away, and I understand that I lose my 14-day
+                    right of withdrawal once it is delivered.
+                  </span>
+                </label>
+              </div>
             )}
             {context && (
               <div data-testid="pawlegends-cat-payment">
