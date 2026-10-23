@@ -15,7 +15,7 @@ import { reducedMotion, shakePref, shakeScaleFor } from './fx/vfxPrefs';
 import { Shockwaves } from './fx/Shockwaves.js';
 import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
-import { RELATION } from './palette';
+import { RELATION, setSideSwap, setTeam0Dogs } from './palette';
 import type { GameRenderer } from './renderer';
 import { isShortLandscape, MOBA_DIST } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
@@ -32,7 +32,7 @@ import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './vi
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
-import { MinionInstances } from './views/minionInstances';
+import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
@@ -105,6 +105,9 @@ export class GameView {
   readonly heroes = new HeroView();
   readonly minions = new MinionInstances();
   readonly structures = new StructureView();
+  private readonly minionClear: { x: number; z: number }[] = [];
+  private footprints: { x: number; z: number; r: number }[] = [];
+  private coreZones: { x: number; z: number; r: number }[] = [];
   readonly pickups = new PickupView();
   readonly projectiles: ProjectileView;
   readonly telegraphs = new TelegraphPool(20);
@@ -247,6 +250,11 @@ export class GameView {
         onCoreDown: hooks.onCoreDown,
         onStructureWindup: (id, sec) => this.structures.windup(id, sec),
         onStructureFell: (id) => this.structures.fell(id),
+        hiddenMinionAt: (x, z) => {
+          // a core at 0 HP this frame (its burst starts on this tick) or one already falling
+          for (const e of this.frame?.entities ?? NO_ENTITIES) if (e.kind === 'core' && e.hp <= 0 && Math.hypot(toX(e.fx) - x, toZ(e.fy) - z) < 3.5) return true;
+          return inClearZone(this.structures.fallingCores(this.coreZones), x, z);
+        },
         onPickupSpawn: (index, kind, x, y) => this.pickups.spawn(index, kind, x, y),
         onPickupTaken: (kind, who) => {
           if (who) this.pickups.take(kind, who.x, who.z);
@@ -336,11 +344,15 @@ export class GameView {
       this.particles.burst(sv, { additive: true, n: 10, shape: SHAPE.SPARK, color: c, intensity: 2, size: [0.12, 0.22], life: [0.18, 0.3], speed: [3, 6], stretch: 2.2, drag: 4, up: 1 });
       this.particles.single(sv, { shape: SHAPE.STAR4, color: 0xfff6da, intensity: 2.2, size0: 1.3, size1: 0.2, life: 0.14, rot: 0 });
     };
+    this.structures.onCalmed = (x, z) => {
+      sv.set(x, 1, z);
+      this.particles.burst(sv, { n: 16, shape: SHAPE.PUFF, color: 0xffe6f0, alpha: 0.8, size: [0.6, 1.1], sizeEnd: 1.8, life: [0.5, 0.8], speed: [1.5, 3.5], up: 1.2, drag: 2 });
+      this.particles.burst(sv, { additive: true, n: 14, shape: SHAPE.STAR5, color: 0xff9ec0, intensity: 1.6, size: [0.18, 0.32], life: [0.5, 0.8], speed: [2, 4.5], up: 3, gravity: 5 });
+    };
     this.structures.onFallen = (x, z, core) => {
       sv.set(x, 0.4, z);
-      this.particles.burst(sv, { n: core ? 34 : 22, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [0.9, 1.6], sizeEnd: 2.6, life: [0.9, 1.5], speed: [1.5, 4.5], up: 0.6, drag: 1.6 });
-      this.shock.start(sv, { r1: core ? 7 : 4.5, dur: 0.45, color: '#FFE0C8', height: 0.4 });
-      this.juice.kick(core ? 0.35 : 0.22);
+      // the settle: a low puff only (trailer review: a second shockwave ring after the burst read as a second blast)
+      this.particles.burst(sv, { n: core ? 18 : 12, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.7, size: [0.8, 1.3], sizeEnd: 2.2, life: [0.7, 1.1], speed: [1, 3], up: 0.4, drag: 1.8 });
     };
     // a toppled tower hits the ground (dust along its length, a ring, a kick); a core bursts (a big ring and a puff)
     this.structures.onImpact = (x, z, dx, dz, len, core) => {
@@ -478,6 +490,12 @@ export class GameView {
   setSpecies(team0IsDogs: boolean): void {
     this.structures.styleSwap = team0IsDogs;
     this.minions.styleSwap = team0IsDogs;
+    // cats vs dogs reads the same from either side: heroes' cloth, bolts, banners and the plaza paw follow the
+    // species, and "ally" / "enemy" colours (rings, plates, bars, minimap) take our species' hue (palette.ts)
+    setTeam0Dogs(team0IsDogs);
+    setSideSwap(team0IsDogs !== (this.myTeam === 1));
+    this.heroes.styleSwap = team0IsDogs;
+    this.map.setStyleSwap(team0IsDogs);
   }
 
   /**
@@ -698,12 +716,21 @@ export class GameView {
       this.heroes.focus.z = this.gr.focus.z;
       setCharTime(this.time);
       this.director.update(frame, dt);
+      // bodies are drawn clear of the structures (last frame's footprints: they do not move)
+      this.heroes.obstacles = this.footprints;
+      this.minions.blocks = this.footprints;
       this.heroes.update(frame, dt);
-      this.minions.update(frame, dt, this.time);
       this.structures.me = me && me.state !== 'dead' ? { x: toX(me.fx), z: toZ(me.fy) } : null;
       this.structures.heroes.length = 0;
-    for (const e of frame.entities) if (e.kind === 'hero' && e.state !== 'dead') this.structures.heroes.push({ x: toX(e.fx), z: toZ(e.fy) });
-    this.structures.update(frame, dt);
+      for (const e of frame.entities) if (e.kind === 'hero' && e.state !== 'dead') this.structures.heroes.push({ x: toX(e.fx), z: toZ(e.fy) });
+      // minions are drawn clear of every hero body, a fallen one too (a corpse lay through a cart)
+      this.minionClear.length = 0;
+      for (const e of frame.entities) if (e.kind === 'hero') this.minionClear.push({ x: toX(e.fx), z: toZ(e.fy) });
+      this.minions.heroes = this.minionClear;
+      this.minions.clearZones = this.structures.fallingCores(this.minions.clearZones);
+      this.minions.update(frame, dt, this.time);
+      this.structures.update(frame, dt);
+      this.footprints = this.structures.footprints(this.footprints);
       this.projectiles.update(frame, dt);
       this.pickups.sync(frame.entities);
       this.companions?.update(frame, dt);
@@ -722,7 +749,7 @@ export class GameView {
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
-    this.map.update(frame, dt);
+    this.map.update(frame, dt, this.gr.camera.position);
     this.pickups.update(dt);
     this.vfx.update(dt, this.frame?.entities ?? NO_ENTITIES, this.mySlot);
     this.particles.update(dt);

@@ -1,0 +1,358 @@
+#!/usr/bin/env node
+/**
+ * Trailer v3 edit: builds the four masters from the captured footage (capture.mjs with v3/shots.mjs), the type
+ * overlays (v3/type.mjs) and the score (v3/score.mjs), then measures them.
+ *
+ *   node tools/trailer/v3/edit.mjs --dir DIR        (DIR/shots, DIR/mg, DIR/audio in; DIR/out out)
+ *
+ * Per master: the copy gate, every take's hash, every shot's overlap QC, every frame present; per-frame picture
+ * accents (a decaying shake <= 10 px, a one-frame exposure lift <= +15 % instead of any white flash, the 9:16 real-HUD
+ * band, the end card's darkened and blurred line-up); one encode with a light grade (contrast and saturation only, no
+ * bloom) and the type laid on top; H.264 High CRF 16 60 fps + AAC 320k, faststart. Then ffprobe, EBU R128 on the
+ * encoded file, and a per-shot luma check (share of near-white pixels), duplicate / black frame checks.
+ */
+import { execFile, execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpus } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { argValue } from '../../lib/args.mjs';
+import { lintTrailerCopy } from '../lint-copy.mjs';
+import { ASPECTS, CUTS, END_AT, END_PLATE, post, sourceFrame } from './timeline.mjs';
+import { SHOTS } from './shots.mjs';
+
+const run = promisify(execFile);
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DIR = resolve(argValue('--dir') ?? join(HERE, '..', 'out', 'v3'));
+const SHOTS_DIR = join(DIR, 'shots');
+const MG = join(DIR, 'mg');
+const AUDIO = join(DIR, 'audio');
+const OUT = join(DIR, 'out');
+const WORK = join(OUT, 'work');
+const ONLY_CUT = argValue('--cut');
+const ONLY_ASPECT = argValue('--aspect');
+const log = (...a) => console.log('[edit]', ...a);
+const pad4 = (f) => `f${String(f).padStart(4, '0')}.png`;
+
+// ---------------------------------------------------------------- checks
+
+const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
+const lint = lintTrailerCopy(copy);
+if (lint.findings.length) throw new Error(`copy gate failed: ${JSON.stringify(lint.findings)}`);
+log(`copy gate: ${lint.lines} lines, 0 findings`);
+const manifest = JSON.parse(readFileSync(join(SHOTS_DIR, 'manifest.json'), 'utf8'));
+const bad = Object.entries(manifest.shots).filter(([, s]) => s.hash && !s.hash.ok);
+if (bad.length) throw new Error(`take hash MISMATCH: ${bad.map(([k]) => k).join(', ')}`);
+// v3.1 capture gates (harness FrameQc): bodies overlapping on screen, a hero inside a structure, game text at the edge
+const gate = (key, what) => {
+  const bad = Object.entries(manifest.shots).filter(([, s]) => s[key]?.length);
+  if (bad.length) throw new Error(`${what} QC failed: ${bad.map(([k, s]) => `${k} ${JSON.stringify(s[key])}`).join('; ')}`);
+};
+if (!process.argv.includes('--no-gates')) {
+  gate('overlaps', 'overlap');
+  gate('inStruct', 'hero-in-structure');
+  gate('edgeText', 'edge text');
+}
+log(`takes: ${Object.keys(manifest.shots).length} shot captures, hashes ok, overlap / structure / edge-text QC clean`);
+
+// v3.1 type QC: no word (at its slam size) may touch a hero's body-and-plate box on any frame it is drawn
+const mgManifest = JSON.parse(readFileSync(join(MG, 'manifest.json'), 'utf8'));
+const qcCache = new Map();
+function qcOf(shot, aspect) {
+  const k = `${shot}/${aspect}`;
+  if (!qcCache.has(k)) {
+    const p = join(SHOTS_DIR, shot, aspect, 'qc.json');
+    qcCache.set(k, existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
+  }
+  return qcCache.get(k);
+}
+const typeQc = [];
+for (const cut of ['30', '15']) {
+  for (const aspect of ['16x9', '9x16']) {
+    const { W, H } = ASPECTS[aspect];
+    const boxes = mgManifest.cuts?.[cut]?.[aspect]?.boxes ?? {};
+    for (const [fs, list] of Object.entries(boxes)) {
+      const f = Number(fs);
+      if (f >= END_AT[cut]) continue;
+      const sf = sourceFrame(cut, f);
+      const s = SHOTS.find((x) => sf >= x.f0 && sf <= x.f1);
+      if (!s || s.lobby) continue;
+      const q = qcOf(s.id, aspect)?.[sf];
+      if (!q) continue;
+      for (const b of list) {
+        for (const h of q.heroes) {
+          const [x0, y0, x1, y1] = [h.box[0] * W, h.box[1] * H, h.box[2] * W, h.box[3] * H];
+          if (b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} over ${h.hero} (${s.id} f${sf})`);
+        }
+      }
+    }
+  }
+}
+if (typeQc.length) {
+  const by = {};
+  for (const t of typeQc) {
+    const k = t.split(' f')[0] + ' ' + t.split(' ')[3];
+    by[k] = (by[k] ?? 0) + 1;
+  }
+  log(`type QC: ${typeQc.length} word-over-hero frames: ${JSON.stringify(by)}; first: ${typeQc.slice(0, 6).join(' | ')}`);
+  if (!process.argv.includes('--no-gates')) throw new Error('type QC failed (a word touches a hero box)');
+} else log('type QC: no word touches a hero box on any frame');
+if (process.argv.includes('--qc-only')) process.exit(typeQc.length ? 1 : 0);
+
+/** The shot (by id) that owns master frame f. */
+const shotOf = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
+/** Footage path of master frame f in an aspect (null when missing). */
+function footage(f, aspect) {
+  const s = shotOf(f);
+  if (!s) return null;
+  const p = join(SHOTS_DIR, s.id, aspect, pad4(f));
+  return existsSync(p) ? p : null;
+}
+
+async function pool(jobs, n = Math.max(2, Math.min(8, cpus().length - 2))) {
+  let i = 0;
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (i < jobs.length) await jobs[i++]();
+  }));
+}
+const ff = (args) => run('ffmpeg', ['-hide_banner', '-v', 'error', '-y', ...args], { maxBuffer: 1 << 26 });
+
+// ---------------------------------------------------------------- per-frame plan
+
+/** Shake offset (px) at cut frame f: a decaying alternating kick of n frames. */
+function shakeAt(cut, f) {
+  for (const s of post(cut).shake) {
+    const t = f - s.f;
+    if (t < 0 || t >= s.n) continue;
+    const k = s.px * (1 - t / s.n);
+    return [Math.round(k * Math.sin(t * 2.3 + 0.7)), Math.round(k * Math.cos(t * 2.9 + 0.2))];
+  }
+  return null;
+}
+const punchAt = (cut, f) => post(cut).punch.find((p) => p.f === f)?.k ?? 0;
+
+function plan(cut, aspect) {
+  const out = [];
+  const v = aspect === '9x16';
+  for (let f = 0; f < CUTS[cut]; f++) {
+    const sf = sourceFrame(cut, f);
+    const s = shotOf(sf);
+    const band = v && s?.aspects && !s.aspects.includes('9x16');
+    const src = footage(sf, band ? '16x9' : aspect);
+    if (!src) throw new Error(`${cut}s ${aspect}: no footage for frame ${f} (master ${sf}, ${s?.id})`);
+    out.push({ f, sf, shot: s.id, src, band, end: f >= END_AT[cut], shake: shakeAt(cut, f), punch: punchAt(cut, f) });
+  }
+  return out;
+}
+
+async function buildBase(cut, aspect, dir) {
+  const { W, H } = ASPECTS[aspect];
+  const p = plan(cut, aspect);
+  const fx = join(dir, 'fx');
+  const base = join(dir, 'base');
+  const ov = join(dir, 'ov');
+  for (const d of [fx, base, ov]) {
+    rmSync(d, { recursive: true, force: true });
+    mkdirSync(d, { recursive: true });
+  }
+  const jobs = [];
+  for (const q of p) {
+    const chain = [];
+    if (q.band) {
+      // the real-HUD band: the landscape capture at full width over a blurred, darkened copy of itself
+      const bh = Math.round((W * 1080) / 1920 / 2) * 2;
+      chain.push(`split[bg][fg];[bg]scale=-2:${H},crop=${W}:${H},gblur=sigma=24,colorchannelmixer=rr=0.6:gg=0.6:bb=0.6[b];[fg]scale=${W}:${bh}:flags=lanczos[t];[b][t]overlay=0:${Math.round((H - bh) / 2)}`);
+    }
+    if (q.end) chain.push(`gblur=sigma=${END_PLATE.blur},colorchannelmixer=rr=${END_PLATE.darken}:gg=${END_PLATE.darken}:bb=${END_PLATE.darken}`);
+    if (q.shake) {
+      const m = 12;
+      chain.push(`scale=${W + 2 * m}:${H + 2 * m}:flags=bicubic,crop=${W}:${H}:${m + q.shake[0]}:${m + q.shake[1]}`);
+    }
+    if (q.punch) chain.push(`lutrgb=r='val*${1 + q.punch}':g='val*${1 + q.punch}':b='val*${1 + q.punch}'`);
+    if (!chain.length) continue;
+    q.fx = join(fx, pad4(q.f));
+    jobs.push(() => ff(['-i', q.src, '-filter_complex', `${chain.join(',')},format=rgb24`, '-frames:v', '1', q.fx]));
+  }
+  await pool(jobs);
+  const blank = join(dir, 'blank.png');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=black@0.0:s=${W}x${H},format=rgba`, '-frames:v', '1', blank]);
+  for (const q of p) {
+    symlinkSync(q.fx ?? q.src, join(base, pad4(q.f)));
+    const o = join(MG, cut, aspect, pad4(q.f));
+    symlinkSync(existsSync(o) ? o : blank, join(ov, pad4(q.f)));
+  }
+  return { plan: p, base, ov };
+}
+
+// ---------------------------------------------------------------- encode and measure
+
+function ffprobe(path) {
+  return JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-show_entries', 'format=duration,bit_rate:stream=codec_name,profile,width,height,pix_fmt,r_frame_rate,nb_read_frames,duration,sample_rate,channels,bit_rate', '-of', 'json', path], { encoding: 'utf8' }));
+}
+function loudness(path) {
+  const out = execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${path}" -map 0:a -af ebur128=peak=true:framelog=quiet -f null - 2>&1`], { encoding: 'utf8' });
+  const s = out.slice(out.lastIndexOf('Summary:'));
+  const num = (re) => Number(re.exec(s)?.[1]);
+  return { I: num(/I:\s+(-?[\d.]+) LUFS/), LRA: num(/LRA:\s+(-?[\d.]+) LU/), TP: num(/Peak:\s+(-?[\d.inf]+) dBFS/) };
+}
+
+/** Decode the master small and measure every frame: near-white share, mean luma, difference to the previous frame. */
+function frameStats(path, W, H, pre = []) {
+  const w = 160;
+  const h = Math.round((H * w) / W / 2) * 2;
+  return new Promise((ok, fail) => {
+    const p = spawn('ffmpeg', ['-v', 'error', ...pre, '-i', path, '-vf', `scale=${w}:${h}:flags=area,format=rgb24`, '-f', 'rawvideo', '-']);
+    const n = w * h * 3;
+    let buf = Buffer.alloc(0);
+    let prev = null;
+    const stats = [];
+    p.stdout.on('data', (d) => {
+      buf = Buffer.concat([buf, d]);
+      while (buf.length >= n) {
+        const fr = buf.subarray(0, n);
+        let white = 0;
+        let clip = 0;
+        let sumY = 0;
+        let diff = 0;
+        for (let i = 0; i < n; i += 3) {
+          const r = fr[i], g = fr[i + 1], b = fr[i + 2];
+          const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          const grey = (mx - mn) / Math.max(1, mx) < 0.25;
+          if (y >= 225 && grey) white++;
+          if (y >= 235 && grey) clip++;
+          sumY += y;
+          if (prev) diff += Math.abs(fr[i + 1] - prev[i + 1]);
+        }
+        stats.push({ white: white / (n / 3), clip: clip / (n / 3), y: sumY / (n / 3), diff: prev ? diff / (n / 3) : null });
+        prev = Buffer.from(fr);
+        buf = buf.subarray(n);
+      }
+    });
+    p.on('close', (c) => (c ? fail(new Error(`decode failed ${c}`)) : ok(stats)));
+  });
+}
+
+const report = { masters: {} };
+const FILES = { '30/16x9': 'pawlegends-trailer-30s-1080p.mp4', '30/9x16': 'pawlegends-trailer-30s-vertical.mp4', '15/16x9': 'pawlegends-trailer-15s-1080p.mp4', '15/9x16': 'pawlegends-trailer-15s-vertical.mp4' };
+mkdirSync(WORK, { recursive: true });
+for (const cut of ['30', '15']) {
+  if (ONLY_CUT && ONLY_CUT !== cut) continue;
+  for (const aspect of ['16x9', '9x16']) {
+    if (ONLY_ASPECT && ONLY_ASPECT !== aspect) continue;
+    const t0 = Date.now();
+    const { W, H } = ASPECTS[aspect];
+    const dir = join(WORK, `${cut}-${aspect}`);
+    const b = await buildBase(cut, aspect, dir);
+    const file = join(OUT, FILES[`${cut}/${aspect}`]);
+    const wav = join(AUDIO, `score-${cut}.wav`);
+    const N = CUTS[cut];
+    await run('ffmpeg', [
+      '-hide_banner', '-v', 'error', '-y',
+      '-framerate', '60', '-i', join(b.base, 'f%04d.png'),
+      '-framerate', '60', '-i', join(b.ov, 'f%04d.png'),
+      '-i', wav,
+      '-filter_complex', `[0:v]scale=${W}:${H}:flags=lanczos,eq=contrast=1.04:saturation=1.06,format=rgb24[g];[g][1:v]overlay=format=auto:shortest=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
+      '-map', '[v]', '-map', '2:a',
+      '-frames:v', String(N),
+      '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'slow', '-crf', '16', '-r', '60', '-g', '120',
+      '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
+      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', String(N / 60),
+      '-movflags', '+faststart', file,
+    ], { maxBuffer: 1 << 26 });
+    const probe = ffprobe(file);
+    const v = probe.streams.find((s) => s.codec_name === 'h264');
+    const a = probe.streams.find((s) => s.codec_name === 'aac');
+    const loud = loudness(file);
+    const stats = await frameStats(file, W, H);
+    // the luma gate reads the picture without the type (the cream type is meant to be bright)
+    const pic = await frameStats(join(b.base, 'f%04d.png'), W, H, ['-framerate', '60']);
+    stats.forEach((st, i) => {
+      st.white = pic[i]?.white ?? st.white;
+      st.clip = pic[i]?.clip ?? st.clip;
+    });
+    // per shot: the share of near-white pixels (mean over the shot) and its worst frame
+    const perShot = {};
+    stats.forEach((s, f) => {
+      const id = b.plan[f]?.end ? 'END' : b.plan[f]?.shot;
+      const o = (perShot[id] ??= { n: 0, white: 0, clip: 0, worst: 0, worstClip: 0 });
+      o.n++;
+      o.white += s.white;
+      o.clip += s.clip;
+      o.worst = Math.max(o.worst, s.white);
+      o.worstClip = Math.max(o.worstClip, s.clip);
+    });
+    for (const o of Object.values(perShot)) {
+      o.white = +(o.white / o.n).toFixed(4);
+      o.clip = +(o.clip / o.n).toFixed(4);
+      o.worst = +o.worst.toFixed(4);
+      o.worstClip = +o.worstClip.toFixed(4);
+    }
+    const black = stats.map((s, f) => (s.y < 12 ? f : -1)).filter((f) => f >= 0);
+    // a frozen picture outside the end card and the line-up's still moments (identical consecutive frames)
+    // the freeze and pop checks read the picture without the type (a word slamming in is not a pop)
+    const frozen = pic.map((s, f) => (s.diff !== null && s.diff < 0.02 && !b.plan[f]?.end && b.plan[f]?.shot !== 'S17' ? f : -1)).filter((f) => f >= 0);
+    const r = {
+      file,
+      frames: Number(v.nb_read_frames),
+      duration: Number(probe.format.duration),
+      video: { codec: v.codec_name, profile: v.profile, size: `${v.width}x${v.height}`, fps: v.r_frame_rate, pix: v.pix_fmt },
+      audio: { codec: a.codec_name, rate: Number(a.sample_rate), channels: a.channels, bitrate: Number(a.bit_rate) },
+      loudness: loud,
+      luma: perShot,
+      blackFrames: black,
+      frozenFrames: frozen,
+      typeQc: typeQc.filter((t) => t.startsWith(`${cut}s ${aspect}`)).length,
+      lastFrameY: +stats.at(-1).y.toFixed(1),
+    };
+    const fails = [];
+    if (r.frames !== N) fails.push(`frames ${r.frames} != ${N}`);
+    if (Math.abs(r.duration - N / 60) > 0.02) fails.push(`duration ${r.duration}`);
+    if (r.loudness.TP > -1) fails.push(`true peak ${r.loudness.TP}`);
+    if (Math.abs(r.loudness.I + 14) > 0.5) fails.push(`loudness ${r.loudness.I}`);
+    // glare: near-white, unsaturated pixels (Y >= 225; the dog base's pale lavender plaza is Y ~200 as the game paints
+    // it, so it is excluded) over 8 % of a shot on average or 15 % on its worst frame; blowouts at Y >= 235
+    for (const [id, o] of Object.entries(perShot)) {
+      if (id === 'END') continue;
+      if (o.white > 0.08 || o.worst > 0.15) fails.push(`glare ${id} mean ${o.white} worst ${o.worst}`);
+      if (o.clip > 0.07 || o.worstClip > 0.1) fails.push(`blowout ${id} mean ${o.clip} worst ${o.worstClip}`);
+    }
+    if (black.length) fails.push(`black frames ${black.join(',')}`);
+    // frozen gameplay: two or more identical frames in a row inside a gameplay shot
+    const frozenRuns = [];
+    for (let i = 0; i < frozen.length; i++) if (frozen[i + 1] === frozen[i] + 1 && (i === 0 || frozen[i - 1] !== frozen[i] - 1)) frozenRuns.push(frozen[i]);
+    if (frozenRuns.length) fails.push(`frozen gameplay from ${frozenRuns.join(',')}`);
+    // a pop: one frame's change over 4x its neighbours' (and over 3) inside a shot, not on a cut
+    const pops = [];
+    for (let f = 3; f < pic.length - 3; f++) {
+      const d = pic[f].diff;
+      if (d === null || d < 3 || b.plan[f].end || b.plan[f].shot !== b.plan[f - 1].shot || b.plan[f].shot !== b.plan[f + 1]?.shot) continue;
+      if (b.plan[f].shake || b.plan[f].punch) continue;
+      // a real gameplay snap (a knockback, a pull or a blink moved a hero over 0.5 m in one frame) is not a render pop
+      const sq = qcOf(b.plan[f].shot, b.plan[f].band ? '16x9' : aspect)?.[b.plan[f].sf];
+      if ((sq?.move ?? 0) > 0.5) continue;
+      // nor is the game's hit-stop: an impact frame after which the render clock holds (the hit lands, then freezes)
+      const tk = manifest.shots[`${b.plan[f].shot}/${b.plan[f].band ? '16x9' : aspect}`]?.ticks ?? {};
+      const sf0 = b.plan[f].sf;
+      if (tk[sf0] !== undefined && tk[sf0 + 1] === tk[sf0] && tk[sf0 + 2] === tk[sf0]) continue;
+      // isolated: far above both the frames before and the frames after (a motion onset keeps changing after it)
+      const med = (xs) => xs.map((x) => x.diff ?? 0).sort((a, c) => a - c)[1];
+      if (d > 6 && d > 4 * Math.max(0.5, med([pic[f - 3], pic[f - 2], pic[f - 1]])) && d > 4 * Math.max(0.5, med([pic[f + 1], pic[f + 2], pic[f + 3]]))) pops.push(f);
+    }
+    r.popFrames = pops.map((f) => ({ f, d: +pic[f].diff.toFixed(1), shot: b.plan[f].shot }));
+    if (pops.length) fails.push(`single-frame pops at ${pops.join(',')}`);
+    r.fails = fails;
+    report.masters[`${cut}/${aspect}`] = r;
+    log(`${cut}s ${aspect}: ${r.frames} frames, ${r.duration} s, I ${loud.I} LUFS, TP ${loud.TP} dBTP, ${((Date.now() - t0) / 1000).toFixed(0)} s${fails.length ? `  FAIL: ${fails.join('; ')}` : ''}`);
+    if (cut === '30') {
+      // posters: the whole Crossing with CATS VS DOGS (f118) and the end card (f1760)
+      for (const [name, f] of [['poster', 118], ['poster-endcard', 1760]]) {
+        const out = join(OUT, `pawlegends-trailer-${name}${aspect === '9x16' ? '-vertical' : ''}.png`);
+        await ff(['-i', file, '-vf', `select=eq(n\\,${f}),scale=out_range=full,format=rgb24`, '-frames:v', '1', out]);
+      }
+    }
+  }
+}
+writeFileSync(join(OUT, 'report.json'), `${JSON.stringify(report, null, 1)}\n`);
+log(join(OUT, 'report.json'));

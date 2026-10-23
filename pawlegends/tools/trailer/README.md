@@ -4,6 +4,13 @@
 > 2026-10-23, also `/pawlegends-game/index.html`): the Pawlegends client route exists only on `feat/pawlegends` and is
 > not deployed. Deploy it and confirm a 200 before anyone posts a master.
 
+**Capture QC (v3.1).** `harness.ts` `frame()` returns a per-frame `qc` (`FrameQc`): every on-screen hero's body-and-plate
+box, the pairs of bodies whose screen boxes share more than 45 % (`overlap`), heroes standing in a tower, core or Pudding
+footprint (`inStruct`), game text touching the frame edge (`edgeText`) and the reasons (`why`). `capture.mjs` writes it
+to `<shot>/<aspect>/qc.json` and fails a shot (`OVERLAP` / `STRUCTURE` / `EDGE TEXT QC FAIL`, recorded in
+`manifest.json`) on more than 2 such frames in a row; `v3/edit.mjs` refuses to render on any of them. The base banners
+are their own meshes (`banners`, `banners-swapped`) and are scaled to 0 unless a shot keeps `banners: true`.
+
 **v4 (review of v3)** is the current trailer: `shots.mjs`, `mg-timeline.mjs`, `copy.json` (HUGE ULTS. / TRIPLE
 TAKEDOWN.), `score.mjs`, `edl.json`. Hook: one clean side-on Belly Flop (take H) against the tree line, contact held 5
 frames under a white flash. Roll call: each hero's apex mid-shot with a slow-motion hold. 3V3: one orbit over all six.
@@ -151,3 +158,57 @@ not exactly 1800 (900) frames at 60 fps, the right size, or above -1 dBTP.
 
 Finished masters are copied to `pawlegends/media/trailer-v2/` (the gameplay-first trailer, v4 data) and the v1 "Meet Gabė"
 masters stay in `pawlegends/media/trailer/` (both gitignored, like every output here).
+
+**v3 ("Settle It on the Crossing", review of v2: "full of bugs, shoot it from above like real gameplay, sell cats vs dogs
+and the mission")** lives in `v3/` and leaves the v2 files untouched (v2 stays reproducible with the commands above).
+Every gameplay shot is the game's own camera: `cam.base: 'game'` (harness `placeGameRel`: the real follow, lead and
+fight pull-back, director keys as deltas on top) or the GAMECAM preset (`director.ts` GAMECAM: 23.76 m, pitch 48.8,
+FOV 38, yaw 0, ground look point). `gameLook: true` turns every v2 clean-up hack off (no culled trees, banners, towers,
+bolts or minions, full shockwaves except the core burst at 0.45, standing towers and cores always solid). Landscape is
+captured at 1280x720 CSS, DPR 1.5 (`size`, `dpr`); 9:16 uses `portrait.cam` (GAMECAM-P: FOV 50, 1.2x distance). Takes
+Y1 and Z1-Z10 come from a clean-moment scan (heroes >= 0.8 m apart, nobody behind a structure, both teams in frame).
+
+```sh
+node tools/trailer/seed-search.mjs --fixed --only Y1,Z1,Z2,Z3,Z4,Z5,Z6,Z7,Z8,Z9,Z10
+node tools/trailer/capture.mjs --shots-file tools/trailer/v3/shots.mjs --out <dir>/shots
+node tools/trailer/v3/score.mjs --out <dir>/audio      # 144 BPM, cat motif vs dog motif, -14 LUFS, <= -1 dBTP
+node tools/trailer/v3/type.mjs --out <dir>/mg          # copy gate (v3/copy.json), whole-word slams, 12° wipes
+node tools/trailer/v3/edit.mjs --dir <dir>             # 4 masters, posters, report.json (hash, overlap, luma, black frames)
+```
+
+**v3.1 (review of v3: "full of bugs").** Render fixes in the game (render only; `src/sim` untouched, tests in
+`tests/unit/trailer-v31-render.test.ts`):
+
+| Bug | Fix |
+|---|---|
+| Towers strobed pale/saturated under steady fire | `towerView.ts` `hitPulse`, `STRUCT_HIT`: one pulse after a quiet second, then a smoothed light tint |
+| A fallen core turned into a see-through ghost box, then rubble, carts and pups popped back | falls sink opaque into the ground while the rubble grows in (`RUBBLE_GROW`); `fallen` is final (the match-end frame can still list the core); carts stay hidden round a fallen core; no second shockwave on the settle |
+| Towers fell toward the camera (read as standing) | `fallDirOf`: across the screen, toward their own base |
+| Bodies merged, plates stacked, heroes in tower bases and Pudding | `heroView.ts` `layoutBodies`: warm-started, sideways-biased push-apart plus push-out of structure footprints; minions out of footprints; name plates over the drawn body (`Overhead.heroAt`) |
+| Damage numbers hung frozen on the core | merge capped (`DAMAGE_FX.mergeMax`), numbers of a fallen structure and round a core burst fade (`dropKey`, `dropNear`), none for hidden minions |
+| Pudding vanished on one frame when calmed | a hop, a shrink and a puff (`PUDDING_OUT`) |
+| Four rings on a fall | one ring at the crack, the fall's own impact ring |
+
+Harness (trailer only): `uiOut` (screen text in output time, so slow motion never freezes it), `heroNames` (plates
+show "Lambo", not a bot pet name), `selfEdge` (the "You" arrow only on the player's own camera), `bannerOn` (banner
+windows), `popText` defaults to the takedown callout. Lobby stands take `scale`.
+
+Shots (`v3/shots.mjs`): S02 is six heroes and their plates (no HUD: its top bar shows 2 allies against 3 enemies);
+S12 frames Pudding and the calming cat; S13 cracks the tower on f790 at full speed so the topple and the ground hit
+(f830) are in the shot; S14 and S14b are takes Y1 and Z10 on the gameplay camera; S16 is the gameplay framing on the
+player with no banner or world pop before the burst and no exposure punch; S17 is three cat champions against the two
+dog heroes. Type (`v3/timeline.mjs`, `v3/mg.js`): the mission as three beats (PUSH YOUR LANE., CALM PUDDING., TAKE
+THEIR CORE.) and VICTORY! after the burst; slams opaque from their first frame; every word fitted inside title safe at
+its 118 % slam; 9:16 lines in the top band. `v3/edit.mjs` gates: type box vs every hero box on every frame, glare
+(Y >= 225, unsaturated; the plaza is excluded) 8 % mean / 15 % worst, blowout (Y >= 235) 7 % / 10 %, frozen gameplay,
+isolated one-frame pops (real knockbacks and the game's hit-stops excepted), black frames. `--qc-only` stops after
+the capture and type gates.
+
+```sh
+node tools/trailer/capture.mjs --shots-file tools/trailer/v3/shots.mjs --aspect 16x9 --out <dir>/shots-l   # and 9x16
+# merge the two into <dir>/shots (one manifest, <shot>/<aspect> folders), then
+node tools/trailer/v3/type.mjs --out <dir>/mg && node tools/trailer/v3/score.mjs --out <dir>/audio
+node tools/trailer/v3/edit.mjs --dir <dir>
+```
+
+Still not releasable: `tokentails.com/pawlegends` must return 200 before any master is posted (see the top).

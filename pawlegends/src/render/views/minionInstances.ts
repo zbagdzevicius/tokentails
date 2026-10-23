@@ -96,6 +96,15 @@ export function minionArm(variant: MinionVariant, strikeT: number, attackT: numb
   return M.cock * smooth(1 - until / W);
 }
 
+/** A minion is drawn at least this far (m) from a hero's centre (render only; the sim lets them overlap). */
+export const MINION_CLEAR = 0.75;
+
+/** True when (x, z) m lies inside one of the zones (render only). */
+export function inClearZone(zones: readonly { x: number; z: number; r: number }[], x: number, z: number): boolean {
+  for (const c of zones) if ((x - c.x) * (x - c.x) + (z - c.z) * (z - c.z) < c.r * c.r) return true;
+  return false;
+}
+
 export class MinionInstances {
   readonly group = new THREE.Group();
   private meshes: THREE.InstancedMesh[] = [];
@@ -115,6 +124,12 @@ export class MinionInstances {
   myTeam: 0 | 1 = 0;
   /** Round 2: team 0 is the dogs (the human picked a dog): each team wears the other style. */
   styleSwap = false;
+  /** Ground circles (m) where minions are not drawn this frame (a falling core: no cart clipping its burst). */
+  clearZones: { x: number; z: number; r: number }[] = [];
+  /** Live hero positions (m) this frame: a minion is drawn pushed out of a hero's body (render only). */
+  heroes: { x: number; z: number }[] = [];
+  /** Structure footprints (m): a minion is drawn outside them (a pup stood inside the doghouse wall, trailer review). */
+  blocks: readonly { x: number; z: number; r: number }[] = [];
 
   constructor() {
     this.group.name = 'minions';
@@ -199,6 +214,7 @@ export class MinionInstances {
     }
     for (const e of frame.entities) {
       if (e.kind !== 'minion' || e.state === 'dead') continue;
+      if (this.clearZones.length && inClearZone(this.clearZones, toX(e.fx), toZ(e.fy))) continue;
       const v = (VARIANTS as readonly string[]).includes(e.variant ?? '') ? (e.variant as MinionVariant) : 'melee';
       const team = e.team === 1 ? 1 : 0;
       // round 2: a dog-picking human's own wave are pups (styleSwap: the species, not the slot, picks the look)
@@ -237,8 +253,33 @@ export class MinionInstances {
       // the lunge: forward on the strike, back with the cock (object +X is forward)
       const lunge = arm > 0 ? (a.strikeT >= 0 && a.strikeT < 0.12 ? MINION_ANIM.lunge * (1 - a.strikeT / 0.12) : 0) : arm * 0.08;
       const sh = a.shove * MINION_ANIM.shove;
-      const px = a.x + Math.cos(a.yaw) * lunge + a.hx * sh;
-      const pz = a.z - Math.sin(a.yaw) * lunge + a.hz * sh;
+      let px = a.x + Math.cos(a.yaw) * lunge + a.hx * sh;
+      let pz = a.z - Math.sin(a.yaw) * lunge + a.hz * sh;
+      const px0 = px;
+      const pz0 = pz;
+      // never inside a hero's body: pushed out to MINION_CLEAR m from the nearest hero (at most 0.5 m)
+      for (const h of this.heroes) {
+        const dx = px - h.x;
+        const dz = pz - h.z;
+        const d = Math.hypot(dx, dz);
+        if (d >= MINION_CLEAR) continue;
+        const push = Math.min(0.5, MINION_CLEAR - d);
+        const ux = d > 1e-4 ? dx / d : 1;
+        const uz = d > 1e-4 ? dz / d : 0;
+        px += ux * push;
+        pz += uz * push;
+      }
+      for (const b of this.blocks) {
+        const dx = px - b.x;
+        const dz = pz - b.z;
+        const d = Math.hypot(dx, dz);
+        const min = b.r + 0.35;
+        if (d >= min) continue;
+        const ux = d > 1e-4 ? dx / d : 1;
+        const uz = d > 1e-4 ? dz / d : 0;
+        px += ux * Math.min(2, min - d);
+        pz += uz * Math.min(2, min - d);
+      }
       const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
       const sq = 1 - a.hit * 0.18;
       const s = SCALE[v];
@@ -255,7 +296,7 @@ export class MinionInstances {
       }
       _m.compose(_p.set(px, hop, pz), _q, _s.set(s * (1 + a.hit * 0.15), s * sq, s * (1 + a.hit * 0.15)));
       mesh.setMatrixAt(i, _m);
-      this.rings.add(a.x, a.z, 0.95 * s, team === this.myTeam ? RELATION.ally : RELATION.enemy, 0.7);
+      this.rings.add(a.x + px - px0, a.z + pz - pz0, 0.95 * s, team === this.myTeam ? RELATION.ally : RELATION.enemy, 0.7);
     }
     // gone this frame: the death tumble starts where it stood
     for (const [id, a] of this.anim) {

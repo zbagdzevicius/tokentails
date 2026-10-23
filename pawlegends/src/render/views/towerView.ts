@@ -47,7 +47,46 @@ interface Structure {
   impacted: boolean;
   team: number;
   stamp: number;
+  /** Last time it took a hit (render s): a core under attack never fades. */
+  hitAt: number;
+  /** Under fire (0..1, smoothed): a steady light tint instead of a white pulse on every hit (no strobe). */
+  heat: number;
+  /** The fall has finished: a tower or core never stands up again, even if the frame still lists it (match end). */
+  fallen: boolean;
+  /** Footprint radius (m) for drawing unit bodies clear of it. */
+  radius: number;
+  /** Its rubble has been laid (it grows in while the structure sinks). */
+  rubbled?: boolean;
 }
+
+/**
+ * Hit feedback on a structure (render only). Trailer review: a tower under steady fire pulsed white on every hit and
+ * strobed between washed-out and saturated. Now only the first hit after a quiet `gap` s pulses; while hits keep
+ * coming the structure holds a light `tint` (smoothed at `rate` per s).
+ */
+export const STRUCT_HIT = Object.freeze({ gap: 1.0, pulse: 0.8, tint: 0.1, hold: 0.5, rate: 6 });
+
+/** The hit pulse a structure takes now (pure): a full pulse after a quiet gap, none under steady fire. */
+export function hitPulse(sinceLastHit: number, flash: number): number {
+  return sinceLastHit > STRUCT_HIT.gap ? Math.max(flash, STRUCT_HIT.pulse) : flash;
+}
+
+/**
+ * Rubble left by a fall grows in over this long (s) while the structure sinks into the ground: the structure is never
+ * drawn see-through (trailer review: a translucent ghost box, then rubble popping in on one frame).
+ */
+export const RUBBLE_GROW = 0.35;
+
+/**
+ * The direction a tower falls (rad about the vertical, 0 = +x): across the screen, toward its own base (away from the
+ * attackers). Trailer review: a tower falling toward the camera foreshortened into what looked like a tower standing.
+ */
+export function fallDirOf(team: number): number {
+  return team === 1 ? 0 : Math.PI;
+}
+
+/** Pudding leaving the map (calmed): a hop and a shrink over this long (s), with a puff (render only). */
+export const PUDDING_OUT = 0.5;
 
 /** Shot rhythm (s) and the charge / recoil / fall shapes. */
 export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30, corePeriod: CORE_STATS.attackEvery / 30, chargeFrom: 0.6, crouch: 0.05, glow: 0.4, recoil: 0.08, fallTower: 1.1, fallCore: 1.3 });
@@ -58,15 +97,35 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
  */
 export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
 
-/** Chunks thrown by a fall: pool size, per tower / core at full quality, gravity (m/s²), life (s). */
-const DEBRIS = Object.freeze({ pool: 48, tower: 16, core: 26, gravity: 22, life: 1.5 });
+/**
+ * Chunks thrown by a fall: pool size, per tower / core at full quality, gravity (m/s²), life (s), and the core burst's
+ * launch speed (m/s) and chunk size (m). Trailer review: the core threw 26 big unit boxes that filled the frame, hung in
+ * the sky and read as placeholder primitives; now fewer, smaller, faceted chunks on a short, low arc.
+ */
+export const DEBRIS = Object.freeze({ pool: 48, tower: 12, core: 14, gravity: 22, life: 1.0, coreSpeed: 6, coreSize: 0.42, towerSize: 0.42 });
 
 const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
 /**
  * X-ray: a tower or core fades while a hero stands in the patch it hides on screen. The camera looks north (−Z)
  * from the south, so a tall structure covers the ground just north of it.
  */
-const COVER = Object.freeze({ halfWidth: 1.9, north: 5.5, south: 0.6, opacity: 0.32 });
+const COVER = Object.freeze({ halfWidth: 1.9, north: 5.5, south: 0.6, opacity: 0.32, coreHitHold: 5, coreHpFloor: 0.6 });
+
+/**
+ * The x-ray opacity a tower or core wants. A core under attack (hit in the last `coreHitHold` s) or already hurt
+ * (below `coreHpFloor` of its HP) stays solid: the climax ("Their core is falling!") must show the core, not a ghost.
+ */
+export function xrayOpacity(kind: string, hides: boolean, hpFrac: number, sinceHit: number): number {
+  if (!hides) return 1;
+  if (kind === 'core' && (sinceHit < COVER.coreHitHold || hpFrac < COVER.coreHpFloor)) return 1;
+  return COVER.opacity;
+}
+
+/** A fallen tower's rubble line: held (s), then sunk into the ground over (s). */
+export const RUBBLE = Object.freeze({ hold: 4, sink: 1.5 });
+
+/** Invulnerable bubble alpha: at the rim and across the face (render only). */
+export const BUBBLE = Object.freeze({ rim: 0.42, core: 0.02 });
 
 /** Chunk colours per side (walls, trim, roof) and scratch objects (no per-frame allocation). */
 const DEBRIS_CAT = [0xf3ead8, 0xe6d6b8, 0xff6f91, 0xc94a72, 0xffd27a];
@@ -88,7 +147,17 @@ export class StructureView {
   private items = new Map<number, Structure>();
   private rubble: THREE.Mesh[] = [];
   private bubbleGeo = new THREE.SphereGeometry(1, 20, 14);
-  private bubbleMat = new THREE.MeshBasicMaterial({ color: 0x9fd3ff, transparent: true, opacity: 0.09, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  /**
+   * The invulnerable bubble: a fresnel rim (bright at the silhouette, clear in the middle), normal blending. It was a
+   * flat additive sphere that washed the pale plaza round the core and towers to a white glare.
+   */
+  private bubbleMat = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(0x9fd3ff) }, uRim: { value: BUBBLE.rim }, uCore: { value: BUBBLE.core } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform vec3 uColor; uniform float uRim, uCore; varying vec3 vN; varying vec3 vV; void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(uColor, uCore + uRim * f * f * f); }',
+    transparent: true,
+    depthWrite: false,
+  });
   private rubbleMat = new THREE.MeshLambertMaterial({ color: 0x9a8f80 });
   private ranges = new DecalLayer(dashRingTexture(), 8, { additive: true, y: 0.06, name: 'tower-ranges' });
   private geoCache = new Map<string, THREE.BufferGeometry>();
@@ -101,6 +170,8 @@ export class StructureView {
   reduced = false;
   /** A tower / core shot left at (x, y, z) m (gameView: the muzzle burst). */
   onShot: ((x: number, y: number, z: number, team: number) => void) | null = null;
+  /** Pudding left at (x, z) (calmed): gameView's puff and sparkles. */
+  onCalmed: ((x: number, z: number) => void) | null = null;
   /** A fall finished at (x, z) (gameView: the dust settling). */
   onFallen: ((x: number, z: number, core: boolean) => void) | null = null;
   /**
@@ -133,7 +204,8 @@ export class StructureView {
   constructor() {
     this.group.name = 'structures';
     this.group.add(this.ranges.mesh);
-    this.debrisMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), DEBRIS.pool);
+    // faceted chunks (a low-poly stone), not unit cubes
+    this.debrisMesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.62, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), DEBRIS.pool);
     this.debrisMesh.name = 'structure-debris';
     this.debrisMesh.count = 0;
     this.debrisMesh.frustumCulled = false;
@@ -198,9 +270,9 @@ export class StructureView {
         this.dR[o + c] += this.dW[o + c] * dt;
       }
       const s = this.dS[i];
-      if (this.dP[o + 1] < s * 0.5) {
-        // the ground: a damped bounce, friction, the tumble slows
-        this.dP[o + 1] = s * 0.5;
+      if (this.dP[o + 1] < s * 0.62) {
+        // the ground (the chunk's radius): a damped bounce, friction, the tumble slows
+        this.dP[o + 1] = s * 0.62;
         if (this.dV[o + 1] < 0) this.dV[o + 1] *= -0.32;
         this.dV[o] *= 0.6;
         this.dV[o + 2] *= 0.6;
@@ -211,7 +283,7 @@ export class StructureView {
       _e.set(this.dR[o], this.dR[o + 1], this.dR[o + 2]);
       _q.setFromEuler(_e);
       _v.set(this.dP[o], this.dP[o + 1], this.dP[o + 2]);
-      _sv.set(k, k * 0.8, k);
+      _sv.set(k, k, k);
       _m4.compose(_v, _q, _sv);
       this.debrisMesh.setMatrixAt(i, _m4);
     }
@@ -270,8 +342,11 @@ export class StructureView {
         mesh.add(bubble);
       }
       mesh.geometry.computeBoundingBox();
-      const height = mesh.geometry.boundingBox ? mesh.geometry.boundingBox.max.y : 4;
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: (e.id * 2.39996) % (Math.PI * 2), height, team: e.team, stamp: 0, impacted: false };
+      const bb = mesh.geometry.boundingBox;
+      const height = bb ? bb.max.y : 4;
+      // the footprint: the base's half-width (towers and cores are drawn at their entity point)
+      const radius = bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) * (e.kind === 'tower' || e.kind === 'core' ? 0.9 : 1) : 1.2;
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius };
       this.items.set(e.id, s);
     }
     return s;
@@ -280,7 +355,7 @@ export class StructureView {
   /** Tower / core `id` fell (the sim's tower event, the core's death): its fall starts now, once. */
   fell(id: number): void {
     const s = this.items.get(id);
-    if (!s || !s.alive || (s.kind !== 'tower' && s.kind !== 'core')) return;
+    if (!s || !s.alive || s.fallen || (s.kind !== 'tower' && s.kind !== 'core')) return;
     s.alive = false;
     s.dieT = 0;
     s.flash = 1;
@@ -310,8 +385,11 @@ export class StructureView {
   hit(id: number): void {
     const s = this.items.get(id);
     if (!s) return;
-    s.flash = 0.8;
-    s.shake = s.kind === 'camp' ? 1 : 0.6;
+    const quiet = this.time - s.hitAt;
+    s.hitAt = this.time;
+    // every structure, Pudding and the camp monsters too: a pulse after a quiet spell, a steady tint under fire
+    s.flash = hitPulse(quiet, s.flash);
+    if (quiet > STRUCT_HIT.gap) s.shake = s.kind === 'camp' ? 1 : 0.6;
   }
 
   setShadows(on: boolean): void {
@@ -344,7 +422,8 @@ export class StructureView {
       if (!STRUCTURE_KINDS.has(e.kind)) continue;
       const s = this.ensure(e);
       s.stamp = stamp;
-      if (s.dieT >= 0) continue;
+      // falling, or fallen: a structure never stands up again (the match-end frame can still list a dead core)
+      if (s.dieT >= 0 || s.fallen) continue;
       s.alive = true;
       s.mesh.visible = true;
       s.x = toX(e.fx);
@@ -381,7 +460,7 @@ export class StructureView {
         const hides = this.heroes.some(
           (h) => Math.abs(h.x - s.x) < COVER.halfWidth * scale && s.z - h.z < COVER.north * scale && s.z - h.z > -COVER.south,
         );
-        const want = hides ? COVER.opacity : 1;
+        const want = xrayOpacity(e.kind, hides, s.hpFrac, this.time - s.hitAt);
         const u = s.rig.uOpacity;
         u.value += (want - u.value) * Math.min(1, dt * 10);
         if (Math.abs(u.value - want) < 0.01) u.value = want;
@@ -392,7 +471,10 @@ export class StructureView {
           s.material.needsUpdate = true;
         }
       }
-      s.rig.uFlashK.value = s.flash * 0.7;
+      // under steady fire: a light, smoothed tint (no strobe); the first hit after a quiet spell still pulses
+      const hot = this.time - s.hitAt < STRUCT_HIT.hold ? 1 : 0;
+      s.heat += (hot - s.heat) * Math.min(1, dt * STRUCT_HIT.rate);
+      s.rig.uFlashK.value = Math.max(s.flash * 0.7, s.heat * STRUCT_HIT.tint);
       s.rig.uTime.value = this.time;
       if (s.bubble) s.bubble.visible = (e.buffs & BuffFlag.Invulnerable) !== 0;
       if (s.bubble?.visible) s.bubble.scale.setScalar((s.kind === 'core' ? 3.2 : 2.4) * (1 + Math.sin(this.time * 3) * 0.02));
@@ -409,7 +491,7 @@ export class StructureView {
         this.fall(s, dt);
         continue;
       }
-      if (s.stamp === stamp || !s.alive) continue;
+      if (s.stamp === stamp || !s.alive || s.fallen) continue;
       s.alive = false;
       if (s.kind === 'tower' || s.kind === 'core') {
         // the fall plays out before the rubble is left
@@ -419,8 +501,14 @@ export class StructureView {
         if (s.bubble) s.bubble.visible = false;
         continue;
       }
+      if (s.kind === 'pudding') {
+        // calmed (or gone): a short hop and shrink with a puff, never a vanish on one frame (trailer review)
+        s.dieT = 0;
+        this.onCalmed?.(s.x, s.z);
+        continue;
+      }
       s.mesh.visible = false;
-      if (s.kind === 'camp' || s.kind === 'pudding') {
+      if (s.kind === 'camp') {
         this.items.delete(id);
         s.material.dispose();
         this.group.remove(s.mesh);
@@ -428,10 +516,26 @@ export class StructureView {
     }
     this.ranges.end();
     this.updateDebris(dt);
+    this.updateRubble();
   }
 
-  /** A tower or core falling (see the header); the rubble at the end. */
+  /** A tower or core falling (see the header); the rubble at the end. Pudding leaving: a hop and a shrink. */
   private fall(s: Structure, dt: number): void {
+    if (s.kind === 'pudding') {
+      s.dieT += dt;
+      const u = Math.min(1, s.dieT / PUDDING_OUT);
+      const hop = Math.sin(Math.min(1, u * 1.6) * Math.PI) * 0.9;
+      const k = u < 0.35 ? 1 + u * 0.4 : Math.max(0, 1.14 * (1 - (u - 0.35) / 0.65));
+      s.mesh.position.y = hop;
+      s.mesh.scale.set(k, k * (u < 0.15 ? 0.85 : 1.05), k);
+      if (u >= 1) {
+        s.mesh.visible = false;
+        this.items.delete(s.id);
+        s.material.dispose();
+        this.group.remove(s.mesh);
+      }
+      return;
+    }
     const core = s.kind === 'core';
     const L = core ? STRUCT_ANIM.fallCore : STRUCT_ANIM.fallTower;
     s.dieT += dt;
@@ -441,12 +545,13 @@ export class StructureView {
     const yaw = s.team === 1 ? Math.PI : 0;
     if (u >= 1) {
       s.dieT = -1;
+      s.fallen = true;
       s.mesh.visible = false;
       s.mesh.rotation.set(0, yaw, 0);
       s.mesh.scale.setScalar(1);
       s.rig.uOpacity.value = 1;
-      if (core || this.reduced) this.addRubble(s.x, s.z, core ? 2.4 : 1.4);
-      else this.addRubble(s.x + dx * s.height * 0.45, s.z + dz * s.height * 0.45, 1.6, dx, dz, s.height * 0.5);
+      // the rubble grew in during the settle (no pop); reduce motion adds it here
+      if (!s.rubbled) this.rubbleFor(s, dx, dz, false);
       this.onFallen?.(s.x, s.z, core);
       return;
     }
@@ -470,7 +575,7 @@ export class StructureView {
       s.rig.uFlashK.value = s.flash * 0.75;
       if (!s.impacted && u >= F.burst) {
         s.impacted = true;
-        this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.8, colors, 9, 0.75);
+        this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.6, colors, DEBRIS.coreSpeed, DEBRIS.coreSize);
         this.onImpact?.(s.x, s.z, 0, 0, 0, true);
       }
       const sy = (1 + swell) * (1 - 0.62 * cave) * (1 - 0.25 * settle);
@@ -480,7 +585,11 @@ export class StructureView {
       _q.setFromAxisAngle(_v.set(dz, 0, -dx), tilt);
       _q2.setFromAxisAngle(_up, yaw);
       s.mesh.quaternion.copy(_q).multiply(_q2);
-      s.mesh.position.set(s.x + shud, -s.height * 0.35 * settle * settle, s.z);
+      // it settles a little and fades (it used to sink a third of its height through the plaza)
+      // it sinks into the plaza, opaque (the ground hides it), while its rubble grows in round it: never a
+      // see-through ghost box, never rubble popping in on one frame (trailer review)
+      if (settle > 0 && !s.rubbled) this.rubbleFor(s, dx, dz, true);
+      s.mesh.position.set(s.x + shud, -s.height * 0.5 * settle * settle, s.z);
       return;
     }
     // tower: crack (flash, swell, shudder) -> topple about the base edge (gravity) -> a bounce -> break up and sink
@@ -498,7 +607,7 @@ export class StructureView {
     if (!s.impacted && u >= F.hit) {
       s.impacted = true;
       const len = s.height * 0.95;
-      this.throwChunks(DEBRIS.tower, s.x, s.z, dx, dz, len, 0.4, 1.4, colors, 7.5, 0.6);
+      this.throwChunks(DEBRIS.tower, s.x, s.z, dx, dz, len, 0.4, 1.4, colors, 7.5, DEBRIS.towerSize);
       this.onImpact?.(s.x, s.z, dx, dz, len, false);
     }
     // the pivot is the base edge on the fall side: the base lifts as it rolls over it
@@ -507,10 +616,48 @@ export class StructureView {
     s.mesh.quaternion.copy(_q).multiply(_q2);
     const lift = R * Math.sin(Math.max(0, th));
     const slide = R * (1 - Math.cos(th));
-    const sink = brk * brk * 1.1;
+    // break-up: it sinks into the ground, opaque, while the rubble along its fall line grows in (no ghost, no pop)
+    if (brk > 0 && !s.rubbled) this.rubbleFor(s, dx, dz, true);
+    const sink = brk * brk * 1.9;
     s.mesh.position.set(s.x + dx * slide + shud, lift - sink, s.z + dz * slide);
     const sxz = (1 + swell) * (1 - 0.3 * brk);
     s.mesh.scale.set(sxz, (1 + swell) * (1 - 0.55 * brk), sxz);
+  }
+
+  /** The rubble a fall leaves (growing in over RUBBLE_GROW s when `grow`), once per structure. */
+  private rubbleFor(s: Structure, dx: number, dz: number, grow: boolean): void {
+    s.rubbled = true;
+    const from = grow ? this.time : -Infinity;
+    if (s.kind === 'core' || this.reduced) this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4, 0, 0, 0, Infinity, from);
+    else {
+      // the line of rubble the tower fell along sinks away after RUBBLE.hold s (it lay across the lane: carts
+      // drove through it); a small pile stays on its base
+      this.addRubble(s.x + dx * s.height * 0.45, s.z + dz * s.height * 0.45, 1.6, dx, dz, s.height * 0.5, this.time + RUBBLE.hold + 0.4, from);
+      this.addRubble(s.x, s.z, 0.9, 0, 0, 0, Infinity, from);
+    }
+  }
+
+  /**
+   * Ground circles (m) round each core that is falling or has fallen (minions there are not drawn: no cart in the
+   * burst; trailer review: hidden only while it fell, the carts and pups popped back on the rubble when it ended).
+   */
+  fallingCores(out: { x: number; z: number; r: number }[]): { x: number; z: number; r: number }[] {
+    out.length = 0;
+    for (const s of this.items.values()) if (s.kind === 'core' && (s.dieT >= 0 || s.fallen)) out.push({ x: s.x, z: s.z, r: 3.5 });
+    return out;
+  }
+
+  /**
+   * Footprints (m) of the standing towers and cores, Pudding and the camp monsters: unit bodies are drawn outside
+   * them (render only; the sim lets a hero stand in a tower's base).
+   */
+  footprints(out: { x: number; z: number; r: number }[]): { x: number; z: number; r: number }[] {
+    out.length = 0;
+    for (const s of this.items.values()) {
+      if (s.kind === 'fountain' || !s.alive || s.fallen || s.dieT >= 0 || !s.mesh.visible) continue;
+      out.push({ x: s.x, z: s.z, r: s.radius * (s.kind === 'pudding' || s.kind === 'camp' ? s.mesh.scale.x : 1) });
+    }
+    return out;
   }
 
   /** Last drawn ground position of a structure. */
@@ -520,7 +667,7 @@ export class StructureView {
   }
 
   /** Rubble round (x, z), or (a fallen tower) strewn along the line (dx, dz) over ±len. */
-  private addRubble(x: number, z: number, r: number, dx = 0, dz = 0, len = 0): void {
+  private addRubble(x: number, z: number, r: number, dx = 0, dz = 0, len = 0, sinkAt = Infinity, growFrom = -Infinity): void {
     const g = new THREE.DodecahedronGeometry(1, 0);
     for (let i = 0; i < 7; i++) {
       const m = new THREE.Mesh(g, this.rubbleMat);
@@ -528,12 +675,49 @@ export class StructureView {
       const d = r * (0.3 + ((i * 37) % 10) / 14);
       const t = len ? (i / 6 - 0.5) * 2 * len : 0;
       m.position.set(x + Math.cos(a) * d * (len ? 0.5 : 1) + dx * t, 0.15, z + Math.sin(a) * d * (len ? 0.5 : 1) + dz * t);
-      m.scale.setScalar(0.25 + ((i * 13) % 7) / 12);
+      const sc = 0.25 + ((i * 13) % 7) / 12;
+      m.scale.setScalar(Number.isFinite(growFrom) ? 0.001 : sc);
       m.rotation.set(i, i * 2, i * 3);
       m.receiveShadow = true;
+      m.userData.sinkAt = sinkAt;
+      m.userData.size = sc;
+      m.userData.growFrom = growFrom;
       this.group.add(m);
       this.rubble.push(m);
     }
+  }
+
+  /** Rubble past its hold sinks into the ground over RUBBLE.sink s and is removed (its geometry freed with the last piece). */
+  private updateRubble(): void {
+    let gone = false;
+    for (const m of this.rubble) {
+      const g0 = m.userData.growFrom as number;
+      if (Number.isFinite(g0)) {
+        const k = Math.min(1, Math.max(0, (this.time - g0) / RUBBLE_GROW));
+        m.scale.setScalar(Math.max(0.001, (m.userData.size as number) * (1 - (1 - k) * (1 - k))));
+        if (k >= 1) m.userData.growFrom = -Infinity;
+      }
+      const at = m.userData.sinkAt as number;
+      if (!(this.time > at)) continue;
+      const k = (this.time - at) / RUBBLE.sink;
+      m.position.y = 0.15 - k * 1.2;
+      if (k >= 1) {
+        m.userData.gone = true;
+        gone = true;
+      }
+    }
+    if (!gone) return;
+    const left = this.rubble.filter((m) => !m.userData.gone);
+    const used = new Set(left.map((m) => m.geometry));
+    for (const m of this.rubble) {
+      if (!m.userData.gone) continue;
+      this.group.remove(m);
+      if (!used.has(m.geometry)) {
+        used.add(m.geometry);
+        m.geometry.dispose();
+      }
+    }
+    this.rubble = left;
   }
 
   dispose(): void {

@@ -31,7 +31,7 @@ export const DAMAGE_STYLE = Object.freeze({
 // pawlegends: a 0.8 s merge window (one counter per target in a teamfight) and at most `perKey` numbers per target.
 export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.8, perKey: 3, bump: 1.15, life: 0.95, lifeCrit: 1.2, rise: 0.6, dx: 0.25,
   t1: 0.06, s1: 1.35, t2: 0.14, s2: 0.95, t3: 0.2, outScale: 0.7, fade: 0.25, wordLift: 0.25, wordLife: 0.8, popLife: 0.7, popIn: 0.18, popPeak: 1.2,
-  wordCap: 2, wordLane: 0.35 });
+  wordCap: 2, wordLane: 0.35, mergeMax: 1.2 });
 
 /** WA §5.3 words (display text; story may override through ctx.strings `word.<id>`). */
 export const WORDS = Object.freeze({ slash1: 'Snip!', slash2: 'Snap!', slash3: 'Swoosh!', bright: 'Shine!', holy: 'Sunburst!', parry: 'Ting!',
@@ -73,6 +73,15 @@ export function popCurve(t, F = DAMAGE_FX) {
   const scale = t < half ? F.popPeak * (t / half) : t < F.popIn ? F.popPeak + (1 - F.popPeak) * ((t - half) / (F.popIn - half)) : 1;
   const alpha = t < F.popLife - 0.2 ? 1 : Math.max(0, (F.popLife - t) / 0.2);
   return { scale, alpha };
+}
+
+/** Margin (px) around the viewport inside which a number's anchor still counts as on screen. */
+export const ONSCREEN_MARGIN = 24;
+
+/** True when a projected anchor (px) is inside the viewport plus the margin. Off-screen hits are
+ *  hidden rather than pinned to the border (they piled up in the corners). */
+export function onScreenAnchor(x, y, w, h, m = ONSCREEN_MARGIN) {
+  return x >= -m && x <= w + m && y >= -m && y <= h + m;
 }
 
 const _p = new THREE.Vector3(), _r = new THREE.Vector3();
@@ -198,6 +207,9 @@ export class DamageNumbers {
     if (key != null && NUMERIC.has(style) && Number.isFinite(value)) {
       for (const n of this.pool) {
         if (!n.active || n.kind !== 'num' || n.key !== key || now - n.hitT > DAMAGE_FX.mergeWindow) continue;
+        // pawlegends: a counter merges for at most mergeMax s, then a new one starts (trailer review: steady fire on a
+        // core kept one number frozen in place for seconds)
+        if (now - (n.born ?? now) > DAMAGE_FX.mergeMax) continue;
         n.value += value; n.hitT = now; n.bump = 1;
         n.t = Math.min(n.t, DAMAGE_FX.t3);                 // keep it alive and big
         if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = DAMAGE_STYLE[style].size; this._paint(n, String(Math.round(n.shownValue)), style); }
@@ -219,7 +231,7 @@ export class DamageNumbers {
     const iso = this._iso();
     n.pos.copy(pos); n.t = 0; n.kind = 'num'; n.active = true; n.key = key; n.style = style;
     n.life = style === 'crit' ? DAMAGE_FX.lifeCrit : DAMAGE_FX.life;
-    n.value = Number.isFinite(value) ? value : NaN; n.shownValue = n.value; n.hitT = now; n.bump = 0;
+    n.value = Number.isFinite(value) ? value : NaN; n.shownValue = n.value; n.hitT = now; n.born = now; n.bump = 0;
     this._side = -this._side;
     n.dx = DAMAGE_FX.dx * this._side;
     // pawlegends: numbers still rising on the same target stack upward instead of on top of each other.
@@ -265,6 +277,16 @@ export class DamageNumbers {
     n.size = DAMAGE_STYLE.pop.size; n.value = NaN; n.bump = 0;
     this._paint(n, text, 'pop');
     return true;
+  }
+
+  /** pawlegends: the target `key` is gone (a tower or core fell): its numbers fade out now instead of hanging over it. */
+  dropKey(key) {
+    for (const n of this.pool) if (n.active && n.kind === 'num' && n.key === key) n.t = Math.max(n.t, n.life - DAMAGE_FX.fade);
+  }
+
+  /** pawlegends: numbers anchored within `r` m of (x, z) fade now (a core burst: the minions round it are gone). */
+  dropNear(x, z, r) {
+    for (const n of this.pool) if (n.active && n.kind === 'num' && Math.hypot(n.pos.x - x, n.pos.z - z) < r) n.t = Math.max(n.t, n.life - DAMAGE_FX.fade);
   }
 
   /** Words and pops on screen now. */
@@ -318,8 +340,12 @@ export class DamageNumbers {
       if (n.dx) _p.addScaledVector(_r, n.dx * u);
       _p.project(cam);
       if (_p.z > 1 || _p.z < -1) { n.el.style.opacity = '0'; continue; }
-      // pawlegends: kept inside the screen (a word at the edge was cut in half on a phone).
-      const x = Math.min(w - 56, Math.max(56, (_p.x * 0.5 + 0.5) * w)), y = Math.min(h - 24, Math.max(24, (-_p.y * 0.5 + 0.5) * h));
+      // pawlegends: a number whose anchor is off screen is hidden (it used to be pinned to the
+      // border and piled up in the corners); one whose anchor is on screen is kept inside it
+      // (a word at the edge was cut in half on a phone).
+      const sx = (_p.x * 0.5 + 0.5) * w, sy = (-_p.y * 0.5 + 0.5) * h;
+      if (!onScreenAnchor(sx, sy, w, h)) { n.el.style.opacity = '0'; continue; }
+      const x = Math.min(w - 56, Math.max(56, sx)), y = Math.min(h - 24, Math.max(24, sy));
       const s = c.scale * (1 + (DAMAGE_FX.bump - 1) * n.bump) * (iso ? isoNumberScale(n.size ?? 26, dist) : 1);
       n.el.style.opacity = c.alpha.toFixed(3);
       n.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) translate(-50%,-50%) scale(${s.toFixed(3)})${n.kind === 'word' ? ' skewX(-4deg)' : ''}`;

@@ -20,7 +20,7 @@ import { ELEMENT_COLOR, lookCoat, mixColor, type Coat, type Look } from '../cosm
 import { TEAM } from '../palette';
 import { PAL } from '../ppk/characters/palette.js';
 import type { Assembly, ChibiSpec, CoatSpec, EyeSpec } from './chibi';
-import { bowPieces, C, coatColor, mat } from './chibi';
+import { bowPieces, C, coatColor, mat, SPOT_FREQ } from './chibi';
 import { getSkin, isCardSkinId, type CatSkin } from '../skins/skinStore';
 import { clampForTeam, rungAtLeast, trimForTeam } from '../skins/registry';
 import { deltaE } from '../skins/classify';
@@ -134,7 +134,7 @@ const SAGE_COAT: CoatSpec = { pattern: 'tabby', base: 0x9fb3c8, deep: 0x5f7189, 
 const SAGE_EYES = { inner: 0xbfe8a8, outer: 0x5fa86a, ring: 0x2c4a30, size: 1.12 } as const;
 /** Sim v9 champions: the card coats (render/cosmetics.ts SHELTER_HEROES wear these plus chromas only). */
 const LAMBO_COAT: CoatSpec = { pattern: 'solid', base: 0x5a5a60, deep: 0x37373c, light: 0x8c8c94, cream: 0xb8b8c0 };
-const AVIETE_COAT: CoatSpec = { pattern: 'spots', base: 0xf5f3ee, deep: 0x1e1c22, light: 0xffffff, cream: 0xf0ebe0 };
+const AVIETE_COAT: CoatSpec = { pattern: 'spots', base: 0xf5f3ee, deep: 0x1e1c22, light: 0xffffff, cream: 0xf0ebe0, spotFreq: SPOT_FREQ };
 const BENGAS_COAT: CoatSpec = { pattern: 'tabby', base: 0x4a3226, deep: 0x241812, light: 0xd8b48c, cream: 0xe8cfae, stripe: 0.6 };
 const GABE_COAT: CoatSpec = { pattern: 'points', base: 0xefe2cc, deep: 0x4a3428, light: 0xfff6e8, cream: 0xfff6e8 };
 const POT_GREY = 0x9aa0a8;

@@ -1198,3 +1198,5 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
   html[data-touch='1'] .pl-talents { left: calc(50% - 80px); }
   html[data-touch='1'] .pl-talents button { width: 124px; padding: 5px 8px; }
 }
+/* Trailer review: an announcer banner never draws over the objective chip; the chip steps aside while it is up. */
+.pl-match:has(.pl-banner.on) .pl-goal.on { opacity: 0; transform: translate(-50%, -8px); animation: none; }

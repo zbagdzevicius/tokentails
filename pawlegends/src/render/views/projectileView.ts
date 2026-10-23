@@ -10,7 +10,7 @@ import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { FADE, SHAPE, type Particles } from '../fx/Particles.js';
 import { elementColor, type CombatVfx } from '../fx/combatVfx';
-import { RELATION, TEAM } from '../palette';
+import { RELATION, TEAM, dressTeam } from '../palette';
 import { TELEGRAPH_OVER } from '../telegraph';
 import { DecalLayer, discTexture } from './decals';
 import { tinted, type CardFx } from '../skins/cardFx';
@@ -33,15 +33,25 @@ function set(size: number, y: number, color: number, trail: number): Look {
   return _look;
 }
 
+/**
+ * Ground zones are additive discs: at 0.55-0.95 they blew the pale plaza and the river out to a white disc (trailer
+ * review). Every zone's alpha is scaled by this; the rim of the disc texture still marks the edge.
+ */
+export const ZONE_GLARE_K = 0.35;
+/** An arming zone is a telegraph (danger to read): dimmed less. */
+export const ZONE_ARMING_K = 0.7;
+
 export function look(kind: number, team: number): Look {
-  const t = team === 1 ? TEAM[1] : TEAM[0];
+  // cats rose, dogs blue whichever slot they play (palette.ts dressTeam)
+  const dt = dressTeam(team);
+  const t = TEAM[dt];
   switch (kind) {
     case PROJECTILE_KIND.ranged:
       return set(0.22, 0.7, team === 0 ? 0x9fd3ff : 0xffd27a, 0.12);
     case PROJECTILE_KIND.siege:
       return set(0.42, 1.4, t.main, 0.2);
     case PROJECTILE_KIND.tower:
-      return set(0.42, 3.6, team === 0 ? 0xff9fc0 : 0x8fb4ff, 0.3);
+      return set(0.42, 3.6, dt === 0 ? 0xff9fc0 : 0x8fb4ff, 0.3);
     case PROJECTILE_KIND.core:
       return set(0.6, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
     // sim v9: Lambo's tuna can and Bengas's burnt toast
@@ -165,7 +175,7 @@ export class ProjectileView {
       if (z.kind === ZONE_KIND.dome) {
         // Sim v10 (GAPS B6): Guard Post, a gold floor ring in the relation colour under a shimmering half-sphere
         const r = z.radius / 1000;
-        this.zones.add(toX(z.x), toZ(z.y), r * 2, rel, 0.55 + Math.sin(this.time * 6 + z.index) * 0.15);
+        this.zones.add(toX(z.x), toZ(z.y), r * 2, rel, ZONE_GLARE_K * (0.55 + Math.sin(this.time * 6 + z.index) * 0.15));
         const d = this.domes[domes++];
         if (d) {
           d.visible = true;
@@ -180,11 +190,11 @@ export class ProjectileView {
         const arming = (z.arm ?? 0) > 0;
         const col = arming ? rel : (BURST_COLOR[frame.byId.get(z.owner)?.hero ?? ''] ?? rel);
         const a = arming ? 0.45 + Math.abs(Math.sin(this.time * 12)) * 0.4 : 0.75 + Math.sin(this.time * 9 + z.index) * 0.2;
-        this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, col, a);
+        this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, col, (arming ? ZONE_ARMING_K : ZONE_GLARE_K) * a);
         continue;
       }
       const pulse = 0.55 + Math.sin(this.time * 5 + z.index) * 0.15;
-      this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, rel, pulse);
+      this.zones.add(toX(z.x), toZ(z.y), (z.radius / 1000) * 2, rel, ZONE_GLARE_K * pulse);
     }
     this.zones.end();
     for (let i = domes; i < this.domes.length; i++) this.domes[i].visible = false;

@@ -17,6 +17,8 @@ export interface CamKey {
   fov?: number;
   /** Look-at height above the target (m). */
   lift?: number;
+  /** Game-relative shots (`cam.base: 'game'`, v3): 0 = the game's own look point, 1 = the shot's target. */
+  blend?: number;
   ease?: Ease;
 }
 
@@ -26,12 +28,26 @@ export interface CamState {
   yaw: number;
   fov: number;
   lift: number;
+  blend?: number;
 }
 
 /** [frame, speed, ease?]: the speed ramp of a shot (1 = real time, 0 = hit-stop). */
 export type RampKey = readonly [number, number, Ease?];
 
 export const CAM_DEFAULT: CamState = Object.freeze({ dist: 1, pitch: 55, yaw: 0, fov: 40, lift: 1 });
+
+/**
+ * v3: the real gameplay camera as a director preset (renderer.ts: MOBA_DIST 27 x ZOOM_DEFAULT 0.88 = 23.76 m,
+ * isoPitch(23.76 m) - MOBA_PITCH_DROP = 48.8 deg, FOV 38, yaw 0, the look point on the ground).
+ */
+export const GAMECAM: CamState = Object.freeze({ dist: 1, pitch: 48.8, yaw: 0, fov: 38, lift: 0 });
+
+/**
+ * v3 game-relative keys (`cam.base: 'game'`): the game's own camera each frame (its follow, lead and fight pull-back),
+ * with `dist` a multiple of the game's distance, `pitch` and `yaw` degrees added to it, `fov` absolute and `blend`
+ * the share of the look point moved from the game's focus to the shot's target.
+ */
+export const GAME_REL: CamState = Object.freeze({ dist: 1, pitch: 0, yaw: 0, fov: 38, lift: 0, blend: 0 });
 
 const cubicInOut = (u: number): number => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
@@ -56,12 +72,13 @@ export function ease(name: Ease | undefined, u: number, span = 6): number {
   }
 }
 
-const FIELDS = ['dist', 'pitch', 'yaw', 'fov', 'lift'] as const;
+const FIELDS = ['dist', 'pitch', 'yaw', 'fov', 'lift', 'blend'] as const;
 
 /** The camera at output frame `f` (keys sorted by frame). */
 export function camAt(keys: readonly CamKey[], f: number, base: CamState = CAM_DEFAULT): CamState {
   const out: CamState = { ...base };
   for (const field of FIELDS) {
+    if (out[field] === undefined && !keys.some((k) => k[field] !== undefined)) continue;
     // the last key at or before f that sets this field, and the next one after f
     let prev: CamKey | null = null;
     let next: CamKey | null = null;
@@ -70,6 +87,7 @@ export function camAt(keys: readonly CamKey[], f: number, base: CamState = CAM_D
       if (k.f <= f) prev = k;
       else if (!next) next = k;
     }
+    if (!prev && !next) continue;
     if (!prev && next) out[field] = next[field] as number;
     else if (prev && !next) out[field] = prev[field] as number;
     else if (prev && next) {

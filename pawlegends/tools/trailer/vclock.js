@@ -14,6 +14,9 @@
   const realClearTimeout = window.clearTimeout.bind(window);
   const EPOCH = Date.UTC(2026, 10, 12, 12, 0, 0);
   let now = 0;
+  /** The UI clock (output time): the screen-space game text (.pl-pops, .pl-callouts, .pl-banner) animates on it. */
+  let uiNow = 0;
+  const UI_SEL = '.pl-pops, .pl-callouts, .pl-banner';
   let free = true;
   let freeBase = realNow();
   let freeFrom = 0;
@@ -112,10 +115,12 @@
     for (const a of document.getAnimations()) {
       let s = seen.get(a);
       if (!s) {
-        s = { at: now, local: Number(a.currentTime) || 0 };
+        const el = a.effect?.target;
+        const ui = !!(el && el.closest && el.closest(UI_SEL));
+        s = { at: ui ? uiNow : now, local: Number(a.currentTime) || 0, ui };
         seen.set(a, s);
       }
-      const t = s.local + (now - s.at) * (a.playbackRate || 1);
+      const t = s.local + ((s.ui ? uiNow : now) - s.at) * (a.playbackRate || 1);
       const timing = a.effect?.getComputedTiming?.();
       const end = timing ? Number(timing.endTime) : Infinity;
       try {
@@ -165,8 +170,10 @@
     jump(ms) {
       now = Math.max(now, ms);
     },
-    advance(ms) {
+    /** `uiMs`: the UI clock's step (output time; defaults to `ms`). */
+    advance(ms, uiMs = ms) {
       if (free) this.free(false);
+      uiNow += Math.max(0, uiMs);
       const target = now + Math.max(0, ms);
       // fire timers at their own due times, so a 1.3 s pop removal lands inside the frame it belongs to
       for (let guard = 0; guard < 10000; guard++) {
