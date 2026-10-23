@@ -65,6 +65,34 @@ export function landOffset(t, k = 1) {
   return { x: e * Math.sin((t - 5) * 2.4 + 0.6), y: e * Math.cos((t - 5) * 2.9) };
 }
 
+/**
+ * v4 per-letter SLAM (each letter `stagger` frames after the one before): scale 2.1 -> 0.86 by +4 (out) with a drop
+ * from above, overshoot to 1.07 by +7, settle at 1 by +10; a single blur on the first frames (an analytic smear,
+ * never stacked copies); a small alternating tilt that straightens out.
+ */
+export function letterState(t, i = 0) {
+  if (t < 0) return null;
+  let s = 1;
+  let dy = 0;
+  let blur = 0;
+  if (t < 4) {
+    const e = ease.out(t / 4);
+    s = lerp(2.1, 0.86, e);
+    dy = -(1 - e) * 0.42;
+    blur = 1 - e;
+  } else if (t < 7) s = lerp(0.86, 1.07, ease.inOut((t - 4) / 3));
+  else if (t < 10) s = lerp(1.07, 1, ease.inOut((t - 7) / 3));
+  const rot = (i % 2 ? 1 : -1) * 0.14 * (1 - clamp01(t / 7));
+  return { s, dy, a: clamp01((t + 1) / 2.5), blur, rot };
+}
+
+/** The scale punch on every beat once a line has landed (1.04 on the beat, back over 5 frames). */
+export function beatPulse(f, t) {
+  if (t < 10) return 1;
+  const u = ((f % BEAT_FRAMES) + BEAT_FRAMES) % BEAT_FRAMES;
+  return u < 5 ? 1 + 0.04 * (1 - u / 5) : 1;
+}
+
 // ---------------------------------------------------------------- type
 
 const FONT = 'Fredoka';
@@ -305,20 +333,90 @@ export class Compositor {
   drawLineInner(ctx, e, f, o, t) {
     const L = this.layoutLines(e);
     const top = e.y - ((e.lines.length - 1) * L.lh) / 2;
-    const from = this.slamFrom(Math.max(...L.widths));
-    const draw = (c, sub) => {
-      const st = e.anim === 'slam' ? slamState(t + sub, from) : popState(t + sub);
-      if (!st) return;
-      e.lines.forEach((line, i) => {
-        const box = { x: e.x - L.widths[i] / 2, y: top + i * L.lh, w: L.widths[i] };
-        // the group scales about the block centre, so multi-line slams stay locked together
-        const gy = (box.y - e.y) * (st.s * o.s - 1);
-        this.drawTransformed(c, line, { ...box, y: box.y + gy }, L.size, { s: st.s * o.s, a: st.a * o.a, rot: st.rot }, e.color ? { fill: C[e.color] } : {});
+    if (e.scrim) this.scrim(ctx, e.x, e.y, (e.lines.length - 1) * L.lh + CAP * L.size, Math.max(...L.widths), clamp01((t + 1) / 4) * o.a, e.scrimA ?? 0.45);
+    e.lines.forEach((line, i) => {
+      const box = { x: e.x - L.widths[i] / 2, y: top + i * L.lh, w: L.widths[i] };
+      this.plate(ctx, box, L.size, t, o.a);
+      this.drawLetters(ctx, line, box, L.size, t, f, o, e.color ? { fill: C[e.color] } : {});
+    });
+  }
+
+  /**
+   * v4: a dark skewed plate behind a run of type, wiped in left to right over the slam's first 4 frames (the type
+   * always sits on a dark ground, whatever the footage does under it).
+   */
+  plate(ctx, box, size, t, a = 1) {
+    if (t < 0 || a <= 0) return;
+    const padX = size * 0.32;
+    const h = CAP * size * 1.62;
+    const sk = h * 0.22;
+    const x0 = box.x - padX;
+    const x1 = box.x + box.w + padX;
+    const u = ease.out(clamp01((t + 1) / 4));
+    const xr = lerp(x0, x1, u);
+    const y0 = box.y - h / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.74 * a;
+    ctx.fillStyle = '#1c0b20';
+    ctx.beginPath();
+    ctx.moveTo(x0 + sk, y0);
+    ctx.lineTo(xr + sk, y0);
+    ctx.lineTo(xr - sk, y0 + h);
+    ctx.lineTo(x0 - sk, y0 + h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 0.95 * a;
+    ctx.fillStyle = C.pinkDeep;
+    ctx.fillRect(x0 - sk, y0 + h - 7 * this.k, xr - x0, 7 * this.k);
+    ctx.restore();
+  }
+
+  /** v4: a run slammed letter by letter (two passes: every outline and toon shadow, then every fill). */
+  drawLetters(ctx, text, box, size, t, f, o, opt = {}) {
+    const chars = disp(text).match(/\P{M}\p{M}*/gu) ?? [];
+    setFont(ctx, size);
+    const xs = chars.map((_, i) => ctx.measureText(chars.slice(0, i).join('')).width);
+    const ws = chars.map((ch) => ctx.measureText(ch).width);
+    const n = chars.length;
+    const stag = n > 1 ? Math.min(1, 6 / (n - 1)) : 0;
+    const g = o.s * beatPulse(f, t - stag * (n - 1));
+    const cx = box.x + box.w / 2;
+    const sw = Math.max(10 * this.k, size * 0.07);
+    const sy = Math.max(8 * this.k, size * 0.055);
+    const fill = opt.fill ?? C.cream;
+    for (const pass of [0, 1]) {
+      chars.forEach((ch, i) => {
+        if (ch === ' ') return;
+        const st = letterState(t - i * stag, i);
+        if (!st) return;
+        ctx.save();
+        ctx.globalAlpha = st.a * o.a;
+        ctx.translate(cx, box.y);
+        ctx.scale(g, g);
+        ctx.translate(box.x + xs[i] + ws[i] / 2 - cx, st.dy * size);
+        ctx.rotate(st.rot);
+        ctx.scale(st.s, st.s);
+        if (st.blur > 0.15) ctx.filter = `blur(${(st.blur * 5 * this.k).toFixed(1)}px)`;
+        const x = -ws[i] / 2;
+        const by = (CAP * size) / 2;
+        ctx.textAlign = 'left';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        if (pass === 0) {
+          ctx.fillStyle = C.pinkDark;
+          ctx.strokeStyle = C.pinkDark;
+          ctx.lineWidth = sw * 2;
+          ctx.strokeText(ch, x, by + sy);
+          ctx.fillText(ch, x, by + sy);
+          ctx.strokeStyle = C.cocoa;
+          ctx.strokeText(ch, x, by);
+        } else {
+          ctx.fillStyle = fill;
+          ctx.fillText(ch, x, by);
+        }
+        ctx.restore();
       });
-    };
-    if (e.scrim) this.scrim(ctx, e.x, e.y, (e.lines.length - 1) * L.lh + CAP * L.size, Math.max(...L.widths), clamp01((t + 1) / 4) * o.a, e.scrimA);
-    // motion blur on +0..+2 only; from +3 the line is drawn once, whole (fill, stroke and shadow at one opacity)
-    this.blurred(ctx, e.anim === 'slam' && t <= 2 ? 8 : 1, draw);
+    }
   }
 
   drawWords(ctx, e, f) {
@@ -363,15 +461,8 @@ export class Compositor {
       const t = f - w.in;
       if (t < 0) return;
       const box = { ...L.boxes[i], x: L.boxes[i].x + shift };
-      const fill = w.color ? C[w.color] : C.cream;
-      const from = this.slamFrom(box.w);
-      const anim = w.anim ?? e.anim;
-      const draw = (c, sub) => {
-        const st = anim === 'slam' ? slamState(t + sub, from) : popState(t + sub);
-        if (!st) return;
-        this.drawTransformed(c, w.t, box, L.size, { s: st.s * o.s, a: st.a * o.a, rot: st.rot }, { fill });
-      };
-      this.blurred(ctx, anim === 'slam' && t <= 2 ? 8 : 1, draw);
+      this.plate(ctx, box, L.size, t, o.a);
+      this.drawLetters(ctx, w.t, box, L.size, t, f, o, { fill: w.color ? C[w.color] : C.cream });
     });
   }
 
@@ -624,11 +715,26 @@ export class Compositor {
     ctx.fillStyle = rg;
     ctx.fillRect(0, 0, W, H);
     if (fg) {
-      // the line-up rises 6 % of the height into place over 10 frames after the slam (ease out), then idles
+      // the line-up rises 6 % of the height into place over 10 frames after the slam (ease out); v4: then each hero
+      // hops on its own eighth note (left to right), and all of them on the final stab
       const u = ease.out(clamp01((t - 2) / 10));
+      const kc = this.keyed(fg);
       ctx.save();
       ctx.globalAlpha = u;
-      ctx.drawImage(this.keyed(fg), 0, (1 - u) * 0.06 * H);
+      for (const st of this.lineupStrips(kc)) {
+        const hop = (th) => (th >= 0 && th < 14 ? Math.sin((Math.PI * th) / 14) : 0);
+        const th = e ? f - (e.hops + st.i * (BEAT_FRAMES / 2)) : -1;
+        const ts = e ? f - e.stab : -1;
+        const hgt = Math.max(hop(th), 1.2 * hop(ts));
+        const land = (x) => (x >= 14 && x < 18 ? 1 - (x - 14) / 4 : x >= -2 && x < 0 ? (x + 2) / 2 : 0);
+        const sq = Math.max(land(th), land(ts));
+        const sy = 1 - 0.1 * sq + 0.06 * hgt;
+        const sx = 1 + 0.08 * sq - 0.03 * hgt;
+        const dy = -hgt * 0.085 * H + (1 - u) * 0.06 * H;
+        const bx = st.x + st.w / 2;
+        const by = st.y + st.h;
+        ctx.drawImage(kc, st.x, st.y, st.w, st.h, bx - (st.w * sx) / 2, by - st.h * sy + dy, st.w * sx, st.h * sy);
+      }
       ctx.restore();
     }
     const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.78);
@@ -637,6 +743,39 @@ export class Compositor {
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
     this.dither(ctx, f);
+  }
+
+  /**
+   * v4: the line-up split into one strip per hero: the keyed frame's occupied extent (per band of rows in 9:16, two
+   * rows of four; one row of eight in 16:9) cut into equal columns (the heroes stand evenly spaced).
+   */
+  lineupStrips(cv) {
+    const { W, H } = this;
+    const d = cv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+    const rowOcc = new Uint8Array(H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x += 3) if (d[(y * W + x) * 4 + 3] > 60) { rowOcc[y] = 1; break; }
+    const bands = [];
+    for (let y = 0; y < H; y++) {
+      if (!rowOcc[y]) continue;
+      const last = bands[bands.length - 1];
+      if (last && y - last[1] < 24) last[1] = y;
+      else bands.push([y, y]);
+    }
+    const big = bands.filter(([a, b]) => b - a > 60);
+    const rows = this.v ? big.slice(0, 2) : big.slice(0, 1);
+    const per = this.v ? 4 : 8;
+    const out = [];
+    rows.forEach(([y0, y1], r) => {
+      let x0 = W;
+      let x1 = 0;
+      for (let y = y0; y <= y1; y += 2) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 60) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+      const cw = (x1 - x0 + 1) / per;
+      for (let c = 0; c < per; c++) {
+        const top = Math.max(0, y0 - 20);
+        out.push({ i: r * per + c, x: Math.floor(x0 + c * cw), y: top, w: Math.ceil(cw), h: Math.min(H, y1 + 8) - top });
+      }
+    });
+    return out;
   }
 
   /** A flat paw print (the plate's drifting prints). */
@@ -665,14 +804,14 @@ export class Compositor {
   /** End-card layout: 16:9 per the storyboard (logo y 420, pill y 640, sub 740, URL 820); 9:16 lockup ~80 % wide. */
   endLayout() {
     return this.v
-      ? { logoY: 500, logoW: 800, ctaY: 730, pw: 680, ph: 156, subY: 872, sub: 72, urlY: 985, url: 64, creditX: null, creditY: 1760, credit: 38 }
-      : { logoY: 230, logoW: 980, ctaY: 432, pw: 620, ph: 138, subY: 552, sub: 60, urlY: 648, url: 62, creditX: 1880, creditY: 1052, credit: 30 };
+      ? { logoY: 470, logoW: 900, ctaY: 720, pw: 700, ph: 160, subY: 870, sub: 74, urlY: 985, url: 66, creditX: null, creditY: 1760, credit: 38 }
+      : { logoY: 190, logoW: 1180, ctaY: 395, pw: 640, ph: 140, subY: 505, sub: 60, urlY: 590, url: 62, creditX: 1880, creditY: 1052, credit: 30 };
   }
 
   logoLayout() {
     if (this.logoL) return this.logoL;
     // v3: the lockup fills logoW (about half the 16:9 frame, three quarters of the 9:16 one)
-    const capPx = this.v ? 300 : 340;
+    const capPx = this.v ? 320 : 400;
     let size = capPx / CAP;
     const a = this.copy?.LOGOa ?? 'Paw';
     const b = this.copy?.LOGOb ?? 'legends';
@@ -728,7 +867,7 @@ export class Compositor {
 
   drawLogo(ctx, e, f) {
     const t = f - e.logo;
-    const st = slamState(t);
+    const st = slamState(t, 2.2);
     if (!st) return;
     const L = this.logoLayout();
     const cx = this.endCx();
@@ -736,8 +875,8 @@ export class Compositor {
     const tb = f - e.bump;
     const bump = tb < 0 || tb > 10 ? 0 : tb < 3 ? ease.out(tb / 3) : 1 - ease.inOut((tb - 3) / 7);
     const draw = (c, sub) => {
-      const s2 = slamState(t + sub);
-      const s = s2.s * (1 + 0.05 * bump);
+      const s2 = slamState(t + sub, 2.2);
+      const s = s2.s * (1 + 0.07 * bump);
       c.save();
       c.globalAlpha = s2.a;
       c.translate(cx, cy);
@@ -751,8 +890,10 @@ export class Compositor {
       drawRun(c, this.copy?.LOGOb ?? 'legends', x + L.wa, 0, L.size, { fill: C.pinkDeep, sw, sy });
       c.restore();
     };
-    // a hard slam: one smeared frame, then sharp
-    this.blurred(ctx, t <= 0 ? 6 : 1, draw);
+    // a hard slam: one analytic smear on the first frame (no stacked copies), then sharp
+    if (t <= 0) ctx.filter = `blur(${Math.round(6 * this.k)}px)`;
+    draw(ctx, 0);
+    ctx.filter = 'none';
     // the landing: a shockwave ring and gold sparkles (frames +5..+24)
     if (t >= 5 && t <= 24) {
       const p = (t - 5) / 19;
@@ -922,6 +1063,38 @@ export class Compositor {
     }
   }
 
+  /**
+   * v4: the white flashes (the hook contact, the core burst, the logo slam: a plain white layer at `a`, under the type)
+   * and the white diagonal wipe between card looks (a soft-edged band crossing the frame over 5 frames).
+   */
+  drawWhites(ctx, f) {
+    for (const w of this.post.white ?? []) {
+      if (w.f !== f) continue;
+      ctx.save();
+      ctx.globalAlpha = w.a;
+      ctx.fillStyle = '#fffaf2';
+      ctx.fillRect(0, 0, this.W, this.H);
+      ctx.restore();
+    }
+    for (const w of this.post.wipe ?? []) {
+      const u = (f - (w.f - 2) + 0.5) / 5;
+      if (u <= 0 || u >= 1) continue;
+      const { W, H } = this;
+      const bw = W * 0.42;
+      const x = lerp(-bw - H * 0.4, W + H * 0.4, ease.inOut(u));
+      const g = ctx.createLinearGradient(x, 0, x + bw, 0);
+      g.addColorStop(0, 'rgba(255,250,242,0)');
+      g.addColorStop(0.35, 'rgba(255,250,242,0.95)');
+      g.addColorStop(0.65, 'rgba(255,250,242,0.95)');
+      g.addColorStop(1, 'rgba(255,250,242,0)');
+      ctx.save();
+      ctx.fillStyle = g;
+      ctx.transform(1, 0, -0.4, 1, H * 0.2, 0);
+      ctx.fillRect(x - 10, 0, bw + 20, H);
+      ctx.restore();
+    }
+  }
+
   // ------------------------------------------------ entry points
 
   /** Overlay (transparent) for frame f. Returns true when anything was drawn. */
@@ -929,6 +1102,7 @@ export class Compositor {
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.W, this.H);
+    this.drawWhites(ctx, f);
     for (const e of this.els) {
       if (e.kind === 'line') this.drawLine(ctx, e, f);
       else if (e.kind === 'words') this.drawWords(ctx, e, f);

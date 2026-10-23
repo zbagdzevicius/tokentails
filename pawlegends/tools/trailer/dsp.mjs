@@ -523,11 +523,13 @@ function truePeakAt(x, i) {
  * Look-ahead brick-wall limiter on oversampled peaks, linked stereo, in place and latency-compensated (the output
  * lines up with the input sample for sample, so frame-locked hits stay on their frames).
  */
-export function limit(bus, ceilingDb = -1.2, lookahead = 0.002, release = 0.08) {
-  const c = dbToGain(ceilingDb);
+export function limit(bus, ceilingDb = -1.2, lookahead = 0.002, release = 0.08, ceilAt = null) {
+  const c0 = dbToGain(ceilingDb);
   const n = bus.n;
   const need = new Float32Array(n);
   for (let i = 0; i < n; i++) {
+    // `ceilAt(i)`: a per-sample ceiling (linear) instead of the fixed one (v4: the designed big hits get headroom)
+    const c = ceilAt ? ceilAt(i) : c0;
     const p = Math.max(truePeakAt(bus.L, i), truePeakAt(bus.R, i));
     need[i] = p > c ? c / p : 1;
   }

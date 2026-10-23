@@ -1,4 +1,4 @@
-// The v3 edit plan (no ffmpeg): 15 s mapping, base pictures, push/bump geometry, shakes, grade windows.
+// The v4 edit plan (no ffmpeg): 15 s mapping, base pictures, push/bump geometry, shakes, grade windows.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { framePlan, gradeWindows, rangesExpr, shakeAt, zoomFrames, zoomGeometry } from './edit-plan.mjs';
@@ -6,23 +6,23 @@ import { CORE_HIT, CUTS, impacts, post, sourceFrame } from './mg-timeline.mjs';
 
 const edl = JSON.parse(readFileSync(new URL('./edl.json', import.meta.url), 'utf8'));
 
-describe('trailer v3 edit plan', () => {
+describe('trailer v4 edit plan', () => {
   it('the 15 s cut maps onto the master (storyboard §7)', () => {
     expect(sourceFrame('15', 0)).toBe(0);
-    expect(sourceFrame('15', 100)).toBe(200); // Clem's Tumble
+    expect(sourceFrame('15', 100)).toBe(206); // Clem's Tumble
     expect(sourceFrame('15', 200)).toBe(400); // 3V3
     expect(sourceFrame('15', 400)).toBe(800); // Pack Hunt
     expect(sourceFrame('15', CORE_HIT - 825)).toBe(CORE_HIT); // the core burst
-    expect(sourceFrame('15', 528)).toBe(1078); // the tower hits the ground
+    expect(sourceFrame('15', 528)).toBe(1028); // the tower hits the ground
     expect(edl.bpm).toBe(144);
   });
 
-  it('every output frame has exactly one base picture; the end card is a plate from the f1600 downbeat; no HUD band in 9:16', () => {
-    const plan = framePlan('30', '9x16', edl, { hasPlate: (f) => f >= 1600, footageSize: () => [1080, 1920] });
+  it('every output frame has exactly one base picture; the end card is a plate from the f1625 beat; no HUD band in 9:16', () => {
+    const plan = framePlan('30', '9x16', edl, { hasPlate: (f) => f >= 1625, footageSize: () => [1080, 1920] });
     expect(plan).toHaveLength(1800);
     expect(plan.filter((p) => p.kind === 'band')).toEqual([]);
-    expect(plan.find((p) => p.f === 1599).kind).not.toBe('plate');
-    expect(plan.find((p) => p.f === 1600).kind).toBe('plate');
+    expect(plan.find((p) => p.f === 1624).kind).not.toBe('plate');
+    expect(plan.find((p) => p.f === 1625).kind).toBe('plate');
   });
 
   it('the music dips under every designed impact (the core burst among them); the 15 s cut keeps its own', () => {

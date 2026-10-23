@@ -30,7 +30,7 @@ import { argValue, hasFlag } from '../lib/args.mjs';
 import { Bus, SR, compress, dbToGain, limit, readWav, writeWav } from './dsp.mjs';
 import { framePlan, gradeWindows, pad4, rangesExpr, shakeExpr, vignetteAlphaExpr, zoomGeometry } from './edit-plan.mjs';
 import { lintTrailerCopy } from './lint-copy.mjs';
-import { ASPECTS, CUTS, impacts, post } from './mg-timeline.mjs';
+import { ASPECTS, CORE_HIT, CUTS, impacts, post, sourceFrame } from './mg-timeline.mjs';
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -223,6 +223,8 @@ function videoGraph(cut, aspect) {
   v.push(`${edl.grade.eq}:enable='${G}'`);
   for (const [a, b, s] of g.desat) v.push(`eq=saturation=${s}:enable='between(n,${a},${b})'`);
   v.push(`${edl.grade.curves}:enable='${G}'`);
+  // v4: near-white, low-saturation areas (the pale plaza, shockwave bands, ground glow) pulled down; colours keep
+  if (edl.grade.selective) v.push(`${edl.grade.selective}:enable='${G}'`);
   v.push(`${edl.grade.colorbalance}:enable='${G}'[g0]`);
   // v2 highlight bloom (§3): the brightest parts (skill FX, flashes, the sky) keyed off, blurred and added back
   const bl = edl.grade.bloom;
@@ -263,6 +265,11 @@ function duckGain(key, n, d) {
     gain[i] = over > 0 ? dbToGain(-Math.min(d.maxDb, over * (1 - 1 / d.ratio))) : 1;
   }
   return gain;
+}
+
+/** The money hits of a cut (cut frames): the hook contact and the core burst (the last one is the loudest). */
+function bigHits(cut) {
+  return String(cut) === '30' ? [25, CORE_HIT] : [25, CORE_HIT - 825];
 }
 
 function measureWav(path) {
@@ -357,6 +364,25 @@ function mixAudio(cut) {
       }
     }
   }
+  // v4: the two money hits (the hook contact, the core burst) get a longer, deeper pre-hit hole on every bus: the
+  // band and the sound effects fall to near silence for `frames` before the contact, so the hit lands out of quiet
+  const bigs = bigHits(cut);
+  if (a.preHit) {
+    const g = dbToGain(a.preHit.db);
+    for (const F of bigs) {
+      const s0 = Math.round((F - a.preHit.frames - 2) * spf);
+      const s1 = Math.round((F - a.preHit.frames) * spf);
+      const s2 = Math.round(F * spf);
+      for (let i = Math.max(0, s0); i < Math.min(n, s2); i++) {
+        const k = i < s1 ? 1 + (g - 1) * ((i - s0) / Math.max(1, s1 - s0)) : g;
+        sfx.L[i] *= k;
+        sfx.R[i] *= k;
+        game.L[i] *= k;
+        game.R[i] *= k;
+        duck[i] = Math.min(duck[i], k);
+      }
+    }
+  }
   let maxDuck = 1;
   const pre = new Bus(n);
   for (let i = 0; i < n; i++) {
@@ -374,6 +400,24 @@ function mixAudio(cut) {
     const g = dbToGain(db);
     pre.gainCurve((i) => (i < s0 + r ? 1 + (g - 1) * ((i - s0) / r) : i > s1 - r ? g + (1 - g) * ((i - (s1 - r)) / r) : g), s0, s1);
   }
+  // v4: the body of the mix is limited `bodyDb` under the master ceiling; the money hits alone reach the ceiling (the
+  // hook contact a little under it, the core burst at it), so they stand out as the loudest transients
+  const hr = a.headroom ?? { bodyDb: 0, hookDb: 0 };
+  const cMax = dbToGain(a.ceilingDb + (hr.coreDb ?? 0));
+  const cBody = dbToGain(a.ceilingDb + hr.bodyDb);
+  const cHook = dbToGain(a.ceilingDb + hr.hookDb);
+  const ceilCurve = new Float32Array(n).fill(cBody);
+  bigs.forEach((F, k) => {
+    const top = k === bigs.length - 1 && bigs.length > 1 ? cMax : F === bigs[bigs.length - 1] ? cMax : cHook;
+    const w0 = Math.round((F - 1) * spf);
+    const w1 = Math.round((F + 30) * spf);
+    const r = Math.round(4 * spf);
+    for (let i = Math.max(0, w0 - r); i < Math.min(n, w1 + r); i++) {
+      const u = i < w0 ? (i - (w0 - r)) / r : i > w1 ? 1 - (i - w1) / r : 1;
+      ceilCurve[i] = Math.max(ceilCurve[i], cBody + (top - cBody) * u);
+    }
+  });
+  const ceil = (i) => ceilCurve[i];
   const fadeFrom = (CUTS[cut] - a.fadeFrames) * (SR / FPS);
   const silenceFrom = (CUTS[cut] - a.silenceFrames) * (SR / FPS);
   const tmp = join(WORK, `mix-${cut}.wav`);
@@ -383,7 +427,7 @@ function mixAudio(cut) {
   for (let it = 0; it < 6; it++) {
     const out = pre.clone();
     out.gainCurve(() => dbToGain(gainDb));
-    limit(out, a.ceilingDb, 0.0015, 0.09);
+    limit(out, a.ceilingDb, 0.0015, 0.09, ceil);
     out.gainCurve((i) => Math.max(0, 1 - (i - fadeFrom) / (silenceFrom - fadeFrom)) ** 2, fadeFrom, silenceFrom);
     for (let i = silenceFrom; i < n; i++) out.L[i] = out.R[i] = 0;
     writeWav(tmp, out.L, out.R);
@@ -447,6 +491,53 @@ function verify(path, cut, aspect) {
   };
 }
 
+/**
+ * v4 grade check: per shot of the master, the share of the picture at or above luma `edl.qc.lumaY` (8-bit, tv range)
+ * and the mean 90th-percentile luma. A shot over `edl.qc.maxShare` fails the render (white wash-out). End-card plates
+ * and frames under a white flash or wipe are left out.
+ */
+function lumaQc(path, cut, aspect, plan) {
+  const q = edl.qc;
+  if (!q) return null;
+  const dir = join(WORK, `qc-${cut}-${aspect}`);
+  mkdirSync(dir, { recursive: true });
+  const fa = join(dir, 'share.txt');
+  const fb = join(dir, 'yhigh.txt');
+  execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-vf', `signalstats,metadata=print:key=lavfi.signalstats.YHIGH:file=${fb},lutyuv=y='if(gte(val,${q.lumaY}),255,0)':u=128:v=128,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=${fa}`, '-f', 'null', '-']);
+  const parse = (file, key) => {
+    const out = [];
+    let fr = -1;
+    for (const l of readFileSync(file, 'utf8').split('\n')) {
+      const m = /^frame:(\d+)/.exec(l);
+      if (m) fr = Number(m[1]);
+      const k = new RegExp(`${key}=([\\d.]+)`).exec(l);
+      if (k && fr >= 0) out[fr] = Number(k[1]);
+    }
+    return out;
+  };
+  const share = parse(fa, 'YAVG').map((v) => v / 255);
+  const yh = parse(fb, 'YHIGH');
+  const skip = new Set();
+  const p = post(cut);
+  for (const w of p.white ?? []) skip.add(w.f);
+  for (const w of p.wipe ?? []) for (let k = -2; k <= 2; k++) skip.add(w.f + k);
+  const foot = footageIndex(aspect);
+  const shots = new Map();
+  for (const e of plan) {
+    if (e.kind === 'plate' || skip.has(e.f) || share[e.f] === undefined) continue;
+    const id = foot.get(e.src)?.shot ?? '?';
+    if (!shots.has(id)) shots.set(id, { id, from: e.f, to: e.f, n: 0, share: 0, max: 0, yhigh: 0 });
+    const r = shots.get(id);
+    r.to = e.f;
+    r.n++;
+    r.share += share[e.f];
+    r.max = Math.max(r.max, share[e.f]);
+    r.yhigh += yh[e.f] ?? 0;
+  }
+  const rows = [...shots.values()].map((r) => ({ id: r.id, frames: `${r.from}-${r.to}`, share: +(r.share / r.n).toFixed(3), maxShare: +r.max.toFixed(3), yhigh: +(r.yhigh / r.n).toFixed(1) }));
+  return { lumaY: q.lumaY, maxShare: q.maxShare, shots: rows, failed: rows.filter((r) => r.share > q.maxShare).map((r) => r.id) };
+}
+
 async function poster(aspect) {
   const { W, H } = ASPECTS[aspect];
   const pf = edl.poster;
@@ -491,7 +582,9 @@ for (const o of outputs) {
   log(`${o.cut}s ${o.aspect}: base ${JSON.stringify(b.counts)}, ${b.overlayFrames} overlay frames, ${b.shots.length} shots (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   const path = await encode(o.cut, o.aspect, b, mixes[o.cut], o.file);
   const v = verify(path, o.cut, o.aspect);
-  report.masters.push({ cut: o.cut, aspect: o.aspect, base: b.counts, shots: b.shots, ...v });
+  const qc = lumaQc(path, o.cut, o.aspect, b.plan);
+  if (qc?.failed.length) v.problems.push(`white wash-out (Y >= ${qc.lumaY} over ${qc.maxShare * 100} %): ${qc.failed.join(', ')}`);
+  report.masters.push({ cut: o.cut, aspect: o.aspect, base: b.counts, shots: b.shots, ...v, lumaQc: qc });
   log(`${o.file}: ${v.duration.toFixed(3)} s, ${v.frames} frames, ${v.size}, I ${v.loudness.I} LUFS, TP ${v.loudness.TP} dBTP${v.problems.length ? `, PROBLEMS: ${v.problems.join('; ')}` : ''}`);
 }
 for (const aspect of ['16x9', '9x16']) {
