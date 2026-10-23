@@ -26,9 +26,9 @@ const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DIR = resolve(argValue('--dir') ?? join(HERE, '..', 'out', 'v3'));
 const SHOTS_DIR = join(DIR, 'shots');
-const MG = join(DIR, 'mg');
+const MG = resolve(argValue('--mg') ?? join(DIR, 'mg'));
 const AUDIO = join(DIR, 'audio');
-const OUT = join(DIR, 'out');
+const OUT = resolve(argValue('--out-dir') ?? join(DIR, 'out'));
 const WORK = join(OUT, 'work');
 const ONLY_CUT = argValue('--cut');
 const ONLY_ASPECT = argValue('--aspect');
@@ -37,8 +37,9 @@ const pad4 = (f) => `f${String(f).padStart(4, '0')}.png`;
 
 // ---------------------------------------------------------------- checks
 
-const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
-const lint = lintTrailerCopy(copy);
+// v3.3 `--copy FILE --lint-target client`: the landing-only variant (its own strings, linted as client copy)
+const copy = JSON.parse(readFileSync(argValue('--copy') ? resolve(argValue('--copy')) : join(HERE, 'copy.json'), 'utf8'));
+const lint = lintTrailerCopy(copy, argValue('--lint-target') ?? 'pawlegends');
 if (lint.findings.length) throw new Error(`copy gate failed: ${JSON.stringify(lint.findings)}`);
 log(`copy gate: ${lint.lines} lines, 0 findings`);
 const manifest = JSON.parse(readFileSync(join(SHOTS_DIR, 'manifest.json'), 'utf8'));
@@ -53,6 +54,11 @@ if (!process.argv.includes('--no-gates')) {
   gate('overlaps', 'overlap');
   gate('inStruct', 'hero-in-structure');
   gate('edgeText', 'edge text');
+  // v3.3: bodies in contact on the ground, a minion inside a hero, a twin hero side by side, a stale or pinned number
+  gate('contacts', 'body contact');
+  gate('minionIns', 'minion-in-hero');
+  gate('dupes', 'twin hero');
+  gate('stalePops', 'stale number');
 }
 log(`takes: ${Object.keys(manifest.shots).length} shot captures, hashes ok, overlap / structure / edge-text QC clean`);
 
@@ -86,9 +92,8 @@ for (const cut of ['30', '15']) {
         // over the lobby: only the real-cats line may sit on the pick screen; the line-up shot has its own titles
         continue;
       }
-      // the 9:16 real-HUD band: the landscape frame letterboxed in the middle of the portrait frame
-      const band = aspect === '9x16' && s.aspects && !s.aspects.includes('9x16');
-      const q = qcOf(s.id, band ? '16x9' : aspect)?.[sf];
+      const band = false;
+      const q = qcOf(s.id, aspect)?.[sf];
       if (!q) continue;
       const bh = (W * 1080) / 1920;
       const toPx = (bx) => (band ? [bx[0] * W, (H - bh) / 2 + bx[1] * bh, bx[2] * W, (H - bh) / 2 + bx[3] * bh] : [bx[0] * W, bx[1] * H, bx[2] * W, bx[3] * H]);
@@ -144,6 +149,12 @@ if (process.argv.includes('--qc-only')) process.exit(typeQc.length ? 1 : 0);
 
 /** The shot (by id) that owns master frame f. */
 const shotOf = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
+/**
+ * v3.3 the 9:16 pick screen (S18, captured in landscape only: the phone-portrait layout hides the hero behind its
+ * panel): the landscape capture recomposed as the pedestal and hero above, the panel's name and "Inspired by ..."
+ * lines below (both crops of the same real frame, no blur fill). Crops are fractions of the landscape frame.
+ */
+const PICK_916 = { hero: [0.44, 0.18, 0.44, 0.8], panel: [0.022, 0.425, 0.345, 0.19], heroH: 1180, panelY: 1190 };
 /** Footage path of master frame f in an aspect (null when missing). */
 function footage(f, aspect) {
   const s = shotOf(f);
@@ -180,6 +191,7 @@ function plan(cut, aspect) {
   for (let f = 0; f < CUTS[cut]; f++) {
     const sf = sourceFrame(cut, f);
     const s = shotOf(sf);
+    // a shot captured in landscape only is recomposed for 9:16 (S18: PICK_916)
     const band = v && s?.aspects && !s.aspects.includes('9x16');
     const src = footage(sf, band ? '16x9' : aspect);
     if (!src) throw new Error(`${cut}s ${aspect}: no footage for frame ${f} (master ${sf}, ${s?.id})`);
@@ -202,9 +214,15 @@ async function buildBase(cut, aspect, dir) {
   for (const q of p) {
     const chain = [];
     if (q.band) {
-      // the real-HUD band: the landscape capture at full width over a blurred, darkened copy of itself
-      const bh = Math.round((W * 1080) / 1920 / 2) * 2;
-      chain.push(`split[bg][fg];[bg]scale=-2:${H},crop=${W}:${H},gblur=sigma=24,colorchannelmixer=rr=0.6:gg=0.6:bb=0.6[b];[fg]scale=${W}:${bh}:flags=lanczos[t];[b][t]overlay=0:${Math.round((H - bh) / 2)}`);
+      // v3.3: the pick screen recomposed (PICK_916): the hero and pedestal above, the panel's lines below, on the pick
+      // screen's own backdrop colour
+      const c = PICK_916;
+      const crop = (r) => `crop=iw*${r[2]}:ih*${r[3]}:iw*${r[0]}:ih*${r[1]}`;
+      chain.push(`split[a][b];[a]${crop(c.hero)},scale=${W}:${c.heroH}:force_original_aspect_ratio=increase,crop=${W}:${c.heroH}[h];[b]${crop(c.panel)},scale=${W - 40}:-2:flags=lanczos[p];color=c=0x2a1a2e:s=${W}x${H}[bg];[bg][h]overlay=0:0[t];[t][p]overlay=20:${c.panelY}`);
+    } else {
+      // a capture at another size (S18 at DPR 2) is scaled to the master's
+      const sz = manifest.shots[`${q.shot}/${aspect}`]?.size;
+      if (sz && (sz[0] !== W || sz[1] !== H)) chain.push(`scale=${W}:${H}:flags=lanczos`);
     }
     if (q.end) chain.push(`gblur=sigma=${END_PLATE.blur},colorchannelmixer=rr=${END_PLATE.darken}:gg=${END_PLATE.darken}:bb=${END_PLATE.darken}`);
     if (q.shake) {
@@ -270,8 +288,31 @@ function frameStats(path, W, H, pre = []) {
           if (prev) diff += Math.abs(fr[i + 1] - prev[i + 1]);
           if (prev2) diff2 += Math.abs(fr[i + 1] - prev2[i + 1]);
         }
+        // v3.3 the largest 4-connected near-white blob (Y >= 235, unsaturated), as a share of the frame
+        const m = new Uint8Array(n / 3);
+        for (let i = 0, k = 0; i < n; i += 3, k++) {
+          const r = fr[i], g = fr[i + 1], b = fr[i + 2];
+          const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          m[k] = y >= 235 && (mx - mn) / Math.max(1, mx) < 0.25 ? 1 : 0;
+        }
+        let blob = 0;
+        const stack = [];
+        for (let k = 0; k < m.length; k++) {
+          if (m[k] !== 1) continue;
+          let size = 0;
+          m[k] = 2;
+          stack.push(k);
+          while (stack.length) {
+            const q = stack.pop();
+            size++;
+            const x = q % w;
+            for (const nb of [x > 0 ? q - 1 : -1, x < w - 1 ? q + 1 : -1, q - w, q + w]) if (nb >= 0 && nb < m.length && m[nb] === 1) { m[nb] = 2; stack.push(nb); }
+          }
+          blob = Math.max(blob, size);
+        }
         // diff2: this frame against the one two back (a pop returns: f-1 and f+1 match; an onset stays changed)
-        stats.push({ white: white / (n / 3), clip: clip / (n / 3), y: sumY / (n / 3), diff: prev ? diff / (n / 3) : null, diff2: prev2 ? diff2 / (n / 3) : null });
+        stats.push({ blob: blob / (n / 3), white: white / (n / 3), clip: clip / (n / 3), y: sumY / (n / 3), diff: prev ? diff / (n / 3) : null, diff2: prev2 ? diff2 / (n / 3) : null });
         prev2 = prev;
         prev = Buffer.from(fr);
         buf = buf.subarray(n);
@@ -315,6 +356,7 @@ for (const cut of ['30', '15']) {
     const stats = await frameStats(file, W, H);
     // the luma gate reads the picture without the type (the cream type is meant to be bright)
     const pic = await frameStats(join(b.base, 'f%04d.png'), W, H, ['-framerate', '60']);
+    const blobs = pic.map((p, f) => ({ f, blob: +p.blob.toFixed(4) })).filter((x) => x.blob > 0.01);
     stats.forEach((st, i) => {
       st.white = pic[i]?.white ?? st.white;
       st.clip = pic[i]?.clip ?? st.clip;
@@ -392,11 +434,45 @@ for (const cut of ['30', '15']) {
     }
     r.popFrames = pops.map((f) => ({ f, d: +pic[f].diff.toFixed(1), shot: b.plan[f].shot }));
     if (pops.length) fails.push(`single-frame pops at ${pops.join(',')}`);
+    // v3.3 low motion: more than 8 gameplay frames in a row whose picture barely changes (d < 0.35: units standing
+    // still, a hit-stop held, a frozen number), outside the lobby and the end card
+    const gameplay = (f) => !b.plan[f].end && !SHOTS.find((x) => x.id === b.plan[f].shot)?.lobby;
+    const still = [];
+    for (let f = 1, run = 0; f < pic.length; f++) {
+      run = gameplay(f) && pic[f].diff !== null && pic[f].diff < 0.35 && b.plan[f].shot === b.plan[f - 1].shot ? run + 1 : 0;
+      if (run === 9) still.push(f - 8);
+    }
+    r.lowMotion = still;
+    if (still.length) fails.push(`low motion (9+ frames) from ${still.join(',')}`);
+    // v3.3 head stutter: the first 3 frames of a gameplay shot far stiller than the rest of it (units holding on the cut)
+    const heads = [];
+    for (const sh of SHOTS) {
+      if (sh.lobby) continue;
+      const fr = b.plan.map((x, i) => (x.shot === sh.id && !x.end ? i : -1)).filter((i) => i > 0);
+      if (fr.length < 12) continue;
+      // the head (its first 3 frame steps) against the 9 steps right after it: units that hold still on the cut and
+      // then start moving (a calm shot that stays calm is not a stutter)
+      const ds = fr.slice(1).map((i) => pic[i].diff ?? 0);
+      const next = ds.slice(3, 12).sort((a, c) => a - c);
+      const med = next[Math.floor(next.length / 2)];
+      const head = (ds[0] + ds[1] + ds[2]) / 3;
+      if (med > 1.5 && head < 0.2 * med) heads.push(`${sh.id}@${fr[0]}`);
+    }
+    r.headStutter = heads;
+    if (heads.length) fails.push(`head stutter ${heads.join(',')}`);
+    // v3.3 local glare: a connected near-white region (Y >= 235, unsaturated) over 2 % of the frame on 3+ frames
+    r.glareBlobs = blobs.filter((x) => gameplay(x.f));
+    const blobRuns = [];
+    for (let i = 0, run = 0; i < pic.length; i++) {
+      run = pic[i].blob > 0.02 && gameplay(i) ? run + 1 : 0;
+      if (run === 3) blobRuns.push(i - 2);
+    }
+    if (blobRuns.length) fails.push(`glare blob from ${blobRuns.join(',')}`);
     r.fails = fails;
     report.masters[`${cut}/${aspect}`] = r;
     log(`${cut}s ${aspect}: ${r.frames} frames, ${r.duration} s, I ${loud.I} LUFS, TP ${loud.TP} dBTP, ${((Date.now() - t0) / 1000).toFixed(0)} s${fails.length ? `  FAIL: ${fails.join('; ')}` : ''}`);
     if (cut === '30') {
-      // posters: the whole Crossing with CATS VS DOGS (f118) and the end card (f1760)
+      // posters: CATS VS DOGS over the crane (f118) and the end card (f1760)
       for (const [name, f] of [['poster', 118], ['poster-endcard', 1760]]) {
         const out = join(OUT, `pawlegends-trailer-${name}${aspect === '9x16' ? '-vertical' : ''}.png`);
         await ff(['-i', file, '-vf', `select=eq(n\\,${f}),scale=out_range=full,format=rgb24`, '-frames:v', '1', out]);

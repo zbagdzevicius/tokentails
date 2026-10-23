@@ -40,7 +40,7 @@ const demo = (name: string) => getSkin(skinIdOf(`demo-${name}`))!;
 const RUNG_OF: Record<string, CatTier> = { ficus: 'LEGENDARY', pinkie: 'EPIC', rascal: 'RARE', pickles: 'COMMON' };
 
 /** Damage numbers need a camera; these tests only look at particles. */
-const quiet = (e: Effects): void => void Object.assign(e, { numbers: { show() {}, pop() {}, render() {}, dispose() {} } });
+const quiet = (e: Effects): void => void Object.assign(e, { numbers: { show() {}, pop() {}, render() {}, dispose() {}, dropKey() {}, dropNear() {} } });
 
 const fx = (rung: CatTier, over: Partial<CardFx> = {}): CardFx => ({ rung, name: 'Ficus', tint: 0x66ccff, self: true, team: 0, extras: true, ...over });
 

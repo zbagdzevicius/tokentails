@@ -82,4 +82,17 @@ export const FIXED = {
   V16: { seed: 134, hero: 'bengas', keys: { r: 2605 }, roles: { bengas: 0 } },
   V17: { seed: 281, hero: 'bengas', keys: { r: 6445 }, roles: { bengas: 0 } },
   V18: { seed: 142, hero: 'gabe', keys: { w: 10771 }, roles: { gabe: 0 } },
+  // trailer v3.3, from the v3.2 moment scan (all six heroes in one gameplay frame for 75+ ticks with casts that hit):
+  // the 3V3 shot with contact (a dog ultimate and a cat ultimate answering it)
+  W1: { seed: 200, hero: 'gabe', keys: { cackR: 4790, gabeR: 4833, lamboQ: 4884 }, roles: { gabe: 0 } },
+  W2: { seed: 165, hero: 'lambo', keys: { brutusQ: 11606, cackR: 11680, sageR: 11711 }, roles: { lambo: 0 } },
+  W3: { seed: 31, hero: 'gabe', keys: { sageR: 4816, lamboR: 4832 }, roles: { gabe: 0 } },
+  W4: { seed: 161, hero: 'aviete', keys: { brutusR: 11852 }, roles: { aviete: 0 } },
+  W5: { seed: 112, hero: 'lambo', keys: { sageR: 5170 }, roles: { lambo: 0 } },
+  // the teamfight (a long six-hero brawl on the gameplay camera)
+  W6: { seed: 61, hero: 'aviete', keys: { avieteQ: 6037, avieteR: 6073 }, roles: { aviete: 0 } },
+  W7: { seed: 26, hero: 'sage', keys: { clemR: 10056, clemQ: 10110 }, roles: { sage: 0 } },
+  W8: { seed: 15, hero: 'bengas', keys: { clemQ: 11429 }, roles: { bengas: 0 } },
+  W9: { seed: 209, hero: 'bengas', keys: { sageW: 12030, bengasQ: 12157 }, roles: { bengas: 0 } },
+  W10: { seed: 204, hero: 'gabe', keys: { lamboE: 10470, lamboR: 10496 }, roles: { gabe: 0 } },
 };

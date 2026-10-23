@@ -147,7 +147,7 @@ export interface ShotSpec {
      * first, `swaps` tap another tile on a frame (the detail panel then reads that hero, e.g. "Inspired by Lambo's
      * Token Tails card."); `zoom` a push on the page ([scale, originX, originY] from frame `from` to `to`, eased).
      */
-    pick?: { hero: HeroId; side?: number; swaps?: { f: number; hero: HeroId }[]; zoom?: { from: number; to: number; s0: number; s1: number; ox: number; oy: number } };
+    pick?: { hero: HeroId; side?: number; instant?: boolean; swaps?: { f: number; hero: HeroId }[]; zoom?: { from: number; to: number; s0: number; s1: number; ox: number; oy: number } };
   };
   /**
    * Render-side clean-up for a director shot (never an input; the game's own layers stay, filtered):
@@ -250,12 +250,16 @@ export interface ShotSpec {
    */
   popCull?: boolean;
   popLife?: number;
+  /** v3.3: a damage-number node is dropped after this many seconds of output time (default 0.95, its game life). */
+  popMaxLife?: number;
+  /** v3.3: damage numbers on towers and cores drawn (default off with popCull). */
+  structNums?: boolean;
 }
 
 /** v3.1 per-frame QC (capture.mjs): what the frame shows, for the overlap, structure, edge-pop and type gates. */
 export interface FrameQc {
   /** On-screen drawn heroes: id, team (0 cats), hero, body box with its plate [x0, y0, x1, y1] (viewport fractions). */
-  heroes: { id: number; team: number; hero: string; box: [number, number, number, number] }[];
+  heroes: { id: number; team: number; hero: string; box: [number, number, number, number]; at?: [number, number] }[];
   /** Pairs of drawn on-screen heroes whose bodies interpenetrate (drawn ground distance under OVERLAP_M). */
   overlap: number;
   /** Drawn on-screen heroes standing inside a standing structure's or Pudding's footprint. */
@@ -267,7 +271,7 @@ export interface FrameQc {
   /** v3.2: the overhead plates drawn this frame (viewport fractions) with their label ('' for bars). */
   plates?: { kind: string; id: number; name: string; box: [number, number, number, number]; dy: number }[];
   /** v3.2: visible damage numbers, words, pops and callouts (viewport fractions) with their text. */
-  pops?: { text: string; box: [number, number, number, number] }[];
+  pops?: { text: string; box: [number, number, number, number]; age?: number; still?: number }[];
   /** v3.2: drawn towers, cores and Pudding (their screen boxes, viewport fractions) with their kind. */
   structs?: { kind: string; box: [number, number, number, number] }[];
   /** v3.2: hero plates the declutter pass had to lift off another plate (a pile). */
@@ -276,6 +280,14 @@ export interface FrameQc {
   hidden?: number;
   /** v3.2: drawn heroes whose body box crosses a standing tower's or core's drawn box low down (in its base). */
   inBase?: number;
+  /**
+   * v3.3: drawn hero pairs closer on the ground than 0.85 of their two body radii (a body inside another, whatever the
+   * screen boxes say), and drawn heroes with a drawn minion inside their body radius (a cadet standing in Cacklejaw).
+   */
+  contact?: number;
+  minionIn?: number;
+  /** v3.3: hero names drawn twice in one frame (two Sir Brutus side by side read as a cloning bug). */
+  dupes?: string[];
   /** Debug: which pairs overlap ("id-id") and which hero stands in which footprint ("id@x,z"). */
   why?: string[];
 }
@@ -744,10 +756,27 @@ function cleanUp(g: GameRenderer): void {
       const sx = _pp.x * 0.5 + 0.5;
       const sy = -_pp.y * 0.5 + 0.5;
       let bad = _pp.z > 1 || _pp.z < -1 || sx < 0.03 || sx > 0.97 || sy < 0.03 || sy > 0.97 || n.t > life;
+      // v3.3: a node shown longer than its game lifetime in output frames (merges keep resetting n.t), or one that has
+      // not moved on screen for 12 frames (a pinned number), is dropped
+      const born = (n as unknown as { born?: number }).born;
+      let tr = popTrack.get(n.el);
+      if (!tr || tr.born !== born) {
+        tr = { born, first: curF, x: sx, y: sy, stillFrom: curF };
+        popTrack.set(n.el, tr);
+      } else if (Math.hypot((sx - tr.x) * window.innerWidth, (sy - tr.y) * window.innerHeight) > 1.5) {
+        tr.x = sx;
+        tr.y = sy;
+        tr.stillFrom = curF;
+      }
+      if (curF - tr.first > Math.round(60 * (s.popMaxLife ?? 0.95)) || curF - tr.stillFrom > 12) bad = true;
       if (!bad && fr) {
         // the unit it belongs to (key = entity id) must still be drawn within 3 m; a word without a key needs any unit
         const e = typeof n.key === 'number' ? fr.byId.get(n.key) : null;
         if (typeof n.key === 'number') bad = !e || e.state === 'dead' || Math.hypot(e.fx / 1000 - n.pos.x, -e.fy / 1000 - n.pos.z) > 3;
+        // v3.3: numbers on a tower or core under steady fire spawn one after another on the same spot (the same value
+        // each hit, a 0.6 m rise that barely shows at the gameplay distance): read as one number stuck on the doghouse
+        // (trailer v3.2 review), so they are left out unless the shot sets `structNums`
+        if (!bad && e && (e.kind === 'tower' || e.kind === 'core') && !s.structNums) bad = true;
         else bad = !fr.entities.some((u) => u.state !== 'dead' && (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'tower' || u.kind === 'core' || u.kind === 'pudding') && Math.hypot(u.fx / 1000 - n.pos.x, -u.fy / 1000 - n.pos.z) < 3);
       }
       const v = bad ? '1' : '';
@@ -1192,6 +1221,14 @@ function fitBase(o: THREE.Object3D): number {
   return b;
 }
 
+/** v3.3: the lobby hero's grow-in and hop finished at once (render only). */
+function skipIntro(): void {
+  const lb = lobby as unknown as { hop: number; hero: { ch: { anim: { popT: number } } } | null } | null;
+  if (!lb?.hero) return;
+  lb.hop = 1;
+  lb.hero.ch.anim.popT = 1;
+}
+
 function lobbyStep(f: number, dtReal: number, ramp: number): void {
   const g = gr;
   const s = spec;
@@ -1199,7 +1236,13 @@ function lobbyStep(f: number, dtReal: number, ramp: number): void {
   const dt = Math.max(0, ramp) * dtReal;
   const pk = s.lobby?.pick;
   if (pk && pickEl && dtReal > 0) {
-    for (const sw of pk.swaps ?? []) if (sw.f === f) pickEl.querySelector<HTMLElement>(`[data-h="${sw.hero}"]`)?.click();
+    for (const sw of pk.swaps ?? []) {
+      if (sw.f !== f) continue;
+      pickEl.querySelector<HTMLElement>(`[data-h="${sw.hero}"]`)?.click();
+      // v3.3: the new hero stands at full size on the cut (the turntable's grow-in and hop read as a model popping
+      // in under the type); the cheer pose and the sparkle stay
+      if (pk.instant !== false) skipIntro();
+    }
     const z = pk.zoom;
     if (z && f >= 0) {
       const u = Math.max(0, Math.min(1, (f - z.from) / Math.max(1, z.to - z.from)));
@@ -1296,8 +1339,10 @@ function heroMove(): number {
   return m;
 }
 
-/** v3.1 screen-space gate: two drawn bodies whose boxes share more than this of the smaller box overlap. */
-const OVERLAP_SHARE = 0.45;
+/** v3.3 per damage-number node: its game birth, first output frame, last screen point and the frame it last moved. */
+const popTrack = new WeakMap<object, { born: number | undefined; first: number; x: number; y: number; stillFrom: number }>();
+/** v3.1 screen-space gate: two drawn bodies whose boxes share more than this of the smaller box overlap (v3.3: 0.5; the ground-contact gate catches bodies in each other, a 0.45-0.5 share was two fighters side by side). */
+const OVERLAP_SHARE = 0.5;
 /** One output frame (or sub-frame `sub` of `subs`, for motion blur): frame time 1/60 s split evenly. */
 function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number; move: number; overlap: number; qc: FrameQc | null } {
   const s = spec;
@@ -1328,6 +1373,8 @@ function frameQc(): FrameQc {
   const H = window.innerHeight;
   _qr.setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize();
   const fps = view.structures.footprints([]);
+  const radii: number[] = [];
+  const ground: [number, number][] = [];
   for (const [id, r] of view.heroes.rigs) {
     const o = r.ch.object;
     if (!o.visible || r.wasDead) continue;
@@ -1350,7 +1397,7 @@ function frameQc(): FrameQc {
       y1 = Math.max(y1, (-_qa.y * 0.5 + 0.5));
     }
     if (behind || x1 < 0 || x0 > 1 || y1 < 0 || y0 > 1) continue;
-    out.heroes.push({ id, team: e.team, hero: e.hero ?? '', box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)] });
+    out.heroes.push({ id, team: e.team, hero: e.hero ?? '', box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)], at: [+o.position.x.toFixed(2), +o.position.z.toFixed(2)] });
     // v3.2 the body alone (no plate): the drawn model's world box, projected (a big Sir Brutus gets a big box)
     _bb.setFromObject(o);
     let bx0 = 1e9;
@@ -1370,9 +1417,12 @@ function frameQc(): FrameQc {
     depth.push(_qa.copy(o.position).project(cam).z);
     bodyIds.push(id);
     const hr = Math.min(0.9, Math.max(0.35, Math.max(_bb.max.x - _bb.min.x, _bb.max.z - _bb.min.z) * 0.35));
+    radii.push(hr);
+    ground.push([o.position.x, o.position.z]);
     for (const c of fps) {
       const d = Math.hypot(o.position.x - c.x, o.position.z - c.z);
-      if (d < c.r + hr) {
+      // v3.3: the structure's radius plus 0.3 m (a hero brushing a tower base read as standing in it)
+      if (d < c.r + hr + 0.3) {
         out.inStruct++;
         out.why!.push(`${id}@${c.x.toFixed(1)},${c.z.toFixed(1)} d${d.toFixed(2)} r${c.r.toFixed(2)}`);
       }
@@ -1400,6 +1450,61 @@ function frameQc(): FrameQc {
     }
   }
   out.hidden = +out.hidden.toFixed(3);
+  // v3.3 ground contact: two drawn bodies nearer than 0.85 of their radii summed; a drawn minion inside a hero's radius
+  out.contact = 0;
+  for (let i = 0; i < ground.length; i++) {
+    for (let j = i + 1; j < ground.length; j++) {
+      const d = Math.hypot(ground[i][0] - ground[j][0], ground[i][1] - ground[j][1]);
+      if (d < 0.7 * (radii[i] + radii[j])) {
+        out.contact++;
+        out.why!.push(`contact ${bodyIds[i]}-${bodyIds[j]} d${d.toFixed(2)}`);
+      }
+    }
+  }
+  out.minionIn = 0;
+  const mv = (session?.view as unknown as { minions: { drawnAt: Map<number, { x: number; z: number }> } }).minions;
+  for (const [mid, p] of mv.drawnAt) {
+    if (!Number.isFinite(p.x)) continue;
+    // the minion's screen box (0.35 m either side, 0-1.1 m up) against each drawn hero body box: a minion whose box
+    // lies more than 40 % inside a hero's body reads as standing in it (or a cadet pile through the hero)
+    let mx0 = 1e9;
+    let my0 = 1e9;
+    let mx1 = -1e9;
+    let my1 = -1e9;
+    for (const [side, up] of [[-0.35, 0], [0.35, 0], [-0.35, 1.1], [0.35, 1.1]] as const) {
+      _qa.set(p.x, up, p.z).addScaledVector(_qr, side).project(cam);
+      mx0 = Math.min(mx0, _qa.x * 0.5 + 0.5);
+      mx1 = Math.max(mx1, _qa.x * 0.5 + 0.5);
+      my0 = Math.min(my0, -_qa.y * 0.5 + 0.5);
+      my1 = Math.max(my1, -_qa.y * 0.5 + 0.5);
+    }
+    if (mx1 < 0 || mx0 > 1 || my1 < 0 || my0 > 1) continue;
+    const ma = Math.max(1e-6, (mx1 - mx0) * (my1 - my0));
+    for (let i = 0; i < ground.length; i++) {
+      const b = bodies[i];
+      const iw = Math.min(mx1, b[2]) - Math.max(mx0, b[0]);
+      const ih = Math.min(my1, b[3]) - Math.max(my0, b[1]);
+      const d = Math.hypot(ground[i][0] - p.x, ground[i][1] - p.z);
+      if (d < 0.8 || (d < 0.8 && iw > 0 && ih > 0 && (iw * ih) / ma > 0.4)) {
+        out.minionIn++;
+        out.why!.push(`minion ${mid} in ${bodyIds[i]} d${d.toFixed(2)}`);
+      }
+    }
+  }
+  // the dog side fields a hero twice (two dog heroes, three slots; the bots wear different coats): a twin reads as a
+  // cloning bug only side by side, so two plates of one hero within 14 % of the frame of each other are flagged
+  out.dupes = [];
+  const big = out.heroes.filter((h) => h.box[3] - h.box[1] > 0.03);
+  for (let i = 0; i < big.length; i++) {
+    for (let j = i + 1; j < big.length; j++) {
+      const a = big[i].box;
+      const b = big[j].box;
+      if (big[i].hero !== big[j].hero) continue;
+      const gx = Math.max(0, Math.max(a[0], b[0]) - Math.min(a[2], b[2]));
+      const gy = Math.max(0, Math.max(a[1], b[1]) - Math.min(a[3], b[3]));
+      if (gx < 0.14 && gy < 0.14) out.dupes.push(big[i].hero);
+    }
+  }
   // v3.2 plates (Overhead boxes, CSS px -> fractions) and the pile count
   const ob = (session as unknown as { overhead: { boxes: { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number }[] | null } }).overhead.boxes ?? [];
   // plates faded out by the shot (uiFade 0: the crane's whole-map view) are not on screen
@@ -1439,7 +1544,8 @@ function frameQc(): FrameQc {
     if (a < 0.05) continue;
     const b = el.getBoundingClientRect();
     if (b.width < 1) continue;
-    out.pops!.push({ text: (el.textContent ?? '').trim(), box: [+(b.left / W).toFixed(4), +(b.top / H).toFixed(4), +(b.right / W).toFixed(4), +(b.bottom / H).toFixed(4)] });
+    const pt = popTrack.get(el);
+    out.pops!.push({ text: (el.textContent ?? '').trim(), box: [+(b.left / W).toFixed(4), +(b.top / H).toFixed(4), +(b.right / W).toFixed(4), +(b.bottom / H).toFixed(4)], ...(pt ? { age: curF - pt.first, still: curF - pt.stillFrom } : {}) });
     if (b.left < W * m || b.right > W * (1 - m) || b.top < H * m || b.bottom > H * (1 - m)) {
       out.edgeText++;
       out.why!.push(`edge:${(el.textContent ?? '').trim()}@${Math.round(b.left)},${Math.round(b.top)}`);

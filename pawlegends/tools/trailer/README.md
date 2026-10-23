@@ -229,3 +229,37 @@ pops must return to count. 15 s splices on the beat grid (`v3/timeline.test.mjs`
 and pick-screen beats are landscape bands.
 
 Still not releasable: `tokentails.com/pawlegends` must return 200 before any master is posted (see the top).
+
+**v3.3 (review of v3.2: "full of bugs, from above like real gameplay, cats vs dogs and the mission").** Render
+fixes in the game (render only; `src/sim` untouched, determinism identical, tests in
+`tests/unit/trailer-v33-render.test.ts`): a damage counter merges for at most `mergeMax` s of drawn time too
+(`DamageNumbers` `age`: under the victory slow motion the real-time clock crawled and one "64" sat on the doghouse for
+1.6 s); the falling core's glow is a faint warm tint (`FALL_FLASH` 0.05, `#ffc85a`: the white mix in linear light
+turned the navy doghouse into a pale see-through-looking box); minions are drawn 1.0 m clear of every hero in three
+passes (`MINION_CLEAR`, `MINION_PUSH`: cadets stood inside Cacklejaw and Sir Brutus); bolts are shaded toward their
+silhouette and the core's shot is 0.4 m (`shadeBolts`, `BOLT_CORE_SIZE`: a flat yellow ellipse over Gabė).
+
+Rig: per-frame QC adds ground `contact` (two bodies nearer than 0.7 of their radii summed), `minionIn` (a minion inside
+a hero), `dupes` (one hero twice side by side) and pop `age` / `still`; capture fails CONTACT, MINION-IN-HERO,
+DUPLICATE HERO and STALE POP runs and the edit refuses them. `popCull` drops numbers older than their game life
+(`popMaxLife`), pinned for 12 frames, or on towers and cores (`structNums` to keep them). A pick-screen swap stands
+the new hero at full size (`skipIntro`, no grow-in). The edit adds low-motion (9+ frames at d < 0.35), head-stutter
+and local glare-blob (Y >= 235 region over 2 % of the frame) gates, and recomposes the 9:16 pick screen from its own
+landscape capture (`PICK_916`: the pedestal above, the panel below, no blur fill); every other 9:16 shot is native.
+
+Cut (`v3/shots.mjs`, `v3/timeline.mjs`): every gameplay shot starts and ends at the game's distance (pushes only
+round their beats, the hook's crane at 1.3x and back); the hook opens on the Golden Hour cast with Brutus standing;
+3V3 is take W5 (all six, Sir Brutus's challenge and Sage's Moonshot back, real HUD); the mission is three held lines
+(PUSH YOUR LANE. 2 s over the waves meeting on the bridge, TOPPLE THEIR TOWERS. 1.9 s over the tower fall, TAKE THEIR
+CORE. 2.3 s); one continuous slowed teamfight (W1); the core shot is one take from the base fight to the burst
+(`CORE_HIT` 1331: boom, shake and VICTORY! on it); the line-up 1.7 s; the 15 s end card its own 125 frames (URL up
+1.6 s). Takes W1-W10 (`fixed-takes.mjs`) from the v3.2 six-hero scan.
+
+Landing-only variant: `v3/copy-landing.json` says INSPIRED BY REAL SHELTER CATS. (true per docs/GAMES.md "Shelter
+champions"), linted as client copy; it is for the tokentails.com landing next to the Play to Save hub, never game
+marketing (R13), and is a founder call:
+
+```sh
+node tools/trailer/v3/type.mjs --copy tools/trailer/v3/copy-landing.json --lint-target client --out <dir>/mg-landing
+node tools/trailer/v3/edit.mjs --dir <dir> --mg <dir>/mg-landing --out-dir <dir>/out-landing --copy tools/trailer/v3/copy-landing.json --lint-target client --cut 30
+```

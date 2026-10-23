@@ -96,7 +96,11 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
  * `settle`, then the break-up. Core: swell until `burst`, cave in until `caved`, then settle into the ground.
  */
 /** Peak hit-flash tint during a fall (render only): the core's swell and burst stay a glow on its own colour. */
-export const FALL_FLASH = Object.freeze({ core: 0.2 });
+/**
+ * The core's fall glow: a warm tint at `core` of the mix (the mix runs in linear light, so 0.2 of white lifted the dark
+ * navy doghouse to a pale grey see-through-looking box on its last frames; trailer v3.2 review), in `color`.
+ */
+export const FALL_FLASH = Object.freeze({ core: 0.05, color: 0xffc85a });
 export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
 
 /**
@@ -583,6 +587,7 @@ export class StructureView {
       const settle = u < F.caved ? 0 : (u - F.caved) / (1 - F.caved);
       s.flash = u < F.burst ? 0.4 + 0.6 * (u / F.burst) : Math.max(0, 1 - (u - F.burst) * 4);
       // a warm glow, not a white-out: at 0.75 the navy doghouse turned pale grey and read as a ghost box
+      s.rig.uFlash.value.setHex(FALL_FLASH.color);
       s.rig.uFlashK.value = s.flash * FALL_FLASH.core;
       if (!s.impacted && u >= F.burst) {
         s.impacted = true;

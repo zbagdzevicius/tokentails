@@ -23,8 +23,9 @@ const require = createRequire(join(PKG, 'package.json'));
 const { chromium } = require('@playwright/test');
 const OUT = resolve(argValue('--out') ?? join(HERE, '..', 'out', 'v3', 'mg'));
 
-const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
-const lint = lintTrailerCopy(copy);
+// v3.3 `--copy FILE --lint-target client`: the landing-only variant (its own strings, linted as client copy)
+const copy = JSON.parse(readFileSync(argValue('--copy') ? resolve(argValue('--copy')) : join(HERE, 'copy.json'), 'utf8'));
+const lint = lintTrailerCopy(copy, argValue('--lint-target') ?? 'pawlegends');
 if (lint.findings.length) {
   for (const f of lint.findings) console.error(`  ${f.id}: ${f.rule} ${f.message}`);
   console.error(`[type] copy gate failed (${lint.findings.length} findings): nothing rendered`);

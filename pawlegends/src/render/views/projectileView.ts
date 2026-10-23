@@ -52,8 +52,9 @@ export function look(kind: number, team: number): Look {
       return set(0.42, 1.4, t.main, 0.2);
     case PROJECTILE_KIND.tower:
       return set(0.42, 3.6, dt === 0 ? 0xff9fc0 : 0x8fb4ff, 0.3);
+    // v3.3: 0.6 drew a 2 m flat yellow slab over the heroes at the doghouse (trailer v3.2 review)
     case PROJECTILE_KIND.core:
-      return set(0.6, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
+      return set(BOLT_CORE_SIZE, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
     // sim v9: Lambo's tuna can and Bengas's burnt toast
     case PROJECTILE_KIND.tuna:
       return set(0.36, 1.0, 0xc8d4e0, 0.16);
@@ -65,6 +66,27 @@ export function look(kind: number, team: number): Look {
     default:
       return set(0.3, 0.9, team === 0 ? 0xfff1a8 : 0xd7b8ff, 0.18);
   }
+}
+
+/** v3.3: the core's shot radius (m). */
+export const BOLT_CORE_SIZE = 0.4;
+
+/**
+ * v3.3 bolt shading (render only): the unlit bolts read as flat paper ellipses at the gameplay pitch (a core shot was
+ * taken for a placeholder billboard); each is darkened toward its silhouette, so it reads as a glowing ball.
+ */
+export function shadeBolts(mat: THREE.MeshBasicMaterial): void {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = `varying vec3 vBoltN;\n${sh.vertexShader}`.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n  #ifdef USE_INSTANCING\n  vBoltN = normalize(normalMatrix * mat3(instanceMatrix) * normal);\n  #else\n  vBoltN = normalize(normalMatrix * normal);\n  #endif',
+    );
+    sh.fragmentShader = `varying vec3 vBoltN;\n${sh.fragmentShader}`.replace(
+      '#include <opaque_fragment>',
+      '#include <opaque_fragment>\n  gl_FragColor.rgb *= 0.5 + 0.5 * pow(abs(normalize(vBoltN).z), 0.6);',
+    );
+  };
+  mat.customProgramCacheKey = () => 'pl-bolt-shade-v1';
 }
 
 /** Projectiles a hero fires (they trail the hero's element colour; minion, tower and core shots keep theirs). */
@@ -108,6 +130,7 @@ export class ProjectileView {
     const geo = new THREE.SphereGeometry(1, 10, 8);
     geo.scale(1.8, 1, 1);
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    shadeBolts(mat);
     this.bolts = new THREE.InstancedMesh(geo, mat, CAPS.projectiles);
     this.bolts.name = 'bolts';
     this.bolts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

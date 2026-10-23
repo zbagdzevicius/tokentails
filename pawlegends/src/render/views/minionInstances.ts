@@ -96,8 +96,13 @@ export function minionArm(variant: MinionVariant, strikeT: number, attackT: numb
   return M.cock * smooth(1 - until / W);
 }
 
-/** A minion is drawn at least this far (m) from a hero's centre (render only; the sim lets them overlap). */
-export const MINION_CLEAR = 0.75;
+/**
+ * A minion is drawn at least this far (m) from a hero's centre (render only; the sim lets them overlap). v3.3: 0.75
+ * still put a Kitten Cadet's body inside Sir Brutus and Cacklejaw (a big hero's body is ~0.6 m round, a cadet's
+ * ~0.35 m: trailer v3.2 review), so 1.0, pushed up to MINION_PUSH m in one frame.
+ */
+export const MINION_CLEAR = 1.0;
+export const MINION_PUSH = 0.7;
 
 /** True when (x, z) m lies inside one of the zones (render only). */
 export function inClearZone(zones: readonly { x: number; z: number; r: number }[], x: number, z: number): boolean {
@@ -262,16 +267,19 @@ export class MinionInstances {
       const px0 = px;
       const pz0 = pz;
       // never inside a hero's body: pushed out to MINION_CLEAR m from the nearest hero (at most 0.5 m)
-      for (const h of this.heroes) {
-        const dx = px - h.x;
-        const dz = pz - h.z;
-        const d = Math.hypot(dx, dz);
-        if (d >= MINION_CLEAR) continue;
-        const push = Math.min(0.5, MINION_CLEAR - d);
-        const ux = d > 1e-4 ? dx / d : 1;
-        const uz = d > 1e-4 ? dz / d : 0;
-        px += ux * push;
-        pz += uz * push;
+      // v3.3: three passes, so a minion pushed out of one hero is not left inside the hero next to it
+      for (let pass = 0; pass < 3; pass++) {
+        for (const h of this.heroes) {
+          const dx = px - h.x;
+          const dz = pz - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d >= MINION_CLEAR) continue;
+          const push = Math.min(MINION_PUSH, MINION_CLEAR - d);
+          const ux = d > 1e-4 ? dx / d : 1;
+          const uz = d > 1e-4 ? dz / d : 0;
+          px += ux * push;
+          pz += uz * push;
+        }
       }
       for (const b of this.blocks) {
         const dx = px - b.x;

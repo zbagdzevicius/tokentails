@@ -210,6 +210,9 @@ export class DamageNumbers {
         // pawlegends: a counter merges for at most mergeMax s, then a new one starts (trailer review: steady fire on a
         // core kept one number frozen in place for seconds)
         if (now - (n.born ?? now) > DAMAGE_FX.mergeMax) continue;
+        // pawlegends: and for at most mergeMax s of drawn (visual) time: under a slow motion the real-time clock
+        // crawls, so a core under steady fire kept one counter pinned, unrisen, for seconds (trailer v3.2 review)
+        if ((n.age ?? 0) > DAMAGE_FX.mergeMax) continue;
         n.value += value; n.hitT = now; n.bump = 1;
         n.t = Math.min(n.t, DAMAGE_FX.t3);                 // keep it alive and big
         if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = DAMAGE_STYLE[style].size; this._paint(n, String(Math.round(n.shownValue)), style); }
@@ -229,7 +232,7 @@ export class DamageNumbers {
     }
     const n = this._take();
     const iso = this._iso();
-    n.pos.copy(pos); n.t = 0; n.kind = 'num'; n.active = true; n.key = key; n.style = style;
+    n.pos.copy(pos); n.t = 0; n.age = 0; n.kind = 'num'; n.active = true; n.key = key; n.style = style;
     n.life = style === 'crit' ? DAMAGE_FX.lifeCrit : DAMAGE_FX.life;
     n.value = Number.isFinite(value) ? value : NaN; n.shownValue = n.value; n.hitT = now; n.born = now; n.bump = 0;
     this._side = -this._side;
@@ -322,6 +325,7 @@ export class DamageNumbers {
     for (const n of this.pool) {
       if (!n.active) continue;
       n.t += dt;
+      n.age = (n.age ?? 0) + dt;                         // pawlegends: drawn time since shown (merges never reset it)
       if (n.t >= n.life) { n.active = false; if (n.el) n.el.style.opacity = '0'; continue; }
       // count up toward a merged sum (0.12 s)
       if (n.kind === 'num' && Number.isFinite(n.value) && n.shownValue !== n.value) {
