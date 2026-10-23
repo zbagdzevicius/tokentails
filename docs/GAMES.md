@@ -35,6 +35,7 @@ PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it.
 =======
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. With `NEXT_PUBLIC_SWORDCAT_PICKER` (plus the page flag; both off by default) a fifth card, PINK PAW KNIGHT (badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type.
@@ -48,6 +49,9 @@ Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The He
 =======
 Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("3v3 hero battles with your cats vs dog bots", badge "NEW", a placeholder "3v3" tile, a full-page link to `/pawlegends`) comes last, on the web only; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
 >>>>>>> c346bc8e5 (feat(pawlegends): Phase 1 POC of the cats vs dogs MOBA)
+=======
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("Cats vs dogs: 3v3 hero battles against bots", badge "NEW", an in-engine teamfight frame `client/public/game-select/pawlegends-preview@2x.webp` with a "3v3" tile as the fallback, a full-page link to `/pawlegends?from=picker`) comes second, right after the Moon Rave, on the web only (never in the app build); `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
+>>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
