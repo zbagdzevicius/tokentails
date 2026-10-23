@@ -8,6 +8,14 @@ import {
   formulaMeowEntryEnabled,
   formulaMeowHref,
 } from "@/components/formula-meow/entry";
+import {
+  ULTRA_CAT_PATH,
+  ULTRA_CAT_PICKER_DESCRIPTION,
+  ULTRA_CAT_PREVIEW,
+  ULTRA_CAT_TITLE,
+  ultraCatEntryEnabled,
+  ultraCatHref,
+} from "@/components/ultra-cat/entry";
 import { RAVE_PATH, RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, RAVE_TITLE, raveEntryEnabled, raveHref } from "@/components/rave/entry";
 import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
@@ -55,6 +63,9 @@ export const RAVE_CARD_KEY = "RAVE";
 /** The Formula Meow card's key: a free string, not a GameType (the kart game saves no scores). */
 export const FORMULA_MEOW_CARD_KEY = "FORMULA_MEOW";
 
+/** The Ultra Cat card's key: a free string, not a GameType (the kaiju game saves no scores). */
+export const ULTRA_CAT_CARD_KEY = "ULTRA_CAT";
+
 /** The Bad Cat Daily card's key: a free string, not a GameType (its runs save as `BAD_CAT` from the game). */
 export const BADCAT_CARD_KEY = "BADCAT";
 /** The Bad Cat card's line: the game's own pitch, short enough for the phone column. */
@@ -93,7 +104,7 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW";
+  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW" | "ULTRA_CAT";
 }
 
 /**
@@ -106,6 +117,7 @@ export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
   if (card.key === RAVE_CARD_KEY) return raveHref("picker");
   if (card.key === FORMULA_MEOW_CARD_KEY) return formulaMeowHref("picker");
+  if (card.key === ULTRA_CAT_CARD_KEY) return ultraCatHref("picker");
   return card.href;
 };
 
@@ -115,7 +127,8 @@ const cardTestId = (card: GameCard) =>
 
 /**
  * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, five or six
- * sit three to a row (3 + 2 centred, or 3 + 3), and seven or eight sit four to a row (4 + 3 centred, or 4 + 4). The Moon
+ * sit three to a row (3 + 2 centred, or 3 + 3), seven or eight sit four to a row (4 + 3 centred, or 4 + 4), and
+ * nine sit three to a row (3 + 3 + 3; a 5 + 4 split made the descriptions too narrow to read). The Moon
  * Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave`
  * is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is seasonal
  * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
@@ -123,8 +136,9 @@ const cardTestId = (card: GameCard) =>
  * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes
  * last, when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app
  * build). Formula Meow (`/meow-race`) follows Bad Cat, when `includeFormulaMeow` is set
- * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Web builds show seven
- * cards outside the Cupid season and eight in it.
+ * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Ultra Cat (`/ultra-cat`)
+ * comes last, when `includeUltraCat` is set (`ultraCatEntryEnabled()`: every web build, no flag; never the
+ * app build). Web builds show eight cards outside the Cupid season and nine in it.
  */
 export function gameCards(
   includeHeist: boolean,
@@ -132,7 +146,8 @@ export function gameCards(
   includeSwordcat = false,
   includeBadcat = false,
   includeRave = false,
-  includeFormulaMeow = false
+  includeFormulaMeow = false,
+  includeUltraCat = false
 ): GameCard[] {
   const cards: GameCard[] = [];
   if (includeRave) {
@@ -220,6 +235,17 @@ export function gameCards(
       badge: "NEW",
       image: FORMULA_MEOW_PREVIEW.src,
       previewVariant: "FORMULA_MEOW",
+    });
+  }
+  if (includeUltraCat) {
+    cards.push({
+      key: ULTRA_CAT_CARD_KEY,
+      href: ULTRA_CAT_PATH,
+      title: ULTRA_CAT_TITLE.toUpperCase(),
+      description: ULTRA_CAT_PICKER_DESCRIPTION,
+      badge: "NEW",
+      image: ULTRA_CAT_PREVIEW.src,
+      previewVariant: "ULTRA_CAT",
     });
   }
   return cards;
@@ -334,11 +360,28 @@ const FormulaMeowPreview = () => (
   </span>
 );
 
+/** A frame of a real rampage with the HUD cropped out (`ULTRA_CAT_PREVIEW`). */
+const UltraCatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={ULTRA_CAT_PREVIEW.src}
+      width={ULTRA_CAT_PREVIEW.width}
+      height={ULTRA_CAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-ultra_cat-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "RAVE") return <RavePreview />;
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
   if (card.previewVariant === "BADCAT") return <BadcatPreview />;
   if (card.previewVariant === "FORMULA_MEOW") return <FormulaMeowPreview />;
+  if (card.previewVariant === "ULTRA_CAT") return <UltraCatPreview />;
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -404,6 +447,8 @@ interface GameSelectModalProps {
   showRave?: boolean;
   /** Override `formulaMeowEntryEnabled()` (every web build; never the app build) (tests). */
   showFormulaMeow?: boolean;
+  /** Override `ultraCatEntryEnabled()` (every web build; never the app build) (tests). */
+  showUltraCat?: boolean;
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -411,8 +456,8 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
- * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily and
- * Formula Meow).
+ * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily,
+ * Formula Meow and Ultra Cat).
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
@@ -422,6 +467,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   showBadcat,
   showRave,
   showFormulaMeow,
+  showUltraCat,
   navigate,
 }) => {
   const now = new Date();
@@ -431,7 +477,8 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     showSwordcat ?? swordcatPickerEnabled(),
     showBadcat ?? badcatEntryEnabled(),
     showRave ?? raveEntryEnabled(),
-    showFormulaMeow ?? formulaMeowEntryEnabled()
+    showFormulaMeow ?? formulaMeowEntryEnabled(),
+    showUltraCat ?? ultraCatEntryEnabled()
   );
   const cupidOpen = isCupidSeason(now);
 
@@ -500,8 +547,10 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
-    // Seven or eight: four to a row, 4 + 3 centred or 4 + 4.
-    cards.length === 4 || cards.length >= 7 ? "md:w-[calc(25%-0.75rem)]" : "md:w-[calc(33.333%-0.75rem)]",
+    // Seven or eight: four to a row, 4 + 3 centred or 4 + 4. Nine (the Cupid season): 3 + 3 + 3.
+    cards.length === 4 || cards.length === 7 || cards.length === 8
+      ? "md:w-[calc(25%-0.75rem)]"
+      : "md:w-[calc(33.333%-0.75rem)]",
     // Short landscape phones: five cards share one row there (a second row would sit below the fold of
     // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
     // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.

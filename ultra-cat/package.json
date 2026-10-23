@@ -1,0 +1,27 @@
+{
+  "name": "ultra-cat",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Ultra Cat: a giant cat rampages through five cities",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "ULTRA_BASE=/ultracat-game/ vite build --outDir ../client/public/ultracat-game --emptyOutDir",
+    "preview": "vite preview --port 4177",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "trailer": "node tools/trailer/capture.mjs && bash tools/trailer/edit.sh"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/three": "^0.183.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.5"
+  }
+}
