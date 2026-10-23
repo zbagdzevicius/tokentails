@@ -284,3 +284,20 @@ the mission is four beats (PUSH YOUR LANE., TOPPLE THEIR TOWERS., CALM PUDDING.,
 the burst; the 15 s cut holds TEAM CAT OR TEAM DOG? 75 frames; 9:16 type stays in y 0.12-0.78; the score's stabs sit
 on the type's slams. The shelter / Pink Paw mission stays off the game cut (R13/T3); the landing-only variant
 (`copy-landing.json`) is rendered for the founder's call.
+
+**v3 final (v3.4 masters plus social encodes).** The released set is the v3.4 render: 30 s and 15 s, 16:9 (1920x1080)
+and 9:16 (1080x1920), 60 fps, H.264 High CRF 16 + AAC 320k, -14 LUFS, true peak under -1 dBTP. `v3/social.mjs`
+(decision G24) adds an 8-12 MB copy of each master, `<master>-social.mp4`: two-pass x264 at the bitrate that lands on
+10.5 MB (`socialBitrate`, unit-tested in `v3/social.test.mjs`), preset slower, aq-mode 3 against banding in the dark
+end card and vignette, 60 fps and every frame kept, AAC 160k. It checks size, frame count and dimensions against the
+master, writes SSIM per file to `social.json`, and `--sheets DIR` writes master/social frame pairs to check banding by
+eye (the 30 s 16:9 copy, at about 2.6 Mbit/s, softens the dust of the core-base teamfight a little; nothing bands).
+
+```sh
+node tools/trailer/v3/social.mjs --dir <dir>/out --sheets <dir>/social-check   # [--target-mb 10.5] [--audio-kbps 160]
+```
+
+Everything the run produces (masters, social copies, posters, `report.json`, `social.json`, the generated storyboard,
+the landing-only variant in `landing/`, the banding check frames in `social-check/`) is kept in
+`pawlegends/media/trailer-v3/`, gitignored like `media/trailer-v2/`. Still not releasable until
+`tokentails.com/pawlegends` returns 200 (see the top).
