@@ -328,6 +328,8 @@ export class MatchSession {
     this.overhead = new Overhead(this.ui);
     // plates over the drawn bodies (the view pushes overlapping heroes apart, render only)
     this.overhead.heroAt = (id) => this.view.heroes.rigOf(id)?.ch.object.position ?? null;
+    // minion bars over the drawn bodies, none for a minion the view does not draw (render only)
+    this.overhead.minionAt = (id) => this.view.minions.drawnAt.get(id) ?? null;
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),

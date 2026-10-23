@@ -59,4 +59,27 @@ export const FIXED = {
   Z8: { seed: 234, hero: 'clem', keys: { lamboR: 8899 }, roles: { lambo: 2 } },
   Z9: { seed: 46, hero: 'sage', keys: { brutusW: 10707, gabeQ: 10716, cackE: 10726 }, roles: { sage: 0 } },
   Z10: { seed: 77, hero: 'clem', keys: { clemE: 13045, gabeR: 13051 }, roles: { clem: 0 } },
+  // trailer v3.2, from the v3.2 screen-space QC scan (bodies never hidden > 50 %, no stacked plates, nobody in a
+  // structure, no plate clipped by the frame edge, on the gameplay camera): the hook, the rivalry, the champions, the
+  // real-HUD 3v3 and the Pudding calm
+  V1: { seed: 224, hero: 'clem', keys: { r: 2917, q1: 2923, ko: 2929 }, roles: { clem: 0, brutus: 3 } },
+  V2: { seed: 189, hero: 'clem', keys: { e: 3487, q: 3517 }, roles: { clem: 0, brutus: 3 } },
+  V3: { seed: 292, hero: 'gabe', keys: { cackR: 6212 }, roles: { cack: 5, gabe: 0 } },
+  V4: { seed: 178, hero: 'sage', keys: { sageR: 6798, hit: 6808 }, roles: { sage: 0, brutus: 3 } },
+  V5: { seed: 197, hero: 'gabe', keys: { brutusR: 7185 }, roles: { brutus: 4 } },
+  V6: { seed: 132, hero: 'clem', keys: { avieteR: 2442 }, roles: { aviete: 1, cack: 4 } },
+  V7: { seed: 3, hero: 'bengas', keys: { bengasR: 2017 }, roles: { bengas: 0, cack: 3 } },
+  V8: { seed: 140, hero: 'gabe', keys: { gabeR: 7179 }, roles: { gabe: 0, brutus: 4 } },
+  V9: { seed: 198, hero: 'gabe', keys: { lamboR: 4310 }, roles: { lambo: 1, brutus: 4 } },
+  V10: { seed: 50, hero: 'sage', keys: { six: 8097 }, roles: { sage: 0 } },
+  V11: { seed: 42, hero: 'clem', keys: { calm: 12762 }, roles: { clem: 0, gabe: 1 } },
+  // the finale: the cats win the dog base (Cacklejaw taken on 8992), walk onto the core and knock it over (9075)
+  V12: { seed: 36, hero: 'bengas', keys: { ko: 8992, core: 9075 }, roles: { bengas: 0, gabe: 1, sage: 2, cack: 4 } },
+  // the dog tower falls with Sage and Clem at it (9784), and five clean teamfight beats
+  V13: { seed: 39, hero: 'sage', keys: { tower: 9784 }, roles: { sage: 0 } },
+  V14: { seed: 140, hero: 'gabe', keys: { q: 10573 }, roles: { gabe: 0 } },
+  V15: { seed: 158, hero: 'clem', keys: { r: 2119 }, roles: { clem: 0 } },
+  V16: { seed: 134, hero: 'bengas', keys: { r: 2605 }, roles: { bengas: 0 } },
+  V17: { seed: 281, hero: 'bengas', keys: { r: 6445 }, roles: { bengas: 0 } },
+  V18: { seed: 142, hero: 'gabe', keys: { w: 10771 }, roles: { gabe: 0 } },
 };

@@ -29,10 +29,12 @@ export function slam(t) {
 export const SLAM_OVER = 0.18;
 /** Title-safe margin (share of the frame width): every word, at its 118 % slam size too, stays inside it. */
 export const TITLE_SAFE = 0.05;
-/** Wipe progress (0 = whole, 1 = gone) `t` frames after the out-frame. */
+/** v3.2: the exit lasts this many frames (a v3.1 4-frame mask wipe left one frame of clipped letter pieces). */
+export const OUT_FRAMES = 8;
+/** Exit progress (0 = whole, 1 = gone) `t` frames after the out-frame: a scale-down and fade, no mask. */
 export function wipe(t) {
   if (t < 0) return 0;
-  return t >= 3 ? 1 : easeInOut((t + 1) / 4);
+  return t >= OUT_FRAMES - 1 ? 1 : easeInOut((t + 1) / OUT_FRAMES);
 }
 
 const STYLE = {
@@ -96,23 +98,10 @@ export class Compositor {
     const s = STYLE[e.style] ?? STYLE.plain;
     const size = e.size;
     ctx.save();
-    if (wp > 0) {
-      // the 12° mask wipe: everything left of a slanted edge sweeping across the word is cut away
-      const b = this.box(e);
-      const span = b.x1 - b.x0 + size;
-      const edge = b.x0 - size * 0.5 + span * wp;
-      const slope = Math.tan((12 * Math.PI) / 180) * (b.y1 - b.y0);
-      ctx.beginPath();
-      ctx.moveTo(edge + slope, b.y0 - size);
-      ctx.lineTo(this.W + 10, b.y0 - size);
-      ctx.lineTo(this.W + 10, b.y1 + size);
-      ctx.lineTo(edge - slope, b.y1 + size);
-      ctx.closePath();
-      ctx.clip();
-    }
-    ctx.globalAlpha = st.a;
+    // v3.2 exit: the whole word shrinks 10 % and fades over OUT_FRAMES (every frame shows the whole word or nothing)
+    ctx.globalAlpha = st.a * (1 - wp);
     ctx.translate(e.x * this.W, e.y * this.H);
-    ctx.scale(st.s, st.s);
+    ctx.scale(st.s * (1 - 0.1 * wp), st.s * (1 - 0.1 * wp));
     ctx.font = `700 ${size}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -214,7 +203,7 @@ export class Compositor {
   /** Boxes of the words on screen at frame f (QC). */
   boxes(f) {
     // at the slam's scale on that frame (the QC checks the word as drawn)
-    return this.els.filter((e) => f >= e.in && f < e.out + 4).map((e) => {
+    return this.els.filter((e) => f >= e.in && f < e.out + OUT_FRAMES).map((e) => {
       const b = this.box(e);
       const k = slam(f - e.in)?.s ?? 1;
       const cx = e.x * this.W;

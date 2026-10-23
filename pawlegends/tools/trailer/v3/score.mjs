@@ -120,13 +120,14 @@ cue(25, 'flop impact');
   music.addStereo(smp(46), L, R, 0.22);
   padBar(45, 'Am', fs(100), 0.16, 900);
 }
-catMotif(75, 0.6);
-stabAt(75, 'Am', 0.25, 0.25, 12);
-music.add(smp(88), I.snare(2, 200), 0.75);
-music.add(smp(88), I.clap(3), 0.4);
-cue(88, 'VS snare');
-dogMotif(100, 0.7);
-music.add(smp(100), I.kick(1, { punch: 1.1 }), 0.7);
+// v3.2: CATS on f70, VS on f80, DOGS on f90 (the type's slams)
+catMotif(70, 0.6);
+stabAt(70, 'Am', 0.25, 0.25, 12);
+music.add(smp(80), I.snare(2, 200), 0.75);
+music.add(smp(80), I.clap(3), 0.4);
+cue(80, 'VS snare');
+dogMotif(90, 0.7);
+music.add(smp(90), I.kick(1, { punch: 1.1 }), 0.7);
 music.add(smp(150) - sec(0.5), I.reverseCymbal(0.5, 83), 0.35);
 
 // f150-650: the groove (bars 2.5-6.5)
@@ -136,34 +137,32 @@ music.add(smp(150), I.crash(5, 2.0), 0.35, 0.2);
 stabAt(150, 'Am', 0.4);
 sfx.add(smp(155), I.thump(92), 0.45);
 sfx.add(smp(175), I.thump(93), 0.4);
-// f240: a pre-lap whoosh into the CLANK beat
-sfx.add(smp(250) - sec(0.2), I.whoosh(0.3, 80, 1.2), 0.35);
-// f262 CLANK (the game's own) with the music sucked out under it
-sfx.add(smp(262), I.game('shieldBoing'), 0.8);
-sfx.add(smp(262), I.game('hit'), 0.6);
-cue(262, 'CLANK');
-// f312 the dogs answer: Cacklejaw's Pack Hunt (the dog motif, his laugh)
-dogMotif(312, 0.55);
-sfx.add(smp(312) - sec(0.15), I.whoosh(0.35, 86, 1.1), 0.4);
-sfx.add(smp(314), I.game('hyenaLaugh'), 0.35);
-// f362 Sage's Moonshot
-sfx.add(smp(362), I.game('arrow'), 0.7);
-sfx.add(smp(362), I.whoosh(0.4, 84, 1.6), 0.35, 0.3);
+// v3.2 rivalry: f274 Clem's Tumble at Sir Brutus (a whoosh, the game's hit), the music sucked out under it
+sfx.add(smp(274) - sec(0.2), I.whoosh(0.3, 80, 1.2), 0.35);
+sfx.add(smp(274), I.game('hit'), 0.7);
+cue(274, 'Clem at Sir Brutus');
+// f324 the dogs answer: Cacklejaw's Pack Hunt (the dog motif, his laugh)
+dogMotif(324, 0.55);
+sfx.add(smp(324) - sec(0.15), I.whoosh(0.35, 86, 1.1), 0.4);
+sfx.add(smp(326), I.game('hyenaLaugh'), 0.35);
+// f374 Sage's Moonshot
+sfx.add(smp(374), I.game('arrow'), 0.7);
+sfx.add(smp(374), I.whoosh(0.4, 84, 1.6), 0.35, 0.3);
 catMotif(375, 0.42, 12);
-// f412 Sir Brutus's Champion's Challenge: the dog brass and the game's horn
-dogMotif(412, 0.6);
-sfx.add(smp(412), I.game('horn'), 0.4);
-sfx.add(smp(412), I.game('shieldUp'), 0.5);
+// f420 Sir Brutus's Champion's Challenge: the dog brass and the game's horn
+dogMotif(420, 0.6);
+sfx.add(smp(420), I.game('horn'), 0.4);
+sfx.add(smp(420), I.game('shieldUp'), 0.5);
 // f450-649 the four champions: the cat motif as a melody over a warm pad
 for (let k = 0; k < 4; k++) {
   const f = 450 + k * BAR;
   padBar(f, PROG[(k + 3) % 4], fs(BAR), 0.14, 1800);
   if (k < 2) catMotif(f + 50, 0.42);
 }
-sfx.add(smp(460), I.crackle(0.35, 93), 0.35);
-sfx.add(smp(510), I.game('ult'), 0.4);
-sfx.add(smp(560), I.game('magic'), 0.45);
-sfx.add(smp(610), I.game('dash'), 0.45);
+sfx.add(smp(474), I.crackle(0.35, 93), 0.35);
+sfx.add(smp(524), I.game('ult'), 0.4);
+sfx.add(smp(574), I.game('magic'), 0.45);
+sfx.add(smp(628), I.game('dash'), 0.45);
 // f650-749 half-time breath: kick on 1 and 3, lane ambience, minion steps from the game (blip)
 groove(650, 750, { half: true, energy: 0.8 });
 {
@@ -172,23 +171,23 @@ groove(650, 750, { half: true, energy: 0.8 });
 }
 for (let k = 0; k < 8; k++) sfx.add(smp(660 + k * 10), I.game('squeak', 1.3 + (k % 3) * 0.1), 0.08, k % 2 ? 0.4 : -0.4);
 cue(650, 'half-time');
-// f712 Pudding calmed: the game's chime
-sfx.add(smp(712), I.game('shieldChime'), 0.6);
-sfx.add(smp(712), I.musicBox(84, 1.0), 0.25);
-cue(712, 'Pudding chime');
+// f724 Pudding calmed: the game's chime
+sfx.add(smp(724), I.game('shieldChime'), 0.6);
+sfx.add(smp(724), I.musicBox(84, 1.0), 0.25);
+cue(724, 'Pudding chime');
 // f750-800 build: snare roll; f800 the tower crashes
 {
   const roll = I.snareRoll(fs(40), 144, 40);
   music.add(smp(750), roll, 0.5);
   groove(750, 790, { energy: 0.7, hats: false });
 }
-// v3.1: the tower cracks on f790 (the game's boom) and hits the ground on f830 (the impact, the crash, the sub)
+// the tower cracks on f790 (the game's boom) and hits the ground on f824 (the impact, the crash, the sub)
 sfx.add(smp(790), I.game('boom'), 0.7);
-sfx.add(smp(830), I.impact(92, { sub: 38, len: 1.6 }), 0.75);
-sfx.add(smp(830), I.crash(9, 2.0), 0.35);
-music.add(smp(830), I.subDrop(55, 32, 0.5, 0.4), 0.5);
+sfx.add(smp(824), I.impact(92, { sub: 38, len: 1.6 }), 0.75);
+sfx.add(smp(824), I.crash(9, 2.0), 0.35);
+music.add(smp(824), I.subDrop(55, 32, 0.5, 0.4), 0.5);
 cue(790, 'tower cracks');
-cue(830, 'tower hits the ground');
+cue(824, 'tower hits the ground (measured on the capture)');
 groove(825, 850, { energy: 0.6, hats: false });
 // f850-1099 full energy: the motifs answer each other bar by bar
 groove(850, 1100, { energy: 1.05 });
@@ -196,11 +195,12 @@ music.add(smp(850), I.crash(5, 2.0), 0.35, -0.2);
 catMotif(850, 0.42);
 dogMotif(950, 0.5);
 catMotif(1050, 0.42, 12);
-sfx.add(smp(892), I.game('magic'), 0.4);
-for (const f of [866, 992]) {
+// v3.2: five teamfight beats (one per half bar); the big hits on 882 and 974
+for (const f of [924, 1019, 1056]) sfx.add(smp(f), I.game('magic'), 0.35);
+for (const f of [882, 974]) {
   sfx.add(smp(f), I.game('hit'), 0.7);
   sfx.add(smp(f), I.impact(93, { sub: 48, len: 0.7 }), 0.55);
-  cue(f, f === 866 ? 'Clem E (river brawl)' : 'Clem E into Gabė R');
+  cue(f, 'teamfight hit');
 }
 // f1100-1249: riser, TAKE THEIR CORE. on a stab, the flop impact
 groove(1100, 1250, { energy: 1 });
@@ -209,9 +209,8 @@ stabAt(1105, 'Dm', 0.45);
   const [L, R] = I.riser(fs(30), 71);
   music.addStereo(smp(1075), L, R, 0.16);
 }
-sfx.add(smp(1133), I.game('slam'), 0.8);
-sfx.add(smp(1133), I.impact(94, { sub: 44, len: 1.0 }), 0.6);
-cue(1133, 'flop impact 2');
+// f1100-1249 the cats walk onto the doghouse: the game's hits on the core on the beat
+for (const f of [1150, 1175, 1200, 1225]) sfx.add(smp(f), I.game('hit'), 0.35);
 // f1250-1293 tension: filtered loop, rising pitch; f1294-1299 a near-silent hole; f1300 THE CORE BURST
 {
   const [L, R] = I.riser(fs(44), 72);
@@ -224,20 +223,21 @@ sfx.add(smp(1300), I.impact(95, { sub: 36, len: 2.0 }), 0.95);
 sfx.add(smp(1300), I.crash(7, 2.6), 0.5);
 music.add(smp(1300), I.subDrop(60, 28, 0.8, 0.6), 0.75);
 cue(1300, 'CORE BURST');
-// f1336: the doghouse caves in (the game's render fall, unfolding under the slow motion): rubble and a low boom
-sfx.add(smp(1336), I.game('boom', 0.8), 0.7);
-sfx.add(smp(1336), I.crackle(0.5, 97), 0.4);
-sfx.add(smp(1336), I.impact(98, { sub: 34, len: 1.4 }), 0.55);
-cue(1336, 'core caves in');
-// f1340 victory fanfare (the cat motif in C major, brass stabs)
-stabAt(1340, 'C', 0.4);
-catMotif(1340, 0.5);
-stabAt(1365, 'G', 0.32);
-stabAt(1390, 'F', 0.32);
-stabAt(1415, 'C', 0.4, 0.5);
+// v3.2 f1310-1355: the doghouse shudders and breaks up under the game's victory slow motion: rubble crackle, no second
+// boom (the cave-in itself is past the cut)
+sfx.add(smp(1312), I.crackle(0.6, 97), 0.35);
+// f1325 victory fanfare (the cat motif in C major, brass stabs) under VICTORY!, carried into the pick screen
+stabAt(1325, 'C', 0.4);
+catMotif(1325, 0.5);
+stabAt(1350, 'G', 0.32);
+stabAt(1375, 'F', 0.32);
+stabAt(1400, 'C', 0.4, 0.5);
 groove(1350, 1450, { energy: 0.8 });
-sfx.add(smp(1345), I.game('victory'), 0.45);
-cue(1340, 'victory fanfare');
+sfx.add(smp(1330), I.game('victory'), 0.45);
+cue(1325, 'victory fanfare');
+// f1356-1449 the pick screen: the game's own click on each tile tapped (Avietė, Bengas, Gabė)
+for (const f of [1375, 1400, 1425]) sfx.add(smp(f), I.game('click'), 0.35);
+cue(1356, 'pick screen');
 // f1450-1624: call and response: TEAM CAT (cat motif), OR (a rest), TEAM DOG? (dog motif)
 padBar(1450, 'Am', fs(175), 0.13, 1200);
 groove(1450, 1625, { half: true, energy: 0.7, bassOn: false });

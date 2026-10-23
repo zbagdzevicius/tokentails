@@ -211,4 +211,21 @@ node tools/trailer/v3/type.mjs --out <dir>/mg && node tools/trailer/v3/score.mjs
 node tools/trailer/v3/edit.mjs --dir <dir>
 ```
 
+
+**v3.2 (review of v3.1: 45 defects).** Render fixes in the game (render only; `src/sim` untouched, determinism
+identical, tests in `tests/unit/trailer-v32-render.test.ts`): minion bars follow the drawn minion and are dropped with
+it (`MinionInstances.drawnAt`, `Overhead.minionAt`: no bars floating over a fallen core), no bar for a unit at 0 HP,
+a falling core is forced opaque and its fall glow capped (`FALL_FLASH`: the grey ghost box), the pick screen's
+"Inspired by ...'s Token Tails card." line spaced. `Overhead` options the rig sets: `selfName`, `edgeArrows`,
+`statusChips`, `minionBars`, `boxes` (plate boxes for QC).
+
+Rig: per-frame QC adds plate, pop, banner and structure boxes, `hidden` (share of a body behind a nearer one) and
+`stacked` plates; bodies use the drawn model's box. `popCull` (default with gameLook) drops numbers off the 3 % margin,
+far from their unit or older than 0.7 s; tower hit tint off in gameLook; `autoFit` (opt-in), `--qc` (QC only, no
+frames), `--takes-file`; a real pick-screen lobby shot (`lobby.pick`); line-up heroes at one height (`fitH`, `fitK`).
+Takes V1-V18 (`fixed-takes.mjs`) from a QC scan over hundreds of candidate moments. `v3/edit.mjs` type QC: every word
+(40 px margin) vs heroes, plates, bars, pops, the banner and structures, M4 only over the pick screen; match-end gate;
+pops must return to count. 15 s splices on the beat grid (`v3/timeline.test.mjs`). The 9:16 HUD, tower fall, teamfight
+and pick-screen beats are landscape bands.
+
 Still not releasable: `tokentails.com/pawlegends` must return 200 before any master is posted (see the top).

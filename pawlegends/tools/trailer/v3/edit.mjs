@@ -56,7 +56,9 @@ if (!process.argv.includes('--no-gates')) {
 }
 log(`takes: ${Object.keys(manifest.shots).length} shot captures, hashes ok, overlap / structure / edge-text QC clean`);
 
-// v3.1 type QC: no word (at its slam size) may touch a hero's body-and-plate box on any frame it is drawn
+// v3.2 type QC: no word (at its slam size, grown by a 40 px margin at 1080 p) may touch a hero's body-and-plate box,
+// any plate or bar the game draws, or a damage number or pop, on any frame it is drawn; the real-cats
+// line (M4) may only sit over the game's pick screen or over plates that all name a champion
 const mgManifest = JSON.parse(readFileSync(join(MG, 'manifest.json'), 'utf8'));
 const qcCache = new Map();
 function qcOf(shot, aspect) {
@@ -67,23 +69,49 @@ function qcOf(shot, aspect) {
   }
   return qcCache.get(k);
 }
+const CHAMPIONS = new Set(['Lambo', 'Avietė', 'Bengas', 'Gabė']);
 const typeQc = [];
 for (const cut of ['30', '15']) {
   for (const aspect of ['16x9', '9x16']) {
     const { W, H } = ASPECTS[aspect];
+    const mgn = (40 * Math.min(W, H)) / 1080;
     const boxes = mgManifest.cuts?.[cut]?.[aspect]?.boxes ?? {};
     for (const [fs, list] of Object.entries(boxes)) {
       const f = Number(fs);
       if (f >= END_AT[cut]) continue;
       const sf = sourceFrame(cut, f);
       const s = SHOTS.find((x) => sf >= x.f0 && sf <= x.f1);
-      if (!s || s.lobby) continue;
-      const q = qcOf(s.id, aspect)?.[sf];
+      if (!s) continue;
+      if (s.lobby) {
+        // over the lobby: only the real-cats line may sit on the pick screen; the line-up shot has its own titles
+        continue;
+      }
+      // the 9:16 real-HUD band: the landscape frame letterboxed in the middle of the portrait frame
+      const band = aspect === '9x16' && s.aspects && !s.aspects.includes('9x16');
+      const q = qcOf(s.id, band ? '16x9' : aspect)?.[sf];
       if (!q) continue;
+      const bh = (W * 1080) / 1920;
+      const toPx = (bx) => (band ? [bx[0] * W, (H - bh) / 2 + bx[1] * bh, bx[2] * W, (H - bh) / 2 + bx[3] * bh] : [bx[0] * W, bx[1] * H, bx[2] * W, bx[3] * H]);
+      const things = [
+        // a hero drawn smaller than 3 % of the frame (the crane's whole-map view) is a speck, not a subject
+        ...q.heroes.filter((h) => h.box[3] - h.box[1] > 0.03).map((h) => [`${h.hero}`, h.box]),
+        ...(q.plates ?? []).map((p) => [`${p.kind === 'hero' ? `plate ${p.name}` : `${p.kind} bar`}`, p.box]),
+        ...(q.pops ?? []).map((p) => [`pop ${p.text}`, p.box]),
+        // v3.2: the towers, cores and Pudding themselves (a word over the core burst is a word over the subject)
+        // (a box reaching far outside the frame is a fallen piece behind the lens, not a subject)
+        ...(q.structs ?? []).filter((p) => p.box[3] - p.box[1] > 0.06 && p.box.every((v) => v > -0.5 && v < 1.5)).map((p) => [`${p.kind}`, p.box]),
+      ];
       for (const b of list) {
-        for (const h of q.heroes) {
-          const [x0, y0, x1, y1] = [h.box[0] * W, h.box[1] * H, h.box[2] * W, h.box[3] * H];
-          if (b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} over ${h.hero} (${s.id} f${sf})`);
+        if (b.id.startsWith('M4')) {
+          const names = (q.plates ?? []).filter((p) => p.kind === 'hero').map((p) => p.name);
+          const bad = names.filter((n) => !CHAMPIONS.has(n));
+          if (bad.length) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} with non-champion plates ${bad.join(',')} (${s.id} f${sf})`);
+        }
+        for (const [what, box] of things) {
+          // VICTORY! is laid on the core burst by design (the title on the payoff); every other word stays off it
+          if (b.id === 'M6' && what === 'core') continue;
+          const [x0, y0, x1, y1] = toPx(box);
+          if (b.x1 + mgn > x0 && b.x0 - mgn < x1 && b.y1 + mgn > y0 && b.y0 - mgn < y1) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} over ${what} (${s.id} f${sf})`);
         }
       }
     }
@@ -95,9 +123,23 @@ if (typeQc.length) {
     const k = t.split(' f')[0] + ' ' + t.split(' ')[3];
     by[k] = (by[k] ?? 0) + 1;
   }
-  log(`type QC: ${typeQc.length} word-over-hero frames: ${JSON.stringify(by)}; first: ${typeQc.slice(0, 6).join(' | ')}`);
-  if (!process.argv.includes('--no-gates')) throw new Error('type QC failed (a word touches a hero box)');
-} else log('type QC: no word touches a hero box on any frame');
+  log(`type QC: ${typeQc.length} word-over-subject frames: ${JSON.stringify(by)}; first: ${typeQc.slice(0, 8).join(' | ')}`);
+  if (!process.argv.includes('--no-gates')) throw new Error('type QC failed (a word touches a hero, a plate or a pop)');
+} else log('type QC: no word touches a hero, plate, bar, pop, banner or structure box (40 px margin) on any frame; M4 only over the pick screen');
+
+// v3.2 match-end gate: no gameplay frame more than 8 sim ticks past its take's last tick (frozen units after the
+// match ended), and no frame of a match shot after the take's end unless it is the core shot's tail
+const TAKES_ALL = JSON.parse(readFileSync(join(HERE, '..', 'takes.json'), 'utf8')).takes;
+const late = [];
+for (const [k, m] of Object.entries(manifest.shots)) {
+  const take = TAKES_ALL[m.take];
+  if (!take?.length) continue;
+  for (const [f, t] of Object.entries(m.ticks ?? {})) if (t > take.length + 8) late.push(`${k} f${f} tick ${t} > end ${take.length}`);
+}
+if (late.length) {
+  log(`match-end gate: ${late.length} frames past the match: ${late.slice(0, 4).join(' | ')}`);
+  if (!process.argv.includes('--no-gates')) throw new Error('match-end gate failed (units held after the match ended)');
+} else log('match-end gate: no gameplay frame more than 8 ticks past its match end');
 if (process.argv.includes('--qc-only')) process.exit(typeQc.length ? 1 : 0);
 
 /** The shot (by id) that owns master frame f. */
@@ -206,6 +248,7 @@ function frameStats(path, W, H, pre = []) {
     const n = w * h * 3;
     let buf = Buffer.alloc(0);
     let prev = null;
+    let prev2 = null;
     const stats = [];
     p.stdout.on('data', (d) => {
       buf = Buffer.concat([buf, d]);
@@ -215,6 +258,7 @@ function frameStats(path, W, H, pre = []) {
         let clip = 0;
         let sumY = 0;
         let diff = 0;
+        let diff2 = 0;
         for (let i = 0; i < n; i += 3) {
           const r = fr[i], g = fr[i + 1], b = fr[i + 2];
           const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -224,8 +268,11 @@ function frameStats(path, W, H, pre = []) {
           if (y >= 235 && grey) clip++;
           sumY += y;
           if (prev) diff += Math.abs(fr[i + 1] - prev[i + 1]);
+          if (prev2) diff2 += Math.abs(fr[i + 1] - prev2[i + 1]);
         }
-        stats.push({ white: white / (n / 3), clip: clip / (n / 3), y: sumY / (n / 3), diff: prev ? diff / (n / 3) : null });
+        // diff2: this frame against the one two back (a pop returns: f-1 and f+1 match; an onset stays changed)
+        stats.push({ white: white / (n / 3), clip: clip / (n / 3), y: sumY / (n / 3), diff: prev ? diff / (n / 3) : null, diff2: prev2 ? diff2 / (n / 3) : null });
+        prev2 = prev;
         prev = Buffer.from(fr);
         buf = buf.subarray(n);
       }
@@ -292,7 +339,7 @@ for (const cut of ['30', '15']) {
     const black = stats.map((s, f) => (s.y < 12 ? f : -1)).filter((f) => f >= 0);
     // a frozen picture outside the end card and the line-up's still moments (identical consecutive frames)
     // the freeze and pop checks read the picture without the type (a word slamming in is not a pop)
-    const frozen = pic.map((s, f) => (s.diff !== null && s.diff < 0.02 && !b.plan[f]?.end && b.plan[f]?.shot !== 'S17' ? f : -1)).filter((f) => f >= 0);
+    const frozen = pic.map((s, f) => (s.diff !== null && s.diff < 0.02 && !b.plan[f]?.end && !SHOTS.find((x) => x.id === b.plan[f]?.shot)?.lobby ? f : -1)).filter((f) => f >= 0);
     const r = {
       file,
       frames: Number(v.nb_read_frames),
@@ -338,7 +385,10 @@ for (const cut of ['30', '15']) {
       if (tk[sf0] !== undefined && tk[sf0 + 1] === tk[sf0] && tk[sf0 + 2] === tk[sf0]) continue;
       // isolated: far above both the frames before and the frames after (a motion onset keeps changing after it)
       const med = (xs) => xs.map((x) => x.diff ?? 0).sort((a, c) => a - c)[1];
-      if (d > 6 && d > 4 * Math.max(0.5, med([pic[f - 3], pic[f - 2], pic[f - 1]])) && d > 4 * Math.max(0.5, med([pic[f + 1], pic[f + 2], pic[f + 3]]))) pops.push(f);
+      // v3.2: and it comes back: frame f+1 is close to frame f-1 again (an effect that starts and stays, such as an
+      // ultimate's ring or a core's death glow, is an onset, not a pop)
+      const back = (pic[f + 1].diff2 ?? 0) < 0.5 * d;
+      if (back && d > 6 && d > 4 * Math.max(0.5, med([pic[f - 3], pic[f - 2], pic[f - 1]])) && d > 4 * Math.max(0.5, med([pic[f + 1], pic[f + 2], pic[f + 3]]))) pops.push(f);
     }
     r.popFrames = pops.map((f) => ({ f, d: +pic[f].diff.toFixed(1), shot: b.plan[f].shot }));
     if (pops.length) fails.push(`single-frame pops at ${pops.join(',')}`);
