@@ -29,6 +29,7 @@ import {
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
   SWORDCAT_PREVIEW,
+  MEOW_RUN_CARD_KEY,
   ULTRA_CAT_CARD_KEY,
 } from "@/components/shared/GameSelectModal";
 import fs from "fs";
@@ -44,6 +45,7 @@ import {
   formulaMeowEntryEnabled,
 } from "@/components/formula-meow/entry";
 import { ULTRA_CAT_PICKER_DESCRIPTION, ULTRA_CAT_PREVIEW, ultraCatEntryEnabled } from "@/components/ultra-cat/entry";
+import { MEOW_RUN_PICKER_DESCRIPTION, MEOW_RUN_PREVIEW, meowRunEntryEnabled } from "@/components/meow-run/entry";
 import { GameType } from "@/models/game";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { pawlegendsPickerEnabled } from "@/components/pawlegends/flags";
@@ -89,7 +91,7 @@ describe("gameCards", () => {
 });
 
 describe("GameSelectModal", () => {
-  it("shows nine cards in a GameModal (the Moon Rave first; Swordcat, Bad Cat, Formula Meow and Ultra Cat on by default), the Heist as a link with its badge", () => {
+  it("shows ten cards in a GameModal (the Moon Rave first; Swordcat, Bad Cat, Formula Meow, Ultra Cat and Meow Run on by default), the Heist as a link with its badge", () => {
     const { dialog } = open();
     expect(within(dialog).getByRole("heading", { name: "Choose your adventure" })).toBeTruthy();
     const cards = within(dialog).getAllByRole("listitem");
@@ -103,6 +105,7 @@ describe("GameSelectModal", () => {
       BADCAT_CARD_KEY,
       FORMULA_MEOW_CARD_KEY,
       ULTRA_CAT_CARD_KEY,
+      MEOW_RUN_CARD_KEY,
     ]);
     const heist = within(dialog).getByRole("link", { name: "CATNIP HEIST · NO SIGN-UP" });
     expect(heist.getAttribute("href")).toBe("/heist?from=picker");
@@ -161,21 +164,23 @@ describe("GameSelectModal", () => {
       BADCAT_CARD_KEY,
       FORMULA_MEOW_CARD_KEY,
       ULTRA_CAT_CARD_KEY,
+      MEOW_RUN_CARD_KEY,
     ]);
     expect(within(dialog).queryByTestId("game-card-heist")).toBeNull();
     expect(within(dialog).queryByRole("link", { name: /CATNIP HEIST/ })).toBeNull();
-    // The links left are the Moon Rave, Swordcat, Bad Cat, Formula Meow and Ultra Cat cards.
+    // The links left are the Moon Rave, Swordcat, Bad Cat, Formula Meow, Ultra Cat and Meow Run cards.
     expect(within(dialog).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/rave?from=picker",
       SWORDCAT_PICKER_HREF,
       "/badcat?from=picker&utm_source=tt_picker",
       "/meow-race?from=picker",
       "/ultra-cat?from=picker",
+      "/meow-run?from=picker",
     ]);
   });
 
-  it("shows only the three Phaser cards with the Moon Rave, Heist, Swordcat, Bad Cat, Formula Meow and Ultra Cat cards all off", () => {
-    const { dialog } = open({ showHeist: false, showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false });
+  it("shows only the three Phaser cards with the Moon Rave, Heist, Swordcat, Bad Cat, Formula Meow, Ultra Cat and Meow Run cards all off", () => {
+    const { dialog } = open({ showHeist: false, showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
@@ -209,19 +214,19 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(swordcatPickerEnabled()).toBe(true);
     const { dialog } = open();
     expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(9);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(10);
   });
 
   it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
     expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
-    const first = open({ showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false });
+    const first = open({ showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
     cleanup();
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
     try {
       expect(swordcatPickerEnabled()).toBe(false);
-      const second = open({ showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false });
+      const second = open({ showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
       expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
       expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
     } finally {
@@ -245,7 +250,7 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
   });
 
   it("opens /swordcat with a full page load and keeps the Heist card's test id", () => {
-    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false });
+    const { navigate, setGameType, onClose, dialog } = open({ showSwordcat: true, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
     expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
     const card = within(dialog).getByTestId("game-card-swordcat");
@@ -301,6 +306,7 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
       BADCAT_CARD_KEY,
       FORMULA_MEOW_CARD_KEY,
       ULTRA_CAT_CARD_KEY,
+      MEOW_RUN_CARD_KEY,
     ]);
     const card = within(dialog).getByTestId("game-card-pawlegends");
     expect(card.getAttribute("href")).toBe(`${PAWLEGENDS_PICKER_HREF}?from=picker`);
@@ -338,23 +344,32 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
     expect(cardHref({ key: PAWLEGENDS_CARD_KEY, href: PAWLEGENDS_PICKER_HREF })).toBe("/pawlegends?from=picker");
   });
 
-  it("sits four to a row from md with eight cards, three to a row with nine (every web card outside the Cupid season) and four to a row with ten (in it)", () => {
-    const eight = open({ showPawlegends: true, showFormulaMeow: false, showUltraCat: false });
+  it("sits four to a row from md with eight cards, three to a row with nine, 4 + 3 + 3 with ten (every web card outside the Cupid season) and four to a row with eleven (in it)", () => {
+    const eight = open({ showPawlegends: true, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     const items = within(eight.dialog).getAllByRole("listitem");
     expect(items).toHaveLength(8);
     expect(items[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(items[0].className).not.toContain("max-height:520px");
     cleanup();
-    // Cupid Cat is mocked on, so dropping one card stands in for the nine web cards outside the season.
-    const nine = open({ showPawlegends: true, showFormulaMeow: false });
+    const nine = open({ showPawlegends: true, showFormulaMeow: false, showMeowRun: false });
     const nineItems = within(nine.dialog).getAllByRole("listitem");
     expect(nineItems).toHaveLength(9);
     expect(nineItems[0].className).toContain("md:w-[calc(33.333%-0.75rem)]");
     expect(nineItems[0].className).not.toContain("max-height:520px");
     cleanup();
-    const ten = open({ showPawlegends: true });
-    const all = within(ten.dialog).getAllByRole("listitem");
-    expect(all).toHaveLength(10);
+    // Cupid Cat is mocked on, so dropping one card stands in for the ten web cards outside the season: the
+    // grid of eight half-card columns (4 + 3 + 3, the rows of three centred).
+    const ten = open({ showPawlegends: true, showMeowRun: false });
+    const tenItems = within(ten.dialog).getAllByRole("listitem");
+    expect(tenItems).toHaveLength(10);
+    expect(screen.getByTestId("game-select-cards").className).toContain("md:grid md:grid-cols-8");
+    expect(tenItems[0].className).toContain("md:col-span-2");
+    expect(tenItems[0].className).not.toContain("md:w-[calc(");
+    cleanup();
+    const eleven = open({ showPawlegends: true });
+    const all = within(eleven.dialog).getAllByRole("listitem");
+    expect(all).toHaveLength(11);
+    expect(screen.getByTestId("game-select-cards").className).not.toContain("md:grid");
     expect(all[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(all[0].className).not.toContain("max-height:520px");
   });
@@ -407,11 +422,11 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
     process.env = { ...envBefore };
   });
 
-  it("is in the picker by default with no env set, before Formula Meow and Ultra Cat, linking to /badcat?from=picker", () => {
+  it("is in the picker by default with no env set, before Formula Meow, Ultra Cat and Meow Run, linking to /badcat?from=picker", () => {
     expect(Object.keys(process.env).filter((k) => /BADCAT/i.test(k))).toEqual([]);
     const { dialog } = open();
     const items = within(dialog).getAllByRole("listitem");
-    expect(items[items.length - 3].getAttribute("data-card")).toBe(BADCAT_CARD_KEY);
+    expect(items[items.length - 4].getAttribute("data-card")).toBe(BADCAT_CARD_KEY);
     const card = within(dialog).getByTestId("game-card-badcat");
     expect(card.getAttribute("href")).toBe("/badcat?from=picker&utm_source=tt_picker");
     expect(card.getAttribute("aria-label")).toBe("BAD CAT DAILY · NEW");
@@ -459,32 +474,43 @@ describe("Bad Cat Daily card (no flag, web only)", () => {
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
   });
 
-  it("uses three to a row from md with five, six or nine cards, four to a row with four, seven or eight", () => {
-    const six = open({ showRave: false, showFormulaMeow: false, showUltraCat: false });
+  it("uses three to a row from md with five, six or nine cards, four to a row with four, seven or eight, and 4 + 3 + 3 with ten", () => {
+    const six = open({ showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     const item = within(six.dialog).getAllByRole("listitem")[0];
     expect(item.className).toContain("md:w-[calc(33.333%-0.75rem)]");
     // Six on a short landscape phone: 3 + 3 and the list scrolls (one row of six cut the lines off).
     expect(item.className).not.toContain("max-height:520px");
     cleanup();
-    const four = open({ showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false });
+    const four = open({ showSwordcat: false, showBadcat: false, showRave: false, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     expect(within(four.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     cleanup();
     // Seven (every card, in the Cupid season): 4 + 3, and no one-row squeeze on short landscape screens.
-    const seven = open({ showFormulaMeow: false, showUltraCat: false });
+    const seven = open({ showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
     const first = within(seven.dialog).getAllByRole("listitem")[0];
     expect(within(seven.dialog).getAllByRole("listitem")).toHaveLength(7);
     expect(first.className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(first.className).not.toContain("max-height:520px");
     cleanup();
-    // Eight (every card but Ultra Cat in the Cupid season, or every card outside it): 4 + 4.
-    const eight = open({ showUltraCat: false });
+    // Eight: 4 + 4.
+    const eight = open({ showUltraCat: false, showMeowRun: false });
     expect(within(eight.dialog).getAllByRole("listitem")).toHaveLength(8);
     expect(within(eight.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     cleanup();
-    // Nine (every card, in the Cupid season): 3 + 3 + 3 (5 + 4 squeezed the descriptions).
-    const nine = open();
+    // Nine: 3 + 3 + 3 (5 + 4 squeezed the descriptions).
+    const nine = open({ showMeowRun: false });
     expect(within(nine.dialog).getAllByRole("listitem")).toHaveLength(9);
     expect(within(nine.dialog).getAllByRole("listitem")[0].className).toContain("md:w-[calc(33.333%-0.75rem)]");
+    cleanup();
+    // Ten (every card but Pawlegends, in the Cupid season): 4 + 3 + 3 on the eight-column grid, the first card of
+    // each row of three (the 5th and the 8th) one column in.
+    const ten = open();
+    const tenItems = within(ten.dialog).getAllByRole("listitem");
+    expect(tenItems).toHaveLength(10);
+    expect(screen.getByTestId("game-select-cards").className).toContain("md:grid md:grid-cols-8");
+    expect(tenItems[4].className).toContain("md:[&:nth-child(5)]:col-start-2");
+    expect(tenItems[4].className).toContain("md:[&:nth-child(8)]:col-start-2");
+    // Phones keep two per row (the flex row, half width each).
+    expect(tenItems[0].className).toContain("w-[calc(50%-0.375rem)]");
   });
 });
 
@@ -571,11 +597,11 @@ describe("Formula Meow card (no flag, web only)", () => {
     process.env = { ...envBefore };
   });
 
-  it("is in the picker by default, before Ultra Cat, linking to /meow-race?from=picker with real game art", () => {
+  it("is in the picker by default, before Ultra Cat and Meow Run, linking to /meow-race?from=picker with real game art", () => {
     expect(formulaMeowEntryEnabled(false)).toBe(true);
     const { dialog } = open();
     const items = within(dialog).getAllByRole("listitem");
-    expect(items[items.length - 2].getAttribute("data-card")).toBe(FORMULA_MEOW_CARD_KEY);
+    expect(items[items.length - 3].getAttribute("data-card")).toBe(FORMULA_MEOW_CARD_KEY);
     const card = within(dialog).getByTestId("game-card-formula_meow");
     expect(card.tagName).toBe("A");
     expect(card.getAttribute("href")).toBe("/meow-race?from=picker");
@@ -648,11 +674,11 @@ describe("Ultra Cat card (no flag, web only)", () => {
     process.env = { ...envBefore };
   });
 
-  it("is in the picker by default, last, linking to /ultra-cat?from=picker with real game art", () => {
+  it("is in the picker by default, before Meow Run, linking to /ultra-cat?from=picker with real game art", () => {
     expect(ultraCatEntryEnabled(false)).toBe(true);
     const { dialog } = open();
     const items = within(dialog).getAllByRole("listitem");
-    expect(items[items.length - 1].getAttribute("data-card")).toBe(ULTRA_CAT_CARD_KEY);
+    expect(items[items.length - 2].getAttribute("data-card")).toBe(ULTRA_CAT_CARD_KEY);
     const card = within(dialog).getByTestId("game-card-ultra_cat");
     expect(card.tagName).toBe("A");
     expect(card.getAttribute("href")).toBe("/ultra-cat?from=picker");
@@ -721,5 +747,99 @@ describe("Ultra Cat card (no flag, web only)", () => {
     // Listed in the sitemap (a rewrite, so next-sitemap cannot find it by itself).
     const sitemap = fs.readFileSync(path.resolve(__dirname, "../next-sitemap.config.js"), "utf8");
     expect(sitemap).toContain("{ loc: '/ultra-cat' }");
+  });
+});
+
+describe("Meow Run card (no flag, web only)", () => {
+  const envBefore = { ...process.env };
+  afterEach(() => {
+    process.env = { ...envBefore };
+  });
+
+  it("is in the picker by default, last, linking to /meow-run?from=picker with real game art", () => {
+    expect(meowRunEntryEnabled(false)).toBe(true);
+    const { dialog } = open();
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items[items.length - 1].getAttribute("data-card")).toBe(MEOW_RUN_CARD_KEY);
+    const card = within(dialog).getByTestId("game-card-meow_run");
+    expect(card.tagName).toBe("A");
+    expect(card.getAttribute("href")).toBe("/meow-run?from=picker");
+    expect(card.getAttribute("aria-label")).toBe("MEOW RUN · NEW");
+    expect(within(dialog).getByText(MEOW_RUN_PICKER_DESCRIPTION)).toBeTruthy();
+    const art = within(dialog).getByTestId("game-card-meow_run-preview");
+    expect(art.getAttribute("src")).toBe(MEOW_RUN_PREVIEW.src);
+    expect(art.getAttribute("alt")).toBe(MEOW_RUN_PREVIEW.alt);
+    expect(MEOW_RUN_PREVIEW.alt.length).toBeGreaterThan(20);
+    expect(art.getAttribute("width")).toBe("312");
+    expect(art.getAttribute("height")).toBe("218");
+  });
+
+  it("opens /meow-run with a full page load and never picks a Phaser mode", () => {
+    const { navigate, setGameType, onClose, dialog } = open();
+    fireEvent.click(within(dialog).getByTestId("game-card-meow_run"));
+    expect(navigate).toHaveBeenCalledWith("/meow-run?from=picker");
+    expect(setGameType).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("comes after Ultra Cat in gameCards, with no GameType, no numbers and no money claim", () => {
+    const cards = gameCards(true, new Date(), true, true, true, true, true, true, true);
+    expect(cards.map((card) => card.key)).toEqual([
+      RAVE_CARD_KEY,
+      PAWLEGENDS_CARD_KEY,
+      "PIXEL_RESCUE",
+      "CATNIP_CHAOS",
+      "MATCH_3",
+      "CATNIP_HEIST",
+      SWORDCAT_CARD_KEY,
+      BADCAT_CARD_KEY,
+      FORMULA_MEOW_CARD_KEY,
+      ULTRA_CAT_CARD_KEY,
+      MEOW_RUN_CARD_KEY,
+    ]);
+    const card = cards[10];
+    expect(card).toMatchObject({ title: "MEOW RUN", href: "/meow-run", previewVariant: "MEOW_RUN", badge: "NEW" });
+    expect(card.type).toBeUndefined();
+    expect(Object.values(GameType)).not.toContain(MEOW_RUN_CARD_KEY);
+    expect(card.description).not.toMatch(/\d|\$|USDC|treat|Pink Paw|shelter/i);
+    expect(cardHref(card)).toBe("/meow-run?from=picker");
+    expect(gameCards(true, new Date(), true, true, true, true, true, true).map((c) => c.key)).not.toContain(MEOW_RUN_CARD_KEY);
+  });
+
+  it("reads differently from Purrsuit, the classic runner", () => {
+    const purrsuit = gameCards(true).find((card) => card.key === GameType.CATNIP_CHAOS)!;
+    expect(purrsuit.tag).toBe("CLASSIC");
+    expect(MEOW_RUN_PICKER_DESCRIPTION).not.toBe(purrsuit.description);
+    expect(MEOW_RUN_PICKER_DESCRIPTION).toMatch(/kitten home/i);
+    expect(MEOW_RUN_PICKER_DESCRIPTION).toMatch(/vault|wall-run|cloud/i);
+  });
+
+  it("is left out of the app build (no /meow-run rewrite there)", () => {
+    process.env.NEXT_PUBLIC_IS_APP = "1";
+    expect(meowRunEntryEnabled()).toBe(false);
+    const { dialog } = open();
+    expect(within(dialog).queryByTestId("game-card-meow_run")).toBeNull();
+  });
+
+  it("ships a 2x WebP for the card's 312x218 box, pruned from the app export", () => {
+    expect(MEOW_RUN_PREVIEW).toMatchObject({ width: 312, height: 218 });
+    const buf = fs.readFileSync(path.join(path.resolve(__dirname, "../public"), MEOW_RUN_PREVIEW.src));
+    expect(buf.toString("latin1", 0, 4)).toBe("RIFF");
+    expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
+    const prune = fs.readFileSync(path.resolve(__dirname, "../scripts/prune-app-export.mjs"), "utf8");
+    expect(prune).toContain(`"${MEOW_RUN_PREVIEW.src.slice(1)}"`);
+  });
+
+  it("is served by the /meow-run rewrite in next.config.js", () => {
+    const config = fs.readFileSync(path.resolve(__dirname, "../next.config.js"), "utf8");
+    expect(config).toContain('{ source: "/meow-run", destination: `${MEOWRUN}/index.html` }');
+    expect(config).toContain('{ source: "/meow-run/:path*", destination: `${MEOWRUN}/:path*` }');
+    expect(config).toMatch(/afterFiles: \[[^\]]*\.\.\.meowRunRewrites/);
+    // The built game sits where the rewrite points (meow-run: `npm run build:client`, base /meowrun-game/).
+    const html = fs.readFileSync(path.resolve(__dirname, "../public/meowrun-game/index.html"), "utf8");
+    expect(html).toMatch(/src="\/meowrun-game\/build\/index-[\w-]+\.js"/);
+    // Listed in the sitemap (a rewrite, so next-sitemap cannot find it by itself).
+    const sitemap = fs.readFileSync(path.resolve(__dirname, "../next-sitemap.config.js"), "utf8");
+    expect(sitemap).toContain("{ loc: '/meow-run' }");
   });
 });

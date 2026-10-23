@@ -1197,7 +1197,10 @@ it, so the game could only be reached by typing the URL. Now `components/badcat/
   four cards on one row, five or six three to a row (3 + 2 centred, or 3 + 3) and seven or eight four to a row
   (4 + 3, or 4 + 4; Formula Meow, after Bad Cat, made seven the web default on Oct 22 2026), and nine three to a
   row (3 + 3 + 3; Ultra Cat, after Formula Meow, made eight the web default later on Oct 22 2026), and ten four to a
-  row (4 + 4 + 2 centred; with Pawlegends, second, the web default is nine outside the Cupid season and ten in it);
+  row (4 + 4 + 2 centred; with Pawlegends, second, the web default was nine outside the Cupid season and ten in it).
+  Meow Run, last since Oct 23 2026, makes it ten outside the season and eleven in it: ten sit 4 + 3 + 3 (the list
+  becomes an eight-column grid from `md`, each card two columns wide and the rows of three centred) and eleven sit
+  4 + 4 + 3 centred;
   short landscape screens (`md` and at most 520 px tall) put five or six cards on one row so none hides below
   the list's fold (seven keep 4 + 3 and scroll); phones keep two per row. The Moon Rave card leads the list
   (see the landing Moon Rave notes).
@@ -1367,13 +1370,14 @@ path) and keeps its progress in the player's `localStorage`.
 `ULTRA_CAT_PICKER_DESCRIPTION`, `ULTRA_CAT_PREVIEW` and `ultraCatEntryEnabled` = not `isAppBuild()`) feeds:
 
 - the PLAY picker ("Choose your adventure", `GameSelectModal.tsx`): an ULTRA CAT card (key `ULTRA_CAT`, a free string,
-  not a `GameType`; test id `game-card-ultra_cat`, badge NEW) last, after Formula Meow, a full page load to
+  not a `GameType`; test id `game-card-ultra_cat`, badge NEW) after Formula Meow (and before Meow Run), a full page load to
   `/ultra-cat?from=picker` (the game ignores `from`). Its line is "Be a giant cat. Wreck the whole city." The art,
   `public/game-select/ultracat-preview@2x.webp` (624x436 for the 312x218 card box), is a real gameplay frame with the
   HUD cropped out, written by the trailer pipeline; `scripts/prune-app-export.mjs` drops it from the app export. With
   it and Pawlegends (second, after the Moon Rave) the web picker shows nine cards outside the Cupid season (3 + 3 + 3
   from `md`; a 5 + 4 split was too narrow for the descriptions) and ten in it (4 + 4 + 2 centred; 5 + 5 is too narrow,
-  3 + 3 + 3 + 1 leaves one card alone). Tests: `__test__/game-select-modal.test.tsx` ("Ultra Cat card").
+  3 + 3 + 3 + 1 leaves one card alone); Meow Run makes those ten and eleven (see below). Tests:
+  `__test__/game-select-modal.test.tsx` ("Ultra Cat card").
 - the home page games hub (`public/home/index.html`, `GAMES`): the Ultra Cat tab (accent `#ff8a3d`, tag New) right
   after Formula Meow, so the two new non-treat games sit together after the treat games and Bad Cat; it plays
   `/ultra-cat?from=home_hub_ultracat`. Its media sit at the top of `public/home/media/` (`ultracat-loop.mp4/.jpg`,
@@ -1391,3 +1395,52 @@ the Capacitor export has no rewrites, so the app build shows no Ultra Cat entry)
 **Build and deploy flow** (run inside `ultra-cat/`; no backend is needed): `npm run build:client` (Vite build with
 `ULTRA_BASE=/ultracat-game/` into `client/public/ultracat-game/`), then commit `client/public/ultracat-game` and deploy
 the client. `ULTRA_BASE` is build-only; the game reads no environment variables at runtime.
+
+## Meow Run (/meow-run)
+
+Meow Run is a separate Vite + three.js game (`meow-run/`, design in `meow-run/GDD.md`, lanes in
+`meow-run/LANES.md`): a 3D story runner. Mochi, a kitten, races home for dinner at Grandma Cat's cottage across
+three hand-built stages (Sunny Meadow Canyon, the tutorial; River Gorge with the wall-run, leaf surf and dog chase;
+Sunset Hills with the puff cloud ride, the yarn boulder chase and the cottage ending) plus an Endless mode. It is not
+Purrsuit: Purrsuit (the CLASSIC card, the hub's Runner tab) is the 2D level runner in the Phaser game; Meow Run is the
+3D one with abilities (tail vault, claw wall-run, puff cloud, leaf surf, pounce), golden bells, hearts and stars. The
+client only hosts its static build, served top level at `/meow-run` with no iframe, like Ultra Cat. The game saves no
+scores (no `GameType`, no backend write path) and keeps its progress in the player's `localStorage`.
+
+**Entry points (web only, no flag).** `client/components/meow-run/entry.ts` (`MEOW_RUN_PATH`, `meowRunHref(from)`,
+`MEOW_RUN_PICKER_DESCRIPTION`, `MEOW_RUN_PREVIEW` with its alt text, and `meowRunEntryEnabled` = not `isAppBuild()`)
+feeds:
+
+- the PLAY picker ("Choose your adventure", `GameSelectModal.tsx`): a MEOW RUN card (key `MEOW_RUN`, a free string,
+  not a `GameType`; test id `game-card-meow_run`, badge NEW) last, after Ultra Cat, a full page load to
+  `/meow-run?from=picker` (the game ignores `from`). Its line, "Story run: race a kitten home, vault,
+  wall-run", sets it apart from Purrsuit, the classic 2D runner (no digits: the card test bans numbers). The art, `public/game-select/meowrun-preview@2x.webp` (624x436 for the 312x218 card box), is a real
+  gameplay frame with the HUD cropped out, written by the trailer pipeline (`meow-run/tools/trailer`), and the card
+  describes it in its alt text; `scripts/prune-app-export.mjs` drops it from the app export. With it the web picker
+  shows ten cards outside the Cupid season (4 + 3 + 3 from `md`: an eight-column grid, each card two columns wide,
+  the 5th and 8th cards one column in so the rows of three are centred; 5 + 5 is too narrow for the descriptions and
+  4 + 4 + 2 left a hole) and eleven in it (4 + 4 + 3 centred). Phones keep two per row and the list scrolls; short
+  landscape screens keep the `md` rows and scroll. Tests: `__test__/game-select-modal.test.tsx` ("Meow Run card"),
+  `e2e/heist-host.spec.ts` ("game picker").
+- the home page games hub (`public/home/index.html`, `GAMES`): the Meow Run tab (accent `#b98cff`, tag New) right
+  after Ultra Cat; it plays `/meow-run?from=home_hub_meowrun`. Its media sit at the top of `public/home/media/`
+  (`meowrun-loop.mp4/.jpg`, a silent 1280x720 loop; `meowrun-trailer.mp4/.jpg`, the 16:9 trailer;
+  `meowrun-mode.mp4/.jpg`, the 9:16 how-to-play cut; `t/tab-meowrun.webp`), all written by the trailer pipeline.
+  `scripts/sync-home.mjs` empties `public/home` and rebuilds it from `landing-poc/v16c1`, which has no Meow Run (or
+  Ultra Cat) entry yet: add the entry and the media there before the next sync, or the sync drops the tab and its
+  media.
+- the sitemap (`next-sitemap.config.js` `additionalPaths`: `/meow-run`) and the blog's Games section description
+  (`lib/feed/taxonomy.json`).
+
+**Hosting.** `meow-run` builds into `client/public/meowrun-game/` with the base `/meowrun-game/` (one `index.html`
+plus `build/`; geometry, materials and audio are procedural, so there are no other asset files). The
+`meowRunRewrites` block in `client/next.config.js` maps `/meow-run` to `/meowrun-game/index.html` and
+`/meow-run/<anything else>` to `/meowrun-game/<anything else>` (web builds only; the Capacitor export has no
+rewrites, so the app build shows no Meow Run entry). `/meow-run` and Formula Meow's `/meow-race` are separate
+rewrite blocks and do not overlap.
+
+**Build and deploy flow** (run inside `meow-run/`; no backend is needed): `npm run build:client` (Vite build with
+`MEOWRUN_BASE=/meowrun-game/` into `client/public/meowrun-game/`), then commit `client/public/meowrun-game` and
+deploy the client. `MEOWRUN_BASE` is build-only; the game reads no environment variables at runtime. The game's own
+checks are `npx tsc --noEmit`, `npx vitest run`, `npm run build` and `npm run smoke` (Playwright Chromium on desktop
+and a 390x844 phone; the dev server is on port 5178).
