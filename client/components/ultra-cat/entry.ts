@@ -27,6 +27,7 @@ export const ULTRA_CAT_PREVIEW = Object.freeze({
   src: "/game-select/ultracat-preview@2x.webp",
   width: 312,
   height: 218,
+  alt: "A giant orange tabby fires a pink laser across a city of toppled skyscrapers",
 });
 
 /** On in every web build; never in the app build (the export has no /ultra-cat rewrite). */
