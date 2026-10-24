@@ -638,6 +638,12 @@ numbers, the community carousel, the FAQ and the team.
   photos and the portrait clip stay on the DigitalOcean CDN. `next.config.js` sends
   `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` for `/home/media/*`; names are not
   content-hashed, so give a changed file a new name.
+- **Games hub tabs.** Below 768px the tabs are one row that scrolls sideways (136px cards on phones, 146px
+  from 640px). From 768px they wrap into centred rows of equal cards: the `GAMES` script sets `--cols` to
+  `ceil(n / ceil(n / 7))`, so 12 tabs are 6 + 6, 11 are 6 + 5 and 13 are 7 + 6. Names stay on one line
+  (`nowrap`, ellipsis as a last resort; 13px at 768px up to 18px). Arrow keys still move one tab at a time and
+  wrap, Home and End jump to the ends. `landing-poc/v16c1` does not have this layout yet: port the CSS and the
+  `--cols` line there before the next sync, or the sync puts the single cramped row back.
 - **Sign in.** The header has a "Sign in" pill (top left) to `/game?signin=1&from=home_signin`, the old
   landing's entry for returning players. Unlike the old one it shows for signed-in visitors too.
 
