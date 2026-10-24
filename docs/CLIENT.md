@@ -586,7 +586,21 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
   ids and caps from `shared/caps.ts` (synced).
 - Local dev: run `next dev --webpack` (`npm run dev`); with a symlinked `node_modules` Turbopack refuses to
   start. The committed build accepts the host on any port because it is same-origin.
-- The picker card shows a real match frame (`PAWLEGENDS_PREVIEW`); the "3v3" tile is only the fallback when the image fails to load.
+- The picker card shows a real match frame (`PAWLEGENDS_PREVIEW`); the "3v3" tile is only the fallback when the image fails to load. Like the other web-only picker art,
+  `game-select/pawlegends-preview@2x.webp` is in `scripts/prune-app-export.mjs` `WEB_ONLY_FILES` (the card never
+  renders in app builds).
+- The home page games hub (`public/home/index.html`, `GAMES`): the Pawlegends tab (accent `#6fa8ff`, tag New) right
+  after the Moon Rave, as in the picker; it plays `/pawlegends?from=home_hub_pawlegends` (`pawlegends_open {from}`).
+  Its media sit at the top of `public/home/media/`: `pawlegends-trailer.mp4/.jpg` is the landing variant of trailer v3
+  (`pawlegends/media/trailer-v3/landing/`, the "INSPIRED BY REAL SHELTER CATS." cut, 30 s 1080p re-encoded to 30 fps,
+  about 8.6 MB; the poster is that variant's poster); `pawlegends-loop.mp4/.jpg` (a silent 8 s 1280x720 loop, about
+  0.9 MB) and `pawlegends-mode.mp4/.jpg` (the 9:16 cut, 25 s with the trailer's music bed, about 6 MB) are pure
+  gameplay with no screen layers (no HUD, plates, pops or type), captured with `tools/trailer/capture.mjs
+  --shots-file tools/trailer/v3/hub-shots.mjs` (pawlegends/) from takes V13 (the tower falls), W9 (all six meet) and V12 (the doghouse falls); `t/tab-pawlegends.webp`
+  is a 320x200 frame of the loop take. `scripts/sync-home.mjs` rebuilds `public/home` from `landing-poc/v16c1`, which
+  has no Pawlegends entry yet: add the entry and the media there before the next sync, or the sync drops the tab.
+  `/pawlegends` stays out of the sitemap and keeps its `noindex` until the trademark search passes
+  (docs/plans/moba/LAUNCH.md a.1), so the games taxonomy line does not name it yet.
 
 ### Home page (/)
 

@@ -413,6 +413,9 @@ describe("Pawlegends card: web builds only (pawlegendsPickerEnabled) and its art
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
     expect(buf.length).toBeLessThan(40 * 1024);
     expect(fs.existsSync(path.join(pub, "game-select/pawlegends.webp"))).toBe(false);
+    // Pruned from the app export like the other web-only picker art (the card never renders there).
+    const prune = fs.readFileSync(path.resolve(__dirname, "../scripts/prune-app-export.mjs"), "utf8");
+    expect(prune).toContain(`"${PAWLEGENDS_PREVIEW.src.slice(1)}"`);
   });
 });
 
