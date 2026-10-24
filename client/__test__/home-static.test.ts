@@ -152,6 +152,31 @@ describe("public/home/index.html", () => {
     expect(html).toContain("var API_EVT=''");
     expect(html).toContain("function track(evt,cta){if(!API_EVT)return;");
   });
+
+  it("has a Pawlegends tab right after the Moon Rave, playing /pawlegends with its trailer, loop and 9:16 cut", () => {
+    const order = Array.from(html.matchAll(/\{k:'([a-z]+)',name:/g)).map((m) => m[1]);
+    expect(order.indexOf("pawlegends")).toBe(order.indexOf("rave") + 1);
+    const entry = html.slice(html.indexOf("{k:'pawlegends'"), html.indexOf("{k:'badcat'"));
+    expect(entry).toContain("play:T+'pawlegends'");
+    expect(entry).toContain("tag:'New'");
+    // `pawlegends_open {from}` keeps a `from` of at most 24 characters (components/pawlegends/session.ts openedFrom).
+    expect("home_hub_pawlegends".length).toBeLessThanOrEqual(24);
+    const budget: Record<string, number> = {
+      "pawlegends-trailer.mp4": 9.5e6,
+      "pawlegends-loop.mp4": 1.2e6,
+      "pawlegends-mode.mp4": 6.5e6,
+      "pawlegends-trailer.jpg": 6e5,
+      "pawlegends-loop.jpg": 2e5,
+      "pawlegends-mode.jpg": 3e5,
+      "t/tab-pawlegends.webp": 2e4,
+    };
+    for (const [file, max] of Object.entries(budget)) {
+      expect(entry).toContain(`/home/media/${file}`);
+      const size = fs.statSync(path.join(PUBLIC, "home/media", file)).size;
+      expect(size).toBeGreaterThan(0);
+      expect(size).toBeLessThan(max);
+    }
+  });
 });
 
 describe("app export prune", () => {

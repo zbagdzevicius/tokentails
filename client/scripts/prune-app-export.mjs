@@ -28,6 +28,8 @@ export const WEB_ONLY_FILES = Object.freeze([
   "game-select/ultracat-preview@2x.webp",
   // The Meow Run picker art: the picker card never renders in app builds (meowRunEntryEnabled).
   "game-select/meowrun-preview@2x.webp",
+  // The Pawlegends picker art: the picker card never renders in app builds (pawlegendsPickerEnabled(isAppBuild())).
+  "game-select/pawlegends-preview@2x.webp",
   // The blog RSS (scripts/build-feed-rss.mjs) is written by web builds and covers web-only articles.
   "feed/rss.xml",
 ]);
