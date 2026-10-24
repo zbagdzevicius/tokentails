@@ -294,7 +294,7 @@ master, writes SSIM per file to `social.json`, and `--sheets DIR` writes master/
 eye (the 30 s 16:9 copy, at about 2.6 Mbit/s, softens the dust of the core-base teamfight a little; nothing bands).
 
 ```sh
-node tools/trailer/v3/social.mjs --dir <dir>/out --sheets <dir>/social-check   # [--target-mb 10.5] [--audio-kbps 160]
+node tools/trailer/v3/social.mjs --dir <dir>/out --sheets <dir>/social-check   # [--target-mb 11.5]; settings as of v3.10 below
 ```
 
 **v3.5 (fix what's weak: the crane and the glare).** Render fixes in the game (render only; `src/sim` untouched,
@@ -434,3 +434,20 @@ by f1110; 9:16 pushed in to 0.95. The pick screen (f1140-1424) holds each champi
 f1425-1599. Score: the crack has its own transient on f1067 (game hit + a short impact), the hole before the boom is
 4 frames, every stab on its slam. 15 s: S01 0-199, S02 200-274, the tower from master 750, the core 975-1139, Lambo
 on the pick screen 50 frames.
+
+**v3.10 (social encodes back under 12 MB).** No game or cut change; the masters are the v3.9 render. The v3.6 fix for
+the blocky 30 s social copy (a 4.8 Mbit/s floor) had pushed the 30 s copies to ~18.5 MB. `v3/social.mjs` now lands
+every copy on 11.5 MB (`TARGET_MB`, band 8-12 MB, `SIZE_BAND`): x264 two-pass, preset veryslow, aq-mode 3 at
+strength 0.85, psy-rd 1.0:0.15, deblock -1:-1, bframes 5, no `-tune animation`. Per cut length (`PROFILE`): the 30 s
+copies run at 30 fps (every second master frame, full 1920x1080 / 1080x1920, AAC 128k), the 15 s copies keep 60 fps
+(AAC 160k). Chosen on the 30 s 16:9 cut at the same 11.5 MB, SSIM on the core fight (f900-1139) against the master at
+the copy's rate: 1080p60 0.987, 1600x900p60 0.985, 1600x900p30 0.989, 1080p30 0.991; by eye at full size the 30 fps
+copy keeps the dust puffs and stars of the core-base teamfight crisp, with no macroblocks (the 60 fps one smears the
+puffs). The script checks size, duration, frames at the copy's rate (`expectedFrames`), dimensions and the 0.99
+core-fight SSIM floor, measures loudness (`loudness`), writes `social.json` and a `social` block into `report.json`,
+and `storyboard.mjs` prints a social table for the game cut and for the landing variant (`out/landing/social.json`).
+
+```sh
+node tools/trailer/v3/social.mjs --dir <dir>/out --sheets <dir>/out/social-check
+node tools/trailer/v3/social.mjs --dir <dir>/out/landing --sheets <dir>/out/landing/social-check
+```

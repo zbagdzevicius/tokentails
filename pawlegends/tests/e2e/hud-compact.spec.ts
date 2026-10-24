@@ -182,7 +182,10 @@ test('844x390 keeps the full touch HUD', async ({ page }) => {
   expect(r((await boxes(page, '.pl-bar'))[0])).toEqual([16, 10, 222, 58]);
   expect(r((await boxes(page, '.pl-portrait'))[0])).toEqual([23, 17, 44, 44]);
   expect(r((await boxes(page, '.pl-pause'))[0])).toEqual([254, 10, 40, 40]);
-  expect(r((await boxes(page, '.pl-score'))[0])).toEqual([275, 8, 294, 54]);
+  // the phase line under the timer hides while the objective chip counts to the same phase, so the height is 45 or 54
+  const score = r((await boxes(page, '.pl-score'))[0]);
+  expect(score.slice(0, 3)).toEqual([275, 8, 294]);
+  expect([45, 54]).toContain(score[3]);
   expect(r((await boxes(page, '.pl-top .pl-strip.enemy'))[0])).toEqual([577, 12, 98, 30]);
   expect(r((await boxes(page, '.pl-strip.ally'))[0])).toEqual([80, 70, 72, 34]);
   await page.screenshot({ path: `${SHOTS}/844x390-unchanged.png` });

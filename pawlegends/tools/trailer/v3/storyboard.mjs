@@ -19,7 +19,7 @@ const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
 const takes = JSON.parse(readFileSync(join(HERE, '..', 'takes.json'), 'utf8')).takes;
 
 const out = [];
-out.push('# Trailer v3.9 storyboard (generated)', '', '## Shots (30 s master, 60 fps)', '');
+out.push('# Trailer v3.10 storyboard (generated)', '', '## Shots (30 s master, 60 fps)', '');
 out.push('| Shot | Frames | Take (human) | Anchor | Ticks | Camera | Ramp | QC 16:9 / 9:16 |', '|---|---|---|---|---|---|---|---|');
 for (const s of SHOTS) {
   const l = man[`${s.id}/16x9`];
@@ -44,5 +44,14 @@ if (existsSync(join(DIR, 'out', 'report.json'))) {
   const r = JSON.parse(readFileSync(join(DIR, 'out', 'report.json'), 'utf8')).masters;
   out.push('', '## Masters', '', '| Master | Frames | Size | I (LUFS) | LRA | TP (dBTP) | Fails |', '|---|---|---|---|---|---|---|');
   for (const [k, m] of Object.entries(r)) out.push(`| ${k} | ${m.frames} | ${m.video.size} | ${m.loudness.I} | ${m.loudness.LRA} | ${m.loudness.TP} | ${m.fails.length ? m.fails.join('; ') : 'none'} |`);
+}
+// v3.10: the social copies (v3/social.mjs) of the game cut and of the landing-only variant
+for (const [label, rel] of [['game cut', 'out'], ['landing variant', join('out', 'landing')]]) {
+  const f = join(DIR, rel, 'social.json');
+  if (!existsSync(f)) continue;
+  out.push('', `## Social copies, ${label}`, '', '| File | MB | Size | fps | Video kbit/s | AAC kbit/s | I (LUFS) | TP (dBTP) | SSIM | SSIM core fight | Fails |', '|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const r of JSON.parse(readFileSync(f, 'utf8'))) {
+    out.push(`| ${r.file.split('/').pop()} | ${r.mb} | ${r.size} | ${r.fps.replace('/1', '')} | ${r.kbps} | ${r.audioKbps ?? '-'} | ${r.loudness?.I ?? '-'} | ${r.loudness?.TP ?? '-'} | ${r.ssim} | ${r.ssimHard} | ${r.fails.length ? r.fails.join('; ') : 'none'} |`);
+  }
 }
 console.log(out.join('\n'));
