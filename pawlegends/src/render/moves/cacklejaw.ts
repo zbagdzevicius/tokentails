@@ -536,7 +536,9 @@ const maul: ClipDef = {
   keys: [
     // anticipation: both claws cocked over the head
     [0, null, { body: [0.3, 0, 0], chest: [-0.1, 0, 0], head: [-0.35, 0, 0], shoulderL: [-2.7, 0, 0.5], shoulderR: [-2.7, 0, -0.5], elbowL: [-0.4, 0, 0], elbowR: [-0.4, 0, 0], thighL: [-0.9, 0, 0], thighR: [-0.5, 0, 0], kneeL: [1.2, 0, 0], kneeR: [1.0, 0, 0] }],
-    [M_A, null, { body: [0.4, 0, 0], chest: [0.7, 0, 0], head: [0.2, 0, 0], thighL: [-1.0, 0, 0], thighR: [-0.7, 0, 0], kneeL: [1.4, 0, 0], kneeR: [1.3, 0, 0], shoulderL: [-0.4, 0, -0.3], shoulderR: [-0.4, 0, 0.3] }, 'expoIn'],
+    // the slam: claws ripped down (trailer v3.8: the body leans no further than the rake that follows, 0.25 + 0.3 rad; at
+    // 0.4 + 0.7 the skull led 2.1 m and struck through the hunted hero at sim reach)
+    [M_A, null, { body: [0.25, 0, 0], chest: [0.3, 0, 0], head: [0.05, 0, 0], thighL: [-1.0, 0, 0], thighR: [-0.7, 0, 0], kneeL: [1.4, 0, 0], kneeR: [1.3, 0, 0], shoulderL: [-0.4, 0, -0.3], shoulderR: [-0.4, 0, 0.3] }, 'expoIn'],
     [M_A + 0.08, null, { body: [0.3, 0, 0], chest: [0.5, 0.4, 0], head: [-0.2, 0, 0], shoulderL: [-1.5, 0, 1.5], shoulderR: [-1.5, 0, -1.5], elbowL: [0, 0, 0], elbowR: [0, 0, 0], thighL: [-0.6, 0, 0.3], thighR: [-0.6, 0, -0.3], kneeL: [0.9, 0, 0], kneeR: [0.9, 0, 0] }, 'out'],
     [M_SPIN, null, { body: [0.2, 0, 0], chest: [0.45, -0.4, 0], head: [-0.2, 0, 0], shoulderL: [-1.3, 0, 1.5], shoulderR: [-1.3, 0, -1.5], thighL: [-0.7, 0, 0.3], thighR: [-0.7, 0, -0.3], kneeL: [1.1, 0, 0], kneeR: [1.1, 0, 0] }, 'lin'],
     [M_FLIP0, null, { body: [0.1, 0, 0], chest: [0.1, 0, 0], kneeL: [1.3, 0, 0], kneeR: [1.3, 0, 0], thighL: [-0.8, 0, 0], thighR: [-0.8, 0, 0], shoulderL: [0.3, 0, 0.5], shoulderR: [0.3, 0, -0.5] }, 'out'],

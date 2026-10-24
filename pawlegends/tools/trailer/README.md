@@ -375,3 +375,32 @@ and its shot are cut (the mission is three beats). S15 looks at the doghouse its
 R1 pushes on the hits on the beat and an eased push into the break, back at the gameplay distance by f1355; VICTORY!
 sits beside the break (16:9 over the pond, 9:16 above the fight) and the type QC no longer exempts it over the core.
 15 s: 3V3 slams on f152, IN YOUR BROWSER on f156 (1 s), TAKE THEIR (f477) / CORE. (f481) held to f545.
+
+**v3.8 (review of v3.7: 24 findings, "fix what's weak").** Render fix in the game (render only; `src/sim` untouched,
+determinism identical, test in `tests/unit/trailer-v38-render.test.ts`): Cacklejaw's Pack Hunt maul no longer slams
+his head through the hero he hunts (`moves/cacklejaw.ts` slam key: 0.25 + 0.3 rad of forward lean, was 0.4 + 0.7;
+the skull led 2.1 m and the claws 3.0 m ahead of his sim position, now 1.47 m and 2.2 m, no further than the rake
+that follows). Client bundle rebuilt.
+
+Rig: the QC now sees the posed body. The heroes are skinned meshes, so `Box3.setFromObject` only ever saw the bind
+pose and a lunge or flip never moved a QC box. `harness.ts` `posedCloud` projects a subsample of the skinned vertices
+(bones, root motion and squash applied): the posed screen box (`heroes[].body`), a coarse silhouette, and `touch`
+(two silhouettes sharing more than 20 % while the meshes come within 0.1 m: one body drawn into another);
+`clip` uses the posed skull. `capture.mjs` fails TOUCH on any frame and, in 9:16, PLATE AT EDGE: a hero's posed body
+or name plate held across the left or right edge for 12+ frames (a hero sliding in or out at >= 0.15 % of the width a
+frame is exempt). `css` per shot (extra screen-layer CSS). `v3/place-tags.mjs` places every roll-call tag under its
+own hero (the free spot nearest the hero's feet that is clearly nearer that hero than any other, at the drawn size on
+every frame incl. the slam) and the free-placed mission lines (16:9 TAKE THEIR CORE., VICTORY!, TOPPLE THEIR
+TOWERS.; 9:16 TOPPLE THEIR / TOWERS.), writing `v3/tags.mjs` (run type.mjs, place-tags.mjs, type.mjs).
+
+Cut: S01 runs to f174 (rise f24-54, the 9:16 quarter turn done before CATS f55 / VS f62 / DOGS f69, all three held
+to f135, the descent f136-156 after the wipe, 3.5x clock while wide easing to 1x by f152, landing on H1's clean moment
+with the five apart; 9:16 on the exchange's centroid at 1.25-1.4x); S02 from f175 (9:16 on the five who fight);
+roll call on plain hero plates (`twinNames: false`), S04 / S07 / S09 recentred, S07 3.5 ticks later (Avietė clear of
+the shield), S09 opens after Sir Brutus leaves the pile, S10 casts on its last frame with no status chips (the fall
+into Sage is after the cut); S11 75 frames with both waves on the planks at half speed (9:16 on the bridge); S13 from
+f725 (9:16 toward the attackers); S14B dropped, S14 the dog-base fight to f1099 (9:16 3.5 m west); S15 from f1100 on
+V12's clean moment (half speed easing to 1x), the look point toward the fight; the pick screen without its menu
+chrome (name and the "Inspired by" line only); the 9:16 end card's URL on a cream plate at y 0.62, the credit at
+0.73; 16:9 type 80-120 px. 15 s: S01 0-174, S03 left out, the tower from master 775. Social copies unchanged
+(4.8 Mbit/s floor; climax SSIM 0.9932).

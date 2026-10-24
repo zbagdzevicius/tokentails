@@ -94,6 +94,7 @@ function specFor(shot, aspect) {
     ramp: shot.ramp ?? [],
     layers: p.layers ?? shot.layers ?? ["pops"],
     hide: shot.hide ?? [],
+    css: shot.css ?? '',
     wheel: shot.wheel ?? null,
     touch: !!p.touch,
     dpr: portrait ? (p.dpr ?? 1) : (shot.dpr ?? 1),
@@ -289,6 +290,10 @@ const OVERLAP_FRAMES = 2;
  * leaning into Gabė at 0.34-0.39 hidden).
  */
 const HIDDEN_MAX = 0.4;
+/** v3.8: posed bodies inside each other (harness `touch`) on any frame fail (the maul through Gabė was 1 frame). */
+const TOUCH_FRAMES = 1;
+/** v3.8: frames in a row a hero plate may sit across the frame edge. */
+const EDGE_PLATE_FRAMES = 12;
 
 /** Sub-frames per WHIP frame (half of them, a 180° shutter, are averaged: a continuous smear, not ghost copies). */
 const SUBS = 32;
@@ -331,7 +336,7 @@ async function capture(shot, aspect) {
   const overlaps = [];
   const inStruct = [];
   const edgeText = [];
-  const extra = { contacts: [], minionIns: [], dupes: [], stalePops: [], flashPops: [] };
+  const extra = { contacts: [], touches: [], platesCut: [], minionIns: [], dupes: [], stalePops: [], flashPops: [] };
   for (const pass of passes) {
     if (pass.card !== undefined) spec.take = { ...spec.take, look: pass.card };
     const r = await capturePass(shot, spec, aspect, pass, dirs, keyTicks);
@@ -440,15 +445,15 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   if (overlapRun && overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
   if (overlaps.length) console.error(`  ${shot.id} ${aspect}: OVERLAP QC FAIL, hero bodies overlap on f${overlaps.map(([a, b]) => `${a}-${b}`).join(', f')}`);
   // v3.1 gates on the per-frame QC: a hero inside a structure, game text at the frame edge (more than 2 frames running)
-  const runsOf = (pred) => {
+  const runsOf = (pred, min = OVERLAP_FRAMES + 1) => {
     const out = [];
     let run = null;
     for (let f = shot.f0; f <= spec.f1 + 1; f++) {
       const q = qcFrames[f];
       const specks = q && (q.heroes ?? []).every((h) => h.box[3] - h.box[1] < 0.04);
-      if (q && !specks && pred(q)) run = run ? [run[0], f] : [f, f];
+      if (q && !specks && pred(q, f)) run = run ? [run[0], f] : [f, f];
       else if (run) {
-        if (run[1] - run[0] + 1 > OVERLAP_FRAMES) out.push(run);
+        if (run[1] - run[0] + 1 >= min) out.push(run);
         run = null;
       }
     }
@@ -458,6 +463,26 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   // v3.3 gates: bodies in contact on the ground, a minion inside a hero, one hero name drawn twice, a number older
   // than its game life or pinned in place (the pop cull should have dropped it)
   const contacts = runsOf((q) => (q.contact ?? 0) > 0);
+  // v3.8: one drawn body inside another as posed (the skinned mesh after root motion: a lunge or a flip through a
+  // hero), on 2 frames in a row (the v3.7 review: Cacklejaw's maul through Gabė under the CACKLEJAW card)
+  const touches = runsOf((q) => (q.touch ?? 0) > 0, TOUCH_FRAMES);
+  // v3.8: a hero's name plate or posed body cut by the frame's left or right edge (part in, part out) for EDGE_PLATE_FRAMES frames in a row (the v3.7
+  // review: "Sir Brutu", "Bean the Brutu" in the 9:16 cut); a hero walking in or out crosses the edge in a few frames
+  const across = (b) => b && ((b[0] < 0 && b[2] > 0) || (b[0] < 1 && b[2] > 1));
+  // a hero walking into or out of the frame (its centre sliding across the screen at >= 0.15 % of the width a frame,
+  // over 8 frames) is how a shot opens and closes, not a subject cut by the frame: only a hero held on the edge counts
+  const cx = (f, id) => {
+    const h = qcFrames[f]?.heroes?.find((x) => x.id === id);
+    return h ? (h.box[0] + h.box[2]) / 2 : null;
+  };
+  const sliding = (f, id) => {
+    const a = cx(f - 4, id) ?? cx(f, id);
+    const b = cx(f + 4, id) ?? cx(f, id);
+    return a !== null && b !== null && Math.abs(b - a) / 8 >= 0.0015;
+  };
+  const heldCut = (f, q) => (q.heroes ?? []).some((h) => !sliding(f, h.id) && (across(h.body) || (q.plates ?? []).some((p) => p.kind === 'hero' && p.id === h.id && p.name && across(p.box))));
+  // (9:16 only: the landscape game camera follows the player, and a hero at its edge is how the game looks)
+  const platesCut = aspect !== '9x16' ? [] : runsOf((q, f) => heldCut(f, q), EDGE_PLATE_FRAMES);
   const minionIns = runsOf((q) => (q.minionIn ?? 0) > 0);
   const dupes = runsOf((q) => (q.dupes ?? []).length > 0);
   const stalePops = runsOf((q) => (q.pops ?? []).some((p) => (p.age ?? 0) > 60 || (p.still ?? 0) > 14));
@@ -475,7 +500,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
     }
   }
   if (flashPops.length) console.error(`  ${shot.id} ${aspect}: FLASH POP QC FAIL on ${flashPops.map(([f, , t]) => `f${f} "${t}"`).join(', ')}`);
-  for (const [name, r] of [['CONTACT', contacts], ['MINION-IN-HERO', minionIns], ['DUPLICATE HERO', dupes], ['STALE POP', stalePops]]) {
+  for (const [name, r] of [['TOUCH', touches], ['PLATE AT EDGE', platesCut], ['CONTACT', contacts], ['MINION-IN-HERO', minionIns], ['DUPLICATE HERO', dupes], ['STALE POP', stalePops]]) {
     if (r.length) console.error(`  ${shot.id} ${aspect}: ${name} QC FAIL on f${r.map(([a, b]) => `${a}-${b}`).join(', f')}`);
   }
   const edgeText = runsOf((q) => q.edgeText > 0);
@@ -485,7 +510,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   const info = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.info()) : null;
   const hash = spec.mode === 'match' ? await page.evaluate(() => window.__trailer.verify()) : null;
   await ctx.close();
-  return { saved, info, hash, overlaps, inStruct, edgeText, contacts, minionIns, dupes, stalePops, flashPops };
+  return { saved, info, hash, overlaps, inStruct, edgeText, contacts, touches, platesCut, minionIns, dupes, stalePops, flashPops };
 }
 
 mkdirSync(OUT, { recursive: true });

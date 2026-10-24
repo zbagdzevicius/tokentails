@@ -19,7 +19,7 @@ const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
 const takes = JSON.parse(readFileSync(join(HERE, '..', 'takes.json'), 'utf8')).takes;
 
 const out = [];
-out.push('# Trailer v3.5 storyboard (generated)', '', '## Shots (30 s master, 60 fps)', '');
+out.push('# Trailer v3.8 storyboard (generated)', '', '## Shots (30 s master, 60 fps)', '');
 out.push('| Shot | Frames | Take (human) | Anchor | Ticks | Camera | Ramp | QC 16:9 / 9:16 |', '|---|---|---|---|---|---|---|---|');
 for (const s of SHOTS) {
   const l = man[`${s.id}/16x9`];
