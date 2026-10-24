@@ -139,6 +139,7 @@ function specFor(shot, aspect) {
     ghosts: !!(p.ghosts ?? shot.ghosts),
     shockI: p.shockI ?? shot.shockI ?? 0.5,
     hideGroups: shot.hideGroups ?? [],
+    hideNames: p.hideNames ?? shot.hideNames ?? [],
     hideIds: (p.hideIds ?? shot.hideIds ?? []).map((x) => ref(x, take)),
     popScale: p.popScale ?? shot.popScale ?? null,
     groundK: p.groundK ?? shot.groundK ?? null,

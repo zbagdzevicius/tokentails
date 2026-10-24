@@ -29,8 +29,28 @@ export function shockAlpha(t, dur, tail = 0.18) {
   return Math.max(0, 1 - (t - dur) / Math.max(0.01, tail));
 }
 
-/** Peak additive intensity of a shockwave wall (pawlegends: 1.6 and up washed bright ground to white). */
+/** Peak intensity (wall opacity scale) of a shockwave wall (pawlegends: 1.6 and up washed bright ground to white). */
 export const SHOCK_MAX_INTENSITY = 0.85;
+
+/**
+ * pawlegends: (trailer v3.5 glare pass) the brightest a wall's colour may be, as sRGB luma (0-1). The wall is drawn
+ * with normal alpha blending in its own colour, so it can never be brighter than this or than the ground under it:
+ * an additive wall over the sand, the river or the pale plaza summed to white (the largest blown-out areas of every
+ * trailer cut). 0.74 keeps cream and gold walls light and readable (Y about 189 at full cover, under the Y 225 glare
+ * line).
+ */
+export const SHOCK_LUMA_MAX = 0.74;
+
+/** The wall colour as sRGB [r, g, b] (0-1): the caller's colour, scaled down to SHOCK_LUMA_MAX luma, hue kept (pure). */
+export function shockColor(color) {
+  const c = new THREE.Color();
+  c.set(color ?? '#FF5A36');
+  const rgb = { r: 0, g: 0, b: 0 };
+  c.getRGB(rgb, THREE.SRGBColorSpace);
+  const y = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
+  const k = y > SHOCK_LUMA_MAX ? SHOCK_LUMA_MAX / y : 1;
+  return [rgb.r * k, rgb.g * k, rgb.b * k];
+}
 
 /** Normalise shockwave options (pure). Speed (m/s) wins over dur when both are given. */
 export function normalizeShock(o = {}) {
@@ -78,8 +98,10 @@ void main() {
   float streak = 0.7 + 0.3 * fxNoise( vec2( vAng * 90.0 + uSeed * 3.0, v * 3.0 - uTime * 9.0 ) );
   float a = ( body * streak + rim ) * uA * smoothstep( 0.0, 0.06, v );
   if ( a < 0.003 ) discard;
-  vec3 col = mix( uColor, vec3( 1.0, 0.95, 0.88 ), rim * 0.6 + ( 1.0 - v ) * 0.15 );
-  gl_FragColor = vec4( col * uI * a * ( 1.0 - fxFog() ), 1.0 );
+  // pawlegends: (v3.5) the wall in its own colour over the ground (normal blending), the rim a touch lighter; the
+  // colour is capped (shockColor), so the wall never sums to white over bright ground the way an additive one did
+  vec3 col = min( uColor * ( 1.0 + 0.1 * rim ), vec3( 1.0 ) );
+  gl_FragColor = vec4( col, clamp( a * uI, 0.0, 0.9 ) * ( 1.0 - fxFog() ) );
   ${OUTPUT}
 }`;
 
@@ -167,7 +189,7 @@ class ShockRing {
       name: 'fx.shock.ring', vertexShader: RING_VERT, fragmentShader: RING_FRAG, fog: true,
       uniforms: { ...fogUniforms(), uR: { value: 1 }, uH: { value: 0.3 }, uColor: { value: new THREE.Color() }, uI: { value: 1 }, uA: { value: 0 },
         uTime: { value: 0 }, uSeed: { value: 0 } },
-      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: THREE.NormalBlending,
     });
     this.mesh = new THREE.Mesh(ringGeometry(), this.material);
     this.mesh.name = 'fx.shock.ring';
@@ -221,7 +243,7 @@ export class Shockwaves {
     r.cx = pos.x; r.cz = pos.z;
     r.mesh.position.set(pos.x, this.groundY(pos.x, pos.z, pos.y), pos.z);
     const u = r.material.uniforms;
-    u.uColor.value.set(o.color); u.uI.value = o.intensity; u.uH.value = o.height; u.uR.value = o.r0; u.uA.value = 0;
+    u.uColor.value.setRGB(...shockColor(o.color), THREE.SRGBColorSpace); u.uI.value = o.intensity; u.uH.value = o.height; u.uR.value = o.r0; u.uA.value = 0;
     u.uSeed.value = this.rng() * 50;
     this._fitBase(r, o.r0);
     r.mesh.visible = true;

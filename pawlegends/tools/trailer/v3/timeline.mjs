@@ -57,6 +57,31 @@ export const COLORS = {
   pinkDeep: '#E07396',
 };
 
+/**
+ * v3.5 glare limits (shares of the frame, read by v3/edit.mjs on the picture without the type). v3.4 allowed 8 % / 15 %
+ * near-white (Y >= 225, unsaturated) per shot (mean / worst frame), 7 % / 10 % blown out (Y >= 235) and a 2 % blob on
+ * 3 frames in a row, and let white shockwave rims and zone circles of 1-3.7 % through; the v3.5 render (walls in their
+ * own capped colour, screen-blended ground marks) peaks at a 0.6 % blob and 1.6 % blown out, so anything that brings a
+ * white rim back fails.
+ */
+export const GLARE = { white: 0.035, worst: 0.05, clip: 0.015, worstClip: 0.03, blobRun: 0.01, runFrames: 2, blobPeak: 0.015 };
+
+/**
+ * The local-glare gate on a master's per-frame largest blown-out blob (share of the frame): runs of `GLARE.runFrames`
+ * gameplay frames over `GLARE.blobRun` (their first frames) and single gameplay frames over `GLARE.blobPeak`.
+ */
+export function glareBlobFails(blobs, gameplay = () => true, g = GLARE) {
+  const runs = [];
+  const peaks = [];
+  for (let i = 0, run = 0; i < blobs.length; i++) {
+    const on = gameplay(i);
+    run = on && blobs[i] > g.blobRun ? run + 1 : 0;
+    if (run === g.runFrames) runs.push(i - g.runFrames + 1);
+    if (on && blobs[i] > g.blobPeak) peaks.push(i);
+  }
+  return { runs, peaks };
+}
+
 /** The end card's first frame (the logo slam on the downbeat) per cut. */
 export const END_AT = { 30: 1600, 15: 765 };
 
@@ -76,17 +101,19 @@ export function typeEls(cut, aspect, c) {
   // does not show whole is left out)
   const L = [];
   const add = (...a) => L.push(a);
-  // S01 (v3.4): CATS over the cat side, VS on the river, DOGS over the dog side of the whole Crossing (the crane's
-  // wide), CATS on the beat (f75), VS on the half-beat, DOGS on the next beat (f100), gone 10 frames before the cut. 9:16 (the quarter orbit): the yarn core
-  // is at the top, the doghouse at the bottom
+  // S01 (v3.5): CATS over the cat side, VS on the river, DOGS over the dog side of the whole Crossing as the crane
+  // opens it: CATS on the f62 half-beat as the crane reaches the wide (the cat motif), VS on the sixteenth pickup (f68),
+  // DOGS on the f75 beat (the dog motif), the whole line held 40 frames, out on f115 and gone by f123, before the
+  // plates fade back in on the way down (f124). 9:16 (the quarter orbit): the yarn core is at the top, the doghouse at
+  // the bottom
   if (v) {
-    add('L1a', c.L1a, 75, 141, 0.5, 0.37, 150, 'cat');
-    add('L1b', c.L1b, 88, 141, 0.5, 0.49, 90, 'plain');
-    add('L1c', c.L1c, 100, 141, 0.5, 0.62, 150, 'dog');
+    add('L1a', c.L1a, 62, 115, 0.5, 0.37, 150, 'cat');
+    add('L1b', c.L1b, 68, 115, 0.5, 0.49, 90, 'plain');
+    add('L1c', c.L1c, 75, 115, 0.5, 0.62, 150, 'dog');
   } else {
-    add('L1a', c.L1a, 75, 141, 0.335, 0.47, 120, 'cat');
-    add('L1b', c.L1b, 88, 141, 0.5, 0.5, 80, 'plain');
-    add('L1c', c.L1c, 100, 141, 0.665, 0.53, 120, 'dog');
+    add('L1a', c.L1a, 62, 115, 0.335, 0.47, 120, 'cat');
+    add('L1b', c.L1b, 68, 115, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 75, 115, 0.665, 0.53, 120, 'dog');
   }
   // S02: 3V3 IN YOUR BROWSER on the beats (f175, f200) in open meadow, clear of the six and the HUD
   if (v) {

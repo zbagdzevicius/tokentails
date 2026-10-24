@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { lintTrailerCopy } from '../lint-copy.mjs';
-import { CORE_HIT, CUT15, CUTS, BEAT_FRAMES, endCard, typeEls } from './timeline.mjs';
+import { CORE_HIT, CUT15, CUTS, BEAT_FRAMES, GLARE, endCard, glareBlobFails, typeEls } from './timeline.mjs';
 import { OUT_FRAMES } from './mg.js';
 import { SHOTS } from './shots.mjs';
 
@@ -142,5 +142,42 @@ describe('trailer v3.4 timeline', () => {
 
   it('every on-screen string passes the copy gate', () => {
     expect(lintTrailerCopy(copy).findings).toEqual([]);
+  });
+});
+
+describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
+  const s01 = SHOTS.find((s) => s.id === 'S01');
+  it('the opening crane lands back on the gameplay camera inside the shot, on a half-beat, and holds it to the cut', () => {
+    const keys = s01.cam.keys;
+    const land = keys.find((k) => k.f === 137);
+    expect(land).toMatchObject({ dist: 1, pitch: 0, blend: 0, ease: 'ease' });
+    expect(keys.at(-1)).toMatchObject({ f: s01.f1, dist: 1, pitch: 0, blend: 0 });
+    expect(Math.abs((137 % BEAT_FRAMES) - BEAT_FRAMES / 2)).toBeLessThanOrEqual(0.5);
+    // 9:16: the quarter orbit turns back to the gameplay yaw and pitch at the opening distance
+    const pk = s01.portrait.cam.keys;
+    expect(pk.find((k) => k.f === 137)).toMatchObject({ dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
+    expect(s01.portrait.cam.target.f1).toBe(137);
+    // the clock is back at real time when the camera lands
+    expect(s01.ramp.at(-1)).toEqual([137, 1, 'ease']);
+  });
+
+  it('CATS VS DOGS is gone before the plates and the HUD fade back in on the way down', () => {
+    const back = s01.uiFade.find(([f, a], i) => i > 0 && a === 0 && s01.uiFade[i + 1]?.[1] === 1)[0];
+    for (const aspect of ['16x9', '9x16']) {
+      for (const e of typeEls(30, aspect, copy).filter((x) => x.id.startsWith('L1'))) expect(e.out + OUT_FRAMES).toBeLessThanOrEqual(back);
+    }
+  });
+
+  it('the blob gate catches the v3.4 masters\' white rims and passes the v3.5 render', () => {
+    // v3.4 30 s 16:9 f419-449 (Champion's Challenge circle) and 9:16 f33-42 (Pack Hunt / swing rings): 1-2.3 %
+    const v34 = [0.004, 0.0126, 0.0128, 0.0131, 0.0215, 0.0133, 0.006];
+    const r = glareBlobFails(v34);
+    expect(r.runs).toEqual([1]);
+    expect(r.peaks).toEqual([4]);
+    // the v3.5 worst frames
+    expect(glareBlobFails([0.0051, 0.0063, 0.0028, 0.0063])).toEqual({ runs: [], peaks: [] });
+    // outside gameplay (the end card's cream type plate) nothing counts
+    expect(glareBlobFails([0.05, 0.05, 0.05], () => false)).toEqual({ runs: [], peaks: [] });
+    expect(GLARE.worstClip).toBeLessThan(0.047);
   });
 });

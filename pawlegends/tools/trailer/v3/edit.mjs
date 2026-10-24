@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { argValue } from '../../lib/args.mjs';
 import { lintTrailerCopy } from '../lint-copy.mjs';
-import { ASPECTS, CUTS, END_AT, END_PLATE, post, sourceFrame } from './timeline.mjs';
+import { ASPECTS, CUTS, END_AT, END_PLATE, GLARE, glareBlobFails, post, sourceFrame } from './timeline.mjs';
 import { SHOTS } from './shots.mjs';
 
 const run = promisify(execFile);
@@ -131,6 +131,9 @@ if (typeQc.length) {
     by[k] = (by[k] ?? 0) + 1;
   }
   log(`type QC: ${typeQc.length} word-over-subject frames: ${JSON.stringify(by)}; first: ${typeQc.slice(0, 8).join(' | ')}`);
+  // v3.5: every failing frame, for the fix
+  mkdirSync(WORK, { recursive: true });
+  writeFileSync(join(WORK, 'type-qc.txt'), `${typeQc.join('\n')}\n`);
   if (!process.argv.includes('--no-gates')) throw new Error('type QC failed (a word touches a hero, a plate or a pop)');
 } else log('type QC: no word touches a hero, plate, bar, pop, banner or structure box (40 px margin) on any frame; M4 only over the pick screen');
 
@@ -409,8 +412,8 @@ for (const cut of ['30', '15']) {
     // it, so it is excluded) over 8 % of a shot on average or 15 % on its worst frame; blowouts at Y >= 235
     for (const [id, o] of Object.entries(perShot)) {
       if (id === 'END') continue;
-      if (o.white > 0.08 || o.worst > 0.15) fails.push(`glare ${id} mean ${o.white} worst ${o.worst}`);
-      if (o.clip > 0.07 || o.worstClip > 0.1) fails.push(`blowout ${id} mean ${o.clip} worst ${o.worstClip}`);
+      if (o.white > GLARE.white || o.worst > GLARE.worst) fails.push(`glare ${id} mean ${o.white} worst ${o.worst}`);
+      if (o.clip > GLARE.clip || o.worstClip > GLARE.worstClip) fails.push(`blowout ${id} mean ${o.clip} worst ${o.worstClip}`);
     }
     if (black.length) fails.push(`black frames ${black.join(',')}`);
     // frozen gameplay: two or more identical frames in a row inside a gameplay shot
@@ -465,20 +468,20 @@ for (const cut of ['30', '15']) {
     }
     r.headStutter = heads;
     if (heads.length) fails.push(`head stutter ${heads.join(',')}`);
-    // v3.3 local glare: a connected near-white region (Y >= 235, unsaturated) over 2 % of the frame on 3+ frames
+    // v3.3 local glare: a connected near-white region (Y >= 235, unsaturated). v3.5 (the v3.4 masters still showed
+    // white shockwave rims and zone circles at 1-3.7 % that the old 2 %-on-3-frames rule let through): it fails over
+    // GLARE.blobRun of the frame on GLARE.runFrames frames in a row, or over GLARE.blobPeak on any one frame
     r.glareBlobs = blobs.filter((x) => gameplay(x.f));
-    const blobRuns = [];
-    for (let i = 0, run = 0; i < pic.length; i++) {
-      run = pic[i].blob > 0.02 && gameplay(i) ? run + 1 : 0;
-      if (run === 3) blobRuns.push(i - 2);
-    }
-    if (blobRuns.length) fails.push(`glare blob from ${blobRuns.join(',')}`);
+    r.glareBlobMax = +Math.max(0, ...pic.map((p, f) => (gameplay(f) ? p.blob : 0))).toFixed(4);
+    const gb = glareBlobFails(pic.map((p) => p.blob), gameplay);
+    if (gb.runs.length) fails.push(`glare blob from ${gb.runs.join(',')}`);
+    if (gb.peaks.length) fails.push(`glare blob peak on ${gb.peaks.join(',')}`);
     r.fails = fails;
     report.masters[`${cut}/${aspect}`] = r;
     log(`${cut}s ${aspect}: ${r.frames} frames, ${r.duration} s, I ${loud.I} LUFS, TP ${loud.TP} dBTP, ${((Date.now() - t0) / 1000).toFixed(0)} s${fails.length ? `  FAIL: ${fails.join('; ')}` : ''}`);
     if (cut === '30') {
-      // posters: CATS VS DOGS over the crane (f118) and the end card (f1760)
-      for (const [name, f] of [['poster', 118], ['poster-endcard', 1760]]) {
+      // posters: CATS VS DOGS over the crane (f106, v3.5: all three words up, before the descent) and the end card (f1760)
+      for (const [name, f] of [['poster', 106], ['poster-endcard', 1760]]) {
         const out = join(OUT, `pawlegends-trailer-${name}${aspect === '9x16' ? '-vertical' : ''}.png`);
         await ff(['-i', file, '-vf', `select=eq(n\\,${f}),scale=out_range=full,format=rgb24`, '-frames:v', '1', out]);
       }

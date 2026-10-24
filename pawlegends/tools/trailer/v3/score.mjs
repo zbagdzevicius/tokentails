@@ -118,22 +118,25 @@ sfx.add(smp(34), I.game('swipe'), 0.55);
 sfx.add(smp(38), I.game('hit'), 0.55);
 cue(36, 'the cat answers');
 // f40-149: the crane to the whole Crossing: a riser with the filter opening, a pad on Am; the CATS / VS / DOGS hits
-// land on the type's beats (f50, f75, f100)
+// land on the type's slams (v3.5: CATS f62 as the crane reaches the wide, VS f68, DOGS f75; the crane comes back down from f112)
 {
   const [L, R] = I.riser(fs(110), 70);
   music.addStereo(smp(40), L, R, 0.22);
   padBar(40, 'Am', fs(110), 0.16, 900);
 }
-stabAt(50, 'Am', 0.42, 0.3, 12);
-catMotif(50, 0.6);
-cue(50, 'CATS');
-music.add(smp(75), I.snare(2, 200), 0.75);
-music.add(smp(75), I.clap(3), 0.4);
-cue(75, 'VS');
-dogMotif(100, 0.7);
-music.add(smp(100), I.kick(1, { punch: 1.1 }), 0.8);
-stabAt(100, 'E', 0.35, 0.3, -12);
-cue(100, 'DOGS');
+stabAt(62, 'Am', 0.42, 0.3, 12);
+catMotif(62, 0.6);
+cue(62, 'CATS');
+music.add(smp(68), I.snare(2, 200), 0.75);
+music.add(smp(68), I.clap(3), 0.4);
+cue(68, 'VS');
+dogMotif(75, 0.7);
+music.add(smp(75), I.kick(1, { punch: 1.1 }), 0.8);
+stabAt(75, 'E', 0.35, 0.3, -12);
+cue(75, 'DOGS');
+// v3.5: the crane settles back to the gameplay camera (f112-137): a soft whoosh into the landing
+sfx.add(smp(137) - sec(0.35), I.whoosh(0.4, 70, 1), 0.22);
+cue(137, 'the gameplay camera');
 music.add(smp(150) - sec(0.5), I.reverseCymbal(0.5, 83), 0.35);
 
 // f150-650: the groove
