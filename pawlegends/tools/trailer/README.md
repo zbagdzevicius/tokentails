@@ -324,3 +324,33 @@ Everything the run produces (masters, social copies, posters, `report.json`, `so
 the landing-only variant in `landing/`, the banding check frames in `social-check/`) is kept in
 `pawlegends/media/trailer-v3/`, gitignored like `media/trailer-v2/`. Still not releasable until
 `tokentails.com/pawlegends` returns 200 (see the top).
+
+**v3.6 (review of v3.5: 30 findings, "fix what's weak").** Render fixes in the game (render only; `src/sim` untouched,
+determinism identical, tests in `tests/unit/trailer-v36-render.test.ts`): a siege cart keeps its own clearance from
+every hero (`SIEGE_CLEAR` 1.8 m: Clem stood inside the dog bone-cart); the minion clearance is an ellipse, 1.45x longer
+along the gameplay camera's depth axis (`DEPTH_CLEAR_K`, `clearOf`: a cadet 1.0 m in front of Duke the Cacklejaw was
+drawn over his legs); it is measured from where each hero is drawn (`HeroView.drawnAt`, after the push-apart), and
+the hero and structure pushes alternate (a pup squeezed between Clem and a tower slid back into her).
+
+Rig: QC `clip` (a farther body's head drawn inside a nearer body within 2.8 m) and `hidden` over 0.4 fail a shot (v3.5
+passed Sir Brutus over Bruno and Bolt the Brutus leaning into Gabė); a minion or cart counts as inside a hero by its
+clearance or by its screen box lying half inside the hero's core box; Pudding's QC box is his projected body cylinder.
+Type QC counts the game's HUD (score bar, ability bar, minimap) as an obstacle on every shot that draws it (CALM
+PUDDING. was laid on the score bar). `hudlite` hides the sudden-death subline; S02 hides the objective toast. `mid`
+targets take any number of units (the centroid of all six). Lobby `hideGlow` and `pickCam` (S18's 9:16 source: one
+flat backdrop, its own camera so Lambo's pedestal is whole); the edit composes the 9:16 pick screen as a portrait
+layout (`PICK_916`: a whole glow disc behind the keyed hero and pedestal, the whole panel below inside 40 px margins).
+
+Cut: one eased crane, up f32-66 and down f103-137 (34 frames each, 1x clock on both, 5.3x only while wide), landing on
+the half-beat on a clean moment of H1; the 9:16 crane keeps yaw 0 (higher and steeper, CATS left, DOGS right). 3V3 is
+take V10 (all six apart). The roll call is all on the game camera with the HUD (`onSubject`: the game's camera looking
+at the named hero), BENGAS sits over Bengas, Gabė's "Napping" chip is off. PUSH YOUR LANE. runs its first 40 frames at
+2x; the tower is take V13 (Clem hits it and it falls in frame, both aspects); the core burst gets a push, the edit's
+shake and a 9° yaw / 5° pitch accent that settles by f1375, the look point 2.6 m north; CALM PUDDING. is in the bottom
+band and the game's "We calmed Pudding!" banner is on from the calm (f1114). Line-up: Lambo and Sir Brutus answer with
+a second swing (the cheer held the shield flat); 9:16 raised and pulled back so TEAM DOG? has its own band. 9:16
+gameplay framing: the look point 2.2 m north by default (`PORT_OFF`), per-shot offsets for S08, S13, S14, S16.
+
+Social copies (`v3/social.mjs`): a 4.8 Mbit/s video floor (`KBPS_MIN`; the 30 s copies are ~18.5 MB, the band is now
+8-20 MB), `-tune animation`, and a per-segment SSIM floor of 0.99 on the core fight (`HARD_SEGMENT`, `ssimHard` in
+`social.json`; the v3.5 30 s 16:9 copy was 0.983 there).

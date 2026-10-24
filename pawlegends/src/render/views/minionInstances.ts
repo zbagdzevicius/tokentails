@@ -103,6 +103,47 @@ export function minionArm(variant: MinionVariant, strikeT: number, attackT: numb
  */
 export const MINION_CLEAR = 1.0;
 export const MINION_PUSH = 0.7;
+/**
+ * v3.6: a siege cart is ~1.5 m long and ~1 m wide (SCALE.siege), so 1.0 m from a hero's centre left the hero standing
+ * in the cart's box (trailer v3.5 review: Clem inside the dog bone-cart at the bridge end). A cart is drawn this far
+ * (m) from every hero, measured from the hero's drawn (pushed-apart) position.
+ */
+export const SIEGE_CLEAR = 1.8;
+/**
+ * v3.6: the clearance is longer along the gameplay camera's depth axis (world z: up and down the screen) by this
+ * factor. The camera looks down at ~49°, so a cadet 1.0 m in front of a hero was drawn over the hero's legs and one
+ * 1.0 m behind stood in the hero's cape (trailer v3.5 review: a cadet in Duke the Cacklejaw's legs); at 1.45 m in
+ * depth the two screen boxes no longer meet. Sideways (world x) the clearance stays MINION_CLEAR.
+ */
+export const DEPTH_CLEAR_K = 1.45;
+/** The clearance (m) a minion variant keeps from a hero's centre sideways (render only). */
+export function minionClear(v: MinionVariant): number {
+  return v === 'siege' ? SIEGE_CLEAR : MINION_CLEAR;
+}
+/**
+ * Where a minion at (px, pz) is drawn so it sits outside a hero's clearance ellipse (rx = `clear` sideways, rz = clear
+ * x DEPTH_CLEAR_K in depth), moved at most MINION_PUSH m; unchanged when already outside.
+ */
+export function clearOf(px: number, pz: number, hx: number, hz: number, clear: number, out: { x: number; z: number }): { x: number; z: number } {
+  const dx = px - hx;
+  const dz = pz - hz;
+  const rz = clear * DEPTH_CLEAR_K;
+  const e = Math.hypot(dx / clear, dz / rz);
+  out.x = px;
+  out.z = pz;
+  if (e >= 1) return out;
+  // straight out along the hero-minion line to the ellipse (sideways when they share a point)
+  const ux = e > 1e-4 ? dx / e : clear;
+  const uz = e > 1e-4 ? dz / e : 0;
+  const tx = hx + ux - px;
+  const tz = hz + uz - pz;
+  const len = Math.hypot(tx, tz);
+  const k = len > MINION_PUSH ? MINION_PUSH / len : 1;
+  out.x = px + tx * k;
+  out.z = pz + tz * k;
+  return out;
+}
+const _clr = { x: 0, z: 0 };
 
 /** True when (x, z) m lies inside one of the zones (render only). */
 export function inClearZone(zones: readonly { x: number; z: number; r: number }[], x: number, z: number): boolean {
@@ -266,31 +307,29 @@ export class MinionInstances {
       let pz = a.z - Math.sin(a.yaw) * lunge + a.hz * sh;
       const px0 = px;
       const pz0 = pz;
-      // never inside a hero's body: pushed out to MINION_CLEAR m from the nearest hero (at most 0.5 m)
+      // never inside a hero's body: pushed out of each hero's clearance ellipse (MINION_CLEAR, a siege cart SIEGE_CLEAR,
+      // sideways; DEPTH_CLEAR_K times that in depth)
       // v3.3: three passes, so a minion pushed out of one hero is not left inside the hero next to it
-      for (let pass = 0; pass < 3; pass++) {
+      // v3.6: the hero and structure pushes alternate, so a minion squeezed between a hero and a tower slides round the
+      // tower's edge instead of being pushed back into the hero by the footprint (a pup in Clem at a tower base)
+      const clear = minionClear(v);
+      for (let pass = 0; pass < 4; pass++) {
         for (const h of this.heroes) {
-          const dx = px - h.x;
-          const dz = pz - h.z;
+          clearOf(px, pz, h.x, h.z, clear, _clr);
+          px = _clr.x;
+          pz = _clr.z;
+        }
+        for (const b of this.blocks) {
+          const dx = px - b.x;
+          const dz = pz - b.z;
           const d = Math.hypot(dx, dz);
-          if (d >= MINION_CLEAR) continue;
-          const push = Math.min(MINION_PUSH, MINION_CLEAR - d);
+          const min = b.r + 0.35;
+          if (d >= min) continue;
           const ux = d > 1e-4 ? dx / d : 1;
           const uz = d > 1e-4 ? dz / d : 0;
-          px += ux * push;
-          pz += uz * push;
+          px += ux * Math.min(2, min - d);
+          pz += uz * Math.min(2, min - d);
         }
-      }
-      for (const b of this.blocks) {
-        const dx = px - b.x;
-        const dz = pz - b.z;
-        const d = Math.hypot(dx, dz);
-        const min = b.r + 0.35;
-        if (d >= min) continue;
-        const ux = d > 1e-4 ? dx / d : 1;
-        const uz = d > 1e-4 ? dz / d : 0;
-        px += ux * Math.min(2, min - d);
-        pz += uz * Math.min(2, min - d);
       }
       const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
       const sq = 1 - a.hit * 0.18;

@@ -43,8 +43,9 @@ export function mapTo15(f) {
  * v3.4 type positions (x, y fractions of the frame) found by a free-space search over every frame's hero, plate,
  * pop and structure boxes (QC); 9:16 keeps every word inside y 0.12-0.78 (the platforms' caption and button bands).
  */
-export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.86], M7: [0.5, 0.1], N3: [0.2, 0.84], N4: [0.2, 0.84], N6: [0.2, 0.84], N7: [0.2, 0.84], N8: [0.2, 0.84], N9: [0.75, 0.84], N10: [0.2, 0.9] };
-export const POS_V = { N3: [0.5, 0.74], N4: [0.5, 0.74], N6: [0.5, 0.74], N7: [0.5, 0.74], N8: [0.5, 0.74], N9: [0.5, 0.74], N10: [0.5, 0.2] };
+export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], M7: [0.5, 0.905], N3: [0.2, 0.84], N4: [0.2, 0.84], N6: [0.2, 0.84], N7: [0.2, 0.84], N8: [0.34, 0.18], N9: [0.75, 0.84], N10: [0.225, 0.88] };
+// v3.6: BENGAS sits next to Bengas (v3.5 put it under Sage, who read as Bengas)
+export const POS_V = { N3: [0.5, 0.74], N4: [0.5, 0.74], N6: [0.5, 0.74], N7: [0.5, 0.74], N8: [0.5, 0.5], N9: [0.5, 0.76], N10: [0.5, 0.2] };
 
 export const COLORS = {
   cream: '#FFF8EE',
@@ -106,22 +107,25 @@ export function typeEls(cut, aspect, c) {
   // DOGS on the f75 beat (the dog motif), the whole line held 40 frames, out on f115 and gone by f123, before the
   // plates fade back in on the way down (f124). 9:16 (the quarter orbit): the yarn core is at the top, the doghouse at
   // the bottom
+  // v3.6: the 9:16 crane keeps yaw 0 (no quarter orbit), so CATS sits over the cat side (left) and DOGS over the dog
+  // side (right) in 9:16 too, mirroring the landscape offsets
   if (v) {
-    add('L1a', c.L1a, 62, 115, 0.5, 0.37, 150, 'cat');
-    add('L1b', c.L1b, 68, 115, 0.5, 0.49, 90, 'plain');
-    add('L1c', c.L1c, 75, 115, 0.5, 0.62, 150, 'dog');
+    add('L1a', c.L1a, 62, 110, 0.275, 0.47, 120, 'cat');
+    add('L1b', c.L1b, 68, 110, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 75, 110, 0.725, 0.55, 120, 'dog');
   } else {
-    add('L1a', c.L1a, 62, 115, 0.335, 0.47, 120, 'cat');
-    add('L1b', c.L1b, 68, 115, 0.5, 0.5, 80, 'plain');
-    add('L1c', c.L1c, 75, 115, 0.665, 0.53, 120, 'dog');
+    add('L1a', c.L1a, 62, 110, 0.335, 0.47, 120, 'cat');
+    add('L1b', c.L1b, 68, 110, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 75, 110, 0.665, 0.53, 120, 'dog');
   }
   // S02: 3V3 IN YOUR BROWSER on the beats (f175, f200) in open meadow, clear of the six and the HUD
+  // v3.6 (take V10): 16:9 right of the six, clear of the score bar and its portraits; 9:16 above them
   if (v) {
-    add('L2a', c.L2a, 175, 285, 0.5, 0.69, 150, 'gold');
-    add('L2b', c.L2b, 200, 285, 0.5, 0.765, 70, 'plain');
+    add('L2a', c.L2a, 175, 285, 0.5, 0.205, 150, 'gold');
+    add('L2b', c.L2b, 200, 285, 0.5, 0.29, 70, 'plain');
   } else {
-    add('L2a', c.L2a, 175, 285, 0.75, 0.18, 120, 'gold');
-    add('L2b', c.L2b, 200, 285, 0.74, 0.28, 56, 'plain');
+    add('L2a', c.L2a, 175, 285, 0.75, 0.41, 120, 'gold');
+    add('L2b', c.L2b, 200, 285, 0.75, 0.53, 56, 'plain');
   }
   // v3.4 name tags: who each rivalry and champion shot is (cats in rose, dogs in navy), in at the shot's second
   // beat-eighth, out 10 frames before its cut
@@ -132,7 +136,7 @@ export function typeEls(cut, aspect, c) {
   // the mission, one line per beat (S11 push, S13 tower, S16 Pudding, S15 core)
   add('M1', c.M1, 655, 735, 0.5, v ? 0.74 : POS.M1[1], v ? 96 : 100, 'gold');
   add('M2', c.M2, 775, 885, 0.5, v ? 0.74 : POS.M2[1], v ? 80 : 84, 'gold');
-  add('M7', c.M7, 1035, 1135, v ? 0.5 : POS.M7[0], v ? 0.74 : POS.M7[1], v ? 96 : 100, 'gold');
+  add('M7', c.M7, 1040, 1138, v ? 0.5 : POS.M7[0], v ? 0.74 : POS.M7[1], v ? 96 : 88, 'gold');
   if (v) {
     add('M3a', c.M3v1, 1165, 1300, 0.5, 0.14, 110, 'gold');
     add('M3b', c.M3v2, 1172, 1300, 0.5, 0.21, 140, 'gold');
@@ -155,8 +159,10 @@ export function typeEls(cut, aspect, c) {
   // OR between the rows, TEAM DOG? below the dog row, all inside the platforms' safe band (y 0.12-0.78)
   if (v) {
     add('M5a', c.M5a, 1505, 1590, 0.5, 0.14, 130, 'cat');
-    add('M5b', c.M5b, 1512, 1590, 0.5, 0.47, 64, 'plain');
-    add('M5c', c.M5c, 1518, 1590, 0.5, 0.77, 110, 'dog');
+    // v3.6: the line-up raised and pulled back: OR in the gap between the rows, TEAM DOG? in its own band under the
+    // dog pedestals (v3.5 printed it across them)
+    add('M5b', c.M5b, 1512, 1590, 0.5, 0.45, 64, 'plain');
+    add('M5c', c.M5c, 1518, 1590, 0.5, 0.75, 110, 'dog');
   } else {
     add('M5a', c.M5a, 1505, 1590, 0.25, 0.83, 110, 'cat');
     add('M5b', c.M5b, 1512, 1590, 0.5, 0.83, 64, 'plain');
@@ -217,7 +223,7 @@ export function post(cut) {
 
 /** Designed impacts (the music dips under each). */
 export const IMPACTS = {
-  30: [22, 324, 360, 420, 451, 524, 590, 645, 855, 895, 906, 1120, CORE_HIT],
+  30: [22, 324, 360, 420, 451, 524, 590, 645, 855, 895, 906, 1114, CORE_HIT],
 };
 IMPACTS[15] = IMPACTS[30].flatMap((f) => mapTo15(f));
 

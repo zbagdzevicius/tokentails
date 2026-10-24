@@ -18,22 +18,42 @@ import { join, resolve } from 'node:path';
 import { argValue } from '../../lib/args.mjs';
 
 export const MB = 1e6;
-export const SIZE_BAND = [8 * MB, 12 * MB];
+/** v3.6: up to 20 MB (the 30 s copies at ~5 Mbit/s; still far under the platforms' upload limits). */
+export const SIZE_BAND = [8 * MB, 20 * MB];
+/**
+ * v3.6: the video bitrate floor (kbit/s). At 10.5 MB the 30 s 16:9 copy ran 2.6 Mbit/s and the core-base teamfight's
+ * dust, the AoE domes and the selection discs broke into macroblocks (v3.5 review; SSIM 0.983 over f900-1400), while
+ * the 15 s copies at 5.4 Mbit/s held. Every cut now gets at least this much.
+ */
+export const KBPS_MIN = 4800;
+/** v3.6: the per-segment SSIM floor (social vs master) on each cut's hardest stretch: the core fight and burst. */
+export const SSIM_FLOOR = 0.99;
+export const HARD_SEGMENT = { 30: [1150, 1389], 15: [475, 614] };
 /** Container overhead (moov, sample tables at 60 fps) as a share of the payload. */
 export const MUX_OVERHEAD = 0.012;
 
 /** Video bitrate (kbit/s) that lands a file of `seconds` on `targetBytes` with `audioKbps` of AAC. */
-export function socialBitrate(seconds, { targetBytes = 10.5 * MB, audioKbps = 160 } = {}) {
+export function socialBitrate(seconds, { targetBytes = 10.5 * MB, audioKbps = 160, floor = KBPS_MIN } = {}) {
   if (!(seconds > 0)) throw new Error('duration must be positive');
   const totalKbps = (targetBytes * 8) / (1 + MUX_OVERHEAD) / seconds / 1000;
   const video = Math.floor(totalKbps - audioKbps);
   if (video < 500) throw new Error(`target too small for ${seconds} s: ${video} kbit/s video`);
-  return video;
+  return Math.max(video, floor);
+}
+
+/** The file size (bytes) a cut of `seconds` lands on at `kbps` video plus `audioKbps` AAC. */
+export function bytesFor(seconds, kbps, audioKbps = 160) {
+  return (((kbps + audioKbps) * 1000 * seconds) / 8) * (1 + MUX_OVERHEAD);
 }
 
 /** Bitrate for a retry after a file came out `gotBytes` instead of `targetBytes`. */
 export function retryBitrate(kbps, gotBytes, targetBytes = 10.5 * MB) {
   return Math.floor(kbps * (targetBytes / gotBytes));
+}
+
+/** SSIM fails: the whole file below none, the hard segment below SSIM_FLOOR. */
+export function ssimFails(seg, floor = SSIM_FLOOR) {
+  return seg != null && seg < floor ? [`SSIM ${seg} < ${floor} on the hard segment`] : [];
 }
 
 export const inBand = (bytes) => bytes >= SIZE_BAND[0] && bytes <= SIZE_BAND[1];
@@ -50,7 +70,7 @@ const probe = (file) => {
 function encode(src, dst, kbps, audioKbps) {
   const passlog = join(tmpdir(), `social-${process.pid}-${Date.now()}`);
   const common = ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-map', '0:v:0', '-map', '0:a:0',
-    '-c:v', 'libx264', '-preset', 'slower', '-profile:v', 'high', '-level', '4.2', '-pix_fmt', 'yuv420p',
+    '-c:v', 'libx264', '-preset', 'slower', '-tune', 'animation', '-profile:v', 'high', '-level', '4.2', '-pix_fmt', 'yuv420p',
     '-b:v', `${kbps}k`, '-maxrate', `${Math.round(kbps * 1.8)}k`, '-bufsize', `${kbps * 2}k`,
     '-x264-params', 'aq-mode=3:aq-strength=0.9:deblock=-1,-1', '-g', '120', '-passlogfile', passlog];
   execFileSync('ffmpeg', [...common, '-pass', '1', '-an', '-f', 'mp4', '/dev/null'], { stdio: 'inherit' });
@@ -60,8 +80,10 @@ function encode(src, dst, kbps, audioKbps) {
   return statSync(dst).size;
 }
 
-function ssimAll(master, social) {
-  const res = spawnSync('ffmpeg', ['-hide_banner', '-i', social, '-i', master, '-lavfi', 'ssim', '-f', 'null', '-'])
+function ssimAll(master, social, range = null) {
+  // v3.6 `range`: frames [a, b] only (the hard segment)
+  const sel = range ? `[0:v]select='between(n\\,${range[0]}\\,${range[1]})',setpts=N/60/TB[a];[1:v]select='between(n\\,${range[0]}\\,${range[1]})',setpts=N/60/TB[b];[a][b]ssim` : 'ssim';
+  const res = spawnSync('ffmpeg', ['-hide_banner', '-i', social, '-i', master, '-lavfi', sel, '-f', 'null', '-'])
     .stderr.toString();
   const m = /All:([\d.]+)/.exec(res);
   return m ? Number(m[1]) : null;
@@ -91,15 +113,18 @@ async function main() {
     const src = probe(m);
     const dst = socialName(m);
     let kbps = socialBitrate(src.duration, { targetBytes: target, audioKbps });
+    const want = Math.max(target, bytesFor(src.duration, kbps, audioKbps));
     let size = encode(m, dst, kbps, audioKbps);
     if (!inBand(size)) {
-      kbps = retryBitrate(kbps, size, target);
+      kbps = retryBitrate(kbps, size, want);
       size = encode(m, dst, kbps, audioKbps);
     }
+    const seg = HARD_SEGMENT[src.duration > 20 ? 30 : 15];
     const got = probe(dst);
     const row = { file: dst, bytes: size, mb: +(size / MB).toFixed(2), kbps, frames: got.frames,
       duration: +got.duration.toFixed(3), size: `${got.w}x${got.h}`, fps: got.fps, ssim: ssimAll(m, dst),
-      fails: [] };
+      ssimHard: ssimAll(m, dst, seg), hardFrames: seg, fails: [] };
+    row.fails.push(...ssimFails(row.ssimHard));
     if (!inBand(size)) row.fails.push('SIZE');
     if (got.frames !== src.frames) row.fails.push(`FRAMES ${got.frames} != ${src.frames}`);
     if (got.w !== src.w || got.h !== src.h) row.fails.push('DIMENSIONS');

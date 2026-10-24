@@ -725,7 +725,13 @@ export class GameView {
       for (const e of frame.entities) if (e.kind === 'hero' && e.state !== 'dead') this.structures.heroes.push({ x: toX(e.fx), z: toZ(e.fy) });
       // minions are drawn clear of every hero body, a fallen one too (a corpse lay through a cart)
       this.minionClear.length = 0;
-      for (const e of frame.entities) if (e.kind === 'hero') this.minionClear.push({ x: toX(e.fx), z: toZ(e.fy) });
+      // v3.6: from where each hero is drawn (its pushed-apart body), not its sim point: the push-apart moves a body up
+      // to half a metre, which left a cadet standing in Sir Brutus's legs and cape (trailer v3.5 review)
+      for (const e of frame.entities) {
+        if (e.kind !== 'hero') continue;
+        const at = this.heroes.drawnAt(e.id);
+        this.minionClear.push(at ? { x: at.x, z: at.z } : { x: toX(e.fx), z: toZ(e.fy) });
+      }
       this.minions.heroes = this.minionClear;
       this.minions.clearZones = this.structures.fallingCores(this.minions.clearZones);
       this.minions.update(frame, dt, this.time);

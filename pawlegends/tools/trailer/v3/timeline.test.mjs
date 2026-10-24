@@ -71,10 +71,12 @@ describe('trailer v3.4 timeline', () => {
     }
   });
 
-  it('the full CATS VS DOGS line is on screen for at least 40 frames', () => {
+  it('the full CATS VS DOGS line is on screen for at least 35 frames, and gone before the crane comes down', () => {
+    // v3.6: the descent starts on f103 (34 frames, mirroring the rise), so the line wipes on f110 and is cleared before
+    // the heroes grow out of specks under it (40 frames ran the wipe over Clem and Cacklejaw on the way down)
     const els = typeEls(30, '16x9', copy).filter((e) => e.id.startsWith('L1'));
     const together = Math.min(...els.map((e) => e.out)) - Math.max(...els.map((e) => e.in));
-    expect(together).toBeGreaterThanOrEqual(40);
+    expect(together).toBeGreaterThanOrEqual(35);
   });
 
   it('INSPIRED BY REAL CATS. is laid only over the pick screen (never over gameplay plates of non-champions)', () => {
@@ -100,7 +102,8 @@ describe('trailer v3.4 timeline', () => {
     expect(wide).toBeLessThanOrEqual(4);
     const l1 = typeEls(30, '16x9', copy).filter((e) => e.id.startsWith('L1'));
     const wideFrom = k.find((x) => x.dist === wide).f;
-    for (const e of l1) expect(e.in).toBeGreaterThanOrEqual(wideFrom);
+    // v3.6: the eased rise ends on f66; CATS slams on the f62 half-beat in its last frames (over 95 % of the way up)
+    for (const e of l1) expect(e.in).toBeGreaterThanOrEqual(wideFrom - 4);
     // CATS on the cat side (left), DOGS on the dog side (right)
     expect(l1.find((e) => e.id === 'L1a').x).toBeLessThan(0.5);
     expect(l1.find((e) => e.id === 'L1c').x).toBeGreaterThan(0.5);
@@ -157,8 +160,10 @@ describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
     const pk = s01.portrait.cam.keys;
     expect(pk.find((k) => k.f === 137)).toMatchObject({ dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
     expect(s01.portrait.cam.target.f1).toBe(137);
-    // the clock is back at real time when the camera lands
-    expect(s01.ramp.at(-1)).toEqual([137, 1, 'ease']);
+    // v3.6: the clock is back at real time before the camera starts down (it was 4.2x until the landing)
+    const down = keys.find((k) => k.f > 66 && k.ease === 'linear').f;
+    expect(s01.ramp.at(-1)[1]).toBe(1);
+    expect(s01.ramp.at(-1)[0]).toBeLessThanOrEqual(down);
   });
 
   it('CATS VS DOGS is gone before the plates and the HUD fade back in on the way down', () => {
@@ -179,5 +184,49 @@ describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
     // outside gameplay (the end card's cream type plate) nothing counts
     expect(glareBlobFails([0.05, 0.05, 0.05], () => false)).toEqual({ runs: [], peaks: [] });
     expect(GLARE.worstClip).toBeLessThan(0.047);
+  });
+});
+
+describe('trailer v3.6: review of v3.5', () => {
+  const s01 = SHOTS.find((s) => s.id === 'S01');
+  it('the crane rises and comes down over the same 30+ frames, the fast clock only while the map is wide', () => {
+    const k = s01.cam.keys;
+    const top = k.find((x) => x.dist === Math.max(...k.map((y) => y.dist ?? 1)));
+    const start = k.filter((x) => x.f < top.f).at(-1);
+    const down = k.find((x) => x.f > top.f && x.ease === 'linear');
+    const land = k.find((x) => x.f > down.f && x.dist === 1);
+    const rise = top.f - start.f;
+    const fall = land.f - down.f;
+    expect(rise).toBeGreaterThanOrEqual(30);
+    expect(fall).toBeGreaterThanOrEqual(30);
+    expect(Math.abs(rise - fall)).toBeLessThanOrEqual(2);
+    expect(top.ease).toBe('ease');
+    // the speed-up starts after the camera is up and is over before it starts down
+    const fast = s01.ramp.filter(([, v]) => v > 1.01);
+    expect(Math.min(...fast.map(([f]) => f))).toBeGreaterThanOrEqual(top.f);
+    expect(Math.max(...fast.map(([f]) => f))).toBeLessThan(down.f);
+  });
+  it('the 9:16 crane never turns the map (yaw 0 on every key)', () => {
+    for (const k of s01.portrait.cam.keys) expect(k.yaw ?? 0).toBe(0);
+  });
+  it('CALM PUDDING. sits in the bottom band, clear of the score bar, and is up as the calm lands', () => {
+    const m7 = typeEls(30, '16x9', copy).find((e) => e.id === 'M7');
+    expect(m7.y).toBeGreaterThan(0.75);
+    const s16 = SHOTS.find((s) => s.id === 'S16');
+    expect(m7.in).toBeLessThan(s16.anchor.frame);
+    expect(m7.out).toBeGreaterThan(s16.anchor.frame + 20);
+    expect(s16.bannerOn?.[0]?.[0]).toBeLessThanOrEqual(s16.anchor.frame);
+  });
+  it('the shield heroes never play the cheer in the line-up (it held the shield out flat)', () => {
+    const s17 = SHOTS.find((s) => s.id === 'S17');
+    const shield = new Set(s17.lobby.stands.map((st, i) => (['lambo', 'brutus'].includes(st.hero) ? i : -1)).filter((i) => i >= 0));
+    for (const a of s17.lobby.acts) if (shield.has(a.stand)) expect(a.act).toBe('swing');
+  });
+  it('the roll call is all on the game camera with the HUD (no HUD flicker at the name-card cuts)', () => {
+    for (const id of ['S03', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10']) {
+      const s = SHOTS.find((x) => x.id === id);
+      expect(s.cam.base).toBe('game');
+      expect(s.layers).toContain('hudlite');
+    }
   });
 });

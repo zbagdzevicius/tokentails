@@ -263,6 +263,11 @@ export function charState(e: Pick<ViewEntity, 'state' | 'buffs' | 'speed' | 'cha
 export class HeroView {
   readonly group = new THREE.Group();
   private rigs = new Map<number, HeroRig>();
+  /** v3.6: where hero `id` was drawn this frame (m, after the visual push-apart), or null when it has no rig. */
+  drawnAt(id: number): { x: number; z: number } | null {
+    const r = this.rigs.get(id);
+    return r ? r.pos : null;
+  }
   // Normal blending: an additive red ring on sand reads yellow, like an ally's (enemy rings must read red).
   private rings = new DecalLayer(ringTexture(), 8, { additive: false, y: 0.05, name: 'hero-rings' });
   /** Round 0: a chroma reads at match zoom: a soft element-coloured glow underfoot, pulsing with the stride. */
