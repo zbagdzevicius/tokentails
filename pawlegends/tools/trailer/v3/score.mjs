@@ -167,9 +167,10 @@ for (let k = 0; k < 4; k++) {
   padBar(f, PROG[(k + 3) % 4], fs(50), 0.14, 1800);
   if (k % 2 === 0) catMotif(f + 25, 0.4);
 }
-sfx.add(smp(451), I.crackle(0.35, 93), 0.35);
+// v3.7: Avietė casts on f452, Gabė on f553
+sfx.add(smp(452), I.crackle(0.35, 93), 0.35);
 sfx.add(smp(524), I.game('ult'), 0.4);
-sfx.add(smp(590), I.game('magic'), 0.45);
+sfx.add(smp(553), I.game('magic'), 0.45);
 sfx.add(smp(645), I.game('dash'), 0.45);
 // f650-749 PUSH YOUR LANE.: a marching half-time, the waves' steps (the game's squeak), the two motifs closing in
 groove(650, 750, { half: true, energy: 0.8 });
@@ -193,24 +194,24 @@ sfx.add(smp(895), I.crash(9, 2.0), 0.35);
 music.add(smp(895), I.subDrop(55, 32, 0.5, 0.4), 0.5);
 cue(855, 'tower cracks');
 cue(895, 'tower hits the ground');
-// f900-1024 the teamfight at the dog base: full energy; Bengas's takedown on f912
-groove(900, 1025, { energy: 1.05 });
+// f900-1149 (v3.7) the KO at the dog base (f906), then Clem's fight at the bridge: her R on f1109 (a whoosh and the
+// game's ult on the stab), the takedown on f1133; full energy throughout (v3.6's lighter CALM PUDDING. bar is cut)
+groove(900, 1150, { energy: 1.05 });
 music.add(smp(900), I.crash(5, 2.0), 0.35, -0.2);
 sfx.add(smp(906), I.impact(93, { sub: 48, len: 0.7 }), 0.5);
 sfx.add(smp(906), I.game('hit'), 0.5);
 catMotif(925, 0.42);
-dogMotif(975, 0.5);
-catMotif(1000, 0.42, 12);
+music.add(smp(975), I.crash(5, 1.6), 0.25, 0.2);
+dogMotif(1000, 0.5);
+catMotif(1050, 0.42, 12);
+sfx.add(smp(1109) - sec(0.2), I.whoosh(0.3, 82, 1.2), 0.4);
+sfx.add(smp(1109), I.game('ult'), 0.45);
+stabAt(1109, 'C', 0.4, 0.4, 12);
+sfx.add(smp(1133), I.impact(92, { sub: 46, len: 0.8 }), 0.5);
+sfx.add(smp(1133), I.game('hit'), 0.5);
 cue(906, 'teamfight: takedown');
-// f1025-1149 CALM PUDDING.: a lighter bar, the motifs together, the calm on f1114 (a sparkle and the game's cheer)
-groove(1025, 1150, { energy: 0.85 });
-padBar(1025, 'F', fs(125), 0.13, 1600);
-catMotif(1050, 0.38);
-stabAt(1040, 'F', 0.35);
-sfx.add(smp(1114), I.game('magic', 1.2), 0.45);
-sfx.add(smp(1122), I.game('cheer'), 0.3);
-stabAt(1114, 'C', 0.4, 0.4, 12);
-cue(1114, 'Pudding calmed');
+cue(1109, "Clem's R");
+cue(1133, 'takedown at the bridge');
 // f1150-CORE_HIT TAKE THEIR CORE.: a stab on the line, the hits on the doghouse on the beat, a riser, a near-silent
 // hole, then THE CORE BURST
 groove(1150, 1300, { energy: 1 });

@@ -354,3 +354,24 @@ gameplay framing: the look point 2.2 m north by default (`PORT_OFF`), per-shot o
 Social copies (`v3/social.mjs`): a 4.8 Mbit/s video floor (`KBPS_MIN`; the 30 s copies are ~18.5 MB, the band is now
 8-20 MB), `-tune animation`, and a per-segment SSIM floor of 0.99 on the core fight (`HARD_SEGMENT`, `ssimHard` in
 `social.json`; the v3.5 30 s 16:9 copy was 0.983 there).
+
+**v3.7 (review of v3.6: 20 findings, "fix what's weak").** Render fix in the game (render only; `src/sim` untouched,
+determinism identical, test in `tests/unit/trailer-v37-render.test.ts`): a hero in a Catnip Bush stands in a clean
+opening (`BUSH_CUT` strength 1 to 1.0 m, a 0.35 m dithered edge, `bushCutAt`); the 60 % stipple of v3.6 showed Sage's
+legs and ring through the leaves, which read as clipping.
+
+Rig: `cam.off` moves the game camera's look goal too (`base: 'game'` shots). Social copies gate SSIM on the whole
+climax (f900-1389, was the core shot only).
+
+Cut: the 9:16 crane turns a quarter while wide (the Crossing down the tall frame, CATS / VS / DOGS top to bottom,
+words out on f97 as it starts down) and lands on the opening framing on f125, held 24 frames. 3V3 opens at 1.25x so
+the first hits land under the type, the look point 1.5 m south (Bengas off the ability bar). S06 3.5 m west (the cart
+pile out of frame); S07 is take W6 (Avietė's strike on f452, her body clear of the dogs; V6 merged her into Bruno);
+S09 casts on f553 (Sir Brutus walks out of the pile); S11 21 ticks earlier (the cut lands before Clem meets Bean the
+Brutus), 9:16 closer on the bridge; S13 9:16 frames the whole fall; deeper R1 pushes (0.85-0.88) on every roll-call
+beat. Name tags sit next to their hero (free-space search over the hero boxes). The climax: S14 is the KO only
+(F1, 75 frames), S14B is Clem's fight at the bridge (take V1: her R on f1109, the takedown on f1133), CALM PUDDING.
+and its shot are cut (the mission is three beats). S15 looks at the doghouse itself (whole core on the lower third),
+R1 pushes on the hits on the beat and an eased push into the break, back at the gameplay distance by f1355; VICTORY!
+sits beside the break (16:9 over the pond, 9:16 above the fight) and the type QC no longer exempts it over the core.
+15 s: 3V3 slams on f152, IN YOUR BROWSER on f156 (1 s), TAKE THEIR (f477) / CORE. (f481) held to f545.
