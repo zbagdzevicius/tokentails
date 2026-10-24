@@ -7,6 +7,8 @@ import { registerShare } from '../share';
 import { registerStyle } from '../style';
 import { registerTrails } from '../trails';
 import { registerWardrobe } from '../wardrobe';
+import { renderer } from '../core/engine';
+import { exposeTestHook } from './contract';
 import './ugc.css';
 
 const LANES: [string, () => void][] = [
@@ -19,6 +21,21 @@ const LANES: [string, () => void][] = [
 ];
 
 export function registerUgc(): void {
+  // read-only renderer stats for shots/draw-budget.mjs (the last render: main pass + shadow pass)
+  exposeTestHook('perf', {
+    get calls() {
+      return renderer.info.render.calls;
+    },
+    get triangles() {
+      return renderer.info.render.triangles;
+    },
+    get geometries() {
+      return renderer.info.memory.geometries;
+    },
+    get textures() {
+      return renderer.info.memory.textures;
+    },
+  });
   for (const [name, fn] of LANES) {
     try {
       fn();
