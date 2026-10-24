@@ -291,7 +291,7 @@ dialog.gs::backdrop{background:rgb(7 5 26/.85)}
 .gs-done .dbtn{margin-top:12px}
 
 .hub{--accent:#ffcc55;display:grid;gap:22px;margin-top:48px}
-.tabs{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 16px 8px;margin:0 -16px;scrollbar-width:none}
+.tabs{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 16px 8px;margin:0 -16px;scrollbar-width:none;scroll-padding-inline:16px}
 .tabs::-webkit-scrollbar{display:none}
 .tab{--c:#ffcc55;position:relative;flex:0 0 128px;scroll-snap-align:start;text-align:left;border-radius:12px;border:2px solid var(--line);background:var(--n800);
   padding:6px 6px 9px;overflow:hidden;transition:border-color .15s,background-color .15s,box-shadow .15s}
@@ -559,6 +559,10 @@ footer p{max-width:62em}
   .hub .tab .nm{margin-top:8px;font-size:clamp(13px,calc(1.6vw + 1px),18px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hub .badge{left:12px;top:12px;padding:4px 6px}
   .hub .badge svg{width:13px;height:13px}
+}
+@media (min-width:768px) and (max-width:899px){
+  .hub .tab{flex-basis:calc((100% - 3 * var(--gap)) / 4)}
+  .hub .tab .nm{font-size:17px}
 }
 @media (min-width:900px){
   .sec{padding:140px 0}
