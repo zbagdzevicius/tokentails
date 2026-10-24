@@ -543,20 +543,26 @@ footer p{max-width:62em}
   .gbtn{font-size:20px;padding:6px 12px 14px}
 }
 @media (min-width:640px){
-  .tab{flex-basis:146px}
   .dcard{width:170px}
   .panel{padding:48px 40px}
   .hero h1{font-size:38px}.hero h1 .big{font-size:68px}
   .hero .lede{font-size:17px}
+}
+@media (max-width:639px){.tab{flex-basis:136px}.tab .nm{font-size:16px}}
+@media (min-width:640px) and (max-width:767px){.tab{flex-basis:146px}}
+@media (min-width:768px){
+  .hub .tabs{--gap:12px;grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:center;gap:var(--gap);overflow:visible;scroll-snap-type:none;margin:0;padding:4px 0}
+  .hub .tab{flex:0 0 calc((100% - (var(--cols,6) - 1) * var(--gap)) / var(--cols,6));min-width:0;padding:7px 7px 10px}
+  .hub .tab .nm{margin-top:8px;font-size:clamp(13px,calc(1.6vw + 1px),18px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hub .badge{left:12px;top:12px;padding:4px 6px}
+  .hub .badge svg{width:13px;height:13px}
 }
 @media (min-width:900px){
   .sec{padding:140px 0}
   .trust{padding:56px 0}
   .panel{padding:56px 56px 44px}
   .hub{grid-template-columns:1.45fr 1fr;align-items:start;gap:28px 40px}
-  .hub .tabs{grid-column:1/-1;display:grid;grid-template-columns:repeat(var(--n,8),minmax(0,1fr));overflow:visible;margin:0;padding:4px 0}
-  .tab{flex:none}
-  #tab-pawlegends .nm{font-size:clamp(11px,.95vw,15px)}
+  .hub .tabs{grid-column:1/-1}
   .ginfo{padding-top:6px}
   .feature{grid-template-columns:1fr 1fr;gap:64px}
   .deck{display:grid;grid-template-columns:repeat(6,1fr);overflow:visible;margin:64px 0 0;padding:10px 0 0}
@@ -1547,7 +1553,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
   function clubCta(){return CLUB_OPEN?'Join Tails Club':'See Tails Club'}
   var tlb=$('#tlb'),tlbV=$('#tlbV'),tlbFrom=null,phone=matchMedia('(max-width:639px)');
   var hub=$('#hub'),tabs=$('#tabs'),gi=0,video=$('#gVideo'),poster=$('#gPoster'),vbtn=$('#vBtn'),hubSeen=false,userPaused=false,loadT=0;
-  tabs.style.setProperty('--n',GAMES.length);
+  var rows=Math.ceil(GAMES.length/7);tabs.style.setProperty('--cols',Math.ceil(GAMES.length/rows));
   GAMES.forEach(function(g,i){
     var b=document.createElement('button');
     b.type='button';b.className='tab';b.id='tab-'+g.k;b.setAttribute('role','tab');b.setAttribute('aria-controls','screen');

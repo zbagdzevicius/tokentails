@@ -153,6 +153,25 @@ describe("public/home/index.html", () => {
     expect(html).toContain("function track(evt,cta){if(!API_EVT)return;");
   });
 
+  it("lays the games hub tabs out in rows of at most 7 from 768px (12 tabs = 6 + 6), one sideways row below", () => {
+    const block = html.slice(html.indexOf("@media (min-width:768px){"));
+    expect(block).toMatch(/^@media \(min-width:768px\)\{\s*\.hub \.tabs\{[^}]*flex-wrap:wrap/);
+    expect(block).toMatch(/\.hub \.tab\{flex:0 0 calc\(\(100% - \(var\(--cols,6\) - 1\) \* var\(--gap\)\) \/ var\(--cols,6\)\)/);
+    expect(block).toMatch(/\.hub \.tab \.nm\{[^}]*white-space:nowrap/);
+    expect(html).toContain("var rows=Math.ceil(GAMES.length/7);tabs.style.setProperty('--cols',Math.ceil(GAMES.length/rows));");
+    expect(html).not.toContain("grid-template-columns:repeat(var(--n");
+    expect(html).not.toContain("#tab-pawlegends .nm");
+    // The same rule as the page script, for the tab counts the hub has had or may get.
+    const cols = (n: number) => Math.ceil(n / Math.ceil(n / 7));
+    expect(cols(12)).toBe(6);
+    expect(cols(11)).toBe(6);
+    expect(cols(13)).toBe(7);
+    expect(cols(7)).toBe(7);
+    // Phone and small tablet keep the single scrolling strip.
+    expect(html).toContain("@media (max-width:639px){.tab{flex-basis:136px}.tab .nm{font-size:16px}}");
+    expect(html).toContain("@media (min-width:640px) and (max-width:767px){.tab{flex-basis:146px}}");
+  });
+
   it("has a Pawlegends tab right after the Moon Rave, playing /pawlegends with its trailer, loop and 9:16 cut", () => {
     const order = Array.from(html.matchAll(/\{k:'([a-z]+)',name:/g)).map((m) => m[1]);
     expect(order.indexOf("pawlegends")).toBe(order.indexOf("rave") + 1);
