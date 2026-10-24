@@ -56,6 +56,9 @@ if (!process.argv.includes('--no-gates')) {
   gate('edgeText', 'edge text');
   // v3.3: bodies in contact on the ground, a minion inside a hero, a twin hero side by side, a stale or pinned number
   gate('contacts', 'body contact');
+  // v3.8: a posed body drawn inside another (a lunge or flip through a hero)
+  gate('touches', 'posed body touch');
+  gate('platesCut', 'hero plate cut by the frame edge');
   gate('minionIns', 'minion-in-hero');
   gate('dupes', 'twin hero');
   gate('stalePops', 'stale number');
@@ -192,7 +195,8 @@ const shotOf = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
 // the glow disc left out (one flat backdrop, `hideGlow`); the hero and pedestal are keyed off that backdrop over a whole
 // disc drawn in the pick screen's glow colour, and the whole panel (rounded border included) sits below the pedestal,
 // inside 40 px margins
-const PICK_916 = { hero: [0.53, 0.02, 0.4, 0.8], heroAt: [160, 110, 760, 855], panel: [0.022, 0.42, 0.418, 0.195], panelAt: [40, 1010, 1000], bg: '0x2b1d2e', glow: '0x3f2550', disc: [540, 500, 440] };
+// v3.8: the pick screen without its menu chrome: the panel (name and "Inspired by" line) is the top-left card
+const PICK_916 = { hero: [0.53, 0.02, 0.4, 0.8], heroAt: [160, 110, 760, 855], panel: [0.022, 0.025, 0.418, 0.19], panelAt: [40, 1010, 1000], bg: '0x2b1d2e', glow: '0x3f2550', disc: [540, 500, 440] };
 /** v3.6: the 9:16 pick screen's backdrop: the flat lobby colour with the whole glow disc (PICK_916.disc). */
 let pickBgFile = null;
 function pickBg(W, H) {

@@ -189,8 +189,12 @@ export class Compositor {
       ctx.restore();
     };
     pill(`${c.CTA} · ${c.SUB}`, H * (v ? 0.5 : 0.6), v ? 58 : 54, e.cta, C.cream, C.cocoa);
-    pill(c.URL, H * (v ? 0.81 : 0.73), v ? 52 : 46, e.url, 'rgba(42,26,20,0.82)', C.cream);
-    pill(c.CREDIT, H * (v ? 0.87 : 0.9), v ? 30 : 28, e.credit, null, 'rgba(255,248,238,0.9)');
+    // v3.8 (review: the 9:16 URL at y 0.81 and the credit at 0.85 sat in the TikTok / Reels / Shorts caption and button
+    // zone): 9:16 keeps logo, CTA and URL inside y 0.30-0.70, the URL at 64 px on a cream plate like PLAY FREE, the
+    // credit above y 0.78
+    if (v) pill(c.URL, H * 0.62, 64, e.url, C.cream, C.cocoa, 0.55);
+    else pill(c.URL, H * 0.73, 46, e.url, 'rgba(42,26,20,0.82)', C.cream);
+    pill(c.CREDIT, H * (v ? 0.73 : 0.9), v ? 34 : 28, e.credit, null, 'rgba(255,248,238,0.9)');
   }
 
   render(f) {

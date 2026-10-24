@@ -13,7 +13,7 @@ const shotAt = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
 describe('trailer v3.4 timeline', () => {
   it('every mission line holds at least a second (60 frames) in the 30 s cut', () => {
     for (const aspect of ['16x9', '9x16']) {
-      for (const e of typeEls(30, aspect, copy).filter((x) => ['M1', 'M2', 'M3b'].includes(x.id))) expect(e.out - e.in).toBeGreaterThanOrEqual(60);
+      for (const e of typeEls(30, aspect, copy).filter((x) => ['M1', 'M2', 'M2b', 'M3b'].includes(x.id))) expect(e.out - e.in).toBeGreaterThanOrEqual(60);
     }
   });
 
@@ -150,22 +150,22 @@ describe('trailer v3.4 timeline', () => {
 
 describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
   const s01 = SHOTS.find((s) => s.id === 'S01');
-  it('the opening crane lands back on the gameplay camera inside the shot, on a half-beat, and holds it to the cut', () => {
+  it('the opening crane lands back on the gameplay camera inside the shot and holds it to the cut', () => {
+    // v3.8: the landing is f156 (the descent waits for the words to wipe), held 19 frames to the f175 cut
     const keys = s01.cam.keys;
-    const land = keys.find((k) => k.f === 137);
+    const land = keys.find((k) => k.f === 156);
     expect(land).toMatchObject({ dist: 1, pitch: 0, blend: 0, ease: 'ease' });
     expect(keys.at(-1)).toMatchObject({ f: s01.f1, dist: 1, pitch: 0, blend: 0 });
-    expect(Math.abs((137 % BEAT_FRAMES) - BEAT_FRAMES / 2)).toBeLessThanOrEqual(0.5);
-    // 9:16 (v3.7): the quarter turn comes back to the opening distance, pitch and yaw on f125 and holds to the cut
+    expect(s01.f1 - 156).toBeGreaterThanOrEqual(18);
+    expect((s01.f1 + 1) % BEAT_FRAMES).toBe(0);
+    // 9:16: the quarter turn comes back to the opening pitch and yaw on the same frame and holds to the cut
     const pk = s01.portrait.cam.keys;
-    expect(pk.find((k) => k.f === 125)).toMatchObject({ dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
-    expect(pk.at(-1)).toMatchObject({ f: s01.f1, dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
-    expect(s01.f1 - 125).toBeGreaterThanOrEqual(24);
-    expect(s01.portrait.cam.target.f1).toBe(125);
-    // v3.6: the clock is back at real time before the camera starts down (it was 4.2x until the landing)
-    const down = keys.find((k) => k.f > 66 && k.ease === 'linear').f;
+    expect(pk.find((k) => k.f === 156)).toMatchObject({ pitch: pk[0].pitch, yaw: 0 });
+    expect(pk.at(-1)).toMatchObject({ f: s01.f1, pitch: pk[0].pitch, yaw: 0 });
+    expect(s01.portrait.cam.target.f1).toBe(156);
+    // the clock is back at real time at least 4 frames before the landing
     expect(s01.ramp.at(-1)[1]).toBe(1);
-    expect(s01.ramp.at(-1)[0]).toBeLessThanOrEqual(down);
+    expect(s01.ramp.at(-1)[0]).toBeLessThanOrEqual(156 - 4);
   });
 
   it('CATS VS DOGS is gone before the plates and the HUD fade back in on the way down', () => {
@@ -191,22 +191,22 @@ describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
 
 describe('trailer v3.6: review of v3.5', () => {
   const s01 = SHOTS.find((s) => s.id === 'S01');
-  it('the crane rises and comes down over the same 30+ frames, the fast clock only while the map is wide', () => {
+  it('the crane rises over 30+ frames and comes down over 20+ once the words are gone, the fast clock only while it is high', () => {
+    // v3.8: the descent waits for CATS VS DOGS to wipe (the review: a 1.1 s hold on a still wide shot), so it is
+    // shorter than the rise; the clock eases back to 1x during the descent, before the landing
     const k = s01.cam.keys;
     const top = k.find((x) => x.dist === Math.max(...k.map((y) => y.dist ?? 1)));
     const start = k.filter((x) => x.f < top.f).at(-1);
     const down = k.find((x) => x.f > top.f && x.ease === 'linear');
     const land = k.find((x) => x.f > down.f && x.dist === 1);
-    const rise = top.f - start.f;
-    const fall = land.f - down.f;
-    expect(rise).toBeGreaterThanOrEqual(30);
-    expect(fall).toBeGreaterThanOrEqual(30);
-    expect(Math.abs(rise - fall)).toBeLessThanOrEqual(2);
+    expect(top.f - start.f).toBeGreaterThanOrEqual(30);
+    expect(land.f - down.f).toBeGreaterThanOrEqual(20);
     expect(top.ease).toBe('ease');
-    // the speed-up starts after the camera is up and is over before it starts down
+    for (const aspect of ['16x9', '9x16']) for (const e of typeEls(30, aspect, copy).filter((x) => x.id.startsWith('L1'))) expect(e.out).toBeLessThanOrEqual(down.f);
     const fast = s01.ramp.filter(([, v]) => v > 1.01);
     expect(Math.min(...fast.map(([f]) => f))).toBeGreaterThanOrEqual(top.f);
-    expect(Math.max(...fast.map(([f]) => f))).toBeLessThan(down.f);
+    expect(Math.max(...fast.map(([f]) => f))).toBeLessThanOrEqual(down.f);
+    expect(s01.ramp.at(-1)[0]).toBeLessThan(land.f);
   });
   it('the 9:16 crane starts and ends at yaw 0 (the gameplay yaw)', () => {
     const k = s01.portrait.cam.keys;
@@ -244,7 +244,8 @@ describe('trailer v3.7: review of v3.6', () => {
     for (const aspect of ['16x9', '9x16']) {
       const ids = typeEls(30, aspect, copy).map((e) => e.id);
       expect(ids).not.toContain('M7');
-      for (const id of ['M1', 'M2', 'M3a', 'M3b']) expect(ids).toContain(id);
+      // (v3.8: 9:16 sets TOPPLE THEIR TOWERS. in two lines, M2a / M2b)
+      for (const id of ['M1', aspect === '9x16' ? 'M2b' : 'M2', 'M3a', 'M3b']) expect(ids).toContain(id);
     }
     expect(SHOTS.find((s) => s.id === 'S16')).toBeUndefined();
   });
@@ -276,5 +277,45 @@ describe('trailer v3.7: review of v3.6', () => {
       const tags = typeEls(30, aspect, copy).filter((e) => /^N\d/.test(e.id));
       expect(new Set(tags.map((e) => `${e.x},${e.y}`)).size).toBeGreaterThanOrEqual(6);
     }
+  });
+});
+
+describe('trailer v3.8: review of v3.7', () => {
+  it('CATS VS DOGS is up whole for over a second in both aspects, slammed by f55 / f62 / f69, held to f135', () => {
+    for (const aspect of ['16x9', '9x16']) {
+      const l1 = typeEls(30, aspect, copy).filter((e) => e.id.startsWith('L1'));
+      const [a, b, c] = ['L1a', 'L1b', 'L1c'].map((id) => l1.find((e) => e.id === id));
+      expect(a.in).toBeLessThanOrEqual(55);
+      expect(b.in).toBeLessThanOrEqual(62);
+      expect(c.in).toBeLessThanOrEqual(70);
+      for (const e of l1) expect(e.out).toBeGreaterThanOrEqual(135);
+      expect(Math.min(...l1.map((e) => e.out)) - c.in).toBeGreaterThanOrEqual(60);
+    }
+    // the 9:16 quarter turn is done before the first word
+    const k = SHOTS.find((s) => s.id === 'S01').portrait.cam.keys;
+    expect(k.find((x) => Math.abs(x.yaw ?? 0) === 90).f).toBeLessThanOrEqual(55);
+  });
+  it('no cut back to the bridge before the core (S14B dropped): tower, base fight, core', () => {
+    const ids = SHOTS.map((s) => s.id);
+    expect(ids).not.toContain('S14B');
+    const s14 = SHOTS.find((s) => s.id === 'S14');
+    const s15 = SHOTS.find((s) => s.id === 'S15');
+    expect(s15.f0).toBe(s14.f1 + 1);
+    for (const s of SHOTS.filter((x) => x.take)) expect(s.f0 % BEAT_FRAMES, s.id).toBe(0);
+  });
+  it('16:9 type is phone-readable: secondary lines >= 80 px, name tags and mission lines >= 84 / 96 px', () => {
+    const els = typeEls(30, '16x9', copy);
+    for (const e of els) expect(e.size, e.id).toBeGreaterThanOrEqual(80);
+    for (const e of els.filter((x) => /^M[123]$|^M3b$/.test(x.id))) expect(e.size, e.id).toBeGreaterThanOrEqual(96);
+    for (const e of els.filter((x) => x.id.startsWith('N'))) expect(e.size, e.id).toBeGreaterThanOrEqual(84);
+  });
+  it('the pick screen beat shows the champion and the "Inspired by" line, not the menu', () => {
+    const s18 = SHOTS.find((s) => s.id === 'S18');
+    for (const sel of ['.pl-pick-head', '.pl-pick .heroes', '.pl-pick .blurb']) expect(s18.hide).toContain(sel);
+    expect(s18.hide).not.toContain('.pl-pick .champ-from');
+  });
+  it('the roll call names match the plates (plain hero names, no persona plates)', () => {
+    for (const id of ['S03', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10']) expect(SHOTS.find((s) => s.id === id).twinNames, id).toBe(false);
+    expect(SHOTS.find((s) => s.id === 'S10').tags).toBe(false);
   });
 });

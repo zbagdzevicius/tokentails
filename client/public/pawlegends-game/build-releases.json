@@ -2,6 +2,28 @@
   "keep": 3,
   "releases": [
     [
+      "aviete-CdVag7bj.js",
+      "aviete-twY97b3e.js",
+      "bengas-Cl5PAjfN.js",
+      "bengas-CvR4TC6U.js",
+      "brutus-BG5HApdK.js",
+      "brutus-CgarnFvV.js",
+      "cacklejaw-Cg6AUTu8.js",
+      "cacklejaw-JeznFk3y.js",
+      "clem-BYn1R6ry.js",
+      "clem-CCt7V4dv.js",
+      "gabe-CMSBW0TF.js",
+      "gabe-Z8E3pDwd.js",
+      "index-Dg6hEBPo.css",
+      "index-LFv8Teh0.js",
+      "lambo-BihCFAFV.js",
+      "lambo-Bkk8hrmv.js",
+      "local-host.worker-CjRd2GPu.js",
+      "sage-BoHIWKML.js",
+      "sage-DOByyE_K.js",
+      "three-DXzjt7_B.js"
+    ],
+    [
       "aviete-1zxuKqNg.js",
       "aviete-D_FEhu1d.js",
       "bengas-BDusQuKO.js",
@@ -43,28 +65,6 @@
       "local-host.worker-CjRd2GPu.js",
       "sage-BDY-QS9a.js",
       "sage-BV1x8EZE.js",
-      "three-DXzjt7_B.js"
-    ],
-    [
-      "aviete-CPa6gmtA.js",
-      "aviete-hNOWl-ge.js",
-      "bengas-Bm3QydAz.js",
-      "bengas-_T7pe9Ps.js",
-      "brutus-D0dJQ77M.js",
-      "brutus-Du1u3j-1.js",
-      "cacklejaw-DoYJi16i.js",
-      "cacklejaw-i6duNiax.js",
-      "clem-BXMiVyw_.js",
-      "clem-NxNYbfoq.js",
-      "gabe-CVV6k629.js",
-      "gabe-CYgriMyz.js",
-      "index-BuwFSFi3.js",
-      "index-Dg6hEBPo.css",
-      "lambo-gsiXwzuY.js",
-      "lambo-nPByLCcG.js",
-      "local-host.worker-CjRd2GPu.js",
-      "sage-CuIjR0tM.js",
-      "sage-DW0qDFrO.js",
       "three-DXzjt7_B.js"
     ]
   ]

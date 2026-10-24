@@ -26,6 +26,7 @@ import { skinIdOf } from '../../src/render/skins/skinStore';
 import { DEMO_ROSTER } from '../../src/app/skinDemo';
 import { cardLook, type Look } from '../../src/render/cosmetics';
 import { lobbyHero, type LobbyHero } from '../../src/render/views/heroView';
+import { BONE_INDEX, type BoneName } from '../../src/render/chars/skeleton';
 import { setOutlineViewport } from '../../src/render/chars/charMaterial';
 import type { ViewFrame } from '../../src/render/interp';
 import type { Difficulty, HeroId, SimEvent, TrickId } from '../../src/sim/api';
@@ -124,6 +125,8 @@ export interface ShotSpec {
   layers?: string[];
   /** Selectors hidden on top of `layers` (S19: the announcer banner over the full HUD). */
   hide?: string[];
+  /** v3.8: extra CSS for the screen layer (S18: the pick screen's "Inspired by" line enlarged, the menu chrome hidden). */
+  css?: string;
   /** Ping wheel (frames): opens over the player's hero, highlights Group, closes. */
   wheel?: { open: number; close: number; at?: [number, number] } | null;
   touch?: boolean;
@@ -278,7 +281,7 @@ export interface ShotSpec {
 /** v3.1 per-frame QC (capture.mjs): what the frame shows, for the overlap, structure, edge-pop and type gates. */
 export interface FrameQc {
   /** On-screen drawn heroes: id, team (0 cats), hero, body box with its plate [x0, y0, x1, y1] (viewport fractions). */
-  heroes: { id: number; team: number; hero: string; box: [number, number, number, number]; at?: [number, number] }[];
+  heroes: { id: number; team: number; hero: string; box: [number, number, number, number]; at?: [number, number]; skull?: [number, number, number]; body?: [number, number, number, number]; h?: number }[];
   /** Pairs of drawn on-screen heroes whose bodies interpenetrate (drawn ground distance under OVERLAP_M). */
   overlap: number;
   /** Drawn on-screen heroes standing inside a standing structure's or Pudding's footprint. */
@@ -307,6 +310,15 @@ export interface FrameQc {
   minionIn?: number;
   /** v3.6: pairs where the farther body's head is drawn inside the nearer body (see frameQc). */
   clip?: number;
+  /**
+   * v3.8: the smallest gap (m) between two drawn heroes' posed torsos (hips, chest and head bones as spheres, in world
+   * space, after the animation's root motion): a lunge or a flip that carries a body into another one (Cacklejaw's maul
+   * through Gabė) reads below 0 even though both stand apart on the ground. `touch` counts pairs under TOUCH_M.
+   */
+  gap?: number;
+  touch?: number;
+  /** v3.8: the largest share of a drawn hero's silhouette covered by another drawn hero's (screen grid cells). */
+  share?: number;
   /** v3.3: hero names drawn twice in one frame (two Sir Brutus side by side read as a cloning bug). */
   dupes?: string[];
   /** Debug: which pairs overlap ("id-id") and which hero stands in which footprint ("id@x,z"). */
@@ -372,7 +384,7 @@ function setLayers(keep: readonly string[], hide: readonly string[] = []): void 
   }
   const ps = (spec?.popScale && spec.popScale !== 1 ? `.pl-pops > *, .pl-callouts > * { scale: ${spec.popScale}; }` : '')
     + (spec?.wheelScale && spec.wheelScale !== 1 ? `\n.pl-pingwheel { scale: ${spec.wheelScale} !important; transform-origin: var(--x, 50%) var(--y, 50%) !important; }` : '');
-  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n${ps}\n* { cursor: none !important; }\n.fx-dmg[data-cull="1"] { visibility: hidden !important; }`;
+  style.textContent = `${layersCss(keep)}\n${hide.map((h) => `${h} { display: none !important; }`).join('\n')}\n${spec?.css ?? ''}\n${ps}\n* { cursor: none !important; }\n.fx-dmg[data-cull="1"] { visibility: hidden !important; }`;
 }
 
 function ensureRenderer(): GameRenderer {
@@ -580,7 +592,7 @@ function installPlace(g: GameRenderer): void {
 /** Output-frame dt of the frame being drawn (s): the render-time clean-up decays flashes by it. */
 let curDtReal = 1 / 60;
 
-interface RigLike { ch: { object: THREE.Object3D; material: { userData: { u: { uFlashK: { value: number } } } } }; flash: number; wasDead: boolean; visible: boolean }
+interface RigLike { ch: { object: THREE.Object3D; mesh?: THREE.SkinnedMesh; height?: number; material: { userData: { u: { uFlashK: { value: number } } } } }; flash: number; wasDead: boolean; visible: boolean }
 interface StructLike { flash: number; kind: string; x: number; z: number; alive: boolean; dieT: number; height: number; material: { transparent: boolean; depthWrite: boolean; needsUpdate: boolean }; rig: { uFlashK: { value: number }; uOpacity: { value: number } } }
 
 /** The output frame being drawn (sub-frames share it): the flash cap counts output frames. */
@@ -1419,6 +1431,101 @@ function heroMove(): number {
 const popTrack = new WeakMap<object, { born: number | undefined; first: number; x: number; y: number; stillFrom: number; dead?: boolean }>();
 /** v3.1 screen-space gate: two drawn bodies whose boxes share more than this of the smaller box overlap (v3.3: 0.5; the ground-contact gate catches bodies in each other, a 0.45-0.5 share was two fighters side by side). */
 const OVERLAP_SHARE = 0.5;
+/**
+ * v3.8 posed body: bone spheres (radius in body heights) the QC boxes and the torso gap are built from. The hero is a
+ * SkinnedMesh, so Box3.setFromObject saw only its bind pose: a lunge, a flip or a dive never moved the QC box (the v3.7
+ * review: Cacklejaw's maul drawn through Gabė while the QC boxes stood 2.6 m apart). The skull sits 0.19 H above the
+ * head bone.
+ */
+const POSED: readonly [BoneName, number][] = [
+  ['hips', 0.13], ['chest', 0.14], ['head', 0.2], ['shoulderL', 0.06], ['shoulderR', 0.06], ['elbowL', 0.05], ['elbowR', 0.05],
+  ['pawL', 0.06], ['pawR', 0.06], ['thighL', 0.07], ['thighR', 0.07], ['kneeL', 0.06], ['kneeR', 0.06], ['footL', 0.06], ['footR', 0.06],
+];
+/** The torso spheres (indices into POSED) the gap is measured between. */
+const _skull = new THREE.Vector3();
+/** v3.8: about this many skinned vertices per hero go into the posed QC (a subsample of the mesh, every n-th). */
+const CLOUD_N = 700;
+/** v3.8 silhouette grid cell (CSS px): each projected vertex marks its cell and the 8 round it. */
+const MASK_CELL = 8;
+const _cv = new THREE.Vector3();
+/**
+ * v3.8: a drawn hero's posed body as the skinned mesh draws it: a subsample of its vertices in world space (bones,
+ * root motion and squash applied), their screen points, the exact screen box and a coarse silhouette (grid cells).
+ */
+function posedCloud(ch: RigLike['ch'], cam: THREE.Camera, W: number, H: number): { w: Float32Array; box: [number, number, number, number]; cells: Set<number> } | null {
+  const m = ch.mesh;
+  const pos = m?.geometry?.attributes?.position;
+  if (!m || !pos || !m.skeleton) return null;
+  m.updateWorldMatrix(true, false);
+  m.skeleton.update();
+  const step = Math.max(1, Math.floor(pos.count / CLOUD_N));
+  const n = Math.ceil(pos.count / step);
+  const w = new Float32Array(n * 3);
+  const cells = new Set<number>();
+  const gw = Math.ceil(W / MASK_CELL);
+  let x0 = 1e9;
+  let y0 = 1e9;
+  let x1 = -1e9;
+  let y1 = -1e9;
+  for (let i = 0, k = 0; i < pos.count; i += step, k++) {
+    m.getVertexPosition(i, _cv);
+    _cv.applyMatrix4(m.matrixWorld);
+    w[k * 3] = _cv.x;
+    w[k * 3 + 1] = _cv.y;
+    w[k * 3 + 2] = _cv.z;
+    _cv.project(cam);
+    if (_cv.z > 1 || _cv.z < -1) continue;
+    const sx = _cv.x * 0.5 + 0.5;
+    const sy = -_cv.y * 0.5 + 0.5;
+    x0 = Math.min(x0, sx);
+    x1 = Math.max(x1, sx);
+    y0 = Math.min(y0, sy);
+    y1 = Math.max(y1, sy);
+    const cx = Math.floor((sx * W) / MASK_CELL);
+    const cy = Math.floor((sy * H) / MASK_CELL);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) cells.add((cy + dy) * gw + cx + dx);
+  }
+  if (x1 < x0) return null;
+  return { w, box: [x0, y0, x1, y1], cells };
+}
+/** v3.8: the nearest two vertices of two posed clouds (m). */
+function cloudGap(a: Float32Array, b: Float32Array): number {
+  let best = 1e9;
+  for (let i = 0; i < a.length; i += 3) {
+    for (let j = 0; j < b.length; j += 3) {
+      const dx = a[i] - b[j];
+      const dy = a[i + 1] - b[j + 1];
+      const dz = a[i + 2] - b[j + 2];
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < best) best = d;
+    }
+  }
+  return Math.sqrt(best);
+}
+/**
+ * v3.8 `touch`: two drawn bodies that cover each other on screen (this share of the smaller silhouette) while their
+ * meshes come within TOUCH_GAP of each other in the world: one body drawn into another (a lunge, a flip, a dive), not
+ * a hero simply standing behind another one.
+ */
+const TOUCH_SHARE = 0.2;
+const TOUCH_GAP = 0.1;
+/** World centres and radii (m) of a drawn hero's posed bone spheres; null when the rig has no skeleton. */
+function posedSpheres(ch: RigLike['ch']): { c: THREE.Vector3[]; r: number[] } | null {
+  const bones = ch.mesh?.skeleton?.bones;
+  if (!bones?.length) return null;
+  const h = ch.height ?? 1.8;
+  const c: THREE.Vector3[] = [];
+  const r: number[] = [];
+  for (const [name, k] of POSED) {
+    const b = bones[BONE_INDEX[name]];
+    if (!b) continue;
+    b.updateWorldMatrix(true, false);
+    const v = name === 'head' ? b.localToWorld(_skull.set(0, 0.19, 0)).clone() : new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+    c.push(v);
+    r.push(k * h);
+  }
+  return { c, r };
+}
 /** One output frame (or sub-frame `sub` of `subs`, for motion blur): frame time 1/60 s split evenly. */
 function frame(f: number, sub = 0, subs = 1): { tick: number; ramp: number; move: number; overlap: number; qc: FrameQc | null } {
   const s = spec;
@@ -1451,6 +1558,9 @@ function frameQc(): FrameQc {
   const fps = view.structures.footprints([]);
   const radii: number[] = [];
   const ground: [number, number][] = [];
+  const spheres: ({ c: THREE.Vector3[]; r: number[] } | null)[] = [];
+  const clouds: ({ w: Float32Array; box: [number, number, number, number]; cells: Set<number> } | null)[] = [];
+  const heads: (THREE.Vector3 | null)[] = [];
   for (const [id, r] of view.heroes.rigs) {
     const o = r.ch.object;
     if (!o.visible || r.wasDead) continue;
@@ -1475,6 +1585,10 @@ function frameQc(): FrameQc {
     if (behind || x1 < 0 || x0 > 1 || y1 < 0 || y0 > 1) continue;
     out.heroes.push({ id, team: e.team, hero: e.hero ?? '', box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)], at: [+o.position.x.toFixed(2), +o.position.z.toFixed(2)] });
     // v3.2 the body alone (no plate): the drawn model's world box, projected (a big Sir Brutus gets a big box)
+    // v3.8: the posed skeleton's spheres when the rig has one (the bind-pose box never followed a lunge or a flip)
+    const ps = posedSpheres(r.ch);
+    spheres.push(ps);
+    if (ps) out.heroes[out.heroes.length - 1].skull = [+ps.c[2].x.toFixed(2), +ps.c[2].y.toFixed(2), +ps.c[2].z.toFixed(2)];
     _bb.setFromObject(o);
     let bx0 = 1e9;
     let by0 = 1e9;
@@ -1489,7 +1603,13 @@ function frameQc(): FrameQc {
     }
     // the box of a skinned, posed model is generous: keep its middle 80 % across (weapons and capes stick out)
     const shrink = (bx1 - bx0) * 0.1;
+    const pc = posedCloud(r.ch, cam, W, H);
+    clouds.push(pc);
+    // the overlap / hidden gates keep the v3.6 body box (their limits were set on it); v3.8 adds the posed silhouette
+    // (the `touch` gate) and reports the posed screen box (the 9:16 edge gate)
     bodies.push([bx0 + shrink, by0, bx1 - shrink, by1]);
+    heads.push(ps ? ps.c[2] : null);
+    if (pc) out.heroes[out.heroes.length - 1].body = pc.box.map((v) => +v.toFixed(4)) as [number, number, number, number];
     depth.push(_qa.copy(o.position).project(cam).z);
     bodyIds.push(id);
     const hr = Math.min(0.9, Math.max(0.35, Math.max(_bb.max.x - _bb.min.x, _bb.max.z - _bb.min.z) * 0.35));
@@ -1526,7 +1646,8 @@ function frameQc(): FrameQc {
       const fi = depth[i] > depth[j] ? i : j;
       const ni = fi === i ? j : i;
       if ((iw * ih) / (fi === i ? areaA : areaB) > 0.3 && Math.hypot(ground[i][0] - ground[j][0], ground[i][1] - ground[j][1]) < 2.8) {
-        _qa.set(ground[fi][0], 1.4, ground[fi][1]).project(cam);
+        if (heads[fi]) _qa.copy(heads[fi]!).project(cam);
+        else _qa.set(ground[fi][0], 1.4, ground[fi][1]).project(cam);
         const hx = _qa.x * 0.5 + 0.5;
         const hy = -_qa.y * 0.5 + 0.5;
         const nb = bodies[ni];
@@ -1542,6 +1663,29 @@ function frameQc(): FrameQc {
     }
   }
   out.hidden = +out.hidden.toFixed(3);
+  // v3.8 posed touch: silhouettes covering each other and meshes within TOUCH_GAP in the world
+  out.gap = 9;
+  out.touch = 0;
+  for (let i = 0; i < clouds.length; i++) {
+    const a = clouds[i];
+    if (!a) continue;
+    for (let j = i + 1; j < clouds.length; j++) {
+      const b = clouds[j];
+      if (!b) continue;
+      if (Math.hypot(ground[i][0] - ground[j][0], ground[i][1] - ground[j][1]) > 6) continue;
+      let both = 0;
+      for (const c of a.cells) if (b.cells.has(c)) both++;
+      const share = both / Math.max(1, Math.min(a.cells.size, b.cells.size));
+      const g = share > 0 ? cloudGap(a.w, b.w) : 9;
+      if (share > 0) out.gap = Math.min(out.gap, g);
+      if (share > TOUCH_SHARE && g < TOUCH_GAP) {
+        out.touch++;
+        out.why!.push(`touch ${bodyIds[i]}-${bodyIds[j]} s${share.toFixed(2)} g${g.toFixed(2)}`);
+      }
+      out.share = Math.max(out.share ?? 0, +share.toFixed(3));
+    }
+  }
+  out.gap = +out.gap.toFixed(3);
   // v3.3 ground contact: two drawn bodies nearer than 0.85 of their radii summed; a drawn minion inside a hero's radius
   out.contact = 0;
   for (let i = 0; i < ground.length; i++) {

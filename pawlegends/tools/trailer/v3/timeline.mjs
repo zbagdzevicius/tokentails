@@ -7,6 +7,8 @@
  * never over the fight. Five lines in all, every string from v3/copy.json (copy gate: lint-copy.mjs).
  */
 
+import { TAGS } from './tags.mjs';
+
 export const ASPECTS = { '16x9': { W: 1920, H: 1080 }, '9x16': { W: 1080, H: 1920 } };
 export const CUTS = { 30: 1800, 15: 900 };
 export const BEAT_FRAMES = 25;
@@ -16,12 +18,13 @@ export const BEAT_FRAMES = 25;
  * a multiple of 25 frames (one beat at 144 BPM), so the spliced score never jumps off the beat grid.
  */
 export const CUT15 = [
-  [0, 149, 0], // v3.4: the exchange and the crane to the whole Crossing, CATS VS DOGS
-  [150, 224, 25], // 3V3 IN YOUR BROWSER (S02 master 175-249, the real HUD)
-  [225, 274, 75], // Clem's Tumble at Sir Brutus (S03)
-  [275, 324, 75], // Cacklejaw's Pack Hunt on Gabė (S04)
-  [325, 374, 225], // Gabė's Under Her Spell (S09 master 550-599)
-  [375, 474, 425], // the dog tower cracks and falls along the lane, TOPPLE THEIR TOWERS. (S13 master 800-899)
+  [0, 174, 0], // the exchange and the crane to the whole Crossing, CATS VS DOGS (v3.8: the landing held to f174)
+  [175, 249, 25], // 3V3 IN YOUR BROWSER (S02 master 200-274, the real HUD)
+  [250, 299, 100], // Cacklejaw's Pack Hunt on Gabė (S04 master 350-399)
+  [300, 349, 250], // Gabė's Under Her Spell (S09 master 550-599)
+  // v3.8: Clem's Tumble (S03) is left out of the 15 s cut for the crane's longer hold; TOPPLE THEIR TOWERS. gets the
+  // shot's first beat back
+  [350, 474, 425], // the dog tower cracks and falls along the lane, TOPPLE THEIR TOWERS. (S13 master 775-899)
   [475, 614, 775], // TAKE THEIR CORE., the core falls, VICTORY! (S15 master 1250-1389)
   [615, 689, 775], // INSPIRED BY REAL CATS. (S18 master 1390-1464, the pick screen)
   [690, 899, 825], // TEAM CAT OR TEAM DOG? (S17 master 1515-1589, 75 frames), then the end card (master 1590-1724)
@@ -46,8 +49,16 @@ export function mapTo15(f) {
 // v3.7 (review: the name tags sat in a fixed lower-left corner, far from heroes 5 % of the frame tall, so a name could
 // not be matched to its hero): every tag is anchored right next to its hero, at the free spot nearest the hero's
 // projected box over the tag's frames (the capture QC's hero, plate, pop and structure boxes, and the HUD)
-export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], N3: [0.33, 0.6], N4: [0.42, 0.6], N6: [0.56, 0.59], N7: [0.43, 0.6], N8: [0.48, 0.56], N9: [0.62, 0.49], N10: [0.54, 0.59] };
-export const POS_V = { N3: [0.22, 0.61], N4: [0.35, 0.63], N6: [0.66, 0.62], N7: [0.33, 0.62], N8: [0.48, 0.74], N9: [0.74, 0.55], N10: [0.74, 0.62] };
+// v3.8 (review: CACKLEJAW still sat under Gabė, GABĖ beside Sir Brutus): each tag is placed by place-tags.mjs from the
+// captured shots' QC, under its own hero's ground ring (tags.mjs); POS / POS_V are the fallbacks before a first capture
+export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], N3: [0.33, 0.6], N4: [0.42, 0.6], N6: [0.56, 0.59], N7: [0.43, 0.6], N8: [0.48, 0.56], N9: [0.62, 0.49], N10: [0.54, 0.59], ...(TAGS['16x9'] ?? {}) };
+export const POS_V = { N3: [0.22, 0.61], N4: [0.35, 0.63], N6: [0.66, 0.62], N7: [0.33, 0.62], N8: [0.48, 0.74], N9: [0.74, 0.55], N10: [0.74, 0.62], ...(TAGS['9x16'] ?? {}) };
+/** v3.8: each roll-call tag's hero (the QC's hero id) and the tags' type size per aspect (16:9 84 px: read on a phone). */
+export const TAG_SUBJECTS = { N3: 'clem', N4: 'cacklejaw', N6: 'brutus', N7: 'aviete', N8: 'bengas', N9: 'gabe', N10: 'lambo' };
+export const TAG_SIZE = { '16x9': 84, '9x16': 90 };
+
+/** v3.8: TAKE THEIR (centre) in 16:9; CORE. sits 0.1 below it. */
+export const M3_POS = [0.24, 0.74];
 
 export const COLORS = {
   cream: '#FFF8EE',
@@ -113,50 +124,68 @@ export function typeEls(cut, aspect, c) {
   // side (right) in 9:16 too, mirroring the landscape offsets
   // v3.7: the 9:16 crane turns a quarter (the Crossing down the tall frame): CATS on the cat half (between the cat base and the
   // river), VS on the river, DOGS on the dog half, read top to bottom; out on f97 as the crane starts down
+  // v3.8 (review: in 9:16 all three words were up 0.4 s, over a crane still turning): the crane is up and still by f54;
+  // CATS f55, VS f62, DOGS f69, all three held to f135 (1.1 s) in both aspects; the descent starts as they wipe
   if (v) {
-    add('L1a', c.L1a, 62, 97, 0.5, 0.36, 130, 'cat');
-    add('L1b', c.L1b, 68, 97, 0.5, 0.5, 80, 'plain');
-    add('L1c', c.L1c, 75, 97, 0.5, 0.74, 130, 'dog');
+    add('L1a', c.L1a, 55, 135, 0.5, 0.36, 130, 'cat');
+    add('L1b', c.L1b, 62, 135, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 69, 135, 0.5, 0.74, 130, 'dog');
   } else {
-    add('L1a', c.L1a, 62, 110, 0.335, 0.47, 120, 'cat');
-    add('L1b', c.L1b, 68, 110, 0.5, 0.5, 80, 'plain');
-    add('L1c', c.L1c, 75, 110, 0.665, 0.53, 120, 'dog');
+    add('L1a', c.L1a, 55, 135, 0.335, 0.47, 120, 'cat');
+    add('L1b', c.L1b, 62, 135, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 69, 135, 0.665, 0.53, 120, 'dog');
   }
   // S02: 3V3 IN YOUR BROWSER on the beats (f175, f200) in open meadow, clear of the six and the HUD
   // v3.6 (take V10): 16:9 right of the six, clear of the score bar and its portraits; 9:16 above them
+  // v3.8: S02 opens on f175 (3V3 slams two frames after the cut); 16:9 IN YOUR BROWSER at 80 px (56 px read at ~10 px
+  // in a vertical feed)
   if (v) {
-    add('L2a', c.L2a, 175, 285, 0.5, 0.205, 150, 'gold');
+    add('L2a', c.L2a, 177, 285, 0.5, 0.205, 150, 'gold');
     add('L2b', c.L2b, 200, 285, 0.5, 0.29, 70, 'plain');
   } else {
-    add('L2a', c.L2a, 175, 285, 0.75, 0.41, 120, 'gold');
-    add('L2b', c.L2b, 200, 285, 0.75, 0.53, 56, 'plain');
+    add('L2a', c.L2a, 177, 285, 0.75, 0.39, 120, 'gold');
+    add('L2b', c.L2b, 200, 285, 0.75, 0.52, 80, 'plain');
   }
   // v3.4 name tags: who each rivalry and champion shot is (cats in rose, dogs in navy), in at the shot's second
   // beat-eighth, out 10 frames before its cut
   for (const [id, key, f0, style] of [['N3', 'N_CLEM', 300, 'cat'], ['N4', 'N_CACK', 350, 'dog'], ['N6', 'N_BRUTUS', 400, 'dog'], ['N7', 'N_AVIETE', 450, 'cat'], ['N8', 'N_BENGAS', 500, 'cat'], ['N9', 'N_GABE', 550, 'cat'], ['N10', 'N_LAMBO', 600, 'cat']]) {
     const [x, y] = (v ? POS_V : POS)[id] ?? (v ? [0.5, 0.74] : [0.2, 0.84]);
-    add(id, c[key], f0 + 4, f0 + 39, x, y, v ? 90 : 70, style);
+    add(id, c[key], f0 + 4, f0 + 39, x, y, TAG_SIZE[aspect], style);
   }
   // the mission, one line per beat (S11 push, S13 tower, S16 Pudding, S15 core)
-  add('M1', c.M1, 655, 735, 0.5, v ? 0.74 : POS.M1[1], v ? 96 : 100, 'gold');
-  add('M2', c.M2, 775, 885, 0.5, v ? 0.74 : POS.M2[1], v ? 80 : 84, 'gold');
+  // v3.8: S11 is 75 frames (650-724), so PUSH YOUR LANE. holds 655-715 and TOPPLE THEIR TOWERS. slams on the f750 beat
+  add('M1', c.M1, 655, 715, 0.5, v ? 0.74 : POS.M1[1], v ? 96 : 100, 'gold');
+  // (TOPPLE THEIR TOWERS. at the free spot nearest the lower centre: place-tags.mjs)
+  // (v3.8: 9:16 in two lines, TOPPLE THEIR / TOWERS., in the open band above the fight between the jungle camps and
+  // the dog core; on the lower band it lay over Bengas and the falling tower, and one line does not fit the band)
+  const m2 = TAGS[aspect]?.M2 ?? [0.5, v ? 0.2 : POS.M2[1]];
+  if (v) {
+    add('M2a', c.M2v1, 750, 885, m2[0], m2[1], 72, 'gold');
+    add('M2b', c.M2v2, 756, 885, m2[0], m2[1] + 0.058, 100, 'gold');
+  } else add('M2', c.M2, 750, 885, m2[0], m2[1], 96, 'gold');
   // (v3.7: CALM PUDDING. is cut with its shot; the mission is the three beats lane, towers, core)
   if (v) {
     add('M3a', c.M3v1, 1165, 1300, 0.5, 0.14, 110, 'gold');
     add('M3b', c.M3v2, 1172, 1300, 0.5, 0.21, 140, 'gold');
   } else {
-    add('M3a', c.M3v1, 1165, 1300, 0.84, 0.16, 66, 'gold');
-    add('M3b', c.M3v2, 1172, 1300, 0.84, 0.245, 96, 'gold');
+    // v3.8 (review: 66 px, top right over busy trees): 80 / 120 px in the clear lower left over the dog plaza (S15 now
+    // frames the fight in the middle with the doghouse below it)
+    const m3 = TAGS['16x9']?.M3 ?? M3_POS;
+    add('M3a', c.M3v1, 1165, 1300, m3[0], m3[1], 80, 'gold');
+    add('M3b', c.M3v2, 1172, 1300, m3[0], m3[1] + 0.1, 120, 'gold');
   }
   // S15: VICTORY! as the doghouse caves in (CORE_HIT); v3.7: beside the break, never on it (the review: laid on the
   // core's break and dust it hid the payoff): 16:9 over the pond right of the core, 9:16 over the trees above the fight
-  add('M6', c.M6, CORE_HIT + 1, 1382, v ? 0.5 : 0.745, v ? 0.22 : 0.5, 140, 'gold');
+  // v3.8: 16:9 at the free spot nearest the top left (place-tags.mjs; S15 is reframed on the fight, the break below
+  // it), 124 px
+  const m6 = v ? [0.5, 0.22] : (TAGS['16x9']?.M6 ?? [0.745, 0.5]);
+  add('M6', c.M6, CORE_HIT + 1, 1382, m6[0], m6[1], v ? 140 : 124, 'gold');
   // S18: INSPIRED BY REAL CATS. over the game's pick screen, under the detail panel (16:9) / under the panel (9:16)
   if (v) {
     add('M4a', c.M4v1, 1395, 1490, 0.5, 0.71, 84, 'plain');
     add('M4b', c.M4v2, 1401, 1490, 0.5, 0.77, 110, 'cat');
   } else {
-    add('M4a', c.M4v1, 1395, 1490, 0.235, 0.84, 72, 'plain');
+    add('M4a', c.M4v1, 1395, 1490, 0.235, 0.83, 84, 'plain');
     // (the landing variant's longer line, REAL SHELTER CATS., smaller so it stays left of the pedestal)
     add('M4b', c.M4v2, 1401, 1490, 0.235, 0.92, c.M4v2.length > 12 ? 70 : 96, 'cat');
   }
@@ -170,7 +199,7 @@ export function typeEls(cut, aspect, c) {
     add('M5c', c.M5c, 1518, 1590, 0.5, 0.75, 110, 'dog');
   } else {
     add('M5a', c.M5a, 1505, 1590, 0.25, 0.83, 110, 'cat');
-    add('M5b', c.M5b, 1512, 1590, 0.5, 0.83, 64, 'plain');
+    add('M5b', c.M5b, 1512, 1590, 0.5, 0.83, 84, 'plain');
     add('M5c', c.M5c, 1518, 1590, 0.75, 0.83, 100, 'dog');
   }
   if (String(cut) === '30') {
@@ -193,7 +222,8 @@ export function typeEls(cut, aspect, c) {
     // v3.4: the 15 s cut's call to pick a side slams after its cut (690) and holds TEAM DOG? 52 frames
     // v3.7: 3V3 slams after the cut (not whole on its first frame) and IN YOUR BROWSER gets a second; TAKE THEIR CORE.
     // staggers in after its cut and holds 68 frames, gone before VICTORY! (557)
-    const own = { M5a: [692, 757], M5b: [699, 757], M5c: [705, 757], L2a: [152, 216], L2b: [156, 216], M3a: [477, 545], M3b: [481, 545] }[id];
+    // v3.8: the crane's landing holds to f174, so 3V3 slams on f177 and IN YOUR BROWSER on f181 (1 s)
+    const own = { M5a: [692, 757], M5b: [699, 757], M5c: [705, 757], L2a: [177, 241], L2b: [181, 241], M3a: [477, 545], M3b: [481, 545] }[id];
     if (own) {
       w(id, text, own[0], own[1], x, y, size, style);
       continue;
@@ -219,7 +249,7 @@ const POST30 = {
   punch: [],
   shake: [
     { f: 22, px: 5, n: 4 }, { f: 324, px: 4, n: 3 }, { f: 360, px: 4, n: 3 }, { f: 855, px: 4, n: 4 }, { f: 895, px: 7, n: 6 },
-    { f: 906, px: 4, n: 3 }, { f: 1109, px: 4, n: 3 }, { f: CORE_HIT, px: 8, n: 6 },
+    { f: 906, px: 4, n: 3 }, { f: CORE_HIT, px: 8, n: 6 },
   ],
 };
 export function post(cut) {
@@ -230,7 +260,7 @@ export function post(cut) {
 
 /** Designed impacts (the music dips under each). */
 export const IMPACTS = {
-  30: [22, 324, 360, 420, 452, 524, 553, 645, 855, 895, 906, 1109, 1133, CORE_HIT],
+  30: [22, 324, 360, 420, 452, 524, 649, 855, 895, 906, CORE_HIT],
 };
 IMPACTS[15] = IMPACTS[30].flatMap((f) => mapTo15(f));
 
