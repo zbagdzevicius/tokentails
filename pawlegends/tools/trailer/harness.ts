@@ -476,6 +476,8 @@ function direct(f: number, dtReal: number): boolean {
     // the game places its own focus and zoom inside session.frame(); installPlace reads them as the frame is drawn
     gameRel = camAt(s.cam.keys, f, GAME_REL);
     gameGoal = s.cam.target ? resolve(s.cam.target, f, frame) : null;
+    // v3.7: `off` (m, [x, z]) moves the game camera's look goal too (S06: the cart pile off the right edge)
+    if (gameGoal && s.cam.off) gameGoal = { ...gameGoal, x: gameGoal.x + s.cam.off[0], z: gameGoal.z + s.cam.off[1] };
     camNow = gameRel;
     return true;
   }

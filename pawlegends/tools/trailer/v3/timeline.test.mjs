@@ -156,10 +156,12 @@ describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
     expect(land).toMatchObject({ dist: 1, pitch: 0, blend: 0, ease: 'ease' });
     expect(keys.at(-1)).toMatchObject({ f: s01.f1, dist: 1, pitch: 0, blend: 0 });
     expect(Math.abs((137 % BEAT_FRAMES) - BEAT_FRAMES / 2)).toBeLessThanOrEqual(0.5);
-    // 9:16: the quarter orbit turns back to the gameplay yaw and pitch at the opening distance
+    // 9:16 (v3.7): the quarter turn comes back to the opening distance, pitch and yaw on f125 and holds to the cut
     const pk = s01.portrait.cam.keys;
-    expect(pk.find((k) => k.f === 137)).toMatchObject({ dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
-    expect(s01.portrait.cam.target.f1).toBe(137);
+    expect(pk.find((k) => k.f === 125)).toMatchObject({ dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
+    expect(pk.at(-1)).toMatchObject({ f: s01.f1, dist: pk[0].dist, pitch: pk[0].pitch, yaw: 0 });
+    expect(s01.f1 - 125).toBeGreaterThanOrEqual(24);
+    expect(s01.portrait.cam.target.f1).toBe(125);
     // v3.6: the clock is back at real time before the camera starts down (it was 4.2x until the landing)
     const down = keys.find((k) => k.f > 66 && k.ease === 'linear').f;
     expect(s01.ramp.at(-1)[1]).toBe(1);
@@ -206,16 +208,10 @@ describe('trailer v3.6: review of v3.5', () => {
     expect(Math.min(...fast.map(([f]) => f))).toBeGreaterThanOrEqual(top.f);
     expect(Math.max(...fast.map(([f]) => f))).toBeLessThan(down.f);
   });
-  it('the 9:16 crane never turns the map (yaw 0 on every key)', () => {
-    for (const k of s01.portrait.cam.keys) expect(k.yaw ?? 0).toBe(0);
-  });
-  it('CALM PUDDING. sits in the bottom band, clear of the score bar, and is up as the calm lands', () => {
-    const m7 = typeEls(30, '16x9', copy).find((e) => e.id === 'M7');
-    expect(m7.y).toBeGreaterThan(0.75);
-    const s16 = SHOTS.find((s) => s.id === 'S16');
-    expect(m7.in).toBeLessThan(s16.anchor.frame);
-    expect(m7.out).toBeGreaterThan(s16.anchor.frame + 20);
-    expect(s16.bannerOn?.[0]?.[0]).toBeLessThanOrEqual(s16.anchor.frame);
+  it('the 9:16 crane starts and ends at yaw 0 (the gameplay yaw)', () => {
+    const k = s01.portrait.cam.keys;
+    expect(k[0].yaw ?? 0).toBe(0);
+    expect(k.at(-1).yaw ?? 0).toBe(0);
   });
   it('the shield heroes never play the cheer in the line-up (it held the shield out flat)', () => {
     const s17 = SHOTS.find((s) => s.id === 'S17');
@@ -227,6 +223,58 @@ describe('trailer v3.6: review of v3.5', () => {
       const s = SHOTS.find((x) => x.id === id);
       expect(s.cam.base).toBe('game');
       expect(s.layers).toContain('hudlite');
+    }
+  });
+});
+
+describe('trailer v3.7: review of v3.6', () => {
+  const s01 = SHOTS.find((s) => s.id === 'S01');
+  it('the 9:16 crane turns a quarter while wide, CATS above VS above DOGS, and turns back before it lands', () => {
+    const k = s01.portrait.cam.keys;
+    const wide = k.filter((x) => Math.abs(x.yaw ?? 0) === 90);
+    expect(wide.length).toBeGreaterThanOrEqual(2);
+    const l1 = typeEls(30, '9x16', copy).filter((e) => e.id.startsWith('L1'));
+    const [a, b, c] = ['L1a', 'L1b', 'L1c'].map((id) => l1.find((e) => e.id === id));
+    expect(a.y).toBeLessThan(b.y);
+    expect(b.y).toBeLessThan(c.y);
+    // the words are gone before the camera starts down (the last wide key)
+    for (const e of l1) expect(e.out).toBeLessThanOrEqual(wide.at(-1).f);
+  });
+  it('the mission is three beats (no CALM PUDDING. line, no Pudding shot)', () => {
+    for (const aspect of ['16x9', '9x16']) {
+      const ids = typeEls(30, aspect, copy).map((e) => e.id);
+      expect(ids).not.toContain('M7');
+      for (const id of ['M1', 'M2', 'M3a', 'M3b']) expect(ids).toContain(id);
+    }
+    expect(SHOTS.find((s) => s.id === 'S16')).toBeUndefined();
+  });
+  it('the 15 s cut: 3V3 slams after its cut, IN YOUR BROWSER and TAKE THEIR CORE. hold a second, gone before VICTORY!', () => {
+    for (const aspect of ['16x9', '9x16']) {
+      const els = typeEls(15, aspect, copy);
+      const by = (id) => els.find((e) => e.id === id);
+      expect(by('L2a').in).toBeGreaterThan(150);
+      expect(by('L2b').out - by('L2b').in).toBeGreaterThanOrEqual(60);
+      expect(by('M3b').out - by('M3b').in).toBeGreaterThanOrEqual(60);
+      expect(by('M3b').in - by('M3a').in).toBeGreaterThanOrEqual(3);
+      expect(by('M3b').out + OUT_FRAMES).toBeLessThanOrEqual(by('M6').in);
+      for (const id of ['L2a', 'L2b', 'M3a', 'M3b']) {
+        const seg = CUT15.find(([x, y]) => by(id).in >= x && by(id).in <= y);
+        expect(by(id).out + OUT_FRAMES - 1).toBeLessThanOrEqual(seg[1]);
+      }
+    }
+  });
+  it('the core shot frames the doghouse itself and its camera moves on the hits, then settles at the gameplay distance', () => {
+    const s15 = SHOTS.find((s) => s.id === 'S15');
+    expect(s15.cam.target.point).toBeTruthy();
+    const d = s15.cam.keys.map((k) => k.dist);
+    expect(new Set(d).size).toBeGreaterThan(3);
+    expect(s15.cam.keys.find((k) => k.f === CORE_HIT).dist).toBeLessThan(0.95);
+    expect(s15.cam.keys.at(-1).dist).toBe(1);
+  });
+  it('every name tag sits next to its hero, not in a fixed corner', () => {
+    for (const aspect of ['16x9', '9x16']) {
+      const tags = typeEls(30, aspect, copy).filter((e) => /^N\d/.test(e.id));
+      expect(new Set(tags.map((e) => `${e.x},${e.y}`)).size).toBeGreaterThanOrEqual(6);
     }
   });
 });

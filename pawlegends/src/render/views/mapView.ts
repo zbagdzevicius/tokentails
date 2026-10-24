@@ -226,8 +226,19 @@ export function rockClear(x: number, y: number, r: number): boolean {
 /** Canopy cut (render only): hero slots, the lowest height cut (m), the full / no-cut radius round the sight line (m). */
 export const CANOPY_CUT = Object.freeze({ slots: 6, minY: 1.2, inner: 1.8, outer: 2.8, strength: 0.92 });
 
-/** Bush cut round a hero inside it (render only): full / no-cut radius (m), the share dithered away. */
-export const BUSH_CUT = Object.freeze({ inner: 0.7, outer: 1.5, strength: 0.6 });
+/**
+ * Bush cut round a hero inside it (render only): full / no-cut radius (m), the share dithered away. v3.7 (trailer
+ * review: a hero in a bush showed her legs and ring through a 60 % stipple of leaves, which read as clipping): the
+ * leaves are cleared whole round the body (strength 1 out to `inner`, past a hero's drawn radius), with a short
+ * dithered edge, so the hero reads as standing in an opening of the bush.
+ */
+export const BUSH_CUT = Object.freeze({ inner: 1.0, outer: 1.35, strength: 1.0 });
+
+/** The share of bush leaves cut `d` m from a hero in it (the shader's own formula). */
+export function bushCutAt(d: number): number {
+  const t = Math.max(0, Math.min(1, (d - BUSH_CUT.inner) / (BUSH_CUT.outer - BUSH_CUT.inner)));
+  return BUSH_CUT.strength * (1 - t * t * (3 - 2 * t));
+}
 
 /** The walkable spans (m, along y) of the line x = `x` m: where the gate barrier is drawn. */
 export function gateSpans(x: number): [number, number][] {

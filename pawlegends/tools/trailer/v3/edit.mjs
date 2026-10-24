@@ -141,8 +141,7 @@ for (const cut of ['30', '15']) {
           if (bad.length) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} with non-champion plates ${bad.join(',')} (${s.id} f${sf})`);
         }
         for (const [what, box] of things) {
-          // VICTORY! is laid on the core burst by design (the title on the payoff); every other word stays off it
-          if (b.id === 'M6' && what === 'core') continue;
+          // (v3.7: no exemption for VICTORY! over the core: laid on the break, it hid the payoff of the mission)
           const [x0, y0, x1, y1] = toPx(box);
           if (b.x1 + mgn > x0 && b.x0 - mgn < x1 && b.y1 + mgn > y0 && b.y0 - mgn < y1) typeQc.push(`${cut}s ${aspect} f${f} ${b.id} over ${what} (${s.id} f${sf})`);
         }

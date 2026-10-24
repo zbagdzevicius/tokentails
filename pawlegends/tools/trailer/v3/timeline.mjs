@@ -43,9 +43,11 @@ export function mapTo15(f) {
  * v3.4 type positions (x, y fractions of the frame) found by a free-space search over every frame's hero, plate,
  * pop and structure boxes (QC); 9:16 keeps every word inside y 0.12-0.78 (the platforms' caption and button bands).
  */
-export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], M7: [0.5, 0.905], N3: [0.2, 0.84], N4: [0.2, 0.84], N6: [0.2, 0.84], N7: [0.2, 0.84], N8: [0.34, 0.18], N9: [0.75, 0.84], N10: [0.225, 0.88] };
-// v3.6: BENGAS sits next to Bengas (v3.5 put it under Sage, who read as Bengas)
-export const POS_V = { N3: [0.5, 0.74], N4: [0.5, 0.74], N6: [0.5, 0.74], N7: [0.5, 0.74], N8: [0.5, 0.5], N9: [0.5, 0.76], N10: [0.5, 0.2] };
+// v3.7 (review: the name tags sat in a fixed lower-left corner, far from heroes 5 % of the frame tall, so a name could
+// not be matched to its hero): every tag is anchored right next to its hero, at the free spot nearest the hero's
+// projected box over the tag's frames (the capture QC's hero, plate, pop and structure boxes, and the HUD)
+export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], N3: [0.33, 0.6], N4: [0.42, 0.6], N6: [0.56, 0.59], N7: [0.43, 0.6], N8: [0.48, 0.56], N9: [0.62, 0.49], N10: [0.54, 0.59] };
+export const POS_V = { N3: [0.22, 0.61], N4: [0.35, 0.63], N6: [0.66, 0.62], N7: [0.33, 0.62], N8: [0.48, 0.74], N9: [0.74, 0.55], N10: [0.74, 0.62] };
 
 export const COLORS = {
   cream: '#FFF8EE',
@@ -109,10 +111,12 @@ export function typeEls(cut, aspect, c) {
   // the bottom
   // v3.6: the 9:16 crane keeps yaw 0 (no quarter orbit), so CATS sits over the cat side (left) and DOGS over the dog
   // side (right) in 9:16 too, mirroring the landscape offsets
+  // v3.7: the 9:16 crane turns a quarter (the Crossing down the tall frame): CATS on the cat half (between the cat base and the
+  // river), VS on the river, DOGS on the dog half, read top to bottom; out on f97 as the crane starts down
   if (v) {
-    add('L1a', c.L1a, 62, 110, 0.275, 0.47, 120, 'cat');
-    add('L1b', c.L1b, 68, 110, 0.5, 0.5, 80, 'plain');
-    add('L1c', c.L1c, 75, 110, 0.725, 0.55, 120, 'dog');
+    add('L1a', c.L1a, 62, 97, 0.5, 0.36, 130, 'cat');
+    add('L1b', c.L1b, 68, 97, 0.5, 0.5, 80, 'plain');
+    add('L1c', c.L1c, 75, 97, 0.5, 0.74, 130, 'dog');
   } else {
     add('L1a', c.L1a, 62, 110, 0.335, 0.47, 120, 'cat');
     add('L1b', c.L1b, 68, 110, 0.5, 0.5, 80, 'plain');
@@ -136,7 +140,7 @@ export function typeEls(cut, aspect, c) {
   // the mission, one line per beat (S11 push, S13 tower, S16 Pudding, S15 core)
   add('M1', c.M1, 655, 735, 0.5, v ? 0.74 : POS.M1[1], v ? 96 : 100, 'gold');
   add('M2', c.M2, 775, 885, 0.5, v ? 0.74 : POS.M2[1], v ? 80 : 84, 'gold');
-  add('M7', c.M7, 1040, 1138, v ? 0.5 : POS.M7[0], v ? 0.74 : POS.M7[1], v ? 96 : 88, 'gold');
+  // (v3.7: CALM PUDDING. is cut with its shot; the mission is the three beats lane, towers, core)
   if (v) {
     add('M3a', c.M3v1, 1165, 1300, 0.5, 0.14, 110, 'gold');
     add('M3b', c.M3v2, 1172, 1300, 0.5, 0.21, 140, 'gold');
@@ -144,8 +148,9 @@ export function typeEls(cut, aspect, c) {
     add('M3a', c.M3v1, 1165, 1300, 0.84, 0.16, 66, 'gold');
     add('M3b', c.M3v2, 1172, 1300, 0.84, 0.245, 96, 'gold');
   }
-  // S15: VICTORY! as the doghouse caves in (CORE_HIT), below it
-  add('M6', c.M6, CORE_HIT + 1, 1382, 0.5, v ? 0.74 : 0.84, v ? 140 : 150, 'gold');
+  // S15: VICTORY! as the doghouse caves in (CORE_HIT); v3.7: beside the break, never on it (the review: laid on the
+  // core's break and dust it hid the payoff): 16:9 over the pond right of the core, 9:16 over the trees above the fight
+  add('M6', c.M6, CORE_HIT + 1, 1382, v ? 0.5 : 0.745, v ? 0.22 : 0.5, 140, 'gold');
   // S18: INSPIRED BY REAL CATS. over the game's pick screen, under the detail panel (16:9) / under the panel (9:16)
   if (v) {
     add('M4a', c.M4v1, 1395, 1490, 0.5, 0.71, 84, 'plain');
@@ -186,7 +191,9 @@ export function typeEls(cut, aspect, c) {
     }
     if (r0 < 0 || r1 - r0 < 20) continue;
     // v3.4: the 15 s cut's call to pick a side slams after its cut (690) and holds TEAM DOG? 52 frames
-    const own = { M5a: [692, 757], M5b: [699, 757], M5c: [705, 757] }[id];
+    // v3.7: 3V3 slams after the cut (not whole on its first frame) and IN YOUR BROWSER gets a second; TAKE THEIR CORE.
+    // staggers in after its cut and holds 68 frames, gone before VICTORY! (557)
+    const own = { M5a: [692, 757], M5b: [699, 757], M5c: [705, 757], L2a: [152, 216], L2b: [156, 216], M3a: [477, 545], M3b: [481, 545] }[id];
     if (own) {
       w(id, text, own[0], own[1], x, y, size, style);
       continue;
@@ -212,7 +219,7 @@ const POST30 = {
   punch: [],
   shake: [
     { f: 22, px: 5, n: 4 }, { f: 324, px: 4, n: 3 }, { f: 360, px: 4, n: 3 }, { f: 855, px: 4, n: 4 }, { f: 895, px: 7, n: 6 },
-    { f: 906, px: 4, n: 3 }, { f: CORE_HIT, px: 8, n: 6 },
+    { f: 906, px: 4, n: 3 }, { f: 1109, px: 4, n: 3 }, { f: CORE_HIT, px: 8, n: 6 },
   ],
 };
 export function post(cut) {
@@ -223,7 +230,7 @@ export function post(cut) {
 
 /** Designed impacts (the music dips under each). */
 export const IMPACTS = {
-  30: [22, 324, 360, 420, 451, 524, 590, 645, 855, 895, 906, 1114, CORE_HIT],
+  30: [22, 324, 360, 420, 452, 524, 553, 645, 855, 895, 906, 1109, 1133, CORE_HIT],
 };
 IMPACTS[15] = IMPACTS[30].flatMap((f) => mapTo15(f));
 
