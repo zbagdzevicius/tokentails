@@ -144,7 +144,7 @@ function specFor(shot, aspect) {
     popScale: p.popScale ?? shot.popScale ?? null,
     groundK: p.groundK ?? shot.groundK ?? null,
     bolts: !!(p.bolts ?? shot.bolts),
-    lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}) } : undefined,
+    lobby: shot.lobby ? { ...shot.lobby, ...(p.stands ? { stands: p.stands } : {}), ...(p.lobby ?? {}) } : undefined,
   };
 }
 
@@ -283,6 +283,12 @@ async function solveTiming(shot, spec) {
 
 /** Overlap QC: hero bodies may overlap on screen for at most this many frames in a row. */
 const OVERLAP_FRAMES = 2;
+/**
+ * v3.6: a body more than this share hidden behind a nearer one fails (was 0.5: Sir Brutus over Bruno the Cacklejaw at
+ * 0.47 read as one blob in the v3.5 review), and so does any `clip` (a head drawn inside a nearer body: Bolt the Brutus
+ * leaning into Gabė at 0.34-0.39 hidden).
+ */
+const HIDDEN_MAX = 0.4;
 
 /** Sub-frames per WHIP frame (half of them, a 180° shutter, are averaged: a continuous smear, not ghost copies). */
 const SUBS = 32;
@@ -423,7 +429,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
       // v3.4: on a crane's whole-map view every hero is a speck (under 4 % of the frame tall): no body can read as
       // clipping there, so those frames are not counted
       const specks = (r.qc?.heroes ?? []).every((h) => h.box[3] - h.box[1] < 0.04);
-      if (f >= shot.f0 && !specks && (r.overlap > 0 || (r.qc?.hidden ?? 0) > 0.5)) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
+      if (f >= shot.f0 && !specks && (r.overlap > 0 || (r.qc?.hidden ?? 0) > HIDDEN_MAX || (r.qc?.clip ?? 0) > 0)) overlapRun = overlapRun ? [overlapRun[0], f] : [f, f];
       else if (overlapRun) {
         if (overlapRun[1] - overlapRun[0] + 1 > OVERLAP_FRAMES) overlaps.push(overlapRun);
         overlapRun = null;

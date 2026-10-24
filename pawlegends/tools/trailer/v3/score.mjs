@@ -202,15 +202,15 @@ catMotif(925, 0.42);
 dogMotif(975, 0.5);
 catMotif(1000, 0.42, 12);
 cue(906, 'teamfight: takedown');
-// f1025-1149 CALM PUDDING.: a lighter bar, the motifs together, the calm on f1120 (a sparkle and the game's cheer)
+// f1025-1149 CALM PUDDING.: a lighter bar, the motifs together, the calm on f1114 (a sparkle and the game's cheer)
 groove(1025, 1150, { energy: 0.85 });
 padBar(1025, 'F', fs(125), 0.13, 1600);
 catMotif(1050, 0.38);
-stabAt(1035, 'F', 0.35);
-sfx.add(smp(1120), I.game('magic', 1.2), 0.45);
+stabAt(1040, 'F', 0.35);
+sfx.add(smp(1114), I.game('magic', 1.2), 0.45);
 sfx.add(smp(1122), I.game('cheer'), 0.3);
-stabAt(1120, 'C', 0.4, 0.4, 12);
-cue(1120, 'Pudding calmed');
+stabAt(1114, 'C', 0.4, 0.4, 12);
+cue(1114, 'Pudding calmed');
 // f1150-CORE_HIT TAKE THEIR CORE.: a stab on the line, the hits on the doghouse on the beat, a riser, a near-silent
 // hole, then THE CORE BURST
 groove(1150, 1300, { energy: 1 });

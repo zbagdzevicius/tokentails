@@ -78,6 +78,31 @@ function qcOf(shot, aspect) {
   return qcCache.get(k);
 }
 const CHAMPIONS = new Set(['Lambo', 'Avietė', 'Bengas', 'Gabė']);
+/**
+ * v3.6: the game's own HUD is part of the footage, so the type QC counts it as an obstacle (v3.5 laid CALM PUDDING. on
+ * the score bar): its boxes (landscape fractions) per layer set, while the shot's hudFade keeps it on screen.
+ */
+const HUD_RECTS = {
+  hudlite: [['score bar', [0.385, 0, 0.715, 0.08]], ['minimap', [0.835, 0.815, 0.99, 0.985]]],
+  hud: [['score bar', [0.315, 0, 0.715, 0.085]], ['ability bar', [0.33, 0.84, 0.67, 0.99]], ['minimap', [0.835, 0.815, 0.99, 0.985]]],
+};
+function hudAlpha(keys, f) {
+  if (!keys?.length) return 1;
+  if (f <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [f1, v1] = keys[i];
+    const [f0, v0] = keys[i - 1];
+    if (f <= f1) return v0 + ((v1 - v0) * (f - f0)) / Math.max(1, f1 - f0);
+  }
+  return keys.at(-1)[1];
+}
+function hudRects(s, aspect, f) {
+  if (aspect !== '16x9') return [];
+  const layers = s.layers ?? [];
+  const set = layers.includes('hud') ? 'hud' : layers.includes('hudlite') ? 'hudlite' : null;
+  if (!set || hudAlpha(s.hudFade, f) < 0.05) return [];
+  return HUD_RECTS[set];
+}
 const typeQc = [];
 for (const cut of ['30', '15']) {
   for (const aspect of ['16x9', '9x16']) {
@@ -107,6 +132,7 @@ for (const cut of ['30', '15']) {
         // v3.2: the towers, cores and Pudding themselves (a word over the core burst is a word over the subject)
         // (a box reaching far outside the frame is a fallen piece behind the lens, not a subject)
         ...(q.structs ?? []).filter((p) => p.box[3] - p.box[1] > 0.06 && p.box.every((v) => v > -0.5 && v < 1.5)).map((p) => [`${p.kind}`, p.box]),
+        ...hudRects(s, aspect, sf).map(([n, b]) => [`HUD ${n}`, b]),
       ];
       for (const b of list) {
         if (b.id.startsWith('M4')) {
@@ -162,7 +188,25 @@ const shotOf = (f) => SHOTS.find((s) => f >= s.f0 && f <= s.f1);
  * lines below (both crops of the same real frame, no blur fill). Crops are fractions of the landscape frame.
  */
 // v3.4: the hero crop starts higher (0.03, was 0.18: Lambo's ears were cut by the top edge) at the band's own aspect (no scale-and-crop) so every champion keeps headroom
-const PICK_916 = { hero: [0.44, 0.03, 0.44, 0.73], panel: [0.022, 0.425, 0.345, 0.19], heroH: 1000, panelY: 1010 };
+// v3.6 (review of v3.5: the panel's right border cut off, a lighter backing rectangle ending abruptly, the pedestal
+// sliced by the panel, a wedge of the glow disc at the crop edge): the source is S18's own 9:16 capture, landscape with
+// the glow disc left out (one flat backdrop, `hideGlow`); the hero and pedestal are keyed off that backdrop over a whole
+// disc drawn in the pick screen's glow colour, and the whole panel (rounded border included) sits below the pedestal,
+// inside 40 px margins
+const PICK_916 = { hero: [0.53, 0.02, 0.4, 0.8], heroAt: [160, 110, 760, 855], panel: [0.022, 0.42, 0.418, 0.195], panelAt: [40, 1010, 1000], bg: '0x2b1d2e', glow: '0x3f2550', disc: [540, 500, 440] };
+/** v3.6: the 9:16 pick screen's backdrop: the flat lobby colour with the whole glow disc (PICK_916.disc). */
+let pickBgFile = null;
+function pickBg(W, H) {
+  if (pickBgFile) return pickBgFile;
+  const c = PICK_916;
+  const [cx, cy, r] = c.disc;
+  const hex = (h, i) => parseInt(h.slice(2 + 2 * i, 4 + 2 * i), 16);
+  const ch = (i) => `if(lt(hypot(X-${cx},Y-${cy}),${r}),${hex(c.glow, i)},${hex(c.bg, i)})`;
+  mkdirSync(WORK, { recursive: true });
+  pickBgFile = join(WORK, 'pick916-bg.png');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=black:s=${W}x${H},format=rgb24`, '-vf', `geq=r='${ch(0)}':g='${ch(1)}':b='${ch(2)}'`, '-frames:v', '1', pickBgFile]);
+  return pickBgFile;
+}
 /** Footage path of master frame f in an aspect (null when missing). */
 function footage(f, aspect) {
   const s = shotOf(f);
@@ -200,8 +244,8 @@ function plan(cut, aspect) {
     const sf = sourceFrame(cut, f);
     const s = shotOf(sf);
     // a shot captured in landscape only is recomposed for 9:16 (S18: PICK_916)
-    const band = v && s?.aspects && !s.aspects.includes('9x16');
-    const src = footage(sf, band ? '16x9' : aspect);
+    const band = v && !!s?.pick916;
+    const src = footage(sf, aspect) ?? (band ? footage(sf, '16x9') : null);
     if (!src) throw new Error(`${cut}s ${aspect}: no footage for frame ${f} (master ${sf}, ${s?.id})`);
     out.push({ f, sf, shot: s.id, src, band, end: f >= END_AT[cut], shake: shakeAt(cut, f), punch: punchAt(cut, f) });
   }
@@ -226,7 +270,10 @@ async function buildBase(cut, aspect, dir) {
       // screen's own backdrop colour
       const c = PICK_916;
       const crop = (r) => `crop=iw*${r[2]}:ih*${r[3]}:iw*${r[0]}:ih*${r[1]}`;
-      chain.push(`split[a][b];[a]${crop(c.hero)},scale=${W}:${c.heroH}:force_original_aspect_ratio=increase,crop=${W}:${c.heroH}[h];[b]${crop(c.panel)},scale=${W - 40}:-2:flags=lanczos[p];color=c=0x2a1a2e:s=${W}x${H}[bg];[bg][h]overlay=0:0[t];[t][p]overlay=20:${c.panelY}`);
+      const [hx, hy, hw, hh] = c.heroAt;
+      const [px, py, pw] = c.panelAt;
+      chain.push(`split[a][b];[a]${crop(c.hero)},scale=${hw}:${hh}:flags=lanczos,format=rgba,colorkey=${c.bg}:0.035:0.05[h];[b]${crop(c.panel)},scale=${pw}:-2:flags=lanczos[p];[1:v][h]overlay=${hx}:${hy}[t];[t][p]overlay=${px}:${py}`);
+      q.bg = pickBg(W, H);
     } else {
       // a capture at another size (S18 at DPR 2) is scaled to the master's
       const sz = manifest.shots[`${q.shot}/${aspect}`]?.size;
@@ -240,7 +287,7 @@ async function buildBase(cut, aspect, dir) {
     if (q.punch) chain.push(`lutrgb=r='val*${1 + q.punch}':g='val*${1 + q.punch}':b='val*${1 + q.punch}'`);
     if (!chain.length) continue;
     q.fx = join(fx, pad4(q.f));
-    jobs.push(() => ff(['-i', q.src, '-filter_complex', `${chain.join(',')},format=rgb24`, '-frames:v', '1', q.fx]));
+    jobs.push(() => ff(['-i', q.src, ...(q.bg ? ['-i', q.bg] : []), '-filter_complex', `${chain.join(',')},format=rgb24`, '-frames:v', '1', q.fx]));
   }
   await pool(jobs);
   const blank = join(dir, 'blank.png');

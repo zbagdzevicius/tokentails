@@ -144,6 +144,10 @@ export interface ShotSpec {
     fitH?: number;
     /** v3.4: a flourish on a frame (stand index; 'swing' the lobby's attack flourish, 'cheer' a short cheer). */
     acts?: { f: number; stand: number; act: 'swing' | 'cheer' }[];
+    /** v3.6: the soft glow disc behind the pedestal not drawn (the 9:16 pick-screen source: one flat backdrop). */
+    hideGlow?: boolean;
+    /** v3.6: a pick-screen shot drawn with the shot's own camera instead of the lobby's (`cam` required). */
+    pickCam?: boolean;
     /**
      * v3.2: the game's real pick screen ("Choose your legend") over the lobby, as a player sees it: `hero` selected
      * first, `swaps` tap another tile on a frame (the detail panel then reads that hero, e.g. "Inspired by Lambo's
@@ -301,6 +305,8 @@ export interface FrameQc {
    */
   contact?: number;
   minionIn?: number;
+  /** v3.6: pairs where the farther body's head is drawn inside the nearer body (see frameQc). */
+  clip?: number;
   /** v3.3: hero names drawn twice in one frame (two Sir Brutus side by side read as a cloning bug). */
   dupes?: string[];
   /** Debug: which pairs overlap ("id-id") and which hero stands in which footprint ("id@x,z"). */
@@ -355,7 +361,7 @@ function layersCss(keep: readonly string[]): string {
   const not = allow.map((s) => `:not(${s})`).join('');
   return `.pl-match > *${not}, body > *${not}:not(#app):not(script):not(style), #app > *${not}:not(.pl-match) { display: none !important; }
   ${keep.includes('pops') ? '' : '.fx-dmg-layer { display: none !important; }'}
-  ${keep.includes('hudlite') ? '.pl-hud > :not(.pl-top) { display: none !important; }' : ''}`;
+  ${keep.includes('hudlite') ? '.pl-hud > :not(.pl-top) { display: none !important; } .pl-score .phase { display: none !important; }' : ''}`;
 }
 
 function setLayers(keep: readonly string[], hide: readonly string[] = []): void {
@@ -439,10 +445,10 @@ function resolve(t: Target, f: number, frame: ViewFrame | null): Vec3 | null {
   if ('point' in t) return { x: t.point[0] / 1000, y: t.lift ?? 1, z: -t.point[1] / 1000 };
   if ('unit' in t) return entityPos(frame, t.unit, t.lift ?? 1);
   if ('mid' in t) {
-    const a = entityPos(frame, t.mid[0], t.lift ?? 1);
-    const b = entityPos(frame, t.mid[1], t.lift ?? 1);
-    if (!a || !b) return a ?? b;
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 };
+    // v3.6: any number of units (the centroid of all six for the 9:16 3V3); two keep the v3 midpoint
+    const ps = (t.mid as unknown[]).map((u) => entityPos(frame, u as number, t.lift ?? 1)).filter((p): p is Vec3 => !!p);
+    if (!ps.length) return null;
+    return { x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length, z: ps.reduce((a, p) => a + p.z, 0) / ps.length };
   }
   // a projectile of `proj` (the first one that appears from frame `from` on), else the fallback unit
   if (frame && f >= (t.from ?? -1e9)) {
@@ -1086,6 +1092,9 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
     const lb = new Lobby(g);
     lobby = lb;
     lb.enter();
+    if (s.lobby?.hideGlow) {
+      for (const o of lb.scene.children) if ((o as THREE.Mesh).isMesh && (o as THREE.Mesh).geometry instanceof THREE.CircleGeometry) o.visible = false;
+    }
     const [first, ...rest] = s.lobby?.stands ?? [{ hero: 'clem' as HeroId }];
     lb.setHero(first.hero, first.team ?? 0, lookOf(first.card));
     for (const st of rest) {
@@ -1152,7 +1161,8 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
       });
     }
     // the pick screen keeps the lobby's own camera (the hero framed right of the UI column, as in the game)
-    if (!s.lobby?.pick) installPlace(g);
+    // v3.6 `pickCam`: the shot's own camera over the pick screen (the 9:16 source: the whole pedestal in frame)
+    if (!s.lobby?.pick || (s.cam && s.lobby.pickCam)) installPlace(g);
     wrapRender(g);
     // let shaders compile and the hero pop settle before the shot
     for (let i = 0; i < (s.preroll ?? 90); i++) lobbyStep(-1 - i, 1 / 60, 1);
@@ -1495,6 +1505,7 @@ function frameQc(): FrameQc {
   // bodies interpenetrating on screen: two body boxes sharing more than OVERLAP_SHARE of the smaller one; v3.2 also the
   // largest share of a farther body covered by a nearer one (`hidden`)
   out.hidden = 0;
+  out.clip = 0;
   for (let i = 0; i < bodies.length; i++) {
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i];
@@ -1507,6 +1518,21 @@ function frameQc(): FrameQc {
       const small = Math.min(areaA, areaB);
       const far = depth[i] > depth[j] ? areaA : areaB;
       out.hidden = Math.max(out.hidden, (iw * ih) / far);
+      // v3.6 `clip`: the farther body's head (1.4 m up) drawn inside the nearer body's box while the two stand within
+      // 2.8 m and more than 30 % of the farther body is covered: a head or shoulder through another body (v3.5 review:
+      // Bolt the Brutus leaning into Gabė, Sir Brutus over Bruno the Cacklejaw), not one hero simply behind another
+      const fi = depth[i] > depth[j] ? i : j;
+      const ni = fi === i ? j : i;
+      if ((iw * ih) / (fi === i ? areaA : areaB) > 0.3 && Math.hypot(ground[i][0] - ground[j][0], ground[i][1] - ground[j][1]) < 2.8) {
+        _qa.set(ground[fi][0], 1.4, ground[fi][1]).project(cam);
+        const hx = _qa.x * 0.5 + 0.5;
+        const hy = -_qa.y * 0.5 + 0.5;
+        const nb = bodies[ni];
+        if (hx > nb[0] && hx < nb[2] && hy > nb[1] && hy < nb[3]) {
+          out.clip = (out.clip ?? 0) + 1;
+          out.why!.push(`clip ${bodyIds[fi]}>${bodyIds[ni]}`);
+        }
+      }
       if ((iw * ih) / small > OVERLAP_SHARE) {
         out.overlap++;
         out.why!.push(`${bodyIds[i]}-${bodyIds[j]} ${((iw * ih) / small).toFixed(2)}`);
@@ -1529,13 +1555,18 @@ function frameQc(): FrameQc {
   const mv = (session?.view as unknown as { minions: { drawnAt: Map<number, { x: number; z: number }> } }).minions;
   for (const [mid, p] of mv.drawnAt) {
     if (!Number.isFinite(p.x)) continue;
+    // v3.6: a siege cart is a prop ~1.5 m long: its own box and clearance (a hero stood inside the dog bone-cart)
+    const siege = (view.frame?.byId.get(mid) as { variant?: string } | undefined)?.variant === 'siege';
+    const half = siege ? 0.8 : 0.35;
+    const tall = siege ? 1.3 : 1.1;
+    const clear = siege ? 1.6 : 0.8;
     // the minion's screen box (0.35 m either side, 0-1.1 m up) against each drawn hero body box: a minion whose box
     // lies more than 40 % inside a hero's body reads as standing in it (or a cadet pile through the hero)
     let mx0 = 1e9;
     let my0 = 1e9;
     let mx1 = -1e9;
     let my1 = -1e9;
-    for (const [side, up] of [[-0.35, 0], [0.35, 0], [-0.35, 1.1], [0.35, 1.1]] as const) {
+    for (const [side, up] of [[-half, 0], [half, 0], [-half, tall], [half, tall]] as const) {
       _qa.set(p.x, up, p.z).addScaledVector(_qr, side).project(cam);
       mx0 = Math.min(mx0, _qa.x * 0.5 + 0.5);
       mx1 = Math.max(mx1, _qa.x * 0.5 + 0.5);
@@ -1545,13 +1576,29 @@ function frameQc(): FrameQc {
     if (mx1 < 0 || mx0 > 1 || my1 < 0 || my0 > 1) continue;
     const ma = Math.max(1e-6, (mx1 - mx0) * (my1 - my0));
     for (let i = 0; i < ground.length; i++) {
-      const b = bodies[i];
+      // v3.6: against the hero's core (0.4 m either side, 0-1.5 m up), not the posed model's box (a swinging sword
+      // made a cadet fighting at the hero's side read as inside it)
+      let b0 = 1e9;
+      let b1 = 1e9;
+      let b2 = -1e9;
+      let b3 = -1e9;
+      for (const [side, up] of [[-0.4, 0], [0.4, 0], [-0.4, 1.5], [0.4, 1.5]] as const) {
+        _qa.set(ground[i][0], up, ground[i][1]).addScaledVector(_qr, side).project(cam);
+        b0 = Math.min(b0, _qa.x * 0.5 + 0.5);
+        b2 = Math.max(b2, _qa.x * 0.5 + 0.5);
+        b1 = Math.min(b1, -_qa.y * 0.5 + 0.5);
+        b3 = Math.max(b3, -_qa.y * 0.5 + 0.5);
+      }
+      const b = [b0, b1, b2, b3];
       const iw = Math.min(mx1, b[2]) - Math.max(mx0, b[0]);
       const ih = Math.min(my1, b[3]) - Math.max(my0, b[1]);
       const d = Math.hypot(ground[i][0] - p.x, ground[i][1] - p.z);
-      if (d < 0.8 || (d < 0.8 && iw > 0 && ih > 0 && (iw * ih) / ma > 0.4)) {
+      // v3.6: also a minion close behind or in front of a hero whose screen box lies mostly inside the hero's body
+      // (a cadet drawn in Sir Brutus's legs and cape, 1.0-1.4 m from his centre)
+      const share = iw > 0 && ih > 0 ? (iw * ih) / ma : 0;
+      if (d < clear || (d < clear + 0.6 && share > 0.5)) {
         out.minionIn++;
-        out.why!.push(`minion ${mid} in ${bodyIds[i]} d${d.toFixed(2)}`);
+        out.why!.push(`${siege ? 'cart' : 'minion'} ${mid} in ${bodyIds[i]} d${d.toFixed(2)} s${share.toFixed(2)}`);
       }
     }
   }
@@ -1583,6 +1630,41 @@ function frameQc(): FrameQc {
   for (const st of (session?.view as unknown as { structures: { items: Map<number, { kind: string; mesh: THREE.Object3D }> } }).structures.items.values()) {
     if ((st.kind !== 'tower' && st.kind !== 'core' && st.kind !== 'pudding') || !st.mesh.visible) continue;
     _bb.setFromObject(st.mesh);
+    if (st.kind === 'pudding') {
+      // v3.6: Pudding is a round blob: his screen box is the projected cylinder round his body (16 points on its foot
+      // and top circles), not the projected corners of his world box, which ran to the bottom of the frame (the box's
+      // front-bottom corner) and left no place for CALM PUDDING. under him
+      // his drawn body: visible, not see-through meshes taller than 0.3 m (no flat pad, ring or hidden helper)
+      const body = new THREE.Box3();
+      const part = new THREE.Box3();
+      st.mesh.traverseVisible((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const mat = m.material as THREE.Material | THREE.Material[];
+        const op = Array.isArray(mat) ? Math.max(...mat.map((x) => (x.visible ? x.opacity : 0))) : mat.visible ? mat.opacity : 0;
+        if (op < 0.2) return;
+        part.setFromObject(m);
+        if (part.max.y - part.min.y > 0.3) body.union(part);
+      });
+      if (!body.isEmpty()) _bb.copy(body);
+      const cx = (_bb.min.x + _bb.max.x) / 2;
+      const cz = (_bb.min.z + _bb.max.z) / 2;
+      const r = Math.max(_bb.max.x - _bb.min.x, _bb.max.z - _bb.min.z) / 2;
+      let x0 = 1e9;
+      let y0 = 1e9;
+      let x1 = -1e9;
+      let y1 = -1e9;
+      for (let k = 0; k < 32; k++) {
+        const a = ((k % 16) / 16) * Math.PI * 2;
+        _qa.set(cx + Math.cos(a) * r, k < 16 ? Math.max(0, _bb.min.y) : _bb.max.y, cz + Math.sin(a) * r).project(cam);
+        x0 = Math.min(x0, _qa.x * 0.5 + 0.5);
+        x1 = Math.max(x1, _qa.x * 0.5 + 0.5);
+        y0 = Math.min(y0, -_qa.y * 0.5 + 0.5);
+        y1 = Math.max(y1, -_qa.y * 0.5 + 0.5);
+      }
+      if (x1 >= 0 && x0 <= 1 && y1 >= 0 && y0 <= 1) out.structs.push({ kind: st.kind, box: [+x0.toFixed(4), +y0.toFixed(4), +x1.toFixed(4), +y1.toFixed(4)] });
+      continue;
+    }
     if (_bb.isEmpty()) continue;
     let x0 = 1e9;
     let y0 = 1e9;
