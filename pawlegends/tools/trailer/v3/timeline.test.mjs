@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { lintTrailerCopy } from '../lint-copy.mjs';
+import { camAt, GAMECAM } from '../director.ts';
 import { CORE_HIT, CUT15, CUTS, BEAT_FRAMES, GLARE, endCard, glareBlobFails, typeEls } from './timeline.mjs';
 import { OUT_FRAMES } from './mg.js';
 import { SHOTS } from './shots.mjs';
@@ -151,21 +152,21 @@ describe('trailer v3.4 timeline', () => {
 describe('trailer v3.5: the crane settles to gameplay, the glare gate', () => {
   const s01 = SHOTS.find((s) => s.id === 'S01');
   it('the opening crane lands back on the gameplay camera inside the shot and holds it to the cut', () => {
-    // v3.8: the landing is f156 (the descent waits for the words to wipe), held 19 frames to the f175 cut
+    // v3.9: the 16:9 landing is f173 (a 26-frame cubic ease-out from f147, after the words wipe), held 26 frames to
+    // the f200 cut; 9:16 lands on f188 (its quarter turn back eases over 42 frames)
     const keys = s01.cam.keys;
-    const land = keys.find((k) => k.f === 156);
-    expect(land).toMatchObject({ dist: 1, pitch: 0, blend: 0, ease: 'ease' });
+    const land = keys.find((k) => k.f === 173);
+    expect(land).toMatchObject({ dist: 1, pitch: 0, blend: 0, ease: 'out' });
     expect(keys.at(-1)).toMatchObject({ f: s01.f1, dist: 1, pitch: 0, blend: 0 });
-    expect(s01.f1 - 156).toBeGreaterThanOrEqual(18);
+    expect(s01.f1 - 173).toBeGreaterThanOrEqual(18);
     expect((s01.f1 + 1) % BEAT_FRAMES).toBe(0);
-    // 9:16: the quarter turn comes back to the opening pitch and yaw on the same frame and holds to the cut
     const pk = s01.portrait.cam.keys;
-    expect(pk.find((k) => k.f === 156)).toMatchObject({ pitch: pk[0].pitch, yaw: 0 });
+    expect(pk.find((k) => k.f === 188)).toMatchObject({ pitch: pk[0].pitch, yaw: 0 });
     expect(pk.at(-1)).toMatchObject({ f: s01.f1, pitch: pk[0].pitch, yaw: 0 });
-    expect(s01.portrait.cam.target.f1).toBe(156);
-    // the clock is back at real time at least 4 frames before the landing
-    expect(s01.ramp.at(-1)[1]).toBe(1);
-    expect(s01.ramp.at(-1)[0]).toBeLessThanOrEqual(156 - 4);
+    expect(s01.portrait.cam.target.f1).toBe(188);
+    // the clock has settled (no fast clock) well before the landing; v3.9 lands at 0.3x on the exchange's clean beat
+    expect(s01.ramp.at(-1)[1]).toBeLessThanOrEqual(1);
+    expect(s01.ramp.at(-1)[0]).toBeLessThanOrEqual(173 - 10);
   });
 
   it('CATS VS DOGS is gone before the plates and the HUD fade back in on the way down', () => {
@@ -266,10 +267,11 @@ describe('trailer v3.7: review of v3.6', () => {
   });
   it('the core shot frames the doghouse itself and its camera moves on the hits, then settles at the gameplay distance', () => {
     const s15 = SHOTS.find((s) => s.id === 'S15');
-    expect(s15.cam.target.point).toBeTruthy();
+    // v3.9: the look point eases toward the doghouse for the push and back (a blend of two points on it)
+    expect(JSON.stringify(s15.cam.target)).toContain('"point"');
     const d = s15.cam.keys.map((k) => k.dist);
     expect(new Set(d).size).toBeGreaterThan(3);
-    expect(s15.cam.keys.find((k) => k.f === CORE_HIT).dist).toBeLessThan(0.95);
+    expect(camAt(s15.cam.keys, CORE_HIT, GAMECAM).dist).toBeLessThan(0.9);
     expect(s15.cam.keys.at(-1).dist).toBe(1);
   });
   it('every name tag sits next to its hero, not in a fixed corner', () => {
@@ -281,19 +283,24 @@ describe('trailer v3.7: review of v3.6', () => {
 });
 
 describe('trailer v3.8: review of v3.7', () => {
-  it('CATS VS DOGS is up whole for over a second in both aspects, slammed by f55 / f62 / f69, held to f135', () => {
+  it('CATS VS DOGS is up whole for a second in both aspects, slammed once the crane (and the 9:16 turn) is up', () => {
+    // v3.9: the rise eases over 46 frames, the 9:16 turn over 44 (v3.8 spun it in 18): CATS f72, VS f78, DOGS f85
+    const s01 = SHOTS.find((s) => s.id === 'S01');
+    const k = s01.portrait.cam.keys;
+    const turned = k.find((x) => Math.abs(x.yaw ?? 0) === 90).f;
+    const turnFrom = k.filter((x) => x.f < turned && x.yaw !== undefined).at(-1).f;
+    expect(turned - turnFrom).toBeGreaterThanOrEqual(40);
     for (const aspect of ['16x9', '9x16']) {
       const l1 = typeEls(30, aspect, copy).filter((e) => e.id.startsWith('L1'));
-      const [a, b, c] = ['L1a', 'L1b', 'L1c'].map((id) => l1.find((e) => e.id === id));
-      expect(a.in).toBeLessThanOrEqual(55);
-      expect(b.in).toBeLessThanOrEqual(62);
-      expect(c.in).toBeLessThanOrEqual(70);
-      for (const e of l1) expect(e.out).toBeGreaterThanOrEqual(135);
+      const [a, , c] = ['L1a', 'L1b', 'L1c'].map((id) => l1.find((e) => e.id === id));
+      expect(a.in).toBeGreaterThanOrEqual(turned);
+      expect(c.in).toBeLessThanOrEqual(90);
       expect(Math.min(...l1.map((e) => e.out)) - c.in).toBeGreaterThanOrEqual(60);
     }
-    // the 9:16 quarter turn is done before the first word
-    const k = SHOTS.find((s) => s.id === 'S01').portrait.cam.keys;
-    expect(k.find((x) => Math.abs(x.yaw ?? 0) === 90).f).toBeLessThanOrEqual(55);
+    // the turn back eases over 40+ frames and ends on the landing
+    const back = k.filter((x) => Math.abs(x.yaw ?? 0) === 90).at(-1).f;
+    const land = k.find((x) => x.f > back && x.yaw === 0).f;
+    expect(land - back).toBeGreaterThanOrEqual(40);
   });
   it('no cut back to the bridge before the core (S14B dropped): tower, base fight, core', () => {
     const ids = SHOTS.map((s) => s.id);
@@ -309,10 +316,13 @@ describe('trailer v3.8: review of v3.7', () => {
     for (const e of els.filter((x) => /^M[123]$|^M3b$/.test(x.id))) expect(e.size, e.id).toBeGreaterThanOrEqual(96);
     for (const e of els.filter((x) => x.id.startsWith('N'))) expect(e.size, e.id).toBeGreaterThanOrEqual(84);
   });
-  it('the pick screen beat shows the champion and the "Inspired by" line, not the menu', () => {
+  it('the pick screen beat shows the champion and its name, not the menu (v3.9: "Inspired by" said once, by M4)', () => {
     const s18 = SHOTS.find((s) => s.id === 'S18');
     for (const sel of ['.pl-pick-head', '.pl-pick .heroes', '.pl-pick .blurb']) expect(s18.hide).toContain(sel);
-    expect(s18.hide).not.toContain('.pl-pick .champ-from');
+    expect(s18.hide).toContain('.pl-pick .champ-from');
+    // v3.9: each champion on screen at least 55 frames (the review: 25 frames could not be read on a phone)
+    const at = [s18.f0, ...s18.lobby.pick.swaps.map((x) => x.f), s18.f1 + 1];
+    for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(55);
   });
   it('the roll call names match the plates (plain hero names, no persona plates)', () => {
     for (const id of ['S03', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10']) expect(SHOTS.find((s) => s.id === id).twinNames, id).toBe(false);

@@ -52,13 +52,21 @@ const NOHUD = { layers: ['pops', 'banner', 'plates'] };
 const CENTRE = [50000, 30000];
 /** v3.7: the dog core (the bone-topped doghouse), sim mm. */
 const DOG_CORE = [90000, 30000];
-/** v3.7 S15 camera keys at base distance `d`: R1 pushes on the hits, the big push into the break, back by f1355. */
-const S15_KEYS = (d) => [
-  { f: 1100, dist: d }, { f: 1200, dist: d },
-  ...[1225, 1250, 1275].flatMap((f) => [{ f: f - 6, dist: d }, { f, dist: d * 0.93, ease: 'out' }, { f: f + 14, dist: d, ease: 'ease' }]),
-  { f: 1300, dist: d }, { f: 1318, dist: d * 0.91, ease: 'ease' }, { f: 1331, dist: d * 0.9, ease: 'out' },
-  { f: 1355, dist: d, ease: 'ease' }, { f: 1389, dist: d },
+/**
+ * v3.9 S15 camera keys at base distance `d` (review of v3.8: 3.6 s of near-static footage, the payoff small on the
+ * bottom edge with no camera accent): R1 pushes on the two hits on the beat (f975, f1000), an eased push from f1035
+ * to 0.85 with a -6° yaw / +4° pitch accent on the crack (f1067), held through the burst (CORE_HIT 1075), back on the
+ * exact gameplay framing by f1110, held to the cut.
+ */
+const S15_KEYS = (d, pitch = 48.8) => [
+  { f: 950, dist: d, pitch },
+  ...[975, 1000].flatMap((f) => [{ f: f - 6, dist: d }, { f, dist: d * 0.94, ease: 'out' }, { f: f + 14, dist: d, ease: 'ease' }]),
+  // (and on the f1025 hit: the edit's low-motion gate found 9 still frames from f1028)
+  { f: 1019, dist: d }, { f: 1025, dist: d * 0.94, ease: 'out' }, { f: 1035, dist: d * 0.97, yaw: 0, pitch, ease: 'ease' }, { f: 1067, dist: d * 0.85, yaw: -6, pitch: pitch + 4, ease: 'ease' }, { f: 1078, dist: d * 0.84, yaw: -6, pitch: pitch + 4, ease: 'out' },
+  { f: 1110, dist: d, yaw: 0, pitch, ease: 'ease' }, { f: 1139, dist: d, yaw: 0, pitch },
 ];
+/** v3.9: the S15 look point eases 2.5 m toward the doghouse for the push (f1035-1067) and back (f1080-1110). */
+const S15_LOOK = { blend: [{ blend: [{ point: DOG_CORE }, { point: [DOG_CORE[0], DOG_CORE[1] - 2500] }], f0: 1035, f1: 1067 }, { point: DOG_CORE }], f0: 1080, f1: 1110 };
 
 /** The game's camera with deltas (dist multiple, pitch / yaw degrees added). */
 const game = (keys, target = null) => ({ base: 'game', target, keys });
@@ -110,14 +118,18 @@ const TEAMFIGHT_SHOTS = [
     // mid-map bridge, so the story ran tower, base, bridge, core): S14B is dropped and S14 runs on to f1099 (take F1
     // stays QC-clean to f1101: the KO, Sir Brutus's Q on ~f996, the cats pushing on), so the run is tower, base fight,
     // core with no backtrack
-    id: 'S14', ...V3, ...LITE, take: 'F1', f0: 900, f1: 1099,
+    // v3.9 (review of v3.8: after the KO the shot held 2.5 s on a static clump, Sir Brutus's shield in Bengas and a
+    // pickup's beam glaring in from the bottom edge): S14 is the KO only, f900-949, cut before Bengas stacks up behind
+    // Sage (from f955) (the beam is
+    // now drawn in its own colour, pickupView PICKUP_BEAM)
+    id: 'S14', ...V3, ...LITE, take: 'F1', f0: 900, f1: 949,
     anchor: { key: 'ko', frame: 906 },
     // 0.9x from f1040, so the cut comes before Bengas and Sir Brutus close in on each other (QC contact from f1098)
-    ramp: [[900, 1], [1000, 1], [1040, 0.9, 'ease']],
-    cam: game([{ f: 900, dist: 1 }, { f: 912, dist: 0.9, ease: 'out' }, { f: 960, dist: 1, ease: 'ease' }, { f: 1099, dist: 0.97, ease: 'linear' }]),
+    ramp: [[900, 1]],
+    cam: game([{ f: 900, dist: 1 }, { f: 912, dist: 0.9, ease: 'out' }, { f: 949, dist: 1, ease: 'ease' }]),
     // 9:16: v3.8 (review: the KO at the left edge, a dog hero cut by it, the right half empty core plaza): the look
     // point 3 m further west and a touch wider (the KO pair and Lambo walking off west stay in), the core upper right
-    portrait: portrait({ mid: [0, 2] }, [{ f: 900, dist: 1.35 }, { f: 912, dist: 1.25, ease: 'out' }, { f: 960, dist: 1.35, ease: 'ease' }, { f: 1099, dist: 1.3, ease: 'linear' }], { off: [-3.5, -5.5], extra: NOHUD }),
+    portrait: portrait({ mid: [0, 2] }, [{ f: 900, dist: 1.35 }, { f: 912, dist: 1.25, ease: 'out' }, { f: 949, dist: 1.35, ease: 'ease' }], { off: [-3.5, -5.5], extra: NOHUD }),
   },
 ];
 
@@ -145,37 +157,52 @@ export const SHOTS = [
     // held 19 frames to the cut. The clock runs 3.5x while wide and eases back to 1x by f152, so the landing is the take's
     // clean moment (ticks ~10446-10455: Muffin, Gabė, Clem, Sir Brutus and Bruno spread across the river and the meadow,
     // every body apart in both aspects' QC)
-    id: 'S01', ...V3, ...LITE, take: 'H1', f0: 0, f1: 174,
+    // v3.9 (review of v3.8: the descent was a 9-frame snap under a half-faded HUD, the 9:16 quarter turn spun in 18
+    // frames each way, the last frames landed on Bruno merged into Sir Brutus's back): S01 is 200 frames (S02 from the
+    // f200 beat); the rise eases over 46 frames (f24-70); CATS / VS / DOGS slam on f72 / f77 / f83 and hold to f143 (DOGS a second); the
+    // 16:9 descent runs f147-173 with a cubic ease-out (its last 30 % takes 12 frames), the HUD and plates fade in only
+    // once it has landed (f173-181); the 3.5x clock runs f82-141 and eases to 0.3x by f157, so the landing holds the
+    // exchange's last clean beat (ticks ~152-159 after the charge, the four in the river and Bruno apart), before Clem's
+    // Q carries her into Sir Brutus (from tick ~161) and long before Bruno closes on him (v3.8's last frames); the
+    // capture QC of both aspects passes on every frame of this clock (neighbouring clocks fail on a touch or a clip)
+    id: 'S01', ...V3, ...LITE, take: 'H1', f0: 0, f1: 199,
     anchor: { key: 'charge', frame: 22 },
-    ramp: [[0, 1], [18, 1], [22, 0.55, 'out'], [30, 0.55], [38, 1, 'ease'], [54, 1], [64, S01_CLOCK, 'ease'], [136, S01_CLOCK], [152, 1, 'ease']],
-    uiFade: [[24, 1], [40, 0], [144, 0], [158, 1]],
-    hudFade: [[24, 1], [40, 0], [144, 0], [158, 1]],
+    ramp: [[0, 1], [18, 1], [22, 0.55, 'out'], [30, 0.55], [38, 1, 'ease'], [70, 1], [82, S01_CLOCK, 'ease'], [141, S01_CLOCK], [157, 0.3, 'ease']],
+    uiFade: [[24, 1], [40, 0], [173, 0], [181, 1]],
+    hudFade: [[24, 1], [40, 0], [173, 0], [181, 1]],
     cam: game([
       { f: 0, dist: 1, pitch: 0, blend: 0 },
       { f: 22, dist: 0.92, ease: 'out' },
       { f: 24, dist: 0.95, pitch: 0, blend: 0, ease: 'ease' },
-      { f: 54, dist: 3.75, pitch: 11.2, blend: 1, ease: 'ease' },
-      { f: 136, dist: 3.55, pitch: 11.2, blend: 1, ease: 'linear' },
-      { f: 156, dist: 1, pitch: 0, blend: 0, ease: 'ease' },
-      { f: 174, dist: 1, pitch: 0, blend: 0 },
+      { f: 70, dist: 3.75, pitch: 11.2, blend: 1, ease: 'ease' },
+      { f: 147, dist: 3.55, pitch: 11.2, blend: 1, ease: 'linear' },
+      { f: 173, dist: 1, pitch: 0, blend: 0, ease: 'out' },
+      { f: 199, dist: 1, pitch: 0, blend: 0 },
     ], { point: CENTRE }),
     // 9:16 (v3.7: the crane turns a quarter as it rises, so the Crossing runs down the tall frame, the cat base at the top
     // under CATS, the dog base at the bottom under DOGS, and turns back as it comes down); v3.8: the turn is done by f54,
     // before the words; the look point on the four's centroid (the heroes mid-frame, the sand under 20 %)
     portrait: {
       ...P, ...NOHUD,
+      // v3.9: the plates fade back in once the 9:16 descent has landed (f188)
+      uiFade: [[24, 1], [40, 0], [188, 0], [196, 1]],
       cam: {
         // v3.8: the opening on the exchange's three (Clem, Gabė, Sir Brutus), easing onto the four as Muffin runs in (f6-22), at 1.4x the portrait
         // distance, the landing on the four (with Muffin) at 1.25x, so nobody is cut by the narrow frame's edges
-        target: { blend: [{ blend: [{ blend: [{ mid: [0, 1, 4] }, { mid: S01_FOUR }], f0: 6, f1: 22 }, { point: CENTRE }], f0: 24, f1: 54 }, { mid: S01_FOUR }], f0: 136, f1: 156 },
+        // v3.9: the quarter turn eases over 44 frames each way: up f28-72 (after the plates have faded, done on
+        // CATS, f72), back f146-188 together with the descent (the words are wiped by f146 in 9:16), so the turn
+        // reads as the camera settling, not a spin; it lands on the unturned gameplay framing, held to the cut
+        target: { blend: [{ blend: [{ blend: [{ mid: [0, 1, 4] }, { mid: S01_FOUR }], f0: 6, f1: 22 }, { point: CENTRE }], f0: 24, f1: 70 }, { mid: S01_FOUR }], f0: 146, f1: 188 },
         keys: [
           { f: 0, dist: 1.4, pitch: 48.8, fov: 50, yaw: 0, lift: 0 },
           { f: 22, dist: 1.36, ease: 'out' },
-          { f: 24, dist: 1.4, pitch: 48.8, yaw: 0, ease: 'ease' },
-          { f: 54, dist: PORT_CRANE, pitch: 78, yaw: PORT_YAW, ease: 'ease' },
-          { f: 136, dist: PORT_CRANE * 0.97, pitch: 78, yaw: PORT_YAW, ease: 'linear' },
-          { f: 156, dist: 1.25, pitch: 48.8, yaw: 0, ease: 'ease' },
-          { f: 174, dist: 1.25, pitch: 48.8, yaw: 0 },
+          { f: 24, dist: 1.4, pitch: 48.8, ease: 'ease' },
+          { f: 28, yaw: 0 },
+          { f: 70, dist: PORT_CRANE, pitch: 78, ease: 'ease' },
+          { f: 72, yaw: PORT_YAW, ease: 'ease' },
+          { f: 146, dist: PORT_CRANE * 0.97, pitch: 78, yaw: PORT_YAW, ease: 'linear' },
+          { f: 188, dist: 1.25, pitch: 48.8, yaw: 0, ease: 'ease' },
+          { f: 199, dist: 1.25, pitch: 48.8, yaw: 0 },
         ],
         smooth: 0.12,
         off: PORT_OFF_S01,
@@ -189,22 +216,18 @@ export const SHOTS = [
     // v3.6: the objective toast ("Calm Pudding! ...") and the sudden-death subline are hidden (they competed with 3V3
     // and spent the Pudding beat 15 s early); the score bar, minimap and ability bar stay
     // v3.8: S02 starts on the f175 beat (S01 holds its landing to f174); the same moments of V10 from there
-    id: 'S02', ...V3, take: 'V10', f0: 175, f1: 299, layers: ['hud'], hide: ['.pl-goal', '.pl-score .phase'], selfName: false, edgeArrows: true,
-    // v3.6: take V10 (W9's six stood in one pile: Bolt the Brutus's head in Gabė; v3.5 review), from the moment all
-    // six stand apart round the cat-side bridge; the look point 60 % of the way to the six's centroid
-    anchor: { key: 'six', offset: 21, frame: 175 },
-    // v3.7 (review: 2 s of stand-off, Sage half in a bush, Bengas under the ability bar): the opening runs at 1.25x
-    // (Sage walks out of the bush, the lines close in) and eases to 0.85x by f180, so the first hits land under the type;
-    // the whole shot still sits inside the six's clean span (ticks 8105-8183); the look point 1.5 m south (everything
-    // rides up: Bengas clears the ability bar) and v3.7's bush cut clears the leaves round Sage
-    ramp: [[175, 0.95], [182, 0.85, 'ease']],
-    cam: { ...game([{ f: 175, dist: 1, blend: 0.6 }, { f: 225, dist: 0.97, blend: 0.6, ease: 'ease' }, { f: 299, dist: 1, blend: 0.6, ease: 'ease' }], { mid: [0, 1, 2, 3, 4, 5] }), off: [0, 1.5] },
-    // 9:16: centred on the six (Gabė at the left end, Cacklejaw at the right), pulled out so all of them fit
-    // v3.6: on the centroid of all six (v3.5's midpoint of two left Gabė and Bolt the Brutus half off the left edge)
-    // v3.8 (review: the six in a strip in the top 30 % over empty grass, Bengas out of the right edge): the look point
-    // 1.3 m further north (the fight mid-frame) on the centroid of the five who fight (Bengas runs off east from f190 and
-    // leaves the frame whole by f205; a centroid with him in panned the others out of the left edge)
-    portrait: portrait({ mid: [0, 2, 3, 4, 5] }, [{ f: 175, dist: 1.375, pitch: 55 }, { f: 299, dist: 1.375, pitch: 55, ease: 'linear' }], { off: [0, -3.5], extra: NOHUD }),
+    // v3.9 (review of v3.8: 2 s of a static line-up under 3V3, nothing hit anything until f272, only five heroes in
+    // frame: Bengas walked off to the river): S02 is take W9 again (all six round Pudding's pad, Bengas is the player),
+    // 9 ticks after the six stand apart, at 0.75x: Sir Brutus and Gabė, Bengas and Duke trade blows from the first
+    // frames under 3V3 (f202), Sage shoots, Cacklejaw comes in from the east; every body apart (the capture's QC of
+    // W9 at this framing passes in both aspects, unlike v3.5's W9 window that put Bolt the Brutus's head in Gabė)
+    // and all six in both frames: the game camera on the six's centroid, the look point 1.5 m west and 2.5 m north
+    id: 'S02', ...V3, take: 'W9', f0: 200, f1: 299, layers: ['hud'], hide: ['.pl-goal', '.pl-score .phase'], selfName: false, edgeArrows: true,
+    anchor: { key: 'six', offset: 9, frame: 200 },
+    ramp: [[200, 0.75]],
+    cam: { ...game([{ f: 200, dist: 1, blend: 1 }, { f: 299, dist: 1, blend: 1 }], { mid: [0, 1, 2, 3, 4, 5] }), off: [-1.5, -2.5] },
+    // 9:16: on the six's centroid, pulled out to 1.8x the gameplay distance at pitch 55, so all six stay in the frame
+    portrait: portrait({ mid: [0, 1, 2, 3, 4, 5] }, [{ f: 200, dist: 1.55, pitch: 55 }, { f: 299, dist: 1.55, pitch: 55 }], { off: [0.8, -2.5], extra: NOHUD }),
   },
   // ---------------------------------------------------------------- S03-S06 THE RIVALRY (cat, dog, dog)
   {
@@ -296,8 +319,10 @@ export const SHOTS = [
     // already on the planks on f650 and clash on ~f705; half speed, so the clash plays out before Clem and Bean the
     // Brutus reach each other (they touch after the cut); 9:16 closer on the bridge, the look point 2 m south so the
     // bridge and both waves sit mid-frame
+    // v3.9 (review of v3.8: the last 12 frames piled Clem, the cats' cadets and the dogs' cadets on the bridge): the
+    // take starts 7 ticks earlier (still at half speed), so Clem's leap lands in the cadets after the f724 cut
     id: 'S11', ...V3, ...LITE, take: 'N', f0: 650, f1: 724,
-    anchor: { key: 'core', offset: 554.5 - 11086 + 65, frame: 650 },
+    anchor: { key: 'core', offset: 554.5 - 11086 + 58, frame: 650 },
     ramp: [[650, 0.5]],
     cam: preset({ point: [50000, 8000] }, [{ f: 650, dist: 1 }, { f: 700, dist: 0.9, ease: 'ease' }, { f: 724, dist: 0.95, ease: 'ease' }], [0, 0]),
     portrait: portrait({ point: [50000, 8000] }, [{ f: 650, dist: 0.95 }, { f: 700, dist: 0.88, ease: 'ease' }, { f: 724, dist: 0.85, ease: 'ease' }], { off: [0, 2], extra: NOHUD }),
@@ -310,14 +335,27 @@ export const SHOTS = [
     // tower fell with nobody near it, and Clem stood in the dog bone-cart); the game camera on Sage, a push on the
     // crack that eases back
     // v3.8: from f725 (S11 is 75 frames), the same take timing (the crack on f835)
-    id: 'S13', ...V3, ...LITE, take: 'V13', f0: 725, f1: 899,
-    anchor: { key: 'tower', frame: 835 },
-    cam: game([{ f: 725, dist: 1 }, { f: 855, dist: 0.93, ease: 'ease' }, { f: 899, dist: 1, ease: 'ease' }]),
+    // v3.9 (review of v3.8: from f816 to f848 a dog cadet stood in Clem's body at the tower base as her Tumble laid her
+    // along the ground toward the camera): the shot ends on f799 as Clem hits the tower, and S13B cuts in on the crack
+    id: 'S13', ...V3, ...LITE, take: 'V13', f0: 725, f1: 799,
+    // (the same take timing as v3.8: the tower's tick 9784 lands 36 frames after the cut, on f835)
+    anchor: { key: 'tower', offset: -18, frame: 799 },
+    cam: game([{ f: 725, dist: 1 }, { f: 799, dist: 0.96, ease: 'ease' }]),
     // 9:16: on Clem, the look point 3.5 m toward the tower (Clem and the tower share the tall frame)
     // v3.6: the look point further east (toward the tower's fall line), so its whole fall and dust stay in the frame
     // v3.8 (review: Sage and a second cat half out of the left edge while Clem hits the tower, tree canopy in the
     // bottom 30 %): the look point 3.5 m west, toward the attackers, and 1 m north (the canopy out; the fall east in frame)
-    portrait: portrait({ mid: [0, 1] }, [{ f: 725, dist: 1.3 }, { f: 855, dist: 1.15, ease: 'ease' }, { f: 899, dist: 1.25, ease: 'ease' }], { off: [2, -2.5], extra: NOHUD }),
+    portrait: portrait({ mid: [0, 1] }, [{ f: 725, dist: 1.3 }, { f: 799, dist: 1.25, ease: 'ease' }], { off: [2, -2.5], extra: NOHUD }),
+  },
+  {
+    // v3.9: the cut-in on the crack: the same take 25 ticks on (Clem's Tumble over; the cadet clear of her), the game
+    // camera pushed in to 0.85 and easing back to the gameplay distance as the tower topples (f805 crack boom, ground
+    // hit ~f845) and its dust settles at 0.4x, so the cut (f899) comes before Sage walks into Clem
+    id: 'S13B', ...V3, ...LITE, take: 'V13', f0: 800, f1: 899,
+    anchor: { key: 'tower', offset: 7.5, frame: 800 },
+    ramp: [[800, 1], [845, 1], [852, 0.4, 'ease']],
+    cam: game([{ f: 800, dist: 0.95 }, { f: 812, dist: 0.88, ease: 'out' }, { f: 870, dist: 1, ease: 'ease' }, { f: 899, dist: 1 }]),
+    portrait: portrait({ mid: [0, 1] }, [{ f: 800, dist: 1.1 }, { f: 870, dist: 1.25, ease: 'ease' }, { f: 899, dist: 1.25 }], { off: [2, -2.5], extra: NOHUD }),
   },
   // ---------------------------------------------------------------- S14 KO and S14B the bridge fight (v3.7)
   ...TEAMFIGHT_SHOTS,
@@ -326,49 +364,51 @@ export const SHOTS = [
     // one continuous shot: the cats win the dog base and knock the doghouse over; v3.4 the killing blow on f1318, so
     // the doghouse caves in on f1331 (CORE_HIT, the boom and VICTORY!); the bodies keep idling after the match ends
     // (heroView END_IDLE) and the camera eases on to the last frame
-    id: 'S15', ...V3, ...LITE, take: 'V12', f0: 1100, f1: 1389,
+    // v3.9 (review of v3.8: 3.6 s of three cats standing on the plaza at half speed, a see-through core, Sage's victory
+    // backflip upside down and her arrow streak through her head under VICTORY!): 190 frames at 1x from 117 frames
+    // before the crack (the core already low, the cats' hits landing on the beat), the crack on f1067 and the burst on
+    // CORE_HIT (1075: the shockwave ring, the boom, the shake, VICTORY!); the doghouse is crushed flat in 7 frames
+    // (towerView CORE_GONE), Sage's arrow streak starts above her bow (skillfx/sage SKY_ARROW_Y) and her victory jump
+    // is a spin (moves/sage victory: the backflip drew her upside down); VICTORY! held a second, cut on f1139
+    id: 'S15', ...V3, ...LITE, take: 'V12', f0: 950, f1: 1139,
     shockI: 0.45,
     popText: ['Takedown!'],
-    anchor: { key: 'core', frame: 1318 },
-    // v3.8: from f1100 (S14 runs longer), V12 from its clean moment (tick ~8992, every body apart after the base
-    // brawl) at half speed easing to 1x by f1280, so the killing blow still lands on f1318
-    ramp: [[1100, 0.5], [1200, 0.7, 'ease'], [1280, 1, 'ease']],
-    // v3.7 (review of v3.6: the doghouse sat on the bottom edge, the camera held still for 240 frames, and VICTORY!
-    // covered the break): the look point on the doghouse itself, 4.2 m north and 3.5 m east of it, so the whole core sits on the lower-left
-    // third with the heroes above it; a short push on every hit on the beat (R1 accents), then an eased push from
-    // f1300 that peaks on the killing blow (f1318) and the burst (CORE_HIT, the edit's shake), easing back to the exact
-    // gameplay framing by f1355
-    // v3.8 (review: the 5-vs-minions fight squeezed into the top-left third under the HUD, the empty pond and core
-    // plate filling the rest): the look point 5 m toward the attackers (north-west of the v3.7 point) at the
-    // gameplay distance (pushes only on the hits and the break), so the fight and the doghouse share the centre
-    cam: preset({ point: DOG_CORE }, S15_KEYS(1), [-1.5, -6.3]),
-    portrait: portrait({ point: DOG_CORE }, S15_KEYS(1.0), { off: [-2, -8], extra: NOHUD }),
+    anchor: { key: 'core', frame: 1067 },
+    ramp: [[950, 1]],
+    cam: preset(S15_LOOK, S15_KEYS(1), [-1.5, -6.3]),
+    // 9:16 (review: the fight filled 25 % of the frame under an empty plaza): pushed in to 0.95 on the cluster
+    portrait: portrait(S15_LOOK, S15_KEYS(0.95), { off: [-2, -7], extra: NOHUD }),
   },
   // ---------------------------------------------------------------- S18 THE REAL CATS: the game's own pick screen (lobby)
   {
     // "Choose your legend" as the player sees it: Lambo, Avietė, Bengas, Gabė tapped on the beats; each stands at full
     // size on its cut (no grow-in); the detail panel ends after the "Inspired by <name>'s Token Tails card." line and
     // the flavour line (the ability list and the footer are not drawn: the panel shrinks to its content)
-    id: 'S18', f0: 1390, f1: 1499, size: [1280, 720], dpr: 2, layers: ['hud'],
+    // v3.9 (review of v3.8: four champions at 25 frames each could not be read on a phone, and the card's own
+    // "Inspired by <name>'s Token Tails card." line sat over INSPIRED BY REAL CATS., so the phrase read twice): 285
+    // frames, each champion on its stand ~71 frames (1.2 s), the panel shows only the hero's name (the "Inspired by" line
+    // is hidden: the trailer's INSPIRED BY REAL CATS. says it once)
+    id: 'S18', f0: 1140, f1: 1424, size: [1280, 720], dpr: 2, layers: ['hud'],
     // v3.8 (review: a raw capture of the pick menu, Back button, header, roster grid and 24 px bios, read as a screen
     // recording): the menu chrome is hidden (render-only screen layer); only the champion on its stand, its name and the
     // game's own "Inspired by <name>'s Token Tails card." line, enlarged, stay
-    hide: ['.pl-pick-foot', '.row.tricks', '.trick-hint', '.pl-pick .kit', '.pl-pick .lane-hint', '.pl-pick .wardrobe', '.pl-pick .pvp', '.pl-pick-head', '.pl-pick .heroes', '.pl-pick .blurb', '.pl-pick .champ-flavour', '.pl-pick .champ-owned', '.pl-pick .detail h3 small', '.pl-pick .role-label', '.pl-pick .numbers'],
-    css: '.pl-pick .detail h3 { font-size: 44px !important; } .pl-pick .champ-from { font-size: 26px !important; line-height: 1.25 !important; }',
-    lobby: { stands: [{ hero: 'lambo' }], pick: { hero: 'lambo', side: 0.5, swaps: [{ f: 1415, hero: 'aviete' }, { f: 1440, hero: 'bengas' }, { f: 1465, hero: 'gabe' }] } },
+    hide: ['.pl-pick-foot', '.row.tricks', '.trick-hint', '.pl-pick .kit', '.pl-pick .lane-hint', '.pl-pick .wardrobe', '.pl-pick .pvp', '.pl-pick-head', '.pl-pick .heroes', '.pl-pick .blurb', '.pl-pick .champ-flavour', '.pl-pick .champ-owned', '.pl-pick .detail h3 small', '.pl-pick .role-label', '.pl-pick .numbers', '.pl-pick .champ-from'],
+    css: '.pl-pick .detail h3 { font-size: 52px !important; margin: 0 !important; }',
+    lobby: { stands: [{ hero: 'lambo' }], pick: { hero: 'lambo', side: 0.5, swaps: [{ f: 1211, hero: 'aviete' }, { f: 1282, hero: 'bengas' }, { f: 1353, hero: 'gabe' }] } },
     // 9:16 (v3.6): composed by the edit (PICK_916) from its own landscape capture with the lobby's glow disc left
     // out, so the backdrop is one flat colour: the edit draws the whole disc behind the hero and sets the panel, whole
     // and inside 40 px margins, below the pedestal (v3.5 cut the panel's right border and the disc at the crop edges)
     pick916: true,
     // and (v3.6) its own fixed camera: the game's pick framing cuts a tall hero's pedestal (Lambo) at the frame bottom
-    portrait: { width: 1280, height: 720, dpr: 2, lobby: { hideGlow: true, pickCam: true }, cam: { target: { p3: [-2.5, 0.75, 0] }, keys: [{ f: 1390, dist: 0.38, pitch: 10, yaw: 0, fov: 38 }] } },
+    portrait: { width: 1280, height: 720, dpr: 2, lobby: { hideGlow: true, pickCam: true }, cam: { target: { p3: [-2.5, 0.75, 0] }, keys: [{ f: 1140, dist: 0.38, pitch: 10, yaw: 0, fov: 38 }] } },
   },
   // ---------------------------------------------------------------- S17 LINE-UP (lobby): TEAM CAT OR TEAM DOG?
   {
     // v3.4: the two champions against the two dog heroes, Sir Brutus the dog lead (larger, nearer the centre), centred
     // with matching margins; each hero flourishes on its beat (TEAM CAT: the cats, TEAM DOG?: the dogs) under a slow
     // dolly-in; then the end card
-    id: 'S17', f0: 1500, f1: 1799, size: [1280, 720], dpr: 1.5,
+    // v3.9: from f1425 (the pick screen is 250 frames), TEAM CAT OR TEAM DOG? held 165 frames, then the end card
+    id: 'S17', f0: 1425, f1: 1799, size: [1280, 720], dpr: 1.5,
     lobby: {
       ped: { scale: 0.6, trim: ['#ff6f91', '#3e6ad8'] },
       fitH: 2.2,
@@ -379,15 +419,17 @@ export const SHOTS = [
         { hero: 'cacklejaw', team: 1, x: 5.1, z: 0.6, face: -20 },
       ],
       acts: [
-        { f: 1505, stand: 0, act: 'swing' }, { f: 1509, stand: 1, act: 'swing' },
-        { f: 1518, stand: 2, act: 'swing' }, { f: 1522, stand: 3, act: 'swing' },
+        { f: 1430, stand: 0, act: 'swing' }, { f: 1434, stand: 1, act: 'swing' },
+        { f: 1443, stand: 2, act: 'swing' }, { f: 1447, stand: 3, act: 'swing' },
         // v3.6: the two shield heroes (Lambo, Sir Brutus) answer with a second swing, not the cheer: the cheer's
         // raised arms held the shield out flat like a serving tray (v3.5 review, f1584)
-        { f: 1550, stand: 1, act: 'cheer' }, { f: 1556, stand: 0, act: 'swing' },
-        { f: 1575, stand: 3, act: 'cheer' }, { f: 1580, stand: 2, act: 'swing' },
+        { f: 1475, stand: 1, act: 'cheer' }, { f: 1481, stand: 0, act: 'swing' },
+        { f: 1500, stand: 3, act: 'cheer' }, { f: 1505, stand: 2, act: 'swing' },
+        { f: 1530, stand: 1, act: 'swing' }, { f: 1536, stand: 0, act: 'swing' },
+        { f: 1555, stand: 3, act: 'swing' }, { f: 1560, stand: 2, act: 'swing' },
       ],
     },
-    cam: { target: { p3: [0.05, 0.85, 0.6] }, keys: [{ f: 1500, dist: 0.53, pitch: 7, yaw: 0, fov: 38 }, { f: 1600, dist: 0.5, ease: 'linear' }, { f: 1799, dist: 0.49, ease: 'linear' }] },
+    cam: { target: { p3: [0.05, 0.85, 0.6] }, keys: [{ f: 1425, dist: 0.53, pitch: 7, yaw: 0, fov: 38 }, { f: 1600, dist: 0.5, ease: 'linear' }, { f: 1799, dist: 0.49, ease: 'linear' }] },
     portrait: {
       stands: [
         { hero: 'lambo', x: -1.9, z: -4.0, face: 14, fitK: 1.2 },
@@ -397,7 +439,7 @@ export const SHOTS = [
       ],
       // v3.6: pulled back and the line-up raised, so TEAM DOG? has its own band under the dog pedestals (it was printed
       // across them) and Sir Brutus's pedestal clears the left edge
-      cam: { target: { p3: [0, -0.2, -0.5] }, keys: [{ f: 1500, dist: 1.3, pitch: 40, yaw: 0, fov: 32 }, { f: 1600, dist: 1.26, ease: 'linear' }, { f: 1799, dist: 1.24, ease: 'linear' }] },
+      cam: { target: { p3: [0, -0.2, -0.5] }, keys: [{ f: 1425, dist: 1.3, pitch: 40, yaw: 0, fov: 32 }, { f: 1600, dist: 1.26, ease: 'linear' }, { f: 1799, dist: 1.24, ease: 'linear' }] },
     },
   },
 ];
