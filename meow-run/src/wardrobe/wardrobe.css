@@ -1,0 +1,73 @@
+/* WARDROBE lane: the Wardrobe screen. Desktop: Mochi on the left, the rack on the right. Phones (portrait): Mochi on
+   top, the rack as a bottom sheet. Reuses .btn/.btn.small/.card/.iconbtn and the :root tokens from index.html. */
+#wardrobe { padding: 0; justify-content: flex-start; align-items: stretch;
+  background: linear-gradient(90deg, rgba(42,28,20,0) 35%, rgba(42,28,20,.28)); }
+#wardrobe .wardrobe-stage { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+#wardrobe .wardrobe-stage:active { cursor: grabbing; }
+#wardrobe .wardrobe-top { position: absolute; z-index: 2; top: calc(14px + var(--st)); left: calc(14px + var(--sl)); display: flex; gap: 10px; align-items: center; }
+#wardrobe .wardrobe-pose { min-width: 112px; }
+#wardrobe .wardrobe-pose .ugc-ico svg { width: 22px; height: 22px; }
+
+#wardrobe .wardrobe-panel { position: absolute; z-index: 1; right: calc(16px + var(--sr)); top: calc(16px + var(--st)); bottom: calc(22px + var(--sb));
+  width: min(472px, 46vw); display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px; text-align: left; }
+#wardrobe .wardrobe-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+#wardrobe .wardrobe-head h2 { font-size: 26px; letter-spacing: .03em; }
+/* the raw look code means nothing to a kid: kept in the DOM for tests, never shown */
+#wardrobe .wardrobe-code { display: none; font: 900 13px/1 var(--font); letter-spacing: .14em; color: var(--ink2); background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 8px; padding: 4px 7px; }
+
+#wardrobe .wardrobe-tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+#wardrobe .wardrobe-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px;
+  padding: 4px 2px; border: 3px solid var(--ink); border-radius: 14px; background: var(--paper); color: var(--ink2); font: 900 10.5px/1.05 var(--font);
+  letter-spacing: .02em; box-shadow: 0 3px 0 var(--ink); }
+#wardrobe .wardrobe-tab svg { width: 22px; height: 22px; }
+#wardrobe .wardrobe-tab.on { background: linear-gradient(#ffa040, var(--orange)); color: var(--cream); transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+#wardrobe .wardrobe-dot { position: absolute; top: -5px; right: -4px; width: 13px; height: 13px; border-radius: 50%; background: var(--rose); border: 2.5px solid var(--ink); }
+
+#wardrobe .wardrobe-info { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 24px; }
+#wardrobe .wardrobe-name { font-size: 19px; }
+#wardrobe .wardrobe-status { font-weight: 800; font-size: 13.5px; color: var(--ink2); text-align: right; }
+#wardrobe .wardrobe-status.locked { color: #b23a52; }
+
+#wardrobe .wardrobe-grid { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr));
+  gap: 10px; grid-auto-rows: max-content; align-content: start; padding: 4px 2px 8px; overscroll-behavior: contain; }
+#wardrobe .wardrobe-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 7px;
+  border: 3px solid var(--ink); border-radius: 16px; background: #fffdf6; color: var(--ink); box-shadow: 0 4px 0 var(--ink); transition: transform .08s; }
+#wardrobe .wardrobe-tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+#wardrobe .wardrobe-tile canvas { width: 76px; height: 76px; }
+#wardrobe .wardrobe-tile .wardrobe-nm { font: 900 12.5px/1.1 var(--font); text-align: center; }
+#wardrobe .wardrobe-tile.on { background: linear-gradient(#fff3b0, var(--gold2)); outline: 3px solid var(--orange); outline-offset: 1px; }
+#wardrobe .wardrobe-tile.locked canvas { filter: saturate(.35) brightness(.92); opacity: .7; }
+#wardrobe .wardrobe-tile.locked.on canvas { filter: none; opacity: 1; }
+#wardrobe .wardrobe-lock { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; font: 800 10.5px/1.15 var(--font); color: #8a3348; text-align: center; }
+#wardrobe .wardrobe-lock svg { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; }
+#wardrobe .wardrobe-lock i { display: block; width: 84%; height: 7px; border: 2px solid var(--ink); border-radius: 6px; background: var(--paper); overflow: hidden; }
+#wardrobe .wardrobe-lock i b { display: block; height: 100%; background: linear-gradient(90deg, var(--orange2), var(--gold)); }
+#wardrobe .wardrobe-new { position: absolute; top: -8px; left: -6px; background: var(--rose); color: var(--cream); border: 2.5px solid var(--ink); border-radius: 999px;
+  font: 900 10px/1 var(--font); padding: 3px 6px; transform: rotate(-8deg); }
+body:not(.reduced) #wardrobe .wardrobe-new { animation: wardrobeNew 1.6s ease-in-out infinite; }
+@keyframes wardrobeNew { 50% { transform: rotate(-8deg) scale(1.12); } }
+
+#wardrobe .wardrobe-actions { display: flex; gap: 10px; justify-content: flex-end; }
+#wardrobe .wardrobe-actions .btn { flex: 1; max-width: 200px; }
+
+/* phones in portrait: Mochi on top, the rack as a bottom sheet */
+@media (max-aspect-ratio: 1/1) {
+  #wardrobe { background: linear-gradient(rgba(42,28,20,0) 30%, rgba(42,28,20,.25)); }
+  #wardrobe .wardrobe-panel { left: calc(8px + var(--sl)); right: calc(8px + var(--sr)); top: auto; bottom: calc(10px + var(--sb)); width: auto; height: min(56vh, 520px);
+    padding: 10px 10px 10px; gap: 8px; border-radius: 22px; }
+  #wardrobe .wardrobe-head h2 { font-size: 21px; }
+  #wardrobe .wardrobe-tab { min-height: 48px; font-size: 9.5px; border-radius: 12px; }
+  #wardrobe .wardrobe-tab svg { width: 20px; height: 20px; }
+  #wardrobe .wardrobe-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; }
+  #wardrobe .wardrobe-tile canvas { width: 64px; height: 64px; }
+  #wardrobe .wardrobe-name { font-size: 16px; }
+  #wardrobe .wardrobe-status { font-size: 12px; }
+}
+/* landscape phones: a narrower rack */
+@media (max-height: 500px) and (orientation: landscape) {
+  #wardrobe .wardrobe-panel { width: min(430px, 56vw); top: calc(8px + var(--st)); bottom: calc(8px + var(--sb)); padding: 8px 10px; gap: 6px; }
+  #wardrobe .wardrobe-head { display: none; }
+  #wardrobe .wardrobe-tab { min-height: 44px; }
+  #wardrobe .wardrobe-tab span { display: none; }
+}

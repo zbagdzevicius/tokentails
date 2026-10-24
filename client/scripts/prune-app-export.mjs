@@ -24,6 +24,10 @@ export const WEB_ONLY_FILES = Object.freeze([
   "game-select/rave-preview@2x.webp",
   // The Formula Meow picker art: the picker card never renders in app builds (formulaMeowEntryEnabled).
   "game-select/formula-meow-preview@2x.webp",
+  // The Ultra Cat picker art: the picker card never renders in app builds (ultraCatEntryEnabled).
+  "game-select/ultracat-preview@2x.webp",
+  // The Meow Run picker art: the picker card never renders in app builds (meowRunEntryEnabled).
+  "game-select/meowrun-preview@2x.webp",
   // The blog RSS (scripts/build-feed-rss.mjs) is written by web builds and covers web-only articles.
   "feed/rss.xml",
 ]);

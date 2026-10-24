@@ -1,0 +1,197 @@
+/* Trail Maker (TRAILS lane). Selectors are prefixed trails- / #trails (never #trail: that is the stage map's path). */
+#trails { justify-content: flex-start; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  background: linear-gradient(rgba(36,50,74,.42), rgba(42,28,20,.62)); gap: 0; padding-bottom: 0; }
+.trails-wrap { width: min(1100px, 100%); display: flex; flex-direction: column; gap: 12px; padding-bottom: calc(14px + var(--sb)); }
+.trails-head { position: relative; z-index: 4; display: flex; align-items: center; gap: 14px; }
+/* the bar must never hide the last palette row when a block is scrolled into view */
+#trails.editing { scroll-padding-bottom: 96px; }
+.trails-head h2 { flex: 1; font-size: clamp(26px, 4vw, 38px); }
+.trails-count { font-size: 18px; }
+#trails .card { width: 100%; padding: 12px 14px; border-radius: 22px; text-align: left; }
+.trails-label { display: block; font-size: 13px; font-weight: 900; letter-spacing: .08em; color: var(--ink2); margin: 2px 0 6px; }
+.trails-label small { font-weight: 700; letter-spacing: 0; opacity: .75; margin-left: 4px; }
+
+/* list */
+.trails-intro { display: grid; grid-template-columns: 54px 1fr; gap: 6px 12px; align-items: center; }
+.trails-intro-ico svg { width: 54px; height: 54px; }
+.trails-intro p { font-size: 16px; font-weight: 700; color: var(--ink2); }
+.trails-intro p b { color: var(--ink); }
+.trails-intro .row { grid-column: 1 / -1; justify-content: flex-start; }
+.trails-intro .btn { font-size: 18px; padding: 8px 18px; min-height: 48px; }
+.trails-mine { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.trails-empty { text-align: center; font-size: 18px; padding: 24px 8px; grid-column: 1 / -1; }
+.trails-entry { display: grid !important; grid-template-columns: 92px 1fr; gap: 8px 12px; align-items: center; animation-delay: calc(var(--i) * .04s) !important; }
+.trails-entry-map { width: 92px; height: 92px; border-radius: 14px; border: 3px solid var(--ink); background: #d9efc4; }
+.trails-entry-info { min-width: 0; }
+.trails-entry-info b { display: block; font-size: 20px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trails-meta { font-size: 13px; font-weight: 700; color: var(--ink2); }
+.trails-state { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 900; color: #a0522d; margin-top: 3px; }
+.trails-state.done { color: #3d8a26; }
+.trails-state svg { width: 16px; height: 16px; }
+.trails-entry-btns { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* small labelled tool buttons (entries, course tools) */
+.trails-tool { min-width: 44px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 6px;
+  border: 3px solid var(--ink); border-radius: 14px; background: var(--cream); color: var(--ink); box-shadow: 0 4px 0 var(--ink); font: 900 11px/1 var(--font); letter-spacing: .04em; }
+.trails-tool svg { width: 22px; height: 22px; }
+.trails-tool:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.trails-tool:disabled, .trails-tool.off { opacity: .45; }
+.trails-tool[aria-pressed="true"] { background: var(--gold2); }
+.trails-tool.trails-play { background: #dff5cf; }
+.trails-tool.armed { background: var(--rose); color: var(--cream); }
+
+/* editor */
+.trails-editor { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.trails-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* phones: the map and the course stay on screen while the palette scrolls under them; the palette comes before the setup */
+.trails-col:first-child { position: sticky; top: calc(-16px - var(--st)); z-index: 3; gap: 6px; padding: calc(6px + var(--st)) 6px 6px; margin: 0 -6px;
+  background: rgb(58,40,30); border-radius: 0 0 28px 28px; box-shadow: 0 8px 0 rgb(58,40,30); }
+/* the map card: the status badge and the shuffle button in a row above the map (they never cover its start or finish) */
+.trails-mapbox { position: relative; padding: 8px !important; background: #d9efc4 !important; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; }
+#trailsMap { grid-column: 1 / -1; grid-row: 2; width: 100%; height: clamp(120px, 17vh, 300px); display: block; }
+.trails-mapbox .trails-stats { grid-column: 1 / -1; grid-row: 3; }
+.trails-mapbox .trails-badge { grid-column: 1; grid-row: 1; }
+.trails-mapbox .trails-reseed { grid-column: 2; grid-row: 1; }
+.trails-badge { justify-self: start; max-width: 100%; padding: 5px 10px; border-radius: 12px; border: 3px solid var(--ink);
+  font-weight: 900; font-size: 14px; line-height: 1.15; box-shadow: 0 3px 0 var(--ink); }
+.trails-badge.ok { background: #9be06e; color: var(--ink); }
+.trails-badge.err { background: #ffd0d8; color: #7a1028; }
+.trails-stats { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; font-weight: 900; font-size: 15px; padding-top: 6px; }
+.trails-paws { display: inline-flex; gap: 2px; }
+.trails-paws i { display: inline-block; width: 18px; height: 18px; }
+.trails-paws svg { width: 18px; height: 18px; fill: rgba(42,28,20,.18); }
+.trails-paws i.on svg { fill: var(--orange); stroke: var(--ink); stroke-width: 1.4; }
+.trails-reseed { width: 44px; height: 44px; }
+.trails-reseed svg { width: 24px; height: 24px; }
+
+.trails-strip { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; padding: 12px 8px 12px; min-height: 84px; scroll-snap-type: x proximity; }
+.trails-chip { position: relative; flex: 0 0 auto; width: 58px; height: 58px; border: 3px solid var(--ink); border-radius: 16px; background: var(--c); box-shadow: 0 4px 0 var(--ink);
+  display: grid; place-items: center; scroll-snap-align: center; padding: 0; animation: trailsPop .22s cubic-bezier(.2,1.6,.4,1) both; }
+.trails-chip i { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,247,234,.85); }
+.trails-chip i svg { width: 32px; height: 32px; }
+.trails-chip.mir i svg { transform: scaleX(-1); }
+.trails-chip em { position: absolute; left: -6px; top: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: var(--cream); color: var(--ink); border: 2.5px solid var(--ink);
+  font: 900 11px/17px var(--font); font-style: normal; text-align: center; padding: 0 4px; }
+.trails-chip u { position: absolute; right: -7px; bottom: -7px; width: 22px; height: 22px; border-radius: 50%; background: var(--cream); border: 2.5px solid var(--ink); display: grid; place-items: center; }
+.trails-chip u svg { width: 15px; height: 15px; }
+.trails-chip.on { transform: translateY(-4px); box-shadow: 0 0 0 4px var(--cream), 0 0 0 7px var(--ink), 0 8px 0 var(--ink); }
+.trails-chip.bad { border-color: #d01030; box-shadow: 0 0 0 3px #ff2f4f, 0 4px 0 var(--ink); }
+.trails-hint { align-self: center; font-weight: 800; color: var(--ink2); font-size: 15px; padding: 0 6px; }
+.trails-tools { display: flex; gap: 6px; justify-content: space-between; }
+.trails-tools .trails-tool { flex: 1; }
+
+/* the SETUP line (phones): one summary row that opens NAME / WORLD / PACE; desktops always show them */
+.trails-setupbtn { display: none; width: 100%; align-items: center; gap: 8px; min-height: 44px; border: 0; background: none; padding: 0; color: var(--ink); text-align: left; }
+.trails-setupbtn .trails-label { margin: 0; }
+.trails-setupbtn b { flex: 1; min-width: 0; font: 900 15px/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trails-setupbtn i { font: 900 12px/1 var(--font); font-style: normal; background: var(--ink); color: var(--cream); border-radius: 999px; padding: 6px 10px; }
+.trails-setup.open .trails-setupbtn i { background: var(--gold); color: var(--ink); }
+@media (max-width: 899px), (max-height: 500px) {
+  .trails-setupbtn { display: flex; }
+  .trails-setup:not(.open) .trails-setup-body { display: none; }
+  .trails-setup.open .trails-setup-body { margin-top: 8px; }
+  #trails .card.trails-setup { padding: 6px 14px; }
+}
+.trails-setup input { width: 100%; font: 900 20px var(--font); color: var(--ink); background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 12px;
+  -webkit-user-select: text; user-select: text; touch-action: manipulation; margin-bottom: 8px; min-height: 48px; }
+.trails-setup input:focus { outline: 3px solid var(--sky); outline-offset: 2px; }
+.trails-themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.trails-theme { border: 3px solid var(--ink); border-radius: 14px; background: var(--cream); padding: 4px; display: flex; flex-direction: column; gap: 3px; box-shadow: 0 4px 0 var(--ink); color: var(--ink); }
+.trails-theme canvas { width: 100%; aspect-ratio: 12 / 7; border-radius: 9px; height: auto; }
+.trails-theme span { font: 900 12px/1.1 var(--font); }
+.trails-theme.on { background: var(--gold); transform: translateY(-2px); }
+.trails-pace { display: flex; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; }
+.trails-pace button { flex: 1; border: 0; background: var(--cream); color: var(--ink); padding: 6px 4px; min-height: 48px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.trails-pace button + button { border-left: 3px solid var(--ink); }
+.trails-pace button b { font-size: 15px; font-weight: 900; }
+.trails-pace button small { font-size: 11px; font-weight: 700; color: var(--ink2); }
+.trails-pace button.on { background: var(--gold); }
+
+.trails-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.trails-blk { position: relative; border: 3px solid var(--ink); border-radius: 14px; background: var(--cream); color: var(--ink); box-shadow: 0 4px 0 var(--ink); padding: 6px 2px 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 72px; }
+.trails-blk i { display: grid; place-items: center; width: 40px; height: 36px; border-radius: 10px; background: color-mix(in srgb, var(--c) 45%, #fff7ea); }
+.trails-blk i svg { width: 30px; height: 30px; }
+.trails-blk span { font: 900 11.5px/1.1 var(--font); text-align: center; }
+.trails-blk.big::after { content: 'BIG'; position: absolute; top: -8px; right: -6px; font: 900 9px/1 var(--font); background: var(--rose); color: var(--cream); border: 2px solid var(--ink); border-radius: 8px; padding: 2px 4px; }
+.trails-blk:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+
+.trails-actions { position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;
+  padding: 10px 8px calc(10px + var(--sb)); margin: 0 -16px; background: linear-gradient(rgba(42,28,20,0), rgba(42,28,20,.55) 30%); }
+.trails-actions .btn.green { font-size: 22px; padding: 8px 26px; }
+.trails-actions .btn.off { filter: grayscale(.7); opacity: .75; }
+
+/* phones, scrolled: the sticky panel shrinks to a strip (map, one stats line, smaller course chips) */
+@media (max-width: 899px) {
+  #trails.compact #trailsMap { height: 64px; }
+  #trails.compact .trails-badge { font-size: 12px; padding: 3px 8px; }
+  #trails.compact .trails-reseed { width: 36px; height: 36px; }
+  #trails.compact .trails-stats { font-size: 13px; padding-top: 0; gap: 6px; }
+  #trails.compact .trails-paws i, #trails.compact .trails-paws svg { width: 14px; height: 14px; }
+  #trails.compact .trails-strip { min-height: 62px; padding: 8px 6px; }
+  #trails.compact .trails-chip { width: 46px; height: 46px; }
+  #trails.compact .trails-chip i { width: 32px; height: 32px; }
+  #trails.compact .trails-chip i svg { width: 26px; height: 26px; }
+  #trails.compact .trails-course .trails-label { display: none; }
+  /* setup (name, world, pace) before the palette, compact */
+  .trails-theme canvas { aspect-ratio: 12 / 5; }
+}
+@media (min-width: 900px) {
+  .trails-editor { grid-template-columns: 1.1fr 1fr; align-items: start; }
+  .trails-col:first-child { top: 0; padding: 0; margin: 0; gap: 12px; background: none; border-radius: 0; box-shadow: none; }
+  .trails-actions { grid-column: 1 / -1; }
+  #trailsMap { height: 300px; }
+}
+@media (max-width: 420px) {
+  .trails-head h2 { font-size: 26px; }
+  .trails-entry { grid-template-columns: 76px 1fr; }
+  .trails-entry-map { width: 76px; height: 76px; }
+  .trails-actions .btn.small { padding: 6px 10px; font-size: 15px; }
+  .trails-actions .btn.green { font-size: 19px; padding: 8px 16px; }
+}
+@keyframes trailsPop { from { transform: scale(.4); opacity: 0; } }
+body.reduced .trails-chip { animation: none; }
+
+/* ?t= link overlay */
+.trails-linkcard { width: min(440px, 100%); text-align: center; }
+.trails-tag { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; font-size: 13px; letter-spacing: .1em; background: var(--gold); border: 3px solid var(--ink);
+  border-radius: 999px; padding: 3px 12px 3px 6px; }
+.trails-tag svg { width: 22px; height: 22px; }
+.trails-linkname { font-size: 30px; margin: 8px 0 6px; overflow-wrap: anywhere; }
+.trails-by { margin: -4px 0 8px; font-weight: 900; font-size: 16px; color: var(--ink2); }
+.trails-linkmap { width: 100%; height: 170px; border-radius: 16px; border: 3px solid var(--ink); background: #d9efc4; display: block; }
+.trails-linkmeta { font-weight: 800; font-size: 14px; color: var(--ink2); margin: 8px 0 6px; }
+.trails-linkchips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-bottom: 12px; }
+.trails-mini { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; border: 2px solid var(--ink); background: color-mix(in srgb, var(--c) 45%, #fff7ea); }
+.trails-mini svg { width: 22px; height: 22px; }
+.trails-mini.mir svg { transform: scaleX(-1); }
+.trails-mini.hard { box-shadow: 0 0 0 2px var(--rose); }
+.trails-linkcard .row { margin-bottom: 10px; }
+.trails-skip { background: none; border: 0; color: var(--ink2); font: 800 15px var(--font); text-decoration: underline; min-height: 44px; padding: 0 16px; }
+
+/* trail runs have no bells (see index.ts) */
+
+/* landscape phones: two columns that scroll on their own (map and course left, setup and palette right) above the
+   action bar, so every block can be reached and nothing covers NAME, WORLD, PACE, TEST RUN or RANDOM */
+@media (max-height: 500px) and (orientation: landscape) {
+  #trails.editing { overflow: hidden; padding-top: calc(8px + var(--st)); padding-bottom: 0; }
+  #trails.editing .trails-wrap { height: 100%; min-height: 0; gap: 6px; padding-bottom: 0; }
+  #trails.editing .trails-head { flex: none; gap: 10px; }
+  #trails.editing .trails-head h2 { font-size: 22px; }
+  #trails.editing .trails-head .iconbtn { width: 44px; height: 44px; }
+  #trails.editing .trails-editor { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+  #trails.editing .trails-col { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y; gap: 8px; padding-bottom: 6px; }
+  #trails.editing .trails-col:first-child { position: static; margin: 0; padding: 0 0 6px; background: none; border-radius: 0; box-shadow: none; }
+  #trails.editing #trailsMap { height: 92px; }
+  #trails.editing .trails-setup { order: 0; }
+  #trails.editing .trails-theme canvas { aspect-ratio: 12 / 4; }
+  #trails.editing .trails-actions { grid-column: 1 / -1; position: static; margin: 0; padding: 4px 0 calc(6px + var(--sb)); background: none; }
+  #trails.editing .trails-actions .btn.green { font-size: 18px; padding: 6px 18px; }
+  #trails.compact #trailsMap { height: 92px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .trails-linkcard { width: min(560px, 100%); padding: 10px 14px; }
+  .trails-linkmap { height: 84px; }
+  .trails-linkname { font-size: 24px; margin: 4px 0; }
+  .trails-linkcard .row { margin-bottom: 6px; }
+}

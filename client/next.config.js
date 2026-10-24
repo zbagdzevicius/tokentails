@@ -91,6 +91,22 @@ const meowRaceRewrites = [
   { source: "/meow-race/t", destination: `${MEOW}/index.html` },
   { source: "/meow-race/:path*", destination: `${MEOW}/:path*` },
 ];
+// Ultra Cat (ultra-cat/, GDD ultra-cat/GDD.md, docs/CLIENT.md "Ultra Cat (/ultra-cat)"): the static kaiju cat game
+// in public/ultracat-game (ultra-cat: `npm run build:client`, base /ultracat-game/) served top level at /ultra-cat,
+// no iframe. One page, no deep links (the game keeps its state in localStorage). Web builds only.
+const ULTRA = "/ultracat-game";
+const ultraCatRewrites = [
+  { source: "/ultra-cat", destination: `${ULTRA}/index.html` },
+  { source: "/ultra-cat/:path*", destination: `${ULTRA}/:path*` },
+];
+// Meow Run (meow-run/, GDD meow-run/GDD.md, docs/CLIENT.md "Meow Run (/meow-run)"): the static 3D story runner
+// in public/meowrun-game (meow-run: `npm run build:client`, base /meowrun-game/) served top level at /meow-run,
+// no iframe. One page, no deep links (the game keeps its save in localStorage). Web builds only.
+const MEOWRUN = "/meowrun-game";
+const meowRunRewrites = [
+  { source: "/meow-run", destination: `${MEOWRUN}/index.html` },
+  { source: "/meow-run/:path*", destination: `${MEOWRUN}/:path*` },
+];
 // The service worker ships at /badcat-game/sw.js; this header lets it control the /badcat/* pages too.
 const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   source,
@@ -177,7 +193,7 @@ const nextConfig = {
         async rewrites() {
           return {
             beforeFiles: homeRewrites,
-            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...raveRewrites],
+            afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...ultraCatRewrites, ...meowRunRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
         },

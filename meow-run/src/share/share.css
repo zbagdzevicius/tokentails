@@ -1,0 +1,105 @@
+/* SHARE lane: challenge card, share sheet, name prompt, the race pill and the results banner.
+   Reuses .btn / .btn.small / .btn.gold / .card / .row and the :root tokens from index.html. */
+
+/* ---- overlays */
+.share-ov .card { width: min(460px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding-bottom: calc(18px + var(--sb)); }
+.share-ov h2 { margin: 2px 0 0; }
+.share-ov .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.share-ov .btn { min-height: 48px; }
+.share-ov .btn.small { min-height: 44px; }
+
+/* ---- the challenge card (a ?c= link) */
+.share-chal-card { position: relative; padding-top: 18px; overflow: visible; }
+.share-chal-cat { width: 132px; height: 132px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #fff7ea, #ffd79a);
+  border: 5px solid var(--ink); box-shadow: 0 0 0 6px var(--gold), 0 8px 0 6px var(--ink); margin: 2px 0 10px; }
+.share-chal-beat { margin: 0; font-size: 26px; font-weight: 900; color: var(--rose); }
+.share-chal-course { margin: 0; display: inline-block; padding: 3px 14px; border-radius: 999px; background: var(--navy); color: var(--gold2);
+  font-weight: 900; font-size: 16px; border: 3px solid var(--ink); }
+.share-chal-note { margin: 2px 0 0; font-size: 14px; font-weight: 700; opacity: .8; }
+#shareChalPlay { font-size: 24px; padding-left: 38px; padding-right: 38px; }
+body:not(.reduced) .share-chal-card { animation: shareIn .45s cubic-bezier(.2,1.6,.4,1); }
+body:not(.reduced) .share-chal-cat { animation: shareWob 2.4s ease-in-out infinite; }
+@keyframes shareIn { from { transform: scale(.7) rotate(-4deg); opacity: 0; } }
+@keyframes shareWob { 50% { transform: rotate(-5deg) scale(1.04); } }
+
+/* ---- the name prompt */
+.share-name-sub { margin: 0; font-size: 15px; font-weight: 700; opacity: .8; }
+#shareNameInput { width: 100%; box-sizing: border-box; min-height: 52px; font: 900 24px var(--font); text-align: center; color: var(--ink);
+  background: #fff; border: 4px solid var(--ink); border-radius: 16px; padding: 6px 12px; box-shadow: inset 0 3px 0 rgba(42,28,20,.12); outline: none; }
+#shareNameInput:focus { border-color: var(--orange); }
+
+/* ---- the share sheet */
+.share-sheet-card { gap: 10px; }
+.share-prev { position: relative; width: min(100%, 300px, calc((100dvh - 330px - var(--st) - var(--sb)) * .8)); min-width: 150px; aspect-ratio: 4 / 5;
+  border: 4px solid var(--ink); border-radius: 18px; overflow: hidden; background: linear-gradient(#8fd3ff, #ffd9a0); box-shadow: 0 6px 0 var(--ink); flex: none; }
+.share-prev img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.share-prev img:not([src]) { visibility: hidden; }
+.share-prev.busy::after { content: ''; position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px; border-radius: 50%;
+  border: 6px solid rgba(42,28,20,.25); border-top-color: var(--ink); animation: shareSpin .8s linear infinite; }
+.share-prev.busy img { opacity: .45; }
+@keyframes shareSpin { to { transform: rotate(360deg); } }
+.share-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 14px; border-radius: 999px;
+  border: 3px solid var(--ink); background: var(--cream); color: var(--ink); font-weight: 800; font-size: 15px; max-width: 100%; }
+.share-chip-pre { opacity: .7; }
+.share-chip-name { font-weight: 900; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-chip-edit { background: var(--ink); color: var(--cream); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 900; }
+.share-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.share-actions .btn { width: 100%; }
+.share-more { margin-top: 0 !important; }
+.share-ov .hidden { display: none !important; }
+
+/* ---- the race pill (HUD child): "vs Mia +12,300" (the score gap at the same distance) */
+#sharePill { position: absolute; left: calc(14px + var(--sl)); bottom: calc(18px + var(--sb)); display: none; align-items: baseline; gap: 6px;
+  padding: 4px 12px; border-radius: 14px; border: 3px solid var(--ink); background: rgba(36,50,74,.9); color: var(--cream);
+  font-weight: 900; font-size: 16px; box-shadow: 0 3px 0 rgba(42,28,20,.6); pointer-events: none; white-space: nowrap; max-width: 62vw; }
+#sharePill.on { display: inline-flex; }
+#sharePill .vs { overflow: hidden; text-overflow: ellipsis; font-size: 14px; opacity: .9; }
+#sharePill b { font-size: 18px; }
+#sharePill.ahead b { color: #9df07a; }
+#sharePill.behind b { color: #ff8fab; }
+body:not([data-screen="play"]) #sharePill { display: none; }
+@media (max-width: 600px) {
+  /* above the PUFF meter, clear of the ability button */
+  #sharePill { bottom: calc(58px + var(--sb)); font-size: 14px; padding: 3px 10px; }
+  #sharePill .vs { font-size: 12px; }
+  #sharePill b { font-size: 16px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #sharePill { bottom: calc(12px + var(--sb)); }
+}
+
+/* ---- the challenger's marker on the progress bar (a rose dot with a ring) */
+#progGhost { position: absolute; top: 50%; width: 14px; height: 14px; margin-left: -7px; transform: translateY(-50%); display: none; border-radius: 50%;
+  background: #ff8fab; border: 2.5px solid var(--ink); box-shadow: 0 0 0 2px rgba(255,255,255,.6); pointer-events: none; z-index: 1; }
+#progGhost.on { display: block; }
+
+/* ---- results banner */
+.share-banner { margin: -4px auto 8px; padding: 8px 16px; border: 3.5px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink);
+  display: flex; flex-direction: column; gap: 2px; max-width: 100%; transform: rotate(-1.5deg); }
+.share-banner b { font-size: 20px; font-weight: 900; line-height: 1.15; }
+.share-banner span { font-size: 13px; font-weight: 800; opacity: .85; }
+.share-banner.won { background: linear-gradient(var(--gold2), var(--gold)); color: var(--ink); }
+.share-banner.lost { background: linear-gradient(#ff6b8f, var(--rose)); color: var(--cream); }
+body:not(.reduced) .share-banner { animation: shareIn .5s cubic-bezier(.2,1.6,.4,1) .3s backwards; }
+@media (max-width: 600px) { .share-banner b { font-size: 17px; } }
+
+/* ---- landscape phones: the challenge card and the share sheet go two columns (picture left, words and buttons
+   right) so PLAY, SHARE CARD and CHALLENGE A FRIEND are on screen; the overlay scrolls as a backstop */
+@media (max-height: 500px) and (orientation: landscape) {
+  .share-ov { overflow-y: auto; align-items: flex-start; padding-top: calc(8px + var(--st)); padding-bottom: calc(8px + var(--sb)); }
+  .share-ov .card { max-height: none; margin: auto; padding: 12px 16px calc(12px + var(--sb)); }
+  .share-ov .share-chal-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 18px; row-gap: 4px; align-items: center; justify-items: center;
+    width: min(640px, 100%); }
+  .share-ov .share-chal-card > .share-chal-cat { grid-column: 1; grid-row: 1 / span 5; width: 96px; height: 96px; margin: 0 4px; }
+  .share-ov .share-chal-card > :not(.share-chal-cat) { grid-column: 2; }
+  .share-ov .share-chal-card h2 { font-size: 22px; }
+  .share-chal-beat { font-size: 20px; }
+  #shareChalPlay { font-size: 20px; }
+  .share-ov .share-sheet-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; row-gap: 8px; align-items: center; width: min(700px, 100%); }
+  .share-ov .share-sheet-card > .share-prev { grid-column: 1; grid-row: 1 / span 4; width: auto; height: min(calc(100dvh - 40px - var(--st) - var(--sb)), 320px); min-width: 0; }
+  .share-ov .share-sheet-card > :not(.share-prev) { grid-column: 2; }
+  .share-ov .share-sheet-card h2 { font-size: 22px; }
+  .share-ov .share-sheet-card .share-actions { gap: 8px; }
+  .share-ov .share-sheet-card .btn { min-height: 44px; padding-top: 6px; padding-bottom: 6px; font-size: 17px; }
+}

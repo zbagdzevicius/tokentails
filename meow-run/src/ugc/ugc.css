@@ -1,0 +1,51 @@
+/* Iteration 2 shared UI (INTEGRATOR-owned): hub rows, small buttons, overlays, the toast. Lanes style their own
+   screens in their own CSS files and reuse these classes and the :root tokens from index.html. */
+.ugc-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+/* results: two equal buttons per row (SHARE + SAVE CLIP, then SHARE TRAIL + EDIT TRAIL) */
+#ugc-results > .btn { flex: 0 1 calc(50% - 5px); max-width: 220px; white-space: nowrap; min-height: 44px; }
+.ugc-row:empty { display: none; }
+#ugc-title { margin-top: 2px; }
+#ugc-results { margin-top: 12px; }
+#ugc-pause { margin-top: 10px; }
+#ugc-select { padding: 10px 0 4px; }
+.btn.small { font-size: 16px; padding: 6px 14px; min-height: 44px; border-radius: 14px; box-shadow: 0 4px 0 var(--ink), inset 0 2px 0 rgba(255,255,255,.35); }
+.btn.gold { background: linear-gradient(var(--gold2), var(--gold)); color: var(--ink); text-shadow: none; }
+.btn .ugc-ico { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; vertical-align: -5px; }
+.btn .ugc-ico svg { width: 22px; height: 22px; }
+.btn .ugc-badge { position: absolute; top: -9px; right: -8px; background: var(--rose); color: var(--cream); border: 2.5px solid var(--ink);
+  border-radius: 999px; font-size: 11px; line-height: 1; padding: 3px 6px; text-shadow: none; }
+.ugc-overlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 45%, rgba(42,28,20,.25), rgba(42,28,20,.65)); }
+.ugc-overlay .card { max-height: calc(100% - 8px); overflow: auto; }
+#ugc-toast { position: fixed; left: 50%; top: calc(14px + var(--st)); z-index: 60; transform: translate(-50%, calc(-100% - 30px - var(--st))); visibility: hidden; transition: transform .25s, visibility 0s .25s;
+  background: var(--cream); color: var(--ink); border: 3px solid var(--ink); border-radius: 14px; padding: 8px 16px; font-weight: 900;
+  box-shadow: 0 5px 0 var(--ink); pointer-events: none; width: max-content; max-width: calc(100vw - 32px); text-align: center; }
+#ugc-toast.on { transform: translate(-50%, 0); visibility: visible; transition: transform .25s; }
+/* while an overlay is open the toast sits at the bottom (never over a sheet's header) */
+#ugc-toast.bottom { top: auto; bottom: calc(16px + var(--sb, 0px)); transform: translate(-50%, calc(100% + 30px + var(--sb, 0px))); }
+#ugc-toast.bottom.on { transform: translate(-50%, 0); }
+body.reduced #ugc-toast { transition: none; }
+
+/* the results and pause cards grow with the UGC rows: on short screens they scroll instead of cutting off.
+   margin:auto centres the card while it fits and pins it to the top (scrollable) once it does not. */
+#results, #pause { justify-content: flex-start; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+#results > .card, #pause > .card { margin: auto 0; flex: none; }
+#results { padding-top: calc(66px + var(--st)); }
+#pause { padding-top: calc(52px + var(--st)); }
+@media (max-width: 600px) {
+  .ugc-row { gap: 8px; }
+  .ugc-row .btn.small { font-size: 15px; padding: 6px 11px; }
+  #ugc-results > .btn.small { font-size: 14px; padding: 6px 6px; letter-spacing: .02em; }
+  #ugc-results > .btn { flex-basis: calc(50% - 4px); }
+  .btn.small .ugc-ico { margin-right: 4px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #results, #pause { padding-top: calc(8px + var(--st)); }
+  #ugc-results { margin-top: 8px; }
+  #ugc-results .btn.small, #ugc-pause .btn.small { min-height: 44px; padding: 4px 12px; }
+}
+/* the narrowest phones (360 px): the paired results buttons still fit two per row */
+@media (max-width: 380px) {
+  #ugc-results > .btn.small { font-size: 13px; padding: 6px 4px; letter-spacing: .01em; }
+  #ugc-results .btn .ugc-ico, #ugc-results .btn .ugc-ico svg { width: 18px; height: 18px; }
+}

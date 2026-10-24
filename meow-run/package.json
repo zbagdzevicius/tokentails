@@ -1,0 +1,33 @@
+{
+  "name": "meow-run",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Meow Run: a kitten races home across the countryside before dinner",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "MEOWRUN_BASE=/meowrun-game/ vite build --outDir ../client/public/meowrun-game --emptyOutDir",
+    "preview": "vite preview --port 4178",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "budget": "node tools/budget.mjs",
+    "budget:draws": "node shots/draw-budget.mjs",
+    "smoke": "node shots/smoke.mjs && node shots/smoke.mjs 390 844 && npm run smoke:ugc",
+    "smoke:ugc": "node shots/ugc-smoke.mjs && node shots/ugc-smoke.mjs 390 844",
+    "smoke:fast": "SMOKE=fast node shots/smoke.mjs && SMOKE=fast node shots/smoke.mjs 390 844",
+    "smoke:journey": "SMOKE=journey node shots/smoke.mjs && SMOKE=journey node shots/smoke.mjs 390 844",
+    "trailer": "node tools/trailer/capture.mjs && bash tools/trailer/edit.sh"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/three": "^0.183.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.5"
+  }
+}

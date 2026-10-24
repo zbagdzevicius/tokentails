@@ -90,6 +90,12 @@ const eslintConfig = [
       // Formula Meow's Vite bundle (`npm run build:client` in formula-meow/,
       // its source is checked there).
       "public/formula-meow-game/**",
+      // Ultra Cat's Vite bundle (`npm run build:client` in ultra-cat/, its
+      // source is checked there).
+      "public/ultracat-game/**",
+      // Meow Run's Vite bundle (`npm run build:client` in meow-run/, its
+      // source is checked there).
+      "public/meowrun-game/**",
       // Playwright output, including the cached QA copy of the Heist bundle
       // that e2e/heist-host.spec.ts builds into test-results/heist-game-qa.
       "test-results/**",
