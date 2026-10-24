@@ -479,7 +479,11 @@ const respawn: ClipDef = {
   cancel: 'any',
 };
 
-/** Victory: an arrow loosed straight up, a backflip while it climbs, and the catch. */
+/**
+ * Victory: an arrow loosed straight up, a tucked spin jump while it climbs, and the catch. v3.9 (trailer review: the
+ * backflip drew the winning hero upside down, face-down hood and dress up, which read as her falling over or being
+ * knocked out at the moment of victory): the jump turns about the vertical axis, so she stays upright.
+ */
 const victory: ClipDef = {
   id: 'sage.victory',
   len: 2.1,
@@ -499,7 +503,7 @@ const victory: ClipDef = {
   ],
   root: {
     up: [[0, 0], [0.62, 0], [0.86, 1.0, 'out'], [1.1, 0, 'in'], [2.1, 0]],
-    pitch: [[0, 0], [0.64, 0], [1.1, -1, 'inOut'], [1.101, 0, 'step']],
+    yaw: [[0, 0], [0.74, 0], [1.04, 1, 'inOut'], [1.041, 0, 'step']],
     // the landing squash is RootState's landKick (the 'in' landing), not a key
     sy: [[0, 1], [0.25, 0.86, 'out'], [0.4, 1.06, 'expoOut'], [0.6, 0.85], [0.66, 1.12, 'out'], [0.95, 1, 'inOut']],
   },

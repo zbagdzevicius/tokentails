@@ -103,6 +103,12 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
  * two frames before it toppled; a tower now cracks with the same warm tint at `tower`.
  */
 export const FALL_FLASH = Object.freeze({ core: 0.05, tower: 0.08, color: 0xffc85a });
+/**
+ * v3.9: the core is crushed flat and gone by this fraction of its fall (STRUCT_ANIM.fallCore 1.3 s: 0.18 s, about 7
+ * frames after the burst at 60 fps); it never sinks through the plaza (the dust over a sunk roof read as a see-through
+ * slab, trailer v3.8 review).
+ */
+export const CORE_GONE = 0.14;
 export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, topple: 1.42, bounce: 0.12, burst: 0.05, caved: 0.45 });
 
 /**
@@ -581,12 +587,15 @@ export class StructureView {
     const F = FALL_SHAPE;
     const colors = ((s.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) === 1 ? DEBRIS_DOG : DEBRIS_CAT;
     if (core) {
-      // swell and shudder, BURST (a ring of chunks), cave in (the roof drops, the walls bulge), settle into the ground
+      // swell and shudder, BURST (a ring of chunks), then crushed flat and gone (CORE_GONE)
       const shud = u < F.burst ? Math.sin(this.time * 70) * 0.09 * (u / F.burst) : 0;
       const swell = u < F.burst ? 0.1 * (u / F.burst) ** 2 : 0;
-      const c = u < F.burst ? 0 : Math.min(1, (u - F.burst) / (F.caved - F.burst));
+      // v3.9 (trailer review: as the doghouse caved in and settled into the plaza over 0.8 s, the dust over its sunk
+      // roof read as a see-through slab with the bone floating in it): the core crushes flat on the spot in
+      // CORE_GONE of the fall (about 7 frames after the burst), never below the plaza, and is gone; the burst's chunks,
+      // dust and the rubble growing in carry the rest of the moment
+      const c = u < F.burst ? 0 : Math.min(1, (u - F.burst) / (CORE_GONE - F.burst));
       const cave = c * c;
-      const settle = u < F.caved ? 0 : (u - F.caved) / (1 - F.caved);
       s.flash = u < F.burst ? 0.4 + 0.6 * (u / F.burst) : Math.max(0, 1 - (u - F.burst) * 4);
       // a warm glow, not a white-out: at 0.75 the navy doghouse turned pale grey and read as a ghost box
       s.rig.uFlash.value.setHex(FALL_FLASH.color);
@@ -595,19 +604,20 @@ export class StructureView {
         s.impacted = true;
         this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.6, colors, DEBRIS.coreSpeed, DEBRIS.coreSize);
         this.onImpact?.(s.x, s.z, 0, 0, 0, true);
+        if (!s.rubbled) this.rubbleFor(s, dx, dz, true);
       }
-      const sy = (1 + swell) * (1 - 0.62 * cave) * (1 - 0.25 * settle);
-      const sxz = (1 + swell) * (1 + 0.16 * cave) * (1 - 0.15 * settle);
+      if (c >= 1) {
+        s.mesh.visible = false;
+        return;
+      }
+      const sy = (1 + swell) * (1 - 0.96 * cave);
+      const sxz = (1 + swell) * (1 + 0.18 * cave);
       s.mesh.scale.set(sxz, sy, sxz);
-      const tilt = 0.22 * cave;
+      const tilt = 0.12 * cave;
       _q.setFromAxisAngle(_v.set(dz, 0, -dx), tilt);
       _q2.setFromAxisAngle(_up, yaw);
       s.mesh.quaternion.copy(_q).multiply(_q2);
-      // it settles a little and fades (it used to sink a third of its height through the plaza)
-      // it sinks into the plaza, opaque (the ground hides it), while its rubble grows in round it: never a
-      // see-through ghost box, never rubble popping in on one frame (trailer review)
-      if (settle > 0 && !s.rubbled) this.rubbleFor(s, dx, dz, true);
-      s.mesh.position.set(s.x + shud, -s.height * 0.5 * settle * settle, s.z);
+      s.mesh.position.set(s.x + shud, 0, s.z);
       return;
     }
     // tower: crack (flash, swell, shudder) -> topple about the base edge (gravity) -> a bounce -> break up and sink
@@ -648,12 +658,15 @@ export class StructureView {
   private rubbleFor(s: Structure, dx: number, dz: number, grow: boolean): void {
     s.rubbled = true;
     const from = grow ? this.time : -Infinity;
-    if (s.kind === 'core' || this.reduced) this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4, 0, 0, 0, Infinity, from);
+    if (s.kind === 'core' || this.reduced) this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4, 0, 0, 0, s.kind === 'core' ? Infinity : this.time + RUBBLE.hold + 0.4, from);
     else {
       // the line of rubble the tower fell along sinks away after RUBBLE.hold s (it lay across the lane: carts
       // drove through it); a small pile stays on its base
       this.addRubble(s.x + dx * s.height * 0.45, s.z + dz * s.height * 0.45, 1.6, dx, dz, s.height * 0.5, this.time + RUBBLE.hold + 0.4, from);
-      this.addRubble(s.x, s.z, 0.9, 0, 0, 0, Infinity, from);
+      // v3.9 (trailer review: heroes and cadets walked straight through a boulder on the lane): a fallen tower frees its
+      // base cells in the sim (grid.ts coverDisc), so the pile on its base sinks away with the line; no rock is left on
+      // ground anyone can walk
+      this.addRubble(s.x, s.z, 0.9, 0, 0, 0, this.time + RUBBLE.hold + 0.4, from);
     }
   }
 

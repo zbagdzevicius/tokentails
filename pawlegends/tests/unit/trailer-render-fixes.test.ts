@@ -121,7 +121,8 @@ describe('structure falls', () => {
     expect(DEBRIS.life).toBeLessThanOrEqual(1);
   });
 
-  it("a fallen tower's rubble line sinks away after its hold; a small pile stays on the base", () => {
+  // v3.9: the pile on the base sinks away too (the sim frees the base cells: heroes walked through it on the lane)
+  it("a fallen tower's rubble line and the pile on its base sink away after their hold", () => {
     const view = new StructureView();
     const rubble = (): THREE.Mesh[] => (view as unknown as { rubble: THREE.Mesh[] }).rubble;
     view.update(frame([tower]), 1 / 60);
@@ -129,7 +130,7 @@ describe('structure falls', () => {
     for (let t = 0; t < STRUCT_ANIM.fallTower + 0.1; t += 1 / 60) view.update(frame([]), 1 / 60);
     expect(rubble().length).toBe(14);
     for (let t = 0; t < RUBBLE.hold + RUBBLE.sink + 0.2; t += 1 / 30) view.update(frame([]), 1 / 30);
-    expect(rubble().length).toBe(7);
+    expect(rubble().length).toBe(0);
     view.dispose();
   });
 });

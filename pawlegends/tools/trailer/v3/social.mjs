@@ -28,7 +28,7 @@ export const SIZE_BAND = [8 * MB, 20 * MB];
 export const KBPS_MIN = 4800;
 /** v3.6: the per-segment SSIM floor (social vs master) on each cut's hardest stretch: the core fight and burst. */
 export const SSIM_FLOOR = 0.99;
-export const HARD_SEGMENT = { 30: [900, 1389], 15: [475, 614] };
+export const HARD_SEGMENT = { 30: [900, 1139], 15: [475, 639] };
 /** Container overhead (moov, sample tables at 60 fps) as a share of the payload. */
 export const MUX_OVERHEAD = 0.012;
 

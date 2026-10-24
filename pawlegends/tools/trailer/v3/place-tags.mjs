@@ -28,10 +28,12 @@ const copy = JSON.parse(readFileSync(join(HERE, 'copy.json'), 'utf8'));
 const mg = JSON.parse(readFileSync(join(MG, 'manifest.json'), 'utf8'));
 /** The edit's HUD obstacle boxes (landscape fractions) for the 'hudlite' layer. */
 const HUDLITE = [[0.385, 0, 0.715, 0.08], [0.835, 0.815, 0.99, 0.985]];
+const HUDFULL = [[0.315, 0, 0.715, 0.085], [0.715, 0, 0.87, 0.075], [0.33, 0.84, 0.67, 0.99], [0.835, 0.815, 0.99, 0.985]];
 /** Lines placed by a free-space search: aspect -> group id -> { ids, want [x, y] (the group's first line), lead }. */
 const FREE = {
-  '16x9': { M3: { ids: ['M3a', 'M3b'], want: [0.24, 0.74], reach: 0.6 }, M6: { ids: ['M6'], want: [0.24, 0.26], reach: 0.7 }, M2: { ids: ['M2'], want: [0.5, 0.86] } },
-  '9x16': { M2: { ids: ['M2a', 'M2b'], want: [0.55, 0.2], reach: 0.3 } },
+  '16x9': { M3: { ids: ['M3a', 'M3b'], want: [0.24, 0.74], reach: 0.6 }, M6: { ids: ['M6'], want: [0.24, 0.26], reach: 0.7 }, M2: { ids: ['M2'], want: [0.5, 0.86] }, L2: { ids: ['L2a', 'L2b', 'L2c'], want: [0.8, 0.22], reach: 0.6 } },
+  // v3.9: 3V3 / IN YOUR BROWSER (take W9 round Pudding's pad), TAKE THEIR CORE. and VICTORY! in 9:16 placed too
+  '9x16': { M2: { ids: ['M2a', 'M2b'], want: [0.55, 0.2], reach: 0.3 }, L2: { ids: ['L2a', 'L2b'], want: [0.5, 0.205], reach: 0.4 }, M3: { ids: ['M3a', 'M3b'], want: [0.5, 0.16], reach: 0.4 }, M6: { ids: ['M6'], want: [0.5, 0.22], reach: 0.4 } },
 };
 
 const out = { '16x9': {}, '9x16': {} };
@@ -76,6 +78,8 @@ for (const aspect of ['16x9', '9x16']) {
         ...(q.pops ?? []).map((p) => p.box),
         ...(q.structs ?? []).filter((p) => p.box[3] - p.box[1] > 0.06 && p.box.every((v) => v > -0.5 && v < 1.5)).map((p) => p.box),
         ...(aspect === '16x9' && (shot.layers ?? []).includes('hudlite') ? HUDLITE : []),
+        // v3.9: the full HUD (S02): the score bar with its portraits, the ability bar, the minimap (the edit's HUD_RECTS)
+        ...(aspect === '16x9' && (shot.layers ?? []).includes('hud') ? HUDFULL : []),
       ];
       list.push({ f, q, rel, obstacles });
     }

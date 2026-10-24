@@ -21,6 +21,8 @@ interface Item {
 }
 
 const COLOR: Record<PickupKind, number> = { frenzy: 0x7dff8a, snack: 0xffa64d };
+/** v3.9: the pickup's light beam, normal blending at this opacity per wall (never additive: no white cone on sand). */
+export const PICKUP_BEAM = Object.freeze({ opacity: 0.22 });
 
 export class PickupView {
   readonly group = new THREE.Group();
@@ -30,7 +32,7 @@ export class PickupView {
   private readonly tail = new THREE.ConeGeometry(0.22, 0.32, 4);
   private readonly ringGeo = new THREE.RingGeometry(0.75, 1.0, 32);
   private readonly beamGeo = new THREE.CylinderGeometry(0.12, 0.3, 6, 8, 1, true);
-  private readonly mats: Record<PickupKind, { body: THREE.MeshBasicMaterial; glow: THREE.MeshBasicMaterial }> = {
+  private readonly mats: Record<PickupKind, { body: THREE.MeshBasicMaterial; glow: THREE.MeshBasicMaterial; beam: THREE.MeshBasicMaterial }> = {
     frenzy: this.makeMats('frenzy'),
     snack: this.makeMats('snack'),
   };
@@ -40,10 +42,14 @@ export class PickupView {
     this.group.name = 'pickups';
   }
 
-  private makeMats(k: PickupKind): { body: THREE.MeshBasicMaterial; glow: THREE.MeshBasicMaterial } {
+  private makeMats(k: PickupKind): { body: THREE.MeshBasicMaterial; glow: THREE.MeshBasicMaterial; beam: THREE.MeshBasicMaterial } {
     return {
       body: new THREE.MeshBasicMaterial({ color: COLOR[k] }),
       glow: new THREE.MeshBasicMaterial({ color: COLOR[k], transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      // v3.9 (trailer review: the 6 m beam, additive at 0.45 and seen through both walls, summed to a yellow-white
+      // light cone over the pale lane sand): the beam is drawn in its own colour with normal blending (PICKUP_BEAM),
+      // so it reads as a coloured light from across the screen and never washes the ground to white
+      beam: new THREE.MeshBasicMaterial({ color: COLOR[k], transparent: true, opacity: PICKUP_BEAM.opacity, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
     };
   }
 
@@ -66,7 +72,8 @@ export class PickupView {
     const ring = new THREE.Mesh(this.ringGeo, m.glow);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.06;
-    const beam = new THREE.Mesh(this.beamGeo, m.glow);
+    const beam = new THREE.Mesh(this.beamGeo, m.beam);
+    beam.name = 'pickup-beam';
     beam.position.y = 3;
     root.add(body, ring, beam);
     root.position.set(x, 0, z);
@@ -156,6 +163,7 @@ export class PickupView {
     for (const m of Object.values(this.mats)) {
       m.body.dispose();
       m.glow.dispose();
+      m.beam.dispose();
     }
   }
 }

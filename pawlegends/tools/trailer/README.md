@@ -404,3 +404,33 @@ V12's clean moment (half speed easing to 1x), the look point toward the fight; t
 chrome (name and the "Inspired by" line only); the 9:16 end card's URL on a cream plate at y 0.62, the credit at
 0.73; 16:9 type 80-120 px. 15 s: S01 0-174, S03 left out, the tower from master 775. Social copies unchanged
 (4.8 Mbit/s floor; climax SSIM 0.9932).
+
+**v3.9 (review of v3.8: 19 findings, "fix what's weak").** Render fixes in the game (render only; `src/sim`
+untouched, determinism identical, tests in `tests/unit/trailer-v39-render.test.ts`):
+
+| Bug | Fix |
+|---|---|
+| Heroes and cadets walked through a boulder on the lane (S02, S13) | it was the rubble pile a fallen tower leaves on its base, whose cells the sim frees: the pile now sinks away with the rubble line after `RUBBLE.hold` (`towerView.ts` `rubbleFor`, reduce motion too) |
+| The dog core turned into a see-through slab with the bone floating in it under the dust for 0.8 s | the core is crushed flat on the spot and hidden `CORE_GONE` (0.14) into its fall, about 7 frames after the burst, never below the plaza; the rubble is laid on the burst |
+| A pickup's beam made a yellow-white light cone over the lane sand (S14) | the beam has its own normal-blended material in its colour (`PICKUP_BEAM`, opacity 0.22; it was additive at 0.45, summed over both walls) |
+| A white streak ran through Sage's head and body under VICTORY! | her victory arrow's streak starts above her raised bow (`SKY_ARROW_Y` 3.2 m) |
+| Sage was drawn upside down at the moment of victory | her victory jump is a tucked spin (root yaw, 0.3 s) instead of a backflip (root pitch): she stays upright |
+
+Cut (`v3/shots.mjs`, `v3/timeline.mjs`): S01 is 200 frames: the rise eases over 46 frames (f24-70), the 9:16 quarter
+turn over 44 (f28-72, done on CATS; back over 42 with the descent, f146-188), CATS / VS / DOGS on f72 / f77 / f83 held
+to f143, the 16:9 descent a 26-frame cubic ease-out (f147-173), the HUD and plates in only after the landing; the
+clock runs 3.5x while wide and eases to 0.3x by f157, so the landing holds the exchange's last clean beat (both
+aspects' QC clean; neighbouring clocks fail on a touch or a clip). 9:16 VS on the open water west of the fight.
+S02 (3V3) is take W9 from f200: all six round Pudding's pad trading blows from the first frames (both aspects QC
+clean), 3V3 / IN YOUR / BROWSER placed by `place-tags.mjs` round the six, Pudding and the full HUD. S11's take
+starts 7 ticks earlier (Clem's leap lands after the cut). S13 ends on f799 as Clem hits the tower and S13B (f800,
+the same take 25 ticks on, a cut-in at 0.88) shows the crack, the topple and the dust at 0.4x: the cadet that stood in
+Clem's Tumble is skipped; TOPPLE THEIR TOWERS. is over Clem's hits (f727-795). S14 is the KO only (f900-949, cut
+before Bengas stacks behind Sage). S15 is 190 frames at 1x from 117 frames before the crack (f1067, its anchor; the
+burst, shockwave ring, boom, shake and VICTORY! on CORE_HIT f1075), R1 pushes on the hits, an eased push to 0.85 with
+a -6° yaw / +4° pitch accent and the look point 2.5 m toward the doghouse into the burst, back on the gameplay framing
+by f1110; 9:16 pushed in to 0.95. The pick screen (f1140-1424) holds each champion ~71 frames and hides the card's
+"Inspired by" line, so INSPIRED BY REAL CATS. says it once; the 9:16 pick layout fills y 0.04-0.68. The line-up runs
+f1425-1599. Score: the crack has its own transient on f1067 (game hit + a short impact), the hole before the boom is
+4 frames, every stab on its slam. 15 s: S01 0-199, S02 200-274, the tower from master 750, the core 975-1139, Lambo
+on the pick screen 50 frames.

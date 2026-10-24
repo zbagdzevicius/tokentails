@@ -138,6 +138,9 @@ const SHOCK = { r1: 2, dur: 0.3, color: '#bfffe8', height: 0.5, intensity: 1 };
 const SHOCK_POS = { x: 0, y: 0, z: 0 };
 const AT = { x: 0, z: 0 };
 
+/** v3.9: the victory arrow's streak starts this high (m): above Sage's head and raised bow, never through her body. */
+export const SKY_ARROW_Y = 3.2;
+
 function spawn(fx: FxCtx, kind: Parameters<FxCtx['mesh']['spawn']>[0], id: number, x: number, z: number, sx: number, life: number, color: number, o?: { y?: number; yaw?: number; sy?: number; sz?: number; p0?: number; p1?: number; p2?: number; p3?: number; delay?: number }): void {
   S.x = x;
   S.z = z;
@@ -638,7 +641,9 @@ export const SKILL_FX: SkillFxSet = {
       }
       case 'skyArrow': {
         if (!fx.heroPos(id, _p)) return;
-        spawn(fx, 'pillar', id, _p.x, _p.z, 0.08, 0.35, WIND, { sy: 7, sz: 0.08 });
+        // v3.9 (trailer review: the arrow's streak stood on the ground and ran through her head and body, a white
+        // streak through the hero): it starts above her raised bow (SKY_ARROW_Y) and climbs from there
+        spawn(fx, 'pillar', id, _p.x, _p.z, 0.08, 0.35, WIND, { y: SKY_ARROW_Y, sy: 7, sz: 0.08 });
         return;
       }
       default:

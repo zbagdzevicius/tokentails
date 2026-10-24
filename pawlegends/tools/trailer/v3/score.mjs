@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { argValue } from '../../lib/args.mjs';
 import { Bus, SR, biquad, compress, dbToGain, freeverb, limit, sec, writeWav, writeWavFloat } from '../dsp.mjs';
 import * as I from '../instruments.mjs';
-import { CORE_HIT, CUT15, IMPACTS } from './timeline.mjs';
+import { CORE_CRACK, CORE_HIT, CUT15, IMPACTS } from './timeline.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(argValue('--out') ?? join(HERE, '..', 'out', 'v3', 'audio'));
@@ -120,34 +120,36 @@ cue(36, 'the cat answers');
 // f28-174: the crane to the whole Crossing: a riser with the filter opening, a pad on Am; the CATS / VS / DOGS hits
 // land on the type's slams (v3.8: the crane is up by f54; CATS f55, VS f62, DOGS f69, held to f135; the descent
 // lands on the gameplay camera on f156 and holds to the f175 drop)
+// v3.9: the crane is up by f70 (the 9:16 turn by f72); CATS f72, VS f77, DOGS f83, held to f143; the descent lands on
+// the gameplay camera on f173 (16:9) / f188 (9:16) and holds to the f200 drop
 {
-  const [L, R] = I.riser(fs(135), 70);
+  const [L, R] = I.riser(fs(160), 70);
   music.addStereo(smp(30), L, R, 0.22);
-  padBar(30, 'Am', fs(140), 0.16, 900);
+  padBar(30, 'Am', fs(165), 0.16, 900);
 }
-stabAt(55, 'Am', 0.42, 0.3, 12);
-catMotif(55, 0.6);
-cue(55, 'CATS');
-music.add(smp(62), I.snare(2, 200), 0.75);
-music.add(smp(62), I.clap(3), 0.4);
-cue(62, 'VS');
-dogMotif(69, 0.7);
-music.add(smp(69), I.kick(1, { punch: 1.1 }), 0.8);
-stabAt(69, 'E', 0.35, 0.3, -12);
-cue(69, 'DOGS');
-// the crane settles back to the gameplay camera (f134-156): a soft whoosh into the landing
-sfx.add(smp(156) - sec(0.35), I.whoosh(0.4, 70, 1), 0.22);
-cue(156, 'the gameplay camera');
-music.add(smp(175) - sec(0.5), I.reverseCymbal(0.5, 83), 0.35);
+stabAt(72, 'Am', 0.42, 0.3, 12);
+catMotif(72, 0.6);
+cue(72, 'CATS');
+music.add(smp(77), I.snare(2, 200), 0.75);
+music.add(smp(77), I.clap(3), 0.4);
+cue(77, 'VS');
+dogMotif(83, 0.7);
+music.add(smp(83), I.kick(1, { punch: 1.1 }), 0.8);
+stabAt(83, 'E', 0.35, 0.3, -12);
+cue(83, 'DOGS');
+// the crane settles back to the gameplay camera (f147-173): a soft whoosh into the landing
+sfx.add(smp(173) - sec(0.4), I.whoosh(0.45, 70, 1), 0.22);
+cue(173, 'the gameplay camera');
+music.add(smp(200) - sec(0.5), I.reverseCymbal(0.5, 83), 0.35);
 
-// f175-650: the groove
-groove(175, 650);
-cue(175, 'drop');
-music.add(smp(175), I.crash(5, 2.0), 0.35, 0.2);
-stabAt(175, 'Am', 0.4);
+// f200-650: the groove
+groove(200, 650);
+cue(200, 'drop');
+music.add(smp(200), I.crash(5, 2.0), 0.35, 0.2);
+stabAt(200, 'Am', 0.4);
 // 3V3 / IN YOUR BROWSER on their slams
-sfx.add(smp(177), I.thump(92), 0.45);
-sfx.add(smp(200), I.thump(93), 0.4);
+sfx.add(smp(202), I.thump(92), 0.45);
+sfx.add(smp(225), I.thump(93), 0.4);
 // the name tags: a light tick as each one lands
 for (const f of [304, 354, 404, 454, 504, 554, 604]) sfx.add(smp(f), I.game('click', 1.2), 0.22);
 // f324 Clem's Tumble at Sir Brutus
@@ -182,48 +184,53 @@ catMotif(662, 0.35);
 dogMotif(687, 0.4);
 sfx.add(smp(705), I.game('hit'), 0.4);
 cue(650, 'push your lane');
-// f750-899 TOPPLE THEIR TOWERS.: Clem's takedown (f757), a snare roll, the crack on f855 (the game's boom), the
-// tower hits the ground on f895
+// f725-899 TOPPLE THEIR TOWERS.: Clem's hits on the tower, a snare roll, the cut-in on the crack (f800, the slam and
+// the game's boom on f805), the tower hits the ground on ~f845 (v3.9: S13 to f799, S13B from f800)
 sfx.add(smp(757), I.game('hit'), 0.5);
+sfx.add(smp(782), I.game('hit'), 0.45);
 {
-  // v3.8: S13 opens on f725; TOPPLE THEIR TOWERS. slams on the f750 beat
-  const roll = I.snareRoll(fs(105), 144, 40);
+  const roll = I.snareRoll(fs(55), 144, 40);
   music.add(smp(750), roll, 0.45);
-  groove(725, 855, { energy: 0.7, hats: false });
-  stabAt(750, 'Dm', 0.4);
+  groove(725, 805, { energy: 0.7, hats: false });
+  stabAt(727, 'Dm', 0.4);
+  stabAt(802, 'Dm', 0.45);
 }
-sfx.add(smp(855), I.game('boom'), 0.7);
-sfx.add(smp(895), I.impact(92, { sub: 38, len: 1.6 }), 0.75);
-sfx.add(smp(895), I.crash(9, 2.0), 0.35);
-music.add(smp(895), I.subDrop(55, 32, 0.5, 0.4), 0.5);
-cue(855, 'tower cracks');
-cue(895, 'tower hits the ground');
-// f900-1099 (v3.8) the dog-base fight: the KO (f906), Sir Brutus's answer (~f996) and the cats pushing on; v3.7's cut
-// back to the bridge (S14B) is gone, so the energy runs straight into the core
-groove(900, 1100, { energy: 1.05 });
+sfx.add(smp(805), I.game('boom'), 0.7);
+sfx.add(smp(845), I.impact(92, { sub: 38, len: 1.6 }), 0.75);
+sfx.add(smp(845), I.crash(9, 2.0), 0.35);
+music.add(smp(845), I.subDrop(55, 32, 0.5, 0.4), 0.5);
+groove(850, 900, { energy: 0.75, hats: false });
+cue(805, 'tower cracks');
+cue(845, 'tower hits the ground');
+// f900-949 (v3.9) the dog-base fight: the KO (f906)
+groove(900, 950, { energy: 1.05 });
 music.add(smp(900), I.crash(5, 2.0), 0.35, -0.2);
 sfx.add(smp(906), I.impact(93, { sub: 48, len: 0.7 }), 0.5);
 sfx.add(smp(906), I.game('hit'), 0.5);
 catMotif(925, 0.42);
-dogMotif(1000, 0.5);
-catMotif(1050, 0.42, 12);
 cue(906, 'teamfight: takedown');
-// f1100-CORE_HIT TAKE THEIR CORE.: the core shot opens (a crash), a stab on the line, the hits on the doghouse on the
-// beat, a riser, a near-silent hole, then THE CORE BURST
-music.add(smp(1100), I.crash(5, 1.6), 0.3, 0.2);
-groove(1100, 1300, { energy: 1 });
-// v3.4: TAKE THEIR (f1165) and CORE. (f1172) each get their own hit
-stabAt(1165, 'Dm', 0.45);
-music.add(smp(1165), I.kick(1, { punch: 1.1 }), 0.7);
-music.add(smp(1172), I.snare(3, 210), 0.55);
-cue(1165, 'TAKE THEIR');
-cue(1172, 'CORE.');
-for (const f of [1200, 1225, 1250, 1275]) sfx.add(smp(f), I.game('hit'), 0.35);
+// f950-1139 TAKE THEIR CORE.: the core shot opens (a crash), a stab on the line, the hits on the doghouse on the beat,
+// a riser into the crack (CORE_CRACK, its own crack transient: v3.8 had the break land in silence), a 4-frame hole,
+// then THE CORE BURST on the shockwave ring (CORE_HIT)
+music.add(smp(950), I.crash(5, 1.6), 0.3, 0.2);
+groove(950, 1050, { energy: 1 });
+dogMotif(985, 0.4);
+stabAt(960, 'Dm', 0.45);
+music.add(smp(960), I.kick(1, { punch: 1.1 }), 0.7);
+music.add(smp(967), I.snare(3, 210), 0.55);
+cue(960, 'TAKE THEIR');
+cue(967, 'CORE.');
+for (const f of [975, 1000, 1025]) sfx.add(smp(f), I.game('hit'), 0.35);
 {
-  const [L, R] = I.riser(fs(CORE_HIT - 1290), 72);
-  music.addStereo(smp(1290), L, R, 0.3);
-  for (let f = 1300; f < CORE_HIT - 6; f += BEAT / 2) music.add(smp(f), I.hat(11, false), 0.18);
+  const [L, R] = I.riser(fs(CORE_CRACK - 1035), 72);
+  music.addStereo(smp(1035), L, R, 0.3);
+  for (let f = 1050; f < CORE_CRACK; f += BEAT / 2) music.add(smp(f), I.hat(11, false), 0.18);
 }
+// the crack: the game's own hit and a short dry impact as the doghouse visibly breaks
+sfx.add(smp(CORE_CRACK), I.game('hit'), 0.7);
+sfx.add(smp(CORE_CRACK), I.impact(90, { sub: 52, len: 0.25 }), 0.55);
+sfx.add(smp(CORE_CRACK + 1), I.crackle(0.25, 91), 0.3);
+cue(CORE_CRACK, 'core cracks');
 sfx.add(smp(CORE_HIT), I.game('boom'), 1.0);
 sfx.add(smp(CORE_HIT), I.impact(95, { sub: 36, len: 2.0 }), 0.95);
 sfx.add(smp(CORE_HIT), I.crash(7, 2.6), 0.5);
@@ -235,27 +242,29 @@ stabAt(CORE_HIT + 4, 'C', 0.4);
 catMotif(CORE_HIT + 4, 0.5);
 sfx.add(smp(CORE_HIT + 8), I.game('victory'), 0.45);
 cue(CORE_HIT + 4, 'victory fanfare');
-// f1390-1499 the pick screen: the game's own click on each tile (Avietė, Bengas, Gabė)
-stabAt(1390, 'G', 0.32);
-stabAt(1415, 'F', 0.32);
-stabAt(1440, 'C', 0.4, 0.5);
-// v3.4: the groove stops on f1490 (its kick on f1490 read as an early TEAM CAT hit), a breath before the slam
-groove(1390, 1490, { energy: 0.8 });
-for (const f of [1415, 1440, 1465]) sfx.add(smp(f), I.game('click'), 0.35);
-cue(1390, 'pick screen');
-// f1500-1599: TEAM CAT (the cat stab and motif on f1505), OR (a tick on f1512), TEAM DOG? (the dog stab and motif on
-// f1518): v3.4 the stabs sit on the type's slams (v3.3 had its loudest onsets 15 frames early and 24 late)
-padBar(1500, 'Am', fs(100), 0.13, 1200);
-groove(1500, 1600, { half: true, energy: 0.6, bassOn: false });
-stabAt(1505, 'Am', 0.5, 0.25, 12);
-catMotif(1505, 0.55);
-sfx.add(smp(1512), I.game('click'), 0.35);
-stabAt(1518, 'E', 0.5, 0.3, -12);
-music.add(smp(1518), I.kick(1, { punch: 1 }), 0.6);
-dogMotif(1518, 0.65);
-cue(1505, 'TEAM CAT');
-cue(1512, 'OR');
-cue(1518, 'TEAM DOG?');
+// f1140-1424 the pick screen (v3.9: ~71 frames per champion): the game's own click on each new champion
+stabAt(1140, 'G', 0.32);
+stabAt(1211, 'F', 0.32);
+stabAt(1282, 'C', 0.4, 0.5);
+stabAt(1353, 'G', 0.32);
+groove(1150, 1415, { energy: 0.8 });
+for (const f of [1211, 1282, 1353]) sfx.add(smp(f), I.game('click'), 0.35);
+cue(1140, 'pick screen');
+// f1425-1599: TEAM CAT (the cat stab and motif on f1430), OR (a tick on f1437), TEAM DOG? (the dog stab and motif on
+// f1443), the line-up's second flourishes on the f1475-1560 beats
+padBar(1425, 'Am', fs(175), 0.13, 1200);
+groove(1425, 1600, { half: true, energy: 0.6, bassOn: false });
+stabAt(1430, 'Am', 0.5, 0.25, 12);
+catMotif(1430, 0.55);
+sfx.add(smp(1437), I.game('click'), 0.35);
+stabAt(1443, 'E', 0.5, 0.3, -12);
+music.add(smp(1443), I.kick(1, { punch: 1 }), 0.6);
+dogMotif(1443, 0.65);
+catMotif(1530, 0.4);
+dogMotif(1555, 0.45);
+cue(1430, 'TEAM CAT');
+cue(1437, 'OR');
+cue(1443, 'TEAM DOG?');
 music.add(smp(1600) - sec(0.4), I.reverseCymbal(0.4, 84), 0.3);
 // f1600 end card stab with the logo slam; f1675 the final stab; ring out to f1799
 stabAt(1600, 'C', 0.55, 0.5);
@@ -294,7 +303,8 @@ function duck(bus, frames) {
     }
   }
   // the hole before the core burst
-  for (let i = smp(CORE_HIT - 6); i < smp(CORE_HIT); i++) g[i] = Math.min(g[i], 0.05);
+  // v3.9: 4 frames (the crack has its own transient 8 frames before the burst)
+  for (let i = smp(CORE_HIT - 4); i < smp(CORE_HIT); i++) g[i] = Math.min(g[i], 0.05);
   // the slow-motion low-pass after it is applied below
   bus.gainCurve((i) => g[i]);
 }
