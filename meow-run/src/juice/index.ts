@@ -1,6 +1,7 @@
 // CAT-AUDIO juice: speed lines, landing dust, run dust, claw sparks, wet drips, pickup sparkles, the pounce trail,
 // leaf-surf spray, puff-cloud trail, vault boing dust and hit stars. Everything goes through core/fx.ts (one pooled
 // draw call; LOW quality already drops half the spawns) and respects prefs.reducedMotion.
+// Iteration 2 (STYLE lane): landing shockwaves (impact.ts) and combo-tier gold speed lines (speedlines.ts).
 import * as THREE from 'three';
 import { events } from '../core/events';
 import { burst, spawnParticle } from '../core/fx';
@@ -8,6 +9,7 @@ import { addFrameHook } from '../core/loop';
 import { kittenRig, P } from '../core/player';
 import { game, prefs } from '../core/state';
 import { Mochi } from '../cat/mochi';
+import { onLand } from './impact';
 import { initSpeedLines } from './speedlines';
 
 const DUST: Record<string, number> = { ground: 0xe3c79b, bridge: 0xc29a66, wall: 0xd6b48a, river: 0xe8fbff, cloud: 0xffffff, gap: 0xe3c79b };
@@ -89,6 +91,7 @@ export function registerJuice(): void {
   initSpeedLines();
   events.on('land', (e) => {
     if (!live()) return;
+    onLand(e.impact);
     if (P.surface === 'river') {
       burst(v.copy(P.world.pos).addScaledVector(P.world.up, 0.1), 14, 0xe8fbff, 5, 0.5, 0.22, 14, 1.2);
       return;

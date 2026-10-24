@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { speedLineStrength, type SpeedState } from './strength';
+import { isGoldTier, speedLineStrength, styleLineBoost, type SpeedState } from './strength';
 
 const base: SpeedState = { speed: 18, mode: 'run', ability: null, sincePounce: 99, boostT: 0, boostMul: 1, sinceHit: 99 };
 
@@ -20,5 +20,14 @@ describe('speed lines', () => {
     expect(speedLineStrength({ ...base, speed: 30, ability: 'vault' }, true)).toBeCloseTo(full * 0.35);
     expect(speedLineStrength({ ...base, speed: 30, sinceHit: 0.1 }, false)).toBeLessThan(speedLineStrength({ ...base, speed: 30 }, false));
     expect(speedLineStrength({ ...base, speed: 30, mode: 'finish' }, false)).toBeLessThan(0.2);
+  });
+  it('grow with the combo tier and turn gold from tier 3', () => {
+    expect(styleLineBoost(0, false)).toBe(0);
+    expect(styleLineBoost(6, false)).toBeCloseTo(0.25);
+    expect(styleLineBoost(3, false)).toBeCloseTo(0.125);
+    expect(styleLineBoost(99, false)).toBeCloseTo(0.25);
+    expect(styleLineBoost(6, true)).toBeCloseTo(0.25 * 0.35);
+    expect(styleLineBoost(Number.NaN, false)).toBe(0);
+    expect([2, 3, 6].map(isGoldTier)).toEqual([false, true, true]);
   });
 });

@@ -1407,6 +1407,22 @@ Purrsuit: Purrsuit (the CLASSIC card, the hub's Runner tab) is the 2D level runn
 client only hosts its static build, served top level at `/meow-run` with no iframe, like Ultra Cat. The game saves no
 scores (no `GameType`, no backend write path) and keeps its progress in the player's `localStorage`.
 
+**What players make and share (iteration 2, `meow-run/GDD.md` "Iteration 2").** A Wardrobe for Mochi, air tricks and
+combo tiers, a Daily Run (one seeded course per UTC day), a Trail Maker, photo mode (PNG), rolling replay clips (MP4 or
+WebM with sound, 16:9 or 9:16) and a share card. All of it runs in the browser: files are shared through the Web Share
+API or downloaded (`meowrun-<what>-<date>.png/.mp4`), and nothing is uploaded. Two kinds of link reach the site:
+
+- `https://tokentails.com/meow-run?c=<code>`: a challenge (stage or Daily/endless seed or trail, score, name, look and
+  a ghost, deflated into the code; the whole link stays under 3000 characters). It opens "<name> challenges you!" and races the ghost.
+- `https://tokentails.com/meow-run?t=<code>`: a Trail Maker course (at most 120 characters). It opens "A trail for
+  you" with PLAY, OPEN IN MAKER and SAVE COPY.
+
+The game builds these links with the canonical `https://tokentails.com/meow-run` on any tokentails.com host and reads
+only `location.search`, so the `/meow-run` rewrite (which keeps the query string) is all the site needs; the
+`?from=` parameter of the entry points still has no effect and survives the link handling. There is no per-link
+preview page (link previews show the plain `/meow-run` page), and the `meowRunRewrites` comment in
+`client/next.config.js` ("no deep links") predates these query links: they need no extra rewrite.
+
 **Entry points (web only, no flag).** `client/components/meow-run/entry.ts` (`MEOW_RUN_PATH`, `meowRunHref(from)`,
 `MEOW_RUN_PICKER_DESCRIPTION`, `MEOW_RUN_PREVIEW` with its alt text, and `meowRunEntryEnabled` = not `isAppBuild()`)
 feeds:
@@ -1443,4 +1459,6 @@ rewrite blocks and do not overlap.
 `MEOWRUN_BASE=/meowrun-game/` into `client/public/meowrun-game/`), then commit `client/public/meowrun-game` and
 deploy the client. `MEOWRUN_BASE` is build-only; the game reads no environment variables at runtime. The game's own
 checks are `npx tsc --noEmit`, `npx vitest run`, `npm run build` and `npm run smoke` (Playwright Chromium on desktop
-and a 390x844 phone; the dev server is on port 5178).
+and a 390x844 phone; the dev server is on port 5178), plus `node shots/release-gate.mjs` for the sharing features.
+After `npm run build:client`, `node shots/client-host.mjs` serves `client/public` with the same `/meow-run` rewrite on
+port 5190 and checks the built game, `?c=` and `?t=` on the site route.

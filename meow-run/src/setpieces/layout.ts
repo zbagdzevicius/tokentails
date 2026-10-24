@@ -42,6 +42,21 @@ export const HAZARDS: Record<string, 'jump' | 'slide' | 'dodge'> = {
   bamboo: 'dodge',
   fence: 'jump',
 };
+/** a gap narrower than this between a hurt box and the path edge looks passable but is not: it is closed */
+export const MIN_EDGE_GAP = 1.2;
+/**
+ * The lateral extent [x0, x1] of a bamboo gate at x (stalks spread over `spread`) on a path `pathW` wide. A side that
+ * would leave a sliver under MIN_EDGE_GAP to the path edge is extended past the edge (with stalks), so the open side
+ * is clearly the only way through.
+ */
+export function bambooExtent(x: number, spread: number, pathW: number): [number, number] {
+  const half = pathW / 2;
+  let x0 = x - spread / 2 - 0.25;
+  let x1 = x + spread / 2 + 0.25;
+  if (half - x1 < MIN_EDGE_GAP && x1 < half + 0.6) x1 = half + 0.6;
+  if (x0 + half < MIN_EDGE_GAP && x0 > -half - 0.6) x0 = -half - 0.6;
+  return [x0, x1];
+}
 /** lateral half extent of a hazard spec (for spacing checks) */
 export function hazardHalfWidth(type: string, params: Record<string, unknown> | undefined, pathW: number): number {
   const p = params ?? {};

@@ -2,7 +2,7 @@
 import { BELL_POINTS, finishBonus, FISH_POINTS, multAfterPickup, pickupPoints, speedAt, TREAT_POINTS } from '../core/scoring';
 import type { Track } from '../core/track';
 import { MAX_HEARTS, NO_FLOOR, type PieceSpec, type StageDef } from '../core/types';
-import { CLOUD_H, HAZARDS, hazardHalfWidth, vaultArc, vaultYAt } from '../setpieces/layout';
+import { bambooExtent, CLOUD_H, HAZARDS, hazardHalfWidth, MIN_EDGE_GAP, vaultArc, vaultYAt } from '../setpieces/layout';
 
 /** the reaction time we guarantee between hazards on the same line at the stage's top speed */
 export const REACT_S = 0.6;
@@ -46,11 +46,21 @@ export function validateLayout(stage: StageDef, track: Track, pieces: PieceSpec[
       const w = track.widthAt(p.s);
       const x = p.x ?? 0;
       const hw = hazardHalfWidth(p.type, p.params, w);
-      return { p, s: p.s, x0: x - hw, x1: x + hw, w };
+      // a bamboo gate closes an edge sliver: its real extent
+      const [x0, x1] = p.type === 'bamboo' ? bambooExtent(x, P(p, 'spread', 1.2), w) : [x - hw, x + hw];
+      return { p, s: p.s, x0, x1, w };
     })
     .sort((a, b) => a.s - b.s);
   for (const h of hz) {
     const kind = track.kindAt(h.s);
+    // no hurt box may leave a sliver to the path edge that looks passable but is not
+    if (h.p.type === 'bamboo') {
+      const [b0, b1] = bambooExtent(h.p.x ?? 0, P(h.p, 'spread', 1.2), h.w);
+      const half = h.w / 2;
+      const gl = b0 + half;
+      const gr = half - b1;
+      if ((gl > 0 && gl < MIN_EDGE_GAP) || (gr > 0 && gr < MIN_EDGE_GAP)) out.push(`bamboo at ${h.s} leaves a sliver under ${MIN_EDGE_GAP} u to the path edge`);
+    }
     if (NO_FLOOR.has(kind)) out.push(`${h.p.type} at ${h.s} floats over a ${kind}`);
     if (inVault(h.s)) out.push(`${h.p.type} at ${h.s} sits in a vault arc`);
     if (RIVER_HAZARDS.has(h.p.type) !== (kind === 'river')) out.push(`${h.p.type} at ${h.s} is on ${kind}`);

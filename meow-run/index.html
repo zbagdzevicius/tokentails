@@ -68,7 +68,8 @@
       #titleMascot { position: absolute; right: -12%; top: -34%; width: clamp(78px, 15vw, 132px); aspect-ratio: 1; transform: rotate(10deg); animation: mascot 3s ease-in-out infinite; }
       #titleMascot canvas { width: 100% !important; height: 100% !important; border-radius: 50%; filter: drop-shadow(0 6px 0 var(--ink)); }
       @keyframes mascot { 50% { transform: rotate(4deg) translateY(-8px); } }
-      #title .tag { font-size: clamp(18px, 3vw, 24px); margin-top: 26px; }
+      /* a soft plate keeps the subtitle readable over the attract runner */
+      #title .tag { font-size: clamp(18px, 3vw, 24px); margin-top: 26px; padding: 4px 18px; border-radius: 999px; background: radial-gradient(ellipse at center, rgba(42,28,20,.42), rgba(42,28,20,.18) 70%, rgba(42,28,20,0)); }
       #title .bot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 4vh; }
       #title .hint { font-size: 15px; font-weight: 800; opacity: .95; animation: blink 1.6s ease-in-out infinite; }
       @keyframes blink { 50% { opacity: .45; } }
@@ -112,18 +113,20 @@
       #pauseCat { width: 86px; height: 86px; margin: -64px auto 6px; border-radius: 50%; overflow: hidden; border: 4px solid var(--ink); background: var(--cream); box-shadow: 0 5px 0 var(--ink); }
       #settings .card { text-align: left; }
       #settings h2 { text-align: center; margin-bottom: 12px; }
-      .set { display: grid; grid-template-columns: 110px 1fr 42px; align-items: center; gap: 10px; padding: 8px 2px; font-weight: 900; font-size: 17px; border-bottom: 2px dashed rgba(42,28,20,.15); }
+      .set { display: grid; grid-template-columns: 110px 1fr 42px; align-items: center; gap: 10px; padding: 8px 2px; min-height: 44px; font-weight: 900; font-size: 17px; border-bottom: 2px dashed rgba(42,28,20,.15); }
       .set output { text-align: right; font-size: 15px; color: var(--ink2); }
       input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 9px; border: 3px solid var(--ink); background: linear-gradient(90deg, var(--orange) var(--v, 50%), #f1e2c8 var(--v, 50%)); touch-action: pan-x; }
       input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--cream); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
       input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--cream); border: 3px solid var(--ink); }
       .seg { grid-column: 2 / 4; display: flex; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; box-shadow: 0 3px 0 var(--ink); }
-      .seg button { flex: 1; border: 0; background: var(--cream); color: var(--ink); font-weight: 900; font-size: 15px; padding: 8px 4px; }
+      .seg button { flex: 1; border: 0; background: var(--cream); color: var(--ink); font-weight: 900; font-size: 15px; padding: 8px 4px; min-height: 44px; }
       .seg button + button { border-left: 3px solid var(--ink); }
       .seg button.on { background: var(--gold); }
       .tog { grid-column: 2 / 4; justify-self: start; width: 64px; height: 34px; border-radius: 20px; border: 3px solid var(--ink); background: #e6d6bd; position: relative; box-shadow: 0 3px 0 var(--ink); }
       .tog::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--cream); border: 3px solid var(--ink); transition: left .15s; }
       .tog.on { background: var(--grass); } .tog.on::after { left: 30px; }
+      /* a 44 px tap target around the 34 px switch */
+      .tog::before { content: ''; position: absolute; inset: -8px -6px; }
       #settings .row { margin-top: 16px; }
       #settings .note { font-size: 13px; font-weight: 700; color: var(--ink2); margin-top: 10px; text-align: center; }
 
@@ -194,13 +197,15 @@
       #progHome { position: absolute; right: -40px; top: -11px; width: 30px; height: 30px; filter: drop-shadow(0 2px 0 var(--ink)); }
       #distPill { position: absolute; left: 50%; top: calc(14px + var(--st)); transform: translateX(-50%); padding: 4px 16px; border-radius: 16px; border: 3px solid var(--ink); background: var(--navy); font-weight: 900; font-size: 22px; box-shadow: 0 3px 0 rgba(42,28,20,.6); }
       #distPill small { font-size: 14px; color: var(--gold); margin-left: 8px; }
-      body.endless #prog, body.endless #bells { display: none; }
+      body.endless #prog, body.endless #bells, body.nobells #bells { display: none; }
       body:not(.endless) #distPill { display: none; }
       .hud .tr { position: absolute; right: calc(18px + var(--sr)); top: calc(8px + var(--st)); text-align: right; }
       #score { font-size: 46px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: -.01em; text-shadow: var(--o3), 0 5px 0 var(--ink); transform-origin: 100% 50%; }
       #score.bump { animation: bump .25s ease-out; }
       @keyframes bump { 40% { transform: scale(1.12); } }
-      #mult { display: inline-block; font-size: 28px; font-weight: 900; font-style: italic; color: var(--gold); text-shadow: var(--o3), 0 4px 0 var(--ink); transform-origin: 100% 50%; }
+      /* the score multiplier: smaller than the score and labelled, so it never reads like the combo meter */
+      #mult::before { content: 'MULT '; font-size: .58em; letter-spacing: .06em; color: var(--cream); }
+      #mult { display: inline-block; margin-top: 2px; font-size: 22px; font-weight: 900; font-style: italic; color: var(--gold); text-shadow: var(--o3), 0 4px 0 var(--ink); transform-origin: 100% 50%; }
       #mult.bump { animation: multBump .35s cubic-bezier(.2,1.8,.4,1); }
       @keyframes multBump { 0% { transform: scale(1.7); color: #fff; } }
       #mult.hot { color: #ff8a2a; }
@@ -312,7 +317,7 @@
         #distPill { top: calc(70px + var(--st)); font-size: 18px; }
         #prompt { top: calc(102px + var(--st)); font-size: 16px; padding: 4px 12px 4px 6px; gap: 6px; }
         #prompt kbd { font-size: 14px; } #prompt .g { width: 20px; height: 20px; }
-        #score { font-size: 34px; } #mult { font-size: 22px; }
+        #score { font-size: 34px; } #mult { font-size: 18px; }
         #portrait { left: auto; right: calc(12px + var(--sr)); top: calc(104px + var(--st)); width: 64px; height: 64px; transform-origin: 80% 20%; }
         #logo span { font-size: 24vw; } #logo .w2 span { font-size: 28vw; }
         #titleMascot { right: -8%; top: -30%; width: 23vw; }
@@ -331,7 +336,7 @@
       }
       @media (max-height: 500px) and (orientation: landscape) {
         #portrait { top: calc(76px + var(--st)); width: 64px; height: 64px; }
-        #score { font-size: 34px; } #mult { font-size: 20px; }
+        #score { font-size: 34px; } #mult { font-size: 17px; }
         #prog { top: calc(18px + var(--st)); }
         #prompt { top: calc(66px + var(--st)); font-size: 16px; }
         /* landscape phones: the coach sits top right under the score, out of the path */
@@ -347,7 +352,11 @@
         #resBest { font-size: 14px; padding: 1px 10px; }
         #pause .col { display: grid; grid-template-columns: 1fr 1fr; width: min(460px, 100%); } #pause .card { width: min(520px, 100%); padding: 14px 18px; } #pause .card .sub { margin: 4px 0 10px; }
         #abilityBtn { bottom: calc(20px + var(--sb)); width: 84px; height: 84px; }
-        #title .mid { margin-top: 0; } #logo span { font-size: 64px; } #logo .w2 span { font-size: 76px; } #title .tag { margin-top: 12px; }
+        #title { padding-top: calc(6px + var(--st)); padding-bottom: calc(4px + var(--sb)); }
+        #title .mid { margin-top: -2vh; } #logo span { font-size: min(64px, 15vh); } #logo .w2 span { font-size: min(76px, 18vh); } #title .tag { margin-top: 6px; font-size: 16px; }
+        #titleMascot { right: -34%; top: -38%; width: min(12vw, 19vh); }
+        #title .bot { margin-bottom: calc(8px + var(--sb)); gap: 6px; } #title .hint { display: none; } #titleStars { font-size: 14px; }
+        #play.big { font-size: 26px; padding: 6px 44px; min-height: 48px; }
         #results .card { padding: 10px 16px 12px; width: min(640px, 100%); } #resCat { display: none; } #resScore { font-size: 32px; margin: 0; } #resStars .ico { font-size: 32px; } #resStars .sl:nth-child(2) .ico { font-size: 40px; margin-top: -6px; }
         #resTitle { font-size: 24px; } #resChips { margin: 4px 0 2px; gap: 6px; }
         #pauseCat { display: none; }
@@ -398,6 +407,7 @@
       </div>
       <div class="bot">
         <button id="play" class="btn big">PLAY</button>
+        <div id="ugc-title" class="ugc-row"></div>
         <div id="titleStars" class="txt"></div>
         <div class="hint txt"><span class="kb">Press <kbd>SPACE</kbd> to start</span><span class="tc">Tap PLAY to start</span></div>
       </div>
@@ -409,7 +419,7 @@
         <h2 class="txt">Mochi's way home</h2>
         <div class="tot txt" id="selectStars"></div>
       </header>
-      <div id="mapWrap"><div id="trail"></div><div id="stageList"></div></div>
+      <div id="mapWrap"><div id="trail"></div><div id="stageList"></div><div id="ugc-select" class="ugc-row"></div></div>
     </section>
 
     <section id="pause" class="screen ui dim">
@@ -423,6 +433,7 @@
           <button id="pauseSettings" class="btn alt">SETTINGS</button>
           <button id="pauseQuit" class="btn alt">STAGES</button>
         </div>
+        <div id="ugc-pause" class="ugc-row"></div>
       </div>
     </section>
 
@@ -458,6 +469,7 @@
         <div id="resChips"></div>
         <div id="resBells"></div>
         <div id="resUnlock" class="hidden"></div>
+        <div id="ugc-results" class="ugc-row"></div>
         <div class="row" style="margin-top: 16px">
           <button id="resRetry" class="btn alt">RETRY</button>
           <button id="resNext" class="btn green">NEXT</button>

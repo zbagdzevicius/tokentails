@@ -6,9 +6,15 @@ import type { PathBuilder } from './path';
 import type { Track } from './track';
 
 // ---------- ids ----------
-export type StageId = 'meadow' | 'gorge' | 'sunset' | 'endless';
-/** Every stage in menu order. */
+export type StageId = 'meadow' | 'gorge' | 'sunset' | 'endless' | 'daily' | 'trail';
+/** Every stage in menu order (the stage select map). */
 export const STAGE_ORDER: readonly StageId[] = ['meadow', 'gorge', 'sunset', 'endless'];
+/**
+ * Iteration 2 (ITERATION2.md): stages that are not on the stage select map. 'daily' = a seeded endless run (the Daily
+ * Run, or an endless challenge link), registered by the SHARE lane; 'trail' = a player-made course from the Trail
+ * Maker, registered by the TRAILS lane. Both are endless-like for the save (no stars, no campaign unlocks).
+ */
+export const UGC_STAGES: readonly StageId[] = ['daily', 'trail'];
 /** The campaign stages (stars, 7 bells each). */
 export const CAMPAIGN: readonly StageId[] = ['meadow', 'gorge', 'sunset'];
 export type ThemeId = 'meadow' | 'gorge' | 'sunset';

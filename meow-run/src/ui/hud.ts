@@ -66,9 +66,11 @@ function spawnPop(text: string, cls: string, wx: number, wy: number, wz: number,
 const fishCombo = { pop: null as Pop | null, total: 0, n: 0, at: -1e9, side: 1 };
 
 let endlessBest = 0;
-/** meta-ui flow passes the saved endless best (for the distance pill) */
-export function setEndlessBest(d: number): void {
+let bestLabel = 'BEST';
+/** meta-ui flow passes the saved endless best (for the distance pill); the Daily Run passes today's best */
+export function setEndlessBest(d: number, label = 'BEST'): void {
   endlessBest = d;
+  bestLabel = label;
 }
 
 export function initHud(): void {
@@ -207,6 +209,8 @@ export function initHud(): void {
   });
   const syncMode = () => {
     body.classList.toggle('endless', G.endless);
+    // stages without bells (a player trail) hide the 0/7 bell row
+    body.classList.toggle('nobells', !G.endless && !game.stage?.bells);
     lastTicks = '';
     lastCp = -1;
     lastHearts = -1; // force a redraw: a new run starts with full hearts after a run that lost some
@@ -276,7 +280,7 @@ export function initHud(): void {
       if (d !== lastDist) {
         lastDist = d;
         distVal.textContent = fmtDist(d);
-        distBest.textContent = endlessBest > 0 ? (d > endlessBest ? 'NEW BEST!' : `BEST ${fmtDist(endlessBest)}`) : '';
+        distBest.textContent = endlessBest > 0 ? (d > endlessBest ? 'NEW BEST!' : `${bestLabel} ${fmtDist(endlessBest)}`) : '';
       }
     } else {
       const pct = `${(G.progress * 100).toFixed(2)}%`;

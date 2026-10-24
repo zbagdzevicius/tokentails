@@ -26,8 +26,16 @@ export const addStepHook = (fn: Hook) => add(stepHooks, fn);
 /** fn(dt, t) every rendered frame after camera + rig placement, before render (dt = 0 while paused). */
 export const addFrameHook = (fn: Hook) => add(frameHooks, fn);
 
-/** simulation clock (s), advances only while the run is live */
-export const clock = { sim: 0, frame: 0 };
+/** simulation clock (s), advances only while the run is live. scale = the slow-mo factor (1 = normal). */
+export const clock = { sim: 0, frame: 0, scale: 1 };
+
+/**
+ * Slow motion (iteration 2, STYLE lane): 0.1..1 scales the simulation and the frame dt (camera, rig, particles, hooks).
+ * Music and wall-clock UI are not scaled. The loop resets it to 1 whenever the run is not live (pause, results, title).
+ */
+export function setTimeScale(k: number): void {
+  clock.scale = Math.max(0.1, Math.min(1, Number.isFinite(k) ? k : 1));
+}
 
 let last = 0;
 let acc = 0;
@@ -39,8 +47,10 @@ function frame(now: number): void {
   const t = now / 1000;
   clock.frame++;
   const live = game.mode === 'play' || game.mode === 'finish';
+  if (!live) clock.scale = 1;
+  const scaled = raw * clock.scale;
   if (live) {
-    acc += raw;
+    acc += scaled;
     let n = 0;
     while (acc >= STEP && n++ < 14) {
       acc -= STEP;
@@ -55,7 +65,7 @@ function frame(now: number): void {
     if (acc > STEP) acc = 0; // fell too far behind: drop time rather than spiral
     sampleFps(raw);
   } else acc = 0;
-  const dt = game.mode === 'paused' ? 0 : raw;
+  const dt = game.mode === 'paused' ? 0 : scaled;
   frameSession(dt, t);
   updatePlayerVisual(dt, t);
   updateCamera(dt, t);

@@ -18,6 +18,9 @@ const PAL: Record<StageId, Pal> = {
   gorge: { sky: ['#5ec4ff', '#d8f4ff'], far: '#8fb8d8', hill: '#6cc35a', hill2: '#3f9a46', mesa: '#c98c56', mesaShade: '#9a6034', path: '#38b8e8', sun: '#fffbe0' },
   sunset: { sky: ['#6a5acd', '#ffb46b'], far: '#c48ab0', hill: '#b6c45a', hill2: '#7d9a3c', mesa: '#e88a5a', mesaShade: '#a8523a', path: '#f0c08a', sun: '#ffe08a' },
   endless: { sky: ['#3fa0ff', '#ffe0b0'], far: '#a0b8e0', hill: '#8ad460', hill2: '#56ad3a', mesa: '#d99a5c', mesaShade: '#a96a3a', path: '#e6bf86', sun: '#fff0a0' },
+  // iteration 2: the Daily Run (seeded endless) and player-made trails (not on the map; lanes may draw their own cards)
+  daily: { sky: ['#ff8fb8', '#ffe6a8'], far: '#c8a0d8', hill: '#8ad460', hill2: '#56ad3a', mesa: '#e89a6c', mesaShade: '#b0623e', path: '#e6bf86', sun: '#fff0a0' },
+  trail: { sky: ['#48d0c0', '#e0fff4'], far: '#98c8d8', hill: '#86d45a', hill2: '#4fa83c', mesa: '#d9a35c', mesaShade: '#a9733a', path: '#f0c890', sun: '#fff6c0' },
 };
 
 function rng(seed: number): () => number {
@@ -148,7 +151,7 @@ export function drawThumb(cv: HTMLCanvasElement, id: StageId): void {
     }
   }
   if (id === 'sunset') cottage(c, w * 0.52, h * 0.66, w * 0.035);
-  if (id === 'endless') {
+  if (id === 'endless' || id === 'daily') {
     c.strokeStyle = 'rgba(255,255,255,.9)';
     c.lineWidth = w * 0.03;
     c.lineCap = 'round';
