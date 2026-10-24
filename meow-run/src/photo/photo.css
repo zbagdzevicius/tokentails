@@ -1,0 +1,132 @@
+/* PHOTO lane: photo mode screen (#photo, from addScreen) and the preview overlay. Uses the :root tokens. */
+#photo { padding: 0; gap: 0; justify-content: space-between; align-items: stretch; color: var(--ink); background: none; }
+#photo .photo-layer { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+#photo .photo-layer:active { cursor: grabbing; }
+#photo .photo-dreamy, #photo .photo-frame, #photo .photo-flash { position: absolute; inset: 0; pointer-events: none; }
+#photo .photo-frame { width: 100%; height: 100%; }
+#photo .photo-stickers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#photo .photo-flash { background: #fff; opacity: 0; z-index: 5; }
+#photo .photo-flash.go { animation: photoFlash .5s ease-out both; }
+body.reduced #photo .photo-flash.go { animation: photoFlashSoft .25s ease-out both; }
+@keyframes photoFlash { 0% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes photoFlashSoft { 0% { opacity: .45; } 100% { opacity: 0; } }
+
+/* stickers */
+.photo-stk { position: absolute; pointer-events: auto; touch-action: none; cursor: move; border-radius: 14px; }
+.photo-stk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.photo-stk.sel { outline: 3px dashed rgba(255,247,234,.95); outline-offset: 3px; box-shadow: 0 0 0 2px rgba(42,28,20,.55); }
+#photo.photo-clean .photo-stk.sel, #photo.photo-shooting .photo-stk.sel { outline: none; box-shadow: none; }
+
+/* top bar */
+.photo-top { position: relative; z-index: 3; display: flex; align-items: center; gap: 10px;
+  padding: calc(12px + var(--st)) calc(12px + var(--sr)) 0 calc(12px + var(--sl)); pointer-events: none; }
+.photo-top > * { pointer-events: auto; }
+.photo-title { flex: 1; text-align: center; font-weight: 900; font-size: 22px; letter-spacing: .08em; color: var(--cream);
+  text-shadow: var(--o2), 0 3px 0 var(--ink); pointer-events: none; }
+.photo-top .iconbtn { width: 48px; height: 48px; }
+.photo-top .iconbtn svg { width: 26px; height: 26px; }
+
+/* bottom: shutter + tray */
+.photo-bottom { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 0 calc(10px + var(--sr)) calc(10px + var(--sb)) calc(10px + var(--sl)); pointer-events: none; }
+.photo-bottom > * { pointer-events: auto; }
+.photo-shutter { width: 80px; height: 80px; padding: 0; border-radius: 50%; border: 4px solid var(--ink);
+  background: radial-gradient(circle at 50% 50%, #fff 0 36%, var(--ink) 37% 41%, var(--orange2) 42% 62%, var(--orange) 63%);
+  box-shadow: 0 6px 0 var(--ink), 0 12px 26px rgba(0,0,0,.3); transition: transform .08s; }
+.photo-shutter:hover { transform: translateY(-2px) scale(1.03); }
+.photo-shutter:active { transform: translateY(4px) scale(.96); box-shadow: 0 2px 0 var(--ink); }
+.photo-tray { width: min(760px, 100%); background: var(--cream); border: 3.5px solid var(--ink); border-radius: 20px;
+  box-shadow: 0 6px 0 var(--ink), 0 14px 30px rgba(0,0,0,.25); padding: 8px 8px 6px; }
+.photo-panels { min-height: 64px; }
+.photo-panel { display: flex; flex-direction: column; gap: 6px; }
+.photo-row { display: flex; gap: 8px; align-items: center; }
+.photo-scroll { overflow-x: auto; overflow-y: hidden; padding: 2px 2px 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+.photo-tabs { display: flex; gap: 4px; border-top: 2px dashed rgba(42,28,20,.22); padding-top: 6px; }
+.photo-tab { flex: 1; min-height: 44px; min-width: 0; border: 0; border-radius: 12px; background: transparent; color: var(--ink2);
+  font-weight: 900; font-size: 13px; letter-spacing: .04em; padding: 0 4px; }
+.photo-tab[aria-selected="true"] { background: var(--orange); color: var(--cream); text-shadow: 0 2px 0 rgba(42,28,20,.45); box-shadow: inset 0 -3px 0 rgba(42,28,20,.3); }
+.photo-chip { flex: 0 0 auto; min-width: 60px; min-height: 52px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; color: var(--ink);
+  font-weight: 900; font-size: 12px; letter-spacing: .03em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 4px 10px; box-shadow: 0 3px 0 var(--ink); }
+.photo-chip:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.photo-chip.on { background: var(--gold2); }
+.photo-chip:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.photo-chip svg { width: 32px; height: 32px; }
+.photo-chip canvas { width: 60px; height: 38px; border-radius: 4px; display: block; }
+.photo-stkbtn { padding: 4px; min-width: 56px; }
+.photo-stkbtn svg { width: 40px; height: 40px; }
+.photo-sw { display: block; width: 46px; height: 28px; border-radius: 6px; border: 2px solid var(--ink);
+  background: radial-gradient(circle at 62% 64%, #ff9a3c 0 18%, transparent 19%), linear-gradient(160deg, #8fd3ff 0 45%, #7ccf5a 46% 70%, #c98a4a 71%); }
+.photo-sw-pixel { background: conic-gradient(from 90deg at 50% 50%, #8fd3ff 0 25%, #7ccf5a 0 50%, #c98a4a 0 75%, #ff9a3c 0) 0 0 / 50% 50%; }
+.photo-sw-dreamy { box-shadow: inset 0 0 10px 4px rgba(255,170,210,.75); }
+.photo-sliders { flex-wrap: wrap; gap: 6px 16px; }
+.photo-slider { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; font-weight: 900; font-size: 12px; letter-spacing: .04em; min-height: 44px; }
+.photo-slider input { flex: 1; min-width: 0; height: 32px; accent-color: var(--orange); }
+.photo-hint { font-size: 12px; font-weight: 700; color: var(--ink2); opacity: .8; text-align: center; }
+.photo-selrow { gap: 6px; flex-wrap: wrap; }
+.photo-count { font-weight: 900; font-size: 13px; min-width: 44px; text-align: center; color: var(--ink2); }
+.photo-mini { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 3px 0 var(--ink); }
+.photo-mini svg { width: 22px; height: 22px; }
+.photo-mini:disabled { opacity: .35; }
+
+/* hide-UI and the shutter moment */
+#photo.photo-clean .photo-bottom, #photo.photo-clean .photo-title, #photo.photo-clean .photo-back, #photo.photo-clean .photo-dice,
+#photo.photo-shooting .photo-bottom, #photo.photo-shooting .photo-top { visibility: hidden; }
+#photo.photo-clean .photo-eye { opacity: .6; }
+
+/* preview overlay */
+.photo-preview .card { width: min(580px, 100%); padding: 16px 16px 18px; }
+.photo-preview h2 { font-size: 26px; margin-bottom: 10px; }
+.photo-print { background: #fff; padding: 8px; border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 5px 0 var(--ink);
+  transform: rotate(-1.2deg); animation: photoPrint .45s cubic-bezier(.2,1.4,.4,1) both; margin: 0 auto; width: fit-content; max-width: 100%; }
+.photo-print img { display: block; width: auto; height: auto; max-width: 100%; max-height: min(56vh, 520px); border-radius: 4px; }
+/* the exported shape (FRAME tab) */
+.photo-shapes { flex-wrap: wrap; gap: 6px; padding: 2px 2px 6px; }
+.photo-shape { min-height: 44px; min-width: 64px; font-size: 13px; }
+body.reduced .photo-print { animation: none; }
+@keyframes photoPrint { from { transform: translateY(24px) rotate(4deg) scale(.9); opacity: 0; } }
+.photo-sub { margin: 12px 0 10px; font-weight: 800; color: var(--ink2); }
+.photo-actions .btn { display: inline-flex; align-items: center; }
+
+/* landscape: the shutter sits on the right edge, clear of Mochi in the middle of the frame */
+@media (min-aspect-ratio: 1/1) and (min-width: 601px) {
+  .photo-shutter { position: fixed; right: calc(22px + var(--sr)); top: 50%; margin-top: -40px; }
+  .photo-shutter:hover { transform: translateY(-2px) scale(1.03); }
+}
+@media (max-width: 600px) {
+  .photo-title { font-size: 18px; }
+  .photo-tab { font-size: 11px; letter-spacing: 0; }
+  .photo-shutter { width: 72px; height: 72px; }
+  .photo-chip { min-width: 56px; padding: 4px 8px; font-size: 11px; }
+  .photo-preview .card { padding: 14px 12px 16px; }
+  .photo-print img { max-height: 52vh; }
+  .photo-actions { gap: 8px; }
+  .photo-actions .btn { font-size: 16px; padding: 8px 14px; }
+}
+@media (max-height: 520px) {
+  .photo-bottom { gap: 6px; }
+  .photo-shutter { width: 60px; height: 60px; }
+  .photo-hint { display: none; }
+}
+
+/* landscape phones: the tray is a right-hand column with the shutter on top, so Mochi (framed in the free area on the
+   left) is never behind it; the preview keeps its buttons on screen */
+@media (max-height: 500px) and (orientation: landscape) {
+  #photo .photo-top { padding-right: calc(min(330px, 44vw) + 12px + var(--sr)); }
+  #photo .photo-bottom { position: absolute; right: 0; top: 0; bottom: 0; width: min(330px, 44vw); justify-content: center; gap: 8px;
+    padding: calc(8px + var(--st)) calc(8px + var(--sr)) calc(8px + var(--sb)) 0; }
+  #photo .photo-shutter { position: static; margin: 0 auto; width: 58px; height: 58px; flex: none; }
+  #photo .photo-tray { width: 100%; max-height: calc(100dvh - 90px - var(--st) - var(--sb)); overflow-y: auto; padding: 6px 6px 4px; }
+  #photo .photo-panels { min-height: 0; }
+  #photo .photo-chip { min-height: 46px; }
+  #photo .photo-tab { min-height: 44px; font-size: 10.5px; padding: 0 2px; }
+  /* the preview: the print on the left, the words and SHARE / SAVE / BACK on the right */
+  .photo-preview .card { padding: 10px 14px 12px; width: min(720px, 100%); display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px;
+    align-items: center; align-content: center; }
+  .photo-preview .card > .photo-print { grid-column: 1; grid-row: 1 / span 3; max-width: 58vw; }
+  .photo-preview .card > :not(.photo-print) { grid-column: 2; }
+  .photo-preview h2 { font-size: 22px; margin-bottom: 0; }
+  .photo-print img { max-height: calc(100dvh - 70px - var(--st) - var(--sb)); }
+  .photo-sub { margin: 4px 0; }
+  .photo-actions { flex-wrap: wrap; gap: 8px; }
+}

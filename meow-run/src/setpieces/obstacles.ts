@@ -8,6 +8,7 @@ import { placeOnTrack } from '../core/place';
 import { P, soak } from '../core/player';
 import { setPieceTypes } from '../core/registry';
 import type { Action, SetPieceType } from '../core/types';
+import { bambooExtent } from './layout';
 import { bannerMat, GEO, MAT, mesh, num, rockGeo, signMat, str, tickShared, usePuddle } from './kit';
 
 const tmp = new THREE.Vector3();
@@ -142,6 +143,13 @@ const puddle: SetPieceType = {
   },
 };
 
+function extraStalk(ctx: Parameters<SetPieceType['create']>[0], s: number, x: number, k: number): THREE.Mesh {
+  const m = mesh(ctx, GEO.bamboo(), MAT.vc(), s + Math.sin(k * 2.3) * 0.3, x, 0, true);
+  m.scale.set(1.7, 0.95 + (k % 3) * 0.12, 1.7);
+  m.userData.ph = k * 1.3 + s;
+  m.userData.sy = m.scale.y;
+  return m;
+}
 /** bamboo cluster: slalom between them. params n (stalks), spread (u) */
 const bamboo: SetPieceType = {
   id: 'bamboo',
@@ -159,7 +167,14 @@ const bamboo: SetPieceType = {
       m.userData.sy = m.scale.y;
       stalks.push(m);
     }
-    ctx.addCollider({ s, x, y: 0, hs: 0.45, hx: spread / 2 + 0.25, h: 8, kind: 'hurt', label: 'bamboo' });
+    // a sliver to the path edge would look passable but not be: the gate then reaches past the edge, with stalks
+    const [x0, x1] = bambooExtent(x, spread, ctx.track.widthAt(s));
+    const lo = x - spread / 2;
+    const hi = x + spread / 2;
+    let k = n;
+    for (let e = hi + 0.6; e < x1 - 0.35; e += 0.6) stalks.push(extraStalk(ctx, s, e, k++));
+    for (let e = lo - 0.6; e > x0 + 0.35; e -= 0.6) stalks.push(extraStalk(ctx, s, e, k++));
+    ctx.addCollider({ s, x: (x0 + x1) / 2, y: 0, hs: 0.45, hx: (x1 - x0) / 2, h: 8, kind: 'hurt', label: 'bamboo' });
     return {
       end: s + 1,
       update(dt, t) {

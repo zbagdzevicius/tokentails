@@ -21,3 +21,13 @@ export function speedLineStrength(p: Readonly<SpeedState>, reducedMotion: boolea
   s = Math.min(1, s);
   return reducedMotion ? s * 0.35 : s;
 }
+
+/** STYLE: extra speed-line strength from the combo tier (0..6): +0.25 x tier / 6 (softened for reduced motion). */
+export function styleLineBoost(tier: number, reducedMotion: boolean): number {
+  const t = Math.max(0, Math.min(6, Number.isFinite(tier) ? tier : 0));
+  const s = (0.25 * t) / 6;
+  return reducedMotion ? s * 0.35 : s;
+}
+/** combo tier 3 (CLAW-SOME!) and up turns the lines gold */
+export const GOLD_TIER = 3;
+export const isGoldTier = (tier: number): boolean => tier >= GOLD_TIER;

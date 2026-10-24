@@ -34,6 +34,11 @@ let shakeAmt = 0;
 export function fovKick(deg: number): void {
   if (!prefs.reducedMotion) kick = Math.max(kick, deg);
 }
+let punch = 0;
+/** a quick punch-in (FOV degrees narrower, decaying): the slow-mo beat */
+export function fovPunch(deg: number): void {
+  if (!prefs.reducedMotion) punch = Math.max(punch, deg);
+}
 /** screen shake 0..1 */
 export function shake(amount: number): void {
   if (!prefs.reducedMotion) shakeAmt = Math.max(shakeAmt, amount * prefs.shake);
@@ -152,9 +157,10 @@ export function updateCamera(dt: number, t: number): void {
     shakeAmt = Math.max(0, shakeAmt - dt * 2.5);
   }
   kick = Math.max(0, kick - dt * 10);
+  punch = Math.max(0, punch - dt * 5);
   const speedFov = prefs.reducedMotion ? 0 : Math.max(0, P.speed - 18) * CAM.fovPerSpeed;
   // portrait: a taller vertical FOV keeps more of the path's width in view
-  const fov = (CAM.baseFov + speedFov + kick) * (portrait ? 1.38 : 1);
+  const fov = (CAM.baseFov + speedFov + kick - punch) * (portrait ? 1.38 : 1);
   if (Math.abs(camera.fov - fov) > 0.01) {
     camera.fov = fov;
     camera.updateProjectionMatrix();

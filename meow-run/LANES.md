@@ -399,6 +399,7 @@ Meta-ui emits `setPiece { id: 'ending', phase: 'start' | 'end' }` around the cut
 | Smoke | `npm run smoke` (dev server running): the desktop pass at 1280x720, then the phone pass at 390x844. Each pass runs the fast path, then the full journey (about 8 min each) |
 | Fast smoke | `npm run smoke:fast` (dev shortcuts, invincibility allowed; about 1.5 min per pass) |
 | Journey | `npm run smoke:journey`: the whole campaign, reload, endless, played by `shots/bot.mjs` through real input only |
+| UGC smoke | `npm run smoke:ugc` (both viewports): every iteration 2 entry with real clicks (`shots/ugc-smoke.mjs`); `npm run smoke` runs it as its third step |
 
 ### Integration notes
 
@@ -424,3 +425,29 @@ The bot in the smoke reads `colliders()` and `hud.prompt`:
 - Low hurt colliders get a jump, and high ones (`y > 0.5`) get a slide.
 - An `ability` prompt gets an ability press.
 - Keep that convention: hazards that must be slid under start above 0.5, and anything needing E shows an `ability` prompt.
+
+## Iteration 2 (UGC): ownership and contract summary
+
+The full plan, lane briefs and acceptance checks are in `ITERATION2.md`. This is the summary that stays true after integration.
+
+```
+INTEGRATOR  src/main.ts, src/core/**, src/ugc/**, src/meta/**, index.html, src/ui/* (except portrait.ts),
+            src/audio/**, src/world/**, shots/smoke.mjs, shots/bot.mjs, shots/ugc-smoke.mjs, docs, package.json
+CLIP        src/clip/**          rolling MediaRecorder replay, clip re-encode + sheet, Replays settings rows
+PHOTO       src/photo/**         photo mode: orbit camera, filters, stickers, frames, poses, PNG export
+SHARE       src/share/**         share card, ?c= challenge links, ghost record/playback, the Daily Run stage
+WARDROBE    src/wardrobe/**, src/cat/**, src/ui/portrait.ts   looks, unlocks, the Wardrobe screen, Mochi rig
+STYLE       src/style/**, src/juice/**                        tricks, combo chain, slow motion, finish flourish
+TRAILS      src/trails/**, src/stages/**, src/setpieces/**    block library, Trail Maker, ?t= trail links
+```
+
+- **Entry:** `registerUgc()` (`src/ugc/index.ts`, called from `registerMetaUi()` after `prepareStage('meadow')`) starts the lanes in this order: wardrobe, style, trails, share, clip, photo. A lane that throws is logged and the others still start.
+- **Cross-lane calls** go only through the `ugc` service object (`src/ugc/contract.ts`): `currentLook`, `buildKitten`, `drawLook` (WARDROBE; `drawLook(ctx, look, x, y, size)` draws into the square whose top-left is `x, y`), `playerName`, `askName`, `challengeUrl`, `activeChallenge` (SHARE), `loadTrail`, `currentTrailCode` (TRAILS), `styleSummary` (STYLE), `clipReady`, `openClip` (CLIP), `openPhoto` (PHOTO). Every service has a safe default. The only shared import between lanes is the pure look codec `src/wardrobe/look.ts`.
+- **UI:** `src/ugc/hub.ts` provides `addButton` (slots `title`, `select`, `pause`, `results`; ids and order in `ITERATION2.md` 4), `addScreen` (`wardrobe`, `photo`, `trails`), `openOverlay`, `toast`, `onScreen` and `refreshHub`. Lanes never edit `index.html` or `flow.ts`.
+- **Save:** version 2. Each lane writes only its own fields through `setSave` (table in `ITERATION2.md` 4.5).
+- **Stages:** `daily` (index 90, SHARE) and `trail` (index 91, TRAILS) are registered by the lanes, are not on the map and start with `play(id)`. The endless generator is deterministic: the same rng sequence and index order give the same chunks, and index 0 resets its state.
+- **Time scale:** only STYLE calls `setTimeScale`; it resets on pause, stageEnd, quit and respawn.
+- **Camera override:** one owner at a time: PHOTO (photo screen), STYLE (finish run-out only, released before 2.2 s), WARDROBE (wardrobe screen), the cutscene (after stageEnd).
+- **HUD:** `body.nobells` hides the bell row on stages with `bells === 0` (trails); `body.endless` covers endless and the Daily Run.
+- **Links:** `?c=` (SHARE) wins over `?t=` (TRAILS); both are cleared after reading, ignore stage locks and treat names as untrusted text.
+- **Test hooks:** `window.__meowUgc.{clip, photo, share, wardrobe, style, trails}` next to the frozen `window.__meow`.

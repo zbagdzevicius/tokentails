@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "node shots/smoke.mjs && node shots/smoke.mjs 390 844",
+    "smoke": "node shots/smoke.mjs && node shots/smoke.mjs 390 844 && npm run smoke:ugc",
+    "smoke:ugc": "node shots/ugc-smoke.mjs && node shots/ugc-smoke.mjs 390 844",
     "smoke:fast": "SMOKE=fast node shots/smoke.mjs && SMOKE=fast node shots/smoke.mjs 390 844",
     "smoke:journey": "SMOKE=journey node shots/smoke.mjs && SMOKE=journey node shots/smoke.mjs 390 844",
     "trailer": "node tools/trailer/capture.mjs && bash tools/trailer/edit.sh"

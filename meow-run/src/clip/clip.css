@@ -1,0 +1,61 @@
+/* CLIP lane: the clip sheet and the Replays settings rows. Reuses .card, .btn, .seg, .tog, .row and the :root tokens. */
+.clip-sheet { padding: calc(12px + var(--st)) calc(12px + var(--sr)) calc(12px + var(--sb)) calc(12px + var(--sl)); }
+.clip-sheet .clip-card { width: min(560px, 100%); padding: 16px 18px 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.clip-side { display: contents; }
+#clipShare { min-width: 9.5em; }
+.clip-head { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.clip-head h2 { font-size: 26px; }
+.clip-ico { display: inline-grid; width: 34px; height: 34px; transform: rotate(-8deg); }
+.clip-ico svg { width: 34px; height: 34px; }
+.clip-stage { position: relative; flex: none; max-width: 100%; background: var(--ink); border: 4px solid var(--ink); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 6px 0 var(--ink), 0 0 0 3px var(--gold) inset; }
+.clip-stage.a169 { width: 100%; aspect-ratio: 16 / 9; max-height: 44vh; }
+.clip-stage.a916 { height: min(46vh, 500px); aspect-ratio: 9 / 16; }
+.clip-stage canvas, .clip-stage video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--ink); }
+.clip-rec { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  background: rgba(42,28,20,.75); color: var(--cream); font-size: 12px; font-weight: 900; letter-spacing: .08em; pointer-events: none; }
+.clip-rec i { width: 9px; height: 9px; border-radius: 50%; background: var(--rose); animation: clipBlink 1s steps(2, start) infinite; }
+@keyframes clipBlink { to { visibility: hidden; } }
+body.reduced .clip-rec i { animation: none; }
+.clip-prog { width: 100%; }
+.clip-bar { height: 16px; border: 3px solid var(--ink); border-radius: 10px; background: #f1e2c8; overflow: hidden; }
+.clip-bar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(-45deg, var(--orange) 0 10px, var(--orange2) 10px 20px);
+  background-size: 28.3px 100%; transition: width .25s linear; }
+/* while rendering the stripes march and the bar breathes, so a long wait never looks stuck */
+.clip-bar.busy i { animation: clipMarch .6s linear infinite; }
+.clip-bar.busy { animation: clipPulse 1.2s ease-in-out infinite; }
+@keyframes clipMarch { to { background-position: 28.3px 0; } }
+@keyframes clipPulse { 50% { box-shadow: 0 0 0 4px rgba(255,138,42,.35); } }
+body.reduced .clip-bar.busy, body.reduced .clip-bar.busy i { animation: none; }
+body.reduced .clip-bar i { transition: none; }
+.clip-msg { margin-top: 6px; font-size: 15px; font-weight: 900; color: var(--ink2); text-align: center; min-height: 1.3em; }
+.clip-aspect.seg { width: min(240px, 100%); }
+.clip-aspect button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
+.clip-shape { display: inline-block; border: 2.5px solid currentColor; border-radius: 3px; }
+.clip-shape.wide { width: 20px; height: 12px; }
+.clip-shape.tall { width: 11px; height: 19px; }
+.clip-actions { gap: 10px; }
+.clip-actions .btn[disabled] { opacity: .55; filter: grayscale(.4); transform: none; cursor: default; }
+@media (max-width: 600px) {
+  .clip-sheet .clip-card { padding: 12px 12px 14px; gap: 10px; }
+  .clip-head h2 { font-size: 22px; }
+  .clip-stage.a916 { height: min(48vh, 440px); }
+  .clip-actions .btn.small { padding: 6px 12px; }
+}
+@media (max-height: 520px) {
+  .clip-stage.a169 { max-height: 40vh; }
+  .clip-stage.a916 { height: 52vh; }
+  .clip-head { display: none; }
+}
+/* landscape phones: the preview on the left, progress, shape and buttons in a column on the right; the sheet scrolls
+   as a backstop so nothing is ever cut */
+@media (max-height: 500px) and (orientation: landscape) {
+  .clip-sheet { overflow-y: auto; align-items: flex-start; }
+  .clip-sheet .clip-card { width: min(760px, 100%); max-height: none; flex-direction: row; align-items: center; gap: 14px; padding: 10px 12px; margin: auto; }
+  .clip-stage.a916 { height: min(78dvh, 300px); }
+  .clip-stage.a169 { width: min(46vw, 360px); max-height: none; }
+  .clip-side { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; gap: 8px; }
+  .clip-aspect.seg { flex: none; margin: 0; }
+  .clip-actions { flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .clip-msg { font-size: 13px; }
+}

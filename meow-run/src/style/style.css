@@ -1,0 +1,117 @@
+/* STYLE lane HUD (src/style/hudcombo.ts). Every element is a .hud child with pointer-events: none. Prefix style-. */
+.style-combo, .style-stamp, .style-pops, .style-vig { pointer-events: none; }
+
+/* ---------------------------------------------------------------- combo meter: right edge, under the score with a gap.
+   A tier-coloured pill (ink number inside) so it never reads like the score or the multiplier. */
+.style-combo { --style-c: #fff7ea; position: absolute; right: calc(18px + var(--sr)); top: calc(104px + var(--st)); width: 178px; text-align: right;
+  opacity: 0; transform: translateX(24px); transition: opacity .18s, transform .22s cubic-bezier(.2,1.6,.4,1); font-weight: 900; font-style: italic; }
+.style-combo.on { opacity: 1; transform: none; }
+.style-c-row { display: inline-flex; justify-content: flex-end; align-items: center; gap: 6px; line-height: 1; padding: 3px 12px 3px 11px;
+  background: var(--style-c); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); transform: rotate(-2deg); transition: background .2s; }
+.style-c-lbl { font-size: 13px; letter-spacing: .06em; color: var(--ink); text-shadow: none; }
+.style-c-n { display: inline-block; min-width: 1.2em; text-align: center; font-size: 27px; color: var(--ink); text-shadow: 0 2px 0 rgba(255,255,255,.45); transform-origin: 50% 70%; }
+.style-c-n.bump { animation: style-bump .28s cubic-bezier(.2,1.8,.4,1); }
+.style-c-tier { margin-top: 2px; font-size: 16px; color: var(--style-c); text-shadow: var(--o2); white-space: nowrap; min-height: 19px; }
+.style-c-bar { position: relative; margin: 4px 0 0 auto; width: 100%; height: 11px; border: 3px solid var(--ink); border-radius: 8px; background: rgba(36,50,74,.85); overflow: hidden; box-shadow: 0 3px 0 rgba(42,28,20,.6); }
+.style-c-bar i { position: absolute; inset: 0; background: linear-gradient(#fff, var(--style-c) 55%); transform-origin: 0 50%; transform: scaleX(0); }
+.style-combo.held .style-c-bar { box-shadow: 0 0 10px 2px var(--style-c), 0 3px 0 rgba(42,28,20,.6); }
+.style-combo[data-tier="6"] .style-c-bar i { background: linear-gradient(90deg, #ff4f7b, #ffc21a, #7ccf5a, #4cc3ff, #c77dff); }
+.style-combo.broken { --style-c: #ff6b8f; opacity: 1; transform: none; }
+.style-combo.broken .style-c-bar i { transform: scaleX(0) !important; }
+.style-combo.shake { animation: style-shake .45s ease-out; }
+@keyframes style-bump { 0% { transform: scale(1.45); } }
+@keyframes style-shake { 0%, 100% { translate: 0; } 20% { translate: -7px 0; } 40% { translate: 6px 0; } 60% { translate: -4px 0; } 80% { translate: 2px 0; } }
+
+/* ---------------------------------------------------------------- tier stamp: upper centre, above the callouts */
+.style-stamp { --style-c: #ffc21a; --style-rot: -4deg; position: absolute; left: 50%; top: calc(100px + var(--st)); display: grid; place-items: center; opacity: 0;
+  transform: translateX(-50%); }
+.style-stamp.on { animation: style-stamp 1.15s ease-out forwards; }
+/* a prompt is up: the stamp drops below it */
+.style-stamp.low { top: calc(150px + var(--st)); }
+.style-s-txt { position: relative; display: block; padding: 1px 20px 4px; font-size: clamp(34px, 3.8vw, 48px); line-height: 1.05; font-weight: 900; font-style: italic; white-space: nowrap;
+  color: var(--style-c); letter-spacing: .01em; transform: rotate(var(--style-rot));
+  text-shadow: 4px 0 0 var(--ink), -4px 0 0 var(--ink), 0 4px 0 var(--ink), 0 -4px 0 var(--ink), 3px 3px 0 var(--ink), -3px -3px 0 var(--ink), 3px -3px 0 var(--ink), -3px 3px 0 var(--ink), 0 9px 0 var(--ink); }
+.style-s-txt::before { content: ''; position: absolute; z-index: -1; inset: -8% -4%; background: var(--ink); opacity: .9; border-radius: 10px;
+  clip-path: polygon(3% 12%, 97% 0%, 100% 86%, 6% 100%); }
+.style-s-txt::after { content: ''; position: absolute; z-index: -1; inset: -2% 1%; background: linear-gradient(100deg, transparent 0 30%, rgba(255,255,255,.22) 30% 38%, transparent 38%), var(--style-c);
+  opacity: .32; clip-path: polygon(3% 12%, 97% 0%, 100% 86%, 6% 100%); }
+.style-s-sub { margin-top: 6px; font-size: 17px; font-weight: 900; font-style: italic; color: var(--cream); text-shadow: var(--o2); transform: rotate(var(--style-rot)); white-space: nowrap; }
+.style-s-sub:empty { display: none; }
+.style-stamp[data-kind="rank"] .style-s-txt { font-size: clamp(40px, 4.4vw, 56px); }
+.style-stamp[data-kind="rank"].on { animation-duration: 1.9s; }
+@keyframes style-stamp {
+  0% { opacity: 0; transform: translateX(-50%) scale(2.6); }
+  10% { opacity: 1; transform: translateX(-50%) scale(.9); }
+  18% { transform: translateX(-50%) scale(1.06); }
+  26% { transform: translateX(-50%) scale(1); }
+  80% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(.94); }
+}
+
+/* ---------------------------------------------------------------- trick popups: under the meter */
+.style-pops { position: absolute; right: calc(18px + var(--sr)); top: calc(186px + var(--st)); width: 300px; height: 70px; }
+.style-pop { --style-row: 0; position: absolute; right: 0; top: calc(var(--style-row) * 23px); font-size: 19px; font-weight: 900; font-style: italic; white-space: nowrap; color: #fff7ea;
+  text-shadow: var(--o2), 0 3px 0 var(--ink); opacity: 0; transition: top .15s; }
+.style-pop[data-tone="trick"] { color: #ffe066; }
+.style-pop[data-tone="bank"] { color: #9fe8ff; }
+.style-pop[data-tone="style"] { color: #b8f59a; }
+.style-pop[data-tone="bad"] { color: #ff9ab3; }
+.style-pop.on { animation: style-pop 1.5s ease-out forwards; }
+@keyframes style-pop { 0% { opacity: 0; transform: translateX(30px) scale(1.3); } 12% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+
+/* ---------------------------------------------------------------- slow-mo vignette */
+/* bullet time: a blue-violet vignette, desaturated edges and faint radial streaks */
+.style-vig { position: absolute; inset: 0; opacity: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 55%, rgba(255,255,255,.0) 0deg 5deg, rgba(200,220,255,.12) 5deg 6deg),
+    radial-gradient(ellipse at center, transparent 34%, rgba(70,120,255,.26) 58%, rgba(36,30,90,.72));
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 30%, #000 70%); mask-image: radial-gradient(ellipse at center, transparent 30%, #000 70%);
+  backdrop-filter: saturate(.35) brightness(.92); -webkit-backdrop-filter: saturate(.35) brightness(.92); }
+.style-vig.on { animation: style-vig .62s ease-out; }
+@keyframes style-vig { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------------------------------------------------------------- reduced motion: fades only */
+body.reduced .style-stamp.on { animation-name: style-fade; }
+body.reduced .style-pop.on { animation-name: style-fade; }
+body.reduced .style-c-n.bump, body.reduced .style-combo.shake { animation: none; }
+body.reduced .style-vig { display: none; }
+body.reduced .style-combo { transition: opacity .18s; transform: none; }
+@keyframes style-fade { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------------------------------------------------------------- phones (portrait): stamp between #prompt and #callouts,
+   meter under the portrait spot and above the callouts, popups to the left of the meter */
+@media (max-width: 600px) {
+  .style-combo { right: calc(12px + var(--sr)); top: calc(212px + var(--st)); width: 116px; }
+  .style-c-row { padding: 2px 9px 2px 8px; border-width: 2.5px; gap: 4px; }
+  .style-c-lbl { font-size: 10px; } .style-c-n { font-size: 21px; } .style-c-tier { font-size: 12px; min-height: 14px; }
+  .style-c-bar { height: 9px; border-width: 2.5px; }
+  /* nudged left and capped so the longest stamp clears the reaction portrait (top right, under the score) */
+  .style-stamp { top: calc(146px + var(--st)); left: calc(50% - 34px); }
+  .style-stamp.low { top: calc(176px + var(--st)); }
+  .style-s-txt { font-size: min(32px, 7.6vw); padding: 1px 12px 4px; }
+  .style-s-sub { font-size: 14px; margin-top: 3px; }
+  .style-stamp[data-kind="rank"] .style-s-txt { font-size: 40px; }
+  .style-pops { right: calc(136px + var(--sr)); top: calc(214px + var(--st)); width: 230px; height: 46px; }
+  .style-pop { font-size: 14px; top: calc(var(--style-row) * 17px); }
+}
+/* landscape phones: everything tighter, the stamp right under the prompt */
+@media (max-height: 500px) and (orientation: landscape) {
+  .style-combo { top: calc(82px + var(--st)); width: 140px; }
+  .style-c-row { padding: 2px 9px 2px 8px; border-width: 2.5px; }
+  .style-c-n { font-size: 20px; } .style-c-lbl { font-size: 10px; } .style-c-tier { font-size: 12px; min-height: 14px; }
+  .style-stamp { top: calc(100px + var(--st)); }
+  .style-stamp.low { top: calc(112px + var(--st)); }
+  /* the tutorial coach card sits top right here too: it wins while it shows */
+  body:has(#coach:not(.hidden)) .style-combo { visibility: hidden; }
+  .style-s-txt { font-size: 32px; }
+  .style-stamp[data-kind="rank"] .style-s-txt { font-size: 38px; }
+  .style-pops { top: calc(150px + var(--st)); }
+  .style-pop { font-size: 15px; top: calc(var(--style-row) * 18px); }
+}
+
+/* ---------------------------------------------------------------- results: the style row (RANK A - BEST COMBO 90 - 8 TRICKS) */
+.style-res { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-top: 10px; font-weight: 900; font-size: 14px; letter-spacing: .03em; }
+.style-res > span { display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 11px; border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); color: var(--ink2); }
+.style-res b { font-size: 17px; color: var(--ink); }
+.style-res .rank { background: #ffe066; }
+.style-res .rank.rS { background: linear-gradient(90deg, #ffb3c8, #ffe066, #b8f59a, #9fe8ff); }
+@media (max-width: 380px) { .style-res { font-size: 12px; } .style-res b { font-size: 15px; } .style-res > span { padding: 3px 8px; } }

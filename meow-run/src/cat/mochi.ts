@@ -3,6 +3,8 @@
 // (local +z forward, +y up, +x = runner's left); animate() drives every pose from the PlayerView:
 // run (bound gait), jump, pounce somersault, slide, landing squash, the tail-vault pole, claws on walls,
 // sitting on the puff cloud, surfing the leaf, hit, wet shake, and a victory wave at the finish.
+// Iteration 2 (WARDROBE lane): every rig wears a Look (fur colour + pattern textures, eyes, a hat, a scarf, a trail
+// FX), holds photo poses (setPose, ITERATION2.md contract) and can be a translucent ghost (challenge links).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { getQuality } from '../core/engine';
@@ -10,9 +12,17 @@ import { events } from '../core/events';
 import { P } from '../core/player';
 import { game } from '../core/state';
 import type { KittenRig, PlayerView } from '../core/types';
+import { ugc, type PoseId } from '../ugc/contract';
+import { furColors, itemAt, itemId, patternId } from '../wardrobe/catalog';
+import { DEFAULT_LOOK, type Look } from '../wardrobe/look';
+import { normalizeLook } from '../wardrobe/unlocks';
 import { approach, easeOut, flipAngle, gait, hump, newGait, poleCurve, smooth, springWobble, strideRate, tailCurve, type TailPose } from './anim';
+import { buildHat, buildScarf, type Dress } from './dress';
+import { acquireFurTex, furTexKey, releaseFurTex } from './furtex';
+import { CH, HIP_Y, poseTargets, restPose } from './poses';
 import { buildLeaf, buildPuffCloud } from './puff';
-import { canvasTex, flat, geo, outline, part, prng, setOutlines, SPHERE, SPHERE_LO, toon } from './toon';
+import { canvasTex, flat, geo, outline, part, setOutlines, SPHERE, SPHERE_LO, toon, toonRamp } from './toon';
+import { TrailEmitter, type TrailMode } from './trailfx';
 
 export const MOCHI = {
   orange: 0xf7953a,
@@ -22,71 +32,11 @@ export const MOCHI = {
   nose: 0xff7a92,
   eye: 0x2a1a14,
 };
-const HIP_Y = 0.42;
 const TAIL_N = 16;
 const TAIL_BASE: [number, number, number] = [0, 0.1, -0.31];
-
-function paintFur(g: CanvasRenderingContext2D, w: number, h: number): void {
-  const R = prng(7);
-  g.fillStyle = '#f7953a';
-  g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 2600; i++) {
-    g.fillStyle = R() < 0.5 ? 'rgba(255,200,120,0.22)' : 'rgba(190,90,20,0.14)';
-    g.fillRect(R() * w, R() * h, 2, 5);
-  }
-  // bold wavy tabby stripes on the back half (top of the sphere), thinner toward the sides
-  g.fillStyle = '#cf5f1c';
-  for (let s = 0; s < 12; s++) {
-    const x0 = (s / 12) * w + R() * 8;
-    const sw = 9 + R() * 7;
-    g.beginPath();
-    g.moveTo(x0, 0);
-    for (let y = 0; y <= h * 0.62; y += 10) g.lineTo(x0 + Math.sin(y * 0.06 + s) * 7, y);
-    for (let y = Math.floor(h * 0.62); y >= 0; y -= 10) g.lineTo(x0 + sw * (1 - y / (h * 0.75)) + Math.sin(y * 0.06 + s) * 7, y);
-    g.closePath();
-    g.fill();
-  }
-  // white tummy band at the bottom
-  const grad = g.createLinearGradient(0, h * 0.62, 0, h * 0.78);
-  grad.addColorStop(0, 'rgba(255,247,236,0)');
-  grad.addColorStop(1, 'rgba(255,247,236,1)');
-  g.fillStyle = grad;
-  g.fillRect(0, h * 0.62, w, h * 0.38);
-}
-
-function paintHead(g: CanvasRenderingContext2D, w: number, h: number): void {
-  const R = prng(9);
-  g.fillStyle = '#f7953a';
-  g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 1800; i++) {
-    g.fillStyle = R() < 0.5 ? 'rgba(255,200,120,0.22)' : 'rgba(190,90,20,0.12)';
-    g.fillRect(R() * w, R() * h, 2, 5);
-  }
-  g.fillStyle = '#cf5f1c';
-  // the tabby "M" on the forehead (u = 0.25 is the front of a three.js sphere)
-  const stripe = (cx: number, y0: number, y1: number, wd: number) => {
-    g.beginPath();
-    g.moveTo(cx - wd / 2, y0);
-    g.quadraticCurveTo(cx + wd * 0.4, (y0 + y1) / 2, cx, y1);
-    g.quadraticCurveTo(cx + wd * 0.9, (y0 + y1) / 2, cx + wd / 2, y0);
-    g.closePath();
-    g.fill();
-  };
-  for (let i = -1; i <= 1; i++) stripe(w * 0.25 + i * 20, h * 0.04, h * (i === 0 ? 0.36 : 0.3), 12);
-  // bold stripes over the crown and down the back of the head (what the chase camera sees)
-  for (let i = -3; i <= 3; i++) stripe(w * 0.75 + i * 26, 0, h * (0.52 - Math.abs(i) * 0.04), 16);
-  for (const side of [-1, 1]) {
-    // cheek stripes
-    for (let k = 0; k < 2; k++) {
-      g.fillRect(w * 0.25 + side * (70 + k * 14) - 4, h * (0.45 + k * 0.07), 26, 5);
-    }
-  }
-  const grad = g.createLinearGradient(0, h * 0.62, 0, h * 0.78);
-  grad.addColorStop(0, 'rgba(255,247,236,0)');
-  grad.addColorStop(1, 'rgba(255,247,236,1)');
-  g.fillStyle = grad;
-  g.fillRect(0, h * 0.62, w, h * 0.38);
-}
+const GHOST_OPACITY = 0.38;
+/** rig.state names of the held poses (no per-frame string building) */
+const POSE_STATE: Record<PoseId, string> = { sit: 'pose-sit', wave: 'pose-wave', loaf: 'pose-loaf', stretch: 'pose-stretch', leap: 'pose-leap', proud: 'pose-proud' };
 
 function paintBlob(g: CanvasRenderingContext2D, w: number, h: number): void {
   const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -102,39 +52,18 @@ interface Leg {
   knee: THREE.Group;
   claws: THREE.Mesh;
   paw: THREE.Mesh;
+  lower: THREE.Mesh;
 }
 
-/** Smoothed pose channels (every frame each one eases toward its target). */
-const CH = ['hipY', 'pitch', 'roll', 'yaw', 'sx', 'sy', 'sz', 'fl', 'fr', 'bl', 'br', 'splay', 'knee', 'headPitch', 'headYaw', 'headRoll', 'ears', 'tLift', 'tCurl', 'tSway', 'tBend', 'tYaw', 'tLen', 'eyeOpen', 'mouth'] as const;
-type Ch = (typeof CH)[number];
-type Pose = Record<Ch, number>;
-const restPose = (): Pose => ({
-  hipY: HIP_Y,
-  pitch: 0,
-  roll: 0,
-  yaw: 0,
-  sx: 1,
-  sy: 1,
-  sz: 1,
-  fl: 0,
-  fr: 0,
-  bl: 0,
-  br: 0,
-  splay: 0,
-  knee: 0,
-  headPitch: 0,
-  headYaw: 0,
-  headRoll: 0,
-  ears: 0,
-  tLift: 1.15,
-  tCurl: 0.05,
-  tSway: 0.1,
-  tBend: 0,
-  tYaw: 0,
-  tLen: 0.78,
-  eyeOpen: 1,
-  mouth: 0,
-});
+export interface MochiOpts {
+  /** a challenger's ghost: translucent, no shadow, no outlines, no FX, no global event subscriptions */
+  ghost?: boolean;
+  /**
+   * when the trail FX shows: 'play' (default: only while the run is live), 'always' (the title runner, at speed),
+   * 'ambient' (a slow halo while she rests: the Wardrobe preview)
+   */
+  fx?: 'play' | 'always' | 'ambient';
+}
 
 // module temps (no per-frame allocation)
 const G0 = newGait();
@@ -152,6 +81,10 @@ const plantL: [number, number, number] = [0, 0, 0];
 const tipRest: [number, number, number] = [0, 0, 0];
 const furWet = new THREE.Color(0xc9d4e6);
 const furDry = new THREE.Color(0xffffff);
+const fxFwd = new THREE.Vector3();
+const fxUp = new THREE.Vector3();
+const fxRight = new THREE.Vector3();
+const tmpCol = new THREE.Color();
 
 export class Mochi implements KittenRig {
   root = new THREE.Group();
@@ -168,6 +101,9 @@ export class Mochi implements KittenRig {
   cloud = buildPuffCloud();
   leaf = buildLeaf();
   furMat: THREE.MeshToonMaterial;
+  /** the look this rig wears (normalised to the catalogue; ownership is the Wardrobe's job) */
+  look: Look = { ...DEFAULT_LOOK };
+  readonly ghost: boolean;
 
   private pose = restPose();
   private tgt = restPose();
@@ -191,6 +127,28 @@ export class Mochi implements KittenRig {
   private lastY = 0;
   private wetK = 0;
   private offs: (() => void)[] = [];
+  // ---- look state
+  private headMat: THREE.MeshToonMaterial;
+  private bellyMat: THREE.MeshToonMaterial;
+  private earMat: THREE.MeshToonMaterial;
+  private eyeMats: THREE.MeshBasicMaterial[] = [];
+  private pupils: THREE.Mesh[] = [];
+  private sparkles: THREE.Mesh[] = [];
+  /** materials this rig owns (clones, never the shared toon() cache); disposed with the rig */
+  private ownMats = new Map<THREE.Material, THREE.Material>();
+  private ownedSet = new Set<THREE.Material>();
+  private texKey = '';
+  private hat: Dress | null = null;
+  private scarf: Dress | null = null;
+  private fxId = 'none';
+  private fxColors: readonly number[] = [];
+  private fxMode: TrailMode | 'play' | 'always';
+  private trail = new TrailEmitter();
+  private poseId: PoseId | null = null;
+  /** the body's eased yaw about the rig's up (radians; PI = facing back down the track in the victory pose) */
+  get facingYaw(): number {
+    return this.pose.yaw;
+  }
   /** world-space helpers for the juice lane (updated in animate) */
   readonly pawW = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   readonly tailTipW = new THREE.Vector3();
@@ -200,17 +158,25 @@ export class Mochi implements KittenRig {
   /** the current pose name (tests / debugging) */
   state = 'run';
 
-  constructor() {
+  constructor(look: Partial<Look> = ugc.currentLook(), opts: MochiOpts = {}) {
+    this.ghost = !!opts.ghost;
+    this.fxMode = opts.fx === 'ambient' ? 'ambient' : opts.fx === 'always' ? 'always' : 'play';
+    const L = normalizeLook(look);
     const S = SPHERE();
-    const fur = toon('mochiFur', 0xffffff, { map: canvasTex('mochiFur', 512, 256, paintFur) }).clone();
-    fur.userData.shared = false;
-    this.furMat = fur;
-    const orange = toon('mochiOrange', MOCHI.orange);
-    const white = toon('mochiWhite', MOCHI.white);
+    const tex = acquireFurTex(L.fur, L.pattern);
+    this.texKey = furTexKey(L.fur, L.pattern);
+    const fur = new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: toonRamp(), map: tex.fur });
+    this.furMat = this.adopt(fur);
+    this.headMat = this.adopt(new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: toonRamp(), map: tex.head }));
+    this.earMat = this.own(toon('mochiOrange', MOCHI.orange)) as THREE.MeshToonMaterial;
+    this.bellyMat = this.own(toon('mochiWhite', MOCHI.white)) as THREE.MeshToonMaterial;
+    const white = this.bellyMat;
+    const orange = this.earMat;
     const pink = toon('mochiPink', MOCHI.pink);
     const nose = toon('mochiNose', MOCHI.nose);
-    const eyeMat = flat('mochiEye', MOCHI.eye);
     const hiMat = flat('mochiEyeHi', 0xffffff);
+    const pupilMat = flat('mochiPupil', 0x120b08);
+    const sparkMat = flat('mochiSpark', 0xffd84a);
     this.root.add(this.hip);
     this.hip.position.y = HIP_Y;
 
@@ -229,8 +195,7 @@ export class Mochi implements KittenRig {
     this.neck.position.set(0, 0.2, 0.25);
     this.hip.add(this.neck);
     this.neck.add(this.head);
-    const headMat = toon('mochiHead', 0xffffff, { map: canvasTex('mochiHead', 512, 256, paintHead) });
-    const skull = part(S, headMat, this.head, [0, 0.14, 0.03], [0.34, 0.29, 0.3]);
+    const skull = part(S, this.headMat, this.head, [0, 0.14, 0.03], [0.34, 0.29, 0.3]);
     outline(skull, 0.05);
     for (const side of [-1, 1]) {
       part(S, white, this.head, [side * 0.09, 0.03, 0.25], [0.12, 0.09, 0.085]); // muzzle cheeks
@@ -243,11 +208,19 @@ export class Mochi implements KittenRig {
     part(S, nose, this.head, [0, 0.105, 0.335], [0.04, 0.028, 0.025], false);
     this.mouth = part(S, flat('mochiMouth', 0x6a1f2a), this.head, [0, 0.0, 0.31], [0.04, 0.0, 0.02], false);
     for (const side of [-1, 1]) {
-      // big kitten eyes with two highlights
+      // big kitten eyes with two highlights (an iris colour + slit pupil for the Wardrobe eyes)
+      const eyeMat = this.adopt(flat('mochiEye', MOCHI.eye).clone()) as THREE.MeshBasicMaterial;
+      this.eyeMats.push(eyeMat);
       const e = part(S, eyeMat, this.head, [side * 0.13, 0.165, 0.285], [0.085, 0.105, 0.06], false);
       this.eyes.push(e);
+      const pupil = part(S, pupilMat, e, [0, -0.04, 0.6], [0.36, 0.66, 0.44], false);
+      pupil.visible = false;
+      this.pupils.push(pupil);
       part(S, hiMat, e, [0.3, 0.35, 0.75], [0.36, 0.3, 0.3], false);
       part(S, hiMat, e, [-0.25, -0.4, 0.8], [0.16, 0.14, 0.2], false);
+      const spark = part(geo('mochiSparkGeo', () => new THREE.OctahedronGeometry(1, 0)), sparkMat, e, [-0.28, 0.3, 0.86], [0.2, 0.3, 0.12], false);
+      spark.visible = false;
+      this.sparkles.push(spark);
       // ears
       const ear = new THREE.Group();
       ear.position.set(side * 0.18, 0.35, -0.01);
@@ -288,27 +261,24 @@ export class Mochi implements KittenRig {
       const pivot = new THREE.Group();
       pivot.position.set(side * (front ? 0.1 : 0.12), -0.09, front ? 0.18 : -0.2);
       this.hip.add(pivot);
-      part(upperGeo, front ? fur : fur, pivot, [0, 0, 0]);
+      part(upperGeo, fur, pivot, [0, 0, 0]);
       const knee = new THREE.Group();
       knee.position.y = -0.15;
       pivot.add(knee);
-      part(lowerGeo, front ? white : fur, knee, [0, 0, 0]);
+      const lower = part(lowerGeo, front ? white : fur, knee, [0, 0, 0]);
       const paw = part(S, white, knee, [0, -0.15, 0.025], [0.065, 0.045, 0.085]);
       outline(paw, 0.12);
       const claws = part(clawGeo, clawMat, knee, [0, -0.15, 0], [1, 1, 1], false);
       claws.visible = false;
-      this.legs.push({ pivot, knee, claws, paw });
+      this.legs.push({ pivot, knee, claws, paw, lower });
     }
 
     // ---- tail: one instanced chain (striped, white tip) that can also stretch into the vault pole ----
-    const tailMat = toon('mochiTail', 0xffffff);
+    const tailMat = this.own(toon('mochiTail', 0xffffff));
     this.tail = new THREE.InstancedMesh(SPHERE_LO(), tailMat, TAIL_N);
     this.tail.castShadow = true;
     this.tail.frustumCulled = false;
-    const cA = new THREE.Color(MOCHI.orange);
-    const cB = new THREE.Color(MOCHI.orangeDark);
-    const cW = new THREE.Color(MOCHI.white);
-    for (let i = 0; i < TAIL_N; i++) this.tail.setColorAt(i, i >= TAIL_N - 3 ? cW : i % 3 === 2 ? cB : cA);
+    for (let i = 0; i < TAIL_N; i++) this.tail.setColorAt(i, tmpCol.setHex(MOCHI.orange));
     this.tail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.hip.add(this.tail);
     this.tailOutline = new THREE.InstancedMesh(geo('sphereLoOut', () => new THREE.SphereGeometry(1.16, 12, 9)), flat('outline3a2416', 0x3a2416, THREE.BackSide), TAIL_N);
@@ -345,7 +315,8 @@ export class Mochi implements KittenRig {
     this.blob.renderOrder = 1;
     this.root.add(this.blob);
 
-    setOutlines(this.root, getQuality() === 'high');
+    this.applyLook(L); // the texture pair is already ours (texKey), so this only sets colours and accessories
+    if (this.ghost) return;
     this.offs.push(
       events.on('qualityChange', (e) => setOutlines(this.root, e.quality === 'high')),
       events.on('react', (e) => {
@@ -364,14 +335,121 @@ export class Mochi implements KittenRig {
       events.on('stageStart', () => {
         this.chase = false;
         this.finishT = 0;
+        this.trail.reset();
       }),
     );
+  }
+
+  /** a per-rig clone of a shared material (the toon() cache is never mutated) */
+  private own(m: THREE.Material): THREE.Material {
+    let c = this.ownMats.get(m);
+    if (!c) {
+      c = m.clone();
+      c.userData = { ...c.userData, shared: false };
+      this.ownMats.set(m, c);
+      this.ownedSet.add(c);
+    }
+    return c;
+  }
+  /** take ownership of a material this rig created */
+  private adopt<M extends THREE.Material>(m: M): M {
+    m.userData.shared = false;
+    this.ownMats.set(m, m);
+    this.ownedSet.add(m);
+    return m;
+  }
+
+  /** wear a look (fur + pattern textures, belly, ears, tail bands, eyes, hat, scarf, trail FX). Cheap to repeat. */
+  applyLook(look: Partial<Look>): void {
+    const L = normalizeLook(look);
+    this.look = L;
+    // fur + pattern textures (shared per pair, reference counted)
+    const key = furTexKey(L.fur, L.pattern);
+    if (key !== this.texKey) {
+      const t = acquireFurTex(L.fur, L.pattern);
+      this.furMat.map = t.fur;
+      this.headMat.map = t.head;
+      if (this.texKey) releaseFurTex(this.texKey);
+      this.texKey = key;
+    }
+    const c = furColors(L.fur);
+    const pat = patternId(L.pattern);
+    this.bellyMat.color.setHex(c.belly);
+    this.earMat.color.setHex(c.base);
+    // socks and tuxedo: all four lower legs in the belly colour
+    const socks = pat === 'socks' || pat === 'tuxedo';
+    for (let i = 2; i < 4; i++) this.legs[i].lower.material = socks ? this.bellyMat : this.furMat;
+    // tail bands
+    for (let i = 0; i < TAIL_N; i++) {
+      const tip = i >= TAIL_N - 3;
+      let hex = c.base;
+      if (pat === 'tabby') hex = tip ? c.belly : i % 3 === 2 ? c.dark : c.base;
+      else if (pat === 'spots') hex = tip ? c.base : i % 5 === 3 ? c.dark : c.base;
+      else if (pat === 'patches') hex = tip ? c.belly : i >= 5 && i < 9 ? c.dark : c.base;
+      else if (pat === 'socks' || pat === 'tuxedo') hex = tip ? c.belly : c.base;
+      this.tail.setColorAt(i, tmpCol.setHex(hex));
+    }
+    if (this.tail.instanceColor) this.tail.instanceColor.needsUpdate = true;
+    // eyes
+    const eyes = itemAt('eyes', L.eyes);
+    const classicEyes = L.eyes === 0;
+    for (let i = 0; i < 2; i++) {
+      // eyes[0] sits at -x (the runner's right eye) -> iris colour 1; eyes[1] is the left eye -> colour 0
+      this.eyeMats[i].color.setHex(eyes.colors[i === 1 ? 0 : 1] ?? MOCHI.eye);
+      this.pupils[i].visible = !classicEyes;
+      this.sparkles[i].visible = itemId('eyes', L.eyes) === 'starry';
+    }
+    // hat + scarf
+    if (this.hat) this.head.remove(this.hat.obj);
+    if (this.scarf) this.hip.remove(this.scarf.obj);
+    this.hat = buildHat(itemId('hat', L.hat), itemAt('hat', L.hat).colors);
+    this.scarf = buildScarf(itemId('scarf', L.scarf), itemAt('scarf', L.scarf).colors);
+    if (this.hat) this.head.add(this.hat.obj);
+    if (this.scarf) this.hip.add(this.scarf.obj);
+    // trail FX
+    this.fxId = this.ghost ? 'none' : itemId('fx', L.fx);
+    this.fxColors = itemAt('fx', L.fx).colors;
+    this.trail.reset();
+    if (this.ghost) this.ghostify();
+    else setOutlines(this.root, getQuality() === 'high');
+  }
+
+  /** translucent ghost: every material becomes a per-rig transparent clone; no outlines, shadows or blob */
+  private ghostify(): void {
+    this.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (o.userData.outline) {
+        o.visible = false;
+        return;
+      }
+      o.castShadow = false;
+      if (!m.isMesh || !m.material) return;
+      const src = m.material as THREE.Material;
+      const own = this.ownedSet.has(src) ? src : this.own(src);
+      if (own !== src) m.material = own;
+      own.transparent = true;
+      own.opacity = GHOST_OPACITY;
+      own.depthWrite = false;
+    });
+    this.blob.visible = false;
+  }
+
+  /** a held photo pose (sit, wave, loaf, stretch, leap, proud) over the gameplay animation; null = back to normal */
+  setPose(id: PoseId | null): void {
+    this.poseId = id;
+  }
+  get heldPose(): PoseId | null {
+    return this.poseId;
   }
 
   dispose(): void {
     for (const f of this.offs) f();
     this.offs.length = 0;
-    this.furMat.dispose();
+    if (this.texKey) releaseFurTex(this.texKey);
+    this.texKey = '';
+    for (const m of this.ownedSet) m.dispose();
+    this.ownMats.clear();
+    this.ownedSet.clear();
     (this.blob.material as THREE.Material).dispose();
     this.tail.dispose();
   }
@@ -379,6 +457,8 @@ export class Mochi implements KittenRig {
   animate(dt: number, t: number, p: Readonly<PlayerView>): void {
     const d = Math.min(0.05, Math.max(0, dt));
     const T = this.tgt;
+    // a ghost reads only the view it is given (p.base if the view carries one), never the player's state
+    const base = this.ghost ? ((p as { base?: number }).base ?? 0) : P.base;
     const Q = this.pose;
     // ---- one-shot detection ----
     if (p.sinceLand < this.lastLand && p.sinceLand < 0.1) {
@@ -438,7 +518,7 @@ export class Mochi implements KittenRig {
     if (p.ability === 'cloud') {
       state = 'cloud';
       showCloud = true;
-      const hop = Math.max(0, p.y - P.base);
+      const hop = Math.max(0, p.y - base);
       T.hipY = 0.27 + Math.sin(t * 2.3) * 0.02;
       T.pitch = -0.55;
       T.fl = 0.5;
@@ -464,13 +544,13 @@ export class Mochi implements KittenRig {
         T.tLift = 0.6;
       }
       this.cloudHop = Math.max(0, this.cloudHop - d * 3);
-      if (p.grounded && this.lastY > P.base + 0.05) this.cloudHop = 1;
+      if (p.grounded && this.lastY > base + 0.05) this.cloudHop = 1;
       this.cloud.root.position.y = -hop - 0.24;
       this.cloud.animate(d, t, hump(1 - this.cloudHop), p.lean, p.speed);
     } else if (p.ability === 'vault') {
       state = 'vault';
       if (!this.vaultWas) {
-        this.plantS = P.arc.s0 + 0.4;
+        this.plantS = (this.ghost ? p.s : P.arc.s0) + 0.4;
         this.plantX = p.x;
       }
       const u = p.abilityT;
@@ -626,7 +706,8 @@ export class Mochi implements KittenRig {
     else if (state === 'surf') T.tYaw = 0.2;
 
     // victory: slow down, turn round to the camera, sit up and wave
-    if (p.mode === 'finish' && p.speed < 6) {
+    // (by time too: a fast finish still turns round for the camera's 3/4 front, see style/finish.ts)
+    if (p.mode === 'finish' && (p.speed < 6 || this.finishT > 0.55)) {
       state = 'victory';
       const k = smooth(this.finishT / 0.9);
       const hopK = hump(((this.finishT * 1.4) % 1) * 1.6);
@@ -642,8 +723,9 @@ export class Mochi implements KittenRig {
       T.headRoll = Math.sin(t * 2.6) * 0.15;
       T.tLift = 1.3;
       T.tSway = 0.25;
-      T.mouth = 0.6;
-      T.eyeOpen = 0.3; // happy ^^ squint
+      // big bright eyes and an open smile (the half-closed squint read as sleepy on the share card and in clips)
+      T.mouth = 0.5;
+      T.eyeOpen = 1.15;
       T.roll = 0;
     }
 
@@ -736,6 +818,16 @@ export class Mochi implements KittenRig {
       }
     }
 
+    // a held photo pose overrides every gameplay channel and hides the pole; she keeps standing on the puff cloud or
+    // the leaf board she rides (a pose on the river without the leaf looked like walking on water)
+    if (this.poseId) {
+      poseTargets(this.poseId, t, T);
+      state = POSE_STATE[this.poseId];
+      pole = 0;
+      spin = 0;
+      rate = 9;
+    }
+
     // blink
     this.blinkT -= d;
     if (this.blinkT < 0) this.blinkT = 2 + Math.random() * 2.5;
@@ -747,8 +839,8 @@ export class Mochi implements KittenRig {
       const c = CH[i];
       Q[c] += (T[c] - Q[c]) * (c === 'eyeOpen' ? approach(30, d) : c === 'yaw' && state === 'victory' ? approach(5, d) : k);
     }
-    if (d === 0) {
-      // paused or a cutscene poke: snap
+    if (d === 0 && !this.poseId) {
+      // paused or a cutscene poke: snap (a held pose keeps easing on the real dt photo mode passes)
       for (let i = 0; i < CH.length; i++) Q[CH[i]] = T[CH[i]];
     }
 
@@ -848,9 +940,32 @@ export class Mochi implements KittenRig {
     v1.set(pts[(TAIL_N - 1) * 3], pts[(TAIL_N - 1) * 3 + 1], pts[(TAIL_N - 1) * 3 + 2]);
     this.tailTipW.copy(v1).applyMatrix4(hip.matrixWorld);
     this.storm.getWorldPosition(this.stormW);
+
+    // accessories that move (propeller, scarf tails, cape) and the cosmetic trail
+    const spd = this.poseId ? 0 : Math.max(0, p.speed);
+    if (d > 0) {
+      this.hat?.anim?.(d, t, spd);
+      this.scarf?.anim?.(d, t, spd);
+    }
+    if (this.fxId !== 'none' && d > 0) {
+      const mode = this.fxMode;
+      const live = game.mode === 'play' || game.mode === 'finish';
+      const run = (mode === 'always' || (mode === 'play' && live)) && spd > 5 && !this.poseId;
+      if (run || mode === 'ambient') {
+        const e = this.root.matrixWorld.elements;
+        fxRight.set(e[0], e[1], e[2]).normalize().negate();
+        fxUp.set(e[4], e[5], e[6]).normalize();
+        fxFwd.set(e[8], e[9], e[10]).normalize();
+        if (mode === 'ambient') {
+          this.root.getWorldPosition(v1);
+          this.trail.step(this.fxId, this.fxColors, d, t, v1, fxFwd, fxUp, fxRight, 0, 'ambient');
+        } else this.trail.step(this.fxId, this.fxColors, d, t, this.tailTipW, fxFwd, fxUp, fxRight, spd, 'run');
+      }
+    }
   }
 }
 
+/** the player's kitten (core, the cottage cutscene, photo mode): Mochi in the equipped look */
 export function buildMochi(): KittenRig {
-  return new Mochi();
+  return new Mochi(ugc.currentLook());
 }

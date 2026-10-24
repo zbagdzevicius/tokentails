@@ -8,8 +8,9 @@ import { addFrameHook } from '../core/loop';
 import { stages, stageList } from '../core/registry';
 import * as session from '../core/session';
 import { G, game, prefs } from '../core/state';
-import { CAMPAIGN, type RunResult, type StageId } from '../core/types';
+import { CAMPAIGN, STAGE_ORDER, UGC_STAGES, type RunResult, type StageId } from '../core/types';
 import { isUnlocked, loadSave, recordResult, writeSave, type SaveData } from '../meta/save';
+import { screenChanged, type UgcScreen } from '../ugc/hub';
 import { endingActive, playEnding, skipEnding, stopEnding } from './cutscene';
 import { countUp, fmtDist, fmtInt, fmtTime, resultTitle, starCount, totalStars } from './format';
 import { BELL_SVG, setEndlessBest } from './hud';
@@ -19,7 +20,7 @@ import { thumbCanvas } from './thumbs';
 import { setTutorialEnabled } from './tutorial';
 import { uiBack, uiClick, uiFanfare, uiSad, uiStar, uiTick } from './uisfx';
 
-export type Screen = 'title' | 'select' | 'play' | 'pause' | 'settings' | 'results' | 'cutscene';
+export type Screen = 'title' | 'select' | 'play' | 'pause' | 'settings' | 'results' | 'cutscene' | UgcScreen;
 const $ = (id: string) => document.getElementById(id)!;
 
 export let save: SaveData = loadSave();
@@ -50,6 +51,7 @@ export function applySettings(): void {
 
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
+  screenChanged(s);
 }
 export const screen = () => document.body.dataset.screen as Screen;
 
@@ -71,6 +73,8 @@ export function renderSelect(): void {
   list.innerHTML = '';
   let i = 0;
   for (const st of stageList()) {
+    // the Daily Run and player trails are not map stages (their lanes add their own entries)
+    if (!STAGE_ORDER.includes(st.id)) continue;
     const open = isUnlocked(save, st.id);
     const p = save.stages[st.id];
     const endless = st.id === 'endless';
@@ -119,6 +123,8 @@ export function play(id: StageId, at = 0): void {
 
 // ---------------------------------------------------------------- results
 let lastResult: RunResult | null = null;
+/** the last run's result (null before the first one); the UGC lanes read it on the results screen */
+export const lastRunResult = (): RunResult | null => lastResult;
 let pausedAt = 0;
 let countRaf = 0;
 let resCat: { cv: HTMLCanvasElement; mood: Mood } | null = null;
@@ -131,14 +137,16 @@ let resultsShownAt = -1e9;
 function showResults(r: RunResult, newBest: boolean, unlocked: StageId[]): void {
   resultsShownAt = performance.now();
   const st = stages.get(r.stageId);
-  const endless = r.stageId === 'endless';
+  // the Daily Run is a (seeded) endless run; a player trail has a finish but no bells, stars or unlocks
+  const endless = r.stageId === 'endless' || r.stageId === 'daily';
+  const ugcStage = UGC_STAGES.includes(r.stageId);
   const nStars = starCount(r.stars);
-  $('resTitle').textContent = resultTitle(r.finished, !!st.ending, endless, nStars);
+  $('resTitle').textContent = r.stageId === 'trail' ? (r.finished ? 'Trail clear!' : 'Out of hearts!') : resultTitle(r.finished, !!st.ending, endless, nStars);
   $('resStage').textContent = endless ? `${st.name} - ${fmtDist(r.distance)}` : st.name;
   $('resBest').classList.toggle('hidden', !newBest);
   $('resBells').textContent = st.bells ? `${r.bellCount}/${st.bells} bells` : fmtDist(r.distance);
   const labels = ['Home', `${st.bells || 7} bells`, fmtInt(st.scoreTarget)];
-  $('resStars').innerHTML = endless
+  $('resStars').innerHTML = endless || ugcStage
     ? ''
     : r.stars.map((on, i) => `<div class="sl" style="--i:${i}">${starSvg(on).replace('<svg', `<svg style="--i:${i}"`)}<span>${labels[i]}</span></div>`).join('');
   const chips = [
@@ -154,7 +162,7 @@ function showResults(r: RunResult, newBest: boolean, unlocked: StageId[]): void 
   $('resUnlock').textContent = newNames.length ? `Unlocked: ${newNames.join(' + ')}!` : '';
   const i = CAMPAIGN.indexOf(r.stageId);
   const next = i >= 0 && i + 1 < CAMPAIGN.length ? CAMPAIGN[i + 1] : null;
-  $('resNext').classList.toggle('hidden', !next || !isUnlocked(save, next));
+  $('resNext').classList.toggle('hidden', ugcStage || !next || !isUnlocked(save, next));
   // portrait
   const mood: Mood = !r.finished && !endless ? 'ouch' : nStars >= 3 ? 'wow' : endless ? 'happy' : 'happy';
   const host = $('resCat');
