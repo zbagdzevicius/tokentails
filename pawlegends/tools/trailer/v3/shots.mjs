@@ -87,32 +87,42 @@ export const SHOTS = [
   {
     // the gameplay camera on Clem in the river by Pudding's pad: Sir Brutus charges in and hits her (the dog swing, a
     // short slow-motion dip), Clem answers; then a crane up to the whole Crossing (the yarn core left, the bone
-    // doghouse right) for CATS VS DOGS, held with a slow drift to the cut (the next shot is the gameplay view again: the
-    // descent landed on the two heroes' close duel). The plates and the HUD fade out on the way up.
+    // doghouse right; v3.5: up in 24 frames, f38-62, mirroring the descent) for CATS VS DOGS, and (v3.5) back down
+    // into the real gameplay camera inside the shot: the descent starts on the half-beat f112 (the words wipe on
+    // f115) and lands, eased, on the next half-beat (f137), held on the gameplay view to the downbeat cut. While the map is wide (every hero a speck) the clock runs at 4.2x, so
+    // the camera lands about 370 frames of real time after f0, as Clem's Q settles and the dogs fall back (Sir Brutus
+    // and the second Cacklejaw out on the right, Gabė and Clem with Muffin in the river), every body apart: the clean
+    // window of the take is 324-387 (v3.4's descent landed on the Clem / Sir Brutus pile at 200-320, where the melee
+    // keeps their swings touching). The plates and the HUD fade out on the way up and back in on the way down.
     id: 'S01', ...V3, ...LITE, take: 'H1', f0: 0, f1: 149,
     anchor: { key: 'charge', frame: 22 },
-    ramp: [[0, 1], [18, 1], [22, 0.55, 'out'], [30, 0.55], [38, 1, 'ease']],
-    uiFade: [[40, 1], [52, 0]],
-    hudFade: [[40, 1], [52, 0]],
+    ramp: [[0, 1], [18, 1], [22, 0.55, 'out'], [30, 0.55], [38, 1, 'ease'], [62, 4.2, 'ease'], [112, 4.2], [137, 1, 'ease']],
+    uiFade: [[38, 1], [48, 0], [124, 0], [137, 1]],
+    hudFade: [[38, 1], [48, 0], [124, 0], [137, 1]],
     cam: game([
       { f: 0, dist: 1, pitch: 0, blend: 0 },
       { f: 22, dist: 0.92, ease: 'out' },
       { f: 38, dist: 0.95, pitch: 0, blend: 0, ease: 'ease' },
-      { f: 66, dist: 3.75, pitch: 11.2, blend: 1, ease: 'ease' },
-      { f: 149, dist: 3.5, pitch: 11.2, blend: 1, ease: 'linear' },
+      { f: 62, dist: 3.75, pitch: 11.2, blend: 1, ease: 'ease' },
+      { f: 112, dist: 3.5, pitch: 11.2, blend: 1, ease: 'linear' },
+      { f: 137, dist: 1, pitch: 0, blend: 0, ease: 'ease' },
+      { f: 149, dist: 1, pitch: 0, blend: 0 },
     ], { point: CENTRE }),
     // 9:16: the same crane with a quarter orbit, so the Crossing runs down the tall frame (the yarn core at the top,
-    // the doghouse at the bottom)
+    // the doghouse at the bottom), and the orbit turned back to the gameplay yaw on the way down, landing between Clem
+    // and Gabė (on Clem alone the river side cut Muffin the Cacklejaw's plate at the frame edge)
     portrait: {
       ...P, ...NOHUD,
       cam: {
-        target: { blend: [{ unit: 0 }, { point: CENTRE }], f0: 38, f1: 66 },
+        target: { blend: [{ blend: [{ unit: 0 }, { point: CENTRE }], f0: 38, f1: 62 }, { mid: [0, 1] }], f0: 112, f1: 137 },
         keys: [
           { f: 0, dist: 1.05, pitch: 48.8, fov: 50, yaw: 0, lift: 0 },
           { f: 22, dist: 0.98, ease: 'out' },
           { f: 38, dist: 1.0, pitch: 48.8, yaw: 0, ease: 'ease' },
-          { f: 66, dist: 4.2, pitch: 60, yaw: 90, ease: 'ease' },
-          { f: 149, dist: 3.95, pitch: 60, yaw: 90, ease: 'linear' },
+          { f: 62, dist: 4.2, pitch: 60, yaw: 90, ease: 'ease' },
+          { f: 112, dist: 3.95, pitch: 60, yaw: 90, ease: 'linear' },
+          { f: 137, dist: 1.05, pitch: 48.8, yaw: 0, ease: 'ease' },
+          { f: 149, dist: 1.05, pitch: 48.8, yaw: 0 },
         ],
         smooth: 0.12,
         off: [0, 0],

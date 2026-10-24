@@ -297,6 +297,29 @@ eye (the 30 s 16:9 copy, at about 2.6 Mbit/s, softens the dust of the core-base 
 node tools/trailer/v3/social.mjs --dir <dir>/out --sheets <dir>/social-check   # [--target-mb 10.5] [--audio-kbps 160]
 ```
 
+**v3.5 (fix what's weak: the crane and the glare).** Render fixes in the game (render only; `src/sim` untouched,
+determinism identical, tests in `tests/unit/trailer-v35-render.test.ts`): every blown-out white area left in the v3.4
+cuts (a 1-3.7 % blob of Y >= 235 round frames 33-42, 366-449, 950-960 and 1332-1354) was an additive effect summed over
+pale ground. Found by `hideNames` (harness look-dev option: hide every object whose name starts with a prefix, or
+`'+additive'` for every additive mesh) and the gate's own measure: the shockwave walls (`fx/Shockwaves.js`: Pack Hunt,
+the slams, the core burst) now draw with normal blending in their own colour, capped at `SHOCK_LUMA_MAX` sRGB luma
+(`shockColor`: cream and white walls keep their hue, a touch darker); the additive ground marks (`views/decals.ts`:
+level auras, hero chroma, zones such as the Champion's Challenge circle, tower ranges, the self ping) use a screen
+blend (`SCREEN_BLEND`: dst + src * (1 - dst)), as bright as before on grass, never white over sand, river or plaza.
+The largest blob in any master is now 0.6 % (was 3.7 %), the worst blown-out frame 1.6 % (was 5.9 %).
+
+Glare gate (`v3/timeline.mjs` `GLARE`, `glareBlobFails`, tested in `v3/timeline.test.mjs`): per shot 3.5 % / 5 %
+near-white and 1.5 % / 3 % blown out (mean / worst), a blob over 1 % on 2 gameplay frames in a row or over 1.5 % on any
+one frame fails (v3.4 allowed 8 / 15 %, 7 / 10 % and 2 % on 3 frames, and passed the rims above). `report.json`
+carries `glareBlobMax` per master; `edit.mjs` writes every type-QC failure to `out/work/type-qc.txt`.
+
+Crane (`v3/shots.mjs` S01): up in 24 frames (f38-62), held wide for CATS (f62) VS (f68) DOGS (f75), the line out on
+f115, then back down into the real gameplay camera inside the shot (f112-137, eased, half-beat to half-beat, held to the
+f150 cut); 9:16 turns its quarter orbit back to the gameplay yaw on the way down. The clock runs 4.2x while the map is
+wide (every hero a speck), so the landing is a clean moment of take H1 (the bodies apart as the dogs fall back) instead
+of the Clem / Sir Brutus pile; plates and HUD fade back in from f124. The score moves the VS and DOGS hits with the
+type and adds a soft whoosh into the landing.
+
 Everything the run produces (masters, social copies, posters, `report.json`, `social.json`, the generated storyboard,
 the landing-only variant in `landing/`, the banding check frames in `social-check/`) is kept in
 `pawlegends/media/trailer-v3/`, gitignored like `media/trailer-v2/`. Still not releasable until

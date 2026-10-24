@@ -134,6 +134,20 @@ const _p = new THREE.Vector3();
 const _c = new THREE.Color();
 const UP_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
 
+/**
+ * Trailer v3.5 glare pass: the "additive" ground marks (level auras, hero chroma, zones, tower ranges, the self ping)
+ * are drawn with a screen blend, dst + src * (1 - dst) on the premultiplied mark: on grass a mark glows as brightly as
+ * an additive one did, but over pale ground (the sand paths, the river, the dog plaza) it can no longer sum to white:
+ * additive rings were blown-out white rims round every hero and the Champion's Challenge circle in every trailer cut.
+ */
+export const SCREEN_BLEND = Object.freeze({
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.OneMinusDstColorFactor,
+  blendDst: THREE.OneFactor,
+  premultipliedAlpha: true,
+});
+
 /** An instanced flat-quad layer: call begin(), add() per mark, end() once per frame. */
 export class DecalLayer {
   readonly mesh: THREE.InstancedMesh;
@@ -147,7 +161,7 @@ export class DecalLayer {
       depthWrite: false,
       depthTest: opts.depthTest ?? true,
       toneMapped: false,
-      blending: opts.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+      ...(opts.additive ? SCREEN_BLEND : { blending: THREE.NormalBlending }),
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,

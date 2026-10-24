@@ -210,6 +210,11 @@ export interface ShotSpec {
   /** Debug: scene groups not drawn (by name). */
   hideGroups?: string[];
   /**
+   * v3.5 look-dev: hide EVERY object whose name starts with one of these (`hideGroups` hides the first match only);
+   * '+additive' hides every additively blended mesh. A diagnostic for finding which effect paints a bright area.
+   */
+  hideNames?: string[];
+  /**
    * v4: the playfield ground drawn at this brightness (0-1; default 0.8 in director shots): the pale plaza and paths no
    * longer read as a white field under additive skill FX at hero height. Render only; telegraphs and FX untouched.
    */
@@ -732,6 +737,14 @@ function cleanUp(g: GameRenderer): void {
   for (const name of s.hideGroups ?? []) {
     const o = g.scene.getObjectByName(name);
     if (o) o.visible = false;
+  }
+  if (s.hideNames?.length) {
+    const names = s.hideNames.filter((n) => !n.startsWith('+'));
+    const additive = s.hideNames.includes('+additive');
+    g.scene.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if ((o.name && names.some((n) => o.name.startsWith(n))) || (additive && mat && !Array.isArray(mat) && mat.blending === THREE.AdditiveBlending)) o.visible = false;
+    });
   }
   if (s.hidePudding) {
     for (const st of view.structures.items.values()) if (st.kind === 'pudding') (st as unknown as { mesh: THREE.Object3D }).mesh.visible = false;
