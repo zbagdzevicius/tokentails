@@ -294,11 +294,13 @@ dialog.gs::backdrop{background:rgb(7 5 26/.85)}
 .tabs{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 16px 8px;margin:0 -16px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{--c:#ffcc55;position:relative;flex:0 0 128px;scroll-snap-align:start;text-align:left;border-radius:12px;border:2px solid var(--line);background:var(--n800);
-  padding:6px 6px 9px;overflow:hidden;transition:border-color .15s}
-.tab:hover{border-color:color-mix(in srgb,var(--c) 60%,transparent)}
-.tab[aria-selected="true"]{border-color:var(--c)}
+  padding:6px 6px 9px;overflow:hidden;transition:border-color .15s,background-color .15s,box-shadow .15s}
+.tab:hover{border-color:color-mix(in srgb,var(--c) 40%,transparent)}
+.tab:hover .th img{transform:scale(1.04)}
+.tab[aria-selected="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--n800));box-shadow:0 0 0 1px var(--c),0 10px 28px -10px color-mix(in srgb,var(--c) 70%,transparent)}
+.tab[aria-selected="true"] .nm{color:var(--c)}
 .tab .th{display:block;aspect-ratio:16/10;border-radius:7px;overflow:hidden;background:var(--n700)}
-.tab .th img{width:100%;height:100%;object-fit:cover}
+.tab .th img{width:100%;height:100%;object-fit:cover;transition:transform .2s}
 .tab .nm{display:block;margin-top:6px;font:400 17px/1 var(--head);text-transform:uppercase;padding:0 2px}
 .badge{position:absolute;left:10px;top:10px;display:grid;place-items:center;padding:3px 5px;border-radius:999px;background:rgb(7 5 26/.9);border:2px solid var(--mint);color:var(--mint)}
 .badge svg{width:11px;height:11px}
@@ -524,6 +526,7 @@ footer p{max-width:62em}
   html{scroll-behavior:auto}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .ff{display:none}
+  .tab:hover .th img{transform:none}
 }
 
 @media (max-width:899px){
