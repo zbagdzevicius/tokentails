@@ -147,6 +147,16 @@ describe('sumInflows: what came in, never what is left', () => {
         ];
         expect(sumInflows(c, logs as never, 100, 200).count).toBe(1);
     });
+
+    it('never counts a zero-value or dust transfer (address poisoning), and keeps dust in the sum only', () => {
+        const c = campaign();
+        const logs = [
+            transfer(DONOR, HELD, 0, 120),
+            transfer(DONOR, HELD, 0.009999, 121),
+            transfer(DONOR, HELD, 0.01, 122),
+        ];
+        expect(sumInflows(c, logs, 100, 200)).toEqual({ sum18: (BigInt(19_999) * E18) / BigInt(1_000_000), count: 1 });
+    });
 });
 
 describe('the eth_getLogs filter', () => {
@@ -434,6 +444,15 @@ describe('goalChainLegs: every other mainnet, USD stablecoins only', () => {
             tokenTransfer(BASE_EURC, DONOR, HELD, BigInt(9_000_000), 14),
         ];
         expect(sumLegInflows(rh, logs, 0, 100)).toEqual({ sum18: BigInt(2) * E18, count: 2 });
+        const spam = [
+            tokenTransfer(USDG, DONOR, HELD, BigInt(0), 20),
+            tokenTransfer(USDG, DONOR, HELD, BigInt(9_999), 21),
+            tokenTransfer(USDG, DONOR, HELD, BigInt(10_000), 22),
+        ];
+        expect(sumLegInflows(rh, spam, 0, 100)).toEqual({
+            sum18: (BigInt(19_999) * E18) / BigInt(1_000_000),
+            count: 1,
+        });
         expect(legInflowFilter(rh, 0, 99)).toMatchObject({ address: [USDG], fromBlock: '0x0', toBlock: '0x63' });
         expect(legInflowFilter(rh, 0, 99).topics[2]).toEqual([addressTopic(HELD), addressTopic(OWN)]);
     });

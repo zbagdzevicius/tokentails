@@ -239,7 +239,7 @@ h2{font-size:clamp(34px,6.2vw,64px);text-wrap:balance}
 .pp-flag{position:absolute;z-index:1;right:-2px;bottom:100%;width:2px;height:28px;background:#ffe08f;pointer-events:none;filter:drop-shadow(0 2px 0 var(--n900)) drop-shadow(0 0 6px rgb(255 204 85/.45))}
 .pp-flag::before{content:"";position:absolute;left:-1px;top:-3px;width:4px;height:4px;background:#fff1c2}
 .pp-flagv{position:absolute;right:2px;top:0;padding:2px 5px 1px 8px;background:linear-gradient(180deg,#ffe08f 0 50%,#ffcc55 50%);color:var(--ink);font:400 11px/1.05 var(--head);letter-spacing:.03em;white-space:nowrap;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,4px 50%)}
-.pp-ghost{position:absolute;top:0;bottom:0;left:var(--p);width:var(--g,0%);border-radius:0 4px 4px 0;opacity:0;pointer-events:none;background:repeating-linear-gradient(-45deg,rgb(255 122 162/.95) 0 4px,rgb(255 122 162/.4) 4px 8px);box-shadow:0 0 10px rgb(255 122 162/.6);transition:opacity .4s,left 1.6s cubic-bezier(.2,.8,.2,1),width .4s}
+.pp-ghost{position:absolute;top:0;bottom:0;left:var(--p);width:min(max(var(--g,0%),8px),calc(100% - var(--p)));border-radius:0 4px 4px 0;opacity:0;pointer-events:none;background:repeating-linear-gradient(-45deg,rgb(255 122 162/.95) 0 4px,rgb(255 122 162/.4) 4px 8px);box-shadow:0 0 10px rgb(255 122 162/.6);transition:opacity .4s,left 1.6s cubic-bezier(.2,.8,.2,1),width .4s}
 .pp-gtxt{position:absolute;z-index:2;bottom:calc(100% + 6px);left:calc(var(--p) + max(var(--g,0%),24px) + 2px);padding:2px 9px;border-radius:999px;border:2px solid var(--pink);background:rgb(11 8 32/.94);color:#ffc2d4;font:800 12px/1.2 var(--body);white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .4s,transform .4s;pointer-events:none}
 .pp-gflip .pp-gtxt{left:auto;right:calc(100% - var(--p) + 26px)}
 .pp-preview .pp-ghost{opacity:1}.pp-preview .pp-gtxt{opacity:1;transform:none}
@@ -269,6 +269,7 @@ h2{font-size:clamp(34px,6.2vw,64px);text-wrap:balance}
 .pp.pp-fresh .pp-dot{display:inline-block;animation:pp-breathe 2.4s ease-in-out infinite}
 .pp-mine{margin-top:8px;padding:6px 10px;border-radius:14px;border:2px solid var(--pink);color:#ffc2d4;font:700 12.5px/1.35 var(--body);text-align:center}
 .pp-mine[hidden]{display:none}
+.pp-note{margin:4px 0 0;font:500 11.5px/1.35 var(--body);color:var(--muted)}
 @keyframes pp-march{to{transform:translateX(-28px)}}
 @keyframes pp-shine{55%,100%{transform:translateX(260%)}}
 @keyframes pp-bob{50%{transform:translateY(-2px)}}
@@ -458,6 +459,7 @@ html:not([data-clubst="open"]) .club-open,html[data-clubst="open"] .club-soon{di
 .trust .live{margin-top:36px;padding-top:24px;border-top:1px solid rgb(252 236 187/.12);font-size:16px;line-height:1.6;color:var(--cream2);text-align:center}
 .trust .live b{color:#ffd36b;font-weight:900}
 .trust .live a{color:var(--gold);font-weight:800;white-space:nowrap}
+@media (max-width:374px){.trust .live a{white-space:normal}}
 
 .mq{position:relative;z-index:2;margin-top:44px}
 .mq-view{overflow:hidden;touch-action:pan-y;cursor:grab;-webkit-user-select:none;user-select:none;padding:4px 0 6px;
@@ -889,6 +891,7 @@ footer p{max-width:62em}
   .hbox .pp-flagv{font-size:15px;padding:3px 6px 2px 9px}
   .hbox .pp-meta{justify-content:center;gap:4px 18px;font-size:13.5px}
   .hbox .pp-mine{max-width:620px;margin:8px auto 0}
+.hbox .pp-note{text-align:center}
   .htrust{margin-top:12px;font-size:13px}
 }
 @keyframes fglow{50%{box-shadow:0 0 0 4px rgb(11 8 32/.92),0 0 0 7px #ffe08f,0 0 46px 12px rgb(255 204 85/.6),0 22px 44px -12px rgb(0 0 0/.95)}}
@@ -1136,12 +1139,12 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
             </div>
           </div>
 
-          <div class="pp" data-pp data-goal="50000" data-raised="132.80" data-claim="C-001">
-            <p class="pp-lbl"><b class="pp-num">$132</b> <span>raised for Pink Paw · goal $50,000</span></p>
-            <div class="pp-track" role="progressbar" aria-label="Campaign progress" aria-valuemin="0" aria-valuemax="50000" aria-valuenow="132.80" aria-valuetext="$132 of $50,000 (0.26%). Next stop $250, $118 to go.">
+          <div class="pp" data-pp data-goal="10000" data-donations="1761" data-claim="C-001">
+            <p class="pp-lbl"><b class="pp-num">1,761</b> <span>gifts and treats to Pink Paw · <span class="nw">goal ≈10,000</span></span></p>
+            <div class="pp-track" role="progressbar" aria-label="Campaign progress in gifts and treats" aria-valuemin="0" aria-valuemax="10000" aria-valuenow="1761" aria-valuetext="At least 1,761 gifts and treats of a goal of about 10,000. Next stop 2,500, 739 to go.">
               <div class="pp-fill"><i class="pp-shine"></i></div>
               <i class="pp-ghost" aria-hidden="true"></i><span class="pp-gtxt" aria-hidden="true"></span>
-              <span class="pp-flag" aria-hidden="true"><b class="pp-flagv">$250</b></span>
+              <span class="pp-flag" aria-hidden="true"><b class="pp-flagv">2,500</b></span>
               <div class="pp-rail" aria-hidden="true">
                 <span class="pp-bump"></span>
                 <svg class="pp-cat" viewBox="0 0 14 10" width="35" height="25" shape-rendering="crispEdges">
@@ -1155,13 +1158,14 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
               </div>
             </div>
             <ol class="pp-trail" aria-hidden="true">
-              <li class="pp-stop pp-cur" data-at="250"><i class="pp-paw"></i><b>$250</b></li><li class="pp-stop" data-at="500"><i class="pp-paw"></i><b>$500</b></li>
-              <li class="pp-stop" data-at="1000"><i class="pp-paw"></i><b>$1K</b></li><li class="pp-stop" data-at="2500"><i class="pp-paw"></i><b>$2.5K</b></li>
-              <li class="pp-stop" data-at="5000"><i class="pp-paw"></i><b>$5K</b></li><li class="pp-stop" data-at="10000"><i class="pp-paw"></i><b>$10K</b></li>
-              <li class="pp-stop" data-at="25000"><i class="pp-paw"></i><b>$25K</b></li><li class="pp-stop" data-at="50000"><i class="pp-paw"></i><b>$50K</b></li>
+              <li class="pp-stop pp-past" data-at="100"><i class="pp-paw"></i><b>100</b></li><li class="pp-stop pp-past" data-at="250"><i class="pp-paw"></i><b>250</b></li>
+              <li class="pp-stop pp-past" data-at="500"><i class="pp-paw"></i><b>500</b></li><li class="pp-stop pp-past" data-at="1000"><i class="pp-paw"></i><b>1K</b></li>
+              <li class="pp-stop pp-cur" data-at="2500"><i class="pp-paw"></i><b>2.5K</b></li><li class="pp-stop" data-at="5000"><i class="pp-paw"></i><b>5K</b></li>
+              <li class="pp-stop" data-at="7500"><i class="pp-paw"></i><b>7.5K</b></li><li class="pp-stop" data-at="10000"><i class="pp-paw"></i><b>10K</b></li>
             </ol>
-            <p class="pp-meta"><span><span class="pp-step"><b>$118</b> to the next stop<span class="pp-sep" aria-hidden="true"> · </span><b>0.26%</b> of $50,000<span class="pp-sep" aria-hidden="true"> · </span>stop 1 of 8</span><span class="pp-live" hidden><span aria-hidden="true">·</span><i class="pp-dot" aria-hidden="true"></i><span class="pp-asof"></span></span></span>
+            <p class="pp-meta"><span><span class="pp-step"><span class="nw"><b>739</b> more to the next stop</span><span class="pp-sep" aria-hidden="true"> · </span><span class="nw"><b>1,761</b> of ≈10,000</span><span class="pp-sep" aria-hidden="true"> · </span><span class="nw">stop 5 of 8</span></span><span class="pp-live" hidden><span aria-hidden="true">·</span><i class="pp-dot" aria-hidden="true"></i><span class="pp-asof"></span></span></span>
               <a href="/shelter-payouts?from=home_hero" data-cta="hero_verify">See every payment the shelter received <span aria-hidden="true">→</span></a></p>
+            <p class="pp-note">Every gift and every free game treat counts once. Token Tails pays for the treats.</p>
             <p class="pp-mine" id="ppMine" role="status" hidden></p>
           </div>
 
@@ -1214,7 +1218,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
         <div class="gtags" id="gTags"></div>
         <p id="gBlurb"></p>
         <p class="small" id="gNote"></p>
-        <p class="small" id="gTreatP">Catnip Heist, Pink Paw Knight and Moon Rave can send Pink Paw a free treat: one a day per player across all games, while the day’s treats last. A shared treat meter is coming soon.</p>
+        <p class="small" id="gTreatP">Catnip Heist, Pink Paw Knight and Moon Rave can send Pink Paw a free treat: one a day per player across all games, while the day’s treats last. Each treat counts on the Pink Paw meter at the top of this page.</p>
         <div class="ctas"><a class="pbtn" id="gPlay" data-cta="hub_heist" href="/heist?from=home_hub_heist"><span id="gPlayTxt">Play <span class="s">free</span></span></a><button class="dbtn" id="gTrailer" type="button" aria-haspopup="dialog" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Watch trailer</button></div>
       </div>
     </div>
@@ -1321,7 +1325,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
       <li class="fig" data-claim="F-011"><b>173K+</b><span>Followers on X</span><small>Public profile, <span class="nw">Oct 2026</span></small></li>
       <li class="fig" data-claim="F-013"><b>40</b><span>Influencer cats</span><small>Company‑reported, <span class="nw">Apr 2026</span></small></li>
     </ul>
-    <p class="live" data-claim="C-001"><b id="proofAmt">$132</b> sent to Pink Paw of our $50,000 goal (<span id="proofPct">0.26%</span>)<span id="proofAsOfW" hidden> · <span id="proofAsOf"></span></span></p>
+    <p class="live" data-claim="C-001"><b id="proofNum">1,761</b> gifts and treats paid out to Pink Paw so far (Token Tails pays for the treats), toward our goal of about 10,000<span id="proofAsOfW" hidden> · <span id="proofAsOf"></span></span></p>
     <p class="live">Every gift is paid out to Pink Paw. Card payouts can take a while; the total moves when they land.</p>
     <p class="live">Every payout is public. <a href="/shelter-payouts?from=home_proof" data-cta="verify">See every payout Pink Paw received <span aria-hidden="true">→</span></a></p>
     </div>
@@ -1358,7 +1362,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
       <details><summary>Is it free, and what is a treat?</summary><div class="a">
         <p><b>Yes, it’s free.</b> The games run in your browser, with no download. A treat is a small money gift to Pink Paw, paid by Token Tails from its own budget. You never pay for it. Tails Club is an optional paid membership; the games stay free without it.</p></div></details>
       <details><summary>How does playing help the cats?</summary><div class="a">
-        <p>Catnip Heist, Pink Paw Knight and Moon Rave can send Pink Paw a free treat: one a day per player across all games, while the day’s treats last. A shared treat meter is coming soon.</p></div></details>
+        <p>Catnip Heist, Pink Paw Knight and Moon Rave can send Pink Paw a free treat: one a day per player across all games, while the day’s treats last. Each treat counts on the Pink Paw meter at the top of this page.</p></div></details>
       <details><summary>Are the cats real?</summary><div class="a">
         <p><b>Yes.</b> Every cat in “They’re waiting for you” lives at Pink Paw (Rožinė Pėdutė), a cat shelter in Kaunas, Lithuania. The photos and stories are the shelter’s own, shown with its permission. Other cats in our games come from Mil Bigotes, Puppy Kitty NYC and our community.</p></div></details>
       <details><summary>Where does the Tails Club money go?</summary><div class="a">
@@ -1375,7 +1379,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
   <div class="bgl" aria-hidden="true"><img src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/landing/hero-bg.webp" alt="" width="1376" height="768" loading="lazy"></div>
   <div class="fadeout" aria-hidden="true"></div>
   <div class="wrap">
-    <h2 id="endh"><span class="hl">$50,000</span> for Pink Paw.<br>Let’s go.</h2>
+    <h2 id="endh"><span class="hl">≈10,000</span> gifts and treats for Pink Paw.<br>Let’s go.</h2>
     <div class="ctas">
       <span class="endperch"><img class="mascot" src="https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/w/tail/mascot-point-right.webp" alt="" width="110" height="110" loading="lazy"><a class="pbtn" id="endGive" data-cta="end_give" href="#h">Give $5 to Pink&nbsp;Paw</a></span>
       <a class="vlink" data-cta="end" data-club href="#club"><span class="club-open">Or join Tails Club</span><span class="club-soon">Tails Club: coming soon</span> <span aria-hidden="true">→</span></a>
@@ -1459,7 +1463,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
   var CDN='https://tokentails.fra1.cdn.digitaloceanspaces.com/',M='/home/media/v12/',V='/home/media/v15/';
   var API_EVT='',FROM='home';
   var FEAT=null; 
-  var GOAL=50000;
+  var GOAL=10000;
 
   var CATS=[
     {id:'6a3050d01d6649b19b036660',name:'Munis',pronoun:'him',img:'31347467739',art:'7c769d54-b5b6-437f-8499-156a1fdaaaea',alt:'a black and white cat lying on a pink blanket',
@@ -1924,76 +1928,74 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
     return fetch(u,{signal:ctl&&ctl.signal,headers:{accept:'application/json'}}).then(function(r){clearTimeout(t);if(!r.ok)throw 0;return r.json()});
   }
 
-  function usd(n){n=+n||0;return '$'+n.toLocaleString('en-US',n<1000?{minimumFractionDigits:2,maximumFractionDigits:2}:{maximumFractionDigits:0})}
   function day(iso){var d=new Date(iso);return isNaN(d)?'':d.toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})}
-  function pctTxt(v){var bp=Math.floor((+v||0)*10000/GOAL);return v<=0?'0%':bp>=10000?'100%':bp<1?'<0.01%':(bp/100).toLocaleString('en-US',{maximumFractionDigits:2})+'%'}
 
-  var SNAP=132.80,MIN_SLIVER=1.2,SEP='<span class="pp-sep" aria-hidden="true"> · </span>',STEPS=[250,500,1000,2500,5000,10000,25000,50000];
+  var SNAP=1761,MIN_SLIVER=1.2,SEP='<span class="pp-sep" aria-hidden="true"> · </span>',STEPS=[100,250,500,1000,2500,5000,7500,10000];
 
-  function usdW(n){return '$'+Math.floor(+n||0).toLocaleString('en-US')}
-  function kUsd(s){return '$'+(s>=1000?s/1000+'K':s)}
+  function numW(n){return Math.floor(+n||0).toLocaleString('en-US')}
+  function don(n){return n===1?' gift or treat':' gifts and treats'}
   var ppAll=(function(){
     var calm=reduce;
     function PP(root){
       var G=+root.dataset.goal||GOAL;
       var q=function(s){return root.querySelector(s)},num=q('.pp-num'),track=q('.pp-track'),bump=q('.pp-bump'),
         flagv=q('.pp-flagv'),step=q('.pp-step'),gtxt=q('.pp-gtxt'),stops=[].slice.call(root.querySelectorAll('.pp-stop'));
-      var raised=0,shown=0,timer,cur=null,scale=STEPS[0],atl=false,yay=0,swap=0,hit=0,gt=0,bt=0,lastD=0,pvOn=false;
-      if(!calm)num.textContent=usdW(0);
+      var total=0,shown=0,timer,cur=null,scale=STEPS[0],atl=false,yay=0,swap=0,hit=0,gt=0,bt=0,lastD=0,pvOn=false;
+      if(!calm)num.textContent=numW(0);
       function nextI(v){for(var i=0;i<STEPS.length;i++)if(STEPS[i]>v)return i;return -1}
-      function fillAt(v){var x=Math.max(0,Math.min(1,v/scale))*100;return v>0&&v<=5?Math.max(MIN_SLIVER,x):x}
+      function fillAt(v){var x=Math.max(0,Math.min(1,v/scale))*100;return v>0?Math.max(MIN_SLIVER,x):x}
       function setP(x,jump){if(jump){root.classList.add('pp-snap');root.style.setProperty('--p',x+'%');void root.offsetWidth;root.classList.remove('pp-snap')}
         else root.style.setProperty('--p',x+'%')}
-      function rescale(i){scale=i<0?G:STEPS[i];flagv.textContent=kUsd(scale)}
+      function rescale(i){scale=i<0?G:STEPS[i];flagv.textContent=numW(scale)}
       function trail(i,spark){stops.forEach(function(li,k){var past=i<0||k<i;
         if(spark&&past&&!li.classList.contains('pp-past')){li.classList.add('pp-hit');setTimeout(function(){li.classList.remove('pp-hit')},1300)}
         li.classList.toggle('pp-past',past);li.classList.toggle('pp-cur',k===i)})}
       function meta(i,v){if(yay)return;
         step.innerHTML=i<0?'<b class="pp-yay">Goal reached. Thank you.</b>':
-          '<b>$'+Math.ceil(STEPS[i]-v).toLocaleString('en-US')+'</b> to the next stop'+SEP+'<b>'+pctTxt(v)+'</b> of '+usdW(G)+SEP+'stop '+(i+1)+' of '+STEPS.length}
-      function aria(v,i){track.setAttribute('aria-valuenow',v.toFixed(2));
-        track.setAttribute('aria-valuetext',(atl?'at least ':'')+usdW(v)+' of '+usdW(G)+' ('+pctTxt(v)+').'+
-          (i<0?' Goal reached.':' Next stop $'+STEPS[i].toLocaleString('en-US')+', $'+Math.ceil(STEPS[i]-v).toLocaleString('en-US')+' to go.'))}
+          '<span class="nw"><b>'+numW(STEPS[i]-v)+'</b> more to the next stop</span>'+SEP+'<span class="nw"><b>'+numW(v)+'</b> of ≈'+numW(G)+'</span>'+SEP+'<span class="nw">stop '+(i+1)+' of '+STEPS.length+'</span>'}
+      function aria(v,i){track.setAttribute('aria-valuenow',String(Math.min(v,G)));
+        track.setAttribute('aria-valuetext',(atl?'At least ':'')+numW(v)+don(v)+' of a goal of about '+numW(G)+'.'+
+          (i<0?' Goal reached.':' Next stop '+numW(STEPS[i])+', '+numW(STEPS[i]-v)+' to go.'))}
       var run=0;
-      function count(from,to){var id=++run;if(calm){num.textContent=usdW(to);return}
+      function count(from,to){var id=++run;if(calm){num.textContent=numW(to);return}
         var t0=performance.now();(function f(now){if(id!==run)return;var k=Math.min(1,(now-t0)/1400),e=1-Math.pow(1-k,3);
-          num.textContent=usdW(from+(to-from)*e);if(k<1)requestAnimationFrame(f)})(t0)}
+          num.textContent=numW(from+(to-from)*e);if(k<1)requestAnimationFrame(f)})(t0)}
       function walk(){if(calm)return;root.classList.add('pp-walking');clearTimeout(timer);timer=setTimeout(function(){root.classList.remove('pp-walking')},1600)}
       function hearts(x){if(calm)return;for(var i=0;i<10;i++){var h=document.createElement('i'),a=Math.PI*(1+i/9);
         h.className='pp-heart';h.textContent='♥';
         h.style.cssText='--hx:'+x+'%;--dx:'+(Math.cos(a)*44).toFixed(1)+'px;--dy:'+(Math.sin(a)*38-8).toFixed(1)+'px;color:'+(i%2?'#ffcc55':'#ff7aa2');
         track.appendChild(h);h.addEventListener('animationend',h.remove.bind(h))}}
       function paint(v,quiet,atLeast){
-        var prev=raised,i=nextI(v),crossed=cur!==null&&i!==cur&&(i<0||i>cur);
-        raised=v;atl=!!atLeast;
+        var prev=total,i=nextI(v),crossed=cur!==null&&i!==cur&&(i<0||i>cur);
+        total=v;atl=!!atLeast;
         aria(v,i);count(shown,v);shown=v;
         clearTimeout(swap);clearTimeout(hit);
         if(crossed&&!quiet&&!calm){
           var n=i<0?STEPS.length:i;
           clearTimeout(yay);yay=0;
-          step.innerHTML='<b class="pp-yay">'+(i<0?'Goal reached. Thank you.':'Stop '+n+' reached! Next stop: '+kUsd(STEPS[i]))+'</b>';
-          yay=setTimeout(function(){yay=0;meta(nextI(raised),raised)},4000);
+          step.innerHTML='<b class="pp-yay">'+(i<0?'Goal reached. Thank you.':'Stop '+n+' reached! Next stop: '+numW(STEPS[i]))+'</b>';
+          yay=setTimeout(function(){yay=0;meta(nextI(total),total)},4000);
           setP(100);walk();
           hit=setTimeout(function(){hearts(97);trail(i,true)},650);
           if(pvOn)root.classList.remove('pp-preview');
           swap=setTimeout(function(){rescale(i);setP(0,true);
-            requestAnimationFrame(function(){requestAnimationFrame(function(){setP(fillAt(raised));walk();if(pvOn)paint.preview(lastD)})})},650+1200);
+            requestAnimationFrame(function(){requestAnimationFrame(function(){setP(fillAt(total));walk();if(pvOn)paint.preview(lastD)})})},650+1200);
         }else{
           rescale(i);setP(fillAt(v));trail(i,false);walk();meta(i,v);
           if(pvOn)paint.preview(lastD);
         }
         cur=i;
-        if(!quiet&&prev&&v>prev){bump.style.left=crossed&&!calm||fillAt(v)>78?'-60px':'';bump.textContent='+'+usd(v-prev)+' just now';bump.classList.remove('pp-go','pp-sl','pp-sr');
+        if(!quiet&&prev&&v>prev){bump.style.left=crossed&&!calm||fillAt(v)>78?'-60px':'';bump.textContent='+'+numW(v-prev)+' just now';bump.classList.remove('pp-go','pp-sl','pp-sr');
           if(calm){bump.style.left='';var tw=track.clientWidth,x=tw*fillAt(v)/100,side=function(){var bw=bump.offsetWidth;return x-28-bw>=0?'pp-sl':x+28+bw<=tw-flagv.offsetWidth-8?'pp-sr':''},sd=side();
-            if(!sd){bump.textContent='+'+usd(v-prev);sd=side()}if(sd)bump.classList.add(sd)}
+            if(!sd){bump.textContent='+'+numW(v-prev);sd=side()}if(sd)bump.classList.add(sd)}
           void bump.offsetWidth;bump.classList.add('pp-go');
           clearTimeout(bt);bt=setTimeout(function(){bump.classList.remove('pp-go')},2600)}
       }
-      paint.aria=function(atLeast){atl=!!atLeast;aria(raised,nextI(raised))};
+      paint.aria=function(atLeast){atl=!!atLeast;aria(total,nextI(total))};
       paint.preview=function(d){clearTimeout(gt);lastD=d;
-        if(calm||!(d>0)||!raised){pvOn=false;root.classList.remove('pp-preview');return}
-        var p=fillAt(raised),g=Math.max(0,Math.min(100-p,d/scale*100));
-        root.style.setProperty('--g',g+'%');gtxt.textContent='Your $'+d+' → '+usdW(raised+d);
+        if(calm||!(d>0)||!total){pvOn=false;root.classList.remove('pp-preview');return}
+        var p=fillAt(total),g=Math.max(0,Math.min(100-p,100/scale));
+        root.style.setProperty('--g',g+'%');gtxt.textContent='Your gift → '+numW(total+1);
         var tw=track.clientWidth,x=tw*p/100+Math.max(tw*g/100,24)+2;root.classList.toggle('pp-gflip',x+gtxt.offsetWidth>tw-q('.pp-flagv').offsetWidth-8);
         pvOn=true;root.classList.add('pp-preview');gt=setTimeout(function(){pvOn=false;root.classList.remove('pp-preview')},6000)};
       return paint;
@@ -2007,7 +2009,7 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
     }
     function all(v,quiet,atLeast){
       last=v;painters.forEach(function(p){p(v,quiet,atLeast)});
-      $('#proofAmt').textContent=usdW(v);$('#proofPct').textContent=pctTxt(v);
+      $('#proofNum').textContent=numW(v);
     }
     all.preview=function(d){painters.forEach(function(p){p.preview(d)})};
     stamp(false);
@@ -2016,9 +2018,9 @@ a.tm:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radiu
     if(reduce)firstPaint(SNAP);else setTimeout(function(){firstPaint(SNAP)},900);
     function poll(){if(document.hidden)return;
       get('https://api.tokentails.com/shelter/goal/C-001').then(function(d){
-        var r=Number(d&&d.raised),atl=!!d&&d.upToDate===false;
+        var r=Math.floor(Number(d&&d.transfers)),atl=!!d&&d.upToDate===false;
         if(!(r>0)){if(first){stamp(false);firstPaint(SNAP)}first=false;return}
-        if(!painted)firstPaint(r,atl);else if(Math.abs(r-last)>=.005)all(r,!live,atl);else painters.forEach(function(p){p.aria(atl)});
+        if(!painted)firstPaint(r,atl);else if(r!==last)all(r,!live,atl);else painters.forEach(function(p){p.aria(atl)});
         stamp(true);first=false;live=true;
       }).catch(function(){if(first)stamp(false);firstPaint(SNAP);first=false});
     }
