@@ -117,7 +117,9 @@ reach the open wallet today (below).
 (`GET /shelter/goal/C-001`, `backend/src/shelter/goal/`) sums the Transfer logs to the wallets in
 `campaign.wallets`, each only inside its own `fromBlock`..`toBlock` range, and skips a transfer
 whose sender is another campaign wallet. So spending never lowers the bar, and a handover (a new
-wallet the shelter owns) keeps counting without counting its sweep twice. On Arc it reads the
+wallet the shelter owns) keeps counting without counting its sweep twice. The `transfers` count
+skips zero-value transfers and dust below 0.01 USDC (address-poisoning spam); dust still adds to
+`raised`. On Arc it reads the
 system Transfer log `campaign.inflowLog` (`0xff…fe`, 18 decimals), which Arc emits for every USDC
 move, native or through the ERC-20 view at `0x3600…` (checked read-only on rpc.mainnet.arc.io).
 The public RPC refuses `eth_getLogs` spans of 10,000 blocks or more, so the scan goes in 9,999-block

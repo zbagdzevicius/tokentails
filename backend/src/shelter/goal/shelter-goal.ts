@@ -189,9 +189,9 @@ export function sumLegInflows(leg: GoalChainLeg, logs: GoalRpcLog[], from: numbe
         if (seen.has(key)) continue;
         seen.add(key);
         const value = amount18(log.data, token.decimals);
-        if (value === null) continue;
+        if (value === null || value === BigInt(0)) continue;
         sum18 += value;
-        count++;
+        if (value >= MIN_COUNTED_18) count++;
     }
     return { sum18, count };
 }
@@ -206,6 +206,13 @@ export interface GoalRpcLog {
     logIndex?: string;
     removed?: boolean;
 }
+
+/**
+ * The smallest transfer the count includes: 0.01 USDC (one sponsored treat), in 18-decimal units.
+ * Zero-value and dust transfers (address poisoning, spam) never add to the count; dust still adds
+ * its few cents to the sum.
+ */
+export const MIN_COUNTED_18 = BigInt(10) ** BigInt(16);
 
 export interface InflowSum {
     /** 18-decimal USDC. */
@@ -252,9 +259,9 @@ export function sumInflows(c: GoalCampaign, logs: GoalRpcLog[], from: number, to
         if (seen.has(key)) continue;
         seen.add(key);
         const value = amount18(log.data, c.inflowLog.decimals);
-        if (value === null) continue;
+        if (value === null || value === BigInt(0)) continue;
         sum18 += value;
-        count++;
+        if (value >= MIN_COUNTED_18) count++;
     }
     return { sum18, count };
 }
