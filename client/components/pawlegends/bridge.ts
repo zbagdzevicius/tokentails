@@ -54,7 +54,20 @@ export const isPawlegendsSku = (value: unknown): value is PawlegendsSku =>
   typeof value === "string" && (PAWLEGENDS_SKUS as readonly string[]).includes(value);
 
 /** Mirrors of `HeroId` and `TrickId` in `pawlegends/src/data/`. */
-export const PAWLEGENDS_HEROES = ["clem", "sage", "brutus", "cacklejaw", "lambo", "aviete", "bengas", "gabe"] as const;
+export const PAWLEGENDS_HEROES = [
+  "clem",
+  "sage",
+  "brutus",
+  "cacklejaw",
+  "lambo",
+  "aviete",
+  "bengas",
+  "gabe",
+  "meatball",
+  "pixel",
+  "duchess",
+  "stilts",
+] as const;
 export const PAWLEGENDS_TRICKS = ["pounce", "snack", "hiss"] as const;
 
 export const PAWLEGENDS_SIGN_IN_REASONS = ["save-progress", "claim-rewards"] as const;

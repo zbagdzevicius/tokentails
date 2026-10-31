@@ -34,11 +34,13 @@ test('8 pick tiles, card art and the owner badge on the web; no buy link on pick
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);
 
   await toPick(game);
-  await expect(game.locator('.heroes.cats .hero-card')).toHaveCount(6);
+  await expect(game.locator('.heroes.cats .hero-card')).toHaveCount(10);
   await expect(game.locator('.heroes.dogs .hero-card')).toHaveCount(2);
   await expect(game.locator('.hero-card[data-h="lambo"] .champ-art')).toHaveCount(1);
   await expect(game.locator('.hero-card[data-h="gabe"] .champ-owned')).toHaveCount(1);
   await expect(game.locator('.hero-card[data-h="lambo"] .champ-owned')).toHaveCount(0);
+  // sim v11: the four original cats are not champions (no card art, no badge)
+  for (const h of ['meatball', 'pixel', 'duchess', 'stilts']) await expect(game.locator(`.hero-card[data-h="${h}"] .champ-art, .hero-card[data-h="${h}"] .champ-owned`)).toHaveCount(0);
   // GDD §8.1 #5: no offer on hero pick
   await game.locator('[data-h="aviete"]').click();
   await expect(game.locator('.pl-pick .detail')).toContainText("Inspired by Avietė's Token Tails card.".normalize('NFD'));
@@ -53,7 +55,7 @@ test('app build: champions play, no owner badge, no Meet link anywhere', async (
   await info.locator('[data-a="champion-info"]').click();
   await expect(info.locator('[data-a="champion-meet"]')).toHaveCount(0);
   await toPick(game);
-  await expect(game.locator('.hero-card')).toHaveCount(8);
+  await expect(game.locator('.hero-card')).toHaveCount(12);
   await expect(game.locator('.champ-owned')).toHaveCount(0);
   await expect(game.locator('[data-a="champion-meet"]')).toHaveCount(0);
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);

@@ -19,7 +19,7 @@ describe('SIM_TIMING (§15)', () => {
     expect(P).toEqual({ clem: 30, sage: 27, brutus: 36, cacklejaw: 29, lambo: 30, aviete: 28, bengas: 30, gabe: 28, meatball: 34, pixel: 27, duchess: 30, stilts: 28 });
   });
 
-  it('dashes at 20 m/s', () => {
+  it('dashes at 20 m/s unless the slot carries its own speed', () => {
     expect(DASH_SPEED).toBe(20000);
     const d = (h: (typeof HERO_IDS)[number], s: 'q' | 'e', ids: string[] = []) => slotTimingFrom(h, s, abilNumbers(h, s, ids)).dashTicks;
     expect(d('clem', 'e')).toBe(6);
@@ -32,6 +32,13 @@ describe('SIM_TIMING (§15)', () => {
     expect(d('bengas', 'e')).toBe(6);
     expect(d('bengas', 'e', ['long-hop'])).toBe(7);
     expect(d('gabe', 'e')).toBe(6);
+    // sim v11: Meatball's roll at the shared speed; Duchess's glide (12 m/s) and Stilts's leap (15 m/s) at their own
+    expect(d('meatball', 'q')).toBe(9);
+    expect(d('meatball', 'q', ['hungry-roll'])).toBe(12);
+    expect(d('duchess', 'e')).toBe(10);
+    expect(d('stilts', 'q')).toBe(12);
+    expect(slotTimingFrom('duchess', 'e', abilNumbers('duchess', 'e')).projSpeed).toBe(0);
+    expect(slotTimingFrom('stilts', 'q', abilNumbers('stilts', 'q')).aimClamped).toBe(true);
   });
 
   it('windups, zones and projectiles', () => {
@@ -43,6 +50,12 @@ describe('SIM_TIMING (§15)', () => {
     expect(SIM_TIMING.gabe.slots.q.arm).toBe(15);
     expect(SIM_TIMING.bengas.slots.r.arm).toBe(18);
     expect(SIM_TIMING.bengas.slots.r.every).toBe(15);
+    expect(SIM_TIMING.duchess.slots.w.windup).toBe(11);
+    expect(SIM_TIMING.duchess.slots.r.windup).toBe(18);
+    expect(SIM_TIMING.duchess.slots.q.projSpeed).toBe(9000);
+    expect(SIM_TIMING.pixel.slots.q.projSpeed).toBe(18000);
+    expect(SIM_TIMING.pixel.slots.w.every).toBe(8);
+    expect(SIM_TIMING.duchess.slots.e.every).toBe(15);
     expect(SIM_TIMING.sage.slots.q.projTicks).toBeCloseTo(10.5, 6);
     expect(SIM_TIMING.sage.slots.r.projTicks).toBeCloseTo(20, 6);
     expect(SIM_TIMING.clem.slots.r.projTicks).toBeCloseTo(6, 6);

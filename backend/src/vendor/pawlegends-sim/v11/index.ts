@@ -6,10 +6,24 @@ import * as bundle from './pawlegends-sim.bundle';
 
 const sim: any = bundle;
 
-export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw' | 'lambo' | 'aviete' | 'bengas' | 'gabe';
+export type PawlegendsHeroId =
+    | 'clem'
+    | 'sage'
+    | 'brutus'
+    | 'cacklejaw'
+    | 'lambo'
+    | 'aviete'
+    | 'bengas'
+    | 'gabe'
+    | 'meatball'
+    | 'pixel'
+    | 'duchess'
+    | 'stilts';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
+/** Sim v10: only 'none' exists. */
+export type PawlegendsMutator = 'none';
 
 export interface PawlegendsReplay {
     v: 1;
@@ -22,6 +36,8 @@ export interface PawlegendsReplay {
     inputs: string;
     outcome: PawlegendsOutcome;
     finalHash: string;
+    /** Sim v10 and later: 'none' (every record from v10 carries it). */
+    mutator?: PawlegendsMutator;
 }
 
 /** The replay record the backend stores and re-sims (same shape as PawlegendsReplay). */
@@ -36,6 +52,10 @@ export interface PawlegendsSlotStats {
     heroDamage: number;
     towerDamage: number;
     level: number;
+    /** Sim v10 and later: damage soaked, heal and shield given, damage to camps and Pudding. */
+    damageTaken?: number;
+    healShield?: number;
+    objective?: number;
 }
 
 export type PawlegendsVerifyCode =
@@ -47,16 +67,17 @@ export type PawlegendsVerifyCode =
     | 'PAWLEGENDS_NOT_ENDED';
 
 export type PawlegendsVerifyResult =
-    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[] }
+    /** Sim v10 and later (GAPS B2): how the match ended; 'forfeit' = the player forfeited. */
+    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit' }
     | { ok: false; code: PawlegendsVerifyCode; message: string };
 
 export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = '8738321d56637df66f36b5003ee603d6d7e091f2e89e1b8508010b60df0c4497';
-/** The SIM_VERSION this bundle was built with (9). */
-export const BUNDLE_SIM_VERSION = 9;
+export const BUNDLE_SHA256 = '64cc38f94aa66e1906c5c32b177730d29ada491c3be5c77e5f739acd7e38050a';
+/** The SIM_VERSION this bundle was built with (11). */
+export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
 export const PLACEHOLDER = false;
 

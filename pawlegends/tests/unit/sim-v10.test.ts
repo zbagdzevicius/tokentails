@@ -23,8 +23,8 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
   Array.from({ length: 6 }, (_, slot) => Array.from({ length: TALENT_TIERS }, (_, t) => m.world.talents[slot * TALENT_TIERS + t]));
 
 describe('sim v10 (GAPS B0)', () => {
-  it('SIM_VERSION is 10', () => {
-    expect(SIM_VERSION).toBe(10);
+  it('SIM_VERSION is 11 (sim v11 kept the v10 rules)', () => {
+    expect(SIM_VERSION).toBe(11);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {
@@ -88,14 +88,14 @@ describe('sim v10 (GAPS B0)', () => {
     expect(MUTATORS).toEqual(['none']);
     const m = play(5, 'gabe', undefined, 'easy');
     const rec = replayRecord(m)!;
-    expect(rec).toMatchObject({ simVersion: 10, mutator: 'none' });
+    expect(rec).toMatchObject({ simVersion: 11, mutator: 'none' });
     expect(checkReplayShape(rec)).toBeNull();
     const { mutator: _drop, ...bare } = rec;
     expect(checkReplayShape(bare)).toBeNull();
     expect(verifyReplay(bare)).toMatchObject({ ok: true });
     expect(checkReplayShape({ ...rec, mutator: 'sunsetRush' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
     expect(checkReplayShape({ ...rec, mutator: null })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
-    expect(checkReplayShape({ ...rec, simVersion: 9 })).toMatchObject({ ok: false, code: 'PAWLEGENDS_SIM_VERSION' });
+    expect(checkReplayShape({ ...rec, simVersion: 10 })).toMatchObject({ ok: false, code: 'PAWLEGENDS_SIM_VERSION' });
   });
 
   it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: 60000 }, () => {

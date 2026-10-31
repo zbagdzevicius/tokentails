@@ -1,6 +1,7 @@
-/* Sim v9 pick screen: 8 heroes in a cats row (6: Clem, Sage and the four shelter champions) and a dogs row (2). A
-   champion tile carries its Token Tails card art and, web only, the owner badge. */
-.pl-pick .heroes.cats, .pl-pick .heroes.dogs { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+/* Sim v11 pick screen: 12 heroes. The cats (10: Clem, Sage, the four shelter champions and the four original cats)
+   fill two rows of 5, the dogs (2) a third row on the same 5-column grid so every tile is the same size. A champion
+   tile carries its Token Tails card art and, web only, the owner badge. */
+.pl-pick .heroes.cats, .pl-pick .heroes.dogs { grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .pl-pick .heroes .hero-card { position: relative; padding: 8px 2px; min-width: 0; }
 .pl-pick .heroes .hero-card b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pl-pick .heroes .hero-card small { font-size: 10px; }
@@ -11,11 +12,11 @@
 .pl-pick .champ-from { margin: 6px 0 6px; font-size: 12px; line-height: 1.3; opacity: 0.85; }
 .pl-pick .champ-flavour { margin: -2px 0 8px; font-size: 12px; font-style: italic; opacity: 0.7; }
 @media (max-height: 520px) {
-  /* 844x390: two hero rows must leave the Paw Trick chips above the fold (round 1). */
-  .pl-pick .heroes.cats, .pl-pick .heroes.dogs { gap: 4px; }
-  .pl-pick .heroes .hero-card { padding: 4px 2px; }
-  .pl-pick .heroes .hero-card i.pic, .pl-pick .heroes .hero-card i { width: 28px; height: 28px; }
-  .pl-pick .heroes .hero-card b { font-size: 11px; }
+  /* 844x390: three hero rows (sim v11) must leave the Paw Trick chips above the fold (round 1): smaller tiles. */
+  .pl-pick .heroes.cats, .pl-pick .heroes.dogs { gap: 3px; }
+  .pl-pick .heroes .hero-card { padding: 2px 2px; }
+  .pl-pick .heroes .hero-card i.pic, .pl-pick .heroes .hero-card i { width: 22px; height: 22px; }
+  .pl-pick .heroes .hero-card b { font-size: 10px; }
   .hero-card .champ-art { width: 16px; height: 16px; }
   .pl-pick .champ-flavour { display: none; }
 }

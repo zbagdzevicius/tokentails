@@ -262,12 +262,16 @@ const rankDmgOf = (r: Nums | undefined): number | undefined => (r ? (r.dmg ?? r.
 /** Level at which the ultimate unlocks (data/xp.ts XP.ultimateLevel). */
 const ULT_UNLOCK = 4;
 
-/** Reach and the main timer of an ability, shared by both forms below. */
+/**
+ * Reach and the main timer of an ability, shared by both forms below. Sim v11: a splash radius counts as reach
+ * (BOXBOT's exploding shots), a knockback distance reads "push 1.5 m" (Meatball), and a charm is a timer (Loaf Mode).
+ */
 function reachAndTimer(a: Nums, parts: string[]): void {
-  const reach = a.range ?? a.dash ?? a.blink ?? a.radius ?? a.leap;
+  const reach = a.range ?? a.dash ?? a.blink ?? a.radius ?? a.leap ?? a.splash;
   if (reach !== undefined) parts.push(metres(reach));
-  const dur = a.stun ?? a.root ?? a.fear ?? a.duration;
-  if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : 'lasts'} ${sec(dur)}`);
+  if (a.push !== undefined && a.push > 0) parts.push(`push ${metres(a.push)}`);
+  const dur = a.stun ?? a.root ?? a.fear ?? a.charm ?? a.duration;
+  if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : a.charm ? 'charm' : 'lasts'} ${sec(dur)}`);
 }
 
 /**
@@ -376,9 +380,11 @@ export function rankPips(rank: number, max: number): string {
 /** A number of `key` in words for the talent card ("3.5 s", "4 m", "20%"). */
 function numberText(key: string, v: number): string {
   if (/Bp$/.test(key)) return `${v / 100}%`;
-  if (/^(cooldown|duration|stun|root|fear|charm|slow|haste|arm|windup|recastWindow|hold|lockout|postDuration|immune|reveal|untargetable|brushLinger)$/.test(key)) return sec(v);
-  if (/^(range|dash|blink|radius|width|leap|postRadius|pierceRange|knockback|pull)$/.test(key)) return metres(v);
+  if (/^(cooldown|duration|stun|root|fear|charm|slow|haste|arm|windup|recastWindow|hold|lockout|postDuration|immune|reveal|untargetable|brushLinger|ttl)$/.test(key)) return sec(v);
+  if (/^(range|dash|blink|radius|width|leap|postRadius|pierceRange|knockback|pull|push|splash|touch)$/.test(key)) return metres(v);
   if (key === 'speed') return `${Math.round(v / 100) / 10} m/s`;
+  // an arc in 1/4096 turns as degrees (Grand Glare 910 → 1200 reads 80° → 105°)
+  if (key === 'arc') return `${Math.round((v * 360) / 4096)}°`;
   return String(v);
 }
 

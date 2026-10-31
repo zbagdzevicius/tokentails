@@ -107,6 +107,26 @@ export function chargeRing(e: Pick<ViewEntity, 'hero' | 'charged' | 'lockout' | 
   return { state: 'lockout', frac: Math.min(1, t / Math.max(1, full)), secs: Math.ceil(t / 30) };
 }
 
+/**
+ * Pure: Duchess's Disdain pips on a hero plate (sim v11, Utter Disdain): how many of the `max` crowns are lit, from the
+ * snapshot's `stacks` (sent for both teams). 0 for a dead hero or one with no stacks; `max` is her Snub threshold.
+ */
+export function disdainPips(e: Pick<ViewEntity, 'kind' | 'stacks' | 'state'>): { lit: number; max: number } {
+  const max = HEROES.duchess.passive.stacks ?? 3;
+  if (e.kind !== 'hero' || e.state === 'dead') return { lit: 0, max };
+  return { lit: Math.min(max, Math.max(0, e.stacks ?? 0)), max };
+}
+
+/**
+ * Pure: Stilts's Stride meter (sim v11, Long Stride) as a share of full, from the snapshot's `resource` (sent to her own
+ * team only); -1 when there is no meter to draw (another hero, an enemy Stilts, or dead).
+ */
+export function strideMeter(e: Pick<ViewEntity, 'hero' | 'resource' | 'state'>): number {
+  if (e.hero !== 'stilts' || e.state === 'dead' || e.resource === undefined) return -1;
+  const max = HEROES.stilts.passive.max ?? 100;
+  return Math.min(1, Math.max(0, e.resource / Math.max(1, max)));
+}
+
 export class Overhead {
   readonly canvas: HTMLCanvasElement;
   private g: CanvasRenderingContext2D | null;
@@ -543,6 +563,36 @@ export class Overhead {
     g.restore();
   }
 
+  /**
+   * Duchess's Disdain (sim v11): a row of small crowns under the bar, lit in her purple, one per stack; the unlit ones
+   * show how far the hero is from a Snub. Nothing without stacks.
+   */
+  private disdain(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, y: number): void {
+    const { lit, max } = disdainPips(e);
+    if (lit <= 0) return;
+    const s = 4.5 * this.scale;
+    const gap = 3 * s;
+    g.save();
+    g.lineWidth = 1.5;
+    g.strokeStyle = 'rgba(42,26,34,0.9)';
+    for (let i = 0; i < max; i++) {
+      const x = cx + (i - (max - 1) / 2) * gap;
+      g.beginPath();
+      g.moveTo(x - s, y + s * 0.5);
+      g.lineTo(x - s, y - s * 0.4);
+      g.lineTo(x - s * 0.5, y + s * 0.05);
+      g.lineTo(x, y - s * 0.7);
+      g.lineTo(x + s * 0.5, y + s * 0.05);
+      g.lineTo(x + s, y - s * 0.4);
+      g.lineTo(x + s, y + s * 0.5);
+      g.closePath();
+      g.fillStyle = i < lit ? '#b98cff' : 'rgba(42,26,34,0.55)';
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+  }
+
   private drawLocks(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
     if (!this.locks.length) return;
     const dt = 1 / 60;
@@ -769,6 +819,15 @@ export class Overhead {
     g.arc(x - r - 2, sy, r, 0, Math.PI * 2);
     g.fill();
     this.chargeRing(g, e, x - r - 2, sy, r);
+    this.disdain(g, e, sx, y + bh + 8 * this.scale);
+    const stride = strideMeter(e);
+    if (stride >= 0) {
+      // Stilts's Stride under her bar (own team): sand while it builds, a hot terracotta when full (the pounce is ready)
+      g.fillStyle = 'rgba(42,26,34,0.82)';
+      g.fillRect(x - 1, y + bh + 1, bw + 2, 4 * this.scale);
+      g.fillStyle = stride >= 1 ? '#ff8a5c' : '#e8c27a';
+      g.fillRect(x, y + bh + 2, bw * stride, 2.5 * this.scale);
+    }
     g.fillStyle = '#fff3dc';
     g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
     g.textAlign = 'center';

@@ -249,7 +249,8 @@ All juice lives in the renderer. The sim never pauses, so determinism holds.
 
 P1 = POC (4), P2 = MVP (+8, 12 total: 6 cats, 6 dogs), P3 = Full (+18, 30 total). Sim v9 (2026-10-19): the four
 P2 cat slots went to the shelter champions (below), built ahead of the other P2 heroes; Clover, Mochi, Earl Grey and
-Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive.
+Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive. Sim v11 (2026-10-31) adds four original cats
+(Meatball, Pixel, Duchess, Stilts; `CATS-V11.md`), so cats have 10 heroes and dogs 2; a dog wave is next.
 
 **Purrhaven (cats)**
 
@@ -261,6 +262,10 @@ Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive.
 | **Avietė** (shelter champion) | Assassin | ELECTRIC | Charged in brush, next hit stuns; *Live Wire* blink and return | **P2 (sim v9)** | Avietė's Token Tails card |
 | **Bengas** (shelter champion) | Mage | FIRE | *Hot Toast* vs CC'd heroes; ult *Curtains Up!* fire stage | **P2 (sim v9)** | Bengas's Token Tails card |
 | **Gabė** (shelter champion) | Support | WIND | *Heart Breeze* heals; ult *Under Her Spell* charm | **P2 (sim v9)** | Gabė's Token Tails card |
+| **Meatball** (original cat) | Tank | GRASS | *Bowling Roll* knocks dogs aside; ult *Unstoppable Chonk* | **P2 (sim v11)** | `CATS-V11.md` §2.1 |
+| **Pixel** (original cat) | Marksman | ICE | *Laser Pointer* channelled beam; ult *BOXBOT MK II* | **P2 (sim v11)** | `CATS-V11.md` §2.2 |
+| **Duchess** (original cat) | Mage | DARK | *Utter Disdain* stacks into a Snub stun; ult *Royal Decree* | **P2 (sim v11)** | `CATS-V11.md` §2.3 |
+| **Stilts** (original cat) | Assassin | SAND | *Long Stride* builds by running, pounces at full; ult *Zoomies* | **P2 (sim v11)** | `CATS-V11.md` §2.4 |
 | Clover | Support | GRASS | *Bell Chime* heals; ult *Lullaby* sleep zone | P3 (was P2) | PPK `clover.mend` |
 | Mochi | Tank | SAND | *Shield Wall* taunt; ult *Tuxedo Fortress* | P3 (was P2) | PPK `mochi.shieldWall` |
 | Earl Grey | Mage | ELECTRIC | Every third spell chains | P3 (was P2) | PPK service kitten |

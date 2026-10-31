@@ -22,7 +22,7 @@ Install and run inside this package (`npm install` here; it has its own `node_mo
 | Grade calibration (GAPS A2) | `node tools/grade-calibrate.mjs [--seeds 400] [--from 1] [--check]` (per-role S/A/B/C shares for a Normal human vs Normal bots; thresholds live in `src/meta/grade.ts`) |
 | Nightly gates | `PAWLEGENDS_NIGHTLY=1 npx vitest run --project unit tests/unit/balance.test.ts tests/unit/bots.test.ts tests/unit/determinism.test.ts` (2,000 balance seeds, 400 novice seeds per difficulty, 1,000 fuzz seeds) |
 | Card skin palettes | `npm run gen:skins` (writes `src/render/skins/families.gen.ts` from `../client/public/heist-game/assets/cats/*.png`; `-- --sheet <png>` writes a contact sheet), `npm run gen:skins:check` fails when the table is stale |
-| Backend sim copy | `npm run vendor-sim` → `../backend/src/vendor/pawlegends-sim/`; `vendor-sim:check` fails when it is stale; `vendor-sim:check-remote -- <backend url>` compares `GET /pawlegends/sim` |
+| Backend sim copy | `npm run vendor-sim` → `../backend/src/vendor/pawlegends-sim/` (live v11, frozen v10 from `FROZEN` in `tools/vendor-sim.mjs`); `vendor-sim:check` fails when it is stale (run both from this folder: the bundle depends on the working directory); `vendor-sim:check-remote -- <backend url>` compares `GET /pawlegends/sim` |
 
 Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see "Hero art" below).
 
@@ -32,8 +32,14 @@ Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see
   `api.ts` is **the contract** other lanes code against; `index.ts` exports `createMatch / step / snapshot / hash /
   result` (+ `fillPicks`, `replayRecord`, `createPlayerBot`); `server.ts` exports `checkReplayShape` and
   `verifyReplay`; `commands.ts` is the §11.3 binary stream; `fixed.ts`, `rng.ts`, `hash.ts`, `world.ts` are the
-  primitives. Map and nav (`map/`, `nav/`), units, combat, the 18 effect primitives (`effects/`), the four heroes
-  and their talents (`heroes/`), XP and levels (`progression/`), bots (`bots/`), rat camps and Pudding are all in.
+  primitives. Map and nav (`map/`, `nav/`), units, combat, the 19 effect primitives (`effects/`; sim v11 added
+  `stack`), the twelve heroes and their talents (`heroes/`: the POC four, the sim v9 shelter champions and the sim v11
+  original cats Meatball, Pixel, Duchess and Stilts), XP and levels (`progression/`), bots (`bots/`, one module per
+  hero under `bots/heroes/` for the sim v11 cats), rat camps and Pudding are all in. `SIM_VERSION` is 11.
+- Per-hero modules (sim v11 onward): a new hero owns `src/data/heroes/<id>.ts`, `src/sim/heroes/<id>.ts`,
+  `src/sim/bots/heroes/<id>.ts`, `src/render/chars/heroes/<id>.ts` (its chibi, gear and render constants),
+  `src/render/moves/<id>.ts`, `src/render/skillfx/<id>.ts`, `src/ui/heroText/<id>.ts`, `src/ui/icons/<id>.ts` and
+  `src/input/aims/<id>.ts`; the shared tables import from them (`docs/plans/moba/CATS-V11.md` §4).
 - `src/host/`: `protocol.ts` (§11.2 messages and the binary `snap` encoding), `host-core.ts`, the 30 Hz tick loop
   and the Worker host.
 - `src/embed/bridge.ts`: the `tt-pawlegends` v1 bridge (accepts the configured origins plus its own origin when

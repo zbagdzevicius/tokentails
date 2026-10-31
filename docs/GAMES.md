@@ -199,14 +199,15 @@ override.
 ## Pawlegends
 
 A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
-`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of eight
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of twelve
 upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
-allies of its own side against three bots of the other side on Purrhaven Crossing. Cats: Clem, Sage and the
-four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support); dogs: Sir
-Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end between 5
-and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a second,
-`SIM_VERSION` 10) in a Web Worker, and the backend replays it (v9 and v10 replays both verify, by `simVersion`, for
-30 days after the v10 deploy).
+allies of its own side against three bots of the other side on Purrhaven Crossing. Cats (10): Clem, Sage, the
+four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support), and the four
+original cats (sim v11, POC.md §6.8c) Meatball (tank), Pixel (marksman), Duchess (mage) and Stilts (assassin);
+dogs: Sir Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end
+between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a
+second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v11 replays both verify, by
+`simVersion`, for 30 days after the v11 deploy; v9 is retired).
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
@@ -258,16 +259,18 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
 - **Wave A** (`docs/plans/moba/GAPS.md` §3; render, UI and local meta only: no `SIM_VERSION` change, replays and
   hash trails unchanged):
   - **Treat Track** (`src/meta/treats.ts`, state v2; a v1 record migrates once): 30 fixed-order chests for all 8
-    heroes, then a fixed loop of palette coats (8 palettes × the 4 originals), so it never runs dry. Clem, Sage,
+    heroes (42 since sim v11: three coats for each of the four original cats follow chest 30), then a fixed loop of
+    palette coats (8 palettes × the 8 originals since sim v11), so it never runs dry. Clem, Sage,
     Sir Brutus and Cacklejaw get coats and palette variants; the shelter champions get a "<name>'s Pal" title, a
     frame and a "Meet the real cat" postcard (card art and a short story, `src/ui/collection.ts`), never a recolour,
     since they wear their real card's coat. Nothing a $5 card gives (element chroma, Companion Kitten, card badge,
     card skin) is on the track. The chest screen ("Pick your next target") sets the hero whose next reward the next
     chest holds, with "about N matches to go". The second emote is a palette coat (one emote slot in a match).
   - **Cacklejaw coats**: his Track coats now recolour his fur and head (`src/render/chars/specs.ts`, `lookCoat`).
-  - **Quests** (`src/meta/quests.ts`, 17): adds `win_lambo`, `win_aviete`, `win_bengas`, `win_gabe`, "Play a
-    shelter champion" and "Calm Pudding twice". Slot 1 is the day's "Win with <hero>", round-robin by date (each
-    hero every 8 days; the first 3 matches name the hero being played). Rewards are Treat XP only; no quest opens
+  - **Quests** (`src/meta/quests.ts`, 21 since sim v11): adds `win_lambo`, `win_aviete`, `win_bengas`, `win_gabe`,
+    "Play a shelter champion" and "Calm Pudding twice"; sim v11 adds `win_meatball`, `win_pixel`, `win_duchess` and
+    `win_stilts`. Slot 1 is the day's "Win with <hero>", round-robin by date (each hero every 12 days; the first 3
+    matches name the hero being played). Rewards are Treat XP only; no quest opens
     or triggers an offer (`src/money/offer.ts` unchanged).
   - **Grade** (`src/meta/grade.ts`, pure on `MatchResult.stats`): S/A/B/C by role (carry vs tank/support weights),
     MVP, and "Best on your team" on a loss. Treat XP S +40, A +25, B +10, never catnip. On the ladder the grade
@@ -420,8 +423,13 @@ and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/
   `npm run match -- --seeds 200 --check-determinism` and `npm run determinism -- --seeds 200` (also `fun1`, `fun2`,
   `novice` and `parked`)
   (README "Run and check" has the full list and the nightly gates).
+- **Original cats** (sim v11, POC.md §6.8c, build spec `docs/plans/moba/CATS-V11.md`): Meatball, Pixel, Duchess and
+  Stilts are made-up cats, not shelter champions: no card, no badge, no Meet card, no catalog id. They are free to
+  play everywhere, wear breed coats (`CAT_HEROES`), have Treat Track coats and a "Win with" quest each. The pick
+  screen lays the 10 cats out in two rows of 5 and the dogs in a third row.
 - **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
-  `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days), deploy the
+  `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days, listed in
+  `FROZEN` in `pawlegends/tools/vendor-sim.mjs`), deploy the
   backend, then the client build. The backend must be live first, or every replay of the new version is refused. `GET /pawlegends/sim`
   serves the bundle hash (`npm run vendor-sim:check-remote -- <backend url>`). The backend refuses replays of
   any other version, and the host purges queued matches of an old version.
