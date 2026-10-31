@@ -666,3 +666,12 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 **Reported, not fixed here**
 - Nap (`units/hero.ts`, `toSpawn` when the channel ends) teleports a hero home without the kit's `reset` hook. Stilts guards against it in her kit; any kit that tracks a last position would see a jump.
 - The touch Attack button treats only Sage as ranged (decision 3 above).
+
+**Balance (Phase 3)**
+- The `pvp` pass covers all 12 heroes. Meatball 9100/9600, Pixel 9400/9600, Duchess 11400/8700, Stilts 10300/9000. Every other cat takes 300 less than before; Clem, Gabė and Avietė also deal less. Brutus and Cacklejaw take 9350.
+- The 2,000-seed gate passes: median 7:02, p95 7:53, 81.3% core kills, side 51.0%, cats 51.0%, heroes 47.9–52.7% (Meatball 52.3, Pixel 49.8, Duchess 52.7, Stilts 49.9), 3.45 takedowns a minute.
+- Cutting every hero's damage alike tipped the gate to dogs, so the pace fix cut the cats' damage and their damage taken together.
+- Rookie: `nearAssists` off and rally +13%. An idle human had won 55.5%, because as a cat it took near assists at the fountain. Now idle 48.0%, feeder 87.0%, fun1 median 5:00.
+- Still failing:
+  - novice vs Normal: 30.3%. It already failed at v10 (32.0%). A cat novice wins about 25% and a dog novice about 42%, and 10 of 12 picks are now cats. A Normal human damage edge of 125% lifts it to 40.3% but puts the balance side at 65%.
+  - hard, down 10+ takedowns: 2 of 14 matches win (14.3%; seeds 1,001–1,400: 2 of 36, 5.6%). The win rate itself is 41.5%.

@@ -37,7 +37,7 @@ describe('Bengas, shelter champion mage (sim v9)', () => {
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 390, 1950]);
     expect(BENGAS.passive).toEqual({ bonusBp: 11500 });
     expect([A.w.windup, A.w.stun, A.w.slowBp, A.w.slow]).toEqual([9, 23, 2500, 30]);
-    expect(BENGAS.pvp).toEqual({ dmgBp: 11200, takenBp: 9100 }); // sim v10: 11000 before
+    expect(BENGAS.pvp).toEqual({ dmgBp: 11200, takenBp: 8700 }); // sim v10: deals 11000 before; sim v11: takes 9100 before
   });
 
   it('Hot Toast: +15% damage to a slowed (or otherwise crowd-controlled) enemy hero', () => {

@@ -39,7 +39,7 @@ describe('Duchess, original cat mage (sim v11)', () => {
     expect([DUCHESS.side, DUCHESS.role, DUCHESS.element]).toEqual(['cat', 'mage', 'DARK']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([210, 300, 390, 1950]);
     expect(DUCHESS.passive).toEqual({ stacks: 3, window: 120, stun: 23, dmg: 40, dmgPerLevel: 4, lockout: 180 });
-    expect(DUCHESS.pvp).toEqual({ dmgBp: 10400, takenBp: 9600 });
+    expect(DUCHESS.pvp).toEqual({ dmgBp: 11400, takenBp: 8700 });
     expect((DUCHESS as { catalogId?: unknown }).catalogId).toBeUndefined();
   });
 

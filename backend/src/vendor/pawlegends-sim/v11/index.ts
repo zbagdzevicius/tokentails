@@ -75,7 +75,7 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = '64cc38f94aa66e1906c5c32b177730d29ada491c3be5c77e5f739acd7e38050a';
+export const BUNDLE_SHA256 = '426f9a2ab8434204338a6f9f2e610cc9491779176e3243c24439c6873738eb61';
 /** The SIM_VERSION this bundle was built with (11). */
 export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */

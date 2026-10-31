@@ -21,7 +21,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		structureHpBp: 1e4,
 		coreHpBp: 1e4,
 		humanRespawnBp: 6e3,
-		nearAssists: true,
+		nearAssists: false,
 		towerKnockback: true,
 		carryAllies: 2,
 		enemiesToHuman: true,
@@ -32,7 +32,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		spareHuman: 500,
 		enemyRespawnBp: 17500,
 		enemyComeback: false,
-		rallyBp: 1200,
+		rallyBp: 1300,
 		rallyCap: 8,
 		scriptFrom: 450,
 		scriptUntil: 1800,
@@ -556,10 +556,10 @@ var AVIETE = Object.freeze({
 	name: "Avietė",
 	side: "cat",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). */
 	pvp: {
-		dmgBp: 12700,
-		takenBp: 8600
+		dmgBp: 12100,
+		takenBp: 8400
 	},
 	element: "ELECTRIC",
 	base: {
@@ -664,10 +664,10 @@ var BENGAS = Object.freeze({
 	name: "Bengas",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). */
 	pvp: {
 		dmgBp: 11200,
-		takenBp: 9100
+		takenBp: 8700
 	},
 	element: "FIRE",
 	base: {
@@ -778,10 +778,10 @@ var BRUTUS = Object.freeze({
 	name: "Sir Brutus",
 	side: "dog",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). */
 	pvp: {
 		dmgBp: 11100,
-		takenBp: 9250
+		takenBp: 9350
 	},
 	element: "SAND",
 	base: {
@@ -890,10 +890,10 @@ var CACKLEJAW = Object.freeze({
 	name: "Cacklejaw",
 	side: "dog",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). */
 	pvp: {
 		dmgBp: 11100,
-		takenBp: 9250
+		takenBp: 9350
 	},
 	element: "DARK",
 	base: {
@@ -1005,10 +1005,10 @@ var CLEM = Object.freeze({
 	name: "Clem",
 	side: "cat",
 	role: "fighter",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). Sim v11: 8200 / takes 10100 (57.1% of the gate with the four new cats; now 47.9%). */
 	pvp: {
-		dmgBp: 8800,
-		takenBp: 10200
+		dmgBp: 8200,
+		takenBp: 10100
 	},
 	element: "FAIRY",
 	base: {
@@ -1114,10 +1114,10 @@ var DUCHESS = Object.freeze({
 	name: "Duchess",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). */
 	pvp: {
-		dmgBp: 10400,
-		takenBp: 9600
+		dmgBp: 11400,
+		takenBp: 8700
 	},
 	element: "DARK",
 	base: {
@@ -1235,10 +1235,10 @@ var GABE = Object.freeze({
 	name: "Gabė",
 	side: "cat",
 	role: "support",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). */
 	pvp: {
-		dmgBp: 9800,
-		takenBp: 1e4
+		dmgBp: 9500,
+		takenBp: 9700
 	},
 	element: "WIND",
 	base: {
@@ -1346,10 +1346,10 @@ var LAMBO = Object.freeze({
 	name: "Lambo",
 	side: "cat",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). */
 	pvp: {
 		dmgBp: 10500,
-		takenBp: 9100
+		takenBp: 8800
 	},
 	element: "STELLAR",
 	base: {
@@ -1455,10 +1455,10 @@ var MEATBALL = Object.freeze({
 	name: "Meatball",
 	side: "cat",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Starting point; tune on the 2,000-seed gate. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). */
 	pvp: {
-		dmgBp: 1e4,
-		takenBp: 9400
+		dmgBp: 9100,
+		takenBp: 9600
 	},
 	element: "GRASS",
 	base: {
@@ -1573,9 +1573,9 @@ var PIXEL = Object.freeze({
 	name: "Pixel",
 	side: "cat",
 	role: "marksman",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). */
 	pvp: {
-		dmgBp: 10600,
+		dmgBp: 9400,
 		takenBp: 9600
 	},
 	element: "ICE",
@@ -1694,11 +1694,12 @@ var SAGE = Object.freeze({
 	/**
 	* Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
 	* (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
-	* 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks).
+	* 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks). Sim v11 (four new cats): 10800 /
+	* takes 9500 (51.2%).
 	*/
 	pvp: {
-		dmgBp: 10900,
-		takenBp: 9800
+		dmgBp: 10800,
+		takenBp: 9500
 	},
 	element: "WIND",
 	base: {
@@ -1824,9 +1825,9 @@ var STILTS = Object.freeze({
 	name: "Stilts",
 	side: "cat",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 10300 / 9000 (11800 / 9000 before: 57.1% of the 2,000-seed gate; now 49.9%). */
 	pvp: {
-		dmgBp: 11800,
+		dmgBp: 10300,
 		takenBp: 9e3
 	},
 	element: "SAND",
@@ -7511,7 +7512,7 @@ function aimHunt(m, id) {
 *
 * - Hero kill: 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
 *   victim's bounty (a takedown streak of 3+: +40 × streak, max +160). Shared equally among the enemy heroes within
-*   10 m and those who hit the victim in the last 10 s (assists). On Rookie and Easy (DIFFICULTY_RULES.nearAssists)
+*   10 m and those who hit the victim in the last 10 s (assists). On Easy (DIFFICULTY_RULES.nearAssists; Rookie before v11)
 *   every ally within 10 m counts as an assist too. The killer is the last hero to hit it (a tower or minion last
 *   hit credits the most recent hero who hit it in the window).
 * - Takedown heal: every credited hero alive gets TAKEDOWN_HEAL.healBp of its max HP back (a `buff` 'takedown').

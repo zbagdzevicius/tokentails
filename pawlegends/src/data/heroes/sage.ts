@@ -9,9 +9,10 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
   /**
    * Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
    * (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
-   * 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks).
+   * 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks). Sim v11 (four new cats): 10800 /
+   * takes 9500 (51.2%).
    */
-  pvp: { dmgBp: 10900, takenBp: 9800 },
+  pvp: { dmgBp: 10800, takenBp: 9500 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */
