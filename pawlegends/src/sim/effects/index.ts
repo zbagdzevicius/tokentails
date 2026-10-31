@@ -1,4 +1,7 @@
-/** The 18 effect primitives of the POC (POC.md §4.4). `circle`, `taunt` and reflect are MVP; `cleanse` is sim v10 (GAPS B5). */
+/**
+ * The 18 effect primitives of the POC (POC.md §4.4). `circle`, `taunt` and reflect are MVP; `cleanse` is sim v10 (GAPS B5);
+ * `stack` (19) is sim v11 (per-victim stacks: Duchess's Disdain).
+ */
 export { dash, clipTravel, startForced, stepForced, travelTicks } from './dash';
 export { blink } from './blink';
 export { inLine, alongLine } from './line';
@@ -19,3 +22,4 @@ export { haste, attackSpeed, cooldownRate } from './buff';
 export { lowestHpEnemyHero, reveal } from './mark';
 export { ccImmune, cleanse, clearStatus, disabled, interrupt, tickStatus } from './status';
 export { collect, isAbilityTarget } from './targets';
+export { addStack, consumeStack, stacksOf } from './stack';

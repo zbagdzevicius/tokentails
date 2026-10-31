@@ -28,6 +28,10 @@ import { hyenaHead, pugHead, pupHead } from './beast';
 import * as G from './gear';
 import { PPK_POSES, type PoseDef } from './skeleton';
 import * as THREE from 'three';
+import * as MEATBALL from './heroes/meatball';
+import * as PIXEL from './heroes/pixel';
+import * as DUCHESS from './heroes/duchess';
+import * as STILTS from './heroes/stilts';
 
 const GOLD = 0xffd34d;
 /** Cat hero head scale on top of PPK's hero tier, and the ear size: the squire head-to-ear ratio at hero size. */
@@ -120,13 +124,24 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   aviete: { idle: 'clawReady', run: 'clawReady', cast: 'twirl', attack: 'claw', stride: 1.32 },
   bengas: { idle: 'bowIdle', run: 'bowIdle', cast: 'heal', attack: 'paw', stride: 1.15 },
   gabe: { idle: 'bowIdle', run: 'bowIdle', cast: 'cheer', attack: 'paw', stride: 1.05 },
+  // sim v11 original cats: each profile lives in its hero's own module (./heroes/<hero>.ts)
+  meatball: MEATBALL.MOTION,
+  pixel: PIXEL.MOTION,
+  duchess: DUCHESS.MOTION,
+  stilts: STILTS.MOTION,
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match: big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
-export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5 });
+export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = Object.freeze({
+  clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5,
+  meatball: MEATBALL.HEIGHT, pixel: PIXEL.HEIGHT, duchess: DUCHESS.HEIGHT, stilts: STILTS.HEIGHT,
+});
 
 /** Top of each hero's bind-pose bounds (m: ear tips, Clem's bow, Sir Brutus's plume): overhead bars sit above it. */
-export const HERO_TOP: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72 });
+export const HERO_TOP: Readonly<Record<HeroId, number>> = Object.freeze({
+  clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72,
+  meatball: MEATBALL.TOP, pixel: PIXEL.TOP, duchess: DUCHESS.TOP, stilts: STILTS.TOP,
+});
 
 const IVORY: CoatSpec = { pattern: 'solid', base: PAL.furIvory, deep: PAL.furIvoryShade, light: PAL.furIvoryLight, cream: PAL.furIvoryLight };
 const CLEM_EYES = { inner: PAL.irisCrimsonInner, outer: PAL.irisCrimson, ring: PAL.irisCrimsonDeep, pupil: PAL.pupil, size: 1.16 } as const;
@@ -221,7 +236,11 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number, 
   return { ...spec, coat: skinCoat, eyes, earInner: skin.earInner, nose: skin.nose };
 }
 
-interface Dress {
+/**
+ * What heroSpec worked out for a hero's dress (team, card skin, chroma, founder trims): heroBase reads it, and the sim
+ * v11 hero modules (./heroes/<hero>.ts `spec`) receive it whole.
+ */
+export interface HeroDress {
   t: (typeof TEAM)[0 | 1];
   skin: CatSkin | null;
   skinCoat: CoatSpec | null;
@@ -233,9 +252,13 @@ interface Dress {
   trim: number | null;
   capeHem: number;
   extras: (A: Assembly) => void;
+  /** The pose library (PPK + Pawlegends poses) for ChibiSpec.poses. */
+  poses: Record<string, PoseDef | null>;
+  /** The look's Treat Track or breed coat for this hero (null = the hero's default coat). */
+  lc: Coat | null;
 }
 
-function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Dress): ChibiSpec {
+function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omit<HeroDress, 'poses' | 'lc'>): ChibiSpec {
   void team;
   const { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras } = dr;
   const coat = look.coat ?? '';
@@ -452,6 +475,15 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Dre
         },
       };
     }
+    // sim v11 original cats: each builds its chibi in its own module (./heroes/<hero>.ts)
+    case 'meatball':
+      return MEATBALL.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('meatball', look) });
+    case 'pixel':
+      return PIXEL.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('pixel', look) });
+    case 'duchess':
+      return DUCHESS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('duchess', look) });
+    case 'stilts':
+      return STILTS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('stilts', look) });
     case 'gabe': {
       return {
         rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },

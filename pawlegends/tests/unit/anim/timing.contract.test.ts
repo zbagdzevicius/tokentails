@@ -16,7 +16,7 @@ describe('SIM_TIMING (§15)', () => {
   it('basic windup and periods', () => {
     expect(BASIC_WINDUP).toBe(8);
     const P = Object.fromEntries(HERO_IDS.map((h) => [h, SIM_TIMING[h].period]));
-    expect(P).toEqual({ clem: 30, sage: 27, brutus: 36, cacklejaw: 29, lambo: 30, aviete: 28, bengas: 30, gabe: 28 });
+    expect(P).toEqual({ clem: 30, sage: 27, brutus: 36, cacklejaw: 29, lambo: 30, aviete: 28, bengas: 30, gabe: 28, meatball: 34, pixel: 27, duchess: 30, stilts: 28 });
   });
 
   it('dashes at 20 m/s', () => {

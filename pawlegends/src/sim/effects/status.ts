@@ -4,6 +4,7 @@
  * down right after movement, §4.3 step 4).
  */
 import { FM, Kind, RANGE, UnitState, type World } from '../world';
+import { clearStacks, tickStacks } from './stack';
 
 /**
  * Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
@@ -84,6 +85,7 @@ export function clearStatus(w: World, id: number): void {
   w.fmKind[id] = FM.None;
   w.fmTarget[id] = -1;
   w.tether[id] = -1;
+  if (id < RANGE.minions) clearStacks(w, id);
 }
 
 const dec = (a: Int32Array, i: number): void => {
@@ -111,5 +113,6 @@ export function tickStatus(w: World): void {
     dec(w.ccImmT, id);
     dec(w.revealT, id);
     if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
+    if (id < RANGE.minions) tickStacks(w, id);
   }
 }

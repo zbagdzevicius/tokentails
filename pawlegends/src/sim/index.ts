@@ -36,7 +36,7 @@ import {
 } from './api';
 import { resolveAttacks, stepProjectiles } from './combat/attack';
 import { ageZones, clampTethers, stepHeals, stepZones, tickStatus } from './effects';
-import { kitOf, resolveCasts, stepKits, tickCooldowns } from './heroes/kit';
+import { kitOf, resolveCasts, SNAP_FX, stepKits, tickCooldowns } from './heroes/kit';
 import { refreshFlags, refreshVision, visibleTo } from './map/brush';
 import { resolveDeaths } from './combat/damage';
 import { encodeCommand, encodeStream, toBase64 } from './commands';
@@ -357,13 +357,18 @@ export function snapshot(match: Match, team: Team): Snapshot {
         e.xp = w.xp[id];
         const t = id * TALENT_TIERS;
         e.talents = [w.talents[t], w.talents[t + 1], w.talents[t + 2]];
-        e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : w.sub[id] === AVIETE_INDEX ? w.kRT[id] : 0;
+        e.resource = w.sub[id] === CLEM_INDEX ? w.kValor[id] : w.sub[id] === AVIETE_INDEX ? w.kRT[id] : (kitOf(w, id).resource?.(w, id) ?? 0);
         if (w.sub[id] === AVIETE_INDEX && w.kHuntT[id] > 0) e.lockout = w.kHuntT[id];
       }
       // Sim v10 (GAPS B6): both teams see who took the level-6 shape branch (the enemy portrait shows it).
       if (BRANCH_TALENT[e.hero] !== null && w.talents[id * TALENT_TIERS + 1] === 1) e.branch = true;
       if (w.sub[id] === AVIETE_INDEX && w.kRT[id] > 0 && w.alive[id] === 1) e.charged = true;
       if (w.fearT[id] > 0 && w.fearSrc[id] >= 0) e.charmed = true;
+      // Sim v11: the kit's alternate state (both teams) and the stacks the hero carries (Duchess's Disdain).
+      const fx = w.alive[id] === 1 ? (kitOf(w, id).snapFx?.(w, id) ?? 0) : 0;
+      if ((fx & SNAP_FX.Form) !== 0) e.form = true;
+      if ((fx & SNAP_FX.Channel) !== 0) e.channel = true;
+      if (w.mkStack[id] > 0) e.stacks = w.mkStack[id];
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
       e.bountyStreak = w.killStreak[id];
     } else if (k === Kind.Minion) {

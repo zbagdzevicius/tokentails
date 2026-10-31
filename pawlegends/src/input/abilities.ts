@@ -13,6 +13,10 @@ import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
 import { kitNumbers } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
 import type { CastSlot, HeroId, TrickId } from '../sim/api';
+import { aims as meatballAims } from './aims/meatball';
+import { aims as pixelAims } from './aims/pixel';
+import { aims as duchessAims } from './aims/duchess';
+import { aims as stiltsAims } from './aims/stilts';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -96,6 +100,15 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
         { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.touch, 1500) * 2, smart: 'none' },
         { kind: 'dir', shape: 'cone', range: n(a.r.range, 6000), arc: n(a.r.arc, 1024) * STEP_TO_RAD, smart: 'hero' },
       ];
+    // sim v11 original cats: each hero's aims live in ./aims/<hero>.ts
+    case 'meatball':
+      return meatballAims(a);
+    case 'pixel':
+      return pixelAims(a);
+    case 'duchess':
+      return duchessAims(a);
+    case 'stilts':
+      return stiltsAims(a);
   }
 }
 

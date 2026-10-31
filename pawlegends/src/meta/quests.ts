@@ -40,6 +40,11 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'win_gabe', text: `Win with ${uiName('Gabė')}`, goal: 1, metric: 'win', hero: 'gabe' },
   { id: 'champion', text: 'Play a champion card hero', goal: 1, metric: 'champion' },
   { id: 'pudding2', text: 'Calm Pudding twice', goal: 2, metric: 'pudding' },
+  // sim v11: the four original cats join the hero slot
+  { id: 'win_meatball', text: 'Win with Meatball', goal: 1, metric: 'win', hero: 'meatball' },
+  { id: 'win_pixel', text: 'Win with Pixel', goal: 1, metric: 'win', hero: 'pixel' },
+  { id: 'win_duchess', text: 'Win with Duchess', goal: 1, metric: 'win', hero: 'duchess' },
+  { id: 'win_stilts', text: 'Win with Stilts', goal: 1, metric: 'win', hero: 'stilts' },
 ] as Quest[]);
 
 /**
@@ -49,7 +54,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
 export const QUEST_FOLLOW_UNTIL = 3;
 export const followsHero = (matchesBefore: number): boolean => matchesBefore < QUEST_FOLLOW_UNTIL;
 
-/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 8 days. */
+/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 12 days (sim v11). */
 export const QUEST_HEROES: readonly HeroId[] = HERO_IDS;
 
 export interface QuestState {

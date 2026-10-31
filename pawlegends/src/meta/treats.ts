@@ -3,7 +3,7 @@
  * takedown, +20 when our team calmed Pudding, +150 for the first win of the local day, plus finished daily quests);
  * every TREAT_STEP fills the bar and opens a chest whose contents are shown in advance. Rewards come in a FIXED order
  * (no random rewards, nothing to buy, no currency): emotes, coats, titles, frames and postcards that only change how
- * things look. 30 chests cover all 8 heroes, then a fixed loop of palette coats keeps going, so the track never runs
+ * things look. 42 chests cover all 12 heroes, then a fixed loop of palette coats keeps going, so the track never runs
  * dry. The player may pick a target hero: the next chest is that hero's next reward (the order inside each hero is
  * fixed). Browser storage in try/catch; a blocked store just means the bar starts empty. Never reaches the sim or the
  * server.
@@ -22,7 +22,7 @@ export interface TreatReward {
   name: string;
   kind: TreatKind;
   hero?: HeroId;
-  /** A palette coat from the loop after chest 30. */
+  /** A palette coat from the loop after the fixed chests. */
   loop?: true;
 }
 
@@ -31,8 +31,8 @@ export const TREAT_STEP = 300;
 /** A typical match's Treat XP (a loss with a few takedowns): the "N matches to go" estimate. */
 export const TREAT_MATCH_XP = 120;
 
-/** The four original heroes (coats) and the four shelter champions (title, frame, postcard). */
-export const TRACK_ORIGINALS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw'] as HeroId[]);
+/** The original heroes (coats; sim v11 adds the four original cats) and the four shelter champions (title, frame, postcard). */
+export const TRACK_ORIGINALS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'meatball', 'pixel', 'duchess', 'stilts'] as HeroId[]);
 export const TRACK_CHAMPIONS: readonly HeroId[] = Object.freeze(['lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]);
 
 const NAME: Readonly<Record<HeroId, string>> = Object.freeze({
@@ -44,6 +44,11 @@ const NAME: Readonly<Record<HeroId, string>> = Object.freeze({
   aviete: uiName('Avietė'),
   bengas: 'Bengas',
   gabe: uiName('Gabė'),
+  // sim v11 original cats (their Treat Track coats come with the v11 release)
+  meatball: 'Meatball',
+  pixel: 'Pixel',
+  duchess: 'Duchess',
+  stilts: 'Stilts',
 });
 
 /** Champion titles from the track (shown on the title badge and the match plate when worn). */
@@ -60,8 +65,9 @@ const frame = (hero: HeroId): TreatReward => ({ id: `frame.champ.${hero}`, name:
 const postcard = (hero: HeroId): TreatReward => ({ id: `postcard.${hero}`, name: `${NAME[hero]} postcard`, kind: 'postcard', hero });
 
 /**
- * Fixed order, 30 chests. A reward the player already owns is skipped (the next one opens instead). The first nine
- * are the original track (ids unchanged, so a stored profile keeps what it has).
+ * Fixed order, 42 chests. A reward the player already owns is skipped (the next one opens instead). The first nine
+ * are the original track (ids unchanged, so a stored profile keeps what it has); sim v11 appends three coats for each
+ * original cat after chest 30, so the first 30 keep their place.
  */
 export const TREAT_REWARDS: readonly TreatReward[] = Object.freeze([
   { id: 'emote.wave', name: 'Wave emote', kind: 'emote' },
@@ -97,9 +103,22 @@ export const TREAT_REWARDS: readonly TreatReward[] = Object.freeze([
   frame('bengas'),
   frame('gabe'),
   { id: 'coat.clem.snowpaw.sky', name: 'Sky Snowpaw Clem coat', kind: 'coat', hero: 'clem' },
+  // sim v11: three coats for each original cat, round by round
+  coat('meatball', 'butter', 'Butter'),
+  coat('pixel', 'arctic', 'Arctic'),
+  coat('duchess', 'pearl', 'Pearl'),
+  coat('stilts', 'desert', 'Desert'),
+  coat('meatball', 'smoky', 'Smoky'),
+  coat('pixel', 'cocoa', 'Cocoa'),
+  coat('duchess', 'rosewater', 'Rosewater'),
+  coat('stilts', 'silver', 'Silver'),
+  coat('meatball', 'ginger', 'Ginger'),
+  coat('pixel', 'moonbeam', 'Moonbeam'),
+  coat('duchess', 'smoke', 'Smoke'),
+  coat('stilts', 'cinder', 'Cinder'),
 ] as TreatReward[]);
 
-/** The palettes of the loop after chest 30 (render/cosmetics.ts gives each its colours), each on every original. */
+/** The palettes of the loop after the fixed chests (render/cosmetics.ts gives each its colours), each on every original. */
 export const LOOP_PALETTES: readonly { key: string; name: string }[] = Object.freeze([
   { key: 'peach', name: 'Peach' },
   { key: 'plum', name: 'Plum' },
@@ -111,7 +130,7 @@ export const LOOP_PALETTES: readonly { key: string; name: string }[] = Object.fr
   { key: 'cocoa', name: 'Cocoa' },
 ]);
 
-/** After chest 30: a fixed list of palette coats, palette by palette, one per original hero. */
+/** After the fixed chests: a fixed list of palette coats, palette by palette, one per original hero. */
 export const LOOP_REWARDS: readonly TreatReward[] = Object.freeze(
   LOOP_PALETTES.flatMap((p) => TRACK_ORIGINALS.map((h): TreatReward => ({ ...coat(h, `loop.${p.key}`, p.name), loop: true }))),
 );

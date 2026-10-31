@@ -12,7 +12,7 @@ describe('dare links', () => {
     const d = { seed: 0xdeadbeef, hero: 'sage' as const, trick: 'hiss' as const, difficulty: 'normal' as const, seconds: 432 };
     expect(decodeDare(encodeDare(d))).toEqual(d);
     expect(decodeDare(encodeDare({ ...d, difficulty: 'hard' }))?.difficulty).toBe('hard');
-    expect(decodeDare('zz.9.0.0.1')).toBeNull();
+    expect(decodeDare('zz.99.0.0.1')).toBeNull();
     expect(decodeDare('1.0.0.3.1')).toBeNull();
     expect(decodeDare('<script>.0.0.0.1')).toBeNull();
     expect(decodeDare(null)).toBeNull();
