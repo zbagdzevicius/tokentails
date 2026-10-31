@@ -34,6 +34,8 @@ export class Lobby {
   private top = 3;
   private edgeAt = -1;
   private edge: number | null = null;
+  /** Share of the screen height a footer under the hero takes (short landscape pick: Play and the bots row). */
+  private foot = 0;
   private moodAt = -1;
 
   constructor(private readonly gr: GameRenderer) {
@@ -118,13 +120,16 @@ export class Lobby {
       const top = this.top + 0.35;
       // the pedestal's front rim (r 1.8 m, toward the tilted camera) projects below its centre: keep it in frame
       const bottom = -0.8;
-      const span = (top - bottom) * 1.12;
+      const edge = this.panelEdge();
+      const hero = (top - bottom) * 1.12;
+      // a footer under the hero (844x390 pick: the bots row and Play) gets its own band at the foot of the frame, so
+      // it no longer covers the feet, leg warmers or cushion (the hero frames in the screen above it)
+      const span = hero / (1 - this.foot);
       const dist = Math.max(7.6, span / 2 / tanV);
-      const cy = (top + bottom) / 2 + span * 0.03;
+      const cy = (top + bottom) / 2 + hero * 0.03 - (span - hero) / 2;
       const halfW = tanV * dist * aspect;
       // keep the hero and the pedestal (r 1.8 m) right of the UI column, inside the screen
       const ped = 1.85 / halfW;
-      const edge = this.panelEdge();
       let ndc = this.side * 0.6;
       if (edge !== null) ndc = Math.max(ndc, edge + ped + 0.03);
       ndc = Math.min(ndc, 0.97 - ped);
@@ -147,6 +152,13 @@ export class Lobby {
       if (r.width > 0 && r.height > 0) right = Math.max(right, r.right);
     }
     const w = window.innerWidth || 1;
+    const h = window.innerHeight || 1;
+    // the pick footer, when it sits on the hero's half of the screen (short landscape), reserves its band
+    this.foot = 0;
+    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-foot')) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && r.left > w * 0.45) this.foot = Math.min(0.35, Math.max(0, (h - r.top) / h));
+    }
     this.edge = right > 0 ? (right / w) * 2 - 1 : null;
     return this.edge;
   }

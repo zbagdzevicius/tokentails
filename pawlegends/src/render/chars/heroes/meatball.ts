@@ -31,8 +31,10 @@ export const ULT_NAME = 'Chonk!';
 export const ACCENT: number | null = null;
 
 const COAT: CoatSpec = { pattern: 'tabby', base: 0xe07a35, deep: 0xb5521f, light: 0xf2a65e, cream: 0xfbe3c4, stripe: 0.5 };
-/** Lunchbox tin blue, its lid trim and the fish on the lid. */
-const TIN = 0x7fb0d9;
+/** Lunchbox tin (leaf green, his GRASS element: a light blue tin read as an enemy-team block on the pink team), its
+ * lid trim and the fish on the lid. */
+const TIN = 0x7fbf5a;
+const TIN_TRIM = 0x3f7a2c;
 const FISH = 0xc8d4dc;
 const SWEAT = 0xf6f2ea;
 /** A short stub of a tail sticking out low off his rump (kept under the head line: from the iso camera a raised tail read as a horn). */
@@ -43,19 +45,22 @@ const TAIL: readonly (readonly [number, number, number])[] = [[0.0, 0.2, -0.17],
  */
 export function fishLunchbox(A: Assembly, color: Col): void {
   const w = A.w;
-  const at = mat([-0.19 * w, -0.03, 0.05], [0, -0.5, 0.12]);
+  const at = mat([-0.34 * w, 0.0, 0.06], [0, -0.75, 0.12]);
   A.add('hips', new THREE.BoxGeometry(0.15, 0.1, 0.075), { m: at, color });
-  A.add('hips', new THREE.BoxGeometry(0.155, 0.018, 0.08), { m: at.clone().multiply(mat([0, 0.05, 0])), color: 0x4f7fa8 });
-  A.add('hips', new THREE.TorusGeometry(0.03, 0.007, 3, A.seg(8, 5), Math.PI), { m: at.clone().multiply(mat([0, 0.058, 0])), color: 0x4f7fa8 });
+  A.add('hips', new THREE.BoxGeometry(0.155, 0.018, 0.08), { m: at.clone().multiply(mat([0, 0.05, 0])), color: TIN_TRIM });
+  A.add('hips', new THREE.TorusGeometry(0.03, 0.007, 3, A.seg(8, 5), Math.PI), { m: at.clone().multiply(mat([0, 0.058, 0])), color: TIN_TRIM });
   // the fish on the lid's face: a flat body and a tail fin
   A.add('hips', new THREE.SphereGeometry(0.03, A.seg(8, 5), A.seg(5, 3)).scale(1.4, 0.75, 0.3), { m: at.clone().multiply(mat([0.01, 0, 0.04])), color: FISH });
   A.add('hips', new THREE.ConeGeometry(0.022, 0.03, 3).rotateZ(Math.PI / 2), { m: at.clone().multiply(mat([-0.045, 0, 0.04], [0, 0, 0], [1, 1, 0.35])), color: FISH });
 }
 
-/** The belly ball: a big round coat-coloured sphere over his hips and chest, the widest round body in the game. */
+/**
+ * The belly ball: a big round coat-coloured sphere over his hips and chest, the widest round body in the game. It
+ * bulges out past the bandana on both sides, so from behind at the game camera he reads wide, not as an upright egg.
+ */
 function belly(A: Assembly): void {
   const w = A.w;
-  A.add('hips', new THREE.SphereGeometry(0.25, A.seg(16, 9), A.seg(12, 7)).scale(1.1 * w, 0.9, 1.04), { m: mat([0, 0.07, 0.02]), color: (_v, _n, lp) => A.coat('body', lp) });
+  A.add('hips', new THREE.SphereGeometry(0.27, A.seg(16, 9), A.seg(12, 7)).scale(1.42 * w, 0.92, 1.08), { m: mat([0, 0.08, 0]), color: (_v, _n, lp) => A.coat('body', lp) });
 }
 
 /** The bandana knot: a team-coloured triangle hanging on his chest under the chin. */
@@ -95,7 +100,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
     poses,
     gear: (A) => {
       belly(A);
-      G.mantle(A, t.main, trim ?? t.second, { r: 0.22, y: 0.16 });
+      G.mantle(A, t.main, trim ?? t.second, { r: 0.25, y: 0.16 });
       bandanaKnot(A, t.main);
       // the bandana's short tail down his back (a full cape hid the ball from the side)
       G.cape(A, founder || chroma !== null ? capeColor : t.main, capeHem, { len: 0.16, top: 0.13, bot: 0.17 });

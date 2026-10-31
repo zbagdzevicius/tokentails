@@ -97,6 +97,8 @@ export const POSES_PL: Record<string, PoseDef> = {
     arms: { L: { fk: { shoulder: [0.05, 0, 0.1], elbow: [-0.3, 0, 0] } }, R: { fk: { shoulder: [0.05, 0, -0.1], elbow: [-0.3, 0, 0] } } },
     sword: { mode: 'hidden' },
   },
+  // sim v11 heroes' own poses (Pixel's `boxSad` results-screen loss)
+  ...PIXEL.POSES,
 };
 
 const ALL_POSES: Record<string, PoseDef | null> = { ...PPK_POSES, ...POSES_PL };
@@ -112,6 +114,8 @@ export interface MotionProfile {
   /** Pose blended in for the wind-up of `shoot`. */
   aim?: string;
   stride: number;
+  /** The hero's own pose for a lobby mood ('cheer', 'sad'), when the shared one does not fit the body. */
+  moods?: Readonly<Partial<Record<'cheer' | 'sad', string>>>;
 }
 
 export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freeze({

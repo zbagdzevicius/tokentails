@@ -46,6 +46,19 @@ test('first match is one tap away and the move tip fires', async ({ page }, info
 test('all five tips fire on their events and hide once done (desktop)', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop controls');
   test.setTimeout(300_000);
+  // Record each tip's text in the page the moment it goes up: at speed 4 under full-suite load a tip can show and
+  // be done between two polls of the loop below (the attack tip often is: the hero auto-swings at a minion).
+  await page.addInitScript(() => {
+    const texts: Record<string, string> = {};
+    (window as unknown as { __tipTexts: Record<string, string> }).__tipTexts = texts;
+    const grab = () => {
+      const el = document.querySelector<HTMLElement>('.pl-tip.on');
+      const id = el?.dataset.id;
+      const text = el?.textContent ?? '';
+      if (id && text && !texts[id]) texts[id] = text;
+    };
+    new MutationObserver(grab).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'data-id'] });
+  });
   await startFirstMatch(page, '&speed=4');
   const seen: Record<string, string> = {};
   const deadline = Date.now() + 270_000;
@@ -61,7 +74,7 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
       return el ? { id: el.dataset.id ?? '', text: el.textContent ?? '' } : null;
     });
     const tip = await attr(page, 'tip');
-    if (up?.id && !seen[up.id]) seen[up.id] = up.text;
+    if (up?.id && up.text && !seen[up.id]) seen[up.id] = up.text;
     const done = await list(page, 'tipsDone');
     if (['move', 'attack', 'q', 'dodge', 'ult'].every((t) => done.includes(t))) break;
     if (tip === 'move') await page.mouse.click(760, 320, { button: 'right' });
@@ -103,6 +116,8 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
   const shown = await list(page, 'tipsShown');
   const done = await list(page, 'tipsDone');
   const level = maxLevel;
+  const observed = await page.evaluate(() => (window as unknown as { __tipTexts?: Record<string, string> }).__tipTexts ?? {});
+  for (const [id, text] of Object.entries(observed)) seen[id] ??= text;
   console.log(`first-match tips: shown ${shown.join(' ')}, done ${done.join(' ')}, highest level ${level}`);
   // The R tip needs level 4. The scripted player follows its own wave (data-ally-front) instead of attack-moving
   // onto the nearest enemy minion, so it farms XP under its minions' cover and reaches level 4 every run.

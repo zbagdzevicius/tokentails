@@ -8,14 +8,18 @@
  * Sim binding (numbers from anim/timing.ts, never literals):
  * - basics: swing start → contact on the melee hit at the 8 t windup (period 34 t); A belly bump, B double paw
  *   slap, C hip check with a one-turn hop spin (≤ 0.3 s, landing on the contact);
- * - Q Bowling Roll: take-off on the cast, a tucked ball rolling 2 whole pitch turns over the 9 t dash, unrolled by
+ * - Q Bowling Roll: take-off on the cast, a tucked ball whirling 2 whole yaw turns over the 9 t dash, unrolled by
  *   travelEnd (Hungry Roll's longer dash warps onto the same anchor);
  * - W Loaf Mode: drops into a loaf on the cast (instant), a breathing loaf held for the 60 t root (`hold`), a stretch
  *   on stateEnd (`end`);
  * - E Big Brother: a belly-first hop on the cast; the dash length depends on where the ally stands, so the clip binds
  *   to the cast only (a 6 t nominal air, his solo hop), then a wide guard stance over the friend;
- * - R Unstoppable Chonk: curls into a ball and swells to 1.15 on the cast, rolls as a ball for the 120 t state
- *   (`hold`, looping whole pitch turns that wrap to 0), pops out on stateEnd.
+ * - R Unstoppable Chonk: curls into a ball and swells to 1.15 on the cast, whirls as a ball for the 120 t state
+ *   (`hold`, looping whole yaw turns that wrap to 0), pops out on stateEnd.
+ *
+ * The ball stays upright and whirls on the spot (yaw) instead of tumbling end over end (pitch): he is a chibi, not
+ * a sphere, so a tumble showed him lying on his side with the bandana's mantle standing up like a plate through him.
+ * Upright, the tucked pose, the swell and the spin read as a round ball from every side (verification round 2).
  *
  * Whole-turn root rotations step back to 0 right after they complete (a turn is invisible), so a blend-out never
  * unwinds a spin. Joints (common.ts conventions): thigh x < 0 forward, knee x > 0 bends, shoulder x < 0 raises the
@@ -44,12 +48,13 @@ const SPIN = 0.36;
 
 const merge = (...ds: D[]): D => Object.assign({}, ...ds) as D;
 
-/** The ball: chin tucked to the chest, paws pulled in, knees up to the belly, the stub tail curled under. */
+/** The ball: chin sunk into the chest, paws hugging the belly, knees up to it, the stub tail curled under. Upright and
+ * symmetric front to back (a forward lean wobbled in the whirl). */
 const BALL: D = {
-  chest: [0.55, 0, 0],
-  head: [0.6, 0, 0],
-  shoulderL: [-1.0, 0, -0.5],
-  shoulderR: [-1.0, 0, 0.5],
+  chest: [0.2, 0, 0],
+  head: [0.75, 0, 0],
+  shoulderL: [-0.7, 0, -0.75],
+  shoulderR: [-0.7, 0, 0.75],
   elbowL: [-2.0, 0, 0],
   elbowR: [-2.0, 0, 0],
   thighL: [-1.3, 0, 0.1],
@@ -168,7 +173,7 @@ const basicPick = (ctx: MoveCtx): ClipDef | null => BASICS[ctx.comboIndex % BASI
 const Q_T0 = 0.06;
 const Q_LAND = Q_T0 + Q_AIR;
 const Q_END = Q_LAND + 0.2;
-/** Tuck on the cast, two whole forward rolls along the dash, unroll by travelEnd with a bounce. */
+/** Tuck on the cast, two whole whirls along the dash, unroll by travelEnd with a bounce. */
 const q: ClipDef = {
   id: 'meatball.q',
   len: Q_END,
@@ -184,12 +189,12 @@ const q: ClipDef = {
     [Q_END, null, null, 'inOut'],
   ],
   root: {
-    pitch: [[0, 0], [Q_T0, 0], [Q_LAND - 0.04, 2, 'lin'], [Q_LAND - 0.04 + WRAP, 0, 'step'], [Q_END, 0]],
+    yaw: [[0, 0], [Q_T0, 0], [Q_LAND - 0.04, 2, 'lin'], [Q_LAND - 0.04 + WRAP, 0, 'step'], [Q_END, 0]],
     up: [[0, 0], [Q_T0, 0.05, 'out'], [Q_T0 + Q_AIR * 0.3, 0.18, 'out'], [Q_T0 + Q_AIR * 0.6, 0.04, 'in'], [Q_LAND, 0.1, 'out'], [Q_LAND + 0.1, 0, 'in'], [Q_END, 0]],
     sy: [[0, 1], [Q_T0, 0.86, 'out'], [Q_LAND - 0.04, 0.88], [Q_LAND + 0.04, 1.08, 'out'], [Q_LAND + 0.12, 0.9, 'in'], [Q_END, 1, 'back']],
     sx: [[0, 1], [Q_T0, 1.08, 'out'], [Q_LAND - 0.04, 1.08], [Q_LAND + 0.04, 0.96, 'out'], [Q_END, 1, 'inOut']],
   },
-  calm: { pitch: 0 },
+  calm: { yaw: 0 },
   markers: { takeoff: Q_T0, contact: Q_T0, land: Q_LAND, end: Q_END },
   warp: [['takeoff', 'cast'], ['land', 'travelEnd']],
   cues: [['takeoff', 'earsBack'], ['takeoff', 'whoosh', 'L'], ['takeoff', 'trailOn', 'body'], ['takeoff', 'dust'], ['land', 'trailOff'], ['land', 'land'], ['land', 'dust']],
@@ -323,7 +328,7 @@ const r: ClipDef = {
   cancel: 'none',
 };
 
-/** The rolling ball for the state: one whole forward turn per SPIN, swollen, wrapping to 0 at the loop seam. */
+/** The whirling ball for the state: one whole yaw turn per SPIN, swollen, wrapping to 0 at the loop seam. */
 const rHold: ClipDef = {
   id: 'meatball.rHold',
   len: SPIN,
@@ -333,12 +338,12 @@ const rHold: ClipDef = {
   blendIn: 0.06,
   keys: [[0, null, BALL], [SPIN, null, BALL, 'hold']],
   root: {
-    pitch: [[0, 0], [SPIN - WRAP, 1, 'lin'], [SPIN, 0, 'step']],
+    yaw: [[0, 0], [SPIN - WRAP, 1, 'lin'], [SPIN, 0, 'step']],
     up: [[0, 0.04], [SPIN * 0.5, 0.1, 'inOut'], [SPIN, 0.04, 'inOut']],
     sx: [[0, SWELL], [SPIN, SWELL]],
     sy: [[0, SWELL], [SPIN, SWELL]],
   },
-  calm: { pitch: 0 },
+  calm: { yaw: 0 },
   markers: {},
   warp: [],
   cancel: 'any',

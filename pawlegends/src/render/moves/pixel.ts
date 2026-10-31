@@ -26,9 +26,9 @@ export const W_DUR_S = T.w.duration * TICK_S;
 export const E_DUR_S = T.e.duration * TICK_S;
 /** R: BOXBOT's window. */
 export const R_DUR_S = T.r.duration * TICK_S;
-/** BOXBOT's box scale and lift (the box grows legs). */
-export const BOXBOT_SCALE = 1.25;
-export const BOXBOT_LIFT = 0.23;
+/** BOXBOT's scale and lift (the box grows legs). 1.25 read as her normal size at the game camera: 1.45 does not. */
+export const BOXBOT_SCALE = 1.45;
+export const BOXBOT_LIFT = 0.32;
 
 // ------------------------------------------------------------------------------------------------ shared poses
 

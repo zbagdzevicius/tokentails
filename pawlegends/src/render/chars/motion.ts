@@ -193,7 +193,7 @@ export class Animator {
       this.hold.t -= dt;
       if (this.hold.t <= 0 || dead) this.hold = null;
     }
-    let want = this.mood ?? this.profile.idle;
+    let want = this.mood ? (this.profile.moods?.[this.mood as 'cheer' | 'sad'] ?? this.mood) : this.profile.idle;
     let dur = this.mood ? 0.35 : 0.2;
     if (dead) {
       want = 'faint';

@@ -34,6 +34,18 @@ const N = 16;
 const TAU = Math.PI * 2;
 /** Paw-print and speed-line cadence (s) during Zoomies. */
 const PRINT_EVERY = 0.09;
+/**
+ * Zoomies' readable sizes at the game camera (verification round 2: a 0.28 m print, a 0.2 m wide streak living 0.24 s
+ * and a 0.22 m ribbon left one faint white line in the gallery and nothing in a match): the paw print's size (m) and
+ * life (s), the speed streak's width (m: the beam's bright core is about 40% of it) and life (s), the chest ribbon's
+ * width (m) and life (s). The Zoomies hold clip (moves/stilts.ts) adds her afterimages (ghost cues).
+ */
+export const PRINT_SIZE = 0.46;
+const PRINT_LIFE = 0.9;
+const STREAK_W = 0.56;
+const STREAK_LIFE = 0.34;
+const RIBBON_W = 0.48;
+const RIBBON_LIFE = 0.55;
 
 let clock = 0;
 const zoomUntil = new Float64Array(N);
@@ -139,7 +151,7 @@ function castR(id: number, fx: FxCtx): void {
   SRC.x = P.x;
   SRC.y = 0.9;
   SRC.z = P.z;
-  ribbon[id] = fx.ribbons.point(SRC, TERRA, 0.22, 0.35);
+  ribbon[id] = fx.ribbons.point(SRC, TERRA, RIBBON_W, RIBBON_LIFE);
 }
 
 /** A pounce landed on a hero: two crossed claw streaks on the victim, the slow ring, scratches on the ground. */
@@ -243,11 +255,11 @@ function update(dt: number, fx: FxCtx): void {
     }
     const rel = fx.relation(id);
     const rim = fx.rim(id);
-    fx.mesh.spawn('glow', { x: P.x - F.z * 0.18 * side - F.x * 0.35, z: P.z + F.x * 0.18 * side - F.z * 0.35, sx: 0.28, life: 0.6, color: RUST, rim, p3: 2, rel });
+    fx.mesh.spawn('glow', { x: P.x - F.z * 0.2 * side - F.x * 0.45, z: P.z + F.x * 0.2 * side - F.z * 0.45, sx: PRINT_SIZE, life: PRINT_LIFE, color: RUST, rim, p3: 2, rel });
     // a speed line streaking in to her back at body height (Med and up: Low keeps its two beam slots for gameplay
     // lines); the ribbon only shows once she moves, the streaks read even while she stands
     if (fx.tier !== 'low') {
-      const len = side > 0 ? 1.7 : 1.3;
+      const len = side > 0 ? 2.6 : 2.0;
       const lat = side * (0.22 + 0.1 * (printNext[id] % 1));
       fx.mesh.spawn('beam', {
         x: P.x - F.z * lat - F.x * (0.35 + len),
@@ -255,8 +267,8 @@ function update(dt: number, fx: FxCtx): void {
         z: P.z + F.x * lat - F.z * (0.35 + len),
         yaw: Math.atan2(-F.z, F.x),
         sx: len,
-        sz: 0.2,
-        life: 0.24,
+        sz: STREAK_W,
+        life: STREAK_LIFE,
         color: side > 0 ? CREAM : TERRA,
         rim,
         p3: 2.2,
