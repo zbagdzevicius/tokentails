@@ -23,3 +23,30 @@
   .hero-card .champ-art { width: 16px; height: 16px; }
   .pl-pick .champ-flavour { display: none; }
 }
+/* Verification round 2: at 1280x720 the column scrolled (Lambo's detail ran 150 px past it), cutting the R line and
+   hiding the Paw Trick row with no cue. On screens 1100 px wide and up (narrower, the chips would wrap under Play)
+   the footer becomes one band, Play left and the bots chips with their hint right, so the column gets 78 px more
+   height and 40 px more width; below 820 px tall the tiles and the detail card tighten; and the column fades out at
+   its foot (a scroll cue when something is under it; the padding keeps the last row clear when nothing is). */
+@media (min-height: 481px) and (min-width: 1100px) {
+  .pl-pick .pl-pick-foot { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; row-gap: 4px; align-items: center; }
+  .pl-pick .pl-pick-foot .pl-btn.big { grid-column: 1; grid-row: 1 / span 2; }
+  .pl-pick .pl-pick-foot .row.bots { grid-column: 2; grid-row: 1; gap: 6px; }
+  .pl-pick .pl-pick-foot .row.bots .lbl { width: auto; }
+  .pl-pick .pl-pick-foot .bots-hint { grid-column: 2; grid-row: 2; }
+  .pl-pick .pl-pick-col, .pl-pick .pl-pick-foot { width: min(560px, 46vw); }
+  .pl-pick .pl-pick-col { bottom: 92px; }
+}
+@media (min-height: 481px) {
+  .pl-pick .pl-pick-col { padding-bottom: 14px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
+}
+@media (min-height: 481px) and (max-height: 820px) {
+  .pl-pick .pl-pick-col { top: 16px; gap: 10px; }
+  .pl-pick .heroes .hero-card { padding: 5px 2px; gap: 2px; }
+  .pl-pick .heroes .hero-card i.pic { width: 40px; height: 40px; }
+  .pl-pick .detail { padding: 10px 14px; }
+  .pl-pick .detail h3 { font-size: 20px; }
+  .pl-pick .blurb { margin: 2px 0 6px; }
+  .pl-pick .kit { gap: 5px; }
+  .pl-pick .kit li .ico { width: 22px; height: 22px; }
+}

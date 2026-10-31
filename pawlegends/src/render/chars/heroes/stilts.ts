@@ -28,6 +28,11 @@ export const MOTION: MotionProfile = { idle: 'ready', run: 'stand', cast: 'boop'
 export const HEIGHT = 3.2;
 /** Top of the bind-pose bounds (m: the ear tufts), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
 export const TOP = 3.23;
+/**
+ * Headroom (m) from TOP to her overhead plate (the shared one is 0.15): her radar ears are long sprung cones that lift
+ * past the bind-pose top in her chin-up stances and leap, and at 0.15 their tips poked into the plate.
+ */
+export const PLATE_HEADROOM = 0.4;
 /** Relation ring under her (m). */
 export const RING = 1.95;
 export const COLOR_CSS = '#c9874a';

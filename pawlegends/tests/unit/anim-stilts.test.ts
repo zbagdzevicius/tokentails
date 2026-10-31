@@ -11,7 +11,7 @@ import { BASIC_WINDUP, SIM_TIMING, TICK_S, abilNumbers, travelTicks } from '../.
 import { ROOT_CAPS } from '../../src/render/anim/root';
 import { Prio, type FxCtx, type MeshFxKind, type MeshFxSpawn, type MoveCtx, type Slot } from '../../src/render/anim/types';
 import { MOVES, STILTS_CLIPS, STILTS_LEAP_S, STILTS_PERIOD_S, STILTS_STATE, STILTS_SWAT_GAP_S, STILTS_ZOOMIES_S, STRIDE_MAX, resetStiltsMoves } from '../../src/render/moves/stilts';
-import { SKILL_FX, resetStiltsFx, zoomEndOf } from '../../src/render/skillfx/stilts';
+import { PRINT_SIZE, SKILL_FX, resetStiltsFx, zoomEndOf } from '../../src/render/skillfx/stilts';
 
 const FRAME = 1 / 60;
 const byId = (id: string) => STILTS_CLIPS.find((c) => c.id === id)!;
@@ -223,7 +223,7 @@ describe('stilts skill FX', () => {
     expect(zoomEndOf(0)).toBeCloseTo(STILTS_ZOOMIES_S, 9);
     expect(f.ribbons()).toBe(1);
     f.step(1);
-    const prints = f.spawned.filter((s) => s.kind === 'glow' && s.o.sx < 0.3).length;
+    const prints = f.spawned.filter((s) => s.kind === 'glow' && s.o.sx === PRINT_SIZE).length;
     expect(prints).toBeGreaterThan(4);
     f.step(STILTS_ZOOMIES_S);
     expect(f.ended()).toBe(1);

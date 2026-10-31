@@ -291,6 +291,8 @@ const rHold: ClipDef = {
   },
   markers: {},
   warp: [],
+  // her afterimages: a ghost twice a loop (every 0.18 s, its own life), left behind wherever she runs
+  cues: [[0.01, 'ghost'], [0.19, 'ghost']],
   cancel: 'any',
 };
 

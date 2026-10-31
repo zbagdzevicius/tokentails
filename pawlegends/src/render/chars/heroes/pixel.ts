@@ -15,9 +15,25 @@ import type { SpringTuning } from '../../anim/types';
 import type { Look } from '../../cosmetics';
 import { mat, type Assembly, type ChibiSpec, type Col, type CoatSpec } from '../chibi';
 import * as G from '../gear';
+import type { PoseDef } from '../skeleton';
 import type { HeroDress, MotionProfile } from '../specs';
 
-export const MOTION: MotionProfile = { idle: 'stand', run: 'stand', cast: 'aim', attack: 'shoot', aim: 'aim', stride: 0.85 };
+export const MOTION: MotionProfile = { idle: 'stand', run: 'stand', cast: 'aim', attack: 'shoot', aim: 'aim', stride: 0.85, moods: { sad: 'boxSad' } };
+
+/**
+ * Her own poses (specs.ts adds them to the library). `boxSad`, the results-screen loss: the shared `sad` drops the
+ * chin under the box rim and hangs the weapon point-down from a hip-height guard, which on her short kid arms left the
+ * cap cannon dangling at her boots, clear of any paw. Here she slumps with her paws on the rim, the cannon resting on
+ * it in her right paw, pointing ahead, the head only a little down so the face stays over the box, ears and tail low.
+ */
+export const POSES: Record<string, PoseDef> = {
+  boxSad: {
+    joints: { chest: [0.06, 0, 0], head: [0.04, 0, 0.1], thighL: [0, 0.05, 0.05], thighR: [0, -0.05, -0.05], footL: [0, 0.2, 0], footR: [0, -0.2, 0], earL: [0.3, 0, -0.45], earR: [0.3, 0, 0.45] },
+    arms: { L: { fk: { shoulder: [-0.85, 0, 0.2], elbow: [-1.3, 0, 0] } }, R: { grip: -0.055, off: [0, 0, 0], pole: [-1, -0.2, -0.6], twist: [0, 0, 0] } },
+    sword: { mode: 'hand', guard: [-0.13, 0.47, 0.16], dir: [-0.35, -0.45, 1], face: [0, 1, 0] },
+    tail: [[0.4, 0, 0], [0.3, 0, 0], [0.2, 0, 0], [0.1, 0, 0], [0, 0, 0], [0, 0, 0]],
+  },
+};
 /** Standing height (m) in the match. */
 export const HEIGHT = 2.3;
 /** Top of the bind-pose bounds (m: the antenna bead), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
@@ -92,13 +108,15 @@ function capCannon(A: Assembly): void {
  * turn the thighs a half turn: the tubes swing down out of the box as legs (her own short legs fold up inside it)
  * and the root lift stands the bigger box on them. LEG_TUBE is the length the lift was set for.
  */
-export const LEG_TUBE = 0.3;
+export const LEG_TUBE = 0.36;
+/** The tube radius: thick enough to read as two robot legs at the game camera (0.048 read as a thin grey stub). */
+const LEG_R = 0.07;
 function robotLegs(A: Assembly): void {
   for (const s of ['L', 'R'] as const) {
     const bone = `thigh${s}` as const;
-    A.add(bone, new THREE.CylinderGeometry(0.048, 0.048, LEG_TUBE - 0.03, A.seg(8, 6), 1, true), { m: mat([0, (LEG_TUBE - 0.03) / 2, 0]), color: CANNON });
-    for (let i = 1; i <= 3; i++) A.add(bone, new THREE.TorusGeometry(0.05, 0.011, 3, A.seg(8, 6)), { m: mat([0, (i * LEG_TUBE) / 4, 0], [Math.PI / 2, 0, 0]), color: G.STEEL_DARK });
-    A.add(bone, new THREE.BoxGeometry(0.11, 0.03, 0.14), { m: mat([0, LEG_TUBE - 0.015, -0.02]), color: G.STEEL_DARK });
+    A.add(bone, new THREE.CylinderGeometry(LEG_R, LEG_R, LEG_TUBE - 0.04, A.seg(8, 6), 1, true), { m: mat([0, (LEG_TUBE - 0.04) / 2, 0]), color: CANNON });
+    for (let i = 1; i <= 3; i++) A.add(bone, new THREE.TorusGeometry(LEG_R + 0.003, 0.014, 3, A.seg(8, 6)), { m: mat([0, (i * LEG_TUBE) / 4, 0], [Math.PI / 2, 0, 0]), color: G.STEEL_DARK });
+    A.add(bone, new THREE.BoxGeometry(0.16, 0.045, 0.2), { m: mat([0, LEG_TUBE - 0.022, -0.03]), color: G.STEEL_DARK });
   }
 }
 

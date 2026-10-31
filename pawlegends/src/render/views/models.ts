@@ -12,7 +12,7 @@ import { ModelBuilder } from './rig';
 import { RING as MEATBALL_RING } from '../chars/heroes/meatball';
 import { RING as PIXEL_RING } from '../chars/heroes/pixel';
 import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
-import { RING as STILTS_RING } from '../chars/heroes/stilts';
+import { PLATE_HEADROOM as STILTS_PLATE_HEADROOM, RING as STILTS_RING } from '../chars/heroes/stilts';
 
 const EYE = 0x2a1a22;
 const WHITE = 0xffffff;
@@ -36,7 +36,7 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   meatball: (HERO_TOP.meatball + 0.15) / 1.62,
   pixel: (HERO_TOP.pixel + 0.15) / 1.62,
   duchess: (HERO_TOP.duchess + 0.15) / 1.62,
-  stilts: (HERO_TOP.stilts + 0.15) / 1.62,
+  stilts: (HERO_TOP.stilts + STILTS_PLATE_HEADROOM) / 1.62,
 });
 
 /** Relation ring size under each hero (m; the size the quadruped heroes had, so rings read the same). */

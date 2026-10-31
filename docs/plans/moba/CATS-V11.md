@@ -671,10 +671,18 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 - Meatball's sweatband is sized to the skull; Stilts's scarf ends hang down her back as cloth.
 - The PPK config's frozen tables are marked pure, so the bundle drops the ones the game never reads (first-load JS 448.3 KB).
 
+**Verification round 2**
+- Meatball's ball (Q and Chonk) stays upright and whirls on the spot (yaw) instead of tumbling end over end: a chibi tumble lay him on his side with the bandana's mantle standing up through him. His belly ball is wider (it bulges past the bandana, so he reads wide from behind at the game camera), the mantle is a little bigger to keep the team read, and the lunchbox tin is leaf green (the light blue read as an enemy-team block).
+- Pixel: a loss on the results screen plays her own `boxSad` (MotionProfile `moods`; the shared `sad` hung the cannon at her boots and sank her chin under the rim). BOXBOT scales her 1.45 (1.25 read as her normal size) on thicker robot legs.
+- Stilts: Zoomies prints, streaks and ribbon are bigger and live longer, and the hold clip leaves afterimages (ghost cues). Her plate sits 0.4 m over her bind-pose top (her ear tips reached it at 0.15).
+- Pick screen: on screens 1100 px wide and up the footer is one band (Play left, bots right) and the column is wider; below 820 px tall the tiles and detail tighten; the column fades at its foot as a scroll cue. At 1280×720 every hero's kit and the Paw Trick row fit (Lambo's champion lines scroll 18 px). At short landscape the lobby camera frames the hero above the bots row and Play, so feet, leg warmers and the cushion show.
+- The ult banner drops below a stage banner that is up, instead of drawing over its subtitle.
+- The first-match e2e records each tip's text in the page the moment it goes up (a tip could show and be done between two polls under full-suite load).
+
 **Reported, not fixed here**
 - Nap (`units/hero.ts`, `toSpawn` when the channel ends) teleports a hero home without the kit's `reset` hook. Stilts guards against it in her kit; any kit that tracks a last position would see a jump.
 - The touch Attack button treats only Sage as ranged (decision 3 above).
-- The core's HP bar draws over a hero standing in front of it at the fountain, and at 844×390 the bots row (with the "Played MOBAs before?" chip) sits over the pick turntable. Both predate v11.
+- The core's HP bar draws over a hero standing in front of it at the fountain (predates v11). The 844×390 bots row over the pick turntable is fixed in round 2 (the lobby camera reserves its band).
 
 **Balance (Phase 3)**
 - The `pvp` pass covers all 12 heroes. Meatball 9100/9600, Pixel 9400/9600, Duchess 11400/8700, Stilts 10300/9000. Every other cat takes 300 less than before; Clem, Gabė and Avietė also deal less. Brutus and Cacklejaw take 9350.
